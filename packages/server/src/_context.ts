@@ -1,14 +1,23 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import type { AgentContext } from './agent';
+import type { AgentContext, AgentName } from './agent';
 import { endPendingWaitUntil, startPendingWaitUntil } from './_idle';
+import type { Logger } from './logger';
 
-export class RequestAgentContext implements AgentContext {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	agent: any;
+interface RequestAgentContextArgs<TAgent> {
+	agent: TAgent;
+	agentName: AgentName;
+	logger: Logger;
+}
 
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	constructor(agent: any) {
-		this.agent = agent;
+export class RequestAgentContext<TAgent> implements AgentContext {
+	agent: TAgent;
+	agentName: AgentName;
+	logger: Logger;
+
+	constructor(args: RequestAgentContextArgs<TAgent>) {
+		this.agent = args.agent;
+		this.agentName = args.agentName;
+		this.logger = args.logger;
 	}
 
 	async waitUntil(callback: () => void | Promise<void>): Promise<void> {
@@ -32,7 +41,7 @@ const asyncLocalStorage = new AsyncLocalStorage<AgentContext>({
 	name: 'AgentContext',
 });
 
-export const getContext = (): AgentContext => {
+export const getAgentContext = (): AgentContext => {
 	const context = asyncLocalStorage.getStore();
 	if (!context) {
 		throw new Error('AgentContext is not available');
@@ -40,8 +49,19 @@ export const getContext = (): AgentContext => {
 	return context;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const runInAgentContext = (agent: any, next: () => Promise<void>) => {
-	const ctx = new RequestAgentContext(agent);
+export const runInAgentContext = <TAgent>(
+	ctxObject: Record<string, unknown>,
+	args: RequestAgentContextArgs<TAgent>,
+	next: () => Promise<void>
+) => {
+	const ctx = new RequestAgentContext(args);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const _ctx = ctx as any;
+	Object.getOwnPropertyNames(ctx).forEach((k) => {
+		ctxObject[k] = _ctx[k];
+	});
+	for (const k of ['waitUntil']) {
+		ctxObject[k] = _ctx[k];
+	}
 	return asyncLocalStorage.run(ctx, next);
 };

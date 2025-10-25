@@ -1,17 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-empty-object-type */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import {
-	type Context,
-	type Env,
-	Hono,
-	type Input,
-	type MiddlewareHandler,
-	type Schema,
-} from 'hono';
+import { type Context, Hono, type Input, type MiddlewareHandler, type Schema } from 'hono';
 import { stream as honoStream, streamSSE as honoStreamSSE } from 'hono/streaming';
 import { upgradeWebSocket as honoUpgradeWebSocket } from 'hono/bun';
 import { hash, returnResponse } from './_util';
+import type { Env } from './app';
 
 type AgentHandler<E extends Env = Env, P extends string = string, I extends Input = {}> = (
 	c: Context<E, P, I>

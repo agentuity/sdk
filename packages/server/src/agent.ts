@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { StandardSchemaV1 } from '@agentuity/core';
 import type { Context, MiddlewareHandler } from 'hono';
-import { RequestAgentContext, runInAgentContext } from './_context';
+import { getAgentContext, runInAgentContext } from './_context';
+import type { Logger } from './logger';
 
 export interface AgentContext {
 	//   email: () => Promise<Email | null>;
@@ -9,6 +10,8 @@ export interface AgentContext {
 	//   cron: () => Promise<Cron | null>;
 	waitUntil: (callback: () => Promise<void>) => Promise<void>;
 	agent?: any; // Will be augmented by generated code
+	agentName?: AgentName;
+	logger: Logger;
 }
 
 /**
@@ -49,7 +52,14 @@ export interface AgentRunner<
 // Will be populated at runtime with strongly typed agents
 const agents = new Map<string, Agent>();
 
-export const registerAgent = (name: string, agent: Agent): void => {
+/**
+ * Union type of all registered agent names.
+ * Falls back to `string` when no agents are registered (before augmentation).
+ * After augmentation, this becomes a strict union of agent names for full type safety.
+ */
+export type AgentName = string;
+
+export const registerAgent = (name: AgentName, agent: Agent): void => {
 	agents.set(name, agent);
 };
 
@@ -103,7 +113,7 @@ export function createAgent<
 	const inputSchema = config.schema?.input;
 	const outputSchema = config.schema?.output;
 
-	const handler = async (ctx: Context, input?: any) => {
+	const handler = async (_ctx: Context, input?: any) => {
 		let validatedInput: any = undefined;
 
 		if (inputSchema) {
@@ -116,7 +126,9 @@ export function createAgent<
 			validatedInput = inputResult.value;
 		}
 
-		const agentCtx: AgentContext = new RequestAgentContext((ctx as any).agent);
+		const agentCtx = getAgentContext();
+
+		// const agentCtx: AgentContext = new RequestAgentContext((ctx as any).agent);
 
 		const result = inputSchema
 			? await (config.handler as any)(agentCtx, validatedInput)
@@ -175,15 +187,23 @@ const createAgentRunner = <
 	}
 };
 
-export const createAgentMiddleware = (): MiddlewareHandler => {
+export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler => {
 	return async (ctx, next) => {
 		// Populate agents object with strongly-typed keys
 		const agentsObj: any = {};
 		for (const [name, agentFn] of agents) {
 			agentsObj[name] = createAgentRunner(agentFn, ctx);
 		}
-		(ctx as any).agent = agentsObj;
-		return runInAgentContext(agentsObj, next);
+
+		const args = {
+			agent: agentsObj,
+			agentName,
+			logger: ctx.var.logger.child({ agent: agentName }),
+		};
+
+		return runInAgentContext(ctx as unknown as Record<string, unknown>, args, next);
+
+		// FIXME
 		// ctx.keyvalue = kv;
 		// ctx.email = async (): Promise<Email> => {
 		//     return {
@@ -204,11 +224,5 @@ export const createAgentMiddleware = (): MiddlewareHandler => {
 		//         schedule: '0 0 * * *',
 		//     };
 		// };
-		// ctx.waitUntil = async (callback: () => Promise<void>) => {
-		//     callback().then(() => {
-		//         console.log('callback ran');
-		//     });
-		// };
-		// await next();
 	};
 };

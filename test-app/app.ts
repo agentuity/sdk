@@ -1,5 +1,5 @@
 import { createApp } from '@agentuity/server';
 
-const { server } = createApp();
+const { server, logger } = createApp();
 
-console.log(`Running ${server.url}`);
+logger.info('Running %s', server.url);

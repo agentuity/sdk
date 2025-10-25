@@ -60,6 +60,7 @@ ${typeExports}
 // Augment Context to provide strongly-typed agents
 declare module "hono" {
 	interface Context {
+	   agentName: AgentName;
 	   agent: {
 	     [K in AgentName]: AgentRunner<AgentRegistry[K]['inputSchema'], AgentRegistry[K]['outputSchema'], AgentRegistry[K]['stream'] extends true ? true : false>;
 	   };
@@ -158,7 +159,7 @@ const AgentuityBuilder: BunPlugin = {
 					if (hasAgent) {
 						buffer += `
     const agent = require('./src/${agent}').default;
-    app.all("${agentPath}", createAgentMiddleware());
+    app.all("${agentPath}", createAgentMiddleware('${name}'));
     registerAgent("${name}", agent);`;
 					}
 					buffer += `
@@ -168,7 +169,6 @@ const AgentuityBuilder: BunPlugin = {
 				}
 
 				const indexFile = join(srcDir, 'web', 'app.tsx');
-				console.log(indexFile);
 
 				if (existsSync(indexFile)) {
 					const uniqid = Math.random().toString(36);
