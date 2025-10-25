@@ -1,22 +1,21 @@
 {
-  "name": "@agentuity/core",
-  "version": "0.0.1",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "bunx tsc --build",
-    "typecheck": "bunx tsc --noEmit"
-  },
-  "dependencies": {
-  },
-  "devDependencies": {
-    "typescript": "^5.9.0"
-  }
+	"name": "@agentuity/core",
+	"version": "0.0.1",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "bunx tsc --build",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"typescript": "^5.9.0"
+	}
 }

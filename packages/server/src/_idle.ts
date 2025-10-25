@@ -3,15 +3,15 @@ import { getServer } from './_server';
 let pendingWaitUntilCounter = 0;
 
 export function startPendingWaitUntil() {
-    pendingWaitUntilCounter++;
+	pendingWaitUntilCounter++;
 }
 
 export function endPendingWaitUntil() {
-    pendingWaitUntilCounter--;
+	pendingWaitUntilCounter--;
 }
 
 export function hasPendingWaitUntil() {
-    return pendingWaitUntilCounter > 0;
+	return pendingWaitUntilCounter > 0;
 }
 
 /**
@@ -20,19 +20,19 @@ export function hasPendingWaitUntil() {
  * @returns true if idle
  */
 export function isIdle() {
-    if (hasPendingWaitUntil()) {
-        return false;
-    }
+	if (hasPendingWaitUntil()) {
+		return false;
+	}
 
-    const _server = getServer();
-    if (_server) {
-        if (_server.pendingRequests > 0) {
-            return false;
-        }
-        if (_server.pendingWebSockets > 0) {
-            return false;
-        }
-    }
+	const _server = getServer();
+	if (_server) {
+		if (_server.pendingRequests > 0) {
+			return false;
+		}
+		if (_server.pendingWebSockets > 0) {
+			return false;
+		}
+	}
 
-    return true;
+	return true;
 }

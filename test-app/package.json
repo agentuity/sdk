@@ -1,20 +1,20 @@
 {
-  "name": "test-app",
-  "module": "index.ts",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "build": "bun run ../packages/bundler/bin/bundler.ts --dir . --dev",
-    "dev": "bun run ./.agentuity/app.js"
-  },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "@hono/zod-validator": "^0.7.4",
-    "zod": "^4.1.12"
-  }
+	"name": "test-app",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"build": "bun run ../packages/bundler/bin/bundler.ts --dir . --dev",
+		"dev": "bun run ./.agentuity/app.js"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@hono/zod-validator": "^0.7.4",
+		"zod": "^4.1.12"
+	}
 }

@@ -1,11 +1,11 @@
 export interface FooBar {
-    bar: string;
+	bar: string;
 }
 
 export const foo: FooBar = {
-    bar: 'hi',
+	bar: 'hi',
 };
 
 export async function generateFoo(): Promise<FooBar> {
-    return foo;
+	return foo;
 }
