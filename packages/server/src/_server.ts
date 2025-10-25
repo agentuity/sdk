@@ -2,11 +2,13 @@
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import { createMiddleware } from 'hono/factory';
 import { Hono } from 'hono';
+import { baseRoutePath } from 'hono/route';
 import { BunWebSocketData, websocket } from 'hono/bun';
 import type { AppConfig, Env } from './app';
 import { extractTraceContextFromRequest } from './otel/http';
 import { register } from './otel/config';
 import type { Logger } from './logger';
+import { isIdle } from './_idle';
 
 let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 
@@ -63,18 +65,24 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 		c.set('logger', otel.logger);
 		c.set('tracer', otel.tracer);
 		c.set('meter', otel.meter);
+		const skipLogging = c.req.path.startsWith('/_agentuity/');
 		const started = performance.now();
-		otel.logger.debug('%s %s started', c.req.method, c.req.path);
+		if (!skipLogging) {
+			otel.logger.debug('%s %s started', c.req.method, c.req.path);
+		}
 		await next();
-		otel.logger.debug(
-			'%s %s completed (%d) in %sms',
-			c.req.method,
-			c.req.path,
-			c.res.status,
-			Number(performance.now() - started).toFixed(2)
-		);
+		if (!skipLogging) {
+			otel.logger.debug(
+				'%s %s completed (%d) in %sms',
+				c.req.method,
+				c.req.path,
+				c.res.status,
+				Number(performance.now() - started).toFixed(2)
+			);
+		}
 	});
 
+	app.route('/_agentuity', createAgentuityAPIs());
 	app.use('/api/*', otelMiddleware);
 	app.use('/agent/*', otelMiddleware);
 
@@ -113,6 +121,17 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 	});
 
 	return server;
+};
+
+const createAgentuityAPIs = () => {
+	const router = new Hono<Env>();
+	router.get('idle', (c) => {
+		if (isIdle()) {
+			return new Response('OK', { status: 200 });
+		}
+		return new Response('NO', { status: 200 });
+	});
+	return router;
 };
 
 const otelMiddleware = createMiddleware<Env>(async (c, next) => {

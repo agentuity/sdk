@@ -1,18 +1,5 @@
 import { getServer } from './_server';
-
-let pendingWaitUntilCounter = 0;
-
-export function startPendingWaitUntil() {
-	pendingWaitUntilCounter++;
-}
-
-export function endPendingWaitUntil() {
-	pendingWaitUntilCounter--;
-}
-
-export function hasPendingWaitUntil() {
-	return pendingWaitUntilCounter > 0;
-}
+import { hasWaitUntilPending } from './_waituntil';
 
 /**
  * returns true if the server is idle (no pending requests, websockets, or waitUntil tasks)
@@ -20,13 +7,14 @@ export function hasPendingWaitUntil() {
  * @returns true if idle
  */
 export function isIdle() {
-	if (hasPendingWaitUntil()) {
+	if (hasWaitUntilPending()) {
 		return false;
 	}
 
 	const _server = getServer();
 	if (_server) {
-		if (_server.pendingRequests > 0) {
+		// we have to check >1 since the idle request itself will show up as a pending request
+		if (_server.pendingRequests > 1) {
 			return false;
 		}
 		if (_server.pendingWebSockets > 0) {

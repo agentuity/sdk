@@ -1,17 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { StandardSchemaV1 } from '@agentuity/core';
+import { trace, type Tracer } from '@opentelemetry/api';
+
 import type { Context, MiddlewareHandler } from 'hono';
-import { getAgentContext, runInAgentContext } from './_context';
+import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
 import type { Logger } from './logger';
 
 export interface AgentContext {
 	//   email: () => Promise<Email | null>;
 	//   sms: () => Promise<SMS | null>;
 	//   cron: () => Promise<Cron | null>;
-	waitUntil: (callback: () => Promise<void>) => Promise<void>;
+	waitUntil: (promise: Promise<void> | (() => void | Promise<void>)) => void;
 	agent?: any; // Will be augmented by generated code
 	agentName?: AgentName;
 	logger: Logger;
+	sessionId: string;
+	tracer: Tracer;
 }
 
 /**
@@ -128,8 +132,6 @@ export function createAgent<
 
 		const agentCtx = getAgentContext();
 
-		// const agentCtx: AgentContext = new RequestAgentContext((ctx as any).agent);
-
 		const result = inputSchema
 			? await (config.handler as any)(agentCtx, validatedInput)
 			: await (config.handler as any)(agentCtx);
@@ -195,13 +197,26 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 			agentsObj[name] = createAgentRunner(agentFn, ctx);
 		}
 
-		const args = {
+		const args: Partial<RequestAgentContextArgs<any>> = {
 			agent: agentsObj,
 			agentName,
 			logger: ctx.var.logger.child({ agent: agentName }),
+			tracer: ctx.var.tracer,
+			setHeader: (k: string, v: string) => ctx.res.headers.set(k, v),
 		};
 
-		return runInAgentContext(ctx as unknown as Record<string, unknown>, args, next);
+		const span = trace.getActiveSpan();
+		if (span?.spanContext) {
+			args.sessionId = span.spanContext().traceId;
+		} else {
+			args.sessionId = Bun.randomUUIDv7();
+		}
+
+		return runInAgentContext(
+			ctx as unknown as Record<string, unknown>,
+			args as RequestAgentContextArgs<any>,
+			next
+		);
 
 		// FIXME
 		// ctx.keyvalue = kv;

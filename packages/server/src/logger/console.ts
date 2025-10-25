@@ -1,8 +1,6 @@
-import { formatWithOptions, inspect } from 'node:util';
 import { __originalConsole } from '../otel/logger';
-import { safeStringify } from '../_util';
 import type { Logger } from './logger';
-import { buildContextString } from './util';
+import { formatMessage } from './util';
 
 const yellow = '\x1b[33m';
 const green = '\x1b[32m';
@@ -26,59 +24,6 @@ export default class ConsoleLogger implements Logger {
 	}
 
 	/**
-	 * Formats a log message with context
-	 *
-	 * @param message - The message to format
-	 * @param args - Additional arguments for formatting
-	 * @returns The formatted message with context
-	 * @private
-	 */
-	private formatMessage(message: unknown, args: unknown[]): string {
-		// Format the context string
-		const contextStr = buildContextString(this.context);
-
-		// Format the message based on its type
-		let _message: string;
-		if (typeof message === 'string') {
-			_message = message;
-		} else if (typeof message === 'number' || typeof message === 'boolean') {
-			_message = String(message);
-		} else if (message === null) {
-			_message = 'null';
-		} else if (message === undefined) {
-			_message = 'undefined';
-		} else {
-			// Use inspect for objects for better formatting
-			_message = inspect(message, { depth: null, colors: false });
-		}
-
-		// Format the message with args
-		let formattedMessage: string;
-		try {
-			// Only use format if we have arguments
-			if (args.length > 0) {
-				formattedMessage = formatWithOptions({ depth: null }, _message, ...args);
-			} else {
-				formattedMessage = _message;
-			}
-		} catch {
-			// If formatting fails, use a simple concatenation
-			formattedMessage = `${_message} ${args
-				.map((arg) => {
-					try {
-						return typeof arg === 'object' ? safeStringify(arg) : String(arg);
-					} catch {
-						return '[object Object]';
-					}
-				})
-				.join(' ')}`;
-		}
-
-		// Combine message with context
-		return `${formattedMessage}${contextStr ? ` [${contextStr}]` : ''}`;
-	}
-
-	/**
 	 * Log a debug message
 	 *
 	 * @param message - The message to log
@@ -86,7 +31,7 @@ export default class ConsoleLogger implements Logger {
 	 */
 	debug(message: unknown, ...args: unknown[]): void {
 		try {
-			const formattedMessage = this.formatMessage(message, args);
+			const formattedMessage = formatMessage(this.context, message, args);
 			__originalConsole.debug(`${black}[DEBUG]${reset} ${formattedMessage}`);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
@@ -103,7 +48,7 @@ export default class ConsoleLogger implements Logger {
 	 */
 	info(message: unknown, ...args: unknown[]): void {
 		try {
-			const formattedMessage = this.formatMessage(message, args);
+			const formattedMessage = formatMessage(this.context, message, args);
 			__originalConsole.info(`${green}[INFO]${reset}  ${formattedMessage}`);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
@@ -120,7 +65,7 @@ export default class ConsoleLogger implements Logger {
 	 */
 	warn(message: unknown, ...args: unknown[]): void {
 		try {
-			const formattedMessage = this.formatMessage(message, args);
+			const formattedMessage = formatMessage(this.context, message, args);
 			__originalConsole.warn(`${yellow}[WARN]${reset}  ${formattedMessage}`);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
@@ -137,7 +82,7 @@ export default class ConsoleLogger implements Logger {
 	 */
 	error(message: unknown, ...args: unknown[]): void {
 		try {
-			const formattedMessage = this.formatMessage(message, args);
+			const formattedMessage = formatMessage(this.context, message, args);
 			__originalConsole.error(`${red}[ERROR]${reset} ${formattedMessage}`);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails

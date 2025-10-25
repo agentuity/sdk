@@ -1,4 +1,7 @@
-import { safeStringify } from '../_util';
+import { formatMessage } from './util';
+
+const cyan = '\x1b[1;96m';
+const reset = '\x1b[0m';
 
 /**
  * Log levels for internal SDK logging
@@ -64,24 +67,8 @@ class InternalLogger {
 	 * Format a log message with context
 	 */
 	private formatMessage(message: unknown, ...args: unknown[]): string {
-		const contextStr =
-			this.config.context && Object.keys(this.config.context).length > 0
-				? Object.entries(this.config.context)
-						.map(
-							([key, value]) =>
-								`${key}=${typeof value === 'object' ? safeStringify(value) : value}`
-						)
-						.join(' ')
-				: '';
-
-		const formattedMessage = typeof message === 'string' ? message : safeStringify(message);
-		const argsStr =
-			args.length > 0
-				? ' ' +
-					args.map((arg) => (typeof arg === 'string' ? arg : safeStringify(arg))).join(' ')
-				: '';
-
-		return `[INTERNAL] ${formattedMessage}${argsStr}${contextStr ? ` [${contextStr}]` : ''}`;
+		const formattedMessage = formatMessage(this.config.context, message, args);
+		return `${cyan}[INTERNAL]${reset} ${formattedMessage}`;
 	}
 
 	/**

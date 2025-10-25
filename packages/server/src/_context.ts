@@ -1,39 +1,41 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import type { Tracer } from '@opentelemetry/api';
 import type { AgentContext, AgentName } from './agent';
-import { endPendingWaitUntil, startPendingWaitUntil } from './_idle';
 import type { Logger } from './logger';
+import WaitUntilHandler from './_waituntil';
 
-interface RequestAgentContextArgs<TAgent> {
+export interface RequestAgentContextArgs<TAgent> {
+	sessionId: string;
 	agent: TAgent;
 	agentName: AgentName;
 	logger: Logger;
+	tracer: Tracer;
+	setHeader: (k: string, v: string) => void;
 }
 
 export class RequestAgentContext<TAgent> implements AgentContext {
 	agent: TAgent;
 	agentName: AgentName;
 	logger: Logger;
+	sessionId: string;
+	tracer: Tracer;
+	private waituntilHandler: WaitUntilHandler;
 
 	constructor(args: RequestAgentContextArgs<TAgent>) {
 		this.agent = args.agent;
 		this.agentName = args.agentName;
 		this.logger = args.logger;
+		this.sessionId = args.sessionId;
+		this.tracer = args.tracer;
+		this.waituntilHandler = new WaitUntilHandler(args.setHeader, args.tracer);
 	}
 
-	async waitUntil(callback: () => void | Promise<void>): Promise<void> {
-		// TODO: otel
-		setImmediate(() => {
-			startPendingWaitUntil();
-			try {
-				const p = callback();
-				if (p && p instanceof Promise) {
-					startPendingWaitUntil(); // since the finally will end one
-					p.finally(endPendingWaitUntil);
-				}
-			} finally {
-				endPendingWaitUntil();
-			}
-		});
+	waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void {
+		this.waituntilHandler.waitUntil(callback);
+	}
+
+	waitUntilAll(): Promise<void> {
+		return this.waituntilHandler.waitUntilAll(this.logger, this.sessionId);
 	}
 }
 
@@ -63,5 +65,9 @@ export const runInAgentContext = <TAgent>(
 	for (const k of ['waitUntil']) {
 		ctxObject[k] = _ctx[k];
 	}
-	return asyncLocalStorage.run(ctx, next);
+	return asyncLocalStorage.run(ctx, async () => {
+		return next().then(() => {
+			setImmediate(() => ctx.waitUntilAll()); // TODO: move until session
+		});
+	});
 };
