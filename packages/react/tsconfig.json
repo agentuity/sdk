@@ -9,7 +9,8 @@
 		"noEmit": false,
 		"emitDeclarationOnly": true,
 		"isolatedDeclarations": true,
-		"composite": true
+		"composite": true,
+		"jsx": "react-jsx"
 	},
 	"include": ["src/**/*"],
 	"references": [{ "path": "../core" }]

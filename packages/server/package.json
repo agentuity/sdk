@@ -15,7 +15,7 @@
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bun build --target bun --outdir dist src/index.ts --env AGENTUITY_PUBLIC_* && bunx tsc --build --force",
+		"build": "bun build --target bun --outdir dist src/index.ts && bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
