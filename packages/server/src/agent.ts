@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { StandardSchemaV1 } from '@sdk-mono/core';
+import type { StandardSchemaV1 } from '@agentuity/core';
 import type { Context, MiddlewareHandler } from 'hono';
 import { RequestAgentContext, runInAgentContext } from './_context';
 
@@ -110,7 +110,7 @@ export function createAgent<
 			const inputResult = await inputSchema['~standard'].validate(input);
 			if (inputResult.issues) {
 				throw new Error(
-					`Input validation failed: ${inputResult.issues.map((i) => i.message).join(', ')}`
+					`Input validation failed: ${inputResult.issues.map((i: any) => i.message).join(', ')}`
 				);
 			}
 			validatedInput = inputResult.value;
@@ -126,7 +126,7 @@ export function createAgent<
 			const outputResult = await outputSchema['~standard'].validate(result);
 			if (outputResult.issues) {
 				throw new Error(
-					`Output validation failed: ${outputResult.issues.map((i) => i.message).join(', ')}`
+					`Output validation failed: ${outputResult.issues.map((i: any) => i.message).join(', ')}`
 				);
 			}
 			return outputResult.value;
