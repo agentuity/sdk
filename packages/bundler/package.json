@@ -1,0 +1,31 @@
+{
+  "name": "@agentuity/bundler",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "agentuity-bundler": "./bin/bundler.ts"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "bun build --target bun src/index.ts --outdir ./dist && bunx tsc --build --emitDeclarationOnly --force",
+    "typecheck": "bunx tsc --noEmit",
+    "prepublishOnly": "bun run clean && bun run build"
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

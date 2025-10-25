@@ -1,0 +1,7 @@
+{
+        "files.exclude": {
+            "**/node_modules": true,
+            "**/tsconfig.tsbuildinfo": true,
+            "**/bun.lock": true,
+        }
+    }
