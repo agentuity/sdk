@@ -33,10 +33,30 @@ export function createMockAdapter<T = unknown>(
 	const afterCalls: Response[] = [];
 	let callIndex = 0;
 
+	async function drainBody(body: unknown) {
+		if (body && typeof (body as ReadableStream<Uint8Array>).getReader === 'function') {
+			const reader = (body as ReadableStream<Uint8Array>).getReader();
+			while (true) {
+				const { done } = await reader.read();
+				if (done) break;
+			}
+			return;
+		}
+		if (body && typeof (body as AsyncIterable<unknown>)[Symbol.asyncIterator] === 'function') {
+			for await (const _chunk of body as AsyncIterable<unknown>) {
+				void _chunk;
+			}
+		}
+	}
+
 	const adapter: FetchAdapter = {
 		invoke: async <TData>(url: string, options: FetchRequest) => {
 			const executeInvoke = async () => {
 				calls.push({ url, options });
+
+				if (options.method === 'PUT' && options.body) {
+					await drainBody(options.body);
+				}
 
 				const mockResponse = responses[callIndex++] || { ok: true, data: undefined as TData };
 

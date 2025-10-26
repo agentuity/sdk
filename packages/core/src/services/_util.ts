@@ -64,11 +64,22 @@ export async function toPayload(data: unknown): Promise<[Body, string]> {
 	}
 	switch (typeof data) {
 		case 'string':
+			if (
+				(data.charAt(0) === '{' && data.charAt(data.length - 1) === '}') ||
+				(data.charAt(0) === '[' && data.charAt(data.length - 1) === ']')
+			) {
+				try {
+					JSON.parse(data);
+					return [data, jsonContentType];
+				} catch {
+					/* fall through */
+				}
+			}
 			return [data, textContentType];
 		case 'boolean':
-			return [JSON.stringify(data), jsonContentType];
+			return [String(data), textContentType];
 		case 'number':
-			return [JSON.stringify(data), jsonContentType];
+			return [String(data), textContentType];
 		case 'object': {
 			if (data instanceof ArrayBuffer) {
 				return [data, binaryContentType];

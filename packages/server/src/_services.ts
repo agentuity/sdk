@@ -1,13 +1,23 @@
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
-import { createServerFetchAdapter, KeyValueStorageService } from '@agentuity/core';
+import {
+	createServerFetchAdapter,
+	KeyValueStorageService,
+	StreamAPIService,
+	ListStreamsResponse,
+} from '@agentuity/core';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getLogger, getTracer } from './_server';
 
 const sdkKey = process.env.AGENTUITY_SDK_KEY;
-const baseUrl =
+
+const kvBaseUrl =
 	process.env.AGENTUITY_KEYVALUE_URL ||
 	process.env.AGENTUITY_TRANSPORT_URL ||
 	'https://agentuity.ai';
+
+const streamBaseUrl = process.env.AGENTUITY_STREAM_URL || 'https://streams.agentuity.cloud';
+
+// TODO: add sdk version header
 
 const adapter = createServerFetchAdapter({
 	headers: {
@@ -29,6 +39,7 @@ const adapter = createServerFetchAdapter({
 		const spanContext = trace.setSpan(currentContext, span);
 		try {
 			await context.with(spanContext, callback);
+			span.setStatus({ code: SpanStatusCode.OK });
 		} catch (err) {
 			const e = err as Error;
 			span.recordException(e);
@@ -38,17 +49,57 @@ const adapter = createServerFetchAdapter({
 			span.end();
 		}
 	},
-	onAfter: async (response, err) => {
-		getLogger()?.debug('after request: %s (%d) => %s', response.url, response.status, err);
+	onAfter: async (url, options, result, err) => {
+		getLogger()?.debug('after request: %s (%d) => %s', url, result.response.status, err);
+		if (err) {
+			return;
+		}
+		const span = trace.getSpan(context.active());
+		switch (options.telemetry?.name) {
+			case 'agentuity.keyvalue.get': {
+				if (result.response.status === 404) {
+					span?.addEvent('miss');
+				} else if (result.response.ok) {
+					span?.addEvent('hit');
+				}
+				break;
+			}
+			case 'agentuity.stream.create': {
+				if (result.response.ok) {
+					const res = result.data as { id: string };
+					span?.setAttributes({
+						'stream.id': res.id,
+						'stream.url': `${streamBaseUrl}/${res.id}`,
+					});
+				}
+				break;
+			}
+			case 'agentuity.stream.list': {
+				const response = result.data as ListStreamsResponse;
+				if (response && span) {
+					span.setAttributes({
+						'stream.count': response.streams.length,
+						'stream.total': response.total,
+					});
+				}
+				break;
+			}
+		}
 	},
 });
 
-const kv = new KeyValueStorageService(baseUrl, adapter);
+const kv = new KeyValueStorageService(kvBaseUrl, adapter);
+const stream = new StreamAPIService(streamBaseUrl, adapter);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerServices(o: any) {
 	Object.defineProperty(o, 'kv', {
 		get: () => kv,
+		enumerable: false,
+		configurable: false,
+	});
+	Object.defineProperty(o, 'stream', {
+		get: () => stream,
 		enumerable: false,
 		configurable: false,
 	});

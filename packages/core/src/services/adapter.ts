@@ -24,6 +24,8 @@ export interface FetchRequest {
 		name: string;
 		attributes?: Record<string, string>;
 	};
+	binary?: true;
+	duplex?: 'half';
 }
 
 export interface FetchAdapter {
