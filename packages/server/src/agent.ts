@@ -12,10 +12,38 @@ export interface AgentContext {
 	//   cron: () => Promise<Cron | null>;
 	waitUntil: (promise: Promise<void> | (() => void | Promise<void>)) => void;
 	agent?: any; // Will be augmented by generated code
+	current?: any; // Will be augmented by generated code
 	agentName?: AgentName;
 	logger: Logger;
 	sessionId: string;
 	tracer: Tracer;
+}
+
+interface AgentMetadata {
+	/**
+	 * the unique identifier for this agent and project
+	 */
+	id: string;
+	/**
+	 * the folder name for the agent
+	 */
+	identifier: string;
+	/**
+	 * the human readable name for the agent (identifier is used if not specified)
+	 */
+	name: string;
+	/**
+	 * the human readable description for the agent (empty if not provided)
+	 */
+	description: string;
+	/**
+	 * the relative path to the agent from the root project directory
+	 */
+	filename: string;
+	/**
+	 * a unique version for the agent. computed as the SHA256 contents of the file.
+	 */
+	version: string;
 }
 
 /**
@@ -26,6 +54,7 @@ export type Agent<
 	TOutput extends StandardSchemaV1 | undefined = any,
 	TStream extends boolean = false,
 > = {
+	metadata: AgentMetadata;
 	handler: (ctx: AgentContext, ...args: any[]) => any | Promise<any>;
 } & (TInput extends StandardSchemaV1 ? { inputSchema: TInput } : { inputSchema?: never }) &
 	(TOutput extends StandardSchemaV1 ? { outputSchema: TOutput } : { outputSchema?: never }) &
@@ -46,6 +75,7 @@ export interface AgentRunner<
 	TOutput extends StandardSchemaV1 | undefined = any,
 	TStream extends boolean = false,
 > {
+	metadata: AgentMetadata;
 	run: undefined extends TInput
 		? () => Promise<InferStreamOutput<Exclude<TOutput, undefined>, TStream>>
 		: (
@@ -62,6 +92,7 @@ const agents = new Map<string, Agent>();
  * After augmentation, this becomes a strict union of agent names for full type safety.
  */
 export type AgentName = string;
+export type AgentRegistry = Record<AgentName, AgentRunner>;
 
 export const registerAgent = (name: AgentName, agent: Agent): void => {
 	agents.set(name, agent);
@@ -77,6 +108,7 @@ export function createAgent<
 		output?: TOutput;
 		stream?: TStream;
 	};
+	metadata?: Partial<Omit<AgentMetadata, 'id'>>;
 	handler: TInput extends StandardSchemaV1
 		? TStream extends true
 			? TOutput extends StandardSchemaV1
@@ -149,7 +181,7 @@ export function createAgent<
 		return result;
 	};
 
-	const agent: any = { handler };
+	const agent: any = { handler, metadata: config.metadata };
 
 	if (inputSchema) {
 		agent.inputSchema = inputSchema;
@@ -176,12 +208,14 @@ const createAgentRunner = <
 ): AgentRunner<TInput, TOutput, TStream> => {
 	if (agent.inputSchema) {
 		return {
+			metadata: agent.metadata,
 			run: async (input: any) => {
 				return agent.handler(ctx as unknown as AgentContext, input);
 			},
 		} as AgentRunner<TInput, TOutput, TStream>;
 	} else {
 		return {
+			metadata: agent.metadata,
 			run: async () => {
 				return agent.handler(ctx as unknown as AgentContext);
 			},
@@ -197,8 +231,9 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 			agentsObj[name] = createAgentRunner(agentFn, ctx);
 		}
 
-		const args: Partial<RequestAgentContextArgs<any>> = {
+		const args: Partial<RequestAgentContextArgs<AgentRegistry, any>> = {
 			agent: agentsObj,
+			current: agentsObj[agentName],
 			agentName,
 			logger: ctx.var.logger.child({ agent: agentName }),
 			tracer: ctx.var.tracer,
@@ -214,12 +249,11 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 
 		return runInAgentContext(
 			ctx as unknown as Record<string, unknown>,
-			args as RequestAgentContextArgs<any>,
+			args as RequestAgentContextArgs<any, any>,
 			next
 		);
 
 		// FIXME
-		// ctx.keyvalue = kv;
 		// ctx.email = async (): Promise<Email> => {
 		//     return {
 		//         address: 'test@example.com',

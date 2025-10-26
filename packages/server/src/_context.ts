@@ -5,25 +5,28 @@ import type { Logger } from './logger';
 import WaitUntilHandler from './_waituntil';
 import { registerServices } from './_services';
 
-export interface RequestAgentContextArgs<TAgent> {
+export interface RequestAgentContextArgs<TAgentMap, TAgent> {
 	sessionId: string;
-	agent: TAgent;
+	agent: TAgentMap;
+	current: TAgent;
 	agentName: AgentName;
 	logger: Logger;
 	tracer: Tracer;
 	setHeader: (k: string, v: string) => void;
 }
 
-export class RequestAgentContext<TAgent> implements AgentContext {
-	agent: TAgent;
+export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
+	agent: TAgentMap;
+	current: TAgent;
 	agentName: AgentName;
 	logger: Logger;
 	sessionId: string;
 	tracer: Tracer;
 	private waituntilHandler: WaitUntilHandler;
 
-	constructor(args: RequestAgentContextArgs<TAgent>) {
+	constructor(args: RequestAgentContextArgs<TAgentMap, TAgent>) {
 		this.agent = args.agent;
+		this.current = args.current;
 		this.agentName = args.agentName;
 		this.logger = args.logger;
 		this.sessionId = args.sessionId;
@@ -53,9 +56,9 @@ export const getAgentContext = (): AgentContext => {
 	return context;
 };
 
-export const runInAgentContext = <TAgent>(
+export const runInAgentContext = <TAgentMap, TAgent>(
 	ctxObject: Record<string, unknown>,
-	args: RequestAgentContextArgs<TAgent>,
+	args: RequestAgentContextArgs<TAgentMap, TAgent>,
 	next: () => Promise<void>
 ) => {
 	const ctx = new RequestAgentContext(args);

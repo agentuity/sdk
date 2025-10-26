@@ -13,14 +13,16 @@ const reset = '\x1b[0m';
  */
 export default class ConsoleLogger implements Logger {
 	private context: Record<string, unknown>;
+	private formatContext: boolean;
 
 	/**
 	 * Creates a new console logger
 	 *
 	 * @param context - Initial context for the logger
 	 */
-	constructor(context: Record<string, unknown> = {}) {
+	constructor(context: Record<string, unknown> = {}, formatContext = true) {
 		this.context = context;
+		this.formatContext = formatContext;
 	}
 
 	/**
@@ -31,7 +33,7 @@ export default class ConsoleLogger implements Logger {
 	 */
 	debug(message: unknown, ...args: unknown[]): void {
 		try {
-			const formattedMessage = formatMessage(this.context, message, args);
+			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
 			__originalConsole.debug(`${black}[DEBUG]${reset} ${formattedMessage}`);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
@@ -48,7 +50,7 @@ export default class ConsoleLogger implements Logger {
 	 */
 	info(message: unknown, ...args: unknown[]): void {
 		try {
-			const formattedMessage = formatMessage(this.context, message, args);
+			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
 			__originalConsole.info(`${green}[INFO]${reset}  ${formattedMessage}`);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
@@ -65,7 +67,7 @@ export default class ConsoleLogger implements Logger {
 	 */
 	warn(message: unknown, ...args: unknown[]): void {
 		try {
-			const formattedMessage = formatMessage(this.context, message, args);
+			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
 			__originalConsole.warn(`${yellow}[WARN]${reset}  ${formattedMessage}`);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
@@ -82,7 +84,7 @@ export default class ConsoleLogger implements Logger {
 	 */
 	error(message: unknown, ...args: unknown[]): void {
 		try {
-			const formattedMessage = formatMessage(this.context, message, args);
+			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
 			__originalConsole.error(`${red}[ERROR]${reset} ${formattedMessage}`);
 		} catch (err) {
 			// Fallback to direct logging if formatting fails
@@ -98,9 +100,12 @@ export default class ConsoleLogger implements Logger {
 	 * @returns A new logger instance with the additional context
 	 */
 	child(opts: Record<string, unknown>): Logger {
-		return new ConsoleLogger({
-			...this.context,
-			...opts,
-		});
+		return new ConsoleLogger(
+			{
+				...this.context,
+				...opts,
+			},
+			this.formatContext
+		);
 	}
 }

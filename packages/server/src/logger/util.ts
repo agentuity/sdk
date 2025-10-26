@@ -30,12 +30,13 @@ export function buildContextString(context?: Record<string, unknown>): string {
  * @private
  */
 export function formatMessage(
+	displayContext: boolean,
 	context: Record<string, unknown> | undefined,
 	message: unknown,
 	args: unknown[]
 ): string {
 	// Format the context string
-	const contextStr = buildContextString(context);
+	const contextStr = displayContext ? buildContextString(context) : null;
 
 	// Format the message based on its type
 	let _message: string;

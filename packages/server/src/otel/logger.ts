@@ -3,7 +3,7 @@ import { safeStringify } from '@agentuity/core';
 import * as LogsAPI from '@opentelemetry/api-logs';
 import type { Logger } from '../logger';
 import ConsoleLogger from '../logger/console';
-// import { getAgentDetail } from '../router/router';
+import { getAgentContext } from '../_context';
 
 /**
  * Reference to the original console object before patching
@@ -22,7 +22,7 @@ export class OtelLogger implements Logger {
 	) {
 		this.delegates = Array.isArray(delegates) ? delegates : [delegates];
 		this.context = context;
-		this.logger = useConsole ? new ConsoleLogger(context) : undefined;
+		this.logger = useConsole ? new ConsoleLogger(context, false) : undefined;
 	}
 
 	addDelegate(delegate: LogsAPI.Logger) {
@@ -42,20 +42,23 @@ export class OtelLogger implements Logger {
 	}
 
 	private getAttributes(): Record<string, unknown> | undefined {
-		// FIXME:
-		// const attrs = getAgentDetail();
-		// if (!attrs) {
-		// 	return this.context;
-		// }
-		// const result: Record<string, unknown> = {
-		// 	...(this.context ?? {}),
-		// };
-		// for (const [key, value] of Object.entries(attrs)) {
-		// 	if (value !== null && value !== undefined) {
-		// 		result[`@agentuity/${key}`] = value as unknown;
-		// 	}
-		// }
-		// return result;
+		try {
+			const actx = getAgentContext();
+			const current = actx.current?.metadata;
+			if (current) {
+				const result: Record<string, unknown> = {
+					...(this.context ?? {}),
+				};
+				for (const [key, value] of Object.entries(current)) {
+					if (value !== null && value !== undefined) {
+						result[`@agentuity/${key}`] = value as unknown;
+					}
+				}
+				return result;
+			}
+		} catch {
+			/* fall through */
+		}
 		return this.context;
 	}
 

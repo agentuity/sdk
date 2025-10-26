@@ -67,7 +67,7 @@ class InternalLogger {
 	 * Format a log message with context
 	 */
 	private formatMessage(message: unknown, ...args: unknown[]): string {
-		const formattedMessage = formatMessage(this.config.context, message, args);
+		const formattedMessage = formatMessage(false, this.config.context, message, args);
 		return `${cyan}[INTERNAL]${reset} ${formattedMessage}`;
 	}
 

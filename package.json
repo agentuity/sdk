@@ -7,7 +7,7 @@
 		"test-app"
 	],
 	"scripts": {
-		"build": "bunx tsc --build --force && cd packages/core && bun run build && cd ../react && bun run build && cd ../bundler && bun run build && cd ../server && bun run build",
+		"build": "bunx tsc --build --force && bun run --workspaces build",
 		"test": "bun test",
 		"typecheck": "bunx tsc --build --dry",
 		"clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
