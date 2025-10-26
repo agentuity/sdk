@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
+import { context, SpanKind, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
+import { ServiceException } from '@agentuity/core';
 import { createMiddleware } from 'hono/factory';
 import { Hono } from 'hono';
-import { baseRoutePath } from 'hono/route';
+import { HTTPException } from 'hono/http-exception';
 import { BunWebSocketData, websocket } from 'hono/bun';
 import type { AppConfig, Env } from './app';
 import { extractTraceContextFromRequest } from './otel/http';
@@ -16,6 +17,7 @@ let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 let globalAppInstance: Hono<any> | null = null;
 
 let globalLogger: Logger | null = null;
+let globalTracer: Tracer | null = null;
 
 export function getServer() {
 	return globalServerInstance;
@@ -27,6 +29,10 @@ export function getApp() {
 
 export function getLogger() {
 	return globalLogger;
+}
+
+export function getTracer() {
+	return globalTracer;
 }
 
 function isDevelopment(): boolean {
@@ -58,8 +64,26 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 	globalAppInstance = app;
 	globalServerInstance = server;
 	globalLogger = otel.logger;
+	globalTracer = otel.tracer;
 
 	let isShutdown = false;
+
+	app.onError((error, _c) => {
+		if (error instanceof HTTPException) {
+			otel.logger.error('HTTP Error: %s (%d)', error.cause, error.status);
+			return error.getResponse();
+		}
+		if (
+			error instanceof ServiceException ||
+			('statusCode' in error && typeof error.statusCode === 'number')
+		) {
+			otel.logger.error('Service Exception: %s (%d)', error.message, error.statusCode);
+			return new Response(error.message, {
+				status: (error.statusCode as number) ?? 500,
+			});
+		}
+		return new Response('Internal Server Error', { status: 500 });
+	});
 
 	app.use(async (c, next) => {
 		c.set('logger', otel.logger);

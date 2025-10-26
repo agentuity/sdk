@@ -3,6 +3,7 @@ import type { Tracer } from '@opentelemetry/api';
 import type { AgentContext, AgentName } from './agent';
 import type { Logger } from './logger';
 import WaitUntilHandler from './_waituntil';
+import { registerServices } from './_services';
 
 export interface RequestAgentContextArgs<TAgent> {
 	sessionId: string;
@@ -28,6 +29,7 @@ export class RequestAgentContext<TAgent> implements AgentContext {
 		this.sessionId = args.sessionId;
 		this.tracer = args.tracer;
 		this.waituntilHandler = new WaitUntilHandler(args.setHeader, args.tracer);
+		registerServices(this);
 	}
 
 	waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void {

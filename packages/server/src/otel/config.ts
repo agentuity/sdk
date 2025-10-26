@@ -39,40 +39,6 @@ export interface OtelConfig {
 	userOtelConf?: CustomizedOtelConfig;
 }
 
-// let userOtelConf: UserOpenTelemetryConfig | undefined;
-// if (process.env.AGENTUITY_USER_OTEL_CONF) {
-// 	try {
-// 		userOtelConf = JSON.parse(process.env.AGENTUITY_USER_OTEL_CONF);
-// 	} catch (error) {
-// 		console.warn(
-// 			`[WARN] Failed to parse AGENTUITY_USER_OTEL_CONF: ${error instanceof Error ? error.message : String(error)}`
-// 		);
-// 	}
-// }
-// await run({
-// 	basedir: dir,
-// 	orgId: process.env.AGENTUITY_CLOUD_ORG_ID,
-// 	projectId: process.env.AGENTUITY_CLOUD_PROJECT_ID,
-// 	deploymentId: process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID,
-// 	port: process.env.AGENTUITY_CLOUD_PORT
-// 		? Number.parseInt(process.env.AGENTUITY_CLOUD_PORT)
-// 		: process.env.PORT
-// 			? Number.parseInt(process.env.PORT)
-// 			: undefined,
-// 	devmode: process.env.AGENTUITY_SDK_DEV_MODE === 'true',
-// 	cliVersion: process.env.AGENTUITY_CLI_VERSION,
-// 	environment:
-// 		process.env.AGENTUITY_ENVIRONMENT ??
-// 		process.env.NODE_ENV ??
-// 		'development',
-// 	otlp: {
-// 		url: process.env.AGENTUITY_OTLP_URL,
-// 		bearerToken: process.env.AGENTUITY_OTLP_BEARER_TOKEN,
-// 	},
-// 	userOtelConf,
-// 	agents,
-// });
-
 export function register(): OtelResponse {
 	const name = process.env.AGENTUITY_SDK_APP_NAME ?? 'unknown';
 	const version = process.env.AGENTUITY_SDK_APP_VERSION ?? 'unknown';
@@ -82,7 +48,7 @@ export function register(): OtelResponse {
 	const deploymentId = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
 	const devmode = process.env.AGENTUITY_SDK_DEV_MODE === 'true';
 	const cliVersion = process.env.AGENTUITY_CLI_VERSION;
-	const url = process.env.AGENTUITY_OTLP_URL;
+	const url = process.env.AGENTUITY_OTLP_URL ?? 'https://otel.agentuity.cloud';
 	const bearerToken = process.env.AGENTUITY_OTLP_BEARER_TOKEN;
 	const environment = process.env.AGENTUITY_ENVIRONMENT || process.env.NODE_ENV || 'development';
 	const config = {

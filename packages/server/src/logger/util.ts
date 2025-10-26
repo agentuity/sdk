@@ -1,5 +1,5 @@
 import { formatWithOptions, inspect } from 'node:util';
-import { safeStringify } from '../_util';
+import { safeStringify } from '@agentuity/core';
 
 export function buildContextString(context?: Record<string, unknown>): string {
 	if (context) {

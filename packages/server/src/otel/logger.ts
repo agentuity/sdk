@@ -1,9 +1,9 @@
 import { format } from 'node:util';
+import { safeStringify } from '@agentuity/core';
 import * as LogsAPI from '@opentelemetry/api-logs';
 import type { Logger } from '../logger';
 import ConsoleLogger from '../logger/console';
 // import { getAgentDetail } from '../router/router';
-import { safeStringify } from '../_util';
 
 /**
  * Reference to the original console object before patching
@@ -230,5 +230,6 @@ export function patchConsole(enabled: boolean, attributes: Record<string, unknow
 		delegate.debug('profileEnd:', ...args);
 	};
 
-	Object.assign(globalThis.console, _patch);
+	// eslint-disable-next-line no-global-assign
+	console = globalThis.console = _patch;
 }
