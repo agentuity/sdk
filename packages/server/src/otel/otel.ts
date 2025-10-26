@@ -1,3 +1,4 @@
+import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import opentelemetry, { type Meter, metrics, propagation, type Tracer } from '@opentelemetry/api';
 import * as LogsAPI from '@opentelemetry/api-logs';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
@@ -22,16 +23,17 @@ import {
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
+import { initialize } from '@traceloop/node-server-sdk';
 import type { Logger } from '../logger';
 import { ConsoleLogRecordExporter } from './console';
 import { instrumentFetch } from './fetch';
 import { createLogger, patchConsole } from './logger';
-import { initialize } from '@traceloop/node-server-sdk';
+import { getSDKVersion } from '../_config';
 
 /**
  * Configuration for OpenTelemetry initialization
  */
-interface OtelConfig {
+export interface OtelConfig {
 	url?: string;
 	name: string;
 	version: string;
@@ -40,9 +42,9 @@ interface OtelConfig {
 	projectId?: string;
 	deploymentId?: string;
 	environment?: string;
-	sdkVersion?: string;
 	cliVersion?: string;
 	devmode?: boolean;
+	spanProcessors?: Array<SpanProcessor>;
 }
 
 /**
@@ -59,17 +61,10 @@ const devmodeExportInterval = 1_000; // 1 second
 const productionExportInterval = 10_000; // 10 seconds
 
 export const createResource = (config: OtelConfig): Resource => {
-	const {
-		name,
-		version,
-		orgId,
-		projectId,
-		deploymentId,
-		environment,
-		devmode,
-		sdkVersion,
-		cliVersion,
-	} = config;
+	const { name, version, orgId, projectId, deploymentId, environment, devmode, cliVersion } =
+		config;
+
+	const sdkVersion = getSDKVersion();
 
 	return resourceFromAttributes({
 		[ATTR_SERVICE_NAME]: name,
@@ -258,6 +253,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 			instrumentations: [getNodeAutoInstrumentations()],
 			resource,
 			textMapPropagator: propagator,
+			spanProcessors: config.spanProcessors,
 		});
 		instrumentationSDK.start();
 		hostMetrics?.start();

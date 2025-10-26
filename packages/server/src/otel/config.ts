@@ -5,7 +5,9 @@ import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 import type { LoggerProvider } from '@opentelemetry/sdk-logs';
 import type { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
-import type { OtelResponse } from './otel';
+import type { OtelResponse, OtelConfig } from './otel';
+import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
+import * as runtimeConfig from '../_config';
 
 /**
  * Configuration for user provided OpenTelemetry
@@ -19,50 +21,25 @@ export interface CustomizedOtelConfig {
 	headers: Record<string, string>;
 }
 
-/**
- * Configuration for auto-starting the Agentuity SDK
- */
-export interface OtelConfig {
-	basedir: string;
-	distdir?: string;
-	orgId?: string;
-	projectId?: string;
-	deploymentId?: string;
-	port?: number;
-	devmode?: boolean;
-	environment?: string;
-	cliVersion?: string;
-	otlp?: {
-		url?: string;
-		bearerToken?: string;
-	};
-	userOtelConf?: CustomizedOtelConfig;
+interface OtelRegisterConfig {
+	processors?: SpanProcessor[];
 }
 
-export function register(): OtelResponse {
-	const name = process.env.AGENTUITY_SDK_APP_NAME ?? 'unknown';
-	const version = process.env.AGENTUITY_SDK_APP_VERSION ?? 'unknown';
-	const sdkVersion = process.env.AGENTUITY_SDK_VERSION ?? 'unknown';
-	const orgId = process.env.AGENTUITY_CLOUD_ORG_ID;
-	const projectId = process.env.AGENTUITY_CLOUD_PROJECT_ID;
-	const deploymentId = process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID;
-	const devmode = process.env.AGENTUITY_SDK_DEV_MODE === 'true';
-	const cliVersion = process.env.AGENTUITY_CLI_VERSION;
+export function register(registerConfig: OtelRegisterConfig): OtelResponse {
 	const url = process.env.AGENTUITY_OTLP_URL ?? 'https://otel.agentuity.cloud';
 	const bearerToken = process.env.AGENTUITY_OTLP_BEARER_TOKEN;
-	const environment = process.env.AGENTUITY_ENVIRONMENT || process.env.NODE_ENV || 'development';
-	const config = {
-		name,
-		version,
-		sdkVersion,
-		cliVersion,
-		devmode,
-		orgId,
-		projectId,
-		deploymentId,
+	const config: OtelConfig = {
+		spanProcessors: registerConfig.processors,
+		name: runtimeConfig.getAppName(),
+		version: runtimeConfig.getAppVersion(),
+		cliVersion: runtimeConfig.getCLIVersion(),
+		devmode: runtimeConfig.isDevMode(),
+		orgId: runtimeConfig.getOrganizationId(),
+		projectId: runtimeConfig.getProjectId(),
+		deploymentId: runtimeConfig.getDeploymentId(),
+		environment: runtimeConfig.getEnvironment(),
 		bearerToken,
 		url,
-		environment,
 	};
 	let userOtelConf: CustomizedOtelConfig | undefined;
 	if (process.env.AGENTUITY_USER_OTEL_CONF) {

@@ -48,6 +48,11 @@ const asyncLocalStorage = new AsyncLocalStorage<AgentContext>({
 	name: 'AgentContext',
 });
 
+export const inAgentContext = (): boolean => {
+	const context = asyncLocalStorage.getStore();
+	return !!context;
+};
+
 export const getAgentContext = (): AgentContext => {
 	const context = asyncLocalStorage.getStore();
 	if (!context) {

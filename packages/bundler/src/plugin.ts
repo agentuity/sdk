@@ -108,7 +108,6 @@ const AgentuityBuilder: BunPlugin = {
 	setup(build) {
 		const rootDir = build.config.root ?? '.';
 		const srcDir = join(rootDir, 'src');
-		const outDir = build.config.outdir ?? '.agentuity';
 		const routes: Set<string> = new Set();
 		const agentInfo: Array<Record<string, string>> = [];
 		const agentMetadata: Map<string, Map<string, string>> = new Map<
@@ -200,6 +199,7 @@ const AgentuityBuilder: BunPlugin = {
 					inserts.push(buffer);
 				}
 
+				// TODO: rework all of this to do it the right bun way
 				const indexFile = join(srcDir, 'web', 'app.tsx');
 
 				if (existsSync(indexFile)) {
@@ -215,7 +215,6 @@ root.render(<App />);
 					const clientFile = join(srcDir, 'web', 'client.generated.js');
 					writeFileSync(clientFile, clientjscode);
 
-					const clientjs = join(outDir, 'web', 'client.generated.js');
 					inserts.unshift(`await (async () => {
     const { renderToString } = require('react-dom/server');
     const { serveStatic } = require('hono/bun');
@@ -223,8 +222,8 @@ root.render(<App />);
     const app = getApp()!;
     const routehtml = renderToString(require("./src/web/app").default);
     app.get("/", (c) => c.html(\`<html><body><div id="root">\${routehtml}</div><script src="/web/${uniqid}/client.js" type="module"></script></body></html>\`));
-    app.get("/web/${uniqid}/client.js", (c) => new Response(Bun.file('${clientjs}'), { type: 'text/javascript', headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
-    app.get('/public/*', serveStatic({ root: '${dirname(indexFile)}' }));
+    app.get("/web/${uniqid}/client.js", (c) => new Response(Bun.file('./src/web/client.generated.js'), { type: 'text/javascript', headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
+    app.get('/public/*', serveStatic({ root: './src/web' }));
 })();`);
 				}
 

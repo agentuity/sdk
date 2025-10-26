@@ -1,5 +1,15 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { context, SpanKind, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
+import {
+	context,
+	SpanKind,
+	SpanStatusCode,
+	type Context,
+	type Tracer,
+	trace,
+	Attributes,
+} from '@opentelemetry/api';
+import { Span } from '@opentelemetry/sdk-trace-base';
+import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ServiceException } from '@agentuity/core';
 import { createMiddleware } from 'hono/factory';
 import { Hono } from 'hono';
@@ -10,6 +20,8 @@ import { extractTraceContextFromRequest } from './otel/http';
 import { register } from './otel/config';
 import type { Logger } from './logger';
 import { isIdle } from './_idle';
+import * as runtimeConfig from './_config';
+import { inAgentContext, getAgentContext } from './_context';
 
 let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 
@@ -36,8 +48,8 @@ export function getTracer() {
 }
 
 function isDevelopment(): boolean {
-	const devmode = process.env.AGENTUITY_SDK_DEV_MODE === 'true';
-	const environment = process.env.AGENTUITY_ENVIRONMENT || process.env.NODE_ENV || 'development';
+	const devmode = runtimeConfig.isDevMode();
+	const environment = runtimeConfig.getEnvironment();
 	return devmode || environment === 'development';
 }
 
@@ -45,10 +57,63 @@ function getPort(): number {
 	return Number.parseInt(process.env.AGENTUITY_PORT ?? process.env.PORT ?? '3000') || 3000;
 }
 
+const spanProcessors: SpanProcessor[] = [];
+
+/**
+ * add a custom span processor that will be added to the otel configuration. this method must be
+ * called before the createApp is called for it to be added.
+ */
+export function addSpanProcessor(processor: SpanProcessor) {
+	spanProcessors.push(processor);
+}
+
+function registerAgentuitySpanProcessor() {
+	const orgId = runtimeConfig.getOrganizationId();
+	const projectId = runtimeConfig.getProjectId();
+	const deploymentId = runtimeConfig.getDeploymentId();
+	const devmode = runtimeConfig.isDevMode();
+	const environment = runtimeConfig.getEnvironment();
+
+	class RegisterAgentSpanProcessor implements SpanProcessor {
+		onStart(span: Span, _context: Context) {
+			const attrs: Attributes = {
+				'@agentuity/orgId': orgId,
+				'@agentuity/projectId': projectId,
+				'@agentuity/deploymentId': deploymentId,
+				'@agentuity/devmode': devmode,
+				'@agentuity/environment': environment,
+			};
+			if (inAgentContext()) {
+				const agentCtx = getAgentContext();
+				if (agentCtx.current?.metadata) {
+					attrs['@agentuity/agentId'] = agentCtx.current.metadata.id;
+					attrs['@agentuity/agentName'] = agentCtx.current.metadata.name;
+				}
+			}
+			span.setAttributes(attrs);
+		}
+
+		onEnd(_span: Span) {
+			/* */
+		}
+
+		forceFlush() {
+			return Promise.resolve();
+		}
+
+		shutdown() {
+			return Promise.resolve();
+		}
+	}
+	addSpanProcessor(new RegisterAgentSpanProcessor());
+}
+
 export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) => {
 	if (globalServerInstance) {
 		return globalServerInstance;
 	}
+
+	registerAgentuitySpanProcessor();
 
 	const server = Bun.serve({
 		hostname: '127.0.0.1',
@@ -59,7 +124,7 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 		websocket,
 	});
 
-	const otel = register();
+	const otel = register({ processors: spanProcessors });
 
 	globalAppInstance = app;
 	globalServerInstance = server;

@@ -7,8 +7,10 @@ import {
 } from '@agentuity/core';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getLogger, getTracer } from './_server';
+import { getSDKVersion } from './_config';
 
-const sdkKey = process.env.AGENTUITY_SDK_KEY;
+const userAgent = `Agentuity SDK/${getSDKVersion()}`;
+const bearerKey = `Bearer ${process.env.AGENTUITY_SDK_KEY}`;
 
 const kvBaseUrl =
 	process.env.AGENTUITY_KEYVALUE_URL ||
@@ -17,11 +19,10 @@ const kvBaseUrl =
 
 const streamBaseUrl = process.env.AGENTUITY_STREAM_URL || 'https://streams.agentuity.cloud';
 
-// TODO: add sdk version header
-
 const adapter = createServerFetchAdapter({
 	headers: {
-		Authorization: `Bearer ${sdkKey}`,
+		Authorization: bearerKey,
+		'User-Agent': userAgent,
 	},
 	onBefore: async (url, options, callback) => {
 		getLogger()?.debug('before request: %s with options: %s', url, options);
