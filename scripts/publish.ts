@@ -112,6 +112,8 @@ async function getPublishablePackages(): Promise<
 		if (b.name === 'bundler') return 1;
 		if (a.name === 'create-agentuity') return 1;
 		if (b.name === 'create-agentuity') return -1;
+		if (a.name === 'cli') return 1;
+		if (b.name === 'cli') return -1;
 		return a.name.localeCompare(b.name);
 	});
 }

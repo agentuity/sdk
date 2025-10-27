@@ -1,0 +1,215 @@
+import type { LogLevel } from './types';
+import type { ColorScheme } from './terminal';
+
+const LOG_LEVELS: Record<LogLevel, number> = {
+	debug: 0,
+	trace: 1,
+	info: 2,
+	warn: 3,
+	error: 4,
+};
+
+const BOLD = '\x1b[1m';
+const RESET = '\x1b[0m';
+
+// Helper to convert hex color to ANSI 24-bit color code
+function hexToAnsi(hex: string): string {
+	const r = parseInt(hex.slice(1, 3), 16);
+	const g = parseInt(hex.slice(3, 5), 16);
+	const b = parseInt(hex.slice(5, 7), 16);
+	return `\x1b[38;2;${r};${g};${b}m`;
+}
+
+function shouldUseColors(): boolean {
+	// Check for NO_COLOR environment variable (any non-empty value disables colors)
+	if (process.env.NO_COLOR) {
+		return false;
+	}
+
+	// Check for TERM=dumb
+	if (process.env.TERM === 'dumb') {
+		return false;
+	}
+
+	// Check if stdout is a TTY
+	if (!process.stdout.isTTY) {
+		return false;
+	}
+
+	return true;
+}
+
+const USE_COLORS = shouldUseColors();
+
+interface LogColors {
+	level: string;
+	message: string;
+	timestamp: string;
+}
+
+function getLogColors(scheme: ColorScheme): Record<LogLevel, LogColors> {
+	if (scheme === 'light') {
+		// Darker, high-contrast colors for light backgrounds
+		return {
+			trace: {
+				level: hexToAnsi('#008B8B') + BOLD, // Dark cyan
+				message: hexToAnsi('#4B4B4B'), // Dark gray
+				timestamp: hexToAnsi('#808080'), // Gray
+			},
+			debug: {
+				level: hexToAnsi('#0000CD') + BOLD, // Medium blue
+				message: hexToAnsi('#006400'), // Dark green
+				timestamp: hexToAnsi('#808080'),
+			},
+			info: {
+				level: hexToAnsi('#FF8C00') + BOLD, // Dark orange
+				message: hexToAnsi('#0066CC') + BOLD, // Strong blue
+				timestamp: hexToAnsi('#808080'),
+			},
+			warn: {
+				level: hexToAnsi('#9400D3') + BOLD, // Dark violet
+				message: hexToAnsi('#8B008B'), // Dark magenta
+				timestamp: hexToAnsi('#808080'),
+			},
+			error: {
+				level: hexToAnsi('#DC143C') + BOLD, // Crimson
+				message: hexToAnsi('#8B0000') + BOLD, // Dark red
+				timestamp: hexToAnsi('#808080'),
+			},
+		};
+	}
+
+	// Dark mode colors (brighter for dark backgrounds)
+	return {
+		trace: {
+			level: (Bun.color('cyan', 'ansi') ?? '') + BOLD,
+			message: Bun.color('gray', 'ansi') ?? '',
+			timestamp: hexToAnsi('#666666'),
+		},
+		debug: {
+			level: (Bun.color('blue', 'ansi') ?? '') + BOLD,
+			message: Bun.color('green', 'ansi') ?? '',
+			timestamp: hexToAnsi('#666666'),
+		},
+		info: {
+			level: (Bun.color('yellow', 'ansi') ?? '') + BOLD,
+			message: (Bun.color('white', 'ansi') ?? '') + BOLD,
+			timestamp: hexToAnsi('#666666'),
+		},
+		warn: {
+			level: (Bun.color('magenta', 'ansi') ?? '') + BOLD,
+			message: Bun.color('magenta', 'ansi') ?? '',
+			timestamp: hexToAnsi('#666666'),
+		},
+		error: {
+			level: (Bun.color('red', 'ansi') ?? '') + BOLD,
+			message: Bun.color('red', 'ansi') ?? '',
+			timestamp: hexToAnsi('#666666'),
+		},
+	};
+}
+
+export class Logger {
+	private level: LogLevel;
+	private showTimestamp: boolean;
+	private colorScheme: ColorScheme;
+	private colors: Record<LogLevel, LogColors>;
+
+	constructor(
+		level: LogLevel = 'info',
+		showTimestamp: boolean = false,
+		colorScheme: ColorScheme = 'dark'
+	) {
+		this.level = level;
+		this.showTimestamp = showTimestamp;
+		this.colorScheme = colorScheme;
+		this.colors = getLogColors(colorScheme);
+	}
+
+	setLevel(level: LogLevel): void {
+		this.level = level;
+	}
+
+	setTimestamp(enabled: boolean): void {
+		this.showTimestamp = enabled;
+	}
+
+	setColorScheme(scheme: ColorScheme): void {
+		this.colorScheme = scheme;
+		this.colors = getLogColors(scheme);
+	}
+
+	private shouldLog(level: LogLevel): boolean {
+		return LOG_LEVELS[level] >= LOG_LEVELS[this.level];
+	}
+
+	private log(level: LogLevel, message: string, ...args: unknown[]): void {
+		if (!this.shouldLog(level)) {
+			return;
+		}
+
+		const colors = this.colors[level];
+		const levelText = `[${level.toUpperCase()}]`;
+
+		let output = '';
+
+		if (USE_COLORS) {
+			if (this.showTimestamp) {
+				const timestamp = new Date().toISOString();
+				output = `${colors.timestamp}[${timestamp}]${RESET} ${colors.level}${levelText}${RESET} ${colors.message}${message}${RESET}`;
+			} else {
+				output = `${colors.level}${levelText}${RESET} ${colors.message}${message}${RESET}`;
+			}
+		} else {
+			// No colors - plain text output
+			if (this.showTimestamp) {
+				const timestamp = new Date().toISOString();
+				output = `[${timestamp}] ${levelText} ${message}`;
+			} else {
+				output = `${levelText} ${message}`;
+			}
+		}
+
+		if (level === 'error') {
+			if (args.length > 0) {
+				console.error(output, ...args);
+			} else {
+				console.error(output);
+			}
+		} else if (level === 'warn') {
+			if (args.length > 0) {
+				console.warn(output, ...args);
+			} else {
+				console.warn(output);
+			}
+		} else {
+			if (args.length > 0) {
+				console.log(output, ...args);
+			} else {
+				console.log(output);
+			}
+		}
+	}
+
+	debug(message: string, ...args: unknown[]): void {
+		this.log('debug', message, ...args);
+	}
+
+	trace(message: string, ...args: unknown[]): void {
+		this.log('trace', message, ...args);
+	}
+
+	info(message: string, ...args: unknown[]): void {
+		this.log('info', message, ...args);
+	}
+
+	warn(message: string, ...args: unknown[]): void {
+		this.log('warn', message, ...args);
+	}
+
+	error(message: string, ...args: unknown[]): void {
+		this.log('error', message, ...args);
+	}
+}
+
+export const logger = new Logger('info');

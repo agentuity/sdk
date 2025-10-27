@@ -11,11 +11,12 @@
 
 ## Architecture
 
-- **Monorepo**: Bun workspaces with 4 packages in `packages/`: `core`, `react`, `server`, `bundler`
+- **Monorepo**: Bun workspaces with 5 packages in `packages/`: `core`, `react`, `server`, `bundler`, `cli`
 - **@agentuity/core**: Shared utilities and schemas, foundation for other packages
 - **@agentuity/react**: Browser-only React components, depends on core
 - **@agentuity/server**: Bun server runtime using Hono framework, depends on core
 - **@agentuity/bundler**: CLI bundler tool with bin entry point
+- **@agentuity/cli**: Bun-native CLI framework with commander.js, auto-discovery, and YAML config
 - **Cross-package imports**: Use workspace protocol `@agentuity/<package>` in package.json dependencies
 
 ## Code Style
