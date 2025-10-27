@@ -13,7 +13,7 @@
 		"setup.ts"
 	],
 	"scripts": {
-		"build": "bun ./node_modules/@agentuity/bundler/bin/bundler.ts --dir . --dev",
+		"build": "bun ./node_modules/@agentuity/cli/bin/cli.ts bundle --dir . --dev",
 		"dev": "bun run ./.agentuity/app.js",
 		"typecheck": "bunx tsc --noEmit"
 	},
@@ -27,7 +27,7 @@
 	"author": "Agentuity",
 	"license": "MIT",
 	"dependencies": {
-		"@agentuity/bundler": "workspace:*",
+		"@agentuity/cli": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",

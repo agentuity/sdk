@@ -11,11 +11,10 @@
 
 ## Architecture
 
-- **Monorepo**: Bun workspaces with 5 packages in `packages/`: `core`, `react`, `server`, `bundler`, `cli`
+- **Monorepo**: Bun workspaces with 5 packages in `packages/`: `core`, `react`, `runtime`, `cli`
 - **@agentuity/core**: Shared utilities and schemas, foundation for other packages
 - **@agentuity/react**: Browser-only React components, depends on core
 - **@agentuity/runtime**: Bun server runtime using Hono framework, depends on core
-- **@agentuity/bundler**: CLI bundler tool with bin entry point
 - **@agentuity/cli**: Bun-native CLI framework with commander.js, auto-discovery, and YAML config
 - **Cross-package imports**: Use workspace protocol `@agentuity/<package>` in package.json dependencies
 
@@ -25,4 +24,4 @@
 - **TypeScript**: Strict mode, ESNext target, bundler moduleResolution, composite project references
 - **Linter**: ESLint with TypeScript, React, and JSON support
 - **Naming**: Export all public APIs from package `index.ts`, use named exports
-- **Build targets**: `react` = browser, `server`/`bundler` = bun runtime
+- **Build targets**: `react` = browser, `runtime` = bun runtime

@@ -83,7 +83,7 @@ src/services/
 - [ ] Export from `src/services/index.ts`
 - [ ] Write tests in `src/services/__test__/yourservice.test.ts`
 - [ ] Integrate into server package
-- [ ] Integrate into bundler package
+- [ ] Integrate into cli package
 - [ ] Create test agent in `test-app` for manual verification
 
 ## Step-by-Step Guide
@@ -1306,9 +1306,9 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 - TypeScript can't detect this, so we use `!` to indicate they will be assigned
 - This is safe because `registerServices` is always called in constructor
 
-### Step 4: Update Bundler Plugin
+### Step 4: Update CLI Bundle Plugin
 
-In `packages/bundler/src/plugin.ts`, update the `declare module "hono"` section:
+In `packages/cli/src/cmd/bundle/plugin.ts`, update the `declare module "hono"` section:
 
 #### 1. Import the type
 
@@ -1383,10 +1383,11 @@ export default defineAgent({
 
 After making these changes:
 
-1. **Rebuild the bundler**: `cd packages/bundler && bun run build`
-2. **Run the bundler**: Your `registry.generated.ts` should include the new service
-3. **Check TypeScript**: `c.vector` should have full type completion
-4. **Test in development**: Run your agent and verify the service works
+1. **Rebuild the runtime**: `cd packages/runtime && bun run build`
+2. **Rebuild the CLI**: `cd packages/cli && bun run build`
+3. **Bundle your app**: The generated `registry.generated.ts` should include the new service
+4. **Check TypeScript**: `c.vector` should have full type completion
+5. **Test in development**: Run your agent and verify the service works
 
 ### Step 6: Create Integration Test Agent
 
@@ -1513,15 +1514,15 @@ See [test-app/src/agents/vector/agent.ts](../../../test-app/src/agents/vector/ag
 - [ ] Type imported in `packages/runtime/src/_context.ts`
 - [ ] Service declared in RequestAgentContext class with `!`
 
-**Bundler Package:**
+**CLI Package:**
 
-- [ ] Type imported in `packages/bundler/src/plugin.ts` (line ~45)
+- [ ] Type imported in `packages/cli/src/cmd/bundle/plugin.ts` (line ~45)
 - [ ] Type added to Hono Context interface (line ~67)
 
 **Verification:**
 
 - [ ] Server package rebuilt
-- [ ] Bundler package rebuilt
+- [ ] CLI package rebuilt
 - [ ] Test-app built successfully
 - [ ] Type safety verified in agent code
 - [ ] Test agent created in `test-app/src/agents/yourservice/`
@@ -1693,9 +1694,9 @@ When implementing a new service integration:
 11. **Update `agent.ts`** - Add service to AgentContext interface
 12. **Update `_context.ts`** - Declare service in RequestAgentContext class
 
-### Bundler Package Integration
+### CLI Package Integration
 
-13. **Update `plugin.ts`** - Import type and add to Hono Context
+13. **Update `cmd/bundle/plugin.ts`** - Import type and add to Hono Context
 
 ### Quality & Verification
 

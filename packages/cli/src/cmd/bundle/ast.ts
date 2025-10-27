@@ -159,7 +159,6 @@ export function parseAgentMetadata(
 	const id = getAgentId(name);
 	const version = hash(contents);
 
-	// Handle export default createAgent(...) shorthand
 	for (const body of ast.body) {
 		if (body.type === 'ExportDefaultDeclaration') {
 			if (body.declaration?.type === 'CallExpression') {
@@ -191,7 +190,6 @@ export function parseAgentMetadata(
 	if (!exportName) {
 		throw new Error(`could not find default export for ${filename} using ${rootDir}`);
 	}
-	// handle separate const agent = createAgent(...)
 	for (const body of ast.body) {
 		if (body.type === 'VariableDeclaration') {
 			for (const vardecl of body.declarations) {

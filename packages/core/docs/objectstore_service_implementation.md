@@ -224,7 +224,7 @@ Uses versioned API path: `/object/2025-03-17/`
 2. [packages/runtime/src/\_services.ts](../../../packages/runtime/src/_services.ts) - Service registration
 3. [packages/runtime/src/agent.ts](../../../packages/runtime/src/agent.ts) - AgentContext interface
 4. [packages/runtime/src/\_context.ts](../../../packages/runtime/src/_context.ts) - RequestAgentContext class
-5. [packages/bundler/src/plugin.ts](../../../packages/bundler/src/plugin.ts) - Hono context augmentation
+5. [packages/cli/src/cmd/bundle/plugin.ts](../../../packages/cli/src/cmd/bundle/plugin.ts) - Hono context augmentation
 
 ## Validation
 
@@ -501,7 +501,7 @@ The ObjectStorage service has been successfully ported from the old SDK to the n
 - ✅ Binary-safe with Uint8Array/ArrayBuffer
 - ✅ Well-validated with 29 comprehensive tests
 - ✅ Consistent with existing services (KeyValue, Stream, Vector)
-- ✅ Fully integrated into server and bundler packages
+- ✅ Fully integrated into server and cli packages
 - ✅ Documented with usage examples
 
 The binary data handling was rigorously tested to ensure no corruption during storage and retrieval operations, making it suitable for images, videos, PDFs, and other binary file types.

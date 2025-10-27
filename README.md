@@ -18,7 +18,7 @@ TypeScript monorepo using Bun 1.3+ workspaces.
 
 ## Structure
 
-- `packages/bundler` - Bundler tool
+- `packages/cli` - command line tools
 - `packages/core` - Shared utilities
 - `packages/react` - React package (browser)
 - `packages/runtime` - Server-side package (Bun runtime)

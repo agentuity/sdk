@@ -4,7 +4,7 @@
 	"type": "module",
 	"private": true,
 	"scripts": {
-		"build": "bun ./node_modules/@agentuity/bundler/bin/bundler.ts --dir . --dev",
+		"build": "bun ./node_modules/@agentuity/cli/bin/cli.ts bundle --dir . --dev",
 		"dev": "bun run ./.agentuity/app.js",
 		"test": "bash scripts/test.sh",
 		"typecheck": "bunx tsc --noEmit"
@@ -18,7 +18,7 @@
 		"typescript": "^5"
 	},
 	"dependencies": {
-		"@agentuity/bundler": "workspace:*",
+		"@agentuity/cli": "workspace:*",
 		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"@hono/zod-validator": "^0.7.4",

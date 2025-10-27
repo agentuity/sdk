@@ -10,7 +10,7 @@
 
 - **Runtime**: Bun server runtime
 - **Framework**: Hono (lightweight web framework)
-- **Build tool**: `@agentuity/bundler` compiles to `.agentuity/` directory
+- **Build tool**: `@agentuity/cli` compiles to `.agentuity/` directory
 - **Frontend**: React with `@agentuity/react` hooks
 
 ## Project Structure

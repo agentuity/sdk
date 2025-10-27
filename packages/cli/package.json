@@ -28,6 +28,8 @@
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
+		"acorn-loose": "^8.5.2",
+		"astring": "^1.9.0",
 		"commander": "^14.0.2"
 	},
 	"devDependencies": {

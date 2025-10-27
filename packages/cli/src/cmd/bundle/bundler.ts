@@ -2,14 +2,14 @@ import { join } from 'node:path';
 import { existsSync, rmSync } from 'node:fs';
 import AgentuityBuilder from './plugin';
 import { getFilesRecursively } from './file';
-import pkgJSON from '../package.json' with { type: 'json' };
+import pkgJSON from '../../../package.json' with { type: 'json' };
 
-interface BuildOptions {
+export interface BundleOptions {
 	rootDir: string;
 	dev?: boolean;
 }
 
-export async function build({ dev = false, rootDir }: BuildOptions) {
+export async function bundle({ dev = false, rootDir }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	const f = Bun.file(appFile);
 	if (!(await f.exists())) {
@@ -36,7 +36,7 @@ export async function build({ dev = false, rootDir }: BuildOptions) {
 		}
 	}
 
-	entrypoints.push(appFile); // always do this last
+	entrypoints.push(appFile);
 
 	if (existsSync(outDir)) {
 		rmSync(outDir, { recursive: true, force: true });
@@ -62,13 +62,11 @@ export async function build({ dev = false, rootDir }: BuildOptions) {
 		banner: `// Generated file. DO NOT EDIT`,
 	};
 
-	// create a smaller package json file with just the name and the version of the app
 	await Bun.write(
 		`${outDir}/package.json`,
 		JSON.stringify({ name: pkgContents.name, version: pkgContents.version }, null, 2)
 	);
 
-	// copy in our agentuity config
 	const agentuityYAML = Bun.file('./agentuity.yaml');
 	if (await agentuityYAML.exists()) {
 		await Bun.write(`${outDir}/agentuity.yaml`, agentuityYAML);

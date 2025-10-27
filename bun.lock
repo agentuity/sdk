@@ -22,7 +22,7 @@
       "name": "create-agentuity",
       "version": "0.0.5",
       "dependencies": {
-        "@agentuity/bundler": "workspace:*",
+        "@agentuity/cli": "workspace:*",
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
         "@agentuity/runtime": "workspace:*",
@@ -45,8 +45,7 @@
       "name": "test-app",
       "version": "0.0.5",
       "dependencies": {
-        "@agentuity/bundler": "workspace:*",
-        "@agentuity/core": "workspace:*",
+        "@agentuity/cli": "workspace:*",
         "@agentuity/react": "workspace:*",
         "@agentuity/runtime": "workspace:*",
         "@hono/zod-validator": "^0.7.4",
@@ -54,25 +53,12 @@
         "zod": "^4.1.12",
       },
       "devDependencies": {
+        "@agentuity/core": "workspace:*",
         "@types/bun": "latest",
         "@types/react": "^19.0.0",
       },
       "peerDependencies": {
         "typescript": "^5",
-      },
-    },
-    "packages/bundler": {
-      "name": "@agentuity/bundler",
-      "version": "0.0.5",
-      "bin": {
-        "agentuity-bundler": "./bin/bundler.ts",
-      },
-      "dependencies": {
-        "acorn-loose": "^8.5.2",
-        "astring": "^1.9.0",
-      },
-      "devDependencies": {
-        "typescript": "^5.9.0",
       },
     },
     "packages/cli": {
@@ -83,6 +69,8 @@
       },
       "dependencies": {
         "@agentuity/core": "workspace:*",
+        "acorn-loose": "^8.5.2",
+        "astring": "^1.9.0",
         "commander": "^14.0.2",
       },
       "devDependencies": {
@@ -146,8 +134,6 @@
     },
   },
   "packages": {
-    "@agentuity/bundler": ["@agentuity/bundler@workspace:packages/bundler"],
-
     "@agentuity/cli": ["@agentuity/cli@workspace:packages/cli"],
 
     "@agentuity/core": ["@agentuity/core@workspace:packages/core"],

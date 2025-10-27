@@ -1,9 +1,9 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./packages/bundler" },
-    { "path": "./packages/core" },
-    { "path": "./packages/react" },
-    { "path": "./packages/runtime" }
-  ]
+	"files": [],
+	"references": [
+		{ "path": "./packages/cli" },
+		{ "path": "./packages/core" },
+		{ "path": "./packages/react" },
+		{ "path": "./packages/runtime" }
+	]
 }

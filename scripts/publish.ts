@@ -108,8 +108,6 @@ async function getPublishablePackages(): Promise<
 	return publishable.sort((a, b) => {
 		if (a.name === 'core') return -1;
 		if (b.name === 'core') return 1;
-		if (a.name === 'bundler') return -1;
-		if (b.name === 'bundler') return 1;
 		if (a.name === 'create-agentuity') return 1;
 		if (b.name === 'create-agentuity') return -1;
 		if (a.name === 'cli') return 1;

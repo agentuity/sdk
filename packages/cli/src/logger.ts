@@ -123,7 +123,7 @@ export class Logger {
 		this.level = level;
 		this.showTimestamp = showTimestamp;
 		this.colorScheme = colorScheme;
-		this.colors = getLogColors(colorScheme);
+		this.colors = getLogColors(this.colorScheme);
 	}
 
 	setLevel(level: LogLevel): void {
@@ -136,7 +136,7 @@ export class Logger {
 
 	setColorScheme(scheme: ColorScheme): void {
 		this.colorScheme = scheme;
-		this.colors = getLogColors(scheme);
+		this.colors = getLogColors(this.colorScheme);
 	}
 
 	private shouldLog(level: LogLevel): boolean {
