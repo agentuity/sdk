@@ -1,21 +1,45 @@
-import type { SubcommandDefinition } from '@/types';
-import { getProfile } from '@/config';
+import { createSubcommand } from '@/types';
+import { z } from 'zod';
+import { getProfile, fetchProfiles } from '@/config';
 import { readFile } from 'node:fs/promises';
 import * as tui from '@/tui';
 
-export const showCommand: SubcommandDefinition = {
+export const showCommand = createSubcommand({
 	name: 'show',
-	description: 'Show the configuration of the current profile',
+	description: 'Show the configuration of a profile (defaults to current)',
 	aliases: ['current'],
+	schema: {
+		args: z
+			.object({
+				name: z.string().optional().describe('Profile name to show (optional)'),
+			})
+			.describe('Profile show arguments'),
+	},
 
 	async handler(ctx) {
-		const { logger } = ctx;
+		const { logger, args } = ctx;
 
 		try {
-			const profilePath = await getProfile();
+			let profilePath: string;
+
+			if (args.name) {
+				// Find profile by name
+				const profiles = await fetchProfiles();
+				const profile = profiles.find((p) => p.name === args.name);
+
+				if (!profile) {
+					return logger.fatal(`Profile "${args.name}" not found`);
+				}
+
+				profilePath = profile.filename;
+			} else {
+				// Use current profile
+				profilePath = await getProfile();
+			}
+
 			const content = await readFile(profilePath, 'utf-8');
 
-			tui.info(`Current profile: ${profilePath}`);
+			tui.info(`Profile: ${profilePath}`);
 			tui.newline();
 
 			console.log(content);
@@ -27,4 +51,4 @@ export const showCommand: SubcommandDefinition = {
 			}
 		}
 	},
-};
+});

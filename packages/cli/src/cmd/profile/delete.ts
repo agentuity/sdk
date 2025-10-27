@@ -12,10 +12,13 @@ export const deleteCommand = createSubcommand({
 		args: z.object({
 			name: z.string().describe('The name of the profile to delete'),
 		}),
+		options: z.object({
+			confirm: z.boolean().optional().describe('Skip confirmation prompt'),
+		}),
 	},
 
 	async handler(ctx) {
-		const { logger, args } = ctx;
+		const { logger, args, opts } = ctx;
 		const { name } = args;
 
 		const profiles = await fetchProfiles();
@@ -23,6 +26,15 @@ export const deleteCommand = createSubcommand({
 
 		if (!profile) {
 			return logger.fatal(`Profile "${name}" not found`);
+		}
+
+		// Ask for confirmation unless --confirm flag is passed
+		if (!opts?.confirm) {
+			const confirmed = await tui.confirm(`Delete profile "${name}"?`, false);
+			if (!confirmed) {
+				logger.info('Cancelled');
+				return;
+			}
 		}
 
 		try {

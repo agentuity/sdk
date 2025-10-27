@@ -1,7 +1,60 @@
 import type { Logger } from './logger';
 import type * as z from 'zod';
+import { z as zod } from 'zod';
 
-export type Config = Record<string, unknown>;
+export const ConfigSchema = zod.object({
+	name: zod.string().describe('Profile name'),
+	auth: zod
+		.object({
+			api_key: zod.string().optional().describe('API authentication key'),
+			user_id: zod.string().optional().describe('User ID'),
+			expires: zod.number().optional().describe('Authentication expiration timestamp'),
+		})
+		.optional()
+		.describe('Authentication credentials (managed by login/logout commands)'),
+	devmode: zod
+		.object({
+			hostname: zod.string().optional().describe('Development mode hostname'),
+		})
+		.optional()
+		.describe('Development mode configuration'),
+	overrides: zod
+		.object({
+			api_url: zod
+				.string()
+				.url()
+				.optional()
+				.describe('Override API base URL (default: https://api.agentuity.com)'),
+			app_url: zod
+				.string()
+				.url()
+				.optional()
+				.describe('Override app base URL (default: https://app.agentuity.com)'),
+			transport_url: zod
+				.string()
+				.url()
+				.optional()
+				.describe('Override transport URL (default: https://agentuity.ai)'),
+			websocket_url: zod
+				.string()
+				.url()
+				.optional()
+				.describe('Override WebSocket URL (default: wss://api.agentuity.com)'),
+			skip_version_check: zod.boolean().optional().describe('Skip CLI version check on startup'),
+		})
+		.optional()
+		.describe('URL and behavior overrides'),
+	preferences: zod
+		.object({
+			last_update_check: zod.number().optional().describe('Last update check timestamp'),
+			orgId: zod.string().optional().describe('Default organization ID'),
+			project_dir: zod.string().optional().describe('Last used project directory'),
+		})
+		.optional()
+		.describe('User preferences'),
+});
+
+export type Config = zod.infer<typeof ConfigSchema>;
 
 export type LogLevel = 'debug' | 'trace' | 'info' | 'warn' | 'error';
 
@@ -36,7 +89,7 @@ export type CommandContext<
 	? ArgsSchema extends z.ZodType
 		? OptionsSchema extends z.ZodType
 			? {
-					config: Config;
+					config: Config | null;
 					logger: Logger;
 					options: GlobalOptions;
 					auth: AuthData;
@@ -44,7 +97,7 @@ export type CommandContext<
 					opts: z.infer<OptionsSchema>;
 				}
 			: {
-					config: Config;
+					config: Config | null;
 					logger: Logger;
 					options: GlobalOptions;
 					auth: AuthData;
@@ -52,14 +105,14 @@ export type CommandContext<
 				}
 		: OptionsSchema extends z.ZodType
 			? {
-					config: Config;
+					config: Config | null;
 					logger: Logger;
 					options: GlobalOptions;
 					auth: AuthData;
 					opts: z.infer<OptionsSchema>;
 				}
 			: {
-					config: Config;
+					config: Config | null;
 					logger: Logger;
 					options: GlobalOptions;
 					auth: AuthData;
@@ -67,27 +120,27 @@ export type CommandContext<
 	: ArgsSchema extends z.ZodType
 		? OptionsSchema extends z.ZodType
 			? {
-					config: Config;
+					config: Config | null;
 					logger: Logger;
 					options: GlobalOptions;
 					args: z.infer<ArgsSchema>;
 					opts: z.infer<OptionsSchema>;
 				}
 			: {
-					config: Config;
+					config: Config | null;
 					logger: Logger;
 					options: GlobalOptions;
 					args: z.infer<ArgsSchema>;
 				}
 		: OptionsSchema extends z.ZodType
 			? {
-					config: Config;
+					config: Config | null;
 					logger: Logger;
 					options: GlobalOptions;
 					opts: z.infer<OptionsSchema>;
 				}
 			: {
-					config: Config;
+					config: Config | null;
 					logger: Logger;
 					options: GlobalOptions;
 				};

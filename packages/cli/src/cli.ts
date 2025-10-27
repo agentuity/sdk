@@ -75,7 +75,8 @@ async function registerSubcommand(
 	}
 
 	cmd.action(async (...rawArgs: unknown[]) => {
-		const options = rawArgs[rawArgs.length - 1] as Record<string, unknown>;
+		const cmdObj = rawArgs[rawArgs.length - 1] as { opts: () => Record<string, unknown> };
+		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
 
 		if (subcommand.requiresAuth) {

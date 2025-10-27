@@ -20,7 +20,7 @@ interface APIErrorResponse {
 	details?: Record<string, unknown>;
 }
 
-function getUserAgent(config?: Config): string {
+function getUserAgent(config?: Config | null): string {
 	// If we're skipping version check, send "dev" to signal the server to skip too
 	let version = getVersion();
 	if (shouldSkipVersionCheck(config)) {
@@ -31,7 +31,7 @@ function getUserAgent(config?: Config): string {
 	return `Agentuity CLI/${version} (${revision})`;
 }
 
-function shouldSkipVersionCheck(config?: Config): boolean {
+function shouldSkipVersionCheck(config?: Config | null): boolean {
 	// Priority order:
 	// 1. CLI flag (set via env var in cli.ts)
 	// 2. Environment variable
@@ -72,7 +72,7 @@ export class APIClient {
 	constructor(
 		private baseUrl: string,
 		private apiKey?: string,
-		private config?: Config
+		private config?: Config | null
 	) {}
 
 	async request<T>(method: string, endpoint: string, body?: unknown): Promise<T> {
@@ -159,7 +159,7 @@ export class APIClient {
 	}
 }
 
-export function getAPIBaseURL(config?: Config): string {
+export function getAPIBaseURL(config?: Config | null): string {
 	if (process.env.AGENTUITY_API_URL) {
 		return process.env.AGENTUITY_API_URL;
 	}
@@ -172,7 +172,7 @@ export function getAPIBaseURL(config?: Config): string {
 	return 'https://api.agentuity.com';
 }
 
-export function getAppBaseURL(config?: Config): string {
+export function getAppBaseURL(config?: Config | null): string {
 	if (process.env.AGENTUITY_APP_URL) {
 		return process.env.AGENTUITY_APP_URL;
 	}

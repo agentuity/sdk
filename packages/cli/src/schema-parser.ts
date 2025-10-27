@@ -99,7 +99,9 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 
 	for (const [key, value] of Object.entries(shape)) {
 		const unwrapped = unwrapSchema(value) as ZodTypeInternal;
-		const description = (value as ZodTypeInternal)?._def?.description;
+		const description =
+			(value as unknown as { description?: string })?.description ||
+			(value as ZodTypeInternal)?._def?.description;
 		/* eslint-disable @typescript-eslint/no-explicit-any */
 		const typeId =
 			unwrapped?._def?.typeName || (unwrapped as any)?._def?.type || (unwrapped as any)?.type;
