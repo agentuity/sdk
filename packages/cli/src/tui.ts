@@ -431,3 +431,74 @@ function wrapText(text: string, maxWidth: number): string[] {
 
 	return allLines.length > 0 ? allLines : [''];
 }
+
+/**
+ * Run a callback with an animated spinner
+ *
+ * Shows a spinner animation while the callback executes.
+ * On success, shows a checkmark. On error, shows an X and re-throws.
+ *
+ * @param message - The message to display next to the spinner
+ * @param callback - Async function or Promise to execute
+ */
+export async function spinner<T>(
+	message: string,
+	callback: (() => Promise<T>) | Promise<T>
+): Promise<T> {
+	const frames = ['◐', '◓', '◑', '◒'];
+	const spinnerColors = [
+		{ light: '\x1b[36m', dark: '\x1b[96m' }, // cyan
+		{ light: '\x1b[34m', dark: '\x1b[94m' }, // blue
+		{ light: '\x1b[35m', dark: '\x1b[95m' }, // magenta
+		{ light: '\x1b[36m', dark: '\x1b[96m' }, // cyan
+	];
+	const bold = '\x1b[1m';
+	const reset = COLORS.reset;
+
+	let frameIndex = 0;
+
+	// Hide cursor
+	process.stdout.write('\x1B[?25l');
+
+	// Start animation
+	const interval = setInterval(() => {
+		const colorDef = spinnerColors[frameIndex % spinnerColors.length];
+		const color = colorDef[currentColorScheme];
+		const frame = `${color}${bold}${frames[frameIndex % frames.length]}${reset}`;
+
+		// Clear line and render
+		process.stdout.write('\r\x1B[K' + `${frame} ${message}`);
+		frameIndex++;
+	}, 120);
+
+	try {
+		// Execute callback
+		const result = typeof callback === 'function' ? await callback() : await callback;
+
+		// Clear interval and line
+		clearInterval(interval);
+		process.stdout.write('\r\x1B[K');
+
+		// Show success
+		const successColor = getColor('success');
+		console.log(`${successColor}${ICONS.success} ${message}${reset}`);
+
+		// Show cursor
+		process.stdout.write('\x1B[?25h');
+
+		return result;
+	} catch (err) {
+		// Clear interval and line
+		clearInterval(interval);
+		process.stdout.write('\r\x1B[K');
+
+		// Show error
+		const errorColor = getColor('error');
+		console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
+
+		// Show cursor
+		process.stdout.write('\x1B[?25h');
+
+		throw err;
+	}
+}

@@ -21,6 +21,7 @@ export { showBanner } from './banner';
 export { discoverCommands } from './cmd';
 export { detectColorScheme } from './terminal';
 export * as tui from './tui';
+export { runSteps, setStepsColorScheme } from './steps';
 export type {
 	Config,
 	LogLevel,
@@ -32,3 +33,4 @@ export type {
 	AuthData,
 } from './types';
 export type { ColorScheme } from './terminal';
+export type { Step, StepOutcome, StepCallback } from './steps';
