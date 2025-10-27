@@ -46,7 +46,7 @@ export const createCommand = createSubcommand({
 		const template = generateYAMLTemplate(name);
 
 		try {
-			await writeFile(filename, template, { flag: 'wx', mode: 0o644 });
+			await writeFile(filename, template, { flag: 'wx', mode: 0o600 });
 			tui.success(`Created profile "${name}" at ${filename}`);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
