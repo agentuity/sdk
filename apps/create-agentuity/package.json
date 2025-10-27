@@ -30,7 +30,7 @@
 		"@agentuity/bundler": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/react": "workspace:*",
-		"@agentuity/server": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
 		"@hono/zod-validator": "^0.7.4",
 		"enquirer": "^2.4.1",
 		"hono": "^4.7.10",

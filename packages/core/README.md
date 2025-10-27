@@ -10,7 +10,7 @@ bun add @agentuity/core
 
 ## Overview
 
-`@agentuity/core` provides foundational utilities, type helpers, and standard schema interfaces used across the Agentuity ecosystem. This package is a dependency for both `@agentuity/server` and `@agentuity/react`.
+`@agentuity/core` provides foundational utilities, type helpers, and standard schema interfaces used across the Agentuity ecosystem. This package is a dependency for both `@agentuity/runtime` and `@agentuity/react`.
 
 ## Features
 
@@ -55,7 +55,7 @@ Helpers for working with JSON data.
 
 ## Usage
 
-This package is typically used as a peer dependency and not directly imported in user code. The `@agentuity/server` and `@agentuity/react` packages expose the necessary types and utilities.
+This package is typically used as a peer dependency and not directly imported in user code. The `@agentuity/runtime` and `@agentuity/react` packages expose the necessary types and utilities.
 
 ## License
 

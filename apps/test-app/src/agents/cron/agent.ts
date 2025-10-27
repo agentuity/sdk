@@ -1,4 +1,4 @@
-import { type AgentContext, createAgent } from '@agentuity/server';
+import { type AgentContext, createAgent } from '@agentuity/runtime';
 
 const agent = createAgent({
 	handler: async (_c: AgentContext) => {

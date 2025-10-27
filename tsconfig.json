@@ -4,6 +4,6 @@
     { "path": "./packages/bundler" },
     { "path": "./packages/core" },
     { "path": "./packages/react" },
-    { "path": "./packages/server" }
+    { "path": "./packages/runtime" }
   ]
 }

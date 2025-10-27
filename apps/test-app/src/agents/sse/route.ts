@@ -1,4 +1,4 @@
-import { createRouter } from '@agentuity/server';
+import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
@@ -8,12 +8,12 @@ router.sse('/', (c) => async (stream) => {
 			const text = await c.agent.sse.run();
 			await stream.write(text);
 		} catch (err) {
-			console.error('SSE write error:', err);
+			c.get('logger')?.error('SSE write error', { error: err });
 		}
 	}, 1_000);
 
 	stream.onAbort(() => {
-		console.log('SSE connection aborted');
+		c.get('logger')?.info('SSE connection aborted');
 		clearInterval(interval);
 	});
 

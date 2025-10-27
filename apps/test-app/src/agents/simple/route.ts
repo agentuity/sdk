@@ -1,4 +1,4 @@
-import { createRouter } from '@agentuity/server';
+import { createRouter } from '@agentuity/runtime';
 import { zValidator } from '@hono/zod-validator';
 import agent from './agent';
 

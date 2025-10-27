@@ -11,7 +11,7 @@
 
 - **Runtime**: Bun-based Agentuity server app using Hono framework
 - **Structure**: Agent-based architecture with agents in `src/agents/<name>/`
-- **Entry point**: app.ts creates server via `@agentuity/server`
+- **Entry point**: app.ts creates server via `@agentuity/runtime`
 - **Build output**: `.agentuity/` contains generated code (app.js, etc)
 - **Agent pattern**: Each agent has `agent.ts` (handler + schema) and optional `route.ts` (HTTP routes)
 - **Dependencies**: Uses Zod for validation, Hono for routing, @agentuity packages for framework
@@ -21,7 +21,7 @@
 - **TypeScript**: Strict mode, ESNext target, bundler moduleResolution, allowImportingTsExtensions
 - **Imports**: Use @agentuity/\* for framework imports, relative paths for local modules
 - **Agents**: Export default agent from agent.ts, define Zod schemas for input/output
-- **Routes**: Use createRouter() from @agentuity/server, access agents via c.agent.<name>.run()
+- **Routes**: Use createRouter() from @agentuity/runtime, access agents via c.agent.<name>.run()
 - **Validation**: Use @hono/zod-validator for request validation
 - **Naming**: Agent folders are lowercase, use camelCase for variables/functions
 

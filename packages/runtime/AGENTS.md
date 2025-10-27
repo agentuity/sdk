@@ -1,4 +1,4 @@
-# Agent Guidelines for @agentuity/server
+# Agent Guidelines for @agentuity/runtime
 
 ## Package Overview
 
@@ -53,7 +53,7 @@ src/
 ## Agent Definition Pattern
 
 ```typescript
-import { defineAgent } from '@agentuity/server';
+import { defineAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 export default defineAgent({

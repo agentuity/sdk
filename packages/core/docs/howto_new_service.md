@@ -1148,11 +1148,11 @@ const { adapter } = createMockAdapter([], {
 
 ## Integration into Server Package
 
-After implementing and testing your service, you need to integrate it into the `@agentuity/server` package so it's available in agent contexts.
+After implementing and testing your service, you need to integrate it into the `@agentuity/runtime` package so it's available in agent contexts.
 
 ### Step 1: Update `_services.ts`
 
-In `packages/server/src/_services.ts`:
+In `packages/runtime/src/_services.ts`:
 
 #### 1. Import your service
 
@@ -1239,7 +1239,7 @@ export function registerServices(o: any) {
 
 ### Step 2: Update AgentContext Interface
 
-In `packages/server/src/agent.ts`, add your service type to the AgentContext interface:
+In `packages/runtime/src/agent.ts`, add your service type to the AgentContext interface:
 
 #### 1. Import the type
 
@@ -1273,7 +1273,7 @@ export interface AgentContext {
 
 #### 3. Update RequestAgentContext class
 
-In `packages/server/src/_context.ts`, declare the service properties:
+In `packages/runtime/src/_context.ts`, declare the service properties:
 
 **Import types:**
 
@@ -1354,7 +1354,7 @@ Create a test agent to verify the service is available:
 
 ```typescript
 // In your agent file
-import { defineAgent } from '@agentuity/server';
+import { defineAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 export default defineAgent({
@@ -1401,7 +1401,7 @@ mkdir -p test-app/src/agents/yourservice
 #### 2. Create agent.ts
 
 ```typescript
-import { type AgentContext, createAgent } from '@agentuity/server';
+import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
@@ -1447,7 +1447,7 @@ export default agent;
 #### 3. Create route.ts
 
 ```typescript
-import { createRouter } from '@agentuity/server';
+import { createRouter } from '@agentuity/runtime';
 import { zValidator } from '@hono/zod-validator';
 import agent from './agent';
 
@@ -1503,14 +1503,14 @@ See [test-app/src/agents/vector/agent.ts](../../../test-app/src/agents/vector/ag
 
 **Server Package:**
 
-- [ ] Service imported in `packages/server/src/_services.ts`
+- [ ] Service imported in `packages/runtime/src/_services.ts`
 - [ ] Base URL configured with environment variable fallback
 - [ ] Telemetry handling added to `onAfter` callback (optional)
 - [ ] Service instantiated with adapter
 - [ ] Service registered in `registerServices()`
-- [ ] Type imported in `packages/server/src/agent.ts`
+- [ ] Type imported in `packages/runtime/src/agent.ts`
 - [ ] Service added to AgentContext interface
-- [ ] Type imported in `packages/server/src/_context.ts`
+- [ ] Type imported in `packages/runtime/src/_context.ts`
 - [ ] Service declared in RequestAgentContext class with `!`
 
 **Bundler Package:**

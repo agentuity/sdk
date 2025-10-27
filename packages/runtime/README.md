@@ -1,23 +1,23 @@
-# @agentuity/server
+# @agentuity/runtime
 
 Server runtime for building Agentuity applications with Bun and Hono.
 
 ## Installation
 
 ```bash
-bun add @agentuity/server
+bun add @agentuity/runtime
 ```
 
 ## Overview
 
-`@agentuity/server` provides the server-side runtime for Agentuity applications. Built on [Hono](https://hono.dev/) and optimized for [Bun](https://bun.sh/), it enables you to create type-safe agents with automatic routing, validation, and observability.
+`@agentuity/runtime` provides the server-side runtime for Agentuity applications. Built on [Hono](https://hono.dev/) and optimized for [Bun](https://bun.sh/), it enables you to create type-safe agents with automatic routing, validation, and observability.
 
 ## Quick Start
 
 ### Creating an Application
 
 ```typescript
-import { createApp } from '@agentuity/server';
+import { createApp } from '@agentuity/runtime';
 
 const { app, server, logger } = createApp();
 
@@ -29,7 +29,7 @@ logger.info('Server running on http://localhost:3000');
 ### Defining an Agent
 
 ```typescript
-import { type AgentContext, createAgent } from '@agentuity/server';
+import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
@@ -53,7 +53,7 @@ export default agent;
 ### Creating Custom Routes
 
 ```typescript
-import { createRouter } from '@agentuity/server';
+import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 

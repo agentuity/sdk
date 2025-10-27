@@ -221,9 +221,9 @@ Uses versioned API path: `/object/2025-03-17/`
 ### Modified:
 
 1. [src/services/index.ts](../src/services/index.ts) - Added `export * from './objectstore'`
-2. [packages/server/src/\_services.ts](../../../packages/server/src/_services.ts) - Service registration
-3. [packages/server/src/agent.ts](../../../packages/server/src/agent.ts) - AgentContext interface
-4. [packages/server/src/\_context.ts](../../../packages/server/src/_context.ts) - RequestAgentContext class
+2. [packages/runtime/src/\_services.ts](../../../packages/runtime/src/_services.ts) - Service registration
+3. [packages/runtime/src/agent.ts](../../../packages/runtime/src/agent.ts) - AgentContext interface
+4. [packages/runtime/src/\_context.ts](../../../packages/runtime/src/_context.ts) - RequestAgentContext class
 5. [packages/bundler/src/plugin.ts](../../../packages/bundler/src/plugin.ts) - Hono context augmentation
 
 ## Validation
@@ -324,7 +324,7 @@ This tests:
 
 ### Server Package Integration
 
-**Service Registration** (`packages/server/src/_services.ts`):
+**Service Registration** (`packages/runtime/src/_services.ts`):
 
 ```typescript
 const objectBaseUrl =

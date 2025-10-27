@@ -1,4 +1,4 @@
-import { type AgentContext, createAgent } from '@agentuity/server';
+import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 interface DocMetadata extends Record<string, unknown> {

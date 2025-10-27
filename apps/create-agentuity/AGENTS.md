@@ -47,7 +47,7 @@ Each agent should be in its own folder under `src/agents/`:
 
 ```typescript
 // src/agents/my-agent/agent.ts
-import { type AgentContext, createAgent } from '@agentuity/server';
+import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
@@ -79,7 +79,7 @@ Add custom HTTP routes for your agent:
 
 ```typescript
 // src/agents/my-agent/route.ts
-import { createRouter } from '@agentuity/server';
+import { createRouter } from '@agentuity/runtime';
 import { zValidator } from '@hono/zod-validator';
 import agent from './agent';
 
@@ -121,7 +121,7 @@ Create custom routes in `src/apis/`:
 
 ```typescript
 // src/apis/my-route/route.ts
-import { createRouter } from '@agentuity/server';
+import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 

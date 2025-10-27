@@ -1,4 +1,4 @@
-import { type AgentContext, createAgent } from '@agentuity/server';
+import { type AgentContext, createAgent } from '@agentuity/runtime';
 
 export default createAgent({
 	metadata: {

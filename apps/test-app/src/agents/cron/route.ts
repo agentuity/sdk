@@ -1,4 +1,4 @@
-import { createRouter } from '@agentuity/server';
+import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 

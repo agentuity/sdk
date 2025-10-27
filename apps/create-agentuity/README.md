@@ -77,7 +77,7 @@ Create a new agent by adding a folder in `src/agents/`:
 
 ```typescript
 // src/agents/my-agent/agent.ts
-import { type AgentContext, createAgent } from '@agentuity/server';
+import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
@@ -106,7 +106,7 @@ Create custom routes in `src/apis/` or add routes to an agent folder:
 
 ```typescript
 // src/agents/my-agent/route.ts
-import { createRouter } from '@agentuity/server';
+import { createRouter } from '@agentuity/runtime';
 import { zValidator } from '@hono/zod-validator';
 import agent from './agent';
 

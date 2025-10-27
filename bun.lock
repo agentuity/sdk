@@ -25,7 +25,7 @@
         "@agentuity/bundler": "workspace:*",
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
-        "@agentuity/server": "workspace:*",
+        "@agentuity/runtime": "workspace:*",
         "@hono/zod-validator": "^0.7.4",
         "enquirer": "^2.4.1",
         "hono": "^4.7.10",
@@ -48,7 +48,7 @@
         "@agentuity/bundler": "workspace:*",
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
-        "@agentuity/server": "workspace:*",
+        "@agentuity/runtime": "workspace:*",
         "@hono/zod-validator": "^0.7.4",
         "hono": "^4.7.13",
         "zod": "^4.1.12",
@@ -111,8 +111,8 @@
         "react": "^18.0.0 || ^19.0.0",
       },
     },
-    "packages/server": {
-      "name": "@agentuity/server",
+    "packages/runtime": {
+      "name": "@agentuity/runtime",
       "version": "0.0.5",
       "dependencies": {
         "@agentuity/core": "workspace:*",
@@ -154,7 +154,7 @@
 
     "@agentuity/react": ["@agentuity/react@workspace:packages/react"],
 
-    "@agentuity/server": ["@agentuity/server@workspace:packages/server"],
+    "@agentuity/runtime": ["@agentuity/runtime@workspace:packages/runtime"],
 
     "@cfworker/json-schema": ["@cfworker/json-schema@4.1.1", "", {}, "sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og=="],
 
