@@ -8,6 +8,7 @@
 - **Format**: `bunx prettier */** --write --fix`
 - **Test**: `bun test` (uses Bun's built-in test runner)
 - **Clean**: `bun run clean` (removes all dist/ and .tsbuildinfo files)
+- **Test Everything**: `bun run all` will run all the commands together to validate and test
 
 ## Architecture
 

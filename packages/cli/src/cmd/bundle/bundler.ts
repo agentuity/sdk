@@ -45,21 +45,34 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 	const pkgFile = Bun.file('./package.json');
 	const pkgContents = JSON.parse(await pkgFile.text());
 
+	const isProd = !dev;
+
 	const define = {
 		'process.env.AGENTUITY_CLOUD_SDK_VERSION': JSON.stringify(getVersion() ?? '1.0.0'),
+		'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
 	};
 
 	const config: Bun.BuildConfig = {
 		entrypoints,
 		root: rootDir,
 		outdir: outDir,
-		bytecode: dev ? false : true,
 		define,
-		sourcemap: 'external',
+		sourcemap: dev ? 'inline' : 'external',
 		env: 'AGENTUITY_CLOUD_*',
 		plugins: [AgentuityBuilder],
 		target: 'bun',
+		format: 'esm',
 		banner: `// Generated file. DO NOT EDIT`,
+		minify: isProd,
+		drop: isProd ? ['debugger'] : undefined,
+		naming: isProd
+			? {
+					entry: '[dir]/[name].js',
+					chunk: 'chunks/[name]-[hash].js',
+					asset: 'assets/[name]-[hash].[ext]',
+				}
+			: undefined,
+		conditions: [isProd ? 'production' : 'development', 'bun'],
 	};
 
 	await Bun.write(

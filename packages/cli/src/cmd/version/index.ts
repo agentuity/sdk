@@ -1,25 +1,16 @@
-import type { CommandDefinition } from '../../types';
-import { Command } from 'commander';
-import { logger } from '../../logger';
-import { getVersion } from '../../version';
+import { createCommand } from '@/types';
+import { getVersion } from '@/version';
+import { logger } from '@/logger';
 
-export const versionCommand: CommandDefinition = {
+export const command = createCommand({
 	name: 'version',
 	description: 'Display version information',
 
-	register(program: Command) {
-		program
-			.command('version')
-			.description('Display version information')
-			.action(async () => {
-				try {
-					logger.info(getVersion());
-				} catch (error) {
-					logger.error('Failed to retrieve version:', error);
-					process.exitCode = 1;
-				}
-			});
+	async handler() {
+		try {
+			console.log(getVersion());
+		} catch (error) {
+			logger.fatal('Failed to retrieve version: %s', error);
+		}
 	},
-};
-
-export default versionCommand;
+});

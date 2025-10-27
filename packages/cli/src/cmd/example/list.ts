@@ -1,32 +1,32 @@
-import type { SubcommandDefinition, CommandContext } from '../../types';
-import { Command } from 'commander';
+import { createSubcommand } from '@/types';
+import { z } from 'zod';
 
-interface ListOptions {
-	all: boolean;
-	json: boolean;
-}
-
-export const listSubcommand: SubcommandDefinition = {
+export const listSubcommand = createSubcommand({
 	name: 'list',
-	description: 'List all examples',
-
-	register(parent: Command, ctx: CommandContext) {
-		parent
-			.command('list')
-			.description('List all examples')
-			.option('-a, --all', 'Show all examples', false)
-			.option('--json', 'Output as JSON', false)
-			.action(async (options: ListOptions) => {
-				const { logger } = ctx;
-
-				const examples = ['example-1', 'example-2', 'example-3'];
-
-				if (options.json) {
-					console.log(JSON.stringify(examples, null, 2));
-				} else {
-					logger.info('Listing examples...');
-					examples.forEach((ex) => logger.info(`- ${ex}`));
-				}
-			});
+	description: 'List examples',
+	schema: {
+		options: z.object({
+			all: z.boolean().optional().describe('Show all examples'),
+			json: z.boolean().optional().describe('Output as JSON'),
+		}),
 	},
-};
+
+	async handler(ctx) {
+		const { logger, opts } = ctx;
+
+		logger.trace('Starting list command...');
+		logger.debug(`All: ${opts.all || false}`);
+		logger.debug(`JSON: ${opts.json || false}`);
+
+		const examples = ['example1', 'example2', 'example3'];
+
+		if (opts.json) {
+			console.log(JSON.stringify(examples));
+		} else {
+			logger.info('Examples:');
+			for (const example of examples) {
+				logger.info(`  - ${example}`);
+			}
+		}
+	},
+});

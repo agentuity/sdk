@@ -20,6 +20,7 @@ export { Logger, logger } from './logger';
 export { showBanner } from './banner';
 export { discoverCommands } from './cmd';
 export { detectColorScheme } from './terminal';
+export { getCommandPrefix, getCommand } from './command-prefix';
 export * as tui from './tui';
 export { runSteps, setStepsColorScheme } from './steps';
 export type {
@@ -31,6 +32,8 @@ export type {
 	CommandDefinition,
 	Profile,
 	AuthData,
+	CommandSchemas,
 } from './types';
+export { createSubcommand, createCommand } from './types';
 export type { ColorScheme } from './terminal';
 export type { Step, StepOutcome, StepCallback } from './steps';

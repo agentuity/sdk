@@ -1,28 +1,22 @@
-import type { CommandDefinition, CommandContext } from '../../types';
-import { Command } from 'commander';
-import { createSubcommand } from './create';
+import { createCommand } from '@/types';
+import { createCommand as createSubCmd } from './create';
 import { listSubcommand } from './list';
 import { stepsSubcommand } from './steps';
 import { spinnerSubcommand } from './spinner';
+import { deploySubcommand } from './deploy';
+import { versionSubcommand } from './version';
+import { createUserSubcommand } from './create-user';
 
-export const exampleCommand: CommandDefinition = {
+export const command = createCommand({
 	name: 'example',
 	description: 'Example command with subcommands',
-	subcommands: [createSubcommand, listSubcommand, stepsSubcommand, spinnerSubcommand],
-
-	register(program: Command, ctx: CommandContext) {
-		const cmd = program.command('example').description('Example command with subcommands');
-
-		if (this.subcommands) {
-			for (const sub of this.subcommands) {
-				sub.register(cmd, ctx);
-			}
-		}
-
-		cmd.action(() => {
-			cmd.help();
-		});
-	},
-};
-
-export default exampleCommand;
+	subcommands: [
+		createSubCmd,
+		listSubcommand,
+		stepsSubcommand,
+		spinnerSubcommand,
+		deploySubcommand,
+		versionSubcommand,
+		createUserSubcommand,
+	],
+});

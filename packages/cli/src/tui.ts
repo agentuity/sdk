@@ -321,6 +321,63 @@ export async function waitForAnyKey(message = 'Press Enter to continue...'): Pro
 }
 
 /**
+ * Prompts user with a yes/no question
+ * Returns true for yes, false for no
+ * Exits with code 1 if CTRL+C is pressed
+ */
+export async function confirm(message: string, defaultValue = true): Promise<boolean> {
+	const suffix = defaultValue ? '[Y/n]' : '[y/N]';
+	process.stdout.write(`${message} ${muted(suffix)} `);
+
+	// Check if we're in a TTY environment
+	if (!process.stdin.isTTY) {
+		console.log('');
+		return defaultValue;
+	}
+
+	// Set stdin to raw mode to read a single keypress
+	process.stdin.setRawMode(true);
+	process.stdin.resume();
+	let rawModeSet = true;
+
+	return new Promise((resolve) => {
+		process.stdin.once('data', (data: Buffer) => {
+			if (rawModeSet && process.stdin.isTTY) {
+				process.stdin.setRawMode(false);
+				rawModeSet = false;
+			}
+			process.stdin.pause();
+
+			// Check for CTRL+C (character code 3)
+			if (data.length === 1 && data[0] === 3) {
+				console.log('\n');
+				process.exit(1);
+			}
+
+			const input = data.toString().trim().toLowerCase();
+			console.log('');
+
+			// Enter key (just newline) uses default
+			if (input === '') {
+				resolve(defaultValue);
+				return;
+			}
+
+			// Check first character for y/n
+			const char = input.charAt(0);
+			if (char === 'y') {
+				resolve(true);
+			} else if (char === 'n') {
+				resolve(false);
+			} else {
+				// Invalid input, use default
+				resolve(defaultValue);
+			}
+		});
+	});
+}
+
+/**
  * Copy text to clipboard
  * Returns true if successful, false otherwise
  */

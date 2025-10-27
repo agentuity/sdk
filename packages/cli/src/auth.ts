@@ -1,0 +1,91 @@
+import { existsSync } from 'node:fs';
+import { getDefaultConfigDir, getAuth } from './config';
+import { getCommand } from './command-prefix';
+import type { CommandContext, AuthData } from './types';
+import * as tui from './tui';
+
+export function isTTY(): boolean {
+	return process.stdin.isTTY === true && process.stdout.isTTY === true;
+}
+
+export function hasLoggedInBefore(): boolean {
+	const configDir = getDefaultConfigDir();
+	return existsSync(configDir);
+}
+
+export async function isAuthenticated(): Promise<boolean> {
+	const auth = await getAuth();
+	if (!auth) {
+		return false;
+	}
+	return auth.expires > new Date();
+}
+
+export async function requireAuth(ctx: CommandContext<false>): Promise<AuthData> {
+	const { logger } = ctx;
+	const auth = await getAuth();
+
+	if (auth && auth.expires > new Date()) {
+		return auth;
+	}
+
+	const loginCmd = getCommand('auth login');
+	const hasConfig = hasLoggedInBefore();
+
+	if (!isTTY()) {
+		if (hasConfig) {
+			logger.fatal(
+				`You are not currently logged in or your session has expired.\n` +
+					`Use "${loginCmd}" to login to Agentuity`
+			);
+		} else {
+			logger.fatal(
+				`Authentication required.\n` + `Use "${loginCmd}" to create an account or login`
+			);
+		}
+	}
+
+	// Interactive mode - prompt user to login
+	tui.newline();
+	tui.warning(
+		hasConfig
+			? 'You are not currently logged in or your session has expired.'
+			: 'Authentication required to continue.'
+	);
+	tui.newline();
+
+	const shouldLogin = await tui.confirm(
+		hasConfig ? 'Would you like to login now?' : 'Would you like to create an account or login?',
+		true
+	);
+
+	if (!shouldLogin) {
+		logger.fatal(`Authentication required. Run "${loginCmd}" when you're ready to continue.`);
+	}
+
+	// Import and run login flow
+	const { loginCommand } = await import('./cmd/auth/login');
+	await loginCommand.handler(ctx);
+
+	// After login completes, verify we have auth
+	const newAuth = await getAuth();
+	if (!newAuth || newAuth.expires <= new Date()) {
+		return logger.fatal('Login was not completed successfully.');
+	}
+
+	return newAuth;
+}
+
+export function withAuth<TArgs extends unknown[]>(
+	ctx: CommandContext<false>,
+	handler: (ctx: CommandContext<true>, ...args: TArgs) => Promise<void> | void
+): (...args: TArgs) => Promise<void> {
+	return async (...args: TArgs) => {
+		const auth = await requireAuth(ctx);
+		const authenticatedCtx: CommandContext<true> = {
+			...ctx,
+			auth,
+		};
+		return handler(authenticatedCtx, ...args);
+	};
+}

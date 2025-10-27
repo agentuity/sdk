@@ -30,7 +30,8 @@
 		"@agentuity/core": "workspace:*",
 		"acorn-loose": "^8.5.2",
 		"astring": "^1.9.0",
-		"commander": "^14.0.2"
+		"commander": "^14.0.2",
+		"zod": "^4.1.12"
 	},
 	"devDependencies": {
 		"typescript": "^5.9.0"

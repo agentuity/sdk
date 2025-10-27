@@ -1,34 +1,31 @@
-import type { SubcommandDefinition, CommandContext } from '../../types';
-import { Command } from 'commander';
+import { createSubcommand } from '@/types';
+import { z } from 'zod';
 
-interface CreateOptions {
-	type: string;
-	force: boolean;
-}
-
-export const createSubcommand: SubcommandDefinition = {
+export const createCommand = createSubcommand({
 	name: 'create',
 	description: 'Create a new example',
-
-	register(parent: Command, ctx: CommandContext) {
-		parent
-			.command('create <name>')
-			.description('Create a new example')
-			.option('-t, --type <type>', 'Example type', 'default')
-			.option('-f, --force', 'Force creation', false)
-			.action(async (name: string, options: CreateOptions) => {
-				const { logger } = ctx;
-
-				logger.trace('Starting create command...');
-				logger.debug(`Type: ${options.type}`);
-				logger.debug(`Force: ${options.force}`);
-				logger.info(`Creating example: ${name}`);
-
-				if (options.force) {
-					logger.warn('Force mode enabled');
-				}
-
-				logger.info('Example created successfully!');
-			});
+	schema: {
+		args: z.object({
+			name: z.string().describe('Name of the example'),
+		}),
+		options: z.object({
+			type: z.string().optional().describe('Example type'),
+			force: z.boolean().optional().describe('Force creation'),
+		}),
 	},
-};
+
+	async handler(ctx) {
+		const { logger, args, opts } = ctx;
+
+		logger.trace('Starting create command...');
+		logger.debug(`Type: ${opts.type || 'default'}`);
+		logger.debug(`Force: ${opts.force || false}`);
+		logger.info(`Creating example: ${args.name}`);
+
+		if (opts.force) {
+			logger.warn('Force mode enabled');
+		}
+
+		logger.info('Example created successfully!');
+	},
+});

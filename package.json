@@ -12,7 +12,8 @@
 		"typecheck": "bunx tsc --build && cd apps/test-app && bunx tsc --build",
 		"clean": "rm -rf packages/*/dist apps/*/dist packages/*/*.tsbuildinfo",
 		"format": "bunx prettier */** --write --fix",
-		"lint": "bunx eslint packages"
+		"lint": "bunx eslint packages",
+		"all": "bun clean && bun format && bun run build && bun lint && bun typecheck && bun run test"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.38.0",
