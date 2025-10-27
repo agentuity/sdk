@@ -2,6 +2,7 @@ import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import {
 	createServerFetchAdapter,
 	KeyValueStorageService,
+	ObjectStorageService,
 	StreamStorageService,
 	VectorStorageService,
 	ListStreamsResponse,
@@ -24,6 +25,11 @@ const streamBaseUrl = process.env.AGENTUITY_STREAM_URL || 'https://streams.agent
 
 const vectorBaseUrl =
 	process.env.AGENTUITY_VECTOR_URL ||
+	process.env.AGENTUITY_TRANSPORT_URL ||
+	'https://agentuity.ai';
+
+const objectBaseUrl =
+	process.env.AGENTUITY_OBJECTSTORE_URL ||
 	process.env.AGENTUITY_TRANSPORT_URL ||
 	'https://agentuity.ai';
 
@@ -119,11 +125,28 @@ const adapter = createServerFetchAdapter({
 				}
 				break;
 			}
+			case 'agentuity.objectstore.get': {
+				if (result.response.status === 404) {
+					span?.addEvent('miss');
+				} else if (result.response.ok) {
+					span?.addEvent('hit');
+				}
+				break;
+			}
+			case 'agentuity.objectstore.delete': {
+				if (result.response.status === 404) {
+					span?.addEvent('not_found', { deleted: false });
+				} else if (result.response.ok) {
+					span?.addEvent('deleted', { deleted: true });
+				}
+				break;
+			}
 		}
 	},
 });
 
 const kv = new KeyValueStorageService(kvBaseUrl, adapter);
+const objectStore = new ObjectStorageService(objectBaseUrl, adapter);
 const stream = new StreamStorageService(streamBaseUrl, adapter);
 const vector = new VectorStorageService(vectorBaseUrl, adapter);
 
@@ -131,6 +154,11 @@ const vector = new VectorStorageService(vectorBaseUrl, adapter);
 export function registerServices(o: any) {
 	Object.defineProperty(o, 'kv', {
 		get: () => kv,
+		enumerable: false,
+		configurable: false,
+	});
+	Object.defineProperty(o, 'objectstore', {
+		get: () => objectStore,
 		enumerable: false,
 		configurable: false,
 	});

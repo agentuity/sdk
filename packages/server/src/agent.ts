@@ -2,6 +2,7 @@
 import type {
 	StandardSchemaV1,
 	KeyValueStorage,
+	ObjectStorage,
 	StreamStorage,
 	VectorStorage,
 } from '@agentuity/core';
@@ -23,6 +24,7 @@ export interface AgentContext {
 	sessionId: string;
 	tracer: Tracer;
 	kv: KeyValueStorage;
+	objectstore: ObjectStorage;
 	stream: StreamStorage;
 	vector: VectorStorage;
 }

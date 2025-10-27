@@ -172,6 +172,14 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 	});
 
 	app.route('/_agentuity', createAgentuityAPIs());
+
+	// Attach services to context for API routes
+	app.use('/api/*', async (c, next) => {
+		const { registerServices } = await import('./_services');
+		registerServices(c);
+		await next();
+	});
+
 	app.use('/api/*', otelMiddleware);
 	app.use('/agent/*', otelMiddleware);
 

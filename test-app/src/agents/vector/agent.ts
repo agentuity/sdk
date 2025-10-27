@@ -116,7 +116,7 @@ const agent = createAgent({
 				return {
 					operation,
 					success: result.exists,
-					result: result.exists ? result.data : null,
+					result: result.exists ? { ...result.data } : null,
 				};
 			}
 

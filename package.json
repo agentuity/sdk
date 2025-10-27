@@ -9,7 +9,7 @@
 	"scripts": {
 		"build": "bunx tsc --build --force && bun run --workspaces build",
 		"test": "bun test",
-		"typecheck": "bunx tsc --build --dry",
+		"typecheck": "bunx tsc --build && cd test-app && bunx tsc --build",
 		"clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
 		"format": "bunx prettier */** --write --fix",
 		"lint": "bunx eslint packages"

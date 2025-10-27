@@ -1,4 +1,4 @@
-name: Build Packages
+name: Build Packages & Test
 
 on:
    push:
@@ -11,6 +11,8 @@ jobs:
       runs-on: ubuntu-latest
       timeout-minutes: 5
       name: Build
+      env:
+         AGENTUITY_CLOUD_PROJECT_ID: ${{ vars.AGENTUITY_CLOUD_PROJECT_ID }}
       steps:
          - uses: actions/checkout@v4
          - name: Setup Bun
@@ -18,6 +20,18 @@ jobs:
          - name: Install dependencies & tooling
            run: |
               bun install
+              bun run build
+              cd test-app && bun run build && cd ../
               bun run lint
               bun run typecheck
-              bun run build
+         - name: Create test-app .env
+           run: |
+              echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" > test-app/.env
+              echo "AGENTUITY_CLOUD_PROJECT_ID=${{ env.AGENTUITY_CLOUD_PROJECT_ID }}" >> test-app/.env
+         - name: Test
+           run: |
+              bun test
+              cd test-app && bun run test
+         - name: Cleanup .env
+           if: always()
+           run: rm -f test-app/.env

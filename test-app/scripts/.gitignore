@@ -1,0 +1,14 @@
+# Temporary test files
+*.bin
+*.jpg
+*.png
+*.pdf
+*.mp4
+*.zip
+downloaded-*
+test.bin
+test.jpg
+test.png
+test.pdf
+original.*
+problematic.*
