@@ -1,7 +1,7 @@
 import type { CommandDefinition } from '../../types';
 import { Command } from 'commander';
 import { logger } from '../../logger';
-import pkg from '../../../package.json' with { type: 'json' };
+import { getVersion } from '../../version';
 
 export const versionCommand: CommandDefinition = {
 	name: 'version',
@@ -13,7 +13,7 @@ export const versionCommand: CommandDefinition = {
 			.description('Display version information')
 			.action(async () => {
 				try {
-					logger.info(pkg.version);
+					logger.info(getVersion());
 				} catch (error) {
 					logger.error('Failed to retrieve version:', error);
 					process.exitCode = 1;

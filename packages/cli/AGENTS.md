@@ -47,15 +47,21 @@ bin/
 - **Type-safe options** - Always define interfaces for command options
 - **Commander.js patterns** - Follow commander.js best practices
 - **Async/await** - All I/O operations are async
+- **Path aliases** - Use `@/` prefix for imports (e.g., `import { tui } from '@/tui'` instead of `../../tui`)
 
 ## Important Conventions
 
 - **Command structure** - Each command is a directory in `src/cmd/` with index.ts
 - **Subcommands** - Define in separate files, export as `SubcommandDefinition`
 - **Type safety** - Always create interfaces for command options (never use `any`)
-- **Colors** - Use Bun's built-in color support: `console.log('%c...', 'color: cyan')`
+- **TUI Output** - Use `tui.*` helpers for formatted output without log prefixes:
+   - `tui.success()`, `tui.error()`, `tui.warning()`, `tui.info()` for semantic messages
+   - `tui.bold()`, `tui.muted()`, `tui.link()` for text formatting
+   - See [src/tui.md](src/tui.md) for full documentation
+- **Logging** - Use `ctx.logger` for standard logging (includes prefixes like `[INFO]`):
+   - `logger.fatal(message)` - Log error and exit with code 1 (returns `never`)
+   - Use `logger.fatal()` instead of `logger.error()` + `process.exit(1)`
 - **Config** - Commands validate their own config requirements
-- **Logging** - Use `ctx.logger` for all output (respects --log-level)
 
 ## Creating New Commands
 
@@ -110,6 +116,18 @@ export default deployCommand;
 - Test by running: `bun bin/cli.ts [command]`
 - Test with log levels: `bun bin/cli.ts --log-level=debug [command]`
 - Test with custom config: `bun bin/cli.ts --config=/path/to/config.yaml [command]`
+- Debug mode: `DEBUG=1 bun bin/cli.ts [command]` (shows API request/response details)
+
+### Version Check Bypass (Development Only)
+
+For local development, version checks can be bypassed (in priority order):
+
+1. **CLI flag** (highest): `--skip-version-check`
+2. **Environment variable**: `AGENTUITY_SKIP_VERSION_CHECK=1`
+3. **Config override**: Add `skip_version_check: true` to profile's `overrides` section
+4. **Auto-detection** (lowest): Versions `0.0.x` or `dev` are automatically skipped
+
+See `.dev-notes.md` for more development tips.
 
 ## Publishing Checklist
 

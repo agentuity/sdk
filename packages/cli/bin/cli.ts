@@ -5,12 +5,12 @@ import { loadConfig } from '../src/config';
 import { discoverCommands } from '../src/cmd';
 import { logger } from '../src/logger';
 import { detectColorScheme } from '../src/terminal';
+import { getVersion } from '../src/version';
 import type { LogLevel } from '../src/types';
 
 validateRuntime();
 
-const pkg = await import('../package.json');
-const version = pkg.version;
+const version = getVersion();
 
 const program = await createCLI(version);
 
@@ -36,6 +36,11 @@ if (process.env.DEBUG_COLORS) {
 // Configure logger with global options
 logger.setLevel((earlyOpts.logLevel as LogLevel) || 'info');
 logger.setTimestamp(earlyOpts.logTimestamp || false);
+
+// Set version check skip flag from CLI option
+if (earlyOpts.skipVersionCheck) {
+	process.env.AGENTUITY_SKIP_VERSION_CHECK = '1';
+}
 
 const config = await loadConfig(earlyOpts.config);
 

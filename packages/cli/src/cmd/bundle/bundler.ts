@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { existsSync, rmSync } from 'node:fs';
 import AgentuityBuilder from './plugin';
 import { getFilesRecursively } from './file';
-import pkgJSON from '../../../package.json' with { type: 'json' };
+import { getVersion } from '../../version';
 
 export interface BundleOptions {
 	rootDir: string;
@@ -46,7 +46,7 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 	const pkgContents = JSON.parse(await pkgFile.text());
 
 	const define = {
-		'process.env.AGENTUITY_CLOUD_SDK_VERSION': JSON.stringify(pkgJSON.version ?? '1.0.0'),
+		'process.env.AGENTUITY_CLOUD_SDK_VERSION': JSON.stringify(getVersion() ?? '1.0.0'),
 	};
 
 	const config: Bun.BuildConfig = {

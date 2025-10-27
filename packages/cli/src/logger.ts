@@ -144,7 +144,7 @@ export class Logger {
 	}
 
 	private log(level: LogLevel, message: string, ...args: unknown[]): void {
-		if (!this.shouldLog(level)) {
+		if (!this.shouldLog(level) || !message) {
 			return;
 		}
 
@@ -209,6 +209,11 @@ export class Logger {
 
 	error(message: string, ...args: unknown[]): void {
 		this.log('error', message, ...args);
+	}
+
+	fatal(message: string, ...args: unknown[]): never {
+		this.log('error', message, ...args);
+		process.exit(1);
 	}
 }
 

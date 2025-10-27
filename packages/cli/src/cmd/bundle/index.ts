@@ -15,9 +15,10 @@ export const bundleCommand: CommandDefinition = {
 	register(program: Command, ctx: CommandContext) {
 		program
 			.command('bundle')
+			.alias('build')
 			.description('Bundle Agentuity application for deployment')
 			.option('-d, --dir <path>', 'Root directory of the project', process.cwd())
-			.option('--dev', 'Enable development mode (no bytecode, with source maps)', false)
+			.option('--dev', 'Enable development mode', false)
 			.action(async (options: BundleOptions) => {
 				const { logger } = ctx;
 
@@ -27,7 +28,7 @@ export const bundleCommand: CommandDefinition = {
 					logger.info(`Bundling project at: ${rootDir}`);
 
 					if (options.dev) {
-						logger.info('Development mode enabled');
+						logger.info('🧑🏻‍💻 Development mode enabled');
 					}
 
 					await bundle({

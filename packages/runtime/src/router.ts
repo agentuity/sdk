@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { type Context, Hono, type Input, type MiddlewareHandler, type Schema } from 'hono';
 import { stream as honoStream, streamSSE as honoStreamSSE } from 'hono/streaming';
 import { upgradeWebSocket as honoUpgradeWebSocket } from 'hono/bun';

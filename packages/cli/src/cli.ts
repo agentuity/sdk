@@ -17,6 +17,14 @@ export async function createCLI(version: string): Promise<Command> {
 		.option('--log-timestamp', 'Show timestamps in log output', false)
 		.option('--color-scheme <scheme>', 'Color scheme: light or dark');
 
+	// Hidden options for development/testing (not shown in help)
+	const skipVersionCheckOption = program.createOption(
+		'--skip-version-check',
+		'Skip version compatibility check (dev only)'
+	);
+	skipVersionCheckOption.hideHelp();
+	program.addOption(skipVersionCheckOption);
+
 	program.action(() => {
 		showBanner(version);
 		program.help();
