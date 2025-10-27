@@ -6,15 +6,16 @@ import {
 	type Context,
 	type Tracer,
 	trace,
-	Attributes,
+	type Attributes,
 } from '@opentelemetry/api';
-import { Span } from '@opentelemetry/sdk-trace-base';
+import type { Span } from '@opentelemetry/sdk-trace-base';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ServiceException } from '@agentuity/core';
 import { createMiddleware } from 'hono/factory';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { BunWebSocketData, websocket } from 'hono/bun';
+import type { BunWebSocketData } from 'hono/bun';
+import { websocket } from 'hono/bun';
 import type { AppConfig, Env } from './app';
 import { extractTraceContextFromRequest } from './otel/http';
 import { register } from './otel/config';

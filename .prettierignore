@@ -2,3 +2,4 @@ bun.lock
 **/*.generated.js
 **/*.generated.ts
 **/*.generated.d.ts
+**/.agentuity/*

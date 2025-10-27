@@ -1,21 +1,24 @@
 {
 	"name": "@agentuity/server",
-	"version": "0.0.1",
+	"version": "0.0.5",
 	"type": "module",
-	"main": "./dist/index.js",
+	"main": "./src/index.ts",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/index.js",
+			"import": "./src/index.ts",
 			"types": "./dist/index.d.ts"
 		}
 	},
 	"files": [
+		"AGENTS.md",
+		"README.md",
+		"src",
 		"dist"
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bun build --target bun --outdir dist src/index.ts && bunx tsc --build --force",
+		"build": "bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
@@ -36,7 +39,9 @@
 		"@opentelemetry/sdk-node": "^0.207.0",
 		"@opentelemetry/sdk-trace-base": "^2.2.0",
 		"@opentelemetry/semantic-conventions": "^1.37.0",
-		"@traceloop/node-server-sdk": "^0.19.1",
+		"@traceloop/node-server-sdk": "^0.19.1"
+	},
+	"peerDependencies": {
 		"hono": "^4.10.3"
 	},
 	"devDependencies": {
@@ -45,5 +50,8 @@
 		"typescript": "^5.9.0",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

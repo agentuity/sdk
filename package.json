@@ -1,16 +1,16 @@
 {
-	"name": "sdk-mono",
-	"version": "0.0.1",
+	"name": "@agentuity/sdk",
+	"version": "0.0.5",
 	"private": true,
 	"workspaces": [
 		"packages/*",
-		"test-app"
+		"apps/*"
 	],
 	"scripts": {
 		"build": "bunx tsc --build --force && bun run --workspaces build",
 		"test": "bun test && cd test-app && bun run test",
-		"typecheck": "bunx tsc --build && cd test-app && bunx tsc --build",
-		"clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
+		"typecheck": "bunx tsc --build && cd apps/test-app && bunx tsc --build",
+		"clean": "rm -rf packages/*/dist apps/*/dist packages/*/*.tsbuildinfo",
 		"format": "bunx prettier */** --write --fix",
 		"lint": "bunx eslint packages"
 	},

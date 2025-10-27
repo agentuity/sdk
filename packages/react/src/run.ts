@@ -30,6 +30,7 @@ interface RunArgs {
 interface UseAgentResponse<TInput, TOutput> {
 	data?: TOutput;
 	run: (input: TInput, options?: RunArgs) => Promise<TOutput>;
+	running: boolean;
 }
 
 export const useAgent = <
@@ -45,45 +46,51 @@ export const useAgent = <
 ): UseAgentResponse<TInput, TOutput> => {
 	const context = useContext(AgentuityContext);
 	const [data, setData] = useState<TOutput>();
+	const [running, setRunning] = useState(false);
 
 	if (!context) {
 		throw new Error('useAgent must be used within a AgentuityProvider');
 	}
 
 	const run = async (input: TInput, options?: RunArgs): Promise<TOutput> => {
-		const url = buildUrl(context.baseUrl!, `/agent/${name}`, options?.subpath, options?.query);
-		const signal = options?.signal ?? new AbortController().signal;
-		const response = await fetch(url, {
-			method: options?.method ?? 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				...(options?.headers ?? ''),
-			},
-			signal,
-			body:
-				input && typeof input === 'object' && options?.method !== 'GET'
-					? JSON.stringify(input)
-					: undefined,
-		});
-		if (!response.ok) {
-			throw new Error(`Error invoking agent ${name}: ${response.statusText}`);
+		setRunning(true);
+		try {
+			const url = buildUrl(context.baseUrl!, `/agent/${name}`, options?.subpath, options?.query);
+			const signal = options?.signal ?? new AbortController().signal;
+			const response = await fetch(url, {
+				method: options?.method ?? 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...(options?.headers ?? ''),
+				},
+				signal,
+				body:
+					input && typeof input === 'object' && options?.method !== 'GET'
+						? JSON.stringify(input)
+						: undefined,
+			});
+			if (!response.ok) {
+				throw new Error(`Error invoking agent ${name}: ${response.statusText}`);
+			}
+			// TODO: handle streams
+			const ct = response.headers.get('Content-Type') || '';
+			if (ct.includes('text/')) {
+				const text = await response.text();
+				const _data = text as TOutput;
+				setData(_data);
+				return _data;
+			}
+			if (ct.includes('/json')) {
+				const data = await response.json();
+				const _data = data as TOutput;
+				setData(_data);
+				return _data;
+			}
+			throw new Error(`Unsupported content type: ${ct}`);
+		} finally {
+			setRunning(false);
 		}
-		// TODO: handle streams
-		const ct = response.headers.get('Content-Type') || '';
-		if (ct.includes('text/')) {
-			const text = await response.text();
-			const _data = text as TOutput;
-			setData(_data);
-			return _data;
-		}
-		if (ct.includes('/json')) {
-			const data = await response.json();
-			const _data = data as TOutput;
-			setData(_data);
-			return _data;
-		}
-		throw new Error(`Unsupported content type: ${ct}`);
 	};
 
-	return { run, data };
+	return { data, run, running };
 };

@@ -3,4 +3,4 @@ peer = true
 production = false
 
 [install.scopes]
-"@agentuity" = { }
+"@agentuity" = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }

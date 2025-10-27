@@ -5,9 +5,9 @@ import {
 	ObjectStorageService,
 	StreamStorageService,
 	VectorStorageService,
-	ListStreamsResponse,
-	VectorUpsertResult,
-	VectorSearchResult,
+	type ListStreamsResponse,
+	type VectorUpsertResult,
+	type VectorSearchResult,
 } from '@agentuity/core';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getLogger, getTracer } from './_server';

@@ -1,10 +1,14 @@
 {
 	"name": "@agentuity/core",
-	"version": "0.0.1",
-	"private": true,
+	"version": "0.0.5",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"dist"
+	],
 	"exports": {
 		".": {
 			"import": "./dist/index.js",
@@ -12,11 +16,16 @@
 		}
 	},
 	"scripts": {
-		"build": "bunx tsc --build",
-		"typecheck": "bunx tsc --noEmit"
+		"clean": "rm -rf dist",
+		"build": "bun build --target bun src/index.ts --outdir ./dist && bunx tsc --build --emitDeclarationOnly --force",
+		"typecheck": "bunx tsc --noEmit",
+		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {},
 	"devDependencies": {
 		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }

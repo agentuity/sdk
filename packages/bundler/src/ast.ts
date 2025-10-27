@@ -189,7 +189,7 @@ export function parseAgentMetadata(
 		}
 	}
 	if (!exportName) {
-		throw new Error('could not find default export');
+		throw new Error(`could not find default export for ${filename} using ${rootDir}`);
 	}
 	// handle separate const agent = createAgent(...)
 	for (const body of ast.body) {

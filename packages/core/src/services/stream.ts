@@ -1,4 +1,4 @@
-import { safeStringify } from '@agentuity/core';
+import { safeStringify } from '../json';
 import { FetchAdapter, FetchResponse } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 

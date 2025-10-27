@@ -116,24 +116,27 @@ const AgentuityBuilder: BunPlugin = {
 			string,
 			Map<string, string>
 		>();
+		const transpiler = new Bun.Transpiler({ loader: 'ts' });
 
 		build.onResolve({ filter: /\/route\.ts$/, namespace: 'file' }, async (args) => {
-			const importPath = args.path
-				.replace(rootDir, '')
-				.replace('.ts', '')
-				.replace('/src/', './');
-			routes.add(importPath);
+			if (args.path.startsWith(srcDir)) {
+				const importPath = args.path
+					.replace(rootDir, '')
+					.replace('.ts', '')
+					.replace('/src/', './');
+				routes.add(importPath);
+			}
 			return args;
 		});
 
 		build.onLoad({ filter: /\/agent\.ts$/, namespace: 'file' }, async (args) => {
-			const transpiler = new Bun.Transpiler({
-				loader: 'ts',
-			});
-			const buf = await Bun.file(args.path);
-			const contents = await transpiler.transform(await buf.text());
-			const [newsource, md] = parseAgentMetadata(rootDir, args.path, contents);
-			agentMetadata.set(md.get('identifier')!, md);
+			let newsource = await Bun.file(args.path).text();
+			if (args.path.startsWith(srcDir)) {
+				const contents = transpiler.transformSync(newsource);
+				const [ns, md] = parseAgentMetadata(rootDir, args.path, contents);
+				newsource = ns;
+				agentMetadata.set(md.get('identifier')!, md);
+			}
 			return {
 				contents: newsource,
 				loader: 'ts',

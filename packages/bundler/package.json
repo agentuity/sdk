@@ -1,25 +1,28 @@
 {
 	"name": "@agentuity/bundler",
-	"version": "0.0.1",
+	"version": "0.0.5",
 	"type": "module",
-	"main": "./dist/index.js",
+	"main": "./src/index.ts",
 	"types": "./dist/index.d.ts",
 	"bin": {
 		"agentuity-bundler": "./bin/bundler.ts"
 	},
 	"exports": {
 		".": {
-			"import": "./dist/index.js",
+			"import": "./src/index.ts",
 			"types": "./dist/index.d.ts"
 		}
 	},
 	"files": [
+		"AGENTS.md",
+		"README.md",
+		"src",
 		"dist",
 		"bin"
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bun build --target bun src/index.ts --outdir ./dist && bunx tsc --build --emitDeclarationOnly --force",
+		"build": "bunx tsc --build --emitDeclarationOnly --force",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
@@ -29,5 +32,8 @@
 	},
 	"devDependencies": {
 		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
 	}
 }
