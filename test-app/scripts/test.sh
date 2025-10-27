@@ -72,6 +72,8 @@ run_test() {
 run_test "Server Management" "test-server-management.sh"
 run_test "Binary Storage API" "test-binary-storage.sh"
 run_test "Binary Storage Agent" "test-binary-agent.sh"
+run_test "KeyValue Storage" "test-keyvalue.sh"
+run_test "Vector Storage" "test-vector.sh"
 
 # Print summary
 echo ""
