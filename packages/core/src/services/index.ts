@@ -3,3 +3,4 @@ export * from './exception';
 export * from './keyvalue';
 export * from './server';
 export * from './stream';
+export * from './vector';

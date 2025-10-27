@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Tracer } from '@opentelemetry/api';
+import type { KeyValueStorage, StreamStorage, VectorStorage } from '@agentuity/core';
 import type { AgentContext, AgentName } from './agent';
 import type { Logger } from './logger';
 import WaitUntilHandler from './_waituntil';
@@ -22,6 +23,9 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 	logger: Logger;
 	sessionId: string;
 	tracer: Tracer;
+	kv!: KeyValueStorage;
+	stream!: StreamStorage;
+	vector!: VectorStorage;
 	private waituntilHandler: WaitUntilHandler;
 
 	constructor(args: RequestAgentContextArgs<TAgentMap, TAgent>) {

@@ -2,8 +2,11 @@ import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import {
 	createServerFetchAdapter,
 	KeyValueStorageService,
-	StreamAPIService,
+	StreamStorageService,
+	VectorStorageService,
 	ListStreamsResponse,
+	VectorUpsertResult,
+	VectorSearchResult,
 } from '@agentuity/core';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getLogger, getTracer } from './_server';
@@ -18,6 +21,11 @@ const kvBaseUrl =
 	'https://agentuity.ai';
 
 const streamBaseUrl = process.env.AGENTUITY_STREAM_URL || 'https://streams.agentuity.cloud';
+
+const vectorBaseUrl =
+	process.env.AGENTUITY_VECTOR_URL ||
+	process.env.AGENTUITY_TRANSPORT_URL ||
+	'https://agentuity.ai';
 
 const adapter = createServerFetchAdapter({
 	headers: {
@@ -85,12 +93,39 @@ const adapter = createServerFetchAdapter({
 				}
 				break;
 			}
+			case 'agentuity.vector.upsert': {
+				if (result.response.ok) {
+					const data = result.data as VectorUpsertResult[];
+					span?.setAttributes({
+						'vector.count': data.length,
+					});
+				}
+				break;
+			}
+			case 'agentuity.vector.search': {
+				if (result.response.ok) {
+					const data = result.data as VectorSearchResult[];
+					span?.setAttributes({
+						'vector.results': data.length,
+					});
+				}
+				break;
+			}
+			case 'agentuity.vector.get': {
+				if (result.response.status === 404) {
+					span?.addEvent('miss');
+				} else if (result.response.ok) {
+					span?.addEvent('hit');
+				}
+				break;
+			}
 		}
 	},
 });
 
 const kv = new KeyValueStorageService(kvBaseUrl, adapter);
-const stream = new StreamAPIService(streamBaseUrl, adapter);
+const stream = new StreamStorageService(streamBaseUrl, adapter);
+const vector = new VectorStorageService(vectorBaseUrl, adapter);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerServices(o: any) {
@@ -101,6 +136,11 @@ export function registerServices(o: any) {
 	});
 	Object.defineProperty(o, 'stream', {
 		get: () => stream,
+		enumerable: false,
+		configurable: false,
+	});
+	Object.defineProperty(o, 'vector', {
+		get: () => vector,
 		enumerable: false,
 		configurable: false,
 	});

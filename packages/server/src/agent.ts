@@ -1,5 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { StandardSchemaV1 } from '@agentuity/core';
+import type {
+	StandardSchemaV1,
+	KeyValueStorage,
+	StreamStorage,
+	VectorStorage,
+} from '@agentuity/core';
 import { trace, type Tracer } from '@opentelemetry/api';
 
 import type { Context, MiddlewareHandler } from 'hono';
@@ -17,6 +22,9 @@ export interface AgentContext {
 	logger: Logger;
 	sessionId: string;
 	tracer: Tracer;
+	kv: KeyValueStorage;
+	stream: StreamStorage;
+	vector: VectorStorage;
 }
 
 interface AgentMetadata {

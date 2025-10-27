@@ -1,0 +1,23 @@
+import { createRouter } from '@agentuity/server';
+import { zValidator } from '@hono/zod-validator';
+import agent from './agent';
+
+const router = createRouter();
+
+router.get('/', async (c) => {
+	const result = await c.agent.vector.run({
+		operation: 'upsert',
+		key: 'doc1',
+		document: 'Machine learning is a subset of artificial intelligence.',
+		category: 'AI',
+	});
+	return c.json(result);
+});
+
+router.post('/', zValidator('json', agent.inputSchema!), async (c) => {
+	const data = c.req.valid('json');
+	const result = await c.agent.vector.run(data);
+	return c.json(result);
+});
+
+export default router;

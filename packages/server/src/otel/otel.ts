@@ -273,6 +273,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 				baseUrl: url,
 				headers: traceloopHeaders,
 				disableBatch: devmode,
+				logLevel: 'error',
 				tracingEnabled: false, // Disable traceloop's own tracing (equivalent to Python's telemetryEnabled: false)
 				// Note: JavaScript SDK doesn't support resourceAttributes like Python
 			});

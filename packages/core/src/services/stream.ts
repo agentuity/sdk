@@ -153,7 +153,7 @@ export interface Stream extends WritableStream {
 /**
  * Stream API for creating and managing streams
  */
-export interface StreamAPI {
+export interface StreamStorage {
 	/**
 	 * create a new stream
 	 *
@@ -480,7 +480,7 @@ class UnderlyingSink {
 	}
 }
 
-export class StreamAPIService implements StreamAPI {
+export class StreamStorageService implements StreamStorage {
 	#adapter: FetchAdapter;
 	#baseUrl: string;
 

@@ -1,9 +1,9 @@
 import { describe, test, expect } from 'bun:test';
-import { StreamAPIService } from '../stream';
+import { StreamStorageService } from '../stream';
 import { createMockAdapter } from './mock-adapter';
 import { ServiceException } from '../exception';
 
-describe('StreamAPIService', () => {
+describe('StreamStorageService', () => {
 	const baseUrl = 'https://api.example.com/stream';
 
 	describe('create', () => {
@@ -13,7 +13,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream');
 
 			expect(stream).toBeDefined();
@@ -36,7 +36,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const metadata = { userId: '123', type: 'video' };
 			const stream = await service.create('test-stream', { metadata });
 
@@ -51,7 +51,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream', { contentType: 'application/json' });
 
 			expect(stream.id).toBe('stream-789');
@@ -65,7 +65,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream', { compress: true });
 
 			expect(stream.compressed).toBe(true);
@@ -74,7 +74,7 @@ describe('StreamAPIService', () => {
 		test('should throw error for empty stream name', async () => {
 			const { adapter } = createMockAdapter([]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.create('')).rejects.toThrow(
 				'Stream name must be between 1 and 254 characters'
@@ -84,7 +84,7 @@ describe('StreamAPIService', () => {
 		test('should throw error for stream name too long', async () => {
 			const { adapter } = createMockAdapter([]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const longName = 'a'.repeat(255);
 
 			await expect(service.create(longName)).rejects.toThrow(
@@ -97,7 +97,7 @@ describe('StreamAPIService', () => {
 				{ ok: false, status: 500, body: { error: 'Internal Server Error' } },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.create('test-stream')).rejects.toBeInstanceOf(ServiceException);
 		});
@@ -108,7 +108,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.create('test-stream');
 
 			expect(calls[0].options?.signal).toBeDefined();
@@ -132,7 +132,7 @@ describe('StreamAPIService', () => {
 			};
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const result = await service.list();
 
 			expect(result.success).toBe(true);
@@ -147,7 +147,7 @@ describe('StreamAPIService', () => {
 			const mockResponse = { success: true, streams: [], total: 0 };
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.list({ name: 'test-stream' });
 
 			const body = JSON.parse(calls[0].options?.body as string);
@@ -158,7 +158,7 @@ describe('StreamAPIService', () => {
 			const mockResponse = { success: true, streams: [], total: 0 };
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const metadata = { type: 'video' };
 			await service.list({ metadata });
 
@@ -170,7 +170,7 @@ describe('StreamAPIService', () => {
 			const mockResponse = { success: true, streams: [], total: 0 };
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.list({ limit: 50 });
 
 			const body = JSON.parse(calls[0].options?.body as string);
@@ -181,7 +181,7 @@ describe('StreamAPIService', () => {
 			const mockResponse = { success: true, streams: [], total: 0 };
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.list({ offset: 100 });
 
 			const body = JSON.parse(calls[0].options?.body as string);
@@ -191,7 +191,7 @@ describe('StreamAPIService', () => {
 		test('should throw error for invalid limit (zero)', async () => {
 			const { adapter } = createMockAdapter([]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.list({ limit: 0 })).rejects.toThrow(
 				'limit must be greater than 0 and less than or equal to 1000'
@@ -201,7 +201,7 @@ describe('StreamAPIService', () => {
 		test('should throw error for invalid limit (too high)', async () => {
 			const { adapter } = createMockAdapter([]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.list({ limit: 1001 })).rejects.toThrow(
 				'limit must be greater than 0 and less than or equal to 1000'
@@ -213,7 +213,7 @@ describe('StreamAPIService', () => {
 				{ ok: false, status: 500, body: { error: 'Internal Server Error' } },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.list()).rejects.toBeInstanceOf(ServiceException);
 		});
@@ -222,7 +222,7 @@ describe('StreamAPIService', () => {
 			const mockResponse = { success: true, streams: [], total: 0 };
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.list();
 
 			expect(calls[0].options?.signal).toBeDefined();
@@ -233,7 +233,7 @@ describe('StreamAPIService', () => {
 		test('should delete stream by id', async () => {
 			const { adapter, calls } = createMockAdapter([{ ok: true }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.delete('stream-123');
 
 			expect(calls).toHaveLength(1);
@@ -244,7 +244,7 @@ describe('StreamAPIService', () => {
 		test('should throw error for empty id', async () => {
 			const { adapter } = createMockAdapter([]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.delete('')).rejects.toThrow(
 				'Stream id is required and must be a non-empty string'
@@ -254,7 +254,7 @@ describe('StreamAPIService', () => {
 		test('should throw error for whitespace id', async () => {
 			const { adapter } = createMockAdapter([]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.delete('   ')).rejects.toThrow(
 				'Stream id is required and must be a non-empty string'
@@ -266,7 +266,7 @@ describe('StreamAPIService', () => {
 				{ ok: false, status: 404, body: { error: 'Not Found' } },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 
 			await expect(service.delete('nonexistent-stream')).rejects.toBeInstanceOf(
 				ServiceException
@@ -276,7 +276,7 @@ describe('StreamAPIService', () => {
 		test('should set timeout signal', async () => {
 			const { adapter, calls } = createMockAdapter([{ ok: true }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.delete('stream-123');
 
 			expect(calls[0].options?.signal).toBeDefined();
@@ -290,7 +290,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream');
 
 			const writePromise = stream.write('hello world');
@@ -307,7 +307,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream');
 
 			const writePromise = stream.write({ foo: 'bar', num: 42 });
@@ -324,7 +324,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream');
 
 			const data = new Uint8Array([1, 2, 3, 4, 5]);
@@ -342,7 +342,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream');
 
 			const buffer = new ArrayBuffer(10);
@@ -360,7 +360,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream');
 
 			await stream.close();
@@ -373,7 +373,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream');
 
 			expect(stream.bytesWritten).toBe(0);
@@ -407,7 +407,7 @@ describe('StreamAPIService', () => {
 				}
 			);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.create('test-stream');
 
 			expect(postCallMade).toBe(true);
@@ -425,7 +425,7 @@ describe('StreamAPIService', () => {
 				},
 			});
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.list();
 
 			expect(beforeCalled).toBe(true);
@@ -442,7 +442,7 @@ describe('StreamAPIService', () => {
 				},
 			});
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.delete('stream-123');
 
 			expect(beforeCalled).toBe(true);
@@ -462,7 +462,7 @@ describe('StreamAPIService', () => {
 				}
 			);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.create('test-stream');
 
 			expect(afterCalled).toBe(true);
@@ -478,7 +478,7 @@ describe('StreamAPIService', () => {
 				},
 			});
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.list();
 
 			expect(afterCalled).toBe(true);
@@ -497,7 +497,7 @@ describe('StreamAPIService', () => {
 				}
 			);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 
 			try {
 				await service.create('test-stream');
@@ -516,7 +516,7 @@ describe('StreamAPIService', () => {
 				{ ok: true },
 			]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.create('test-stream', {
 				metadata: { userId: '123' },
 				contentType: 'application/json',
@@ -531,7 +531,7 @@ describe('StreamAPIService', () => {
 			const mockResponse = { success: true, streams: [], total: 0 };
 			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.list({ name: 'test', limit: 10 });
 
 			expect(calls[0].options?.telemetry).toBeDefined();
@@ -543,7 +543,7 @@ describe('StreamAPIService', () => {
 		test('should include telemetry for delete operation', async () => {
 			const { adapter, calls } = createMockAdapter([{ ok: true }]);
 
-			const service = new StreamAPIService(baseUrl, adapter);
+			const service = new StreamStorageService(baseUrl, adapter);
 			await service.delete('stream-123');
 
 			expect(calls[0].options?.telemetry).toBeDefined();
