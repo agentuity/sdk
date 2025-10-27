@@ -23,7 +23,7 @@ export interface LoginResult {
 	expires: Date;
 }
 
-export async function generateLoginOTP(apiUrl: string, config?: Config): Promise<string> {
+export async function generateLoginOTP(apiUrl: string, config?: Config | null): Promise<string> {
 	const client = new APIClient(apiUrl, undefined, config);
 	const resp = await client.request<APIResponse<OTPStartData>>('GET', '/cli/auth/start');
 
@@ -41,7 +41,7 @@ export async function generateLoginOTP(apiUrl: string, config?: Config): Promise
 export async function pollForLoginCompletion(
 	apiUrl: string,
 	otp: string,
-	config?: Config,
+	config?: Config | null,
 	timeoutMs = 60000
 ): Promise<LoginResult> {
 	const client = new APIClient(apiUrl, undefined, config);
