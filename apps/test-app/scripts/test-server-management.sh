@@ -81,6 +81,7 @@ echo ""
 
 # Test 4: Stop server
 echo "Test 4: Stopping server..."
+lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
 kill $SERVER_PID 2>/dev/null || true
 wait $SERVER_PID 2>/dev/null || true
 

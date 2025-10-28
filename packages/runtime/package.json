@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/runtime",
-	"version": "0.0.5",
+	"version": "0.0.11",
 	"type": "module",
 	"main": "./src/index.ts",
 	"types": "./dist/index.d.ts",

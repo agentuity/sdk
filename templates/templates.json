@@ -1,0 +1,10 @@
+{
+	"templates": [
+		{
+			"id": "default",
+			"name": "Default Template",
+			"description": "A basic Agentuity project with React UI and example agents",
+			"directory": "default"
+		}
+	]
+}

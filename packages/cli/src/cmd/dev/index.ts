@@ -35,9 +35,7 @@ export const command = createCommand({
 				process.exit(1);
 			}
 
-			tui.newline();
 			tui.info('Starting development server...');
-			tui.newline();
 
 			// Use shell to run in a process group for proper cleanup
 			// The 'exec' ensures the shell is replaced by the actual process

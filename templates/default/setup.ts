@@ -5,8 +5,6 @@ import { basename } from 'path';
 const projectDir = process.cwd();
 const projectName = basename(projectDir);
 
-console.log(`🔧 Setting up ${projectName}...\n`);
-
 // Update package.json
 const packageJsonPath = 'package.json';
 if (existsSync(packageJsonPath)) {
@@ -29,7 +27,6 @@ if (existsSync(packageJsonPath)) {
 	}
 
 	writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, '\t'));
-	console.log('✓ Updated package.json');
 }
 
 // Update README.md
@@ -38,7 +35,6 @@ if (existsSync(readmePath)) {
 	let readme = readFileSync(readmePath, 'utf-8');
 	readme = readme.replace(/\{\{PROJECT_NAME\}\}/g, projectName);
 	writeFileSync(readmePath, readme);
-	console.log('✓ Updated README.md');
 }
 
 // Update AGENTS.md
@@ -47,7 +43,6 @@ if (existsSync(agentsMdPath)) {
 	let agentsMd = readFileSync(agentsMdPath, 'utf-8');
 	agentsMd = agentsMd.replace(/\{\{PROJECT_NAME\}\}/g, projectName);
 	writeFileSync(agentsMdPath, agentsMd);
-	console.log('✓ Updated AGENTS.md');
 }
 
 // Remove setup files
@@ -57,9 +52,3 @@ for (const file of filesToRemove) {
 		rmSync(file);
 	}
 }
-
-console.log('\n✨ Setup complete!\n');
-console.log(`   Next steps:`);
-console.log(`   1. bun run build`);
-console.log(`   2. bun run dev`);
-console.log(`\n   Your app will be running at http://localhost:3000\n`);

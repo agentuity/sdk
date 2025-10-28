@@ -1,22 +1,17 @@
 {
 	"name": "create-agentuity",
-	"version": "0.0.5",
-	"module": "index.ts",
+	"version": "0.0.11",
+	"description": "Create a new Agentuity project",
 	"type": "module",
-	"files": [
-		"src",
-		"app.ts",
-		"AGENTS.md",
-		"tsconfig.json",
-		".gitignore",
-		"README.md",
-		"setup.ts"
-	],
-	"scripts": {
-		"build": "agentuity bundle --dir .",
-		"dev": "agentuity dev --dir .",
-		"typecheck": "bunx tsc --noEmit"
+	"bin": {
+		"create-agentuity": "./bin.js"
 	},
+	"scripts": {
+		"build": "echo 'No build required'"
+	},
+	"files": [
+		"bin.js"
+	],
 	"keywords": [
 		"agentuity",
 		"create",
@@ -27,31 +22,7 @@
 	"author": "Agentuity",
 	"license": "MIT",
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
-		"@agentuity/react": "workspace:*",
-		"@agentuity/runtime": "workspace:*",
-		"@hono/zod-validator": "^0.7.4",
-		"enquirer": "^2.4.1",
-		"hono": "^4.7.10",
-		"react": "^19.2.0",
-		"react-dom": "^19.2.0",
-		"zod": "^4.1.12"
-	},
-	"bun-create": {
-		"preinstall": "echo 'Preparing local dependencies...'",
-		"postinstall": [
-			"agentuity create --from-bun-create --no-log-prefix",
-			"bun run build"
-		],
-		"start": "bun run dev"
-	},
-	"devDependencies": {
-		"@agentuity/cli": "workspace:*",
-		"@types/bun": "latest",
-		"@types/react": "^19.0.0"
-	},
-	"peerDependencies": {
-		"typescript": "^5"
+		"@agentuity/cli": "latest"
 	},
 	"publishConfig": {
 		"access": "public"

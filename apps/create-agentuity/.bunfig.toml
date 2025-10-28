@@ -1,3 +1,0 @@
-[run]
-# Automatically add local node_modules/.bin to PATH even in subdirectories
-autoAddBinToPath = true

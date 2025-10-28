@@ -37,7 +37,7 @@ const COLORS = {
 	},
 	muted: {
 		light: Bun.color('#808080', 'ansi') || '\x1b[90m', // gray
-		dark: Bun.color('#DDDDDD', 'ansi') || '\x1b[37m', // light gray
+		dark: Bun.color('#888888', 'ansi') || '\x1b[90m', // darker gray
 	},
 	bold: {
 		light: '\x1b[1m',
@@ -85,8 +85,8 @@ export function error(message: string): void {
 /**
  * Print a warning message with a yellow warning icon
  */
-export function warning(message: string): void {
-	const color = getColor('warning');
+export function warning(message: string, asError = false): void {
+	const color = asError ? getColor('error') : getColor('warning');
 	const reset = COLORS.reset;
 	console.log(`${color}${ICONS.warning} ${message}${reset}`);
 }
@@ -653,6 +653,11 @@ export interface CommandRunnerOptions {
 	 * Environment variables
 	 */
 	env?: Record<string, string>;
+	/**
+	 * If true, clear output on success and only show command + success icon
+	 * Defaults to false
+	 */
+	clearOnSuccess?: boolean;
 }
 
 /**
@@ -666,7 +671,7 @@ export interface CommandRunnerOptions {
  * Shows the last 3 lines of output as it streams.
  */
 export async function runCommand(options: CommandRunnerOptions): Promise<number> {
-	const { command, cmd, cwd, env } = options;
+	const { command, cmd, cwd, env, clearOnSuccess = false } = options;
 	const isTTY = process.stdout.isTTY;
 
 	// If not a TTY, just run the command normally and log output
@@ -785,26 +790,41 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 		// Wait for process to exit
 		const exitCode = await proc.exited;
 
-		// Determine how many lines to show in final output
-		const finalLinesToShow = exitCode === 0 ? 3 : 10;
-
 		// Move cursor up to redraw final state
 		if (linesRendered > 0) {
 			process.stdout.write(`\x1b[${linesRendered}A`);
 		}
 
-		// Show final status with appropriate color
-		const statusColor = exitCode === 0 ? green : red;
-		process.stdout.write(`\r\x1b[K${statusColor}$${reset} ${cmdColor}${displayCmd}${reset}\n`);
-
-		// Show final output lines
-		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
-		for (const line of finalOutputLines) {
-			let displayLine = line;
-			if (getDisplayWidth(displayLine) > maxLineWidth) {
-				displayLine = displayLine.slice(0, maxLineWidth - 3) + '...';
+		// Clear all lines if clearOnSuccess is true and command succeeded
+		if (clearOnSuccess && exitCode === 0) {
+			// Clear all rendered lines
+			for (let i = 0; i < linesRendered; i++) {
+				process.stdout.write('\r\x1b[K\n');
 			}
-			process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
+			// Move cursor back up
+			process.stdout.write(`\x1b[${linesRendered}A`);
+
+			// Show compact success: ✓ command
+			process.stdout.write(
+				`\r\x1b[K${green}${ICONS.success}${reset} ${cmdColor}${displayCmd}${reset}\n`
+			);
+		} else {
+			// Determine how many lines to show in final output
+			const finalLinesToShow = exitCode === 0 ? 3 : 10;
+
+			// Show final status with appropriate color
+			const statusColor = exitCode === 0 ? green : red;
+			process.stdout.write(`\r\x1b[K${statusColor}$${reset} ${cmdColor}${displayCmd}${reset}\n`);
+
+			// Show final output lines
+			const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
+			for (const line of finalOutputLines) {
+				let displayLine = line;
+				if (getDisplayWidth(displayLine) > maxLineWidth) {
+					displayLine = displayLine.slice(0, maxLineWidth - 3) + '...';
+				}
+				process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
+			}
 		}
 
 		return exitCode;

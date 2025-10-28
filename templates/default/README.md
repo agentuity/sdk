@@ -1,18 +1,6 @@
 # {{PROJECT_NAME}}
 
-# create-agentuity
-
-Create a new Agentuity project with one command.
-
-## Usage
-
-```bash
-bun create agentuity my-project
-cd my-project
-bun run dev
-```
-
-Templates are automatically downloaded from the latest version in the GitHub repository.
+A new Agentuity project created with `create-agentuity`.
 
 ## What You Get
 

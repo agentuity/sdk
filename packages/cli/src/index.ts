@@ -24,6 +24,13 @@ export { getCommandPrefix, getCommand } from './command-prefix';
 export * as tui from './tui';
 export { runSteps, setStepsColorScheme, stepSuccess, stepSkipped, stepError } from './steps';
 export { playSound } from './sound';
+export {
+	downloadWithProgress,
+	downloadWithSpinner,
+	downloadGitHubTarball,
+	type DownloadOptions as DownloadOptionsType,
+	type DownloadGitHubOptions,
+} from './download';
 export type {
 	Config,
 	LogLevel,

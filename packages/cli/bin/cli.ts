@@ -8,7 +8,27 @@ import { detectColorScheme } from '../src/terminal';
 import { setColorScheme } from '../src/tui';
 import { getVersion } from '../src/version';
 import { checkLegacyCLI } from '../src/legacy-check';
-import type { LogLevel } from '../src/types';
+import type { CommandContext, LogLevel } from '../src/types';
+
+// Cleanup TTY state before exit
+function cleanupAndExit() {
+	if (process.stdin.isTTY) {
+		process.stdin.setRawMode(false);
+		process.stdout.write('\x1B[?25h'); // Restore cursor
+	}
+	process.exitCode = 0;
+	process.exit(0);
+}
+
+// Handle Ctrl+C gracefully
+process.once('SIGINT', () => {
+	console.log('\n');
+	cleanupAndExit();
+});
+
+process.once('SIGTERM', () => {
+	cleanupAndExit();
+});
 
 validateRuntime();
 
@@ -61,11 +81,32 @@ const ctx = {
 };
 
 const commands = await discoverCommands();
-await registerCommands(program, commands, ctx);
+await registerCommands(program, commands, ctx as unknown as CommandContext);
 
 try {
 	await program.parseAsync(process.argv);
 } catch (error) {
+	// Don't log error if it's from Ctrl+C, user cancellation, or signal termination
+	if (error instanceof Error) {
+		const msg = error.message.toLowerCase();
+		if (
+			msg.includes('sigint') ||
+			msg.includes('sigterm') ||
+			msg.includes('user force closed') ||
+			msg.includes('cancelled') || // UK
+			msg.includes('canceled') || // US
+			msg === ''
+		) {
+			process.exit(0);
+		}
+		if ('name' in error && error.name === 'AbortError') {
+			process.exit(0);
+		}
+	}
+	// Also exit cleanly if error is empty/undefined (user cancellation)
+	if (!error) {
+		process.exit(0);
+	}
 	logger.error('CLI error:', error);
 	process.exit(1);
 }

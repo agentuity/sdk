@@ -6,9 +6,9 @@ export const soundSubcommand: SubcommandDefinition = {
 	name: 'sound',
 	description: 'Test completion sound',
 
-	async handler() {
+	handler() {
 		tui.info('Playing completion sound...');
-		await playSound();
+		playSound();
 		tui.success('Sound played!');
 	},
 };
