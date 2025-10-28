@@ -1,6 +1,10 @@
-import type { FetchRequest, FetchErrorResponse, FetchResponse, FetchAdapter } from './adapter';
-import { fromResponse, toServiceException } from './_util';
-import { ServiceException } from './exception';
+import type {
+	FetchRequest,
+	FetchErrorResponse,
+	FetchResponse,
+	FetchAdapter,
+} from '@agentuity/core';
+import { ServiceException, toServiceException, fromResponse } from '@agentuity/core';
 
 interface ServiceAdapterConfig {
 	headers: Record<string, string>;
@@ -41,7 +45,6 @@ class ServerFetchAdapter implements FetchAdapter {
 			...(options.duplex ? { duplex: options.duplex } : {}),
 		});
 		if (res.ok) {
-			// check for status codes that have no body
 			switch (res.status) {
 				case 100:
 				case 101:

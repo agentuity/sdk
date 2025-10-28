@@ -24,6 +24,7 @@
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
+		"@agentuity/server": "workspace:*",
 		"@opentelemetry/api": "^1.9.0",
 		"@opentelemetry/api-logs": "^0.207.0",
 		"@opentelemetry/auto-instrumentations-node": "^0.66.0",

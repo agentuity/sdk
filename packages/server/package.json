@@ -1,0 +1,34 @@
+{
+	"name": "@agentuity/server",
+	"version": "0.0.5",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"dist"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/node": "^22.0.0",
+		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

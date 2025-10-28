@@ -2,9 +2,9 @@
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
 		"outDir": "./dist",
-		"rootDir": "./src",
-		"emitDeclarationOnly": true
+		"rootDir": "./src"
 	},
 	"include": ["src/**/*"],
-	"references": [{ "path": "../core" }, { "path": "../server" }]
+	"exclude": ["src/**/__test__/**/*"],
+	"references": [{ "path": "../core" }]
 }

@@ -1,6 +1,5 @@
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import {
-	createServerFetchAdapter,
 	KeyValueStorageService,
 	ObjectStorageService,
 	StreamStorageService,
@@ -9,6 +8,7 @@ import {
 	type VectorUpsertResult,
 	type VectorSearchResult,
 } from '@agentuity/core';
+import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getLogger, getTracer } from './_server';
 import { getSDKVersion } from './_config';
@@ -16,22 +16,11 @@ import { getSDKVersion } from './_config';
 const userAgent = `Agentuity SDK/${getSDKVersion()}`;
 const bearerKey = `Bearer ${process.env.AGENTUITY_SDK_KEY}`;
 
-const kvBaseUrl =
-	process.env.AGENTUITY_KEYVALUE_URL ||
-	process.env.AGENTUITY_TRANSPORT_URL ||
-	'https://agentuity.ai';
-
-const streamBaseUrl = process.env.AGENTUITY_STREAM_URL || 'https://streams.agentuity.cloud';
-
-const vectorBaseUrl =
-	process.env.AGENTUITY_VECTOR_URL ||
-	process.env.AGENTUITY_TRANSPORT_URL ||
-	'https://agentuity.ai';
-
-const objectBaseUrl =
-	process.env.AGENTUITY_OBJECTSTORE_URL ||
-	process.env.AGENTUITY_TRANSPORT_URL ||
-	'https://agentuity.ai';
+const serviceUrls = getServiceUrls();
+const kvBaseUrl = serviceUrls.keyvalue;
+const streamBaseUrl = serviceUrls.stream;
+const vectorBaseUrl = serviceUrls.vector;
+const objectBaseUrl = serviceUrls.objectstore;
 
 const adapter = createServerFetchAdapter({
 	headers: {

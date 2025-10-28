@@ -49,9 +49,7 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 	}
 }
 
-const asyncLocalStorage = new AsyncLocalStorage<AgentContext>({
-	name: 'AgentContext',
-});
+const asyncLocalStorage = new AsyncLocalStorage<AgentContext>();
 
 export const inAgentContext = (): boolean => {
 	const context = asyncLocalStorage.getStore();

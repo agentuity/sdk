@@ -1,5 +1,5 @@
-import { Body } from './adapter';
 import { safeStringify } from '../json';
+import type { Body } from './adapter';
 import { ServiceException } from './exception';
 
 export const buildUrl = (

@@ -22,6 +22,7 @@ TypeScript monorepo using Bun 1.3+ workspaces.
 - `packages/core` - Shared utilities
 - `packages/react` - React package (browser)
 - `packages/runtime` - Server-side package (Bun runtime)
+- `packages/server` - Runtime-agnostic server utilities (Node.js & Bun)
 
 ## Setup
 
