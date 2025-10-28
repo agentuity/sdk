@@ -7,9 +7,16 @@ import { logger } from '../src/logger';
 import { detectColorScheme } from '../src/terminal';
 import { setColorScheme } from '../src/tui';
 import { getVersion } from '../src/version';
+import { checkLegacyCLI } from '../src/legacy-check';
 import type { LogLevel } from '../src/types';
 
 validateRuntime();
+
+// Check for legacy CLI and warn user (skip if --skip-legacy-check flag is present)
+const skipLegacyCheck = process.argv.includes('--skip-legacy-check');
+if (!skipLegacyCheck) {
+	await checkLegacyCLI();
+}
 
 const version = getVersion();
 
@@ -38,6 +45,7 @@ if (process.env.DEBUG_COLORS) {
 // Configure logger with global options
 logger.setLevel((earlyOpts.logLevel as LogLevel) || 'info');
 logger.setTimestamp(earlyOpts.logTimestamp || false);
+logger.setShowPrefix(earlyOpts.logPrefix !== false);
 
 // Set version check skip flag from CLI option
 if (earlyOpts.skipVersionCheck) {

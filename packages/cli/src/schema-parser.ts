@@ -14,6 +14,8 @@ export interface ParsedOption {
 	name: string;
 	description?: string;
 	type: 'string' | 'number' | 'boolean';
+	hasDefault?: boolean;
+	defaultValue?: unknown;
 }
 
 interface ZodTypeDef {
@@ -93,6 +95,55 @@ export function parseArgsSchema(schema: ZodType): ParsedArgs {
 	return { names, metadata };
 }
 
+/**
+ * Extract default value information from a Zod schema by walking the wrapper chain
+ */
+function extractDefaultInfo(schema: unknown): {
+	hasDefault: boolean;
+	defaultValue?: unknown;
+	defaultIsFunction: boolean;
+} {
+	let current = schema as ZodTypeInternal | undefined;
+
+	while (current?._def) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const typeId = current._def.typeName || (current as any)._def?.type;
+
+		if (typeId === 'ZodDefault' || typeId === 'default') {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const rawDefaultValue = (current as any)._def?.defaultValue;
+			const defaultIsFunction = typeof rawDefaultValue === 'function';
+
+			return {
+				hasDefault: true,
+				defaultValue: rawDefaultValue,
+				defaultIsFunction,
+			};
+		}
+
+		// Continue through wrapper chain
+		if (
+			(typeId === 'ZodOptional' ||
+				typeId === 'optional' ||
+				typeId === 'ZodNullable' ||
+				typeId === 'nullable' ||
+				typeId === 'ZodEffects' ||
+				typeId === 'effects' ||
+				typeId === 'ZodReadonly' ||
+				typeId === 'readonly') &&
+			current._def.innerType
+		) {
+			current = current._def.innerType as ZodTypeInternal;
+		} else if ((typeId === 'ZodEffects' || typeId === 'effects') && current._def.schema) {
+			current = current._def.schema as ZodTypeInternal;
+		} else {
+			break;
+		}
+	}
+
+	return { hasDefault: false, defaultIsFunction: false };
+}
+
 export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 	const shape = getShape(schema);
 	const options: ParsedOption[] = [];
@@ -108,6 +159,14 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 			unwrapped?._def?.typeName || (unwrapped as any)?._def?.type || (unwrapped as any)?.type;
 		/* eslint-enable @typescript-eslint/no-explicit-any */
 
+		// Extract default info using helper that walks the wrapper chain
+		const defaultInfo = extractDefaultInfo(value);
+
+		// Evaluate function defaults at parse-time for actual default value
+		const defaultValue = defaultInfo.defaultIsFunction
+			? (defaultInfo.defaultValue as () => unknown)()
+			: defaultInfo.defaultValue;
+
 		let type: 'string' | 'number' | 'boolean' = 'string';
 		if (typeId === 'ZodNumber' || typeId === 'number') {
 			type = 'number';
@@ -115,7 +174,13 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 			type = 'boolean';
 		}
 
-		options.push({ name: key, type, description });
+		options.push({
+			name: key,
+			type,
+			description,
+			hasDefault: defaultInfo.hasDefault,
+			defaultValue,
+		});
 	}
 
 	return options;

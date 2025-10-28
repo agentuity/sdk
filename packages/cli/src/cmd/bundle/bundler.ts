@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { existsSync, rmSync } from 'node:fs';
-import AgentuityBuilder from './plugin';
+import AgentuityBundler from './plugin';
 import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
 
@@ -11,8 +11,7 @@ export interface BundleOptions {
 
 export async function bundle({ dev = false, rootDir }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
-	const f = Bun.file(appFile);
-	if (!(await f.exists())) {
+	if (!existsSync(appFile)) {
 		throw new Error(`App file not found at expected location: ${appFile}`);
 	}
 	const outDir = join(rootDir, '.agentuity');
@@ -59,7 +58,7 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 		define,
 		sourcemap: dev ? 'inline' : 'external',
 		env: 'AGENTUITY_CLOUD_*',
-		plugins: [AgentuityBuilder],
+		plugins: [AgentuityBundler],
 		target: 'bun',
 		format: 'esm',
 		banner: `// Generated file. DO NOT EDIT`,

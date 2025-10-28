@@ -47,6 +47,7 @@ export const ConfigSchema = zod.object({
 	preferences: zod
 		.object({
 			last_update_check: zod.number().optional().describe('Last update check timestamp'),
+			last_legacy_warning: zod.number().optional().describe('Last legacy CLI warning timestamp'),
 			orgId: zod.string().optional().describe('Default organization ID'),
 			project_dir: zod.string().optional().describe('Last used project directory'),
 		})
@@ -74,6 +75,7 @@ export interface GlobalOptions {
 	config?: string;
 	logLevel: LogLevel;
 	logTimestamp?: boolean;
+	logPrefix?: boolean;
 }
 
 export interface CommandSchemas {
@@ -154,6 +156,7 @@ export function createSubcommand<
 	name: string;
 	description: string;
 	aliases?: string[];
+	toplevel?: boolean;
 	requiresAuth?: TRequiresAuth;
 	schema?: TArgsSchema extends z.ZodType
 		? TOptionsSchema extends z.ZodType

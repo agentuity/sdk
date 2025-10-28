@@ -42,10 +42,10 @@ bun run build
 bun run typecheck
 ```
 
-## Usage
+## Testing
 
-Packages can import from each other using workspace protocol:
+Run the following to do a cycle of `lint`, `typecheck`, `format` and `test`:
 
-```typescript
-import { createResponse } from '@agentuity/core';
+```bash
+bun all
 ```

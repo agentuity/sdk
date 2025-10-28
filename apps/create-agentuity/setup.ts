@@ -5,7 +5,7 @@ import { basename } from 'path';
 const projectDir = process.cwd();
 const projectName = basename(projectDir);
 
-console.log(`\n🔧 Setting up ${projectName}...\n`);
+console.log(`🔧 Setting up ${projectName}...\n`);
 
 // Update package.json
 const packageJsonPath = 'package.json';

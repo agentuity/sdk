@@ -4,8 +4,8 @@
 	"type": "module",
 	"private": true,
 	"scripts": {
-		"build": "bun ../../packages/cli/bin/cli.ts bundle --dir . --dev",
-		"dev": "bun run ./.agentuity/app.js",
+		"build": "agentuity bundle --dir .",
+		"dev": "agentuity dev --dir .",
 		"test": "bash scripts/test.sh",
 		"typecheck": "bunx tsc --noEmit"
 	},

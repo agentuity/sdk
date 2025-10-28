@@ -7,8 +7,8 @@
 		"apps/*"
 	],
 	"scripts": {
-		"build": "bunx tsc --build --force && bun run --filter='./packages/*' --filter='./apps/*' build",
-		"test": "bun test && cd apps/test-app && bun run test",
+		"build": "bun scripts/check-legacy-cli.ts && bunx tsc --build --force && bun run --filter='./packages/*' --filter='./apps/*' build",
+		"test": "bun test && cd packages/cli && bun run test && cd ../../apps/test-app && bun run test",
 		"typecheck": "bunx tsc --build && cd apps/test-app && bunx tsc --build",
 		"clean": "rm -rf packages/*/dist apps/*/dist packages/*/*.tsbuildinfo",
 		"format": "bunx prettier */** --write --fix",

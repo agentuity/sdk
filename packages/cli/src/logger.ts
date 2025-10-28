@@ -114,6 +114,7 @@ export class Logger {
 	private showTimestamp: boolean;
 	private colorScheme: ColorScheme;
 	private colors: Record<LogLevel, LogColors>;
+	private showPrefix = true;
 
 	constructor(
 		level: LogLevel = 'info',
@@ -139,6 +140,10 @@ export class Logger {
 		this.colors = getLogColors(this.colorScheme);
 	}
 
+	setShowPrefix(show: boolean): void {
+		this.showPrefix = show;
+	}
+
 	private shouldLog(level: LogLevel): boolean {
 		return LOG_LEVELS[level] >= LOG_LEVELS[this.level];
 	}
@@ -154,19 +159,29 @@ export class Logger {
 		let output = '';
 
 		if (USE_COLORS) {
-			if (this.showTimestamp) {
-				const timestamp = new Date().toISOString();
-				output = `${colors.timestamp}[${timestamp}]${RESET} ${colors.level}${levelText}${RESET} ${colors.message}${message}${RESET}`;
+			if (this.showPrefix) {
+				if (this.showTimestamp) {
+					const timestamp = new Date().toISOString();
+					output = `${colors.timestamp}[${timestamp}]${RESET} ${colors.level}${levelText}${RESET} ${colors.message}${message}${RESET}`;
+				} else {
+					output = `${colors.level}${levelText}${RESET} ${colors.message}${message}${RESET}`;
+				}
 			} else {
-				output = `${colors.level}${levelText}${RESET} ${colors.message}${message}${RESET}`;
+				// No prefix - just the message with color
+				output = `${colors.message}${message}${RESET}`;
 			}
 		} else {
 			// No colors - plain text output
-			if (this.showTimestamp) {
-				const timestamp = new Date().toISOString();
-				output = `[${timestamp}] ${levelText} ${message}`;
+			if (this.showPrefix) {
+				if (this.showTimestamp) {
+					const timestamp = new Date().toISOString();
+					output = `[${timestamp}] ${levelText} ${message}`;
+				} else {
+					output = `${levelText} ${message}`;
+				}
 			} else {
-				output = `${levelText} ${message}`;
+				// No prefix, no colors - just message
+				output = message;
 			}
 		}
 

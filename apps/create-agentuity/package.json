@@ -13,8 +13,8 @@
 		"setup.ts"
 	],
 	"scripts": {
-		"build": "bun ../../packages/cli/bin/cli.ts bundle --dir . --dev",
-		"dev": "bun run ./.agentuity/app.js",
+		"build": "agentuity bundle --dir .",
+		"dev": "agentuity dev --dir .",
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"keywords": [
@@ -27,7 +27,6 @@
 	"author": "Agentuity",
 	"license": "MIT",
 	"dependencies": {
-		"@agentuity/cli": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
@@ -39,13 +38,15 @@
 		"zod": "^4.1.12"
 	},
 	"bun-create": {
+		"preinstall": "echo 'Preparing local dependencies...'",
 		"postinstall": [
-			"bun run setup.ts",
+			"agentuity create --from-bun-create --no-log-prefix",
 			"bun run build"
 		],
 		"start": "bun run dev"
 	},
 	"devDependencies": {
+		"@agentuity/cli": "workspace:*",
 		"@types/bun": "latest",
 		"@types/react": "^19.0.0"
 	},

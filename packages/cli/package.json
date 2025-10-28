@@ -24,13 +24,17 @@
 		"clean": "rm -rf dist",
 		"build": "bunx tsc --build --emitDeclarationOnly --force",
 		"typecheck": "bunx tsc --noEmit",
-		"prepublishOnly": "bun run clean && bun run build"
+		"test": "bun scripts/test-create-integration.ts",
+		"prepublishOnly": "bun run clean && bun run build",
+		"setup-dev-template": "bun scripts/setup-dev-template.ts",
+		"simulate-create": "bun scripts/simulate-bun-create.ts"
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
 		"acorn-loose": "^8.5.2",
 		"astring": "^1.9.0",
 		"commander": "^14.0.2",
+		"enquirer": "^2.4.1",
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {

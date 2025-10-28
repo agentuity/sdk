@@ -19,5 +19,6 @@
 		"noUnusedParameters": false,
 		"noPropertyAccessFromIndexSignature": false
 	},
-	"include": ["src/**/*", "app.ts"]
+	"include": ["src/**/*", "app.ts"],
+	"exclude": [".agentuity/**/*"]
 }

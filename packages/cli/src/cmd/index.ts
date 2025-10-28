@@ -25,6 +25,7 @@ export async function discoverCommands(): Promise<CommandDefinition[]> {
 								const alias: CommandDefinition = {
 									name: subcommand.name,
 									description: subcommand.description,
+									aliases: subcommand.aliases,
 									hidden: true,
 									requiresAuth: subcommand.requiresAuth,
 									schema: subcommand.schema,

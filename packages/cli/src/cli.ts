@@ -17,6 +17,7 @@ export async function createCLI(version: string): Promise<Command> {
 		.option('--config <path>', 'Config file path', '~/.config/agentuity/config.yaml')
 		.option('--log-level <level>', 'Log level', 'info')
 		.option('--log-timestamp', 'Show timestamps in log output', false)
+		.option('--no-log-prefix', 'Hide log level prefixes', false)
 		.option('--color-scheme <scheme>', 'Color scheme: light or dark');
 
 	const skipVersionCheckOption = program.createOption(
@@ -66,6 +67,10 @@ async function registerSubcommand(
 			const flag = opt.name.replace(/([A-Z])/g, '-$1').toLowerCase();
 			const desc = opt.description || '';
 			if (opt.type === 'boolean') {
+				// Support negatable boolean options (--no-flag) when they have a default
+				if (opt.hasDefault) {
+					cmd.option(`--no-${flag}`, desc);
+				}
 				cmd.option(`--${flag}`, desc);
 			} else if (opt.type === 'number') {
 				cmd.option(`--${flag} <${opt.name}>`, desc, parseFloat);

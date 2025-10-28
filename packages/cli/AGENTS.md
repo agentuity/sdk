@@ -62,6 +62,7 @@ bin/
    - `logger.fatal(message)` - Log error and exit with code 1 (returns `never`)
    - Use `logger.fatal()` instead of `logger.error()` + `process.exit(1)`
 - **Config** - Commands validate their own config requirements
+- **Bun** - Always use Bun provided APIs vs legacy Node.JS APIs. For example use `Bun.file(f).exists()` instead of `existsSync(f)`
 
 ## Creating New Commands
 

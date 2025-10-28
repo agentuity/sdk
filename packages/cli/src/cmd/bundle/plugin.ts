@@ -102,7 +102,7 @@ ${agentInfo
 	writeFileSync(clientTypesPath, clientTypesContent, 'utf-8');
 }
 
-const AgentuityBuilder: BunPlugin = {
+const AgentuityBundler: BunPlugin = {
 	name: 'Agentuity Bundler',
 	setup(build) {
 		const rootDir = build.config.root ?? '.';
@@ -256,4 +256,4 @@ root.render(<App />);
 	},
 };
 
-export default AgentuityBuilder;
+export default AgentuityBundler;

@@ -22,7 +22,6 @@
       "name": "create-agentuity",
       "version": "0.0.5",
       "dependencies": {
-        "@agentuity/cli": "workspace:*",
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
         "@agentuity/runtime": "workspace:*",
@@ -34,6 +33,7 @@
         "zod": "^4.1.12",
       },
       "devDependencies": {
+        "@agentuity/cli": "workspace:*",
         "@types/bun": "latest",
         "@types/react": "^19.0.0",
       },
@@ -61,6 +61,29 @@
         "typescript": "^5",
       },
     },
+    "apps/test-simulated": {
+      "name": "test-simulated",
+      "version": "0.0.5",
+      "dependencies": {
+        "@agentuity/core": "workspace:*",
+        "@agentuity/react": "workspace:*",
+        "@agentuity/runtime": "workspace:*",
+        "@hono/zod-validator": "^0.7.4",
+        "enquirer": "^2.4.1",
+        "hono": "^4.7.10",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+        "zod": "^4.1.12",
+      },
+      "devDependencies": {
+        "@agentuity/cli": "workspace:*",
+        "@types/bun": "latest",
+        "@types/react": "^19.0.0",
+      },
+      "peerDependencies": {
+        "typescript": "^5",
+      },
+    },
     "packages/cli": {
       "name": "@agentuity/cli",
       "version": "0.0.5",
@@ -72,6 +95,7 @@
         "acorn-loose": "^8.5.2",
         "astring": "^1.9.0",
         "commander": "^14.0.2",
+        "enquirer": "^2.4.1",
         "zod": "^4.1.12",
       },
       "devDependencies": {
@@ -1048,6 +1072,8 @@
     "teeny-request": ["teeny-request@9.0.0", "", { "dependencies": { "http-proxy-agent": "^5.0.0", "https-proxy-agent": "^5.0.0", "node-fetch": "^2.6.9", "stream-events": "^1.0.5", "uuid": "^9.0.0" } }, "sha512-resvxdc6Mgb7YEThw6G6bExlXKkv6+YbuzGg9xuXxSgxJF7Ozs+o8Y9+2R3sArdWdW8nOokoQb1yrpFB0pQK2g=="],
 
     "test-app": ["test-app@workspace:apps/test-app"],
+
+    "test-simulated": ["test-simulated@workspace:apps/test-simulated"],
 
     "to-regex-range": ["to-regex-range@5.0.1", "", { "dependencies": { "is-number": "^7.0.0" } }, "sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ=="],
 
