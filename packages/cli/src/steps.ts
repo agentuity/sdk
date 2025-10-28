@@ -58,26 +58,58 @@ export type StepOutcome =
 	| { status: 'error'; message: string };
 
 /**
- * Step callback function
+ * Helper functions for creating step outcomes
  */
-export type StepCallback = () => Promise<StepOutcome>;
+export const stepSuccess = (): StepOutcome => ({ status: 'success' });
+export const stepSkipped = (reason?: string): StepOutcome => ({ status: 'skipped', reason });
+export const stepError = (message: string): StepOutcome => ({ status: 'error', message });
 
 /**
- * Step definition
+ * Progress callback function
  */
-export interface Step {
+export type ProgressCallback = (progress: number) => void;
+
+/**
+ * Step definition (without progress tracking)
+ */
+export interface SimpleStep {
+	type?: 'simple';
 	label: string;
-	run: StepCallback;
+	run: () => Promise<StepOutcome>;
 }
+
+/**
+ * Step definition (with progress tracking)
+ */
+export interface ProgressStep {
+	type: 'progress';
+	label: string;
+	run: (progress: ProgressCallback) => Promise<StepOutcome>;
+}
+
+/**
+ * Step definition (discriminated union)
+ */
+export type Step = SimpleStep | ProgressStep;
 
 /**
  * Internal step state
  */
-interface StepState {
-	label: string;
-	run: StepCallback;
-	outcome?: StepOutcome;
-}
+type StepState =
+	| {
+			type: 'simple';
+			label: string;
+			run: () => Promise<StepOutcome>;
+			outcome?: StepOutcome;
+			progress?: number;
+	  }
+	| {
+			type: 'progress';
+			label: string;
+			run: (progress: ProgressCallback) => Promise<StepOutcome>;
+			outcome?: StepOutcome;
+			progress?: number;
+	  };
 
 /**
  * Run a series of steps with animated progress
@@ -87,10 +119,16 @@ interface StepState {
  * Exits with code 1 if any step errors.
  */
 export async function runSteps(steps: Step[]): Promise<void> {
-	const state: StepState[] = steps.map((s) => ({
-		label: s.label,
-		run: s.run,
-	}));
+	const state: StepState[] = steps.map((s) => {
+		const stepType = s.type === 'progress' ? 'progress' : 'simple';
+		return stepType === 'progress'
+			? {
+					type: 'progress' as const,
+					label: s.label,
+					run: s.run as (progress: ProgressCallback) => Promise<StepOutcome>,
+				}
+			: { type: 'simple' as const, label: s.label, run: s.run as () => Promise<StepOutcome> };
+	});
 
 	// Hide cursor
 	process.stdout.write('\x1B[?25l');
@@ -116,9 +154,19 @@ export async function runSteps(steps: Step[]): Promise<void> {
 				frameIndex++;
 			}, 120);
 
-			// Run the step
+			// Run the step with progress tracking
+			const progressCallback: ProgressCallback = (progress: number) => {
+				step.progress = Math.min(100, Math.max(0, progress));
+
+				// Move cursor up
+				process.stdout.write(`\x1B[${state.length}A`);
+				process.stdout.write(renderSteps(state, stepIndex) + '\n');
+			};
+
 			try {
-				const outcome = await step.run();
+				// Use discriminant to determine if step has progress callback
+				const outcome =
+					step.type === 'progress' ? await step.run(progressCallback) : await step.run();
 				step.outcome = outcome;
 			} catch (err) {
 				step.outcome = {
@@ -129,7 +177,8 @@ export async function runSteps(steps: Step[]): Promise<void> {
 
 			clearInterval(interval);
 
-			// Final render with outcome
+			// Clear progress and final render with outcome
+			step.progress = undefined;
 			process.stdout.write(`\x1B[${state.length}A`);
 			process.stdout.write(renderSteps(state, stepIndex) + '\n');
 
@@ -152,6 +201,16 @@ export async function runSteps(steps: Step[]): Promise<void> {
 }
 
 /**
+ * Render a progress indicator
+ */
+function renderProgress(progress: number): string {
+	const cyanColor = getColor('cyan');
+
+	const percentage = `${Math.floor(progress)}%`;
+	return ` ${cyanColor}${percentage}${COLORS.reset}`;
+}
+
+/**
  * Render all steps as a multiline string
  */
 function renderSteps(steps: StepState[], activeIndex: number, spinner?: string): string {
@@ -160,22 +219,27 @@ function renderSteps(steps: StepState[], activeIndex: number, spinner?: string):
 	const yellowColor = getColor('yellow');
 	const redColor = getColor('red');
 
-	return steps
-		.map((s, i) => {
-			if (s.outcome?.status === 'success') {
-				return `${greenColor}${ICONS.success}${COLORS.reset} ${grayColor}${COLORS.strikethrough}${s.label}${COLORS.reset}`;
-			} else if (s.outcome?.status === 'skipped') {
-				const reason = s.outcome.reason
-					? ` ${grayColor}(${s.outcome.reason})${COLORS.reset}`
-					: '';
-				return `${yellowColor}${ICONS.skipped}${COLORS.reset} ${grayColor}${COLORS.strikethrough}${s.label}${COLORS.reset}${reason}`;
-			} else if (s.outcome?.status === 'error') {
-				return `${redColor}${ICONS.error}${COLORS.reset} ${s.label}`;
-			} else if (i === activeIndex && spinner) {
-				return `${spinner} ${s.label}`;
-			} else {
-				return `${grayColor}${ICONS.pending}${COLORS.reset} ${s.label}`;
-			}
-		})
-		.join('\n');
+	const lines: string[] = [];
+
+	steps.forEach((s, i) => {
+		if (s.outcome?.status === 'success') {
+			lines.push(
+				`${greenColor}${ICONS.success}${COLORS.reset} ${grayColor}${COLORS.strikethrough}${s.label}${COLORS.reset}`
+			);
+		} else if (s.outcome?.status === 'skipped') {
+			const reason = s.outcome.reason ? ` ${grayColor}(${s.outcome.reason})${COLORS.reset}` : '';
+			lines.push(
+				`${yellowColor}${ICONS.skipped}${COLORS.reset} ${grayColor}${COLORS.strikethrough}${s.label}${COLORS.reset}${reason}`
+			);
+		} else if (s.outcome?.status === 'error') {
+			lines.push(`${redColor}${ICONS.error}${COLORS.reset} ${s.label}`);
+		} else if (i === activeIndex && spinner) {
+			const progressIndicator = s.progress !== undefined ? renderProgress(s.progress) : '';
+			lines.push(`${spinner} ${s.label}${progressIndicator}`);
+		} else {
+			lines.push(`${grayColor}${ICONS.pending}${COLORS.reset} ${s.label}`);
+		}
+	});
+
+	return lines.join('\n');
 }

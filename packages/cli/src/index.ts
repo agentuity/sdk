@@ -22,7 +22,7 @@ export { discoverCommands } from './cmd';
 export { detectColorScheme } from './terminal';
 export { getCommandPrefix, getCommand } from './command-prefix';
 export * as tui from './tui';
-export { runSteps, setStepsColorScheme } from './steps';
+export { runSteps, setStepsColorScheme, stepSuccess, stepSkipped, stepError } from './steps';
 export type {
 	Config,
 	LogLevel,
@@ -36,4 +36,4 @@ export type {
 } from './types';
 export { createSubcommand, createCommand } from './types';
 export type { ColorScheme } from './terminal';
-export type { Step, StepOutcome, StepCallback } from './steps';
+export type { Step, SimpleStep, ProgressStep, StepOutcome, ProgressCallback } from './steps';

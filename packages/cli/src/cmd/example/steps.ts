@@ -1,5 +1,5 @@
 import type { SubcommandDefinition } from '../../types';
-import { runSteps } from '../../steps';
+import { runSteps, stepSuccess, stepSkipped, stepError } from '../../steps';
 
 export const stepsSubcommand: SubcommandDefinition = {
 	name: 'steps',
@@ -11,42 +11,54 @@ export const stepsSubcommand: SubcommandDefinition = {
 				label: 'Launching application...',
 				run: async () => {
 					await Bun.sleep(1500);
-					return { status: 'success' };
+					return stepSuccess();
 				},
 			},
 			{
 				label: 'Installing dependencies...',
 				run: async () => {
 					await Bun.sleep(2000);
-					return { status: 'success' };
+					return stepSuccess();
 				},
 			},
 			{
 				label: 'Checking for updates...',
 				run: async () => {
 					await Bun.sleep(800);
-					return { status: 'skipped', reason: 'already up to date' };
+					return stepSkipped('already up to date');
 				},
 			},
 			{
 				label: 'Registering service...',
 				run: async () => {
 					await Bun.sleep(1200);
-					return { status: 'success' };
+					return stepSuccess();
 				},
 			},
 			{
 				label: 'Building project...',
 				run: async () => {
 					await Bun.sleep(1800);
-					return { status: 'success' };
+					return stepSuccess();
+				},
+			},
+			{
+				type: 'progress',
+				label: 'Downloading packages...',
+				run: async (progress) => {
+					// Simulate download with progress updates
+					for (let i = 0; i <= 100; i += 10) {
+						progress(i);
+						await Bun.sleep(200);
+					}
+					return stepSuccess();
 				},
 			},
 			{
 				label: 'Deploying the app ...',
 				run: async () => {
 					await Bun.sleep(1200);
-					return { status: 'error', message: 'something bad happened' };
+					return stepError('something bad happened');
 				},
 			},
 		]);
