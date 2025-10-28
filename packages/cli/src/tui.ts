@@ -17,34 +17,34 @@ const ICONS = {
 	bullet: '•',
 } as const;
 
-// Color definitions (light/dark adaptive)
+// Color definitions (light/dark adaptive) using Bun.color
 const COLORS = {
 	success: {
-		light: '\x1b[32m', // green
-		dark: '\x1b[92m', // bright green
+		light: Bun.color('#008000', 'ansi') || '\x1b[32m', // green
+		dark: Bun.color('#00FF00', 'ansi') || '\x1b[92m', // bright green
 	},
 	error: {
-		light: '\x1b[31m', // red
-		dark: '\x1b[91m', // bright red
+		light: Bun.color('#CC0000', 'ansi') || '\x1b[31m', // red
+		dark: Bun.color('#FF5555', 'ansi') || '\x1b[91m', // bright red
 	},
 	warning: {
-		light: '\x1b[33m', // yellow
-		dark: '\x1b[93m', // bright yellow
+		light: Bun.color('#B58900', 'ansi') || '\x1b[33m', // yellow
+		dark: Bun.color('#FFFF55', 'ansi') || '\x1b[93m', // bright yellow
 	},
 	info: {
-		light: '\x1b[36m', // cyan
-		dark: '\x1b[96m', // bright cyan
+		light: Bun.color('#008B8B', 'ansi') || '\x1b[36m', // dark cyan
+		dark: Bun.color('#55FFFF', 'ansi') || '\x1b[96m', // bright cyan
 	},
 	muted: {
-		light: '\x1b[90m', // gray
-		dark: '\x1b[37m', // white
+		light: Bun.color('#808080', 'ansi') || '\x1b[90m', // gray
+		dark: Bun.color('#DDDDDD', 'ansi') || '\x1b[37m', // light gray
 	},
 	bold: {
 		light: '\x1b[1m',
 		dark: '\x1b[1m',
 	},
 	link: {
-		light: '\x1b[34;4m', // blue underline
+		light: '\x1b[34;4m', // blue underline (need ANSI for underline)
 		dark: '\x1b[94;4m', // bright blue underline
 	},
 	reset: '\x1b[0m',
@@ -630,5 +630,209 @@ export async function spinner<T>(
 		process.stdout.write('\x1B[?25h');
 
 		throw err;
+	}
+}
+
+/**
+ * Options for running a command with streaming output
+ */
+export interface CommandRunnerOptions {
+	/**
+	 * The command to run (displayed in the UI)
+	 */
+	command: string;
+	/**
+	 * The actual command and arguments to execute
+	 */
+	cmd: string[];
+	/**
+	 * Current working directory
+	 */
+	cwd?: string;
+	/**
+	 * Environment variables
+	 */
+	env?: Record<string, string>;
+}
+
+/**
+ * Run an external command and stream its output with a live UI
+ *
+ * Displays the command with a colored $ prompt:
+ * - Blue while running
+ * - Green on successful exit (code 0)
+ * - Red on failed exit (code != 0)
+ *
+ * Shows the last 3 lines of output as it streams.
+ */
+export async function runCommand(options: CommandRunnerOptions): Promise<number> {
+	const { command, cmd, cwd, env } = options;
+	const isTTY = process.stdout.isTTY;
+
+	// If not a TTY, just run the command normally and log output
+	if (!isTTY) {
+		const proc = Bun.spawn(cmd, {
+			cwd,
+			env: { ...process.env, ...env },
+			stdout: 'inherit',
+			stderr: 'inherit',
+		});
+		return await proc.exited;
+	}
+
+	// Colors using Bun.color
+	const blue =
+		currentColorScheme === 'light'
+			? Bun.color('#0000FF', 'ansi') || '\x1b[34m'
+			: Bun.color('#5C9CFF', 'ansi') || '\x1b[94m';
+	const green = getColor('success');
+	const red = getColor('error');
+	const cmdColor =
+		currentColorScheme === 'light'
+			? '\x1b[1m' + (Bun.color('#00008B', 'ansi') || '\x1b[34m')
+			: Bun.color('#FFFFFF', 'ansi') || '\x1b[97m'; // bold dark blue / white
+	const mutedColor = Bun.color('#808080', 'ansi') || '\x1b[90m';
+	const reset = COLORS.reset;
+
+	// Get terminal width
+	const termWidth = process.stdout.columns || 80;
+	const maxCmdWidth = Math.min(40, termWidth);
+	const maxLineWidth = Math.min(80, termWidth);
+
+	// Truncate command if needed
+	let displayCmd = command;
+	if (getDisplayWidth(displayCmd) > maxCmdWidth) {
+		// Simple truncation for now - could be smarter about this
+		displayCmd = displayCmd.slice(0, maxCmdWidth - 3) + '...';
+	}
+
+	// Store all output lines, display subset based on context
+	const allOutputLines: string[] = [];
+	let linesRendered = 0;
+
+	// Hide cursor
+	process.stdout.write('\x1B[?25l');
+
+	// Render the command and output lines in place
+	const renderOutput = (linesToShow: number) => {
+		// Move cursor up to start of our output area
+		if (linesRendered > 0) {
+			process.stdout.write(`\x1b[${linesRendered}A`);
+		}
+
+		// Render command line
+		process.stdout.write(`\r\x1b[K${blue}$${reset} ${cmdColor}${displayCmd}${reset}\n`);
+
+		// Get last N lines to display
+		const displayLines = allOutputLines.slice(-linesToShow);
+
+		// Render output lines
+		for (const line of displayLines) {
+			// Truncate line if needed
+			let displayLine = line;
+			if (getDisplayWidth(displayLine) > maxLineWidth) {
+				displayLine = displayLine.slice(0, maxLineWidth - 3) + '...';
+			}
+			process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
+		}
+
+		// Update count of lines we've rendered (command + output lines)
+		linesRendered = 1 + displayLines.length;
+	};
+
+	// Initial display
+	renderOutput(3);
+
+	try {
+		// Spawn the command
+		const proc = Bun.spawn(cmd, {
+			cwd,
+			env: { ...process.env, ...env },
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+
+		// Process output streams
+		const processStream = async (stream: ReadableStream<Uint8Array>) => {
+			const reader = stream.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+
+					buffer += decoder.decode(value, { stream: true });
+					const lines = buffer.split('\n');
+					buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+					for (const line of lines) {
+						if (line.trim()) {
+							allOutputLines.push(line);
+							renderOutput(3); // Show last 3 lines while streaming
+						}
+					}
+				}
+			} finally {
+				reader.releaseLock();
+			}
+		};
+
+		// Process both stdout and stderr
+		await Promise.all([processStream(proc.stdout), processStream(proc.stderr)]);
+
+		// Wait for process to exit
+		const exitCode = await proc.exited;
+
+		// Determine how many lines to show in final output
+		const finalLinesToShow = exitCode === 0 ? 3 : 10;
+
+		// Move cursor up to redraw final state
+		if (linesRendered > 0) {
+			process.stdout.write(`\x1b[${linesRendered}A`);
+		}
+
+		// Show final status with appropriate color
+		const statusColor = exitCode === 0 ? green : red;
+		process.stdout.write(`\r\x1b[K${statusColor}$${reset} ${cmdColor}${displayCmd}${reset}\n`);
+
+		// Show final output lines
+		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
+		for (const line of finalOutputLines) {
+			let displayLine = line;
+			if (getDisplayWidth(displayLine) > maxLineWidth) {
+				displayLine = displayLine.slice(0, maxLineWidth - 3) + '...';
+			}
+			process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
+		}
+
+		return exitCode;
+	} catch (err) {
+		// Move cursor up to clear our UI
+		if (linesRendered > 0) {
+			process.stdout.write(`\x1b[${linesRendered}A`);
+			// Clear all our lines
+			for (let i = 0; i < linesRendered; i++) {
+				process.stdout.write('\r\x1b[K\n');
+			}
+			process.stdout.write(`\x1b[${linesRendered}A`);
+		}
+
+		// Show error status
+		process.stdout.write(`\r\x1b[K${red}$${reset} ${cmdColor}${displayCmd}${reset}\n`);
+
+		// Log the error
+		const errorMsg = err instanceof Error ? err.message : String(err);
+		console.error(`${red}${ICONS.error} Failed to spawn command: ${errorMsg}${reset}`);
+		if (cwd) {
+			console.error(`${mutedColor}  cwd: ${cwd}${reset}`);
+		}
+		console.error(`${mutedColor}  cmd: ${cmd.join(' ')}${reset}`);
+
+		return 1; // Return non-zero exit code
+	} finally {
+		// Always restore cursor visibility
+		process.stdout.write('\x1B[?25h');
 	}
 }

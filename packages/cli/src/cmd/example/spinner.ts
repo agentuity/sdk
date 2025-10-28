@@ -1,7 +1,7 @@
-import type { SubcommandDefinition } from '../../types';
-import * as tui from '../../tui';
+import { createSubcommand } from '@/types';
+import * as tui from '@/tui';
 
-export const spinnerSubcommand: SubcommandDefinition = {
+export const spinnerSubcommand = createSubcommand({
 	name: 'spinner',
 	description: 'Demo of spinner TUI component',
 
@@ -41,4 +41,4 @@ export const spinnerSubcommand: SubcommandDefinition = {
 			tui.error(`Caught error: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	},
-};
+});

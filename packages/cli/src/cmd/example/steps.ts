@@ -1,7 +1,7 @@
-import type { SubcommandDefinition } from '../../types';
-import { runSteps, stepSuccess, stepSkipped, stepError } from '../../steps';
+import { createSubcommand } from '@/types';
+import { runSteps, stepSuccess, stepSkipped, stepError } from '@/steps';
 
-export const stepsSubcommand: SubcommandDefinition = {
+export const stepsSubcommand = createSubcommand({
 	name: 'steps',
 	description: 'Demo of step progress UI component',
 
@@ -63,4 +63,4 @@ export const stepsSubcommand: SubcommandDefinition = {
 			},
 		]);
 	},
-};
+});

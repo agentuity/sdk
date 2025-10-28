@@ -178,6 +178,7 @@ export function createCommand<
 	name: string;
 	description: string;
 	aliases?: string[];
+	hidden?: boolean;
 	requiresAuth?: TRequiresAuth;
 	schema?: TArgsSchema extends z.ZodType
 		? TOptionsSchema extends z.ZodType
@@ -219,6 +220,7 @@ export type CommandDefinition =
 			name: string;
 			description: string;
 			aliases?: string[];
+			hidden?: boolean;
 			requiresAuth: true;
 			schema?: CommandSchemas;
 			handler?(ctx: CommandContext): void | Promise<void>;
@@ -228,6 +230,7 @@ export type CommandDefinition =
 			name: string;
 			description: string;
 			aliases?: string[];
+			hidden?: boolean;
 			requiresAuth?: false;
 			schema?: CommandSchemas;
 			handler?(ctx: CommandContext): void | Promise<void>;

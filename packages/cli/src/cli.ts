@@ -155,7 +155,9 @@ export async function registerCommands(
 ): Promise<void> {
 	for (const cmdDef of commands) {
 		if (cmdDef.subcommands) {
-			const cmd = program.command(cmdDef.name).description(cmdDef.description);
+			const cmd = program
+				.command(cmdDef.name, { hidden: cmdDef.hidden })
+				.description(cmdDef.description);
 
 			if (cmdDef.aliases) {
 				cmd.aliases(cmdDef.aliases);

@@ -5,6 +5,7 @@ import { loadConfig } from '../src/config';
 import { discoverCommands } from '../src/cmd';
 import { logger } from '../src/logger';
 import { detectColorScheme } from '../src/terminal';
+import { setColorScheme } from '../src/tui';
 import { getVersion } from '../src/version';
 import type { LogLevel } from '../src/types';
 
@@ -27,6 +28,7 @@ if (earlyOpts.colorScheme === 'light' || earlyOpts.colorScheme === 'dark') {
 	}
 }
 logger.setColorScheme(colorScheme);
+setColorScheme(colorScheme);
 
 // Debug: show detected color scheme
 if (process.env.DEBUG_COLORS) {
