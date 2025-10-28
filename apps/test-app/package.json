@@ -4,7 +4,7 @@
 	"type": "module",
 	"private": true,
 	"scripts": {
-		"build": "bun ./node_modules/@agentuity/cli/bin/cli.ts bundle --dir . --dev",
+		"build": "bun ../../packages/cli/bin/cli.ts bundle --dir . --dev",
 		"dev": "bun run ./.agentuity/app.js",
 		"test": "bash scripts/test.sh",
 		"typecheck": "bunx tsc --noEmit"

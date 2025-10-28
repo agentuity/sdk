@@ -13,7 +13,7 @@
 		"setup.ts"
 	],
 	"scripts": {
-		"build": "bun ./node_modules/@agentuity/cli/bin/cli.ts bundle --dir . --dev",
+		"build": "bun ../../packages/cli/bin/cli.ts bundle --dir . --dev",
 		"dev": "bun run ./.agentuity/app.js",
 		"typecheck": "bunx tsc --noEmit"
 	},
