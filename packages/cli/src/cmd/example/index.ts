@@ -6,6 +6,7 @@ import { spinnerSubcommand } from './spinner';
 import { deploySubcommand } from './deploy';
 import { versionSubcommand } from './version';
 import { createUserSubcommand } from './create-user';
+import { soundSubcommand } from './sound';
 
 export const command = createCommand({
 	name: 'example',
@@ -18,5 +19,6 @@ export const command = createCommand({
 		deploySubcommand,
 		versionSubcommand,
 		createUserSubcommand,
+		soundSubcommand,
 	],
 });

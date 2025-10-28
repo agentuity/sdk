@@ -23,6 +23,7 @@ export { detectColorScheme } from './terminal';
 export { getCommandPrefix, getCommand } from './command-prefix';
 export * as tui from './tui';
 export { runSteps, setStepsColorScheme, stepSuccess, stepSkipped, stepError } from './steps';
+export { playSound } from './sound';
 export type {
 	Config,
 	LogLevel,
