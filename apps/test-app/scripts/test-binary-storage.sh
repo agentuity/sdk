@@ -39,6 +39,12 @@ cleanup() {
 		echo "Stopping test server (PID: $SERVER_PID)..."
 		kill $SERVER_PID 2>/dev/null || true
 		wait $SERVER_PID 2>/dev/null || true
+		# Force kill any remaining processes on the port (cross-platform)
+		if command -v lsof &> /dev/null; then
+			lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
+		elif command -v fuser &> /dev/null; then
+			fuser -k $PORT/tcp 2>/dev/null || true
+		fi
 		echo -e "${GREEN}✓${NC} Server stopped"
 	fi
 }
