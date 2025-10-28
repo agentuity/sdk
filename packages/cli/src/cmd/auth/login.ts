@@ -7,6 +7,7 @@ import * as tui from '@/tui';
 export const loginCommand: SubcommandDefinition = {
 	name: 'login',
 	description: 'Login to the Agentuity Platform using a browser-based authentication flow',
+	toplevel: true,
 
 	async handler(ctx) {
 		const { logger, config } = ctx;

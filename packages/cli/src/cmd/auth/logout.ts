@@ -5,6 +5,7 @@ import * as tui from '@/tui';
 export const logoutCommand: SubcommandDefinition = {
 	name: 'logout',
 	description: 'Logout of the Agentuity Cloud Platform',
+	toplevel: true,
 
 	async handler() {
 		await clearAuth();

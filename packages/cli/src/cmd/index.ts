@@ -15,7 +15,25 @@ export async function discoverCommands(): Promise<CommandDefinition[]> {
 				const module = await import(modulePath);
 
 				if (module.default || module.command) {
-					commands.push(module.default || module.command);
+					const cmd = module.default || module.command;
+					commands.push(cmd);
+
+					// Auto-create hidden top-level aliases for subcommands with toplevel: true
+					if (cmd.subcommands) {
+						for (const subcommand of cmd.subcommands) {
+							if (subcommand.toplevel) {
+								const alias: CommandDefinition = {
+									name: subcommand.name,
+									description: subcommand.description,
+									hidden: true,
+									requiresAuth: subcommand.requiresAuth,
+									schema: subcommand.schema,
+									handler: subcommand.handler,
+								};
+								commands.push(alias);
+							}
+						}
+					}
 				}
 			} catch (error) {
 				console.warn(`Warning: Failed to load command from ${entry.name}:`, error);

@@ -37,9 +37,10 @@ export async function createCLI(version: string): Promise<Command> {
 async function registerSubcommand(
 	parent: Command,
 	subcommand: SubcommandDefinition,
-	baseCtx: CommandContext
+	baseCtx: CommandContext,
+	hidden?: boolean
 ): Promise<void> {
-	const cmd = parent.command(subcommand.name).description(subcommand.description);
+	const cmd = parent.command(subcommand.name, { hidden }).description(subcommand.description);
 
 	if (subcommand.aliases) {
 		cmd.aliases(subcommand.aliases);
@@ -181,7 +182,12 @@ export async function registerCommands(
 				await registerSubcommand(cmd, sub, baseCtx);
 			}
 		} else {
-			await registerSubcommand(program, cmdDef as unknown as SubcommandDefinition, baseCtx);
+			await registerSubcommand(
+				program,
+				cmdDef as unknown as SubcommandDefinition,
+				baseCtx,
+				cmdDef.hidden
+			);
 		}
 	}
 }

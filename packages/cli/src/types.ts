@@ -201,6 +201,7 @@ export type SubcommandDefinition =
 			name: string;
 			description: string;
 			aliases?: string[];
+			toplevel?: boolean;
 			requiresAuth: true;
 			schema?: CommandSchemas;
 			handler(ctx: CommandContext): void | Promise<void>;
@@ -209,6 +210,7 @@ export type SubcommandDefinition =
 			name: string;
 			description: string;
 			aliases?: string[];
+			toplevel?: boolean;
 			requiresAuth?: false;
 			schema?: CommandSchemas;
 			handler(ctx: CommandContext): void | Promise<void>;
