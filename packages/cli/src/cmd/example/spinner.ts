@@ -20,6 +20,18 @@ export const spinnerSubcommand: SubcommandDefinition = {
 
 		tui.info(`Result: ${result}`);
 
+		// Spinner with progress tracking
+		await tui.spinner({
+			type: 'progress',
+			message: 'Downloading file...',
+			callback: async (progress) => {
+				for (let i = 0; i <= 100; i += 5) {
+					progress(i);
+					await Bun.sleep(100);
+				}
+			},
+		});
+
 		try {
 			await tui.spinner('This will fail...', async () => {
 				await Bun.sleep(1000);

@@ -490,7 +490,35 @@ function wrapText(text: string, maxWidth: number): string[] {
 }
 
 /**
- * Run a callback with an animated spinner
+ * Progress callback for spinner
+ */
+export type SpinnerProgressCallback = (progress: number) => void;
+
+/**
+ * Spinner options (simple without progress)
+ */
+export interface SimpleSpinnerOptions<T> {
+	type?: 'simple';
+	message: string;
+	callback: (() => Promise<T>) | Promise<T>;
+}
+
+/**
+ * Spinner options (with progress tracking)
+ */
+export interface ProgressSpinnerOptions<T> {
+	type: 'progress';
+	message: string;
+	callback: (progress: SpinnerProgressCallback) => Promise<T>;
+}
+
+/**
+ * Spinner options (discriminated union)
+ */
+export type SpinnerOptions<T> = SimpleSpinnerOptions<T> | ProgressSpinnerOptions<T>;
+
+/**
+ * Run a callback with an animated spinner (simple overload)
  *
  * Shows a spinner animation while the callback executes.
  * On success, shows a checkmark. On error, shows an X and re-throws.
@@ -501,7 +529,34 @@ function wrapText(text: string, maxWidth: number): string[] {
 export async function spinner<T>(
 	message: string,
 	callback: (() => Promise<T>) | Promise<T>
+): Promise<T>;
+
+/**
+ * Run a callback with an animated spinner (options overload)
+ *
+ * Shows a spinner animation while the callback executes.
+ * On success, shows a checkmark. On error, shows an X and re-throws.
+ *
+ * @param options - Spinner options with optional progress tracking
+ */
+export async function spinner<T>(options: SpinnerOptions<T>): Promise<T>;
+
+export async function spinner<T>(
+	messageOrOptions: string | SpinnerOptions<T>,
+	callback?: (() => Promise<T>) | Promise<T>
 ): Promise<T> {
+	// Normalize to options format
+	let options: SpinnerOptions<T>;
+	if (typeof messageOrOptions === 'string') {
+		if (callback === undefined) {
+			throw new Error('callback is required when first argument is a string');
+		}
+		options = { type: 'simple', message: messageOrOptions, callback };
+	} else {
+		options = messageOrOptions;
+	}
+
+	const message = options.message;
 	const frames = ['◐', '◓', '◑', '◒'];
 	const spinnerColors = [
 		{ light: '\x1b[36m', dark: '\x1b[96m' }, // cyan
@@ -511,8 +566,10 @@ export async function spinner<T>(
 	];
 	const bold = '\x1b[1m';
 	const reset = COLORS.reset;
+	const cyanColor = { light: '\x1b[36m', dark: '\x1b[96m' }[currentColorScheme];
 
 	let frameIndex = 0;
+	let currentProgress: number | undefined;
 
 	// Hide cursor
 	process.stdout.write('\x1B[?25l');
@@ -523,14 +580,30 @@ export async function spinner<T>(
 		const color = colorDef[currentColorScheme];
 		const frame = `${color}${bold}${frames[frameIndex % frames.length]}${reset}`;
 
+		// Add progress indicator if available
+		const progressIndicator =
+			currentProgress !== undefined
+				? ` ${cyanColor}${Math.floor(currentProgress)}%${reset}`
+				: '';
+
 		// Clear line and render
-		process.stdout.write('\r\x1B[K' + `${frame} ${message}`);
+		process.stdout.write('\r\x1B[K' + `${frame} ${message}${progressIndicator}`);
 		frameIndex++;
 	}, 120);
 
+	// Progress callback
+	const progressCallback: SpinnerProgressCallback = (progress: number) => {
+		currentProgress = Math.min(100, Math.max(0, progress));
+	};
+
 	try {
 		// Execute callback
-		const result = typeof callback === 'function' ? await callback() : await callback;
+		const result =
+			options.type === 'progress'
+				? await options.callback(progressCallback)
+				: typeof options.callback === 'function'
+					? await options.callback()
+					: await options.callback;
 
 		// Clear interval and line
 		clearInterval(interval);
