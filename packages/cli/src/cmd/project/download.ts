@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { existsSync, mkdirSync, renameSync, readdirSync, cpSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { pipeline } from 'node:stream/promises';
@@ -28,22 +28,12 @@ interface SetupOptions {
 	logger: Logger;
 }
 
-export async function downloadTemplate(options: DownloadOptions): Promise<void> {
-	const { dest, template, templateDir, templateBranch } = options;
+async function cleanup(sourceDir: string, dest: string) {
+	if (!existsSync(sourceDir)) {
+		throw new Error(`Template directory not found: ${sourceDir}`);
+	}
 
-	mkdirSync(dest, { recursive: true });
-
-	// Copy from local directory if provided
-	if (templateDir) {
-		const { resolve } = await import('node:path');
-		const sourceDir = resolve(join(templateDir, template.directory));
-
-		if (!existsSync(sourceDir)) {
-			throw new Error(`Template directory not found: ${sourceDir}`);
-		}
-
-		tui.info(`📦 Copying template from ${sourceDir}...`);
-
+	tui.spinner(`📦 Copying template from ${sourceDir}...`, async () => {
 		// Copy all files from source to dest
 		const files = readdirSync(sourceDir);
 		for (const file of files) {
@@ -55,8 +45,23 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		if (existsSync(gi)) {
 			renameSync(gi, join(dest, '.gitignore'));
 		}
+	});
+}
 
-		return;
+export async function downloadTemplate(options: DownloadOptions): Promise<void> {
+	const { dest, template, templateDir, templateBranch } = options;
+
+	mkdirSync(dest, { recursive: true });
+
+	// Copy from local directory if provided
+	if (templateDir) {
+		const sourceDir = resolve(join(templateDir, template.directory));
+
+		if (!existsSync(sourceDir)) {
+			throw new Error(`Template directory not found: ${sourceDir}`);
+		}
+
+		return cleanup(sourceDir, dest);
 	}
 
 	// Download from GitHub
@@ -90,11 +95,7 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		}
 	);
 
-	// Move files from temp to dest
-	const files = readdirSync(tempDir);
-	for (const file of files) {
-		cpSync(join(tempDir, file), join(dest, file), { recursive: true });
-	}
+	await cleanup(tempDir, dest);
 
 	// Extra safety: refuse to delete root or home directories
 	const home = homedir();
@@ -102,12 +103,6 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		throw new Error(`Refusing to delete protected path: ${tempDir}`);
 	}
 	rmSync(tempDir, { recursive: true, force: true });
-
-	// Rename gitignore -> .gitignore
-	const gi = join(dest, 'gitignore');
-	if (existsSync(gi)) {
-		renameSync(gi, join(dest, '.gitignore'));
-	}
 }
 
 export async function setupProject(options: SetupOptions): Promise<void> {
@@ -116,23 +111,6 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 	// Replace {{PROJECT_NAME}} in files
 	tui.info(`🔧 Setting up ${projectName}...`);
 	await replaceInFiles(dest, projectName, dirName);
-
-	// Run setup.ts if it exists (legacy)
-	if (await Bun.file('./setup.ts').exists()) {
-		await tui.spinner({
-			message: 'Running setup script...',
-			callback: async () => {
-				const proc = Bun.spawn(['bun', './setup.ts'], {
-					cwd: dest,
-					stdio: ['pipe', 'pipe', 'pipe'],
-				});
-				const exitCode = await proc.exited;
-				if (exitCode !== 0) {
-					logger.error('Setup script failed');
-				}
-			},
-		});
-	}
 
 	// Install dependencies
 	if (!noInstall) {

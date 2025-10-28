@@ -39,7 +39,6 @@ my-app/
 │   └── web/             # React web application
 │       └── app.tsx      # Main React component
 ├── app.ts               # Application entry point
-├── setup.ts             # Initial setup script
 ├── tsconfig.json        # TypeScript configuration
 ├── package.json         # Dependencies and scripts
 └── README.md            # Project documentation

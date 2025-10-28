@@ -2,7 +2,7 @@
 	"name": "{{PROJECT_NAME}}",
 	"version": "0.0.1",
 	"private": true,
-	"module": "index.ts",
+	"module": "app.ts",
 	"type": "module",
 	"scripts": {
 		"build": "agentuity bundle --dir .",
