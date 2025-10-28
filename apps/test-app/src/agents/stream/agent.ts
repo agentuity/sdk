@@ -4,10 +4,11 @@ import { z } from 'zod';
 const agent = createAgent({
 	schema: {
 		input: z.object({
-			operation: z.enum(['create', 'list', 'delete']),
+			operation: z.enum(['create', 'list', 'delete', 'read']),
 			name: z.string().optional(),
 			id: z.string().optional(),
 			content: z.string().optional(),
+			contentType: z.string().optional(),
 		}),
 		output: z.object({
 			operation: z.string(),
@@ -15,7 +16,7 @@ const agent = createAgent({
 			result: z.any().optional(),
 		}),
 	},
-	handler: async (c: AgentContext, { operation, name, id, content }) => {
+	handler: async (c: AgentContext, { operation, name, id, content, contentType }) => {
 		switch (operation) {
 			case 'create': {
 				if (!name || !content) {
@@ -23,10 +24,19 @@ const agent = createAgent({
 				}
 				const stream = await c.stream.create(name, {
 					metadata: { createdBy: 'test-agent' },
-					contentType: 'text/plain',
+					contentType: contentType || 'text/plain',
 				});
 
-				await stream.write(content);
+				// For binary content types, decode base64
+				if (
+					contentType &&
+					(contentType.startsWith('image/') || contentType === 'application/octet-stream')
+				) {
+					const buffer = Buffer.from(content, 'base64');
+					await stream.write(buffer);
+				} else {
+					await stream.write(content);
+				}
 				await stream.close();
 
 				return {
@@ -61,6 +71,36 @@ const agent = createAgent({
 					operation,
 					success: true,
 					result: `Deleted stream ${id}`,
+				};
+			}
+
+			case 'read': {
+				if (!id) {
+					throw new Error('ID is required for read operation');
+				}
+				const response = await fetch(`https://streams.agentuity.cloud/${id}`, {
+					headers: {
+						Authorization: `Bearer ${process.env.AGENTUITY_SDK_KEY}`,
+					},
+				});
+
+				if (!response.ok) {
+					throw new Error(`Failed to read stream: ${response.statusText}`);
+				}
+
+				const data = await response.arrayBuffer();
+				const contentTypeHeader =
+					response.headers.get('content-type') || 'application/octet-stream';
+
+				return {
+					operation,
+					success: true,
+					result: {
+						id,
+						contentType: contentTypeHeader,
+						size: data.byteLength,
+						data: Buffer.from(data).toString('base64'),
+					},
 				};
 			}
 		}

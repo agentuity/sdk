@@ -104,7 +104,7 @@ export async function toPayload(data: unknown): Promise<[Body, string]> {
 
 export async function fromResponse<T>(response: Response): Promise<T> {
 	const contentType = response.headers.get('content-type');
-	if (contentType?.includes('/json')) {
+	if (!contentType || contentType?.includes('/json')) {
 		return (await response.json()) as T;
 	}
 	if (contentType?.includes('text/')) {

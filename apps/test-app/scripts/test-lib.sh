@@ -106,6 +106,34 @@ start_server_if_needed() {
 	echo ""
 }
 
+# Cross-platform SHA256 hash calculation
+# Tries sha256sum (Linux) first, falls back to shasum (macOS)
+sha256() {
+	if command -v sha256sum &> /dev/null; then
+		sha256sum | awk '{print $1}'
+	elif command -v shasum &> /dev/null; then
+		shasum -a 256 | awk '{print $1}'
+	else
+		echo "Error: Neither sha256sum nor shasum found" >&2
+		return 1
+	fi
+}
+
+# Cross-platform base64 decode
+# Tries different base64 decode flags: --decode (Linux), -d (macOS/Linux), -D (some systems)
+b64decode() {
+	if base64 --decode <<< "" &> /dev/null 2>&1; then
+		base64 --decode
+	elif base64 -d <<< "" &> /dev/null 2>&1; then
+		base64 -d
+	elif base64 -D <<< "" &> /dev/null 2>&1; then
+		base64 -D
+	else
+		echo "Error: No compatible base64 decode option found" >&2
+		return 1
+	fi
+}
+
 # Print test result message
 print_result() {
 	if [ "$SERVER_STARTED" = true ]; then
