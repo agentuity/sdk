@@ -15,9 +15,16 @@ export const loginCommand: SubcommandDefinition = {
 		const appUrl = getAppBaseURL(config);
 
 		try {
-			console.log('Generating login OTP...');
+			let otp: string | undefined;
 
-			const otp = await generateLoginOTP(apiUrl, config);
+			await tui.spinner('Generating login one time code...', async () => {
+				otp = await generateLoginOTP(apiUrl, config);
+			});
+
+			if (!otp) {
+				return;
+			}
+
 			const authURL = `${appUrl}/auth/cli`;
 
 			const copied = await tui.copyToClipboard(otp);
@@ -39,7 +46,8 @@ export const loginCommand: SubcommandDefinition = {
 			tui.newline();
 
 			if (process.platform === 'darwin') {
-				await tui.waitForAnyKey('Press Enter to open the URL...');
+				await tui.waitForAnyKey('Press any key to open the URL in your browser...');
+				tui.newline();
 				try {
 					Bun.spawn(['open', authURL], {
 						stdio: ['ignore', 'ignore', 'ignore'],

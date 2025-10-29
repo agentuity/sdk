@@ -83,6 +83,16 @@ export function error(message: string): void {
 }
 
 /**
+ * Print an error message with a red X and then exit
+ */
+export function fatal(message: string): never {
+	const color = getColor('error');
+	const reset = COLORS.reset;
+	console.error(`${color}${ICONS.error} ${message}${reset}`);
+	process.exit(1);
+}
+
+/**
  * Print a warning message with a yellow warning icon
  */
 export function warning(message: string, asError = false): void {
@@ -200,9 +210,13 @@ export function padLeft(str: string, length: number, pad = ' '): string {
  * Creates a bordered box around the content
  *
  * Uses Bun.stringWidth() for accurate width calculation with ANSI codes and unicode
+ * Responsive to terminal width - adapts to narrow terminals
  */
 export function banner(title: string, body: string): void {
-	const maxWidth = 80;
+	// Get terminal width, default to 80 if not available, minimum 40
+	const termWidth = process.stdout.columns || 80;
+	const maxWidth = Math.max(40, Math.min(termWidth - 2, 80)); // Between 40 and 80, with 2 char margin
+
 	const border = {
 		topLeft: '╭',
 		topRight: '╮',
@@ -444,8 +458,35 @@ function getDisplayWidth(str: string): number {
 }
 
 /**
+ * Extract ANSI codes from the beginning of a string
+ */
+function extractLeadingAnsiCodes(str: string): string {
+	// Match ANSI escape sequences at the start of the string
+	// eslint-disable-next-line no-control-regex
+	const match = str.match(/^(\x1b\[[0-9;]*m)+/);
+	return match ? match[0] : '';
+}
+
+/**
+ * Strip ANSI codes from a string
+ */
+function stripAnsiCodes(str: string): string {
+	// Remove all ANSI escape sequences
+	// eslint-disable-next-line no-control-regex
+	return str.replace(/\x1b\[[0-9;]*m/g, '');
+}
+
+/**
+ * Check if a string ends with ANSI reset code
+ */
+function endsWithReset(str: string): boolean {
+	return str.endsWith('\x1b[0m') || str.endsWith(COLORS.reset);
+}
+
+/**
  * Wrap text to a maximum width
  * Handles explicit newlines and word wrapping
+ * Preserves ANSI color codes across wrapped lines
  */
 function wrapText(text: string, maxWidth: number): string[] {
 	const allLines: string[] = [];
@@ -459,6 +500,13 @@ function wrapText(text: string, maxWidth: number): string[] {
 			allLines.push('');
 			continue;
 		}
+
+		// Record starting index for this paragraph's lines
+		const paragraphStart = allLines.length;
+
+		// Extract any leading ANSI codes from the paragraph
+		const leadingCodes = extractLeadingAnsiCodes(paragraph);
+		const hasReset = endsWithReset(paragraph);
 
 		// Wrap each paragraph
 		const words = paragraph.split(' ');
@@ -477,12 +525,29 @@ function wrapText(text: string, maxWidth: number): string[] {
 				}
 				// If the word itself is longer than maxWidth, just use it as is
 				// (better to have a long line than break in the middle)
-				currentLine = word;
+				// But if we have leading codes and this isn't the first line, apply them
+				if (leadingCodes && currentLine) {
+					// Strip any existing codes from the word to avoid duplication
+					const strippedWord = stripAnsiCodes(word);
+					currentLine = leadingCodes + strippedWord;
+				} else {
+					currentLine = word;
+				}
 			}
 		}
 
 		if (currentLine) {
 			allLines.push(currentLine);
+		}
+
+		// If the original paragraph had ANSI codes and ended with reset,
+		// ensure each wrapped line ends with reset (only for this paragraph's lines)
+		if (leadingCodes && hasReset) {
+			for (let i = paragraphStart; i < allLines.length; i++) {
+				if (!endsWithReset(allLines[i])) {
+					allLines[i] += COLORS.reset;
+				}
+			}
 		}
 	}
 

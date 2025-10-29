@@ -1,5 +1,5 @@
 import { YAML } from 'bun';
-import { join, extname } from 'node:path';
+import { join, extname, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import type { Config, Profile, AuthData } from './types';
@@ -103,6 +103,13 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 
 		const content = await file.text();
 		const config = YAML.parse(content);
+
+		// check to see if this is a legacy config file that might not have the required name
+		// and in this case we can just use the filename
+		const _config = config as { name?: string };
+		if (!_config.name) {
+			_config.name = basename(configPath).replace(extname(configPath), '');
+		}
 
 		const result = ConfigSchema.safeParse(config);
 		if (!result.success) {

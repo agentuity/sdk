@@ -60,8 +60,9 @@ export async function requireAuth(ctx: CommandContext<false>): Promise<AuthData>
 	);
 
 	if (!shouldLogin) {
-		logger.fatal(`Authentication required. Run "${loginCmd}" when you're ready to continue.`);
+		return tui.fatal(`Authentication required. Run "${loginCmd}" when you're ready to continue.`);
 	}
+	tui.newline();
 
 	// Import and run login flow
 	const { loginCommand } = await import('./cmd/auth/login');
@@ -70,8 +71,9 @@ export async function requireAuth(ctx: CommandContext<false>): Promise<AuthData>
 	// After login completes, verify we have auth
 	const newAuth = await getAuth();
 	if (!newAuth || newAuth.expires <= new Date()) {
-		return logger.fatal('Login was not completed successfully.');
+		return tui.fatal('Login was not completed successfully.');
 	}
+	tui.newline();
 
 	return newAuth;
 }

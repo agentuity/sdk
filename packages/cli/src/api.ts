@@ -68,6 +68,17 @@ export class UpgradeRequiredError extends Error {
 	}
 }
 
+export class APIError extends Error {
+	constructor(
+		message: string,
+		public status: number,
+		public code?: string
+	) {
+		super(message);
+		this.name = 'APIError';
+	}
+}
+
 export class APIClient {
 	constructor(
 		private baseUrl: string,
@@ -141,10 +152,13 @@ export class APIClient {
 
 			// Throw with message from API if available
 			if (errorData?.message) {
-				throw new Error(errorData.message);
+				throw new APIError(errorData.message, response.status, errorData.code);
 			}
 
-			throw new Error(`API error: ${response.status} ${response.statusText}`);
+			throw new APIError(
+				`API error: ${response.status} ${response.statusText}`,
+				response.status
+			);
 		}
 
 		// Successful response; handle empty bodies (e.g., 204 No Content)
