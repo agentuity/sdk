@@ -3,10 +3,62 @@
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { $ } from 'bun';
+import * as readline from 'node:readline';
 
 const rootDir = join(import.meta.dir, '..');
 const packagesDir = join(rootDir, 'packages');
 const appsDir = join(rootDir, 'apps');
+
+const rl = readline.createInterface({
+	input: process.stdin,
+	output: process.stdout,
+});
+
+async function readLine(prompt: string): Promise<string> {
+	return new Promise((resolve) => {
+		rl.question(prompt, (answer) => {
+			resolve(answer.trim());
+		});
+	});
+}
+
+function showHelp() {
+	console.log(`
+Usage: bun scripts/publish.ts [options]
+
+Options:
+  --dry-run    Run the publish process without actually publishing to npm.
+               Version changes will be automatically reverted after completion.
+  --help       Show this help message
+
+Description:
+  Interactive script to publish packages to npm. Supports patch, minor, major,
+  and prerelease versions with automatic version bumping.
+
+  Release types (prerelease is default):
+    Prerelease: 1.0.0 -> 1.0.1-0 (first prerelease of next patch)
+                1.0.1-0 -> 1.0.1-1 (increment prerelease)
+                
+    Patch:      1.0.0 -> 1.0.1 (bug fixes)
+                1.0.1-0 -> 1.0.1 (promote prerelease to stable)
+                
+    Minor:      1.0.0 -> 1.1.0 (new features, backwards compatible)
+                1.0.1-0 -> 1.1.0 (promote prerelease and bump minor)
+                
+    Major:      1.0.0 -> 2.0.0 (breaking changes)
+                1.0.1-0 -> 2.0.0 (promote prerelease and bump major)
+
+  npm dist-tags:
+    - Stable releases (patch/minor/major) are published with tag "latest"
+    - Prereleases are published with tag "next"
+
+Examples:
+  bun scripts/publish.ts                 # Publish to npm (interactive)
+  bun scripts/publish.ts --dry-run       # Test without publishing
+`);
+	rl.close();
+	process.exit(0);
+}
 
 async function readJSON(path: string) {
 	const content = await readFile(path, 'utf-8');
@@ -17,22 +69,74 @@ async function writeJSON(path: string, data: unknown) {
 	await writeFile(path, JSON.stringify(data, null, '\t') + '\n');
 }
 
+function isPrerelease(version: string): boolean {
+	return version.includes('-');
+}
+
 function bumpPatch(version: string): string {
+	if (isPrerelease(version)) {
+		return version.split('-')[0];
+	}
 	const parts = version.split('.');
-	parts[2] = String(Number(parts[2]) + 1);
+	parts[2] = String(Number(parts[2].split('-')[0]) + 1);
 	return parts.join('.');
 }
 
-async function promptVersion(defaultVersion: string): Promise<string> {
-	console.log(`\nCurrent version: ${defaultVersion.replace(/\+1$/, '')}`);
-	console.log(`Default (patch bump): ${defaultVersion}`);
-	process.stdout.write('Enter version (or press Enter for default): ');
+function bumpMinor(version: string): string {
+	const base = isPrerelease(version) ? version.split('-')[0] : version;
+	const parts = base.split('.');
+	parts[1] = String(Number(parts[1]) + 1);
+	parts[2] = '0';
+	return parts.join('.');
+}
 
-	for await (const line of console) {
-		const input = line.trim();
-		return input || defaultVersion;
+function bumpMajor(version: string): string {
+	const base = isPrerelease(version) ? version.split('-')[0] : version;
+	const parts = base.split('.');
+	parts[0] = String(Number(parts[0]) + 1);
+	parts[1] = '0';
+	parts[2] = '0';
+	return parts.join('.');
+}
+
+function bumpPrerelease(version: string): string {
+	if (isPrerelease(version)) {
+		const [base, prerelease] = version.split('-');
+		return `${base}-${Number(prerelease) + 1}`;
 	}
-	return defaultVersion;
+	const nextPatch = bumpPatch(version);
+	return `${nextPatch}-0`;
+}
+
+async function promptReleaseType(
+	currentVersion: string,
+): Promise<'patch' | 'minor' | 'major' | 'prerelease'> {
+	console.log(`\nCurrent version: ${currentVersion}`);
+	console.log('Options:');
+	console.log('  [1] prerelease - Create/increment prerelease version (default)');
+	console.log('  [2] patch - Patch release (0.0.x)');
+	console.log('  [3] minor - Minor release (0.x.0)');
+	console.log('  [4] major - Major release (x.0.0)');
+
+	while (true) {
+		const input = await readLine('Choose release type (1/2/3/4) [1]: ');
+		if (!input || input === '1') return 'prerelease';
+		if (input === '2') return 'patch';
+		if (input === '3') return 'minor';
+		if (input === '4') return 'major';
+		console.log('Invalid choice. Please enter 1, 2, 3, or 4.');
+	}
+}
+
+async function confirmVersion(newVersion: string): Promise<boolean> {
+	console.log(`\nNew version will be: ${newVersion}`);
+
+	while (true) {
+		const input = (await readLine('Continue? (Y/n): ')).toLowerCase();
+		if (!input || input === 'y' || input === 'yes') return true;
+		if (input === 'n' || input === 'no') return false;
+		console.log('Please enter Y or n.');
+	}
 }
 
 async function updateVersions(version: string) {
@@ -116,51 +220,98 @@ async function getPublishablePackages(): Promise<
 	});
 }
 
+async function revertVersionChanges() {
+	await $`git checkout -- package.json packages/*/package.json apps/*/package.json bun.lock`.cwd(
+		rootDir,
+	);
+}
+
 async function main() {
+	if (process.argv.includes('--help') || process.argv.includes('-h')) {
+		showHelp();
+	}
+
 	const isDryRun = process.argv.includes('--dry-run');
 	console.log(`🚀 Publishing packages to npm${isDryRun ? ' (DRY RUN)' : ''}\n`);
 
 	const rootPkg = await readJSON(join(rootDir, 'package.json'));
 	const currentVersion = rootPkg.version;
-	const defaultVersion = bumpPatch(currentVersion);
 
-	const newVersion = await promptVersion(defaultVersion);
-	console.log(`\n📦 Setting version to: ${newVersion}\n`);
+	const releaseType = await promptReleaseType(currentVersion);
 
-	await updateVersions(newVersion);
-
-	console.log('\n📥 Running bun install...');
-	await $`bun install`.cwd(rootDir);
-
-	console.log('\n🧹 Running bun run clean...');
-	await $`bun run clean`.cwd(rootDir);
-
-	console.log('\n🔨 Running bun run build...');
-	await $`bun run build`.cwd(rootDir);
-
-	const publishable = await getPublishablePackages();
-	const names = publishable.map((p) => `${p.dir}/${p.name}`).join(', ');
-	console.log(`\n📤 Publishing ${publishable.length} packages in order: ${names}\n`);
-
-	for (const pkg of publishable) {
-		const pkgJson = await readJSON(join(pkg.path, 'package.json'));
-		const pkgName = pkgJson.name;
-		console.log(`\n📦 Publishing ${pkgName}...`);
-		try {
-			const args = ['publish', '--access', 'public'];
-			if (isDryRun) args.push('--dry-run');
-			await $`bun ${args}`.cwd(pkg.path);
-			console.log(`✓ ${isDryRun ? 'Dry run completed for' : 'Published'} ${pkgName}`);
-		} catch (err) {
-			console.error(`✗ Failed to publish ${pkgName}:`, err);
-			process.exit(1);
-		}
+	let newVersion: string;
+	switch (releaseType) {
+		case 'prerelease':
+			newVersion = bumpPrerelease(currentVersion);
+			break;
+		case 'patch':
+			newVersion = bumpPatch(currentVersion);
+			break;
+		case 'minor':
+			newVersion = bumpMinor(currentVersion);
+			break;
+		case 'major':
+			newVersion = bumpMajor(currentVersion);
+			break;
 	}
 
-	console.log('\n✨ All packages published successfully!\n');
+	const isPreReleaseVersion = isPrerelease(newVersion);
+	const distTag = isPreReleaseVersion ? 'next' : 'latest';
+
+	const confirmed = await confirmVersion(newVersion);
+	if (!confirmed) {
+		console.log('\n❌ Publish cancelled\n');
+		rl.close();
+		process.exit(0);
+	}
+
+	console.log(`\n📦 Setting version to: ${newVersion}`);
+	console.log(`📌 npm dist-tag: ${distTag}\n`);
+
+	try {
+		await updateVersions(newVersion);
+
+		console.log('\n📥 Running bun install...');
+		await $`bun install`.cwd(rootDir);
+
+		console.log('\n🧹 Running bun run clean...');
+		await $`bun run clean`.cwd(rootDir);
+
+		console.log('\n🔨 Running bun run build...');
+		await $`bun run build`.cwd(rootDir);
+
+		const publishable = await getPublishablePackages();
+		const names = publishable.map((p) => `${p.dir}/${p.name}`).join(', ');
+		console.log(`\n📤 Publishing ${publishable.length} packages in order: ${names}\n`);
+
+		for (const pkg of publishable) {
+			const pkgJson = await readJSON(join(pkg.path, 'package.json'));
+			const pkgName = pkgJson.name;
+			console.log(`\n📦 Publishing ${pkgName}...`);
+			try {
+				const args = ['publish', '--access', 'public', '--tag', distTag];
+				if (isDryRun) args.push('--dry-run');
+				await $`bun ${args}`.cwd(pkg.path);
+				console.log(`✓ ${isDryRun ? 'Dry run completed for' : 'Published'} ${pkgName}`);
+			} catch (err) {
+				console.error(`✗ Failed to publish ${pkgName}:`, err);
+				throw err;
+			}
+		}
+
+		console.log('\n✨ All packages published successfully!\n');
+	} finally {
+		if (isDryRun) {
+			console.log('\n🔄 Reverting version changes...');
+			await revertVersionChanges();
+			console.log('✓ Changes reverted\n');
+		}
+		rl.close();
+	}
 }
 
 main().catch((err) => {
 	console.error('Error:', err);
+	rl.close();
 	process.exit(1);
 });
