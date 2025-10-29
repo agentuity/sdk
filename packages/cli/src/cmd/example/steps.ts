@@ -1,5 +1,5 @@
-import { createSubcommand } from '@/types';
-import { runSteps, stepSuccess, stepSkipped, stepError } from '@/steps';
+import { createSubcommand } from '../../types';
+import { runSteps, stepSuccess, stepSkipped, stepError } from '../../steps';
 
 export const stepsSubcommand = createSubcommand({
 	name: 'steps',

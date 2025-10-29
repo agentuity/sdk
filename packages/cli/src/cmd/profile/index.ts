@@ -1,4 +1,4 @@
-import { createCommand } from '@/types';
+import { createCommand } from '../../types';
 import { createCommand as createProfileCmd } from './create';
 import { useCommand } from './use';
 import { listCommand } from './list';

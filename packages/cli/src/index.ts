@@ -1,6 +1,7 @@
 export { createCLI, registerCommands } from './cli';
 export { validateRuntime, isBun } from './runtime';
 export { getVersion, getRevision, getPackageName, getPackage } from './version';
+export { requireAuth, optionalAuth, withAuth, withOptionalAuth } from './auth';
 export {
 	loadConfig,
 	saveConfig,

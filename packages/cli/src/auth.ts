@@ -3,6 +3,7 @@ import { getDefaultConfigDir, getAuth } from './config';
 import { getCommand } from './command-prefix';
 import type { CommandContext, AuthData } from './types';
 import * as tui from './tui';
+import enquirer from 'enquirer';
 
 export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
@@ -45,8 +46,10 @@ export async function requireAuth(ctx: CommandContext<false>): Promise<AuthData>
 		}
 	}
 
-	// Interactive mode - prompt user to login
-	tui.newline();
+	// Show signup benefits box
+	tui.showSignupBenefits();
+
+	// Interactive mode - show warning and confirm
 	tui.warning(
 		hasConfig
 			? 'You are not currently logged in or your session has expired.'
@@ -78,6 +81,61 @@ export async function requireAuth(ctx: CommandContext<false>): Promise<AuthData>
 	return newAuth;
 }
 
+export async function optionalAuth(
+	ctx: CommandContext<false>,
+	continueText?: string
+): Promise<AuthData | null> {
+	const auth = await getAuth();
+
+	if (auth && auth.expires > new Date()) {
+		return auth;
+	}
+
+	if (!isTTY()) {
+		// In non-TTY mode, just return null
+		return null;
+	}
+
+	// Show signup benefits box
+	tui.showSignupBenefits();
+
+	// Show select menu with custom or default text
+	const defaultContinueText = 'Start without an account (run locally)';
+	const response = await enquirer.prompt<{ action: string }>({
+		type: 'select',
+		name: 'action',
+		message: 'How would you like to continue?',
+		choices: [
+			{
+				name: 'login',
+				message: 'Create an account or login',
+			},
+			{
+				name: 'local',
+				message: continueText || defaultContinueText,
+			},
+		],
+	});
+
+	if (response.action === 'local') {
+		return null;
+	}
+	tui.newline();
+
+	// Import and run login flow
+	const { loginCommand } = await import('./cmd/auth/login');
+	await loginCommand.handler(ctx);
+
+	// After login completes, verify we have auth
+	const newAuth = await getAuth();
+	if (!newAuth || newAuth.expires <= new Date()) {
+		return null;
+	}
+	tui.newline();
+
+	return newAuth;
+}
+
 export function withAuth<TArgs extends unknown[]>(
 	ctx: CommandContext<false>,
 	handler: (ctx: CommandContext<true>, ...args: TArgs) => Promise<void> | void
@@ -89,5 +147,20 @@ export function withAuth<TArgs extends unknown[]>(
 			auth,
 		};
 		return handler(authenticatedCtx, ...args);
+	};
+}
+
+export function withOptionalAuth<TArgs extends unknown[]>(
+	ctx: CommandContext<false>,
+	handler: (
+		ctx: CommandContext<false>,
+		auth: AuthData | null,
+		...args: TArgs
+	) => Promise<void> | void,
+	continueText?: string
+): (...args: TArgs) => Promise<void> {
+	return async (...args: TArgs) => {
+		const auth = await optionalAuth(ctx, continueText);
+		return handler(ctx, auth, ...args);
 	};
 }

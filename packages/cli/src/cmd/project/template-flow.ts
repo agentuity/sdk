@@ -3,9 +3,9 @@ import { existsSync, readdirSync, rmSync } from 'node:fs';
 import { cwd } from 'node:process';
 import { homedir } from 'node:os';
 import enquirer from 'enquirer';
-import type { Logger } from '@/logger';
-import * as tui from '@/tui';
-import { playSound } from '@/sound';
+import type { Logger } from '../../logger';
+import * as tui from '../../tui';
+import { playSound } from '../../sound';
 import { fetchTemplates, type TemplateInfo } from './templates';
 import { downloadTemplate, setupProject } from './download';
 
@@ -151,6 +151,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		template: selectedTemplate,
 		templateDir,
 		templateBranch,
+		logger,
 	});
 
 	// Step 7: Setup project (replace placeholders, install deps, build)

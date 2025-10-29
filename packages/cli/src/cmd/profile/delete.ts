@@ -1,8 +1,8 @@
-import { createSubcommand } from '@/types';
+import { createSubcommand } from '../../types';
 import { z } from 'zod';
-import { fetchProfiles } from '@/config';
+import { fetchProfiles } from '../../config';
 import { unlink } from 'node:fs/promises';
-import * as tui from '@/tui';
+import * as tui from '../../tui';
 
 export const deleteCommand = createSubcommand({
 	name: 'delete',

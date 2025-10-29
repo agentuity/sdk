@@ -1,8 +1,8 @@
-import { createSubcommand } from '@/types';
+import { createSubcommand } from '../../types';
 import { z } from 'zod';
-import { getProfile, fetchProfiles } from '@/config';
+import { getProfile, fetchProfiles } from '../../config';
 import { readFile } from 'node:fs/promises';
-import * as tui from '@/tui';
+import * as tui from '../../tui';
 
 export const showCommand = createSubcommand({
 	name: 'show',

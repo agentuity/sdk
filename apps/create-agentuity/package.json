@@ -1,6 +1,6 @@
 {
 	"name": "create-agentuity",
-	"version": "0.0.12",
+	"version": "0.0.24",
 	"description": "Create a new Agentuity project",
 	"type": "module",
 	"bin": {

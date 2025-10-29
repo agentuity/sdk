@@ -1,8 +1,8 @@
-import type { SubcommandDefinition } from '@/types';
-import { getAPIBaseURL, getAppBaseURL, UpgradeRequiredError } from '@/api';
-import { saveAuth } from '@/config';
+import type { SubcommandDefinition } from '../../types';
+import { getAPIBaseURL, getAppBaseURL, UpgradeRequiredError } from '../../api';
+import { saveAuth } from '../../config';
 import { generateSignupOTP, pollForSignupCompletion } from './api';
-import * as tui from '@/tui';
+import * as tui from '../../tui';
 
 export const signupCommand: SubcommandDefinition = {
 	name: 'signup',

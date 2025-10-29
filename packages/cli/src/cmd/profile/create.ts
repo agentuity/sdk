@@ -1,14 +1,14 @@
-import { createSubcommand } from '@/types';
+import { createSubcommand } from '../../types';
 import { z } from 'zod';
 import {
 	fetchProfiles,
 	getDefaultConfigDir,
 	ensureConfigDir,
 	generateYAMLTemplate,
-} from '@/config';
+} from '../../config';
 import { join } from 'node:path';
 import { writeFile } from 'node:fs/promises';
-import * as tui from '@/tui';
+import * as tui from '../../tui';
 
 const PROFILE_NAME_REGEX = /^[\w_-]{3,}$/;
 

@@ -42,6 +42,49 @@ cleanup() {
 	fi
 }
 
+# Kill a process by PID with graceful shutdown
+# Usage: kill_process PID [TIMEOUT_SECONDS]
+kill_process() {
+	local pid=$1
+	local timeout=${2:-5}
+	
+	if [ -z "$pid" ]; then
+		return
+	fi
+	
+	# Check if process exists
+	if ! kill -0 "$pid" 2>/dev/null; then
+		return
+	fi
+	
+	echo "Killing process (PID: $pid)..."
+	
+	# Try graceful shutdown with SIGTERM
+	kill -TERM "$pid" 2>/dev/null || true
+	
+	# Wait for graceful shutdown
+	local elapsed=0
+	while [ $elapsed -lt $timeout ]; do
+		if ! kill -0 "$pid" 2>/dev/null; then
+			echo "Process terminated gracefully"
+			return
+		fi
+		sleep 1
+		elapsed=$((elapsed + 1))
+	done
+	
+	# Force kill if still running
+	echo "Process did not terminate gracefully, forcing..."
+	kill -9 "$pid" 2>/dev/null || true
+	sleep 1
+	
+	if kill -0 "$pid" 2>/dev/null; then
+		echo -e "${YELLOW}Warning:${NC} Process $pid may still be running"
+	else
+		echo "Process killed"
+	fi
+}
+
 # Check if server is already running
 check_server() {
 	local code

@@ -1,5 +1,5 @@
-import { createSubcommand } from '@/types';
-import * as tui from '@/tui';
+import { createSubcommand } from '../../types';
+import * as tui from '../../tui';
 
 export const runCommandSubcommand = createSubcommand({
 	name: 'run-command',

@@ -31,6 +31,53 @@ You can run the test script with:
   ./scripts/test-binary-storage.sh
 ```
 
+### test-dev-reload.sh
+
+Tests dev server hot reload functionality when source files change.
+
+**Prerequisites:**
+
+- `curl` installed (for HTTP requests)
+- `agentuity` CLI installed globally
+- Git repository (for restoring changed files)
+
+**Usage:**
+
+```bash
+# From test-app directory
+./scripts/test-dev-reload.sh
+```
+
+**What it tests:**
+
+- Dev server starts successfully
+- Original agent response is correct
+- File changes are detected by the watcher
+- Server restarts automatically on file change
+- Modified agent response reflects the changes
+- File restoration triggers another reload
+- Restored agent response matches original
+
+**Expected output:**
+
+```
+[TEST] Starting dev server hot reload test
+[TEST] Dev server started (PID: 12345)
+[TEST] Server is ready!
+[TEST] ✓ Original response correct: Hello, Test! You are 25 years old.
+[TEST] File modified, waiting for reload...
+[TEST] Server detected file change!
+[TEST] ✓ Modified response correct: Greetings, Test! Your age is 25.
+[TEST] ✓ Restored response correct: Hello, Test! You are 25 years old.
+[TEST] ✓ All tests passed!
+```
+
+**Note:** The script automatically cleans up:
+
+- Stops the dev server
+- Restores any modified files with `git checkout`
+- Removes temporary log files
+
 ### test-binary-storage.sh
 
 Tests binary object storage to ensure data is not corrupted during upload/download.

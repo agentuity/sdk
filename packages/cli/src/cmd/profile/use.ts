@@ -1,7 +1,7 @@
-import { createSubcommand } from '@/types';
+import { createSubcommand } from '../../types';
 import { z } from 'zod';
-import { fetchProfiles, saveProfile } from '@/config';
-import * as tui from '@/tui';
+import { fetchProfiles, saveProfile } from '../../config';
+import * as tui from '../../tui';
 
 export const useCommand = createSubcommand({
 	name: 'use',

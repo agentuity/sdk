@@ -150,6 +150,7 @@ export type CommandContext<
 // Helper to create subcommands with proper type inference
 export function createSubcommand<
 	TRequiresAuth extends boolean,
+	TOptionalAuth extends boolean | string,
 	TArgsSchema extends z.ZodType | undefined,
 	TOptionsSchema extends z.ZodType | undefined,
 >(definition: {
@@ -158,6 +159,7 @@ export function createSubcommand<
 	aliases?: string[];
 	toplevel?: boolean;
 	requiresAuth?: TRequiresAuth;
+	optionalAuth?: TOptionalAuth;
 	schema?: TArgsSchema extends z.ZodType
 		? TOptionsSchema extends z.ZodType
 			? { args: TArgsSchema; options: TOptionsSchema }
@@ -166,7 +168,15 @@ export function createSubcommand<
 			? { options: TOptionsSchema }
 			: never;
 	handler(
-		ctx: CommandContext<TRequiresAuth extends true ? true : false, TArgsSchema, TOptionsSchema>
+		ctx: CommandContext<
+			TRequiresAuth extends true
+				? true
+				: TOptionalAuth extends true | string
+					? true | false
+					: false,
+			TArgsSchema,
+			TOptionsSchema
+		>
 	): void | Promise<void>;
 }): SubcommandDefinition {
 	return definition as unknown as SubcommandDefinition;
@@ -175,6 +185,7 @@ export function createSubcommand<
 // Helper to create commands with proper type inference
 export function createCommand<
 	TRequiresAuth extends boolean,
+	TOptionalAuth extends boolean | string,
 	TArgsSchema extends z.ZodType | undefined,
 	TOptionsSchema extends z.ZodType | undefined,
 >(definition: {
@@ -183,6 +194,7 @@ export function createCommand<
 	aliases?: string[];
 	hidden?: boolean;
 	requiresAuth?: TRequiresAuth;
+	optionalAuth?: TOptionalAuth;
 	schema?: TArgsSchema extends z.ZodType
 		? TOptionsSchema extends z.ZodType
 			? { args: TArgsSchema; options: TOptionsSchema }
@@ -191,7 +203,15 @@ export function createCommand<
 			? { options: TOptionsSchema }
 			: never;
 	handler?(
-		ctx: CommandContext<TRequiresAuth extends true ? true : false, TArgsSchema, TOptionsSchema>
+		ctx: CommandContext<
+			TRequiresAuth extends true
+				? true
+				: TOptionalAuth extends true | string
+					? true | false
+					: false,
+			TArgsSchema,
+			TOptionsSchema
+		>
 	): void | Promise<void>;
 	subcommands?: SubcommandDefinition[];
 }): CommandDefinition {
@@ -206,6 +226,7 @@ export type SubcommandDefinition =
 			aliases?: string[];
 			toplevel?: boolean;
 			requiresAuth: true;
+			optionalAuth?: false | string;
 			schema?: CommandSchemas;
 			handler(ctx: CommandContext): void | Promise<void>;
 	  }
@@ -215,6 +236,17 @@ export type SubcommandDefinition =
 			aliases?: string[];
 			toplevel?: boolean;
 			requiresAuth?: false;
+			optionalAuth: true | string;
+			schema?: CommandSchemas;
+			handler(ctx: CommandContext): void | Promise<void>;
+	  }
+	| {
+			name: string;
+			description: string;
+			aliases?: string[];
+			toplevel?: boolean;
+			requiresAuth?: false;
+			optionalAuth?: false;
 			schema?: CommandSchemas;
 			handler(ctx: CommandContext): void | Promise<void>;
 	  };
@@ -227,6 +259,7 @@ export type CommandDefinition =
 			aliases?: string[];
 			hidden?: boolean;
 			requiresAuth: true;
+			optionalAuth?: false | string;
 			schema?: CommandSchemas;
 			handler?(ctx: CommandContext): void | Promise<void>;
 			subcommands?: SubcommandDefinition[];
@@ -237,6 +270,18 @@ export type CommandDefinition =
 			aliases?: string[];
 			hidden?: boolean;
 			requiresAuth?: false;
+			optionalAuth: true | string;
+			schema?: CommandSchemas;
+			handler?(ctx: CommandContext): void | Promise<void>;
+			subcommands?: SubcommandDefinition[];
+	  }
+	| {
+			name: string;
+			description: string;
+			aliases?: string[];
+			hidden?: boolean;
+			requiresAuth?: false;
+			optionalAuth?: false;
 			schema?: CommandSchemas;
 			handler?(ctx: CommandContext): void | Promise<void>;
 			subcommands?: SubcommandDefinition[];

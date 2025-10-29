@@ -1,6 +1,6 @@
 import type { SubcommandDefinition } from '../../types';
-import * as tui from '@/tui';
-import { playSound } from '@/sound';
+import * as tui from '../../tui';
+import { playSound } from '../../sound';
 
 export const soundSubcommand: SubcommandDefinition = {
 	name: 'sound',

@@ -1,7 +1,7 @@
-import type { SubcommandDefinition } from '@/types';
-import { fetchProfiles } from '@/config';
+import type { SubcommandDefinition } from '../../types';
+import { fetchProfiles } from '../../config';
 import { basename, dirname } from 'node:path';
-import * as tui from '@/tui';
+import * as tui from '../../tui';
 
 export const listCommand: SubcommandDefinition = {
 	name: 'list',

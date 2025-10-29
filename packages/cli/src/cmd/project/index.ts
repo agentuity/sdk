@@ -1,4 +1,4 @@
-import { createCommand } from '@/types';
+import { createCommand } from '../../types';
 import { createProjectSubcommand } from './create';
 import { listSubcommand } from './list';
 import { deleteSubcommand } from './delete';

@@ -47,7 +47,6 @@ bin/
 - **Type-safe options** - Always define interfaces for command options
 - **Commander.js patterns** - Follow commander.js best practices
 - **Async/await** - All I/O operations are async
-- **Path aliases** - Use `@/` prefix for imports (e.g., `import { tui } from '@/tui'` instead of `../../tui`)
 
 ## Important Conventions
 

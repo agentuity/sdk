@@ -4,7 +4,7 @@ import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import type { Config, Profile, AuthData } from './types';
 import { ConfigSchema } from './types';
-import * as tui from '@/tui';
+import * as tui from './tui';
 import { z } from 'zod';
 
 export function getDefaultConfigDir(): string {

@@ -22,7 +22,7 @@ const legacyLocations = [
 let foundLegacy = false;
 const foundPaths: string[] = [];
 
-// Check file system locations - any file at known locations is considered legacy
+// Check file system locations - only compiled binaries are legacy
 for (const location of legacyLocations) {
 	const file = Bun.file(location);
 	if (await file.exists()) {
@@ -41,15 +41,24 @@ for (const location of legacyLocations) {
 		}
 
 		if (!isOurLink) {
-			foundLegacy = true;
-			foundPaths.push(location);
-
-			// Optional: probe file type for extra info (best-effort)
+			// Check if it's a compiled binary (legacy Go CLI) vs npm package
+			let isLegacyBinary = false;
 			try {
 				const proc = Bun.spawn(['file', location], { stdout: 'pipe', stderr: 'ignore' });
+				const output = await new Response(proc.stdout).text();
 				await proc.exited;
+
+				// Legacy CLI is a compiled Mach-O or ELF binary
+				if (output.includes('Mach-O') || output.includes('ELF')) {
+					isLegacyBinary = true;
+				}
 			} catch {
 				// Ignore probe failures
+			}
+
+			if (isLegacyBinary) {
+				foundLegacy = true;
+				foundPaths.push(location);
 			}
 		}
 	}
@@ -98,8 +107,24 @@ try {
 			// Not a symlink or readlink failed
 		}
 
-		// Only add if not already in our list and not our own link
+		// Check if it's a legacy binary
+		let isLegacyBinary = false;
 		if (!isOurLink && !foundPaths.includes(foundPath)) {
+			try {
+				const proc = Bun.spawn(['file', foundPath], { stdout: 'pipe', stderr: 'ignore' });
+				const output = await new Response(proc.stdout).text();
+				await proc.exited;
+
+				if (output.includes('Mach-O') || output.includes('ELF')) {
+					isLegacyBinary = true;
+				}
+			} catch {
+				// Ignore
+			}
+		}
+
+		// Only add if it's a legacy binary
+		if (isLegacyBinary) {
 			foundLegacy = true;
 			foundPaths.push(foundPath);
 		}

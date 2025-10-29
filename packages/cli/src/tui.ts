@@ -392,6 +392,33 @@ export async function confirm(message: string, defaultValue = true): Promise<boo
 }
 
 /**
+ * Display a signup benefits box with cyan border
+ * Shows the value proposition for creating an Agentuity account
+ */
+export function showSignupBenefits(): void {
+	const CYAN = Bun.color('cyan', 'ansi-16m');
+	const TEXT =
+		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
+	const RESET = '\x1b[0m';
+
+	const lines = [
+		'╔════════════════════════════════════════════╗',
+		`║ ⨺ Signup for Agentuity             ${muted('free')}${CYAN}    ║`,
+		'║                                            ║',
+		`║ ✓ ${TEXT}Cloud deployment, previews and CI/CD${CYAN}     ║`,
+		`║ ✓ ${TEXT}AI Gateway, KV, Vector and more${CYAN}          ║`,
+		`║ ✓ ${TEXT}Observability, Tracing and Logging${CYAN}       ║`,
+		`║ ✓ ${TEXT}Organization and Team support${CYAN}            ║`,
+		`║ ✓ ${TEXT}And much more!${CYAN}                           ║`,
+		'╚════════════════════════════════════════════╝',
+	];
+
+	console.log('');
+	lines.forEach((line) => console.log(CYAN + line + RESET));
+	console.log('');
+}
+
+/**
  * Copy text to clipboard
  * Returns true if successful, false otherwise
  */
@@ -723,6 +750,20 @@ export interface CommandRunnerOptions {
 	 * Defaults to false
 	 */
 	clearOnSuccess?: boolean;
+	/**
+	 * If true or undefined, will truncate each line of output
+	 */
+	truncate?: boolean;
+
+	/**
+	 * If undefined, will show up to 3 last lines of output while running. Customize the number with this property.
+	 */
+	maxLinesOutput?: number;
+
+	/**
+	 * If undefined, will show up to 10 last lines on failure. Customize the number with this property.
+	 */
+	maxLinesOnFailure?: number;
 }
 
 /**
@@ -736,7 +777,16 @@ export interface CommandRunnerOptions {
  * Shows the last 3 lines of output as it streams.
  */
 export async function runCommand(options: CommandRunnerOptions): Promise<number> {
-	const { command, cmd, cwd, env, clearOnSuccess = false } = options;
+	const {
+		command,
+		cmd,
+		cwd,
+		env,
+		clearOnSuccess = false,
+		truncate = true,
+		maxLinesOutput = 3,
+		maxLinesOnFailure = 10,
+	} = options;
 	const isTTY = process.stdout.isTTY;
 
 	// If not a TTY, just run the command normally and log output
@@ -811,7 +861,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 	};
 
 	// Initial display
-	renderOutput(3);
+	renderOutput(maxLinesOutput);
 
 	try {
 		// Spawn the command
@@ -840,7 +890,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 					for (const line of lines) {
 						if (line.trim()) {
 							allOutputLines.push(line);
-							renderOutput(3); // Show last 3 lines while streaming
+							renderOutput(maxLinesOutput); // Show last N lines while streaming
 						}
 					}
 				}
@@ -875,7 +925,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 			);
 		} else {
 			// Determine how many lines to show in final output
-			const finalLinesToShow = exitCode === 0 ? 3 : 10;
+			const finalLinesToShow = exitCode === 0 ? maxLinesOutput : maxLinesOnFailure;
 
 			// Show final status with appropriate color
 			const statusColor = exitCode === 0 ? green : red;
@@ -885,7 +935,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 			const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
 			for (const line of finalOutputLines) {
 				let displayLine = line;
-				if (getDisplayWidth(displayLine) > maxLineWidth) {
+				if (truncate && getDisplayWidth(displayLine) > maxLineWidth) {
 					displayLine = displayLine.slice(0, maxLineWidth - 3) + '...';
 				}
 				process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);

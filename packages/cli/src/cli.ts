@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import type { CommandDefinition, SubcommandDefinition, CommandContext } from './types';
 import { showBanner } from './banner';
-import { requireAuth } from './auth';
+import { requireAuth, optionalAuth } from './auth';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
 
 export async function createCLI(version: string): Promise<Command> {
@@ -121,6 +121,46 @@ async function registerSubcommand(
 				};
 				await subcommand.handler(ctx);
 			}
+		} else if (subcommand.optionalAuth) {
+			const continueText =
+				typeof subcommand.optionalAuth === 'string' ? subcommand.optionalAuth : undefined;
+			const auth = await optionalAuth(baseCtx as CommandContext<false>, continueText);
+
+			if (subcommand.schema) {
+				try {
+					const input = buildValidationInput(subcommand.schema, args, options);
+					const ctx: Record<string, unknown> = {
+						...baseCtx,
+						...(auth ? { auth } : {}),
+					};
+					if (subcommand.schema.args) {
+						ctx.args = subcommand.schema.args.parse(input.args);
+					}
+					if (subcommand.schema.options) {
+						ctx.opts = subcommand.schema.options.parse(input.options);
+					}
+					await subcommand.handler(ctx as CommandContext);
+				} catch (error) {
+					if (error && typeof error === 'object' && 'issues' in error) {
+						baseCtx.logger.error('Validation error:');
+						const issues = (error as { issues: Array<{ path: string[]; message: string }> })
+							.issues;
+						for (const issue of issues) {
+							baseCtx.logger.error(`  ${issue.path.join('.')}: ${issue.message}`);
+						}
+						process.exit(1);
+					}
+					throw error;
+				}
+			} else if (auth) {
+				const ctx: CommandContext<true> = {
+					...baseCtx,
+					auth,
+				};
+				await subcommand.handler(ctx);
+			} else {
+				await subcommand.handler(baseCtx as CommandContext<false>);
+			}
 		} else {
 			if (subcommand.schema) {
 				try {
@@ -175,6 +215,16 @@ export async function registerCommands(
 						const auth = await requireAuth(baseCtx as CommandContext<false>);
 						const ctx: CommandContext<true> = { ...baseCtx, auth };
 						await cmdDef.handler!(ctx);
+					} else if (cmdDef.optionalAuth) {
+						const continueText =
+							typeof cmdDef.optionalAuth === 'string' ? cmdDef.optionalAuth : undefined;
+						const auth = await optionalAuth(baseCtx as CommandContext<false>, continueText);
+						if (auth) {
+							const ctx: CommandContext<true> = { ...baseCtx, auth };
+							await cmdDef.handler!(ctx);
+						} else {
+							await cmdDef.handler!(baseCtx as CommandContext<false>);
+						}
 					} else {
 						await cmdDef.handler!(baseCtx as CommandContext<false>);
 					}

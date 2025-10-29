@@ -1,4 +1,4 @@
-import { createSubcommand } from '@/types';
+import { createSubcommand } from '../../types';
 
 export const listSubcommand = createSubcommand({
 	name: 'list',

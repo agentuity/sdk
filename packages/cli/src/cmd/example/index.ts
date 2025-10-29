@@ -1,4 +1,4 @@
-import { createCommand } from '@/types';
+import { createCommand } from '../../types';
 import { createCommand as createSubCmd } from './create';
 import { listSubcommand } from './list';
 import { stepsSubcommand } from './steps';
@@ -8,6 +8,7 @@ import { versionSubcommand } from './version';
 import { createUserSubcommand } from './create-user';
 import { runCommandSubcommand } from './run-command';
 import { soundSubcommand } from './sound';
+import { optionalAuthSubcommand } from './optional-auth';
 
 export const command = createCommand({
 	name: 'example',
@@ -23,5 +24,6 @@ export const command = createCommand({
 		createUserSubcommand,
 		runCommandSubcommand,
 		soundSubcommand,
+		optionalAuthSubcommand,
 	],
 });

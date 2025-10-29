@@ -1,5 +1,5 @@
-import { APIClient, APIError } from '@/api';
-import type { Config } from '@/types';
+import { APIClient, APIError } from '../../api';
+import type { Config } from '../../types';
 
 interface APIResponse<T> {
 	success: boolean;

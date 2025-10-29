@@ -1,6 +1,6 @@
-import { createCommand } from '@/types';
-import { getVersion } from '@/version';
-import { logger } from '@/logger';
+import { createCommand } from '../../types';
+import { getVersion } from '../../version';
+import { logger } from '../../logger';
 
 export const command = createCommand({
 	name: 'version',
