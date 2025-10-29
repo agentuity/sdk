@@ -54,6 +54,30 @@ export const command = createCommand({
 		let shuttingDownForRestart = false;
 		let pendingRestart = false;
 
+		// Track restart timestamps to detect restart loops
+		const restartTimestamps: number[] = [];
+		const MAX_RESTARTS = 10;
+		const TIME_WINDOW_MS = 10000; // 10 seconds
+
+		function checkRestartThrottle() {
+			const now = Date.now();
+			restartTimestamps.push(now);
+
+			// Remove timestamps older than the time window
+			while (restartTimestamps.length > 0 && now - restartTimestamps[0]! > TIME_WINDOW_MS) {
+				restartTimestamps.shift();
+			}
+
+			// Check if we've exceeded the threshold
+			if (restartTimestamps.length >= MAX_RESTARTS) {
+				tui.error(`Detected ${MAX_RESTARTS} restarts in ${TIME_WINDOW_MS / 1000} seconds`);
+				tui.error(
+					'This usually indicates a file watcher loop (e.g., log files in the project root)'
+				);
+				tui.fatal('Too many rapid restarts, exiting to prevent infinite loop');
+			}
+		}
+
 		function failure(msg: string) {
 			failed = true;
 			failures++;
@@ -133,6 +157,7 @@ export const command = createCommand({
 			try {
 				if (running) {
 					logger.trace('Server is running, killing before restart');
+					checkRestartThrottle();
 					tui.info('Restarting on file change');
 					await kill();
 					logger.trace('Server killed, continuing with restart');
