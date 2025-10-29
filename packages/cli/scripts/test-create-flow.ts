@@ -80,8 +80,6 @@ async function createProject(): Promise<boolean> {
 			TEST_PROJECT_HUMAN_NAME,
 			'--template-dir',
 			TEMPLATES_DIR,
-			'--no-install',
-			'--no-build',
 			'--confirm',
 		],
 		{
@@ -152,29 +150,75 @@ async function verifyFiles(): Promise<boolean> {
 	return allFilesExist;
 }
 
-async function installDependencies(): Promise<boolean> {
-	logStep('Step 3: Install Dependencies');
+async function verifyInstallation(): Promise<boolean> {
+	logStep('Step 3: Verify Installation');
 
-	const result = Bun.spawn(['bun', 'install'], {
+	// Verify node_modules exists (created during setup)
+	const nodeModulesPath = join(TEST_PROJECT_PATH, 'node_modules');
+	if (!existsSync(nodeModulesPath)) {
+		logError('node_modules directory not found');
+		return false;
+	}
+	logSuccess('Dependencies installed');
+
+	// Check if package.json has a build script
+	const packageJsonPath = join(TEST_PROJECT_PATH, 'package.json');
+	const packageJson = await Bun.file(packageJsonPath).json();
+
+	if (packageJson.scripts?.build) {
+		// Verify .agentuity directory exists (created during bundle)
+		const agentuityPath = join(TEST_PROJECT_PATH, '.agentuity');
+		if (!existsSync(agentuityPath)) {
+			logError('.agentuity directory not found (build may have failed)');
+			return false;
+		}
+		logSuccess('Project built');
+	} else {
+		logInfo('No build script in package.json, skipping build verification');
+	}
+
+	return true;
+}
+
+async function verifyGitInit(): Promise<boolean> {
+	logStep('Step 4: Verify Git Initialization');
+
+	// Check if git is available
+	const gitPath = Bun.which('git');
+	if (!gitPath) {
+		logInfo('Git not available, skipping git tests');
+		return true;
+	}
+
+	// Check if .git directory exists
+	const gitDirPath = join(TEST_PROJECT_PATH, '.git');
+	if (!existsSync(gitDirPath)) {
+		logError('.git directory not found');
+		return false;
+	}
+	logSuccess('.git directory exists');
+
+	// Check if initial commit was made
+	const result = Bun.spawn(['git', 'log', '--oneline'], {
 		cwd: TEST_PROJECT_PATH,
-		stdout: 'inherit',
-		stderr: 'inherit',
+		stdout: 'pipe',
+		stderr: 'pipe',
 	});
 
 	const exitCode = await result.exited;
-
 	if (exitCode !== 0) {
-		logError('Failed to install dependencies');
+		logError('Failed to get git log');
 		return false;
 	}
 
-	// Verify node_modules exists
-	const nodeModulesPath = join(TEST_PROJECT_PATH, 'node_modules');
-	if (existsSync(nodeModulesPath)) {
-		logSuccess('Dependencies installed successfully');
+	const output = (await new Response(result.stdout).text()).trim();
+	const lines = output.split('\n');
+	const lastCommitMessage = lines[lines.length - 1]; // First commit is last in log
+	if (lastCommitMessage && lastCommitMessage.includes('Initial Setup')) {
+		logSuccess('Initial commit message is "Initial Setup"');
 		return true;
 	} else {
-		logError('node_modules directory not found');
+		logError('Initial commit message not correct');
 		return false;
 	}
 }
@@ -215,14 +259,11 @@ async function main() {
 		await cleanup();
 
 		// Run test steps
-		// Note: Build and dev server tests are skipped because they require
-		// the latest published CLI version. These can be enabled after publishing.
 		const steps: Array<{ name: string; fn: () => Promise<boolean> }> = [
 			{ name: 'Create Project', fn: createProject },
 			{ name: 'Verify Files', fn: verifyFiles },
-			{ name: 'Install Dependencies', fn: installDependencies },
-			// { name: 'Build Project', fn: buildProject }, // Requires published CLI
-			// { name: 'Test Dev Server', fn: testDevServer }, // Requires build
+			{ name: 'Verify Installation', fn: verifyInstallation },
+			{ name: 'Verify Git Init', fn: verifyGitInit },
 		];
 
 		let allPassed = true;

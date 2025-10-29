@@ -213,6 +213,34 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 			logger.error('Failed to build project');
 		}
 	}
+
+	// Initialize git repository if git is available
+	const gitPath = Bun.which('git');
+	if (gitPath) {
+		// Git is available, initialize repository
+		await tui.runCommand({
+			command: 'git init',
+			cwd: dest,
+			cmd: ['git', 'init'],
+			clearOnSuccess: true,
+		});
+
+		// Add all files
+		await tui.runCommand({
+			command: 'git add .',
+			cwd: dest,
+			cmd: ['git', 'add', '.'],
+			clearOnSuccess: true,
+		});
+
+		// Create initial commit
+		await tui.runCommand({
+			command: 'git commit -m "Initial Setup"',
+			cwd: dest,
+			cmd: ['git', 'commit', '-m', 'Initial Setup'],
+			clearOnSuccess: true,
+		});
+	}
 }
 
 async function replaceInFiles(dir: string, projectName: string, dirName: string): Promise<void> {
