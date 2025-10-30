@@ -45,18 +45,6 @@ export const loginCommand: SubcommandDefinition = {
 			console.log(tui.muted('This code will expire in 60 seconds'));
 			tui.newline();
 
-			if (process.platform === 'darwin') {
-				await tui.waitForAnyKey('Press any key to open the URL in your browser...');
-				tui.newline();
-				try {
-					Bun.spawn(['open', authURL], {
-						stdio: ['ignore', 'ignore', 'ignore'],
-					});
-				} catch {
-					// Ignore browser open errors
-				}
-			}
-
 			console.log('Waiting for login to complete...');
 
 			const result = await pollForLoginCompletion(apiUrl, otp, config);

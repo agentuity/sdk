@@ -410,10 +410,31 @@ export function showSignupBenefits(): void {
 		`║ ✓ ${TEXT}Observability, Tracing and Logging${CYAN}       ║`,
 		`║ ✓ ${TEXT}Organization and Team support${CYAN}            ║`,
 		`║ ✓ ${TEXT}And much more!${CYAN}                           ║`,
-		'║                                            ║',
-		`║ ${TEXT}Run "agentuity login" to get started${CYAN}       ║`,
-		`║ ${TEXT}Find out more: ${link('https://agentuity.com')}${CYAN}       ║`,
 		'╚════════════════════════════════════════════╝',
+	];
+
+	console.log('');
+	lines.forEach((line) => console.log(CYAN + line + RESET));
+	console.log('');
+}
+
+/**
+ * Display a message when unauthenticated to let the user know certain capabilities are disabled
+ */
+export function showLoggedOutMessage(): void {
+	const CYAN = Bun.color('yellow', 'ansi-16m');
+	const TEXT =
+		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
+	const RESET = '\x1b[0m';
+
+	const lines = [
+		'╔══════════════════════════════════════════════╗',
+		`║ ⨺ Unauthenticated (local mode)               ║`,
+		'║                                              ║',
+		`║ ${TEXT}Certain capabilities such as the AI services${CYAN} ║`,
+		`║ ${TEXT}and devmode remote are unavailable when${CYAN}      ║`,
+		`║ ${TEXT}unauthenticated.${CYAN}                             ║`,
+		'╚══════════════════════════════════════════════╝',
 	];
 
 	console.log('');

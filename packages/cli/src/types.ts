@@ -21,22 +21,18 @@ export const ConfigSchema = zod.object({
 	overrides: zod
 		.object({
 			api_url: zod
-				.string()
 				.url()
 				.optional()
 				.describe('Override API base URL (default: https://api.agentuity.com)'),
 			app_url: zod
-				.string()
 				.url()
 				.optional()
 				.describe('Override app base URL (default: https://app.agentuity.com)'),
 			transport_url: zod
-				.string()
 				.url()
 				.optional()
 				.describe('Override transport URL (default: https://agentuity.ai)'),
 			websocket_url: zod
-				.string()
 				.url()
 				.optional()
 				.describe('Override WebSocket URL (default: wss://api.agentuity.com)'),
@@ -48,6 +44,7 @@ export const ConfigSchema = zod.object({
 		.object({
 			last_update_check: zod.number().optional().describe('Last update check timestamp'),
 			last_legacy_warning: zod.number().optional().describe('Last legacy CLI warning timestamp'),
+			signup_banner_shown: zod.boolean().optional().describe('If the signup banner was shown'),
 			orgId: zod.string().optional().describe('Default organization ID'),
 			project_dir: zod.string().optional().describe('Last used project directory'),
 		})

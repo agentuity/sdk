@@ -12,7 +12,7 @@ export function getDefaultConfigDir(): string {
 }
 
 export function getDefaultConfigPath(): string {
-	return join(getDefaultConfigDir(), 'config.yaml');
+	return join(getDefaultConfigDir(), 'production.yaml');
 }
 
 export function getProfilePath(): string {
