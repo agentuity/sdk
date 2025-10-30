@@ -38,6 +38,22 @@ export const command = createCommand({
 			process.exit(1);
 		}
 
+		const devmodebody = tui.muted('Local: ') + tui.link('http://127.0.0.1:3000');
+
+		tui.banner('⨺ Agentuity DevMode', devmodebody, {
+			padding: 2,
+			topSpacer: false,
+			bottomSpacer: false,
+			centerTitle: false,
+		});
+
+		const env = { ...process.env };
+		env.AGENTUITY_SDK_DEV_MODE = 'true';
+		env.AGENTUITY_ENV = 'development';
+		env.NODE_ENV = 'development';
+		env.PORT = '3000';
+		env.AGENTUITY_PORT = env.PORT;
+
 		const agentuityDir = resolve(rootDir, '.agentuity');
 		const appPath = resolve(agentuityDir, 'app.js');
 
@@ -208,6 +224,7 @@ export const command = createCommand({
 					stdout: 'inherit',
 					stderr: 'inherit',
 					stdin: 'inherit',
+					env,
 				});
 
 				running = true;
