@@ -3,7 +3,6 @@ import { getDefaultConfigDir, getAuth } from './config';
 import { getCommand } from './command-prefix';
 import type { CommandContext, AuthData } from './types';
 import * as tui from './tui';
-import enquirer from 'enquirer';
 
 export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
@@ -82,8 +81,8 @@ export async function requireAuth(ctx: CommandContext<false>): Promise<AuthData>
 }
 
 export async function optionalAuth(
-	ctx: CommandContext<false>,
-	continueText?: string
+	_ctx: CommandContext<false>,
+	_continueText?: string
 ): Promise<AuthData | null> {
 	const auth = await getAuth();
 
@@ -91,49 +90,12 @@ export async function optionalAuth(
 		return auth;
 	}
 
-	if (!isTTY()) {
-		// In non-TTY mode, just return null
-		return null;
+	// Show signup benefits but don't block - just return null
+	if (isTTY()) {
+		tui.showSignupBenefits();
 	}
 
-	// Show signup benefits box
-	tui.showSignupBenefits();
-
-	// Show select menu with custom or default text
-	const defaultContinueText = 'Start without an account (run locally)';
-	const response = await enquirer.prompt<{ action: string }>({
-		type: 'select',
-		name: 'action',
-		message: 'How would you like to continue?',
-		choices: [
-			{
-				name: 'login',
-				message: 'Create an account or login',
-			},
-			{
-				name: 'local',
-				message: continueText || defaultContinueText,
-			},
-		],
-	});
-
-	if (response.action === 'local') {
-		return null;
-	}
-	tui.newline();
-
-	// Import and run login flow
-	const { loginCommand } = await import('./cmd/auth/login');
-	await loginCommand.handler(ctx);
-
-	// After login completes, verify we have auth
-	const newAuth = await getAuth();
-	if (!newAuth || newAuth.expires <= new Date()) {
-		return null;
-	}
-	tui.newline();
-
-	return newAuth;
+	return null;
 }
 
 export function withAuth<TArgs extends unknown[]>(

@@ -85,6 +85,7 @@ async function registerSubcommand(
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
 
+
 		if (subcommand.requiresAuth) {
 			const auth = await requireAuth(baseCtx as CommandContext<false>);
 

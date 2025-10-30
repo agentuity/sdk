@@ -410,6 +410,9 @@ export function showSignupBenefits(): void {
 		`║ ✓ ${TEXT}Observability, Tracing and Logging${CYAN}       ║`,
 		`║ ✓ ${TEXT}Organization and Team support${CYAN}            ║`,
 		`║ ✓ ${TEXT}And much more!${CYAN}                           ║`,
+		'║                                            ║',
+		`║ ${TEXT}Run "agentuity login" to get started${CYAN}       ║`,
+		`║ ${TEXT}Find out more: ${link('https://agentuity.com')}${CYAN}       ║`,
 		'╚════════════════════════════════════════════╝',
 	];
 
