@@ -652,6 +652,28 @@ export async function spinner<T>(
 	}
 
 	const message = options.message;
+	const reset = COLORS.reset;
+
+	// If no TTY, just execute the callback without animation
+	if (!process.stdout.isTTY) {
+		try {
+			const result =
+				options.type === 'progress'
+					? await options.callback(() => {})
+					: typeof options.callback === 'function'
+						? await options.callback()
+						: await options.callback;
+
+			const successColor = getColor('success');
+			console.log(`${successColor}${ICONS.success} ${message}${reset}`);
+			return result;
+		} catch (err) {
+			const errorColor = getColor('error');
+			console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
+			throw err;
+		}
+	}
+
 	const frames = ['◐', '◓', '◑', '◒'];
 	const spinnerColors = [
 		{ light: '\x1b[36m', dark: '\x1b[96m' }, // cyan
@@ -660,7 +682,6 @@ export async function spinner<T>(
 		{ light: '\x1b[36m', dark: '\x1b[96m' }, // cyan
 	];
 	const bold = '\x1b[1m';
-	const reset = COLORS.reset;
 	const cyanColor = { light: '\x1b[36m', dark: '\x1b[96m' }[currentColorScheme];
 
 	let frameIndex = 0;
