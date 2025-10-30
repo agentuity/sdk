@@ -4,13 +4,13 @@
 	"private": true,
 	"workspaces": [
 		"packages/*",
-		"apps/*"
+		"apps/**"
 	],
 	"scripts": {
 		"build": "bun scripts/check-legacy-cli.ts && bunx tsc --build --force && bun run --filter='./packages/*' --filter='./apps/*' build",
-		"test": "bun test && cd packages/cli && bun run test && cd ../../apps/test-app && bun run test",
-		"typecheck": "bunx tsc --build && cd apps/test-app && bunx tsc --build",
-		"clean": "rm -rf packages/*/dist apps/*/dist packages/*/*.tsbuildinfo",
+		"test": "bun test && cd packages/cli && bun run test && cd ../../apps/testing && bun run test",
+		"typecheck": "bunx tsc --build && cd apps/testing && bun run build",
+		"clean": "rm -rf packages/*/dist apps/**/dist packages/*/*.tsbuildinfo",
 		"format": "bunx prettier */** --write",
 		"lint": "bunx eslint packages",
 		"all": "bun clean && bun format && bun run build && bun lint && bun typecheck && bun run test"

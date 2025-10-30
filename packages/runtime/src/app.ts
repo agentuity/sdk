@@ -3,6 +3,12 @@ import { cors } from 'hono/cors';
 import { createServer, getLogger } from './_server';
 import type { Logger } from './logger';
 import { type Meter, type Tracer } from '@opentelemetry/api';
+import {
+	type KeyValueStorage,
+	type ObjectStorage,
+	type StreamStorage,
+	type VectorStorage,
+} from '@agentuity/core';
 
 type CorsOptions = Parameters<typeof cors>[0];
 
@@ -11,6 +17,15 @@ export interface AppConfig {
 	 * Override the default cors settings
 	 */
 	cors?: CorsOptions;
+	/**
+	 * Override the default services
+	 */
+	services?: {
+		keyvalue?: KeyValueStorage;
+		object?: ObjectStorage;
+		stream?: StreamStorage;
+		vector?: VectorStorage;
+	};
 }
 
 export interface Variables {

@@ -21,25 +21,19 @@ jobs:
          - uses: actions/checkout@v4
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
-         - name: Install dependencies & tooling
+         - name: Install dependencies
            run: |
               set -eou pipefail
               bun install
-              bun run build
-              CWD=$(pwd)
-              cd apps/test-app && bun run build
-              cd $CWD
-              cd apps/create-agentuity && bun install && bun run build
-              cd $CWD
-         - name: Create test-app .env
+         - name: Create testing/auth-app .env
            run: |
-              echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" > apps/test-app/.env
-              echo "AGENTUITY_CLOUD_PROJECT_ID=${{ env.AGENTUITY_CLOUD_PROJECT_ID }}" >> apps/test-app/.env
-              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> apps/test-app/.env
+              echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" > apps/testing/auth-app/.env
+              echo "AGENTUITY_CLOUD_PROJECT_ID=${{ env.AGENTUITY_CLOUD_PROJECT_ID }}" >> apps/testing/auth-app/.env
+              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> apps/testing/auth-app/.env
          - name: Build and Test
            run: |
               set -eou pipefail
               bun all
          - name: Cleanup .env
            if: always()
-           run: rm -f apps/test-app/.env
+           run: rm -f apps/testing/auth-app/.env

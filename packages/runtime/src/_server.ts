@@ -24,6 +24,7 @@ import type { Logger } from './logger';
 import { isIdle } from './_idle';
 import * as runtimeConfig from './_config';
 import { inAgentContext, getAgentContext } from './_context';
+import { createServices } from './_services';
 
 let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 
@@ -110,11 +111,12 @@ function registerAgentuitySpanProcessor() {
 	addSpanProcessor(new RegisterAgentSpanProcessor());
 }
 
-export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) => {
+export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) => {
 	if (globalServerInstance) {
 		return globalServerInstance;
 	}
 
+	createServices(config);
 	registerAgentuitySpanProcessor();
 
 	const server = Bun.serve({
@@ -139,6 +141,10 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 		if (error instanceof HTTPException) {
 			otel.logger.error('HTTP Error: %s (%d)', error.cause, error.status);
 			return error.getResponse();
+		}
+		if (error.name === 'UnauthenticatedError') {
+			otel.logger.error('Unauthenticated Error: %s', error.message);
+			return new Response(error.message, { status: 501 });
 		}
 		if (
 			error instanceof ServiceException ||
@@ -180,8 +186,8 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 	app.use(
 		'*',
 		cors({
-			origin: _config?.cors?.origin ?? ((origin) => origin),
-			allowHeaders: _config?.cors?.allowHeaders ?? [
+			origin: config?.cors?.origin ?? ((origin) => origin),
+			allowHeaders: config?.cors?.allowHeaders ?? [
 				'Content-Type',
 				'Authorization',
 				'Accept',
@@ -192,7 +198,7 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 			exposeHeaders: ['Content-Length'],
 			maxAge: 600,
 			credentials: true,
-			...(_config?.cors ?? {}), // allow the app config to override
+			...(config?.cors ?? {}), // allow the app config to override
 		})
 	);
 

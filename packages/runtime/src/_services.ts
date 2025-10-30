@@ -4,6 +4,10 @@ import {
 	ObjectStorageService,
 	StreamStorageService,
 	VectorStorageService,
+	type KeyValueStorage,
+	type ObjectStorage,
+	type StreamStorage,
+	type VectorStorage,
 	type ListStreamsResponse,
 	type VectorUpsertResult,
 	type VectorSearchResult,
@@ -11,7 +15,14 @@ import {
 import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getLogger, getTracer } from './_server';
-import { getSDKVersion } from './_config';
+import { getSDKVersion, isAuthenticated } from './_config';
+import type { AppConfig } from './app';
+import {
+	UnauthenticatedKeyValueStorage,
+	UnauthenticatedObjectStorage,
+	UnauthenticatedStreamStorage,
+	UnauthenticatedVectorStorage,
+} from './_unauthenticated';
 
 const userAgent = `Agentuity SDK/${getSDKVersion()}`;
 const bearerKey = `Bearer ${process.env.AGENTUITY_SDK_KEY}`;
@@ -134,10 +145,46 @@ const adapter = createServerFetchAdapter({
 	},
 });
 
-const kv = new KeyValueStorageService(kvBaseUrl, adapter);
-const objectStore = new ObjectStorageService(objectBaseUrl, adapter);
-const stream = new StreamStorageService(streamBaseUrl, adapter);
-const vector = new VectorStorageService(vectorBaseUrl, adapter);
+let kv: KeyValueStorage;
+let objectStore: ObjectStorage;
+let stream: StreamStorage;
+let vector: VectorStorage;
+
+export function createServices(config?: AppConfig) {
+	const authenticated = isAuthenticated();
+
+	if (config?.services?.keyvalue) {
+		kv = config.services.keyvalue;
+	} else if (authenticated) {
+		kv = new KeyValueStorageService(kvBaseUrl, adapter);
+	} else {
+		kv = new UnauthenticatedKeyValueStorage();
+	}
+
+	if (config?.services?.object) {
+		objectStore = config.services.object;
+	} else if (authenticated) {
+		objectStore = new ObjectStorageService(objectBaseUrl, adapter);
+	} else {
+		objectStore = new UnauthenticatedObjectStorage();
+	}
+
+	if (config?.services?.stream) {
+		stream = config.services.stream;
+	} else if (authenticated) {
+		stream = new StreamStorageService(streamBaseUrl, adapter);
+	} else {
+		stream = new UnauthenticatedStreamStorage();
+	}
+
+	if (config?.services?.vector) {
+		vector = config.services.vector;
+	} else if (authenticated) {
+		vector = new VectorStorageService(vectorBaseUrl, adapter);
+	} else {
+		vector = new UnauthenticatedVectorStorage();
+	}
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerServices(o: any) {

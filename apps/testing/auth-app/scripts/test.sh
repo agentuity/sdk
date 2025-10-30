@@ -80,7 +80,7 @@ run_test "Hot Reload" "test-dev-reload.sh"
 # Print summary
 echo ""
 echo "========================================="
-echo "  Test Summary"
+echo "  Authenticated Test Summary"
 echo "========================================="
 echo -e "Total Tests:  $TOTAL_TESTS"
 echo -e "${GREEN}Passed:       $PASSED_TESTS${NC}"

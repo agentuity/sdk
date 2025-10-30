@@ -99,3 +99,12 @@ export function getCLIVersion(): string {
 export function getEnvironment(): string {
 	return process.env.AGENTUITY_ENVIRONMENT || process.env.NODE_ENV || 'development';
 }
+
+/**
+ * Returns true if the AGENTUITY_SDK_KEY is set
+ *
+ * @returns boolean
+ */
+export function isAuthenticated(): boolean {
+	return !!process.env.AGENTUITY_SDK_KEY;
+}

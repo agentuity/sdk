@@ -131,7 +131,7 @@ fi
 log "Starting dev server..."
 cd "$APP_DIR"
 # Go up from apps/test-app to monorepo root, then to packages/cli
-CLI_PATH="$(dirname "$(dirname "$APP_DIR")")/packages/cli/bin/cli.ts"
+CLI_PATH="$(dirname "$(dirname "$APP_DIR")")/../packages/cli/bin/cli.ts"
 bun "$CLI_PATH" dev --log-level=trace > "$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 

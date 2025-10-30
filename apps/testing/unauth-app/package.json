@@ -1,0 +1,30 @@
+{
+	"name": "unauth-app",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"build": "agentuity bundle --dir .",
+		"dev": "agentuity dev --dir .",
+		"test": "bash scripts/test.sh",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/react": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@hono/zod-validator": "^0.7.4",
+		"hono": "^4.7.13",
+		"zod": "^4.1.12"
+	},
+	"version": "0.0.1"
+}
