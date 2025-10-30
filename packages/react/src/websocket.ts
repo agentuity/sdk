@@ -52,10 +52,12 @@ const deserializeData = <T>(data: string): T => {
 interface WebsocketResponse<TInput, TOutput> {
 	connected: boolean;
 	data?: TOutput;
+	error: Error | null;
 	send: (data: TInput) => void;
 	setHandler: (handler: onMessageHandler<TOutput>) => void;
 	readyState: WebSocket['readyState'];
 	close: () => void;
+	reset: () => void;
 }
 
 export const useWebsocket = <TInput, TOutput>(
@@ -73,6 +75,7 @@ export const useWebsocket = <TInput, TOutput>(
 	const pending = useRef<TOutput[]>([]);
 	const queued = useRef<TInput[]>([]);
 	const [data, setData] = useState<TOutput>();
+	const [error, setError] = useState<Error | null>(null);
 	const handler = useRef<onMessageHandler<TOutput> | undefined>(undefined);
 	const [connected, setConnected] = useState(false);
 
@@ -90,6 +93,8 @@ export const useWebsocket = <TInput, TOutput>(
 		}
 	}, []);
 
+	const reset = () => setError(null);
+
 	if (!wsRef.current) {
 		const wsUrl = buildUrl(
 			context.baseUrl!.replace(/^https?:/, 'ws:'),
@@ -101,17 +106,24 @@ export const useWebsocket = <TInput, TOutput>(
 			wsRef.current = new WebSocket(wsUrl);
 			wsRef.current.onopen = () => {
 				setConnected(true);
+				setError(null);
 				if (queued.current.length > 0) {
 					queued.current.forEach((msg: unknown) => wsRef.current!.send(serializeWSData(msg)));
 					queued.current = [];
 				}
 			};
-			wsRef.current.onclose = () => {
+			wsRef.current.onerror = () => {
+				setError(new Error('WebSocket error'));
+			};
+			wsRef.current.onclose = (evt) => {
 				wsRef.current = undefined;
 				queued.current = [];
 				setConnected(false);
 				if (manualClose.current) {
 					return;
+				}
+				if (evt.code !== 1000) {
+					setError(new Error(`WebSocket closed: ${evt.code} ${evt.reason || ''}`));
 				}
 				setTimeout(
 					() => {
@@ -159,8 +171,10 @@ export const useWebsocket = <TInput, TOutput>(
 		connected,
 		close,
 		data,
+		error,
 		send,
 		setHandler,
+		reset,
 		readyState: wsRef.current?.readyState ?? WebSocket.CLOSED,
 	};
 };
@@ -186,10 +200,10 @@ export const useAgentWebsocket = <
 	options?: WebsocketArgs
 ): UseAgentWebsocketResponse<TInput, TOutput> => {
 	const [data, setData] = useState<TOutput>();
-	const { connected, close, send, setHandler, readyState } = useWebsocket<TInput, TOutput>(
-		`/agent/${agent}`,
-		options
-	);
+	const { connected, close, send, setHandler, readyState, error, reset } = useWebsocket<
+		TInput,
+		TOutput
+	>(`/agent/${agent}`, options);
 
 	useEffect(() => {
 		setHandler(setData);
@@ -199,6 +213,8 @@ export const useAgentWebsocket = <
 		connected,
 		close,
 		data,
+		error,
+		reset,
 		send,
 		readyState,
 	};

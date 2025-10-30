@@ -29,7 +29,9 @@ interface RunArgs {
 
 interface UseAgentResponse<TInput, TOutput> {
 	data?: TOutput;
+	error: Error | null;
 	run: (input: TInput, options?: RunArgs) => Promise<TOutput>;
+	reset: () => void;
 	running: boolean;
 }
 
@@ -46,14 +48,19 @@ export const useAgent = <
 ): UseAgentResponse<TInput, TOutput> => {
 	const context = useContext(AgentuityContext);
 	const [data, setData] = useState<TOutput>();
+	const [error, setError] = useState<Error | null>(null);
 	const [running, setRunning] = useState(false);
 
 	if (!context) {
 		throw new Error('useAgent must be used within a AgentuityProvider');
 	}
 
+	// Reset error (for now)
+	const reset = () => setError(null);
+
 	const run = async (input: TInput, options?: RunArgs): Promise<TOutput> => {
 		setRunning(true);
+		setError(null);
 		try {
 			const url = buildUrl(context.baseUrl!, `/agent/${name}`, options?.subpath, options?.query);
 			const signal = options?.signal ?? new AbortController().signal;
@@ -61,17 +68,23 @@ export const useAgent = <
 				method: options?.method ?? 'POST',
 				headers: {
 					'Content-Type': 'application/json',
-					...(options?.headers ?? ''),
+					...(options?.headers ?? {}),
 				},
 				signal,
 				body:
-					input && typeof input === 'object' && options?.method !== 'GET'
+					input && typeof input === 'object' && (options?.method ?? 'POST') !== 'GET'
 						? JSON.stringify(input)
 						: undefined,
 			});
+
 			if (!response.ok) {
-				throw new Error(`Error invoking agent ${name}: ${response.statusText}`);
+				const err = new Error(
+					`Error invoking agent ${name}: ${response.status} ${response.statusText}`
+				);
+				setError(err);
+				throw err;
 			}
+
 			// TODO: handle streams
 			const ct = response.headers.get('Content-Type') || '';
 			if (ct.includes('text/')) {
@@ -81,16 +94,27 @@ export const useAgent = <
 				return _data;
 			}
 			if (ct.includes('/json')) {
-				const data = await response.json();
-				const _data = data as TOutput;
+				const json = await response.json();
+				const _data = json as TOutput;
 				setData(_data);
 				return _data;
 			}
-			throw new Error(`Unsupported content type: ${ct}`);
+
+			const err = new Error(`Unsupported content type: ${ct}`);
+			setError(err);
+			throw err;
+		} catch (e) {
+			if (e instanceof Error && e.name === 'AbortError') {
+				throw e;
+			}
+			const err = e instanceof Error ? e : new Error(String(e));
+			setError(err);
+			throw err;
 		} finally {
 			setRunning(false);
 		}
 	};
 
-	return { data, run, running };
+	return { data, error, run, reset, running };
 };
+
