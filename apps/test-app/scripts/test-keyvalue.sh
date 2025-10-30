@@ -14,6 +14,11 @@ echo "KeyValue Storage Test"
 echo "========================================="
 echo ""
 
+# Generate unique key prefix for this test run to avoid collisions in concurrent tests
+TEST_RUN_ID="test-$(date +%s%N)"
+echo "Test Run ID: $TEST_RUN_ID"
+echo ""
+
 BASE_URL="http://localhost:3000/agent/keyvalue"
 PORT=3000
 
@@ -29,7 +34,7 @@ start_server_if_needed
 echo "Step 1: Setting key-value pair..."
 SET_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"set","key":"test-key","value":"Hello KeyValue!"}')
+  -d "{\"operation\":\"set\",\"key\":\"${TEST_RUN_ID}-key\",\"value\":\"Hello KeyValue!\"}")
 
 if echo "$SET_RESPONSE" | jq . > /dev/null 2>&1; then
 	echo "$SET_RESPONSE" | jq .
@@ -51,7 +56,7 @@ echo ""
 echo "Step 2: Getting value back..."
 GET_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"get","key":"test-key"}')
+  -d "{\"operation\":\"get\",\"key\":\"${TEST_RUN_ID}-key\"}")
 
 echo "$GET_RESPONSE" | jq .
 SUCCESS=$(echo "$GET_RESPONSE" | jq -r .success)
@@ -69,7 +74,7 @@ echo ""
 echo "Step 3: Updating value..."
 UPDATE_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"set","key":"test-key","value":"Updated value!"}')
+  -d "{\"operation\":\"set\",\"key\":\"${TEST_RUN_ID}-key\",\"value\":\"Updated value!\"}")
 
 echo "$UPDATE_RESPONSE" | jq .
 SUCCESS=$(echo "$UPDATE_RESPONSE" | jq -r .success)
@@ -86,7 +91,7 @@ echo ""
 echo "Step 4: Verifying updated value..."
 VERIFY_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"get","key":"test-key"}')
+  -d "{\"operation\":\"get\",\"key\":\"${TEST_RUN_ID}-key\"}")
 
 echo "$VERIFY_RESPONSE" | jq .
 VALUE=$(echo "$VERIFY_RESPONSE" | jq -r .result)
@@ -104,7 +109,7 @@ echo "Step 5: Setting multiple keys..."
 for i in {1..3}; do
 	curl -s -X POST "$BASE_URL" \
 	  -H "Content-Type: application/json" \
-	  -d "{\"operation\":\"set\",\"key\":\"multi-key-$i\",\"value\":\"Value $i\"}" > /dev/null
+	  -d "{\"operation\":\"set\",\"key\":\"${TEST_RUN_ID}-multi-key-$i\",\"value\":\"Value $i\"}" > /dev/null
 done
 echo -e "${GREEN}✓${NC} Set 3 additional keys"
 echo ""
@@ -113,7 +118,7 @@ echo ""
 echo "Step 6: Deleting key..."
 DELETE_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"delete","key":"test-key"}')
+  -d "{\"operation\":\"delete\",\"key\":\"${TEST_RUN_ID}-key\"}")
 
 echo "$DELETE_RESPONSE" | jq .
 SUCCESS=$(echo "$DELETE_RESPONSE" | jq -r .success)
@@ -130,7 +135,7 @@ echo ""
 echo "Step 7: Verifying key is deleted..."
 VERIFY_DELETE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"get","key":"test-key"}')
+  -d "{\"operation\":\"get\",\"key\":\"${TEST_RUN_ID}-key\"}")
 
 echo "$VERIFY_DELETE" | jq .
 SUCCESS=$(echo "$VERIFY_DELETE" | jq -r .success)
@@ -148,7 +153,7 @@ echo "Step 8: Cleaning up remaining keys..."
 for i in {1..3}; do
 	curl -s -X POST "$BASE_URL" \
 	  -H "Content-Type: application/json" \
-	  -d "{\"operation\":\"delete\",\"key\":\"multi-key-$i\"}" > /dev/null
+	  -d "{\"operation\":\"delete\",\"key\":\"${TEST_RUN_ID}-multi-key-$i\"}" > /dev/null
 done
 echo -e "${GREEN}✓${NC} Deleted remaining test keys"
 echo ""
