@@ -30,17 +30,17 @@ agentuity example list --json
 
 # Global options
 agentuity --log-level=debug example create test
-agentuity --config=/custom/path/config.yaml example list
+agentuity --config=/custom/path/production.yaml example list
 ```
 
 ## Configuration
 
-The CLI loads configuration from `~/.config/agentuity/config.yaml` by default.
+The CLI loads configuration from `~/.config/agentuity/production.yaml` by default.
 
 Example config:
 
 ```yaml
-# ~/.config/agentuity/config.yaml
+# ~/.config/agentuity/production.yaml
 api:
    endpoint: https://api.agentuity.com
    token: your-token-here
@@ -53,7 +53,7 @@ defaults:
 You can override the config path with `--config`:
 
 ```bash
-agentuity --config=/path/to/config.yaml [command]
+agentuity --config=/path/to/production.yaml [command]
 ```
 
 ## Log Levels

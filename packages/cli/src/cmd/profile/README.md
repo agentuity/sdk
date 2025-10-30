@@ -77,4 +77,4 @@ The `name` field is extracted using the regex: `/\bname:\s+["']?([\w-_]+)["']?/`
 - Profile files must have `.yaml` extension
 - Profile names must match: `^[\w-_]{3,}$` (3+ chars, alphanumeric, dashes, underscores)
 - The config loader (`loadConfig()`) automatically uses the active profile
-- If no profile is selected or the file doesn't exist, falls back to `config.yaml`
+- If no profile is selected or the file doesn't exist, falls back to `production.yaml`

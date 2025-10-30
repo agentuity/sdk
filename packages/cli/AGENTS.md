@@ -16,7 +16,7 @@ Bun-native CLI framework for Agentuity applications. Provides command structure,
 - **Runtime**: Bun 1.3+ (required for YAML support)
 - **CLI Framework**: commander.js for command parsing and routing
 - **Build target**: Distributes TypeScript source (no bundling needed)
-- **Config**: YAML files loaded from `~/.config/agentuity/config.yaml`
+- **Config**: YAML files loaded from `~/.config/agentuity/production.yaml`
 - **Commands**: Auto-discovered from `src/cmd/` directories
 
 ## Structure
@@ -115,7 +115,7 @@ export default deployCommand;
 
 - Test by running: `bun bin/cli.ts [command]`
 - Test with log levels: `bun bin/cli.ts --log-level=debug [command]`
-- Test with custom config: `bun bin/cli.ts --config=/path/to/config.yaml [command]`
+- Test with custom config: `bun bin/cli.ts --config=/path/to/production.yaml [command]`
 - Debug mode: `DEBUG=1 bun bin/cli.ts [command]` (shows API request/response details)
 
 ### Version Check Bypass (Development Only)
