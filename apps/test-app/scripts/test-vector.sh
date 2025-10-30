@@ -14,6 +14,11 @@ echo "Vector Storage Test"
 echo "========================================="
 echo ""
 
+# Generate unique key prefix for this test run to avoid collisions in concurrent tests
+TEST_RUN_ID="test-$(date +%s%N)"
+echo "Test Run ID: $TEST_RUN_ID"
+echo ""
+
 BASE_URL="http://localhost:3000/agent/vector"
 PORT=3000
 
@@ -29,7 +34,7 @@ start_server_if_needed
 echo "Step 1: Upserting vector document..."
 UPSERT_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"upsert","key":"doc1","document":"Machine learning is a subset of artificial intelligence","category":"ai"}')
+  -d "{\"operation\":\"upsert\",\"key\":\"${TEST_RUN_ID}-doc1\",\"document\":\"Machine learning is a subset of artificial intelligence\",\"category\":\"ai\"}")
 
 if echo "$UPSERT_RESPONSE" | jq . > /dev/null 2>&1; then
 	echo "$UPSERT_RESPONSE" | jq .
@@ -51,15 +56,15 @@ echo ""
 echo "Step 2: Upserting additional documents..."
 curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"upsert","key":"doc2","document":"Deep learning uses neural networks with multiple layers","category":"ai"}' > /dev/null
+  -d "{\"operation\":\"upsert\",\"key\":\"${TEST_RUN_ID}-doc2\",\"document\":\"Deep learning uses neural networks with multiple layers\",\"category\":\"ai\"}" > /dev/null
 
 curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"upsert","key":"doc3","document":"Natural language processing helps computers understand human language","category":"nlp"}' > /dev/null
+  -d "{\"operation\":\"upsert\",\"key\":\"${TEST_RUN_ID}-doc3\",\"document\":\"Natural language processing helps computers understand human language\",\"category\":\"nlp\"}" > /dev/null
 
 curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"upsert","key":"doc4","document":"Computer vision enables machines to interpret visual information","category":"cv"}' > /dev/null
+  -d "{\"operation\":\"upsert\",\"key\":\"${TEST_RUN_ID}-doc4\",\"document\":\"Computer vision enables machines to interpret visual information\",\"category\":\"cv\"}" > /dev/null
 
 echo -e "${GREEN}✓${NC} Inserted 3 additional documents"
 echo ""
@@ -68,13 +73,13 @@ echo ""
 echo "Step 3: Getting vector by key..."
 GET_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"get","key":"doc1"}')
+  -d "{\"operation\":\"get\",\"key\":\"${TEST_RUN_ID}-doc1\"}")
 
 echo "$GET_RESPONSE" | jq .
 SUCCESS=$(echo "$GET_RESPONSE" | jq -r .success)
 RESULT_KEY=$(echo "$GET_RESPONSE" | jq -r '.result.key')
 
-if [ "$SUCCESS" = "true" ] && [ "$RESULT_KEY" = "doc1" ]; then
+if [ "$SUCCESS" = "true" ] && [ "$RESULT_KEY" = "${TEST_RUN_ID}-doc1" ]; then
 	echo -e "${GREEN}✓ PASS:${NC} Get operation successful"
 else
 	echo -e "${RED}✗ FAIL:${NC} Get operation failed"
@@ -86,7 +91,7 @@ echo ""
 echo "Step 4: Getting multiple vectors..."
 GETMANY_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"getMany","keys":["doc1","doc2","doc3"]}')
+  -d "{\"operation\":\"getMany\",\"keys\":[\"${TEST_RUN_ID}-doc1\",\"${TEST_RUN_ID}-doc2\",\"${TEST_RUN_ID}-doc3\"]}")
 
 echo "$GETMANY_RESPONSE" | jq .
 SUCCESS=$(echo "$GETMANY_RESPONSE" | jq -r .success)
@@ -156,7 +161,7 @@ echo ""
 echo "Step 8: Deleting vectors..."
 DELETE_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"delete","keys":["doc1","doc2"]}')
+  -d "{\"operation\":\"delete\",\"keys\":[\"${TEST_RUN_ID}-doc1\",\"${TEST_RUN_ID}-doc2\"]}")
 
 echo "$DELETE_RESPONSE" | jq .
 SUCCESS=$(echo "$DELETE_RESPONSE" | jq -r .success)
@@ -173,7 +178,7 @@ echo ""
 echo "Step 9: Verifying deletion..."
 VERIFY_DELETE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"get","key":"doc1"}')
+  -d "{\"operation\":\"get\",\"key\":\"${TEST_RUN_ID}-doc1\"}")
 
 echo "$VERIFY_DELETE" | jq .
 SUCCESS=$(echo "$VERIFY_DELETE" | jq -r .success)
@@ -190,7 +195,7 @@ echo ""
 echo "Step 10: Cleaning up remaining vectors..."
 curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation":"delete","keys":["doc3","doc4"]}' > /dev/null
+  -d "{\"operation\":\"delete\",\"keys\":[\"${TEST_RUN_ID}-doc3\",\"${TEST_RUN_ID}-doc4\"]}" > /dev/null
 echo -e "${GREEN}✓${NC} Deleted remaining test vectors"
 echo ""
 

@@ -19,8 +19,8 @@ SERVER_PID=""
 
 # Cleanup function
 cleanup() {
-	echo ""
-	echo "Cleaning up..."
+	echo "" 2>/dev/null || true
+	echo "Cleaning up..." 2>/dev/null || true
 	
 	# Remove temp directory if set
 	if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
