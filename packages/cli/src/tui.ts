@@ -205,6 +205,15 @@ export function padLeft(str: string, length: number, pad = ' '): string {
 	return pad.repeat(length - str.length) + str;
 }
 
+interface BannerOptions {
+	padding?: number;
+	minWidth?: number;
+	topSpacer?: boolean;
+	middleSpacer?: boolean;
+	bottomSpacer?: boolean;
+	centerTitle?: boolean;
+}
+
 /**
  * Display a formatted banner with title and body content
  * Creates a bordered box around the content
@@ -212,10 +221,12 @@ export function padLeft(str: string, length: number, pad = ' '): string {
  * Uses Bun.stringWidth() for accurate width calculation with ANSI codes and unicode
  * Responsive to terminal width - adapts to narrow terminals
  */
-export function banner(title: string, body: string): void {
+export function banner(title: string, body: string, options?: BannerOptions): void {
 	// Get terminal width, default to 80 if not available, minimum 40
 	const termWidth = process.stdout.columns || 80;
-	const maxWidth = Math.max(40, Math.min(termWidth - 2, 80)); // Between 40 and 80, with 2 char margin
+	const minWidth = options?.minWidth ?? 40;
+	const maxWidth = Math.max(minWidth, Math.min(termWidth - 2, 80)); // Between 40 and 80, with 2 char margin
+	const padding = options?.padding ?? 4;
 
 	const border = {
 		topLeft: '╭',
@@ -227,14 +238,14 @@ export function banner(title: string, body: string): void {
 	};
 
 	// Split body into lines and wrap if needed
-	const bodyLines = wrapText(body, maxWidth - 4); // -4 for padding and borders
+	const bodyLines = wrapText(body, maxWidth - padding); // -4 for padding and borders
 
 	// Calculate width based on content
 	const titleWidth = getDisplayWidth(title);
 	const maxBodyWidth = Math.max(...bodyLines.map((line) => getDisplayWidth(line)));
-	const contentWidth = Math.max(titleWidth, maxBodyWidth);
-	const boxWidth = Math.min(contentWidth + 4, maxWidth); // +4 for padding
-	const innerWidth = boxWidth - 4;
+	const contentWidth = Math.max(minWidth, Math.max(titleWidth, maxBodyWidth) + padding);
+	const boxWidth = Math.min(contentWidth, maxWidth); // +N for padding
+	const innerWidth = boxWidth - padding;
 
 	// Colors
 	const borderColor = getColor('muted');
@@ -249,41 +260,58 @@ export function banner(title: string, body: string): void {
 		`${borderColor}${border.topLeft}${border.horizontal.repeat(boxWidth - 2)}${border.topRight}${reset}`
 	);
 
-	// Empty line
-	lines.push(
-		`${borderColor}${border.vertical}${' '.repeat(boxWidth - 2)}${border.vertical}${reset}`
-	);
+	if (options?.topSpacer === true || options?.topSpacer === undefined) {
+		// Empty line
+		lines.push(
+			`${borderColor}${border.vertical}${' '.repeat(boxWidth - 2)}${border.vertical}${reset}`
+		);
+	}
 
 	// Title (centered and bold)
 	const titleDisplayWidth = getDisplayWidth(title);
-	const titlePadding = Math.max(0, Math.floor((innerWidth - titleDisplayWidth) / 2));
-	const titleRightPadding = Math.max(0, innerWidth - titlePadding - titleDisplayWidth);
-	const titleLine =
-		' '.repeat(titlePadding) +
-		`${titleColor}${bold(title)}${reset}` +
-		' '.repeat(titleRightPadding);
-	lines.push(
-		`${borderColor}${border.vertical} ${reset}${titleLine}${borderColor} ${border.vertical}${reset}`
-	);
+	if (options?.centerTitle === true || options?.centerTitle === undefined) {
+		const titlePadding = Math.max(0, Math.floor((innerWidth - titleDisplayWidth) / 2));
+		const titleRightPadding = Math.max(
+			0,
+			Math.max(0, innerWidth - titlePadding - titleDisplayWidth) - padding
+		);
+		const titleLine =
+			' '.repeat(titlePadding) +
+			`${titleColor}${bold(title)}${reset}` +
+			' '.repeat(titleRightPadding);
+		lines.push(
+			`${borderColor}${border.vertical} ${reset}${titleLine}${borderColor} ${border.vertical}${reset}`
+		);
+	} else {
+		const titleRightPadding = Math.max(0, Math.max(0, innerWidth - titleDisplayWidth) - padding);
+		const titleLine = `${titleColor}${bold(title)}${reset}` + ' '.repeat(titleRightPadding);
+		lines.push(
+			`${borderColor}${border.vertical} ${reset}${titleLine}${borderColor} ${border.vertical}${reset}`
+		);
+	}
 
-	// Empty line
-	lines.push(
-		`${borderColor}${border.vertical}${' '.repeat(boxWidth - 2)}${border.vertical}${reset}`
-	);
+	if (options?.middleSpacer === true || options?.middleSpacer === undefined) {
+		// Empty line
+		lines.push(
+			`${borderColor}${border.vertical}${' '.repeat(boxWidth - 2)}${border.vertical}${reset}`
+		);
+	}
 
 	// Body lines
 	for (const line of bodyLines) {
 		const lineWidth = getDisplayWidth(line);
-		const padding = Math.max(0, innerWidth - lineWidth);
+		const linePadding = Math.max(0, Math.max(0, innerWidth - lineWidth) - padding);
 		lines.push(
-			`${borderColor}${border.vertical} ${reset}${line}${' '.repeat(padding)}${borderColor} ${border.vertical}${reset}`
+			`${borderColor}${border.vertical} ${reset}${line}${' '.repeat(linePadding)}${borderColor} ${border.vertical}${reset}`
 		);
 	}
 
-	// Empty line
-	lines.push(
-		`${borderColor}${border.vertical}${' '.repeat(boxWidth - 2)}${border.vertical}${reset}`
-	);
+	if (options?.bottomSpacer === true || options?.bottomSpacer === undefined) {
+		// Empty line
+		lines.push(
+			`${borderColor}${border.vertical}${' '.repeat(boxWidth - 2)}${border.vertical}${reset}`
+		);
+	}
 
 	// Bottom border
 	lines.push(
@@ -929,41 +957,52 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 		// Wait for process to exit
 		const exitCode = await proc.exited;
 
-		// Move cursor up to redraw final state
-		if (linesRendered > 0) {
-			process.stdout.write(`\x1b[${linesRendered}A`);
+		// If clearOnSuccess is true and command succeeded, clear everything
+		if (clearOnSuccess && exitCode === 0) {
+			if (linesRendered > 0) {
+				// Move up to the command line
+				process.stdout.write(`\x1b[${linesRendered}A`);
+				// Clear each line (entire line) and move cursor back up
+				for (let i = 0; i < linesRendered; i++) {
+					process.stdout.write('\x1b[2K'); // Clear entire line
+					if (i < linesRendered - 1) {
+						process.stdout.write('\x1b[B'); // Move down one line
+					}
+				}
+				// Move cursor back up to original position
+				process.stdout.write(`\x1b[${linesRendered}A\r`);
+			}
+			return exitCode;
 		}
 
-		// Clear all lines if clearOnSuccess is true and command succeeded
-		if (clearOnSuccess && exitCode === 0) {
-			// Clear all rendered lines
-			for (let i = 0; i < linesRendered; i++) {
-				process.stdout.write('\r\x1b[K\n');
-			}
-			// Move cursor back up
+		// Clear all rendered lines completely
+		if (linesRendered > 0) {
+			// Move up to the command line (first line of our output)
 			process.stdout.write(`\x1b[${linesRendered}A`);
+			// Move to beginning of line and clear from cursor to end of screen
+			process.stdout.write('\r\x1b[J');
+		}
 
-			// Show compact success: ✓ command
-			process.stdout.write(
-				`\r\x1b[K${green}${ICONS.success}${reset} ${cmdColor}${displayCmd}${reset}\n`
-			);
-		} else {
-			// Determine how many lines to show in final output
-			const finalLinesToShow = exitCode === 0 ? maxLinesOutput : maxLinesOnFailure;
+		// Determine icon based on exit code
+		const icon = exitCode === 0 ? ICONS.success : ICONS.error;
+		const statusColor = exitCode === 0 ? green : red;
 
-			// Show final status with appropriate color
-			const statusColor = exitCode === 0 ? green : red;
-			process.stdout.write(`\r\x1b[K${statusColor}$${reset} ${cmdColor}${displayCmd}${reset}\n`);
+		// Show final status: icon + command
+		process.stdout.write(
+			`\r\x1b[K${statusColor}${icon}${reset} ${cmdColor}${displayCmd}${reset}\n`
+		);
 
-			// Show final output lines
-			const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
-			for (const line of finalOutputLines) {
-				let displayLine = line;
-				if (truncate && getDisplayWidth(displayLine) > maxLineWidth) {
-					displayLine = displayLine.slice(0, maxLineWidth - 3) + '...';
-				}
-				process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
+		// Determine how many lines to show in final output
+		const finalLinesToShow = exitCode === 0 ? maxLinesOutput : maxLinesOnFailure;
+
+		// Show final output lines
+		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
+		for (const line of finalOutputLines) {
+			let displayLine = line;
+			if (truncate && getDisplayWidth(displayLine) > maxLineWidth) {
+				displayLine = displayLine.slice(0, maxLineWidth - 3) + '...';
 			}
+			process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
 		}
 
 		return exitCode;

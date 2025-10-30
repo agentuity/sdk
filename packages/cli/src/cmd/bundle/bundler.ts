@@ -7,6 +7,7 @@ import { getVersion } from '../../version';
 export interface BundleOptions {
 	rootDir: string;
 	dev?: boolean;
+	env?: Map<string, string>;
 }
 
 export async function bundle({ dev = false, rootDir }: BundleOptions) {
