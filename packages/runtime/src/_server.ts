@@ -149,6 +149,7 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 				status: (error.statusCode as number) ?? 500,
 			});
 		}
+		otel.logger.error('Unhandled Server Error: %s', error);
 		return new Response('Internal Server Error', { status: 500 });
 	});
 
@@ -214,14 +215,28 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 		otel.logger.info('shutdown started');
 		isShutdown = true;
 		// Force exit after timeout if cleanup hangs
-		setTimeout(() => process.exit(1), 30_000).unref();
-		await server.stop();
-		await otel.shutdown();
-		otel.logger.info('shutdown completed');
+		const forceExitTimer = setTimeout(() => {
+			otel.logger.warn('shutdown timed out after 5s, forcing exit');
+			process.exit(1);
+		}, 5_000);
+		try {
+			await server.stop();
+			await otel.shutdown();
+			otel.logger.info('shutdown completed');
+		} finally {
+			clearTimeout(forceExitTimer);
+		}
 	};
 
 	process.on('beforeExit', async () => await shutdown());
-	process.on('exit', async () => await shutdown());
+
+	// Handle synchronous exit event - can't do async work here
+	process.on('exit', (code) => {
+		if (!isShutdown) {
+			otel.logger.debug('process exiting with code %d before shutdown completed', code);
+		}
+	});
+
 	process.once('SIGINT', async () => {
 		await shutdown();
 		process.exit(0);

@@ -31,17 +31,15 @@ jobs:
               cd $CWD
               cd apps/create-agentuity && bun install && bun run build
               cd $CWD
-              bun run lint
-              bun run typecheck
          - name: Create test-app .env
            run: |
               echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" > apps/test-app/.env
               echo "AGENTUITY_CLOUD_PROJECT_ID=${{ env.AGENTUITY_CLOUD_PROJECT_ID }}" >> apps/test-app/.env
-         - name: Test
+              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> apps/test-app/.env
+         - name: Build and Test
            run: |
               set -eou pipefail
-              bun test
-              cd apps/test-app && bun run test
+              bun all
          - name: Cleanup .env
            if: always()
            run: rm -f apps/test-app/.env

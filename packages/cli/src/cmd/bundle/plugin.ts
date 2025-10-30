@@ -2,6 +2,7 @@ import type { BunPlugin } from 'bun';
 import { dirname, basename, join } from 'node:path';
 import { existsSync, writeFileSync } from 'node:fs';
 import { parseAgentMetadata } from './ast';
+import { applyPatch, generatePatches } from './patch';
 
 function toCamelCase(str: string): string {
 	return str
@@ -139,6 +140,30 @@ const AgentuityBundler: BunPlugin = {
 				loader: 'ts',
 			};
 		});
+
+		const patches = generatePatches();
+		for (const [, patch] of patches) {
+			let modulePath = join('node_modules', patch.module, '.*');
+			if (patch.filename) {
+				modulePath = join('node_modules', patch.module, patch.filename + '.*');
+			}
+			build.onLoad(
+				{
+					filter: new RegExp(modulePath),
+					namespace: 'file',
+				},
+				async (args) => {
+					if (build.config.target !== 'bun') {
+						return;
+					}
+					const [contents, loader] = await applyPatch(args.path, patch);
+					return {
+						contents,
+						loader,
+					};
+				}
+			);
+		}
 
 		build.onLoad(
 			{

@@ -22,6 +22,9 @@ interface ASTPropertyNode {
 	kind: string;
 	key: ASTNodeIdentifier;
 	value: ASTNode;
+	shorthand?: boolean;
+	method?: boolean;
+	computed?: boolean;
 }
 
 interface ASTObjectExpression extends ASTNode {

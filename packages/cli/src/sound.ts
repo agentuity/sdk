@@ -33,7 +33,13 @@ export function playSound(): void {
 			return;
 	}
 
-	Bun.spawn(command, {
-		stdio: ['ignore', 'ignore', 'ignore'],
-	}).unref();
+	if (process.stdout.isTTY && Bun.which(command[0])) {
+		try {
+			Bun.spawn(command, {
+				stdio: ['ignore', 'ignore', 'ignore'],
+			}).unref();
+		} catch {
+			/* ignore */
+		}
+	}
 }

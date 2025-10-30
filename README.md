@@ -36,12 +36,6 @@ bun install
 bun run build
 ```
 
-## Typecheck
-
-```bash
-bun run typecheck
-```
-
 ## Testing
 
 Run the following to do a cycle of `lint`, `typecheck`, `format` and `test`:

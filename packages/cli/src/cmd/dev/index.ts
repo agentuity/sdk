@@ -233,6 +233,11 @@ export const command = createCommand({
 							process.exit(exitCode);
 						}
 						// Non-zero exit codes are treated as restartable failures
+						// But if it's exit code 1 (common error exit), also exit the CLI
+						if (exitCode === 1 && !shuttingDownForRestart) {
+							logger.trace('Server exited with error code 1, stopping CLI');
+							process.exit(exitCode);
+						}
 					})
 					.catch((error) => {
 						logger.trace(

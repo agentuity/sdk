@@ -14,11 +14,12 @@
  */
 
 import { join, resolve } from 'node:path';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, rmSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 
 const MONOREPO_ROOT = resolve(import.meta.dir, '../../..');
 const TEMPLATES_DIR = join(MONOREPO_ROOT, 'templates');
-const TEST_DIR = join(MONOREPO_ROOT, '.test-projects');
+const TEST_DIR = join(tmpdir(), `agentuity-test-${Date.now()}`);
 const TEST_PROJECT_HUMAN_NAME = 'Integration Test Project';
 const TEST_PROJECT_DIR_NAME = 'integration-test-project'; // Sanitized version
 const TEST_PROJECT_PATH = join(TEST_DIR, TEST_PROJECT_DIR_NAME);
@@ -66,7 +67,7 @@ async function createProject(): Promise<boolean> {
 
 	// Ensure test directory exists
 	if (!existsSync(TEST_DIR)) {
-		await Bun.$`mkdir -p ${TEST_DIR}`;
+		mkdirSync(TEST_DIR, { recursive: true });
 	}
 
 	// Run agentuity create with local templates
@@ -81,6 +82,7 @@ async function createProject(): Promise<boolean> {
 			'--template-dir',
 			TEMPLATES_DIR,
 			'--confirm',
+			'--no-build', // Don't build yet - we need to link local packages first
 		],
 		{
 			cwd: TEST_DIR,
@@ -150,8 +152,60 @@ async function verifyFiles(): Promise<boolean> {
 	return allFilesExist;
 }
 
+async function linkLocalPackages(): Promise<boolean> {
+	logStep('Step 3: Link Local Packages');
+
+	// Replace installed packages with symlinks to local monorepo packages
+	const packagesToLink = ['core', 'runtime', 'cli', 'react', 'server'];
+	const nodeModulesPath = join(TEST_PROJECT_PATH, 'node_modules', '@agentuity');
+
+	for (const pkg of packagesToLink) {
+		const installedPath = join(nodeModulesPath, pkg);
+		const localPath = join(MONOREPO_ROOT, 'packages', pkg);
+
+		if (existsSync(installedPath)) {
+			// Remove the installed version
+			rmSync(installedPath, { recursive: true, force: true });
+		}
+
+		// Create symlink to local package
+		await Bun.$`ln -s ${localPath} ${installedPath}`;
+	}
+
+	logSuccess('Linked local packages');
+	return true;
+}
+
+async function buildProject(): Promise<boolean> {
+	logStep('Step 4: Build Project');
+
+	// Run the build command
+	const result = Bun.spawn(['bun', 'run', 'build'], {
+		cwd: TEST_PROJECT_PATH,
+		stdout: 'inherit',
+		stderr: 'inherit',
+	});
+
+	const exitCode = await result.exited;
+
+	if (exitCode !== 0) {
+		logError('Build failed');
+		return false;
+	}
+
+	// Verify .agentuity directory exists (created during bundle)
+	const agentuityPath = join(TEST_PROJECT_PATH, '.agentuity');
+	if (!existsSync(agentuityPath)) {
+		logError('.agentuity directory not found');
+		return false;
+	}
+
+	logSuccess('Project built');
+	return true;
+}
+
 async function verifyInstallation(): Promise<boolean> {
-	logStep('Step 3: Verify Installation');
+	logStep('Step 5: Verify Installation');
 
 	// Verify node_modules exists (created during setup)
 	const nodeModulesPath = join(TEST_PROJECT_PATH, 'node_modules');
@@ -161,27 +215,11 @@ async function verifyInstallation(): Promise<boolean> {
 	}
 	logSuccess('Dependencies installed');
 
-	// Check if package.json has a build script
-	const packageJsonPath = join(TEST_PROJECT_PATH, 'package.json');
-	const packageJson = await Bun.file(packageJsonPath).json();
-
-	if (packageJson.scripts?.build) {
-		// Verify .agentuity directory exists (created during bundle)
-		const agentuityPath = join(TEST_PROJECT_PATH, '.agentuity');
-		if (!existsSync(agentuityPath)) {
-			logError('.agentuity directory not found (build may have failed)');
-			return false;
-		}
-		logSuccess('Project built');
-	} else {
-		logInfo('No build script in package.json, skipping build verification');
-	}
-
 	return true;
 }
 
 async function verifyGitInit(): Promise<boolean> {
-	logStep('Step 4: Verify Git Initialization');
+	logStep('Step 6: Verify Git Initialization');
 
 	// Check if git is available
 	const gitPath = Bun.which('git');
@@ -262,6 +300,8 @@ async function main() {
 		const steps: Array<{ name: string; fn: () => Promise<boolean> }> = [
 			{ name: 'Create Project', fn: createProject },
 			{ name: 'Verify Files', fn: verifyFiles },
+			{ name: 'Link Local Packages', fn: linkLocalPackages },
+			{ name: 'Build Project', fn: buildProject },
 			{ name: 'Verify Installation', fn: verifyInstallation },
 			{ name: 'Verify Git Init', fn: verifyGitInit },
 		];

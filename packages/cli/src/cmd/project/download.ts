@@ -225,6 +225,23 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 			clearOnSuccess: true,
 		});
 
+		// Configure git user in CI environments (where git config may not be set)
+		if (process.env.CI) {
+			await tui.runCommand({
+				command: 'git config user.email',
+				cwd: dest,
+				cmd: ['git', 'config', 'user.email', 'agentuity@example.com'],
+				clearOnSuccess: true,
+			});
+
+			await tui.runCommand({
+				command: 'git config user.name',
+				cwd: dest,
+				cmd: ['git', 'config', 'user.name', 'Agentuity'],
+				clearOnSuccess: true,
+			});
+		}
+
 		// Add all files
 		await tui.runCommand({
 			command: 'git add .',

@@ -18,13 +18,15 @@
 		"typescript": "^5"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*",
 		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
 		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
+		"@ai-sdk/openai": "^2.0.58",
 		"@hono/zod-validator": "^0.7.4",
+		"ai": "^5.0.82",
 		"hono": "^4.7.13",
 		"zod": "^4.1.12"
 	},
-	"version": "0.0.31"
+	"version": "0.0.35"
 }
