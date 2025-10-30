@@ -1,9 +1,13 @@
 import { generatePatches as aisdkGeneratePatches } from './aisdk';
+import { generatePatches as llmGeneratePatches } from './llm';
 import { type PatchModule, searchBackwards } from './_util';
 
 export function generatePatches(): Map<string, PatchModule> {
 	const patches = new Map<string, PatchModule>();
 	for (const [name, patch] of aisdkGeneratePatches()) {
+		patches.set(name, patch);
+	}
+	for (const [name, patch] of llmGeneratePatches()) {
 		patches.set(name, patch);
 	}
 	return patches;
