@@ -53,6 +53,7 @@ export const command = createCommand({
 		let restarting = false;
 		let shuttingDownForRestart = false;
 		let pendingRestart = false;
+		let building = false;
 
 		// Track restart timestamps to detect restart loops
 		const restartTimestamps: number[] = [];
@@ -177,11 +178,14 @@ export const command = createCommand({
 					}),
 					tui.spinner('Building project', async () => {
 						try {
+							building = true;
 							await bundle({
 								rootDir,
 								dev: true,
 							});
+							building = false;
 						} catch {
+							building = false;
 							failure('Build failed');
 						}
 					}),
@@ -292,6 +296,17 @@ export const command = createCommand({
 				const watcher = watch(watchDir, { recursive: true }, (eventType, changedFile) => {
 					const absPath = changedFile ? join(watchDir, changedFile) : watchDir;
 
+					// Ignore file changes during active build to prevent loops
+					if (building) {
+						logger.trace(
+							'File change ignored (build in progress): %s (event: %s, file: %s)',
+							watchDir,
+							eventType,
+							changedFile
+						);
+						return;
+					}
+
 					// Ignore node_modules folder
 					if (absPath.includes('node_modules')) {
 						logger.trace(
@@ -307,6 +322,17 @@ export const command = createCommand({
 					if (absPath.startsWith(agentuityDir)) {
 						logger.trace(
 							'File change ignored (.agentuity dir): %s (event: %s, file: %s)',
+							watchDir,
+							eventType,
+							changedFile
+						);
+						return;
+					}
+
+					// Ignore changes to src/web/public directory (static assets, not code)
+					if (changedFile && changedFile === 'src/web/public') {
+						logger.trace(
+							'File change ignored (static assets dir): %s (event: %s, file: %s)',
 							watchDir,
 							eventType,
 							changedFile

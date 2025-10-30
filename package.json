@@ -1,6 +1,6 @@
 {
 	"name": "sdk-mono",
-	"version": "0.0.25",
+	"version": "0.0.31",
 	"private": true,
 	"workspaces": [
 		"packages/*",

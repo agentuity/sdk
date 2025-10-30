@@ -11,6 +11,7 @@ import {
 import type { Span } from '@opentelemetry/sdk-trace-base';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { ServiceException } from '@agentuity/core';
+import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
@@ -155,13 +156,15 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 		c.set('logger', otel.logger);
 		c.set('tracer', otel.tracer);
 		c.set('meter', otel.meter);
+		const isWebSocket = c.req.header('upgrade')?.toLowerCase() === 'websocket';
 		const skipLogging = c.req.path.startsWith('/_agentuity/');
 		const started = performance.now();
 		if (!skipLogging) {
 			otel.logger.debug('%s %s started', c.req.method, c.req.path);
 		}
 		await next();
-		if (!skipLogging) {
+		// Don't log completion for websocket upgrades - they stay open
+		if (!skipLogging && !isWebSocket) {
 			otel.logger.debug(
 				'%s %s completed (%d) in %sms',
 				c.req.method,
@@ -171,6 +174,26 @@ export const createServer = <E extends Env>(app: Hono<E>, _config?: AppConfig) =
 			);
 		}
 	});
+
+	// setup the cors middleware
+	app.use(
+		'*',
+		cors({
+			origin: _config?.cors?.origin ?? ((origin) => origin),
+			allowHeaders: _config?.cors?.allowHeaders ?? [
+				'Content-Type',
+				'Authorization',
+				'Accept',
+				'Origin',
+				'X-Requested-With',
+			],
+			allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
+			exposeHeaders: ['Content-Length'],
+			maxAge: 600,
+			credentials: true,
+			...(_config?.cors ?? {}), // allow the app config to override
+		})
+	);
 
 	app.route('/_agentuity', createAgentuityAPIs());
 

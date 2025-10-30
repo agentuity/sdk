@@ -1,5 +1,5 @@
 import { basename, resolve } from 'node:path';
-import { existsSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { cwd } from 'node:process';
 import { homedir } from 'node:os';
 import enquirer from 'enquirer';
@@ -8,6 +8,7 @@ import * as tui from '../../tui';
 import { playSound } from '../../sound';
 import { fetchTemplates, type TemplateInfo } from './templates';
 import { downloadTemplate, setupProject } from './download';
+import { showBanner } from '../../banner';
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -32,15 +33,18 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		logger,
 	} = options;
 
+	showBanner();
+
 	// Step 1: Fetch available templates
 	if (templateDir) {
 		tui.info(`📋 Loading templates from local directory: ${templateDir}...\n`);
-	} else if (templateBranch) {
-		tui.info(`📋 Fetching available templates from branch: ${templateBranch}...\n`);
-	} else {
-		tui.info('📋 Fetching available templates...\n');
 	}
-	const templates = await fetchTemplates(templateDir, templateBranch);
+
+	let templates: TemplateInfo[] = [];
+
+	await tui.spinner('Fetching templates', async () => {
+		templates = await fetchTemplates(templateDir, templateBranch);
+	});
 
 	if (templates.length === 0) {
 		logger.fatal('No templates available');
@@ -77,7 +81,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	const baseDir = expandedTargetDir ? resolve(expandedTargetDir) : process.cwd();
 	const dest = dirName === '.' ? baseDir : resolve(baseDir, dirName);
 	const destExists = existsSync(dest);
-	const destEmpty = destExists ? readdirSync(dest).length === 0 : true;
+	const destIsDir = destExists ? statSync(dest).isDirectory() : false;
+	const destEmpty = destIsDir ? readdirSync(dest).length === 0 : !destExists;
 
 	if (destExists && !destEmpty && dirName !== '.') {
 		// In TTY mode, ask if they want to overwrite
@@ -106,12 +111,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		} else {
 			logger.fatal(`Directory ${dest} already exists and is not empty.`, true);
 		}
-	}
-
-	// Show directory and name confirmation
-	if (!skipPrompts) {
-		tui.info(`📁 Project: ${tui.bold(projectName)}`);
-		tui.info(`📂 Directory: ${tui.bold(dest)}\n`);
 	}
 
 	// Step 5: Select template

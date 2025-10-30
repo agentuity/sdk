@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/core",
-	"version": "0.0.25",
+	"version": "0.0.31",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -17,7 +17,7 @@
 	},
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bun build --target bun src/index.ts --outdir ./dist && bunx tsc --build --emitDeclarationOnly --force",
+		"build": "bunx tsc --build --emitDeclarationOnly --force",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},

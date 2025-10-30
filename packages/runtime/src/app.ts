@@ -1,11 +1,16 @@
 import { type Env as HonoEnv, Hono } from 'hono';
+import { cors } from 'hono/cors';
 import { createServer, getLogger } from './_server';
 import type { Logger } from './logger';
 import { type Meter, type Tracer } from '@opentelemetry/api';
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+type CorsOptions = Parameters<typeof cors>[0];
+
 export interface AppConfig {
-	// currently empty but may be extended in the future
+	/**
+	 * Override the default cors settings
+	 */
+	cors?: CorsOptions;
 }
 
 export interface Variables {

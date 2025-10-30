@@ -51,6 +51,7 @@ const deserializeData = <T>(data: string): T => {
 
 interface WebsocketResponse<TInput, TOutput> {
 	connected: boolean;
+	data?: TOutput;
 	send: (data: TInput) => void;
 	setHandler: (handler: onMessageHandler<TOutput>) => void;
 	readyState: WebSocket['readyState'];
@@ -71,18 +72,9 @@ export const useWebsocket = <TInput, TOutput>(
 	const wsRef = useRef<WebSocket | undefined>(undefined);
 	const pending = useRef<TOutput[]>([]);
 	const queued = useRef<TInput[]>([]);
+	const [data, setData] = useState<TOutput>();
 	const handler = useRef<onMessageHandler<TOutput> | undefined>(undefined);
 	const [connected, setConnected] = useState(false);
-
-	useEffect(() => {
-		return () => {
-			if (wsRef.current) {
-				wsRef.current.close();
-				wsRef.current = undefined;
-				manualClose.current = true;
-			}
-		};
-	}, []);
 
 	useEffect(() => {
 		if (options?.signal) {
@@ -129,10 +121,12 @@ export const useWebsocket = <TInput, TOutput>(
 				); // jitter reconnect
 			};
 			wsRef.current.onmessage = (event: { data: string }) => {
+				const payload = deserializeData<TOutput>(event.data);
+				setData(payload);
 				if (handler.current) {
-					handler.current(deserializeData(event.data));
+					handler.current(payload);
 				} else {
-					pending.current.push(deserializeData(event.data));
+					pending.current.push(payload);
 				}
 			};
 		};
@@ -140,7 +134,7 @@ export const useWebsocket = <TInput, TOutput>(
 	}
 
 	const send = (data: TInput) => {
-		if (wsRef.current) {
+		if (wsRef.current?.readyState === WebSocket.OPEN) {
 			wsRef.current.send(serializeWSData(data));
 		} else {
 			queued.current.push(data);
@@ -164,6 +158,7 @@ export const useWebsocket = <TInput, TOutput>(
 	return {
 		connected,
 		close,
+		data,
 		send,
 		setHandler,
 		readyState: wsRef.current?.readyState ?? WebSocket.CLOSED,

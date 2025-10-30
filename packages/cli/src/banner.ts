@@ -1,4 +1,7 @@
-export function showBanner(version: string): void {
+import { getVersion } from './version';
+
+export function showBanner(version?: string): void {
+	const _version = version ?? getVersion();
 	const CYAN = Bun.color('cyan', 'ansi-16m');
 	const RESET = '\x1b[0m';
 
@@ -10,7 +13,7 @@ export function showBanner(version: string): void {
 		'╭────────────────────────────────────────────────────╮',
 		'│ ⨺ Agentuity     Build, manage and deploy AI agents │',
 		'│                                                    │',
-		`│${versionLabel}${version.padEnd(versionPadding)} │`,
+		`│${versionLabel}${_version.padEnd(versionPadding)} │`,
 		'│ Docs:           https://agentuity.dev              │',
 		'│ Community:      https://discord.gg/agentuity       │',
 		'│ Dashboard:      https://app.agentuity.com          │',

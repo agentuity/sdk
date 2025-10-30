@@ -5,6 +5,7 @@ import { stream as honoStream, streamSSE as honoStreamSSE } from 'hono/streaming
 import { upgradeWebSocket as honoUpgradeWebSocket } from 'hono/bun';
 import { hash, returnResponse } from './_util';
 import type { Env } from './app';
+import { getAsyncLocalStorage } from './_context';
 
 type AgentHandler<E extends Env = Env, P extends string = string, I extends Input = {}> = (
 	c: Context<E, P, I>
@@ -94,6 +95,8 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 				const wrapper = async (c: Context): Promise<Response> => {
 					let result = handler(c);
 					if (result instanceof Promise) result = await result;
+					// If handler returns a Response (e.g., websocket upgrade), return it unchanged
+					if (result instanceof Response) return result;
 					return returnResponse(c, result);
 				};
 				return _originalInvoker(path, wrapper);
@@ -104,6 +107,10 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 				const wrapper = async (c: Context): Promise<Response> => {
 					let result = handler(c);
 					if (result instanceof Promise) result = await result;
+					// If handler returns a Response (e.g., websocket upgrade), return it unchanged
+					if (result instanceof Response) {
+						return result;
+					}
 					return returnResponse(c, result);
 				};
 				return _originalInvoker(path, middleware, wrapper);
@@ -160,14 +167,26 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 		}
 
 		const wrapper = (c: Context) => {
+			// Capture the AgentContext from the request
+			const asyncLocalStorage = getAsyncLocalStorage();
+			const capturedContext = asyncLocalStorage.getStore();
+
 			return honoStream(c, async (s: any) => {
-				try {
-					let streamResult = handler(c);
-					if (streamResult instanceof Promise) streamResult = await streamResult;
-					await s.pipe(streamResult);
-				} catch (err) {
-					console.error('Stream error:', err);
-					throw err;
+				const runInContext = async () => {
+					try {
+						let streamResult = handler(c);
+						if (streamResult instanceof Promise) streamResult = await streamResult;
+						await s.pipe(streamResult);
+					} catch (err) {
+						c.var.logger.error('Stream error:', err);
+						throw err;
+					}
+				};
+
+				if (capturedContext) {
+					await asyncLocalStorage.run(capturedContext, runInContext);
+				} else {
+					await runInContext();
 				}
 			});
 		};
@@ -196,6 +215,10 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 			let closeHandler: ((event: any) => void | Promise<void>) | undefined;
 			let initialized = false;
 
+			// Capture the AgentContext from the upgrade request
+			const asyncLocalStorage = getAsyncLocalStorage();
+			const capturedContext = asyncLocalStorage.getStore();
+
 			const wsConnection: WebSocketConnection = {
 				onOpen: (h) => {
 					openHandler = h;
@@ -214,41 +237,101 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 			const setupResult = handler(c);
 			const setupFn = typeof setupResult === 'function' ? setupResult : null;
 
+			// Call setup IMMEDIATELY during upgrade, not in onOpen
+			// This allows the user's code to register handlers before events fire
+			if (setupFn) {
+				if (capturedContext) {
+					asyncLocalStorage.run(capturedContext, () => setupFn(wsConnection));
+				} else {
+					setupFn(wsConnection);
+				}
+				initialized = true;
+			}
+
 			return {
 				onOpen: async (event: any, ws: any) => {
-					if (!initialized && setupFn) {
+					try {
+						// Bind the real ws.send now that we have the actual websocket
 						wsConnection.send = (data) => ws.send(data);
-						const result = setupFn(wsConnection);
-						if (result instanceof Promise) await result;
-						initialized = true;
-					}
-					if (openHandler) {
-						await openHandler(event);
+
+						if (openHandler) {
+							// Run handler in captured context
+							const handler = openHandler;
+							if (capturedContext) {
+								await asyncLocalStorage.run(capturedContext, () => handler(event));
+							} else {
+								await handler(event);
+							}
+						}
+					} catch (err) {
+						c.var.logger?.error('WebSocket onOpen error:', err);
+						throw err;
 					}
 				},
 				onMessage: async (event: any, ws: any) => {
-					if (!initialized && setupFn) {
-						wsConnection.send = (data) => ws.send(data);
-						const result = setupFn(wsConnection);
-						if (result instanceof Promise) await result;
-						initialized = true;
-					}
-					if (messageHandler) {
-						await messageHandler(event);
+					try {
+						// Lazy initialization fallback (shouldn't normally happen)
+						if (!initialized && setupFn) {
+							wsConnection.send = (data) => ws.send(data);
+							if (capturedContext) {
+								await asyncLocalStorage.run(capturedContext, async () => {
+									const result = setupFn(wsConnection);
+									if (result instanceof Promise) await result;
+								});
+							} else {
+								const result = setupFn(wsConnection);
+								if (result instanceof Promise) await result;
+							}
+							initialized = true;
+						}
+						if (messageHandler) {
+							// Run handler in captured context
+							const handler = messageHandler;
+							if (capturedContext) {
+								await asyncLocalStorage.run(capturedContext, () => handler(event));
+							} else {
+								await handler(event);
+							}
+						}
+					} catch (err) {
+						c.var.logger?.error('WebSocket onMessage error:', err);
+						throw err;
 					}
 				},
 				onClose: async (event: any, _ws: any) => {
-					if (closeHandler) {
-						await closeHandler(event);
+					try {
+						if (closeHandler) {
+							// Run handler in captured context
+							const handler = closeHandler;
+							if (capturedContext) {
+								await asyncLocalStorage.run(capturedContext, () => handler(event));
+							} else {
+								await handler(event);
+							}
+						}
+					} catch (err) {
+						c.var.logger?.error('WebSocket onClose error:', err);
 					}
 				},
 			};
 		});
 
+		// wrapper is what upgradeWebSocket(...) returned. Force arity=2 so our get shim
+		// recognizes it as middleware and does not wrap/convert undefined -> 200.
+		const wsMiddleware: MiddlewareHandler = (c, next) =>
+			(wrapper as unknown as MiddlewareHandler)(c, next);
+
 		if (middleware) {
-			return router.get(path, middleware, wrapper);
+			// Compose into a single middleware to avoid the 3-arg route which treats the
+			// second function as a handler and wraps it.
+			const composed: MiddlewareHandler = async (c, next) => {
+				return middleware(c, async () => {
+					await wsMiddleware(c, next);
+				});
+			};
+			return router.get(path, composed);
 		} else {
-			return router.get(path, wrapper);
+			return router.get(path, wsMiddleware);
 		}
 	};
 
@@ -264,6 +347,10 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 		}
 
 		const wrapper = (c: Context) => {
+			// Capture the AgentContext from the request
+			const asyncLocalStorage = getAsyncLocalStorage();
+			const capturedContext = asyncLocalStorage.getStore();
+
 			return honoStreamSSE(c, async (stream: any) => {
 				// Wrap the stream to intercept write() calls
 				const wrappedStream = {
@@ -287,7 +374,15 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 					close: stream.close?.bind(stream),
 				};
 
-				await handler(c)(wrappedStream);
+				const runInContext = async () => {
+					await handler(c)(wrappedStream);
+				};
+
+				if (capturedContext) {
+					await asyncLocalStorage.run(capturedContext, runInContext);
+				} else {
+					await runInContext();
+				}
 			});
 		};
 

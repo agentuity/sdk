@@ -109,7 +109,7 @@ function bumpPrerelease(version: string): string {
 }
 
 async function promptReleaseType(
-	currentVersion: string,
+	currentVersion: string
 ): Promise<'patch' | 'minor' | 'major' | 'prerelease'> {
 	console.log(`\nCurrent version: ${currentVersion}`);
 	console.log('Options:');
@@ -222,7 +222,7 @@ async function getPublishablePackages(): Promise<
 
 async function revertVersionChanges() {
 	await $`git checkout -- package.json packages/*/package.json apps/*/package.json bun.lock`.cwd(
-		rootDir,
+		rootDir
 	);
 }
 

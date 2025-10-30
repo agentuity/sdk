@@ -64,10 +64,13 @@ export const getAgentContext = (): AgentContext => {
 	return context;
 };
 
+export const getAsyncLocalStorage = () => asyncLocalStorage;
+
 export const runInAgentContext = <TAgentMap, TAgent>(
 	ctxObject: Record<string, unknown>,
 	args: RequestAgentContextArgs<TAgentMap, TAgent>,
-	next: () => Promise<void>
+	next: () => Promise<void>,
+	isWebSocket: boolean = false
 ) => {
 	const ctx = new RequestAgentContext(args);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -79,8 +82,11 @@ export const runInAgentContext = <TAgentMap, TAgent>(
 		ctxObject[k] = _ctx[k];
 	}
 	return asyncLocalStorage.run(ctx, async () => {
-		return next().then(() => {
+		const result = await next();
+		// Don't call waitUntilAll for websocket upgrades - they stay open
+		if (!isWebSocket) {
 			setImmediate(() => ctx.waitUntilAll()); // TODO: move until session
-		});
+		}
+		return result;
 	});
 };

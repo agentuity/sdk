@@ -1,10 +1,14 @@
-import React from 'react';
-import { useEffect, useState } from 'react';
-import { AgentuityProvider, useAgentWebsocket, useAgent } from '@agentuity/react';
+import React, { useEffect, useState } from 'react';
+import { AgentuityProvider, useWebsocket, useAgentWebsocket, useAgent } from '@agentuity/react';
 
 export function App() {
 	const [count, setCount] = useState(0);
-	// const { connected, send, setHandler } = useWebsocket<string,string>("/agent/websocket");
+	// const {
+	// 	connected,
+	// 	send: wsSend,
+	// 	setHandler,
+	// 	data: wsMessage,
+	// } = useWebsocket<string, string>('/agent/websocket');
 	const { connected, send: wsSend, data: wsMessage } = useAgentWebsocket('websocket');
 	const { run, data: agentResult } = useAgent('simple');
 

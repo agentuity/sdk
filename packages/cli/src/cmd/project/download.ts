@@ -43,7 +43,7 @@ async function cleanup(sourceDir: string, dest: string) {
 		throw new Error(`Template directory not found: ${sourceDir}`);
 	}
 
-	tui.spinner(`📦 Copying template from ${sourceDir}...`, async () => {
+	tui.spinner(`📦 Copying template files...`, async () => {
 		// Copy all files from source to dest
 		const files = readdirSync(sourceDir);
 		for (const file of files) {

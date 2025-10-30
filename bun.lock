@@ -20,7 +20,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.0.11",
+      "version": "0.0.29",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -30,9 +30,10 @@
     },
     "apps/test-app": {
       "name": "test-app",
-      "version": "0.0.11",
+      "version": "0.0.29",
       "dependencies": {
         "@agentuity/cli": "workspace:*",
+        "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
         "@agentuity/runtime": "workspace:*",
         "@hono/zod-validator": "^0.7.4",
@@ -40,9 +41,9 @@
         "zod": "^4.1.12",
       },
       "devDependencies": {
-        "@agentuity/core": "workspace:*",
         "@types/bun": "latest",
-        "@types/react": "^19.0.0",
+        "@types/react": "^19.2.0",
+        "@types/react-dom": "^19.2.0",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -50,7 +51,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.0.11",
+      "version": "0.0.29",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -70,29 +71,28 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.0.11",
+      "version": "0.0.29",
       "devDependencies": {
         "typescript": "^5.9.0",
       },
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.0.11",
+      "version": "0.0.29",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
-        "@types/react": "^19.0.0",
-        "react": "^19.0.0",
         "typescript": "^5.9.0",
       },
       "peerDependencies": {
-        "react": "^18.0.0 || ^19.0.0",
+        "@types/react": "^19.0.0",
+        "react": "^19.0.0",
       },
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.0.11",
+      "version": "0.0.29",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -126,7 +126,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.0.11",
+      "version": "0.0.29",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },

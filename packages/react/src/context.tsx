@@ -1,5 +1,5 @@
 import React from 'react';
-import { createContext, Context, type ReactElement } from 'react';
+import { createContext, type Context, type ReactElement } from 'react';
 import { defaultBaseUrl } from './url';
 
 export interface ContextProviderArgs {

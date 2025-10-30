@@ -18,7 +18,7 @@ source "$SCRIPT_DIR/test-lib.sh"
 
 AGENT_FILE="$APP_DIR/src/agents/simple/agent.ts"
 # Place log outside app root to avoid triggering file watcher
-SERVER_LOG=$(mktemp "${TMPDIR:-/tmp}/test-dev-reload.XXXXXX.log")
+SERVER_LOG=$(mktemp "${TMPDIR:-/tmp}/test-dev-reload-XXXXXX")
 BACKUP_DIR=$(mktemp -d)
 BACKUP_FILE="$BACKUP_DIR/agent.ts.bak"
 SERVER_PID=""

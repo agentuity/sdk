@@ -235,6 +235,9 @@ const createAgentRunner = <
 
 export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler => {
 	return async (ctx, next) => {
+		// Detect websocket upgrade requests
+		const isWebSocket = ctx.req.header('upgrade')?.toLowerCase() === 'websocket';
+
 		// Populate agents object with strongly-typed keys
 		const agentsObj: any = {};
 		for (const [name, agentFn] of agents) {
@@ -260,7 +263,8 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 		return runInAgentContext(
 			ctx as unknown as Record<string, unknown>,
 			args as RequestAgentContextArgs<any, any>,
-			next
+			next,
+			isWebSocket
 		);
 
 		// FIXME

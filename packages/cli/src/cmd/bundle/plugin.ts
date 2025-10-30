@@ -146,6 +146,9 @@ const AgentuityBundler: BunPlugin = {
 				namespace: 'file',
 			},
 			async (args) => {
+				if (build.config.target !== 'bun') {
+					return;
+				}
 				await args.defer();
 
 				const inserts: string[] = [];
@@ -199,30 +202,19 @@ const AgentuityBundler: BunPlugin = {
 					inserts.push(buffer);
 				}
 
-				const indexFile = join(srcDir, 'web', 'app.tsx');
+				const indexFile = join(srcDir, 'web', 'index.html');
 
 				if (existsSync(indexFile)) {
-					const uniqid = Math.random().toString(36);
-					const clientjscode = `
-import React from "react";
-import { createRoot } from "react-dom/client";
-import { App } from "./app";
-
-const root = createRoot(document.getElementById("root"));
-root.render(<App />);
-`;
-					const clientFile = join(srcDir, 'web', 'client.generated.js');
-					writeFileSync(clientFile, clientjscode);
-
 					inserts.unshift(`await (async () => {
-    const { renderToString } = require('react-dom/server');
     const { serveStatic } = require('hono/bun');
     const { getApp } = await import('@agentuity/runtime');
     const app = getApp()!;
-    const routehtml = renderToString(require("./src/web/app").default);
-    app.get("/", (c) => c.html(\`<html><body><div id="root">\${routehtml}</div><script src="/web/${uniqid}/client.js" type="module"></script></body></html>\`));
-    app.get("/web/${uniqid}/client.js", (c) => new Response(Bun.file('./src/web/client.generated.js'), { type: 'text/javascript', headers: { 'Cache-Control': 'public, max-age=31536000, immutable' } }));
-    app.get('/public/*', serveStatic({ root: './src/web' }));
+	const index = await Bun.file(import.meta.dir + '/web/index.js').text();
+	const webstatic = serveStatic({ root: import.meta.dir + '/web' });
+	app.get('/', (c) => c.html(index));
+    app.get('/chunk/*', webstatic);
+    app.get('/asset/*', webstatic);
+	app.get('/public/*', webstatic);
 })();`);
 				}
 

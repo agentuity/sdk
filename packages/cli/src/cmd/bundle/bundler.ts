@@ -1,5 +1,5 @@
-import { join } from 'node:path';
-import { existsSync, rmSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { cpSync, existsSync, rmSync } from 'node:fs';
 import AgentuityBundler from './plugin';
 import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
@@ -17,9 +17,9 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 	const outDir = join(rootDir, '.agentuity');
 	const srcDir = join(rootDir, 'src');
 
-	const entrypoints: string[] = [];
+	const appEntrypoints: string[] = [];
 
-	for (const folder of ['apis', 'agents', 'web']) {
+	for (const folder of ['apis', 'agents']) {
 		const dir = join(srcDir, folder);
 		if (!existsSync(dir)) {
 			if (folder === 'agents') {
@@ -29,13 +29,14 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 		}
 		const files = await getFilesRecursively(dir);
 		for (const filename of files) {
-			if (/\.[jt]sx?$/.test(filename)) {
-				entrypoints.push(filename);
+			if (/\.[jt]s?$/.test(filename)) {
+				appEntrypoints.push(filename);
 			}
 		}
 	}
+	appEntrypoints.push(appFile);
 
-	entrypoints.push(appFile);
+	const webDir = join(srcDir, 'web');
 
 	if (existsSync(outDir)) {
 		rmSync(outDir, { recursive: true, force: true });
@@ -43,7 +44,6 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 
 	const pkgFile = Bun.file('./package.json');
 	const pkgContents = JSON.parse(await pkgFile.text());
-
 	const isProd = !dev;
 
 	const define = {
@@ -51,38 +51,90 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 		'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
 	};
 
-	const config: Bun.BuildConfig = {
-		entrypoints,
-		root: rootDir,
-		outdir: outDir,
-		define,
-		sourcemap: dev ? 'inline' : 'external',
-		env: 'AGENTUITY_CLOUD_*',
-		plugins: [AgentuityBundler],
-		target: 'bun',
-		format: 'esm',
-		banner: `// Generated file. DO NOT EDIT`,
-		minify: isProd,
-		drop: isProd ? ['debugger'] : undefined,
-		naming: isProd
-			? {
-					entry: '[dir]/[name].js',
-					chunk: 'chunks/[name]-[hash].js',
-					asset: 'assets/[name]-[hash].[ext]',
+	await (async () => {
+		const config: Bun.BuildConfig = {
+			entrypoints: appEntrypoints,
+			root: rootDir,
+			outdir: outDir,
+			define,
+			sourcemap: dev ? 'inline' : 'external',
+			env: 'AGENTUITY_CLOUD_*',
+			plugins: [AgentuityBundler],
+			target: 'bun',
+			format: 'esm',
+			banner: `// Generated file. DO NOT EDIT`,
+			minify: isProd,
+			drop: isProd ? ['debugger'] : undefined,
+			conditions: [isProd ? 'production' : 'development', 'bun'],
+		};
+		try {
+			await Bun.build(config);
+		} catch (ex) {
+			console.error(ex);
+			process.exit(1);
+		}
+	})();
+
+	await (async () => {
+		// Find workspace root for monorepo support
+		let workspaceRoot = rootDir;
+		let currentDir = rootDir;
+		while (true) {
+			const pkgPath = join(currentDir, 'package.json');
+			if (existsSync(pkgPath)) {
+				const pkg = JSON.parse(await Bun.file(pkgPath).text());
+				if (pkg.workspaces) {
+					workspaceRoot = currentDir;
+					break;
 				}
-			: undefined,
-		conditions: [isProd ? 'production' : 'development', 'bun'],
-	};
+			}
+			const parent = resolve(currentDir, '..');
+			if (parent === currentDir) break; // reached filesystem root
+			currentDir = parent;
+		}
+
+		// Make webEntrypoints - just the HTML files themselves
+		const webEntrypoints = [...new Bun.Glob('**.html').scanSync(webDir)].map((htmlFile) =>
+			resolve(webDir, htmlFile)
+		);
+
+		const config: Bun.BuildConfig = {
+			entrypoints: webEntrypoints,
+			root: webDir,
+			outdir: join(outDir, 'web'),
+			define,
+			sourcemap: dev ? 'inline' : 'linked',
+			env: 'AGENTUITY_CLOUD_*',
+			plugins: [AgentuityBundler],
+			target: 'browser',
+			format: 'cjs',
+			banner: `// Generated file. DO NOT EDIT`,
+			minify: isProd,
+			drop: isProd ? ['debugger'] : undefined,
+			naming: {
+				entry: '[name].js',
+				chunk: 'chunk/[name]-[hash].js',
+				asset: 'asset/[name]-[hash].[ext]',
+			},
+			packages: 'bundle',
+			external: workspaceRoot !== rootDir ? [] : undefined,
+		};
+		try {
+			await Bun.build(config);
+		} catch (ex) {
+			console.error(ex);
+			process.exit(1);
+		}
+	})();
+
+	const webPublicDir = join(webDir, 'public');
+	if (existsSync(webPublicDir)) {
+		const webOutPublicDir = join(outDir, 'web', 'public');
+		cpSync(webPublicDir, webOutPublicDir, { recursive: true });
+	}
 
 	await Bun.write(
 		`${outDir}/package.json`,
 		JSON.stringify({ name: pkgContents.name, version: pkgContents.version }, null, 2)
 	);
-
-	const agentuityYAML = Bun.file('./agentuity.yaml');
-	if (await agentuityYAML.exists()) {
-		await Bun.write(`${outDir}/agentuity.yaml`, agentuityYAML);
-	}
-
-	await Bun.build(config);
 }

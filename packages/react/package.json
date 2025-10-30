@@ -1,23 +1,24 @@
 {
 	"name": "@agentuity/react",
-	"version": "0.0.25",
+	"version": "0.0.31",
 	"type": "module",
-	"main": "./dist/index.js",
+	"main": "./src/index.ts",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./dist/index.js",
+			"import": "./src/index.ts",
 			"types": "./dist/index.d.ts"
 		}
 	},
 	"files": [
 		"AGENTS.md",
 		"README.md",
-		"dist"
+		"dist",
+		"src"
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bun build --target browser --outdir dist src/index.ts && bunx tsc --build --force",
+		"build": "bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
@@ -25,12 +26,11 @@
 		"@agentuity/core": "workspace:*"
 	},
 	"devDependencies": {
-		"@types/react": "^19.0.0",
-		"react": "^19.0.0",
 		"typescript": "^5.9.0"
 	},
 	"peerDependencies": {
-		"react": "^18.0.0 || ^19.0.0"
+		"@types/react": "^19.0.0",
+		"react": "^19.0.0"
 	},
 	"publishConfig": {
 		"access": "public"
