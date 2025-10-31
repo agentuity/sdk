@@ -2,7 +2,7 @@ import { createSubcommand } from '../../types';
 import { z } from 'zod';
 import { join } from 'node:path';
 import * as tui from '../../tui';
-import { loadProjectConfig } from '../../config';
+import { loadProjectConfig, saveProjectDir } from '../../config';
 import { runSteps, stepSuccess, stepSkipped, stepError } from '../../steps';
 import { bundle } from '../bundle/bundler';
 import { loadBuildMetadata } from '../../config';
@@ -26,6 +26,7 @@ export const deploySubcommand = createSubcommand({
 			if (!project) {
 				console.log(project); // FIXME
 			}
+			await saveProjectDir(dir);
 			await runSteps([
 				{
 					label: 'Create Deployment',

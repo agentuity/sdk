@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { resolve, join } from 'node:path';
 import { bundle } from '../bundle/bundler';
 import { existsSync, FSWatcher, watch } from 'node:fs';
-import { loadBuildMetadata } from '../../config';
+import { loadBuildMetadata, saveProjectDir } from '../../config';
 import type { BuildMetadata } from '../../types';
 import * as tui from '../../tui';
 
@@ -39,6 +39,8 @@ export const command = createCommand({
 			}
 			process.exit(1);
 		}
+
+		await saveProjectDir(rootDir);
 
 		const devmodebody =
 			tui.muted('Local: ') +

@@ -1,5 +1,5 @@
 import { YAML } from 'bun';
-import { join, extname, basename } from 'node:path';
+import { join, extname, basename, resolve, normalize } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import type { Config, Profile, AuthData } from './types';
@@ -189,8 +189,18 @@ export async function saveConfig(config: Config, customPath?: string): Promise<v
 	await chmod(configPath, 0o600);
 }
 
+async function getOrInitConfig(): Promise<Config> {
+	const config = await loadConfig();
+	if (config) {
+		return config;
+	}
+	const profilePath = await getProfile();
+	const name = basename(profilePath, '.yaml');
+	return { name };
+}
+
 export async function saveAuth(auth: AuthData): Promise<void> {
-	const config = (await loadConfig()) || { name: 'default' };
+	const config = await getOrInitConfig();
 	config.auth = {
 		api_key: auth.apiKey,
 		user_id: auth.userId,
@@ -202,7 +212,7 @@ export async function saveAuth(auth: AuthData): Promise<void> {
 }
 
 export async function clearAuth(): Promise<void> {
-	const config = (await loadConfig()) || { name: 'default' };
+	const config = await getOrInitConfig();
 	config.auth = {
 		api_key: '',
 		user_id: '',
@@ -210,6 +220,14 @@ export async function clearAuth(): Promise<void> {
 	};
 	config.preferences = config.preferences || {};
 	(config.preferences as Record<string, unknown>).orgId = '';
+	await saveConfig(config);
+}
+
+export async function saveProjectDir(projectDir: string): Promise<void> {
+	const config = await getOrInitConfig();
+	config.preferences = config.preferences || {};
+	const normalized = resolve(normalize(projectDir));
+	(config.preferences as Record<string, unknown>).project_dir = normalized;
 	await saveConfig(config);
 }
 
