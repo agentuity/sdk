@@ -1,8 +1,5 @@
 import { createApp } from '@agentuity/runtime';
-import { showRoutes } from 'hono/dev';
 
-const { app, server, logger } = createApp();
+const { server, logger } = createApp();
 
-showRoutes(app);
-
-logger.info('Running %s', server.url);
+logger.debug('Running %s', server.url);

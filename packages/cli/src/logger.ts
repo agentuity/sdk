@@ -110,7 +110,7 @@ function getLogColors(scheme: ColorScheme): Record<LogLevel, LogColors> {
 }
 
 export class Logger {
-	private level: LogLevel;
+	public level: LogLevel;
 	private showTimestamp: boolean;
 	private colorScheme: ColorScheme;
 	private colors: Record<LogLevel, LogColors>;

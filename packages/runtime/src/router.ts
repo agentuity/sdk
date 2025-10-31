@@ -121,7 +121,7 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 	// shim in special routes
 	_router.email = (address: string, handler: AgentHandler) => {
 		const id = hash(address);
-		const path = `/email/${id}`;
+		const path = `/${id}`;
 		// registerEmailHandler(address)
 		const wrapper = async (c: Context): Promise<Response> => {
 			let result = handler(c);
@@ -133,7 +133,7 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 
 	_router.sms = ({ number }: { number: string }, handler: AgentHandler) => {
 		const id = hash(number);
-		const path = `/sms/${id}`;
+		const path = `/${id}`;
 		// registerSMSHandler(number)
 		const wrapper = async (c: Context): Promise<Response> => {
 			let result = handler(c);
@@ -145,7 +145,7 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 
 	_router.cron = (schedule: string, handler: AgentHandler) => {
 		const id = hash(schedule);
-		const path = `/cron/${id}`;
+		const path = `/${id}`;
 		// registerCronHandler(schedule)
 		const wrapper = async (c: Context): Promise<Response> => {
 			let result = handler(c);

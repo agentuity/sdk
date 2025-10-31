@@ -15,7 +15,7 @@ export async function createCLI(version: string): Promise<Command> {
 
 	program
 		.option('--config <path>', 'Config file path', '~/.config/agentuity/production.yaml')
-		.option('--log-level <level>', 'Log level', 'info')
+		.option('--log-level <level>', 'Log level', process.env.AGENTUITY_LOG_LEVEL ?? 'info')
 		.option('--log-timestamp', 'Show timestamps in log output', false)
 		.option('--no-log-prefix', 'Hide log level prefixes', false)
 		.option('--color-scheme <scheme>', 'Color scheme: light or dark');

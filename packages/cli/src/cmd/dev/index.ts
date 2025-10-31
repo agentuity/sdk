@@ -38,7 +38,13 @@ export const command = createCommand({
 			process.exit(1);
 		}
 
-		const devmodebody = tui.muted('Local: ') + tui.link('http://127.0.0.1:3000');
+		const devmodebody =
+			tui.muted('Local: ') +
+			tui.link('http://127.0.0.1:3000') +
+			'\n\n' +
+			tui.muted('Press ') +
+			tui.bold('h') +
+			tui.muted(' for keyboard shortcuts');
 
 		tui.banner('⨺ Agentuity DevMode', devmodebody, {
 			padding: 2,
@@ -216,6 +222,8 @@ export const command = createCommand({
 					return;
 				}
 
+				env.AGENTUITY_LOG_LEVEL = logger.level;
+
 				logger.trace('Starting dev server: %s', appPath);
 				// Use shell to run in a process group for proper cleanup
 				// The 'exec' ensures the shell is replaced by the actual process
@@ -223,7 +231,7 @@ export const command = createCommand({
 					cwd: rootDir,
 					stdout: 'inherit',
 					stderr: 'inherit',
-					stdin: 'inherit',
+					stdin: process.stdin.isTTY ? 'ignore' : 'inherit', // Don't inherit stdin, we handle it ourselves
 					env,
 				});
 
@@ -302,6 +310,71 @@ export const command = createCommand({
 		logger.trace('Starting initial build and server');
 		await restart();
 		logger.trace('Initial restart completed, setting up watchers');
+
+		// Setup keyboard shortcuts (only if we have a TTY)
+		if (process.stdin.isTTY) {
+			logger.trace('Setting up keyboard shortcuts');
+			process.stdin.setRawMode(true);
+			process.stdin.resume();
+			process.stdin.setEncoding('utf8');
+
+			const showHelp = () => {
+				console.log('\n' + tui.bold('Keyboard Shortcuts:'));
+				console.log(tui.muted('  h') + ' - show this help');
+				console.log(tui.muted('  c') + ' - clear console');
+				console.log(tui.muted('  r') + ' - restart server');
+				console.log(tui.muted('  o') + ' - show routes');
+				console.log(tui.muted('  a') + ' - show agents');
+				console.log(tui.muted('  q') + ' - quit\n');
+			};
+
+			const showRoutes = () => {
+				tui.info('Routes information coming soon');
+				// TODO: Implement route inspection via IPC or HTTP endpoint
+			};
+
+			const showAgents = () => {
+				tui.info('Agents information coming soon');
+				// TODO: Implement agent inspection via IPC or HTTP endpoint
+			};
+
+			process.stdin.on('data', (data) => {
+				const key = data.toString();
+
+				// Handle Ctrl+C
+				if (key === '\u0003') {
+					cleanup();
+					return;
+				}
+
+				// Handle other shortcuts
+				switch (key) {
+					case 'h':
+						showHelp();
+						break;
+					case 'c':
+						console.clear();
+						tui.info('Console cleared');
+						break;
+					case 'r':
+						tui.info('Manually restarting server...');
+						restart();
+						break;
+					case 'o':
+						showRoutes();
+						break;
+					case 'a':
+						showAgents();
+						break;
+					case 'q':
+						tui.info('Shutting down...');
+						cleanup();
+						break;
+				}
+			});
+
+			logger.trace('✓ Keyboard shortcuts enabled');
+		}
 
 		// Patterns to ignore (generated files that change during build)
 		const ignorePatterns = [

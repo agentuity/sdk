@@ -1,7 +1,7 @@
 import type { BunPlugin } from 'bun';
 import { dirname, basename, join } from 'node:path';
 import { existsSync, writeFileSync } from 'node:fs';
-import { parseAgentMetadata } from './ast';
+import { parseAgentMetadata, parseRoute, type RouteDefinition } from './ast';
 import { applyPatch, generatePatches } from './patch';
 
 function toCamelCase(str: string): string {
@@ -115,6 +115,7 @@ const AgentuityBundler: BunPlugin = {
 			Map<string, string>
 		>();
 		const transpiler = new Bun.Transpiler({ loader: 'ts' });
+		let routeDefinitions: RouteDefinition[] = [];
 
 		build.onResolve({ filter: /\/route\.ts$/, namespace: 'file' }, async (args) => {
 			if (args.path.startsWith(srcDir)) {
@@ -194,6 +195,9 @@ const AgentuityBundler: BunPlugin = {
 						.replace('/agents', '/agent')
 						.replace('./', '/');
 
+					const definitions = await parseRoute(rootDir, join(srcDir, route + '.ts'));
+					routeDefinitions = [...routeDefinitions, ...definitions];
+
 					let agentDetail: Record<string, string> = {};
 
 					if (hasAgent) {
@@ -263,6 +267,24 @@ const AgentuityBundler: BunPlugin = {
 				if (!inserted) {
 					contents += `\n${inserts.join('\n')}`;
 				}
+
+				// generate the agents array
+				const agents: unknown[] = [];
+				for (const [, v] of agentMetadata) {
+					const record: Record<string, unknown> = {};
+					for (const [k, mv] of v) {
+						record[k] = mv;
+					}
+					agents.push(record);
+				}
+
+				const metadata = Bun.file(join(build.config.outdir!, 'agentuity.metadata.json'));
+				await metadata.write(
+					JSON.stringify({
+						routes: routeDefinitions,
+						agents,
+					})
+				);
 
 				return {
 					contents,

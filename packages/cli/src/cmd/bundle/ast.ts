@@ -12,9 +12,7 @@ interface ASTNodeIdentifier extends ASTNode {
 
 interface ASTCallExpression extends ASTNode {
 	arguments: unknown[];
-	callee: {
-		name: string;
-	};
+	callee: ASTMemberExpression;
 }
 
 interface ASTPropertyNode {
@@ -31,8 +29,20 @@ interface ASTObjectExpression extends ASTNode {
 	properties: ASTPropertyNode[];
 }
 
-interface ASTLiteral {
+interface ASTLiteral extends ASTNode {
 	value: string;
+}
+
+interface ASTMemberExpression extends ASTNode {
+	object: ASTNode;
+	property: ASTNode;
+	computed: boolean;
+	optional: boolean;
+	name?: string;
+}
+
+interface ASTExpressionStatement extends ASTNode {
+	expression: ASTCallExpression;
 }
 
 function parseObjectExpressionToMap(expr: ASTObjectExpression): Map<string, string> {
@@ -228,4 +238,136 @@ export function parseAgentMetadata(
 	throw new Error(
 		`error parsing: ${filename}. could not find an proper createAgent defined in this file`
 	);
+}
+
+export interface RouteDefinition {
+	pathname: string;
+	method: string;
+	path: string;
+}
+
+export async function parseRoute(rootDir: string, filename: string): Promise<RouteDefinition[]> {
+	const contents = await Bun.file(filename).text();
+	const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
+	let exportName: string | undefined;
+	let variableName: string | undefined;
+	for (const body of ast.body) {
+		if (body.type === 'ExportDefaultDeclaration') {
+			const identifier = body.declaration as ASTNodeIdentifier;
+			exportName = identifier.name;
+			break;
+		}
+	}
+	if (!exportName) {
+		throw new Error(`could not find default export for ${filename} using ${rootDir}`);
+	}
+	for (const body of ast.body) {
+		if (body.type === 'VariableDeclaration') {
+			for (const vardecl of body.declarations) {
+				if (vardecl.type === 'VariableDeclarator' && vardecl.id.type === 'Identifier') {
+					const identifier = vardecl.id as ASTNodeIdentifier;
+					if (identifier.name === exportName) {
+						if (vardecl.init?.type === 'CallExpression') {
+							const call = vardecl.init as ASTCallExpression;
+							if (call.callee.name === 'createRouter') {
+								variableName = identifier.name;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	if (!variableName) {
+		throw new Error(
+			`error parsing: ${filename}. could not find an proper createRouter defined in this file`
+		);
+	}
+
+	const rel = relative(rootDir, filename);
+	const name = basename(dirname(filename));
+	const routes: RouteDefinition[] = [];
+	const routePrefix = filename.includes('src/agents') ? '/agent' : '/api';
+
+	for (const body of ast.body) {
+		if (body.type === 'ExpressionStatement') {
+			const statement = body as ASTExpressionStatement;
+			const callee = statement.expression.callee;
+			if (callee.object.type === 'Identifier') {
+				const identifier = callee.object as ASTNodeIdentifier;
+				if (identifier.name === variableName) {
+					let method = (callee.property as ASTNodeIdentifier).name;
+					const action = statement.expression.arguments[0];
+					let suffix = '';
+					switch (method) {
+						case 'get':
+						case 'put':
+						case 'post':
+						case 'delete': {
+							const theaction = action as ASTLiteral;
+							if (theaction.type === 'Literal') {
+								suffix = theaction.value;
+								break;
+							}
+							break;
+						}
+						case 'stream':
+						case 'sse':
+						case 'websocket': {
+							method = 'post';
+							const theaction = action as ASTLiteral;
+							if (theaction.type === 'Literal') {
+								suffix = theaction.value;
+								break;
+							}
+							break;
+						}
+						case 'sms': {
+						method = 'post';
+						const theaction = action as ASTObjectExpression;
+						if (theaction.type === 'ObjectExpression') {
+						const number = theaction.properties.find((p) => p.key.name === 'number');
+						if (number && number.value.type === 'Literal') {
+						const phoneNumber = number.value as ASTLiteral;
+						suffix = hash(phoneNumber.value);
+						break;
+						}
+						}
+						break;
+						}
+						case 'email': {
+							method = 'post';
+							const theaction = action as ASTLiteral;
+							if (theaction.type === 'Literal') {
+								const email = theaction.value;
+								suffix = hash(email);
+								break;
+							}
+							break;
+						}
+						case 'cron': {
+							method = 'post';
+							const theaction = action as ASTLiteral;
+							if (theaction.type === 'Literal') {
+								const number = theaction.value;
+								suffix = hash(number);
+								break;
+							}
+							break;
+						}
+					}
+					const thepath = `${routePrefix}/${name}/${suffix}`
+						.replaceAll(/\/{2,}/g, '/')
+						.replaceAll(/\/$/g, '');
+					routes.push({
+						method,
+						pathname: rel,
+						path: thepath,
+					});
+				}
+			}
+		}
+	}
+	return routes;
 }
