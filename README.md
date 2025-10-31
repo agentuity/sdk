@@ -43,3 +43,7 @@ Run the following to do a cycle of `lint`, `typecheck`, `format` and `test`:
 ```bash
 bun all
 ```
+
+## Development
+
+For development workflow verification, ensure all commands run successfully before creating a PR.
