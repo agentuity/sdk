@@ -7,6 +7,7 @@
 import enquirer from 'enquirer';
 import type { OrganizationList } from '@agentuity/server';
 import type { ColorScheme } from './terminal';
+import { stringWidth } from 'bun';
 
 // Icons
 const ICONS = {
@@ -153,13 +154,13 @@ export function bold(text: string): string {
 /**
  * Format text as a link (blue and underlined)
  */
-export function link(url: string): string {
+export function link(url: string, title?: string): string {
 	const color = getColor('link');
 	const reset = getColor('reset');
 
 	// Check if terminal supports hyperlinks (OSC 8)
 	if (supportsHyperlinks()) {
-		return `\x1b]8;;${url}\x07${color}${url}${reset}\x1b]8;;\x07`;
+		return `\x1b]8;;${url}\x07${color}${title ?? url}${reset}\x1b]8;;\x07`;
 	}
 
 	return `${color}${url}${reset}`;
@@ -472,24 +473,32 @@ export function showSignupBenefits(): void {
  * Display a message when unauthenticated to let the user know certain capabilities are disabled
  */
 export function showLoggedOutMessage(): void {
-	const CYAN = Bun.color('yellow', 'ansi-16m');
+	const YELLOW = Bun.color('yellow', 'ansi-16m');
 	const TEXT =
 		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
 	const RESET = '\x1b[0m';
+
+	const signupTitle = 'Sign up / Login';
+	const showInline = supportsHyperlinks();
+	const signupURL = 'https://app.agentuity.com/sign-up';
+	const signupLink = showInline
+		? link(signupURL, signupTitle)
+		: ' '.repeat(stringWidth(signupTitle));
+	const showNewLine = showInline ? '' : `║ ${RESET}${link(signupURL)}${YELLOW}            ║`;
 
 	const lines = [
 		'╔══════════════════════════════════════════════╗',
 		`║ ⨺ Unauthenticated (local mode)               ║`,
 		'║                                              ║',
-		`║ ${TEXT}Certain capabilities such as the AI services${CYAN} ║`,
-		`║ ${TEXT}and devmode remote are unavailable when${CYAN}      ║`,
-		`║ ${TEXT}unauthenticated.${CYAN}                             ║`,
+		`║ ${TEXT}Certain capabilities such as the AI services${YELLOW} ║`,
+		`║ ${TEXT}and devmode remote are unavailable when${YELLOW}      ║`,
+		`║ ${TEXT}unauthenticated.${YELLOW} ${signupLink}${YELLOW}             ║`,
+		showNewLine,
 		'╚══════════════════════════════════════════════╝',
 	];
 
 	console.log('');
-	lines.forEach((line) => console.log(CYAN + line + RESET));
-	console.log('');
+	lines.filter(Boolean).forEach((line) => console.log(YELLOW + line + RESET));
 }
 
 /**
