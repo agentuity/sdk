@@ -1,9 +1,9 @@
-import { createSubcommand } from '../../types';
+import { createCommand } from '../../types';
 import { z } from 'zod';
 import { resolve } from 'node:path';
 import { bundle } from './bundler';
 
-export const command = createSubcommand({
+export const command = createCommand({
 	name: 'bundle',
 	description: 'Bundle Agentuity application for deployment',
 	aliases: ['build'],

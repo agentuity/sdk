@@ -7,6 +7,58 @@
 
 import type { ColorScheme } from './terminal';
 
+/**
+ * Get the appropriate exit function (Bun.exit or process.exit)
+ */
+function getExitFn(): (code: number) => never {
+	const bunExit = (globalThis as { Bun?: { exit?: (code: number) => never } }).Bun?.exit;
+	return typeof bunExit === 'function' ? bunExit : process.exit.bind(process);
+}
+
+/**
+ * Install interrupt handlers (SIGINT/SIGTERM + TTY raw mode for Ctrl+C)
+ */
+function installInterruptHandlers(onInterrupt: () => void): () => void {
+	const cleanupFns: Array<() => void> = [];
+
+	const sigHandler = () => onInterrupt();
+	process.on('SIGINT', sigHandler);
+	process.on('SIGTERM', sigHandler);
+	cleanupFns.push(() => {
+		process.off('SIGINT', sigHandler);
+		process.off('SIGTERM', sigHandler);
+	});
+
+	// TTY raw mode fallback for Bun/Windows/inconsistent SIGINT delivery
+	const stdin = process.stdin as unknown as NodeJS.ReadStream;
+	if (stdin && stdin.isTTY) {
+		const onData = (buf: Buffer) => {
+			// Ctrl+C is ASCII ETX (0x03)
+			if (buf.length === 1 && buf[0] === 0x03) onInterrupt();
+		};
+		try {
+			stdin.setRawMode?.(true);
+		} catch {
+			// ignore if not supported
+		}
+		stdin.resume?.();
+		stdin.on('data', onData);
+		cleanupFns.push(() => {
+			stdin.off?.('data', onData);
+			stdin.pause?.();
+			try {
+				stdin.setRawMode?.(false);
+			} catch {
+				// ignore if setRawMode fails
+			}
+		});
+	}
+
+	return () => {
+		for (const fn of cleanupFns.splice(0)) fn();
+	};
+}
+
 // Spinner frames
 const FRAMES = ['◐', '◓', '◑', '◒'];
 
@@ -133,16 +185,33 @@ export async function runSteps(steps: Step[]): Promise<void> {
 	// Hide cursor
 	process.stdout.write('\x1B[?25l');
 
+	// Track active interval and interrupted state
+	let activeInterval: ReturnType<typeof setInterval> | null = null;
+	let interrupted = false;
+
+	// Set up Ctrl+C handler for graceful exit
+	const exit = getExitFn();
+	const onInterrupt = () => {
+		if (interrupted) return;
+		interrupted = true;
+		if (activeInterval) clearInterval(activeInterval);
+		process.stdout.write('\x1B[?25h\n'); // Show cursor
+		exit(130);
+	};
+	const restoreInterrupts = installInterruptHandlers(onInterrupt);
+
 	try {
 		// Initial render
 		process.stdout.write(renderSteps(state, -1) + '\n');
 
 		for (let stepIndex = 0; stepIndex < state.length; stepIndex++) {
+			if (interrupted) break;
+
 			const step = state[stepIndex];
 			let frameIndex = 0;
 
 			// Start spinner animation
-			const interval = setInterval(() => {
+			activeInterval = setInterval(() => {
 				const colorKey = SPINNER_COLORS[frameIndex % SPINNER_COLORS.length];
 				const color = getColor(colorKey);
 				const frame = `${color}${COLORS.bold}${FRAMES[frameIndex % FRAMES.length]}${COLORS.reset}`;
@@ -175,7 +244,10 @@ export async function runSteps(steps: Step[]): Promise<void> {
 				};
 			}
 
-			clearInterval(interval);
+			if (activeInterval) {
+				clearInterval(activeInterval);
+				activeInterval = null;
+			}
 
 			// Clear progress and final render with outcome
 			step.progress = undefined;
@@ -192,11 +264,14 @@ export async function runSteps(steps: Step[]): Promise<void> {
 		}
 
 		// Show cursor again
-		process.stdout.write('\x1B[?25h\n');
+		process.stdout.write('\x1B[?25h');
 	} catch (err) {
 		// Ensure cursor is shown even if something goes wrong
 		process.stdout.write('\x1B[?25h');
 		throw err;
+	} finally {
+		// Remove signal/TTY handlers
+		restoreInterrupts();
 	}
 }
 
