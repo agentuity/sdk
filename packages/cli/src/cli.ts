@@ -131,7 +131,7 @@ async function registerSubcommand(
 					const input = buildValidationInput(subcommand.schema, args, options);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
-						...(auth ? { auth } : {}),
+						auth,
 					};
 					if (subcommand.schema.args) {
 						ctx.args = subcommand.schema.args.parse(input.args);
@@ -152,14 +152,9 @@ async function registerSubcommand(
 					}
 					throw error;
 				}
-			} else if (auth) {
-				const ctx: CommandContext<true> = {
-					...baseCtx,
-					auth,
-				};
-				await subcommand.handler(ctx);
 			} else {
-				await subcommand.handler(baseCtx as CommandContext<false>);
+				const ctx = { ...baseCtx, auth };
+				await subcommand.handler(ctx as CommandContext);
 			}
 		} else {
 			if (subcommand.schema) {
@@ -219,12 +214,8 @@ export async function registerCommands(
 						const continueText =
 							typeof cmdDef.optionalAuth === 'string' ? cmdDef.optionalAuth : undefined;
 						const auth = await optionalAuth(baseCtx as CommandContext<false>, continueText);
-						if (auth) {
-							const ctx: CommandContext<true> = { ...baseCtx, auth };
-							await cmdDef.handler!(ctx);
-						} else {
-							await cmdDef.handler!(baseCtx as CommandContext<false>);
-						}
+						const ctx = { ...baseCtx, auth };
+						await cmdDef.handler!(ctx as CommandContext);
 					} else {
 						await cmdDef.handler!(baseCtx as CommandContext<false>);
 					}

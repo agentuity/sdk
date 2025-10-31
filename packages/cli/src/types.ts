@@ -81,7 +81,7 @@ export interface CommandSchemas {
 }
 
 export type CommandContext<
-	RequiresAuth extends boolean = false,
+	RequiresAuth extends boolean | 'optional' = false,
 	ArgsSchema extends z.ZodType | undefined = undefined,
 	OptionsSchema extends z.ZodType | undefined = undefined,
 > = RequiresAuth extends true
@@ -116,33 +116,65 @@ export type CommandContext<
 					options: GlobalOptions;
 					auth: AuthData;
 				}
-	: ArgsSchema extends z.ZodType
-		? OptionsSchema extends z.ZodType
-			? {
-					config: Config | null;
-					logger: Logger;
-					options: GlobalOptions;
-					args: z.infer<ArgsSchema>;
-					opts: z.infer<OptionsSchema>;
-				}
-			: {
-					config: Config | null;
-					logger: Logger;
-					options: GlobalOptions;
-					args: z.infer<ArgsSchema>;
-				}
-		: OptionsSchema extends z.ZodType
-			? {
-					config: Config | null;
-					logger: Logger;
-					options: GlobalOptions;
-					opts: z.infer<OptionsSchema>;
-				}
-			: {
-					config: Config | null;
-					logger: Logger;
-					options: GlobalOptions;
-				};
+	: RequiresAuth extends 'optional'
+		? ArgsSchema extends z.ZodType
+			? OptionsSchema extends z.ZodType
+				? {
+						config: Config | null;
+						logger: Logger;
+						options: GlobalOptions;
+						auth: AuthData | undefined;
+						args: z.infer<ArgsSchema>;
+						opts: z.infer<OptionsSchema>;
+					}
+				: {
+						config: Config | null;
+						logger: Logger;
+						options: GlobalOptions;
+						auth: AuthData | undefined;
+						args: z.infer<ArgsSchema>;
+					}
+			: OptionsSchema extends z.ZodType
+				? {
+						config: Config | null;
+						logger: Logger;
+						options: GlobalOptions;
+						auth: AuthData | undefined;
+						opts: z.infer<OptionsSchema>;
+					}
+				: {
+						config: Config | null;
+						logger: Logger;
+						options: GlobalOptions;
+						auth: AuthData | undefined;
+					}
+		: ArgsSchema extends z.ZodType
+			? OptionsSchema extends z.ZodType
+				? {
+						config: Config | null;
+						logger: Logger;
+						options: GlobalOptions;
+						args: z.infer<ArgsSchema>;
+						opts: z.infer<OptionsSchema>;
+					}
+				: {
+						config: Config | null;
+						logger: Logger;
+						options: GlobalOptions;
+						args: z.infer<ArgsSchema>;
+					}
+			: OptionsSchema extends z.ZodType
+				? {
+						config: Config | null;
+						logger: Logger;
+						options: GlobalOptions;
+						opts: z.infer<OptionsSchema>;
+					}
+				: {
+						config: Config | null;
+						logger: Logger;
+						options: GlobalOptions;
+					};
 
 // Helper to create subcommands with proper type inference
 export function createSubcommand<
@@ -169,7 +201,7 @@ export function createSubcommand<
 			TRequiresAuth extends true
 				? true
 				: TOptionalAuth extends true | string
-					? true | false
+					? 'optional'
 					: false,
 			TArgsSchema,
 			TOptionsSchema
@@ -204,7 +236,7 @@ export function createCommand<
 			TRequiresAuth extends true
 				? true
 				: TOptionalAuth extends true | string
-					? true | false
+					? 'optional'
 					: false,
 			TArgsSchema,
 			TOptionsSchema
@@ -283,3 +315,8 @@ export type CommandDefinition =
 			handler?(ctx: CommandContext): void | Promise<void>;
 			subcommands?: SubcommandDefinition[];
 	  };
+
+export const ProjectSchema = zod.object({
+	projectId: zod.string().describe('the project id'),
+	orgId: zod.string().describe('the organization id'),
+});

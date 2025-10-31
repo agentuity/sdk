@@ -1,5 +1,5 @@
 import { createSubcommand } from '../../types';
-import { getAPIBaseURL, getAppBaseURL, UpgradeRequiredError } from '../../api';
+import { getAPIBaseURL, getAppBaseURL, UpgradeRequiredError } from '@agentuity/server';
 import { saveAuth } from '../../config';
 import { generateSignupOTP, pollForSignupCompletion } from './api';
 import * as tui from '../../tui';
@@ -11,8 +11,8 @@ export const signupCommand = createSubcommand({
 
 	async handler(ctx) {
 		const { logger, config } = ctx;
-		const apiUrl = getAPIBaseURL(config);
-		const appUrl = getAppBaseURL(config);
+		const apiUrl = getAPIBaseURL(config?.overrides);
+		const appUrl = getAppBaseURL(config?.overrides);
 
 		try {
 			const otp = generateSignupOTP();

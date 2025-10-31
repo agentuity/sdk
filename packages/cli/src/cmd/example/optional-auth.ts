@@ -10,7 +10,7 @@ export const optionalAuthSubcommand: SubcommandDefinition = {
 
 		// Type guard to check if auth is present
 		const ctxWithAuth = ctx as CommandContext<true>;
-		if ('auth' in ctx && ctxWithAuth.auth) {
+		if (ctxWithAuth.auth) {
 			const auth = ctxWithAuth.auth as AuthData;
 			// User chose to authenticate
 			tui.success('You are authenticated!');

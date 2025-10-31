@@ -180,32 +180,3 @@ export async function optionalAuth(
 
 	return null;
 }
-
-export function withAuth<TArgs extends unknown[]>(
-	ctx: CommandContext<false>,
-	handler: (ctx: CommandContext<true>, ...args: TArgs) => Promise<void> | void
-): (...args: TArgs) => Promise<void> {
-	return async (...args: TArgs) => {
-		const auth = await requireAuth(ctx);
-		const authenticatedCtx: CommandContext<true> = {
-			...ctx,
-			auth,
-		};
-		return handler(authenticatedCtx, ...args);
-	};
-}
-
-export function withOptionalAuth<TArgs extends unknown[]>(
-	ctx: CommandContext<false>,
-	handler: (
-		ctx: CommandContext<false>,
-		auth: AuthData | null,
-		...args: TArgs
-	) => Promise<void> | void,
-	continueText?: string
-): (...args: TArgs) => Promise<void> {
-	return async (...args: TArgs) => {
-		const auth = await optionalAuth(ctx, continueText);
-		return handler(ctx, auth, ...args);
-	};
-}

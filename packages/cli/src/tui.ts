@@ -4,7 +4,8 @@
  * Provides semantic helpers for console output with automatic icons and colors.
  * Uses Bun's built-in color support and ANSI escape codes.
  */
-
+import enquirer from 'enquirer';
+import type { OrganizationList } from '@agentuity/server';
 import type { ColorScheme } from './terminal';
 
 // Icons
@@ -1054,4 +1055,30 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 		// Always restore cursor visibility
 		process.stdout.write('\x1B[?25h');
 	}
+}
+
+export async function selectOrganization(
+	orgs: OrganizationList,
+	initial?: string
+): Promise<string> {
+	if (orgs.length === 0) {
+		fatal(
+			'You do not belong to any organizations.\n' +
+				'Please contact support or create an organization at https://agentuity.com'
+		);
+	}
+
+	if (orgs.length === 1) {
+		return orgs[0].id;
+	}
+
+	const response = await enquirer.prompt<{ action: string }>({
+		type: 'select',
+		name: 'action',
+		message: 'Select an organization',
+		initial,
+		choices: orgs.map((o) => ({ message: o.name, name: o.id })),
+	});
+
+	return response.action;
 }

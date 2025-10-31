@@ -7,7 +7,7 @@ export const createProjectSubcommand = createSubcommand({
 	description: 'Create a new project',
 	aliases: ['new'],
 	toplevel: true,
-	requiresAuth: false,
+	optionalAuth: true,
 	schema: {
 		options: z.object({
 			name: z.string().optional().describe('Project name'),
@@ -31,12 +31,18 @@ export const createProjectSubcommand = createSubcommand({
 				.optional()
 				.default(true)
 				.describe('Run bun run build after installing (use --no-build to skip)'),
-			confirm: z.boolean().optional().describe('Skip confirmation prompts'),
+			confirm: z.boolean().optional().describe('Show confirmation prompts'),
+			register: z
+				.boolean()
+				.default(true)
+				.optional()
+				.describe('Register the project, if authenticated (use --no-register to skip)'),
 		}),
 	},
 
 	async handler(ctx) {
-		const { logger, opts } = ctx;
+		const { logger, opts, auth, config } = ctx;
+
 		await runCreateFlow({
 			projectName: opts.name,
 			dir: opts.dir,
@@ -47,6 +53,8 @@ export const createProjectSubcommand = createSubcommand({
 			noBuild: opts.build === false,
 			skipPrompts: opts.confirm === true,
 			logger,
+			auth: opts.register === true ? auth : undefined,
+			config: config!,
 		});
 	},
 });

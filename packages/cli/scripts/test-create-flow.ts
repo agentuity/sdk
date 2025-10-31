@@ -82,6 +82,7 @@ async function createProject(): Promise<boolean> {
 			'--template-dir',
 			TEMPLATES_DIR,
 			'--confirm',
+			'--no-register',
 			'--no-build', // Don't build yet - we need to link local packages first
 		],
 		{

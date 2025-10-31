@@ -1,4 +1,6 @@
-import { APIClient, APIError, z } from '../../api';
+import { z } from 'zod';
+import { APIError, APIResponseSchema } from '@agentuity/server';
+import { APIClient } from '../../api';
 import type { Config } from '../../types';
 
 // Zod schemas for API validation
@@ -17,13 +19,6 @@ const SignupCompleteDataSchema = z.object({
 	apiKey: z.string(),
 	expiresAt: z.number(),
 });
-
-const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
-	z.object({
-		success: z.boolean(),
-		message: z.string(),
-		data: dataSchema.optional(),
-	});
 
 const OTPCheckRequestSchema = z.object({
 	otp: z.string(),

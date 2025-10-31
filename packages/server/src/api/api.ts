@@ -10,7 +10,7 @@
 
 import { z } from 'zod';
 
-interface APIErrorResponse {
+export interface APIErrorResponse {
 	success: boolean;
 	code?: string;
 	message: string;
@@ -232,3 +232,10 @@ export function getAppBaseURL(overrides?: { app_url?: string }): string {
 
 	return 'https://app.agentuity.com';
 }
+
+export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
+	z.object({
+		success: z.boolean(),
+		message: z.string().optional().describe('the error message if success=false'),
+		data: dataSchema.optional(),
+	});

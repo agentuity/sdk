@@ -3,7 +3,7 @@ import { join, extname, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import type { Config, Profile, AuthData } from './types';
-import { ConfigSchema } from './types';
+import { ConfigSchema, ProjectSchema } from './types';
 import * as tui from './tui';
 import { z } from 'zod';
 
@@ -90,8 +90,15 @@ export async function fetchProfiles(): Promise<Profile[]> {
 	return profiles;
 }
 
+function expandTilde(path: string): string {
+	if (path.startsWith('~/')) {
+		return join(homedir(), path.slice(2));
+	}
+	return path;
+}
+
 export async function loadConfig(customPath?: string): Promise<Config | null> {
-	const configPath = customPath || (await getProfile());
+	const configPath = customPath ? expandTilde(customPath) : await getProfile();
 
 	try {
 		const file = Bun.file(configPath);
@@ -248,7 +255,7 @@ function getPlaceholderValue(schema: z.ZodTypeAny): string {
 	}
 }
 
-function generateYAMLTemplate(name: string): string {
+export function generateYAMLTemplate(name: string): string {
 	const lines: string[] = [];
 
 	// Add name (required)
@@ -308,4 +315,49 @@ function generateYAMLTemplate(name: string): string {
 	return lines.join('\n');
 }
 
-export { generateYAMLTemplate };
+class ProjectConfigNotFoundExpection extends Error {
+	public name: string;
+	constructor() {
+		super('project not found');
+		this.name = 'ProjectConfigNotFoundExpection';
+	}
+}
+
+type ProjectConfig = z.infer<typeof ProjectSchema>;
+
+export async function loadProjectConfig(dir: string): Promise<ProjectConfig> {
+	const configPath = join(dir, 'agentuity.json');
+	const file = Bun.file(configPath);
+	if (!(await file.exists())) {
+		throw new ProjectConfigNotFoundExpection();
+	}
+	const text = await file.text();
+	const config = JSON.parse(text);
+	const result = ProjectSchema.safeParse(config);
+	if (!result.success) {
+		tui.error(`Invalid project config at ${configPath}:`);
+		for (const issue of result.error.issues) {
+			const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
+			tui.bullet(`${path}: ${issue.message}`);
+		}
+		process.exit(1);
+	}
+	return result.data;
+}
+
+type InitialProjectConfig = ProjectConfig & {
+	apiKey: string;
+};
+
+export async function createProjectConfig(dir: string, config: InitialProjectConfig) {
+	// Create a sanitized config without the apiKey for agentuity.json
+	const { apiKey, ...sanitizedConfig } = config;
+
+	const configPath = join(dir, 'agentuity.json');
+	const configFile = Bun.file(configPath);
+	await configFile.write(JSON.stringify(sanitizedConfig, null, 2));
+
+	const envPath = join(dir, '.env');
+	const envFile = Bun.file(envPath);
+	await envFile.write(`AGENTUITY_SDK_KEY=${apiKey}`);
+}

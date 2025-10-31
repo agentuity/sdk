@@ -13,9 +13,6 @@ import {
 	type APIClientConfig,
 } from '@agentuity/server';
 
-// Re-export error classes and utilities
-export { APIError, UpgradeRequiredError, ValidationError, z } from '@agentuity/server';
-
 function getUserAgent(config?: Config | null): string {
 	// If we're skipping version check, send "dev" to signal the server to skip too
 	let version = getVersion();
@@ -72,7 +69,11 @@ export class APIClient extends BaseAPIClient {
 		if (typeof apiKeyOrConfig === 'string') {
 			super(baseUrl, apiKeyOrConfig, clientConfig);
 		} else {
-			super(baseUrl, clientConfig);
+			if (apiKeyOrConfig?.auth?.api_key) {
+				super(baseUrl, apiKeyOrConfig.auth.api_key, clientConfig);
+			} else {
+				super(baseUrl, clientConfig);
+			}
 		}
 	}
 }

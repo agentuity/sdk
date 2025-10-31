@@ -1,7 +1,9 @@
 {
 	"name": "testing",
+	"private": true,
 	"scripts": {
 		"build": "cd auth-app && bun run build && cd ../custom-app && bun run build && cd ../unauth-app && bun run build",
 		"test": "cd auth-app && bun run test && cd ../custom-app && bun run test && cd ../unauth-app && bun run test"
-	}
+	},
+	"version": "0.0.41"
 }

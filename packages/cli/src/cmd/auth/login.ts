@@ -1,5 +1,6 @@
 import { createSubcommand } from '../../types';
-import { getAPIBaseURL, getAppBaseURL, UpgradeRequiredError } from '../../api';
+import { UpgradeRequiredError } from '@agentuity/server';
+import { getAPIBaseURL, getAppBaseURL } from '../../api';
 import { saveAuth } from '../../config';
 import { generateLoginOTP, pollForLoginCompletion } from './api';
 import * as tui from '../../tui';

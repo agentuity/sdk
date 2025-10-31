@@ -3,12 +3,21 @@ import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { cwd } from 'node:process';
 import { homedir } from 'node:os';
 import enquirer from 'enquirer';
+import {
+	projectCreate,
+	projectExists,
+	listOrganizations,
+	type OrganizationList,
+} from '@agentuity/server';
 import type { Logger } from '../../logger';
 import * as tui from '../../tui';
 import { playSound } from '../../sound';
 import { fetchTemplates, type TemplateInfo } from './templates';
 import { downloadTemplate, setupProject } from './download';
 import { showBanner } from '../../banner';
+import type { AuthData, Config } from '../../types';
+import { getAPIBaseURL, APIClient } from '../../api';
+import { createProjectConfig } from '../../config';
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -20,6 +29,8 @@ interface CreateFlowOptions {
 	noBuild: boolean;
 	skipPrompts: boolean;
 	logger: Logger;
+	auth?: AuthData;
+	config?: Config;
 }
 
 export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
@@ -31,6 +42,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		templateBranch,
 		skipPrompts,
 		logger,
+		auth,
+		config,
 	} = options;
 
 	showBanner();
@@ -52,15 +65,38 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 	// Step 2: Get project name
 	let projectName = initialProjectName;
+
+	let orgs: OrganizationList | undefined;
+	let client: APIClient | undefined;
+	let orgId: string | undefined;
+
+	if (auth) {
+		const apiUrl = getAPIBaseURL(config);
+		client = new APIClient(apiUrl, config);
+		await tui.spinner('Fetching organizations', async () => {
+			const resp = await listOrganizations(client!);
+			if (resp.data) {
+				orgs = resp.data;
+			}
+		});
+		orgId = await tui.selectOrganization(orgs!, config?.preferences?.orgId);
+	}
+
 	if (!projectName && !skipPrompts) {
 		const response = await enquirer.prompt<{ name: string }>({
 			type: 'input',
 			name: 'name',
 			message: 'What is the name of your project?',
 			initial: 'My First Agent',
-			validate: (value: string) => {
+			validate: async (value: string) => {
 				if (!value || value.trim().length === 0) {
 					return 'Project name is required';
+				}
+				if (client) {
+					const exists = await projectExists(client, { name: value, organization_id: orgId! });
+					if (exists) {
+						return `Project with name '${value}' already exists in this organization`;
+					}
 				}
 				return true;
 			},
@@ -162,6 +198,24 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		noBuild: options.noBuild,
 		logger,
 	});
+
+	if (auth && client && orgId) {
+		await tui.spinner('Registering your project', async () => {
+			const res = await projectCreate(client, {
+				name: projectName,
+				organization_id: orgId,
+				provider: 'bunjs',
+			});
+			if (res.success && res.data) {
+				return createProjectConfig(dest, {
+					projectId: res.data.id,
+					orgId,
+					apiKey: res.data.api_key,
+				});
+			}
+			tui.fatal(res.message ?? 'failed to register project');
+		});
+	}
 
 	// Step 8: Show completion message
 	tui.success('✨ Project created successfully!\n');

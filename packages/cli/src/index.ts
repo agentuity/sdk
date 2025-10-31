@@ -1,7 +1,7 @@
 export { createCLI, registerCommands } from './cli';
 export { validateRuntime, isBun } from './runtime';
 export { getVersion, getRevision, getPackageName, getPackage } from './version';
-export { requireAuth, optionalAuth, withAuth, withOptionalAuth } from './auth';
+export { requireAuth, optionalAuth } from './auth';
 export {
 	loadConfig,
 	saveConfig,
@@ -16,7 +16,7 @@ export {
 	clearAuth,
 	getAuth,
 } from './config';
-export { APIClient, getAPIBaseURL, getAppBaseURL, UpgradeRequiredError } from './api';
+export { APIClient, getAPIBaseURL, getAppBaseURL } from './api';
 export { Logger, logger } from './logger';
 export { showBanner } from './banner';
 export { discoverCommands } from './cmd';
