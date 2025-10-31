@@ -1,32 +1,39 @@
-import { APIClient, APIError } from '../../api';
+import { APIClient, APIError, z } from '../../api';
 import type { Config } from '../../types';
 
-interface APIResponse<T> {
-	success: boolean;
-	message: string;
-	data?: T;
-}
+// Zod schemas for API validation
+const OTPStartDataSchema = z.object({
+	otp: z.string(),
+});
 
-interface OTPStartData {
-	otp: string;
-}
+const OTPCompleteDataSchema = z.object({
+	apiKey: z.string(),
+	userId: z.string(),
+	expires: z.number(),
+});
 
-interface OTPCompleteData {
-	apiKey: string;
-	userId: string;
-	expires: number;
-}
+const SignupCompleteDataSchema = z.object({
+	userId: z.string(),
+	apiKey: z.string(),
+	expiresAt: z.number(),
+});
 
+const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
+	z.object({
+		success: z.boolean(),
+		message: z.string(),
+		data: dataSchema.optional(),
+	});
+
+const OTPCheckRequestSchema = z.object({
+	otp: z.string(),
+});
+
+// Exported result types
 export interface LoginResult {
 	apiKey: string;
 	userId: string;
 	expires: Date;
-}
-
-interface SignupCompleteData {
-	userId: string;
-	apiKey: string;
-	expiresAt: number;
 }
 
 export interface SignupResult {
@@ -36,8 +43,12 @@ export interface SignupResult {
 }
 
 export async function generateLoginOTP(apiUrl: string, config?: Config | null): Promise<string> {
-	const client = new APIClient(apiUrl, undefined, config);
-	const resp = await client.request<APIResponse<OTPStartData>>('GET', '/cli/auth/start');
+	const client = new APIClient(apiUrl, config);
+	const resp = await client.request(
+		'GET',
+		'/cli/auth/start',
+		APIResponseSchema(OTPStartDataSchema)
+	);
 
 	if (!resp.success) {
 		throw new Error(resp.message);
@@ -56,13 +67,17 @@ export async function pollForLoginCompletion(
 	config?: Config | null,
 	timeoutMs = 60000
 ): Promise<LoginResult> {
-	const client = new APIClient(apiUrl, undefined, config);
+	const client = new APIClient(apiUrl, config);
 	const started = Date.now();
 
 	while (Date.now() - started < timeoutMs) {
-		const resp = await client.request<APIResponse<OTPCompleteData>>('POST', '/cli/auth/check', {
-			otp,
-		});
+		const resp = await client.request(
+			'POST',
+			'/cli/auth/check',
+			APIResponseSchema(OTPCompleteDataSchema),
+			{ otp },
+			OTPCheckRequestSchema
+		);
 
 		if (!resp.success) {
 			throw new Error(resp.message);
@@ -99,14 +114,15 @@ export async function pollForSignupCompletion(
 	config?: Config | null,
 	timeoutMs = 300000
 ): Promise<SignupResult> {
-	const client = new APIClient(apiUrl, undefined, config);
+	const client = new APIClient(apiUrl, config);
 	const started = Date.now();
 
 	while (Date.now() - started < timeoutMs) {
 		try {
-			const resp = await client.request<APIResponse<SignupCompleteData>>(
+			const resp = await client.request(
 				'GET',
-				`/cli/auth/signup/${otp}`
+				`/cli/auth/signup/${otp}`,
+				APIResponseSchema(SignupCompleteDataSchema)
 			);
 
 			if (!resp.success) {

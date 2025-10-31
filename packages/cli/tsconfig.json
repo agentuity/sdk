@@ -3,8 +3,13 @@
 	"compilerOptions": {
 		"composite": true,
 		"outDir": "./dist",
-		"rootDir": "./src"
+		"rootDir": "./src",
+		"paths": {
+			"@agentuity/core": ["../core/src"],
+			"@agentuity/server": ["../server/src"]
+		}
 	},
 	"include": ["src/**/*"],
-	"exclude": ["node_modules", "dist"]
+	"exclude": ["node_modules", "dist"],
+	"references": [{ "path": "../core" }, { "path": "../server" }]
 }

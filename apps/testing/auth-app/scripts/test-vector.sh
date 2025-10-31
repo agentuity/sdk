@@ -69,6 +69,11 @@ curl -s -X POST "$BASE_URL" \
 echo -e "${GREEN}✓${NC} Inserted 3 additional documents"
 echo ""
 
+if [ "$CI" != "" ];
+then
+	sleep 3
+fi
+
 # Step 3: Get a specific vector by key
 echo "Step 3: Getting vector by key..."
 GET_RESPONSE=$(curl -s -X POST "$BASE_URL" \

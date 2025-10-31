@@ -1,5 +1,7 @@
 export * from './config';
 export * from './server';
+export * from './api';
+export { z } from 'zod';
 export type {
 	FetchAdapter,
 	FetchRequest,

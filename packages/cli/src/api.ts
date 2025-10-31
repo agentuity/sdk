@@ -1,24 +1,20 @@
 /**
- * API Client for Agentuity Platform
+ * CLI-specific API client wrapper
  *
- * Handles HTTP requests to the API with automatic error parsing and User-Agent headers.
- *
- * Error handling:
- * - UPGRADE_REQUIRED (409): Throws UpgradeRequiredError
- * - Other errors: Throws Error with API message or status text
- *
- * See api-errors.md for full documentation.
+ * Re-exports from @agentuity/server with CLI-specific configuration
  */
 
 import type { Config } from './types';
 import { getVersion, getRevision } from './version';
+import {
+	APIClient as BaseAPIClient,
+	getAPIBaseURL as baseGetAPIBaseURL,
+	getAppBaseURL as baseGetAppBaseURL,
+	type APIClientConfig,
+} from '@agentuity/server';
 
-interface APIErrorResponse {
-	success: boolean;
-	code?: string;
-	message: string;
-	details?: Record<string, unknown>;
-}
+// Re-export error classes and utilities
+export { APIError, UpgradeRequiredError, ValidationError, z } from '@agentuity/server';
 
 function getUserAgent(config?: Config | null): string {
 	// If we're skipping version check, send "dev" to signal the server to skip too
@@ -61,140 +57,32 @@ function shouldSkipVersionCheck(config?: Config | null): boolean {
 	return false;
 }
 
-export class UpgradeRequiredError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = 'UpgradeRequiredError';
-	}
-}
-
-export class APIError extends Error {
-	constructor(
-		message: string,
-		public status: number,
-		public code?: string
-	) {
-		super(message);
-		this.name = 'APIError';
-	}
-}
-
-export class APIClient {
-	constructor(
-		private baseUrl: string,
-		private apiKey?: string,
-		private config?: Config | null
-	) {}
-
-	async request<T>(method: string, endpoint: string, body?: unknown): Promise<T> {
-		const url = `${this.baseUrl}${endpoint}`;
-		const headers: Record<string, string> = {
-			'Content-Type': 'application/json',
-			'User-Agent': getUserAgent(this.config),
+// CLI-specific wrapper around the base APIClient
+export class APIClient extends BaseAPIClient {
+	constructor(baseUrl: string, config?: Config | null);
+	constructor(baseUrl: string, apiKey: string, config?: Config | null);
+	constructor(baseUrl: string, apiKeyOrConfig?: string | Config | null, config?: Config | null) {
+		const clientConfig: APIClientConfig = {
+			skipVersionCheck: shouldSkipVersionCheck(
+				typeof apiKeyOrConfig === 'string' ? config : apiKeyOrConfig
+			),
+			userAgent: getUserAgent(typeof apiKeyOrConfig === 'string' ? config : apiKeyOrConfig),
 		};
 
-		if (this.apiKey) {
-			headers['Authorization'] = `Bearer ${this.apiKey}`;
+		if (typeof apiKeyOrConfig === 'string') {
+			super(baseUrl, apiKeyOrConfig, clientConfig);
+		} else {
+			super(baseUrl, clientConfig);
 		}
-
-		const response = await fetch(url, {
-			method,
-			headers,
-			body: body ? JSON.stringify(body) : undefined,
-		});
-
-		if (!response.ok) {
-			const responseBody = await response.text();
-
-			// Try to parse error response
-			let errorData: APIErrorResponse | null = null;
-			try {
-				errorData = JSON.parse(responseBody) as APIErrorResponse;
-			} catch {
-				// Not JSON, ignore
-			}
-
-			if (process.env.DEBUG) {
-				// Sanitize headers to avoid leaking API keys
-				const sanitizedHeaders = { ...headers };
-				for (const key in sanitizedHeaders) {
-					if (key.toLowerCase() === 'authorization') {
-						sanitizedHeaders[key] = 'REDACTED';
-					}
-				}
-
-				console.error('API Error Details:');
-				console.error('  URL:', url);
-				console.error('  Method:', method);
-				console.error('  Status:', response.status, response.statusText);
-				console.error('  Headers:', JSON.stringify(sanitizedHeaders, null, 2));
-				console.error('  Response:', responseBody);
-			}
-
-			// Check for UPGRADE_REQUIRED error
-			if (errorData?.code === 'UPGRADE_REQUIRED') {
-				// Skip version check in development
-				if (shouldSkipVersionCheck(this.config)) {
-					if (process.env.DEBUG) {
-						console.error(
-							'[DEBUG] Skipping version check (flag/env/config override or dev mode)'
-						);
-					}
-					// Continue as if there was no error - the server should still process the request
-					// but we'll throw a different error since we can't continue with a 409
-					throw new Error('Version check skipped, but request failed. Try upgrading the CLI.');
-				}
-
-				throw new UpgradeRequiredError(
-					errorData.message || 'Please upgrade to the latest version of the CLI'
-				);
-			}
-
-			// Throw with message from API if available
-			if (errorData?.message) {
-				throw new APIError(errorData.message, response.status, errorData.code);
-			}
-
-			throw new APIError(
-				`API error: ${response.status} ${response.statusText}`,
-				response.status
-			);
-		}
-
-		// Successful response; handle empty bodies (e.g., 204 No Content)
-		if (response.status === 204) {
-			return undefined as T;
-		}
-		const contentLength = response.headers.get('content-length');
-		if (contentLength === '0') {
-			return undefined as T;
-		}
-		return response.json() as Promise<T>;
 	}
 }
 
 export function getAPIBaseURL(config?: Config | null): string {
-	if (process.env.AGENTUITY_API_URL) {
-		return process.env.AGENTUITY_API_URL;
-	}
-
 	const overrides = config?.overrides as { api_url?: string } | undefined;
-	if (overrides?.api_url) {
-		return overrides.api_url;
-	}
-
-	return 'https://api.agentuity.com';
+	return baseGetAPIBaseURL(overrides);
 }
 
 export function getAppBaseURL(config?: Config | null): string {
-	if (process.env.AGENTUITY_APP_URL) {
-		return process.env.AGENTUITY_APP_URL;
-	}
-
 	const overrides = config?.overrides as { app_url?: string } | undefined;
-	if (overrides?.app_url) {
-		return overrides.app_url;
-	}
-
-	return 'https://app.agentuity.com';
+	return baseGetAppBaseURL(overrides);
 }

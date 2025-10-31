@@ -1,10 +1,10 @@
-import type { SubcommandDefinition } from '../../types';
+import { createSubcommand } from '../../types';
 import { getAPIBaseURL, getAppBaseURL, UpgradeRequiredError } from '../../api';
 import { saveAuth } from '../../config';
 import { generateSignupOTP, pollForSignupCompletion } from './api';
 import * as tui from '../../tui';
 
-export const signupCommand: SubcommandDefinition = {
+export const signupCommand = createSubcommand({
 	name: 'signup',
 	description: 'Create a new Agentuity Cloud Platform account',
 	toplevel: true,
@@ -48,4 +48,4 @@ export const signupCommand: SubcommandDefinition = {
 			}
 		}
 	},
-};
+});

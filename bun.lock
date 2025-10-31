@@ -104,6 +104,7 @@
       },
       "dependencies": {
         "@agentuity/core": "workspace:*",
+        "@agentuity/server": "workspace:*",
         "acorn-loose": "^8.5.2",
         "astring": "^1.9.0",
         "commander": "^14.0.2",
@@ -176,6 +177,7 @@
       "version": "0.0.35",
       "dependencies": {
         "@agentuity/core": "workspace:*",
+        "zod": "^4.1.12",
       },
       "devDependencies": {
         "@types/node": "^22.0.0",

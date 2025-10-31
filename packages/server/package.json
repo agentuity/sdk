@@ -7,6 +7,7 @@
 	"files": [
 		"AGENTS.md",
 		"README.md",
+		"src",
 		"dist"
 	],
 	"exports": {
@@ -22,7 +23,8 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*"
+		"@agentuity/core": "workspace:*",
+		"zod": "^4.1.12"
 	},
 	"devDependencies": {
 		"@types/node": "^22.0.0",
