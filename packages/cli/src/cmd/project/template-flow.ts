@@ -17,7 +17,7 @@ import { downloadTemplate, setupProject } from './download';
 import { showBanner } from '../../banner';
 import type { AuthData, Config } from '../../types';
 import { getAPIBaseURL, APIClient } from '../../api';
-import { createProjectConfig } from '../../config';
+import { createProjectConfig, saveOrgId } from '../../config';
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -81,6 +81,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			tui.fatal('no organizations could be found for your login');
 		}
 		orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
+
+		if (orgId && orgId !== config?.preferences?.orgId) {
+			await saveOrgId(orgId);
+		}
 	}
 
 	if (!projectName && !skipPrompts) {

@@ -231,6 +231,13 @@ export async function saveProjectDir(projectDir: string): Promise<void> {
 	await saveConfig(config);
 }
 
+export async function saveOrgId(orgId: string): Promise<void> {
+	const config = await getOrInitConfig();
+	config.preferences = config.preferences || {};
+	(config.preferences as Record<string, unknown>).orgId = orgId;
+	await saveConfig(config);
+}
+
 export async function getAuth(): Promise<AuthData | null> {
 	const config = await loadConfig();
 	if (!config) return null;
