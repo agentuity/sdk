@@ -10,6 +10,9 @@ concurrency:
    group: ${{ github.workflow }}-${{ github.ref }}
    cancel-in-progress: false
 
+env:
+   CI: true
+
 jobs:
    build:
       runs-on: blacksmith-2vcpu-ubuntu-2404
