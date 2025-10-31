@@ -7,6 +7,7 @@ import {
 	projectCreate,
 	projectExists,
 	listOrganizations,
+	projectEnvUpdate,
 	type OrganizationList,
 } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
@@ -18,6 +19,12 @@ import { showBanner } from '../../banner';
 import type { AuthData, Config } from '../../types';
 import { getAPIBaseURL, APIClient } from '../../api';
 import { createProjectConfig, saveOrgId } from '../../config';
+import {
+	findEnvFile,
+	readEnvFile,
+	filterAgentuitySdkKeys,
+	splitEnvAndSecrets,
+} from '../../env-util';
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -205,6 +212,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	});
 
 	if (auth && client && orgId) {
+		let projectId: string | undefined;
+
 		await tui.spinner('Registering your project', async () => {
 			const res = await projectCreate(client, {
 				name: projectName,
@@ -212,6 +221,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				provider: 'bunjs',
 			});
 			if (res.success && res.data) {
+				projectId = res.data.id;
 				return createProjectConfig(dest, {
 					projectId: res.data.id,
 					orgId,
@@ -220,6 +230,32 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			}
 			tui.fatal(res.message ?? 'failed to register project');
 		});
+
+		// After registration, push any existing env/secrets from .env.production
+		if (projectId) {
+			await tui.spinner('Syncing environment variables', async () => {
+				try {
+					const envFilePath = await findEnvFile(dest);
+					const localEnv = await readEnvFile(envFilePath);
+					const filteredEnv = filterAgentuitySdkKeys(localEnv);
+
+					if (Object.keys(filteredEnv).length > 0) {
+						const { env, secrets } = splitEnvAndSecrets(filteredEnv);
+						await projectEnvUpdate(client, {
+							id: projectId!,
+							env,
+							secrets,
+						});
+						logger.debug(
+							`Synced ${Object.keys(filteredEnv).length} environment variables to cloud`
+						);
+					}
+				} catch (error) {
+					// Non-fatal: just log the error
+					logger.debug('Failed to sync environment variables:', error);
+				}
+			});
+		}
 	}
 
 	// Step 8: Show completion message

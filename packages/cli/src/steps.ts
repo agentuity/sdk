@@ -87,7 +87,7 @@ const COLORS = {
 // Spinner color sequence
 const SPINNER_COLORS = ['cyan', 'blue', 'magenta', 'cyan'] as const;
 
-let currentColorScheme: ColorScheme = 'dark';
+let currentColorScheme: ColorScheme = process.env.CI ? 'light' : 'dark';
 
 export function setStepsColorScheme(scheme: ColorScheme): void {
 	currentColorScheme = scheme;

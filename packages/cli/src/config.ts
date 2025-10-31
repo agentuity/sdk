@@ -382,9 +382,14 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	const configFile = Bun.file(configPath);
 	await configFile.write(JSON.stringify(sanitizedConfig, null, 2));
 
+	// Write SDK key to .env with comment
 	const envPath = join(dir, '.env');
-	const envFile = Bun.file(envPath);
-	await envFile.write(`AGENTUITY_SDK_KEY=${apiKey}`);
+	const comment =
+		'# AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
+	const content = `${comment}\nAGENTUITY_SDK_KEY=${apiKey}\n`;
+	await Bun.write(envPath, content);
+	// Set restrictive permissions (owner read/write only) to protect sensitive key
+	await chmod(envPath, 0o600);
 }
 
 export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {

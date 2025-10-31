@@ -3,3 +3,5 @@ node_modules/
 out/
 *.tsbuildinfo
 src/agents/*.generated.*
+.env
+.env.*

@@ -6,6 +6,14 @@ import { loadProjectConfig, saveProjectDir } from '../../config';
 import { runSteps, stepSuccess, stepSkipped, stepError } from '../../steps';
 import { bundle } from '../bundle/bundler';
 import { loadBuildMetadata } from '../../config';
+import { projectEnvUpdate } from '@agentuity/server';
+import { getAPIBaseURL, APIClient } from '../../api';
+import {
+	findEnvFile,
+	readEnvFile,
+	filterAgentuitySdkKeys,
+	splitEnvAndSecrets,
+} from '../../env-util';
 
 export const deploySubcommand = createSubcommand({
 	name: 'deploy',
@@ -19,7 +27,7 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { opts } = ctx;
+		const { opts, config } = ctx;
 		const dir = opts?.dir ?? process.cwd();
 		try {
 			const project = await loadProjectConfig(dir);
@@ -27,7 +35,44 @@ export const deploySubcommand = createSubcommand({
 				console.log(project); // FIXME
 			}
 			await saveProjectDir(dir);
+
+			const apiUrl = getAPIBaseURL(config);
+			const client = new APIClient(apiUrl, config);
+
 			await runSteps([
+				{
+					label: 'Sync Environment Variables',
+					run: async () => {
+						try {
+							// Read local env file (.env.production or .env)
+							const envFilePath = await findEnvFile(dir);
+							const localEnv = await readEnvFile(envFilePath);
+
+							// Filter out AGENTUITY_ keys
+							const filteredEnv = filterAgentuitySdkKeys(localEnv);
+
+							if (Object.keys(filteredEnv).length === 0) {
+								return stepSkipped('no environment variables to sync');
+							}
+
+							// Split into env and secrets
+							const { env, secrets } = splitEnvAndSecrets(filteredEnv);
+
+							// Push to cloud
+							await projectEnvUpdate(client, {
+								id: project.projectId,
+								env,
+								secrets,
+							});
+
+							return stepSuccess();
+						} catch (ex) {
+							// Non-fatal: log warning but continue deployment
+							const _ex = ex as Error;
+							return stepSkipped(_ex.message ?? 'failed to sync env variables');
+						}
+					},
+				},
 				{
 					label: 'Create Deployment',
 					run: async () => {

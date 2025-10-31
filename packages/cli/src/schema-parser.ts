@@ -203,9 +203,8 @@ export function buildValidationInput(
 	if (schemas.options) {
 		const parsed = parseOptionsSchema(schemas.options);
 		for (const opt of parsed) {
-			if (rawOptions[opt.name] !== undefined) {
-				result.options[opt.name] = rawOptions[opt.name];
-			}
+			// Always include the option value (even if undefined) so zod can apply defaults
+			result.options[opt.name] = rawOptions[opt.name];
 		}
 	}
 

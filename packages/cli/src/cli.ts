@@ -69,9 +69,14 @@ async function registerSubcommand(
 			if (opt.type === 'boolean') {
 				// Support negatable boolean options (--no-flag) when they have a default
 				if (opt.hasDefault) {
+					// Evaluate default value (could be a function)
+					const defaultValue =
+						typeof opt.defaultValue === 'function' ? opt.defaultValue() : opt.defaultValue;
 					cmd.option(`--no-${flag}`, desc);
+					cmd.option(`--${flag}`, desc, defaultValue);
+				} else {
+					cmd.option(`--${flag}`, desc);
 				}
-				cmd.option(`--${flag}`, desc);
 			} else if (opt.type === 'number') {
 				cmd.option(`--${flag} <${opt.name}>`, desc, parseFloat);
 			} else {
@@ -108,9 +113,21 @@ async function registerSubcommand(
 						const issues = (error as { issues: Array<{ path: string[]; message: string }> })
 							.issues;
 						for (const issue of issues) {
-							baseCtx.logger.error(`  ${issue.path.join('.')}: ${issue.message}`);
+							baseCtx.logger.error(
+								`  ${issue.path?.length ? issue.path.join('.') + ': ' : ''}${issue.message}`
+							);
 						}
 						process.exit(1);
+					}
+					if (
+						error &&
+						typeof error === 'object' &&
+						'name' in error &&
+						error.name === 'ProjectConfigNotFoundExpection'
+					) {
+						baseCtx.logger.fatal(
+							'invalid project folder. use --dir to specify a different directory or change to a project folder'
+						);
 					}
 					throw error;
 				}
@@ -146,9 +163,21 @@ async function registerSubcommand(
 						const issues = (error as { issues: Array<{ path: string[]; message: string }> })
 							.issues;
 						for (const issue of issues) {
-							baseCtx.logger.error(`  ${issue.path.join('.')}: ${issue.message}`);
+							baseCtx.logger.error(
+								`  ${issue.path?.length ? issue.path.join('.') + ': ' : ''}${issue.message}`
+							);
 						}
 						process.exit(1);
+					}
+					if (
+						error &&
+						typeof error === 'object' &&
+						'name' in error &&
+						error.name === 'ProjectConfigNotFoundExpection'
+					) {
+						baseCtx.logger.fatal(
+							'invalid project folder. use --dir to specify a different directory or change to a project folder'
+						);
 					}
 					throw error;
 				}
@@ -176,9 +205,21 @@ async function registerSubcommand(
 						const issues = (error as { issues: Array<{ path: string[]; message: string }> })
 							.issues;
 						for (const issue of issues) {
-							baseCtx.logger.error(`  ${issue.path.join('.')}: ${issue.message}`);
+							baseCtx.logger.error(
+								`  ${issue.path?.length ? issue.path.join('.') + ': ' : ''}${issue.message}`
+							);
 						}
 						process.exit(1);
+					}
+					if (
+						error &&
+						typeof error === 'object' &&
+						'name' in error &&
+						error.name === 'ProjectConfigNotFoundExpection'
+					) {
+						baseCtx.logger.fatal(
+							'invalid project folder. use --dir to specify a different directory or change to a project folder'
+						);
 					}
 					throw error;
 				}

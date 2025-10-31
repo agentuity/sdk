@@ -166,16 +166,19 @@ export class ConsoleLogger implements Logger {
 			}
 
 			const ctx = Object.entries(this.context)
-				.map(([k, v]) => `${k}=${typeof v === 'object' ? inspect(v, { depth: 2, maxArrayLength: 50, colors: false }) : String(v)}`)
+				.map(
+					([k, v]) =>
+						`${k}=${typeof v === 'object' ? inspect(v, { depth: 2, maxArrayLength: 50, colors: false }) : String(v)}`
+				)
 				.join(' ');
-			
+
 			const result = `${base} ${ctx}`;
-			
+
 			const MAX_LENGTH = 10000;
 			if (result.length > MAX_LENGTH) {
 				return `${result.slice(0, MAX_LENGTH)} …(+${result.length - MAX_LENGTH} chars truncated)`;
 			}
-			
+
 			return result;
 		} catch {
 			const base = [String(message), ...args.map((a) => String(a))].join(' ');

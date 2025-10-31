@@ -72,7 +72,7 @@ function getColors() {
 	} as const;
 }
 
-let currentColorScheme: ColorScheme = 'dark';
+let currentColorScheme: ColorScheme = process.env.CI ? 'light' : 'dark';
 
 export function setColorScheme(scheme: ColorScheme): void {
 	currentColorScheme = scheme;
