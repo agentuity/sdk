@@ -18,38 +18,58 @@ const ICONS = {
 	bullet: '•',
 } as const;
 
+function shouldUseColors(): boolean {
+	return !process.env.NO_COLOR && process.env.TERM !== 'dumb' && !!process.stdout.isTTY;
+}
+
 // Color definitions (light/dark adaptive) using Bun.color
-const COLORS = {
-	success: {
-		light: Bun.color('#008000', 'ansi') || '\x1b[32m', // green
-		dark: Bun.color('#00FF00', 'ansi') || '\x1b[92m', // bright green
-	},
-	error: {
-		light: Bun.color('#CC0000', 'ansi') || '\x1b[31m', // red
-		dark: Bun.color('#FF5555', 'ansi') || '\x1b[91m', // bright red
-	},
-	warning: {
-		light: Bun.color('#B58900', 'ansi') || '\x1b[33m', // yellow
-		dark: Bun.color('#FFFF55', 'ansi') || '\x1b[93m', // bright yellow
-	},
-	info: {
-		light: Bun.color('#008B8B', 'ansi') || '\x1b[36m', // dark cyan
-		dark: Bun.color('#55FFFF', 'ansi') || '\x1b[96m', // bright cyan
-	},
-	muted: {
-		light: Bun.color('#808080', 'ansi') || '\x1b[90m', // gray
-		dark: Bun.color('#888888', 'ansi') || '\x1b[90m', // darker gray
-	},
-	bold: {
-		light: '\x1b[1m',
-		dark: '\x1b[1m',
-	},
-	link: {
-		light: '\x1b[34;4m', // blue underline (need ANSI for underline)
-		dark: '\x1b[94;4m', // bright blue underline
-	},
-	reset: '\x1b[0m',
-} as const;
+function getColors() {
+	const USE_COLORS = shouldUseColors();
+	if (!USE_COLORS) {
+		return {
+			success: { light: '', dark: '' },
+			error: { light: '', dark: '' },
+			warning: { light: '', dark: '' },
+			info: { light: '', dark: '' },
+			muted: { light: '', dark: '' },
+			bold: { light: '', dark: '' },
+			link: { light: '', dark: '' },
+			reset: '',
+		} as const;
+	}
+
+	return {
+		success: {
+			light: Bun.color('#008000', 'ansi') || '\x1b[32m', // green
+			dark: Bun.color('#00FF00', 'ansi') || '\x1b[92m', // bright green
+		},
+		error: {
+			light: Bun.color('#CC0000', 'ansi') || '\x1b[31m', // red
+			dark: Bun.color('#FF5555', 'ansi') || '\x1b[91m', // bright red
+		},
+		warning: {
+			light: Bun.color('#B58900', 'ansi') || '\x1b[33m', // yellow
+			dark: Bun.color('#FFFF55', 'ansi') || '\x1b[93m', // bright yellow
+		},
+		info: {
+			light: Bun.color('#008B8B', 'ansi') || '\x1b[36m', // dark cyan
+			dark: Bun.color('#55FFFF', 'ansi') || '\x1b[96m', // bright cyan
+		},
+		muted: {
+			light: Bun.color('#808080', 'ansi') || '\x1b[90m', // gray
+			dark: Bun.color('#888888', 'ansi') || '\x1b[90m', // darker gray
+		},
+		bold: {
+			light: '\x1b[1m',
+			dark: '\x1b[1m',
+		},
+		link: {
+			light: '\x1b[34;4m', // blue underline (need ANSI for underline)
+			dark: '\x1b[94;4m', // bright blue underline
+		},
+		reset: '\x1b[0m',
+	} as const;
+}
 
 let currentColorScheme: ColorScheme = 'dark';
 
@@ -57,7 +77,8 @@ export function setColorScheme(scheme: ColorScheme): void {
 	currentColorScheme = scheme;
 }
 
-function getColor(colorKey: keyof typeof COLORS): string {
+function getColor(colorKey: keyof ReturnType<typeof getColors>): string {
+	const COLORS = getColors();
 	const color = COLORS[colorKey];
 	if (typeof color === 'string') {
 		return color;
@@ -70,7 +91,7 @@ function getColor(colorKey: keyof typeof COLORS): string {
  */
 export function success(message: string): void {
 	const color = getColor('success');
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 	console.log(`${color}${ICONS.success} ${message}${reset}`);
 }
 
@@ -79,7 +100,7 @@ export function success(message: string): void {
  */
 export function error(message: string): void {
 	const color = getColor('error');
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 	console.error(`${color}${ICONS.error} ${message}${reset}`);
 }
 
@@ -88,7 +109,7 @@ export function error(message: string): void {
  */
 export function fatal(message: string): never {
 	const color = getColor('error');
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 	console.error(`${color}${ICONS.error} ${message}${reset}`);
 	process.exit(1);
 }
@@ -98,7 +119,7 @@ export function fatal(message: string): never {
  */
 export function warning(message: string, asError = false): void {
 	const color = asError ? getColor('error') : getColor('warning');
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 	console.log(`${color}${ICONS.warning} ${message}${reset}`);
 }
 
@@ -107,7 +128,7 @@ export function warning(message: string, asError = false): void {
  */
 export function info(message: string): void {
 	const color = getColor('info');
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 	console.log(`${color}${ICONS.info} ${message}${reset}`);
 }
 
@@ -116,7 +137,7 @@ export function info(message: string): void {
  */
 export function muted(text: string): string {
 	const color = getColor('muted');
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 	return `${color}${text}${reset}`;
 }
 
@@ -125,7 +146,7 @@ export function muted(text: string): string {
  */
 export function bold(text: string): string {
 	const color = getColor('bold');
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 	return `${color}${text}${reset}`;
 }
 
@@ -134,7 +155,7 @@ export function bold(text: string): string {
  */
 export function link(url: string): string {
 	const color = getColor('link');
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 
 	// Check if terminal supports hyperlinks (OSC 8)
 	if (supportsHyperlinks()) {
@@ -251,7 +272,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 	// Colors
 	const borderColor = getColor('muted');
 	const titleColor = getColor('info');
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 
 	// Build banner
 	const lines: string[] = [];
@@ -560,7 +581,7 @@ function stripAnsiCodes(str: string): string {
  * Check if a string ends with ANSI reset code
  */
 function endsWithReset(str: string): boolean {
-	return str.endsWith('\x1b[0m') || str.endsWith(COLORS.reset);
+	return str.endsWith('\x1b[0m') || str.endsWith(getColor('reset'));
 }
 
 /**
@@ -625,7 +646,7 @@ function wrapText(text: string, maxWidth: number): string[] {
 		if (leadingCodes && hasReset) {
 			for (let i = paragraphStart; i < allLines.length; i++) {
 				if (!endsWithReset(allLines[i])) {
-					allLines[i] += COLORS.reset;
+					allLines[i] += getColor('reset');
 				}
 			}
 		}
@@ -702,7 +723,7 @@ export async function spinner<T>(
 	}
 
 	const message = options.message;
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 
 	// If no TTY, just execute the callback without animation
 	if (!process.stdout.isTTY) {
@@ -714,8 +735,6 @@ export async function spinner<T>(
 						? await options.callback()
 						: await options.callback;
 
-			const successColor = getColor('success');
-			console.log(`${successColor}${ICONS.success} ${message}${reset}`);
 			return result;
 		} catch (err) {
 			const errorColor = getColor('error');
@@ -886,7 +905,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 			? '\x1b[1m' + (Bun.color('#00008B', 'ansi') || '\x1b[34m')
 			: Bun.color('#FFFFFF', 'ansi') || '\x1b[97m'; // bold dark blue / white
 	const mutedColor = Bun.color('#808080', 'ansi') || '\x1b[90m';
-	const reset = COLORS.reset;
+	const reset = getColor('reset');
 
 	// Get terminal width
 	const termWidth = process.stdout.columns || 80;

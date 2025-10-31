@@ -1,9 +1,14 @@
 import { getVersion } from './version';
 
+function shouldUseColors(): boolean {
+	return !process.env.NO_COLOR && process.env.TERM !== 'dumb' && !!process.stdout.isTTY;
+}
+
 export function showBanner(version?: string): void {
 	const _version = version ?? getVersion();
-	const CYAN = Bun.color('cyan', 'ansi-16m');
-	const RESET = '\x1b[0m';
+	const USE_COLORS = shouldUseColors();
+	const CYAN = USE_COLORS ? Bun.color('cyan', 'ansi-16m') : '';
+	const RESET = USE_COLORS ? '\x1b[0m' : '';
 
 	const width = 52; // Content width between pipes
 	const versionLabel = ' Version:        '; // Include leading space

@@ -31,7 +31,7 @@ export const createProjectSubcommand = createSubcommand({
 				.optional()
 				.default(true)
 				.describe('Run bun run build after installing (use --no-build to skip)'),
-			confirm: z.boolean().optional().describe('Show confirmation prompts'),
+			confirm: z.boolean().optional().describe('Skip confirmation prompts'),
 			register: z
 				.boolean()
 				.default(true)

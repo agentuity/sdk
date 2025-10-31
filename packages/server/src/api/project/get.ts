@@ -10,16 +10,16 @@ const ProjectGetResponseSchema = APIResponseSchema(
 	z.object({
 		id: z.string().describe('the project id'),
 		orgId: z.string().describe('the organization id'),
-		api_key: z.string().describe('the SDK api key for the project'),
-		env: z.record(z.string(), z.string()).describe('the environment key/values'),
-		secrets: z.record(z.string(), z.string()).describe('the secrets key/values'),
+		api_key: z.string().optional().describe('the SDK api key for the project'),
+		env: z.record(z.string(), z.string()).optional().describe('the environment key/values'),
+		secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),
 	})
 );
 
 type ProjectGetRequest = z.infer<typeof _ProjectGetRequestSchema>;
 type ProjectGetResponse = z.infer<typeof ProjectGetResponseSchema>;
 
-type Project = NonNullable<ProjectGetResponse['data']>;
+export type Project = NonNullable<ProjectGetResponse['data']>;
 
 export async function projectGet(client: APIClient, request: ProjectGetRequest): Promise<Project> {
 	const resp = await client.request<ProjectGetResponse, ProjectGetRequest>(

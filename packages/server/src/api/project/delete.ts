@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 
-const ProjectDeleteRequestSchema = z.array(z.string());
+const ProjectDeleteRequestSchema = z.object({ ids: z.array(z.string()) });
 const ProjectDeleteResponseSchema = APIResponseSchema(z.array(z.string()));
 
 type ProjectDeleteRequest = z.infer<typeof ProjectDeleteRequestSchema>;
@@ -12,7 +12,7 @@ export async function projectDelete(client: APIClient, ...ids: string[]) {
 		'DELETE',
 		'/cli/project',
 		ProjectDeleteResponseSchema,
-		ids,
+		{ ids },
 		ProjectDeleteRequestSchema
 	);
 

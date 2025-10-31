@@ -13,7 +13,11 @@ import { z } from 'zod';
 export interface APIErrorResponse {
 	success: boolean;
 	code?: string;
-	message: string;
+	message?: string;
+	error?: {
+		name?: string;
+		issues?: z.ZodIssue[];
+	};
 	details?: Record<string, unknown>;
 }
 
@@ -187,6 +191,11 @@ export class APIClient {
 				throw new UpgradeRequiredError(
 					errorData.message || 'Please upgrade to the latest version'
 				);
+			}
+
+			// Handle Zod validation errors from the API
+			if (errorData?.error?.name === 'ZodError' && errorData.error.issues) {
+				throw new ValidationError('API validation failed', errorData.error.issues);
 			}
 
 			// Throw with message from API if available

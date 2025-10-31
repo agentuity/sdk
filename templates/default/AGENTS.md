@@ -25,7 +25,9 @@
 │   ├── apis/            # Custom API routes
 │   │   └── status/      # Example status endpoint
 │   └── web/             # React web application
-│       └── app.tsx      # Main React component
+│       ├── App.tsx      # Main React component
+│       ├── frontend.tsx # React wrapper
+│       └── index.html   # HTML index page
 ├── app.ts               # Application entry point
 ├── tsconfig.json        # TypeScript configuration
 └── package.json         # Dependencies and scripts
@@ -61,7 +63,7 @@ const agent = createAgent({
 	},
 	handler: async (ctx: AgentContext, input) => {
 		// Use ctx.logger for logging (not console.log)
-		ctx.logger.info('Processing message:', input.message);
+		ctx.logger.info('Processing message: %s', input.message);
 
 		// Access storage
 		await ctx.kv.set('last-message', input.message);
@@ -87,14 +89,14 @@ const router = createRouter();
 
 // GET endpoint
 router.get('/', async (c) => {
-	const result = await c.agent['my-agent'].run({ message: 'Hello!' });
+	const result = await c.agent.myAgent.run({ message: 'Hello!' });
 	return c.json(result);
 });
 
 // POST endpoint with validation
 router.post('/', zValidator('json', agent.inputSchema!), async (c) => {
 	const data = c.req.valid('json');
-	const result = await c.agent['my-agent'].run(data);
+	const result = await c.agent.myAgent.run(data);
 	return c.json(result);
 });
 
@@ -125,8 +127,9 @@ import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.get('/', (c) => {
-	return c.json({ status: 'ok' });
+router.get('/', async (c) => {
+	const result = await c.agent.hello('hi');
+	return c.json({ result, status: 'ok' });
 });
 
 export default router;
@@ -172,14 +175,14 @@ Create a `.env` file in the project root:
 
 ```env
 # Example environment variables
-API_KEY=your-api-key
+AGENTUITY_SDK_KEY=your-api-key
 DATABASE_URL=your-database-url
 ```
 
 Access them in your code:
 
 ```typescript
-const apiKey = process.env.API_KEY;
+const apiKey = process.env.DATABASE_URL;
 ```
 
 ## Deployment
@@ -190,7 +193,7 @@ Build for production:
 bun run build
 ```
 
-The compiled application will be in `.agentuity/`. Deploy this directory to your hosting provider.
+The compiled application will be in `.agentuity/`.
 
 ## Learn More
 

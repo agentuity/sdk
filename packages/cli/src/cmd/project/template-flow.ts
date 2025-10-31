@@ -53,10 +53,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		tui.info(`📋 Loading templates from local directory: ${templateDir}...\n`);
 	}
 
-	let templates: TemplateInfo[] = [];
-
-	await tui.spinner('Fetching templates', async () => {
-		templates = await fetchTemplates(templateDir, templateBranch);
+	const templates = await tui.spinner('Fetching templates', async () => {
+		return fetchTemplates(templateDir, templateBranch);
 	});
 
 	if (templates.length === 0) {
@@ -73,13 +71,16 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	if (auth) {
 		const apiUrl = getAPIBaseURL(config);
 		client = new APIClient(apiUrl, config);
-		await tui.spinner('Fetching organizations', async () => {
+		orgs = await tui.spinner('Fetching organizations', async () => {
 			const resp = await listOrganizations(client!);
 			if (resp.data) {
-				orgs = resp.data;
+				return resp.data;
 			}
 		});
-		orgId = await tui.selectOrganization(orgs!, config?.preferences?.orgId);
+		if (!orgs) {
+			tui.fatal('no organizations could be found for your login');
+		}
+		orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
 	}
 
 	if (!projectName && !skipPrompts) {
