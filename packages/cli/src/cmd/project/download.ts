@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { finished } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 import { extract, type Headers } from 'tar-fs';
-import type { Logger } from '../../logger';
+import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui';
 import { downloadWithSpinner } from '../../download';
 import type { TemplateInfo } from './templates';

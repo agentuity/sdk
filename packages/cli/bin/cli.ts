@@ -3,7 +3,7 @@ import { createCLI, registerCommands } from '../src/cli';
 import { validateRuntime } from '../src/runtime';
 import { loadConfig } from '../src/config';
 import { discoverCommands } from '../src/cmd';
-import { logger } from '../src/logger';
+import { ConsoleLogger } from '@agentuity/server';
 import { detectColorScheme } from '../src/terminal';
 import { setColorScheme } from '../src/tui';
 import { getVersion } from '../src/version';
@@ -54,7 +54,6 @@ if (earlyOpts.colorScheme === 'light' || earlyOpts.colorScheme === 'dark') {
 		console.log(`[DEBUG] Using --color-scheme=${colorScheme} flag`);
 	}
 }
-logger.setColorScheme(colorScheme);
 setColorScheme(colorScheme);
 
 // Debug: show detected color scheme
@@ -62,9 +61,12 @@ if (process.env.DEBUG_COLORS) {
 	console.log(`[DEBUG] Color scheme: ${colorScheme}`);
 }
 
-// Configure logger with global options
-logger.setLevel((earlyOpts.logLevel as LogLevel) || 'info');
-logger.setTimestamp(earlyOpts.logTimestamp || false);
+// Create logger instance with global options
+const logger = new ConsoleLogger(
+	(earlyOpts.logLevel as LogLevel) || 'info',
+	earlyOpts.logTimestamp || false,
+	colorScheme
+);
 logger.setShowPrefix(earlyOpts.logPrefix !== false);
 
 // Set version check skip flag from CLI option

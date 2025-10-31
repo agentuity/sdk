@@ -80,7 +80,18 @@ export class OtelLogger implements Logger {
 		});
 	}
 
-	debug(message: string, ...args: unknown[]) {
+	trace(message: unknown, ...args: unknown[]) {
+		this.logger?.trace(message, ...args);
+		let body: string;
+		try {
+			body = format(this.formatMessage(message), ...args);
+		} catch {
+			// Fallback if format causes recursion
+			body = `${this.formatMessage(message)} ${args.map((arg) => String(arg)).join(' ')}`;
+		}
+		this.emitToAll(LogsAPI.SeverityNumber.TRACE, 'TRACE', body);
+	}
+	debug(message: unknown, ...args: unknown[]) {
 		this.logger?.debug(message, ...args);
 		let body: string;
 		try {
@@ -91,7 +102,7 @@ export class OtelLogger implements Logger {
 		}
 		this.emitToAll(LogsAPI.SeverityNumber.DEBUG, 'DEBUG', body);
 	}
-	info(message: string, ...args: unknown[]) {
+	info(message: unknown, ...args: unknown[]) {
 		this.logger?.info(message, ...args);
 		let body: string;
 		try {
@@ -102,7 +113,7 @@ export class OtelLogger implements Logger {
 		}
 		this.emitToAll(LogsAPI.SeverityNumber.INFO, 'INFO', body);
 	}
-	warn(message: string, ...args: unknown[]) {
+	warn(message: unknown, ...args: unknown[]) {
 		this.logger?.warn(message, ...args);
 		let body: string;
 		try {
@@ -113,7 +124,7 @@ export class OtelLogger implements Logger {
 		}
 		this.emitToAll(LogsAPI.SeverityNumber.WARN, 'WARN', body);
 	}
-	error(message: string, ...args: unknown[]) {
+	error(message: unknown, ...args: unknown[]) {
 		this.logger?.error(message, ...args);
 		let body: string;
 		try {
@@ -124,7 +135,11 @@ export class OtelLogger implements Logger {
 		}
 		this.emitToAll(LogsAPI.SeverityNumber.ERROR, 'ERROR', body);
 	}
-	child(opts: Record<string, unknown>) {
+	fatal(message: unknown, ...args: unknown[]): never {
+		this.error(message, ...args);
+		process.exit(1);
+	}
+	child(opts: Record<string, unknown>): Logger {
 		return new OtelLogger(!!this.logger, this.delegates, {
 			...(this.context ?? {}),
 			...opts,

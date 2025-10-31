@@ -1,6 +1,6 @@
 import { createCommand } from '../../types';
 import { getVersion } from '../../version';
-import { logger } from '../../logger';
+import { createLogger } from '@agentuity/server';
 
 export const command = createCommand({
 	name: 'version',
@@ -10,6 +10,7 @@ export const command = createCommand({
 		try {
 			console.log(getVersion());
 		} catch (error) {
+			const logger = createLogger();
 			logger.fatal('Failed to retrieve version: %s', error);
 		}
 	},

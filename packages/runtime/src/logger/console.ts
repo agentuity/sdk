@@ -26,6 +26,23 @@ export default class ConsoleLogger implements Logger {
 	}
 
 	/**
+	 * Log a trace message (most verbose)
+	 *
+	 * @param message - The message to log
+	 * @param args - Additional arguments to log
+	 */
+	trace(message: unknown, ...args: unknown[]): void {
+		try {
+			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
+			__originalConsole.debug(`${black}[TRACE]${reset} ${formattedMessage}`);
+		} catch (err) {
+			// Fallback to direct logging if formatting fails
+			__originalConsole.debug(`${black}[TRACE]${reset} ${message}`, ...args);
+			__originalConsole.error('Error formatting log message:', err);
+		}
+	}
+
+	/**
 	 * Log a debug message
 	 *
 	 * @param message - The message to log
@@ -91,6 +108,17 @@ export default class ConsoleLogger implements Logger {
 			__originalConsole.error(`${red}[ERROR]${reset} ${message}`, ...args);
 			__originalConsole.error('Error formatting log message:', err);
 		}
+	}
+
+	/**
+	 * Log a fatal error message and exit the process
+	 *
+	 * @param message - The message to log
+	 * @param args - Additional arguments to log
+	 */
+	fatal(message: unknown, ...args: unknown[]): never {
+		this.error(message, ...args);
+		process.exit(1);
 	}
 
 	/**

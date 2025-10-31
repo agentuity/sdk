@@ -17,7 +17,11 @@ export {
 	getAuth,
 } from './config';
 export { APIClient, getAPIBaseURL, getAppBaseURL } from './api';
-export { Logger, logger } from './logger';
+export {
+	ConsoleLogger,
+	createLogger,
+	type ColorScheme as LoggerColorScheme,
+} from '@agentuity/server';
 export { showBanner } from './banner';
 export { discoverCommands } from './cmd';
 export { detectColorScheme } from './terminal';

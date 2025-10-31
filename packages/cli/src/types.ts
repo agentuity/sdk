@@ -1,4 +1,4 @@
-import type { Logger } from './logger';
+import type { Logger } from '@agentuity/core';
 import type * as z from 'zod';
 import { z as zod } from 'zod';
 

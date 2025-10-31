@@ -9,7 +9,7 @@ import {
 	listOrganizations,
 	type OrganizationList,
 } from '@agentuity/server';
-import type { Logger } from '../../logger';
+import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui';
 import { playSound } from '../../sound';
 import { fetchTemplates, type TemplateInfo } from './templates';

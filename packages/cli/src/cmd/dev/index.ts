@@ -18,7 +18,7 @@ export const command = createCommand({
 	optionalAuth: 'Continue without an account (local only)',
 
 	async handler(ctx) {
-		const { opts, logger } = ctx;
+		const { opts, logger, options } = ctx;
 
 		const rootDir = resolve(opts.dir || process.cwd());
 		const appTs = join(rootDir, 'app.ts');
@@ -233,7 +233,7 @@ export const command = createCommand({
 
 				metadata = await loadBuildMetadata(agentuityDir);
 
-				env.AGENTUITY_LOG_LEVEL = logger.level;
+				env.AGENTUITY_LOG_LEVEL = options.logLevel;
 
 				logger.trace('Starting dev server: %s', appPath);
 				// Use shell to run in a process group for proper cleanup

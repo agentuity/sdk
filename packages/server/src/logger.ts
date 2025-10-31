@@ -1,9 +1,9 @@
-import type { LogLevel } from './types';
-import type { ColorScheme } from './terminal';
+import type { Logger, LogLevel } from '@agentuity/core';
+import { format, inspect } from 'node:util';
 
 const LOG_LEVELS: Record<LogLevel, number> = {
-	debug: 0,
-	trace: 1,
+	trace: 0,
+	debug: 1,
 	info: 2,
 	warn: 3,
 	error: 4,
@@ -32,7 +32,7 @@ function shouldUseColors(): boolean {
 	}
 
 	// Check if stdout is a TTY
-	if (!process.stdout.isTTY) {
+	if (process.stdout && typeof process.stdout.isTTY !== 'undefined' && !process.stdout.isTTY) {
 		return false;
 	}
 
@@ -46,6 +46,8 @@ interface LogColors {
 	message: string;
 	timestamp: string;
 }
+
+export type ColorScheme = 'light' | 'dark';
 
 function getLogColors(scheme: ColorScheme): Record<LogLevel, LogColors> {
 	if (scheme === 'light') {
@@ -82,49 +84,55 @@ function getLogColors(scheme: ColorScheme): Record<LogLevel, LogColors> {
 	// Dark mode colors (brighter for dark backgrounds)
 	return {
 		trace: {
-			level: (Bun.color('cyan', 'ansi') ?? '') + BOLD,
-			message: Bun.color('gray', 'ansi') ?? '',
+			level: hexToAnsi('#00FFFF') + BOLD, // Cyan
+			message: hexToAnsi('#A0A0A0'), // Light gray
 			timestamp: hexToAnsi('#666666'),
 		},
 		debug: {
-			level: (Bun.color('blue', 'ansi') ?? '') + BOLD,
-			message: Bun.color('green', 'ansi') ?? '',
+			level: hexToAnsi('#5C9CFF') + BOLD, // Blue
+			message: hexToAnsi('#90EE90'), // Light green
 			timestamp: hexToAnsi('#666666'),
 		},
 		info: {
-			level: (Bun.color('yellow', 'ansi') ?? '') + BOLD,
-			message: (Bun.color('white', 'ansi') ?? '') + BOLD,
+			level: hexToAnsi('#FFD700') + BOLD, // Gold/Yellow
+			message: hexToAnsi('#FFFFFF') + BOLD, // White
 			timestamp: hexToAnsi('#666666'),
 		},
 		warn: {
-			level: (Bun.color('magenta', 'ansi') ?? '') + BOLD,
-			message: Bun.color('magenta', 'ansi') ?? '',
+			level: hexToAnsi('#FF00FF') + BOLD, // Magenta
+			message: hexToAnsi('#FF00FF'), // Magenta
 			timestamp: hexToAnsi('#666666'),
 		},
 		error: {
-			level: (Bun.color('red', 'ansi') ?? '') + BOLD,
-			message: Bun.color('red', 'ansi') ?? '',
+			level: hexToAnsi('#FF4444') + BOLD, // Red
+			message: hexToAnsi('#FF4444'), // Red
 			timestamp: hexToAnsi('#666666'),
 		},
 	};
 }
 
-export class Logger {
+/**
+ * Console logger implementation
+ */
+export class ConsoleLogger implements Logger {
 	public level: LogLevel;
 	private showTimestamp: boolean;
 	private colorScheme: ColorScheme;
 	private colors: Record<LogLevel, LogColors>;
 	private showPrefix = true;
+	private context: Record<string, unknown>;
 
 	constructor(
 		level: LogLevel = 'info',
 		showTimestamp: boolean = false,
-		colorScheme: ColorScheme = 'dark'
+		colorScheme: ColorScheme = 'dark',
+		context: Record<string, unknown> = {}
 	) {
 		this.level = level;
 		this.showTimestamp = showTimestamp;
 		this.colorScheme = colorScheme;
 		this.colors = getLogColors(this.colorScheme);
+		this.context = context;
 	}
 
 	setLevel(level: LogLevel): void {
@@ -148,13 +156,43 @@ export class Logger {
 		return LOG_LEVELS[level] >= LOG_LEVELS[this.level];
 	}
 
-	private log(level: LogLevel, message: string, ...args: unknown[]): void {
-		if (!this.shouldLog(level) || !message) {
+	private formatMessage(message: unknown, args: unknown[]): string {
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const base = format(message as any, ...(args as any[]));
+
+			if (!this.context || Object.keys(this.context).length === 0) {
+				return base;
+			}
+
+			const ctx = Object.entries(this.context)
+				.map(([k, v]) => `${k}=${typeof v === 'object' ? inspect(v, { depth: 2, maxArrayLength: 50, colors: false }) : String(v)}`)
+				.join(' ');
+			
+			const result = `${base} ${ctx}`;
+			
+			const MAX_LENGTH = 10000;
+			if (result.length > MAX_LENGTH) {
+				return `${result.slice(0, MAX_LENGTH)} …(+${result.length - MAX_LENGTH} chars truncated)`;
+			}
+			
+			return result;
+		} catch {
+			const base = [String(message), ...args.map((a) => String(a))].join(' ');
+			return this.context && Object.keys(this.context).length > 0
+				? `${base} ${JSON.stringify(this.context)}`
+				: base;
+		}
+	}
+
+	private log(level: LogLevel, message: unknown, ...args: unknown[]): void {
+		if (!this.shouldLog(level)) {
 			return;
 		}
 
 		const colors = this.colors[level];
 		const levelText = `[${level.toUpperCase()}]`;
+		const formattedMessage = this.formatMessage(message, args);
 
 		let output = '';
 
@@ -162,74 +200,85 @@ export class Logger {
 			if (this.showPrefix) {
 				if (this.showTimestamp) {
 					const timestamp = new Date().toISOString();
-					output = `${colors.timestamp}[${timestamp}]${RESET} ${colors.level}${levelText}${RESET} ${colors.message}${message}${RESET}`;
+					output = `${colors.timestamp}[${timestamp}]${RESET} ${colors.level}${levelText}${RESET} ${colors.message}${formattedMessage}${RESET}`;
 				} else {
-					output = `${colors.level}${levelText}${RESET} ${colors.message}${message}${RESET}`;
+					output = `${colors.level}${levelText}${RESET} ${colors.message}${formattedMessage}${RESET}`;
 				}
 			} else {
 				// No prefix - just the message with color
-				output = `${colors.message}${message}${RESET}`;
+				output = `${colors.message}${formattedMessage}${RESET}`;
 			}
 		} else {
 			// No colors - plain text output
 			if (this.showPrefix) {
 				if (this.showTimestamp) {
 					const timestamp = new Date().toISOString();
-					output = `[${timestamp}] ${levelText} ${message}`;
+					output = `[${timestamp}] ${levelText} ${formattedMessage}`;
 				} else {
-					output = `${levelText} ${message}`;
+					output = `${levelText} ${formattedMessage}`;
 				}
 			} else {
 				// No prefix, no colors - just message
-				output = message;
+				output = formattedMessage;
 			}
 		}
 
 		if (level === 'error') {
-			if (args.length > 0) {
-				console.error(output, ...args);
-			} else {
-				console.error(output);
-			}
+			console.error(output);
 		} else if (level === 'warn') {
-			if (args.length > 0) {
-				console.warn(output, ...args);
-			} else {
-				console.warn(output);
-			}
+			console.warn(output);
 		} else {
-			if (args.length > 0) {
-				console.log(output, ...args);
-			} else {
-				console.log(output);
-			}
+			console.log(output);
 		}
 	}
 
-	debug(message: string, ...args: unknown[]): void {
-		this.log('debug', message, ...args);
-	}
-
-	trace(message: string, ...args: unknown[]): void {
+	trace(message: unknown, ...args: unknown[]): void {
 		this.log('trace', message, ...args);
 	}
 
-	info(message: string, ...args: unknown[]): void {
+	debug(message: unknown, ...args: unknown[]): void {
+		this.log('debug', message, ...args);
+	}
+
+	info(message: unknown, ...args: unknown[]): void {
 		this.log('info', message, ...args);
 	}
 
-	warn(message: string, ...args: unknown[]): void {
+	warn(message: unknown, ...args: unknown[]): void {
 		this.log('warn', message, ...args);
 	}
 
-	error(message: string, ...args: unknown[]): void {
+	error(message: unknown, ...args: unknown[]): void {
 		this.log('error', message, ...args);
 	}
 
-	fatal(message: string, ...args: unknown[]): never {
+	fatal(message: unknown, ...args: unknown[]): never {
 		this.log('error', message, ...args);
 		process.exit(1);
 	}
+
+	child(opts: Record<string, unknown>): Logger {
+		return new ConsoleLogger(this.level, this.showTimestamp, this.colorScheme, {
+			...this.context,
+			...opts,
+		});
+	}
 }
 
-export const logger = new Logger('info');
+/**
+ * Create a new console logger instance
+ *
+ * @param level - The minimum log level to display
+ * @param showTimestamp - Whether to show timestamps in log messages
+ * @param colorScheme - The color scheme to use ('light' or 'dark')
+ * @param context - Initial context for the logger
+ * @returns A new ConsoleLogger instance
+ */
+export function createLogger(
+	level: LogLevel = 'info',
+	showTimestamp: boolean = false,
+	colorScheme: ColorScheme = 'dark',
+	context: Record<string, unknown> = {}
+): Logger {
+	return new ConsoleLogger(level, showTimestamp, colorScheme, context);
+}

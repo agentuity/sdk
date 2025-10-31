@@ -1,4 +1,5 @@
 export * from './config';
+export * from './logger';
 export * from './server';
 export * from './api';
 export { z } from 'zod';
