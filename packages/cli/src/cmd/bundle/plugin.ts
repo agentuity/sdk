@@ -1,7 +1,8 @@
 import type { BunPlugin } from 'bun';
 import { dirname, basename, join } from 'node:path';
 import { existsSync, writeFileSync } from 'node:fs';
-import { parseAgentMetadata, parseRoute, type RouteDefinition } from './ast';
+import type { BuildMetadata } from '../../types';
+import { parseAgentMetadata, parseRoute } from './ast';
 import { applyPatch, generatePatches } from './patch';
 
 function toCamelCase(str: string): string {
@@ -115,7 +116,7 @@ const AgentuityBundler: BunPlugin = {
 			Map<string, string>
 		>();
 		const transpiler = new Bun.Transpiler({ loader: 'ts' });
-		let routeDefinitions: RouteDefinition[] = [];
+		let routeDefinitions: BuildMetadata['routes'] = [];
 
 		build.onResolve({ filter: /\/route\.ts$/, namespace: 'file' }, async (args) => {
 			if (args.path.startsWith(srcDir)) {
@@ -268,23 +269,41 @@ const AgentuityBundler: BunPlugin = {
 					contents += `\n${inserts.join('\n')}`;
 				}
 
-				// generate the agents array
-				const agents: unknown[] = [];
+				// generate the build metadata
+				const metadata: BuildMetadata = {
+					routes: routeDefinitions,
+					agents: [],
+				};
 				for (const [, v] of agentMetadata) {
-					const record: Record<string, unknown> = {};
-					for (const [k, mv] of v) {
-						record[k] = mv;
+					if (!v.has('filename')) {
+						throw new Error('agent metadata is missing expected filename property');
 					}
-					agents.push(record);
+					if (!v.has('id')) {
+						throw new Error('agent metadata is missing expected id property');
+					}
+					if (!v.has('identifier')) {
+						throw new Error('agent metadata is missing expected identifier property');
+					}
+					if (!v.has('version')) {
+						throw new Error('agent metadata is missing expected version property');
+					}
+					if (!v.has('name')) {
+						throw new Error('agent metadata is missing expected name property');
+					}
+					metadata.agents.push({
+						filename: v.get('filename')!,
+						id: v.get('id')!,
+						identifier: v.get('identifier')!,
+						version: v.get('version')!,
+						name: v.get('name')!,
+						description: v.get('description') ?? '<no description provided>',
+					});
 				}
 
-				const metadata = Bun.file(join(build.config.outdir!, 'agentuity.metadata.json'));
-				await metadata.write(
-					JSON.stringify({
-						routes: routeDefinitions,
-						agents,
-					})
+				const metadataFilename = Bun.file(
+					join(build.config.outdir!, 'agentuity.metadata.json')
 				);
+				await metadataFilename.write(JSON.stringify(metadata));
 
 				return {
 					contents,

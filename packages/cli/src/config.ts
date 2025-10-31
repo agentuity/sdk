@@ -3,7 +3,7 @@ import { join, extname, basename } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import type { Config, Profile, AuthData } from './types';
-import { ConfigSchema, ProjectSchema } from './types';
+import { ConfigSchema, ProjectSchema, BuildMetadataSchema, type BuildMetadata } from './types';
 import * as tui from './tui';
 import { z } from 'zod';
 
@@ -360,4 +360,24 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	const envPath = join(dir, '.env');
 	const envFile = Bun.file(envPath);
 	await envFile.write(`AGENTUITY_SDK_KEY=${apiKey}`);
+}
+
+export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {
+	const filename = join(dir, 'agentuity.metadata.json');
+	const file = Bun.file(filename);
+	if (!(await file.exists())) {
+		throw new Error(`couldn't find ${filename}`);
+	}
+	const buffer = await file.text();
+	const config = JSON.parse(buffer);
+	const result = BuildMetadataSchema.safeParse(config);
+	if (!result.success) {
+		tui.error(`Invalid build metadata at ${filename}:`);
+		for (const issue of result.error.issues) {
+			const path = issue.path.length > 0 ? issue.path.join('.') : 'root';
+			tui.bullet(`${path}: ${issue.message}`);
+		}
+		process.exit(1);
+	}
+	return result.data;
 }

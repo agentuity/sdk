@@ -1,6 +1,7 @@
 import * as acornLoose from 'acorn-loose';
 import { basename, dirname, relative } from 'node:path';
 import { generate } from 'astring';
+import { BuildMetadata } from '../../types';
 
 interface ASTNode {
 	type: string;
@@ -106,6 +107,10 @@ function hash(...val: string[]): string {
 
 function getAgentId(identifier: string): string {
 	return hash(projectId, identifier);
+}
+
+function generateRouteId(method: string, path: string): string {
+	return hash(projectId, method, path);
 }
 
 type AcornParseResultType = ReturnType<typeof acornLoose.parse>;
@@ -240,14 +245,14 @@ export function parseAgentMetadata(
 	);
 }
 
-export interface RouteDefinition {
-	pathname: string;
-	method: string;
-	path: string;
-}
+type RouteDefinition = BuildMetadata['routes'];
 
-export async function parseRoute(rootDir: string, filename: string): Promise<RouteDefinition[]> {
+export async function parseRoute(
+	rootDir: string,
+	filename: string
+): Promise<BuildMetadata['routes']> {
 	const contents = await Bun.file(filename).text();
+	const version = hash(contents);
 	const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
 	let exportName: string | undefined;
 	let variableName: string | undefined;
@@ -287,7 +292,7 @@ export async function parseRoute(rootDir: string, filename: string): Promise<Rou
 
 	const rel = relative(rootDir, filename);
 	const name = basename(dirname(filename));
-	const routes: RouteDefinition[] = [];
+	const routes: RouteDefinition = [];
 	const routePrefix = filename.includes('src/agents') ? '/agent' : '/api';
 
 	for (const body of ast.body) {
@@ -298,12 +303,15 @@ export async function parseRoute(rootDir: string, filename: string): Promise<Rou
 				const identifier = callee.object as ASTNodeIdentifier;
 				if (identifier.name === variableName) {
 					let method = (callee.property as ASTNodeIdentifier).name;
+					let type = 'api';
 					const action = statement.expression.arguments[0];
 					let suffix = '';
+					let config: Record<string, unknown> | undefined;
 					switch (method) {
 						case 'get':
 						case 'put':
 						case 'post':
+						case 'patch':
 						case 'delete': {
 							const theaction = action as ASTLiteral;
 							if (theaction.type === 'Literal') {
@@ -315,6 +323,7 @@ export async function parseRoute(rootDir: string, filename: string): Promise<Rou
 						case 'stream':
 						case 'sse':
 						case 'websocket': {
+							type = method;
 							method = 'post';
 							const theaction = action as ASTLiteral;
 							if (theaction.type === 'Literal') {
@@ -324,19 +333,28 @@ export async function parseRoute(rootDir: string, filename: string): Promise<Rou
 							break;
 						}
 						case 'sms': {
-						method = 'post';
-						const theaction = action as ASTObjectExpression;
-						if (theaction.type === 'ObjectExpression') {
-						const number = theaction.properties.find((p) => p.key.name === 'number');
-						if (number && number.value.type === 'Literal') {
-						const phoneNumber = number.value as ASTLiteral;
-						suffix = hash(phoneNumber.value);
-						break;
-						}
-						}
-						break;
+							type = method;
+							method = 'post';
+							const theaction = action as ASTObjectExpression;
+							if (theaction.type === 'ObjectExpression') {
+								config = {};
+								theaction.properties.forEach((p) => {
+									if (p.value.type === 'Literal') {
+										const literal = p.value as ASTLiteral;
+										config![p.key.name] = literal.value;
+									}
+								});
+								const number = theaction.properties.find((p) => p.key.name === 'number');
+								if (number && number.value.type === 'Literal') {
+									const phoneNumber = number.value as ASTLiteral;
+									suffix = hash(phoneNumber.value);
+									break;
+								}
+							}
+							break;
 						}
 						case 'email': {
+							type = method;
 							method = 'post';
 							const theaction = action as ASTLiteral;
 							if (theaction.type === 'Literal') {
@@ -347,6 +365,7 @@ export async function parseRoute(rootDir: string, filename: string): Promise<Rou
 							break;
 						}
 						case 'cron': {
+							type = method;
 							method = 'post';
 							const theaction = action as ASTLiteral;
 							if (theaction.type === 'Literal') {
@@ -361,9 +380,13 @@ export async function parseRoute(rootDir: string, filename: string): Promise<Rou
 						.replaceAll(/\/{2,}/g, '/')
 						.replaceAll(/\/$/g, '');
 					routes.push({
-						method,
-						pathname: rel,
+						id: generateRouteId(method, thepath),
+						method: method as 'get' | 'post' | 'put' | 'delete' | 'patch',
+						type: type as 'api' | 'sms' | 'email' | 'cron',
+						filename: rel,
 						path: thepath,
+						version,
+						config,
 					});
 				}
 			}

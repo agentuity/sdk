@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { resolve, join } from 'node:path';
 import { bundle } from '../bundle/bundler';
 import { existsSync, FSWatcher, watch } from 'node:fs';
+import { loadBuildMetadata } from '../../config';
+import type { BuildMetadata } from '../../types';
 import * as tui from '../../tui';
 
 export const command = createCommand({
@@ -46,12 +48,16 @@ export const command = createCommand({
 			tui.bold('h') +
 			tui.muted(' for keyboard shortcuts');
 
-		tui.banner('⨺ Agentuity DevMode', devmodebody, {
-			padding: 2,
-			topSpacer: false,
-			bottomSpacer: false,
-			centerTitle: false,
-		});
+		function showBanner() {
+			tui.banner('⨺ Agentuity DevMode', devmodebody, {
+				padding: 2,
+				topSpacer: false,
+				bottomSpacer: false,
+				centerTitle: false,
+			});
+		}
+
+		showBanner();
 
 		const env = { ...process.env };
 		env.AGENTUITY_SDK_DEV_MODE = 'true';
@@ -76,6 +82,7 @@ export const command = createCommand({
 		let shuttingDownForRestart = false;
 		let pendingRestart = false;
 		let building = false;
+		let metadata: BuildMetadata | undefined;
 
 		// Track restart timestamps to detect restart loops
 		const restartTimestamps: number[] = [];
@@ -222,6 +229,8 @@ export const command = createCommand({
 					return;
 				}
 
+				metadata = await loadBuildMetadata(agentuityDir);
+
 				env.AGENTUITY_LOG_LEVEL = logger.level;
 
 				logger.trace('Starting dev server: %s', appPath);
@@ -329,13 +338,13 @@ export const command = createCommand({
 			};
 
 			const showRoutes = () => {
-				tui.info('Routes information coming soon');
-				// TODO: Implement route inspection via IPC or HTTP endpoint
+				tui.info('API Route Detail');
+				console.table(metadata?.routes, ['method', 'path', 'filename']);
 			};
 
 			const showAgents = () => {
-				tui.info('Agents information coming soon');
-				// TODO: Implement agent inspection via IPC or HTTP endpoint
+				tui.info('Agent Detail');
+				console.table(metadata?.agents, ['name', 'filename', 'description']);
 			};
 
 			process.stdin.on('data', (data) => {
@@ -354,7 +363,7 @@ export const command = createCommand({
 						break;
 					case 'c':
 						console.clear();
-						tui.info('Console cleared');
+						showBanner();
 						break;
 					case 'r':
 						tui.info('Manually restarting server...');

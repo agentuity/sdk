@@ -320,3 +320,32 @@ export const ProjectSchema = zod.object({
 	projectId: zod.string().describe('the project id'),
 	orgId: zod.string().describe('the organization id'),
 });
+
+export const BuildMetadataSchema = zod.object({
+	routes: zod.array(
+		zod.object({
+			id: zod.string().describe('the unique calculated id for the route'),
+			filename: zod.string().describe('the relative path for the file'),
+			path: zod.string().describe('the route path'),
+			method: zod.enum(['get', 'post', 'put', 'delete', 'patch']).describe('the HTTP method'),
+			version: zod.string().describe('the SHA256 content of the file'),
+			type: zod.enum(['api', 'sms', 'email', 'cron', 'websocket', 'sse', 'stream']),
+			config: zod
+				.record(zod.string(), zod.unknown())
+				.optional()
+				.describe('type specific configuration'),
+		})
+	),
+	agents: zod.array(
+		zod.object({
+			id: zod.string().describe('the unique calculated id for the route'),
+			filename: zod.string().describe('the relative path for the file'),
+			name: zod.string().describe('the name of the agent'),
+			version: zod.string().describe('the SHA256 content of the file'),
+			identifier: zod.string().describe('the folder for the agent'),
+			description: zod.string().optional().describe('the agent description'),
+		})
+	),
+});
+
+export type BuildMetadata = zod.infer<typeof BuildMetadataSchema>;
