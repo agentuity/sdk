@@ -20,7 +20,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.0.35",
+      "version": "0.0.43",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -30,6 +30,7 @@
     },
     "apps/testing": {
       "name": "testing",
+      "version": "0.0.43",
     },
     "apps/testing/auth-app": {
       "name": "test-app",
@@ -98,7 +99,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.0.35",
+      "version": "0.0.43",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -109,6 +110,7 @@
         "astring": "^1.9.0",
         "commander": "^14.0.2",
         "enquirer": "^2.4.1",
+        "json5": "^2.2.3",
         "tar-fs": "^3.1.1",
         "zod": "^4.1.12",
       },
@@ -119,14 +121,14 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.0.35",
+      "version": "0.0.43",
       "devDependencies": {
         "typescript": "^5.9.0",
       },
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.0.35",
+      "version": "0.0.43",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -140,7 +142,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.0.35",
+      "version": "0.0.43",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -174,7 +176,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.0.35",
+      "version": "0.0.43",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "zod": "^4.1.12",
@@ -905,6 +907,8 @@
     "json-schema-traverse": ["json-schema-traverse@0.4.1", "", {}, "sha512-xbbCH5dCYU5T8LcEhhuh7HJ88HXuW3qsI3Y0zOZFKfZEHcpWiHU/Jxzk629Brsab/mMiHQti9wMP+845RPe3Vg=="],
 
     "json-stable-stringify-without-jsonify": ["json-stable-stringify-without-jsonify@1.0.1", "", {}, "sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw=="],
+
+    "json5": ["json5@2.2.3", "", { "bin": { "json5": "lib/cli.js" } }, "sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg=="],
 
     "jsx-ast-utils": ["jsx-ast-utils@3.3.5", "", { "dependencies": { "array-includes": "^3.1.6", "array.prototype.flat": "^1.3.1", "object.assign": "^4.1.4", "object.values": "^1.1.6" } }, "sha512-ZZow9HBI5O6EPgSJLUb8n2NKgmVWTwCvHGwFuJlMjvLFqlGG6pjirPhtdsseaLZjSibD8eegzmYpUZwoIlj2cQ=="],
 

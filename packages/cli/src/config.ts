@@ -2,6 +2,7 @@ import { YAML } from 'bun';
 import { join, extname, basename, resolve, normalize } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
+import JSON5 from 'json5';
 import type { Config, Profile, AuthData } from './types';
 import { ConfigSchema, ProjectSchema, BuildMetadataSchema, type BuildMetadata } from './types';
 import * as tui from './tui';
@@ -350,6 +351,34 @@ class ProjectConfigNotFoundExpection extends Error {
 
 type ProjectConfig = z.infer<typeof ProjectSchema>;
 
+function generateJSON5WithComments(
+	schema: z.ZodObject<z.ZodRawShape>,
+	data: Record<string, unknown>
+): string {
+	const lines: string[] = ['{'];
+	const shape = schema.shape;
+	const keys = Object.keys(shape);
+
+	for (let i = 0; i < keys.length; i++) {
+		const key = keys[i];
+		const fieldSchema = shape[key] as z.ZodTypeAny;
+		const description = getSchemaDescription(fieldSchema);
+		const value = data[key];
+
+		if (description) {
+			lines.push(`  // ${description}`);
+		}
+
+		const safeValue = value === undefined ? null : value;
+		const jsonValue = JSON.stringify(safeValue);
+		const comma = i < keys.length - 1 ? ',' : '';
+		lines.push(`  ${JSON.stringify(key)}: ${jsonValue}${comma}`);
+	}
+
+	lines.push('}');
+	return lines.join('\n');
+}
+
 export async function loadProjectConfig(dir: string): Promise<ProjectConfig> {
 	const configPath = join(dir, 'agentuity.json');
 	const file = Bun.file(configPath);
@@ -357,7 +386,7 @@ export async function loadProjectConfig(dir: string): Promise<ProjectConfig> {
 		throw new ProjectConfigNotFoundExpection();
 	}
 	const text = await file.text();
-	const config = JSON.parse(text);
+	const config = JSON5.parse(text);
 	const result = ProjectSchema.safeParse(config);
 	if (!result.success) {
 		tui.error(`Invalid project config at ${configPath}:`);
@@ -375,20 +404,17 @@ type InitialProjectConfig = ProjectConfig & {
 };
 
 export async function createProjectConfig(dir: string, config: InitialProjectConfig) {
-	// Create a sanitized config without the apiKey for agentuity.json
 	const { apiKey, ...sanitizedConfig } = config;
 
 	const configPath = join(dir, 'agentuity.json');
-	const configFile = Bun.file(configPath);
-	await configFile.write(JSON.stringify(sanitizedConfig, null, 2));
+	const json5Content = generateJSON5WithComments(ProjectSchema, sanitizedConfig);
+	await Bun.write(configPath, json5Content + '\n');
 
-	// Write SDK key to .env with comment
 	const envPath = join(dir, '.env');
 	const comment =
 		'# AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
 	const content = `${comment}\nAGENTUITY_SDK_KEY=${apiKey}\n`;
 	await Bun.write(envPath, content);
-	// Set restrictive permissions (owner read/write only) to protect sensitive key
 	await chmod(envPath, 0o600);
 }
 
