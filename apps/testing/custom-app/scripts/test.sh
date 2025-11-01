@@ -16,8 +16,8 @@ TESTS_FAILED=0
 echo "🧪 Starting custom service implementation tests..."
 
 # Kill any existing server
-echo "🔪 Killing any existing server on port 3000..."
-lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+echo "🔪 Killing any existing server on port 3500..."
+lsof -ti:3500 | xargs kill -9 2>/dev/null || true
 sleep 1
 
 # Build the app
@@ -33,7 +33,7 @@ SERVER_PID=$!
 sleep 5
 
 # Check if server is running
-if ! curl -s http://localhost:3000 > /dev/null 2>&1; then
+if ! curl -s http://localhost:3500 > /dev/null 2>&1; then
     echo -e "${RED}❌ Server failed to start${NC}"
     cat /tmp/auth-server.log
     exit 1
@@ -56,9 +56,9 @@ test_endpoint() {
     
     # Make the request
     if [ "$method" = "GET" ]; then
-        response=$(curl -s -w "\n%{http_code}" "http://localhost:3000$path")
+        response=$(curl -s -w "\n%{http_code}" "http://localhost:3500$path")
     else
-        response=$(curl -s -w "\n%{http_code}" -X "$method" "http://localhost:3000$path")
+        response=$(curl -s -w "\n%{http_code}" -X "$method" "http://localhost:3500$path")
     fi
     
     # Split response into body and status code
@@ -121,7 +121,7 @@ echo ""
 # Cleanup
 echo "🧹 Cleaning up..."
 kill $SERVER_PID 2>/dev/null || true
-lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+lsof -ti:3500 | xargs kill -9 2>/dev/null || true
 
 # Summary
 echo "================================"

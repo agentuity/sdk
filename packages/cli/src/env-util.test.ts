@@ -122,7 +122,7 @@ describe('looksLikeSecret', () => {
 	describe('non-secret patterns', () => {
 		test('regular environment variables are not flagged', () => {
 			expect(looksLikeSecret('NODE_ENV', 'production')).toBe(false);
-			expect(looksLikeSecret('PORT', '3000')).toBe(false);
+			expect(looksLikeSecret('PORT', '3500')).toBe(false);
 			expect(looksLikeSecret('HOST', 'localhost')).toBe(false);
 			expect(looksLikeSecret('DATABASE_URL', 'postgres://localhost:5432/mydb')).toBe(false);
 		});

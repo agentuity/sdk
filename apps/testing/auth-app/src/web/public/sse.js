@@ -1,4 +1,4 @@
-const evtSource = new EventSource('http://localhost:3000/agent/sse');
+const evtSource = new EventSource('http://localhost:3500/agent/sse');
 
 evtSource.onmessage = (event) => {
 	const el = document.getElementById('sse');

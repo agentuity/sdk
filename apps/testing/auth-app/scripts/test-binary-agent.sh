@@ -16,9 +16,9 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-BASE_URL="http://localhost:3000/agent/objectstore"
+BASE_URL="http://localhost:3500/agent/objectstore"
 BUCKET="test-bucket"
-PORT=3000
+PORT=3500
 
 # Track if we started the server
 SERVER_STARTED=false

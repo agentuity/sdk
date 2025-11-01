@@ -30,7 +30,7 @@ import { AgentuityProvider } from '@agentuity/react';
 
 function App() {
 	return (
-		<AgentuityProvider baseUrl="http://localhost:3000">
+		<AgentuityProvider baseUrl="http://localhost:3500">
 			<YourApp />
 		</AgentuityProvider>
 	);

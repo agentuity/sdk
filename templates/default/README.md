@@ -42,7 +42,7 @@ After creating your project, you can run:
 bun run dev
 ```
 
-Starts the development server at http://localhost:3000
+Starts the development server at http://localhost:3500
 
 ### Build
 

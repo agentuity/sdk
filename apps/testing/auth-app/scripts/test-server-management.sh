@@ -8,7 +8,7 @@ set -e
 echo "Testing server management logic..."
 echo ""
 
-PORT=3000
+PORT=3500
 
 # Colors
 GREEN='\033[0;32m'

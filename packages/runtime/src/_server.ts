@@ -56,7 +56,7 @@ function isDevelopment(): boolean {
 }
 
 function getPort(): number {
-	return Number.parseInt(process.env.AGENTUITY_PORT ?? process.env.PORT ?? '3000') || 3000;
+	return Number.parseInt(process.env.AGENTUITY_PORT ?? process.env.PORT ?? '3500') || 3500;
 }
 
 const spanProcessors: SpanProcessor[] = [];

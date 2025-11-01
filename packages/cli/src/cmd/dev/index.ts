@@ -45,7 +45,7 @@ export const command = createCommand({
 
 		const devmodebody =
 			tui.muted(tui.padRight('Local:', 10)) +
-			tui.link('http://127.0.0.1:3000') +
+			tui.link('http://127.0.0.1:3500') +
 			'\n' +
 			tui.muted(tui.padRight('Public:', 10)) +
 			tui.warn('Disabled') + //TODO:
@@ -69,7 +69,7 @@ export const command = createCommand({
 		env.AGENTUITY_SDK_DEV_MODE = 'true';
 		env.AGENTUITY_ENV = 'development';
 		env.NODE_ENV = 'development';
-		env.PORT = '3000';
+		env.PORT = '3500';
 		env.AGENTUITY_PORT = env.PORT;
 		if (options.logLevel !== undefined) env.AGENTUITY_LOG_LEVEL = options.logLevel;
 		env.AGENTUITY_FORCE_LOCAL_SERVICES = opts.local === true ? 'true' : 'false';

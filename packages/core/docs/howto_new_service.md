@@ -1479,14 +1479,14 @@ bun run build
 bun run .agentuity/app.js &
 
 # Test GET endpoint
-curl http://localhost:3000/agent/yourservice
+curl http://localhost:3500/agent/yourservice
 
 # Test POST endpoint
-curl http://localhost:3000/agent/yourservice \
+curl http://localhost:3500/agent/yourservice \
   --json '{"operation":"testOp2","param":"value"}'
 
 # Stop server
-lsof -ti:3000 | xargs kill -9
+lsof -ti:3500 | xargs kill -9
 ```
 
 **Example: Vector Service Test Agent**

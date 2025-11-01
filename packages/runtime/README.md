@@ -22,8 +22,8 @@ import { createApp } from '@agentuity/runtime';
 const { app, server, logger } = createApp();
 
 // Start the server
-server.listen(3000);
-logger.info('Server running on http://localhost:3000');
+server.listen(3500);
+logger.info('Server running on http://localhost:3500');
 ```
 
 ### Defining an Agent

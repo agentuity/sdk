@@ -22,7 +22,7 @@ const agent = createAgent({
 				if (!value) {
 					throw new Error('Value is required for set operation');
 				}
-				await c.kv.set(storeName, key, value, { ttl: 300000 });
+				await c.kv.set(storeName, key, value, { ttl: 350000 });
 				return {
 					operation,
 					success: true,

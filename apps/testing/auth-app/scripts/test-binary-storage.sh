@@ -21,10 +21,10 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-BASE_URL="http://localhost:3000/api/objectstore"
+BASE_URL="http://localhost:3500/api/objectstore"
 BUCKET="test-bucket"
 KEY="binary-test.bin"
-PORT=3000
+PORT=3500
 
 # Track if we started the server
 SERVER_STARTED=false

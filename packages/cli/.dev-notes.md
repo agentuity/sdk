@@ -44,7 +44,7 @@ To test against a local API server, use profile overrides:
    ```yaml
    name: 'dev'
    overrides:
-      api_url: http://localhost:3000
+      api_url: http://localhost:3500
       app_url: http://localhost:5173
    ```
 3. Switch to dev profile: `bun bin/cli.ts profile use dev`

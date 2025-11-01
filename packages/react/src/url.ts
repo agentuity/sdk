@@ -22,4 +22,4 @@ export const defaultBaseUrl: string =
 	getProcessEnv('NEXT_PUBLIC__AGENTUITY_URL') ||
 	getProcessEnv('VITE_AGENTUITY_URL') ||
 	getProcessEnv('AGENTUITY_URL') ||
-	'http://localhost:3000';
+	'http://localhost:3500';

@@ -107,7 +107,7 @@ export async function pollForSignupCompletion(
 	apiUrl: string,
 	otp: string,
 	config?: Config | null,
-	timeoutMs = 300000
+	timeoutMs = 350000
 ): Promise<SignupResult> {
 	const client = new APIClient(apiUrl, config);
 	const started = Date.now();

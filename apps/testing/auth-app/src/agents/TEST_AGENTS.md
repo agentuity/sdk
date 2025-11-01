@@ -17,22 +17,22 @@ Tests the KeyValueStorage service with CRUD operations.
 **Example GET:**
 
 ```bash
-curl http://localhost:3000/agent/keyvalue
+curl http://localhost:3500/agent/keyvalue
 ```
 
 **Example POST:**
 
 ```bash
 # Set a value
-curl http://localhost:3000/agent/keyvalue \
+curl http://localhost:3500/agent/keyvalue \
   --json '{"operation":"set","key":"my-key","value":"my-value"}'
 
 # Get a value
-curl http://localhost:3000/agent/keyvalue \
+curl http://localhost:3500/agent/keyvalue \
   --json '{"operation":"get","key":"my-key"}'
 
 # Delete a value
-curl http://localhost:3000/agent/keyvalue \
+curl http://localhost:3500/agent/keyvalue \
   --json '{"operation":"delete","key":"my-key"}'
 ```
 
@@ -52,14 +52,14 @@ Tests the VectorStorage service with all operations including semantic search.
 **Example GET:**
 
 ```bash
-curl http://localhost:3000/agent/vector
+curl http://localhost:3500/agent/vector
 ```
 
 **Example POST:**
 
 ```bash
 # Upsert a document
-curl http://localhost:3000/agent/vector \
+curl http://localhost:3500/agent/vector \
   --json '{
     "operation":"upsert",
     "key":"doc1",
@@ -68,7 +68,7 @@ curl http://localhost:3000/agent/vector \
   }'
 
 # Search for similar documents
-curl http://localhost:3000/agent/vector \
+curl http://localhost:3500/agent/vector \
   --json '{
     "operation":"search",
     "query":"artificial intelligence",
@@ -76,19 +76,19 @@ curl http://localhost:3000/agent/vector \
   }'
 
 # Get a specific vector
-curl http://localhost:3000/agent/vector \
+curl http://localhost:3500/agent/vector \
   --json '{"operation":"get","key":"doc1"}'
 
 # Get multiple vectors
-curl http://localhost:3000/agent/vector \
+curl http://localhost:3500/agent/vector \
   --json '{"operation":"getMany","keys":["doc1","doc2","doc3"]}'
 
 # Check if storage exists
-curl http://localhost:3000/agent/vector \
+curl http://localhost:3500/agent/vector \
   --json '{"operation":"exists"}'
 
 # Delete vectors
-curl http://localhost:3000/agent/vector \
+curl http://localhost:3500/agent/vector \
   --json '{"operation":"delete","keys":["doc1"]}'
 ```
 
@@ -102,22 +102,22 @@ bun run build
 bun run dev
 ```
 
-Server will be available at http://localhost:3000
+Server will be available at http://localhost:3500
 
 ### Test All Services
 
 ```bash
 # Test KeyValue
-curl http://localhost:3000/agent/keyvalue
+curl http://localhost:3500/agent/keyvalue
 
 # Test Vector
-curl http://localhost:3000/agent/vector
+curl http://localhost:3500/agent/vector
 ```
 
 ### Stop the Server
 
 ```bash
-lsof -ti:3000 | xargs kill -9
+lsof -ti:3500 | xargs kill -9
 ```
 
 ## What These Tests Verify

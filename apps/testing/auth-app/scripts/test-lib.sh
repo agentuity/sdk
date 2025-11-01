@@ -11,7 +11,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default port
-PORT="${PORT:-3000}"
+PORT="${PORT:-3500}"
 
 # Track if we started the server
 SERVER_STARTED=false

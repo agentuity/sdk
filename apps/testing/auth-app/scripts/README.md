@@ -98,7 +98,7 @@ Tests binary object storage to ensure data is not corrupted during upload/downlo
 
 **Note:** The script automatically:
 
-- Checks if the server is running on port 3000
+- Checks if the server is running on port 3500
 - Starts the server if not running
 - Waits for the server to be ready (up to 30 seconds)
 - Runs all tests
@@ -175,7 +175,7 @@ If the script can't start the server automatically, check the server logs in the
 
 Common issues:
 
-- Port 3000 already in use by another process
+- Port 3500 already in use by another process
 - Build errors in the application
 - Missing dependencies
 - Missing or invalid `.env` file

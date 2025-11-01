@@ -1,6 +1,6 @@
 console.log('inside websocket.js');
 
-const ws = new WebSocket('ws://localhost:3000/agent/websocket');
+const ws = new WebSocket('ws://localhost:3500/agent/websocket');
 ws.onmessage = (event) => {
 	const el = document.getElementById('websocket');
 	if (el) {

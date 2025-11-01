@@ -14,19 +14,19 @@ router.get('/', (c) => {
 		},
 		examples: {
 			upload:
-				'curl -X POST http://localhost:3000/api/objectstore/test-bucket/image.jpg --data-binary @photo.jpg -H "Content-Type: image/jpeg"',
+				'curl -X POST http://localhost:3500/api/objectstore/test-bucket/image.jpg --data-binary @photo.jpg -H "Content-Type: image/jpeg"',
 			download:
-				'curl http://localhost:3000/api/objectstore/test-bucket/image.jpg -o downloaded.jpg',
-			delete: 'curl -X DELETE http://localhost:3000/api/objectstore/test-bucket/image.jpg',
+				'curl http://localhost:3500/api/objectstore/test-bucket/image.jpg -o downloaded.jpg',
+			delete: 'curl -X DELETE http://localhost:3500/api/objectstore/test-bucket/image.jpg',
 			publicUrl:
-				'curl -X POST http://localhost:3000/api/objectstore/test-bucket/image.jpg/public-url',
+				'curl -X POST http://localhost:3500/api/objectstore/test-bucket/image.jpg/public-url',
 		},
 		testBinaryIntegrity: {
 			description: 'Test binary data is not corrupted',
 			steps: [
 				'1. Create a test file with binary data: dd if=/dev/urandom of=test.bin bs=1024 count=1',
-				'2. Upload: curl -X POST http://localhost:3000/api/objectstore/test-bucket/test.bin --data-binary @test.bin',
-				'3. Download: curl http://localhost:3000/api/objectstore/test-bucket/test.bin -o downloaded.bin',
+				'2. Upload: curl -X POST http://localhost:3500/api/objectstore/test-bucket/test.bin --data-binary @test.bin',
+				'3. Download: curl http://localhost:3500/api/objectstore/test-bucket/test.bin -o downloaded.bin',
 				'4. Compare: diff test.bin downloaded.bin (should have no output if identical)',
 				'5. Or verify checksum: md5sum test.bin downloaded.bin',
 			],

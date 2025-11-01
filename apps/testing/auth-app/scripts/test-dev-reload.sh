@@ -22,7 +22,7 @@ SERVER_LOG=$(mktemp "${TMPDIR:-/tmp}/test-dev-reload-XXXXXX")
 BACKUP_DIR=$(mktemp -d)
 BACKUP_FILE="$BACKUP_DIR/agent.ts.bak"
 SERVER_PID=""
-PORT=3000
+PORT=3500
 TEST_FAILED=false
 
 log() {
@@ -117,13 +117,13 @@ log "Starting dev server hot reload test"
 log "App directory: $APP_DIR"
 log "Agent file: $AGENT_FILE"
 
-# Check if port 3000 is already in use
-if lsof -Pi :3000 -sTCP:LISTEN -t >/dev/null 2>&1; then
-    error "Port 3000 is already in use"
+# Check if port 3500 is already in use
+if lsof -Pi :3500 -sTCP:LISTEN -t >/dev/null 2>&1; then
+    error "Port 3500 is already in use"
     error "Please stop any running servers before running this test"
     error ""
-    error "Running processes on port 3000:"
-    lsof -Pi :3000 -sTCP:LISTEN
+    error "Running processes on port 3500:"
+    lsof -Pi :3500 -sTCP:LISTEN
     exit 1
 fi
 

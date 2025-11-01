@@ -27,15 +27,15 @@
 
 ## Testing
 
-- **Setup**: Kill any existing server with `lsof -ti:3000 | xargs kill -9 2>/dev/null || true`
+- **Setup**: Kill any existing server with `lsof -ti:3500 | xargs kill -9 2>/dev/null || true`
 - **Server**: Start with `bun run .agentuity/app.js &> /tmp/server.log & sleep 5` (background with 5s startup delay)
-- **Cleanup**: After tests, kill with `lsof -ti:3000 | xargs kill -9 2>/dev/null || true`
+- **Cleanup**: After tests, kill with `lsof -ti:3500 | xargs kill -9 2>/dev/null || true`
 - **Endpoints**:
    - Web app at `/` (returns HTML with React)
    - Agents at `/agent/<agent-name>` (e.g., `/agent/simple`)
    - APIs at `/api/<api-name>` (e.g., `/api/foo`)
-- **Web test**: `curl http://localhost:3000/`
-- **Agent GET test**: `curl http://localhost:3000/agent/simple`
-- **Agent POST test**: `curl http://localhost:3000/agent/simple --json '{"name":"Bob","age":30}'`
-- **API test**: `curl http://localhost:3000/api/foo`
+- **Web test**: `curl http://localhost:3500/`
+- **Agent GET test**: `curl http://localhost:3500/agent/simple`
+- **Agent POST test**: `curl http://localhost:3500/agent/simple --json '{"name":"Bob","age":30}'`
+- **API test**: `curl http://localhost:3500/api/foo`
 - **Validation test**: Send invalid data to verify Zod schema validation works
