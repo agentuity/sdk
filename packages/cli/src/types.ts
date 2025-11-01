@@ -1,6 +1,7 @@
 import type { Logger } from '@agentuity/core';
 import type * as z from 'zod';
 import { z as zod } from 'zod';
+import type { APIClient } from './api';
 
 export const ConfigSchema = zod.object({
 	name: zod.string().describe('Profile name'),
@@ -86,9 +87,10 @@ export type ProjectConfig = zod.infer<typeof ProjectSchema>;
 export type CommandContext<
 	RequiresAuth extends boolean | 'optional' = false,
 	RequiresProject extends boolean = false,
+	RequiresAPIClient extends boolean = false,
 	ArgsSchema extends z.ZodType | undefined = undefined,
 	OptionsSchema extends z.ZodType | undefined = undefined,
-> = RequiresAuth extends true
+> = (RequiresAuth extends true
 	? RequiresProject extends true
 		? ArgsSchema extends z.ZodType
 			? OptionsSchema extends z.ZodType
@@ -294,15 +296,18 @@ export type CommandContext<
 							config: Config | null;
 							logger: Logger;
 							options: GlobalOptions;
-						};
+						}) &
+	// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+	(RequiresAPIClient extends true ? { apiClient: APIClient } : {});
 
 // Helper to create subcommands with proper type inference
 export function createSubcommand<
 	TRequiresAuth extends boolean,
 	TOptionalAuth extends boolean | string,
 	TRequiresProject extends boolean,
-	TArgsSchema extends z.ZodType | undefined,
-	TOptionsSchema extends z.ZodType | undefined,
+	TRequiresAPIClient extends boolean = false,
+	TArgsSchema extends z.ZodType | undefined = undefined,
+	TOptionsSchema extends z.ZodType | undefined = undefined,
 >(definition: {
 	name: string;
 	description: string;
@@ -311,6 +316,7 @@ export function createSubcommand<
 	requiresAuth?: TRequiresAuth;
 	optionalAuth?: TOptionalAuth;
 	requiresProject?: TRequiresProject;
+	requiresAPIClient?: TRequiresAPIClient;
 	schema?: TArgsSchema extends z.ZodType
 		? TOptionsSchema extends z.ZodType
 			? { args: TArgsSchema; options: TOptionsSchema }
@@ -326,6 +332,7 @@ export function createSubcommand<
 					? 'optional'
 					: false,
 			TRequiresProject extends true ? true : false,
+			TRequiresAPIClient extends true ? true : false,
 			TArgsSchema,
 			TOptionsSchema
 		>
@@ -339,8 +346,9 @@ export function createCommand<
 	TRequiresAuth extends boolean,
 	TOptionalAuth extends boolean | string,
 	TRequiresProject extends boolean,
-	TArgsSchema extends z.ZodType | undefined,
-	TOptionsSchema extends z.ZodType | undefined,
+	TRequiresAPIClient extends boolean = false,
+	TArgsSchema extends z.ZodType | undefined = undefined,
+	TOptionsSchema extends z.ZodType | undefined = undefined,
 >(definition: {
 	name: string;
 	description: string;
@@ -349,6 +357,7 @@ export function createCommand<
 	requiresAuth?: TRequiresAuth;
 	optionalAuth?: TOptionalAuth;
 	requiresProject?: TRequiresProject;
+	requiresAPIClient?: TRequiresAPIClient;
 	schema?: TArgsSchema extends z.ZodType
 		? TOptionsSchema extends z.ZodType
 			? { args: TArgsSchema; options: TOptionsSchema }
@@ -364,6 +373,7 @@ export function createCommand<
 					? 'optional'
 					: false,
 			TRequiresProject extends true ? true : false,
+			TRequiresAPIClient extends true ? true : false,
 			TArgsSchema,
 			TOptionsSchema
 		>
@@ -383,6 +393,7 @@ export type SubcommandDefinition =
 			requiresAuth: true;
 			optionalAuth?: false | string;
 			requiresProject?: boolean;
+			requiresAPIClient?: boolean;
 			schema?: CommandSchemas;
 			handler(ctx: CommandContext): void | Promise<void>;
 	  }
@@ -394,6 +405,7 @@ export type SubcommandDefinition =
 			requiresAuth?: false;
 			optionalAuth: true | string;
 			requiresProject?: boolean;
+			requiresAPIClient?: boolean;
 			schema?: CommandSchemas;
 			handler(ctx: CommandContext): void | Promise<void>;
 	  }
@@ -405,6 +417,7 @@ export type SubcommandDefinition =
 			requiresAuth?: false;
 			optionalAuth?: false;
 			requiresProject?: boolean;
+			requiresAPIClient?: boolean;
 			schema?: CommandSchemas;
 			handler(ctx: CommandContext): void | Promise<void>;
 	  };
@@ -419,6 +432,7 @@ export type CommandDefinition =
 			requiresAuth: true;
 			optionalAuth?: false | string;
 			requiresProject?: boolean;
+			requiresAPIClient?: boolean;
 			schema?: CommandSchemas;
 			handler?(ctx: CommandContext): void | Promise<void>;
 			subcommands?: SubcommandDefinition[];
@@ -431,6 +445,7 @@ export type CommandDefinition =
 			requiresAuth?: false;
 			optionalAuth: true | string;
 			requiresProject?: boolean;
+			requiresAPIClient?: boolean;
 			schema?: CommandSchemas;
 			handler?(ctx: CommandContext): void | Promise<void>;
 			subcommands?: SubcommandDefinition[];
@@ -443,6 +458,7 @@ export type CommandDefinition =
 			requiresAuth?: false;
 			optionalAuth?: false;
 			requiresProject?: boolean;
+			requiresAPIClient?: boolean;
 			schema?: CommandSchemas;
 			handler?(ctx: CommandContext): void | Promise<void>;
 			subcommands?: SubcommandDefinition[];

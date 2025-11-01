@@ -2,12 +2,12 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { whoami } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 
 export const whoamiCommand = createSubcommand({
 	name: 'whoami',
 	description: 'Display information about the currently authenticated user',
 	requiresAuth: true,
+	requiresAPIClient: true,
 	schema: {
 		options: z.object({
 			format: z
@@ -18,13 +18,10 @@ export const whoamiCommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { config, opts, auth } = ctx;
-
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
+		const { apiClient, opts, auth } = ctx;
 
 		const result = await tui.spinner('Fetching user information', () => {
-			return whoami(client!);
+			return whoami(apiClient);
 		});
 
 		if (!result.data) {

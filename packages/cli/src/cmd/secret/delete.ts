@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectEnvDelete } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 import { findEnvFile, readEnvFile, writeEnvFile, filterAgentuitySdkKeys } from '../../env-util';
 
 export const deleteSubcommand = createSubcommand({
@@ -11,6 +10,7 @@ export const deleteSubcommand = createSubcommand({
 	description: 'Delete a secret',
 	requiresAuth: true,
 	requiresProject: true,
+	requiresAPIClient: true,
 	schema: {
 		args: z.object({
 			key: z.string().describe('the secret key to delete'),
@@ -18,14 +18,11 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, config, project, projectDir } = ctx;
-
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
+		const { args, apiClient, project, projectDir } = ctx;
 
 		// Delete from cloud (using secrets field)
 		await tui.spinner('Deleting secret from cloud', () => {
-			return projectEnvDelete(client, {
+			return projectEnvDelete(apiClient, {
 				id: project.projectId,
 				secrets: [args.key],
 			});

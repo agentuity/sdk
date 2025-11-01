@@ -2,13 +2,13 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectDelete } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	description: 'Delete a project',
 	aliases: ['rm', 'del'],
 	requiresAuth: true,
+	requiresAPIClient: true,
 	schema: {
 		args: z.object({
 			id: z.string().describe('the project id'),
@@ -19,10 +19,7 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, config } = ctx;
-
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
+		const { args, opts, apiClient } = ctx;
 
 		const skipConfirm = opts?.confirm === true;
 
@@ -38,7 +35,7 @@ export const deleteSubcommand = createSubcommand({
 		}
 
 		const deleted = await tui.spinner('Deleting project', async () => {
-			const val = await projectDelete(client!, args.id);
+			const val = await projectDelete(apiClient, args.id);
 			if (val.length === 1 && val[0] === args.id) {
 				return true;
 			}

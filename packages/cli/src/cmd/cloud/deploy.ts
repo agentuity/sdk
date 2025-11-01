@@ -6,7 +6,6 @@ import { runSteps, stepSuccess, stepSkipped, stepError } from '../../steps';
 import { bundle } from '../bundle/bundler';
 import { loadBuildMetadata } from '../../config';
 import { projectEnvUpdate } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 import {
 	findEnvFile,
 	readEnvFile,
@@ -20,14 +19,12 @@ export const deploySubcommand = createSubcommand({
 	toplevel: true,
 	requiresAuth: true,
 	requiresProject: true,
+	requiresAPIClient: true,
 
 	async handler(ctx) {
-		const { project, config, projectDir } = ctx;
+		const { project, apiClient, projectDir } = ctx;
 		try {
 			await saveProjectDir(projectDir);
-
-			const apiUrl = getAPIBaseURL(config);
-			const client = new APIClient(apiUrl, config);
 
 			await runSteps([
 				{
@@ -49,7 +46,7 @@ export const deploySubcommand = createSubcommand({
 							const { env, secrets } = splitEnvAndSecrets(filteredEnv);
 
 							// Push to cloud
-							await projectEnvUpdate(client, {
+							await projectEnvUpdate(apiClient, {
 								id: project.projectId,
 								env,
 								secrets,

@@ -3,7 +3,6 @@ import { join } from 'node:path';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectGet } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 import {
 	findEnvFile,
 	findExistingEnvFile,
@@ -17,6 +16,7 @@ export const pullSubcommand = createSubcommand({
 	description: 'Pull secrets from cloud to local .env.production file',
 	requiresAuth: true,
 	requiresProject: true,
+	requiresAPIClient: true,
 	schema: {
 		options: z.object({
 			force: z.boolean().default(false).describe('overwrite local values with cloud values'),
@@ -24,14 +24,11 @@ export const pullSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { opts, config, project, projectDir } = ctx;
-
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
+		const { opts, apiClient, project, projectDir } = ctx;
 
 		// Fetch project with unmasked secrets
 		const projectData = await tui.spinner('Pulling secrets from cloud', () => {
-			return projectGet(client, { id: project.projectId, mask: false });
+			return projectGet(apiClient, { id: project.projectId, mask: false });
 		});
 
 		const cloudSecrets = projectData.secrets || {};

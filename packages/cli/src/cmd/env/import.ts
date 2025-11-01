@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 import {
 	findEnvFile,
 	readEnvFile,
@@ -19,6 +18,7 @@ export const importSubcommand = createSubcommand({
 	description: 'Import environment variables from a file to cloud and local .env.production',
 	requiresAuth: true,
 	requiresProject: true,
+	requiresAPIClient: true,
 	schema: {
 		args: z.object({
 			file: z.string().describe('path to the .env file to import'),
@@ -26,7 +26,7 @@ export const importSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, config, project, projectDir } = ctx;
+		const { args, apiClient, project, projectDir } = ctx;
 
 		// Read the import file
 		const importedEnv = await readEnvFile(args.file);
@@ -75,15 +75,12 @@ export const importSubcommand = createSubcommand({
 			}
 		}
 
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
-
 		// Split into env and secrets based on key naming conventions
 		const { env: normalEnv, secrets } = splitEnvAndSecrets(filteredEnv);
 
 		// Push to cloud
 		await tui.spinner('Importing environment variables to cloud', () => {
-			return projectEnvUpdate(client, {
+			return projectEnvUpdate(apiClient, {
 				id: project.projectId,
 				env: normalEnv,
 				secrets: secrets,

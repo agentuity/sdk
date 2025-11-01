@@ -1,7 +1,6 @@
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 import { findExistingEnvFile, readEnvFile, filterAgentuitySdkKeys } from '../../env-util';
 
 export const pushSubcommand = createSubcommand({
@@ -9,9 +8,10 @@ export const pushSubcommand = createSubcommand({
 	description: 'Push environment variables from local .env.production file to cloud',
 	requiresAuth: true,
 	requiresProject: true,
+	requiresAPIClient: true,
 
 	async handler(ctx) {
-		const { config, project, projectDir } = ctx;
+		const { apiClient, project, projectDir } = ctx;
 
 		// Read local env file (prefer .env.production, fallback to .env)
 		const envFilePath = await findExistingEnvFile(projectDir);
@@ -25,12 +25,9 @@ export const pushSubcommand = createSubcommand({
 			return;
 		}
 
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
-
 		// Push to cloud
 		await tui.spinner('Pushing environment variables to cloud', () => {
-			return projectEnvUpdate(client, {
+			return projectEnvUpdate(apiClient, {
 				id: project.projectId,
 				env: filteredEnv,
 			});

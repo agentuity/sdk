@@ -4,11 +4,13 @@ import type {
 	SubcommandDefinition,
 	CommandContext,
 	ProjectConfig,
+	Config,
 } from './types';
 import { showBanner } from './banner';
 import { requireAuth, optionalAuth } from './auth';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
 import { defaultProfileName, loadProjectConfig } from './config';
+import { APIClient, getAPIBaseURL } from './api';
 
 export async function createCLI(version: string): Promise<Command> {
 	const program = new Command();
@@ -157,6 +159,10 @@ async function registerSubcommand(
 					if (subcommand.schema.options) {
 						ctx.opts = subcommand.schema.options.parse(input.options);
 					}
+					if (subcommand.requiresAPIClient) {
+						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
+						ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+					}
 					await subcommand.handler(ctx as CommandContext);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
@@ -202,6 +208,10 @@ async function registerSubcommand(
 					ctx.project = project;
 					ctx.projectDir = projectDir;
 				}
+				if (subcommand.requiresAPIClient) {
+					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
+					ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+				}
 				await subcommand.handler(ctx as CommandContext);
 			}
 		} else if (subcommand.optionalAuth) {
@@ -235,6 +245,10 @@ async function registerSubcommand(
 					}
 					if (subcommand.schema.options) {
 						ctx.opts = subcommand.schema.options.parse(input.options);
+					}
+					if (subcommand.requiresAPIClient) {
+						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
+						ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 					}
 					await subcommand.handler(ctx as CommandContext);
 				} catch (error) {
@@ -280,6 +294,10 @@ async function registerSubcommand(
 					ctx.project = project;
 					ctx.projectDir = projectDir;
 				}
+				if (subcommand.requiresAPIClient) {
+					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
+					ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+				}
 				await subcommand.handler(ctx as CommandContext);
 			}
 		} else {
@@ -298,6 +316,10 @@ async function registerSubcommand(
 					}
 					if (subcommand.schema.options) {
 						ctx.opts = subcommand.schema.options.parse(input.options);
+					}
+					if (subcommand.requiresAPIClient) {
+						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
+						ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 					}
 					await subcommand.handler(ctx as CommandContext);
 				} catch (error) {
@@ -331,6 +353,10 @@ async function registerSubcommand(
 				if (project) {
 					ctx.project = project;
 					ctx.projectDir = projectDir;
+				}
+				if (subcommand.requiresAPIClient) {
+					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
+					ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 				}
 				await subcommand.handler(ctx as CommandContext);
 			}
@@ -372,7 +398,12 @@ export async function registerCommands(
 								: null,
 							auth,
 						};
-						await cmdDef.handler!(ctx);
+						if (cmdDef.requiresAPIClient) {
+							const apiUrl = getAPIBaseURL(ctx.config);
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							(ctx as any).apiClient = new APIClient(apiUrl, ctx.config);
+						}
+						await cmdDef.handler!(ctx as CommandContext);
 					} else if (cmdDef.optionalAuth) {
 						const continueText =
 							typeof cmdDef.optionalAuth === 'string' ? cmdDef.optionalAuth : undefined;
@@ -399,9 +430,20 @@ export async function registerCommands(
 								: baseCtx.config,
 							auth,
 						};
+						if (cmdDef.requiresAPIClient) {
+							const apiUrl = getAPIBaseURL(ctx.config as Config | null);
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							(ctx as any).apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+						}
 						await cmdDef.handler!(ctx as CommandContext);
 					} else {
-						await cmdDef.handler!(baseCtx as CommandContext<false>);
+						const ctx = baseCtx as CommandContext<false>;
+						if (cmdDef.requiresAPIClient) {
+							const apiUrl = getAPIBaseURL(ctx.config);
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							(ctx as any).apiClient = new APIClient(apiUrl, ctx.config);
+						}
+						await cmdDef.handler!(ctx as CommandContext);
 					}
 				});
 			} else {

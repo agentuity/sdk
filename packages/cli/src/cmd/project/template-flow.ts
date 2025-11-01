@@ -17,7 +17,7 @@ import { fetchTemplates, type TemplateInfo } from './templates';
 import { downloadTemplate, setupProject } from './download';
 import { showBanner } from '../../banner';
 import type { AuthData, Config } from '../../types';
-import { getAPIBaseURL, APIClient } from '../../api';
+import type { APIClient } from '../../api';
 import { createProjectConfig, saveOrgId } from '../../config';
 import {
 	findEnvFile,
@@ -39,6 +39,7 @@ interface CreateFlowOptions {
 	auth?: AuthData;
 	config?: Config;
 	orgId?: string;
+	apiClient?: APIClient;
 }
 
 export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
@@ -53,6 +54,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		auth,
 		config,
 		orgId: selectedOrgId,
+		apiClient,
 	} = options;
 
 	showBanner();
@@ -74,14 +76,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	let projectName = initialProjectName;
 
 	let orgs: OrganizationList | undefined;
-	let client: APIClient | undefined;
 	let orgId: string | undefined;
 
-	if (auth) {
-		const apiUrl = getAPIBaseURL(config);
-		client = new APIClient(apiUrl, config);
+	if (auth && apiClient) {
 		orgs = await tui.spinner('Fetching organizations', async () => {
-			const resp = await listOrganizations(client!);
+			const resp = await listOrganizations(apiClient);
 			if (resp.data) {
 				return resp.data;
 			}
@@ -106,8 +105,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				if (!value || value.trim().length === 0) {
 					return 'Project name is required';
 				}
-				if (client) {
-					const exists = await projectExists(client, { name: value, organization_id: orgId! });
+				if (apiClient) {
+					const exists = await projectExists(apiClient, {
+						name: value,
+						organization_id: orgId!,
+					});
 					if (exists) {
 						return `Project with name '${value}' already exists in this organization`;
 					}
@@ -213,11 +215,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		logger,
 	});
 
-	if (auth && client && orgId) {
+	if (auth && apiClient && orgId) {
 		let projectId: string | undefined;
 
 		await tui.spinner('Registering your project', async () => {
-			const res = await projectCreate(client, {
+			const res = await projectCreate(apiClient, {
 				name: projectName,
 				organization_id: orgId,
 				provider: 'bunjs',
@@ -243,7 +245,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 					if (Object.keys(filteredEnv).length > 0) {
 						const { env, secrets } = splitEnvAndSecrets(filteredEnv);
-						await projectEnvUpdate(client, {
+						await projectEnvUpdate(apiClient, {
 							id: projectId!,
 							env,
 							secrets,

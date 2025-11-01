@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 import {
 	findEnvFile,
 	readEnvFile,
@@ -17,6 +16,7 @@ export const setSubcommand = createSubcommand({
 	description: 'Set an environment variable',
 	requiresAuth: true,
 	requiresProject: true,
+	requiresAPIClient: true,
 	schema: {
 		args: z.object({
 			key: z.string().describe('the environment variable key'),
@@ -25,7 +25,7 @@ export const setSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, config, project, projectDir } = ctx;
+		const { args, apiClient, project, projectDir } = ctx;
 
 		// Validate key doesn't start with AGENTUITY_
 		if (args.key.startsWith('AGENTUITY_')) {
@@ -51,12 +51,9 @@ export const setSubcommand = createSubcommand({
 			}
 		}
 
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
-
 		// Set in cloud
 		await tui.spinner('Setting environment variable in cloud', () => {
-			return projectEnvUpdate(client, {
+			return projectEnvUpdate(apiClient, {
 				id: project.projectId,
 				env: { [args.key]: args.value },
 			});

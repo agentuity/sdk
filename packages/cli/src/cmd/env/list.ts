@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectGet } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 import { maskSecret } from '../../env-util';
 
 export const listSubcommand = createSubcommand({
@@ -11,6 +10,7 @@ export const listSubcommand = createSubcommand({
 	description: 'List all environment variables',
 	requiresAuth: true,
 	requiresProject: true,
+	requiresAPIClient: true,
 	schema: {
 		options: z.object({
 			mask: z
@@ -21,14 +21,11 @@ export const listSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { opts, config, project } = ctx;
-
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
+		const { opts, apiClient, project } = ctx;
 
 		// Fetch project with unmasked secrets
 		const projectData = await tui.spinner('Fetching environment variables', () => {
-			return projectGet(client, { id: project.projectId, mask: false });
+			return projectGet(apiClient, { id: project.projectId, mask: false });
 		});
 
 		const env = projectData.env || {};

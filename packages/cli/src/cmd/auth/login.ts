@@ -1,6 +1,6 @@
 import { createSubcommand } from '../../types';
 import { UpgradeRequiredError } from '@agentuity/server';
-import { getAPIBaseURL, getAppBaseURL } from '../../api';
+import { getAppBaseURL } from '../../api';
 import { saveAuth } from '../../config';
 import { generateLoginOTP, pollForLoginCompletion } from './api';
 import * as tui from '../../tui';
@@ -9,15 +9,15 @@ export const loginCommand = createSubcommand({
 	name: 'login',
 	description: 'Login to the Agentuity Platform using a browser-based authentication flow',
 	toplevel: true,
+	requiresAPIClient: true,
 
 	async handler(ctx) {
-		const { logger, config } = ctx;
-		const apiUrl = getAPIBaseURL(config);
+		const { logger, config, apiClient } = ctx;
 		const appUrl = getAppBaseURL(config);
 
 		try {
 			const otp = await tui.spinner('Generating login one time code...', () => {
-				return generateLoginOTP(apiUrl, config);
+				return generateLoginOTP(apiClient);
 			});
 
 			if (!otp) {
@@ -46,7 +46,7 @@ export const loginCommand = createSubcommand({
 
 			console.log('Waiting for login to complete...');
 
-			const result = await pollForLoginCompletion(apiUrl, otp, config);
+			const result = await pollForLoginCompletion(apiClient, otp);
 
 			await saveAuth({
 				apiKey: result.apiKey,

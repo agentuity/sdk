@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { APIError, APIResponseSchema } from '@agentuity/server';
-import { APIClient } from '../../api';
-import type { Config } from '../../types';
+import type { APIClient } from '../../api';
 
 // Zod schemas for API validation
 const OTPStartDataSchema = z.object({
@@ -37,9 +36,8 @@ export interface SignupResult {
 	expires: Date;
 }
 
-export async function generateLoginOTP(apiUrl: string, config?: Config | null): Promise<string> {
-	const client = new APIClient(apiUrl, config);
-	const resp = await client.request(
+export async function generateLoginOTP(apiClient: APIClient): Promise<string> {
+	const resp = await apiClient.request(
 		'GET',
 		'/cli/auth/start',
 		APIResponseSchema(OTPStartDataSchema)
@@ -57,16 +55,14 @@ export async function generateLoginOTP(apiUrl: string, config?: Config | null): 
 }
 
 export async function pollForLoginCompletion(
-	apiUrl: string,
+	apiClient: APIClient,
 	otp: string,
-	config?: Config | null,
 	timeoutMs = 60000
 ): Promise<LoginResult> {
-	const client = new APIClient(apiUrl, config);
 	const started = Date.now();
 
 	while (Date.now() - started < timeoutMs) {
-		const resp = await client.request(
+		const resp = await apiClient.request(
 			'POST',
 			'/cli/auth/check',
 			APIResponseSchema(OTPCompleteDataSchema),
@@ -104,17 +100,15 @@ export function generateSignupOTP(): string {
 }
 
 export async function pollForSignupCompletion(
-	apiUrl: string,
+	apiClient: APIClient,
 	otp: string,
-	config?: Config | null,
 	timeoutMs = 350000
 ): Promise<SignupResult> {
-	const client = new APIClient(apiUrl, config);
 	const started = Date.now();
 
 	while (Date.now() - started < timeoutMs) {
 		try {
-			const resp = await client.request(
+			const resp = await apiClient.request(
 				'GET',
 				`/cli/auth/signup/${otp}`,
 				APIResponseSchema(SignupCompleteDataSchema)

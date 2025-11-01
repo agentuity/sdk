@@ -1,5 +1,5 @@
 import { createSubcommand } from '../../types';
-import { getAPIBaseURL, getAppBaseURL, UpgradeRequiredError } from '@agentuity/server';
+import { getAppBaseURL, UpgradeRequiredError } from '@agentuity/server';
 import { saveAuth } from '../../config';
 import { generateSignupOTP, pollForSignupCompletion } from './api';
 import * as tui from '../../tui';
@@ -8,10 +8,10 @@ export const signupCommand = createSubcommand({
 	name: 'signup',
 	description: 'Create a new Agentuity Cloud Platform account',
 	toplevel: true,
+	requiresAPIClient: true,
 
 	async handler(ctx) {
-		const { logger, config } = ctx;
-		const apiUrl = getAPIBaseURL(config?.overrides);
+		const { logger, config, apiClient } = ctx;
 		const appUrl = getAppBaseURL(config?.overrides);
 
 		try {
@@ -25,7 +25,7 @@ export const signupCommand = createSubcommand({
 			tui.newline();
 
 			await tui.spinner('Waiting for signup to complete...', async () => {
-				const result = await pollForSignupCompletion(apiUrl, otp, config);
+				const result = await pollForSignupCompletion(apiClient, otp);
 
 				await saveAuth({
 					apiKey: result.apiKey,

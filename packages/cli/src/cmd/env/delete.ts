@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectEnvDelete } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 import {
 	findExistingEnvFile,
 	readEnvFile,
@@ -16,6 +15,7 @@ export const deleteSubcommand = createSubcommand({
 	description: 'Delete an environment variable',
 	requiresAuth: true,
 	requiresProject: true,
+	requiresAPIClient: true,
 	schema: {
 		args: z.object({
 			key: z.string().describe('the environment variable key to delete'),
@@ -23,14 +23,11 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, config, project, projectDir } = ctx;
-
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
+		const { args, project, projectDir, apiClient } = ctx;
 
 		// Delete from cloud
 		await tui.spinner('Deleting environment variable from cloud', () => {
-			return projectEnvDelete(client, {
+			return projectEnvDelete(apiClient, {
 				id: project.projectId,
 				env: [args.key],
 			});

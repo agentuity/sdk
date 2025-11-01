@@ -2,13 +2,13 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectList } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
 	description: 'List all projects',
 	aliases: ['ls'],
 	requiresAuth: true,
+	requiresAPIClient: true,
 	schema: {
 		options: z.object({
 			format: z
@@ -19,13 +19,10 @@ export const listSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { config, opts } = ctx;
-
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
+		const { apiClient, opts } = ctx;
 
 		const projects = await tui.spinner('Fetching projects', () => {
-			return projectList(client!);
+			return projectList(apiClient);
 		});
 
 		// TODO: might want to sort by the last org_id we used

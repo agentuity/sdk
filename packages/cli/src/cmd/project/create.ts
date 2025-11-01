@@ -8,6 +8,7 @@ export const createProjectSubcommand = createSubcommand({
 	aliases: ['new'],
 	toplevel: true,
 	optionalAuth: true,
+	requiresAPIClient: true,
 	schema: {
 		options: z.object({
 			name: z.string().optional().describe('Project name'),
@@ -41,7 +42,7 @@ export const createProjectSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, auth, config, options } = ctx;
+		const { logger, opts, auth, config, options, apiClient } = ctx;
 
 		await runCreateFlow({
 			projectName: opts.name,
@@ -56,6 +57,7 @@ export const createProjectSubcommand = createSubcommand({
 			auth: opts.register === true ? auth : undefined,
 			config: config!,
 			orgId: options.orgId,
+			apiClient,
 		});
 	},
 });

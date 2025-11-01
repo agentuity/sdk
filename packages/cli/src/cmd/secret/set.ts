@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
-import { getAPIBaseURL, APIClient } from '../../api';
 import { findEnvFile, readEnvFile, writeEnvFile, filterAgentuitySdkKeys } from '../../env-util';
 
 export const setSubcommand = createSubcommand({
@@ -10,6 +9,7 @@ export const setSubcommand = createSubcommand({
 	description: 'Set a secret',
 	requiresAuth: true,
 	requiresProject: true,
+	requiresAPIClient: true,
 	schema: {
 		args: z.object({
 			key: z.string().min(1, 'key must not be empty').describe('the secret key'),
@@ -18,19 +18,16 @@ export const setSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, config, project, projectDir } = ctx;
+		const { args, apiClient, project, projectDir } = ctx;
 
 		// Validate key doesn't start with AGENTUITY_
 		if (args.key.startsWith('AGENTUITY_')) {
 			tui.fatal('Cannot set AGENTUITY_ prefixed variables. These are reserved for system use.');
 		}
 
-		const apiUrl = getAPIBaseURL(config);
-		const client = new APIClient(apiUrl, config);
-
 		// Set in cloud (using secrets field)
 		await tui.spinner('Setting secret in cloud', () => {
-			return projectEnvUpdate(client, {
+			return projectEnvUpdate(apiClient, {
 				id: project.projectId,
 				secrets: { [args.key]: args.value },
 			});
