@@ -40,4 +40,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 apps/test-simulated*
 apps/*-test-*
 
+# Go interop test artifacts
+packages/cli/test-interop/go-common
+packages/cli/test-interop/go-crypto-tool
+
 /TODO.md
