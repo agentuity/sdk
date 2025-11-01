@@ -104,9 +104,16 @@ ${agentInfo
 	writeFileSync(clientTypesPath, clientTypesContent, 'utf-8');
 }
 
+let metadata: Partial<BuildMetadata>;
+
+export function getBuildMetadata(): Partial<BuildMetadata> {
+	return metadata;
+}
+
 const AgentuityBundler: BunPlugin = {
 	name: 'Agentuity Bundler',
 	setup(build) {
+		const isDev = build.config.minify !== true;
 		const rootDir = build.config.root ?? '.';
 		const srcDir = join(rootDir, 'src');
 		const routes: Set<string> = new Set();
@@ -196,8 +203,10 @@ const AgentuityBundler: BunPlugin = {
 						.replace('/agents', '/agent')
 						.replace('./', '/');
 
-					const definitions = await parseRoute(rootDir, join(srcDir, route + '.ts'));
-					routeDefinitions = [...routeDefinitions, ...definitions];
+					if (!isDev) {
+						const definitions = await parseRoute(rootDir, join(srcDir, route + '.ts'));
+						routeDefinitions = [...routeDefinitions, ...definitions];
+					}
 
 					let agentDetail: Record<string, string> = {};
 
@@ -270,7 +279,7 @@ const AgentuityBundler: BunPlugin = {
 				}
 
 				// generate the build metadata
-				const metadata: BuildMetadata = {
+				metadata = {
 					routes: routeDefinitions,
 					agents: [],
 				};
@@ -290,7 +299,7 @@ const AgentuityBundler: BunPlugin = {
 					if (!v.has('name')) {
 						throw new Error('agent metadata is missing expected name property');
 					}
-					metadata.agents.push({
+					metadata.agents!.push({
 						filename: v.get('filename')!,
 						id: v.get('id')!,
 						identifier: v.get('identifier')!,
@@ -299,11 +308,6 @@ const AgentuityBundler: BunPlugin = {
 						description: v.get('description') ?? '<no description provided>',
 					});
 				}
-
-				const metadataFilename = Bun.file(
-					join(build.config.outdir!, 'agentuity.metadata.json')
-				);
-				await metadataFilename.write(JSON.stringify(metadata));
 
 				return {
 					contents,

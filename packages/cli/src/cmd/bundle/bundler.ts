@@ -1,6 +1,8 @@
-import { join, resolve } from 'node:path';
+import { $ } from 'bun';
+import { join, relative, resolve, dirname } from 'node:path';
 import { cpSync, existsSync, rmSync } from 'node:fs';
-import AgentuityBundler from './plugin';
+import gitParseUrl from 'git-url-parse';
+import AgentuityBundler, { getBuildMetadata } from './plugin';
 import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
 
@@ -8,9 +10,18 @@ export interface BundleOptions {
 	rootDir: string;
 	dev?: boolean;
 	env?: Map<string, string>;
+	orgId?: string;
+	projectId?: string;
+	deploymentId?: string;
 }
 
-export async function bundle({ dev = false, rootDir }: BundleOptions) {
+export async function bundle({
+	orgId,
+	projectId,
+	deploymentId,
+	dev = false,
+	rootDir,
+}: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
 		throw new Error(`App file not found at expected location: ${appFile}`);
@@ -47,10 +58,20 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 	const pkgContents = JSON.parse(await pkgFile.text());
 	const isProd = !dev;
 
-	const define = {
+	const define: Record<string, string> = {
 		'process.env.AGENTUITY_CLOUD_SDK_VERSION': JSON.stringify(getVersion() ?? '1.0.0'),
 		'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
 	};
+
+	if (orgId) {
+		define['process.env.AGENTUITY_CLOUD_ORG_ID'] = JSON.stringify(orgId);
+	}
+	if (projectId) {
+		define['process.env.AGENTUITY_CLOUD_PROJECT_ID'] = JSON.stringify(projectId);
+	}
+	if (deploymentId) {
+		define['process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID'] = JSON.stringify(deploymentId);
+	}
 
 	await (async () => {
 		const config: Bun.BuildConfig = {
@@ -75,6 +96,51 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 			process.exit(1);
 		}
 	})();
+
+	const buildmetadata = getBuildMetadata();
+	buildmetadata.assets = [];
+	buildmetadata.project = {
+		id: projectId ?? '',
+		name: pkgContents.name,
+		version: pkgContents.version,
+	};
+	buildmetadata.deployment = {
+		build: {
+			bun: Bun.version,
+			agentuity: '',
+			arch: process.arch,
+			platform: process.platform,
+		},
+		date: new Date().toUTCString(),
+		id: deploymentId ?? '',
+	};
+	if (!dev) {
+		// try local first
+		const agNMPackage = join(rootDir, 'node_modules', '@agentuity', 'cli', 'package.json');
+		if (existsSync(agNMPackage)) {
+			try {
+				const npmpkg = await Bun.file(agNMPackage).json();
+				if (npmpkg.version) {
+					buildmetadata.deployment.build.agentuity = npmpkg.version;
+				}
+			} catch {
+				// Ignore malformed package.json
+			}
+		} else {
+			try {
+				// now try the global
+				const r = $`bunx @agentuity/cli version`.quiet().nothrow();
+				if (r) {
+					const version = await r.text();
+					if (version) {
+						buildmetadata.deployment.build.agentuity = version.trim();
+					}
+				}
+			} catch {
+				// ignore error from bunx
+			}
+		}
+	}
 
 	await (async () => {
 		// Find workspace root for monorepo support
@@ -121,21 +187,117 @@ export async function bundle({ dev = false, rootDir }: BundleOptions) {
 			external: workspaceRoot !== rootDir ? [] : undefined,
 		};
 		try {
-			await Bun.build(config);
+			const result = await Bun.build(config);
+			if (result.success) {
+				if (!dev && buildmetadata) {
+					result.outputs
+						// only include sourcemaps or assets
+						.filter((x) => x.hash === '00000000' || x.path.includes(x.hash ?? ''))
+						.map((artifact) => {
+							const r = relative(join(outDir, 'web'), artifact.path);
+							buildmetadata.assets!.push({
+								filename: r,
+								kind: artifact.kind,
+								contentType: artifact.type,
+								size: artifact.size,
+							});
+						});
+				}
+			} else {
+				console.error(result.logs.join('\n'));
+				process.exit(1);
+			}
 		} catch (ex) {
 			console.error(ex);
 			process.exit(1);
 		}
 	})();
 
-	const webPublicDir = join(webDir, 'public');
-	if (existsSync(webPublicDir)) {
-		const webOutPublicDir = join(outDir, 'web', 'public');
-		cpSync(webPublicDir, webOutPublicDir, { recursive: true });
+	if (!dev && buildmetadata) {
+		const webPublicDir = join(webDir, 'public');
+		if (existsSync(webPublicDir)) {
+			const webOutPublicDir = join(outDir, 'web', 'public');
+			cpSync(webPublicDir, webOutPublicDir, { recursive: true });
+			[...new Bun.Glob('**.*').scanSync(webOutPublicDir)].forEach((f) => {
+				const bf = Bun.file(join(webOutPublicDir, f));
+				buildmetadata.assets!.push({
+					filename: join('public', f),
+					kind: 'static',
+					contentType: bf.type,
+					size: bf.size,
+				});
+			});
+		}
+	}
+
+	if (!dev && Bun.which('git') && buildmetadata?.deployment) {
+		buildmetadata.deployment.git = {
+			commit: process.env.GIT_SHA || process.env.GITHUB_SHA,
+			branch: process.env.GITHUB_REF ? process.env.GITHUB_REF.replace('refs/heads/', '') : '',
+			repo: process.env.GITHUB_REPOSITORY
+				? gitParseUrl(process.env.GITHUB_REPOSITORY).toString('https')
+				: '',
+		};
+		// pull out the git information if we have it
+		try {
+			let gitDir = join(rootDir, '.git');
+			let parentDir = dirname(dirname(gitDir));
+			while (!existsSync(gitDir) && parentDir !== dirname(parentDir) && gitDir !== '/') {
+				gitDir = join(parentDir, '.git');
+				parentDir = dirname(parentDir);
+			}
+			if (existsSync(gitDir)) {
+				const tag = $`git tag -l --points-at HEAD`.nothrow().quiet();
+				if (tag) {
+					const tags = await tag.text();
+					buildmetadata.deployment.git.tags = tags
+						.trim()
+						.split(/\n/)
+						.map((s) => s.trim())
+						.filter(Boolean);
+				}
+				const branch = $`git branch --show-current`.nothrow().quiet();
+				if (branch) {
+					const _branch = await branch.text();
+					if (_branch) {
+						buildmetadata.deployment.git.branch = _branch.trim();
+					}
+				}
+				const commit = $`git rev-parse HEAD`.nothrow().quiet();
+				if (commit) {
+					const sha = await commit.text();
+					if (sha) {
+						buildmetadata.deployment.git.commit = sha.trim();
+						const msg = $`git log --pretty=format:%s -n1 ${buildmetadata.deployment.git.commit}`;
+						if (msg) {
+							const _msg = await msg.text();
+							if (_msg) {
+								buildmetadata.deployment.git.message = _msg.trim();
+							}
+						}
+						const origin = $`git config --get remote.origin.url`.nothrow().quiet();
+						if (origin) {
+							const _origin = await origin.text();
+							if (_origin) {
+								const _url = gitParseUrl(_origin.trim());
+								buildmetadata.deployment.git.repo = _url.toString('https');
+							}
+						}
+					}
+				}
+			}
+		} catch {
+			// ignore errors
+		}
 	}
 
 	await Bun.write(
 		`${outDir}/package.json`,
 		JSON.stringify({ name: pkgContents.name, version: pkgContents.version }, null, 2)
+	);
+
+	await Bun.write(
+		`${outDir}/agentuity.metadata.json`,
+		dev ? JSON.stringify(buildmetadata, null, 2) : JSON.stringify(buildmetadata)
 	);
 }

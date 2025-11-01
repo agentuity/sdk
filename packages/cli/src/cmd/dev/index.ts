@@ -2,8 +2,9 @@ import { createCommand } from '../../types';
 import { z } from 'zod';
 import { resolve, join } from 'node:path';
 import { bundle } from '../bundle/bundler';
+import { getBuildMetadata } from '../bundle/plugin';
 import { existsSync, FSWatcher, watch } from 'node:fs';
-import { loadBuildMetadata, saveProjectDir } from '../../config';
+import { saveProjectDir } from '../../config';
 import type { BuildMetadata } from '../../types';
 import * as tui from '../../tui';
 
@@ -90,7 +91,7 @@ export const command = createCommand({
 		let shuttingDownForRestart = false;
 		let pendingRestart = false;
 		let building = false;
-		let metadata: BuildMetadata | undefined;
+		let metadata: Partial<BuildMetadata> | undefined;
 		let showInitialReadyMessage = true;
 
 		// Track restart timestamps to detect restart loops
@@ -238,7 +239,7 @@ export const command = createCommand({
 					return;
 				}
 
-				metadata = await loadBuildMetadata(agentuityDir);
+				metadata = getBuildMetadata();
 
 				logger.trace('Starting dev server: %s', appPath);
 				// Use shell to run in a process group for proper cleanup

@@ -346,6 +346,40 @@ export const BuildMetadataSchema = zod.object({
 			description: zod.string().optional().describe('the agent description'),
 		})
 	),
+	assets: zod.array(
+		zod.object({
+			filename: zod.string().describe('the relative path for the file'),
+			kind: zod.string().describe('the type of asset'),
+			contentType: zod.string().describe('the content-type for the file'),
+			size: zod.number().describe('the size in bytes for the file'),
+		})
+	),
+	project: zod.object({
+		id: zod.string().describe('the project id'),
+		name: zod.string().describe('the name of the project (from package.json)'),
+		version: zod.string().optional().describe('the version of the project (from package.json)'),
+	}),
+	deployment: zod.object({
+		id: zod.string().describe('the deployment id'),
+		date: zod.string().describe('the date the deployment was created in UTC format'),
+		git: zod
+			.object({
+				repo: zod.string().optional().describe('the repository name'),
+				commit: zod.string().optional().describe('the git commit sha'),
+				message: zod.string().optional().describe('the git commit message'),
+				branch: zod.string().optional().describe('the git branch'),
+				tags: zod.array(zod.string()).optional().describe('the tags for the current branch'),
+				pr: zod.string().optional().describe('the pull request number'),
+			})
+			.optional()
+			.describe('git commit information'),
+		build: zod.object({
+			bun: zod.string().describe('the version of bun that was used to build the deployment'),
+			agentuity: zod.string().describe('the version of the agentuity runtime'),
+			arch: zod.string().describe('the machine architecture'),
+			platform: zod.string().describe('the machine os platform'),
+		}),
+	}),
 });
 
 export type BuildMetadata = zod.infer<typeof BuildMetadataSchema>;
