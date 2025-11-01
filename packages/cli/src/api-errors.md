@@ -100,10 +100,10 @@ For other API errors:
 
 ## Debug Mode
 
-Set `DEBUG=1` environment variable to see detailed error information:
+Use `--log-level=debug` flag to see detailed error information:
 
 ```bash
-DEBUG=1 agentuity auth login
+agentuity --log-level=debug auth login
 ```
 
 This will print:

@@ -9,6 +9,7 @@
  */
 
 import { z } from 'zod';
+import type { Logger } from '@agentuity/core';
 
 export interface APIErrorResponse {
 	success: boolean;
@@ -57,26 +58,29 @@ export class APIError extends Error {
 }
 
 export class APIClient {
-	private baseUrl: string;
-	private apiKey?: string;
-	private config?: APIClientConfig;
+	#baseUrl: string;
+	#apiKey?: string;
+	#config?: APIClientConfig;
+	#logger: Logger;
 
-	constructor(baseUrl: string, config?: APIClientConfig);
-	constructor(baseUrl: string, apiKey: string, config?: APIClientConfig);
+	constructor(baseUrl: string, logger: Logger, config?: APIClientConfig);
+	constructor(baseUrl: string, logger: Logger, apiKey: string, config?: APIClientConfig);
 	constructor(
 		baseUrl: string,
+		logger: Logger,
 		apiKeyOrConfig?: string | APIClientConfig,
 		config?: APIClientConfig
 	) {
-		this.baseUrl = baseUrl;
+		this.#baseUrl = baseUrl;
+		this.#logger = logger;
 
-		// Detect if second parameter is apiKey (string) or config (object)
+		// Detect if third parameter is apiKey (string) or config (object)
 		if (typeof apiKeyOrConfig === 'string') {
-			this.apiKey = apiKeyOrConfig;
-			this.config = config;
+			this.#apiKey = apiKeyOrConfig;
+			this.#config = config;
 		} else {
-			this.apiKey = undefined;
-			this.config = apiKeyOrConfig;
+			this.#apiKey = undefined;
+			this.#config = apiKeyOrConfig;
 		}
 	}
 
@@ -98,7 +102,7 @@ export class APIClient {
 			}
 		}
 
-		const response = await this.makeRequest(method, endpoint, body);
+		const response = await this.#makeRequest(method, endpoint, body);
 
 		// Handle empty responses (204 or zero-length body)
 		let data: unknown;
@@ -127,23 +131,23 @@ export class APIClient {
 		return validationResult.data;
 	}
 
-	private async makeRequest(method: string, endpoint: string, body?: unknown): Promise<Response> {
-		const maxRetries = this.config?.maxRetries ?? 3;
-		const baseDelayMs = this.config?.retryDelayMs ?? 100;
+	async #makeRequest(method: string, endpoint: string, body?: unknown): Promise<Response> {
+		const maxRetries = this.#config?.maxRetries ?? 3;
+		const baseDelayMs = this.#config?.retryDelayMs ?? 100;
 
 		for (let attempt = 0; attempt <= maxRetries; attempt++) {
 			try {
-				const url = `${this.baseUrl}${endpoint}`;
+				const url = `${this.#baseUrl}${endpoint}`;
 				const headers: Record<string, string> = {
 					'Content-Type': 'application/json',
 				};
 
-				if (this.config?.userAgent) {
-					headers['User-Agent'] = this.config.userAgent;
+				if (this.#config?.userAgent) {
+					headers['User-Agent'] = this.#config.userAgent;
 				}
 
-				if (this.apiKey) {
-					headers['Authorization'] = `Bearer ${this.apiKey}`;
+				if (this.#apiKey) {
+					headers['Authorization'] = `Bearer ${this.#apiKey}`;
 				}
 
 				const response = await fetch(url, {
@@ -155,30 +159,28 @@ export class APIClient {
 				// Check if we should retry on specific status codes (409, 501, 503)
 				const retryableStatuses = [409, 501, 503];
 				if (retryableStatuses.includes(response.status) && attempt < maxRetries) {
-					let delayMs = this.getRetryDelay(attempt, baseDelayMs);
+					let delayMs = this.#getRetryDelay(attempt, baseDelayMs);
 
 					// For 409, check for rate limit headers
 					if (response.status === 409) {
-						const rateLimitDelay = this.getRateLimitDelay(response);
+						const rateLimitDelay = this.#getRateLimitDelay(response);
 						if (rateLimitDelay !== null) {
 							delayMs = rateLimitDelay;
-							if (process.env.DEBUG) {
-								console.error(
-									`[DEBUG] Got 409 with rate limit headers, waiting ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`
-								);
-							}
-						} else if (process.env.DEBUG) {
-							console.error(
-								`[DEBUG] Got 409, retrying with backoff ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`
+							this.#logger.debug(
+								`Got 409 with rate limit headers, waiting ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`
+							);
+						} else {
+							this.#logger.debug(
+								`Got 409, retrying with backoff ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`
 							);
 						}
-					} else if (process.env.DEBUG) {
-						console.error(
-							`[DEBUG] Got ${response.status}, retrying (attempt ${attempt + 1}/${maxRetries + 1})`
+					} else {
+						this.#logger.debug(
+							`Got ${response.status}, retrying (attempt ${attempt + 1}/${maxRetries + 1})`
 						);
 					}
 
-					await this.sleep(delayMs);
+					await this.#sleep(delayMs);
 					continue;
 				}
 
@@ -194,30 +196,26 @@ export class APIClient {
 						// Not JSON, ignore
 					}
 
-					if (process.env.DEBUG) {
-						// Sanitize headers to avoid leaking API keys
-						const sanitizedHeaders = { ...headers };
-						for (const key in sanitizedHeaders) {
-							if (key.toLowerCase() === 'authorization') {
-								sanitizedHeaders[key] = 'REDACTED';
-							}
+					// Sanitize headers to avoid leaking API keys
+					const sanitizedHeaders = { ...headers };
+					for (const key in sanitizedHeaders) {
+						if (key.toLowerCase() === 'authorization') {
+							sanitizedHeaders[key] = 'REDACTED';
 						}
-
-						console.error('API Error Details:');
-						console.error('  URL:', url);
-						console.error('  Method:', method);
-						console.error('  Status:', response.status, response.statusText);
-						console.error('  Headers:', JSON.stringify(sanitizedHeaders, null, 2));
-						console.error('  Response:', responseBody);
 					}
+
+					this.#logger.debug('API Error Details:');
+					this.#logger.debug('  URL:', url);
+					this.#logger.debug('  Method:', method);
+					this.#logger.debug('  Status:', response.status, response.statusText);
+					this.#logger.debug('  Headers:', JSON.stringify(sanitizedHeaders, null, 2));
+					this.#logger.debug('  Response:', responseBody);
 
 					// Check for UPGRADE_REQUIRED error
 					if (errorData?.code === 'UPGRADE_REQUIRED') {
 						// Skip version check if configured
-						if (this.config?.skipVersionCheck) {
-							if (process.env.DEBUG) {
-								console.error('[DEBUG] Skipping version check (configured to skip)');
-							}
+						if (this.#config?.skipVersionCheck) {
+							this.#logger.debug('Skipping version check (configured to skip)');
 							// Request is still rejected, but throw UpgradeRequiredError so callers
 							// can detect it and handle UI behavior (e.g., suppress banner) based on skip flag
 							throw new UpgradeRequiredError(
@@ -255,16 +253,14 @@ export class APIClient {
 				return response;
 			} catch (error) {
 				// Check if it's a retryable connection error
-				const isRetryable = this.isRetryableError(error);
+				const isRetryable = this.#isRetryableError(error);
 
 				if (isRetryable && attempt < maxRetries) {
-					if (process.env.DEBUG) {
-						console.error(
-							`[DEBUG] Connection error, retrying (attempt ${attempt + 1}/${maxRetries + 1}):`,
-							error
-						);
-					}
-					await this.sleep(this.getRetryDelay(attempt, baseDelayMs));
+					this.#logger.debug(
+						`Connection error, retrying (attempt ${attempt + 1}/${maxRetries + 1}):`,
+						error
+					);
+					await this.#sleep(this.#getRetryDelay(attempt, baseDelayMs));
 					continue;
 				}
 
@@ -275,7 +271,7 @@ export class APIClient {
 		throw new Error('Max retries exceeded');
 	}
 
-	private isRetryableError(error: unknown): boolean {
+	#isRetryableError(error: unknown): boolean {
 		if (error && typeof error === 'object') {
 			const err = error as { code?: string; errno?: number };
 			// Retryable connection errors
@@ -289,18 +285,18 @@ export class APIClient {
 		return false;
 	}
 
-	private getRetryDelay(attempt: number, baseDelayMs: number): number {
+	#getRetryDelay(attempt: number, baseDelayMs: number): number {
 		// Exponential backoff with jitter: delay = base * 2^attempt * (0.5 + random(0, 0.5))
 		const exponentialDelay = baseDelayMs * Math.pow(2, attempt);
 		const jitter = 0.5 + Math.random() * 0.5;
 		return Math.floor(exponentialDelay * jitter);
 	}
 
-	private sleep(ms: number): Promise<void> {
+	#sleep(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
 
-	private getRateLimitDelay(response: Response): number | null {
+	#getRateLimitDelay(response: Response): number | null {
 		// Check for Retry-After header (standard HTTP)
 		const retryAfter = response.headers.get('Retry-After');
 		if (retryAfter) {

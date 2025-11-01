@@ -5,13 +5,15 @@ The `APIClient` has a friendly interface with built-in Zod schema validation.
 ## Public API (no authentication)
 
 ```typescript
-import { APIClient } from '@agentuity/server';
+import { APIClient, createLogger } from '@agentuity/server';
 
-// Simple - just URL and optional config
-const client = new APIClient('https://api.agentuity.com');
+const logger = createLogger('info');
+
+// Simple - just URL, logger, and optional config
+const client = new APIClient('https://api.agentuity.com', logger);
 
 // With config
-const client = new APIClient('https://api.agentuity.com', {
+const client = new APIClient('https://api.agentuity.com', logger, {
 	skipVersionCheck: true,
 	userAgent: 'MyApp/1.0.0',
 });
@@ -20,15 +22,16 @@ const client = new APIClient('https://api.agentuity.com', {
 ## Authenticated API
 
 ```typescript
-import { APIClient } from '@agentuity/server';
+import { APIClient, createLogger } from '@agentuity/server';
 
+const logger = createLogger('info');
 const apiKey = 'your-api-key';
 
 // With API key
-const client = new APIClient('https://api.agentuity.com', apiKey);
+const client = new APIClient('https://api.agentuity.com', logger, apiKey);
 
 // With API key and config
-const client = new APIClient('https://api.agentuity.com', apiKey, {
+const client = new APIClient('https://api.agentuity.com', logger, apiKey, {
 	skipVersionCheck: true,
 	userAgent: 'MyApp/1.0.0',
 });
@@ -53,7 +56,8 @@ const CreateUserSchema = z.object({
 	email: z.string().email(),
 });
 
-const client = new APIClient('https://api.agentuity.com', apiKey);
+const logger = createLogger('info');
+const client = new APIClient('https://api.agentuity.com', logger, apiKey);
 
 // GET request with response validation
 try {
@@ -114,17 +118,18 @@ The CLI wrapper automatically handles version checking and user agent:
 
 ```typescript
 import { APIClient, z } from '@agentuity/cli';
-import type { Config } from '@agentuity/cli';
+import type { Config, Logger } from '@agentuity/cli';
 
+const logger: Logger = /* get from CLI context */;
 const config: Config = {
 	/* ... */
 };
 
 // Public API
-const client = new APIClient('https://api.agentuity.com', config);
+const client = new APIClient('https://api.agentuity.com', logger, config);
 
 // Authenticated API
-const client = new APIClient('https://api.agentuity.com', apiKey, config);
+const client = new APIClient('https://api.agentuity.com', logger, apiKey, config);
 
 // Making requests (schema validation is built-in)
 const ResponseSchema = z.object({

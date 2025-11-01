@@ -201,7 +201,11 @@ async function registerSubcommand(
 					}
 					if (normalized.requiresAPIClient) {
 						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-						ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+						ctx.apiClient = new APIClient(
+							apiUrl,
+							baseCtx.logger,
+							ctx.config as Config | null
+						);
 					}
 					await subcommand.handler(ctx as CommandContext);
 				} catch (error) {
@@ -252,7 +256,7 @@ async function registerSubcommand(
 				}
 				if (normalized.requiresAPIClient) {
 					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-					ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+					ctx.apiClient = new APIClient(apiUrl, baseCtx.logger, ctx.config as Config | null);
 				}
 				await subcommand.handler(ctx as CommandContext);
 			}
@@ -292,7 +296,11 @@ async function registerSubcommand(
 					}
 					if (normalized.requiresAPIClient) {
 						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-						ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+						ctx.apiClient = new APIClient(
+							apiUrl,
+							baseCtx.logger,
+							ctx.config as Config | null
+						);
 					}
 					await subcommand.handler(ctx as CommandContext);
 				} catch (error) {
@@ -342,7 +350,7 @@ async function registerSubcommand(
 				}
 				if (normalized.requiresAPIClient) {
 					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-					ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+					ctx.apiClient = new APIClient(apiUrl, baseCtx.logger, ctx.config as Config | null);
 				}
 				await subcommand.handler(ctx as CommandContext);
 			}
@@ -367,7 +375,11 @@ async function registerSubcommand(
 					}
 					if (normalized.requiresAPIClient) {
 						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-						ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+						ctx.apiClient = new APIClient(
+							apiUrl,
+							baseCtx.logger,
+							ctx.config as Config | null
+						);
 					}
 					await subcommand.handler(ctx as CommandContext);
 				} catch (error) {
@@ -406,7 +418,7 @@ async function registerSubcommand(
 				}
 				if (normalized.requiresAPIClient) {
 					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-					ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+					ctx.apiClient = new APIClient(apiUrl, baseCtx.logger, ctx.config as Config | null);
 				}
 				await subcommand.handler(ctx as CommandContext);
 			}
@@ -451,7 +463,11 @@ export async function registerCommands(
 						};
 						if (normalized.requiresAPIClient) {
 							const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-							ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+							ctx.apiClient = new APIClient(
+								apiUrl,
+								baseCtx.logger,
+								ctx.config as Config | null
+							);
 						}
 						await cmdDef.handler!(ctx as CommandContext);
 					} else if (normalized.optionalAuth) {
@@ -487,7 +503,11 @@ export async function registerCommands(
 						};
 						if (normalized.requiresAPIClient) {
 							const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-							ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+							ctx.apiClient = new APIClient(
+								apiUrl,
+								baseCtx.logger,
+								ctx.config as Config | null
+							);
 						}
 						await cmdDef.handler!(ctx as CommandContext);
 					} else {
@@ -495,7 +515,7 @@ export async function registerCommands(
 						if (normalized.requiresAPIClient) {
 							const apiUrl = getAPIBaseURL(ctx.config);
 							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							(ctx as any).apiClient = new APIClient(apiUrl, ctx.config);
+							(ctx as any).apiClient = new APIClient(apiUrl, baseCtx.logger, ctx.config);
 						}
 						await cmdDef.handler!(ctx as CommandContext);
 					}

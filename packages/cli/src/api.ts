@@ -4,7 +4,7 @@
  * Re-exports from @agentuity/server with CLI-specific configuration
  */
 
-import type { Config } from './types';
+import type { Config, Logger } from './types';
 import { getVersion, getRevision } from './version';
 import {
 	APIClient as BaseAPIClient,
@@ -56,9 +56,14 @@ function shouldSkipVersionCheck(config?: Config | null): boolean {
 
 // CLI-specific wrapper around the base APIClient
 export class APIClient extends BaseAPIClient {
-	constructor(baseUrl: string, config?: Config | null);
-	constructor(baseUrl: string, apiKey: string, config?: Config | null);
-	constructor(baseUrl: string, apiKeyOrConfig?: string | Config | null, config?: Config | null) {
+	constructor(baseUrl: string, logger: Logger, config?: Config | null);
+	constructor(baseUrl: string, logger: Logger, apiKey: string, config?: Config | null);
+	constructor(
+		baseUrl: string,
+		logger: Logger,
+		apiKeyOrConfig?: string | Config | null,
+		config?: Config | null
+	) {
 		const clientConfig: APIClientConfig = {
 			skipVersionCheck: shouldSkipVersionCheck(
 				typeof apiKeyOrConfig === 'string' ? config : apiKeyOrConfig
@@ -67,12 +72,12 @@ export class APIClient extends BaseAPIClient {
 		};
 
 		if (typeof apiKeyOrConfig === 'string') {
-			super(baseUrl, apiKeyOrConfig, clientConfig);
+			super(baseUrl, logger, apiKeyOrConfig, clientConfig);
 		} else {
 			if (apiKeyOrConfig?.auth?.api_key) {
-				super(baseUrl, apiKeyOrConfig.auth.api_key, clientConfig);
+				super(baseUrl, logger, apiKeyOrConfig.auth.api_key, clientConfig);
 			} else {
-				super(baseUrl, clientConfig);
+				super(baseUrl, logger, clientConfig);
 			}
 		}
 	}

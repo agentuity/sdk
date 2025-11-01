@@ -54,7 +54,7 @@ To test against a local API server, use profile overrides:
 Enable detailed error logging:
 
 ```bash
-DEBUG=1 bun bin/cli.ts auth login
+bun bin/cli.ts --log-level=debug auth login
 ```
 
 This shows:

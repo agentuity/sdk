@@ -188,10 +188,10 @@ const encoder = new TextEncoder();
 class StreamImpl extends WritableStream implements Stream {
 	public readonly id: string;
 	public readonly url: string;
-	private activeWriter: WritableStreamDefaultWriter<Uint8Array> | null = null;
-	private _compressed: boolean;
-	private _adapter: FetchAdapter;
-	private _sink: UnderlyingSink;
+	#activeWriter: WritableStreamDefaultWriter<Uint8Array> | null = null;
+	#compressed: boolean;
+	#adapter: FetchAdapter;
+	#sink: UnderlyingSink;
 
 	constructor(
 		id: string,
@@ -203,17 +203,17 @@ class StreamImpl extends WritableStream implements Stream {
 		super(underlyingSink);
 		this.id = id;
 		this.url = url;
-		this._compressed = compressed;
-		this._adapter = adapter;
-		this._sink = underlyingSink;
+		this.#compressed = compressed;
+		this.#adapter = adapter;
+		this.#sink = underlyingSink;
 	}
 
 	get bytesWritten(): number {
-		return this._sink.total;
+		return this.#sink.total;
 	}
 
 	get compressed(): boolean {
-		return this._compressed;
+		return this.#compressed;
 	}
 
 	/**
@@ -233,10 +233,10 @@ class StreamImpl extends WritableStream implements Stream {
 			binaryChunk = encoder.encode(String(chunk));
 		}
 
-		if (!this.activeWriter) {
-			this.activeWriter = this.getWriter();
+		if (!this.#activeWriter) {
+			this.#activeWriter = this.getWriter();
 		}
-		await this.activeWriter.write(binaryChunk);
+		await this.#activeWriter.write(binaryChunk);
 	}
 
 	/**
@@ -246,9 +246,9 @@ class StreamImpl extends WritableStream implements Stream {
 	async close(): Promise<void> {
 		try {
 			// If we have an active writer from write() calls, use that
-			if (this.activeWriter) {
-				const writer = this.activeWriter;
-				this.activeWriter = null;
+			if (this.#activeWriter) {
+				const writer = this.#activeWriter;
+				this.#activeWriter = null;
 				await writer.close();
 				return;
 			}
@@ -288,7 +288,7 @@ class StreamImpl extends WritableStream implements Stream {
 	 */
 	getReader(): ReadableStream<Uint8Array> {
 		const url = this.url;
-		const adapter = this._adapter;
+		const adapter = this.#adapter;
 		let ac: AbortController | null = null;
 		return new ReadableStream({
 			async start(controller) {

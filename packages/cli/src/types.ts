@@ -3,6 +3,8 @@ import type * as z from 'zod';
 import { z as zod } from 'zod';
 import type { APIClient } from './api';
 
+export type { Logger };
+
 export const ConfigSchema = zod.object({
 	name: zod.string().describe('Profile name'),
 	auth: zod
