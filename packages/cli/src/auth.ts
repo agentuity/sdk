@@ -23,7 +23,7 @@ export async function isAuthenticated(): Promise<boolean> {
 	return auth.expires > new Date();
 }
 
-export async function requireAuth(ctx: CommandContext<false>): Promise<AuthData> {
+export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthData> {
 	const { logger } = ctx;
 	const auth = await getAuth();
 
@@ -83,7 +83,7 @@ export async function requireAuth(ctx: CommandContext<false>): Promise<AuthData>
 }
 
 export async function optionalAuth(
-	ctx: CommandContext<false>,
+	ctx: CommandContext<undefined>,
 	continueText?: string
 ): Promise<AuthData | null> {
 	const auth = await getAuth();

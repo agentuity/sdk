@@ -13,9 +13,7 @@ export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	aliases: ['del', 'remove', 'rm'],
 	description: 'Delete an environment variable',
-	requiresAuth: true,
-	requiresProject: true,
-	requiresAPIClient: true,
+	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({
 			key: z.string().describe('the environment variable key to delete'),

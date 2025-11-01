@@ -6,9 +6,7 @@ import { findEnvFile, readEnvFile, filterAgentuitySdkKeys } from '../../env-util
 export const pushSubcommand = createSubcommand({
 	name: 'push',
 	description: 'Push secrets from local .env.production file to cloud',
-	requiresAuth: true,
-	requiresProject: true,
-	requiresAPIClient: true,
+	requires: { auth: true, project: true, apiClient: true },
 
 	async handler(ctx) {
 		const { apiClient, project, projectDir } = ctx;

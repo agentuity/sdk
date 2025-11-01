@@ -8,9 +8,7 @@ export const listSubcommand = createSubcommand({
 	name: 'list',
 	aliases: ['ls'],
 	description: 'List all secrets',
-	requiresAuth: true,
-	requiresProject: true,
-	requiresAPIClient: true,
+	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		options: z.object({
 			mask: z

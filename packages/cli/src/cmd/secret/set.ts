@@ -7,9 +7,7 @@ import { findEnvFile, readEnvFile, writeEnvFile, filterAgentuitySdkKeys } from '
 export const setSubcommand = createSubcommand({
 	name: 'set',
 	description: 'Set a secret',
-	requiresAuth: true,
-	requiresProject: true,
-	requiresAPIClient: true,
+	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({
 			key: z.string().min(1, 'key must not be empty').describe('the secret key'),

@@ -7,9 +7,7 @@ import { maskSecret } from '../../env-util';
 export const getSubcommand = createSubcommand({
 	name: 'get',
 	description: 'Get a secret value',
-	requiresAuth: true,
-	requiresProject: true,
-	requiresAPIClient: true,
+	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({
 			key: z.string().describe('the secret key'),

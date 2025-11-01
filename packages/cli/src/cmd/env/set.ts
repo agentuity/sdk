@@ -14,9 +14,7 @@ import { getCommand } from '../../command-prefix';
 export const setSubcommand = createSubcommand({
 	name: 'set',
 	description: 'Set an environment variable',
-	requiresAuth: true,
-	requiresProject: true,
-	requiresAPIClient: true,
+	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({
 			key: z.string().describe('the environment variable key'),

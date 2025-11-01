@@ -23,7 +23,7 @@ export const command = createCommand({
 				.describe('The TCP port to start the dev start'),
 		}),
 	},
-	optionalAuth: 'Continue without an account (local only)',
+	optional: { auth: 'Continue without an account (local only)' },
 
 	async handler(ctx) {
 		const { opts, logger, options } = ctx;

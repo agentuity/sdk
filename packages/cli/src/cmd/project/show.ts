@@ -7,8 +7,7 @@ export const showSubcommand = createSubcommand({
 	name: 'show',
 	aliases: ['get'],
 	description: 'Show project detail',
-	requiresAuth: true,
-	requiresAPIClient: true,
+	requires: { auth: true, apiClient: true },
 	schema: {
 		args: z.object({
 			id: z.string().describe('the project id'),

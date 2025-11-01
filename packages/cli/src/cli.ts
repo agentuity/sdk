@@ -5,12 +5,47 @@ import type {
 	CommandContext,
 	ProjectConfig,
 	Config,
+	Requires,
+	Optional,
 } from './types';
 import { showBanner } from './banner';
 import { requireAuth, optionalAuth } from './auth';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
 import { defaultProfileName, loadProjectConfig } from './config';
 import { APIClient, getAPIBaseURL } from './api';
+
+type Normalized = {
+	requiresAuth: boolean;
+	optionalAuth: false | string;
+	requiresProject: boolean;
+	optionalProject: boolean;
+	requiresAPIClient: boolean;
+};
+
+function normalizeReqs(def: CommandDefinition | SubcommandDefinition): Normalized {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const d: any = def as any;
+	const requires = d.requires as Requires | undefined;
+	const optional = d.optional as Optional | undefined;
+
+	const requiresAuth = requires?.auth === true;
+	const optionalAuthValue = optional?.auth;
+	const optionalAuth: false | string =
+		optionalAuthValue === true ? 'Continue without authentication' : optionalAuthValue || false;
+
+	const requiresProject = requires?.project === true;
+	const optionalProject = optional?.project === true;
+
+	const requiresAPIClient = requires?.apiClient === true;
+
+	return {
+		requiresAuth,
+		optionalAuth,
+		requiresProject,
+		optionalProject,
+		requiresAPIClient,
+	};
+}
 
 export async function createCLI(version: string): Promise<Command> {
 	const program = new Command();
@@ -60,12 +95,12 @@ async function registerSubcommand(
 		cmd.aliases(subcommand.aliases);
 	}
 
-	// Auto-add --dir flag if requiresProject is set
-	if (subcommand.requiresProject) {
+	const { requiresProject, optionalProject } = normalizeReqs(subcommand);
+
+	if (requiresProject || optionalProject) {
 		cmd.option('--dir <path>', 'project directory (default: current directory)');
 	}
 
-	// Auto-generate arguments and options from schemas
 	if (subcommand.schema?.args) {
 		const parsed = parseArgsSchema(subcommand.schema.args);
 		for (const argMeta of parsed.metadata) {
@@ -85,9 +120,7 @@ async function registerSubcommand(
 			const flag = opt.name.replace(/([A-Z])/g, '-$1').toLowerCase();
 			const desc = opt.description || '';
 			if (opt.type === 'boolean') {
-				// Support negatable boolean options (--no-flag) when they have a default
 				if (opt.hasDefault) {
-					// Evaluate default value (could be a function)
 					const defaultValue =
 						typeof opt.defaultValue === 'function' ? opt.defaultValue() : opt.defaultValue;
 					cmd.option(`--no-${flag}`, desc);
@@ -108,31 +141,36 @@ async function registerSubcommand(
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
 
-		// Load project config if required
+		const normalized = normalizeReqs(subcommand);
+
 		let project: ProjectConfig | undefined;
 		let projectDir: string | undefined;
-		if (subcommand.requiresProject) {
+		const dirNeeded = normalized.requiresProject || normalized.optionalProject;
+
+		if (dirNeeded) {
 			const dir = (options.dir as string | undefined) ?? process.cwd();
 			projectDir = dir;
 			try {
 				project = await loadProjectConfig(dir);
 			} catch (error) {
-				if (
-					error &&
-					typeof error === 'object' &&
-					'name' in error &&
-					error.name === 'ProjectConfigNotFoundExpection'
-				) {
-					baseCtx.logger.fatal(
-						'invalid project folder. use --dir to specify a different directory or change to a project folder'
-					);
+				if (normalized.requiresProject) {
+					if (
+						error &&
+						typeof error === 'object' &&
+						'name' in error &&
+						error.name === 'ProjectConfigNotFoundExpection'
+					) {
+						baseCtx.logger.fatal(
+							'invalid project folder. use --dir to specify a different directory or change to a project folder'
+						);
+					}
+					throw error;
 				}
-				throw error;
 			}
 		}
 
-		if (subcommand.requiresAuth) {
-			const auth = await requireAuth(baseCtx as CommandContext<false>);
+		if (normalized.requiresAuth) {
+			const auth = await requireAuth(baseCtx as CommandContext<undefined>);
 
 			if (subcommand.schema) {
 				try {
@@ -149,8 +187,10 @@ async function registerSubcommand(
 						},
 						auth,
 					};
-					if (project) {
-						ctx.project = project;
+					if (project || projectDir) {
+						if (project) {
+							ctx.project = project;
+						}
 						ctx.projectDir = projectDir;
 					}
 					if (subcommand.schema.args) {
@@ -159,7 +199,7 @@ async function registerSubcommand(
 					if (subcommand.schema.options) {
 						ctx.opts = subcommand.schema.options.parse(input.options);
 					}
-					if (subcommand.requiresAPIClient) {
+					if (normalized.requiresAPIClient) {
 						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
 						ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 					}
@@ -204,20 +244,22 @@ async function registerSubcommand(
 						: null,
 					auth,
 				};
-				if (project) {
-					ctx.project = project;
+				if (project || projectDir) {
+					if (project) {
+						ctx.project = project;
+					}
 					ctx.projectDir = projectDir;
 				}
-				if (subcommand.requiresAPIClient) {
+				if (normalized.requiresAPIClient) {
 					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
 					ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 				}
 				await subcommand.handler(ctx as CommandContext);
 			}
-		} else if (subcommand.optionalAuth) {
+		} else if (normalized.optionalAuth) {
 			const continueText =
-				typeof subcommand.optionalAuth === 'string' ? subcommand.optionalAuth : undefined;
-			const auth = await optionalAuth(baseCtx as CommandContext<false>, continueText);
+				typeof normalized.optionalAuth === 'string' ? normalized.optionalAuth : undefined;
+			const auth = await optionalAuth(baseCtx as CommandContext<undefined>, continueText);
 
 			if (subcommand.schema) {
 				try {
@@ -236,8 +278,10 @@ async function registerSubcommand(
 							: baseCtx.config,
 						auth,
 					};
-					if (project) {
-						ctx.project = project;
+					if (project || projectDir) {
+						if (project) {
+							ctx.project = project;
+						}
 						ctx.projectDir = projectDir;
 					}
 					if (subcommand.schema.args) {
@@ -246,7 +290,7 @@ async function registerSubcommand(
 					if (subcommand.schema.options) {
 						ctx.opts = subcommand.schema.options.parse(input.options);
 					}
-					if (subcommand.requiresAPIClient) {
+					if (normalized.requiresAPIClient) {
 						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
 						ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 					}
@@ -290,11 +334,13 @@ async function registerSubcommand(
 						: baseCtx.config,
 					auth,
 				};
-				if (project) {
-					ctx.project = project;
+				if (project || projectDir) {
+					if (project) {
+						ctx.project = project;
+					}
 					ctx.projectDir = projectDir;
 				}
-				if (subcommand.requiresAPIClient) {
+				if (normalized.requiresAPIClient) {
 					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
 					ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 				}
@@ -307,8 +353,10 @@ async function registerSubcommand(
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 					};
-					if (project) {
-						ctx.project = project;
+					if (project || projectDir) {
+						if (project) {
+							ctx.project = project;
+						}
 						ctx.projectDir = projectDir;
 					}
 					if (subcommand.schema.args) {
@@ -317,7 +365,7 @@ async function registerSubcommand(
 					if (subcommand.schema.options) {
 						ctx.opts = subcommand.schema.options.parse(input.options);
 					}
-					if (subcommand.requiresAPIClient) {
+					if (normalized.requiresAPIClient) {
 						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
 						ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 					}
@@ -350,11 +398,13 @@ async function registerSubcommand(
 				const ctx: Record<string, unknown> = {
 					...baseCtx,
 				};
-				if (project) {
-					ctx.project = project;
+				if (project || projectDir) {
+					if (project) {
+						ctx.project = project;
+					}
 					ctx.projectDir = projectDir;
 				}
-				if (subcommand.requiresAPIClient) {
+				if (normalized.requiresAPIClient) {
 					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
 					ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 				}
@@ -381,9 +431,10 @@ export async function registerCommands(
 
 			if (cmdDef.handler) {
 				cmd.action(async () => {
-					if (cmdDef.requiresAuth) {
-						const auth = await requireAuth(baseCtx as CommandContext<false>);
-						const ctx: CommandContext<true> = {
+					const normalized = normalizeReqs(cmdDef);
+					if (normalized.requiresAuth) {
+						const auth = await requireAuth(baseCtx as CommandContext<undefined>);
+						const ctx: Record<string, unknown> = {
 							...baseCtx,
 							config: baseCtx.config
 								? {
@@ -398,17 +449,21 @@ export async function registerCommands(
 								: null,
 							auth,
 						};
-						if (cmdDef.requiresAPIClient) {
-							const apiUrl = getAPIBaseURL(ctx.config);
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							(ctx as any).apiClient = new APIClient(apiUrl, ctx.config);
+						if (normalized.requiresAPIClient) {
+							const apiUrl = getAPIBaseURL(ctx.config as Config | null);
+							ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 						}
 						await cmdDef.handler!(ctx as CommandContext);
-					} else if (cmdDef.optionalAuth) {
+					} else if (normalized.optionalAuth) {
 						const continueText =
-							typeof cmdDef.optionalAuth === 'string' ? cmdDef.optionalAuth : undefined;
-						const auth = await optionalAuth(baseCtx as CommandContext<false>, continueText);
-						const ctx = {
+							typeof normalized.optionalAuth === 'string'
+								? normalized.optionalAuth
+								: undefined;
+						const auth = await optionalAuth(
+							baseCtx as CommandContext<undefined>,
+							continueText
+						);
+						const ctx: Record<string, unknown> = {
 							...baseCtx,
 							config: auth
 								? baseCtx.config
@@ -430,15 +485,14 @@ export async function registerCommands(
 								: baseCtx.config,
 							auth,
 						};
-						if (cmdDef.requiresAPIClient) {
+						if (normalized.requiresAPIClient) {
 							const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							(ctx as any).apiClient = new APIClient(apiUrl, ctx.config as Config | null);
+							ctx.apiClient = new APIClient(apiUrl, ctx.config as Config | null);
 						}
 						await cmdDef.handler!(ctx as CommandContext);
 					} else {
-						const ctx = baseCtx as CommandContext<false>;
-						if (cmdDef.requiresAPIClient) {
+						const ctx = baseCtx as CommandContext<undefined>;
+						if (normalized.requiresAPIClient) {
 							const apiUrl = getAPIBaseURL(ctx.config);
 							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							(ctx as any).apiClient = new APIClient(apiUrl, ctx.config);

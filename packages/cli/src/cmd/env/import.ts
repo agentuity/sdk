@@ -16,9 +16,7 @@ import { getCommand } from '../../command-prefix';
 export const importSubcommand = createSubcommand({
 	name: 'import',
 	description: 'Import environment variables from a file to cloud and local .env.production',
-	requiresAuth: true,
-	requiresProject: true,
-	requiresAPIClient: true,
+	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({
 			file: z.string().describe('path to the .env file to import'),

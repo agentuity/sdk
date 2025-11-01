@@ -7,8 +7,7 @@ export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	description: 'Delete a project',
 	aliases: ['rm', 'del'],
-	requiresAuth: true,
-	requiresAPIClient: true,
+	requires: { auth: true, apiClient: true },
 	schema: {
 		args: z.object({
 			id: z.string().describe('the project id'),

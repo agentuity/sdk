@@ -8,7 +8,7 @@ export const signupCommand = createSubcommand({
 	name: 'signup',
 	description: 'Create a new Agentuity Cloud Platform account',
 	toplevel: true,
-	requiresAPIClient: true,
+	requires: { apiClient: true },
 
 	async handler(ctx) {
 		const { logger, config, apiClient } = ctx;

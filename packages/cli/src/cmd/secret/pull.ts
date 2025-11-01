@@ -14,9 +14,7 @@ import {
 export const pullSubcommand = createSubcommand({
 	name: 'pull',
 	description: 'Pull secrets from cloud to local .env.production file',
-	requiresAuth: true,
-	requiresProject: true,
-	requiresAPIClient: true,
+	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		options: z.object({
 			force: z.boolean().default(false).describe('overwrite local values with cloud values'),

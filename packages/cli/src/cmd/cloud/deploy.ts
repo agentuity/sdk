@@ -17,9 +17,7 @@ export const deploySubcommand = createSubcommand({
 	name: 'deploy',
 	description: 'Deploy project to the Agentuity Cloud',
 	toplevel: true,
-	requiresAuth: true,
-	requiresProject: true,
-	requiresAPIClient: true,
+	requires: { auth: true, project: true, apiClient: true },
 
 	async handler(ctx) {
 		const { project, apiClient, projectDir } = ctx;

@@ -7,8 +7,8 @@ export const createProjectSubcommand = createSubcommand({
 	description: 'Create a new project',
 	aliases: ['new'],
 	toplevel: true,
-	optionalAuth: true,
-	requiresAPIClient: true,
+	optional: { auth: true },
+	requires: { apiClient: true },
 	schema: {
 		options: z.object({
 			name: z.string().optional().describe('Project name'),

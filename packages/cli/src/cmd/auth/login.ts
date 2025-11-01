@@ -9,7 +9,7 @@ export const loginCommand = createSubcommand({
 	name: 'login',
 	description: 'Login to the Agentuity Platform using a browser-based authentication flow',
 	toplevel: true,
-	requiresAPIClient: true,
+	requires: { apiClient: true },
 
 	async handler(ctx) {
 		const { logger, config, apiClient } = ctx;

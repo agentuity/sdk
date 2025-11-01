@@ -84,385 +84,175 @@ export interface CommandSchemas {
 
 export type ProjectConfig = zod.infer<typeof ProjectSchema>;
 
-export type CommandContext<
-	RequiresAuth extends boolean | 'optional' = false,
-	RequiresProject extends boolean = false,
-	RequiresAPIClient extends boolean = false,
-	ArgsSchema extends z.ZodType | undefined = undefined,
-	OptionsSchema extends z.ZodType | undefined = undefined,
-> = (RequiresAuth extends true
-	? RequiresProject extends true
-		? ArgsSchema extends z.ZodType
-			? OptionsSchema extends z.ZodType
-				? {
-						config: Config | null;
-						logger: Logger;
-						options: GlobalOptions;
-						auth: AuthData;
-						project: ProjectConfig;
-						projectDir: string;
-						args: z.infer<ArgsSchema>;
-						opts: z.infer<OptionsSchema>;
-					}
-				: {
-						config: Config | null;
-						logger: Logger;
-						options: GlobalOptions;
-						auth: AuthData;
-						project: ProjectConfig;
-						projectDir: string;
-						args: z.infer<ArgsSchema>;
-					}
-			: OptionsSchema extends z.ZodType
-				? {
-						config: Config | null;
-						logger: Logger;
-						options: GlobalOptions;
-						auth: AuthData;
-						project: ProjectConfig;
-						projectDir: string;
-						opts: z.infer<OptionsSchema>;
-					}
-				: {
-						config: Config | null;
-						logger: Logger;
-						options: GlobalOptions;
-						auth: AuthData;
-						project: ProjectConfig;
-						projectDir: string;
-					}
-		: ArgsSchema extends z.ZodType
-			? OptionsSchema extends z.ZodType
-				? {
-						config: Config | null;
-						logger: Logger;
-						options: GlobalOptions;
-						auth: AuthData;
-						args: z.infer<ArgsSchema>;
-						opts: z.infer<OptionsSchema>;
-					}
-				: {
-						config: Config | null;
-						logger: Logger;
-						options: GlobalOptions;
-						auth: AuthData;
-						args: z.infer<ArgsSchema>;
-					}
-			: OptionsSchema extends z.ZodType
-				? {
-						config: Config | null;
-						logger: Logger;
-						options: GlobalOptions;
-						auth: AuthData;
-						opts: z.infer<OptionsSchema>;
-					}
-				: {
-						config: Config | null;
-						logger: Logger;
-						options: GlobalOptions;
-						auth: AuthData;
-					}
-	: RequiresAuth extends 'optional'
-		? RequiresProject extends true
-			? ArgsSchema extends z.ZodType
-				? OptionsSchema extends z.ZodType
-					? {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							auth: AuthData | undefined;
-							project: ProjectConfig;
-							projectDir: string;
-							args: z.infer<ArgsSchema>;
-							opts: z.infer<OptionsSchema>;
-						}
-					: {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							auth: AuthData | undefined;
-							project: ProjectConfig;
-							projectDir: string;
-							args: z.infer<ArgsSchema>;
-						}
-				: OptionsSchema extends z.ZodType
-					? {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							auth: AuthData | undefined;
-							project: ProjectConfig;
-							projectDir: string;
-							opts: z.infer<OptionsSchema>;
-						}
-					: {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							auth: AuthData | undefined;
-							project: ProjectConfig;
-							projectDir: string;
-						}
-			: ArgsSchema extends z.ZodType
-				? OptionsSchema extends z.ZodType
-					? {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							auth: AuthData | undefined;
-							args: z.infer<ArgsSchema>;
-							opts: z.infer<OptionsSchema>;
-						}
-					: {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							auth: AuthData | undefined;
-							args: z.infer<ArgsSchema>;
-						}
-				: OptionsSchema extends z.ZodType
-					? {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							auth: AuthData | undefined;
-							opts: z.infer<OptionsSchema>;
-						}
-					: {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							auth: AuthData | undefined;
-						}
-		: RequiresProject extends true
-			? ArgsSchema extends z.ZodType
-				? OptionsSchema extends z.ZodType
-					? {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							project: ProjectConfig;
-							projectDir: string;
-							args: z.infer<ArgsSchema>;
-							opts: z.infer<OptionsSchema>;
-						}
-					: {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							project: ProjectConfig;
-							projectDir: string;
-							args: z.infer<ArgsSchema>;
-						}
-				: OptionsSchema extends z.ZodType
-					? {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							project: ProjectConfig;
-							projectDir: string;
-							opts: z.infer<OptionsSchema>;
-						}
-					: {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							project: ProjectConfig;
-							projectDir: string;
-						}
-			: ArgsSchema extends z.ZodType
-				? OptionsSchema extends z.ZodType
-					? {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							args: z.infer<ArgsSchema>;
-							opts: z.infer<OptionsSchema>;
-						}
-					: {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							args: z.infer<ArgsSchema>;
-						}
-				: OptionsSchema extends z.ZodType
-					? {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-							opts: z.infer<OptionsSchema>;
-						}
-					: {
-							config: Config | null;
-							logger: Logger;
-							options: GlobalOptions;
-						}) &
-	// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-	(RequiresAPIClient extends true ? { apiClient: APIClient } : {});
+export type Requires = {
+	auth?: true;
+	project?: true;
+	apiClient?: true;
+};
 
-// Helper to create subcommands with proper type inference
+export type Optional = {
+	auth?: true | string;
+	project?: true;
+};
+
+type AddArgs<A extends z.ZodType | undefined> = A extends z.ZodType
+	? { args: z.infer<A> }
+	: Record<string, never>;
+type AddOpts<O extends z.ZodType | undefined> = O extends z.ZodType
+	? { opts: z.infer<O> }
+	: Record<string, never>;
+
+type AuthMode<R extends Requires | undefined, O extends Optional | undefined> = R extends {
+	auth: true;
+}
+	? 'required'
+	: O extends { auth: true | string }
+		? 'optional'
+		: 'none';
+
+type ProjectMode<R extends Requires | undefined, O extends Optional | undefined> = R extends {
+	project: true;
+}
+	? 'required'
+	: O extends { project: true }
+		? 'optional'
+		: 'none';
+
+type APIClientRequired<R extends Requires | undefined> = R extends { apiClient: true }
+	? true
+	: false;
+
+type AddAuth<M extends 'required' | 'optional' | 'none'> = M extends 'required'
+	? { auth: AuthData }
+	: M extends 'optional'
+		? { auth: AuthData | undefined }
+		: Record<string, never>;
+
+type AddProject<M extends 'required' | 'optional' | 'none'> = M extends 'required'
+	? { project: ProjectConfig; projectDir: string }
+	: M extends 'optional'
+		? { project?: ProjectConfig; projectDir: string }
+		: Record<string, never>;
+
+export type CommandContextFromSpecs<
+	R extends Requires | undefined,
+	O extends Optional | undefined,
+	A extends z.ZodType | undefined = undefined,
+	Op extends z.ZodType | undefined = undefined,
+> = {
+	config: Config | null;
+	logger: Logger;
+	options: GlobalOptions;
+} & AddArgs<A> &
+	AddOpts<Op> &
+	AddAuth<AuthMode<R, O>> &
+	AddProject<ProjectMode<R, O>> &
+	(APIClientRequired<R> extends true ? { apiClient: APIClient } : Record<string, never>);
+
+export type CommandContext<
+	R extends Requires | undefined = undefined,
+	O extends Optional | undefined = undefined,
+	A extends z.ZodType | undefined = undefined,
+	Op extends z.ZodType | undefined = undefined,
+> = CommandContextFromSpecs<R, O, A, Op>;
+
 export function createSubcommand<
-	TRequiresAuth extends boolean,
-	TOptionalAuth extends boolean | string,
-	TRequiresProject extends boolean,
-	TRequiresAPIClient extends boolean = false,
-	TArgsSchema extends z.ZodType | undefined = undefined,
-	TOptionsSchema extends z.ZodType | undefined = undefined,
+	R extends Requires | undefined = undefined,
+	O extends Optional | undefined = undefined,
+	A extends z.ZodType | undefined = undefined,
+	Op extends z.ZodType | undefined = undefined,
 >(definition: {
 	name: string;
 	description: string;
 	aliases?: string[];
 	toplevel?: boolean;
-	requiresAuth?: TRequiresAuth;
-	optionalAuth?: TOptionalAuth;
-	requiresProject?: TRequiresProject;
-	requiresAPIClient?: TRequiresAPIClient;
-	schema?: TArgsSchema extends z.ZodType
-		? TOptionsSchema extends z.ZodType
-			? { args: TArgsSchema; options: TOptionsSchema }
-			: { args: TArgsSchema }
-		: TOptionsSchema extends z.ZodType
-			? { options: TOptionsSchema }
+	requires?: R;
+	optional?: O;
+	schema?: A extends z.ZodType
+		? Op extends z.ZodType
+			? { args: A; options: Op }
+			: { args: A }
+		: Op extends z.ZodType
+			? { options: Op }
 			: never;
-	handler(
-		ctx: CommandContext<
-			TRequiresAuth extends true
-				? true
-				: TOptionalAuth extends true | string
-					? 'optional'
-					: false,
-			TRequiresProject extends true ? true : false,
-			TRequiresAPIClient extends true ? true : false,
-			TArgsSchema,
-			TOptionsSchema
-		>
-	): void | Promise<void>;
+	handler(ctx: CommandContext<R, O, A, Op>): void | Promise<void>;
 }): SubcommandDefinition {
 	return definition as unknown as SubcommandDefinition;
 }
 
-// Helper to create commands with proper type inference
 export function createCommand<
-	TRequiresAuth extends boolean,
-	TOptionalAuth extends boolean | string,
-	TRequiresProject extends boolean,
-	TRequiresAPIClient extends boolean = false,
-	TArgsSchema extends z.ZodType | undefined = undefined,
-	TOptionsSchema extends z.ZodType | undefined = undefined,
+	R extends Requires | undefined = undefined,
+	O extends Optional | undefined = undefined,
+	A extends z.ZodType | undefined = undefined,
+	Op extends z.ZodType | undefined = undefined,
 >(definition: {
 	name: string;
 	description: string;
 	aliases?: string[];
 	hidden?: boolean;
-	requiresAuth?: TRequiresAuth;
-	optionalAuth?: TOptionalAuth;
-	requiresProject?: TRequiresProject;
-	requiresAPIClient?: TRequiresAPIClient;
-	schema?: TArgsSchema extends z.ZodType
-		? TOptionsSchema extends z.ZodType
-			? { args: TArgsSchema; options: TOptionsSchema }
-			: { args: TArgsSchema }
-		: TOptionsSchema extends z.ZodType
-			? { options: TOptionsSchema }
+	requires?: R;
+	optional?: O;
+	schema?: A extends z.ZodType
+		? Op extends z.ZodType
+			? { args: A; options: Op }
+			: { args: A }
+		: Op extends z.ZodType
+			? { options: Op }
 			: never;
-	handler?(
-		ctx: CommandContext<
-			TRequiresAuth extends true
-				? true
-				: TOptionalAuth extends true | string
-					? 'optional'
-					: false,
-			TRequiresProject extends true ? true : false,
-			TRequiresAPIClient extends true ? true : false,
-			TArgsSchema,
-			TOptionsSchema
-		>
-	): void | Promise<void>;
+	handler?(ctx: CommandContext<R, O, A, Op>): void | Promise<void>;
 	subcommands?: SubcommandDefinition[];
 }): CommandDefinition {
 	return definition as unknown as CommandDefinition;
 }
 
-// Discriminated union for SubcommandDefinition
-export type SubcommandDefinition =
-	| {
-			name: string;
-			description: string;
-			aliases?: string[];
-			toplevel?: boolean;
-			requiresAuth: true;
-			optionalAuth?: false | string;
-			requiresProject?: boolean;
-			requiresAPIClient?: boolean;
-			schema?: CommandSchemas;
-			handler(ctx: CommandContext): void | Promise<void>;
-	  }
-	| {
-			name: string;
-			description: string;
-			aliases?: string[];
-			toplevel?: boolean;
-			requiresAuth?: false;
-			optionalAuth: true | string;
-			requiresProject?: boolean;
-			requiresAPIClient?: boolean;
-			schema?: CommandSchemas;
-			handler(ctx: CommandContext): void | Promise<void>;
-	  }
-	| {
-			name: string;
-			description: string;
-			aliases?: string[];
-			toplevel?: boolean;
-			requiresAuth?: false;
-			optionalAuth?: false;
-			requiresProject?: boolean;
-			requiresAPIClient?: boolean;
-			schema?: CommandSchemas;
-			handler(ctx: CommandContext): void | Promise<void>;
-	  };
+type CommandDefBase = {
+	name: string;
+	description: string;
+	aliases?: string[];
+	schema?: CommandSchemas;
+	handler?(ctx: CommandContext): void | Promise<void>;
+	subcommands?: SubcommandDefinition[];
+};
 
-// Discriminated union for CommandDefinition
+type SubcommandDefBase = {
+	name: string;
+	description: string;
+	aliases?: string[];
+	toplevel?: boolean;
+	schema?: CommandSchemas;
+	handler(ctx: CommandContext): void | Promise<void>;
+};
+
 export type CommandDefinition =
-	| {
-			name: string;
-			description: string;
-			aliases?: string[];
+	| (CommandDefBase & {
 			hidden?: boolean;
-			requiresAuth: true;
-			optionalAuth?: false | string;
-			requiresProject?: boolean;
-			requiresAPIClient?: boolean;
-			schema?: CommandSchemas;
-			handler?(ctx: CommandContext): void | Promise<void>;
-			subcommands?: SubcommandDefinition[];
-	  }
-	| {
-			name: string;
-			description: string;
-			aliases?: string[];
+			requires: Requires & { auth: true };
+			optional?: Optional & { auth?: never };
+	  })
+	| (CommandDefBase & {
 			hidden?: boolean;
-			requiresAuth?: false;
-			optionalAuth: true | string;
-			requiresProject?: boolean;
-			requiresAPIClient?: boolean;
-			schema?: CommandSchemas;
-			handler?(ctx: CommandContext): void | Promise<void>;
-			subcommands?: SubcommandDefinition[];
-	  }
-	| {
-			name: string;
-			description: string;
-			aliases?: string[];
+			requires?: Requires & { auth?: never };
+			optional: Optional & { auth: true | string };
+	  })
+	| (CommandDefBase & {
 			hidden?: boolean;
-			requiresAuth?: false;
-			optionalAuth?: false;
-			requiresProject?: boolean;
-			requiresAPIClient?: boolean;
-			schema?: CommandSchemas;
-			handler?(ctx: CommandContext): void | Promise<void>;
-			subcommands?: SubcommandDefinition[];
-	  };
+			requires?: Requires & { auth?: never };
+			optional?: Optional & { auth?: never };
+	  });
+
+export type SubcommandDefinition =
+	| (SubcommandDefBase & {
+			requires: Requires & { auth: true };
+			optional?: Optional & { auth?: never };
+	  })
+	| (SubcommandDefBase & {
+			requires?: Requires & { auth?: never };
+			optional: Optional & { auth: true | string };
+	  })
+	| (SubcommandDefBase & {
+			requires?: Requires & { auth?: never };
+			optional?: Optional & { auth?: never };
+	  });
 
 export const ProjectSchema = zod.object({
 	projectId: zod.string().describe('the project id'),

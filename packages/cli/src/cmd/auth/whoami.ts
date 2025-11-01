@@ -6,8 +6,7 @@ import { whoami } from '@agentuity/server';
 export const whoamiCommand = createSubcommand({
 	name: 'whoami',
 	description: 'Display information about the currently authenticated user',
-	requiresAuth: true,
-	requiresAPIClient: true,
+	requires: { auth: true, apiClient: true },
 	schema: {
 		options: z.object({
 			format: z
