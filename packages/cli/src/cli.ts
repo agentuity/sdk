@@ -1,9 +1,14 @@
 import { Command } from 'commander';
-import type { CommandDefinition, SubcommandDefinition, CommandContext } from './types';
+import type {
+	CommandDefinition,
+	SubcommandDefinition,
+	CommandContext,
+	ProjectConfig,
+} from './types';
 import { showBanner } from './banner';
 import { requireAuth, optionalAuth } from './auth';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
-import { defaultProfileName } from './config';
+import { defaultProfileName, loadProjectConfig } from './config';
 
 export async function createCLI(version: string): Promise<Command> {
 	const program = new Command();
@@ -53,6 +58,11 @@ async function registerSubcommand(
 		cmd.aliases(subcommand.aliases);
 	}
 
+	// Auto-add --dir flag if requiresProject is set
+	if (subcommand.requiresProject) {
+		cmd.option('--dir <path>', 'project directory (default: current directory)');
+	}
+
 	// Auto-generate arguments and options from schemas
 	if (subcommand.schema?.args) {
 		const parsed = parseArgsSchema(subcommand.schema.args);
@@ -96,6 +106,29 @@ async function registerSubcommand(
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
 
+		// Load project config if required
+		let project: ProjectConfig | undefined;
+		let projectDir: string | undefined;
+		if (subcommand.requiresProject) {
+			const dir = (options.dir as string | undefined) ?? process.cwd();
+			projectDir = dir;
+			try {
+				project = await loadProjectConfig(dir);
+			} catch (error) {
+				if (
+					error &&
+					typeof error === 'object' &&
+					'name' in error &&
+					error.name === 'ProjectConfigNotFoundExpection'
+				) {
+					baseCtx.logger.fatal(
+						'invalid project folder. use --dir to specify a different directory or change to a project folder'
+					);
+				}
+				throw error;
+			}
+		}
+
 		if (subcommand.requiresAuth) {
 			const auth = await requireAuth(baseCtx as CommandContext<false>);
 
@@ -114,6 +147,10 @@ async function registerSubcommand(
 						},
 						auth,
 					};
+					if (project) {
+						ctx.project = project;
+						ctx.projectDir = projectDir;
+					}
 					if (subcommand.schema.args) {
 						ctx.args = subcommand.schema.args.parse(input.args);
 					}
@@ -146,7 +183,7 @@ async function registerSubcommand(
 					throw error;
 				}
 			} else {
-				const ctx: CommandContext<true> = {
+				const ctx: Record<string, unknown> = {
 					...baseCtx,
 					config: baseCtx.config
 						? {
@@ -161,7 +198,11 @@ async function registerSubcommand(
 						: null,
 					auth,
 				};
-				await subcommand.handler(ctx);
+				if (project) {
+					ctx.project = project;
+					ctx.projectDir = projectDir;
+				}
+				await subcommand.handler(ctx as CommandContext);
 			}
 		} else if (subcommand.optionalAuth) {
 			const continueText =
@@ -185,6 +226,10 @@ async function registerSubcommand(
 							: baseCtx.config,
 						auth,
 					};
+					if (project) {
+						ctx.project = project;
+						ctx.projectDir = projectDir;
+					}
 					if (subcommand.schema.args) {
 						ctx.args = subcommand.schema.args.parse(input.args);
 					}
@@ -217,7 +262,7 @@ async function registerSubcommand(
 					throw error;
 				}
 			} else {
-				const ctx = {
+				const ctx: Record<string, unknown> = {
 					...baseCtx,
 					config: auth
 						? {
@@ -231,6 +276,10 @@ async function registerSubcommand(
 						: baseCtx.config,
 					auth,
 				};
+				if (project) {
+					ctx.project = project;
+					ctx.projectDir = projectDir;
+				}
 				await subcommand.handler(ctx as CommandContext);
 			}
 		} else {
@@ -240,6 +289,10 @@ async function registerSubcommand(
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 					};
+					if (project) {
+						ctx.project = project;
+						ctx.projectDir = projectDir;
+					}
 					if (subcommand.schema.args) {
 						ctx.args = subcommand.schema.args.parse(input.args);
 					}
@@ -272,7 +325,14 @@ async function registerSubcommand(
 					throw error;
 				}
 			} else {
-				await subcommand.handler(baseCtx as CommandContext<false>);
+				const ctx: Record<string, unknown> = {
+					...baseCtx,
+				};
+				if (project) {
+					ctx.project = project;
+					ctx.projectDir = projectDir;
+				}
+				await subcommand.handler(ctx as CommandContext);
 			}
 		}
 	});

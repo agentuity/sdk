@@ -3,7 +3,6 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectGet } from '@agentuity/server';
 import { getAPIBaseURL, APIClient } from '../../api';
-import { loadProjectConfig } from '../../config';
 import { maskSecret } from '../../env-util';
 
 export const listSubcommand = createSubcommand({
@@ -11,9 +10,9 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List all environment variables',
 	requiresAuth: true,
+	requiresProject: true,
 	schema: {
 		options: z.object({
-			dir: z.string().optional().describe('project directory (default: current directory)'),
 			mask: z
 				.boolean()
 				.default(false)
@@ -22,24 +21,17 @@ export const listSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { opts, config } = ctx;
-		const dir = opts?.dir ?? process.cwd();
-
-		// Load project config to get project ID
-		const projectConfig = await loadProjectConfig(dir);
-		if (!projectConfig) {
-			tui.fatal(`No Agentuity project found in ${dir}. Missing agentuity.json`);
-		}
+		const { opts, config, project } = ctx;
 
 		const apiUrl = getAPIBaseURL(config);
 		const client = new APIClient(apiUrl, config);
 
 		// Fetch project with unmasked secrets
-		const project = await tui.spinner('Fetching environment variables', () => {
-			return projectGet(client, { id: projectConfig.projectId, mask: false });
+		const projectData = await tui.spinner('Fetching environment variables', () => {
+			return projectGet(client, { id: project.projectId, mask: false });
 		});
 
-		const env = project.env || {};
+		const env = projectData.env || {};
 
 		if (Object.keys(env).length === 0) {
 			tui.info('No environment variables found');

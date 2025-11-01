@@ -3,7 +3,6 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
 import { getAPIBaseURL, APIClient } from '../../api';
-import { loadProjectConfig } from '../../config';
 import {
 	findEnvFile,
 	readEnvFile,
@@ -17,19 +16,16 @@ export const setSubcommand = createSubcommand({
 	name: 'set',
 	description: 'Set an environment variable',
 	requiresAuth: true,
+	requiresProject: true,
 	schema: {
 		args: z.object({
 			key: z.string().describe('the environment variable key'),
 			value: z.string().describe('the environment variable value'),
 		}),
-		options: z.object({
-			dir: z.string().optional().describe('project directory (default: current directory)'),
-		}),
 	},
 
 	async handler(ctx) {
-		const { args, opts, config } = ctx;
-		const dir = opts?.dir ?? process.cwd();
+		const { args, config, project, projectDir } = ctx;
 
 		// Validate key doesn't start with AGENTUITY_
 		if (args.key.startsWith('AGENTUITY_')) {
@@ -55,25 +51,19 @@ export const setSubcommand = createSubcommand({
 			}
 		}
 
-		// Load project config to get project ID
-		const projectConfig = await loadProjectConfig(dir);
-		if (!projectConfig) {
-			tui.fatal(`No Agentuity project found in ${dir}. Missing agentuity.json`);
-		}
-
 		const apiUrl = getAPIBaseURL(config);
 		const client = new APIClient(apiUrl, config);
 
 		// Set in cloud
 		await tui.spinner('Setting environment variable in cloud', () => {
 			return projectEnvUpdate(client, {
-				id: projectConfig.projectId,
+				id: project.projectId,
 				env: { [args.key]: args.value },
 			});
 		});
 
 		// Update local .env.production file
-		const envFilePath = await findEnvFile(dir);
+		const envFilePath = await findEnvFile(projectDir);
 		const currentEnv = await readEnvFile(envFilePath);
 		currentEnv[args.key] = args.value;
 

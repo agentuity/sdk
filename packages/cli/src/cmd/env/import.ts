@@ -3,7 +3,6 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
 import { getAPIBaseURL, APIClient } from '../../api';
-import { loadProjectConfig } from '../../config';
 import {
 	findEnvFile,
 	readEnvFile,
@@ -19,24 +18,15 @@ export const importSubcommand = createSubcommand({
 	name: 'import',
 	description: 'Import environment variables from a file to cloud and local .env.production',
 	requiresAuth: true,
+	requiresProject: true,
 	schema: {
 		args: z.object({
 			file: z.string().describe('path to the .env file to import'),
 		}),
-		options: z.object({
-			dir: z.string().optional().describe('project directory (default: current directory)'),
-		}),
 	},
 
 	async handler(ctx) {
-		const { args, opts, config } = ctx;
-		const dir = opts?.dir ?? process.cwd();
-
-		// Load project config to get project ID
-		const projectConfig = await loadProjectConfig(dir);
-		if (!projectConfig) {
-			tui.fatal(`No Agentuity project found in ${dir}. Missing agentuity.json`);
-		}
+		const { args, config, project, projectDir } = ctx;
 
 		// Read the import file
 		const importedEnv = await readEnvFile(args.file);
@@ -94,14 +84,14 @@ export const importSubcommand = createSubcommand({
 		// Push to cloud
 		await tui.spinner('Importing environment variables to cloud', () => {
 			return projectEnvUpdate(client, {
-				id: projectConfig.projectId,
+				id: project.projectId,
 				env: normalEnv,
 				secrets: secrets,
 			});
 		});
 
 		// Merge with local .env.production file
-		const localEnvPath = await findEnvFile(dir);
+		const localEnvPath = await findEnvFile(projectDir);
 		const localEnv = await readEnvFile(localEnvPath);
 		const mergedEnv = mergeEnvVars(localEnv, filteredEnv);
 

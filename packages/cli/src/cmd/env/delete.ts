@@ -3,7 +3,6 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectEnvDelete } from '@agentuity/server';
 import { getAPIBaseURL, APIClient } from '../../api';
-import { loadProjectConfig } from '../../config';
 import {
 	findExistingEnvFile,
 	readEnvFile,
@@ -16,24 +15,15 @@ export const deleteSubcommand = createSubcommand({
 	aliases: ['del', 'remove', 'rm'],
 	description: 'Delete an environment variable',
 	requiresAuth: true,
+	requiresProject: true,
 	schema: {
 		args: z.object({
 			key: z.string().describe('the environment variable key to delete'),
 		}),
-		options: z.object({
-			dir: z.string().optional().describe('project directory (default: current directory)'),
-		}),
 	},
 
 	async handler(ctx) {
-		const { args, opts, config } = ctx;
-		const dir = opts?.dir ?? process.cwd();
-
-		// Load project config to get project ID
-		const projectConfig = await loadProjectConfig(dir);
-		if (!projectConfig) {
-			tui.fatal(`No Agentuity project found in ${dir}. Missing agentuity.json`);
-		}
+		const { args, config, project, projectDir } = ctx;
 
 		const apiUrl = getAPIBaseURL(config);
 		const client = new APIClient(apiUrl, config);
@@ -41,13 +31,13 @@ export const deleteSubcommand = createSubcommand({
 		// Delete from cloud
 		await tui.spinner('Deleting environment variable from cloud', () => {
 			return projectEnvDelete(client, {
-				id: projectConfig.projectId,
+				id: project.projectId,
 				env: [args.key],
 			});
 		});
 
 		// Update local .env file (prefer .env.production, fallback to .env)
-		const envFilePath = await findExistingEnvFile(dir);
+		const envFilePath = await findExistingEnvFile(projectDir);
 		const currentEnv = await readEnvFile(envFilePath);
 		delete currentEnv[args.key];
 

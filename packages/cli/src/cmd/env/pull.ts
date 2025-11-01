@@ -4,7 +4,6 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectGet } from '@agentuity/server';
 import { getAPIBaseURL, APIClient } from '../../api';
-import { loadProjectConfig } from '../../config';
 import {
 	findEnvFile,
 	findExistingEnvFile,
@@ -17,39 +16,32 @@ export const pullSubcommand = createSubcommand({
 	name: 'pull',
 	description: 'Pull environment variables from cloud to local .env.production file',
 	requiresAuth: true,
+	requiresProject: true,
 	schema: {
 		options: z.object({
-			dir: z.string().optional().describe('project directory (default: current directory)'),
 			force: z.boolean().default(false).describe('overwrite local values with cloud values'),
 		}),
 	},
 
 	async handler(ctx) {
-		const { opts, config } = ctx;
-		const dir = opts?.dir ?? process.cwd();
-
-		// Load project config to get project ID
-		const projectConfig = await loadProjectConfig(dir);
-		if (!projectConfig) {
-			tui.fatal(`No Agentuity project found in ${dir}. Missing agentuity.json`);
-		}
+		const { opts, config, project, projectDir } = ctx;
 
 		const apiUrl = getAPIBaseURL(config);
 		const client = new APIClient(apiUrl, config);
 
 		// Fetch project with unmasked secrets
-		const project = await tui.spinner('Pulling environment variables from cloud', () => {
-			return projectGet(client, { id: projectConfig.projectId, mask: false });
+		const projectData = await tui.spinner('Pulling environment variables from cloud', () => {
+			return projectGet(client, { id: project.projectId, mask: false });
 		});
 
-		const cloudEnv = project.env || {};
+		const cloudEnv = projectData.env || {};
 
 		// Read current local env from existing file (.env.production or .env)
-		const existingEnvPath = await findExistingEnvFile(dir);
+		const existingEnvPath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(existingEnvPath);
 
 		// Target file is always .env.production
-		const targetEnvPath = await findEnvFile(dir);
+		const targetEnvPath = await findEnvFile(projectDir);
 
 		// Merge: cloud values override local if force=true, otherwise keep local
 		let mergedEnv: Record<string, string>;
@@ -67,12 +59,12 @@ export const pullSubcommand = createSubcommand({
 		});
 
 		// Write AGENTUITY_SDK_KEY to .env if present and missing locally
-		if (project.api_key) {
-			const dotEnvPath = join(dir, '.env');
+		if (projectData.api_key) {
+			const dotEnvPath = join(projectDir, '.env');
 			const dotEnv = await readEnvFile(dotEnvPath);
 
 			if (!dotEnv.AGENTUITY_SDK_KEY) {
-				dotEnv.AGENTUITY_SDK_KEY = project.api_key;
+				dotEnv.AGENTUITY_SDK_KEY = projectData.api_key;
 				await writeEnvFile(dotEnvPath, dotEnv, {
 					addComment: (key) => {
 						if (key === 'AGENTUITY_SDK_KEY') {

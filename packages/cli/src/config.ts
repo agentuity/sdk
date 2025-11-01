@@ -394,6 +394,10 @@ export async function loadProjectConfig(dir: string): Promise<ProjectConfig> {
 	const configPath = join(dir, 'agentuity.json');
 	const file = Bun.file(configPath);
 	if (!(await file.exists())) {
+		// TODO: check to see if a valid project that was created unauthenticated
+		// and then if so:
+		// 1. if authentication, offer to import the project
+		// 2. tell them that they need to login to use the command and import the project
 		throw new ProjectConfigNotFoundExpection();
 	}
 	const text = await file.text();

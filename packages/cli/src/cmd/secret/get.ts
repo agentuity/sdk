@@ -3,19 +3,18 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectGet } from '@agentuity/server';
 import { getAPIBaseURL, APIClient } from '../../api';
-import { loadProjectConfig } from '../../config';
 import { maskSecret } from '../../env-util';
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
 	description: 'Get a secret value',
 	requiresAuth: true,
+	requiresProject: true,
 	schema: {
 		args: z.object({
 			key: z.string().describe('the secret key'),
 		}),
 		options: z.object({
-			dir: z.string().optional().describe('project directory (default: current directory)'),
 			mask: z
 				.boolean()
 				.default(!!process.stdout.isTTY)
@@ -24,25 +23,18 @@ export const getSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, config } = ctx;
-		const dir = opts?.dir ?? process.cwd();
-
-		// Load project config to get project ID
-		const projectConfig = await loadProjectConfig(dir);
-		if (!projectConfig) {
-			tui.fatal(`No Agentuity project found in ${dir}. Missing agentuity.json`);
-		}
+		const { args, opts, config, project } = ctx;
 
 		const apiUrl = getAPIBaseURL(config);
 		const client = new APIClient(apiUrl, config);
 
 		// Fetch project with unmasked secrets
-		const project = await tui.spinner('Fetching secrets', () => {
-			return projectGet(client, { id: projectConfig.projectId, mask: false });
+		const projectData = await tui.spinner('Fetching secrets', () => {
+			return projectGet(client, { id: project.projectId, mask: false });
 		});
 
 		// Look for the key in secrets
-		const value = project.secrets?.[args.key];
+		const value = projectData.secrets?.[args.key];
 
 		if (value === undefined) {
 			tui.fatal(`Secret '${args.key}' not found`);

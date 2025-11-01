@@ -1,8 +1,7 @@
 import { createSubcommand } from '../../types';
-import { z } from 'zod';
 import { join } from 'node:path';
 import * as tui from '../../tui';
-import { loadProjectConfig, saveProjectDir } from '../../config';
+import { saveProjectDir } from '../../config';
 import { runSteps, stepSuccess, stepSkipped, stepError } from '../../steps';
 import { bundle } from '../bundle/bundler';
 import { loadBuildMetadata } from '../../config';
@@ -20,21 +19,12 @@ export const deploySubcommand = createSubcommand({
 	description: 'Deploy project to the Agentuity Cloud',
 	toplevel: true,
 	requiresAuth: true,
-	schema: {
-		options: z.object({
-			dir: z.string().optional().describe('Directory to use for the project'),
-		}),
-	},
+	requiresProject: true,
 
 	async handler(ctx) {
-		const { opts, config } = ctx;
-		const dir = opts?.dir ?? process.cwd();
+		const { project, config, projectDir } = ctx;
 		try {
-			const project = await loadProjectConfig(dir);
-			if (!project) {
-				console.log(project); // FIXME
-			}
-			await saveProjectDir(dir);
+			await saveProjectDir(projectDir);
 
 			const apiUrl = getAPIBaseURL(config);
 			const client = new APIClient(apiUrl, config);
@@ -45,7 +35,7 @@ export const deploySubcommand = createSubcommand({
 					run: async () => {
 						try {
 							// Read local env file (.env.production or .env)
-							const envFilePath = await findEnvFile(dir);
+							const envFilePath = await findEnvFile(projectDir);
 							const localEnv = await readEnvFile(envFilePath);
 
 							// Filter out AGENTUITY_ keys
@@ -86,10 +76,10 @@ export const deploySubcommand = createSubcommand({
 					run: async () => {
 						try {
 							await bundle({
-								rootDir: dir,
+								rootDir: projectDir,
 								dev: false,
 							});
-							await loadBuildMetadata(join(dir, '.agentuity'));
+							await loadBuildMetadata(join(projectDir, '.agentuity'));
 							return stepSuccess();
 						} catch (ex) {
 							const _ex = ex as Error;
@@ -117,13 +107,7 @@ export const deploySubcommand = createSubcommand({
 			tui.success('Your project was deployed!');
 			tui.arrow(tui.link('https://project-123455666332.agentuity.run'));
 		} catch (ex) {
-			const _ex = ex as Error;
-			if (_ex.name === 'ProjectConfigNotFoundExpection') {
-				tui.fatal(
-					`The directory ${dir} does not contain a valid Agentuity project. Missing agentuity.json`
-				);
-			}
-			tui.fatal(`unxpected error trying to deploy project. ${ex}`);
+			tui.fatal(`unexpected error trying to deploy project. ${ex}`);
 		}
 	},
 });

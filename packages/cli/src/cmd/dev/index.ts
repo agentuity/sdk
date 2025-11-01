@@ -15,6 +15,12 @@ export const command = createCommand({
 		options: z.object({
 			dir: z.string().optional().describe('Root directory of the project'),
 			local: z.boolean().optional().describe('Turn on local services (instead of cloud)'),
+			port: z
+				.number()
+				.min(1024) // should we allow a lower root port? probably not?
+				.max(65535)
+				.default(3500)
+				.describe('The TCP port to start the dev start'),
 		}),
 	},
 	optionalAuth: 'Continue without an account (local only)',
@@ -46,7 +52,7 @@ export const command = createCommand({
 
 		const devmodebody =
 			tui.muted(tui.padRight('Local:', 10)) +
-			tui.link('http://127.0.0.1:3500') +
+			tui.link(`http://127.0.0.1:${opts.port}`) +
 			'\n' +
 			tui.muted(tui.padRight('Public:', 10)) +
 			tui.warn('Disabled') + //TODO:
@@ -70,7 +76,7 @@ export const command = createCommand({
 		env.AGENTUITY_SDK_DEV_MODE = 'true';
 		env.AGENTUITY_ENV = 'development';
 		env.NODE_ENV = 'development';
-		env.PORT = '3500';
+		env.PORT = Number(opts.port).toFixed();
 		env.AGENTUITY_PORT = env.PORT;
 		if (options.logLevel !== undefined) env.AGENTUITY_LOG_LEVEL = options.logLevel;
 		env.AGENTUITY_FORCE_LOCAL_SERVICES = opts.local === true ? 'true' : 'false';
