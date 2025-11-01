@@ -1,5 +1,7 @@
 export type ColorScheme = 'light' | 'dark';
 
+const defaultMode = process.env.CI ? 'light' : 'dark';
+
 export async function detectColorScheme(): Promise<ColorScheme> {
 	const debug = process.env.DEBUG_COLORS === 'true';
 
@@ -14,28 +16,27 @@ export async function detectColorScheme(): Promise<ColorScheme> {
 	}
 
 	// Check if we have stdout TTY at minimum
-	if (!process.stdout.isTTY) {
-		if (debug) console.log('[DEBUG] stdout not a TTY, defaulting to dark');
-		return 'dark'; // Default to dark mode
-	}
+	if (process.stdout.isTTY) {
+		if (debug) console.log('[DEBUG] stdout is a TTY, defaulting to dark');
 
-	// Try to query terminal background color using OSC 11 (most reliable)
-	if (debug) console.log('[DEBUG] Querying terminal background with OSC 11...');
-	try {
-		const bgColor = await queryTerminalBackground();
-		if (bgColor) {
-			const luminance = calculateLuminance(bgColor);
-			const scheme = luminance > 0.5 ? 'light' : 'dark';
-			if (debug)
-				console.log(
-					`[DEBUG] OSC 11 response: rgb(${bgColor.r},${bgColor.g},${bgColor.b}), luminance: ${luminance.toFixed(2)}, scheme: ${scheme}`
-				);
-			return scheme;
-		} else {
-			if (debug) console.log('[DEBUG] OSC 11 query timed out or no response');
+		// Try to query terminal background color using OSC 11 (most reliable)
+		if (debug) console.log('[DEBUG] Querying terminal background with OSC 11...');
+		try {
+			const bgColor = await queryTerminalBackground();
+			if (bgColor) {
+				const luminance = calculateLuminance(bgColor);
+				const scheme = luminance > 0.5 ? 'light' : 'dark';
+				if (debug)
+					console.log(
+						`[DEBUG] OSC 11 response: rgb(${bgColor.r},${bgColor.g},${bgColor.b}), luminance: ${luminance.toFixed(2)}, scheme: ${scheme}`
+					);
+				return scheme;
+			} else {
+				if (debug) console.log('[DEBUG] OSC 11 query timed out or no response');
+			}
+		} catch (error) {
+			if (debug) console.log('[DEBUG] OSC 11 query failed:', error);
 		}
-	} catch (error) {
-		if (debug) console.log('[DEBUG] OSC 11 query failed:', error);
 	}
 
 	// Fall back to COLORFGBG environment variable (less reliable)
@@ -56,8 +57,8 @@ export async function detectColorScheme(): Promise<ColorScheme> {
 		return scheme;
 	}
 
-	if (debug) console.log('[DEBUG] Defaulting to dark mode');
-	return 'dark'; // Default to dark mode
+	if (debug) console.log('[DEBUG] Defaulting to %s', defaultMode);
+	return defaultMode;
 }
 
 interface RGBColor {

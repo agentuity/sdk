@@ -8,12 +8,14 @@ import { ConfigSchema, ProjectSchema, BuildMetadataSchema, type BuildMetadata } 
 import * as tui from './tui';
 import { z } from 'zod';
 
+export const defaultProfileName = 'production';
+
 export function getDefaultConfigDir(): string {
 	return join(homedir(), '.config', 'agentuity');
 }
 
 export function getDefaultConfigPath(): string {
-	return join(getDefaultConfigDir(), 'production.yaml');
+	return join(getDefaultConfigDir(), defaultProfileName + '.yaml');
 }
 
 export function getProfilePath(): string {
@@ -240,6 +242,15 @@ export async function saveOrgId(orgId: string): Promise<void> {
 }
 
 export async function getAuth(): Promise<AuthData | null> {
+	// allow automated login from environment variables if present
+	if (process.env.AGENTUITY_CLI_API_KEY && process.env.AGENTUITY_USER_ID) {
+		return {
+			apiKey: process.env.AGENTUITY_CLI_API_KEY,
+			userId: process.env.AGENTUITY_USER_ID,
+			expires: new Date(Date.now() + 30 * 60_000),
+		};
+	}
+
 	const config = await loadConfig();
 	if (!config) return null;
 	const auth = config.auth as { api_key?: string; user_id?: string; expires?: number } | undefined;

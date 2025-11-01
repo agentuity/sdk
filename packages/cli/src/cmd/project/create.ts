@@ -41,7 +41,7 @@ export const createProjectSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, auth, config } = ctx;
+		const { logger, opts, auth, config, options } = ctx;
 
 		await runCreateFlow({
 			projectName: opts.name,
@@ -55,6 +55,7 @@ export const createProjectSubcommand = createSubcommand({
 			logger,
 			auth: opts.register === true ? auth : undefined,
 			config: config!,
+			orgId: options.orgId,
 		});
 	},
 });

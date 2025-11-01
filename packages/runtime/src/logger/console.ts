@@ -79,6 +79,9 @@ function detectColorScheme(): ColorScheme {
 	if (scheme === 'light' || scheme === 'dark') {
 		return scheme;
 	}
+	if (process.env.CI) {
+		return 'light';
+	}
 	return 'dark'; // Default to dark mode
 }
 

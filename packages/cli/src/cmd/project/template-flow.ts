@@ -38,6 +38,7 @@ interface CreateFlowOptions {
 	logger: Logger;
 	auth?: AuthData;
 	config?: Config;
+	orgId?: string;
 }
 
 export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
@@ -51,6 +52,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		logger,
 		auth,
 		config,
+		orgId: selectedOrgId,
 	} = options;
 
 	showBanner();
@@ -87,7 +89,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		if (!orgs) {
 			tui.fatal('no organizations could be found for your login');
 		}
-		orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
+		orgId = await tui.selectOrganization(orgs, selectedOrgId ?? config?.preferences?.orgId);
 
 		if (orgId && orgId !== config?.preferences?.orgId) {
 			await saveOrgId(orgId);

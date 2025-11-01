@@ -78,6 +78,47 @@ Tests dev server hot reload functionality when source files change.
 - Restores any modified files with `git checkout`
 - Removes temporary log files
 
+### test-env-secrets.ts
+
+Tests environment variable and secret management CLI commands.
+
+**Prerequisites:**
+
+- `bun` installed
+- **CLI authentication required** - You must be logged in via `agentuity auth login`
+- Project must have `agentuity.json` configured
+
+**Usage:**
+
+```bash
+# From test-app directory
+bun scripts/test-env-secrets.ts
+```
+
+**What it tests:**
+
+- Environment variable operations (set, get, list, push, pull, delete, import)
+- Secret operations (set, get, list, push, pull, delete)
+- Masking/unmasking behavior with `--mask` and `--no-mask` flags
+- File preservation checks (.env and .env.production)
+
+**Note:** This test is **NOT** included in the main test suite (`test.sh`) because it requires interactive CLI authentication which is not available in CI environments. Run this test manually when you need to verify env/secrets functionality.
+
+**Expected output:**
+
+```
+=========================================
+  Environment & Secrets CLI Test Suite
+=========================================
+...
+Total Tests:  26
+Passed:       26
+Failed:       0
+=========================================
+
+✓ All tests passed!
+```
+
 ### test-binary-storage.sh
 
 Tests binary object storage to ensure data is not corrupted during upload/download.

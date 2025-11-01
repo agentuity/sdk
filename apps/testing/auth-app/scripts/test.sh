@@ -5,6 +5,8 @@
 
 set -e
 
+BIN_SCRIPT="$(cd "$(dirname "$0")" && pwd)/../../../../packages/cli/bin/cli.ts"
+
 # Check for CI environment (GitHub Actions, etc.)
 INTERACTIVE="${INTERACTIVE:-true}"
 if [ "$CI" = "true" ]; then
@@ -31,6 +33,27 @@ echo ""
 TOTAL_TESTS=0
 PASSED_TESTS=0
 FAILED_TESTS=0
+SKIPPED_TESTS=0
+
+handle_test_failure() {
+	local test_name="$1"
+	
+	FAILED_TESTS=$((FAILED_TESTS + 1))
+	echo -e "${RED}✗ FAILED: $test_name${NC}"
+	
+	echo ""
+	if [ "$INTERACTIVE" = "true" ]; then
+		echo -e "${YELLOW}Test failed. Continue with remaining tests? (y/n)${NC}"
+		read -r response
+		if [[ ! "$response" =~ ^[Yy]$ ]]; then
+			echo "Aborting test suite."
+			exit 1
+		fi
+	else
+		echo "Aborting test suite."
+		exit 1
+	fi
+}
 
 # Function to run a test script
 run_test() {
@@ -45,25 +68,19 @@ run_test() {
 	echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 	echo ""
 	
-	if bash "$SCRIPT_DIR/$test_script"; then
-		PASSED_TESTS=$((PASSED_TESTS + 1))
-		echo -e "${GREEN}✓ PASSED: $test_name${NC}"
-	else
-		FAILED_TESTS=$((FAILED_TESTS + 1))
-		echo -e "${RED}✗ FAILED: $test_name${NC}"
-		
-		# If one test fails, ask whether to continue
-		echo ""
-		if [ "$INTERACTIVE" = "true" ]; then
-			echo -e "${YELLOW}Test failed. Continue with remaining tests? (y/n)${NC}"
-			read -r response
-			if [[ ! "$response" =~ ^[Yy]$ ]]; then
-				echo "Aborting test suite."
-				exit 1
-			fi
+	if [[ "$test_script" == *.ts ]]; then
+		if bun "$SCRIPT_DIR/$test_script"; then
+			PASSED_TESTS=$((PASSED_TESTS + 1))
+			echo -e "${GREEN}✓ PASSED: $test_name${NC}"
 		else
-			echo "Aborting test suite."
-			exit 1
+			handle_test_failure "$test_name"
+		fi
+	else
+		if bash "$SCRIPT_DIR/$test_script"; then
+			PASSED_TESTS=$((PASSED_TESTS + 1))
+			echo -e "${GREEN}✓ PASSED: $test_name${NC}"
+		else
+			handle_test_failure "$test_name"
 		fi
 	fi
 }
@@ -77,6 +94,15 @@ run_test "Vector Storage" "test-vector.sh"
 run_test "Stream Storage" "test-stream.sh"
 run_test "Hot Reload" "test-dev-reload.sh"
 
+$BIN_SCRIPT auth whoami &> /dev/null
+if [ $? -eq 0 ]; then
+	run_test "Env & Secrets" "test-env-secrets.ts"
+else
+	echo -e "${RED}Skipping Env & Secrets test since not logged in${NC}"
+	SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
+fi
+
+
 # Print summary
 echo ""
 echo "========================================="
@@ -89,6 +115,7 @@ if [ $FAILED_TESTS -gt 0 ]; then
 else
 	echo -e "Failed:       $FAILED_TESTS"
 fi
+	echo -e "Skipped:       $SKIPPED_TESTS"
 echo "========================================="
 echo ""
 

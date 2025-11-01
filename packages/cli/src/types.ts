@@ -73,6 +73,7 @@ export interface GlobalOptions {
 	logLevel: LogLevel;
 	logTimestamp?: boolean;
 	logPrefix?: boolean;
+	orgId?: string;
 }
 
 export interface CommandSchemas {

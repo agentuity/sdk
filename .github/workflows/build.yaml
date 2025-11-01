@@ -20,6 +20,8 @@ jobs:
       name: Build
       env:
          AGENTUITY_CLOUD_PROJECT_ID: ${{ vars.AGENTUITY_CLOUD_PROJECT_ID }}
+         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
       steps:
          - uses: actions/checkout@v4
          - name: Setup Bun
@@ -33,9 +35,13 @@ jobs:
               echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" > apps/testing/auth-app/.env
               echo "AGENTUITY_CLOUD_PROJECT_ID=${{ env.AGENTUITY_CLOUD_PROJECT_ID }}" >> apps/testing/auth-app/.env
               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> apps/testing/auth-app/.env
+              APIKEY=$(curl https://api.agentuity.com/cli/auth/short-token --json "{\"secret\":\"${{ secrets.AGENTUITY_CATALYST_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
          - name: Build and Test
            run: |
               set -eou pipefail
+              bun run build
+              bun run whoami
               bun all
          - name: Cleanup .env
            if: always()

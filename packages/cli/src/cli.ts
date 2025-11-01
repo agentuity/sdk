@@ -3,6 +3,7 @@ import type { CommandDefinition, SubcommandDefinition, CommandContext } from './
 import { showBanner } from './banner';
 import { requireAuth, optionalAuth } from './auth';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
+import { defaultProfileName } from './config';
 
 export async function createCLI(version: string): Promise<Command> {
 	const program = new Command();
@@ -14,10 +15,15 @@ export async function createCLI(version: string): Promise<Command> {
 		.helpOption('-h, --help', 'Display help');
 
 	program
-		.option('--config <path>', 'Config file path', '~/.config/agentuity/production.yaml')
+		.option('--config <path>', 'Config file path')
 		.option('--log-level <level>', 'Log level', process.env.AGENTUITY_LOG_LEVEL ?? 'info')
 		.option('--log-timestamp', 'Show timestamps in log output', false)
 		.option('--no-log-prefix', 'Hide log level prefixes', true)
+		.option(
+			'--org-id <id>',
+			'Use a specific organization when performing operations',
+			process.env.AGENTUITY_CLOUD_ORG_ID
+		)
 		.option('--color-scheme <scheme>', 'Color scheme: light or dark');
 
 	const skipVersionCheckOption = program.createOption(
@@ -98,6 +104,14 @@ async function registerSubcommand(
 					const input = buildValidationInput(subcommand.schema, args, options);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
+						config: {
+							...(baseCtx.config ?? {}),
+							auth: {
+								api_key: auth.apiKey,
+								user_id: auth.userId,
+								expires: auth.expires.getTime(),
+							},
+						},
 						auth,
 					};
 					if (subcommand.schema.args) {
@@ -134,6 +148,17 @@ async function registerSubcommand(
 			} else {
 				const ctx: CommandContext<true> = {
 					...baseCtx,
+					config: baseCtx.config
+						? {
+								...baseCtx.config,
+								name: baseCtx.config.name ?? defaultProfileName,
+								auth: {
+									api_key: auth.apiKey,
+									user_id: auth.userId,
+									expires: auth.expires.getTime(),
+								},
+							}
+						: null,
 					auth,
 				};
 				await subcommand.handler(ctx);
@@ -148,6 +173,16 @@ async function registerSubcommand(
 					const input = buildValidationInput(subcommand.schema, args, options);
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
+						config: auth
+							? {
+									...(baseCtx.config ?? {}),
+									auth: {
+										api_key: auth.apiKey,
+										user_id: auth.userId,
+										expires: auth.expires.getTime(),
+									},
+								}
+							: baseCtx.config,
 						auth,
 					};
 					if (subcommand.schema.args) {
@@ -182,7 +217,20 @@ async function registerSubcommand(
 					throw error;
 				}
 			} else {
-				const ctx = { ...baseCtx, auth };
+				const ctx = {
+					...baseCtx,
+					config: auth
+						? {
+								...(baseCtx.config ?? {}),
+								auth: {
+									api_key: auth.apiKey,
+									user_id: auth.userId,
+									expires: auth.expires.getTime(),
+								},
+							}
+						: baseCtx.config,
+					auth,
+				};
 				await subcommand.handler(ctx as CommandContext);
 			}
 		} else {
@@ -249,13 +297,48 @@ export async function registerCommands(
 				cmd.action(async () => {
 					if (cmdDef.requiresAuth) {
 						const auth = await requireAuth(baseCtx as CommandContext<false>);
-						const ctx: CommandContext<true> = { ...baseCtx, auth };
+						const ctx: CommandContext<true> = {
+							...baseCtx,
+							config: baseCtx.config
+								? {
+										...baseCtx.config,
+										name: baseCtx.config.name ?? defaultProfileName,
+										auth: {
+											api_key: auth.apiKey,
+											user_id: auth.userId,
+											expires: auth.expires.getTime(),
+										},
+									}
+								: null,
+							auth,
+						};
 						await cmdDef.handler!(ctx);
 					} else if (cmdDef.optionalAuth) {
 						const continueText =
 							typeof cmdDef.optionalAuth === 'string' ? cmdDef.optionalAuth : undefined;
 						const auth = await optionalAuth(baseCtx as CommandContext<false>, continueText);
-						const ctx = { ...baseCtx, auth };
+						const ctx = {
+							...baseCtx,
+							config: auth
+								? baseCtx.config
+									? {
+											...baseCtx.config,
+											auth: {
+												api_key: auth.apiKey,
+												user_id: auth.userId,
+												expires: auth.expires.getTime(),
+											},
+										}
+									: {
+											auth: {
+												api_key: auth.apiKey,
+												user_id: auth.userId,
+												expires: auth.expires.getTime(),
+											},
+										}
+								: baseCtx.config,
+							auth,
+						};
 						await cmdDef.handler!(ctx as CommandContext);
 					} else {
 						await cmdDef.handler!(baseCtx as CommandContext<false>);

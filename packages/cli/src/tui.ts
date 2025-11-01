@@ -19,7 +19,7 @@ const ICONS = {
 	bullet: '•',
 } as const;
 
-function shouldUseColors(): boolean {
+export function shouldUseColors(): boolean {
 	return !process.env.NO_COLOR && process.env.TERM !== 'dumb' && !!process.stdout.isTTY;
 }
 
@@ -76,6 +76,11 @@ let currentColorScheme: ColorScheme = process.env.CI ? 'light' : 'dark';
 
 export function setColorScheme(scheme: ColorScheme): void {
 	currentColorScheme = scheme;
+	process.env.COLOR_SCHEME = scheme;
+}
+
+export function isDarkMode(): boolean {
+	return currentColorScheme === 'dark';
 }
 
 function getColor(colorKey: keyof ReturnType<typeof getColors>): string {
@@ -1109,6 +1114,22 @@ export async function selectOrganization(
 
 	if (orgs.length === 1) {
 		return orgs[0].id;
+	}
+
+	if (process.env.AGENTUITY_CLOUD_ORG_ID) {
+		const org = orgs.find((o) => o.id === process.env.AGENTUITY_CLOUD_ORG_ID);
+		if (org) {
+			return org.id;
+		}
+	}
+
+	if (!process.stdin.isTTY) {
+		if (initial) {
+			return initial;
+		}
+		fatal(
+			'Organization selection required but cannot prompt in non-interactive environment. Set AGENTUITY_CLOUD_ORG_ID or provide a default organization using --org-id'
+		);
 	}
 
 	const response = await enquirer.prompt<{ action: string }>({

@@ -46,8 +46,16 @@ async function runTest(name: string, fn: () => Promise<void>): Promise<void> {
 }
 
 async function runCLI(args: string[]): Promise<string> {
-	const result = await $`bun ${CLI_PATH} ${args} --dir ${PROJECT_DIR}`.text();
-	return result;
+	try {
+		const result = await $`bun ${CLI_PATH} ${args} --dir ${PROJECT_DIR}`.text();
+		return result;
+	} catch (error) {
+		if (error && typeof error === 'object' && 'stderr' in error) {
+			const stderr = (error as { stderr: { toString(): string } }).stderr.toString();
+			throw new Error(stderr || 'Command failed');
+		}
+		throw error;
+	}
 }
 
 console.log('=========================================');
@@ -143,7 +151,13 @@ await runTest(`verify ${ENV_TEST_KEY2} is deleted`, async () => {
 		await runCLI(['env', 'get', ENV_TEST_KEY2]);
 		throw new Error('Key should not exist');
 	} catch (error) {
-		// Expected to fail
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		if (errorMessage.includes('Key should not exist')) {
+			throw error;
+		}
+		if (!errorMessage.includes('not found') && !errorMessage.includes('does not exist')) {
+			throw error;
+		}
 	}
 });
 
@@ -209,6 +223,7 @@ await runTest('secret list with --mask flag', async () => {
 
 await runTest('secret push', async () => {
 	const output = await runCLI(['secret', 'push']);
+	console.log(output);
 	// Success is ok (even if no secrets to push)
 });
 
@@ -230,7 +245,7 @@ await runTest(`verify ${SECRET_TEST_KEY2} is deleted`, async () => {
 	try {
 		await runCLI(['secret', 'get', SECRET_TEST_KEY2]);
 		throw new Error('Secret should not exist');
-	} catch (error) {
+	} catch {
 		// Expected to fail
 	}
 });

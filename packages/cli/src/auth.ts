@@ -4,6 +4,7 @@ import { getDefaultConfigDir, getAuth, saveConfig, loadConfig } from './config';
 import { getCommand } from './command-prefix';
 import type { CommandContext, AuthData } from './types';
 import * as tui from './tui';
+import { defaultProfileName } from './config';
 
 export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
@@ -103,7 +104,7 @@ export async function optionalAuth(
 			tui.showSignupBenefits();
 
 			if (!config) {
-				ctx.config = { name: 'production' };
+				ctx.config = { name: defaultProfileName };
 			} else {
 				ctx.config = config;
 			}
