@@ -5,7 +5,7 @@ const router = createRouter();
 router.post('/upsert', async (c) => {
 	await c.vector.upsert('test-namespace', {
 		key: 'test-key',
-		embeddings: [0.1, 0.2, 0.3],
+		document: 'test document content',
 	});
 	return c.json({ success: true });
 });

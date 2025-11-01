@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
 	context,
 	SpanKind,
@@ -10,7 +9,7 @@ import {
 } from '@opentelemetry/api';
 import type { Span } from '@opentelemetry/sdk-trace-base';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { ServiceException } from '@agentuity/core';
+import { type LogLevel, ServiceException } from '@agentuity/core';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
 import { Hono } from 'hono';
@@ -116,19 +115,28 @@ export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) =>
 		return globalServerInstance;
 	}
 
-	createServices(config);
+	const logLevel = process.env.AGENTUITY_LOG_LEVEL || 'info';
+	const port = getPort();
+	const hostname = '127.0.0.1';
+	const serverUrl = `http://${hostname}:${port}`;
+
+	// this must come before registering any otel stuff
 	registerAgentuitySpanProcessor();
 
+	// Create the telemetry and logger
+	const otel = register({ processors: spanProcessors, logLevel: logLevel as LogLevel });
+
+	// Create services (may return local router)
+	const servicesResult = createServices(otel.logger, config, serverUrl);
+
 	const server = Bun.serve({
-		hostname: '127.0.0.1',
+		hostname,
 		development: isDevelopment(),
 		fetch: app.fetch,
 		idleTimeout: 0,
-		port: getPort(),
+		port,
 		websocket,
 	});
-
-	const otel = register({ processors: spanProcessors });
 
 	globalAppInstance = app;
 	globalServerInstance = server;
@@ -202,7 +210,13 @@ export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) =>
 		})
 	);
 
+	app.get('/_health', (c) => c.text('OK'));
 	app.route('/_agentuity', createAgentuityAPIs());
+
+	// Mount local storage router if using local services
+	if (servicesResult?.localRouter) {
+		app.route('/', servicesResult.localRouter);
+	}
 
 	// Attach services to context for API routes
 	app.use('/api/*', async (c, next) => {
@@ -218,7 +232,7 @@ export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) =>
 		if (isShutdown) {
 			return;
 		}
-		otel.logger.info('shutdown started');
+		otel.logger.debug('shutdown started');
 		isShutdown = true;
 		// Force exit after timeout if cleanup hangs
 		const forceExitTimer = setTimeout(() => {
@@ -228,7 +242,7 @@ export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) =>
 		try {
 			await server.stop();
 			await otel.shutdown();
-			otel.logger.info('shutdown completed');
+			otel.logger.debug('shutdown completed');
 		} finally {
 			clearTimeout(forceExitTimer);
 		}
@@ -269,10 +283,11 @@ const createAgentuityAPIs = () => {
 	const router = new Hono<Env>();
 	router.get('idle', (c) => {
 		if (isIdle()) {
-			return new Response('OK', { status: 200 });
+			return c.text('OK', { status: 200 });
 		}
-		return new Response('NO', { status: 200 });
+		return c.text('NO', { status: 200 });
 	});
+	router.get('health', (c) => c.text('OK'));
 	return router;
 };
 

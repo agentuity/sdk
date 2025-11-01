@@ -121,7 +121,7 @@ function createVercelAIProviderPatch(
 				before: generateEnvGuard(
 					envkey,
 					generateVercelAIProvider(provider, envkey),
-					`console.log("User provided API Key set for ${provider}. Switch to Agentuity AI Gateway for better logs, metrics and billing.");`
+					`if (!process.env.AGENTUITY_SDK_KEY) console.log("User provided ${provider} api key set. Use the Agentuity AI Gateway more features.");`
 				),
 			},
 		},

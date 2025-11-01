@@ -1,5 +1,5 @@
 import { format } from 'node:util';
-import { safeStringify } from '@agentuity/core';
+import { safeStringify, type LogLevel } from '@agentuity/core';
 import * as LogsAPI from '@opentelemetry/api-logs';
 import type { Logger } from '../logger';
 import ConsoleLogger from '../logger/console';
@@ -14,15 +14,18 @@ export class OtelLogger implements Logger {
 	private readonly delegates: LogsAPI.Logger[];
 	private readonly context: Record<string, unknown> | undefined;
 	private readonly logger: ConsoleLogger | undefined;
+	private readonly logLevel: LogLevel;
 
 	constructor(
 		useConsole: boolean,
 		delegates: LogsAPI.Logger | LogsAPI.Logger[],
-		context?: Record<string, unknown> | undefined
+		context?: Record<string, unknown> | undefined,
+		logLevel?: LogLevel
 	) {
 		this.delegates = Array.isArray(delegates) ? delegates : [delegates];
 		this.context = context;
-		this.logger = useConsole ? new ConsoleLogger(context, false) : undefined;
+		this.logLevel = logLevel ?? 'info';
+		this.logger = useConsole ? new ConsoleLogger(context, false, this.logLevel) : undefined;
 	}
 
 	addDelegate(delegate: LogsAPI.Logger) {
@@ -80,7 +83,35 @@ export class OtelLogger implements Logger {
 		});
 	}
 
+	private shouldLog(level: LogsAPI.SeverityNumber): boolean {
+		switch (this.logLevel) {
+			case 'trace':
+				return true;
+			case 'debug':
+				return (
+					level === LogsAPI.SeverityNumber.DEBUG ||
+					level == LogsAPI.SeverityNumber.INFO ||
+					level == LogsAPI.SeverityNumber.WARN ||
+					level == LogsAPI.SeverityNumber.ERROR
+				);
+			case 'info':
+				return (
+					level == LogsAPI.SeverityNumber.INFO ||
+					level == LogsAPI.SeverityNumber.WARN ||
+					level == LogsAPI.SeverityNumber.ERROR
+				);
+			case 'warn':
+				return level == LogsAPI.SeverityNumber.WARN || level == LogsAPI.SeverityNumber.ERROR;
+			case 'error':
+				return level == LogsAPI.SeverityNumber.ERROR;
+		}
+		return false;
+	}
+
 	trace(message: unknown, ...args: unknown[]) {
+		if (!this.shouldLog(LogsAPI.SeverityNumber.TRACE)) {
+			return;
+		}
 		this.logger?.trace(message, ...args);
 		let body: string;
 		try {
@@ -92,6 +123,9 @@ export class OtelLogger implements Logger {
 		this.emitToAll(LogsAPI.SeverityNumber.TRACE, 'TRACE', body);
 	}
 	debug(message: unknown, ...args: unknown[]) {
+		if (!this.shouldLog(LogsAPI.SeverityNumber.DEBUG)) {
+			return;
+		}
 		this.logger?.debug(message, ...args);
 		let body: string;
 		try {
@@ -103,6 +137,9 @@ export class OtelLogger implements Logger {
 		this.emitToAll(LogsAPI.SeverityNumber.DEBUG, 'DEBUG', body);
 	}
 	info(message: unknown, ...args: unknown[]) {
+		if (!this.shouldLog(LogsAPI.SeverityNumber.INFO)) {
+			return;
+		}
 		this.logger?.info(message, ...args);
 		let body: string;
 		try {
@@ -114,6 +151,9 @@ export class OtelLogger implements Logger {
 		this.emitToAll(LogsAPI.SeverityNumber.INFO, 'INFO', body);
 	}
 	warn(message: unknown, ...args: unknown[]) {
+		if (!this.shouldLog(LogsAPI.SeverityNumber.WARN)) {
+			return;
+		}
 		this.logger?.warn(message, ...args);
 		let body: string;
 		try {
@@ -125,6 +165,9 @@ export class OtelLogger implements Logger {
 		this.emitToAll(LogsAPI.SeverityNumber.WARN, 'WARN', body);
 	}
 	error(message: unknown, ...args: unknown[]) {
+		if (!this.shouldLog(LogsAPI.SeverityNumber.ERROR)) {
+			return;
+		}
 		this.logger?.error(message, ...args);
 		let body: string;
 		try {
@@ -140,10 +183,15 @@ export class OtelLogger implements Logger {
 		process.exit(1);
 	}
 	child(opts: Record<string, unknown>): Logger {
-		return new OtelLogger(!!this.logger, this.delegates, {
-			...(this.context ?? {}),
-			...opts,
-		});
+		return new OtelLogger(
+			!!this.logger,
+			this.delegates,
+			{
+				...(this.context ?? {}),
+				...opts,
+			},
+			this.logLevel
+		);
 	}
 }
 
@@ -154,11 +202,15 @@ export class OtelLogger implements Logger {
  * @param context - Additional context to include with log records
  * @returns A logger instance
  */
-export function createLogger(useConsole: boolean, context?: Record<string, unknown>): Logger {
+export function createLogger(
+	useConsole: boolean,
+	context?: Record<string, unknown>,
+	logLevel?: LogLevel
+): Logger {
 	const delegate = LogsAPI.logs.getLogger('default', undefined, {
 		scopeAttributes: context as LogsAPI.LoggerOptions['scopeAttributes'],
 	});
-	return new OtelLogger(useConsole, [delegate], context);
+	return new OtelLogger(useConsole, [delegate], context, logLevel);
 }
 
 /**
@@ -166,12 +218,16 @@ export function createLogger(useConsole: boolean, context?: Record<string, unkno
  *
  * @param attributes - Attributes to include with all console log records
  */
-export function patchConsole(enabled: boolean, attributes: Record<string, unknown>) {
+export function patchConsole(
+	enabled: boolean,
+	attributes: Record<string, unknown>,
+	logLevel: LogLevel
+) {
 	if (!enabled) {
 		return;
 	}
 	const _patch = { ...__originalConsole };
-	const delegate = createLogger(true, attributes);
+	const delegate = createLogger(true, attributes, logLevel);
 
 	// Patch individual console methods instead of reassigning the whole object
 	_patch.log = (...args: unknown[]) => {

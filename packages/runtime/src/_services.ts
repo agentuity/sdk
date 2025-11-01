@@ -11,6 +11,7 @@ import {
 	type ListStreamsResponse,
 	type VectorUpsertResult,
 	type VectorSearchResult,
+	type Logger,
 } from '@agentuity/core';
 import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
 import { injectTraceContextToHeaders } from './otel/http';
@@ -18,11 +19,14 @@ import { getLogger, getTracer } from './_server';
 import { getSDKVersion, isAuthenticated } from './_config';
 import type { AppConfig } from './app';
 import {
-	UnauthenticatedKeyValueStorage,
-	UnauthenticatedObjectStorage,
-	UnauthenticatedStreamStorage,
-	UnauthenticatedVectorStorage,
-} from './_unauthenticated';
+	LocalKeyValueStorage,
+	LocalObjectStorage,
+	LocalStreamStorage,
+	LocalVectorStorage,
+	getLocalDB,
+	normalizeProjectPath,
+	createLocalStorageRouter,
+} from './services/local';
 
 const userAgent = `Agentuity SDK/${getSDKVersion()}`;
 const bearerKey = `Bearer ${process.env.AGENTUITY_SDK_KEY}`;
@@ -149,41 +153,52 @@ let kv: KeyValueStorage;
 let objectStore: ObjectStorage;
 let stream: StreamStorage;
 let vector: VectorStorage;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let localRouter: any | null = null;
 
-export function createServices(config?: AppConfig) {
+export function createServices(logger: Logger, config?: AppConfig, serverUrl?: string) {
 	const authenticated = isAuthenticated();
+	const useLocal = config?.services?.useLocal ?? false;
 
-	if (config?.services?.keyvalue) {
-		kv = config.services.keyvalue;
-	} else if (authenticated) {
-		kv = new KeyValueStorageService(kvBaseUrl, adapter);
-	} else {
-		kv = new UnauthenticatedKeyValueStorage();
+	// Use local services if explicitly requested OR if not authenticated
+	const shouldUseLocal =
+		useLocal || !authenticated || process.env.AGENTUITY_FORCE_LOCAL_SERVICES === 'true';
+
+	if (shouldUseLocal) {
+		const db = getLocalDB();
+		const projectPath = normalizeProjectPath();
+
+		if (!serverUrl) {
+			throw new Error('serverUrl is required when using local services');
+		}
+
+		logger.info('Using local services (development only)');
+
+		kv = config?.services?.keyvalue || new LocalKeyValueStorage(db, projectPath);
+		objectStore = config?.services?.object || new LocalObjectStorage(db, projectPath, serverUrl);
+		stream = config?.services?.stream || new LocalStreamStorage(db, projectPath, serverUrl);
+		vector = config?.services?.vector || new LocalVectorStorage(db, projectPath);
+
+		localRouter = createLocalStorageRouter(db, projectPath);
+
+		return { localRouter };
 	}
 
-	if (config?.services?.object) {
-		objectStore = config.services.object;
-	} else if (authenticated) {
-		objectStore = new ObjectStorageService(objectBaseUrl, adapter);
-	} else {
-		objectStore = new UnauthenticatedObjectStorage();
-	}
+	// Reset local router if not using local services
+	localRouter = null;
 
-	if (config?.services?.stream) {
-		stream = config.services.stream;
-	} else if (authenticated) {
-		stream = new StreamStorageService(streamBaseUrl, adapter);
-	} else {
-		stream = new UnauthenticatedStreamStorage();
-	}
+	// At this point we must be authenticated (since !authenticated would trigger local services above)
+	kv = config?.services?.keyvalue || new KeyValueStorageService(kvBaseUrl, adapter);
+	objectStore = config?.services?.object || new ObjectStorageService(objectBaseUrl, adapter);
+	stream = config?.services?.stream || new StreamStorageService(streamBaseUrl, adapter);
+	vector = config?.services?.vector || new VectorStorageService(vectorBaseUrl, adapter);
 
-	if (config?.services?.vector) {
-		vector = config.services.vector;
-	} else if (authenticated) {
-		vector = new VectorStorageService(vectorBaseUrl, adapter);
-	} else {
-		vector = new UnauthenticatedVectorStorage();
-	}
+	return {};
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getLocalRouter(): any | null {
+	return localRouter;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

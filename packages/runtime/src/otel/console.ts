@@ -1,8 +1,8 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { type ExportResult, ExportResultCode } from '@opentelemetry/core';
 import type { LogRecordExporter, ReadableLogRecord } from '@opentelemetry/sdk-logs';
-import { createLogger } from '@agentuity/server';
-import type { Logger } from '@agentuity/core';
+import { type ColorScheme, createLogger } from '@agentuity/server';
+import type { Logger, LogLevel } from '@agentuity/core';
 
 /**
  * Console implementation of the LogRecordExporter interface
@@ -13,8 +13,12 @@ export class ConsoleLogRecordExporter implements LogRecordExporter {
 	/**
 	 * Creates a new console log record exporter
 	 */
-	constructor() {
-		this.logger = createLogger('info', false, 'dark');
+	constructor(logLevel: LogLevel) {
+		this.logger = createLogger(
+			logLevel,
+			false,
+			(process.env.COLOR_SCHEME as ColorScheme) ?? 'dark'
+		);
 	}
 
 	/**

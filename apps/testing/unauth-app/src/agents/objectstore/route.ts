@@ -19,8 +19,11 @@ router.delete('/delete', async (c) => {
 });
 
 router.get('/create-public-url', async (c) => {
-	await c.objectstore.createPublicURL('test-bucket', 'test-key');
-	return c.json({ success: true });
+	// Need to create the object first since delete was called before
+	const data = new TextEncoder().encode('test data for url');
+	await c.objectstore.put('test-bucket', 'test-key-url', data);
+	const url = await c.objectstore.createPublicURL('test-bucket', 'test-key-url');
+	return c.json({ success: true, url });
 });
 
 export default router;

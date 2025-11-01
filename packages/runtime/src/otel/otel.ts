@@ -28,7 +28,8 @@ import type { Logger } from '../logger';
 import { ConsoleLogRecordExporter } from './console';
 import { instrumentFetch } from './fetch';
 import { createLogger, patchConsole } from './logger';
-import { getSDKVersion } from '../_config';
+import { getSDKVersion, isAuthenticated } from '../_config';
+import type { LogLevel } from '@agentuity/core';
 
 /**
  * Configuration for OpenTelemetry initialization
@@ -45,6 +46,7 @@ export interface OtelConfig {
 	cliVersion?: string;
 	devmode?: boolean;
 	spanProcessors?: Array<SpanProcessor>;
+	logLevel?: LogLevel;
 }
 
 /**
@@ -83,10 +85,12 @@ export const createAgentuityLoggerProvider = ({
 	url,
 	headers,
 	resource,
+	logLevel,
 }: {
 	url?: string;
 	headers?: Record<string, string>;
 	resource: Resource;
+	logLevel: LogLevel;
 }) => {
 	let processor: LogRecordProcessor;
 	let exporter: OTLPLogExporter | undefined;
@@ -100,7 +104,7 @@ export const createAgentuityLoggerProvider = ({
 		});
 		processor = new BatchLogRecordProcessor(exporter);
 	} else {
-		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter());
+		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter(logLevel));
 	}
 	const provider = new LoggerProvider({
 		resource,
@@ -159,6 +163,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		projectId,
 		deploymentId,
 		devmode = false,
+		logLevel = 'warn',
 	} = config;
 
 	let headers: Record<string, string> | undefined;
@@ -173,6 +178,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		url,
 		headers,
 		resource,
+		logLevel,
 	});
 	const attrs = {
 		'@agentuity/orgId': orgId ?? 'unknown',
@@ -182,10 +188,10 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		'@agentuity/devmode': devmode,
 		'@agentuity/language': 'javascript',
 	};
-	const logger = createLogger(!!url, attrs);
+	const logger = createLogger(!!url, attrs, logLevel);
 
 	// must do this after we have created the logger
-	patchConsole(!!url, attrs);
+	patchConsole(!!url, attrs, logLevel);
 
 	const traceExporter = url
 		? new OTLPTraceExporter({
@@ -260,8 +266,8 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 
 		try {
 			const projectName = config.projectId || '';
-			const orgName = config.orgId || '';
-			const appName = `${orgName}:${projectName}`;
+			const orgId = config.orgId || '';
+			const appName = `${orgId}:${projectName}`;
 
 			const traceloopHeaders: Record<string, string> = {};
 			if (bearerToken) {
@@ -278,7 +284,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 				// Note: JavaScript SDK doesn't support resourceAttributes like Python
 			});
 			logger.debug(`Telemetry initialized with app_name: ${appName}`);
-			logger.info('Telemetry configured successfully');
+			logger.debug('Telemetry configured successfully');
 		} catch (error) {
 			logger.warn('Telemetry not available, skipping automatic instrumentation', {
 				error: error instanceof Error ? error.message : String(error),
@@ -309,7 +315,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		}
 	};
 
-	if (url) {
+	if (url && isAuthenticated()) {
 		logger.debug('connected to Agentuity Agent Cloud');
 	}
 

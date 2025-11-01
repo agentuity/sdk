@@ -8,6 +8,7 @@ import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
 import type { OtelResponse, OtelConfig } from './otel';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import * as runtimeConfig from '../_config';
+import type { LogLevel } from '@agentuity/core';
 
 /**
  * Configuration for user provided OpenTelemetry
@@ -23,6 +24,7 @@ export interface CustomizedOtelConfig {
 
 interface OtelRegisterConfig {
 	processors?: SpanProcessor[];
+	logLevel?: LogLevel;
 }
 
 export function register(registerConfig: OtelRegisterConfig): OtelResponse {
@@ -38,6 +40,7 @@ export function register(registerConfig: OtelRegisterConfig): OtelResponse {
 		projectId: runtimeConfig.getProjectId(),
 		deploymentId: runtimeConfig.getDeploymentId(),
 		environment: runtimeConfig.getEnvironment(),
+		logLevel: registerConfig.logLevel,
 		bearerToken,
 		url,
 	};

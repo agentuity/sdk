@@ -21,6 +21,7 @@ export interface AppConfig {
 	 * Override the default services
 	 */
 	services?: {
+		useLocal?: boolean;
 		keyvalue?: KeyValueStorage;
 		object?: ObjectStorage;
 		stream?: StreamStorage;

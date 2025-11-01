@@ -1,8 +1,7 @@
 import { createApp } from '@agentuity/runtime';
-import { showRoutes } from 'hono/dev';
 
-const { app, server, logger } = createApp();
+// No need to specify useLocal - it's automatic when unauthenticated
+const { server, logger } = createApp();
 
-showRoutes(app);
-
-logger.info('Running %s', server.url);
+logger.info('Running with local SQLite services at %s', server.url);
+logger.debug('Database location: ~/.config/agentuity/local.db');

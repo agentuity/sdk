@@ -138,11 +138,11 @@ SERVER_PID=$!
 log "Dev server started (PID: $SERVER_PID)"
 log "Waiting for server to be ready..."
 
-# Wait for server to start (look for "Running" in logs)
+# Wait for server to start (look for "DevMode ready" in logs)
 TIMEOUT=30
 ELAPSED=0
 while [ $ELAPSED -lt $TIMEOUT ]; do
-    if [ -f "$SERVER_LOG" ] && grep -q "Running http" "$SERVER_LOG"; then
+    if [ -f "$SERVER_LOG" ] && grep -q "DevMode ready" "$SERVER_LOG"; then
         log "Server is ready!"
         break
     fi
@@ -154,8 +154,8 @@ if [ $ELAPSED -eq $TIMEOUT ]; then
     fail_test "Server failed to start within $TIMEOUT seconds"
 fi
 
-# Extract server URL from logs (remove trailing slash)
-SERVER_URL=$(grep -o "Running http://[^[:space:]]*" "$SERVER_LOG" | head -1 | cut -d' ' -f2 | sed 's:/*$::')
+# Extract server URL from logs (extract http://IP:PORT pattern)
+SERVER_URL=$(sed -n 's/.*\(http:\/\/[0-9.]*:[0-9]*\).*/\1/p' "$SERVER_LOG" | head -1 | sed 's:/*$::')
 log "Server URL: $SERVER_URL"
 
 # Wait a bit more for routes to be registered
@@ -167,7 +167,19 @@ log "Test 1: Verifying original agent response..."
 log "Calling: POST $SERVER_URL/agent/simple"
 RESPONSE=$(curl -s --max-time 10 -X POST "$SERVER_URL/agent/simple" \
     -H "Content-Type: application/json" \
-    -d '{"name":"Test","age":25}')
+    -d '{"name":"Test","age":25}' 2>&1)
+CURL_EXIT=$?
+
+if [ $CURL_EXIT -ne 0 ]; then
+    error "curl failed with exit code $CURL_EXIT"
+    error "Response: $RESPONSE"
+    error "Server URL: $SERVER_URL"
+    error "Full URL: $SERVER_URL/agent/simple"
+    error ""
+    error "Server log (last 30 lines):"
+    tail -30 "$SERVER_LOG"
+    fail_test "Failed to call original agent endpoint"
+fi
 
 EXPECTED="Hello, Test! You are 25 years old."
 if [ "$RESPONSE" = "$EXPECTED" ]; then

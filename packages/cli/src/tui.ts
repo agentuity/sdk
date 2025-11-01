@@ -143,6 +143,15 @@ export function muted(text: string): string {
 }
 
 /**
+ * Format text in warn color
+ */
+export function warn(text: string): string {
+	const color = getColor('warning');
+	const reset = getColor('reset');
+	return `${color}${text}${reset}`;
+}
+
+/**
  * Format text in bold
  */
 export function bold(text: string): string {
@@ -245,10 +254,9 @@ interface BannerOptions {
  * Responsive to terminal width - adapts to narrow terminals
  */
 export function banner(title: string, body: string, options?: BannerOptions): void {
-	// Get terminal width, default to 80 if not available, minimum 40
-	const termWidth = process.stdout.columns || 80;
+	// Get terminal width, default to 120 if not available, minimum 40
+	const termWidth = process.stdout.columns || 120;
 	const minWidth = options?.minWidth ?? 40;
-	const maxWidth = Math.max(minWidth, Math.min(termWidth - 2, 80)); // Between 40 and 80, with 2 char margin
 	const padding = options?.padding ?? 4;
 
 	const border = {
@@ -260,14 +268,17 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 		vertical: '│',
 	};
 
+	// Calculate max width - use terminal width minus margin, with reasonable max
+	const maxWidth = Math.max(minWidth, Math.min(termWidth - 4, 120));
+
 	// Split body into lines and wrap if needed
-	const bodyLines = wrapText(body, maxWidth - padding); // -4 for padding and borders
+	const bodyLines = wrapText(body, maxWidth - padding);
 
 	// Calculate width based on content
 	const titleWidth = getDisplayWidth(title);
 	const maxBodyWidth = Math.max(...bodyLines.map((line) => getDisplayWidth(line)));
 	const contentWidth = Math.max(minWidth, Math.max(titleWidth, maxBodyWidth) + padding);
-	const boxWidth = Math.min(contentWidth, maxWidth); // +N for padding
+	const boxWidth = Math.min(contentWidth, maxWidth);
 	const innerWidth = boxWidth - padding;
 
 	// Colors

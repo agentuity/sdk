@@ -13,6 +13,7 @@ export const command = createCommand({
 	schema: {
 		options: z.object({
 			dir: z.string().optional().describe('Root directory of the project'),
+			local: z.boolean().optional().describe('Turn on local services (instead of cloud)'),
 		}),
 	},
 	optionalAuth: 'Continue without an account (local only)',
@@ -43,8 +44,11 @@ export const command = createCommand({
 		await saveProjectDir(rootDir);
 
 		const devmodebody =
-			tui.muted('Local: ') +
+			tui.muted(tui.padRight('Local:', 10)) +
 			tui.link('http://127.0.0.1:3000') +
+			'\n' +
+			tui.muted(tui.padRight('Public:', 10)) +
+			tui.warn('Disabled') + //TODO:
 			'\n\n' +
 			tui.muted('Press ') +
 			tui.bold('h') +
@@ -67,6 +71,8 @@ export const command = createCommand({
 		env.NODE_ENV = 'development';
 		env.PORT = '3000';
 		env.AGENTUITY_PORT = env.PORT;
+		if (options.logLevel !== undefined) env.AGENTUITY_LOG_LEVEL = options.logLevel;
+		env.AGENTUITY_FORCE_LOCAL_SERVICES = opts.local === true ? 'true' : 'false';
 
 		const agentuityDir = resolve(rootDir, '.agentuity');
 		const appPath = resolve(agentuityDir, 'app.js');
@@ -85,6 +91,7 @@ export const command = createCommand({
 		let pendingRestart = false;
 		let building = false;
 		let metadata: BuildMetadata | undefined;
+		let showInitialReadyMessage = true;
 
 		// Track restart timestamps to detect restart loops
 		const restartTimestamps: number[] = [];
@@ -233,8 +240,6 @@ export const command = createCommand({
 
 				metadata = await loadBuildMetadata(agentuityDir);
 
-				env.AGENTUITY_LOG_LEVEL = options.logLevel;
-
 				logger.trace('Starting dev server: %s', appPath);
 				// Use shell to run in a process group for proper cleanup
 				// The 'exec' ensures the shell is replaced by the actual process
@@ -251,6 +256,11 @@ export const command = createCommand({
 				pid = devServer.pid;
 				exitPromise = devServer.exited;
 				logger.trace('Dev server started (pid: %d)', pid);
+
+				if (showInitialReadyMessage) {
+					showInitialReadyMessage = false;
+					logger.info('DevMode ready 🚀');
+				}
 
 				// Attach non-blocking exit handler
 				exitPromise

@@ -13,7 +13,7 @@ TESTS_RUN=0
 TESTS_PASSED=0
 TESTS_FAILED=0
 
-echo "🧪 Starting unauthenticated service error tests..."
+echo "🧪 Starting local SQLite services tests..."
 
 # Kill any existing server
 echo "🔪 Killing any existing server on port 3000..."
@@ -42,13 +42,12 @@ fi
 echo -e "${GREEN}✅ Server started successfully${NC}"
 echo ""
 
-# Function to test an endpoint
+# Function to test an endpoint expects success (200)
 test_endpoint() {
     local method=$1
     local path=$2
     local description=$3
-    local expected_status=501
-    local expected_message="You must authenticate to use Agentuity services"
+    local expected_status=200
     
     TESTS_RUN=$((TESTS_RUN + 1))
     
@@ -58,7 +57,7 @@ test_endpoint() {
     if [ "$method" = "GET" ]; then
         response=$(curl -s -w "\n%{http_code}" "http://localhost:3000$path")
     else
-        response=$(curl -s -w "\n%{http_code}" -X "$method" "http://localhost:3000$path")
+        response=$(curl -s -w "\n%{http_code}" -X "$method" -H "Content-Type: application/json" "http://localhost:3000$path")
     fi
     
     # Split response into body and status code
@@ -69,14 +68,6 @@ test_endpoint() {
     if [ "$status_code" != "$expected_status" ]; then
         echo -e "${RED}  ❌ FAILED: Expected status $expected_status, got $status_code${NC}"
         echo -e "     Response: $body"
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-        return 1
-    fi
-    
-    # Check if error message is present
-    if [[ ! "$body" =~ "$expected_message" ]]; then
-        echo -e "${RED}  ❌ FAILED: Expected message containing '$expected_message'${NC}"
-        echo -e "     Got: $body"
         TESTS_FAILED=$((TESTS_FAILED + 1))
         return 1
     fi
@@ -125,7 +116,7 @@ lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 
 # Summary
 echo "================================"
-echo "Unauthenticate Test Results:"
+echo "Local Services Test Results:"
 echo "  Total: $TESTS_RUN"
 echo -e "  ${GREEN}Passed: $TESTS_PASSED${NC}"
 if [ $TESTS_FAILED -gt 0 ]; then
