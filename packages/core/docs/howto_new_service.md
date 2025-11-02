@@ -1354,21 +1354,27 @@ Create a test agent to verify the service is available:
 
 ```typescript
 // In your agent file
-import { defineAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
-export default defineAgent({
-	name: 'test-vector',
-	inputSchema: z.object({
-		query: z.string(),
-	}),
-	outputSchema: z.object({
-		results: z.array(z.any()),
-	}),
-	async handler(c) {
+export default createAgent({
+	metadata: {
+		id: 'test-vector',
+		name: 'Test Vector',
+		description: 'Test vector search',
+	},
+	schema: {
+		input: z.object({
+			query: z.string(),
+		}),
+		output: z.object({
+			results: z.array(z.any()),
+		}),
+	},
+	async handler(c, input) {
 		// Service is now available on context
 		const results = await c.vector.search('my-docs', {
-			query: c.input.query,
+			query: input.query,
 			limit: 10,
 		});
 

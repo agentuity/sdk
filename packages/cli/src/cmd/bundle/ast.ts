@@ -291,7 +291,17 @@ export async function parseRoute(
 	}
 
 	const rel = relative(rootDir, filename);
-	const name = basename(dirname(filename));
+	const dir = dirname(filename);
+	const name = basename(dir);
+
+	// Detect if this is a subagent route and build proper path
+	const relativePath = relative(rootDir, dir)
+		.replace(/^src\/agents\//, '')
+		.replace(/^src\/apis\//, '');
+	const pathParts = relativePath.split('/').filter(Boolean);
+	const isSubagent = pathParts.length === 2 && filename.includes('src/agents');
+	const routeName = isSubagent ? pathParts.join('/') : name;
+
 	const routes: RouteDefinition = [];
 	const routePrefix = filename.includes('src/agents') ? '/agent' : '/api';
 
@@ -376,7 +386,7 @@ export async function parseRoute(
 							break;
 						}
 					}
-					const thepath = `${routePrefix}/${name}/${suffix}`
+					const thepath = `${routePrefix}/${routeName}/${suffix}`
 						.replaceAll(/\/{2,}/g, '/')
 						.replaceAll(/\/$/g, '');
 					routes.push({

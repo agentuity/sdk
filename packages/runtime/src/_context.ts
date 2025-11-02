@@ -10,6 +10,7 @@ export interface RequestAgentContextArgs<TAgentMap, TAgent> {
 	sessionId: string;
 	agent: TAgentMap;
 	current: TAgent;
+	parent?: TAgent;
 	agentName: AgentName;
 	logger: Logger;
 	tracer: Tracer;
@@ -19,6 +20,7 @@ export interface RequestAgentContextArgs<TAgentMap, TAgent> {
 export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 	agent: TAgentMap;
 	current: TAgent;
+	parent?: TAgent;
 	agentName: AgentName;
 	logger: Logger;
 	sessionId: string;
@@ -32,6 +34,7 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 	constructor(args: RequestAgentContextArgs<TAgentMap, TAgent>) {
 		this.agent = args.agent;
 		this.current = args.current;
+		this.parent = args.parent;
 		this.agentName = args.agentName;
 		this.logger = args.logger;
 		this.sessionId = args.sessionId;

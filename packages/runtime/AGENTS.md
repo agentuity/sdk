@@ -24,7 +24,7 @@ Server runtime for building Agentuity applications. Built on Hono framework and 
 src/
 ├── index.ts        # Main exports
 ├── app.ts          # createApp() function
-├── agent.ts        # Agent types and defineAgent()
+├── agent.ts        # Agent types and createAgent()
 ├── router.ts       # createRouter() with extended methods
 ├── logger.ts       # Logging utilities
 ├── _server.ts      # Internal server creation
@@ -53,10 +53,10 @@ src/
 ## Agent Definition Pattern
 
 ```typescript
-import { defineAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
-export default defineAgent({
+export default createAgent({
 	metadata: {
 		id: 'unique-id',
 		identifier: 'folder-name',
@@ -65,12 +65,14 @@ export default defineAgent({
 		filename: __filename,
 		version: 'hash-or-version',
 	},
-	inputSchema: z.object({
-		/* ... */
-	}),
-	outputSchema: z.object({
-		/* ... */
-	}),
+	schema: {
+		input: z.object({
+			/* ... */
+		}),
+		output: z.object({
+			/* ... */
+		}),
+	},
 	handler: async (ctx, input) => {
 		// ctx.logger, ctx.tracer, ctx.kv, etc.
 		return output;

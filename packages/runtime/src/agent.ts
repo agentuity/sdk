@@ -19,6 +19,7 @@ export interface AgentContext {
 	waitUntil: (promise: Promise<void> | (() => void | Promise<void>)) => void;
 	agent?: any; // Will be augmented by generated code
 	current?: any; // Will be augmented by generated code
+	parent?: any; // Will be augmented by generated code - reference to parent agent for subagents
 	agentName?: AgentName;
 	logger: Logger;
 	sessionId: string;
@@ -240,13 +241,57 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 
 		// Populate agents object with strongly-typed keys
 		const agentsObj: any = {};
+
+		// Build nested structure for agents and subagents
 		for (const [name, agentFn] of agents) {
-			agentsObj[name] = createAgentRunner(agentFn, ctx);
+			const runner = createAgentRunner(agentFn, ctx);
+
+			if (name.includes('.')) {
+				// Subagent: "parent.child"
+				const parts = name.split('.');
+				const parentName = parts[0];
+				const childName = parts[1];
+				if (parentName && childName) {
+					if (!agentsObj[parentName]) {
+						// Ensure parent exists
+						const parentAgent = agents.get(parentName);
+						if (parentAgent) {
+							agentsObj[parentName] = createAgentRunner(parentAgent, ctx);
+						}
+					}
+					// Attach subagent to parent
+					if (agentsObj[parentName]) {
+						agentsObj[parentName][childName] = runner;
+					}
+				}
+			} else {
+				// Parent agent or standalone agent
+				agentsObj[name] = runner;
+			}
+		}
+
+		// Determine current and parent agents
+		let currentAgent: AgentRunner | undefined;
+		let parentAgent: AgentRunner | undefined;
+
+		if (agentName && agentName.includes('.')) {
+			// This is a subagent
+			const parts = agentName.split('.');
+			const parentName = parts[0];
+			const childName = parts[1];
+			if (parentName && childName) {
+				currentAgent = agentsObj[parentName]?.[childName];
+				parentAgent = agentsObj[parentName];
+			}
+		} else if (agentName) {
+			// This is a parent or standalone agent
+			currentAgent = agentsObj[agentName];
 		}
 
 		const args: Partial<RequestAgentContextArgs<AgentRegistry, any>> = {
 			agent: agentsObj,
-			current: agentsObj[agentName],
+			current: currentAgent,
+			parent: parentAgent,
 			agentName,
 			logger: ctx.var.logger.child({ agent: agentName }),
 			tracer: ctx.var.tracer,

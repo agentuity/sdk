@@ -1,0 +1,57 @@
+import { type AgentContext, createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const agent = createAgent({
+	schema: {
+		input: z.object({
+			action: z.enum(['list', 'add', 'remove']),
+			name: z.string().optional(),
+			testRunId: z.string().optional(),
+		}),
+		output: z.object({
+			members: z.array(z.string()),
+			action: z.string(),
+			parentInfo: z.string().optional(),
+		}),
+	},
+	handler: async (ctx: AgentContext, { action, name, testRunId }) => {
+		// Store members in kv storage
+		const storeName = 'team-data';
+		const key = testRunId ? `members-${testRunId}` : 'members';
+		let members: string[] = [];
+
+		const stored = await ctx.kv.get<string[]>(storeName, key);
+		if (stored.exists && stored.data) {
+			members = stored.data;
+		}
+
+		let actionMsg: string = action;
+
+		if (action === 'add' && name) {
+			if (!members.includes(name)) {
+				members.push(name);
+				await ctx.kv.set(storeName, key, members);
+			}
+			actionMsg = `Added ${name}`;
+		} else if (action === 'remove' && name) {
+			members = members.filter((m) => m !== name);
+			await ctx.kv.set(storeName, key, members);
+			actionMsg = `Removed ${name}`;
+		}
+
+		// Test parent agent access
+		let parentInfo: string | undefined;
+		if (ctx.parent) {
+			const parentResult = await ctx.parent.run({ action: 'info' });
+			parentInfo = `Parent says: ${parentResult.message}`;
+		}
+
+		return {
+			members,
+			action: actionMsg,
+			parentInfo,
+		};
+	},
+});
+
+export default agent;

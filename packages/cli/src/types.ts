@@ -261,6 +261,20 @@ export const ProjectSchema = zod.object({
 	orgId: zod.string().describe('the organization id'),
 });
 
+const BaseAgentFields = {
+	id: zod.string().describe('the unique calculated id for the agent'),
+	filename: zod.string().describe('the relative path for the file'),
+	name: zod.string().describe('the name of the agent'),
+	version: zod.string().describe('the SHA256 content of the file'),
+	identifier: zod.string().describe('the folder for the agent'),
+	description: zod.string().optional().describe('the agent description'),
+};
+
+const AgentSchema = zod.object({
+	...BaseAgentFields,
+	subagents: zod.array(zod.object(BaseAgentFields)).optional().describe('subagents of this agent'),
+});
+
 export const BuildMetadataSchema = zod.object({
 	routes: zod.array(
 		zod.object({
@@ -276,16 +290,7 @@ export const BuildMetadataSchema = zod.object({
 				.describe('type specific configuration'),
 		})
 	),
-	agents: zod.array(
-		zod.object({
-			id: zod.string().describe('the unique calculated id for the route'),
-			filename: zod.string().describe('the relative path for the file'),
-			name: zod.string().describe('the name of the agent'),
-			version: zod.string().describe('the SHA256 content of the file'),
-			identifier: zod.string().describe('the folder for the agent'),
-			description: zod.string().optional().describe('the agent description'),
-		})
-	),
+	agents: zod.array(AgentSchema),
 	assets: zod.array(
 		zod.object({
 			filename: zod.string().describe('the relative path for the file'),

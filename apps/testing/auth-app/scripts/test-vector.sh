@@ -80,9 +80,10 @@ GET_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
   -d "{\"operation\":\"get\",\"key\":\"${TEST_RUN_ID}-doc1\"}")
 
-echo "$GET_RESPONSE" | jq .
+# Don't print the full response with large embedding array, just extract what we need
 SUCCESS=$(echo "$GET_RESPONSE" | jq -r .success)
 RESULT_KEY=$(echo "$GET_RESPONSE" | jq -r '.result.key')
+echo "Response: success=$SUCCESS, key=$RESULT_KEY"
 
 if [ "$SUCCESS" = "true" ] && [ "$RESULT_KEY" = "${TEST_RUN_ID}-doc1" ]; then
 	echo -e "${GREEN}✓ PASS:${NC} Get operation successful"
@@ -98,9 +99,10 @@ GETMANY_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
   -d "{\"operation\":\"getMany\",\"keys\":[\"${TEST_RUN_ID}-doc1\",\"${TEST_RUN_ID}-doc2\",\"${TEST_RUN_ID}-doc3\"]}")
 
-echo "$GETMANY_RESPONSE" | jq .
+# Don't print the full response with large embedding arrays, just extract what we need
 SUCCESS=$(echo "$GETMANY_RESPONSE" | jq -r .success)
 COUNT=$(echo "$GETMANY_RESPONSE" | jq -r '.result.count')
+echo "Response: success=$SUCCESS, count=$COUNT"
 
 if [ "$SUCCESS" = "true" ] && [ "$COUNT" = "3" ]; then
 	echo -e "${GREEN}✓ PASS:${NC} GetMany operation successful, retrieved $COUNT documents"
@@ -116,9 +118,10 @@ SEARCH_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
   -d '{"operation":"search","query":"What is AI and neural networks?"}')
 
-echo "$SEARCH_RESPONSE" | jq .
+# Don't print the full response with large embedding arrays, just extract what we need
 SUCCESS=$(echo "$SEARCH_RESPONSE" | jq -r .success)
 RESULT_COUNT=$(echo "$SEARCH_RESPONSE" | jq -r '.result.count')
+echo "Response: success=$SUCCESS, count=$RESULT_COUNT"
 
 if [ "$SUCCESS" = "true" ] && [ "$RESULT_COUNT" -gt 0 ]; then
 	echo -e "${GREEN}✓ PASS:${NC} Search operation successful, found $RESULT_COUNT results"
@@ -134,8 +137,10 @@ FILTERED_SEARCH=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
   -d '{"operation":"search","query":"artificial intelligence","category":"ai"}')
 
-echo "$FILTERED_SEARCH" | jq .
+# Don't print the full response with large embedding arrays, just extract what we need
 SUCCESS=$(echo "$FILTERED_SEARCH" | jq -r .success)
+FILTERED_COUNT=$(echo "$FILTERED_SEARCH" | jq -r '.result.count // 0')
+echo "Response: success=$SUCCESS, count=$FILTERED_COUNT"
 
 if [ "$SUCCESS" = "true" ]; then
 	echo -e "${GREEN}✓ PASS:${NC} Filtered search successful"
