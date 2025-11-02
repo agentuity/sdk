@@ -236,4 +236,4 @@ Every command receives a `CommandContext` with:
 
 ## License
 
-MIT
+Apache 2.0

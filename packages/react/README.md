@@ -158,4 +158,4 @@ All hooks are fully typed and will infer input/output types from your agent defi
 
 ## License
 
-MIT
+Apache 2.0

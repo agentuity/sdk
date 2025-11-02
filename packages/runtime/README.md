@@ -218,4 +218,4 @@ Fully typed with TypeScript. Input and output types are automatically inferred f
 
 ## License
 
-MIT
+Apache 2.0

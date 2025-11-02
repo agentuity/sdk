@@ -139,4 +139,4 @@ export default router;
 
 ## License
 
-MIT
+Apache 2.0

@@ -59,4 +59,4 @@ This package is typically used as a peer dependency and not directly imported in
 
 ## License
 
-MIT
+Apache 2.0
