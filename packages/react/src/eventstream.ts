@@ -1,5 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { InferInput, InferOutput } from '@agentuity/core';
+import type { InferOutput } from '@agentuity/core';
 import { AgentuityContext } from './context';
 import { buildUrl } from './url';
 import type { AgentName, AgentRegistry } from './types';
@@ -8,9 +8,9 @@ import { createReconnectManager } from './reconnect';
 
 type onMessageHandler<T = unknown> = (data: T) => void;
 
-interface WebsocketArgs {
+interface EventStreamArgs {
 	/**
-	 * Optional query parameters to append to the websocket URL
+	 * Optional query parameters to append to the EventStream URL
 	 */
 	query?: URLSearchParams;
 	/**
@@ -18,51 +18,34 @@ interface WebsocketArgs {
 	 */
 	subpath?: string;
 	/**
-	 * Optional AbortSignal to cancel the websocket connection
+	 * Optional AbortSignal to cancel the EventStream connection
 	 */
 	signal?: AbortSignal;
 }
 
-const serializeWSData = (
-	data: unknown
-): string | ArrayBufferLike | Blob | ArrayBufferView<ArrayBufferLike> => {
-	if (typeof data === 'string') {
-		return data;
-	}
-	if (typeof data === 'object') {
-		if (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || data instanceof Blob) {
-			return data;
-		}
-		return JSON.stringify(data);
-	}
-	throw new Error('unsupported data type for websocket: ' + typeof data);
-};
-
-interface WebsocketResponse<TInput, TOutput> {
+interface EventStreamResponse<TOutput> {
 	connected: boolean;
 	data?: TOutput;
 	error: Error | null;
-	send: (data: TInput) => void;
 	setHandler: (handler: onMessageHandler<TOutput>) => void;
-	readyState: WebSocket['readyState'];
+	readyState: number;
 	close: () => void;
 	reset: () => void;
 }
 
-export const useWebsocket = <TInput, TOutput>(
+export const useEventStream = <TOutput>(
 	path: string,
-	options?: WebsocketArgs
-): WebsocketResponse<TInput, TOutput> => {
+	options?: EventStreamArgs
+): EventStreamResponse<TOutput> => {
 	const context = useContext(AgentuityContext);
 
 	if (!context) {
-		throw new Error('useWebsocket must be used within a AgentuityProvider');
+		throw new Error('useEventStream must be used within a AgentuityProvider');
 	}
 
 	const manualClose = useRef(false);
-	const wsRef = useRef<WebSocket | undefined>(undefined);
+	const esRef = useRef<EventSource | undefined>(undefined);
 	const pending = useRef<TOutput[]>([]);
-	const queued = useRef<TInput[]>([]);
 	const handler = useRef<onMessageHandler<TOutput> | undefined>(undefined);
 	const reconnectManagerRef = useRef<ReturnType<typeof createReconnectManager> | undefined>(
 		undefined
@@ -72,45 +55,49 @@ export const useWebsocket = <TInput, TOutput>(
 	const [error, setError] = useState<Error | null>(null);
 	const [connected, setConnected] = useState(false);
 
-	const wsUrl = useMemo(() => {
-		const base = context.baseUrl!;
-		const wsBase = base.replace(/^http(s?):/, 'ws$1:');
-		return buildUrl(wsBase, path, options?.subpath, options?.query);
-	}, [context.baseUrl, path, options?.subpath, options?.query?.toString()]);
+	const esUrl = useMemo(
+		() => buildUrl(context.baseUrl!, path, options?.subpath, options?.query),
+		[context.baseUrl, path, options?.subpath, options?.query?.toString()]
+	);
 
 	const connect = useCallback(() => {
 		if (manualClose.current) return;
 
-		wsRef.current = new WebSocket(wsUrl);
+		esRef.current = new EventSource(esUrl);
+		let firstMessageReceived = false;
 
-		wsRef.current.onopen = () => {
+		esRef.current.onopen = () => {
 			reconnectManagerRef.current?.recordSuccess();
 			setConnected(true);
 			setError(null);
-			if (queued.current.length > 0) {
-				queued.current.forEach((msg: unknown) => wsRef.current!.send(serializeWSData(msg)));
-				queued.current = [];
-			}
 		};
 
-		wsRef.current.onerror = () => {
-			setError(new Error('WebSocket error'));
-		};
-
-		wsRef.current.onclose = (evt) => {
-			wsRef.current = undefined;
+		esRef.current.onerror = () => {
+			setError(new Error('EventStream error'));
 			setConnected(false);
+
 			if (manualClose.current) {
-				queued.current = [];
 				return;
 			}
-			if (evt.code !== 1000) {
-				setError(new Error(`WebSocket closed: ${evt.code} ${evt.reason || ''}`));
+
+			const result = reconnectManagerRef.current?.recordFailure();
+			if (result?.scheduled) {
+				const es = esRef.current;
+				if (es) {
+					es.onopen = null;
+					es.onerror = null;
+					es.onmessage = null;
+					es.close();
+				}
+				esRef.current = undefined;
 			}
-			reconnectManagerRef.current?.recordFailure();
 		};
 
-		wsRef.current.onmessage = (event: { data: string }) => {
+		esRef.current.onmessage = (event: MessageEvent) => {
+			if (!firstMessageReceived) {
+				reconnectManagerRef.current?.recordSuccess();
+				firstMessageReceived = true;
+			}
 			const payload = deserializeData<TOutput>(event.data);
 			setData(payload);
 			if (handler.current) {
@@ -119,16 +106,16 @@ export const useWebsocket = <TInput, TOutput>(
 				pending.current.push(payload);
 			}
 		};
-	}, [wsUrl]);
+	}, [esUrl]);
 
 	useEffect(() => {
 		reconnectManagerRef.current = createReconnectManager({
 			onReconnect: connect,
-			threshold: 0,
+			threshold: 3,
 			baseDelay: 500,
 			factor: 2,
 			maxDelay: 30000,
-			jitter: 500,
+			jitter: 250,
 			enabled: () => !manualClose.current,
 		});
 		return () => reconnectManagerRef.current?.dispose();
@@ -137,18 +124,16 @@ export const useWebsocket = <TInput, TOutput>(
 	const cleanup = useCallback(() => {
 		manualClose.current = true;
 		reconnectManagerRef.current?.dispose();
-		const ws = wsRef.current;
-		if (ws) {
-			ws.onopen = null;
-			ws.onerror = null;
-			ws.onclose = null;
-			ws.onmessage = null;
-			ws.close();
+		const es = esRef.current;
+		if (es) {
+			es.onopen = null;
+			es.onerror = null;
+			es.onmessage = null;
+			es.close();
 		}
-		wsRef.current = undefined;
+		esRef.current = undefined;
 		handler.current = undefined;
 		pending.current = [];
-		queued.current = [];
 		setConnected(false);
 	}, []);
 
@@ -175,14 +160,6 @@ export const useWebsocket = <TInput, TOutput>(
 
 	const reset = () => setError(null);
 
-	const send = (data: TInput) => {
-		if (wsRef.current?.readyState === WebSocket.OPEN) {
-			wsRef.current.send(serializeWSData(data));
-		} else {
-			queued.current.push(data);
-		}
-	};
-
 	const setHandler = useCallback((h: onMessageHandler<TOutput>) => {
 		handler.current = h;
 		pending.current.forEach(h);
@@ -198,38 +175,34 @@ export const useWebsocket = <TInput, TOutput>(
 		close,
 		data,
 		error,
-		send,
 		setHandler,
 		reset,
-		readyState: wsRef.current?.readyState ?? WebSocket.CLOSED,
+		readyState: esRef.current?.readyState ?? EventSource.CLOSED,
 	};
 };
 
-interface UseAgentWebsocketResponse<TInput, TOutput>
-	extends Omit<WebsocketResponse<TInput, TOutput>, 'setHandler'> {
+interface UseAgentEventStreamResponse<TOutput>
+	extends Omit<EventStreamResponse<TOutput>, 'setHandler'> {
 	/**
-	 * Data received from the agent via WebSocket
+	 * Data received from the agent via EventStream
 	 */
 	data?: TOutput;
 }
 
-export const useAgentWebsocket = <
+export const useAgentEventStream = <
 	TName extends AgentName,
-	TInput = TName extends keyof AgentRegistry
-		? InferInput<AgentRegistry[TName]['inputSchema']>
-		: never,
 	TOutput = TName extends keyof AgentRegistry
 		? InferOutput<AgentRegistry[TName]['outputSchema']>
 		: never,
 >(
 	agent: TName,
-	options?: WebsocketArgs
-): UseAgentWebsocketResponse<TInput, TOutput> => {
+	options?: EventStreamArgs
+): UseAgentEventStreamResponse<TOutput> => {
 	const [data, setData] = useState<TOutput>();
-	const { connected, close, send, setHandler, readyState, error, reset } = useWebsocket<
-		TInput,
-		TOutput
-	>(`/agent/${agent}`, options);
+	const { connected, close, setHandler, readyState, error, reset } = useEventStream<TOutput>(
+		`/agent/${agent}`,
+		options
+	);
 
 	useEffect(() => {
 		setHandler(setData);
@@ -241,7 +214,6 @@ export const useAgentWebsocket = <
 		data,
 		error,
 		reset,
-		send,
 		readyState,
 	};
 };

@@ -1,5 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { AgentuityProvider, useWebsocket, useAgentWebsocket, useAgent } from '@agentuity/react';
+import {
+	AgentuityProvider,
+	useWebsocket,
+	useAgentWebsocket,
+	useAgent,
+	useAgentEventStream,
+} from '@agentuity/react';
 
 export function App() {
 	const [count, setCount] = useState(0);
@@ -10,6 +16,11 @@ export function App() {
 	// 	data: wsMessage,
 	// } = useWebsocket<string, string>('/agent/websocket');
 	const { connected, send: wsSend, data: wsMessage } = useAgentWebsocket('websocket');
+	const {
+		connected: sseConnected,
+		data: sseMessage,
+		error: sseError,
+	} = useAgentEventStream('sse');
 	const { run, data: agentResult } = useAgent('simple');
 
 	useEffect(() => {
@@ -32,13 +43,23 @@ export function App() {
 					<button onClick={() => run({ age: 30, name: 'Jeff' })}>Call Agent</button>
 				</div>
 				<div style={{ marginBottom: '1rem' }} id="websocket">
-					{connected ? JSON.stringify(wsMessage) : <>WebSocket not connected</>}
+					<strong>WebSocket:</strong>{' '}
+					{connected ? JSON.stringify(wsMessage) : <>Not connected</>}
 				</div>
 				<div style={{ marginBottom: '1rem' }} id="sse">
-					loading ...
+					<strong>SSE (EventStream):</strong>{' '}
+					{sseConnected ? (
+						sseError ? (
+							<span style={{ color: 'red' }}>Error: {sseError.message}</span>
+						) : (
+							<span>{sseMessage ?? ''}</span>
+						)
+					) : (
+						<>Not connected</>
+					)}
 				</div>
 				{/* <script async src="/public/websocket.js" /> */}
-				<script async src="/public/sse.js" />
+				{/* <script async src="/public/sse.js" /> */}
 			</AgentuityProvider>
 		</div>
 	);
