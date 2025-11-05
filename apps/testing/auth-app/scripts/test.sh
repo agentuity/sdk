@@ -93,6 +93,7 @@ run_test "Binary Storage Agent" "test-binary-agent.sh"
 run_test "KeyValue Storage" "test-keyvalue.sh"
 run_test "Vector Storage" "test-vector.sh"
 run_test "Stream Storage" "test-stream.sh"
+run_test "Email" "test-email.sh"
 run_test "Hot Reload" "test-dev-reload.sh"
 run_test "Build Metadata" "test-build-metadata.ts"
 

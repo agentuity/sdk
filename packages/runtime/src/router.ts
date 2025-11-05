@@ -6,8 +6,14 @@ import { upgradeWebSocket as honoUpgradeWebSocket } from 'hono/bun';
 import { hash, returnResponse } from './_util';
 import type { Env } from './app';
 import { getAsyncLocalStorage } from './_context';
+import { parseEmail, type Email } from './io/email';
 
 type AgentHandler<E extends Env = Env, P extends string = string, I extends Input = {}> = (
+	c: Context<E, P, I>
+) => any | Promise<any>;
+
+type EmailHandler<E extends Env = Env, P extends string = string, I extends Input = {}> = (
+	email: Email,
 	c: Context<E, P, I>
 ) => any | Promise<any>;
 
@@ -48,7 +54,12 @@ type ExtendedHono<E extends Env = Env, S extends Schema = {}> = {
 		): Hono<E, S>;
 	};
 } & {
-	email(address: string, handler: AgentHandler): Hono<E, S>;
+	email(address: string, handler: EmailHandler): Hono<E, S>;
+	email<I extends Input = {}>(
+		address: string,
+		middleware: MiddlewareHandler<E, string, I>,
+		handler: EmailHandler<E, string, I>
+	): Hono<E, S>;
 	sms(params: { number: string }, handler: AgentHandler): Hono<E, S>;
 	cron(schedule: string, handler: AgentHandler): Hono<E, S>;
 	stream<P extends string = string>(path: P, handler: StreamHandler<E, P>): Hono<E, S>;
@@ -119,16 +130,47 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 	}
 
 	// shim in special routes
-	_router.email = (address: string, handler: AgentHandler) => {
+	_router.email = (address: string, ...args: any[]) => {
+		let middleware: MiddlewareHandler | undefined;
+		let handler: EmailHandler;
+
+		if (args.length === 1) {
+			handler = args[0];
+		} else {
+			middleware = args[0];
+			handler = args[1];
+		}
+
 		const id = hash(address);
 		const path = `/${id}`;
 		// registerEmailHandler(address)
 		const wrapper = async (c: Context): Promise<Response> => {
-			let result = handler(c);
+			const contentType = (c.req.header('content-type') || '').trim().toLowerCase();
+			if (!contentType.includes('message/rfc822')) {
+				return c.text('Bad Request: Content-Type must be message/rfc822', 400);
+			}
+
+			const arrayBuffer = await c.req.arrayBuffer();
+			const buffer = Buffer.from(arrayBuffer);
+
+			const email = await parseEmail(buffer);
+
+			c.set('email', email);
+
+			let result = handler(email, c);
 			if (result instanceof Promise) result = await result;
+
+			if (result === undefined) {
+				return c.text('OK', 200);
+			}
 			return returnResponse(c, result);
 		};
-		return router.post(path, wrapper);
+
+		if (middleware) {
+			return router.post(path, middleware, wrapper);
+		} else {
+			return router.post(path, wrapper);
+		}
 	};
 
 	_router.sms = ({ number }: { number: string }, handler: AgentHandler) => {

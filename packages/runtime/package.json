@@ -42,17 +42,19 @@
 		"@opentelemetry/sdk-node": "^0.207.0",
 		"@opentelemetry/sdk-trace-base": "^2.2.0",
 		"@opentelemetry/semantic-conventions": "^1.37.0",
-		"@traceloop/node-server-sdk": "^0.19.1"
+		"@traceloop/node-server-sdk": "^0.19.1",
+		"mailparser": "^3.7.1"
 	},
 	"peerDependencies": {
 		"hono": "^4.10.3"
 	},
 	"devDependencies": {
+		"@types/mailparser": "^3.4.6",
 		"@types/react": "^19.2.2",
 		"@types/react-dom": "^19.2.2",
-		"typescript": "^5.9.0",
 		"react": "^19.2.0",
-		"react-dom": "^19.2.0"
+		"react-dom": "^19.2.0",
+		"typescript": "^5.9.0"
 	},
 	"publishConfig": {
 		"access": "public"
