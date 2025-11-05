@@ -19,15 +19,9 @@ export const whoamiCommand = createSubcommand({
 	async handler(ctx) {
 		const { apiClient, opts, auth } = ctx;
 
-		const result = await tui.spinner('Fetching user information', () => {
+		const user = await tui.spinner('Fetching user information', () => {
 			return whoami(apiClient);
 		});
-
-		if (!result.data) {
-			tui.fatal('Failed to get user information');
-		}
-
-		const user = result.data;
 
 		if (opts?.format === 'json') {
 			console.log(

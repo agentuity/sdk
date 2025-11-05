@@ -1,11 +1,11 @@
-import { createCommand } from '../../types';
 import { z } from 'zod';
+import type { BuildMetadata } from '@agentuity/server';
 import { resolve, join } from 'node:path';
 import { bundle } from '../bundle/bundler';
 import { getBuildMetadata } from '../bundle/plugin';
-import { existsSync, FSWatcher, watch } from 'node:fs';
+import { existsSync, type FSWatcher, watch } from 'node:fs';
 import { saveProjectDir } from '../../config';
-import type { BuildMetadata } from '../../types';
+import { createCommand } from '../../types';
 import * as tui from '../../tui';
 
 export const command = createCommand({

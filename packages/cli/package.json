@@ -33,6 +33,7 @@
 		"@agentuity/core": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"acorn-loose": "^8.5.2",
+		"adm-zip": "^0.5.16",
 		"astring": "^1.9.0",
 		"commander": "^14.0.2",
 		"enquirer": "^2.4.1",
@@ -42,6 +43,7 @@
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {
+		"@types/adm-zip": "^0.5.7",
 		"@types/tar-fs": "^2.0.4",
 		"typescript": "^5.9.0"
 	},

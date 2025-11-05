@@ -84,10 +84,10 @@ export class APIClient {
 		}
 	}
 
-	async request<TResponse, TBody = unknown>(
+	async request<TResponse = void, TBody = unknown>(
 		method: string,
 		endpoint: string,
-		responseSchema: z.ZodType<TResponse>,
+		responseSchema?: z.ZodType<TResponse>,
 		body?: TBody,
 		bodySchema?: z.ZodType<TBody>
 	): Promise<TResponse> {
@@ -122,13 +122,17 @@ export class APIClient {
 			}
 		}
 
-		// Validate response
-		const validationResult = responseSchema.safeParse(data);
-		if (!validationResult.success) {
-			throw new ValidationError('Response validation failed', validationResult.error.issues);
+		if (responseSchema) {
+			// Validate response
+			const validationResult = responseSchema.safeParse(data);
+			if (!validationResult.success) {
+				throw new ValidationError('Response validation failed', validationResult.error.issues);
+			}
+
+			return validationResult.data;
 		}
 
-		return validationResult.data;
+		return undefined as TResponse;
 	}
 
 	async #makeRequest(method: string, endpoint: string, body?: unknown): Promise<Response> {
@@ -361,8 +365,24 @@ export function getAppBaseURL(overrides?: { app_url?: string }): string {
 }
 
 export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
-	z.object({
-		success: z.boolean(),
-		message: z.string().optional().describe('the error message if success=false'),
-		data: dataSchema.optional(),
-	});
+	z.discriminatedUnion('success', [
+		z.object({
+			success: z.literal<false>(false),
+			message: z.string().describe('the error message'),
+		}),
+		z.object({
+			success: z.literal<true>(true),
+			data: dataSchema,
+		}),
+	]);
+
+export const APIResponseSchemaNoData = () =>
+	z.discriminatedUnion('success', [
+		z.object({
+			success: z.literal<false>(false),
+			message: z.string().describe('the error message'),
+		}),
+		z.object({
+			success: z.literal<true>(true),
+		}),
+	]);

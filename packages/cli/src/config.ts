@@ -3,8 +3,9 @@ import { join, extname, basename, resolve, normalize } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import JSON5 from 'json5';
+import { BuildMetadataSchema, type BuildMetadata } from '@agentuity/server';
 import type { Config, Profile, AuthData } from './types';
-import { ConfigSchema, ProjectSchema, BuildMetadataSchema, type BuildMetadata } from './types';
+import { ConfigSchema, ProjectSchema } from './types';
 import * as tui from './tui';
 import { z } from 'zod';
 
@@ -74,7 +75,7 @@ export async function fetchProfiles(): Promise<Profile[]> {
 					const content = await readFile(filePath, 'utf-8');
 					const match = nameRegex.exec(content);
 
-					if (match && match[1]) {
+					if (match?.[1]) {
 						profiles.push({
 							name: match[1],
 							filename: filePath,
@@ -391,7 +392,10 @@ function generateJSON5WithComments(
 }
 
 export async function loadProjectConfig(dir: string): Promise<ProjectConfig> {
-	const configPath = join(dir, 'agentuity.json');
+	let configPath = join(dir, 'agentuity.local.json');
+	if (!(await Bun.file(configPath).exists())) {
+		configPath = join(dir, 'agentuity.json');
+	}
 	const file = Bun.file(configPath);
 	if (!(await file.exists())) {
 		// TODO: check to see if a valid project that was created unauthenticated

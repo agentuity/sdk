@@ -75,17 +75,14 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	// Step 2: Get project name
 	let projectName = initialProjectName;
 
-	let orgs: OrganizationList | undefined;
+	let orgs: OrganizationList;
 	let orgId: string | undefined;
 
 	if (auth && apiClient) {
 		orgs = await tui.spinner('Fetching organizations', async () => {
-			const resp = await listOrganizations(apiClient);
-			if (resp.data) {
-				return resp.data;
-			}
+			return listOrganizations(apiClient);
 		});
-		if (!orgs) {
+		if (orgs.length === 0) {
 			tui.fatal('no organizations could be found for your login');
 		}
 		orgId = await tui.selectOrganization(orgs, selectedOrgId ?? config?.preferences?.orgId);
@@ -219,20 +216,17 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		let projectId: string | undefined;
 
 		await tui.spinner('Registering your project', async () => {
-			const res = await projectCreate(apiClient, {
+			const project = await projectCreate(apiClient, {
 				name: projectName,
 				organization_id: orgId,
 				provider: 'bunjs',
 			});
-			if (res.success && res.data) {
-				projectId = res.data.id;
-				return createProjectConfig(dest, {
-					projectId: res.data.id,
-					orgId,
-					apiKey: res.data.api_key,
-				});
-			}
-			tui.fatal(res.message ?? 'failed to register project');
+			projectId = project.id;
+			return createProjectConfig(dest, {
+				projectId: project.id,
+				orgId,
+				apiKey: project.api_key,
+			});
 		});
 
 		// After registration, push any existing env/secrets from .env.production

@@ -1,7 +1,7 @@
 import type { BunPlugin } from 'bun';
-import { dirname, basename, join } from 'node:path';
+import { dirname, basename, join, resolve } from 'node:path';
 import { existsSync, writeFileSync } from 'node:fs';
-import type { BuildMetadata } from '../../types';
+import type { BuildMetadata } from '@agentuity/server';
 import { parseAgentMetadata, parseRoute } from './ast';
 import { applyPatch, generatePatches } from './patch';
 import { detectSubagent } from '../../utils/detectSubagent';
@@ -242,8 +242,14 @@ const AgentuityBundler: BunPlugin = {
 	name: 'Agentuity Bundler',
 	setup(build) {
 		const isDev = build.config.minify !== true;
-		const rootDir = build.config.root ?? '.';
+		const rootDir = resolve(build.config.root ?? '.');
 		const srcDir = join(rootDir, 'src');
+		const projectId = build.config.define?.['process.env.AGENTUITY_CLOUD_PROJECT_ID']
+			? JSON.parse(build.config.define['process.env.AGENTUITY_CLOUD_PROJECT_ID'])
+			: '';
+		const deploymentId = build.config.define?.['process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID']
+			? JSON.parse(build.config.define['process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID'])
+			: '';
 		const routes: Set<string> = new Set();
 		const agentInfo: Array<Record<string, string>> = [];
 		const agentMetadata: Map<string, Map<string, string>> = new Map<
@@ -264,11 +270,29 @@ const AgentuityBundler: BunPlugin = {
 			return args;
 		});
 
+		build.onLoad({ filter: /\/route\.ts$/, namespace: 'file' }, async (args) => {
+			if (args.path.startsWith(srcDir)) {
+				const importPath = args.path
+					.replace(rootDir, '')
+					.replace('.ts', '')
+					.replace('/src/', './');
+				routes.add(importPath);
+			}
+			// return undefined to let Bun handle loading normally
+			return;
+		});
+
 		build.onLoad({ filter: /\/agent\.ts$/, namespace: 'file' }, async (args) => {
 			let newsource = await Bun.file(args.path).text();
 			if (args.path.startsWith(srcDir)) {
 				const contents = transpiler.transformSync(newsource);
-				const [ns, md] = parseAgentMetadata(rootDir, args.path, contents);
+				const [ns, md] = parseAgentMetadata(
+					rootDir,
+					args.path,
+					contents,
+					projectId,
+					deploymentId
+				);
 				newsource = ns;
 
 				// Detect if this is a subagent by checking path structure
@@ -344,7 +368,12 @@ const AgentuityBundler: BunPlugin = {
 						.replace('./', '/');
 
 					if (!isDev) {
-						const definitions = await parseRoute(rootDir, join(srcDir, route + '.ts'));
+						const definitions = await parseRoute(
+							rootDir,
+							join(srcDir, `${route}.ts`),
+							projectId,
+							deploymentId
+						);
 						routeDefinitions = [...routeDefinitions, ...definitions];
 					}
 
@@ -393,7 +422,7 @@ const AgentuityBundler: BunPlugin = {
     const { serveStatic } = require('hono/bun');
     const { getApp } = await import('@agentuity/runtime');
     const app = getApp()!;
-	const index = await Bun.file(import.meta.dir + '/web/index.js').text();
+	const index = await Bun.file(import.meta.dir + '/web/index.html').text();
 	const webstatic = serveStatic({ root: import.meta.dir + '/web' });
 	app.get('/', (c) => c.html(index));
     app.get('/chunk/*', webstatic);

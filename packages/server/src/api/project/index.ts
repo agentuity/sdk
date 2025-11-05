@@ -1,5 +1,6 @@
 export * from './create';
 export * from './delete';
+export * from './deploy';
 export * from './env-delete';
 export * from './env-update';
 export * from './exists';

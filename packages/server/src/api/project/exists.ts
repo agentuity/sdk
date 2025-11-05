@@ -35,7 +35,7 @@ export async function projectExists(
 			ProjectExistsResponseSchema
 		);
 
-		if (resp.data) {
+		if (resp.success) {
 			return resp.data;
 		}
 

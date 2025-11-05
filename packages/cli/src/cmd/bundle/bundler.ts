@@ -5,6 +5,7 @@ import gitParseUrl from 'git-url-parse';
 import AgentuityBundler, { getBuildMetadata } from './plugin';
 import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
+import type { Project } from '../../types';
 
 export interface BundleOptions {
 	rootDir: string;
@@ -13,6 +14,7 @@ export interface BundleOptions {
 	orgId?: string;
 	projectId?: string;
 	deploymentId?: string;
+	project?: Project;
 }
 
 export async function bundle({
@@ -21,6 +23,7 @@ export async function bundle({
 	deploymentId,
 	dev = false,
 	rootDir,
+	project,
 }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
@@ -54,7 +57,7 @@ export async function bundle({
 		rmSync(outDir, { recursive: true, force: true });
 	}
 
-	const pkgFile = Bun.file('./package.json');
+	const pkgFile = Bun.file(join(rootDir, 'package.json'));
 	const pkgContents = JSON.parse(await pkgFile.text());
 	const isProd = !dev;
 
@@ -85,8 +88,9 @@ export async function bundle({
 			target: 'bun',
 			format: 'esm',
 			banner: `// Generated file. DO NOT EDIT`,
-			minify: isProd,
+			minify: true, // see https://github.com/oven-sh/bun/issues/5344 when splitting and minify=false
 			drop: isProd ? ['debugger'] : undefined,
+			splitting: true,
 			conditions: [isProd ? 'production' : 'development', 'bun'],
 		};
 		try {
@@ -103,8 +107,10 @@ export async function bundle({
 		id: projectId ?? '',
 		name: pkgContents.name,
 		version: pkgContents.version,
+		orgId: orgId ?? '',
 	};
 	buildmetadata.deployment = {
+		...(project?.deployment ?? {}),
 		build: {
 			bun: Bun.version,
 			agentuity: '',
@@ -165,62 +171,64 @@ export async function bundle({
 			resolve(webDir, htmlFile)
 		);
 
-		const config: Bun.BuildConfig = {
-			entrypoints: webEntrypoints,
-			root: webDir,
-			outdir: join(outDir, 'web'),
-			define,
-			sourcemap: dev ? 'inline' : 'linked',
-			env: 'AGENTUITY_PUBLIC_*',
-			plugins: [AgentuityBundler],
-			target: 'browser',
-			format: 'cjs',
-			banner: `// Generated file. DO NOT EDIT`,
-			minify: isProd,
-			drop: isProd ? ['debugger'] : undefined,
-			naming: {
-				entry: '[name].js',
-				chunk: 'chunk/[name]-[hash].js',
-				asset: 'asset/[name]-[hash].[ext]',
-			},
-			packages: 'bundle',
-			external: workspaceRoot !== rootDir ? [] : undefined,
-		};
-		try {
-			const result = await Bun.build(config);
-			if (result.success) {
-				if (!dev && buildmetadata) {
-					result.outputs
-						// only include sourcemaps or assets
-						.filter((x) => x.hash === '00000000' || x.path.includes(x.hash ?? ''))
-						.map((artifact) => {
-							const r = relative(join(outDir, 'web'), artifact.path);
-							buildmetadata.assets!.push({
-								filename: r,
-								kind: artifact.kind,
-								contentType: artifact.type,
-								size: artifact.size,
+		if (webEntrypoints.length) {
+			const config: Bun.BuildConfig = {
+				entrypoints: webEntrypoints,
+				root: webDir,
+				outdir: join(outDir, 'web'),
+				define,
+				sourcemap: dev ? 'inline' : 'linked',
+				env: 'AGENTUITY_PUBLIC_*',
+				plugins: [AgentuityBundler],
+				target: 'browser',
+				format: 'esm',
+				banner: `// Generated file. DO NOT EDIT`,
+				minify: true,
+				drop: isProd ? ['debugger'] : undefined,
+				splitting: true,
+				packages: 'bundle',
+				external: workspaceRoot !== rootDir ? [] : undefined,
+				publicPath:
+					isProd && deploymentId ? `https://static.agentuity.com/${deploymentId}/` : undefined,
+			};
+			try {
+				const result = await Bun.build(config);
+				if (result.success) {
+					if (!dev && buildmetadata?.assets) {
+						const assets = buildmetadata.assets;
+						result.outputs
+							// Filter for deployable assets: sourcemaps (hash '00000000') and content-addressed files
+							.filter((x) => x.hash === '00000000' || (x.hash && x.path.includes(x.hash)))
+							.forEach((artifact) => {
+								const r = relative(join(outDir, 'web'), artifact.path);
+								assets.push({
+									filename: r,
+									kind: artifact.kind,
+									contentType: artifact.type,
+									size: artifact.size,
+								});
 							});
-						});
+					}
+				} else {
+					console.error(result.logs.join('\n'));
+					process.exit(1);
 				}
-			} else {
-				console.error(result.logs.join('\n'));
+			} catch (ex) {
+				console.error(ex);
 				process.exit(1);
 			}
-		} catch (ex) {
-			console.error(ex);
-			process.exit(1);
 		}
 	})();
 
 	if (!dev && buildmetadata) {
 		const webPublicDir = join(webDir, 'public');
 		if (existsSync(webPublicDir)) {
+			const assets = buildmetadata.assets;
 			const webOutPublicDir = join(outDir, 'web', 'public');
 			cpSync(webPublicDir, webOutPublicDir, { recursive: true });
 			[...new Bun.Glob('**.*').scanSync(webOutPublicDir)].forEach((f) => {
 				const bf = Bun.file(join(webOutPublicDir, f));
-				buildmetadata.assets!.push({
+				assets.push({
 					filename: join('public', f),
 					kind: 'static',
 					contentType: bf.type,

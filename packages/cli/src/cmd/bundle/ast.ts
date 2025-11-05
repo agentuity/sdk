@@ -1,7 +1,7 @@
 import * as acornLoose from 'acorn-loose';
+import type { BuildMetadata } from '@agentuity/server';
 import { basename, dirname, relative } from 'node:path';
 import { generate } from 'astring';
-import { BuildMetadata } from '../../types';
 
 interface ASTNode {
 	type: string;
@@ -97,20 +97,37 @@ function createNewMetadataNode() {
 	};
 }
 
-const projectId = process.env.AGENTUITY_CLOUD_PROJECT_ID ?? '';
-
 function hash(...val: string[]): string {
 	const hasher = new Bun.CryptoHasher('sha256');
-	val.forEach((val) => hasher.update(val));
+	val.map((val) => hasher.update(val));
 	return hasher.digest().toHex();
 }
 
-function getAgentId(identifier: string): string {
-	return hash(projectId, identifier);
+function hashSHA1(...val: string[]): string {
+	const hasher = new Bun.CryptoHasher('sha1');
+	val.map((val) => hasher.update(val));
+	return hasher.digest().toHex();
 }
 
-function generateRouteId(method: string, path: string): string {
-	return hash(projectId, method, path);
+function getAgentId(
+	projectId: string,
+	deploymentId: string,
+	filename: string,
+	version: string
+): string {
+	return `agent_${hashSHA1(projectId, deploymentId, filename, version)}`;
+}
+
+function generateRouteId(
+	projectId: string,
+	deploymentId: string,
+	type: string,
+	method: string,
+	filename: string,
+	path: string,
+	version: string
+): string {
+	return `route_${hashSHA1(projectId, deploymentId, type, method, filename, path, version)}`;
 }
 
 type AcornParseResultType = ReturnType<typeof acornLoose.parse>;
@@ -168,14 +185,16 @@ function createAgentMetadataNode(
 export function parseAgentMetadata(
 	rootDir: string,
 	filename: string,
-	contents: string
+	contents: string,
+	projectId: string,
+	deploymentId: string
 ): [string, Map<string, string>] {
 	const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
 	let exportName: string | undefined;
 	const rel = relative(rootDir, filename);
 	const name = basename(dirname(filename));
-	const id = getAgentId(name);
 	const version = hash(contents);
+	const id = getAgentId(projectId, deploymentId, rel, version);
 
 	for (const body of ast.body) {
 		if (body.type === 'ExportDefaultDeclaration') {
@@ -249,7 +268,9 @@ type RouteDefinition = BuildMetadata['routes'];
 
 export async function parseRoute(
 	rootDir: string,
-	filename: string
+	filename: string,
+	projectId: string,
+	deploymentId: string
 ): Promise<BuildMetadata['routes']> {
 	const contents = await Bun.file(filename).text();
 	const version = hash(contents);
@@ -389,8 +410,17 @@ export async function parseRoute(
 					const thepath = `${routePrefix}/${routeName}/${suffix}`
 						.replaceAll(/\/{2,}/g, '/')
 						.replaceAll(/\/$/g, '');
+					const id = generateRouteId(
+						projectId,
+						deploymentId,
+						type,
+						method,
+						rel,
+						thepath,
+						version
+					);
 					routes.push({
-						id: generateRouteId(method, thepath),
+						id,
 						method: method as 'get' | 'post' | 'put' | 'delete' | 'patch',
 						type: type as 'api' | 'sms' | 'email' | 'cron',
 						filename: rel,

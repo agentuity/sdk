@@ -155,8 +155,6 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 
 			const email = await parseEmail(buffer);
 
-			c.set('email', email);
-
 			let result = handler(email, c);
 			if (result instanceof Promise) result = await result;
 

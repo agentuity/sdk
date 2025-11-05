@@ -9,6 +9,7 @@ import {
 	type StreamStorage,
 	type VectorStorage,
 } from '@agentuity/core';
+import type { Email } from './io/email';
 
 type CorsOptions = Parameters<typeof cors>[0];
 
@@ -33,6 +34,7 @@ export interface Variables {
 	logger: Logger;
 	meter: Meter;
 	tracer: Tracer;
+	email?: Email;
 }
 
 export interface Env extends HonoEnv {

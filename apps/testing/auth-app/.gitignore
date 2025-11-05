@@ -34,3 +34,4 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Agentuity build files
 .agentuity
 **/*.generated.*
+agentuity.local.json

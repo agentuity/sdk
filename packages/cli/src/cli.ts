@@ -7,6 +7,7 @@ import type {
 	Config,
 	Requires,
 	Optional,
+	Logger,
 } from './types';
 import { showBanner } from './banner';
 import { requireAuth, optionalAuth } from './auth';
@@ -45,6 +46,21 @@ function normalizeReqs(def: CommandDefinition | SubcommandDefinition): Normalize
 		optionalProject,
 		requiresAPIClient,
 	};
+}
+
+function handleProjectConfigError(error: unknown, requiresProject: boolean, logger: Logger): never {
+	if (
+		requiresProject &&
+		error &&
+		typeof error === 'object' &&
+		'name' in error &&
+		error.name === 'ProjectConfigNotFoundExpection'
+	) {
+		logger.fatal(
+			'invalid project folder. use --dir to specify a different directory or change to a project folder'
+		);
+	}
+	throw error;
 }
 
 export async function createCLI(version: string): Promise<Command> {
@@ -166,6 +182,7 @@ async function registerSubcommand(
 					}
 					throw error;
 				}
+				// For optional projects, silently continue without project config
 			}
 		}
 
@@ -220,17 +237,7 @@ async function registerSubcommand(
 						}
 						process.exit(1);
 					}
-					if (
-						error &&
-						typeof error === 'object' &&
-						'name' in error &&
-						error.name === 'ProjectConfigNotFoundExpection'
-					) {
-						baseCtx.logger.fatal(
-							'invalid project folder. use --dir to specify a different directory or change to a project folder'
-						);
-					}
-					throw error;
+					handleProjectConfigError(error, normalized.requiresProject, baseCtx.logger);
 				}
 			} else {
 				const ctx: Record<string, unknown> = {
@@ -315,17 +322,7 @@ async function registerSubcommand(
 						}
 						process.exit(1);
 					}
-					if (
-						error &&
-						typeof error === 'object' &&
-						'name' in error &&
-						error.name === 'ProjectConfigNotFoundExpection'
-					) {
-						baseCtx.logger.fatal(
-							'invalid project folder. use --dir to specify a different directory or change to a project folder'
-						);
-					}
-					throw error;
+					handleProjectConfigError(error, normalized.requiresProject, baseCtx.logger);
 				}
 			} else {
 				const ctx: Record<string, unknown> = {
@@ -394,17 +391,7 @@ async function registerSubcommand(
 						}
 						process.exit(1);
 					}
-					if (
-						error &&
-						typeof error === 'object' &&
-						'name' in error &&
-						error.name === 'ProjectConfigNotFoundExpection'
-					) {
-						baseCtx.logger.fatal(
-							'invalid project folder. use --dir to specify a different directory or change to a project folder'
-						);
-					}
-					throw error;
+					handleProjectConfigError(error, normalized.requiresProject, baseCtx.logger);
 				}
 			} else {
 				const ctx: Record<string, unknown> = {

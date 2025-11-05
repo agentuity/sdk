@@ -43,7 +43,7 @@ async function main() {
 	// Import BuildMetadataSchema
 	const scriptDir = __dirname;
 	const projectRoot = resolve(scriptDir, '../../../..');
-	const typesPath = join(projectRoot, 'packages/cli/src/types.ts');
+	const typesPath = join(projectRoot, 'packages/server');
 	const { BuildMetadataSchema } = await import(typesPath);
 
 	const projectDir = join(scriptDir, '..');

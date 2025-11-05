@@ -10,13 +10,15 @@ const _ProjectEnvUpdateRequestSchema = z.object({
 });
 
 const ProjectEnvUpdateResponseSchema = APIResponseSchema(
-	z.object({
-		id: z.string().describe('the project id'),
-		orgId: z.string().describe('the organization id'),
-		api_key: z.string().optional().describe('the SDK api key for the project'),
-		env: z.record(z.string(), z.string()).optional().describe('the environment key/values'),
-		secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),
-	})
+	z
+		.object({
+			id: z.string().describe('the project id'),
+			orgId: z.string().describe('the organization id'),
+			api_key: z.string().optional().describe('the SDK api key for the project'),
+			env: z.record(z.string(), z.string()).optional().describe('the environment key/values'),
+			secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),
+		})
+		.optional()
 );
 
 type ProjectEnvUpdateRequest = z.infer<typeof _ProjectEnvUpdateRequestSchema>;

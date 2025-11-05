@@ -97,8 +97,11 @@ run_test "Email" "test-email.sh"
 run_test "Hot Reload" "test-dev-reload.sh"
 run_test "Build Metadata" "test-build-metadata.ts"
 
+set +e
 $BIN_SCRIPT auth whoami &> /dev/null
-if [ $? -eq 0 ]; then
+AUTH_CHECK=$?
+set -e
+if [ $AUTH_CHECK -eq 0 ]; then
 	run_test "Env & Secrets" "test-env-secrets.ts"
 else
 	echo -e "${RED}Skipping Env & Secrets test since not logged in${NC}"

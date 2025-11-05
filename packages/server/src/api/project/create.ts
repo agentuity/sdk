@@ -11,16 +11,17 @@ const CreateProjectRequestSchema = z.object({
 	provider: z.string().max(255).min(1),
 });
 
-const CreateProjectResponseSchema = APIResponseSchema(
-	z.object({
-		id: z.string().describe('the unique id for the project'),
-		api_key: z.string().describe('the SDK api key for the project'),
-		projectKey: z.string().describe('the Project api key for the project'),
-	})
-);
+const CreateProjectResponse = z.object({
+	id: z.string().describe('the unique id for the project'),
+	api_key: z.string().describe('the SDK api key for the project'),
+	projectKey: z.string().describe('the Project api key for the project'),
+});
+
+const CreateProjectResponseSchema = APIResponseSchema(CreateProjectResponse);
 
 export type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
 export type CreateProjectResponse = z.infer<typeof CreateProjectResponseSchema>;
+export type NewProject = Omit<z.infer<typeof CreateProjectResponse>, 'projectKey'>;
 
 /**
  * Create a new Project
@@ -32,12 +33,16 @@ export type CreateProjectResponse = z.infer<typeof CreateProjectResponseSchema>;
 export async function projectCreate(
 	client: APIClient,
 	body: CreateProjectRequest
-): Promise<Omit<CreateProjectResponse, 'projectKey'>> {
-	return client.request<CreateProjectResponse, CreateProjectRequest>(
+): Promise<NewProject> {
+	const resp = await client.request<CreateProjectResponse, CreateProjectRequest>(
 		'POST',
 		'/cli/project',
 		CreateProjectResponseSchema,
 		body,
 		CreateProjectRequestSchema
 	);
+	if (resp.success) {
+		return resp.data;
+	}
+	throw new Error(resp.message);
 }

@@ -1,17 +1,16 @@
 import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
 
-const ListOrganizationsResponseSchema = APIResponseSchema(
-	z.array(
-		z.object({
-			id: z.string().describe('the unique id for the organization'),
-			name: z.string().describe('the name of the organization'),
-		})
-	)
+const ListOrganizationsResponse = z.array(
+	z.object({
+		id: z.string().describe('the unique id for the organization'),
+		name: z.string().describe('the name of the organization'),
+	})
 );
+const ListOrganizationsResponseSchema = APIResponseSchema(ListOrganizationsResponse);
 
 export type ListOrganizationsResponse = z.infer<typeof ListOrganizationsResponseSchema>;
-export type OrganizationList = NonNullable<ListOrganizationsResponse['data']>;
+export type OrganizationList = z.infer<typeof ListOrganizationsResponse>;
 
 /**
  * List all organizations
@@ -19,10 +18,14 @@ export type OrganizationList = NonNullable<ListOrganizationsResponse['data']>;
  * @param client
  * @returns
  */
-export async function listOrganizations(client: APIClient): Promise<ListOrganizationsResponse> {
-	return client.request<ListOrganizationsResponse>(
+export async function listOrganizations(client: APIClient): Promise<OrganizationList> {
+	const resp = await client.request<ListOrganizationsResponse>(
 		'GET',
 		'/cli/organization',
 		ListOrganizationsResponseSchema
 	);
+	if (resp.success) {
+		return resp.data;
+	}
+	throw new Error(resp.message);
 }
