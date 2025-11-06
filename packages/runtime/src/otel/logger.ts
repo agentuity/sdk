@@ -11,25 +11,21 @@ import { getAgentContext } from '../_context';
 export const __originalConsole = Object.create(console); // save the original console before we patch it
 
 export class OtelLogger implements Logger {
-	private readonly delegates: LogsAPI.Logger[];
+	private readonly delegate: LogsAPI.Logger;
 	private readonly context: Record<string, unknown> | undefined;
 	private readonly logger: ConsoleLogger | undefined;
 	private readonly logLevel: LogLevel;
 
 	constructor(
 		useConsole: boolean,
-		delegates: LogsAPI.Logger | LogsAPI.Logger[],
+		delegate: LogsAPI.Logger,
 		context?: Record<string, unknown> | undefined,
 		logLevel?: LogLevel
 	) {
-		this.delegates = Array.isArray(delegates) ? delegates : [delegates];
+		this.delegate = delegate;
 		this.context = context;
 		this.logLevel = logLevel ?? 'info';
 		this.logger = useConsole ? new ConsoleLogger(context, false, this.logLevel) : undefined;
-	}
-
-	addDelegate(delegate: LogsAPI.Logger) {
-		this.delegates.push(delegate);
 	}
 
 	private formatMessage(message: unknown) {
@@ -65,22 +61,20 @@ export class OtelLogger implements Logger {
 		return this.context;
 	}
 
-	private emitToAll(severityNumber: LogsAPI.SeverityNumber, severityText: string, body: string) {
+	private emit(severityNumber: LogsAPI.SeverityNumber, severityText: string, body: string) {
 		const attributes = this.getAttributes();
 
-		this.delegates.forEach((delegate) => {
-			try {
-				delegate.emit({
-					severityNumber,
-					severityText,
-					body,
-					attributes: attributes as LogsAPI.LogRecord['attributes'],
-				});
-			} catch (error) {
-				// Log error to console if available, but don't fail the entire operation
-				this.logger?.error('Failed to emit log to OTLP instance:', error);
-			}
-		});
+		try {
+			this.delegate.emit({
+				severityNumber,
+				severityText,
+				body,
+				attributes: attributes as LogsAPI.LogRecord['attributes'],
+			});
+		} catch (error) {
+			// Log error to console if available, but don't fail the entire operation
+			this.logger?.error('Failed to emit log to OTLP instance:', error);
+		}
 	}
 
 	private shouldLog(level: LogsAPI.SeverityNumber): boolean {
@@ -120,7 +114,7 @@ export class OtelLogger implements Logger {
 			// Fallback if format causes recursion
 			body = `${this.formatMessage(message)} ${args.map((arg) => String(arg)).join(' ')}`;
 		}
-		this.emitToAll(LogsAPI.SeverityNumber.TRACE, 'TRACE', body);
+		this.emit(LogsAPI.SeverityNumber.TRACE, 'TRACE', body);
 	}
 	debug(message: unknown, ...args: unknown[]) {
 		if (!this.shouldLog(LogsAPI.SeverityNumber.DEBUG)) {
@@ -134,7 +128,7 @@ export class OtelLogger implements Logger {
 			// Fallback if format causes recursion
 			body = `${this.formatMessage(message)} ${args.map((arg) => String(arg)).join(' ')}`;
 		}
-		this.emitToAll(LogsAPI.SeverityNumber.DEBUG, 'DEBUG', body);
+		this.emit(LogsAPI.SeverityNumber.DEBUG, 'DEBUG', body);
 	}
 	info(message: unknown, ...args: unknown[]) {
 		if (!this.shouldLog(LogsAPI.SeverityNumber.INFO)) {
@@ -148,7 +142,7 @@ export class OtelLogger implements Logger {
 			// Fallback if format causes recursion
 			body = `${this.formatMessage(message)} ${args.map((arg) => String(arg)).join(' ')}`;
 		}
-		this.emitToAll(LogsAPI.SeverityNumber.INFO, 'INFO', body);
+		this.emit(LogsAPI.SeverityNumber.INFO, 'INFO', body);
 	}
 	warn(message: unknown, ...args: unknown[]) {
 		if (!this.shouldLog(LogsAPI.SeverityNumber.WARN)) {
@@ -162,7 +156,7 @@ export class OtelLogger implements Logger {
 			// Fallback if format causes recursion
 			body = `${this.formatMessage(message)} ${args.map((arg) => String(arg)).join(' ')}`;
 		}
-		this.emitToAll(LogsAPI.SeverityNumber.WARN, 'WARN', body);
+		this.emit(LogsAPI.SeverityNumber.WARN, 'WARN', body);
 	}
 	error(message: unknown, ...args: unknown[]) {
 		if (!this.shouldLog(LogsAPI.SeverityNumber.ERROR)) {
@@ -176,7 +170,7 @@ export class OtelLogger implements Logger {
 			// Fallback if format causes recursion
 			body = `${this.formatMessage(message)} ${args.map((arg) => String(arg)).join(' ')}`;
 		}
-		this.emitToAll(LogsAPI.SeverityNumber.ERROR, 'ERROR', body);
+		this.emit(LogsAPI.SeverityNumber.ERROR, 'ERROR', body);
 	}
 	fatal(message: unknown, ...args: unknown[]): never {
 		this.error(message, ...args);
@@ -185,7 +179,7 @@ export class OtelLogger implements Logger {
 	child(opts: Record<string, unknown>): Logger {
 		return new OtelLogger(
 			!!this.logger,
-			this.delegates,
+			this.delegate,
 			{
 				...(this.context ?? {}),
 				...opts,
@@ -210,7 +204,7 @@ export function createLogger(
 	const delegate = LogsAPI.logs.getLogger('default', undefined, {
 		scopeAttributes: context as LogsAPI.LoggerOptions['scopeAttributes'],
 	});
-	return new OtelLogger(useConsole, [delegate], context, logLevel);
+	return new OtelLogger(useConsole, delegate, context, logLevel);
 }
 
 /**

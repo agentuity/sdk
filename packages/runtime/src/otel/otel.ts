@@ -30,6 +30,7 @@ import { instrumentFetch } from './fetch';
 import { createLogger, patchConsole } from './logger';
 import { getSDKVersion, isAuthenticated } from '../_config';
 import type { LogLevel } from '@agentuity/core';
+import { JSONLLogExporter, JSONLTraceExporter, JSONLMetricExporter } from './exporters';
 
 /**
  * Configuration for OpenTelemetry initialization
@@ -47,6 +48,7 @@ export interface OtelConfig {
 	devmode?: boolean;
 	spanProcessors?: Array<SpanProcessor>;
 	logLevel?: LogLevel;
+	jsonlBasePath?: string;
 }
 
 /**
@@ -86,23 +88,30 @@ export const createAgentuityLoggerProvider = ({
 	headers,
 	resource,
 	logLevel,
+	jsonlBasePath,
 }: {
 	url?: string;
 	headers?: Record<string, string>;
 	resource: Resource;
 	logLevel: LogLevel;
+	jsonlBasePath?: string;
 }) => {
 	let processor: LogRecordProcessor;
-	let exporter: OTLPLogExporter | undefined;
+	let exporter: OTLPLogExporter | JSONLLogExporter | undefined;
 
-	if (url) {
-		exporter = new OTLPLogExporter({
+	if (jsonlBasePath) {
+		exporter = new JSONLLogExporter(jsonlBasePath);
+		processor = new BatchLogRecordProcessor(exporter);
+	} else if (url) {
+		// Original OTLP export behavior
+		const otlpExporter = new OTLPLogExporter({
 			url: `${url}/v1/logs`,
 			headers,
 			compression: CompressionAlgorithm.GZIP,
 			timeoutMillis: 10_000,
 		});
-		processor = new BatchLogRecordProcessor(exporter);
+		exporter = otlpExporter;
+		processor = new BatchLogRecordProcessor(otlpExporter);
 	} else {
 		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter(logLevel));
 	}
@@ -164,6 +173,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		deploymentId,
 		devmode = false,
 		logLevel = 'warn',
+		jsonlBasePath = undefined,
 	} = config;
 
 	let headers: Record<string, string> | undefined;
@@ -179,6 +189,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		headers,
 		resource,
 		logLevel,
+		jsonlBasePath,
 	});
 	const attrs = {
 		'@agentuity/orgId': orgId ?? 'unknown',
@@ -194,19 +205,23 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 	patchConsole(!!url, attrs, logLevel);
 
 	const traceExporter = url
-		? new OTLPTraceExporter({
-				url: `${url}/v1/traces`,
-				headers,
-				keepAlive: true,
-			})
+		? jsonlBasePath
+			? new JSONLTraceExporter(jsonlBasePath)
+			: new OTLPTraceExporter({
+					url: `${url}/v1/traces`,
+					headers,
+					keepAlive: true,
+				})
 		: undefined;
 
 	const metricExporter = url
-		? new OTLPMetricExporter({
-				url: `${url}/v1/metrics`,
-				headers,
-				keepAlive: true,
-			})
+		? jsonlBasePath
+			? new JSONLMetricExporter(jsonlBasePath)
+			: new OTLPMetricExporter({
+					url: `${url}/v1/metrics`,
+					headers,
+					keepAlive: true,
+				})
 		: undefined;
 
 	// Create a separate metric reader for the NodeSDK

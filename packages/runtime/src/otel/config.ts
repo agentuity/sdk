@@ -1,14 +1,8 @@
-import { createResource, createUserLoggerProvider, registerOtel } from './otel';
-import { resourceFromAttributes } from '@opentelemetry/resources';
-import { OtelLogger } from '../otel/logger';
-import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
-import type { LoggerProvider } from '@opentelemetry/sdk-logs';
-import type { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
-import type { LogRecordProcessor } from '@opentelemetry/sdk-logs';
-import type { OtelResponse, OtelConfig } from './otel';
+import type { LogLevel } from '@agentuity/core';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import * as runtimeConfig from '../_config';
-import type { LogLevel } from '@agentuity/core';
+import type { OtelConfig, OtelResponse } from './otel';
+import { registerOtel } from './otel';
 
 /**
  * Configuration for user provided OpenTelemetry
@@ -41,44 +35,10 @@ export function register(registerConfig: OtelRegisterConfig): OtelResponse {
 		deploymentId: runtimeConfig.getDeploymentId(),
 		environment: runtimeConfig.getEnvironment(),
 		logLevel: registerConfig.logLevel,
+		jsonlBasePath: process.env.AGENTUITY_CLOUD_OTEL_EXPORT_DIR,
 		bearerToken,
 		url,
 	};
-	let userOtelConf: CustomizedOtelConfig | undefined;
-	if (process.env.AGENTUITY_USER_OTEL_CONF) {
-		try {
-			userOtelConf = JSON.parse(process.env.AGENTUITY_USER_OTEL_CONF);
-		} catch (error) {
-			console.warn(
-				`[WARN] Failed to parse AGENTUITY_USER_OTEL_CONF: ${error instanceof Error ? error.message : String(error)}`
-			);
-		}
-	}
 
-	const otel = registerOtel(config);
-	let userLoggerProvider:
-		| {
-				provider: LoggerProvider;
-				exporter: OTLPLogExporter;
-				processor: LogRecordProcessor;
-		  }
-		| undefined;
-	if (userOtelConf) {
-		const resource = resourceFromAttributes({
-			...createResource(config).attributes,
-			...userOtelConf.resourceAttributes,
-			[ATTR_SERVICE_NAME]: userOtelConf.serviceName,
-		});
-		userLoggerProvider = createUserLoggerProvider({
-			url: userOtelConf.endpoint,
-			headers: userOtelConf.headers,
-			resource,
-		});
-		if (otel.logger instanceof OtelLogger) {
-			otel.logger.addDelegate(userLoggerProvider.provider.getLogger('default'));
-		} else {
-			console.warn('[WARN] user OTEL logger not attached: logger does not support addDelegate');
-		}
-	}
-	return otel;
+	return registerOtel(config);
 }
