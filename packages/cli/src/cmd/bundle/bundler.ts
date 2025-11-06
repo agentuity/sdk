@@ -92,6 +92,11 @@ export async function bundle({
 			drop: isProd ? ['debugger'] : undefined,
 			splitting: true,
 			conditions: [isProd ? 'production' : 'development', 'bun'],
+			naming: {
+				entry: '[dir]/[name].[ext]',
+				chunk: 'chunk/[name]-[hash].[ext]',
+				asset: 'asset/[name]-[hash].[ext]',
+			},
 		};
 		try {
 			await Bun.build(config);
@@ -190,6 +195,11 @@ export async function bundle({
 				external: workspaceRoot !== rootDir ? [] : undefined,
 				publicPath:
 					isProd && deploymentId ? `https://static.agentuity.com/${deploymentId}/` : undefined,
+				naming: {
+					entry: '[dir]/[name].[ext]',
+					chunk: 'web/chunk/[name]-[hash].[ext]',
+					asset: 'web/asset/[name]-[hash].[ext]',
+				},
 			};
 			try {
 				const result = await Bun.build(config);

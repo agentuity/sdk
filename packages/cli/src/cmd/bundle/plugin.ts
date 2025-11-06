@@ -425,8 +425,8 @@ const AgentuityBundler: BunPlugin = {
 	const index = await Bun.file(import.meta.dir + '/web/index.html').text();
 	const webstatic = serveStatic({ root: import.meta.dir + '/web' });
 	app.get('/', (c) => c.html(index));
-    app.get('/chunk/*', webstatic);
-    app.get('/asset/*', webstatic);
+    app.get('/web/chunk/*', webstatic);
+    app.get('/web/asset/*', webstatic);
 	app.get('/public/*', webstatic);
 })();`);
 				}

@@ -12,6 +12,18 @@ import type { Context, MiddlewareHandler } from 'hono';
 import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
 import type { Logger } from './logger';
 
+export type AgentEventName = 'started' | 'completed' | 'errored';
+
+export type AgentEventCallback<TAgent extends Agent<any, any, any>> =
+	| ((eventName: 'started', agent: TAgent, context: AgentContext) => Promise<void> | void)
+	| ((eventName: 'completed', agent: TAgent, context: AgentContext) => Promise<void> | void)
+	| ((
+			eventName: 'errored',
+			agent: TAgent,
+			context: AgentContext,
+			data: Error
+	  ) => Promise<void> | void);
+
 export interface AgentContext {
 	//   email: () => Promise<Email | null>;
 	//   sms: () => Promise<SMS | null>;
@@ -28,6 +40,7 @@ export interface AgentContext {
 	objectstore: ObjectStorage;
 	stream: StreamStorage;
 	vector: VectorStorage;
+	state: Map<string, unknown>;
 }
 
 interface AgentMetadata {
@@ -67,6 +80,56 @@ export type Agent<
 > = {
 	metadata: AgentMetadata;
 	handler: (ctx: AgentContext, ...args: any[]) => any | Promise<any>;
+	addEventListener(
+		eventName: 'started',
+		callback: (
+			eventName: 'started',
+			agent: Agent<TInput, TOutput, TStream>,
+			context: AgentContext
+		) => Promise<void> | void
+	): void;
+	addEventListener(
+		eventName: 'completed',
+		callback: (
+			eventName: 'completed',
+			agent: Agent<TInput, TOutput, TStream>,
+			context: AgentContext
+		) => Promise<void> | void
+	): void;
+	addEventListener(
+		eventName: 'errored',
+		callback: (
+			eventName: 'errored',
+			agent: Agent<TInput, TOutput, TStream>,
+			context: AgentContext,
+			data: Error
+		) => Promise<void> | void
+	): void;
+	removeEventListener(
+		eventName: 'started',
+		callback: (
+			eventName: 'started',
+			agent: Agent<TInput, TOutput, TStream>,
+			context: AgentContext
+		) => Promise<void> | void
+	): void;
+	removeEventListener(
+		eventName: 'completed',
+		callback: (
+			eventName: 'completed',
+			agent: Agent<TInput, TOutput, TStream>,
+			context: AgentContext
+		) => Promise<void> | void
+	): void;
+	removeEventListener(
+		eventName: 'errored',
+		callback: (
+			eventName: 'errored',
+			agent: Agent<TInput, TOutput, TStream>,
+			context: AgentContext,
+			data: Error
+		) => Promise<void> | void
+	): void;
 } & (TInput extends StandardSchemaV1 ? { inputSchema: TInput } : { inputSchema?: never }) &
 	(TOutput extends StandardSchemaV1 ? { outputSchema: TOutput } : { outputSchema?: never }) &
 	(TStream extends true ? { stream: true } : { stream?: false });
@@ -96,6 +159,45 @@ export interface AgentRunner<
 
 // Will be populated at runtime with strongly typed agents
 const agents = new Map<string, Agent>();
+
+// WeakMap to store event listeners for each agent instance (truly private)
+const agentEventListeners = new WeakMap<
+	Agent<any, any, any>,
+	Map<AgentEventName, Set<AgentEventCallback<any>>>
+>();
+
+// Helper to fire event listeners sequentially, abort on first error
+async function fireAgentEvent(
+	agent: Agent<any, any, any>,
+	eventName: 'started' | 'completed',
+	context: AgentContext
+): Promise<void>;
+async function fireAgentEvent(
+	agent: Agent<any, any, any>,
+	eventName: 'errored',
+	context: AgentContext,
+	data: Error
+): Promise<void>;
+async function fireAgentEvent(
+	agent: Agent<any, any, any>,
+	eventName: AgentEventName,
+	context: AgentContext,
+	data?: Error
+): Promise<void> {
+	const listeners = agentEventListeners.get(agent);
+	if (!listeners) return;
+
+	const callbacks = listeners.get(eventName);
+	if (!callbacks || callbacks.size === 0) return;
+
+	for (const callback of callbacks) {
+		if (eventName === 'errored' && data) {
+			await (callback as any)(eventName, agent, context, data);
+		} else if (eventName === 'started' || eventName === 'completed') {
+			await (callback as any)(eventName, agent, context);
+		}
+	}
+}
 
 /**
  * Union type of all registered agent names.
@@ -160,39 +262,83 @@ export function createAgent<
 	const inputSchema = config.schema?.input;
 	const outputSchema = config.schema?.output;
 
-	const handler = async (_ctx: Context, input?: any) => {
-		let validatedInput: any = undefined;
-
-		if (inputSchema) {
-			const inputResult = await inputSchema['~standard'].validate(input);
-			if (inputResult.issues) {
-				throw new Error(
-					`Input validation failed: ${inputResult.issues.map((i: any) => i.message).join(', ')}`
-				);
+	const agent: any = {
+		metadata: config.metadata,
+		addEventListener: (eventName: AgentEventName, callback: AgentEventCallback<any>) => {
+			let listeners = agentEventListeners.get(agent);
+			if (!listeners) {
+				listeners = new Map();
+				agentEventListeners.set(agent, listeners);
 			}
-			validatedInput = inputResult.value;
-		}
-
-		const agentCtx = getAgentContext();
-
-		const result = inputSchema
-			? await (config.handler as any)(agentCtx, validatedInput)
-			: await (config.handler as any)(agentCtx);
-
-		if (outputSchema) {
-			const outputResult = await outputSchema['~standard'].validate(result);
-			if (outputResult.issues) {
-				throw new Error(
-					`Output validation failed: ${outputResult.issues.map((i: any) => i.message).join(', ')}`
-				);
+			let callbacks = listeners.get(eventName);
+			if (!callbacks) {
+				callbacks = new Set();
+				listeners.set(eventName, callbacks);
 			}
-			return outputResult.value;
-		}
+			callbacks.add(callback);
+		},
+		removeEventListener: (eventName: AgentEventName, callback: AgentEventCallback<any>) => {
+			const listeners = agentEventListeners.get(agent);
+			if (!listeners) return;
+			const callbacks = listeners.get(eventName);
+			if (!callbacks) return;
+			callbacks.delete(callback);
+		},
+		handler: async (_ctx: Context, input?: any) => {
+			let validatedInput: any = undefined;
 
-		return result;
+			if (inputSchema) {
+				const inputResult = await inputSchema['~standard'].validate(input);
+				if (inputResult.issues) {
+					throw new Error(
+						`Input validation failed: ${inputResult.issues.map((i: any) => i.message).join(', ')}`
+					);
+				}
+				validatedInput = inputResult.value;
+			}
+
+			const agentCtx = getAgentContext();
+
+			try {
+				// Fire 'started' event
+				await fireAgentEvent(agent, 'started', agentCtx);
+
+				// Execute the handler
+				const result = inputSchema
+					? await (config.handler as any)(agentCtx, validatedInput)
+					: await (config.handler as any)(agentCtx);
+
+				if (outputSchema) {
+					const outputResult = await outputSchema['~standard'].validate(result);
+					if (outputResult.issues) {
+						throw new Error(
+							`Output validation failed: ${outputResult.issues.map((i: any) => i.message).join(', ')}`
+						);
+					}
+					// Fire 'completed' event before returning
+					await fireAgentEvent(agent, 'completed', agentCtx);
+					return outputResult.value;
+				}
+
+				// Fire 'completed' event before returning
+				await fireAgentEvent(agent, 'completed', agentCtx);
+				return result;
+			} catch (error) {
+				// Fire 'errored' event with the error, catching any listener errors
+				try {
+					await fireAgentEvent(agent, 'errored', agentCtx, error as Error);
+				} catch (listenerError) {
+					// Listener failed - preserve both errors
+					throw new AggregateError(
+						[error, listenerError],
+						`Handler error and listener error occurred`
+					);
+				}
+				// Re-throw the original handler error
+				throw error;
+			}
+		},
 	};
-
-	const agent: any = { handler, metadata: config.metadata };
 
 	if (inputSchema) {
 		agent.inputSchema = inputSchema;

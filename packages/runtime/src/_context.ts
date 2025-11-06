@@ -29,6 +29,7 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 	objectstore!: ObjectStorage;
 	stream!: StreamStorage;
 	vector!: VectorStorage;
+	state: Map<string, unknown>;
 	private waituntilHandler: WaitUntilHandler;
 
 	constructor(args: RequestAgentContextArgs<TAgentMap, TAgent>) {
@@ -39,6 +40,7 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 		this.logger = args.logger;
 		this.sessionId = args.sessionId;
 		this.tracer = args.tracer;
+		this.state = new Map<string, unknown>();
 		this.waituntilHandler = new WaitUntilHandler(args.setHeader, args.tracer);
 		registerServices(this);
 	}
