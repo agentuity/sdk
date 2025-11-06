@@ -178,7 +178,6 @@ export const deploySubcommand = createSubcommand({
 
 							// Encrypt the deployment zip using the public key from deployment
 							const encryptedZip = join(tmpdir(), `${deployment.id}.enc.zip`);
-							const zipfile = Bun.file(encryptedZip);
 							try {
 								const publicKey = createPublicKey({
 									key: deployment.publicKey,
@@ -191,6 +190,17 @@ export const deploySubcommand = createSubcommand({
 
 								await encryptFIPSKEMDEMStream(publicKey, src, dst);
 
+								// Close and wait for stream to finish writing
+								dst.end();
+								await new Promise<void>((resolve) => {
+									if (dst.writableFinished) {
+										resolve();
+									} else {
+										dst.once('finish', resolve);
+									}
+								});
+
+								const zipfile = Bun.file(encryptedZip);
 								const resp = await fetch(instructions.deployment, {
 									method: 'PUT',
 									duplex: 'half',
@@ -202,8 +212,15 @@ export const deploySubcommand = createSubcommand({
 								if (!resp.ok) {
 									return stepError(`Error uploading deployment: ${await resp.text()}`);
 								}
-							} finally {
+
+								// Wait for response body to be consumed before deleting
+								await resp.arrayBuffer();
 								await zipfile.delete();
+							} finally {
+								// Cleanup in case of error
+								if (await Bun.file(encryptedZip).exists()) {
+									await Bun.file(encryptedZip).delete();
+								}
 								await Bun.file(deploymentZip).delete();
 							}
 
