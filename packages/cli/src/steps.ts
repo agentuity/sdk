@@ -6,6 +6,7 @@
  */
 
 import type { ColorScheme } from './terminal';
+import type { LogLevel } from './types';
 
 /**
  * Get the appropriate exit function (Bun.exit or process.exit)
@@ -169,8 +170,10 @@ type StepState =
  * Each step runs its callback while showing a spinner animation.
  * Steps can complete with success, skipped, or error status.
  * Exits with code 1 if any step errors.
+ *
+ * When there's no TTY or log level is debug/trace, uses plain output instead of TUI.
  */
-export async function runSteps(steps: Step[]): Promise<void> {
+export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void> {
 	const state: StepState[] = steps.map((s) => {
 		const stepType = s.type === 'progress' ? 'progress' : 'simple';
 		return stepType === 'progress'
@@ -182,6 +185,21 @@ export async function runSteps(steps: Step[]): Promise<void> {
 			: { type: 'simple' as const, label: s.label, run: s.run as () => Promise<StepOutcome> };
 	});
 
+	// Detect if we should use TUI (animated) or plain mode
+	const useTUI =
+		process.stdout.isTTY && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
+
+	if (useTUI) {
+		await runStepsTUI(state);
+	} else {
+		await runStepsPlain(state);
+	}
+}
+
+/**
+ * Run steps with animated TUI (original behavior)
+ */
+async function runStepsTUI(state: StepState[]): Promise<void> {
 	// Hide cursor
 	process.stdout.write('\x1B[?25l');
 
@@ -272,6 +290,44 @@ export async function runSteps(steps: Step[]): Promise<void> {
 	} finally {
 		// Remove signal/TTY handlers
 		restoreInterrupts();
+	}
+}
+
+/**
+ * Run steps in plain mode (no TUI animations)
+ */
+async function runStepsPlain(state: StepState[]): Promise<void> {
+	const grayColor = getColor('gray');
+	const greenColor = getColor('green');
+	const yellowColor = getColor('yellow');
+	const redColor = getColor('red');
+
+	for (const step of state) {
+		// Run the step (no progress callback for plain mode)
+		try {
+			const outcome = step.type === 'progress' ? await step.run(() => {}) : await step.run();
+			step.outcome = outcome;
+		} catch (err) {
+			step.outcome = {
+				status: 'error',
+				message: err instanceof Error ? err.message : String(err),
+			};
+		}
+
+		// Print final state only
+		if (step.outcome?.status === 'success') {
+			console.log(`${greenColor}${ICONS.success}${COLORS.reset} ${step.label}`);
+		} else if (step.outcome?.status === 'skipped') {
+			const reason = step.outcome.reason
+				? ` ${grayColor}(${step.outcome.reason})${COLORS.reset}`
+				: '';
+			console.log(`${yellowColor}${ICONS.skipped}${COLORS.reset} ${step.label}${reason}`);
+		} else if (step.outcome?.status === 'error') {
+			console.log(`${redColor}${ICONS.error}${COLORS.reset} ${step.label}`);
+			const errorColor = getColor('red');
+			console.error(`\n${errorColor}Error: ${step.outcome.message}${COLORS.reset}\n`);
+			process.exit(1);
+		}
 	}
 }
 

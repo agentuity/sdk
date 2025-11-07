@@ -35,7 +35,7 @@ export const deploySubcommand = createSubcommand({
 	requires: { auth: true, project: true, apiClient: true },
 
 	async handler(ctx) {
-		const { project, apiClient, projectDir, config } = ctx;
+		const { project, apiClient, projectDir, config, options } = ctx;
 
 		let deployment: Deployment | undefined;
 		let build: BuildMetadata | undefined;
@@ -275,7 +275,8 @@ export const deploySubcommand = createSubcommand({
 							return stepSuccess();
 						},
 					},
-				].filter(Boolean) as Step[]
+				].filter(Boolean) as Step[],
+				options.logLevel
 			);
 			tui.success('Your project was deployed!');
 
