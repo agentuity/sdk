@@ -11,6 +11,7 @@ import { trace, type Tracer } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
 import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
 import type { Logger } from './logger';
+import { getApp } from './app';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
@@ -184,17 +185,30 @@ async function fireAgentEvent(
 	context: AgentContext,
 	data?: Error
 ): Promise<void> {
+	// Fire agent-level listeners
 	const listeners = agentEventListeners.get(agent);
-	if (!listeners) return;
+	if (listeners) {
+		const callbacks = listeners.get(eventName);
+		if (callbacks && callbacks.size > 0) {
+			for (const callback of callbacks) {
+				if (eventName === 'errored' && data) {
+					await (callback as any)(eventName, agent, context, data);
+				} else if (eventName === 'started' || eventName === 'completed') {
+					await (callback as any)(eventName, agent, context);
+				}
+			}
+		}
+	}
 
-	const callbacks = listeners.get(eventName);
-	if (!callbacks || callbacks.size === 0) return;
-
-	for (const callback of callbacks) {
+	// Fire app-level listeners
+	const app = getApp();
+	if (app) {
 		if (eventName === 'errored' && data) {
-			await (callback as any)(eventName, agent, context, data);
-		} else if (eventName === 'started' || eventName === 'completed') {
-			await (callback as any)(eventName, agent, context);
+			await app.fireEvent('agent.errored', agent, context, data);
+		} else if (eventName === 'started') {
+			await app.fireEvent('agent.started', agent, context);
+		} else if (eventName === 'completed') {
+			await app.fireEvent('agent.completed', agent, context);
 		}
 	}
 }

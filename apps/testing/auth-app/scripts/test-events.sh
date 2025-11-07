@@ -60,7 +60,7 @@ else
 fi
 echo ""
 
-echo "Step 3: Verify event listener logs with state"
+echo "Step 3: Verify agent-level event listener logs with state"
 # Only verify logs if we started the server (and have access to log file)
 if [ "$SERVER_STARTED" = true ]; then
 	if [ ! -f "$LOG_FILE" ]; then
@@ -68,21 +68,21 @@ if [ "$SERVER_STARTED" = true ]; then
 		exit 1
 	fi
 
-	# Wait for 'started' event log to appear
+	# Wait for 'started' event log to appear (agent-level)
 	if wait_for_log_pattern "agent .* fired started event" 5 0.2; then
-		echo -e "${GREEN}✓ PASS:${NC} 'started' event listener fired"
+		echo -e "${GREEN}✓ PASS:${NC} Agent-level 'started' event listener fired"
 	else
-		echo -e "${RED}✗ FAIL:${NC} 'started' event not found in logs within 5s timeout"
+		echo -e "${RED}✗ FAIL:${NC} Agent-level 'started' event not found in logs within 5s timeout"
 		echo "Log contents:"
 		cat "$LOG_FILE"
 		exit 1
 	fi
 
-	# Wait for 'completed' event log to appear
+	# Wait for 'completed' event log to appear (agent-level)
 	if wait_for_log_pattern "agent .* fired completed event" 5 0.2; then
-		echo -e "${GREEN}✓ PASS:${NC} 'completed' event listener fired"
+		echo -e "${GREEN}✓ PASS:${NC} Agent-level 'completed' event listener fired"
 	else
-		echo -e "${RED}✗ FAIL:${NC} 'completed' event not found in logs within 5s timeout"
+		echo -e "${RED}✗ FAIL:${NC} Agent-level 'completed' event not found in logs within 5s timeout"
 		echo "Log contents:"
 		cat "$LOG_FILE"
 		exit 1
@@ -128,6 +128,44 @@ else
 fi
 echo ""
 
+echo "Step 3b: Verify app-level event listener logs"
+if [ "$SERVER_STARTED" = true ]; then
+	# Wait for app-level 'started' event log to appear
+	if wait_for_log_pattern "APP EVENT: agent .* started" 5 0.2; then
+		echo -e "${GREEN}✓ PASS:${NC} App-level 'agent.started' event listener fired"
+	else
+		echo -e "${RED}✗ FAIL:${NC} App-level 'agent.started' event not found in logs within 5s timeout"
+		echo "Log contents:"
+		cat "$LOG_FILE"
+		exit 1
+	fi
+
+	# Wait for app-level 'completed' event log to appear
+	if wait_for_log_pattern "APP EVENT: agent .* completed" 5 0.2; then
+		echo -e "${GREEN}✓ PASS:${NC} App-level 'agent.completed' event listener fired"
+	else
+		echo -e "${RED}✗ FAIL:${NC} App-level 'agent.completed' event not found in logs within 5s timeout"
+		echo "Log contents:"
+		cat "$LOG_FILE"
+		exit 1
+	fi
+else
+	# Server was already running
+	if [ -n "$LOG_PATH" ] && [ -f "$LOG_PATH" ]; then
+		LOG_FILE="$LOG_PATH"
+		
+		if wait_for_log_pattern "APP EVENT: agent .* started" 5 0.2; then
+			echo -e "${GREEN}✓ PASS:${NC} App-level event listener logs verified in external log"
+		else
+			echo -e "${YELLOW}⚠ WARNING:${NC} Could not verify app-level event listener logs in external log file"
+		fi
+	else
+		echo -e "${YELLOW}⚠ WARNING:${NC} Server was not started by this test"
+		echo "  App-level log verification skipped."
+	fi
+fi
+echo ""
+
 echo "Step 4: Test multiple requests trigger events multiple times"
 echo "Making second request..."
 RESPONSE2=$(curl -s "$BASE_URL/agent/events")
@@ -156,12 +194,13 @@ echo "========================================="
 echo ""
 echo "Summary:"
 echo "  ✓ Agent executes successfully"
-echo "  ✓ Event listeners attached to agent"
+echo "  ✓ Agent-level event listeners work"
+echo "  ✓ App-level event listeners work"
 echo "  ✓ Multiple requests work correctly"
 echo "  ✓ Event listeners persist across requests"
 echo ""
-echo "Note: Check server logs manually to verify event listener features:"
-echo "  - Event firing: 'agent fired event started/completed events'"
-echo "  - State usage: 'agent events completed in Xms'"
-echo "  - State usage: 'total events fired: N'"
+echo "Features verified:"
+echo "  - Agent-level 'started' and 'completed' events"
+echo "  - App-level 'agent.started' and 'agent.completed' events"
+echo "  - State feature (duration and event count tracking)"
 echo ""

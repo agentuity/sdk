@@ -27,8 +27,7 @@ import { createServices } from './_services';
 
 let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let globalAppInstance: Hono<any> | null = null;
+let globalRouterInstance: Hono<Env> | null = null;
 
 let globalLogger: Logger | null = null;
 let globalTracer: Tracer | null = null;
@@ -37,8 +36,8 @@ export function getServer() {
 	return globalServerInstance;
 }
 
-export function getApp() {
-	return globalAppInstance;
+export function getRouter() {
+	return globalRouterInstance;
 }
 
 export function getLogger() {
@@ -110,7 +109,7 @@ function registerAgentuitySpanProcessor() {
 	addSpanProcessor(new RegisterAgentSpanProcessor());
 }
 
-export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) => {
+export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig) => {
 	if (globalServerInstance) {
 		return globalServerInstance;
 	}
@@ -132,20 +131,20 @@ export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) =>
 	const server = Bun.serve({
 		hostname,
 		development: isDevelopment(),
-		fetch: app.fetch,
+		fetch: router.fetch,
 		idleTimeout: 0,
 		port,
 		websocket,
 	});
 
-	globalAppInstance = app;
+	globalRouterInstance = router as unknown as Hono<Env>;
 	globalServerInstance = server;
 	globalLogger = otel.logger;
 	globalTracer = otel.tracer;
 
 	let isShutdown = false;
 
-	app.onError((error, _c) => {
+	router.onError((error, _c) => {
 		if (error instanceof HTTPException) {
 			otel.logger.error('HTTP Error: %s (%d)', error.cause, error.status);
 			return error.getResponse();
@@ -167,7 +166,7 @@ export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) =>
 		return new Response('Internal Server Error', { status: 500 });
 	});
 
-	app.use(async (c, next) => {
+	router.use(async (c, next) => {
 		c.set('logger', otel.logger);
 		c.set('tracer', otel.tracer);
 		c.set('meter', otel.meter);
@@ -191,7 +190,7 @@ export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) =>
 	});
 
 	// setup the cors middleware
-	app.use(
+	router.use(
 		'*',
 		cors({
 			origin: config?.cors?.origin ?? ((origin) => origin),
@@ -210,23 +209,23 @@ export const createServer = <E extends Env>(app: Hono<E>, config?: AppConfig) =>
 		})
 	);
 
-	app.get('/_health', (c) => c.text('OK'));
-	app.route('/_agentuity', createAgentuityAPIs());
+	router.get('/_health', (c) => c.text('OK'));
+	router.route('/_agentuity', createAgentuityAPIs());
 
 	// Mount local storage router if using local services
 	if (servicesResult?.localRouter) {
-		app.route('/', servicesResult.localRouter);
+		router.route('/', servicesResult.localRouter);
 	}
 
 	// Attach services to context for API routes
-	app.use('/api/*', async (c, next) => {
+	router.use('/api/*', async (c, next) => {
 		const { registerServices } = await import('./_services');
 		registerServices(c);
 		await next();
 	});
 
-	app.use('/api/*', otelMiddleware);
-	app.use('/agent/*', otelMiddleware);
+	router.use('/api/*', otelMiddleware);
+	router.use('/agent/*', otelMiddleware);
 
 	const shutdown = async () => {
 		if (isShutdown) {

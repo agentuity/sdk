@@ -398,19 +398,19 @@ const AgentuityBundler: BunPlugin = {
 					}
 
 					let buffer = `await (async() => {
-    const { createAgentMiddleware, getApp, registerAgent } = await import('@agentuity/runtime');
-    const app = getApp()!;
+    const { createAgentMiddleware, getRouter, registerAgent } = await import('@agentuity/runtime');
+    const router = getRouter()!;
     const route = require('./src/${route}').default;`;
 					if (hasAgent) {
 						const agentRegistrationName =
 							isSubagent && parentName ? `${parentName}.${name}` : name;
 						buffer += `
     const agent = require('./src/${agent}').default;
-    app.all("${agentPath}", createAgentMiddleware('${agentRegistrationName}'));
+    router.all("${agentPath}", createAgentMiddleware('${agentRegistrationName}'));
     registerAgent("${agentRegistrationName}", agent);`;
 					}
 					buffer += `
-    app.route("${routePath}", route);
+    router.route("${routePath}", route);
 })();`;
 					inserts.push(buffer);
 				}
@@ -420,14 +420,14 @@ const AgentuityBundler: BunPlugin = {
 				if (existsSync(indexFile)) {
 					inserts.unshift(`await (async () => {
     const { serveStatic } = require('hono/bun');
-    const { getApp } = await import('@agentuity/runtime');
-    const app = getApp()!;
+    const { getRouter } = await import('@agentuity/runtime');
+    const router = getRouter()!;
 	const index = await Bun.file(import.meta.dir + '/web/index.html').text();
 	const webstatic = serveStatic({ root: import.meta.dir + '/web' });
-	app.get('/', (c) => c.html(index));
-    app.get('/web/chunk/*', webstatic);
-    app.get('/web/asset/*', webstatic);
-	app.get('/public/*', webstatic);
+	router.get('/', (c) => c.html(index));
+    router.get('/web/chunk/*', webstatic);
+    router.get('/web/asset/*', webstatic);
+	router.get('/public/*', webstatic);
 })();`);
 				}
 

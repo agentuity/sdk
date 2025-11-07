@@ -1367,12 +1367,12 @@ export function createApp(config?: AppConfig) {
 
 	// Mount local router if present
 	if (servicesResult?.localRouter) {
-		app.route('/', servicesResult.localRouter);
+		router.route('/', servicesResult.localRouter);
 	}
 
 	// ... rest of setup
 
-	return { app, server, logger };
+	return { router, server, logger };
 }
 ```
 
@@ -1385,9 +1385,9 @@ import { createApp } from '@agentuity/runtime';
 import { showRoutes } from 'hono/dev';
 
 // No need to specify useLocal - it's automatic when unauthenticated
-const { app, server, logger } = createApp();
+const { router, server, logger } = createApp();
 
-showRoutes(app);
+showRoutes(router);
 
 logger.info('Running with local SQLite services at %s', server.url);
 logger.info('Database location: ~/.config/agentuity/local.db');

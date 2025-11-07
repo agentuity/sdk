@@ -7,7 +7,7 @@ import {
 	CustomVectorStorage,
 } from './src/services';
 
-const { app, server, logger } = createApp({
+const app = createApp({
 	services: {
 		keyvalue: new CustomKeyValueStorage(),
 		object: new CustomObjectStorage(),
@@ -16,6 +16,6 @@ const { app, server, logger } = createApp({
 	},
 });
 
-showRoutes(app);
+showRoutes(app.router);
 
-logger.info('Running %s', server.url);
+app.logger.info('Running %s', app.server.url);

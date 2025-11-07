@@ -124,7 +124,7 @@ Creates a new Agentuity application instance.
 
 **Returns:**
 
-- `app` - Hono application instance
+- `router` - Hono application instance
 - `server` - Server instance with `listen()` method
 - `logger` - Structured logger
 
