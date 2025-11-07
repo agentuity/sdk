@@ -3,10 +3,11 @@ import type { BuildMetadata } from '@agentuity/server';
 import { resolve, join } from 'node:path';
 import { bundle } from '../bundle/bundler';
 import { getBuildMetadata } from '../bundle/plugin';
-import { existsSync, type FSWatcher, watch } from 'node:fs';
+import { existsSync, type FSWatcher, watch, statSync, readdirSync } from 'node:fs';
 import { saveProjectDir } from '../../config';
 import { createCommand } from '../../types';
 import * as tui from '../../tui';
+import { createAgentTemplates, createAPITemplates } from './templates';
 
 export const command = createCommand({
 	name: 'dev',
@@ -110,7 +111,7 @@ export const command = createCommand({
 			restartTimestamps.push(now);
 
 			// Remove timestamps older than the time window
-			while (restartTimestamps.length > 0 && now - restartTimestamps[0]! > TIME_WINDOW_MS) {
+			while (restartTimestamps.length > 0 && now - restartTimestamps[0] > TIME_WINDOW_MS) {
 				restartTimestamps.shift();
 			}
 
@@ -475,6 +476,21 @@ export const command = createCommand({
 								);
 								return;
 							}
+						}
+					}
+
+					if (
+						eventType === 'rename' &&
+						existsSync(absPath) &&
+						statSync(absPath).isDirectory() &&
+						readdirSync(absPath).length === 0
+					) {
+						if (changedFile?.startsWith('src/agents/')) {
+							logger.debug('agent directory created: %s', changedFile);
+							createAgentTemplates(absPath);
+						} else if (changedFile?.startsWith('src/apis/')) {
+							logger.debug('api directory created: %s', changedFile);
+							createAPITemplates(absPath);
 						}
 					}
 

@@ -9,7 +9,7 @@ router.get('/', async (c) => {
 	return c.text(text);
 });
 
-router.post('/', zValidator('json', agent.inputSchema!), async (c) => {
+router.post('/', zValidator('json', agent.inputSchema), async (c) => {
 	const data = c.req.valid('json');
 	const text = await c.agent.simple.run(data);
 	return c.text(text);
