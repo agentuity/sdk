@@ -92,7 +92,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 	}
 
-	if (!projectName && !skipPrompts) {
+	if (!projectName && !skipPrompts && orgId) {
 		const response = await enquirer.prompt<{ name: string }>({
 			type: 'input',
 			name: 'name',
@@ -102,10 +102,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				if (!value || value.trim().length === 0) {
 					return 'Project name is required';
 				}
-				if (apiClient) {
+				if (apiClient && auth) {
 					const exists = await projectExists(apiClient, {
 						name: value,
-						organization_id: orgId!,
+						organization_id: orgId,
 					});
 					if (exists) {
 						return `Project with name '${value}' already exists in this organization`;
@@ -124,7 +124,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	// Step 4: Determine destination directory
 	// Expand ~ to home directory
 	let expandedTargetDir = targetDir;
-	if (expandedTargetDir && expandedTargetDir.startsWith('~')) {
+	if (expandedTargetDir?.startsWith('~')) {
 		expandedTargetDir = expandedTargetDir.replace(/^~/, homedir());
 	}
 	const baseDir = expandedTargetDir ? resolve(expandedTargetDir) : process.cwd();
@@ -240,7 +240,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					if (Object.keys(filteredEnv).length > 0) {
 						const { env, secrets } = splitEnvAndSecrets(filteredEnv);
 						await projectEnvUpdate(apiClient, {
-							id: projectId!,
+							id: projectId as string,
 							env,
 							secrets,
 						});
@@ -260,7 +260,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	tui.success('✨ Project created successfully!\n');
 	tui.info('Next steps:');
 	if (dirName !== '.') {
-		const dirDisplay = cwd() == targetDir ? basename(dirName) : dest;
+		const dirDisplay = cwd() === targetDir ? basename(dirName) : dest;
 		tui.newline();
 		console.log(`  1. ${tui.bold(`cd ${dirDisplay}`)}`);
 		console.log(`  2. ${tui.bold('bun run dev')}`);
