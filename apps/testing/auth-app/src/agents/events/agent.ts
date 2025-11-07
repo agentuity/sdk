@@ -5,7 +5,10 @@ const agent = createAgent({
 	schema: {
 		output: z.string(),
 	},
-	handler: async (_c: AgentContext) => {
+	handler: async (c: AgentContext) => {
+		console.log('session', c.sessionId);
+		console.log('thread', c.thread.id, c.thread.state.get('last_hit'));
+		c.thread.state.set('last_hit', new Date());
 		return `Hello, the date is ${new Date()}`;
 	},
 });

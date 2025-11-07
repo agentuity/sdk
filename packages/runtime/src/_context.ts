@@ -5,6 +5,7 @@ import type { AgentContext, AgentName } from './agent';
 import type { Logger } from './logger';
 import WaitUntilHandler from './_waituntil';
 import { registerServices } from './_services';
+import type { Thread, Session } from './session';
 
 export interface RequestAgentContextArgs<TAgentMap, TAgent> {
 	sessionId: string;
@@ -14,6 +15,8 @@ export interface RequestAgentContextArgs<TAgentMap, TAgent> {
 	agentName: AgentName;
 	logger: Logger;
 	tracer: Tracer;
+	session: Session;
+	thread: Thread;
 	setHeader: (k: string, v: string) => void;
 }
 
@@ -30,6 +33,8 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 	stream!: StreamStorage;
 	vector!: VectorStorage;
 	state: Map<string, unknown>;
+	session: Session;
+	thread: Thread;
 	private waituntilHandler: WaitUntilHandler;
 
 	constructor(args: RequestAgentContextArgs<TAgentMap, TAgent>) {
@@ -40,6 +45,8 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 		this.logger = args.logger;
 		this.sessionId = args.sessionId;
 		this.tracer = args.tracer;
+		this.thread = args.thread;
+		this.session = args.session;
 		this.state = new Map<string, unknown>();
 		this.waituntilHandler = new WaitUntilHandler(args.setHeader, args.tracer);
 		registerServices(this);

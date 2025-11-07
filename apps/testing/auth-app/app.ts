@@ -29,4 +29,20 @@ app.addEventListener('agent.errored', (_event, agent, ctx, error) => {
 	);
 });
 
+app.addEventListener('thread.created', (_name, thread) => {
+	app.logger.info('APP EVENT: thread %s created', thread.id);
+});
+
+app.addEventListener('thread.destroyed', (_name, thread) => {
+	app.logger.info('APP EVENT: thread %s destroyed', thread.id);
+});
+
+app.addEventListener('session.started', (_name, session) => {
+	app.logger.info('APP EVENT: session %s started', session.id);
+});
+
+app.addEventListener('session.completed', (_name, session) => {
+	app.logger.info('APP EVENT: session %s completed', session.id);
+});
+
 app.logger.debug('Running %s', app.server.url);

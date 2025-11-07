@@ -19,6 +19,12 @@ import { getLogger, getTracer } from './_server';
 import { getSDKVersion, isAuthenticated } from './_config';
 import type { AppConfig } from './app';
 import {
+	DefaultSessionProvider,
+	DefaultThreadProvider,
+	type ThreadProvider,
+	type SessionProvider,
+} from './session';
+import {
 	LocalKeyValueStorage,
 	LocalObjectStorage,
 	LocalStreamStorage,
@@ -153,6 +159,8 @@ let kv: KeyValueStorage;
 let objectStore: ObjectStorage;
 let stream: StreamStorage;
 let vector: VectorStorage;
+let session: SessionProvider;
+let thread: ThreadProvider;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let localRouter: any | null = null;
 
@@ -178,6 +186,8 @@ export function createServices(logger: Logger, config?: AppConfig, serverUrl?: s
 		objectStore = config?.services?.object || new LocalObjectStorage(db, projectPath, serverUrl);
 		stream = config?.services?.stream || new LocalStreamStorage(db, projectPath, serverUrl);
 		vector = config?.services?.vector || new LocalVectorStorage(db, projectPath);
+		session = config?.services?.session || new DefaultSessionProvider();
+		thread = config?.services?.thread || new DefaultThreadProvider();
 
 		localRouter = createLocalStorageRouter(db, projectPath);
 
@@ -192,8 +202,18 @@ export function createServices(logger: Logger, config?: AppConfig, serverUrl?: s
 	objectStore = config?.services?.object || new ObjectStorageService(objectBaseUrl, adapter);
 	stream = config?.services?.stream || new StreamStorageService(streamBaseUrl, adapter);
 	vector = config?.services?.vector || new VectorStorageService(vectorBaseUrl, adapter);
+	session = config?.services?.session || new DefaultSessionProvider();
+	thread = config?.services?.thread || new DefaultThreadProvider();
 
 	return {};
+}
+
+export function getThreadProvider(): ThreadProvider {
+	return thread;
+}
+
+export function getSessionProvider(): SessionProvider {
+	return session;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

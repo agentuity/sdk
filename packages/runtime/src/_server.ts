@@ -12,7 +12,7 @@ import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { type LogLevel, ServiceException } from '@agentuity/core';
 import { cors } from 'hono/cors';
 import { createMiddleware } from 'hono/factory';
-import { Hono } from 'hono';
+import { Hono, type Context as HonoContext } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { BunWebSocketData } from 'hono/bun';
 import { websocket } from 'hono/bun';
@@ -23,7 +23,8 @@ import type { Logger } from './logger';
 import { isIdle } from './_idle';
 import * as runtimeConfig from './_config';
 import { inAgentContext, getAgentContext } from './_context';
-import { createServices } from './_services';
+import { createServices, getThreadProvider, getSessionProvider } from './_services';
+import { generateId } from './session';
 
 let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 
@@ -166,7 +167,20 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 		return new Response('Internal Server Error', { status: 500 });
 	});
 
+	const threadProvider = getThreadProvider();
+	const sessionProvider = getSessionProvider();
+
+	let initPromise: Promise<void> | undefined = new Promise((resolve, reject) => {
+		Promise.all([threadProvider.initialize(), sessionProvider.initialize()])
+			.then(() => resolve())
+			.catch(reject);
+	});
+
 	router.use(async (c, next) => {
+		if (initPromise) {
+			await initPromise;
+			initPromise = undefined;
+		}
 		c.set('logger', otel.logger);
 		c.set('tracer', otel.tracer);
 		c.set('meter', otel.meter);
@@ -176,7 +190,9 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 		if (!skipLogging) {
 			otel.logger.debug('%s %s started', c.req.method, c.req.path);
 		}
+
 		await next();
+
 		// Don't log completion for websocket upgrades - they stay open
 		if (!skipLogging && !isWebSocket) {
 			otel.logger.debug(
@@ -296,6 +312,8 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 
 	const method = c.req.method;
 	const url = new URL(c.req.url);
+	const threadProvider = getThreadProvider();
+	const sessionProvider = getSessionProvider();
 
 	// Execute the request handler within the extracted context
 	await context.with(extractedContext, async (): Promise<void> => {
@@ -312,11 +330,18 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 				},
 			},
 			async (span): Promise<void> => {
+				const sctx = span.spanContext();
+				const sessionId = sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess');
+				c.set('sessionId', sessionId);
+
+				const thread = await threadProvider.restore(c as unknown as HonoContext<Env>);
+				const session = await sessionProvider.restore(thread, sessionId);
+				c.set('thread', thread);
+				c.set('session', session);
+
 				try {
 					await next();
-					span.setStatus({
-						code: SpanStatusCode.OK,
-					});
+					span.setStatus({ code: SpanStatusCode.OK });
 				} catch (ex) {
 					if (ex instanceof Error) {
 						span.recordException(ex);
@@ -329,6 +354,8 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 					c.var.logger.error('ERROR: %s', message);
 					throw ex;
 				} finally {
+					await sessionProvider.save(session);
+					await threadProvider.save(thread);
 					span.end();
 				}
 			}

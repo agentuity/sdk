@@ -1,16 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/** biome-ignore-all lint/suspicious/noExplicitAny: any are ok */
 import { type Env as HonoEnv, Hono } from 'hono';
-import { cors } from 'hono/cors';
-import { createServer, getLogger } from './_server';
+import type { cors } from 'hono/cors';
 import type { Logger } from './logger';
-import { type Meter, type Tracer } from '@opentelemetry/api';
-import {
-	type KeyValueStorage,
-	type ObjectStorage,
-	type StreamStorage,
-	type VectorStorage,
-} from '@agentuity/core';
+import { createServer, getLogger } from './_server';
+import type { Meter, Tracer } from '@opentelemetry/api';
+import type { KeyValueStorage, ObjectStorage, StreamStorage, VectorStorage } from '@agentuity/core';
 import type { Email } from './io/email';
 import type { Agent, AgentContext } from './agent';
+import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
 
 type CorsOptions = Parameters<typeof cors>[0];
 
@@ -43,6 +41,14 @@ export interface AppConfig {
 		 * the VectorStorage to override instead of the default
 		 */
 		vector?: VectorStorage;
+		/**
+		 * the ThreadProvider to override instead of the default
+		 */
+		thread?: ThreadProvider;
+		/**
+		 * the SessionProvider to override instead of the default
+		 */
+		session?: SessionProvider;
 	};
 }
 
@@ -51,18 +57,23 @@ export interface Variables {
 	meter: Meter;
 	tracer: Tracer;
 	email?: Email;
+	sessionId: string;
+	thread: Thread;
+	session: Session;
 }
 
 export interface Env extends HonoEnv {
 	Variables: Variables;
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 type AppEventMap = {
 	'agent.started': [Agent<any, any, any>, AgentContext];
 	'agent.completed': [Agent<any, any, any>, AgentContext];
 	'agent.errored': [Agent<any, any, any>, AgentContext, Error];
+	'session.started': [Session];
+	'session.completed': [Session];
+	'thread.created': [Thread];
+	'thread.destroyed': [Thread];
 };
 
 type AppEventCallback<K extends keyof AppEventMap> = (
@@ -144,4 +155,17 @@ export function getApp(): App | null {
  */
 export function createApp(config?: AppConfig): App {
 	return new App(config);
+}
+
+/**
+ * fire a global event
+ *
+ * @param eventName
+ * @param args
+ */
+export async function fireEvent<K extends keyof AppEventMap>(
+	eventName: K,
+	...args: AppEventMap[K]
+) {
+	await globalApp?.fireEvent(eventName, ...args);
 }

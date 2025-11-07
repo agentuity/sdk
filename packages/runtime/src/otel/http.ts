@@ -12,7 +12,9 @@ export function injectTraceContextToHeaders(
 	let _headers: Record<string, string>;
 	if (headers instanceof Headers) {
 		_headers = {};
-		headers.forEach((v, k) => (_headers[k] = v));
+		headers.forEach((v, k) => {
+			_headers[k] = v;
+		});
 	} else {
 		_headers = { ...headers };
 	}

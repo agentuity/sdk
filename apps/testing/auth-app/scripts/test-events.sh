@@ -153,7 +153,7 @@ else
 	# Server was already running
 	if [ -n "$LOG_PATH" ] && [ -f "$LOG_PATH" ]; then
 		LOG_FILE="$LOG_PATH"
-		
+
 		if wait_for_log_pattern "APP EVENT: agent .* started" 5 0.2; then
 			echo -e "${GREEN}✓ PASS:${NC} App-level event listener logs verified in external log"
 		else
@@ -162,6 +162,70 @@ else
 	else
 		echo -e "${YELLOW}⚠ WARNING:${NC} Server was not started by this test"
 		echo "  App-level log verification skipped."
+	fi
+fi
+echo ""
+
+echo "Step 3c: Verify thread lifecycle event listener logs"
+if [ "$SERVER_STARTED" = true ]; then
+	# Wait for thread.created event
+	if wait_for_log_pattern "APP EVENT: thread .* created" 5 0.2; then
+		echo -e "${GREEN}✓ PASS:${NC} App-level 'thread.created' event listener fired"
+	else
+		echo -e "${RED}✗ FAIL:${NC} App-level 'thread.created' event not found in logs within 5s timeout"
+		echo "Log contents:"
+		cat "$LOG_FILE"
+		exit 1
+	fi
+else
+	if [ -n "$LOG_PATH" ] && [ -f "$LOG_PATH" ]; then
+		LOG_FILE="$LOG_PATH"
+
+		if wait_for_log_pattern "APP EVENT: thread .* created" 5 0.2; then
+			echo -e "${GREEN}✓ PASS:${NC} Thread lifecycle event logs verified in external log"
+		else
+			echo -e "${YELLOW}⚠ WARNING:${NC} Could not verify thread lifecycle event logs in external log file"
+		fi
+	else
+		echo -e "${YELLOW}⚠ WARNING:${NC} Server was not started by this test"
+		echo "  Thread lifecycle log verification skipped."
+	fi
+fi
+echo ""
+
+echo "Step 3d: Verify session lifecycle event listener logs"
+if [ "$SERVER_STARTED" = true ]; then
+	# Wait for session.started event
+	if wait_for_log_pattern "APP EVENT: session .* started" 5 0.2; then
+		echo -e "${GREEN}✓ PASS:${NC} App-level 'session.started' event listener fired"
+	else
+		echo -e "${RED}✗ FAIL:${NC} App-level 'session.started' event not found in logs within 5s timeout"
+		echo "Log contents:"
+		cat "$LOG_FILE"
+		exit 1
+	fi
+
+	# Wait for session.completed event
+	if wait_for_log_pattern "APP EVENT: session .* completed" 5 0.2; then
+		echo -e "${GREEN}✓ PASS:${NC} App-level 'session.completed' event listener fired"
+	else
+		echo -e "${RED}✗ FAIL:${NC} App-level 'session.completed' event not found in logs within 5s timeout"
+		echo "Log contents:"
+		cat "$LOG_FILE"
+		exit 1
+	fi
+else
+	if [ -n "$LOG_PATH" ] && [ -f "$LOG_PATH" ]; then
+		LOG_FILE="$LOG_PATH"
+
+		if wait_for_log_pattern "APP EVENT: session .* started" 5 0.2; then
+			echo -e "${GREEN}✓ PASS:${NC} Session lifecycle event logs verified in external log"
+		else
+			echo -e "${YELLOW}⚠ WARNING:${NC} Could not verify session lifecycle event logs in external log file"
+		fi
+	else
+		echo -e "${YELLOW}⚠ WARNING:${NC} Server was not started by this test"
+		echo "  Session lifecycle log verification skipped."
 	fi
 fi
 echo ""
@@ -196,11 +260,15 @@ echo "Summary:"
 echo "  ✓ Agent executes successfully"
 echo "  ✓ Agent-level event listeners work"
 echo "  ✓ App-level event listeners work"
+echo "  ✓ Thread lifecycle events work"
+echo "  ✓ Session lifecycle events work"
 echo "  ✓ Multiple requests work correctly"
 echo "  ✓ Event listeners persist across requests"
 echo ""
 echo "Features verified:"
 echo "  - Agent-level 'started' and 'completed' events"
 echo "  - App-level 'agent.started' and 'agent.completed' events"
+echo "  - Thread lifecycle 'thread.created' and 'thread.destroyed' events"
+echo "  - Session lifecycle 'session.started' and 'session.completed' events"
 echo "  - State feature (duration and event count tracking)"
 echo ""

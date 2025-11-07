@@ -250,11 +250,11 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 			clearOnSuccess: true,
 		});
 
-		// Create initial commit
+		// Create initial commit (disable GPG signing to avoid lock issues)
 		await tui.runCommand({
 			command: 'git commit -m "Initial Setup"',
 			cwd: dest,
-			cmd: ['git', 'commit', '-m', 'Initial Setup'],
+			cmd: ['git', '-c', 'commit.gpgsign=false', 'commit', '-m', 'Initial Setup'],
 			clearOnSuccess: true,
 		});
 	}

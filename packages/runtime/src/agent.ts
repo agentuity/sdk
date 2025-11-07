@@ -1,17 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
-	StandardSchemaV1,
 	KeyValueStorage,
 	ObjectStorage,
+	StandardSchemaV1,
 	StreamStorage,
 	VectorStorage,
 } from '@agentuity/core';
-import { trace, type Tracer } from '@opentelemetry/api';
-
+import type { Tracer } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
 import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
 import type { Logger } from './logger';
 import { getApp } from './app';
+import type { Thread, Session } from './session';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
@@ -42,6 +42,8 @@ export interface AgentContext {
 	stream: StreamStorage;
 	vector: VectorStorage;
 	state: Map<string, unknown>;
+	thread: Thread;
+	session: Session;
 }
 
 interface AgentMetadata {
@@ -434,7 +436,7 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 		let currentAgent: AgentRunner | undefined;
 		let parentAgent: AgentRunner | undefined;
 
-		if (agentName && agentName.includes('.')) {
+		if (agentName?.includes('.')) {
 			// This is a subagent
 			const parts = agentName.split('.');
 			const parentName = parts[0];
@@ -448,6 +450,10 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 			currentAgent = agentsObj[agentName];
 		}
 
+		const sessionId = ctx.var.sessionId;
+		const thread = ctx.var.thread;
+		const session = ctx.var.session;
+
 		const args: Partial<RequestAgentContextArgs<AgentRegistry, any>> = {
 			agent: agentsObj,
 			current: currentAgent,
@@ -455,15 +461,11 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 			agentName,
 			logger: ctx.var.logger.child({ agent: agentName }),
 			tracer: ctx.var.tracer,
+			sessionId,
+			session,
+			thread,
 			setHeader: (k: string, v: string) => ctx.res.headers.set(k, v),
 		};
-
-		const span = trace.getActiveSpan();
-		if (span?.spanContext) {
-			args.sessionId = span.spanContext().traceId;
-		} else {
-			args.sessionId = Bun.randomUUIDv7();
-		}
 
 		return runInAgentContext(
 			ctx as unknown as Record<string, unknown>,
@@ -471,26 +473,5 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 			next,
 			isWebSocket
 		);
-
-		// FIXME
-		// ctx.email = async (): Promise<Email> => {
-		//     return {
-		//         address: 'test@example.com',
-		//         name: 'Test User',
-		//         html: '<p>Hello, world!</p>',
-		//         text: 'Hello, world!',
-		//     };
-		// };
-		// ctx.sms = async (): Promise<SMS> => {
-		//     return {
-		//         message: 'Hello, world!',
-		//         number: '+1234567890',
-		//     };
-		// };
-		// ctx.cron = async (): Promise<Cron> => {
-		//     return {
-		//         schedule: '0 0 * * *',
-		//     };
-		// };
 	};
 };
