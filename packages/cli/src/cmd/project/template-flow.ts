@@ -92,7 +92,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 	}
 
-	if (!projectName && !skipPrompts && orgId) {
+	if (!projectName && !skipPrompts) {
 		const response = await enquirer.prompt<{ name: string }>({
 			type: 'input',
 			name: 'name',
@@ -102,7 +102,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				if (!value || value.trim().length === 0) {
 					return 'Project name is required';
 				}
-				if (apiClient && auth) {
+				if (apiClient && auth && orgId) {
 					const exists = await projectExists(apiClient, {
 						name: value,
 						organization_id: orgId,
