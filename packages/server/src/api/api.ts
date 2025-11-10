@@ -30,11 +30,14 @@ export interface APIClientConfig {
 }
 
 export class ValidationError extends Error {
+	public url: string;
 	constructor(
+		url: string,
 		message: string,
 		public issues: z.ZodIssue[]
 	) {
 		super(message);
+		this.url = url;
 		this.name = 'ValidationError';
 	}
 }
@@ -96,6 +99,7 @@ export class APIClient {
 			const validationResult = bodySchema.safeParse(body);
 			if (!validationResult.success) {
 				throw new ValidationError(
+					endpoint,
 					'Request body validation failed',
 					validationResult.error.issues
 				);
@@ -114,7 +118,7 @@ export class APIClient {
 				data = null;
 			} else {
 				const contentType = response.headers.get('content-type');
-				if (contentType && contentType.includes('application/json')) {
+				if (contentType?.includes('application/json')) {
 					data = JSON.parse(text);
 				} else {
 					data = text;
@@ -126,7 +130,11 @@ export class APIClient {
 			// Validate response
 			const validationResult = responseSchema.safeParse(data);
 			if (!validationResult.success) {
-				throw new ValidationError('Response validation failed', validationResult.error.issues);
+				throw new ValidationError(
+					endpoint,
+					'Response validation failed',
+					validationResult.error.issues
+				);
 			}
 
 			return validationResult.data;
@@ -235,7 +243,7 @@ export class APIClient {
 
 					// Handle Zod validation errors from the API
 					if (errorData?.error?.name === 'ZodError' && errorData.error.issues) {
-						throw new ValidationError('API validation failed', errorData.error.issues);
+						throw new ValidationError(url, 'API validation failed', errorData.error.issues);
 					}
 
 					// Throw with message from API if available
@@ -373,6 +381,18 @@ export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
 		z.object({
 			success: z.literal<true>(true),
 			data: dataSchema,
+		}),
+	]);
+
+export const APIResponseSchemaOptionalData = <T extends z.ZodType>(dataSchema: T) =>
+	z.discriminatedUnion('success', [
+		z.object({
+			success: z.literal<false>(false),
+			message: z.string().describe('the error message'),
+		}),
+		z.object({
+			success: z.literal<true>(true),
+			data: dataSchema.optional(),
 		}),
 	]);
 

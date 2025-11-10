@@ -70,7 +70,16 @@ export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthD
 
 	// Import and run login flow
 	const { loginCommand } = await import('./cmd/auth/login');
-	await loginCommand.handler(ctx);
+
+	// Ensure apiClient is available for login handler
+	const loginCtx = ctx as unknown as Record<string, unknown>;
+	if (!loginCtx.apiClient) {
+		const { APIClient, getAPIBaseURL } = await import('./api');
+		const apiUrl = getAPIBaseURL(ctx.config ?? null);
+		loginCtx.apiClient = new APIClient(apiUrl, ctx.logger, ctx.config ?? null);
+	}
+
+	await loginCommand.handler(loginCtx as CommandContext);
 
 	// After login completes, verify we have auth
 	const newAuth = await getAuth();
@@ -142,7 +151,16 @@ export async function optionalAuth(
 
 			// Import and run login flow
 			const { loginCommand } = await import('./cmd/auth/login');
-			await loginCommand.handler(ctx);
+
+			// Ensure apiClient is available for login handler
+			const loginCtx1 = ctx as unknown as Record<string, unknown>;
+			if (!loginCtx1.apiClient) {
+				const { APIClient, getAPIBaseURL } = await import('./api');
+				const apiUrl = getAPIBaseURL(ctx.config ?? null);
+				loginCtx1.apiClient = new APIClient(apiUrl, ctx.logger, ctx.config ?? null);
+			}
+
+			await loginCommand.handler(loginCtx1 as CommandContext);
 			return getAuth();
 		}
 
@@ -174,7 +192,16 @@ export async function optionalAuth(
 
 			// Import and run login flow
 			const { loginCommand } = await import('./cmd/auth/login');
-			await loginCommand.handler(ctx);
+
+			// Ensure apiClient is available for login handler
+			const loginCtx2 = ctx as unknown as Record<string, unknown>;
+			if (!loginCtx2.apiClient) {
+				const { APIClient, getAPIBaseURL } = await import('./api');
+				const apiUrl = getAPIBaseURL(ctx.config ?? null);
+				loginCtx2.apiClient = new APIClient(apiUrl, ctx.logger, ctx.config ?? null);
+			}
+
+			await loginCommand.handler(loginCtx2 as CommandContext);
 			return getAuth();
 		}
 	}

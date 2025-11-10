@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIError, APIResponseSchema } from '@agentuity/server';
+import { APIError, APIResponseSchema, APIResponseSchemaOptionalData } from '@agentuity/server';
 import type { APIClient } from '../../api';
 
 // Zod schemas for API validation
@@ -65,7 +65,7 @@ export async function pollForLoginCompletion(
 		const resp = await apiClient.request(
 			'POST',
 			'/cli/auth/check',
-			APIResponseSchema(OTPCompleteDataSchema),
+			APIResponseSchemaOptionalData(OTPCompleteDataSchema),
 			{ otp },
 			OTPCheckRequestSchema
 		);

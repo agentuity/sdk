@@ -15,6 +15,28 @@ import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './sch
 import { defaultProfileName, loadProjectConfig } from './config';
 import { APIClient, getAPIBaseURL } from './api';
 
+function createAPIClient(baseCtx: CommandContext, config: Config | null): APIClient {
+	try {
+		const apiUrl = getAPIBaseURL(config);
+		const apiClient = new APIClient(apiUrl, baseCtx.logger, config);
+
+		if (!apiClient) {
+			throw new Error('APIClient constructor returned null/undefined');
+		}
+
+		if (typeof apiClient.request !== 'function') {
+			throw new Error('APIClient instance is missing request method');
+		}
+
+		return apiClient;
+	} catch (error) {
+		baseCtx.logger.error('Failed to create API client:', error);
+		throw new Error(
+			`API client initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+		);
+	}
+}
+
 type Normalized = {
 	requiresAuth: boolean;
 	optionalAuth: false | string;
@@ -187,6 +209,14 @@ async function registerSubcommand(
 		}
 
 		if (normalized.requiresAuth) {
+			// Create apiClient before requireAuth since login command needs it
+			if (normalized.requiresAPIClient) {
+				(baseCtx as Record<string, unknown>).apiClient = createAPIClient(
+					baseCtx,
+					baseCtx.config ?? null
+				);
+			}
+
 			const auth = await requireAuth(baseCtx as CommandContext<undefined>);
 
 			if (subcommand.schema) {
@@ -217,12 +247,8 @@ async function registerSubcommand(
 						ctx.opts = subcommand.schema.options.parse(input.options);
 					}
 					if (normalized.requiresAPIClient) {
-						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-						ctx.apiClient = new APIClient(
-							apiUrl,
-							baseCtx.logger,
-							ctx.config as Config | null
-						);
+						// Recreate apiClient with auth credentials
+						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 					}
 					await subcommand.handler(ctx as CommandContext);
 				} catch (error) {
@@ -262,14 +288,23 @@ async function registerSubcommand(
 					ctx.projectDir = projectDir;
 				}
 				if (normalized.requiresAPIClient) {
-					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-					ctx.apiClient = new APIClient(apiUrl, baseCtx.logger, ctx.config as Config | null);
+					// Recreate apiClient with auth credentials
+					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 				}
 				await subcommand.handler(ctx as CommandContext);
 			}
 		} else if (normalized.optionalAuth) {
 			const continueText =
 				typeof normalized.optionalAuth === 'string' ? normalized.optionalAuth : undefined;
+
+			// Create apiClient before optionalAuth since login command needs it
+			if (normalized.requiresAPIClient) {
+				(baseCtx as Record<string, unknown>).apiClient = createAPIClient(
+					baseCtx,
+					baseCtx.config ?? null
+				);
+			}
+
 			const auth = await optionalAuth(baseCtx as CommandContext<undefined>, continueText);
 
 			if (subcommand.schema) {
@@ -302,12 +337,8 @@ async function registerSubcommand(
 						ctx.opts = subcommand.schema.options.parse(input.options);
 					}
 					if (normalized.requiresAPIClient) {
-						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-						ctx.apiClient = new APIClient(
-							apiUrl,
-							baseCtx.logger,
-							ctx.config as Config | null
-						);
+						// Recreate apiClient with auth credentials
+						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 					}
 					await subcommand.handler(ctx as CommandContext);
 				} catch (error) {
@@ -346,8 +377,8 @@ async function registerSubcommand(
 					ctx.projectDir = projectDir;
 				}
 				if (normalized.requiresAPIClient) {
-					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-					ctx.apiClient = new APIClient(apiUrl, baseCtx.logger, ctx.config as Config | null);
+					// Recreate apiClient with auth credentials if auth was provided
+					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 				}
 				await subcommand.handler(ctx as CommandContext);
 			}
@@ -370,13 +401,8 @@ async function registerSubcommand(
 					if (subcommand.schema.options) {
 						ctx.opts = subcommand.schema.options.parse(input.options);
 					}
-					if (normalized.requiresAPIClient) {
-						const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-						ctx.apiClient = new APIClient(
-							apiUrl,
-							baseCtx.logger,
-							ctx.config as Config | null
-						);
+					if (normalized.requiresAPIClient && !ctx.apiClient) {
+						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 					}
 					await subcommand.handler(ctx as CommandContext);
 				} catch (error) {
@@ -403,9 +429,8 @@ async function registerSubcommand(
 					}
 					ctx.projectDir = projectDir;
 				}
-				if (normalized.requiresAPIClient) {
-					const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-					ctx.apiClient = new APIClient(apiUrl, baseCtx.logger, ctx.config as Config | null);
+				if (normalized.requiresAPIClient && !ctx.apiClient) {
+					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 				}
 				await subcommand.handler(ctx as CommandContext);
 			}
@@ -432,6 +457,14 @@ export async function registerCommands(
 				cmd.action(async () => {
 					const normalized = normalizeReqs(cmdDef);
 					if (normalized.requiresAuth) {
+						// Create apiClient before requireAuth since login command needs it
+						if (normalized.requiresAPIClient) {
+							(baseCtx as Record<string, unknown>).apiClient = createAPIClient(
+								baseCtx,
+								baseCtx.config ?? null
+							);
+						}
+
 						const auth = await requireAuth(baseCtx as CommandContext<undefined>);
 						const ctx: Record<string, unknown> = {
 							...baseCtx,
@@ -449,12 +482,8 @@ export async function registerCommands(
 							auth,
 						};
 						if (normalized.requiresAPIClient) {
-							const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-							ctx.apiClient = new APIClient(
-								apiUrl,
-								baseCtx.logger,
-								ctx.config as Config | null
-							);
+							// Recreate apiClient with auth credentials
+							ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 						}
 						await cmdDef.handler!(ctx as CommandContext);
 					} else if (normalized.optionalAuth) {
@@ -462,6 +491,15 @@ export async function registerCommands(
 							typeof normalized.optionalAuth === 'string'
 								? normalized.optionalAuth
 								: undefined;
+
+						// Create apiClient before optionalAuth since login command needs it
+						if (normalized.requiresAPIClient) {
+							(baseCtx as Record<string, unknown>).apiClient = createAPIClient(
+								baseCtx,
+								baseCtx.config ?? null
+							);
+						}
+
 						const auth = await optionalAuth(
 							baseCtx as CommandContext<undefined>,
 							continueText
@@ -489,20 +527,15 @@ export async function registerCommands(
 							auth,
 						};
 						if (normalized.requiresAPIClient) {
-							const apiUrl = getAPIBaseURL(ctx.config as Config | null);
-							ctx.apiClient = new APIClient(
-								apiUrl,
-								baseCtx.logger,
-								ctx.config as Config | null
-							);
+							// Recreate apiClient with auth credentials if auth was provided
+							ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 						}
 						await cmdDef.handler!(ctx as CommandContext);
 					} else {
 						const ctx = baseCtx as CommandContext<undefined>;
-						if (normalized.requiresAPIClient) {
-							const apiUrl = getAPIBaseURL(ctx.config);
+						if (normalized.requiresAPIClient && !(ctx as CommandContext).apiClient) {
 							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							(ctx as any).apiClient = new APIClient(apiUrl, baseCtx.logger, ctx.config);
+							(ctx as any).apiClient = createAPIClient(baseCtx, ctx.config);
 						}
 						await cmdDef.handler!(ctx as CommandContext);
 					}
