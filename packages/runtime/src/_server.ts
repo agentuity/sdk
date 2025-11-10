@@ -25,6 +25,7 @@ import * as runtimeConfig from './_config';
 import { inAgentContext, getAgentContext } from './_context';
 import { createServices, getThreadProvider, getSessionProvider } from './_services';
 import { generateId } from './session';
+import WaitUntilHandler from './_waituntil';
 
 let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 
@@ -56,7 +57,7 @@ function isDevelopment(): boolean {
 }
 
 function getPort(): number {
-	return Number.parseInt(process.env.AGENTUITY_PORT ?? process.env.PORT ?? '3500') || 3500;
+	return Number.parseInt(process.env.AGENTUITY_PORT ?? process.env.PORT ?? '3500', 10) || 3500;
 }
 
 const spanProcessors: SpanProcessor[] = [];
@@ -318,7 +319,8 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 	// Execute the request handler within the extracted context
 	await context.with(extractedContext, async (): Promise<void> => {
 		// Create a span for this incoming request
-		await trace.getTracer('http-server').startActiveSpan(
+		const tracer = trace.getTracer('http-server');
+		await tracer.startActiveSpan(
 			`HTTP ${method}`,
 			{
 				kind: SpanKind.SERVER,
@@ -332,16 +334,47 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 			async (span): Promise<void> => {
 				const sctx = span.spanContext();
 				const sessionId = sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess');
-				c.set('sessionId', sessionId);
-
 				const thread = await threadProvider.restore(c as unknown as HonoContext<Env>);
 				const session = await sessionProvider.restore(thread, sessionId);
+				const handler = new WaitUntilHandler(tracer);
+
+				c.set('sessionId', sessionId);
 				c.set('thread', thread);
 				c.set('session', session);
+				c.set('waitUntilHandler', handler);
+
+				let hasPendingWaits = false;
 
 				try {
 					await next();
-					span.setStatus({ code: SpanStatusCode.OK });
+					if (handler?.hasPending()) {
+						hasPendingWaits = true;
+						handler
+							.waitUntilAll(c.var.logger, sessionId)
+							.then(async () => {
+								c.var.logger.debug('wait until finished for session %s', sessionId);
+								await sessionProvider.save(session);
+								await threadProvider.save(thread);
+								span.setStatus({ code: SpanStatusCode.OK });
+							})
+							.catch((ex) => {
+								c.var.logger.error('wait until errored for session %s. %s', sessionId, ex);
+								if (ex instanceof Error) {
+									span.recordException(ex);
+								}
+								const message = (ex as Error).message ?? String(ex);
+								span.setStatus({
+									code: SpanStatusCode.ERROR,
+									message,
+								});
+								c.var.logger.error(message);
+							})
+							.finally(() => {
+								span.end();
+							});
+					} else {
+						span.setStatus({ code: SpanStatusCode.OK });
+					}
 				} catch (ex) {
 					if (ex instanceof Error) {
 						span.recordException(ex);
@@ -351,12 +384,17 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 						code: SpanStatusCode.ERROR,
 						message,
 					});
-					c.var.logger.error('ERROR: %s', message);
+					c.var.logger.error(message);
 					throw ex;
 				} finally {
-					await sessionProvider.save(session);
-					await threadProvider.save(thread);
-					span.end();
+					if (!hasPendingWaits) {
+						try {
+							await sessionProvider.save(session);
+							await threadProvider.save(thread);
+						} finally {
+							span.end();
+						}
+					}
 				}
 			}
 		);

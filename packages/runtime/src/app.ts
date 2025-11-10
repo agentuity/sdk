@@ -9,6 +9,7 @@ import type { KeyValueStorage, ObjectStorage, StreamStorage, VectorStorage } fro
 import type { Email } from './io/email';
 import type { Agent, AgentContext } from './agent';
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
+import type WaitUntilHandler from './_waituntil';
 
 type CorsOptions = Parameters<typeof cors>[0];
 
@@ -60,6 +61,7 @@ export interface Variables {
 	sessionId: string;
 	thread: Thread;
 	session: Session;
+	waitUntilHandler: WaitUntilHandler;
 }
 
 export interface Env extends HonoEnv {

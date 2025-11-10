@@ -17,7 +17,7 @@ export interface RequestAgentContextArgs<TAgentMap, TAgent> {
 	tracer: Tracer;
 	session: Session;
 	thread: Thread;
-	setHeader: (k: string, v: string) => void;
+	handler: WaitUntilHandler;
 }
 
 export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
@@ -35,7 +35,7 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;
-	private waituntilHandler: WaitUntilHandler;
+	private handler: WaitUntilHandler;
 
 	constructor(args: RequestAgentContextArgs<TAgentMap, TAgent>) {
 		this.agent = args.agent;
@@ -48,16 +48,12 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 		this.thread = args.thread;
 		this.session = args.session;
 		this.state = new Map<string, unknown>();
-		this.waituntilHandler = new WaitUntilHandler(args.setHeader, args.tracer);
+		this.handler = args.handler;
 		registerServices(this);
 	}
 
 	waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void {
-		this.waituntilHandler.waitUntil(callback);
-	}
-
-	waitUntilAll(): Promise<void> {
-		return this.waituntilHandler.waitUntilAll(this.logger, this.sessionId);
+		this.handler.waitUntil(callback);
 	}
 }
 
@@ -81,8 +77,7 @@ export const getAsyncLocalStorage = () => asyncLocalStorage;
 export const runInAgentContext = <TAgentMap, TAgent>(
 	ctxObject: Record<string, unknown>,
 	args: RequestAgentContextArgs<TAgentMap, TAgent>,
-	next: () => Promise<void>,
-	isWebSocket: boolean = false
+	next: () => Promise<void>
 ) => {
 	const ctx = new RequestAgentContext(args);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,10 +90,6 @@ export const runInAgentContext = <TAgentMap, TAgent>(
 	}
 	return asyncLocalStorage.run(ctx, async () => {
 		const result = await next();
-		// Don't call waitUntilAll for websocket upgrades - they stay open
-		if (!isWebSocket) {
-			setImmediate(() => ctx.waitUntilAll()); // TODO: move until session
-		}
 		return result;
 	});
 };

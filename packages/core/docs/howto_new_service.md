@@ -1294,7 +1294,6 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 	kv!: KeyValueStorage;
 	stream!: StreamStorage;
 	vector!: VectorStorage; // Add your service with ! (definite assignment)
-	private waituntilHandler: WaitUntilHandler;
 
 	// ... constructor calls registerServices(this) which sets these via Object.defineProperty
 }
