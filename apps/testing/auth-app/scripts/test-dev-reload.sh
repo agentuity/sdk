@@ -8,7 +8,8 @@ set -e
 # 3. Verifies the server reloads and the change is visible
 # 4. Reverts the change
 # 5. Verifies the server reloads again and shows original behavior
-# 6. Cleans up any uncommitted changes
+# 6. Tests eval file reloading
+# 7. Cleans up any uncommitted changes
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_DIR="$(dirname "$SCRIPT_DIR")"
@@ -17,10 +18,13 @@ APP_DIR="$(dirname "$SCRIPT_DIR")"
 source "$SCRIPT_DIR/test-lib.sh"
 
 AGENT_FILE="$APP_DIR/src/agents/simple/agent.ts"
+EVAL_AGENT_FILE="$APP_DIR/src/agents/eval/agent.ts"
+EVAL_FILE="$APP_DIR/src/agents/eval/eval.ts"
 # Place log outside app root to avoid triggering file watcher
 SERVER_LOG=$(mktemp "${TMPDIR:-/tmp}/test-dev-reload-XXXXXX")
 BACKUP_DIR=$(mktemp -d)
 BACKUP_FILE="$BACKUP_DIR/agent.ts.bak"
+EVAL_BACKUP_FILE="$BACKUP_DIR/eval.ts.bak"
 SERVER_PID=""
 PORT=3500
 TEST_FAILED=false
@@ -87,6 +91,12 @@ cleanup() {
     else
         warn "Restoring original agent file"
         git -C "$APP_DIR" checkout -- "$AGENT_FILE"
+    fi
+    
+    # Restore original eval file
+    if [ -f "$EVAL_FILE" ] && ! git -C "$APP_DIR" diff --quiet "$EVAL_FILE"; then
+        warn "Restoring original eval file"
+        git -C "$APP_DIR" checkout -- "$EVAL_FILE"
     fi
     
     # Clean up backup directory
@@ -413,6 +423,146 @@ else
     fail_test "Restored agent response test failed"
 fi
 
+# Test 6: Test eval file reloading
+log ""
+log "========================================="
+log "Test 6: Testing eval file reloading"
+log "========================================="
+
+# Verify eval file exists
+if [ ! -f "$EVAL_FILE" ]; then
+    warn "Eval file not found: $EVAL_FILE"
+    warn "Skipping eval file reload test"
+else
+    log "Eval file found: $EVAL_FILE"
+    
+    # Backup eval file
+    cp "$EVAL_FILE" "$EVAL_BACKUP_FILE"
+    
+    # Get baseline restart count BEFORE modification
+    RESTART_COUNT_BEFORE=$(grep -c "restart() completed" "$SERVER_LOG" 2>/dev/null || echo 0)
+    CHANGE_COUNT_BEFORE=$(grep -c "Restarting on file change" "$SERVER_LOG" || echo 0)
+    log "Current restart count: $RESTART_COUNT_BEFORE, change count: $CHANGE_COUNT_BEFORE"
+    
+    # Modify the eval file (change a comment or description)
+    log "Modifying eval file..."
+    # Add a comment at the top of the file
+    {
+        echo "// Test comment added for hot reload test"
+        cat "$EVAL_FILE"
+    } > "$EVAL_FILE.tmp" && mv "$EVAL_FILE.tmp" "$EVAL_FILE"
+    
+    # Verify the file was actually modified
+    if grep -q "Test comment added for hot reload test" "$EVAL_FILE"; then
+        log "✓ Eval file modification confirmed"
+    else
+        error "✗ Eval file was not modified as expected"
+        fail_test "Failed to modify eval file"
+    fi
+    
+    log "Eval file modified, waiting for file change detection..."
+    sleep 1
+    
+    # Wait for "Restarting on file change" in logs
+    TIMEOUT=15
+    ELAPSED=0
+    while [ $ELAPSED -lt $TIMEOUT ]; do
+        CHANGE_COUNT_AFTER=$(grep -c "Restarting on file change" "$SERVER_LOG" || echo 0)
+        if [ "$CHANGE_COUNT_AFTER" -gt "$CHANGE_COUNT_BEFORE" ]; then
+            log "Server detected eval file change!"
+            break
+        fi
+        sleep 1
+        ELAPSED=$((ELAPSED + 1))
+    done
+    
+    if [ $ELAPSED -eq $TIMEOUT ]; then
+        fail_test "Server did not detect eval file change within $TIMEOUT seconds"
+    fi
+    
+    # Wait for restart to complete
+    log "Waiting for server to finish restarting after eval file change..."
+    TIMEOUT=20
+    ELAPSED=0
+    while [ $ELAPSED -lt $TIMEOUT ]; do
+        RESTART_COUNT_AFTER=$(grep -c "restart() completed" "$SERVER_LOG" 2>/dev/null || echo 0)
+        if [ "$RESTART_COUNT_AFTER" -gt "$RESTART_COUNT_BEFORE" ]; then
+            # Check if the last restart has hadPendingRestart=false
+            if tail -50 "$SERVER_LOG" | grep "restart() completed" | tail -1 | grep -q "hadPendingRestart=false"; then
+                sleep 2
+                log "Server restart completed after eval file change!"
+                break
+            else
+                log "Restart completed but pendingRestart=true, waiting for queue to clear..."
+            fi
+        fi
+        sleep 1
+        ELAPSED=$((ELAPSED + 1))
+    done
+    
+    if [ $ELAPSED -eq $TIMEOUT ]; then
+        warn "Timeout waiting for server restart after eval file change"
+        error ""
+        error "Debug: Server log tail:"
+        tail -30 "$SERVER_LOG"
+        fail_test "Server did not finish restarting after eval file change"
+    fi
+    
+    # Verify server is still running and responding
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+        fail_test "Server process died after eval file change (PID: $SERVER_PID)"
+    fi
+    
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "$SERVER_URL/" 2>/dev/null || echo "000")
+    if [ "$HTTP_CODE" = "000" ]; then
+        fail_test "Server not responding to HTTP requests after eval file change"
+    fi
+    
+    log "✓ Server reloaded successfully after eval file change"
+    
+    # Restore eval file
+    log "Restoring original eval file..."
+    cp "$EVAL_BACKUP_FILE" "$EVAL_FILE"
+    
+    log "Eval file restored, waiting for file change detection..."
+    sleep 2
+    
+    # Wait for file change to be detected
+    RESTART_COUNT_BEFORE=$(grep -c "restart() completed" "$SERVER_LOG" 2>/dev/null || echo 0)
+    CHANGE_COUNT_BEFORE=$(grep -c "Restarting on file change" "$SERVER_LOG" || echo 0)
+    TIMEOUT=15
+    ELAPSED=0
+    while [ $ELAPSED -lt $TIMEOUT ]; do
+        CHANGE_COUNT_AFTER=$(grep -c "Restarting on file change" "$SERVER_LOG" || echo 0)
+        if [ "$CHANGE_COUNT_AFTER" -gt "$CHANGE_COUNT_BEFORE" ]; then
+            log "Server detected eval file restore!"
+            break
+        fi
+        sleep 1
+        ELAPSED=$((ELAPSED + 1))
+    done
+    
+    if [ $ELAPSED -lt $TIMEOUT ]; then
+        # Wait for restart to complete
+        TIMEOUT=20
+        ELAPSED=0
+        while [ $ELAPSED -lt $TIMEOUT ]; do
+            RESTART_COUNT_AFTER=$(grep -c "restart() completed" "$SERVER_LOG" 2>/dev/null || echo 0)
+            if [ "$RESTART_COUNT_AFTER" -gt "$RESTART_COUNT_BEFORE" ]; then
+                if tail -50 "$SERVER_LOG" | grep "restart() completed" | tail -1 | grep -q "hadPendingRestart=false"; then
+                    sleep 2
+                    log "Server restart completed after eval file restore!"
+                    break
+                fi
+            fi
+            sleep 1
+            ELAPSED=$((ELAPSED + 1))
+        done
+    fi
+    
+    log "✓ Eval file reload test completed"
+fi
+
 log ""
 log "========================================="
 log "✓ All tests passed!"
@@ -421,13 +571,17 @@ log ""
 log "Summary:"
 log "  - Dev server started successfully"
 log "  - Original agent response verified"
-log "  - File modification detected and reloaded"
+log "  - Agent file modification detected and reloaded"
 log "  - Modified agent response verified"
-log "  - File restoration detected and reloaded"
+log "  - Agent file restoration detected and reloaded"
 log "  - Restored agent response verified"
+if [ -f "$EVAL_FILE" ]; then
+    log "  - Eval file modification detected and reloaded"
+    log "  - Eval file restoration detected and reloaded"
+fi
 log ""
 log "Note: Hot reload works! The dev server successfully:"
-log "  - Detects source file changes"
+log "  - Detects source file changes (agent and eval files)"
 log "  - Rebuilds the project automatically"
 log "  - Restarts the server with new code"
 log "  - Ignores generated files to prevent restart loops"

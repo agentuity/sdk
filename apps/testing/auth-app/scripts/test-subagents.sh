@@ -31,12 +31,47 @@ start_server_if_needed
 
 echo "Step 1: Test Parent Agent - GET /agent/team"
 RESPONSE=$(curl -s "$BASE_URL/agent/team")
+CURL_EXIT=$?
+
+if [ "$CURL_EXIT" -ne 0 ]; then
+	echo -e "${RED}✗ FAIL:${NC} curl command failed with exit code $CURL_EXIT"
+	if [ "$SERVER_STARTED" = true ] && [ -n "$LOG_FILE" ] && [ -f "$LOG_FILE" ]; then
+		echo "Server logs (last 50 lines):"
+		tail -50 "$LOG_FILE"
+	fi
+	exit 1
+fi
+
+if [ -z "$RESPONSE" ]; then
+	echo -e "${RED}✗ FAIL:${NC} Empty response from server"
+	if [ "$SERVER_STARTED" = true ] && [ -n "$LOG_FILE" ] && [ -f "$LOG_FILE" ]; then
+		echo "Server logs (last 50 lines):"
+		tail -50 "$LOG_FILE"
+	fi
+	exit 1
+fi
+
+if ! echo "$RESPONSE" | jq . > /dev/null 2>&1; then
+	echo -e "${RED}✗ FAIL:${NC} Response is not valid JSON"
+	echo "Raw response: $RESPONSE"
+	if [ "$SERVER_STARTED" = true ] && [ -n "$LOG_FILE" ] && [ -f "$LOG_FILE" ]; then
+		echo "Server logs (last 50 lines):"
+		tail -50 "$LOG_FILE"
+	fi
+	exit 1
+fi
+
 echo "$RESPONSE" | jq .
 MESSAGE=$(echo "$RESPONSE" | jq -r .message)
 if [[ "$MESSAGE" == *"Team parent agent"* ]]; then
 	echo -e "${GREEN}✓ PASS:${NC} Parent agent returns correct message"
 else
 	echo -e "${RED}✗ FAIL:${NC} Parent agent message incorrect"
+	echo "Expected message to contain 'Team parent agent', got: '$MESSAGE'"
+	if [ "$SERVER_STARTED" = true ] && [ -n "$LOG_FILE" ] && [ -f "$LOG_FILE" ]; then
+		echo "Server logs (last 50 lines):"
+		tail -50 "$LOG_FILE"
+	fi
 	exit 1
 fi
 echo ""

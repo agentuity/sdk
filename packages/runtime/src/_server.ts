@@ -257,11 +257,15 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 	let routeMapping: Record<string, string>;
 	const routePathMapper = createMiddleware<Env>(async (c, next) => {
 		if (!routeMapping) {
-			const file = Bun.file(join(import.meta.dir, '../.routemapping.json'));
+			// Look for .routemapping.json in the project's .agentuity directory
+			// This is where the build plugin writes it (build.config.outdir)
+			const projectRoot = process.cwd();
+			const routeMappingPath = join(projectRoot, '.agentuity', '.routemapping.json');
+			const file = Bun.file(routeMappingPath);
 			if (!(await file.exists())) {
 				c.var.logger.fatal(
 					'error loading the .routemapping.json from the %s directory. this is a build issue!',
-					import.meta.dir
+					routeMappingPath
 				);
 			}
 			routeMapping = (await file.json()) as Record<string, string>;

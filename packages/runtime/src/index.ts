@@ -1,6 +1,7 @@
 export * from './agent';
 export * from './app';
 export * from './router';
+export * from './eval';
 export * from './session';
 export type { Logger } from './logger';
 export { getRouter } from './_server';

@@ -24,13 +24,29 @@ export const Deployment = z.object({
 	domains: z.array(z.string().describe('the custom domain')).optional(),
 });
 
-const BaseAgentFields = {
-	id: z.string().describe('the unique calculated id for the agent'),
+
+const BaseFileFields = {
 	filename: z.string().describe('the relative path for the file'),
-	name: z.string().describe('the name of the agent'),
 	version: z.string().describe('the SHA256 content of the file'),
-	identifier: z.string().describe('the folder for the agent'),
+	identifier: z.string().describe('the folder for the file'),
+};
+
+
+
+const EvalSchema = z.object({
+	...BaseFileFields,
+	id: z.string().describe('the unique calculated id for the eval'),
+	name: z.string().describe('the name of the eval'),
+	description: z.string().optional().describe('the eval description'),
+});
+
+
+const BaseAgentFields = {
+	...BaseFileFields,
+	id: z.string().describe('the unique calculated id for the agent'),
+	name: z.string().describe('the name of the agent'),
 	description: z.string().optional().describe('the agent description'),
+	evals: z.array(EvalSchema).optional().describe('the evals for the agent'),
 };
 
 const AgentSchema = z.object({

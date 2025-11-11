@@ -136,7 +136,7 @@ export class Email {
 		if (!this._message.attachments || this._message.attachments.length === 0) {
 			return [];
 		}
-		return this._message.attachments.map((att) => ({
+		return this._message.attachments.map((att: { filename?: string; contentType?: string }) => ({
 			filename: att.filename ?? 'unknown',
 			contentType: att.contentType ?? 'application/octet-stream',
 		}));

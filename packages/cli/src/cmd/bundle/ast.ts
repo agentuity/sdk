@@ -1,7 +1,8 @@
 import * as acornLoose from 'acorn-loose';
-import type { BuildMetadata } from '@agentuity/server';
 import { basename, dirname, relative } from 'node:path';
 import { generate } from 'astring';
+import type { BuildMetadata } from '../../types';
+import { createLogger } from '@agentuity/server';
 
 interface ASTNode {
 	type: string;
@@ -44,6 +45,11 @@ interface ASTMemberExpression extends ASTNode {
 
 interface ASTExpressionStatement extends ASTNode {
 	expression: ASTCallExpression;
+}
+
+interface ASTVariableDeclarator extends ASTNode {
+	id: ASTNode;
+	init?: ASTNode;
 }
 
 function parseObjectExpressionToMap(expr: ASTObjectExpression): Map<string, string> {
@@ -118,6 +124,16 @@ function getAgentId(
 	return `agent_${hashSHA1(projectId, deploymentId, filename, version)}`;
 }
 
+function getEvalId(
+	projectId: string,
+	deploymentId: string,
+	filename: string,
+	name: string,
+	version: string
+): string {
+	return `eval_${hashSHA1(projectId, deploymentId, filename, name, version)}`;
+}
+
 function generateRouteId(
 	projectId: string,
 	deploymentId: string,
@@ -138,7 +154,8 @@ function augmentAgentMetadataNode(
 	rel: string,
 	version: string,
 	ast: AcornParseResultType,
-	propvalue: ASTObjectExpression
+	propvalue: ASTObjectExpression,
+	_filename: string
 ): [string, Map<string, string>] {
 	const metadata = parseObjectExpressionToMap(propvalue);
 	if (!metadata.has('name')) {
@@ -155,7 +172,10 @@ function augmentAgentMetadataNode(
 		createObjectPropertyNode('identifier', name),
 		createObjectPropertyNode('filename', rel)
 	);
+
 	const newsource = generate(ast);
+
+	// Evals imports are now handled in registry.generated.ts
 	return [newsource, metadata];
 }
 
@@ -165,7 +185,8 @@ function createAgentMetadataNode(
 	rel: string,
 	version: string,
 	ast: AcornParseResultType,
-	callargexp: ASTObjectExpression
+	callargexp: ASTObjectExpression,
+	_filename: string
 ): [string, Map<string, string>] {
 	const newmetadata = createNewMetadataNode();
 	const md = new Map<string, string>();
@@ -178,23 +199,185 @@ function createAgentMetadataNode(
 		newmetadata.value.properties.push(createObjectPropertyNode(key, value));
 	}
 	callargexp.properties.push(newmetadata);
+
 	const newsource = generate(ast);
+
+	// Evals imports are now handled in registry.generated.ts
 	return [newsource, md];
 }
 
-export function parseAgentMetadata(
+function camelToKebab(str: string): string {
+	return str
+		.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+		.replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
+		.toLowerCase();
+}
+
+export function parseEvalMetadata(
 	rootDir: string,
 	filename: string,
 	contents: string,
 	projectId: string,
 	deploymentId: string
-): [string, Map<string, string>] {
+): Array<{
+	filename: string;
+	id: string;
+	version: string;
+	identifier: string;
+	name: string;
+	description?: string;
+}> {
+	const logLevel = (process.env.AGENTUITY_LOG_LEVEL || 'info') as
+		| 'trace'
+		| 'debug'
+		| 'info'
+		| 'warn'
+		| 'error';
+	const logger = createLogger(logLevel);
+	logger.trace(`Parsing evals from ${filename}`);
+	const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
+	const rel = relative(rootDir, filename);
+	const dir = dirname(filename);
+	const identifier = basename(dir);
+	const version = hash(contents);
+	const evals: Array<{
+		filename: string;
+		id: string;
+		version: string;
+		identifier: string;
+		name: string;
+		description?: string;
+	}> = [];
+
+	// Find all agent.createEval() calls
+	for (const body of ast.body) {
+		let variableDeclaration: { declarations: Array<ASTVariableDeclarator> } | undefined;
+
+		// Handle both direct VariableDeclaration and ExportNamedDeclaration
+		if (body.type === 'VariableDeclaration') {
+			variableDeclaration = body as { declarations: Array<ASTVariableDeclarator> };
+		} else if (body.type === 'ExportNamedDeclaration') {
+			const exportDecl = body as {
+				declaration?: { type: string; declarations?: Array<ASTVariableDeclarator> };
+			};
+			if (exportDecl.declaration?.type === 'VariableDeclaration') {
+				variableDeclaration = exportDecl.declaration as {
+					declarations: Array<ASTVariableDeclarator>;
+				};
+			}
+		}
+
+		if (variableDeclaration) {
+			for (const vardecl of variableDeclaration.declarations) {
+				if (vardecl.type === 'VariableDeclarator' && vardecl.init?.type === 'CallExpression') {
+					const call = vardecl.init as ASTCallExpression;
+					if (call.callee.type === 'MemberExpression') {
+						const memberExpr = call.callee as ASTMemberExpression;
+						const object = memberExpr.object as ASTNodeIdentifier;
+						const property = memberExpr.property as ASTNodeIdentifier;
+						if (
+							object.type === 'Identifier' &&
+							object.name === 'agent' &&
+							property.type === 'Identifier' &&
+							property.name === 'createEval'
+						) {
+							// Found agent.createEval() call
+							if (call.arguments.length > 0) {
+								const firstArg = call.arguments[0] as ASTNode;
+								if (firstArg.type === 'ObjectExpression') {
+									const evalConfig = firstArg as ASTObjectExpression;
+									let evalName: string | undefined;
+									let evalDescription: string | undefined;
+									let variableName: string | undefined;
+
+									// Capture variable name if available
+									if (vardecl.id.type === 'Identifier') {
+										variableName = (vardecl.id as ASTNodeIdentifier).name;
+									}
+
+									// Extract metadata from the eval config
+									for (const prop of evalConfig.properties) {
+										if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
+											if (prop.value.type === 'ObjectExpression') {
+												const metadataObj = prop.value as ASTObjectExpression;
+												for (const metaProp of metadataObj.properties) {
+													if (metaProp.key.type === 'Identifier') {
+														if (
+															metaProp.key.name === 'name' &&
+															metaProp.value.type === 'Literal'
+														) {
+															evalName = (metaProp.value as ASTLiteral).value;
+														} else if (
+															metaProp.key.name === 'description' &&
+															metaProp.value.type === 'Literal'
+														) {
+															evalDescription = (metaProp.value as ASTLiteral).value;
+														}
+													}
+												}
+											}
+										}
+									}
+
+									// Use metadata.name if provided, otherwise use variable name
+									// Throw error if neither is available (should never happen)
+									let finalName: string;
+									if (evalName) {
+										finalName = evalName;
+									} else if (variableName) {
+										finalName = camelToKebab(variableName);
+									} else {
+										throw new Error(
+											'Eval is missing a name. Please provide metadata.name or use a named export.'
+										);
+									}
+
+									logger.trace(
+										`Found eval: ${finalName}${evalDescription ? ` - ${evalDescription}` : ''}`
+									);
+									const evalId = getEvalId(
+										projectId,
+										deploymentId,
+										rel,
+										finalName,
+										version
+									);
+									evals.push({
+										filename: rel,
+										id: evalId,
+										version,
+										identifier,
+										name: finalName,
+										description: evalDescription,
+									});
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	logger.trace(`Parsed ${evals.length} eval(s) from ${filename}`);
+	return evals;
+}
+
+export async function parseAgentMetadata(
+	rootDir: string,
+	filename: string,
+	contents: string,
+	projectId: string,
+	deploymentId: string
+): Promise<[string, Map<string, string>]> {
 	const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
 	let exportName: string | undefined;
 	const rel = relative(rootDir, filename);
 	const name = basename(dirname(filename));
 	const version = hash(contents);
 	const id = getAgentId(projectId, deploymentId, rel, version);
+
+	let result: [string, Map<string, string>] | undefined;
 
 	for (const body of ast.body) {
 		if (body.type === 'ExportDefaultDeclaration') {
@@ -205,52 +388,85 @@ export function parseAgentMetadata(
 						const callargexp = callarg as ASTObjectExpression;
 						for (const prop of callargexp.properties) {
 							if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
-								return augmentAgentMetadataNode(
+								result = augmentAgentMetadataNode(
 									id,
 									name,
 									rel,
 									version,
 									ast,
-									prop.value as ASTObjectExpression
+									prop.value as ASTObjectExpression,
+									filename
 								);
+								break;
 							}
 						}
-						return createAgentMetadataNode(id, name, rel, version, ast, callargexp);
+						if (!result) {
+							result = createAgentMetadataNode(
+								id,
+								name,
+								rel,
+								version,
+								ast,
+								callargexp,
+								filename
+							);
+						}
+						break;
 					}
 				}
 			}
-			const identifier = body.declaration as ASTNodeIdentifier;
-			exportName = identifier.name;
-			break;
+			if (!result) {
+				const identifier = body.declaration as ASTNodeIdentifier;
+				exportName = identifier.name;
+				break;
+			}
 		}
 	}
-	if (!exportName) {
+	if (!result && !exportName) {
 		throw new Error(`could not find default export for ${filename} using ${rootDir}`);
 	}
-	for (const body of ast.body) {
-		if (body.type === 'VariableDeclaration') {
-			for (const vardecl of body.declarations) {
-				if (vardecl.type === 'VariableDeclarator' && vardecl.id.type === 'Identifier') {
-					const identifier = vardecl.id as ASTNodeIdentifier;
-					if (identifier.name === exportName) {
-						if (vardecl.init?.type === 'CallExpression') {
-							const call = vardecl.init as ASTCallExpression;
-							if (call.callee.name === 'createAgent') {
-								for (const callarg of call.arguments) {
-									const callargexp = callarg as ASTObjectExpression;
-									for (const prop of callargexp.properties) {
-										if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
-											return augmentAgentMetadataNode(
+	if (!result) {
+		for (const body of ast.body) {
+			if (body.type === 'VariableDeclaration') {
+				for (const vardecl of body.declarations) {
+					if (vardecl.type === 'VariableDeclarator' && vardecl.id.type === 'Identifier') {
+						const identifier = vardecl.id as ASTNodeIdentifier;
+						if (identifier.name === exportName) {
+							if (vardecl.init?.type === 'CallExpression') {
+								const call = vardecl.init as ASTCallExpression;
+								if (call.callee.name === 'createAgent') {
+									for (const callarg of call.arguments) {
+										const callargexp = callarg as ASTObjectExpression;
+										for (const prop of callargexp.properties) {
+											if (
+												prop.key.type === 'Identifier' &&
+												prop.key.name === 'metadata'
+											) {
+												result = augmentAgentMetadataNode(
+													id,
+													name,
+													rel,
+													version,
+													ast,
+													prop.value as ASTObjectExpression,
+													filename
+												);
+												break;
+											}
+										}
+										if (!result) {
+											result = createAgentMetadataNode(
 												id,
 												name,
 												rel,
 												version,
 												ast,
-												prop.value as ASTObjectExpression
+												callargexp,
+												filename
 											);
 										}
+										break;
 									}
-									return createAgentMetadataNode(id, name, rel, version, ast, callargexp);
 								}
 							}
 						}
@@ -259,9 +475,41 @@ export function parseAgentMetadata(
 			}
 		}
 	}
-	throw new Error(
-		`error parsing: ${filename}. could not find an proper createAgent defined in this file`
-	);
+	if (!result) {
+		throw new Error(
+			`error parsing: ${filename}. could not find an proper createAgent defined in this file`
+		);
+	}
+
+	// Parse evals from eval.ts file in the same directory
+	const logLevel = (process.env.AGENTUITY_LOG_LEVEL || 'info') as
+		| 'trace'
+		| 'debug'
+		| 'info'
+		| 'warn'
+		| 'error';
+	const logger = createLogger(logLevel);
+	const agentDir = dirname(filename);
+	const evalsPath = `${agentDir}/eval.ts`;
+	logger.trace(`Checking for evals file at ${evalsPath}`);
+	const evalsFile = Bun.file(evalsPath);
+	if (await evalsFile.exists()) {
+		logger.trace(`Found evals file at ${evalsPath}, parsing...`);
+		const evalsSource = await evalsFile.text();
+		const transpiler = new Bun.Transpiler({ loader: 'ts' });
+		const evalsContents = transpiler.transformSync(evalsSource);
+		const evals = parseEvalMetadata(rootDir, evalsPath, evalsContents, projectId, deploymentId);
+		if (evals.length > 0) {
+			logger.trace(`Adding ${evals.length} eval(s) to agent metadata for ${name}`);
+			result[1].set('evals', JSON.stringify(evals));
+		} else {
+			logger.trace(`No evals found in ${evalsPath}`);
+		}
+	} else {
+		logger.trace(`No evals file found at ${evalsPath}`);
+	}
+
+	return result;
 }
 
 type RouteDefinition = BuildMetadata['routes'];

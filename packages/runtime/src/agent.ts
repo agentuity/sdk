@@ -10,6 +10,8 @@ import type { Tracer } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
 import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
 import type { Logger } from './logger';
+import type { Eval, EvalContext, EvalRunResult, EvalMetadata, EvalFunction } from './eval';
+import { internal } from './logger/internal';
 import { getApp } from './app';
 import type { Thread, Session } from './session';
 import { privateContext } from './_server';
@@ -74,6 +76,18 @@ interface AgentMetadata {
 	version: string;
 }
 
+// Type for createEval method
+type CreateEvalMethod<
+	TInput extends StandardSchemaV1 | undefined = any,
+	TOutput extends StandardSchemaV1 | undefined = any,
+> = (config: {
+	metadata?: EvalMetadata;
+	handler: EvalFunction<
+		TInput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TInput> : undefined,
+		TOutput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TOutput> : undefined
+	>;
+}) => Eval<TInput, TOutput>;
+
 /**
  * The Agent handler interface.
  */
@@ -84,6 +98,8 @@ export type Agent<
 > = {
 	metadata: AgentMetadata;
 	handler: (ctx: AgentContext, ...args: any[]) => any | Promise<any>;
+	evals?: Eval[];
+	createEval: CreateEvalMethod<TInput, TOutput>;
 	addEventListener(
 		eventName: 'started',
 		callback: (
@@ -279,82 +295,235 @@ export function createAgent<
 	const inputSchema = config.schema?.input;
 	const outputSchema = config.schema?.output;
 
-	const agent: any = {
-		metadata: config.metadata,
-		addEventListener: (eventName: AgentEventName, callback: AgentEventCallback<any>) => {
-			let listeners = agentEventListeners.get(agent);
-			if (!listeners) {
-				listeners = new Map();
-				agentEventListeners.set(agent, listeners);
-			}
-			let callbacks = listeners.get(eventName);
-			if (!callbacks) {
-				callbacks = new Set();
-				listeners.set(eventName, callbacks);
-			}
-			callbacks.add(callback);
-		},
-		removeEventListener: (eventName: AgentEventName, callback: AgentEventCallback<any>) => {
-			const listeners = agentEventListeners.get(agent);
-			if (!listeners) return;
-			const callbacks = listeners.get(eventName);
-			if (!callbacks) return;
-			callbacks.delete(callback);
-		},
-		handler: async (_ctx: Context, input?: any) => {
-			let validatedInput: any = undefined;
+	// Initialize evals array before handler so it can be captured in closure
+	// Evals should only be added via agent.createEval() after agent creation
+	const evalsArray: Eval[] = [];
 
-			if (inputSchema) {
-				const inputResult = await inputSchema['~standard'].validate(input);
-				if (inputResult.issues) {
+	const handler = async (_ctx: Context, input?: any) => {
+		let validatedInput: any = undefined;
+
+		if (inputSchema) {
+			const inputResult = await inputSchema['~standard'].validate(input);
+			if (inputResult.issues) {
+				throw new Error(
+					`Input validation failed: ${inputResult.issues.map((i: any) => i.message).join(', ')}`
+				);
+			}
+			validatedInput = inputResult.value;
+		}
+
+		const agentCtx = getAgentContext();
+
+		// Get the agent instance from the agents Map to fire events
+		// The agent will be registered in the agents Map before the handler is called
+		const agentName = agentCtx.agentName;
+		const registeredAgent = agentName ? agents.get(agentName) : undefined;
+		
+		// Fire 'started' event (only if agent is registered)
+		if (registeredAgent) {
+			await fireAgentEvent(registeredAgent, 'started', agentCtx);
+		}
+
+		try {
+			const result = inputSchema
+				? await (config.handler as any)(agentCtx, validatedInput)
+				: await (config.handler as any)(agentCtx);
+
+			let validatedOutput: any = result;
+			if (outputSchema) {
+				const outputResult = await outputSchema['~standard'].validate(result);
+				if (outputResult.issues) {
 					throw new Error(
-						`Input validation failed: ${inputResult.issues.map((i: any) => i.message).join(', ')}`
+						`Output validation failed: ${outputResult.issues.map((i: any) => i.message).join(', ')}`
 					);
 				}
-				validatedInput = inputResult.value;
+				validatedOutput = outputResult.value;
 			}
 
-			const agentCtx = getAgentContext();
+			// Store validated input/output in context state for event listeners
+			agentCtx.state.set('_evalInput', validatedInput);
+			agentCtx.state.set('_evalOutput', validatedOutput);
 
-			try {
-				// Fire 'started' event
-				await fireAgentEvent(agent, 'started', agentCtx);
-
-				// Execute the handler
-				const result = inputSchema
-					? await (config.handler as any)(agentCtx, validatedInput)
-					: await (config.handler as any)(agentCtx);
-
-				if (outputSchema) {
-					const outputResult = await outputSchema['~standard'].validate(result);
-					if (outputResult.issues) {
-						throw new Error(
-							`Output validation failed: ${outputResult.issues.map((i: any) => i.message).join(', ')}`
-						);
-					}
-					// Fire 'completed' event before returning
-					await fireAgentEvent(agent, 'completed', agentCtx);
-					return outputResult.value;
-				}
-
-				// Fire 'completed' event before returning
-				await fireAgentEvent(agent, 'completed', agentCtx);
-				return result;
-			} catch (error) {
-				// Fire 'errored' event with the error, catching any listener errors
-				try {
-					await fireAgentEvent(agent, 'errored', agentCtx, error as Error);
-				} catch (listenerError) {
-					// Listener failed - preserve both errors
-					throw new AggregateError(
-						[error, listenerError],
-						`Handler error and listener error occurred`
-					);
-				}
-				// Re-throw the original handler error
-				throw error;
+			// Fire 'completed' event - evals will run via event listener
+			if (registeredAgent) {
+				await fireAgentEvent(registeredAgent, 'completed', agentCtx);
 			}
-		},
+
+			return validatedOutput;
+		} catch (error) {
+			// Fire 'errored' event
+			if (registeredAgent) {
+				await fireAgentEvent(registeredAgent, 'errored', agentCtx, error as Error);
+			}
+			throw error;
+		}
+	};
+
+	// Infer input/output types from agent schema
+	type AgentInput = TInput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TInput> : undefined;
+	type AgentOutput = TOutput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TOutput> : undefined;
+
+	// Create createEval method that infers types from agent and automatically adds to agent
+	const createEval = (evalConfig: {
+		metadata?: EvalMetadata;
+		handler: EvalFunction<AgentInput, AgentOutput>;
+	}): Eval<TInput, TOutput> => {
+		const evalName = evalConfig.metadata?.name || 'unnamed';
+		// Debug log to verify evals file is imported
+		if (typeof process !== 'undefined' && process.env?.AGENTUITY_SDK_DEV_MODE === 'true') {
+			console.log(`[DEBUG] createEval called for agent "${config?.metadata?.name || 'unknown'}": registering eval "${evalName}"`);
+		}
+
+		const evalType: any = {
+			metadata: evalConfig.metadata,
+			handler: evalConfig.handler,
+		};
+
+		if (inputSchema) {
+			evalType.inputSchema = inputSchema;
+		}
+
+		if (outputSchema) {
+			evalType.outputSchema = outputSchema;
+		}
+
+		// Automatically add eval to agent's evals array
+		evalsArray.push(evalType);
+		if (typeof process !== 'undefined' && process.env?.AGENTUITY_SDK_DEV_MODE === 'true') {
+			console.log(`[DEBUG] Added eval "${evalName}" to agent "${config?.metadata?.name || 'unknown'}". Total evals: ${evalsArray.length}`);
+		}
+
+		return evalType as Eval<TInput, TOutput>;
+	};
+
+	const agent: any = {
+		handler,
+		metadata: config.metadata,
+		evals: evalsArray,
+		createEval,
+	};
+
+	// Add event listener methods
+	agent.addEventListener = (
+		eventName: AgentEventName,
+		callback: any
+	): void => {
+		const agentForListeners = agent as any as Agent<any, any, any>;
+		const callbackForListeners = callback as any as AgentEventCallback<any>;
+		let listeners = agentEventListeners.get(agentForListeners);
+		if (!listeners) {
+			listeners = new Map();
+			agentEventListeners.set(agentForListeners, listeners);
+		}
+		let callbacks = listeners.get(eventName);
+		if (!callbacks) {
+			callbacks = new Set();
+			listeners.set(eventName, callbacks);
+		}
+		callbacks.add(callbackForListeners);
+	};
+
+	// Automatically add event listener for 'completed' event to run evals
+	(agent as Agent).addEventListener('completed', async (_event, _agent, ctx) => {
+		// Get the agent instance from the agents Map to access its current evals array
+		// This ensures we get evals that were added via agent.createEval() after agent creation
+		const agentName = ctx.agentName;
+		const registeredAgent = agentName ? agents.get(agentName) : undefined;
+		const agentEvals = registeredAgent?.evals || evalsArray;
+		
+		internal.debug(`Checking evals: agentName=${agentName}, evalsArray.length=${evalsArray?.length || 0}, agent.evals.length=${registeredAgent?.evals?.length || 0}`);
+		
+		if (agentEvals && agentEvals.length > 0) {
+			internal.info(`Executing ${agentEvals.length} eval(s) after agent run`);
+
+			// Get validated input/output from context state
+			const validatedInput = ctx.state.get('_evalInput');
+			const validatedOutput = ctx.state.get('_evalOutput');
+
+			// Execute each eval using waitUntil to avoid blocking the response
+			for (const evalItem of agentEvals) {
+				const evalName = evalItem.metadata?.name || 'unnamed';
+
+				ctx.waitUntil(
+					(async () => {
+						try {
+							internal.debug(`Executing eval: ${evalName}`);
+
+							// Validate eval input if schema exists
+							let evalValidatedInput: any = validatedInput;
+							if (evalItem.inputSchema) {
+								const evalInputResult = await evalItem.inputSchema['~standard'].validate(validatedInput);
+								if (evalInputResult.issues) {
+									throw new Error(
+										`Eval input validation failed: ${evalInputResult.issues.map((i: any) => i.message).join(', ')}`
+									);
+								}
+								evalValidatedInput = evalInputResult.value;
+							}
+
+							// Validate eval output if schema exists
+							let evalValidatedOutput: any = validatedOutput;
+							if (evalItem.outputSchema) {
+								const evalOutputResult = await evalItem.outputSchema['~standard'].validate(validatedOutput);
+								if (evalOutputResult.issues) {
+									throw new Error(
+										`Eval output validation failed: ${evalOutputResult.issues.map((i: any) => i.message).join(', ')}`
+									);
+								}
+								evalValidatedOutput = evalOutputResult.value;
+							}
+
+							// Create EvalContext (just an alias for AgentContext)
+							const evalContext: EvalContext = ctx;
+
+							// Execute the eval handler conditionally based on agent schema
+							let result: EvalRunResult;
+							if (inputSchema && outputSchema) {
+								// Both input and output defined
+								result = await (evalItem.handler as any)(evalContext, evalValidatedInput, evalValidatedOutput);
+							} else if (inputSchema) {
+								// Only input defined
+								result = await (evalItem.handler as any)(evalContext, evalValidatedInput);
+							} else if (outputSchema) {
+								// Only output defined
+								result = await (evalItem.handler as any)(evalContext, evalValidatedOutput);
+							} else {
+								// Neither defined
+								result = await (evalItem.handler as any)(evalContext);
+							}
+
+							// Process the returned result
+							if (result.success) {
+								if ('passed' in result) {
+									internal.info(`Eval '${evalName}' pass: ${result.passed}`, result.metadata);
+								} else if ('score' in result) {
+									internal.info(`Eval '${evalName}' score: ${result.score}`, result.metadata);
+								}
+							} else {
+								internal.error(`Eval '${evalName}' failed: ${result.error}`);
+							}
+
+							internal.debug(`Eval '${evalName}' completed successfully`);
+						} catch (error) {
+							internal.error(`Error executing eval '${evalName}'`, { error });
+						}
+					})()
+				);
+			}
+		}
+	});
+
+	agent.removeEventListener = (
+		eventName: AgentEventName,
+		callback: any
+	): void => {
+		const agentForListeners = agent as any as Agent<any, any, any>;
+		const callbackForListeners = callback as any as AgentEventCallback<any>;
+		const listeners = agentEventListeners.get(agentForListeners);
+		if (!listeners) return;
+		const callbacks = listeners.get(eventName);
+		if (!callbacks) return;
+		callbacks.delete(callbackForListeners);
 	};
 
 	if (inputSchema) {
@@ -402,6 +571,13 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 		// Populate agents object with strongly-typed keys
 		const agentsObj: any = {};
 
+		// Convert kebab-case to camelCase
+		const toCamelCase = (str: string): string => {
+			return str
+				.replace(/[-_\s]+(.)?/g, (_, char) => (char ? char.toUpperCase() : ''))
+				.replace(/^(.)/, (char) => char.toLowerCase());
+		};
+
 		// Build nested structure for agents and subagents
 		for (const [name, agentFn] of agents) {
 			const runner = createAgentRunner(agentFn, ctx);
@@ -419,9 +595,10 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 							agentsObj[parentName] = createAgentRunner(parentAgent, ctx);
 						}
 					}
-					// Attach subagent to parent
+					// Attach subagent to parent using camelCase property name
 					if (agentsObj[parentName]) {
-						agentsObj[parentName][childName] = runner;
+						const camelChildName = toCamelCase(childName);
+						agentsObj[parentName][camelChildName] = runner;
 					}
 				}
 			} else {

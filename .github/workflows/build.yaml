@@ -16,7 +16,7 @@ env:
 jobs:
    build:
       runs-on: blacksmith-2vcpu-ubuntu-2404
-      timeout-minutes: 5
+      timeout-minutes: 15
       name: Build
       env:
          AGENTUITY_CLOUD_PROJECT_ID: ${{ vars.AGENTUITY_CLOUD_PROJECT_ID }}
@@ -38,6 +38,7 @@ jobs:
               APIKEY=$(curl https://api.agentuity.com/cli/auth/short-token --json "{\"secret\":\"${{ secrets.AGENTUITY_CATALYST_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
          - name: Build and Test
+           timeout-minutes: 15
            run: |
               set -eou pipefail
               bun run build

@@ -175,6 +175,7 @@ export const command = createCommand({
 		let building = false;
 		let metadata: Partial<BuildMetadata> | undefined;
 		let showInitialReadyMessage = true;
+		let serverStartTime = 0;
 		let gravityClient: Bun.Subprocess | undefined;
 
 		if (gravityBin && devmode && project) {
@@ -350,6 +351,7 @@ export const command = createCommand({
 				} else {
 					logger.trace('Initial server start');
 				}
+				logger.trace('Starting typecheck and build...');
 				await Promise.all([
 					tui.runCommand({
 						command: 'tsc',
@@ -362,33 +364,43 @@ export const command = createCommand({
 					}),
 					tui.spinner('Building project', async () => {
 						try {
+							logger.trace('Bundle starting...');
 							building = true;
 							await bundle({
 								rootDir,
 								dev: true,
 							});
 							building = false;
-						} catch {
+							logger.trace('Bundle completed successfully');
+						} catch (error) {
 							building = false;
+							logger.trace('Bundle failed: %s', error);
 							failure('Build failed');
 						}
 					}),
 				]);
+				logger.trace('Typecheck and build completed');
 
 				if (failed) {
+					logger.trace('Restart failed, returning early');
 					return;
 				}
 
+				logger.trace('Checking if app file exists: %s', appPath);
 				if (!existsSync(appPath)) {
+					logger.trace('App file not found: %s', appPath);
 					failure(`App file not found: ${appPath}`);
 					return;
 				}
+				logger.trace('App file exists, getting build metadata...');
 
 				metadata = getBuildMetadata();
+				logger.trace('Build metadata retrieved');
 
 				logger.trace('Starting dev server: %s', appPath);
 				// Use shell to run in a process group for proper cleanup
 				// The 'exec' ensures the shell is replaced by the actual process
+				logger.trace('Spawning dev server process...');
 				devServer = Bun.spawn(['sh', '-c', `exec bun run "${appPath}"`], {
 					cwd: rootDir,
 					stdout: 'inherit',
@@ -397,36 +409,55 @@ export const command = createCommand({
 					env,
 				});
 
+				logger.trace('Dev server process spawned, setting up state...');
 				running = true;
 				failed = false;
 				pid = devServer.pid;
 				exitPromise = devServer.exited;
+				serverStartTime = Date.now();
 				logger.trace('Dev server started (pid: %d)', pid);
 
 				if (showInitialReadyMessage) {
 					showInitialReadyMessage = false;
 					logger.info('DevMode ready 🚀');
+					logger.trace('Initial ready message logged');
 				}
 
+				logger.trace('Attaching exit handler to dev server process...');
 				// Attach non-blocking exit handler
 				exitPromise
 					.then((exitCode) => {
+						const runtime = Date.now() - serverStartTime;
 						logger.trace(
-							'Dev server exited with code %d (shuttingDownForRestart=%s)',
+							'Dev server exited with code %d (shuttingDownForRestart=%s, runtime=%dms)',
 							exitCode,
-							shuttingDownForRestart
+							shuttingDownForRestart,
+							runtime
 						);
 						running = false;
 						devServer = undefined;
 						exitPromise = undefined;
-						// Only exit the CLI if this is a clean exit AND not a restart
-						if (exitCode === 0 && !shuttingDownForRestart) {
+						// If server exited immediately after starting (< 2 seconds), treat as failure and restart
+						if (runtime < 2000 && !shuttingDownForRestart) {
+							logger.trace('Server exited too quickly, treating as failure and restarting');
+							failure('Server exited immediately after starting');
+							// Trigger a restart after a short delay
+							setTimeout(() => {
+								if (!running && !restarting) {
+									logger.trace('Triggering restart after quick exit');
+									restart();
+								}
+							}, 100);
+							return;
+						}
+						// Only exit the CLI if this is a clean exit AND not a restart AND server ran for a while
+						if (exitCode === 0 && !shuttingDownForRestart && runtime >= 2000) {
 							logger.trace('Clean exit, stopping CLI');
 							cleanup(exitCode);
 						}
 						// Non-zero exit codes are treated as restartable failures
 						// But if it's exit code 1 (common error exit), also exit the CLI
-						if (exitCode === 1 && !shuttingDownForRestart) {
+						if (exitCode === 1 && !shuttingDownForRestart && runtime >= 2000) {
 							logger.trace('Server exited with error code 1, stopping CLI');
 							cleanup(exitCode);
 						}
@@ -449,14 +480,18 @@ export const command = createCommand({
 						}
 					});
 			} catch (error) {
+				logger.trace('Restart caught error: %s', error);
 				if (error instanceof Error) {
+					logger.trace('Error message: %s, stack: %s', error.message, error.stack);
 					failure(`Dev server failed: ${error.message}`);
 				} else {
+					logger.trace('Non-Error exception: %s', String(error));
 					failure('Dev server failed');
 				}
 				running = false;
 				devServer = undefined;
 			} finally {
+				logger.trace('Entering restart() finally block...');
 				const hadPendingRestart = pendingRestart;
 				restarting = false;
 				pendingRestart = false;
@@ -566,7 +601,16 @@ export const command = createCommand({
 			/registry\.generated\.ts$/,
 			/types\.generated\.d\.ts$/,
 			/client\.generated\.js$/,
+			/\.tmp$/,
+			// Ignore temporary files created by sed (e.g., sedUprJj0)
+			/\/sed[A-Za-z0-9]+$/,
 		];
+
+		// Helper to check if a file is a temporary file created by sed
+		const isSedTempFile = (filePath: string): boolean => {
+			const basename = filePath.split('/').pop() || '';
+			return /^sed[A-Za-z0-9]+$/.test(basename);
+		};
 
 		logger.trace('Setting up file watchers for: %s', watches.join(', '));
 		for (const watchDir of watches) {
@@ -619,8 +663,58 @@ export const command = createCommand({
 						return;
 					}
 
+					// Check for .tmp file renames that replace watched files (BEFORE ignoring)
+					// This handles cases like sed -i.tmp where agent.ts.tmp is renamed to agent.ts
+					if (eventType === 'rename' && changedFile && changedFile.endsWith('.tmp')) {
+						const targetFile = changedFile.slice(0, -4); // Remove .tmp suffix
+						const targetAbsPath = join(watchDir, targetFile);
+
+						// Only trigger restart for source files (ts, tsx, js, jsx, etc.)
+						const isSourceFile = /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(targetFile);
+
+						// Check if target file exists and is not in ignored directories
+						const targetExists = existsSync(targetAbsPath);
+						const inNodeModules = targetAbsPath.includes('node_modules');
+						const inAgentuityDir = targetAbsPath.startsWith(agentuityDir);
+						let isDirectory = false;
+						if (targetExists) {
+							try {
+								isDirectory = statSync(targetAbsPath).isDirectory();
+							} catch (err) {
+								logger.trace('Failed to stat target file: %s', err);
+							}
+						}
+
+						if (
+							isSourceFile &&
+							targetExists &&
+							!inNodeModules &&
+							!inAgentuityDir &&
+							!isDirectory
+						) {
+							logger.trace(
+								'File change detected (temp file rename): %s -> %s',
+								absPath,
+								targetAbsPath
+							);
+							restart();
+							return;
+						}
+					}
+
 					// Ignore generated files to prevent restart loops
 					if (changedFile) {
+						// Check for sed temporary files
+						if (isSedTempFile(changedFile)) {
+							logger.trace(
+								'File change ignored (sed temp file): %s (event: %s, file: %s)',
+								watchDir,
+								eventType,
+								changedFile
+							);
+							return;
+						}
+						// Check other ignore patterns
 						for (const pattern of ignorePatterns) {
 							if (pattern.test(changedFile)) {
 								logger.trace(

@@ -1,6 +1,6 @@
 import { $ } from 'bun';
 import { join, relative, resolve, dirname } from 'node:path';
-import { cpSync, existsSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
 import AgentuityBundler, { getBuildMetadata } from './plugin';
 import { getFilesRecursively } from './file';
@@ -56,6 +56,10 @@ export async function bundle({
 	if (existsSync(outDir)) {
 		rmSync(outDir, { recursive: true, force: true });
 	}
+	// Ensure output directory and subdirectories exist before building
+	mkdirSync(outDir, { recursive: true });
+	mkdirSync(join(outDir, 'chunk'), { recursive: true });
+	mkdirSync(join(outDir, 'asset'), { recursive: true });
 
 	const pkgFile = Bun.file(join(rootDir, 'package.json'));
 	const pkgContents = JSON.parse(await pkgFile.text());
@@ -88,9 +92,12 @@ export async function bundle({
 			target: 'bun',
 			format: 'esm',
 			banner: `// Generated file. DO NOT EDIT`,
-			minify: true, // see https://github.com/oven-sh/bun/issues/5344 when splitting and minify=false
+			// Disable minify and splitting for server bundle to avoid Bun bundler bugs
+			// See: https://github.com/oven-sh/bun/issues/5344
+			// Splitting causes duplicate exports and invalid exports
+			minify: false,
 			drop: isProd ? ['debugger'] : undefined,
-			splitting: true,
+			splitting: false,
 			conditions: [isProd ? 'production' : 'development', 'bun'],
 			naming: {
 				entry: '[dir]/[name].[ext]',
