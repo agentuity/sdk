@@ -12,6 +12,7 @@ import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from
 import type { Logger } from './logger';
 import { getApp } from './app';
 import type { Thread, Session } from './session';
+import { privateContext } from './_server';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
@@ -445,6 +446,11 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 		} else if (agentName) {
 			// This is a parent or standalone agent
 			currentAgent = agentsObj[agentName];
+		}
+
+		const _ctx = privateContext(ctx);
+		if (currentAgent?.metadata?.id) {
+			_ctx.var.agentIds.add(currentAgent.metadata.id);
 		}
 
 		const sessionId = ctx.var.sessionId;

@@ -85,6 +85,9 @@ export class APIClient {
 			this.#apiKey = undefined;
 			this.#config = apiKeyOrConfig;
 		}
+		if (!this.#apiKey && process.env.AGENTUITY_SDK_KEY) {
+			this.#apiKey = process.env.AGENTUITY_SDK_KEY;
+		}
 	}
 
 	async request<TResponse = void, TBody = unknown>(

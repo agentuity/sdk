@@ -20,13 +20,16 @@ export const buildUrl = (
 	return url;
 };
 
-export async function toServiceException(response: Response): Promise<ServiceException> {
+export async function toServiceException(
+	url: string,
+	response: Response
+): Promise<ServiceException> {
 	switch (response.status) {
 		case 401:
 		case 403:
-			return new ServiceException('Unauthorized', response.status);
+			return new ServiceException('Unauthorized', url, response.status);
 		case 404:
-			return new ServiceException('Not Found', response.status);
+			return new ServiceException('Not Found', url, response.status);
 		default:
 	}
 	const ct = response.headers.get('content-type');
@@ -34,24 +37,24 @@ export async function toServiceException(response: Response): Promise<ServiceExc
 		try {
 			const payload = (await response.json()) as { message?: string; error?: string };
 			if (payload.error) {
-				return new ServiceException(payload.error, response.status);
+				return new ServiceException(payload.error, url, response.status);
 			}
 			if (payload.message) {
-				return new ServiceException(payload.message, response.status);
+				return new ServiceException(payload.message, url, response.status);
 			}
-			return new ServiceException(JSON.stringify(payload), response.status);
+			return new ServiceException(JSON.stringify(payload), url, response.status);
 		} catch {
 			/** don't worry */
 		}
 	}
 	try {
 		const body = await response.text();
-		return new ServiceException(body, response.status);
+		return new ServiceException(body, url, response.status);
 	} catch {
 		/* fall through */
 	}
 
-	return new ServiceException(response.statusText, response.status);
+	return new ServiceException(response.statusText, url, response.status);
 }
 
 const binaryContentType = 'application/octet-stream';
@@ -102,7 +105,7 @@ export async function toPayload(data: unknown): Promise<[Body, string]> {
 	return ['', textContentType];
 }
 
-export async function fromResponse<T>(response: Response): Promise<T> {
+export async function fromResponse<T>(url: string, response: Response): Promise<T> {
 	const contentType = response.headers.get('content-type');
 	if (!contentType || contentType?.includes('/json')) {
 		return (await response.json()) as T;
@@ -113,5 +116,5 @@ export async function fromResponse<T>(response: Response): Promise<T> {
 	if (contentType?.includes(binaryContentType)) {
 		return (await response.arrayBuffer()) as T;
 	}
-	throw new ServiceException(`Unsupported content-type: ${contentType}`, response.status);
+	throw new ServiceException(`Unsupported content-type: ${contentType}`, url, response.status);
 }

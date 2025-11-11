@@ -36,10 +36,6 @@ export const ConfigSchema = zod.object({
 				.url()
 				.optional()
 				.describe('Override transport URL (default: https://agentuity.ai)'),
-			websocket_url: zod
-				.url()
-				.optional()
-				.describe('Override WebSocket URL (default: wss://api.agentuity.com)'),
 			skip_version_check: zod.boolean().optional().describe('Skip CLI version check on startup'),
 		})
 		.optional()

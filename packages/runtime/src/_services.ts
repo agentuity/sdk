@@ -12,11 +12,17 @@ import {
 	type VectorUpsertResult,
 	type VectorSearchResult,
 	type Logger,
+	type SessionEventProvider,
 } from '@agentuity/core';
 import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
+import {
+	CompositeSessionEventProvider,
+	LocalSessionEventProvider,
+	JSONSessionEventProvider,
+} from './services/session';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getLogger, getTracer } from './_server';
-import { getSDKVersion, isAuthenticated } from './_config';
+import { getSDKVersion, isAuthenticated, isProduction } from './_config';
 import type { AppConfig } from './app';
 import {
 	DefaultSessionProvider,
@@ -42,6 +48,7 @@ const kvBaseUrl = serviceUrls.keyvalue;
 const streamBaseUrl = serviceUrls.stream;
 const vectorBaseUrl = serviceUrls.vector;
 const objectBaseUrl = serviceUrls.objectstore;
+// const catalystBaseUrl = serviceUrls.catalyst;
 
 const adapter = createServerFetchAdapter({
 	headers: {
@@ -161,6 +168,8 @@ let stream: StreamStorage;
 let vector: VectorStorage;
 let session: SessionProvider;
 let thread: ThreadProvider;
+let sessionEvent: SessionEventProvider;
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let localRouter: any | null = null;
 
@@ -188,6 +197,12 @@ export function createServices(logger: Logger, config?: AppConfig, serverUrl?: s
 		vector = config?.services?.vector || new LocalVectorStorage(db, projectPath);
 		session = config?.services?.session || new DefaultSessionProvider();
 		thread = config?.services?.thread || new DefaultThreadProvider();
+		sessionEvent = config?.services?.sessionEvent
+			? new CompositeSessionEventProvider(
+					new LocalSessionEventProvider(),
+					config.services.sessionEvent
+				)
+			: new LocalSessionEventProvider();
 
 		localRouter = createLocalStorageRouter(db, projectPath);
 
@@ -204,6 +219,16 @@ export function createServices(logger: Logger, config?: AppConfig, serverUrl?: s
 	vector = config?.services?.vector || new VectorStorageService(vectorBaseUrl, adapter);
 	session = config?.services?.session || new DefaultSessionProvider();
 	thread = config?.services?.thread || new DefaultThreadProvider();
+	sessionEvent =
+		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
+			? new JSONSessionEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)
+			: // FIXME: this is turned off for now for production until we have the new changes deployed
+
+				// ? new HTTPSessionEventProvider(new APIClient(catalystBaseUrl, logger))
+				new LocalSessionEventProvider();
+	if (config?.services?.sessionEvent) {
+		sessionEvent = new CompositeSessionEventProvider(sessionEvent, config.services.sessionEvent);
+	}
 
 	return {};
 }
@@ -219,6 +244,10 @@ export function getSessionProvider(): SessionProvider {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getLocalRouter(): any | null {
 	return localRouter;
+}
+
+export function getSessionEventProvider() {
+	return sessionEvent;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

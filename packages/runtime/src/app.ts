@@ -5,7 +5,14 @@ import type { cors } from 'hono/cors';
 import type { Logger } from './logger';
 import { createServer, getLogger } from './_server';
 import type { Meter, Tracer } from '@opentelemetry/api';
-import type { KeyValueStorage, ObjectStorage, StreamStorage, VectorStorage } from '@agentuity/core';
+import type {
+	KeyValueStorage,
+	ObjectStorage,
+	SessionEventProvider,
+	StreamStorage,
+	VectorStorage,
+	SessionStartEvent,
+} from '@agentuity/core';
 import type { Email } from './io/email';
 import type { Agent, AgentContext } from './agent';
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
@@ -50,6 +57,10 @@ export interface AppConfig {
 		 * the SessionProvider to override instead of the default
 		 */
 		session?: SessionProvider;
+		/**
+		 * the SessionEventProvider to override instead of the default
+		 */
+		sessionEvent?: SessionEventProvider;
 	};
 }
 
@@ -61,7 +72,15 @@ export interface Variables {
 	sessionId: string;
 	thread: Thread;
 	session: Session;
+}
+
+export type TriggerType = SessionStartEvent['trigger'];
+
+export interface PrivateVariables {
 	waitUntilHandler: WaitUntilHandler;
+	routeId?: string;
+	agentIds: Set<string>;
+	trigger: TriggerType;
 }
 
 export interface Env extends HonoEnv {

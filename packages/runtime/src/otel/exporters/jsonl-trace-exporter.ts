@@ -2,6 +2,7 @@ import { type ExportResult, ExportResultCode } from '@opentelemetry/core';
 import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
 import { existsSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 /**
  * JSONL implementation of the SpanExporter interface
@@ -18,7 +19,7 @@ export class JSONLTraceExporter implements SpanExporter {
 	 */
 	constructor(basePath: string) {
 		this.basePath = basePath;
-		this.filePrefix = 'traces';
+		this.filePrefix = 'otel-trace';
 		this.ensureDirectory();
 	}
 
@@ -34,9 +35,10 @@ export class JSONLTraceExporter implements SpanExporter {
 			return this.currentFile;
 		}
 
-		// Create new file with timestamp
-		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-		this.currentFile = join(this.basePath, `${this.filePrefix}-${timestamp}.jsonl`);
+		this.currentFile = join(
+			this.basePath,
+			`${this.filePrefix}-${Date.now()}.${randomUUID()}.jsonl`
+		);
 		return this.currentFile;
 	}
 

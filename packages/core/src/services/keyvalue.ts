@@ -118,7 +118,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.response.status === 404) {
 			return { exists: false } as DataResultNotFound;
 		}
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async set<T = unknown>(
@@ -157,7 +157,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return;
 		}
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async delete(name: string, key: string): Promise<void> {
@@ -180,6 +180,6 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return;
 		}
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 }

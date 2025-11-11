@@ -189,7 +189,7 @@ async function registerSubcommand(
 			const dir = (options.dir as string | undefined) ?? process.cwd();
 			projectDir = dir;
 			try {
-				project = await loadProjectConfig(dir);
+				project = await loadProjectConfig(dir, baseCtx.config);
 			} catch (error) {
 				if (normalized.requiresProject) {
 					if (

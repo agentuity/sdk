@@ -66,7 +66,7 @@ class ServerFetchAdapter implements FetchAdapter {
 					response: res,
 				};
 			}
-			const data = await fromResponse<T>(res);
+			const data = await fromResponse<T>(url, res);
 			return {
 				ok: true,
 				data,
@@ -79,7 +79,7 @@ class ServerFetchAdapter implements FetchAdapter {
 				response: res,
 			} as FetchErrorResponse;
 		}
-		const err = await toServiceException(res);
+		const err = await toServiceException(url, res);
 		throw err;
 	}
 	async invoke<T>(

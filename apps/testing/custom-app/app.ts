@@ -5,6 +5,7 @@ import {
 	CustomObjectStorage,
 	CustomStreamStorage,
 	CustomVectorStorage,
+	CustomSessionEventProvider,
 } from './src/services';
 
 const app = createApp({
@@ -13,6 +14,7 @@ const app = createApp({
 		object: new CustomObjectStorage(),
 		stream: new CustomStreamStorage(),
 		vector: new CustomVectorStorage(),
+		sessionEvent: new CustomSessionEventProvider(),
 	},
 });
 

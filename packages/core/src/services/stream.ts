@@ -537,7 +537,7 @@ export class StreamStorageService implements StreamStorage {
 
 			return stream;
 		}
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async list(params?: ListStreamsParams): Promise<ListStreamsResponse> {
@@ -587,7 +587,7 @@ export class StreamStorageService implements StreamStorage {
 		if (res.ok) {
 			return res.data;
 		}
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async delete(id: string): Promise<void> {
@@ -609,6 +609,6 @@ export class StreamStorageService implements StreamStorage {
 		if (res.ok) {
 			return;
 		}
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 }

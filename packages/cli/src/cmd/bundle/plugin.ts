@@ -241,7 +241,6 @@ export function getBuildMetadata(): Partial<BuildMetadata> {
 const AgentuityBundler: BunPlugin = {
 	name: 'Agentuity Bundler',
 	setup(build) {
-		const isDev = build.config.minify !== true;
 		const rootDir = resolve(build.config.root ?? '.');
 		const srcDir = join(rootDir, 'src');
 		const projectId = build.config.define?.['process.env.AGENTUITY_CLOUD_PROJECT_ID']
@@ -346,6 +345,7 @@ const AgentuityBundler: BunPlugin = {
 				await args.defer();
 
 				const inserts: string[] = [];
+				const routeMapping: Record<string, string> = {};
 
 				for (const route of routes) {
 					const name = basename(dirname(route));
@@ -367,15 +367,13 @@ const AgentuityBundler: BunPlugin = {
 						.replace('/agents', '/agent')
 						.replace('./', '/');
 
-					if (!isDev) {
-						const definitions = await parseRoute(
-							rootDir,
-							join(srcDir, `${route}.ts`),
-							projectId,
-							deploymentId
-						);
-						routeDefinitions = [...routeDefinitions, ...definitions];
-					}
+					const definitions = await parseRoute(
+						rootDir,
+						join(srcDir, `${route}.ts`),
+						projectId,
+						deploymentId
+					);
+					routeDefinitions = [...routeDefinitions, ...definitions];
 
 					let agentDetail: Record<string, string> = {};
 
@@ -413,6 +411,10 @@ const AgentuityBundler: BunPlugin = {
     router.route("${routePath}", route);
 })();`;
 					inserts.push(buffer);
+
+					for (const def of definitions) {
+						routeMapping[`${def.method} ${def.path}`] = def.id;
+					}
 				}
 
 				const indexFile = join(srcDir, 'web', 'index.html');
@@ -534,6 +536,9 @@ const AgentuityBundler: BunPlugin = {
 
 					metadata.agents!.push(agentData);
 				}
+
+				const routeMappingJSFile = Bun.file(join(build.config.outdir!, '.routemapping.json'));
+				await routeMappingJSFile.write(JSON.stringify(routeMapping));
 
 				return {
 					contents,

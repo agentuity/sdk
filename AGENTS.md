@@ -20,6 +20,7 @@
 - **@agentuity/cli**: Bun-native CLI framework with commander.js, auto-discovery, and YAML config
 - **Cross-package imports**: Use workspace protocol `@agentuity/<package>` in package.json dependencies
 - **Test Apps**: The `apps/testing` folder contains multiple test applications
+- **Profile-based config**: Project configs support profile overrides via `agentuity.[PROFILE].json` (e.g., `agentuity.production.json`). If the profile-specific file exists and matches the active profile name, it takes precedence over `agentuity.json`
 
 ## Code Style
 

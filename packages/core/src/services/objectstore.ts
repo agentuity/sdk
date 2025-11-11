@@ -247,7 +247,7 @@ export class ObjectStorageService implements ObjectStorage {
 			} as ObjectResultFound;
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(err);
+				throw await toServiceException(url, err);
 			}
 			throw err;
 		}
@@ -342,7 +342,7 @@ export class ObjectStorageService implements ObjectStorage {
 			}
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(err);
+				throw await toServiceException(url, err);
 			}
 			throw err;
 		}
@@ -390,7 +390,7 @@ export class ObjectStorageService implements ObjectStorage {
 			);
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(err);
+				throw await toServiceException(url, err);
 			}
 			throw err;
 		}
@@ -458,7 +458,7 @@ export class ObjectStorageService implements ObjectStorage {
 				throw err;
 			}
 			if (err instanceof Response) {
-				throw await toServiceException(err);
+				throw await toServiceException(url, err);
 			}
 			throw err;
 		}

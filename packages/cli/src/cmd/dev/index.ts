@@ -14,7 +14,6 @@ export const command = createCommand({
 	description: 'Build and run the development server',
 	schema: {
 		options: z.object({
-			dir: z.string().optional().describe('Root directory of the project'),
 			local: z.boolean().optional().describe('Turn on local services (instead of cloud)'),
 			port: z
 				.number()
@@ -24,12 +23,12 @@ export const command = createCommand({
 				.describe('The TCP port to start the dev start'),
 		}),
 	},
-	optional: { auth: 'Continue without an account (local only)' },
+	optional: { auth: 'Continue without an account (local only)', project: true },
 
 	async handler(ctx) {
-		const { opts, logger, options } = ctx;
+		const { opts, logger, options, config, project, projectDir } = ctx;
 
-		const rootDir = resolve(opts.dir || process.cwd());
+		const rootDir = projectDir;
 		const appTs = join(rootDir, 'app.ts');
 		const srcDir = join(rootDir, 'src');
 		const mustHaves = [join(rootDir, 'package.json'), appTs, srcDir];
@@ -81,6 +80,13 @@ export const command = createCommand({
 		env.AGENTUITY_PORT = env.PORT;
 		if (options.logLevel !== undefined) env.AGENTUITY_LOG_LEVEL = options.logLevel;
 		env.AGENTUITY_FORCE_LOCAL_SERVICES = opts.local === true ? 'true' : 'false';
+		if (config?.overrides?.transport_url) {
+			env.AGENTUITY_TRANSPORT_URL = config.overrides.transport_url;
+		}
+		if (project) {
+			env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
+			env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;
+		}
 
 		const agentuityDir = resolve(rootDir, '.agentuity');
 		const appPath = resolve(agentuityDir, 'app.js');

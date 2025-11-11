@@ -18,6 +18,9 @@ import type {
 	VectorSearchResultWithDocument,
 	VectorSearchParams,
 	VectorSearchResult,
+	SessionEventProvider,
+	SessionStartEvent,
+	SessionCompleteEvent,
 } from '@agentuity/core';
 
 export class CustomKeyValueStorage implements KeyValueStorage {
@@ -168,5 +171,25 @@ export class CustomVectorStorage implements VectorStorage {
 
 	async exists(_name: string): Promise<boolean> {
 		return true;
+	}
+}
+
+export class CustomSessionEventProvider implements SessionEventProvider {
+	/**
+	 * called when the session starts
+	 *
+	 * @param event SessionStartEvent
+	 */
+	async start(event: SessionStartEvent): Promise<void> {
+		console.log(`SESSION START EVENT: ${JSON.stringify(event)}`);
+	}
+
+	/**
+	 * called when the session completes
+	 *
+	 * @param event SessionCompleteEvent
+	 */
+	async complete(event: SessionCompleteEvent): Promise<void> {
+		console.log(`SESSION COMPLETE EVENT: ${JSON.stringify(event)}`);
 	}
 }

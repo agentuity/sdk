@@ -3,7 +3,7 @@ import type { Tracer } from '@opentelemetry/api';
 import type { KeyValueStorage, ObjectStorage, StreamStorage, VectorStorage } from '@agentuity/core';
 import type { AgentContext, AgentName } from './agent';
 import type { Logger } from './logger';
-import WaitUntilHandler from './_waituntil';
+import type WaitUntilHandler from './_waituntil';
 import { registerServices } from './_services';
 import type { Thread, Session } from './session';
 

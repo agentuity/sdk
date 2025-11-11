@@ -7,6 +7,7 @@ import {
 } from '@opentelemetry/sdk-metrics';
 import { existsSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 /**
  * JSONL implementation of the PushMetricExporter interface
@@ -23,7 +24,7 @@ export class JSONLMetricExporter implements PushMetricExporter {
 	 */
 	constructor(basePath: string) {
 		this.basePath = basePath;
-		this.filePrefix = 'metrics';
+		this.filePrefix = 'otel-metric';
 		this.ensureDirectory();
 	}
 
@@ -39,9 +40,10 @@ export class JSONLMetricExporter implements PushMetricExporter {
 			return this.currentFile;
 		}
 
-		// Create new file with timestamp
-		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-		this.currentFile = join(this.basePath, `${this.filePrefix}-${timestamp}.jsonl`);
+		this.currentFile = join(
+			this.basePath,
+			`${this.filePrefix}-${Date.now()}.${randomUUID()}.jsonl`
+		);
 		return this.currentFile;
 	}
 

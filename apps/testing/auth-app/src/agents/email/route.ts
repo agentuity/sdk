@@ -2,7 +2,7 @@ import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.email('test-plaintext@example.com', async (email, c) => {
+router.email('test-plaintext@example.com', async (email, _c) => {
 	const from = email.fromEmail() ?? 'unknown';
 	const subject = email.subject() ?? 'no subject';
 	const text = email.text() ?? '';

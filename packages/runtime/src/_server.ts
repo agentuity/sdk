@@ -6,7 +6,9 @@ import {
 	type Tracer,
 	trace,
 	type Attributes,
+	propagation,
 } from '@opentelemetry/api';
+import { TraceState } from '@opentelemetry/core';
 import type { Span } from '@opentelemetry/sdk-trace-base';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { type LogLevel, ServiceException } from '@agentuity/core';
@@ -15,15 +17,22 @@ import { createMiddleware } from 'hono/factory';
 import { Hono, type Context as HonoContext } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import type { BunWebSocketData } from 'hono/bun';
+import { matchedRoutes } from 'hono/route';
 import { websocket } from 'hono/bun';
-import type { AppConfig, Env } from './app';
+import { join } from 'node:path';
+import type { AppConfig, Env, PrivateVariables } from './app';
 import { extractTraceContextFromRequest } from './otel/http';
 import { register } from './otel/config';
 import type { Logger } from './logger';
 import { isIdle } from './_idle';
 import * as runtimeConfig from './_config';
 import { inAgentContext, getAgentContext } from './_context';
-import { createServices, getThreadProvider, getSessionProvider } from './_services';
+import {
+	createServices,
+	getThreadProvider,
+	getSessionProvider,
+	getSessionEventProvider,
+} from './_services';
 import { generateId } from './session';
 import WaitUntilHandler from './_waituntil';
 
@@ -111,6 +120,10 @@ function registerAgentuitySpanProcessor() {
 	addSpanProcessor(new RegisterAgentSpanProcessor());
 }
 
+export function privateContext<E extends Env>(c: HonoContext<E>) {
+	return c as unknown as HonoContext<{ Variables: PrivateVariables }>;
+}
+
 export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig) => {
 	if (globalServerInstance) {
 		return globalServerInstance;
@@ -159,12 +172,18 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 			error instanceof ServiceException ||
 			('statusCode' in error && typeof error.statusCode === 'number')
 		) {
-			otel.logger.error('Service Exception: %s (%d)', error.message, error.statusCode);
+			const serviceError = error as ServiceException;
+			otel.logger.error(
+				'Service Exception: %s (%s returned HTTP status code: %d)',
+				error.message,
+				serviceError.url,
+				serviceError.statusCode
+			);
 			return new Response(error.message, {
-				status: (error.statusCode as number) ?? 500,
+				status: serviceError.statusCode ?? 500,
 			});
 		}
-		otel.logger.error('Unhandled Server Error: %s', error);
+		otel.logger.error('Unhandled Server Error: %s', JSON.stringify(error));
 		return new Response('Internal Server Error', { status: 500 });
 	});
 
@@ -234,12 +253,57 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 		router.route('/', servicesResult.localRouter);
 	}
 
+	// we create a middleware that attempts to match our routeid to the incoming route
+	let routeMapping: Record<string, string>;
+	const routePathMapper = createMiddleware<Env>(async (c, next) => {
+		if (!routeMapping) {
+			const file = Bun.file(join(import.meta.dir, '../.routemapping.json'));
+			if (!(await file.exists())) {
+				c.var.logger.fatal(
+					'error loading the .routemapping.json from the %s directory. this is a build issue!',
+					import.meta.dir
+				);
+			}
+			routeMapping = (await file.json()) as Record<string, string>;
+		}
+		const matches = matchedRoutes(c).filter(
+			(m) => m.method !== 'ALL' && (m.path.startsWith('/api') || m.path.startsWith('/agent/'))
+		);
+		const _c = privateContext(c);
+		if (matches.length > 0) {
+			const method = c.req.method.toLowerCase();
+			for (const m of matches) {
+				const found = routeMapping[`${method} ${m.path}`];
+				if (found) {
+					_c.set('routeId', found);
+					break;
+				}
+			}
+		}
+		_c.set('trigger', 'api'); // will get overwritten below if another trigger
+		return next();
+	});
+
+	router.use('/agent/*', routePathMapper);
+	router.use('/api/*', routePathMapper);
+
 	// Attach services to context for API routes
 	router.use('/api/*', async (c, next) => {
 		const { registerServices } = await import('./_services');
 		registerServices(c);
 		await next();
 	});
+
+	// set the trigger for specific types
+	for (const trigger of ['sms', 'email', 'cron'] as const) {
+		const middleware = createMiddleware(async (c, next) => {
+			const _c = privateContext(c);
+			_c.set('trigger', trigger);
+			await next();
+		});
+		router.use(`/api/${trigger}/*`, middleware);
+		router.use(`/agent/${trigger}/*`, middleware);
+	}
 
 	router.use('/api/*', otelMiddleware);
 	router.use('/agent/*', otelMiddleware);
@@ -315,6 +379,7 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 	const url = new URL(c.req.url);
 	const threadProvider = getThreadProvider();
 	const sessionProvider = getSessionProvider();
+	const sessionEventProvider = getSessionEventProvider();
 
 	// Execute the request handler within the extracted context
 	await context.with(extractedContext, async (): Promise<void> => {
@@ -334,14 +399,60 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 			async (span): Promise<void> => {
 				const sctx = span.spanContext();
 				const sessionId = sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess');
+
+				// Add to tracestate
+				let traceState = sctx.traceState ?? new TraceState();
+				const projectId = runtimeConfig.getProjectId();
+				const orgId = runtimeConfig.getOrganizationId();
+				const deploymentId = runtimeConfig.getDeploymentId();
+				const isDevMode = runtimeConfig.isDevMode();
+				if (projectId) {
+					traceState = traceState.set('pid', projectId);
+				}
+				if (orgId) {
+					traceState = traceState.set('oid', orgId);
+				}
+				if (isDevMode) {
+					traceState = traceState.set('d', '1');
+				}
+				sctx.traceState = traceState;
+
 				const thread = await threadProvider.restore(c as unknown as HonoContext<Env>);
 				const session = await sessionProvider.restore(thread, sessionId);
 				const handler = new WaitUntilHandler(tracer);
 
+				const _c = privateContext(c);
+				const agentIds = new Set<string>();
+				_c.set('agentIds', agentIds);
+
+				const shouldSendSession = orgId && projectId && _c.var.routeId;
+				let canSendSessionEvents = true;
+
+				if (shouldSendSession) {
+					await sessionEventProvider
+						.start({
+							id: sessionId,
+							orgId,
+							projectId,
+							threadId: thread.id,
+							routeId: _c.var.routeId,
+							deploymentId,
+							devmode: isDevMode,
+							environment: runtimeConfig.getEnvironment(),
+							method: c.req.method,
+							url: c.req.url,
+							trigger: _c.var.trigger,
+						})
+						.catch((ex) => {
+							canSendSessionEvents = false;
+							c.var.logger.error('error sending session start event: %s', ex);
+						});
+				}
+
 				c.set('sessionId', sessionId);
 				c.set('thread', thread);
 				c.set('session', session);
-				c.set('waitUntilHandler', handler);
+				_c.set('waitUntilHandler', handler);
 
 				let hasPendingWaits = false;
 
@@ -356,6 +467,16 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 								await sessionProvider.save(session);
 								await threadProvider.save(thread);
 								span.setStatus({ code: SpanStatusCode.OK });
+								if (shouldSendSession && canSendSessionEvents) {
+									sessionEventProvider
+										.complete({
+											id: sessionId,
+											statusCode: c.res.status,
+											agentIds: Array.from(agentIds),
+										})
+										.then(() => {})
+										.catch((ex) => c.var.logger.error(ex));
+								}
 							})
 							.catch((ex) => {
 								c.var.logger.error('wait until errored for session %s. %s', sessionId, ex);
@@ -368,12 +489,33 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 									message,
 								});
 								c.var.logger.error(message);
+								if (shouldSendSession && canSendSessionEvents) {
+									sessionEventProvider
+										.complete({
+											id: sessionId,
+											statusCode: c.res.status,
+											error: message,
+											agentIds: Array.from(agentIds),
+										})
+										.then(() => {})
+										.catch((ex) => c.var.logger.error(ex));
+								}
 							})
 							.finally(() => {
 								span.end();
 							});
 					} else {
 						span.setStatus({ code: SpanStatusCode.OK });
+						if (shouldSendSession && canSendSessionEvents) {
+							sessionEventProvider
+								.complete({
+									id: sessionId,
+									statusCode: c.res.status,
+									agentIds: Array.from(agentIds),
+								})
+								.then(() => {})
+								.catch((ex) => c.var.logger.error(ex));
+						}
 					}
 				} catch (ex) {
 					if (ex instanceof Error) {
@@ -385,8 +527,25 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 						message,
 					});
 					c.var.logger.error(message);
+					if (shouldSendSession && canSendSessionEvents) {
+						sessionEventProvider
+							.complete({
+								id: sessionId,
+								statusCode: c.res.status,
+								error: message,
+								agentIds: Array.from(agentIds),
+							})
+							.then(() => {})
+							.catch((ex) => c.var.logger.error(ex));
+					}
 					throw ex;
 				} finally {
+					// add otel headers into HTTP response
+					const headers: Record<string, string> = {};
+					propagation.inject(context.active(), headers);
+					for (const key of Object.keys(headers)) {
+						c.header(key, headers[key]);
+					}
 					if (!hasPendingWaits) {
 						try {
 							await sessionProvider.save(session);

@@ -367,7 +367,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async get<T extends Record<string, unknown> = Record<string, unknown>>(
@@ -416,7 +416,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async getMany<T extends Record<string, unknown> = Record<string, unknown>>(
@@ -521,7 +521,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async delete(name: string, ...keys: string[]): Promise<number> {
@@ -575,7 +575,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async exists(name: string): Promise<boolean> {

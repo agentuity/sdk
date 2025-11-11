@@ -9,6 +9,7 @@ import type {
 	VectorSearchParams,
 	VectorSearchResult,
 } from '@agentuity/core';
+import { randomUUID } from 'node:crypto';
 import { simpleEmbedding, cosineSimilarity, now } from './_util';
 
 export class LocalVectorStorage implements VectorStorage {
@@ -63,7 +64,7 @@ export class LocalVectorStorage implements VectorStorage {
 				throw new Error('Each document must have either embeddings or document text');
 			}
 
-			const id = crypto.randomUUID();
+			const id = randomUUID();
 			const timestamp = now();
 			const embeddingJson = JSON.stringify(embedding);
 			const documentText = 'document' in doc ? doc.document : null;

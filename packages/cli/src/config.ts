@@ -391,11 +391,20 @@ function generateJSON5WithComments(
 	return lines.join('\n');
 }
 
-export async function loadProjectConfig(dir: string): Promise<ProjectConfig> {
-	let configPath = join(dir, 'agentuity.local.json');
-	if (!(await Bun.file(configPath).exists())) {
-		configPath = join(dir, 'agentuity.json');
+export async function loadProjectConfig(
+	dir: string,
+	config?: Config | null
+): Promise<ProjectConfig> {
+	let configPath = join(dir, 'agentuity.json');
+
+	// Check for profile-specific override if config is provided
+	if (config?.name) {
+		const profileConfigPath = join(dir, `agentuity.${config.name}.json`);
+		if (await Bun.file(profileConfigPath).exists()) {
+			configPath = profileConfigPath;
+		}
 	}
+
 	const file = Bun.file(configPath);
 	if (!(await file.exists())) {
 		// TODO: check to see if a valid project that was created unauthenticated
@@ -405,8 +414,8 @@ export async function loadProjectConfig(dir: string): Promise<ProjectConfig> {
 		throw new ProjectConfigNotFoundExpection();
 	}
 	const text = await file.text();
-	const config = JSON5.parse(text);
-	const result = ProjectSchema.safeParse(config);
+	const parsedConfig = JSON5.parse(text);
+	const result = ProjectSchema.safeParse(parsedConfig);
 	if (!result.success) {
 		tui.error(`Invalid project config at ${configPath}:`);
 		for (const issue of result.error.issues) {

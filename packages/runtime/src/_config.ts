@@ -79,7 +79,7 @@ export function isDevMode(): boolean {
  * @returns boolean
  */
 export function isProduction(): boolean {
-	return process.env.NODE_ENV === 'production';
+	return process.env.NODE_ENV === 'production' && !isDevMode();
 }
 
 /**

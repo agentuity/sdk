@@ -391,7 +391,7 @@ export class WidgetAPIService implements WidgetAPI {
 		}
 
 		// 8. Throw service exception on error
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async get(id: string): Promise<WidgetResult> {
@@ -425,7 +425,7 @@ export class WidgetAPIService implements WidgetAPI {
 			return { exists: false } as WidgetResultNotFound;
 		}
 
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async list(params?: ListWidgetsParams): Promise<ListWidgetsResponse> {
@@ -482,7 +482,7 @@ export class WidgetAPIService implements WidgetAPI {
 			return res.data;
 		}
 
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async update(id: string, params: Partial<CreateWidgetParams>): Promise<void> {
@@ -513,7 +513,7 @@ export class WidgetAPIService implements WidgetAPI {
 			return;
 		}
 
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 
 	async delete(id: string): Promise<void> {
@@ -537,7 +537,7 @@ export class WidgetAPIService implements WidgetAPI {
 			return;
 		}
 
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 }
 ```
@@ -590,7 +590,7 @@ buildUrl('https://api.example.com', '/widget', undefined, new URLSearchParams({ 
 Converts a failed Response into a ServiceException with appropriate error message.
 
 ```typescript
-async toServiceException(response: Response): Promise<ServiceException>
+async toServiceException(url: string, response: Response): Promise<ServiceException>
 ```
 
 **Features:**
@@ -793,7 +793,7 @@ if (res.response.status === 404) {
 }
 
 // All other errors - throw exception
-throw await toServiceException(res.response);
+throw await toServiceException(url, res.response);
 ```
 
 **Early returns for optimization:**
@@ -909,7 +909,7 @@ async delete(id: string): Promise<void> {
   if (res.ok) {
     return;  // Simply return on success
   }
-  throw await toServiceException(res.response);
+  throw await toServiceException(url, res.response);
 }
 ```
 
@@ -1011,7 +1011,7 @@ export class HealthAPIService implements HealthAPI {
 			return res.data;
 		}
 
-		throw await toServiceException(res.response);
+		throw await toServiceException(url, res.response);
 	}
 }
 ```

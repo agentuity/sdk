@@ -2,6 +2,7 @@ import { type ExportResult, ExportResultCode } from '@opentelemetry/core';
 import type { LogRecordExporter, ReadableLogRecord } from '@opentelemetry/sdk-logs';
 import { existsSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 /**
  * JSONL implementation of the LogRecordExporter interface
@@ -18,7 +19,7 @@ export class JSONLLogExporter implements LogRecordExporter {
 	 */
 	constructor(basePath: string) {
 		this.basePath = basePath;
-		this.filePrefix = 'logs';
+		this.filePrefix = 'otel-log';
 		this.ensureDirectory();
 	}
 
@@ -34,9 +35,10 @@ export class JSONLLogExporter implements LogRecordExporter {
 			return this.currentFile;
 		}
 
-		// Create new file with timestamp
-		const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-		this.currentFile = join(this.basePath, `${this.filePrefix}-${timestamp}.jsonl`);
+		this.currentFile = join(
+			this.basePath,
+			`${this.filePrefix}-${Date.now()}.${randomUUID()}.jsonl`
+		);
 		return this.currentFile;
 	}
 

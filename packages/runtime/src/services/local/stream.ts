@@ -10,6 +10,7 @@ import type {
 import { now } from './_util';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { openSync, writeSync, closeSync, readFileSync } from 'node:fs';
 
@@ -36,7 +37,7 @@ export class LocalStreamStorage implements StreamStorage {
 			throw new Error('Stream name must be between 1 and 254 characters');
 		}
 
-		const id = crypto.randomUUID();
+		const id = randomUUID();
 		const timestamp = now();
 		const metadata = props?.metadata ? JSON.stringify(props.metadata) : null;
 

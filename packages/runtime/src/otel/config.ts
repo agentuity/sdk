@@ -35,7 +35,7 @@ export function register(registerConfig: OtelRegisterConfig): OtelResponse {
 		deploymentId: runtimeConfig.getDeploymentId(),
 		environment: runtimeConfig.getEnvironment(),
 		logLevel: registerConfig.logLevel,
-		jsonlBasePath: process.env.AGENTUITY_CLOUD_OTEL_EXPORT_DIR,
+		jsonlBasePath: process.env.AGENTUITY_CLOUD_EXPORT_DIR,
 		bearerToken,
 		url,
 	};
