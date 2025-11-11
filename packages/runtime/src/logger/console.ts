@@ -19,6 +19,29 @@ interface LogColors {
 	message: string;
 }
 
+function shouldUseColors(): boolean {
+	// Check for NO_COLOR environment variable (any non-empty value disables colors)
+	if (process.env.NO_COLOR) {
+		return false;
+	}
+
+	// Check for TERM=dumb
+	if (process.env.TERM === 'dumb') {
+		return false;
+	}
+
+	// Check if stdout is a TTY
+	if (!process.stdout || typeof process.stdout.isTTY === 'undefined') {
+		return false;
+	}
+
+	if (process.stdout && typeof process.stdout.isTTY !== 'undefined' && !process.stdout.isTTY) {
+		return false;
+	}
+
+	return true;
+}
+
 type ColorScheme = 'light' | 'dark';
 
 function getLogColors(scheme: ColorScheme): Record<LogLevel, LogColors> {
@@ -85,6 +108,8 @@ function detectColorScheme(): ColorScheme {
 	return 'dark'; // Default to dark mode
 }
 
+const NOCOLORS = Object.freeze({ level: '', reset: '', message: '' });
+
 /**
  * Console implementation of the Logger interface
  */
@@ -94,6 +119,7 @@ export default class ConsoleLogger implements Logger {
 	private logLevel: LogLevel;
 	private colors: Record<LogLevel, LogColors>;
 	private detectedTraceLoopLog: boolean | undefined;
+	private useColors: boolean;
 
 	/**
 	 * Creates a new console logger
@@ -108,7 +134,10 @@ export default class ConsoleLogger implements Logger {
 		this.context = context;
 		this.formatContext = formatContext;
 		this.logLevel = logLevel;
-		this.colors = getLogColors(detectColorScheme());
+		this.useColors = shouldUseColors();
+		this.colors = this.useColors
+			? getLogColors(detectColorScheme())
+			: ({} as Record<LogLevel, LogColors>);
 	}
 
 	private shouldLog(level: LogLevel): boolean {
@@ -138,7 +167,7 @@ export default class ConsoleLogger implements Logger {
 			return;
 		}
 		try {
-			const colors = this.colors.trace;
+			const colors = this.useColors ? this.colors.trace : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
 			__originalConsole.debug(
 				`${colors.level}[TRACE]${RESET} ${colors.message}${formattedMessage}${RESET}`
@@ -162,7 +191,7 @@ export default class ConsoleLogger implements Logger {
 			return;
 		}
 		try {
-			const colors = this.colors.debug;
+			const colors = this.useColors ? this.colors.debug : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
 			__originalConsole.debug(
 				`${colors.level}[DEBUG]${RESET} ${colors.message}${formattedMessage}${RESET}`
@@ -198,7 +227,7 @@ export default class ConsoleLogger implements Logger {
 			return;
 		}
 		try {
-			const colors = this.colors.info;
+			const colors = this.useColors ? this.colors.info : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
 			__originalConsole.info(
 				`${colors.level}[INFO]${RESET} ${colors.message}${formattedMessage}${RESET}`
@@ -222,7 +251,7 @@ export default class ConsoleLogger implements Logger {
 			return;
 		}
 		try {
-			const colors = this.colors.warn;
+			const colors = this.useColors ? this.colors.warn : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
 			__originalConsole.warn(
 				`${colors.level}[WARN]${RESET}  ${colors.message}${formattedMessage}${RESET}`
@@ -246,7 +275,7 @@ export default class ConsoleLogger implements Logger {
 			return;
 		}
 		try {
-			const colors = this.colors.error;
+			const colors = this.useColors ? this.colors.error : NOCOLORS;
 			const formattedMessage = formatMessage(this.formatContext, this.context, message, args);
 			__originalConsole.error(
 				`${colors.level}[ERROR]${RESET} ${colors.message}${formattedMessage}${RESET}`

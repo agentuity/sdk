@@ -20,7 +20,12 @@ const ICONS = {
 } as const;
 
 export function shouldUseColors(): boolean {
-	return !process.env.NO_COLOR && process.env.TERM !== 'dumb' && !!process.stdout.isTTY;
+	return (
+		!process.env.NO_COLOR &&
+		!process.env.CI &&
+		process.env.TERM !== 'dumb' &&
+		!!process.stdout.isTTY
+	);
 }
 
 // Color definitions (light/dark adaptive) using Bun.color
@@ -172,8 +177,8 @@ export function link(url: string, title?: string): string {
 	const color = getColor('link');
 	const reset = getColor('reset');
 
-	// Check if terminal supports hyperlinks (OSC 8)
-	if (supportsHyperlinks()) {
+	// Check if terminal supports hyperlinks (OSC 8) and colors are enabled
+	if (shouldUseColors() && supportsHyperlinks()) {
 		return `\x1b]8;;${url}\x07${color}${title ?? url}${reset}\x1b]8;;\x07`;
 	}
 
@@ -223,23 +228,39 @@ export function newline(): void {
 }
 
 /**
+ * Get the display width of a string, handling ANSI codes and OSC 8 hyperlinks
+ *
+ * Note: Bun.stringWidth() counts OSC 8 hyperlink escape sequences in the width,
+ * which causes incorrect alignment. We strip OSC 8 codes first, then use Bun.stringWidth()
+ * to handle regular ANSI codes and unicode characters correctly.
+ */
+function getDisplayWidth(str: string): number {
+	// Remove OSC-8 hyperlink sequences using Unicode escapes (\u001b = ESC, \u0007 = BEL) to satisfy linter
+	// eslint-disable-next-line no-control-regex
+	const withoutOSC8 = str.replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
+	return Bun.stringWidth(withoutOSC8);
+}
+
+/**
  * Pad a string to a specific length on the right
  */
 export function padRight(str: string, length: number, pad = ' '): string {
-	if (str.length >= length) {
+	const displayWidth = getDisplayWidth(str);
+	if (displayWidth >= length) {
 		return str;
 	}
-	return str + pad.repeat(length - str.length);
+	return str + pad.repeat(length - displayWidth);
 }
 
 /**
  * Pad a string to a specific length on the left
  */
 export function padLeft(str: string, length: number, pad = ' '): string {
-	if (str.length >= length) {
+	const displayWidth = getDisplayWidth(str);
+	if (displayWidth >= length) {
 		return str;
 	}
-	return pad.repeat(length - str.length) + str;
+	return pad.repeat(length - displayWidth) + str;
 }
 
 interface BannerOptions {
@@ -259,10 +280,8 @@ interface BannerOptions {
  * Responsive to terminal width - adapts to narrow terminals
  */
 export function banner(title: string, body: string, options?: BannerOptions): void {
-	// Get terminal width, default to 120 if not available, minimum 40
+	// Get terminal width, default to 120 if not available
 	const termWidth = process.stdout.columns || 120;
-	const minWidth = options?.minWidth ?? 40;
-	const padding = options?.padding ?? 4;
 
 	const border = {
 		topLeft: '╭',
@@ -273,18 +292,27 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 		vertical: '│',
 	};
 
-	// Calculate max width - use terminal width minus margin, with reasonable max
-	const maxWidth = Math.max(minWidth, Math.min(termWidth - 4, 120));
-
-	// Split body into lines and wrap if needed
-	const bodyLines = wrapText(body, maxWidth - padding);
-
-	// Calculate width based on content
+	// Calculate content width first (before wrapping)
 	const titleWidth = getDisplayWidth(title);
-	const maxBodyWidth = Math.max(...bodyLines.map((line) => getDisplayWidth(line)));
-	const contentWidth = Math.max(minWidth, Math.max(titleWidth, maxBodyWidth) + padding);
-	const boxWidth = Math.min(contentWidth, maxWidth);
-	const innerWidth = boxWidth - padding;
+	const bodyLines = body.split('\n');
+	const maxBodyWidth = Math.max(0, ...bodyLines.map((line) => getDisplayWidth(line)));
+	const requiredContentWidth = Math.max(titleWidth, maxBodyWidth);
+
+	// Box width = content + borders (2) + side spaces (2)
+	const boxWidth = Math.min(requiredContentWidth + 4, termWidth);
+
+	// If required content width exceeds terminal width, skip box and print plain text
+	if (requiredContentWidth + 4 > termWidth) {
+		console.log('\n' + bold(title));
+		console.log(body + '\n');
+		return;
+	}
+
+	// Inner width is box width minus borders (2) and side spaces (2)
+	const innerWidth = boxWidth - 4;
+
+	// Wrap text to fit box width
+	const wrappedBodyLines = wrapText(body, innerWidth);
 
 	// Colors
 	const borderColor = getColor('muted');
@@ -310,10 +338,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 	const titleDisplayWidth = getDisplayWidth(title);
 	if (options?.centerTitle === true || options?.centerTitle === undefined) {
 		const titlePadding = Math.max(0, Math.floor((innerWidth - titleDisplayWidth) / 2));
-		const titleRightPadding = Math.max(
-			0,
-			Math.max(0, innerWidth - titlePadding - titleDisplayWidth) - padding
-		);
+		const titleRightPadding = Math.max(0, innerWidth - titlePadding - titleDisplayWidth);
 		const titleLine =
 			' '.repeat(titlePadding) +
 			`${titleColor}${bold(title)}${reset}` +
@@ -322,7 +347,7 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 			`${borderColor}${border.vertical} ${reset}${titleLine}${borderColor} ${border.vertical}${reset}`
 		);
 	} else {
-		const titleRightPadding = Math.max(0, Math.max(0, innerWidth - titleDisplayWidth) - padding);
+		const titleRightPadding = Math.max(0, innerWidth - titleDisplayWidth);
 		const titleLine = `${titleColor}${bold(title)}${reset}` + ' '.repeat(titleRightPadding);
 		lines.push(
 			`${borderColor}${border.vertical} ${reset}${titleLine}${borderColor} ${border.vertical}${reset}`
@@ -337,9 +362,9 @@ export function banner(title: string, body: string, options?: BannerOptions): vo
 	}
 
 	// Body lines
-	for (const line of bodyLines) {
+	for (const line of wrappedBodyLines) {
 		const lineWidth = getDisplayWidth(line);
-		const linePadding = Math.max(0, Math.max(0, innerWidth - lineWidth) - padding);
+		const linePadding = Math.max(0, innerWidth - lineWidth);
 		lines.push(
 			`${borderColor}${border.vertical} ${reset}${line}${' '.repeat(linePadding)}${borderColor} ${border.vertical}${reset}`
 		);
@@ -481,7 +506,7 @@ export function showSignupBenefits(): void {
 	];
 
 	console.log('');
-	lines.forEach((line) => console.log(CYAN + line + RESET));
+	lines.map((line) => console.log(CYAN + line + RESET));
 	console.log('');
 }
 
@@ -514,7 +539,7 @@ export function showLoggedOutMessage(): void {
 	];
 
 	console.log('');
-	lines.filter(Boolean).forEach((line) => console.log(YELLOW + line + RESET));
+	lines.filter(Boolean).map((line) => console.log(YELLOW + line + RESET));
 }
 
 /**
@@ -567,20 +592,6 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 	} catch {
 		return false;
 	}
-}
-
-/**
- * Get the display width of a string, handling ANSI codes and OSC 8 hyperlinks
- *
- * Note: Bun.stringWidth() counts OSC 8 hyperlink escape sequences in the width,
- * which causes incorrect alignment. We strip OSC 8 codes first, then use Bun.stringWidth()
- * to handle regular ANSI codes and unicode characters correctly.
- */
-function getDisplayWidth(str: string): number {
-	// Strip OSC 8 hyperlink sequences: \x1b]8;;URL\x07...\x1b]8;;\x07
-	// eslint-disable-next-line no-control-regex
-	const withoutOSC8 = str.replace(/\x1b\]8;;[^\x07]*\x07/g, '');
-	return Bun.stringWidth(withoutOSC8);
 }
 
 /**
@@ -692,6 +703,11 @@ export interface SimpleSpinnerOptions<T> {
 	type?: 'simple';
 	message: string;
 	callback: (() => Promise<T>) | Promise<T>;
+	/**
+	 * If true, clear the spinner output on success (no icon, no message)
+	 * Defaults to false
+	 */
+	clearOnSuccess?: boolean;
 }
 
 /**
@@ -701,6 +717,11 @@ export interface ProgressSpinnerOptions<T> {
 	type: 'progress';
 	message: string;
 	callback: (progress: SpinnerProgressCallback) => Promise<T>;
+	/**
+	 * If true, clear the spinner output on success (no icon, no message)
+	 * Defaults to false
+	 */
+	clearOnSuccess?: boolean;
 }
 
 /**
@@ -759,6 +780,12 @@ export async function spinner<T>(
 					: typeof options.callback === 'function'
 						? await options.callback()
 						: await options.callback;
+
+			// If clearOnSuccess is true, don't show success message
+			if (!options.clearOnSuccess) {
+				const successColor = getColor('success');
+				console.log(`${successColor}${ICONS.success} ${message}${reset}`);
+			}
 
 			return result;
 		} catch (err) {
@@ -819,9 +846,12 @@ export async function spinner<T>(
 		clearInterval(interval);
 		process.stdout.write('\r\x1B[K');
 
-		// Show success
-		const successColor = getColor('success');
-		console.log(`${successColor}${ICONS.success} ${message}${reset}`);
+		// If clearOnSuccess is false, show success message
+		if (!options.clearOnSuccess) {
+			// Show success
+			const successColor = getColor('success');
+			console.log(`${successColor}${ICONS.success} ${message}${reset}`);
+		}
 
 		// Show cursor
 		process.stdout.write('\x1B[?25h');
@@ -872,12 +902,10 @@ export interface CommandRunnerOptions {
 	 * If true or undefined, will truncate each line of output
 	 */
 	truncate?: boolean;
-
 	/**
 	 * If undefined, will show up to 3 last lines of output while running. Customize the number with this property.
 	 */
 	maxLinesOutput?: number;
-
 	/**
 	 * If undefined, will show up to 10 last lines on failure. Customize the number with this property.
 	 */

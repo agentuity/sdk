@@ -60,10 +60,10 @@ cleanup() {
     if [ -n "$SERVER_PID" ]; then
         log "Stopping dev server (PID: $SERVER_PID)"
         
-        # Kill the entire process group (agentuity dev spawns child processes)
-        kill -- -"$SERVER_PID" 2>/dev/null || true
+        # Kill gravity processes first (they may be children of the dev server)
+        pkill -9 -f gravity 2>/dev/null || true
         
-        # Also try killing just the process
+        # Kill the dev server process
         kill "$SERVER_PID" 2>/dev/null || true
         
         # Wait for graceful shutdown
@@ -73,7 +73,6 @@ cleanup() {
         if kill -0 "$SERVER_PID" 2>/dev/null; then
             log "Forcing shutdown..."
             kill -9 "$SERVER_PID" 2>/dev/null || true
-            kill -9 -- -"$SERVER_PID" 2>/dev/null || true
         fi
         
         # Also kill any remaining processes on the port
@@ -132,7 +131,8 @@ log "Starting dev server..."
 cd "$APP_DIR"
 # Go up from apps/test-app to monorepo root, then to packages/cli
 CLI_PATH="$(dirname "$(dirname "$APP_DIR")")/../packages/cli/bin/cli.ts"
-bun "$CLI_PATH" dev --log-level=trace > "$SERVER_LOG" 2>&1 &
+# Start in background with stdin redirected to prevent terminal blocking
+bun "$CLI_PATH" dev --log-level=trace < /dev/null > "$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 
 log "Dev server started (PID: $SERVER_PID)"

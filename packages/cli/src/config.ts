@@ -8,6 +8,7 @@ import type { Config, Profile, AuthData } from './types';
 import { ConfigSchema, ProjectSchema } from './types';
 import * as tui from './tui';
 import { z } from 'zod';
+import { existsSync } from 'node:fs';
 
 export const defaultProfileName = 'production';
 
@@ -464,4 +465,23 @@ export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {
 		process.exit(1);
 	}
 	return result.data;
+}
+
+export async function loadDevelopmentProjectSDKKey(
+	projectDir: string
+): Promise<string | undefined> {
+	const files: string[] = ['.env.development', '.env.local', '.env'];
+	for (const filename of files) {
+		const fn = join(projectDir, filename);
+		if (existsSync(fn)) {
+			const buf = await Bun.file(fn).text();
+			const tok = buf.split(/\n/);
+			for (const t of tok) {
+				if (t.charAt(0) !== '#' && t.startsWith('AGENTUITY_SDK_KEY=')) {
+					const i = t.indexOf('=');
+					return t.substring(i + 1).trim();
+				}
+			}
+		}
+	}
 }

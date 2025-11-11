@@ -27,15 +27,23 @@ export const ConfigSchema = zod.object({
 			api_url: zod
 				.url()
 				.optional()
-				.describe('Override API base URL (default: https://api.agentuity.com)'),
+				.default('https://api.agentuity.com')
+				.describe('Override API base URL'),
 			app_url: zod
 				.url()
 				.optional()
-				.describe('Override app base URL (default: https://app.agentuity.com)'),
+				.default('https://app.agentuity.com')
+				.describe('Override app base URL'),
 			transport_url: zod
 				.url()
 				.optional()
-				.describe('Override transport URL (default: https://agentuity.ai)'),
+				.default('https://catalyst.agentuity.cloud')
+				.describe('Override transport URL'),
+			gravity_url: zod
+				.url()
+				.optional()
+				.default('grpc://devmode.agentuity.com')
+				.describe('Override gravity URL'),
 			skip_version_check: zod.boolean().optional().describe('Skip CLI version check on startup'),
 		})
 		.optional()
@@ -50,6 +58,13 @@ export const ConfigSchema = zod.object({
 		})
 		.optional()
 		.describe('User preferences'),
+	gravity: zod
+		.object({
+			version: zod.string().optional().describe('The current gravity version'),
+			checked: zod.number().optional().describe('Last gravity check timestamp'),
+		})
+		.optional()
+		.describe('the gravity client information'),
 });
 
 export type Config = zod.infer<typeof ConfigSchema>;

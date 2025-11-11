@@ -32,6 +32,7 @@
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
 		"@agentuity/server": "workspace:*",
+		"@terascope/fetch-github-release": "^2.2.1",
 		"acorn-loose": "^8.5.2",
 		"adm-zip": "^0.5.16",
 		"astring": "^1.9.0",
@@ -39,6 +40,7 @@
 		"enquirer": "^2.4.1",
 		"git-url-parse": "^16.1.0",
 		"json5": "^2.2.3",
+		"tar": "^7.5.2",
 		"tar-fs": "^3.1.1",
 		"zod": "^4.1.12"
 	},

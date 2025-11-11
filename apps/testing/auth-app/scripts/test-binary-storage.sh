@@ -42,8 +42,11 @@ cleanup() {
 	# Stop server if we started it
 	if [ "$SERVER_STARTED" = true ] && [ -n "$SERVER_PID" ]; then
 		echo "Stopping test server (PID: $SERVER_PID)..."
-		kill $SERVER_PID 2>/dev/null || true
-		wait $SERVER_PID 2>/dev/null || true
+		# Kill gravity processes first (they may be holding the port)
+		pkill -9 -f gravity 2>/dev/null || true
+		# Kill the server process
+		kill "$SERVER_PID" 2>/dev/null || true
+		wait "$SERVER_PID" 2>/dev/null || true
 		# Force kill any remaining processes on the port (cross-platform)
 		if command -v lsof &> /dev/null; then
 			lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
@@ -108,9 +111,12 @@ else
 	
 	# Start server in background, redirecting output to temp log
 	# Bun automatically loads .env from current directory
+	# Start in a new process group using set -m (job control)
 	LOG_FILE="$TEMP_DIR/server.log"
+	set -m
 	bun run dev > "$LOG_FILE" 2>&1 &
 	SERVER_PID=$!
+	set +m
 	SERVER_STARTED=true
 	
 	echo "Server starting (PID: $SERVER_PID, log: $LOG_FILE)..."

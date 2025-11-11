@@ -30,8 +30,11 @@ cleanup() {
 	# Stop server if we started it
 	if [ "$SERVER_STARTED" = true ] && [ -n "$SERVER_PID" ]; then
 		echo "Stopping test server (PID: $SERVER_PID)..."
-		kill $SERVER_PID 2>/dev/null || true
-		wait $SERVER_PID 2>/dev/null || true
+		# Kill gravity processes first (they may be holding the port)
+		pkill -9 -f gravity 2>/dev/null || true
+		# Kill the server process
+		kill "$SERVER_PID" 2>/dev/null || true
+		wait "$SERVER_PID" 2>/dev/null || true
 		# Force kill any remaining processes on the port (cross-platform)
 		if command -v lsof &> /dev/null; then
 			lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
@@ -137,9 +140,9 @@ start_server_if_needed() {
 			exit 1
 		fi
 		
-		# Start server in background, redirecting output to temp log
+		# Start server in background, redirecting stdin/stdout/stderr
 		LOG_FILE="$TEMP_DIR/server.log"
-		bun run dev > "$LOG_FILE" 2>&1 &
+		bun run dev < /dev/null > "$LOG_FILE" 2>&1 &
 		SERVER_PID=$!
 		SERVER_STARTED=true
 		

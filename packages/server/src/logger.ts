@@ -32,7 +32,11 @@ function shouldUseColors(): boolean {
 	}
 
 	// Check if stdout is a TTY
-	if (process.stdout && typeof process.stdout.isTTY !== 'undefined' && !process.stdout.isTTY) {
+	if (!process.stdout || typeof process.stdout.isTTY === 'undefined') {
+		return false;
+	}
+
+	if (!process.stdout.isTTY) {
 		return false;
 	}
 

@@ -2,34 +2,265 @@
 
 This directory contains test scripts for validating the Agentuity SDK functionality.
 
-## Available Scripts
+## Quick Start
 
-### validate-dependencies.sh
+### Run All Tests
 
-Validates that all required dependencies for test scripts are installed.
+```bash
+# From test-app directory
+./scripts/test.sh
+```
+
+This runs the complete test suite and checks for orphaned processes.
+
+### Check Dependencies First
+
+```bash
+./scripts/validate-dependencies.sh
+```
+
+## Available Test Scripts
+
+### test.sh (Master Test Runner)
+
+Runs all test scripts in sequence with progress tracking and orphan process detection.
+
+**Prerequisites:**
+
+- All test dependencies installed (see validate-dependencies.sh)
+- `bun` installed
+- Agentuity CLI installed
 
 **Usage:**
 
 ```bash
-# From test-app directory
-./scripts/validate-dependencies.sh
+./scripts/test.sh
 ```
 
-**Checks for:**
+**Features:**
 
-- `curl` (required)
-- `jq` (required)
-- `dd` (required)
-- `md5sum` or `md5` (required)
-- `convert` (optional - for ImageMagick tests)
+- Runs all tests in sequence
+- Tracks pass/fail/skip counts
+- Detects orphaned processes after each test
+- Cleans up gravity and bun dev processes
+- Interactive mode: prompts to continue on failures
+- CI mode: auto-detects CI environment and fails fast
 
-**Example output:**
+**What it runs:**
+
+1. Server Management
+2. Subagents
+3. Agent Event Listeners
+4. Binary Storage API
+5. Binary Storage Agent
+6. KeyValue Storage
+7. Vector Storage
+8. Stream Storage
+9. Email
+10.   Hot Reload
+11.   Build Metadata
+12.   Env & Secrets (only if authenticated)
+
+**Expected output:**
 
 ```
-✓ All required dependencies are available!
-You can run the test script with:
-  ./scripts/test-binary-storage.sh
+=========================================
+  Agentuity Test App - Master Test Suite
+=========================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Running: Server Management
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ PASSED: Server Management
+
+...
+
+=========================================
+  Authenticated Test Summary
+=========================================
+Total Tests:  12
+Passed:       12
+Failed:       0
+Skipped:      0
+=========================================
+
+✓ No orphaned processes detected
+
+All tests passed!
 ```
+
+### test-server-management.sh
+
+Tests server start/stop functionality and basic HTTP endpoints.
+
+**Usage:**
+
+```bash
+./scripts/test-server-management.sh
+```
+
+**What it tests:**
+
+- Server is not running initially
+- Server starts successfully
+- Server responds to HTTP requests
+- Server stops cleanly
+- Port cleanup
+
+### test-subagents.sh
+
+Tests nested agent functionality with parent/child relationships.
+
+**Usage:**
+
+```bash
+./scripts/test-subagents.sh
+```
+
+**What it tests:**
+
+- Parent agent functionality
+- Subagent nested access (ctx.agent.team.members)
+- Parent context access (ctx.parent)
+- Agent name with dot notation (team.members)
+- Route pattern inheritance
+- CRUD operations on subagents
+
+### test-events.sh
+
+Tests agent-level and app-level event listeners.
+
+**Usage:**
+
+```bash
+./scripts/test-events.sh
+```
+
+**What it tests:**
+
+- Agent-level 'started' and 'completed' events
+- App-level 'agent.started' and 'agent.completed' events
+- Thread lifecycle events
+- Session lifecycle events
+- State persistence across requests
+
+### test-binary-storage.sh
+
+Tests binary object storage API endpoints for data integrity.
+
+**Prerequisites:**
+
+- `jq` installed (for JSON parsing)
+- `md5sum` or `md5` available (for checksum verification)
+
+**Usage:**
+
+```bash
+./scripts/test-binary-storage.sh
+```
+
+**What it tests:**
+
+- Random binary data (1KB)
+- Problematic bytes (null bytes, high bytes: 0x00, 0xFF, 0xFE, etc.)
+- MD5 checksum verification
+- Byte-by-byte comparison
+- Public URL generation
+
+### test-binary-agent.sh
+
+Tests binary object storage through agent endpoints.
+
+**Usage:**
+
+```bash
+./scripts/test-binary-agent.sh
+```
+
+**What it tests:**
+
+- Text data storage and retrieval
+- Binary data with problematic bytes
+- Large binary data (1KB random)
+- Delete operations
+- Data integrity verification
+
+### test-keyvalue.sh
+
+Tests key-value storage CRUD operations.
+
+**Usage:**
+
+```bash
+./scripts/test-keyvalue.sh
+```
+
+**What it tests:**
+
+- Set operation
+- Get operation
+- Update operation
+- Delete operation
+- Multiple keys
+
+### test-vector.sh
+
+Tests vector storage and semantic search functionality.
+
+**Usage:**
+
+```bash
+./scripts/test-vector.sh
+```
+
+**What it tests:**
+
+- Upsert vector documents
+- Get vector by key
+- GetMany operation
+- Semantic search
+- Filtered search by metadata
+- Vector store existence check
+- Delete operations
+
+### test-stream.sh
+
+Tests stream storage for various content types.
+
+**Usage:**
+
+```bash
+./scripts/test-stream.sh
+```
+
+**What it tests:**
+
+- text/plain content type
+- application/json content type
+- image/png binary content (base64)
+- application/octet-stream ArrayBuffer
+- SHA256 integrity checks
+- List operation
+- Delete operation
+
+### test-email.sh
+
+Tests email routing and processing.
+
+**Usage:**
+
+```bash
+./scripts/test-email.sh
+```
+
+**What it tests:**
+
+- Plain text emails
+- HTML emails
+- Mixed/multipart emails with attachments
+- Default and custom responses
+- Content-Type validation
+- Case-insensitive headers
 
 ### test-dev-reload.sh
 
@@ -38,13 +269,11 @@ Tests dev server hot reload functionality when source files change.
 **Prerequisites:**
 
 - `curl` installed (for HTTP requests)
-- `agentuity` CLI installed globally
 - Git repository (for restoring changed files)
 
 **Usage:**
 
 ```bash
-# From test-app directory
 ./scripts/test-dev-reload.sh
 ```
 
@@ -58,25 +287,31 @@ Tests dev server hot reload functionality when source files change.
 - File restoration triggers another reload
 - Restored agent response matches original
 
-**Expected output:**
-
-```
-[TEST] Starting dev server hot reload test
-[TEST] Dev server started (PID: 12345)
-[TEST] Server is ready!
-[TEST] ✓ Original response correct: Hello, Test! You are 25 years old.
-[TEST] File modified, waiting for reload...
-[TEST] Server detected file change!
-[TEST] ✓ Modified response correct: Greetings, Test! Your age is 25.
-[TEST] ✓ Restored response correct: Hello, Test! You are 25 years old.
-[TEST] ✓ All tests passed!
-```
-
 **Note:** The script automatically cleans up:
 
-- Stops the dev server
+- Stops the dev server and gravity processes
 - Restores any modified files with `git checkout`
 - Removes temporary log files
+
+### test-build-metadata.ts
+
+Tests build metadata generation and validation.
+
+**Usage:**
+
+```bash
+bun scripts/test-build-metadata.ts
+```
+
+**What it tests:**
+
+- Metadata file exists
+- Schema validation
+- Routes validation
+- Agents validation (including subagents)
+- Assets validation
+- Project metadata
+- Deployment metadata
 
 ### test-env-secrets.ts
 
@@ -91,7 +326,6 @@ Tests environment variable and secret management CLI commands.
 **Usage:**
 
 ```bash
-# From test-app directory
 bun scripts/test-env-secrets.ts
 ```
 
@@ -102,121 +336,118 @@ bun scripts/test-env-secrets.ts
 - Masking/unmasking behavior with `--mask` and `--no-mask` flags
 - File preservation checks (.env and .env.production)
 
-**Note:** This test is **NOT** included in the main test suite (`test.sh`) because it requires interactive CLI authentication which is not available in CI environments. Run this test manually when you need to verify env/secrets functionality.
+**Note:** This test requires authentication and is only run by the master test suite if you're logged in.
 
-**Expected output:**
+### validate-dependencies.sh
 
-```
-=========================================
-  Environment & Secrets CLI Test Suite
-=========================================
-...
-Total Tests:  26
-Passed:       26
-Failed:       0
-=========================================
-
-✓ All tests passed!
-```
-
-### test-binary-storage.sh
-
-Tests binary object storage to ensure data is not corrupted during upload/download.
-
-**Prerequisites:**
-
-- `jq` installed (for JSON parsing)
-- `md5sum` or `md5` available (for checksum verification)
-- `bun` installed (for running the test server)
-- `.env` file in monorepo root (sdk-mono/.env) with `AGENTUITY_SDK_KEY` configured
+Validates that all required dependencies for test scripts are installed.
 
 **Usage:**
 
 ```bash
-# From test-app directory
-./scripts/test-binary-storage.sh
-```
-
-**Note:** The script automatically:
-
-- Checks if the server is running on port 3500
-- Starts the server if not running
-- Waits for the server to be ready (up to 30 seconds)
-- Runs all tests
-- Stops the server on exit (only if started by the script)
-
-If the server is already running, it will remain running after the tests complete.
-
-**What it tests:**
-
-- Random binary data (1KB)
-- Problematic bytes (null bytes, high bytes: 0x00, 0xFF, 0xFE, etc.)
-- MD5 checksum verification
-- Byte-by-byte comparison
-- Image upload/download (if ImageMagick available)
-- Public URL generation
-
-**Expected output:**
-
-```
-=========================================
-Binary Object Storage Test
-=========================================
-
-Step 1: Creating test file with random binary data (1KB)...
-✓ Created original.bin (MD5: ...)
-
-Step 2: Creating file with problematic bytes...
-✓ Created problematic.bin (MD5: ...)
-
-...
-
-=========================================
-ALL TESTS PASSED!
-Binary data can be uploaded and downloaded without corruption.
-=========================================
-```
-
-## Running Tests
-
-### Check Dependencies First
-
-```bash
-cd test-app
 ./scripts/validate-dependencies.sh
 ```
 
-### All Tests
+**Checks for:**
+
+- `curl` (required)
+- `jq` (required)
+- `dd` (required)
+- `md5sum` or `md5` (required)
+
+### test-lib.sh
+
+Shared library providing common functions for test scripts.
+
+**Functions:**
+
+- `cleanup()` - Stops servers, kills gravity processes, cleans up temp files
+- `check_server()` - Checks if server is running
+- `wait_for_server()` - Waits for server to be ready
+- `start_server_if_needed()` - Starts server only if not already running
+
+**Usage:**
 
 ```bash
-cd test-app
-./scripts/test-binary-storage.sh
+# In your test script
+source "$(dirname "$0")/test-lib.sh"
+
+# Server will auto-start if needed
+# Cleanup happens automatically on exit
 ```
 
-### Individual Commands
+## Process Management
 
-You can also run individual curl commands from the test script. See [BINARY_STORAGE_TEST.md](../BINARY_STORAGE_TEST.md) for manual testing procedures.
+All test scripts now properly handle process cleanup:
+
+1. **Gravity processes** - Killed before stopping the dev server
+2. **Dev server** - Gracefully terminated with SIGTERM
+3. **Port cleanup** - Any remaining processes on port 3500 are force-killed
+4. **Orphan detection** - Master test suite detects and reports orphaned processes
+
+**Key improvements:**
+
+- Stdin redirected to `/dev/null` to prevent terminal blocking
+- No job control (`set -m`) to avoid process group issues
+- No `disown` to ensure `wait` can track process termination
+- Explicit gravity cleanup in all scripts
+
+## Running Tests
+
+### Run All Tests
+
+```bash
+cd apps/testing/auth-app
+./scripts/test.sh
+```
+
+### Run Individual Test
+
+```bash
+cd apps/testing/auth-app
+./scripts/test-server-management.sh
+```
+
+### Run TypeScript Tests
+
+```bash
+cd apps/testing/auth-app
+bun scripts/test-build-metadata.ts
+bun scripts/test-env-secrets.ts  # Requires authentication
+```
 
 ## Troubleshooting
 
-### Missing .env File
+### Port Already in Use
 
-Error: `.env file not found in monorepo root (../.env)`
+Error: `Port 3500 is already in use`
 
-Solution: Create a `.env` file in the monorepo root directory with your API key:
+Solution: Kill any existing processes on port 3500:
 
 ```bash
-cd sdk-mono  # Monorepo root
-echo "AGENTUITY_SDK_KEY=your-api-key-here" > .env
+lsof -ti:3500 | xargs kill -9
+```
+
+### Orphaned Processes
+
+If tests fail and leave orphaned processes:
+
+```bash
+# Kill bun dev processes
+pkill -9 -f "bun.*dev"
+
+# Kill gravity processes
+pkill -9 -f gravity
+
+# Kill anything on port 3500
+lsof -ti:3500 | xargs kill -9
 ```
 
 ### Server Fails to Start
 
-If the script can't start the server automatically, check the server logs in the temporary directory (path shown in script output).
+Check the server logs (path shown in test output). Common issues:
 
-Common issues:
-
-- Port 3500 already in use by another process
+- Port 3500 already in use
 - Build errors in the application
 - Missing dependencies
 - Missing or invalid `.env` file
@@ -224,20 +455,31 @@ Common issues:
 Manual test:
 
 ```bash
-cd test-app
+cd apps/testing/auth-app
 bun run dev
 ```
 
-### API Returns 500 Errors
+### Tests Hang
 
-If uploads fail with "Internal Server Error" or authentication errors:
+If tests hang when run from terminal but work when run non-interactively:
 
-- Check that `AGENTUITY_SDK_KEY` is set in `.env` (in monorepo root)
-- Verify the API key is valid
-- Check server logs for detailed error messages
-- Ensure the server is using `bun --env-file=../.env run dev`
+- Ensure stdin is redirected: `./script.sh < /dev/null`
+- Check that `disown` is not being used in background processes
+- Verify process cleanup in exit handlers
 
-### jq Not Installed
+### Authentication Required
+
+Some tests require authentication:
+
+```bash
+# Login first
+agentuity auth login
+
+# Then run tests
+./scripts/test.sh
+```
+
+### Missing Dependencies
 
 Error: `jq: command not found`
 
@@ -245,31 +487,80 @@ Solution:
 
 ```bash
 # macOS
-brew install jq
+brew install jq curl
 
 # Ubuntu/Debian
-sudo apt-get install jq
+sudo apt-get install jq curl
+
+# Check all dependencies
+./scripts/validate-dependencies.sh
 ```
 
-### md5sum Not Available
-
-On macOS, use `md5` instead of `md5sum`. The script should handle this automatically.
-
-## Adding New Scripts
+## Adding New Test Scripts
 
 When adding new test scripts:
 
-1. Make them executable: `chmod +x scripts/your-script.sh`
-2. Add proper error handling: `set -e`
-3. Clean up temporary files: Use `trap` to remove temp files on exit
-4. Document usage in this README
-5. Test on a clean environment
+1. **Use the shared library:**
+
+   ```bash
+   #!/bin/bash
+   set -e
+
+   source "$(dirname "$0")/test-lib.sh"
+
+   # Your tests here
+   # Cleanup happens automatically
+   ```
+
+2. **For standalone scripts, ensure proper cleanup:**
+
+   ```bash
+   cleanup() {
+       # Kill gravity first
+       pkill -9 -f gravity 2>/dev/null || true
+
+       # Kill server
+       if [ -n "$SERVER_PID" ]; then
+           kill "$SERVER_PID" 2>/dev/null || true
+           wait "$SERVER_PID" 2>/dev/null || true
+       fi
+
+       # Clean up port
+       lsof -ti:3500 | xargs kill -9 2>/dev/null || true
+   }
+
+   trap cleanup EXIT INT TERM
+   ```
+
+3. **Start servers with stdin redirected:**
+
+   ```bash
+   bun run dev < /dev/null > "$LOG_FILE" 2>&1 &
+   SERVER_PID=$!
+   ```
+
+4. **Make executable:**
+
+   ```bash
+   chmod +x scripts/your-script.sh
+   ```
+
+5. **Add to test.sh:**
+
+   ```bash
+   run_test "Your Feature" "your-script.sh"
+   ```
+
+6. **Document in this README**
 
 ## Script Standards
 
 - Use bash shebang: `#!/bin/bash`
 - Enable error checking: `set -e`
 - Use colors for output (GREEN for success, RED for failure)
-- Clean up temporary files with trap
+- Source test-lib.sh for common functions
+- Clean up processes and temp files with trap
+- Redirect stdin when spawning background processes
+- Kill gravity processes before stopping server
 - Provide clear error messages
 - Exit with non-zero code on failure

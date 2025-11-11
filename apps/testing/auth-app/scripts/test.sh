@@ -23,6 +23,27 @@ NC='\033[0m' # No Color
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# Cleanup function to kill any orphaned processes
+cleanup_orphans() {
+	echo ""
+	echo -e "${YELLOW}Cleaning up any orphaned processes...${NC}"
+	
+	# Kill any gravity processes first (they may be holding the port)
+	pkill -9 -f gravity 2>/dev/null || true
+	
+	# Kill any bun dev processes
+	pkill -9 -f "bun.*dev" 2>/dev/null || true
+	
+	# Kill anything on port 3500
+	lsof -ti:3500 2>/dev/null | xargs kill -9 2>/dev/null || true
+	
+	sleep 1
+	echo -e "${GREEN}Cleanup complete${NC}"
+}
+
+# Trap INT and TERM to ensure cleanup on Ctrl+C
+trap cleanup_orphans INT TERM
+
 echo ""
 echo "========================================="
 echo "  Agentuity Test App - Master Test Suite"
@@ -34,6 +55,7 @@ TOTAL_TESTS=0
 PASSED_TESTS=0
 FAILED_TESTS=0
 SKIPPED_TESTS=0
+TESTS_WITH_ORPHANS=()
 
 handle_test_failure() {
 	local test_name="$1"
@@ -55,6 +77,36 @@ handle_test_failure() {
 	fi
 }
 
+check_orphaned_processes() {
+	local test_name="$1"
+	sleep 2  # Give processes time to clean up
+	
+	# Check for bun processes running dev or gravity
+	ORPHANS=$(ps aux | grep -E "(bun.*dev|gravity)" | grep -v grep | grep -v "test.sh" || true)
+	
+	if [ -n "$ORPHANS" ]; then
+		echo -e "${YELLOW}⚠ Orphaned processes detected after $test_name:${NC}"
+		echo "$ORPHANS"
+		TESTS_WITH_ORPHANS+=("$test_name")
+		
+		# Kill orphaned processes (gravity first, then bun)
+		pkill -9 -f gravity 2>/dev/null || true
+		pkill -9 -f "bun.*dev" 2>/dev/null || true
+		sleep 1
+	fi
+	
+	# Check if port 3500 is still in use
+	if lsof -ti:3500 >/dev/null 2>&1; then
+		echo -e "${YELLOW}⚠ Port 3500 still in use after $test_name${NC}"
+		if [ -z "$ORPHANS" ]; then
+			TESTS_WITH_ORPHANS+=("$test_name (port)")
+		fi
+		# Clean up port
+		lsof -ti:3500 2>/dev/null | xargs kill -9 2>/dev/null || true
+		sleep 1
+	fi
+}
+
 # Function to run a test script
 run_test() {
 	local test_name="$1"
@@ -69,20 +121,23 @@ run_test() {
 	echo ""
 	
 	if [[ "$test_script" == *.ts ]]; then
-		if bun "$SCRIPT_DIR/$test_script"; then
+		if bun "$SCRIPT_DIR/$test_script" < /dev/null; then
 			PASSED_TESTS=$((PASSED_TESTS + 1))
 			echo -e "${GREEN}✓ PASSED: $test_name${NC}"
 		else
 			handle_test_failure "$test_name"
 		fi
 	else
-		if bash "$SCRIPT_DIR/$test_script"; then
+		if bash "$SCRIPT_DIR/$test_script" < /dev/null; then
 			PASSED_TESTS=$((PASSED_TESTS + 1))
 			echo -e "${GREEN}✓ PASSED: $test_name${NC}"
 		else
 			handle_test_failure "$test_name"
 		fi
 	fi
+	
+	# Check for orphaned processes after each test
+	check_orphaned_processes "$test_name"
 }
 
 # Run all tests
@@ -122,8 +177,20 @@ if [ $FAILED_TESTS -gt 0 ]; then
 else
 	echo -e "Failed:       $FAILED_TESTS"
 fi
-	echo -e "Skipped:       $SKIPPED_TESTS"
+echo -e "Skipped:      $SKIPPED_TESTS"
 echo "========================================="
+echo ""
+
+# Report orphaned process issues
+if [ ${#TESTS_WITH_ORPHANS[@]} -eq 0 ]; then
+	echo -e "${GREEN}✓ No orphaned processes detected${NC}"
+else
+	echo -e "${YELLOW}⚠ Tests with orphaned processes (${#TESTS_WITH_ORPHANS[@]}):${NC}"
+	for test in "${TESTS_WITH_ORPHANS[@]}"; do
+		echo "  - $test"
+	done
+	exit 1
+fi
 echo ""
 
 # Exit with appropriate code
