@@ -9,7 +9,9 @@
 	"scripts": {
 		"build": "bun scripts/check-legacy-cli.ts && bunx tsc --build --force && bun run --filter='./apps/*' build",
 		"test": "bun test && cd packages/cli && bun run test && cd ../../apps/testing && bun run test",
-		"typecheck": "bunx tsc --build && cd apps/testing && bun run typecheck",
+		"typecheck:apps": "bun run --filter='./apps/*' typecheck",
+		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
+		"typecheck": "bun run typecheck:apps && bun run typecheck:packages",
 		"clean": "rm -rf packages/*/dist apps/**/dist packages/*/*.tsbuildinfo",
 		"format": "bunx prettier */** --write",
 		"lint": "bunx eslint packages",

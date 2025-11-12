@@ -24,7 +24,9 @@
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
-	"dependencies": {},
+	"dependencies": {
+		"zod": "^4.1.12"
+	},
 	"devDependencies": {
 		"typescript": "^5.9.0"
 	},
