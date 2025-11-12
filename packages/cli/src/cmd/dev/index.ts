@@ -149,6 +149,21 @@ export const command = createCommand({
 		if (config?.overrides?.transport_url) {
 			env.AGENTUITY_TRANSPORT_URL = config.overrides.transport_url;
 		}
+		if (config?.overrides?.catalyst_url) {
+			env.AGENTUITY_CATALYST_URL = config.overrides.catalyst_url;
+		}
+		if (config?.overrides?.vector_url) {
+			env.AGENTUITY_VECTOR_URL = config.overrides.vector_url;
+		}
+		if (config?.overrides?.object_url) {
+			env.AGENTUITY_OBJECTSTORE_URL = config.overrides.object_url;
+		}
+		if (config?.overrides?.kv_url) {
+			env.AGENTUITY_KEYVALUE_URL = config.overrides.kv_url;
+		}
+		if (config?.overrides?.stream_url) {
+			env.AGENTUITY_STREAM_URL = config.overrides.stream_url;
+		}
 		if (project) {
 			env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
 			env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;
@@ -602,6 +617,7 @@ export const command = createCommand({
 			/types\.generated\.d\.ts$/,
 			/client\.generated\.js$/,
 			/\.tmp$/,
+			/\.tsbuildinfo$/,
 			// Ignore temporary files created by sed (e.g., sedUprJj0)
 			/\/sed[A-Za-z0-9]+$/,
 		];

@@ -17,6 +17,6 @@ export function getServiceUrls(): ServiceUrls {
 		objectstore: process.env.AGENTUITY_OBJECTSTORE_URL || transportUrl,
 		stream: process.env.AGENTUITY_STREAM_URL || 'https://streams.agentuity.cloud',
 		vector: process.env.AGENTUITY_VECTOR_URL || transportUrl,
-		catalyst: transportUrl,
+		catalyst: process.env.AGENTUITY_CATALYST_URL || transportUrl,
 	};
 }

@@ -1,6 +1,5 @@
 import { createRouter } from '@agentuity/runtime';
 
-
 const router = createRouter();
 
 router.get('/', async (c) => {
@@ -14,4 +13,3 @@ router.post('/', async (c) => {
 });
 
 export default router;
-

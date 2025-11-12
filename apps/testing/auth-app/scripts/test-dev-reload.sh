@@ -142,7 +142,7 @@ cd "$APP_DIR"
 # Go up from apps/test-app to monorepo root, then to packages/cli
 CLI_PATH="$(dirname "$(dirname "$APP_DIR")")/../packages/cli/bin/cli.ts"
 # Start in background with stdin redirected to prevent terminal blocking
-bun "$CLI_PATH" dev --log-level=trace < /dev/null > "$SERVER_LOG" 2>&1 &
+bun "$CLI_PATH" dev --no-public --log-level=trace < /dev/null > "$SERVER_LOG" 2>&1 &
 SERVER_PID=$!
 
 log "Dev server started (PID: $SERVER_PID)"
@@ -211,8 +211,12 @@ RESTART_COUNT_BEFORE=$(grep -c "restart() completed" "$SERVER_LOG" 2>/dev/null |
 log "Current restart count: $RESTART_COUNT_BEFORE"
 
 # Change the response message (note: using double quotes for ${} template literals)
-sed -i.tmp "s/Hello, \${name}! You are \${age} years old\./Greetings, \${name}! Your age is \${age}\./" "$AGENT_FILE"
-rm -f "$AGENT_FILE.tmp"
+# Use temp file outside watched directory to avoid sed temp file issues
+TEMP_AGENT_FILE="$BACKUP_DIR/agent.ts.modified"
+cp "$AGENT_FILE" "$TEMP_AGENT_FILE"
+sed -i.bak "s/Hello, \${name}! You are \${age} years old\./Greetings, \${name}! Your age is \${age}\./" "$TEMP_AGENT_FILE"
+rm -f "$TEMP_AGENT_FILE.bak"
+cp "$TEMP_AGENT_FILE" "$AGENT_FILE"
 
 # Verify the file was actually modified
 if grep -q "Greetings," "$AGENT_FILE"; then
@@ -446,11 +450,13 @@ else
     
     # Modify the eval file (change a comment or description)
     log "Modifying eval file..."
-    # Add a comment at the top of the file
+    # Add a comment at the top of the file (use temp file outside watched directory)
+    TEMP_EVAL_FILE="$BACKUP_DIR/eval.ts.modified"
     {
         echo "// Test comment added for hot reload test"
         cat "$EVAL_FILE"
-    } > "$EVAL_FILE.tmp" && mv "$EVAL_FILE.tmp" "$EVAL_FILE"
+    } > "$TEMP_EVAL_FILE"
+    cp "$TEMP_EVAL_FILE" "$EVAL_FILE"
     
     # Verify the file was actually modified
     if grep -q "Test comment added for hot reload test" "$EVAL_FILE"; then

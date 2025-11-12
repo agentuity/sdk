@@ -143,7 +143,7 @@ start_server_if_needed() {
 		# Start server in background, redirecting output to temp log
 		# Preserve environment variables (like AGENTUITY_SDK_LOG_LEVEL) when starting server
 		LOG_FILE="$TEMP_DIR/server.log"
-		env bun run dev > "$LOG_FILE" 2>&1 &
+		env bun run dev -- --no-public > "$LOG_FILE" 2>&1 &
 		SERVER_PID=$!
 		SERVER_STARTED=true
 		

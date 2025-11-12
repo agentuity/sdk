@@ -318,7 +318,7 @@ export function createAgent<
 		// The agent will be registered in the agents Map before the handler is called
 		const agentName = agentCtx.agentName;
 		const registeredAgent = agentName ? agents.get(agentName) : undefined;
-		
+
 		// Fire 'started' event (only if agent is registered)
 		if (registeredAgent) {
 			await fireAgentEvent(registeredAgent, 'started', agentCtx);
@@ -360,8 +360,12 @@ export function createAgent<
 	};
 
 	// Infer input/output types from agent schema
-	type AgentInput = TInput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TInput> : undefined;
-	type AgentOutput = TOutput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TOutput> : undefined;
+	type AgentInput = TInput extends StandardSchemaV1
+		? StandardSchemaV1.InferOutput<TInput>
+		: undefined;
+	type AgentOutput = TOutput extends StandardSchemaV1
+		? StandardSchemaV1.InferOutput<TOutput>
+		: undefined;
 
 	// Create createEval method that infers types from agent and automatically adds to agent
 	const createEval = (evalConfig: {
@@ -371,7 +375,9 @@ export function createAgent<
 		const evalName = evalConfig.metadata?.name || 'unnamed';
 		// Debug log to verify evals file is imported
 		if (typeof process !== 'undefined' && process.env?.AGENTUITY_SDK_DEV_MODE === 'true') {
-			console.log(`[DEBUG] createEval called for agent "${config?.metadata?.name || 'unknown'}": registering eval "${evalName}"`);
+			console.log(
+				`[DEBUG] createEval called for agent "${config?.metadata?.name || 'unknown'}": registering eval "${evalName}"`
+			);
 		}
 
 		const evalType: any = {
@@ -390,7 +396,9 @@ export function createAgent<
 		// Automatically add eval to agent's evals array
 		evalsArray.push(evalType);
 		if (typeof process !== 'undefined' && process.env?.AGENTUITY_SDK_DEV_MODE === 'true') {
-			console.log(`[DEBUG] Added eval "${evalName}" to agent "${config?.metadata?.name || 'unknown'}". Total evals: ${evalsArray.length}`);
+			console.log(
+				`[DEBUG] Added eval "${evalName}" to agent "${config?.metadata?.name || 'unknown'}". Total evals: ${evalsArray.length}`
+			);
 		}
 
 		return evalType as Eval<TInput, TOutput>;
@@ -404,10 +412,7 @@ export function createAgent<
 	};
 
 	// Add event listener methods
-	agent.addEventListener = (
-		eventName: AgentEventName,
-		callback: any
-	): void => {
+	agent.addEventListener = (eventName: AgentEventName, callback: any): void => {
 		const agentForListeners = agent as any as Agent<any, any, any>;
 		const callbackForListeners = callback as any as AgentEventCallback<any>;
 		let listeners = agentEventListeners.get(agentForListeners);
@@ -430,9 +435,11 @@ export function createAgent<
 		const agentName = ctx.agentName;
 		const registeredAgent = agentName ? agents.get(agentName) : undefined;
 		const agentEvals = registeredAgent?.evals || evalsArray;
-		
-		internal.debug(`Checking evals: agentName=${agentName}, evalsArray.length=${evalsArray?.length || 0}, agent.evals.length=${registeredAgent?.evals?.length || 0}`);
-		
+
+		internal.debug(
+			`Checking evals: agentName=${agentName}, evalsArray.length=${evalsArray?.length || 0}, agent.evals.length=${registeredAgent?.evals?.length || 0}`
+		);
+
 		if (agentEvals && agentEvals.length > 0) {
 			internal.info(`Executing ${agentEvals.length} eval(s) after agent run`);
 
@@ -452,7 +459,8 @@ export function createAgent<
 							// Validate eval input if schema exists
 							let evalValidatedInput: any = validatedInput;
 							if (evalItem.inputSchema) {
-								const evalInputResult = await evalItem.inputSchema['~standard'].validate(validatedInput);
+								const evalInputResult =
+									await evalItem.inputSchema['~standard'].validate(validatedInput);
 								if (evalInputResult.issues) {
 									throw new Error(
 										`Eval input validation failed: ${evalInputResult.issues.map((i: any) => i.message).join(', ')}`
@@ -464,7 +472,8 @@ export function createAgent<
 							// Validate eval output if schema exists
 							let evalValidatedOutput: any = validatedOutput;
 							if (evalItem.outputSchema) {
-								const evalOutputResult = await evalItem.outputSchema['~standard'].validate(validatedOutput);
+								const evalOutputResult =
+									await evalItem.outputSchema['~standard'].validate(validatedOutput);
 								if (evalOutputResult.issues) {
 									throw new Error(
 										`Eval output validation failed: ${evalOutputResult.issues.map((i: any) => i.message).join(', ')}`
@@ -480,7 +489,11 @@ export function createAgent<
 							let result: EvalRunResult;
 							if (inputSchema && outputSchema) {
 								// Both input and output defined
-								result = await (evalItem.handler as any)(evalContext, evalValidatedInput, evalValidatedOutput);
+								result = await (evalItem.handler as any)(
+									evalContext,
+									evalValidatedInput,
+									evalValidatedOutput
+								);
 							} else if (inputSchema) {
 								// Only input defined
 								result = await (evalItem.handler as any)(evalContext, evalValidatedInput);
@@ -495,9 +508,15 @@ export function createAgent<
 							// Process the returned result
 							if (result.success) {
 								if ('passed' in result) {
-									internal.info(`Eval '${evalName}' pass: ${result.passed}`, result.metadata);
+									internal.info(
+										`Eval '${evalName}' pass: ${result.passed}`,
+										result.metadata
+									);
 								} else if ('score' in result) {
-									internal.info(`Eval '${evalName}' score: ${result.score}`, result.metadata);
+									internal.info(
+										`Eval '${evalName}' score: ${result.score}`,
+										result.metadata
+									);
 								}
 							} else {
 								internal.error(`Eval '${evalName}' failed: ${result.error}`);
@@ -513,10 +532,7 @@ export function createAgent<
 		}
 	});
 
-	agent.removeEventListener = (
-		eventName: AgentEventName,
-		callback: any
-	): void => {
+	agent.removeEventListener = (eventName: AgentEventName, callback: any): void => {
 		const agentForListeners = agent as any as Agent<any, any, any>;
 		const callbackForListeners = callback as any as AgentEventCallback<any>;
 		const listeners = agentEventListeners.get(agentForListeners);

@@ -79,7 +79,7 @@ LOG_FILE=$(mktemp)
 echo "Log file: $LOG_FILE"
 
 # Start in background with stdin redirected to prevent terminal blocking
-bun run dev < /dev/null > "$LOG_FILE" 2>&1 &
+bun run dev -- --no-public < /dev/null > "$LOG_FILE" 2>&1 &
 SERVER_PID=$!
 
 echo "Server PID: $SERVER_PID"

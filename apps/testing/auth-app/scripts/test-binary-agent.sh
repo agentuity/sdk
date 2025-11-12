@@ -108,7 +108,7 @@ else
 	# Start in a new process group using set -m (job control)
 	LOG_FILE="$TEMP_DIR/server.log"
 	set -m
-	bun run dev > "$LOG_FILE" 2>&1 &
+	bun run dev -- --no-public > "$LOG_FILE" 2>&1 &
 	SERVER_PID=$!
 	set +m
 	SERVER_STARTED=true

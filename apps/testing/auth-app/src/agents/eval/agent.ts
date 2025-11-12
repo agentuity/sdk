@@ -3,8 +3,8 @@ import { z } from 'zod';
 
 const agent = createAgent({
 	schema: {
-		input: z.object({ name: z.string(), age: z.number(), }),
-		output: z.string()
+		input: z.object({ name: z.string(), age: z.number() }),
+		output: z.string(),
 	},
 	handler: async (_c: AgentContext, { name }) => {
 		console.log('name', name);
@@ -12,6 +12,4 @@ const agent = createAgent({
 	},
 });
 
-
 export default agent;
-

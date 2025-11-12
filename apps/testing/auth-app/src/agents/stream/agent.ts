@@ -78,7 +78,8 @@ const agent = createAgent({
 				if (!id) {
 					throw new Error('ID is required for read operation');
 				}
-				const response = await fetch(`https://streams.agentuity.cloud/${id}`, {
+				const url = process.env.AGENTUITY_STREAM_URL || 'https://streams.agentuity.cloud';
+				const response = await fetch(`${url}/${id}`, {
 					headers: {
 						Authorization: `Bearer ${process.env.AGENTUITY_SDK_KEY}`,
 					},

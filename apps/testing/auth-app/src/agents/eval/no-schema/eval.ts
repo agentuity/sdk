@@ -23,13 +23,13 @@ export const executionEval = agent.createEval({
 Determine if the execution was successful and provide reasoning.`,
 		});
 
-	return {
-		success: true as const,
-		passed: object.passed,
-		metadata: {
-			reason: object.reason,
-		},
-	};
+		return {
+			success: true as const,
+			passed: object.passed,
+			metadata: {
+				reason: object.reason,
+			},
+		};
 	},
 });
 
@@ -63,4 +63,3 @@ export const noMetadataEval = agent.createEval({
 		};
 	},
 });
-

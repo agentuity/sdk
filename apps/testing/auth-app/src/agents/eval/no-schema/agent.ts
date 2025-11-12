@@ -7,4 +7,3 @@ const agent = createAgent({
 });
 
 export default agent;
-

@@ -39,6 +39,31 @@ export const ConfigSchema = zod.object({
 				.optional()
 				.default('https://catalyst.agentuity.cloud')
 				.describe('Override transport URL'),
+			stream_url: zod
+				.url()
+				.optional()
+				.default('https://stream.agentuity.cloud')
+				.describe('Override stream URL'),
+			kv_url: zod
+				.url()
+				.optional()
+				.default('https://catalyst.agentuity.cloud')
+				.describe('Override keyvalue URL'),
+			object_url: zod
+				.url()
+				.optional()
+				.default('https://catalyst.agentuity.cloud')
+				.describe('Override object store URL'),
+			vector_url: zod
+				.url()
+				.optional()
+				.default('https://catalyst.agentuity.cloud')
+				.describe('Override vector store URL'),
+			catalyst_url: zod
+				.url()
+				.optional()
+				.default('https://catalyst.agentuity.cloud')
+				.describe('Override catalyst URL'),
 			gravity_url: zod
 				.url()
 				.optional()
@@ -285,11 +310,16 @@ const BaseAgentFields = {
 	id: zod.string().describe('the unique calculated id for the agent'),
 	name: zod.string().describe('the name of the agent'),
 	description: zod.string().optional().describe('the agent description'),
-	evals: zod.array(zod.object({
-		...FileFields,
-		name: zod.string().describe('the name of the eval'),
-		description: zod.string().optional().describe('the eval description'),
-	})).optional().describe('the evals for the agent'),
+	evals: zod
+		.array(
+			zod.object({
+				...FileFields,
+				name: zod.string().describe('the name of the eval'),
+				description: zod.string().optional().describe('the eval description'),
+			})
+		)
+		.optional()
+		.describe('the evals for the agent'),
 };
 
 const AgentSchema = zod.object({

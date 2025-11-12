@@ -15,11 +15,7 @@ export const outputQualityEval = agent.createEval({
 		const { object } = await generateObject({
 			model: openai('gpt-4o-mini'),
 			schema: z.object({
-				score: z
-					.number()
-					.min(0)
-					.max(1)
-					.describe('Quality score from 0 to 1'),
+				score: z.number().min(0).max(1).describe('Quality score from 0 to 1'),
 				reason: z.string().describe('Explanation of the quality score'),
 			}),
 			prompt: `Evaluate the quality of the following agent output.
@@ -38,4 +34,3 @@ Provide a quality score from 0 to 1 and explain your reasoning.`,
 		};
 	},
 });
-

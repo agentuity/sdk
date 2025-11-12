@@ -24,14 +24,11 @@ export const Deployment = z.object({
 	domains: z.array(z.string().describe('the custom domain')).optional(),
 });
 
-
 const BaseFileFields = {
 	filename: z.string().describe('the relative path for the file'),
 	version: z.string().describe('the SHA256 content of the file'),
 	identifier: z.string().describe('the folder for the file'),
 };
-
-
 
 const EvalSchema = z.object({
 	...BaseFileFields,
@@ -39,7 +36,6 @@ const EvalSchema = z.object({
 	name: z.string().describe('the name of the eval'),
 	description: z.string().optional().describe('the eval description'),
 });
-
 
 const BaseAgentFields = {
 	...BaseFileFields,

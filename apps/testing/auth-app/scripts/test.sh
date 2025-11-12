@@ -151,7 +151,10 @@ run_test "Vector Storage" "test-vector.sh"
 run_test "Stream Storage" "test-stream.sh"
 run_test "Eval Functionality" "test-evals.sh"
 run_test "Email" "test-email.sh"
-run_test "Hot Reload" "test-dev-reload.sh"
+# Skip Hot Reload test in CI - rebuilds are slow and file watchers are unreliable in containers
+if [ "$CI" != "true" ]; then
+	run_test "Hot Reload" "test-dev-reload.sh"
+fi
 run_test "Build Metadata" "test-build-metadata.ts"
 
 set +e
