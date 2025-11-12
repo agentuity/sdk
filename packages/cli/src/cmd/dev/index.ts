@@ -618,6 +618,7 @@ export const command = createCommand({
 			/client\.generated\.js$/,
 			/\.tmp$/,
 			/\.tsbuildinfo$/,
+			/\.agentuity\//,
 			// Ignore temporary files created by sed (e.g., sedUprJj0)
 			/\/sed[A-Za-z0-9]+$/,
 		];
