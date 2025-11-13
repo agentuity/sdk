@@ -5,6 +5,7 @@ import {
 	SessionStartEventDelayedSchema,
 	SessionCompleteEventDelayedSchema,
 	type SessionCompleteEvent,
+	type Logger,
 } from '@agentuity/core';
 
 /**
@@ -12,9 +13,11 @@ import {
  */
 export class HTTPSessionEventProvider implements SessionEventProvider {
 	private apiClient: APIClient;
+	private logger: Logger;
 
-	constructor(client: APIClient) {
+	constructor(client: APIClient, logger: Logger) {
 		this.apiClient = client;
+		this.logger = logger;
 	}
 
 	/**
@@ -23,6 +26,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 	 * @param event SessionStartEvent
 	 */
 	async start(event: SessionStartEvent): Promise<void> {
+		this.logger.debug('Sending session start event: %s', event.id);
 		const resp = await this.apiClient.request(
 			'POST',
 			'/session/2025-03-17',
@@ -31,6 +35,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			SessionStartEventDelayedSchema
 		);
 		if (resp.success) {
+			this.logger.debug('Session start event sent successfully: %s', event.id);
 			return;
 		}
 		throw new Error(resp.message);
@@ -42,6 +47,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 	 * @param event SessionCompleteEvent
 	 */
 	async complete(event: SessionCompleteEvent): Promise<void> {
+		this.logger.debug('Sending session complete event: %s', event.id);
 		const resp = await this.apiClient.request(
 			'PUT',
 			'/session/2025-03-17',
@@ -50,6 +56,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			SessionCompleteEventDelayedSchema
 		);
 		if (resp.success) {
+			this.logger.debug('Session complete event sent successfully: %s', event.id);
 			return;
 		}
 		throw new Error(resp.message);

@@ -6,6 +6,7 @@ import {
 	CustomStreamStorage,
 	CustomVectorStorage,
 	CustomSessionEventProvider,
+	CustomEvalRunEventProvider,
 } from './src/services';
 
 const app = createApp({
@@ -15,6 +16,7 @@ const app = createApp({
 		stream: new CustomStreamStorage(),
 		vector: new CustomVectorStorage(),
 		sessionEvent: new CustomSessionEventProvider(),
+		evalRunEvent: new CustomEvalRunEventProvider(),
 	},
 });
 

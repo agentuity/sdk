@@ -9,6 +9,7 @@ import type {
 	KeyValueStorage,
 	ObjectStorage,
 	SessionEventProvider,
+	EvalRunEventProvider,
 	StreamStorage,
 	VectorStorage,
 	SessionStartEvent,
@@ -61,6 +62,10 @@ export interface AppConfig {
 		 * the SessionEventProvider to override instead of the default
 		 */
 		sessionEvent?: SessionEventProvider;
+		/**
+		 * the EvalRunEventProvider to override instead of the default
+		 */
+		evalRunEvent?: EvalRunEventProvider;
 	};
 }
 

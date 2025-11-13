@@ -33,6 +33,7 @@ interface ASTObjectExpression extends ASTNode {
 
 interface ASTLiteral extends ASTNode {
 	value: string;
+	raw?: string;
 }
 
 interface ASTMemberExpression extends ASTNode {
@@ -213,20 +214,101 @@ function camelToKebab(str: string): string {
 		.toLowerCase();
 }
 
+function setLiteralValue(literal: ASTLiteral, value: string) {
+	literal.value = value;
+	if (literal.raw !== undefined) {
+		literal.raw = JSON.stringify(value);
+	}
+}
+
+function augmentEvalMetadataNode(
+	id: string,
+	name: string,
+	rel: string,
+	version: string,
+	identifier: string,
+	metadataObj: ASTObjectExpression
+): void {
+	// Check if id, version, identifier, filename already exist
+	const existingKeys = new Set<string>();
+	for (const prop of metadataObj.properties) {
+		if (prop.key.type === 'Identifier') {
+			existingKeys.add(prop.key.name);
+		}
+	}
+
+	// Add or update metadata properties
+	if (!existingKeys.has('id')) {
+		metadataObj.properties.push(createObjectPropertyNode('id', id));
+	} else {
+		// Update existing id
+		for (const prop of metadataObj.properties) {
+			if (prop.key.type === 'Identifier' && prop.key.name === 'id') {
+				if (prop.value.type === 'Literal') {
+					setLiteralValue(prop.value as ASTLiteral, id);
+				}
+				break;
+			}
+		}
+	}
+
+	if (!existingKeys.has('version')) {
+		metadataObj.properties.push(createObjectPropertyNode('version', version));
+	} else {
+		for (const prop of metadataObj.properties) {
+			if (prop.key.type === 'Identifier' && prop.key.name === 'version') {
+				if (prop.value.type === 'Literal') {
+					setLiteralValue(prop.value as ASTLiteral, version);
+				}
+				break;
+			}
+		}
+	}
+
+	if (!existingKeys.has('identifier')) {
+		metadataObj.properties.push(createObjectPropertyNode('identifier', identifier));
+	} else {
+		for (const prop of metadataObj.properties) {
+			if (prop.key.type === 'Identifier' && prop.key.name === 'identifier') {
+				if (prop.value.type === 'Literal') {
+					setLiteralValue(prop.value as ASTLiteral, identifier);
+				}
+				break;
+			}
+		}
+	}
+
+	if (!existingKeys.has('filename')) {
+		metadataObj.properties.push(createObjectPropertyNode('filename', rel));
+	} else {
+		for (const prop of metadataObj.properties) {
+			if (prop.key.type === 'Identifier' && prop.key.name === 'filename') {
+				if (prop.value.type === 'Literal') {
+					setLiteralValue(prop.value as ASTLiteral, rel);
+				}
+				break;
+			}
+		}
+	}
+}
+
 export function parseEvalMetadata(
 	rootDir: string,
 	filename: string,
 	contents: string,
 	projectId: string,
 	deploymentId: string
-): Array<{
-	filename: string;
-	id: string;
-	version: string;
-	identifier: string;
-	name: string;
-	description?: string;
-}> {
+): [
+	string,
+	Array<{
+		filename: string;
+		id: string;
+		version: string;
+		identifier: string;
+		name: string;
+		description?: string;
+	}>,
+] {
 	const logLevel = (process.env.AGENTUITY_LOG_LEVEL || 'info') as
 		| 'trace'
 		| 'debug'
@@ -289,6 +371,7 @@ export function parseEvalMetadata(
 									let evalName: string | undefined;
 									let evalDescription: string | undefined;
 									let variableName: string | undefined;
+									let metadataObj: ASTObjectExpression | undefined;
 
 									// Capture variable name if available
 									if (vardecl.id.type === 'Identifier') {
@@ -299,7 +382,7 @@ export function parseEvalMetadata(
 									for (const prop of evalConfig.properties) {
 										if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
 											if (prop.value.type === 'ObjectExpression') {
-												const metadataObj = prop.value as ASTObjectExpression;
+												metadataObj = prop.value as ASTObjectExpression;
 												for (const metaProp of metadataObj.properties) {
 													if (metaProp.key.type === 'Identifier') {
 														if (
@@ -342,6 +425,19 @@ export function parseEvalMetadata(
 										finalName,
 										version
 									);
+
+									// Inject metadata into AST if metadata object exists
+									if (metadataObj) {
+										augmentEvalMetadataNode(
+											evalId,
+											finalName,
+											rel,
+											version,
+											identifier,
+											metadataObj
+										);
+									}
+
 									evals.push({
 										filename: rel,
 										id: evalId,
@@ -359,8 +455,31 @@ export function parseEvalMetadata(
 		}
 	}
 
+	// Check for duplicate eval names in the same file
+	// This prevents hash collisions when projectId/deploymentId are empty
+	const seenNames = new Map<string, number>();
+	for (const evalItem of evals) {
+		const count = seenNames.get(evalItem.name) || 0;
+		seenNames.set(evalItem.name, count + 1);
+	}
+
+	const duplicates: string[] = [];
+	for (const [name, count] of seenNames.entries()) {
+		if (count > 1) {
+			duplicates.push(name);
+		}
+	}
+
+	if (duplicates.length > 0) {
+		throw new Error(
+			`Duplicate eval names found in ${rel}: ${duplicates.join(', ')}. ` +
+				'Eval names must be unique within the same file to prevent ID collisions.'
+		);
+	}
+
+	const newsource = generate(ast);
 	logger.trace(`Parsed ${evals.length} eval(s) from ${filename}`);
-	return evals;
+	return [newsource, evals];
 }
 
 export async function parseAgentMetadata(
@@ -498,7 +617,13 @@ export async function parseAgentMetadata(
 		const evalsSource = await evalsFile.text();
 		const transpiler = new Bun.Transpiler({ loader: 'ts' });
 		const evalsContents = transpiler.transformSync(evalsSource);
-		const evals = parseEvalMetadata(rootDir, evalsPath, evalsContents, projectId, deploymentId);
+		const [, evals] = parseEvalMetadata(
+			rootDir,
+			evalsPath,
+			evalsContents,
+			projectId,
+			deploymentId
+		);
 		if (evals.length > 0) {
 			logger.trace(`Adding ${evals.length} eval(s) to agent metadata for ${name}`);
 			result[1].set('evals', JSON.stringify(evals));

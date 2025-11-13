@@ -13,13 +13,21 @@ import {
 	type VectorSearchResult,
 	type Logger,
 	type SessionEventProvider,
+	type EvalRunEventProvider,
 } from '@agentuity/core';
-import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
+import { /*APIClient,*/ createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
 import {
 	CompositeSessionEventProvider,
 	LocalSessionEventProvider,
 	JSONSessionEventProvider,
+	// HTTPSessionEventProvider,
 } from './services/session';
+import {
+	CompositeEvalRunEventProvider,
+	LocalEvalRunEventProvider,
+	JSONEvalRunEventProvider,
+	// HTTPEvalRunEventProvider,
+} from './services/evalrun';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getLogger, getTracer } from './_server';
 import { getSDKVersion, isAuthenticated, isProduction } from './_config';
@@ -169,6 +177,7 @@ let vector: VectorStorage;
 let session: SessionProvider;
 let thread: ThreadProvider;
 let sessionEvent: SessionEventProvider;
+let evalRunEvent: EvalRunEventProvider;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let localRouter: any | null = null;
@@ -203,6 +212,12 @@ export function createServices(logger: Logger, config?: AppConfig, serverUrl?: s
 					config.services.sessionEvent
 				)
 			: new LocalSessionEventProvider();
+		evalRunEvent = config?.services?.evalRunEvent
+			? new CompositeEvalRunEventProvider(
+					new LocalEvalRunEventProvider(),
+					config.services.evalRunEvent
+				)
+			: new LocalEvalRunEventProvider();
 
 		localRouter = createLocalStorageRouter(db, projectPath);
 
@@ -229,6 +244,16 @@ export function createServices(logger: Logger, config?: AppConfig, serverUrl?: s
 	if (config?.services?.sessionEvent) {
 		sessionEvent = new CompositeSessionEventProvider(sessionEvent, config.services.sessionEvent);
 	}
+	evalRunEvent =
+		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
+			? new JSONEvalRunEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)
+			: // FIXME: this is turned off for now for production until we have the new changes deployed
+
+				// ? new HTTPEvalRunEventProvider(new APIClient(catalystBaseUrl, logger), logger, catalystBaseUrl)
+				new LocalEvalRunEventProvider();
+	if (config?.services?.evalRunEvent) {
+		evalRunEvent = new CompositeEvalRunEventProvider(evalRunEvent, config.services.evalRunEvent);
+	}
 
 	return {};
 }
@@ -248,6 +273,10 @@ export function getLocalRouter(): any | null {
 
 export function getSessionEventProvider() {
 	return sessionEvent;
+}
+
+export function getEvalRunEventProvider() {
+	return evalRunEvent;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -6,3 +6,5 @@ export * from './session';
 export type { Logger } from './logger';
 export { getRouter } from './_server';
 export { Email, parseEmail } from './io/email';
+export * from './services/evalrun';
+export { getEvalRunEventProvider } from './_services';

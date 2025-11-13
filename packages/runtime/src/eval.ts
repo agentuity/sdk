@@ -39,20 +39,37 @@ export type CreateEvalRunRequest = {
 	promptHash?: string;
 };
 
-export interface EvalMetadata {
+type InternalEvalMetadata = {
 	/**
-	 * name of the eval
+	 * the unique identifier for this eval and project
 	 */
-	name?: string;
+	id: string;
 	/**
-	 * description of the eval
+	 * the folder name for the eval
 	 */
-	description?: string;
+	identifier: string;
 	/**
 	 * the relative path to the eval from the root project directory
 	 */
-	filename?: string;
-}
+	filename: string;
+	/**
+	 * a unique version for the eval. computed as the SHA256 contents of the file.
+	 */
+	version: string;
+};
+
+export type ExternalEvalMetadata = {
+	/**
+	 * the human readable name for the eval (identifier is used if not specified)
+	 */
+	name: string;
+	/**
+	 * the human readable description for the eval (empty if not provided)
+	 */
+	description: string;
+};
+
+export type EvalMetadata = InternalEvalMetadata & ExternalEvalMetadata;
 
 type InferSchemaInput<T> = T extends StandardSchemaV1 ? StandardSchemaV1.InferInput<T> : any;
 type InferSchemaOutput<T> = T extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<T> : any;
@@ -72,7 +89,7 @@ export type Eval<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
 > = {
-	metadata?: EvalMetadata;
+	metadata: EvalMetadata;
 	handler: EvalFunction<InferSchemaInput<TInput>, InferSchemaOutput<TOutput>>;
 } & (TInput extends StandardSchemaV1 ? { inputSchema: TInput } : { inputSchema?: never }) &
 	(TOutput extends StandardSchemaV1 ? { outputSchema: TOutput } : { outputSchema?: never });

@@ -1,4 +1,5 @@
 export * from './adapter';
+export * from './evalrun';
 export * from './exception';
 export * from './keyvalue';
 export * from './objectstore';

@@ -2,7 +2,7 @@ import type { BunPlugin } from 'bun';
 import { dirname, basename, join, resolve } from 'node:path';
 import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import type { BuildMetadata } from '@agentuity/server';
-import { parseAgentMetadata, parseRoute } from './ast';
+import { parseAgentMetadata, parseRoute, parseEvalMetadata } from './ast';
 import { applyPatch, generatePatches } from './patch';
 import { detectSubagent } from '../../utils/detectSubagent';
 import { createLogger } from '@agentuity/server';
@@ -313,6 +313,19 @@ const AgentuityBundler: BunPlugin = {
 				}
 
 				agentMetadata.set(md.get('identifier')!, md);
+			}
+			return {
+				contents: newsource,
+				loader: 'ts',
+			};
+		});
+
+		build.onLoad({ filter: /\/eval\.ts$/, namespace: 'file' }, async (args) => {
+			let newsource = await Bun.file(args.path).text();
+			if (args.path.startsWith(srcDir)) {
+				const contents = transpiler.transformSync(newsource);
+				const [ns] = parseEvalMetadata(rootDir, args.path, contents, projectId, deploymentId);
+				newsource = ns;
 			}
 			return {
 				contents: newsource,

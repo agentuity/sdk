@@ -145,6 +145,10 @@ export const command = createCommand({
 		env.PORT = Number(opts.port).toFixed();
 		env.AGENTUITY_PORT = env.PORT;
 		if (options.logLevel !== undefined) env.AGENTUITY_LOG_LEVEL = options.logLevel;
+		// Pass through AGENTUITY_SDK_LOG_LEVEL for internal SDK logger
+		if (process.env.AGENTUITY_SDK_LOG_LEVEL) {
+			env.AGENTUITY_SDK_LOG_LEVEL = process.env.AGENTUITY_SDK_LOG_LEVEL;
+		}
 		env.AGENTUITY_FORCE_LOCAL_SERVICES = opts.local === true ? 'true' : 'false';
 		if (config?.overrides?.transport_url) {
 			env.AGENTUITY_TRANSPORT_URL = config.overrides.transport_url;
@@ -188,6 +192,8 @@ export const command = createCommand({
 		let shuttingDownForRestart = false;
 		let pendingRestart = false;
 		let building = false;
+		let buildCompletedAt = 0;
+		const BUILD_COOLDOWN_MS = 500; // Ignore file changes for 500ms after build completes
 		let metadata: Partial<BuildMetadata> | undefined;
 		let showInitialReadyMessage = true;
 		let serverStartTime = 0;
@@ -386,6 +392,7 @@ export const command = createCommand({
 								dev: true,
 							});
 							building = false;
+							buildCompletedAt = Date.now();
 							logger.trace('Bundle completed successfully');
 						} catch (error) {
 							building = false;
@@ -634,12 +641,24 @@ export const command = createCommand({
 			try {
 				logger.trace('Setting up watcher for %s', watchDir);
 				const watcher = watch(watchDir, { recursive: true }, (eventType, changedFile) => {
-					const absPath = changedFile ? join(watchDir, changedFile) : watchDir;
+					const absPath = changedFile ? resolve(watchDir, changedFile) : watchDir;
 
 					// Ignore file changes during active build to prevent loops
 					if (building) {
 						logger.trace(
 							'File change ignored (build in progress): %s (event: %s, file: %s)',
+							watchDir,
+							eventType,
+							changedFile
+						);
+						return;
+					}
+
+					// Ignore file changes immediately after build completes (cooldown period)
+					// This prevents restarts from build output files that are written asynchronously
+					if (buildCompletedAt > 0 && Date.now() - buildCompletedAt < BUILD_COOLDOWN_MS) {
+						logger.trace(
+							'File change ignored (build cooldown): %s (event: %s, file: %s)',
 							watchDir,
 							eventType,
 							changedFile
@@ -659,7 +678,12 @@ export const command = createCommand({
 					}
 
 					// Ignore changes in .agentuity directory (build output)
-					if (absPath.startsWith(agentuityDir)) {
+					// Check both relative path and normalized absolute path
+					const isInAgentuityDir =
+						(changedFile &&
+							(changedFile === '.agentuity' || changedFile.startsWith('.agentuity/'))) ||
+						resolve(absPath).startsWith(agentuityDir);
+					if (isInAgentuityDir) {
 						logger.trace(
 							'File change ignored (.agentuity dir): %s (event: %s, file: %s)',
 							watchDir,
@@ -684,7 +708,7 @@ export const command = createCommand({
 					// This handles cases like sed -i.tmp where agent.ts.tmp is renamed to agent.ts
 					if (eventType === 'rename' && changedFile && changedFile.endsWith('.tmp')) {
 						const targetFile = changedFile.slice(0, -4); // Remove .tmp suffix
-						const targetAbsPath = join(watchDir, targetFile);
+						const targetAbsPath = resolve(watchDir, targetFile);
 
 						// Only trigger restart for source files (ts, tsx, js, jsx, etc.)
 						const isSourceFile = /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(targetFile);
@@ -692,7 +716,10 @@ export const command = createCommand({
 						// Check if target file exists and is not in ignored directories
 						const targetExists = existsSync(targetAbsPath);
 						const inNodeModules = targetAbsPath.includes('node_modules');
-						const inAgentuityDir = targetAbsPath.startsWith(agentuityDir);
+						const inAgentuityDir =
+							(targetFile &&
+								(targetFile === '.agentuity' || targetFile.startsWith('.agentuity/'))) ||
+							resolve(targetAbsPath).startsWith(agentuityDir);
 						let isDirectory = false;
 						if (targetExists) {
 							try {

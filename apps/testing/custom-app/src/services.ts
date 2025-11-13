@@ -21,6 +21,9 @@ import type {
 	SessionEventProvider,
 	SessionStartEvent,
 	SessionCompleteEvent,
+	EvalRunEventProvider,
+	EvalRunStartEvent,
+	EvalRunCompleteEvent,
 } from '@agentuity/core';
 
 export class CustomKeyValueStorage implements KeyValueStorage {
@@ -191,5 +194,25 @@ export class CustomSessionEventProvider implements SessionEventProvider {
 	 */
 	async complete(event: SessionCompleteEvent): Promise<void> {
 		console.log(`SESSION COMPLETE EVENT: ${JSON.stringify(event)}`);
+	}
+}
+
+export class CustomEvalRunEventProvider implements EvalRunEventProvider {
+	/**
+	 * called when the eval run starts
+	 *
+	 * @param event EvalRunStartEvent
+	 */
+	async start(event: EvalRunStartEvent): Promise<void> {
+		console.log(`EVAL RUN START EVENT: ${JSON.stringify(event)}`);
+	}
+
+	/**
+	 * called when the eval run completes
+	 *
+	 * @param event EvalRunCompleteEvent
+	 */
+	async complete(event: EvalRunCompleteEvent): Promise<void> {
+		console.log(`EVAL RUN COMPLETE EVENT: ${JSON.stringify(event)}`);
 	}
 }

@@ -1,0 +1,65 @@
+import { type AgentContext, createAgent } from '@agentuity/runtime';
+
+// This agent demonstrates TypeScript type checking for createAgent metadata.
+// It verifies that internal metadata fields (id, filename, version) cannot be passed.
+
+const agent = createAgent({
+	metadata: {
+		name: 'Metadata Type Test Agent',
+		description: 'Agent for testing TypeScript type safety of createAgent metadata',
+	},
+	handler: async (c: AgentContext) => {
+		c.logger.info('Metadata type test agent executed');
+	},
+});
+
+// Type tests: These should all produce TypeScript errors
+// Using @ts-expect-error to verify that TypeScript correctly rejects internal metadata fields
+// Each test is separate because TypeScript only reports the first error in an object literal
+
+const _invalidAgent1 = createAgent({
+	metadata: {
+		name: 'Test',
+		// @ts-expect-error - 'id' is an internal metadata field and should not be allowed
+		id: 'should-not-be-allowed',
+	},
+	handler: async (_c: AgentContext) => {},
+});
+
+const _invalidAgent2 = createAgent({
+	metadata: {
+		name: 'Test',
+		// @ts-expect-error - 'filename' is an internal metadata field and should not be allowed
+		filename: 'should-not-be-allowed',
+	},
+	handler: async (_c: AgentContext) => {},
+});
+
+const _invalidAgent3 = createAgent({
+	metadata: {
+		name: 'Test',
+		// @ts-expect-error - 'version' is an internal metadata field and should not be allowed
+		version: 'should-not-be-allowed',
+	},
+	handler: async (_c: AgentContext) => {},
+});
+
+const _invalidAgent4 = createAgent({
+	metadata: {
+		name: 'Test',
+		// @ts-expect-error - 'identifier' is an internal metadata field and should not be allowed
+		identifier: 'should-not-be-allowed',
+	},
+	handler: async (_c: AgentContext) => {},
+});
+
+// Valid usage - only external metadata fields are allowed
+const _validAgent = createAgent({
+	metadata: {
+		name: 'Valid Agent',
+		description: 'This is valid',
+	},
+	handler: async (_c: AgentContext) => {},
+});
+
+export default agent;

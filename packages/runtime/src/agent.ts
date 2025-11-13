@@ -11,11 +11,22 @@ import { SpanStatusCode, context, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
 import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
 import type { Logger } from './logger';
-import type { Eval, EvalContext, EvalRunResult, EvalMetadata, EvalFunction } from './eval';
+import type {
+	Eval,
+	EvalContext,
+	EvalRunResult,
+	EvalMetadata,
+	EvalFunction,
+	ExternalEvalMetadata,
+} from './eval';
 import { internal } from './logger/internal';
 import { getApp } from './app';
 import type { Thread, Session } from './session';
 import { privateContext } from './_server';
+import { generateId } from './session';
+import { getEvalRunEventProvider } from './_services';
+import * as runtimeConfig from './_config';
+import type { EvalRunStartEvent } from '@agentuity/core';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
@@ -50,7 +61,7 @@ export interface AgentContext {
 	session: Session;
 }
 
-interface AgentMetadata {
+type InternalAgentMetadata = {
 	/**
 	 * the unique identifier for this agent and project
 	 */
@@ -60,14 +71,6 @@ interface AgentMetadata {
 	 */
 	identifier: string;
 	/**
-	 * the human readable name for the agent (identifier is used if not specified)
-	 */
-	name: string;
-	/**
-	 * the human readable description for the agent (empty if not provided)
-	 */
-	description: string;
-	/**
 	 * the relative path to the agent from the root project directory
 	 */
 	filename: string;
@@ -75,14 +78,27 @@ interface AgentMetadata {
 	 * a unique version for the agent. computed as the SHA256 contents of the file.
 	 */
 	version: string;
-}
+};
+
+type ExternalAgentMetadata = {
+	/**
+	 * the human readable name for the agent
+	 */
+	name: string;
+	/**
+	 * the human readable description for the agent (empty if not provided)
+	 */
+	description: string;
+};
+
+type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
 
 // Type for createEval method
 type CreateEvalMethod<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
 > = (config: {
-	metadata?: EvalMetadata;
+	metadata?: Partial<ExternalEvalMetadata>;
 	handler: EvalFunction<
 		TInput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TInput> : undefined,
 		TOutput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TOutput> : undefined
@@ -255,7 +271,7 @@ export function createAgent<
 		output?: TOutput;
 		stream?: TStream;
 	};
-	metadata?: Partial<Omit<AgentMetadata, 'id'>>;
+	metadata?: Partial<ExternalAgentMetadata>;
 	handler: TInput extends StandardSchemaV1
 		? TStream extends true
 			? TOutput extends StandardSchemaV1
@@ -370,19 +386,60 @@ export function createAgent<
 
 	// Create createEval method that infers types from agent and automatically adds to agent
 	const createEval = (evalConfig: {
-		metadata?: EvalMetadata;
+		metadata?: Partial<Omit<EvalMetadata, 'id' | 'version'>>;
 		handler: EvalFunction<AgentInput, AgentOutput>;
 	}): Eval<TInput, TOutput> => {
 		const evalName = evalConfig.metadata?.name || 'unnamed';
-		// Debug log to verify evals file is imported
-		if (typeof process !== 'undefined' && process.env?.AGENTUITY_SDK_DEV_MODE === 'true') {
-			console.log(
-				`[DEBUG] createEval called for agent "${config?.metadata?.name || 'unknown'}": registering eval "${evalName}"`
-			);
+		// Trace log to verify evals file is imported
+		internal.debug(
+			`createEval called for agent "${config?.metadata?.name || 'unknown'}": registering eval "${evalName}"`
+		);
+
+		// Get filename (can be provided via __filename or set by bundler)
+		const filename = evalConfig.metadata?.filename || '';
+
+		// Derive identifier from filename if not provided
+		let identifier = evalConfig.metadata?.identifier || '';
+		if (!identifier && filename) {
+			const pathParts = filename.split(/[/\\]/);
+			const basename = pathParts[pathParts.length - 1] || '';
+			identifier = basename.replace(/\.(ts|tsx|js|jsx)$/, '') || '';
 		}
 
+		// Use name as identifier fallback
+		if (!identifier) {
+			identifier = evalName;
+		}
+
+		// Generate eval ID and version at runtime (similar to build-time generation)
+		const projectId = runtimeConfig.getProjectId() || '';
+		const deploymentId = runtimeConfig.getDeploymentId() || '';
+		// Generate version from available metadata (deterministic hash)
+		// At build-time, version is hash of file contents; at runtime we use metadata
+		const versionHasher = new Bun.CryptoHasher('sha1');
+		versionHasher.update(identifier);
+		versionHasher.update(evalName);
+		versionHasher.update(filename);
+		const version = versionHasher.digest('hex');
+		// Generate eval ID using same logic as build-time (getEvalId)
+		// Format: eval_${hashSHA1(projectId, deploymentId, filename, name, version)}
+		const idHasher = new Bun.CryptoHasher('sha1');
+		idHasher.update(projectId);
+		idHasher.update(deploymentId);
+		idHasher.update(filename);
+		idHasher.update(evalName);
+		idHasher.update(version);
+		const evalId = `eval_${idHasher.digest('hex')}`;
+
 		const evalType: any = {
-			metadata: evalConfig.metadata,
+			metadata: {
+				id: evalId,
+				version,
+				identifier,
+				name: evalConfig.metadata?.name || '',
+				description: evalConfig.metadata?.description || '',
+				filename,
+			},
 			handler: evalConfig.handler,
 		};
 
@@ -396,11 +453,9 @@ export function createAgent<
 
 		// Automatically add eval to agent's evals array
 		evalsArray.push(evalType);
-		if (typeof process !== 'undefined' && process.env?.AGENTUITY_SDK_DEV_MODE === 'true') {
-			console.log(
-				`[DEBUG] Added eval "${evalName}" to agent "${config?.metadata?.name || 'unknown'}". Total evals: ${evalsArray.length}`
-			);
-		}
+		internal.debug(
+			`Added eval "${evalName}" to agent "${config?.metadata?.name || 'unknown'}". Total evals: ${evalsArray.length}`
+		);
 
 		return evalType as Eval<TInput, TOutput>;
 	};
@@ -450,12 +505,83 @@ export function createAgent<
 
 			// Execute each eval using waitUntil to avoid blocking the response
 			for (const evalItem of agentEvals) {
-				const evalName = evalItem.metadata?.name || 'unnamed';
+				const evalName = evalItem.metadata.name || 'unnamed';
 
 				ctx.waitUntil(
 					(async () => {
+						internal.info(`[EVALRUN] Starting eval run tracking for '${evalName}'`);
+						const evalRunId = generateId('evalrun');
+						const evalId = evalItem.metadata.id || '';
+						const orgId = runtimeConfig.getOrganizationId();
+						const projectId = runtimeConfig.getProjectId();
+						const devMode = runtimeConfig.isDevMode() ?? false;
+						const evalRunEventProvider = getEvalRunEventProvider();
+
+						// Only send events if we have required context (devmode flag will be set based on devMode)
+						const shouldSendEvalRunEvents = orgId && projectId && evalId !== '';
+
+						internal.info(`[EVALRUN] Checking conditions for eval '${evalName}':`, {
+							orgId: orgId,
+							projectId: projectId,
+							evalId: evalId,
+							devMode,
+							hasEvalRunEventProvider: !!evalRunEventProvider,
+							shouldSendEvalRunEvents,
+						});
+
+						if (!shouldSendEvalRunEvents) {
+							const reasons: string[] = [];
+							if (!orgId) reasons.push('missing orgId');
+							if (!projectId) reasons.push('missing projectId');
+							if (!evalId || evalId === '') reasons.push('empty evalId');
+							internal.info(
+								`[EVALRUN] Skipping eval run events for '${evalName}': ${reasons.join(', ')}`
+							);
+						}
+
 						try {
 							internal.debug(`Executing eval: ${evalName}`);
+
+							// Send eval run start event
+							if (shouldSendEvalRunEvents && evalRunEventProvider) {
+								internal.info(
+									`[EVALRUN] Sending start event for eval '${evalName}' (id: ${evalRunId}, evalId: ${evalId})`
+								);
+								try {
+									const startEvent: EvalRunStartEvent = {
+										id: evalRunId,
+										sessionId: ctx.sessionId,
+										evalId: evalId,
+										orgId: orgId!,
+										projectId: projectId!,
+										devmode: Boolean(devMode),
+									};
+									internal.debug(
+										'[EVALRUN] Start event payload: %s',
+										JSON.stringify(startEvent, null, 2)
+									);
+									await evalRunEventProvider.start(startEvent);
+									internal.info(
+										`[EVALRUN] Start event sent successfully for eval '${evalName}' (id: ${evalRunId})`
+									);
+								} catch (error) {
+									internal.error(
+										`[EVALRUN] Error sending eval run start event for '${evalName}' (id: ${evalRunId})`,
+										{
+											error,
+										}
+									);
+									// Don't throw - continue with eval execution even if start event fails
+								}
+							} else if (shouldSendEvalRunEvents && !evalRunEventProvider) {
+								internal.warn(
+									`[EVALRUN] Conditions met but no evalRunEventProvider available for '${evalName}'`
+								);
+							} else {
+								internal.debug(
+									`[EVALRUN] Not sending start event for '${evalName}': shouldSendEvalRunEvents=${shouldSendEvalRunEvents}, hasProvider=${!!evalRunEventProvider}`
+								);
+							}
 
 							// Validate eval input if schema exists
 							let evalValidatedInput: any = validatedInput;
@@ -523,9 +649,55 @@ export function createAgent<
 								internal.error(`Eval '${evalName}' failed: ${result.error}`);
 							}
 
+							// Send eval run complete event
+							if (shouldSendEvalRunEvents && evalRunEventProvider) {
+								internal.info(
+									`[EVALRUN] Sending complete event for eval '${evalName}' (id: ${evalRunId})`
+								);
+								try {
+									await evalRunEventProvider.complete({
+										id: evalRunId,
+										result: result.success ? result : undefined,
+										error: result.success ? undefined : result.error,
+									});
+									internal.info(
+										`[EVALRUN] Complete event sent successfully for eval '${evalName}' (id: ${evalRunId})`
+									);
+								} catch (error) {
+									internal.error(
+										`[EVALRUN] Error sending eval run complete event for '${evalName}' (id: ${evalRunId})`,
+										{
+											error,
+										}
+									);
+								}
+							}
+
 							internal.debug(`Eval '${evalName}' completed successfully`);
 						} catch (error) {
+							const errorMessage = error instanceof Error ? error.message : String(error);
 							internal.error(`Error executing eval '${evalName}'`, { error });
+
+							// Send eval run complete event with error
+							if (shouldSendEvalRunEvents && evalRunEventProvider) {
+								internal.info(
+									`[EVALRUN] Sending complete event (error) for eval '${evalName}' (id: ${evalRunId})`
+								);
+								try {
+									await evalRunEventProvider.complete({
+										id: evalRunId,
+										error: errorMessage,
+									});
+									internal.info(
+										`[EVALRUN] Complete event (error) sent successfully for eval '${evalName}' (id: ${evalRunId})`
+									);
+								} catch (eventError) {
+									internal.error(
+										`[EVALRUN] Error sending eval run complete event (error) for '${evalName}' (id: ${evalRunId})`,
+										{ error: eventError }
+									);
+								}
+							}
 						}
 					})()
 				);

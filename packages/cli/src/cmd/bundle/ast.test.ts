@@ -19,7 +19,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -45,7 +45,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -66,7 +66,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -86,7 +86,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -111,7 +111,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -151,7 +151,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -195,7 +195,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -227,7 +227,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -250,7 +250,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -270,7 +270,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -297,7 +297,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -322,7 +322,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result1 = parseEvalMetadata(
+			const [, result1] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -330,7 +330,7 @@ describe('parseEvalMetadata', () => {
 				TEST_DEPLOYMENT_ID
 			);
 
-			const result2 = parseEvalMetadata(
+			const [, result2] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -352,7 +352,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -375,7 +375,7 @@ describe('parseEvalMetadata', () => {
 				});
 			`;
 
-			const result = parseEvalMetadata(
+			const [, result] = parseEvalMetadata(
 				TEST_ROOT_DIR,
 				'/test/root/src/agents/test/eval.ts',
 				code,
@@ -386,6 +386,180 @@ describe('parseEvalMetadata', () => {
 			expect(result).toHaveLength(1);
 			expect(result[0].name).toBe('description-only-eval');
 			expect(result[0].description).toBe('Only description, no name');
+		});
+	});
+
+	describe('duplicate eval names', () => {
+		test('throws error when duplicate eval names are found in same file', () => {
+			const code = `
+				import agent from './agent';
+				
+				export const firstEval = agent.createEval({
+					metadata: {
+						name: 'duplicate-name'
+					},
+					handler: async () => ({ success: true, passed: true })
+				});
+
+				export const secondEval = agent.createEval({
+					metadata: {
+						name: 'duplicate-name'
+					},
+					handler: async () => ({ success: true, passed: true })
+				});
+			`;
+
+			expect(() => {
+				parseEvalMetadata(
+					TEST_ROOT_DIR,
+					'/test/root/src/agents/test/eval.ts',
+					code,
+					TEST_PROJECT_ID,
+					TEST_DEPLOYMENT_ID
+				);
+			}).toThrow(/Duplicate eval names found in .*eval\.ts: duplicate-name/);
+		});
+
+		test('throws error when multiple duplicate eval names are found', () => {
+			const code = `
+				import agent from './agent';
+				
+				export const eval1 = agent.createEval({
+					metadata: {
+						name: 'first-duplicate'
+					},
+					handler: async () => ({ success: true, passed: true })
+				});
+
+				export const eval2 = agent.createEval({
+					metadata: {
+						name: 'first-duplicate'
+					},
+					handler: async () => ({ success: true, passed: true })
+				});
+
+				export const eval3 = agent.createEval({
+					metadata: {
+						name: 'second-duplicate'
+					},
+					handler: async () => ({ success: true, passed: true })
+				});
+
+				export const eval4 = agent.createEval({
+					metadata: {
+						name: 'second-duplicate'
+					},
+					handler: async () => ({ success: true, passed: true })
+				});
+			`;
+
+			expect(() => {
+				parseEvalMetadata(
+					TEST_ROOT_DIR,
+					'/test/root/src/agents/test/eval.ts',
+					code,
+					TEST_PROJECT_ID,
+					TEST_DEPLOYMENT_ID
+				);
+			}).toThrow(/Duplicate eval names found in .*eval\.ts: first-duplicate, second-duplicate/);
+		});
+
+		test('throws error when duplicate names come from variable names', () => {
+			// Note: We can't have two variables with the exact same name in valid JavaScript,
+			// but we can test that the validation works by using metadata.name to override
+			// variable names to create duplicates
+			const code = `
+				import agent from './agent';
+				
+				export const eval1 = agent.createEval({
+					metadata: {
+						name: 'duplicate-name'
+					},
+					handler: async () => ({ success: true, passed: true })
+				});
+
+				export const eval2 = agent.createEval({
+					metadata: {
+						name: 'duplicate-name'
+					},
+					handler: async () => ({ success: true, passed: true })
+				});
+			`;
+
+			expect(() => {
+				parseEvalMetadata(
+					TEST_ROOT_DIR,
+					'/test/root/src/agents/test/eval.ts',
+					code,
+					TEST_PROJECT_ID,
+					TEST_DEPLOYMENT_ID
+				);
+			}).toThrow(/Duplicate eval names found in .*eval\.ts: duplicate-name/);
+		});
+
+		test('throws error when duplicate names mix metadata.name and variable name', () => {
+			const code = `
+				import agent from './agent';
+				
+				export const myEval = agent.createEval({
+					metadata: {
+						name: 'mixed-duplicate'
+					},
+					handler: async () => ({ success: true, passed: true })
+				});
+
+				export const mixedDuplicate = agent.createEval({
+					handler: async () => ({ success: true, passed: true })
+				});
+			`;
+
+			expect(() => {
+				parseEvalMetadata(
+					TEST_ROOT_DIR,
+					'/test/root/src/agents/test/eval.ts',
+					code,
+					TEST_PROJECT_ID,
+					TEST_DEPLOYMENT_ID
+				);
+			}).toThrow(/Duplicate eval names found in .*eval\.ts: mixed-duplicate/);
+		});
+
+		test('error message includes filename and all duplicate names', () => {
+			const code = `
+				import agent from './agent';
+				
+				export const eval1 = agent.createEval({
+					metadata: { name: 'test-eval' },
+					handler: async () => ({ success: true, passed: true })
+				});
+
+				export const eval2 = agent.createEval({
+					metadata: { name: 'test-eval' },
+					handler: async () => ({ success: true, passed: true })
+				});
+			`;
+
+			let errorThrown = false;
+			try {
+				parseEvalMetadata(
+					TEST_ROOT_DIR,
+					'/test/root/src/agents/test/eval.ts',
+					code,
+					TEST_PROJECT_ID,
+					TEST_DEPLOYMENT_ID
+				);
+			} catch (error) {
+				errorThrown = true;
+				expect(error).toBeInstanceOf(Error);
+				const errorMessage = (error as Error).message;
+				expect(errorMessage).toContain('Duplicate eval names found in');
+				expect(errorMessage).toContain('eval.ts');
+				expect(errorMessage).toContain('test-eval');
+				expect(errorMessage).toContain(
+					'Eval names must be unique within the same file to prevent ID collisions'
+				);
+			}
+			expect(errorThrown).toBe(true);
 		});
 	});
 });
