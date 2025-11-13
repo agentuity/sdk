@@ -22,8 +22,12 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .env
 .env.development.local
 .env.test.local
+.env.production
 .env.production.local
 .env.local
+
+# local config files
+agentuity.*.json
 
 # caches
 .eslintcache

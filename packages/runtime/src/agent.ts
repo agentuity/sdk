@@ -7,6 +7,7 @@ import type {
 	VectorStorage,
 } from '@agentuity/core';
 import type { Tracer } from '@opentelemetry/api';
+import { SpanStatusCode, context, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
 import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
 import type { Logger } from './logger';
@@ -557,6 +558,35 @@ export function createAgent<
 	return agent as Agent<TInput, TOutput, TStream>;
 }
 
+const runWithSpan = async <T>(
+	tracer: Tracer,
+	agent: Agent<any, any, any>,
+	handler: () => Promise<T>
+): Promise<T> => {
+	const currentContext = context.active();
+	const span = tracer.startSpan(
+		'agent.run',
+		{
+			attributes: {
+				'@agentuity/agentName': agent.metadata?.name || '',
+				'@agentuity/agentId': agent.metadata?.id || '',
+			},
+		},
+		currentContext
+	);
+
+	try {
+		const spanContext = trace.setSpan(currentContext, span);
+		return await context.with(spanContext, handler);
+	} catch (error) {
+		span.recordException(error as Error);
+		span.setStatus({ code: SpanStatusCode.ERROR });
+		throw error;
+	} finally {
+		span.end();
+	}
+};
+
 const createAgentRunner = <
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
@@ -565,18 +595,24 @@ const createAgentRunner = <
 	agent: Agent<TInput, TOutput, TStream>,
 	ctx: Context
 ): AgentRunner<TInput, TOutput, TStream> => {
+	const tracer = ctx.var.tracer;
+
 	if (agent.inputSchema) {
 		return {
 			metadata: agent.metadata,
 			run: async (input: any) => {
-				return agent.handler(ctx as unknown as AgentContext, input);
+				return runWithSpan(tracer, agent as Agent<any, any, any>, () =>
+					agent.handler(ctx as unknown as AgentContext, input)
+				);
 			},
 		} as AgentRunner<TInput, TOutput, TStream>;
 	} else {
 		return {
 			metadata: agent.metadata,
 			run: async () => {
-				return agent.handler(ctx as unknown as AgentContext);
+				return runWithSpan(tracer, agent as Agent<any, any, any>, () =>
+					agent.handler(ctx as unknown as AgentContext)
+				);
 			},
 		} as AgentRunner<TInput, TOutput, TStream>;
 	}
