@@ -280,7 +280,7 @@ export function getEvalRunEventProvider() {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function registerServices(o: any) {
+export function registerServices(o: any, includeAgents = false) {
 	Object.defineProperty(o, 'kv', {
 		get: () => kv,
 		enumerable: false,
@@ -301,4 +301,24 @@ export function registerServices(o: any) {
 		enumerable: false,
 		configurable: false,
 	});
+
+	// Also register agent registry if requested
+	if (includeAgents) {
+		// Cache the populated registry to avoid re-creating on every access
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let cachedRegistry: any;
+		Object.defineProperty(o, 'agent', {
+			get: () => {
+				if (!cachedRegistry) {
+					// Lazy-load to avoid circular dependency
+					// eslint-disable-next-line @typescript-eslint/no-require-imports
+					const { populateAgentsRegistry } = require('./agent');
+					cachedRegistry = populateAgentsRegistry(o);
+				}
+				return cachedRegistry;
+			},
+			enumerable: false,
+			configurable: false,
+		});
+	}
 }

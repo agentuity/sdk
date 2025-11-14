@@ -144,6 +144,7 @@ run_test() {
 run_test "Server Management" "test-server-management.sh"
 run_test "Subagents" "test-subagents.sh"
 run_test "Agent Event Listeners" "test-events.sh"
+run_test "API Agent Call" "test-api-agent-call.sh"
 run_test "Binary Storage API" "test-binary-storage.sh"
 run_test "Binary Storage Agent" "test-binary-agent.sh"
 run_test "KeyValue Storage" "test-keyvalue.sh"

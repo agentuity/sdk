@@ -291,11 +291,11 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 	router.use('/agent/*', routePathMapper);
 	router.use('/api/*', routePathMapper);
 
-	// Attach services to context for API routes
+	// Attach services and agent registry to context for API routes
 	router.use('/api/*', async (c, next) => {
-		const { registerServices } = await import('./_services');
-		registerServices(c);
-		await next();
+		const { createAgentMiddleware } = await import('./agent');
+		// Use a null agent name to just populate the agent registry without setting current agent
+		return createAgentMiddleware('')(c, next);
 	});
 
 	// set the trigger for specific types

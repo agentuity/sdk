@@ -49,7 +49,7 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 		this.session = args.session;
 		this.state = new Map<string, unknown>();
 		this.handler = args.handler;
-		registerServices(this);
+		registerServices(this, false); // agents already populated via args.agent
 	}
 
 	waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void {

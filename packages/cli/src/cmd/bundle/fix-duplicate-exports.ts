@@ -162,7 +162,6 @@ async function fixDuplicateExportsInFile(filePath: string, verbose = false): Pro
 	for (const { start, end, replacement } of patches) {
 		code = code.slice(0, start) + replacement + code.slice(end);
 	}
-
 	// Nothing changed
 	if (code === originalCode) {
 		return false;

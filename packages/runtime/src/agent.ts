@@ -790,46 +790,59 @@ const createAgentRunner = <
 	}
 };
 
+/**
+ * Populate the agents object with all registered agents
+ */
+export const populateAgentsRegistry = (ctx: Context): any => {
+	const agentsObj: any = {};
+
+	// Convert kebab-case to camelCase
+	const toCamelCase = (str: string): string => {
+		return str
+			.replace(/[-_\s]+(.)?/g, (_, char) => (char ? char.toUpperCase() : ''))
+			.replace(/^(.)/, (char) => char.toLowerCase());
+	};
+
+	// Build nested structure for agents and subagents
+	for (const [name, agentFn] of agents) {
+		const runner = createAgentRunner(agentFn, ctx);
+
+		if (name.includes('.')) {
+			// Subagent: "parent.child"
+			const parts = name.split('.');
+			if (parts.length !== 2) {
+				internal.warn(`Invalid subagent name format: "${name}". Expected "parent.child".`);
+				continue;
+			}
+			const parentName = parts[0];
+			const childName = parts[1];
+			if (parentName && childName) {
+				if (!agentsObj[parentName]) {
+					// Ensure parent exists
+					const parentAgent = agents.get(parentName);
+					if (parentAgent) {
+						agentsObj[parentName] = createAgentRunner(parentAgent, ctx);
+					}
+				}
+				// Attach subagent to parent using camelCase property name
+				const camelChildName = toCamelCase(childName);
+				if (agentsObj[parentName]) {
+					agentsObj[parentName][camelChildName] = runner;
+				}
+			}
+		} else {
+			// Parent agent or standalone agent
+			agentsObj[name] = runner;
+		}
+	}
+
+	return agentsObj;
+};
+
 export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler => {
 	return async (ctx, next) => {
 		// Populate agents object with strongly-typed keys
-		const agentsObj: any = {};
-
-		// Convert kebab-case to camelCase
-		const toCamelCase = (str: string): string => {
-			return str
-				.replace(/[-_\s]+(.)?/g, (_, char) => (char ? char.toUpperCase() : ''))
-				.replace(/^(.)/, (char) => char.toLowerCase());
-		};
-
-		// Build nested structure for agents and subagents
-		for (const [name, agentFn] of agents) {
-			const runner = createAgentRunner(agentFn, ctx);
-
-			if (name.includes('.')) {
-				// Subagent: "parent.child"
-				const parts = name.split('.');
-				const parentName = parts[0];
-				const childName = parts[1];
-				if (parentName && childName) {
-					if (!agentsObj[parentName]) {
-						// Ensure parent exists
-						const parentAgent = agents.get(parentName);
-						if (parentAgent) {
-							agentsObj[parentName] = createAgentRunner(parentAgent, ctx);
-						}
-					}
-					// Attach subagent to parent using camelCase property name
-					if (agentsObj[parentName]) {
-						const camelChildName = toCamelCase(childName);
-						agentsObj[parentName][camelChildName] = runner;
-					}
-				}
-			} else {
-				// Parent agent or standalone agent
-				agentsObj[name] = runner;
-			}
-		}
+		const agentsObj = populateAgentsRegistry(ctx);
 
 		// Determine current and parent agents
 		let currentAgent: AgentRunner | undefined;
