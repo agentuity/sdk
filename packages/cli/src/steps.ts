@@ -227,16 +227,17 @@ async function runStepsTUI(state: StepState[]): Promise<void> {
 
 			const step = state[stepIndex];
 			let frameIndex = 0;
+			let currentFrame = '';
 
 			// Start spinner animation
 			activeInterval = setInterval(() => {
 				const colorKey = SPINNER_COLORS[frameIndex % SPINNER_COLORS.length];
 				const color = getColor(colorKey);
-				const frame = `${color}${COLORS.bold}${FRAMES[frameIndex % FRAMES.length]}${COLORS.reset}`;
+				currentFrame = `${color}${COLORS.bold}${FRAMES[frameIndex % FRAMES.length]}${COLORS.reset}`;
 
 				// Move cursor up to the top of checklist
 				process.stdout.write(`\x1B[${state.length}A`);
-				process.stdout.write(renderSteps(state, stepIndex, frame) + '\n');
+				process.stdout.write(renderSteps(state, stepIndex, currentFrame) + '\n');
 
 				frameIndex++;
 			}, 120);
@@ -245,9 +246,9 @@ async function runStepsTUI(state: StepState[]): Promise<void> {
 			const progressCallback: ProgressCallback = (progress: number) => {
 				step.progress = Math.min(100, Math.max(0, progress));
 
-				// Move cursor up
+				// Move cursor up and render with current spinner frame
 				process.stdout.write(`\x1B[${state.length}A`);
-				process.stdout.write(renderSteps(state, stepIndex) + '\n');
+				process.stdout.write(renderSteps(state, stepIndex, currentFrame) + '\n');
 			};
 
 			try {
@@ -270,7 +271,7 @@ async function runStepsTUI(state: StepState[]): Promise<void> {
 			// Clear progress and final render with outcome
 			step.progress = undefined;
 			process.stdout.write(`\x1B[${state.length}A`);
-			process.stdout.write(renderSteps(state, stepIndex) + '\n');
+			process.stdout.write(renderSteps(state, -1) + '\n');
 
 			// If error, show error message and exit
 			if (step.outcome?.status === 'error') {
@@ -353,6 +354,7 @@ function renderSteps(steps: StepState[], activeIndex: number, spinner?: string):
 	const lines: string[] = [];
 
 	steps.forEach((s, i) => {
+		// Don't show progress indicator for steps with outcomes (success/skipped/error)
 		if (s.outcome?.status === 'success') {
 			lines.push(
 				`${greenColor}${ICONS.success}${COLORS.reset} ${grayColor}${COLORS.strikethrough}${s.label}${COLORS.reset}`
@@ -365,6 +367,7 @@ function renderSteps(steps: StepState[], activeIndex: number, spinner?: string):
 		} else if (s.outcome?.status === 'error') {
 			lines.push(`${redColor}${ICONS.error}${COLORS.reset} ${s.label}`);
 		} else if (i === activeIndex && spinner) {
+			// Only show progress for active step with spinner
 			const progressIndicator = s.progress !== undefined ? renderProgress(s.progress) : '';
 			lines.push(`${spinner} ${s.label}${progressIndicator}`);
 		} else {

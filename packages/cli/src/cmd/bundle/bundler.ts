@@ -6,6 +6,7 @@ import AgentuityBundler, { getBuildMetadata } from './plugin';
 import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
 import type { Project } from '../../types';
+import { fixDuplicateExportsInDirectory } from './fix-duplicate-exports';
 
 export interface BundleOptions {
 	rootDir: string;
@@ -92,12 +93,11 @@ export async function bundle({
 			target: 'bun',
 			format: 'esm',
 			banner: `// Generated file. DO NOT EDIT`,
-			// Disable minify and splitting for server bundle to avoid Bun bundler bugs
-			// See: https://github.com/oven-sh/bun/issues/5344
-			// Splitting causes duplicate exports and invalid exports
+			// Disable minify for server bundle (keep code readable for debugging)
+			// Enable splitting to reduce bundle size by extracting common code
 			minify: false,
 			drop: isProd ? ['debugger'] : undefined,
-			splitting: false,
+			splitting: true,
 			conditions: [isProd ? 'production' : 'development', 'bun'],
 			naming: {
 				entry: '[dir]/[name].[ext]',
@@ -107,6 +107,9 @@ export async function bundle({
 		};
 		try {
 			await Bun.build(config);
+			// Fix duplicate exports caused by Bun splitting bug
+			// See: https://github.com/oven-sh/bun/issues/5344
+			await fixDuplicateExportsInDirectory(outDir, false);
 		} catch (ex) {
 			console.error(ex);
 			process.exit(1);
@@ -211,6 +214,10 @@ export async function bundle({
 			try {
 				const result = await Bun.build(config);
 				if (result.success) {
+					// Fix duplicate exports caused by Bun splitting bug
+					// See: https://github.com/oven-sh/bun/issues/5344
+					await fixDuplicateExportsInDirectory(join(outDir, 'web'), false);
+
 					if (!dev && buildmetadata?.assets) {
 						const assets = buildmetadata.assets;
 						result.outputs

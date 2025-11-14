@@ -5,7 +5,14 @@ import { tmpdir } from 'node:os';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { saveProjectDir } from '../../config';
-import { runSteps, stepSuccess, stepSkipped, stepError, Step } from '../../steps';
+import {
+	runSteps,
+	stepSuccess,
+	stepSkipped,
+	stepError,
+	Step,
+	ProgressCallback,
+} from '../../steps';
 import { bundle } from '../bundle/bundler';
 import { loadBuildMetadata } from '../../config';
 import {
@@ -149,8 +156,9 @@ export const deploySubcommand = createSubcommand({
 						},
 					},
 					{
+						type: 'progress',
 						label: 'Encrypt and Upload Deployment',
-						run: async () => {
+						run: async (progress: ProgressCallback) => {
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
@@ -158,6 +166,8 @@ export const deploySubcommand = createSubcommand({
 								return stepError('deployment instructions were null');
 							}
 
+							progress(5);
+							ctx.logger.trace('Starting deployment zip creation');
 							// zip up the assets folder
 							const deploymentZip = join(tmpdir(), `${deployment.id}.zip`);
 							await zipDir(join(projectDir, '.agentuity'), deploymentZip, {
@@ -172,35 +182,50 @@ export const deploySubcommand = createSubcommand({
 									if (relative.startsWith('web/public/')) {
 										return false;
 									}
+									// exclude sourcemaps from deployment
+									if (relative.endsWith('.map')) {
+										return false;
+									}
 									return true;
 								},
 							});
+							ctx.logger.trace(`Deployment zip created: ${deploymentZip}`);
 
+							progress(20);
 							// Encrypt the deployment zip using the public key from deployment
 							const encryptedZip = join(tmpdir(), `${deployment.id}.enc.zip`);
 							try {
+								ctx.logger.trace('Creating public key');
 								const publicKey = createPublicKey({
 									key: deployment.publicKey,
 									format: 'pem',
 									type: 'spki',
 								});
 
+								ctx.logger.trace('Creating read/write streams');
 								const src = createReadStream(deploymentZip);
 								const dst = createWriteStream(encryptedZip);
 
+								ctx.logger.trace('Starting encryption');
+								// Wait for encryption to complete
 								await encryptFIPSKEMDEMStream(publicKey, src, dst);
+								ctx.logger.trace('Encryption complete');
 
-								// Close and wait for stream to finish writing
-								dst.end();
-								await new Promise<void>((resolve) => {
-									if (dst.writableFinished) {
-										resolve();
-									} else {
-										dst.once('finish', resolve);
-									}
+								progress(40);
+								ctx.logger.trace('Waiting for stream to finish');
+								// End stream and wait for it to finish writing
+								await new Promise<void>((resolve, reject) => {
+									dst.once('finish', resolve);
+									dst.once('error', reject);
+									dst.end();
 								});
+								ctx.logger.trace('Stream finished');
 
+								progress(50);
+								ctx.logger.trace(`Uploading deployment to ${instructions.deployment}`);
 								const zipfile = Bun.file(encryptedZip);
+								const fileSize = await zipfile.size;
+								ctx.logger.trace(`Upload file size: ${fileSize} bytes`);
 								const resp = await fetch(instructions.deployment, {
 									method: 'PUT',
 									duplex: 'half',
@@ -209,14 +234,19 @@ export const deploySubcommand = createSubcommand({
 									},
 									body: zipfile,
 								});
+								ctx.logger.trace(`Upload response: ${resp.status}`);
 								if (!resp.ok) {
 									return stepError(`Error uploading deployment: ${await resp.text()}`);
 								}
 
+								progress(70);
+								ctx.logger.trace('Consuming response body');
 								// Wait for response body to be consumed before deleting
 								await resp.arrayBuffer();
+								ctx.logger.trace('Deleting encrypted zip');
 								await zipfile.delete();
 							} finally {
+								ctx.logger.trace('Cleanup');
 								// Cleanup in case of error
 								if (await Bun.file(encryptedZip).exists()) {
 									await Bun.file(encryptedZip).delete();
@@ -224,7 +254,9 @@ export const deploySubcommand = createSubcommand({
 								await Bun.file(deploymentZip).delete();
 							}
 
+							progress(80);
 							if (build?.assets) {
+								ctx.logger.trace(`Uploading ${build.assets.length} assets`);
 								if (!instructions.assets) {
 									return stepError(
 										'server did not provide asset upload URLs; upload aborted'
@@ -254,14 +286,18 @@ export const deploySubcommand = createSubcommand({
 										})
 									);
 								}
+								ctx.logger.trace('Waiting for asset uploads');
 								const resps = await Promise.all(promises);
 								for (const r of resps) {
 									if (!r.ok) {
 										return stepError(`error uploading asset: ${await r.text()}`);
 									}
 								}
+								ctx.logger.trace('Asset uploads complete');
+								progress(95);
 							}
 
+							progress(100);
 							return stepSuccess();
 						},
 					},

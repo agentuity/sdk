@@ -201,9 +201,9 @@ export async function encryptFIPSKEMDEMStream(
 
 		const lenBuf = Buffer.alloc(2);
 		lenBuf.writeUInt16BE(wrapped.length, 0);
-		dst.write(lenBuf);
-		dst.write(wrapped);
-		dst.write(baseNonce);
+		await writeAsync(dst, lenBuf);
+		await writeAsync(dst, wrapped);
+		await writeAsync(dst, baseNonce);
 
 		let counter = 0n;
 		let total = 0;
@@ -239,8 +239,8 @@ export async function encryptFIPSKEMDEMStream(
 
 			const ctLenBuf = Buffer.alloc(2);
 			ctLenBuf.writeUInt16BE(ct.length, 0);
-			dst.write(ctLenBuf);
-			dst.write(ct);
+			await writeAsync(dst, ctLenBuf);
+			await writeAsync(dst, ct);
 
 			counter++;
 			total += bytesRead;
@@ -341,7 +341,7 @@ export async function decryptFIPSKEMDEMStream(
 
 				cipherBuf.fill(0);
 
-				dst.write(plain);
+				await writeAsync(dst, plain);
 				counter++;
 				total += plain.length;
 			}
@@ -353,6 +353,34 @@ export async function decryptFIPSKEMDEMStream(
 	} finally {
 		await it.return?.().catch(() => {});
 	}
+}
+
+async function writeAsync(stream: Writable, chunk: Buffer): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const canContinue = stream.write(chunk, (err) => {
+			if (err) reject(err);
+			else resolve();
+		});
+		if (canContinue) {
+			// Write succeeded immediately, callback will call resolve
+			return;
+		}
+		// Need to wait for drain
+		const onDrain = () => {
+			cleanup();
+			resolve();
+		};
+		const onError = (err: Error) => {
+			cleanup();
+			reject(err);
+		};
+		const cleanup = () => {
+			stream.off('drain', onDrain);
+			stream.off('error', onError);
+		};
+		stream.once('drain', onDrain);
+		stream.once('error', onError);
+	});
 }
 
 async function readFull(
