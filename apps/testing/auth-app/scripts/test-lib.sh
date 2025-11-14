@@ -132,13 +132,19 @@ start_server_if_needed() {
 		# Change to test-app directory (script is in test-app/scripts/)
 		cd "$(dirname "$0")/.."
 		
-		# Check if .env file exists in test-app directory
-		if [ ! -f .env ]; then
-			echo -e "${RED}✗${NC} .env file not found in test-app directory"
-			echo "Please create a .env file in test-app with AGENTUITY_SDK_KEY"
+		# Check for .env.local first, then fall back to .env
+		if [ -f .env.local ]; then
+			ENV_FILE=".env.local"
+		elif [ -f .env ]; then
+			ENV_FILE=".env"
+		else
+			echo -e "${RED}✗${NC} No .env file found"
+			echo "Please create either .env.local or .env with AGENTUITY_SDK_KEY"
 			echo "Current directory: $(pwd)"
 			exit 1
 		fi
+		
+		echo "Using env file: $ENV_FILE"
 		
 		# Start server in background, redirecting output to temp log
 		# Preserve environment variables (like AGENTUITY_SDK_LOG_LEVEL) when starting server

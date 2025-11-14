@@ -357,29 +357,46 @@ export async function decryptFIPSKEMDEMStream(
 
 async function writeAsync(stream: Writable, chunk: Buffer): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const canContinue = stream.write(chunk, (err) => {
-			if (err) reject(err);
-			else resolve();
-		});
-		if (canContinue) {
-			// Write succeeded immediately, callback will call resolve
-			return;
-		}
-		// Need to wait for drain
-		const onDrain = () => {
-			cleanup();
-			resolve();
-		};
-		const onError = (err: Error) => {
-			cleanup();
-			reject(err);
-		};
+		let callbackCompleted = false;
+		let drainOccurred = false;
+
 		const cleanup = () => {
 			stream.off('drain', onDrain);
 			stream.off('error', onError);
 		};
-		stream.once('drain', onDrain);
-		stream.once('error', onError);
+
+		const tryResolve = () => {
+			if (callbackCompleted && (canContinue || drainOccurred)) {
+				cleanup();
+				resolve();
+			}
+		};
+
+		const onDrain = () => {
+			drainOccurred = true;
+			tryResolve();
+		};
+
+		const onError = (err: Error) => {
+			cleanup();
+			reject(err);
+		};
+
+		const canContinue = stream.write(chunk, (err) => {
+			callbackCompleted = true;
+			if (err) {
+				cleanup();
+				reject(err);
+			} else {
+				tryResolve();
+			}
+		});
+
+		if (!canContinue) {
+			// Need to wait for drain - attach listeners
+			stream.once('drain', onDrain);
+			stream.once('error', onError);
+		}
 	});
 }
 

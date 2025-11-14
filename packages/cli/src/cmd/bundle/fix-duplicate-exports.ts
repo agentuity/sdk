@@ -57,57 +57,69 @@ export async function fixDuplicateExportsInDirectory(dir: string, verbose = fals
 
 async function fixDuplicateExportsInFile(filePath: string, verbose = false): Promise<boolean> {
 	const originalCode = await Bun.file(filePath).text();
-	
+
 	// Only fix __INVALID__REF__ - remove it from imports and exports
 	let code = originalCode;
-	
+
 	// Pattern 1: __INVALID__REF__ at start with comma after: "__INVALID__REF__, foo" -> "foo"
 	code = code.replace(/\b__INVALID__REF__\s*,\s*/g, '');
-	
-	// Pattern 2: __INVALID__REF__ at end with comma before: "foo, __INVALID__REF__" -> "foo"  
+
+	// Pattern 2: __INVALID__REF__ at end with comma before: "foo, __INVALID__REF__" -> "foo"
 	code = code.replace(/,\s*__INVALID__REF__\b/g, '');
-	
+
 	// Pattern 3: __INVALID__REF__ alone (shouldn't happen but handle it)
 	code = code.replace(/\b__INVALID__REF__\b/g, '');
-	
+
 	// Remove duplicate export statements
 	// Find all export { ... } statements (allow leading whitespace)
 	const exportPattern = /^\s*export\s*\{([^}]+)\}\s*;?\s*$/gm;
-	const exports: Array<{match: string; names: Set<string>; start: number; end: number}> = [];
+	const exports: Array<{
+		match: string;
+		names: Set<string>;
+		nameToSyntax: Map<string, string>;
+		start: number;
+		end: number;
+	}> = [];
 	let match;
-	
+
 	while ((match = exportPattern.exec(code)) !== null) {
-		const names = match[1].split(',').map(n => {
-			// Handle "foo as bar" -> extract the exported name (bar)
-			const parts = n.trim().split(/\s+as\s+/);
-			// If it's "foo as bar", we care about "bar" (the exported name)
-			// If it's just "foo", we care about "foo"
-			return parts.length > 1 ? parts[1].trim() : parts[0].trim();
-		}).filter(Boolean);
-		
+		const nameToSyntax = new Map<string, string>();
+		const names: string[] = [];
+
+		match[1].split(',').forEach((n) => {
+			const fullSyntax = n.trim();
+			const parts = fullSyntax.split(/\s+as\s+/);
+			const exportedName = parts.length > 1 ? parts[1].trim() : parts[0].trim();
+			if (exportedName) {
+				names.push(exportedName);
+				nameToSyntax.set(exportedName, fullSyntax);
+			}
+		});
+
 		exports.push({
 			match: match[0],
 			names: new Set(names),
+			nameToSyntax,
 			start: match.index,
-			end: match.index + match[0].length
+			end: match.index + match[0].length,
 		});
 	}
-	
+
 	// Track which names we've seen and which export statements to remove/modify
 	const seenNames = new Set<string>();
 	const indicesToRemove: number[] = [];
 	const modificationsNeeded = new Map<number, Set<string>>(); // index -> names to keep
-	
+
 	for (let i = 0; i < exports.length; i++) {
 		const exp = exports[i];
-		const duplicateNames = [...exp.names].filter(name => seenNames.has(name));
-		const newNames = [...exp.names].filter(name => !seenNames.has(name));
+		const duplicateNames = [...exp.names].filter((name) => seenNames.has(name));
+		const newNames = [...exp.names].filter((name) => !seenNames.has(name));
 		const allDuplicates = duplicateNames.length === exp.names.size;
-		
+
 		if (verbose && duplicateNames.length > 0) {
 			console.log(`  Duplicate exports found in statement ${i}: ${duplicateNames.join(', ')}`);
 		}
-		
+
 		if (allDuplicates && exp.names.size > 0) {
 			// This entire export statement is a duplicate - remove it
 			indicesToRemove.push(i);
@@ -121,30 +133,36 @@ async function fixDuplicateExportsInFile(filePath: string, verbose = false): Pro
 				console.log(`    -> Will keep only: ${newNames.join(', ')}`);
 			}
 			// Mark the new names as seen
-			newNames.forEach(name => seenNames.add(name));
+			newNames.forEach((name) => seenNames.add(name));
 		} else {
 			// No duplicates - mark these names as seen
-			exp.names.forEach(name => seenNames.add(name));
+			exp.names.forEach((name) => seenNames.add(name));
 		}
 	}
-	
-	// Apply modifications first (from end to preserve indices)
-	for (let i = exports.length - 1; i >= 0; i--) {
-		if (modificationsNeeded.has(i)) {
-			const exp = exports[i];
-			const namesToKeep = modificationsNeeded.get(i)!;
-			const newExport = `export { ${[...namesToKeep].join(', ')} };`;
-			code = code.slice(0, exp.start) + newExport + code.slice(exp.end);
-		}
+
+	// Build patches for modifications and removals, then apply from end to preserve indices
+	const patches: Array<{ start: number; end: number; replacement: string }> = [];
+
+	// Partial duplicates: replace the export statement with only the kept names
+	for (const [i, namesToKeep] of modificationsNeeded.entries()) {
+		const exp = exports[i];
+		const syntaxToKeep = [...namesToKeep].map((name) => exp.nameToSyntax.get(name)!);
+		const newExport = `export { ${syntaxToKeep.join(', ')} };`;
+		patches.push({ start: exp.start, end: exp.end, replacement: newExport });
 	}
-	
-	// Remove duplicate export statements in reverse order
-	for (let i = indicesToRemove.length - 1; i >= 0; i--) {
-		const idx = indicesToRemove[i];
+
+	// Full duplicates: remove the entire export statement
+	for (const idx of indicesToRemove) {
 		const exp = exports[idx];
-		code = code.slice(0, exp.start) + code.slice(exp.end);
+		patches.push({ start: exp.start, end: exp.end, replacement: '' });
 	}
-	
+
+	// Apply all patches from right to left so earlier indices remain valid
+	patches.sort((a, b) => b.start - a.start);
+	for (const { start, end, replacement } of patches) {
+		code = code.slice(0, start) + replacement + code.slice(end);
+	}
+
 	// Nothing changed
 	if (code === originalCode) {
 		return false;
