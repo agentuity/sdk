@@ -8,6 +8,7 @@ import enquirer from 'enquirer';
 import type { OrganizationList } from '@agentuity/server';
 import type { ColorScheme } from './terminal';
 import { stringWidth } from 'bun';
+import * as readline from 'readline';
 
 // Icons
 const ICONS = {
@@ -1127,6 +1128,33 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 		// Always restore cursor visibility
 		process.stdout.write('\x1B[?25h');
 	}
+}
+
+/**
+ * Prompt user for text input
+ * Returns the input string
+ */
+export async function prompt(message: string): Promise<string> {
+	process.stdout.write(message);
+
+	// Check if we're in a TTY environment
+	if (!process.stdin.isTTY) {
+		console.log('');
+		return '';
+	}
+
+	// Use readline for full line input
+	const rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+	});
+
+	return new Promise((resolve) => {
+		rl.question('', (answer: string) => {
+			rl.close();
+			resolve(answer);
+		});
+	});
 }
 
 export async function selectOrganization(
