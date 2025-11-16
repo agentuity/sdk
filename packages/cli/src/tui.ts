@@ -772,7 +772,7 @@ export async function spinner<T>(
 	const reset = getColor('reset');
 
 	// If no TTY, just execute the callback without animation
-	if (!process.stdout.isTTY) {
+	if (!process.stderr.isTTY) {
 		try {
 			const result =
 				options.type === 'progress'
@@ -784,7 +784,7 @@ export async function spinner<T>(
 			// If clearOnSuccess is true, don't show success message
 			if (!options.clearOnSuccess) {
 				const successColor = getColor('success');
-				console.log(`${successColor}${ICONS.success} ${message}${reset}`);
+				console.error(`${successColor}${ICONS.success} ${message}${reset}`);
 			}
 
 			return result;
@@ -809,7 +809,7 @@ export async function spinner<T>(
 	let currentProgress: number | undefined;
 
 	// Hide cursor
-	process.stdout.write('\x1B[?25l');
+	process.stderr.write('\x1B[?25l');
 
 	// Start animation
 	const interval = setInterval(() => {
@@ -824,7 +824,7 @@ export async function spinner<T>(
 				: '';
 
 		// Clear line and render
-		process.stdout.write('\r\x1B[K' + `${frame} ${message}${progressIndicator}`);
+		process.stderr.write('\r\x1B[K' + `${frame} ${message}${progressIndicator}`);
 		frameIndex++;
 	}, 120);
 
@@ -844,30 +844,30 @@ export async function spinner<T>(
 
 		// Clear interval and line
 		clearInterval(interval);
-		process.stdout.write('\r\x1B[K');
+		process.stderr.write('\r\x1B[K');
 
 		// If clearOnSuccess is false, show success message
 		if (!options.clearOnSuccess) {
 			// Show success
 			const successColor = getColor('success');
-			console.log(`${successColor}${ICONS.success} ${message}${reset}`);
+			console.error(`${successColor}${ICONS.success} ${message}${reset}`);
 		}
 
 		// Show cursor
-		process.stdout.write('\x1B[?25h');
+		process.stderr.write('\x1B[?25h');
 
 		return result;
 	} catch (err) {
 		// Clear interval and line
 		clearInterval(interval);
-		process.stdout.write('\r\x1B[K');
+		process.stderr.write('\r\x1B[K');
 
 		// Show error
 		const errorColor = getColor('error');
 		console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
 
 		// Show cursor
-		process.stdout.write('\x1B[?25h');
+		process.stderr.write('\x1B[?25h');
 
 		throw err;
 	}
