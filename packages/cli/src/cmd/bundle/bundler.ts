@@ -52,8 +52,6 @@ export async function bundle({
 	}
 	appEntrypoints.push(appFile);
 
-	const webDir = join(srcDir, 'web');
-
 	if (existsSync(outDir)) {
 		rmSync(outDir, { recursive: true, force: true });
 	}
@@ -163,102 +161,108 @@ export async function bundle({
 		}
 	}
 
-	await (async () => {
-		// Find workspace root for monorepo support
-		let workspaceRoot = rootDir;
-		let currentDir = rootDir;
-		while (true) {
-			const pkgPath = join(currentDir, 'package.json');
-			if (existsSync(pkgPath)) {
-				const pkg = JSON.parse(await Bun.file(pkgPath).text());
-				if (pkg.workspaces) {
-					workspaceRoot = currentDir;
-					break;
-				}
-			}
-			const parent = resolve(currentDir, '..');
-			if (parent === currentDir) break; // reached filesystem root
-			currentDir = parent;
-		}
-
-		// Make webEntrypoints - just the HTML files themselves
-		const webEntrypoints = [...new Bun.Glob('**.html').scanSync(webDir)].map((htmlFile) =>
-			resolve(webDir, htmlFile)
-		);
-
-		if (webEntrypoints.length) {
-			const config: Bun.BuildConfig = {
-				entrypoints: webEntrypoints,
-				root: webDir,
-				outdir: join(outDir, 'web'),
-				define,
-				sourcemap: dev ? 'inline' : 'linked',
-				env: 'AGENTUITY_PUBLIC_*',
-				plugins: [AgentuityBundler],
-				target: 'browser',
-				format: 'esm',
-				banner: `// Generated file. DO NOT EDIT`,
-				minify: true,
-				drop: isProd ? ['debugger'] : undefined,
-				splitting: true,
-				packages: 'bundle',
-				external: workspaceRoot !== rootDir ? [] : undefined,
-				publicPath:
-					isProd && deploymentId ? `https://static.agentuity.com/${deploymentId}/` : undefined,
-				naming: {
-					entry: '[dir]/[name].[ext]',
-					chunk: 'web/chunk/[name]-[hash].[ext]',
-					asset: 'web/asset/[name]-[hash].[ext]',
-				},
-			};
-			try {
-				const result = await Bun.build(config);
-				if (result.success) {
-					// Fix duplicate exports caused by Bun splitting bug
-					// See: https://github.com/oven-sh/bun/issues/5344
-					await fixDuplicateExportsInDirectory(join(outDir, 'web'), false);
-
-					if (!dev && buildmetadata?.assets) {
-						const assets = buildmetadata.assets;
-						result.outputs
-							// Filter for deployable assets: sourcemaps (hash '00000000') and content-addressed files
-							.filter((x) => x.hash === '00000000' || (x.hash && x.path.includes(x.hash)))
-							.forEach((artifact) => {
-								const r = relative(join(outDir, 'web'), artifact.path);
-								assets.push({
-									filename: r,
-									kind: artifact.kind,
-									contentType: artifact.type,
-									size: artifact.size,
-								});
-							});
+	// web folder is optional
+	const webDir = join(srcDir, 'web');
+	if (existsSync(webDir)) {
+		await (async () => {
+			// Find workspace root for monorepo support
+			let workspaceRoot = rootDir;
+			let currentDir = rootDir;
+			while (true) {
+				const pkgPath = join(currentDir, 'package.json');
+				if (existsSync(pkgPath)) {
+					const pkg = JSON.parse(await Bun.file(pkgPath).text());
+					if (pkg.workspaces) {
+						workspaceRoot = currentDir;
+						break;
 					}
-				} else {
-					console.error(result.logs.join('\n'));
+				}
+				const parent = resolve(currentDir, '..');
+				if (parent === currentDir) break; // reached filesystem root
+				currentDir = parent;
+			}
+
+			// Make webEntrypoints - just the HTML files themselves
+			const webEntrypoints = [...new Bun.Glob('**.html').scanSync(webDir)].map((htmlFile) =>
+				resolve(webDir, htmlFile)
+			);
+
+			if (webEntrypoints.length) {
+				const config: Bun.BuildConfig = {
+					entrypoints: webEntrypoints,
+					root: webDir,
+					outdir: join(outDir, 'web'),
+					define,
+					sourcemap: dev ? 'inline' : 'linked',
+					env: 'AGENTUITY_PUBLIC_*',
+					plugins: [AgentuityBundler],
+					target: 'browser',
+					format: 'esm',
+					banner: `// Generated file. DO NOT EDIT`,
+					minify: true,
+					drop: isProd ? ['debugger'] : undefined,
+					splitting: true,
+					packages: 'bundle',
+					external: workspaceRoot !== rootDir ? [] : undefined,
+					publicPath:
+						isProd && deploymentId
+							? `https://static.agentuity.com/${deploymentId}/`
+							: undefined,
+					naming: {
+						entry: '[dir]/[name].[ext]',
+						chunk: 'web/chunk/[name]-[hash].[ext]',
+						asset: 'web/asset/[name]-[hash].[ext]',
+					},
+				};
+				try {
+					const result = await Bun.build(config);
+					if (result.success) {
+						// Fix duplicate exports caused by Bun splitting bug
+						// See: https://github.com/oven-sh/bun/issues/5344
+						await fixDuplicateExportsInDirectory(join(outDir, 'web'), false);
+
+						if (!dev && buildmetadata?.assets) {
+							const assets = buildmetadata.assets;
+							result.outputs
+								// Filter for deployable assets: sourcemaps (hash '00000000') and content-addressed files
+								.filter((x) => x.hash === '00000000' || (x.hash && x.path.includes(x.hash)))
+								.forEach((artifact) => {
+									const r = relative(join(outDir, 'web'), artifact.path);
+									assets.push({
+										filename: r,
+										kind: artifact.kind,
+										contentType: artifact.type,
+										size: artifact.size,
+									});
+								});
+						}
+					} else {
+						console.error(result.logs.join('\n'));
+						process.exit(1);
+					}
+				} catch (ex) {
+					console.error(ex);
 					process.exit(1);
 				}
-			} catch (ex) {
-				console.error(ex);
-				process.exit(1);
 			}
-		}
-	})();
+		})();
 
-	if (!dev && buildmetadata) {
-		const webPublicDir = join(webDir, 'public');
-		if (existsSync(webPublicDir)) {
-			const assets = buildmetadata.assets;
-			const webOutPublicDir = join(outDir, 'web', 'public');
-			cpSync(webPublicDir, webOutPublicDir, { recursive: true });
-			[...new Bun.Glob('**.*').scanSync(webOutPublicDir)].forEach((f) => {
-				const bf = Bun.file(join(webOutPublicDir, f));
-				assets.push({
-					filename: join('public', f),
-					kind: 'static',
-					contentType: bf.type,
-					size: bf.size,
+		if (!dev && buildmetadata) {
+			const webPublicDir = join(webDir, 'public');
+			if (existsSync(webPublicDir)) {
+				const assets = buildmetadata.assets;
+				const webOutPublicDir = join(outDir, 'web', 'public');
+				cpSync(webPublicDir, webOutPublicDir, { recursive: true });
+				[...new Bun.Glob('**.*').scanSync(webOutPublicDir)].forEach((f) => {
+					const bf = Bun.file(join(webOutPublicDir, f));
+					assets.push({
+						filename: join('public', f),
+						kind: 'static',
+						contentType: bf.type,
+						size: bf.size,
+					});
 				});
-			});
+			}
 		}
 	}
 

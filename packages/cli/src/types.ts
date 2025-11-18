@@ -24,49 +24,34 @@ export const ConfigSchema = zod.object({
 		.describe('Development mode configuration'),
 	overrides: zod
 		.object({
-			api_url: zod
-				.url()
-				.optional()
-				.default('https://api.agentuity.com')
-				.describe('Override API base URL'),
-			app_url: zod
-				.url()
-				.optional()
-				.default('https://app.agentuity.com')
-				.describe('Override app base URL'),
+			api_url: zod.url().default('https://api.agentuity.com').describe('Override API base URL'),
+			app_url: zod.url().default('https://app.agentuity.com').describe('Override app base URL'),
 			transport_url: zod
 				.url()
-				.optional()
 				.default('https://catalyst.agentuity.cloud')
 				.describe('Override transport URL'),
 			stream_url: zod
 				.url()
-				.optional()
 				.default('https://stream.agentuity.cloud')
 				.describe('Override stream URL'),
 			kv_url: zod
 				.url()
-				.optional()
 				.default('https://catalyst.agentuity.cloud')
 				.describe('Override keyvalue URL'),
 			object_url: zod
 				.url()
-				.optional()
 				.default('https://catalyst.agentuity.cloud')
 				.describe('Override object store URL'),
 			vector_url: zod
 				.url()
-				.optional()
 				.default('https://catalyst.agentuity.cloud')
 				.describe('Override vector store URL'),
 			catalyst_url: zod
 				.url()
-				.optional()
 				.default('https://catalyst.agentuity.cloud')
 				.describe('Override catalyst URL'),
 			gravity_url: zod
 				.url()
-				.optional()
 				.default('grpc://devmode.agentuity.com')
 				.describe('Override gravity URL'),
 			skip_version_check: zod.boolean().optional().describe('Skip CLI version check on startup'),

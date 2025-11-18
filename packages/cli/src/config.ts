@@ -108,22 +108,24 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 	try {
 		const file = Bun.file(configPath);
 		const exists = await file.exists();
+		let result: ReturnType<typeof ConfigSchema.safeParse>;
 
-		if (!exists) {
-			return null;
+		if (exists) {
+			const content = await file.text();
+			const config = YAML.parse(content);
+
+			// check to see if this is a legacy config file that might not have the required name
+			// and in this case we can just use the filename
+			const _config = config as { name?: string };
+			if (!_config.name) {
+				_config.name = basename(configPath).replace(extname(configPath), '');
+			}
+
+			result = ConfigSchema.safeParse(config);
+		} else {
+			result = ConfigSchema.safeParse({ name: defaultProfileName });
 		}
 
-		const content = await file.text();
-		const config = YAML.parse(content);
-
-		// check to see if this is a legacy config file that might not have the required name
-		// and in this case we can just use the filename
-		const _config = config as { name?: string };
-		if (!_config.name) {
-			_config.name = basename(configPath).replace(extname(configPath), '');
-		}
-
-		const result = ConfigSchema.safeParse(config);
 		if (!result.success) {
 			tui.error(`Invalid config in ${configPath}:`);
 			for (const issue of result.error.issues) {
@@ -131,6 +133,36 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 				tui.bullet(`${path}: ${issue.message}`);
 			}
 			process.exit(1);
+		}
+
+		// allow environment variables to override
+		const overrides = result.data.overrides ?? ConfigSchema.shape.overrides.parse({});
+		if (overrides) {
+			if (process.env.AGENTUITY_API_URL) {
+				overrides.api_url = process.env.AGENTUITY_API_URL;
+			}
+			if (process.env.AGENTUITY_APP_URL) {
+				overrides.app_url = process.env.AGENTUITY_APP_URL;
+			}
+			if (process.env.AGENTUITY_CATALYST_URL) {
+				overrides.catalyst_url = process.env.AGENTUITY_CATALYST_URL;
+			}
+			if (process.env.AGENTUITY_TRANSPORT_URL) {
+				overrides.transport_url = process.env.AGENTUITY_TRANSPORT_URL;
+			}
+			if (process.env.AGENTUITY_KEYVALUE_URL) {
+				overrides.kv_url = process.env.AGENTUITY_KEYVALUE_URL;
+			}
+			if (process.env.AGENTUITY_OBJECTSTORE_URL) {
+				overrides.object_url = process.env.AGENTUITY_OBJECTSTORE_URL;
+			}
+			if (process.env.AGENTUITY_VECTOR_URL) {
+				overrides.vector_url = process.env.AGENTUITY_VECTOR_URL;
+			}
+			if (process.env.AGENTUITY_STREAM_URL) {
+				overrides.stream_url = process.env.AGENTUITY_STREAM_URL;
+			}
+			result.data.overrides = overrides;
 		}
 
 		return result.data;

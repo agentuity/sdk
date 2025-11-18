@@ -155,7 +155,9 @@ export const addCommand = createSubcommand({
 					});
 
 					const existingFingerprints = new Set(existingKeys.map((k) => k.fingerprint));
-					const newKeys = discoveredKeys.filter((k) => !existingFingerprints.has(k.fingerprint));
+					const newKeys = discoveredKeys.filter(
+						(k) => !existingFingerprints.has(k.fingerprint)
+					);
 
 					if (newKeys.length === 0) {
 						const cmd = getCommand('auth ssh-add');
@@ -224,7 +226,7 @@ export const addCommand = createSubcommand({
 
 					return;
 				}
-				}
+			}
 
 			// Only process single key if we got here (from --file or stdin)
 			if (!publicKey) {

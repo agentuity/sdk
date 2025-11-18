@@ -12,6 +12,15 @@ concurrency:
 
 env:
    CI: true
+   AGENTUITY_API_URL: https://api-v1.agentuity.com
+   AGENTUITY_APP_URL: https://app-v1.agentuity.com
+   AGENTUITY_TRANSPORT_URL: https://catalyst-usc.agentuity.cloud
+   AGENTUITY_CATALYST_URL: https://catalyst-usc.agentuity.cloud
+   AGENTUITY_STREAM_URL: https://streams-usc.agentuity.cloud
+   AGENTUITY_KEYVALUE_URL: https://catalyst-usc.agentuity.cloud
+   AGENTUITY_OBJECTSTORE_URL: https://catalyst-usc.agentuity.cloud
+   AGENTUITY_VECTOR_URL: https://catalyst-usc.agentuity.cloud
+   AGENTUITY_LOG_LEVEL: trace
 
 jobs:
    build:
@@ -35,7 +44,7 @@ jobs:
               echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" > apps/testing/auth-app/.env
               echo "AGENTUITY_CLOUD_PROJECT_ID=${{ env.AGENTUITY_CLOUD_PROJECT_ID }}" >> apps/testing/auth-app/.env
               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> apps/testing/auth-app/.env
-              APIKEY=$(curl https://api.agentuity.com/cli/auth/short-token --json "{\"secret\":\"${{ secrets.AGENTUITY_CATALYST_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token --json "{\"secret\":\"${{ secrets.AGENTUITY_CATALYST_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
          - name: Build and Test
            timeout-minutes: 15
@@ -43,6 +52,7 @@ jobs:
               set -eou pipefail
               bun run build
               bun run whoami
+              ./packages/cli/bin/cli.ts profile show --json
               bun all
          - name: Cleanup .env
            if: always()

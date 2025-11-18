@@ -16,11 +16,41 @@ PORT="${PORT:-3500}"
 # Track if we started the server
 SERVER_STARTED=false
 SERVER_PID=""
+LOG_TAIL_PID=""
+
+# Enable verbose mode automatically in CI
+VERBOSE="${VERBOSE:-false}"
+if [ "$CI" = "true" ]; then
+	VERBOSE="true"
+fi
+
+# Track if any errors occurred
+TEST_FAILED=false
 
 # Cleanup function
 cleanup() {
+	local exit_code=$?
 	echo "" 2>/dev/null || true
 	echo "Cleaning up..." 2>/dev/null || true
+	
+	# Stop log tail if running
+	if [ -n "$LOG_TAIL_PID" ]; then
+		kill "$LOG_TAIL_PID" 2>/dev/null || true
+		wait "$LOG_TAIL_PID" 2>/dev/null || true
+	fi
+	
+	# Dump server logs on failure
+	if [ $exit_code -ne 0 ] || [ "$TEST_FAILED" = true ]; then
+		if [ -n "$LOG_FILE" ] && [ -f "$LOG_FILE" ]; then
+			echo ""
+			echo -e "${RED}═══════════════════════════════════════════${NC}"
+			echo -e "${RED}  Test Failed - Server Logs (last 100 lines)${NC}"
+			echo -e "${RED}═══════════════════════════════════════════${NC}"
+			tail -n 100 "$LOG_FILE"
+			echo -e "${RED}═══════════════════════════════════════════${NC}"
+			echo ""
+		fi
+	fi
 	
 	# Remove temp directory if set
 	if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
@@ -155,8 +185,20 @@ start_server_if_needed() {
 		
 		echo "Server starting (PID: $SERVER_PID, log: $LOG_FILE)..."
 		
+		# In verbose mode (CI or VERBOSE=true), tail logs in real-time
+		if [ "$VERBOSE" = "true" ]; then
+			echo ""
+			echo -e "${BLUE}═══════════════════════════════════════════${NC}"
+			echo -e "${BLUE}  Real-time Server Logs (verbose mode)${NC}"
+			echo -e "${BLUE}═══════════════════════════════════════════${NC}"
+			tail -f "$LOG_FILE" &
+			LOG_TAIL_PID=$!
+			echo ""
+		fi
+		
 		# Wait for server to be ready
 		if ! wait_for_server; then
+			TEST_FAILED=true
 			echo "Server logs:"
 			cat "$LOG_FILE"
 			exit 1

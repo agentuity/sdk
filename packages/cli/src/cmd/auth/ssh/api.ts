@@ -45,10 +45,7 @@ export function computeSSHKeyFingerprint(publicKey: string): string {
 	return `SHA256:${fingerprint.replace(/=+$/, '')}`;
 }
 
-export async function addSSHKey(
-	apiClient: APIClient,
-	publicKey: string
-): Promise<AddSSHKeyResult> {
+export async function addSSHKey(apiClient: APIClient, publicKey: string): Promise<AddSSHKeyResult> {
 	const resp = await apiClient.request(
 		'POST',
 		'/cli/auth/ssh-keys',
@@ -81,10 +78,7 @@ export async function listSSHKeys(apiClient: APIClient): Promise<SSHKey[]> {
 	return resp.data ?? [];
 }
 
-export async function removeSSHKey(
-	apiClient: APIClient,
-	fingerprint: string
-): Promise<boolean> {
+export async function removeSSHKey(apiClient: APIClient, fingerprint: string): Promise<boolean> {
 	const resp = await apiClient.request(
 		'DELETE',
 		'/cli/auth/ssh-keys',

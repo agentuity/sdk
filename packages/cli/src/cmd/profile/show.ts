@@ -1,6 +1,6 @@
 import { createSubcommand } from '../../types';
 import { z } from 'zod';
-import { getProfile, fetchProfiles } from '../../config';
+import { getProfile, fetchProfiles, loadConfig } from '../../config';
 import { readFile } from 'node:fs/promises';
 import * as tui from '../../tui';
 
@@ -9,6 +9,9 @@ export const showCommand = createSubcommand({
 	description: 'Show the configuration of a profile (defaults to current)',
 	aliases: ['current'],
 	schema: {
+		options: z.object({
+			json: z.boolean().optional().describe('Show the JSON config'),
+		}),
 		args: z
 			.object({
 				name: z.string().optional().describe('Profile name to show (optional)'),
@@ -17,10 +20,11 @@ export const showCommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args } = ctx;
+		const { logger, args, opts } = ctx;
 
 		try {
 			let profilePath: string;
+			let current = false;
 
 			if (args.name) {
 				// Find profile by name
@@ -33,16 +37,21 @@ export const showCommand = createSubcommand({
 
 				profilePath = profile.filename;
 			} else {
+				current = true;
 				// Use current profile
 				profilePath = await getProfile();
 			}
 
-			const content = await readFile(profilePath, 'utf-8');
-
 			tui.info(`Profile: ${profilePath}`);
-			tui.newline();
 
-			console.log(content);
+			if (opts?.json) {
+				const content = await loadConfig(current ? undefined : profilePath);
+				console.log(JSON.stringify(content, null, 2));
+			} else {
+				tui.newline();
+				const content = await readFile(profilePath, 'utf-8');
+				console.log(content);
+			}
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.fatal(`Failed to show profile: ${error.message}`);
