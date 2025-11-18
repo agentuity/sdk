@@ -104,7 +104,8 @@ async function readStdinIfPiped(): Promise<string | null> {
 }
 
 export const addCommand = createSubcommand({
-	name: 'ssh-add',
+	name: 'add',
+	aliases: ['create'],
 	description: 'Add an SSH public key to your account (reads from file or stdin)',
 	requires: { apiClient: true, auth: true },
 	schema: {
@@ -160,7 +161,7 @@ export const addCommand = createSubcommand({
 					);
 
 					if (newKeys.length === 0) {
-						const cmd = getCommand('auth ssh-add');
+						const cmd = getCommand('auth ssh add');
 						const boldcmd = tui.bold('cat key.pub | ' + cmd);
 						tui.info('All local SSH keys in ~/.ssh/ have already been added to your account');
 						tui.newline();

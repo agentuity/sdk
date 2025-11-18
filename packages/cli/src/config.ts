@@ -1,14 +1,20 @@
+import { z } from 'zod';
+import { existsSync } from 'node:fs';
+import type { Logger } from '@agentuity/core';
+import {
+	BuildMetadataSchema,
+	type BuildMetadata,
+	getServiceUrls,
+	APIClient as ServerAPIClient,
+} from '@agentuity/server';
 import { YAML } from 'bun';
 import { join, extname, basename, resolve, normalize } from 'node:path';
 import { homedir } from 'node:os';
 import { mkdir, readdir, readFile, writeFile, chmod } from 'node:fs/promises';
 import JSON5 from 'json5';
-import { BuildMetadataSchema, type BuildMetadata } from '@agentuity/server';
 import type { Config, Profile, AuthData } from './types';
 import { ConfigSchema, ProjectSchema } from './types';
 import * as tui from './tui';
-import { z } from 'zod';
-import { existsSync } from 'node:fs';
 
 export const defaultProfileName = 'production';
 
@@ -326,6 +332,81 @@ function getPlaceholderValue(schema: z.ZodTypeAny): string {
 	}
 }
 
+function extractDefaultValue(schema: z.ZodTypeAny): unknown {
+	let unwrapped = schema;
+
+	// Unwrap optional layers
+	while (unwrapped instanceof z.ZodOptional) {
+		unwrapped = (unwrapped._def as unknown as { innerType: z.ZodTypeAny }).innerType;
+	}
+
+	// Check if it's a ZodDefault (has defaultValue in def or _def)
+	const checkDef = (obj: unknown): unknown => {
+		if (typeof obj !== 'object' || obj === null) return undefined;
+		const anyObj = obj as Record<string, unknown>;
+
+		// Check `def` property first (used in some Zod versions)
+		if ('def' in anyObj && typeof anyObj.def === 'object' && anyObj.def !== null) {
+			const def = anyObj.def as Record<string, unknown>;
+			if (def.type === 'default' && 'defaultValue' in def) {
+				const val = def.defaultValue;
+				return typeof val === 'function' ? (val as () => unknown)() : val;
+			}
+		}
+
+		// Check `_def` property (standard Zod property)
+		if ('_def' in anyObj && typeof anyObj._def === 'object' && anyObj._def !== null) {
+			const def = anyObj._def as Record<string, unknown>;
+			if (def.type === 'default' && 'defaultValue' in def) {
+				const val = def.defaultValue;
+				return typeof val === 'function' ? (val as () => unknown)() : val;
+			}
+		}
+
+		return undefined;
+	};
+
+	return checkDef(unwrapped);
+}
+
+function getValueWithDefaults(schema: z.ZodTypeAny, providedValue: unknown): unknown {
+	// If value is explicitly provided, use it
+	if (providedValue !== undefined) {
+		return providedValue;
+	}
+
+	// Try to extract default value
+	const defaultValue = extractDefaultValue(schema);
+	if (defaultValue !== undefined) {
+		return defaultValue;
+	}
+
+	// For optional fields without defaults, check if it's an object
+	let unwrapped = schema;
+	if (schema instanceof z.ZodOptional) {
+		unwrapped = (schema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
+	}
+
+	// If it's an object schema, recursively populate defaults
+	if (unwrapped instanceof z.ZodObject) {
+		const shape = unwrapped.shape;
+		const result: Record<string, unknown> = {};
+		let hasAnyDefaults = false;
+
+		for (const [key, fieldSchema] of Object.entries(shape)) {
+			const fieldValue = getValueWithDefaults(fieldSchema as z.ZodTypeAny, undefined);
+			if (fieldValue !== undefined) {
+				result[key] = fieldValue;
+				hasAnyDefaults = true;
+			}
+		}
+
+		return hasAnyDefaults ? result : undefined;
+	}
+
+	return undefined;
+}
+
 export function generateYAMLTemplate(name: string): string {
 	const lines: string[] = [];
 
@@ -408,14 +489,16 @@ function generateJSON5WithComments(
 		const key = keys[i];
 		const fieldSchema = shape[key] as z.ZodTypeAny;
 		const description = getSchemaDescription(fieldSchema);
-		const value = data[key];
+		const providedValue = data[key];
 
 		if (description) {
 			lines.push(`  // ${description}`);
 		}
 
-		const safeValue = value === undefined ? null : value;
-		const jsonValue = JSON.stringify(safeValue);
+		// Get value with defaults applied
+		const valueWithDefaults = getValueWithDefaults(fieldSchema, providedValue);
+		const safeValue = valueWithDefaults === undefined ? null : valueWithDefaults;
+		const jsonValue = JSON.stringify(safeValue, null, 2).replace(/\n/g, '\n  ');
 		const comma = i < keys.length - 1 ? ',' : '';
 		lines.push(`  ${JSON.stringify(key)}: ${jsonValue}${comma}`);
 	}
@@ -516,4 +599,15 @@ export async function loadDevelopmentProjectSDKKey(
 			}
 		}
 	}
+}
+
+export function getCatalystAPIClient(config: Config | null, logger: Logger, auth: AuthData) {
+	const serviceUrls = getServiceUrls();
+	const catalystUrl = config?.overrides?.catalyst_url ?? serviceUrls.catalyst;
+	return new ServerAPIClient(catalystUrl, logger, auth.apiKey);
+}
+
+export function getIONHost(config: Config | null) {
+	const url = new URL(config?.overrides?.ion_url ?? 'https://ion.agentuity.cloud');
+	return url.hostname;
 }

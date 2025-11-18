@@ -4,7 +4,8 @@ import * as tui from '../../../tui';
 import { z } from 'zod';
 
 export const listCommand = createSubcommand({
-	name: 'ssh-list',
+	name: 'list',
+	aliases: ['ls'],
 	description: 'List all SSH keys on your account',
 	requires: { apiClient: true, auth: true },
 	schema: {

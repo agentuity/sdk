@@ -66,6 +66,7 @@ export async function downloadWithSpinner<T>(
 	return await tui.spinner({
 		type: 'progress',
 		message,
+		clearOnSuccess: true,
 		callback: async (updateProgress) => {
 			const stream = await downloadWithProgress({
 				...options,

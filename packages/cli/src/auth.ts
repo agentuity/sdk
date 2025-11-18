@@ -1,10 +1,12 @@
 import { existsSync } from 'node:fs';
 import enquirer from 'enquirer';
-import { getDefaultConfigDir, getAuth, saveConfig, loadConfig } from './config';
+import { getDefaultConfigDir, getAuth, saveConfig, loadConfig, saveOrgId } from './config';
 import { getCommand } from './command-prefix';
 import type { CommandContext, AuthData } from './types';
 import * as tui from './tui';
 import { defaultProfileName } from './config';
+import { listOrganizations } from '@agentuity/server';
+import { APIClient, getAPIBaseURL, type APIClient as APIClientType } from './api';
 
 export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
@@ -74,12 +76,13 @@ export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthD
 	// Ensure apiClient is available for login handler
 	const loginCtx = ctx as unknown as Record<string, unknown>;
 	if (!loginCtx.apiClient) {
-		const { APIClient, getAPIBaseURL } = await import('./api');
 		const apiUrl = getAPIBaseURL(ctx.config ?? null);
 		loginCtx.apiClient = new APIClient(apiUrl, ctx.logger, ctx.config ?? null);
 	}
 
-	await loginCommand.handler(loginCtx as CommandContext);
+	if (loginCommand.handler) {
+		await loginCommand.handler(loginCtx as CommandContext);
+	}
 
 	// After login completes, verify we have auth
 	const newAuth = await getAuth();
@@ -155,12 +158,13 @@ export async function optionalAuth(
 			// Ensure apiClient is available for login handler
 			const loginCtx1 = ctx as unknown as Record<string, unknown>;
 			if (!loginCtx1.apiClient) {
-				const { APIClient, getAPIBaseURL } = await import('./api');
 				const apiUrl = getAPIBaseURL(ctx.config ?? null);
 				loginCtx1.apiClient = new APIClient(apiUrl, ctx.logger, ctx.config ?? null);
 			}
 
-			await loginCommand.handler(loginCtx1 as CommandContext);
+			if (loginCommand.handler) {
+				await loginCommand.handler(loginCtx1 as CommandContext);
+			}
 			return getAuth();
 		}
 
@@ -196,15 +200,92 @@ export async function optionalAuth(
 			// Ensure apiClient is available for login handler
 			const loginCtx2 = ctx as unknown as Record<string, unknown>;
 			if (!loginCtx2.apiClient) {
-				const { APIClient, getAPIBaseURL } = await import('./api');
 				const apiUrl = getAPIBaseURL(ctx.config ?? null);
 				loginCtx2.apiClient = new APIClient(apiUrl, ctx.logger, ctx.config ?? null);
 			}
 
-			await loginCommand.handler(loginCtx2 as CommandContext);
+			if (loginCommand.handler) {
+				await loginCommand.handler(loginCtx2 as CommandContext);
+			}
 			return getAuth();
 		}
 	}
 
 	return null;
+}
+
+export async function requireOrg(
+	ctx: CommandContext & { apiClient: APIClientType }
+): Promise<string> {
+	const { options, config, apiClient } = ctx;
+
+	// Check if org is provided via --org-id flag
+	if (options.orgId) {
+		return options.orgId;
+	}
+
+	// Check if org is saved in config preferences
+	if (config?.preferences?.orgId) {
+		return config.preferences.orgId;
+	}
+
+	// Fetch organizations
+	const orgs = await tui.spinner('Fetching organizations', async () => {
+		return listOrganizations(apiClient);
+	});
+
+	if (orgs.length === 0) {
+		tui.fatal('No organizations found for your account');
+	}
+
+	// Use selectOrganization which handles single org and prompting
+	// Pass the saved preference as initial selection
+	const orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
+
+	// Save selected org to config if different
+	if (orgId !== config?.preferences?.orgId) {
+		await saveOrgId(orgId);
+	}
+
+	return orgId;
+}
+
+export async function optionalOrg(
+	ctx: CommandContext & { apiClient?: APIClientType; auth?: AuthData }
+): Promise<string | undefined> {
+	const { options, config, apiClient, auth } = ctx;
+
+	// If not authenticated or no API client, skip org selection
+	if (!auth || !apiClient) {
+		return undefined;
+	}
+
+	// Check if org is provided via --org-id flag
+	if (options.orgId) {
+		return options.orgId;
+	}
+
+	// Check if org is saved in config preferences
+	if (config?.preferences?.orgId) {
+		return config.preferences.orgId;
+	}
+
+	// Fetch organizations
+	const orgs = await tui.spinner('Fetching organizations', async () => {
+		return listOrganizations(apiClient);
+	});
+
+	if (orgs.length === 0) {
+		return undefined;
+	}
+
+	// Use selectOrganization which handles single org and prompting
+	const orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
+
+	// Save selected org to config if different
+	if (orgId !== config?.preferences?.orgId) {
+		await saveOrgId(orgId);
+	}
+
+	return orgId;
 }

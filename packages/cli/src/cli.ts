@@ -8,12 +8,16 @@ import type {
 	Requires,
 	Optional,
 	Logger,
+	AuthData,
 } from './types';
 import { showBanner } from './banner';
-import { requireAuth, optionalAuth } from './auth';
+import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
+import { listRegions, type RegionList } from '@agentuity/server';
+import enquirer from 'enquirer';
+import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
 import { defaultProfileName, loadProjectConfig } from './config';
-import { APIClient, getAPIBaseURL } from './api';
+import { APIClient, getAPIBaseURL, type APIClient as APIClientType } from './api';
 
 function createAPIClient(baseCtx: CommandContext, config: Config | null): APIClient {
 	try {
@@ -43,6 +47,11 @@ type Normalized = {
 	requiresProject: boolean;
 	optionalProject: boolean;
 	requiresAPIClient: boolean;
+	requiresOrg: boolean;
+	optionalOrg: boolean;
+	requiresRegions: boolean;
+	requiresRegion: boolean;
+	optionalRegion: boolean;
 };
 
 function normalizeReqs(def: CommandDefinition | SubcommandDefinition): Normalized {
@@ -59,7 +68,20 @@ function normalizeReqs(def: CommandDefinition | SubcommandDefinition): Normalize
 	const requiresProject = requires?.project === true;
 	const optionalProject = optional?.project === true;
 
-	const requiresAPIClient = requires?.apiClient === true;
+	const requiresOrg = requires?.org === true;
+	const optionalOrg = optional?.org === true;
+	const requiresRegions = requires?.regions === true;
+	const requiresRegion = requires?.region === true;
+	const optionalRegion = optional?.region === true;
+
+	// Implicitly require apiClient if org or region is required or optional
+	const requiresAPIClient =
+		requires?.apiClient === true ||
+		requiresOrg ||
+		optionalOrg ||
+		requiresRegion ||
+		optionalRegion ||
+		requiresRegions;
 
 	return {
 		requiresAuth,
@@ -67,6 +89,11 @@ function normalizeReqs(def: CommandDefinition | SubcommandDefinition): Normalize
 		requiresProject,
 		optionalProject,
 		requiresAPIClient,
+		requiresOrg,
+		optionalOrg,
+		requiresRegions,
+		requiresRegion,
+		optionalRegion,
 	};
 }
 
@@ -92,7 +119,9 @@ export async function createCLI(version: string): Promise<Command> {
 		.name('agentuity')
 		.description('Agentuity CLI')
 		.version(version, '-V, --version', 'Display version')
-		.helpOption('-h, --help', 'Display help');
+		.helpOption('-h, --help', 'Display help')
+		.allowUnknownOption(false)
+		.allowExcessArguments(false);
 
 	program
 		.option('--config <path>', 'Config file path')
@@ -118,7 +147,119 @@ export async function createCLI(version: string): Promise<Command> {
 		program.help();
 	});
 
+	// Handle unknown commands
+	program.on('command:*', (operands: string[]) => {
+		const unknownCommand = operands[0];
+		console.error(`error: unknown command '${unknownCommand}'`);
+		console.error();
+		const availableCommands = program.commands.map((cmd) => cmd.name());
+		if (availableCommands.length > 0) {
+			console.error('Available commands:');
+			availableCommands.forEach((name) => {
+				console.error(`  ${name}`);
+			});
+		}
+		console.error();
+		console.error(`Run 'agentuity --help' for usage information.`);
+		process.exit(1);
+	});
+
+	// Custom error handling for argument/command parsing errors
+	program.configureOutput({
+		outputError: (str, write) => {
+			// Intercept commander.js error messages
+			if (str.includes('too many arguments') || str.includes('unknown command')) {
+				// Extract potential command name from error context
+				const match = str.match(/got (\d+)/);
+				if (match) {
+					write(`error: unknown command or subcommand\n`);
+					write(`\nRun 'agentuity --help' for available commands.\n`);
+				} else {
+					write(str);
+				}
+			} else {
+				write(str);
+			}
+		},
+	});
+
 	return program;
+}
+
+async function getRegion(regions: RegionList): Promise<string> {
+	if (regions.length === 1) {
+		return regions[0].region;
+	} else {
+		const response = await enquirer.prompt<{ region: string }>({
+			type: 'select',
+			name: 'region',
+			message: 'Select a cloud region:',
+			choices: regions.map((r) => ({
+				name: r.region,
+				message: `${r.description.padEnd(15, ' ')} ${tui.muted(r.region)}`,
+			})),
+		});
+		return response.region;
+	}
+}
+
+interface ResolveRegionOptions {
+	options: Record<string, unknown>;
+	apiClient: APIClientType;
+	logger: Logger;
+	required: boolean;
+}
+
+async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
+	const { options, apiClient, logger, required } = opts;
+
+	// Fetch regions
+	const regions = await listRegions(apiClient);
+
+	// No regions available
+	if (regions.length === 0) {
+		if (required) {
+			logger.fatal('No cloud regions available');
+		}
+		return undefined;
+	}
+
+	// Check if region was provided via flag
+	let region = options.region as string | undefined;
+
+	// Validate --region flag if provided
+	if (region) {
+		const found = regions.find((r) => r.region === region);
+		if (!found) {
+			logger.fatal(
+				`Invalid region '${region}'. Use one of: ${regions.map((r) => r.region).join(', ')}`
+			);
+		}
+		return region;
+	}
+
+	// Auto-select if only one region available
+	if (regions.length === 1) {
+		region = regions[0].region;
+		if (!process.stdin.isTTY) {
+			logger.trace('auto-selected region (non-TTY): %s', region);
+		}
+		return region;
+	}
+
+	// No flag provided - handle TTY vs non-TTY
+	if (required && !process.stdin.isTTY) {
+		logger.fatal('--region flag is required in non-interactive mode');
+	}
+
+	if (process.stdin.isTTY) {
+		// Interactive mode - prompt user
+		region = await getRegion(regions);
+		return region;
+	}
+
+	// Non-interactive, optional region - return undefined
+	return undefined;
 }
 
 async function registerSubcommand(
@@ -133,10 +274,35 @@ async function registerSubcommand(
 		cmd.aliases(subcommand.aliases);
 	}
 
-	const { requiresProject, optionalProject } = normalizeReqs(subcommand);
+	// Check if this subcommand has its own subcommands (nested subcommands)
+	const subDef = subcommand as unknown as { subcommands?: SubcommandDefinition[] };
+	if (subDef.subcommands && subDef.subcommands.length > 0) {
+		// Register nested subcommands recursively
+		for (const nestedSub of subDef.subcommands) {
+			await registerSubcommand(cmd, nestedSub, baseCtx);
+		}
+		return;
+	}
+
+	const {
+		requiresProject,
+		optionalProject,
+		requiresOrg,
+		optionalOrg,
+		requiresRegion,
+		optionalRegion,
+	} = normalizeReqs(subcommand);
 
 	if (requiresProject || optionalProject) {
 		cmd.option('--dir <path>', 'project directory (default: current directory)');
+	}
+
+	if (requiresOrg || optionalOrg) {
+		cmd.option('--org-id <id>', 'organization ID');
+	}
+
+	if (requiresRegion || optionalRegion) {
+		cmd.option('--region <region>', 'cloud region');
 	}
 
 	if (subcommand.schema?.args) {
@@ -178,6 +344,10 @@ async function registerSubcommand(
 		const cmdObj = rawArgs[rawArgs.length - 1] as { opts: () => Record<string, unknown> };
 		const options = cmdObj.opts();
 		const args = rawArgs.slice(0, -1);
+
+		if (subcommand.banner) {
+			showBanner();
+		}
 
 		const normalized = normalizeReqs(subcommand);
 
@@ -250,7 +420,37 @@ async function registerSubcommand(
 						// Recreate apiClient with auth credentials
 						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 					}
-					await subcommand.handler(ctx as CommandContext);
+					if (normalized.requiresOrg) {
+						ctx.orgId = await requireOrg(
+							ctx as CommandContext & { apiClient: APIClientType }
+						);
+					}
+					if (normalized.optionalOrg && ctx.auth) {
+						ctx.orgId = await requireOrg(
+							ctx as CommandContext & { apiClient: APIClientType }
+						);
+					}
+					if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+						const apiClient: APIClientType = ctx.apiClient as APIClientType;
+						const region = await tui.spinner({
+							message: 'Fetching cloud regions',
+							clearOnSuccess: true,
+							callback: async () => {
+								return resolveRegion({
+									options: options as Record<string, unknown>,
+									apiClient,
+									logger: baseCtx.logger,
+									required: !!normalized.requiresRegion,
+								});
+							},
+						});
+						if (region) {
+							ctx.region = region;
+						}
+					}
+					if (subcommand.handler) {
+						await subcommand.handler(ctx as CommandContext);
+					}
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
 						baseCtx.logger.error('Validation error:');
@@ -291,7 +491,29 @@ async function registerSubcommand(
 					// Recreate apiClient with auth credentials
 					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 				}
-				await subcommand.handler(ctx as CommandContext);
+				if (normalized.requiresOrg) {
+					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
+				}
+				if (normalized.optionalOrg && ctx.auth) {
+					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
+				}
+				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+					const apiClient: APIClientType = ctx.apiClient as APIClientType;
+					const region = await tui.spinner('Fetching cloud regions', async () => {
+						return resolveRegion({
+							options: options as Record<string, unknown>,
+							apiClient,
+							logger: baseCtx.logger,
+							required: !!normalized.requiresRegion,
+						});
+					});
+					if (region) {
+						ctx.region = region;
+					}
+				}
+				if (subcommand.handler) {
+					await subcommand.handler(ctx as CommandContext);
+				}
 			}
 		} else if (normalized.optionalAuth) {
 			const continueText =
@@ -340,7 +562,43 @@ async function registerSubcommand(
 						// Recreate apiClient with auth credentials
 						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 					}
-					await subcommand.handler(ctx as CommandContext);
+					baseCtx.logger.trace(
+						'optionalAuth path: org=%s, region=%s, hasApiClient=%s, hasAuth=%s',
+						normalized.optionalOrg,
+						normalized.optionalRegion,
+						!!ctx.apiClient,
+						!!auth
+					);
+					if (normalized.requiresOrg && ctx.apiClient) {
+						ctx.orgId = await requireOrg(
+							ctx as CommandContext & { apiClient: APIClientType }
+						);
+					}
+					if (normalized.optionalOrg && ctx.apiClient && auth) {
+						ctx.orgId = await selectOptionalOrg(
+							ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
+						);
+						baseCtx.logger.trace('selected orgId: %s', ctx.orgId);
+					}
+					if (
+						(normalized.requiresRegion || normalized.optionalRegion) &&
+						ctx.apiClient &&
+						auth
+					) {
+						const apiClient: APIClientType = ctx.apiClient as APIClientType;
+						const region = await resolveRegion({
+							options: options as Record<string, unknown>,
+							apiClient,
+							logger: baseCtx.logger,
+							required: !!normalized.requiresRegion,
+						});
+						if (region) {
+							ctx.region = region;
+						}
+					}
+					if (subcommand.handler) {
+						await subcommand.handler(ctx as CommandContext);
+					}
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
 						baseCtx.logger.error('Validation error:');
@@ -380,7 +638,29 @@ async function registerSubcommand(
 					// Recreate apiClient with auth credentials if auth was provided
 					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 				}
-				await subcommand.handler(ctx as CommandContext);
+				if (normalized.requiresOrg && ctx.apiClient) {
+					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
+				}
+				if (normalized.optionalOrg && ctx.apiClient) {
+					ctx.orgId = await selectOptionalOrg(
+						ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
+					);
+				}
+				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+					const apiClient: APIClientType = ctx.apiClient as APIClientType;
+					const region = await resolveRegion({
+						options: options as Record<string, unknown>,
+						apiClient,
+						logger: baseCtx.logger,
+						required: !!normalized.requiresRegion,
+					});
+					if (region) {
+						ctx.region = region;
+					}
+				}
+				if (subcommand.handler) {
+					await subcommand.handler(ctx as CommandContext);
+				}
 			}
 		} else {
 			if (subcommand.schema) {
@@ -404,7 +684,19 @@ async function registerSubcommand(
 					if (normalized.requiresAPIClient && !ctx.apiClient) {
 						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 					}
-					await subcommand.handler(ctx as CommandContext);
+					if (normalized.requiresOrg && ctx.apiClient) {
+						ctx.orgId = await requireOrg(
+							ctx as CommandContext & { apiClient: APIClientType }
+						);
+					}
+					if (normalized.optionalOrg && ctx.apiClient && ctx.auth) {
+						ctx.orgId = await requireOrg(
+							ctx as CommandContext & { apiClient: APIClientType }
+						);
+					}
+					if (subcommand.handler) {
+						await subcommand.handler(ctx as CommandContext);
+					}
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
 						baseCtx.logger.error('Validation error:');
@@ -432,7 +724,27 @@ async function registerSubcommand(
 				if (normalized.requiresAPIClient && !ctx.apiClient) {
 					ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 				}
-				await subcommand.handler(ctx as CommandContext);
+				if (normalized.requiresOrg && ctx.apiClient) {
+					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
+				}
+				if (normalized.optionalOrg && ctx.apiClient && ctx.auth) {
+					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
+				}
+				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+					const apiClient: APIClientType = ctx.apiClient as APIClientType;
+					const region = await resolveRegion({
+						options: options as Record<string, unknown>,
+						apiClient,
+						logger: baseCtx.logger,
+						required: !!normalized.requiresRegion,
+					});
+					if (region) {
+						ctx.region = region;
+					}
+				}
+				if (subcommand.handler) {
+					await subcommand.handler(ctx as CommandContext);
+				}
 			}
 		}
 	});
@@ -455,6 +767,10 @@ export async function registerCommands(
 
 			if (cmdDef.handler) {
 				cmd.action(async () => {
+					if (cmdDef.banner) {
+						showBanner();
+					}
+
 					const normalized = normalizeReqs(cmdDef);
 					if (normalized.requiresAuth) {
 						// Create apiClient before requireAuth since login command needs it
@@ -484,6 +800,18 @@ export async function registerCommands(
 						if (normalized.requiresAPIClient) {
 							// Recreate apiClient with auth credentials
 							ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
+						}
+						if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+							const apiClient: APIClientType = ctx.apiClient as APIClientType;
+							const region = await resolveRegion({
+								options: baseCtx.options as unknown as Record<string, unknown>,
+								apiClient,
+								logger: baseCtx.logger,
+								required: !!normalized.requiresRegion,
+							});
+							if (region) {
+								ctx.region = region;
+							}
 						}
 						await cmdDef.handler!(ctx as CommandContext);
 					} else if (normalized.optionalAuth) {
@@ -530,12 +858,37 @@ export async function registerCommands(
 							// Recreate apiClient with auth credentials if auth was provided
 							ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
 						}
+						if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+							const apiClient: APIClientType = ctx.apiClient as APIClientType;
+							const region = await resolveRegion({
+								options: baseCtx.options as unknown as Record<string, unknown>,
+								apiClient,
+								logger: baseCtx.logger,
+								required: !!normalized.requiresRegion,
+							});
+							if (region) {
+								ctx.region = region;
+							}
+						}
 						await cmdDef.handler!(ctx as CommandContext);
 					} else {
-						const ctx = baseCtx as CommandContext<undefined>;
+						const ctx: Record<string, unknown> = {
+							...baseCtx,
+						};
 						if (normalized.requiresAPIClient && !(ctx as CommandContext).apiClient) {
-							// eslint-disable-next-line @typescript-eslint/no-explicit-any
-							(ctx as any).apiClient = createAPIClient(baseCtx, ctx.config);
+							ctx.apiClient = createAPIClient(baseCtx, baseCtx.config);
+						}
+						if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+							const apiClient = ctx.apiClient as APIClientType;
+							const region = await resolveRegion({
+								options: baseCtx.options as unknown as Record<string, unknown>,
+								apiClient,
+								logger: baseCtx.logger,
+								required: !!normalized.requiresRegion,
+							});
+							if (region) {
+								ctx.region = region;
+							}
 						}
 						await cmdDef.handler!(ctx as CommandContext);
 					}

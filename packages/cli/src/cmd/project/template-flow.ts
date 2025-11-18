@@ -1,4 +1,5 @@
 import { basename, resolve } from 'node:path';
+import { z } from 'zod';
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { cwd } from 'node:process';
 import { homedir } from 'node:os';
@@ -6,25 +7,29 @@ import enquirer from 'enquirer';
 import {
 	projectCreate,
 	projectExists,
-	listOrganizations,
+	listResources,
 	projectEnvUpdate,
-	type OrganizationList,
+	getServiceUrls,
+	APIClient as ServerAPIClient,
+	Resources,
+	createResources,
 } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui';
 import { playSound } from '../../sound';
 import { fetchTemplates, type TemplateInfo } from './templates';
 import { downloadTemplate, setupProject } from './download';
-import { showBanner } from '../../banner';
 import type { AuthData, Config } from '../../types';
 import type { APIClient } from '../../api';
-import { createProjectConfig, saveOrgId } from '../../config';
+import { createProjectConfig } from '../../config';
 import {
 	findEnvFile,
 	readEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 } from '../../env-util';
+
+type ResourcesTypes = z.infer<typeof Resources>;
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -39,6 +44,7 @@ interface CreateFlowOptions {
 	auth?: AuthData;
 	config?: Config;
 	orgId?: string;
+	region?: string;
 	apiClient?: APIClient;
 }
 
@@ -54,42 +60,38 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		auth,
 		config,
 		orgId: selectedOrgId,
+		region,
 		apiClient,
 	} = options;
 
-	showBanner();
-
-	// Step 1: Fetch available templates
+	// Fetch available templates
 	if (templateDir) {
 		tui.info(`📋 Loading templates from local directory: ${templateDir}...\n`);
 	}
 
-	const templates = await tui.spinner('Fetching templates', async () => {
-		return fetchTemplates(templateDir, templateBranch);
+	const templates = await tui.spinner({
+		message: 'Fetching templates',
+		clearOnSuccess: true,
+		callback: async () => {
+			return fetchTemplates(templateDir, templateBranch);
+		},
 	});
 
 	if (templates.length === 0) {
 		logger.fatal('No templates available');
 	}
 
-	// Step 2: Get project name
+	// Get project name
 	let projectName = initialProjectName;
 
-	let orgs: OrganizationList;
-	let orgId: string | undefined;
+	// Organization is now automatically selected by the CLI framework via optional: { org: true }
+	const orgId = selectedOrgId;
+	let catalystClient: ServerAPIClient | undefined;
 
-	if (auth && apiClient) {
-		orgs = await tui.spinner('Fetching organizations', async () => {
-			return listOrganizations(apiClient);
-		});
-		if (orgs.length === 0) {
-			tui.fatal('no organizations could be found for your login');
-		}
-		orgId = await tui.selectOrganization(orgs, selectedOrgId ?? config?.preferences?.orgId);
-
-		if (orgId && orgId !== config?.preferences?.orgId) {
-			await saveOrgId(orgId);
-		}
+	if (auth) {
+		const serviceUrls = getServiceUrls();
+		const catalystUrl = config?.overrides?.catalyst_url ?? serviceUrls.catalyst;
+		catalystClient = new ServerAPIClient(catalystUrl, logger, auth.apiKey);
 	}
 
 	if (!projectName && !skipPrompts) {
@@ -118,10 +120,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	}
 	projectName = projectName || 'My First Agent';
 
-	// Step 3: Generate disk-friendly directory name
+	// Generate disk-friendly directory name
 	const dirName = projectName === '.' ? '.' : sanitizeDirectoryName(projectName);
 
-	// Step 4: Determine destination directory
+	// Determine destination directory
 	// Expand ~ to home directory
 	let expandedTargetDir = targetDir;
 	if (expandedTargetDir?.startsWith('~')) {
@@ -156,7 +158,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				return;
 			}
 			rmSync(dest, { recursive: true, force: true });
-			tui.success(`Deleted ${dest}\n`);
+			tui.success(`Deleted ${dest}`);
 		} else {
 			logger.fatal(`Directory ${dest} already exists and is not empty.`, true);
 		}
@@ -193,7 +195,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 	tui.info(`✨ Using template: ${tui.bold(selectedTemplate.name)}`);
 
-	// Step 6: Download template
+	// Download template
 	await downloadTemplate({
 		dest,
 		template: selectedTemplate,
@@ -202,7 +204,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		logger,
 	});
 
-	// Step 7: Setup project (replace placeholders, install deps, build)
+	// Setup project (replace placeholders, install deps, build)
 	await setupProject({
 		dest,
 		projectName: projectName === '.' ? basename(dest) : projectName,
@@ -212,51 +214,149 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		logger,
 	});
 
+	const resourceConfig: ResourcesTypes = Resources.parse({});
+
+	if (auth && apiClient && catalystClient && orgId && region) {
+		// Fetch resources for selected org and region using Catalyst API
+		const resources = await tui.spinner({
+			message: 'Fetching resources',
+			clearOnSuccess: true,
+			callback: async () => {
+				return listResources(catalystClient, orgId, region);
+			},
+		});
+
+		logger.debug(`Resources for org ${orgId} in region ${region}:`, resources);
+
+		const choices = await enquirer.prompt<{
+			db_action: string;
+			s3_action: string;
+		}>([
+			{
+				type: 'select',
+				name: 'db_action',
+				message: 'Create SQL Database?',
+				choices: [
+					{ name: 'Create New', message: 'Create a new (free)' },
+					{ name: 'Skip', message: 'Skip or Setup later' },
+					...resources.db.map((db) => ({
+						name: db.name,
+						message: `Use database: ${db.name}`,
+					})),
+				],
+			},
+			{
+				type: 'select',
+				name: 's3_action',
+				message: 'Create Storage Bucket?',
+				choices: [
+					{ name: 'Create New', message: 'Create a new (free)' },
+					{ name: 'Skip', message: 'Skip or Setup later' },
+					...resources.s3.map((db) => ({
+						name: db.bucket_name,
+						message: `Use bucket: ${db.bucket_name}`,
+					})),
+				],
+			},
+		]);
+		switch (choices.s3_action) {
+			case 'Create New': {
+				const created = await tui.spinner({
+					message: 'Provisioning New Bucket',
+					clearOnSuccess: true,
+					callback: async () => {
+						return createResources(catalystClient, orgId, region!, [{ type: 's3' }]);
+					},
+				});
+				resourceConfig.storage = created[0].name;
+				break;
+			}
+			case 'Skip': {
+				break;
+			}
+			default: {
+				resourceConfig.storage = choices.s3_action;
+				break;
+			}
+		}
+		switch (choices.db_action) {
+			case 'Create New': {
+				const created = await tui.spinner({
+					message: 'Provisioning New SQL Database',
+					clearOnSuccess: true,
+					callback: async () => {
+						return createResources(catalystClient, orgId, region!, [{ type: 'db' }]);
+					},
+				});
+				resourceConfig.db = created[0].name;
+				break;
+			}
+			case 'Skip': {
+				break;
+			}
+			default: {
+				resourceConfig.db = choices.db_action;
+				break;
+			}
+		}
+	}
+
 	if (auth && apiClient && orgId) {
 		let projectId: string | undefined;
 
-		await tui.spinner('Registering your project', async () => {
-			const project = await projectCreate(apiClient, {
-				name: projectName,
-				organization_id: orgId,
-				provider: 'bunjs',
-			});
-			projectId = project.id;
-			return createProjectConfig(dest, {
-				projectId: project.id,
-				orgId,
-				apiKey: project.api_key,
-			});
+		await tui.spinner({
+			message: 'Registering your project',
+			clearOnSuccess: true,
+			callback: async () => {
+				const project = await projectCreate(apiClient, {
+					name: projectName,
+					organization_id: orgId,
+					provider: 'bunjs',
+				});
+				projectId = project.id;
+				return createProjectConfig(dest, {
+					projectId: project.id,
+					orgId,
+					apiKey: project.api_key,
+					deployment: {
+						resources: resourceConfig,
+					},
+				});
+			},
 		});
 
 		// After registration, push any existing env/secrets from .env.production
 		if (projectId) {
-			await tui.spinner('Syncing environment variables', async () => {
-				try {
-					const envFilePath = await findEnvFile(dest);
-					const localEnv = await readEnvFile(envFilePath);
-					const filteredEnv = filterAgentuitySdkKeys(localEnv);
+			await tui.spinner({
+				message: 'Syncing environment variables',
+				clearOnSuccess: true,
+				callback: async () => {
+					try {
+						const envFilePath = await findEnvFile(dest);
+						const localEnv = await readEnvFile(envFilePath);
+						const filteredEnv = filterAgentuitySdkKeys(localEnv);
 
-					if (Object.keys(filteredEnv).length > 0) {
-						const { env, secrets } = splitEnvAndSecrets(filteredEnv);
-						await projectEnvUpdate(apiClient, {
-							id: projectId as string,
-							env,
-							secrets,
-						});
-						logger.debug(
-							`Synced ${Object.keys(filteredEnv).length} environment variables to cloud`
-						);
+						if (Object.keys(filteredEnv).length > 0) {
+							const { env, secrets } = splitEnvAndSecrets(filteredEnv);
+							await projectEnvUpdate(apiClient, {
+								id: projectId as string,
+								env,
+								secrets,
+							});
+							logger.debug(
+								`Synced ${Object.keys(filteredEnv).length} environment variables to cloud`
+							);
+						}
+					} catch (error) {
+						// Non-fatal: just log the error
+						logger.debug('Failed to sync environment variables:', error);
 					}
-				} catch (error) {
-					// Non-fatal: just log the error
-					logger.debug('Failed to sync environment variables:', error);
-				}
+				},
 			});
 		}
 	}
 
-	// Step 8: Show completion message
+	// Show completion message
 	tui.success('✨ Project created successfully!\n');
 	tui.info('Next steps:');
 	if (dirName !== '.') {

@@ -50,6 +50,11 @@ export const ConfigSchema = zod.object({
 				.url()
 				.default('https://catalyst.agentuity.cloud')
 				.describe('Override catalyst URL'),
+			ion_url: zod
+				.url()
+				.optional()
+				.default('https://ion.agentuity.cloud')
+				.describe('Override ion URL'),
 			gravity_url: zod
 				.url()
 				.default('grpc://devmode.agentuity.com')
@@ -112,11 +117,16 @@ export type Requires = {
 	auth?: true;
 	project?: true;
 	apiClient?: true;
+	org?: true;
+	regions?: true;
+	region?: true;
 };
 
 export type Optional = {
 	auth?: true | string;
 	project?: true;
+	org?: true;
+	region?: true;
 };
 
 type AddArgs<A extends z.ZodType | undefined> = A extends z.ZodType
@@ -158,6 +168,40 @@ type AddProject<M extends 'required' | 'optional' | 'none'> = M extends 'require
 		? { project?: ProjectConfig; projectDir: string }
 		: Record<string, never>;
 
+type OrgMode<R extends Requires | undefined, O extends Optional | undefined> = R extends {
+	org: true;
+}
+	? 'required'
+	: O extends { org: true }
+		? 'optional'
+		: 'none';
+
+type AddOrg<M extends 'required' | 'optional' | 'none'> = M extends 'required'
+	? { orgId: string }
+	: M extends 'optional'
+		? { orgId?: string }
+		: Record<string, never>;
+
+type RegionsRequired<R extends Requires | undefined> = R extends { regions: true } ? true : false;
+
+type AddRegions<R extends boolean> = R extends true
+	? { regions: Array<{ region: string; description: string }> }
+	: Record<string, never>;
+
+type RegionMode<R extends Requires | undefined, O extends Optional | undefined> = R extends {
+	region: true;
+}
+	? 'required'
+	: O extends { region: true }
+		? 'optional'
+		: 'none';
+
+type AddRegionOptional<M extends 'required' | 'optional' | 'none'> = M extends 'required'
+	? { region: string }
+	: M extends 'optional'
+		? { region?: string }
+		: Record<string, never>;
+
 export type CommandContextFromSpecs<
 	R extends Requires | undefined,
 	O extends Optional | undefined,
@@ -171,6 +215,9 @@ export type CommandContextFromSpecs<
 	AddOpts<Op> &
 	AddAuth<AuthMode<R, O>> &
 	AddProject<ProjectMode<R, O>> &
+	AddOrg<OrgMode<R, O>> &
+	AddRegions<RegionsRequired<R>> &
+	AddRegionOptional<RegionMode<R, O>> &
 	(APIClientRequired<R> extends true ? { apiClient: APIClient } : Record<string, never>);
 
 export type CommandContext<
@@ -188,6 +235,7 @@ export function createSubcommand<
 >(definition: {
 	name: string;
 	description: string;
+	banner?: true;
 	aliases?: string[];
 	toplevel?: boolean;
 	requires?: R;
@@ -212,6 +260,7 @@ export function createCommand<
 >(definition: {
 	name: string;
 	description: string;
+	banner?: true;
 	aliases?: string[];
 	hidden?: boolean;
 	requires?: R;
@@ -229,23 +278,47 @@ export function createCommand<
 	return definition as unknown as CommandDefinition;
 }
 
-type CommandDefBase = {
-	name: string;
-	description: string;
-	aliases?: string[];
-	schema?: CommandSchemas;
-	handler?(ctx: CommandContext): void | Promise<void>;
-	subcommands?: SubcommandDefinition[];
-};
+type CommandDefBase =
+	| {
+			name: string;
+			description: string;
+			aliases?: string[];
+			banner?: boolean;
+			schema?: CommandSchemas;
+			handler(ctx: CommandContext): void | Promise<void>;
+			subcommands?: SubcommandDefinition[];
+	  }
+	| {
+			name: string;
+			description: string;
+			aliases?: string[];
+			banner?: boolean;
+			schema?: CommandSchemas;
+			handler?: undefined;
+			subcommands: SubcommandDefinition[];
+	  };
 
-type SubcommandDefBase = {
-	name: string;
-	description: string;
-	aliases?: string[];
-	toplevel?: boolean;
-	schema?: CommandSchemas;
-	handler(ctx: CommandContext): void | Promise<void>;
-};
+type SubcommandDefBase =
+	| {
+			name: string;
+			description: string;
+			aliases?: string[];
+			toplevel?: boolean;
+			banner?: boolean;
+			schema?: CommandSchemas;
+			handler(ctx: CommandContext): void | Promise<void>;
+			subcommands?: SubcommandDefinition[];
+	  }
+	| {
+			name: string;
+			description: string;
+			aliases?: string[];
+			toplevel?: boolean;
+			banner?: boolean;
+			schema?: CommandSchemas;
+			handler?: undefined;
+			subcommands: SubcommandDefinition[];
+	  };
 
 export type CommandDefinition =
 	| (CommandDefBase & {

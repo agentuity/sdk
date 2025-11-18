@@ -20,8 +20,12 @@ export const listSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { apiClient, opts } = ctx;
 
-		const projects = await tui.spinner('Fetching projects', () => {
-			return projectList(apiClient);
+		const projects = await tui.spinner({
+			message: 'Fetching projects',
+			clearOnSuccess: true,
+			callback: () => {
+				return projectList(apiClient);
+			},
 		});
 
 		// TODO: might want to sort by the last org_id we used

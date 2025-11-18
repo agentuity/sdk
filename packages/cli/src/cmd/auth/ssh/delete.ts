@@ -4,9 +4,10 @@ import * as tui from '../../../tui';
 import enquirer from 'enquirer';
 import { z } from 'zod';
 
-export const removeCommand = createSubcommand({
-	name: 'ssh-remove',
-	description: 'Remove one or more SSH keys from your account',
+export const deleteCommand = createSubcommand({
+	name: 'delete',
+	aliases: ['rm', 'del', 'remove'],
+	description: 'Delete an SSH key from your account',
 	requires: { apiClient: true, auth: true },
 	schema: {
 		args: z.object({

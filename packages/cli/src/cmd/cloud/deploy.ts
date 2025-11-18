@@ -113,7 +113,11 @@ export const deploySubcommand = createSubcommand({
 						label: 'Create Deployment',
 						run: async () => {
 							try {
-								deployment = await projectDeploymentCreate(apiClient, project.projectId);
+								deployment = await projectDeploymentCreate(
+									apiClient,
+									project.projectId,
+									project.deployment
+								);
 								return stepSuccess();
 							} catch (ex) {
 								return stepError(ex instanceof Error ? ex.message : String(ex));

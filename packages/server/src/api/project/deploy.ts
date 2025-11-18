@@ -2,9 +2,11 @@ import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api';
 
 export const Resources = z.object({
-	memory: z.string().optional().describe('The memory requirements'),
-	cpu: z.string().optional().describe('The CPU requirements'),
-	disk: z.string().optional().describe('The disk requirements'),
+	memory: z.string().default('500Mi').describe('The memory requirements'),
+	cpu: z.string().default('500m').describe('The CPU requirements'),
+	disk: z.string().default('500Mi').describe('The disk requirements'),
+	db: z.string().optional().describe('the name of the database to use'),
+	storage: z.string().optional().describe('the name of the storage bucket to use'),
 });
 
 export const Mode = z.object({
@@ -19,7 +21,7 @@ export const Deployment = z.object({
 	resources: Resources.optional().describe('the resource requirements for your deployed project'),
 	mode: Mode.optional().describe('the provisioning mode for the project'),
 	dependencies: z
-		.array(z.string().describe('an APT dependency to install prior to launching your project'))
+		.array(z.string().describe('APT dependencies to install prior to launching your project'))
 		.optional(),
 	domains: z.array(z.string().describe('the custom domain')).optional(),
 });
@@ -129,12 +131,14 @@ export type Deployment = z.infer<typeof CreateProjectDeployment>;
  */
 export async function projectDeploymentCreate(
 	client: APIClient,
-	projectId: string
+	projectId: string,
+	deploymentConfig?: z.infer<typeof Deployment>
 ): Promise<Deployment> {
 	const resp = await client.request<CreateProjectDeploymentPayload>(
 		'POST',
 		`/cli/deploy/1/start/${projectId}`,
-		CreateProjectDeploymentSchema
+		CreateProjectDeploymentSchema,
+		deploymentConfig
 	);
 	if (resp.success) {
 		return resp.data;

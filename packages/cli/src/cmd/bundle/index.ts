@@ -1,6 +1,7 @@
 import { createCommand } from '../../types';
 import { z } from 'zod';
 import { bundle } from './bundler';
+import * as tui from '../../tui';
 
 export const command = createCommand({
 	name: 'bundle',
@@ -14,10 +15,10 @@ export const command = createCommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, projectDir, project } = ctx;
+		const { opts, projectDir, project } = ctx;
 
 		try {
-			logger.info(`Bundling project at: ${projectDir}`);
+			tui.info(`Bundling project at: ${projectDir}`);
 
 			await bundle({
 				rootDir: projectDir,
@@ -25,12 +26,12 @@ export const command = createCommand({
 				project,
 			});
 
-			logger.info('✓ Bundle complete');
+			tui.success('Bundle complete');
 		} catch (error) {
 			if (error instanceof Error) {
-				logger.fatal(`Bundle failed: ${error.message}`);
+				tui.fatal(`Bundle failed: ${error.message}`);
 			} else {
-				logger.fatal('Bundle failed');
+				tui.fatal('Bundle failed');
 			}
 		}
 	},

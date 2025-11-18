@@ -24,14 +24,18 @@ export const signupCommand = createSubcommand({
 			tui.banner('Signup for Agentuity', bannerBody);
 			tui.newline();
 
-			await tui.spinner('Waiting for signup to complete...', async () => {
-				const result = await pollForSignupCompletion(apiClient, otp);
+			await tui.spinner({
+				message: 'Waiting for signup to complete...',
+				clearOnSuccess: true,
+				callback: async () => {
+					const result = await pollForSignupCompletion(apiClient, otp);
 
-				await saveAuth({
-					apiKey: result.apiKey,
-					userId: result.userId,
-					expires: result.expires,
-				});
+					await saveAuth({
+						apiKey: result.apiKey,
+						userId: result.userId,
+						expires: result.expires,
+					});
+				},
 			});
 
 			tui.newline();

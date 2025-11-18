@@ -25,8 +25,12 @@ export const whoamiCommand = createSubcommand({
 			);
 		}
 
-		const user = await tui.spinner('Fetching user information', () => {
-			return whoami(apiClient);
+		const user = await tui.spinner({
+			message: 'Fetching user information',
+			clearOnSuccess: true,
+			callback: () => {
+				return whoami(apiClient);
+			},
 		});
 
 		if (opts?.format === 'json') {

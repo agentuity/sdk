@@ -22,8 +22,12 @@ export const loginCommand = createSubcommand({
 		const appUrl = getAppBaseURL(config);
 
 		try {
-			const otp = await tui.spinner('Generating login one time code...', () => {
-				return generateLoginOTP(apiClient);
+			const otp = await tui.spinner({
+				message: 'Generating login one time code...',
+				clearOnSuccess: true,
+				callback: () => {
+					return generateLoginOTP(apiClient);
+				},
 			});
 
 			if (!otp) {

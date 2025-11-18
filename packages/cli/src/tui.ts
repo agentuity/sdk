@@ -4,10 +4,11 @@
  * Provides semantic helpers for console output with automatic icons and colors.
  * Uses Bun's built-in color support and ANSI escape codes.
  */
-import enquirer from 'enquirer';
-import type { OrganizationList } from '@agentuity/server';
-import type { ColorScheme } from './terminal';
 import { stringWidth } from 'bun';
+import enquirer from 'enquirer';
+import { type OrganizationList, projectList } from '@agentuity/server';
+import type { ColorScheme } from './terminal';
+import { type APIClient as APIClientType } from './api';
 import * as readline from 'readline';
 
 // Icons
@@ -1168,10 +1169,6 @@ export async function selectOrganization(
 		);
 	}
 
-	if (orgs.length === 1) {
-		return orgs[0].id;
-	}
-
 	if (process.env.AGENTUITY_CLOUD_ORG_ID) {
 		const org = orgs.find((o) => o.id === process.env.AGENTUITY_CLOUD_ORG_ID);
 		if (org) {
@@ -1180,6 +1177,9 @@ export async function selectOrganization(
 	}
 
 	if (!process.stdin.isTTY) {
+		if (orgs.length === 1) {
+			return orgs[0].id;
+		}
 		if (initial) {
 			return initial;
 		}
@@ -1192,9 +1192,52 @@ export async function selectOrganization(
 		type: 'select',
 		name: 'action',
 		message: 'Select an organization',
-		initial,
+		initial: initial || (orgs.length === 1 ? orgs[0].id : undefined),
 		choices: orgs.map((o) => ({ message: o.name, name: o.id })),
 	});
 
 	return response.action;
+}
+
+/**
+ * show a project list picker
+ *
+ * @param apiClient
+ * @param showDeployment
+ * @returns
+ */
+export async function showProjectList(
+	apiClient: APIClientType,
+	showDeploymentId = false
+): Promise<string> {
+	const projects = await spinner({
+		message: 'Fetching projects',
+		clearOnSuccess: true,
+		callback: () => {
+			return projectList(apiClient, showDeploymentId);
+		},
+	});
+
+	if (projects.length === 0) {
+		return '';
+	}
+
+	// TODO: might want to sort by the last org_id we used
+	if (projects) {
+		projects.sort((a, b) => {
+			return a.name.localeCompare(b.name);
+		});
+	}
+
+	const response = await enquirer.prompt<{ id: string }>({
+		type: 'select',
+		name: 'id',
+		message: 'Select a project:',
+		choices: projects.map((p) => ({
+			name: p.id,
+			message: `${p.name.padEnd(25, ' ')} ${muted(p.id)} ${showDeploymentId ? muted(p.latestDeploymentId ?? 'no deployment') : ''}`,
+		})),
+	});
+
+	return response.id;
 }

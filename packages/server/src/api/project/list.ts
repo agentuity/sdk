@@ -8,6 +8,7 @@ const ProjectListResponse = z.array(
 		description: z.string().optional().describe('the project description'),
 		orgId: z.string().describe('the organization id that this project is registered with'),
 		orgName: z.string().describe('the organization name'),
+		latestDeploymentId: z.string().nullable().describe('the latest deployment id'),
 	})
 );
 
@@ -20,12 +21,16 @@ export type ProjectList = z.infer<typeof ProjectListResponse>;
  * List all projects
  *
  * @param client
+ * @param hasDeployment if true, filter by projects with at least one deployment
  * @returns
  */
-export async function projectList(client: APIClient): Promise<ProjectList> {
+export async function projectList(
+	client: APIClient,
+	hasDeployment?: boolean
+): Promise<ProjectList> {
 	const resp = await client.request<ProjectListResponse>(
 		'GET',
-		'/cli/project',
+		`/cli/project${hasDeployment ? '?hasDeployment=true' : ''}`,
 		ProjectListResponseSchema
 	);
 

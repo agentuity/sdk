@@ -6,8 +6,9 @@ export const createProjectSubcommand = createSubcommand({
 	name: 'create',
 	description: 'Create a new project',
 	aliases: ['new'],
+	banner: true,
 	toplevel: true,
-	optional: { auth: true },
+	optional: { auth: true, org: true, region: true },
 	requires: { apiClient: true },
 	schema: {
 		options: z.object({
@@ -42,7 +43,7 @@ export const createProjectSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, auth, config, options, apiClient } = ctx;
+		const { logger, opts, auth, config, apiClient, orgId, region } = ctx;
 
 		await runCreateFlow({
 			projectName: opts.name,
@@ -56,8 +57,9 @@ export const createProjectSubcommand = createSubcommand({
 			logger,
 			auth: opts.register === true ? auth : undefined,
 			config: config!,
-			orgId: options.orgId,
 			apiClient,
+			orgId,
+			region,
 		});
 	},
 });
