@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "sdk-mono",
@@ -20,7 +21,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.0.43",
+      "version": "0.0.46",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -30,7 +31,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "0.0.43",
+      "version": "0.0.46",
     },
     "apps/testing/auth-app": {
       "name": "test-app",
@@ -99,7 +100,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.0.43",
+      "version": "0.0.46",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -126,7 +127,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.0.43",
+      "version": "0.0.46",
       "dependencies": {
         "zod": "^4.1.12",
       },
@@ -136,7 +137,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.0.43",
+      "version": "0.0.46",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -150,10 +151,10 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.0.43",
+      "version": "0.0.46",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
-        "@agentuity/server": "workspace:*",
+        "@agentuity/core": "0.0.46",
+        "@agentuity/server": "0.0.46",
         "@opentelemetry/api": "^1.9.0",
         "@opentelemetry/api-logs": "^0.207.0",
         "@opentelemetry/auto-instrumentations-node": "^0.66.0",
@@ -170,10 +171,10 @@
         "@opentelemetry/sdk-trace-base": "^2.2.0",
         "@opentelemetry/semantic-conventions": "^1.37.0",
         "@traceloop/node-server-sdk": "^0.19.1",
+        "@types/mailparser": "^3.4.6",
         "mailparser": "^3.7.1",
       },
       "devDependencies": {
-        "@types/mailparser": "^3.4.6",
         "@types/react": "^19.2.2",
         "@types/react-dom": "^19.2.2",
         "react": "^19.2.0",
@@ -186,9 +187,9 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.0.43",
+      "version": "0.0.46",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
+        "@agentuity/core": "0.0.46",
         "zod": "^4.1.12",
       },
       "devDependencies": {

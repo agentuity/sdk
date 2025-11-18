@@ -53,10 +53,8 @@ export const uploadCommand = createSubcommand({
 				process.exit(spawn.exitCode ?? 1);
 			}
 		} catch (error) {
-			tui.error(
-				`SCP upload error: ${error instanceof Error ? error.message : 'Unknown error'}`
-			);
+			tui.error(`SCP upload error: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			process.exit(1);
 		}
-		},
+	},
 });

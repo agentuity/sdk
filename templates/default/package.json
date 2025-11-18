@@ -7,6 +7,7 @@
 	"scripts": {
 		"build": "agentuity bundle --dir .",
 		"dev": "agentuity dev --dir .",
+		"deploy": "agentuity deploy --dir .",
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {

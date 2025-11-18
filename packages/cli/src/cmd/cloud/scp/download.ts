@@ -55,5 +55,5 @@ export const downloadCommand = createSubcommand({
 			);
 			process.exit(1);
 		}
-		},
+	},
 });

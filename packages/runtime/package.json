@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/runtime",
-	"version": "0.0.43",
+	"version": "0.0.46",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -43,13 +43,13 @@
 		"@opentelemetry/sdk-trace-base": "^2.2.0",
 		"@opentelemetry/semantic-conventions": "^1.37.0",
 		"@traceloop/node-server-sdk": "^0.19.1",
-		"mailparser": "^3.7.1"
+		"mailparser": "^3.7.1",
+		"@types/mailparser": "^3.4.6"
 	},
 	"peerDependencies": {
 		"hono": "^4.10.3"
 	},
 	"devDependencies": {
-		"@types/mailparser": "^3.4.6",
 		"@types/react": "^19.2.2",
 		"@types/react-dom": "^19.2.2",
 		"react": "^19.2.0",

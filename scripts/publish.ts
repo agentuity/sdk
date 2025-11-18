@@ -153,6 +153,30 @@ async function updateVersions(version: string) {
 		try {
 			const pkgJson = await readJSON(pkgJsonPath);
 			pkgJson.version = version;
+
+			// Update workspace:* dependencies to explicit version
+			if (pkgJson.dependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.dependencies)) {
+					if (depVersion === 'workspace:*') {
+						pkgJson.dependencies[dep] = version;
+					}
+				}
+			}
+			if (pkgJson.devDependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.devDependencies)) {
+					if (depVersion === 'workspace:*') {
+						pkgJson.devDependencies[dep] = version;
+					}
+				}
+			}
+			if (pkgJson.peerDependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.peerDependencies)) {
+					if (depVersion === 'workspace:*') {
+						pkgJson.peerDependencies[dep] = version;
+					}
+				}
+			}
+
 			await writeJSON(pkgJsonPath, pkgJson);
 			console.log(`✓ Updated packages/${pkg} to ${version}`);
 		} catch {
@@ -167,10 +191,122 @@ async function updateVersions(version: string) {
 		try {
 			const pkgJson = await readJSON(pkgJsonPath);
 			pkgJson.version = version;
+
+			// Update workspace:* dependencies to explicit version
+			if (pkgJson.dependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.dependencies)) {
+					if (depVersion === 'workspace:*') {
+						pkgJson.dependencies[dep] = version;
+					}
+				}
+			}
+			if (pkgJson.devDependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.devDependencies)) {
+					if (depVersion === 'workspace:*') {
+						pkgJson.devDependencies[dep] = version;
+					}
+				}
+			}
+			if (pkgJson.peerDependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.peerDependencies)) {
+					if (depVersion === 'workspace:*') {
+						pkgJson.peerDependencies[dep] = version;
+					}
+				}
+			}
+
 			await writeJSON(pkgJsonPath, pkgJson);
 			console.log(`✓ Updated apps/${app} to ${version}`);
 		} catch {
 			console.log(`⊘ Skipped apps/${app} (no package.json)`);
+		}
+	}
+}
+
+async function restoreWorkspaceDependencies(version: string) {
+	console.log('\n🔄 Restoring workspace:* dependencies...');
+
+	// Restore packages/*
+	const packages = await readdir(packagesDir);
+	for (const pkg of packages) {
+		const pkgJsonPath = join(packagesDir, pkg, 'package.json');
+		try {
+			const pkgJson = await readJSON(pkgJsonPath);
+			let changed = false;
+
+			if (pkgJson.dependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.dependencies)) {
+					if (depVersion === version && dep.startsWith('@agentuity/')) {
+						pkgJson.dependencies[dep] = 'workspace:*';
+						changed = true;
+					}
+				}
+			}
+			if (pkgJson.devDependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.devDependencies)) {
+					if (depVersion === version && dep.startsWith('@agentuity/')) {
+						pkgJson.devDependencies[dep] = 'workspace:*';
+						changed = true;
+					}
+				}
+			}
+			if (pkgJson.peerDependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.peerDependencies)) {
+					if (depVersion === version && dep.startsWith('@agentuity/')) {
+						pkgJson.peerDependencies[dep] = 'workspace:*';
+						changed = true;
+					}
+				}
+			}
+
+			if (changed) {
+				await writeJSON(pkgJsonPath, pkgJson);
+				console.log(`✓ Restored workspace:* in packages/${pkg}`);
+			}
+		} catch {
+			// Skip
+		}
+	}
+
+	// Restore apps/*
+	const apps = await readdir(appsDir);
+	for (const app of apps) {
+		const pkgJsonPath = join(appsDir, app, 'package.json');
+		try {
+			const pkgJson = await readJSON(pkgJsonPath);
+			let changed = false;
+
+			if (pkgJson.dependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.dependencies)) {
+					if (depVersion === version && dep.startsWith('@agentuity/')) {
+						pkgJson.dependencies[dep] = 'workspace:*';
+						changed = true;
+					}
+				}
+			}
+			if (pkgJson.devDependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.devDependencies)) {
+					if (depVersion === version && dep.startsWith('@agentuity/')) {
+						pkgJson.devDependencies[dep] = 'workspace:*';
+						changed = true;
+					}
+				}
+			}
+			if (pkgJson.peerDependencies) {
+				for (const [dep, depVersion] of Object.entries(pkgJson.peerDependencies)) {
+					if (depVersion === version && dep.startsWith('@agentuity/')) {
+						pkgJson.peerDependencies[dep] = 'workspace:*';
+						changed = true;
+					}
+				}
+			}
+
+			if (changed) {
+				await writeJSON(pkgJsonPath, pkgJson);
+				console.log(`✓ Restored workspace:* in apps/${app}`);
+			}
+		} catch {
+			// Skip
 		}
 	}
 }
@@ -300,6 +436,10 @@ async function main() {
 		}
 
 		console.log('\n✨ All packages published successfully!\n');
+
+		if (!isDryRun) {
+			await restoreWorkspaceDependencies(newVersion);
+		}
 	} finally {
 		if (isDryRun) {
 			console.log('\n🔄 Reverting version changes...');

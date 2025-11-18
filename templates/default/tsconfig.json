@@ -17,11 +17,8 @@
 		"noImplicitOverride": true,
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
-		"noPropertyAccessFromIndexSignature": false,
-		"paths": {
-			"@/*": ["./node_modules/@agentuity/cli/src/*"]
-		}
+		"noPropertyAccessFromIndexSignature": false
 	},
 	"include": ["src/**/*", "app.ts"],
-	"exclude": [".agentuity/**/*"]
+	"exclude": [".agentuity/**/*", "node_modules/**/*"]
 }

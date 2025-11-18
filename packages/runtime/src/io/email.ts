@@ -1,4 +1,4 @@
-import { type ParsedMail, type Headers, simpleParser } from 'mailparser';
+import { type ParsedMail, type Headers, simpleParser, type AddressObject } from 'mailparser';
 
 /**
  * A class representing an email with common information for processing.
@@ -49,8 +49,8 @@ export class Email {
 		}
 		if (Array.isArray(this._message.to)) {
 			return this._message.to
-				.map((addr) => (addr.text ?? '').trim())
-				.filter((text) => text.length > 0)
+				.map((addr: AddressObject) => (addr.text ?? '').trim())
+				.filter((text: string) => text.length > 0)
 				.join(', ');
 		}
 		if (typeof this._message.to === 'object' && 'text' in this._message.to) {
