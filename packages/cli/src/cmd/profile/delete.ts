@@ -7,10 +7,10 @@ import * as tui from '../../tui';
 export const deleteCommand = createSubcommand({
 	name: 'delete',
 	description: 'Delete a configuration profile',
-	aliases: ['remove', 'rm'],
+	aliases: ['remove', 'rm', 'del'],
 	schema: {
 		args: z.object({
-			name: z.string().describe('The name of the profile to delete'),
+			name: z.string().optional().describe('The name of the profile to delete'),
 		}),
 		options: z.object({
 			confirm: z.boolean().optional().describe('Skip confirmation prompt'),
@@ -19,9 +19,14 @@ export const deleteCommand = createSubcommand({
 
 	async handler(ctx) {
 		const { logger, args, opts } = ctx;
-		const { name } = args;
+		let { name } = args;
 
 		const profiles = await fetchProfiles();
+
+		if (!name) {
+			name = await tui.showProfileList(profiles, 'Select profile to delete:');
+		}
+
 		const profile = profiles.find((p) => p.name === name);
 
 		if (!profile) {

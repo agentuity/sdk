@@ -1,12 +1,12 @@
 import { createSubcommand } from '../../types';
 import { z } from 'zod';
-import { getProfile, fetchProfiles, loadConfig } from '../../config';
+import { fetchProfiles, loadConfig } from '../../config';
 import { readFile } from 'node:fs/promises';
 import * as tui from '../../tui';
 
 export const showCommand = createSubcommand({
 	name: 'show',
-	description: 'Show the configuration of a profile (defaults to current)',
+	description: 'Show the configuration of a profile',
 	aliases: ['current'],
 	schema: {
 		options: z.object({
@@ -23,24 +23,23 @@ export const showCommand = createSubcommand({
 		const { logger, args, opts } = ctx;
 
 		try {
-			let profilePath: string;
 			let current = false;
+			let name = args.name;
 
-			if (args.name) {
-				// Find profile by name
-				const profiles = await fetchProfiles();
-				const profile = profiles.find((p) => p.name === args.name);
+			const profiles = await fetchProfiles();
 
-				if (!profile) {
-					return logger.fatal(`Profile "${args.name}" not found`);
-				}
-
-				profilePath = profile.filename;
-			} else {
-				current = true;
-				// Use current profile
-				profilePath = await getProfile();
+			if (!name) {
+				name = await tui.showProfileList(profiles, 'Select profile to show:');
 			}
+
+			const profile = profiles.find((p) => p.name === name);
+
+			if (!profile) {
+				return logger.fatal(`Profile "${name}" not found`);
+			}
+
+			const profilePath = profile.filename;
+			current = profile.selected;
 
 			tui.info(`Profile: ${profilePath}`);
 

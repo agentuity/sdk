@@ -8,6 +8,7 @@ import { stringWidth } from 'bun';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
 import type { ColorScheme } from './terminal';
+import type { Profile } from './types';
 import { type APIClient as APIClientType } from './api';
 import * as readline from 'readline';
 
@@ -1240,4 +1241,55 @@ export async function showProjectList(
 	});
 
 	return response.id;
+}
+
+/**
+ * Show a profile list picker
+ *
+ * @param profiles List of profiles to choose from
+ * @param message Prompt message
+ * @returns The name of the selected profile
+ */
+export async function showProfileList(
+	profiles: Profile[],
+	message = 'Select a profile:'
+): Promise<string> {
+	if (profiles.length === 0) {
+		warning('No profiles found');
+		process.exit(0);
+	}
+
+	// If only one profile, just return it? No, let them confirm/see it if they asked to pick?
+	// But for "use" it implies switching. If only one, you are already on it or it's the only choice.
+	// But for delete, you might want to delete the only one.
+	// So always show list.
+
+	// Find currently selected profile for initial selection
+	const selectedProfile = profiles.find((p) => p.selected);
+	const initial = selectedProfile ? selectedProfile.name : undefined;
+
+	// If non-interactive, return initial or first
+	if (!process.stdin.isTTY) {
+		if (initial) return initial;
+		if (profiles.length === 1) {
+			return profiles[0].name;
+		}
+		fatal(
+			'Profile selection required but cannot prompt in non-interactive environment. ' +
+				'Pass a profile name explicitly when running non-interactively.'
+		);
+	}
+
+	const response = await enquirer.prompt<{ name: string }>({
+		type: 'select',
+		name: 'name',
+		message: message,
+		initial: initial,
+		choices: profiles.map((p) => ({
+			name: p.name,
+			message: p.selected ? `${p.name.padEnd(15, ' ')} ${muted('(current)')}` : p.name,
+		})),
+	});
+
+	return response.name;
 }

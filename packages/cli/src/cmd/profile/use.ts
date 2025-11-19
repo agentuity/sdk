@@ -9,19 +9,24 @@ export const useCommand = createSubcommand({
 	aliases: ['switch'],
 	schema: {
 		args: z.object({
-			name: z.string().describe('The name of the profile to use'),
+			name: z.string().optional().describe('The name of the profile to use'),
 		}),
 	},
 
 	async handler(ctx) {
-		const { logger, args } = ctx;
-		const { name } = args;
+		const { args } = ctx;
+		let { name } = args;
 
 		const profiles = await fetchProfiles();
+
+		if (!name) {
+			name = await tui.showProfileList(profiles, 'Select profile to use:');
+		}
+
 		const profile = profiles.find((p) => p.name === name);
 
 		if (!profile) {
-			logger.fatal(`Profile "${name}" not found`);
+			tui.fatal(`Profile "${name}" not found`);
 		}
 
 		await saveProfile(profile!.filename);

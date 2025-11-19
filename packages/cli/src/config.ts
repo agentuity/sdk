@@ -41,7 +41,7 @@ export async function ensureConfigDir(): Promise<void> {
 
 export async function saveProfile(path: string): Promise<void> {
 	await ensureConfigDir();
-	await writeFile(getProfilePath(), path, { mode: 0o644 });
+	await writeFile(getProfilePath(), path, { mode: 0o600 });
 }
 
 export async function getProfile(): Promise<string> {

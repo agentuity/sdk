@@ -183,7 +183,7 @@ export const deploySubcommand = createSubcommand({
 									if (relative.endsWith('.map')) {
 										return false;
 									}
-									// ignore command stuff we never want to include in the zip
+									// ignore common stuff we never want to include in the zip
 									if (relative.startsWith('.env')) return false;
 									if (relative.startsWith('.git/')) return false;
 									if (relative.startsWith('.ssh/')) return false;
