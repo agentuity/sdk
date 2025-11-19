@@ -260,13 +260,16 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 			// Look for .routemapping.json in the project's .agentuity directory
 			// This is where the build plugin writes it (build.config.outdir)
 			const projectRoot = process.cwd();
-			const routeMappingPath = join(projectRoot, '.agentuity', '.routemapping.json');
+			let routeMappingPath: string;
+			if (projectRoot === '/home/agentuity/app') {
+				// in production there is no .agentuity folder
+				routeMappingPath = join(projectRoot, '.routemapping.json');
+			} else {
+				routeMappingPath = join(projectRoot, '.agentuity', '.routemapping.json');
+			}
 			const file = Bun.file(routeMappingPath);
 			if (!(await file.exists())) {
-				c.var.logger.fatal(
-					'error loading the .routemapping.json from the %s directory. this is a build issue!',
-					routeMappingPath
-				);
+				c.var.logger.fatal('error loading %s. this is a build issue!', routeMappingPath);
 			}
 			routeMapping = (await file.json()) as Record<string, string>;
 		}

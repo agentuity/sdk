@@ -544,11 +544,11 @@ export async function loadProjectConfig(
 }
 
 type InitialProjectConfig = ProjectConfig & {
-	apiKey: string;
+	sdkKey: string;
 };
 
 export async function createProjectConfig(dir: string, config: InitialProjectConfig) {
-	const { apiKey, ...sanitizedConfig } = config;
+	const { sdkKey, ...sanitizedConfig } = config;
 
 	const configPath = join(dir, 'agentuity.json');
 	const json5Content = generateJSON5WithComments(ProjectSchema, sanitizedConfig);
@@ -557,7 +557,7 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	const envPath = join(dir, '.env');
 	const comment =
 		'# AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
-	const content = `${comment}\nAGENTUITY_SDK_KEY=${apiKey}\n`;
+	const content = `${comment}\nAGENTUITY_SDK_KEY=${sdkKey}\n`;
 	await Bun.write(envPath, content);
 	await chmod(envPath, 0o600);
 }

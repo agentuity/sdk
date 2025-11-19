@@ -3,25 +3,20 @@ import { APIClient, APIResponseSchema } from '../api';
 
 const CreateProjectRequestSchema = z.object({
 	name: z.string().max(255).min(1).describe('the name of the new project'),
-	organization_id: z
-		.string()
-		.max(255)
-		.min(1)
-		.describe('the organization id to create the project in'),
-	provider: z.string().max(255).min(1),
+	orgId: z.string().max(255).min(1).describe('the organization id to create the project in'),
+	cloudRegion: z.string().describe('the cloud region to create the project'),
 });
 
 const CreateProjectResponse = z.object({
 	id: z.string().describe('the unique id for the project'),
-	api_key: z.string().describe('the SDK api key for the project'),
-	projectKey: z.string().describe('the Project api key for the project'),
+	sdkKey: z.string().describe('the SDK key for the project'),
 });
 
 const CreateProjectResponseSchema = APIResponseSchema(CreateProjectResponse);
 
 export type CreateProjectRequest = z.infer<typeof CreateProjectRequestSchema>;
 export type CreateProjectResponse = z.infer<typeof CreateProjectResponseSchema>;
-export type NewProject = Omit<z.infer<typeof CreateProjectResponse>, 'projectKey'>;
+export type NewProject = z.infer<typeof CreateProjectResponse>;
 
 /**
  * Create a new Project

@@ -183,6 +183,12 @@ export const deploySubcommand = createSubcommand({
 									if (relative.endsWith('.map')) {
 										return false;
 									}
+									// ignore command stuff we never want to include in the zip
+									if (relative.startsWith('.env')) return false;
+									if (relative.startsWith('.git/')) return false;
+									if (relative.startsWith('.ssh/')) return false;
+									if (relative.startsWith('node_modules/')) return false;
+									if (relative === '.DS_Store') return false;
 									return true;
 								},
 							});

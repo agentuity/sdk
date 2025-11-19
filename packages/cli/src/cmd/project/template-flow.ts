@@ -310,14 +310,14 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			callback: async () => {
 				const project = await projectCreate(apiClient, {
 					name: projectName,
-					organization_id: orgId,
-					provider: 'bunjs',
+					orgId,
+					cloudRegion: region ?? 'usc',
 				});
 				projectId = project.id;
 				return createProjectConfig(dest, {
 					projectId: project.id,
 					orgId,
-					apiKey: project.api_key,
+					sdkKey: project.sdkKey,
 					deployment: {
 						resources: resourceConfig,
 					},

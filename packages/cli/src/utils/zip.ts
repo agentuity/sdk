@@ -9,7 +9,9 @@ interface Options {
 
 export async function zipDir(dir: string, outdir: string, options?: Options) {
 	const zip = new AdmZip();
-	const files = await Array.fromAsync(new Glob('**').scan({ cwd: dir, absolute: true }));
+	const files = await Array.fromAsync(
+		new Glob('**/*').scan({ cwd: dir, absolute: true, dot: true })
+	);
 	const total = files.length;
 	let count = 0;
 	for (const file of files) {
