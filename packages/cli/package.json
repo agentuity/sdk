@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/cli",
-	"version": "0.0.47",
+	"version": "0.0.48",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -37,6 +37,7 @@
 		"adm-zip": "^0.5.16",
 		"astring": "^1.9.0",
 		"commander": "^14.0.2",
+		"console-table-printer": "^2.15.0",
 		"enquirer": "^2.4.1",
 		"git-url-parse": "^16.1.0",
 		"json5": "^2.2.3",

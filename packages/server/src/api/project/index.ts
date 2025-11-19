@@ -6,3 +6,4 @@ export * from './env-update';
 export * from './exists';
 export * from './get';
 export * from './list';
+export * from './deployment';

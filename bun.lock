@@ -21,7 +21,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.0.46",
+      "version": "0.0.47",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -31,7 +31,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "0.0.46",
+      "version": "0.0.47",
     },
     "apps/testing/auth-app": {
       "name": "test-app",
@@ -100,7 +100,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.0.46",
+      "version": "0.0.47",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -112,6 +112,7 @@
         "adm-zip": "^0.5.16",
         "astring": "^1.9.0",
         "commander": "^14.0.2",
+        "console-table-printer": "^2.15.0",
         "enquirer": "^2.4.1",
         "git-url-parse": "^16.1.0",
         "json5": "^2.2.3",
@@ -127,7 +128,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.0.46",
+      "version": "0.0.47",
       "dependencies": {
         "zod": "^4.1.12",
       },
@@ -137,7 +138,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.0.46",
+      "version": "0.0.47",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -151,7 +152,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.0.46",
+      "version": "0.0.47",
       "dependencies": {
         "@agentuity/core": "0.0.46",
         "@agentuity/server": "0.0.46",
@@ -187,9 +188,9 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.0.46",
+      "version": "0.0.47",
       "dependencies": {
-        "@agentuity/core": "0.0.46",
+        "@agentuity/core": "workspace:*",
         "zod": "^4.1.12",
       },
       "devDependencies": {
