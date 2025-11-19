@@ -14,7 +14,13 @@ export const listSubcommand = createSubcommand({
 	schema: {
 		options: z.object({
 			'project-id': z.string().optional().describe('Project ID'),
-			count: z.coerce.number().default(10).describe('Number of deployments to list'),
+			count: z.coerce
+				.number()
+				.int()
+				.min(1)
+				.max(100)
+				.default(10)
+				.describe('Number of deployments to list (1–100)'),
 		}),
 	},
 	async handler(ctx) {

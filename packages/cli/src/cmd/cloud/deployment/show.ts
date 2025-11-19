@@ -49,10 +49,10 @@ export const showSubcommand = createSubcommand({
 			}
 
 			// Metadata
-			if (deployment.metadata?.origin?.commit) {
+			const origin = deployment.metadata?.origin;
+			if (origin?.commit) {
 				tui.newline();
 				tui.info('Origin Information');
-				const origin = deployment.metadata.origin;
 				if (origin.trigger) console.log(`  Trigger:  ${origin.trigger}`);
 				if (origin.provider) console.log(`  Provider: ${origin.provider}`);
 				if (origin.event) console.log(`  Event:    ${origin.event}`);

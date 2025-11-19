@@ -48,9 +48,7 @@ const DeploymentSchema = z.object({
 const DeploymentListResponseSchema = APIResponseSchema(z.array(DeploymentSchema));
 const DeploymentGetResponseSchema = APIResponseSchema(DeploymentSchema);
 const DeploymentActionResponseSchema = APIResponseSchema(
-	z
-		.object({ success: z.boolean() })
-		.or(z.object({ success: z.boolean(), activeDeploymentId: z.string() }))
+	z.object({ activeDeploymentId: z.string().optional() })
 );
 
 export type DeploymentInfo = z.infer<typeof DeploymentSchema>;
