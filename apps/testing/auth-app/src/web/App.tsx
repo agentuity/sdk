@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
 	AgentuityProvider,
-	useWebsocket,
 	useAgentWebsocket,
 	useAgent,
 	useAgentEventStream,

@@ -4,6 +4,9 @@
   "workspaces": {
     "": {
       "name": "sdk-mono",
+      "dependencies": {
+        "json-colorizer": "^3.0.1",
+      },
       "devDependencies": {
         "@eslint/js": "^9.38.0",
         "@eslint/json": "^0.13.2",
@@ -21,7 +24,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.0.47",
+      "version": "0.0.48",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -31,7 +34,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "0.0.47",
+      "version": "0.0.48",
     },
     "apps/testing/auth-app": {
       "name": "test-app",
@@ -100,7 +103,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.0.47",
+      "version": "0.0.48",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -128,7 +131,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.0.47",
+      "version": "0.0.48",
       "dependencies": {
         "zod": "^4.1.12",
       },
@@ -138,7 +141,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.0.47",
+      "version": "0.0.48",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -152,7 +155,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.0.47",
+      "version": "0.0.48",
       "dependencies": {
         "@agentuity/core": "0.0.46",
         "@agentuity/server": "0.0.46",
@@ -188,7 +191,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.0.47",
+      "version": "0.0.48",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "zod": "^4.1.12",
@@ -674,6 +677,8 @@
 
     "color-name": ["color-name@1.1.4", "", {}, "sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA=="],
 
+    "colorette": ["colorette@2.0.20", "", {}, "sha512-IfEDxwoWIjkeXL1eXcDiow4UbKjhLdq6/EuSVR9GMN7KVH3r9gQ83e73hsz1Nd1T3ijd5xv1wcWRYO+D6kCI2w=="],
+
     "combined-stream": ["combined-stream@1.0.8", "", { "dependencies": { "delayed-stream": "~1.0.0" } }, "sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg=="],
 
     "commander": ["commander@14.0.2", "", {}, "sha512-TywoWNNRbhoD0BXs1P3ZEScW8W5iKrnbithIl0YH+uCmBd0QpPOA8yc82DS3BIE5Ma6FnBVUsJ7wVUDz4dvOWQ=="],
@@ -991,6 +996,8 @@
     "json-bigint": ["json-bigint@1.0.0", "", { "dependencies": { "bignumber.js": "^9.0.0" } }, "sha512-SiPv/8VpZuWbvLSMtTDU8hEfrZWg/mH/nV/b4o0CYbSxu1UIQPLdwKOCIyLQX+VIPO5vrLX3i8qtqFyhdPSUSQ=="],
 
     "json-buffer": ["json-buffer@3.0.1", "", {}, "sha512-4bV5BfR2mqfQTJm+V5tPPdf+ZpuhiIvTuAB5g8kcrXOZpTT/QwwVRWBywX1ozr6lEuPdbHxwaJlm9G6mI2sfSQ=="],
+
+    "json-colorizer": ["json-colorizer@3.0.1", "", { "dependencies": { "colorette": "^2.0.20" } }, "sha512-4YyRAbD6eHeRnJD9vo0zjiU5fyY9QR6T+iYuH5DpO0XPThKWozpD4MaeY/8nLZIkHC3yEQMFLL+6P94E+JekDw=="],
 
     "json-schema": ["json-schema@0.4.0", "", {}, "sha512-es94M3nTIfsEPisRafak+HDLfHXnKBhV3vU5eqPcS3flIWqcxJWgXHXiey3YrpaNsanY5ei1VoYEbOzijuq9BA=="],
 

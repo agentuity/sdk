@@ -6,7 +6,7 @@ import json from "@eslint/json";
 
 export default [
   {
-    ignores: ["**/dist/**", "**/node_modules/**", "**/templates/**", "**/.agentuity/**", "**/.test-projects/**", "**/test-interop/go-common/**"]
+    ignores: ["**/dist/**", "**/node_modules/**", "**/templates/**", "**/.agentuity/**", "**/.test-projects/**", "**/test-interop/go-common/**", "**/*.json", "!**/package.json"]
   },
   { 
     files: ["**/*.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"]

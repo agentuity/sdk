@@ -47,8 +47,9 @@ async function runTest(name: string, fn: () => Promise<void>): Promise<void> {
 
 async function runCLI(args: string[]): Promise<string> {
 	try {
-		const result = await $`bun ${CLI_PATH} ${args} --dir ${PROJECT_DIR}`.text();
-		return result;
+		const proc = await $`bun ${CLI_PATH} ${args} --dir ${PROJECT_DIR}`;
+		// Capture both stdout and stderr since TUI outputs to stderr
+		return proc.stdout.toString() + proc.stderr.toString();
 	} catch (error) {
 		if (error && typeof error === 'object' && 'stderr' in error) {
 			const stderr = (error as { stderr: { toString(): string } }).stderr.toString();

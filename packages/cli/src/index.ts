@@ -27,6 +27,15 @@ export { discoverCommands } from './cmd';
 export { detectColorScheme } from './terminal';
 export { getCommandPrefix, getCommand } from './command-prefix';
 export * as tui from './tui';
+export {
+	createRepl,
+	type ReplConfig,
+	type ReplCommand,
+	type ReplContext,
+	type ParsedCommand,
+	type CommandHandler,
+	type TableColumn,
+} from './repl';
 export { runSteps, setStepsColorScheme, stepSuccess, stepSkipped, stepError } from './steps';
 export { playSound } from './sound';
 export {

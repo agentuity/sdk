@@ -582,9 +582,7 @@ export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {
 	return result.data;
 }
 
-export async function loadDevelopmentProjectSDKKey(
-	projectDir: string
-): Promise<string | undefined> {
+export async function loadProjectSDKKey(projectDir: string): Promise<string | undefined> {
 	const files: string[] = ['.env.development', '.env.local', '.env'];
 	for (const filename of files) {
 		const fn = join(projectDir, filename);

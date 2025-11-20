@@ -5,12 +5,7 @@ import { resolve, join } from 'node:path';
 import { bundle } from '../bundle/bundler';
 import { getBuildMetadata } from '../bundle/plugin';
 import { existsSync, type FSWatcher, watch, statSync, readdirSync } from 'node:fs';
-import {
-	getDefaultConfigDir,
-	loadDevelopmentProjectSDKKey,
-	saveProjectDir,
-	saveConfig,
-} from '../../config';
+import { getDefaultConfigDir, loadProjectSDKKey, saveProjectDir, saveConfig } from '../../config';
 import { type Config, createCommand } from '../../types';
 import * as tui from '../../tui';
 import { createAgentTemplates, createAPITemplates } from './templates';
@@ -200,7 +195,7 @@ export const command = createCommand({
 		let gravityClient: Bun.Subprocess | undefined;
 
 		if (gravityBin && devmode && project) {
-			const sdkKey = await loadDevelopmentProjectSDKKey(rootDir);
+			const sdkKey = await loadProjectSDKKey(rootDir);
 			if (!sdkKey) {
 				tui.warning(`Couldn't find the AGENTUITY_SDK_KEY in ${rootDir} .env file`);
 			} else {

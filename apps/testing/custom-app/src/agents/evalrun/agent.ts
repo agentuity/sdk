@@ -14,7 +14,7 @@ export default createAgent({
 			success: z.boolean().describe('Whether the action succeeded'),
 		}),
 	},
-	handler: async (ctx, input) => {
+	handler: async (_ctx, _input) => {
 		return { success: true };
 	},
 });

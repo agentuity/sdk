@@ -1,7 +1,7 @@
 import { getVersion } from './version';
 import { shouldUseColors, isDarkMode } from './tui';
 
-export function showBanner(version?: string): void {
+export function showBanner(version?: string, compact?: true): void {
 	const _version = version ?? getVersion();
 	const USE_COLORS = shouldUseColors();
 	const dark = isDarkMode();
@@ -24,13 +24,13 @@ export function showBanner(version?: string): void {
 	const lines = [
 		'╭────────────────────────────────────────────────────╮',
 		`│ ⨺ Agentuity     ${WHITE}Build, manage and deploy AI agents${CYAN} │`,
-		'│                                                    │',
-		`│${versionLabel}${_version.padEnd(versionPadding)} │`,
-		'│ Docs:           https://agentuity.dev              │',
-		'│ Community:      https://discord.gg/agentuity       │',
-		'│ Dashboard:      https://app.agentuity.com          │',
+		compact ? undefined : '│                                                    │',
+		compact ? undefined : `│${versionLabel}${_version.padEnd(versionPadding)} │`,
+		compact ? undefined : '│ Docs:           https://agentuity.dev              │',
+		compact ? undefined : '│ Community:      https://discord.gg/agentuity       │',
+		compact ? undefined : '│ Dashboard:      https://app.agentuity.com          │',
 		'╰────────────────────────────────────────────────────╯',
-	];
+	].filter(Boolean) as string[];
 
 	console.log('');
 	lines.forEach((line) => console.log(CYAN + line + RESET));

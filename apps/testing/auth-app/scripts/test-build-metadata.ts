@@ -33,6 +33,37 @@ function info(message: string) {
 	console.log(`${BLUE}ℹ${NC} ${message}`);
 }
 
+interface Route {
+	id: string;
+	method: string;
+	path: string;
+	version: string;
+	filename: string;
+	type: string;
+}
+
+interface Subagent {
+	id: string;
+	identifier: string;
+	filename: string;
+	name: string;
+	version: string;
+}
+
+interface Agent {
+	id: string;
+	identifier: string;
+	parent?: string;
+	subagents?: Subagent[];
+}
+
+interface Asset {
+	filename: string;
+	kind: string;
+	contentType: string;
+	size: number;
+}
+
 async function main() {
 	console.log('=========================================');
 	console.log('  Build Metadata Validation Test');
@@ -175,7 +206,7 @@ async function main() {
 		pass('Routes validation skipped (routes not discovered during build)');
 	} else {
 		// Check for team routes
-		const teamRoutes = routes.filter((r: any) => r.path?.startsWith('/agent/team'));
+		const teamRoutes = (routes as Route[]).filter((r) => r.path?.startsWith('/agent/team'));
 		if (teamRoutes.length >= 10) {
 			pass(`Team routes found: ${teamRoutes.length}`);
 		} else {
@@ -183,14 +214,16 @@ async function main() {
 		}
 
 		// Validate subagent routes are flat (not nested)
-		const teamMembersRoutes = routes.filter((r: any) =>
+		const teamMembersRoutes = (routes as Route[]).filter((r) =>
 			r.path?.startsWith('/agent/team/members')
 		);
-		const teamTasksRoutes = routes.filter((r: any) => r.path?.startsWith('/agent/team/tasks'));
+		const teamTasksRoutes = (routes as Route[]).filter((r) =>
+			r.path?.startsWith('/agent/team/tasks')
+		);
 
 		if (teamMembersRoutes.length >= 4) {
 			pass(`Team members subagent routes found: ${teamMembersRoutes.length}`);
-			teamMembersRoutes.forEach((r: any) => {
+			teamMembersRoutes.forEach((r) => {
 				info(`  ${r.method.toUpperCase()} ${r.path}`);
 			});
 		} else {
@@ -199,7 +232,7 @@ async function main() {
 
 		if (teamTasksRoutes.length >= 4) {
 			pass(`Team tasks subagent routes found: ${teamTasksRoutes.length}`);
-			teamTasksRoutes.forEach((r: any) => {
+			teamTasksRoutes.forEach((r) => {
 				info(`  ${r.method.toUpperCase()} ${r.path}`);
 			});
 		} else {
@@ -208,7 +241,7 @@ async function main() {
 	}
 
 	// Validate route structure
-	const invalidRoutes = routes.filter((r: any) => {
+	const invalidRoutes = (routes as Route[]).filter((r) => {
 		return !r.id || !r.method || !r.path || !r.version || !r.filename || !r.type;
 	});
 	if (invalidRoutes.length === 0) {
@@ -225,7 +258,7 @@ async function main() {
 	info(`Total agents: ${agents.length}`);
 
 	// Find team agent
-	const teamAgent = agents.find((a: any) => a.identifier === 'team');
+	const teamAgent = (agents as Agent[]).find((a) => a.identifier === 'team');
 	if (teamAgent) {
 		pass('Team agent found');
 
@@ -234,8 +267,8 @@ async function main() {
 			pass(`Team agent has subagents array: ${teamAgent.subagents.length} subagents`);
 
 			// Validate subagent structure
-			const memberSubagent = teamAgent.subagents.find((s: any) => s.identifier === 'members');
-			const tasksSubagent = teamAgent.subagents.find((s: any) => s.identifier === 'tasks');
+			const memberSubagent = teamAgent.subagents.find((s) => s.identifier === 'members');
+			const tasksSubagent = teamAgent.subagents.find((s) => s.identifier === 'tasks');
 
 			if (memberSubagent) {
 				pass('Members subagent found in team.subagents');
@@ -308,8 +341,10 @@ async function main() {
 	}
 
 	// Validate no standalone members/tasks agents in top level
-	const standaloneMembers = agents.find((a: any) => a.identifier === 'members' && !a.parent);
-	const standaloneTasks = agents.find((a: any) => a.identifier === 'tasks' && !a.parent);
+	const standaloneMembers = (agents as Agent[]).find(
+		(a) => a.identifier === 'members' && !a.parent
+	);
+	const standaloneTasks = (agents as Agent[]).find((a) => a.identifier === 'tasks' && !a.parent);
 
 	if (!standaloneMembers && !standaloneTasks) {
 		pass('Subagents not duplicated in top-level agents array');
@@ -328,7 +363,7 @@ async function main() {
 		pass(`Assets found: ${assets.length}`);
 
 		// Validate asset structure
-		const invalidAssets = assets.filter((a: any) => {
+		const invalidAssets = (assets as Asset[]).filter((a) => {
 			return !a.filename || !a.kind || !a.contentType || typeof a.size !== 'number';
 		});
 		if (invalidAssets.length === 0) {

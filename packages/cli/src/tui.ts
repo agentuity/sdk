@@ -5,12 +5,13 @@
  * Uses Bun's built-in color support and ANSI escape codes.
  */
 import { stringWidth } from 'bun';
+import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
+import * as readline from 'readline';
 import type { ColorScheme } from './terminal';
 import type { Profile } from './types';
 import { type APIClient as APIClientType } from './api';
-import * as readline from 'readline';
 
 // Icons
 const ICONS = {
@@ -101,12 +102,45 @@ function getColor(colorKey: keyof ReturnType<typeof getColors>): string {
 }
 
 /**
+ * Color helpers that return colored strings (for inline use, no icons)
+ */
+export function colorSuccess(text: string): string {
+	const color = getColor('success');
+	const reset = getColor('reset');
+	return `${color}${text}${reset}`;
+}
+
+export function colorError(text: string): string {
+	const color = getColor('error');
+	const reset = getColor('reset');
+	return `${color}${text}${reset}`;
+}
+
+export function colorWarning(text: string): string {
+	const color = getColor('warning');
+	const reset = getColor('reset');
+	return `${color}${text}${reset}`;
+}
+
+export function colorInfo(text: string): string {
+	const color = getColor('info');
+	const reset = getColor('reset');
+	return `${color}${text}${reset}`;
+}
+
+export function colorMuted(text: string): string {
+	const color = getColor('muted');
+	const reset = getColor('reset');
+	return `${color}${text}${reset}`;
+}
+
+/**
  * Print a success message with a green checkmark
  */
 export function success(message: string): void {
 	const color = getColor('success');
 	const reset = getColor('reset');
-	console.log(`${color}${ICONS.success} ${message}${reset}`);
+	process.stderr.write(`${color}${ICONS.success} ${message}${reset}\n`);
 }
 
 /**
@@ -115,7 +149,7 @@ export function success(message: string): void {
 export function error(message: string): void {
 	const color = getColor('error');
 	const reset = getColor('reset');
-	console.error(`${color}${ICONS.error} ${message}${reset}`);
+	process.stderr.write(`${color}${ICONS.error} ${message}${reset}\n`);
 }
 
 /**
@@ -124,7 +158,7 @@ export function error(message: string): void {
 export function fatal(message: string): never {
 	const color = getColor('error');
 	const reset = getColor('reset');
-	console.error(`${color}${ICONS.error} ${message}${reset}`);
+	process.stderr.write(`${color}${ICONS.error} ${message}${reset}\n`);
 	process.exit(1);
 }
 
@@ -134,7 +168,7 @@ export function fatal(message: string): never {
 export function warning(message: string, asError = false): void {
 	const color = asError ? getColor('error') : getColor('warning');
 	const reset = getColor('reset');
-	console.log(`${color}${ICONS.warning} ${message}${reset}`);
+	process.stderr.write(`${color}${ICONS.warning} ${message}${reset}\n`);
 }
 
 /**
@@ -143,7 +177,7 @@ export function warning(message: string, asError = false): void {
 export function info(message: string): void {
 	const color = getColor('info');
 	const reset = getColor('reset');
-	console.log(`${color}${ICONS.info} ${message}${reset}`);
+	process.stderr.write(`${color}${ICONS.info} ${message}${reset}\n`);
 }
 
 /**
@@ -213,21 +247,21 @@ function supportsHyperlinks(): boolean {
  * Print a bulleted list item
  */
 export function bullet(message: string): void {
-	console.log(`${ICONS.bullet} ${message}`);
+	process.stderr.write(`${ICONS.bullet} ${message}\n`);
 }
 
 /**
  * Print an arrow item (for showing next steps)
  */
 export function arrow(message: string): void {
-	console.log(`${ICONS.arrow} ${message}`);
+	process.stderr.write(`${ICONS.arrow} ${message}\n`);
 }
 
 /**
  * Print a blank line
  */
 export function newline(): void {
-	console.log('');
+	process.stderr.write('\n');
 }
 
 /**
@@ -1292,4 +1326,18 @@ export async function showProfileList(
 	});
 
 	return response.name;
+}
+
+export function json(value: unknown) {
+	const stringValue = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+
+	if (shouldUseColors() && process.stdout.isTTY) {
+		try {
+			console.log(colorize(stringValue));
+			return;
+		} catch {
+			/* */
+		}
+	}
+	console.log(stringValue);
 }
