@@ -7,6 +7,9 @@ interface DocMetadata extends Record<string, unknown> {
 }
 
 const agent = createAgent({
+	metadata: {
+		name: 'Vector Demo',
+	},
 	schema: {
 		input: z.object({
 			operation: z.enum(['upsert', 'get', 'getMany', 'search', 'delete', 'exists']),

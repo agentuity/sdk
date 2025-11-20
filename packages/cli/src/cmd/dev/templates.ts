@@ -8,7 +8,7 @@ import { z } from 'zod';
 const agent = createAgent({
 	metadata: {
         name: '${name}',
-        description: 'Add my agent description here',
+        description: 'Add your agent description here',
     },
 	schema: {
 		input: z.string(),

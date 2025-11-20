@@ -1,6 +1,9 @@
 import { createAgent, type AgentContext } from '@agentuity/runtime';
 
 const agent = createAgent({
+	metadata: {
+		name: 'Eval No Schema Demo',
+	},
 	handler: async (_c: AgentContext) => {
 		console.log('no-schema agent executed');
 	},

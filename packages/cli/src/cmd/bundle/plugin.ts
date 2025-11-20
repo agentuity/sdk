@@ -312,6 +312,16 @@ const AgentuityBundler: BunPlugin = {
 					md.set('parent', parentName);
 				}
 
+				const newAgentName = md.get('name');
+				for (const [, kv] of agentMetadata) {
+					const found = kv.get('name');
+					if (newAgentName === found) {
+						throw new Error(
+							`The agent in ${kv.get('filename')} and the agent in ${md.get('filename')} have the same name (${found}). Agent Names must be unique within a project.`
+						);
+					}
+				}
+
 				agentMetadata.set(md.get('identifier')!, md);
 			}
 			return {
@@ -552,6 +562,7 @@ const AgentuityBundler: BunPlugin = {
 						filename: v.get('filename')!,
 						id: v.get('id')!,
 						identifier: v.get('identifier')!,
+						agentId: v.get('agentId')!,
 						version: v.get('version')!,
 						name: v.get('name')!,
 						description: v.get('description') ?? '<no description provided>',
@@ -587,6 +598,7 @@ const AgentuityBundler: BunPlugin = {
 								filename: sub.get('filename')!,
 								id: sub.get('id')!,
 								identifier: sub.get('identifier')!,
+								agentId: sub.get('agentId')!,
 								version: sub.get('version')!,
 								name: sub.get('name')!,
 								description: sub.get('description') ?? '<no description provided>',

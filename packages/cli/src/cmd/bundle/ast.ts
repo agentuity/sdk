@@ -147,31 +147,51 @@ function generateRouteId(
 	return `route_${hashSHA1(projectId, deploymentId, type, method, filename, path, version)}`;
 }
 
+function generateStableAgentId(projectId: string, name: string): string {
+	return `agentid_${hashSHA1(projectId, name)}`.substring(0, 64);
+}
+
 type AcornParseResultType = ReturnType<typeof acornLoose.parse>;
 
 function augmentAgentMetadataNode(
+	projectId: string,
 	id: string,
 	name: string,
 	rel: string,
 	version: string,
 	ast: AcornParseResultType,
 	propvalue: ASTObjectExpression,
-	_filename: string
+	filename: string
 ): [string, Map<string, string>] {
 	const metadata = parseObjectExpressionToMap(propvalue);
 	if (!metadata.has('name')) {
-		metadata.set('name', name);
-		propvalue.properties.push(createObjectPropertyNode('name', name));
+		const location = ast.loc?.start ? ` on line ${ast.loc.start}` : '';
+		throw new Error(
+			`missing required metadata.name in ${filename}${location}. This Agent should have a unique and human readable name for this project.`
+		);
 	}
+	if (metadata.has('identifier') && name !== metadata.get('identifier')) {
+		const location = ast.loc?.start ? ` on line ${ast.loc.start}` : '';
+		throw new Error(
+			`metadata.identifier (${metadata.get('identifier')}) in ${filename}${location} is mismatched (${name}). This is an internal error.`
+		);
+	}
+	const descriptionNode = propvalue.properties.find((x) => x.key.name === 'description')?.value;
+	const description = descriptionNode ? (descriptionNode as ASTLiteral).value : '';
+	const agentId = generateStableAgentId(projectId, name);
 	metadata.set('version', version);
 	metadata.set('identifier', name);
 	metadata.set('filename', rel);
 	metadata.set('id', id);
+	metadata.set('agentId', agentId);
+	metadata.set('description', description);
 	propvalue.properties.push(
 		createObjectPropertyNode('id', id),
+		createObjectPropertyNode('agentId', agentId),
 		createObjectPropertyNode('version', version),
 		createObjectPropertyNode('identifier', name),
-		createObjectPropertyNode('filename', rel)
+		createObjectPropertyNode('filename', rel),
+		createObjectPropertyNode('description', description)
 	);
 
 	const newsource = generate(ast);
@@ -508,6 +528,7 @@ export async function parseAgentMetadata(
 						for (const prop of callargexp.properties) {
 							if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
 								result = augmentAgentMetadataNode(
+									projectId,
 									id,
 									name,
 									rel,
@@ -562,6 +583,7 @@ export async function parseAgentMetadata(
 												prop.key.name === 'metadata'
 											) {
 												result = augmentAgentMetadataNode(
+													projectId,
 													id,
 													name,
 													rel,

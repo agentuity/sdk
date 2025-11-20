@@ -2,6 +2,9 @@ import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
+	metadata: {
+		name: 'ObjectStore Demo',
+	},
 	schema: {
 		input: z.object({
 			operation: z.enum(['put', 'get', 'delete', 'createPublicURL', 'putBinary', 'getBinary']),

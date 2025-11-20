@@ -99,6 +99,8 @@ function registerAgentuitySpanProcessor() {
 				const agentCtx = getAgentContext();
 				if (agentCtx.current?.metadata) {
 					attrs['@agentuity/agentId'] = agentCtx.current.metadata.id;
+					attrs['@agentuity/agentIdentifier'] = agentCtx.current.metadata.agentId;
+					attrs['@agentuity/agentDescription'] = agentCtx.current.metadata.description;
 					attrs['@agentuity/agentName'] = agentCtx.current.metadata.name;
 				}
 			}

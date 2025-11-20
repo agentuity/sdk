@@ -6,8 +6,7 @@ import type {
 	StreamStorage,
 	VectorStorage,
 } from '@agentuity/core';
-import type { Tracer } from '@opentelemetry/api';
-import { SpanStatusCode, context, trace } from '@opentelemetry/api';
+import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
 import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
 import type { Logger } from './logger';
@@ -63,15 +62,15 @@ export interface AgentContext {
 
 type InternalAgentMetadata = {
 	/**
-	 * the unique identifier for this agent and project
+	 * the unique identifier for this project, agent and deployment.
 	 */
 	id: string;
 	/**
-	 * the folder name for the agent
+	 * the unique identifier for this project and agent across multiple deployments.
 	 */
 	identifier: string;
 	/**
-	 * the relative path to the agent from the root project directory
+	 * the relative path to the agent from the root project directory.
 	 */
 	filename: string;
 	/**
@@ -82,13 +81,13 @@ type InternalAgentMetadata = {
 
 type ExternalAgentMetadata = {
 	/**
-	 * the human readable name for the agent
+	 * the human readable name for the agent.
 	 */
 	name: string;
 	/**
-	 * the human readable description for the agent (empty if not provided)
+	 * the human readable description for the agent
 	 */
-	description: string;
+	description?: string;
 };
 
 type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
@@ -271,7 +270,7 @@ export function createAgent<
 		output?: TOutput;
 		stream?: TStream;
 	};
-	metadata?: Partial<ExternalAgentMetadata>;
+	metadata: ExternalAgentMetadata;
 	handler: TInput extends StandardSchemaV1
 		? TStream extends true
 			? TOutput extends StandardSchemaV1

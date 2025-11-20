@@ -2,6 +2,9 @@ import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
+	metadata: {
+		name: 'Email Demo',
+	},
 	schema: {
 		input: z.object({ from: z.string(), message: z.string() }),
 		output: z.string(),

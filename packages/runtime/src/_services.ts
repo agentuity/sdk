@@ -15,18 +15,18 @@ import {
 	type SessionEventProvider,
 	type EvalRunEventProvider,
 } from '@agentuity/core';
-import { /*APIClient,*/ createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
+import { APIClient, createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
 import {
 	CompositeSessionEventProvider,
 	LocalSessionEventProvider,
 	JSONSessionEventProvider,
-	// HTTPSessionEventProvider,
+	HTTPSessionEventProvider,
 } from './services/session';
 import {
 	CompositeEvalRunEventProvider,
 	LocalEvalRunEventProvider,
 	JSONEvalRunEventProvider,
-	// HTTPEvalRunEventProvider,
+	HTTPEvalRunEventProvider,
 } from './services/evalrun';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getLogger, getTracer } from './_server';
@@ -56,7 +56,7 @@ const kvBaseUrl = serviceUrls.keyvalue;
 const streamBaseUrl = serviceUrls.stream;
 const vectorBaseUrl = serviceUrls.vector;
 const objectBaseUrl = serviceUrls.objectstore;
-// const catalystBaseUrl = serviceUrls.catalyst;
+const catalystBaseUrl = serviceUrls.catalyst;
 
 const adapter = createServerFetchAdapter({
 	headers: {
@@ -237,20 +237,20 @@ export function createServices(logger: Logger, config?: AppConfig, serverUrl?: s
 	sessionEvent =
 		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
 			? new JSONSessionEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)
-			: // FIXME: this is turned off for now for production until we have the new changes deployed
-
-				// ? new HTTPSessionEventProvider(new APIClient(catalystBaseUrl, logger))
-				new LocalSessionEventProvider();
+			: new HTTPSessionEventProvider(new APIClient(catalystBaseUrl, logger), logger);
+	new LocalSessionEventProvider();
 	if (config?.services?.sessionEvent) {
 		sessionEvent = new CompositeSessionEventProvider(sessionEvent, config.services.sessionEvent);
 	}
 	evalRunEvent =
 		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
 			? new JSONEvalRunEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)
-			: // FIXME: this is turned off for now for production until we have the new changes deployed
-
-				// ? new HTTPEvalRunEventProvider(new APIClient(catalystBaseUrl, logger), logger, catalystBaseUrl)
-				new LocalEvalRunEventProvider();
+			: new HTTPEvalRunEventProvider(
+					new APIClient(catalystBaseUrl, logger),
+					logger,
+					catalystBaseUrl
+				);
+	new LocalEvalRunEventProvider();
 	if (config?.services?.evalRunEvent) {
 		evalRunEvent = new CompositeEvalRunEventProvider(evalRunEvent, config.services.evalRunEvent);
 	}

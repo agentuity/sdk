@@ -2,6 +2,9 @@ import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
+	metadata: {
+		name: 'SubAgents Demo',
+	},
 	schema: {
 		input: z.object({
 			action: z.enum(['info', 'count']),

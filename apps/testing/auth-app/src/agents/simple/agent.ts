@@ -2,6 +2,10 @@ import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
+	metadata: {
+		name: 'Simple Agent Demo',
+		description: 'An agent thats not really an agent but shows off the structure',
+	},
 	schema: {
 		input: z.object({ name: z.string(), age: z.number() }),
 		output: z.string(),

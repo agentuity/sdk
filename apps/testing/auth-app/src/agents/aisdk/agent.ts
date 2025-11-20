@@ -4,6 +4,9 @@ import { openai } from '@ai-sdk/openai';
 import { generateText, type AssistantModelMessage, type TextPart } from 'ai';
 
 const agent = createAgent({
+	metadata: {
+		name: 'AI SDK Demo',
+	},
 	schema: {
 		input: z.string('the prompt to send'),
 		output: z.string('the prompt output'),
