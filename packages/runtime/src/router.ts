@@ -5,7 +5,7 @@ import { stream as honoStream, streamSSE as honoStreamSSE } from 'hono/streaming
 import { upgradeWebSocket as honoUpgradeWebSocket } from 'hono/bun';
 import { hash, returnResponse } from './_util';
 import type { Env } from './app';
-import { getAsyncLocalStorage } from './_context';
+import { getAgentAsyncLocalStorage } from './_context';
 import { parseEmail, type Email } from './io/email';
 
 type AgentHandler<E extends Env = Env, P extends string = string, I extends Input = {}> = (
@@ -208,7 +208,7 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 
 		const wrapper = (c: Context) => {
 			// Capture the AgentContext from the request
-			const asyncLocalStorage = getAsyncLocalStorage();
+			const asyncLocalStorage = getAgentAsyncLocalStorage();
 			const capturedContext = asyncLocalStorage.getStore();
 
 			return honoStream(c, async (s: any) => {
@@ -256,7 +256,7 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 			let initialized = false;
 
 			// Capture the AgentContext from the upgrade request
-			const asyncLocalStorage = getAsyncLocalStorage();
+			const asyncLocalStorage = getAgentAsyncLocalStorage();
 			const capturedContext = asyncLocalStorage.getStore();
 
 			const wsConnection: WebSocketConnection = {
@@ -388,7 +388,7 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 
 		const wrapper = (c: Context) => {
 			// Capture the AgentContext from the request
-			const asyncLocalStorage = getAsyncLocalStorage();
+			const asyncLocalStorage = getAgentAsyncLocalStorage();
 			const capturedContext = asyncLocalStorage.getStore();
 
 			return honoStreamSSE(c, async (stream: any) => {

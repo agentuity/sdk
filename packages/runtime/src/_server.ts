@@ -26,7 +26,7 @@ import { register } from './otel/config';
 import type { Logger } from './logger';
 import { isIdle } from './_idle';
 import * as runtimeConfig from './_config';
-import { inAgentContext, getAgentContext } from './_context';
+import { inAgentContext, getAgentContext, runInHTTPContext } from './_context';
 import {
 	createServices,
 	getThreadProvider,
@@ -35,6 +35,9 @@ import {
 } from './_services';
 import { generateId } from './session';
 import WaitUntilHandler from './_waituntil';
+import registerTokenProcessor, { TOKENS_HEADER } from './_tokens';
+
+const SESSION_HEADER = 'x-session-id';
 
 let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 
@@ -108,7 +111,7 @@ function registerAgentuitySpanProcessor() {
 		}
 
 		onEnd(_span: Span) {
-			/* */
+			return;
 		}
 
 		forceFlush() {
@@ -138,6 +141,7 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 
 	// this must come before registering any otel stuff
 	registerAgentuitySpanProcessor();
+	registerTokenProcessor();
 
 	// Create the telemetry and logger
 	const otel = register({ processors: spanProcessors, logLevel: logLevel as LogLevel });
@@ -213,7 +217,7 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 			otel.logger.debug('%s %s started', c.req.method, c.req.path);
 		}
 
-		await next();
+		await runInHTTPContext(c, next);
 
 		// Don't log completion for websocket upgrades - they stay open
 		if (!skipLogging && !isWebSocket) {
@@ -240,7 +244,7 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 				'X-Requested-With',
 			],
 			allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
-			exposeHeaders: ['Content-Length'],
+			exposeHeaders: ['Content-Length', TOKENS_HEADER, SESSION_HEADER],
 			maxAge: 600,
 			credentials: true,
 			...(config?.cors ?? {}), // allow the app config to override

@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import type { Context as HonoContext } from 'hono';
 import type { Tracer } from '@opentelemetry/api';
 import type { KeyValueStorage, ObjectStorage, StreamStorage, VectorStorage } from '@agentuity/core';
 import type { AgentContext, AgentName } from './agent';
@@ -57,22 +58,37 @@ export class RequestAgentContext<TAgentMap, TAgent> implements AgentContext {
 	}
 }
 
-const asyncLocalStorage = new AsyncLocalStorage<AgentContext>();
+const agentAsyncLocalStorage = new AsyncLocalStorage<AgentContext>();
+const httpAsyncLocalStorage = new AsyncLocalStorage<HonoContext>();
 
 export const inAgentContext = (): boolean => {
-	const context = asyncLocalStorage.getStore();
+	const context = agentAsyncLocalStorage.getStore();
+	return !!context;
+};
+
+export const inHTTPContext = (): boolean => {
+	const context = httpAsyncLocalStorage.getStore();
 	return !!context;
 };
 
 export const getAgentContext = (): AgentContext => {
-	const context = asyncLocalStorage.getStore();
+	const context = agentAsyncLocalStorage.getStore();
 	if (!context) {
 		throw new Error('AgentContext is not available');
 	}
 	return context;
 };
 
-export const getAsyncLocalStorage = () => asyncLocalStorage;
+export const getHTTPContext = (): HonoContext => {
+	const context = httpAsyncLocalStorage.getStore();
+	if (!context) {
+		throw new Error('HTTPContext is not available');
+	}
+	return context;
+};
+
+export const getAgentAsyncLocalStorage = () => agentAsyncLocalStorage;
+export const getHTTPAsyncLocalStorage = () => httpAsyncLocalStorage;
 
 export const runInAgentContext = <TAgentMap, TAgent>(
 	ctxObject: Record<string, unknown>,
@@ -88,8 +104,16 @@ export const runInAgentContext = <TAgentMap, TAgent>(
 	for (const k of ['waitUntil']) {
 		ctxObject[k] = _ctx[k];
 	}
-	return asyncLocalStorage.run(ctx, async () => {
+	return agentAsyncLocalStorage.run(ctx, async () => {
 		const result = await next();
 		return result;
 	});
+};
+
+export const runInHTTPContext = async <HonoContext>(
+	ctx: HonoContext,
+	next: () => Promise<void>
+) => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return httpAsyncLocalStorage.run(ctx as any, next);
 };
