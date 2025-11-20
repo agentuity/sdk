@@ -637,7 +637,7 @@ export async function parseAgentMetadata(
 	if (await evalsFile.exists()) {
 		logger.trace(`Found evals file at ${evalsPath}, parsing...`);
 		const evalsSource = await evalsFile.text();
-		const transpiler = new Bun.Transpiler({ loader: 'ts' });
+		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const evalsContents = transpiler.transformSync(evalsSource);
 		const [, evals] = parseEvalMetadata(
 			rootDir,

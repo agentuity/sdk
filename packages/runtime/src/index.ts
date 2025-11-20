@@ -3,6 +3,7 @@ export * from './app';
 export * from './router';
 export * from './eval';
 export * from './session';
+export * from './workbench';
 export type { Logger } from './logger';
 export { getRouter } from './_server';
 export { Email, parseEmail } from './io/email';

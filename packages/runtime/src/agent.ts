@@ -890,3 +890,5 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 		);
 	};
 };
+
+export const getAgents = () => agents;

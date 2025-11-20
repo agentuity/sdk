@@ -266,7 +266,7 @@ const AgentuityBundler: BunPlugin = {
 			string,
 			Map<string, string>
 		>();
-		const transpiler = new Bun.Transpiler({ loader: 'ts' });
+		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		let routeDefinitions: BuildMetadata['routes'] = [];
 
 		build.onResolve({ filter: /\/route\.ts$/, namespace: 'file' }, async (args) => {
@@ -423,6 +423,7 @@ const AgentuityBundler: BunPlugin = {
 							filename: md.get('filename')!,
 							identifier: md.get('identifier')!,
 							description: md.get('description') ?? '',
+							agentId: md.get('agentId')!,
 						};
 						if (isSubagent && parentName) {
 							agentDetail.parent = parentName;
@@ -483,20 +484,31 @@ const AgentuityBundler: BunPlugin = {
 					generateAgentRegistry(srcDir, agentInfo);
 				}
 
+				// create the workbench routes
+				inserts.push(`await (async() => {
+    const { createWorkbenchMetadataRoute, getRouter } = await import('@agentuity/runtime');
+    const router = getRouter()!;
+	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
+})();`);
+
 				const file = Bun.file(args.path);
 				let contents = await file.text();
 				let inserted = false;
-				const index = contents.indexOf(' createApp(');
-				if (index > 0) {
-					const endSemi = contents.indexOf(');', index);
-					if (endSemi > 0) {
-						contents =
-							contents.slice(0, endSemi + 2) +
-							'\n\n' +
-							inserts.join('\n') +
-							contents.slice(endSemi + 2);
-						inserted = true;
-					}
+				let index = contents.indexOf(' createApp(');
+				if (index < 0) {
+					index = contents.indexOf(' createApp (');
+				}
+				if (index < 0) {
+					throw new Error(`couldn't find the required createApp function in ${args.path}`);
+				}
+				const endSemi = contents.indexOf(');', index);
+				if (endSemi > 0) {
+					contents =
+						contents.slice(0, endSemi + 2) +
+						'\n\n' +
+						inserts.join('\n') +
+						contents.slice(endSemi + 2);
+					inserted = true;
 				}
 				if (!inserted) {
 					contents += `\n${inserts.join('\n')}`;

@@ -163,7 +163,7 @@ start_server_if_needed() {
 		cd "$(dirname "$0")/.."
 		
 		# Check for .env.local first, then fall back to .env
-		if [ -f .env.local ]; then
+		if [[ -f .env.local && -z "$CI" ]]; then
 			ENV_FILE=".env.local"
 		elif [ -f .env ]; then
 			ENV_FILE=".env"
@@ -179,7 +179,7 @@ start_server_if_needed() {
 		# Start server in background, redirecting output to temp log
 		# Preserve environment variables (like AGENTUITY_SDK_LOG_LEVEL) when starting server
 		LOG_FILE="$TEMP_DIR/server.log"
-		env bun run dev -- --no-public > "$LOG_FILE" 2>&1 &
+		env bun run --env-file $ENV_FILE dev -- --no-public > "$LOG_FILE" 2>&1 &
 		SERVER_PID=$!
 		SERVER_STARTED=true
 		

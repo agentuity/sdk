@@ -38,6 +38,8 @@ PUT_RESPONSE=$(curl -s -X POST "$BASE_URL" \
     "contentType": "text/plain"
   }')
 
+echo $PUT_RESPONSE
+
 # Check if response is valid JSON
 if ! echo "$PUT_RESPONSE" | jq . > /dev/null 2>&1; then
 	echo -e "${RED}✗${NC} Failed to store text data - non-JSON response:"
@@ -62,6 +64,8 @@ GET_RESPONSE=$(curl -s -X POST "$BASE_URL" \
     "bucket": "'"$BUCKET"'",
     "key": "text-file.txt"
   }')
+
+echo $GET_RESPONSE
 
 RETRIEVED_TEXT=$(echo "$GET_RESPONSE" | jq -r '.result.data')
 if [ "$RETRIEVED_TEXT" = "Hello, World! This is a test." ]; then
