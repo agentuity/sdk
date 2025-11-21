@@ -9,5 +9,6 @@ export const command = createCommand({
 	name: 'profile',
 	description: 'Manage configuration profiles',
 	tags: ['read-only', 'fast'],
+	hidden: true,
 	subcommands: [createProfileCmd, useCommand, listCommand, showCommand, deleteCommand],
 });

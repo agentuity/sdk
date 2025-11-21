@@ -6,7 +6,7 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { saveProjectDir } from '../../config';
 import { runSteps, stepSuccess, stepSkipped, stepError, Step, ProgressCallback } from '../../steps';
-import { bundle } from '../bundle/bundler';
+import { bundle } from '../build/bundler';
 import { loadBuildMetadata } from '../../config';
 import {
 	projectEnvUpdate,

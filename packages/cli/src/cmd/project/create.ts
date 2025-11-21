@@ -17,7 +17,7 @@ export const createProjectSubcommand = createSubcommand({
 	name: 'create',
 	description: 'Create a new project',
 	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive', 'requires-auth'],
-	aliases: ['new'],
+	aliases: ['new', 'init'],
 	banner: true,
 	toplevel: true,
 	idempotent: false,

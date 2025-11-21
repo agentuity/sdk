@@ -76,49 +76,49 @@ console.log('Testing: Environment Variables');
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
 await runTest(`env set ${ENV_TEST_KEY1}`, async () => {
-	const output = await runCLI(['env', 'set', ENV_TEST_KEY1, TEST_VALUE1]);
+	const output = await runCLI(['cloud', 'env', 'set', ENV_TEST_KEY1, TEST_VALUE1]);
 	if (!output.includes('successfully')) {
 		throw new Error(`Expected 'successfully' in output`);
 	}
 });
 
 await runTest(`env get ${ENV_TEST_KEY1}`, async () => {
-	const output = await runCLI(['env', 'get', ENV_TEST_KEY1, '--no-mask']);
+	const output = await runCLI(['cloud', 'env', 'get', ENV_TEST_KEY1, '--no-mask']);
 	if (!output.includes(TEST_VALUE1)) {
 		throw new Error(`Expected '${TEST_VALUE1}' in output, got: ${output}`);
 	}
 });
 
 await runTest(`env set ${ENV_TEST_KEY2}`, async () => {
-	const output = await runCLI(['env', 'set', ENV_TEST_KEY2, TEST_VALUE2]);
+	const output = await runCLI(['cloud', 'env', 'set', ENV_TEST_KEY2, TEST_VALUE2]);
 	if (!output.includes('successfully')) {
 		throw new Error(`Expected 'successfully' in output`);
 	}
 });
 
 await runTest('env list shows both keys', async () => {
-	const output = await runCLI(['env', 'list', '--no-mask']);
+	const output = await runCLI(['cloud', 'env', 'list', '--no-mask']);
 	if (!output.includes(ENV_TEST_KEY1) || !output.includes(ENV_TEST_KEY2)) {
 		throw new Error(`Expected both keys in list output`);
 	}
 });
 
 await runTest('env list (unmasked)', async () => {
-	const output = await runCLI(['env', 'list', '--no-mask']);
+	const output = await runCLI(['cloud', 'env', 'list', '--no-mask']);
 	if (!output.includes(TEST_VALUE1)) {
 		throw new Error(`Expected unmasked values in non-TTY mode`);
 	}
 });
 
 await runTest('env push', async () => {
-	const output = await runCLI(['env', 'push']);
+	const output = await runCLI(['cloud', 'env', 'push']);
 	if (!output.includes('Pushed') && !output.includes('successfully')) {
 		throw new Error(`Expected success message`);
 	}
 });
 
 await runTest('env pull', async () => {
-	const output = await runCLI(['env', 'pull']);
+	const output = await runCLI(['cloud', 'env', 'pull']);
 	if (!output.includes('Pulled')) {
 		throw new Error(`Expected 'Pulled' in output`);
 	}
@@ -141,7 +141,7 @@ await runTest('.env preserves AGENTUITY_SDK_KEY', async () => {
 });
 
 await runTest(`env delete ${ENV_TEST_KEY2}`, async () => {
-	const output = await runCLI(['env', 'delete', ENV_TEST_KEY2]);
+	const output = await runCLI(['cloud', 'env', 'delete', ENV_TEST_KEY2]);
 	if (!output.includes('deleted successfully')) {
 		throw new Error(`Expected 'deleted successfully' in output`);
 	}
@@ -149,7 +149,7 @@ await runTest(`env delete ${ENV_TEST_KEY2}`, async () => {
 
 await runTest(`verify ${ENV_TEST_KEY2} is deleted`, async () => {
 	try {
-		await runCLI(['env', 'get', ENV_TEST_KEY2]);
+		await runCLI(['cloud', 'env', 'get', ENV_TEST_KEY2]);
 		throw new Error('Key should not exist');
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
@@ -163,7 +163,7 @@ await runTest(`verify ${ENV_TEST_KEY2} is deleted`, async () => {
 });
 
 await runTest(`cleanup: delete ${ENV_TEST_KEY1}`, async () => {
-	const output = await runCLI(['env', 'delete', ENV_TEST_KEY1]);
+	const output = await runCLI(['cloud', 'env', 'delete', ENV_TEST_KEY1]);
 	if (!output.includes('deleted successfully')) {
 		throw new Error(`Expected 'deleted successfully' in output`);
 	}
@@ -178,35 +178,35 @@ console.log('Testing: Secrets');
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
 await runTest(`secret set ${SECRET_TEST_KEY1}`, async () => {
-	const output = await runCLI(['secret', 'set', SECRET_TEST_KEY1, TEST_VALUE1]);
+	const output = await runCLI(['cloud', 'secret', 'set', SECRET_TEST_KEY1, TEST_VALUE1]);
 	if (!output.includes('successfully')) {
 		throw new Error(`Expected 'successfully' in output`);
 	}
 });
 
 await runTest(`secret get ${SECRET_TEST_KEY1} (unmasked)`, async () => {
-	const output = await runCLI(['secret', 'get', SECRET_TEST_KEY1, '--no-mask']);
+	const output = await runCLI(['cloud', 'secret', 'get', SECRET_TEST_KEY1, '--no-mask']);
 	if (!output.includes(TEST_VALUE1)) {
 		throw new Error(`Expected unmasked value in non-TTY mode`);
 	}
 });
 
 await runTest(`secret get with --mask flag`, async () => {
-	const output = await runCLI(['secret', 'get', SECRET_TEST_KEY1, '--mask']);
+	const output = await runCLI(['cloud', 'secret', 'get', SECRET_TEST_KEY1, '--mask']);
 	if (!output.includes('...')) {
 		throw new Error(`Expected masked value (...) with --mask flag`);
 	}
 });
 
 await runTest(`secret set ${SECRET_TEST_KEY2}`, async () => {
-	const output = await runCLI(['secret', 'set', SECRET_TEST_KEY2, TEST_VALUE2]);
+	const output = await runCLI(['cloud', 'secret', 'set', SECRET_TEST_KEY2, TEST_VALUE2]);
 	if (!output.includes('successfully')) {
 		throw new Error(`Expected 'successfully' in output`);
 	}
 });
 
 await runTest('secret list (unmasked in non-TTY)', async () => {
-	const output = await runCLI(['secret', 'list', '--no-mask']);
+	const output = await runCLI(['cloud', 'secret', 'list', '--no-mask']);
 	if (!output.includes(SECRET_TEST_KEY1) || !output.includes(SECRET_TEST_KEY2)) {
 		throw new Error(`Expected both secret keys in list`);
 	}
@@ -216,27 +216,27 @@ await runTest('secret list (unmasked in non-TTY)', async () => {
 });
 
 await runTest('secret list with --mask flag', async () => {
-	const output = await runCLI(['secret', 'list', '--mask']);
+	const output = await runCLI(['cloud', 'secret', 'list', '--mask']);
 	if (!output.includes('...')) {
 		throw new Error(`Expected masked values (...) with --mask flag`);
 	}
 });
 
 await runTest('secret push', async () => {
-	const output = await runCLI(['secret', 'push']);
+	const output = await runCLI(['cloud', 'secret', 'push']);
 	console.log(output);
 	// Success is ok (even if no secrets to push)
 });
 
 await runTest('secret pull', async () => {
-	const output = await runCLI(['secret', 'pull']);
+	const output = await runCLI(['cloud', 'secret', 'pull']);
 	if (!output.includes('Pulled')) {
 		throw new Error(`Expected 'Pulled' in output`);
 	}
 });
 
 await runTest(`secret delete ${SECRET_TEST_KEY2}`, async () => {
-	const output = await runCLI(['secret', 'delete', SECRET_TEST_KEY2]);
+	const output = await runCLI(['cloud', 'secret', 'delete', SECRET_TEST_KEY2]);
 	if (!output.includes('deleted successfully')) {
 		throw new Error(`Expected 'deleted successfully' in output`);
 	}
@@ -244,7 +244,7 @@ await runTest(`secret delete ${SECRET_TEST_KEY2}`, async () => {
 
 await runTest(`verify ${SECRET_TEST_KEY2} is deleted`, async () => {
 	try {
-		await runCLI(['secret', 'get', SECRET_TEST_KEY2]);
+		await runCLI(['cloud', 'secret', 'get', SECRET_TEST_KEY2]);
 		throw new Error('Secret should not exist');
 	} catch {
 		// Expected to fail
@@ -252,7 +252,7 @@ await runTest(`verify ${SECRET_TEST_KEY2} is deleted`, async () => {
 });
 
 await runTest(`cleanup: delete ${SECRET_TEST_KEY1}`, async () => {
-	const output = await runCLI(['secret', 'delete', SECRET_TEST_KEY1]);
+	const output = await runCLI(['cloud', 'secret', 'delete', SECRET_TEST_KEY1]);
 	if (!output.includes('deleted successfully')) {
 		throw new Error(`Expected 'deleted successfully' in output`);
 	}
@@ -271,22 +271,22 @@ const importFile = join(PROJECT_DIR, '.test-import.env');
 await Bun.write(importFile, `${importKey}=imported_value\nTEST_IMPORT_2=value2\n`);
 
 await runTest('env import from file', async () => {
-	const output = await runCLI(['env', 'import', importFile]);
+	const output = await runCLI(['cloud', 'env', 'import', importFile]);
 	if (!output.includes('Imported')) {
 		throw new Error(`Expected 'Imported' in output`);
 	}
 });
 
 await runTest('verify imported key exists', async () => {
-	const output = await runCLI(['env', 'get', importKey, '--no-mask']);
+	const output = await runCLI(['cloud', 'env', 'get', importKey, '--no-mask']);
 	if (!output.includes('imported_value')) {
 		throw new Error(`Expected 'imported_value' in output`);
 	}
 });
 
 await runTest('cleanup: delete imported keys', async () => {
-	await runCLI(['env', 'delete', importKey]);
-	await runCLI(['env', 'delete', 'TEST_IMPORT_2']);
+	await runCLI(['cloud', 'env', 'delete', importKey]);
+	await runCLI(['cloud', 'env', 'delete', 'TEST_IMPORT_2']);
 });
 
 await unlink(importFile);

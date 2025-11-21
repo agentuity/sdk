@@ -183,7 +183,7 @@ function handleProjectConfigError(
 			createError(ErrorCode.PROJECT_NOT_FOUND, 'Invalid project folder', undefined, [
 				'Use --dir to specify a different directory',
 				'Change to a directory containing agentuity.json',
-				`Run "${getCommand('project init')}" to create a new project`,
+				`Run "${getCommand('project create')}" to create a new project`,
 			]),
 			logger,
 			errorFormat ?? 'text'
@@ -269,6 +269,11 @@ export async function createCLI(version: string): Promise<Command> {
 				write(str);
 			}
 		},
+	});
+
+	// Configure help to show only main command names, not aliases
+	program.configureHelp({
+		subcommandTerm: (cmd) => cmd.name(),
 	});
 
 	return program;
@@ -503,7 +508,7 @@ async function registerSubcommand(
 							createError(ErrorCode.PROJECT_NOT_FOUND, 'Invalid project folder', undefined, [
 								'Use --dir to specify a different directory',
 								'Change to a directory containing agentuity.json',
-								`Run "${getCommand('project init')}" to create a new project`,
+								`Run "${getCommand('project create')}" to create a new project`,
 							]),
 							baseCtx.logger,
 							baseCtx.options.errorFormat

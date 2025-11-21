@@ -70,7 +70,7 @@ export const listSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { config, logger, auth, project, opts, options } = ctx;
 		const catalystClient = getCatalystAPIClient(config, logger, auth);
-		
+
 		const projectId = opts.projectId || project?.projectId;
 
 		try {

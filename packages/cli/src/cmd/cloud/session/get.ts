@@ -27,15 +27,19 @@ const SessionGetResponseSchema = z.object({
 	route_id: z.string().describe('Route ID'),
 	thread_id: z.string().describe('Thread ID'),
 	agentNames: z.array(z.string()).describe('Agent names'),
-	evalRuns: z.array(z.object({
-		id: z.string(),
-		created_at: z.string(),
-		eval_id: z.string(),
-		pending: z.boolean(),
-		success: z.boolean(),
-		error: z.string().nullable(),
-		result: z.string().nullable(),
-	})).describe('Eval runs'),
+	evalRuns: z
+		.array(
+			z.object({
+				id: z.string(),
+				created_at: z.string(),
+				eval_id: z.string(),
+				pending: z.boolean(),
+				success: z.boolean(),
+				error: z.string().nullable(),
+				result: z.string().nullable(),
+			})
+		)
+		.describe('Eval runs'),
 });
 
 export const getSubcommand = createSubcommand({
@@ -80,7 +84,7 @@ export const getSubcommand = createSubcommand({
 				route_id: session.route_id,
 				thread_id: session.thread_id,
 				agentNames: enriched.agentNames,
-				evalRuns: enriched.evalRuns.map(run => ({
+				evalRuns: enriched.evalRuns.map((run) => ({
 					id: run.id,
 					eval_id: run.eval_id,
 					created_at: run.created_at,
@@ -122,10 +126,12 @@ export const getSubcommand = createSubcommand({
 				console.log(tui.bold('Error:       ') + tui.error(session.error));
 			}
 			if (enriched.agentNames.length > 0) {
-				const agentDisplay = enriched.agentNames.map((name, idx) => {
-					const agentId = session.agent_ids[idx];
-					return `${name} ${tui.muted(`(${agentId})`)}`;
-				}).join(', ');
+				const agentDisplay = enriched.agentNames
+					.map((name, idx) => {
+						const agentId = session.agent_ids[idx];
+						return `${name} ${tui.muted(`(${agentId})`)}`;
+					})
+					.join(', ');
 				console.log(tui.bold('Agents:      ') + agentDisplay);
 			}
 			console.log(tui.bold('Route ID:    ') + session.route_id);

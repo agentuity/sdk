@@ -1,8 +1,8 @@
 /** biome-ignore-all lint/style/useTemplate: its easier */
 import { z } from 'zod';
 import { resolve, join } from 'node:path';
-import { bundle } from '../bundle/bundler';
-import { getBuildMetadata } from '../bundle/plugin';
+import { bundle } from '../build/bundler';
+import { getBuildMetadata } from '../build/plugin';
 import { existsSync, type FSWatcher, watch, statSync, readdirSync } from 'node:fs';
 import {
 	getDefaultConfigDir,
@@ -18,7 +18,7 @@ import { generateEndpoint, type DevmodeResponse } from './api';
 import { APIClient, getAPIBaseURL } from '../../api';
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
-import { getDevmodeDeploymentId } from '../bundle/ast';
+import { getDevmodeDeploymentId } from '../build/ast';
 import { BuildMetadata } from '@agentuity/server';
 import { getCommand } from '../../command-prefix';
 

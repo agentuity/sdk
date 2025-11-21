@@ -43,7 +43,10 @@ export type EnrichedSession = {
 	evalRuns: EvalRun[];
 };
 
-export async function sessionGet(client: APIClient, request: SessionGetRequest): Promise<EnrichedSession> {
+export async function sessionGet(
+	client: APIClient,
+	request: SessionGetRequest
+): Promise<EnrichedSession> {
 	const resp = await client.request<SessionGetResponse>(
 		'GET',
 		`/session/2025-03-17/${request.id}`,

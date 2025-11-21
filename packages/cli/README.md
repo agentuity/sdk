@@ -22,15 +22,26 @@ bun add -d @agentuity/cli
 # Show banner and help
 agentuity
 
-# Run example commands
-agentuity example create my-app
-agentuity example create my-app --type=advanced --force
-agentuity example list
-agentuity example list --json
+# Top-level commands
+agentuity auth login
+agentuity project create my-app
+agentuity build
+agentuity dev
+
+# Cloud commands
+agentuity cloud keyvalue set mykey myvalue
+agentuity cloud agents
+agentuity cloud env list
+agentuity cloud secret set MY_SECRET value
+
+# AI commands
+agentuity ai capabilities show
+agentuity ai prompt llm
+agentuity ai schema show
 
 # Global options
-agentuity --log-level=debug example create test
-agentuity --config=/custom/path/production.yaml example list
+agentuity --log-level=debug cloud keyvalue list
+agentuity --config=/custom/path/production.yaml project list
 ```
 
 ## Configuration
@@ -66,7 +77,14 @@ agentuity --log-level=debug example create test
 agentuity --log-level=error example list
 ```
 
-## Creating Commands
+## Command Structure
+
+Commands are organized into groups:
+
+- **Top-level**: `auth`, `project`, `version`, `build` (alias: `bundle`), `dev`
+- **Cloud** (`cloud`): `keyvalue`, `agents`, `objectstore`, `env`, `secret`, and deployment-related commands
+- **AI** (`ai`): `capabilities`, `prompt`, `schema`
+- **Hidden**: `profile` (internal use only)
 
 Commands are auto-discovered from the `src/cmd/` directory. Each command is a directory with an `index.ts` file.
 

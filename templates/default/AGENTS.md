@@ -76,12 +76,12 @@ jq '.commands[] | .. | select(.name=="whoami") | .response' schema.json
 
 **Commands with response schemas:**
 
-- List commands: `project list`, `deployment list`, `kv list-namespaces`
-- Get commands: `secret get`, `env get`, `kv get`, `objectstore get`
-- Show commands: `project show`, `deployment show`, `profile show`
-- Set commands: `secret set`, `env set`, `kv set`
-- Stats commands: `kv stats`
-- Auth commands: `whoami`, `ssh list`
+- List commands: `project list`, `cloud deployment list`, `cloud keyvalue list-namespaces`
+- Get commands: `cloud secret get`, `cloud env get`, `cloud keyvalue get`, `cloud objectstore get`
+- Show commands: `project show`, `cloud deployment show`, `profile show`
+- Set commands: `cloud secret set`, `cloud env set`, `cloud keyvalue set`
+- Stats commands: `cloud keyvalue stats`
+- Auth commands: `auth whoami`, `auth ssh list`
 
 ### Validation Mode
 
@@ -89,11 +89,11 @@ Test arguments before execution:
 
 ```bash
 # Validate without executing
-agentuity deployment list --count=50 --validate
+agentuity cloud deployment list --count=50 --validate
 echo $?  # 0 = valid, 2 = validation error
 
 # Get validation errors as JSON
-agentuity deployment list --count=invalid --validate --json
+agentuity cloud deployment list --count=invalid --validate --json
 ```
 
 Output:
@@ -123,14 +123,14 @@ The CLI uses standard exit codes for programmatic error detection:
 **Example - Robust error handling:**
 
 ```bash
-agentuity deployment list --json
+agentuity cloud deployment list --json
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 3 ]; then
   # Auth required - login first
   agentuity auth login
   # Retry the command
-  agentuity deployment list --json
+  agentuity cloud deployment list --json
 elif [ $EXIT_CODE -eq 4 ]; then
   echo "No deployments found"
 elif [ $EXIT_CODE -eq 0 ]; then
@@ -160,7 +160,7 @@ agentuity project list --json
 **Quiet Mode** - Suppress non-essential output:
 
 ```bash
-agentuity deployment list --quiet --json
+agentuity cloud deployment list --quiet --json
 ```
 
 **Disable Progress** - Turn off spinners for CI/CD:
@@ -272,8 +272,8 @@ jq '.commands[] | .. | select(.tags? and (.tags | contains(["read-only", "fast"]
 
 ```bash
 # Validate first, execute second
-agentuity deployment list --count=50 --validate && \
-agentuity deployment list --count=50 --json
+agentuity cloud deployment list --count=50 --validate && \
+agentuity cloud deployment list --count=50 --json
 ```
 
 **Robust deployment:**
@@ -283,10 +283,10 @@ agentuity deployment list --count=50 --json
 PREREQS=$(jq -r '.commands[] | .. | select(.name=="deploy") | .prerequisites[]?' schema.json)
 
 # Run prerequisites
-agentuity bundle
+agentuity build
 
 # Deploy with error handling
-agentuity deploy --json
+agentuity cloud deploy --json
 if [ $? -eq 0 ]; then
   echo "Deployment successful"
 else

@@ -32,10 +32,23 @@ src/
 ├── types.ts       # TypeScript type definitions
 └── cmd/
     ├── index.ts   # Command auto-discovery
-    └── example/   # Example command with subcommands
-        ├── index.ts
-        ├── create.ts
-        └── list.ts
+    ├── auth/      # Authentication commands
+    ├── project/   # Project management commands
+    ├── version/   # Version information
+    ├── build/     # Build command (alias: bundle)
+    ├── dev/       # Development server
+    ├── profile/   # Profile management (hidden - internal use)
+    ├── cloud/     # Cloud commands group
+    │   ├── keyvalue/    # Key-value storage
+    │   ├── agents/      # Agent management
+    │   ├── objectstore/ # Object storage
+    │   ├── env/         # Environment variables
+    │   ├── secret/      # Secrets management
+    │   └── ...          # Other cloud commands
+    └── ai/        # AI commands group
+        ├── capabilities/  # CLI capabilities
+        ├── prompt/        # Prompt generation
+        └── schema/        # Schema output
 bin/
 └── cli.ts         # CLI entry point
 ```
