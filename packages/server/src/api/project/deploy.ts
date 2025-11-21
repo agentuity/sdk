@@ -139,7 +139,7 @@ export async function projectDeploymentCreate(
 		'POST',
 		`/cli/deploy/1/start/${projectId}`,
 		CreateProjectDeploymentSchema,
-		deploymentConfig
+		deploymentConfig ?? {}
 	);
 	if (resp.success) {
 		return resp.data;

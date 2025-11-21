@@ -164,9 +164,11 @@ AUTH_CHECK=$?
 set -e
 if [ $AUTH_CHECK -eq 0 ]; then
 	run_test "Env & Secrets" "test-env-secrets.ts"
+	run_test "Deployment Commands" "test-deployment.sh"
 else
 	echo -e "${RED}Skipping Env & Secrets test since not logged in${NC}"
-	SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
+	echo -e "${RED}Skipping Deployment Commands test since not logged in${NC}"
+	SKIPPED_TESTS=$((SKIPPED_TESTS + 2))
 fi
 
 

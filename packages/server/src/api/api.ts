@@ -167,6 +167,11 @@ export class APIClient {
 					headers['Authorization'] = `Bearer ${this.#apiKey}`;
 				}
 
+				// Log request body for debugging deployment issues
+				if (body !== undefined && endpoint.includes('/deploy/')) {
+					this.#logger.debug('Request body: %s', JSON.stringify(body, null, 2));
+				}
+
 				const response = await fetch(url, {
 					method,
 					headers,

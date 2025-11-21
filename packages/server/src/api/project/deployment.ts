@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { type APIClient, APIResponseSchema } from '../api';
+import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from '../api';
 
 // Simplified metadata schema for the client
 const DeploymentMetadataSchema = z.object({
@@ -47,7 +47,7 @@ const DeploymentSchema = z.object({
 
 const DeploymentListResponseSchema = APIResponseSchema(z.array(DeploymentSchema));
 const DeploymentGetResponseSchema = APIResponseSchema(DeploymentSchema);
-const DeploymentActionResponseSchema = APIResponseSchema(
+const DeploymentActionResponseSchema = APIResponseSchemaOptionalData(
 	z.object({ activeDeploymentId: z.string().optional() })
 );
 
