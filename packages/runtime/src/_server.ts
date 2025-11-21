@@ -244,7 +244,7 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 				'X-Requested-With',
 			],
 			allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
-			exposeHeaders: ['Content-Length', TOKENS_HEADER, SESSION_HEADER],
+			exposeHeaders: ['Content-Length', TOKENS_HEADER, SESSION_HEADER, 'x-deployment'],
 			maxAge: 600,
 			credentials: true,
 			...(config?.cors ?? {}), // allow the app config to override
@@ -558,6 +558,12 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 					propagation.inject(context.active(), headers);
 					for (const key of Object.keys(headers)) {
 						c.header(key, headers[key]);
+					}
+					// add session and deployment headers
+					const traceId = sctx?.traceId || sessionId.replace(/^sess_/, '');
+					c.header(SESSION_HEADER, `sess_${traceId}`);
+					if (deploymentId) {
+						c.header('x-deployment', deploymentId);
 					}
 					if (!hasPendingWaits) {
 						try {

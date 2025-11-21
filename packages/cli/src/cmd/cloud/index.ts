@@ -1,6 +1,7 @@
 import { createCommand } from '../../types';
 import { deploySubcommand } from './deploy';
 import { resourceSubcommand } from './resource';
+import { sessionCommand } from './session';
 import { sshSubcommand } from './ssh';
 import { scpSubcommand } from './scp';
 import { deploymentCommand } from './deployment';
@@ -12,6 +13,7 @@ export const command = createCommand({
 	subcommands: [
 		deploySubcommand,
 		resourceSubcommand,
+		sessionCommand,
 		sshSubcommand,
 		scpSubcommand,
 		deploymentCommand,

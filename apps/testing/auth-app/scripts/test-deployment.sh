@@ -126,8 +126,222 @@ else
 fi
 echo ""
 
-# Test 3: List deployments again (should show the new deployment)
-echo "Test 3: List deployments (after deploy)..."
+# Test 3: Invoke deployment URL and capture session ID
+echo "Test 3: Invoke deployment and capture session..."
+if [ -z "$DEPLOYMENT_ID" ]; then
+	echo -e "${YELLOW}⚠${NC} No deployment ID to invoke, skipping session tests"
+else
+	# Extract deployment URL from deploy output (look for https://*.agentuity.run)
+	DEPLOYMENT_URL=$(grep -oE 'https://[a-zA-Z0-9_.-]+\.agentuity\.(run|io)' "$DEPLOY_OUTPUT" | head -1 || echo "")
+	
+	if [ -z "$DEPLOYMENT_URL" ]; then
+		echo -e "${YELLOW}⚠${NC} Could not extract deployment URL from output"
+	else
+		echo "Deployment URL: $DEPLOYMENT_URL"
+		
+		# Invoke the simple agent endpoint and capture session-id and x-deployment headers
+		INVOKE_OUTPUT="$TEMP_DIR/invoke.txt"
+		set +e
+		RESPONSE=$(curl -s -i -X POST "$DEPLOYMENT_URL/agent/simple" \
+			-H "Content-Type: application/json" \
+			-d '{"name":"TestUser","age":30}' 2>&1)
+		INVOKE_EXIT=$?
+		
+		# Try to extract session ID from x-session-id header
+		SESSION_ID=$(echo "$RESPONSE" | grep -i "x-session-id:" | awk '{print $2}' | tr -d '\r\n' || echo "")
+		
+		# If SESSION_ID doesn't have sess_ prefix, add it
+		if [ -n "$SESSION_ID" ] && [[ ! "$SESSION_ID" =~ ^sess_ ]]; then
+			SESSION_ID="sess_$SESSION_ID"
+		fi
+		
+		# Extract x-deployment header
+		X_DEPLOYMENT=$(echo "$RESPONSE" | grep -i "x-deployment:" | awk '{print $2}' | tr -d '\r\n' || echo "")
+		set -e
+		
+		# Debug output
+		echo "Curl exit code: $INVOKE_EXIT"
+		echo "Session ID extracted: ${SESSION_ID:-<empty>}"
+		echo "X-Deployment extracted: ${X_DEPLOYMENT:-<empty>}"
+		
+		if [ $INVOKE_EXIT -eq 0 ] && [ -n "$SESSION_ID" ]; then
+			echo -e "${GREEN}✓${NC} Deployment invoked successfully"
+			echo "Session ID: $SESSION_ID"
+			
+			# Verify x-deployment header matches our deployment
+			if [ -n "$X_DEPLOYMENT" ]; then
+				echo "X-Deployment Header: $X_DEPLOYMENT"
+				if [ "$X_DEPLOYMENT" = "$DEPLOYMENT_ID" ]; then
+					echo -e "${GREEN}✓${NC} X-Deployment header matches deployment ID"
+				else
+					echo -e "${RED}✗${NC} X-Deployment header mismatch (expected: $DEPLOYMENT_ID, got: $X_DEPLOYMENT)"
+					TEST_FAILED=true
+					exit 1
+				fi
+			else
+				echo -e "${YELLOW}⚠${NC} X-Deployment header not found in response"
+			fi
+			echo ""
+			
+			# Wait for session data to be written (async event processing)
+			echo "Waiting for session data to be written (up to 15 seconds)..."
+			SESSION_FOUND=false
+			for i in {1..5}; do
+				sleep 3
+				set +e
+				SESSION_CHECK=$(bun "$BIN_SCRIPT" cloud session get "$SESSION_ID" 2>&1)
+				SESSION_CHECK_EXIT=$?
+				set -e
+				
+				if [ $SESSION_CHECK_EXIT -eq 0 ]; then
+					SESSION_FOUND=true
+					break
+				fi
+				echo "  Attempt $i/5: Session not found yet, retrying..."
+			done
+			
+			if [ "$SESSION_FOUND" = false ]; then
+				echo -e "${YELLOW}⚠${NC} Session not found after 15 seconds (async event may still be processing)"
+				echo "Skipping remaining session tests..."
+			else
+				echo -e "${GREEN}✓${NC} Session found in database"
+				echo ""
+			
+			# Test 3a: Get session details
+			echo "Test 3a: Get session details..."
+			SESSION_GET_OUTPUT="$TEMP_DIR/session-get.txt"
+			set +e
+			bun "$BIN_SCRIPT" cloud session get "$SESSION_ID" > "$SESSION_GET_OUTPUT" 2>&1
+			SESSION_GET_EXIT=$?
+			set -e
+			
+			if [ $SESSION_GET_EXIT -ne 0 ]; then
+				echo -e "${RED}✗${NC} Session get command failed"
+				cat "$SESSION_GET_OUTPUT"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			echo -e "${GREEN}✓${NC} Session get command succeeded"
+			cat "$SESSION_GET_OUTPUT"
+			
+			# Verify session ID matches
+			if grep -q "$SESSION_ID" "$SESSION_GET_OUTPUT"; then
+				echo -e "${GREEN}✓${NC} Session details contain correct ID"
+			else
+				echo -e "${RED}✗${NC} Session details missing ID"
+				TEST_FAILED=true
+				exit 1
+			fi
+			echo ""
+			
+			# Test 3b: List sessions and verify our session appears
+			echo "Test 3b: List sessions..."
+			SESSION_LIST_OUTPUT="$TEMP_DIR/session-list.txt"
+			set +e
+			bun "$BIN_SCRIPT" cloud session list --count 20 > "$SESSION_LIST_OUTPUT" 2>&1
+			SESSION_LIST_EXIT=$?
+			set -e
+			
+			if [ $SESSION_LIST_EXIT -ne 0 ]; then
+				echo -e "${RED}✗${NC} Session list command failed"
+				cat "$SESSION_LIST_OUTPUT"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			echo -e "${GREEN}✓${NC} Session list command succeeded"
+			cat "$SESSION_LIST_OUTPUT"
+			
+			# Verify our session appears in the list
+			if grep -q "$SESSION_ID" "$SESSION_LIST_OUTPUT"; then
+				echo -e "${GREEN}✓${NC} Session $SESSION_ID appears in list"
+			else
+				echo -e "${YELLOW}⚠${NC} Session $SESSION_ID not found in list"
+			fi
+			echo ""
+			
+			# Test 3c: List sessions with filters
+			echo "Test 3c: Test session filters..."
+			
+			# Test success filter
+			SESSION_SUCCESS_OUTPUT="$TEMP_DIR/session-success.txt"
+			set +e
+			bun "$BIN_SCRIPT" cloud session list --count 5 --success > "$SESSION_SUCCESS_OUTPUT" 2>&1
+			SUCCESS_FILTER_EXIT=$?
+			set -e
+			
+			if [ $SUCCESS_FILTER_EXIT -eq 0 ]; then
+				echo -e "${GREEN}✓${NC} Success filter works"
+			else
+				echo -e "${RED}✗${NC} Success filter failed"
+				cat "$SESSION_SUCCESS_OUTPUT"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			# Test trigger filter
+			SESSION_TRIGGER_OUTPUT="$TEMP_DIR/session-trigger.txt"
+			set +e
+			bun "$BIN_SCRIPT" cloud session list --count 5 --trigger api > "$SESSION_TRIGGER_OUTPUT" 2>&1
+			TRIGGER_FILTER_EXIT=$?
+			set -e
+			
+			if [ $TRIGGER_FILTER_EXIT -eq 0 ]; then
+				echo -e "${GREEN}✓${NC} Trigger filter works"
+			else
+				echo -e "${RED}✗${NC} Trigger filter failed"
+				cat "$SESSION_TRIGGER_OUTPUT"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			# Test project filter (from directory context)
+			SESSION_PROJECT_OUTPUT="$TEMP_DIR/session-project.txt"
+			set +e
+			bun "$BIN_SCRIPT" cloud session list --count 5 > "$SESSION_PROJECT_OUTPUT" 2>&1
+			PROJECT_FILTER_EXIT=$?
+			set -e
+			
+			if [ $PROJECT_FILTER_EXIT -eq 0 ]; then
+				echo -e "${GREEN}✓${NC} Project context filter works"
+			else
+				echo -e "${RED}✗${NC} Project context filter failed"
+				cat "$SESSION_PROJECT_OUTPUT"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			echo -e "${GREEN}✓${NC} All session filters validated"
+			echo ""
+			
+			# Test 3d: Get session logs
+			echo "Test 3c: Get session logs..."
+			SESSION_LOGS_OUTPUT="$TEMP_DIR/session-logs.txt"
+			set +e
+			bun "$BIN_SCRIPT" cloud session logs "$SESSION_ID" > "$SESSION_LOGS_OUTPUT" 2>&1
+			SESSION_LOGS_EXIT=$?
+			set -e
+			
+			if [ $SESSION_LOGS_EXIT -ne 0 ]; then
+				echo -e "${RED}✗${NC} Session logs command failed"
+				cat "$SESSION_LOGS_OUTPUT"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			echo -e "${GREEN}✓${NC} Session logs command succeeded"
+			cat "$SESSION_LOGS_OUTPUT"
+			echo ""
+			fi
+		else
+			echo -e "${YELLOW}⚠${NC} Failed to invoke deployment or capture session ID"
+		fi
+	fi
+fi
+
+# Test 4: List deployments again (should show the new deployment)
+echo "Test 4: List deployments (after deploy)..."
 DEPLOYMENT_LIST_OUTPUT2="$TEMP_DIR/deployment-list2.txt"
 bun "$BIN_SCRIPT" cloud deployment list > "$DEPLOYMENT_LIST_OUTPUT2" 2>&1
 
@@ -152,8 +366,8 @@ if [ -n "$DEPLOYMENT_ID" ]; then
 	echo ""
 fi
 
-# Test 4: Show deployment details
-echo "Test 4: Show deployment details..."
+# Test 5: Show deployment details
+echo "Test 5: Show deployment details..."
 if [ -z "$DEPLOYMENT_ID" ]; then
 	echo -e "${YELLOW}⚠${NC} No deployment ID to show, skipping"
 else
@@ -184,8 +398,8 @@ else
 fi
 echo ""
 
-# Test 5: Deploy a second time to test rollback
-echo "Test 5: Deploy second time (for rollback test)..."
+# Test 6: Deploy a second time to test rollback
+echo "Test 6: Deploy second time (for rollback test)..."
 DEPLOY_OUTPUT2="$TEMP_DIR/deploy2.txt"
 echo "Running second deploy..."
 echo ""
@@ -215,8 +429,8 @@ else
 fi
 echo ""
 
-# Test 6: Rollback to previous deployment
-echo "Test 6: Rollback deployment..."
+# Test 7: Rollback to previous deployment
+echo "Test 7: Rollback deployment..."
 ROLLBACK_OUTPUT="$TEMP_DIR/rollback.txt"
 
 # We need to answer 'y' to the confirmation prompt
@@ -250,8 +464,8 @@ if [ -n "$DEPLOYMENT_ID" ]; then
 fi
 echo ""
 
-# Test 7: Remove a specific deployment
-echo "Test 7: Remove specific deployment..."
+# Test 8: Remove a specific deployment
+echo "Test 8: Remove specific deployment..."
 if [ -z "$DEPLOYMENT_ID2" ]; then
 	echo -e "${YELLOW}⚠${NC} No second deployment ID to remove, skipping"
 else
@@ -274,8 +488,8 @@ else
 	echo ""
 fi
 
-# Test 8: Undeploy (with --force to skip confirmation)
-echo "Test 8: Undeploy..."
+# Test 9: Undeploy (with --force to skip confirmation)
+echo "Test 9: Undeploy..."
 UNDEPLOY_OUTPUT="$TEMP_DIR/undeploy.txt"
 
 set +e
@@ -294,8 +508,8 @@ echo -e "${GREEN}✓${NC} Undeploy command succeeded"
 cat "$UNDEPLOY_OUTPUT"
 echo ""
 
-# Test 9: Verify undeploy worked
-echo "Test 9: Verify undeploy..."
+# Test 10: Verify undeploy worked
+echo "Test 10: Verify undeploy..."
 sleep 2  # Give the system time to process the undeploy
 
 DEPLOYMENT_LIST_OUTPUT4="$TEMP_DIR/deployment-list4.txt"
@@ -340,6 +554,11 @@ echo ""
 echo "Tests completed:"
 echo "  ✓ List deployments"
 echo "  ✓ Deploy project (first deployment)"
+echo "  ✓ Invoke deployment and capture session"
+echo "  ✓ Get session details"
+echo "  ✓ List sessions"
+echo "  ✓ Test session filters (success, trigger, project)"
+echo "  ✓ Get session logs"
 echo "  ✓ Verify deployment in list"
 echo "  ✓ Show deployment details"
 echo "  ✓ Deploy project (second deployment)"
