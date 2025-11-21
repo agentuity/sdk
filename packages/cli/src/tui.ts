@@ -1364,3 +1364,97 @@ export function plural(count: number, singular: string, plural: string): string 
 			return plural;
 	}
 }
+
+/**
+ * Table column definition
+ */
+export interface TableColumn {
+	/** Column name */
+	name: string;
+	/** Column alignment */
+	alignment?: 'left' | 'right' | 'center';
+}
+
+/**
+ * Display data in a formatted table using console-table-printer
+ *
+ * Supports two modes:
+ * 1. Simple mode: Pass data array and optional column names
+ * 2. Advanced mode: Pass column configurations with custom names and alignment
+ *
+ * @param data - Array of data objects to display
+ * @param columns - Column names or column configurations
+ * @param options - Additional options
+ * @returns If render=true, returns the table as a string, otherwise prints to stdout
+ */
+export function table<T extends Record<string, unknown>>(
+	data: T[],
+	columns?: (keyof T)[] | TableColumn[],
+	options?: { render?: boolean }
+): string | void {
+	// Dynamic import to avoid type errors (console-table-printer has poor typings)
+	// eslint-disable-next-line @typescript-eslint/no-require-imports
+	const { Table } = require('console-table-printer') as {
+		Table: new (options?: { columns?: Array<{ name: string; alignment: string }> }) => {
+			addRow(row: Record<string, unknown>): void;
+			printTable(): void;
+			render(): string;
+		};
+	};
+
+	if (!data || data.length === 0) {
+		return options?.render ? '' : undefined;
+	}
+
+	// Determine if we're using advanced column config or simple column names
+	const isAdvancedMode = columns && columns.length > 0 && typeof columns[0] === 'object';
+
+	let tableConfig: { columns: Array<{ name: string; alignment: string }> };
+
+	if (isAdvancedMode) {
+		// Advanced mode: use provided column configurations
+		tableConfig = {
+			columns: (columns as TableColumn[]).map((col) => ({
+				name: col.name,
+				alignment: col.alignment || 'left',
+			})),
+		};
+	} else {
+		// Simple mode: determine column names from data or columns parameter
+		const columnNames = columns
+			? (columns as (keyof T)[]).map((c) => String(c))
+			: data.length > 0
+				? Object.keys(data[0])
+				: [];
+
+		tableConfig = {
+			columns: columnNames.map((name) => ({
+				name,
+				alignment: 'left',
+			})),
+		};
+	}
+
+	const t = new Table(tableConfig);
+
+	// Add rows to table
+	for (const row of data) {
+		if (columns && !isAdvancedMode) {
+			// Simple mode with column filtering
+			const filtered: Record<string, unknown> = {};
+			for (const col of columns as (keyof T)[]) {
+				filtered[String(col)] = row[col];
+			}
+			t.addRow(filtered);
+		} else {
+			// Advanced mode or no column filtering
+			t.addRow(row);
+		}
+	}
+
+	if (options?.render) {
+		return t.render();
+	} else {
+		t.printTable();
+	}
+}

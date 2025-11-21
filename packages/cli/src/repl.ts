@@ -7,7 +7,6 @@ import { getDefaultConfigDir } from './config';
 import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { z } from 'zod';
-import { Table } from 'console-table-printer';
 import { colorize } from 'json-colorizer';
 
 /**
@@ -25,12 +24,7 @@ export interface ParsedCommand {
 /**
  * Table column definition
  */
-export interface TableColumn {
-	/** Column name */
-	name: string;
-	/** Column alignment */
-	alignment?: 'left' | 'right' | 'center';
-}
+export type TableColumn = tui.TableColumn;
 
 /**
  * Context provided to command handlers
@@ -522,12 +516,8 @@ export async function createRepl(config: ReplConfig): Promise<void> {
 			signal: abortController.signal,
 			exit: exitRepl,
 			table: (columns: TableColumn[], data: Record<string, unknown>[]) => {
-				const table = new Table({ columns });
-				for (const row of data) {
-					table.addRow(row);
-				}
 				// Capture table output to buffer instead of direct stdout
-				const tableOutput = table.render();
+				const tableOutput = tui.table(data, columns, { render: true }) || '';
 				outputBuffer.push(...tableOutput.split('\n'));
 			},
 			json: (value: unknown) => {

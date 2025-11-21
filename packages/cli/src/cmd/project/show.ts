@@ -45,7 +45,7 @@ export const showSubcommand = createSubcommand({
 		if (options.json) {
 			console.log(JSON.stringify(project, null, 2));
 		} else {
-			console.table([project], ['id', 'orgId']);
+			tui.table([project], ['id', 'orgId']);
 		}
 
 		return {

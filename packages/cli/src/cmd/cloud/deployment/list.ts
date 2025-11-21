@@ -3,7 +3,6 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectDeploymentList } from '@agentuity/server';
 import { resolveProjectId } from './utils';
-import { Table } from 'console-table-printer';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 
@@ -64,28 +63,23 @@ export const listSubcommand = createSubcommand({
 				return [];
 			}
 
-			const table = new Table({
-				columns: [
-					{ name: 'ID', alignment: 'left' },
-					{ name: 'State', alignment: 'left' },
-					{ name: 'Active', alignment: 'center' },
-					{ name: 'Created', alignment: 'left' },
-					{ name: 'Message', alignment: 'left' },
-					{ name: 'Tags', alignment: 'left' },
-				],
-			});
+			const tableData = deployments.map((d) => ({
+				ID: d.id,
+				State: d.state || 'unknown',
+				Active: d.active ? 'Yes' : '',
+				Created: new Date(d.createdAt).toLocaleString(),
+				Message: d.message || '',
+				Tags: d.tags.join(', '),
+			}));
 
-			for (const d of deployments) {
-				table.addRow({
-					ID: d.id,
-					State: d.state || 'unknown',
-					Active: d.active ? 'Yes' : '',
-					Created: new Date(d.createdAt).toLocaleString(),
-					Message: d.message || '',
-					Tags: d.tags.join(', '),
-				});
-			}
-			table.printTable();
+			tui.table(tableData, [
+				{ name: 'ID', alignment: 'left' },
+				{ name: 'State', alignment: 'left' },
+				{ name: 'Active', alignment: 'center' },
+				{ name: 'Created', alignment: 'left' },
+				{ name: 'Message', alignment: 'left' },
+				{ name: 'Tags', alignment: 'left' },
+			]);
 
 			return deployments.map((d) => ({
 				id: d.id,

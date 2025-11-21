@@ -558,12 +558,12 @@ export const command = createCommand({
 
 			const showRoutes = () => {
 				tui.info('API Route Detail');
-				console.table(metadata?.routes, ['method', 'path', 'filename']);
+				tui.table(metadata?.routes ?? [], ['method', 'path', 'filename']);
 			};
 
 			const showAgents = () => {
 				tui.info('Agent Detail');
-				console.table(metadata?.agents, ['name', 'filename', 'description']);
+				tui.table(metadata?.agents ?? [], ['name', 'filename', 'description']);
 			};
 
 			process.stdin.on('data', (data) => {

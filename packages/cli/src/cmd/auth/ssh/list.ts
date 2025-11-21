@@ -1,7 +1,6 @@
 import { createSubcommand } from '../../../types';
 import { listSSHKeys } from './api';
 import * as tui from '../../../tui';
-import { Table } from 'console-table-printer';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { z } from 'zod';
@@ -56,22 +55,17 @@ export const listCommand = createSubcommand({
 			console.log(tui.bold('SSH Keys:'));
 			tui.newline();
 
-			const table = new Table({
-				columns: [
-					{ name: 'TYPE', alignment: 'left' },
-					{ name: 'FINGERPRINT', alignment: 'left' },
-					{ name: 'COMMENT', alignment: 'left' },
-				],
-			});
+			const tableData = keys.map((key) => ({
+				TYPE: key.keyType,
+				FINGERPRINT: key.fingerprint,
+				COMMENT: key.comment || tui.muted('(no comment)'),
+			}));
 
-			for (const key of keys) {
-				table.addRow({
-					TYPE: key.keyType,
-					FINGERPRINT: key.fingerprint,
-					COMMENT: key.comment || tui.muted('(no comment)'),
-				});
-			}
-			table.printTable();
+			tui.table(tableData, [
+				{ name: 'TYPE', alignment: 'left' },
+				{ name: 'FINGERPRINT', alignment: 'left' },
+				{ name: 'COMMENT', alignment: 'left' },
+			]);
 
 			return keys;
 		} catch (error) {
