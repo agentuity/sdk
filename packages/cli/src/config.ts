@@ -108,7 +108,12 @@ function expandTilde(path: string): string {
 	return path;
 }
 
+let cachedConfig: Config | null | undefined;
+
 export async function loadConfig(customPath?: string): Promise<Config | null> {
+	if (cachedConfig !== undefined) {
+		return cachedConfig;
+	}
 	const configPath = customPath ? expandTilde(customPath) : await getProfile();
 
 	try {
@@ -171,11 +176,13 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 			result.data.overrides = overrides;
 		}
 
+		cachedConfig = result.data;
 		return result.data;
 	} catch (error) {
 		if (error instanceof Error) {
 			console.error(`Error loading config from ${configPath}:`, error.message);
 		}
+		cachedConfig = null;
 		return null;
 	}
 }
@@ -230,6 +237,7 @@ export async function saveConfig(config: Config, customPath?: string): Promise<v
 	await writeFile(configPath, content + '\n', { mode: 0o600 });
 	// Ensure existing files get correct permissions on upgrade
 	await chmod(configPath, 0o600);
+	cachedConfig = config;
 }
 
 async function getOrInitConfig(): Promise<Config> {
@@ -583,7 +591,14 @@ export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {
 }
 
 export async function loadProjectSDKKey(projectDir: string): Promise<string | undefined> {
-	const files: string[] = ['.env.development', '.env.local', '.env'];
+	const files: string[] =
+		process.env.NODE_ENV === 'production'
+			? ['.env', '.env.production']
+			: ['.env.development', '.env.local', '.env'];
+	const c = await getOrInitConfig();
+	if (c) {
+		files.unshift(`.env.${c.name}`);
+	}
 	for (const filename of files) {
 		const fn = join(projectDir, filename);
 		if (existsSync(fn)) {

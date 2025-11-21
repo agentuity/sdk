@@ -10,10 +10,10 @@ export const putSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	schema: {
 		args: z.object({
-			bucket: z.string().min(1),
-			key: z.string().min(1),
-			value: z.string().min(1),
-			contentType: z.string().optional(),
+			bucket: z.string().min(1).max(64).describe('the bucket name'),
+			key: z.string().min(1).max(64).describe('the key name'),
+			value: z.string().min(1).describe('the value'),
+			contentType: z.string().optional().describe('an optional content type'),
 		}),
 	},
 

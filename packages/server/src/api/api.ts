@@ -147,6 +147,8 @@ export class APIClient {
 	}
 
 	async #makeRequest(method: string, endpoint: string, body?: unknown): Promise<Response> {
+		this.#logger.trace('sending %s to %s', method, endpoint);
+
 		const maxRetries = this.#config?.maxRetries ?? 3;
 		const baseDelayMs = this.#config?.retryDelayMs ?? 100;
 

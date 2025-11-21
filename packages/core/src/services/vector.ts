@@ -184,24 +184,58 @@ export type VectorResult<T extends Record<string, unknown> = Record<string, unkn
 	| VectorResultNotFound;
 
 /**
- * Vector storage service for managing vector embeddings
+ * Vector storage service for managing vector embeddings and semantic search
  */
 export interface VectorStorage {
 	/**
-	 * upsert a vector into the vector storage
+	 * Upsert vectors into the vector storage. You can provide either pre-computed embeddings
+	 * or text documents that will be automatically embedded.
 	 *
-	 * @param name - the name of the vector storage
-	 * @param documents - the documents for the vector upsert
+	 * @param name - the name of the vector storage namespace
+	 * @param documents - one or more documents to upsert
 	 * @returns array of results with key-to-id mappings for the upserted vectors
+	 *
+	 * @example
+	 * ```typescript
+	 * // Upsert with automatic embedding
+	 * const results = await vectorStore.upsert('products', 
+	 *   {
+	 *     key: 'chair-001',
+	 *     document: 'Comfortable office chair with lumbar support',
+	 *     metadata: { category: 'furniture', price: 299 }
+	 *   },
+	 *   {
+	 *     key: 'desk-001',
+	 *     document: 'Standing desk with adjustable height',
+	 *     metadata: { category: 'furniture', price: 599 }
+	 *   }
+	 * );
+	 * 
+	 * // Upsert with pre-computed embeddings
+	 * await vectorStore.upsert('products', {
+	 *   key: 'lamp-001',
+	 *   embeddings: [0.1, 0.2, 0.3, ...], // Your pre-computed vector
+	 *   metadata: { category: 'lighting', price: 49 }
+	 * });
+	 * ```
 	 */
 	upsert(name: string, ...documents: VectorUpsertParams[]): Promise<VectorUpsertResult[]>;
 
 	/**
-	 * get a vector from the vector storage by key
+	 * Get a single vector by its key
 	 *
-	 * @param name - the name of the vector storage
-	 * @param key - the key of the vector to get
+	 * @param name - the name of the vector storage namespace
+	 * @param key - the key of the vector to retrieve
 	 * @returns VectorResult with exists field for type-safe checking
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await vectorStore.get('products', 'chair-001');
+	 * if (result.exists) {
+	 *   console.log('Found:', result.data.metadata);
+	 *   console.log('Embeddings:', result.data.embeddings);
+	 * }
+	 * ```
 	 */
 	get<T extends Record<string, unknown> = Record<string, unknown>>(
 		name: string,
@@ -209,11 +243,19 @@ export interface VectorStorage {
 	): Promise<VectorResult<T>>;
 
 	/**
-	 * get multiple vectors from the vector storage by keys
+	 * Get multiple vectors by their keys in a single request
 	 *
-	 * @param name - the name of the vector storage
-	 * @param keys - the keys of the vectors to get
-	 * @returns a Map of key to vector data for found vectors
+	 * @param name - the name of the vector storage namespace
+	 * @param keys - the keys of the vectors to retrieve
+	 * @returns a Map of key to vector data (only includes found vectors)
+	 *
+	 * @example
+	 * ```typescript
+	 * const vectors = await vectorStore.getMany('products', 'chair-001', 'desk-001', 'lamp-001');
+	 * for (const [key, data] of vectors) {
+	 *   console.log(`${key}:`, data.metadata);
+	 * }
+	 * ```
 	 */
 	getMany<T extends Record<string, unknown> = Record<string, unknown>>(
 		name: string,
@@ -221,11 +263,33 @@ export interface VectorStorage {
 	): Promise<Map<string, VectorSearchResultWithDocument<T>>>;
 
 	/**
-	 * search for vectors in the vector storage
+	 * Search for semantically similar vectors using natural language queries
 	 *
-	 * @param name - the name of the vector storage
-	 * @param params - the parameters for the vector search
-	 * @returns the results of the vector search with type-safe metadata
+	 * @param name - the name of the vector storage namespace
+	 * @param params - search parameters including query, filters, and limits
+	 * @returns array of search results ordered by similarity (highest first)
+	 *
+	 * @example
+	 * ```typescript
+	 * // Basic semantic search
+	 * const results = await vectorStore.search('products', {
+	 *   query: 'comfortable seating for office',
+	 *   limit: 5
+	 * });
+	 * 
+	 * // Search with metadata filters and similarity threshold
+	 * const filteredResults = await vectorStore.search('products', {
+	 *   query: 'ergonomic furniture',
+	 *   limit: 10,
+	 *   similarity: 0.7, // Only results with 70%+ similarity
+	 *   metadata: { category: 'furniture', inStock: true }
+	 * });
+	 * 
+	 * for (const result of filteredResults) {
+	 *   console.log(`${result.key}: ${result.similarity * 100}% match`);
+	 *   console.log('Metadata:', result.metadata);
+	 * }
+	 * ```
 	 */
 	search<T extends Record<string, unknown> = Record<string, unknown>>(
 		name: string,
@@ -233,19 +297,36 @@ export interface VectorStorage {
 	): Promise<VectorSearchResult<T>[]>;
 
 	/**
-	 * delete vectors from the vector storage
+	 * Delete one or more vectors by their keys
 	 *
-	 * @param name - the name of the vector storage
-	 * @param keys - the keys of the vectors to delete
-	 * @returns the number of vector objects that were deleted
+	 * @param name - the name of the vector storage namespace
+	 * @param keys - one or more keys of vectors to delete
+	 * @returns the number of vectors that were deleted
+	 *
+	 * @example
+	 * ```typescript
+	 * // Delete a single vector
+	 * const deleted = await vectorStore.delete('products', 'chair-001');
+	 * console.log(`Deleted ${deleted} vector(s)`);
+	 * 
+	 * // Delete multiple vectors
+	 * await vectorStore.delete('products', 'chair-001', 'desk-001', 'lamp-001');
+	 * ```
 	 */
 	delete(name: string, ...keys: string[]): Promise<number>;
 
 	/**
-	 * check if a vector storage exists
+	 * Check if a vector storage namespace exists
 	 *
-	 * @param name - the name of the vector storage
-	 * @returns true if the storage exists, false otherwise
+	 * @param name - the name of the vector storage namespace
+	 * @returns true if the namespace exists, false otherwise
+	 *
+	 * @example
+	 * ```typescript
+	 * if (await vectorStore.exists('products')) {
+	 *   console.log('Products namespace exists');
+	 * }
+	 * ```
 	 */
 	exists(name: string): Promise<boolean>;
 }
@@ -367,7 +448,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(url, res.response);
+		throw await toServiceException(url, 'PUT', res.response);
 	}
 
 	async get<T extends Record<string, unknown> = Record<string, unknown>>(
@@ -416,7 +497,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(url, res.response);
+		throw await toServiceException(url, 'DELETE', res.response);
 	}
 
 	async getMany<T extends Record<string, unknown> = Record<string, unknown>>(
@@ -521,7 +602,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(url, res.response);
+		throw await toServiceException(url, 'POST', res.response);
 	}
 
 	async delete(name: string, ...keys: string[]): Promise<number> {
@@ -575,7 +656,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(url, res.response);
+		throw await toServiceException(url, 'DELETE', res.response);
 	}
 
 	async exists(name: string): Promise<boolean> {

@@ -98,6 +98,26 @@ type ObjectStoreCreatePublicURLResponse =
 	| ObjectStoreCreatePublicURLErrorResponse;
 
 /**
+ * Information about an object in the object store
+ */
+export interface ObjectInfo {
+	key: string;
+	size: number;
+	etag: string;
+	created_at: string;
+	updated_at: string;
+}
+
+/**
+ * Information about a bucket in the object store
+ */
+export interface BucketInfo {
+	name: string;
+	object_count: number;
+	total_bytes: number;
+}
+
+/**
  * Object store service for storing and retrieving binary data
  */
 export interface ObjectStorage {
@@ -179,6 +199,82 @@ export interface ObjectStorage {
 	 * ```
 	 */
 	createPublicURL(bucket: string, key: string, params?: CreatePublicURLParams): Promise<string>;
+
+	/**
+	 * List all buckets in the object store
+	 *
+	 * @returns array of bucket information
+	 *
+	 * @example
+	 * ```typescript
+	 * const buckets = await objectStore.listBuckets();
+	 * for (const bucket of buckets) {
+	 *   console.log(`${bucket.name}: ${bucket.object_count} objects, ${bucket.total_bytes} bytes`);
+	 * }
+	 * ```
+	 */
+	listBuckets(): Promise<BucketInfo[]>;
+
+	/**
+	 * List all keys in a bucket
+	 *
+	 * @param bucket - the bucket to list keys from
+	 * @returns array of object information
+	 *
+	 * @example
+	 * ```typescript
+	 * const objects = await objectStore.listKeys('my-bucket');
+	 * for (const obj of objects) {
+	 *   console.log(`${obj.key}: ${obj.size} bytes`);
+	 * }
+	 * ```
+	 */
+	listKeys(bucket: string): Promise<ObjectInfo[]>;
+
+	/**
+	 * List objects in a bucket with optional filtering
+	 *
+	 * @param bucket - the bucket to list objects from
+	 * @param options - optional filtering (prefix, limit)
+	 * @returns array of object information
+	 *
+	 * @example
+	 * ```typescript
+	 * const objects = await objectStore.listObjects('my-bucket', { prefix: 'docs/', limit: 100 });
+	 * for (const obj of objects) {
+	 *   console.log(`${obj.key}: ${obj.size} bytes`);
+	 * }
+	 * ```
+	 */
+	listObjects(bucket: string, options?: { prefix?: string; limit?: number }): Promise<ObjectInfo[]>;
+
+	/**
+	 * Get object metadata without retrieving the data
+	 *
+	 * @param bucket - the bucket containing the object
+	 * @param key - the key of the object
+	 * @returns object metadata (size, contentType, etc.)
+	 *
+	 * @example
+	 * ```typescript
+	 * const metadata = await objectStore.headObject('my-bucket', 'my-key');
+	 * console.log(`Size: ${metadata.size}, Type: ${metadata.contentType}`);
+	 * ```
+	 */
+	headObject(bucket: string, key: string): Promise<ObjectInfo>;
+
+	/**
+	 * Delete a bucket and all its contents
+	 *
+	 * @param bucket - the bucket to delete
+	 * @returns true if the bucket was deleted
+	 *
+	 * @example
+	 * ```typescript
+	 * await objectStore.deleteBucket('my-bucket');
+	 * ```
+	 */
+	deleteBucket(bucket: string): Promise<boolean>;
 }
 
 /**
@@ -247,7 +343,7 @@ export class ObjectStorageService implements ObjectStorage {
 			} as ObjectResultFound;
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, err);
+				throw await toServiceException(url, 'GET', err);
 			}
 			throw err;
 		}
@@ -342,7 +438,7 @@ export class ObjectStorageService implements ObjectStorage {
 			}
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, err);
+				throw await toServiceException(url, 'PUT', err);
 			}
 			throw err;
 		}
@@ -390,7 +486,7 @@ export class ObjectStorageService implements ObjectStorage {
 			);
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, err);
+				throw await toServiceException(url, 'DELETE', err);
 			}
 			throw err;
 		}
@@ -458,7 +554,223 @@ export class ObjectStorageService implements ObjectStorage {
 				throw err;
 			}
 			if (err instanceof Response) {
-				throw await toServiceException(url, err);
+				throw await toServiceException(url, 'POST', err);
+			}
+			throw err;
+		}
+	}
+
+	async listBuckets(): Promise<BucketInfo[]> {
+		const url = buildUrl(this.#baseUrl, '/object/2025-03-17/buckets');
+
+		const signal = AbortSignal.timeout(10_000);
+		const options: FetchRequest = {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.objectstore.listBuckets',
+				attributes: {},
+			},
+		};
+
+		try {
+			const result = await this.#adapter.invoke<{ buckets: BucketInfo[] }>(url, options);
+
+			if (!result.ok) {
+				throw new Error(
+					`Failed to list buckets: ${result.response.statusText} (${result.response.status})`
+				);
+			}
+
+			return result.data.buckets;
+		} catch (err) {
+			if (err instanceof Response) {
+				throw await toServiceException(url, 'GET', err);
+			}
+			throw err;
+		}
+	}
+
+	async listKeys(bucket: string): Promise<ObjectInfo[]> {
+		if (!bucket?.trim()) {
+			throw new Error('bucket is required and cannot be empty');
+		}
+
+		const url = buildUrl(this.#baseUrl, `/object/2025-03-17/keys/${encodeURIComponent(bucket)}`);
+
+		const signal = AbortSignal.timeout(10_000);
+		const options: FetchRequest = {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.objectstore.listKeys',
+				attributes: {
+					'objectstore.bucket': bucket,
+				},
+			},
+		};
+
+		try {
+			const result = await this.#adapter.invoke<{ bucket: string; objects: ObjectInfo[] }>(
+				url,
+				options
+			);
+
+			if (!result.ok) {
+				throw new Error(
+					`Failed to list keys: ${result.response.statusText} (${result.response.status})`
+				);
+			}
+
+			return result.data.objects;
+		} catch (err) {
+			if (err instanceof Response) {
+				throw await toServiceException(url, 'GET', err);
+			}
+			throw err;
+		}
+	}
+
+	async listObjects(
+		bucket: string,
+		options?: { prefix?: string; limit?: number }
+	): Promise<ObjectInfo[]> {
+		if (!bucket?.trim()) {
+			throw new Error('bucket is required and cannot be empty');
+		}
+
+		const params = new URLSearchParams();
+		if (options?.prefix) {
+			params.set('prefix', options.prefix);
+		}
+		if (options?.limit) {
+			params.set('limit', options.limit.toString());
+		}
+
+		const queryString = params.toString();
+		const url = buildUrl(
+			this.#baseUrl,
+			`/object/2025-03-17/objects/${encodeURIComponent(bucket)}${queryString ? `?${queryString}` : ''}`
+		);
+
+		const signal = AbortSignal.timeout(10_000);
+		const fetchOptions: FetchRequest = {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.objectstore.listObjects',
+				attributes: {
+					'objectstore.bucket': bucket,
+					'objectstore.prefix': options?.prefix || '',
+					'objectstore.limit': (options?.limit || 1000).toString(),
+				},
+			},
+		};
+
+		try {
+			const result = await this.#adapter.invoke<{ bucket: string; objects: ObjectInfo[] }>(
+				url,
+				fetchOptions
+			);
+
+			if (!result.ok) {
+				throw new Error(
+					`Failed to list objects: ${result.response.statusText} (${result.response.status})`
+				);
+			}
+
+			return result.data.objects;
+		} catch (err) {
+			if (err instanceof Response) {
+				throw await toServiceException(url, 'GET', err);
+			}
+			throw err;
+		}
+	}
+
+	async headObject(bucket: string, key: string): Promise<ObjectInfo> {
+		if (!bucket?.trim()) {
+			throw new Error('bucket is required and cannot be empty');
+		}
+		if (!key?.trim()) {
+			throw new Error('key is required and cannot be empty');
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/object/2025-03-17/head/${encodeURIComponent(bucket)}/${encodeURIComponent(key)}`
+		);
+
+		const signal = AbortSignal.timeout(10_000);
+		const fetchOptions: FetchRequest = {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.objectstore.headObject',
+				attributes: {
+					'objectstore.bucket': bucket,
+					'objectstore.key': key,
+				},
+			},
+		};
+
+		try {
+			const result = await this.#adapter.invoke<ObjectInfo>(url, fetchOptions);
+
+			if (!result.ok) {
+				if (result.response.status === 404) {
+					throw new Error('Object not found');
+				}
+				throw new Error(
+					`Failed to get object metadata: ${result.response.statusText} (${result.response.status})`
+				);
+			}
+
+			return result.data;
+		} catch (err) {
+			if (err instanceof Response) {
+				throw await toServiceException(url, 'GET', err);
+			}
+			throw err;
+		}
+	}
+
+	async deleteBucket(bucket: string): Promise<boolean> {
+		if (!bucket?.trim()) {
+			throw new Error('bucket is required and cannot be empty');
+		}
+
+		const url = buildUrl(this.#baseUrl, `/object/2025-03-17/${encodeURIComponent(bucket)}`);
+
+		const signal = AbortSignal.timeout(30_000);
+		const options: FetchRequest = {
+			method: 'DELETE',
+			signal,
+			telemetry: {
+				name: 'agentuity.objectstore.deleteBucket',
+				attributes: {
+					'objectstore.bucket': bucket,
+				},
+			},
+		};
+
+		try {
+			const result = await this.#adapter.invoke(url, options);
+
+			if (result.response.status === 404) {
+				return false;
+			}
+
+			if (result.response.status === 200) {
+				return true;
+			}
+
+			throw new Error(
+				`Failed to delete bucket: ${result.response.statusText} (${result.response.status})`
+			);
+		} catch (err) {
+			if (err instanceof Response) {
+				throw await toServiceException(url, 'DELETE', err);
 			}
 			throw err;
 		}

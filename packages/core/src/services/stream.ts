@@ -151,31 +151,83 @@ export interface Stream extends WritableStream {
 }
 
 /**
- * Stream API for creating and managing streams
+ * Stream API for creating and managing durable, resumable data streams.
+ * Streams are backed by durable storage and provide public URLs for access.
  */
 export interface StreamStorage {
 	/**
-	 * create a new stream
+	 * Create a new stream for writing data that can be read multiple times
 	 *
-	 * @param name - the name of the stream (1-254 characters). you can group streams by name to organize them.
-	 * @param props - optional properties for creating the stream
+	 * @param name - the name of the stream (1-254 characters). Use names to group and organize streams.
+	 * @param props - optional properties including metadata, content type, and compression
 	 * @returns a Promise that resolves to the created Stream
+	 *
+	 * @example
+	 * ```typescript
+	 * // Create a simple text stream
+	 * const stream = await streams.create('agent-logs');
+	 * await stream.write('Starting agent execution\n');
+	 * await stream.write('Processing data...\n');
+	 * await stream.close();
+	 * console.log('Stream URL:', stream.url);
+	 * 
+	 * // Create a compressed JSON stream with metadata
+	 * const dataStream = await streams.create('data-export', {
+	 *   contentType: 'application/json',
+	 *   compress: true,
+	 *   metadata: { exportDate: '2024-01-15', version: '1.0' }
+	 * });
+	 * await dataStream.write({ records: [...] });
+	 * await dataStream.close();
+	 * 
+	 * // Read back from the stream
+	 * const reader = dataStream.getReader();
+	 * for await (const chunk of reader) {
+	 *   console.log('Chunk:', chunk);
+	 * }
+	 * ```
 	 */
 	create(name: string, props?: CreateStreamProps): Promise<Stream>;
 
 	/**
-	 * list streams with optional filtering and pagination
+	 * List streams with optional filtering and pagination
 	 *
 	 * @param params - optional parameters for filtering and pagination
-	 * @returns a Promise that resolves to the list of streams
+	 * @returns a Promise that resolves to the list of streams with metadata
+	 *
+	 * @example
+	 * ```typescript
+	 * // List all streams
+	 * const all = await streams.list();
+	 * console.log(`Found ${all.total} streams`);
+	 * 
+	 * // Filter by name
+	 * const logs = await streams.list({ name: 'agent-logs' });
+	 * 
+	 * // Filter by metadata and paginate
+	 * const filtered = await streams.list({
+	 *   metadata: { type: 'export' },
+	 *   limit: 50,
+	 *   offset: 100
+	 * });
+	 * 
+	 * for (const stream of filtered.streams) {
+	 *   console.log(`${stream.name}: ${stream.sizeBytes} bytes at ${stream.url}`);
+	 * }
+	 * ```
 	 */
 	list(params?: ListStreamsParams): Promise<ListStreamsResponse>;
 
 	/**
-	 * delete a stream by id
+	 * Delete a stream by its ID
 	 *
-	 * @param id - the stream id to delete
+	 * @param id - the stream ID to delete
 	 * @returns a Promise that resolves when the stream is deleted
+	 *
+	 * @example
+	 * ```typescript
+	 * await streams.delete('stream-id-123');
+	 * ```
 	 */
 	delete(id: string): Promise<void>;
 }
@@ -537,7 +589,7 @@ export class StreamStorageService implements StreamStorage {
 
 			return stream;
 		}
-		throw await toServiceException(url, res.response);
+		throw await toServiceException(url, 'POST', res.response);
 	}
 
 	async list(params?: ListStreamsParams): Promise<ListStreamsResponse> {
@@ -587,7 +639,7 @@ export class StreamStorageService implements StreamStorage {
 		if (res.ok) {
 			return res.data;
 		}
-		throw await toServiceException(url, res.response);
+		throw await toServiceException(url, 'POST', res.response);
 	}
 
 	async delete(id: string): Promise<void> {
@@ -609,6 +661,6 @@ export class StreamStorageService implements StreamStorage {
 		if (res.ok) {
 			return;
 		}
-		throw await toServiceException(url, res.response);
+		throw await toServiceException(url, 'DELETE', res.response);
 	}
 }

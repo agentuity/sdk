@@ -10,8 +10,8 @@ export const getSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	schema: {
 		args: z.object({
-			bucket: z.string().min(1),
-			key: z.string().min(1),
+			bucket: z.string().min(1).describe('the bucket name'),
+			key: z.string().min(1).describe('the key name'),
 		}),
 	},
 

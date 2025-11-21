@@ -5,6 +5,7 @@
 - **Build**: `bun run build` (compiles your application)
 - **Dev**: `bun run dev` (starts development server)
 - **Typecheck**: `bun run typecheck` (runs TypeScript type checking)
+- **Deploy**: `bun run deploy` (deploys your app to the Agentuity cloud)
 
 ## Architecture
 

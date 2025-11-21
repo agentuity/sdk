@@ -211,8 +211,128 @@ else
 fi
 echo ""
 
-# Step 5: Cleanup test objects
-echo "Step 5: Cleaning up test objects..."
+# Step 5: Test headObject operation
+echo "Step 5: Testing headObject (metadata retrieval)..."
+HEAD_RESPONSE=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "headObject",
+    "bucket": "'"$BUCKET"'",
+    "key": "binary-file.bin"
+  }')
+
+if echo "$HEAD_RESPONSE" | jq -e '.success == true' > /dev/null 2>&1; then
+	SIZE=$(echo "$HEAD_RESPONSE" | jq -r '.result.size')
+	CONTENT_TYPE=$(echo "$HEAD_RESPONSE" | jq -r '.result.contentType')
+	echo -e "${GREEN}✓${NC} headObject returned metadata: size=$SIZE, contentType=$CONTENT_TYPE"
+	
+	if [ "$SIZE" = "8" ]; then
+		echo -e "${GREEN}✓${NC} Size matches expected (8 bytes)"
+	else
+		echo -e "${RED}✗${NC} Size mismatch: expected 8, got $SIZE"
+		exit 1
+	fi
+else
+	echo -e "${RED}✗${NC} Failed to retrieve object metadata"
+	echo "$HEAD_RESPONSE" | jq .
+	exit 1
+fi
+echo ""
+
+# Step 6: Test listObjects operation
+echo "Step 6: Testing listObjects (list objects in bucket)..."
+LIST_RESPONSE=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "listObjects",
+    "bucket": "'"$BUCKET"'"
+  }')
+
+if echo "$LIST_RESPONSE" | jq -e '.success == true' > /dev/null 2>&1; then
+	OBJECT_COUNT=$(echo "$LIST_RESPONSE" | jq '.result | length')
+	echo -e "${GREEN}✓${NC} listObjects returned $OBJECT_COUNT object(s)"
+	
+	# Verify large-binary.bin is in the list (binary-file.bin was deleted in step 3)
+	HAS_LARGE=$(echo "$LIST_RESPONSE" | jq '[.result[] | select(.key == "large-binary.bin")] | length')
+	
+	if [ "$HAS_LARGE" -ge "1" ]; then
+		echo -e "${GREEN}✓${NC} Expected object found in listing"
+	else
+		echo -e "${RED}✗${NC} Expected object not found in listing"
+		echo "$LIST_RESPONSE" | jq .
+		exit 1
+	fi
+else
+	echo -e "${RED}✗${NC} Failed to list objects"
+	echo "$LIST_RESPONSE" | jq .
+	exit 1
+fi
+echo ""
+
+# Step 7: Test listObjects with prefix filter
+echo "Step 7: Testing listObjects with prefix filter..."
+LIST_PREFIX=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "listObjects",
+    "bucket": "'"$BUCKET"'",
+    "prefix": "large-"
+  }')
+
+if echo "$LIST_PREFIX" | jq -e '.success == true' > /dev/null 2>&1; then
+	PREFIX_COUNT=$(echo "$LIST_PREFIX" | jq '.result | length')
+	echo -e "${GREEN}✓${NC} listObjects with prefix returned $PREFIX_COUNT object(s)"
+	
+	# Should only have large-binary.bin
+	if [ "$PREFIX_COUNT" = "1" ]; then
+		FOUND_KEY=$(echo "$LIST_PREFIX" | jq -r '.result[0].key')
+		if [ "$FOUND_KEY" = "large-binary.bin" ]; then
+			echo -e "${GREEN}✓${NC} Prefix filter working correctly"
+		else
+			echo -e "${RED}✗${NC} Wrong object returned: $FOUND_KEY"
+			exit 1
+		fi
+	else
+		echo -e "${RED}✗${NC} Expected 1 object with prefix 'large-', got $PREFIX_COUNT"
+		exit 1
+	fi
+else
+	echo -e "${RED}✗${NC} Failed to list objects with prefix"
+	echo "$LIST_PREFIX" | jq .
+	exit 1
+fi
+echo ""
+
+# Step 8: Test listBuckets operation
+echo "Step 8: Testing listBuckets..."
+BUCKETS_RESPONSE=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operation": "listBuckets"
+  }')
+
+if echo "$BUCKETS_RESPONSE" | jq -e '.success == true' > /dev/null 2>&1; then
+	BUCKET_COUNT=$(echo "$BUCKETS_RESPONSE" | jq '.result | length')
+	echo -e "${GREEN}✓${NC} listBuckets returned $BUCKET_COUNT bucket(s)"
+	
+	# Verify our test bucket is in the list
+	HAS_TEST_BUCKET=$(echo "$BUCKETS_RESPONSE" | jq '[.result[] | select(.name == "'"$BUCKET"'")] | length')
+	if [ "$HAS_TEST_BUCKET" -ge "1" ]; then
+		echo -e "${GREEN}✓${NC} Test bucket found in listing"
+	else
+		echo -e "${RED}✗${NC} Test bucket not found in listing"
+		echo "$BUCKETS_RESPONSE" | jq .
+		exit 1
+	fi
+else
+	echo -e "${RED}✗${NC} Failed to list buckets"
+	echo "$BUCKETS_RESPONSE" | jq .
+	exit 1
+fi
+echo ""
+
+# Step 9: Cleanup test objects
+echo "Step 9: Cleaning up test objects..."
 curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
   -d '{"operation": "delete", "bucket": "'"$BUCKET"'", "key": "binary-file.bin"}' > /dev/null
@@ -227,7 +347,12 @@ echo ""
 echo "========================================="
 echo -e "${GREEN}ALL TESTS PASSED!${NC}"
 echo "Binary data can be stored and retrieved without corruption."
-echo "Tested: null bytes, high bytes, and 1KB random data."
+echo "Tested:"
+echo "  ✓ null bytes, high bytes, and 1KB random data"
+echo "  ✓ headObject - metadata retrieval"
+echo "  ✓ listObjects - list all objects"
+echo "  ✓ listObjects - prefix filtering"
+echo "  ✓ listBuckets - bucket listing"
 echo "========================================="
 echo ""
 

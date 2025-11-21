@@ -10,9 +10,9 @@ export const urlSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	schema: {
 		args: z.object({
-			bucket: z.string().min(1),
-			key: z.string().min(1),
-			expires: z.coerce.number().min(60).optional(),
+			bucket: z.string().min(1).describe('the bucket name'),
+			key: z.string().min(1).describe('the key name'),
+			expires: z.coerce.number().min(60).optional().describe('the expiration in seconds'),
 		}),
 	},
 

@@ -148,8 +148,80 @@ else
 fi
 echo ""
 
-# Step 8: Cleanup - delete remaining test keys
-echo "Step 8: Cleaning up remaining keys..."
+# Step 8: Test getKeys - List all keys in namespace
+echo "Step 8: Testing getKeys - List all keys..."
+KEYS_RESPONSE=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d "{\"operation\":\"getKeys\"}")
+
+echo "$KEYS_RESPONSE" | jq .
+SUCCESS=$(echo "$KEYS_RESPONSE" | jq -r .success)
+KEY_COUNT=$(echo "$KEYS_RESPONSE" | jq -r '.result | length')
+
+if [ "$SUCCESS" = "true" ] && [ "$KEY_COUNT" -ge 3 ]; then
+	echo -e "${GREEN}✓ PASS:${NC} getKeys returned $KEY_COUNT keys"
+else
+	echo -e "${RED}✗ FAIL:${NC} getKeys operation failed"
+	exit 1
+fi
+echo ""
+
+# Step 9: Test search - Search for keys matching pattern
+echo "Step 9: Testing search - Search for matching keys..."
+SEARCH_RESPONSE=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d "{\"operation\":\"search\",\"keyword\":\"multi-key\"}")
+
+echo "$SEARCH_RESPONSE" | jq .
+SUCCESS=$(echo "$SEARCH_RESPONSE" | jq -r .success)
+MATCH_COUNT=$(echo "$SEARCH_RESPONSE" | jq -r '.result | length')
+
+if [ "$SUCCESS" = "true" ] && [ "$MATCH_COUNT" -ge 3 ]; then
+	echo -e "${GREEN}✓ PASS:${NC} search found $MATCH_COUNT matching keys"
+else
+	echo -e "${RED}✗ FAIL:${NC} search operation failed"
+	exit 1
+fi
+echo ""
+
+# Step 10: Test getStats - Get namespace statistics
+echo "Step 10: Testing getStats - Get namespace statistics..."
+STATS_RESPONSE=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d "{\"operation\":\"getStats\"}")
+
+echo "$STATS_RESPONSE" | jq .
+SUCCESS=$(echo "$STATS_RESPONSE" | jq -r .success)
+KEY_COUNT=$(echo "$STATS_RESPONSE" | jq -r '.result.count')
+
+if [ "$SUCCESS" = "true" ] && [ "$KEY_COUNT" -ge 3 ]; then
+	echo -e "${GREEN}✓ PASS:${NC} getStats shows $KEY_COUNT keys"
+else
+	echo -e "${RED}✗ FAIL:${NC} getStats operation failed"
+	exit 1
+fi
+echo ""
+
+# Step 11: Test getNamespaces - List all namespaces
+echo "Step 11: Testing getNamespaces - List all namespaces..."
+NAMESPACES_RESPONSE=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d "{\"operation\":\"getNamespaces\"}")
+
+echo "$NAMESPACES_RESPONSE" | jq .
+SUCCESS=$(echo "$NAMESPACES_RESPONSE" | jq -r .success)
+NAMESPACE_COUNT=$(echo "$NAMESPACES_RESPONSE" | jq -r '.result | length')
+
+if [ "$SUCCESS" = "true" ] && [ "$NAMESPACE_COUNT" -ge 1 ]; then
+	echo -e "${GREEN}✓ PASS:${NC} getNamespaces returned $NAMESPACE_COUNT namespace(s)"
+else
+	echo -e "${RED}✗ FAIL:${NC} getNamespaces operation failed"
+	exit 1
+fi
+echo ""
+
+# Step 12: Cleanup - delete remaining test keys
+echo "Step 12: Cleaning up remaining keys..."
 for i in {1..3}; do
 	curl -s -X POST "$BASE_URL" \
 	  -H "Content-Type: application/json" \
@@ -160,7 +232,12 @@ echo ""
 
 echo "========================================="
 echo -e "${GREEN}ALL TESTS PASSED!${NC}"
-echo "KeyValue storage CRUD operations working correctly."
+echo "KeyValue storage CRUD and query operations working correctly."
+echo "  ✓ Basic CRUD (get, set, delete)"
+echo "  ✓ getKeys - List all keys"
+echo "  ✓ search - Search for matching keys"
+echo "  ✓ getStats - Get namespace statistics"
+echo "  ✓ getNamespaces - List all namespaces"
 echo "========================================="
 echo ""
 

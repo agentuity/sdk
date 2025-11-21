@@ -5,9 +5,13 @@ import type {
 	VectorStorage,
 	DataResult,
 	KeyValueStorageSetParams,
+	KeyValueStats,
+	KeyValueItemWithMetadata,
 	ObjectResult,
 	ObjectStorePutParams,
 	CreatePublicURLParams,
+	BucketInfo,
+	ObjectInfo,
 	Stream,
 	CreateStreamProps,
 	ListStreamsParams,
@@ -47,6 +51,37 @@ export class CustomKeyValueStorage implements KeyValueStorage {
 	async delete(_name: string, _key: string): Promise<void> {
 		// No-op
 	}
+
+	async getStats(_name: string): Promise<KeyValueStats> {
+		return { sum: 0, count: 0 };
+	}
+
+	async getAllStats(): Promise<Record<string, KeyValueStats>> {
+		return {};
+	}
+
+	async getNamespaces(): Promise<string[]> {
+		return [];
+	}
+
+	async search<T = unknown>(
+		_name: string,
+		_keyword: string
+	): Promise<Record<string, KeyValueItemWithMetadata<T>>> {
+		return {};
+	}
+
+	async getKeys(_name: string): Promise<string[]> {
+		return [];
+	}
+
+	async deleteNamespace(_name: string): Promise<void> {
+		// No-op
+	}
+
+	async createNamespace(_name: string): Promise<void> {
+		// No-op
+	}
 }
 
 export class CustomObjectStorage implements ObjectStorage {
@@ -78,6 +113,32 @@ export class CustomObjectStorage implements ObjectStorage {
 		_params?: CreatePublicURLParams
 	): Promise<string> {
 		return 'https://custom.example.com/public-url';
+	}
+
+	async listBuckets(): Promise<BucketInfo[]> {
+		return [];
+	}
+
+	async listKeys(_bucket: string): Promise<ObjectInfo[]> {
+		return [];
+	}
+
+	async listObjects(_bucket: string, _options?: { prefix?: string; limit?: number }): Promise<ObjectInfo[]> {
+		return [];
+	}
+
+	async headObject(_bucket: string, _key: string): Promise<ObjectInfo> {
+		return {
+			key: _key,
+			size: 100,
+			etag: 'custom-etag',
+			created_at: new Date().toISOString(),
+			updated_at: new Date().toISOString(),
+		};
+	}
+
+	async deleteBucket(_bucket: string): Promise<boolean> {
+		return true;
 	}
 }
 

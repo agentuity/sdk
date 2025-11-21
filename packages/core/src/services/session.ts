@@ -45,20 +45,58 @@ export const SessionCompleteEventDelayedSchema = z.intersection(
 );
 
 /**
- * SessionEventProvider is a provider for logging session events
+ * SessionEventProvider is a provider for logging and tracking agent session lifecycle events.
+ * Sessions represent individual agent executions triggered by API calls, cron jobs, or other sources.
  */
 export interface SessionEventProvider {
 	/**
-	 * called when the session starts
+	 * Called when an agent session starts. Records the initial context and metadata
+	 * for the session including trigger source, environment, and routing information.
 	 *
-	 * @param event SessionStartEvent
+	 * @param event - SessionStartEvent containing session initialization data
+	 *
+	 * @example
+	 * ```typescript
+	 * await sessionProvider.start({
+	 *   id: 'session-123',
+	 *   threadId: 'thread-abc',
+	 *   orgId: 'org-456',
+	 *   projectId: 'proj-789',
+	 *   deploymentId: 'deploy-xyz',
+	 *   routeId: 'route-001',
+	 *   environment: 'production',
+	 *   devmode: false,
+	 *   url: '/api/agent/chat',
+	 *   method: 'POST',
+	 *   trigger: 'api'
+	 * });
+	 * ```
 	 */
 	start(event: SessionStartEvent): Promise<void>;
 
 	/**
-	 * called when the session completes
+	 * Called when an agent session completes (successfully or with error).
+	 * Records final status, any errors, and which agents participated.
 	 *
-	 * @param event SessionCompleteEvent
+	 * @param event - SessionCompleteEvent containing completion status and results
+	 *
+	 * @example
+	 * ```typescript
+	 * // Successful completion
+	 * await sessionProvider.complete({
+	 *   id: 'session-123',
+	 *   statusCode: 200,
+	 *   agentIds: ['agent-1', 'agent-2']
+	 * });
+	 * 
+	 * // Completion with error
+	 * await sessionProvider.complete({
+	 *   id: 'session-123',
+	 *   statusCode: 500,
+	 *   error: 'Database connection timeout',
+	 *   agentIds: ['agent-1']
+	 * });
+	 * ```
 	 */
 	complete(event: SessionCompleteEvent): Promise<void>;
 }

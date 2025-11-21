@@ -5,6 +5,8 @@ import type {
 	ObjectResultNotFound,
 	ObjectStorePutParams,
 	CreatePublicURLParams,
+	BucketInfo,
+	ObjectInfo,
 } from '@agentuity/core';
 import { now } from './_util';
 
@@ -148,5 +150,25 @@ export class LocalObjectStorage implements ObjectStorage {
 		// Return local HTTP URL
 		// Note: params.expiresDuration is ignored for local implementation
 		return `${this.#serverUrl}/_agentuity/local/object/${encodeURIComponent(bucket)}/${encodeURIComponent(key)}`;
+	}
+
+	async listBuckets(): Promise<BucketInfo[]> {
+		throw new Error('listBuckets not implemented for local storage');
+	}
+
+	async listKeys(_bucket: string): Promise<ObjectInfo[]> {
+		throw new Error('listKeys not implemented for local storage');
+	}
+
+	async listObjects(_bucket: string, _options?: { prefix?: string; limit?: number }): Promise<ObjectInfo[]> {
+		throw new Error('listObjects not implemented for local storage');
+	}
+
+	async headObject(_bucket: string, _key: string): Promise<ObjectInfo> {
+		throw new Error('headObject not implemented for local storage');
+	}
+
+	async deleteBucket(_bucket: string): Promise<boolean> {
+		throw new Error('deleteBucket not implemented for local storage');
 	}
 }

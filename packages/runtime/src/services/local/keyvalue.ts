@@ -4,6 +4,8 @@ import type {
 	DataResult,
 	DataResultNotFound,
 	KeyValueStorageSetParams,
+	KeyValueStats,
+	KeyValueItemWithMetadata,
 } from '@agentuity/core';
 import { now } from './_util';
 
@@ -114,5 +116,36 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 		`);
 
 		stmt.run(this.#projectPath, name, key);
+	}
+
+	async getStats(_name: string): Promise<KeyValueStats> {
+		throw new Error('getStats not implemented for local storage');
+	}
+
+	async getAllStats(): Promise<Record<string, KeyValueStats>> {
+		throw new Error('getAllStats not implemented for local storage');
+	}
+
+	async getNamespaces(): Promise<string[]> {
+		throw new Error('getNamespaces not implemented for local storage');
+	}
+
+	async search<T = unknown>(
+		_name: string,
+		_keyword: string
+	): Promise<Record<string, KeyValueItemWithMetadata<T>>> {
+		throw new Error('search not implemented for local storage');
+	}
+
+	async getKeys(_name: string): Promise<string[]> {
+		throw new Error('getKeys not implemented for local storage');
+	}
+
+	async deleteNamespace(_name: string): Promise<void> {
+		throw new Error('deleteNamespace not implemented for local storage');
+	}
+
+	async createNamespace(_name: string): Promise<void> {
+		throw new Error('createNamespace not implemented for local storage');
 	}
 }

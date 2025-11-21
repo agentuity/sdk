@@ -15,7 +15,7 @@ export type FetchResponse<T> = FetchErrorResponse | FetchSuccessResponse<T>;
 export type Body = string | Buffer | ArrayBuffer | ReadableStream;
 
 export interface FetchRequest {
-	method: 'GET' | 'PUT' | 'POST' | 'DELETE';
+	method: 'GET' | 'PUT' | 'POST' | 'DELETE' | 'HEAD';
 	body?: Body;
 	signal?: AbortSignal;
 	contentType?: string;

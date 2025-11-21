@@ -7,9 +7,10 @@ const agent = createAgent({
 	},
 	schema: {
 		input: z.object({
-			operation: z.enum(['set', 'get', 'delete']),
-			key: z.string(),
+			operation: z.enum(['set', 'get', 'delete', 'getKeys', 'search', 'getStats', 'getNamespaces']),
+			key: z.string().optional(),
 			value: z.string().optional(),
+			keyword: z.string().optional(),
 		}),
 		output: z.object({
 			operation: z.string(),
@@ -17,13 +18,13 @@ const agent = createAgent({
 			result: z.any().optional(),
 		}),
 	},
-	handler: async (c: AgentContext, { operation, key, value }) => {
+	handler: async (c: AgentContext, { operation, key, value, keyword }) => {
 		const storeName = 'test-kv-store';
 
 		switch (operation) {
 			case 'set': {
-				if (!value) {
-					throw new Error('Value is required for set operation');
+				if (!key || !value) {
+					throw new Error('Key and value are required for set operation');
 				}
 				await c.kv.set(storeName, key, value, { ttl: 350000 });
 				return {
@@ -34,6 +35,9 @@ const agent = createAgent({
 			}
 
 			case 'get': {
+				if (!key) {
+					throw new Error('Key is required for get operation');
+				}
 				const result = await c.kv.get(storeName, key);
 				return {
 					operation,
@@ -43,11 +47,53 @@ const agent = createAgent({
 			}
 
 			case 'delete': {
+				if (!key) {
+					throw new Error('Key is required for delete operation');
+				}
 				await c.kv.delete(storeName, key);
 				return {
 					operation,
 					success: true,
 					result: `Deleted ${key}`,
+				};
+			}
+
+			case 'getKeys': {
+				const keys = await c.kv.getKeys(storeName);
+				return {
+					operation,
+					success: true,
+					result: keys,
+				};
+			}
+
+			case 'search': {
+				if (!keyword) {
+					throw new Error('Keyword is required for search operation');
+				}
+				const results = await c.kv.search(storeName, keyword);
+				return {
+					operation,
+					success: true,
+					result: Object.keys(results),
+				};
+			}
+
+			case 'getStats': {
+				const stats = await c.kv.getStats(storeName);
+				return {
+					operation,
+					success: true,
+					result: stats,
+				};
+			}
+
+			case 'getNamespaces': {
+				const namespaces = await c.kv.getNamespaces();
+				return {
+					operation,
+					success: true,
+					result: namespaces,
 				};
 			}
 		}

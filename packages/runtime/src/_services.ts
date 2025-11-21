@@ -4,6 +4,7 @@ import {
 	ObjectStorageService,
 	StreamStorageService,
 	VectorStorageService,
+	type FetchAdapter,
 	type KeyValueStorage,
 	type ObjectStorage,
 	type StreamStorage,
@@ -29,7 +30,7 @@ import {
 	HTTPEvalRunEventProvider,
 } from './services/evalrun';
 import { injectTraceContextToHeaders } from './otel/http';
-import { getLogger, getTracer } from './_server';
+import { getTracer } from './_server';
 import { getSDKVersion, isAuthenticated, isProduction } from './_config';
 import type { AppConfig } from './app';
 import {
@@ -58,117 +59,123 @@ const vectorBaseUrl = serviceUrls.vector;
 const objectBaseUrl = serviceUrls.objectstore;
 const catalystBaseUrl = serviceUrls.catalyst;
 
-const adapter = createServerFetchAdapter({
-	headers: {
-		Authorization: bearerKey,
-		'User-Agent': userAgent,
-	},
-	onBefore: async (url, options, callback) => {
-		getLogger()?.debug('before request: %s with options: %s', url, options);
-		if (!options.telemetry) {
-			return callback();
-		}
-		options.headers = { ...options.headers, ...injectTraceContextToHeaders() };
-		const tracer = getTracer() ?? trace.getTracer('agentuity');
-		const currentContext = context.active();
-		const span = tracer.startSpan(
-			options.telemetry.name,
-			{ attributes: options.telemetry.attributes, kind: SpanKind.CLIENT },
-			currentContext
-		);
-		const spanContext = trace.setSpan(currentContext, span);
-		try {
-			await context.with(spanContext, callback);
-			span.setStatus({ code: SpanStatusCode.OK });
-		} catch (err) {
-			const e = err as Error;
-			span.recordException(e);
-			span.setStatus({ code: SpanStatusCode.ERROR, message: e?.message ?? String(err) });
-			throw err;
-		} finally {
-			span.end();
-		}
-	},
-	onAfter: async (url, options, result, err) => {
-		getLogger()?.debug('after request: %s (%d) => %s', url, result.response.status, err);
-		if (err) {
-			return;
-		}
-		const span = trace.getSpan(context.active());
-		switch (options.telemetry?.name) {
-			case 'agentuity.keyvalue.get': {
-				if (result.response.status === 404) {
-					span?.addEvent('miss');
-				} else if (result.response.ok) {
-					span?.addEvent('hit');
+let adapter: FetchAdapter;
+
+const createFetchAdapter = (logger: Logger) =>
+	createServerFetchAdapter(
+		{
+			headers: {
+				Authorization: bearerKey,
+				'User-Agent': userAgent,
+			},
+			onBefore: async (url, options, callback) => {
+				logger.debug('before request: %s with options: %s', url, options);
+				if (!options.telemetry) {
+					return callback();
 				}
-				break;
-			}
-			case 'agentuity.stream.create': {
-				if (result.response.ok) {
-					const res = result.data as { id: string };
-					span?.setAttributes({
-						'stream.id': res.id,
-						'stream.url': `${streamBaseUrl}/${res.id}`,
-					});
+				options.headers = { ...options.headers, ...injectTraceContextToHeaders() };
+				const tracer = getTracer() ?? trace.getTracer('agentuity');
+				const currentContext = context.active();
+				const span = tracer.startSpan(
+					options.telemetry.name,
+					{ attributes: options.telemetry.attributes, kind: SpanKind.CLIENT },
+					currentContext
+				);
+				const spanContext = trace.setSpan(currentContext, span);
+				try {
+					await context.with(spanContext, callback);
+					span.setStatus({ code: SpanStatusCode.OK });
+				} catch (err) {
+					const e = err as Error;
+					span.recordException(e);
+					span.setStatus({ code: SpanStatusCode.ERROR, message: e?.message ?? String(err) });
+					throw err;
+				} finally {
+					span.end();
 				}
-				break;
-			}
-			case 'agentuity.stream.list': {
-				const response = result.data as ListStreamsResponse;
-				if (response && span) {
-					span.setAttributes({
-						'stream.count': response.streams.length,
-						'stream.total': response.total,
-					});
+			},
+			onAfter: async (url, options, result, err) => {
+				logger.debug('after request: %s (%d) => %s', url, result.response.status, err);
+				if (err) {
+					return;
 				}
-				break;
-			}
-			case 'agentuity.vector.upsert': {
-				if (result.response.ok) {
-					const data = result.data as VectorUpsertResult[];
-					span?.setAttributes({
-						'vector.count': data.length,
-					});
+				const span = trace.getSpan(context.active());
+				switch (options.telemetry?.name) {
+					case 'agentuity.keyvalue.get': {
+						if (result.response.status === 404) {
+							span?.addEvent('miss');
+						} else if (result.response.ok) {
+							span?.addEvent('hit');
+						}
+						break;
+					}
+					case 'agentuity.stream.create': {
+						if (result.response.ok) {
+							const res = result.data as { id: string };
+							span?.setAttributes({
+								'stream.id': res.id,
+								'stream.url': `${streamBaseUrl}/${res.id}`,
+							});
+						}
+						break;
+					}
+					case 'agentuity.stream.list': {
+						const response = result.data as ListStreamsResponse;
+						if (response && span) {
+							span.setAttributes({
+								'stream.count': response.streams.length,
+								'stream.total': response.total,
+							});
+						}
+						break;
+					}
+					case 'agentuity.vector.upsert': {
+						if (result.response.ok) {
+							const data = result.data as VectorUpsertResult[];
+							span?.setAttributes({
+								'vector.count': data.length,
+							});
+						}
+						break;
+					}
+					case 'agentuity.vector.search': {
+						if (result.response.ok) {
+							const data = result.data as VectorSearchResult[];
+							span?.setAttributes({
+								'vector.results': data.length,
+							});
+						}
+						break;
+					}
+					case 'agentuity.vector.get': {
+						if (result.response.status === 404) {
+							span?.addEvent('miss');
+						} else if (result.response.ok) {
+							span?.addEvent('hit');
+						}
+						break;
+					}
+					case 'agentuity.objectstore.get': {
+						if (result.response.status === 404) {
+							span?.addEvent('miss');
+						} else if (result.response.ok) {
+							span?.addEvent('hit');
+						}
+						break;
+					}
+					case 'agentuity.objectstore.delete': {
+						if (result.response.status === 404) {
+							span?.addEvent('not_found', { deleted: false });
+						} else if (result.response.ok) {
+							span?.addEvent('deleted', { deleted: true });
+						}
+						break;
+					}
 				}
-				break;
-			}
-			case 'agentuity.vector.search': {
-				if (result.response.ok) {
-					const data = result.data as VectorSearchResult[];
-					span?.setAttributes({
-						'vector.results': data.length,
-					});
-				}
-				break;
-			}
-			case 'agentuity.vector.get': {
-				if (result.response.status === 404) {
-					span?.addEvent('miss');
-				} else if (result.response.ok) {
-					span?.addEvent('hit');
-				}
-				break;
-			}
-			case 'agentuity.objectstore.get': {
-				if (result.response.status === 404) {
-					span?.addEvent('miss');
-				} else if (result.response.ok) {
-					span?.addEvent('hit');
-				}
-				break;
-			}
-			case 'agentuity.objectstore.delete': {
-				if (result.response.status === 404) {
-					span?.addEvent('not_found', { deleted: false });
-				} else if (result.response.ok) {
-					span?.addEvent('deleted', { deleted: true });
-				}
-				break;
-			}
-		}
-	},
-});
+			},
+		},
+		logger
+	);
 
 let kv: KeyValueStorage;
 let objectStore: ObjectStorage;
@@ -185,6 +192,7 @@ let localRouter: any | null = null;
 export function createServices(logger: Logger, config?: AppConfig, serverUrl?: string) {
 	const authenticated = isAuthenticated();
 	const useLocal = config?.services?.useLocal ?? false;
+	adapter = createFetchAdapter(logger);
 
 	// Use local services if explicitly requested OR if not authenticated
 	const shouldUseLocal =

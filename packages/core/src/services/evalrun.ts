@@ -34,20 +34,55 @@ export const EvalRunCompleteEventDelayedSchema = z.intersection(
 );
 
 /**
- * EvalRunEventProvider is a provider for logging eval run events
+ * EvalRunEventProvider is a provider for logging and tracking agent evaluation run lifecycle events.
+ * Eval runs represent test executions of agents for quality assurance and performance monitoring.
  */
 export interface EvalRunEventProvider {
 	/**
-	 * called when the eval run starts
+	 * Called when an agent evaluation run starts. Records the initial context including
+	 * the evaluation ID, associated session, and organization/project metadata.
 	 *
-	 * @param event EvalRunStartEvent
+	 * @param event - EvalRunStartEvent containing evaluation initialization data
+	 *
+	 * @example
+	 * ```typescript
+	 * await evalProvider.start({
+	 *   id: 'eval-run-123',
+	 *   sessionId: 'session-abc',
+	 *   evalId: 'eval-def',
+	 *   orgId: 'org-456',
+	 *   projectId: 'proj-789',
+	 *   devmode: true
+	 * });
+	 * ```
 	 */
 	start(event: EvalRunStartEvent): Promise<void>;
 
 	/**
-	 * called when the eval run completes
+	 * Called when an agent evaluation run completes (successfully or with error).
+	 * Records final results, metrics, and any errors encountered during evaluation.
 	 *
-	 * @param event EvalRunCompleteEvent
+	 * @param event - EvalRunCompleteEvent containing evaluation results and status
+	 *
+	 * @example
+	 * ```typescript
+	 * // Successful evaluation completion
+	 * await evalProvider.complete({
+	 *   id: 'eval-run-123',
+	 *   result: {
+	 *     passed: true,
+	 *     score: 0.95,
+	 *     metrics: { latency: 250, accuracy: 0.98 }
+	 *   }
+	 * });
+	 * 
+	 * // Evaluation with error
+	 * await evalProvider.complete({
+	 *   id: 'eval-run-123',
+	 *   error: 'Agent timeout after 30 seconds',
+	 *   result: { passed: false }
+	 * });
+	 * ```
 	 */
 	complete(event: EvalRunCompleteEvent): Promise<void>;
 }

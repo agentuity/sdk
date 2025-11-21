@@ -1341,3 +1341,14 @@ export function json(value: unknown) {
 	}
 	console.log(stringValue);
 }
+
+export function plural(count: number, singular: string, plural: string): string {
+	switch (count) {
+		case 0:
+			return plural;
+		case 1:
+			return singular;
+		default:
+			return plural;
+	}
+}

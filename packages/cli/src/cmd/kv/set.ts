@@ -11,10 +11,10 @@ export const setSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	schema: {
 		args: z.object({
-			namespace: z.string().min(1),
-			key: z.string().min(1),
-			value: z.string().min(1),
-			ttl: z.coerce.number().min(60).optional(),
+			namespace: z.string().min(1).max(64).describe('the namespace name'),
+			key: z.string().min(1).max(64).describe('the key name'),
+			value: z.string().min(1).describe('the value'),
+			ttl: z.coerce.number().min(60).optional().describe('the optional expiration in seconds'),
 		}),
 	},
 

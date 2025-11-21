@@ -10,8 +10,8 @@ export const getSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	schema: {
 		args: z.object({
-			namespace: z.string().min(1),
-			key: z.string().min(1),
+			namespace: z.string().min(1).describe('the namespace name'),
+			key: z.string().min(1).describe('the key name'),
 		}),
 	},
 

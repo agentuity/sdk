@@ -3,6 +3,7 @@ import type {
 	FetchErrorResponse,
 	FetchResponse,
 	FetchAdapter,
+	Logger,
 } from '@agentuity/core';
 import { ServiceException, toServiceException, fromResponse } from '@agentuity/core';
 
@@ -17,14 +18,61 @@ interface ServiceAdapterConfig {
 	) => Promise<void>;
 }
 
+const sensitiveHeaders = new Set(['authorization', 'x-api-key']);
+
+/**
+ * Redacts the middle of a string while keeping a prefix and suffix visible.
+ * Ensures that if the string is too short, everything is redacted.
+ *
+ * @param input The string to redact
+ * @param prefix Number of chars to keep at the start
+ * @param suffix Number of chars to keep at the end
+ * @param mask  Character used for redaction
+ */
+export function redact(
+	input: string,
+	prefix: number = 4,
+	suffix: number = 4,
+	mask: string = '*'
+): string {
+	if (!input) return '';
+
+	// If revealing prefix+suffix would leak too much, fully mask
+	if (input.length <= prefix + suffix) {
+		return mask.repeat(input.length);
+	}
+
+	const start = input.slice(0, prefix);
+	const end = input.slice(-suffix);
+	const hiddenLength = input.length - prefix - suffix;
+
+	return start + mask.repeat(hiddenLength) + end;
+}
+
+const redactHeaders = (kv: Record<string, string>): string => {
+	const values: string[] = [];
+	for (const k of Object.keys(kv)) {
+		const _k = k.toLowerCase();
+		const v = kv[k];
+		if (sensitiveHeaders.has(_k)) {
+			values.push(`${_k}=${redact(v)}`);
+		} else {
+			values.push(`${_k}=${v}`);
+		}
+	}
+	return '[' + values.join(',') + ']';
+};
+
 class ServerFetchAdapter implements FetchAdapter {
 	#config: ServiceAdapterConfig;
+	#logger: Logger;
 
-	constructor(config: ServiceAdapterConfig) {
+	constructor(config: ServiceAdapterConfig, logger: Logger) {
 		this.#config = config;
+		this.#logger = logger;
 	}
 	private async _invoke<T>(url: string, options: FetchRequest): Promise<FetchResponse<T>> {
-		const headers = {
+		const headers: Record<string, string> = {
 			...options.headers,
 			...this.#config.headers,
 		};
@@ -37,8 +85,10 @@ class ServerFetchAdapter implements FetchAdapter {
 		) {
 			headers['Content-Type'] = 'application/octet-stream';
 		}
+		const method = options.method ?? 'POST';
+		this.#logger.trace('sending %s to %s with headers: %s', method, url, redactHeaders(headers));
 		const res = await fetch(url, {
-			method: options.method ?? 'POST',
+			method,
 			body: options.body,
 			headers,
 			signal: options.signal,
@@ -66,7 +116,7 @@ class ServerFetchAdapter implements FetchAdapter {
 					response: res,
 				};
 			}
-			const data = await fromResponse<T>(url, res);
+			const data = await fromResponse<T>(method, url, res);
 			return {
 				ok: true,
 				data,
@@ -79,7 +129,7 @@ class ServerFetchAdapter implements FetchAdapter {
 				response: res,
 			} as FetchErrorResponse;
 		}
-		const err = await toServiceException(url, res);
+		const err = await toServiceException(method, url, res);
 		throw err;
 	}
 	async invoke<T>(
@@ -128,6 +178,6 @@ class ServerFetchAdapter implements FetchAdapter {
  * @param config the service config
  * @returns
  */
-export function createServerFetchAdapter(config: ServiceAdapterConfig) {
-	return new ServerFetchAdapter(config);
+export function createServerFetchAdapter(config: ServiceAdapterConfig, logger: Logger) {
+	return new ServerFetchAdapter(config, logger);
 }
