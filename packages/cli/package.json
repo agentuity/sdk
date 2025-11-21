@@ -52,7 +52,9 @@
 	},
 	"devDependencies": {
 		"@types/adm-zip": "^0.5.7",
+		"@types/bun": "latest",
 		"@types/tar-fs": "^2.0.4",
+		"bun-types": "latest",
 		"typescript": "^5.9.0"
 	},
 	"publishConfig": {

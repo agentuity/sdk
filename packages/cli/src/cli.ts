@@ -452,19 +452,21 @@ async function registerSubcommand(
 		for (const opt of parsed) {
 			const flag = opt.name.replace(/([A-Z])/g, '-$1').toLowerCase();
 			const desc = opt.description || '';
+			// Add short flag alias for verbose
+			const flagSpec = flag === 'verbose' ? `-v, --${flag}` : `--${flag}`;
 			if (opt.type === 'boolean') {
 				if (opt.hasDefault) {
 					const defaultValue =
 						typeof opt.defaultValue === 'function' ? opt.defaultValue() : opt.defaultValue;
 					cmd.option(`--no-${flag}`, desc);
-					cmd.option(`--${flag}`, desc, defaultValue);
+					cmd.option(flagSpec, desc, defaultValue);
 				} else {
-					cmd.option(`--${flag}`, desc);
+					cmd.option(flagSpec, desc);
 				}
 			} else if (opt.type === 'number') {
-				cmd.option(`--${flag} <${opt.name}>`, desc, parseFloat);
+				cmd.option(`${flagSpec} <${opt.name}>`, desc, parseFloat);
 			} else {
-				cmd.option(`--${flag} <${opt.name}>`, desc);
+				cmd.option(`${flagSpec} <${opt.name}>`, desc);
 			}
 		}
 	}

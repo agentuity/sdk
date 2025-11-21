@@ -241,24 +241,50 @@ echo ""
 
 # Step 6: Test listObjects operation
 echo "Step 6: Testing listObjects (list objects in bucket)..."
-LIST_RESPONSE=$(curl -s -X POST "$BASE_URL" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "operation": "listObjects",
-    "bucket": "'"$BUCKET"'"
-  }')
+# Wait for webhook to update s3_stats table (objects are uploaded to S3 immediately,
+# but s3_stats is updated asynchronously via webhooks)
+echo "Waiting for webhook to sync object metadata..."
+MAX_RETRIES=10
+RETRY_COUNT=0
+FOUND_LARGE=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+	LIST_RESPONSE=$(curl -s -X POST "$BASE_URL" \
+	  -H "Content-Type: application/json" \
+	  -d '{
+	    "operation": "listObjects",
+	    "bucket": "'"$BUCKET"'"
+	  }')
+
+	if echo "$LIST_RESPONSE" | jq -e '.success == true' > /dev/null 2>&1; then
+		OBJECT_COUNT=$(echo "$LIST_RESPONSE" | jq '.result | length')
+		
+		# Check if large-binary.bin is in the list
+		HAS_LARGE=$(echo "$LIST_RESPONSE" | jq '[.result[] | select(.key == "large-binary.bin")] | length')
+		
+		if [ "$HAS_LARGE" -ge "1" ]; then
+			FOUND_LARGE=true
+			break
+		fi
+	fi
+	
+	RETRY_COUNT=$((RETRY_COUNT + 1))
+	if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+		sleep 1
+		echo -n "."
+	fi
+done
+
+echo ""
 
 if echo "$LIST_RESPONSE" | jq -e '.success == true' > /dev/null 2>&1; then
 	OBJECT_COUNT=$(echo "$LIST_RESPONSE" | jq '.result | length')
 	echo -e "${GREEN}✓${NC} listObjects returned $OBJECT_COUNT object(s)"
 	
-	# Verify large-binary.bin is in the list (binary-file.bin was deleted in step 3)
-	HAS_LARGE=$(echo "$LIST_RESPONSE" | jq '[.result[] | select(.key == "large-binary.bin")] | length')
-	
-	if [ "$HAS_LARGE" -ge "1" ]; then
+	if [ "$FOUND_LARGE" = true ]; then
 		echo -e "${GREEN}✓${NC} Expected object found in listing"
 	else
-		echo -e "${RED}✗${NC} Expected object not found in listing"
+		echo -e "${RED}✗${NC} Expected object not found in listing after $MAX_RETRIES attempts"
 		echo "$LIST_RESPONSE" | jq .
 		exit 1
 	fi

@@ -578,6 +578,7 @@ const AgentuityBundler: BunPlugin = {
 						version: v.get('version')!,
 						name: v.get('name')!,
 						description: v.get('description') ?? '<no description provided>',
+						projectId,
 					};
 
 					const evalsStr = v.get('evals');
@@ -586,7 +587,17 @@ const AgentuityBundler: BunPlugin = {
 							`[plugin] Found evals string for agent ${agentData.name}, parsing...`
 						);
 						try {
-							agentData.evals = JSON.parse(evalsStr);
+							const parsedEvals = JSON.parse(evalsStr) as Array<
+								Omit<
+									NonNullable<BuildMetadata['agents'][number]['evals']>[number],
+									'agentIdentifier' | 'projectId'
+								>
+							>;
+							agentData.evals = parsedEvals.map((evalItem) => ({
+								...evalItem,
+								agentIdentifier: agentData.agentId,
+								projectId,
+							}));
 							logger.trace(
 								`[plugin] Successfully parsed ${agentData.evals?.length ?? 0} eval(s) for agent ${agentData.name}`
 							);
@@ -614,6 +625,7 @@ const AgentuityBundler: BunPlugin = {
 								version: sub.get('version')!,
 								name: sub.get('name')!,
 								description: sub.get('description') ?? '<no description provided>',
+								projectId,
 							};
 
 							// Add evals for subagents if any
@@ -623,7 +635,17 @@ const AgentuityBundler: BunPlugin = {
 									`[plugin] Found evals string for subagent ${subagentData.name}, parsing...`
 								);
 								try {
-									subagentData.evals = JSON.parse(subEvalsStr);
+									const parsedSubEvals = JSON.parse(subEvalsStr) as Array<
+										Omit<
+											NonNullable<BuildMetadata['agents'][number]['evals']>[number],
+											'agentIdentifier' | 'projectId'
+										>
+									>;
+									subagentData.evals = parsedSubEvals.map((evalItem) => ({
+										...evalItem,
+										agentIdentifier: subagentData.agentId,
+										projectId,
+									}));
 									logger.trace(
 										`[plugin] Successfully parsed ${subagentData.evals?.length ?? 0} eval(s) for subagent ${subagentData.name}`
 									);

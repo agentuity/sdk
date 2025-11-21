@@ -8,7 +8,7 @@ import agent from './agent';
 export const greetingEval = agent.createEval({
 	metadata: {
 		name: 'greeting-check',
-		description: 'Checks if the output contains a greeting word using LLM',
+		description: 'Checks if the output contains a greeting word using LLM testing',
 	},
 	handler: async (_ctx: EvalContext, input, output) => {
 		console.log('[EVAL greeting-check] Input received:', JSON.stringify(input, null, 2));

@@ -33,10 +33,10 @@ export type EvalRunResult = EvalRunResultBinary | EvalRunResultScore | EvalRunRe
 export type CreateEvalRunRequest = {
 	projectId: string;
 	sessionId: string;
-	spanId: string;
 	result: EvalRunResult;
 	evalId: string;
 	promptHash?: string;
+	deploymentId?: string;
 };
 
 type InternalEvalMetadata = {
@@ -44,6 +44,10 @@ type InternalEvalMetadata = {
 	 * the unique identifier for this eval and project
 	 */
 	id: string;
+	/**
+	 * the unique identifier for this project and eval across multiple deployments.
+	 */
+	evalId: string;
 	/**
 	 * the folder name for the eval
 	 */

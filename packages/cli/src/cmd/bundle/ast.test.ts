@@ -278,8 +278,8 @@ describe('parseEvalMetadata', () => {
 				TEST_DEPLOYMENT_ID
 			);
 
-			expect(result).toHaveLength(1);
-			expect(result[0].name).toBe('non-exported-eval');
+			// Non-exported evals should not be included in metadata
+			expect(result).toHaveLength(0);
 		});
 	});
 

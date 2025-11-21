@@ -1,17 +1,25 @@
 /** biome-ignore-all lint/style/useTemplate: its easier */
 import { z } from 'zod';
-import type { BuildMetadata } from '@agentuity/server';
 import { resolve, join } from 'node:path';
 import { bundle } from '../bundle/bundler';
 import { getBuildMetadata } from '../bundle/plugin';
 import { existsSync, type FSWatcher, watch, statSync, readdirSync } from 'node:fs';
-import { getDefaultConfigDir, loadProjectSDKKey, saveProjectDir, saveConfig } from '../../config';
+import {
+	getDefaultConfigDir,
+	loadProjectSDKKey,
+	saveProjectDir,
+	saveConfig,
+	loadBuildMetadata,
+} from '../../config';
 import { type Config, createCommand } from '../../types';
 import * as tui from '../../tui';
 import { createAgentTemplates, createAPITemplates } from './templates';
 import { generateEndpoint, type DevmodeResponse } from './api';
 import { APIClient, getAPIBaseURL } from '../../api';
 import { download } from './download';
+import { createDevmodeSyncService } from './sync';
+import { getDevmodeDeploymentId } from '../bundle/ast';
+import { BuildMetadata } from '@agentuity/server';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -47,6 +55,11 @@ export const command = createCommand({
 		const { opts, logger, options, project, projectDir, auth } = ctx;
 		let { config } = ctx;
 
+		// Allow sync with mock service even without devmode endpoint
+		const useMockService = process.env.DEVMODE_SYNC_SERVICE_MOCK === 'true';
+		const apiClient = new APIClient(getAPIBaseURL(config), logger, config);
+		const syncService = createDevmodeSyncService({ logger, apiClient, mock: useMockService });
+
 		const rootDir = projectDir;
 		const appTs = join(rootDir, 'app.ts');
 		const srcDir = join(rootDir, 'src');
@@ -73,12 +86,11 @@ export const command = createCommand({
 		let gravityBin: string | undefined;
 
 		if (auth && project && opts.public) {
-			// Only create apiClient if auth is available
-			const apiClient = new APIClient(getAPIBaseURL(config), logger, config);
+			// Generate devmode endpoint only when using --public
 			const endpoint = await tui.spinner({
 				message: 'Connecting to Gravity',
 				callback: () => {
-					return generateEndpoint(apiClient, project.projectId, config?.devmode?.hostname);
+					return generateEndpoint(apiClient!, project.projectId, config?.devmode?.hostname);
 				},
 				clearOnSuccess: true,
 			});
@@ -90,6 +102,13 @@ export const command = createCommand({
 			config = _config;
 			devmode = endpoint;
 		}
+
+		logger.debug(
+			'Getting devmode deployment id for projectId: %s, endpointId: %s',
+			project?.projectId,
+			devmode?.id
+		);
+		const deploymentId = getDevmodeDeploymentId(project?.projectId ?? '', devmode?.id ?? '');
 
 		if (devmode) {
 			const configDir = getDefaultConfigDir();
@@ -182,6 +201,21 @@ export const command = createCommand({
 
 		const agentuityDir = resolve(rootDir, '.agentuity');
 		const appPath = resolve(agentuityDir, 'app.js');
+
+		// Load existing metadata file to use as previousMetadata for sync
+		// This prevents reinserting agents/evals that haven't changed
+		let previousMetadata: BuildMetadata | undefined;
+		try {
+			previousMetadata = await loadBuildMetadata(agentuityDir);
+			logger.debug(
+				'Loaded previous metadata with %d agent(s)',
+				previousMetadata.agents?.length ?? 0
+			);
+		} catch (_error) {
+			// File doesn't exist yet (first run), that's okay
+			logger.debug('No previous metadata file found, will treat all agents/evals as new');
+			previousMetadata = undefined;
+		}
 
 		// Watch directories instead of files to survive atomic replacements (sed -i, cp)
 		const watches = [rootDir];
@@ -394,6 +428,8 @@ export const command = createCommand({
 							await bundle({
 								rootDir,
 								dev: true,
+								projectId: project?.projectId,
+								deploymentId,
 							});
 							building = false;
 							buildCompletedAt = Date.now();
@@ -422,6 +458,64 @@ export const command = createCommand({
 
 				metadata = getBuildMetadata();
 				logger.trace('Build metadata retrieved');
+
+				// Sync agents and evals to API if in devmode with auth
+				if (auth && project && apiClient) {
+					try {
+						logger.debug('Loading build metadata for sync...');
+						const currentMetadata = await loadBuildMetadata(agentuityDir);
+						logger.debug(
+							'Found %d agent(s) and %d route(s) in metadata',
+							currentMetadata.agents?.length ?? 0,
+							currentMetadata.routes?.length ?? 0
+						);
+						if (currentMetadata.agents) {
+							for (const agent of currentMetadata.agents) {
+								logger.debug(
+									'Agent: id=%s, name=%s, version=%s, evals=%d',
+									agent.id,
+									agent.name,
+									agent.version,
+									agent.evals?.length ?? 0
+								);
+								if (agent.evals) {
+									for (const evalItem of agent.evals) {
+										logger.debug(
+											'  Eval: id=%s, name=%s, version=%s',
+											evalItem.id,
+											evalItem.name,
+											evalItem.version
+										);
+									}
+								}
+							}
+						}
+						logger.debug('Syncing agents and evals...');
+
+						await syncService.sync(
+							currentMetadata,
+							previousMetadata,
+							project.projectId,
+							deploymentId
+						);
+						previousMetadata = currentMetadata;
+						logger.debug('Sync completed successfully');
+					} catch (error) {
+						logger.error('Failed to sync agents/evals: %s', error);
+						if (error instanceof Error) {
+							logger.error('Error stack: %s', error.stack);
+						}
+						// Don't fail the build, just log the error
+					}
+				} else {
+					logger.trace(
+						'Skipping sync - auth=%s, project=%s, devmode=%s, apiClient=%s',
+						!!auth,
+						!!project,
+						!!devmode,
+						!!apiClient
+					);
+				}
 
 				logger.trace('Starting dev server: %s', appPath);
 				// Use shell to run in a process group for proper cleanup

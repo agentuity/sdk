@@ -35,14 +35,18 @@ const BaseFileFields = {
 const EvalSchema = z.object({
 	...BaseFileFields,
 	id: z.string().describe('the unique calculated id for the eval'),
+	evalId: z.string().describe('the unique id for eval for the project across deployments'),
 	name: z.string().describe('the name of the eval'),
 	description: z.string().optional().describe('the eval description'),
+	agentIdentifier: z.string().describe('the identifier of the agent'),
+	projectId: z.string().describe('the project id'),
 });
 
 const BaseAgentFields = {
 	...BaseFileFields,
 	id: z.string().describe('the unique calculated id for the agent'),
 	agentId: z.string().describe('the unique id for agent for the project across deployments'),
+	projectId: z.string().describe('the project id'),
 	name: z.string().describe('the name of the agent'),
 	description: z.string().optional().describe('the agent description'),
 	evals: z.array(EvalSchema).optional().describe('the evals for the agent'),

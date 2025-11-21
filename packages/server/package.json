@@ -29,7 +29,9 @@
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {
+		"@types/bun": "latest",
 		"@types/node": "^22.0.0",
+		"bun-types": "latest",
 		"typescript": "^5.9.0"
 	},
 	"publishConfig": {

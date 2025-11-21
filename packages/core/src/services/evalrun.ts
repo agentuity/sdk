@@ -8,6 +8,7 @@ export const EvalRunStartEventSchema = z
 		orgId: z.string().describe('the organization id'),
 		projectId: z.string().describe('the project id'),
 		devmode: z.boolean().describe('true if running in devmode'),
+		deploymentId: z.string().optional().describe('the deployment id'),
 	})
 	.describe('The event to record an eval run started');
 

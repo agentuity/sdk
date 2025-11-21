@@ -1,6 +1,5 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "sdk-mono",
@@ -24,7 +23,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.0.48",
+      "version": "0.0.49",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -34,7 +33,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "0.0.48",
+      "version": "0.0.49",
     },
     "apps/testing/auth-app": {
       "name": "test-app",
@@ -103,7 +102,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.0.48",
+      "version": "0.0.49",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -125,27 +124,33 @@
       },
       "devDependencies": {
         "@types/adm-zip": "^0.5.7",
+        "@types/bun": "latest",
         "@types/tar-fs": "^2.0.4",
+        "bun-types": "latest",
         "typescript": "^5.9.0",
       },
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.0.48",
+      "version": "0.0.49",
       "dependencies": {
         "zod": "^4.1.12",
       },
       "devDependencies": {
+        "@types/bun": "latest",
+        "bun-types": "latest",
         "typescript": "^5.9.0",
       },
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.0.48",
+      "version": "0.0.49",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
+        "@types/bun": "latest",
+        "bun-types": "latest",
         "typescript": "^5.9.0",
       },
       "peerDependencies": {
@@ -155,10 +160,10 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.0.48",
+      "version": "0.0.49",
       "dependencies": {
-        "@agentuity/core": "0.0.46",
-        "@agentuity/server": "0.0.46",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/server": "workspace:*",
         "@opentelemetry/api": "^1.9.0",
         "@opentelemetry/api-logs": "^0.207.0",
         "@opentelemetry/auto-instrumentations-node": "^0.66.0",
@@ -174,13 +179,16 @@
         "@opentelemetry/sdk-node": "^0.207.0",
         "@opentelemetry/sdk-trace-base": "^2.2.0",
         "@opentelemetry/semantic-conventions": "^1.37.0",
+        "@traceloop/ai-semantic-conventions": "0.19.0",
         "@traceloop/node-server-sdk": "^0.19.1",
         "@types/mailparser": "^3.4.6",
         "mailparser": "^3.7.1",
       },
       "devDependencies": {
+        "@types/bun": "latest",
         "@types/react": "^19.2.2",
         "@types/react-dom": "^19.2.2",
+        "bun-types": "latest",
         "react": "^19.2.0",
         "react-dom": "^19.2.0",
         "typescript": "^5.9.0",
@@ -191,13 +199,15 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.0.48",
+      "version": "0.0.49",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "zod": "^4.1.12",
       },
       "devDependencies": {
+        "@types/bun": "latest",
         "@types/node": "^22.0.0",
+        "bun-types": "latest",
         "typescript": "^5.9.0",
       },
     },

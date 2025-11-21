@@ -28,6 +28,8 @@
 		"@agentuity/core": "workspace:*"
 	},
 	"devDependencies": {
+		"@types/bun": "latest",
+		"bun-types": "latest",
 		"typescript": "^5.9.0"
 	},
 	"peerDependencies": {

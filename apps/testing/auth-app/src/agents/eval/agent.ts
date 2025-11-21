@@ -10,7 +10,6 @@ const agent = createAgent({
 		output: z.string(),
 	},
 	handler: async (_c: AgentContext, { name }) => {
-		console.log('name', name);
 		return `Hello, ${name}!`;
 	},
 });

@@ -242,6 +242,7 @@ export function createServices(logger: Logger, config?: AppConfig, serverUrl?: s
 	vector = config?.services?.vector || new VectorStorageService(vectorBaseUrl, adapter);
 	session = config?.services?.session || new DefaultSessionProvider();
 	thread = config?.services?.thread || new DefaultThreadProvider();
+	// FIXME: this is turned off for now for production until we have the new changes deployed
 	sessionEvent =
 		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
 			? new JSONSessionEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)
@@ -250,6 +251,7 @@ export function createServices(logger: Logger, config?: AppConfig, serverUrl?: s
 	if (config?.services?.sessionEvent) {
 		sessionEvent = new CompositeSessionEventProvider(sessionEvent, config.services.sessionEvent);
 	}
+	// FIXME: this is turned off for now for production until we have the new changes deployed
 	evalRunEvent =
 		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
 			? new JSONEvalRunEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)

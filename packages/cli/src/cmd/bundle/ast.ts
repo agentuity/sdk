@@ -116,6 +116,10 @@ function hashSHA1(...val: string[]): string {
 	return hasher.digest().toHex();
 }
 
+export function getDevmodeDeploymentId(projectId: string, endpointId: string): string {
+	return `devmode_${hashSHA1(projectId, endpointId)}`;
+}
+
 function getAgentId(
 	projectId: string,
 	deploymentId: string,
@@ -149,6 +153,10 @@ function generateRouteId(
 
 function generateStableAgentId(projectId: string, name: string): string {
 	return `agentid_${hashSHA1(projectId, name)}`.substring(0, 64);
+}
+
+function generateStableEvalId(projectId: string, agentId: string, name: string): string {
+	return `evalid_${hashSHA1(projectId, agentId, name)}`.substring(0, 64);
 }
 
 type AcornParseResultType = ReturnType<typeof acornLoose.parse>;
@@ -242,14 +250,29 @@ function setLiteralValue(literal: ASTLiteral, value: string) {
 }
 
 function augmentEvalMetadataNode(
+	projectId: string,
+	agentId: string,
 	id: string,
 	name: string,
 	rel: string,
 	version: string,
-	identifier: string,
-	metadataObj: ASTObjectExpression
+	_ast: AcornParseResultType,
+	metadataObj: ASTObjectExpression,
+	_filename: string
 ): void {
-	// Check if id, version, identifier, filename already exist
+	const metadata = parseObjectExpressionToMap(metadataObj);
+	// Name can come from metadata.name or variable name (already resolved in caller)
+	// If metadata doesn't have name, we'll add it from the resolved name
+	if (!metadata.has('name')) {
+		metadataObj.properties.push(createObjectPropertyNode('name', name));
+	}
+	const descriptionNode = metadataObj.properties.find((x) => x.key.name === 'description')?.value;
+	const description = descriptionNode ? (descriptionNode as ASTLiteral).value : '';
+	const effectiveAgentId = agentId || '';
+	const _evalId = getEvalId(projectId, effectiveAgentId, rel, name, version); // Deployment-specific ID (not used, kept for potential future use)
+	const stableEvalId = generateStableEvalId(projectId, effectiveAgentId, name);
+
+	// Check if id, version, identifier, filename, evalId already exist
 	const existingKeys = new Set<string>();
 	for (const prop of metadataObj.properties) {
 		if (prop.key.type === 'Identifier') {
@@ -286,12 +309,12 @@ function augmentEvalMetadataNode(
 	}
 
 	if (!existingKeys.has('identifier')) {
-		metadataObj.properties.push(createObjectPropertyNode('identifier', identifier));
+		metadataObj.properties.push(createObjectPropertyNode('identifier', name));
 	} else {
 		for (const prop of metadataObj.properties) {
 			if (prop.key.type === 'Identifier' && prop.key.name === 'identifier') {
 				if (prop.value.type === 'Literal') {
-					setLiteralValue(prop.value as ASTLiteral, identifier);
+					setLiteralValue(prop.value as ASTLiteral, name);
 				}
 				break;
 			}
@@ -310,6 +333,32 @@ function augmentEvalMetadataNode(
 			}
 		}
 	}
+
+	if (!existingKeys.has('evalId')) {
+		metadataObj.properties.push(createObjectPropertyNode('evalId', stableEvalId));
+	} else {
+		for (const prop of metadataObj.properties) {
+			if (prop.key.type === 'Identifier' && prop.key.name === 'evalId') {
+				if (prop.value.type === 'Literal') {
+					setLiteralValue(prop.value as ASTLiteral, stableEvalId);
+				}
+				break;
+			}
+		}
+	}
+
+	if (!existingKeys.has('description')) {
+		metadataObj.properties.push(createObjectPropertyNode('description', description));
+	} else {
+		for (const prop of metadataObj.properties) {
+			if (prop.key.type === 'Identifier' && prop.key.name === 'description') {
+				if (prop.value.type === 'Literal') {
+					setLiteralValue(prop.value as ASTLiteral, description);
+				}
+				break;
+			}
+		}
+	}
 }
 
 export function parseEvalMetadata(
@@ -317,7 +366,8 @@ export function parseEvalMetadata(
 	filename: string,
 	contents: string,
 	projectId: string,
-	deploymentId: string
+	deploymentId: string,
+	agentId?: string
 ): [
 	string,
 	Array<{
@@ -326,6 +376,7 @@ export function parseEvalMetadata(
 		version: string;
 		identifier: string;
 		name: string;
+		evalId: string;
 		description?: string;
 	}>,
 ] {
@@ -339,8 +390,6 @@ export function parseEvalMetadata(
 	logger.trace(`Parsing evals from ${filename}`);
 	const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
 	const rel = relative(rootDir, filename);
-	const dir = dirname(filename);
-	const identifier = basename(dir);
 	const version = hash(contents);
 	const evals: Array<{
 		filename: string;
@@ -348,17 +397,16 @@ export function parseEvalMetadata(
 		version: string;
 		identifier: string;
 		name: string;
+		evalId: string;
 		description?: string;
 	}> = [];
 
-	// Find all agent.createEval() calls
+	// Find all exported agent.createEval() calls
 	for (const body of ast.body) {
 		let variableDeclaration: { declarations: Array<ASTVariableDeclarator> } | undefined;
 
-		// Handle both direct VariableDeclaration and ExportNamedDeclaration
-		if (body.type === 'VariableDeclaration') {
-			variableDeclaration = body as { declarations: Array<ASTVariableDeclarator> };
-		} else if (body.type === 'ExportNamedDeclaration') {
+		// Only process exported VariableDeclarations
+		if (body.type === 'ExportNamedDeclaration') {
 			const exportDecl = body as {
 				declaration?: { type: string; declarations?: Array<ASTVariableDeclarator> };
 			};
@@ -447,14 +495,31 @@ export function parseEvalMetadata(
 									);
 
 									// Inject metadata into AST if metadata object exists
+									let stableEvalId: string;
+									const effectiveAgentId = agentId || '';
 									if (metadataObj) {
 										augmentEvalMetadataNode(
+											projectId,
+											effectiveAgentId,
 											evalId,
 											finalName,
 											rel,
 											version,
-											identifier,
-											metadataObj
+											ast,
+											metadataObj,
+											filename
+										);
+										// Extract evalId from metadata after augmentation
+										const metadata = parseObjectExpressionToMap(metadataObj);
+										stableEvalId =
+											metadata.get('evalId') ||
+											generateStableEvalId(projectId, effectiveAgentId, finalName);
+									} else {
+										// If no metadata object, generate stable evalId
+										stableEvalId = generateStableEvalId(
+											projectId,
+											effectiveAgentId,
+											finalName
 										);
 									}
 
@@ -462,8 +527,9 @@ export function parseEvalMetadata(
 										filename: rel,
 										id: evalId,
 										version,
-										identifier,
+										identifier: finalName,
 										name: finalName,
+										evalId: stableEvalId,
 										description: evalDescription,
 									});
 								}
@@ -639,12 +705,14 @@ export async function parseAgentMetadata(
 		const evalsSource = await evalsFile.text();
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const evalsContents = transpiler.transformSync(evalsSource);
+		const agentId = result[1].get('agentId') || '';
 		const [, evals] = parseEvalMetadata(
 			rootDir,
 			evalsPath,
 			evalsContents,
 			projectId,
-			deploymentId
+			deploymentId,
+			agentId
 		);
 		if (evals.length > 0) {
 			logger.trace(`Adding ${evals.length} eval(s) to agent metadata for ${name}`);

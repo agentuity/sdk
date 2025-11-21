@@ -3,7 +3,8 @@
 	"compilerOptions": {
 		"outDir": "./dist",
 		"rootDir": "./src",
-		"emitDeclarationOnly": true
+		"emitDeclarationOnly": true,
+		"types": ["bun-types"]
 	},
 	"include": ["src/**/*"],
 	"references": [{ "path": "../core" }, { "path": "../server" }]

@@ -385,7 +385,7 @@ export function createAgent<
 
 	// Create createEval method that infers types from agent and automatically adds to agent
 	const createEval = (evalConfig: {
-		metadata?: Partial<Omit<EvalMetadata, 'id' | 'version'>>;
+		metadata?: Partial<EvalMetadata>;
 		handler: EvalFunction<AgentInput, AgentOutput>;
 	}): Eval<TInput, TOutput> => {
 		const evalName = evalConfig.metadata?.name || 'unnamed';
@@ -397,42 +397,52 @@ export function createAgent<
 		// Get filename (can be provided via __filename or set by bundler)
 		const filename = evalConfig.metadata?.filename || '';
 
-		// Derive identifier from filename if not provided
-		let identifier = evalConfig.metadata?.identifier || '';
-		if (!identifier && filename) {
-			const pathParts = filename.split(/[/\\]/);
-			const basename = pathParts[pathParts.length - 1] || '';
-			identifier = basename.replace(/\.(ts|tsx|js|jsx)$/, '') || '';
-		}
+		// Use name as identifier for consistency (same as agents)
+		const identifier = evalName;
 
-		// Use name as identifier fallback
-		if (!identifier) {
-			identifier = evalName;
-		}
+		// Use build-time injected id/version if available, otherwise generate at runtime
+		// Build-time injection happens via bundler AST transformation
+		let evalId = evalConfig.metadata?.id;
+		let stableEvalId = evalConfig.metadata?.evalId;
+		let version = evalConfig.metadata?.version;
 
-		// Generate eval ID and version at runtime (similar to build-time generation)
-		const projectId = runtimeConfig.getProjectId() || '';
-		const deploymentId = runtimeConfig.getDeploymentId() || '';
-		// Generate version from available metadata (deterministic hash)
+		// Generate version from available metadata if not provided (deterministic hash)
 		// At build-time, version is hash of file contents; at runtime we use metadata
-		const versionHasher = new Bun.CryptoHasher('sha1');
-		versionHasher.update(identifier);
-		versionHasher.update(evalName);
-		versionHasher.update(filename);
-		const version = versionHasher.digest('hex');
-		// Generate eval ID using same logic as build-time (getEvalId)
+		if (!version) {
+			const versionHasher = new Bun.CryptoHasher('sha1');
+			versionHasher.update(identifier);
+			versionHasher.update(evalName);
+			versionHasher.update(filename);
+			version = versionHasher.digest('hex');
+		}
+
+		// Generate eval ID using same logic as build-time (getEvalId) if not provided
 		// Format: eval_${hashSHA1(projectId, deploymentId, filename, name, version)}
-		const idHasher = new Bun.CryptoHasher('sha1');
-		idHasher.update(projectId);
-		idHasher.update(deploymentId);
-		idHasher.update(filename);
-		idHasher.update(evalName);
-		idHasher.update(version);
-		const evalId = `eval_${idHasher.digest('hex')}`;
+		if (!evalId) {
+			const projectId = runtimeConfig.getProjectId() || '';
+			const deploymentId = runtimeConfig.getDeploymentId() || '';
+			const idHasher = new Bun.CryptoHasher('sha1');
+			idHasher.update(projectId);
+			idHasher.update(deploymentId);
+			idHasher.update(filename);
+			idHasher.update(evalName);
+			idHasher.update(version);
+			evalId = `eval_${idHasher.digest('hex')}`;
+		}
+
+		// Generate stable evalId if not provided (for project-wide identification)
+		if (!stableEvalId) {
+			const projectId = runtimeConfig.getProjectId() || '';
+			const stableHasher = new Bun.CryptoHasher('sha1');
+			stableHasher.update(projectId);
+			stableHasher.update(evalName);
+			stableEvalId = `evalid_${stableHasher.digest('hex')}`.substring(0, 64);
+		}
 
 		const evalType: any = {
 			metadata: {
 				id: evalId,
+				evalId: stableEvalId,
 				version,
 				identifier,
 				name: evalConfig.metadata?.name || '',
@@ -547,6 +557,7 @@ export function createAgent<
 									`[EVALRUN] Sending start event for eval '${evalName}' (id: ${evalRunId}, evalId: ${evalId})`
 								);
 								try {
+									const deploymentId = runtimeConfig.getDeploymentId();
 									const startEvent: EvalRunStartEvent = {
 										id: evalRunId,
 										sessionId: ctx.sessionId,
@@ -554,6 +565,7 @@ export function createAgent<
 										orgId: orgId!,
 										projectId: projectId!,
 										devmode: Boolean(devMode),
+										deploymentId: deploymentId || undefined,
 									};
 									internal.debug(
 										'[EVALRUN] Start event payload: %s',

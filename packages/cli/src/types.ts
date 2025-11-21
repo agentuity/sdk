@@ -413,21 +413,24 @@ const FileFields = {
 	identifier: zod.string().describe('the folder for the file'),
 };
 
+const EvalSchema = zod.object({
+	...FileFields,
+	id: zod.string().describe('the unique calculated id for the eval'),
+	evalId: zod.string().describe('the unique id for eval for the project across deployments'),
+	name: zod.string().describe('the name of the eval'),
+	description: zod.string().optional().describe('the eval description'),
+	agentIdentifier: zod.string().describe('the identifier of the agent'),
+	projectId: zod.string().describe('the project id'),
+});
+
 const BaseAgentFields = {
 	...FileFields,
 	id: zod.string().describe('the unique calculated id for the agent'),
+	agentId: zod.string().describe('the unique id for agent for the project across deployments'),
+	projectId: zod.string().describe('the project id'),
 	name: zod.string().describe('the name of the agent'),
 	description: zod.string().optional().describe('the agent description'),
-	evals: zod
-		.array(
-			zod.object({
-				...FileFields,
-				name: zod.string().describe('the name of the eval'),
-				description: zod.string().optional().describe('the eval description'),
-			})
-		)
-		.optional()
-		.describe('the evals for the agent'),
+	evals: zod.array(EvalSchema).optional().describe('the evals for the agent'),
 };
 
 const AgentSchema = zod.object({
