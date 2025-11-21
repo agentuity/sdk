@@ -8,5 +8,6 @@ import { deleteCommand } from './delete';
 export const command = createCommand({
 	name: 'profile',
 	description: 'Manage configuration profiles',
+	tags: ['read-only', 'fast'],
 	subcommands: [createProfileCmd, useCommand, listCommand, showCommand, deleteCommand],
 });

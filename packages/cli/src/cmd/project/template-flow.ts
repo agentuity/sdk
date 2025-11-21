@@ -19,7 +19,8 @@ import * as tui from '../../tui';
 import { playSound } from '../../sound';
 import { fetchTemplates, type TemplateInfo } from './templates';
 import { downloadTemplate, setupProject } from './download';
-import type { AuthData, Config } from '../../types';
+import { type AuthData, type Config } from '../../types';
+import { ErrorCode } from '../../errors';
 import type { APIClient } from '../../api';
 import { createProjectConfig } from '../../config';
 import {
@@ -78,7 +79,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	});
 
 	if (templates.length === 0) {
-		logger.fatal('No templates available');
+		logger.fatal('No templates available', ErrorCode.RESOURCE_NOT_FOUND);
 	}
 
 	// Get project name
@@ -154,13 +155,16 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			// Extra safety: refuse to delete root or home directories
 			const home = homedir();
 			if (dest === '/' || dest === home) {
-				logger.fatal(`Refusing to delete protected path: ${dest}`);
+				logger.fatal(`Refusing to delete protected path: ${dest}`, ErrorCode.VALIDATION_FAILED);
 				return;
 			}
 			rmSync(dest, { recursive: true, force: true });
 			tui.success(`Deleted ${dest}`);
 		} else {
-			logger.fatal(`Directory ${dest} already exists and is not empty.`, true);
+			logger.fatal(
+				`Directory ${dest} already exists and is not empty.`,
+				ErrorCode.RESOURCE_ALREADY_EXISTS
+			);
 		}
 	}
 
@@ -169,7 +173,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	if (initialTemplate) {
 		const found = templates.find((t) => t.id === initialTemplate);
 		if (!found) {
-			logger.fatal(`Template "${initialTemplate}" not found`);
+			logger.fatal(`Template "${initialTemplate}" not found`, ErrorCode.RESOURCE_NOT_FOUND);
 			return;
 		}
 		selectedTemplate = found;
@@ -187,7 +191,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		});
 		const found = templates.find((t) => t.id === response.template);
 		if (!found) {
-			logger.fatal('Template selection failed');
+			logger.fatal('Template selection failed', ErrorCode.USER_CANCELLED);
 			return;
 		}
 		selectedTemplate = found;

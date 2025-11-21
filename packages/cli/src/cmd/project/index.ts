@@ -7,5 +7,6 @@ import { showSubcommand } from './show';
 export const command = createCommand({
 	name: 'project',
 	description: 'Manage Agentuity projects',
+	tags: ['fast', 'requires-auth'],
 	subcommands: [createProjectSubcommand, listSubcommand, deleteSubcommand, showSubcommand],
 });

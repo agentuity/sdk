@@ -3,24 +3,48 @@ import { listResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
+import { getCommand } from '../../../command-prefix';
+
+const ResourceListResponseSchema = z.object({
+	db: z
+		.array(
+			z.object({
+				name: z.string().describe('Database name'),
+				url: z.string().optional().describe('Database connection URL'),
+			})
+		)
+		.describe('List of database resources'),
+	s3: z
+		.array(
+			z.object({
+				bucket_name: z.string().describe('Storage bucket name'),
+				access_key: z.string().optional().describe('S3 access key'),
+				secret_key: z.string().optional().describe('S3 secret key'),
+				region: z.string().optional().describe('S3 region'),
+				endpoint: z.string().optional().describe('S3 endpoint URL'),
+			})
+		)
+		.describe('List of storage resources'),
+});
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
 	description: 'List cloud resources for an organization',
+	tags: ['read-only', 'fast', 'requires-auth'],
 	aliases: ['ls'],
 	requires: { auth: true, org: true, region: true },
+	idempotent: true,
+	examples: [
+		getCommand('cloud resource list'),
+		getCommand('--json cloud resource list'),
+		getCommand('cloud resource ls'),
+	],
 	schema: {
-		options: z.object({
-			format: z
-				.enum(['text', 'json'])
-				.optional()
-				.default('text')
-				.describe('Output format (text or json)'),
-		}),
+		response: ResourceListResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { logger, opts, orgId, region, config, auth } = ctx;
+		const { logger, options, orgId, region, config, auth } = ctx;
 
 		const catalystClient = getCatalystAPIClient(config, logger, auth);
 
@@ -33,13 +57,13 @@ export const listSubcommand = createSubcommand({
 		});
 
 		// Output based on format
-		if (opts.format === 'json') {
+		if (options.json) {
 			console.log(JSON.stringify(resources, null, 2));
 		} else {
 			// Text table format
 			if (resources.db.length === 0 && resources.s3.length === 0) {
 				tui.info('No resources found');
-				return;
+				return { db: [], s3: [] };
 			}
 
 			if (resources.db.length > 0) {
@@ -65,5 +89,7 @@ export const listSubcommand = createSubcommand({
 				}
 			}
 		}
+
+		return resources;
 	},
 });

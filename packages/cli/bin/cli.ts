@@ -9,6 +9,8 @@ import { setColorScheme } from '../src/tui';
 import { getVersion } from '../src/version';
 import { checkLegacyCLI } from '../src/legacy-check';
 import type { CommandContext, LogLevel } from '../src/types';
+import { generateCLISchema } from '../src/schema-generator';
+import { setOutputOptions } from '../src/output';
 
 // Cleanup TTY state before exit
 function cleanupAndExit() {
@@ -62,11 +64,10 @@ if (process.env.DEBUG_COLORS) {
 }
 
 // Create logger instance with global options
-const logger = new ConsoleLogger(
-	(earlyOpts.logLevel as LogLevel) || 'info',
-	earlyOpts.logTimestamp || false,
-	colorScheme
-);
+// In quiet or JSON mode, suppress most logging
+const effectiveLogLevel =
+	earlyOpts.quiet || earlyOpts.json ? 'error' : (earlyOpts.logLevel as LogLevel) || 'info';
+const logger = new ConsoleLogger(effectiveLogLevel, earlyOpts.logTimestamp || false, colorScheme);
 logger.setShowPrefix(earlyOpts.logPrefix !== false);
 
 // Set version check skip flag from CLI option
@@ -82,7 +83,27 @@ const ctx = {
 	options: earlyOpts,
 };
 
+// Set global output options for utilities to use
+// When --json is used, automatically set error format to json
+if (earlyOpts.json && !earlyOpts.errorFormat) {
+	earlyOpts.errorFormat = 'json';
+}
+setOutputOptions(earlyOpts);
+
 const commands = await discoverCommands();
+
+// Generate and store CLI schema globally for the schema command
+const cliSchema = generateCLISchema(program, commands, version);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(global as any).__CLI_SCHEMA__ = cliSchema;
+
+// Check for --help=json before registering commands
+const hasHelpJson = process.argv.includes('--help=json');
+if (hasHelpJson) {
+	console.log(JSON.stringify(cliSchema, null, 2));
+	process.exit(0);
+}
+
 await registerCommands(program, commands, ctx as unknown as CommandContext);
 
 try {

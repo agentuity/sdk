@@ -3,13 +3,33 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectDeploymentGet } from '@agentuity/server';
 import { resolveProjectId } from './utils';
+import { getCommand } from '../../../command-prefix';
+
+const DeploymentShowResponseSchema = z.object({
+	id: z.string().describe('Deployment ID'),
+	state: z.string().optional().describe('Deployment state'),
+	active: z.boolean().describe('Whether deployment is active'),
+	createdAt: z.string().describe('Creation timestamp'),
+	updatedAt: z.string().optional().describe('Last update timestamp'),
+	message: z.string().optional().describe('Deployment message'),
+	tags: z.array(z.string()).describe('Deployment tags'),
+	customDomains: z.array(z.string()).optional().describe('Custom domains'),
+	cloudRegion: z.string().optional().describe('Cloud region'),
+	metadata: z.any().optional().describe('Deployment metadata'),
+});
 
 export const showSubcommand = createSubcommand({
 	name: 'show',
 	description: 'Show details about a specific deployment',
+	tags: ['read-only', 'fast', 'requires-auth', 'requires-deployment'],
+	examples: [
+		`${getCommand('cloud deployment show')} dep_abc123xyz`,
+		`${getCommand('cloud deployment show')} deployment-2024-11-20 --project-id=proj_abc123xyz`,
+	],
 	aliases: ['get'],
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
+	prerequisites: ['cloud deploy'],
 	schema: {
 		args: z.object({
 			deployment_id: z.string().describe('Deployment ID'),
@@ -17,7 +37,9 @@ export const showSubcommand = createSubcommand({
 		options: z.object({
 			'project-id': z.string().optional().describe('Project ID'),
 		}),
+		response: DeploymentShowResponseSchema,
 	},
+	idempotent: true,
 	async handler(ctx) {
 		const projectId = resolveProjectId(ctx, { projectId: ctx.opts['project-id'] });
 		const { apiClient, args } = ctx;
@@ -65,6 +87,19 @@ export const showSubcommand = createSubcommand({
 						console.log(`  Author:   ${origin.commit.author.name}`);
 				}
 			}
+
+			return {
+				id: deployment.id,
+				state: deployment.state,
+				active: deployment.active,
+				createdAt: deployment.createdAt,
+				updatedAt: deployment.updatedAt,
+				message: deployment.message,
+				tags: deployment.tags,
+				customDomains: deployment.customDomains,
+				cloudRegion: deployment.cloudRegion,
+				metadata: deployment.metadata,
+			};
 		} catch (ex) {
 			tui.fatal(`Failed to show deployment: ${ex instanceof Error ? ex.message : String(ex)}`);
 		}

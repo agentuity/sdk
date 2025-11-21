@@ -3,17 +3,30 @@ import { z } from 'zod';
 import { fetchProfiles } from '../../config';
 import { unlink } from 'node:fs/promises';
 import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
 
 export const deleteCommand = createSubcommand({
 	name: 'delete',
 	description: 'Delete a configuration profile',
+	tags: ['destructive', 'deletes-resource', 'fast'],
+	idempotent: false,
 	aliases: ['remove', 'rm', 'del'],
+	examples: [
+		getCommand('profile delete staging'),
+		getCommand('profile delete old-dev --confirm'),
+		getCommand('profile delete'),
+	],
 	schema: {
 		args: z.object({
 			name: z.string().optional().describe('The name of the profile to delete'),
 		}),
 		options: z.object({
 			confirm: z.boolean().optional().describe('Skip confirmation prompt'),
+		}),
+		response: z.object({
+			success: z.boolean().describe('Whether deletion succeeded'),
+			name: z.string().describe('Deleted profile name'),
 		}),
 	},
 
@@ -30,7 +43,7 @@ export const deleteCommand = createSubcommand({
 		const profile = profiles.find((p) => p.name === name);
 
 		if (!profile) {
-			return logger.fatal(`Profile "${name}" not found`);
+			return logger.fatal(`Profile "${name}" not found`, ErrorCode.RESOURCE_NOT_FOUND);
 		}
 
 		// Ask for confirmation unless --confirm flag is passed
@@ -38,7 +51,7 @@ export const deleteCommand = createSubcommand({
 			const confirmed = await tui.confirm(`Delete profile "${name}"?`, false);
 			if (!confirmed) {
 				logger.info('Cancelled');
-				return;
+				return { success: false, name };
 			}
 		}
 
@@ -50,6 +63,8 @@ export const deleteCommand = createSubcommand({
 					'The active profile was deleted. Use "profile use <name>" to select a new default.'
 				);
 			}
+
+			return { success: true, name };
 		} catch (error) {
 			logger.fatal(`Failed to delete profile: ${error}`);
 		}

@@ -1,5 +1,47 @@
 export { createCLI, registerCommands } from './cli';
 export { validateRuntime, isBun } from './runtime';
+export { generateCLISchema, type CLISchema, type SchemaCommand } from './schema-generator';
+export {
+	ErrorCode,
+	createError,
+	exitWithError,
+	formatErrorJSON,
+	formatErrorHuman,
+	type StructuredError,
+} from './errors';
+export { wrapLogger, CLILogger } from './cli-logger';
+export {
+	isJSONMode,
+	isQuietMode,
+	shouldDisableProgress,
+	shouldDisableColors,
+	outputJSON,
+	outputSuccess,
+	outputInfo,
+	outputWarning,
+	canPrompt,
+	createSuccessResponse,
+	createErrorResponse,
+	createMetadata,
+	setOutputOptions,
+	getOutputOptions,
+	createBatchResult,
+	outputBatchResult,
+	type JSONResponse,
+	type ResponseMetadata,
+	type BatchItemResult,
+	type BatchOperationResult,
+} from './output';
+export {
+	isExplainMode,
+	isDryRunMode,
+	shouldExecute,
+	outputExplain,
+	createExplainPlan,
+	outputDryRun,
+	type ExplainPlan,
+	type ExplainStep,
+} from './explain';
 export { getVersion, getRevision, getPackageName, getPackage } from './version';
 export { requireAuth, optionalAuth } from './auth';
 export {

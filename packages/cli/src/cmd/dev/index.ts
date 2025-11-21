@@ -12,10 +12,19 @@ import { createAgentTemplates, createAPITemplates } from './templates';
 import { generateEndpoint, type DevmodeResponse } from './api';
 import { APIClient, getAPIBaseURL } from '../../api';
 import { download } from './download';
+import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
 	name: 'dev',
 	description: 'Build and run the development server',
+	tags: ['mutating', 'slow', 'requires-project'],
+	idempotent: true,
+	examples: [
+		getCommand('dev'),
+		getCommand('dev --port 8080'),
+		getCommand('dev --local'),
+		getCommand('dev --no-public'),
+	],
 	schema: {
 		options: z.object({
 			local: z.boolean().optional().describe('Turn on local services (instead of cloud)'),

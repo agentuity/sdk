@@ -75,7 +75,7 @@ export interface EvalRunEventProvider {
 	 *     metrics: { latency: 250, accuracy: 0.98 }
 	 *   }
 	 * });
-	 * 
+	 *
 	 * // Evaluation with error
 	 * await evalProvider.complete({
 	 *   id: 'eval-run-123',

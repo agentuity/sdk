@@ -3,12 +3,29 @@ import { removeSSHKey, listSSHKeys } from './api';
 import * as tui from '../../../tui';
 import enquirer from 'enquirer';
 import { z } from 'zod';
+import { isExplainMode, isDryRunMode, outputExplain, outputDryRun } from '../../../explain';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
+
+const SSHDeleteResponseSchema = z.object({
+	success: z.boolean().describe('Whether the operation succeeded'),
+	removed: z.number().describe('Number of keys removed'),
+	fingerprints: z.array(z.string()).describe('Fingerprints of removed keys'),
+});
 
 export const deleteCommand = createSubcommand({
 	name: 'delete',
 	aliases: ['rm', 'del', 'remove'],
 	description: 'Delete an SSH key from your account',
+	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	requires: { apiClient: true, auth: true },
+	idempotent: false,
+	examples: [
+		getCommand('auth ssh delete'),
+		getCommand('auth ssh delete <fingerprint>'),
+		getCommand('--explain auth ssh delete abc123'),
+		getCommand('--dry-run auth ssh delete abc123'),
+	],
 	schema: {
 		args: z.object({
 			fingerprints: z.array(z.string()).optional().describe('SSH key fingerprint(s) to remove'),
@@ -16,12 +33,13 @@ export const deleteCommand = createSubcommand({
 		options: z.object({
 			confirm: z.boolean().default(true).describe('prompt for confirmation before deletion'),
 		}),
+		response: SSHDeleteResponseSchema,
 	},
 	async handler(ctx) {
-		const { logger, apiClient, args, opts } = ctx;
+		const { logger, apiClient, args, opts, options } = ctx;
 
 		if (!apiClient) {
-			logger.fatal('API client is not available');
+			logger.fatal('API client is not available', ErrorCode.INTERNAL_ERROR);
 		}
 
 		const shouldConfirm = process.stdin.isTTY ? opts.confirm : false;
@@ -67,6 +85,22 @@ export const deleteCommand = createSubcommand({
 				}
 			}
 
+			// If in explain mode, show what would happen
+			if (isExplainMode(options)) {
+				outputExplain(
+					{
+						command: 'auth ssh delete',
+						description: 'Delete SSH keys from your account',
+						steps: fingerprintsToRemove.map((fp) => ({
+							action: `Remove SSH key with fingerprint: ${fp}`,
+						})),
+						warnings: ['This action cannot be undone'],
+					},
+					options
+				);
+				return;
+			}
+
 			if (shouldConfirm) {
 				tui.newline();
 				const confirmed = await tui.confirm(
@@ -80,6 +114,19 @@ export const deleteCommand = createSubcommand({
 				}
 			}
 
+			// Handle dry-run mode
+			if (isDryRunMode(options)) {
+				for (const fingerprint of fingerprintsToRemove) {
+					outputDryRun(`Would remove SSH key: ${fingerprint}`, options);
+				}
+				tui.newline();
+				tui.info(
+					`[DRY RUN] Would remove ${fingerprintsToRemove.length} SSH key${fingerprintsToRemove.length > 1 ? 's' : ''}`
+				);
+				return;
+			}
+
+			// Actually execute the deletion
 			for (const fingerprint of fingerprintsToRemove) {
 				await tui.spinner(`Removing SSH key ${fingerprint}...`, () =>
 					removeSSHKey(apiClient, fingerprint)
@@ -90,12 +137,18 @@ export const deleteCommand = createSubcommand({
 			tui.success(
 				`Removed ${fingerprintsToRemove.length} SSH key${fingerprintsToRemove.length > 1 ? 's' : ''}`
 			);
+
+			return {
+				success: true,
+				removed: fingerprintsToRemove.length,
+				fingerprints: fingerprintsToRemove,
+			};
 		} catch (error) {
 			logger.trace(error);
 			if (error instanceof Error) {
-				logger.fatal(`Failed to remove SSH key: ${error.message}`);
+				logger.fatal(`Failed to remove SSH key: ${error.message}`, ErrorCode.API_ERROR);
 			} else {
-				logger.fatal('Failed to remove SSH key');
+				logger.fatal('Failed to remove SSH key', ErrorCode.API_ERROR);
 			}
 		}
 	},

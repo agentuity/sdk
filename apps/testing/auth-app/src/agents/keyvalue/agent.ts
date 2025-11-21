@@ -7,7 +7,15 @@ const agent = createAgent({
 	},
 	schema: {
 		input: z.object({
-			operation: z.enum(['set', 'get', 'delete', 'getKeys', 'search', 'getStats', 'getNamespaces']),
+			operation: z.enum([
+				'set',
+				'get',
+				'delete',
+				'getKeys',
+				'search',
+				'getStats',
+				'getNamespaces',
+			]),
 			key: z.string().optional(),
 			value: z.string().optional(),
 			keyword: z.string().optional(),

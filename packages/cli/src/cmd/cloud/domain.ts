@@ -23,8 +23,9 @@ export async function checkCustomDomainForDNS(
 ): Promise<DNSResult[]> {
 	const suffix = config?.overrides?.api_url?.includes('agentuity.io')
 		? 'agentuity.io'
-		: 'agentuity.com';
-	const id = Bun.hash.xxHash64(`${projectId}latest`).toString(16);
+		: 'agentuity.cloud';
+	// FIXME: update to add the region into this
+	const id = Bun.hash.xxHash64(projectId).toString(16);
 	const proxy = `p${id}.${suffix}`;
 
 	return Promise.all(

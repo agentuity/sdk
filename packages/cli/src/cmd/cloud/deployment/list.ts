@@ -4,13 +4,41 @@ import * as tui from '../../../tui';
 import { projectDeploymentList } from '@agentuity/server';
 import { resolveProjectId } from './utils';
 import { Table } from 'console-table-printer';
+import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
+
+const DeploymentListResponseSchema = z.array(
+	z.object({
+		id: z.string().describe('Deployment ID'),
+		state: z.string().optional().describe('Current state of the deployment'),
+		active: z.boolean().describe('Whether this is the active deployment'),
+		createdAt: z.string().describe('Creation timestamp'),
+		message: z.string().optional().describe('Deployment message or description'),
+		tags: z.array(z.string()).describe('Deployment tags'),
+	})
+);
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
 	description: 'List deployments',
+	tags: ['read-only', 'slow', 'requires-auth'],
+	examples: [
+		`${getCommand('cloud deployment list')}           # List 10 most recent deployments`,
+		`${getCommand('cloud deployment list')} --count=25 # List 25 most recent deployments`,
+		`${getCommand('cloud deployment list')} --project-id=proj_abc123xyz`,
+	],
 	aliases: ['ls'],
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
+	idempotent: true,
+	pagination: {
+		supported: true,
+		defaultLimit: 10,
+		maxLimit: 100,
+		parameters: {
+			limit: 'count',
+		},
+	},
 	schema: {
 		options: z.object({
 			'project-id': z.string().optional().describe('Project ID'),
@@ -22,6 +50,7 @@ export const listSubcommand = createSubcommand({
 				.default(10)
 				.describe('Number of deployments to list (1–100)'),
 		}),
+		response: DeploymentListResponseSchema,
 	},
 	async handler(ctx) {
 		const projectId = resolveProjectId(ctx, { projectId: ctx.opts['project-id'] });
@@ -32,7 +61,7 @@ export const listSubcommand = createSubcommand({
 
 			if (deployments.length === 0) {
 				tui.info('No deployments found.');
-				return;
+				return [];
 			}
 
 			const table = new Table({
@@ -57,8 +86,20 @@ export const listSubcommand = createSubcommand({
 				});
 			}
 			table.printTable();
+
+			return deployments.map((d) => ({
+				id: d.id,
+				state: d.state,
+				active: d.active,
+				createdAt: d.createdAt,
+				message: d.message,
+				tags: d.tags,
+			}));
 		} catch (ex) {
-			tui.fatal(`Failed to list deployments: ${ex instanceof Error ? ex.message : String(ex)}`);
+			tui.fatal(
+				`Failed to list deployments: ${ex instanceof Error ? ex.message : String(ex)}`,
+				ErrorCode.API_ERROR
+			);
 		}
 	},
 });

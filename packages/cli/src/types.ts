@@ -104,11 +104,31 @@ export interface GlobalOptions {
 	logTimestamp?: boolean;
 	logPrefix?: boolean;
 	orgId?: string;
+	errorFormat?: 'json' | 'text';
+	json?: boolean;
+	quiet?: boolean;
+	noProgress?: boolean;
+	color?: 'auto' | 'always' | 'never';
+	explain?: boolean;
+	dryRun?: boolean;
+	validate?: boolean;
+}
+
+export interface PaginationInfo {
+	supported: boolean;
+	defaultLimit?: number;
+	maxLimit?: number;
+	parameters?: {
+		limit?: string;
+		offset?: string;
+		cursor?: string;
+	};
 }
 
 export interface CommandSchemas {
 	args?: z.ZodType;
 	options?: z.ZodType;
+	response?: z.ZodType;
 }
 
 export type ProjectConfig = zod.infer<typeof ProjectSchema>;
@@ -240,14 +260,19 @@ export function createSubcommand<
 	toplevel?: boolean;
 	requires?: R;
 	optional?: O;
+	examples?: string[];
+	idempotent?: boolean;
+	prerequisites?: string[];
+	pagination?: PaginationInfo;
+	tags?: string[];
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
-			? { args: A; options: Op }
-			: { args: A }
+			? { args: A; options: Op; response?: z.ZodType }
+			: { args: A; response?: z.ZodType }
 		: Op extends z.ZodType
-			? { options: Op }
-			: never;
-	handler(ctx: CommandContext<R, O, A, Op>): void | Promise<void>;
+			? { options: Op; response?: z.ZodType }
+			: { response?: z.ZodType };
+	handler(ctx: CommandContext<R, O, A, Op>): unknown | Promise<unknown>;
 }): SubcommandDefinition {
 	return definition as unknown as SubcommandDefinition;
 }
@@ -265,14 +290,19 @@ export function createCommand<
 	hidden?: boolean;
 	requires?: R;
 	optional?: O;
+	examples?: string[];
+	idempotent?: boolean;
+	prerequisites?: string[];
+	pagination?: PaginationInfo;
+	tags?: string[];
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
-			? { args: A; options: Op }
-			: { args: A }
+			? { args: A; options: Op; response?: z.ZodType }
+			: { args: A; response?: z.ZodType }
 		: Op extends z.ZodType
-			? { options: Op }
-			: never;
-	handler?(ctx: CommandContext<R, O, A, Op>): void | Promise<void>;
+			? { options: Op; response?: z.ZodType }
+			: { response?: z.ZodType };
+	handler?(ctx: CommandContext<R, O, A, Op>): unknown | Promise<unknown>;
 	subcommands?: SubcommandDefinition[];
 }): CommandDefinition {
 	return definition as unknown as CommandDefinition;
@@ -284,8 +314,13 @@ type CommandDefBase =
 			description: string;
 			aliases?: string[];
 			banner?: boolean;
+			examples?: string[];
+			idempotent?: boolean;
+			prerequisites?: string[];
+			pagination?: PaginationInfo;
+			tags?: string[];
 			schema?: CommandSchemas;
-			handler(ctx: CommandContext): void | Promise<void>;
+			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
 	  }
 	| {
@@ -293,6 +328,11 @@ type CommandDefBase =
 			description: string;
 			aliases?: string[];
 			banner?: boolean;
+			examples?: string[];
+			idempotent?: boolean;
+			prerequisites?: string[];
+			pagination?: PaginationInfo;
+			tags?: string[];
 			schema?: CommandSchemas;
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];
@@ -305,8 +345,13 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
+			examples?: string[];
+			idempotent?: boolean;
+			prerequisites?: string[];
+			pagination?: PaginationInfo;
+			tags?: string[];
 			schema?: CommandSchemas;
-			handler(ctx: CommandContext): void | Promise<void>;
+			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
 	  }
 	| {
@@ -315,6 +360,11 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
+			examples?: string[];
+			idempotent?: boolean;
+			prerequisites?: string[];
+			pagination?: PaginationInfo;
+			tags?: string[];
 			schema?: CommandSchemas;
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];

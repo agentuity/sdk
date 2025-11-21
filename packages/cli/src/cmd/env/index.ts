@@ -10,6 +10,7 @@ import { listSubcommand } from './list';
 export const command = createCommand({
 	name: 'env',
 	description: 'Manage environment variables for your project',
+	tags: ['fast', 'requires-auth', 'requires-project'],
 	subcommands: [
 		listSubcommand,
 		pullSubcommand,

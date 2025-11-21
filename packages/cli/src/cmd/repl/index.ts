@@ -1,11 +1,15 @@
 import { createCommand } from '../../types';
 import { createRepl, type ReplCommand } from '../../repl';
 import { z } from 'zod';
+import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
 	name: 'repl',
 	hidden: true,
 	description: 'interactive REPL for testing',
+	tags: ['slow'],
+	idempotent: false,
+	examples: [getCommand('repl')],
 
 	async handler() {
 		// Define test commands

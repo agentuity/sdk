@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/cli",
-	"version": "0.0.48",
+	"version": "0.0.49",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -26,7 +26,12 @@
 		"clean": "rm -rf dist",
 		"build": "bunx tsc --build --emitDeclarationOnly --force",
 		"typecheck": "bunx tsc --noEmit",
-		"test": "bun scripts/test-create-flow.ts",
+		"test": "bun scripts/test-create-flow.ts && bun scripts/test-exit-codes.ts && bun scripts/test-response-schema.ts && bun scripts/test-batch-reporting.ts && bun scripts/test-response-envelope.ts",
+		"test:create": "bun scripts/test-create-flow.ts",
+		"test:exit-codes": "bun scripts/test-exit-codes.ts",
+		"test:response-schema": "bun scripts/test-response-schema.ts",
+		"test:batch": "bun scripts/test-batch-reporting.ts",
+		"test:envelope": "bun scripts/test-response-envelope.ts",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {

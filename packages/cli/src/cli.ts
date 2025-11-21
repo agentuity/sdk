@@ -9,6 +9,7 @@ import type {
 	Optional,
 	Logger,
 	AuthData,
+	GlobalOptions,
 } from './types';
 import { showBanner } from './banner';
 import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
@@ -18,6 +19,9 @@ import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
 import { defaultProfileName, loadProjectConfig } from './config';
 import { APIClient, getAPIBaseURL, type APIClient as APIClientType } from './api';
+import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
+import { getCommand } from './command-prefix';
+import { isValidateMode, outputValidation, type ValidationResult } from './output';
 
 function createAPIClient(baseCtx: CommandContext, config: Config | null): APIClient {
 	try {
@@ -39,6 +43,71 @@ function createAPIClient(baseCtx: CommandContext, config: Config | null): APICli
 			`API client initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
 		);
 	}
+}
+
+/**
+ * Execute handler or output validation result based on mode
+ */
+async function executeOrValidate(
+	ctx: CommandContext,
+	commandName: string,
+	handler?: (ctx: CommandContext) => unknown | Promise<unknown>
+): Promise<void> {
+	if (isValidateMode(ctx.options)) {
+		// In validate mode, just output success (validation already passed via Zod)
+		const result: ValidationResult = {
+			valid: true,
+			command: commandName,
+		};
+		outputValidation(result, ctx.options);
+	} else if (handler) {
+		// Normal execution
+		await handler(ctx);
+	}
+}
+
+/**
+ * Handle validation error - output structured result in validate mode, otherwise log and exit
+ */
+function handleValidationError(
+	error: unknown,
+	commandName: string,
+	baseCtx: { options: GlobalOptions; logger: Logger }
+): never {
+	if (error && typeof error === 'object' && 'issues' in error) {
+		const issues = (error as { issues: Array<{ path: string[]; message: string }> }).issues;
+
+		if (isValidateMode(baseCtx.options)) {
+			// In validate mode, output structured validation result
+			const result: ValidationResult = {
+				valid: false,
+				command: commandName,
+				errors: issues.map((issue) => ({
+					field: issue.path?.length ? issue.path.join('.') : 'unknown',
+					message: issue.message,
+				})),
+			};
+			outputValidation(result, baseCtx.options);
+			process.exit(ExitCode.VALIDATION_ERROR);
+		} else {
+			// Use centralized error handling
+			exitWithError(
+				{
+					code: ErrorCode.VALIDATION_FAILED,
+					message: 'Validation error',
+					details: {
+						issues: issues.map((issue) => ({
+							field: issue.path?.length ? issue.path.join('.') : 'unknown',
+							message: issue.message,
+						})),
+					},
+				},
+				baseCtx.logger,
+				baseCtx.options.errorFormat ?? 'text'
+			);
+		}
+	}
+	throw error;
 }
 
 type Normalized = {
@@ -97,7 +166,12 @@ function normalizeReqs(def: CommandDefinition | SubcommandDefinition): Normalize
 	};
 }
 
-function handleProjectConfigError(error: unknown, requiresProject: boolean, logger: Logger): never {
+function handleProjectConfigError(
+	error: unknown,
+	requiresProject: boolean,
+	logger: Logger,
+	errorFormat?: 'json' | 'text'
+): never {
 	if (
 		requiresProject &&
 		error &&
@@ -105,8 +179,14 @@ function handleProjectConfigError(error: unknown, requiresProject: boolean, logg
 		'name' in error &&
 		error.name === 'ProjectConfigNotFoundExpection'
 	) {
-		logger.fatal(
-			'invalid project folder. use --dir to specify a different directory or change to a project folder'
+		exitWithError(
+			createError(ErrorCode.PROJECT_NOT_FOUND, 'Invalid project folder', undefined, [
+				'Use --dir to specify a different directory',
+				'Change to a directory containing agentuity.json',
+				`Run "${getCommand('project init')}" to create a new project`,
+			]),
+			logger,
+			errorFormat ?? 'text'
 		);
 	}
 	throw error;
@@ -117,11 +197,11 @@ export async function createCLI(version: string): Promise<Command> {
 
 	program
 		.name('agentuity')
-		.description('Agentuity CLI')
 		.version(version, '-V, --version', 'Display version')
-		.helpOption('-h, --help', 'Display help')
+		.helpOption('-h, --help=[json]', 'Display help (with optional JSON output)')
 		.allowUnknownOption(false)
-		.allowExcessArguments(false);
+		.allowExcessArguments(false)
+		.showHelpAfterError(true);
 
 	program
 		.option('--config <path>', 'Config file path')
@@ -133,7 +213,15 @@ export async function createCLI(version: string): Promise<Command> {
 			'Use a specific organization when performing operations',
 			process.env.AGENTUITY_CLOUD_ORG_ID
 		)
-		.option('--color-scheme <scheme>', 'Color scheme: light or dark');
+		.option('--color-scheme <scheme>', 'Color scheme: light or dark')
+		.option('--color <mode>', 'Color output: auto, always, never', 'auto')
+		.option('--error-format <format>', 'Error output format: json or text', 'text')
+		.option('--json', 'Output in JSON format (machine-readable)', false)
+		.option('--quiet', 'Suppress non-essential output', false)
+		.option('--no-progress', 'Disable progress indicators', false)
+		.option('--explain', 'Show what the command would do without executing', false)
+		.option('--dry-run', 'Execute command without making changes', false)
+		.option('--validate', 'Validate arguments and options without executing', false);
 
 	const skipVersionCheckOption = program.createOption(
 		'--skip-version-check',
@@ -160,7 +248,7 @@ export async function createCLI(version: string): Promise<Command> {
 			});
 		}
 		console.error();
-		console.error(`Run 'agentuity --help' for usage information.`);
+		console.error(`Run '${getCommand('--help')}' for usage information.`);
 		process.exit(1);
 	});
 
@@ -173,7 +261,7 @@ export async function createCLI(version: string): Promise<Command> {
 				const match = str.match(/got (\d+)/);
 				if (match) {
 					write(`error: unknown command or subcommand\n`);
-					write(`\nRun 'agentuity --help' for available commands.\n`);
+					write(`\nRun '${getCommand('--help')}' for available commands.\n`);
 				} else {
 					write(str);
 				}
@@ -219,7 +307,17 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 	// No regions available
 	if (regions.length === 0) {
 		if (required) {
-			logger.fatal('No cloud regions available');
+			const errorFormat = (options as Record<string, unknown>).errorFormat as
+				| 'json'
+				| 'text'
+				| undefined;
+			exitWithError(
+				createError(ErrorCode.NO_REGIONS_AVAILABLE, 'No cloud regions available', undefined, [
+					'Contact support if you need access to cloud regions',
+				]),
+				logger,
+				errorFormat ?? 'text'
+			);
 		}
 		return undefined;
 	}
@@ -231,8 +329,19 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 	if (region) {
 		const found = regions.find((r) => r.region === region);
 		if (!found) {
-			logger.fatal(
-				`Invalid region '${region}'. Use one of: ${regions.map((r) => r.region).join(', ')}`
+			const errorFormat = (options as Record<string, unknown>).errorFormat as
+				| 'json'
+				| 'text'
+				| undefined;
+			exitWithError(
+				createError(
+					ErrorCode.REGION_NOT_FOUND,
+					`Invalid region '${region}'`,
+					{ region, availableRegions: regions.map((r) => r.region) },
+					[`Use one of: ${regions.map((r) => r.region).join(', ')}`]
+				),
+				logger,
+				errorFormat ?? 'text'
 			);
 		}
 		return region;
@@ -249,7 +358,20 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 
 	// No flag provided - handle TTY vs non-TTY
 	if (required && !process.stdin.isTTY) {
-		logger.fatal('--region flag is required in non-interactive mode');
+		const errorFormat = (options as Record<string, unknown>).errorFormat as
+			| 'json'
+			| 'text'
+			| undefined;
+		exitWithError(
+			createError(
+				ErrorCode.REGION_REQUIRED,
+				'--region flag is required in non-interactive mode',
+				{ availableRegions: regions.map((r) => r.region) },
+				[`Use --region with one of: ${regions.map((r) => r.region).join(', ')}`]
+			),
+			logger,
+			errorFormat ?? 'text'
+		);
 	}
 
 	if (process.stdin.isTTY) {
@@ -272,6 +394,13 @@ async function registerSubcommand(
 
 	if (subcommand.aliases) {
 		cmd.aliases(subcommand.aliases);
+	}
+
+	// Add examples to help text
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const examples = (subcommand as any).examples as string[] | undefined;
+	if (examples && examples.length > 0) {
+		cmd.addHelpText('after', '\nExamples:\n' + examples.map((ex) => `  ${ex}`).join('\n'));
 	}
 
 	// Check if this subcommand has its own subcommands (nested subcommands)
@@ -368,8 +497,14 @@ async function registerSubcommand(
 						'name' in error &&
 						error.name === 'ProjectConfigNotFoundExpection'
 					) {
-						baseCtx.logger.fatal(
-							'invalid project folder. use --dir to specify a different directory or change to a project folder'
+						exitWithError(
+							createError(ErrorCode.PROJECT_NOT_FOUND, 'Invalid project folder', undefined, [
+								'Use --dir to specify a different directory',
+								'Change to a directory containing agentuity.json',
+								`Run "${getCommand('project init')}" to create a new project`,
+							]),
+							baseCtx.logger,
+							baseCtx.options.errorFormat
 						);
 					}
 					throw error;
@@ -448,22 +583,21 @@ async function registerSubcommand(
 							ctx.region = region;
 						}
 					}
-					if (subcommand.handler) {
-						await subcommand.handler(ctx as CommandContext);
-					}
+					await executeOrValidate(
+						ctx as CommandContext,
+						`${parent.name()} ${subcommand.name}`,
+						subcommand.handler
+					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
-						baseCtx.logger.error('Validation error:');
-						const issues = (error as { issues: Array<{ path: string[]; message: string }> })
-							.issues;
-						for (const issue of issues) {
-							baseCtx.logger.error(
-								`  ${issue.path?.length ? issue.path.join('.') + ': ' : ''}${issue.message}`
-							);
-						}
-						process.exit(1);
+						handleValidationError(error, `${parent.name()} ${subcommand.name}`, baseCtx);
 					}
-					handleProjectConfigError(error, normalized.requiresProject, baseCtx.logger);
+					handleProjectConfigError(
+						error,
+						normalized.requiresProject,
+						baseCtx.logger,
+						baseCtx.options.errorFormat
+					);
 				}
 			} else {
 				const ctx: Record<string, unknown> = {
@@ -596,22 +730,21 @@ async function registerSubcommand(
 							ctx.region = region;
 						}
 					}
-					if (subcommand.handler) {
-						await subcommand.handler(ctx as CommandContext);
-					}
+					await executeOrValidate(
+						ctx as CommandContext,
+						`${parent.name()} ${subcommand.name}`,
+						subcommand.handler
+					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
-						baseCtx.logger.error('Validation error:');
-						const issues = (error as { issues: Array<{ path: string[]; message: string }> })
-							.issues;
-						for (const issue of issues) {
-							baseCtx.logger.error(
-								`  ${issue.path?.length ? issue.path.join('.') + ': ' : ''}${issue.message}`
-							);
-						}
-						process.exit(1);
+						handleValidationError(error, `${parent.name()} ${subcommand.name}`, baseCtx);
 					}
-					handleProjectConfigError(error, normalized.requiresProject, baseCtx.logger);
+					handleProjectConfigError(
+						error,
+						normalized.requiresProject,
+						baseCtx.logger,
+						baseCtx.options.errorFormat
+					);
 				}
 			} else {
 				const ctx: Record<string, unknown> = {
@@ -694,22 +827,21 @@ async function registerSubcommand(
 							ctx as CommandContext & { apiClient: APIClientType }
 						);
 					}
-					if (subcommand.handler) {
-						await subcommand.handler(ctx as CommandContext);
-					}
+					await executeOrValidate(
+						ctx as CommandContext,
+						`${parent.name()} ${subcommand.name}`,
+						subcommand.handler
+					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
-						baseCtx.logger.error('Validation error:');
-						const issues = (error as { issues: Array<{ path: string[]; message: string }> })
-							.issues;
-						for (const issue of issues) {
-							baseCtx.logger.error(
-								`  ${issue.path?.length ? issue.path.join('.') + ': ' : ''}${issue.message}`
-							);
-						}
-						process.exit(1);
+						handleValidationError(error, `${parent.name()} ${subcommand.name}`, baseCtx);
 					}
-					handleProjectConfigError(error, normalized.requiresProject, baseCtx.logger);
+					handleProjectConfigError(
+						error,
+						normalized.requiresProject,
+						baseCtx.logger,
+						baseCtx.options.errorFormat
+					);
 				}
 			} else {
 				const ctx: Record<string, unknown> = {

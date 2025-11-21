@@ -3,18 +3,34 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectDelete, projectList } from '@agentuity/server';
 import enquirer from 'enquirer';
+import { getCommand } from '../../command-prefix';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	description: 'Delete a project',
+	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	aliases: ['rm', 'del'],
 	requires: { auth: true, apiClient: true },
+	idempotent: false,
+	examples: [
+		getCommand('project delete'),
+		getCommand('project delete proj_abc123def456'),
+		getCommand('project delete proj_abc123def456 --confirm'),
+		getCommand('project rm proj_abc123def456'),
+		getCommand('--explain project delete proj_abc123def456'),
+		getCommand('--dry-run project delete proj_abc123def456'),
+	],
 	schema: {
 		args: z.object({
 			id: z.string().optional().describe('the project id'),
 		}),
 		options: z.object({
 			confirm: z.boolean().optional().describe('Skip confirmation prompts'),
+		}),
+		response: z.object({
+			success: z.boolean().describe('Whether the deletion succeeded'),
+			projectIds: z.array(z.string()).describe('Deleted project IDs'),
+			count: z.number().describe('Number of projects deleted'),
 		}),
 	},
 
@@ -67,7 +83,7 @@ export const deleteSubcommand = createSubcommand({
 
 		if (projectIds.length === 0) {
 			tui.info('No projects selected for deletion');
-			return;
+			return { success: false, projectIds: [], count: 0 };
 		}
 
 		const skipConfirm = opts?.confirm === true;
@@ -90,7 +106,7 @@ export const deleteSubcommand = createSubcommand({
 
 			if (!confirm.confirm) {
 				tui.info('Deletion cancelled');
-				return;
+				return { success: false, projectIds: [], count: 0 };
 			}
 		}
 
@@ -107,5 +123,11 @@ export const deleteSubcommand = createSubcommand({
 		} else {
 			tui.error('Failed to delete projects');
 		}
+
+		return {
+			success: deleted.length > 0,
+			projectIds: deleted,
+			count: deleted.length,
+		};
 	},
 });

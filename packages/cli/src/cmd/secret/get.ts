@@ -3,10 +3,22 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectGet } from '@agentuity/server';
 import { maskSecret } from '../../env-util';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
+
+const SecretGetResponseSchema = z.object({
+	key: z.string().describe('Secret key name'),
+	value: z.string().describe('Secret value'),
+});
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
 	description: 'Get a secret value',
+	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
+	examples: [
+		getCommand('secret get DATABASE_URL'),
+		getCommand('secret get STRIPE_SECRET_KEY --no-mask'),
+	],
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({
@@ -18,7 +30,9 @@ export const getSubcommand = createSubcommand({
 				.default(!!process.stdout.isTTY)
 				.describe('mask the value in output (default: true in TTY, false otherwise)'),
 		}),
+		response: SecretGetResponseSchema,
 	},
+	idempotent: true,
 
 	async handler(ctx) {
 		const { args, opts, apiClient, project } = ctx;
@@ -32,7 +46,7 @@ export const getSubcommand = createSubcommand({
 		const value = projectData.secrets?.[args.key];
 
 		if (value === undefined) {
-			tui.fatal(`Secret '${args.key}' not found`);
+			tui.fatal(`Secret '${args.key}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
 		}
 
 		if (process.stdout.isTTY) {
@@ -50,5 +64,10 @@ export const getSubcommand = createSubcommand({
 				console.log(`${args.key}=${value}`);
 			}
 		}
+
+		return {
+			key: args.key,
+			value,
+		};
 	},
 });

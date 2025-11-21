@@ -3,12 +3,21 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectGet } from '@agentuity/server';
 import { maskSecret } from '../../env-util';
+import { getCommand } from '../../command-prefix';
+
+const EnvListResponseSchema = z.record(
+	z.string(),
+	z.string().describe('Environment variable value')
+);
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
 	aliases: ['ls'],
 	description: 'List all environment variables',
+	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
+	examples: [getCommand('env list'), getCommand('env list --mask')],
 	requires: { auth: true, project: true, apiClient: true },
+	idempotent: true,
 	schema: {
 		options: z.object({
 			mask: z
@@ -16,6 +25,7 @@ export const listSubcommand = createSubcommand({
 				.default(false)
 				.describe('mask the values in output (default: false for env vars)'),
 		}),
+		response: EnvListResponseSchema,
 	},
 
 	async handler(ctx) {
@@ -30,7 +40,7 @@ export const listSubcommand = createSubcommand({
 
 		if (Object.keys(env).length === 0) {
 			tui.info('No environment variables found');
-			return;
+			return {};
 		}
 
 		// Display the variables
@@ -52,5 +62,7 @@ export const listSubcommand = createSubcommand({
 				console.log(`${key}=${displayValue}`);
 			}
 		}
+
+		return env;
 	},
 });

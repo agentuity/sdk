@@ -10,6 +10,7 @@ import { listSubcommand } from './list';
 export const command = createCommand({
 	name: 'secret',
 	description: 'Manage secrets for your project',
+	tags: ['fast', 'requires-auth', 'requires-project'],
 	subcommands: [
 		listSubcommand,
 		pullSubcommand,

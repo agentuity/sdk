@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getIONHost } from '../../config';
+import { getCommand } from '../../command-prefix';
 
 const args = z.object({
 	identifier: z.string().optional().describe('The project or deployment id to use'),
@@ -15,9 +16,20 @@ const options = z.object({
 export const sshSubcommand = createSubcommand({
 	name: 'ssh',
 	description: 'SSH into a cloud project',
+	tags: ['read-only', 'slow', 'requires-auth', 'requires-deployment'],
+	idempotent: true,
+	examples: [
+		`${getCommand('cloud ssh')}                          # SSH into current project`,
+		`${getCommand('cloud ssh')} proj_abc123xyz           # SSH into specific project`,
+		`${getCommand('cloud ssh')} deploy_abc123xyz         # SSH into specific deployment`,
+		`${getCommand('cloud ssh')} 'ps aux'                 # Run command and exit`,
+		`${getCommand('cloud ssh')} proj_abc123xyz 'tail -f /var/log/app.log'`,
+		`${getCommand('cloud ssh')} --show                   # Show SSH command without executing`,
+	],
 	toplevel: true,
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
+	prerequisites: ['cloud deploy'],
 	schema: { args, options },
 
 	async handler(ctx) {

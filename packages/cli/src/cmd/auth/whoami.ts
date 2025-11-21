@@ -1,23 +1,36 @@
-import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { whoami } from '@agentuity/server';
+import { getCommand } from '../../command-prefix';
+import { z } from 'zod';
+
+const WhoamiResponseSchema = z.object({
+	userId: z.string().describe('Unique user identifier'),
+	firstName: z.string().describe('User first name'),
+	lastName: z.string().describe('User last name'),
+	organizations: z
+		.array(
+			z.object({
+				id: z.string().describe('Organization ID'),
+				name: z.string().describe('Organization name'),
+			})
+		)
+		.describe('Organizations the user belongs to'),
+});
 
 export const whoamiCommand = createSubcommand({
 	name: 'whoami',
 	description: 'Display information about the currently authenticated user',
+	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true, apiClient: true },
+	idempotent: true,
 	schema: {
-		options: z.object({
-			format: z
-				.enum(['json', 'table'])
-				.optional()
-				.describe('the output format: json, table (default)'),
-		}),
+		response: WhoamiResponseSchema,
 	},
+	examples: [getCommand('auth whoami'), getCommand('--json auth whoami')],
 
 	async handler(ctx) {
-		const { apiClient, opts, auth } = ctx;
+		const { apiClient, auth, options } = ctx;
 
 		if (!apiClient) {
 			throw new Error(
@@ -33,19 +46,15 @@ export const whoamiCommand = createSubcommand({
 			},
 		});
 
-		if (opts?.format === 'json') {
-			console.log(
-				JSON.stringify(
-					{
-						userId: auth?.userId,
-						firstName: user.firstName,
-						lastName: user.lastName,
-						organizations: user.organizations,
-					},
-					null,
-					2
-				)
-			);
+		const result = {
+			userId: auth?.userId || '',
+			firstName: user.firstName,
+			lastName: user.lastName,
+			organizations: user.organizations,
+		};
+
+		if (options.json) {
+			console.log(JSON.stringify(result, null, 2));
 		} else {
 			const fullName = `${user.firstName} ${user.lastName}`;
 
@@ -65,5 +74,7 @@ export const whoamiCommand = createSubcommand({
 			}
 			tui.newline();
 		}
+
+		return result;
 	},
 });

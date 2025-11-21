@@ -160,7 +160,10 @@ export class LocalObjectStorage implements ObjectStorage {
 		throw new Error('listKeys not implemented for local storage');
 	}
 
-	async listObjects(_bucket: string, _options?: { prefix?: string; limit?: number }): Promise<ObjectInfo[]> {
+	async listObjects(
+		_bucket: string,
+		_options?: { prefix?: string; limit?: number }
+	): Promise<ObjectInfo[]> {
 		throw new Error('listObjects not implemented for local storage');
 	}
 

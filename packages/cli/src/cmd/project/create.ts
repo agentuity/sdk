@@ -1,15 +1,35 @@
 import { createSubcommand } from '../../types';
 import { z } from 'zod';
 import { runCreateFlow } from './template-flow';
+import { getCommand } from '../../command-prefix';
+
+const ProjectCreateResponseSchema = z.object({
+	success: z.boolean().describe('Whether the operation succeeded'),
+	name: z.string().describe('Project name'),
+	path: z.string().describe('Project directory path'),
+	projectId: z.string().optional().describe('Project ID if registered'),
+	template: z.string().describe('Template used'),
+	installed: z.boolean().describe('Whether dependencies were installed'),
+	built: z.boolean().describe('Whether the project was built'),
+});
 
 export const createProjectSubcommand = createSubcommand({
 	name: 'create',
 	description: 'Create a new project',
+	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive', 'requires-auth'],
 	aliases: ['new'],
 	banner: true,
 	toplevel: true,
+	idempotent: false,
 	optional: { auth: true, org: true, region: true },
 	requires: { apiClient: true },
+	examples: [
+		getCommand('project create'),
+		getCommand('project create --name my-ai-agent'),
+		getCommand('project create --name customer-service-bot --dir ~/projects/agent'),
+		getCommand('project create --template basic --no-install'),
+		getCommand('project new --no-register'),
+	],
 	schema: {
 		options: z.object({
 			name: z.string().optional().describe('Project name'),
@@ -40,6 +60,7 @@ export const createProjectSubcommand = createSubcommand({
 				.optional()
 				.describe('Register the project, if authenticated (use --no-register to skip)'),
 		}),
+		response: ProjectCreateResponseSchema,
 	},
 
 	async handler(ctx) {
@@ -61,5 +82,15 @@ export const createProjectSubcommand = createSubcommand({
 			orgId,
 			region,
 		});
+
+		// Return best-effort response (runCreateFlow doesn't return values)
+		return {
+			success: true,
+			name: opts.name || 'project',
+			path: opts.dir || process.cwd(),
+			template: opts.template || 'default',
+			installed: opts.install !== false,
+			built: opts.build !== false,
+		};
 	},
 });

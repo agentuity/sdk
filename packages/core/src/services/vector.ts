@@ -198,7 +198,7 @@ export interface VectorStorage {
 	 * @example
 	 * ```typescript
 	 * // Upsert with automatic embedding
-	 * const results = await vectorStore.upsert('products', 
+	 * const results = await vectorStore.upsert('products',
 	 *   {
 	 *     key: 'chair-001',
 	 *     document: 'Comfortable office chair with lumbar support',
@@ -210,7 +210,7 @@ export interface VectorStorage {
 	 *     metadata: { category: 'furniture', price: 599 }
 	 *   }
 	 * );
-	 * 
+	 *
 	 * // Upsert with pre-computed embeddings
 	 * await vectorStore.upsert('products', {
 	 *   key: 'lamp-001',
@@ -276,7 +276,7 @@ export interface VectorStorage {
 	 *   query: 'comfortable seating for office',
 	 *   limit: 5
 	 * });
-	 * 
+	 *
 	 * // Search with metadata filters and similarity threshold
 	 * const filteredResults = await vectorStore.search('products', {
 	 *   query: 'ergonomic furniture',
@@ -284,7 +284,7 @@ export interface VectorStorage {
 	 *   similarity: 0.7, // Only results with 70%+ similarity
 	 *   metadata: { category: 'furniture', inStock: true }
 	 * });
-	 * 
+	 *
 	 * for (const result of filteredResults) {
 	 *   console.log(`${result.key}: ${result.similarity * 100}% match`);
 	 *   console.log('Metadata:', result.metadata);
@@ -308,7 +308,7 @@ export interface VectorStorage {
 	 * // Delete a single vector
 	 * const deleted = await vectorStore.delete('products', 'chair-001');
 	 * console.log(`Deleted ${deleted} vector(s)`);
-	 * 
+	 *
 	 * // Delete multiple vectors
 	 * await vectorStore.delete('products', 'chair-001', 'desk-001', 'lamp-001');
 	 * ```

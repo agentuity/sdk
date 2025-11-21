@@ -8,5 +8,6 @@ import { sshSubcommand } from './ssh';
 export const command = createCommand({
 	name: 'auth',
 	description: 'Authentication and authorization related commands',
+	tags: ['read-only', 'fast'],
 	subcommands: [loginCommand, logoutCommand, signupCommand, whoamiCommand, sshSubcommand],
 });

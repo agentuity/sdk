@@ -27,12 +27,45 @@ import {
 import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { checkCustomDomainForDNS } from './domain';
+import { getCommand } from '../../command-prefix';
+import { z } from 'zod';
+
+const DeployResponseSchema = z.object({
+	success: z.boolean().describe('Whether deployment succeeded'),
+	deploymentId: z.string().describe('Deployment ID'),
+	projectId: z.string().describe('Project ID'),
+	urls: z
+		.object({
+			deployment: z.string().describe('Deployment-specific URL'),
+			latest: z.string().describe('Latest/active deployment URL'),
+			custom: z.array(z.string()).optional().describe('Custom domain URLs'),
+		})
+		.optional()
+		.describe('Deployment URLs'),
+});
 
 export const deploySubcommand = createSubcommand({
 	name: 'deploy',
 	description: 'Deploy project to the Agentuity Cloud',
+	tags: [
+		'mutating',
+		'creates-resource',
+		'slow',
+		'api-intensive',
+		'requires-auth',
+		'requires-project',
+	],
+	examples: [
+		`${getCommand('cloud deploy')}                    # Deploy current project`,
+		`${getCommand('cloud deploy')} --log-level=debug  # Deploy with verbose output`,
+	],
 	toplevel: true,
+	idempotent: false,
 	requires: { auth: true, project: true, apiClient: true },
+	prerequisites: ['auth login'],
+	schema: {
+		response: DeployResponseSchema,
+	},
 
 	async handler(ctx) {
 		const { project, apiClient, projectDir, config, options } = ctx;
@@ -335,6 +368,27 @@ export const deploySubcommand = createSubcommand({
 					);
 				}
 			}
+
+			// Return deployment result (if available)
+			if (deployment && complete?.publicUrls) {
+				return {
+					success: true,
+					deploymentId: deployment.id,
+					projectId: project.projectId,
+					urls: {
+						deployment: complete.publicUrls.deployment,
+						latest: complete.publicUrls.latest,
+						custom: complete.publicUrls.custom,
+					},
+				};
+			}
+
+			// Fallback response
+			return {
+				success: false,
+				deploymentId: '',
+				projectId: project.projectId,
+			};
 		} catch (ex) {
 			tui.fatal(`unexpected error trying to deploy project. ${ex}`);
 		}

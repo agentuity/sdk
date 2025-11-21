@@ -1,11 +1,27 @@
+import { z } from 'zod';
 import { createCommand } from '../../types';
 import * as tui from '../../tui';
 import { createStorageAdapter } from './util';
+import { getCommand } from '../../command-prefix';
+
+const BucketListResponseSchema = z.array(
+	z.object({
+		name: z.string().describe('Bucket name'),
+		object_count: z.number().describe('Number of objects in bucket'),
+		total_bytes: z.number().describe('Total size in bytes'),
+	})
+);
 
 export const listBucketsSubcommand = createCommand({
 	name: 'list-buckets',
 	description: 'List all object storage buckets',
+	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true, project: true },
+	schema: {
+		response: BucketListResponseSchema,
+	},
+	idempotent: true,
+	examples: [`${getCommand('objectstore list-buckets')} - List all buckets with stats`],
 
 	async handler(ctx) {
 		const storage = await createStorageAdapter(ctx);
@@ -13,7 +29,7 @@ export const listBucketsSubcommand = createCommand({
 
 		if (buckets.length === 0) {
 			tui.info('No buckets found');
-			return;
+			return [];
 		}
 
 		tui.info(`Found ${buckets.length} bucket(s):`);
@@ -21,6 +37,8 @@ export const listBucketsSubcommand = createCommand({
 			const sizeMB = (bucket.total_bytes / (1024 * 1024)).toFixed(2);
 			tui.info(`  ${tui.bold(bucket.name)}: ${bucket.object_count} objects, ${sizeMB} MB`);
 		}
+
+		return buckets;
 	},
 });
 

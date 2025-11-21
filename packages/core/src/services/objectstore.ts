@@ -246,7 +246,10 @@ export interface ObjectStorage {
 	 * }
 	 * ```
 	 */
-	listObjects(bucket: string, options?: { prefix?: string; limit?: number }): Promise<ObjectInfo[]>;
+	listObjects(
+		bucket: string,
+		options?: { prefix?: string; limit?: number }
+	): Promise<ObjectInfo[]>;
 
 	/**
 	 * Get object metadata without retrieving the data

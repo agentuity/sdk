@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getIONHost } from '../../../config';
+import { getCommand } from '../../../command-prefix';
 
 const args = z.object({
 	source: z.string().describe('the source file'),
@@ -19,9 +20,27 @@ export const uploadCommand = createSubcommand({
 	name: 'upload',
 	aliases: ['cp', 'put'],
 	description: 'Upload a file using security copy',
+	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth', 'requires-deployment'],
+	idempotent: false,
+	examples: [
+		`${getCommand('cloud scp upload')} ./config.json                # Upload to remote home directory`,
+		`${getCommand('cloud scp upload')} ./config.json /app/config.json # Upload to specific path`,
+		`${getCommand('cloud scp upload')} ./config.json --identifier=proj_abc123xyz`,
+		`${getCommand('cloud scp upload')} ./logs/*.log ~/logs/        # Upload multiple files`,
+	],
 	requires: { apiClient: true, auth: true },
-	schema: { args, options },
+	schema: {
+		args,
+		options,
+		response: z.object({
+			success: z.boolean().describe('Whether upload succeeded'),
+			source: z.string().describe('Local source path'),
+			destination: z.string().describe('Remote destination path'),
+			identifier: z.string().describe('Project or deployment identifier'),
+		}),
+	},
 	optional: { project: true },
+	prerequisites: ['cloud deploy'],
 
 	async handler(ctx) {
 		const { apiClient, args, opts, project, projectDir, config } = ctx;
@@ -52,6 +71,13 @@ export const uploadCommand = createSubcommand({
 				);
 				process.exit(spawn.exitCode ?? 1);
 			}
+
+			return {
+				success: true,
+				source: args.source,
+				destination,
+				identifier,
+			};
 		} catch (error) {
 			tui.error(`SCP upload error: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			process.exit(1);

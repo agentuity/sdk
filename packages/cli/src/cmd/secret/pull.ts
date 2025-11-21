@@ -10,15 +10,28 @@ import {
 	writeEnvFile,
 	mergeEnvVars,
 } from '../../env-util';
+import { getCommand } from '../../command-prefix';
+
+const SecretPullResponseSchema = z.object({
+	success: z.boolean().describe('Whether pull succeeded'),
+	pulled: z.number().describe('Number of items pulled'),
+	path: z.string().describe('Local file path where secrets were saved'),
+	force: z.boolean().describe('Whether force mode was used'),
+});
 
 export const pullSubcommand = createSubcommand({
 	name: 'pull',
 	description: 'Pull secrets from cloud to local .env.production file',
+	tags: ['slow', 'requires-auth', 'requires-project'],
+	idempotent: true,
+	examples: [getCommand('secret pull'), getCommand('secret pull --force')],
 	requires: { auth: true, project: true, apiClient: true },
+	prerequisites: ['cloud deploy'],
 	schema: {
 		options: z.object({
 			force: z.boolean().default(false).describe('overwrite local values with cloud values'),
 		}),
+		response: SecretPullResponseSchema,
 	},
 
 	async handler(ctx) {
@@ -74,5 +87,12 @@ export const pullSubcommand = createSubcommand({
 
 		const count = Object.keys(cloudSecrets).length;
 		tui.success(`Pulled ${count} secret${count !== 1 ? 's' : ''} to ${targetEnvPath}`);
+
+		return {
+			success: true,
+			pulled: count,
+			path: targetEnvPath,
+			force: opts?.force ?? false,
+		};
 	},
 });

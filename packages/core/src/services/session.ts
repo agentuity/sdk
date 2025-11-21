@@ -88,7 +88,7 @@ export interface SessionEventProvider {
 	 *   statusCode: 200,
 	 *   agentIds: ['agent-1', 'agent-2']
 	 * });
-	 * 
+	 *
 	 * // Completion with error
 	 * await sessionProvider.complete({
 	 *   id: 'session-123',

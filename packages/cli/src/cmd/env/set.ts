@@ -11,15 +11,29 @@ import {
 } from '../../env-util';
 import { getCommand } from '../../command-prefix';
 
+const EnvSetResponseSchema = z.object({
+	success: z.boolean().describe('Whether the operation succeeded'),
+	key: z.string().describe('Environment variable key'),
+	path: z.string().describe('Local file path where env var was saved'),
+});
+
 export const setSubcommand = createSubcommand({
 	name: 'set',
 	description: 'Set an environment variable',
+	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth', 'requires-project'],
+	idempotent: true,
 	requires: { auth: true, project: true, apiClient: true },
+	examples: [
+		getCommand('env set NODE_ENV production'),
+		getCommand('env set PORT 3000'),
+		getCommand('env set LOG_LEVEL debug'),
+	],
 	schema: {
 		args: z.object({
 			key: z.string().describe('the environment variable key'),
 			value: z.string().describe('the environment variable value'),
 		}),
+		response: EnvSetResponseSchema,
 	},
 
 	async handler(ctx) {
@@ -45,7 +59,11 @@ export const setSubcommand = createSubcommand({
 				tui.info(
 					`Cancelled. Use "${getCommand('secret set')}" to store this as a secret instead.`
 				);
-				return;
+				return {
+					success: false,
+					key: args.key,
+					path: '',
+				};
 			}
 		}
 
@@ -67,5 +85,11 @@ export const setSubcommand = createSubcommand({
 		await writeEnvFile(envFilePath, filteredEnv);
 
 		tui.success(`Environment variable '${args.key}' set successfully (cloud + ${envFilePath})`);
+
+		return {
+			success: true,
+			key: args.key,
+			path: envFilePath,
+		};
 	},
 });

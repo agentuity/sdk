@@ -1,6 +1,7 @@
 import { KeyValueStorageService, Logger } from '@agentuity/core';
 import { createServerFetchAdapter } from '@agentuity/server';
 import { loadProjectSDKKey } from '../../config';
+import { ErrorCode } from '../../errors';
 import type { Config } from '../../types';
 import * as tui from '../../tui';
 
@@ -11,7 +12,10 @@ export async function createStorageAdapter(ctx: {
 }) {
 	const sdkKey = await loadProjectSDKKey(ctx.projectDir);
 	if (!sdkKey) {
-		tui.fatal(`Couldn't find the AGENTUITY_SDK_KEY in ${ctx.projectDir} .env file`);
+		tui.fatal(
+			`Couldn't find the AGENTUITY_SDK_KEY in ${ctx.projectDir} .env file`,
+			ErrorCode.CONFIG_NOT_FOUND
+		);
 	}
 
 	const adapter = createServerFetchAdapter(

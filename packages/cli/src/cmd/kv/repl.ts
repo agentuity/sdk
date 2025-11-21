@@ -5,11 +5,15 @@ import { showBanner } from '../../banner';
 import * as tui from '../../tui';
 import { isPossiblyJSON, tryParseJSON } from '../../json';
 import { createStorageAdapter } from './util';
+import { getCommand } from '../../command-prefix';
 
 export const replSubcommand = createCommand({
 	name: 'repl',
 	description: 'Start an interactive repl for working with keyvalue database',
+	tags: ['slow', 'requires-auth'],
+	idempotent: false,
 	requires: { auth: true, project: true },
+	examples: [`${getCommand('kv repl')} - Start interactive KV session`],
 
 	async handler(ctx) {
 		showBanner(undefined, true);

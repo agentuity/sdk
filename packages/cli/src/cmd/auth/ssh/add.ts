@@ -7,9 +7,17 @@ import { readFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { z } from 'zod';
+import { ErrorCode } from '../../../errors';
 
 const optionsSchema = z.object({
 	file: z.string().optional().describe('File containing the public key'),
+});
+
+const SSHAddResponseSchema = z.object({
+	success: z.boolean().describe('Whether the operation succeeded'),
+	fingerprint: z.string().describe('SSH key fingerprint'),
+	keyType: z.string().describe('SSH key type (e.g., ssh-rsa, ssh-ed25519)'),
+	added: z.number().describe('Number of keys added'),
 });
 
 interface SSHKeyOption {
@@ -107,15 +115,24 @@ export const addCommand = createSubcommand({
 	name: 'add',
 	aliases: ['create'],
 	description: 'Add an SSH public key to your account (reads from file or stdin)',
+	tags: ['mutating', 'creates-resource', 'slow', 'requires-auth'],
+	idempotent: false,
 	requires: { apiClient: true, auth: true },
+	examples: [
+		getCommand('auth ssh add'),
+		getCommand('auth ssh add --file ~/.ssh/id_ed25519.pub'),
+		getCommand('auth ssh add --file ./deploy_key.pub'),
+		'cat ~/.ssh/id_rsa.pub | ' + getCommand('auth ssh add'),
+	],
 	schema: {
 		options: optionsSchema,
+		response: SSHAddResponseSchema,
 	},
 	async handler(ctx) {
 		const { logger, apiClient, opts } = ctx;
 
 		if (!apiClient) {
-			logger.fatal('API client is not available');
+			logger.fatal('API client is not available', ErrorCode.INTERNAL_ERROR);
 		}
 
 		try {
@@ -254,9 +271,9 @@ export const addCommand = createSubcommand({
 		} catch (error) {
 			logger.trace(error);
 			if (error instanceof Error) {
-				logger.fatal(`Failed to add SSH key: ${error.message}`);
+				logger.fatal(`Failed to add SSH key: ${error.message}`, ErrorCode.API_ERROR);
 			} else {
-				logger.fatal('Failed to add SSH key');
+				logger.fatal('Failed to add SSH key', ErrorCode.API_ERROR);
 			}
 		}
 	},

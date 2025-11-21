@@ -8,16 +8,27 @@ import {
 	writeEnvFile,
 	filterAgentuitySdkKeys,
 } from '../../env-util';
+import { getCommand } from '../../command-prefix';
+
+const EnvDeleteResponseSchema = z.object({
+	success: z.boolean().describe('Whether the operation succeeded'),
+	key: z.string().describe('Environment variable key that was deleted'),
+	path: z.string().describe('Local file path where env var was removed'),
+});
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	aliases: ['del', 'remove', 'rm'],
 	description: 'Delete an environment variable',
+	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-project'],
+	idempotent: true,
+	examples: [getCommand('env delete OLD_FEATURE_FLAG'), getCommand('env rm PORT')],
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({
 			key: z.string().describe('the environment variable key to delete'),
 		}),
+		response: EnvDeleteResponseSchema,
 	},
 
 	async handler(ctx) {
@@ -43,5 +54,11 @@ export const deleteSubcommand = createSubcommand({
 		tui.success(
 			`Environment variable '${args.key}' deleted successfully (cloud + ${envFilePath})`
 		);
+
+		return {
+			success: true,
+			key: args.key,
+			path: envFilePath,
+		};
 	},
 });

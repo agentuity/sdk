@@ -3,12 +3,17 @@ import { getAppBaseURL, UpgradeRequiredError } from '@agentuity/server';
 import { saveAuth } from '../../config';
 import { generateSignupOTP, pollForSignupCompletion } from './api';
 import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
 
 export const signupCommand = createSubcommand({
 	name: 'signup',
 	description: 'Create a new Agentuity Cloud Platform account',
+	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive'],
 	toplevel: true,
+	idempotent: false,
 	requires: { apiClient: true },
+	examples: [getCommand('auth signup'), getCommand('signup')],
 
 	async handler(ctx) {
 		const { logger, config, apiClient } = ctx;
@@ -46,9 +51,9 @@ export const signupCommand = createSubcommand({
 				tui.banner('CLI Upgrade Required', bannerBody);
 				process.exit(1);
 			} else if (error instanceof Error) {
-				logger.fatal(`Signup failed: ${error.message}`);
+				logger.fatal(`Signup failed: ${error.message}`, ErrorCode.AUTH_FAILED);
 			} else {
-				logger.fatal('Signup failed');
+				logger.fatal('Signup failed', ErrorCode.AUTH_FAILED);
 			}
 		}
 	},

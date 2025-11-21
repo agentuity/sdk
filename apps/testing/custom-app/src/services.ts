@@ -123,7 +123,10 @@ export class CustomObjectStorage implements ObjectStorage {
 		return [];
 	}
 
-	async listObjects(_bucket: string, _options?: { prefix?: string; limit?: number }): Promise<ObjectInfo[]> {
+	async listObjects(
+		_bucket: string,
+		_options?: { prefix?: string; limit?: number }
+	): Promise<ObjectInfo[]> {
 		return [];
 	}
 

@@ -3,12 +3,21 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectDeploymentUndeploy } from '@agentuity/server';
 import { resolveProjectId } from './utils';
+import { getCommand } from '../../../command-prefix';
 
 export const undeploySubcommand = createSubcommand({
 	name: 'undeploy',
 	description: 'Undeploy the latest deployment',
+	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
+	examples: [
+		`${getCommand('cloud deployment undeploy')}        # Undeploy with confirmation`,
+		`${getCommand('cloud deployment undeploy')} --force # Undeploy without confirmation`,
+		`${getCommand('cloud deployment undeploy')} --project-id=proj_abc123xyz`,
+	],
+	idempotent: false,
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
+	prerequisites: ['cloud deploy'],
 	schema: {
 		options: z.object({
 			'project-id': z.string().optional().describe('Project ID'),

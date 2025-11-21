@@ -14,6 +14,7 @@ export const command = createCommand({
 	name: 'keyvalue',
 	aliases: ['kv'],
 	description: 'Manage keyvalue storage for your projects',
+	tags: ['read-only', 'fast', 'requires-auth'],
 	subcommands: [
 		replSubcommand,
 		getSubcommand,

@@ -4,17 +4,32 @@ import enquirer from 'enquirer';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
+import { getCommand } from '../../../command-prefix';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
 	description: 'Delete cloud resource(s) for an organization',
+	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	aliases: ['rm', 'del', 'remove'],
+	idempotent: false,
 	requires: { auth: true, org: true, region: true },
+	examples: [
+		getCommand('cloud resource delete'),
+		getCommand('cloud resource delete --type db --name my-database'),
+		getCommand('cloud resource delete --type s3 --name uploads'),
+		getCommand('--explain cloud resource delete --type db --name old-db'),
+		getCommand('--dry-run cloud resource rm --type s3 --name temp-bucket'),
+	],
 	schema: {
 		options: z.object({
 			type: z.enum(['db', 's3']).optional().describe('Resource type (db or s3)'),
 			name: z.string().optional().describe('Resource name to delete'),
 			confirm: z.boolean().optional().describe('Skip confirmation prompts'),
+		}),
+		response: z.object({
+			success: z.boolean().describe('Whether deletion succeeded'),
+			count: z.number().describe('Number of resources deleted'),
+			resources: z.array(z.string()).describe('Deleted resource names'),
 		}),
 	},
 
@@ -41,7 +56,7 @@ export const deleteSubcommand = createSubcommand({
 
 			if (resources.db.length === 0 && resources.s3.length === 0) {
 				tui.info('No resources found to delete');
-				return;
+				return { success: false, count: 0, resources: [] };
 			}
 
 			// Build choices for multi-select and resource map
@@ -81,7 +96,7 @@ export const deleteSubcommand = createSubcommand({
 
 		if (resourcesToDelete.length === 0) {
 			tui.info('No resources selected for deletion');
-			return;
+			return { success: false, count: 0, resources: [] };
 		}
 
 		// Confirm deletion
@@ -98,7 +113,7 @@ export const deleteSubcommand = createSubcommand({
 
 			if (!confirm.confirm) {
 				tui.info('Deletion cancelled');
-				return;
+				return { success: false, count: 0, resources: [] };
 			}
 		}
 
@@ -116,5 +131,11 @@ export const deleteSubcommand = createSubcommand({
 		} else {
 			tui.error('Failed to delete resources');
 		}
+
+		return {
+			success: deleted.length > 0,
+			count: deleted.length,
+			resources: deleted,
+		};
 	},
 });

@@ -12,13 +12,22 @@ import {
 	saveProfile,
 } from '../../config';
 import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
 
 const PROFILE_NAME_REGEX = /^[\w_-]{3,}$/;
 
 export const createCommand = createSubcommand({
 	name: 'create',
 	description: 'Create a new configuration profile',
+	tags: ['mutating', 'creates-resource', 'fast'],
 	aliases: ['new'],
+	idempotent: false,
+	examples: [
+		getCommand('profile create production'),
+		getCommand('profile create staging --switch'),
+		getCommand('profile create development'),
+	],
 	schema: {
 		args: z
 			.object({
@@ -32,6 +41,11 @@ export const createCommand = createSubcommand({
 		options: z.object({
 			switch: z.boolean().optional().describe('switch to this profile (if more than one)'),
 		}),
+		response: z.object({
+			success: z.boolean().describe('Whether creation succeeded'),
+			name: z.string().describe('Profile name'),
+			path: z.string().describe('Profile file path'),
+		}),
 	},
 
 	async handler(ctx) {
@@ -42,7 +56,10 @@ export const createCommand = createSubcommand({
 		const existing = profiles.find((p) => p.name === name);
 
 		if (existing) {
-			return logger.fatal(`Profile "${name}" already exists at ${existing.filename}`);
+			return logger.fatal(
+				`Profile "${name}" already exists at ${existing.filename}`,
+				ErrorCode.RESOURCE_ALREADY_EXISTS
+			);
 		}
 
 		await ensureConfigDir();
@@ -77,10 +94,19 @@ export const createCommand = createSubcommand({
 			}
 
 			tui.success(`Created profile "${name}" at ${filename}`);
+
+			return {
+				success: true,
+				name,
+				path: filename,
+			};
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			const stack = error instanceof Error ? error.stack : undefined;
-			logger.fatal(`Failed to create profile: ${message}${stack ? `\n${stack}` : ''}`);
+			logger.fatal(
+				`Failed to create profile: ${message}${stack ? `\n${stack}` : ''}`,
+				ErrorCode.INTERNAL_ERROR
+			);
 		}
 	},
 });

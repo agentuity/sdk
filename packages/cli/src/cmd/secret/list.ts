@@ -3,12 +3,18 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectGet } from '@agentuity/server';
 import { maskSecret } from '../../env-util';
+import { getCommand } from '../../command-prefix';
+
+const SecretListResponseSchema = z.record(z.string(), z.string().describe('Secret value'));
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
 	aliases: ['ls'],
 	description: 'List all secrets',
+	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
+	examples: [getCommand('secret list'), getCommand('secret list --no-mask')],
 	requires: { auth: true, project: true, apiClient: true },
+	idempotent: true,
 	schema: {
 		options: z.object({
 			mask: z
@@ -16,6 +22,7 @@ export const listSubcommand = createSubcommand({
 				.default(!!process.stdout.isTTY)
 				.describe('mask the values in output (default: true in TTY for secrets)'),
 		}),
+		response: SecretListResponseSchema,
 	},
 
 	async handler(ctx) {
@@ -30,7 +37,7 @@ export const listSubcommand = createSubcommand({
 
 		if (Object.keys(secrets).length === 0) {
 			tui.info('No secrets found');
-			return;
+			return {};
 		}
 
 		// Display the secrets
@@ -52,5 +59,7 @@ export const listSubcommand = createSubcommand({
 				console.log(`${key}=${displayValue}`);
 			}
 		}
+
+		return secrets;
 	},
 });

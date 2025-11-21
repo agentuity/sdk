@@ -10,15 +10,28 @@ import {
 	writeEnvFile,
 	mergeEnvVars,
 } from '../../env-util';
+import { getCommand } from '../../command-prefix';
+
+const EnvPullResponseSchema = z.object({
+	success: z.boolean().describe('Whether pull succeeded'),
+	pulled: z.number().describe('Number of items pulled'),
+	path: z.string().describe('Local file path where variables were saved'),
+	force: z.boolean().describe('Whether force mode was used'),
+});
 
 export const pullSubcommand = createSubcommand({
 	name: 'pull',
 	description: 'Pull environment variables from cloud to local .env.production file',
+	tags: ['slow', 'requires-auth', 'requires-project'],
+	idempotent: true,
+	examples: [getCommand('env pull'), getCommand('env pull --force')],
 	requires: { auth: true, project: true, apiClient: true },
+	prerequisites: ['cloud deploy'],
 	schema: {
 		options: z.object({
 			force: z.boolean().default(false).describe('overwrite local values with cloud values'),
 		}),
+		response: EnvPullResponseSchema,
 	},
 
 	async handler(ctx) {
@@ -76,5 +89,12 @@ export const pullSubcommand = createSubcommand({
 		tui.success(
 			`Pulled ${count} environment variable${count !== 1 ? 's' : ''} to ${targetEnvPath}`
 		);
+
+		return {
+			success: true,
+			pulled: count,
+			path: targetEnvPath,
+			force: opts?.force ?? false,
+		};
 	},
 });

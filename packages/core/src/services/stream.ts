@@ -170,7 +170,7 @@ export interface StreamStorage {
 	 * await stream.write('Processing data...\n');
 	 * await stream.close();
 	 * console.log('Stream URL:', stream.url);
-	 * 
+	 *
 	 * // Create a compressed JSON stream with metadata
 	 * const dataStream = await streams.create('data-export', {
 	 *   contentType: 'application/json',
@@ -179,7 +179,7 @@ export interface StreamStorage {
 	 * });
 	 * await dataStream.write({ records: [...] });
 	 * await dataStream.close();
-	 * 
+	 *
 	 * // Read back from the stream
 	 * const reader = dataStream.getReader();
 	 * for await (const chunk of reader) {
@@ -200,17 +200,17 @@ export interface StreamStorage {
 	 * // List all streams
 	 * const all = await streams.list();
 	 * console.log(`Found ${all.total} streams`);
-	 * 
+	 *
 	 * // Filter by name
 	 * const logs = await streams.list({ name: 'agent-logs' });
-	 * 
+	 *
 	 * // Filter by metadata and paginate
 	 * const filtered = await streams.list({
 	 *   metadata: { type: 'export' },
 	 *   limit: 50,
 	 *   offset: 100
 	 * });
-	 * 
+	 *
 	 * for (const stream of filtered.streams) {
 	 *   console.log(`${stream.name}: ${stream.sizeBytes} bytes at ${stream.url}`);
 	 * }

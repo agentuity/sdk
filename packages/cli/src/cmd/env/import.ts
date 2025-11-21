@@ -13,14 +13,32 @@ import {
 } from '../../env-util';
 import { getCommand } from '../../command-prefix';
 
+const EnvImportResponseSchema = z.object({
+	success: z.boolean().describe('Whether import succeeded'),
+	imported: z.number().describe('Number of items imported'),
+	skipped: z.number().describe('Number of items skipped'),
+	path: z.string().describe('Local file path where variables were saved'),
+	file: z.string().describe('Source file path'),
+});
+
 export const importSubcommand = createSubcommand({
 	name: 'import',
 	description: 'Import environment variables from a file to cloud and local .env.production',
+	tags: [
+		'mutating',
+		'creates-resource',
+		'slow',
+		'api-intensive',
+		'requires-auth',
+		'requires-project',
+	],
+	idempotent: false,
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({
 			file: z.string().describe('path to the .env file to import'),
 		}),
+		response: EnvImportResponseSchema,
 	},
 
 	async handler(ctx) {
@@ -31,7 +49,13 @@ export const importSubcommand = createSubcommand({
 
 		if (Object.keys(importedEnv).length === 0) {
 			tui.warning(`No environment variables found in ${args.file}`);
-			return;
+			return {
+				success: false,
+				imported: 0,
+				skipped: 0,
+				path: '',
+				file: args.file,
+			};
 		}
 
 		// Filter out AGENTUITY_ prefixed keys
@@ -39,7 +63,13 @@ export const importSubcommand = createSubcommand({
 
 		if (Object.keys(filteredEnv).length === 0) {
 			tui.warning('No valid environment variables to import (all were AGENTUITY_ prefixed)');
-			return;
+			return {
+				success: false,
+				imported: 0,
+				skipped: Object.keys(importedEnv).length,
+				path: '',
+				file: args.file,
+			};
 		}
 
 		// Check for potential secrets in the imported variables
@@ -69,7 +99,13 @@ export const importSubcommand = createSubcommand({
 				tui.info(
 					`Cancelled. Use "${getCommand('secret import')}" to store these as secrets instead.`
 				);
-				return;
+				return {
+					success: false,
+					imported: 0,
+					skipped: Object.keys(filteredEnv).length,
+					path: '',
+					file: args.file,
+				};
 			}
 		}
 
@@ -98,5 +134,13 @@ export const importSubcommand = createSubcommand({
 		tui.success(
 			`Imported ${count} environment variable${count !== 1 ? 's' : ''} from ${args.file} to cloud and ${localEnvPath}`
 		);
+
+		return {
+			success: true,
+			imported: count,
+			skipped: Object.keys(importedEnv).length - count,
+			path: localEnvPath,
+			file: args.file,
+		};
 	},
 });

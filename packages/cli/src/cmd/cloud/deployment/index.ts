@@ -8,6 +8,7 @@ import { undeploySubcommand } from './undeploy';
 export const deploymentCommand = createCommand({
 	name: 'deployment',
 	description: 'Manage deployments',
+	tags: ['read-only', 'fast', 'requires-auth'],
 	aliases: ['deployments', 'dep'],
 	subcommands: [
 		listSubcommand,

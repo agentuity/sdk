@@ -12,6 +12,7 @@ import * as readline from 'readline';
 import type { ColorScheme } from './terminal';
 import type { Profile } from './types';
 import { type APIClient as APIClientType } from './api';
+import { getExitCode } from './errors';
 
 // Icons
 const ICONS = {
@@ -155,11 +156,17 @@ export function error(message: string): void {
 /**
  * Print an error message with a red X and then exit
  */
-export function fatal(message: string): never {
+export function fatal(message: string, errorCode?: import('./errors').ErrorCode): never {
 	const color = getColor('error');
 	const reset = getColor('reset');
 	process.stderr.write(`${color}${ICONS.error} ${message}${reset}\n`);
-	process.exit(1);
+
+	if (errorCode) {
+		const exitCode = getExitCode(errorCode);
+		process.exit(exitCode);
+	} else {
+		process.exit(1);
+	}
 }
 
 /**
@@ -808,8 +815,13 @@ export async function spinner<T>(
 	const message = options.message;
 	const reset = getColor('reset');
 
-	// If no TTY, just execute the callback without animation
-	if (!process.stderr.isTTY) {
+	// Check if progress should be disabled (from global options)
+	const { getOutputOptions, shouldDisableProgress } = await import('./output');
+	const outputOptions = getOutputOptions();
+	const noProgress = outputOptions ? shouldDisableProgress(outputOptions) : false;
+
+	// If no TTY or progress disabled, just execute the callback without animation
+	if (!process.stderr.isTTY || noProgress) {
 		try {
 			const result =
 				options.type === 'progress'

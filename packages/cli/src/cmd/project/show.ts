@@ -2,26 +2,37 @@ import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { projectGet } from '@agentuity/server';
+import { getCommand } from '../../command-prefix';
+
+const ProjectShowResponseSchema = z.object({
+	id: z.string().describe('Project ID'),
+	orgId: z.string().describe('Organization ID'),
+	name: z.string().optional().describe('Project name'),
+	secrets: z.record(z.string(), z.string()).optional().describe('Project secrets (masked)'),
+	env: z.record(z.string(), z.string()).optional().describe('Environment variables'),
+});
 
 export const showSubcommand = createSubcommand({
 	name: 'show',
 	aliases: ['get'],
 	description: 'Show project detail',
+	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
 	requires: { auth: true, apiClient: true },
+	examples: [
+		getCommand('project show proj_abc123def456'),
+		getCommand('--json project show proj_abc123def456'),
+		getCommand('project get proj_abc123def456'),
+	],
 	schema: {
 		args: z.object({
 			id: z.string().describe('the project id'),
 		}),
-		options: z.object({
-			format: z
-				.enum(['json', 'table'])
-				.optional()
-				.describe('the output format: json, table (default)'),
-		}),
+		response: ProjectShowResponseSchema,
 	},
+	idempotent: true,
 
 	async handler(ctx) {
-		const { opts, args, apiClient } = ctx;
+		const { args, apiClient, options } = ctx;
 
 		const project = await tui.spinner('Fetching project', () => {
 			return projectGet(apiClient, { id: args.id, mask: true });
@@ -31,10 +42,18 @@ export const showSubcommand = createSubcommand({
 			tui.fatal('Project not found');
 		}
 
-		if (opts?.format === 'json') {
+		if (options.json) {
 			console.log(JSON.stringify(project, null, 2));
 		} else {
 			console.table([project], ['id', 'orgId']);
 		}
+
+		return {
+			id: project.id,
+			orgId: project.orgId,
+			name: undefined,
+			secrets: project.secrets,
+			env: project.env,
+		};
 	},
 });

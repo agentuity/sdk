@@ -2,11 +2,18 @@ import { z } from 'zod';
 import { createCommand } from '../../types';
 import * as tui from '../../tui';
 import { createStorageAdapter } from './util';
+import { getCommand } from '../../command-prefix';
 
 export const deleteBucketSubcommand = createCommand({
 	name: 'delete-bucket',
 	description: 'Delete an object storage bucket and all its contents',
+	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
+	idempotent: true,
 	requires: { auth: true, project: true },
+	examples: [
+		`${getCommand('objectstore delete-bucket temp')} - Delete temp bucket (interactive)`,
+		`${getCommand('objectstore delete-bucket old-uploads --confirm')} - Force delete without confirmation`,
+	],
 	schema: {
 		args: z.object({
 			bucket: z.string().min(1).max(64).describe('the name of the bucket'),
@@ -15,6 +22,11 @@ export const deleteBucketSubcommand = createCommand({
 				.optional()
 				.default(false)
 				.describe('if true will not prompt for confirmation'),
+		}),
+		response: z.object({
+			success: z.boolean().describe('Whether the deletion succeeded'),
+			bucket: z.string().describe('Deleted bucket name'),
+			message: z.string().optional().describe('Confirmation message'),
 		}),
 	},
 
@@ -37,7 +49,7 @@ export const deleteBucketSubcommand = createCommand({
 
 			if (!confirm) {
 				tui.info('Cancelled');
-				return;
+				return { success: false, bucket: args.bucket, message: 'Cancelled' };
 			}
 		}
 
@@ -48,6 +60,12 @@ export const deleteBucketSubcommand = createCommand({
 		} else {
 			tui.error(`Bucket ${tui.bold(args.bucket)} not found`);
 		}
+
+		return {
+			success: deleted,
+			bucket: args.bucket,
+			message: deleted ? `Bucket ${args.bucket} deleted` : `Bucket ${args.bucket} not found`,
+		};
 	},
 });
 

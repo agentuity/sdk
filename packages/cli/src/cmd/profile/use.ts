@@ -2,11 +2,19 @@ import { createSubcommand } from '../../types';
 import { z } from 'zod';
 import { fetchProfiles, saveProfile } from '../../config';
 import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
 
 export const useCommand = createSubcommand({
 	name: 'use',
 	description: 'Switch to a different configuration profile',
+	tags: ['mutating', 'updates-resource', 'fast'],
 	aliases: ['switch'],
+	idempotent: true,
+	examples: [
+		getCommand('profile use production'),
+		getCommand('profile switch staging'),
+		getCommand('profile use'),
+	],
 	schema: {
 		args: z.object({
 			name: z.string().optional().describe('The name of the profile to use'),

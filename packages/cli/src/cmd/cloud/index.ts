@@ -8,6 +8,7 @@ import { deploymentCommand } from './deployment';
 export const command = createCommand({
 	name: 'cloud',
 	description: 'Cloud related commands',
+	tags: ['slow', 'requires-auth'],
 	subcommands: [
 		deploySubcommand,
 		resourceSubcommand,

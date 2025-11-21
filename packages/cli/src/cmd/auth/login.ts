@@ -4,12 +4,17 @@ import { getAppBaseURL } from '../../api';
 import { saveAuth } from '../../config';
 import { generateLoginOTP, pollForLoginCompletion } from './api';
 import * as tui from '../../tui';
+import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
 
 export const loginCommand = createSubcommand({
 	name: 'login',
 	description: 'Login to the Agentuity Platform using a browser-based authentication flow',
+	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive'],
 	toplevel: true,
+	idempotent: false,
 	requires: { apiClient: true },
+	examples: [getCommand('auth login'), getCommand('login')],
 	async handler(ctx) {
 		const { logger, config, apiClient } = ctx;
 
@@ -78,9 +83,9 @@ export const loginCommand = createSubcommand({
 				error.issues.map((i) => tui.arrow(`${i.message} for ${i.path}`));
 				process.exit(1);
 			} else if (error instanceof Error) {
-				logger.fatal(`Login failed: ${error.message}`);
+				logger.fatal(`Login failed: ${error.message}`, ErrorCode.AUTH_FAILED);
 			} else {
-				logger.fatal('Login failed');
+				logger.fatal('Login failed', ErrorCode.AUTH_FAILED);
 			}
 		}
 	},

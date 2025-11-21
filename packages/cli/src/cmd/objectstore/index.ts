@@ -12,6 +12,7 @@ export const command = createCommand({
 	name: 'objectstore',
 	aliases: ['object', 'obj'],
 	description: 'Manage object storage for your projects',
+	tags: ['read-only', 'fast', 'requires-auth'],
 	subcommands: [
 		replSubcommand,
 		getSubcommand,
