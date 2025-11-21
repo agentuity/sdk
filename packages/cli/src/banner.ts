@@ -23,7 +23,7 @@ export function showBanner(version?: string, compact?: true): void {
 
 	const lines = [
 		'╭────────────────────────────────────────────────────╮',
-		`│ ⨺ Agentuity     ${WHITE}Build, manage and deploy AI agents${CYAN} │`,
+		`│ ⨺ Agentuity  ${WHITE}The full-stack platform for AI agents${CYAN} │`,
 		compact ? undefined : '│                                                    │',
 		compact ? undefined : `│${versionLabel}${_version.padEnd(versionPadding)} │`,
 		compact ? undefined : '│ Docs:           https://agentuity.dev              │',
