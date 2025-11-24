@@ -1,42 +1,42 @@
-import { AgentuityProvider, useAgent } from "@agentuity/react";
-import { type ChangeEvent, useState } from "react";
+import { AgentuityProvider, useAgent } from '@agentuity/react';
+import { type ChangeEvent, useState } from 'react';
 
 export function App() {
-	const [name, setName] = useState("World");
-	const { run, running, data: greeting } = useAgent("hello");
+	const [name, setName] = useState('World');
+	const { run, running, data: greeting } = useAgent('hello');
 
 	return (
 		<div
 			style={{
-				backgroundColor: "#09090b",
-				color: "#fff",
-				display: "flex",
+				backgroundColor: '#09090b',
+				color: '#fff',
+				display: 'flex',
 				fontFamily:
 					'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-				justifyContent: "center",
-				minHeight: "100vh",
+				justifyContent: 'center',
+				minHeight: '100vh',
 			}}
 		>
 			<AgentuityProvider>
 				<div
 					style={{
-						display: "flex",
-						flexDirection: "column",
-						gap: "2rem",
-						maxWidth: "48rem",
-						padding: "4rem",
-						width: "100%",
+						display: 'flex',
+						flexDirection: 'column',
+						gap: '2rem',
+						maxWidth: '48rem',
+						padding: '4rem',
+						width: '100%',
 					}}
 				>
 					<div
 						style={{
-							alignItems: "center",
-							display: "flex",
-							flexDirection: "column",
-							gap: "0.5rem",
-							justifyContent: "center",
-							marginBottom: "2rem",
-							textAlign: "center",
+							alignItems: 'center',
+							display: 'flex',
+							flexDirection: 'column',
+							gap: '0.5rem',
+							justifyContent: 'center',
+							marginBottom: '2rem',
+							textAlign: 'center',
 						}}
 					>
 						<svg
@@ -45,9 +45,9 @@ export function App() {
 							fill="none"
 							height="191"
 							style={{
-								height: "auto",
-								marginBottom: "1rem",
-								width: "3rem",
+								height: 'auto',
+								marginBottom: '1rem',
+								width: '3rem',
 							}}
 							viewBox="0 0 220 191"
 							width="220"
@@ -69,7 +69,7 @@ export function App() {
 
 						<h1
 							style={{
-								fontSize: "3rem",
+								fontSize: '3rem',
 								fontWeight: 100,
 								margin: 0,
 							}}
@@ -79,54 +79,54 @@ export function App() {
 
 						<p
 							style={{
-								color: "#a1a1aa",
-								fontSize: "1.15rem",
+								color: '#a1a1aa',
+								fontSize: '1.15rem',
 								margin: 0,
 							}}
 						>
-							The{" "}
+							The{' '}
 							<span
 								style={{
 									fontFamily: 'Georgia, "Times New Roman", Times, serif',
-									fontStyle: "italic",
+									fontStyle: 'italic',
 									fontWeight: 100,
 								}}
 							>
 								Full-Stack
-							</span>{" "}
+							</span>{' '}
 							Platform for AI Agents
 						</p>
 					</div>
 
 					<div
 						style={{
-							background: "#000",
-							border: "1px solid #18181B",
-							borderRadius: "0.5rem",
-							boxShadow: "0 1.5rem 3rem -0.75rem #00000040",
-							display: "flex",
-							flexDirection: "column",
-							gap: "2rem",
-							overflow: "hidden",
-							padding: "2rem",
+							background: '#000',
+							border: '1px solid #18181B',
+							borderRadius: '0.5rem',
+							boxShadow: '0 1.5rem 3rem -0.75rem #00000040',
+							display: 'flex',
+							flexDirection: 'column',
+							gap: '2rem',
+							overflow: 'hidden',
+							padding: '2rem',
 						}}
 					>
 						<h2
 							style={{
-								color: "#a1a1aa",
-								fontSize: "1.25rem",
+								color: '#a1a1aa',
+								fontSize: '1.25rem',
 								fontWeight: 400,
 								lineHeight: 1,
 								margin: 0,
 							}}
 						>
-							Try the <span style={{ color: "#fff" }}>Hello Agent</span>
+							Try the <span style={{ color: '#fff' }}>Hello Agent</span>
 						</h2>
 
 						<div
 							style={{
-								display: "flex",
-								gap: "1rem",
+								display: 'flex',
+								gap: '1rem',
 							}}
 						>
 							<input
@@ -138,13 +138,13 @@ export function App() {
 								type="text"
 								value={name}
 								style={{
-									background: "#09090b",
-									border: "1px solid #2b2b30",
-									borderRadius: "0.375rem",
-									color: "#fff",
+									background: '#09090b',
+									border: '1px solid #2b2b30',
+									borderRadius: '0.375rem',
+									color: '#fff',
 									flex: 1,
-									outline: "none",
-									padding: "0.75rem 1rem",
+									outline: 'none',
+									padding: '0.75rem 1rem',
 									zIndex: 2,
 								}}
 							/>
@@ -152,29 +152,28 @@ export function App() {
 							<div
 								className="glow-btn"
 								style={{
-									position: "relative",
+									position: 'relative',
 									zIndex: 1,
 								}}
 							>
 								<div
 									className="glow-bg"
 									style={{
-										background:
-											"linear-gradient(to right, #155e75, #3b82f6, #9333ea)",
-										borderRadius: "0.5rem",
+										background: 'linear-gradient(to right, #155e75, #3b82f6, #9333ea)',
+										borderRadius: '0.5rem',
 										inset: 0,
-										position: "absolute",
+										position: 'absolute',
 									}}
 								/>
 
 								<div
 									style={{
-										background: "#0891b280",
-										borderRadius: "0.5rem",
-										filter: "blur(2.5rem)",
+										background: '#0891b280',
+										borderRadius: '0.5rem',
+										filter: 'blur(2.5rem)',
 										inset: 0,
 										opacity: 0.5,
-										position: "absolute",
+										position: 'absolute',
 									}}
 								/>
 
@@ -182,21 +181,21 @@ export function App() {
 									disabled={running}
 									onClick={() => run({ name })}
 									style={{
-										backgroundColor: "#030712",
-										border: "none",
-										borderRadius: "0.5rem",
-										color: "#fff",
-										cursor: running ? "not-allowed" : "pointer",
-										height: "100%",
+										backgroundColor: '#030712',
+										border: 'none',
+										borderRadius: '0.5rem',
+										color: '#fff',
+										cursor: running ? 'not-allowed' : 'pointer',
+										height: '100%',
 										opacity: running ? 0.5 : 1,
-										padding: "0 1.5rem",
-										position: "relative",
-										transition: "opacity 0.2s",
-										whiteSpace: "nowrap",
+										padding: '0 1.5rem',
+										position: 'relative',
+										transition: 'opacity 0.2s',
+										whiteSpace: 'nowrap',
 									}}
 									type="button"
 								>
-									{running ? "Running..." : "Say Hello"}
+									{running ? 'Running...' : 'Say Hello'}
 								</button>
 							</div>
 						</div>
@@ -204,36 +203,36 @@ export function App() {
 						<div
 							data-loading={!greeting}
 							style={{
-								background: "#09090b",
-								border: "1px solid #2b2b30",
-								borderRadius: "0.375rem",
-								color: greeting ? "#22d3ee" : "#a1a1aa",
+								background: '#09090b',
+								border: '1px solid #2b2b30',
+								borderRadius: '0.375rem',
+								color: greeting ? '#22d3ee' : '#a1a1aa',
 								flex: 1,
-								fontFamily: "monospace",
-								lineHeight: "1.5",
-								padding: "0.75rem 1rem",
+								fontFamily: 'monospace',
+								lineHeight: '1.5',
+								padding: '0.75rem 1rem',
 								zIndex: 2,
 							}}
 						>
-							{greeting ?? "Waiting for request"}
+							{greeting ?? 'Waiting for request'}
 						</div>
 					</div>
 
 					<div
 						style={{
-							background: "#000",
-							border: "1px solid #18181b",
-							borderRadius: "0.5rem",
-							padding: "2rem",
+							background: '#000',
+							border: '1px solid #18181b',
+							borderRadius: '0.5rem',
+							padding: '2rem',
 						}}
 					>
 						<h3
 							style={{
-								color: "#fff",
-								fontSize: "1.25rem",
+								color: '#fff',
+								fontSize: '1.25rem',
 								fontWeight: 400,
 								lineHeight: 1,
-								margin: "0 0 1.5rem 0",
+								margin: '0 0 1.5rem 0',
 							}}
 						>
 							Next Steps
@@ -241,40 +240,37 @@ export function App() {
 
 						<div
 							style={{
-								display: "flex",
-								flexDirection: "column",
-								gap: "1.5rem",
+								display: 'flex',
+								flexDirection: 'column',
+								gap: '1.5rem',
 							}}
 						>
 							{[
 								{
-									title: "Customize your agent",
+									title: 'Customize your agent',
 									text: (
 										<>
-											Edit{" "}
-											<code style={{ color: "#fff" }}>
-												src/agents/hello/agent.ts
-											</code>{" "}
-											to change how your agent responds.
+											Edit{' '}
+											<code style={{ color: '#fff' }}>src/agents/hello/agent.ts</code> to
+											change how your agent responds.
 										</>
 									),
 								},
 								{
-									title: "Add new API routes",
+									title: 'Add new API routes',
 									text: (
 										<>
-											Create new files in{" "}
-											<code style={{ color: "#fff" }}>src/apis/</code> to expose
-											more endpoints.
+											Create new files in{' '}
+											<code style={{ color: '#fff' }}>src/apis/</code> to expose more
+											endpoints.
 										</>
 									),
 								},
 								{
-									title: "Update the frontend",
+									title: 'Update the frontend',
 									text: (
 										<>
-											Modify{" "}
-											<code style={{ color: "#fff" }}>src/web/App.tsx</code> to
+											Modify <code style={{ color: '#fff' }}>src/web/App.tsx</code> to
 											build your custom UI.
 										</>
 									),
@@ -283,21 +279,21 @@ export function App() {
 								<div
 									key={step.title}
 									style={{
-										alignItems: "flex-start",
-										display: "flex",
-										gap: "0.75rem",
+										alignItems: 'flex-start',
+										display: 'flex',
+										gap: '0.75rem',
 									}}
 								>
 									<div
 										style={{
-											alignItems: "center",
-											backgroundColor: "#002810",
-											border: "1px solid #00c951",
-											borderRadius: "0.25rem",
-											display: "flex",
-											height: "1rem",
-											justifyContent: "center",
-											width: "1rem",
+											alignItems: 'center',
+											backgroundColor: '#002810',
+											border: '1px solid #00c951',
+											borderRadius: '0.25rem',
+											display: 'flex',
+											height: '1rem',
+											justifyContent: 'center',
+											width: '1rem',
 										}}
 									>
 										<svg
@@ -309,8 +305,8 @@ export function App() {
 											strokeLinejoin="round"
 											strokeWidth="2"
 											style={{
-												height: "0.65rem",
-												width: "0.65rem",
+												height: '0.65rem',
+												width: '0.65rem',
 											}}
 											viewBox="0 0 24 24"
 											width="24"
@@ -323,10 +319,10 @@ export function App() {
 									<div>
 										<h4
 											style={{
-												color: "#fff",
-												fontSize: "0.875rem",
+												color: '#fff',
+												fontSize: '0.875rem',
 												fontWeight: 400,
-												margin: "0 0 0.25rem 0",
+												margin: '0 0 0.25rem 0',
 											}}
 										>
 											{step.title}
@@ -334,8 +330,8 @@ export function App() {
 
 										<p
 											style={{
-												color: "#a1a1aa",
-												fontSize: "0.75rem",
+												color: '#a1a1aa',
+												fontSize: '0.75rem',
 												margin: 0,
 											}}
 										>
@@ -372,6 +368,9 @@ export function App() {
 						content: ".";
 						display: inline-block;
 						width: 1em;
+					}
+					body {
+						background-color: #09090b;
 					}
 				`}
 			</style>
