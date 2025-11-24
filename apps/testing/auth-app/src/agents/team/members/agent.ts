@@ -42,12 +42,8 @@ const agent = createAgent({
 			actionMsg = `Removed ${name}`;
 		}
 
-		// Test parent agent access
-		let parentInfo: string | undefined;
-		if (ctx.parent) {
-			const parentResult = await ctx.parent.run({ action: 'info' });
-			parentInfo = `Parent says: ${parentResult.message}`;
-		}
+		const parentResult = await ctx.agent.team.run({ action: 'info' });
+		const parentInfo = `Parent says: ${parentResult.message}`;
 
 		return {
 			members,

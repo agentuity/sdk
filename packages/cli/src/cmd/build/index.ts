@@ -47,7 +47,9 @@ export const command = createCommand({
 					tui.info('Running type check...');
 					const { resolve } = await import('node:path');
 					const absoluteProjectDir = resolve(projectDir);
-					const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`.cwd(absoluteProjectDir).nothrow();
+					const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`
+						.cwd(absoluteProjectDir)
+						.nothrow();
 
 					if (result.exitCode === 0) {
 						tui.success('Type check passed');

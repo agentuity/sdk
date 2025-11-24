@@ -30,24 +30,36 @@ import type { EvalRunStartEvent } from '@agentuity/core';
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
 export type AgentEventCallback<TAgent extends Agent<any, any, any>> =
-	| ((eventName: 'started', agent: TAgent, context: AgentContext) => Promise<void> | void)
-	| ((eventName: 'completed', agent: TAgent, context: AgentContext) => Promise<void> | void)
+	| ((
+			eventName: 'started',
+			agent: TAgent,
+			context: AgentContext<any, any, any>
+	  ) => Promise<void> | void)
+	| ((
+			eventName: 'completed',
+			agent: TAgent,
+			context: AgentContext<any, any, any>
+	  ) => Promise<void> | void)
 	| ((
 			eventName: 'errored',
 			agent: TAgent,
-			context: AgentContext,
+			context: AgentContext<any, any, any>,
 			data: Error
 	  ) => Promise<void> | void);
 
-export interface AgentContext {
+export interface AgentContext<
+	TAgentRegistry extends AgentRegistry = AgentRegistry,
+	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
+	TParent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
+> {
 	//   email: () => Promise<Email | null>;
 	//   sms: () => Promise<SMS | null>;
 	//   cron: () => Promise<Cron | null>;
 	waitUntil: (promise: Promise<void> | (() => void | Promise<void>)) => void;
-	agent?: any; // Will be augmented by generated code
-	current?: any; // Will be augmented by generated code
-	parent?: any; // Will be augmented by generated code - reference to parent agent for subagents
-	agentName?: AgentName;
+	agent: TAgentRegistry; // Will be augmented by generated code with strongly-typed agents
+	current: TCurrent; // Current agent runner
+	parent: TParent; // Parent agent runner (use ctx.agent.parentName for strict typing)
+	agentName: AgentName;
 	logger: Logger;
 	sessionId: string;
 	tracer: Tracer;
@@ -69,6 +81,10 @@ type InternalAgentMetadata = {
 	 * the unique identifier for this project and agent across multiple deployments.
 	 */
 	identifier: string;
+	/**
+	 * the unique identifier for this agent across multiple deployments
+	 */
+	agentId: string;
 	/**
 	 * the relative path to the agent from the root project directory.
 	 */
@@ -113,7 +129,7 @@ export type Agent<
 	TStream extends boolean = false,
 > = {
 	metadata: AgentMetadata;
-	handler: (ctx: AgentContext, ...args: any[]) => any | Promise<any>;
+	handler: (ctx: AgentContext<any, any, any>, ...args: any[]) => any | Promise<any>;
 	evals?: Eval[];
 	createEval: CreateEvalMethod<TInput, TOutput>;
 	addEventListener(
@@ -121,7 +137,7 @@ export type Agent<
 		callback: (
 			eventName: 'started',
 			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext
+			context: AgentContext<any, any, any>
 		) => Promise<void> | void
 	): void;
 	addEventListener(
@@ -129,7 +145,7 @@ export type Agent<
 		callback: (
 			eventName: 'completed',
 			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext
+			context: AgentContext<any, any, any>
 		) => Promise<void> | void
 	): void;
 	addEventListener(
@@ -137,7 +153,7 @@ export type Agent<
 		callback: (
 			eventName: 'errored',
 			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext,
+			context: AgentContext<any, any, any>,
 			data: Error
 		) => Promise<void> | void
 	): void;
@@ -146,7 +162,7 @@ export type Agent<
 		callback: (
 			eventName: 'started',
 			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext
+			context: AgentContext<any, any, any>
 		) => Promise<void> | void
 	): void;
 	removeEventListener(
@@ -154,7 +170,7 @@ export type Agent<
 		callback: (
 			eventName: 'completed',
 			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext
+			context: AgentContext<any, any, any>
 		) => Promise<void> | void
 	): void;
 	removeEventListener(
@@ -162,7 +178,7 @@ export type Agent<
 		callback: (
 			eventName: 'errored',
 			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext,
+			context: AgentContext<any, any, any>,
 			data: Error
 		) => Promise<void> | void
 	): void;
@@ -206,18 +222,18 @@ const agentEventListeners = new WeakMap<
 async function fireAgentEvent(
 	agent: Agent<any, any, any>,
 	eventName: 'started' | 'completed',
-	context: AgentContext
+	context: AgentContext<any, any, any>
 ): Promise<void>;
 async function fireAgentEvent(
 	agent: Agent<any, any, any>,
 	eventName: 'errored',
-	context: AgentContext,
+	context: AgentContext<any, any, any>,
 	data: Error
 ): Promise<void>;
 async function fireAgentEvent(
 	agent: Agent<any, any, any>,
 	eventName: AgentEventName,
-	context: AgentContext,
+	context: AgentContext<any, any, any>,
 	data?: Error
 ): Promise<void> {
 	// Fire agent-level listeners
@@ -253,8 +269,14 @@ async function fireAgentEvent(
  * Falls back to `string` when no agents are registered (before augmentation).
  * After augmentation, this becomes a strict union of agent names for full type safety.
  */
-export type AgentName = string;
-export type AgentRegistry = Record<AgentName, AgentRunner>;
+export type AgentName = keyof AgentRegistry extends never ? string : keyof AgentRegistry;
+
+/**
+ * Agent registry interface.
+ * This interface is augmented by generated code to provide strongly-typed agent access.
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface AgentRegistry {}
 
 export const registerAgent = (name: AgentName, agent: Agent): void => {
 	agents.set(name, agent);
@@ -275,38 +297,43 @@ export function createAgent<
 		? TStream extends true
 			? TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext,
+						c: AgentContext<any, any, any>,
 						input: StandardSchemaV1.InferOutput<TInput>
 					) =>
 						| Promise<ReadableStream<StandardSchemaV1.InferOutput<TOutput>>>
 						| ReadableStream<StandardSchemaV1.InferOutput<TOutput>>
 				: (
-						c: AgentContext,
+						c: AgentContext<any, any, any>,
 						input: StandardSchemaV1.InferOutput<TInput>
 					) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
 			: TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext,
+						c: AgentContext<any, any, any>,
 						input: StandardSchemaV1.InferOutput<TInput>
 					) =>
 						| Promise<StandardSchemaV1.InferOutput<TOutput>>
 						| StandardSchemaV1.InferOutput<TOutput>
-				: (c: AgentContext, input: StandardSchemaV1.InferOutput<TInput>) => Promise<void> | void
+				: (
+						c: AgentContext<any, any, any>,
+						input: StandardSchemaV1.InferOutput<TInput>
+					) => Promise<void> | void
 		: TStream extends true
 			? TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext
+						c: AgentContext<any, any, any>
 					) =>
 						| Promise<ReadableStream<StandardSchemaV1.InferOutput<TOutput>>>
 						| ReadableStream<StandardSchemaV1.InferOutput<TOutput>>
-				: (c: AgentContext) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
+				: (
+						c: AgentContext<any, any, any>
+					) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
 			: TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext
+						c: AgentContext<any, any, any>
 					) =>
 						| Promise<StandardSchemaV1.InferOutput<TOutput>>
 						| StandardSchemaV1.InferOutput<TOutput>
-				: (c: AgentContext) => Promise<void> | void;
+				: (c: AgentContext<any, any, any>) => Promise<void> | void;
 }): Agent<TInput, TOutput, TStream> {
 	const inputSchema = config.schema?.input;
 	const outputSchema = config.schema?.output;
@@ -741,9 +768,14 @@ export function createAgent<
 	return agent as Agent<TInput, TOutput, TStream>;
 }
 
-const runWithSpan = async <T>(
+const runWithSpan = async <
+	T,
+	TInput extends StandardSchemaV1 | undefined = any,
+	TOutput extends StandardSchemaV1 | undefined = any,
+	TStream extends boolean = false,
+>(
 	tracer: Tracer,
-	agent: Agent<any, any, any>,
+	agent: Agent<TInput, TOutput, TStream>,
 	handler: () => Promise<T>
 ): Promise<T> => {
 	const currentContext = context.active();
@@ -783,9 +815,11 @@ const createAgentRunner = <
 	if (agent.inputSchema) {
 		return {
 			metadata: agent.metadata,
-			run: async (input: any) => {
-				return runWithSpan(tracer, agent as Agent<any, any, any>, () =>
-					agent.handler(ctx as unknown as AgentContext, input)
+			run: async (input: InferSchemaInput<Exclude<TInput, undefined>>) => {
+				return runWithSpan<any, TInput, TOutput, TStream>(
+					tracer,
+					agent,
+					async () => await agent.handler(ctx as unknown as AgentContext<any, any, any>, input)
 				);
 			},
 		} as AgentRunner<TInput, TOutput, TStream>;
@@ -793,8 +827,10 @@ const createAgentRunner = <
 		return {
 			metadata: agent.metadata,
 			run: async () => {
-				return runWithSpan(tracer, agent as Agent<any, any, any>, () =>
-					agent.handler(ctx as unknown as AgentContext)
+				return runWithSpan<any, TInput, TOutput, TStream>(
+					tracer,
+					agent,
+					async () => await agent.handler(ctx as unknown as AgentContext<any, any, any>)
 				);
 			},
 		} as AgentRunner<TInput, TOutput, TStream>;
@@ -882,7 +918,11 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 		const thread = ctx.var.thread;
 		const session = ctx.var.session;
 
-		const args: Partial<RequestAgentContextArgs<AgentRegistry, any>> = {
+		const args: RequestAgentContextArgs<
+			AgentRegistry,
+			AgentRunner | undefined,
+			AgentRunner | undefined
+		> = {
 			agent: agentsObj,
 			current: currentAgent,
 			parent: parentAgent,
@@ -895,11 +935,7 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 			handler: ctx.var.waitUntilHandler,
 		};
 
-		return runInAgentContext(
-			ctx as unknown as Record<string, unknown>,
-			args as RequestAgentContextArgs<any, any>,
-			next
-		);
+		return runInAgentContext(ctx as unknown as Record<string, unknown>, args, next);
 	};
 };
 

@@ -3,7 +3,7 @@ import type { StandardSchemaV1 } from '@agentuity/core';
 import type { AgentContext } from './agent';
 
 // Eval SDK types
-export type EvalContext = AgentContext;
+export type EvalContext = AgentContext<any, any, any>;
 
 export type EvalRunResultMetadata = {
 	reason: string;

@@ -4,8 +4,8 @@ import type { StandardSchemaV1 } from '@agentuity/core';
  * Agent definition interface
  */
 export interface Agent<
-	TInput extends StandardSchemaV1 = StandardSchemaV1,
-	TOutput extends StandardSchemaV1 = StandardSchemaV1,
+	TInput extends StandardSchemaV1 | undefined = StandardSchemaV1 | undefined,
+	TOutput extends StandardSchemaV1 | undefined = StandardSchemaV1 | undefined,
 > {
 	inputSchema: TInput;
 	outputSchema: TOutput;
