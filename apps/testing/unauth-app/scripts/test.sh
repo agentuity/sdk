@@ -20,6 +20,11 @@ echo "🔪 Killing any existing server on port 3500..."
 lsof -ti:3500 | xargs kill -9 2>/dev/null || true
 sleep 1
 
+# Run workbench tests first
+echo "🖥️ Running workbench functionality tests..."
+bash scripts/test-workbench.sh
+echo ""
+
 # Build the app
 echo "🔨 Building unauth-app..."
 bun run build

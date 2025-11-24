@@ -5,6 +5,7 @@
 		{ "path": "./packages/core" },
 		{ "path": "./packages/react" },
 		{ "path": "./packages/runtime" },
-		{ "path": "./packages/server" }
+		{ "path": "./packages/server" },
+		{ "path": "./packages/workbench" }
 	]
 }

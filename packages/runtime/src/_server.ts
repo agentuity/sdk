@@ -54,6 +54,8 @@ export function getRouter() {
 	return globalRouterInstance;
 }
 
+// Workbench routing is now handled by the bundle plugin
+
 export function getLogger() {
 	return globalLogger;
 }

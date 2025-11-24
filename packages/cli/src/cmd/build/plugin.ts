@@ -2,7 +2,14 @@ import type { BunPlugin } from 'bun';
 import { dirname, basename, join, resolve } from 'node:path';
 import { existsSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import type { BuildMetadata } from '@agentuity/server';
-import { parseAgentMetadata, parseRoute, parseEvalMetadata } from './ast';
+import {
+	parseAgentMetadata,
+	parseRoute,
+	parseEvalMetadata,
+	analyzeWorkbench,
+	checkRouteConflicts,
+	type WorkbenchConfig,
+} from './ast';
 import { applyPatch, generatePatches } from './patch';
 import { detectSubagent } from '../../utils/detectSubagent';
 import { createLogger } from '@agentuity/server';
@@ -17,6 +24,50 @@ function toCamelCase(str: string): string {
 function toPascalCase(str: string): string {
 	const camel = toCamelCase(str);
 	return camel.charAt(0).toUpperCase() + camel.slice(1);
+}
+
+/**
+ * Setup workbench configuration by analyzing app.ts file
+ */
+async function setupWorkbench(srcDir: string): Promise<WorkbenchConfig | null> {
+	// Look for app.ts in both root and src directories
+	const rootAppFile = join(dirname(srcDir), 'app.ts');
+	const srcAppFile = join(srcDir, 'app.ts');
+
+	let appFile = '';
+	if (existsSync(rootAppFile)) {
+		appFile = rootAppFile;
+	} else if (existsSync(srcAppFile)) {
+		appFile = srcAppFile;
+	}
+
+	if (!appFile || !existsSync(appFile)) {
+		return null;
+	}
+
+	const appContent = await Bun.file(appFile).text();
+	const analysis = await analyzeWorkbench(appContent);
+
+	if (!analysis.hasWorkbench) {
+		return null;
+	}
+
+	const workbenchConfig = analysis.config;
+
+	// Check for route conflicts if workbench is being used
+	if (workbenchConfig?.route) {
+		const hasConflict = await checkRouteConflicts(appContent, workbenchConfig.route);
+		if (hasConflict) {
+			const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL as LogLevel) || 'info');
+			logger.error(`🚨 Route conflict detected!\n`);
+			logger.error(
+			`   Workbench route '${workbenchConfig.route}' conflicts with existing application route`
+			);
+			logger.error(`   Please use a different route or remove the conflicting route.\n`);
+		}
+	}
+
+	return workbenchConfig;
 }
 
 function generateAgentRegistry(srcDir: string, agentInfo: Array<Record<string, string>>) {
@@ -493,10 +544,35 @@ const AgentuityBundler: BunPlugin = {
 				const indexFile = join(srcDir, 'web', 'index.html');
 
 				if (existsSync(indexFile)) {
+					// Setup workbench configuration - evaluate fresh each time during builds
+					const workbenchConfig = await setupWorkbench(srcDir);
+
 					inserts.unshift(`await (async () => {
     const { serveStatic } = require('hono/bun');
     const { getRouter } = await import('@agentuity/runtime');
     const router = getRouter()!;
+	
+	// Setup workbench routes if workbench was bundled
+	const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
+	if (await Bun.file(workbenchIndexPath).exists()) {
+		let workbenchIndex = await Bun.file(workbenchIndexPath).text();
+		
+		// Always serve assets at /workbench/* regardless of HTML route
+		const workbenchStatic = serveStatic({ root: import.meta.dir + '/workbench' });
+		router.get('/workbench/*', workbenchStatic);
+		
+		// Use the workbench config determined at build time
+		const route = ${JSON.stringify(workbenchConfig?.route || '/workbench')};
+
+// If using custom route, update HTML to point to absolute /workbench/ paths
+if (route !== '/workbench') {
+			workbenchIndex = workbenchIndex.replace(new RegExp('src="\\\\.\\\\/workbench\\\\/', 'g'), 'src="/workbench/');
+		}
+		
+		// Serve HTML at the configured route
+		router.get(route, (c) => c.html(workbenchIndex));
+	}
+	
 	const index = await Bun.file(import.meta.dir + '/web/index.html').text();
 	const webstatic = serveStatic({ root: import.meta.dir + '/web' });
 	router.get('/', (c) => c.html(index));

@@ -19,6 +19,11 @@ import type { Agent, AgentContext, AgentRegistry } from './agent';
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
 import type WaitUntilHandler from './_waituntil';
 
+// TODO: This should be imported from workbench package, but causes circular dependency
+export interface WorkbenchInstance {
+	config: { route?: string; headers?: Record<string, string> };
+}
+
 type CorsOptions = Parameters<typeof cors>[0];
 
 export interface AppConfig {
@@ -66,6 +71,10 @@ export interface AppConfig {
 		 * the EvalRunEventProvider to override instead of the default
 		 */
 		evalRunEvent?: EvalRunEventProvider;
+		/**
+		 * the Workbench to override instead of the default
+		 */
+		workbench?: WorkbenchInstance;
 	};
 }
 

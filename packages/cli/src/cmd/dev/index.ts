@@ -430,6 +430,7 @@ export const command = createCommand({
 								dev: true,
 								projectId: project?.projectId,
 								deploymentId,
+								port: opts.port,
 							});
 							building = false;
 							buildCompletedAt = Date.now();

@@ -1,5 +1,6 @@
 import { $ } from 'bun';
 import { join, relative, resolve, dirname } from 'node:path';
+import { createRequire } from 'node:module';
 import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
 import AgentuityBundler, { getBuildMetadata } from './plugin';
@@ -7,6 +8,8 @@ import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
 import type { Project } from '../../types';
 import { fixDuplicateExportsInDirectory } from './fix-duplicate-exports';
+import { createLogger } from '@agentuity/server';
+import type { LogLevel } from '../../types';
 
 export interface BundleOptions {
 	rootDir: string;
@@ -16,6 +19,7 @@ export interface BundleOptions {
 	projectId?: string;
 	deploymentId?: string;
 	project?: Project;
+	port?: number;
 }
 
 export async function bundle({
@@ -25,6 +29,7 @@ export async function bundle({
 	dev = false,
 	rootDir,
 	project,
+	port,
 }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
@@ -246,23 +251,84 @@ export async function bundle({
 				}
 			}
 		})();
+	}
 
-		if (!dev && buildmetadata) {
-			const webPublicDir = join(webDir, 'public');
-			if (existsSync(webPublicDir)) {
-				const assets = buildmetadata.assets;
-				const webOutPublicDir = join(outDir, 'web', 'public');
-				cpSync(webPublicDir, webOutPublicDir, { recursive: true });
-				[...new Bun.Glob('**.*').scanSync(webOutPublicDir)].forEach((f) => {
-					const bf = Bun.file(join(webOutPublicDir, f));
-					assets.push({
-						filename: join('public', f),
-						kind: 'static',
-						contentType: bf.type,
-						size: bf.size,
-					});
-				});
+	// Bundle workbench app if detected via setupWorkbench
+	const { analyzeWorkbench } = await import('./ast');
+	if (existsSync(appFile)) {
+		const appContent = await Bun.file(appFile).text();
+		const analysis = await analyzeWorkbench(appContent);
+
+		if (analysis.hasWorkbench) {
+			// Encode workbench config for environment variable
+			const { encodeWorkbenchConfig } = await import('@agentuity/core');
+			const config = analysis.config || { route: '/workbench', headers: {} };
+			// Add port to config (defaults to 3500 if not provided)
+			const configWithPort = { ...config, port: port || 3500 };
+			const encodedConfig = encodeWorkbenchConfig(configWithPort);
+			const workbenchDefine = {
+				...define,
+				'AGENTUITY_WORKBENCH_CONFIG_INLINE': JSON.stringify(encodedConfig),
+			};
+			const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL as LogLevel) || 'info');
+			try {
+				const projectRequire = createRequire(resolve(rootDir, 'package.json'));
+				const workbenchPkgPath = projectRequire.resolve('@agentuity/workbench/package.json');
+				const workbenchAppDir = join(dirname(workbenchPkgPath), 'src', 'app');
+
+				if (existsSync(workbenchAppDir)) {
+					const workbenchIndexFile = join(workbenchAppDir, 'index.html');
+					if (existsSync(workbenchIndexFile)) {
+						// Bundle workbench using same config as main web app
+						const workbenchBuildConfig: Bun.BuildConfig = {
+							entrypoints: [workbenchIndexFile],
+							root: workbenchAppDir,
+							outdir: join(outDir, 'workbench'),
+							define: workbenchDefine,
+							sourcemap: dev ? 'inline' : 'linked',
+							plugins: [AgentuityBundler],
+							target: 'browser',
+							format: 'esm',
+							banner: `// Generated file. DO NOT EDIT`,
+							minify: true,
+							splitting: true,
+							packages: 'bundle',
+							naming: {
+								entry: '[dir]/[name].[ext]',
+								chunk: 'workbench/chunk/[name]-[hash].[ext]',
+								asset: 'workbench/asset/[name]-[hash].[ext]',
+							},
+						};
+
+						const workbenchResult = await Bun.build(workbenchBuildConfig);
+						if (workbenchResult.success) {
+							logger.debug('Workbench bundled successfully');
+						} else {
+							logger.error('Workbench bundling failed:', workbenchResult.logs.join('\n'));
+						}
+					}
+				}
+			} catch (error) {
+				logger.error('Failed to bundle workbench:', error);
 			}
+		}
+	}
+
+	if (!dev && buildmetadata) {
+		const webPublicDir = join(webDir, 'public');
+		if (existsSync(webPublicDir)) {
+			const assets = buildmetadata.assets;
+			const webOutPublicDir = join(outDir, 'web', 'public');
+			cpSync(webPublicDir, webOutPublicDir, { recursive: true });
+			[...new Bun.Glob('**.*').scanSync(webOutPublicDir)].forEach((f) => {
+				const bf = Bun.file(join(webOutPublicDir, f));
+				assets.push({
+					filename: join('public', f),
+					kind: 'static',
+					contentType: bf.type,
+					size: bf.size,
+				});
+			});
 		}
 	}
 

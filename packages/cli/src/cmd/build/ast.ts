@@ -897,3 +897,206 @@ export async function parseRoute(
 	}
 	return routes;
 }
+
+/**
+ * Configuration extracted from createWorkbench call
+ */
+export interface WorkbenchConfig {
+	route: string;
+	headers?: Record<string, string>;
+}
+
+/**
+ * Result of workbench analysis
+ */
+export interface WorkbenchAnalysis {
+	hasWorkbench: boolean;
+	config: WorkbenchConfig | null;
+}
+
+/**
+ * Check if a TypeScript file actively uses a specific function
+ * (ignores comments and unused imports)
+ *
+ * @param content - The TypeScript source code
+ * @param functionName - The function name to check for (e.g., 'createWorkbench')
+ * @returns true if the function is both imported and called
+ */
+export async function checkFunctionUsage(content: string, functionName: string): Promise<boolean> {
+	try {
+		const ts = await import('typescript');
+		const sourceFile = ts.createSourceFile('temp.ts', content, ts.ScriptTarget.Latest, true);
+
+		let hasImport = false;
+		let hasUsage = false;
+
+		function visitNode(node: import('typescript').Node): void {
+			// Check for import declarations with the function
+			if (ts.isImportDeclaration(node) && node.importClause?.namedBindings) {
+				if (ts.isNamedImports(node.importClause.namedBindings)) {
+					for (const element of node.importClause.namedBindings.elements) {
+						if (element.name.text === functionName) {
+							hasImport = true;
+						}
+					}
+				}
+			}
+			// Check for function calls
+			if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+				if (node.expression.text === functionName) {
+					hasUsage = true;
+				}
+			}
+			// Recursively visit child nodes
+			ts.forEachChild(node, visitNode);
+		}
+
+		visitNode(sourceFile);
+		// Only return true if both import and usage are present
+		return hasImport && hasUsage;
+	} catch (error) {
+		// Fallback to string check if AST parsing fails
+		console.warn(`AST parsing failed for ${functionName}, falling back to string check:`, error);
+		return content.includes(functionName);
+	}
+}
+
+/**
+ * Check if app.ts contains conflicting routes for a given endpoint
+ */
+export async function checkRouteConflicts(
+	content: string,
+	workbenchEndpoint: string
+): Promise<boolean> {
+	try {
+		const ts = await import('typescript');
+		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true);
+
+		let hasConflict = false;
+
+		function visitNode(node: import('typescript').Node): void {
+			// Check for router.get calls
+			if (
+				ts.isCallExpression(node) &&
+				ts.isPropertyAccessExpression(node.expression) &&
+				ts.isIdentifier(node.expression.name) &&
+				node.expression.name.text === 'get'
+			) {
+				// Check if first argument is the workbench endpoint
+				if (node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0])) {
+					if (node.arguments[0].text === workbenchEndpoint) {
+						hasConflict = true;
+					}
+				}
+			}
+
+			ts.forEachChild(node, visitNode);
+		}
+
+		visitNode(sourceFile);
+		return hasConflict;
+	} catch (_error) {
+		return false;
+	}
+}
+
+/**
+ * Analyze workbench usage and extract configuration
+ *
+ * @param content - The TypeScript source code
+ * @returns workbench analysis including usage and config
+ */
+export async function analyzeWorkbench(content: string): Promise<WorkbenchAnalysis> {
+	try {
+		const ts = await import('typescript');
+		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true);
+
+		let hasImport = false;
+		let hasUsage = false;
+		let config: WorkbenchConfig | null = null;
+
+		function visitNode(node: import('typescript').Node): void {
+			// Check for import declarations with createWorkbench
+			if (ts.isImportDeclaration(node) && node.importClause?.namedBindings) {
+				if (ts.isNamedImports(node.importClause.namedBindings)) {
+					for (const element of node.importClause.namedBindings.elements) {
+						if (element.name.text === 'createWorkbench') {
+							hasImport = true;
+						}
+					}
+				}
+			}
+
+			// Check for createWorkbench function calls and extract config
+			if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+				if (node.expression.text === 'createWorkbench') {
+					hasUsage = true;
+
+					// Extract configuration from the first argument (if any)
+					if (node.arguments.length > 0) {
+						const configArg = node.arguments[0];
+						config = parseConfigObject(configArg, ts);
+					} else {
+						// Default config if no arguments provided
+						config = { route: '/workbench' };
+					}
+				}
+			}
+
+			// Recursively visit child nodes
+			ts.forEachChild(node, visitNode);
+		}
+
+		visitNode(sourceFile);
+
+		// Set default config if workbench is used but no config was parsed
+		if (hasImport && hasUsage && !config) {
+			config = { route: '/workbench' };
+		}
+
+		return {
+			hasWorkbench: hasImport && hasUsage,
+			config: config,
+		};
+	} catch (error) {
+		// Fallback to simple check if AST parsing fails
+		console.warn('Workbench AST parsing failed, falling back to string check:', error);
+		const hasWorkbench = content.includes('createWorkbench');
+		return {
+			hasWorkbench,
+			config: hasWorkbench ? { route: '/workbench' } : null,
+		};
+	}
+}
+
+/**
+ * Parse a TypeScript object literal to extract configuration
+ */
+function parseConfigObject(
+	node: import('typescript').Node,
+	ts: typeof import('typescript')
+): WorkbenchConfig | null {
+	if (!ts.isObjectLiteralExpression(node)) {
+		return { route: '/workbench' }; // Default config
+	}
+
+	const config: WorkbenchConfig = { route: '/workbench' };
+
+	for (const property of node.properties) {
+		if (ts.isPropertyAssignment(property) && ts.isIdentifier(property.name)) {
+			const propertyName = property.name.text;
+
+			if (propertyName === 'route' && ts.isStringLiteral(property.initializer)) {
+				config.route = property.initializer.text;
+			} else if (
+				propertyName === 'headers' &&
+				ts.isObjectLiteralExpression(property.initializer)
+			) {
+				// Parse headers object if needed (not implemented for now)
+				config.headers = {};
+			}
+		}
+	}
+
+	return config;
+}
