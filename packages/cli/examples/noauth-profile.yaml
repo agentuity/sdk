@@ -1,0 +1,3 @@
+name: noauth
+# Profile for local testing without authentication
+# Usage: agentuity --config examples/noauth-profile.yaml create --name test ...

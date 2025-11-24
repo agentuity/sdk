@@ -4,3 +4,4 @@ bun.lock
 **/*.generated.d.ts
 **/.agentuity/*
 packages/cli/test-interop/go-common
+*.sh

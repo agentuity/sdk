@@ -15,7 +15,7 @@ import type {
 	SessionStartEvent,
 } from '@agentuity/core';
 import type { Email } from './io/email';
-import type { Agent, AgentContext } from './agent';
+import type { Agent, AgentContext, AgentRegistry } from './agent';
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
 import type WaitUntilHandler from './_waituntil';
 
@@ -77,6 +77,11 @@ export interface Variables {
 	sessionId: string;
 	thread: Thread;
 	session: Session;
+	agent: AgentRegistry;
+	kv: KeyValueStorage;
+	objectstore: ObjectStorage;
+	stream: StreamStorage;
+	vector: VectorStorage;
 }
 
 export type TriggerType = SessionStartEvent['trigger'];

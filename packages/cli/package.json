@@ -1,17 +1,17 @@
 {
 	"name": "@agentuity/cli",
-	"version": "0.0.51",
+	"version": "0.0.52",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
-	"main": "./src/index.ts",
+	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"bin": {
 		"agentuity": "./bin/cli.ts"
 	},
 	"exports": {
 		".": {
-			"import": "./src/index.ts",
+			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		}
 	},
@@ -24,7 +24,7 @@
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bunx tsc --build --emitDeclarationOnly --force",
+		"build": "bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun scripts/test-create-flow.ts && bun scripts/test-exit-codes.ts && bun scripts/test-response-schema.ts && bun scripts/test-batch-reporting.ts && bun scripts/test-response-envelope.ts",
 		"test:create": "bun scripts/test-create-flow.ts",

@@ -20,6 +20,7 @@ import { tmpdir } from 'node:os';
 const MONOREPO_ROOT = resolve(import.meta.dir, '../../..');
 const TEMPLATES_DIR = join(MONOREPO_ROOT, 'templates');
 const TEST_DIR = join(tmpdir(), `agentuity-test-${Date.now()}`);
+const PACKAGES_DIR = join(tmpdir(), `test-packages-${Date.now()}`);
 const TEST_PROJECT_HUMAN_NAME = 'Integration Test Project';
 const TEST_PROJECT_DIR_NAME = 'integration-test-project'; // Sanitized version
 const TEST_PROJECT_PATH = join(TEST_DIR, TEST_PROJECT_DIR_NAME);
@@ -60,6 +61,9 @@ async function cleanup() {
 		rmSync(TEST_PROJECT_PATH, { recursive: true, force: true });
 		logSuccess('Cleanup complete');
 	}
+	if (existsSync(PACKAGES_DIR)) {
+		rmSync(PACKAGES_DIR, { recursive: true, force: true });
+	}
 }
 
 async function createProject(): Promise<boolean> {
@@ -83,7 +87,8 @@ async function createProject(): Promise<boolean> {
 			TEMPLATES_DIR,
 			'--confirm',
 			'--no-register',
-			'--no-build', // Don't build yet - we need to link local packages first
+			'--no-install', // Don't install yet - we'll install local packages
+			'--no-build', // Don't build yet
 		],
 		{
 			cwd: TEST_DIR,
@@ -154,34 +159,57 @@ async function verifyFiles(): Promise<boolean> {
 }
 
 async function linkLocalPackages(): Promise<boolean> {
-	logStep('Step 3: Link Local Packages');
+	logStep('Step 3: Install Local Packages');
 
-	// Replace installed packages with symlinks to local monorepo packages
-	const packagesToLink = ['core', 'runtime', 'cli', 'react', 'server'];
-	const nodeModulesPath = join(TEST_PROJECT_PATH, 'node_modules', '@agentuity');
+	// Pack and install local packages (same as smoke test - avoids symlink issues)
+	const packagesToInstall = ['core', 'react', 'runtime', 'server', 'cli'];
+	const packagePaths: string[] = [];
 
-	for (const pkg of packagesToLink) {
-		const installedPath = join(nodeModulesPath, pkg);
-		const localPath = join(MONOREPO_ROOT, 'packages', pkg);
-
-		if (existsSync(installedPath)) {
-			// Remove the installed version
-			rmSync(installedPath, { recursive: true, force: true });
-		}
-
-		// Create symlink to local package
-		await Bun.$`ln -s ${localPath} ${installedPath}`;
+	// Ensure packages directory exists
+	if (!existsSync(PACKAGES_DIR)) {
+		mkdirSync(PACKAGES_DIR, { recursive: true });
 	}
 
-	logSuccess('Linked local packages');
+	// Pack each package to unique temp directory
+	for (const pkg of packagesToInstall) {
+		const pkgPath = join(MONOREPO_ROOT, 'packages', pkg);
+		// Use --quiet to get just the filename
+		const packResult = await Bun.$`bun pm pack --destination ${PACKAGES_DIR} --quiet`
+			.cwd(pkgPath)
+			.text();
+		const baseName = packResult.trim().split('/').pop()!;
+		packagePaths.push(join(PACKAGES_DIR, baseName));
+	}
+
+	// Remove @agentuity dependencies from package.json first (to avoid conflicts)
+	const packageJsonPath = join(TEST_PROJECT_PATH, 'package.json');
+	const packageJson = await Bun.file(packageJsonPath).json();
+	delete packageJson.dependencies['@agentuity/cli'];
+	delete packageJson.dependencies['@agentuity/core'];
+	delete packageJson.dependencies['@agentuity/react'];
+	delete packageJson.dependencies['@agentuity/runtime'];
+	await Bun.write(packageJsonPath, JSON.stringify(packageJson, null, '\t') + '\n');
+
+	// Install other dependencies first
+	await Bun.$`bun install`.cwd(TEST_PROJECT_PATH);
+
+	// Install @agentuity packages from packed tarballs
+	for (const tarballPath of packagePaths) {
+		await Bun.$`bun add ${tarballPath}`.cwd(TEST_PROJECT_PATH);
+	}
+
+	logSuccess('Installed local packages from tarballs');
 	return true;
 }
 
 async function buildProject(): Promise<boolean> {
 	logStep('Step 4: Build Project');
 
-	// Run the build command
-	const result = Bun.spawn(['bun', 'run', 'build'], {
+	// Use local CLI bin directly to ensure we use the latest code
+	const CLI_BIN = join(MONOREPO_ROOT, 'packages/cli/bin/cli.ts');
+
+	// Run the build command using local CLI (cwd is already set to project path)
+	const result = Bun.spawn(['bun', CLI_BIN, 'build'], {
 		cwd: TEST_PROJECT_PATH,
 		stdout: 'inherit',
 		stderr: 'inherit',
@@ -191,6 +219,13 @@ async function buildProject(): Promise<boolean> {
 
 	if (exitCode !== 0) {
 		logError('Build failed');
+
+		// Debug: check if generated files exist
+		const registryPath = join(TEST_PROJECT_PATH, 'src/agents/registry.generated.ts');
+		const typesPath = join(TEST_PROJECT_PATH, 'src/agents/types.generated.d.ts');
+		logInfo(`Registry file exists: ${existsSync(registryPath)}`);
+		logInfo(`Types file exists: ${existsSync(typesPath)}`);
+
 		return false;
 	}
 
@@ -288,6 +323,18 @@ async function main() {
 	log('╚════════════════════════════════════════════╝', colors.cyan);
 
 	try {
+		// Remove global agentuity to avoid conflicts
+		const globalAgentuity = Bun.which('agentuity');
+		if (globalAgentuity) {
+			logInfo(`Removing global agentuity at: ${globalAgentuity}`);
+			try {
+				await Bun.$`bun remove -g @agentuity/cli`.nothrow();
+				logSuccess('Removed global agentuity');
+			} catch (_error) {
+				logInfo('Could not remove global agentuity (might not be installed via bun)');
+			}
+		}
+
 		// Build CLI first
 		const cliBuilt = await buildCLI();
 		if (!cliBuilt) {

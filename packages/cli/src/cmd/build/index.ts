@@ -33,30 +33,28 @@ export const command = createCommand({
 		try {
 			tui.info(`Bundling project at: ${projectDir}`);
 
-			// Run TypeScript type checking before bundling (skip in dev mode)
+			// Generate agent registry FIRST (so types exist for typecheck)
+			tui.info('Generating agent registry...');
+			await bundle({
+				rootDir: projectDir,
+				dev: opts.dev || false,
+				project,
+			});
+
+			// Run TypeScript type checking after registry generation (skip in dev mode)
 			if (!opts.dev) {
 				try {
 					tui.info('Running type check...');
 					const { resolve } = await import('node:path');
 					const absoluteProjectDir = resolve(projectDir);
-					const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`
-						.cwd(absoluteProjectDir)
-						.nothrow();
-					if (result.exitCode !== 0) {
-						const errorOutput = result.stderr.toString();
-						// Filter out errors from node_modules - only show user code errors
-						const lines = errorOutput.split('\n');
-						const userErrorLines = lines.filter((line) => !line.includes('node_modules/'));
+					const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`.cwd(absoluteProjectDir).nothrow();
 
-						if (userErrorLines.length > 0 && userErrorLines.some((line) => line.trim())) {
-							tui.error('Type check failed:\n');
-							console.error(userErrorLines.join('\n'));
-							tui.fatal('Fix type errors before building');
-						}
-						// If only node_modules errors, pass with info
-						tui.info('Type check passed (ignoring dependency type errors)');
-					} else {
+					if (result.exitCode === 0) {
 						tui.success('Type check passed');
+					} else {
+						tui.error('Type check failed:\n');
+						console.error(result.stderr.toString());
+						tui.fatal('Fix type errors before building');
 					}
 				} catch (error) {
 					// If tsc fails to run, show error and fail
@@ -65,12 +63,6 @@ export const command = createCommand({
 					tui.fatal('Unable to run TypeScript type checking. Ensure TypeScript is installed.');
 				}
 			}
-
-			await bundle({
-				rootDir: projectDir,
-				dev: opts.dev || false,
-				project,
-			});
 
 			tui.success('Bundle complete');
 

@@ -1,14 +1,14 @@
 {
 	"name": "@agentuity/runtime",
-	"version": "0.0.51",
+	"version": "0.0.52",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
-	"main": "./src/index.ts",
+	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./src/index.ts",
+			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		}
 	},
