@@ -236,6 +236,7 @@ export const command = createCommand({
 		let showInitialReadyMessage = true;
 		let serverStartTime = 0;
 		let gravityClient: Bun.Subprocess | undefined;
+		let initialStartupComplete = false;
 
 		if (gravityBin && devmode && project) {
 			const sdkKey = await loadProjectSDKKey(rootDir);
@@ -259,7 +260,7 @@ export const command = createCommand({
 								'--url',
 								config?.overrides?.gravity_url ?? 'grpc://devmode.agentuity.com',
 								'--log-level',
-								'error',
+								process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
 							],
 							{
 								cwd: rootDir,
@@ -412,17 +413,10 @@ export const command = createCommand({
 					logger.trace('Initial server start');
 				}
 				logger.trace('Starting typecheck and build...');
-				await Promise.all([
-					tui.runCommand({
-						command: 'tsc',
-						cmd: ['bunx', 'tsc', '--noEmit'],
-						cwd: rootDir,
-						clearOnSuccess: true,
-						truncate: false,
-						maxLinesOutput: 2,
-						maxLinesOnFailure: 15,
-					}),
-					tui.spinner('Building project', async () => {
+				await tui.spinner({
+					message: 'Building project',
+					clearOnSuccess: true,
+					callback: async () => {
 						try {
 							logger.trace('Bundle starting...');
 							building = true;
@@ -436,13 +430,26 @@ export const command = createCommand({
 							building = false;
 							buildCompletedAt = Date.now();
 							logger.trace('Bundle completed successfully');
+							logger.trace('tsc starting...');
+							await tui.runCommand({
+								command: 'tsc',
+								cmd: ['bunx', 'tsc', '--noEmit'],
+								cwd: rootDir,
+								clearOnSuccess: true,
+								truncate: false,
+								maxLinesOutput: 2,
+								maxLinesOnFailure: 15,
+							});
+							logger.trace('tsc completed successfully');
 						} catch (error) {
 							building = false;
 							logger.trace('Bundle failed: %s', error);
 							failure('Build failed');
+							return;
 						}
-					}),
-				]);
+					},
+				});
+
 				logger.trace('Typecheck and build completed');
 
 				if (failed) {
@@ -541,8 +548,14 @@ export const command = createCommand({
 
 				if (showInitialReadyMessage) {
 					showInitialReadyMessage = false;
+					// Clear any lingering spinner/command output - clear everything below cursor
+					process.stderr.write('\x1B[J'); // Clear from cursor to end of screen
+					process.stdout.write('\x1B[J'); // Clear from cursor to end of screen
 					logger.info('DevMode ready 🚀');
 					logger.trace('Initial ready message logged');
+					// Mark initial startup complete immediately to prevent watcher restarts
+					initialStartupComplete = true;
+					logger.trace('Initial startup complete, file watcher restarts now enabled');
 				}
 
 				logger.trace('Attaching exit handler to dev server process...');
@@ -634,6 +647,7 @@ export const command = createCommand({
 		logger.trace('Starting initial build and server');
 		await restart();
 		logger.trace('Initial restart completed, setting up watchers');
+		logger.trace('initialStartupComplete is now: %s', initialStartupComplete);
 
 		// Setup keyboard shortcuts (only if we have a TTY)
 		if (canDoInput) {
@@ -742,6 +756,17 @@ export const command = createCommand({
 				logger.trace('Setting up watcher for %s', watchDir);
 				const watcher = watch(watchDir, { recursive: true }, (eventType, changedFile) => {
 					const absPath = changedFile ? resolve(watchDir, changedFile) : watchDir;
+
+					// Ignore file changes during initial startup to prevent spurious restarts
+					if (!initialStartupComplete) {
+						logger.trace(
+							'File change ignored (initial startup): %s (event: %s, file: %s)',
+							watchDir,
+							eventType,
+							changedFile
+						);
+						return;
+					}
 
 					// Ignore file changes during active build to prevent loops
 					if (building) {
