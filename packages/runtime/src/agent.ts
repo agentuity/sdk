@@ -911,7 +911,9 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 
 		const _ctx = privateContext(ctx);
 		if (currentAgent?.metadata?.id) {
+			// we add both so that you can query by either
 			_ctx.var.agentIds.add(currentAgent.metadata.id);
+			_ctx.var.agentIds.add(currentAgent.metadata.agentId);
 		}
 
 		const sessionId = ctx.var.sessionId;

@@ -126,7 +126,7 @@ function getAgentId(
 	filename: string,
 	version: string
 ): string {
-	return `agent_${hashSHA1(projectId, deploymentId, filename, version)}`;
+	return `agentid_${hashSHA1(projectId, deploymentId, filename, version)}`;
 }
 
 function getEvalId(
@@ -152,7 +152,7 @@ function generateRouteId(
 }
 
 function generateStableAgentId(projectId: string, name: string): string {
-	return `agentid_${hashSHA1(projectId, name)}`.substring(0, 64);
+	return `agent_${hashSHA1(projectId, name)}`.substring(0, 64);
 }
 
 function generateStableEvalId(projectId: string, agentId: string, name: string): string {
@@ -164,7 +164,7 @@ type AcornParseResultType = ReturnType<typeof acornLoose.parse>;
 function augmentAgentMetadataNode(
 	projectId: string,
 	id: string,
-	name: string,
+	identifier: string,
 	rel: string,
 	version: string,
 	ast: AcornParseResultType,
@@ -178,7 +178,8 @@ function augmentAgentMetadataNode(
 			`missing required metadata.name in ${filename}${location}. This Agent should have a unique and human readable name for this project.`
 		);
 	}
-	if (metadata.has('identifier') && name !== metadata.get('identifier')) {
+	const name = metadata.get('name')!;
+	if (metadata.has('identifier') && identifier !== metadata.get('identifier')) {
 		const location = ast.loc?.start ? ` on line ${ast.loc.start}` : '';
 		throw new Error(
 			`metadata.identifier (${metadata.get('identifier')}) in ${filename}${location} is mismatched (${name}). This is an internal error.`
@@ -188,7 +189,7 @@ function augmentAgentMetadataNode(
 	const description = descriptionNode ? (descriptionNode as ASTLiteral).value : '';
 	const agentId = generateStableAgentId(projectId, name);
 	metadata.set('version', version);
-	metadata.set('identifier', name);
+	metadata.set('identifier', identifier);
 	metadata.set('filename', rel);
 	metadata.set('id', id);
 	metadata.set('agentId', agentId);

@@ -39,6 +39,8 @@ export const command = createCommand({
 				rootDir: projectDir,
 				dev: opts.dev || false,
 				project,
+				orgId: project?.orgId,
+				projectId: project?.projectId,
 			});
 
 			// Run TypeScript type checking after registry generation (skip in dev mode)
