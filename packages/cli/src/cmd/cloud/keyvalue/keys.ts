@@ -29,22 +29,20 @@ export const keysSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args } = ctx;
+		const { args, options } = ctx;
 		const kv = await createStorageAdapter(ctx);
 
 		const keys = await kv.getKeys(args.name);
 
-		if (keys.length === 0) {
-			tui.info(`No keys found in namespace ${tui.bold(args.name)}`);
-			return {
-				namespace: args.name,
-				keys: [],
-			};
-		}
-
-		tui.info(`Found ${keys.length} key(s) in ${tui.bold(args.name)}:`);
-		for (const key of keys) {
-			tui.info(`  ${key}`);
+		if (!options.json) {
+			if (keys.length === 0) {
+				tui.info(`No keys found in namespace ${tui.bold(args.name)}`);
+			} else {
+				tui.info(`Found ${keys.length} key(s) in ${tui.bold(args.name)}:`);
+				for (const key of keys) {
+					tui.info(`  ${key}`);
+				}
+			}
 		}
 
 		return {

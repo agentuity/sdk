@@ -23,17 +23,19 @@ export const listNamespacesSubcommand = createCommand({
 	idempotent: true,
 
 	async handler(ctx) {
+		const { options } = ctx;
 		const storage = await createStorageAdapter(ctx);
 		const namespaces = await storage.getNamespaces();
 
-		if (namespaces.length === 0) {
-			tui.info('No namespaces found');
-			return [];
-		}
-
-		tui.info(`Found ${namespaces.length} namespace(s):`);
-		for (const name of namespaces) {
-			tui.arrow(name);
+		if (!options.json) {
+			if (namespaces.length === 0) {
+				tui.info('No namespaces found');
+			} else {
+				tui.info(`Found ${namespaces.length} namespace(s):`);
+				for (const name of namespaces) {
+					tui.arrow(name);
+				}
+			}
 		}
 
 		return namespaces;

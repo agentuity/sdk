@@ -7,11 +7,10 @@ import { z } from 'zod';
 
 const SSHListResponseSchema = z.array(
 	z.object({
-		id: z.string().describe('SSH key ID'),
 		fingerprint: z.string().describe('SSH key fingerprint'),
 		keyType: z.string().describe('SSH key type (e.g., ssh-rsa, ssh-ed25519)'),
-		comment: z.string().optional().describe('SSH key comment'),
-		createdAt: z.string().optional().describe('Creation timestamp'),
+		comment: z.string().describe('SSH key comment'),
+		publicKey: z.string().describe('SSH public key'),
 	})
 );
 
@@ -34,7 +33,7 @@ export const listCommand = createSubcommand({
 		const { logger, apiClient, options } = ctx;
 
 		if (!apiClient) {
-			logger.fatal('API client is not available', ErrorCode.INTERNAL_ERROR);
+			return logger.fatal('API client is not available', ErrorCode.INTERNAL_ERROR) as never;
 		}
 
 		try {
@@ -71,9 +70,12 @@ export const listCommand = createSubcommand({
 		} catch (error) {
 			logger.trace(error);
 			if (error instanceof Error) {
-				logger.fatal(`Failed to list SSH keys: ${error.message}`, ErrorCode.API_ERROR);
+				return logger.fatal(
+					`Failed to list SSH keys: ${error.message}`,
+					ErrorCode.API_ERROR
+				) as never;
 			} else {
-				logger.fatal('Failed to list SSH keys', ErrorCode.API_ERROR);
+				return logger.fatal('Failed to list SSH keys', ErrorCode.API_ERROR) as never;
 			}
 		}
 	},

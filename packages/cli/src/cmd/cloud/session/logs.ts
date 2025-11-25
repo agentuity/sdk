@@ -32,29 +32,30 @@ export const logsSubcommand = createSubcommand({
 		response: SessionLogsResponseSchema,
 	},
 	async handler(ctx) {
-		const { apiClient, args } = ctx;
+		const { apiClient, args, options } = ctx;
 
 		try {
 			const logs = await sessionLogs(apiClient, { id: args.session_id });
 
-			if (logs.length === 0) {
-				tui.info('No logs found for this session.');
-				return [];
-			}
+			if (!options.json) {
+				if (logs.length === 0) {
+					tui.info('No logs found for this session.');
+				} else {
+					tui.banner(`Logs for Session ${args.session_id}`, `${logs.length} log entries`);
 
-			tui.banner(`Logs for Session ${args.session_id}`, `${logs.length} log entries`);
+					for (const log of logs) {
+						const timestamp = new Date(log.timestamp).toLocaleTimeString();
+						const severity = log.severity.padEnd(5);
+						const severityColor =
+							log.severity === 'ERROR'
+								? tui.error(severity)
+								: log.severity === 'WARN'
+									? tui.warning(severity)
+									: tui.muted(severity);
 
-			for (const log of logs) {
-				const timestamp = new Date(log.timestamp).toLocaleTimeString();
-				const severity = log.severity.padEnd(5);
-				const severityColor =
-					log.severity === 'ERROR'
-						? tui.error(severity)
-						: log.severity === 'WARN'
-							? tui.warning(severity)
-							: tui.muted(severity);
-
-				console.log(`${tui.muted(timestamp)} ${severityColor} ${log.body}`);
+						console.log(`${tui.muted(timestamp)} ${severityColor} ${log.body}`);
+					}
+				}
 			}
 
 			return logs;

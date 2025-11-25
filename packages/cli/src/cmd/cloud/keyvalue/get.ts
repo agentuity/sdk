@@ -31,27 +31,32 @@ export const getSubcommand = createCommand({
 	idempotent: true,
 
 	async handler(ctx) {
-		const { args } = ctx;
+		const { args, options } = ctx;
 		const storage = await createStorageAdapter(ctx);
 		const started = Date.now();
 		const res = await storage.get(args.namespace, args.key);
-		if (res.exists) {
-			if (res.data) {
-				if (res.contentType?.includes('json')) {
-					const val = tryParseJSON(res.data as unknown as string);
-					tui.json(val);
-				} else if (res.contentType?.includes('text')) {
-					console.log(String(res.data));
+
+		if (!options.json) {
+			if (res.exists) {
+				if (res.data) {
+					if (res.contentType?.includes('json')) {
+						const val = tryParseJSON(res.data as unknown as string);
+						tui.json(val);
+					} else if (res.contentType?.includes('text')) {
+						console.log(String(res.data));
+					} else {
+						const b = res.data as ArrayBuffer;
+						tui.info(`Read ${b.byteLength} bytes (${res.contentType})`);
+					}
+					tui.success(
+						`retrieved in ${(Date.now() - started).toFixed(1)}ms (${res.contentType})`
+					);
 				} else {
-					const b = res.data as ArrayBuffer;
-					tui.info(`Read ${b.byteLength} bytes (${res.contentType})`);
+					tui.warning(`${args.key} returned empty data for ${args.namespace}`);
 				}
-				tui.success(`retrieved in ${(Date.now() - started).toFixed(1)}ms (${res.contentType})`);
 			} else {
-				tui.warning(`${args.key} returned empty data for ${args.namespace}`);
+				tui.warning(`${args.key} does not exist in ${args.namespace}`);
 			}
-		} else {
-			tui.warning(`${args.key} does not exist in ${args.namespace}`);
 		}
 
 		return {

@@ -7,8 +7,5 @@
 		"rootDir": "./src"
 	},
 	"include": ["src/**/*"],
-	"references": [
-		{"path": "../core"},
-		{"path": "../react"}
-	]
+	"references": [{ "path": "../core" }, { "path": "../react" }]
 }

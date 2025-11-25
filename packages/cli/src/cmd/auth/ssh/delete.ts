@@ -39,7 +39,7 @@ export const deleteCommand = createSubcommand({
 		const { logger, apiClient, args, opts, options } = ctx;
 
 		if (!apiClient) {
-			logger.fatal('API client is not available', ErrorCode.INTERNAL_ERROR);
+			return logger.fatal('API client is not available', ErrorCode.INTERNAL_ERROR) as never;
 		}
 
 		const shouldConfirm = process.stdin.isTTY ? opts.confirm : false;
@@ -53,15 +53,17 @@ export const deleteCommand = createSubcommand({
 				const keys = await tui.spinner('Fetching SSH keys...', () => listSSHKeys(apiClient));
 
 				if (keys.length === 0) {
-					tui.newline();
-					tui.info('No SSH keys found');
-					return;
+					if (!options.json) {
+						tui.newline();
+						tui.info('No SSH keys found');
+					}
+					return { success: false, removed: 0, fingerprints: [] };
 				}
 
 				if (!process.stdin.isTTY) {
-					logger.fatal(
+					return logger.fatal(
 						'Interactive selection required but cannot prompt in non-TTY environment. Provide fingerprint as argument.'
-					);
+					) as never;
 				}
 
 				tui.newline();
@@ -79,9 +81,11 @@ export const deleteCommand = createSubcommand({
 				fingerprintsToRemove = response.keys;
 
 				if (fingerprintsToRemove.length === 0) {
-					tui.newline();
-					tui.info('No keys selected');
-					return;
+					if (!options.json) {
+						tui.newline();
+						tui.info('No keys selected');
+					}
+					return { success: false, removed: 0, fingerprints: [] };
 				}
 			}
 
@@ -98,7 +102,7 @@ export const deleteCommand = createSubcommand({
 					},
 					options
 				);
-				return;
+				return { success: false, removed: 0, fingerprints: [] };
 			}
 
 			if (shouldConfirm) {
@@ -109,8 +113,10 @@ export const deleteCommand = createSubcommand({
 				);
 
 				if (!confirmed) {
-					tui.info('Cancelled');
-					return;
+					if (!options.json) {
+						tui.info('Cancelled');
+					}
+					return { success: false, removed: 0, fingerprints: [] };
 				}
 			}
 
@@ -119,11 +125,13 @@ export const deleteCommand = createSubcommand({
 				for (const fingerprint of fingerprintsToRemove) {
 					outputDryRun(`Would remove SSH key: ${fingerprint}`, options);
 				}
-				tui.newline();
-				tui.info(
-					`[DRY RUN] Would remove ${fingerprintsToRemove.length} SSH key${fingerprintsToRemove.length > 1 ? 's' : ''}`
-				);
-				return;
+				if (!options.json) {
+					tui.newline();
+					tui.info(
+						`[DRY RUN] Would remove ${fingerprintsToRemove.length} SSH key${fingerprintsToRemove.length > 1 ? 's' : ''}`
+					);
+				}
+				return { success: false, removed: 0, fingerprints: [] };
 			}
 
 			// Actually execute the deletion
@@ -133,10 +141,12 @@ export const deleteCommand = createSubcommand({
 				);
 			}
 
-			tui.newline();
-			tui.success(
-				`Removed ${fingerprintsToRemove.length} SSH key${fingerprintsToRemove.length > 1 ? 's' : ''}`
-			);
+			if (!options.json) {
+				tui.newline();
+				tui.success(
+					`Removed ${fingerprintsToRemove.length} SSH key${fingerprintsToRemove.length > 1 ? 's' : ''}`
+				);
+			}
 
 			return {
 				success: true,
@@ -146,9 +156,12 @@ export const deleteCommand = createSubcommand({
 		} catch (error) {
 			logger.trace(error);
 			if (error instanceof Error) {
-				logger.fatal(`Failed to remove SSH key: ${error.message}`, ErrorCode.API_ERROR);
+				return logger.fatal(
+					`Failed to remove SSH key: ${error.message}`,
+					ErrorCode.API_ERROR
+				) as never;
 			} else {
-				logger.fatal('Failed to remove SSH key', ErrorCode.API_ERROR);
+				return logger.fatal('Failed to remove SSH key', ErrorCode.API_ERROR) as never;
 			}
 		}
 	},

@@ -32,7 +32,7 @@ export const getSubcommand = createSubcommand({
 	idempotent: true,
 
 	async handler(ctx) {
-		const { args, opts, apiClient, project } = ctx;
+		const { args, opts, apiClient, project, options } = ctx;
 
 		// Fetch project with unmasked secrets
 		const projectData = await tui.spinner('Fetching environment variables', () => {
@@ -46,18 +46,20 @@ export const getSubcommand = createSubcommand({
 			tui.fatal(`Environment variable '${args.key}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
 		}
 
-		// Display the value, masked if requested
-		if (process.stdout.isTTY) {
-			if (opts?.mask) {
-				tui.success(`${args.key}=${maskSecret(value)}`);
+		if (!options.json) {
+			// Display the value, masked if requested
+			if (process.stdout.isTTY) {
+				if (opts?.mask) {
+					tui.success(`${args.key}=${maskSecret(value)}`);
+				} else {
+					tui.success(`${args.key}=${value}`);
+				}
 			} else {
-				tui.success(`${args.key}=${value}`);
-			}
-		} else {
-			if (opts?.mask) {
-				console.log(`${args.key}=${maskSecret(value)}`);
-			} else {
-				console.log(`${args.key}=${value}`);
+				if (opts?.mask) {
+					console.log(`${args.key}=${maskSecret(value)}`);
+				} else {
+					console.log(`${args.key}=${value}`);
+				}
 			}
 		}
 

@@ -43,7 +43,7 @@ export const deleteCommand = createSubcommand({
 		const profile = profiles.find((p) => p.name === name);
 
 		if (!profile) {
-			return logger.fatal(`Profile "${name}" not found`, ErrorCode.RESOURCE_NOT_FOUND);
+			return logger.fatal(`Profile "${name}" not found`, ErrorCode.RESOURCE_NOT_FOUND) as never;
 		}
 
 		// Ask for confirmation unless --confirm flag is passed
@@ -66,7 +66,10 @@ export const deleteCommand = createSubcommand({
 
 			return { success: true, name };
 		} catch (error) {
-			logger.fatal(`Failed to delete profile: ${error}`);
+			return logger.fatal(
+				`Failed to delete profile: ${error}`,
+				ErrorCode.FILE_WRITE_ERROR
+			) as never;
 		}
 	},
 });

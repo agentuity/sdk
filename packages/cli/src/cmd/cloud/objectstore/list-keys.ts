@@ -36,21 +36,22 @@ export const listKeysSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args } = ctx;
+		const { args, options } = ctx;
 		const objectStore = await createStorageAdapter(ctx);
 
 		const objects = await objectStore.listKeys(args.bucket);
 
-		if (objects.length === 0) {
-			tui.info(`No objects found in bucket ${tui.bold(args.bucket)}`);
-			return { bucket: args.bucket, objects: [], count: 0 };
-		}
-
-		tui.info(`Found ${objects.length} object(s) in ${tui.bold(args.bucket)}:`);
-		for (const obj of objects) {
-			const sizeMB = (obj.size / (1024 * 1024)).toFixed(2);
-			const date = new Date(obj.updated_at).toLocaleString();
-			tui.info(`  ${tui.bold(obj.key)}: ${sizeMB} MB, updated ${date}`);
+		if (!options.json) {
+			if (objects.length === 0) {
+				tui.info(`No objects found in bucket ${tui.bold(args.bucket)}`);
+			} else {
+				tui.info(`Found ${objects.length} object(s) in ${tui.bold(args.bucket)}:`);
+				for (const obj of objects) {
+					const sizeMB = (obj.size / (1024 * 1024)).toFixed(2);
+					const date = new Date(obj.updated_at).toLocaleString();
+					tui.info(`  ${tui.bold(obj.key)}: ${sizeMB} MB, updated ${date}`);
+				}
+			}
 		}
 
 		return { bucket: args.bucket, objects, count: objects.length };

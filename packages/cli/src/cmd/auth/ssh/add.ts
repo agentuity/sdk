@@ -132,7 +132,7 @@ export const addCommand = createSubcommand({
 		const { logger, apiClient, opts } = ctx;
 
 		if (!apiClient) {
-			logger.fatal('API client is not available', ErrorCode.INTERNAL_ERROR);
+			return logger.fatal('API client is not available', ErrorCode.INTERNAL_ERROR) as never;
 		}
 
 		try {
@@ -143,9 +143,9 @@ export const addCommand = createSubcommand({
 				try {
 					publicKey = readFileSync(opts.file, 'utf-8').trim();
 				} catch (error) {
-					logger.fatal(
+					return logger.fatal(
 						`Error reading file: ${error instanceof Error ? error.message : 'Unknown error'}`
-					);
+					) as never;
 				}
 			} else {
 				const stdin = await readStdinIfPiped();
@@ -157,11 +157,10 @@ export const addCommand = createSubcommand({
 					const discoveredKeys = discoverSSHKeys();
 
 					if (discoveredKeys.length === 0) {
-						logger.fatal(
+						return logger.fatal(
 							'No SSH public keys found in ~/.ssh/\n' +
 								'Please specify a file with --file or pipe the key via stdin'
-						);
-						return;
+						) as never;
 					}
 
 					// Fetch existing keys from server to filter out already-added ones
@@ -185,14 +184,13 @@ export const addCommand = createSubcommand({
 						console.log('To add a different key:');
 						tui.bullet(`Use ${tui.bold('--file <path>')} to specify a key file`);
 						tui.bullet(`Pipe the key via stdin: ${boldcmd}`);
-						return;
+						return { success: false, fingerprint: '', keyType: '', added: 0 };
 					}
 
 					if (!process.stdin.isTTY) {
-						logger.fatal(
+						return logger.fatal(
 							'Interactive selection required but cannot prompt in non-TTY environment. Use --file or pipe the key via stdin.'
-						);
-						return;
+						) as never;
 					}
 
 					const response = await enquirer.prompt<{ keys: string[] }>({
@@ -213,13 +211,17 @@ export const addCommand = createSubcommand({
 					if (selectedFingerprints.length === 0) {
 						tui.newline();
 						tui.info('No keys selected');
-						return;
+						return { success: false, fingerprint: '', keyType: '', added: 0 };
 					}
 
 					// Build Map for O(1) lookups
 					const keyMap = new Map(newKeys.map((k) => [k.fingerprint, k]));
 
 					// Add all selected keys
+					let addedCount = 0;
+					let lastFingerprint = '';
+					let lastKeyType = '';
+
 					for (const fingerprint of selectedFingerprints) {
 						const key = keyMap.get(fingerprint);
 						if (!key) continue;
@@ -232,6 +234,9 @@ export const addCommand = createSubcommand({
 								clearOnSuccess: true,
 							});
 							tui.success(`SSH key added: ${tui.muted(result.fingerprint)}`);
+							addedCount++;
+							lastFingerprint = result.fingerprint;
+							lastKeyType = key.publicKey.split(/\s+/)[0] || 'unknown';
 						} catch (error) {
 							tui.newline();
 							if (error instanceof Error) {
@@ -242,22 +247,27 @@ export const addCommand = createSubcommand({
 						}
 					}
 
-					return;
+					return {
+						success: addedCount > 0,
+						fingerprint: lastFingerprint,
+						keyType: lastKeyType,
+						added: addedCount,
+					};
 				}
 			}
 
 			// Only process single key if we got here (from --file or stdin)
 			if (!publicKey) {
-				logger.fatal('No public key provided');
+				return logger.fatal('No public key provided') as never;
 			}
 
 			// Validate key format
 			try {
 				computeSSHKeyFingerprint(publicKey);
 			} catch (error) {
-				logger.fatal(
+				return logger.fatal(
 					`Invalid SSH key format: ${error instanceof Error ? error.message : 'Unknown error'}`
-				);
+				) as never;
 			}
 
 			const result = await tui.spinner({
@@ -268,12 +278,22 @@ export const addCommand = createSubcommand({
 			});
 
 			tui.success(`SSH key added: ${tui.muted(result.fingerprint)}`);
+
+			return {
+				success: true,
+				fingerprint: result.fingerprint,
+				keyType: publicKey.trim().split(/\s+/)[0] || 'unknown',
+				added: 1,
+			};
 		} catch (error) {
 			logger.trace(error);
 			if (error instanceof Error) {
-				logger.fatal(`Failed to add SSH key: ${error.message}`, ErrorCode.API_ERROR);
+				return logger.fatal(
+					`Failed to add SSH key: ${error.message}`,
+					ErrorCode.API_ERROR
+				) as never;
 			} else {
-				logger.fatal('Failed to add SSH key', ErrorCode.API_ERROR);
+				return logger.fatal('Failed to add SSH key', ErrorCode.API_ERROR) as never;
 			}
 		}
 	},

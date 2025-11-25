@@ -29,7 +29,7 @@ export const listSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { opts, apiClient, project } = ctx;
+		const { opts, apiClient, project, options } = ctx;
 
 		// Fetch project with unmasked secrets
 		const projectData = await tui.spinner('Fetching environment variables', () => {
@@ -38,28 +38,30 @@ export const listSubcommand = createSubcommand({
 
 		const env = projectData.env || {};
 
-		if (Object.keys(env).length === 0) {
-			tui.info('No environment variables found');
-			return {};
-		}
-
-		// Display the variables
-		if (process.stdout.isTTY) {
-			tui.newline();
-			tui.info(`Environment Variables (${Object.keys(env).length}):`);
-			tui.newline();
-		}
-
-		const sortedKeys = Object.keys(env).sort();
-		// For env vars, masking should be explicitly opted-in (default false)
-		const shouldMask = opts?.mask === true;
-		for (const key of sortedKeys) {
-			const value = env[key];
-			const displayValue = shouldMask ? maskSecret(value) : value;
-			if (process.stdout.isTTY) {
-				console.log(`${tui.bold(key)}=${displayValue}`);
+		// Skip TUI output in JSON mode
+		if (!options.json) {
+			if (Object.keys(env).length === 0) {
+				tui.info('No environment variables found');
 			} else {
-				console.log(`${key}=${displayValue}`);
+				// Display the variables
+				if (process.stdout.isTTY) {
+					tui.newline();
+					tui.info(`Environment Variables (${Object.keys(env).length}):`);
+					tui.newline();
+				}
+
+				const sortedKeys = Object.keys(env).sort();
+				// For env vars, masking should be explicitly opted-in (default false)
+				const shouldMask = opts?.mask === true;
+				for (const key of sortedKeys) {
+					const value = env[key];
+					const displayValue = shouldMask ? maskSecret(value) : value;
+					if (process.stdout.isTTY) {
+						console.log(`${tui.bold(key)}=${displayValue}`);
+					} else {
+						console.log(`${key}=${displayValue}`);
+					}
+				}
 			}
 		}
 

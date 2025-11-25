@@ -61,7 +61,7 @@ async function setupWorkbench(srcDir: string): Promise<WorkbenchConfig | null> {
 			const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL as LogLevel) || 'info');
 			logger.error(`🚨 Route conflict detected!\n`);
 			logger.error(
-			`   Workbench route '${workbenchConfig.route}' conflicts with existing application route`
+				`   Workbench route '${workbenchConfig.route}' conflicts with existing application route`
 			);
 			logger.error(`   Please use a different route or remove the conflicting route.\n`);
 		}
@@ -277,7 +277,6 @@ ${typeExports}
 // Augment @agentuity/runtime types with strongly-typed agents from this project
 declare module "@agentuity/runtime" {
 	// Augment the AgentRegistry interface with project-specific strongly-typed agents
-	// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 	export interface AgentRegistry {
 ${runtimeAgentTypes}
 	}

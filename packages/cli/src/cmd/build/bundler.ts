@@ -268,7 +268,7 @@ export async function bundle({
 			const encodedConfig = encodeWorkbenchConfig(configWithPort);
 			const workbenchDefine = {
 				...define,
-				'AGENTUITY_WORKBENCH_CONFIG_INLINE': JSON.stringify(encodedConfig),
+				AGENTUITY_WORKBENCH_CONFIG_INLINE: JSON.stringify(encodedConfig),
 			};
 			const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL as LogLevel) || 'info');
 			try {

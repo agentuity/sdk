@@ -53,42 +53,46 @@ export const listSubcommand = createSubcommand({
 	},
 	async handler(ctx) {
 		const projectId = resolveProjectId(ctx, { projectId: ctx.opts['project-id'] });
-		const { apiClient, opts } = ctx;
+		const { apiClient, opts, options } = ctx;
 
 		try {
 			const deployments = await projectDeploymentList(apiClient, projectId, opts.count);
 
-			if (deployments.length === 0) {
-				tui.info('No deployments found.');
-				return [];
-			}
-
-			const tableData = deployments.map((d) => ({
-				ID: d.id,
-				State: d.state || 'unknown',
-				Active: d.active ? 'Yes' : '',
-				Created: new Date(d.createdAt).toLocaleString(),
-				Message: d.message || '',
-				Tags: d.tags.join(', '),
-			}));
-
-			tui.table(tableData, [
-				{ name: 'ID', alignment: 'left' },
-				{ name: 'State', alignment: 'left' },
-				{ name: 'Active', alignment: 'center' },
-				{ name: 'Created', alignment: 'left' },
-				{ name: 'Message', alignment: 'left' },
-				{ name: 'Tags', alignment: 'left' },
-			]);
-
-			return deployments.map((d) => ({
+			const result = deployments.map((d) => ({
 				id: d.id,
 				state: d.state,
 				active: d.active,
 				createdAt: d.createdAt,
-				message: d.message,
+				message: d.message ?? undefined,
 				tags: d.tags,
 			}));
+
+			// Skip TUI output in JSON mode
+			if (!options.json) {
+				if (deployments.length === 0) {
+					tui.info('No deployments found.');
+				} else {
+					const tableData = deployments.map((d) => ({
+						ID: d.id,
+						State: d.state || 'unknown',
+						Active: d.active ? 'Yes' : '',
+						Created: new Date(d.createdAt).toLocaleString(),
+						Message: d.message || '',
+						Tags: d.tags.join(', '),
+					}));
+
+					tui.table(tableData, [
+						{ name: 'ID', alignment: 'left' },
+						{ name: 'State', alignment: 'left' },
+						{ name: 'Active', alignment: 'center' },
+						{ name: 'Created', alignment: 'left' },
+						{ name: 'Message', alignment: 'left' },
+						{ name: 'Tags', alignment: 'left' },
+					]);
+				}
+			}
+
+			return result;
 		} catch (ex) {
 			tui.fatal(
 				`Failed to list deployments: ${ex instanceof Error ? ex.message : String(ex)}`,

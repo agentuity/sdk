@@ -24,7 +24,11 @@ export const command = createCommand({
 			return version;
 		} catch (error) {
 			const logger = createLogger();
-			logger.fatal('Failed to retrieve version: %s', error, ErrorCode.INTERNAL_ERROR);
+			return logger.fatal(
+				'Failed to retrieve version: %s',
+				error,
+				ErrorCode.INTERNAL_ERROR
+			) as never;
 		}
 	},
 });

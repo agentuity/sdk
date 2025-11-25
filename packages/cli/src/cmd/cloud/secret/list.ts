@@ -26,7 +26,7 @@ export const listSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { opts, apiClient, project } = ctx;
+		const { opts, apiClient, project, options } = ctx;
 
 		// Fetch project with unmasked secrets
 		const projectData = await tui.spinner('Fetching secrets', () => {
@@ -35,28 +35,30 @@ export const listSubcommand = createSubcommand({
 
 		const secrets = projectData.secrets || {};
 
-		if (Object.keys(secrets).length === 0) {
-			tui.info('No secrets found');
-			return {};
-		}
-
-		// Display the secrets
-		if (process.stdout.isTTY) {
-			tui.newline();
-			tui.success(`Secrets (${Object.keys(secrets).length}):`);
-			tui.newline();
-		}
-
-		const sortedKeys = Object.keys(secrets).sort();
-		// For secrets, masking is enabled by default in TTY (can be disabled with --no-mask)
-		const shouldMask = opts?.mask !== false;
-		for (const key of sortedKeys) {
-			const value = secrets[key];
-			const displayValue = shouldMask ? maskSecret(value) : value;
-			if (process.stdout.isTTY) {
-				console.log(`${tui.bold(key)}=${displayValue}`);
+		// Skip TUI output in JSON mode
+		if (!options.json) {
+			if (Object.keys(secrets).length === 0) {
+				tui.info('No secrets found');
 			} else {
-				console.log(`${key}=${displayValue}`);
+				// Display the secrets
+				if (process.stdout.isTTY) {
+					tui.newline();
+					tui.success(`Secrets (${Object.keys(secrets).length}):`);
+					tui.newline();
+				}
+
+				const sortedKeys = Object.keys(secrets).sort();
+				// For secrets, masking is enabled by default in TTY (can be disabled with --no-mask)
+				const shouldMask = opts?.mask !== false;
+				for (const key of sortedKeys) {
+					const value = secrets[key];
+					const displayValue = shouldMask ? maskSecret(value) : value;
+					if (process.stdout.isTTY) {
+						console.log(`${tui.bold(key)}=${displayValue}`);
+					} else {
+						console.log(`${key}=${displayValue}`);
+					}
+				}
 			}
 		}
 

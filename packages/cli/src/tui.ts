@@ -831,7 +831,9 @@ export async function spinner<T>(
 						: await options.callback;
 
 			// If clearOnSuccess is true, don't show success message
-			if (!options.clearOnSuccess) {
+			// Also skip success message in JSON mode
+			const isJsonMode = outputOptions?.json === true;
+			if (!options.clearOnSuccess && !isJsonMode) {
 				const successColor = getColor('success');
 				console.error(`${successColor}${ICONS.success} ${message}${reset}`);
 			}

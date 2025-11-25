@@ -24,18 +24,20 @@ export const listBucketsSubcommand = createCommand({
 	examples: [`${getCommand('objectstore list-buckets')} - List all buckets with stats`],
 
 	async handler(ctx) {
+		const { options } = ctx;
 		const storage = await createStorageAdapter(ctx);
 		const buckets = await storage.listBuckets();
 
-		if (buckets.length === 0) {
-			tui.info('No buckets found');
-			return [];
-		}
-
-		tui.info(`Found ${buckets.length} bucket(s):`);
-		for (const bucket of buckets) {
-			const sizeMB = (bucket.total_bytes / (1024 * 1024)).toFixed(2);
-			tui.info(`  ${tui.bold(bucket.name)}: ${bucket.object_count} objects, ${sizeMB} MB`);
+		if (!options.json) {
+			if (buckets.length === 0) {
+				tui.info('No buckets found');
+			} else {
+				tui.info(`Found ${buckets.length} bucket(s):`);
+				for (const bucket of buckets) {
+					const sizeMB = (bucket.total_bytes / (1024 * 1024)).toFixed(2);
+					tui.info(`  ${tui.bold(bucket.name)}: ${bucket.object_count} objects, ${sizeMB} MB`);
+				}
+			}
 		}
 
 		return buckets;

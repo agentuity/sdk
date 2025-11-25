@@ -59,7 +59,7 @@ export const createCommand = createSubcommand({
 			return logger.fatal(
 				`Profile "${name}" already exists at ${existing.filename}`,
 				ErrorCode.RESOURCE_ALREADY_EXISTS
-			);
+			) as never;
 		}
 
 		await ensureConfigDir();
@@ -103,10 +103,10 @@ export const createCommand = createSubcommand({
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			const stack = error instanceof Error ? error.stack : undefined;
-			logger.fatal(
+			return logger.fatal(
 				`Failed to create profile: ${message}${stack ? `\n${stack}` : ''}`,
 				ErrorCode.INTERNAL_ERROR
-			);
+			) as never;
 		}
 	},
 });

@@ -42,53 +42,77 @@ export const statsSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args } = ctx;
+		const { args, options } = ctx;
 		const kv = await createStorageAdapter(ctx);
 
 		if (args.name) {
 			const stats = await kv.getStats(args.name);
-			tui.info(`Statistics for ${tui.bold(args.name)}:`);
-			tui.info(`  Keys: ${stats.count}`);
-			const sizeDisplay =
-				stats.sum < 1024 * 1024
-					? `${stats.sum.toLocaleString()} bytes`
-					: `${(stats.sum / (1024 * 1024)).toFixed(2)} MB`;
-			tui.info(`  Total size: ${sizeDisplay} (raw: ${stats.sum})`);
-			if (stats.createdAt) {
-				tui.info(`  Created: ${new Date(stats.createdAt).toLocaleString()}`);
-			}
-			if (stats.lastUsedAt) {
-				tui.info(`  Last used: ${new Date(stats.lastUsedAt).toLocaleString()}`);
+
+			if (!options.json) {
+				tui.info(`Statistics for ${tui.bold(args.name)}:`);
+				tui.info(`  Keys: ${stats.count}`);
+				const sizeDisplay =
+					stats.sum < 1024 * 1024
+						? `${stats.sum.toLocaleString()} bytes`
+						: `${(stats.sum / (1024 * 1024)).toFixed(2)} MB`;
+				tui.info(`  Total size: ${sizeDisplay} (raw: ${stats.sum})`);
+				if (stats.createdAt) {
+					tui.info(`  Created: ${new Date(stats.createdAt).toLocaleString()}`);
+				}
+				if (stats.lastUsedAt) {
+					tui.info(`  Last used: ${new Date(stats.lastUsedAt).toLocaleString()}`);
+				}
 			}
 
 			return {
 				namespace: args.name,
 				count: stats.count,
 				sum: stats.sum,
-				createdAt: stats.createdAt,
-				lastUsedAt: stats.lastUsedAt,
+				createdAt: stats.createdAt ? String(stats.createdAt) : undefined,
+				lastUsedAt: stats.lastUsedAt ? String(stats.lastUsedAt) : undefined,
 			};
 		} else {
 			const allStats = await kv.getAllStats();
 			const entries = Object.entries(allStats);
 
-			if (entries.length === 0) {
-				tui.info('No namespaces found');
-				return {};
+			if (!options.json) {
+				if (entries.length === 0) {
+					tui.info('No namespaces found');
+				} else {
+					tui.info(
+						`Found ${entries.length} ${tui.plural(entries.length, 'namespace', 'namespaces')}:`
+					);
+					for (const [name, stats] of entries) {
+						const sizeDisplay =
+							stats.sum < 1024 * 1024
+								? `${stats.sum.toLocaleString()} bytes`
+								: `${(stats.sum / (1024 * 1024)).toFixed(2)} MB`;
+						tui.arrow(
+							`${tui.bold(name.padEnd(15, ' '))}: ${stats.count} keys, ${sizeDisplay}`
+						);
+					}
+				}
 			}
 
-			tui.info(
-				`Found ${entries.length} ${tui.plural(entries.length, 'namespace', 'namespaces')}:`
-			);
+			// Convert timestamp fields to strings
+			const result: Record<
+				string,
+				{
+					count: number;
+					sum: number;
+					createdAt?: string;
+					lastUsedAt?: string;
+				}
+			> = {};
 			for (const [name, stats] of entries) {
-				const sizeDisplay =
-					stats.sum < 1024 * 1024
-						? `${stats.sum.toLocaleString()} bytes`
-						: `${(stats.sum / (1024 * 1024)).toFixed(2)} MB`;
-				tui.arrow(`${tui.bold(name.padEnd(15, ' '))}: ${stats.count} keys, ${sizeDisplay}`);
+				result[name] = {
+					count: stats.count,
+					sum: stats.sum,
+					createdAt: stats.createdAt ? String(stats.createdAt) : undefined,
+					lastUsedAt: stats.lastUsedAt ? String(stats.lastUsedAt) : undefined,
+				};
 			}
-
-			return allStats;
+			return result;
 		}
 	},
 });

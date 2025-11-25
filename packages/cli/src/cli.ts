@@ -51,7 +51,8 @@ function createAPIClient(baseCtx: CommandContext, config: Config | null): APICli
 async function executeOrValidate(
 	ctx: CommandContext,
 	commandName: string,
-	handler?: (ctx: CommandContext) => unknown | Promise<unknown>
+	handler?: (ctx: CommandContext) => unknown | Promise<unknown>,
+	hasResponseSchema?: boolean
 ): Promise<void> {
 	if (isValidateMode(ctx.options)) {
 		// In validate mode, just output success (validation already passed via Zod)
@@ -62,7 +63,29 @@ async function executeOrValidate(
 		outputValidation(result, ctx.options);
 	} else if (handler) {
 		// Normal execution
-		await handler(ctx);
+		const result = await handler(ctx);
+
+		// If --json flag is set
+		if (ctx.options.json) {
+			// If command has a response schema but returned nothing, that's an error
+			if (hasResponseSchema && result === undefined) {
+				const { createError, exitWithError, ErrorCode } = await import('./errors');
+				exitWithError(
+					createError(
+						ErrorCode.INTERNAL_ERROR,
+						`Command '${commandName}' declares a response schema but returned no data. This is a bug in the command implementation.`
+					),
+					ctx.logger,
+					ctx.options.errorFormat
+				);
+			}
+
+			// Output the result as JSON if we have data
+			if (result !== undefined) {
+				const { outputJSON } = await import('./output');
+				outputJSON(result);
+			}
+		}
 	}
 }
 
@@ -593,7 +616,8 @@ async function registerSubcommand(
 					await executeOrValidate(
 						ctx as CommandContext,
 						`${parent.name()} ${subcommand.name}`,
-						subcommand.handler
+						subcommand.handler,
+						!!subcommand.schema?.response
 					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
@@ -653,7 +677,32 @@ async function registerSubcommand(
 					}
 				}
 				if (subcommand.handler) {
-					await subcommand.handler(ctx as CommandContext);
+					const result = await subcommand.handler(ctx as CommandContext);
+
+					// If --json flag is set
+					if (baseCtx.options.json) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const hasResponseSchema = !!(subcommand as any).schema?.response;
+
+						// If command has a response schema but returned nothing, that's an error
+						if (hasResponseSchema && result === undefined) {
+							const { createError, exitWithError, ErrorCode } = await import('./errors');
+							exitWithError(
+								createError(
+									ErrorCode.INTERNAL_ERROR,
+									`Command '${parent.name()} ${subcommand.name}' declares a response schema but returned no data. This is a bug in the command implementation.`
+								),
+								baseCtx.logger,
+								baseCtx.options.errorFormat
+							);
+						}
+
+						// Output the result as JSON if we have data
+						if (result !== undefined) {
+							const { outputJSON } = await import('./output');
+							outputJSON(result);
+						}
+					}
 				}
 			}
 		} else if (normalized.optionalAuth) {
@@ -740,7 +789,8 @@ async function registerSubcommand(
 					await executeOrValidate(
 						ctx as CommandContext,
 						`${parent.name()} ${subcommand.name}`,
-						subcommand.handler
+						subcommand.handler,
+						!!subcommand.schema?.response
 					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
@@ -799,7 +849,32 @@ async function registerSubcommand(
 					}
 				}
 				if (subcommand.handler) {
-					await subcommand.handler(ctx as CommandContext);
+					const result = await subcommand.handler(ctx as CommandContext);
+
+					// If --json flag is set
+					if (baseCtx.options.json) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const hasResponseSchema = !!(subcommand as any).schema?.response;
+
+						// If command has a response schema but returned nothing, that's an error
+						if (hasResponseSchema && result === undefined) {
+							const { createError, exitWithError, ErrorCode } = await import('./errors');
+							exitWithError(
+								createError(
+									ErrorCode.INTERNAL_ERROR,
+									`Command '${parent.name()} ${subcommand.name}' declares a response schema but returned no data. This is a bug in the command implementation.`
+								),
+								baseCtx.logger,
+								baseCtx.options.errorFormat
+							);
+						}
+
+						// Output the result as JSON if we have data
+						if (result !== undefined) {
+							const { outputJSON } = await import('./output');
+							outputJSON(result);
+						}
+					}
 				}
 			}
 		} else {
@@ -837,7 +912,8 @@ async function registerSubcommand(
 					await executeOrValidate(
 						ctx as CommandContext,
 						`${parent.name()} ${subcommand.name}`,
-						subcommand.handler
+						subcommand.handler,
+						!!subcommand.schema?.response
 					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
@@ -882,7 +958,32 @@ async function registerSubcommand(
 					}
 				}
 				if (subcommand.handler) {
-					await subcommand.handler(ctx as CommandContext);
+					const result = await subcommand.handler(ctx as CommandContext);
+
+					// If --json flag is set
+					if (baseCtx.options.json) {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const hasResponseSchema = !!(subcommand as any).schema?.response;
+
+						// If command has a response schema but returned nothing, that's an error
+						if (hasResponseSchema && result === undefined) {
+							const { createError, exitWithError, ErrorCode } = await import('./errors');
+							exitWithError(
+								createError(
+									ErrorCode.INTERNAL_ERROR,
+									`Command '${parent.name()} ${subcommand.name}' declares a response schema but returned no data. This is a bug in the command implementation.`
+								),
+								baseCtx.logger,
+								baseCtx.options.errorFormat
+							);
+						}
+
+						// Output the result as JSON if we have data
+						if (result !== undefined) {
+							const { outputJSON } = await import('./output');
+							outputJSON(result);
+						}
+					}
 				}
 			}
 		}

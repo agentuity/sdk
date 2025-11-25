@@ -46,22 +46,21 @@ export function Workbench({ workbench, className }: WorkbenchProps) {
 			</div>
 
 			<div className="workbench-controls">
-				<button
-					onClick={handleApiCall}
-					disabled={status === 'loading'}
-				>
+				<button onClick={handleApiCall} disabled={status === 'loading'}>
 					{status === 'loading' ? 'Loading...' : 'Hit API'}
 				</button>
 			</div>
 
 			<div className="workbench-response">
 				<h4>Response:</h4>
-				<pre style={{
-					background: '#f5f5f5',
-					padding: '10px',
-					borderRadius: '4px',
-					overflow: 'auto'
-				}}>
+				<pre
+					style={{
+						background: '#f5f5f5',
+						padding: '10px',
+						borderRadius: '4px',
+						overflow: 'auto',
+					}}
+				>
 					{response ? JSON.stringify(response, null, 2) : 'No response yet'}
 				</pre>
 			</div>

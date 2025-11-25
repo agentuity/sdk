@@ -57,39 +57,49 @@ export const listSubcommand = createSubcommand({
 		});
 
 		// Output based on format
-		if (options.json) {
-			console.log(JSON.stringify(resources, null, 2));
-		} else {
+		if (!options.json) {
 			// Text table format
 			if (resources.db.length === 0 && resources.s3.length === 0) {
 				tui.info('No resources found');
-				return { db: [], s3: [] };
-			}
-
-			if (resources.db.length > 0) {
-				tui.info(tui.bold('Databases'));
-				tui.newline();
-				for (const db of resources.db) {
-					console.log(tui.bold(db.name));
-					if (db.url) console.log(` URL:        ${tui.muted(db.url)}`);
+			} else {
+				if (resources.db.length > 0) {
+					tui.info(tui.bold('Databases'));
 					tui.newline();
+					for (const db of resources.db) {
+						console.log(tui.bold(db.name));
+						if (db.url) console.log(` URL:        ${tui.muted(db.url)}`);
+						tui.newline();
+					}
 				}
-			}
 
-			if (resources.s3.length > 0) {
-				tui.info(tui.bold('Storage'));
-				tui.newline();
-				for (const s3 of resources.s3) {
-					console.log(tui.bold(s3.bucket_name));
-					if (s3.access_key) console.log(` Access Key: ${tui.muted(s3.access_key)}`);
-					if (s3.secret_key) console.log(` Secret Key: ${tui.muted(s3.secret_key)}`);
-					if (s3.region) console.log(` Region:     ${tui.muted(s3.region)}`);
-					if (s3.endpoint) console.log(` Endpoint:   ${tui.muted(s3.endpoint)}`);
+				if (resources.s3.length > 0) {
+					tui.info(tui.bold('Storage'));
 					tui.newline();
+					for (const s3 of resources.s3) {
+						console.log(tui.bold(s3.bucket_name));
+						if (s3.access_key) console.log(` Access Key: ${tui.muted(s3.access_key)}`);
+						if (s3.secret_key) console.log(` Secret Key: ${tui.muted(s3.secret_key)}`);
+						if (s3.region) console.log(` Region:     ${tui.muted(s3.region)}`);
+						if (s3.endpoint) console.log(` Endpoint:   ${tui.muted(s3.endpoint)}`);
+						tui.newline();
+					}
 				}
 			}
 		}
 
-		return resources;
+		// Convert null to undefined for schema compliance
+		return {
+			db: resources.db.map((db) => ({
+				name: db.name,
+				url: db.url ?? undefined,
+			})),
+			s3: resources.s3.map((s3) => ({
+				bucket_name: s3.bucket_name,
+				access_key: s3.access_key ?? undefined,
+				secret_key: s3.secret_key ?? undefined,
+				region: s3.region ?? undefined,
+				endpoint: s3.endpoint ?? undefined,
+			})),
+		};
 	},
 });

@@ -13,7 +13,7 @@ export interface WorkbenchConfig {
  */
 export function encodeWorkbenchConfig(config: WorkbenchConfig): string {
 	const json = JSON.stringify(config);
-	
+
 	// Use Node.js Buffer if available (build-time), otherwise browser btoa (shouldn't be called in browser)
 	if (typeof Buffer !== 'undefined') {
 		return Buffer.from(json).toString('base64');
@@ -29,7 +29,7 @@ export function encodeWorkbenchConfig(config: WorkbenchConfig): string {
 export function decodeWorkbenchConfig(encoded: string): WorkbenchConfig {
 	try {
 		let json: string;
-		
+
 		// Use appropriate decoding method based on environment
 		if (typeof Buffer !== 'undefined') {
 			// Node.js environment (build-time)
@@ -40,7 +40,7 @@ export function decodeWorkbenchConfig(encoded: string): WorkbenchConfig {
 		} else {
 			throw new Error('No base64 decoding method available');
 		}
-		
+
 		const config = JSON.parse(json) as WorkbenchConfig;
 		return config;
 	} catch (error) {
@@ -61,7 +61,7 @@ export function getWorkbenchConfig(): WorkbenchConfig {
 	if (typeof AGENTUITY_WORKBENCH_CONFIG_INLINE === 'undefined') {
 		throw new Error('Workbench config not found - build process did not inline config');
 	}
-	
+
 	// @ts-expect-error - AGENTUITY_WORKBENCH_CONFIG_INLINE will be replaced at build time
 	return decodeWorkbenchConfig(AGENTUITY_WORKBENCH_CONFIG_INLINE);
 }

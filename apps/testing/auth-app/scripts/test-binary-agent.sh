@@ -15,7 +15,7 @@ echo "========================================="
 echo ""
 
 BASE_URL="http://localhost:3500/agent/objectstore"
-BUCKET="test-bucket"
+BUCKET="test-bucket-agent"
 PORT=3500
 
 # Create temporary directory for test files

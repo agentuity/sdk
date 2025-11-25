@@ -19,9 +19,6 @@ export const showCommand = createSubcommand({
 		getCommand('profile show staging --json'),
 	],
 	schema: {
-		options: z.object({
-			json: z.boolean().optional().describe('Show the JSON config'),
-		}),
 		args: z
 			.object({
 				name: z.string().optional().describe('Profile name to show (optional)'),
@@ -32,7 +29,7 @@ export const showCommand = createSubcommand({
 	idempotent: true,
 
 	async handler(ctx) {
-		const { logger, args, opts } = ctx;
+		const { logger, args, options } = ctx;
 
 		try {
 			let current = false;
@@ -47,19 +44,25 @@ export const showCommand = createSubcommand({
 			const profile = profiles.find((p) => p.name === name);
 
 			if (!profile) {
-				return logger.fatal(`Profile "${name}" not found`, ErrorCode.RESOURCE_NOT_FOUND);
+				return logger.fatal(
+					`Profile "${name}" not found`,
+					ErrorCode.RESOURCE_NOT_FOUND
+				) as never;
 			}
 
 			const profilePath = profile.filename;
 			current = profile.selected;
 
-			tui.info(`Profile: ${profilePath}`);
-
 			const content = await loadConfig(current ? undefined : profilePath);
+			if (!content) {
+				return logger.fatal(
+					`Failed to load profile configuration`,
+					ErrorCode.INTERNAL_ERROR
+				) as never;
+			}
 
-			if (opts?.json) {
-				console.log(JSON.stringify(content, null, 2));
-			} else {
+			if (!options.json) {
+				tui.info(`Profile: ${profilePath}`);
 				tui.newline();
 				const textContent = await readFile(profilePath, 'utf-8');
 				console.log(textContent);
@@ -68,9 +71,9 @@ export const showCommand = createSubcommand({
 			return content;
 		} catch (error) {
 			if (error instanceof Error) {
-				logger.fatal(`Failed to show profile: ${error.message}`);
+				return logger.fatal(`Failed to show profile: ${error.message}`) as never;
 			} else {
-				logger.fatal('Failed to show profile');
+				return logger.fatal('Failed to show profile') as never;
 			}
 		}
 	},

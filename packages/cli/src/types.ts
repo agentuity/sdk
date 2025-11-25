@@ -252,6 +252,7 @@ export function createSubcommand<
 	O extends Optional | undefined = undefined,
 	A extends z.ZodType | undefined = undefined,
 	Op extends z.ZodType | undefined = undefined,
+	Res extends z.ZodType | undefined = undefined,
 >(definition: {
 	name: string;
 	description: string;
@@ -267,12 +268,22 @@ export function createSubcommand<
 	tags?: string[];
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
-			? { args: A; options: Op; response?: z.ZodType }
-			: { args: A; response?: z.ZodType }
+			? Res extends z.ZodType
+				? { args: A; options: Op; response: Res }
+				: { args: A; options: Op; response?: z.ZodType }
+			: Res extends z.ZodType
+				? { args: A; response: Res }
+				: { args: A; response?: z.ZodType }
 		: Op extends z.ZodType
-			? { options: Op; response?: z.ZodType }
-			: { response?: z.ZodType };
-	handler(ctx: CommandContext<R, O, A, Op>): unknown | Promise<unknown>;
+			? Res extends z.ZodType
+				? { options: Op; response: Res }
+				: { options: Op; response?: z.ZodType }
+			: Res extends z.ZodType
+				? { response: Res }
+				: { response?: z.ZodType };
+	handler(
+		ctx: CommandContext<R, O, A, Op>
+	): Res extends z.ZodType ? z.infer<Res> | Promise<z.infer<Res>> : unknown | Promise<unknown>;
 }): SubcommandDefinition {
 	return definition as unknown as SubcommandDefinition;
 }
@@ -282,6 +293,7 @@ export function createCommand<
 	O extends Optional | undefined = undefined,
 	A extends z.ZodType | undefined = undefined,
 	Op extends z.ZodType | undefined = undefined,
+	Res extends z.ZodType | undefined = undefined,
 >(definition: {
 	name: string;
 	description: string;
@@ -297,12 +309,22 @@ export function createCommand<
 	tags?: string[];
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
-			? { args: A; options: Op; response?: z.ZodType }
-			: { args: A; response?: z.ZodType }
+			? Res extends z.ZodType
+				? { args: A; options: Op; response: Res }
+				: { args: A; options: Op; response?: z.ZodType }
+			: Res extends z.ZodType
+				? { args: A; response: Res }
+				: { args: A; response?: z.ZodType }
 		: Op extends z.ZodType
-			? { options: Op; response?: z.ZodType }
-			: { response?: z.ZodType };
-	handler?(ctx: CommandContext<R, O, A, Op>): unknown | Promise<unknown>;
+			? Res extends z.ZodType
+				? { options: Op; response: Res }
+				: { options: Op; response?: z.ZodType }
+			: Res extends z.ZodType
+				? { response: Res }
+				: { response?: z.ZodType };
+	handler?(
+		ctx: CommandContext<R, O, A, Op>
+	): Res extends z.ZodType ? z.infer<Res> | Promise<z.infer<Res>> : unknown | Promise<unknown>;
 	subcommands?: SubcommandDefinition[];
 }): CommandDefinition {
 	return definition as unknown as CommandDefinition;

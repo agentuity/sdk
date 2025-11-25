@@ -35,7 +35,7 @@ export const getSubcommand = createSubcommand({
 	idempotent: true,
 
 	async handler(ctx) {
-		const { args, opts, apiClient, project } = ctx;
+		const { args, opts, apiClient, project, options } = ctx;
 
 		// Fetch project with unmasked secrets
 		const projectData = await tui.spinner('Fetching secrets', () => {
@@ -49,19 +49,21 @@ export const getSubcommand = createSubcommand({
 			tui.fatal(`Secret '${args.key}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
 		}
 
-		if (process.stdout.isTTY) {
-			// Display the value, masked by default
-			if (opts?.mask) {
-				tui.success(`${args.key}=${maskSecret(value)}`);
+		if (!options.json) {
+			if (process.stdout.isTTY) {
+				// Display the value, masked by default
+				if (opts?.mask) {
+					tui.success(`${args.key}=${maskSecret(value)}`);
+				} else {
+					tui.success(`${args.key}=${value}`);
+				}
 			} else {
-				tui.success(`${args.key}=${value}`);
-			}
-		} else {
-			// Display the value, masked by default
-			if (opts?.mask) {
-				console.log(`${args.key}=${maskSecret(value)}`);
-			} else {
-				console.log(`${args.key}=${value}`);
+				// Display the value, masked by default
+				if (opts?.mask) {
+					console.log(`${args.key}=${maskSecret(value)}`);
+				} else {
+					console.log(`${args.key}=${value}`);
+				}
 			}
 		}
 

@@ -59,7 +59,7 @@ export const deleteSubcommand = createSubcommand({
 
 			if (projects.length === 0) {
 				tui.info('No projects found to delete');
-				return;
+				return { success: false, projectIds: [], count: 0 };
 			}
 
 			// Sort projects by name
