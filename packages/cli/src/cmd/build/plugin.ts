@@ -599,9 +599,7 @@ if (route !== '/workbench') {
 				// 1. Evals are already imported when agents are registered (see line 421-422)
 				// 2. The registry is for type definitions only, not runtime execution
 				// 3. Importing it causes bundler resolution issues since it's generated during build
-				if (agentInfo.length > 0) {
-					generateAgentRegistry(srcDir, agentInfo);
-				}
+				generateAgentRegistry(srcDir, agentInfo);
 
 				// create the workbench routes
 				inserts.push(`await (async() => {

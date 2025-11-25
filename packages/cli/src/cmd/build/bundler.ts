@@ -50,7 +50,7 @@ export async function bundle({
 		}
 		const files = await getFilesRecursively(dir);
 		for (const filename of files) {
-			if (/\.[jt]s?$/.test(filename)) {
+			if (/\.[jt]s?$/.test(filename) && !filename.includes('.generated.')) {
 				appEntrypoints.push(filename);
 			}
 		}
