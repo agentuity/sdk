@@ -341,6 +341,10 @@ const AgentuityBundler: BunPlugin = {
 		const deploymentId = build.config.define?.['process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID']
 			? JSON.parse(build.config.define['process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID'])
 			: '';
+		const isDevMode =
+			(build.config.define?.['process.env.NODE_ENV']
+				? JSON.parse(build.config.define['process.env.NODE_ENV'])
+				: 'production') === 'development';
 		const routes: Set<string> = new Set();
 		const agentInfo: Array<Record<string, string>> = [];
 		const agentMetadata: Map<string, Map<string, string>> = new Map<
@@ -548,7 +552,7 @@ const AgentuityBundler: BunPlugin = {
 
 					inserts.unshift(`await (async () => {
     const { serveStatic } = require('hono/bun');
-    const { getRouter } = await import('@agentuity/runtime');
+    const { getRouter, registerDevModeRoutes } = await import('@agentuity/runtime');
     const router = getRouter()!;
 	
 	// Setup workbench routes if workbench was bundled
@@ -572,7 +576,16 @@ if (route !== '/workbench') {
 		router.get(route, (c) => c.html(workbenchIndex));
 	}
 	
-	const index = await Bun.file(import.meta.dir + '/web/index.html').text();
+	let index = await Bun.file(import.meta.dir + '/web/index.html').text();
+	if (${isDevMode}) {
+		const end = index.lastIndexOf('</html>');
+		const html = registerDevModeRoutes(router);
+		if (end > 0) {
+			index = index.substring(0,end) + html + index.substring(end);
+		} else {
+			index += html;
+		}
+	}
 	const webstatic = serveStatic({ root: import.meta.dir + '/web' });
 	router.get('/', (c) => c.html(index));
     router.get('/web/chunk/*', webstatic);

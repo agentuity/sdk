@@ -326,6 +326,7 @@ export const command = createCommand({
 			logger.trace('Killing dev server (pid: %d)', pid);
 			shuttingDownForRestart = true;
 			running = false;
+			process.kill(pid, 'SIGINT');
 			try {
 				// Kill the process group (negative PID kills entire group)
 				process.kill(-pid, 'SIGTERM');

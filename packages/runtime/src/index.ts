@@ -1,5 +1,6 @@
 export * from './agent';
 export * from './app';
+export * from './devmode';
 export * from './router';
 export * from './eval';
 export * from './session';
