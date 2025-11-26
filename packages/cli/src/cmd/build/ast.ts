@@ -790,111 +790,137 @@ export async function parseRoute(
 	const routes: RouteDefinition = [];
 	const routePrefix = filename.includes('src/agents') ? '/agent' : '/api';
 
-	for (const body of ast.body) {
-		if (body.type === 'ExpressionStatement') {
-			const statement = body as ASTExpressionStatement;
-			const callee = statement.expression.callee;
-			if (callee.object.type === 'Identifier') {
-				const identifier = callee.object as ASTNodeIdentifier;
-				if (identifier.name === variableName) {
-					let method = (callee.property as ASTNodeIdentifier).name;
-					let type = 'api';
-					const action = statement.expression.arguments[0];
-					let suffix = '';
-					let config: Record<string, unknown> | undefined;
-					switch (method) {
-						case 'get':
-						case 'put':
-						case 'post':
-						case 'patch':
-						case 'delete': {
-							const theaction = action as ASTLiteral;
-							if (theaction.type === 'Literal') {
-								suffix = theaction.value;
+	try {
+		for (const body of ast.body) {
+			if (body.type === 'ExpressionStatement') {
+				const statement = body as ASTExpressionStatement;
+
+				// Validate that the expression is a call expression (e.g. function call)
+				if (statement.expression.type !== 'CallExpression') {
+					continue;
+				}
+
+				const callee = statement.expression.callee;
+
+				// Validate that the callee is a member expression (e.g. object.method())
+				// This handles cases like 'console.log()' or 'router.get()'
+				// direct function calls like 'myFunc()' have type 'Identifier' and will be skipped
+				if (callee.type !== 'MemberExpression') {
+					continue;
+				}
+
+				if (callee.object.type === 'Identifier' && statement.expression.arguments?.length > 0) {
+					const identifier = callee.object as ASTNodeIdentifier;
+					if (identifier.name === variableName) {
+						let method = (callee.property as ASTNodeIdentifier).name;
+						let type = 'api';
+						const action = statement.expression.arguments[0];
+						let suffix = '';
+						let config: Record<string, unknown> | undefined;
+						switch (method) {
+							case 'get':
+							case 'put':
+							case 'post':
+							case 'patch':
+							case 'delete': {
+								if (action && (action as ASTLiteral).type === 'Literal') {
+									suffix = (action as ASTLiteral).value;
+								} else {
+									throw new Error(
+										`unsupported HTTP method ${method} in ${filename} at line ${body.start}`
+									);
+								}
 								break;
 							}
-							break;
-						}
-						case 'stream':
-						case 'sse':
-						case 'websocket': {
-							type = method;
-							method = 'post';
-							const theaction = action as ASTLiteral;
-							if (theaction.type === 'Literal') {
-								suffix = theaction.value;
-								break;
-							}
-							break;
-						}
-						case 'sms': {
-							type = method;
-							method = 'post';
-							const theaction = action as ASTObjectExpression;
-							if (theaction.type === 'ObjectExpression') {
-								config = {};
-								theaction.properties.forEach((p) => {
-									if (p.value.type === 'Literal') {
-										const literal = p.value as ASTLiteral;
-										config![p.key.name] = literal.value;
-									}
-								});
-								const number = theaction.properties.find((p) => p.key.name === 'number');
-								if (number && number.value.type === 'Literal') {
-									const phoneNumber = number.value as ASTLiteral;
-									suffix = hash(phoneNumber.value);
+							case 'stream':
+							case 'sse':
+							case 'websocket': {
+								type = method;
+								method = 'post';
+								const theaction = action as ASTLiteral;
+								if (theaction.type === 'Literal') {
+									suffix = theaction.value;
 									break;
 								}
-							}
-							break;
-						}
-						case 'email': {
-							type = method;
-							method = 'post';
-							const theaction = action as ASTLiteral;
-							if (theaction.type === 'Literal') {
-								const email = theaction.value;
-								suffix = hash(email);
 								break;
 							}
-							break;
-						}
-						case 'cron': {
-							type = method;
-							method = 'post';
-							const theaction = action as ASTLiteral;
-							if (theaction.type === 'Literal') {
-								const number = theaction.value;
-								suffix = hash(number);
+							case 'sms': {
+								type = method;
+								method = 'post';
+								const theaction = action as ASTObjectExpression;
+								if (theaction.type === 'ObjectExpression') {
+									config = {};
+									theaction.properties.forEach((p) => {
+										if (p.value.type === 'Literal') {
+											const literal = p.value as ASTLiteral;
+											config![p.key.name] = literal.value;
+										}
+									});
+									const number = theaction.properties.find((p) => p.key.name === 'number');
+									if (number && number.value.type === 'Literal') {
+										const phoneNumber = number.value as ASTLiteral;
+										suffix = hash(phoneNumber.value);
+										break;
+									}
+								}
 								break;
 							}
-							break;
+							case 'email': {
+								type = method;
+								method = 'post';
+								const theaction = action as ASTLiteral;
+								if (theaction.type === 'Literal') {
+									const email = theaction.value;
+									suffix = hash(email);
+									break;
+								}
+								break;
+							}
+							case 'cron': {
+								type = method;
+								method = 'post';
+								const theaction = action as ASTLiteral;
+								if (theaction.type === 'Literal') {
+									const number = theaction.value;
+									suffix = hash(number);
+									break;
+								}
+								break;
+							}
+							default: {
+								throw new Error(
+									`unsupported router method ${method} in ${filename} at line ${body.start}`
+								);
+							}
 						}
+						const thepath = `${routePrefix}/${routeName}/${suffix}`
+							.replaceAll(/\/{2,}/g, '/')
+							.replaceAll(/\/$/g, '');
+						const id = generateRouteId(
+							projectId,
+							deploymentId,
+							type,
+							method,
+							rel,
+							thepath,
+							version
+						);
+						routes.push({
+							id,
+							method: method as 'get' | 'post' | 'put' | 'delete' | 'patch',
+							type: type as 'api' | 'sms' | 'email' | 'cron',
+							filename: rel,
+							path: thepath,
+							version,
+							config,
+						});
 					}
-					const thepath = `${routePrefix}/${routeName}/${suffix}`
-						.replaceAll(/\/{2,}/g, '/')
-						.replaceAll(/\/$/g, '');
-					const id = generateRouteId(
-						projectId,
-						deploymentId,
-						type,
-						method,
-						rel,
-						thepath,
-						version
-					);
-					routes.push({
-						id,
-						method: method as 'get' | 'post' | 'put' | 'delete' | 'patch',
-						type: type as 'api' | 'sms' | 'email' | 'cron',
-						filename: rel,
-						path: thepath,
-						version,
-						config,
-					});
 				}
 			}
 		}
+	} catch (error) {
+		const err = error instanceof Error ? error : new Error(String(error));
+		throw new Error(`Failed to parse route file ${filename}: ${err.message}`);
 	}
 	return routes;
 }
