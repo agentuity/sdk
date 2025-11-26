@@ -104,7 +104,7 @@ function registerAgentuitySpanProcessor() {
 				const agentCtx = getAgentContext();
 				if (agentCtx.current?.metadata) {
 					attrs['@agentuity/agentId'] = agentCtx.current.metadata.id;
-					attrs['@agentuity/agentIdentifier'] = agentCtx.current.metadata.agentId;
+					attrs['@agentuity/agentInstanceId'] = agentCtx.current.metadata.agentId;
 					attrs['@agentuity/agentDescription'] = agentCtx.current.metadata.description;
 					attrs['@agentuity/agentName'] = agentCtx.current.metadata.name;
 				}
@@ -135,6 +135,8 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 	if (globalServerInstance) {
 		return globalServerInstance;
 	}
+
+	runtimeConfig.init();
 
 	const logLevel = process.env.AGENTUITY_LOG_LEVEL || 'info';
 	const port = getPort();
@@ -440,7 +442,7 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 				const agentIds = new Set<string>();
 				_c.set('agentIds', agentIds);
 
-				const shouldSendSession = orgId && projectId && _c.var.routeId;
+				const shouldSendSession = !!(orgId && projectId && _c.var.routeId);
 				let canSendSessionEvents = true;
 
 				if (shouldSendSession) {

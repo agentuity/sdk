@@ -1,14 +1,21 @@
+import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+
 let appName: string | undefined;
 let appVersion: string | undefined;
 
-(async () => {
-	const f = Bun.file('./package.json');
-	if (await f.exists()) {
-		const pkg = JSON.parse(await f.text());
-		appName = pkg.name;
-		appVersion = pkg.version;
+export function init() {
+	const f = join(import.meta.dir, '/../package.json');
+	if (existsSync(f)) {
+		try {
+			const pkg = JSON.parse(readFileSync(f, 'utf-8'));
+			appName = pkg.name;
+			appVersion = pkg.version;
+		} catch {
+			// Fallback to defaults if parsing fails
+		}
 	}
-})();
+}
 
 /**
  * Returns the SDK Version that was used to build this app

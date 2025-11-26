@@ -1,4 +1,5 @@
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import opentelemetry, { type Meter, metrics, propagation, type Tracer } from '@opentelemetry/api';
 import * as LogsAPI from '@opentelemetry/api-logs';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
@@ -204,25 +205,30 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 	// must do this after we have created the logger
 	patchConsole(!!url, attrs, logLevel);
 
-	const traceExporter = url
-		? jsonlBasePath
-			? new JSONLTraceExporter(jsonlBasePath)
-			: new OTLPTraceExporter({
+	const traceExporter = jsonlBasePath
+		? new JSONLTraceExporter(jsonlBasePath)
+		: url
+			? new OTLPTraceExporter({
 					url: `${url}/v1/traces`,
 					headers,
 					keepAlive: true,
+					compression: CompressionAlgorithm.GZIP,
 				})
-		: undefined;
+			: undefined;
 
-	const metricExporter = url
-		? jsonlBasePath
-			? new JSONLMetricExporter(jsonlBasePath)
-			: new OTLPMetricExporter({
+	const metricExporter = jsonlBasePath
+		? new JSONLMetricExporter(jsonlBasePath)
+		: url
+			? new OTLPMetricExporter({
 					url: `${url}/v1/metrics`,
 					headers,
 					keepAlive: true,
+					compression: CompressionAlgorithm.GZIP,
 				})
-		: undefined;
+			: undefined;
+
+	// Create span processor for the trace exporter
+	const traceSpanProcessor = traceExporter ? new BatchSpanProcessor(traceExporter) : undefined;
 
 	// Create a separate metric reader for the NodeSDK
 	const sdkMetricReader =
@@ -267,14 +273,20 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		propagation.setGlobalPropagator(propagator);
 
 		instrumentFetch();
+
+		// Combine custom span processors with the trace exporter processor
+		const allSpanProcessors = [
+			...(traceSpanProcessor ? [traceSpanProcessor] : []),
+			...(config.spanProcessors || []),
+		];
+
 		instrumentationSDK = new NodeSDK({
 			logRecordProcessor: loggerProvider.processor,
-			traceExporter,
 			metricReader: sdkMetricReader,
 			instrumentations: [getNodeAutoInstrumentations()],
 			resource,
 			textMapPropagator: propagator,
-			spanProcessors: config.spanProcessors,
+			spanProcessors: allSpanProcessors,
 		});
 		instrumentationSDK.start();
 		hostMetrics?.start();
@@ -294,7 +306,9 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 				baseUrl: url,
 				headers: traceloopHeaders,
 				disableBatch: devmode,
-				logLevel: 'error',
+				propagator,
+				silenceInitializationMessage: true,
+				traceloopSyncEnabled: false,
 				tracingEnabled: false, // Disable traceloop's own tracing (equivalent to Python's telemetryEnabled: false)
 				// Note: JavaScript SDK doesn't support resourceAttributes like Python
 			});
@@ -331,7 +345,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 	};
 
 	if (url && isAuthenticated()) {
-		logger.debug('connected to Agentuity Agent Cloud');
+		logger.info('connected to Agentuity Agent Cloud');
 	}
 
 	return { tracer, meter, logger, shutdown };

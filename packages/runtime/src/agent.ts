@@ -779,16 +779,7 @@ const runWithSpan = async <
 	handler: () => Promise<T>
 ): Promise<T> => {
 	const currentContext = context.active();
-	const span = tracer.startSpan(
-		'agent.run',
-		{
-			attributes: {
-				'@agentuity/agentName': agent.metadata?.name || '',
-				'@agentuity/agentId': agent.metadata?.id || '',
-			},
-		},
-		currentContext
-	);
+	const span = tracer.startSpan('agent.run', {}, currentContext);
 
 	try {
 		const spanContext = trace.setSpan(currentContext, span);
