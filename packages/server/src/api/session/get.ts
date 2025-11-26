@@ -16,10 +16,42 @@ const EvalRunSchema = z.object({
 	result: z.string().nullable().describe('result JSON'),
 });
 
+export interface SpanNode {
+	id: string;
+	duration: number;
+	operation: string;
+	attributes: Record<string, unknown>;
+	children?: SpanNode[];
+}
+
+const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
+	z.object({
+		id: z.string().describe('span ID'),
+		duration: z.number().describe('duration in milliseconds'),
+		operation: z.string().describe('operation name'),
+		attributes: z.record(z.string(), z.unknown()).describe('span attributes'),
+		children: z.array(SpanNodeSchema).optional().describe('child spans'),
+	})
+);
+
+const RouteInfoSchema = z
+	.object({
+		id: z.string().describe('route id'),
+		method: z.string().describe('HTTP method'),
+		path: z.string().describe('route path'),
+	})
+	.nullable();
+
+const AgentInfoSchema = z.object({
+	name: z.string().describe('agent name'),
+	identifier: z.string().describe('agent identifier'),
+});
+
 const EnrichedSessionDataSchema = z.object({
 	session: SessionSchema,
-	agent_names: z.array(z.string()).describe('resolved agent names'),
+	agents: z.array(AgentInfoSchema).describe('resolved agents'),
 	eval_runs: z.array(EvalRunSchema).describe('eval runs for this session'),
+	route: RouteInfoSchema.describe('route information'),
 });
 
 const SessionGetResponseSchema = APIResponseSchema(EnrichedSessionDataSchema);
@@ -37,10 +69,14 @@ export type Session = z.infer<typeof SessionSchema>;
  * @returns
  */
 export type EvalRun = z.infer<typeof EvalRunSchema>;
+export type RouteInfo = z.infer<typeof RouteInfoSchema>;
+export type AgentInfo = z.infer<typeof AgentInfoSchema>;
 export type EnrichedSession = {
 	session: Session;
-	agentNames: string[];
+	agents: AgentInfo[];
 	evalRuns: EvalRun[];
+	timeline: SpanNode | null;
+	route: RouteInfo;
 };
 
 export async function sessionGet(
@@ -56,8 +92,10 @@ export async function sessionGet(
 	if (resp.success) {
 		return {
 			session: resp.data.session,
-			agentNames: resp.data.agent_names,
+			agents: resp.data.agents,
 			evalRuns: resp.data.eval_runs,
+			timeline: (resp.data.session.timeline as SpanNode) ?? null,
+			route: resp.data.route,
 		};
 	}
 

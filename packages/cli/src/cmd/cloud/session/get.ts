@@ -1,10 +1,28 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { sessionGet } from '@agentuity/server';
+import { sessionGet, type SpanNode } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { getCatalystAPIClient } from '../../../config';
+
+const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
+	z.object({
+		id: z.string().describe('Span ID'),
+		duration: z.number().describe('Duration in milliseconds'),
+		operation: z.string().describe('Operation name'),
+		attributes: z.record(z.string(), z.unknown()).describe('Span attributes'),
+		children: z.array(SpanNodeSchema).optional().describe('Child spans'),
+	})
+);
+
+const RouteInfoSchema = z
+	.object({
+		id: z.string().describe('Route ID'),
+		method: z.string().describe('HTTP method'),
+		path: z.string().describe('Route path'),
+	})
+	.nullable();
 
 const SessionGetResponseSchema = z.object({
 	id: z.string().describe('Session ID'),
@@ -26,8 +44,15 @@ const SessionGetResponseSchema = z.object({
 	url: z.string().describe('Request URL'),
 	route_id: z.string().describe('Route ID'),
 	thread_id: z.string().describe('Thread ID'),
-	agentNames: z.array(z.string()).describe('Agent names'),
-	evalRuns: z
+	agents: z
+		.array(
+			z.object({
+				name: z.string(),
+				identifier: z.string(),
+			})
+		)
+		.describe('Agents'),
+	eval_runs: z
 		.array(
 			z.object({
 				id: z.string(),
@@ -40,7 +65,40 @@ const SessionGetResponseSchema = z.object({
 			})
 		)
 		.describe('Eval runs'),
+	timeline: SpanNodeSchema.nullable().optional().describe('Session timeline'),
+	route: RouteInfoSchema.optional().describe('Route information'),
 });
+
+function formatDuration(ms: number): string {
+	if (ms < 1) {
+		return `${(ms * 1000).toFixed(0)}µs`;
+	}
+	if (ms < 1000) {
+		return `${ms.toFixed(1)}ms`;
+	}
+	return `${(ms / 1000).toFixed(2)}s`;
+}
+
+function printTimeline(node: SpanNode, prefix: string, isLast = true): void {
+	const connector = isLast ? '└── ' : '├── ';
+	const duration = tui.muted(`(${formatDuration(node.duration)})`);
+	let extra = '';
+	if (node.operation.startsWith('agentuity.')) {
+		if ('name' in node.attributes && 'key' in node.attributes) {
+			extra = tui.colorSuccess(`${node.attributes.name} ${node.attributes.key}`) + ' ';
+		}
+	}
+	if (node.operation.startsWith('HTTP ') && 'http.url' in node.attributes) {
+		extra = `${tui.colorSuccess(node.attributes['http.url'] as string)} `;
+	}
+	console.log(`${prefix}${connector}${node.operation} ${extra}${duration}`);
+
+	const childPrefix = prefix + (isLast ? '    ' : '│   ');
+	const children = node.children ?? [];
+	children.forEach((child, index) => {
+		printTimeline(child, childPrefix, index === children.length - 1);
+	});
+}
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
@@ -83,8 +141,8 @@ export const getSubcommand = createSubcommand({
 				url: session.url,
 				route_id: session.route_id,
 				thread_id: session.thread_id,
-				agentNames: enriched.agentNames,
-				evalRuns: enriched.evalRuns.map((run) => ({
+				agents: enriched.agents,
+				eval_runs: enriched.evalRuns.map((run) => ({
 					id: run.id,
 					eval_id: run.eval_id,
 					created_at: run.created_at,
@@ -93,6 +151,8 @@ export const getSubcommand = createSubcommand({
 					error: run.error,
 					result: run.result,
 				})),
+				timeline: enriched.timeline,
+				route: enriched.route,
 			};
 
 			if (options.json) {
@@ -100,17 +160,14 @@ export const getSubcommand = createSubcommand({
 				return result;
 			}
 
-			tui.banner(`Session ${session.id}`, `Status: ${session.success ? 'Success' : 'Failed'}`);
-
 			console.log(tui.bold('ID:          ') + session.id);
 			console.log(tui.bold('Project:     ') + session.project_id);
 			console.log(tui.bold('Deployment:  ') + (session.deployment_id || '-'));
-			console.log(tui.bold('Created:     ') + new Date(session.created_at).toLocaleString());
 			console.log(tui.bold('Start:       ') + new Date(session.start_time).toLocaleString());
 			if (session.end_time) {
 				console.log(tui.bold('End:         ') + new Date(session.end_time).toLocaleString());
 			}
-			if (session.duration) {
+			if (session.duration && session.end_time) {
 				console.log(
 					tui.bold('Duration:    ') + `${(session.duration / 1_000_000).toFixed(0)}ms`
 				);
@@ -118,23 +175,32 @@ export const getSubcommand = createSubcommand({
 			console.log(tui.bold('Method:      ') + session.method);
 			console.log(tui.bold('URL:         ') + tui.link(session.url, session.url));
 			console.log(tui.bold('Trigger:     ') + session.trigger);
-			console.log(tui.bold('Environment: ') + session.env);
+			if (session.env !== 'production') {
+				console.log(tui.bold('Environment: ') + session.env);
+			}
 			console.log(tui.bold('Dev Mode:    ') + (session.devmode ? 'Yes' : 'No'));
-			console.log(tui.bold('Success:     ') + (session.success ? '✓' : '✗'));
+			console.log(
+				tui.bold('Success:     ') +
+					(session.success ? tui.colorSuccess('✓') : tui.colorError('✗'))
+			);
 			console.log(tui.bold('Pending:     ') + (session.pending ? 'Yes' : 'No'));
 			if (session.error) {
 				console.log(tui.bold('Error:       ') + tui.error(session.error));
 			}
-			if (enriched.agentNames.length > 0) {
-				const agentDisplay = enriched.agentNames
-					.map((name, idx) => {
-						const agentId = session.agent_ids[idx];
-						return `${name} ${tui.muted(`(${agentId})`)}`;
-					})
+			if (enriched.agents.length > 0) {
+				const agentDisplay = enriched.agents
+					.map((agent) => `${agent.name} ${tui.muted(`(${agent.identifier})`)}`)
 					.join(', ');
 				console.log(tui.bold('Agents:      ') + agentDisplay);
 			}
-			console.log(tui.bold('Route ID:    ') + session.route_id);
+			if (enriched.route) {
+				console.log(
+					tui.bold('Route:       ') +
+						`${enriched.route.method.toUpperCase()} ${enriched.route.path} ${tui.muted(`(${enriched.route.id})`)}`
+				);
+			} else {
+				console.log(tui.bold('Route ID:    ') + session.route_id);
+			}
 			console.log(tui.bold('Thread ID:   ') + session.thread_id);
 
 			if (enriched.evalRuns.length > 0) {
@@ -143,7 +209,7 @@ export const getSubcommand = createSubcommand({
 				const evalTableData = enriched.evalRuns.map((run) => ({
 					ID: run.id,
 					'Eval ID': run.eval_id,
-					Success: run.success ? '✓' : '✗',
+					Success: run.success ? tui.colorSuccess('✓') : tui.colorError('✗'),
 					Pending: run.pending ? '⏳' : '✓',
 					Error: run.error || 'No',
 					Created: new Date(run.created_at).toLocaleString(),
@@ -157,6 +223,12 @@ export const getSubcommand = createSubcommand({
 					{ name: 'Error', alignment: 'left' },
 					{ name: 'Created', alignment: 'left' },
 				]);
+			}
+
+			if (result.timeline) {
+				console.log('');
+				console.log(tui.bold('Timeline:'));
+				printTimeline(result.timeline, '');
 			}
 
 			return result;

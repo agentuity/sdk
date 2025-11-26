@@ -23,14 +23,15 @@ const SessionSchema = z.object({
 	error: z.string().nullable().describe('the error message if failed'),
 	metadata: z.string().nullable().describe('additional metadata'),
 	cpu_time: z.number().nullable().describe('the CPU time in nanoseconds'),
-	llm_cost: z.string().nullable().describe('the LLM cost'),
+	llm_cost: z.number().nullable().describe('the LLM cost'),
 	llm_prompt_token_count: z.number().nullable().describe('the LLM prompt token count'),
 	llm_completion_token_count: z.number().nullable().describe('the LLM completion token count'),
-	total_cost: z.string().nullable().describe('the total cost'),
+	total_cost: z.number().nullable().describe('the total cost'),
 	method: z.string().describe('the HTTP method'),
 	url: z.string().describe('the request URL'),
 	route_id: z.string().describe('the route id'),
 	thread_id: z.string().describe('the thread id'),
+	timeline: z.unknown().nullable().optional().describe('the session timeline tree'),
 });
 
 export { SessionSchema };
