@@ -8,8 +8,8 @@ import {
 	parseEvalMetadata,
 	analyzeWorkbench,
 	checkRouteConflicts,
-	type WorkbenchConfig,
 } from './ast';
+import type { WorkbenchConfig } from '@agentuity/core';
 import { applyPatch, generatePatches } from './patch';
 import { detectSubagent } from '../../utils/detectSubagent';
 import { createLogger } from '@agentuity/server';
@@ -35,18 +35,18 @@ async function setupWorkbench(srcDir: string): Promise<WorkbenchConfig | null> {
 	const srcAppFile = join(srcDir, 'app.ts');
 
 	let appFile = '';
-	if (existsSync(rootAppFile)) {
+	if (await Bun.file(rootAppFile).exists()) {
 		appFile = rootAppFile;
-	} else if (existsSync(srcAppFile)) {
+	} else if (await Bun.file(srcAppFile).exists()) {
 		appFile = srcAppFile;
 	}
 
-	if (!appFile || !existsSync(appFile)) {
+	if (!appFile || !(await Bun.file(appFile).exists())) {
 		return null;
 	}
 
 	const appContent = await Bun.file(appFile).text();
-	const analysis = await analyzeWorkbench(appContent);
+	const analysis = analyzeWorkbench(appContent);
 
 	if (!analysis.hasWorkbench) {
 		return null;
@@ -56,7 +56,7 @@ async function setupWorkbench(srcDir: string): Promise<WorkbenchConfig | null> {
 
 	// Check for route conflicts if workbench is being used
 	if (workbenchConfig?.route) {
-		const hasConflict = await checkRouteConflicts(appContent, workbenchConfig.route);
+		const hasConflict = checkRouteConflicts(appContent, workbenchConfig.route);
 		if (hasConflict) {
 			const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL as LogLevel) || 'info');
 			logger.error(`🚨 Route conflict detected!\n`);
@@ -573,8 +573,8 @@ const AgentuityBundler: BunPlugin = {
 		// Use the workbench config determined at build time
 		const route = ${JSON.stringify(workbenchConfig?.route || '/workbench')};
 
-// If using custom route, update HTML to point to absolute /workbench/ paths
-if (route !== '/workbench') {
+		// If using custom route, update HTML to point to absolute /workbench/ paths
+		if (route !== '/workbench') {
 			workbenchIndex = workbenchIndex.replace(new RegExp('src="\\\\.\\\\/workbench\\\\/', 'g'), 'src="/workbench/');
 		}
 		

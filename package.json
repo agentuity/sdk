@@ -7,7 +7,10 @@
 		"apps/**"
 	],
 	"scripts": {
-		"build": "bun scripts/check-legacy-cli.ts && bunx tsc --build --force && bun run --filter='./apps/*' build",
+		"build": "bun scripts/check-legacy-cli.ts && bunx tsc --build --force && bun run --filter='./packages/*' build && bun run --filter='./apps/*' build",
+		"dev": "concurrently \"bun run dev:workbench\" \"bun run dev:unauth-app\" --names \"workbench,unauth-app\" --prefix-colors \"blue,green\"",
+		"dev:workbench": "cd packages/workbench && bun run dev",
+		"dev:unauth-app": "cd apps/testing/unauth-app && bun run dev",
 		"test": "bun test && cd packages/cli && bun run test && cd ../../apps/testing && bun run test",
 		"typecheck:apps": "bun run --filter='./apps/*' typecheck",
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
@@ -24,6 +27,7 @@
 		"@types/bun": "latest",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
+		"concurrently": "^9.2.1",
 		"eslint": "^9.38.0",
 		"eslint-plugin-react": "^7.37.5",
 		"globals": "^16.4.0",

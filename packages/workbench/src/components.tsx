@@ -1,6 +1,16 @@
 import React, { useState, useContext } from 'react';
 import { AgentuityContext } from '@agentuity/react';
 import type { WorkbenchInstance } from './types';
+import { Button } from './components/ui/button';
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from './components/ui/card';
+import { cn } from './lib/utils';
 
 export interface WorkbenchProps {
 	workbench: WorkbenchInstance;
@@ -39,31 +49,26 @@ export function Workbench({ workbench, className }: WorkbenchProps) {
 	};
 
 	return (
-		<div className={`workbench ${className || ''}`}>
-			<div className="workbench-header">
-				<h3>Workbench</h3>
-				<p>Route: {workbench.config.route}</p>
-			</div>
+		<div className={cn('p-8', className)}>
+			<Card>
+				<CardHeader>
+					<CardTitle>Workbench</CardTitle>
+					<CardDescription>Route: {workbench.config.route}</CardDescription>
+				</CardHeader>
 
-			<div className="workbench-controls">
-				<button onClick={handleApiCall} disabled={status === 'loading'}>
-					{status === 'loading' ? 'Loading...' : 'Hit API'}
-				</button>
-			</div>
+				<CardContent className="space-y-4">
+					<Button onClick={handleApiCall} disabled={status === 'loading'}>
+						{status === 'loading' ? 'Loading...' : 'Hit API'}
+					</Button>
+				</CardContent>
 
-			<div className="workbench-response">
-				<h4>Response:</h4>
-				<pre
-					style={{
-						background: '#f5f5f5',
-						padding: '10px',
-						borderRadius: '4px',
-						overflow: 'auto',
-					}}
-				>
-					{response ? JSON.stringify(response, null, 2) : 'No response yet'}
-				</pre>
-			</div>
+				<CardFooter className="flex-col items-start space-y-2">
+					<h4 className="font-semibold">Response:</h4>
+					<pre className="bg-muted p-4 rounded-md overflow-auto w-full text-sm">
+						{response ? JSON.stringify(response, null, 2) : 'No response yet'}
+					</pre>
+				</CardFooter>
+			</Card>
 		</div>
 	);
 }

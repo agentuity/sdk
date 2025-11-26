@@ -4,13 +4,14 @@
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
-	"main": "./src/index.ts",
+	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"exports": {
 		".": {
-			"import": "./src/index.ts",
-			"types": "./dist/index.d.ts"
-		}
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		},
+		"./styles": "./dist/styles.css"
 	},
 	"files": [
 		"README.md",
@@ -19,17 +20,30 @@
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bunx tsc --build --force",
+		"build": "bun run build:ts && bun run build:css",
+		"build:ts": "bunx tsc --build --force",
+		"build:css": "bun x tailwindcss -i ./src/styles.css -o ./dist/styles.css",
+		"dev": "bun run build && bun run dev:watch",
+		"dev:watch": "bunx tsc --watch",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
-		"@agentuity/react": "workspace:*"
+		"@agentuity/react": "workspace:*",
+		"@radix-ui/react-label": "^2.1.7",
+		"@radix-ui/react-select": "^2.2.6",
+		"@radix-ui/react-slot": "^1.2.3",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
+		"lucide-react": "^0.545.0",
+		"tailwind-merge": "^3.3.1"
 	},
 	"devDependencies": {
+		"@tailwindcss/cli": "^4.1.17",
 		"@types/bun": "latest",
 		"bun-types": "latest",
+		"tailwindcss": "^4.1.11",
 		"typescript": "^5.9.0"
 	},
 	"peerDependencies": {

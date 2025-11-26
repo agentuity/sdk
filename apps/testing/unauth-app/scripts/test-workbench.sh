@@ -109,7 +109,7 @@ sleep 2  # Wait for routes to be registered
 # Phase 1: Test workbench accessibility
 log "Phase 1: Testing workbench accessibility"
 RESPONSE=$(curl -s http://localhost:3500/workbench)
-if echo "$RESPONSE" | grep -q "workbench-root"; then
+if echo "$RESPONSE" | grep -q "root"; then
     log "✓ Workbench HTML accessible"
 else
     error "✗ Workbench HTML not accessible"
@@ -297,7 +297,7 @@ CUSTOM_RESPONSE=$(curl -s http://localhost:3500/random)
 log "Debug: Response length: ${#CUSTOM_RESPONSE} characters"
 log "Debug: First 200 chars of response: ${CUSTOM_RESPONSE:0:200}"
 
-if echo "$CUSTOM_RESPONSE" | grep -q "workbench-root"; then
+if echo "$CUSTOM_RESPONSE" | grep -q "root"; then
     log "✓ Workbench accessible at custom route '/random'"
 else
     error "✗ Workbench not accessible at custom route '/random'"
@@ -453,7 +453,7 @@ sleep 3
 # Test workbench should work again at default route
 log "Testing workbench restoration at default route..."
 RESTORE_RESPONSE=$(curl -s http://localhost:3500/workbench)
-if echo "$RESTORE_RESPONSE" | grep -q "workbench-root"; then
+if echo "$RESTORE_RESPONSE" | grep -q "root"; then
     log "✓ Workbench accessible again at default route after restoration"
 else
     error "✗ Workbench not accessible at default route after restoration"

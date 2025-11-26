@@ -1,6 +1,5 @@
 import { $ } from 'bun';
 import { join, relative, resolve, dirname } from 'node:path';
-import { createRequire } from 'node:module';
 import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
 import AgentuityBundler, { getBuildMetadata } from './plugin';
@@ -10,6 +9,9 @@ import type { Project } from '../../types';
 import { fixDuplicateExportsInDirectory } from './fix-duplicate-exports';
 import { createLogger } from '@agentuity/server';
 import type { LogLevel } from '../../types';
+import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench-templates';
+import { analyzeWorkbench } from './ast';
+import { encodeWorkbenchConfig } from '@agentuity/core';
 
 export interface BundleOptions {
 	rootDir: string;
@@ -254,14 +256,12 @@ export async function bundle({
 	}
 
 	// Bundle workbench app if detected via setupWorkbench
-	const { analyzeWorkbench } = await import('./ast');
 	if (existsSync(appFile)) {
 		const appContent = await Bun.file(appFile).text();
-		const analysis = await analyzeWorkbench(appContent);
+		const analysis = analyzeWorkbench(appContent);
 
 		if (analysis.hasWorkbench) {
 			// Encode workbench config for environment variable
-			const { encodeWorkbenchConfig } = await import('@agentuity/core');
 			const config = analysis.config || { route: '/workbench', headers: {} };
 			// Add port to config (defaults to 3500 if not provided)
 			const configWithPort = { ...config, port: port || 3500 };
@@ -272,41 +272,52 @@ export async function bundle({
 			};
 			const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL as LogLevel) || 'info');
 			try {
-				const projectRequire = createRequire(resolve(rootDir, 'package.json'));
-				const workbenchPkgPath = projectRequire.resolve('@agentuity/workbench/package.json');
-				const workbenchAppDir = join(dirname(workbenchPkgPath), 'src', 'app');
+				// Generate workbench files on the fly instead of using files from package
+				const tempWorkbenchDir = join(outDir, 'temp-workbench');
+				mkdirSync(tempWorkbenchDir, { recursive: true });
 
-				if (existsSync(workbenchAppDir)) {
-					const workbenchIndexFile = join(workbenchAppDir, 'index.html');
-					if (existsSync(workbenchIndexFile)) {
-						// Bundle workbench using same config as main web app
-						const workbenchBuildConfig: Bun.BuildConfig = {
-							entrypoints: [workbenchIndexFile],
-							root: workbenchAppDir,
-							outdir: join(outDir, 'workbench'),
-							define: workbenchDefine,
-							sourcemap: dev ? 'inline' : 'linked',
-							plugins: [AgentuityBundler],
-							target: 'browser',
-							format: 'esm',
-							banner: `// Generated file. DO NOT EDIT`,
-							minify: true,
-							splitting: true,
-							packages: 'bundle',
-							naming: {
-								entry: '[dir]/[name].[ext]',
-								chunk: 'workbench/chunk/[name]-[hash].[ext]',
-								asset: 'workbench/asset/[name]-[hash].[ext]',
-							},
-						};
+				// Generate files using templates
+				await Bun.write(join(tempWorkbenchDir, 'main.tsx'), generateWorkbenchMainTsx(config));
+				const workbenchIndexFile = join(tempWorkbenchDir, 'index.html');
+				await Bun.write(workbenchIndexFile, generateWorkbenchIndexHtml());
 
-						const workbenchResult = await Bun.build(workbenchBuildConfig);
-						if (workbenchResult.success) {
-							logger.debug('Workbench bundled successfully');
-						} else {
-							logger.error('Workbench bundling failed:', workbenchResult.logs.join('\n'));
-						}
+				// Bundle workbench using generated files
+				const workbenchBuildConfig: Bun.BuildConfig = {
+					entrypoints: [workbenchIndexFile],
+					root: tempWorkbenchDir,
+					outdir: join(outDir, 'workbench'),
+					define: workbenchDefine,
+					sourcemap: dev ? 'inline' : 'linked',
+					plugins: [AgentuityBundler],
+					target: 'browser',
+					format: 'esm',
+					banner: `// Generated file. DO NOT EDIT`,
+					minify: true,
+					splitting: true,
+					packages: 'bundle',
+					naming: {
+						entry: '[dir]/[name].[ext]',
+						chunk: 'workbench/chunk/[name]-[hash].[ext]',
+						asset: 'workbench/asset/[name]-[hash].[ext]',
+					},
+				};
+
+				const workbenchResult = await Bun.build(workbenchBuildConfig);
+				if (workbenchResult.success) {
+					logger.debug('Workbench bundled successfully');
+					// Clean up temp directory
+					rmSync(tempWorkbenchDir, { recursive: true, force: true });
+				} else {
+					logger.error('Workbench bundling failed. Logs:', workbenchResult.logs);
+					if (workbenchResult.logs.length === 0) {
+						logger.error('No build logs available. Checking generated files...');
+						logger.error('Temp dir exists:', await Bun.file(tempWorkbenchDir).exists());
+						logger.error('Index file exists:', await Bun.file(workbenchIndexFile).exists());
+						logger.error('Main.tsx exists:', await Bun.file(join(tempWorkbenchDir, 'main.tsx')).exists());
 					}
+					// Clean up temp directory even on failure
+					rmSync(tempWorkbenchDir, { recursive: true, force: true });
+					process.exit(1);
 				}
 			} catch (error) {
 				logger.error('Failed to bundle workbench:', error);

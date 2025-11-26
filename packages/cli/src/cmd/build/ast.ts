@@ -3,6 +3,11 @@ import { basename, dirname, relative } from 'node:path';
 import { generate } from 'astring';
 import type { BuildMetadata } from '../../types';
 import { createLogger } from '@agentuity/server';
+import * as ts from 'typescript';
+import type { WorkbenchConfig } from '@agentuity/core';
+import type { LogLevel } from '../../types';
+
+const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel);
 
 interface ASTNode {
 	type: string;
@@ -926,14 +931,6 @@ export async function parseRoute(
 }
 
 /**
- * Configuration extracted from createWorkbench call
- */
-export interface WorkbenchConfig {
-	route: string;
-	headers?: Record<string, string>;
-}
-
-/**
  * Result of workbench analysis
  */
 export interface WorkbenchAnalysis {
@@ -949,15 +946,14 @@ export interface WorkbenchAnalysis {
  * @param functionName - The function name to check for (e.g., 'createWorkbench')
  * @returns true if the function is both imported and called
  */
-export async function checkFunctionUsage(content: string, functionName: string): Promise<boolean> {
+export function checkFunctionUsage(content: string, functionName: string): boolean {
 	try {
-		const ts = await import('typescript');
 		const sourceFile = ts.createSourceFile('temp.ts', content, ts.ScriptTarget.Latest, true);
 
 		let hasImport = false;
 		let hasUsage = false;
 
-		function visitNode(node: import('typescript').Node): void {
+		function visitNode(node: ts.Node): void {
 			// Check for import declarations with the function
 			if (ts.isImportDeclaration(node) && node.importClause?.namedBindings) {
 				if (ts.isNamedImports(node.importClause.namedBindings)) {
@@ -983,7 +979,7 @@ export async function checkFunctionUsage(content: string, functionName: string):
 		return hasImport && hasUsage;
 	} catch (error) {
 		// Fallback to string check if AST parsing fails
-		console.warn(`AST parsing failed for ${functionName}, falling back to string check:`, error);
+		logger.warn(`AST parsing failed for ${functionName}, falling back to string check:`, error);
 		return content.includes(functionName);
 	}
 }
@@ -991,17 +987,16 @@ export async function checkFunctionUsage(content: string, functionName: string):
 /**
  * Check if app.ts contains conflicting routes for a given endpoint
  */
-export async function checkRouteConflicts(
+export function checkRouteConflicts(
 	content: string,
 	workbenchEndpoint: string
-): Promise<boolean> {
+): boolean {
 	try {
-		const ts = await import('typescript');
 		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true);
 
 		let hasConflict = false;
 
-		function visitNode(node: import('typescript').Node): void {
+		function visitNode(node: ts.Node): void {
 			// Check for router.get calls
 			if (
 				ts.isCallExpression(node) &&
@@ -1033,16 +1028,15 @@ export async function checkRouteConflicts(
  * @param content - The TypeScript source code
  * @returns workbench analysis including usage and config
  */
-export async function analyzeWorkbench(content: string): Promise<WorkbenchAnalysis> {
+export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 	try {
-		const ts = await import('typescript');
 		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true);
 
 		let hasImport = false;
 		let hasUsage = false;
 		let config: WorkbenchConfig | null = null;
 
-		function visitNode(node: import('typescript').Node): void {
+		function visitNode(node: ts.Node): void {
 			// Check for import declarations with createWorkbench
 			if (ts.isImportDeclaration(node) && node.importClause?.namedBindings) {
 				if (ts.isNamedImports(node.importClause.namedBindings)) {
@@ -1062,7 +1056,7 @@ export async function analyzeWorkbench(content: string): Promise<WorkbenchAnalys
 					// Extract configuration from the first argument (if any)
 					if (node.arguments.length > 0) {
 						const configArg = node.arguments[0];
-						config = parseConfigObject(configArg, ts);
+						config = parseConfigObject(configArg);
 					} else {
 						// Default config if no arguments provided
 						config = { route: '/workbench' };
@@ -1087,7 +1081,7 @@ export async function analyzeWorkbench(content: string): Promise<WorkbenchAnalys
 		};
 	} catch (error) {
 		// Fallback to simple check if AST parsing fails
-		console.warn('Workbench AST parsing failed, falling back to string check:', error);
+		logger.warn('Workbench AST parsing failed, falling back to string check:', error);
 		const hasWorkbench = content.includes('createWorkbench');
 		return {
 			hasWorkbench,
@@ -1100,8 +1094,7 @@ export async function analyzeWorkbench(content: string): Promise<WorkbenchAnalys
  * Parse a TypeScript object literal to extract configuration
  */
 function parseConfigObject(
-	node: import('typescript').Node,
-	ts: typeof import('typescript')
+	node: ts.Node
 ): WorkbenchConfig | null {
 	if (!ts.isObjectLiteralExpression(node)) {
 		return { route: '/workbench' }; // Default config
