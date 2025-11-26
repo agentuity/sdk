@@ -358,12 +358,15 @@ export async function bundle({
 						.map((s) => s.trim())
 						.filter(Boolean);
 				}
-				const branch = $`git branch --show-current`.nothrow().quiet();
-				if (branch) {
-					const _branch = await branch.text();
-					if (_branch) {
-						buildmetadata.deployment.git.branch = _branch.trim();
+				let branch = process.env.GITHUB_HEAD_REF;
+				if (!branch) {
+					const branchText = $`git branch --show-current`.nothrow().quiet();
+					if (branchText) {
+						branch = await branchText.text();
 					}
+				}
+				if (branch) {
+					buildmetadata.deployment.git.branch = branch.trim();
 				}
 				const commit = $`git rev-parse HEAD`.nothrow().quiet();
 				if (commit) {
