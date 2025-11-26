@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import type { Logger } from '@agentuity/core';
 import {
 	BuildMetadataSchema,
@@ -486,12 +486,15 @@ class ProjectConfigNotFoundExpection extends Error {
 type ProjectConfig = z.infer<typeof ProjectSchema>;
 
 function generateJSON5WithComments(
+	jsonSchema: string,
 	schema: z.ZodObject<z.ZodRawShape>,
 	data: Record<string, unknown>
 ): string {
 	const lines: string[] = ['{'];
 	const shape = schema.shape;
 	const keys = Object.keys(shape);
+
+	lines.push(`  "$schema": "${jsonSchema}",`);
 
 	for (let i = 0; i < keys.length; i++) {
 		const key = keys[i];
@@ -551,23 +554,59 @@ export async function loadProjectConfig(
 	return result.data;
 }
 
-type InitialProjectConfig = ProjectConfig & {
-	sdkKey: string;
-};
+export const InitialProjectConfigSchema = z.intersection(
+	ProjectSchema,
+	z.object({
+		sdkKey: z.string().describe('the project specific SDK key'),
+		$schema: z.string().optional(),
+	})
+);
+
+type InitialProjectConfig = z.infer<typeof InitialProjectConfigSchema>;
 
 export async function createProjectConfig(dir: string, config: InitialProjectConfig) {
 	const { sdkKey, ...sanitizedConfig } = config;
 
+	// generate the project config
 	const configPath = join(dir, 'agentuity.json');
-	const json5Content = generateJSON5WithComments(ProjectSchema, sanitizedConfig);
+	const json5Content = generateJSON5WithComments(
+		'https://agentuity.dev/schema/cli/v1/agentuity.json',
+		ProjectSchema,
+		sanitizedConfig
+	);
 	await Bun.write(configPath, json5Content + '\n');
 
+	// generate the .env file with initial secret
 	const envPath = join(dir, '.env');
 	const comment =
 		'# AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
 	const content = `${comment}\nAGENTUITY_SDK_KEY=${sdkKey}\n`;
 	await Bun.write(envPath, content);
 	await chmod(envPath, 0o600);
+
+	// generate the vscode settings
+	const vscodeDir = join(dir, '.vscode');
+	mkdirSync(vscodeDir);
+
+	const settings = {
+		'files.associations': {
+			'agentuity.json': 'jsonc',
+		},
+		'search.exclude': {
+			'**/.git/**': true,
+			'**/node_modules/**': true,
+			'**/bun.lock': true,
+			'**/.agentuity/**': true,
+		},
+		'json.schemas': [
+			{
+				fileMatch: ['agentuity.json'],
+				url: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
+			},
+		],
+	};
+
+	await Bun.write(join(vscodeDir, 'settings.json'), JSON.stringify(settings, null, 2));
 }
 
 export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {

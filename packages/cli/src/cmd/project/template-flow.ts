@@ -325,6 +325,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					deployment: {
 						resources: resourceConfig,
 					},
+					region: region ?? 'usc',
 				});
 			},
 		});

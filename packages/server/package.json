@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/server",
-	"version": "0.0.55",
+	"version": "0.0.56",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",

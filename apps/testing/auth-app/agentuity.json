@@ -1,4 +1,6 @@
 {
+	"$schema": "https://agentuity.dev/schema/cli/v1/agentuity.json",
 	"projectId": "proj_c68f8a584cfccbe9e07a82081b2e5491",
-	"orgId": "org_2sjCDGeMLGSYTlRlRYYo2v84uKC"
+	"orgId": "org_2sjCDGeMLGSYTlRlRYYo2v84uKC",
+	"region": "usc"
 }

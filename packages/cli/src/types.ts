@@ -428,6 +428,7 @@ export type SubcommandDefinition =
 export const ProjectSchema = zod.object({
 	projectId: zod.string().describe('the project id'),
 	orgId: zod.string().describe('the organization id'),
+	region: zod.string().describe('the region identifier that the project is deployed into'),
 	deployment: Deployment.optional().describe('the deployment configuration'),
 });
 
