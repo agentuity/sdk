@@ -493,7 +493,6 @@ const AgentuityBundler: BunPlugin = {
 						projectId,
 						deploymentId
 					);
-					routeDefinitions = [...routeDefinitions, ...definitions];
 
 					let agentDetail: Record<string, string> = {};
 
@@ -504,6 +503,7 @@ const AgentuityBundler: BunPlugin = {
 						}
 						agentDetail = {
 							name,
+							id: md.get('id')!,
 							path: `.${agent}`,
 							filename: md.get('filename')!,
 							identifier: md.get('identifier')!,
@@ -514,7 +514,13 @@ const AgentuityBundler: BunPlugin = {
 							agentDetail.parent = parentName;
 						}
 						agentInfo.push(agentDetail);
+						for (const def of definitions) {
+							def.agentIds = [agentDetail.agentId, agentDetail.id];
+						}
 					}
+
+					// do this after handling the agent association (if any)
+					routeDefinitions = [...routeDefinitions, ...definitions];
 
 					let buffer = `await (async() => {
     const { createAgentMiddleware, getRouter, registerAgent } = await import('@agentuity/runtime');
@@ -656,6 +662,9 @@ if (route !== '/workbench') {
 					}
 					if (!v.has('name')) {
 						throw new Error('agent metadata is missing expected name property');
+					}
+					if (!v.has('agentId')) {
+						throw new Error('agent metadata is missing expected agentId property');
 					}
 
 					const parentName = v.get('parent');

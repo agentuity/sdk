@@ -66,6 +66,10 @@ export const BuildMetadataSchema = z.object({
 			method: z.enum(['get', 'post', 'put', 'delete', 'patch']).describe('the HTTP method'),
 			version: z.string().describe('the SHA256 content of the file'),
 			type: z.enum(['api', 'sms', 'email', 'cron', 'websocket', 'sse', 'stream']),
+			agentIds: z
+				.array(z.string())
+				.optional()
+				.describe('the agent ids associated with this route'),
 			config: z
 				.record(z.string(), z.unknown())
 				.optional()
