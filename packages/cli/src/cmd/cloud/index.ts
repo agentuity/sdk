@@ -10,6 +10,7 @@ import { agentCommand } from './agent';
 import objectstoreCommand from './objectstore';
 import envCommand from './env';
 import secretCommand from './secret';
+import apikeyCommand from './apikey';
 import streamCommand from './stream';
 
 export const command = createCommand({
@@ -17,6 +18,7 @@ export const command = createCommand({
 	description: 'Cloud related commands',
 	tags: ['slow', 'requires-auth'],
 	subcommands: [
+		apikeyCommand,
 		keyvalueCommand,
 		agentCommand,
 		objectstoreCommand,
