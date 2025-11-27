@@ -8,6 +8,6 @@ export const dbCommand = createCommand({
 	name: 'db',
 	aliases: ['database'],
 	description: 'Manage database resources',
-	tags: ['fast', 'requires-auth', 'requires-deployment'],
+	tags: ['slow', 'requires-auth', 'requires-deployment'],
 	subcommands: [createSubcommand, listSubcommand, getSubcommand, deleteSubcommand],
 });

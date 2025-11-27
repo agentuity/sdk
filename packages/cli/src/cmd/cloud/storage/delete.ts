@@ -6,30 +6,33 @@ import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
+import { ErrorCode } from '../../../errors';
+import { createS3Client } from './utils';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
-	aliases: ['rm', 'del'],
-	description: 'Delete a storage resource',
+	aliases: ['rm', 'del', 'remove'],
+	description: 'Delete a storage resource or file',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: false,
 	requires: { auth: true, org: true, region: true },
 	examples: [
 		getCommand('cloud storage delete my-bucket'),
-		getCommand('cloud storage rm my-bucket'),
+		getCommand('cloud storage rm my-bucket file.txt'),
 		getCommand('cloud storage delete'),
 		getCommand('--dry-run cloud storage delete my-bucket'),
 	],
 	schema: {
 		args: z.object({
-			name: z.string().optional().describe('Bucket name to delete'),
+			name: z.string().optional().describe('Bucket name'),
+			filename: z.string().optional().describe('File path to delete from bucket'),
 		}),
 		options: z.object({
 			confirm: z.boolean().optional().describe('Skip confirmation prompts'),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether deletion succeeded'),
-			name: z.string().describe('Deleted bucket name'),
+			name: z.string().describe('Deleted bucket or file name'),
 		}),
 	},
 
@@ -38,17 +41,17 @@ export const deleteSubcommand = createSubcommand({
 
 		const catalystClient = getCatalystAPIClient(config, logger, auth);
 
+		const resources = await tui.spinner({
+			message: `Fetching storage for ${orgId} in ${region}`,
+			clearOnSuccess: true,
+			callback: async () => {
+				return listResources(catalystClient, orgId, region!);
+			},
+		});
+
 		let bucketName = args.name;
 
 		if (!bucketName) {
-			const resources = await tui.spinner({
-				message: `Fetching storage for ${orgId} in ${region}`,
-				clearOnSuccess: true,
-				callback: async () => {
-					return listResources(catalystClient, orgId, region!);
-				},
-			});
-
 			if (resources.s3.length === 0) {
 				tui.info('No storage buckets found to delete');
 				return { success: false, name: '' };
@@ -67,6 +70,78 @@ export const deleteSubcommand = createSubcommand({
 			bucketName = response.bucket;
 		}
 
+		// If filename is provided, delete the file from the bucket
+		if (args.filename) {
+			const bucket = resources.s3.find((s3) => s3.bucket_name === bucketName);
+
+			if (!bucket) {
+				tui.fatal(`Storage bucket '${bucketName}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
+			}
+
+			if (!bucket.access_key || !bucket.secret_key || !bucket.endpoint) {
+				tui.fatal(
+					`Storage bucket '${bucketName}' is missing credentials`,
+					ErrorCode.CONFIG_INVALID
+				);
+			}
+
+			// Handle dry-run mode
+			if (isDryRunMode(options)) {
+				outputDryRun(`Would delete file ${args.filename} from bucket ${bucketName}`, options);
+				if (!options.json) {
+					tui.newline();
+					tui.info('[DRY RUN] File deletion skipped');
+				}
+				return {
+					success: false,
+					name: args.filename,
+				};
+			}
+
+			if (!opts.confirm) {
+				tui.warning(
+					`You are about to delete file: ${tui.bold(args.filename)} from bucket: ${tui.bold(bucketName)}`
+				);
+
+				const confirm = await enquirer.prompt<{ confirm: boolean }>({
+					type: 'confirm',
+					name: 'confirm',
+					message: 'Are you sure you want to delete this file?',
+					initial: false,
+				});
+
+				if (!confirm.confirm) {
+					tui.info('Deletion cancelled');
+					return { success: false, name: args.filename };
+				}
+			}
+
+			const s3Client = createS3Client({
+				endpoint: bucket.endpoint,
+				access_key: bucket.access_key,
+				secret_key: bucket.secret_key,
+				region: bucket.region,
+			});
+
+			await tui.spinner({
+				message: `Deleting ${args.filename} from ${bucketName}`,
+				clearOnSuccess: true,
+				callback: async () => {
+					await s3Client.delete(args.filename!);
+				},
+			});
+
+			if (!options.json) {
+				tui.success(`Deleted file: ${tui.bold(args.filename)} from ${tui.bold(bucketName)}`);
+			}
+
+			return {
+				success: true,
+				name: args.filename,
+			};
+		}
+
+		// Otherwise, delete the bucket
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
 			outputDryRun(`Would delete storage bucket: ${bucketName}`, options);
