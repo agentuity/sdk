@@ -125,6 +125,19 @@ export const runInAgentContext = <
 	for (const k of ['waitUntil']) {
 		ctxObject[k] = _ctx[k];
 	}
+	// Replace executionCtx.waitUntil with our WaitUntilHandler
+	Object.defineProperty(ctxObject, 'executionCtx', {
+		get() {
+			return {
+				waitUntil: (promise: Promise<unknown>) => {
+					args.handler.waitUntil(promise as Promise<void>);
+				},
+				passThroughOnException: () => {},
+				props: {},
+			};
+		},
+		configurable: true,
+	});
 	return agentAsyncLocalStorage.run(ctx, async () => {
 		const result = await next();
 		return result;

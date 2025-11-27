@@ -13,6 +13,10 @@ NC='\033[0m' # No Color
 # Default port
 PORT="${PORT:-3500}"
 
+# Create temp directory using cross-platform approach
+# TMPDIR is set on macOS, use /tmp as fallback for Linux
+TEMP_DIR=$(mktemp -d "${TMPDIR:-/tmp}/agentuity-test.XXXXXX")
+
 # Track if we started the server
 SERVER_STARTED=false
 SERVER_PID=""
