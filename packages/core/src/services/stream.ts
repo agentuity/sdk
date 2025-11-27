@@ -617,7 +617,7 @@ export class StreamStorageService implements StreamStorage {
 
 			return stream;
 		}
-		throw await toServiceException(url, 'POST', res.response);
+		throw await toServiceException('POST', url, res.response);
 	}
 
 	async list(params?: ListStreamsParams): Promise<ListStreamsResponse> {
@@ -690,7 +690,7 @@ export class StreamStorageService implements StreamStorage {
 				total: res.data.total,
 			};
 		}
-		throw await toServiceException(url, 'POST', res.response);
+		throw await toServiceException('POST', url, res.response);
 	}
 
 	async get(id: string): Promise<StreamInfo> {
@@ -726,7 +726,7 @@ export class StreamStorageService implements StreamStorage {
 				sizeBytes: res.data.size_bytes,
 			};
 		}
-		throw await toServiceException(url, 'POST', res.response);
+		throw await toServiceException('POST', url, res.response);
 	}
 
 	async download(id: string): Promise<ReadableStream<Uint8Array>> {
@@ -749,7 +749,7 @@ export class StreamStorageService implements StreamStorage {
 		if (res.ok && res.response.body) {
 			return res.response.body;
 		}
-		throw await toServiceException(url, 'GET', res.response);
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async delete(id: string): Promise<void> {
@@ -771,6 +771,6 @@ export class StreamStorageService implements StreamStorage {
 		if (res.ok) {
 			return;
 		}
-		throw await toServiceException(url, 'DELETE', res.response);
+		throw await toServiceException('DELETE', url, res.response);
 	}
 }

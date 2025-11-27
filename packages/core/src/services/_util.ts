@@ -2,6 +2,11 @@ import { safeStringify } from '../json';
 import type { Body } from './adapter';
 import { ServiceException } from './exception';
 
+/**
+ * Valid HTTP methods for service calls
+ */
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+
 export const buildUrl = (
 	base: string,
 	path: string,
@@ -21,7 +26,7 @@ export const buildUrl = (
 };
 
 export async function toServiceException(
-	method: string,
+	method: HttpMethod,
 	url: string,
 	response: Response
 ): Promise<ServiceException> {
@@ -106,7 +111,11 @@ export async function toPayload(data: unknown): Promise<[Body, string]> {
 	return ['', textContentType];
 }
 
-export async function fromResponse<T>(method: string, url: string, response: Response): Promise<T> {
+export async function fromResponse<T>(
+	method: HttpMethod,
+	url: string,
+	response: Response
+): Promise<T> {
 	const contentType = response.headers.get('content-type');
 	if (!contentType || contentType?.includes('/json')) {
 		return (await response.json()) as T;

@@ -4,6 +4,7 @@ import type {
 	FetchResponse,
 	FetchAdapter,
 	Logger,
+	HttpMethod,
 } from '@agentuity/core';
 import { ServiceException, toServiceException, fromResponse } from '@agentuity/core';
 
@@ -85,7 +86,7 @@ class ServerFetchAdapter implements FetchAdapter {
 		) {
 			headers['Content-Type'] = 'application/octet-stream';
 		}
-		const method = options.method ?? 'POST';
+		const method: HttpMethod = options.method ?? 'POST';
 		this.#logger.trace('sending %s to %s with headers: %s', method, url, redactHeaders(headers));
 		const res = await fetch(url, {
 			method,

@@ -448,7 +448,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(url, 'PUT', res.response);
+		throw await toServiceException('PUT', url, res.response);
 	}
 
 	async get<T extends Record<string, unknown> = Record<string, unknown>>(
@@ -497,7 +497,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(url, 'DELETE', res.response);
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async getMany<T extends Record<string, unknown> = Record<string, unknown>>(
@@ -602,7 +602,7 @@ export class VectorStorageService implements VectorStorage {
 			}
 		}
 
-		throw await toServiceException(url, 'POST', res.response);
+		throw await toServiceException('POST', url, res.response);
 	}
 
 	async delete(name: string, ...keys: string[]): Promise<number> {
@@ -635,33 +635,33 @@ export class VectorStorageService implements VectorStorage {
 		}
 
 		const res = await this.#adapter.invoke<VectorDeleteResponse>(url, {
-				method: 'DELETE',
-				...(body && { body, contentType: 'application/json' }),
-				signal,
-				telemetry: {
-					name: 'agentuity.vector.delete',
-					attributes: {
-						name,
-						count: String(keys.length),
-					},
+			method: 'DELETE',
+			...(body && { body, contentType: 'application/json' }),
+			signal,
+			telemetry: {
+				name: 'agentuity.vector.delete',
+				attributes: {
+					name,
+					count: String(keys.length),
 				},
-			});
+			},
+		});
 
-			// Treat missing vectors as non-fatal for idempotency, like get()/search()
-			if (res.response.status === 404) {
-				return 0;
+		// Treat missing vectors as non-fatal for idempotency, like get()/search()
+		if (res.response.status === 404) {
+			return 0;
+		}
+
+		if (res.ok) {
+			if (res.data.success) {
+				return res.data.data;
 			}
-
-			if (res.ok) {
-				if (res.data.success) {
-					return res.data.data;
-				}
-				if ('message' in res.data) {
-					throw new Error(res.data.message);
-				}
+			if ('message' in res.data) {
+				throw new Error(res.data.message);
 			}
+		}
 
-			throw await toServiceException(url, 'DELETE', res.response);
+		throw await toServiceException('DELETE', url, res.response);
 	}
 
 	async exists(name: string): Promise<boolean> {

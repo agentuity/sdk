@@ -391,7 +391,7 @@ export class WidgetAPIService implements WidgetAPI {
 		}
 
 		// 8. Throw service exception on error
-		throw await toServiceException(url, res.response);
+		throw await toServiceException('POST', url, res.response);
 	}
 
 	async get(id: string): Promise<WidgetResult> {
@@ -425,7 +425,7 @@ export class WidgetAPIService implements WidgetAPI {
 			return { exists: false } as WidgetResultNotFound;
 		}
 
-		throw await toServiceException(url, res.response);
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async list(params?: ListWidgetsParams): Promise<ListWidgetsResponse> {
@@ -482,7 +482,7 @@ export class WidgetAPIService implements WidgetAPI {
 			return res.data;
 		}
 
-		throw await toServiceException(url, res.response);
+		throw await toServiceException('POST', url, res.response);
 	}
 
 	async update(id: string, params: Partial<CreateWidgetParams>): Promise<void> {
@@ -513,7 +513,7 @@ export class WidgetAPIService implements WidgetAPI {
 			return;
 		}
 
-		throw await toServiceException(url, res.response);
+		throw await toServiceException('PUT', url, res.response);
 	}
 
 	async delete(id: string): Promise<void> {
@@ -537,7 +537,7 @@ export class WidgetAPIService implements WidgetAPI {
 			return;
 		}
 
-		throw await toServiceException(url, res.response);
+		throw await toServiceException('DELETE', url, res.response);
 	}
 }
 ```
@@ -590,11 +590,20 @@ buildUrl('https://api.example.com', '/widget', undefined, new URLSearchParams({ 
 Converts a failed Response into a ServiceException with appropriate error message.
 
 ```typescript
-async toServiceException(url: string, response: Response): Promise<ServiceException>
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+
+async toServiceException(method: HttpMethod, url: string, response: Response): Promise<ServiceException>
 ```
+
+**Parameters:**
+
+- `method` - HTTP method (type-safe enum of valid methods)
+- `url` - Request URL
+- `response` - Failed Response object
 
 **Features:**
 
+- Type-safe HTTP method parameter prevents incorrect method strings
 - Extracts error messages from JSON responses (`message` or `error` fields)
 - Handles text responses
 - Falls back to `statusText`
@@ -793,7 +802,7 @@ if (res.response.status === 404) {
 }
 
 // All other errors - throw exception
-throw await toServiceException(url, res.response);
+throw await toServiceException('GET', url, res.response);
 ```
 
 **Early returns for optimization:**
@@ -909,7 +918,7 @@ async delete(id: string): Promise<void> {
   if (res.ok) {
     return;  // Simply return on success
   }
-  throw await toServiceException(url, res.response);
+  throw await toServiceException('DELETE', url, res.response);
 }
 ```
 
@@ -1011,7 +1020,7 @@ export class HealthAPIService implements HealthAPI {
 			return res.data;
 		}
 
-		throw await toServiceException(url, res.response);
+		throw await toServiceException('POST', url, res.response);
 	}
 }
 ```

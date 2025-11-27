@@ -346,7 +346,7 @@ export class ObjectStorageService implements ObjectStorage {
 			} as ObjectResultFound;
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, 'GET', err);
+				throw await toServiceException('GET', url, err);
 			}
 			throw err;
 		}
@@ -441,7 +441,7 @@ export class ObjectStorageService implements ObjectStorage {
 			}
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, 'PUT', err);
+				throw await toServiceException('PUT', url, err);
 			}
 			throw err;
 		}
@@ -489,7 +489,7 @@ export class ObjectStorageService implements ObjectStorage {
 			);
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, 'DELETE', err);
+				throw await toServiceException('DELETE', url, err);
 			}
 			throw err;
 		}
@@ -557,7 +557,7 @@ export class ObjectStorageService implements ObjectStorage {
 				throw err;
 			}
 			if (err instanceof Response) {
-				throw await toServiceException(url, 'POST', err);
+				throw await toServiceException('POST', url, err);
 			}
 			throw err;
 		}
@@ -588,7 +588,7 @@ export class ObjectStorageService implements ObjectStorage {
 			return result.data.buckets;
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, 'GET', err);
+				throw await toServiceException('GET', url, err);
 			}
 			throw err;
 		}
@@ -628,7 +628,7 @@ export class ObjectStorageService implements ObjectStorage {
 			return result.data.objects;
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, 'GET', err);
+				throw await toServiceException('GET', url, err);
 			}
 			throw err;
 		}
@@ -685,7 +685,7 @@ export class ObjectStorageService implements ObjectStorage {
 			return result.data.objects;
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, 'GET', err);
+				throw await toServiceException('GET', url, err);
 			}
 			throw err;
 		}
@@ -732,7 +732,7 @@ export class ObjectStorageService implements ObjectStorage {
 			return result.data;
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, 'GET', err);
+				throw await toServiceException('GET', url, err);
 			}
 			throw err;
 		}
@@ -773,7 +773,7 @@ export class ObjectStorageService implements ObjectStorage {
 			);
 		} catch (err) {
 			if (err instanceof Response) {
-				throw await toServiceException(url, 'DELETE', err);
+				throw await toServiceException('DELETE', url, err);
 			}
 			throw err;
 		}

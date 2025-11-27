@@ -195,7 +195,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.response.status === 404) {
 			return { exists: false } as DataResultNotFound;
 		}
-		throw await toServiceException(url, 'GET', res.response);
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async set<T = unknown>(
@@ -234,7 +234,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return;
 		}
-		throw await toServiceException(url, 'PUT', res.response);
+		throw await toServiceException('PUT', url, res.response);
 	}
 
 	async delete(name: string, key: string): Promise<void> {
@@ -257,7 +257,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return;
 		}
-		throw await toServiceException(url, 'DELETE', res.response);
+		throw await toServiceException('DELETE', url, res.response);
 	}
 
 	async getStats(name: string): Promise<KeyValueStats> {
@@ -274,7 +274,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return res.data;
 		}
-		throw await toServiceException(url, 'GET', res.response);
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async getAllStats(): Promise<Record<string, KeyValueStats>> {
@@ -291,7 +291,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return res.data;
 		}
-		throw await toServiceException(url, 'GET', res.response);
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async getNamespaces(): Promise<string[]> {
@@ -319,7 +319,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return res.data;
 		}
-		throw await toServiceException(url, 'GET', res.response);
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async getKeys(name: string): Promise<string[]> {
@@ -336,7 +336,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return res.data;
 		}
-		throw await toServiceException(url, 'GET', res.response);
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async deleteNamespace(name: string): Promise<void> {
@@ -353,7 +353,7 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return;
 		}
-		throw await toServiceException(url, 'DELETE', res.response);
+		throw await toServiceException('DELETE', url, res.response);
 	}
 
 	async createNamespace(name: string): Promise<void> {
@@ -370,6 +370,6 @@ export class KeyValueStorageService implements KeyValueStorage {
 		if (res.ok) {
 			return;
 		}
-		throw await toServiceException(url, 'POST', res.response);
+		throw await toServiceException('POST', url, res.response);
 	}
 }

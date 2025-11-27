@@ -7,3 +7,4 @@ export * from './session';
 export * from './stream';
 export * from './vector';
 export { buildUrl, toServiceException, toPayload, fromResponse } from './_util';
+export type { HttpMethod } from './_util';
