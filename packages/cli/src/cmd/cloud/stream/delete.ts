@@ -35,7 +35,7 @@ export const deleteSubcommand = createCommand({
 		await storage.delete(args.id);
 
 		const durationMs = Date.now() - started;
-		
+
 		if (!options.json) {
 			tui.success(`deleted stream ${args.id} in ${durationMs.toFixed(1)}ms`);
 		}

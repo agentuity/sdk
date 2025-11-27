@@ -241,12 +241,12 @@ export function heading(text: string): string {
 	if (!USE_COLORS) {
 		return text;
 	}
-	
+
 	// For light mode: use inverse (black bg, white text)
 	// For dark mode: use white bold
-	const style = isDarkMode() 
-		? '\x1b[1;37m'  // bold white
-		: '\x1b[7m';     // inverse
+	const style = isDarkMode()
+		? '\x1b[1;37m' // bold white
+		: '\x1b[7m'; // inverse
 	const reset = getColor('reset');
 	return `${style}${text}${reset}`;
 }

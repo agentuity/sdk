@@ -62,32 +62,32 @@ export const listSubcommand = createCommand({
 			const validPairs: Record<string, string> = {};
 			const malformed: string[] = [];
 			const pairs = opts.metadata.split(',');
-			
+
 			for (const pair of pairs) {
 				const trimmedPair = pair.trim();
 				if (!trimmedPair) continue;
-				
+
 				const firstEqualIdx = trimmedPair.indexOf('=');
 				if (firstEqualIdx === -1) {
 					malformed.push(trimmedPair);
 					continue;
 				}
-				
+
 				const key = trimmedPair.substring(0, firstEqualIdx).trim();
 				const value = trimmedPair.substring(firstEqualIdx + 1).trim();
-				
+
 				if (!key || !value) {
 					malformed.push(trimmedPair);
 					continue;
 				}
-				
+
 				validPairs[key] = value;
 			}
-			
+
 			if (malformed.length > 0) {
 				ctx.logger.warn(`Skipping malformed metadata pairs: ${malformed.join(', ')}`);
 			}
-			
+
 			if (Object.keys(validPairs).length > 0) {
 				metadataFilter = validPairs;
 			}
@@ -119,7 +119,8 @@ export const listSubcommand = createCommand({
 					Name: stream.name,
 					ID: stream.id,
 					Size: formatBytes(sizeBytes),
-					Metadata: metadataStr.length > 40 ? metadataStr.substring(0, 37) + '...' : metadataStr,
+					Metadata:
+						metadataStr.length > 40 ? metadataStr.substring(0, 37) + '...' : metadataStr,
 					URL: tui.link(stream.url),
 				};
 			});

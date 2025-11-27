@@ -5,23 +5,6 @@ import { apikeyGet } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 
-const APIKeyDetailSchema = z.object({
-	id: z.string().describe('the API key id'),
-	name: z.string().describe('the API key name'),
-	orgId: z.string().describe('the organization id'),
-	type: z.string().describe('the API key type'),
-	expiresAt: z.string().nullable().describe('the expiration date'),
-	createdAt: z.string().describe('the creation date'),
-	project: z
-		.object({
-			id: z.string().describe('the project id'),
-			name: z.string().describe('the project name'),
-		})
-		.nullable()
-		.optional()
-		.describe('the associated project'),
-});
-
 export const getSubcommand = createSubcommand({
 	name: 'get',
 	description: 'Get a specific API key by id',
@@ -33,7 +16,6 @@ export const getSubcommand = createSubcommand({
 		args: z.object({
 			id: z.string().describe('the API key id'),
 		}),
-		response: APIKeyDetailSchema,
 	},
 
 	async handler(ctx) {
@@ -66,6 +48,7 @@ export const getSubcommand = createSubcommand({
 					'Organization ID': apiKey.orgId,
 					Project: apiKey.project?.name ?? '-',
 					'Project ID': apiKey.project?.id ?? '-',
+					'Last Used': apiKey.lastUsedAt || 'Never',
 					'Expires At': apiKey.expiresAt ?? 'Never',
 					'Created At': apiKey.createdAt,
 				},

@@ -216,7 +216,9 @@ export function buildValidationInput(
 		const parsed = parseOptionsSchema(schemas.options);
 		for (const opt of parsed) {
 			// Only include the option if it has a value - omitting undefined allows Zod to apply defaults
-			const value = rawOptions[opt.name];
+			// Commander.js converts kebab-case to camelCase, so we need to check both
+			const camelCaseName = opt.name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+			const value = rawOptions[opt.name] ?? rawOptions[camelCaseName];
 			if (value !== undefined) {
 				result.options[opt.name] = value;
 			}

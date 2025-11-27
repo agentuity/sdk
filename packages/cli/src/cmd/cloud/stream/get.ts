@@ -63,8 +63,10 @@ export const getSubcommand = createCommand({
 				await writer.end();
 				const durationMs = Date.now() - started;
 				const stats = await Bun.file(opts.output).stat();
-				tui.success(`downloaded ${formatBytes(stats.size)} to ${opts.output} in ${durationMs.toFixed(1)}ms`);
-				
+				tui.success(
+					`downloaded ${formatBytes(stats.size)} to ${opts.output} in ${durationMs.toFixed(1)}ms`
+				);
+
 				// Fetch stream metadata to populate the response
 				const stream = await storage.get(args.id);
 				return {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { apikeyList, APIKeyListResponseArray } from '@agentuity/server';
+import { apikeyList } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 
 export const listSubcommand = createSubcommand({
@@ -17,7 +17,6 @@ export const listSubcommand = createSubcommand({
 			orgId: z.string().optional().describe('filter by organization id'),
 			projectId: z.string().optional().describe('filter by project id'),
 		}),
-		response: APIKeyListResponseArray,
 	},
 
 	async handler(ctx) {
@@ -45,6 +44,7 @@ export const listSubcommand = createSubcommand({
 					Name: key.name,
 					Type: key.type,
 					Project: key.project?.name ?? '-',
+					'Last Used': key.lastUsedAt || 'Never',
 					'Expires At': key.expiresAt ?? 'Never',
 					'Created At': key.createdAt,
 				}));

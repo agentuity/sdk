@@ -6,8 +6,9 @@ const APIKeyDetailSchema = z.object({
 	name: z.string().describe('the API key name'),
 	orgId: z.string().describe('the organization id'),
 	type: z.string().describe('the API key type'),
-	expiresAt: z.string().nullable().describe('the expiration date'),
-	createdAt: z.string().describe('the creation date'),
+	expiresAt: z.string().datetime().nullable().describe('the expiration date'),
+	lastUsedAt: z.string().datetime().nullable().optional().describe('the last used date'),
+	createdAt: z.string().datetime().describe('the creation date'),
 	project: z
 		.object({
 			id: z.string().describe('the project id'),

@@ -7,6 +7,7 @@ export const APIKeySchema = z.object({
 	orgId: z.string().describe('the organization id'),
 	type: z.string().describe('the API key type'),
 	expiresAt: z.string().datetime().nullable().describe('the expiration date'),
+	lastUsedAt: z.string().datetime().nullable().optional().describe('the last used date'),
 	createdAt: z.string().datetime().describe('the creation date'),
 	project: z
 		.object({
