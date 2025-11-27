@@ -153,12 +153,23 @@ log_info "Installing other dependencies..."
 bun install
 
 # Now install Agentuity packages from tarballs
+# Install with --no-save to prevent Bun from trying to resolve nested dependencies from npm
 log_info "Installing @agentuity packages from tarballs..."
-bun add "$PACKAGES_DIR/$CORE_PKG"
-bun add "$PACKAGES_DIR/$REACT_PKG"
-bun add "$PACKAGES_DIR/$RUNTIME_PKG"
-bun add "$PACKAGES_DIR/$SERVER_PKG"
-bun add "$PACKAGES_DIR/$CLI_PKG"
+bun add --no-save \
+  "$PACKAGES_DIR/$CORE_PKG" \
+  "$PACKAGES_DIR/$REACT_PKG" \
+  "$PACKAGES_DIR/$RUNTIME_PKG" \
+  "$PACKAGES_DIR/$SERVER_PKG" \
+  "$PACKAGES_DIR/$CLI_PKG"
+
+# Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
+# This happens because CLI's workspace:* dependencies get resolved to specific versions (e.g. 0.0.58)
+# and Bun installs those from npm as nested dependencies, shadowing the correct local tarballs
+CLI_NESTED_SERVER_DIR="node_modules/@agentuity/cli/node_modules/@agentuity/server"
+if [ -d "$CLI_NESTED_SERVER_DIR" ]; then
+  log_warning "Removing nested @agentuity/server from CLI to use workspace tarball instead"
+  rm -rf "$CLI_NESTED_SERVER_DIR"
+fi
 
 log_success "All packages installed"
 
