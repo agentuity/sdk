@@ -110,7 +110,7 @@ export const command = createCommand({
 		);
 		const deploymentId = getDevmodeDeploymentId(project?.projectId ?? '', devmode?.id ?? '');
 
-		if (devmode) {
+		if (devmode && opts.public) {
 			const configDir = getDefaultConfigDir();
 			const gravityDir = join(configDir, 'gravity');
 			let mustCheck = true;
@@ -242,7 +242,7 @@ export const command = createCommand({
 		if (!sdkKey) {
 			tui.warning(`Couldn't find the AGENTUITY_SDK_KEY in ${rootDir} .env file`);
 		}
-		const gravityBinExists = gravityBin ? await Bun.file(gravityBin).exists() : undefined;
+		const gravityBinExists = gravityBin ? await Bun.file(gravityBin).exists() : true;
 		if (!gravityBinExists) {
 			logger.error(`Gravity binary not found at ${gravityBin}, skipping gravity client startup`);
 		}
@@ -252,7 +252,7 @@ export const command = createCommand({
 				gravityClient.kill('SIGINT');
 				gravityClient.kill();
 			}
-			if (!devmode) {
+			if (!devmode || !opts.public) {
 				return;
 			}
 			try {
