@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { sessionGet, type SpanNode } from '@agentuity/server';
+import { sessionGet, type SpanNode, type EvalRun, type AgentInfo } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { getCatalystAPIClient } from '../../../config';
@@ -95,7 +95,7 @@ function printTimeline(node: SpanNode, prefix: string, isLast = true): void {
 
 	const childPrefix = prefix + (isLast ? '    ' : '│   ');
 	const children = node.children ?? [];
-	children.forEach((child, index) => {
+	children.forEach((child: SpanNode, index: number) => {
 		printTimeline(child, childPrefix, index === children.length - 1);
 	});
 }
@@ -142,7 +142,7 @@ export const getSubcommand = createSubcommand({
 				route_id: session.route_id,
 				thread_id: session.thread_id,
 				agents: enriched.agents,
-				eval_runs: enriched.evalRuns.map((run) => ({
+				eval_runs: enriched.evalRuns.map((run: EvalRun) => ({
 					id: run.id,
 					eval_id: run.eval_id,
 					created_at: run.created_at,
@@ -189,7 +189,7 @@ export const getSubcommand = createSubcommand({
 			}
 			if (enriched.agents.length > 0) {
 				const agentDisplay = enriched.agents
-					.map((agent) => `${agent.name} ${tui.muted(`(${agent.identifier})`)}`)
+					.map((agent: AgentInfo) => `${agent.name} ${tui.muted(`(${agent.identifier})`)}`)
 					.join(', ');
 				console.log(tui.bold('Agents:      ') + agentDisplay);
 			}
@@ -206,7 +206,7 @@ export const getSubcommand = createSubcommand({
 			if (enriched.evalRuns.length > 0) {
 				console.log('');
 				console.log(tui.bold('Eval Runs:'));
-				const evalTableData = enriched.evalRuns.map((run) => ({
+				const evalTableData = enriched.evalRuns.map((run: EvalRun) => ({
 					ID: run.id,
 					'Eval ID': run.eval_id,
 					Success: run.success ? tui.colorSuccess('✓') : tui.colorError('✗'),

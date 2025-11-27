@@ -238,48 +238,52 @@ export const command = createCommand({
 		let gravityClient: Bun.Subprocess | undefined;
 		let initialStartupComplete = false;
 
-		if (gravityBin && devmode && project) {
-			const sdkKey = await loadProjectSDKKey(rootDir);
-			if (!sdkKey) {
-				tui.warning(`Couldn't find the AGENTUITY_SDK_KEY in ${rootDir} .env file`);
-			} else {
-				const gravityBinExists = await Bun.file(gravityBin).exists();
-				if (!gravityBinExists) {
-					logger.error(
-						`Gravity binary not found at ${gravityBin}, skipping gravity client startup`
-					);
-				} else {
-					try {
-						gravityClient = Bun.spawn(
-							[
-								gravityBin,
-								'--endpoint-id',
-								devmode.id,
-								'--port',
-								env.PORT,
-								'--url',
-								config?.overrides?.gravity_url ?? 'grpc://devmode.agentuity.com',
-								'--log-level',
-								process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
-							],
-							{
-								cwd: rootDir,
-								stdout: 'inherit',
-								stderr: 'inherit',
-								stdin: 'ignore',
-								env: { ...env, AGENTUITY_SDK_KEY: sdkKey },
-							}
-						);
-						gravityClient.exited.then(() => {
-							logger.debug('gravity client exited');
-						});
-					} catch (err) {
-						logger.error(
-							'Failed to spawn gravity client: %s',
-							err instanceof Error ? err.message : String(err)
-						);
+		const sdkKey = await loadProjectSDKKey(rootDir);
+		if (!sdkKey) {
+			tui.warning(`Couldn't find the AGENTUITY_SDK_KEY in ${rootDir} .env file`);
+		}
+		const gravityBinExists = gravityBin ? await Bun.file(gravityBin).exists() : undefined;
+		if (!gravityBinExists) {
+			logger.error(`Gravity binary not found at ${gravityBin}, skipping gravity client startup`);
+		}
+
+		async function restartGravityClient() {
+			if (gravityClient) {
+				gravityClient.kill('SIGINT');
+				gravityClient.kill();
+			}
+			if (!devmode) {
+				return;
+			}
+			try {
+				gravityClient = Bun.spawn(
+					[
+						gravityBin!,
+						'--endpoint-id',
+						devmode.id,
+						'--port',
+						env.PORT!,
+						'--url',
+						config?.overrides?.gravity_url ?? 'grpc://devmode.agentuity.com',
+						'--log-level',
+						process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
+					],
+					{
+						cwd: rootDir,
+						stdout: 'inherit',
+						stderr: 'inherit',
+						stdin: 'ignore',
+						env: { ...env, AGENTUITY_SDK_KEY: sdkKey },
 					}
-				}
+				);
+				gravityClient.exited.then(() => {
+					logger.debug('gravity client exited');
+				});
+			} catch (err) {
+				logger.error(
+					'Failed to spawn gravity client: %s',
+					err instanceof Error ? err.message : String(err)
+				);
 			}
 		}
 
@@ -307,14 +311,42 @@ export const command = createCommand({
 			}
 		}
 
+		let lastErrorLineCount = 0;
+		let showedRestartMessage = false;
+
+		function clearRestartMessage() {
+			if (showedRestartMessage) {
+				process.stdout.write('\x1b[1A\x1b[2K');
+				showedRestartMessage = false;
+			}
+		}
+
 		function failure(msg: string) {
 			failed = true;
 			failures++;
+			// Exit immediately on initial startup failure
+			if (!initialStartupComplete) {
+				tui.fatal(msg);
+			}
+			// During hot reload, show error but don't exit unless too many failures
 			if (failures >= 5) {
 				tui.error(msg);
 				tui.fatal('too many failures, exiting');
 			} else {
-				setImmediate(() => tui.error(msg));
+				// Ensure we're on a new line before printing error
+				tui.error(msg);
+				// Track lines: 1 for "✗ Building..." + 1 for error message
+				lastErrorLineCount = 2;
+			}
+		}
+
+		function clearLastError() {
+			if (lastErrorLineCount > 0) {
+				// Move cursor up and clear each line
+				for (let i = 0; i < lastErrorLineCount; i++) {
+					process.stdout.write('\x1b[1A\x1b[2K');
+				}
+				lastErrorLineCount = 0;
 			}
 		}
 
@@ -406,6 +438,7 @@ export const command = createCommand({
 					logger.trace('Server is running, killing before restart');
 					checkRestartThrottle();
 					tui.info('Restarting on file change');
+					showedRestartMessage = true;
 					await kill();
 					logger.trace('Server killed, continuing with restart');
 					// Continue with restart after kill completes
@@ -413,11 +446,16 @@ export const command = createCommand({
 					logger.trace('Initial server start');
 				}
 				logger.trace('Starting typecheck and build...');
-				await tui.spinner({
-					message: 'Building project',
-					clearOnSuccess: true,
-					callback: async () => {
-						try {
+
+				// Clear any previous error before starting new build
+				clearLastError();
+				clearRestartMessage();
+
+				try {
+					await tui.spinner({
+						message: 'Building...',
+						clearOnSuccess: true,
+						callback: async () => {
 							logger.trace('Bundle starting...');
 							building = true;
 							await bundle({
@@ -431,7 +469,7 @@ export const command = createCommand({
 							buildCompletedAt = Date.now();
 							logger.trace('Bundle completed successfully');
 							logger.trace('tsc starting...');
-							await tui.runCommand({
+							const tscExitCode = await tui.runCommand({
 								command: 'tsc',
 								cmd: ['bunx', 'tsc', '--noEmit'],
 								cwd: rootDir,
@@ -440,15 +478,32 @@ export const command = createCommand({
 								maxLinesOutput: 2,
 								maxLinesOnFailure: 15,
 							});
+							if (tscExitCode !== 0) {
+								logger.trace('tsc failed with exit code %d', tscExitCode);
+								failure('Type check failed');
+								return;
+							}
 							logger.trace('tsc completed successfully');
-						} catch (error) {
-							building = false;
-							logger.trace('Bundle failed: %s', error);
-							failure('Build failed');
-							return;
+							await restartGravityClient();
+						},
+					});
+				} catch (error) {
+					building = false;
+					const e = error as Error;
+					if (e.constructor.name === 'AggregateError') {
+						const ex = e as AggregateError;
+						for (const err of ex.errors) {
+							if (err) {
+								failure(err);
+								return;
+							}
 						}
-					},
-				});
+						return;
+					}
+					const errorMsg = error instanceof Error ? error.message : String(error);
+					failure(errorMsg);
+					return;
+				}
 
 				logger.trace('Typecheck and build completed');
 
@@ -456,6 +511,9 @@ export const command = createCommand({
 					logger.trace('Restart failed, returning early');
 					return;
 				}
+
+				// Reset failure counter on successful build
+				failures = 0;
 
 				logger.trace('Checking if app file exists: %s', appPath);
 				if (!existsSync(appPath)) {
@@ -548,9 +606,6 @@ export const command = createCommand({
 
 				if (showInitialReadyMessage) {
 					showInitialReadyMessage = false;
-					// Clear any lingering spinner/command output - clear everything below cursor
-					process.stderr.write('\x1B[J'); // Clear from cursor to end of screen
-					process.stdout.write('\x1B[J'); // Clear from cursor to end of screen
 					logger.info('DevMode ready 🚀');
 					logger.trace('Initial ready message logged');
 					// Mark initial startup complete immediately to prevent watcher restarts

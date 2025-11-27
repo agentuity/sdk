@@ -1,6 +1,6 @@
 {
 	"name": "create-agentuity",
-	"version": "0.0.57",
+	"version": "0.0.58",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Create a new Agentuity project",

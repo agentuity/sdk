@@ -859,8 +859,8 @@ export async function spinner<T>(
 	let frameIndex = 0;
 	let currentProgress: number | undefined;
 
-	// Hide cursor
-	process.stderr.write('\x1B[?25l');
+	// Save cursor position and hide cursor
+	process.stderr.write('\x1B[s\x1B[?25l');
 
 	// Start animation
 	const interval = setInterval(() => {
@@ -893,9 +893,12 @@ export async function spinner<T>(
 					? await options.callback()
 					: await options.callback;
 
-		// Clear interval and line
+		// Stop animation first
 		clearInterval(interval);
-		process.stderr.write('\r\x1B[K');
+
+		// Restore cursor position, clear to end of screen, show cursor
+		// This removes spinner and any partial output that happened during animation
+		process.stderr.write('\x1B[u\x1B[J\x1B[?25h');
 
 		// If clearOnSuccess is false, show success message
 		if (!options.clearOnSuccess) {
@@ -904,21 +907,17 @@ export async function spinner<T>(
 			console.error(`${successColor}${ICONS.success} ${message}${reset}`);
 		}
 
-		// Show cursor
-		process.stderr.write('\x1B[?25h');
-
 		return result;
 	} catch (err) {
-		// Clear interval and line
+		// Stop animation first
 		clearInterval(interval);
-		process.stderr.write('\r\x1B[K');
+
+		// Restore cursor position, clear to end of screen, show cursor
+		process.stderr.write('\x1B[u\x1B[J\x1B[?25h');
 
 		// Show error
 		const errorColor = getColor('error');
 		console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
-
-		// Show cursor
-		process.stderr.write('\x1B[?25h');
 
 		throw err;
 	}

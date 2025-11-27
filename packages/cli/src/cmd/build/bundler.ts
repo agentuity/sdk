@@ -146,15 +146,15 @@ export async function bundle({
 				asset: 'asset/[name]-[hash].[ext]',
 			},
 		};
-		try {
-			await Bun.build(config);
-			// Fix duplicate exports caused by Bun splitting bug
-			// See: https://github.com/oven-sh/bun/issues/5344
-			await fixDuplicateExportsInDirectory(outDir, false);
-		} catch (ex) {
-			console.error(ex);
-			process.exit(1);
+		const buildResult = await Bun.build(config);
+		if (!buildResult.success) {
+			// Collect all build errors
+			const errorMessages = buildResult.logs.map((log) => log.message).join('\n');
+			throw new Error(errorMessages || 'Build failed');
 		}
+		// Fix duplicate exports caused by Bun splitting bug
+		// See: https://github.com/oven-sh/bun/issues/5344
+		await fixDuplicateExportsInDirectory(outDir, false);
 	})();
 
 	const buildmetadata = getBuildMetadata();
