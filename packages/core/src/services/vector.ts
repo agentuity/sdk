@@ -635,28 +635,33 @@ export class VectorStorageService implements VectorStorage {
 		}
 
 		const res = await this.#adapter.invoke<VectorDeleteResponse>(url, {
-			method: 'DELETE',
-			...(body && { body, contentType: 'application/json' }),
-			signal,
-			telemetry: {
-				name: 'agentuity.vector.delete',
-				attributes: {
-					name,
-					count: String(keys.length),
+				method: 'DELETE',
+				...(body && { body, contentType: 'application/json' }),
+				signal,
+				telemetry: {
+					name: 'agentuity.vector.delete',
+					attributes: {
+						name,
+						count: String(keys.length),
+					},
 				},
-			},
-		});
+			});
 
-		if (res.ok) {
-			if (res.data.success) {
-				return res.data.data;
+			// Treat missing vectors as non-fatal for idempotency, like get()/search()
+			if (res.response.status === 404) {
+				return 0;
 			}
-			if ('message' in res.data) {
-				throw new Error(res.data.message);
-			}
-		}
 
-		throw await toServiceException(url, 'DELETE', res.response);
+			if (res.ok) {
+				if (res.data.success) {
+					return res.data.data;
+				}
+				if ('message' in res.data) {
+					throw new Error(res.data.message);
+				}
+			}
+
+			throw await toServiceException(url, 'DELETE', res.response);
 	}
 
 	async exists(name: string): Promise<boolean> {

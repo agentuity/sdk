@@ -12,6 +12,7 @@ import envCommand from './env';
 import secretCommand from './secret';
 import apikeyCommand from './apikey';
 import streamCommand from './stream';
+import vectorCommand from './vector';
 
 export const command = createCommand({
 	name: 'cloud',
@@ -23,6 +24,7 @@ export const command = createCommand({
 		agentCommand,
 		objectstoreCommand,
 		streamCommand,
+		vectorCommand,
 		envCommand,
 		secretCommand,
 		deploySubcommand,

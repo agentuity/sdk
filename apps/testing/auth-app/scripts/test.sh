@@ -167,11 +167,13 @@ if [ $AUTH_CHECK -eq 0 ]; then
 	run_test "Env & Secrets" "test-env-secrets.ts"
 	run_test "Deployment Commands" "test-deployment.sh"
 	run_test "API Key Commands" "test-apikey.sh"
+	run_test "Vector CLI Commands" "test-vector-cli.sh"
 else
 	echo -e "${RED}Skipping Env & Secrets test since not logged in${NC}"
 	echo -e "${RED}Skipping Deployment Commands test since not logged in${NC}"
 	echo -e "${RED}Skipping API Key Commands test since not logged in${NC}"
-	SKIPPED_TESTS=$((SKIPPED_TESTS + 3))
+	echo -e "${RED}Skipping Vector CLI Commands test since not logged in${NC}"
+	SKIPPED_TESTS=$((SKIPPED_TESTS + 4))
 fi
 
 
