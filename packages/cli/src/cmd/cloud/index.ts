@@ -6,7 +6,7 @@ import { sshSubcommand } from './ssh';
 import { scpSubcommand } from './scp';
 import { deploymentCommand } from './deployment';
 import keyvalueCommand from './keyvalue';
-import agentsCommand from './agents';
+import { agentCommand } from './agent';
 import objectstoreCommand from './objectstore';
 import envCommand from './env';
 import secretCommand from './secret';
@@ -18,7 +18,7 @@ export const command = createCommand({
 	tags: ['slow', 'requires-auth'],
 	subcommands: [
 		keyvalueCommand,
-		agentsCommand,
+		agentCommand,
 		objectstoreCommand,
 		streamCommand,
 		envCommand,

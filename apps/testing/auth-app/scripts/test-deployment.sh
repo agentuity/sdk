@@ -126,6 +126,63 @@ else
 fi
 echo ""
 
+# Test 2a: List agents
+echo "Test 2a: List agents..."
+AGENT_LIST_OUTPUT="$TEMP_DIR/agent-list.txt"
+set +e
+bun "$BIN_SCRIPT" cloud agent list > "$AGENT_LIST_OUTPUT" 2>&1
+AGENT_LIST_EXIT=$?
+set -e
+
+if [ $AGENT_LIST_EXIT -ne 0 ]; then
+	echo -e "${RED}✗${NC} Agent list command failed"
+	cat "$AGENT_LIST_OUTPUT"
+	TEST_FAILED=true
+	exit 1
+fi
+
+echo -e "${GREEN}✓${NC} Agent list command succeeded"
+cat "$AGENT_LIST_OUTPUT"
+
+# Extract first agent ID from output (format: agent_xxx)
+AGENT_ID=$(grep -oE 'agent_[a-f0-9]{40}' "$AGENT_LIST_OUTPUT" | head -1 || echo "")
+if [ -z "$AGENT_ID" ]; then
+	echo -e "${YELLOW}⚠${NC} Could not extract agent ID from output"
+else
+	echo "First Agent ID: $AGENT_ID"
+fi
+echo ""
+
+# Test 2b: Get agent details
+if [ -n "$AGENT_ID" ]; then
+	echo "Test 2b: Get agent details..."
+	AGENT_GET_OUTPUT="$TEMP_DIR/agent-get.txt"
+	set +e
+	bun "$BIN_SCRIPT" cloud agent get "$AGENT_ID" > "$AGENT_GET_OUTPUT" 2>&1
+	AGENT_GET_EXIT=$?
+	set -e
+	
+	if [ $AGENT_GET_EXIT -ne 0 ]; then
+		echo -e "${RED}✗${NC} Agent get command failed"
+		cat "$AGENT_GET_OUTPUT"
+		TEST_FAILED=true
+		exit 1
+	fi
+	
+	echo -e "${GREEN}✓${NC} Agent get command succeeded"
+	cat "$AGENT_GET_OUTPUT"
+	
+	# Verify agent details contain the agent ID
+	if grep -q "$AGENT_ID" "$AGENT_GET_OUTPUT"; then
+		echo -e "${GREEN}✓${NC} Agent details contain correct ID"
+	else
+		echo -e "${RED}✗${NC} Agent details missing ID"
+		TEST_FAILED=true
+		exit 1
+	fi
+	echo ""
+fi
+
 # Test 3: Invoke deployment URL and capture session ID
 echo "Test 3: Invoke deployment and capture session..."
 if [ -z "$DEPLOYMENT_ID" ]; then

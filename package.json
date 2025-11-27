@@ -7,7 +7,7 @@
 		"apps/**"
 	],
 	"scripts": {
-		"build": "bun scripts/check-legacy-cli.ts && bunx tsc --build --force && bun run --filter='./packages/*' build && bun run --filter='./apps/*' build",
+		"build": "bun scripts/check-legacy-cli.ts && bunx tsc --build && bun run --filter='./packages/*' build && bun run --filter='./apps/*' build",
 		"dev": "concurrently \"bun run dev:workbench\" \"bun run dev:unauth-app\" --names \"workbench,unauth-app\" --prefix-colors \"blue,green\"",
 		"dev:workbench": "cd packages/workbench && bun run dev",
 		"dev:unauth-app": "cd apps/testing/unauth-app && bun run dev",

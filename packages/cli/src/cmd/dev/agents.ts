@@ -8,7 +8,7 @@ const AgentSchema = z.object({
 	id: z.string(),
 	name: z.string(),
 	description: z.string().nullable(),
-	identifier: z.string(),
+	identifier: z.string().nullable(), // nullable for legacy records
 	version: z.string().nullable(),
 	deploymentId: z.string().nullable(),
 	devmode: z.boolean(),
@@ -75,7 +75,8 @@ export const agentsSubcommand = createSubcommand({
 			tui.fatal(`Failed to fetch agents: ${response.message ?? 'Unknown error'}`);
 		}
 
-		const agents = response.data;
+		// Filter out legacy agents without identifiers
+		const agents = response.data.filter((agent) => agent.identifier !== null);
 
 		if (format === 'json' && !options.json) {
 			console.log(JSON.stringify(agents, null, 2));
@@ -91,7 +92,7 @@ export const agentsSubcommand = createSubcommand({
 					agents.map((agent) => ({
 						name: agent.name,
 						id: verbose ? agent.id : abbreviate(agent.id, 20),
-						identifier: verbose ? agent.identifier : abbreviate(agent.identifier, 20),
+						identifier: verbose ? agent.identifier! : abbreviate(agent.identifier!, 20),
 						deployment: abbreviate(agent.deploymentId, 20),
 						version: verbose
 							? (agent.version ?? 'N/A')

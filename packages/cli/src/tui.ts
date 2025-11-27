@@ -233,6 +233,25 @@ export function bold(text: string): string {
 }
 
 /**
+ * Format text with white bold (or inverse for light mode)
+ * Used for table headings
+ */
+export function heading(text: string): string {
+	const USE_COLORS = shouldUseColors();
+	if (!USE_COLORS) {
+		return text;
+	}
+	
+	// For light mode: use inverse (black bg, white text)
+	// For dark mode: use white bold
+	const style = isDarkMode() 
+		? '\x1b[1;37m'  // bold white
+		: '\x1b[7m';     // inverse
+	const reset = getColor('reset');
+	return `${style}${text}${reset}`;
+}
+
+/**
  * Format text as a link (blue and underlined)
  */
 export function link(url: string, title?: string): string {
@@ -1395,7 +1414,7 @@ export interface TableColumn {
 }
 
 /**
- * Display data in a formatted table using console-table-printer
+ * Display data in a formatted table using cli-table3
  *
  * Supports two modes:
  * 1. Simple mode: Pass data array and optional column names
@@ -1411,14 +1430,14 @@ export function table<T extends Record<string, unknown>>(
 	columns?: (keyof T)[] | TableColumn[],
 	options?: { render?: boolean }
 ): string | void {
-	// Dynamic import to avoid type errors (console-table-printer has poor typings)
 	// eslint-disable-next-line @typescript-eslint/no-require-imports
-	const { Table } = require('console-table-printer') as {
-		Table: new (options?: { columns?: Array<{ name: string; alignment: string }> }) => {
-			addRow(row: Record<string, unknown>): void;
-			printTable(): void;
-			render(): string;
-		};
+	const Table = require('cli-table3') as new (options?: {
+		head?: string[];
+		colAligns?: Array<'left' | 'right' | 'center'>;
+		wordWrap?: boolean;
+	}) => {
+		push(row: unknown[]): void;
+		toString(): string;
 	};
 
 	if (!data || data.length === 0) {
@@ -1428,52 +1447,48 @@ export function table<T extends Record<string, unknown>>(
 	// Determine if we're using advanced column config or simple column names
 	const isAdvancedMode = columns && columns.length > 0 && typeof columns[0] === 'object';
 
-	let tableConfig: { columns: Array<{ name: string; alignment: string }> };
+	let columnNames: string[];
+	let colAligns: Array<'left' | 'right' | 'center'>;
 
 	if (isAdvancedMode) {
 		// Advanced mode: use provided column configurations
-		tableConfig = {
-			columns: (columns as TableColumn[]).map((col) => ({
-				name: col.name,
-				alignment: col.alignment || 'left',
-			})),
-		};
+		const columnConfigs = columns as TableColumn[];
+		columnNames = columnConfigs.map((col) => col.name);
+		colAligns = columnConfigs.map((col) => col.alignment || 'left');
 	} else {
 		// Simple mode: determine column names from data or columns parameter
-		const columnNames = columns
+		columnNames = columns
 			? (columns as (keyof T)[]).map((c) => String(c))
 			: data.length > 0
 				? Object.keys(data[0])
 				: [];
-
-		tableConfig = {
-			columns: columnNames.map((name) => ({
-				name,
-				alignment: 'left',
-			})),
-		};
+		colAligns = columnNames.map(() => 'left' as const);
 	}
 
-	const t = new Table(tableConfig);
+	// Apply heading style to column names
+	const headings = columnNames.map((name) => heading(name));
+
+	const t = new Table({
+		head: headings,
+		colAligns,
+		wordWrap: true,
+	});
 
 	// Add rows to table
 	for (const row of data) {
-		if (columns && !isAdvancedMode) {
-			// Simple mode with column filtering
-			const filtered: Record<string, unknown> = {};
-			for (const col of columns as (keyof T)[]) {
-				filtered[String(col)] = row[col];
-			}
-			t.addRow(filtered);
-		} else {
-			// Advanced mode or no column filtering
-			t.addRow(row);
+		const rowData: unknown[] = [];
+		for (const colName of columnNames) {
+			const value = row[colName];
+			rowData.push(value !== undefined && value !== null ? String(value) : '');
 		}
+		t.push(rowData);
 	}
 
+	const output = t.toString();
+
 	if (options?.render) {
-		return t.render();
+		return output;
 	} else {
-		t.printTable();
+		console.log(output);
 	}
 }
