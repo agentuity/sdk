@@ -136,6 +136,24 @@ export function colorMuted(text: string): string {
 }
 
 /**
+ * Get the appropriate color function for a log severity level
+ */
+export function getSeverityColor(severity: string): (text: string) => string {
+	switch (severity.toUpperCase()) {
+		case 'ERROR':
+			return colorError;
+		case 'WARN':
+			return colorWarning;
+		case 'INFO':
+			return colorInfo;
+		case 'DEBUG':
+			return colorMuted;
+		default:
+			return (text: string) => text;
+	}
+}
+
+/**
  * Print a success message with a green checkmark
  */
 export function success(message: string): void {

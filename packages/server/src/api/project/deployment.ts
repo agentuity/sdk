@@ -131,3 +131,33 @@ export async function projectDeploymentUndeploy(
 		throw new Error(resp.message);
 	}
 }
+
+export const DeploymentLogSchema = z.object({
+	body: z.string(),
+	severity: z.string(),
+	timestamp: z.string(),
+	spanId: z.string(),
+	traceId: z.string(),
+	serviceName: z.string(),
+});
+
+const DeploymentLogsResponseSchema = APIResponseSchema(z.array(DeploymentLogSchema));
+
+export type DeploymentLog = z.infer<typeof DeploymentLogSchema>;
+
+export async function projectDeploymentLogs(
+	client: APIClient,
+	projectId: string,
+	deploymentId: string,
+	limit = 100
+): Promise<DeploymentLog[]> {
+	const resp = await client.request(
+		'GET',
+		`/cli/project/${projectId}/deployments/${deploymentId}/logs?limit=${limit}`,
+		DeploymentLogsResponseSchema
+	);
+	if (resp.success) {
+		return resp.data;
+	}
+	throw new Error(resp.message);
+}

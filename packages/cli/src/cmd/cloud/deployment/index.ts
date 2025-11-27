@@ -1,5 +1,6 @@
 import { createCommand } from '../../../types';
 import { listSubcommand } from './list';
+import { logsSubcommand } from './logs';
 import { showSubcommand } from './show';
 import { removeSubcommand } from './remove';
 import { rollbackSubcommand } from './rollback';
@@ -12,6 +13,7 @@ export const deploymentCommand = createCommand({
 	aliases: ['deployments', 'dep'],
 	subcommands: [
 		listSubcommand,
+		logsSubcommand,
 		showSubcommand,
 		removeSubcommand,
 		rollbackSubcommand,

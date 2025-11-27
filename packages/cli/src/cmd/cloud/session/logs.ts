@@ -15,9 +15,13 @@ const SessionLogsResponseSchema = z.array(
 
 export const logsSubcommand = createSubcommand({
 	name: 'logs',
+	aliases: ['log'],
 	description: 'Get logs for a specific session',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	examples: [`${getCommand('cloud session logs')} sess_abc123xyz`],
+	examples: [
+		`${getCommand('cloud session logs')} sess_abc123xyz`,
+		`${getCommand('cloud session logs')} --no-timestamps  # hide timestamps`,
+	],
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
 	idempotent: true,
@@ -28,11 +32,13 @@ export const logsSubcommand = createSubcommand({
 		options: z.object({
 			projectId: z.string().optional().describe('Project ID (for display purposes)'),
 			deploymentId: z.string().optional().describe('Deployment ID (for display purposes)'),
+			timestamps: z.boolean().default(true).describe('Show timestamps in output'),
 		}),
 		response: SessionLogsResponseSchema,
 	},
 	async handler(ctx) {
 		const { apiClient, args, options } = ctx;
+		const showTimestamps = ctx.opts.timestamps ?? true;
 
 		try {
 			const logs = await sessionLogs(apiClient, { id: args.session_id });
@@ -41,19 +47,14 @@ export const logsSubcommand = createSubcommand({
 				if (logs.length === 0) {
 					tui.info('No logs found for this session.');
 				} else {
-					tui.banner(`Logs for Session ${args.session_id}`, `${logs.length} log entries`);
-
 					for (const log of logs) {
-						const timestamp = new Date(log.timestamp).toLocaleTimeString();
+						const timestamp = showTimestamps
+							? `${tui.muted(new Date(log.timestamp).toLocaleTimeString())} `
+							: '';
 						const severity = log.severity.padEnd(5);
-						const severityColor =
-							log.severity === 'ERROR'
-								? tui.error(severity)
-								: log.severity === 'WARN'
-									? tui.warning(severity)
-									: tui.muted(severity);
+						const severityColor = tui.getSeverityColor(log.severity)(severity);
 
-						console.log(`${tui.muted(timestamp)} ${severityColor} ${log.body}`);
+						console.log(`${timestamp}${severityColor} ${log.body}`);
 					}
 				}
 			}
