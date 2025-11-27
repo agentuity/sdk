@@ -13,6 +13,10 @@ import type { ColorScheme } from './terminal';
 import type { Profile } from './types';
 import { type APIClient as APIClientType } from './api';
 import { getExitCode } from './errors';
+import { maskSecret } from './env-util';
+
+// Re-export maskSecret for convenience
+export { maskSecret };
 
 // Icons
 const ICONS = {

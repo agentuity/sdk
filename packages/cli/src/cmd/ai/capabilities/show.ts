@@ -144,10 +144,17 @@ export const showSubcommand = createSubcommand({
 					requiresProject: true,
 				},
 				{
-					id: 'resources',
-					name: 'Cloud Resources',
-					description: 'View and manage cloud resources',
-					commands: ['cloud resource list'],
+					id: 'databases',
+					name: 'Cloud Databases',
+					description: 'Manage database resources',
+					commands: ['cloud db list', 'cloud db create', 'cloud db get', 'cloud db delete'],
+					requiresAuth: true,
+				},
+				{
+					id: 'storage',
+					name: 'Cloud Storage',
+					description: 'Manage storage resources',
+					commands: ['cloud storage list', 'cloud storage create', 'cloud storage get', 'cloud storage delete'],
 					requiresAuth: true,
 				},
 				{

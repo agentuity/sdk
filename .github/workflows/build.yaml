@@ -21,6 +21,7 @@ env:
    AGENTUITY_OBJECTSTORE_URL: https://catalyst-usc.agentuity.cloud
    AGENTUITY_VECTOR_URL: https://catalyst-usc.agentuity.cloud
    AGENTUITY_LOG_LEVEL: info
+   AGENTUITY_REGION: usc
 
 jobs:
    build:

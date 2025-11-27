@@ -384,6 +384,17 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 		return region;
 	}
 
+	// Check for AGENTUITY_REGION environment variable
+	const envRegion = process.env.AGENTUITY_REGION;
+	if (envRegion) {
+		// Validate that the env region is in the available regions
+		const matchingRegion = regions.find((r) => r.region === envRegion);
+		if (matchingRegion) {
+			return matchingRegion.region;
+		}
+		// If not valid, fall through to error/prompt
+	}
+
 	// No flag provided - handle TTY vs non-TTY
 	if (required && !process.stdin.isTTY) {
 		const errorFormat = (options as Record<string, unknown>).errorFormat as
@@ -395,7 +406,10 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 				ErrorCode.REGION_REQUIRED,
 				'--region flag is required in non-interactive mode',
 				{ availableRegions: regions.map((r) => r.region) },
-				[`Use --region with one of: ${regions.map((r) => r.region).join(', ')}`]
+				[
+					`Use --region with one of: ${regions.map((r) => r.region).join(', ')}`,
+					`Or set AGENTUITY_REGION environment variable`,
+				]
 			),
 			logger,
 			errorFormat ?? 'text'

@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectGet } from '@agentuity/server';
-import { maskSecret } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 
@@ -50,13 +49,13 @@ export const getSubcommand = createSubcommand({
 			// Display the value, masked if requested
 			if (process.stdout.isTTY) {
 				if (opts?.mask) {
-					tui.success(`${args.key}=${maskSecret(value)}`);
+					tui.success(`${args.key}=${tui.maskSecret(value)}`);
 				} else {
 					tui.success(`${args.key}=${value}`);
 				}
 			} else {
 				if (opts?.mask) {
-					console.log(`${args.key}=${maskSecret(value)}`);
+					console.log(`${args.key}=${tui.maskSecret(value)}`);
 				} else {
 					console.log(`${args.key}=${value}`);
 				}

@@ -1,6 +1,7 @@
 import { createCommand } from '../../types';
 import { deploySubcommand } from './deploy';
-import { resourceSubcommand } from './resource';
+import { dbCommand } from './db';
+import { storageCommand } from './storage';
 import { sessionCommand } from './session';
 import { sshSubcommand } from './ssh';
 import { scpSubcommand } from './scp';
@@ -13,6 +14,7 @@ import secretCommand from './secret';
 import apikeyCommand from './apikey';
 import streamCommand from './stream';
 import vectorCommand from './vector';
+
 
 export const command = createCommand({
 	name: 'cloud',
@@ -28,7 +30,8 @@ export const command = createCommand({
 		envCommand,
 		secretCommand,
 		deploySubcommand,
-		resourceSubcommand,
+		dbCommand,
+		storageCommand,
 		sessionCommand,
 		sshSubcommand,
 		scpSubcommand,

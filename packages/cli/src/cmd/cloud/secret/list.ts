@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectGet } from '@agentuity/server';
-import { maskSecret } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
 const SecretListResponseSchema = z.record(z.string(), z.string().describe('Secret value'));
@@ -52,7 +51,7 @@ export const listSubcommand = createSubcommand({
 				const shouldMask = opts?.mask !== false;
 				for (const key of sortedKeys) {
 					const value = secrets[key];
-					const displayValue = shouldMask ? maskSecret(value) : value;
+					const displayValue = shouldMask ? tui.maskSecret(value) : value;
 					if (process.stdout.isTTY) {
 						console.log(`${tui.bold(key)}=${displayValue}`);
 					} else {
