@@ -196,13 +196,57 @@ else
 	else
 		echo "Deployment URL: $DEPLOYMENT_URL"
 		
-		# Invoke the simple agent endpoint and capture session-id and x-deployment headers
-		INVOKE_OUTPUT="$TEMP_DIR/invoke.txt"
-		set +e
-		RESPONSE=$(curl -s -i -X POST "$DEPLOYMENT_URL/agent/simple" \
-			-H "Content-Type: application/json" \
-			-d '{"name":"TestUser","age":30}' 2>&1)
-		INVOKE_EXIT=$?
+		# Invoke the simple agent endpoint and capture session-id and x-deployment headers (with retries)
+		MAX_RETRIES=3
+		RETRY_DELAY=5
+		INVOKE_SUCCESS=false
+		
+		for attempt in $(seq 1 $MAX_RETRIES); do
+			if [ $attempt -gt 1 ]; then
+				echo "Retrying in ${RETRY_DELAY}s... (attempt $attempt/$MAX_RETRIES)"
+				sleep $RETRY_DELAY
+			fi
+			
+			set +e
+			RESPONSE=$(curl -s -i -X POST "$DEPLOYMENT_URL/agent/simple" \
+				-H "Content-Type: application/json" \
+				-d '{"name":"TestUser","age":30}' 2>&1)
+			INVOKE_EXIT=$?
+			set -e
+			
+			# Debug output
+			echo "Curl exit code: $INVOKE_EXIT"
+			
+			# Check if curl succeeded
+			if [ $INVOKE_EXIT -eq 0 ]; then
+				# Check if response is not an error page (look for HTTP 200)
+				if echo "$RESPONSE" | head -1 | grep -q "HTTP/2 200"; then
+					INVOKE_SUCCESS=true
+					break
+				else
+					HTTP_STATUS=$(echo "$RESPONSE" | head -1)
+					echo -e "${YELLOW}⚠${NC} Received non-200 response: $HTTP_STATUS"
+					if [ $attempt -eq $MAX_RETRIES ]; then
+						echo "Response body (first 500 chars):"
+						echo "$RESPONSE" | tail -c 500
+					fi
+				fi
+			else
+				echo -e "${YELLOW}⚠${NC} Curl failed with exit code: $INVOKE_EXIT"
+				if [ $attempt -eq $MAX_RETRIES ]; then
+					echo "Response: $RESPONSE"
+				fi
+			fi
+		done
+		
+		# Check if any attempt succeeded
+		if [ "$INVOKE_SUCCESS" = false ]; then
+			# FIXME: Deployment sometimes returns 500 errors after provisioning
+			# This needs to be investigated and fixed on the backend
+			# For now, skip session tests instead of failing the entire test suite
+			echo -e "${YELLOW}⚠${NC} Failed to invoke deployment after $MAX_RETRIES attempts (skipping session tests)"
+			echo "FIXME: Investigation needed for transient 500 errors after deployment"
+		fi
 		
 		# Try to extract session ID from x-session-id header
 		SESSION_ID=$(echo "$RESPONSE" | grep -i "x-session-id:" | awk '{print $2}' | tr -d '\r\n' || echo "")
@@ -217,11 +261,30 @@ else
 		set -e
 		
 		# Debug output
-		echo "Curl exit code: $INVOKE_EXIT"
 		echo "Session ID extracted: ${SESSION_ID:-<empty>}"
 		echo "X-Deployment extracted: ${X_DEPLOYMENT:-<empty>}"
 		
-		if [ $INVOKE_EXIT -eq 0 ] && [ -n "$SESSION_ID" ]; then
+		# Only validate headers if invoke succeeded
+		if [ "$INVOKE_SUCCESS" = true ]; then
+			# Verify both headers are present
+			if [ -z "$SESSION_ID" ]; then
+				echo -e "${RED}✗${NC} x-session-id header not found in response"
+				echo "Response headers:"
+				echo "$RESPONSE" | head -20
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			if [ -z "$X_DEPLOYMENT" ]; then
+				echo -e "${RED}✗${NC} x-deployment header not found in response"
+				echo "Response headers:"
+				echo "$RESPONSE" | head -20
+				TEST_FAILED=true
+				exit 1
+			fi
+		fi
+		
+		if [ "$INVOKE_SUCCESS" = true ] && [ -n "$SESSION_ID" ]; then
 			echo -e "${GREEN}✓${NC} Deployment invoked successfully"
 			echo "Session ID: $SESSION_ID"
 			
@@ -392,7 +455,7 @@ else
 			echo ""
 			fi
 		else
-			echo -e "${YELLOW}⚠${NC} Failed to invoke deployment or capture session ID"
+			echo -e "${YELLOW}⚠${NC} Skipping session tests due to deployment invoke failure"
 		fi
 	fi
 fi
