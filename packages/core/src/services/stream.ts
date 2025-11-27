@@ -190,6 +190,34 @@ export interface StreamStorage {
 	create(name: string, props?: CreateStreamProps): Promise<Stream>;
 
 	/**
+	 * Get stream metadata by ID
+	 *
+	 * @param id - the stream ID
+	 * @returns a Promise that resolves to the stream information
+	 *
+	 * @example
+	 * ```typescript
+	 * const stream = await streams.get('stream_0199a52b06e3767dbe2f10afabb5e5e4');
+	 * console.log(`Name: ${stream.name}, Size: ${stream.sizeBytes} bytes`);
+	 * ```
+	 */
+	get(id: string): Promise<StreamInfo>;
+
+	/**
+	 * Download stream content
+	 *
+	 * @param id - the stream ID to download
+	 * @returns a Promise that resolves to a ReadableStream of the content
+	 *
+	 * @example
+	 * ```typescript
+	 * const readable = await streams.download('stream_0199a52b06e3767dbe2f10afabb5e5e4');
+	 * // Pipe to a file or process the stream
+	 * ```
+	 */
+	download(id: string): Promise<ReadableStream<Uint8Array>>;
+
+	/**
 	 * List streams with optional filtering and pagination
 	 *
 	 * @param params - optional parameters for filtering and pagination
@@ -626,7 +654,18 @@ export class StreamStorageService implements StreamStorage {
 
 		const signal = AbortSignal.timeout(30_000);
 		const url = buildUrl(this.#baseUrl, 'list');
-		const res = await this.#adapter.invoke<ListStreamsResponse>(url, {
+		const res = await this.#adapter.invoke<{
+			success: boolean;
+			message?: string;
+			streams: Array<{
+				id: string;
+				name: string;
+				metadata: Record<string, string>;
+				url: string;
+				size_bytes: number;
+			}>;
+			total: number;
+		}>(url, {
 			method: 'POST',
 			signal,
 			body: JSON.stringify(requestBody),
@@ -637,9 +676,80 @@ export class StreamStorageService implements StreamStorage {
 			},
 		});
 		if (res.ok) {
-			return res.data;
+			// Transform snake_case to camelCase for sizeBytes
+			return {
+				success: res.data.success,
+				message: res.data.message,
+				streams: res.data.streams.map((s) => ({
+					id: s.id,
+					name: s.name,
+					metadata: s.metadata,
+					url: s.url,
+					sizeBytes: s.size_bytes,
+				})),
+				total: res.data.total,
+			};
 		}
 		throw await toServiceException(url, 'POST', res.response);
+	}
+
+	async get(id: string): Promise<StreamInfo> {
+		if (!id || typeof id !== 'string' || id.trim().length === 0) {
+			throw new Error('Stream id is required and must be a non-empty string');
+		}
+		const signal = AbortSignal.timeout(30_000);
+		const url = buildUrl(this.#baseUrl, id, 'info');
+		const res = await this.#adapter.invoke<{
+			id: string;
+			name: string;
+			metadata: Record<string, string>;
+			url: string;
+			size_bytes: number;
+		}>(url, {
+			method: 'POST',
+			signal,
+			body: '{}',
+			contentType: 'application/json',
+			telemetry: {
+				name: 'agentuity.stream.get',
+				attributes: {
+					'stream.id': id,
+				},
+			},
+		});
+		if (res.ok) {
+			return {
+				id: res.data.id,
+				name: res.data.name,
+				metadata: res.data.metadata,
+				url: res.data.url,
+				sizeBytes: res.data.size_bytes,
+			};
+		}
+		throw await toServiceException(url, 'POST', res.response);
+	}
+
+	async download(id: string): Promise<ReadableStream<Uint8Array>> {
+		if (!id || typeof id !== 'string' || id.trim().length === 0) {
+			throw new Error('Stream id is required and must be a non-empty string');
+		}
+		const signal = AbortSignal.timeout(300_000); // 5 minutes for download
+		const url = buildUrl(this.#baseUrl, id);
+		const res = await this.#adapter.invoke(url, {
+			method: 'GET',
+			signal,
+			binary: true,
+			telemetry: {
+				name: 'agentuity.stream.download',
+				attributes: {
+					'stream.id': id,
+				},
+			},
+		});
+		if (res.ok && res.response.body) {
+			return res.response.body;
+		}
+		throw await toServiceException(url, 'GET', res.response);
 	}
 
 	async delete(id: string): Promise<void> {

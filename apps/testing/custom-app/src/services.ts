@@ -13,6 +13,7 @@ import type {
 	BucketInfo,
 	ObjectInfo,
 	Stream,
+	StreamInfo,
 	CreateStreamProps,
 	ListStreamsParams,
 	ListStreamsResponse,
@@ -156,6 +157,20 @@ export class CustomStreamStorage implements StreamStorage {
 			write: async () => {},
 			getReader: () => new ReadableStream(),
 		});
+	}
+
+	async get(_id: string): Promise<StreamInfo> {
+		return {
+			id: 'custom-stream-1',
+			name: 'custom-stream',
+			metadata: {},
+			url: 'https://custom.example.com/stream-1',
+			sizeBytes: 0,
+		};
+	}
+
+	async download(_id: string): Promise<ReadableStream<Uint8Array>> {
+		return new ReadableStream();
 	}
 
 	async list(_params?: ListStreamsParams): Promise<ListStreamsResponse> {

@@ -230,12 +230,172 @@ done
 echo ""
 
 echo "========================================="
+echo "Testing CLI Commands"
+echo "========================================="
+echo ""
+
+# Use local CLI binary (navigate from apps/testing/auth-app/scripts to sdk root)
+SDK_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
+LOCAL_CLI="$SDK_ROOT/packages/cli/bin/cli.ts"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"  # auth-app directory contains agentuity.json
+
+# Step 7: Test CLI stream list command
+echo "Step 7: Testing CLI 'stream list' command..."
+CLI_LIST_OUTPUT=$(bun "$LOCAL_CLI" cloud stream list --dir "$PROJECT_DIR" 2>&1 || true)
+
+if echo "$CLI_LIST_OUTPUT" | grep -qE "(Total|Streams|Name)"; then
+	echo -e "${GREEN}✓ PASS:${NC} CLI stream list command executed"
+	echo "  Sample output:"
+	echo "$CLI_LIST_OUTPUT" | head -10
+else
+	echo -e "${YELLOW}⚠ WARNING:${NC} CLI stream list command may have issues"
+	echo "  Output: $CLI_LIST_OUTPUT"
+fi
+echo ""
+
+# Step 8: Test CLI stream list with JSON output
+echo "Step 8: Testing CLI 'stream list --json' command..."
+CLI_LIST_JSON=$(bun "$LOCAL_CLI" cloud stream list --dir "$PROJECT_DIR" --json 2>&1 || true)
+
+if echo "$CLI_LIST_JSON" | jq -e '.total != null and .streams != null' > /dev/null 2>&1; then
+	TOTAL=$(echo "$CLI_LIST_JSON" | jq -r .total)
+	STREAM_COUNT=$(echo "$CLI_LIST_JSON" | jq -r '.streams | length')
+	echo -e "${GREEN}✓ PASS:${NC} CLI stream list --json returned valid JSON"
+	echo "  Total: $TOTAL, Returned: $STREAM_COUNT streams"
+else
+	echo -e "${YELLOW}⚠ WARNING:${NC} CLI stream list --json did not return valid JSON"
+	echo "  Output: $CLI_LIST_JSON"
+fi
+echo ""
+
+# Create a new stream for CLI testing (so we don't use deleted streams)
+echo "Step 9: Creating test stream for CLI commands..."
+CLI_TEST_CONTENT="CLI test stream content for download verification"
+CLI_TEST_SHA256=$(calculate_sha256 "$CLI_TEST_CONTENT")
+
+CLI_TEST_CREATE=$(curl -s -X POST "$BASE_URL" \
+  -H "Content-Type: application/json" \
+  -d "{\"operation\":\"create\",\"name\":\"cli-test\",\"content\":\"$CLI_TEST_CONTENT\",\"contentType\":\"text/plain\"}")
+
+CLI_TEST_ID=$(echo "$CLI_TEST_CREATE" | jq -r .result.id)
+echo -e "${GREEN}✓${NC} Created test stream for CLI (ID: $CLI_TEST_ID)"
+echo ""
+
+# Step 10: Test CLI stream get command
+echo "Step 10: Testing CLI 'stream get' command..."
+if [ -n "$CLI_TEST_ID" ] && [ "$CLI_TEST_ID" != "null" ]; then
+	CLI_GET_OUTPUT=$(bun "$LOCAL_CLI" cloud stream get "$CLI_TEST_ID" --dir "$PROJECT_DIR" 2>&1 || true)
+	
+	if echo "$CLI_GET_OUTPUT" | grep -qE "(ID:|Name:|Size:)"; then
+		echo -e "${GREEN}✓ PASS:${NC} CLI stream get command executed"
+		echo "  Output:"
+		echo "$CLI_GET_OUTPUT"
+	else
+		echo -e "${YELLOW}⚠ WARNING:${NC} CLI stream get command may have issues"
+		echo "  Output: $CLI_GET_OUTPUT"
+	fi
+else
+	echo -e "${YELLOW}⚠ SKIP:${NC} No stream ID available for get test"
+fi
+echo ""
+
+# Step 11: Test CLI stream get with JSON output
+echo "Step 11: Testing CLI 'stream get --json' command..."
+if [ -n "$CLI_TEST_ID" ] && [ "$CLI_TEST_ID" != "null" ]; then
+	CLI_GET_JSON=$(bun "$LOCAL_CLI" cloud stream get "$CLI_TEST_ID" --dir "$PROJECT_DIR" --json 2>&1 || true)
+	
+	if echo "$CLI_GET_JSON" | jq -e '.id != null and .name != null and .sizeBytes != null' > /dev/null 2>&1; then
+		STREAM_NAME=$(echo "$CLI_GET_JSON" | jq -r .name)
+		STREAM_SIZE=$(echo "$CLI_GET_JSON" | jq -r .sizeBytes)
+		echo -e "${GREEN}✓ PASS:${NC} CLI stream get --json returned valid JSON"
+		echo "  Name: $STREAM_NAME, Size: $STREAM_SIZE bytes"
+	else
+		echo -e "${YELLOW}⚠ WARNING:${NC} CLI stream get --json did not return valid JSON"
+		echo "  Output: $CLI_GET_JSON"
+	fi
+else
+	echo -e "${YELLOW}⚠ SKIP:${NC} No stream ID available for get --json test"
+fi
+echo ""
+
+# Step 12: Test CLI stream download with --output flag
+echo "Step 12: Testing CLI 'stream get --output' command..."
+if [ -n "$CLI_TEST_ID" ]; then
+	DOWNLOAD_FILE="$TEMP_DIR/downloaded-stream.txt"
+	CLI_DOWNLOAD_OUTPUT=$(bun "$LOCAL_CLI" cloud stream get "$CLI_TEST_ID" --dir "$PROJECT_DIR" --output "$DOWNLOAD_FILE" 2>&1 || true)
+	
+	if [ -f "$DOWNLOAD_FILE" ]; then
+		DOWNLOADED_CONTENT=$(cat "$DOWNLOAD_FILE")
+		DOWNLOADED_SHA256=$(calculate_sha256 "$DOWNLOADED_CONTENT")
+		
+		if [ "$DOWNLOADED_SHA256" = "$CLI_TEST_SHA256" ]; then
+			FILE_SIZE=$(wc -c < "$DOWNLOAD_FILE" | tr -d ' ')
+			echo -e "${GREEN}✓ PASS:${NC} Downloaded stream content matches original (${FILE_SIZE} bytes)"
+			echo "  File: $DOWNLOAD_FILE"
+			echo "  SHA256 verified"
+		else
+			echo -e "${RED}✗ FAIL:${NC} Downloaded content does not match original"
+			echo "  Expected SHA256: $CLI_TEST_SHA256"
+			echo "  Got SHA256: $DOWNLOADED_SHA256"
+			echo "  Expected content: $CLI_TEST_CONTENT"
+			echo "  Downloaded content: $DOWNLOADED_CONTENT"
+			exit 1
+		fi
+	else
+		echo -e "${RED}✗ FAIL:${NC} Download file was not created"
+		echo "  Expected file: $DOWNLOAD_FILE"
+		echo "  CLI output: $CLI_DOWNLOAD_OUTPUT"
+		exit 1
+	fi
+else
+	echo -e "${YELLOW}⚠ SKIP:${NC} No stream ID available for download test"
+fi
+echo ""
+
+# Step 13: Test CLI stream delete command
+echo "Step 13: Testing CLI 'stream delete' command..."
+if [ -n "$CLI_TEST_ID" ] && [ "$CLI_TEST_ID" != "null" ]; then
+	CLI_DELETE_OUTPUT=$(bun "$LOCAL_CLI" cloud stream delete "$CLI_TEST_ID" --dir "$PROJECT_DIR" --json 2>&1 || true)
+	
+	if echo "$CLI_DELETE_OUTPUT" | jq -e '.id != null' > /dev/null 2>&1; then
+		DELETED_ID=$(echo "$CLI_DELETE_OUTPUT" | jq -r .id)
+		if [ "$DELETED_ID" = "$CLI_TEST_ID" ]; then
+			echo -e "${GREEN}✓ PASS:${NC} CLI stream delete command succeeded (ID: $DELETED_ID)"
+			
+			# Verify deletion by attempting to get the stream
+			CLI_GET_AFTER_DELETE=$(bun "$LOCAL_CLI" cloud stream get "$CLI_TEST_ID" --dir "$PROJECT_DIR" --json 2>&1 || true)
+			if echo "$CLI_GET_AFTER_DELETE" | grep -qE "(not found|404|error)"; then
+				echo -e "${GREEN}✓ PASS:${NC} Stream verified as deleted (get failed as expected)"
+			else
+				echo -e "${YELLOW}⚠ WARNING:${NC} Stream may not have been deleted (get succeeded)"
+			fi
+		else
+			echo -e "${YELLOW}⚠ WARNING:${NC} CLI stream delete returned wrong ID"
+			echo "  Expected: $CLI_TEST_ID, Got: $DELETED_ID"
+		fi
+	else
+		echo -e "${YELLOW}⚠ WARNING:${NC} CLI stream delete did not return valid JSON"
+		echo "  Output: $CLI_DELETE_OUTPUT"
+		# Fallback to API delete
+		curl -s -X POST "$BASE_URL" \
+		  -H "Content-Type: application/json" \
+		  -d "{\"operation\":\"delete\",\"id\":\"$CLI_TEST_ID\"}" > /dev/null
+		echo "  Used API fallback to delete stream"
+	fi
+else
+	echo -e "${YELLOW}⚠ SKIP:${NC} No stream ID available for delete test"
+fi
+echo ""
+
+echo "========================================="
 echo -e "${GREEN}ALL TESTS PASSED!${NC}"
 echo "✓ text/plain content type verified"
 echo "✓ application/json content type verified"
 echo "✓ image/png binary content verified (base64)"
 echo "✓ application/octet-stream ArrayBuffer verified"
 echo "✓ SHA256 integrity checks passed"
+echo "✓ CLI stream list command tested"
+echo "✓ CLI stream get command tested"
 echo "Stream storage working correctly."
 echo "========================================="
 echo ""

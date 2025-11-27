@@ -134,6 +134,64 @@ export class LocalStreamStorage implements StreamStorage {
 		};
 	}
 
+	async get(id: string): Promise<StreamInfo> {
+		if (!id?.trim()) {
+			throw new Error('Stream id is required');
+		}
+
+		const stmt = this.#db.query<
+			{ id: string; name: string; metadata: string | null; size_bytes: number },
+			[string, string]
+		>(`
+			SELECT id, name, metadata, size_bytes
+			FROM stream_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		const row = stmt.get(this.#projectPath, id);
+
+		if (!row) {
+			throw new Error(`Stream not found: ${id}`);
+		}
+
+		const metadata = row.metadata ? JSON.parse(row.metadata) : {};
+		const url = `${this.#serverUrl}/_agentuity/local/stream/${id}`;
+
+		return {
+			id: row.id,
+			name: row.name,
+			metadata,
+			url,
+			sizeBytes: row.size_bytes,
+		};
+	}
+
+	async download(id: string): Promise<ReadableStream<Uint8Array>> {
+		if (!id?.trim()) {
+			throw new Error('Stream id is required');
+		}
+
+		const stmt = this.#db.query<{ data: Buffer | null }, [string, string]>(`
+			SELECT data FROM stream_storage
+			WHERE project_path = ? AND id = ?
+		`);
+
+		const row = stmt.get(this.#projectPath, id);
+
+		if (!row || !row.data) {
+			throw new Error(`Stream not found or empty: ${id}`);
+		}
+
+		// Convert Buffer to ReadableStream
+		const buffer = row.data;
+		return new ReadableStream({
+			start(controller) {
+				controller.enqueue(new Uint8Array(buffer));
+				controller.close();
+			},
+		});
+	}
+
 	async delete(id: string): Promise<void> {
 		if (!id?.trim()) {
 			throw new Error('Stream id is required');

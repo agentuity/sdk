@@ -10,6 +10,7 @@ import agentsCommand from './agents';
 import objectstoreCommand from './objectstore';
 import envCommand from './env';
 import secretCommand from './secret';
+import streamCommand from './stream';
 
 export const command = createCommand({
 	name: 'cloud',
@@ -19,6 +20,7 @@ export const command = createCommand({
 		keyvalueCommand,
 		agentsCommand,
 		objectstoreCommand,
+		streamCommand,
 		envCommand,
 		secretCommand,
 		deploySubcommand,
