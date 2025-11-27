@@ -3,31 +3,34 @@ import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from
 
 // Simplified metadata schema for the client
 const DeploymentMetadataSchema = z.object({
-	origin: z
+	git: z
 		.object({
-			trigger: z.string().optional(),
-			provider: z.string().optional(),
-			event: z.string().optional(),
+			repo: z.string().optional(),
+			commit: z.string().optional(),
+			message: z.string().optional(),
 			branch: z.string().optional(),
-			commit: z
-				.object({
-					hash: z.string(),
-					message: z.string(),
-					url: z.string().optional(),
-					author: z
-						.object({
-							name: z.string().optional(),
-							email: z.string().optional(),
-						})
-						.optional(),
-				})
-				.optional(),
-			pr: z
+			tags: z.array(z.string()).optional(),
+			pr: z.string().optional(),
+			provider: z.string().optional(),
+			trigger: z.string().optional(),
+			url: z.string().optional(),
+			buildUrl: z.string().optional(),
+			event: z.string().optional(),
+			pull_request: z
 				.object({
 					number: z.number(),
 					url: z.string().optional(),
+					commentId: z.string().optional(),
 				})
 				.optional(),
+		})
+		.optional(),
+	build: z
+		.object({
+			bun: z.string().optional(),
+			agentuity: z.string().optional(),
+			arch: z.string().optional(),
+			platform: z.string().optional(),
 		})
 		.optional(),
 });

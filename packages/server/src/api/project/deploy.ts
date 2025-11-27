@@ -104,6 +104,31 @@ export const BuildMetadataSchema = z.object({
 					branch: z.string().optional().describe('the git branch'),
 					tags: z.array(z.string()).optional().describe('the tags for the current branch'),
 					pr: z.string().optional().describe('the pull request number'),
+					provider: z.string().optional().describe('the CI provider'),
+					trigger: z
+						.string()
+						.default('cli')
+						.optional()
+						.describe('the trigger that caused the build'),
+					url: z.url().optional().describe('the url to the commit for the CI provider'),
+					buildUrl: z.url().optional().describe('the url to the build for the CI provider'),
+					event: z
+						.enum(['pull_request', 'push', 'manual', 'workflow'])
+						.default('manual')
+						.optional()
+						.describe(
+							'The type of Git-related event that triggered the deployment: pull_request (A pull request or merge request was opened, updated, or merged), push (A commit was pushed directly to a branch), manual (A deployment was triggered manually via CLI or a button), workflow (A deployment was triggered by an automated workflow, such as a CI pipeline)'
+						),
+					pull_request: z
+						.object({
+							number: z.number(),
+							url: z.string().optional(),
+							commentId: z.string().optional(),
+						})
+						.optional()
+						.describe(
+							'This is only present when the deployment was triggered via a pull request.'
+						),
 				})
 				.optional()
 				.describe('git commit information'),

@@ -15,7 +15,39 @@ const DeploymentShowResponseSchema = z.object({
 	tags: z.array(z.string()).describe('Deployment tags'),
 	customDomains: z.array(z.string()).optional().describe('Custom domains'),
 	cloudRegion: z.string().optional().describe('Cloud region'),
-	metadata: z.any().optional().describe('Deployment metadata'),
+	metadata: z
+		.object({
+			git: z
+				.object({
+					repo: z.string().optional(),
+					commit: z.string().optional(),
+					message: z.string().optional(),
+					branch: z.string().optional(),
+					url: z.string().optional(),
+					trigger: z.string().optional(),
+					provider: z.string().optional(),
+					event: z.string().optional(),
+					buildUrl: z.string().optional(),
+					pull_request: z
+						.object({
+							number: z.number(),
+							url: z.string().optional(),
+							commentId: z.string().optional(),
+						})
+						.optional(),
+				})
+				.optional(),
+			build: z
+				.object({
+					agentuity: z.string().optional(),
+					bun: z.string().optional(),
+					platform: z.string().optional(),
+					arch: z.string().optional(),
+				})
+				.optional(),
+		})
+		.optional()
+		.describe('Deployment metadata'),
 });
 
 export const showSubcommand = createSubcommand({
@@ -49,8 +81,6 @@ export const showSubcommand = createSubcommand({
 
 			// Skip TUI output in JSON mode
 			if (!options.json) {
-				tui.banner(`Deployment ${deployment.id}`, `State: ${deployment.state || 'unknown'}`);
-
 				console.log(tui.bold('ID:       ') + deployment.id);
 				console.log(tui.bold('Project:  ') + projectId);
 				console.log(tui.bold('State:    ') + (deployment.state || 'unknown'));
@@ -74,22 +104,35 @@ export const showSubcommand = createSubcommand({
 					console.log(tui.bold('Region:   ') + deployment.cloudRegion);
 				}
 
-				// Metadata
-				const origin = deployment.metadata?.origin;
-				if (origin?.commit) {
+				// Git metadata
+				const git = deployment.metadata?.git;
+				if (git) {
 					tui.newline();
-					tui.info('Origin Information');
-					if (origin.trigger) console.log(`  Trigger:  ${origin.trigger}`);
-					if (origin.provider) console.log(`  Provider: ${origin.provider}`);
-					if (origin.event) console.log(`  Event:    ${origin.event}`);
-					if (origin.branch) console.log(`  Branch:   ${origin.branch}`);
-
-					if (origin.commit) {
-						console.log(`  Commit:   ${origin.commit.hash}`);
-						if (origin.commit.message) console.log(`  Message:  ${origin.commit.message}`);
-						if (origin.commit.author?.name)
-							console.log(`  Author:   ${origin.commit.author.name}`);
+					tui.info('Git Information');
+					if (git.repo) console.log(`  Repo:     ${git.repo}`);
+					if (git.branch) console.log(`  Branch:   ${git.branch}`);
+					if (git.commit) console.log(`  Commit:   ${git.commit}`);
+					if (git.message) console.log(`  Message:  ${git.message}`);
+					if (git.url) console.log(`  URL:      ${git.url}`);
+					if (git.trigger) console.log(`  Trigger:  ${git.trigger}`);
+					if (git.provider) console.log(`  Provider: ${git.provider}`);
+					if (git.event) console.log(`  Event:    ${git.event}`);
+					if (git.pull_request) {
+						console.log(`  PR:       #${git.pull_request.number}`);
+						if (git.pull_request.url) console.log(`  PR URL:   ${git.pull_request.url}`);
 					}
+					if (git.buildUrl) console.log(`  Build:    ${git.buildUrl}`);
+				}
+
+				// Build metadata
+				const build = deployment.metadata?.build;
+				if (build) {
+					tui.newline();
+					tui.info('Build Information');
+					if (build.agentuity) console.log(`  Agentuity: ${build.agentuity}`);
+					if (build.bun) console.log(`  Bun:       ${build.bun}`);
+					if (build.platform) console.log(`  Platform:  ${build.platform}`);
+					if (build.arch) console.log(`  Arch:      ${build.arch}`);
 				}
 			}
 

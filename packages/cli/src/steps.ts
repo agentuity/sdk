@@ -7,6 +7,7 @@
 
 import type { ColorScheme } from './terminal';
 import type { LogLevel } from './types';
+import { ValidationError } from '@agentuity/server';
 
 /**
  * Get the appropriate exit function (Bun.exit or process.exit)
@@ -108,14 +109,18 @@ function getColor(colorKey: keyof typeof COLORS): string {
 export type StepOutcome =
 	| { status: 'success' }
 	| { status: 'skipped'; reason?: string }
-	| { status: 'error'; message: string };
+	| { status: 'error'; message: string; cause?: Error };
 
 /**
  * Helper functions for creating step outcomes
  */
 export const stepSuccess = (): StepOutcome => ({ status: 'success' });
 export const stepSkipped = (reason?: string): StepOutcome => ({ status: 'skipped', reason });
-export const stepError = (message: string): StepOutcome => ({ status: 'error', message });
+export const stepError = (message: string, cause?: Error): StepOutcome => ({
+	status: 'error',
+	message,
+	cause,
+});
 
 /**
  * Progress callback function
@@ -260,6 +265,7 @@ async function runStepsTUI(state: StepState[]): Promise<void> {
 				step.outcome = {
 					status: 'error',
 					message: err instanceof Error ? err.message : String(err),
+					cause: err instanceof Error ? err : undefined,
 				};
 			}
 
@@ -276,7 +282,15 @@ async function runStepsTUI(state: StepState[]): Promise<void> {
 			// If error, show error message and exit
 			if (step.outcome?.status === 'error') {
 				const errorColor = getColor('red');
-				console.error(`\n${errorColor}Error: ${step.outcome.message}${COLORS.reset}\n`);
+				console.error(`\n${errorColor}Error: ${step.outcome.message}${COLORS.reset}`);
+				if (step.outcome.cause instanceof ValidationError) {
+					console.error(`${errorColor}Validation details:${COLORS.reset}`);
+					for (const issue of step.outcome.cause.issues) {
+						const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
+						console.error(`  ${path}: ${issue.message}`);
+					}
+				}
+				console.error('');
 				process.stdout.write('\x1B[?25h'); // Show cursor
 				process.exit(1);
 			}
@@ -312,6 +326,7 @@ async function runStepsPlain(state: StepState[]): Promise<void> {
 			step.outcome = {
 				status: 'error',
 				message: err instanceof Error ? err.message : String(err),
+				cause: err instanceof Error ? err : undefined,
 			};
 		}
 
@@ -326,7 +341,15 @@ async function runStepsPlain(state: StepState[]): Promise<void> {
 		} else if (step.outcome?.status === 'error') {
 			console.log(`${redColor}${ICONS.error}${COLORS.reset} ${step.label}`);
 			const errorColor = getColor('red');
-			console.error(`\n${errorColor}Error: ${step.outcome.message}${COLORS.reset}\n`);
+			console.error(`\n${errorColor}Error: ${step.outcome.message}${COLORS.reset}`);
+			if (step.outcome.cause instanceof ValidationError) {
+				console.error(`${errorColor}Validation details:${COLORS.reset}`);
+				for (const issue of step.outcome.cause.issues) {
+					const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
+					console.error(`  ${path}: ${issue.message}`);
+				}
+			}
+			console.error('');
 			process.exit(1);
 		}
 	}

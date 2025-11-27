@@ -13,9 +13,10 @@ export interface ParsedArgs {
 export interface ParsedOption {
 	name: string;
 	description?: string;
-	type: 'string' | 'number' | 'boolean';
+	type: 'string' | 'number' | 'boolean' | 'array';
 	hasDefault?: boolean;
 	defaultValue?: unknown;
+	enumValues?: string[];
 }
 
 interface ZodTypeDef {
@@ -167,11 +168,21 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 			? (defaultInfo.defaultValue as () => unknown)()
 			: defaultInfo.defaultValue;
 
-		let type: 'string' | 'number' | 'boolean' = 'string';
+		let type: 'string' | 'number' | 'boolean' | 'array' = 'string';
+		let enumValues: string[] | undefined;
 		if (typeId === 'ZodNumber' || typeId === 'number') {
 			type = 'number';
 		} else if (typeId === 'ZodBoolean' || typeId === 'boolean') {
 			type = 'boolean';
+		} else if (typeId === 'ZodArray' || typeId === 'array') {
+			type = 'array';
+		} else if (typeId === 'ZodEnum' || typeId === 'enum') {
+			// Extract enum values from Zod 4's def.entries
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const def = (unwrapped as any)?._def;
+			if (def?.entries && typeof def.entries === 'object') {
+				enumValues = Object.values(def.entries as Record<string, string>);
+			}
 		}
 
 		options.push({
@@ -180,6 +191,7 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 			description,
 			hasDefault: defaultInfo.hasDefault,
 			defaultValue,
+			enumValues,
 		});
 	}
 
@@ -203,8 +215,11 @@ export function buildValidationInput(
 	if (schemas.options) {
 		const parsed = parseOptionsSchema(schemas.options);
 		for (const opt of parsed) {
-			// Always include the option value (even if undefined) so zod can apply defaults
-			result.options[opt.name] = rawOptions[opt.name];
+			// Only include the option if it has a value - omitting undefined allows Zod to apply defaults
+			const value = rawOptions[opt.name];
+			if (value !== undefined) {
+				result.options[opt.name] = value;
+			}
 		}
 	}
 

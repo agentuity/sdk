@@ -38,6 +38,8 @@ export async function discoverCommands(): Promise<CommandDefinition[]> {
 									prerequisites: (subcommand as any).prerequisites,
 									// eslint-disable-next-line @typescript-eslint/no-explicit-any
 									tags: (subcommand as any).tags,
+									// eslint-disable-next-line @typescript-eslint/no-explicit-any
+									examples: (subcommand as any).examples,
 								};
 								commands.push(alias as CommandDefinition);
 							}

@@ -2,7 +2,7 @@ import type { WorkbenchConfig } from '@agentuity/core';
 
 export function generateWorkbenchMainTsx(config: WorkbenchConfig): string {
 	const configString = JSON.stringify(config);
-	
+
 	return `// Generated workbench entry point
 import React from 'react';
 import { createRoot } from 'react-dom/client';

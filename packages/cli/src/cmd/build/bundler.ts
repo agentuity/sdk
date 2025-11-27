@@ -1,4 +1,5 @@
 import { $ } from 'bun';
+import { z } from 'zod';
 import { join, relative, resolve, dirname } from 'node:path';
 import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
@@ -13,7 +14,33 @@ import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbenc
 import { analyzeWorkbench } from './ast';
 import { encodeWorkbenchConfig } from '@agentuity/core';
 
-export interface BundleOptions {
+export const DeployOptionsSchema = z.object({
+	tag: z
+		.array(z.string())
+		.default(['latest'])
+		.optional()
+		.describe('One or more tags to add to the deployment'),
+	logsUrl: z.url().optional().describe('The url to the CI build logs'),
+	trigger: z
+		.enum(['cli', 'workflow', 'webhook'])
+		.default('cli')
+		.optional()
+		.describe('The trigger that caused the build'),
+	commitUrl: z.url().optional().describe('The url to the CI commit'),
+	provider: z.string().optional().describe('The CI provider name (attempts to autodetect)'),
+	event: z
+		.enum(['pull_request', 'push', 'manual', 'workflow'])
+		.default('manual')
+		.optional()
+		.describe('The event that triggered the deployment'),
+	pullRequestNumber: z.number().optional().describe('the pull request number'),
+	pullRequestCommentId: z.string().optional().describe('the pull request comment id'),
+	pullRequestURL: z.url().optional().describe('the pull request url'),
+});
+
+type DeployOptions = z.infer<typeof DeployOptionsSchema>;
+
+export interface BundleOptions extends DeployOptions {
 	rootDir: string;
 	dev?: boolean;
 	env?: Map<string, string>;
@@ -32,6 +59,15 @@ export async function bundle({
 	rootDir,
 	project,
 	port,
+	tag,
+	logsUrl,
+	commitUrl,
+	provider,
+	trigger,
+	event,
+	pullRequestNumber,
+	pullRequestCommentId,
+	pullRequestURL,
 }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
@@ -313,7 +349,10 @@ export async function bundle({
 						logger.error('No build logs available. Checking generated files...');
 						logger.error('Temp dir exists:', await Bun.file(tempWorkbenchDir).exists());
 						logger.error('Index file exists:', await Bun.file(workbenchIndexFile).exists());
-						logger.error('Main.tsx exists:', await Bun.file(join(tempWorkbenchDir, 'main.tsx')).exists());
+						logger.error(
+							'Main.tsx exists:',
+							await Bun.file(join(tempWorkbenchDir, 'main.tsx')).exists()
+						);
 					}
 					// Clean up temp directory even on failure
 					rmSync(tempWorkbenchDir, { recursive: true, force: true });
@@ -350,7 +389,14 @@ export async function bundle({
 			repo: process.env.GITHUB_REPOSITORY
 				? gitParseUrl(process.env.GITHUB_REPOSITORY).toString('https')
 				: '',
+			provider: 'git',
 		};
+		if (process.env.GITHUB_REPOSITORY) {
+			buildmetadata.deployment.git.provider = 'github';
+		}
+		if (process.env.CI && !trigger) {
+			buildmetadata.deployment.git.trigger = 'ci';
+		}
 		// pull out the git information if we have it
 		try {
 			let gitDir = join(rootDir, '.git');
@@ -404,6 +450,61 @@ export async function bundle({
 			}
 		} catch {
 			// ignore errors
+		}
+	}
+
+	// if in gitlab CI, set defaults before user overrides
+	if (process.env.GITLAB_CI && buildmetadata?.deployment) {
+		buildmetadata.deployment.git ??= {};
+		buildmetadata.deployment.git.provider ??= 'gitlab';
+		buildmetadata.deployment.git.branch ??= process.env.CI_COMMIT_REF_NAME;
+		buildmetadata.deployment.git.commit ??= process.env.CI_COMMIT_SHA;
+		buildmetadata.deployment.git.buildUrl ??=
+			process.env.CI_JOB_URL ?? process.env.CI_PIPELINE_URL;
+	}
+
+	// configure any overrides or any that aren't detected automatically
+	if (buildmetadata?.deployment) {
+		buildmetadata.deployment.git ??= {};
+
+		// build tags: start with existing discovered tags, add defaults, then merge explicit tags
+		const tags = new Set(buildmetadata.deployment.git.tags ?? []);
+		tags.add('latest');
+		if (buildmetadata.deployment.git.branch) {
+			tags.add(buildmetadata.deployment.git.branch);
+		}
+		if (buildmetadata.deployment.git.commit) {
+			tags.add(buildmetadata.deployment.git.commit.substring(0, 7));
+		}
+		if (tag?.length && !(tag.length === 1 && tag[0] === 'latest')) {
+			for (const t of tag) {
+				tags.add(t);
+			}
+			tags.delete('latest'); // if you specify explicit tags we remove latest
+		}
+		buildmetadata.deployment.git.tags = Array.from(tags);
+
+		if (provider) {
+			buildmetadata.deployment.git.provider = provider;
+		}
+		if (logsUrl) {
+			buildmetadata.deployment.git.buildUrl = logsUrl;
+		}
+		if (commitUrl) {
+			buildmetadata.deployment.git.url = commitUrl;
+		}
+		if (trigger) {
+			buildmetadata.deployment.git.trigger = trigger;
+		}
+		if (event) {
+			buildmetadata.deployment.git.event = event;
+		}
+		if (pullRequestNumber) {
+			buildmetadata.deployment.git.pull_request = {
+				number: pullRequestNumber,
+				url: pullRequestURL,
+				commentId: pullRequestCommentId,
+			};
 		}
 	}
 

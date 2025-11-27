@@ -987,10 +987,7 @@ export function checkFunctionUsage(content: string, functionName: string): boole
 /**
  * Check if app.ts contains conflicting routes for a given endpoint
  */
-export function checkRouteConflicts(
-	content: string,
-	workbenchEndpoint: string
-): boolean {
+export function checkRouteConflicts(content: string, workbenchEndpoint: string): boolean {
 	try {
 		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true);
 
@@ -1093,9 +1090,7 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 /**
  * Parse a TypeScript object literal to extract configuration
  */
-function parseConfigObject(
-	node: ts.Node
-): WorkbenchConfig | null {
+function parseConfigObject(node: ts.Node): WorkbenchConfig | null {
 	if (!ts.isObjectLiteralExpression(node)) {
 		return { route: '/workbench' }; // Default config
 	}

@@ -420,6 +420,8 @@ async function registerSubcommand(
 ): Promise<void> {
 	const cmd = parent.command(subcommand.name, { hidden }).description(subcommand.description);
 
+	cmd.helpOption('-h, --help', 'Display help');
+
 	if (subcommand.aliases) {
 		cmd.aliases(subcommand.aliases);
 	}
@@ -492,9 +494,45 @@ async function registerSubcommand(
 					cmd.option(flagSpec, desc);
 				}
 			} else if (opt.type === 'number') {
-				cmd.option(`${flagSpec} <${opt.name}>`, desc, parseFloat);
+				const numDefault = opt.hasDefault
+					? typeof opt.defaultValue === 'function'
+						? opt.defaultValue()
+						: opt.defaultValue
+					: undefined;
+				const numDesc =
+					opt.hasDefault && numDefault !== undefined
+						? `${desc} (default: ${numDefault})`
+						: desc;
+				cmd.option(`${flagSpec} <${opt.name}>`, numDesc, parseFloat);
+			} else if (opt.type === 'array') {
+				const arrayDefault = opt.hasDefault
+					? typeof opt.defaultValue === 'function'
+						? opt.defaultValue()
+						: opt.defaultValue
+					: undefined;
+				const arrayDesc =
+					opt.hasDefault && Array.isArray(arrayDefault) && arrayDefault.length > 0
+						? `${desc} (default: ${JSON.stringify(arrayDefault)})`
+						: desc;
+				cmd.option(
+					`${flagSpec} <${opt.name}>`,
+					arrayDesc,
+					(value: string, previous: string[]) => (previous ?? []).concat([value])
+				);
 			} else {
-				cmd.option(`${flagSpec} <${opt.name}>`, desc);
+				const strDefault = opt.hasDefault
+					? typeof opt.defaultValue === 'function'
+						? opt.defaultValue()
+						: opt.defaultValue
+					: undefined;
+				let strDesc = desc;
+				if (opt.enumValues && opt.enumValues.length > 0) {
+					strDesc += ` (${opt.enumValues.join(', ')})`;
+				}
+				if (opt.hasDefault && strDefault !== undefined) {
+					strDesc += ` (default: ${JSON.stringify(strDefault)})`;
+				}
+				cmd.option(`${flagSpec} <${opt.name}>`, strDesc);
 			}
 		}
 	}
@@ -1001,8 +1039,17 @@ export async function registerCommands(
 				.command(cmdDef.name, { hidden: cmdDef.hidden })
 				.description(cmdDef.description);
 
+			cmd.helpOption('-h, --help', 'Display help');
+
 			if (cmdDef.aliases) {
 				cmd.aliases(cmdDef.aliases);
+			}
+
+			// Add examples to help text
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const examples = (cmdDef as any).examples as string[] | undefined;
+			if (examples && examples.length > 0) {
+				cmd.addHelpText('after', '\nExamples:\n' + examples.map((ex) => `  ${ex}`).join('\n'));
 			}
 
 			if (cmdDef.handler) {

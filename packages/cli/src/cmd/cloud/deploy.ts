@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { join, resolve } from 'node:path';
 import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
@@ -26,9 +27,9 @@ import {
 } from '../../env-util';
 import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
-import { checkCustomDomainForDNS } from './domain';
+import { DeployOptionsSchema } from '../build/bundler';
 import { getCommand } from '../../command-prefix';
-import { z } from 'zod';
+import { checkCustomDomainForDNS } from './domain';
 
 const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
@@ -58,17 +59,19 @@ export const deploySubcommand = createSubcommand({
 	examples: [
 		`${getCommand('cloud deploy')}                    # Deploy current project`,
 		`${getCommand('cloud deploy')} --log-level=debug  # Deploy with verbose output`,
+		`${getCommand('cloud deploy')} --tag a --tag b    # Deploy with specific tags`,
 	],
 	toplevel: true,
 	idempotent: false,
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['auth login'],
 	schema: {
+		options: DeployOptionsSchema,
 		response: DeployResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { project, apiClient, projectDir, config, options } = ctx;
+		const { project, apiClient, projectDir, config, options, opts } = ctx;
 
 		let deployment: Deployment | undefined;
 		let build: BuildMetadata | undefined;
@@ -171,6 +174,11 @@ export const deploySubcommand = createSubcommand({
 									orgId: deployment.orgId,
 									projectId: project.projectId,
 									project,
+									commitUrl: opts?.commitUrl,
+									logsUrl: opts?.logsUrl,
+									provider: opts?.provider,
+									trigger: opts?.trigger,
+									tag: opts?.tag,
 								});
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
 								instructions = await projectDeploymentUpdate(

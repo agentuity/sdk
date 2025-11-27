@@ -3,7 +3,14 @@ export type { WorkbenchInstance } from './types';
 
 // Export UI components
 export { Button } from './components/ui/button';
-export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './components/ui/card';
+export {
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+	CardFooter,
+} from './components/ui/card';
 export { Input } from './components/ui/input';
 
 // Export utilities
