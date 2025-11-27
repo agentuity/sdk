@@ -29,10 +29,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 PACKAGES_DIR="/tmp/test-packages-$(date +%s)"
 TEST_PROJECT_DIR="/tmp/test-project-$(date +%s)"
+CLI_TEST_DIR=""
 
 cleanup() {
     log_info "Cleaning up..."
-    rm -rf "$PACKAGES_DIR" "$TEST_PROJECT_DIR"
+    rm -rf "$PACKAGES_DIR" "$TEST_PROJECT_DIR" "$CLI_TEST_DIR"
 }
 
 # Cleanup on exit
@@ -111,9 +112,52 @@ done
 rm -rf "$VERIFY_DIR"
 log_success "All packages contain dist/"
 
-# Step 3: Create test project using CLI
+# Step 3: Validate CLI runs from packed tarball without project TypeScript
+# This catches the case where a runtime dependency (like typescript) is incorrectly
+# placed in devDependencies, which would cause bunx @agentuity/cli to fail
 echo ""
-log_info "Step 3: Creating test project with CLI..."
+log_info "Step 3: Validating CLI runs from packed tarball without project TypeScript..."
+
+CLI_TEST_DIR="/tmp/cli-test-$(date +%s)"
+mkdir -p "$CLI_TEST_DIR"
+cd "$CLI_TEST_DIR"
+
+# Minimal package.json with no TypeScript so we don't accidentally rely on it
+cat > package.json << 'EOF'
+{
+  "name": "cli-typescript-smoke-test",
+  "version": "1.0.0",
+  "private": true
+}
+EOF
+
+log_info "Installing CLI and dependencies from packed tarballs..."
+bun add "$PACKAGES_DIR/$CORE_PKG"
+bun add "$PACKAGES_DIR/$REACT_PKG"
+bun add "$PACKAGES_DIR/$RUNTIME_PKG"
+bun add "$PACKAGES_DIR/$SERVER_PKG"
+bun add "$PACKAGES_DIR/$CLI_PKG"
+
+export AGENTUITY_SKIP_VERSION_CHECK=1
+
+# Run CLI version from the local node_modules bin to trigger module loading
+# We capture output but don't fail on exit code since some commands may have other issues
+log_info "Running agentuity version..."
+node_modules/.bin/agentuity version >cli-output.log 2>&1 || true
+
+# Explicitly guard against the original error where typescript was in devDependencies
+# This is the specific regression we want to catch
+if grep -q "Cannot find package 'typescript'" cli-output.log; then
+  log_error "CLI reported missing typescript when run from packed tarball"
+  cat cli-output.log || true
+  exit 1
+fi
+
+log_success "CLI runs from packed tarball without missing TypeScript dependency"
+
+# Step 4: Create test project using CLI
+echo ""
+log_info "Step 4: Creating test project with CLI..."
 mkdir -p "$TEST_PROJECT_DIR"
 cd "$TEST_PROJECT_DIR"
 
@@ -139,9 +183,9 @@ fi
 cd smoke-test-project
 log_success "Project created"
 
-# Step 4: Install packages from tarballs
+# Step 5: Install packages from tarballs
 echo ""
-log_info "Step 4: Installing packed packages..."
+log_info "Step 5: Installing packed packages..."
 
 # Remove Agentuity dependencies from package.json to avoid conflicts
 cat package.json | \
@@ -173,9 +217,9 @@ fi
 
 log_success "All packages installed"
 
-# Step 5: Build the project
+# Step 6: Build the project
 echo ""
-log_info "Step 5: Building the project..."
+log_info "Step 6: Building the project..."
 bun run build
 
 # Verify build outputs exist
@@ -185,9 +229,9 @@ if [ ! -d ".agentuity" ]; then
 fi
 log_success "Build complete, .agentuity directory created"
 
-# Step 6: Typecheck
+# Step 7: Typecheck
 echo ""
-log_info "Step 6: Running typecheck..."
+log_info "Step 7: Running typecheck..."
 bunx tsc --noEmit
 log_success "Typecheck passed"
 
@@ -198,6 +242,7 @@ echo -e "${GREEN}🎉 All tests passed!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 log_success "Built and packed all 5 packages"
+log_success "CLI runs from packed tarball without missing TypeScript"
 log_success "Created new project using CLI with --template-dir"
 log_success "Installed packed packages as if from npm registry"
 log_success "Project builds successfully (agentuity bundle)"
