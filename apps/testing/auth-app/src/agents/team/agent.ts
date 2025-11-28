@@ -14,7 +14,7 @@ const agent = createAgent({
 			timestamp: z.string(),
 		}),
 	},
-	handler: async (ctx: AgentContext, { action }) => {
+	handler: async (ctx, { action }) => {
 		const timestamp = new Date().toISOString();
 
 		if (action === 'info') {

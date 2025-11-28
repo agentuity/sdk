@@ -8,7 +8,7 @@ const agent = createAgent({
 	schema: {
 		output: z.string(),
 	},
-	handler: async (_c: AgentContext) => {
+	handler: async (_c) => {
 		return `The time is: ${new Date().toISOString()}`;
 	},
 });

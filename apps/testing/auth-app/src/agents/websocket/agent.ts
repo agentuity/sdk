@@ -9,7 +9,7 @@ const agent = createAgent({
 		input: z.string(),
 		output: z.object({ action: z.string(), result: z.string() }),
 	},
-	handler: async (_c: AgentContext, input) => {
+	handler: async (_c, input) => {
 		return { action: 'token', result: `you sent us: ${input}` };
 	},
 });

@@ -23,7 +23,7 @@ const agent = createAgent({
 			currentAgent: z.string(),
 		}),
 	},
-	handler: async (ctx: AgentContext, { action, task, testRunId }) => {
+	handler: async (ctx, { action, task, testRunId }) => {
 		// Store tasks in kv storage
 		const storeName = 'team-data';
 		const key = testRunId ? `tasks-${testRunId}` : 'tasks';

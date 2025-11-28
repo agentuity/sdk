@@ -1,5 +1,6 @@
-import { createCommand } from '../../types';
 import { z } from 'zod';
+import { resolve } from 'node:path';
+import { createCommand } from '../../types';
 import { bundle } from './bundler';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
@@ -30,13 +31,15 @@ export const command = createCommand({
 	async handler(ctx) {
 		const { opts, projectDir, project } = ctx;
 
+		const absoluteProjectDir = resolve(projectDir);
+
 		try {
-			tui.info(`Bundling project at: ${projectDir}`);
+			tui.info(`Bundling project at: ${absoluteProjectDir}`);
 
 			// Generate agent registry FIRST (so types exist for typecheck)
 			tui.info('Generating agent registry...');
 			await bundle({
-				rootDir: projectDir,
+				rootDir: absoluteProjectDir,
 				dev: opts.dev || false,
 				project,
 				orgId: project?.orgId,
@@ -47,7 +50,6 @@ export const command = createCommand({
 			if (!opts.dev) {
 				try {
 					tui.info('Running type check...');
-					const { resolve } = await import('node:path');
 					const absoluteProjectDir = resolve(projectDir);
 					const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`
 						.cwd(absoluteProjectDir)
@@ -72,7 +74,7 @@ export const command = createCommand({
 
 			return {
 				success: true,
-				bundlePath: `${projectDir}/.agentuity`,
+				bundlePath: `${absoluteProjectDir}/.agentuity`,
 				projectName: project?.projectId || 'unknown',
 				dev: opts.dev || false,
 			};

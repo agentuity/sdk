@@ -26,7 +26,7 @@ const agent = createAgent({
 			result: z.any().optional(),
 		}),
 	},
-	handler: async (c: AgentContext, { operation, key, value, keyword }) => {
+	handler: async (c, { operation, key, value, keyword }) => {
 		const storeName = 'test-kv-store';
 
 		switch (operation) {

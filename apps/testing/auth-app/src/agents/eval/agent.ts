@@ -9,7 +9,7 @@ const agent = createAgent({
 		input: z.object({ name: z.string(), age: z.number() }),
 		output: z.string(),
 	},
-	handler: async (_c: AgentContext, { name }) => {
+	handler: async (_c, { name }) => {
 		return `Hello, ${name}!`;
 	},
 });

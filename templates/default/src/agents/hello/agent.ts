@@ -1,4 +1,4 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
@@ -10,7 +10,7 @@ const agent = createAgent({
 		input: z.object({ name: z.string() }),
 		output: z.string(),
 	},
-	handler: async (_c: AgentContext, { name }) => {
+	handler: async (_c, { name }) => {
 		return `Hello, ${name}! Welcome to Agentuity 🤖.`;
 	},
 });

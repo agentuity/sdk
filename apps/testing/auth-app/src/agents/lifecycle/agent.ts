@@ -1,4 +1,4 @@
-import { createAgent } from '@agentuity/runtime';
+import { createAgent, type AppState } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const lifecycleAgent = createAgent({
@@ -16,7 +16,7 @@ const lifecycleAgent = createAgent({
 			agentId: z.string(),
 		}),
 	},
-	setup: async (app) => {
+	setup: async (app: AppState) => {
 		// Validate app state is available and typed
 		console.log('🔧 [LIFECYCLE AGENT] Setup started');
 		console.log('   ✅ App name:', app.appName);
@@ -33,8 +33,9 @@ const lifecycleAgent = createAgent({
 			setupTime: new Date(),
 		};
 	},
-	handler: async (ctx: any, input: any) => {
+	handler: async (ctx, input) => {
 		// Validate both app state and agent config are available and typed
+		// Config type is now automatically inferred from setup return value!
 		console.log('🚀 [LIFECYCLE AGENT] Handler started');
 		console.log('   📊 App state available:', !!ctx.app);
 		console.log('   📊 App name:', ctx.app.appName);
@@ -47,6 +48,7 @@ const lifecycleAgent = createAgent({
 		console.log('   📊 Input message:', input.message);
 
 		// Use the app and agent state
+		// Types are inferred: ctx.config.setupTime is Date, ctx.app.startedAt is Date
 		const uptime = Date.now() - ctx.app.startedAt.getTime();
 		const agentRuntime = Date.now() - ctx.config.setupTime.getTime();
 
@@ -78,22 +80,21 @@ const lifecycleAgent = createAgent({
 });
 
 // Add event listeners
-// ctx.app is fully typed automatically!
-// For ctx.config, extract type from setup function (NonNullable to handle optional setup)
-type Config = Awaited<ReturnType<NonNullable<typeof lifecycleAgent.setup>>>;
+// Both ctx.app and ctx.config are now fully typed automatically!
+// No need for manual type extraction - the types flow through from setup/createApp
 
 lifecycleAgent.addEventListener('started', (_eventName, _agent, ctx) => {
-	const config = ctx.config as Config;
+	// ctx.config is automatically typed from setup return value
 	console.log('🎯 [LIFECYCLE EVENT] Agent started');
 	console.log('   📊 App name:', ctx.app.appName);
-	console.log('   📊 Agent ID from config:', config.agentId);
-	console.log('   📊 Connection pool size:', config.connectionPool.length);
+	console.log('   📊 Agent ID from config:', ctx.config.agentId);
+	console.log('   📊 Connection pool size:', ctx.config.connectionPool.length);
 });
 
 lifecycleAgent.addEventListener('completed', (_eventName, _agent, ctx) => {
-	const config = ctx.config as Config;
+	// ctx.config.setupTime is correctly typed as Date
 	console.log('🎯 [LIFECYCLE EVENT] Agent completed');
-	console.log('   📊 Config setup time:', config.setupTime);
+	console.log('   📊 Config setup time:', ctx.config.setupTime);
 });
 
 export default lifecycleAgent;

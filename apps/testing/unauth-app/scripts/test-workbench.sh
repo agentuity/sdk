@@ -358,7 +358,7 @@ const workbench = createWorkbench({
 	headers: {},
 });
 
-const app = createApp({
+const app = await createApp({
 	services: {
 		workbench,
 	},

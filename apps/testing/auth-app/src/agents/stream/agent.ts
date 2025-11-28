@@ -19,7 +19,7 @@ const agent = createAgent({
 			result: z.any().optional(),
 		}),
 	},
-	handler: async (c: AgentContext, { operation, name, id, content, contentType }) => {
+	handler: async (c, { operation, name, id, content, contentType }) => {
 		switch (operation) {
 			case 'create': {
 				if (!name || !content) {

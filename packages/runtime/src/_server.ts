@@ -45,6 +45,8 @@ let globalRouterInstance: Hono<Env> | null = null;
 
 let globalLogger: Logger | null = null;
 let globalTracer: Tracer | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let globalAppState: any = null;
 
 export function getServer() {
 	return globalServerInstance;
@@ -62,6 +64,10 @@ export function getLogger() {
 
 export function getTracer() {
 	return globalTracer;
+}
+
+export function getAppState() {
+	return globalAppState;
 }
 
 function isDevelopment(): boolean {
@@ -170,6 +176,7 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 	globalServerInstance = server;
 	globalLogger = otel.logger;
 	globalTracer = otel.tracer;
+	globalAppState = appState;
 
 	let isShutdown = false;
 
@@ -201,23 +208,7 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 		return new Response('Internal Server Error', { status: 500 });
 	});
 
-	const threadProvider = getThreadProvider();
-	const sessionProvider = getSessionProvider();
-
-	let initPromise: Promise<void> | undefined = (async () => {
-		// Initialize providers first
-		await Promise.all([threadProvider.initialize(), sessionProvider.initialize()]);
-
-		// Then run agent setups
-		const { runAgentSetups } = await import('./agent');
-		await runAgentSetups(appState);
-	})();
-
 	router.use(async (c, next) => {
-		if (initPromise) {
-			await initPromise;
-			initPromise = undefined;
-		}
 		c.set('logger', otel.logger);
 		c.set('tracer', otel.tracer);
 		c.set('meter', otel.meter);

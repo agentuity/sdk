@@ -208,24 +208,37 @@ type InferStreamOutput<TOutput, TStream extends boolean> = TStream extends true
 		? StandardSchemaV1.InferOutput<TOutput>
 		: void;
 
-// Helper types for automatic inference from config
-type InferInput<T> = T extends { schema: { input: infer I } } ? I : undefined;
-type InferOutput<T> = T extends { schema: { output: infer O } } ? O : undefined;
-type InferStream<T> = T extends { schema: { stream: infer S } } ? S : false;
-type InferSetupReturn<T> = T extends { setup: infer S }
-	? S extends (...args: any[]) => infer R
-		? R extends Promise<infer U>
-			? U
-			: R
-		: unknown
-	: unknown;
+type SchemaInput<TSchema> = TSchema extends { input: infer I } ? I : undefined;
+type SchemaOutput<TSchema> = TSchema extends { output: infer O } ? O : undefined;
+type SchemaStream<TSchema> = TSchema extends { stream: infer S }
+	? S extends boolean
+		? S
+		: false
+	: false;
 
-// Helper to infer the actual input value type from schema
-// In const generic context, we can't reliably check StandardSchemaV1, so just use any
-// This allows TypeScript to accept any handler signature
-// Currently unused but kept for potential future use
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type InferInputValue<T> = T extends { schema: { input: any } } ? any : undefined;
+type SchemaHandlerReturn<TSchema> =
+	SchemaStream<TSchema> extends true
+		? SchemaOutput<TSchema> extends StandardSchemaV1
+			? ReadableStream<StandardSchemaV1.InferOutput<SchemaOutput<TSchema>>>
+			: ReadableStream<unknown>
+		: SchemaOutput<TSchema> extends StandardSchemaV1
+			? StandardSchemaV1.InferOutput<SchemaOutput<TSchema>>
+			: void;
+
+// Handler signature based on schema + setup result (no self-reference)
+type AgentHandlerFromConfig<TSchema, TSetupReturn, TAppState = AppState> =
+	SchemaInput<TSchema> extends infer I
+		? I extends StandardSchemaV1
+			? (
+					ctx: AgentContext<any, any, any, TSetupReturn, TAppState>,
+					input: StandardSchemaV1.InferOutput<I>
+				) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
+			: (
+					ctx: AgentContext<any, any, any, TSetupReturn, TAppState>
+				) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
+		: (
+				ctx: AgentContext<any, any, any, TSetupReturn, TAppState>
+			) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>;
 
 export interface AgentRunner<
 	TInput extends StandardSchemaV1 | undefined = any,
@@ -245,7 +258,7 @@ const agents = new Map<string, Agent<any, any, any, any, any>>();
 
 // WeakMap to store event listeners for each agent instance (truly private)
 const agentEventListeners = new WeakMap<
-	Agent<any, any, any>,
+	Agent<any, any, any, any, any>,
 	Map<AgentEventName, Set<AgentEventCallback<any>>>
 >();
 
@@ -254,20 +267,20 @@ const agentConfigs = new Map<string, unknown>();
 
 // Helper to fire event listeners sequentially, abort on first error
 async function fireAgentEvent(
-	agent: Agent<any, any, any>,
+	agent: Agent<any, any, any, any, any>,
 	eventName: 'started' | 'completed',
-	context: AgentContext<any, any, any>
+	context: AgentContext<any, any, any, any, any>
 ): Promise<void>;
 async function fireAgentEvent(
-	agent: Agent<any, any, any>,
+	agent: Agent<any, any, any, any, any>,
 	eventName: 'errored',
-	context: AgentContext<any, any, any>,
+	context: AgentContext<any, any, any, any, any>,
 	data: Error
 ): Promise<void>;
 async function fireAgentEvent(
-	agent: Agent<any, any, any>,
+	agent: Agent<any, any, any, any, any>,
 	eventName: AgentEventName,
-	context: AgentContext<any, any, any>,
+	context: AgentContext<any, any, any, any, any>,
 	data?: Error
 ): Promise<void> {
 	// Fire agent-level listeners
@@ -327,26 +340,45 @@ export const getAgentConfig = (name: AgentName): unknown => {
 /**
  * Create an agent with automatic type inference.
  * Infers all types from the config object automatically including handler parameter types.
+ * The setup function's return type is automatically inferred and flows through to handler and shutdown.
+ *
+ * **Important:** The app parameter must be explicitly typed as AppState for proper inference:
+ * ```typescript
+ * setup: async (app: AppState) => {
+ *   return { myConfig: 'value' };
+ * }
+ * ```
+ * This is required because TypeScript cannot provide contextual typing for callback parameters
+ * when they're part of a generic type. The concrete AppState annotation enables inference of
+ * the config type that flows through to handler and shutdown.
  */
 export function createAgent<
-	const TConfig extends {
-		schema?: {
-			input?: StandardSchemaV1;
-			output?: StandardSchemaV1;
-			stream?: boolean;
-		};
-		metadata: ExternalAgentMetadata;
-		setup?: (app: AppState) => any;
-		handler: (...args: any[]) => any;
-		shutdown?: (app: AppState, config: any) => any;
-	},
->(
-	config: TConfig
-): Agent<
-	InferInput<TConfig>,
-	InferOutput<TConfig>,
-	InferStream<TConfig>,
-	InferSetupReturn<TConfig>,
+	TSchema extends
+		| {
+				input?: StandardSchemaV1;
+				output?: StandardSchemaV1;
+				stream?: boolean;
+		  }
+		| undefined = undefined,
+	TConfig extends (app: AppState) => any = any,
+>(config: {
+	schema?: TSchema;
+	metadata: ExternalAgentMetadata;
+	setup?: TConfig;
+	handler: AgentHandlerFromConfig<
+		TSchema,
+		TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined,
+		AppState
+	>;
+	shutdown?: (
+		app: AppState,
+		config: TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined
+	) => Promise<void> | void;
+}): Agent<
+	SchemaInput<TSchema>,
+	SchemaOutput<TSchema>,
+	SchemaStream<TSchema>,
+	TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined,
 	AppState
 >;
 
@@ -431,7 +463,7 @@ export function createAgent<
 			validatedInput = inputResult.value;
 		}
 
-		const agentCtx = getAgentContext();
+		const agentCtx = getAgentContext() as AgentContext<any, any, any, TConfig, TAppState>;
 
 		// Get the agent instance from the agents Map to fire events
 		// The agent will be registered in the agents Map before the handler is called

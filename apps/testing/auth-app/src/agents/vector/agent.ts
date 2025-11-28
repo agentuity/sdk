@@ -87,7 +87,7 @@ const agent = createAgent({
 			}),
 		]),
 	},
-	handler: async (c: AgentContext, { operation, key, keys, document, query, category }) => {
+	handler: async (c, { operation, key, keys, document, query, category }) => {
 		const storeName = 'test-vector-store';
 
 		switch (operation) {

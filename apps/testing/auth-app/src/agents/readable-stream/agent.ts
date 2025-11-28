@@ -10,7 +10,7 @@ const agent = createAgent({
 		output: z.string(),
 		stream: true,
 	},
-	handler: (_c: AgentContext, input: string) => {
+	handler: (_c, input: string) => {
 		const stream = new ReadableStream<string>({
 			async start(controller) {
 				controller.enqueue(`You said: ${input}\n`);

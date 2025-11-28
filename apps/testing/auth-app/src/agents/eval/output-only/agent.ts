@@ -8,7 +8,7 @@ const agent = createAgent({
 	schema: {
 		output: z.string(),
 	},
-	handler: async (_c: AgentContext) => {
+	handler: async (_c) => {
 		return 'Hello from output-only agent';
 	},
 });

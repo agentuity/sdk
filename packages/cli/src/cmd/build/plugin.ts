@@ -31,7 +31,11 @@ function toPascalCase(str: string): string {
 /**
  * Setup lifecycle types by analyzing app.ts for setup() function
  */
-async function setupLifecycleTypes(rootDir: string, srcDir: string): Promise<boolean> {
+async function setupLifecycleTypes(
+	rootDir: string,
+	srcDir: string,
+	logger: ReturnType<typeof createLogger>
+): Promise<boolean> {
 	// Look for app.ts in both root and src directories
 	const rootAppFile = join(dirname(srcDir), 'app.ts');
 	const srcAppFile = join(srcDir, 'app.ts');
@@ -47,7 +51,11 @@ async function setupLifecycleTypes(rootDir: string, srcDir: string): Promise<boo
 		return false;
 	}
 
-	return generateLifecycleTypes(rootDir, appFile);
+	try {
+		return await generateLifecycleTypes(rootDir, appFile);
+	} catch (error) {
+		logger.fatal('Failed to generate lifecycle types:', error);
+	}
 }
 
 /**
@@ -610,10 +618,10 @@ const AgentuityBundler: BunPlugin = {
 
 				const indexFile = join(srcDir, 'web', 'index.html');
 
-				if (existsSync(indexFile)) {
-					// Setup workbench configuration - evaluate fresh each time during builds
-					const workbenchConfig = await setupWorkbench(srcDir);
+				// Setup workbench configuration - evaluate fresh each time during builds
+				const workbenchConfig = await setupWorkbench(srcDir);
 
+				if (existsSync(indexFile)) {
 					inserts.push(`await (async () => {
     const { serveStatic } = require('hono/bun');
     const { getRouter, registerDevModeRoutes } = await import('@agentuity/runtime');
@@ -702,29 +710,48 @@ const AgentuityBundler: BunPlugin = {
 				generateAgentRegistry(srcDir, agentInfo);
 
 				// Generate lifecycle types if setup() is present in app.ts
-				await setupLifecycleTypes(rootDir, srcDir);
+				await setupLifecycleTypes(rootDir, srcDir, logger);
 
-				// create the workbench routes
-				inserts.push(`await (async() => {
+				// Only create the workbench metadata route if workbench is actually configured
+				if (workbenchConfig) {
+					inserts.push(`await (async() => {
     const { createWorkbenchMetadataRoute, getRouter } = await import('@agentuity/runtime');
     const router = getRouter()!;
 	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
 })();`);
+				}
 
 				const file = Bun.file(args.path);
 				let contents = await file.text();
 				// Use AST-based parsing to reliably find createApp statement end
 				const insertPos = findCreateAppEndPosition(contents);
+
+				// Add initialization call after all agent registrations
+				const setupCall = `
+// Initialize providers and run agent setup callbacks after all agents are registered
+await (async() => {
+    const { runAgentSetups, getAppState, getThreadProvider, getSessionProvider } = await import('@agentuity/runtime');
+    const threadProvider = getThreadProvider();
+    const sessionProvider = getSessionProvider();
+    
+    // Initialize providers first
+    await Promise.all([threadProvider.initialize(), sessionProvider.initialize()]);
+    
+    // Then run agent setups
+    await runAgentSetups(getAppState());
+})();`;
+
 				if (insertPos > 0) {
 					contents =
 						contents.slice(0, insertPos) +
 						'\n\n' +
 						inserts.join('\n') +
+						setupCall +
 						contents.slice(insertPos);
 				} else {
 					// Fallback: append to end if AST parsing fails
 					logger.warn('Could not find createApp in AST, appending code to end of file');
-					contents += `\n${inserts.join('\n')}`;
+					contents += `\n${inserts.join('\n')}${setupCall}`;
 				}
 
 				// generate the build metadata

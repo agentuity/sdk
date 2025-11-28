@@ -8,7 +8,7 @@ const agent = createAgent({
 	schema: {
 		input: z.object({ message: z.string() }),
 	},
-	handler: async (_c: AgentContext, { message }) => {
+	handler: async (_c, { message }) => {
 		console.log('input-only message', message);
 	},
 });

@@ -6,8 +6,9 @@ import { createLogger } from '@agentuity/server';
 import * as ts from 'typescript';
 import type { WorkbenchConfig } from '@agentuity/core';
 import type { LogLevel } from '../../types';
-import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import JSON5 from 'json5';
 
 const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel);
 
@@ -1210,25 +1211,20 @@ export function extractAppStateType(content: string): string | null {
  * @param rootDir - Root directory of the project
  * @param shouldAdd - If true, add the mapping; if false, remove it
  */
-function updateTsconfigPathMapping(rootDir: string, shouldAdd: boolean): void {
+async function updateTsconfigPathMapping(rootDir: string, shouldAdd: boolean): Promise<void> {
 	const tsconfigPath = join(rootDir, 'tsconfig.json');
 
-	if (!existsSync(tsconfigPath)) {
+	if (!(await Bun.file(tsconfigPath).exists())) {
 		logger.debug('No tsconfig.json found, skipping path mapping update');
 		return;
 	}
 
 	try {
-		const tsconfigContent = readFileSync(tsconfigPath, 'utf-8');
+		const tsconfigContent = await Bun.file(tsconfigPath).text();
 
-		// Use TypeScript's parseConfigFileTextToJson to handle comments
-		const result = ts.parseConfigFileTextToJson(tsconfigPath, tsconfigContent);
-		if (result.error) {
-			logger.warn('Failed to parse tsconfig.json:', result.error.messageText);
-			return;
-		}
-
-		const tsconfig = result.config;
+		// Use JSON5 to parse tsconfig.json (handles comments in input)
+		const tsconfig = JSON5.parse(tsconfigContent);
+		const _before = JSON.stringify(tsconfig);
 
 		// Initialize compilerOptions and paths if they don't exist
 		if (!tsconfig.compilerOptions) {
@@ -1266,8 +1262,13 @@ function updateTsconfigPathMapping(rootDir: string, shouldAdd: boolean): void {
 			}
 		}
 
-		// Write back with formatting (note: this will strip comments)
-		writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2) + '\n', 'utf-8');
+		const _after = JSON.stringify(tsconfig);
+		if (_before === _after) {
+			return;
+		}
+
+		// Write back using standard JSON (TypeScript requires strict JSON format)
+		await Bun.write(tsconfigPath, JSON.stringify(tsconfig, null, '\t') + '\n');
 	} catch (error) {
 		logger.warn('Failed to update tsconfig.json:', error);
 	}
@@ -1284,55 +1285,97 @@ export async function generateLifecycleTypes(
 	rootDir: string,
 	appFilePath: string
 ): Promise<boolean> {
-	try {
-		const appContent = await Bun.file(appFilePath).text();
-		if (typeof appContent !== 'string') {
-			return false;
-		}
+	const appContent = await Bun.file(appFilePath).text();
+	if (typeof appContent !== 'string') {
+		return false;
+	}
 
-		const appStateType = extractAppStateType(appContent as string);
+	const appStateType = extractAppStateType(appContent as string);
 
-		if (!appStateType) {
-			logger.debug('No setup() function found in app.ts, skipping lifecycle type generation');
-			// Remove path mapping if no setup found
-			updateTsconfigPathMapping(rootDir, false);
-			return false;
-		}
+	if (!appStateType) {
+		logger.debug('No setup() function found in app.ts, skipping lifecycle type generation');
+		// Remove path mapping if no setup found
+		await updateTsconfigPathMapping(rootDir, false);
+		return false;
+	}
 
-		const agentuityDir = join(rootDir, '.agentuity');
+	const agentuityDir = join(rootDir, '.agentuity');
 
-		// Ensure .agentuity directory exists
-		if (!existsSync(agentuityDir)) {
-			mkdirSync(agentuityDir, { recursive: true });
-		}
+	// Ensure .agentuity directory exists
+	if (!existsSync(agentuityDir)) {
+		mkdirSync(agentuityDir, { recursive: true });
+	}
 
-		// Generate .agentuity_types.ts
-		const typesContent = `// AUTO-GENERATED from app.ts setup() return type
+	// First, determine the runtime package location
+	// Try multiple locations: app-level node_modules, then monorepo root
+	const appLevelPath = join(rootDir, 'node_modules', '@agentuity', 'runtime');
+	// From apps/testing/auth-app to monorepo root is 3 levels up (../../..)
+	const rootLevelPath = join(rootDir, '..', '..', '..', 'node_modules', '@agentuity', 'runtime');
+
+	let runtimePkgPath: string;
+	if (existsSync(appLevelPath)) {
+		runtimePkgPath = appLevelPath;
+		logger.debug(`Found runtime package at app level: ${appLevelPath}`);
+	} else if (existsSync(rootLevelPath)) {
+		runtimePkgPath = rootLevelPath;
+		logger.debug(`Found runtime package at root level: ${rootLevelPath}`);
+	} else {
+		throw new Error(
+			`@agentuity/runtime package not found in:\n` +
+				`  - ${appLevelPath}\n` +
+				`  - ${rootLevelPath}\n` +
+				`Make sure dependencies are installed by running 'bun install' or 'npm install'`
+		);
+	}
+
+	let runtimeImportPath: string | null = null;
+
+	// Calculate relative path from .agentuity/ to the package location
+	// Don't resolve symlinks - we want to use the symlink path so it works in both
+	// local dev (symlinked to packages/) and CI (actual node_modules)
+	if (existsSync(runtimePkgPath)) {
+		// Calculate relative path from .agentuity/ to node_modules package
+		const relPath = relative(agentuityDir, runtimePkgPath);
+		runtimeImportPath = relPath;
+		logger.debug(`Using relative path to runtime package: ${relPath}`);
+	} else {
+		throw new Error(
+			`Failed to access @agentuity/runtime package at ${runtimePkgPath}\n` +
+				`Make sure dependencies are installed`
+		);
+	}
+
+	if (!runtimeImportPath) {
+		throw new Error(`Failed to determine import path for @agentuity/runtime`);
+	}
+
+	// Now generate .agentuity_types.ts
+	// NOTE: We can ONLY augment the package name, not relative paths
+	// TypeScript resolves @agentuity/runtime through path mapping -> wrapper -> actual package
+	const typesContent = `// AUTO-GENERATED from app.ts setup() return type
 // This file is auto-generated by the build tool - do not edit manually
 
 export type GeneratedAppState = ${appStateType};
 
-// Augment BOTH the node_modules path AND the mapped path to ensure TypeScript picks it up
-declare module '../node_modules/@agentuity/runtime/src/index' {
-	interface AppState extends GeneratedAppState {}
-}
-
+// Augment the @agentuity/runtime module with AppState
+// This will be picked up when imported through the wrapper
 declare module '@agentuity/runtime' {
 	interface AppState extends GeneratedAppState {}
 }
 `;
-		const typesPath = join(agentuityDir, '.agentuity_types.ts');
-		writeFileSync(typesPath, typesContent, 'utf-8');
-		logger.debug(`Generated lifecycle types: ${typesPath}`);
+	const typesPath = join(agentuityDir, '.agentuity_types.ts');
+	await Bun.write(typesPath, typesContent);
+	logger.debug(`Generated lifecycle types: ${typesPath}`);
 
-		// Generate .agentuity_runtime.ts wrapper
-		// This wrapper provides a createRouter with the augmented AppState
-		const wrapperContent = `// AUTO-GENERATED runtime wrapper
+	const wrapperContent = `// AUTO-GENERATED runtime wrapper
 // This file is auto-generated by the build tool - do not edit manually
 
-// Import augmented types
+// Import augmentations file (NOT type-only) to trigger module augmentation
 import type { GeneratedAppState } from './.agentuity_types';
-import { createRouter as baseCreateRouter, type Env } from '../node_modules/@agentuity/runtime/src/index';
+import './.agentuity_types';
+
+// Import from actual package location
+import { createRouter as baseCreateRouter, type Env } from '${runtimeImportPath}/src/index';
 import type { Hono } from 'hono';
 
 // Type aliases to avoid repeating the generic parameter
@@ -1345,20 +1388,16 @@ export function createRouter(): AppRouter {
 }
 
 // Re-export everything else
-export * from '../node_modules/@agentuity/runtime/src/index';
+export * from '${runtimeImportPath}/src/index';
 `;
-		const wrapperPath = join(agentuityDir, '.agentuity_runtime.ts');
-		writeFileSync(wrapperPath, wrapperContent, 'utf-8');
-		logger.debug(`Generated lifecycle wrapper: ${wrapperPath}`);
+	const wrapperPath = join(agentuityDir, '.agentuity_runtime.ts');
+	await Bun.write(wrapperPath, wrapperContent);
+	logger.debug(`Generated lifecycle wrapper: ${wrapperPath}`);
 
-		// Update tsconfig.json with path mapping
-		updateTsconfigPathMapping(rootDir, true);
+	// Update tsconfig.json with path mapping
+	await updateTsconfigPathMapping(rootDir, true);
 
-		return true;
-	} catch (error) {
-		logger.warn('Failed to generate lifecycle types:', error);
-		return false;
-	}
+	return true;
 }
 
 /**

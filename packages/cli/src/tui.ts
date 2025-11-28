@@ -1451,7 +1451,7 @@ export function table<T extends Record<string, unknown>>(
 	let colAligns: Array<'left' | 'right' | 'center'>;
 
 	let headings: string[];
-	
+
 	if (isAdvancedMode) {
 		// Advanced mode: use provided column configurations
 		const columnConfigs = columns as TableColumn[];

@@ -4,7 +4,7 @@ const agent = createAgent({
 	metadata: {
 		name: 'Eval No Schema Demo',
 	},
-	handler: async (_c: AgentContext) => {
+	handler: async (_c) => {
 		console.log('no-schema agent executed');
 	},
 });

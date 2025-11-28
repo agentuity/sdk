@@ -44,13 +44,25 @@ wait_for_log_pattern() {
 # Start server if needed and capture logs
 start_server_if_needed
 
-echo "Step 1: Test Event Listeners - GET /agent/events"
+echo "Step 1: Verify app setup was called during server start"
+if [ "$SERVER_STARTED" = true ]; then
+	if wait_for_log_pattern "🚀 App setup: Initializing test data" 5 0.2; then
+		echo -e "${GREEN}✓ PASS:${NC} App setup() called on server start"
+	else
+		echo -e "${YELLOW}⚠ WARNING:${NC} App setup() not found in logs (may have been called before log capture)"
+	fi
+else
+	echo -e "${YELLOW}⚠ INFO:${NC} Server was already running, app setup verification skipped"
+fi
+echo ""
+
+echo "Step 2: Test Event Listeners - GET /agent/events"
 echo "Making request to trigger event listeners..."
 RESPONSE=$(curl -s "$BASE_URL/agent/events")
 echo "Response: $RESPONSE"
 echo ""
 
-echo "Step 2: Verify 'started' event was fired"
+echo "Step 3: Verify 'started' event was fired"
 # Check if the agent handler was called successfully
 if [[ "$RESPONSE" == *"Hello, the date is"* ]]; then
 	echo -e "${GREEN}✓ PASS:${NC} Agent executed successfully"
@@ -60,7 +72,7 @@ else
 fi
 echo ""
 
-echo "Step 3: Verify agent-level event listener logs with state"
+echo "Step 4: Verify agent-level event listener logs with state"
 # Only verify logs if we started the server (and have access to log file)
 if [ "$SERVER_STARTED" = true ]; then
 	if [ ! -f "$LOG_FILE" ]; then
@@ -128,7 +140,7 @@ else
 fi
 echo ""
 
-echo "Step 3b: Verify app-level event listener logs"
+echo "Step 5: Verify app-level event listener logs"
 if [ "$SERVER_STARTED" = true ]; then
 	# Wait for app-level 'started' event log to appear
 	if wait_for_log_pattern "APP EVENT: agent .* started" 5 0.2; then
@@ -166,7 +178,7 @@ else
 fi
 echo ""
 
-echo "Step 3c: Verify thread lifecycle event listener logs"
+echo "Step 6: Verify thread lifecycle event listener logs"
 if [ "$SERVER_STARTED" = true ]; then
 	# Wait for thread.created event
 	if wait_for_log_pattern "APP EVENT: thread .* created" 5 0.2; then
@@ -193,7 +205,7 @@ else
 fi
 echo ""
 
-echo "Step 3d: Verify session lifecycle event listener logs"
+echo "Step 7: Verify session lifecycle event listener logs"
 if [ "$SERVER_STARTED" = true ]; then
 	# Wait for session.started event
 	if wait_for_log_pattern "APP EVENT: session .* started" 5 0.2; then
@@ -230,7 +242,7 @@ else
 fi
 echo ""
 
-echo "Step 4: Test multiple requests trigger events multiple times"
+echo "Step 8: Test multiple requests trigger events multiple times"
 echo "Making second request..."
 RESPONSE2=$(curl -s "$BASE_URL/agent/events")
 if [[ "$RESPONSE2" == *"Hello, the date is"* ]]; then
@@ -241,7 +253,7 @@ else
 fi
 echo ""
 
-echo "Step 5: Verify event listener is persistent"
+echo "Step 9: Verify event listener is persistent"
 echo "Making third request..."
 RESPONSE3=$(curl -s "$BASE_URL/agent/events")
 if [[ "$RESPONSE3" == *"Hello, the date is"* ]]; then

@@ -320,9 +320,10 @@ export async function bundle({
 				await Bun.write(workbenchIndexFile, generateWorkbenchIndexHtml());
 
 				// Bundle workbench using generated files
+				// NOTE: Don't set 'root' to tempWorkbenchDir because it breaks module resolution
+				// Bun needs to resolve @agentuity/* packages from the project's node_modules
 				const workbenchBuildConfig: Bun.BuildConfig = {
 					entrypoints: [workbenchIndexFile],
-					root: tempWorkbenchDir,
 					outdir: join(outDir, 'workbench'),
 					define: workbenchDefine,
 					sourcemap: dev ? 'inline' : 'linked',
@@ -362,6 +363,42 @@ export async function bundle({
 				}
 			} catch (error) {
 				logger.error('Failed to bundle workbench:', error);
+				// Collect all error messages
+				const errorMessages: string[] = [];
+				if (error instanceof AggregateError && Array.isArray(error.errors)) {
+					for (const err of error.errors) {
+						// Extract useful info from Bun's ResolveMessage errors
+						if (err && typeof err === 'object') {
+							const errObj = err as Record<string, unknown>;
+							if (typeof errObj.message === 'string') {
+								errorMessages.push(`  ${errObj.message}`);
+							}
+							const position = errObj.position as Record<string, unknown> | undefined;
+							if (position?.file && position?.line && position?.column) {
+								errorMessages.push(
+									`  at ${position.file}:${position.line}:${position.column}`
+								);
+							}
+						}
+					}
+				}
+
+				// Show different tips based on whether we're in a monorepo or published package
+				const isMonorepo = await Bun.file(join(rootDir, '../../packages')).exists();
+				if (isMonorepo) {
+					errorMessages.push(
+						'\nTip: Make sure all @agentuity/* packages are built by',
+						'running "bun run build" from the monorepo root.'
+					);
+				} else {
+					errorMessages.push(
+						'\nTip: If you see module resolution errors, try running',
+						'"bun install" to ensure all dependencies are installed.'
+					);
+				}
+
+				// Don't continue if workbench bundling fails
+				logger.fatal(errorMessages.join('\n'));
 			}
 		}
 	}

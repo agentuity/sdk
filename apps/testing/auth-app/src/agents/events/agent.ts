@@ -8,7 +8,7 @@ const agent = createAgent({
 	schema: {
 		output: z.string(),
 	},
-	handler: async (c: AgentContext) => {
+	handler: async (c) => {
 		console.log('session', c.sessionId);
 		console.log('thread', c.thread.id, c.thread.state.get('last_hit'));
 		c.thread.state.set('last_hit', new Date());

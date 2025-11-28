@@ -5,7 +5,7 @@ const agent = createAgent({
 		name: 'Cron Agent',
 		description: 'Agent for testing cron functionality',
 	},
-	handler: async (c: AgentContext) => {
+	handler: async (c) => {
 		c.logger.info('Cron agent executed at', new Date().toISOString());
 	},
 });

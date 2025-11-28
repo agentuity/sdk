@@ -22,10 +22,5 @@
 			"@agentuity/runtime": ["./.agentuity/.agentuity_runtime.ts"]
 		}
 	},
-	"include": [
-		"src/**/*",
-		"app.ts",
-		"src/agents/registry.generated.ts",
-		".agentuity/.agentuity_runtime.ts"
-	]
+	"include": ["src/**/*", "app.ts"]
 }

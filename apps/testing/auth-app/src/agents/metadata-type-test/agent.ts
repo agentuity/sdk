@@ -8,7 +8,7 @@ const agent = createAgent({
 		name: 'Metadata Type Test Agent',
 		description: 'Agent for testing TypeScript type safety of createAgent metadata',
 	},
-	handler: async (c: AgentContext) => {
+	handler: async (c) => {
 		c.logger.info('Metadata type test agent executed');
 	},
 });
@@ -20,33 +20,37 @@ const agent = createAgent({
 const _invalidAgent1 = createAgent({
 	metadata: {
 		name: 'Test',
+		// @ts-expect-error - Testing that 'id' field is rejected
 		id: 'should-not-be-allowed' as any,
 	},
-	handler: async (_c: AgentContext) => {},
+	handler: async (_c) => {},
 });
 
 const _invalidAgent2 = createAgent({
 	metadata: {
 		name: 'Test',
+		// @ts-expect-error - Testing that 'filename' field is rejected
 		filename: 'should-not-be-allowed' as any,
 	},
-	handler: async (_c: AgentContext) => {},
+	handler: async (_c) => {},
 });
 
 const _invalidAgent3 = createAgent({
 	metadata: {
 		name: 'Test',
+		// @ts-expect-error - Testing that 'version' field is rejected
 		version: 'should-not-be-allowed' as any,
 	},
-	handler: async (_c: AgentContext) => {},
+	handler: async (_c) => {},
 });
 
 const _invalidAgent4 = createAgent({
 	metadata: {
 		name: 'Test',
+		// @ts-expect-error - Testing that 'identifier' field is rejected
 		identifier: 'should-not-be-allowed' as any,
 	},
-	handler: async (_c: AgentContext) => {},
+	handler: async (_c) => {},
 });
 
 // Valid usage - only external metadata fields are allowed
@@ -55,7 +59,7 @@ const _validAgent = createAgent({
 		name: 'Valid Agent',
 		description: 'This is valid',
 	},
-	handler: async (_c: AgentContext) => {},
+	handler: async (_c) => {},
 });
 
 export default agent;

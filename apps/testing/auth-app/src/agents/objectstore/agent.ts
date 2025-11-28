@@ -34,7 +34,7 @@ const agent = createAgent({
 		}),
 	},
 	handler: async (
-		c: AgentContext,
+		c,
 		{ operation, bucket, key, data, binaryData, contentType, expiresDuration, prefix, limit }
 	) => {
 		switch (operation) {
