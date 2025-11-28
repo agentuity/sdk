@@ -318,8 +318,41 @@ else
 fi
 echo ""
 
-# Step 12: Test CLI stream download with --output flag
-echo "Step 12: Testing CLI 'stream get --output' command..."
+# Step 12: Test direct URL fetch from metadata
+echo "Step 12: Testing direct URL fetch from stream metadata..."
+if [ -n "$CLI_TEST_ID" ]; then
+	# Get metadata with URL from create response (we already have it from step 9)
+	STREAM_URL=$(echo "$CLI_TEST_CREATE" | jq -r .result.url)
+
+	if [ -n "$STREAM_URL" ] && [ "$STREAM_URL" != "null" ]; then
+		echo "  Stream URL: $STREAM_URL"
+
+		# Fetch directly from URL using Authorization header
+		URL_FETCH_RESPONSE=$(curl -s -H "Authorization: Bearer $AGENTUITY_SDK_KEY" "$STREAM_URL")
+		URL_FETCH_SHA256=$(calculate_sha256 "$URL_FETCH_RESPONSE")
+
+		if [ "$URL_FETCH_SHA256" = "$CLI_TEST_SHA256" ]; then
+			echo -e "${GREEN}✓ PASS:${NC} URL fetch content matches original"
+			echo "  SHA256 verified"
+		else
+			echo -e "${RED}✗ FAIL:${NC} URL fetch content does not match original"
+			echo "  Expected SHA256: $CLI_TEST_SHA256"
+			echo "  Got SHA256: $URL_FETCH_SHA256"
+			echo "  Expected content: $CLI_TEST_CONTENT"
+			echo "  Fetched content: $URL_FETCH_RESPONSE"
+			exit 1
+		fi
+	else
+		echo -e "${RED}✗ FAIL:${NC} Stream URL not found in metadata"
+		exit 1
+	fi
+else
+	echo -e "${YELLOW}⚠ SKIP:${NC} No stream ID available for URL fetch test"
+fi
+echo ""
+
+# Step 13: Test CLI stream download with --output flag
+echo "Step 13: Testing CLI 'stream get --output' command..."
 if [ -n "$CLI_TEST_ID" ]; then
 	DOWNLOAD_FILE="$TEMP_DIR/downloaded-stream.txt"
 	CLI_DOWNLOAD_OUTPUT=$(bun "$LOCAL_CLI" cloud stream get "$CLI_TEST_ID" --dir "$PROJECT_DIR" --output "$DOWNLOAD_FILE" 2>&1 || true)
@@ -352,8 +385,8 @@ else
 fi
 echo ""
 
-# Step 13: Test CLI stream delete command
-echo "Step 13: Testing CLI 'stream delete' command..."
+# Step 14: Test CLI stream delete command
+echo "Step 14: Testing CLI 'stream delete' command..."
 if [ -n "$CLI_TEST_ID" ] && [ "$CLI_TEST_ID" != "null" ]; then
 	CLI_DELETE_OUTPUT=$(bun "$LOCAL_CLI" cloud stream delete "$CLI_TEST_ID" --dir "$PROJECT_DIR" --json 2>&1 || true)
 	
