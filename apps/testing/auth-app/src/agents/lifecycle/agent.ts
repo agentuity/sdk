@@ -1,0 +1,99 @@
+import { createAgent } from '@agentuity/runtime';
+import { z } from 'zod';
+
+const lifecycleAgent = createAgent({
+	metadata: {
+		name: 'Lifecycle Test Agent',
+		description: 'Agent that tests lifecycle setup and shutdown methods',
+	},
+	schema: {
+		input: z.object({
+			message: z.string(),
+		}),
+		output: z.object({
+			result: z.string(),
+			appName: z.string(),
+			agentId: z.string(),
+		}),
+	},
+	setup: async (app) => {
+		// Validate app state is available and typed
+		console.log('🔧 [LIFECYCLE AGENT] Setup started');
+		console.log('   ✅ App name:', app.appName);
+		console.log('   ✅ App version:', app.version);
+		console.log('   ✅ App started at:', app.startedAt);
+		console.log('   ✅ Max connections:', app.config.maxConnections);
+		console.log('   ✅ Timeout:', app.config.timeout);
+
+		// Initialize agent-specific resources
+		// Return value type is inferred automatically
+		return {
+			agentId: `agent-${Math.random().toString(36).substr(2, 9)}`,
+			connectionPool: ['conn-1', 'conn-2', 'conn-3'],
+			setupTime: new Date(),
+		};
+	},
+	handler: async (ctx: any, input: any) => {
+		// Validate both app state and agent config are available and typed
+		console.log('🚀 [LIFECYCLE AGENT] Handler started');
+		console.log('   📊 App state available:', !!ctx.app);
+		console.log('   📊 App name:', ctx.app.appName);
+		console.log('   📊 App version:', ctx.app.version);
+		console.log('   📊 App config timeout:', ctx.app.config.timeout);
+		console.log('   📊 Agent config available:', !!ctx.config);
+		console.log('   📊 Agent ID:', ctx.config.agentId);
+		console.log('   📊 Connection pool size:', ctx.config.connectionPool.length);
+		console.log('   📊 Agent setup time:', ctx.config.setupTime);
+		console.log('   📊 Input message:', input.message);
+
+		// Use the app and agent state
+		const uptime = Date.now() - ctx.app.startedAt.getTime();
+		const agentRuntime = Date.now() - ctx.config.setupTime.getTime();
+
+		console.log('   ⏱️  App uptime:', uptime, 'ms');
+		console.log('   ⏱️  Agent runtime:', agentRuntime, 'ms');
+
+		return {
+			result: `Processed: ${input.message}`,
+			appName: ctx.app.appName,
+			agentId: ctx.config.agentId,
+		};
+	},
+	shutdown: async (app, config) => {
+		// Validate shutdown receives both app state and agent config
+		console.log('🛑 [LIFECYCLE AGENT] Shutdown started');
+		console.log('   ✅ App name:', app.appName);
+		console.log('   ✅ App started at:', app.startedAt);
+		console.log('   ✅ Agent ID:', config.agentId);
+		console.log('   ✅ Connection pool:', config.connectionPool);
+		console.log('   ✅ Cleaning up connections...');
+
+		// Simulate cleanup
+		for (const conn of config.connectionPool) {
+			console.log('      - Closing:', conn);
+		}
+
+		console.log('🛑 [LIFECYCLE AGENT] Shutdown completed');
+	},
+});
+
+// Add event listeners
+// ctx.app is fully typed automatically!
+// For ctx.config, extract type from setup function (NonNullable to handle optional setup)
+type Config = Awaited<ReturnType<NonNullable<typeof lifecycleAgent.setup>>>;
+
+lifecycleAgent.addEventListener('started', (_eventName, _agent, ctx) => {
+	const config = ctx.config as Config;
+	console.log('🎯 [LIFECYCLE EVENT] Agent started');
+	console.log('   📊 App name:', ctx.app.appName);
+	console.log('   📊 Agent ID from config:', config.agentId);
+	console.log('   📊 Connection pool size:', config.connectionPool.length);
+});
+
+lifecycleAgent.addEventListener('completed', (_eventName, _agent, ctx) => {
+	const config = ctx.config as Config;
+	console.log('🎯 [LIFECYCLE EVENT] Agent completed');
+	console.log('   📊 Config setup time:', config.setupTime);
+});
+
+export default lifecycleAgent;
