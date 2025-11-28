@@ -11,8 +11,14 @@ import { join } from 'node:path';
 
 const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel);
 
+interface ASTProgram extends ASTNode {
+	body: ASTNode[];
+}
+
 interface ASTNode {
 	type: string;
+	start?: number;
+	end?: number;
 }
 
 interface ASTNodeIdentifier extends ASTNode {
@@ -1450,4 +1456,97 @@ function parseConfigObject(node: ts.Node): WorkbenchConfig | null {
 	}
 
 	return config;
+}
+
+/**
+ * Find the end position of createApp call statement in the source code
+ * Uses AST parsing to reliably find the complete statement including await/const assignment
+ *
+ * @param content - The source code content
+ * @returns The character position after the createApp statement, or -1 if not found
+ */
+export function findCreateAppEndPosition(content: string): number {
+	try {
+		const ast = acornLoose.parse(content, {
+			ecmaVersion: 'latest',
+			sourceType: 'module',
+		}) as ASTProgram;
+
+		// Walk through all top-level statements
+		for (const node of ast.body) {
+			let targetNode: ASTNode | undefined;
+
+			// Check for: const app = await createApp(...)
+			if (node.type === 'VariableDeclaration') {
+				const varDecl = node as unknown as { declarations: ASTVariableDeclarator[] };
+				for (const declarator of varDecl.declarations) {
+					if (declarator.init) {
+						// Handle await createApp(...)
+						if (declarator.init.type === 'AwaitExpression') {
+							const awaitExpr = declarator.init as unknown as { argument: ASTCallExpression };
+							if (
+								awaitExpr.argument?.type === 'CallExpression' &&
+								isCreateAppCall(awaitExpr.argument)
+							) {
+								targetNode = node;
+								break;
+							}
+						}
+						// Handle createApp(...) without await
+						else if (declarator.init.type === 'CallExpression') {
+							if (isCreateAppCall(declarator.init as ASTCallExpression)) {
+								targetNode = node;
+								break;
+							}
+						}
+					}
+				}
+			}
+			// Check for: await createApp(...)
+			else if (node.type === 'ExpressionStatement') {
+				const exprStmt = node as ASTExpressionStatement;
+				if (exprStmt.expression.type === 'AwaitExpression') {
+					const awaitExpr = exprStmt.expression as unknown as { argument: ASTCallExpression };
+					if (
+						awaitExpr.argument?.type === 'CallExpression' &&
+						isCreateAppCall(awaitExpr.argument)
+					) {
+						targetNode = node;
+					}
+				} else if (exprStmt.expression.type === 'CallExpression') {
+					if (isCreateAppCall(exprStmt.expression as ASTCallExpression)) {
+						targetNode = node;
+					}
+				}
+			}
+
+			if (targetNode && targetNode.end !== undefined) {
+				// Find the semicolon after the statement (if it exists)
+				const afterStmt = content.slice(targetNode.end);
+				const semiMatch = afterStmt.match(/^\s*;/);
+				if (semiMatch) {
+					return targetNode.end + semiMatch[0].length;
+				}
+				// No semicolon, return end of statement
+				return targetNode.end;
+			}
+		}
+
+		return -1;
+	} catch (error) {
+		logger.warn('Failed to parse AST for createApp detection:', error);
+		return -1;
+	}
+}
+
+/**
+ * Check if a CallExpression is a call to createApp
+ */
+function isCreateAppCall(node: ASTCallExpression): boolean {
+	const callee = node.callee;
+	if (callee.type === 'Identifier') {
+		const id = callee as ASTNodeIdentifier;
+		return id.name === 'createApp';
+	}
+	return false;
 }

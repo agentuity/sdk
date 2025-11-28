@@ -9,6 +9,7 @@ import {
 	analyzeWorkbench,
 	checkRouteConflicts,
 	generateLifecycleTypes,
+	findCreateAppEndPosition,
 } from './ast';
 import type { WorkbenchConfig } from '@agentuity/core';
 import { applyPatch, generatePatches } from './patch';
@@ -712,36 +713,17 @@ const AgentuityBundler: BunPlugin = {
 
 				const file = Bun.file(args.path);
 				let contents = await file.text();
-				let inserted = false;
-				let index = contents.indexOf(' createApp(');
-				if (index < 0) {
-					index = contents.indexOf(' createApp (');
-				}
-				if (index < 0) {
-					throw new Error(`couldn't find the required createApp function in ${args.path}`);
-				}
-				
-				// Find the matching closing parenthesis for createApp(...)
-				const openParen = contents.indexOf('(', index);
-				let depth = 1;
-				let endParen = openParen + 1;
-				while (depth > 0 && endParen < contents.length) {
-					if (contents[endParen] === '(') depth++;
-					else if (contents[endParen] === ')') depth--;
-					endParen++;
-				}
-				
-				// Find the semicolon after the closing paren
-				const endSemi = contents.indexOf(';', endParen - 1);
-				if (endSemi > 0) {
+				// Use AST-based parsing to reliably find createApp statement end
+				const insertPos = findCreateAppEndPosition(contents);
+				if (insertPos > 0) {
 					contents =
-						contents.slice(0, endSemi + 1) +
+						contents.slice(0, insertPos) +
 						'\n\n' +
 						inserts.join('\n') +
-						contents.slice(endSemi + 1);
-					inserted = true;
-				}
-				if (!inserted) {
+						contents.slice(insertPos);
+				} else {
+					// Fallback: append to end if AST parsing fails
+					logger.warn('Could not find createApp in AST, appending code to end of file');
 					contents += `\n${inserts.join('\n')}`;
 				}
 
