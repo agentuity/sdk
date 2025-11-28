@@ -613,7 +613,7 @@ const AgentuityBundler: BunPlugin = {
 					// Setup workbench configuration - evaluate fresh each time during builds
 					const workbenchConfig = await setupWorkbench(srcDir);
 
-					inserts.unshift(`await (async () => {
+					inserts.push(`await (async () => {
     const { serveStatic } = require('hono/bun');
     const { getRouter, registerDevModeRoutes } = await import('@agentuity/runtime');
     const router = getRouter()!;
