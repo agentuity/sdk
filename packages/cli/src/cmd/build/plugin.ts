@@ -8,6 +8,7 @@ import {
 	parseEvalMetadata,
 	analyzeWorkbench,
 	checkRouteConflicts,
+	generateLifecycleTypes,
 } from './ast';
 import type { WorkbenchConfig } from '@agentuity/core';
 import { applyPatch, generatePatches } from './patch';
@@ -24,6 +25,28 @@ function toCamelCase(str: string): string {
 function toPascalCase(str: string): string {
 	const camel = toCamelCase(str);
 	return camel.charAt(0).toUpperCase() + camel.slice(1);
+}
+
+/**
+ * Setup lifecycle types by analyzing app.ts for setup() function
+ */
+async function setupLifecycleTypes(rootDir: string, srcDir: string): Promise<boolean> {
+	// Look for app.ts in both root and src directories
+	const rootAppFile = join(dirname(srcDir), 'app.ts');
+	const srcAppFile = join(srcDir, 'app.ts');
+
+	let appFile = '';
+	if (await Bun.file(rootAppFile).exists()) {
+		appFile = rootAppFile;
+	} else if (await Bun.file(srcAppFile).exists()) {
+		appFile = srcAppFile;
+	}
+
+	if (!appFile || !(await Bun.file(appFile).exists())) {
+		return false;
+	}
+
+	return generateLifecycleTypes(rootDir, appFile);
 }
 
 /**
@@ -550,6 +573,40 @@ const AgentuityBundler: BunPlugin = {
 					}
 				}
 
+				// Register standalone agents (agents without routes)
+				const routeAgentNames = new Set(
+					agentInfo
+						.filter((a) => {
+							// Check if this agent was added via a route (has a corresponding route file)
+							const agentPath = a.path.replace(/^\./, '').replace(/\/agent$/, '/route');
+							return routes.has(agentPath.replace(/^\/src\//, './'));
+						})
+						.map((a) => a.name)
+				);
+
+				for (const agentDetail of agentInfo) {
+					if (!routeAgentNames.has(agentDetail.name)) {
+						// This is a standalone agent - register it without a route
+						const agentPath = agentDetail.path;
+						const agentDirPath = agentPath.replace(/\/agent$/, '');
+						const evalsPath = join(srcDir, agentDirPath.replace(/^\./, ''), 'eval.ts');
+						const evalsImport = existsSync(evalsPath)
+							? `\n    require('./src/${agentDirPath.replace(/^\.\//, '')}/eval');`
+							: '';
+						const isSubagent = !!agentDetail.parent;
+						const agentRegistrationName = isSubagent
+							? `${agentDetail.parent}.${agentDetail.name}`
+							: agentDetail.name;
+
+						const buffer = `await (async() => {
+    const { registerAgent } = await import('@agentuity/runtime');
+    const agent = require('./src${agentPath}').default;
+    registerAgent("${agentRegistrationName}", agent);${evalsImport}
+})();`;
+						inserts.push(buffer);
+					}
+				}
+
 				const indexFile = join(srcDir, 'web', 'index.html');
 
 				if (existsSync(indexFile)) {
@@ -600,12 +657,51 @@ const AgentuityBundler: BunPlugin = {
 })();`);
 				}
 
+				// Add standalone agents (agents without routes) to agentInfo
+				// These agents can still be called by other agents or routes via ctx.agent
+				const registeredIdentifiers = new Set(agentInfo.map((a) => a.identifier));
+				for (const [identifier, md] of agentMetadata) {
+					if (!registeredIdentifiers.has(identifier)) {
+						// md.get('filename') can be either absolute or relative to rootDir
+						const filename = md.get('filename')!;
+						const absolutePath = filename.startsWith('/')
+							? filename
+							: join(rootDir, filename);
+
+						// Convert to path relative to srcDir like route-based agents
+						// e.g., /path/to/src/agents/lifecycle/agent.ts -> ./agents/lifecycle/agent
+						const agentPath = absolutePath.replace(srcDir, '.').replace('.ts', '');
+
+						// Extract folder name as agent name (same as route-based logic)
+						const folderName = basename(dirname(absolutePath));
+
+						const { isSubagent, parentName } = detectSubagent(absolutePath, srcDir);
+
+						const agentDetail: Record<string, string> = {
+							name: folderName,
+							id: md.get('id')!,
+							path: agentPath,
+							filename: absolutePath,
+							identifier: md.get('identifier')!,
+							description: md.get('description') ?? '',
+							agentId: md.get('agentId')!,
+						};
+						if (isSubagent && parentName) {
+							agentDetail.parent = parentName;
+						}
+						agentInfo.push(agentDetail);
+					}
+				}
+
 				// Only generate registry if there are agents
 				// Note: We don't import the registry here because:
 				// 1. Evals are already imported when agents are registered (see line 421-422)
 				// 2. The registry is for type definitions only, not runtime execution
 				// 3. Importing it causes bundler resolution issues since it's generated during build
 				generateAgentRegistry(srcDir, agentInfo);
+
+				// Generate lifecycle types if setup() is present in app.ts
+				await setupLifecycleTypes(rootDir, srcDir);
 
 				// create the workbench routes
 				inserts.push(`await (async() => {

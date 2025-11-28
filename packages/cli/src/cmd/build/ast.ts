@@ -6,6 +6,8 @@ import { createLogger } from '@agentuity/server';
 import * as ts from 'typescript';
 import type { WorkbenchConfig } from '@agentuity/core';
 import type { LogLevel } from '../../types';
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel);
 
@@ -1015,6 +1017,341 @@ export function checkRouteConflicts(content: string, workbenchEndpoint: string):
 		visitNode(sourceFile);
 		return hasConflict;
 	} catch (_error) {
+		return false;
+	}
+}
+
+/**
+ * Extract AppState type from setup() return value in createApp call
+ *
+ * @param content - The TypeScript source code from app.ts
+ * @returns Type definition string or null if no setup found
+ */
+export function extractAppStateType(content: string): string | null {
+	try {
+		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true);
+		let appStateType: string | null = null;
+		let foundCreateApp = false;
+		let foundSetup = false;
+
+		function visitNode(node: ts.Node): void {
+			// Look for createApp call expression (can be on await expression)
+			let callExpr: ts.CallExpression | undefined;
+
+			if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
+				if (node.expression.text === 'createApp') {
+					foundCreateApp = true;
+					callExpr = node;
+				}
+			} else if (ts.isAwaitExpression(node) && ts.isCallExpression(node.expression)) {
+				const call = node.expression;
+				if (ts.isIdentifier(call.expression) && call.expression.text === 'createApp') {
+					foundCreateApp = true;
+					callExpr = call;
+				}
+			}
+
+			if (callExpr) {
+				// Check if it has a config object argument
+				if (callExpr.arguments.length > 0) {
+					const configArg = callExpr.arguments[0];
+					if (ts.isObjectLiteralExpression(configArg)) {
+						// Find setup property
+						for (const prop of configArg.properties) {
+							if (
+								ts.isPropertyAssignment(prop) &&
+								ts.isIdentifier(prop.name) &&
+								prop.name.text === 'setup'
+							) {
+								foundSetup = true;
+								// Found setup function - extract return type
+								const setupFunc = prop.initializer;
+								if (ts.isFunctionExpression(setupFunc) || ts.isArrowFunction(setupFunc)) {
+									// Find return statement
+									const returnObj = findReturnObject(setupFunc);
+									if (returnObj) {
+										appStateType = objectLiteralToTypeDefinition(returnObj, sourceFile);
+									} else {
+										logger.debug('No return object found in setup function');
+									}
+								} else {
+									logger.debug(
+										`Setup is not a function expression or arrow function, it's: ${ts.SyntaxKind[setupFunc.kind]}`
+									);
+								}
+							}
+						}
+					}
+				}
+			}
+
+			ts.forEachChild(node, visitNode);
+		}
+
+		function findReturnObject(
+			func: ts.FunctionExpression | ts.ArrowFunction
+		): ts.ObjectLiteralExpression | null {
+			let returnObject: ts.ObjectLiteralExpression | null = null;
+
+			function visitFuncNode(node: ts.Node): void {
+				if (ts.isReturnStatement(node) && node.expression) {
+					// Handle direct object literal
+					if (ts.isObjectLiteralExpression(node.expression)) {
+						returnObject = node.expression;
+					}
+					// Handle variable reference (const state = {...}; return state;)
+					else if (ts.isIdentifier(node.expression)) {
+						// Try to find the variable declaration
+						const varName = node.expression.text;
+						// Walk back through the function to find the declaration
+						findVariableDeclaration(func.body!, varName);
+					}
+				}
+				ts.forEachChild(node, visitFuncNode);
+			}
+
+			function findVariableDeclaration(body: ts.Node, varName: string): void {
+				function visitForVar(node: ts.Node): void {
+					if (ts.isVariableStatement(node)) {
+						for (const decl of node.declarationList.declarations) {
+							if (ts.isIdentifier(decl.name) && decl.name.text === varName) {
+								if (decl.initializer && ts.isObjectLiteralExpression(decl.initializer)) {
+									returnObject = decl.initializer;
+								}
+							}
+						}
+					}
+					ts.forEachChild(node, visitForVar);
+				}
+				visitForVar(body);
+			}
+
+			if (func.body) {
+				visitFuncNode(func.body);
+			}
+
+			return returnObject;
+		}
+
+		function objectLiteralToTypeDefinition(
+			obj: ts.ObjectLiteralExpression,
+			sourceFile: ts.SourceFile
+		): string {
+			const properties: string[] = [];
+
+			for (const prop of obj.properties) {
+				if (ts.isPropertyAssignment(prop)) {
+					const name = prop.name.getText(sourceFile);
+					const value = prop.initializer;
+					const typeStr = inferTypeFromValue(value, sourceFile);
+					properties.push(`\t${name}: ${typeStr};`);
+				} else if (ts.isShorthandPropertyAssignment(prop)) {
+					const name = prop.name.getText(sourceFile);
+					properties.push(`\t${name}: unknown;`);
+				}
+			}
+
+			return `{\n${properties.join('\n')}\n}`;
+		}
+
+		function inferTypeFromValue(value: ts.Expression, sourceFile: ts.SourceFile): string {
+			if (ts.isStringLiteral(value)) {
+				return 'string';
+			}
+			if (ts.isNumericLiteral(value)) {
+				return 'number';
+			}
+			if (
+				value.kind === ts.SyntaxKind.TrueKeyword ||
+				value.kind === ts.SyntaxKind.FalseKeyword
+			) {
+				return 'boolean';
+			}
+			if (ts.isNewExpression(value) && ts.isIdentifier(value.expression)) {
+				if (value.expression.text === 'Date') {
+					return 'Date';
+				}
+			}
+			if (ts.isObjectLiteralExpression(value)) {
+				return objectLiteralToTypeDefinition(value, sourceFile);
+			}
+			if (ts.isArrayLiteralExpression(value)) {
+				return 'unknown[]';
+			}
+			return 'unknown';
+		}
+
+		visitNode(sourceFile);
+
+		if (!foundCreateApp) {
+			logger.debug('Did not find createApp call in app.ts');
+		} else if (!foundSetup) {
+			logger.debug('Found createApp but no setup property');
+		} else if (!appStateType) {
+			logger.debug('Found createApp and setup but could not extract type');
+		}
+
+		return appStateType;
+	} catch (error) {
+		logger.warn('AppState type extraction failed:', error);
+		return null;
+	}
+}
+
+/**
+ * Update tsconfig.json to add path mapping for @agentuity/runtime
+ *
+ * @param rootDir - Root directory of the project
+ * @param shouldAdd - If true, add the mapping; if false, remove it
+ */
+function updateTsconfigPathMapping(rootDir: string, shouldAdd: boolean): void {
+	const tsconfigPath = join(rootDir, 'tsconfig.json');
+
+	if (!existsSync(tsconfigPath)) {
+		logger.debug('No tsconfig.json found, skipping path mapping update');
+		return;
+	}
+
+	try {
+		const tsconfigContent = readFileSync(tsconfigPath, 'utf-8');
+
+		// Use TypeScript's parseConfigFileTextToJson to handle comments
+		const result = ts.parseConfigFileTextToJson(tsconfigPath, tsconfigContent);
+		if (result.error) {
+			logger.warn('Failed to parse tsconfig.json:', result.error.messageText);
+			return;
+		}
+
+		const tsconfig = result.config;
+
+		// Initialize compilerOptions and paths if they don't exist
+		if (!tsconfig.compilerOptions) {
+			tsconfig.compilerOptions = {};
+		}
+		if (!tsconfig.compilerOptions.paths) {
+			tsconfig.compilerOptions.paths = {};
+		}
+
+		if (shouldAdd) {
+			// Add or update the path mapping
+			tsconfig.compilerOptions.paths['@agentuity/runtime'] = [
+				'./.agentuity/.agentuity_runtime.ts',
+			];
+
+			// Ensure .agentuity_types.ts is included so module augmentation works
+			if (!tsconfig.include) {
+				tsconfig.include = [];
+			}
+			if (!tsconfig.include.includes('.agentuity/.agentuity_types.ts')) {
+				tsconfig.include.push('.agentuity/.agentuity_types.ts');
+			}
+
+			logger.debug('Added @agentuity/runtime path mapping to tsconfig.json');
+		} else {
+			// Remove the path mapping if it exists
+			if (tsconfig.compilerOptions.paths['@agentuity/runtime']) {
+				delete tsconfig.compilerOptions.paths['@agentuity/runtime'];
+				logger.debug('Removed @agentuity/runtime path mapping from tsconfig.json');
+			}
+
+			// Clean up empty paths object
+			if (Object.keys(tsconfig.compilerOptions.paths).length === 0) {
+				delete tsconfig.compilerOptions.paths;
+			}
+		}
+
+		// Write back with formatting (note: this will strip comments)
+		writeFileSync(tsconfigPath, JSON.stringify(tsconfig, null, 2) + '\n', 'utf-8');
+	} catch (error) {
+		logger.warn('Failed to update tsconfig.json:', error);
+	}
+}
+
+/**
+ * Generate lifecycle type files (.agentuity/types.ts and .agentuity/.agentuity_runtime.ts)
+ *
+ * @param rootDir - Root directory of the project
+ * @param appFilePath - Path to app.ts file
+ * @returns true if files were generated, false if no setup found
+ */
+export async function generateLifecycleTypes(
+	rootDir: string,
+	appFilePath: string
+): Promise<boolean> {
+	try {
+		const appContent = await Bun.file(appFilePath).text();
+		if (typeof appContent !== 'string') {
+			return false;
+		}
+
+		const appStateType = extractAppStateType(appContent as string);
+
+		if (!appStateType) {
+			logger.debug('No setup() function found in app.ts, skipping lifecycle type generation');
+			// Remove path mapping if no setup found
+			updateTsconfigPathMapping(rootDir, false);
+			return false;
+		}
+
+		const agentuityDir = join(rootDir, '.agentuity');
+
+		// Ensure .agentuity directory exists
+		if (!existsSync(agentuityDir)) {
+			mkdirSync(agentuityDir, { recursive: true });
+		}
+
+		// Generate .agentuity_types.ts
+		const typesContent = `// AUTO-GENERATED from app.ts setup() return type
+// This file is auto-generated by the build tool - do not edit manually
+
+export type GeneratedAppState = ${appStateType};
+
+// Augment BOTH the node_modules path AND the mapped path to ensure TypeScript picks it up
+declare module '../node_modules/@agentuity/runtime/src/index' {
+	interface AppState extends GeneratedAppState {}
+}
+
+declare module '@agentuity/runtime' {
+	interface AppState extends GeneratedAppState {}
+}
+`;
+		const typesPath = join(agentuityDir, '.agentuity_types.ts');
+		writeFileSync(typesPath, typesContent, 'utf-8');
+		logger.debug(`Generated lifecycle types: ${typesPath}`);
+
+		// Generate .agentuity_runtime.ts wrapper
+		// This wrapper provides a createRouter with the augmented AppState
+		const wrapperContent = `// AUTO-GENERATED runtime wrapper
+// This file is auto-generated by the build tool - do not edit manually
+
+// Import augmented types
+import type { GeneratedAppState } from './.agentuity_types';
+import { createRouter as baseCreateRouter, type Env, type ExtendedHono } from '../node_modules/@agentuity/runtime/src/index';
+import type { Context as HonoContext } from 'hono';
+
+// Type aliases to avoid repeating the generic parameter
+type AppEnv = Env<GeneratedAppState>;
+// @ts-expect-error - TypeScript's variance system doesn't allow this but it works fine at runtime
+type AppRouter = ExtendedHono<AppEnv>;
+
+// Wrapper that returns properly typed router (TypeScript will infer callback params)
+export function createRouter(): AppRouter {
+	return baseCreateRouter() as unknown as AppRouter;
+}
+
+// Re-export everything else
+export * from '../node_modules/@agentuity/runtime/src/index';
+`;
+		const wrapperPath = join(agentuityDir, '.agentuity_runtime.ts');
+		writeFileSync(wrapperPath, wrapperContent, 'utf-8');
+		logger.debug(`Generated lifecycle wrapper: ${wrapperPath}`);
+
+		// Update tsconfig.json with path mapping
+		updateTsconfigPathMapping(rootDir, true);
+
+		return true;
+	} catch (error) {
+		logger.warn('Failed to generate lifecycle types:', error);
 		return false;
 	}
 }
