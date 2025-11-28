@@ -52,6 +52,24 @@ Description:
     - Stable releases (patch/minor/major) are published with tag "latest"
     - Prereleases are published with tag "next"
 
+  GitHub Release:
+    - Creates/updates GitHub release with generated release notes
+    - Builds and uploads CLI executables for multiple platforms
+    - Marks pre-releases appropriately on GitHub
+
+Required Environment Variables:
+  GITHUB_TOKEN         GitHub personal access token for release creation
+  QUILL_SIGN_P12       Path to P12 certificate file
+  QUILL_SIGN_PASSWORD  Password for P12 certificate
+  QUILL_NOTARY_KEY     Apple notary API key
+  QUILL_NOTARY_KEY_ID  Apple notary key ID
+  QUILL_NOTARY_ISSUER  Apple notary issuer ID
+
+Required Tools:
+  gh                   GitHub CLI (https://cli.github.com/)
+  amp                  Amp CLI for release notes generation
+  quill                quill signing and notarization tool (https://github.com/anchore/quill)
+
 Examples:
   bun scripts/publish.ts                 # Publish to npm (interactive)
   bun scripts/publish.ts --dry-run       # Test without publishing
@@ -362,6 +380,192 @@ async function revertVersionChanges() {
 	);
 }
 
+async function validateEnvironment(isDryRun: boolean) {
+	console.log('🔍 Validating environment...\n');
+
+	if (!isDryRun) {
+		// Check for GITHUB_TOKEN
+		if (!process.env.GITHUB_TOKEN) {
+			console.error('❌ Error: GITHUB_TOKEN environment variable not set.');
+			console.error('   Required for creating GitHub releases.');
+			console.error('   Get a token at: https://github.com/settings/tokens');
+			process.exit(1);
+		}
+
+		// Check for gh CLI
+		try {
+			await $`gh --version`.quiet();
+		} catch {
+			console.error('❌ Error: gh (GitHub CLI) not found.');
+			console.error('   Install from: https://cli.github.com/');
+			process.exit(1);
+		}
+
+		// Check for amp CLI
+		try {
+			await $`amp --version`.quiet();
+		} catch {
+			console.error('❌ Error: amp CLI not found.');
+			console.error('   Required for generating release notes.');
+			process.exit(1);
+		}
+
+		// Check for quill CLI
+		try {
+			await $`quill --version`.quiet();
+		} catch {
+			console.error('❌ Error: quill not found.');
+			console.error('   Install from: https://github.com/anchore/quill');
+			process.exit(1);
+		}
+
+		// Validate quill environment variables
+		const requiredEnvVars = [
+			'QUILL_SIGN_P12',
+			'QUILL_SIGN_PASSWORD',
+			'QUILL_NOTARY_KEY',
+			'QUILL_NOTARY_KEY_ID',
+			'QUILL_NOTARY_ISSUER',
+		];
+
+		const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
+
+		if (missingVars.length > 0) {
+			console.error('❌ Error: Required environment variables not set:');
+			for (const varName of missingVars) {
+				console.error(`   - ${varName}`);
+			}
+			console.error('\n   These are required for quill signing and notarization.');
+			console.error('   See: https://github.com/anchore/quill#configuration');
+			process.exit(1);
+		}
+
+		if (process.platform !== 'darwin') {
+			console.error('❌ Error: macOS code signing required but not running on macOS.');
+			console.error('   Must run publish on macOS for signing and notarization.');
+			process.exit(1);
+		}
+	}
+
+	console.log('✓ Environment validation passed\n');
+}
+
+async function getPreviousReleaseTag(): Promise<string | null> {
+	try {
+		const result = await $`git describe --tags --abbrev=0 --match="v*" HEAD^`.text().quiet();
+		return result.trim();
+	} catch {
+		// No previous tag found
+		return null;
+	}
+}
+
+async function generateReleaseNotes(
+	newVersion: string,
+	previousTag: string | null
+): Promise<string> {
+	console.log('\n📝 Generating release notes with Amp...\n');
+
+	// Get git log since previous tag
+	let gitLog: string;
+	if (previousTag) {
+		console.log(`   Comparing v${newVersion} against ${previousTag}...`);
+		gitLog = await $`git log ${previousTag}..HEAD --pretty=format:"%h - %s (%an)"`.text();
+	} else {
+		console.log('   No previous release found, using all commits...');
+		gitLog = await $`git log --pretty=format:"%h - %s (%an)"`.text();
+	}
+
+	const prompt = `Please analyze the following git commits and create structured release notes for version ${newVersion}.
+
+Git commits since ${previousTag || 'initial commit'}:
+${gitLog}
+
+Generate release notes in Markdown format with the following sections:
+- **New Features** - New functionality or major additions
+- **Breaking Changes** - Changes that break backwards compatibility
+- **Improvements** - Enhancements to existing features
+- **Bug Fixes** - Fixed issues
+- **Documentation** - Documentation updates
+- **Internal** - Internal changes (refactoring, tests, tooling)
+
+Use bullet points (- item) for each change. Be concise and user-focused. Only include sections that have changes.
+If there are no breaking changes, omit that section entirely.`;
+
+	try {
+		// Invoke amp to generate release notes (pipe prompt via stdin)
+		const releaseNotes = await $`echo ${prompt} | amp`.text();
+
+		return releaseNotes.trim();
+	} catch (err) {
+		console.error('✗ Failed to generate release notes with Amp:', err);
+		throw err;
+	}
+}
+
+async function buildExecutables(version: string, skipSign: boolean) {
+	console.log('\n🔨 Building CLI executables...\n');
+
+	const cliDir = join(rootDir, 'packages', 'cli');
+	try {
+		const args = ['scripts/build-executables.ts', `--version=${version}`];
+		if (skipSign) {
+			args.push('--skip-sign');
+		}
+		await $`bun ${args}`.cwd(cliDir);
+	} catch (err) {
+		console.error('✗ Failed to build executables:', err);
+		throw err;
+	}
+}
+
+async function createOrUpdateGitHubRelease(
+	version: string,
+	releaseNotes: string,
+	isPrerelease: boolean
+) {
+	const tag = `v${version}`;
+	console.log(`\n🏷️  Creating GitHub release ${tag}...\n`);
+
+	// Check if release already exists
+	try {
+		await $`gh release view ${tag}`.quiet();
+		console.log(`   Release ${tag} already exists, deleting and recreating...`);
+		await $`gh release delete ${tag} --yes`.cwd(rootDir);
+	} catch {
+		// Release doesn't exist, continue
+	}
+
+	// Create the release
+	const args = [
+		'release',
+		'create',
+		tag,
+		'--title',
+		`Release ${version}`,
+		'--notes',
+		releaseNotes,
+	];
+	if (isPrerelease) {
+		args.push('--prerelease');
+	}
+
+	// Add executable assets
+	const binDir = join(rootDir, 'packages', 'cli', 'dist', 'bin');
+	const executables = await readdir(binDir);
+	for (const exe of executables) {
+		args.push(join(binDir, exe));
+	}
+
+	try {
+		await $`gh ${args}`.cwd(rootDir);
+		console.log(`✓ Created GitHub release ${tag}`);
+	} catch (err) {
+		console.error(`✗ Failed to create GitHub release:`, err);
+		throw err;
+	}
+}
+
 async function main() {
 	if (process.argv.includes('--help') || process.argv.includes('-h')) {
 		showHelp();
@@ -369,6 +573,9 @@ async function main() {
 
 	const isDryRun = process.argv.includes('--dry-run');
 	console.log(`🚀 Publishing packages to npm${isDryRun ? ' (DRY RUN)' : ''}\n`);
+
+	// Validate environment early
+	await validateEnvironment(isDryRun);
 
 	const rootPkg = await readJSON(join(rootDir, 'package.json'));
 	const currentVersion = rootPkg.version;
@@ -407,6 +614,17 @@ async function main() {
 	try {
 		await updateVersions(newVersion);
 
+		// Generate release notes (skip in dry-run)
+		let releaseNotes = '';
+		if (!isDryRun) {
+			const previousTag = await getPreviousReleaseTag();
+			releaseNotes = await generateReleaseNotes(newVersion, previousTag);
+			console.log('\n📋 Generated release notes:\n');
+			console.log('─'.repeat(80));
+			console.log(releaseNotes);
+			console.log('─'.repeat(80));
+		}
+
 		console.log('\n📥 Running bun install...');
 		await $`bun install`.cwd(rootDir);
 
@@ -415,6 +633,14 @@ async function main() {
 
 		console.log('\n🔨 Running bun run build...');
 		await $`bun run build`.cwd(rootDir);
+
+		// Build executables (skip signing in dry-run)
+		await buildExecutables(newVersion, isDryRun);
+
+		// Create GitHub release before npm publish (skip in dry-run)
+		if (!isDryRun) {
+			await createOrUpdateGitHubRelease(newVersion, releaseNotes, isPreReleaseVersion);
+		}
 
 		const publishable = await getPublishablePackages();
 		const names = publishable.map((p) => `${p.dir}/${p.name}`).join(', ');
@@ -440,9 +666,15 @@ async function main() {
 		if (!isDryRun) {
 			await restoreWorkspaceDependencies(newVersion);
 		}
+	} catch (err) {
+		console.error('\n❌ Publish failed:', err);
+		console.log('\n🔄 Reverting version changes...');
+		await revertVersionChanges();
+		console.log('✓ Changes reverted\n');
+		throw err;
 	} finally {
 		if (isDryRun) {
-			console.log('\n🔄 Reverting version changes...');
+			console.log('\n🔄 Reverting version changes (dry-run)...');
 			await revertVersionChanges();
 			console.log('✓ Changes reverted\n');
 		}
