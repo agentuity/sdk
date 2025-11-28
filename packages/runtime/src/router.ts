@@ -32,7 +32,7 @@ type StreamHandler<E extends Env = Env, P extends string = string, I extends Inp
 	c: Context<E, P, I>
 ) => ReadableStream<any> | Promise<ReadableStream<any>>;
 
-interface WebSocketConnection {
+export interface WebSocketConnection {
 	onOpen: (handler: (event: any) => void | Promise<void>) => void;
 	onMessage: (handler: (event: any) => void | Promise<void>) => void;
 	onClose: (handler: (event: any) => void | Promise<void>) => void;
@@ -69,19 +69,25 @@ declare module 'hono' {
 		cron(schedule: string, handler: (c: Context) => any): this;
 
 		// Streaming routes
-		stream(path: string, handler: (c: Context) => ReadableStream<any>): this;
+		stream(
+			path: string,
+			handler: (c: Context) => ReadableStream<any> | Promise<ReadableStream<any>>
+		): this;
 		stream(
 			path: string,
 			middleware: MiddlewareHandler,
-			handler: (c: Context) => ReadableStream<any>
+			handler: (c: Context) => ReadableStream<any> | Promise<ReadableStream<any>>
 		): this;
 
 		// WebSocket routes
-		websocket(path: string, handler: (c: Context) => (ws: any) => void): this;
+		websocket(
+			path: string,
+			handler: (c: Context) => (ws: WebSocketConnection) => void
+		): this;
 		websocket(
 			path: string,
 			middleware: MiddlewareHandler,
-			handler: (c: Context) => (ws: any) => void
+			handler: (c: Context) => (ws: WebSocketConnection) => void
 		): this;
 
 		// Server-Sent Events routes
