@@ -121,8 +121,63 @@ else
 fi
 echo ""
 
-# Step 5: Delete the database
-echo "Step 5: Deleting database..."
+# Step 5: Create test table
+echo "Step 5: Creating test table..."
+SQL_CREATE=$($BIN_SCRIPT cloud db sql "$DB_NAME" "CREATE TABLE test_users (id SERIAL PRIMARY KEY, name TEXT, email TEXT)" 2>&1)
+echo "$SQL_CREATE"
+
+if echo "$SQL_CREATE" | grep -qE "(No rows returned|✓)"; then
+	echo -e "${GREEN}✓ PASS:${NC} Table created successfully"
+else
+	echo -e "${RED}✗ FAIL:${NC} Failed to create table"
+	exit 1
+fi
+echo ""
+
+# Step 6: Insert test data
+echo "Step 6: Inserting test data..."
+SQL_INSERT=$($BIN_SCRIPT cloud db sql "$DB_NAME" "INSERT INTO test_users (name, email) VALUES ('Alice', 'alice@example.com'), ('Bob', 'bob@example.com')" 2>&1)
+echo "$SQL_INSERT"
+
+if echo "$SQL_INSERT" | grep -qE "(No rows returned|✓)"; then
+	echo -e "${GREEN}✓ PASS:${NC} Data inserted successfully"
+else
+	echo -e "${RED}✗ FAIL:${NC} Failed to insert data"
+	exit 1
+fi
+echo ""
+
+# Step 7: Query data (normal output)
+echo "Step 7: Querying data (table output)..."
+SQL_SELECT=$($BIN_SCRIPT cloud db sql "$DB_NAME" "SELECT * FROM test_users" 2>&1)
+echo "$SQL_SELECT"
+
+if echo "$SQL_SELECT" | grep -q "Alice"; then
+	echo -e "${GREEN}✓ PASS:${NC} Query returned expected data"
+else
+	echo -e "${RED}✗ FAIL:${NC} Query did not return expected data"
+	exit 1
+fi
+echo ""
+
+# Step 8: Query data (JSON output)
+echo "Step 8: Querying data (JSON output)..."
+SQL_JSON=$($BIN_SCRIPT --json cloud db sql "$DB_NAME" "SELECT * FROM test_users ORDER BY id" 2>&1)
+echo "$SQL_JSON" | jq .
+
+ROW_COUNT=$(echo "$SQL_JSON" | jq -r '.rowCount')
+FIRST_NAME=$(echo "$SQL_JSON" | jq -r '.rows[0].name')
+
+if [ "$ROW_COUNT" = "2" ] && [ "$FIRST_NAME" = "Alice" ]; then
+	echo -e "${GREEN}✓ PASS:${NC} JSON query output valid"
+else
+	echo -e "${RED}✗ FAIL:${NC} JSON query output invalid (rowCount: $ROW_COUNT, name: $FIRST_NAME)"
+	exit 1
+fi
+echo ""
+
+# Step 9: Delete the database
+echo "Step 9: Deleting database..."
 DELETE_OUTPUT=$($BIN_SCRIPT cloud db delete "$DB_NAME" --confirm 2>&1)
 echo "$DELETE_OUTPUT"
 
@@ -134,8 +189,8 @@ else
 fi
 echo ""
 
-# Step 6: Verify deletion
-echo "Step 6: Verifying database deletion..."
+# Step 10: Verify deletion
+echo "Step 10: Verifying database deletion..."
 LIST_AFTER_DELETE=$($BIN_SCRIPT cloud db list 2>&1)
 echo "$LIST_AFTER_DELETE"
 
@@ -153,6 +208,8 @@ echo "Database resource CLI commands working correctly."
 echo "  ✓ create - Create database"
 echo "  ✓ list - List databases"
 echo "  ✓ get - Get database details"
+echo "  ✓ sql - Execute SQL query (table output)"
+echo "  ✓ sql - Execute SQL query (JSON output)"
 echo "  ✓ delete - Delete database"
 echo "  ✓ JSON output support"
 echo "========================================="
