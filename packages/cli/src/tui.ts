@@ -1434,6 +1434,7 @@ export function table<T extends Record<string, unknown>>(
 			head?: string[];
 			border?: string[];
 		};
+		colors?: boolean;
 	}) => {
 		push(row: unknown[]): void;
 		toString(): string;
@@ -1472,8 +1473,10 @@ export function table<T extends Record<string, unknown>>(
 		colAligns,
 		wordWrap: true,
 		style: {
-			head: [], // Disable cli-table3's default red styling for headers
+			head: [], // Disable cli-table3's default red styling - we apply our own via heading()
+			border: [], // Disable default border styling too
 		},
+		colors: false, // Completely disable cli-table3's color system to preserve our ANSI codes
 	});
 
 	// Add rows to table
