@@ -197,7 +197,7 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 				status: serviceError.statusCode ?? 500,
 			});
 		}
-		otel.logger.error('Unhandled Server Error: %s', JSON.stringify(error));
+		otel.logger.error('Unhandled Server Error: %s', error);
 		return new Response('Internal Server Error', { status: 500 });
 	});
 
