@@ -1450,11 +1450,14 @@ export function table<T extends Record<string, unknown>>(
 	let columnNames: string[];
 	let colAligns: Array<'left' | 'right' | 'center'>;
 
+	let headings: string[];
+	
 	if (isAdvancedMode) {
 		// Advanced mode: use provided column configurations
 		const columnConfigs = columns as TableColumn[];
 		columnNames = columnConfigs.map((col) => col.name);
 		colAligns = columnConfigs.map((col) => col.alignment || 'left');
+		headings = columnNames.map((name) => heading(name));
 	} else {
 		// Simple mode: determine column names from data or columns parameter
 		columnNames = columns
@@ -1463,10 +1466,8 @@ export function table<T extends Record<string, unknown>>(
 				? Object.keys(data[0])
 				: [];
 		colAligns = columnNames.map(() => 'left' as const);
+		headings = columnNames.map((name) => heading(name));
 	}
-
-	// Apply heading style to column names
-	const headings = columnNames.map((name) => heading(name));
 
 	const t = new Table({
 		head: headings,
