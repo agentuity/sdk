@@ -960,6 +960,9 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 		// Populate agents object with strongly-typed keys
 		const agentsObj = populateAgentsRegistry(ctx);
 
+		// Set agent registry on context for access via c.var.agent
+		ctx.set('agent', agentsObj);
+
 		// Determine current and parent agents
 		let currentAgent: AgentRunner | undefined;
 		let parentAgent: AgentRunner | undefined;
