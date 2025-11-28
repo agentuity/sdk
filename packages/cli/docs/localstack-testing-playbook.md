@@ -22,12 +22,12 @@ git clone https://github.com/agentuity/sdk.git
 
 The following secrets are needed (available as Devin secrets):
 
-| Secret Name | Purpose | Destination |
-|-------------|---------|-------------|
-| `GLUON_GCP_CREDS` | GCP service account credentials | `~/.agentuity-gluon-sa.json` |
+| Secret Name        | Purpose                         | Destination                       |
+| ------------------ | ------------------------------- | --------------------------------- |
+| `GLUON_GCP_CREDS`  | GCP service account credentials | `~/.agentuity-gluon-sa.json`      |
 | `GLUON_LOCALSTACK` | Gluon localstack profile config | `~/.config/gluon/localstack.yaml` |
-| `GCP_DOCKER` | Docker registry credentials | Used with `docker login` |
-| `AGENTUITY_USC` | CLI profile for v1 API | `~/.config/agentuity/usc.yaml` |
+| `GCP_DOCKER`       | Docker registry credentials     | Used with `docker login`          |
+| `AGENTUITY_USC`    | CLI profile for v1 API          | `~/.config/agentuity/usc.yaml`    |
 
 ## One-Time VM Setup
 
@@ -65,16 +65,16 @@ Create `~/.config/gluon/localstack.yaml` with the content from the `GLUON_LOCALS
 ```yaml
 name: localstack
 etcd:
-  ca_cert: |
-    -----BEGIN CERTIFICATE-----
-    ...
-    -----END CERTIFICATE-----
-  ca_key: |
-    -----BEGIN EC PRIVATE KEY-----
-    ...
-    -----END EC PRIVATE KEY-----
-  endpoints:
-    - https://etcd-localstack.agentuity.com:2379
+   ca_cert: |
+      -----BEGIN CERTIFICATE-----
+      ...
+      -----END CERTIFICATE-----
+   ca_key: |
+      -----BEGIN EC PRIVATE KEY-----
+      ...
+      -----END EC PRIVATE KEY-----
+   endpoints:
+      - https://etcd-localstack.agentuity.com:2379
 master_key: <base64-encoded-key>
 provider: http
 # ... additional configuration
@@ -100,9 +100,9 @@ The ion container tries to bind to port 22 (SSH), which conflicts with the VM's 
 ```yaml
 # In the ion service section, change:
 ports:
-  - "22:22"    # Original - conflicts with SSH
-# To:
-  - "2222:22"  # Fixed - maps to port 2222
+   - '22:22' # Original - conflicts with SSH
+   # To:
+   - '2222:22' # Fixed - maps to port 2222
 ```
 
 **Do NOT commit this change** - it's only needed for VMs where SSH is running on port 22.
@@ -121,6 +121,7 @@ USER=<your_clickhouse_db_name> npm run dev
 ```
 
 The stack will pull Docker images and start approximately 11 containers:
+
 - api, catalyst, pulse, aether, ion, gravity, hadron, redis, etcd, otel, qstash
 
 ### 2. Verify All Containers Are Healthy
@@ -130,6 +131,7 @@ docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
 
 Expected output shows all containers as "Up" with most showing "(healthy)":
+
 ```
 NAMES            STATUS
 api-ion-1        Up X minutes (healthy)
@@ -160,17 +162,17 @@ bun run build
 Create `~/.config/agentuity/usc.yaml` with the content from the `AGENTUITY_USC` secret (properly formatted):
 
 ```yaml
-name: "usc"
+name: 'usc'
 overrides:
-  api_url: "https://api-v1.agentuity.com"
-  app_url: "https://app-v1.agentuity.com"
-  transport_url: "https://catalyst-usc.agentuity.cloud"
-  stream_url: "https://streams-usc.agentuity.cloud"
-  kv_url: "https://catalyst-usc.agentuity.cloud"
-  object_url: "https://catalyst-usc.agentuity.cloud"
-  vector_url: "https://catalyst-usc.agentuity.cloud"
-  catalyst_url: "https://catalyst-usc.agentuity.cloud"
-  gravity_url: "grpc://gravity-usc.agentuity.cloud"
+   api_url: 'https://api-v1.agentuity.com'
+   app_url: 'https://app-v1.agentuity.com'
+   transport_url: 'https://catalyst-usc.agentuity.cloud'
+   stream_url: 'https://streams-usc.agentuity.cloud'
+   kv_url: 'https://catalyst-usc.agentuity.cloud'
+   object_url: 'https://catalyst-usc.agentuity.cloud'
+   vector_url: 'https://catalyst-usc.agentuity.cloud'
+   catalyst_url: 'https://catalyst-usc.agentuity.cloud'
+   gravity_url: 'grpc://gravity-usc.agentuity.cloud'
 ```
 
 ### 3. Set Active Profile
@@ -230,6 +232,7 @@ cd /home/ubuntu/repos/sdk
 **Cause:** The `CLICKHOUSE_DATABASE` environment variable is set to `${env:USER}` in gluon, which resolves to the VM username (e.g., "ubuntu").
 
 **Solution:** Run the stack with a USER that has an existing ClickHouse database:
+
 ```bash
 USER=pedro npm run dev
 ```
@@ -243,6 +246,7 @@ Or have a new database created for your username.
 **Cause:** The ion container tries to bind to port 22, which is used by SSH.
 
 **Solution:** Change the port mapping in `docker-compose.yml`:
+
 ```yaml
 # Change "22:22" to "2222:22" in the ion service ports section
 ```
@@ -262,6 +266,7 @@ Or have a new database created for your username.
 **Cause:** Docker is not authenticated with GCP Artifact Registry.
 
 **Solution:** Run:
+
 ```bash
 echo "$GCP_DOCKER" | docker login -u _json_key --password-stdin https://us-central1-docker.pkg.dev
 ```
@@ -276,17 +281,17 @@ echo "$GCP_DOCKER" | docker login -u _json_key --password-stdin https://us-centr
 
 ## Key URLs and Ports
 
-| Service | Local URL | Port |
-|---------|-----------|------|
-| API | http://localhost:3012 | 3012 |
-| Catalyst | http://localhost:3939 | 3939 |
-| Gravity | https://localhost:8443 | 8443 |
-| Pulse | http://localhost:10101 | 10101 |
-| Hadron | http://localhost:9999 | 9999 |
-| Redis | localhost:6379 | 6379 |
-| etcd | localhost:2379 | 2379 |
-| Ion SSH (remapped) | localhost:2222 | 2222 |
-| Ion HTTPS | localhost:443 | 443 |
+| Service            | Local URL              | Port  |
+| ------------------ | ---------------------- | ----- |
+| API                | http://localhost:3012  | 3012  |
+| Catalyst           | http://localhost:3939  | 3939  |
+| Gravity            | https://localhost:8443 | 8443  |
+| Pulse              | http://localhost:10101 | 10101 |
+| Hadron             | http://localhost:9999  | 9999  |
+| Redis              | localhost:6379         | 6379  |
+| etcd               | localhost:2379         | 2379  |
+| Ion SSH (remapped) | localhost:2222         | 2222  |
+| Ion HTTPS          | localhost:443          | 443   |
 
 ## Notes
 

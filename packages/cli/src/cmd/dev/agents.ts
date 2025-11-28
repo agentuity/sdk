@@ -88,7 +88,7 @@ export const agentsSubcommand = createSubcommand({
 			if (agents.length === 0) {
 				tui.muted('No agents found');
 			} else {
-				console.table(
+				tui.table(
 					agents.map((agent) => ({
 						name: agent.name,
 						id: verbose ? agent.id : abbreviate(agent.id, 20),
@@ -107,7 +107,7 @@ export const agentsSubcommand = createSubcommand({
 				for (const agent of agents) {
 					if (agent.evals.length > 0) {
 						console.log(`\n  Evals for ${agent.name}:`);
-						console.table(
+						tui.table(
 							agent.evals.map((evalItem) => ({
 								name: evalItem.name,
 								id: verbose ? evalItem.id : abbreviate(evalItem.id, 20),
