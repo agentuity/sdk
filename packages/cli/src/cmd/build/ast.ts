@@ -1326,17 +1326,16 @@ declare module '@agentuity/runtime' {
 
 // Import augmented types
 import type { GeneratedAppState } from './.agentuity_types';
-import { createRouter as baseCreateRouter, type Env, type ExtendedHono } from '../node_modules/@agentuity/runtime/src/index';
-import type { Context as HonoContext } from 'hono';
+import { createRouter as baseCreateRouter, type Env } from '../node_modules/@agentuity/runtime/src/index';
+import type { Hono } from 'hono';
 
 // Type aliases to avoid repeating the generic parameter
 type AppEnv = Env<GeneratedAppState>;
-// @ts-expect-error - TypeScript's variance system doesn't allow this but it works fine at runtime
-type AppRouter = ExtendedHono<AppEnv>;
+type AppRouter = Hono<AppEnv>;
 
 // Wrapper that returns properly typed router (TypeScript will infer callback params)
 export function createRouter(): AppRouter {
-	return baseCreateRouter() as unknown as AppRouter;
+	return baseCreateRouter() as any;
 }
 
 // Re-export everything else
