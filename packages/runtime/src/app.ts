@@ -168,7 +168,6 @@ export class App<TAppState = Record<string, never>> {
 	constructor(state: TAppState, config?: AppConfig<TAppState>) {
 		this.state = state;
 		this.router = new Hono<Env<TAppState>>();
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		this.server = createServer(this.router as any, config as any, state as any);
 		this.logger = getLogger() as Logger;
 		setGlobalApp(this);

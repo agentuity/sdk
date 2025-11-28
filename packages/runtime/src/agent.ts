@@ -223,6 +223,8 @@ type InferSetupReturn<T> = T extends { setup: infer S }
 // Helper to infer the actual input value type from schema
 // In const generic context, we can't reliably check StandardSchemaV1, so just use any
 // This allows TypeScript to accept any handler signature
+// Currently unused but kept for potential future use
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type InferInputValue<T> = T extends { schema: { input: any } } ? any : undefined;
 
 export interface AgentRunner<
@@ -239,7 +241,6 @@ export interface AgentRunner<
 }
 
 // Will be populated at runtime with strongly typed agents
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const agents = new Map<string, Agent<any, any, any, any, any>>();
 
 // WeakMap to store event listeners for each agent instance (truly private)
@@ -311,7 +312,6 @@ export type AgentName = keyof AgentRegistry extends never ? string : keyof Agent
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AgentRegistry {}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const registerAgent = (name: AgentName, agent: Agent<any, any, any, any, any>): void => {
 	agents.set(name, agent);
 };
@@ -1021,7 +1021,6 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 
 export const getAgents = () => agents;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const runAgentSetups = async (appState: any): Promise<void> => {
 	for (const [name, agent] of agents.entries()) {
 		if (agent.setup) {
@@ -1031,7 +1030,6 @@ export const runAgentSetups = async (appState: any): Promise<void> => {
 	}
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const runAgentShutdowns = async (appState: any): Promise<void> => {
 	for (const [name, agent] of agents.entries()) {
 		if (agent.shutdown) {

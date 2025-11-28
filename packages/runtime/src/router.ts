@@ -47,8 +47,6 @@ type SSEHandler<E extends Env = Env, P extends string = string, I extends Input 
 	c: Context<E, P, I>
 ) => (stream: any) => void | Promise<void>;
 
-type HttpMethod = 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options';
-
 // Module augmentation to add custom methods to Hono
 // This avoids wrapper types and type instantiation depth issues
 // Use simplified signatures to avoid type instantiation depth issues
@@ -80,10 +78,7 @@ declare module 'hono' {
 		): this;
 
 		// WebSocket routes
-		websocket(
-			path: string,
-			handler: (c: Context) => (ws: WebSocketConnection) => void
-		): this;
+		websocket(path: string, handler: (c: Context) => (ws: WebSocketConnection) => void): this;
 		websocket(
 			path: string,
 			middleware: MiddlewareHandler,
@@ -114,26 +109,26 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 			if (args.length === 0) {
 				return _originalInvoker(path);
 			}
-			
+
 			// Find the last function in args - that's the handler (everything else is middleware)
 			let handlerIndex = args.length - 1;
 			while (handlerIndex >= 0 && typeof args[handlerIndex] !== 'function') {
 				handlerIndex--;
 			}
-			
+
 			if (handlerIndex < 0) {
 				// No handler found, pass through as-is
 				return _originalInvoker(path, ...args);
 			}
-			
+
 			const handler = args[handlerIndex];
-			
+
 			// Check if this is middleware (2 params: c, next) vs handler (1 param: c)
 			if (handler.length === 2) {
 				// This is middleware-only, pass through
 				return _originalInvoker(path, ...args);
 			}
-			
+
 			// Wrap the handler to add our response conversion
 			const wrapper = async (c: Context): Promise<Response> => {
 				let result = handler(c);
@@ -142,11 +137,11 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 				if (result instanceof Response) return result;
 				return returnResponse(c, result);
 			};
-			
+
 			// Replace the handler with our wrapper
 			const newArgs = [...args];
 			newArgs[handlerIndex] = wrapper;
-			
+
 			return _originalInvoker(path, ...newArgs);
 		};
 	}

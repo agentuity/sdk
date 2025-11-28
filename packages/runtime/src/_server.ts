@@ -204,20 +204,14 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 	const threadProvider = getThreadProvider();
 	const sessionProvider = getSessionProvider();
 
-	let initPromise: Promise<void> | undefined = new Promise(async (resolve, reject) => {
-		try {
-			// Initialize providers first
-			await Promise.all([threadProvider.initialize(), sessionProvider.initialize()]);
+	let initPromise: Promise<void> | undefined = (async () => {
+		// Initialize providers first
+		await Promise.all([threadProvider.initialize(), sessionProvider.initialize()]);
 
-			// Then run agent setups
-			const { runAgentSetups } = await import('./agent');
-			await runAgentSetups(appState);
-
-			resolve();
-		} catch (error) {
-			reject(error);
-		}
-	});
+		// Then run agent setups
+		const { runAgentSetups } = await import('./agent');
+		await runAgentSetups(appState);
+	})();
 
 	router.use(async (c, next) => {
 		if (initPromise) {
