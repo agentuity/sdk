@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
+# shellcheck shell=sh
 # adapted from https://raw.githubusercontent.com/sst/opencode/refs/heads/dev/install
 # licensed under the same MIT license
 set -euo pipefail
 APP=agentuity
+REPO=agentuity/sdk
 
 MUTED='\033[0;2m'
 RED='\033[0;31m'
@@ -11,6 +13,7 @@ NC='\033[0m' # No Color
 
 requested_version=${VERSION:-}
 force_install=false
+non_interactive=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -23,11 +26,25 @@ while [[ $# -gt 0 ]]; do
       requested_version="$2"
       shift 2
       ;;
+    -y|--yes|--non-interactive)
+      non_interactive=true
+      shift
+      ;;
     *)
       shift
       ;;
   esac
 done
+
+# Detect CI/non-interactive environments
+if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${GITLAB_CI:-}" ] || [ -n "${CIRCLECI:-}" ] || [ -n "${JENKINS_HOME:-}" ] || [ -n "${TRAVIS:-}" ]; then
+  non_interactive=true
+fi
+
+# If stdin is not a TTY, we're non-interactive
+if [ ! -t 0 ]; then
+  non_interactive=true
+fi
 
 # Check prerequisites
 if ! command -v curl >/dev/null 2>&1; then
@@ -132,15 +149,15 @@ if [ ! -w "$INSTALL_DIR" ]; then
 fi
 
 if [ -z "$requested_version" ]; then
-  url="https://github.com/agentuity/sdk/releases/latest/download/$filename"
-  specific_version=$(curl -s https://api.github.com/repos/agentuity/sdk/releases/latest -H "$curl_headers" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
+  url="https://github.com/$REPO/releases/latest/download/$filename"
+  specific_version=$(curl -s https://api.github.com/repos/$REPO/releases/latest -H "$curl_headers" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
 
   if [[ $? -ne 0 || -z "$specific_version" ]]; then
     echo -e "${RED}Failed to fetch version information${NC}"
     exit 1
   fi
 else
-  url="https://github.com/agentuity/sdk/releases/download/v${requested_version}/$filename"
+  url="https://github.com/$REPO/releases/download/v${requested_version}/$filename"
   specific_version=$requested_version
 fi
 
@@ -157,6 +174,128 @@ print_message() {
   esac
 
   echo -e "${color}${message}${NC}"
+}
+
+check_brew_install() {
+  if command -v brew >/dev/null 2>&1; then
+    if brew list agentuity >/dev/null 2>&1; then
+      print_message warning "${RED}Warning: ${NC}Legacy Go-based CLI installed via Homebrew detected."
+      print_message info "${MUTED}The new version uses a different installation method.${NC}"
+
+      if [ "$non_interactive" = false ]; then
+        echo -n "Do you want to uninstall the Homebrew version? (y/N): "
+        read -r response
+        case "$response" in
+          [yY][eE][sS]|[yY])
+            print_message info "${MUTED}Uninstalling Homebrew version...${NC}"
+            if brew uninstall agentuity; then
+              print_message info "${MUTED}Successfully uninstalled Homebrew version${NC}"
+            else
+              print_message error "Failed to uninstall Homebrew version. Please run: brew uninstall agentuity"
+              exit 1
+            fi
+            ;;
+          *)
+            print_message error "Please uninstall the Homebrew version first: brew uninstall agentuity"
+            exit 1
+            ;;
+        esac
+      else
+        print_message error "Please uninstall the Homebrew version first: brew uninstall agentuity"
+        exit 1
+      fi
+    fi
+  fi
+}
+
+check_bun_install() {
+  if command -v agentuity >/dev/null 2>&1; then
+    agentuity_path=$(which agentuity)
+
+    # Check if the binary is in a bun global install location
+    if [[ "$agentuity_path" == *"/.bun/bin/"* ]] || [[ "$agentuity_path" == *"/bun/bin/"* ]]; then
+      print_message warning "${RED}Warning: ${NC}Bun global installation detected at ${CYAN}$agentuity_path${NC}"
+      print_message info "${MUTED}The global binary installation is recommended over bun global install.${NC}"
+
+      if [ "$non_interactive" = false ]; then
+        print_message info ""
+        print_message info "To switch to the binary installation:"
+        print_message info "  1. Uninstall the bun global package: ${CYAN}bun remove -g @agentuity/cli${NC}"
+        print_message info "  2. Re-run this install script"
+        print_message info ""
+        echo -n "Continue anyway? (y/N): "
+        read -r response
+        case "$response" in
+          [yY][eE][sS]|[yY])
+            print_message info "${MUTED}Continuing with installation. Note: You may need to adjust your PATH.${NC}"
+            ;;
+          *)
+            print_message info "Installation cancelled. Please uninstall the bun global package first."
+            exit 0
+            ;;
+        esac
+      else
+        print_message info "${MUTED}Running in non-interactive mode. Installing anyway.${NC}"
+        print_message info "${MUTED}Note: Ensure $INSTALL_DIR is in your PATH before the bun global path.${NC}"
+      fi
+    fi
+  fi
+}
+
+check_legacy_binaries() {
+  # Legacy install script used these paths (in order of preference):
+  # $HOME/.local/bin, $HOME/.bin, $HOME/bin, /usr/local/bin
+  local legacy_paths=(
+    "$HOME/.local/bin/agentuity"
+    "$HOME/.bin/agentuity"
+    "$HOME/bin/agentuity"
+    "/usr/local/bin/agentuity"
+  )
+
+  local found_legacy=false
+  local legacy_locations=()
+
+  for path in "${legacy_paths[@]}"; do
+    if [ -f "$path" ] && [ "$path" != "$INSTALL_DIR/agentuity" ]; then
+      found_legacy=true
+      legacy_locations+=("$path")
+    fi
+  done
+
+  if [ "$found_legacy" = true ]; then
+    print_message warning "${RED}Warning: ${NC}Legacy binary installation(s) detected"
+    for location in "${legacy_locations[@]}"; do
+      print_message info "  - ${CYAN}$location${NC}"
+    done
+
+    if [ "$non_interactive" = false ]; then
+      echo -n "Remove legacy binaries? (Y/n): "
+      read -r response
+      case "$response" in
+        [nN][oO]|[nN])
+          print_message info "${MUTED}Skipping legacy binary removal. Note: You may have conflicts.${NC}"
+          ;;
+        *)
+          for location in "${legacy_locations[@]}"; do
+            if rm -f "$location" 2>/dev/null; then
+              print_message info "${MUTED}Removed $location${NC}"
+            else
+              print_message warning "Could not remove $location - you may need to remove it manually"
+            fi
+          done
+          ;;
+      esac
+    else
+      # Non-interactive mode: auto-remove if writable
+      for location in "${legacy_locations[@]}"; do
+        if rm -f "$location" 2>/dev/null; then
+          print_message info "${MUTED}Removed legacy binary: $location${NC}"
+        else
+          print_message warning "Could not remove $location - may require manual cleanup"
+        fi
+      done
+    fi
+  fi
 }
 
 check_version() {
@@ -302,6 +441,11 @@ download_and_install() {
   rm -rf "$tmpdir"
   trap - EXIT
 }
+
+# Check for legacy installations before proceeding
+check_brew_install
+check_bun_install
+check_legacy_binaries
 
 if [ "$force_install" = false ]; then
   check_version
