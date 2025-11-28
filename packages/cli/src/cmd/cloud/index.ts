@@ -15,7 +15,6 @@ import apikeyCommand from './apikey';
 import streamCommand from './stream';
 import vectorCommand from './vector';
 
-
 export const command = createCommand({
 	name: 'cloud',
 	description: 'Cloud related commands',

@@ -17,11 +17,13 @@ export function getCommandPrefix(): string {
 	const scriptPath = process.argv[1] || '';
 	const normalized = path.normalize(scriptPath);
 
+	// If we have AGENTUITY_CLI_VERSION set we are running from compiled binary OR
 	// If the script is in node_modules/.bin or a global bin directory, it's likely global
 	const isGlobal =
-		normalized.includes(`${path.sep}bin${path.sep}`) &&
-		!normalized.includes(`${path.sep}node_modules${path.sep}`) &&
-		!normalized.includes(path.join('packages', 'cli', 'bin'));
+		process.env.AGENTUITY_CLI_VERSION ||
+		(normalized.includes(`${path.sep}bin${path.sep}`) &&
+			!normalized.includes(`${path.sep}node_modules${path.sep}`) &&
+			!normalized.includes(path.join('packages', 'cli', 'bin')));
 
 	if (isGlobal) {
 		cachedPrefix = 'agentuity';

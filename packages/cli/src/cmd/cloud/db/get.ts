@@ -31,7 +31,9 @@ export const getSubcommand = createSubcommand({
 			showCredentials: z
 				.boolean()
 				.optional()
-				.describe('Show credentials in plain text (default: masked in terminal, unmasked in JSON)'),
+				.describe(
+					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
+				),
 		}),
 		response: DBGetResponseSchema,
 	},

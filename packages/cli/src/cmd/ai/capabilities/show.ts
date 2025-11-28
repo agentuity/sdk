@@ -154,7 +154,12 @@ export const showSubcommand = createSubcommand({
 					id: 'storage',
 					name: 'Cloud Storage',
 					description: 'Manage storage resources',
-					commands: ['cloud storage list', 'cloud storage create', 'cloud storage get', 'cloud storage delete'],
+					commands: [
+						'cloud storage list',
+						'cloud storage create',
+						'cloud storage get',
+						'cloud storage delete',
+					],
 					requiresAuth: true,
 				},
 				{

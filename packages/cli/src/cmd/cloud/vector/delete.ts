@@ -51,8 +51,11 @@ export const deleteSubcommand = createCommand({
 					ErrorCode.VALIDATION_FAILED
 				);
 			}
-			const keyList = args.keys.length > 3 ? `${args.keys.slice(0, 3).join(', ')}...` : args.keys.join(', ');
-			tui.warning(`This will delete ${args.keys.length} vector(s) from ${tui.bold(args.namespace)}: ${keyList}`);
+			const keyList =
+				args.keys.length > 3 ? `${args.keys.slice(0, 3).join(', ')}...` : args.keys.join(', ');
+			tui.warning(
+				`This will delete ${args.keys.length} vector(s) from ${tui.bold(args.namespace)}: ${keyList}`
+			);
 			const confirm = await new Promise<boolean>((resolve) => {
 				process.stdout.write('Are you sure? (yes/no): ');
 				process.stdin.once('data', (data) => {
