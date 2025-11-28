@@ -17,8 +17,15 @@
 		"noImplicitOverride": true,
 		"noUnusedLocals": false,
 		"noUnusedParameters": false,
-		"noPropertyAccessFromIndexSignature": false
+		"noPropertyAccessFromIndexSignature": false,
+		"paths": {
+			"@agentuity/runtime": ["./.agentuity/.agentuity_runtime.ts"]
+		}
 	},
-	"include": ["src/**/*", "app.ts"],
-	"exclude": [".agentuity/**/*", "node_modules/**/*"]
+	"include": [
+		"src/**/*",
+		"app.ts",
+		"src/agents/registry.generated.ts",
+		".agentuity/.agentuity_runtime.ts"
+	]
 }

@@ -29,7 +29,7 @@ const router = createRouter();
 
 router.get('/', async (c) => {
 	// TODO: add your code here
-	const output = await c.agent.${name}.run('hello world');
+	const output = await c.var.agent.${name}.run('hello world');
 	return c.text(output);
 });
 
