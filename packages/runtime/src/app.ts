@@ -26,7 +26,7 @@ export interface WorkbenchInstance {
 
 type CorsOptions = Parameters<typeof cors>[0];
 
-export interface AppConfig {
+export interface AppConfig<TAppState = Record<string, never>> {
 	/**
 	 * Override the default cors settings
 	 */
@@ -76,9 +76,19 @@ export interface AppConfig {
 		 */
 		workbench?: WorkbenchInstance;
 	};
+	/**
+	 * Optional setup function called before server starts
+	 * Returns app state that will be available in all agents and routes
+	 */
+	setup?: () => Promise<TAppState> | TAppState;
+	/**
+	 * Optional shutdown function called when server is stopping
+	 * Receives the app state returned from setup
+	 */
+	shutdown?: (state: TAppState) => Promise<void> | void;
 }
 
-export interface Variables {
+export interface Variables<TAppState = Record<string, never>> {
 	logger: Logger;
 	meter: Meter;
 	tracer: Tracer;
@@ -91,6 +101,7 @@ export interface Variables {
 	objectstore: ObjectStorage;
 	stream: StreamStorage;
 	vector: VectorStorage;
+	app: TAppState;
 }
 
 export type TriggerType = SessionStartEvent['trigger'];
@@ -102,30 +113,40 @@ export interface PrivateVariables {
 	trigger: TriggerType;
 }
 
-export interface Env extends HonoEnv {
-	Variables: Variables;
+export interface Env<TAppState = Record<string, never>> extends HonoEnv {
+	Variables: Variables<TAppState>;
 }
 
-type AppEventMap = {
-	'agent.started': [Agent<any, any, any>, AgentContext];
-	'agent.completed': [Agent<any, any, any>, AgentContext];
-	'agent.errored': [Agent<any, any, any>, AgentContext, Error];
+type AppEventMap<TAppState = Record<string, never>> = {
+	'agent.started': [
+		Agent<any, any, any, any, TAppState>,
+		AgentContext<any, any, any, any, TAppState>,
+	];
+	'agent.completed': [
+		Agent<any, any, any, any, TAppState>,
+		AgentContext<any, any, any, any, TAppState>,
+	];
+	'agent.errored': [
+		Agent<any, any, any, any, TAppState>,
+		AgentContext<any, any, any, any, TAppState>,
+		Error,
+	];
 	'session.started': [Session];
 	'session.completed': [Session];
 	'thread.created': [Thread];
 	'thread.destroyed': [Thread];
 };
 
-type AppEventCallback<K extends keyof AppEventMap> = (
+type AppEventCallback<K extends keyof AppEventMap<any>, TAppState = Record<string, never>> = (
 	eventName: K,
-	...args: AppEventMap[K]
+	...args: AppEventMap<TAppState>[K]
 ) => void | Promise<void>;
 
-export class App {
+export class App<TAppState = Record<string, never>> {
 	/**
 	 * the router instance
 	 */
-	readonly router: Hono<Env>;
+	readonly router: Hono<Env<TAppState>>;
 	/**
 	 * the server instance
 	 */
@@ -134,19 +155,28 @@ export class App {
 	 * the logger instance
 	 */
 	readonly logger: Logger;
+	/**
+	 * the app state returned from setup
+	 */
+	readonly state: TAppState;
 
-	private eventListeners = new Map<keyof AppEventMap, Set<AppEventCallback<any>>>();
+	private eventListeners = new Map<
+		keyof AppEventMap<TAppState>,
+		Set<AppEventCallback<any, TAppState>>
+	>();
 
-	constructor(config?: AppConfig) {
-		this.router = new Hono<Env>();
-		this.server = createServer(this.router, config);
+	constructor(state: TAppState, config?: AppConfig<TAppState>) {
+		this.state = state;
+		this.router = new Hono<Env<TAppState>>();
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		this.server = createServer(this.router as any, config as any, state as any);
 		this.logger = getLogger() as Logger;
 		setGlobalApp(this);
 	}
 
-	addEventListener<K extends keyof AppEventMap>(
+	addEventListener<K extends keyof AppEventMap<TAppState>>(
 		eventName: K,
-		callback: AppEventCallback<K>
+		callback: AppEventCallback<K, TAppState>
 	): void {
 		let callbacks = this.eventListeners.get(eventName);
 		if (!callbacks) {
@@ -156,18 +186,18 @@ export class App {
 		callbacks.add(callback);
 	}
 
-	removeEventListener<K extends keyof AppEventMap>(
+	removeEventListener<K extends keyof AppEventMap<TAppState>>(
 		eventName: K,
-		callback: AppEventCallback<K>
+		callback: AppEventCallback<K, TAppState>
 	): void {
 		const callbacks = this.eventListeners.get(eventName);
 		if (!callbacks) return;
 		callbacks.delete(callback);
 	}
 
-	async fireEvent<K extends keyof AppEventMap>(
+	async fireEvent<K extends keyof AppEventMap<TAppState>>(
 		eventName: K,
-		...args: AppEventMap[K]
+		...args: AppEventMap<TAppState>[K]
 	): Promise<void> {
 		const callbacks = this.eventListeners.get(eventName);
 		if (!callbacks || callbacks.size === 0) return;
@@ -178,23 +208,33 @@ export class App {
 	}
 }
 
-let globalApp: App | null = null;
+let globalApp: App<any> | null = null;
 
-function setGlobalApp(app: App): void {
+function setGlobalApp(app: App<any>): void {
 	globalApp = app;
 }
 
-export function getApp(): App | null {
+export function getApp(): App<any> | null {
 	return globalApp;
 }
 
 /**
- * create a new app instance
+ * create a new app instance with optional lifecycle methods
  *
- * @returns App instance
+ * @returns App instance (will start server after setup completes)
  */
-export function createApp(config?: AppConfig): App {
-	return new App(config);
+export async function createApp<TAppState = Record<string, never>>(
+	config?: AppConfig<TAppState>
+): Promise<App<TAppState>> {
+	// Run setup if provided
+	let state: TAppState;
+	if (config?.setup) {
+		state = await config.setup();
+	} else {
+		state = {} as TAppState;
+	}
+
+	return new App(state, config);
 }
 
 /**
@@ -203,9 +243,9 @@ export function createApp(config?: AppConfig): App {
  * @param eventName
  * @param args
  */
-export async function fireEvent<K extends keyof AppEventMap>(
+export async function fireEvent<K extends keyof AppEventMap<any>>(
 	eventName: K,
-	...args: AppEventMap[K]
+	...args: AppEventMap<any>[K]
 ) {
 	await globalApp?.fireEvent(eventName, ...args);
 }

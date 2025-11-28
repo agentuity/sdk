@@ -26,6 +26,7 @@ import { generateId } from './session';
 import { getEvalRunEventProvider } from './_services';
 import * as runtimeConfig from './_config';
 import type { EvalRunStartEvent } from '@agentuity/core';
+import type { AppState } from './index';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
@@ -51,6 +52,8 @@ export interface AgentContext<
 	TAgentRegistry extends AgentRegistry = AgentRegistry,
 	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
 	TParent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
+	TConfig = unknown,
+	TAppState = Record<string, never>,
 > {
 	//   email: () => Promise<Email | null>;
 	//   sms: () => Promise<SMS | null>;
@@ -70,6 +73,8 @@ export interface AgentContext<
 	state: Map<string, unknown>;
 	thread: Thread;
 	session: Session;
+	config: TConfig; // Agent-specific config returned from agent.setup()
+	app: TAppState; // App-wide state returned from createApp setup()
 }
 
 type InternalAgentMetadata = {
@@ -127,33 +132,40 @@ export type Agent<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
 	TStream extends boolean = false,
+	TConfig = unknown,
+	TAppState = Record<string, never>,
 > = {
 	metadata: AgentMetadata;
-	handler: (ctx: AgentContext<any, any, any>, ...args: any[]) => any | Promise<any>;
+	handler: (
+		ctx: AgentContext<any, any, any, TConfig, TAppState>,
+		...args: any[]
+	) => any | Promise<any>;
 	evals?: Eval[];
 	createEval: CreateEvalMethod<TInput, TOutput>;
+	setup?: (app: TAppState) => Promise<TConfig> | TConfig;
+	shutdown?: (app: TAppState, config: TConfig) => Promise<void> | void;
 	addEventListener(
 		eventName: 'started',
 		callback: (
 			eventName: 'started',
-			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext<any, any, any>
+			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
+			context: AgentContext<any, any, any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
 	addEventListener(
 		eventName: 'completed',
 		callback: (
 			eventName: 'completed',
-			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext<any, any, any>
+			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
+			context: AgentContext<any, any, any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
 	addEventListener(
 		eventName: 'errored',
 		callback: (
 			eventName: 'errored',
-			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext<any, any, any>,
+			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
+			context: AgentContext<any, any, any, TConfig, TAppState>,
 			data: Error
 		) => Promise<void> | void
 	): void;
@@ -161,24 +173,24 @@ export type Agent<
 		eventName: 'started',
 		callback: (
 			eventName: 'started',
-			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext<any, any, any>
+			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
+			context: AgentContext<any, any, any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
 	removeEventListener(
 		eventName: 'completed',
 		callback: (
 			eventName: 'completed',
-			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext<any, any, any>
+			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
+			context: AgentContext<any, any, any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
 	removeEventListener(
 		eventName: 'errored',
 		callback: (
 			eventName: 'errored',
-			agent: Agent<TInput, TOutput, TStream>,
-			context: AgentContext<any, any, any>,
+			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
+			context: AgentContext<any, any, any, TConfig, TAppState>,
 			data: Error
 		) => Promise<void> | void
 	): void;
@@ -196,6 +208,23 @@ type InferStreamOutput<TOutput, TStream extends boolean> = TStream extends true
 		? StandardSchemaV1.InferOutput<TOutput>
 		: void;
 
+// Helper types for automatic inference from config
+type InferInput<T> = T extends { schema: { input: infer I } } ? I : undefined;
+type InferOutput<T> = T extends { schema: { output: infer O } } ? O : undefined;
+type InferStream<T> = T extends { schema: { stream: infer S } } ? S : false;
+type InferSetupReturn<T> = T extends { setup: infer S }
+	? S extends (...args: any[]) => infer R
+		? R extends Promise<infer U>
+			? U
+			: R
+		: unknown
+	: unknown;
+
+// Helper to infer the actual input value type from schema
+// In const generic context, we can't reliably check StandardSchemaV1, so just use any
+// This allows TypeScript to accept any handler signature
+type InferInputValue<T> = T extends { schema: { input: any } } ? any : undefined;
+
 export interface AgentRunner<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
@@ -210,13 +239,17 @@ export interface AgentRunner<
 }
 
 // Will be populated at runtime with strongly typed agents
-const agents = new Map<string, Agent>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const agents = new Map<string, Agent<any, any, any, any, any>>();
 
 // WeakMap to store event listeners for each agent instance (truly private)
 const agentEventListeners = new WeakMap<
 	Agent<any, any, any>,
 	Map<AgentEventName, Set<AgentEventCallback<any>>>
 >();
+
+// Map to store agent configs returned from setup (keyed by agent name)
+const agentConfigs = new Map<string, unknown>();
 
 // Helper to fire event listeners sequentially, abort on first error
 async function fireAgentEvent(
@@ -278,14 +311,55 @@ export type AgentName = keyof AgentRegistry extends never ? string : keyof Agent
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AgentRegistry {}
 
-export const registerAgent = (name: AgentName, agent: Agent): void => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const registerAgent = (name: AgentName, agent: Agent<any, any, any, any, any>): void => {
 	agents.set(name, agent);
 };
 
+export const setAgentConfig = (name: AgentName, config: unknown): void => {
+	agentConfigs.set(name, config);
+};
+
+export const getAgentConfig = (name: AgentName): unknown => {
+	return agentConfigs.get(name);
+};
+
+/**
+ * Create an agent with automatic type inference.
+ * Infers all types from the config object automatically including handler parameter types.
+ */
+export function createAgent<
+	const TConfig extends {
+		schema?: {
+			input?: StandardSchemaV1;
+			output?: StandardSchemaV1;
+			stream?: boolean;
+		};
+		metadata: ExternalAgentMetadata;
+		setup?: (app: AppState) => any;
+		handler: (...args: any[]) => any;
+		shutdown?: (app: AppState, config: any) => any;
+	},
+>(
+	config: TConfig
+): Agent<
+	InferInput<TConfig>,
+	InferOutput<TConfig>,
+	InferStream<TConfig>,
+	InferSetupReturn<TConfig>,
+	AppState
+>;
+
+/**
+ * Create an agent with explicit generic type parameters.
+ * Use this overload when you need explicit control over types.
+ */
 export function createAgent<
 	TInput extends StandardSchemaV1 | undefined = undefined,
 	TOutput extends StandardSchemaV1 | undefined = undefined,
 	TStream extends boolean = false,
+	TConfig = unknown,
+	TAppState = AppState,
 >(config: {
 	schema?: {
 		input?: TInput;
@@ -293,48 +367,50 @@ export function createAgent<
 		stream?: TStream;
 	};
 	metadata: ExternalAgentMetadata;
+	setup?: (app: TAppState) => Promise<TConfig> | TConfig;
+	shutdown?: (app: TAppState, config: TConfig) => Promise<void> | void;
 	handler: TInput extends StandardSchemaV1
 		? TStream extends true
 			? TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext<any, any, any>,
+						c: AgentContext<any, any, any, TConfig, TAppState>,
 						input: StandardSchemaV1.InferOutput<TInput>
 					) =>
 						| Promise<ReadableStream<StandardSchemaV1.InferOutput<TOutput>>>
 						| ReadableStream<StandardSchemaV1.InferOutput<TOutput>>
 				: (
-						c: AgentContext<any, any, any>,
+						c: AgentContext<any, any, any, TConfig, TAppState>,
 						input: StandardSchemaV1.InferOutput<TInput>
 					) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
 			: TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext<any, any, any>,
+						c: AgentContext<any, any, any, TConfig, TAppState>,
 						input: StandardSchemaV1.InferOutput<TInput>
 					) =>
 						| Promise<StandardSchemaV1.InferOutput<TOutput>>
 						| StandardSchemaV1.InferOutput<TOutput>
 				: (
-						c: AgentContext<any, any, any>,
+						c: AgentContext<any, any, any, TConfig, TAppState>,
 						input: StandardSchemaV1.InferOutput<TInput>
 					) => Promise<void> | void
 		: TStream extends true
 			? TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext<any, any, any>
+						c: AgentContext<any, any, any, TConfig, TAppState>
 					) =>
 						| Promise<ReadableStream<StandardSchemaV1.InferOutput<TOutput>>>
 						| ReadableStream<StandardSchemaV1.InferOutput<TOutput>>
 				: (
-						c: AgentContext<any, any, any>
+						c: AgentContext<any, any, any, TConfig, TAppState>
 					) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
 			: TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext<any, any, any>
+						c: AgentContext<any, any, any, TConfig, TAppState>
 					) =>
 						| Promise<StandardSchemaV1.InferOutput<TOutput>>
 						| StandardSchemaV1.InferOutput<TOutput>
-				: (c: AgentContext<any, any, any>) => Promise<void> | void;
-}): Agent<TInput, TOutput, TStream> {
+				: (c: AgentContext<any, any, any, TConfig, TAppState>) => Promise<void> | void;
+}): Agent<TInput, TOutput, TStream, TConfig, TAppState> {
 	const inputSchema = config.schema?.input;
 	const outputSchema = config.schema?.output;
 
@@ -501,6 +577,8 @@ export function createAgent<
 		metadata: config.metadata,
 		evals: evalsArray,
 		createEval,
+		setup: config.setup,
+		shutdown: config.shutdown,
 	};
 
 	// Add event listener methods
@@ -765,7 +843,7 @@ export function createAgent<
 		agent.stream = config.schema.stream;
 	}
 
-	return agent as Agent<TInput, TOutput, TStream>;
+	return agent as Agent<TInput, TOutput, TStream, TConfig, TAppState>;
 }
 
 const runWithSpan = async <
@@ -877,7 +955,7 @@ export const populateAgentsRegistry = (ctx: Context): any => {
 	return agentsObj;
 };
 
-export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler => {
+export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHandler => {
 	return async (ctx, next) => {
 		// Populate agents object with strongly-typed keys
 		const agentsObj = populateAgentsRegistry(ctx);
@@ -910,22 +988,28 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 		const sessionId = ctx.var.sessionId;
 		const thread = ctx.var.thread;
 		const session = ctx.var.session;
+		const config = agentName ? getAgentConfig(agentName as AgentName) : undefined;
+		const app = ctx.var.app;
 
 		const args: RequestAgentContextArgs<
 			AgentRegistry,
 			AgentRunner | undefined,
-			AgentRunner | undefined
+			AgentRunner | undefined,
+			unknown,
+			unknown
 		> = {
 			agent: agentsObj,
 			current: currentAgent,
 			parent: parentAgent,
-			agentName,
+			agentName: agentName as AgentName,
 			logger: ctx.var.logger.child({ agent: agentName }),
 			tracer: ctx.var.tracer,
 			sessionId,
 			session,
 			thread,
 			handler: ctx.var.waitUntilHandler,
+			config: config || {},
+			app: app || {},
 		};
 
 		return runInAgentContext(ctx as unknown as Record<string, unknown>, args, next);
@@ -933,3 +1017,23 @@ export const createAgentMiddleware = (agentName: AgentName): MiddlewareHandler =
 };
 
 export const getAgents = () => agents;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const runAgentSetups = async (appState: any): Promise<void> => {
+	for (const [name, agent] of agents.entries()) {
+		if (agent.setup) {
+			const config = await agent.setup(appState);
+			setAgentConfig(name as AgentName, config);
+		}
+	}
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const runAgentShutdowns = async (appState: any): Promise<void> => {
+	for (const [name, agent] of agents.entries()) {
+		if (agent.shutdown) {
+			const config = getAgentConfig(name as AgentName);
+			await agent.shutdown(appState, config);
+		}
+	}
+};

@@ -10,3 +10,13 @@ export { getRouter } from './_server';
 export { Email, parseEmail } from './io/email';
 export * from './services/evalrun';
 export { getEvalRunEventProvider } from './_services';
+
+/**
+ * Default AppState interface that can be augmented by the build tool
+ * to provide app-level state typing throughout the application.
+ *
+ * This will be extended by the auto-generated .agentuity_runtime.ts wrapper
+ * when the app defines a setup() function in createApp().
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface AppState {}

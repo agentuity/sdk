@@ -131,7 +131,11 @@ export function privateContext<E extends Env>(c: HonoContext<E>) {
 	return c as unknown as HonoContext<{ Variables: PrivateVariables }>;
 }
 
-export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig) => {
+export const createServer = <E extends Env, TAppState = Record<string, never>>(
+	router: Hono<E>,
+	config?: AppConfig<TAppState>,
+	appState?: TAppState
+) => {
 	if (globalServerInstance) {
 		return globalServerInstance;
 	}
@@ -200,10 +204,19 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 	const threadProvider = getThreadProvider();
 	const sessionProvider = getSessionProvider();
 
-	let initPromise: Promise<void> | undefined = new Promise((resolve, reject) => {
-		Promise.all([threadProvider.initialize(), sessionProvider.initialize()])
-			.then(() => resolve())
-			.catch(reject);
+	let initPromise: Promise<void> | undefined = new Promise(async (resolve, reject) => {
+		try {
+			// Initialize providers first
+			await Promise.all([threadProvider.initialize(), sessionProvider.initialize()]);
+
+			// Then run agent setups
+			const { runAgentSetups } = await import('./agent');
+			await runAgentSetups(appState);
+
+			resolve();
+		} catch (error) {
+			reject(error);
+		}
 	});
 
 	router.use(async (c, next) => {
@@ -214,6 +227,7 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 		c.set('logger', otel.logger);
 		c.set('tracer', otel.tracer);
 		c.set('meter', otel.meter);
+		c.set('app', appState || ({} as TAppState));
 		const isWebSocket = c.req.header('upgrade')?.toLowerCase() === 'websocket';
 		const skipLogging = c.req.path.startsWith('/_agentuity/');
 		const started = performance.now();
@@ -337,6 +351,16 @@ export const createServer = <E extends Env>(router: Hono<E>, config?: AppConfig)
 			process.exit(1);
 		}, 5_000);
 		try {
+			// Run agent shutdowns first
+			const { runAgentShutdowns } = await import('./agent');
+			await runAgentShutdowns(appState);
+
+			// Run app shutdown if provided
+			if (config?.shutdown && appState) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				await config.shutdown(appState as any);
+			}
+
 			await server.stop();
 			await otel.shutdown();
 			otel.logger.debug('shutdown completed');

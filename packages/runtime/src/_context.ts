@@ -14,6 +14,8 @@ export interface RequestAgentContextArgs<
 	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	TParent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
+	TConfig = unknown,
+	TAppState = Record<string, never>,
 > {
 	sessionId: string;
 	agent: TAgentMap;
@@ -25,6 +27,8 @@ export interface RequestAgentContextArgs<
 	session: Session;
 	thread: Thread;
 	handler: WaitUntilHandler;
+	config: TConfig;
+	app: TAppState;
 }
 
 export class RequestAgentContext<
@@ -33,7 +37,9 @@ export class RequestAgentContext<
 	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	TParent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
-> implements AgentContext<TAgentMap, TCurrent, TParent>
+	TConfig = unknown,
+	TAppState = Record<string, never>,
+> implements AgentContext<TAgentMap, TCurrent, TParent, TConfig, TAppState>
 {
 	agent: TAgentMap;
 	current: TCurrent;
@@ -49,9 +55,11 @@ export class RequestAgentContext<
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;
+	config: TConfig;
+	app: TAppState;
 	private handler: WaitUntilHandler;
 
-	constructor(args: RequestAgentContextArgs<TAgentMap, TCurrent, TParent>) {
+	constructor(args: RequestAgentContextArgs<TAgentMap, TCurrent, TParent, TConfig, TAppState>) {
 		this.agent = args.agent;
 		this.current = args.current;
 		this.parent = args.parent;
@@ -61,6 +69,8 @@ export class RequestAgentContext<
 		this.tracer = args.tracer;
 		this.thread = args.thread;
 		this.session = args.session;
+		this.config = args.config;
+		this.app = args.app;
 		this.state = new Map<string, unknown>();
 		this.handler = args.handler;
 		registerServices(this, false); // agents already populated via args.agent
@@ -72,7 +82,7 @@ export class RequestAgentContext<
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const agentAsyncLocalStorage = new AsyncLocalStorage<AgentContext<any, any, any>>();
+const agentAsyncLocalStorage = new AsyncLocalStorage<AgentContext<any, any, any, any, any>>();
 const httpAsyncLocalStorage = new AsyncLocalStorage<HonoContext>();
 
 export const inAgentContext = (): boolean => {
@@ -86,7 +96,7 @@ export const inHTTPContext = (): boolean => {
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const getAgentContext = (): AgentContext<any, any, any> => {
+export const getAgentContext = (): AgentContext<any, any, any, any, any> => {
 	const context = agentAsyncLocalStorage.getStore();
 	if (!context) {
 		throw new Error('AgentContext is not available');
@@ -111,12 +121,14 @@ export const runInAgentContext = <
 	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	TParent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
+	TConfig = unknown,
+	TAppState = Record<string, never>,
 >(
 	ctxObject: Record<string, unknown>,
-	args: RequestAgentContextArgs<TAgentMap, TCurrent, TParent>,
+	args: RequestAgentContextArgs<TAgentMap, TCurrent, TParent, TConfig, TAppState>,
 	next: () => Promise<void>
 ) => {
-	const ctx = new RequestAgentContext<TAgentMap, TCurrent, TParent>(args);
+	const ctx = new RequestAgentContext<TAgentMap, TCurrent, TParent, TConfig, TAppState>(args);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const _ctx = ctx as any;
 	Object.getOwnPropertyNames(ctx).forEach((k) => {

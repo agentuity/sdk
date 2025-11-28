@@ -189,7 +189,8 @@ let evalRunEvent: EvalRunEventProvider;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let localRouter: any | null = null;
 
-export function createServices(logger: Logger, config?: AppConfig, serverUrl?: string) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function createServices(logger: Logger, config?: AppConfig<any>, serverUrl?: string) {
 	const authenticated = isAuthenticated();
 	const useLocal = config?.services?.useLocal ?? false;
 	adapter = createFetchAdapter(logger);
