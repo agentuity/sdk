@@ -241,18 +241,9 @@ export function bold(text: string): string {
  * Used for table headings
  */
 export function heading(text: string): string {
-	const USE_COLORS = shouldUseColors();
-	if (!USE_COLORS) {
-		return text;
-	}
-
-	// For light mode: use inverse (black bg, white text)
-	// For dark mode: use white bold
-	const style = isDarkMode()
-		? '\x1b[1;37m' // bold white
-		: '\x1b[7m'; // inverse
+	const color = getColor('info');
 	const reset = getColor('reset');
-	return `${style}${text}${reset}`;
+	return `${color}${text}${reset}`;
 }
 
 /**
