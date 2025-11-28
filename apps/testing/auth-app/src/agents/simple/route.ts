@@ -15,4 +15,11 @@ router.post('/', zValidator('json', agent.inputSchema), async (c) => {
 	return c.text(text);
 });
 
+// Test route to validate c.var.agent works with zValidator
+router.post('/test-var', zValidator('json', agent.inputSchema), async (c) => {
+	const data = c.req.valid('json');
+	const text = await c.var.agent.simple.run(data);
+	return c.text(`via c.var.agent: ${text}`);
+});
+
 export default router;
