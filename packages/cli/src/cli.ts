@@ -494,7 +494,10 @@ async function registerSubcommand(
 	if (subcommand.schema?.options) {
 		const parsed = parseOptionsSchema(subcommand.schema.options);
 		for (const opt of parsed) {
-			const flag = opt.name.replace(/([A-Z])/g, '-$1').toLowerCase();
+			const flag = opt.name
+			.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+			.replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
+			.toLowerCase();
 			const desc = opt.description || '';
 			// Add short flag alias for verbose
 			const flagSpec = flag === 'verbose' ? `-v, --${flag}` : `--${flag}`;

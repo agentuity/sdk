@@ -27,6 +27,7 @@ export const DeployOptionsSchema = z.object({
 		.optional()
 		.describe('The trigger that caused the build'),
 	commitUrl: z.url().optional().describe('The url to the CI commit'),
+	message: z.string().optional().describe('The message to associate with this deployment'),
 	provider: z.string().optional().describe('The CI provider name (attempts to autodetect)'),
 	event: z
 		.enum(['pull_request', 'push', 'manual', 'workflow'])
@@ -68,6 +69,7 @@ export async function bundle({
 	pullRequestNumber,
 	pullRequestCommentId,
 	pullRequestURL,
+	message,
 }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
@@ -505,6 +507,9 @@ export async function bundle({
 				url: pullRequestURL,
 				commentId: pullRequestCommentId,
 			};
+		}
+		if (message) {
+			buildmetadata.deployment.git.message = message;
 		}
 	}
 
