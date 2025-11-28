@@ -1,4 +1,4 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 import { openai } from '@ai-sdk/openai';
 import { generateText, type AssistantModelMessage, type TextPart } from 'ai';
@@ -11,7 +11,7 @@ const agent = createAgent({
 		input: z.string('the prompt to send'),
 		output: z.string('the prompt output'),
 	},
-	handler: async (_c: AgentContext, prompt) => {
+	handler: async (_c, prompt) => {
 		const { response } = await generateText({
 			model: openai('gpt-4o'),
 			system: 'Please help me with this',

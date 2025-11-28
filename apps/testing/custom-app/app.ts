@@ -9,7 +9,7 @@ import {
 	CustomEvalRunEventProvider,
 } from './src/services';
 
-const app = createApp({
+const app = await createApp({
 	services: {
 		keyvalue: new CustomKeyValueStorage(),
 		object: new CustomObjectStorage(),

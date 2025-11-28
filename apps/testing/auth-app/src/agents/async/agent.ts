@@ -1,11 +1,11 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 
 export default createAgent({
 	metadata: {
 		name: 'Async Agent',
 		description: 'This is an example of an agent that takes time to run',
 	},
-	handler: (c: AgentContext) => {
+	handler: (c) => {
 		const started = performance.now();
 		return new Promise<void>((resolve) => {
 			setTimeout(() => {

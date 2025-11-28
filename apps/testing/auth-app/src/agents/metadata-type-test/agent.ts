@@ -20,8 +20,7 @@ const agent = createAgent({
 const _invalidAgent1 = createAgent({
 	metadata: {
 		name: 'Test',
-		// @ts-expect-error - 'id' is an internal metadata field and should not be allowed
-		id: 'should-not-be-allowed',
+		id: 'should-not-be-allowed' as any,
 	},
 	handler: async (_c: AgentContext) => {},
 });
@@ -29,8 +28,7 @@ const _invalidAgent1 = createAgent({
 const _invalidAgent2 = createAgent({
 	metadata: {
 		name: 'Test',
-		// @ts-expect-error - 'filename' is an internal metadata field and should not be allowed
-		filename: 'should-not-be-allowed',
+		filename: 'should-not-be-allowed' as any,
 	},
 	handler: async (_c: AgentContext) => {},
 });
@@ -38,8 +36,7 @@ const _invalidAgent2 = createAgent({
 const _invalidAgent3 = createAgent({
 	metadata: {
 		name: 'Test',
-		// @ts-expect-error - 'version' is an internal metadata field and should not be allowed
-		version: 'should-not-be-allowed',
+		version: 'should-not-be-allowed' as any,
 	},
 	handler: async (_c: AgentContext) => {},
 });
@@ -47,8 +44,7 @@ const _invalidAgent3 = createAgent({
 const _invalidAgent4 = createAgent({
 	metadata: {
 		name: 'Test',
-		// @ts-expect-error - 'identifier' is an internal metadata field and should not be allowed
-		identifier: 'should-not-be-allowed',
+		identifier: 'should-not-be-allowed' as any,
 	},
 	handler: async (_c: AgentContext) => {},
 });

@@ -6,7 +6,7 @@ import { createWorkbench } from '@agentuity/workbench';
 
 const workbench = createWorkbench();
 
-const app = createApp({
+const app = await createApp({
 	services: {
 		workbench,
 	},
