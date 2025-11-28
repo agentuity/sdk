@@ -720,13 +720,25 @@ const AgentuityBundler: BunPlugin = {
 				if (index < 0) {
 					throw new Error(`couldn't find the required createApp function in ${args.path}`);
 				}
-				const endSemi = contents.indexOf(');', index);
+				
+				// Find the matching closing parenthesis for createApp(...)
+				const openParen = contents.indexOf('(', index);
+				let depth = 1;
+				let endParen = openParen + 1;
+				while (depth > 0 && endParen < contents.length) {
+					if (contents[endParen] === '(') depth++;
+					else if (contents[endParen] === ')') depth--;
+					endParen++;
+				}
+				
+				// Find the semicolon after the closing paren
+				const endSemi = contents.indexOf(';', endParen - 1);
 				if (endSemi > 0) {
 					contents =
-						contents.slice(0, endSemi + 2) +
+						contents.slice(0, endSemi + 1) +
 						'\n\n' +
 						inserts.join('\n') +
-						contents.slice(endSemi + 2);
+						contents.slice(endSemi + 1);
 					inserted = true;
 				}
 				if (!inserted) {
