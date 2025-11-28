@@ -38,19 +38,19 @@ type SSEHandler<E extends Env = Env, P extends string = string, I extends Input 
 
 type HttpMethod = 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options';
 
-type ExtendedHono<E extends Env = Env, S extends Schema = {}> = {
+export type ExtendedHono<E extends Env = Env, S extends Schema = {}> = {
 	[K in Exclude<keyof Hono<E, S>, HttpMethod>]: Hono<E, S>[K];
 } & {
 	[K in HttpMethod]: {
 		<P extends string = string>(path: P, handler: AgentHandler<E, P>): Hono<E, S>;
 		<P extends string = string, I extends Input = {}>(
 			path: P,
-			middleware: MiddlewareHandler<E, P, I>,
+			middleware: MiddlewareHandler<any, string, I>,
 			handler: AgentHandler<E, P, I>
 		): Hono<E, S>;
 		<P extends string = string, I extends Input = {}>(
 			path: P,
-			middleware: MiddlewareHandler<E, P, I>
+			middleware: MiddlewareHandler<any, string, I>
 		): Hono<E, S>;
 	};
 } & {
