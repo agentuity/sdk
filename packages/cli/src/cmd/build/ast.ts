@@ -1483,7 +1483,9 @@ export function findCreateAppEndPosition(content: string): number {
 					if (declarator.init) {
 						// Handle await createApp(...)
 						if (declarator.init.type === 'AwaitExpression') {
-							const awaitExpr = declarator.init as unknown as { argument: ASTCallExpression };
+							const awaitExpr = declarator.init as unknown as {
+								argument: ASTCallExpression;
+							};
 							if (
 								awaitExpr.argument?.type === 'CallExpression' &&
 								isCreateAppCall(awaitExpr.argument)
