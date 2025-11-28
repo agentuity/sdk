@@ -1,12 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-empty-object-type */
-import { type Context, Hono, type Input, type MiddlewareHandler, type Schema } from 'hono';
+import {
+	type Context,
+	Hono,
+	type Input,
+	type MiddlewareHandler,
+	type Schema,
+	type Env as HonoEnv,
+} from 'hono';
 import { stream as honoStream, streamSSE as honoStreamSSE } from 'hono/streaming';
 import { upgradeWebSocket as honoUpgradeWebSocket } from 'hono/bun';
 import { hash, returnResponse } from './_util';
 import type { Env } from './app';
 import { getAgentAsyncLocalStorage } from './_context';
 import { parseEmail, type Email } from './io/email';
+
+// Re-export both Env types
+export type { Env };
+export type { HonoEnv };
 
 type AgentHandler<E extends Env = Env, P extends string = string, I extends Input = {}> = (
 	c: Context<E, P, I>
@@ -38,54 +49,52 @@ type SSEHandler<E extends Env = Env, P extends string = string, I extends Input 
 
 type HttpMethod = 'get' | 'post' | 'put' | 'delete' | 'patch' | 'options';
 
-export type ExtendedHono<E extends Env = Env, S extends Schema = {}> = {
-	[K in Exclude<keyof Hono<E, S>, HttpMethod>]: Hono<E, S>[K];
-} & {
-	[K in HttpMethod]: {
-		<P extends string = string>(path: P, handler: AgentHandler<E, P>): Hono<E, S>;
-		<P extends string = string, I extends Input = {}>(
-			path: P,
-			middleware: MiddlewareHandler<any, string, I>,
-			handler: AgentHandler<E, P, I>
-		): Hono<E, S>;
-		<P extends string = string, I extends Input = {}>(
-			path: P,
-			middleware: MiddlewareHandler<any, string, I>
-		): Hono<E, S>;
-	};
-} & {
-	email(address: string, handler: EmailHandler): Hono<E, S>;
-	email<I extends Input = {}>(
-		address: string,
-		middleware: MiddlewareHandler<E, string, I>,
-		handler: EmailHandler<E, string, I>
-	): Hono<E, S>;
-	sms(params: { number: string }, handler: AgentHandler): Hono<E, S>;
-	cron(schedule: string, handler: AgentHandler): Hono<E, S>;
-	stream<P extends string = string>(path: P, handler: StreamHandler<E, P>): Hono<E, S>;
-	stream<P extends string = string, I extends Input = {}>(
-		path: P,
-		middleware: MiddlewareHandler<E, P, I>,
-		handler: StreamHandler<E, P, I>
-	): Hono<E, S>;
-	websocket<P extends string = string>(path: P, handler: WebSocketHandler<E, P>): Hono<E, S>;
-	websocket<P extends string = string, I extends Input = {}>(
-		path: P,
-		middleware: MiddlewareHandler<E, P, I>,
-		handler: WebSocketHandler<E, P, I>
-	): Hono<E, S>;
-	sse<P extends string = string>(path: P, handler: SSEHandler<E, P>): Hono<E, S>;
-	sse<P extends string = string, I extends Input = {}>(
-		path: P,
-		middleware: MiddlewareHandler<E, P, I>,
-		handler: SSEHandler<E, P, I>
-	): Hono<E, S>;
-};
+// Module augmentation to add custom methods to Hono
+// This avoids wrapper types and type instantiation depth issues
+// Use simplified signatures to avoid type instantiation depth issues
+declare module 'hono' {
+	interface Hono {
+		// Email routing with optional middleware
+		email(address: string, handler: (email: Email, c: Context) => any): this;
+		email(
+			address: string,
+			middleware: MiddlewareHandler,
+			handler: (email: Email, c: Context) => any
+		): this;
 
-export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): ExtendedHono<
-	E,
-	S
-> => {
+		// SMS routing
+		sms(params: { number: string }, handler: (c: Context) => any): this;
+
+		// Cron scheduling
+		cron(schedule: string, handler: (c: Context) => any): this;
+
+		// Streaming routes
+		stream(path: string, handler: (c: Context) => ReadableStream<any>): this;
+		stream(
+			path: string,
+			middleware: MiddlewareHandler,
+			handler: (c: Context) => ReadableStream<any>
+		): this;
+
+		// WebSocket routes
+		websocket(path: string, handler: (c: Context) => (ws: any) => void): this;
+		websocket(
+			path: string,
+			middleware: MiddlewareHandler,
+			handler: (c: Context) => (ws: any) => void
+		): this;
+
+		// Server-Sent Events routes
+		sse(path: string, handler: (c: Context) => (stream: any) => void): this;
+		sse(
+			path: string,
+			middleware: MiddlewareHandler,
+			handler: (c: Context) => (stream: any) => void
+		): this;
+	}
+}
+
+export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): Hono<E, S> => {
 	const router = new Hono<E, S>();
 	// tslint:disable-next-line:no-any no-unused-variable
 	// biome-ignore lint:no-any
@@ -94,38 +103,45 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 	for (const method of ['get', 'put', 'post', 'delete', 'options', 'patch']) {
 		const _originalInvoker = _router[method].bind(router);
 		_router[method] = (path: string, ...args: any[]) => {
-			if (args.length === 1) {
-				const arg = args[0];
-				// Check if it's a middleware (not our agent handler)
-				if (typeof arg === 'function' && arg.length === 2) {
-					// Middleware only: (path, middleware)
-					return _originalInvoker(path, arg);
-				}
-				// 2-arg: (path, handler)
-				const handler = arg;
-				const wrapper = async (c: Context): Promise<Response> => {
-					let result = handler(c);
-					if (result instanceof Promise) result = await result;
-					// If handler returns a Response (e.g., websocket upgrade), return it unchanged
-					if (result instanceof Response) return result;
-					return returnResponse(c, result);
-				};
-				return _originalInvoker(path, wrapper);
-			} else {
-				// 3-arg: (path, middleware, handler)
-				const middleware = args[0];
-				const handler = args[1];
-				const wrapper = async (c: Context): Promise<Response> => {
-					let result = handler(c);
-					if (result instanceof Promise) result = await result;
-					// If handler returns a Response (e.g., websocket upgrade), return it unchanged
-					if (result instanceof Response) {
-						return result;
-					}
-					return returnResponse(c, result);
-				};
-				return _originalInvoker(path, middleware, wrapper);
+			// Pass through to original Hono - it handles all the complex type inference
+			// We'll only wrap the final handler to add our response handling
+			if (args.length === 0) {
+				return _originalInvoker(path);
 			}
+			
+			// Find the last function in args - that's the handler (everything else is middleware)
+			let handlerIndex = args.length - 1;
+			while (handlerIndex >= 0 && typeof args[handlerIndex] !== 'function') {
+				handlerIndex--;
+			}
+			
+			if (handlerIndex < 0) {
+				// No handler found, pass through as-is
+				return _originalInvoker(path, ...args);
+			}
+			
+			const handler = args[handlerIndex];
+			
+			// Check if this is middleware (2 params: c, next) vs handler (1 param: c)
+			if (handler.length === 2) {
+				// This is middleware-only, pass through
+				return _originalInvoker(path, ...args);
+			}
+			
+			// Wrap the handler to add our response conversion
+			const wrapper = async (c: Context): Promise<Response> => {
+				let result = handler(c);
+				if (result instanceof Promise) result = await result;
+				// If handler returns a Response, return it unchanged
+				if (result instanceof Response) return result;
+				return returnResponse(c, result);
+			};
+			
+			// Replace the handler with our wrapper
+			const newArgs = [...args];
+			newArgs[handlerIndex] = wrapper;
+			
+			return _originalInvoker(path, ...newArgs);
 		};
 	}
 
@@ -433,5 +449,5 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 		}
 	};
 
-	return router as unknown as ExtendedHono<E, S>;
+	return router;
 };
