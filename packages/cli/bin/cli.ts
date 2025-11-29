@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
+import { ConsoleLogger } from '@agentuity/server';
+import { isStructuredError } from '@agentuity/core';
 import { createCLI, registerCommands } from '../src/cli';
 import { validateRuntime } from '../src/runtime';
 import { loadConfig } from '../src/config';
 import { discoverCommands } from '../src/cmd';
-import { ConsoleLogger } from '@agentuity/server';
 import { detectColorScheme } from '../src/terminal';
 import { setColorScheme } from '../src/tui';
 import { getVersion } from '../src/version';
@@ -132,10 +133,14 @@ try {
 		process.exit(0);
 	}
 	const errorWithMessage = error as { message?: string };
-	logger.error(
-		'CLI error: %s %s',
-		errorWithMessage?.message ? errorWithMessage.message : String(error),
-		JSON.stringify(error)
-	);
+	if (isStructuredError(error)) {
+		logger.error(error);
+	} else {
+		logger.error(
+			'CLI error: %s %s',
+			errorWithMessage?.message ? errorWithMessage.message : String(error),
+			error
+		);
+	}
 	process.exit(1);
 }

@@ -10,6 +10,9 @@ type PlainObject = Record<string, any>;
 const _argsSym = Symbol('@@RichError:plainArgs');
 const _causeSym = Symbol('@@RichError:cause');
 const _metaSym = Symbol('@@RichError:meta'); // reserved for future use (non-enumerable)
+const _structuredSym = Symbol.for('@@StructuredError');
+
+const spacer = '  ';
 
 export class RichError extends Error {
 	// private slots (non-enumerable)
@@ -92,29 +95,52 @@ export class RichError extends Error {
 		while (cur && cur instanceof Error && !visited.has(cur)) {
 			const curAny = cur as any;
 			visited.add(cur);
-			const header = `${cur.name}${curAny._tag ? ` (${String(curAny._tag)})` : ''}${depth === 0 ? '' : ' [cause]'}`;
-			const msg = cur.message !== undefined ? `: ${cur.message}` : '';
+			const header = `${cur.name}${curAny._tag && curAny._tag !== cur.name ? ` (${String(curAny._tag)})` : ''}${depth === 0 ? '' : ' [cause]'}`;
+			const msg = cur.message !== undefined && cur.message !== '' ? `: ${cur.message}` : '';
 			lines.push(header + msg);
 
 			// include stack if present (limit to first line of stack header for brevity)
 			if (cur.stack) {
+				lines.push('');
+				lines.push(spacer + 'stack trace:');
 				const stackLines = String(cur.stack).split('\n').slice(1); // drop first line (it's message)
 				if (stackLines.length > 0) {
 					// indent stack
-					lines.push(...stackLines.map((s) => '  ' + s.trim()));
+					let s = stackLines.map((s) => spacer + spacer + s.trim());
+					if (s[s.length - 1].includes('processTicksAndRejections')) {
+						s = s.slice(0, s.length - 1);
+					}
+					lines.push(...s);
 				}
 			}
 
-			// include plain args as JSON (if any)
+			// include plain args as formatted output (if any)
 			if (curAny[_argsSym]) {
-				const argsStr = safeStringify(curAny[_argsSym], space);
-				lines.push('  args: ' + argsStr);
+				let argsStr = util.formatWithOptions(
+					{
+						depth: 10,
+						sorted: true,
+						showHidden: false,
+						showProxy: false,
+						maxArrayLength: 10,
+						maxStringLength: 80 - spacer.length * 2,
+					},
+					curAny[_argsSym]
+				);
+				argsStr = argsStr.replace(/^{/, '').replace(/}$/, '');
+				const jsonlines = argsStr
+					.split('\n')
+					.filter(Boolean)
+					.map((l: string) => spacer + spacer + l + '\n')
+					.join('');
+				lines.push('');
+				lines.push(spacer + 'context:\n' + jsonlines);
 			}
 
 			// include cause summary if non-Error (could be object)
 			const c: unknown = cur.cause ?? curAny[_causeSym];
 			if (c && !(c instanceof Error)) {
-				lines.push('  cause: ' + safeStringify(c, space));
+				lines.push(spacer + 'cause: ' + safeStringify(c, space));
 			}
 
 			cur = c instanceof Error ? c : undefined;
@@ -274,6 +300,12 @@ export function StructuredError<const Tag extends string>(tag: Tag, defaultMessa
 				} catch {
 					(this as any).name = tag;
 				}
+				// mark as StructuredError with brand symbol
+				Object.defineProperty(this, _structuredSym, {
+					value: true,
+					enumerable: false,
+					writable: false,
+				});
 				// store tag args symbol to hide anything specific to this factory (non-enumerable)
 				Object.defineProperty(this, tagArgsSym, {
 					value: safeArgs,
@@ -324,4 +356,29 @@ export function StructuredError<const Tag extends string>(tag: Tag, defaultMessa
 	});
 
 	return callable as Result;
+}
+
+/**
+ * Returns true if the error passed is an instance of a StructuredObject
+ *
+ * @param err the error object
+ * @returns true if err is a StructuredError
+ *
+ * @example
+ * const UpgradeRequired = StructuredError("UpgradeRequired", "Upgrade required to access this feature")
+ * try {
+ *   throw UpgradeRequired();
+ * } catch (ex) {
+ *   if (isStructuredError(ex)) {
+ *     console.log(ex._tag);
+ *   }
+ * }
+ */
+export function isStructuredError(err: unknown): err is RichError & { _tag: string } {
+	return (
+		typeof err === 'object' &&
+		err !== null &&
+		(_structuredSym in err || err instanceof RichError) &&
+		typeof (err as any)._tag === 'string'
+	);
 }

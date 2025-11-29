@@ -2,6 +2,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: any are ok */
 import { type Env as HonoEnv, Hono } from 'hono';
 import type { cors } from 'hono/cors';
+import type { BunWebSocketData } from 'hono/bun';
 import type { Logger } from './logger';
 import { createServer, getLogger } from './_server';
 import type { Meter, Tracer } from '@opentelemetry/api';
@@ -150,7 +151,7 @@ export class App<TAppState = Record<string, never>> {
 	/**
 	 * the server instance
 	 */
-	readonly server: ReturnType<typeof createServer>;
+	readonly server: Bun.Server<BunWebSocketData>;
 	/**
 	 * the logger instance
 	 */
@@ -165,10 +166,14 @@ export class App<TAppState = Record<string, never>> {
 		Set<AppEventCallback<any, TAppState>>
 	>();
 
-	constructor(state: TAppState, config?: AppConfig<TAppState>) {
+	constructor(
+		state: TAppState,
+		router: Hono<Env<TAppState>>,
+		server: Bun.Server<BunWebSocketData>
+	) {
 		this.state = state;
-		this.router = new Hono<Env<TAppState>>();
-		this.server = createServer(this.router as any, config as any, state as any);
+		this.router = router;
+		this.server = server;
 		this.logger = getLogger() as Logger;
 		setGlobalApp(this);
 	}
@@ -225,15 +230,19 @@ export function getApp(): App<any> | null {
 export async function createApp<TAppState = Record<string, never>>(
 	config?: AppConfig<TAppState>
 ): Promise<App<TAppState>> {
-	// Run setup if provided
-	let state: TAppState;
-	if (config?.setup) {
-		state = await config.setup();
-	} else {
-		state = {} as TAppState;
-	}
+	const initializer = async (): Promise<TAppState> => {
+		// Run setup if provided
+		if (config?.setup) {
+			return config.setup();
+		} else {
+			return {} as TAppState;
+		}
+	};
 
-	return new App(state, config);
+	const router = new Hono<Env<TAppState>>();
+	const [server, state] = await createServer<TAppState>(router, initializer, config);
+
+	return new App(state, router, server);
 }
 
 /**

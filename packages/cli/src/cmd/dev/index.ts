@@ -22,6 +22,13 @@ import { getDevmodeDeploymentId } from '../build/ast';
 import { BuildMetadata } from '@agentuity/server';
 import { getCommand } from '../../command-prefix';
 
+const shouldDisableInteractive = (interactive?: boolean) => {
+	if (!interactive) {
+		return true;
+	}
+	return process.env.TERM_PROGRAM === 'vscode';
+};
+
 export const command = createCommand({
 	name: 'dev',
 	description: 'Build and run the development server',
@@ -36,6 +43,7 @@ export const command = createCommand({
 	schema: {
 		options: z.object({
 			local: z.boolean().optional().describe('Turn on local services (instead of cloud)'),
+			interactive: z.boolean().default(true).optional().describe('Turn on interactive mode'),
 			public: z
 				.boolean()
 				.optional()
@@ -65,6 +73,8 @@ export const command = createCommand({
 		const srcDir = join(rootDir, 'src');
 		const mustHaves = [join(rootDir, 'package.json'), appTs, srcDir];
 		const missing: string[] = [];
+
+		const interactive = !shouldDisableInteractive(opts.interactive);
 
 		for (const filename of mustHaves) {
 			if (!existsSync(filename)) {
@@ -137,7 +147,8 @@ export const command = createCommand({
 			}
 		}
 
-		const canDoInput = !!(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI);
+		const canDoInput =
+			interactive && !!(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI);
 
 		const devmodebody =
 			tui.muted(tui.padRight('Local:', 10)) +

@@ -744,15 +744,19 @@ const AgentuityBundler: BunPlugin = {
 				const setupCall = `
 // Initialize providers and run agent setup callbacks after all agents are registered
 await (async() => {
-    const { runAgentSetups, getAppState, getThreadProvider, getSessionProvider } = await import('@agentuity/runtime');
-    const threadProvider = getThreadProvider();
+    const { runAgentSetups, getThreadProvider, getSessionProvider, getAppState } = await import('@agentuity/runtime');
+
+	const threadProvider = getThreadProvider();
     const sessionProvider = getSessionProvider();
-    
+
+	const state = getAppState();
+
     // Initialize providers first
-    await Promise.all([threadProvider.initialize(), sessionProvider.initialize()]);
+    await threadProvider.initialize(state);
+	await sessionProvider.initialize(state);
     
     // Then run agent setups
-    await runAgentSetups(getAppState());
+    await runAgentSetups(state);
 })();`;
 
 				if (insertPos > 0) {

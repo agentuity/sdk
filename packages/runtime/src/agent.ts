@@ -22,7 +22,7 @@ import type {
 import { internal } from './logger/internal';
 import { getApp } from './app';
 import type { Thread, Session } from './session';
-import { privateContext } from './_server';
+import { privateContext, notifyReady } from './_server';
 import { generateId } from './session';
 import { getEvalRunEventProvider } from './_services';
 import * as runtimeConfig from './_config';
@@ -1062,16 +1062,17 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 
 export const getAgents = () => agents;
 
-export const runAgentSetups = async (appState: any): Promise<void> => {
+export const runAgentSetups = async (appState: AppState): Promise<void> => {
 	for (const [name, agent] of agents.entries()) {
 		if (agent.setup) {
 			const config = await agent.setup(appState);
 			setAgentConfig(name as AgentName, config);
 		}
 	}
+	await notifyReady();
 };
 
-export const runAgentShutdowns = async (appState: any): Promise<void> => {
+export const runAgentShutdowns = async (appState: AppState): Promise<void> => {
 	for (const [name, agent] of agents.entries()) {
 		if (agent.shutdown) {
 			const config = getAgentConfig(name as AgentName);

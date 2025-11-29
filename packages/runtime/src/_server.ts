@@ -137,14 +137,26 @@ export function privateContext<E extends Env>(c: HonoContext<E>) {
 	return c as unknown as HonoContext<{ Variables: PrivateVariables }>;
 }
 
-export const createServer = <E extends Env, TAppState = Record<string, never>>(
-	router: Hono<E>,
-	config?: AppConfig<TAppState>,
-	appState?: TAppState
-) => {
+let startupPromise: Promise<void> | undefined;
+let startupPromiseResolver: (() => void) | undefined;
+let isShutdown = false;
+
+export const notifyReady = () => {
+	startupPromiseResolver?.();
+};
+
+export const createServer = async <TAppState>(
+	router: Hono<Env<TAppState>>,
+	appStateInitializer: () => Promise<TAppState>,
+	config?: AppConfig<TAppState>
+): Promise<[Bun.Server<BunWebSocketData>, TAppState]> => {
 	if (globalServerInstance) {
-		return globalServerInstance;
+		return [globalServerInstance, globalAppState as TAppState];
 	}
+
+	startupPromise = new Promise((resolve) => {
+		startupPromiseResolver = resolve;
+	});
 
 	runtimeConfig.init();
 
@@ -163,22 +175,12 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 	// Create services (may return local router)
 	const servicesResult = createServices(otel.logger, config, serverUrl);
 
-	const server = Bun.serve({
-		hostname,
-		development: isDevelopment(),
-		fetch: router.fetch,
-		idleTimeout: 0,
-		port,
-		websocket,
-	});
+	// Create the App State
+	globalAppState = await appStateInitializer();
 
 	globalRouterInstance = router as unknown as Hono<Env>;
-	globalServerInstance = server;
 	globalLogger = otel.logger;
 	globalTracer = otel.tracer;
-	globalAppState = appState;
-
-	let isShutdown = false;
 
 	router.onError((error, _c) => {
 		if (error instanceof HTTPException) {
@@ -206,11 +208,28 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 		return new Response('Internal Server Error', { status: 500 });
 	});
 
+	const blockOnStartup = async () => {
+		// block until completing the setup if still running
+		if (startupPromise) {
+			await startupPromise;
+			startupPromise = undefined;
+			startupPromiseResolver = undefined;
+		}
+	};
+
+	router.get('/_health', async (c) => {
+		await blockOnStartup();
+		return c.text('OK');
+	});
+
 	router.use(async (c, next) => {
+		await blockOnStartup();
+
 		c.set('logger', otel.logger);
 		c.set('tracer', otel.tracer);
 		c.set('meter', otel.meter);
-		c.set('app', appState || ({} as TAppState));
+		c.set('app', globalAppState);
+
 		const isWebSocket = c.req.header('upgrade')?.toLowerCase() === 'websocket';
 		const skipLogging = c.req.path.startsWith('/_agentuity/');
 		const started = performance.now();
@@ -252,7 +271,6 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 		})
 	);
 
-	router.get('/_health', (c) => c.text('OK'));
 	router.route('/_agentuity', createAgentuityAPIs());
 
 	// Mount local storage router if using local services
@@ -334,17 +352,33 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 			process.exit(1);
 		}, 5_000);
 		try {
-			// Run agent shutdowns first
-			const { runAgentShutdowns } = await import('./agent');
-			await runAgentShutdowns(appState);
-
-			// Run app shutdown if provided
-			if (config?.shutdown && appState) {
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				await config.shutdown(appState as any);
+			// stop accepting new connections
+			if (globalServerInstance) {
+				await globalServerInstance.stop();
 			}
 
-			await server.stop();
+			// wait for idle
+			const shutdownStarted = Date.now();
+			otel.logger.debug('waiting for pending connections to complete');
+			while (Date.now() - shutdownStarted < 60_000 * 2) {
+				if ((globalServerInstance?.pendingRequests ?? 0) > 0) {
+					await Bun.sleep(1_000);
+				} else {
+					break;
+				}
+			}
+			otel.logger.debug('no more pending connections');
+
+			// Run agent shutdowns first
+			const { runAgentShutdowns } = await import('./agent');
+			await runAgentShutdowns(globalAppState);
+
+			// Run app shutdown if provided
+			if (config?.shutdown && globalAppState) {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				await config.shutdown(globalAppState as any);
+			}
+
 			await otel.shutdown();
 			otel.logger.debug('shutdown completed');
 		} finally {
@@ -380,13 +414,24 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 		process.exit(1);
 	});
 
-	return server;
+	const server = Bun.serve({
+		hostname,
+		development: isDevelopment(),
+		fetch: router.fetch,
+		idleTimeout: 0,
+		port,
+		websocket,
+		id: null,
+	});
+	globalServerInstance = server;
+
+	return [server, globalAppState];
 };
 
 const createAgentuityAPIs = () => {
 	const router = new Hono<Env>();
 	router.get('idle', (c) => {
-		if (isIdle()) {
+		if (isIdle() || !isShutdown) {
 			return c.text('OK', { status: 200 });
 		}
 		return c.text('NO', { status: 200 });

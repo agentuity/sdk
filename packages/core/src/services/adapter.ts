@@ -14,7 +14,7 @@ export type FetchResponse<T> = FetchErrorResponse | FetchSuccessResponse<T>;
 
 export type Body = string | Buffer | ArrayBuffer | ReadableStream;
 
-export type HttpMethod = 'GET' | 'PUT' | 'POST' | 'DELETE' | 'HEAD' | 'OPTIONS';
+export type HttpMethod = 'GET' | 'PUT' | 'POST' | 'DELETE' | 'HEAD' | 'OPTIONS' | 'PATCH';
 
 export interface FetchRequest {
 	method: HttpMethod;

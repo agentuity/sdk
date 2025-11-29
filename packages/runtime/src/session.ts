@@ -3,6 +3,7 @@
 import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 import { type Env, fireEvent } from './app';
+import type { AppState } from './index';
 
 export type ThreadEventName = 'destroyed';
 export type SessionEventName = 'completed';
@@ -46,14 +47,14 @@ export interface Session {
 }
 
 export interface ThreadProvider {
-	initialize(): Promise<void>;
+	initialize(appState: AppState): Promise<void>;
 	restore(ctx: Context<Env>): Promise<Thread>;
 	save(thread: Thread): Promise<void>;
 	destroy(thread: Thread): Promise<void>;
 }
 
 export interface SessionProvider {
-	initialize(): Promise<void>;
+	initialize(appState: AppState): Promise<void>;
 	restore(thread: Thread, sessionId: string): Promise<Session>;
 	save(session: Session): Promise<void>;
 }
@@ -194,7 +195,7 @@ export class DefaultSession implements Session {
 export class DefaultThreadProvider implements ThreadProvider {
 	private threads = new Map<string, DefaultThread>();
 
-	async initialize(): Promise<void> {
+	async initialize(_appState: AppState): Promise<void> {
 		setInterval(() => {
 			for (const [, thread] of this.threads) {
 				if (thread.expired()) {
@@ -256,7 +257,7 @@ export class DefaultThreadProvider implements ThreadProvider {
 export class DefaultSessionProvider implements SessionProvider {
 	private sessions = new Map<string, DefaultSession>();
 
-	async initialize(): Promise<void> {
+	async initialize(_appState: AppState): Promise<void> {
 		// No initialization needed for in-memory provider
 	}
 

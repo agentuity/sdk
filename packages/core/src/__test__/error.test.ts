@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { StructuredError } from '../error';
+import { StructuredError, isStructuredError } from '../error';
 
 describe('StructuredError', () => {
 	describe('basic creation', () => {
@@ -355,6 +355,77 @@ describe('StructuredError', () => {
 			expect(error.table).toBe('users');
 			expect(error.message).toBe('Database query failed');
 			expect(error.cause).toBe(rootCause);
+		});
+	});
+
+	describe('isStructuredError', () => {
+		test('should return true for StructuredError instances', () => {
+			const AppError = StructuredError('AppError');
+			const error = new AppError({ message: 'test' });
+
+			expect(isStructuredError(error)).toBe(true);
+		});
+
+		test('should return true for StructuredError with typed shape', () => {
+			const ValidationError = StructuredError('ValidationError')<{
+				field: string;
+				code: string;
+			}>();
+			const error = new ValidationError({ field: 'email', code: 'INVALID' });
+
+			expect(isStructuredError(error)).toBe(true);
+		});
+
+		test('should return false for regular Error', () => {
+			const error = new Error('test');
+
+			expect(isStructuredError(error)).toBe(false);
+		});
+
+		test('should return false for plain object with _tag', () => {
+			const obj = { _tag: 'FakeError', message: 'test' };
+
+			expect(isStructuredError(obj)).toBe(false);
+		});
+
+		test('should return false for null', () => {
+			expect(isStructuredError(null)).toBe(false);
+		});
+
+		test('should return false for undefined', () => {
+			expect(isStructuredError(undefined)).toBe(false);
+		});
+
+		test('should return false for non-object values', () => {
+			expect(isStructuredError('error')).toBe(false);
+			expect(isStructuredError(123)).toBe(false);
+			expect(isStructuredError(true)).toBe(false);
+		});
+
+		test('should work as type guard', () => {
+			const AppError = StructuredError('AppError')<{ id: number }>();
+			const error: unknown = new AppError({ id: 123 });
+
+			if (isStructuredError(error)) {
+				// TypeScript should know error has _tag
+				expect(error._tag).toBe('AppError');
+				// Should be able to access RichError methods
+				expect(error.prettyPrint).toBeDefined();
+			}
+		});
+
+		test('should identify multiple different StructuredError types', () => {
+			const NotFoundError = StructuredError('NotFoundError');
+			const ValidationError = StructuredError('ValidationError');
+			const DbError = StructuredError('DbError');
+
+			const notFound = new NotFoundError();
+			const validation = new ValidationError();
+			const dbError = new DbError();
+
+			expect(isStructuredError(notFound)).toBe(true);
+			expect(isStructuredError(validation)).toBe(true);
+			expect(isStructuredError(dbError)).toBe(true);
 		});
 	});
 });
