@@ -49,6 +49,41 @@ export type AgentEventCallback<TAgent extends Agent<any, any, any>> =
 			data: Error
 	  ) => Promise<void> | void);
 
+/**
+ * Context object passed to every agent handler providing access to runtime services and state.
+ *
+ * @template TAgentRegistry - Registry of all available agents (auto-generated, strongly-typed)
+ * @template TCurrent - Current agent runner type
+ * @template TParent - Parent agent runner type (if called from another agent)
+ * @template TConfig - Agent-specific configuration type from setup function
+ * @template TAppState - Application-wide state type from createApp
+ *
+ * @example
+ * ```typescript
+ * const agent = createAgent({
+ *   handler: async (ctx, input) => {
+ *     // Logging
+ *     ctx.logger.info('Processing request', { input });
+ *
+ *     // Call another agent
+ *     const result = await ctx.agent.otherAgent.run({ data: input });
+ *
+ *     // Store data
+ *     await ctx.kv.set('key', { value: result });
+ *
+ *     // Access config from setup
+ *     const cache = ctx.config.cache;
+ *
+ *     // Background task
+ *     ctx.waitUntil(async () => {
+ *       await ctx.logger.info('Cleanup complete');
+ *     });
+ *
+ *     return result;
+ *   }
+ * });
+ * ```
+ */
 export interface AgentContext<
 	TAgentRegistry extends AgentRegistry = AgentRegistry,
 	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
@@ -56,26 +91,193 @@ export interface AgentContext<
 	TConfig = unknown,
 	TAppState = Record<string, never>,
 > {
-	//   email: () => Promise<Email | null>;
-	//   sms: () => Promise<SMS | null>;
-	//   cron: () => Promise<Cron | null>;
+	/**
+	 * Schedule a background task that continues after the response is sent.
+	 * Useful for cleanup, logging, or async operations that don't block the response.
+	 *
+	 * @param promise - Promise or function that returns void or Promise<void>
+	 *
+	 * @example
+	 * ```typescript
+	 * ctx.waitUntil(async () => {
+	 *   await ctx.kv.set('processed', Date.now());
+	 *   ctx.logger.info('Background task complete');
+	 * });
+	 * ```
+	 */
 	waitUntil: (promise: Promise<void> | (() => void | Promise<void>)) => void;
-	agent: TAgentRegistry; // Will be augmented by generated code with strongly-typed agents
-	current: TCurrent; // Current agent runner
-	parent: TParent; // Parent agent runner (use ctx.agent.parentName for strict typing)
+
+	/**
+	 * Registry of all agents in the application. Strongly-typed and auto-generated.
+	 * Use to call other agents from within your handler.
+	 *
+	 * @example
+	 * ```typescript
+	 * const emailResult = await ctx.agent.email.run({ to: 'user@example.com' });
+	 * const smsResult = await ctx.agent.sms.run({ phone: '+1234567890' });
+	 * ```
+	 */
+	agent: TAgentRegistry;
+
+	/**
+	 * Information about the currently executing agent.
+	 */
+	current: TCurrent;
+
+	/**
+	 * Information about the parent agent (if this agent was called by another agent).
+	 * Use ctx.agent.parentName for strongly-typed access.
+	 */
+	parent: TParent;
+
+	/**
+	 * Name of the current agent being executed.
+	 */
 	agentName: AgentName;
+
+	/**
+	 * Structured logger with OpenTelemetry integration.
+	 * Logs are automatically correlated with traces.
+	 *
+	 * @example
+	 * ```typescript
+	 * ctx.logger.info('Processing started', { userId: input.id });
+	 * ctx.logger.warn('Rate limit approaching', { remaining: 10 });
+	 * ctx.logger.error('Operation failed', { error: err.message });
+	 * ```
+	 */
 	logger: Logger;
+
+	/**
+	 * Unique session identifier for this request. Consistent across agent calls in the same session.
+	 */
 	sessionId: string;
+
+	/**
+	 * OpenTelemetry tracer for creating custom spans and tracking performance.
+	 *
+	 * @example
+	 * ```typescript
+	 * const span = ctx.tracer.startSpan('database-query');
+	 * try {
+	 *   const result = await database.query();
+	 *   span.setStatus({ code: SpanStatusCode.OK });
+	 *   return result;
+	 * } finally {
+	 *   span.end();
+	 * }
+	 * ```
+	 */
 	tracer: Tracer;
+
+	/**
+	 * Key-value storage for simple data persistence.
+	 *
+	 * @example
+	 * ```typescript
+	 * await ctx.kv.set('user:123', { name: 'Alice', age: 30 });
+	 * const user = await ctx.kv.get('user:123');
+	 * await ctx.kv.delete('user:123');
+	 * const keys = await ctx.kv.list('user:*');
+	 * ```
+	 */
 	kv: KeyValueStorage;
+
+	/**
+	 * Object storage for files and blobs (S3-compatible).
+	 *
+	 * @example
+	 * ```typescript
+	 * await ctx.objectstore.put('images/photo.jpg', buffer);
+	 * const file = await ctx.objectstore.get('images/photo.jpg');
+	 * await ctx.objectstore.delete('images/photo.jpg');
+	 * const objects = await ctx.objectstore.list('images/');
+	 * ```
+	 */
 	objectstore: ObjectStorage;
+
+	/**
+	 * Stream storage for real-time data streams and logs.
+	 *
+	 * @example
+	 * ```typescript
+	 * const stream = await ctx.stream.create('agent-logs');
+	 * await ctx.stream.write(stream.id, 'Processing step 1');
+	 * await ctx.stream.write(stream.id, 'Processing step 2');
+	 * ```
+	 */
 	stream: StreamStorage;
+
+	/**
+	 * Vector storage for embeddings and similarity search.
+	 *
+	 * @example
+	 * ```typescript
+	 * await ctx.vector.upsert('docs', [
+	 *   { id: '1', values: [0.1, 0.2, 0.3], metadata: { text: 'Hello' } }
+	 * ]);
+	 * const results = await ctx.vector.query('docs', [0.1, 0.2, 0.3], { topK: 5 });
+	 * ```
+	 */
 	vector: VectorStorage;
+
+	/**
+	 * In-memory state storage scoped to the current request.
+	 * Use for passing data between middleware and handlers.
+	 *
+	 * @example
+	 * ```typescript
+	 * ctx.state.set('startTime', Date.now());
+	 * const duration = Date.now() - (ctx.state.get('startTime') as number);
+	 * ```
+	 */
 	state: Map<string, unknown>;
+
+	/**
+	 * Thread information for multi-turn conversations.
+	 */
 	thread: Thread;
+
+	/**
+	 * Session information for the current request.
+	 */
 	session: Session;
-	config: TConfig; // Agent-specific config returned from agent.setup()
-	app: TAppState; // App-wide state returned from createApp setup()
+
+	/**
+	 * Agent-specific configuration returned from the setup function.
+	 * Type is inferred from your setup function's return value.
+	 *
+	 * @example
+	 * ```typescript
+	 * createAgent({
+	 *   setup: async () => ({ cache: new Map(), db: await connectDB() }),
+	 *   handler: async (ctx, input) => {
+	 *     ctx.config.cache.set('key', 'value'); // Strongly typed!
+	 *     await ctx.config.db.query('SELECT * FROM users');
+	 *   }
+	 * });
+	 * ```
+	 */
+	config: TConfig;
+
+	/**
+	 * Application-wide state returned from createApp setup function.
+	 * Shared across all agents in the application.
+	 *
+	 * @example
+	 * ```typescript
+	 * const app = createApp({
+	 *   setup: async () => ({ db: await connectDB(), redis: await connectRedis() })
+	 * });
+	 *
+	 * // Later in any agent:
+	 * handler: async (ctx, input) => {
+	 *   await ctx.app.db.query('SELECT 1');
+	 *   await ctx.app.redis.set('key', 'value');
+	 * }
+	 * ```
+	 */
+	app: TAppState;
 }
 
 type InternalAgentMetadata = {
@@ -114,20 +316,106 @@ type ExternalAgentMetadata = {
 
 type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
 
-// Type for createEval method
-type CreateEvalMethod<
+/**
+ * Configuration object for creating an agent evaluation function.
+ *
+ * @template TInput - Input schema type from the parent agent
+ * @template TOutput - Output schema type from the parent agent
+ */
+export interface CreateEvalConfig<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
-> = (config: {
+> {
+	/**
+	 * Optional metadata for the evaluation function.
+	 *
+	 * @example
+	 * ```typescript
+	 * metadata: {
+	 *   name: 'Validate positive output',
+	 *   description: 'Ensures output is greater than zero'
+	 * }
+	 * ```
+	 */
 	metadata?: Partial<ExternalEvalMetadata>;
+
+	/**
+	 * Evaluation handler function that tests the agent's behavior.
+	 * Return true if the evaluation passes, false if it fails.
+	 *
+	 * @param run - Evaluation run context containing input and metadata
+	 * @param result - The output from the agent handler
+	 * @returns Boolean indicating pass/fail, or evaluation result object
+	 *
+	 * @example
+	 * ```typescript
+	 * handler: async (run, result) => {
+	 *   // Assert that output is positive
+	 *   if (result <= 0) {
+	 *     return false; // Evaluation failed
+	 *   }
+	 *   return true; // Evaluation passed
+	 * }
+	 * ```
+	 *
+	 * @example
+	 * ```typescript
+	 * // With detailed result
+	 * handler: async (run, result) => {
+	 *   const passed = result.length > 5;
+	 *   return {
+	 *     passed,
+	 *     score: passed ? 1.0 : 0.0,
+	 *     message: passed ? 'Output length is valid' : 'Output too short'
+	 *   };
+	 * }
+	 * ```
+	 */
 	handler: EvalFunction<
 		TInput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TInput> : undefined,
 		TOutput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TOutput> : undefined
 	>;
-}) => Eval<TInput, TOutput>;
+}
+
+// Type for createEval method
+type CreateEvalMethod<
+	TInput extends StandardSchemaV1 | undefined = any,
+	TOutput extends StandardSchemaV1 | undefined = any,
+> = (config: CreateEvalConfig<TInput, TOutput>) => Eval<TInput, TOutput>;
 
 /**
- * The Agent handler interface.
+ * Agent instance type returned by createAgent().
+ * Represents a fully configured agent with metadata, handler, lifecycle hooks, and event listeners.
+ *
+ * @template TInput - Input schema type (StandardSchemaV1 or undefined)
+ * @template TOutput - Output schema type (StandardSchemaV1 or undefined)
+ * @template TStream - Whether the agent returns a stream (true/false)
+ * @template TConfig - Agent-specific configuration type from setup function
+ * @template TAppState - Application state type from createApp
+ *
+ * @example
+ * ```typescript
+ * const agent = createAgent({
+ *   metadata: { name: 'My Agent' },
+ *   schema: { input: z.string(), output: z.number() },
+ *   handler: async (ctx, input) => input.length
+ * });
+ *
+ * // Access agent properties
+ * console.log(agent.metadata.name); // "My Agent"
+ *
+ * // Add event listeners
+ * agent.addEventListener('started', (eventName, agent, ctx) => {
+ *   console.log('Agent started:', ctx.sessionId);
+ * });
+ *
+ * // Create evals for testing
+ * const eval1 = agent.createEval({
+ *   handler: async (run, result) => {
+ *     return result > 5; // Assert output is greater than 5
+ *   }
+ * });
+ * ```
  */
 export type Agent<
 	TInput extends StandardSchemaV1 | undefined = any,
@@ -136,15 +424,77 @@ export type Agent<
 	TConfig = unknown,
 	TAppState = Record<string, never>,
 > = {
+	/**
+	 * Agent metadata including name, description, id, version, and filename.
+	 */
 	metadata: AgentMetadata;
+
+	/**
+	 * The main handler function that processes agent requests.
+	 * Receives AgentContext and validated input, returns output or stream.
+	 */
 	handler: (
 		ctx: AgentContext<any, any, any, TConfig, TAppState>,
 		...args: any[]
 	) => any | Promise<any>;
+
+	/**
+	 * Array of evaluation functions created via agent.createEval().
+	 * Used for testing and validating agent behavior.
+	 */
 	evals?: Eval[];
+
+	/**
+	 * Create an evaluation function for testing this agent.
+	 * Evals can assert correctness of agent input/output during test runs.
+	 *
+	 * @param config - Eval configuration
+	 * @param config.metadata - Optional eval metadata (name, description)
+	 * @param config.handler - Eval handler function receiving run context and result
+	 *
+	 * @example
+	 * ```typescript
+	 * const agent = createAgent({
+	 *   schema: { input: z.string(), output: z.number() },
+	 *   handler: async (ctx, input) => input.length
+	 * });
+	 *
+	 * // Create eval to validate output
+	 * agent.createEval({
+	 *   metadata: { name: 'Check positive output' },
+	 *   handler: async (run, result) => {
+	 *     return result > 0; // Assert output is positive
+	 *   }
+	 * });
+	 * ```
+	 */
 	createEval: CreateEvalMethod<TInput, TOutput>;
+
+	/**
+	 * Optional setup function called once when app starts.
+	 * Returns agent-specific configuration available via ctx.config.
+	 */
 	setup?: (app: TAppState) => Promise<TConfig> | TConfig;
+
+	/**
+	 * Optional shutdown function called when app stops.
+	 * Receives app state and agent config for cleanup.
+	 */
 	shutdown?: (app: TAppState, config: TConfig) => Promise<void> | void;
+
+	/**
+	 * Register an event listener for when the agent starts execution.
+	 *
+	 * @param eventName - Must be 'started'
+	 * @param callback - Function called when agent execution begins
+	 *
+	 * @example
+	 * ```typescript
+	 * agent.addEventListener('started', (eventName, agent, ctx) => {
+	 *   console.log(`${agent.metadata.name} started at ${new Date()}`);
+	 * });
+	 * ```
+	 */
 	addEventListener(
 		eventName: 'started',
 		callback: (
@@ -153,6 +503,20 @@ export type Agent<
 			context: AgentContext<any, any, any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
+
+	/**
+	 * Register an event listener for when the agent completes successfully.
+	 *
+	 * @param eventName - Must be 'completed'
+	 * @param callback - Function called when agent execution completes
+	 *
+	 * @example
+	 * ```typescript
+	 * agent.addEventListener('completed', (eventName, agent, ctx) => {
+	 *   console.log(`${agent.metadata.name} completed successfully`);
+	 * });
+	 * ```
+	 */
 	addEventListener(
 		eventName: 'completed',
 		callback: (
@@ -161,6 +525,20 @@ export type Agent<
 			context: AgentContext<any, any, any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
+
+	/**
+	 * Register an event listener for when the agent throws an error.
+	 *
+	 * @param eventName - Must be 'errored'
+	 * @param callback - Function called when agent execution fails
+	 *
+	 * @example
+	 * ```typescript
+	 * agent.addEventListener('errored', (eventName, agent, ctx, error) => {
+	 *   console.error(`${agent.metadata.name} failed:`, error.message);
+	 * });
+	 * ```
+	 */
 	addEventListener(
 		eventName: 'errored',
 		callback: (
@@ -170,6 +548,13 @@ export type Agent<
 			data: Error
 		) => Promise<void> | void
 	): void;
+
+	/**
+	 * Remove a previously registered 'started' event listener.
+	 *
+	 * @param eventName - Must be 'started'
+	 * @param callback - The callback function to remove
+	 */
 	removeEventListener(
 		eventName: 'started',
 		callback: (
@@ -178,6 +563,13 @@ export type Agent<
 			context: AgentContext<any, any, any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
+
+	/**
+	 * Remove a previously registered 'completed' event listener.
+	 *
+	 * @param eventName - Must be 'completed'
+	 * @param callback - The callback function to remove
+	 */
 	removeEventListener(
 		eventName: 'completed',
 		callback: (
@@ -186,6 +578,13 @@ export type Agent<
 			context: AgentContext<any, any, any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
+
+	/**
+	 * Remove a previously registered 'errored' event listener.
+	 *
+	 * @param eventName - Must be 'errored'
+	 * @param callback - The callback function to remove
+	 */
 	removeEventListener(
 		eventName: 'errored',
 		callback: (
@@ -240,6 +639,111 @@ type AgentHandlerFromConfig<TSchema, TSetupReturn, TAppState = AppState> =
 		: (
 				ctx: AgentContext<any, any, any, TSetupReturn, TAppState>
 			) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>;
+
+/**
+ * Configuration object for creating an agent with automatic type inference.
+ *
+ * @template TSchema - Schema definition object containing optional input, output, and stream properties
+ * @template TConfig - Function type that returns agent-specific configuration from setup
+ */
+export interface CreateAgentConfig<
+	TSchema extends
+		| {
+				input?: StandardSchemaV1;
+				output?: StandardSchemaV1;
+				stream?: boolean;
+		  }
+		| undefined = undefined,
+	TConfig extends (app: AppState) => any = any,
+> {
+	/**
+	 * Optional schema validation using Zod or any StandardSchemaV1 compatible library.
+	 *
+	 * @example
+	 * ```typescript
+	 * schema: {
+	 *   input: z.object({ name: z.string(), age: z.number() }),
+	 *   output: z.string(),
+	 *   stream: false
+	 * }
+	 * ```
+	 */
+	schema?: TSchema;
+
+	/**
+	 * Agent metadata visible in the Agentuity platform.
+	 *
+	 * @example
+	 * ```typescript
+	 * metadata: {
+	 *   name: 'Greeting Agent',
+	 *   description: 'Returns personalized greetings'
+	 * }
+	 * ```
+	 */
+	metadata: ExternalAgentMetadata;
+
+	/**
+	 * Optional async function called once on app startup to initialize agent-specific resources.
+	 * The returned value is available in the handler via `ctx.config`.
+	 *
+	 * @param app - Application state from createApp setup function
+	 * @returns Agent-specific configuration object
+	 *
+	 * @example
+	 * ```typescript
+	 * setup: async (app) => {
+	 *   const cache = new Map();
+	 *   const db = await connectDB();
+	 *   return { cache, db };
+	 * }
+	 * ```
+	 */
+	setup?: TConfig;
+
+	/**
+	 * The main agent logic that processes requests.
+	 * Receives AgentContext and validated input (if schema.input is defined), returns output or stream.
+	 *
+	 * @param ctx - Agent context with logger, storage, and other runtime services
+	 * @param input - Validated input (only present if schema.input is defined)
+	 * @returns Output matching schema.output type, or ReadableStream if schema.stream is true
+	 *
+	 * @example
+	 * ```typescript
+	 * handler: async (ctx, { name, age }) => {
+	 *   ctx.logger.info(`Processing for ${name}`);
+	 *   await ctx.kv.set('lastUser', name);
+	 *   return `Hello, ${name}! You are ${age} years old.`;
+	 * }
+	 * ```
+	 */
+	handler: AgentHandlerFromConfig<
+		TSchema,
+		TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined,
+		AppState
+	>;
+
+	/**
+	 * Optional async cleanup function called on app shutdown.
+	 * Use this to close connections, flush buffers, etc.
+	 *
+	 * @param app - Application state from createApp
+	 * @param config - Agent config returned from setup function
+	 *
+	 * @example
+	 * ```typescript
+	 * shutdown: async (app, config) => {
+	 *   await config.db.close();
+	 *   config.cache.clear();
+	 * }
+	 * ```
+	 */
+	shutdown?: (
+		app: AppState,
+		config: TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined
+	) => Promise<void> | void;
+}
 
 export interface AgentRunner<
 	TInput extends StandardSchemaV1 | undefined = any,
@@ -343,69 +847,99 @@ const ValidationError = StructuredError('ValidationError')<{
 }>();
 
 /**
- * Create an agent with automatic type inference.
- * Infers all types from the config object automatically including handler parameter types.
- * The setup function's return type is automatically inferred and flows through to handler and shutdown.
+ * Configuration object for creating an agent with explicit type parameters.
  *
- * **Important:** The app parameter must be explicitly typed as AppState for proper inference:
- * ```typescript
- * setup: async (app: AppState) => {
- *   return { myConfig: 'value' };
- * }
- * ```
- * This is required because TypeScript cannot provide contextual typing for callback parameters
- * when they're part of a generic type. The concrete AppState annotation enables inference of
- * the config type that flows through to handler and shutdown.
+ * @template TInput - Input schema type (StandardSchemaV1 or undefined)
+ * @template TOutput - Output schema type (StandardSchemaV1 or undefined)
+ * @template TStream - Whether agent returns a stream (true/false)
+ * @template TConfig - Type returned by setup function
+ * @template TAppState - Custom app state type from createApp
  */
-export function createAgent<
-	TSchema extends
-		| {
-				input?: StandardSchemaV1;
-				output?: StandardSchemaV1;
-				stream?: boolean;
-		  }
-		| undefined = undefined,
-	TConfig extends (app: AppState) => any = any,
->(config: {
-	schema?: TSchema;
-	metadata: ExternalAgentMetadata;
-	setup?: TConfig;
-	handler: AgentHandlerFromConfig<
-		TSchema,
-		TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined,
-		AppState
-	>;
-	shutdown?: (
-		app: AppState,
-		config: TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined
-	) => Promise<void> | void;
-}): Agent<
-	SchemaInput<TSchema>,
-	SchemaOutput<TSchema>,
-	SchemaStream<TSchema>,
-	TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined,
-	AppState
->;
-
-/**
- * Create an agent with explicit generic type parameters.
- * Use this overload when you need explicit control over types.
- */
-export function createAgent<
+export interface CreateAgentConfigExplicit<
 	TInput extends StandardSchemaV1 | undefined = undefined,
 	TOutput extends StandardSchemaV1 | undefined = undefined,
 	TStream extends boolean = false,
 	TConfig = unknown,
 	TAppState = AppState,
->(config: {
+> {
+	/**
+	 * Optional schema validation.
+	 *
+	 * @example
+	 * ```typescript
+	 * schema: {
+	 *   input: z.object({ name: z.string() }),
+	 *   output: z.string(),
+	 *   stream: false
+	 * }
+	 * ```
+	 */
 	schema?: {
+		/** Input validation schema */
 		input?: TInput;
+		/** Output validation schema */
 		output?: TOutput;
+		/** Whether the agent returns a ReadableStream */
 		stream?: TStream;
 	};
+
+	/**
+	 * Agent metadata.
+	 *
+	 * @example
+	 * ```typescript
+	 * metadata: {
+	 *   name: 'My Agent',
+	 *   description: 'Does something useful'
+	 * }
+	 * ```
+	 */
 	metadata: ExternalAgentMetadata;
+
+	/**
+	 * Optional setup function receiving app state, returns agent config.
+	 * The returned value is available in the handler via `ctx.config`.
+	 *
+	 * @param app - Application state from createApp
+	 * @returns Agent-specific configuration
+	 *
+	 * @example
+	 * ```typescript
+	 * setup: async (app) => ({ cache: new Map() })
+	 * ```
+	 */
 	setup?: (app: TAppState) => Promise<TConfig> | TConfig;
+
+	/**
+	 * Optional cleanup function called on app shutdown.
+	 *
+	 * @param app - Application state from createApp
+	 * @param config - Agent config returned from setup
+	 *
+	 * @example
+	 * ```typescript
+	 * shutdown: async (app, config) => {
+	 *   config.cache.clear();
+	 * }
+	 * ```
+	 */
 	shutdown?: (app: TAppState, config: TConfig) => Promise<void> | void;
+
+	/**
+	 * Agent handler function.
+	 * Type is automatically inferred based on schema definitions.
+	 *
+	 * @param ctx - Agent context
+	 * @param input - Validated input (only present if schema.input is defined)
+	 * @returns Output or ReadableStream based on schema
+	 *
+	 * @example
+	 * ```typescript
+	 * handler: async (ctx, input) => {
+	 *   return `Hello, ${input.name}!`;
+	 * }
+	 * ```
+	 */
 	handler: TInput extends StandardSchemaV1
 		? TStream extends true
 			? TOutput extends StandardSchemaV1
@@ -447,7 +981,114 @@ export function createAgent<
 						| Promise<StandardSchemaV1.InferOutput<TOutput>>
 						| StandardSchemaV1.InferOutput<TOutput>
 				: (c: AgentContext<any, any, any, TConfig, TAppState>) => Promise<void> | void;
-}): Agent<TInput, TOutput, TStream, TConfig, TAppState> {
+}
+
+/**
+ * Creates an agent with schema validation and lifecycle hooks.
+ *
+ * This is the recommended way to create agents with automatic type inference from schemas.
+ *
+ * @template TSchema - Schema definition object containing optional input, output, and stream properties
+ * @template TConfig - Function type that returns agent-specific configuration from setup
+ *
+ * @param config - Agent configuration object
+ *
+ * @returns Agent instance that can be registered with the runtime
+ *
+ * @example
+ * ```typescript
+ * const agent = createAgent({
+ *   metadata: {
+ *     name: 'Greeting Agent',
+ *     description: 'Returns personalized greetings'
+ *   },
+ *   schema: {
+ *     input: z.object({ name: z.string(), age: z.number() }),
+ *     output: z.string()
+ *   },
+ *   handler: async (ctx, { name, age }) => {
+ *     ctx.logger.info(`Processing greeting for ${name}`);
+ *     return `Hello, ${name}! You are ${age} years old.`;
+ *   }
+ * });
+ * ```
+ */
+export function createAgent<
+	TSchema extends
+		| {
+				input?: StandardSchemaV1;
+				output?: StandardSchemaV1;
+				stream?: boolean;
+		  }
+		| undefined = undefined,
+	TConfig extends (app: AppState) => any = any,
+>(
+	config: CreateAgentConfig<TSchema, TConfig>
+): Agent<
+	SchemaInput<TSchema>,
+	SchemaOutput<TSchema>,
+	SchemaStream<TSchema>,
+	TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined,
+	AppState
+>;
+
+/**
+ * Creates an agent with explicit generic type parameters.
+ *
+ * Use this overload when you need explicit control over types or working with custom app state.
+ *
+ * @template TInput - Input schema type (StandardSchemaV1 or undefined)
+ * @template TOutput - Output schema type (StandardSchemaV1 or undefined)
+ * @template TStream - Whether agent returns a stream (true/false)
+ * @template TConfig - Type returned by setup function
+ * @template TAppState - Custom app state type from createApp
+ *
+ * @param config - Agent configuration object
+ *
+ * @returns Agent instance with explicit types
+ *
+ * @example
+ * ```typescript
+ * interface MyAppState { db: Database }
+ * interface MyConfig { cache: Map<string, any> }
+ *
+ * const agent = createAgent<
+ *   z.ZodObject<any>, // TInput
+ *   z.ZodString,      // TOutput
+ *   false,            // TStream
+ *   MyConfig,         // TConfig
+ *   MyAppState        // TAppState
+ * >({
+ *   metadata: { name: 'Custom Agent' },
+ *   setup: async (app) => ({ cache: new Map() }),
+ *   handler: async (ctx, input) => {
+ *     const db = ctx.app.db;
+ *     const cache = ctx.config.cache;
+ *     return 'result';
+ *   }
+ * });
+ * ```
+ */
+export function createAgent<
+	TInput extends StandardSchemaV1 | undefined = undefined,
+	TOutput extends StandardSchemaV1 | undefined = undefined,
+	TStream extends boolean = false,
+	TConfig = unknown,
+	TAppState = AppState,
+>(
+	config: CreateAgentConfigExplicit<TInput, TOutput, TStream, TConfig, TAppState>
+): Agent<TInput, TOutput, TStream, TConfig, TAppState>;
+
+// Implementation
+export function createAgent<
+	TInput extends StandardSchemaV1 | undefined = undefined,
+	TOutput extends StandardSchemaV1 | undefined = undefined,
+	TStream extends boolean = false,
+	TConfig = unknown,
+	TAppState = AppState,
+>(
+	config: CreateAgentConfigExplicit<TInput, TOutput, TStream, TConfig, TAppState>
+): Agent<TInput, TOutput, TStream, TConfig, TAppState> {
 	const inputSchema = config.schema?.input;
 	const outputSchema = config.schema?.output;
 

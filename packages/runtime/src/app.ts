@@ -143,21 +143,46 @@ type AppEventCallback<K extends keyof AppEventMap<any>, TAppState = Record<strin
 	...args: AppEventMap<TAppState>[K]
 ) => void | Promise<void>;
 
+/**
+ * Main application instance created by createApp().
+ * Provides access to the router, server, logger, and app state.
+ *
+ * @template TAppState - The type of application state returned from setup function
+ *
+ * @example
+ * ```typescript
+ * const app = await createApp({
+ *   setup: async () => ({ db: await connectDB() })
+ * });
+ *
+ * // Access state
+ * console.log(app.state.db);
+ *
+ * // Add routes
+ * app.router.get('/health', (c) => c.text('OK'));
+ *
+ * // Listen to events
+ * app.addEventListener('agent.started', (eventName, agent, ctx) => {
+ *   console.log(`Agent ${agent.metadata.name} started`);
+ * });
+ * ```
+ */
 export class App<TAppState = Record<string, never>> {
 	/**
-	 * the router instance
+	 * The Hono router instance for defining routes.
 	 */
 	readonly router: Hono<Env<TAppState>>;
 	/**
-	 * the server instance
+	 * The Bun server instance.
 	 */
 	readonly server: Bun.Server<BunWebSocketData>;
 	/**
-	 * the logger instance
+	 * The application logger instance.
 	 */
 	readonly logger: Logger;
 	/**
-	 * the app state returned from setup
+	 * The application state returned from the setup function.
+	 * Available in all agents via ctx.app.
 	 */
 	readonly state: TAppState;
 
@@ -178,6 +203,36 @@ export class App<TAppState = Record<string, never>> {
 		setGlobalApp(this);
 	}
 
+	/**
+	 * Register an event listener for application lifecycle events.
+	 *
+	 * Available events:
+	 * - `agent.started` - Fired when an agent begins execution
+	 * - `agent.completed` - Fired when an agent completes successfully
+	 * - `agent.errored` - Fired when an agent throws an error
+	 * - `session.started` - Fired when a new session starts
+	 * - `session.completed` - Fired when a session completes
+	 * - `thread.created` - Fired when a thread is created
+	 * - `thread.destroyed` - Fired when a thread is destroyed
+	 *
+	 * @param eventName - The event name to listen for
+	 * @param callback - The callback function to execute when the event fires
+	 *
+	 * @example
+	 * ```typescript
+	 * app.addEventListener('agent.started', (eventName, agent, ctx) => {
+	 *   console.log(`${agent.metadata.name} started for session ${ctx.sessionId}`);
+	 * });
+	 *
+	 * app.addEventListener('agent.errored', (eventName, agent, ctx, error) => {
+	 *   console.error(`${agent.metadata.name} failed:`, error.message);
+	 * });
+	 *
+	 * app.addEventListener('session.started', (eventName, session) => {
+	 *   console.log(`New session: ${session.id}`);
+	 * });
+	 * ```
+	 */
 	addEventListener<K extends keyof AppEventMap<TAppState>>(
 		eventName: K,
 		callback: AppEventCallback<K, TAppState>
@@ -190,6 +245,23 @@ export class App<TAppState = Record<string, never>> {
 		callbacks.add(callback);
 	}
 
+	/**
+	 * Remove a previously registered event listener.
+	 *
+	 * @param eventName - The event name to stop listening for
+	 * @param callback - The callback function to remove
+	 *
+	 * @example
+	 * ```typescript
+	 * const handler = (eventName, agent, ctx) => {
+	 *   console.log('Agent started:', agent.metadata.name);
+	 * };
+	 *
+	 * app.addEventListener('agent.started', handler);
+	 * // Later...
+	 * app.removeEventListener('agent.started', handler);
+	 * ```
+	 */
 	removeEventListener<K extends keyof AppEventMap<TAppState>>(
 		eventName: K,
 		callback: AppEventCallback<K, TAppState>
@@ -199,6 +271,19 @@ export class App<TAppState = Record<string, never>> {
 		callbacks.delete(callback);
 	}
 
+	/**
+	 * Manually fire an application event.
+	 * Typically used internally by the runtime, but can be used for custom events.
+	 *
+	 * @param eventName - The event name to fire
+	 * @param args - The arguments to pass to event listeners
+	 *
+	 * @example
+	 * ```typescript
+	 * // Fire a session completed event
+	 * await app.fireEvent('session.completed', session);
+	 * ```
+	 */
 	async fireEvent<K extends keyof AppEventMap<TAppState>>(
 		eventName: K,
 		...args: AppEventMap<TAppState>[K]
@@ -218,14 +303,73 @@ function setGlobalApp(app: App<any>): void {
 	globalApp = app;
 }
 
+/**
+ * Get the global app instance.
+ * Returns null if createApp() has not been called yet.
+ *
+ * @returns The global App instance or null
+ *
+ * @example
+ * ```typescript
+ * const app = getApp();
+ * if (app) {
+ *   console.log('Server running on port:', app.server.port);
+ * }
+ * ```
+ */
 export function getApp(): App<any> | null {
 	return globalApp;
 }
 
 /**
- * create a new app instance with optional lifecycle methods
+ * Creates a new Agentuity application with optional lifecycle hooks and service configuration.
  *
- * @returns App instance (will start server after setup completes)
+ * This is the main entry point for creating an Agentuity app. The app will:
+ * 1. Run the setup function (if provided) to initialize app state
+ * 2. Start the Bun server
+ * 3. Make the app state available in all agents via ctx.app
+ *
+ * @template TAppState - The type of application state returned from setup function
+ *
+ * @param config - Optional application configuration
+ * @param config.setup - Function to initialize app state, runs before server starts
+ * @param config.shutdown - Function to clean up resources when server stops
+ * @param config.cors - CORS configuration for HTTP routes
+ * @param config.services - Override default storage and service providers
+ *
+ * @returns Promise resolving to App instance with running server
+ *
+ * @example
+ * ```typescript
+ * // Simple app with no state
+ * const app = await createApp();
+ *
+ * // App with database connection
+ * const app = await createApp({
+ *   setup: async () => {
+ *     const db = await connectDatabase();
+ *     return { db };
+ *   },
+ *   shutdown: async (state) => {
+ *     await state.db.close();
+ *   }
+ * });
+ *
+ * // Access state in agents
+ * const agent = createAgent({
+ *   handler: async (ctx, input) => {
+ *     const db = ctx.app.db; // Strongly typed!
+ *     return db.query('SELECT * FROM users');
+ *   }
+ * });
+ *
+ * // App with custom services
+ * const app = await createApp({
+ *   services: {
+ *     useLocal: true, // Use local in-memory storage for development
+ *   }
+ * });
+ * ```
  */
 export async function createApp<TAppState = Record<string, never>>(
 	config?: AppConfig<TAppState>
@@ -246,10 +390,18 @@ export async function createApp<TAppState = Record<string, never>>(
 }
 
 /**
- * fire a global event
+ * Fire a global application event.
+ * Convenience function that calls fireEvent on the global app instance.
  *
- * @param eventName
- * @param args
+ * @param eventName - The event name to fire
+ * @param args - The arguments to pass to event listeners
+ *
+ * @example
+ * ```typescript
+ * // Fire from anywhere in your app
+ * await fireEvent('session.started', session);
+ * await fireEvent('agent.completed', agent, ctx);
+ * ```
  */
 export async function fireEvent<K extends keyof AppEventMap<any>>(
 	eventName: K,

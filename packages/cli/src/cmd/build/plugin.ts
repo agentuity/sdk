@@ -300,6 +300,11 @@ import type { AgentRunner, Logger } from '@agentuity/runtime';
 import type { KeyValueStorage, ObjectStorage, StreamStorage, VectorStorage } from '@agentuity/core';
 import type { Agent } from '@agentuity/react';
 
+/**
+ * Registry of all agents in this application.
+ * Provides strongly-typed access to agent metadata and runner functions.
+ * Auto-generated from your agent files during build.
+ */
 export const agentRegistry = {
 ${registry}
 } as const;

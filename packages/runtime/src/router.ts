@@ -52,41 +52,223 @@ type SSEHandler<E extends Env = Env, P extends string = string, I extends Input 
 // Use simplified signatures to avoid type instantiation depth issues
 declare module 'hono' {
 	interface Hono {
-		// Email routing with optional middleware
+		/**
+		 * Register a route to handle incoming emails at a specific address.
+		 *
+		 * @param address - The email address to handle (e.g., 'support@example.com')
+		 * @param handler - Handler function receiving parsed email and context
+		 *
+		 * @example
+		 * ```typescript
+		 * router.email('support@example.com', (email, c) => {
+		 *   console.log('From:', email.fromEmail());
+		 *   console.log('Subject:', email.subject());
+		 *   console.log('Body:', email.text());
+		 *   return c.text('Email received');
+		 * });
+		 * ```
+		 */
 		email(address: string, handler: (email: Email, c: Context) => any): this;
+
+		/**
+		 * Register a route to handle incoming emails with middleware.
+		 *
+		 * @param address - The email address to handle
+		 * @param middleware - Middleware to run before the handler
+		 * @param handler - Handler function receiving parsed email and context
+		 *
+		 * @example
+		 * ```typescript
+		 * router.email('support@example.com', authMiddleware, (email, c) => {
+		 *   return c.json({ received: email.subject() });
+		 * });
+		 * ```
+		 */
 		email(
 			address: string,
 			middleware: MiddlewareHandler,
 			handler: (email: Email, c: Context) => any
 		): this;
 
-		// SMS routing
+		/**
+		 * Register a route to handle incoming SMS messages to a phone number.
+		 *
+		 * @param params - Configuration object with phone number
+		 * @param params.number - Phone number to handle (e.g., '+1234567890')
+		 * @param handler - Handler function receiving context
+		 *
+		 * @example
+		 * ```typescript
+		 * router.sms({ number: '+1234567890' }, (c) => {
+		 *   const message = c.req.query('message');
+		 *   console.log('SMS received:', message);
+		 *   return c.text('SMS received');
+		 * });
+		 * ```
+		 */
 		sms(params: { number: string }, handler: (c: Context) => any): this;
 
-		// Cron scheduling
+		/**
+		 * Schedule a handler to run at specific intervals using cron syntax.
+		 *
+		 * @param schedule - Cron expression (e.g., '0 0 * * *' for daily at midnight)
+		 * @param handler - Handler function to run on schedule
+		 *
+		 * @example
+		 * ```typescript
+		 * // Run daily at midnight
+		 * router.cron('0 0 * * *', (c) => {
+		 *   console.log('Daily cleanup running');
+		 *   return c.text('Cleanup complete');
+		 * });
+		 *
+		 * // Run every hour
+		 * router.cron('0 * * * *', (c) => {
+		 *   console.log('Hourly health check');
+		 *   return c.text('OK');
+		 * });
+		 * ```
+		 */
 		cron(schedule: string, handler: (c: Context) => any): this;
 
-		// Streaming routes
+		/**
+		 * Create a streaming route that returns a ReadableStream.
+		 *
+		 * @param path - The route path
+		 * @param handler - Handler returning a ReadableStream
+		 *
+		 * @example
+		 * ```typescript
+		 * router.stream('/events', (c) => {
+		 *   return new ReadableStream({
+		 *     start(controller) {
+		 *       controller.enqueue('event 1\n');
+		 *       controller.enqueue('event 2\n');
+		 *       controller.close();
+		 *     }
+		 *   });
+		 * });
+		 * ```
+		 */
 		stream(
 			path: string,
 			handler: (c: Context) => ReadableStream<any> | Promise<ReadableStream<any>>
 		): this;
+
+		/**
+		 * Create a streaming route with middleware.
+		 *
+		 * @param path - The route path
+		 * @param middleware - Middleware to run before streaming
+		 * @param handler - Handler returning a ReadableStream
+		 *
+		 * @example
+		 * ```typescript
+		 * router.stream('/protected-stream', authMiddleware, (c) => {
+		 *   return new ReadableStream({
+		 *     start(controller) {
+		 *       controller.enqueue('secure data\n');
+		 *       controller.close();
+		 *     }
+		 *   });
+		 * });
+		 * ```
+		 */
 		stream(
 			path: string,
 			middleware: MiddlewareHandler,
 			handler: (c: Context) => ReadableStream<any> | Promise<ReadableStream<any>>
 		): this;
 
-		// WebSocket routes
+		/**
+		 * Create a WebSocket route for real-time bidirectional communication.
+		 *
+		 * @param path - The route path
+		 * @param handler - Setup function that registers WebSocket event handlers
+		 *
+		 * @example
+		 * ```typescript
+		 * router.websocket('/ws', (c) => (ws) => {
+		 *   ws.onOpen((event) => {
+		 *     console.log('WebSocket opened');
+		 *     ws.send('Welcome!');
+		 *   });
+		 *
+		 *   ws.onMessage((event) => {
+		 *     console.log('Received:', event.data);
+		 *     ws.send('Echo: ' + event.data);
+		 *   });
+		 *
+		 *   ws.onClose((event) => {
+		 *     console.log('WebSocket closed');
+		 *   });
+		 * });
+		 * ```
+		 */
 		websocket(path: string, handler: (c: Context) => (ws: WebSocketConnection) => void): this;
+
+		/**
+		 * Create a WebSocket route with middleware.
+		 *
+		 * @param path - The route path
+		 * @param middleware - Middleware to run before WebSocket upgrade
+		 * @param handler - Setup function that registers WebSocket event handlers
+		 *
+		 * @example
+		 * ```typescript
+		 * router.websocket('/ws', authMiddleware, (c) => (ws) => {
+		 *   ws.onMessage((event) => {
+		 *     ws.send('Authenticated echo: ' + event.data);
+		 *   });
+		 * });
+		 * ```
+		 */
 		websocket(
 			path: string,
 			middleware: MiddlewareHandler,
 			handler: (c: Context) => (ws: WebSocketConnection) => void
 		): this;
 
-		// Server-Sent Events routes
+		/**
+		 * Create a Server-Sent Events (SSE) route for streaming updates to clients.
+		 *
+		 * @param path - The route path
+		 * @param handler - Handler receiving SSE stream writer
+		 *
+		 * @example
+		 * ```typescript
+		 * router.sse('/notifications', (c) => async (stream) => {
+		 *   let count = 0;
+		 *   const interval = setInterval(() => {
+		 *     stream.writeSSE({
+		 *       data: `Notification ${++count}`,
+		 *       event: 'notification'
+		 *     });
+		 *     if (count >= 10) {
+		 *       clearInterval(interval);
+		 *       stream.close();
+		 *     }
+		 *   }, 1000);
+		 * });
+		 * ```
+		 */
 		sse(path: string, handler: (c: Context) => (stream: any) => void): this;
+
+		/**
+		 * Create an SSE route with middleware.
+		 *
+		 * @param path - The route path
+		 * @param middleware - Middleware to run before SSE streaming
+		 * @param handler - Handler receiving SSE stream writer
+		 *
+		 * @example
+		 * ```typescript
+		 * router.sse('/protected-events', authMiddleware, (c) => async (stream) => {
+		 *   stream.writeSSE({ data: 'Secure event', event: 'update' });
+		 *   stream.close();
+		 * });
+		 * ```
+		 */
 		sse(
 			path: string,
 			middleware: MiddlewareHandler,
@@ -95,6 +277,83 @@ declare module 'hono' {
 	}
 }
 
+/**
+ * Creates a Hono router with extended methods for Agentuity-specific routing patterns.
+ *
+ * In addition to standard HTTP methods (get, post, put, delete, patch), the router includes:
+ * - **stream()** - Stream responses with ReadableStream
+ * - **websocket()** - WebSocket connections
+ * - **sse()** - Server-Sent Events
+ * - **email()** - Email handler routing
+ * - **sms()** - SMS handler routing
+ * - **cron()** - Scheduled task routing
+ *
+ * @template E - Environment type (Hono Env)
+ * @template S - Schema type for route definitions
+ *
+ * @returns Extended Hono router with custom methods
+ *
+ * @example
+ * ```typescript
+ * const router = createRouter();
+ *
+ * // Standard HTTP routes
+ * router.get('/hello', (c) => c.text('Hello!'));
+ * router.post('/data', async (c) => {
+ *   const body = await c.req.json();
+ *   return c.json({ received: body });
+ * });
+ *
+ * // Streaming response
+ * router.stream('/events', (c) => {
+ *   return new ReadableStream({
+ *     start(controller) {
+ *       controller.enqueue('event 1\n');
+ *       controller.enqueue('event 2\n');
+ *       controller.close();
+ *     }
+ *   });
+ * });
+ *
+ * // WebSocket connection
+ * router.websocket('/ws', (c) => (ws) => {
+ *   ws.onMessage((event) => {
+ *     console.log('Received:', event.data);
+ *     ws.send('Echo: ' + event.data);
+ *   });
+ * });
+ *
+ * // Server-Sent Events
+ * router.sse('/notifications', (c) => async (stream) => {
+ *   let count = 0;
+ *   const interval = setInterval(() => {
+ *     stream.writeSSE({ data: `Message ${++count}` });
+ *     if (count >= 10) {
+ *       clearInterval(interval);
+ *       stream.close();
+ *     }
+ *   }, 1000);
+ * });
+ *
+ * // Email routing
+ * router.email('support@example.com', (email, c) => {
+ *   console.log('From:', email.fromEmail());
+ *   console.log('Subject:', email.subject());
+ *   return c.text('Email received');
+ * });
+ *
+ * // SMS routing
+ * router.sms({ number: '+1234567890' }, (c) => {
+ *   return c.text('SMS received');
+ * });
+ *
+ * // Scheduled cron
+ * router.cron('0 0 * * *', (c) => {
+ *   console.log('Daily task running');
+ *   return c.text('OK');
+ * });
+ * ```
+ */
 export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): Hono<E, S> => {
 	const router = new Hono<E, S>();
 	// tslint:disable-next-line:no-any no-unused-variable
