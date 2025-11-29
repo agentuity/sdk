@@ -168,7 +168,9 @@ if [ $AUTH_CHECK -eq 0 ]; then
 	run_test "Deployment Commands" "test-deployment.sh"
 	run_test "API Key Commands" "test-apikey.sh"
 	run_test "Vector CLI Commands" "test-vector-cli.sh"
-	run_test "Database Resource Commands" "test-db.sh"
+	if [ "$CI" != "true" ]; then
+		run_test "Database Resource Commands" "test-db.sh" # FIXME: reenable once ion issues resolved in prod
+	fi
 	run_test "Storage Resource Commands" "test-storage.sh"
 else
 	echo -e "${RED}Skipping Env & Secrets test since not logged in${NC}"

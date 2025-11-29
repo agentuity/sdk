@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { listResources, deleteResources } from '@agentuity/server';
+import { listResources, deleteResources, APIError } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
@@ -96,23 +96,35 @@ export const deleteSubcommand = createSubcommand({
 			}
 		}
 
-		const deleted = await tui.spinner({
-			message: `Deleting database ${dbName}`,
-			clearOnSuccess: true,
-			callback: async () => {
-				return deleteResources(catalystClient, orgId, region!, [{ type: 'db', name: dbName }]);
-			},
-		});
+		try {
+			const deleted = await tui.spinner({
+				message: `Deleting database ${dbName}`,
+				clearOnSuccess: true,
+				callback: async () => {
+					return deleteResources(catalystClient, orgId, region!, [
+						{ type: 'db', name: dbName },
+					]);
+				},
+			});
 
-		if (deleted.length > 0) {
-			tui.success(`Deleted database: ${tui.bold(deleted[0])}`);
-			return {
-				success: true,
-				name: deleted[0],
-			};
-		} else {
-			tui.error('Failed to delete database');
-			return { success: false, name: dbName };
+			if (deleted.length > 0) {
+				tui.success(`Deleted database: ${tui.bold(deleted[0])}`);
+				return {
+					success: true,
+					name: deleted[0],
+				};
+			} else {
+				tui.error('Failed to delete database');
+				return { success: false, name: dbName };
+			}
+		} catch (ex) {
+			if (ex instanceof APIError) {
+				const err = ex as APIError;
+				if (err.status === 404) {
+					tui.fatal(`database with the name "${dbName}" doesn't exist.`);
+				}
+			}
+			throw ex;
 		}
 	},
 });

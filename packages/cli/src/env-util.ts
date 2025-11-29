@@ -204,6 +204,9 @@ export function splitEnvAndSecrets(vars: EnvVars): {
 
 /**
  * Mask a secret value for display
+ * - For URLs with credentials: parses and masks username/password partially
+ * - For long strings: shows more context (first 6 and last 6 chars)
+ * - For short strings: shows generic masking
  */
 export function maskSecret(value: string): string {
 	if (!value) {
@@ -214,8 +217,47 @@ export function maskSecret(value: string): string {
 		return '***';
 	}
 
-	// Show first 4 and last 4 characters
-	return `${value.slice(0, 4)}...${value.slice(-4)}`;
+	// Try to parse as URL with credentials
+	try {
+		const url = new URL(value);
+
+		// If URL has username or password, mask them partially
+		if (url.username || url.password) {
+			let maskedAuth = '';
+
+			if (url.username) {
+				// Show first 2 and last 2 chars of username
+				const len = url.username.length;
+				if (len <= 4) {
+					maskedAuth = '***';
+				} else {
+					maskedAuth = `${url.username.slice(0, 2)}***${url.username.slice(-2)}`;
+				}
+			}
+
+			if (url.password) {
+				// Show first 3 and last 3 chars of password
+				const len = url.password.length;
+				if (len <= 6) {
+					maskedAuth += ':***';
+				} else {
+					maskedAuth += `:${url.password.slice(0, 3)}***${url.password.slice(-3)}`;
+				}
+			} else if (url.username) {
+				// Username but no password
+				maskedAuth += ':***';
+			}
+
+			// Reconstruct URL with masked credentials
+			const maskedUrl = `${url.protocol}//${maskedAuth}@${url.host}${url.pathname}${url.search}${url.hash}`;
+			return maskedUrl;
+		}
+	} catch {
+		// Not a valid URL, fall through to regular masking
+	}
+
+	// For long strings, show first 6 and last 6 characters for better context
+	return `${value.slice(0, 6)}...${value.slice(-6)}`;
 }
 
 /**

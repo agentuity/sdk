@@ -489,8 +489,11 @@ Generate release notes in Markdown format with the following sections:
 - **Documentation** - Documentation updates
 - **Internal** - Internal changes (refactoring, tests, tooling)
 
-Use bullet points (- item) for each change. Be concise and user-focused. Only include sections that have changes.
-If there are no breaking changes, omit that section entirely.`;
+Formatting Instructions:
+- Use bullet points (- item) for each change. Be concise and user-focused. Only include sections that have changes.
+- If there are no breaking changes, omit that section entirely.
+- Link to Pull Request URLs if relevant such as: [#12](https://github.com/agentuity/sdk/pull/12) [DESCRIPTION]
+`;
 
 	try {
 		// Invoke amp to generate release notes (pipe prompt via stdin)

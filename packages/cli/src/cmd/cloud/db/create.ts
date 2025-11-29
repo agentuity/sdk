@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createResources } from '@agentuity/server';
+import { createResources, APIError } from '@agentuity/server';
 import { createSubcommand as defineSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
@@ -16,6 +16,7 @@ export const createSubcommand = defineSubcommand({
 	examples: [
 		getCommand('cloud db create'),
 		getCommand('cloud db new'),
+		getCommand('cloud db create --name my-db'),
 		getCommand('--dry-run cloud db create'),
 	],
 	schema: {
@@ -49,24 +50,37 @@ export const createSubcommand = defineSubcommand({
 
 		const catalystClient = getCatalystAPIClient(config, logger, auth);
 
-		const created = await tui.spinner({
-			message: `Creating database in ${region}`,
-			clearOnSuccess: true,
-			callback: async () => {
-				return createResources(catalystClient, orgId, region!, [
-					{ type: 'db', name: opts.name },
-				]);
-			},
-		});
-
-		if (created.length > 0) {
-			tui.success(`Created database: ${tui.bold(created[0].name)}`);
-			return {
-				success: true,
-				name: created[0].name,
-			};
-		} else {
-			tui.fatal('Failed to create database');
+		try {
+			const created = await tui.spinner({
+				message: `Creating database in ${region}`,
+				clearOnSuccess: true,
+				callback: async () => {
+					return await createResources(catalystClient, orgId, region!, [
+						{ type: 'db', name: opts.name },
+					]);
+				},
+			});
+			if (created.length > 0) {
+				if (!options.json) {
+					tui.success(`Created database: ${tui.bold(created[0].name)}`);
+				}
+				return {
+					success: true,
+					name: created[0].name,
+				};
+			} else {
+				tui.fatal('Failed to create database');
+			}
+		} catch (ex) {
+			if (ex instanceof APIError) {
+				const err = ex as APIError;
+				if (err.status === 409) {
+					tui.fatal(
+						`database with the name "${opts.name}" already exists. Use another name or don't specify --name for a unique name to be generated automatically.`
+					);
+				}
+			}
+			throw ex;
 		}
 	},
 });
