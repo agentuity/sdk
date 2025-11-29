@@ -5,6 +5,7 @@ import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
+import { ErrorCode } from '../../../errors';
 
 export const createSubcommand = defineSubcommand({
 	name: 'create',
@@ -73,10 +74,10 @@ export const createSubcommand = defineSubcommand({
 			}
 		} catch (ex) {
 			if (ex instanceof APIError) {
-				const err = ex as APIError;
-				if (err.status === 409) {
+				if (ex.status === 409) {
 					tui.fatal(
-						`database with the name "${opts.name}" already exists. Use another name or don't specify --name for a unique name to be generated automatically.`
+						`database with the name "${opts.name}" already exists. Use another name or don't specify --name for a unique name to be generated automatically.`,
+						ErrorCode.INVALID_ARGUMENT
 					);
 				}
 			}

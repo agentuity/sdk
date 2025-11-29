@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
+import { OrgResponseError } from './util';
 
 const ListOrganizationsResponse = z.array(
 	z.object({
@@ -27,5 +28,5 @@ export async function listOrganizations(client: APIClient): Promise<Organization
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new OrgResponseError({ message: resp.message });
 }

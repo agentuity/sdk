@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema, APIResponseSchemaOptionalData } from '../api';
+import { ProjectResponseError } from './util';
 
 // Simplified metadata schema for the client
 const DeploymentMetadataSchema = z.object({
@@ -69,7 +70,7 @@ export async function projectDeploymentList(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }
 
 export async function projectDeploymentGet(
@@ -85,7 +86,7 @@ export async function projectDeploymentGet(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }
 
 export async function projectDeploymentDelete(
@@ -99,7 +100,7 @@ export async function projectDeploymentDelete(
 		DeploymentActionResponseSchema
 	);
 	if (!resp.success) {
-		throw new Error(resp.message);
+		throw new ProjectResponseError({ message: resp.message });
 	}
 }
 
@@ -114,7 +115,7 @@ export async function projectDeploymentRollback(
 		DeploymentActionResponseSchema
 	);
 	if (!resp.success) {
-		throw new Error(resp.message);
+		throw new ProjectResponseError({ message: resp.message });
 	}
 }
 
@@ -128,7 +129,7 @@ export async function projectDeploymentUndeploy(
 		DeploymentActionResponseSchema
 	);
 	if (!resp.success) {
-		throw new Error(resp.message);
+		throw new ProjectResponseError({ message: resp.message });
 	}
 }
 
@@ -159,5 +160,5 @@ export async function projectDeploymentLogs(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }

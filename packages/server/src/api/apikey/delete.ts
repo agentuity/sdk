@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
+import { APIKeyResponseError } from './util';
 
 const APIKeyDeleteResponseSchema = APIResponseSchema(
 	z.number().describe('number of rows affected')
@@ -25,5 +26,5 @@ export async function apikeyDelete(client: APIClient, id: string): Promise<numbe
 		return resp.data;
 	}
 
-	throw new Error(resp.message);
+	throw new APIKeyResponseError({ message: resp.message });
 }

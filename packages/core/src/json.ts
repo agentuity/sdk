@@ -3,7 +3,7 @@
  * @param obj - The object to stringify
  * @returns JSON string representation
  */
-export function safeStringify(obj: unknown): string {
+export function safeStringify(obj: unknown, space?: number | string): string {
 	const visited = new WeakSet();
 
 	function replacer(_key: string, value: unknown): unknown {
@@ -22,5 +22,5 @@ export function safeStringify(obj: unknown): string {
 		return value;
 	}
 
-	return JSON.stringify(obj, replacer);
+	return JSON.stringify(obj, replacer, space);
 }

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema, APIError } from '../api';
+import { ProjectResponseError } from './util';
 
 const _ProjectExistsRequestSchema = z.object({
 	name: z.string().max(255).min(1).describe('the name of the new project'),
@@ -42,16 +43,16 @@ export async function projectExists(
 		return false;
 	} catch (ex) {
 		const _ex = ex as Error;
-		if (_ex.name === 'APIError') {
-			const apiError = _ex as APIError;
-			switch (apiError.status) {
+		if (_ex instanceof APIError) {
+			switch (_ex.status) {
 				case 409:
 					return true;
 				case 422:
 					return false;
 				default:
+					break;
 			}
 		}
-		throw ex;
+		throw new ProjectResponseError({ cause: ex });
 	}
 }

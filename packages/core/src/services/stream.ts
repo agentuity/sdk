@@ -1,6 +1,7 @@
 import { safeStringify } from '../json';
 import { FetchAdapter, FetchResponse } from './adapter';
 import { buildUrl, toServiceException } from './_util';
+import { StructuredError } from '../error';
 
 /**
  * Properties for creating a stream
@@ -262,6 +263,8 @@ export interface StreamStorage {
 
 const encoder = new TextEncoder();
 
+const ReadStreamFailedError = StructuredError('ReadStreamFailedError')<{ status: number }>();
+
 /**
  * A writable stream implementation that extends WritableStream
  */
@@ -384,13 +387,21 @@ class StreamImpl extends WritableStream implements Stream {
 
 					if (!res.ok) {
 						controller.error(
-							new Error(`Failed to read stream: ${response.status} ${response.statusText}`)
+							new ReadStreamFailedError({
+								status: response.status,
+								message: `Failed to read stream: ${response.status} ${response.statusText}`,
+							})
 						);
 						return;
 					}
 
 					if (!response.body) {
-						controller.error(new Error('Response body is null'));
+						controller.error(
+							new ReadStreamFailedError({
+								status: response.status,
+								message: 'Response body was null',
+							})
+						);
 						return;
 					}
 
@@ -419,6 +430,13 @@ class StreamImpl extends WritableStream implements Stream {
 		});
 	}
 }
+
+const StreamWriterInitializationError = StructuredError(
+	'StreamWriterInitializationError',
+	'Stream writer is not initialized'
+);
+
+const StreamAPIError = StructuredError('StreamAPIError')<{ status: number }>();
 
 // Create a WritableStream that writes to the backend stream
 // Create the underlying sink that will handle the actual streaming
@@ -498,7 +516,7 @@ class UnderlyingSink {
 
 	async write(chunk: string | Uint8Array | ArrayBuffer | Buffer | object) {
 		if (!this.writer) {
-			throw new Error('Stream writer not initialized');
+			throw new StreamWriterInitializationError();
 		}
 		// Convert input to Uint8Array if needed
 		let binaryChunk: Uint8Array;
@@ -533,9 +551,10 @@ class UnderlyingSink {
 			try {
 				const res = await this.putRequestPromise;
 				if (!res.ok) {
-					throw new Error(
-						`PUT request failed: ${res.response.status} ${res.response.statusText}`
-					);
+					throw new StreamAPIError({
+						status: res.response.status,
+						message: `PUT request failed: ${res.response.status} ${res.response.statusText}`,
+					});
 				}
 			} catch (error) {
 				if (error instanceof Error && error.name !== 'AbortError') {
@@ -560,6 +579,21 @@ class UnderlyingSink {
 	}
 }
 
+const StreamNameInvalidError = StructuredError(
+	'StreamNameInvalidError',
+	'Stream name must be between 1 and 254 characters'
+);
+
+const StreamLimitInvalidError = StructuredError(
+	'StreamLimitInvalidError',
+	'Stream limit must be greater than 0 and less than or equal to 1000'
+);
+
+const StreamIDRequiredError = StructuredError(
+	'StreamIDRequiredError',
+	'Stream id is required and must be a non-empty string'
+);
+
 export class StreamStorageService implements StreamStorage {
 	#adapter: FetchAdapter;
 	#baseUrl: string;
@@ -571,7 +605,7 @@ export class StreamStorageService implements StreamStorage {
 
 	async create(name: string, props?: CreateStreamProps): Promise<Stream> {
 		if (!name || name.length < 1 || name.length > 254) {
-			throw new Error('Stream name must be between 1 and 254 characters');
+			throw new StreamNameInvalidError();
 		}
 		const url = this.#baseUrl;
 		const signal = AbortSignal.timeout(10_000);
@@ -624,7 +658,7 @@ export class StreamStorageService implements StreamStorage {
 		const attributes: Record<string, string> = {};
 		if (params?.limit !== undefined) {
 			if (params.limit <= 0 || params.limit > 1000) {
-				throw new Error('limit must be greater than 0 and less than or equal to 1000');
+				throw new StreamLimitInvalidError();
 			}
 			attributes['limit'] = String(params.limit);
 		}
@@ -695,7 +729,7 @@ export class StreamStorageService implements StreamStorage {
 
 	async get(id: string): Promise<StreamInfo> {
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
-			throw new Error('Stream id is required and must be a non-empty string');
+			throw new StreamIDRequiredError();
 		}
 		const signal = AbortSignal.timeout(30_000);
 		const url = buildUrl(this.#baseUrl, id, 'info');
@@ -731,7 +765,7 @@ export class StreamStorageService implements StreamStorage {
 
 	async download(id: string): Promise<ReadableStream<Uint8Array>> {
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
-			throw new Error('Stream id is required and must be a non-empty string');
+			throw new StreamIDRequiredError();
 		}
 		const signal = AbortSignal.timeout(300_000); // 5 minutes for download
 		const url = buildUrl(this.#baseUrl, id);
@@ -754,7 +788,7 @@ export class StreamStorageService implements StreamStorage {
 
 	async delete(id: string): Promise<void> {
 		if (!id || typeof id !== 'string' || id.trim().length === 0) {
-			throw new Error('Stream id is required and must be a non-empty string');
+			throw new StreamIDRequiredError();
 		}
 		const signal = AbortSignal.timeout(30_000);
 		const url = buildUrl(this.#baseUrl, id);

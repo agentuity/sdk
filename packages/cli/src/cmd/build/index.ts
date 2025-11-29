@@ -4,6 +4,7 @@ import { createCommand } from '../../types';
 import { bundle } from './bundler';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
 
 const BuildResponseSchema = z.object({
 	success: z.boolean().describe('Whether the build succeeded'),
@@ -79,10 +80,14 @@ export const command = createCommand({
 				dev: opts.dev || false,
 			};
 		} catch (error) {
-			if (error instanceof Error) {
-				tui.fatal(`Bundle failed: ${error.message}`);
+			if (error instanceof AggregateError) {
+				const ae = error as AggregateError;
+				for (const e of ae.errors) {
+					tui.error(e.message);
+				}
+				tui.fatal('Build failed', ErrorCode.BUILD_FAILED);
 			} else {
-				tui.fatal('Bundle failed');
+				tui.fatal(`Build failed: ${error}`, ErrorCode.BUILD_FAILED);
 			}
 		}
 	},

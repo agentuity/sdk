@@ -34,7 +34,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.upsert('my-vectors')).rejects.toThrow(
-				'At least one document is required for upsert'
+				'Vector storage requires at least one document for this method'
 			);
 		});
 
@@ -43,7 +43,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.upsert('my-vectors', { key: '', document: 'text' })).rejects.toThrow(
-				'Each document must have a non-empty key'
+				'Vector storage requires each document to have a non-empty key'
 			);
 		});
 
@@ -53,7 +53,9 @@ describe('VectorStorageService', () => {
 
 			await expect(
 				service.upsert('my-vectors', { key: 'k1' } as unknown as VectorUpsertParams)
-			).rejects.toThrow('Each document must have either embeddings or document text');
+			).rejects.toThrow(
+				'Vector storage requires each document to have either embeddings or document property'
+			);
 		});
 
 		test('rejects empty embeddings array', async () => {
@@ -61,7 +63,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.upsert('my-vectors', { key: 'k1', embeddings: [] })).rejects.toThrow(
-				'Embeddings must be a non-empty array of numbers'
+				'Vector storage requires each embeddings property to have a non-empty array of numbers'
 			);
 		});
 
@@ -70,7 +72,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.upsert('my-vectors', { key: 'k1', document: '   ' })).rejects.toThrow(
-				'Document must be a non-empty string'
+				'Vector storage requires each document property to have a non-empty string value'
 			);
 		});
 	});
@@ -90,7 +92,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.get('my-vectors', '')).rejects.toThrow(
-				'Key is required and must be a non-empty string'
+				'Vector storage key is required and must be a non-empty string'
 			);
 		});
 	});
@@ -119,7 +121,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.getMany('my-vectors', 'key1', '', 'key3')).rejects.toThrow(
-				'All keys must be non-empty strings'
+				'Vector storage requires all keys to be non-empty strings'
 			);
 		});
 	});
@@ -139,7 +141,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.search('my-vectors', { query: '' })).rejects.toThrow(
-				'Query is required and must be a non-empty string'
+				'Vector storage query property is required and must be a non-empty string'
 			);
 		});
 
@@ -148,7 +150,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.search('my-vectors', { query: 'test', limit: -5 })).rejects.toThrow(
-				'Limit must be a positive number'
+				'Vector storage limit property must be positive number'
 			);
 		});
 
@@ -157,7 +159,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.search('my-vectors', { query: 'test', limit: 0 })).rejects.toThrow(
-				'Limit must be a positive number'
+				'Vector storage limit property must be positive number'
 			);
 		});
 
@@ -167,7 +169,9 @@ describe('VectorStorageService', () => {
 
 			await expect(
 				service.search('my-vectors', { query: 'test', similarity: -0.1 })
-			).rejects.toThrow('Similarity must be a number between 0.0 and 1.0');
+			).rejects.toThrow(
+				'Vector storage similarity property must be a number between 0.0 and 1.0'
+			);
 		});
 
 		test('rejects similarity > 1', async () => {
@@ -176,7 +180,9 @@ describe('VectorStorageService', () => {
 
 			await expect(
 				service.search('my-vectors', { query: 'test', similarity: 1.5 })
-			).rejects.toThrow('Similarity must be a number between 0.0 and 1.0');
+			).rejects.toThrow(
+				'Vector storage similarity property must be a number between 0.0 and 1.0'
+			);
 		});
 
 		test('rejects invalid metadata', async () => {
@@ -188,7 +194,7 @@ describe('VectorStorageService', () => {
 					query: 'test',
 					metadata: null as unknown as Record<string, unknown>,
 				})
-			).rejects.toThrow('Metadata must be a valid object');
+			).rejects.toThrow('Vector storage metadata property must be a valid object');
 		});
 
 		test('accepts boundary similarity values', async () => {
@@ -221,7 +227,7 @@ describe('VectorStorageService', () => {
 			const service = new VectorStorageService(baseUrl, adapter);
 
 			await expect(service.delete('my-vectors', 'key1', '', 'key3')).rejects.toThrow(
-				'All keys must be non-empty strings'
+				'Vector storage requires all keys to be non-empty strings'
 			);
 		});
 

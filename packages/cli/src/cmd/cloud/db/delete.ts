@@ -6,6 +6,7 @@ import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
+import { ErrorCode } from '../../../errors';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
@@ -119,9 +120,11 @@ export const deleteSubcommand = createSubcommand({
 			}
 		} catch (ex) {
 			if (ex instanceof APIError) {
-				const err = ex as APIError;
-				if (err.status === 404) {
-					tui.fatal(`database with the name "${dbName}" doesn't exist.`);
+				if (ex.status === 404) {
+					tui.fatal(
+						`database with the name "${dbName}" doesn't exist.`,
+						ErrorCode.INVALID_ARGUMENT
+					);
 				}
 			}
 			throw ex;

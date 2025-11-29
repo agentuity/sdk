@@ -12,7 +12,7 @@ import { createLogger } from '@agentuity/server';
 import type { LogLevel } from '../../types';
 import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench-templates';
 import { analyzeWorkbench } from './ast';
-import { encodeWorkbenchConfig } from '@agentuity/core';
+import { encodeWorkbenchConfig, StructuredError } from '@agentuity/core';
 
 export const DeployOptionsSchema = z.object({
 	tag: z
@@ -52,6 +52,30 @@ export interface BundleOptions extends DeployOptions {
 	port?: number;
 }
 
+type BuildResult = Awaited<ReturnType<typeof Bun.build>>;
+type BuildLogs = BuildResult['logs'];
+
+const AppFileNotFoundError = StructuredError('AppFileNotFoundError');
+const AgentsDirNotFoundError = StructuredError('AgentsDirNotFoundError');
+const BuildFailedError = StructuredError('BuildFailedError')<{ logs?: BuildLogs }>();
+
+const handleBuildFailure = (buildResult: BuildResult) => {
+	// Collect all build errors with full details
+	const errorMessages = buildResult.logs
+		.map((log) => {
+			const parts = [log.message];
+			if (log.position) {
+				parts.push(`  at ${log.position.file}:${log.position.line}:${log.position.column}`);
+			}
+			return parts.join('\n');
+		})
+		.join('\n');
+	throw new BuildFailedError({
+		message: errorMessages || 'Build failed with no error messages',
+		logs: buildResult.logs,
+	});
+};
+
 export async function bundle({
 	orgId,
 	projectId,
@@ -73,7 +97,9 @@ export async function bundle({
 }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
-		throw new Error(`App file not found at expected location: ${appFile}`);
+		throw new AppFileNotFoundError({
+			message: `App file not found at expected location: ${appFile}`,
+		});
 	}
 	const outDir = join(rootDir, '.agentuity');
 	const srcDir = join(rootDir, 'src');
@@ -84,7 +110,7 @@ export async function bundle({
 		const dir = join(srcDir, folder);
 		if (!existsSync(dir)) {
 			if (folder === 'agents') {
-				throw new Error(`Expected directory not found: ${dir}`);
+				throw new AgentsDirNotFoundError({ message: `Expected directory not found: ${dir}` });
 			}
 			continue;
 		}
@@ -150,9 +176,7 @@ export async function bundle({
 		};
 		const buildResult = await Bun.build(config);
 		if (!buildResult.success) {
-			// Collect all build errors
-			const errorMessages = buildResult.logs.map((log) => log.message).join('\n');
-			throw new Error(errorMessages || 'Build failed');
+			handleBuildFailure(buildResult);
 		}
 		// Fix duplicate exports caused by Bun splitting bug
 		// See: https://github.com/oven-sh/bun/issues/5344
@@ -259,35 +283,29 @@ export async function bundle({
 						asset: 'web/asset/[name]-[hash].[ext]',
 					},
 				};
-				try {
-					const result = await Bun.build(config);
-					if (result.success) {
-						// Fix duplicate exports caused by Bun splitting bug
-						// See: https://github.com/oven-sh/bun/issues/5344
-						await fixDuplicateExportsInDirectory(join(outDir, 'web'), false);
+				const result = await Bun.build(config);
+				if (result.success) {
+					// Fix duplicate exports caused by Bun splitting bug
+					// See: https://github.com/oven-sh/bun/issues/5344
+					await fixDuplicateExportsInDirectory(join(outDir, 'web'), false);
 
-						if (!dev && buildmetadata?.assets) {
-							const assets = buildmetadata.assets;
-							result.outputs
-								// Filter for deployable assets: sourcemaps (hash '00000000') and content-addressed files
-								.filter((x) => x.hash === '00000000' || (x.hash && x.path.includes(x.hash)))
-								.forEach((artifact) => {
-									const r = relative(join(outDir, 'web'), artifact.path);
-									assets.push({
-										filename: r,
-										kind: artifact.kind,
-										contentType: artifact.type,
-										size: artifact.size,
-									});
+					if (!dev && buildmetadata?.assets) {
+						const assets = buildmetadata.assets;
+						result.outputs
+							// Filter for deployable assets: sourcemaps (hash '00000000') and content-addressed files
+							.filter((x) => x.hash === '00000000' || (x.hash && x.path.includes(x.hash)))
+							.forEach((artifact) => {
+								const r = relative(join(outDir, 'web'), artifact.path);
+								assets.push({
+									filename: r,
+									kind: artifact.kind,
+									contentType: artifact.type,
+									size: artifact.size,
 								});
-						}
-					} else {
-						console.error(result.logs.join('\n'));
-						process.exit(1);
+							});
 					}
-				} catch (ex) {
-					console.error(ex);
-					process.exit(1);
+				} else {
+					handleBuildFailure(result);
 				}
 			}
 		})();

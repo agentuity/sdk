@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { APIError, APIResponseSchema, APIResponseSchemaOptionalData } from '@agentuity/server';
 import type { APIClient } from '../../api';
+import { StructuredError } from '@agentuity/core';
 
 // Zod schemas for API validation
 const OTPStartDataSchema = z.object({
@@ -36,6 +37,11 @@ export interface SignupResult {
 	expires: Date;
 }
 
+const OTPGenerationError = StructuredError(
+	'OTPGenerationError',
+	'Error generating the one-time login code'
+);
+
 export async function generateLoginOTP(apiClient: APIClient): Promise<string> {
 	const resp = await apiClient.request(
 		'GET',
@@ -44,15 +50,21 @@ export async function generateLoginOTP(apiClient: APIClient): Promise<string> {
 	);
 
 	if (!resp.success) {
-		throw new Error(resp.message);
+		throw new OTPGenerationError();
 	}
 
 	if (!resp.data) {
-		throw new Error('No OTP returned from server');
+		throw new OTPGenerationError();
 	}
 
 	return resp.data.otp;
 }
+
+const PollForLoginError = StructuredError('PollForLoginError');
+const PollForLoginTimeout = StructuredError(
+	'PollForLoginTimeout',
+	'Timed out waiting for user login. Aborting'
+);
 
 export async function pollForLoginCompletion(
 	apiClient: APIClient,
@@ -71,7 +83,7 @@ export async function pollForLoginCompletion(
 		);
 
 		if (!resp.success) {
-			throw new Error(resp.message);
+			throw new PollForLoginError({ message: resp.message });
 		}
 
 		if (resp.data) {
@@ -85,7 +97,7 @@ export async function pollForLoginCompletion(
 		await Bun.sleep(2000);
 	}
 
-	throw new Error('Login timed out');
+	throw new PollForLoginTimeout();
 }
 
 export function generateSignupOTP(): string {
@@ -98,6 +110,16 @@ export function generateSignupOTP(): string {
 	}
 	return result;
 }
+
+const PollForSignupCompletedError = StructuredError(
+	'PollForSignupCompletedError',
+	'Error waiting for signup completion. Please try again.'
+);
+
+const PollForSignupTimeoutError = StructuredError(
+	'PollForSignupTimeoutError',
+	'Timed out waiting for user signup. Aborting.'
+);
 
 export async function pollForSignupCompletion(
 	apiClient: APIClient,
@@ -115,7 +137,7 @@ export async function pollForSignupCompletion(
 			);
 
 			if (!resp.success) {
-				throw new Error(resp.message);
+				throw new PollForSignupCompletedError();
 			}
 
 			if (resp.data) {
@@ -136,5 +158,5 @@ export async function pollForSignupCompletion(
 		await Bun.sleep(2000);
 	}
 
-	throw new Error('Signup timed out');
+	throw new PollForSignupTimeoutError();
 }

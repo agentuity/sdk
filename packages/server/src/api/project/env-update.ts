@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import type { Project } from './get';
 import { projectGet } from './get';
+import { ProjectResponseError } from './util';
 
 const _ProjectEnvUpdateRequestSchema = z.object({
 	id: z.string().describe('the project id'),
@@ -46,7 +47,7 @@ export async function projectEnvUpdate(
 	);
 
 	if (!resp.success) {
-		throw new Error(resp.message ?? 'failed to update project env');
+		throw new ProjectResponseError({ message: resp.message ?? 'failed to update project env' });
 	}
 
 	if (resp.data) {

@@ -189,16 +189,14 @@ export const createServer = <E extends Env, TAppState = Record<string, never>>(
 			otel.logger.error('Unauthenticated Error: %s', error.message);
 			return new Response(error.message, { status: 501 });
 		}
-		if (
-			error instanceof ServiceException ||
-			('statusCode' in error && typeof error.statusCode === 'number')
-		) {
-			const serviceError = error as ServiceException;
+		if (error instanceof ServiceException) {
+			const serviceError = error as InstanceType<typeof ServiceException>;
 			otel.logger.error(
-				'Service Exception: %s (%s returned HTTP status code: %d)',
+				'Service Exception: %s (%s returned HTTP status code: %d%s)',
 				error.message,
 				serviceError.url,
-				serviceError.statusCode
+				serviceError.statusCode,
+				serviceError.sessionId ? `, session: ${serviceError.sessionId}` : ''
 			);
 			return new Response(error.message, {
 				status: serviceError.statusCode ?? 500,

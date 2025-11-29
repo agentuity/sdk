@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
+import { UserResponseError } from './util';
 
 const OrganizationSchema = z.object({
 	id: z.string().describe('the unique id for the organization'),
@@ -27,5 +28,5 @@ export async function whoami(client: APIClient): Promise<User> {
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new UserResponseError({ message: resp.message });
 }

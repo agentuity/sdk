@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
+import { RegionResponseError } from './util';
 
 const ResourceSpec = z.object({
 	type: z.enum(['db', 's3']).describe('the resource type'),
@@ -51,5 +52,7 @@ export async function createResources(
 	if (resp.success) {
 		return resp.data.created;
 	}
-	throw new Error('message' in resp ? resp.message : 'Failed to create resources');
+	throw new RegionResponseError({
+		message: resp.message,
+	});
 }

@@ -1,5 +1,6 @@
 import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException, toPayload } from './_util';
+import { StructuredError } from '../error';
 
 /**
  * the result of a data operation when the data is found
@@ -159,6 +160,8 @@ export interface KeyValueStorage {
 	createNamespace(name: string): Promise<void>;
 }
 
+const KeyValueInvalidTTLError = StructuredError('KeyValueInvalidTTLError');
+
 export class KeyValueStorageService implements KeyValueStorage {
 	#adapter: FetchAdapter;
 	#baseUrl: string;
@@ -207,7 +210,9 @@ export class KeyValueStorageService implements KeyValueStorage {
 		let ttlstr = '';
 		if (params?.ttl) {
 			if (params.ttl < 60) {
-				throw new Error(`ttl for keyvalue set must be at least 60 seconds, got ${params.ttl}`);
+				throw new KeyValueInvalidTTLError({
+					message: `ttl for keyvalue set must be at least 60 seconds, got ${params.ttl}`,
+				});
 			}
 			ttlstr = `/${params.ttl}`;
 		}

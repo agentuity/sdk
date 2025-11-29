@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
+import { ProjectResponseError } from './util';
 
 const _ProjectGetRequestSchema = z.object({
 	id: z.string().describe('the project id'),
@@ -32,5 +33,5 @@ export async function projectGet(client: APIClient, request: ProjectGetRequest):
 		return resp.data;
 	}
 
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }

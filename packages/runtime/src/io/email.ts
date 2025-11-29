@@ -1,3 +1,4 @@
+import { StructuredError } from '@agentuity/core';
 import { type ParsedMail, type Headers, simpleParser, type AddressObject } from 'mailparser';
 
 /**
@@ -143,6 +144,21 @@ export class Email {
 	}
 }
 
+const InvalidEmailEmptyError = StructuredError(
+	'InvalidEmailEmptyError',
+	'Failed to parse email: empty buffer'
+);
+
+const InvalidEmailHeadersError = StructuredError(
+	'InvalidEmailHeadersError',
+	'Failed to parse email: missing headers'
+);
+
+const InvalidEmailParseError = StructuredError(
+	'InvalidEmailParseError',
+	'Failed to parse email: body was invalid'
+)<{ bufferSize: number; preview?: string }>();
+
 /**
  * Parse an email from a buffer and return an Email object.
  *
@@ -152,22 +168,24 @@ export class Email {
  */
 export async function parseEmail(data: Buffer): Promise<Email> {
 	if (data.length === 0) {
-		throw new Error('Failed to parse email: empty buffer');
+		throw new InvalidEmailEmptyError();
 	}
 
 	const first16KB = data.slice(0, 16384).toString('utf-8', 0, Math.min(data.length, 16384));
 	const hasHeaders = /(^|\r?\n)[!-9;-~]+:\s/.test(first16KB);
 
 	if (!hasHeaders) {
-		throw new Error('Failed to parse email: missing headers');
+		throw new InvalidEmailHeadersError();
 	}
 
 	try {
 		const message = await simpleParser(data);
 		return new Email(message);
 	} catch (error) {
-		throw new Error(
-			`Failed to parse email: ${error instanceof Error ? error.message : 'Unknown error'}`
-		);
+		throw new InvalidEmailParseError({
+			bufferSize: data.length,
+			preview: data.subarray(0, 50).toString('hex'),
+			cause: error,
+		});
 	}
 }

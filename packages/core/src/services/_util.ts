@@ -1,11 +1,6 @@
 import { safeStringify } from '../json';
-import type { Body } from './adapter';
+import type { Body, HttpMethod } from './adapter';
 import { ServiceException } from './exception';
-
-/**
- * Valid HTTP methods for service calls
- */
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
 
 export const buildUrl = (
 	base: string,
@@ -29,13 +24,26 @@ export async function toServiceException(
 	method: HttpMethod,
 	url: string,
 	response: Response
-): Promise<ServiceException> {
+): Promise<InstanceType<typeof ServiceException>> {
+	const sessionId = response.headers.get('x-session-id');
 	switch (response.status) {
 		case 401:
 		case 403:
-			return new ServiceException('Unauthorized', method, url, response.status);
+			return new ServiceException({
+				message: 'Unauthorized',
+				method,
+				url,
+				statusCode: response.status,
+				sessionId,
+			});
 		case 404:
-			return new ServiceException('Not Found', method, url, response.status);
+			return new ServiceException({
+				message: 'Not Found',
+				method,
+				url,
+				statusCode: response.status,
+				sessionId,
+			});
 		default:
 	}
 	const ct = response.headers.get('content-type');
@@ -43,24 +51,54 @@ export async function toServiceException(
 		try {
 			const payload = (await response.json()) as { message?: string; error?: string };
 			if (payload.error) {
-				return new ServiceException(payload.error, method, url, response.status);
+				return new ServiceException({
+					message: payload.error,
+					method,
+					url,
+					statusCode: response.status,
+					sessionId,
+				});
 			}
 			if (payload.message) {
-				return new ServiceException(payload.message, method, url, response.status);
+				return new ServiceException({
+					message: payload.message,
+					method,
+					url,
+					statusCode: response.status,
+					sessionId,
+				});
 			}
-			return new ServiceException(JSON.stringify(payload), method, url, response.status);
+			return new ServiceException({
+				message: JSON.stringify(payload),
+				method,
+				url,
+				statusCode: response.status,
+				sessionId,
+			});
 		} catch {
 			/** don't worry */
 		}
 	}
 	try {
 		const body = await response.text();
-		return new ServiceException(body, method, url, response.status);
+		return new ServiceException({
+			message: body,
+			method,
+			url,
+			statusCode: response.status,
+			sessionId,
+		});
 	} catch {
 		/* fall through */
 	}
 
-	return new ServiceException(response.statusText, method, url, response.status);
+	return new ServiceException({
+		message: response.statusText,
+		method,
+		url,
+		statusCode: response.status,
+		sessionId,
+	});
 }
 
 const binaryContentType = 'application/octet-stream';
@@ -126,10 +164,10 @@ export async function fromResponse<T>(
 	if (contentType?.includes(binaryContentType)) {
 		return (await response.arrayBuffer()) as T;
 	}
-	throw new ServiceException(
-		`Unsupported content-type: ${contentType}`,
+	throw new ServiceException({
+		message: `Unsupported content-type: ${contentType}`,
 		method,
 		url,
-		response.status
-	);
+		statusCode: response.status,
+	});
 }

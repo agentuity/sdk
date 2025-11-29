@@ -1,6 +1,7 @@
 import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { safeStringify } from '../json';
+import { StructuredError } from '../error';
 
 /**
  * Base properties shared by all vector upsert operations
@@ -379,6 +380,70 @@ interface VectorDeleteErrorResponse {
 
 type VectorDeleteResponse = VectorDeleteSuccessResponse | VectorDeleteErrorResponse;
 
+const VectorStorageNameRequiredError = StructuredError(
+	'VectorStorageNameRequiredError',
+	'Vector storage name is required and must be a non-empty string'
+);
+
+const VectorStorageKeyRequiredError = StructuredError(
+	'VectorStorageKeyRequiredError',
+	'Vector storage key is required and must be a non-empty string'
+);
+
+const VectorStorageKeysError = StructuredError(
+	'VectorStorageKeysError',
+	'Vector storage requires all keys to be non-empty strings'
+);
+
+const VectorStorageQueryError = StructuredError(
+	'VectorStorageQueryError',
+	'Vector storage query property is required and must be a non-empty string'
+);
+
+const VectorStorageLimitError = StructuredError(
+	'VectorStorageLimitError',
+	'Vector storage limit property must be positive number'
+);
+
+const VectorStorageSimilarityError = StructuredError(
+	'VectorStorageSimilarityError',
+	'Vector storage similarity property must be a number between 0.0 and 1.0'
+);
+
+const VectorStorageMetadataError = StructuredError(
+	'VectorStorageMetadataError',
+	'Vector storage metadata property must be a valid object'
+);
+
+const VectorStorageDocumentRequiredError = StructuredError(
+	'VectorStorageDocumentRequiredError',
+	'Vector storage requires at least one document for this method'
+);
+
+const VectorStorageDocumentKeyMissingError = StructuredError(
+	'VectorStorageDocumentKeyMissingError',
+	'Vector storage requires each document to have a non-empty key'
+);
+
+const VectorStorageInvalidError = StructuredError(
+	'VectorStorageInvalidError',
+	'Vector storage requires each document to have either embeddings or document property'
+);
+
+const VectorStorageEmbeddingInvalidError = StructuredError(
+	'VectorStorageEmbeddingInvalidError',
+	'Vector storage requires each embeddings property to have a non-empty array of numbers'
+);
+
+const VectorStorageDocumentInvalidError = StructuredError(
+	'VectorStorageDocumentInvalidError',
+	'Vector storage requires each document property to have a non-empty string value'
+);
+
+const VectorStorageResponseError = StructuredError('VectorStorageResponseError')<{
+	status: number;
+}>();
+
 export class VectorStorageService implements VectorStorage {
 	#adapter: FetchAdapter;
 	#baseUrl: string;
@@ -390,31 +455,31 @@ export class VectorStorageService implements VectorStorage {
 
 	async upsert(name: string, ...documents: VectorUpsertParams[]): Promise<VectorUpsertResult[]> {
 		if (!name || typeof name !== 'string' || name.trim().length === 0) {
-			throw new Error('Vector storage name is required and must be a non-empty string');
+			throw new VectorStorageNameRequiredError();
 		}
 
 		if (!documents || documents.length === 0) {
-			throw new Error('At least one document is required for upsert');
+			throw new VectorStorageDocumentRequiredError();
 		}
 
 		for (const doc of documents) {
 			if (!doc.key || typeof doc.key !== 'string' || doc.key.trim().length === 0) {
-				throw new Error('Each document must have a non-empty key');
+				throw new VectorStorageDocumentKeyMissingError();
 			}
 
 			if (!('embeddings' in doc) && !('document' in doc)) {
-				throw new Error('Each document must have either embeddings or document text');
+				throw new VectorStorageInvalidError();
 			}
 
 			if ('embeddings' in doc && doc.embeddings) {
 				if (!Array.isArray(doc.embeddings) || doc.embeddings.length === 0) {
-					throw new Error('Embeddings must be a non-empty array of numbers');
+					throw new VectorStorageEmbeddingInvalidError();
 				}
 			}
 
 			if ('document' in doc && doc.document) {
 				if (typeof doc.document !== 'string' || doc.document.trim().length === 0) {
-					throw new Error('Document must be a non-empty string');
+					throw new VectorStorageDocumentInvalidError();
 				}
 			}
 		}
@@ -443,9 +508,10 @@ export class VectorStorageService implements VectorStorage {
 					id: o.id,
 				}));
 			}
-			if ('message' in res.data) {
-				throw new Error(res.data.message);
-			}
+			throw new VectorStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
 		}
 
 		throw await toServiceException('PUT', url, res.response);
@@ -456,11 +522,11 @@ export class VectorStorageService implements VectorStorage {
 		key: string
 	): Promise<VectorResult<T>> {
 		if (!name || typeof name !== 'string' || name.trim().length === 0) {
-			throw new Error('Vector storage name is required and must be a non-empty string');
+			throw new VectorStorageNameRequiredError();
 		}
 
 		if (!key || typeof key !== 'string' || key.trim().length === 0) {
-			throw new Error('Key is required and must be a non-empty string');
+			throw new VectorStorageKeyRequiredError();
 		}
 
 		const url = buildUrl(
@@ -492,9 +558,10 @@ export class VectorStorageService implements VectorStorage {
 					exists: true,
 				};
 			}
-			if ('message' in res.data) {
-				throw new Error(res.data.message);
-			}
+			throw new VectorStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
 		}
 
 		throw await toServiceException('GET', url, res.response);
@@ -505,7 +572,7 @@ export class VectorStorageService implements VectorStorage {
 		...keys: string[]
 	): Promise<Map<string, VectorSearchResultWithDocument<T>>> {
 		if (!name || typeof name !== 'string' || name.trim().length === 0) {
-			throw new Error('Vector storage name is required and must be a non-empty string');
+			throw new VectorStorageNameRequiredError();
 		}
 
 		if (keys.length === 0) {
@@ -514,7 +581,7 @@ export class VectorStorageService implements VectorStorage {
 
 		for (const key of keys) {
 			if (!key || typeof key !== 'string' || key.trim().length === 0) {
-				throw new Error('All keys must be non-empty strings');
+				throw new VectorStorageKeysError();
 			}
 		}
 
@@ -535,16 +602,16 @@ export class VectorStorageService implements VectorStorage {
 		params: VectorSearchParams<T>
 	): Promise<VectorSearchResult<T>[]> {
 		if (!name || typeof name !== 'string' || name.trim().length === 0) {
-			throw new Error('Vector storage name is required and must be a non-empty string');
+			throw new VectorStorageNameRequiredError();
 		}
 
 		if (!params.query || typeof params.query !== 'string' || params.query.trim().length === 0) {
-			throw new Error('Query is required and must be a non-empty string');
+			throw new VectorStorageQueryError();
 		}
 
 		if (params.limit !== undefined) {
 			if (typeof params.limit !== 'number' || params.limit <= 0) {
-				throw new Error('Limit must be a positive number');
+				throw new VectorStorageLimitError();
 			}
 		}
 
@@ -554,13 +621,13 @@ export class VectorStorageService implements VectorStorage {
 				params.similarity < 0 ||
 				params.similarity > 1
 			) {
-				throw new Error('Similarity must be a number between 0.0 and 1.0');
+				throw new VectorStorageSimilarityError();
 			}
 		}
 
 		if (params.metadata !== undefined) {
 			if (typeof params.metadata !== 'object' || params.metadata === null) {
-				throw new Error('Metadata must be a valid object');
+				throw new VectorStorageMetadataError();
 			}
 		}
 
@@ -597,9 +664,10 @@ export class VectorStorageService implements VectorStorage {
 			if (res.data.success) {
 				return res.data.data as VectorSearchResult<T>[];
 			}
-			if ('message' in res.data) {
-				throw new Error(res.data.message);
-			}
+			throw new VectorStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
 		}
 
 		throw await toServiceException('POST', url, res.response);
@@ -607,7 +675,7 @@ export class VectorStorageService implements VectorStorage {
 
 	async delete(name: string, ...keys: string[]): Promise<number> {
 		if (!name || typeof name !== 'string' || name.trim().length === 0) {
-			throw new Error('Vector storage name is required and must be a non-empty string');
+			throw new VectorStorageNameRequiredError();
 		}
 
 		if (keys.length === 0) {
@@ -616,7 +684,7 @@ export class VectorStorageService implements VectorStorage {
 
 		for (const key of keys) {
 			if (!key || typeof key !== 'string' || key.trim().length === 0) {
-				throw new Error('All keys must be non-empty strings');
+				throw new VectorStorageKeysError();
 			}
 		}
 
@@ -656,9 +724,10 @@ export class VectorStorageService implements VectorStorage {
 			if (res.data.success) {
 				return res.data.data;
 			}
-			if ('message' in res.data) {
-				throw new Error(res.data.message);
-			}
+			throw new VectorStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
 		}
 
 		throw await toServiceException('DELETE', url, res.response);
@@ -666,7 +735,7 @@ export class VectorStorageService implements VectorStorage {
 
 	async exists(name: string): Promise<boolean> {
 		if (!name || typeof name !== 'string' || name.trim().length === 0) {
-			throw new Error('Vector storage name is required and must be a non-empty string');
+			throw new VectorStorageNameRequiredError();
 		}
 
 		try {

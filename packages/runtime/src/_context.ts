@@ -1,7 +1,13 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { Context as HonoContext } from 'hono';
 import type { Tracer } from '@opentelemetry/api';
-import type { KeyValueStorage, ObjectStorage, StreamStorage, VectorStorage } from '@agentuity/core';
+import {
+	StructuredError,
+	type KeyValueStorage,
+	type ObjectStorage,
+	type StreamStorage,
+	type VectorStorage,
+} from '@agentuity/core';
 import type { AgentContext, AgentName, AgentRegistry, AgentRunner } from './agent';
 import type { Logger } from './logger';
 import type WaitUntilHandler from './_waituntil';
@@ -95,19 +101,29 @@ export const inHTTPContext = (): boolean => {
 	return !!context;
 };
 
+const AgentContextNotAvailableError = StructuredError(
+	'AgentContextNotAvailableError',
+	'AgentContext is not available'
+);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const getAgentContext = (): AgentContext<any, any, any, any, any> => {
 	const context = agentAsyncLocalStorage.getStore();
 	if (!context) {
-		throw new Error('AgentContext is not available');
+		throw new AgentContextNotAvailableError();
 	}
 	return context;
 };
 
+const HTTPContextNotAvailableError = StructuredError(
+	'HTTPContextNotAvailableError',
+	'HTTPContext is not available'
+);
+
 export const getHTTPContext = (): HonoContext => {
 	const context = httpAsyncLocalStorage.getStore();
 	if (!context) {
-		throw new Error('HTTPContext is not available');
+		throw new HTTPContextNotAvailableError();
 	}
 	return context;
 };

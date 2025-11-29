@@ -1,3 +1,5 @@
+import { StructuredError } from '@agentuity/core';
+
 const GITHUB_REPO = 'agentuity/sdk';
 const GITHUB_BRANCH = 'main';
 const TEMPLATES_JSON_PATH = 'templates/templates.json';
@@ -13,6 +15,9 @@ interface TemplatesManifest {
 	templates: TemplateInfo[];
 }
 
+const TemplateMissingConfigurationError = StructuredError('TemplateMissingConfigurationError');
+const TemplateDownloadError = StructuredError('TemplateDownloadError')<{ status: number }>();
+
 export async function fetchTemplates(localDir?: string, branch?: string): Promise<TemplateInfo[]> {
 	// Load from local directory if provided
 	if (localDir) {
@@ -22,7 +27,9 @@ export async function fetchTemplates(localDir?: string, branch?: string): Promis
 		const file = Bun.file(manifestPath);
 
 		if (!(await file.exists())) {
-			throw new Error(`templates.json not found at ${manifestPath}`);
+			throw new TemplateMissingConfigurationError({
+				message: `templates.json not found at ${manifestPath}`,
+			});
 		}
 
 		const manifest = (await file.json()) as TemplatesManifest;
@@ -40,7 +47,10 @@ export async function fetchTemplates(localDir?: string, branch?: string): Promis
 
 	const response = await fetch(url, { headers });
 	if (!response.ok) {
-		throw new Error(`Failed to fetch templates: ${response.statusText}`);
+		throw new TemplateDownloadError({
+			status: response.status,
+			message: `Failed to fetch templates: ${response.statusText}`,
+		});
 	}
 
 	const manifest = (await response.json()) as TemplatesManifest;

@@ -1,4 +1,10 @@
+import { StructuredError } from '@agentuity/core';
 import { ProjectConfig } from '../../../types';
+
+const ProjectIDRequiredError = StructuredError(
+	'ProjectIDRequiredError',
+	'Project ID is required. Use --project-id or run from a project directory.'
+);
 
 export function resolveProjectId(
 	ctx: { project?: ProjectConfig },
@@ -10,5 +16,5 @@ export function resolveProjectId(
 	if (ctx.project?.projectId) {
 		return ctx.project.projectId;
 	}
-	throw new Error('Project ID is required. Use --project-id or run from a project directory.');
+	throw new ProjectIDRequiredError();
 }

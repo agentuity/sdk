@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
+import { ProjectResponseError } from './util';
 
 const ProjectListResponse = z.array(
 	z.object({
@@ -38,5 +39,5 @@ export async function projectList(
 		return resp.data;
 	}
 
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }

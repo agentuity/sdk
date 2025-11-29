@@ -1,11 +1,19 @@
 import * as dns from 'node:dns';
 import type { Config } from '../../types';
+import { StructuredError } from '@agentuity/core';
 
 export interface DNSResult {
 	domain: string;
 	success: boolean;
 	message?: string;
 }
+
+const timeoutMs = 5000;
+
+const DNSTimeoutError = StructuredError(
+	'DNSTimeoutError',
+	`DNS lookup timed out after ${timeoutMs}ms`
+);
 
 /**
  * This function will check for each of the custom domains and make sure they are correctly
@@ -31,12 +39,11 @@ export async function checkCustomDomainForDNS(
 	return Promise.all(
 		domains.map(async (domain) => {
 			try {
-				const timeoutMs = 5000;
 				let timeoutId: Timer | undefined;
 
 				const timeoutPromise = new Promise<never>((_, reject) => {
 					timeoutId = setTimeout(() => {
-						reject(new Error(`DNS lookup timed out after ${timeoutMs}ms`));
+						reject(new DNSTimeoutError());
 					}, timeoutMs);
 				});
 

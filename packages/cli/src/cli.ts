@@ -22,6 +22,9 @@ import { APIClient, getAPIBaseURL, type APIClient as APIClientType } from './api
 import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
 import { getCommand } from './command-prefix';
 import { isValidateMode, outputValidation, type ValidationResult } from './output';
+import { StructuredError } from '@agentuity/core';
+
+const APIClientConfigError = StructuredError('APIClientConfigError');
 
 function createAPIClient(baseCtx: CommandContext, config: Config | null): APIClient {
 	try {
@@ -29,19 +32,24 @@ function createAPIClient(baseCtx: CommandContext, config: Config | null): APICli
 		const apiClient = new APIClient(apiUrl, baseCtx.logger, config);
 
 		if (!apiClient) {
-			throw new Error('APIClient constructor returned null/undefined');
+			throw new APIClientConfigError({
+				message: 'APIClient constructor returned null/undefined',
+			});
 		}
 
 		if (typeof apiClient.request !== 'function') {
-			throw new Error('APIClient instance is missing request method');
+			throw new APIClientConfigError({
+				message: 'APIClient instance is missing request method',
+			});
 		}
 
 		return apiClient;
 	} catch (error) {
 		baseCtx.logger.error('Failed to create API client:', error);
-		throw new Error(
-			`API client initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
-		);
+		throw new APIClientConfigError({
+			message: `API client initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+			cause: error,
+		});
 	}
 }
 

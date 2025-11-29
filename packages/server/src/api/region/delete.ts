@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
+import { RegionResponseError } from './util';
 
 const DeleteResourceSpec = z.object({
 	type: z.enum(['db', 's3']).describe('the resource type'),
@@ -45,5 +46,5 @@ export async function deleteResources(
 	if (resp.success) {
 		return resp.data.deleted;
 	}
-	throw new Error('message' in resp ? resp.message : 'Failed to delete resources');
+	throw new RegionResponseError({ message: resp.message });
 }

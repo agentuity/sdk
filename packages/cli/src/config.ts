@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { existsSync, mkdirSync } from 'node:fs';
-import type { Logger } from '@agentuity/core';
+import { StructuredError, type Logger } from '@agentuity/core';
 import {
 	BuildMetadataSchema,
 	type BuildMetadata,
@@ -609,11 +609,13 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	await Bun.write(join(vscodeDir, 'settings.json'), JSON.stringify(settings, null, 2));
 }
 
+const BuildMetadataNotFoundError = StructuredError('BuildMetadataNotFoundError');
+
 export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {
 	const filename = join(dir, 'agentuity.metadata.json');
 	const file = Bun.file(filename);
 	if (!(await file.exists())) {
-		throw new Error(`couldn't find ${filename}`);
+		throw new BuildMetadataNotFoundError({ message: `couldn't find ${filename}` });
 	}
 	const buffer = await file.text();
 	const config = JSON.parse(buffer);

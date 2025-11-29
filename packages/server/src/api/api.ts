@@ -10,17 +10,7 @@
 
 import { z } from 'zod';
 import type { Logger } from '@agentuity/core';
-
-export interface APIErrorResponse {
-	success: boolean;
-	code?: string;
-	message?: string;
-	error?: {
-		name?: string;
-		issues?: z.ZodIssue[];
-	};
-	details?: Record<string, unknown>;
-}
+import { StructuredError } from '@agentuity/core';
 
 export interface APIClientConfig {
 	skipVersionCheck?: boolean;
@@ -29,36 +19,75 @@ export interface APIClientConfig {
 	retryDelayMs?: number;
 }
 
-export class ValidationError extends Error {
-	public url: string;
-	constructor(
-		url: string,
-		message: string,
-		public issues: z.ZodIssue[]
-	) {
-		super(message);
-		this.url = url;
-		this.name = 'ValidationError';
-	}
-}
+const ZodIssuesSchema = z.array(
+	z.object({
+		code: z.string(),
+		input: z.unknown().optional(),
+		path: z.array(z.union([z.string(), z.number()])),
+		message: z.string(),
+	})
+);
 
-export class UpgradeRequiredError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = 'UpgradeRequiredError';
-	}
-}
+export type IssuesType = z.infer<typeof ZodIssuesSchema>;
 
-export class APIError extends Error {
-	constructor(
-		message: string,
-		public status: number,
-		public code?: string
-	) {
-		super(message);
-		this.name = 'APIError';
-	}
-}
+const toIssues = (issues: z.core.$ZodIssue[]): IssuesType => {
+	return issues.map((issue) => ({
+		code: issue.code,
+		input: issue.input,
+		path: issue.path.map((x) => (typeof x === 'number' ? x : String(x))),
+		message: issue.message,
+	}));
+};
+
+const APIErrorSchema = z.object({
+	success: z.boolean(),
+	code: z.string().optional(),
+	message: z.string().optional(),
+	error: z.object({
+		name: z.string().optional(),
+		issues: ZodIssuesSchema.optional(),
+	}),
+	details: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const APIError = StructuredError(
+	'APIErrorResponse',
+	'The API encountered an unexpected error attempting to reach the service.'
+)<{
+	url: string;
+	error?: string;
+	status: number;
+	sessionId?: string | null;
+}>();
+
+export const ValidationInputError = StructuredError(
+	'ValidationInputError',
+	'There was an error validating the API input data.'
+)<{
+	url: string;
+	issues: IssuesType;
+}>();
+
+export const ValidationOutputError = StructuredError(
+	'ValidationOutputError',
+	'There was an unexpected error validating the API response data.'
+)<{
+	url: string;
+	issues: IssuesType;
+	sessionId?: string | null;
+}>();
+
+export const UpgradeRequiredError = StructuredError(
+	'UpgradeRequiredError',
+	'Upgrade required to continue. Please see https://agentuity.dev/CLI/installation to download the latest version of the SDK.'
+)<{
+	sessionId?: string | null;
+}>();
+
+export const MaxRetriesError = StructuredError(
+	'MaxRetriesError',
+	'Max Retries attempted and continued failures exhausted.'
+);
 
 export class APIClient {
 	#baseUrl: string;
@@ -101,11 +130,10 @@ export class APIClient {
 		if (body !== undefined && bodySchema) {
 			const validationResult = bodySchema.safeParse(body);
 			if (!validationResult.success) {
-				throw new ValidationError(
-					endpoint,
-					'Request body validation failed',
-					validationResult.error.issues
-				);
+				throw new ValidationInputError({
+					url: endpoint,
+					issues: toIssues(validationResult.error.issues),
+				});
 			}
 		}
 
@@ -133,11 +161,11 @@ export class APIClient {
 			// Validate response
 			const validationResult = responseSchema.safeParse(data);
 			if (!validationResult.success) {
-				throw new ValidationError(
-					endpoint,
-					'Response validation failed',
-					validationResult.error.issues
-				);
+				throw new ValidationOutputError({
+					url: endpoint,
+					issues: toIssues(validationResult.error.issues),
+					sessionId: response.headers.get('x-session-id'),
+				});
 			}
 
 			return validationResult.data;
@@ -167,16 +195,34 @@ export class APIClient {
 					headers['Authorization'] = `Bearer ${this.#apiKey}`;
 				}
 
-				// Log request body for debugging deployment issues
-				if (body !== undefined && endpoint.includes('/deploy/')) {
-					this.#logger.debug('Request body: %s', JSON.stringify(body, null, 2));
-				}
+				let response: Response;
 
-				const response = await fetch(url, {
-					method,
-					headers,
-					body: body !== undefined ? JSON.stringify(body) : undefined,
-				});
+				try {
+					response = await fetch(url, {
+						method,
+						headers,
+						body: body !== undefined ? JSON.stringify(body) : undefined,
+					});
+				} catch (ex) {
+					const _ex = ex as { code?: string; name: string };
+					let retryable = false;
+					// Check for retryable network errors
+					if (_ex.code === 'ConnectionRefused' || _ex.code === 'ECONNREFUSED') {
+						retryable = true;
+					} else if (_ex.name === 'TypeError' || ex instanceof TypeError) {
+						// TypeError from fetch typically indicates network issues
+						retryable = true;
+					}
+					if (retryable) {
+						response = new Response(null, { status: 503 });
+					} else {
+						throw new APIError({
+							url,
+							status: 0,
+							cause: ex,
+						});
+					}
+				}
 
 				// Check if we should retry on specific status codes (409, 501, 503)
 				const retryableStatuses = [409, 501, 503];
@@ -206,16 +252,18 @@ export class APIClient {
 					continue;
 				}
 
+				const sessionId = response.headers.get('x-session-id');
+
 				// Handle error responses
 				if (!response.ok) {
 					const responseBody = await response.text();
 
-					// Try to parse error response
-					let errorData: APIErrorResponse | null = null;
+					let errorData: z.infer<typeof APIErrorSchema> | undefined;
+
 					try {
-						errorData = JSON.parse(responseBody) as APIErrorResponse;
+						errorData = APIErrorSchema.parse(responseBody);
 					} catch {
-						// Not JSON, ignore
+						/** ignore */
 					}
 
 					// Sanitize headers to avoid leaking API keys
@@ -240,31 +288,32 @@ export class APIClient {
 							this.#logger.debug('Skipping version check (configured to skip)');
 							// Request is still rejected, but throw UpgradeRequiredError so callers
 							// can detect it and handle UI behavior (e.g., suppress banner) based on skip flag
-							throw new UpgradeRequiredError(
-								errorData.message ||
-									'Version check skipped, but request failed. Try upgrading the client.'
-							);
+							throw new UpgradeRequiredError({ sessionId });
 						}
 
-						throw new UpgradeRequiredError(
-							errorData.message || 'Please upgrade to the latest version'
-						);
+						throw new UpgradeRequiredError({ sessionId });
 					}
 
 					// Handle Zod validation errors from the API
 					if (errorData?.error?.name === 'ZodError' && errorData.error.issues) {
-						throw new ValidationError(url, 'API validation failed', errorData.error.issues);
+						throw new ValidationOutputError({
+							url,
+							issues: errorData.error.issues,
+							sessionId,
+						});
 					}
 
 					// Throw with message from API if available
 					if (errorData?.message) {
-						throw new APIError(errorData.message, response.status, errorData.code);
+						throw new APIError({
+							url,
+							status: response.status,
+							error: errorData.message,
+							sessionId,
+						});
 					}
 
-					throw new APIError(
-						`API error: ${response.status} ${response.statusText}`,
-						response.status
-					);
+					throw new APIError({ url: url, status: response.status, sessionId });
 				}
 
 				// Successful response; handle empty bodies (e.g., 204 No Content)
@@ -290,7 +339,7 @@ export class APIClient {
 			}
 		}
 
-		throw new Error('Max retries exceeded');
+		throw new MaxRetriesError();
 	}
 
 	#isRetryableError(error: unknown): boolean {

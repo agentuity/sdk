@@ -1,5 +1,6 @@
 import type { FetchAdapter, FetchRequest, Body } from './adapter';
 import { buildUrl, toServiceException } from './_util';
+import { StructuredError } from '../error';
 
 /**
  * Parameters for putting an object into the object store
@@ -280,6 +281,26 @@ export interface ObjectStorage {
 	deleteBucket(bucket: string): Promise<boolean>;
 }
 
+const ObjectStoreBucketMissingError = StructuredError(
+	'ObjectStoreBucketMissingError',
+	'bucket is required and cannot be empty'
+);
+
+const ObjectStoreKeyMissingError = StructuredError(
+	'ObjectStoreKeyMissingError',
+	'key is required and cannot be empty'
+);
+
+const ObjectStoreDataMissingError = StructuredError(
+	'ObjectStoreDataMissingError',
+	'data is required'
+);
+
+const ObjectStoreResponseError = StructuredError('ObjectStoreResponseError')<{ status: number }>();
+const ObjectStoreResponseInvalidError = StructuredError('ObjectStoreResponseInvalidError');
+
+const ObjectStoreNotFoundError = StructuredError('ObjectStoreNotFoundError', 'object not found');
+
 /**
  * Implementation of the ObjectStorage interface
  */
@@ -294,10 +315,10 @@ export class ObjectStorageService implements ObjectStorage {
 
 	async get(bucket: string, key: string): Promise<ObjectResult> {
 		if (!bucket?.trim()) {
-			throw new Error('bucket is required and cannot be empty');
+			throw new ObjectStoreBucketMissingError();
 		}
 		if (!key?.trim()) {
-			throw new Error('key is required and cannot be empty');
+			throw new ObjectStoreKeyMissingError();
 		}
 
 		const url = buildUrl(
@@ -326,14 +347,17 @@ export class ObjectStorageService implements ObjectStorage {
 			}
 
 			if (!result.ok) {
-				throw new Error(
-					`Failed to get object: ${result.response.statusText} (${result.response.status})`
-				);
+				throw new ObjectStoreResponseError({
+					status: result.response.status,
+					message: `Failed to get object: ${result.response.statusText} (${result.response.status})`,
+				});
 			}
 
 			const data = result.data;
 			if (!(data instanceof ArrayBuffer)) {
-				throw new Error('Expected ArrayBuffer response from object store');
+				throw new ObjectStoreResponseInvalidError({
+					message: 'Expected ArrayBuffer response from object store',
+				});
 			}
 
 			const contentType =
@@ -359,13 +383,13 @@ export class ObjectStorageService implements ObjectStorage {
 		params?: ObjectStorePutParams
 	): Promise<void> {
 		if (!bucket?.trim()) {
-			throw new Error('bucket is required and cannot be empty');
+			throw new ObjectStoreBucketMissingError();
 		}
 		if (!key?.trim()) {
-			throw new Error('key is required and cannot be empty');
+			throw new ObjectStoreKeyMissingError();
 		}
 		if (!data) {
-			throw new Error('data is required');
+			throw new ObjectStoreDataMissingError();
 		}
 
 		const url = buildUrl(
@@ -435,9 +459,10 @@ export class ObjectStorageService implements ObjectStorage {
 			const result = await this.#adapter.invoke(url, options);
 
 			if (!result.ok || (result.response.status !== 200 && result.response.status !== 201)) {
-				throw new Error(
-					`Failed to put object: ${result.response.statusText} (${result.response.status})`
-				);
+				throw new ObjectStoreResponseError({
+					status: result.response.status,
+					message: `Failed to put object: ${result.response.statusText} (${result.response.status})`,
+				});
 			}
 		} catch (err) {
 			if (err instanceof Response) {
@@ -449,10 +474,10 @@ export class ObjectStorageService implements ObjectStorage {
 
 	async delete(bucket: string, key: string): Promise<boolean> {
 		if (!bucket?.trim()) {
-			throw new Error('bucket is required and cannot be empty');
+			throw new ObjectStoreBucketMissingError();
 		}
 		if (!key?.trim()) {
-			throw new Error('key is required and cannot be empty');
+			throw new ObjectStoreKeyMissingError();
 		}
 
 		const url = buildUrl(
@@ -484,9 +509,10 @@ export class ObjectStorageService implements ObjectStorage {
 				return true;
 			}
 
-			throw new Error(
-				`Failed to delete object: ${result.response.statusText} (${result.response.status})`
-			);
+			throw new ObjectStoreResponseError({
+				status: result.response.status,
+				message: `Failed to delete object: ${result.response.statusText} (${result.response.status})`,
+			});
 		} catch (err) {
 			if (err instanceof Response) {
 				throw await toServiceException('DELETE', url, err);
@@ -501,10 +527,10 @@ export class ObjectStorageService implements ObjectStorage {
 		params?: CreatePublicURLParams
 	): Promise<string> {
 		if (!bucket?.trim()) {
-			throw new Error('bucket is required and cannot be empty');
+			throw new ObjectStoreBucketMissingError();
 		}
 		if (!key?.trim()) {
-			throw new Error('key is required and cannot be empty');
+			throw new ObjectStoreKeyMissingError();
 		}
 
 		const url = buildUrl(
@@ -540,15 +566,19 @@ export class ObjectStorageService implements ObjectStorage {
 			);
 
 			if (!result.ok) {
-				throw new Error(
-					`Failed to create public URL: ${result.response.statusText} (${result.response.status})`
-				);
+				throw new ObjectStoreResponseError({
+					status: result.response.status,
+					message: `Failed to create public URL: ${result.response.statusText} (${result.response.status})`,
+				});
 			}
 
 			const data = result.data;
 
 			if (!data.success) {
-				throw new Error(data.message || 'Failed to create public URL');
+				throw new ObjectStoreResponseError({
+					status: result.response.status,
+					message: data.message || 'Failed to create public URL',
+				});
 			}
 
 			return data.url;
@@ -580,9 +610,10 @@ export class ObjectStorageService implements ObjectStorage {
 			const result = await this.#adapter.invoke<{ buckets: BucketInfo[] }>(url, options);
 
 			if (!result.ok) {
-				throw new Error(
-					`Failed to list buckets: ${result.response.statusText} (${result.response.status})`
-				);
+				throw new ObjectStoreResponseError({
+					status: result.response.status,
+					message: `Failed to list buckets: ${result.response.statusText} (${result.response.status})`,
+				});
 			}
 
 			return result.data.buckets;
@@ -596,7 +627,7 @@ export class ObjectStorageService implements ObjectStorage {
 
 	async listKeys(bucket: string): Promise<ObjectInfo[]> {
 		if (!bucket?.trim()) {
-			throw new Error('bucket is required and cannot be empty');
+			throw new ObjectStoreBucketMissingError();
 		}
 
 		const url = buildUrl(this.#baseUrl, `/object/2025-03-17/keys/${encodeURIComponent(bucket)}`);
@@ -620,9 +651,10 @@ export class ObjectStorageService implements ObjectStorage {
 			);
 
 			if (!result.ok) {
-				throw new Error(
-					`Failed to list keys: ${result.response.statusText} (${result.response.status})`
-				);
+				throw new ObjectStoreResponseError({
+					status: result.response.status,
+					message: `Failed to list keys: ${result.response.statusText} (${result.response.status})`,
+				});
 			}
 
 			return result.data.objects;
@@ -639,7 +671,7 @@ export class ObjectStorageService implements ObjectStorage {
 		options?: { prefix?: string; limit?: number }
 	): Promise<ObjectInfo[]> {
 		if (!bucket?.trim()) {
-			throw new Error('bucket is required and cannot be empty');
+			throw new ObjectStoreBucketMissingError();
 		}
 
 		const params = new URLSearchParams();
@@ -677,9 +709,10 @@ export class ObjectStorageService implements ObjectStorage {
 			);
 
 			if (!result.ok) {
-				throw new Error(
-					`Failed to list objects: ${result.response.statusText} (${result.response.status})`
-				);
+				throw new ObjectStoreResponseError({
+					status: result.response.status,
+					message: `Failed to list objects: ${result.response.statusText} (${result.response.status})`,
+				});
 			}
 
 			return result.data.objects;
@@ -693,10 +726,10 @@ export class ObjectStorageService implements ObjectStorage {
 
 	async headObject(bucket: string, key: string): Promise<ObjectInfo> {
 		if (!bucket?.trim()) {
-			throw new Error('bucket is required and cannot be empty');
+			throw new ObjectStoreBucketMissingError();
 		}
 		if (!key?.trim()) {
-			throw new Error('key is required and cannot be empty');
+			throw new ObjectStoreKeyMissingError();
 		}
 
 		const url = buildUrl(
@@ -722,11 +755,12 @@ export class ObjectStorageService implements ObjectStorage {
 
 			if (!result.ok) {
 				if (result.response.status === 404) {
-					throw new Error('Object not found');
+					throw new ObjectStoreNotFoundError();
 				}
-				throw new Error(
-					`Failed to get object metadata: ${result.response.statusText} (${result.response.status})`
-				);
+				throw new ObjectStoreResponseError({
+					status: result.response.status,
+					message: `Failed to get object metadata: ${result.response.statusText} (${result.response.status})`,
+				});
 			}
 
 			return result.data;
@@ -740,7 +774,7 @@ export class ObjectStorageService implements ObjectStorage {
 
 	async deleteBucket(bucket: string): Promise<boolean> {
 		if (!bucket?.trim()) {
-			throw new Error('bucket is required and cannot be empty');
+			throw new ObjectStoreBucketMissingError();
 		}
 
 		const url = buildUrl(this.#baseUrl, `/object/2025-03-17/${encodeURIComponent(bucket)}`);
@@ -768,9 +802,10 @@ export class ObjectStorageService implements ObjectStorage {
 				return true;
 			}
 
-			throw new Error(
-				`Failed to delete bucket: ${result.response.statusText} (${result.response.status})`
-			);
+			throw new ObjectStoreResponseError({
+				status: result.response.status,
+				message: `Failed to delete bucket: ${result.response.statusText} (${result.response.status})`,
+			});
 		} catch (err) {
 			if (err instanceof Response) {
 				throw await toServiceException('DELETE', url, err);

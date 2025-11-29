@@ -13,6 +13,7 @@ export enum ExitCode {
 	NETWORK_ERROR = 6,
 	FILE_ERROR = 7,
 	USER_CANCELLED = 8,
+	BUILD_FAILED = 9,
 }
 
 /**
@@ -68,6 +69,9 @@ export enum ErrorCode {
 
 	// User cancellation
 	USER_CANCELLED = 'USER_CANCELLED',
+
+	// Build failed error
+	BUILD_FAILED = 'BUILD_FAILED',
 }
 
 /**
@@ -120,6 +124,10 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 		// User cancellation
 		case ErrorCode.USER_CANCELLED:
 			return ExitCode.USER_CANCELLED;
+
+		// Build errors
+		case ErrorCode.BUILD_FAILED:
+			return ExitCode.BUILD_FAILED;
 
 		// Resource conflicts and other errors
 		case ErrorCode.RESOURCE_ALREADY_EXISTS:
@@ -203,7 +211,7 @@ export function exitWithError(
 	if (errorFormat === 'json') {
 		console.error(formatErrorJSON(error));
 	} else {
-		console.error(formatErrorHuman(error));
+		logger.error(formatErrorHuman(error));
 	}
 	const exitCode = error.exitCode ?? getExitCode(error.code);
 	process.exit(exitCode);

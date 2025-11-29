@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchemaNoData } from '../api';
+import { ProjectResponseError } from './util';
 
 const _ProjectEnvDeleteRequestSchema = z.object({
 	id: z.string().describe('the project id'),
@@ -33,7 +34,7 @@ export async function projectEnvDelete(
 	);
 
 	if (!resp.success) {
-		throw new Error(resp.message ?? 'failed to delete project env');
+		throw new ProjectResponseError({ message: resp.message ?? 'failed to delete project env' });
 	}
 
 	// Delete operations don't return data, success is sufficient

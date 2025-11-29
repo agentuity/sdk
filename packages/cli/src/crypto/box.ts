@@ -62,6 +62,7 @@
 import { createCipheriv, createDecipheriv, createECDH, randomBytes, KeyObject } from 'node:crypto';
 import { Readable, Writable } from 'node:stream';
 import { createHash } from 'node:crypto';
+import { StructuredError } from '@agentuity/core';
 
 const FRAME = 65519;
 const DEK_SIZE = 32;
@@ -87,13 +88,64 @@ function concatKDFSHA256(z: Buffer, keyDataLen: number, ...otherInfo: Buffer[]):
 	return h.digest();
 }
 
+const InvalidECPublicKeyError = StructuredError('InvalidECPublicKeyError', 'Invalid EC public key');
+const InvalidECPrivateKeyError = StructuredError(
+	'InvalidECPrivateKeyError',
+	'Invalid EC private key'
+);
+const InvalidDEKTooShortError = StructuredError(
+	'InvalidDEKTooShortError',
+	'Invalid DEK too short (wrapped)'
+);
+const InvalidDEKFormatError = StructuredError(
+	'InvalidDEKFormatError',
+	'Invalid DEK format (wrapped)'
+);
+const DEKUnwrappedFailedError = StructuredError('DEKUnwrappedFailedError', 'DEK unwrap failed');
+
+const InvalidKeyECOnlyError = StructuredError(
+	'InvalidKeyECOnlyError',
+	'Invalid Key: only EC keys supported'
+);
+const InvalidKeyP256OnlyError = StructuredError(
+	'InvalidKeyP256OnlyError',
+	'Invalid Key: only P-256 keys supported'
+);
+
+const InvalidCipherTextLengthError = StructuredError(
+	'InvalidCipherTextLengthError',
+	'ciphertext length exceeds uint16 limit'
+);
+
+const InvalidWrappedDEKLengthError = StructuredError(
+	'InvalidWrappedDEKLengthError',
+	'invalid wrapped DEK length'
+);
+
+const UnexpectedEOFChunkLengthError = StructuredError(
+	'UnexpectedEOFChunkLengthError',
+	'unexpected EOF reading chunk length'
+);
+
+const UnexpectedChunkTooLargeError = StructuredError(
+	'UnexpectedChunkTooLargeError',
+	'chunk too large'
+);
+
+const UnexpectedChunkTooShortError = StructuredError(
+	'UnexpectedChunkTooShortError',
+	'chunk too short for auth tag'
+);
+
+const UnexpectedEOFError = StructuredError('UnexpectedEOFError', 'unexpected EOF');
+
 function wrapDEKWithECDH(dek: Buffer, recipientPub: KeyObject): Buffer {
 	const ephemeral = createECDH('prime256v1');
 	ephemeral.generateKeys();
 
 	const jwk = recipientPub.export({ format: 'jwk' });
 	if (!jwk.x || !jwk.y) {
-		throw new Error('Invalid EC public key');
+		throw new InvalidECPublicKeyError();
 	}
 
 	const xBuf = Buffer.from(jwk.x, 'base64url');
@@ -116,7 +168,7 @@ function wrapDEKWithECDH(dek: Buffer, recipientPub: KeyObject): Buffer {
 
 function unwrapDEKWithECDH(wrapped: Buffer, recipientPriv: KeyObject): Buffer {
 	if (wrapped.length < PUBKEY_LEN + 12 + DEK_SIZE + GCM_TAG) {
-		throw new Error('wrapped DEK too short');
+		throw new InvalidDEKTooShortError();
 	}
 
 	const ephemeralPubBytes = wrapped.subarray(0, PUBKEY_LEN);
@@ -124,7 +176,7 @@ function unwrapDEKWithECDH(wrapped: Buffer, recipientPriv: KeyObject): Buffer {
 
 	const jwk = recipientPriv.export({ format: 'jwk' });
 	if (!jwk.d) {
-		throw new Error('Invalid EC private key');
+		throw new InvalidECPrivateKeyError();
 	}
 
 	const ecdh = createECDH('prime256v1');
@@ -139,14 +191,14 @@ function unwrapDEKWithECDH(wrapped: Buffer, recipientPriv: KeyObject): Buffer {
 
 		const nonceSize = 12;
 		if (remaining.length < nonceSize) {
-			throw new Error('invalid wrapped DEK format');
+			throw new InvalidDEKFormatError();
 		}
 
 		const nonce = remaining.subarray(0, nonceSize);
 		const ciphertextAndTag = remaining.subarray(nonceSize);
 
 		if (ciphertextAndTag.length < GCM_TAG) {
-			throw new Error('invalid wrapped DEK format');
+			throw new InvalidDEKFormatError();
 		}
 
 		const ciphertext = ciphertextAndTag.subarray(0, ciphertextAndTag.length - GCM_TAG);
@@ -158,8 +210,8 @@ function unwrapDEKWithECDH(wrapped: Buffer, recipientPriv: KeyObject): Buffer {
 		let plaintext: Buffer;
 		try {
 			plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-		} catch (_err) {
-			throw new Error('DEK unwrap failed');
+		} catch (err) {
+			throw new DEKUnwrappedFailedError({ cause: err });
 		}
 
 		kek.fill(0);
@@ -182,11 +234,11 @@ export async function encryptFIPSKEMDEMStream(
 	dst: Writable
 ): Promise<number> {
 	if (pub.asymmetricKeyType !== 'ec') {
-		throw new Error('only EC keys supported');
+		throw new InvalidKeyECOnlyError();
 	}
 	const keyDetails = pub.asymmetricKeyDetails;
 	if (!keyDetails || keyDetails.namedCurve !== 'prime256v1') {
-		throw new Error('only P-256 keys supported');
+		throw new InvalidKeyP256OnlyError();
 	}
 
 	const dek = randomBytes(DEK_SIZE);
@@ -234,7 +286,7 @@ export async function encryptFIPSKEMDEMStream(
 			const ct = Buffer.concat([ciphertext, tag]);
 
 			if (ct.length > 0xffff) {
-				throw new Error('ciphertext length exceeds uint16 limit');
+				throw new InvalidCipherTextLengthError();
 			}
 
 			const ctLenBuf = Buffer.alloc(2);
@@ -264,11 +316,11 @@ export async function decryptFIPSKEMDEMStream(
 	dst: Writable
 ): Promise<number> {
 	if (priv.asymmetricKeyType !== 'ec') {
-		throw new Error('only EC keys supported');
+		throw new InvalidKeyECOnlyError();
 	}
 	const keyDetails = priv.asymmetricKeyDetails;
 	if (!keyDetails || keyDetails.namedCurve !== 'prime256v1') {
-		throw new Error('only P-256 keys supported');
+		throw new InvalidKeyP256OnlyError();
 	}
 
 	const it = src[Symbol.asyncIterator]();
@@ -279,7 +331,7 @@ export async function decryptFIPSKEMDEMStream(
 		const wrappedLen = lenBuf.readUInt16BE(0);
 
 		if (wrappedLen === 0 || wrappedLen > 200) {
-			throw new Error('invalid wrapped DEK length');
+			throw new InvalidWrappedDEKLengthError();
 		}
 
 		const wrapped = Buffer.alloc(wrappedLen);
@@ -305,19 +357,19 @@ export async function decryptFIPSKEMDEMStream(
 					break;
 				}
 				if (chunkLenRead < 2) {
-					throw new Error('unexpected EOF reading chunk length');
+					throw new UnexpectedEOFChunkLengthError();
 				}
 
 				const chunkLen = chunkLenBuf.readUInt16BE(0);
 				if (chunkLen > FRAME + GCM_TAG) {
-					throw new Error('chunk too large');
+					throw new UnexpectedChunkTooLargeError();
 				}
 
 				const cipherBuf = Buffer.alloc(chunkLen);
 				await readExact(it, src, cipherBuf);
 
 				if (cipherBuf.length < GCM_TAG) {
-					throw new Error('chunk too short for auth tag');
+					throw new UnexpectedChunkTooShortError();
 				}
 
 				const ciphertext = cipherBuf.subarray(0, cipherBuf.length - GCM_TAG);
@@ -438,7 +490,7 @@ async function readExact(
 	while (offset < buf.length) {
 		const result = await iterator.next();
 		if (result.done) {
-			throw new Error('unexpected EOF');
+			throw new UnexpectedEOFError();
 		}
 
 		const chunk = result.value;

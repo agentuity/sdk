@@ -170,6 +170,10 @@ async function linkLocalPackages(): Promise<boolean> {
 		mkdirSync(PACKAGES_DIR, { recursive: true });
 	}
 
+	// Clean and reinstall dependencies in monorepo to ensure fresh workspace links
+	logInfo('Cleaning and reinstalling monorepo dependencies...');
+	await Bun.$`bun install`.cwd(MONOREPO_ROOT).quiet();
+
 	// Pack each package to unique temp directory
 	for (const pkg of packagesToInstall) {
 		const pkgPath = join(MONOREPO_ROOT, 'packages', pkg);
@@ -196,6 +200,23 @@ async function linkLocalPackages(): Promise<boolean> {
 	// Install @agentuity packages from packed tarballs
 	for (const tarballPath of packagePaths) {
 		await Bun.$`bun add ${tarballPath}`.cwd(TEST_PROJECT_PATH);
+	}
+
+	// Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
+	// This happens because workspace:* dependencies get resolved to specific versions (e.g. 0.0.60)
+	// and Bun installs those from npm as nested dependencies, shadowing the correct local tarballs
+	logInfo('Removing nested @agentuity packages to ensure proper module resolution...');
+	const agentuityDir = join(TEST_PROJECT_PATH, 'node_modules/@agentuity');
+	if (existsSync(agentuityDir)) {
+		const { readdirSync } = await import('node:fs');
+		const packages = readdirSync(agentuityDir);
+		for (const pkg of packages) {
+			const nestedPath = join(agentuityDir, pkg, 'node_modules/@agentuity');
+			if (existsSync(nestedPath)) {
+				logInfo(`Removing: node_modules/@agentuity/${pkg}/node_modules/@agentuity`);
+				rmSync(nestedPath, { recursive: true, force: true });
+			}
+		}
 	}
 
 	logSuccess('Installed local packages from tarballs');
@@ -298,10 +319,11 @@ async function verifyGitInit(): Promise<boolean> {
 }
 
 async function buildCLI(): Promise<boolean> {
-	logStep('Step 0: Build CLI');
+	logStep('Step 0: Build All Packages');
 
+	// Build all packages from the monorepo root to ensure fresh builds
 	const result = Bun.spawn(['bun', 'run', 'build'], {
-		cwd: join(MONOREPO_ROOT, 'packages/cli'),
+		cwd: MONOREPO_ROOT,
 		stdout: 'inherit',
 		stderr: 'inherit',
 	});
@@ -309,11 +331,11 @@ async function buildCLI(): Promise<boolean> {
 	const exitCode = await result.exited;
 
 	if (exitCode !== 0) {
-		logError('Failed to build CLI');
+		logError('Failed to build packages');
 		return false;
 	}
 
-	logSuccess('CLI built successfully');
+	logSuccess('All packages built successfully');
 	return true;
 }
 

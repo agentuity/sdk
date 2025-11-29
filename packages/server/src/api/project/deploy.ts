@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { type APIClient, APIResponseSchema } from '../api';
+import { ProjectResponseError } from './util';
 
 export const Resources = z.object({
 	memory: z.string().default('500Mi').describe('The memory requirements'),
@@ -177,7 +178,7 @@ export async function projectDeploymentCreate(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }
 
 const DeploymentInstructionsObject = z.object({
@@ -217,7 +218,7 @@ export async function projectDeploymentUpdate(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }
 
 const DeploymentCompleteObject = z.object({
@@ -254,5 +255,5 @@ export async function projectDeploymentComplete(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }

@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type {
-	KeyValueStorage,
-	ObjectStorage,
-	StandardSchemaV1,
-	StreamStorage,
-	VectorStorage,
+import {
+	StructuredError,
+	type KeyValueStorage,
+	type ObjectStorage,
+	type StandardSchemaV1,
+	type StreamStorage,
+	type VectorStorage,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -337,6 +338,10 @@ export const getAgentConfig = (name: AgentName): unknown => {
 	return agentConfigs.get(name);
 };
 
+const ValidationError = StructuredError('ValidationError')<{
+	issues: readonly StandardSchemaV1.Issue[];
+}>();
+
 /**
  * Create an agent with automatic type inference.
  * Infers all types from the config object automatically including handler parameter types.
@@ -456,9 +461,10 @@ export function createAgent<
 		if (inputSchema) {
 			const inputResult = await inputSchema['~standard'].validate(input);
 			if (inputResult.issues) {
-				throw new Error(
-					`Input validation failed: ${inputResult.issues.map((i: any) => i.message).join(', ')}`
-				);
+				throw new ValidationError({
+					issues: inputResult.issues,
+					message: `Input validation failed: ${inputResult.issues.map((i: any) => i.message).join(', ')}`,
+				});
 			}
 			validatedInput = inputResult.value;
 		}
@@ -484,9 +490,10 @@ export function createAgent<
 			if (outputSchema) {
 				const outputResult = await outputSchema['~standard'].validate(result);
 				if (outputResult.issues) {
-					throw new Error(
-						`Output validation failed: ${outputResult.issues.map((i: any) => i.message).join(', ')}`
-					);
+					throw new ValidationError({
+						issues: outputResult.issues,
+						message: `Output validation failed: ${outputResult.issues.map((i: any) => i.message).join(', ')}`,
+					});
 				}
 				validatedOutput = outputResult.value;
 			}
@@ -737,9 +744,10 @@ export function createAgent<
 								const evalInputResult =
 									await evalItem.inputSchema['~standard'].validate(validatedInput);
 								if (evalInputResult.issues) {
-									throw new Error(
-										`Eval input validation failed: ${evalInputResult.issues.map((i: any) => i.message).join(', ')}`
-									);
+									throw new ValidationError({
+										issues: evalInputResult.issues,
+										message: `Eval input validation failed: ${evalInputResult.issues.map((i: any) => i.message).join(', ')}`,
+									});
 								}
 								evalValidatedInput = evalInputResult.value;
 							}
@@ -750,9 +758,10 @@ export function createAgent<
 								const evalOutputResult =
 									await evalItem.outputSchema['~standard'].validate(validatedOutput);
 								if (evalOutputResult.issues) {
-									throw new Error(
-										`Eval output validation failed: ${evalOutputResult.issues.map((i: any) => i.message).join(', ')}`
-									);
+									throw new ValidationError({
+										issues: evalOutputResult.issues,
+										message: `Eval output validation failed: ${evalOutputResult.issues.map((i: any) => i.message).join(', ')}`,
+									});
 								}
 								evalValidatedOutput = evalOutputResult.value;
 							}

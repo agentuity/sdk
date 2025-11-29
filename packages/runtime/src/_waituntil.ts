@@ -1,6 +1,7 @@
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import type { Logger } from './logger';
 import { internal } from './logger/internal';
+import { StructuredError } from '@agentuity/core';
 
 let running = 0;
 
@@ -12,6 +13,16 @@ export function hasWaitUntilPending(): boolean {
 	internal.debug('hasWaitUntilPending called: %d', running);
 	return running > 0;
 }
+
+const WaitUntilInvalidStateError = StructuredError(
+	'WaitUntilInvalidStateError',
+	'waitUntil cannot be called after waitUntilAll has been called'
+);
+
+const WaitUntilAllInvalidStateError = StructuredError(
+	'WaitUntilAllInvalidStateError',
+	'waitUntilAll can only be called once per instance'
+);
 
 export default class WaitUntilHandler {
 	private promises: Promise<void>[];
@@ -26,7 +37,7 @@ export default class WaitUntilHandler {
 
 	public waitUntil(promise: Promise<void> | (() => void | Promise<void>)): void {
 		if (this.hasCalledWaitUntilAll) {
-			throw new Error('Cannot call waitUntil after waitUntilAll has been called');
+			throw new WaitUntilInvalidStateError();
 		}
 		running++;
 		internal.debug('wait until called, running: %d', running);
@@ -69,7 +80,7 @@ export default class WaitUntilHandler {
 		internal.debug(`🔍 waitUntilAll() called for session ${sessionId} (count: %d)`, running);
 
 		if (this.hasCalledWaitUntilAll) {
-			throw new Error('waitUntilAll can only be called once per instance');
+			throw new WaitUntilAllInvalidStateError();
 		}
 		this.hasCalledWaitUntilAll = true;
 

@@ -6,7 +6,10 @@ import {
 	SessionCompleteEventDelayedSchema,
 	type SessionCompleteEvent,
 	type Logger,
+	StructuredError,
 } from '@agentuity/core';
+
+const SessionResponseError = StructuredError('SessionResponseError');
 
 /**
  * An implementation of the SessionEventProvider which uses HTTP for delivery
@@ -38,7 +41,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			this.logger.debug('Session start event sent successfully: %s', event.id);
 			return;
 		}
-		throw new Error(resp.message);
+		throw new SessionResponseError({ message: resp.message });
 	}
 
 	/**
@@ -59,6 +62,6 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			this.logger.debug('Session complete event sent successfully: %s', event.id);
 			return;
 		}
-		throw new Error(resp.message);
+		throw new SessionResponseError({ message: resp.message });
 	}
 }

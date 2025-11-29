@@ -11,7 +11,7 @@ import {
 	generateLifecycleTypes,
 	findCreateAppEndPosition,
 } from './ast';
-import type { WorkbenchConfig } from '@agentuity/core';
+import { StructuredError, type WorkbenchConfig } from '@agentuity/core';
 import { applyPatch, generatePatches } from './patch';
 import { detectSubagent } from '../../utils/detectSubagent';
 import { createLogger } from '@agentuity/server';
@@ -102,6 +102,9 @@ async function setupWorkbench(srcDir: string): Promise<WorkbenchConfig | null> {
 	return workbenchConfig;
 }
 
+const AgentIdentifierCollisionError = StructuredError('AgentIdentifierCollisionError');
+const SubAgentNameCollisionError = StructuredError('SubAgentNameCollisionError');
+
 function generateAgentRegistry(srcDir: string, agentInfo: Array<Record<string, string>>) {
 	// Separate parent agents and subagents
 	const parentAgents = agentInfo.filter((a) => !a.parent);
@@ -135,11 +138,12 @@ function generateAgentRegistry(srcDir: string, agentInfo: Array<Record<string, s
 	}
 
 	if (collisions.length > 0) {
-		throw new Error(
-			`Agent identifier naming collisions detected:\n${collisions.join('\n')}\n\n` +
+		throw new AgentIdentifierCollisionError({
+			message:
+				`Agent identifier naming collisions detected:\n${collisions.join('\n')}\n\n` +
 				`This occurs when different agent names produce the same camelCase identifier.\n` +
-				`Please rename your agents to avoid this collision.`
-		);
+				`Please rename your agents to avoid this collision.`,
+		});
 	}
 
 	// Generate imports for all agents
@@ -165,11 +169,12 @@ function generateAgentRegistry(srcDir: string, agentInfo: Array<Record<string, s
 
 			// Check for collision with reserved agent properties
 			if (reservedAgentProperties.includes(childPropertyName)) {
-				throw new Error(
-					`Subagent property name collision detected: "${childPropertyName}" in parent "${parentAgent.name}"\n` +
+				throw new SubAgentNameCollisionError({
+					message:
+						`Subagent property name collision detected: "${childPropertyName}" in parent "${parentAgent.name}"\n` +
 						`The child name "${child.name}" conflicts with a reserved agent property (${reservedAgentProperties.join(', ')}).\n` +
-						`Please rename the subagent to avoid this collision.`
-				);
+						`Please rename the subagent to avoid this collision.`,
+				});
 			}
 		}
 	}
@@ -362,6 +367,13 @@ export function getBuildMetadata(): Partial<BuildMetadata> {
 	return metadata;
 }
 
+const AgentNameDuplicateError = StructuredError('AgentNameDuplicateError');
+const MetadataMissingError = StructuredError('MetadataMissingError');
+const MetadataPropertyMissingError = StructuredError('MetadataPropertyMissingError')<{
+	name: string;
+}>();
+const SubAgentMissingError = StructuredError('SubAgentMissingError');
+
 const AgentuityBundler: BunPlugin = {
 	name: 'Agentuity Bundler',
 	setup(build) {
@@ -433,9 +445,9 @@ const AgentuityBundler: BunPlugin = {
 				for (const [, kv] of agentMetadata) {
 					const found = kv.get('name');
 					if (newAgentName === found) {
-						throw new Error(
-							`The agent in ${kv.get('filename')} and the agent in ${md.get('filename')} have the same name (${found}). Agent Names must be unique within a project.`
-						);
+						throw new AgentNameDuplicateError({
+							message: `The agent in ${kv.get('filename')} and the agent in ${md.get('filename')} have the same name (${found}). Agent Names must be unique within a project.`,
+						});
 					}
 				}
 
@@ -531,7 +543,9 @@ const AgentuityBundler: BunPlugin = {
 					if (hasAgent) {
 						const md = agentMetadata.get(name);
 						if (!md) {
-							throw new Error(`Couldn't find agent metadata for ${route}`);
+							throw new MetadataMissingError({
+								message: `Couldn't find agent metadata for ${route}`,
+							});
 						}
 						agentDetail = {
 							name,
@@ -766,22 +780,40 @@ await (async() => {
 
 				for (const [, v] of agentMetadata) {
 					if (!v.has('filename')) {
-						throw new Error('agent metadata is missing expected filename property');
+						throw new MetadataPropertyMissingError({
+							name: 'filename',
+							message: 'agent metadata is missing expected filename property',
+						});
 					}
 					if (!v.has('id')) {
-						throw new Error('agent metadata is missing expected id property');
+						throw new MetadataPropertyMissingError({
+							name: 'id',
+							message: 'agent metadata is missing expected id property',
+						});
 					}
 					if (!v.has('identifier')) {
-						throw new Error('agent metadata is missing expected identifier property');
+						throw new MetadataPropertyMissingError({
+							name: 'identifier',
+							message: 'agent metadata is missing expected identifier property',
+						});
 					}
 					if (!v.has('version')) {
-						throw new Error('agent metadata is missing expected version property');
+						throw new MetadataPropertyMissingError({
+							name: 'version',
+							message: 'agent metadata is missing expected version property',
+						});
 					}
 					if (!v.has('name')) {
-						throw new Error('agent metadata is missing expected name property');
+						throw new MetadataPropertyMissingError({
+							name: 'name',
+							message: 'agent metadata is missing expected name property',
+						});
 					}
 					if (!v.has('agentId')) {
-						throw new Error('agent metadata is missing expected agentId property');
+						throw new MetadataPropertyMissingError({
+							name: 'agentId',
+							message: 'agent metadata is missing expected agentId property',
+						});
 					}
 
 					const parentName = v.get('parent');
@@ -804,10 +836,11 @@ await (async() => {
 					);
 					if (!parentExists) {
 						const subagentPaths = subagents.map((s) => s.get('filename')).join(', ');
-						throw new Error(
-							`Subagent(s) [${subagentPaths}] reference parent "${parentName}" which does not exist. ` +
-								`Ensure the parent agent is defined.`
-						);
+						throw new SubAgentMissingError({
+							message:
+								`Subagent(s) [${subagentPaths}] reference parent "${parentName}" which does not exist. ` +
+								`Ensure the parent agent is defined.`,
+						});
 					}
 				}
 

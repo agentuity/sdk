@@ -1,3 +1,7 @@
+import { StructuredError } from '@agentuity/core';
+
+const InvalidDateFormatError = StructuredError('InvalidDateFormatError')<{ input: string }>();
+
 /**
  * Parse duration string (e.g., "1h", "2d", "1y") or ISO date to ISO date string
  *
@@ -16,7 +20,7 @@ export function parseExpiresAt(input: string): string {
 		// Validate it's a valid date
 		const date = new Date(input);
 		if (isNaN(date.getTime())) {
-			throw new Error(`Invalid date format: ${input}`);
+			throw new InvalidDateFormatError({ input, message: `Invalid date format: ${input}` });
 		}
 		return date.toISOString();
 	}
@@ -26,9 +30,10 @@ export function parseExpiresAt(input: string): string {
 	const match = input.match(durationRegex);
 
 	if (!match) {
-		throw new Error(
-			`Invalid expires-at format: ${input}. Use ISO date (2025-12-31T23:59:59Z) or duration (1h, 2d, 1y)`
-		);
+		throw new InvalidDateFormatError({
+			input,
+			message: `Invalid expires-at format: ${input}. Use ISO date (2025-12-31T23:59:59Z) or duration (1h, 2d, 1y)`,
+		});
 	}
 
 	const [, amount, unit] = match;

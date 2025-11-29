@@ -7,7 +7,7 @@
 
 import type { ColorScheme } from './terminal';
 import type { LogLevel } from './types';
-import { ValidationError } from '@agentuity/server';
+import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server';
 
 /**
  * Get the appropriate exit function (Bun.exit or process.exit)
@@ -201,6 +201,17 @@ export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void
 	}
 }
 
+function printValidationIssues(issues?: IssuesType) {
+	const errorColor = getColor('red');
+	console.error(`${errorColor}Validation details:${COLORS.reset}`);
+	if (issues) {
+		for (const issue of issues) {
+			const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
+			console.error(`  ${path}: ${issue.message}`);
+		}
+	}
+}
+
 /**
  * Run steps with animated TUI (original behavior)
  */
@@ -283,12 +294,11 @@ async function runStepsTUI(state: StepState[]): Promise<void> {
 			if (step.outcome?.status === 'error') {
 				const errorColor = getColor('red');
 				console.error(`\n${errorColor}Error: ${step.outcome.message}${COLORS.reset}`);
-				if (step.outcome.cause instanceof ValidationError) {
-					console.error(`${errorColor}Validation details:${COLORS.reset}`);
-					for (const issue of step.outcome.cause.issues) {
-						const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
-						console.error(`  ${path}: ${issue.message}`);
-					}
+				if (
+					step.outcome.cause instanceof ValidationInputError ||
+					step.outcome.cause instanceof ValidationOutputError
+				) {
+					printValidationIssues(step.outcome.cause.issues);
 				}
 				console.error('');
 				process.stdout.write('\x1B[?25h'); // Show cursor
@@ -342,12 +352,11 @@ async function runStepsPlain(state: StepState[]): Promise<void> {
 			console.log(`${redColor}${ICONS.error}${COLORS.reset} ${step.label}`);
 			const errorColor = getColor('red');
 			console.error(`\n${errorColor}Error: ${step.outcome.message}${COLORS.reset}`);
-			if (step.outcome.cause instanceof ValidationError) {
-				console.error(`${errorColor}Validation details:${COLORS.reset}`);
-				for (const issue of step.outcome.cause.issues) {
-					const path = issue.path.length > 0 ? issue.path.join('.') : '(root)';
-					console.error(`  ${path}: ${issue.message}`);
-				}
+			if (
+				step.outcome.cause instanceof ValidationInputError ||
+				step.outcome.cause instanceof ValidationOutputError
+			) {
+				printValidationIssues(step.outcome.cause.issues);
 			}
 			console.error('');
 			process.exit(1);

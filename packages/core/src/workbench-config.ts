@@ -1,3 +1,15 @@
+import { StructuredError } from './error';
+
+export const WorkbenchConfigError = StructuredError(
+	'WorkbenchConfigError',
+	'The workbench configuration is invalid'
+);
+
+export const WorkbenchNotFoundError = StructuredError(
+	'WorkbenchNotFoundError',
+	'Workbench config not found - build process did not inline config'
+);
+
 /**
  * Workbench configuration utilities shared across packages
  */
@@ -44,10 +56,9 @@ export function decodeWorkbenchConfig(encoded: string): WorkbenchConfig {
 		const config = JSON.parse(json) as WorkbenchConfig;
 		return config;
 	} catch (error) {
-		throw new Error(
-			`Failed to decode workbench config: ${error instanceof Error ? error.message : String(error)}`,
-			{ cause: error }
-		);
+		throw new WorkbenchConfigError({
+			cause: error,
+		});
 	}
 }
 
@@ -59,7 +70,7 @@ export function getWorkbenchConfig(): WorkbenchConfig {
 	// This will be replaced at build time by Bun's define mechanism
 	// @ts-expect-error - AGENTUITY_WORKBENCH_CONFIG_INLINE will be replaced at build time
 	if (typeof AGENTUITY_WORKBENCH_CONFIG_INLINE === 'undefined') {
-		throw new Error('Workbench config not found - build process did not inline config');
+		throw new WorkbenchNotFoundError();
 	}
 
 	// @ts-expect-error - AGENTUITY_WORKBENCH_CONFIG_INLINE will be replaced at build time

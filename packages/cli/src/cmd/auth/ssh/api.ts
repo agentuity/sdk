@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { APIResponseSchema } from '@agentuity/server';
 import type { APIClient } from '../../../api';
 import { createHash } from 'crypto';
+import { StructuredError } from '@agentuity/core';
 
 // Zod schemas for API validation
 const SSHKeySchema = z.object({
@@ -33,17 +34,28 @@ export interface AddSSHKeyResult {
 	added: boolean;
 }
 
+const InvalidSSHConfigurationError = StructuredError(
+	'InvalidSSHConfigurationError',
+	'Invalid SSH public key format'
+);
+
 export function computeSSHKeyFingerprint(publicKey: string): string {
 	// Parse the key (format: "ssh-ed25519 AAAAC3... [comment]")
 	const parts = publicKey.trim().split(/\s+/);
 	if (parts.length < 2) {
-		throw new Error('Invalid SSH public key format');
+		throw new InvalidSSHConfigurationError();
 	}
 	const keyData = parts[1]; // Base64-encoded key data
 	const buffer = Buffer.from(keyData, 'base64');
 	const fingerprint = createHash('sha256').update(buffer).digest('base64');
 	return `SHA256:${fingerprint.replace(/=+$/, '')}`;
 }
+
+const AddSSHKeyError = StructuredError('AddSSHKeyError');
+const AddSSHKeyUnexpectedError = StructuredError(
+	'AddSSHKeyUnexpectedError',
+	'An unexpected error was received from the server.'
+);
 
 export async function addSSHKey(apiClient: APIClient, publicKey: string): Promise<AddSSHKeyResult> {
 	const resp = await apiClient.request(
@@ -54,15 +66,17 @@ export async function addSSHKey(apiClient: APIClient, publicKey: string): Promis
 	);
 
 	if (!resp.success) {
-		throw new Error(resp.message);
+		throw new AddSSHKeyError({ message: resp.message });
 	}
 
 	if (!resp.data) {
-		throw new Error('No data returned from server');
+		throw new AddSSHKeyUnexpectedError();
 	}
 
 	return resp.data;
 }
+
+const ListSSHKeysError = StructuredError('ListSSHKeysError');
 
 export async function listSSHKeys(apiClient: APIClient): Promise<SSHKey[]> {
 	const resp = await apiClient.request(
@@ -72,11 +86,13 @@ export async function listSSHKeys(apiClient: APIClient): Promise<SSHKey[]> {
 	);
 
 	if (!resp.success) {
-		throw new Error(resp.message);
+		throw new ListSSHKeysError({ message: resp.message });
 	}
 
 	return resp.data ?? [];
 }
+
+const RemoveSSHKeysError = StructuredError('RemoveSSHKeysError');
 
 export async function removeSSHKey(apiClient: APIClient, fingerprint: string): Promise<boolean> {
 	const resp = await apiClient.request(
@@ -87,7 +103,7 @@ export async function removeSSHKey(apiClient: APIClient, fingerprint: string): P
 	);
 
 	if (!resp.success) {
-		throw new Error(resp.message);
+		throw new RemoveSSHKeysError({ message: resp.message });
 	}
 
 	return resp.data?.removed ?? false;

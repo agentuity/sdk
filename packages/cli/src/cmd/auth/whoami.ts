@@ -32,12 +32,6 @@ export const whoamiCommand = createSubcommand({
 	async handler(ctx) {
 		const { apiClient, auth, options } = ctx;
 
-		if (!apiClient) {
-			throw new Error(
-				'API client is not available. This is likely a configuration or initialization issue.'
-			);
-		}
-
 		const user = await tui.spinner({
 			message: 'Fetching user information',
 			clearOnSuccess: true,

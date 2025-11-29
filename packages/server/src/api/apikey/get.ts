@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
+import { APIKeyResponseError } from './util';
 
 const APIKeyDetailSchema = z.object({
 	id: z.string().describe('the API key id'),
@@ -43,5 +44,5 @@ export async function apikeyGet(client: APIClient, id: string): Promise<APIKeyDe
 		return resp.data;
 	}
 
-	throw new Error(resp.message);
+	throw new APIKeyResponseError({ message: resp.message });
 }

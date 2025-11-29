@@ -1,5 +1,6 @@
 import { Transform, Readable } from 'node:stream';
 import * as tui from './tui';
+import { APIError } from '@agentuity/server';
 
 export interface DownloadOptions {
 	url: string;
@@ -25,7 +26,12 @@ export async function downloadWithProgress(
 
 	const response = await fetch(url, { headers: requestHeaders });
 	if (!response.ok) {
-		throw new Error(`Download failed: ${response.statusText}`);
+		throw new APIError({
+			url,
+			status: response.status,
+			sessionId: response.headers.get('x-session-id'),
+			error: `Download failed: ${response.statusText}`,
+		});
 	}
 
 	const contentLength = parseInt(response.headers.get('content-length') || '0', 10);

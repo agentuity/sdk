@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
+import { ProjectResponseError } from './util';
 
 const CreateProjectRequestSchema = z.object({
 	name: z.string().max(255).min(1).describe('the name of the new project'),
@@ -39,5 +40,5 @@ export async function projectCreate(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }

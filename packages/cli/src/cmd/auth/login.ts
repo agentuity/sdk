@@ -1,5 +1,4 @@
 import { createSubcommand } from '../../types';
-import { UpgradeRequiredError, ValidationError } from '@agentuity/server';
 import { getAppBaseURL } from '../../api';
 import { saveAuth } from '../../config';
 import { generateLoginOTP, pollForLoginCompletion } from './api';
@@ -17,12 +16,6 @@ export const loginCommand = createSubcommand({
 	examples: [getCommand('auth login'), getCommand('login')],
 	async handler(ctx) {
 		const { logger, config, apiClient } = ctx;
-
-		if (!apiClient) {
-			throw new Error(
-				'API client is not available. This is likely a configuration or initialization issue.'
-			);
-		}
 
 		const appUrl = getAppBaseURL(config);
 
@@ -73,20 +66,7 @@ export const loginCommand = createSubcommand({
 			tui.success('Welcome to Agentuity! You are now logged in');
 		} catch (error) {
 			logger.trace(error);
-			if (error instanceof UpgradeRequiredError) {
-				const bannerBody = `${error.message}\n\nVisit: ${tui.link('https://agentuity.dev/CLI/installation')}`;
-				tui.banner('CLI Upgrade Required', bannerBody);
-				process.exit(1);
-			} else if (error instanceof ValidationError) {
-				tui.error(`API error: ${error.message}`);
-				tui.warning(`API url: ${error.url}`);
-				error.issues.map((i) => tui.arrow(`${i.message} for ${i.path}`));
-				process.exit(1);
-			} else if (error instanceof Error) {
-				logger.fatal(`Login failed: ${error.message}`, ErrorCode.AUTH_FAILED);
-			} else {
-				logger.fatal('Login failed', ErrorCode.AUTH_FAILED);
-			}
+			logger.fatal('Login failed: %s', error, ErrorCode.AUTH_FAILED);
 		}
 	},
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
+import { RegionResponseError } from './util';
 
 const ListRegionsResponse = z.array(
 	z.object({
@@ -27,5 +28,5 @@ export async function listRegions(client: APIClient): Promise<RegionList> {
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new RegionResponseError({ message: resp.message });
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { APIClient } from '../api';
 import { APIResponseSchema } from '../api';
+import { AgentNotFoundError, ProjectResponseError } from './util';
 
 const AgentSchema = z.object({
 	id: z.string().describe('Agent ID (same as identifier)'),
@@ -54,7 +55,7 @@ export async function projectAgentList(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }
 
 /**
@@ -73,9 +74,9 @@ export async function projectAgentGet(
 
 	if (resp.success) {
 		if (resp.data.length === 0) {
-			throw new Error(`Agent not found: ${agentId}`);
+			throw new AgentNotFoundError({ id: agentId, message: `Agent not found: ${agentId}` });
 		}
 		return resp.data[0];
 	}
-	throw new Error(resp.message);
+	throw new ProjectResponseError({ message: resp.message });
 }

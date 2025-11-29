@@ -1,6 +1,7 @@
 import { APIResponseSchema } from '@agentuity/server';
 import { z } from 'zod';
 import type { APIClient } from '../../api';
+import { StructuredError } from '@agentuity/core';
 
 const DevmodeRequestSchema = z.object({
 	hostname: z.string().optional().describe('the hostname for the endpoint'),
@@ -16,6 +17,8 @@ export type DevmodeResponse = z.infer<typeof DevmodeResponseSchema>;
 
 const DevmodeResponseAPISchema = APIResponseSchema(DevmodeResponseSchema);
 type DevmodeResponseAPI = z.infer<typeof DevmodeResponseAPISchema>;
+
+const DevmodeEndpointError = StructuredError('DevmodeEndpointError');
 
 /**
  * Generate an Endpoint ID and Hostname
@@ -39,7 +42,7 @@ export async function generateEndpoint(
 	);
 
 	if (!resp.success) {
-		throw new Error(resp.message);
+		throw new DevmodeEndpointError({ message: resp.message });
 	}
 
 	return resp.data;

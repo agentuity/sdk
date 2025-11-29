@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { SessionSchema } from './list';
+import { SessionResponseError } from './util';
 
 const _SessionGetRequestSchema = z.object({
 	id: z.string().describe('the session id'),
@@ -99,5 +100,5 @@ export async function sessionGet(
 		};
 	}
 
-	throw new Error(resp.message);
+	throw new SessionResponseError({ message: resp.message });
 }

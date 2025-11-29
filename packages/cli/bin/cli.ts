@@ -11,6 +11,7 @@ import { checkLegacyCLI } from '../src/legacy-check';
 import type { CommandContext, LogLevel } from '../src/types';
 import { generateCLISchema } from '../src/schema-generator';
 import { setOutputOptions } from '../src/output';
+import type { GlobalOptions } from '../src/types';
 
 // Cleanup TTY state before exit
 function cleanupAndExit() {
@@ -24,7 +25,7 @@ function cleanupAndExit() {
 
 // Handle Ctrl+C gracefully
 process.once('SIGINT', () => {
-	console.log('\n');
+	process.stdout.write('\b \b'); // erase the ctrl+c display
 	cleanupAndExit();
 });
 
@@ -88,7 +89,7 @@ const ctx = {
 if (earlyOpts.json && !earlyOpts.errorFormat) {
 	earlyOpts.errorFormat = 'json';
 }
-setOutputOptions(earlyOpts);
+setOutputOptions(earlyOpts as GlobalOptions);
 
 const commands = await discoverCommands();
 
@@ -130,6 +131,11 @@ try {
 	if (!error) {
 		process.exit(0);
 	}
-	logger.error('CLI error:', error);
+	const errorWithMessage = error as { message?: string };
+	logger.error(
+		'CLI error: %s %s',
+		errorWithMessage?.message ? errorWithMessage.message : String(error),
+		JSON.stringify(error)
+	);
 	process.exit(1);
 }

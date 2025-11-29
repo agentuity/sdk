@@ -4,7 +4,7 @@ import { generate } from 'astring';
 import type { BuildMetadata } from '../../types';
 import { createLogger } from '@agentuity/server';
 import * as ts from 'typescript';
-import type { WorkbenchConfig } from '@agentuity/core';
+import { StructuredError, type WorkbenchConfig } from '@agentuity/core';
 import type { LogLevel } from '../../types';
 import { join } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
@@ -175,6 +175,11 @@ function generateStableEvalId(projectId: string, agentId: string, name: string):
 
 type AcornParseResultType = ReturnType<typeof acornLoose.parse>;
 
+const MetadataError = StructuredError('MetatadataNameMissingError')<{
+	filename: string;
+	line?: number;
+}>();
+
 function augmentAgentMetadataNode(
 	projectId: string,
 	id: string,
@@ -188,16 +193,20 @@ function augmentAgentMetadataNode(
 	const metadata = parseObjectExpressionToMap(propvalue);
 	if (!metadata.has('name')) {
 		const location = ast.loc?.start ? ` on line ${ast.loc.start}` : '';
-		throw new Error(
-			`missing required metadata.name in ${filename}${location}. This Agent should have a unique and human readable name for this project.`
-		);
+		throw new MetadataError({
+			filename,
+			line: ast.loc?.start?.line,
+			message: `missing required metadata.name in ${filename}${location}. This Agent should have a unique and human readable name for this project.`,
+		});
 	}
 	const name = metadata.get('name')!;
 	if (metadata.has('identifier') && identifier !== metadata.get('identifier')) {
 		const location = ast.loc?.start ? ` on line ${ast.loc.start}` : '';
-		throw new Error(
-			`metadata.identifier (${metadata.get('identifier')}) in ${filename}${location} is mismatched (${name}). This is an internal error.`
-		);
+		throw new MetadataError({
+			filename,
+			line: ast.loc?.start?.line,
+			message: `metadata.identifier (${metadata.get('identifier')}) in ${filename}${location} is mismatched (${name}). This is an internal error.`,
+		});
 	}
 	const descriptionNode = propvalue.properties.find((x) => x.key.name === 'description')?.value;
 	const description = descriptionNode ? (descriptionNode as ASTLiteral).value : '';
@@ -376,6 +385,8 @@ function augmentEvalMetadataNode(
 	}
 }
 
+const DuplicateNameError = StructuredError('DuplicateNameError')<{ filename: string }>();
+
 export function parseEvalMetadata(
 	rootDir: string,
 	filename: string,
@@ -493,9 +504,12 @@ export function parseEvalMetadata(
 									} else if (variableName) {
 										finalName = camelToKebab(variableName);
 									} else {
-										throw new Error(
-											'Eval is missing a name. Please provide metadata.name or use a named export.'
-										);
+										throw new MetadataError({
+											filename,
+											line: body.loc?.start?.line,
+											message:
+												'Eval is missing a name. Please provide metadata.name or use a named export.',
+										});
 									}
 
 									logger.trace(
@@ -572,16 +586,21 @@ export function parseEvalMetadata(
 	}
 
 	if (duplicates.length > 0) {
-		throw new Error(
-			`Duplicate eval names found in ${rel}: ${duplicates.join(', ')}. ` +
-				'Eval names must be unique within the same file to prevent ID collisions.'
-		);
+		throw new DuplicateNameError({
+			filename,
+			message:
+				`Duplicate eval names found in ${rel}: ${duplicates.join(', ')}. ` +
+				'Eval names must be unique within the same file to prevent ID collisions.',
+		});
 	}
 
 	const newsource = generate(ast);
 	logger.trace(`Parsed ${evals.length} eval(s) from ${filename}`);
 	return [newsource, evals];
 }
+
+const InvalidExportError = StructuredError('InvalidExportError')<{ filename: string }>();
+const InvalidCreateAgentError = StructuredError('InvalidCreateAgentError')<{ filename: string }>();
 
 export async function parseAgentMetadata(
 	rootDir: string,
@@ -644,7 +663,10 @@ export async function parseAgentMetadata(
 		}
 	}
 	if (!result && !exportName) {
-		throw new Error(`could not find default export for ${filename} using ${rootDir}`);
+		throw new InvalidExportError({
+			filename,
+			message: `could not find default export for ${filename} using ${rootDir}`,
+		});
 	}
 	if (!result) {
 		for (const body of ast.body) {
@@ -698,9 +720,10 @@ export async function parseAgentMetadata(
 		}
 	}
 	if (!result) {
-		throw new Error(
-			`error parsing: ${filename}. could not find an proper createAgent defined in this file`
-		);
+		throw new InvalidCreateAgentError({
+			filename,
+			message: `error parsing: ${filename}. could not find an proper createAgent defined in this file`,
+		});
 	}
 
 	// Parse evals from eval.ts file in the same directory
@@ -744,6 +767,15 @@ export async function parseAgentMetadata(
 
 type RouteDefinition = BuildMetadata['routes'];
 
+const InvalidCreateRouterError = StructuredError('InvalidCreateRouterError')<{
+	filename: string;
+}>();
+
+const InvalidRouterConfigError = StructuredError('InvalidRouterConfigError')<{
+	filename: string;
+	line?: number;
+}>();
+
 export async function parseRoute(
 	rootDir: string,
 	filename: string,
@@ -763,7 +795,10 @@ export async function parseRoute(
 		}
 	}
 	if (!exportName) {
-		throw new Error(`could not find default export for ${filename} using ${rootDir}`);
+		throw new InvalidExportError({
+			filename,
+			message: `could not find default export for ${filename} using ${rootDir}`,
+		});
 	}
 	for (const body of ast.body) {
 		if (body.type === 'VariableDeclaration') {
@@ -784,9 +819,10 @@ export async function parseRoute(
 		}
 	}
 	if (!variableName) {
-		throw new Error(
-			`error parsing: ${filename}. could not find an proper createRouter defined in this file`
-		);
+		throw new InvalidCreateRouterError({
+			filename,
+			message: `error parsing: ${filename}. could not find an proper createRouter defined in this file`,
+		});
 	}
 
 	const rel = relative(rootDir, filename);
@@ -840,9 +876,11 @@ export async function parseRoute(
 								if (action && (action as ASTLiteral).type === 'Literal') {
 									suffix = (action as ASTLiteral).value;
 								} else {
-									throw new Error(
-										`unsupported HTTP method ${method} in ${filename} at line ${body.start}`
-									);
+									throw new InvalidRouterConfigError({
+										filename,
+										line: body.start,
+										message: `unsupported HTTP method ${method} in ${filename} at line ${body.start}`,
+									});
 								}
 								break;
 							}
@@ -902,9 +940,11 @@ export async function parseRoute(
 								break;
 							}
 							default: {
-								throw new Error(
-									`unsupported router method ${method} in ${filename} at line ${body.start}`
-								);
+								throw new InvalidRouterConfigError({
+									filename,
+									line: body.start,
+									message: `unsupported router method ${method} in ${filename} at line ${body.start}`,
+								});
 							}
 						}
 						const thepath = `${routePrefix}/${routeName}/${suffix}`
@@ -933,8 +973,13 @@ export async function parseRoute(
 			}
 		}
 	} catch (error) {
-		const err = error instanceof Error ? error : new Error(String(error));
-		throw new Error(`Failed to parse route file ${filename}: ${err.message}`);
+		if (error instanceof InvalidRouterConfigError) {
+			throw error;
+		}
+		throw new InvalidRouterConfigError({
+			filename,
+			cause: error,
+		});
 	}
 	return routes;
 }
@@ -1274,6 +1319,8 @@ async function updateTsconfigPathMapping(rootDir: string, shouldAdd: boolean): P
 	}
 }
 
+const RuntimePackageNotFound = StructuredError('RuntimePackageNotFound');
+
 /**
  * Generate lifecycle type files (.agentuity/types.ts and .agentuity/.agentuity_runtime.ts)
  *
@@ -1320,12 +1367,13 @@ export async function generateLifecycleTypes(
 		runtimePkgPath = rootLevelPath;
 		logger.debug(`Found runtime package at root level: ${rootLevelPath}`);
 	} else {
-		throw new Error(
-			`@agentuity/runtime package not found in:\n` +
+		throw new RuntimePackageNotFound({
+			message:
+				`@agentuity/runtime package not found in:\n` +
 				`  - ${appLevelPath}\n` +
 				`  - ${rootLevelPath}\n` +
-				`Make sure dependencies are installed by running 'bun install' or 'npm install'`
-		);
+				`Make sure dependencies are installed by running 'bun install' or 'npm install'`,
+		});
 	}
 
 	let runtimeImportPath: string | null = null;
@@ -1339,14 +1387,17 @@ export async function generateLifecycleTypes(
 		runtimeImportPath = relPath;
 		logger.debug(`Using relative path to runtime package: ${relPath}`);
 	} else {
-		throw new Error(
-			`Failed to access @agentuity/runtime package at ${runtimePkgPath}\n` +
-				`Make sure dependencies are installed`
-		);
+		throw new RuntimePackageNotFound({
+			message:
+				`Failed to access @agentuity/runtime package at ${runtimePkgPath}\n` +
+				`Make sure dependencies are installed`,
+		});
 	}
 
 	if (!runtimeImportPath) {
-		throw new Error(`Failed to determine import path for @agentuity/runtime`);
+		throw new RuntimePackageNotFound({
+			message: `Failed to determine import path for @agentuity/runtime`,
+		});
 	}
 
 	// Now generate .agentuity_types.ts

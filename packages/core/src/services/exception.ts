@@ -1,11 +1,9 @@
-export class ServiceException extends Error {
+import { StructuredError } from '../error';
+import { HttpMethod } from './adapter';
+
+export const ServiceException = StructuredError('ServiceException')<{
 	statusCode: number;
-	method: string;
+	method: HttpMethod;
 	url: string;
-	constructor(message: string, method: string, url: string, statusCode: number) {
-		super(message);
-		this.method = method;
-		this.url = url;
-		this.statusCode = statusCode;
-	}
-}
+	sessionId?: string | null;
+}>();

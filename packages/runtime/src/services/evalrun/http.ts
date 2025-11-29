@@ -1,4 +1,9 @@
-import { APIClient, APIResponseSchemaNoData, ValidationError } from '@agentuity/server';
+import {
+	APIClient,
+	APIResponseSchemaNoData,
+	ValidationInputError,
+	ValidationOutputError,
+} from '@agentuity/server';
 import {
 	type EvalRunEventProvider,
 	type EvalRunStartEvent,
@@ -6,7 +11,10 @@ import {
 	EvalRunCompleteEventDelayedSchema,
 	type EvalRunCompleteEvent,
 	type Logger,
+	StructuredError,
 } from '@agentuity/core';
+
+const EvalRunResponseError = StructuredError('EvalRunResponseError');
 
 /**
  * An implementation of the EvalRunEventProvider which uses HTTP for delivery
@@ -51,7 +59,7 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 			}
 			const errorMsg = resp.message || 'Unknown error';
 			this.logger.error('[EVALRUN HTTP] Start event failed: %s, error: %s', event.id, errorMsg);
-			throw new Error(errorMsg);
+			throw new EvalRunResponseError({ message: errorMsg });
 		} catch (error) {
 			this.logger.error(
 				'[EVALRUN HTTP] Start event exception: %s, error: %s',
@@ -59,7 +67,10 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 				error instanceof Error ? error.message : String(error)
 			);
 			// Log validation errors if available
-			if (error instanceof ValidationError) {
+			if (
+				(error instanceof ValidationInputError || error instanceof ValidationOutputError) &&
+				error.issues?.length
+			) {
 				this.logger.error(
 					'[EVALRUN HTTP] Validation issues: %s',
 					JSON.stringify(error.issues, null, 2)
@@ -99,7 +110,7 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 				event.id,
 				errorMsg
 			);
-			throw new Error(errorMsg);
+			throw new EvalRunResponseError({ message: errorMsg });
 		} catch (error) {
 			this.logger.error(
 				'[EVALRUN HTTP] Complete event exception: %s, error: %s',

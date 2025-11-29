@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { APIResponseSchema, APIClient } from '../api';
+import { RegionResponseError } from './util';
 
 const ResourceListResponse = z.object({
 	s3: z.array(
@@ -47,5 +48,5 @@ export async function listResources(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new Error(resp.message);
+	throw new RegionResponseError({ message: resp.message });
 }

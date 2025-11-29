@@ -15,7 +15,7 @@ interface ServiceAdapterConfig {
 		url: string,
 		options: FetchRequest,
 		response: FetchResponse<T>,
-		err?: ServiceException
+		err?: InstanceType<typeof ServiceException>
 	) => Promise<void>;
 }
 
@@ -148,17 +148,17 @@ class ServerFetchAdapter implements FetchAdapter {
 					}
 				} catch (ex) {
 					err = ex as Error;
-					if (this.#config.onAfter) {
+					if (this.#config.onAfter && err instanceof ServiceException) {
 						await this.#config.onAfter(
 							url,
 							options,
 							{
 								ok: false,
-								response: new Response((err as ServiceException).message ?? String(err), {
-									status: (err as ServiceException).statusCode ?? 500,
+								response: new Response(err.message, {
+									status: err.statusCode,
 								}),
 							} as FetchErrorResponse,
-							err as ServiceException
+							err
 						);
 					}
 				}

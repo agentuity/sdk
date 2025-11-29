@@ -4,19 +4,20 @@
 
 - **Build**: `bun run build` (root), individual packages: `cd packages/<name> && bun run build`
 - **Typecheck**: `bun run typecheck` (root), individual: `bunx tsc --noEmit` in package dir
-- **Lint**: `bunx eslint packages`
-- **Format**: `bunx prettier */** --write --fix`
+- **Lint**: `bun run lint`
+- **Format**: `bun run format`
 - **Test**: `bun run test` (prefer over Bun's built-in test runner to pick up other test scripts)
 - **Clean**: `bun run clean` (removes all dist/ and .tsbuildinfo files)
 - **Test Everything**: `bun run all` will run all the commands together to validate and test
 
 ## Architecture
 
-- **Monorepo**: Bun workspaces with 5 packages in `packages/`: `core`, `react`, `runtime`, `server`, `cli`
+- **Monorepo**: Bun workspaces with 6 packages in `packages/`: `core`, `react`, `runtime`, `server`, `cli`, `workbench`
 - **@agentuity/core**: Shared utilities and schemas, foundation for other packages
 - **@agentuity/react**: Browser-only React components, depends on core
 - **@agentuity/runtime**: Bun server runtime using Hono framework, depends on core
 - **@agentuity/server**: Runtime-agnostic server utilities for Node.js and Bun, depends on core
+- **@agentuity/workbench**: The workbench React component
 - **@agentuity/cli**: Bun-native CLI framework with commander.js, auto-discovery, and YAML config
 - **Cross-package imports**: Use workspace protocol `@agentuity/<package>` in package.json dependencies
 - **Test Apps**: The `apps/testing` folder contains multiple test applications
@@ -34,3 +35,4 @@
 
 - **Documents**: Don't create summary documents UNLESS the user asks you to document it explicitly
 - **Clarification**: If you're not 100% sure, ask the user to provide clarification before continuing - especially before making major code changes
+- **Errors**: Always use the `StructuredError` in `@agentuity/core` to make Error classes with structured data

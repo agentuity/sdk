@@ -15,6 +15,7 @@ import {
 	type Logger,
 	type SessionEventProvider,
 	type EvalRunEventProvider,
+	StructuredError,
 } from '@agentuity/core';
 import { APIClient, createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
 import {
@@ -189,6 +190,11 @@ let evalRunEvent: EvalRunEventProvider;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let localRouter: any | null = null;
 
+const ServerUrlMissingError = StructuredError(
+	'ServerUrlMissingError',
+	'serverUrl is required when using local services'
+);
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createServices(logger: Logger, config?: AppConfig<any>, serverUrl?: string) {
 	const authenticated = isAuthenticated();
@@ -204,7 +210,7 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 		const projectPath = normalizeProjectPath();
 
 		if (!serverUrl) {
-			throw new Error('serverUrl is required when using local services');
+			throw new ServerUrlMissingError();
 		}
 
 		logger.info('Using local services (development only)');

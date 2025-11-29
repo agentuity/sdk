@@ -1,3 +1,4 @@
+import { StructuredError } from '@agentuity/core';
 import { resolve } from 'node:path';
 
 /**
@@ -26,12 +27,17 @@ export function simpleEmbedding(text: string, dimensions = 128): number[] {
 	return magnitude > 0 ? vec.map((v) => v / magnitude) : vec;
 }
 
+const InvalidVectorError = StructuredError(
+	'InvalidVectorError',
+	'Vectors must have the same dimension'
+);
+
 /**
  * Calculate cosine similarity between two vectors
  */
 export function cosineSimilarity(a: number[], b: number[]): number {
 	if (a.length !== b.length) {
-		throw new Error('Vectors must have the same dimension');
+		throw new InvalidVectorError();
 	}
 
 	const dot = a.reduce((sum, ai, i) => sum + ai * (b[i] ?? 0), 0);

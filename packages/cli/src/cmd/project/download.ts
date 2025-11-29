@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { finished } from 'node:stream/promises';
 import { createGunzip } from 'node:zlib';
 import { extract, type Headers } from 'tar-fs';
-import type { Logger } from '@agentuity/core';
+import { StructuredError, type Logger } from '@agentuity/core';
 import * as tui from '../../tui';
 import { downloadWithSpinner } from '../../download';
 import type { TemplateInfo } from './templates';
@@ -38,9 +38,16 @@ interface SetupOptions {
 	logger: Logger;
 }
 
+const TemplateDirectoryNotFoundError = StructuredError('TemplateDirectoryNotFoundError')<{
+	directory: string;
+}>();
+
 async function cleanup(sourceDir: string, dest: string) {
 	if (!existsSync(sourceDir)) {
-		throw new Error(`Template directory not found: ${sourceDir}`);
+		throw new TemplateDirectoryNotFoundError({
+			directory: sourceDir,
+			message: `Template directory not found: ${sourceDir}`,
+		});
 	}
 
 	tui.spinner(`📦 Copying template files...`, async () => {
@@ -68,7 +75,10 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		const sourceDir = resolve(join(templateDir, template.directory));
 
 		if (!existsSync(sourceDir)) {
-			throw new Error(`Template directory not found: ${sourceDir}`);
+			throw new TemplateDirectoryNotFoundError({
+				directory: sourceDir,
+				message: `Template directory not found: ${sourceDir}`,
+			});
 		}
 
 		return cleanup(sourceDir, dest);

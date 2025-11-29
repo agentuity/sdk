@@ -207,13 +207,16 @@ bun add --no-save \
   "$PACKAGES_DIR/$CLI_PKG"
 
 # Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
-# This happens because CLI's workspace:* dependencies get resolved to specific versions (e.g. 0.0.58)
+# This happens because workspace:* dependencies get resolved to specific versions (e.g. 0.0.58)
 # and Bun installs those from npm as nested dependencies, shadowing the correct local tarballs
-CLI_NESTED_SERVER_DIR="node_modules/@agentuity/cli/node_modules/@agentuity/server"
-if [ -d "$CLI_NESTED_SERVER_DIR" ]; then
-  log_warning "Removing nested @agentuity/server from CLI to use workspace tarball instead"
-  rm -rf "$CLI_NESTED_SERVER_DIR"
-fi
+#
+# We need to remove ALL nested @agentuity packages to ensure proper module resolution
+for pkg_dir in node_modules/@agentuity/*/node_modules/@agentuity; do
+  if [ -d "$pkg_dir" ]; then
+    log_warning "Removing nested @agentuity packages from $(dirname $pkg_dir)"
+    rm -rf "$pkg_dir"
+  fi
+done
 
 log_success "All packages installed"
 
