@@ -37,6 +37,7 @@
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
 		"@agentuity/server": "workspace:*",
+		"@datasert/cronjs-parser": "^1.4.0",
 		"@terascope/fetch-github-release": "^2.2.1",
 		"acorn-loose": "^8.5.2",
 		"adm-zip": "^0.5.16",

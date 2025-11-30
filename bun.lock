@@ -24,7 +24,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.0.60",
+      "version": "0.0.61",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -34,7 +34,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "0.0.60",
+      "version": "0.0.61",
     },
     "apps/testing/auth-app": {
       "name": "test-app",
@@ -104,13 +104,14 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.0.60",
+      "version": "0.0.61",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
+        "@datasert/cronjs-parser": "^1.4.0",
         "@terascope/fetch-github-release": "^2.2.1",
         "acorn-loose": "^8.5.2",
         "adm-zip": "^0.5.16",
@@ -135,7 +136,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.0.60",
+      "version": "0.0.61",
       "dependencies": {
         "zod": "^4.1.12",
       },
@@ -147,7 +148,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.0.60",
+      "version": "0.0.61",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -163,7 +164,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.0.60",
+      "version": "0.0.61",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/server": "workspace:*",
@@ -204,7 +205,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.0.60",
+      "version": "0.0.61",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "zod": "^4.1.12",
@@ -218,7 +219,7 @@
     },
     "packages/workbench": {
       "name": "@agentuity/workbench",
-      "version": "0.0.60",
+      "version": "0.0.61",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
@@ -269,6 +270,8 @@
     "@cfworker/json-schema": ["@cfworker/json-schema@4.1.1", "", {}, "sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og=="],
 
     "@colors/colors": ["@colors/colors@1.5.0", "", {}, "sha512-ooWCrlZP11i8GImSjTHYHLkvFDP48nS4+204nGb1RiX/WXYHmJA2III9/e2DWVabCESdW7hBAEzHRqUn9OUVvQ=="],
+
+    "@datasert/cronjs-parser": ["@datasert/cronjs-parser@1.4.0", "", {}, "sha512-zHGlrWanS4Zjgf0aMi/sp/HTSa2xWDEtXW9xshhlGf/jPx3zTIqfX14PZnoFF7XVOwzC49Zy0SFWG90rlRY36Q=="],
 
     "@eslint-community/eslint-utils": ["@eslint-community/eslint-utils@4.9.0", "", { "dependencies": { "eslint-visitor-keys": "^3.4.3" }, "peerDependencies": { "eslint": "^6.0.0 || ^7.0.0 || >=8.0.0" } }, "sha512-ayVFHdtZ+hsq1t2Dy24wCmGXGe4q9Gu3smhLYALJrr473ZH27MsnSL+LKUlimp4BWJqMDMLmPpx/Q9R3OAlL4g=="],
 

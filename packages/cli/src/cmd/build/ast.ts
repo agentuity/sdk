@@ -1,5 +1,6 @@
 import * as acornLoose from 'acorn-loose';
 import { basename, dirname, relative } from 'node:path';
+import { parse as parseCronExpression } from '@datasert/cronjs-parser';
 import { generate } from 'astring';
 import type { BuildMetadata } from '../../types';
 import { createLogger } from '@agentuity/server';
@@ -192,7 +193,7 @@ function augmentAgentMetadataNode(
 ): [string, Map<string, string>] {
 	const metadata = parseObjectExpressionToMap(propvalue);
 	if (!metadata.has('name')) {
-		const location = ast.loc?.start ? ` on line ${ast.loc.start}` : '';
+		const location = ast.loc?.start?.line ? ` on line ${ast.loc.start.line}` : '';
 		throw new MetadataError({
 			filename,
 			line: ast.loc?.start?.line,
@@ -201,7 +202,7 @@ function augmentAgentMetadataNode(
 	}
 	const name = metadata.get('name')!;
 	if (metadata.has('identifier') && identifier !== metadata.get('identifier')) {
-		const location = ast.loc?.start ? ` on line ${ast.loc.start}` : '';
+		const location = ast.loc?.start?.line ? ` on line ${ast.loc.start.line}` : '';
 		throw new MetadataError({
 			filename,
 			line: ast.loc?.start?.line,
@@ -414,7 +415,11 @@ export function parseEvalMetadata(
 		| 'error';
 	const logger = createLogger(logLevel);
 	logger.trace(`Parsing evals from ${filename}`);
-	const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
+	const ast = acornLoose.parse(contents, {
+		locations: true,
+		ecmaVersion: 'latest',
+		sourceType: 'module',
+	});
 	const rel = relative(rootDir, filename);
 	const version = hash(contents);
 	const evals: Array<{
@@ -609,7 +614,11 @@ export async function parseAgentMetadata(
 	projectId: string,
 	deploymentId: string
 ): Promise<[string, Map<string, string>]> {
-	const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
+	const ast = acornLoose.parse(contents, {
+		locations: true,
+		ecmaVersion: 'latest',
+		sourceType: 'module',
+	});
 	let exportName: string | undefined;
 	const rel = relative(rootDir, filename);
 	const name = basename(dirname(filename));
@@ -784,7 +793,11 @@ export async function parseRoute(
 ): Promise<BuildMetadata['routes']> {
 	const contents = await Bun.file(filename).text();
 	const version = hash(contents);
-	const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
+	const ast = acornLoose.parse(contents, {
+		locations: true,
+		ecmaVersion: 'latest',
+		sourceType: 'module',
+	});
 	let exportName: string | undefined;
 	let variableName: string | undefined;
 	for (const body of ast.body) {
@@ -878,8 +891,8 @@ export async function parseRoute(
 								} else {
 									throw new InvalidRouterConfigError({
 										filename,
-										line: body.start,
-										message: `unsupported HTTP method ${method} in ${filename} at line ${body.start}`,
+										line: body.loc?.start?.line,
+										message: `unsupported HTTP method ${method} in ${filename} at line ${body.loc?.start?.line}`,
 									});
 								}
 								break;
@@ -933,8 +946,19 @@ export async function parseRoute(
 								method = 'post';
 								const theaction = action as ASTLiteral;
 								if (theaction.type === 'Literal') {
-									const number = theaction.value;
-									suffix = hash(number);
+									const expression = theaction.value;
+									try {
+										parseCronExpression(expression, { hasSeconds: false });
+									} catch (ex) {
+										throw new InvalidRouterConfigError({
+											filename,
+											cause: ex,
+											line: body.loc?.start?.line,
+											message: `invalid cron expression "${expression}" in ${filename} at line ${body.loc?.start?.line}`,
+										});
+									}
+									suffix = hash(expression);
+									config = { expression };
 									break;
 								}
 								break;
@@ -942,8 +966,8 @@ export async function parseRoute(
 							default: {
 								throw new InvalidRouterConfigError({
 									filename,
-									line: body.start,
-									message: `unsupported router method ${method} in ${filename} at line ${body.start}`,
+									line: body.loc?.start?.line,
+									message: `unsupported router method ${method} in ${filename} at line ${body.loc?.start?.line}`,
 								});
 							}
 						}
