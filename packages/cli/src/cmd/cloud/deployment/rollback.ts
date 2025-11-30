@@ -4,7 +4,6 @@ import * as tui from '../../../tui';
 import { projectDeploymentRollback, projectDeploymentList } from '@agentuity/server';
 import { resolveProjectId } from './utils';
 import { getCommand } from '../../../command-prefix';
-
 const DeploymentRollbackResponseSchema = z.object({
 	success: z.boolean().describe('Whether the rollback succeeded'),
 	projectId: z.string().describe('Project ID'),
@@ -24,8 +23,14 @@ export const rollbackSubcommand = createSubcommand({
 		'requires-deployment',
 	],
 	examples: [
-		`${getCommand('cloud deployment rollback')}                   # Rollback to previous deployment`,
-		`${getCommand('cloud deployment rollback')} --project-id=proj_abc123xyz`,
+		{
+			command: getCommand('cloud deployment rollback'),
+			description: 'Rollback to previous deployment',
+		},
+		{
+			command: getCommand('cloud deployment rollback --project-id=proj_abc123xyz'),
+			description: 'Rollback specific project',
+		},
 	],
 	idempotent: false,
 	requires: { auth: true, apiClient: true },

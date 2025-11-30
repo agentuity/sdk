@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/runtime",
-	"version": "0.0.60",
+	"version": "0.0.61",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",

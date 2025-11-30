@@ -19,9 +19,12 @@ export const showSubcommand = createSubcommand({
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
 	requires: { auth: true, apiClient: true },
 	examples: [
-		getCommand('project show proj_abc123def456'),
-		getCommand('--json project show proj_abc123def456'),
-		getCommand('project get proj_abc123def456'),
+		{ command: getCommand('project show proj_abc123def456'), description: 'Show details' },
+		{
+			command: getCommand('--json project show proj_abc123def456'),
+			description: 'Show output in JSON format',
+		},
+		{ command: getCommand('project get proj_abc123def456'), description: 'Get item details' },
 	],
 	schema: {
 		args: z.object({

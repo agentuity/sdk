@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const VectorSearchResultSchema = z.object({
 	id: z.string().describe('Vector ID'),
 	key: z.string().describe('Vector key'),
@@ -26,11 +25,26 @@ export const searchSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('vector search products "comfortable office chair"')} - Search for similar products`,
-		`${getCommand('vector list knowledge-base "machine learning"')} - Search knowledge base`,
-		`${getCommand('vector search docs "API documentation" --limit 5')} - Limit results`,
-		`${getCommand('vector search products "ergonomic" --similarity 0.8')} - Set minimum similarity`,
-		`${getCommand('vector ls embeddings "neural networks" --metadata category=ai')} - Filter by metadata`,
+		{
+			command: getCommand('vector search products "comfortable office chair"'),
+			description: 'Search for similar products',
+		},
+		{
+			command: getCommand('vector list knowledge-base "machine learning"'),
+			description: 'Search knowledge base',
+		},
+		{
+			command: getCommand('vector search docs "API documentation" --limit 5'),
+			description: 'Limit results',
+		},
+		{
+			command: getCommand('vector search products "ergonomic" --similarity 0.8'),
+			description: 'Set minimum similarity',
+		},
+		{
+			command: getCommand('vector ls embeddings "neural networks" --metadata category=ai'),
+			description: 'Filter by metadata',
+		},
 	],
 	schema: {
 		args: z.object({

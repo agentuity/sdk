@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const VectorGetResponseSchema = z.object({
 	exists: z.boolean().describe('Whether the vector exists'),
 	key: z.string().optional().describe('Vector key'),
@@ -20,9 +19,18 @@ export const getSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('vector get products chair-001')} - Get a specific product vector`,
-		`${getCommand('vector get knowledge-base doc-123')} - Get a document from knowledge base`,
-		`${getCommand('vector get embeddings user-profile-456')} - Get user profile embedding`,
+		{
+			command: getCommand('vector get products chair-001'),
+			description: 'Get a specific product vector',
+		},
+		{
+			command: getCommand('vector get knowledge-base doc-123'),
+			description: 'Get a document from knowledge base',
+		},
+		{
+			command: getCommand('vector get embeddings user-profile-456'),
+			description: 'Get user profile embedding',
+		},
 	],
 	schema: {
 		args: z.object({

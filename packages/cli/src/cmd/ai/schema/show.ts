@@ -7,7 +7,10 @@ export const showSubcommand = createSubcommand({
 	description: 'Display the complete CLI schema',
 	tags: ['read-only', 'fast'],
 	idempotent: true,
-	examples: [getCommand('schema show'), getCommand('--help=json')],
+	examples: [
+		{ command: getCommand('schema show'), description: 'Show details' },
+		{ command: getCommand('--json schema show'), description: 'Show output in JSON format' },
+	],
 	async handler(ctx: CommandContext) {
 		const { logger } = ctx;
 

@@ -16,7 +16,7 @@ export const generateSubcommand = createSubcommand({
 	description: 'Generate a JSON schema for the agentuity.json config file',
 	tags: ['read-only', 'fast'],
 	idempotent: true,
-	examples: [getCommand('schema generate')],
+	examples: [{ command: getCommand('schema generate'), description: 'Run generate command' }],
 	async handler(_ctx: CommandContext) {
 		const o = z.toJSONSchema(ProjectSchema);
 		const { $schema, allOf, ...rest } = o;

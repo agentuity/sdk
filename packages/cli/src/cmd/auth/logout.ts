@@ -9,7 +9,10 @@ export const logoutCommand = createSubcommand({
 	tags: ['mutating', 'deletes-resource', 'fast', 'requires-auth'],
 	toplevel: true,
 	idempotent: false,
-	examples: [getCommand('auth logout'), getCommand('logout')],
+	examples: [
+		{ command: getCommand('auth logout'), description: 'Logout from account' },
+		{ command: getCommand('logout'), description: 'Logout from account' },
+	],
 
 	async handler() {
 		await clearAuth();

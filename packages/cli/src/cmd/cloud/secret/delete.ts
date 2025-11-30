@@ -17,7 +17,10 @@ export const deleteSubcommand = createSubcommand({
 	description: 'Delete a secret',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-project'],
 	idempotent: true,
-	examples: [getCommand('secret delete OLD_API_KEY'), getCommand('secret rm DATABASE_URL')],
+	examples: [
+		{ command: getCommand('secret delete OLD_API_KEY'), description: 'Delete item' },
+		{ command: getCommand('secret rm DATABASE_URL'), description: 'Delete item' },
+	],
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({

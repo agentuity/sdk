@@ -19,7 +19,10 @@ export const listCommand = createSubcommand({
 	tags: ['read-only', 'fast'],
 	idempotent: true,
 	aliases: ['ls'],
-	examples: [getCommand('profile list'), getCommand('profile ls')],
+	examples: [
+		{ command: getCommand('profile list'), description: 'List items' },
+		{ command: getCommand('profile ls'), description: 'List items' },
+	],
 	schema: {
 		response: ProfileListResponseSchema,
 	},

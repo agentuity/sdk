@@ -24,14 +24,35 @@ export const listSubcommand = createSubcommand({
 	description: 'List recent sessions',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [
-		`${getCommand('cloud session list')}                      # List 10 most recent sessions`,
-		`${getCommand('cloud session list')} --count=25           # List 25 most recent sessions`,
-		`${getCommand('cloud session list')} --project-id=proj_* # Filter by project`,
-		`${getCommand('cloud session list')} --deployment-id=*   # Filter by deployment`,
-		`${getCommand('cloud session list')} --success=true      # Only successful sessions`,
-		`${getCommand('cloud session list')} --devmode=false     # Only production sessions`,
-		`${getCommand('cloud session list')} --trigger=api       # Only API triggered sessions`,
-		`${getCommand('cloud session list')} --env=production    # Only production environment`,
+		{ command: getCommand('cloud session list'), description: 'List 10 most recent sessions' },
+		{
+			command: getCommand('cloud session list --count=25'),
+			description: 'List 25 most recent sessions',
+		},
+		{
+			command: getCommand('cloud session list --project-id=proj_*'),
+			description: 'Filter by project',
+		},
+		{
+			command: getCommand('cloud session list --deployment-id=*'),
+			description: 'Filter by deployment',
+		},
+		{
+			command: getCommand('cloud session list --success=true'),
+			description: 'Only successful sessions',
+		},
+		{
+			command: getCommand('cloud session list --devmode=false'),
+			description: 'Only production sessions',
+		},
+		{
+			command: getCommand('cloud session list --trigger=api'),
+			description: 'Only API triggered sessions',
+		},
+		{
+			command: getCommand('cloud session list --env=production'),
+			description: 'Only production environment',
+		},
 	],
 	aliases: ['ls'],
 	requires: { auth: true },

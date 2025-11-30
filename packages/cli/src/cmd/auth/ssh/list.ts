@@ -22,9 +22,9 @@ export const listCommand = createSubcommand({
 	requires: { apiClient: true, auth: true },
 	idempotent: true,
 	examples: [
-		getCommand('auth ssh list'),
-		getCommand('auth ssh ls'),
-		getCommand('--json auth ssh list'),
+		{ command: getCommand('auth ssh list'), description: 'List items' },
+		{ command: getCommand('auth ssh ls'), description: 'List items' },
+		{ command: getCommand('--json auth ssh list'), description: 'Show output in JSON format' },
 	],
 	schema: {
 		response: SSHListResponseSchema,

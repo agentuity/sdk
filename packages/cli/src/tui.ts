@@ -49,6 +49,7 @@ function getColors() {
 			muted: { light: '', dark: '' },
 			bold: { light: '', dark: '' },
 			link: { light: '', dark: '' },
+			primary: { light: '', dark: '' },
 			reset: '',
 		} as const;
 	}
@@ -81,6 +82,10 @@ function getColors() {
 		link: {
 			light: '\x1b[34;4m', // blue underline (need ANSI for underline)
 			dark: '\x1b[94;4m', // bright blue underline
+		},
+		primary: {
+			light: Bun.color('#000000', 'ansi') || '\x1b[30m', // black
+			dark: Bun.color('#FFFFFF', 'ansi') || '\x1b[97m', // white
 		},
 		reset: '\x1b[0m',
 	} as const;
@@ -135,6 +140,12 @@ export function colorInfo(text: string): string {
 
 export function colorMuted(text: string): string {
 	const color = getColor('muted');
+	const reset = getColor('reset');
+	return `${color}${text}${reset}`;
+}
+
+export function colorPrimary(text: string): string {
+	const color = getColor('primary');
 	const reset = getColor('reset');
 	return `${color}${text}${reset}`;
 }
@@ -249,8 +260,7 @@ export function heading(text: string): string {
 /**
  * Format text as a link (blue and underlined)
  */
-export function link(url: string, title?: string): string {
-	const color = getColor('link');
+export function link(url: string, title?: string, color = getColor('link')): string {
 	const reset = getColor('reset');
 
 	// Check if terminal supports hyperlinks (OSC 8) and colors are enabled

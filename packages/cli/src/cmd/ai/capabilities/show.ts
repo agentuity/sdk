@@ -52,7 +52,13 @@ export const showSubcommand = createSubcommand({
 	name: 'show',
 	description: 'Display CLI capabilities',
 	tags: ['read-only', 'fast'],
-	examples: [getCommand('capabilities show'), getCommand('--json capabilities show')],
+	examples: [
+		{ command: getCommand('capabilities show'), description: 'Show CLI AI capabilities' },
+		{
+			command: getCommand('--json capabilities show'),
+			description: 'Show output in JSON format',
+		},
+	],
 	schema: {
 		response: CapabilitiesShowResponseSchema,
 	},

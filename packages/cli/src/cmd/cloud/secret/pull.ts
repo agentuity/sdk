@@ -24,7 +24,10 @@ export const pullSubcommand = createSubcommand({
 	description: 'Pull secrets from cloud to local .env.production file',
 	tags: ['slow', 'requires-auth', 'requires-project'],
 	idempotent: true,
-	examples: [getCommand('secret pull'), getCommand('secret pull --force')],
+	examples: [
+		{ command: getCommand('secret pull'), description: 'Run pull command' },
+		{ command: getCommand('secret pull --force'), description: 'Use force option' },
+	],
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['cloud deploy'],
 	schema: {

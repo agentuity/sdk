@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const NamespaceListResponseSchema = z.array(z.string().describe('Namespace name'));
 
 export const listNamespacesSubcommand = createCommand({
@@ -13,9 +12,9 @@ export const listNamespacesSubcommand = createCommand({
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true, project: true },
 	examples: [
-		`${getCommand('kv list-namespaces')} - List all namespaces`,
-		`${getCommand('kv namespaces')} - List namespaces (using alias)`,
-		`${getCommand('kv ns')} - List namespaces (short alias)`,
+		{ command: getCommand('kv list-namespaces'), description: 'List all namespaces' },
+		{ command: getCommand('kv namespaces'), description: 'List namespaces (using alias)' },
+		{ command: getCommand('kv ns'), description: 'List namespaces (short alias)' },
 	],
 	schema: {
 		response: NamespaceListResponseSchema,

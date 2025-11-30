@@ -11,7 +11,10 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List all secrets',
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
-	examples: [getCommand('secret list'), getCommand('secret list --no-mask')],
+	examples: [
+		{ command: getCommand('secret list'), description: 'List items' },
+		{ command: getCommand('secret list --no-mask'), description: 'Use no mask option' },
+	],
 	requires: { auth: true, project: true, apiClient: true },
 	idempotent: true,
 	schema: {

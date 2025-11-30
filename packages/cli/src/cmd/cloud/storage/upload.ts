@@ -16,9 +16,18 @@ export const uploadSubcommand = createSubcommand({
 	requires: { auth: true, org: true, region: true },
 	idempotent: false,
 	examples: [
-		`${getCommand('cloud storage upload')} my-bucket file.txt`,
-		`${getCommand('cloud storage put')} my-bucket file.txt --content-type text/plain`,
-		`cat file.txt | ${getCommand('cloud storage upload')} my-bucket -`,
+		{
+			command: `${getCommand('cloud storage upload')} my-bucket file.txt`,
+			description: 'Upload file to bucket',
+		},
+		{
+			command: `${getCommand('cloud storage put')} my-bucket file.txt --content-type text/plain`,
+			description: 'Upload file with content type',
+		},
+		{
+			command: `cat file.txt | ${getCommand('cloud storage upload')} my-bucket -`,
+			description: 'Upload from stdin',
+		},
 	],
 	schema: {
 		args: z.object({

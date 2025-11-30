@@ -22,9 +22,18 @@ export const getSubcommand = createSubcommand({
 	requires: { auth: true, org: true, region: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('cloud storage get')} my-bucket`,
-		`${getCommand('cloud storage show')} my-bucket`,
-		`${getCommand('cloud storage get')} my-bucket --show-credentials`,
+		{
+			command: `${getCommand('cloud storage get')} my-bucket`,
+			description: 'Get bucket details',
+		},
+		{
+			command: `${getCommand('cloud storage show')} my-bucket`,
+			description: 'Show bucket information',
+		},
+		{
+			command: `${getCommand('cloud storage get')} my-bucket --show-credentials`,
+			description: 'Get bucket with credentials',
+		},
 	],
 	schema: {
 		args: z.object({

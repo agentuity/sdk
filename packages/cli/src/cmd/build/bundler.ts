@@ -1,6 +1,6 @@
 import { $ } from 'bun';
 import { z } from 'zod';
-import { join, relative, resolve, dirname } from 'node:path';
+import { join, relative, resolve, dirname, basename } from 'node:path';
 import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
 import AgentuityBundler, { getBuildMetadata } from './plugin';
@@ -119,7 +119,11 @@ export async function bundle({
 		}
 		const files = await getFilesRecursively(dir);
 		for (const filename of files) {
-			if (/\.[jt]s?$/.test(filename) && !filename.includes('.generated.')) {
+			if (
+				/\.[jt]s?$/.test(filename) &&
+				!filename.includes('.generated.') &&
+				basename(filename) !== 'AGENTS.md'
+			) {
 				appEntrypoints.push(filename);
 			}
 		}

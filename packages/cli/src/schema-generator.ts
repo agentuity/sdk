@@ -31,13 +31,18 @@ export interface SchemaPagination {
 	};
 }
 
+export interface SchemaExample {
+	command: string;
+	description: string;
+}
+
 export interface SchemaCommand {
 	name: string;
 	description: string;
 	aliases?: string[];
 	arguments?: SchemaArgument[];
 	options?: SchemaOption[];
-	examples?: string[];
+	examples?: SchemaExample[];
 	response?: unknown;
 	idempotent?: boolean;
 	prerequisites?: string[];
@@ -280,6 +285,7 @@ export function generateCLISchema(
 			6: 'Network error (API unreachable or timeout)',
 			7: 'File system error (file read/write failed)',
 			8: 'User cancelled (operation aborted by user)',
+			9: 'Build failed',
 		},
 		globalOptions: [
 			{

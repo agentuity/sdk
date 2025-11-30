@@ -24,9 +24,12 @@ export const listSubcommand = createSubcommand({
 		response: ProjectListResponseSchema,
 	},
 	examples: [
-		getCommand('project list'),
-		getCommand('--json project list'),
-		getCommand('project ls'),
+		{ command: getCommand('project list'), description: 'List projects (human-readable)' },
+		{ command: getCommand('--json project list'), description: 'List projects in JSON format' },
+		{
+			command: getCommand('project ls'),
+			description: 'Alias for "project list" — list projects (human-readable)',
+		},
 	],
 
 	async handler(ctx) {

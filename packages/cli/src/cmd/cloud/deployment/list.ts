@@ -22,9 +22,18 @@ export const listSubcommand = createSubcommand({
 	description: 'List deployments',
 	tags: ['read-only', 'slow', 'requires-auth'],
 	examples: [
-		`${getCommand('cloud deployment list')}           # List 10 most recent deployments`,
-		`${getCommand('cloud deployment list')} --count=25 # List 25 most recent deployments`,
-		`${getCommand('cloud deployment list')} --project-id=proj_abc123xyz`,
+		{
+			command: getCommand('cloud deployment list'),
+			description: 'List 10 most recent deployments',
+		},
+		{
+			command: getCommand('cloud deployment list --count=25'),
+			description: 'List 25 most recent deployments',
+		},
+		{
+			command: getCommand('cloud deployment list --project-id=proj_abc123xyz'),
+			description: 'List deployments for specific project',
+		},
 	],
 	aliases: ['ls'],
 	requires: { auth: true, apiClient: true },

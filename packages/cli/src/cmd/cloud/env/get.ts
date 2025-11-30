@@ -14,7 +14,10 @@ export const getSubcommand = createSubcommand({
 	name: 'get',
 	description: 'Get an environment variable value',
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
-	examples: [getCommand('env get NODE_ENV'), getCommand('env get LOG_LEVEL')],
+	examples: [
+		{ command: getCommand('env get NODE_ENV'), description: 'Get item details' },
+		{ command: getCommand('env get LOG_LEVEL'), description: 'Get item details' },
+	],
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({

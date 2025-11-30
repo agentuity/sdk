@@ -24,11 +24,17 @@ export const createProjectSubcommand = createSubcommand({
 	optional: { auth: true, org: true, region: true },
 	requires: { apiClient: true },
 	examples: [
-		getCommand('project create'),
-		getCommand('project create --name my-ai-agent'),
-		getCommand('project create --name customer-service-bot --dir ~/projects/agent'),
-		getCommand('project create --template basic --no-install'),
-		getCommand('project new --no-register'),
+		{ command: getCommand('project create'), description: 'Create new item' },
+		{ command: getCommand('project create --name my-ai-agent'), description: 'Create new item' },
+		{
+			command: getCommand('project create --name customer-service-bot --dir ~/projects/agent'),
+			description: 'Create new item',
+		},
+		{
+			command: getCommand('project create --template basic --no-install'),
+			description: 'Use no install option',
+		},
+		{ command: getCommand('project new --no-register'), description: 'Use no register option' },
 	],
 	schema: {
 		options: z.object({

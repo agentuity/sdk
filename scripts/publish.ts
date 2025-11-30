@@ -452,7 +452,7 @@ async function validateEnvironment(isDryRun: boolean) {
 
 async function getPreviousReleaseTag(): Promise<string | null> {
 	try {
-		const result = await $`git describe --tags --abbrev=0 --match="v*" HEAD^`.text().quiet();
+		const result = await $`git describe --tags --abbrev=0 --match="v*" HEAD^`.text();
 		return result.trim();
 	} catch {
 		// No previous tag found

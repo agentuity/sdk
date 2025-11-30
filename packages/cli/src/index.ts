@@ -1,6 +1,11 @@
 export { createCLI, registerCommands } from './cli';
 export { validateRuntime, isBun } from './runtime';
-export { generateCLISchema, type CLISchema, type SchemaCommand } from './schema-generator';
+export {
+	generateCLISchema,
+	type CLISchema,
+	type SchemaCommand,
+	type SchemaExample,
+} from './schema-generator';
 export {
 	ErrorCode,
 	createError,

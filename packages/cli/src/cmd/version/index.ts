@@ -11,7 +11,13 @@ export const command = createCommand({
 	name: 'version',
 	description: 'Display version information',
 	tags: ['read-only', 'fast'],
-	examples: [getCommand('version'), getCommand('--version')],
+	examples: [
+		{ command: getCommand('version'), description: 'Show the CLI semantic version' },
+		{
+			command: getCommand('--version'),
+			description: 'Display the current installed CLI version and build metadata',
+		},
+	],
 	schema: {
 		response: VersionResponseSchema,
 	},

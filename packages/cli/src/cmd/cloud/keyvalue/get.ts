@@ -4,7 +4,6 @@ import * as tui from '../../../tui';
 import { tryParseJSON } from '../../../json';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const KVGetResponseSchema = z.object({
 	exists: z.boolean().describe('Whether the key exists'),
 	data: z.union([z.string(), z.any()]).optional().describe('Value data (string or binary)'),
@@ -17,9 +16,9 @@ export const getSubcommand = createCommand({
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true, project: true },
 	examples: [
-		`${getCommand('kv get production user:123')} - Get user data`,
-		`${getCommand('kv get cache session:abc')} - Get cached session`,
-		`${getCommand('kv get staging cache:homepage')} - Get homepage cache`,
+		{ command: getCommand('kv get production user:123'), description: 'Get user data' },
+		{ command: getCommand('kv get cache session:abc'), description: 'Get cached session' },
+		{ command: getCommand('kv get staging cache:homepage'), description: 'Get homepage cache' },
 	],
 	schema: {
 		args: z.object({

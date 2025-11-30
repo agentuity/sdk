@@ -23,7 +23,7 @@ export const pushSubcommand = createSubcommand({
 		'requires-project',
 	],
 	idempotent: true,
-	examples: [getCommand('env push')],
+	examples: [{ command: getCommand('env push'), description: 'Run push command' }],
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['env set'],
 	schema: {

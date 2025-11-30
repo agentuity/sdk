@@ -3,7 +3,6 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getIONHost } from '../../../config';
 import { getCommand } from '../../../command-prefix';
-
 const args = z.object({
 	source: z.string().describe('the source file'),
 	destination: z
@@ -23,10 +22,22 @@ export const uploadCommand = createSubcommand({
 	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: false,
 	examples: [
-		`${getCommand('cloud scp upload')} ./config.json                # Upload to remote home directory`,
-		`${getCommand('cloud scp upload')} ./config.json /app/config.json # Upload to specific path`,
-		`${getCommand('cloud scp upload')} ./config.json --identifier=proj_abc123xyz`,
-		`${getCommand('cloud scp upload')} ./logs/*.log ~/logs/        # Upload multiple files`,
+		{
+			command: getCommand('cloud scp upload ./config.json'),
+			description: 'Upload to remote home directory',
+		},
+		{
+			command: getCommand('cloud scp upload ./config.json /app/config.json'),
+			description: 'Upload to specific path',
+		},
+		{
+			command: getCommand('cloud scp upload ./config.json --identifier=proj_abc123xyz'),
+			description: 'Upload to specific project',
+		},
+		{
+			command: getCommand('cloud scp upload ./logs/*.log ~/logs/'),
+			description: 'Upload multiple files',
+		},
 	],
 	requires: { apiClient: true, auth: true },
 	schema: {

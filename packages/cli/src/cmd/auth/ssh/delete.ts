@@ -21,10 +21,10 @@ export const deleteCommand = createSubcommand({
 	requires: { apiClient: true, auth: true },
 	idempotent: false,
 	examples: [
-		getCommand('auth ssh delete'),
-		getCommand('auth ssh delete <fingerprint>'),
-		getCommand('--explain auth ssh delete abc123'),
-		getCommand('--dry-run auth ssh delete abc123'),
+		{ command: getCommand('auth ssh delete'), description: 'Delete item' },
+		{ command: getCommand('auth ssh delete <fingerprint>'), description: 'Delete item' },
+		{ command: getCommand('--explain auth ssh delete abc123'), description: 'Delete item' },
+		{ command: getCommand('--dry-run auth ssh delete abc123'), description: 'Delete item' },
 	],
 	schema: {
 		args: z.object({

@@ -6,7 +6,10 @@ export const command = createCommand({
 	description: 'Display help information',
 	hidden: true,
 	tags: ['read-only', 'fast'],
-	examples: [getCommand('help'), getCommand('--help')],
+	examples: [
+		{ command: getCommand('help'), description: 'Run help command' },
+		{ command: getCommand('--help'), description: 'Show help information' },
+	],
 	idempotent: true,
 
 	async handler() {

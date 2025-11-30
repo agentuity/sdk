@@ -17,10 +17,22 @@ export const deleteSubcommand = createSubcommand({
 	idempotent: false,
 	requires: { auth: true, org: true, region: true },
 	examples: [
-		getCommand('cloud storage delete my-bucket'),
-		getCommand('cloud storage rm my-bucket file.txt'),
-		getCommand('cloud storage delete'),
-		getCommand('--dry-run cloud storage delete my-bucket'),
+		{
+			command: getCommand('cloud storage delete my-bucket'),
+			description: 'Delete a storage bucket',
+		},
+		{
+			command: getCommand('cloud storage rm my-bucket file.txt'),
+			description: 'Delete a file from a bucket',
+		},
+		{
+			command: getCommand('cloud storage delete'),
+			description: 'Interactive selection to delete a bucket',
+		},
+		{
+			command: getCommand('--dry-run cloud storage delete my-bucket'),
+			description: 'Dry-run: show what would be deleted without making changes',
+		},
 	],
 	schema: {
 		args: z.object({

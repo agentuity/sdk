@@ -11,8 +11,11 @@ export const getSubcommand = createSubcommand({
 	description: 'Get details about a specific agent',
 	requires: { auth: true, apiClient: true, project: true },
 	examples: [
-		getCommand('cloud agent get agent_abc123'),
-		getCommand('--json cloud agent get agent_abc123'),
+		{ command: getCommand('cloud agent get agent_abc123'), description: 'Get item details' },
+		{
+			command: getCommand('--json cloud agent get agent_abc123'),
+			description: 'Show output in JSON format',
+		},
 	],
 	schema: {
 		args: z.object({

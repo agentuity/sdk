@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 export const listKeysSubcommand = createCommand({
 	name: 'list-keys',
 	aliases: ['ls', 'list'],
@@ -12,9 +11,12 @@ export const listKeysSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('objectstore list-keys uploads')} - List all uploaded files`,
-		`${getCommand('objectstore ls assets')} - List assets (using alias)`,
-		`${getCommand('objectstore list backups')} - List all backups`,
+		{
+			command: getCommand('objectstore list-keys uploads'),
+			description: 'List all uploaded files',
+		},
+		{ command: getCommand('objectstore ls assets'), description: 'List assets (using alias)' },
+		{ command: getCommand('objectstore list backups'), description: 'List all backups' },
 	],
 	schema: {
 		args: z.object({

@@ -40,12 +40,21 @@ export const listSubcommand = createSubcommand({
 	requires: { auth: true, org: true, region: true },
 	idempotent: true,
 	examples: [
-		getCommand('cloud storage list'),
-		getCommand('cloud storage list my-bucket'),
-		getCommand('cloud storage list my-bucket path/prefix'),
-		getCommand('--json cloud storage list'),
-		getCommand('cloud storage ls'),
-		getCommand('cloud storage list --show-credentials'),
+		{ command: getCommand('cloud storage list'), description: 'List items' },
+		{ command: getCommand('cloud storage list my-bucket'), description: 'List items' },
+		{
+			command: getCommand('cloud storage list my-bucket path/prefix'),
+			description: 'List items',
+		},
+		{
+			command: getCommand('--json cloud storage list'),
+			description: 'Show output in JSON format',
+		},
+		{ command: getCommand('cloud storage ls'), description: 'List items' },
+		{
+			command: getCommand('cloud storage list --show-credentials'),
+			description: 'Use show credentials option',
+		},
 	],
 	schema: {
 		args: z.object({

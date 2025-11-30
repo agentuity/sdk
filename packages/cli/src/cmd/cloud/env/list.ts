@@ -14,7 +14,10 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List all environment variables',
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
-	examples: [getCommand('env list'), getCommand('env list --mask')],
+	examples: [
+		{ command: getCommand('env list'), description: 'List items' },
+		{ command: getCommand('env list --mask'), description: 'Use mask option' },
+	],
 	requires: { auth: true, project: true, apiClient: true },
 	idempotent: true,
 	schema: {

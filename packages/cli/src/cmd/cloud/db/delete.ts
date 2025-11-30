@@ -16,10 +16,10 @@ export const deleteSubcommand = createSubcommand({
 	idempotent: false,
 	requires: { auth: true, org: true, region: true },
 	examples: [
-		getCommand('cloud db delete my-database'),
-		getCommand('cloud db rm my-database'),
-		getCommand('cloud db delete'),
-		getCommand('--dry-run cloud db delete my-database'),
+		{ command: getCommand('cloud db delete my-database'), description: 'Delete item' },
+		{ command: getCommand('cloud db rm my-database'), description: 'Delete item' },
+		{ command: getCommand('cloud db delete'), description: 'Delete item' },
+		{ command: getCommand('--dry-run cloud db delete my-database'), description: 'Delete item' },
 	],
 	schema: {
 		args: z.object({

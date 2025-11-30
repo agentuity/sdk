@@ -19,8 +19,14 @@ export const logsSubcommand = createSubcommand({
 	description: 'Get logs for a specific session',
 	tags: ['read-only', 'slow', 'requires-auth'],
 	examples: [
-		`${getCommand('cloud session logs')} sess_abc123xyz`,
-		`${getCommand('cloud session logs')} --no-timestamps  # hide timestamps`,
+		{
+			command: getCommand('cloud session logs sess_abc123xyz'),
+			description: 'View logs for session',
+		},
+		{
+			command: getCommand('cloud session logs sess_abc123xyz --no-timestamps'),
+			description: 'Hide timestamps',
+		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },

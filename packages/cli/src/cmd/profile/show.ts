@@ -14,9 +14,12 @@ export const showCommand = createSubcommand({
 	tags: ['read-only', 'fast'],
 	aliases: ['current'],
 	examples: [
-		getCommand('profile show'),
-		getCommand('profile show production'),
-		getCommand('profile show staging --json'),
+		{ command: getCommand('profile show'), description: 'Show details' },
+		{ command: getCommand('profile show production'), description: 'Show details' },
+		{
+			command: getCommand('profile show staging --json'),
+			description: 'Show output in JSON format',
+		},
 	],
 	schema: {
 		args: z

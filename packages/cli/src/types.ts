@@ -127,6 +127,11 @@ export interface PaginationInfo {
 	};
 }
 
+export interface CommandExample {
+	command: string;
+	description: string;
+}
+
 export interface CommandSchemas {
 	args?: z.ZodType;
 	options?: z.ZodType;
@@ -263,7 +268,7 @@ export function createSubcommand<
 	toplevel?: boolean;
 	requires?: R;
 	optional?: O;
-	examples?: string[];
+	examples?: CommandExample[];
 	idempotent?: boolean;
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
@@ -304,7 +309,7 @@ export function createCommand<
 	hidden?: boolean;
 	requires?: R;
 	optional?: O;
-	examples?: string[];
+	examples?: CommandExample[];
 	idempotent?: boolean;
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
@@ -338,7 +343,7 @@ type CommandDefBase =
 			description: string;
 			aliases?: string[];
 			banner?: boolean;
-			examples?: string[];
+			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
@@ -352,7 +357,7 @@ type CommandDefBase =
 			description: string;
 			aliases?: string[];
 			banner?: boolean;
-			examples?: string[];
+			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
@@ -369,7 +374,7 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
-			examples?: string[];
+			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
@@ -384,7 +389,7 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
-			examples?: string[];
+			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;

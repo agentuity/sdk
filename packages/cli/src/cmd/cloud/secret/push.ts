@@ -23,7 +23,7 @@ export const pushSubcommand = createSubcommand({
 		'requires-project',
 	],
 	idempotent: true,
-	examples: [getCommand('secret push')],
+	examples: [{ command: getCommand('secret push'), description: 'Run push command' }],
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['secret set'],
 	schema: {

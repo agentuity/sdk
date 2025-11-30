@@ -13,9 +13,9 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	requires: { auth: true, apiClient: true, project: true },
 	examples: [
-		getCommand('cloud agent list'),
-		getCommand('cloud agent list --verbose'),
-		getCommand('--json cloud agent list'),
+		{ command: getCommand('cloud agent list'), description: 'List items' },
+		{ command: getCommand('cloud agent list --verbose'), description: 'Use verbose option' },
+		{ command: getCommand('--json cloud agent list'), description: 'Show output in JSON format' },
 	],
 	schema: {
 		options: z.object({

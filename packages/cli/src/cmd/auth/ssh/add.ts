@@ -119,10 +119,19 @@ export const addCommand = createSubcommand({
 	idempotent: false,
 	requires: { apiClient: true, auth: true },
 	examples: [
-		getCommand('auth ssh add'),
-		getCommand('auth ssh add --file ~/.ssh/id_ed25519.pub'),
-		getCommand('auth ssh add --file ./deploy_key.pub'),
-		'cat ~/.ssh/id_rsa.pub | ' + getCommand('auth ssh add'),
+		{ command: getCommand('auth ssh add'), description: 'Add SSH key interactively' },
+		{
+			command: getCommand('auth ssh add --file ~/.ssh/id_ed25519.pub'),
+			description: 'Add SSH key from file',
+		},
+		{
+			command: getCommand('auth ssh add --file ./deploy_key.pub'),
+			description: 'Add deploy key from file',
+		},
+		{
+			command: 'cat ~/.ssh/id_rsa.pub | ' + getCommand('auth ssh add'),
+			description: 'Add SSH key from stdin',
+		},
 	],
 	schema: {
 		options: optionsSchema,

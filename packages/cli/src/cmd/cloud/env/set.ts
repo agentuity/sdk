@@ -24,9 +24,9 @@ export const setSubcommand = createSubcommand({
 	idempotent: true,
 	requires: { auth: true, project: true, apiClient: true },
 	examples: [
-		getCommand('env set NODE_ENV production'),
-		getCommand('env set PORT 3000'),
-		getCommand('env set LOG_LEVEL debug'),
+		{ command: getCommand('env set NODE_ENV production'), description: 'Run production command' },
+		{ command: getCommand('env set PORT 3000'), description: 'Run 3000 command' },
+		{ command: getCommand('env set LOG_LEVEL debug'), description: 'Run debug command' },
 	],
 	schema: {
 		args: z.object({

@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 export const createNamespaceSubcommand = createCommand({
 	name: 'create-namespace',
 	aliases: ['create'],
@@ -12,9 +11,15 @@ export const createNamespaceSubcommand = createCommand({
 	idempotent: false,
 	requires: { auth: true, project: true },
 	examples: [
-		`${getCommand('kv create-namespace production')} - Create production namespace`,
-		`${getCommand('kv create staging')} - Create staging namespace (using alias)`,
-		`${getCommand('kv create cache')} - Create cache namespace`,
+		{
+			command: getCommand('kv create-namespace production'),
+			description: 'Create production namespace',
+		},
+		{
+			command: getCommand('kv create staging'),
+			description: 'Create staging namespace (using alias)',
+		},
+		{ command: getCommand('kv create cache'), description: 'Create cache namespace' },
 	],
 	schema: {
 		args: z.object({

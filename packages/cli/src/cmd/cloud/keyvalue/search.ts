@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const KVSearchResponseSchema = z.object({
 	namespace: z.string().describe('Namespace name'),
 	keyword: z.string().describe('Search keyword used'),
@@ -24,9 +23,15 @@ export const searchSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('kv search production user')} - Find all user-related keys`,
-		`${getCommand('kv search cache session')} - Find all session keys in cache`,
-		`${getCommand('kv search staging config')} - Find all config keys`,
+		{
+			command: getCommand('kv search production user'),
+			description: 'Find all user-related keys',
+		},
+		{
+			command: getCommand('kv search cache session'),
+			description: 'Find all session keys in cache',
+		},
+		{ command: getCommand('kv search staging config'), description: 'Find all config keys' },
 	],
 	schema: {
 		args: z.object({

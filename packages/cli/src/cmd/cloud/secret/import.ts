@@ -31,8 +31,11 @@ export const importSubcommand = createSubcommand({
 		'requires-project',
 	],
 	examples: [
-		getCommand('secret import .env.local'),
-		getCommand('secret import .env.production.backup'),
+		{ command: getCommand('secret import .env.local'), description: 'Run .env.local command' },
+		{
+			command: getCommand('secret import .env.production.backup'),
+			description: 'Run .env.production.backup command',
+		},
 	],
 	idempotent: false,
 	requires: { auth: true, project: true, apiClient: true },

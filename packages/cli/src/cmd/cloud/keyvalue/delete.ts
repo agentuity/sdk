@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const KVDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	namespace: z.string().describe('Namespace name'),
@@ -19,9 +18,12 @@ export const deleteSubcommand = createCommand({
 	idempotent: true,
 	requires: { auth: true, project: true },
 	examples: [
-		`${getCommand('kv delete production user:123')} - Delete user data`,
-		`${getCommand('kv delete cache session:abc')} - Delete cached session`,
-		`${getCommand('kv rm staging cache:homepage')} - Delete homepage cache (using alias)`,
+		{ command: getCommand('kv delete production user:123'), description: 'Delete user data' },
+		{ command: getCommand('kv delete cache session:abc'), description: 'Delete cached session' },
+		{
+			command: getCommand('kv rm staging cache:homepage'),
+			description: 'Delete homepage cache (using alias)',
+		},
 	],
 	schema: {
 		args: z.object({

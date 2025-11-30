@@ -13,9 +13,12 @@ export const deleteCommand = createSubcommand({
 	idempotent: false,
 	aliases: ['remove', 'rm', 'del'],
 	examples: [
-		getCommand('profile delete staging'),
-		getCommand('profile delete old-dev --confirm'),
-		getCommand('profile delete'),
+		{ command: getCommand('profile delete staging'), description: 'Delete item' },
+		{
+			command: getCommand('profile delete old-dev --confirm'),
+			description: 'Use confirm option',
+		},
+		{ command: getCommand('profile delete'), description: 'Delete item' },
 	],
 	schema: {
 		args: z.object({

@@ -3,6 +3,7 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { APIResponseSchema } from '@agentuity/server';
 import { abbreviate, abbreviateDescription } from '../../utils/format';
+import { getCommand } from '../../command-prefix';
 
 const AgentSchema = z.object({
 	id: z.string(),
@@ -35,6 +36,10 @@ const AgentsResponseSchema = APIResponseSchema(z.array(AgentSchema));
 export const agentsSubcommand = createSubcommand({
 	name: 'agents',
 	description: 'Show devmode agent results',
+	examples: [
+		{ command: getCommand('dev agents'), description: 'Show all development mode agents' },
+		{ command: getCommand('dev agents --verbose'), description: 'Show agents with full details' },
+	],
 	requires: { auth: true, apiClient: true, project: true },
 	schema: {
 		options: z.object({

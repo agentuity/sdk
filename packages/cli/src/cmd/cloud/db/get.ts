@@ -19,9 +19,15 @@ export const getSubcommand = createSubcommand({
 	requires: { auth: true, org: true, region: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('cloud db get')} my-database`,
-		`${getCommand('cloud db show')} my-database`,
-		`${getCommand('cloud db get')} my-database --show-credentials`,
+		{ command: `${getCommand('cloud db get')} my-database`, description: 'Get database details' },
+		{
+			command: `${getCommand('cloud db show')} my-database`,
+			description: 'Show database information',
+		},
+		{
+			command: `${getCommand('cloud db get')} my-database --show-credentials`,
+			description: 'Get database with credentials',
+		},
 	],
 	schema: {
 		args: z.object({

@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const KVKeysResponseSchema = z.object({
 	namespace: z.string().describe('Namespace name'),
 	keys: z.array(z.string()).describe('List of keys in the namespace'),
@@ -17,9 +16,9 @@ export const keysSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('kv keys production')} - List all keys in production`,
-		`${getCommand('kv ls cache')} - List all cached keys (using alias)`,
-		`${getCommand('kv list staging')} - List all staging keys`,
+		{ command: getCommand('kv keys production'), description: 'List all keys in production' },
+		{ command: getCommand('kv ls cache'), description: 'List all cached keys (using alias)' },
+		{ command: getCommand('kv list staging'), description: 'List all staging keys' },
 	],
 	schema: {
 		args: z.object({

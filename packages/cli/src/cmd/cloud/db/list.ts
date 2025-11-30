@@ -24,10 +24,13 @@ export const listSubcommand = createSubcommand({
 	requires: { auth: true, org: true, region: true },
 	idempotent: true,
 	examples: [
-		getCommand('cloud db list'),
-		getCommand('--json cloud db list'),
-		getCommand('cloud db ls'),
-		getCommand('cloud db list --show-credentials'),
+		{ command: getCommand('cloud db list'), description: 'List items' },
+		{ command: getCommand('--json cloud db list'), description: 'Show output in JSON format' },
+		{ command: getCommand('cloud db ls'), description: 'List items' },
+		{
+			command: getCommand('cloud db list --show-credentials'),
+			description: 'Use show credentials option',
+		},
 	],
 	schema: {
 		options: z.object({

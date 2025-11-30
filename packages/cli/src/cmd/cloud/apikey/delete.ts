@@ -17,9 +17,9 @@ export const deleteSubcommand = createSubcommand({
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,
 	examples: [
-		getCommand('cloud apikey delete <id>'),
-		getCommand('cloud apikey del <id>'),
-		getCommand('cloud apikey rm <id>'),
+		{ command: getCommand('cloud apikey delete <id>'), description: 'Delete item' },
+		{ command: getCommand('cloud apikey del <id>'), description: 'Run <id> command' },
+		{ command: getCommand('cloud apikey rm <id>'), description: 'Delete item' },
 	],
 	requires: { auth: true, apiClient: true },
 	schema: {

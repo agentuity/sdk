@@ -6,14 +6,18 @@ import * as tui from '../../../tui';
 import { isPossiblyJSON, tryParseJSON } from '../../../json';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 export const replSubcommand = createCommand({
 	name: 'repl',
 	description: 'Start an interactive repl for working with object storage',
 	tags: ['slow', 'requires-auth'],
 	idempotent: false,
 	requires: { auth: true, project: true },
-	examples: [`${getCommand('objectstore repl')} - Start interactive object storage session`],
+	examples: [
+		{
+			command: getCommand('objectstore repl'),
+			description: 'Start interactive object storage session',
+		},
+	],
 
 	async handler(ctx) {
 		showBanner(undefined, true);

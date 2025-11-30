@@ -24,7 +24,10 @@ export const pullSubcommand = createSubcommand({
 	description: 'Pull environment variables from cloud to local .env.production file',
 	tags: ['slow', 'requires-auth', 'requires-project'],
 	idempotent: true,
-	examples: [getCommand('env pull'), getCommand('env pull --force')],
+	examples: [
+		{ command: getCommand('env pull'), description: 'Run pull command' },
+		{ command: getCommand('env pull --force'), description: 'Use force option' },
+	],
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['cloud deploy'],
 	schema: {

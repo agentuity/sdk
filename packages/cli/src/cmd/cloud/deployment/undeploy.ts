@@ -4,15 +4,23 @@ import * as tui from '../../../tui';
 import { projectDeploymentUndeploy } from '@agentuity/server';
 import { resolveProjectId } from './utils';
 import { getCommand } from '../../../command-prefix';
-
 export const undeploySubcommand = createSubcommand({
 	name: 'undeploy',
 	description: 'Undeploy the latest deployment',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	examples: [
-		`${getCommand('cloud deployment undeploy')}        # Undeploy with confirmation`,
-		`${getCommand('cloud deployment undeploy')} --force # Undeploy without confirmation`,
-		`${getCommand('cloud deployment undeploy')} --project-id=proj_abc123xyz`,
+		{
+			command: getCommand('cloud deployment undeploy'),
+			description: 'Undeploy with confirmation',
+		},
+		{
+			command: getCommand('cloud deployment undeploy --force'),
+			description: 'Undeploy without confirmation',
+		},
+		{
+			command: getCommand('cloud deployment undeploy --project-id=proj_abc123xyz'),
+			description: 'Undeploy specific project',
+		},
 	],
 	idempotent: false,
 	requires: { auth: true, apiClient: true },

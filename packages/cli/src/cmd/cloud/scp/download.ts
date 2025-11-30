@@ -3,7 +3,6 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getIONHost } from '../../../config';
 import { getCommand } from '../../../command-prefix';
-
 const args = z.object({
 	source: z.string().describe('the source file'),
 	destination: z.string().optional().describe('the destination file'),
@@ -20,10 +19,22 @@ export const downloadCommand = createSubcommand({
 	tags: ['read-only', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: true,
 	examples: [
-		`${getCommand('cloud scp download')} /var/log/app.log          # Download to current directory`,
-		`${getCommand('cloud scp download')} /var/log/app.log ./logs/  # Download to specific path`,
-		`${getCommand('cloud scp download')} /app/config.json --identifier=proj_abc123xyz`,
-		`${getCommand('cloud scp download')} ~/logs/*.log ./logs/      # Download multiple files`,
+		{
+			command: getCommand('cloud scp download /var/log/app.log'),
+			description: 'Download to current directory',
+		},
+		{
+			command: getCommand('cloud scp download /var/log/app.log ./logs/'),
+			description: 'Download to specific path',
+		},
+		{
+			command: getCommand('cloud scp download /app/config.json --identifier=proj_abc123xyz'),
+			description: 'Download from specific project',
+		},
+		{
+			command: getCommand('cloud scp download ~/logs/*.log ./logs/'),
+			description: 'Download multiple files',
+		},
 	],
 	requires: { apiClient: true, auth: true },
 	optional: { project: true },

@@ -9,7 +9,10 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List all API keys',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	examples: [getCommand('cloud apikey list'), getCommand('cloud apikey ls')],
+	examples: [
+		{ command: getCommand('cloud apikey list'), description: 'List items' },
+		{ command: getCommand('cloud apikey ls'), description: 'List items' },
+	],
 	requires: { auth: true, apiClient: true },
 	idempotent: true,
 	schema: {

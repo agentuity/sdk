@@ -21,7 +21,11 @@ export const command = createCommand({
 	aliases: ['bundle'],
 	optional: { project: true },
 	idempotent: false,
-	examples: [getCommand('build'), getCommand('build --dev'), getCommand('bundle')],
+	examples: [
+		{ command: getCommand('build'), description: 'Build the project' },
+		{ command: getCommand('build --dev'), description: 'Run in development mode' },
+		{ command: getCommand('bundle'), description: 'Bundle the project' },
+	],
 	schema: {
 		options: z.object({
 			dev: z.boolean().optional().describe('Enable development mode'),

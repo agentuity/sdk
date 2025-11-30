@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 export const deleteBucketSubcommand = createCommand({
 	name: 'delete-bucket',
 	description: 'Delete an object storage bucket and all its contents',
@@ -11,8 +10,14 @@ export const deleteBucketSubcommand = createCommand({
 	idempotent: true,
 	requires: { auth: true, project: true },
 	examples: [
-		`${getCommand('objectstore delete-bucket temp')} - Delete temp bucket (interactive)`,
-		`${getCommand('objectstore delete-bucket old-uploads --confirm')} - Force delete without confirmation`,
+		{
+			command: getCommand('objectstore delete-bucket temp'),
+			description: 'Delete temp bucket (interactive)',
+		},
+		{
+			command: getCommand('objectstore delete-bucket old-uploads --confirm'),
+			description: 'Force delete without confirmation',
+		},
 	],
 	schema: {
 		args: z.object({

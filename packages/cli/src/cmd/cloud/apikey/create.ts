@@ -16,11 +16,20 @@ export const createSubcommand = createSubcommandHelper({
 	description: 'Create a new API key',
 	tags: ['destructive', 'creates-resource', 'slow', 'requires-auth'],
 	examples: [
-		getCommand('cloud apikey create --name "My API Key" --expires-at 1y'),
-		getCommand('cloud apikey create --name "Short-lived Key" --expires-at 30d'),
-		getCommand(
-			'cloud apikey create --name "Production Key" --expires-at 2026-01-01T00:00:00Z --confirm'
-		),
+		{
+			command: getCommand('cloud apikey create --name "My API Key" --expires-at 1y'),
+			description: 'Create API key with 1 year expiration',
+		},
+		{
+			command: getCommand('cloud apikey create --name "Short-lived Key" --expires-at 30d'),
+			description: 'Create API key with 30 day expiration',
+		},
+		{
+			command: getCommand(
+				'cloud apikey create --name "Production Key" --expires-at 2026-01-01T00:00:00Z --confirm'
+			),
+			description: 'Create API key with specific date and skip confirmation',
+		},
 	],
 	requires: { auth: true, apiClient: true, org: true },
 	optional: { project: true },

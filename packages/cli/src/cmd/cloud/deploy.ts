@@ -57,9 +57,15 @@ export const deploySubcommand = createSubcommand({
 		'requires-project',
 	],
 	examples: [
-		`${getCommand('cloud deploy')}                    # Deploy current project`,
-		`${getCommand('cloud deploy')} --log-level=debug  # Deploy with verbose output`,
-		`${getCommand('cloud deploy')} --tag a --tag b    # Deploy with specific tags`,
+		{ command: getCommand('cloud deploy'), description: 'Deploy current project' },
+		{
+			command: getCommand('cloud deploy --log-level=debug'),
+			description: 'Deploy with verbose output',
+		},
+		{
+			command: getCommand('cloud deploy --tag a --tag b'),
+			description: 'Deploy with specific tags',
+		},
 	],
 	toplevel: true,
 	idempotent: false,

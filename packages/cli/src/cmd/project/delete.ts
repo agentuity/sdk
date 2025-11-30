@@ -13,12 +13,21 @@ export const deleteSubcommand = createSubcommand({
 	requires: { auth: true, apiClient: true },
 	idempotent: false,
 	examples: [
-		getCommand('project delete'),
-		getCommand('project delete proj_abc123def456'),
-		getCommand('project delete proj_abc123def456 --confirm'),
-		getCommand('project rm proj_abc123def456'),
-		getCommand('--explain project delete proj_abc123def456'),
-		getCommand('--dry-run project delete proj_abc123def456'),
+		{ command: getCommand('project delete'), description: 'Delete item' },
+		{ command: getCommand('project delete proj_abc123def456'), description: 'Delete item' },
+		{
+			command: getCommand('project delete proj_abc123def456 --confirm'),
+			description: 'Use confirm option',
+		},
+		{ command: getCommand('project rm proj_abc123def456'), description: 'Delete item' },
+		{
+			command: getCommand('--explain project delete proj_abc123def456'),
+			description: 'Delete item',
+		},
+		{
+			command: getCommand('--dry-run project delete proj_abc123def456'),
+			description: 'Delete item',
+		},
 	],
 	schema: {
 		args: z.object({

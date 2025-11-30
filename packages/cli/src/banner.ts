@@ -1,7 +1,7 @@
 import { getVersion } from './version';
-import { shouldUseColors, isDarkMode } from './tui';
+import { shouldUseColors, isDarkMode, link } from './tui';
 
-export function showBanner(version?: string, compact?: true): void {
+export function generateBanner(version?: string, compact?: true): string {
 	const _version = version ?? getVersion();
 	const USE_COLORS = shouldUseColors();
 	const dark = isDarkMode();
@@ -22,17 +22,33 @@ export function showBanner(version?: string, compact?: true): void {
 	const versionPadding = width - versionLabel.length - 1; // Subtract 1 for the space before closing pipe
 
 	const lines = [
-		'╭────────────────────────────────────────────────────╮',
-		`│ ⨺ Agentuity  ${WHITE}The full-stack platform for AI agents${CYAN} │`,
-		compact ? undefined : '│                                                    │',
-		compact ? undefined : `│${versionLabel}${_version.padEnd(versionPadding)} │`,
-		compact ? undefined : '│ Docs:           https://agentuity.dev              │',
-		compact ? undefined : '│ Community:      https://discord.gg/agentuity       │',
-		compact ? undefined : '│ Dashboard:      https://app.agentuity.com          │',
-		'╰────────────────────────────────────────────────────╯',
+		CYAN + '╭────────────────────────────────────────────────────╮' + RESET,
+		CYAN + `│ ⨺ Agentuity  ${WHITE}The full-stack platform for AI agents${CYAN} │` + RESET,
+		compact ? undefined : CYAN + '│                                                    │' + RESET,
+		compact
+			? undefined
+			: CYAN + `│${versionLabel}${WHITE + _version.padEnd(versionPadding) + CYAN} │` + RESET,
+		compact
+			? undefined
+			: CYAN +
+				`│ Docs:           ${link('https://agentuity.dev', undefined, WHITE!)}${CYAN}              │` +
+				RESET,
+		compact
+			? undefined
+			: CYAN +
+				`│ Community:      ${link('https://discord.gg/agentuity', undefined, WHITE!)}${CYAN}       │` +
+				RESET,
+		compact
+			? undefined
+			: CYAN +
+				`│ Dashboard:      ${link('https://app.agentuity.com', undefined, WHITE!)}${CYAN}          │` +
+				RESET,
+		CYAN + '╰────────────────────────────────────────────────────╯' + RESET,
 	].filter(Boolean) as string[];
 
-	console.log('');
-	lines.forEach((line) => console.log(CYAN + line + RESET));
-	console.log('');
+	return lines.join('\n');
+}
+
+export function showBanner(version?: string, compact?: true): void {
+	console.log(generateBanner(version, compact));
 }

@@ -27,7 +27,10 @@ export const whoamiCommand = createSubcommand({
 	schema: {
 		response: WhoamiResponseSchema,
 	},
-	examples: [getCommand('auth whoami'), getCommand('--json auth whoami')],
+	examples: [
+		{ command: getCommand('auth whoami'), description: 'Show current user' },
+		{ command: getCommand('--json auth whoami'), description: 'Show output in JSON format' },
+	],
 
 	async handler(ctx) {
 		const { apiClient, auth, options } = ctx;

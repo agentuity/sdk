@@ -11,9 +11,18 @@ export const useCommand = createSubcommand({
 	aliases: ['switch'],
 	idempotent: true,
 	examples: [
-		getCommand('profile use production'),
-		getCommand('profile switch staging'),
-		getCommand('profile use'),
+		{
+			command: getCommand('profile use production'),
+			description: 'Switch to the "production" profile',
+		},
+		{
+			command: getCommand('profile switch staging'),
+			description: 'Switch to the "staging" profile',
+		},
+		{
+			command: getCommand('profile use'),
+			description: 'Show interactive profile selection menu',
+		},
 	],
 	schema: {
 		args: z.object({

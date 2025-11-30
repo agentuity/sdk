@@ -3,7 +3,6 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getIONHost } from '../../config';
 import { getCommand } from '../../command-prefix';
-
 const args = z.object({
 	identifier: z.string().optional().describe('The project or deployment id to use'),
 	command: z.string().optional().describe('The command to run'),
@@ -19,12 +18,21 @@ export const sshSubcommand = createSubcommand({
 	tags: ['read-only', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: true,
 	examples: [
-		`${getCommand('cloud ssh')}                          # SSH into current project`,
-		`${getCommand('cloud ssh')} proj_abc123xyz           # SSH into specific project`,
-		`${getCommand('cloud ssh')} deploy_abc123xyz         # SSH into specific deployment`,
-		`${getCommand('cloud ssh')} 'ps aux'                 # Run command and exit`,
-		`${getCommand('cloud ssh')} proj_abc123xyz 'tail -f /var/log/app.log'`,
-		`${getCommand('cloud ssh')} --show                   # Show SSH command without executing`,
+		{ command: getCommand('cloud ssh'), description: 'SSH into current project' },
+		{ command: getCommand('cloud ssh proj_abc123xyz'), description: 'SSH into specific project' },
+		{
+			command: getCommand('cloud ssh deploy_abc123xyz'),
+			description: 'SSH into specific deployment',
+		},
+		{ command: getCommand("cloud ssh 'ps aux'"), description: 'Run command and exit' },
+		{
+			command: getCommand("cloud ssh proj_abc123xyz 'tail -f /var/log/app.log'"),
+			description: 'Run command on specific project',
+		},
+		{
+			command: getCommand('cloud ssh --show'),
+			description: 'Show SSH command without executing',
+		},
 	],
 	toplevel: true,
 	requires: { auth: true, apiClient: true },

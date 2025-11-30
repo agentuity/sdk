@@ -32,6 +32,16 @@ export const importSubcommand = createSubcommand({
 		'requires-auth',
 		'requires-project',
 	],
+	examples: [
+		{
+			command: getCommand('cloud env import .env'),
+			description: 'Import environment variables from .env file',
+		},
+		{
+			command: getCommand('cloud env import .env.local'),
+			description: 'Import from .env.local file',
+		},
+	],
 	idempotent: false,
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {

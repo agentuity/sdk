@@ -12,10 +12,22 @@ export const logsSubcommand = createSubcommand({
 	description: 'View logs for a specific deployment',
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-deployment'],
 	examples: [
-		`${getCommand('cloud deployment logs')} deploy_abc123xyz`,
-		`${getCommand('cloud deployment logs')} deploy_abc123xyz --limit=50`,
-		`${getCommand('cloud deployment logs')} deploy_abc123xyz --no-timestamps  # hide timestamps`,
-		`${getCommand('cloud deployment logs')} deploy_abc123xyz --project-id=proj_abc123xyz`,
+		{
+			command: getCommand('cloud deployment logs deploy_abc123xyz'),
+			description: 'View logs for deployment',
+		},
+		{
+			command: getCommand('cloud deployment logs deploy_abc123xyz --limit=50'),
+			description: 'Limit to 50 log entries',
+		},
+		{
+			command: getCommand('cloud deployment logs deploy_abc123xyz --no-timestamps'),
+			description: 'Hide timestamps',
+		},
+		{
+			command: getCommand('cloud deployment logs deploy_abc123xyz --project-id=proj_abc123xyz'),
+			description: 'View logs with specific project',
+		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },

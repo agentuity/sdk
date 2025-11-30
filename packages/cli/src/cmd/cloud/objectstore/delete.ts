@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const ObjectStoreDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	bucket: z.string().describe('Bucket name'),
@@ -22,9 +21,18 @@ export const deleteSubcommand = createCommand({
 	idempotent: true,
 	requires: { auth: true, project: true },
 	examples: [
-		`${getCommand('objectstore delete uploads images/old-logo.png')} - Delete old logo`,
-		`${getCommand('objectstore rm assets data/temp.json')} - Remove temp file (using alias)`,
-		`${getCommand('objectstore delete backups db-2023.sql')} - Delete old backup`,
+		{
+			command: getCommand('objectstore delete uploads images/old-logo.png'),
+			description: 'Delete old logo',
+		},
+		{
+			command: getCommand('objectstore rm assets data/temp.json'),
+			description: 'Remove temp file (using alias)',
+		},
+		{
+			command: getCommand('objectstore delete backups db-2023.sql'),
+			description: 'Delete old backup',
+		},
 	],
 	schema: {
 		args: z.object({

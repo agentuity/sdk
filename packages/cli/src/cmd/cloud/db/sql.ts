@@ -28,9 +28,18 @@ export const sqlSubcommand = createSubcommand({
 	requires: { auth: true, org: true, region: true },
 	idempotent: false,
 	examples: [
-		`${getCommand('cloud db sql')} my-database "SELECT * FROM users LIMIT 10"`,
-		`${getCommand('cloud db exec')} my-database "SELECT COUNT(*) FROM orders" --json`,
-		`${getCommand('cloud db query')} my-database "SELECT * FROM products WHERE price > 100"`,
+		{
+			command: `${getCommand('cloud db sql')} my-database "SELECT * FROM users LIMIT 10"`,
+			description: 'Execute SQL query',
+		},
+		{
+			command: `${getCommand('cloud db exec')} my-database "SELECT COUNT(*) FROM orders" --json`,
+			description: 'Execute query with JSON output',
+		},
+		{
+			command: `${getCommand('cloud db query')} my-database "SELECT * FROM products WHERE price > 100"`,
+			description: 'Query with filter',
+		},
 	],
 	schema: {
 		args: z.object({

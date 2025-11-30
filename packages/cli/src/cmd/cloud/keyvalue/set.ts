@@ -4,7 +4,6 @@ import * as tui from '../../../tui';
 import { isPossiblyJSON } from '../../../json';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const KVSetResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	namespace: z.string().describe('Namespace name'),
@@ -22,9 +21,20 @@ export const setSubcommand = createCommand({
 	idempotent: true,
 	requires: { auth: true, project: true },
 	examples: [
-		`${getCommand('kv set production user:123 \'{"name":"Alice","email":"alice@example.com"}\'')} - Store user data`,
-		`${getCommand('kv set cache session:abc "session-data-here" --ttl 3600')} - Store session with 1h TTL`,
-		`${getCommand('kv set staging cache:homepage "<!DOCTYPE html>..." --ttl 600')} - Cache homepage for 10m`,
+		{
+			command: getCommand(
+				'kv set production user:123 \'{"name":"Alice","email":"alice@example.com"}\''
+			),
+			description: 'Store user data',
+		},
+		{
+			command: getCommand('kv set cache session:abc "session-data-here" --ttl 3600'),
+			description: 'Store session with 1h TTL',
+		},
+		{
+			command: getCommand('kv set staging cache:homepage "<!DOCTYPE html>..." --ttl 600'),
+			description: 'Cache homepage for 10m',
+		},
 	],
 	schema: {
 		args: z.object({

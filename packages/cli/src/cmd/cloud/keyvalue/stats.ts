@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const KVStatsResponseSchema = z.union([
 	z.object({
 		namespace: z.string().describe('Namespace name'),
@@ -30,9 +29,12 @@ export const statsSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('kv stats')} - Show stats for all namespaces`,
-		`${getCommand('kv stats production')} - Show stats for production namespace`,
-		`${getCommand('kv stats cache')} - Show stats for cache namespace`,
+		{ command: getCommand('kv stats'), description: 'Show stats for all namespaces' },
+		{
+			command: getCommand('kv stats production'),
+			description: 'Show stats for production namespace',
+		},
+		{ command: getCommand('kv stats cache'), description: 'Show stats for cache namespace' },
 	],
 	schema: {
 		args: z.object({

@@ -7,14 +7,14 @@ export const llmSubcommand = createSubcommand({
 	description: 'Generate a comprehensive prompt for LLM agents',
 	tags: ['read-only', 'fast'],
 	idempotent: true,
-	examples: [getCommand('prompt llm')],
+	examples: [{ command: getCommand('prompt llm'), description: 'Run llm command' }],
 	async handler(_ctx: CommandContext) {
 		const prompt = generateLLMPrompt();
 		console.log(prompt);
 	},
 });
 
-function generateLLMPrompt(): string {
+export function generateLLMPrompt(): string {
 	return `# Agentuity CLI - Agent Usage Guide
 
 ## Overview

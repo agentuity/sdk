@@ -15,10 +15,10 @@ export const createSubcommand = defineSubcommand({
 	idempotent: false,
 	requires: { auth: true, org: true, region: true },
 	examples: [
-		getCommand('cloud db create'),
-		getCommand('cloud db new'),
-		getCommand('cloud db create --name my-db'),
-		getCommand('--dry-run cloud db create'),
+		{ command: getCommand('cloud db create'), description: 'Create new item' },
+		{ command: getCommand('cloud db new'), description: 'Run new command' },
+		{ command: getCommand('cloud db create --name my-db'), description: 'Create new item' },
+		{ command: getCommand('--dry-run cloud db create'), description: 'Create new item' },
 	],
 	schema: {
 		options: z.object({

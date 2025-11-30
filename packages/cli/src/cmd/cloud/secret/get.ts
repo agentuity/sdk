@@ -15,8 +15,11 @@ export const getSubcommand = createSubcommand({
 	description: 'Get a secret value',
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
 	examples: [
-		getCommand('secret get DATABASE_URL'),
-		getCommand('secret get STRIPE_SECRET_KEY --no-mask'),
+		{ command: getCommand('secret get DATABASE_URL'), description: 'Get item details' },
+		{
+			command: getCommand('secret get STRIPE_SECRET_KEY --no-mask'),
+			description: 'Use no mask option',
+		},
 	],
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {

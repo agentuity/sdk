@@ -22,7 +22,10 @@ export const deleteSubcommand = createSubcommand({
 	description: 'Delete an environment variable',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-project'],
 	idempotent: true,
-	examples: [getCommand('env delete OLD_FEATURE_FLAG'), getCommand('env rm PORT')],
+	examples: [
+		{ command: getCommand('env delete OLD_FEATURE_FLAG'), description: 'Delete item' },
+		{ command: getCommand('env rm PORT'), description: 'Delete item' },
+	],
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({

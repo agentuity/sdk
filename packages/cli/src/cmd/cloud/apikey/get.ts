@@ -9,7 +9,7 @@ export const getSubcommand = createSubcommand({
 	name: 'get',
 	description: 'Get a specific API key by id',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	examples: [getCommand('cloud apikey get <id>')],
+	examples: [{ command: getCommand('cloud apikey get <id>'), description: 'Get item details' }],
 	requires: { auth: true, apiClient: true },
 	idempotent: true,
 	schema: {

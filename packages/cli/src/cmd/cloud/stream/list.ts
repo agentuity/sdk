@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 function formatBytes(bytes: number): string {
 	if (bytes === 0) return '0 B';
 	if (bytes < 1024) return `${bytes} B`;
@@ -33,11 +32,17 @@ export const listSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('stream list')} - List all streams`,
-		`${getCommand('stream ls --size 50')} - List 50 most recent streams`,
-		`${getCommand('stream list --name agent-logs')} - Filter by name`,
-		`${getCommand('stream list --metadata type=export')} - Filter by metadata`,
-		`${getCommand('stream ls --json')} - Output as JSON`,
+		{ command: getCommand('cloud stream list'), description: 'List all streams' },
+		{
+			command: getCommand('cloud stream ls --size 50'),
+			description: 'List 50 most recent streams',
+		},
+		{ command: getCommand('cloud stream list --name agent-logs'), description: 'Filter by name' },
+		{
+			command: getCommand('cloud stream list --metadata type=export'),
+			description: 'Filter by metadata',
+		},
+		{ command: getCommand('cloud stream ls --json'), description: 'Output as JSON' },
 	],
 	schema: {
 		options: z.object({

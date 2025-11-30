@@ -4,7 +4,6 @@ import * as tui from '../../../tui';
 import { tryParseJSON } from '../../../json';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const ObjectGetResponseSchema = z.object({
 	exists: z.boolean().describe('Whether the object exists'),
 	data: z.any().optional().describe('Object data (binary)'),
@@ -17,9 +16,18 @@ export const getSubcommand = createCommand({
 	tags: ['read-only', 'slow', 'requires-auth'],
 	requires: { auth: true, project: true },
 	examples: [
-		`${getCommand('objectstore get uploads images/logo.png')} - Download logo image`,
-		`${getCommand('objectstore get assets data/export.json')} - Get JSON export`,
-		`${getCommand('objectstore get backups db-2024.sql')} - Get database backup`,
+		{
+			command: getCommand('objectstore get uploads images/logo.png'),
+			description: 'Download logo image',
+		},
+		{
+			command: getCommand('objectstore get assets data/export.json'),
+			description: 'Get JSON export',
+		},
+		{
+			command: getCommand('objectstore get backups db-2024.sql'),
+			description: 'Get database backup',
+		},
 	],
 	schema: {
 		args: z.object({

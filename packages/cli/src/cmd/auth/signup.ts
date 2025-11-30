@@ -13,7 +13,10 @@ export const signupCommand = createSubcommand({
 	toplevel: true,
 	idempotent: false,
 	requires: { apiClient: true },
-	examples: [getCommand('auth signup'), getCommand('signup')],
+	examples: [
+		{ command: getCommand('auth signup'), description: 'Sign up for account' },
+		{ command: getCommand('signup'), description: 'Sign up for account' },
+	],
 
 	async handler(ctx) {
 		const { logger, config, apiClient } = ctx;

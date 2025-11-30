@@ -11,7 +11,7 @@ import type {
 	AuthData,
 	GlobalOptions,
 } from './types';
-import { showBanner } from './banner';
+import { showBanner, generateBanner } from './banner';
 import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
 import { listRegions, type RegionList } from '@agentuity/server';
 import enquirer from 'enquirer';
@@ -291,8 +291,8 @@ export async function createCLI(version: string): Promise<Command> {
 				// Extract potential command name from error context
 				const match = str.match(/got (\d+)/);
 				if (match) {
-					write(`error: unknown command or subcommand\n`);
-					write(`\nRun '${getCommand('--help')}' for available commands.\n`);
+					write(`${tui.colorError('error: unknown command or subcommand')}\n`);
+					write(tui.warn(`\nRun '${getCommand('--help')}' for available commands.\n`));
 				} else {
 					write(str);
 				}
@@ -305,6 +305,69 @@ export async function createCLI(version: string): Promise<Command> {
 	// Configure help to show only main command names, not aliases
 	program.configureHelp({
 		subcommandTerm: (cmd) => cmd.name(),
+		formatHelp: (cmd, helper) => {
+			const termWidth = helper.padWidth(cmd, helper);
+			const itemIndentWidth = 2;
+			const itemSeparatorWidth = 2;
+
+			function formatItem(term: string, description: string) {
+				if (description) {
+					return `${' '.repeat(itemIndentWidth)}${tui.colorInfo(
+						term.padEnd(termWidth + itemSeparatorWidth)
+					)}${tui.colorMuted(description)}`;
+				}
+				return term;
+			}
+
+			// Format each section
+			let output = cmd.parent ? generateBanner(undefined, true) + '\n' : '';
+
+			// Description
+			const description = helper.commandDescription(cmd);
+			if (description) {
+				output += `${tui.colorInfo(description)}\n`;
+			}
+
+			// Usage
+			const usage = helper.commandUsage(cmd);
+			if (usage) {
+				output += `\n${tui.colorPrimary('\x1b[4mUsage\x1b[24m')}\n  ${tui.bold(tui.colorPrimary(usage))}\n`;
+			}
+
+			// Arguments
+			const argumentList = helper.visibleArguments(cmd).map((argument) => {
+				return formatItem(helper.argumentTerm(argument), helper.argumentDescription(argument));
+			});
+			if (argumentList.length > 0) {
+				output += `\n${tui.colorPrimary('\x1b[4mArguments\x1b[24m')}\n${argumentList.join('\n')}\n`;
+			}
+
+			// Options
+			const optionList = helper.visibleOptions(cmd).map((option) => {
+				return formatItem(helper.optionTerm(option), helper.optionDescription(option));
+			});
+			if (optionList.length > 0) {
+				output += `\n${tui.colorPrimary('\x1b[4mOptions\x1b[24m')}\n${optionList.join('\n')}\n`;
+			}
+
+			// Global options
+			const globalOptionList = helper.visibleGlobalOptions(cmd).map((option) => {
+				return formatItem(helper.optionTerm(option), helper.optionDescription(option));
+			});
+			if (globalOptionList.length > 0) {
+				output += `\n${tui.colorPrimary('\x1b[4mGlobal Options\x1b[24m')}\n${globalOptionList.join('\n')}\n`;
+			}
+
+			// Commands
+			const commandList = helper.visibleCommands(cmd).map((cmd) => {
+				return formatItem(helper.subcommandTerm(cmd), helper.subcommandDescription(cmd));
+			});
+			if (commandList.length > 0) {
+				output += `\n${tui.colorPrimary('\x1b[4mCommands\x1b[24m')}\n${commandList.join('\n')}\n`;
+			}
+
+			return output;
+		},
 	});
 
 	return program;
@@ -450,9 +513,20 @@ async function registerSubcommand(
 
 	// Add examples to help text
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const examples = (subcommand as any).examples as string[] | undefined;
+	const examples = (subcommand as any).examples as
+		| Array<{ command: string; description: string }>
+		| undefined;
 	if (examples && examples.length > 0) {
-		cmd.addHelpText('after', '\nExamples:\n' + examples.map((ex) => `  ${ex}`).join('\n'));
+		// Find the longest command to align comments
+		const maxLength = Math.max(...examples.map((ex) => ex.command.length));
+		const formatted = examples.map((ex) => {
+			const padding = ' '.repeat(maxLength - ex.command.length + 1);
+			return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
+		});
+		cmd.addHelpText(
+			'after',
+			`\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n')
+		);
 	}
 
 	// Check if this subcommand has its own subcommands (nested subcommands)
@@ -1072,9 +1146,20 @@ export async function registerCommands(
 
 			// Add examples to help text
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			const examples = (cmdDef as any).examples as string[] | undefined;
+			const examples = (cmdDef as any).examples as
+				| Array<{ command: string; description: string }>
+				| undefined;
 			if (examples && examples.length > 0) {
-				cmd.addHelpText('after', '\nExamples:\n' + examples.map((ex) => `  ${ex}`).join('\n'));
+				// Find the longest command to align comments
+				const maxLength = Math.max(...examples.map((ex) => ex.command.length));
+				const formatted = examples.map((ex) => {
+					const padding = ' '.repeat(maxLength - ex.command.length + 1);
+					return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
+				});
+				cmd.addHelpText(
+					'after',
+					`\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n')
+				);
 			}
 
 			if (cmdDef.handler) {

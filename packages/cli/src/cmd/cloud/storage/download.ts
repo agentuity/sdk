@@ -14,10 +14,22 @@ export const downloadSubcommand = createSubcommand({
 	requires: { auth: true, org: true, region: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('cloud storage download')} my-bucket file.txt`,
-		`${getCommand('cloud storage download')} my-bucket file.txt output.txt`,
-		`${getCommand('cloud storage download')} my-bucket file.txt - > output.txt`,
-		`${getCommand('cloud storage download')} my-bucket file.txt --metadata`,
+		{
+			command: `${getCommand('cloud storage download')} my-bucket file.txt`,
+			description: 'Download file from bucket',
+		},
+		{
+			command: `${getCommand('cloud storage download')} my-bucket file.txt output.txt`,
+			description: 'Download file to specific path',
+		},
+		{
+			command: `${getCommand('cloud storage download')} my-bucket file.txt - > output.txt`,
+			description: 'Download file to stdout',
+		},
+		{
+			command: `${getCommand('cloud storage download')} my-bucket file.txt --metadata`,
+			description: 'Download metadata only',
+		},
 	],
 	schema: {
 		args: z.object({

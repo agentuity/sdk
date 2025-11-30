@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 function formatBytes(bytes: number): string {
 	if (bytes === 0) return '0 B';
 	if (bytes < 1024) return `${bytes} B`;
@@ -27,10 +26,16 @@ export const getSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('stream get stream-id-123')} - Get stream details`,
-		`${getCommand('stream get stream-id-123 --json')} - Get stream as JSON`,
-		`${getCommand('stream get stream-id-123 --output stream.dat')} - Download stream to file`,
-		`${getCommand('stream get stream-id-123 -o stream.dat')} - Download stream (short flag)`,
+		{ command: getCommand('stream get stream-id-123'), description: 'Get stream details' },
+		{ command: getCommand('stream get stream-id-123 --json'), description: 'Get stream as JSON' },
+		{
+			command: getCommand('stream get stream-id-123 --output stream.dat'),
+			description: 'Download stream to file',
+		},
+		{
+			command: getCommand('stream get stream-id-123 -o stream.dat'),
+			description: 'Download stream (short flag)',
+		},
 	],
 	schema: {
 		args: z.object({

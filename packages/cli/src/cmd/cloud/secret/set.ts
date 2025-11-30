@@ -17,8 +17,14 @@ export const setSubcommand = createSubcommand({
 	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth', 'requires-project'],
 	idempotent: true,
 	examples: [
-		getCommand('secret set DATABASE_URL "postgres://user:pass@host:5432/db"'),
-		getCommand('secret set STRIPE_SECRET_KEY "sk_live_..."'),
+		{
+			command: getCommand('secret set DATABASE_URL "postgres://user:pass@host:5432/db"'),
+			description: 'Set the DATABASE_URL environment secret',
+		},
+		{
+			command: getCommand('secret set STRIPE_SECRET_KEY "sk_live_..."'),
+			description: 'Set the STRIPE_SECRET_KEY environment secret',
+		},
 	],
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {

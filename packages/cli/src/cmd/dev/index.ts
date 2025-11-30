@@ -35,10 +35,10 @@ export const command = createCommand({
 	tags: ['mutating', 'slow', 'requires-project'],
 	idempotent: true,
 	examples: [
-		getCommand('dev'),
-		getCommand('dev --port 8080'),
-		getCommand('dev --local'),
-		getCommand('dev --no-public'),
+		{ command: getCommand('dev'), description: 'Start development server' },
+		{ command: getCommand('dev --port 8080'), description: 'Specify custom port' },
+		{ command: getCommand('dev --local'), description: 'Run in local mode' },
+		{ command: getCommand('dev --no-public'), description: 'Disable public URL' },
 	],
 	schema: {
 		options: z.object({

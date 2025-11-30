@@ -4,7 +4,6 @@ import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const VectorDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	namespace: z.string().describe('Namespace name'),
@@ -22,9 +21,18 @@ export const deleteSubcommand = createCommand({
 	requires: { auth: true, project: true },
 	idempotent: true,
 	examples: [
-		`${getCommand('vector delete products chair-001')} - Delete a single vector (interactive)`,
-		`${getCommand('vector rm knowledge-base doc-123 doc-456 --confirm')} - Delete multiple vectors without confirmation`,
-		`${getCommand('vector del embeddings old-profile-1 old-profile-2 --confirm')} - Bulk delete without confirmation`,
+		{
+			command: getCommand('vector delete products chair-001'),
+			description: 'Delete a single vector (interactive)',
+		},
+		{
+			command: getCommand('vector rm knowledge-base doc-123 doc-456 --confirm'),
+			description: 'Delete multiple vectors without confirmation',
+		},
+		{
+			command: getCommand('vector del embeddings old-profile-1 old-profile-2 --confirm'),
+			description: 'Bulk delete without confirmation',
+		},
 	],
 	schema: {
 		args: z.object({

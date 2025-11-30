@@ -3,7 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 const BucketListResponseSchema = z.array(
 	z.object({
 		name: z.string().describe('Bucket name'),
@@ -21,7 +20,12 @@ export const listBucketsSubcommand = createCommand({
 		response: BucketListResponseSchema,
 	},
 	idempotent: true,
-	examples: [`${getCommand('objectstore list-buckets')} - List all buckets with stats`],
+	examples: [
+		{
+			command: getCommand('objectstore list-buckets'),
+			description: 'List all buckets with stats',
+		},
+	],
 
 	async handler(ctx) {
 		const { options } = ctx;

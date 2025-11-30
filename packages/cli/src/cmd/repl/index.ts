@@ -9,7 +9,7 @@ export const command = createCommand({
 	description: 'interactive REPL for testing',
 	tags: ['slow'],
 	idempotent: false,
-	examples: [getCommand('repl')],
+	examples: [{ command: getCommand('repl'), description: 'Run repl command' }],
 
 	async handler() {
 		// Define test commands

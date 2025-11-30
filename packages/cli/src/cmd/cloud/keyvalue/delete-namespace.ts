@@ -4,7 +4,6 @@ import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-
 export const deleteNamespaceSubcommand = createCommand({
 	name: 'delete-namespace',
 	aliases: ['rm-namespace'],
@@ -13,9 +12,18 @@ export const deleteNamespaceSubcommand = createCommand({
 	idempotent: true,
 	requires: { auth: true, project: true },
 	examples: [
-		`${getCommand('kv delete-namespace staging')} - Delete staging namespace (interactive)`,
-		`${getCommand('kv rm-namespace cache --confirm')} - Delete cache without confirmation`,
-		`${getCommand('kv delete-namespace production --confirm')} - Force delete production`,
+		{
+			command: getCommand('kv delete-namespace staging'),
+			description: 'Delete staging namespace (interactive)',
+		},
+		{
+			command: getCommand('kv rm-namespace cache --confirm'),
+			description: 'Delete cache without confirmation',
+		},
+		{
+			command: getCommand('kv delete-namespace production --confirm'),
+			description: 'Force delete production',
+		},
 	],
 	schema: {
 		args: z.object({

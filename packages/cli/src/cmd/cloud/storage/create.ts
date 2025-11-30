@@ -14,9 +14,18 @@ export const createSubcommand = defineSubcommand({
 	idempotent: false,
 	requires: { auth: true, org: true, region: true },
 	examples: [
-		getCommand('cloud storage create'),
-		getCommand('cloud storage new'),
-		getCommand('--dry-run cloud storage create'),
+		{
+			command: getCommand('cloud storage create'),
+			description: 'Create a new cloud storage bucket',
+		},
+		{
+			command: getCommand('cloud storage new'),
+			description: 'Alias for "cloud storage create" (shorthand "new")',
+		},
+		{
+			command: getCommand('--dry-run cloud storage create'),
+			description: 'Dry-run: display what would be created without making changes',
+		},
 	],
 	schema: {
 		response: z.object({

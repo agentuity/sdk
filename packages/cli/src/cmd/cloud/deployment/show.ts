@@ -55,8 +55,14 @@ export const showSubcommand = createSubcommand({
 	description: 'Show details about a specific deployment',
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-deployment'],
 	examples: [
-		`${getCommand('cloud deployment show')} dep_abc123xyz`,
-		`${getCommand('cloud deployment show')} deployment-2024-11-20 --project-id=proj_abc123xyz`,
+		{
+			command: `${getCommand('cloud deployment show')} dep_abc123xyz`,
+			description: 'Show deployment details by ID',
+		},
+		{
+			command: `${getCommand('cloud deployment show')} deployment-2024-11-20 --project-id=proj_abc123xyz`,
+			description: 'Show deployment for specific project',
+		},
 	],
 	aliases: ['get'],
 	requires: { auth: true, apiClient: true },

@@ -104,7 +104,12 @@ export const getSubcommand = createSubcommand({
 	name: 'get',
 	description: 'Get details about a specific session',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	examples: [`${getCommand('cloud session get')} sess_abc123xyz`],
+	examples: [
+		{
+			command: getCommand('cloud session get sess_abc123xyz'),
+			description: 'Get a session by ID',
+		},
+	],
 	requires: { auth: true },
 	idempotent: true,
 	schema: {

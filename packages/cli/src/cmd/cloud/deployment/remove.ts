@@ -4,7 +4,6 @@ import * as tui from '../../../tui';
 import { projectDeploymentDelete } from '@agentuity/server';
 import { resolveProjectId } from './utils';
 import { getCommand } from '../../../command-prefix';
-
 const DeploymentRemoveResponseSchema = z.object({
 	success: z.boolean().describe('Whether the removal succeeded'),
 	projectId: z.string().describe('Project ID'),
@@ -16,9 +15,20 @@ export const removeSubcommand = createSubcommand({
 	description: 'Remove a specific deployment',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	examples: [
-		`${getCommand('cloud deployment remove')} dep_abc123xyz        # Remove with confirmation`,
-		`${getCommand('cloud deployment remove')} dep_abc123xyz --force # Remove without confirmation`,
-		`${getCommand('cloud deployment remove')} deployment-2024-11-20 --project-id=proj_abc123xyz`,
+		{
+			command: getCommand('cloud deployment remove dep_abc123xyz'),
+			description: 'Remove with confirmation',
+		},
+		{
+			command: getCommand('cloud deployment remove dep_abc123xyz --force'),
+			description: 'Remove without confirmation',
+		},
+		{
+			command: getCommand(
+				'cloud deployment remove deployment-2024-11-20 --project-id=proj_abc123xyz'
+			),
+			description: 'Remove deployment from specific project',
+		},
 	],
 	aliases: ['rm', 'delete'],
 	idempotent: false,
