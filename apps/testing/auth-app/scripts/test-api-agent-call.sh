@@ -29,7 +29,7 @@ trap cleanup EXIT INT TERM
 start_server_if_needed
 
 echo "Testing GET /api/agent-call (agent call from API route)..."
-RESPONSE=$(curl -s http://localhost:3500/api/agent-call)
+RESPONSE=$(curl -s http://localhost:$PORT/api/agent-call)
 echo "Response: $RESPONSE"
 
 # Check if response contains expected fields
@@ -45,7 +45,7 @@ fi
 
 echo ""
 echo "Testing POST /api/agent-call/with-input (agent call with custom input)..."
-RESPONSE=$(curl -s -X POST http://localhost:3500/api/agent-call/with-input \
+RESPONSE=$(curl -s -X POST http://localhost:$PORT/api/agent-call/with-input \
 	-H "Content-Type: application/json" \
 	-d '{"name":"Bob","age":25}')
 echo "Response: $RESPONSE"
@@ -63,7 +63,7 @@ fi
 
 echo ""
 echo "Testing POST /api/agent-call/with-input with different input..."
-RESPONSE=$(curl -s -X POST http://localhost:3500/api/agent-call/with-input \
+RESPONSE=$(curl -s -X POST http://localhost:$PORT/api/agent-call/with-input \
 	-H "Content-Type: application/json" \
 	-d '{"name":"Alice","age":30}')
 echo "Response: $RESPONSE"

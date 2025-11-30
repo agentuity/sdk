@@ -163,31 +163,61 @@ start_server_if_needed() {
 	else
 		echo "Starting test server..."
 		
-		# Change to test-app directory (script is in test-app/scripts/)
-		cd "$(dirname "$0")/.."
+		# Get the original test-app directory (script is in test-app/scripts/)
+		ORIGINAL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 		
-		# Check for .env.local first, then fall back to .env
-		if [[ -f .env.local && -z "$CI" ]]; then
-			ENV_FILE=".env.local"
-		elif [ -f .env ]; then
-			ENV_FILE=".env"
+		# Check for .env.local first, then fall back to .env in the original project directory
+		if [[ -f "$ORIGINAL_DIR/.env.local" && -z "$CI" ]]; then
+			ENV_FILE="$ORIGINAL_DIR/.env.local"
+		elif [ -f "$ORIGINAL_DIR/.env" ]; then
+			ENV_FILE="$ORIGINAL_DIR/.env"
 		else
-			echo -e "${RED}✗${NC} No .env file found"
+			echo -e "${RED}✗${NC} No .env file found in $ORIGINAL_DIR"
 			echo "Please create either .env.local or .env with AGENTUITY_SDK_KEY"
-			echo "Current directory: $(pwd)"
 			exit 1
 		fi
 		
-		echo "Using env file: $ENV_FILE"
+		# Determine which build directory to use based on ISOLATED_BUILD and PORT
+		if [ -n "$ISOLATED_BUILD" ] && [ -n "$TEST_BUILD_ROOT" ]; then
+			# Use port-specific build directory from /tmp (build-3500, build-3501, etc.)
+			BUILD_DIR="$TEST_BUILD_ROOT/build-$PORT"
+			if [ ! -f "$BUILD_DIR/app.js" ]; then
+				echo -e "${RED}✗${NC} Built app not found at $BUILD_DIR/app.js"
+				echo "Please run build script to create port-specific builds"
+				exit 1
+			fi
+			echo "Using isolated build directory: $BUILD_DIR"
+			echo "Using env file: $ENV_FILE"
+		else
+			BUILD_DIR="$ORIGINAL_DIR/.agentuity"
+			if ! cd "$ORIGINAL_DIR"; then
+				echo -e "${RED}✗${NC} Failed to change directory to $ORIGINAL_DIR"
+				exit 1
+			fi
+		fi
+		
+		echo "Using PORT: $PORT"
+		echo "Using ENV_FILE: $ENV_FILE"
 		
 		# Start server in background, redirecting output to temp log
-		# Preserve environment variables (like AGENTUITY_SDK_LOG_LEVEL) when starting server
 		LOG_FILE="$TEMP_DIR/server.log"
-		env bun run --env-file $ENV_FILE dev -- --no-public > "$LOG_FILE" 2>&1 &
+		
+		# Check if we should use dev mode (for hot reload tests) or built app
+		if [ "$USE_DEV_MODE" = "true" ]; then
+			# Use dev command (with file watching and rebuilding)
+			echo "Starting in dev mode with hot reload..."
+			env bun run --env-file $ENV_FILE dev -- --no-public --port $PORT > "$LOG_FILE" 2>&1 &
+		else
+			# Run the pre-built app directly (--dev build has config baked in)
+			echo "Running pre-built app from $BUILD_DIR..."
+			echo "Command: PORT=$PORT bun --env-file=$ENV_FILE $BUILD_DIR/app.js"
+			PORT=$PORT bun --env-file=$ENV_FILE "$BUILD_DIR/app.js" > "$LOG_FILE" 2>&1 &
+		fi
+		
 		SERVER_PID=$!
 		SERVER_STARTED=true
 		
-		echo "Server starting (PID: $SERVER_PID, log: $LOG_FILE)..."
+		echo "Server starting on port $PORT (PID: $SERVER_PID, log: $LOG_FILE)..."
 		
 		# In verbose mode (CI or VERBOSE=true), tail logs in real-time
 		if [ "$VERBOSE" = "true" ]; then

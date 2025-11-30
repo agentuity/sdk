@@ -59,6 +59,7 @@ export const listSubcommand = createSubcommand({
 				.describe(
 					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
 				),
+			nameOnly: z.boolean().optional().describe('Print the name only'),
 		}),
 		response: StorageListResponseSchema,
 	},
@@ -118,14 +119,22 @@ export const listSubcommand = createSubcommand({
 				if (objects.length === 0) {
 					tui.info('No files found');
 				} else {
-					tui.info(
-						tui.bold(`Files in ${args.name}${args.prefix ? ` (prefix: ${args.prefix})` : ''}`)
-					);
-					tui.newline();
-					for (const obj of objects) {
-						console.log(
-							`${obj.key}  ${tui.muted(`(${obj.size} bytes, ${obj.lastModified})`)}`
+					if (opts.nameOnly) {
+						for (const obj of objects) {
+							console.log(obj.key);
+						}
+					} else {
+						tui.info(
+							tui.bold(
+								`Files in ${args.name}${args.prefix ? ` (prefix: ${args.prefix})` : ''}`
+							)
 						);
+						tui.newline();
+						for (const obj of objects) {
+							console.log(
+								`${obj.key}  ${tui.muted(`(${obj.size} bytes, ${obj.lastModified})`)}`
+							);
+						}
 					}
 				}
 			}
@@ -161,9 +170,15 @@ export const listSubcommand = createSubcommand({
 			if (resources.s3.length === 0) {
 				tui.info('No storage buckets found');
 			} else {
-				tui.info(tui.bold('Storage'));
-				tui.newline();
+				if (!opts.nameOnly) {
+					tui.info(tui.bold('Storage'));
+					tui.newline();
+				}
 				for (const s3 of resources.s3) {
+					if (opts.nameOnly) {
+						console.log(s3.bucket_name);
+						continue;
+					}
 					console.log(tui.bold(s3.bucket_name));
 					if (s3.access_key) {
 						const displayAccessKey = shouldMask

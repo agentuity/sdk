@@ -14,9 +14,9 @@ echo "Binary Object Storage Test (Agent)"
 echo "========================================="
 echo ""
 
-BASE_URL="http://localhost:3500/agent/objectstore"
+BASE_URL="http://localhost:$PORT/agent/objectstore"
 BUCKET="test-bucket-agent"
-PORT=3500
+PORT="${PORT:-3500}"
 
 # Create temporary directory for test files
 TEMP_DIR=$(mktemp -d)

@@ -14,8 +14,8 @@ echo "Stream Storage Test"
 echo "========================================="
 echo ""
 
-BASE_URL="http://localhost:3500/agent/stream"
-PORT=3500
+PORT="${PORT:-3500}"
+BASE_URL="http://localhost:$PORT/agent/stream"
 
 # Create temporary directory for test files
 TEMP_DIR=$(mktemp -d)

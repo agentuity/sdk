@@ -14,8 +14,8 @@ echo "Eval Functionality Test"
 echo "========================================="
 echo ""
 
-BASE_URL="http://localhost:3500"
-PORT=3500
+PORT="${PORT:-3500}"
+BASE_URL="http://localhost:$PORT"
 
 # Create temporary directory for test files
 TEMP_DIR=$(mktemp -d)

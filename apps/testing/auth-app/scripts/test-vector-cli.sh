@@ -23,7 +23,7 @@ echo "Test Run ID: $TEST_RUN_ID"
 echo "Namespace: $NAMESPACE"
 echo ""
 
-BASE_URL="http://localhost:3500/agent/vector"
+BASE_URL="http://localhost:$PORT/agent/vector"
 
 # Create temp directory for test artifacts
 TEMP_DIR=$(mktemp -d)

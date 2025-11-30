@@ -50,6 +50,7 @@ export interface BundleOptions extends DeployOptions {
 	deploymentId?: string;
 	project?: Project;
 	port?: number;
+	outDir?: string;
 }
 
 type BuildResult = Awaited<ReturnType<typeof Bun.build>>;
@@ -84,6 +85,7 @@ export async function bundle({
 	rootDir,
 	project,
 	port,
+	outDir: customOutDir,
 	tag,
 	logsUrl,
 	commitUrl,
@@ -94,6 +96,7 @@ export async function bundle({
 	pullRequestCommentId,
 	pullRequestURL,
 	message,
+	env,
 }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
@@ -101,7 +104,7 @@ export async function bundle({
 			message: `App file not found at expected location: ${appFile}`,
 		});
 	}
-	const outDir = join(rootDir, '.agentuity');
+	const outDir = customOutDir ?? join(rootDir, '.agentuity');
 	const srcDir = join(rootDir, 'src');
 
 	const appEntrypoints: string[] = [];
@@ -148,6 +151,12 @@ export async function bundle({
 	}
 	if (deploymentId) {
 		define['process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID'] = JSON.stringify(deploymentId);
+	}
+
+	if (env) {
+		for (const [key, value] of env) {
+			define[`process.env.${key}`] = JSON.stringify(value);
+		}
 	}
 
 	await (async () => {

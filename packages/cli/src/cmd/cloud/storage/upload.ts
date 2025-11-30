@@ -66,18 +66,24 @@ export const uploadSubcommand = createSubcommand({
 			);
 		}
 
+		// TODO: we need to optimize this to not load the entire file in memory!
+
 		// Read file content
 		let fileContent: Buffer;
 		let actualFilename: string;
 
 		if (args.filename === '-') {
-			// Read from STDIN
-			const chunks: Buffer[] = [];
-			for await (const chunk of Bun.stdin.stream()) {
-				chunks.push(Buffer.from(chunk));
+			// Read from STDIN (binary-safe)
+			try {
+				const arrayBuffer = await Bun.readableStreamToArrayBuffer(Bun.stdin.stream());
+				fileContent = Buffer.from(arrayBuffer);
+				actualFilename = 'stdin';
+			} catch (error) {
+				tui.fatal(
+					`Cannot read from stdin: ${error instanceof Error ? error.message : String(error)}`,
+					ErrorCode.FILE_NOT_FOUND
+				);
 			}
-			fileContent = Buffer.concat(chunks);
-			actualFilename = 'stdin';
 		} else {
 			// Read from file
 			const file = Bun.file(args.filename);

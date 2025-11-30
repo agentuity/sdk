@@ -16,7 +16,7 @@ TEST_RUN_ID="test-$(date +%s%N)"
 echo "Test Run ID: $TEST_RUN_ID"
 echo ""
 
-PORT=3500
+PORT="${PORT:-3500}"
 
 # Create temporary directory for test files
 TEMP_DIR=$(mktemp -d)

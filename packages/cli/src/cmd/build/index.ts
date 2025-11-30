@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
 import { createCommand } from '../../types';
 import { bundle } from './bundler';
 import * as tui from '../../tui';
@@ -25,30 +25,64 @@ export const command = createCommand({
 	schema: {
 		options: z.object({
 			dev: z.boolean().optional().describe('Enable development mode'),
+			outdir: z.string().optional().describe('Output directory for build artifacts'),
+			skipTypeCheck: z
+				.boolean()
+				.default(false)
+				.optional()
+				.describe('Skip typecheck after build'),
 		}),
 		response: BuildResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { opts, projectDir, project } = ctx;
+		const { opts, projectDir, project, config } = ctx;
 
 		const absoluteProjectDir = resolve(projectDir);
+		const outDir = opts.outdir ? resolve(opts.outdir) : join(absoluteProjectDir, '.agentuity');
 
 		try {
-			tui.info(`Bundling project at: ${absoluteProjectDir}`);
+			tui.info(`Bundling project at ${absoluteProjectDir} to ${outDir}`);
 
-			// Generate agent registry FIRST (so types exist for typecheck)
-			tui.info('Generating agent registry...');
+			const env: Map<string, string> = new Map();
+
+			if (opts.dev) {
+				if (config?.overrides?.transport_url) {
+					env.set('AGENTUITY_TRANSPORT_URL', config.overrides.transport_url);
+				}
+				if (config?.overrides?.catalyst_url) {
+					env.set('AGENTUITY_CATALYST_URL', config.overrides.catalyst_url);
+				}
+				if (config?.overrides?.vector_url) {
+					env.set('AGENTUITY_VECTOR_URL', config.overrides.vector_url);
+				}
+				if (config?.overrides?.object_url) {
+					env.set('AGENTUITY_OBJECTSTORE_URL', config.overrides.object_url);
+				}
+				if (config?.overrides?.kv_url) {
+					env.set('AGENTUITY_KEYVALUE_URL', config.overrides.kv_url);
+				}
+				if (config?.overrides?.stream_url) {
+					env.set('AGENTUITY_STREAM_URL', config.overrides.stream_url);
+				}
+				if (project) {
+					env.set('AGENTUITY_CLOUD_ORG_ID', project.orgId);
+					env.set('AGENTUITY_CLOUD_PROJECT_ID', project.projectId);
+				}
+			}
+
 			await bundle({
 				rootDir: absoluteProjectDir,
 				dev: opts.dev || false,
+				outDir,
 				project,
 				orgId: project?.orgId,
 				projectId: project?.projectId,
+				env,
 			});
 
 			// Run TypeScript type checking after registry generation (skip in dev mode)
-			if (!opts.dev) {
+			if (!opts.dev && !opts.skipTypeCheck) {
 				try {
 					tui.info('Running type check...');
 					const absoluteProjectDir = resolve(projectDir);
@@ -75,7 +109,7 @@ export const command = createCommand({
 
 			return {
 				success: true,
-				bundlePath: `${absoluteProjectDir}/.agentuity`,
+				bundlePath: outDir,
 				projectName: project?.projectId || 'unknown',
 				dev: opts.dev || false,
 			};

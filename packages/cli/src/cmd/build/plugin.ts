@@ -33,6 +33,7 @@ function toPascalCase(str: string): string {
  */
 async function setupLifecycleTypes(
 	rootDir: string,
+	outDir: string,
 	srcDir: string,
 	logger: ReturnType<typeof createLogger>
 ): Promise<boolean> {
@@ -52,7 +53,7 @@ async function setupLifecycleTypes(
 	}
 
 	try {
-		return await generateLifecycleTypes(rootDir, appFile);
+		return await generateLifecycleTypes(rootDir, outDir, appFile);
 	} catch (error) {
 		logger.fatal('Failed to generate lifecycle types:', error);
 	}
@@ -384,6 +385,10 @@ const AgentuityBundler: BunPlugin = {
 	setup(build) {
 		const rootDir = resolve(build.config.root ?? '.');
 		const srcDir = join(rootDir, 'src');
+		const outDir = build.config.outdir;
+		if (!outDir) {
+			throw new Error('missing outdir must be set');
+		}
 		const projectId = build.config.define?.['process.env.AGENTUITY_CLOUD_PROJECT_ID']
 			? JSON.parse(build.config.define['process.env.AGENTUITY_CLOUD_PROJECT_ID'])
 			: '';
@@ -729,7 +734,7 @@ const AgentuityBundler: BunPlugin = {
 				generateAgentRegistry(srcDir, agentInfo);
 
 				// Generate lifecycle types if setup() is present in app.ts
-				await setupLifecycleTypes(rootDir, srcDir, logger);
+				await setupLifecycleTypes(rootDir, outDir, srcDir, logger);
 
 				// Only create the workbench metadata route if workbench is actually configured
 				if (workbenchConfig) {
@@ -953,7 +958,7 @@ await (async() => {
 					metadata.agents!.push(agentData);
 				}
 
-				const routeMappingJSFile = Bun.file(join(build.config.outdir!, '.routemapping.json'));
+				const routeMappingJSFile = Bun.file(join(outDir, '.routemapping.json'));
 				await routeMappingJSFile.write(JSON.stringify(routeMapping));
 
 				return {

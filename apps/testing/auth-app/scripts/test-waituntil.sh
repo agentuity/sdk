@@ -25,7 +25,7 @@ trap cleanup EXIT INT TERM
 start_server_if_needed
 
 echo "Testing GET /agent/async (c.waitUntil)..."
-RESPONSE=$(curl -s http://localhost:3500/agent/async)
+RESPONSE=$(curl -s http://localhost:$PORT/agent/async)
 echo "Response: $RESPONSE"
 
 if echo "$RESPONSE" | grep -q "Async task started"; then
@@ -38,7 +38,7 @@ fi
 
 echo ""
 echo "Testing GET /agent/async/execution-ctx (c.executionCtx.waitUntil)..."
-RESPONSE=$(curl -s http://localhost:3500/agent/async/execution-ctx)
+RESPONSE=$(curl -s http://localhost:$PORT/agent/async/execution-ctx)
 echo "Response: $RESPONSE"
 
 if echo "$RESPONSE" | grep -q "Async task started via executionCtx"; then
@@ -54,8 +54,8 @@ echo ""
 echo "Testing /_agentuity/idle returns NO while waitUntil is pending..."
 
 # Trigger a waitUntil and immediately check idle status
-curl -s http://localhost:3500/agent/async/execution-ctx > /dev/null
-IDLE_RESPONSE=$(curl -s http://localhost:3500/_agentuity/idle)
+curl -s http://localhost:$PORT/agent/async/execution-ctx > /dev/null
+IDLE_RESPONSE=$(curl -s http://localhost:$PORT/_agentuity/idle)
 echo "Idle response (should be NO): $IDLE_RESPONSE"
 
 if [ "$IDLE_RESPONSE" = "NO" ]; then
@@ -70,7 +70,7 @@ echo "Waiting for async operations (waitUntil) to complete..."
 sleep 5
 
 # Verify server is now idle
-IDLE_RESPONSE=$(curl -s http://localhost:3500/_agentuity/idle)
+IDLE_RESPONSE=$(curl -s http://localhost:$PORT/_agentuity/idle)
 echo "Idle response (should be OK): $IDLE_RESPONSE"
 
 if [ "$IDLE_RESPONSE" = "OK" ]; then

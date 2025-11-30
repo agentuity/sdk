@@ -290,7 +290,7 @@ export const createServer = async <TAppState>(
 				// in production there is no .agentuity folder
 				routeMappingPath = join(projectRoot, '.routemapping.json');
 			} else {
-				routeMappingPath = join(projectRoot, '.agentuity', '.routemapping.json');
+				routeMappingPath = join(import.meta.dirname, '..', '.routemapping.json');
 			}
 			const file = Bun.file(routeMappingPath);
 			if (!(await file.exists())) {

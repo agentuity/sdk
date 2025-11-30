@@ -19,8 +19,8 @@ TEST_RUN_ID="test-$(date +%s%N)"
 echo "Test Run ID: $TEST_RUN_ID"
 echo ""
 
-BASE_URL="http://localhost:3500/agent/vector"
-PORT=3500
+PORT="${PORT:-3500}"
+BASE_URL="http://localhost:$PORT/agent/vector"
 
 # Create temporary directory for test files
 TEMP_DIR=$(mktemp -d)

@@ -1330,6 +1330,7 @@ const RuntimePackageNotFound = StructuredError('RuntimePackageNotFound');
  */
 export async function generateLifecycleTypes(
 	rootDir: string,
+	outDir: string,
 	appFilePath: string
 ): Promise<boolean> {
 	const appContent = await Bun.file(appFilePath).text();
@@ -1430,7 +1431,7 @@ declare module '@agentuity/runtime' {
 	interface AppState extends GeneratedAppState {}
 }
 `;
-	const typesPath = join(agentuityDir, '.agentuity_types.ts');
+	const typesPath = join(outDir, '.agentuity_types.ts');
 	await Bun.write(typesPath, typesContent);
 	logger.debug(`Generated lifecycle types: ${typesPath}`);
 
@@ -1487,7 +1488,7 @@ export function createRouter(): AppRouter {
 // Re-export everything else
 export * from '${runtimeImportPath}/src/index';
 `;
-	const wrapperPath = join(agentuityDir, '.agentuity_runtime.ts');
+	const wrapperPath = join(outDir, '.agentuity_runtime.ts');
 	await Bun.write(wrapperPath, wrapperContent);
 	logger.debug(`Generated lifecycle wrapper: ${wrapperPath}`);
 

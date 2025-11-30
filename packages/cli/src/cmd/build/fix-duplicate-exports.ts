@@ -8,6 +8,9 @@ export async function fixDuplicateExportsInDirectory(dir: string, verbose = fals
 	const jsFiles = await getAllJsFiles(dir);
 	if (verbose) {
 		console.log(`Found ${jsFiles.length} .js files`);
+		for (const js of jsFiles) {
+			console.log(` + Processing ${js}`);
+		}
 	}
 
 	if (jsFiles.length === 0) {
@@ -179,7 +182,7 @@ async function fixDuplicateExportsInFile(filePath: string, verbose = false): Pro
 
 async function getAllJsFiles(dir: string): Promise<string[]> {
 	const glob = new Bun.Glob('**/*.js');
-	const files = await Array.fromAsync(glob.scan({ cwd: dir }));
+	const files = await Array.fromAsync(glob.scan({ cwd: dir, dot: true }));
 	return files.map((file) => path.join(dir, file));
 }
 

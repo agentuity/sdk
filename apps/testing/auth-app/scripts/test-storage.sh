@@ -121,6 +121,11 @@ else
 fi
 echo ""
 
+# Wait a few seconds for bucket to be fully provisioned
+echo "Waiting for bucket to be fully ready..."
+sleep 3
+echo ""
+
 # Step 5: Upload a test file
 echo "Step 5: Uploading test file..."
 TEST_FILE="/tmp/test-storage-$$.txt"

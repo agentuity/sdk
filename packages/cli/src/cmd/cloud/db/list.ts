@@ -37,6 +37,7 @@ export const listSubcommand = createSubcommand({
 				.describe(
 					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
 				),
+			nameOnly: z.boolean().optional().describe('Print the name only'),
 		}),
 		response: DBListResponseSchema,
 	},
@@ -62,9 +63,15 @@ export const listSubcommand = createSubcommand({
 			if (resources.db.length === 0) {
 				tui.info('No databases found');
 			} else {
-				tui.info(tui.bold('Databases'));
-				tui.newline();
+				if (!opts.nameOnly) {
+					tui.info(tui.bold('Databases'));
+					tui.newline();
+				}
 				for (const db of resources.db) {
+					if (opts.nameOnly) {
+						console.log(db.name);
+						continue;
+					}
 					console.log(tui.bold(db.name));
 					if (db.url) {
 						const displayUrl = shouldMask ? tui.maskSecret(db.url) : db.url;

@@ -19,10 +19,10 @@ TEST_RUN_ID="test-$(date +%s%N)"
 echo "Test Run ID: $TEST_RUN_ID"
 echo ""
 
-BASE_URL="http://localhost:3500/api/objectstore"
+BASE_URL="http://localhost:$PORT/api/objectstore"
 BUCKET="test-bucket"
 KEY="binary-test.bin"
-PORT=3500
+PORT="${PORT:-3500}"
 
 # Create temporary directory for test files
 TEMP_DIR=$(mktemp -d)
