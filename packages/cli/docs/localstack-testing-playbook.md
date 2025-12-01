@@ -183,7 +183,9 @@ echo "usc" > ~/.config/agentuity/profile
 
 ### 4. Authenticate CLI
 
-The CLI needs authentication credentials. Run:
+The CLI needs authentication credentials. There are two ways to authenticate:
+
+#### Option A: Browser-Based Authentication (Interactive)
 
 ```bash
 cd /home/ubuntu/repos/sdk
@@ -192,7 +194,33 @@ cd /home/ubuntu/repos/sdk
 
 Follow the prompts to authenticate via browser.
 
-**Note:** Auth credentials need to be added to the profile for the v1 API. This may require manual configuration.
+#### Option B: Browserless Authentication (Automated/CI)
+
+For automated testing or CI environments, you can authenticate using environment variables. A test user has been pre-created in the database for this purpose:
+
+| Field   | Value                  |
+| ------- | ---------------------- |
+| User ID | `user_devin_test_001`  |
+| Email   | `devin@agentuity.test` |
+| Org ID  | `org_devin_test_001`   |
+
+```bash
+# Get an API key from the short-token endpoint using the devin test user
+APIKEY=$(curl -s http://127.0.0.1:3012/cli/auth/short-token \
+  -H 'Content-Type: application/json' \
+  -d '{"secret":"<AGENTUITY_CATALYST_SECRET>","userId":"user_devin_test_001"}' \
+  | jq -r '.data.apiKey')
+
+# Set environment variables for CLI authentication
+export AGENTUITY_API_URL="http://127.0.0.1:3012"
+export AGENTUITY_USER_ID="user_devin_test_001"
+export AGENTUITY_CLI_API_KEY="$APIKEY"
+
+# Now CLI commands will use these credentials
+./packages/cli/bin/cli.ts auth whoami
+```
+
+**Note:** The `AGENTUITY_CATALYST_SECRET` can be found in the `agentuity/app/api/.dev.vars` file after starting the local stack.
 
 ### 5. Test CLI
 
@@ -279,19 +307,50 @@ echo "$GCP_DOCKER" | docker login -u _json_key --password-stdin https://us-centr
 
 **Solution:** Ensure YAML files have proper newlines and indentation. Use a YAML validator to check formatting.
 
+### Socket Connection Closed Unexpectedly (Bun/IPv6 Issue)
+
+**Error:** `The socket connection was closed unexpectedly` with `code: "ECONNRESET"`
+
+**Cause:** Bun's fetch has issues connecting to Docker containers via IPv6. On systems where `localhost` resolves to `::1` (IPv6) first, Bun will fail to connect even though the Docker container is listening on both IPv4 and IPv6.
+
+**Solution:** Use `127.0.0.1` instead of `localhost` in all URL configurations:
+
+```bash
+# Check how localhost resolves on your system
+getent hosts localhost
+# If it shows "::1 localhost", use 127.0.0.1 instead
+
+# Set environment variable with IPv4 address
+export AGENTUITY_API_URL="http://127.0.0.1:3012"
+
+# Or update your CLI profile to use 127.0.0.1
+```
+
+**Verification:** Test with curl (which is more forgiving) vs Bun:
+
+```bash
+# This may work with curl but fail with Bun's fetch
+curl http://localhost:3012/cli/auth/user
+
+# This should work with both
+curl http://127.0.0.1:3012/cli/auth/user
+```
+
 ## Key URLs and Ports
+
+**Important:** Use `127.0.0.1` instead of `localhost` in all URLs. Bun's fetch has issues with IPv6 connections to Docker containers, and `localhost` may resolve to IPv6 (`::1`) on some systems.
 
 | Service            | Local URL              | Port  |
 | ------------------ | ---------------------- | ----- |
-| API                | http://localhost:3012  | 3012  |
-| Catalyst           | http://localhost:3939  | 3939  |
-| Gravity            | https://localhost:8443 | 8443  |
-| Pulse              | http://localhost:10101 | 10101 |
-| Hadron             | http://localhost:9999  | 9999  |
-| Redis              | localhost:6379         | 6379  |
-| etcd               | localhost:2379         | 2379  |
-| Ion SSH (remapped) | localhost:2222         | 2222  |
-| Ion HTTPS          | localhost:443          | 443   |
+| API                | http://127.0.0.1:3012  | 3012  |
+| Catalyst           | http://127.0.0.1:3939  | 3939  |
+| Gravity            | grpc://127.0.0.1:8443  | 8443  |
+| Pulse              | http://127.0.0.1:10101 | 10101 |
+| Hadron             | http://127.0.0.1:9999  | 9999  |
+| Redis              | 127.0.0.1:6379         | 6379  |
+| etcd               | 127.0.0.1:2379         | 2379  |
+| Ion SSH (remapped) | 127.0.0.1:2222         | 2222  |
+| Ion HTTPS          | 127.0.0.1:443          | 443   |
 
 ## Notes
 
