@@ -1,4 +1,4 @@
-export { createWorkbench, Workbench } from './workbench';
+// Export types
 export type { WorkbenchInstance } from './types';
 
 // Export UI components
@@ -13,13 +13,7 @@ export {
 } from './components/ui/card';
 export { Input } from './components/ui/input';
 
-// Export utilities
-export { cn } from './lib/utils';
-
-// Re-export workbench config utilities from core
-export {
-	encodeWorkbenchConfig,
-	decodeWorkbenchConfig,
-	getWorkbenchConfig,
-	type WorkbenchConfig,
-} from '@agentuity/core';
+// Export components
+export { default as App } from './components/App';
+export { default as Inline } from './components/Inline';
+export { createWorkbench } from './workbench';

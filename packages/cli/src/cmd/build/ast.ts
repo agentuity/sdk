@@ -174,6 +174,49 @@ function generateStableEvalId(projectId: string, agentId: string, name: string):
 	return `evalid_${hashSHA1(projectId, agentId, name)}`.substring(0, 64);
 }
 
+/**
+ * Extract schema code from createAgent call arguments
+ * Returns input and output schema code as strings
+ */
+function extractSchemaCode(callargexp: ASTObjectExpression): {
+	inputSchemaCode?: string;
+	outputSchemaCode?: string;
+} {
+	let schemaObj: ASTObjectExpression | undefined;
+
+	// Find the schema property
+	for (const prop of callargexp.properties) {
+		if (prop.key.type === 'Identifier' && prop.key.name === 'schema') {
+			if (prop.value.type === 'ObjectExpression') {
+				schemaObj = prop.value as ASTObjectExpression;
+				break;
+			}
+		}
+	}
+
+	if (!schemaObj) {
+		return {};
+	}
+
+	let inputSchemaCode: string | undefined;
+	let outputSchemaCode: string | undefined;
+
+	// Extract input and output schema code
+	for (const prop of schemaObj.properties) {
+		if (prop.key.type === 'Identifier') {
+			if (prop.key.name === 'input' && prop.value) {
+				// Generate source code from AST node
+				inputSchemaCode = generate(prop.value);
+			} else if (prop.key.name === 'output' && prop.value) {
+				// Generate source code from AST node
+				outputSchemaCode = generate(prop.value);
+			}
+		}
+	}
+
+	return { inputSchemaCode, outputSchemaCode };
+}
+
 type AcornParseResultType = ReturnType<typeof acornLoose.parse>;
 
 const MetadataError = StructuredError('MetatadataNameMissingError')<{
@@ -189,7 +232,9 @@ function augmentAgentMetadataNode(
 	version: string,
 	ast: AcornParseResultType,
 	propvalue: ASTObjectExpression,
-	filename: string
+	filename: string,
+	inputSchemaCode?: string,
+	outputSchemaCode?: string
 ): [string, Map<string, string>] {
 	const metadata = parseObjectExpressionToMap(propvalue);
 	if (!metadata.has('name')) {
@@ -218,6 +263,12 @@ function augmentAgentMetadataNode(
 	metadata.set('id', id);
 	metadata.set('agentId', agentId);
 	metadata.set('description', description);
+	if (inputSchemaCode) {
+		metadata.set('inputSchemaCode', inputSchemaCode);
+	}
+	if (outputSchemaCode) {
+		metadata.set('outputSchemaCode', outputSchemaCode);
+	}
 	propvalue.properties.push(
 		createObjectPropertyNode('id', id),
 		createObjectPropertyNode('agentId', agentId),
@@ -226,6 +277,12 @@ function augmentAgentMetadataNode(
 		createObjectPropertyNode('filename', rel),
 		createObjectPropertyNode('description', description)
 	);
+	if (inputSchemaCode) {
+		propvalue.properties.push(createObjectPropertyNode('inputSchemaCode', inputSchemaCode));
+	}
+	if (outputSchemaCode) {
+		propvalue.properties.push(createObjectPropertyNode('outputSchemaCode', outputSchemaCode));
+	}
 
 	const newsource = generate(ast);
 
@@ -626,6 +683,7 @@ export async function parseAgentMetadata(
 	const id = getAgentId(projectId, deploymentId, rel, version);
 
 	let result: [string, Map<string, string>] | undefined;
+	let schemaCodeExtracted = false;
 
 	for (const body of ast.body) {
 		if (body.type === 'ExportDefaultDeclaration') {
@@ -634,6 +692,17 @@ export async function parseAgentMetadata(
 				if (call.callee.name === 'createAgent') {
 					for (const callarg of call.arguments) {
 						const callargexp = callarg as ASTObjectExpression;
+
+						// Extract schema code before processing metadata
+						let inputSchemaCode: string | undefined;
+						let outputSchemaCode: string | undefined;
+						if (!schemaCodeExtracted) {
+							const schemaCode = extractSchemaCode(callargexp);
+							inputSchemaCode = schemaCode.inputSchemaCode;
+							outputSchemaCode = schemaCode.outputSchemaCode;
+							schemaCodeExtracted = true;
+						}
+
 						for (const prop of callargexp.properties) {
 							if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
 								result = augmentAgentMetadataNode(
@@ -644,7 +713,9 @@ export async function parseAgentMetadata(
 									version,
 									ast,
 									prop.value as ASTObjectExpression,
-									filename
+									filename,
+									inputSchemaCode,
+									outputSchemaCode
 								);
 								break;
 							}
@@ -689,6 +760,17 @@ export async function parseAgentMetadata(
 								if (call.callee.name === 'createAgent') {
 									for (const callarg of call.arguments) {
 										const callargexp = callarg as ASTObjectExpression;
+
+										// Extract schema code before processing metadata
+										let inputSchemaCode: string | undefined;
+										let outputSchemaCode: string | undefined;
+										if (!schemaCodeExtracted) {
+											const schemaCode = extractSchemaCode(callargexp);
+											inputSchemaCode = schemaCode.inputSchemaCode;
+											outputSchemaCode = schemaCode.outputSchemaCode;
+											schemaCodeExtracted = true;
+										}
+
 										for (const prop of callargexp.properties) {
 											if (
 												prop.key.type === 'Identifier' &&
@@ -702,7 +784,9 @@ export async function parseAgentMetadata(
 													version,
 													ast,
 													prop.value as ASTObjectExpression,
-													filename
+													filename,
+													inputSchemaCode,
+													outputSchemaCode
 												);
 												break;
 											}
@@ -1572,7 +1656,7 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 
 		// Set default config if workbench is used but no config was parsed
 		if (hasImport && hasUsage && !config) {
-			config = { route: '/workbench' };
+			config = { route: '/workbench', headers: {}, port: 3500 };
 		}
 
 		return {

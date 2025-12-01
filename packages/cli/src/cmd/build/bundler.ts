@@ -1,5 +1,4 @@
 import { $ } from 'bun';
-import { z } from 'zod';
 import { join, relative, resolve, dirname, basename } from 'node:path';
 import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
@@ -12,34 +11,11 @@ import { createLogger } from '@agentuity/server';
 import type { LogLevel } from '../../types';
 import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench-templates';
 import { analyzeWorkbench } from './ast';
-import { encodeWorkbenchConfig, StructuredError } from '@agentuity/core';
+import { StructuredError } from '@agentuity/core';
+import { DeployOptionsSchema, type DeployOptions } from '../../schemas/deploy';
 
-export const DeployOptionsSchema = z.object({
-	tag: z
-		.array(z.string())
-		.default(['latest'])
-		.optional()
-		.describe('One or more tags to add to the deployment'),
-	logsUrl: z.url().optional().describe('The url to the CI build logs'),
-	trigger: z
-		.enum(['cli', 'workflow', 'webhook'])
-		.default('cli')
-		.optional()
-		.describe('The trigger that caused the build'),
-	commitUrl: z.url().optional().describe('The url to the CI commit'),
-	message: z.string().optional().describe('The message to associate with this deployment'),
-	provider: z.string().optional().describe('The CI provider name (attempts to autodetect)'),
-	event: z
-		.enum(['pull_request', 'push', 'manual', 'workflow'])
-		.default('manual')
-		.optional()
-		.describe('The event that triggered the deployment'),
-	pullRequestNumber: z.number().optional().describe('the pull request number'),
-	pullRequestCommentId: z.string().optional().describe('the pull request comment id'),
-	pullRequestURL: z.url().optional().describe('the pull request url'),
-});
-
-type DeployOptions = z.infer<typeof DeployOptionsSchema>;
+// Re-export for backward compatibility
+export { DeployOptionsSchema };
 
 export interface BundleOptions extends DeployOptions {
 	rootDir: string;
@@ -330,15 +306,9 @@ export async function bundle({
 		const analysis = analyzeWorkbench(appContent);
 
 		if (analysis.hasWorkbench) {
-			// Encode workbench config for environment variable
-			const config = analysis.config || { route: '/workbench', headers: {} };
-			// Add port to config (defaults to 3500 if not provided)
-			const configWithPort = { ...config, port: port || 3500 };
-			const encodedConfig = encodeWorkbenchConfig(configWithPort);
-			const workbenchDefine = {
-				...define,
-				AGENTUITY_WORKBENCH_CONFIG_INLINE: JSON.stringify(encodedConfig),
-			};
+			// Create workbench config with proper defaults
+			const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
+			const config = { ...defaultConfig, ...analysis.config };
 			const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL as LogLevel) || 'info');
 			try {
 				// Generate workbench files on the fly instead of using files from package
@@ -356,9 +326,8 @@ export async function bundle({
 				const workbenchBuildConfig: Bun.BuildConfig = {
 					entrypoints: [workbenchIndexFile],
 					outdir: join(outDir, 'workbench'),
-					define: workbenchDefine,
 					sourcemap: dev ? 'inline' : 'linked',
-					plugins: [AgentuityBundler],
+					plugins: [AgentuityBundler], // i dont think we need this plugin here
 					target: 'browser',
 					format: 'esm',
 					banner: `// Generated file. DO NOT EDIT`,

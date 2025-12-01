@@ -2,8 +2,18 @@
 
 // NOTE: these ideas are borrowed from https://github.com/Effect-TS/effect
 
-import util from 'node:util';
 import { safeStringify } from './json';
+
+// Conditionally import util for Node.js environments only
+let util: typeof import('node:util') | undefined;
+if (typeof process !== 'undefined' && process.versions?.node) {
+	try {
+		// Use eval to avoid bundler issues with dynamic require
+		util = eval('require')('node:util');
+	} catch {
+		// Ignore import errors in browser environments
+	}
+}
 
 type PlainObject = Record<string, any>;
 
@@ -116,17 +126,23 @@ export class RichError extends Error {
 
 			// include plain args as formatted output (if any)
 			if (curAny[_argsSym]) {
-				let argsStr = util.formatWithOptions(
-					{
-						depth: 10,
-						sorted: true,
-						showHidden: false,
-						showProxy: false,
-						maxArrayLength: 10,
-						maxStringLength: 80 - spacer.length * 2,
-					},
-					curAny[_argsSym]
-				);
+				let argsStr: string;
+				if (util?.formatWithOptions) {
+					argsStr = util.formatWithOptions(
+						{
+							depth: 10,
+							sorted: true,
+							showHidden: false,
+							showProxy: false,
+							maxArrayLength: 10,
+							maxStringLength: 80 - spacer.length * 2,
+						},
+						curAny[_argsSym]
+					);
+				} else {
+					// Fallback for browser environments
+					argsStr = safeStringify(curAny[_argsSym]);
+				}
 				argsStr = argsStr.replace(/^{/, '').replace(/}$/, '');
 				const jsonlines = argsStr
 					.split('\n')
@@ -190,7 +206,10 @@ export class RichError extends Error {
 		return this.prettyPrint(2);
 	}
 
-	[util.inspect.custom](_depth: number, _options: any) {
+	[util?.inspect?.custom || Symbol.for('nodejs.util.inspect.custom')](
+		_depth: number,
+		_options: any
+	) {
 		return this.prettyPrint(); // or some concise string/JSON
 	}
 }

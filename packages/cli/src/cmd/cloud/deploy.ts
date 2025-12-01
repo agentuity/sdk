@@ -27,9 +27,9 @@ import {
 } from '../../env-util';
 import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
-import { DeployOptionsSchema } from '../build/bundler';
 import { getCommand } from '../../command-prefix';
 import { checkCustomDomainForDNS } from './domain';
+import { DeployOptionsSchema } from '../../schemas/deploy';
 
 const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),

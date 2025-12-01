@@ -302,6 +302,16 @@ type InternalAgentMetadata = {
 	 * a unique version for the agent. computed as the SHA256 contents of the file.
 	 */
 	version: string;
+
+	/**
+	 * the source code for the input schema.
+	 */
+	inputSchemaCode?: string;
+
+	/**
+	 * the source code for the output schema.
+	 */
+	outputSchemaCode?: string;
 };
 
 type ExternalAgentMetadata = {

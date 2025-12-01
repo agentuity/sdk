@@ -4,7 +4,13 @@ import { createApp } from '@agentuity/runtime';
 
 import { createWorkbench } from '@agentuity/workbench';
 
-const workbench = createWorkbench();
+const workbench = createWorkbench({
+	port: 3500,
+	route: '/workbench',
+	headers: {
+		Authorization: 'Bearer 1234567890',
+	},
+});
 
 const app = await createApp({
 	services: {

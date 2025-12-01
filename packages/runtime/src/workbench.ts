@@ -27,10 +27,20 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 		const schemas: { agents: Record<string, unknown> } = { agents: {} };
 		// TODO: this is going to only work for zod schema for now. need a way to handle others
 		for (const [, agent] of agents) {
-			schemas.agents[agent.metadata.name] = {
+			schemas.agents[agent.metadata.id] = {
 				schema: {
-					input: agent.inputSchema ? z.toJSONSchema(agent.inputSchema) : undefined,
-					output: agent.outputSchema ? z.toJSONSchema(agent.outputSchema) : undefined,
+					input: agent.inputSchema
+						? {
+								code: agent.metadata.inputSchemaCode || undefined,
+								json: z.toJSONSchema(agent.inputSchema),
+							}
+						: undefined,
+					output: agent.outputSchema
+						? {
+								code: agent.metadata.outputSchemaCode || undefined,
+								json: z.toJSONSchema(agent.outputSchema),
+							}
+						: undefined,
 				},
 				metadata: agent.metadata,
 			};

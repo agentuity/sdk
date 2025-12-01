@@ -1,13 +1,11 @@
-import type { WorkbenchConfig } from '@agentuity/core';
+import { encodeWorkbenchConfig, type WorkbenchConfig } from '@agentuity/core';
 
 export function generateWorkbenchMainTsx(config: WorkbenchConfig): string {
-	const configString = JSON.stringify(config);
-
+	const encodedConfig = encodeWorkbenchConfig(config);
 	return `// Generated workbench entry point
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { AgentuityProvider } from '@agentuity/react';
-import { createWorkbench, Workbench } from '@agentuity/workbench';
+import { App } from '@agentuity/workbench';
 import '@agentuity/workbench/styles';
 
 // Root element
@@ -16,23 +14,10 @@ if (!rootElement) {
 	throw new Error('Root element not found');
 }
 
-// Create workbench instance with config from bundler
-const workbenchConfig = ${configString};
-const workbench = createWorkbench(workbenchConfig);
-
-function App() {
-	return (
-		<AgentuityProvider baseUrl={window.location.origin}>
-			<div className="min-h-screen bg-background text-foreground">
-				<Workbench workbench={workbench} />
-			</div>
-		</AgentuityProvider>
-	);
-}
-
-// Render the app
+// Render the app (App has its own provider and config)
 const root = createRoot(rootElement);
-root.render(<App />);
+console.log('encodedConfig', '${encodedConfig}');
+root.render(<App configBase64="${encodedConfig}" />);
 `;
 }
 

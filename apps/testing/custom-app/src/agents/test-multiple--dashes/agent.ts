@@ -3,9 +3,9 @@ import { z } from 'zod';
 
 const agent = createAgent({
 	metadata: {
-        name: 'test-multiple--dashes',
-        description: 'Test agent with multiple dashes',
-    },
+		name: 'test-multiple--dashes',
+		description: 'Test agent with multiple dashes',
+	},
 	schema: {
 		input: z.string(),
 		output: z.string(),
