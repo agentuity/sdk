@@ -1,6 +1,7 @@
 /* eslint-disable no-control-regex */
 import { writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
+import { toCamelCase } from '../../utils/string';
 
 const newAgentTemplate = (name: string) => `import { createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
@@ -23,19 +24,22 @@ const agent = createAgent({
 export default agent;
 `;
 
-const newAgentRouteTemplate = (name: string) => `import { createRouter } from '@agentuity/runtime';
+const newAgentRouteTemplate = (name: string) => {
+	const camelName = toCamelCase(name);
+	return `import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
 router.get('/', async (c) => {
 	// TODO: add your code here
-	const output = await c.agent.${name}.run('hello world');
+	const output = await c.agent.${camelName}.run('hello world');
 	return c.text(output);
 });
 
 export default router;
 
 `;
+};
 
 const newAPIRouteTemplate = (_name: string) => `import { createRouter } from '@agentuity/runtime';
 

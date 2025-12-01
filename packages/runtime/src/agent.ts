@@ -6,6 +6,7 @@ import {
 	type StandardSchemaV1,
 	type StreamStorage,
 	type VectorStorage,
+	toCamelCase,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -1593,13 +1594,6 @@ const createAgentRunner = <
  */
 export const populateAgentsRegistry = (ctx: Context): any => {
 	const agentsObj: any = {};
-
-	// Convert kebab-case to camelCase
-	const toCamelCase = (str: string): string => {
-		return str
-			.replace(/[-_\s]+(.)?/g, (_, char) => (char ? char.toUpperCase() : ''))
-			.replace(/^(.)/, (char) => char.toLowerCase());
-	};
 
 	// Build nested structure for agents and subagents
 	for (const [name, agentFn] of agents) {

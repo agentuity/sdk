@@ -16,17 +16,7 @@ import { applyPatch, generatePatches } from './patch';
 import { detectSubagent } from '../../utils/detectSubagent';
 import { createLogger } from '@agentuity/server';
 import type { LogLevel } from '../../types';
-
-function toCamelCase(str: string): string {
-	return str
-		.replace(/[-_\s]+(.)?/g, (_, char) => (char ? char.toUpperCase() : ''))
-		.replace(/^(.)/, (char) => char.toLowerCase());
-}
-
-function toPascalCase(str: string): string {
-	const camel = toCamelCase(str);
-	return camel.charAt(0).toUpperCase() + camel.slice(1);
-}
+import { toCamelCase, toPascalCase } from '../../utils/string';
 
 /**
  * Setup lifecycle types by analyzing app.ts for setup() function
