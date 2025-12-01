@@ -3,8 +3,6 @@
 # adapted from https://raw.githubusercontent.com/sst/opencode/refs/heads/dev/install
 # licensed under the same MIT license
 set -euo pipefail
-APP=agentuity
-REPO=agentuity/sdk
 
 MUTED='\033[0;2m'
 RED='\033[0;31m'
@@ -102,38 +100,7 @@ if [ "$os" = "linux" ]; then
   fi
 fi
 
-needs_baseline=false
-if [ "$arch" = "x64" ]; then
-  if [ "$os" = "linux" ]; then
-    if ! grep -qi avx2 /proc/cpuinfo 2>/dev/null; then
-      needs_baseline=true
-    fi
-  fi
-
-  if [ "$os" = "darwin" ]; then
-    avx2=$(sysctl -n hw.optional.avx2_0 2>/dev/null || echo 0)
-    if [ "$avx2" != "1" ]; then
-      needs_baseline=true
-    fi
-  fi
-fi
-
-target="$os-$arch"
-if [ "$needs_baseline" = "true" ]; then
-  target="$target-baseline"
-fi
-if [ "$is_musl" = "true" ]; then
-  target="$target-musl"
-fi
-
-filename="$APP-$target$archive_ext"
-
-curl_headers="X:Y"
-
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-  curl_headers="Authorization: Bearer $GITHUB_TOKEN"
-fi
-
+filename="agentuity-$os-$arch"
 
 INSTALL_DIR=$HOME/.agentuity/bin
 if ! mkdir -p "$INSTALL_DIR" 2>/dev/null; then
@@ -149,15 +116,14 @@ if [ ! -w "$INSTALL_DIR" ]; then
 fi
 
 if [ -z "$requested_version" ]; then
-  url="https://github.com/$REPO/releases/latest/download/$filename"
-  specific_version=$(curl -s https://api.github.com/repos/$REPO/releases/latest -H "$curl_headers" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
-
+  specific_version=$(curl -s https://agentuity.sh/release/sdk/version | tr -d '"v')
   if [[ $? -ne 0 || -z "$specific_version" ]]; then
-    echo -e "${RED}Failed to fetch version information${NC}"
+    printf "${RED}Failed to fetch version information${NC}\n"
     exit 1
   fi
+  url="https://agentuity.sh/release/sdk/${specific_version}/${os}/${arch}"
 else
-  url="https://github.com/$REPO/releases/download/v${requested_version}/$filename"
+  url="https://agentuity.sh/release/sdk/v${requested_version}/${os}/${arch}"
   specific_version=$requested_version
 fi
 
@@ -349,7 +315,6 @@ print_progress() {
 download_with_progress() {
   local url="$1"
   local output="$2"
-  local headers="$3"
 
   if [ -t 2 ]; then
     exec 4>&2
@@ -376,7 +341,7 @@ download_with_progress() {
   trap "trap - RETURN; rm -f \"$tracefile\"; printf '\033[?25h' >&4; exec 4>&-" RETURN
 
   (
-    curl --trace-ascii "$tracefile" -s -L -o "$output" -H "$headers" "$url"
+    curl --trace-ascii "$tracefile" -s -L -o "$output" "$url"
   ) &
   local curl_pid=$!
 
@@ -422,9 +387,9 @@ download_and_install() {
   
   cd "$tmpdir"
 
-  if ! download_with_progress "$url" "$filename" "$curl_headers"; then
+  if ! download_with_progress "$url" "$filename"; then
     # Fallback to standard curl on Windows or if custom progress fails
-    if ! curl -# -L -o "$filename" -H "$curl_headers" "$url"; then
+    if ! curl -# -L -o "$filename" "$url"; then
       print_message error "Failed to download $filename from $url"
       exit 1
     fi
@@ -536,19 +501,19 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
   print_message info "Added $INSTALL_DIR to \$GITHUB_PATH"
 fi
 
-echo ""
-echo "${CYAN}╭────────────────────────────────────────────────────╮${NC}"
-echo "${CYAN}│${NC} ⨺ Agentuity  The full-stack platform for AI agents ${CYAN}│${NC}"
-echo "${CYAN}│${NC}                                                    ${CYAN}│${NC}"
-echo "${CYAN}│${NC} Version:        ${specific_version}$(printf '%*s' $((35 - ${#specific_version})) '')${CYAN}│${NC}"
-echo "${CYAN}│${NC} Docs:           https://agentuity.dev              ${CYAN}│${NC}"
-echo "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYAN}│${NC}"
-echo "${CYAN}│${NC} Dashboard:      https://app.agentuity.com          ${CYAN}│${NC}"
-echo "${CYAN}╰────────────────────────────────────────────────────╯${NC}"
-echo ""
-echo "${MUTED}To get started, run:${NC}"
-echo ""
-echo "agentuity create       ${MUTED}Create a project${NC}"
-echo "agentuity login        ${MUTED}Login to an existing account${NC}"
-echo "agentuity help         ${MUTED}List commands and options${NC}"
-echo ""
+printf "\n"
+printf "${CYAN}╭────────────────────────────────────────────────────╮${NC}\n"
+printf "${CYAN}│${NC} ⨺ Agentuity  The full-stack platform for AI agents ${CYAN}│${NC}\n"
+printf "${CYAN}│${NC}                                                    ${CYAN}│${NC}\n"
+printf "${CYAN}│${NC} Version:        ${specific_version}$(printf '%*s' $((35 - ${#specific_version})) '')${CYAN}│${NC}\n"
+printf "${CYAN}│${NC} Docs:           https://agentuity.dev              ${CYAN}│${NC}\n"
+printf "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYAN}│${NC}\n"
+printf "${CYAN}│${NC} Dashboard:      https://app.agentuity.com          ${CYAN}│${NC}\n"
+printf "${CYAN}╰────────────────────────────────────────────────────╯${NC}\n"
+printf "\n"
+printf "${MUTED}To get started, run:${NC}\n"
+printf "\n"
+printf "agentuity create       ${MUTED}Create a project${NC}\n"
+printf "agentuity login        ${MUTED}Login to an existing account${NC}\n"
+printf "agentuity help         ${MUTED}List commands and options${NC}\n"
+printf "\n"
