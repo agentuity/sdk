@@ -33,6 +33,7 @@ const SessionSchema = z.object({
 	route_id: z.string().describe('the route id'),
 	thread_id: z.string().describe('the thread id'),
 	timeline: z.unknown().nullable().optional().describe('the session timeline tree'),
+	user_data: z.string().nullable().optional().describe('the user data as JSON'),
 });
 
 export { SessionSchema };

@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { sessionGet, type SpanNode, type EvalRun, type AgentInfo } from '@agentuity/server';
+import {
+	sessionGet,
+	type SpanNode,
+	type EvalRun,
+	type AgentInfo,
+	APIError,
+} from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { getCatalystAPIClient } from '../../../config';
@@ -238,6 +244,9 @@ export const getSubcommand = createSubcommand({
 
 			return result;
 		} catch (ex) {
+			if (ex instanceof APIError && ex.status === 404) {
+				tui.fatal(`Session ${args.session_id} not found`, ErrorCode.RESOURCE_NOT_FOUND);
+			}
 			tui.fatal(
 				`Failed to get session: ${ex instanceof Error ? ex.message : String(ex)}`,
 				ErrorCode.API_ERROR

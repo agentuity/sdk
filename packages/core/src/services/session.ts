@@ -29,6 +29,7 @@ export const SessionCompleteEventSchema = z
 			.optional()
 			.describe('optional array of ids for the agents that executed for the session'),
 		statusCode: z.number().describe('the HTTP status code'),
+		userData: z.string().optional().describe('optional JSON string of session state data'),
 	})
 	.describe('The event to record a session completed successfully');
 

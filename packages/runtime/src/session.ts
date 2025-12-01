@@ -4,6 +4,8 @@ import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 import { type Env, fireEvent } from './app';
 import type { AppState } from './index';
+import { getServiceUrls } from '@agentuity/server';
+import { WebSocket } from 'ws';
 
 export type ThreadEventName = 'destroyed';
 export type SessionEventName = 'completed';
@@ -195,6 +197,12 @@ export interface Session {
 		eventName: 'completed',
 		callback: (eventName: 'completed', session: Session) => Promise<void> | void
 	): void;
+
+	/**
+	 * Return the session data as a serializable string or return undefined if not
+	 * data should be serialized.
+	 */
+	serializeUserData(): string | undefined;
 }
 
 /**
@@ -396,15 +404,17 @@ export function generateId(prefix?: string): string {
 
 export class DefaultThread implements Thread {
 	#lastUsed: number;
+	#initialStateJson: string | undefined;
 	readonly id: string;
 	readonly state: Map<string, unknown>;
 	private provider: ThreadProvider;
 
-	constructor(provider: ThreadProvider, id: string) {
+	constructor(provider: ThreadProvider, id: string, initialStateJson?: string) {
 		this.provider = provider;
 		this.id = id;
 		this.state = new Map();
 		this.#lastUsed = Date.now();
+		this.#initialStateJson = initialStateJson;
 	}
 
 	addEventListener(eventName: ThreadEventName, callback: ThreadEventCallback<any>): void {
@@ -434,7 +444,7 @@ export class DefaultThread implements Thread {
 	}
 
 	async destroy(): Promise<void> {
-		this.provider.destroy(this);
+		await this.provider.destroy(this);
 	}
 
 	touch() {
@@ -443,6 +453,28 @@ export class DefaultThread implements Thread {
 
 	expired() {
 		return Date.now() - this.#lastUsed >= 3.6e6; // 1 hour
+	}
+
+	/**
+	 * Check if thread state has been modified since restore
+	 * @internal
+	 */
+	isDirty(): boolean {
+		if (this.state.size === 0 && !this.#initialStateJson) {
+			return false;
+		}
+
+		const currentJson = JSON.stringify(Object.fromEntries(this.state));
+
+		return currentJson !== this.#initialStateJson;
+	}
+
+	/**
+	 * Get serialized state for saving
+	 * @internal
+	 */
+	getSerializedState(): string {
+		return JSON.stringify(Object.fromEntries(this.state));
 	}
 }
 
@@ -482,25 +514,305 @@ export class DefaultSession implements Session {
 	async fireEvent(eventName: SessionEventName): Promise<void> {
 		await fireSessionEvent(this, eventName);
 	}
+
+	/**
+	 * Serialize session state to JSON string for persistence.
+	 * Returns undefined if state is empty or exceeds 1MB limit.
+	 * @internal
+	 */
+	serializeUserData(): string | undefined {
+		if (this.state.size === 0) {
+			return undefined;
+		}
+
+		try {
+			const obj = Object.fromEntries(this.state);
+			const json = JSON.stringify(obj);
+
+			// Check 1MB limit (1,048,576 bytes)
+			const sizeInBytes = new TextEncoder().encode(json).length;
+			if (sizeInBytes > 1048576) {
+				console.error(
+					`Session ${this.id} user_data exceeds 1MB limit (${sizeInBytes} bytes), data will not be persisted`
+				);
+				return undefined;
+			}
+
+			return json;
+		} catch (err) {
+			console.error(`Failed to serialize session ${this.id} user_data:`, err);
+			return undefined;
+		}
+	}
+}
+
+/**
+ * WebSocket client for thread state persistence
+ * @internal
+ */
+class ThreadWebSocketClient {
+	private ws: WebSocket | null = null;
+	private authenticated = false;
+	private pendingRequests = new Map<
+		string,
+		{ resolve: (data?: string) => void; reject: (err: Error) => void }
+	>();
+	private requestCounter = 0;
+	private reconnectAttempts = 0;
+	private maxReconnectAttempts = 5;
+	private apiKey: string;
+	private wsUrl: string;
+	private wsConnecting: Promise<void> | null = null;
+
+	constructor(apiKey: string, wsUrl: string) {
+		this.apiKey = apiKey;
+		this.wsUrl = wsUrl;
+	}
+
+	async connect(): Promise<void> {
+		return new Promise((resolve, reject) => {
+			// Set connection timeout
+			const connectionTimeout = setTimeout(() => {
+				this.cleanup();
+				reject(new Error('WebSocket connection timeout (10s)'));
+			}, 10000);
+
+			try {
+				this.ws = new WebSocket(this.wsUrl);
+
+				this.ws.on('open', () => {
+					// Send authentication (do NOT clear timeout yet - wait for auth response)
+					this.ws?.send(JSON.stringify({ authorization: this.apiKey }));
+				});
+
+				this.ws.on('message', (data: any) => {
+					try {
+						const message = JSON.parse(data.toString());
+
+						// Handle auth response
+						if ('success' in message && !this.authenticated) {
+							clearTimeout(connectionTimeout);
+							if (message.success) {
+								this.authenticated = true;
+								this.reconnectAttempts = 0;
+								resolve();
+							} else {
+								const err = new Error(
+									`WebSocket authentication failed: ${message.error || 'Unknown error'}`
+								);
+								this.cleanup();
+								reject(err);
+							}
+							return;
+						}
+
+						// Handle action response
+						if ('id' in message && this.pendingRequests.has(message.id)) {
+							const pending = this.pendingRequests.get(message.id)!;
+							this.pendingRequests.delete(message.id);
+
+							if (message.success) {
+								pending.resolve(message.data);
+							} else {
+								pending.reject(new Error(message.error || 'Request failed'));
+							}
+						}
+					} catch {
+						// Ignore parse errors
+					}
+				});
+
+				this.ws.on('error', (err: Error) => {
+					clearTimeout(connectionTimeout);
+					if (!this.authenticated) {
+						reject(new Error(`WebSocket error: ${err.message}`));
+					}
+				});
+
+				this.ws.on('close', () => {
+					clearTimeout(connectionTimeout);
+					const wasAuthenticated = this.authenticated;
+					this.authenticated = false;
+
+					// Reject all pending requests
+					for (const [id, pending] of this.pendingRequests) {
+						pending.reject(new Error('WebSocket connection closed'));
+						this.pendingRequests.delete(id);
+					}
+
+					// Reject connecting promise if still pending
+					if (!wasAuthenticated) {
+						reject(new Error('WebSocket closed before authentication'));
+					}
+
+					// Attempt reconnection only if we were previously authenticated
+					if (wasAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
+						this.reconnectAttempts++;
+						const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+
+						// Schedule reconnection with backoff delay
+						setTimeout(() => {
+							// Create new connection promise for reconnection
+							this.wsConnecting = this.connect().catch(() => {
+								// Reconnection failed, reset
+								this.wsConnecting = null;
+							});
+						}, delay);
+					}
+				});
+			} catch (err) {
+				clearTimeout(connectionTimeout);
+				reject(err);
+			}
+		});
+	}
+
+	async restore(threadId: string): Promise<string | undefined> {
+		// Wait for connection/reconnection if in progress
+		if (this.wsConnecting) {
+			await this.wsConnecting;
+		}
+
+		if (!this.authenticated || !this.ws) {
+			throw new Error('WebSocket not connected or authenticated');
+		}
+
+		return new Promise((resolve, reject) => {
+			const requestId = `req_${++this.requestCounter}`;
+			this.pendingRequests.set(requestId, { resolve, reject });
+
+			const message = {
+				id: requestId,
+				action: 'restore',
+				data: { thread_id: threadId },
+			};
+
+			this.ws!.send(JSON.stringify(message));
+
+			// Timeout after 10 seconds
+			setTimeout(() => {
+				if (this.pendingRequests.has(requestId)) {
+					this.pendingRequests.delete(requestId);
+					reject(new Error('Request timeout'));
+				}
+			}, 10000);
+		});
+	}
+
+	async save(threadId: string, userData: string): Promise<void> {
+		// Wait for connection/reconnection if in progress
+		if (this.wsConnecting) {
+			await this.wsConnecting;
+		}
+
+		if (!this.authenticated || !this.ws) {
+			throw new Error('WebSocket not connected or authenticated');
+		}
+
+		// Check 1MB limit
+		const sizeInBytes = new TextEncoder().encode(userData).length;
+		if (sizeInBytes > 1048576) {
+			console.error(
+				`Thread ${threadId} user_data exceeds 1MB limit (${sizeInBytes} bytes), data will not be persisted`
+			);
+			return;
+		}
+
+		return new Promise((resolve, reject) => {
+			const requestId = crypto.randomUUID();
+			this.pendingRequests.set(requestId, {
+				resolve: () => resolve(),
+				reject,
+			});
+
+			const message = {
+				id: requestId,
+				action: 'save',
+				data: { thread_id: threadId, user_data: userData },
+			};
+
+			this.ws!.send(JSON.stringify(message));
+
+			// Timeout after 10 seconds
+			setTimeout(() => {
+				if (this.pendingRequests.has(requestId)) {
+					this.pendingRequests.delete(requestId);
+					reject(new Error('Request timeout'));
+				}
+			}, 10_000);
+		});
+	}
+
+	async delete(threadId: string): Promise<void> {
+		// Wait for connection/reconnection if in progress
+		if (this.wsConnecting) {
+			await this.wsConnecting;
+		}
+
+		if (!this.authenticated || !this.ws) {
+			throw new Error('WebSocket not connected or authenticated');
+		}
+
+		return new Promise((resolve, reject) => {
+			const requestId = crypto.randomUUID();
+			this.pendingRequests.set(requestId, {
+				resolve: () => resolve(),
+				reject,
+			});
+
+			const message = {
+				id: requestId,
+				action: 'delete',
+				data: { thread_id: threadId },
+			};
+
+			this.ws!.send(JSON.stringify(message));
+
+			// Timeout after 10 seconds
+			setTimeout(() => {
+				if (this.pendingRequests.has(requestId)) {
+					this.pendingRequests.delete(requestId);
+					reject(new Error('Request timeout'));
+				}
+			}, 10_000);
+		});
+	}
+
+	cleanup(): void {
+		if (this.ws) {
+			this.ws.close();
+			this.ws = null;
+		}
+		this.authenticated = false;
+		this.pendingRequests.clear();
+	}
 }
 
 export class DefaultThreadProvider implements ThreadProvider {
-	private threads = new Map<string, DefaultThread>();
+	private wsClient: ThreadWebSocketClient | null = null;
+	private wsConnecting: Promise<void> | null = null;
 
 	async initialize(_appState: AppState): Promise<void> {
-		setInterval(() => {
-			for (const [, thread] of this.threads) {
-				if (thread.expired()) {
-					void (async () => {
-						try {
-							await this.destroy(thread);
-						} catch (err) {
-							console.error('Failed to destroy expired thread', err);
-						}
-					})();
-				}
-			}
-		}, 60_000).unref();
+		// Initialize WebSocket connection for thread persistence (async, non-blocking)
+		const apiKey = process.env.AGENTUITY_SDK_KEY;
+		if (apiKey) {
+			const serviceUrls = getServiceUrls();
+			const catalystUrl = serviceUrls.catalyst;
+			const wsUrl = new URL('/thread/ws', catalystUrl.replace(/^http/, 'ws'));
+
+			this.wsClient = new ThreadWebSocketClient(apiKey, wsUrl.toString());
+			// Connect in background, don't block initialization
+			this.wsConnecting = this.wsClient
+				.connect()
+				.then(() => {
+					this.wsConnecting = null;
+				})
+				.catch((err) => {
+					console.error('Failed to connect to thread WebSocket:', err);
+					this.wsClient = null;
+					this.wsConnecting = null;
+				});
+		}
 	}
 
 	async restore(ctx: Context<Env>): Promise<Thread> {
@@ -515,14 +827,40 @@ export class DefaultThreadProvider implements ThreadProvider {
 
 		if (threadId) {
 			setCookie(ctx, 'atid', threadId);
-			const existing = this.threads.get(threadId);
-			if (existing) {
-				return existing;
+		}
+
+		// Wait for WebSocket connection if still connecting
+		if (this.wsConnecting) {
+			await this.wsConnecting;
+		}
+
+		// Restore thread state from WebSocket if available
+		let initialStateJson: string | undefined;
+		if (this.wsClient) {
+			try {
+				const restoredData = await this.wsClient.restore(threadId);
+				if (restoredData) {
+					initialStateJson = restoredData;
+				}
+			} catch {
+				// Continue with empty state rather than failing
 			}
 		}
 
-		const thread = new DefaultThread(this, threadId);
-		this.threads.set(thread.id, thread);
+		const thread = new DefaultThread(this, threadId, initialStateJson);
+
+		// Populate thread state from restored data
+		if (initialStateJson) {
+			try {
+				const data = JSON.parse(initialStateJson);
+				for (const [key, value] of Object.entries(data)) {
+					thread.state.set(key, value);
+				}
+			} catch {
+				// Continue with empty state if parsing fails
+			}
+		}
+
 		await fireEvent('thread.created', thread);
 		return thread;
 	}
@@ -530,16 +868,45 @@ export class DefaultThreadProvider implements ThreadProvider {
 	async save(thread: Thread): Promise<void> {
 		if (thread instanceof DefaultThread) {
 			thread.touch();
+
+			// Wait for WebSocket connection if still connecting
+			if (this.wsConnecting) {
+				await this.wsConnecting;
+			}
+
+			// Only save to WebSocket if state has changed
+			if (this.wsClient && thread.isDirty()) {
+				try {
+					const serialized = thread.getSerializedState();
+					await this.wsClient.save(thread.id, serialized);
+				} catch {
+					// Don't throw - allow request to complete even if save fails
+				}
+			}
 		}
 	}
 
 	async destroy(thread: Thread): Promise<void> {
 		if (thread instanceof DefaultThread) {
 			try {
+				// Wait for WebSocket connection if still connecting
+				if (this.wsConnecting) {
+					await this.wsConnecting;
+				}
+
+				// Delete thread from remote storage
+				if (this.wsClient) {
+					try {
+						await this.wsClient.delete(thread.id);
+					} catch (err) {
+						console.error(`Failed to delete thread ${thread.id} from remote storage:`, err);
+						// Continue with local cleanup even if remote delete fails
+					}
+				}
+
 				await thread.fireEvent('destroyed');
 				await fireEvent('thread.destroyed', thread);
 			} finally {
-				this.threads.delete(thread.id);
 				threadEventListeners.delete(thread);
 			}
 		}

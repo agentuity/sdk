@@ -169,6 +169,7 @@ start_server_if_needed() {
 		# Check for .env.local first, then fall back to .env in the original project directory
 		if [[ -f "$ORIGINAL_DIR/.env.local" && -z "$CI" ]]; then
 			ENV_FILE="$ORIGINAL_DIR/.env.local"
+			USE_DEV_MODE="${USE_DEV_MODE:-true}"
 		elif [ -f "$ORIGINAL_DIR/.env" ]; then
 			ENV_FILE="$ORIGINAL_DIR/.env"
 		else

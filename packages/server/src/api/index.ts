@@ -4,4 +4,5 @@ export * from './org';
 export * from './project';
 export * from './region';
 export * from './session';
+export * from './thread';
 export * from './user';

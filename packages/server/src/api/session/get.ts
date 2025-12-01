@@ -23,6 +23,7 @@ export interface SpanNode {
 	operation: string;
 	attributes: Record<string, unknown>;
 	children?: SpanNode[];
+	error?: string;
 }
 
 const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
@@ -32,6 +33,7 @@ const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
 		operation: z.string().describe('operation name'),
 		attributes: z.record(z.string(), z.unknown()).describe('span attributes'),
 		children: z.array(SpanNodeSchema).optional().describe('child spans'),
+		error: z.string().optional().describe('error message'),
 	})
 );
 

@@ -280,7 +280,8 @@ run_parallel_group "Feature Tests" \
 	"API Agent Call:test-api-agent-call.sh" \
 	"WaitUntil:test-waituntil.sh" \
 	"Eval Functionality:test-evals.sh" \
-	"Email:test-email.sh"
+	"Email:test-email.sh" \
+	"State Persistence:test-state-persistence.sh"
 
 # ============================================================================
 # GROUP 4: Misc Tests (Can run in parallel or serial)

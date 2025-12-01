@@ -3,6 +3,7 @@ import { deploySubcommand } from './deploy';
 import { dbCommand } from './db';
 import { storageCommand } from './storage';
 import { sessionCommand } from './session';
+import { threadCommand } from './thread';
 import { sshSubcommand } from './ssh';
 import { scpSubcommand } from './scp';
 import { deploymentCommand } from './deployment';
@@ -37,6 +38,7 @@ export const command = createCommand({
 		dbCommand,
 		storageCommand,
 		sessionCommand,
+		threadCommand,
 		sshSubcommand,
 		scpSubcommand,
 		deploymentCommand,

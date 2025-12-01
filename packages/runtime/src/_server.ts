@@ -154,9 +154,9 @@ export const createServer = async <TAppState>(
 		return [globalServerInstance, globalAppState as TAppState];
 	}
 
-	startupPromise = new Promise((resolve) => {
-		startupPromiseResolver = resolve;
-	});
+	const { promise, resolve } = Promise.withResolvers<void>();
+	startupPromise = promise;
+	startupPromiseResolver = resolve;
 
 	runtimeConfig.init();
 
@@ -537,11 +537,13 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 								await threadProvider.save(thread);
 								span.setStatus({ code: SpanStatusCode.OK });
 								if (shouldSendSession && canSendSessionEvents) {
+									const userData = session.serializeUserData();
 									sessionEventProvider
 										.complete({
 											id: sessionId,
 											statusCode: c.res.status,
 											agentIds: Array.from(agentIds),
+											userData,
 										})
 										.then(() => {})
 										.catch((ex) => c.var.logger.error(ex));
@@ -559,12 +561,14 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 								});
 								c.var.logger.error(message);
 								if (shouldSendSession && canSendSessionEvents) {
+									const userData = session.serializeUserData();
 									sessionEventProvider
 										.complete({
 											id: sessionId,
 											statusCode: c.res.status,
 											error: message,
 											agentIds: Array.from(agentIds),
+											userData,
 										})
 										.then(() => {})
 										.catch((ex) => c.var.logger.error(ex));
@@ -576,11 +580,13 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 					} else {
 						span.setStatus({ code: SpanStatusCode.OK });
 						if (shouldSendSession && canSendSessionEvents) {
+							const userData = session.serializeUserData();
 							sessionEventProvider
 								.complete({
 									id: sessionId,
 									statusCode: c.res.status,
 									agentIds: Array.from(agentIds),
+									userData,
 								})
 								.then(() => {})
 								.catch((ex) => c.var.logger.error(ex));
@@ -597,12 +603,14 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 					});
 					c.var.logger.error(message);
 					if (shouldSendSession && canSendSessionEvents) {
+						const userData = session.serializeUserData();
 						sessionEventProvider
 							.complete({
 								id: sessionId,
 								statusCode: c.res.status,
 								error: message,
 								agentIds: Array.from(agentIds),
+								userData,
 							})
 							.then(() => {})
 							.catch((ex) => c.var.logger.error(ex));
