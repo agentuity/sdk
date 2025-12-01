@@ -296,6 +296,9 @@ export async function createCLI(version: string): Promise<Command> {
 				} else {
 					write(str);
 				}
+			} else if (str.startsWith('error:')) {
+				// Colorize all error: lines in red
+				write(tui.colorError(str));
 			} else {
 				write(str);
 			}
