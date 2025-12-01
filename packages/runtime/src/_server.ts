@@ -431,7 +431,7 @@ export const createServer = async <TAppState>(
 const createAgentuityAPIs = () => {
 	const router = new Hono<Env>();
 	router.get('idle', (c) => {
-		if (isIdle() || !isShutdown) {
+		if (isIdle() && !isShutdown) {
 			return c.text('OK', { status: 200 });
 		}
 		return c.text('NO', { status: 200 });

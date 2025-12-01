@@ -33,7 +33,7 @@ type SessionEventCallback<T extends Session> = (
  * const agent = createAgent({
  *   handler: async (ctx, input) => {
  *     // Get thread ID
- *     console.log('Thread:', ctx.thread.id);
+ *     ctx.logger.info('Thread: %s', ctx.thread.id);
  *
  *     // Store data in thread state (persists across sessions)
  *     ctx.thread.state.set('conversationCount',
@@ -42,7 +42,7 @@ type SessionEventCallback<T extends Session> = (
  *
  *     // Listen for thread destruction
  *     ctx.thread.addEventListener('destroyed', (eventName, thread) => {
- *       console.log('Thread destroyed:', thread.id);
+ *       ctx.logger.info('Thread destroyed: %s', thread.id);
  *     });
  *
  *     return 'Response';
@@ -81,7 +81,7 @@ export interface Thread {
 	 * @example
 	 * ```typescript
 	 * ctx.thread.addEventListener('destroyed', (eventName, thread) => {
-	 *   console.log('Cleaning up thread:', thread.id);
+	 *   ctx.logger.info('Cleaning up thread: %s', thread.id);
 	 * });
 	 * ```
 	 */
@@ -107,7 +107,7 @@ export interface Thread {
 	 *
 	 * @example
 	 * ```typescript
-	 * // End conversation
+	 * // Permanently delete the thread from storage
 	 * await ctx.thread.destroy();
 	 * ```
 	 */
@@ -125,18 +125,18 @@ export interface Thread {
  * const agent = createAgent({
  *   handler: async (ctx, input) => {
  *     // Get session ID (unique per request)
- *     console.log('Session:', ctx.session.id);
+ *     ctx.logger.info('Session: %s', ctx.session.id);
  *
  *     // Store data in session state (only for this request)
  *     ctx.session.state.set('startTime', Date.now());
  *
  *     // Access parent thread
- *     console.log('Thread:', ctx.session.thread.id);
+ *     ctx.logger.info('Thread: %s', ctx.session.thread.id);
  *
  *     // Listen for session completion
  *     ctx.session.addEventListener('completed', (eventName, session) => {
  *       const duration = Date.now() - (session.state.get('startTime') as number);
- *       console.log(`Session completed in ${duration}ms`);
+ *       ctx.logger.info('Session completed in %dms', duration);
  *     });
  *
  *     return 'Response';
@@ -178,7 +178,7 @@ export interface Session {
 	 * @example
 	 * ```typescript
 	 * ctx.session.addEventListener('completed', (eventName, session) => {
-	 *   console.log('Session finished:', session.id);
+	 *   ctx.logger.info('Session finished: %s', session.id);
 	 * });
 	 * ```
 	 */
@@ -203,6 +203,25 @@ export interface Session {
 	 * data should be serialized.
 	 */
 	serializeUserData(): string | undefined;
+}
+
+/**
+ * Represent an interface for handling how thread ids are generated or restored.
+ */
+export interface ThreadIDProvider {
+	/**
+	 * A function that should return a thread id to be used for the incoming request.
+	 * The returning thread id must be globally unique and must start with the prefix
+	 * thrd_ such as `thrd_212c16896b974ffeb21a748f0eeba620`. The max length of the
+	 * string is 64 characters and the min length is 32 characters long
+	 * (including the prefix). The characters after the prefix must match the
+	 * regular expression [a-zA-Z0-9-].
+	 *
+	 * @param appState - The app state from createApp setup function
+	 * @param ctx - Hono request context
+	 * @returns The thread id to use
+	 */
+	getThreadId(appState: AppState, ctx: Context<Env>): string;
 }
 
 /**
@@ -260,6 +279,14 @@ export interface ThreadProvider {
 	 * @param appState - The app state from createApp setup function
 	 */
 	initialize(appState: AppState): Promise<void>;
+
+	/**
+	 * Set the provider to use for generating / restoring the thread id
+	 * on new requests.  Overrides the built-in provider when set.
+	 *
+	 * @param provider - the provider implementation
+	 */
+	setThreadIDProvider(provider: ThreadIDProvider): void;
 
 	/**
 	 * Restore or create a thread from the HTTP request context.
@@ -402,8 +429,27 @@ export function generateId(prefix?: string): string {
 	return `${prefix}${prefix ? '_' : ''}${arr.toHex()}`;
 }
 
+/**
+ * DefaultThreadIDProvider will look for a cookie named `atid` and use that as
+ * the thread id or if not found, generate a new one.
+ */
+export class DefaultThreadIDProvider implements ThreadIDProvider {
+	getThreadId(_appState: AppState, ctx: Context<Env>): string {
+		const cookie = getCookie(ctx);
+		let threadId: string | undefined;
+
+		if (cookie.atid?.startsWith('thrd_')) {
+			threadId = cookie.atid;
+		}
+
+		threadId = threadId || generateId('thrd');
+
+		setCookie(ctx, 'atid', threadId);
+		return threadId;
+	}
+}
+
 export class DefaultThread implements Thread {
-	#lastUsed: number;
 	#initialStateJson: string | undefined;
 	readonly id: string;
 	readonly state: Map<string, unknown>;
@@ -413,7 +459,6 @@ export class DefaultThread implements Thread {
 		this.provider = provider;
 		this.id = id;
 		this.state = new Map();
-		this.#lastUsed = Date.now();
 		this.#initialStateJson = initialStateJson;
 	}
 
@@ -445,14 +490,6 @@ export class DefaultThread implements Thread {
 
 	async destroy(): Promise<void> {
 		await this.provider.destroy(this);
-	}
-
-	touch() {
-		this.#lastUsed = Date.now();
-	}
-
-	expired() {
-		return Date.now() - this.#lastUsed >= 3.6e6; // 1 hour
 	}
 
 	/**
@@ -557,7 +594,6 @@ class ThreadWebSocketClient {
 		string,
 		{ resolve: (data?: string) => void; reject: (err: Error) => void }
 	>();
-	private requestCounter = 0;
 	private reconnectAttempts = 0;
 	private maxReconnectAttempts = 5;
 	private apiKey: string;
@@ -575,7 +611,7 @@ class ThreadWebSocketClient {
 			const connectionTimeout = setTimeout(() => {
 				this.cleanup();
 				reject(new Error('WebSocket connection timeout (10s)'));
-			}, 10000);
+			}, 10_000);
 
 			try {
 				this.ws = new WebSocket(this.wsUrl);
@@ -648,7 +684,7 @@ class ThreadWebSocketClient {
 					// Attempt reconnection only if we were previously authenticated
 					if (wasAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
 						this.reconnectAttempts++;
-						const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
+						const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30_000);
 
 						// Schedule reconnection with backoff delay
 						setTimeout(() => {
@@ -678,7 +714,7 @@ class ThreadWebSocketClient {
 		}
 
 		return new Promise((resolve, reject) => {
-			const requestId = `req_${++this.requestCounter}`;
+			const requestId = crypto.randomUUID();
 			this.pendingRequests.set(requestId, { resolve, reject });
 
 			const message = {
@@ -788,11 +824,18 @@ class ThreadWebSocketClient {
 	}
 }
 
+const validThreadIdCharacters = /^[a-zA-Z0-9-]+$/;
+
 export class DefaultThreadProvider implements ThreadProvider {
+	private appState: AppState | null = null;
 	private wsClient: ThreadWebSocketClient | null = null;
 	private wsConnecting: Promise<void> | null = null;
+	private threadIDProvider: ThreadIDProvider | null = null;
 
-	async initialize(_appState: AppState): Promise<void> {
+	async initialize(appState: AppState): Promise<void> {
+		this.appState = appState;
+		this.threadIDProvider = new DefaultThreadIDProvider();
+
 		// Initialize WebSocket connection for thread persistence (async, non-blocking)
 		const apiKey = process.env.AGENTUITY_SDK_KEY;
 		if (apiKey) {
@@ -815,18 +858,35 @@ export class DefaultThreadProvider implements ThreadProvider {
 		}
 	}
 
+	setThreadIDProvider(provider: ThreadIDProvider): void {
+		this.threadIDProvider = provider;
+	}
+
 	async restore(ctx: Context<Env>): Promise<Thread> {
-		const cookie = getCookie(ctx);
-		let threadId: string | undefined;
+		const threadId = this.threadIDProvider!.getThreadId(this.appState!, ctx);
 
-		if (cookie.atid?.startsWith('thrd_')) {
-			threadId = cookie.atid;
+		if (!threadId) {
+			throw new Error(`the ThreadIDProvider returned an empty thread id for getThreadId`);
 		}
-
-		threadId = threadId || generateId('thrd');
-
-		if (threadId) {
-			setCookie(ctx, 'atid', threadId);
+		if (!threadId.startsWith('thrd_')) {
+			throw new Error(
+				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must start with the prefix 'thrd_'.`
+			);
+		}
+		if (threadId.length > 64) {
+			throw new Error(
+				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be less than 64 characters long.`
+			);
+		}
+		if (threadId.length < 32) {
+			throw new Error(
+				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be at least 32 characters long.`
+			);
+		}
+		if (!validThreadIdCharacters.test(threadId.substring(5))) {
+			throw new Error(
+				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must contain only characters that match the regular expression [a-zA-Z0-9-].`
+			);
 		}
 
 		// Wait for WebSocket connection if still connecting
@@ -867,8 +927,6 @@ export class DefaultThreadProvider implements ThreadProvider {
 
 	async save(thread: Thread): Promise<void> {
 		if (thread instanceof DefaultThread) {
-			thread.touch();
-
 			// Wait for WebSocket connection if still connecting
 			if (this.wsConnecting) {
 				await this.wsConnecting;
