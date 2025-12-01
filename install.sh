@@ -303,9 +303,9 @@ check_version() {
     agentuity_path=$(which agentuity)
     installed_version=$(agentuity version 2>/dev/null || echo "unknown")
 
-    if [[ "$installed_version" != "$specific_version" ]]; then
+    if [[ "$installed_version" != "$specific_version" && "$installed_version" != "unknown" ]]; then
       print_message info "${MUTED}Installed version: ${NC}$installed_version."
-    else
+    elif [[ "$installed_version" == "$specific_version" ]]; then
       if [ "$force_install" = false ]; then
         print_message info "${MUTED}Version ${NC}$specific_version${MUTED} already installed"
         exit 0
@@ -536,19 +536,19 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
   print_message info "Added $INSTALL_DIR to \$GITHUB_PATH"
 fi
 
-echo -e ""
-echo -e "${CYAN}╭────────────────────────────────────────────────────╮${NC}"
-echo -e "${CYAN}│${NC} ⨺ Agentuity  The full-stack platform for AI agents ${CYAN}│${NC}"
-echo -e "${CYAN}│${NC}                                                    ${CYAN}│${NC}"
-echo -e "${CYAN}│${NC} Version:        ${specific_version}$(printf '%*s' $((35 - ${#specific_version})) '')${CYAN}│${NC}"
-echo -e "${CYAN}│${NC} Docs:           https://agentuity.dev              ${CYAN}│${NC}"
-echo -e "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYAN}│${NC}"
-echo -e "${CYAN}│${NC} Dashboard:      https://app.agentuity.com          ${CYAN}│${NC}"
-echo -e "${CYAN}╰────────────────────────────────────────────────────╯${NC}"
-echo -e ""
-echo -e "${MUTED}To get started, run:${NC}"
-echo -e ""
-echo -e "agentuity create       ${MUTED}Create a project${NC}"
-echo -e "agentuity login        ${MUTED}Login to an existing account${NC}"
-echo -e "agentuity help         ${MUTED}List commands and options${NC}"
-echo -e ""
+echo ""
+echo "${CYAN}╭────────────────────────────────────────────────────╮${NC}"
+echo "${CYAN}│${NC} ⨺ Agentuity  The full-stack platform for AI agents ${CYAN}│${NC}"
+echo "${CYAN}│${NC}                                                    ${CYAN}│${NC}"
+echo "${CYAN}│${NC} Version:        ${specific_version}$(printf '%*s' $((35 - ${#specific_version})) '')${CYAN}│${NC}"
+echo "${CYAN}│${NC} Docs:           https://agentuity.dev              ${CYAN}│${NC}"
+echo "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYAN}│${NC}"
+echo "${CYAN}│${NC} Dashboard:      https://app.agentuity.com          ${CYAN}│${NC}"
+echo "${CYAN}╰────────────────────────────────────────────────────╯${NC}"
+echo ""
+echo "${MUTED}To get started, run:${NC}"
+echo ""
+echo "agentuity create       ${MUTED}Create a project${NC}"
+echo "agentuity login        ${MUTED}Login to an existing account${NC}"
+echo "agentuity help         ${MUTED}List commands and options${NC}"
+echo ""
