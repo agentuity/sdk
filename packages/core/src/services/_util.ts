@@ -154,20 +154,16 @@ export async function fromResponse<T>(
 	url: string,
 	response: Response
 ): Promise<T> {
-	const contentType = response.headers.get('content-type');
-	if (!contentType || contentType?.includes('/json')) {
+	const rawContentType = response.headers.get('content-type') ?? '';
+	const contentType = rawContentType.toLowerCase();
+
+	if (!contentType || contentType.includes('json')) {
 		return (await response.json()) as T;
 	}
-	if (contentType?.includes('text/')) {
+
+	if (contentType.startsWith('text/')) {
 		return (await response.text()) as T;
 	}
-	if (contentType?.includes(binaryContentType)) {
-		return (await response.arrayBuffer()) as T;
-	}
-	throw new ServiceException({
-		message: `Unsupported content-type: ${contentType}`,
-		method,
-		url,
-		statusCode: response.status,
-	});
+
+	return (await response.arrayBuffer()) as T;
 }

@@ -118,9 +118,96 @@ else
 fi
 echo ""
 
-# Step 8: Test image upload (if available)
+# Step 8: Test PDF upload
+echo "Step 8: Testing PDF upload/download..."
+# Create a minimal valid PDF file
+cat > "$TEMP_DIR/test.pdf" << 'EOF'
+%PDF-1.4
+1 0 obj
+<<
+/Type /Catalog
+/Pages 2 0 R
+>>
+endobj
+2 0 obj
+<<
+/Type /Pages
+/Kids [3 0 R]
+/Count 1
+>>
+endobj
+3 0 obj
+<<
+/Type /Page
+/Parent 2 0 R
+/MediaBox [0 0 612 792]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 44
+>>
+stream
+BT
+/F1 12 Tf
+100 700 Td
+(Test PDF) Tj
+ET
+endstream
+endobj
+xref
+0 5
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000214 00000 n 
+trailer
+<<
+/Size 5
+/Root 1 0 R
+>>
+startxref
+306
+%%EOF
+EOF
+
+PDF_MD5=$(md5sum "$TEMP_DIR/test.pdf" | cut -d' ' -f1)
+echo -e "${GREEN}✓${NC} Created test.pdf (MD5: $PDF_MD5)"
+
+# Upload PDF
+UPLOAD_PDF_RESPONSE=$(curl -s -X POST "$BASE_URL/$BUCKET/${TEST_RUN_ID}-test.pdf" \
+  --data-binary "@$TEMP_DIR/test.pdf" \
+  -H "Content-Type: application/pdf")
+
+if echo "$UPLOAD_PDF_RESPONSE" | jq . > /dev/null 2>&1; then
+	echo "$UPLOAD_PDF_RESPONSE" | jq .
+else
+	echo -e "${RED}✗ FAIL:${NC} PDF upload failed with non-JSON response:"
+	echo "$UPLOAD_PDF_RESPONSE"
+	exit 1
+fi
+
+# Download PDF
+curl -s "$BASE_URL/$BUCKET/${TEST_RUN_ID}-test.pdf" -o "$TEMP_DIR/downloaded.pdf"
+
+DOWNLOADED_PDF_MD5=$(md5sum "$TEMP_DIR/downloaded.pdf" | cut -d' ' -f1)
+echo -e "Downloaded PDF (MD5: $DOWNLOADED_PDF_MD5)"
+
+if [ "$PDF_MD5" = "$DOWNLOADED_PDF_MD5" ]; then
+  echo -e "${GREEN}✓ PASS:${NC} PDF upload/download successful (content-type: application/pdf)!"
+else
+  echo -e "${RED}✗ FAIL:${NC} PDF data corrupted!"
+  echo "Original:   $PDF_MD5"
+  echo "Downloaded: $DOWNLOADED_PDF_MD5"
+  exit 1
+fi
+echo ""
+
+# Step 9: Test image upload (if available)
 if command -v convert &> /dev/null; then
-  echo "Step 8: Testing image upload..."
+  echo "Step 9: Testing image upload..."
   # Create a test image
   convert -size 100x100 xc:blue "$TEMP_DIR/test.jpg"
   
@@ -142,18 +229,19 @@ if command -v convert &> /dev/null; then
   echo ""
 fi
 
-# Step 9: Create public URL
-echo "Step 9: Creating public URL..."
+# Step 10: Create public URL
+echo "Step 10: Creating public URL..."
 PUBLIC_URL_RESPONSE=$(curl -s -X POST "$BASE_URL/$BUCKET/${TEST_RUN_ID}-random.bin/public-url")
 echo "$PUBLIC_URL_RESPONSE" | jq .
 PUBLIC_URL=$(echo "$PUBLIC_URL_RESPONSE" | jq -r .url)
 echo -e "${GREEN}✓${NC} Public URL: $PUBLIC_URL"
 echo ""
 
-# Step 10: Cleanup - delete test objects
-echo "Step 10: Cleaning up..."
+# Step 11: Cleanup - delete test objects
+echo "Step 11: Cleaning up..."
 curl -s -X DELETE "$BASE_URL/$BUCKET/${TEST_RUN_ID}-random.bin" > /dev/null
 curl -s -X DELETE "$BASE_URL/$BUCKET/${TEST_RUN_ID}-problematic.bin" > /dev/null
+curl -s -X DELETE "$BASE_URL/$BUCKET/${TEST_RUN_ID}-test.pdf" > /dev/null
 [ -f "$TEMP_DIR/test.jpg" ] && curl -s -X DELETE "$BASE_URL/$BUCKET/${TEST_RUN_ID}-test.jpg" > /dev/null
 echo -e "${GREEN}✓${NC} Deleted test objects"
 echo ""
