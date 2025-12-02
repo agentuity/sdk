@@ -553,11 +553,13 @@ async function createOrUpdateGitHubRelease(
 		args.push('--prerelease');
 	}
 
-	// Add executable assets
+	// Add executable assets (only .gz compressed files)
 	const binDir = join(rootDir, 'packages', 'cli', 'dist', 'bin');
 	const executables = await readdir(binDir);
 	for (const exe of executables) {
-		args.push(join(binDir, exe));
+		if (exe.endsWith('.gz')) {
+			args.push(join(binDir, exe));
+		}
 	}
 
 	try {

@@ -187,6 +187,8 @@ start_server_if_needed() {
 				echo "Please run build script to create port-specific builds"
 				exit 1
 			fi
+			# Isolated builds should always use pre-built app, not dev mode
+			USE_DEV_MODE=false
 			echo "Using isolated build directory: $BUILD_DIR"
 			echo "Using env file: $ENV_FILE"
 		else

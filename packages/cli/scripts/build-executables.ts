@@ -3,6 +3,9 @@
 import { $, file } from 'bun';
 import { join } from 'node:path';
 import { readFile, rm, mkdir } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { createGzip } from 'node:zlib';
+import { pipeline } from 'node:stream/promises';
 
 const rootDir = join(import.meta.dir, '..');
 const binDir = join(rootDir, 'dist', 'bin');
@@ -59,6 +62,8 @@ Environment Variables (required for signing and notarization):
   QUILL_NOTARY_KEY     Apple notary API key
   QUILL_NOTARY_KEY_ID  Apple notary key ID
   QUILL_NOTARY_ISSUER  Apple notary issuer ID
+
+Note: Linux binaries are glibc-based. Alpine Linux users need gcompat installed.
 `);
 			process.exit(0);
 		}
@@ -147,6 +152,30 @@ async function signAndNotarizeExecutable(executablePath: string, name: string) {
 	}
 }
 
+async function compressExecutable(executablePath: string, name: string) {
+	console.log(`📦 Compressing ${name}...`);
+
+	const gzPath = `${executablePath}.gz`;
+
+	try {
+		const source = createReadStream(executablePath);
+		const destination = createWriteStream(gzPath);
+		const gzip = createGzip({ level: 9 }); // Maximum compression
+
+		await pipeline(source, gzip, destination);
+
+		const originalSize = (await file(executablePath).stat()).size;
+		const compressedSize = (await file(gzPath).stat()).size;
+		const savings = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+
+		console.log(`✓ Compressed ${name} (${savings}% smaller)`);
+		return gzPath;
+	} catch (err) {
+		console.error(`✗ Failed to compress ${name}:`, err);
+		throw err;
+	}
+}
+
 async function main() {
 	const { platforms: requestedPlatforms, skipSign, version: cliVersion } = parseArgs();
 
@@ -162,8 +191,9 @@ async function main() {
 
 	// Filter platforms if specific ones requested
 	let platformsToBuild = PLATFORMS;
+
 	if (requestedPlatforms.length > 0) {
-		platformsToBuild = PLATFORMS.filter((p) => {
+		platformsToBuild = platformsToBuild.filter((p) => {
 			const shortName = p.output.replace('agentuity-', '');
 			return requestedPlatforms.includes(shortName);
 		});
@@ -205,12 +235,20 @@ async function main() {
 		}
 	}
 
+	// Compress all executables
+	console.log('\n📦 Compressing executables...\n');
+	const compressedFiles: { path: string; platform: Platform }[] = [];
+	for (const { path, platform } of builtExecutables) {
+		const compressedPath = await compressExecutable(path, platform.output);
+		compressedFiles.push({ path: compressedPath, platform });
+	}
+
 	console.log('\n✨ Build complete!\n');
 	console.log('Built executables:');
-	for (const { path, platform } of builtExecutables) {
+	for (const { path, platform } of compressedFiles) {
 		const fileInfo = await file(path).stat();
 		const sizeMB = (fileInfo.size / 1024 / 1024).toFixed(2);
-		console.log(`  ${platform.output} (${sizeMB} MB)`);
+		console.log(`  ${platform.output}.gz (${sizeMB} MB)`);
 	}
 	console.log(`\nOutput directory: ${binDir}`);
 }

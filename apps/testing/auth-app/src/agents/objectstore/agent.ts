@@ -175,12 +175,20 @@ const agent = createAgent({
 				if (!bucket || !key) {
 					throw new Error('Bucket and key are required for headObject operation');
 				}
-				const metadata = await c.objectstore.headObject(bucket, key);
-				return {
-					operation,
-					success: true,
-					result: metadata,
-				};
+				try {
+					const metadata = await c.objectstore.headObject(bucket, key);
+					return {
+						operation,
+						success: true,
+						result: metadata,
+					};
+				} catch (error) {
+					return {
+						operation,
+						success: false,
+						error: error instanceof Error ? error.message : 'Unknown error',
+					};
+				}
 			}
 		}
 	},

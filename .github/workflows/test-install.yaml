@@ -1,0 +1,259 @@
+name: Test Install Script
+
+on:
+   push:
+      branches:
+         - main
+      paths:
+         - 'install.sh'
+         - 'scripts/test-install.sh'
+         - 'packages/cli/**'
+         - '.github/workflows/test-install.yaml'
+   pull_request:
+      paths:
+         - 'install.sh'
+         - 'scripts/test-install.sh'
+         - '.github/workflows/test-install.yaml'
+
+concurrency:
+   group: ${{ github.workflow }}-${{ github.ref }}
+   cancel-in-progress: true
+
+jobs:
+   # Test on native macOS and Linux runners
+   test-native:
+      name: Test on ${{ matrix.os }}
+      runs-on: ${{ matrix.os }}
+      timeout-minutes: 10
+      strategy:
+         fail-fast: false
+         matrix:
+            os:
+               - ubuntu-latest
+               - ubuntu-22.04
+               - macos-latest
+               - macos-14
+      steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+
+         - name: Test install script
+           run: |
+              set -e
+
+              # Create temporary directory for installation
+              tmpdir=$(mktemp -d)
+              export HOME="$tmpdir"
+
+              # Run install script in non-interactive mode
+              ./install.sh -y
+
+              # Verify installation
+              if [ ! -f "$HOME/.agentuity/bin/agentuity" ]; then
+                echo "❌ Binary not installed"
+                exit 1
+              fi
+
+              # Test binary execution
+              "$HOME/.agentuity/bin/agentuity" --version
+
+              # Cleanup
+              rm -rf "$tmpdir"
+
+              echo "✅ Install test passed on ${{ matrix.os }}"
+
+   # Test on various Linux distributions using Docker
+   test-linux-distros:
+      name: Test on ${{ matrix.distro.name }}
+      runs-on: ubuntu-latest
+      timeout-minutes: 15
+      strategy:
+         fail-fast: false
+         matrix:
+            distro:
+               # TODO: Uncomment when Bun fixes musl --compile bug (produces corrupted binaries)
+               # - name: Alpine Linux (latest)
+               #   image: alpine:latest
+               #   setup: ''
+               #   arch: ''
+               # - name: Alpine Linux 3.19
+               #   image: alpine:3.19
+               #   setup: ''
+               #   arch: ''
+               # - name: Alpine Linux 3.18
+               #   image: alpine:3.18
+               #   setup: ''
+               #   arch: ''
+               - name: Debian 12 (Bookworm)
+                 image: debian:12
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 arch: ''
+               - name: Debian 11 (Bullseye)
+                 image: debian:11
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 arch: ''
+               - name: Ubuntu 24.04
+                 image: ubuntu:24.04
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 arch: ''
+               - name: Ubuntu 22.04
+                 image: ubuntu:22.04
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 arch: ''
+               - name: Ubuntu 20.04
+                 image: ubuntu:20.04
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 arch: ''
+               - name: Fedora Latest
+                 image: fedora:latest
+                 setup: 'dnf install -y -q curl'
+                 arch: ''
+               # Note: Amazon Linux has curl-minimal pre-installed which conflicts with curl package
+               # The install script works with curl-minimal, only gzip needs to be installed
+               - name: Amazon Linux 2023
+                 image: amazonlinux:2023
+                 setup: 'yum install -y -q gzip'
+                 arch: ''
+
+      steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+
+         - name: Test on ${{ matrix.distro.name }}
+           run: |
+              set -e
+
+              echo "Testing on ${{ matrix.distro.name }}..."
+
+              # Create test script
+              cat > test-container.sh << 'EOF'
+              set -e
+
+              # Setup if needed
+              SETUP="${{ matrix.distro.setup }}"
+              if [ -n "$SETUP" ]; then
+                echo "Running setup commands..."
+                eval "$SETUP" > /dev/null 2>&1
+              fi
+
+              # Run install script
+              if ! ./install.sh -y > /tmp/install.log 2>&1; then
+                echo "❌ Install failed:"
+                cat /tmp/install.log
+                exit 1
+              fi
+
+              # Verify binary exists
+              if [ ! -f "$HOME/.agentuity/bin/agentuity" ]; then
+                echo "❌ Binary not found at $HOME/.agentuity/bin/agentuity"
+                exit 1
+              fi
+
+              # Test binary execution
+              if ! "$HOME/.agentuity/bin/agentuity" --version > /tmp/version.log 2>&1; then
+                echo "❌ Binary execution failed:"
+                cat /tmp/version.log
+                exit 1
+              fi
+
+              version=$("$HOME/.agentuity/bin/agentuity" --version)
+              echo "✅ SUCCESS: agentuity version $version"
+              EOF
+
+              chmod +x test-container.sh
+
+              # Run test in container
+              if docker run --rm -v "$PWD:/app" -w /app ${{ matrix.distro.image }} sh -c './test-container.sh'; then
+                echo "✅ ${{ matrix.distro.name }} test passed"
+              else
+                echo "❌ ${{ matrix.distro.name }} test failed"
+                exit 1
+              fi
+
+   # Run comprehensive test suite
+   test-suite:
+      name: Run Test Suite
+      runs-on: ubuntu-latest
+      timeout-minutes: 20
+      steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+
+         - name: Run full test suite
+           run: |
+              chmod +x scripts/test-install.sh
+              ./scripts/test-install.sh
+
+   # Test specific scenarios
+   test-scenarios:
+      name: Test ${{ matrix.scenario.name }}
+      runs-on: ubuntu-latest
+      timeout-minutes: 10
+      strategy:
+         fail-fast: false
+         matrix:
+            scenario:
+               # TODO: Uncomment when Bun fixes musl --compile bug
+               # - name: Alpine musl-native binary
+               #   test: |
+               #     docker run --rm -v "$PWD:/app" -w /app alpine:latest sh -c '
+               #       ./install.sh -y > /tmp/install.log 2>&1
+               #       if ! grep -q "musl libc system" /tmp/install.log; then
+               #         echo "❌ musl detection failed"
+               #         cat /tmp/install.log
+               #         exit 1
+               #       fi
+               #       $HOME/.agentuity/bin/agentuity --version
+               #     '
+
+               - name: Force reinstall
+                 test: |
+                    docker run --rm -v "$PWD:/app" -w /app ubuntu:latest sh -c '
+                      apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1
+                      ./install.sh -y > /dev/null 2>&1
+                      first_version=$($HOME/.agentuity/bin/agentuity --version)
+                      ./install.sh -y --force
+                      second_version=$($HOME/.agentuity/bin/agentuity --version)
+                      if [ "$first_version" != "$second_version" ]; then
+                        echo "❌ Version mismatch: $first_version vs $second_version"
+                        exit 1
+                      fi
+                      echo "✅ Force reinstall completed: $second_version"
+                    '
+
+               - name: Interactive mode simulation
+                 test: |
+                    docker run --rm -v "$PWD:/app" -w /app ubuntu:latest sh -c '
+                      apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1
+                      echo | ./install.sh > /tmp/install.log 2>&1 || true
+                      $HOME/.agentuity/bin/agentuity --version
+                    '
+
+      steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+
+         - name: Test ${{ matrix.scenario.name }}
+           run: |
+              set -e
+              echo "Testing: ${{ matrix.scenario.name }}"
+              ${{ matrix.scenario.test }}
+              echo "✅ ${{ matrix.scenario.name }} passed"
+
+   # Summary job
+   test-summary:
+      name: Test Summary
+      runs-on: ubuntu-latest
+      needs: [test-native, test-linux-distros, test-suite, test-scenarios]
+      if: always()
+      steps:
+         - name: Check results
+           run: |
+              if [ "${{ needs.test-native.result }}" != "success" ] || \
+                 [ "${{ needs.test-linux-distros.result }}" != "success" ] || \
+                 [ "${{ needs.test-suite.result }}" != "success" ] || \
+                 [ "${{ needs.test-scenarios.result }}" != "success" ]; then
+                echo "❌ Some tests failed"
+                exit 1
+              fi
+              echo "✅ All tests passed!"

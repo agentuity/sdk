@@ -35,10 +35,7 @@ export const deleteSubcommand = createSubcommand({
 				tui.fatal(`Thread ${args.thread_id} not found`, ErrorCode.RESOURCE_NOT_FOUND);
 				return;
 			}
-			tui.fatal(
-				`Failed to delete thread: ${ex instanceof Error ? ex.message : String(ex)}`,
-				ErrorCode.API_ERROR
-			);
+			tui.fatal(`Failed to delete thread: ${ex}`, ErrorCode.API_ERROR);
 		}
 	},
 });

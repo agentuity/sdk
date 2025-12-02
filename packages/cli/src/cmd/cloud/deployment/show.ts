@@ -155,7 +155,7 @@ export const showSubcommand = createSubcommand({
 				metadata: deployment.metadata ?? undefined,
 			};
 		} catch (ex) {
-			tui.fatal(`Failed to show deployment: ${ex instanceof Error ? ex.message : String(ex)}`);
+			tui.fatal(`Failed to show deployment: ${ex}`);
 		}
 	},
 });

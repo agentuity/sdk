@@ -114,6 +114,15 @@ export async function bundle({
 	mkdirSync(join(outDir, 'chunk'), { recursive: true });
 	mkdirSync(join(outDir, 'asset'), { recursive: true });
 
+	// Pre-create all nested source directories in output
+	// This is needed because Bun.build with naming.entry preserves structure
+	// but doesn't create nested directories automatically
+	for (const entrypoint of appEntrypoints) {
+		const relPath = relative(rootDir, dirname(entrypoint));
+		const outputSubdir = join(outDir, relPath);
+		mkdirSync(outputSubdir, { recursive: true });
+	}
+
 	const pkgFile = Bun.file(join(rootDir, 'package.json'));
 	const pkgContents = JSON.parse(await pkgFile.text());
 	const isProd = !dev;
@@ -246,10 +255,15 @@ export async function bundle({
 			);
 
 			if (webEntrypoints.length) {
+				const webOutDir = join(outDir, 'web');
+				mkdirSync(webOutDir, { recursive: true });
+				mkdirSync(join(webOutDir, 'chunk'), { recursive: true });
+				mkdirSync(join(webOutDir, 'asset'), { recursive: true });
+
 				const config: Bun.BuildConfig = {
 					entrypoints: webEntrypoints,
 					root: webDir,
-					outdir: join(outDir, 'web'),
+					outdir: webOutDir,
 					define,
 					sourcemap: dev ? 'inline' : 'linked',
 					env: 'AGENTUITY_PUBLIC_*',

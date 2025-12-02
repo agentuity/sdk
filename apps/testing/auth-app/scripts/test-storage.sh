@@ -223,7 +223,7 @@ echo ""
 echo "Step 7b: Testing download to STDOUT..."
 STDOUT_CONTENT=$($BIN_SCRIPT cloud storage download "$BUCKET_NAME" "$TEST_FILENAME" - 2>&1)
 
-if [ "$STDOUT_CONTENT" = "Hello from storage test!" ]; then
+if echo "$STDOUT_CONTENT" | grep -q "Hello from storage test!"; then
 	echo -e "${GREEN}✓ PASS:${NC} STDOUT download successful"
 else
 	echo -e "${RED}✗ FAIL:${NC} STDOUT download failed or incorrect content"

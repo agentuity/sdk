@@ -17,12 +17,12 @@ jobs:
       name: Package Installation & Usage Test
       steps:
          - uses: actions/checkout@v4
-         
+
          - name: Setup Bun
            uses: oven-sh/setup-bun@v2
-         
+
          - name: Install dependencies
            run: bun install
-         
+
          - name: Run package smoke test
            run: bash scripts/test-package-install.sh

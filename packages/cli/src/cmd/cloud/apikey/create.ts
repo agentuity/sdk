@@ -82,22 +82,14 @@ export const createSubcommand = createSubcommandHelper({
 			}
 		}
 
-		let result: Awaited<ReturnType<typeof apikeyCreate>>;
-		try {
-			result = await tui.spinner('Creating API key', () => {
-				return apikeyCreate(apiClient, {
-					name: opts.name,
-					expiresAt: expiresAt,
-					projectId: projectId,
-					orgId: orgId,
-				});
+		const result = await tui.spinner('Creating API key', () => {
+			return apikeyCreate(apiClient, {
+				name: opts.name,
+				expiresAt: expiresAt,
+				projectId: projectId,
+				orgId: orgId,
 			});
-		} catch (error) {
-			if (error instanceof Error) {
-				tui.fatal(error.message);
-			}
-			throw error;
-		}
+		});
 
 		if (!options.json) {
 			tui.newline();

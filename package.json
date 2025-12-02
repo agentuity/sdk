@@ -1,6 +1,6 @@
 {
 	"name": "sdk-mono",
-	"version": "0.0.62",
+	"version": "0.0.64",
 	"private": true,
 	"workspaces": [
 		"packages/*",
@@ -16,7 +16,7 @@
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
 		"typecheck": "bun run typecheck:apps && bun run typecheck:packages",
 		"clean": "rm -rf packages/*/dist apps/**/dist packages/*/*.tsbuildinfo",
-		"format": "bunx prettier */** --write",
+		"format": "bunx prettier '**/*.{ts,tsx,js,jsx,json,md,yml,yaml}' --write --ignore-unknown",
 		"lint": "bunx eslint packages",
 		"all": "bun clean && bun format && bun run build && bun lint && bun typecheck && bun run test",
 		"whoami": "./packages/cli/bin/cli.ts auth whoami"

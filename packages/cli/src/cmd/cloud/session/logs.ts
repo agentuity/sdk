@@ -67,10 +67,7 @@ export const logsSubcommand = createSubcommand({
 
 			return logs;
 		} catch (ex) {
-			tui.fatal(
-				`Failed to get session logs: ${ex instanceof Error ? ex.message : String(ex)}`,
-				ErrorCode.API_ERROR
-			);
+			tui.fatal(`Failed to get session logs: ${ex}`, ErrorCode.API_ERROR);
 		}
 	},
 });

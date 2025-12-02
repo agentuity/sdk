@@ -50,7 +50,7 @@ export const undeploySubcommand = createSubcommand({
 			await projectDeploymentUndeploy(apiClient, projectId);
 			tui.success('Undeployed successfully.');
 		} catch (ex) {
-			tui.fatal(`Failed to undeploy: ${ex instanceof Error ? ex.message : String(ex)}`);
+			tui.fatal(`Failed to undeploy: ${ex}`);
 		}
 	},
 });

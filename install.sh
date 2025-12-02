@@ -1,10 +1,7 @@
-#!/usr/bin/env bash
-# shellcheck shell=sh
+#!/bin/sh
 # adapted from https://raw.githubusercontent.com/sst/opencode/refs/heads/dev/install
 # licensed under the same MIT license
-set -euo pipefail
-APP=agentuity
-REPO=agentuity/sdk
+set -eu
 
 MUTED='\033[0;2m'
 RED='\033[0;31m'
@@ -16,7 +13,7 @@ force_install=false
 non_interactive=false
 
 # Parse command line arguments
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
   case $1 in
     --force)
       force_install=true
@@ -46,9 +43,15 @@ if [ ! -t 0 ]; then
   non_interactive=true
 fi
 
-# Check prerequisites
-if ! command -v curl >/dev/null 2>&1; then
-  echo -e "${RED}Error: curl is required but not installed${NC}"
+# Check prerequisites - either curl or wget
+HAS_CURL=false
+HAS_WGET=false
+if command -v curl >/dev/null 2>&1; then
+  HAS_CURL=true
+elif command -v wget >/dev/null 2>&1; then
+  HAS_WGET=true
+else
+  printf "${RED}Error: either curl or wget is required but neither is installed${NC}\n"
   exit 1
 fi
 
@@ -58,16 +61,16 @@ case "$raw_os" in
 Darwin*) os="darwin" ;;
 Linux*) os="linux" ;;
 MINGW* | MSYS* | CYGWIN*)
-  echo -e "${RED}Windows is not directly supported. Please use WSL (Windows Subsystem for Linux)${NC}"
+  printf "${RED}Windows is not directly supported. Please use WSL (Windows Subsystem for Linux)${NC}\n"
   exit 1
   ;;
 esac
 
 arch=$(uname -m)
-if [[ "$arch" == "aarch64" ]]; then
+if [ "$arch" = "aarch64" ]; then
   arch="arm64"
 fi
-if [[ "$arch" == "x86_64" ]]; then
+if [ "$arch" = "x86_64" ]; then
   arch="x64"
 fi
 
@@ -82,12 +85,11 @@ combo="$os-$arch"
 case "$combo" in
 linux-x64 | linux-arm64 | darwin-x64 | darwin-arm64) ;;
 *)
-  echo -e "${RED}Unsupported OS/Arch: $os/$arch${NC}"
+  printf "${RED}Unsupported OS/Arch: $os/$arch${NC}\n"
   exit 1
   ;;
 esac
 
-archive_ext=
 
 is_musl=false
 if [ "$os" = "linux" ]; then
@@ -102,78 +104,50 @@ if [ "$os" = "linux" ]; then
   fi
 fi
 
-needs_baseline=false
-if [ "$arch" = "x64" ]; then
-  if [ "$os" = "linux" ]; then
-    if ! grep -qi avx2 /proc/cpuinfo 2>/dev/null; then
-      needs_baseline=true
-    fi
-  fi
-
-  if [ "$os" = "darwin" ]; then
-    avx2=$(sysctl -n hw.optional.avx2_0 2>/dev/null || echo 0)
-    if [ "$avx2" != "1" ]; then
-      needs_baseline=true
-    fi
-  fi
-fi
-
-target="$os-$arch"
-if [ "$needs_baseline" = "true" ]; then
-  target="$target-baseline"
-fi
-if [ "$is_musl" = "true" ]; then
-  target="$target-musl"
-fi
-
-filename="$APP-$target$archive_ext"
-
-curl_headers="X:Y"
-
-if [ -n "${GITHUB_TOKEN:-}" ]; then
-  curl_headers="Authorization: Bearer $GITHUB_TOKEN"
-fi
-
+filename="agentuity-$os-$arch"
 
 INSTALL_DIR=$HOME/.agentuity/bin
 if ! mkdir -p "$INSTALL_DIR" 2>/dev/null; then
-  echo -e "${RED}Error: Failed to create installation directory: $INSTALL_DIR${NC}"
-  echo -e "${RED}Please check permissions and try again${NC}"
+  printf "${RED}Error: Failed to create installation directory: $INSTALL_DIR${NC}\n"
+  printf "${RED}Please check permissions and try again${NC}\n"
   exit 1
 fi
 
 if [ ! -w "$INSTALL_DIR" ]; then
-  echo -e "${RED}Error: Installation directory is not writable: $INSTALL_DIR${NC}"
-  echo -e "${RED}Please check permissions and try again${NC}"
+  printf "${RED}Error: Installation directory is not writable: $INSTALL_DIR${NC}\n"
+  printf "${RED}Please check permissions and try again${NC}\n"
   exit 1
 fi
 
 if [ -z "$requested_version" ]; then
-  url="https://github.com/$REPO/releases/latest/download/$filename"
-  specific_version=$(curl -s https://api.github.com/repos/$REPO/releases/latest -H "$curl_headers" | sed -n 's/.*"tag_name": *"v\([^"]*\)".*/\1/p')
-
-  if [[ $? -ne 0 || -z "$specific_version" ]]; then
-    echo -e "${RED}Failed to fetch version information${NC}"
+  if [ "$HAS_CURL" = true ]; then
+    specific_version=$(curl -s https://agentuity.sh/release/sdk/version)
+  else
+    specific_version=$(wget -qO- https://agentuity.sh/release/sdk/version)
+  fi
+  if [ $? -ne 0 ] || [ -z "$specific_version" ]; then
+    printf "${RED}Failed to fetch version information${NC}\n"
     exit 1
   fi
+  url="https://agentuity.sh/release/sdk/${specific_version}/${os}/${arch}"
 else
-  url="https://github.com/$REPO/releases/download/v${requested_version}/$filename"
+  url="https://agentuity.sh/release/sdk/v${requested_version}/${os}/${arch}"
   specific_version=$requested_version
 fi
 
 print_message() {
-  local level=$1
-  local message=$2
-  local color=""
+  _pm_level=$1
+  _pm_message=$2
+  _pm_color=""
 
-  case $level in
-  info) color="${NC}" ;;
-  warning) color="${NC}" ;;
-  error) color="${RED}" ;;
-  debug) color="${MUTED}" ;;
+  case $_pm_level in
+  info) _pm_color="${NC}" ;;
+  warning) _pm_color="${NC}" ;;
+  error) _pm_color="${RED}" ;;
+  debug) _pm_color="${MUTED}" ;;
   esac
 
-  echo -e "${color}${message}${NC}"
+  printf "${_pm_color}${_pm_message}${NC}\n"
 }
 
 check_brew_install() {
@@ -183,7 +157,7 @@ check_brew_install() {
       print_message info "${MUTED}The new version uses a different installation method.${NC}"
 
       if [ "$non_interactive" = false ]; then
-        echo -n "Do you want to uninstall the Homebrew version? (y/N): "
+        printf "Do you want to uninstall the Homebrew version? (y/N): "
         read -r response
         case "$response" in
           [yY][eE][sS]|[yY])
@@ -213,70 +187,66 @@ check_bun_install() {
     agentuity_path=$(which agentuity)
 
     # Check if the binary is in a bun global install location
-    if [[ "$agentuity_path" == *"/.bun/bin/"* ]] || [[ "$agentuity_path" == *"/bun/bin/"* ]]; then
-      print_message warning "${RED}Warning: ${NC}Bun global installation detected at ${CYAN}$agentuity_path${NC}"
-      print_message info "${MUTED}The global binary installation is recommended over bun global install.${NC}"
+    case "$agentuity_path" in
+      *"/.bun/bin/"*|*"/bun/bin/"*)
+        print_message warning "${RED}Warning: ${NC}Bun global installation detected at ${CYAN}$agentuity_path${NC}"
+        print_message info "${MUTED}The global binary installation is recommended over bun global install.${NC}"
 
-      if [ "$non_interactive" = false ]; then
-        print_message info ""
-        print_message info "To switch to the binary installation:"
-        print_message info "  1. Uninstall the bun global package: ${CYAN}bun remove -g @agentuity/cli${NC}"
-        print_message info "  2. Re-run this install script"
-        print_message info ""
-        echo -n "Continue anyway? (y/N): "
-        read -r response
-        case "$response" in
-          [yY][eE][sS]|[yY])
-            print_message info "${MUTED}Continuing with installation. Note: You may need to adjust your PATH.${NC}"
-            ;;
-          *)
-            print_message info "Installation cancelled. Please uninstall the bun global package first."
-            exit 0
-            ;;
-        esac
-      else
-        print_message info "${MUTED}Running in non-interactive mode. Installing anyway.${NC}"
-        print_message info "${MUTED}Note: Ensure $INSTALL_DIR is in your PATH before the bun global path.${NC}"
-      fi
-    fi
+        if [ "$non_interactive" = false ]; then
+          print_message info ""
+          print_message info "To switch to the binary installation:"
+          print_message info "  1. Uninstall the bun global package: ${CYAN}bun remove -g @agentuity/cli${NC}"
+          print_message info "  2. Re-run this install script"
+          print_message info ""
+          printf "Continue anyway? (y/N): "
+          read -r response
+          case "$response" in
+            [yY][eE][sS]|[yY])
+              print_message info "${MUTED}Continuing with installation. Note: You may need to adjust your PATH.${NC}"
+              ;;
+            *)
+              print_message info "Installation cancelled. Please uninstall the bun global package first."
+              exit 0
+              ;;
+          esac
+        else
+          print_message info "${MUTED}Running in non-interactive mode. Installing anyway.${NC}"
+          print_message info "${MUTED}Note: Ensure $INSTALL_DIR is in your PATH before the bun global path.${NC}"
+        fi
+        ;;
+    esac
   fi
 }
 
 check_legacy_binaries() {
   # Legacy install script used these paths (in order of preference):
   # $HOME/.local/bin, $HOME/.bin, $HOME/bin, /usr/local/bin
-  local legacy_paths=(
-    "$HOME/.local/bin/agentuity"
-    "$HOME/.bin/agentuity"
-    "$HOME/bin/agentuity"
-    "/usr/local/bin/agentuity"
-  )
+  
+  found_legacy=false
+  legacy_locations=""
 
-  local found_legacy=false
-  local legacy_locations=()
-
-  for path in "${legacy_paths[@]}"; do
+  for path in "$HOME/.local/bin/agentuity" "$HOME/.bin/agentuity" "$HOME/bin/agentuity" "/usr/local/bin/agentuity"; do
     if [ -f "$path" ] && [ "$path" != "$INSTALL_DIR/agentuity" ]; then
       found_legacy=true
-      legacy_locations+=("$path")
+      legacy_locations="$legacy_locations $path"
     fi
   done
 
   if [ "$found_legacy" = true ]; then
     print_message warning "${RED}Warning: ${NC}Legacy binary installation(s) detected"
-    for location in "${legacy_locations[@]}"; do
+    for location in $legacy_locations; do
       print_message info "  - ${CYAN}$location${NC}"
     done
 
     if [ "$non_interactive" = false ]; then
-      echo -n "Remove legacy binaries? (Y/n): "
+      printf "Remove legacy binaries? (Y/n): "
       read -r response
       case "$response" in
         [nN][oO]|[nN])
           print_message info "${MUTED}Skipping legacy binary removal. Note: You may have conflicts.${NC}"
           ;;
         *)
-          for location in "${legacy_locations[@]}"; do
+          for location in $legacy_locations; do
             if rm -f "$location" 2>/dev/null; then
               print_message info "${MUTED}Removed $location${NC}"
             else
@@ -287,7 +257,7 @@ check_legacy_binaries() {
       esac
     else
       # Non-interactive mode: auto-remove if writable
-      for location in "${legacy_locations[@]}"; do
+      for location in $legacy_locations; do
         if rm -f "$location" 2>/dev/null; then
           print_message info "${MUTED}Removed legacy binary: $location${NC}"
         else
@@ -301,11 +271,11 @@ check_legacy_binaries() {
 check_version() {
   if command -v agentuity >/dev/null 2>&1; then
     agentuity_path=$(which agentuity)
-    installed_version=$(agentuity version 2>/dev/null || echo "unknown")
+    installed_version=v$(agentuity version 2>/dev/null || echo "unknown")
 
-    if [[ "$installed_version" != "$specific_version" && "$installed_version" != "unknown" ]]; then
+    if [ "$installed_version" != "$specific_version" ] && [ "$installed_version" != "unknown" ]; then
       print_message info "${MUTED}Installed version: ${NC}$installed_version."
-    elif [[ "$installed_version" == "$specific_version" ]]; then
+    elif [ "$installed_version" = "$specific_version" ]; then
       if [ "$force_install" = false ]; then
         print_message info "${MUTED}Version ${NC}$specific_version${MUTED} already installed"
         exit 0
@@ -316,40 +286,51 @@ check_version() {
   fi
 }
 
+check_musl_and_gcompat() {
+  if [ "$is_musl" = true ]; then
+    printf "\n"
+    print_message warning "${RED}╭────────────────────────────────────────────────────────╮${NC}"
+    print_message warning "${RED}│${NC}  Alpine Linux / musl is NOT currently supported     ${RED}│${NC}"
+    print_message warning "${RED}╰────────────────────────────────────────────────────────╯${NC}"
+    printf "\n"
+    print_message info "Bun's --compile produces corrupted binaries on musl (known bug)"
+    print_message info "Use a glibc distro: Ubuntu, Debian, Fedora, Amazon Linux"
+    printf "\n"
+    exit 1
+  fi
+}
+
 unbuffered_sed() {
   if echo | sed -u -e "" >/dev/null 2>&1; then
     sed -nu "$@"
   elif echo | sed -l -e "" >/dev/null 2>&1; then
     sed -nl "$@"
   else
-    local pad="$(printf "\n%512s" "")"
-    sed -ne "s/$/\\${pad}/" "$@"
+    _sed_pad="$(printf "\n%512s" "")"
+    sed -ne "s/$/\\${_sed_pad}/" "$@"
   fi
 }
 
 print_progress() {
-  local bytes="$1"
-  local length="$2"
-  [ "$length" -gt 0 ] || return 0
+  _pp_bytes="$1"
+  _pp_length="$2"
+  [ "$_pp_length" -gt 0 ] || return 0
 
-  local width=50
-  local percent=$((bytes * 100 / length))
-  [ "$percent" -gt 100 ] && percent=100
-  local on=$((percent * width / 100))
-  local off=$((width - on))
+  _pp_width=50
+  _pp_percent=$((_pp_bytes * 100 / _pp_length))
+  [ "$_pp_percent" -gt 100 ] && _pp_percent=100
+  _pp_on=$((_pp_percent * _pp_width / 100))
+  _pp_off=$((_pp_width - _pp_on))
 
-  local filled=$(printf "%*s" "$on" "")
-  filled=${filled// /■}
-  local empty=$(printf "%*s" "$off" "")
-  empty=${empty// /･}
+  _pp_filled=$(printf "%*s" "$_pp_on" "" | sed 's/ /■/g')
+  _pp_empty=$(printf "%*s" "$_pp_off" "" | sed 's/ /･/g')
 
-  printf "\r${CYAN}%s%s %3d%%${NC}" "$filled" "$empty" "$percent" >&4
+  printf "\r${CYAN}%s%s %3d%%${NC}" "$_pp_filled" "$_pp_empty" "$_pp_percent" >&4
 }
 
 download_with_progress() {
-  local url="$1"
-  local output="$2"
-  local headers="$3"
+  _dwp_url="$1"
+  _dwp_output="$2"
 
   if [ -t 2 ]; then
     exec 4>&2
@@ -357,14 +338,14 @@ download_with_progress() {
     exec 4>/dev/null
   fi
 
-  local tmp_dir=${TMPDIR:-/tmp}
-  local basename="${tmp_dir}/agentuity_install_$$"
-  local tracefile="${basename}.trace"
+  _dwp_tmp_dir=${TMPDIR:-/tmp}
+  _dwp_basename="${_dwp_tmp_dir}/agentuity_install_$$"
+  _dwp_tracefile="${_dwp_basename}.trace"
 
-  rm -f "$tracefile"
+  rm -f "$_dwp_tracefile"
   
   # Check if mkfifo is available and working
-  if ! command -v mkfifo >/dev/null 2>&1 || ! mkfifo "$tracefile" 2>/dev/null; then
+  if ! command -v mkfifo >/dev/null 2>&1 || ! mkfifo "$_dwp_tracefile" 2>/dev/null; then
     # Fallback to simple download without progress
     exec 4>&-
     return 1
@@ -373,44 +354,49 @@ download_with_progress() {
   # Hide cursor
   printf "\033[?25l" >&4
 
-  trap "trap - RETURN; rm -f \"$tracefile\"; printf '\033[?25h' >&4; exec 4>&-" RETURN
+  trap 'rm -f "$_dwp_tracefile"; printf "\033[?25h" >&4; exec 4>&-' EXIT INT TERM
 
   (
-    curl --trace-ascii "$tracefile" -s -L -o "$output" -H "$headers" "$url"
+    curl --trace-ascii "$_dwp_tracefile" -s -L -f -o "$_dwp_output" "$_dwp_url"
   ) &
-  local curl_pid=$!
+  _dwp_curl_pid=$!
 
   unbuffered_sed \
     -e 'y/ACDEGHLNORTV/acdeghlnortv/' \
     -e '/^0000: content-length:/p' \
     -e '/^<= recv data/p' \
-    "$tracefile" |
+    "$_dwp_tracefile" |
     {
-      local length=0
-      local bytes=0
+      _dwp_length=0
+      _dwp_bytes=0
 
-      while IFS=" " read -r -a line; do
-        [ "${#line[@]}" -lt 2 ] && continue
-        local tag="${line[0]} ${line[1]}"
+      while IFS=" " read -r _dwp_line; do
+        set -- $_dwp_line
+        [ $# -lt 2 ] && continue
+        _dwp_tag="$1 $2"
 
-        if [ "$tag" = "0000: content-length:" ]; then
-          length="${line[2]}"
-          length=$(echo "$length" | tr -d '\r')
-          bytes=0
-        elif [ "$tag" = "<= recv" ]; then
-          local size="${line[3]}"
-          bytes=$((bytes + size))
-          if [ "$length" -gt 0 ]; then
-            print_progress "$bytes" "$length"
+        if [ "$_dwp_tag" = "0000: content-length:" ]; then
+          _dwp_length="$3"
+          _dwp_length=$(echo "$_dwp_length" | tr -d '\r')
+          _dwp_bytes=0
+        elif [ "$_dwp_tag" = "<= recv" ]; then
+          _dwp_size="$4"
+          _dwp_bytes=$((_dwp_bytes + _dwp_size))
+          if [ "$_dwp_length" -gt 0 ]; then
+            print_progress "$_dwp_bytes" "$_dwp_length"
           fi
         fi
       done
     }
 
-  wait $curl_pid
-  local ret=$?
-  echo "" >&4
-  return $ret
+  wait $_dwp_curl_pid
+  _dwp_ret=$?
+  printf "\n" >&4
+  trap - EXIT INT TERM
+  rm -f "$_dwp_tracefile"
+  printf '\033[?25h' >&4
+  exec 4>&-
+  return $_dwp_ret
 }
 
 download_and_install() {
@@ -422,17 +408,71 @@ download_and_install() {
   
   cd "$tmpdir"
 
-  if ! download_with_progress "$url" "$filename" "$curl_headers"; then
-    # Fallback to standard curl on Windows or if custom progress fails
-    if ! curl -# -L -o "$filename" -H "$curl_headers" "$url"; then
-      print_message error "Failed to download $filename from $url"
-      exit 1
+  # Download compressed file (.gz)
+  gz_filename="${filename}.gz"
+  gz_url="${url}.gz"
+  
+  # Try download with progress (only works with curl)
+  download_success=false
+  if [ "$HAS_CURL" = true ]; then
+    if download_with_progress "$gz_url" "$gz_filename"; then
+      download_success=true
+    elif curl -# -L -f -o "$gz_filename" "$gz_url"; then
+      download_success=true
     fi
+  else
+    # wget - try with progress first, fallback to basic if not supported
+    if wget --help 2>&1 | grep -q -- '--show-progress'; then
+      wget --show-progress -q -O "$gz_filename" "$gz_url" && download_success=true
+    else
+      # BusyBox wget doesn't support --show-progress
+      wget -O "$gz_filename" "$gz_url" && download_success=true
+    fi
+  fi
+
+  if [ "$download_success" = false ]; then
+    print_message error "Failed to download $gz_filename from $gz_url"
+    exit 1
+  fi
+  
+  if [ ! -f "$gz_filename" ]; then
+    print_message error "Download failed - file not found: $gz_filename"
+    exit 1
+  fi
+  
+  # Check if gunzip is available
+  if ! command -v gunzip >/dev/null 2>&1; then
+    print_message error "gunzip is required but not installed"
+    print_message error "Please install gzip: yum install gzip (RedHat/Amazon) or apt-get install gzip (Debian/Ubuntu)"
+    exit 1
+  fi
+  
+  # Decompress the file
+  print_message info "${MUTED}Decompressing...${NC}"
+  if ! gunzip "$gz_filename"; then
+    print_message error "Failed to decompress $gz_filename"
+    exit 1
   fi
   
   if [ ! -f "$filename" ]; then
-    print_message error "Download failed - file not found: $filename"
+    print_message error "Decompression failed - file not found: $filename"
     exit 1
+  fi
+  
+  # Verify it's a valid binary, not an error page
+  # Check if file command exists, fallback to checking ELF magic bytes
+  if command -v file >/dev/null 2>&1; then
+    if ! file "$filename" 2>/dev/null | grep -q -E "(executable|ELF|Mach-O|PE32)"; then
+      print_message error "Downloaded file is not a valid executable (possibly a 404 or error page)"
+      exit 1
+    fi
+  else
+    # Fallback: check ELF magic bytes (0x7f 'E' 'L' 'F') or Mach-O magic
+    if ! head -c 4 "$filename" 2>/dev/null | grep -q "^.ELF" && \
+       ! head -c 4 "$filename" 2>/dev/null | od -An -tx1 | grep -q "7f 45 4c 46"; then
+      print_message error "Downloaded file is not a valid executable (possibly a 404 or error page)"
+      exit 1
+    fi
   fi
 
   cp "$filename" "$INSTALL_DIR/agentuity"
@@ -447,30 +487,33 @@ check_brew_install
 check_bun_install
 check_legacy_binaries
 
+# Check for musl/Alpine and handle gcompat
+check_musl_and_gcompat
+
 if [ "$force_install" = false ]; then
   check_version
 fi
 download_and_install
 
 add_to_path() {
-  local config_file=$1
-  local command=$2
+  _atp_config_file=$1
+  _atp_command=$2
 
-  if grep -Fxq "$command" "$config_file"; then
-    print_message debug "Command already exists in $config_file, skipping write."
-  elif [[ -w $config_file ]]; then
-    echo -e "\n# agentuity" >>"$config_file"
-    echo "$command" >>"$config_file"
-    print_message info "${MUTED}Successfully added ${NC}agentuity ${MUTED}to \$PATH in ${NC}$config_file"
+  if grep -Fxq "$_atp_command" "$_atp_config_file"; then
+    print_message debug "Command already exists in $_atp_config_file, skipping write."
+  elif [ -w "$_atp_config_file" ]; then
+    printf "\n# agentuity\n" >>"$_atp_config_file"
+    printf "%s\n" "$_atp_command" >>"$_atp_config_file"
+    print_message info "${MUTED}Successfully added ${NC}agentuity ${MUTED}to \$PATH in ${NC}$_atp_config_file"
   else
-    print_message warning "Manually add the directory to $config_file (or similar):"
-    print_message info "  $command"
+    print_message warning "Manually add the directory to $_atp_config_file (or similar):"
+    print_message info "  $_atp_command"
   fi
 }
 
 XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
 
-current_shell=$(basename "$SHELL")
+current_shell=$(basename "${SHELL:-sh}")
 case $current_shell in
 fish)
   config_files="$HOME/.config/fish/config.fish"
@@ -495,60 +538,68 @@ esac
 
 config_file=""
 for file in $config_files; do
-  if [[ -f $file ]]; then
+  if [ -f "$file" ]; then
     config_file=$file
     break
   fi
 done
 
-if [[ -z $config_file ]]; then
-  print_message error "No config file found for $current_shell. Checked files: $config_files"
-  exit 1
-fi
-
-if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
-  case $current_shell in
-  fish)
-    add_to_path "$config_file" "fish_add_path $INSTALL_DIR"
-    ;;
-  zsh)
-    add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
-    ;;
-  bash)
-    add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
-    ;;
-  ash)
-    add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
-    ;;
-  sh)
-    add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
-    ;;
-  *)
-    export PATH=$INSTALL_DIR:$PATH
-    print_message warning "Manually add the directory to $config_file (or similar):"
+if [ -z "$config_file" ]; then
+  if [ "$non_interactive" = false ]; then
+    print_message warning "No config file found for $current_shell"
+    print_message info "Manually add to your PATH:"
     print_message info "  export PATH=$INSTALL_DIR:\$PATH"
+  fi
+else
+  case ":$PATH:" in
+    *":$INSTALL_DIR:"*)
+      ;;
+    *)
+
+    case $current_shell in
+    fish)
+      add_to_path "$config_file" "fish_add_path $INSTALL_DIR"
+      ;;
+    zsh)
+      add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+      ;;
+    bash)
+      add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+      ;;
+    ash)
+      add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+      ;;
+    sh)
+      add_to_path "$config_file" "export PATH=$INSTALL_DIR:\$PATH"
+      ;;
+    *)
+      export PATH=$INSTALL_DIR:$PATH
+      print_message warning "Manually add the directory to your PATH:"
+      print_message info "  export PATH=$INSTALL_DIR:\$PATH"
+      ;;
+    esac
     ;;
   esac
 fi
 
-if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" == "true" ]; then
-  echo "$INSTALL_DIR" >>$GITHUB_PATH
+if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" = "true" ]; then
+  printf "%s\n" "$INSTALL_DIR" >>$GITHUB_PATH
   print_message info "Added $INSTALL_DIR to \$GITHUB_PATH"
 fi
 
-echo ""
-echo "${CYAN}╭────────────────────────────────────────────────────╮${NC}"
-echo "${CYAN}│${NC} ⨺ Agentuity  The full-stack platform for AI agents ${CYAN}│${NC}"
-echo "${CYAN}│${NC}                                                    ${CYAN}│${NC}"
-echo "${CYAN}│${NC} Version:        ${specific_version}$(printf '%*s' $((35 - ${#specific_version})) '')${CYAN}│${NC}"
-echo "${CYAN}│${NC} Docs:           https://agentuity.dev              ${CYAN}│${NC}"
-echo "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYAN}│${NC}"
-echo "${CYAN}│${NC} Dashboard:      https://app.agentuity.com          ${CYAN}│${NC}"
-echo "${CYAN}╰────────────────────────────────────────────────────╯${NC}"
-echo ""
-echo "${MUTED}To get started, run:${NC}"
-echo ""
-echo "agentuity create       ${MUTED}Create a project${NC}"
-echo "agentuity login        ${MUTED}Login to an existing account${NC}"
-echo "agentuity help         ${MUTED}List commands and options${NC}"
-echo ""
+printf "\n"
+printf "${CYAN}╭────────────────────────────────────────────────────╮${NC}\n"
+printf "${CYAN}│${NC} ⨺ Agentuity  The full-stack platform for AI agents ${CYAN}│${NC}\n"
+printf "${CYAN}│${NC}                                                    ${CYAN}│${NC}\n"
+printf "${CYAN}│${NC} Version:        ${specific_version}$(printf '%*s' $((35 - ${#specific_version})) '')${CYAN}│${NC}\n"
+printf "${CYAN}│${NC} Docs:           https://agentuity.dev              ${CYAN}│${NC}\n"
+printf "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYAN}│${NC}\n"
+printf "${CYAN}│${NC} Dashboard:      https://app.agentuity.com          ${CYAN}│${NC}\n"
+printf "${CYAN}╰────────────────────────────────────────────────────╯${NC}\n"
+printf "\n"
+printf "${MUTED}To get started, run:${NC}\n"
+printf "\n"
+printf "agentuity create       ${MUTED}Create a project${NC}\n"
+printf "agentuity login        ${MUTED}Login to an existing account${NC}\n"
+printf "agentuity help         ${MUTED}List commands and options${NC}\n"
+printf "\n"

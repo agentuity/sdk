@@ -86,7 +86,7 @@ export const rollbackSubcommand = createSubcommand({
 				targetDeploymentId,
 			};
 		} catch (ex) {
-			tui.fatal(`Failed to rollback: ${ex instanceof Error ? ex.message : String(ex)}`);
+			tui.fatal(`Failed to rollback: ${ex}`);
 		}
 	},
 });

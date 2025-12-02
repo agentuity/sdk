@@ -103,10 +103,7 @@ export const listSubcommand = createSubcommand({
 
 			return result;
 		} catch (ex) {
-			tui.fatal(
-				`Failed to list deployments: ${ex instanceof Error ? ex.message : String(ex)}`,
-				ErrorCode.API_ERROR
-			);
+			tui.fatal(`Failed to list deployments: ${ex}`, ErrorCode.API_ERROR);
 		}
 	},
 });

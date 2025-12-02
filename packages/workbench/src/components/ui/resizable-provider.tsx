@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from 'react';
 
 type PanelSizes = Record<string, number[]>;
 
@@ -21,12 +21,11 @@ const initialState: ResizableProviderState = {
 	resetPanelSizes: () => null,
 };
 
-const ResizableProviderContext =
-	createContext<ResizableProviderState>(initialState);
+const ResizableProviderContext = createContext<ResizableProviderState>(initialState);
 
 export function ResizableProvider({
 	children,
-	storageKey = "agentuity-workbench-panel-sizes",
+	storageKey = 'agentuity-workbench-panel-sizes',
 	...props
 }: ResizableProviderProps) {
 	const [panelSizes, setPanelSizesState] = useState<PanelSizes>(() => {
@@ -77,7 +76,7 @@ export const useResizable = () => {
 	const context = useContext(ResizableProviderContext);
 
 	if (context === undefined) {
-		throw new Error("useResizable must be used within a ResizableProvider");
+		throw new Error('useResizable must be used within a ResizableProvider');
 	}
 
 	return context;

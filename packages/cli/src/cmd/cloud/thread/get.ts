@@ -79,10 +79,7 @@ export const getSubcommand = createSubcommand({
 			if (ex instanceof APIError && ex.status === 404) {
 				tui.fatal(`Thread ${args.thread_id} not found`, ErrorCode.RESOURCE_NOT_FOUND);
 			}
-			tui.fatal(
-				`Failed to get thread: ${ex instanceof Error ? ex.message : String(ex)}`,
-				ErrorCode.API_ERROR
-			);
+			tui.fatal(`Failed to get thread: ${ex}`, ErrorCode.API_ERROR);
 		}
 	},
 });

@@ -69,7 +69,7 @@ export const removeSubcommand = createSubcommand({
 				deploymentId: args.deployment_id,
 			};
 		} catch (ex) {
-			tui.fatal(`Failed to remove deployment: ${ex instanceof Error ? ex.message : String(ex)}`);
+			tui.fatal(`Failed to remove deployment: ${ex}`);
 		}
 	},
 });

@@ -247,10 +247,7 @@ export const getSubcommand = createSubcommand({
 			if (ex instanceof APIError && ex.status === 404) {
 				tui.fatal(`Session ${args.session_id} not found`, ErrorCode.RESOURCE_NOT_FOUND);
 			}
-			tui.fatal(
-				`Failed to get session: ${ex instanceof Error ? ex.message : String(ex)}`,
-				ErrorCode.API_ERROR
-			);
+			tui.fatal(`Failed to get session: ${ex}`, ErrorCode.API_ERROR);
 		}
 	},
 });

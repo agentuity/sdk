@@ -162,7 +162,8 @@ export const deploySubcommand = createSubcommand({
 								);
 								return stepSuccess();
 							} catch (ex) {
-								return stepError(ex instanceof Error ? ex.message : String(ex));
+								const _ex = ex as { message?: string };
+								return stepError(_ex.message ?? String(_ex), ex as Error);
 							}
 						},
 					},

@@ -116,10 +116,7 @@ export const listSubcommand = createSubcommand({
 
 			return result;
 		} catch (ex) {
-			tui.fatal(
-				`Failed to list threads: ${ex instanceof Error ? ex.message : String(ex)}`,
-				ErrorCode.API_ERROR
-			);
+			tui.fatal(`Failed to list threads: ${ex}`, ErrorCode.API_ERROR);
 		}
 	},
 });

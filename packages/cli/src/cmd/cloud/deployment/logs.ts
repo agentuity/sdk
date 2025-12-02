@@ -78,10 +78,7 @@ export const logsSubcommand = createSubcommand({
 
 			return logs;
 		} catch (ex) {
-			tui.fatal(
-				`Failed to fetch deployment logs: ${ex instanceof Error ? ex.message : String(ex)}`,
-				ErrorCode.API_ERROR
-			);
+			tui.fatal(`Failed to fetch deployment logs: ${ex}`, ErrorCode.API_ERROR);
 		}
 	},
 });
