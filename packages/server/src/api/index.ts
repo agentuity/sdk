@@ -1,5 +1,6 @@
 export * from './api';
 export * from './apikey';
+export * from './db';
 export * from './org';
 export * from './project';
 export * from './region';

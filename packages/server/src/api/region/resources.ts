@@ -19,6 +19,7 @@ const ResourceListResponse = z.object({
 			username: z.string().nullable().optional().describe('the database username'),
 			password: z.string().nullable().optional().describe('the database password'),
 			url: z.string().nullable().optional().describe('the full database connection URL'),
+			logical_databases: z.array(z.string()).optional().describe('list of logical databases'),
 		})
 	),
 });
