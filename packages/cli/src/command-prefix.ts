@@ -17,10 +17,13 @@ export function getCommandPrefix(): string {
 	const scriptPath = process.argv[1] || '';
 	const normalized = path.normalize(scriptPath);
 
+	const isCompiledBinary =
+		process.argv[0] === 'bun' && scriptPath.startsWith('/$bunfs/root/agentuity-');
+
 	// If we have AGENTUITY_CLI_VERSION set we are running from compiled binary OR
 	// If the script is in node_modules/.bin or a global bin directory, it's likely global
 	const isGlobal =
-		process.env.AGENTUITY_CLI_VERSION ||
+		isCompiledBinary ||
 		(normalized.includes(`${path.sep}bin${path.sep}`) &&
 			!normalized.includes(`${path.sep}node_modules${path.sep}`) &&
 			!normalized.includes(path.join('packages', 'cli', 'bin')));
