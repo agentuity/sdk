@@ -135,7 +135,7 @@ export interface Stream extends WritableStream {
 	/**
 	 * write data to the stream
 	 */
-	write(chunk: string | Uint8Array | ArrayBuffer | Buffer | object): Promise<void>;
+	write(chunk: string | Uint8Array | ArrayBuffer | object): Promise<void>;
 	/**
 	 * close the stream gracefully, handling already closed streams without error
 	 */
@@ -302,7 +302,7 @@ class StreamImpl extends WritableStream implements Stream {
 	/**
 	 * Write data to the stream
 	 */
-	async write(chunk: string | Uint8Array | ArrayBuffer | Buffer | object): Promise<void> {
+	async write(chunk: string | Uint8Array | ArrayBuffer | object): Promise<void> {
 		let binaryChunk: Uint8Array;
 		if (chunk instanceof Uint8Array) {
 			binaryChunk = chunk;

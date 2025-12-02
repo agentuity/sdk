@@ -131,8 +131,8 @@ export async function toPayload(data: unknown): Promise<[Body, string]> {
 			if (data instanceof ArrayBuffer) {
 				return [data, binaryContentType];
 			}
-			if (data instanceof Buffer) {
-				return [data, binaryContentType];
+			if (data instanceof Uint8Array) {
+				return [data.buffer as ArrayBuffer, binaryContentType];
 			}
 			if (data instanceof ReadableStream) {
 				return [data, binaryContentType];
