@@ -55,6 +55,12 @@ export const command = createCommand({
 				.max(65535)
 				.default(3500)
 				.describe('The TCP port to start the dev start'),
+			watch: z
+				.array(z.string())
+				.optional()
+				.describe(
+					'Additional paths to watch for changes (e.g., --watch ../packages/workbench/dist)'
+				),
 		}),
 	},
 	optional: { auth: 'Continue without an account (local only)', project: true },
@@ -230,6 +236,19 @@ export const command = createCommand({
 
 		// Watch directories instead of files to survive atomic replacements (sed -i, cp)
 		const watches = [rootDir];
+
+		// Add additional watch paths from options
+		if (opts.watch) {
+			for (const watchPath of opts.watch) {
+				const resolvedPath = resolve(rootDir, watchPath);
+				if (existsSync(resolvedPath)) {
+					watches.push(resolvedPath);
+					logger.debug('Added additional watch path: %s', resolvedPath);
+				} else {
+					logger.warn('Watch path does not exist: %s', resolvedPath);
+				}
+			}
+		}
 		const watchers: FSWatcher[] = [];
 		let failures = 0;
 		let running = false;

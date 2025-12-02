@@ -1,9 +1,10 @@
+import { JSONSchema7 } from 'ai';
 import { useState, useEffect, useCallback } from 'react';
 
 export interface AgentSchema {
 	input?: {
 		code?: string;
-		json?: string;
+		json?: JSONSchema7;
 	};
 	output?: {
 		code?: string;

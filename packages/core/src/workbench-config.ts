@@ -18,6 +18,7 @@ export interface WorkbenchConfig {
 	route?: string;
 	headers?: Record<string, string>;
 	port?: number;
+	apiKey?: string;
 }
 
 /**

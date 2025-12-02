@@ -5,3 +5,5 @@ bun.lock
 **/.agentuity/*
 packages/cli/test-interop/go-common
 *.sh
+**/ai-elements/**
+**/ui/**

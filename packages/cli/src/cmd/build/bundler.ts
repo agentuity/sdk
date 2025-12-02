@@ -345,8 +345,8 @@ export async function bundle({
 					target: 'browser',
 					format: 'esm',
 					banner: `// Generated file. DO NOT EDIT`,
-					minify: true,
-					splitting: true,
+					minify: !dev, // Disable minification in dev to avoid module resolution issues
+					splitting: !dev, // Disable code splitting in dev to avoid relative import resolution issues
 					packages: 'bundle',
 					naming: {
 						entry: '[dir]/[name].[ext]',
@@ -373,7 +373,7 @@ export async function bundle({
 					}
 					// Clean up temp directory even on failure
 					rmSync(tempWorkbenchDir, { recursive: true, force: true });
-					process.exit(1);
+					logger.fatal('Workbench bundling failed');
 				}
 			} catch (error) {
 				logger.error('Failed to bundle workbench:', error);

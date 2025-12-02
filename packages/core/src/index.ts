@@ -5,4 +5,4 @@ export * from './services';
 export * from './standard_schema';
 export * from './string';
 export * from './typehelper';
-export * from './workbench-config';
+export * from './workbench';

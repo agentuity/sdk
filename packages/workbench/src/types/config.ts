@@ -1,5 +1,5 @@
 import type { UIMessage } from 'ai';
-import type { WorkbenchConfig } from '@agentuity/core';
+import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type { AgentSchemaData, AgentSchemasResponse } from '../hooks/useAgentSchemas';
 
 export interface Agent {

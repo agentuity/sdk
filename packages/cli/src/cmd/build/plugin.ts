@@ -726,12 +726,18 @@ const AgentuityBundler: BunPlugin = {
 				// Generate lifecycle types if setup() is present in app.ts
 				await setupLifecycleTypes(rootDir, outDir, srcDir, logger);
 
-				// Only create the workbench metadata route if workbench is actually configured
+				// Only create the workbench routes if workbench is actually configured
 				if (workbenchConfig) {
 					inserts.push(`await (async() => {
-    const { createWorkbenchMetadataRoute, getRouter } = await import('@agentuity/runtime');
-    const router = getRouter()!;
-	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
+	console.log('🏗️ [Plugin] Setting up workbench routes...');
+	const { createWorkbenchRouter, getRouter } = await import('@agentuity/runtime');
+	console.log('📦 [Plugin] Imported workbench functions');
+	const router = getRouter()!;
+	console.log('📡 [Plugin] Got main router');
+	const workbenchRouter = createWorkbenchRouter();
+	console.log('🔗 [Plugin] Created workbench router, mounting...');
+	router.route('/', workbenchRouter);
+	console.log('✅ [Plugin] Workbench routes mounted successfully');
 })();`);
 				}
 

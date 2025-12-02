@@ -25,7 +25,6 @@ export function Header({ className }: HeaderProps) {
 				<LogoComponent />
 				<h1 className="mt-0.5 text-sm">{title}</h1>
 			</div>
-
 			<div className="flex items-center gap-1">
 				<ThemeToggle />
 				{showSettings && (

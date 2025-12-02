@@ -1,4 +1,4 @@
-import type { WorkbenchConfig } from '@agentuity/core';
+import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type { WorkbenchInstance } from './types';
 
 export function createWorkbench(

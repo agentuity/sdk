@@ -1,15 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import '../../styles.css';
 import React, { useState } from 'react';
-import {
-	CheckIcon,
-	ChevronRight,
-	ChevronsUpDownIcon,
-	Copy,
-	Loader,
-	RefreshCcw,
-	FileJson,
-} from 'lucide-react';
+import { ChevronRight, Copy, Loader, RefreshCcw } from 'lucide-react';
 import { Action, Actions } from '../ai-elements/actions';
 import {
 	Conversation,
@@ -17,30 +8,8 @@ import {
 	ConversationScrollButton,
 } from '../ai-elements/conversation';
 import { Message, MessageContent } from '../ai-elements/message';
-import {
-	PromptInput,
-	PromptInputActionAddAttachments,
-	PromptInputActionMenu,
-	PromptInputActionMenuContent,
-	PromptInputActionMenuTrigger,
-	PromptInputBody,
-	PromptInputFooter,
-	PromptInputSubmit,
-	PromptInputTextarea,
-	PromptInputTools,
-} from '../ai-elements/prompt-input';
+import { InputSection } from './InputSection';
 import { Shimmer } from '../ai-elements/shimmer';
-import { Button } from '../ui/button';
-import {
-	Command,
-	CommandEmpty,
-	CommandGroup,
-	CommandInput,
-	CommandItem,
-	CommandList,
-} from '../ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '../ui/select';
 import { cn } from '../../lib/utils';
 import { useWorkbench } from './WorkbenchProvider';
 import { Schema } from './Schema';
@@ -64,11 +33,20 @@ export function Chat({ className: _className }: ChatProps) {
 		submitMessage,
 	} = useWorkbench();
 
-	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
 	const [value, setValue] = useState('');
 	const [schemaOpen, setSchemaOpen] = useState(false);
 
 	const handleSubmit = async () => {
+		const selectedAgentData = agents[selectedAgent];
+		const hasInputSchema = selectedAgentData?.schema?.input?.json;
+
+		// If agent has no input schema, submit without requiring input
+		if (!hasInputSchema) {
+			await submitMessage('');
+			return;
+		}
+
+		// For agents with input schema, require input
 		if (!value.trim()) return;
 		await submitMessage(value);
 		setValue('');
@@ -184,106 +162,17 @@ export function Chat({ className: _className }: ChatProps) {
 
 					<ConversationScrollButton />
 				</Conversation>
-
-				<div className="flex items-center gap-2 py-2 px-3">
-					<Popover open={agentSelectOpen} onOpenChange={setAgentSelectOpen}>
-						<PopoverTrigger asChild>
-							<Button
-								aria-expanded={agentSelectOpen}
-								className="font-normal bg-transparent dark:bg-transparent"
-								variant="outline"
-								size="sm"
-							>
-								{agents[selectedAgent]?.metadata.name || 'Select agent'}
-								<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
-							</Button>
-						</PopoverTrigger>
-						<PopoverContent className="w-fit p-0">
-							<Command>
-								<CommandInput placeholder="Search agents..." />
-								<CommandList>
-									<CommandEmpty>No agents found.</CommandEmpty>
-									<CommandGroup>
-										{Object.values(agents).map((agent) => (
-											<CommandItem
-												key={agent.metadata.id}
-												value={agent.metadata.id}
-												onSelect={(currentValue) => {
-													setSelectedAgent(currentValue);
-													setAgentSelectOpen(false);
-												}}
-											>
-												<CheckIcon
-													className={cn(
-														'size-4 text-green-500',
-														selectedAgent === agent.metadata.id
-															? 'opacity-100'
-															: 'opacity-0'
-													)}
-												/>
-												{agent.metadata.name}
-											</CommandItem>
-										))}
-									</CommandGroup>
-								</CommandList>
-							</Command>
-						</PopoverContent>
-					</Popover>
-
-					{suggestions.length > 0 && (
-						<Select onValueChange={(value) => setValue(value)}>
-							<SelectTrigger
-								size="sm"
-								className="ml-auto bg-transparent dark:bg-transparent text-foreground!"
-							>
-								Suggestions
-							</SelectTrigger>
-							<SelectContent className="text-sm" side="top" align="end">
-								{suggestions.map((suggestion) => (
-									<SelectItem key={suggestion} value={suggestion}>
-										{suggestion}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
-					)}
-
-					<Button
-						aria-label="View Schema"
-						size="sm"
-						variant="outline"
-						className="bg-none font-normal"
-						onClick={() => setSchemaOpen(true)}
-					>
-						<FileJson className="size-4" /> Schema
-					</Button>
-				</div>
-
-				<PromptInput onSubmit={handleSubmit} className="px-3 pb-3">
-					<PromptInputBody>
-						<PromptInputTextarea
-							placeholder="Enter a message to send..."
-							value={value}
-							onChange={(e) => setValue(e.target.value)}
-						/>
-					</PromptInputBody>
-
-					<PromptInputFooter>
-						<PromptInputTools>
-							<PromptInputActionMenu>
-								<PromptInputActionMenuTrigger />
-								<PromptInputActionMenuContent>
-									<PromptInputActionAddAttachments />
-								</PromptInputActionMenuContent>
-							</PromptInputActionMenu>
-						</PromptInputTools>
-
-						<PromptInputSubmit
-							disabled={isLoading}
-							status={(isLoading ? 'loading' : 'ready') as any}
-						/>
-					</PromptInputFooter>
-				</PromptInput>
+				<InputSection
+					value={value}
+					onChange={setValue}
+					onSubmit={handleSubmit}
+					isLoading={isLoading}
+					agents={agents}
+					selectedAgent={selectedAgent}
+					setSelectedAgent={setSelectedAgent}
+					suggestions={suggestions}
+					onSchemaOpen={() => setSchemaOpen(true)}
+				/>
 			</div>
 
 			<Schema open={schemaOpen} onOpenChange={setSchemaOpen} />

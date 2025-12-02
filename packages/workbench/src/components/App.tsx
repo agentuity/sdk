@@ -4,7 +4,7 @@ import { Header } from './internal/Header';
 import { Chat } from './internal/Chat';
 import { ThemeProvider } from './ui/theme-provider';
 import { ResizableProvider } from './ui/resizable-provider';
-import { decodeWorkbenchConfig } from '@agentuity/core';
+import { decodeWorkbenchConfig } from '@agentuity/core/workbench';
 
 export interface AppProps {
 	configBase64: string;

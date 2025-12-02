@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { UIMessage } from 'ai';
-import type { WorkbenchConfig } from '@agentuity/core';
+import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type { WorkbenchContextType } from '../../types/config';
 import { useAgentSchemas } from '../../hooks/useAgentSchemas';
 
@@ -25,17 +25,19 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const [inputMode, setInputMode] = useState<'text' | 'form'>('text');
 	const [isLoading, setIsLoading] = useState(false);
 
-	// Hardcoded config values
+	// Config values
 	const baseUrl = config.port ? `http://localhost:${config.port}` : undefined;
-	const apiKey = undefined;
+	const apiKey = config.apiKey;
 	const shouldUseSchemas = true;
 
 	// Debug logging
 	useEffect(() => {
-		console.log('WorkbenchProvider Debug:', {
-			baseUrl,
-			shouldUseSchemas,
-		});
+		if (process.env.NODE_ENV === 'development') {
+			console.log('WorkbenchProvider Debug:', {
+				baseUrl,
+				shouldUseSchemas,
+			});
+		}
 	}, [baseUrl, shouldUseSchemas]);
 
 	const {
@@ -80,43 +82,121 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	};
 
 	const submitMessage = async (value: string, _mode: 'text' | 'form' = 'text') => {
-		if (!value.trim()) return;
+		if (!selectedAgent) return;
+
+		const selectedAgentData = agents?.[selectedAgent];
+		const hasInputSchema = selectedAgentData?.schema?.input?.json;
+
+		// Only require value for agents with input schemas
+		if (hasInputSchema && !value.trim()) return;
 
 		// Add user message
+		const displayText = hasInputSchema
+			? value
+			: `Running ${selectedAgentData?.metadata.name || 'agent'}...`;
 		const userMessage: UIMessage = {
 			id: Date.now().toString(),
 			role: 'user',
-			parts: [{ type: 'text', text: value }],
+			parts: [{ type: 'text', text: displayText }],
 		};
 
 		setMessages((prev) => [...prev, userMessage]);
 		setIsLoading(true);
 
-		try {
-			// Mock response when no API is configured
-			const assistantMessage: UIMessage = {
+		if (!baseUrl) {
+			const errorMessage: UIMessage = {
 				id: (Date.now() + 1).toString(),
 				role: 'assistant',
 				parts: [
 					{
 						type: 'text',
-						text: 'This is a mock response. Configure an API endpoint or handler for real functionality.',
+						text: 'Error: No base URL configured. Please configure a port in the workbench config.',
 					},
 				],
 			};
-
-			setTimeout(() => {
-				setMessages((prev) => [...prev, assistantMessage]);
-				setIsLoading(false);
-			}, 1000);
+			setMessages((prev) => [...prev, errorMessage]);
+			setIsLoading(false);
 			return;
+		}
+
+		try {
+			// Parse input - if it's JSON, parse it, otherwise use as string
+			// For agents without input schema, send undefined
+			let parsedInput: unknown;
+			if (!hasInputSchema) {
+				parsedInput = undefined;
+			} else {
+				try {
+					parsedInput = JSON.parse(value);
+				} catch {
+					parsedInput = value;
+				}
+			}
+
+			// Call execution endpoint with timeout
+			const headers: Record<string, string> = {
+				'Content-Type': 'application/json',
+			};
+			if (apiKey) {
+				headers.Authorization = `Bearer ${apiKey}`;
+			}
+
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+			try {
+				const response = await fetch(`${baseUrl}/_agentuity/workbench/execute`, {
+					method: 'POST',
+					headers,
+					body: JSON.stringify({
+						agentId: selectedAgent,
+						input: parsedInput,
+					}),
+					signal: controller.signal,
+				});
+				clearTimeout(timeoutId);
+
+				if (!response.ok) {
+					const errorData = await response
+						.json()
+						.catch(() => ({ error: response.statusText }));
+					throw new Error(errorData.error || `Request failed with status ${response.status}`);
+				}
+
+				const result = await response.json();
+
+				// Format result as JSON string for display
+				const resultText =
+					typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
+
+				const assistantMessage: UIMessage = {
+					id: (Date.now() + 1).toString(),
+					role: 'assistant',
+					parts: [{ type: 'text', text: resultText }],
+				};
+
+				setMessages((prev) => [...prev, assistantMessage]);
+			} catch (fetchError) {
+				clearTimeout(timeoutId);
+				throw fetchError;
+			}
 		} catch (error) {
 			console.error('Failed to submit message:', error);
+			const errorText =
+				error instanceof Error
+					? error.name === 'AbortError'
+						? 'Request timed out. Please try again.'
+						: error.message
+					: 'Sorry, I encountered an error processing your message.';
+
 			const errorMessage: UIMessage = {
 				id: (Date.now() + 1).toString(),
 				role: 'assistant',
 				parts: [
-					{ type: 'text', text: 'Sorry, I encountered an error processing your message.' },
+					{
+						type: 'text',
+						text: errorText,
+					},
 				],
 			};
 			setMessages((prev) => [...prev, errorMessage]);
