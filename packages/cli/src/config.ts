@@ -233,11 +233,7 @@ export async function saveConfig(config: Config, customPath?: string): Promise<v
 	const configPath = customPath || (await getProfile());
 	await ensureConfigDir();
 
-	// Strip auth from config before saving (never store auth in config file)
-	const configToSave = { ...config };
-	delete configToSave.auth;
-
-	const content = formatYAML(configToSave);
+	const content = formatYAML(config);
 	await writeFile(configPath, content + '\n', { mode: 0o600 });
 	// Ensure existing files get correct permissions on upgrade
 	await chmod(configPath, 0o600);
@@ -256,55 +252,21 @@ async function getOrInitConfig(): Promise<Config> {
 
 export async function saveAuth(auth: AuthData): Promise<void> {
 	const config = await getOrInitConfig();
-	const profileName = config.name || defaultProfileName;
 
-	const authData = {
+	config.auth = {
 		api_key: auth.apiKey,
 		user_id: auth.userId,
 		expires: auth.expires.getTime(),
 	};
+	config.preferences = config.preferences || {};
+	(config.preferences as Record<string, unknown>).orgId = '';
 
-	// Try to store in Bun secrets API
-	try {
-		await Bun.secrets.set({
-			service: `agentuity.cli.${profileName}`,
-			name: 'auth',
-			value: JSON.stringify(authData),
-		});
-
-		// Successfully stored in secrets, ensure auth is removed from config file
-		if (config.auth) {
-			delete config.auth;
-			await saveConfig(config);
-		}
-	} catch {
-		// Bun.secrets API not available or failed, fallback to config file
-		config.auth = authData;
-		config.preferences = config.preferences || {};
-		(config.preferences as Record<string, unknown>).orgId = '';
-
-		// Save with auth in config as fallback (saveConfig will try to strip it but we're setting it here)
-		const configPath = await getProfile();
-		await ensureConfigDir();
-		const content = formatYAML(config);
-		await writeFile(configPath, content + '\n', { mode: 0o600 });
-		await chmod(configPath, 0o600);
-		cachedConfig = config;
-	}
+	await saveConfig(config);
 }
 
 export async function clearAuth(): Promise<void> {
 	const config = await getOrInitConfig();
-	const profileName = config.name || defaultProfileName;
 
-	// Try to delete from Bun secrets API
-	try {
-		await Bun.secrets.delete({ service: `agentuity.cli.${profileName}`, name: 'auth' });
-	} catch {
-		// Bun.secrets API not available or failed
-	}
-
-	// Clear auth from config file (for backwards compatibility)
 	if (config.auth) {
 		delete config.auth;
 		config.preferences = config.preferences || {};
@@ -328,59 +290,11 @@ export async function saveOrgId(orgId: string): Promise<void> {
 	await saveConfig(config);
 }
 
-async function migrateAuthToSecrets(
-	config: Config,
-	profileName: string,
-	auth: { api_key: string; user_id: string; expires: number }
-): Promise<boolean> {
-	try {
-		const authData = {
-			api_key: auth.api_key,
-			user_id: auth.user_id,
-			expires: auth.expires,
-		};
-
-		await Bun.secrets.set({
-			service: `agentuity.cli.${profileName}`,
-			name: 'auth',
-			value: JSON.stringify(authData),
-		});
-
-		// Successfully migrated, remove from config file
-		delete config.auth;
-		await saveConfig(config);
-
-		return true;
-	} catch {
-		// Migration failed, leave in config file
-		return false;
-	}
-}
 
 export async function getAuth(): Promise<AuthData | null> {
 	const config = await loadConfig();
-	const profileName = config?.name || defaultProfileName;
 
-	// Priority 1: Try Bun secrets API first (most secure)
-	try {
-		const authJson = await Bun.secrets.get({
-			service: `agentuity.cli.${profileName}`,
-			name: 'auth',
-		});
-
-		if (authJson) {
-			const auth = JSON.parse(authJson) as { api_key: string; user_id: string; expires: number };
-			return {
-				apiKey: auth.api_key,
-				userId: auth.user_id,
-				expires: new Date(auth.expires),
-			};
-		}
-	} catch {
-		// Bun.secrets API not available or failed, fallback to other methods
-	}
-
-	// Priority 2: Allow automated login from environment variables
+	// Priority 1: Allow automated login from environment variables
 	if (process.env.AGENTUITY_CLI_API_KEY && process.env.AGENTUITY_USER_ID) {
 		return {
 			apiKey: process.env.AGENTUITY_CLI_API_KEY,
@@ -389,7 +303,7 @@ export async function getAuth(): Promise<AuthData | null> {
 		};
 	}
 
-	// Priority 3: Fallback to config file (backwards compatibility + migration)
+	// Priority 2: Read from config file
 	if (!config) return null;
 	const auth = config.auth as { api_key?: string; user_id?: string; expires?: number } | undefined;
 
@@ -397,18 +311,7 @@ export async function getAuth(): Promise<AuthData | null> {
 		return null;
 	}
 
-	// Check if token is unexpired
 	const expiresDate = new Date(auth.expires || 0);
-	const isExpired = expiresDate.getTime() <= Date.now();
-
-	// If unexpired, attempt to migrate to Bun.secrets
-	if (!isExpired) {
-		await migrateAuthToSecrets(config, profileName, {
-			api_key: auth.api_key,
-			user_id: auth.user_id,
-			expires: auth.expires || 0,
-		});
-	}
 
 	return {
 		apiKey: auth.api_key,
