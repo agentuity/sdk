@@ -53,7 +53,7 @@ async function cleanup(sourceDir: string, dest: string) {
 		});
 	}
 
-	tui.spinner(`📦 Copying template files...`, async () => {
+	await tui.spinner(`📦 Copying template files...`, async () => {
 		// Copy all files from source to dest
 		const files = readdirSync(sourceDir);
 		for (const file of files) {
