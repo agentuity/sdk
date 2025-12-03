@@ -15,6 +15,12 @@ import JSON5 from 'json5';
 import type { Config, Profile, AuthData } from './types';
 import { ConfigSchema, ProjectSchema } from './types';
 import * as tui from './tui';
+import {
+	isMacOS,
+	saveAuthToKeychain,
+	getAuthFromKeychain,
+	deleteAuthFromKeychain,
+} from './keychain';
 
 export const defaultProfileName = 'production';
 
@@ -252,12 +258,33 @@ async function getOrInitConfig(): Promise<Config> {
 
 export async function saveAuth(auth: AuthData): Promise<void> {
 	const config = await getOrInitConfig();
+	const profileName = config.name || defaultProfileName;
 
-	config.auth = {
+	const authData = {
 		api_key: auth.apiKey,
 		user_id: auth.userId,
 		expires: auth.expires.getTime(),
 	};
+
+	// On macOS, store in Keychain for better security
+	if (isMacOS()) {
+		try {
+			await saveAuthToKeychain(profileName, authData);
+			
+			// Successfully stored in keychain, remove from config if present
+			if (config.auth) {
+				delete config.auth;
+				await saveConfig(config);
+			}
+			return;
+		} catch (error) {
+			// Keychain failed, fall back to config file
+			console.warn('Failed to store auth in keychain, falling back to config file:', error);
+		}
+	}
+
+	// Store in config file (non-macOS or keychain failed)
+	config.auth = authData;
 	config.preferences = config.preferences || {};
 	(config.preferences as Record<string, unknown>).orgId = '';
 
@@ -266,7 +293,18 @@ export async function saveAuth(auth: AuthData): Promise<void> {
 
 export async function clearAuth(): Promise<void> {
 	const config = await getOrInitConfig();
+	const profileName = config.name || defaultProfileName;
 
+	// On macOS, clear from Keychain
+	if (isMacOS()) {
+		try {
+			await deleteAuthFromKeychain(profileName);
+		} catch {
+			// Ignore errors - keychain entry may not exist
+		}
+	}
+
+	// Also clear from config file (for backwards compatibility)
 	if (config.auth) {
 		delete config.auth;
 		config.preferences = config.preferences || {};
@@ -293,6 +331,7 @@ export async function saveOrgId(orgId: string): Promise<void> {
 
 export async function getAuth(): Promise<AuthData | null> {
 	const config = await loadConfig();
+	const profileName = config?.name || defaultProfileName;
 
 	// Priority 1: Allow automated login from environment variables
 	if (process.env.AGENTUITY_CLI_API_KEY && process.env.AGENTUITY_USER_ID) {
@@ -303,7 +342,23 @@ export async function getAuth(): Promise<AuthData | null> {
 		};
 	}
 
-	// Priority 2: Read from config file
+	// Priority 2: On macOS, try to read from Keychain
+	if (isMacOS()) {
+		try {
+			const keychainAuth = await getAuthFromKeychain(profileName);
+			if (keychainAuth) {
+				return {
+					apiKey: keychainAuth.api_key,
+					userId: keychainAuth.user_id,
+					expires: new Date(keychainAuth.expires),
+				};
+			}
+		} catch {
+			// Keychain read failed, fall through to config file
+		}
+	}
+
+	// Priority 3: Read from config file (non-macOS or keychain failed)
 	if (!config) return null;
 	const auth = config.auth as { api_key?: string; user_id?: string; expires?: number } | undefined;
 
