@@ -133,7 +133,7 @@ lsof -ti:3500 | xargs kill -9
 
 When you create a new service, add a test agent:
 
-1. Create directory: `test-app/src/agents/yourservice/`
+1. Create directory: `test-app/src/agent/yourservice/`
 2. Create `agent.ts` with operations testing your service
 3. Create `route.ts` with GET and POST endpoints
 4. Rebuild: `bun run build`

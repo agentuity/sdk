@@ -10,7 +10,7 @@
 ## Architecture
 
 - **Runtime**: Bun-based Agentuity server app using Hono framework
-- **Structure**: Agent-based architecture with agents in `src/agents/<name>/`
+- **Structure**: Agent-based architecture with agents in `src/agent/<name>/`
 - **Entry point**: app.ts creates server via `@agentuity/runtime`
 - **Build output**: `.agentuity/` contains generated code (app.js, etc)
 - **Agent pattern**: Each agent has `agent.ts` (handler + schema) and optional `route.ts` (HTTP routes)

@@ -19,17 +19,15 @@ A fully configured Agentuity project with:
 ```
 my-app/
 ├── src/
-│   ├── agents/          # Agent definitions
+│   ├── agent/          # Agent definitions
 │   │   └── hello/
 │   │       └── agent.ts # Example agent
-│   ├── apis/            # Custom API routes
-│   │   └── route.ts     # Example route
-│   └── web/             # React web application
-│       └── app.tsx      # Main React component
-├── app.ts               # Application entry point
-├── tsconfig.json        # TypeScript configuration
-├── package.json         # Dependencies and scripts
-└── README.md            # Project documentation
+│   └── web/            # React web application
+│       └── app.tsx     # Main React component
+├── app.ts              # Application entry point
+├── tsconfig.json       # TypeScript configuration
+├── package.json        # Dependencies and scripts
+└── README.md           # Project documentation
 ```
 
 ## Available Commands
@@ -64,18 +62,18 @@ Runs TypeScript type checking
 
 After creating your project:
 
-1. **Customize the example agent** - Edit `src/agents/hello/agent.ts`
-2. **Add new agents** - Create new folders in `src/agents/`
-3. **Add API routes** - Create new routes in `src/apis/`
+1. **Customize the example agent** - Edit `src/agent/hello/agent.ts`
+2. **Add new agents** - Create new folders in `src/agent/`
+3. **Add API routes** - Create new routes in `src/web/`
 4. **Customize the UI** - Edit `src/web/app.tsx`
 5. **Configure your app** - Modify `app.ts` to add middleware, configure services, etc.
 
 ## Creating Custom Agents
 
-Create a new agent by adding a folder in `src/agents/`:
+Create a new agent by adding a folder in `src/agent/`:
 
 ```typescript
-// src/agents/my-agent/agent.ts
+// src/agent/my-agent/agent.ts
 import { type AgentContext, createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
@@ -101,10 +99,10 @@ export default agent;
 
 ## Adding API Routes
 
-Create custom routes in `src/apis/` or add routes to an agent folder:
+Create custom routes in `src/web/` or add routes to an agent folder:
 
 ```typescript
-// src/agents/my-agent/route.ts
+// src/agent/my-agent/route.ts
 import { createRouter } from '@agentuity/runtime';
 import { zValidator } from '@hono/zod-validator';
 import agent from './agent';

@@ -142,7 +142,7 @@ function generateAgentRegistry(srcDir: string, agentInfo: Array<Record<string, s
 		.map(({ name, path, parent }) => {
 			const fullName = parent ? `${parent}.${name}` : name;
 			const camelName = toCamelCase(fullName.replace('.', '_'));
-			const relativePath = path.replace(/^\.\/agents\//, './');
+			const relativePath = path.replace(/^\.\/agent\//, './');
 			return `import ${camelName}Agent from '${relativePath}';`;
 		})
 		.join('\n');
@@ -340,11 +340,11 @@ ${reactAgentTypes}
 }
 `;
 
-	const agentsDir = join(srcDir, 'agents');
+	const agentsDir = join(srcDir, 'agent');
 	const registryPath = join(agentsDir, 'registry.generated.ts');
 	const legacyTypesPath = join(agentsDir, 'types.generated.d.ts');
 
-	// Ensure agents directory exists
+	// Ensure agent directory exists
 	if (!existsSync(agentsDir)) {
 		mkdirSync(agentsDir, { recursive: true });
 	}
@@ -435,7 +435,7 @@ const AgentuityBundler: BunPlugin = {
 				newsource = ns;
 
 				// Detect if this is a subagent by checking path structure
-				// Note: Path structure assumption - 4 segments: agents/parent/child/agent.ts
+				// Note: Path structure assumption - 4 segments: agent/parent/child/agent.ts
 				const { isSubagent, parentName } = detectSubagent(args.path, srcDir);
 				if (isSubagent && parentName) {
 					md.set('parent', parentName);
@@ -521,14 +521,11 @@ const AgentuityBundler: BunPlugin = {
 
 					const agentPath = route
 						.replace(/\/route$/, '/*')
-						.replace('/agents', '/agent')
 						.replace('./', '/');
 					const routePath = route
 						.replace(/\/route$/, '')
-						.replace('/apis/', '/api/')
-						.replace('/apis', '/api')
-						.replace('/agents', '/agent')
-						.replace('/agents', '/agent')
+						.replace('/web/', '/api/')
+						.replace('/web', '/api')
 						.replace('./', '/');
 
 					const definitions = await parseRoute(
@@ -575,7 +572,7 @@ const AgentuityBundler: BunPlugin = {
 					if (hasAgent) {
 						const agentRegistrationName =
 							isSubagent && parentName ? `${parentName}.${name}` : name;
-						// Build evals path from agent path (e.g., 'agents/eval/agent' -> 'agents/eval/eval.ts')
+						// Build evals path from agent path (e.g., 'agent/eval/agent' -> 'agent/eval/eval.ts')
 						const agentDirPath = agent.replace(/\/agent$/, '');
 						const evalsPath = join(srcDir, agentDirPath, 'eval.ts');
 						const evalsImport = existsSync(evalsPath)
@@ -694,7 +691,7 @@ import { readFileSync, existsSync } from 'node:fs';
 							: join(rootDir, filename);
 
 						// Convert to path relative to srcDir like route-based agents
-						// e.g., /path/to/src/agents/lifecycle/agent.ts -> ./agents/lifecycle/agent
+						// e.g., /path/to/src/agent/lifecycle/agent.ts -> ./agent/lifecycle/agent
 						const agentPath = absolutePath.replace(srcDir, '.').replace('.ts', '');
 
 						// Extract folder name as agent name (same as route-based logic)

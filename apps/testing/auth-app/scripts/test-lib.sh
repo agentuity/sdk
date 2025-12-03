@@ -7,6 +7,13 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLI_BIN_DIR="$(cd $SCRIPT_DIR/../../../../packages/cli/bin && pwd)"
 LOCAL_CLI=$CLI_BIN_DIR/cli.ts
 AGENTUITY_REGION=${AGENTUITY_REGION:-usc}
+
+profile=$(bun $CLI_BIN_DIR/cli.ts profile current)
+if [ "$profile" = "local" ];
+then
+	AGENTUITY_REGION="local"
+fi
+
 export AGENTUITY_REGION
 
 # Colors for output

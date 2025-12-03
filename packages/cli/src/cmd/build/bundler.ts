@@ -85,10 +85,10 @@ export async function bundle({
 
 	const appEntrypoints: string[] = [];
 
-	for (const folder of ['apis', 'agents']) {
+	for (const folder of ['web', 'agent']) {
 		const dir = join(srcDir, folder);
 		if (!existsSync(dir)) {
-			if (folder === 'agents') {
+			if (folder === 'agent') {
 				throw new AgentsDirNotFoundError({ message: `Expected directory not found: ${dir}` });
 			}
 			continue;

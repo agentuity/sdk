@@ -1002,10 +1002,10 @@ export const command = createCommand({
 						statSync(absPath).isDirectory() &&
 						readdirSync(absPath).length === 0
 					) {
-						if (changedFile?.startsWith('src/agents/')) {
+						if (changedFile?.startsWith('src/agent/')) {
 							logger.debug('agent directory created: %s', changedFile);
 							createAgentTemplates(absPath);
-						} else if (changedFile?.startsWith('src/apis/')) {
+						} else if (changedFile?.startsWith('src/web/')) {
 							logger.debug('api directory created: %s', changedFile);
 							createAPITemplates(absPath);
 						}

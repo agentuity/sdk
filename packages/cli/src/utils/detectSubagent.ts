@@ -1,7 +1,7 @@
 /**
  * Detects if a file path represents a subagent based on path structure.
  *
- * Subagents follow the pattern: agents/parent/child/agent.ts or agents/parent/child/route.ts
+ * Subagents follow the pattern: agent/parent/child/agent.ts or agent/parent/child/route.ts
  * The path structure is currently hardcoded to 4 segments but could be made configurable later.
  *
  * @param filePath - The file path to analyze (can include leading './')
@@ -22,9 +22,9 @@ export function detectSubagent(
 	// Strip leading './' and split into parts, filtering out empty segments
 	const pathParts = normalizedPath.replace(/^\.\//, '').split('/').filter(Boolean);
 
-	// Path structure assumption: ['agents', 'parent', 'child', 'agent.ts' | 'route.ts' | 'route']
+	// Path structure assumption: ['agent', 'parent', 'child', 'agent.ts' | 'route.ts' | 'route']
 	// Currently hardcoded to 4 segments - consider making configurable in the future
-	const isSubagent = pathParts.length === 4 && pathParts[0] === 'agents';
+	const isSubagent = pathParts.length === 4 && pathParts[0] === 'agent';
 	const parentName = isSubagent ? pathParts[1] : null;
 
 	return { isSubagent, parentName };

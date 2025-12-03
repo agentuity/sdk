@@ -16,8 +16,8 @@ APP_DIR="$(dirname "$SCRIPT_DIR")"
 # Source shared test library
 source "$SCRIPT_DIR/test-lib.sh"
 
-AGENT_FILE="$APP_DIR/src/agents/simple/agent.ts"
-EVAL_FILE="$APP_DIR/src/agents/eval/eval.ts"
+AGENT_FILE="$APP_DIR/src/agent/simple/agent.ts"
+EVAL_FILE="$APP_DIR/src/agent/eval/eval.ts"
 # Place log outside app root to avoid triggering file watcher
 SERVER_LOG=$(mktemp "${TMPDIR:-/tmp}/test-dev-sync-XXXXXX")
 BACKUP_DIR=$(mktemp -d)

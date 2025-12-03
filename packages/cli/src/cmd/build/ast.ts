@@ -928,14 +928,14 @@ export async function parseRoute(
 
 	// Detect if this is a subagent route and build proper path
 	const relativePath = relative(rootDir, dir)
-		.replace(/^src\/agents\//, '')
-		.replace(/^src\/apis\//, '');
+		.replace(/^src\/agent\//, '')
+		.replace(/^src\/web\//, '');
 	const pathParts = relativePath.split('/').filter(Boolean);
-	const isSubagent = pathParts.length === 2 && filename.includes('src/agents');
+	const isSubagent = pathParts.length === 2 && filename.includes('src/agent');
 	const routeName = isSubagent ? pathParts.join('/') : name;
 
 	const routes: RouteDefinition = [];
-	const routePrefix = filename.includes('src/agents') ? '/agent' : '/api';
+	const routePrefix = filename.includes('src/agent') ? '/agent' : '/api';
 
 	try {
 		for (const body of ast.body) {

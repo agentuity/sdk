@@ -25,7 +25,7 @@
 	"include": [
 		"src/**/*",
 		"app.ts",
-		"src/agents/registry.generated.ts",
+		"src/agent/registry.generated.ts",
 		".agentuity/.agentuity_runtime.ts",
 		".agentuity/.agentuity_types.ts"
 	]

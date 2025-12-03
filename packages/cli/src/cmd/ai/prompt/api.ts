@@ -26,7 +26,7 @@ Each API folder must contain:
 
 Example structure:
 \`\`\`
-src/apis/
+src/web/
 ├── status/
 │   └── route.ts
 ├── users/

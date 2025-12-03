@@ -242,8 +242,8 @@ async function buildProject(): Promise<boolean> {
 		logError('Build failed');
 
 		// Debug: check if generated files exist
-		const registryPath = join(TEST_PROJECT_PATH, 'src/agents/registry.generated.ts');
-		const typesPath = join(TEST_PROJECT_PATH, 'src/agents/types.generated.d.ts');
+		const registryPath = join(TEST_PROJECT_PATH, 'src/agent/registry.generated.ts');
+		const typesPath = join(TEST_PROJECT_PATH, 'src/agent/types.generated.d.ts');
 		logInfo(`Registry file exists: ${existsSync(registryPath)}`);
 		logInfo(`Types file exists: ${existsSync(typesPath)}`);
 

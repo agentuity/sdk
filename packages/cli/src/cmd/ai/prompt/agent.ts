@@ -27,7 +27,7 @@ Each agent folder must contain:
 
 Example structure:
 \`\`\`
-src/agents/
+src/agent/
 ├── hello/
 │   ├── agent.ts
 │   └── route.ts
@@ -211,7 +211,7 @@ Agents can have subagents organized one level deep. This is useful for grouping 
 ### Directory Structure for Subagents
 
 \`\`\`
-src/agents/
+src/agent/
 └── team/              # Parent agent
     ├── agent.ts       # Parent agent
     ├── route.ts       # Parent routes

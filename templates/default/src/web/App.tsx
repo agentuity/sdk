@@ -251,7 +251,7 @@ export function App() {
 									text: (
 										<>
 											Edit{' '}
-											<code style={{ color: '#fff' }}>src/agents/hello/agent.ts</code> to
+											<code style={{ color: '#fff' }}>src/agent/hello/agent.ts</code> to
 											change how your agent responds.
 										</>
 									),
@@ -260,9 +260,8 @@ export function App() {
 									title: 'Add new API routes',
 									text: (
 										<>
-											Create new files in{' '}
-											<code style={{ color: '#fff' }}>src/apis/</code> to expose more
-											endpoints.
+											Create new files in <code style={{ color: '#fff' }}>src/web/</code>{' '}
+											to expose more endpoints.
 										</>
 									),
 								},

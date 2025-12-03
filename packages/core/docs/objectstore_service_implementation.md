@@ -215,8 +215,8 @@ Uses versioned API path: `/object/2025-03-17/`
 1. [src/services/objectstore.ts](../src/services/objectstore.ts) - Main implementation (456 lines)
 2. [src/services/**test**/objectstore.test.ts](../src/services/__test__/objectstore.test.ts) - Comprehensive tests (29 tests)
 3. [docs/objectstore_service_implementation.md](./objectstore_service_implementation.md) - This document
-4. [test-app/src/agents/objectstore/agent.ts](../../../test-app/src/agents/objectstore/agent.ts) - Test agent
-5. [test-app/src/agents/objectstore/route.ts](../../../test-app/src/agents/objectstore/route.ts) - Test routes
+4. [test-app/src/agent/objectstore/agent.ts](../../../test-app/src/agent/objectstore/agent.ts) - Test agent
+5. [test-app/src/agent/objectstore/route.ts](../../../test-app/src/agent/objectstore/route.ts) - Test routes
 
 ### Modified:
 

@@ -1410,13 +1410,13 @@ Create a test agent in the `test-app` to manually verify your service works end-
 #### 1. Create agent directory
 
 ```bash
-mkdir -p test-app/src/agents/yourservice
+mkdir -p test-app/src/agent/yourservice
 ```
 
 #### 2. Create agent.ts
 
 ```typescript
-import { type AgentContext, createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
@@ -1431,7 +1431,7 @@ const agent = createAgent({
 			result: z.any().optional(),
 		}),
 	},
-	handler: async (c: AgentContext, { operation, param }) => {
+	handler: async ({ operation, param }) => {
 		switch (operation) {
 			case 'testOp1': {
 				// Test your service operation
@@ -1505,7 +1505,7 @@ lsof -ti:3500 | xargs kill -9
 
 **Example: Vector Service Test Agent**
 
-See [test-app/src/agents/vector/agent.ts](../../../test-app/src/agents/vector/agent.ts) for a complete example that exercises:
+See [test-app/src/agent/vector/agent.ts](../../../test-app/src/agent/vector/agent.ts) for a complete example that exercises:
 
 - ✅ `upsert()` with documents and metadata
 - ✅ `get()` with discriminated union result
@@ -1539,7 +1539,7 @@ See [test-app/src/agents/vector/agent.ts](../../../test-app/src/agents/vector/ag
 - [ ] CLI package rebuilt
 - [ ] Test-app built successfully
 - [ ] Type safety verified in agent code
-- [ ] Test agent created in `test-app/src/agents/yourservice/`
+- [ ] Test agent created in `test-app/src/agent/yourservice/`
 - [ ] Integration tested via HTTP requests
 
 ## Quality Assurance
@@ -1715,7 +1715,7 @@ When implementing a new service integration:
 ### Quality & Verification
 
 14. **Run quality checks** - Format, typecheck, lint, test, build (in that order)
-15. **Create test agent** - In `test-app/src/agents/yourservice/`
+15. **Create test agent** - In `test-app/src/agent/yourservice/`
 16. **Integration test** - Verify via HTTP requests
 
 The existing services ([keyvalue.ts](../src/services/keyvalue.ts), [stream.ts](../src/services/stream.ts), and [vector.ts](../src/services/vector.ts)) serve as reference implementations - use them as templates when building new integrations.

@@ -281,22 +281,22 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 	}
 
 	// generate and write AGENTS.md for each of the main folders
-	const agentsDir = join(dest, 'src', 'agents');
-	if (existsSync(agentsDir)) {
-		const agentsAPIFile = join(agentsDir, 'AGENTS.md');
-		await Bun.write(agentsAPIFile, generateAgentPrompt());
+	const agentDir = join(dest, 'src', 'agent');
+	if (existsSync(agentDir)) {
+		const agentAPIFile = join(agentDir, 'AGENTS.md');
+		await Bun.write(agentAPIFile, generateAgentPrompt());
 	}
 
-	const apisDir = join(dest, 'src', 'apis');
-	if (existsSync(apisDir)) {
-		const agentsAPIsFile = join(apisDir, 'AGENTS.md');
-		await Bun.write(agentsAPIsFile, generateAPIPrompt());
+	const apiDir = join(dest, 'src', 'api');
+	if (existsSync(apiDir)) {
+		const agentAPIFile = join(apiDir, 'AGENTS.md');
+		await Bun.write(agentAPIFile, generateAPIPrompt());
 	}
 
 	const webDir = join(dest, 'src', 'web');
 	if (existsSync(webDir)) {
-		const agentsWebFile = join(webDir, 'AGENTS.md');
-		await Bun.write(agentsWebFile, generateWebPrompt());
+		const webFile = join(webDir, 'AGENTS.md');
+		await Bun.write(webFile, generateWebPrompt());
 	}
 }
 

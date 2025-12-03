@@ -39,9 +39,8 @@ Each template directory (e.g., `default/`) contains the complete file structure 
 ```
 default/
 ├── src/
-│   ├── agents/          # Example agent implementations
-│   ├── apis/            # Custom API routes
-│   └── web/             # React web application
+│   ├── agent/          # Example agent implementations
+│   └── web/            # React web application
 ├── AGENTS.md            # Agent guidelines and conventions
 ├── app.ts               # Application entry point
 ├── gitignore            # Renamed to .gitignore during setup

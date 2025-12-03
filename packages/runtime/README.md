@@ -29,7 +29,7 @@ logger.info('Server running on http://localhost:3500');
 ### Defining an Agent
 
 ```typescript
-import { type AgentContext, createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 import { z } from 'zod';
 
 const agent = createAgent({
@@ -41,7 +41,7 @@ const agent = createAgent({
 			response: z.string(),
 		}),
 	},
-	handler: async (ctx: AgentContext, input) => {
+	handler: async (ctx, input) => {
 		ctx.logger.info('Processing message:', input.message);
 		return { response: `You said: ${input.message}` };
 	},
