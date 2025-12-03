@@ -354,7 +354,7 @@ download_with_progress() {
   # Hide cursor
   printf "\033[?25l" >&4
 
-  trap 'rm -f "$_dwp_tracefile"; printf "\033[?25h" >&4; exec 4>&-' EXIT INT TERM
+  trap 'rm -f "$_dwp_tracefile"; printf "\033[?25h" >&4 2>/dev/null; exec 4>&- 2>/dev/null' EXIT INT TERM
 
   (
     curl --trace-ascii "$_dwp_tracefile" -s -L -f -o "$_dwp_output" "$_dwp_url"
@@ -391,11 +391,11 @@ download_with_progress() {
 
   wait $_dwp_curl_pid
   _dwp_ret=$?
-  printf "\n" >&4
+  printf "\n" >&4 2>/dev/null
   trap - EXIT INT TERM
   rm -f "$_dwp_tracefile"
-  printf '\033[?25h' >&4
-  exec 4>&-
+  printf '\033[?25h' >&4 2>/dev/null
+  exec 4>&- 2>/dev/null
   return $_dwp_ret
 }
 
@@ -403,8 +403,8 @@ download_and_install() {
   print_message info "\n${MUTED}Installing ${NC}agentuity ${MUTED}version: ${NC}$specific_version"
   tmpdir=$(mktemp -d 2>/dev/null || mktemp -d -t tmp)
   
-  # Ensure cleanup on exit
-  trap 'cd / 2>/dev/null; rm -rf "$tmpdir"' EXIT
+  # Ensure cleanup on exit or interrupt
+  trap 'cd / 2>/dev/null; rm -rf "$tmpdir"; print_message error "Installation cancelled"; exit 130' EXIT INT TERM
   
   cd "$tmpdir"
 
@@ -479,7 +479,7 @@ download_and_install() {
   chmod 755 "${INSTALL_DIR}/agentuity"
   cd /
   rm -rf "$tmpdir"
-  trap - EXIT
+  trap - EXIT INT TERM
 }
 
 # Check for legacy installations before proceeding
@@ -489,6 +489,25 @@ check_legacy_binaries
 
 # Check for musl/Alpine and handle gcompat
 check_musl_and_gcompat
+
+# NOTE: we will remove this once we are in production!
+printf "\n"
+printf "${RED}╭─────────────────────────────────────────────────────────────────────╮${NC}\n"
+printf "${RED}│${NC}  ${RED}⚠  v1 ALPHA BUILD - NOT FOR PRODUCTION USE${NC}                         ${RED}│${NC}\n"
+printf "${RED}├─────────────────────────────────────────────────────────────────────┤${NC}\n"
+printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
+printf "${RED}│${NC}  This is an Alpha build of the upcoming v1 production release.      ${RED}│${NC}\n"
+printf "${RED}│${NC}  This build is ${RED}not ready for production${NC}.                            ${RED}│${NC}\n"
+printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
+printf "${RED}│${NC}  Please report any issues:                                          ${RED}│${NC}\n"
+printf "${RED}│${NC}    • Discord: ${CYAN}https://discord.gg/agentuity${NC}                          ${RED}│${NC}\n"
+printf "${RED}│${NC}    • GitHub:  ${CYAN}https://github.com/agentuity/sdk/discussions${NC}          ${RED}│${NC}\n"
+printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
+printf "${RED}│${NC}  ${MUTED}Thank you for your assistance during this final testing period!${NC}    ${RED}│${NC}\n"
+printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
+printf "${RED}╰─────────────────────────────────────────────────────────────────────╯${NC}\n"
+printf "\n"
+
 
 if [ "$force_install" = false ]; then
   check_version
