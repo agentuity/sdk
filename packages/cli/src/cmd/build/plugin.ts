@@ -636,15 +636,17 @@ const AgentuityBundler: BunPlugin = {
 				const workbenchConfig = await setupWorkbench(srcDir);
 
 				if (existsSync(indexFile)) {
-					inserts.push(`await (async () => {
-    const { serveStatic } = require('hono/bun');
-    const { getRouter, registerDevModeRoutes } = await import('@agentuity/runtime');
+					inserts.push(`import { serveStatic } from 'hono/bun';
+import { getRouter, registerDevModeRoutes } from '@agentuity/runtime';
+import { readFileSync, existsSync } from 'node:fs';
+
+(() => {
     const router = getRouter()!;
 	
 	// Setup workbench routes if workbench was bundled
 	const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
-	if (await Bun.file(workbenchIndexPath).exists()) {
-		let workbenchIndex = await Bun.file(workbenchIndexPath).text();
+	if (existsSync(workbenchIndexPath)) {
+		let workbenchIndex = readFileSync(workbenchIndexPath, 'utf-8');
 		
 		// Always serve assets at /workbench/* regardless of HTML route
 		const workbenchStatic = serveStatic({ root: import.meta.dir + '/workbench' });
@@ -662,7 +664,7 @@ const AgentuityBundler: BunPlugin = {
 		router.get(route, (c) => c.html(workbenchIndex));
 	}
 	
-	let index = await Bun.file(import.meta.dir + '/web/index.html').text();
+	let index = readFileSync(import.meta.dir + '/web/index.html', 'utf-8');
 	if (${isDevMode}) {
 		const end = index.lastIndexOf('</html>');
 		const html = registerDevModeRoutes(router);
