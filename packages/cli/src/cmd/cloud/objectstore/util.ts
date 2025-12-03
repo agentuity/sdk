@@ -9,7 +9,7 @@ export async function createStorageAdapter(ctx: {
 	projectDir: string;
 	config: Config | null;
 }) {
-	const sdkKey = await loadProjectSDKKey(ctx.projectDir);
+	const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
 	if (!sdkKey) {
 		tui.fatal(`Couldn't find the AGENTUITY_SDK_KEY in ${ctx.projectDir} .env file`);
 	}

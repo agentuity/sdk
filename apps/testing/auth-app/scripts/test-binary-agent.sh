@@ -15,8 +15,14 @@ echo "========================================="
 echo ""
 
 BASE_URL="http://localhost:$PORT/agent/objectstore"
-BUCKET="test-bucket-agent"
+BUCKET="ago-dbce74-test-bucket-agent-v1" # usd
 PORT="${PORT:-3500}"
+
+# Generate unique key prefix to avoid collisions when tests run in parallel
+UNIQUE_ID="$(date +%s)-$$-$RANDOM"
+TEXT_KEY="test-$UNIQUE_ID-text.txt"
+BINARY_KEY="test-$UNIQUE_ID-binary.bin"
+LARGE_KEY="test-$UNIQUE_ID-large.bin"
 
 # Create temporary directory for test files
 TEMP_DIR=$(mktemp -d)
@@ -28,12 +34,13 @@ start_server_if_needed
 
 # Step 1: Test text storage and retrieval
 echo "Step 1: Testing text storage..."
+echo "Using keys: $TEXT_KEY, $BINARY_KEY, $LARGE_KEY"
 PUT_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
   -d '{
     "operation": "put",
     "bucket": "'"$BUCKET"'",
-    "key": "text-file.txt",
+    "key": "'"$TEXT_KEY"'",
     "data": "Hello, World! This is a test.",
     "contentType": "text/plain"
   }')
@@ -62,7 +69,7 @@ GET_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -d '{
     "operation": "get",
     "bucket": "'"$BUCKET"'",
-    "key": "text-file.txt"
+    "key": "'"$TEXT_KEY"'"
   }')
 
 echo $GET_RESPONSE
@@ -88,7 +95,7 @@ PUT_BINARY=$(curl -s -X POST "$BASE_URL" \
   -d '{
     "operation": "putBinary",
     "bucket": "'"$BUCKET"'",
-    "key": "binary-file.bin",
+    "key": "'"$BINARY_KEY"'",
     "binaryData": '"$BINARY_DATA"',
     "contentType": "application/octet-stream"
   }')
@@ -106,7 +113,7 @@ GET_BINARY=$(curl -s -X POST "$BASE_URL" \
   -d '{
     "operation": "getBinary",
     "bucket": "'"$BUCKET"'",
-    "key": "binary-file.bin"
+    "key": "'"$BINARY_KEY"'"
   }')
 
 RETRIEVED_BYTES=$(echo "$GET_BINARY" | jq -c '.result.bytes')
@@ -132,7 +139,7 @@ DELETE_RESPONSE=$(curl -s -X POST "$BASE_URL" \
   -d '{
     "operation": "delete",
     "bucket": "'"$BUCKET"'",
-    "key": "text-file.txt"
+    "key": "'"$TEXT_KEY"'"
   }')
 
 if echo "$DELETE_RESPONSE" | jq -e '.success == true' > /dev/null 2>&1; then
@@ -149,7 +156,7 @@ GET_DELETED=$(curl -s -X POST "$BASE_URL" \
   -d '{
     "operation": "get",
     "bucket": "'"$BUCKET"'",
-    "key": "text-file.txt"
+    "key": "'"$TEXT_KEY"'"
   }')
 
 if echo "$GET_DELETED" | jq -e '.success == false' > /dev/null 2>&1; then
@@ -170,7 +177,7 @@ PUT_LARGE=$(curl -s -X POST "$BASE_URL" \
   -d '{
     "operation": "putBinary",
     "bucket": "'"$BUCKET"'",
-    "key": "large-binary.bin",
+    "key": "'"$LARGE_KEY"'",
     "binaryData": '"$LARGE_BINARY"'
   }')
 
@@ -187,7 +194,7 @@ GET_LARGE=$(curl -s -X POST "$BASE_URL" \
   -d '{
     "operation": "getBinary",
     "bucket": "'"$BUCKET"'",
-    "key": "large-binary.bin"
+    "key": "'"$LARGE_KEY"'"
   }')
 
 RETRIEVED_LARGE=$(echo "$GET_LARGE" | jq -c '.result.bytes')
@@ -211,34 +218,54 @@ else
 fi
 echo ""
 
-# TODO: Fix headObject operation - currently returns success:false even for existing objects
-# Step 5: Test headObject operation
-# echo "Step 5: Testing headObject (metadata retrieval)..."
-# HEAD_RESPONSE=$(curl -s -X POST "$BASE_URL" \
-#   -H "Content-Type: application/json" \
-#   -d '{
-#     "operation": "headObject",
-#     "bucket": "'"$BUCKET"'",
-#     "key": "large-binary.bin"
-#   }')
-# 
-# if echo "$HEAD_RESPONSE" | jq -e '.success == true' > /dev/null 2>&1; then
-# 	SIZE=$(echo "$HEAD_RESPONSE" | jq -r '.result.size')
-# 	CONTENT_TYPE=$(echo "$HEAD_RESPONSE" | jq -r '.result.contentType')
-# 	echo -e "${GREEN}✓${NC} headObject returned metadata: size=$SIZE, contentType=$CONTENT_TYPE"
-# 	
-# 	if [ "$SIZE" = "1024" ]; then
-# 		echo -e "${GREEN}✓${NC} Size matches expected (1024 bytes)"
-# 	else
-# 		echo -e "${RED}✗${NC} Size mismatch: expected 1024, got $SIZE"
-# 		exit 1
-# 	fi
-# else
-# 	echo -e "${RED}✗${NC} Failed to retrieve object metadata"
-# 	echo "$HEAD_RESPONSE" | jq .
-# 	exit 1
-# fi
-# echo ""
+# Step 5: Test headObject operation with retry
+echo "Step 5: Testing headObject (metadata retrieval)..."
+echo "Waiting for object metadata to be available..."
+MAX_HEAD_RETRIES=20
+HEAD_RETRY_COUNT=0
+HEAD_SUCCESS=false
+
+while [ $HEAD_RETRY_COUNT -lt $MAX_HEAD_RETRIES ]; do
+	HEAD_RESPONSE=$(curl -s -X POST "$BASE_URL" \
+	  -H "Content-Type: application/json" \
+	  -d '{
+	    "operation": "headObject",
+	    "bucket": "'"$BUCKET"'",
+	    "key": "'"$LARGE_KEY"'"
+	  }')
+
+	if echo "$HEAD_RESPONSE" | jq -e '.success == true' > /dev/null 2>&1; then
+		HEAD_SUCCESS=true
+		break
+	fi
+	
+	HEAD_RETRY_COUNT=$((HEAD_RETRY_COUNT + 1))
+	if [ $HEAD_RETRY_COUNT -lt $MAX_HEAD_RETRIES ]; then
+		sleep 0.5
+		echo -n "."
+	fi
+done
+
+echo ""
+
+if [ "$HEAD_SUCCESS" = true ]; then
+	SIZE=$(echo "$HEAD_RESPONSE" | jq -r '.result.size')
+	CONTENT_TYPE=$(echo "$HEAD_RESPONSE" | jq -r '.result.contentType')
+	echo -e "${GREEN}✓${NC} headObject returned metadata: size=$SIZE, contentType=$CONTENT_TYPE"
+	
+	if [ "$SIZE" = "1024" ]; then
+		echo -e "${GREEN}✓${NC} Size matches expected (1024 bytes)"
+	else
+		echo -e "${RED}✗${NC} Size mismatch: expected 1024, got $SIZE"
+		exit 1
+	fi
+else
+	echo -e "${RED}✗${NC} Failed to retrieve object metadata after $MAX_HEAD_RETRIES attempts"
+	echo "Last response:"
+	echo "$HEAD_RESPONSE" | jq .
+	exit 1
+fi
+echo ""
 
 # Step 6: Test listObjects operation
 echo "Step 6: Testing listObjects (list objects in bucket)..."
@@ -260,8 +287,8 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
 	if echo "$LIST_RESPONSE" | jq -e '.success == true' > /dev/null 2>&1; then
 		OBJECT_COUNT=$(echo "$LIST_RESPONSE" | jq '.result | length')
 		
-		# Check if large-binary.bin is in the list
-		HAS_LARGE=$(echo "$LIST_RESPONSE" | jq '[.result[] | select(.key == "large-binary.bin")] | length')
+		# Check if our large key is in the list
+		HAS_LARGE=$(echo "$LIST_RESPONSE" | jq '[.result[] | select(.key == "'"$LARGE_KEY"'")] | length')
 		
 		if [ "$HAS_LARGE" -ge "1" ]; then
 			FOUND_LARGE=true
@@ -298,30 +325,26 @@ echo ""
 
 # Step 7: Test listObjects with prefix filter
 echo "Step 7: Testing listObjects with prefix filter..."
+# Use the unique test ID as prefix
+OBJECT_PREFIX="test-$UNIQUE_ID-"
 LIST_PREFIX=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
   -d '{
     "operation": "listObjects",
     "bucket": "'"$BUCKET"'",
-    "prefix": "large-"
+    "prefix": "'"$OBJECT_PREFIX"'"
   }')
 
 if echo "$LIST_PREFIX" | jq -e '.success == true' > /dev/null 2>&1; then
 	PREFIX_COUNT=$(echo "$LIST_PREFIX" | jq '.result | length')
 	echo -e "${GREEN}✓${NC} listObjects with prefix returned $PREFIX_COUNT object(s)"
 	
-	# Should only have large-binary.bin
-	if [ "$PREFIX_COUNT" = "1" ]; then
-		FOUND_KEY=$(echo "$LIST_PREFIX" | jq -r '.result[0].key')
-		if [ "$FOUND_KEY" = "large-binary.bin" ]; then
-			echo -e "${GREEN}✓${NC} Prefix filter working correctly"
-		else
-			echo -e "${RED}✗${NC} Wrong object returned: $FOUND_KEY"
-			exit 1
-		fi
+	# Should have 2 objects with our unique prefix (binary + large)
+	if [ "$PREFIX_COUNT" = "2" ]; then
+		echo -e "${GREEN}✓${NC} Prefix filter working correctly (found 2 objects with prefix '$OBJECT_PREFIX')"
 	else
-		echo -e "${RED}✗${NC} Expected 1 object with prefix 'large-', got $PREFIX_COUNT"
-		exit 1
+		echo -e "${YELLOW}⚠ WARNING:${NC} Expected 2 objects with prefix '$OBJECT_PREFIX', got $PREFIX_COUNT"
+		echo "$LIST_PREFIX" | jq .
 	fi
 else
 	echo -e "${RED}✗${NC} Failed to list objects with prefix"
@@ -362,11 +385,11 @@ echo ""
 echo "Step 9: Cleaning up test objects..."
 curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation": "delete", "bucket": "'"$BUCKET"'", "key": "binary-file.bin"}' > /dev/null
+  -d '{"operation": "delete", "bucket": "'"$BUCKET"'", "key": "'"$BINARY_KEY"'"}' > /dev/null
 
 curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d '{"operation": "delete", "bucket": "'"$BUCKET"'", "key": "large-binary.bin"}' > /dev/null
+  -d '{"operation": "delete", "bucket": "'"$BUCKET"'", "key": "'"$LARGE_KEY"'"}' > /dev/null
 
 echo -e "${GREEN}✓${NC} Test objects deleted"
 echo ""

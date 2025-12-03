@@ -30,7 +30,7 @@ export async function downloadWithProgress(
 			url,
 			status: response.status,
 			sessionId: response.headers.get('x-session-id'),
-			error: `Download failed: ${response.statusText}`,
+			message: `Download failed: ${response.statusText}`,
 		});
 	}
 

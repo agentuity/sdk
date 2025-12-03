@@ -12,7 +12,6 @@ export const showCommand = createSubcommand({
 	name: 'show',
 	description: 'Show the configuration of a profile',
 	tags: ['read-only', 'fast'],
-	aliases: ['current'],
 	examples: [
 		{ command: getCommand('profile show'), description: 'Show details' },
 		{ command: getCommand('profile show production'), description: 'Show details' },

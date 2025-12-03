@@ -3,6 +3,12 @@
 # Shared test library functions
 # Source this file from test scripts to reuse common functionality
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+CLI_BIN_DIR="$(cd $SCRIPT_DIR/../../../../packages/cli/bin && pwd)"
+LOCAL_CLI=$CLI_BIN_DIR/cli.ts
+AGENTUITY_REGION=${AGENTUITY_REGION:-usc}
+export AGENTUITY_REGION
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -166,16 +172,36 @@ start_server_if_needed() {
 		# Get the original test-app directory (script is in test-app/scripts/)
 		ORIGINAL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 		
-		# Check for .env.local first, then fall back to .env in the original project directory
-		if [[ -f "$ORIGINAL_DIR/.env.local" && -z "$CI" ]]; then
+		# Get current profile to determine which env file to use
+		CURRENT_PROFILE=$(bun $LOCAL_CLI profile current)
+
+		# Check for profile-specific env file logic
+		# Only use .env.local if profile is "local", otherwise use .env
+		if [[ "$CURRENT_PROFILE" == "local" && -f "$ORIGINAL_DIR/.env.local" && -z "$CI" ]]; then
 			ENV_FILE="$ORIGINAL_DIR/.env.local"
 			USE_DEV_MODE="${USE_DEV_MODE:-true}"
+			echo "[TEST-LIB] Using .env file: $ENV_FILE (profile: $CURRENT_PROFILE)"
 		elif [ -f "$ORIGINAL_DIR/.env" ]; then
 			ENV_FILE="$ORIGINAL_DIR/.env"
+			echo "[TEST-LIB] Using .env file: $ENV_FILE (profile: $CURRENT_PROFILE)"
 		else
 			echo -e "${RED}✗${NC} No .env file found in $ORIGINAL_DIR"
-			echo "Please create either .env.local or .env with AGENTUITY_SDK_KEY"
+			if [ "$CURRENT_PROFILE" == "local" ]; then
+				echo "Please create .env.local with AGENTUITY_SDK_KEY for profile=local"
+			else
+				echo "Please create .env with AGENTUITY_SDK_KEY (current profile: $CURRENT_PROFILE)"
+			fi
 			exit 1
+		fi
+		
+		# Log which SDK key is being used
+		if [ -f "$ENV_FILE" ]; then
+			SDK_KEY=$(grep "^AGENTUITY_SDK_KEY=" "$ENV_FILE" | cut -d= -f2-)
+			if [ -n "$SDK_KEY" ]; then
+				echo "[TEST-LIB] AGENTUITY_SDK_KEY from $ENV_FILE: ${SDK_KEY:0:10}..."
+			else
+				echo "[TEST-LIB] WARNING: No AGENTUITY_SDK_KEY found in $ENV_FILE"
+			fi
 		fi
 		
 		# Determine which build directory to use based on ISOLATED_BUILD and PORT

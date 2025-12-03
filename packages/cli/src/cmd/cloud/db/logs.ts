@@ -118,7 +118,9 @@ export const logsSubcommand = createSubcommand({
 						const duration = `${log.duration.toFixed(2)}ms`.padStart(9);
 
 						// Format username if requested
-						const username = showUsername ? `${tui.muted(`[${log.username}]`.padEnd(14))} ` : '';
+						const username = showUsername
+							? `${tui.muted(`[${log.username}]`.padEnd(14))} `
+							: '';
 
 						// Format session ID if requested (already has sess_ prefix from API)
 						const sessionId = showSessionId
@@ -134,8 +136,12 @@ export const logsSubcommand = createSubcommand({
 							console.log(`  ${log.sql}`);
 						} else {
 							// Normal mode: truncate SQL and show inline
-							const sqlClean = log.sql.replace(/[\n\r\t]+/g, ' ').replace(/\s+/g, ' ').trim();
-							const sql = sqlClean.length > 100 ? `${sqlClean.substring(0, 97)}...` : sqlClean;
+							const sqlClean = log.sql
+								.replace(/[\n\r\t]+/g, ' ')
+								.replace(/\s+/g, ' ')
+								.trim();
+							const sql =
+								sqlClean.length > 100 ? `${sqlClean.substring(0, 97)}...` : sqlClean;
 							console.log(
 								`${timestamp}${command} ${tui.muted(duration)} ${username}${sessionId}${sql}`
 							);

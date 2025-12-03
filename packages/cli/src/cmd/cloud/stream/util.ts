@@ -10,7 +10,7 @@ export async function createStorageAdapter(ctx: {
 	projectDir: string;
 	config: Config | null;
 }) {
-	const sdkKey = await loadProjectSDKKey(ctx.projectDir);
+	const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
 	if (!sdkKey) {
 		tui.fatal(
 			`Couldn't find the AGENTUITY_SDK_KEY in ${ctx.projectDir} .env file`,
@@ -28,5 +28,8 @@ export async function createStorageAdapter(ctx: {
 	);
 
 	const baseUrl = ctx.config?.overrides?.stream_url ?? 'https://stream.agentuity.cloud';
+
+	ctx.logger.trace('using stream url: %s', baseUrl);
+
 	return new StreamStorageService(baseUrl, adapter);
 }

@@ -1,22 +1,9 @@
 import { createApp } from '@agentuity/runtime';
 
 // No need to specify useLocal - it's automatic when unauthenticated
+// Workbench removed - it requires authentication which this app doesn't have
 
-import { createWorkbench } from '@agentuity/workbench';
-
-const workbench = createWorkbench({
-	port: 3500,
-	route: '/workbench',
-	headers: {
-		Authorization: 'Bearer 1234567890',
-	},
-});
-
-const app = await createApp({
-	services: {
-		workbench,
-	},
-});
+const app = await createApp();
 
 // Add app-level event listeners for testing
 app.addEventListener('agent.started', (_event, agent, ctx) => {

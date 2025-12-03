@@ -19,7 +19,7 @@ function StatusIndicator({ status }: { status: ConnectionStatus }) {
 			</div>
 		);
 	}
-	
+
 	if (status === 'restarting') {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
@@ -28,7 +28,7 @@ function StatusIndicator({ status }: { status: ConnectionStatus }) {
 			</div>
 		);
 	}
-	
+
 	if (status === 'disconnected') {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
@@ -37,7 +37,7 @@ function StatusIndicator({ status }: { status: ConnectionStatus }) {
 			</div>
 		);
 	}
-	
+
 	return null;
 }
 

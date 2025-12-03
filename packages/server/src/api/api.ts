@@ -2,10 +2,6 @@
  * API Client for Agentuity Platform
  *
  * Handles HTTP requests to the API with automatic error parsing and User-Agent headers.
- *
- * Error handling:
- * - UPGRADE_REQUIRED (409): Throws UpgradeRequiredError
- * - Other errors: Throws Error with API message or status text
  */
 
 import { z } from 'zod';
@@ -17,6 +13,7 @@ export interface APIClientConfig {
 	userAgent?: string;
 	maxRetries?: number;
 	retryDelayMs?: number;
+	headers?: Record<string, string>;
 }
 
 const ZodIssuesSchema = z.array(
@@ -43,19 +40,20 @@ const APIErrorSchema = z.object({
 	success: z.boolean(),
 	code: z.string().optional(),
 	message: z.string().optional(),
-	error: z.object({
-		name: z.string().optional(),
-		issues: ZodIssuesSchema.optional(),
-	}),
+	error: z
+		.union([
+			z.string(),
+			z.object({
+				name: z.string().optional(),
+				issues: ZodIssuesSchema.optional(),
+			}),
+		])
+		.optional(),
 	details: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const APIError = StructuredError(
-	'APIErrorResponse',
-	'The API encountered an unexpected error attempting to reach the service.'
-)<{
+export const APIError = StructuredError('APIErrorResponse')<{
 	url: string;
-	error?: string;
 	status: number;
 	sessionId?: string | null;
 }>();
@@ -175,7 +173,7 @@ export class APIClient {
 	}
 
 	async #makeRequest(method: string, endpoint: string, body?: unknown): Promise<Response> {
-		this.#logger.trace('sending %s to %s', method, endpoint);
+		this.#logger.trace('sending %s to %s%s', method, this.#baseUrl, endpoint);
 
 		const maxRetries = this.#config?.maxRetries ?? 3;
 		const baseDelayMs = this.#config?.retryDelayMs ?? 100;
@@ -185,6 +183,7 @@ export class APIClient {
 				const url = `${this.#baseUrl}${endpoint}`;
 				const headers: Record<string, string> = {
 					'Content-Type': 'application/json',
+					Accept: 'application/json',
 				};
 
 				if (this.#config?.userAgent) {
@@ -193,6 +192,12 @@ export class APIClient {
 
 				if (this.#apiKey) {
 					headers['Authorization'] = `Bearer ${this.#apiKey}`;
+				}
+
+				if (this.#config?.headers) {
+					Object.keys(this.#config.headers).forEach(
+						(key) => (headers[key] = this.#config!.headers![key])
+					);
 				}
 
 				let response: Response;
@@ -261,9 +266,12 @@ export class APIClient {
 					let errorData: z.infer<typeof APIErrorSchema> | undefined;
 
 					try {
-						errorData = APIErrorSchema.parse(responseBody);
-					} catch {
-						/** ignore */
+						errorData = APIErrorSchema.parse(JSON.parse(responseBody));
+					} catch (parseEx) {
+						this.#logger.warn(
+							'parsing response data against APIError schema failed: %s',
+							parseEx
+						);
 					}
 
 					// Sanitize headers to avoid leaking API keys
@@ -295,7 +303,11 @@ export class APIClient {
 					}
 
 					// Handle Zod validation errors from the API
-					if (errorData?.error?.name === 'ZodError' && errorData.error.issues) {
+					if (
+						typeof errorData?.error === 'object' &&
+						errorData?.error?.name === 'ZodError' &&
+						errorData.error.issues
+					) {
 						throw new ValidationOutputError({
 							url,
 							issues: errorData.error.issues,
@@ -308,12 +320,22 @@ export class APIClient {
 						throw new APIError({
 							url,
 							status: response.status,
-							error: errorData.message,
+							message:
+								typeof errorData.error === 'string'
+									? errorData.error
+									: (errorData.message ??
+										'The API encountered an unexpected error attempting to reach the service.'),
 							sessionId,
 						});
 					}
 
-					throw new APIError({ url: url, status: response.status, sessionId });
+					throw new APIError({
+						message:
+							'The API encountered an unexpected error attempting to reach the service.',
+						url: url,
+						status: response.status,
+						sessionId,
+					});
 				}
 
 				// Successful response; handle empty bodies (e.g., 204 No Content)

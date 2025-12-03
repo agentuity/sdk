@@ -45,10 +45,7 @@ export type DbQueryLogs = DbQueryLog[];
  * @param request
  * @returns
  */
-export async function dbLogs(
-	client: APIClient,
-	request: DbLogsRequest
-): Promise<DbQueryLogs> {
+export async function dbLogs(client: APIClient, request: DbLogsRequest): Promise<DbQueryLogs> {
 	const { database, orgId, region, ...filters } = request;
 
 	if (!orgId || !region) {
@@ -65,15 +62,14 @@ export async function dbLogs(
 	const queryString = params.toString();
 	const url = `/resource/2025-03-17/${orgId}/${region}/${database}/logs${queryString ? `?${queryString}` : ''}`;
 
-	const resp = await client.request<DbLogsResponse>(
-		'GET',
-		url,
-		DbLogsResponseSchema
-	);
+	const resp = await client.request<DbLogsResponse>('GET', url, DbLogsResponseSchema);
 
 	if (resp.success) {
 		return resp.data;
 	}
 
-	throw new DbResponseError({ message: resp.message || 'Failed to fetch database logs' });
+	throw new DbResponseError({
+		database,
+		message: resp.message || 'Failed to fetch database logs',
+	});
 }

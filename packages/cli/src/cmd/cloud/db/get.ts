@@ -10,7 +10,6 @@ const DBGetResponseSchema = z
 	.object({
 		name: z.string().describe('Database name'),
 		url: z.string().optional().describe('Database connection URL'),
-		logical_databases: z.array(z.string()).optional().describe('List of logical databases'),
 	})
 	.or(
 		z.object({
@@ -36,22 +35,21 @@ export const getSubcommand = createSubcommand({
 			description: 'Get database with credentials',
 		},
 		{
-			command: `${getCommand('cloud db get')} my-database myapp_db`,
-			description: 'Get table schemas for a logical database',
+			command: `${getCommand('cloud db get')} my-database --show-tables`,
+			description: 'Get table schemas from the database',
 		},
 		{
-			command: `${getCommand('cloud db get')} my-database myapp_db --sql`,
+			command: `${getCommand('cloud db get')} my-database --show-tables --sql`,
 			description: 'Get table schemas as SQL CREATE statements',
 		},
 		{
-			command: `${getCommand('cloud db get')} my-database myapp_db --json`,
+			command: `${getCommand('cloud db get')} my-database --show-tables --json`,
 			description: 'Get table schemas as JSON',
 		},
 	],
 	schema: {
 		args: z.object({
 			name: z.string().describe('Database name'),
-			logicalDbName: z.string().optional().describe('Logical database name (optional)'),
 		}),
 		options: z.object({
 			showCredentials: z
@@ -60,6 +58,7 @@ export const getSubcommand = createSubcommand({
 				.describe(
 					'Show credentials in plain text (default: masked in terminal, unmasked in JSON)'
 				),
+			showTables: z.boolean().optional().describe('Fetch table schemas from the database'),
 			sql: z.boolean().optional().describe('Output table schemas as SQL CREATE statements'),
 		}),
 		response: DBGetResponseSchema,
@@ -84,15 +83,14 @@ export const getSubcommand = createSubcommand({
 			tui.fatal(`Database '${args.name}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
 		}
 
-		// If logical database name is provided, fetch table schemas
-		if (args.logicalDbName) {
+		// If --tables flag is provided, fetch table schemas
+		if (opts.showTables) {
 			const tables = await tui.spinner({
-				message: `Fetching table schemas for ${args.logicalDbName}`,
+				message: `Fetching table schemas for ${args.name}`,
 				clearOnSuccess: true,
 				callback: async () => {
 					return dbTables(catalystClient, {
 						database: args.name,
-						logicalDbName: args.logicalDbName!,
 						orgId,
 						region,
 					});
@@ -100,8 +98,13 @@ export const getSubcommand = createSubcommand({
 			});
 
 			if (!tables || tables.length === 0) {
-				tui.info(`No tables found in database '${args.logicalDbName}'`);
-				return { name: args.name, url: db.url ?? undefined, logical_databases: db.logical_databases };
+				if (!options.json) {
+					tui.info(`No tables found in database '${args.name}'`);
+				}
+				return {
+					name: args.name,
+					url: db.url ?? undefined,
+				};
 			}
 
 			// --sql option: output CREATE TABLE statements
@@ -109,12 +112,12 @@ export const getSubcommand = createSubcommand({
 				if (options.json) {
 					return { tables: tables.map(generateCreateTableSQL) };
 				}
-				
+
 				for (const table of tables) {
 					console.log(generateCreateTableSQL(table));
 					console.log('');
 				}
-				return { tables: tables.map(t => t.table_name) };
+				return { tables: tables.map((t) => t.table_name) };
 			}
 
 			// --json option: return raw table schemas
@@ -125,8 +128,8 @@ export const getSubcommand = createSubcommand({
 			// Default: display as tables using tui.table
 			for (const table of tables) {
 				console.log(tui.bold(`\nTable: ${table.table_name}`));
-				
-				const tableData = table.columns.map(col => ({
+
+				const tableData = table.columns.map((col) => ({
 					Column: col.name,
 					Type: col.data_type,
 					Nullable: col.is_nullable ? 'YES' : 'NO',
@@ -137,7 +140,7 @@ export const getSubcommand = createSubcommand({
 				tui.table(tableData);
 			}
 
-			return { tables: tables.map(t => t.table_name) };
+			return { tables: tables.map((t) => t.table_name) };
 		}
 
 		// Mask credentials in terminal output by default, unless --show-credentials is passed
@@ -150,20 +153,11 @@ export const getSubcommand = createSubcommand({
 				const displayUrl = shouldMask ? tui.maskSecret(db.url) : db.url;
 				console.log(tui.bold('URL:  ') + displayUrl);
 			}
-			
-			// Display logical databases if available
-			if (db.logical_databases && db.logical_databases.length > 0) {
-				console.log('\n' + tui.bold('Logical Databases:'));
-				for (const logicalDb of db.logical_databases) {
-					console.log(`  • ${logicalDb}`);
-				}
-			}
 		}
 
 		return {
 			name: db.name,
 			url: db.url ?? undefined,
-			logical_databases: db.logical_databases,
 		};
 	},
 });

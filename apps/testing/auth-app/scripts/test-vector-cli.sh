@@ -16,9 +16,10 @@ echo "  Vector CLI Test"
 echo "========================================="
 echo ""
 
-# Generate unique key prefix for this test run to avoid collisions
-TEST_RUN_ID="test-vec-cli-$(date +%s)"
-NAMESPACE="test-vectors"
+# Generate unique key prefix and namespace to avoid collisions
+UNIQUE_ID="$(date +%s)-$$-$RANDOM"
+TEST_RUN_ID="test-vec-cli-$UNIQUE_ID"
+NAMESPACE="test-vectors-$UNIQUE_ID"
 echo "Test Run ID: $TEST_RUN_ID"
 echo "Namespace: $NAMESPACE"
 echo ""

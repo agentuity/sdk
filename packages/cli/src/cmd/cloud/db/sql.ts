@@ -1,23 +1,14 @@
 import { z } from 'zod';
-import { SQL } from 'bun';
-import { listResources, type ResourceList } from '@agentuity/server';
+import { dbQuery } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
-import { ErrorCode } from '../../../errors';
-
-interface DatabaseResource {
-	name: string;
-	username?: string | null;
-	password?: string | null;
-	url?: string | null;
-}
 
 const DBSQLResponseSchema = z.object({
 	rows: z.array(z.record(z.string(), z.unknown())).describe('Query results'),
 	rowCount: z.number().describe('Number of rows returned'),
-	executionTime: z.number().optional().describe('Query execution time in ms'),
+	truncated: z.boolean().describe('Whether results were truncated'),
 });
 
 export const sqlSubcommand = createSubcommand({
@@ -55,80 +46,39 @@ export const sqlSubcommand = createSubcommand({
 
 		const catalystClient = getCatalystAPIClient(config, logger, auth);
 
-		const resources: ResourceList = await tui.spinner({
-			message: `Fetching database ${args.name}`,
+		const result = await tui.spinner({
+			message: `Executing query on ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listResources(catalystClient, orgId, region);
+				return dbQuery(catalystClient, {
+					database: args.name,
+					query: args.query,
+					orgId,
+					region,
+				});
 			},
 		});
 
-		const db: DatabaseResource | undefined = resources.db.find(
-			(d: DatabaseResource) => d.name === args.name
-		);
-
-		if (!db) {
-			tui.fatal(`Database '${args.name}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
-		}
-
-		if (!db.url) {
-			tui.fatal(`Database '${args.name}' has no connection URL`, ErrorCode.RUNTIME_ERROR);
-		}
-
-		let database: SQL | undefined;
-		let rows: Record<string, unknown>[];
-		let executionTime: number | undefined;
-
-		try {
-			// Add sslmode=require if not already present in URL
-			let connectionUrl = db.url;
-			if (!connectionUrl.includes('sslmode=') && !connectionUrl.includes('ssl=')) {
-				const separator = connectionUrl.includes('?') ? '&' : '?';
-				connectionUrl = `${connectionUrl}${separator}sslmode=require`;
-			}
-
-			database = new SQL(connectionUrl);
-
-			const startTime = performance.now();
-			const result = await tui.spinner({
-				message: `Executing query on ${args.name}`,
-				clearOnSuccess: true,
-				callback: async () => {
-					return database!.unsafe(args.query);
-				},
-			});
-			executionTime = performance.now() - startTime;
-
-			rows = result;
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			tui.fatal(`Query execution failed: ${message}`, ErrorCode.RUNTIME_ERROR);
-		} finally {
-			if (database) {
-				await database.close();
-			}
-		}
-
 		if (!options.json) {
-			if (rows.length === 0) {
+			if (result.rowCount === 0) {
 				tui.info('No rows returned');
 			} else {
 				if (process.stdout.isTTY) {
 					tui.newline();
 					tui.success(
-						`Query returned ${rows.length} row${rows.length !== 1 ? 's' : ''} (${executionTime?.toFixed(2)}ms):`
+						`Query returned ${result.rowCount} row${result.rowCount !== 1 ? 's' : ''}${result.truncated ? ' (truncated to 1000 rows)' : ''}:`
 					);
 					tui.newline();
 				}
 
-				tui.table(rows);
+				tui.table(result.rows);
 			}
 		}
 
 		return {
-			rows,
-			rowCount: rows.length,
-			executionTime,
+			rows: result.rows,
+			rowCount: result.rowCount,
+			truncated: result.truncated,
 		};
 	},
 });

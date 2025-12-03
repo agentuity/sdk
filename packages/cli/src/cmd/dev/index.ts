@@ -269,7 +269,7 @@ export const command = createCommand({
 		let gravityClient: Bun.Subprocess | undefined;
 		let initialStartupComplete = false;
 
-		const sdkKey = await loadProjectSDKKey(rootDir);
+		const sdkKey = await loadProjectSDKKey(logger, rootDir);
 		if (!sdkKey) {
 			tui.warning(`Couldn't find the AGENTUITY_SDK_KEY in ${rootDir} .env file`);
 		}
@@ -474,11 +474,11 @@ export const command = createCommand({
 					// Notify workbench clients before killing the server
 					await notifyWorkbenchClients({
 						port: opts.port,
-						message: 'restarting'
+						message: 'restarting',
 					});
 
 					// Small delay to ensure the restart message is processed before killing server
-					await new Promise(resolve => setTimeout(resolve, 200));
+					await new Promise((resolve) => setTimeout(resolve, 200));
 
 					await kill();
 					logger.trace('Server killed, continuing with restart');

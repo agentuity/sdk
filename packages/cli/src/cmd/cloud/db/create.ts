@@ -22,7 +22,7 @@ export const createSubcommand = defineSubcommand({
 	],
 	schema: {
 		options: z.object({
-			name: z.string().optional().describe('Custom database name (optional)'),
+			name: z.string().optional().describe('Custom database name'),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether creation succeeded'),
@@ -75,8 +75,9 @@ export const createSubcommand = defineSubcommand({
 		} catch (ex) {
 			if (ex instanceof APIError) {
 				if (ex.status === 409) {
+					const dbName = opts.name || 'auto-generated';
 					tui.fatal(
-						`database with the name "${opts.name}" already exists. Use another name or don't specify --name for a unique name to be generated automatically.`,
+						`database with the name "${dbName}" already exists. Use another name or don't specify --name for a unique name to be generated automatically.`,
 						ErrorCode.INVALID_ARGUMENT
 					);
 				}

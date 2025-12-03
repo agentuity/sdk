@@ -4,6 +4,7 @@ import { useCommand } from './use';
 import { listCommand } from './list';
 import { showCommand } from './show';
 import { deleteCommand } from './delete';
+import { currentCommand } from './current';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -18,5 +19,12 @@ export const command = createCommand({
 			description: 'Switch to production profile',
 		},
 	],
-	subcommands: [createProfileCmd, useCommand, listCommand, showCommand, deleteCommand],
+	subcommands: [
+		createProfileCmd,
+		useCommand,
+		listCommand,
+		showCommand,
+		deleteCommand,
+		currentCommand,
+	],
 });

@@ -631,28 +631,43 @@ export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {
 	return result.data;
 }
 
-export async function loadProjectSDKKey(projectDir: string): Promise<string | undefined> {
-	const files: string[] =
-		process.env.NODE_ENV === 'production'
-			? ['.env', '.env.production']
-			: ['.env.development', '.env.local', '.env'];
+export async function loadProjectSDKKey(
+	logger: Logger,
+	projectDir: string
+): Promise<string | undefined> {
 	const c = await getOrInitConfig();
+	const files: string[] =
+		process.env.NODE_ENV === 'production' || c?.name !== 'local'
+			? ['.env', '.env.production']
+			: ['.env.development', '.env'];
 	if (c) {
 		files.unshift(`.env.${c.name}`);
 	}
+	logger.trace(`[SDK_KEY] Searching for AGENTUITY_SDK_KEY in files: ${files.join(', ')}`);
+	logger.trace(`[SDK_KEY] Project directory: ${projectDir}`);
+	logger.trace(`[SDK_KEY] NODE_ENV: ${process.env.NODE_ENV}`);
 	for (const filename of files) {
 		const fn = join(projectDir, filename);
+		logger.trace(`[SDK_KEY] Checking file: ${fn}`);
 		if (existsSync(fn)) {
+			logger.trace(`[SDK_KEY] File exists: ${fn}`);
 			const buf = await Bun.file(fn).text();
 			const tok = buf.split(/\n/);
 			for (const t of tok) {
 				if (t.charAt(0) !== '#' && t.startsWith('AGENTUITY_SDK_KEY=')) {
 					const i = t.indexOf('=');
-					return t.substring(i + 1).trim();
+					const key = t.substring(i + 1).trim();
+					logger.trace(`[SDK_KEY] Found AGENTUITY_SDK_KEY in: ${fn}`);
+					logger.trace(`[SDK_KEY] Key value: ${key.substring(0, 10)}...`);
+					return key;
 				}
 			}
+			logger.trace(`[SDK_KEY] No AGENTUITY_SDK_KEY found in: ${fn}`);
+		} else {
+			logger.trace(`[SDK_KEY] File does not exist: ${fn}`);
 		}
 	}
+	logger.trace(`[SDK_KEY] AGENTUITY_SDK_KEY not found in any file`);
 }
 
 export function getCatalystAPIClient(config: Config | null, logger: Logger, auth: AuthData) {

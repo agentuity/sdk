@@ -13,6 +13,3 @@ export function createWorkbench(
 		config: finalConfig,
 	};
 }
-
-// Export the main App component for use in HTML generation
-export { default as App } from './components/App';

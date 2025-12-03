@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Context, Handler, MiddlewareHandler } from 'hono';
+import type { Context, Handler } from 'hono';
 import { timingSafeEqual } from 'node:crypto';
 import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';

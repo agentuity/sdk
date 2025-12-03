@@ -17,6 +17,12 @@ echo ""
 PORT="${PORT:-3500}"
 BASE_URL="http://localhost:$PORT/agent/stream"
 
+# Generate unique stream names to avoid collisions when tests run in parallel
+UNIQUE_ID="$(date +%s)-$$-$RANDOM"
+TEXT_STREAM="test-$UNIQUE_ID-text"
+JSON_STREAM="test-$UNIQUE_ID-json"
+BINARY_STREAM="test-$UNIQUE_ID-binary"
+
 # Create temporary directory for test files
 TEMP_DIR=$(mktemp -d)
 
@@ -43,7 +49,7 @@ echo "  Original SHA256: $TEXT_SHA256"
 
 CREATE_TEXT=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d "{\"operation\":\"create\",\"name\":\"test-text\",\"content\":\"$TEXT_CONTENT\",\"contentType\":\"text/plain\"}")
+  -d "{\"operation\":\"create\",\"name\":\"$TEXT_STREAM\",\"content\":\"$TEXT_CONTENT\",\"contentType\":\"text/plain\"}")
 
 TEXT_ID=$(echo "$CREATE_TEXT" | jq -r .result.id)
 TEXT_BYTES=$(echo "$CREATE_TEXT" | jq -r .result.bytesWritten)
@@ -80,7 +86,7 @@ echo "  Original SHA256: $JSON_SHA256"
 
 CREATE_JSON=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d "{\"operation\":\"create\",\"name\":\"test-json\",\"content\":$(echo "$JSON_CONTENT" | jq -R .),\"contentType\":\"application/json\"}")
+  -d "{\"operation\":\"create\",\"name\":\"$JSON_STREAM\",\"content\":$(echo "$JSON_CONTENT" | jq -R .),\"contentType\":\"application/json\"}")
 
 JSON_ID=$(echo "$CREATE_JSON" | jq -r .result.id)
 JSON_BYTES=$(echo "$CREATE_JSON" | jq -r .result.bytesWritten)
@@ -156,7 +162,7 @@ echo "  Original SHA256: $BINARY_SHA256"
 
 CREATE_BINARY=$(curl -s -X POST "$BASE_URL" \
   -H "Content-Type: application/json" \
-  -d "{\"operation\":\"create\",\"name\":\"test-binary\",\"content\":\"$BINARY_BASE64\",\"contentType\":\"application/octet-stream\"}")
+  -d "{\"operation\":\"create\",\"name\":\"$BINARY_STREAM\",\"content\":\"$BINARY_BASE64\",\"contentType\":\"application/octet-stream\"}")
 
 BINARY_ID=$(echo "$CREATE_BINARY" | jq -r .result.id)
 BINARY_BYTES=$(echo "$CREATE_BINARY" | jq -r .result.bytesWritten)
@@ -236,12 +242,11 @@ echo ""
 
 # Use local CLI binary (navigate from apps/testing/auth-app/scripts to sdk root)
 SDK_ROOT="$(cd "$SCRIPT_DIR/../../../.." && pwd)"
-LOCAL_CLI="$SDK_ROOT/packages/cli/bin/cli.ts"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"  # auth-app directory contains agentuity.json
 
 # Step 7: Test CLI stream list command
 echo "Step 7: Testing CLI 'stream list' command..."
-CLI_LIST_OUTPUT=$(bun "$LOCAL_CLI" cloud stream list --dir "$PROJECT_DIR" 2>&1 || true)
+CLI_LIST_OUTPUT=$(bun "$LOCAL_CLI" cloud stream list --dir "$PROJECT_DIR" --offset 0 --size 1 2>&1 || true)
 
 if echo "$CLI_LIST_OUTPUT" | grep -qE "(Total|Streams|Name)"; then
 	echo -e "${GREEN}✓ PASS:${NC} CLI stream list command executed"

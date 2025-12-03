@@ -16,5 +16,12 @@ export const dbCommand = createCommand({
 		{ command: getCommand('cloud db list'), description: 'List all databases' },
 		{ command: getCommand('cloud db sql "SELECT * FROM users"'), description: 'Run SQL query' },
 	],
-	subcommands: [createSubcommand, listSubcommand, getSubcommand, deleteSubcommand, logsSubcommand, sqlSubcommand],
+	subcommands: [
+		createSubcommand,
+		listSubcommand,
+		getSubcommand,
+		deleteSubcommand,
+		logsSubcommand,
+		sqlSubcommand,
+	],
 });

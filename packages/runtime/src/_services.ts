@@ -51,7 +51,8 @@ import {
 } from './services/local';
 
 const userAgent = `Agentuity SDK/${getSDKVersion()}`;
-const bearerKey = `Bearer ${process.env.AGENTUITY_SDK_KEY}`;
+const sdkKey = process.env.AGENTUITY_SDK_KEY;
+const bearerKey = `Bearer ${sdkKey}`;
 
 const serviceUrls = getServiceUrls();
 const kvBaseUrl = serviceUrls.keyvalue;

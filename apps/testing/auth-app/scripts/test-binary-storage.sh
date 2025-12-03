@@ -20,9 +20,13 @@ echo "Test Run ID: $TEST_RUN_ID"
 echo ""
 
 BASE_URL="http://localhost:$PORT/api/objectstore"
-BUCKET="test-bucket"
-KEY="binary-test.bin"
+BUCKET="ago-dbce74-test-bucket-v1" # usc region
 PORT="${PORT:-3500}"
+
+# Generate unique keys to avoid collisions when tests run in parallel
+UNIQUE_ID="$(date +%s)-$$-$RANDOM"
+RANDOM_KEY="test-$UNIQUE_ID-random.bin"
+PROBLEMATIC_KEY="test-$UNIQUE_ID-problematic.bin"
 
 # Create temporary directory for test files
 TEMP_DIR=$(mktemp -d)
