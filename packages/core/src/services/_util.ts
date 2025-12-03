@@ -149,11 +149,7 @@ export async function toPayload(data: unknown): Promise<[Body, string]> {
 	return ['', textContentType];
 }
 
-export async function fromResponse<T>(
-	method: HttpMethod,
-	url: string,
-	response: Response
-): Promise<T> {
+export async function fromResponse<T>(response: Response): Promise<T> {
 	const rawContentType = response.headers.get('content-type') ?? '';
 	const contentType = rawContentType.toLowerCase();
 

@@ -1,8 +1,6 @@
-import { StructuredError } from '@agentuity/core';
+import { StructuredError, Logger } from '@agentuity/core';
 
-const GITHUB_REPO = 'agentuity/sdk';
 const GITHUB_BRANCH = 'main';
-const TEMPLATES_JSON_PATH = 'templates/templates.json';
 
 export interface TemplateInfo {
 	id: string;
@@ -18,7 +16,11 @@ interface TemplatesManifest {
 const TemplateMissingConfigurationError = StructuredError('TemplateMissingConfigurationError');
 const TemplateDownloadError = StructuredError('TemplateDownloadError')<{ status: number }>();
 
-export async function fetchTemplates(localDir?: string, branch?: string): Promise<TemplateInfo[]> {
+export async function fetchTemplates(
+	logger: Logger,
+	localDir?: string,
+	branch?: string
+): Promise<TemplateInfo[]> {
 	// Load from local directory if provided
 	if (localDir) {
 		const { join } = await import('node:path');
@@ -38,15 +40,11 @@ export async function fetchTemplates(localDir?: string, branch?: string): Promis
 
 	// Fetch from GitHub
 	const branchToUse = branch || GITHUB_BRANCH;
-	const url = `https://raw.githubusercontent.com/${GITHUB_REPO}/${branchToUse}/${TEMPLATES_JSON_PATH}`;
+	const url = `https://agentuity.sh/template/sdk/${branchToUse}`;
 
-	const headers: Record<string, string> = {};
-	if (process.env.GITHUB_TOKEN) {
-		headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
-	}
-
-	const response = await fetch(url, { headers });
+	const response = await fetch(url);
 	if (!response.ok) {
+		logger.trace('error fetching template from %s. %s', url, await response.text());
 		throw new TemplateDownloadError({
 			status: response.status,
 			message: `Failed to fetch templates: ${response.statusText}`,

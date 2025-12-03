@@ -55,7 +55,7 @@ export const listSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['ls'],
-	requires: { auth: true },
+	requires: { auth: true, region: true },
 	optional: { project: true },
 	idempotent: true,
 	pagination: {
@@ -89,8 +89,8 @@ export const listSubcommand = createSubcommand({
 		response: SessionListResponseSchema,
 	},
 	async handler(ctx) {
-		const { config, logger, auth, project, opts, options } = ctx;
-		const catalystClient = getCatalystAPIClient(config, logger, auth);
+		const { config, logger, auth, project, opts, options, region } = ctx;
+		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
 
 		const projectId = opts.projectId || project?.projectId;
 

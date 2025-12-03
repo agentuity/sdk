@@ -22,7 +22,6 @@ import { generateLLMPrompt as generateWebPrompt } from '../ai/prompt/web';
 import { generateLLMPrompt as generateAPIPrompt } from '../ai/prompt/api';
 import type { TemplateInfo } from './templates';
 
-const GITHUB_REPO = 'agentuity/sdk';
 const GITHUB_BRANCH = 'main';
 
 interface DownloadOptions {
@@ -91,14 +90,14 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 	// Download from GitHub
 	const branch = templateBranch || GITHUB_BRANCH;
 	const templatePath = `templates/${template.directory}`;
-	const url = `https://codeload.github.com/${GITHUB_REPO}/tar.gz/${branch}`;
+	const url = `https://agentuity.sh/template/sdk/${branch}/tar.gz`;
 	const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-'));
 	const tarballPath = join(tempDir, 'download.tar.gz');
 
-	logger.debug('[download] URL:', url);
-	logger.debug('[download] Branch:', branch);
-	logger.debug('[download] Template path:', templatePath);
-	logger.debug('[download] Temp dir:', tempDir);
+	logger.debug('[download] URL: %s', url);
+	logger.debug('[download] Branch: %s', branch);
+	logger.debug('[download] Template path: %s', templatePath);
+	logger.debug('[download] Temp dir: %s', tempDir);
 
 	try {
 		// Step 1: Download tarball to temp file
@@ -120,8 +119,8 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 				const buffer = Buffer.concat(chunks);
 				await Bun.write(tarballPath, buffer);
 
-				logger.debug('[download] Downloaded bytes:', buffer.length);
-				logger.debug('[download] Tarball path:', tarballPath);
+				logger.debug('[download] Downloaded bytes: %dbytes', buffer.length);
+				logger.debug('[download] Tarball path: %s', tarballPath);
 			}
 		);
 
@@ -132,8 +131,8 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		mkdirSync(extractDir, { recursive: true });
 
 		const prefix = `sdk-${branch}/${templatePath}/`;
-		logger.debug('[extract] Extract dir:', extractDir);
-		logger.debug('[extract] Filter prefix:', prefix);
+		logger.debug('[extract] Extract dir: %s', extractDir);
+		logger.debug('[extract] Filter prefix: %s', prefix);
 
 		// Track extraction stats for debugging
 		let ignoredCount = 0;
@@ -152,8 +151,8 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 					// This is a file/dir we want to extract - strip the prefix
 					header.name = header.name.substring(prefix.length);
 					mappedEntries.add(header.name); // Track that we mapped this
-					logger.debug('[extract] MAP:', originalName, '->', header.name);
-					logger.debug('[extract] EXTRACT:', originalName);
+					logger.debug('[extract] MAP: %s -> %s', originalName, header.name);
+					logger.debug('[extract] EXTRACT: %s', originalName);
 					extractedCount++;
 				}
 				return header;
@@ -172,7 +171,7 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 				}
 
 				// Otherwise, ignore it
-				logger.debug('[extract] IGNORE:', header.name);
+				logger.debug('[extract] IGNORE: %s', header.name);
 				ignoredCount++;
 				return true;
 			},
@@ -183,14 +182,14 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		await finished(extractor);
 
 		logger.debug('[extract] Extraction complete');
-		logger.debug('[extract] Ignored entries:', ignoredCount);
-		logger.debug('[extract] Extracted entries:', extractedCount);
+		logger.debug('[extract] Ignored entries: %d', ignoredCount);
+		logger.debug('[extract] Extracted entries: %d', extractedCount);
 
 		// Step 3: Copy extracted files to destination
 		await cleanup(extractDir, dest);
 	} finally {
 		// Clean up temp directory
-		logger.debug('[cleanup] Removing temp dir:', tempDir);
+		logger.debug('[cleanup] Removing temp dir: %s', tempDir);
 		rmSync(tempDir, { recursive: true, force: true });
 	}
 }

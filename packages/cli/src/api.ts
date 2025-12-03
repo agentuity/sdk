@@ -85,10 +85,21 @@ export class APIClient extends BaseAPIClient {
 
 export function getAPIBaseURL(config?: Config | null): string {
 	const overrides = config?.overrides as { api_url?: string } | undefined;
-	return baseGetAPIBaseURL(overrides);
+	return baseGetAPIBaseURL(config?.name, overrides);
 }
 
 export function getAppBaseURL(config?: Config | null): string {
 	const overrides = config?.overrides as { app_url?: string } | undefined;
-	return baseGetAppBaseURL(overrides);
+	return baseGetAppBaseURL(config?.name, overrides);
+}
+
+export function getGravityDevModeURL(region: string, config?: Config | null): string {
+	const overrides = config?.overrides as { gravity_url?: string } | undefined;
+	if (overrides?.gravity_url) {
+		return overrides.gravity_url;
+	}
+	if (config?.name === 'local') {
+		return 'grpc://gravity.agentuity.io:8443';
+	}
+	return `grpc://gravity-${region}.agentuity.cloud`;
 }

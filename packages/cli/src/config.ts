@@ -773,13 +773,21 @@ export async function loadProjectSDKKey(
 	logger.trace(`[SDK_KEY] AGENTUITY_SDK_KEY not found in any file`);
 }
 
-export function getCatalystAPIClient(config: Config | null, logger: Logger, auth: AuthData) {
-	const serviceUrls = getServiceUrls();
-	const catalystUrl = config?.overrides?.catalyst_url ?? serviceUrls.catalyst;
+export function getCatalystAPIClient(
+	config: Config | null,
+	logger: Logger,
+	auth: AuthData,
+	region: string
+) {
+	const serviceUrls = getServiceUrls(region);
+	const catalystUrl = serviceUrls.catalyst;
 	return new ServerAPIClient(catalystUrl, logger, auth.apiKey);
 }
 
 export function getIONHost(config: Config | null) {
+	if (config?.name === 'local') {
+		return 'ion.agentuity.io';
+	}
 	const url = new URL(config?.overrides?.ion_url ?? 'https://ion.agentuity.cloud');
 	return url.hostname;
 }

@@ -429,7 +429,7 @@ export class APIClient {
 	}
 }
 
-export function getAPIBaseURL(overrides?: { api_url?: string }): string {
+export function getAPIBaseURL(region?: string, overrides?: { api_url?: string }): string {
 	if (process.env.AGENTUITY_API_URL) {
 		return process.env.AGENTUITY_API_URL;
 	}
@@ -438,10 +438,14 @@ export function getAPIBaseURL(overrides?: { api_url?: string }): string {
 		return overrides.api_url;
 	}
 
-	return 'https://api.agentuity.com';
+	if (region === 'local') {
+		return 'https://api.agentuity.io';
+	}
+
+	return 'https://api-v1.agentuity.com';
 }
 
-export function getAppBaseURL(overrides?: { app_url?: string }): string {
+export function getAppBaseURL(region?: string, overrides?: { app_url?: string } | null): string {
 	if (process.env.AGENTUITY_APP_URL) {
 		return process.env.AGENTUITY_APP_URL;
 	}
@@ -450,7 +454,11 @@ export function getAppBaseURL(overrides?: { app_url?: string }): string {
 		return overrides.app_url;
 	}
 
-	return 'https://app.agentuity.com';
+	if (region === 'local') {
+		return 'https://app.agentuity.io';
+	}
+
+	return 'https://app-v1.agentuity.com';
 }
 
 export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>

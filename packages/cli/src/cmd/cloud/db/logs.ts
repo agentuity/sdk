@@ -85,7 +85,7 @@ export const logsSubcommand = createSubcommand({
 		const prettySQL = ctx.opts.pretty ?? false;
 
 		try {
-			const catalystClient = getCatalystAPIClient(config, logger, auth);
+			const catalystClient = getCatalystAPIClient(config, logger, auth, region);
 
 			const logs = await dbLogs(catalystClient, {
 				database: args.database,

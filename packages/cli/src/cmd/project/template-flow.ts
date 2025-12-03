@@ -74,7 +74,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		message: 'Fetching templates',
 		clearOnSuccess: true,
 		callback: async () => {
-			return fetchTemplates(templateDir, templateBranch);
+			return fetchTemplates(logger, templateDir, templateBranch);
 		},
 	});
 
@@ -90,7 +90,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	let catalystClient: ServerAPIClient | undefined;
 
 	if (auth) {
-		const serviceUrls = getServiceUrls();
+		const serviceUrls = getServiceUrls(region!);
 		const catalystUrl = config?.overrides?.catalyst_url ?? serviceUrls.catalyst;
 		catalystClient = new ServerAPIClient(catalystUrl, logger, auth.apiKey);
 	}
@@ -308,6 +308,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	if (auth && apiClient && orgId) {
 		let projectId: string | undefined;
 
+		const cloudRegion = region ?? process.env.AGENTUITY_REGION ?? 'usc';
+
 		await tui.spinner({
 			message: 'Registering your project',
 			clearOnSuccess: true,
@@ -315,7 +317,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				const project = await projectCreate(apiClient, {
 					name: projectName,
 					orgId,
-					cloudRegion: region ?? 'usc',
+					cloudRegion,
 				});
 				projectId = project.id;
 				return createProjectConfig(dest, {
@@ -325,7 +327,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					deployment: {
 						resources: resourceConfig,
 					},
-					region: region ?? 'usc',
+					region: cloudRegion,
 				});
 			},
 		});

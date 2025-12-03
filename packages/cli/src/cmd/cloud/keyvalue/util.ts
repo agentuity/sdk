@@ -1,5 +1,5 @@
 import { KeyValueStorageService, Logger } from '@agentuity/core';
-import { createServerFetchAdapter } from '@agentuity/server';
+import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
 import { loadProjectSDKKey } from '../../../config';
 import { ErrorCode } from '../../../errors';
 import type { Config } from '../../../types';
@@ -9,6 +9,7 @@ export async function createStorageAdapter(ctx: {
 	logger: Logger;
 	projectDir: string;
 	config: Config | null;
+	project: { region: string };
 }) {
 	const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
 	if (!sdkKey) {
@@ -27,6 +28,7 @@ export async function createStorageAdapter(ctx: {
 		ctx.logger
 	);
 
-	const baseUrl = ctx.config?.overrides?.catalyst_url ?? 'https://catalyst.agentuity.cloud';
+	const urls = getServiceUrls(ctx.project.region);
+	const baseUrl = urls.catalyst;
 	return new KeyValueStorageService(baseUrl, adapter);
 }

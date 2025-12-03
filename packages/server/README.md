@@ -20,7 +20,7 @@ bun add @agentuity/server
 import { getServiceUrls, type ServiceUrls } from '@agentuity/server';
 
 // Get service URLs from environment variables
-const urls: ServiceUrls = getServiceUrls();
+const urls: ServiceUrls = getServiceUrls(region);
 
 console.log(urls.keyvalue); // https://agentuity.ai (or AGENTUITY_KEYVALUE_URL)
 console.log(urls.objectstore); // https://agentuity.ai (or AGENTUITY_OBJECTSTORE_URL)

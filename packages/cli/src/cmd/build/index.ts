@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { resolve, join } from 'node:path';
+import { getServiceUrls } from '@agentuity/server';
 import { createCommand } from '../../types';
 import { bundle } from './bundler';
 import * as tui from '../../tui';
@@ -40,7 +41,7 @@ export const command = createCommand({
 	},
 
 	async handler(ctx) {
-		const { opts, projectDir, project, config } = ctx;
+		const { opts, projectDir, project } = ctx;
 
 		const absoluteProjectDir = resolve(projectDir);
 		const outDir = opts.outdir ? resolve(opts.outdir) : join(absoluteProjectDir, '.agentuity');
@@ -50,27 +51,17 @@ export const command = createCommand({
 
 			const env: Map<string, string> = new Map();
 
-			if (config?.overrides?.transport_url) {
-				env.set('AGENTUITY_TRANSPORT_URL', config.overrides.transport_url);
-			}
-			if (config?.overrides?.catalyst_url) {
-				env.set('AGENTUITY_CATALYST_URL', config.overrides.catalyst_url);
-			}
-			if (config?.overrides?.vector_url) {
-				env.set('AGENTUITY_VECTOR_URL', config.overrides.vector_url);
-			}
-			if (config?.overrides?.object_url) {
-				env.set('AGENTUITY_OBJECTSTORE_URL', config.overrides.object_url);
-			}
-			if (config?.overrides?.kv_url) {
-				env.set('AGENTUITY_KEYVALUE_URL', config.overrides.kv_url);
-			}
-			if (config?.overrides?.stream_url) {
-				env.set('AGENTUITY_STREAM_URL', config.overrides.stream_url);
-			}
 			if (project) {
+				const serviceUrls = getServiceUrls(project.region);
+				env.set('AGENTUITY_TRANSPORT_URL', serviceUrls.catalyst);
+				env.set('AGENTUITY_CATALYST_URL', serviceUrls.catalyst);
+				env.set('AGENTUITY_VECTOR_URL', serviceUrls.vector);
+				env.set('AGENTUITY_OBJECTSTORE_URL', serviceUrls.objectstore);
+				env.set('AGENTUITY_KEYVALUE_URL', serviceUrls.keyvalue);
+				env.set('AGENTUITY_STREAM_URL', serviceUrls.stream);
 				env.set('AGENTUITY_CLOUD_ORG_ID', project.orgId);
 				env.set('AGENTUITY_CLOUD_PROJECT_ID', project.projectId);
+				env.set('AGENTUITY_REGION', project.region);
 			}
 
 			ctx.logger.trace('setting env to %s', env);

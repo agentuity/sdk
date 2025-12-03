@@ -56,7 +56,11 @@ const redactHeaders = (kv: Record<string, string>): string => {
 		const _k = k.toLowerCase();
 		const v = kv[k];
 		if (sensitiveHeaders.has(_k)) {
-			values.push(`${_k}=${redact(v)}`);
+			if (_k === 'authorization' && v.startsWith('Bearer ')) {
+				values.push(`${_k}=Bearer ${redact(v.substring(7))}`);
+			} else {
+				values.push(`${_k}=${redact(v)}`);
+			}
 		} else {
 			values.push(`${_k}=${v}`);
 		}
@@ -117,7 +121,7 @@ class ServerFetchAdapter implements FetchAdapter {
 					response: res,
 				};
 			}
-			const data = await fromResponse<T>(method, url, res);
+			const data = await fromResponse<T>(res);
 			return {
 				ok: true,
 				data,

@@ -53,7 +53,7 @@ export const downloadSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { logger, args, opts, options, orgId, region, config, auth } = ctx;
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth);
+		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
 
 		// Fetch bucket credentials
 		const resources = await tui.spinner({

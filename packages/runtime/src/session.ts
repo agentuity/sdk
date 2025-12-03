@@ -839,9 +839,10 @@ export class DefaultThreadProvider implements ThreadProvider {
 		// Initialize WebSocket connection for thread persistence (async, non-blocking)
 		const apiKey = process.env.AGENTUITY_SDK_KEY;
 		if (apiKey) {
-			const serviceUrls = getServiceUrls();
+			const serviceUrls = getServiceUrls(process.env.AGENTUITY_REGION ?? 'usc');
 			const catalystUrl = serviceUrls.catalyst;
 			const wsUrl = new URL('/thread/ws', catalystUrl.replace(/^http/, 'ws'));
+			console.debug('connecting to %s', wsUrl);
 
 			this.wsClient = new ThreadWebSocketClient(apiKey, wsUrl.toString());
 			// Connect in background, don't block initialization

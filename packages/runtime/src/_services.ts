@@ -54,7 +54,7 @@ const userAgent = `Agentuity SDK/${getSDKVersion()}`;
 const sdkKey = process.env.AGENTUITY_SDK_KEY;
 const bearerKey = `Bearer ${sdkKey}`;
 
-const serviceUrls = getServiceUrls();
+const serviceUrls = getServiceUrls(process.env.AGENTUITY_REGION ?? 'usc');
 const kvBaseUrl = serviceUrls.keyvalue;
 const streamBaseUrl = serviceUrls.stream;
 const vectorBaseUrl = serviceUrls.vector;

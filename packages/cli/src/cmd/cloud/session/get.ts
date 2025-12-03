@@ -116,7 +116,7 @@ export const getSubcommand = createSubcommand({
 			description: 'Get a session by ID',
 		},
 	],
-	requires: { auth: true },
+	requires: { auth: true, region: true },
 	idempotent: true,
 	schema: {
 		args: z.object({
@@ -125,8 +125,8 @@ export const getSubcommand = createSubcommand({
 		response: SessionGetResponseSchema,
 	},
 	async handler(ctx) {
-		const { config, logger, auth, args, options } = ctx;
-		const catalystClient = getCatalystAPIClient(config, logger, auth);
+		const { config, logger, auth, args, options, region } = ctx;
+		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
 
 		try {
 			const enriched = await sessionGet(catalystClient, { id: args.session_id });

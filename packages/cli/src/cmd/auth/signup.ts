@@ -20,7 +20,7 @@ export const signupCommand = createSubcommand({
 
 	async handler(ctx) {
 		const { logger, config, apiClient } = ctx;
-		const appUrl = getAppBaseURL(config?.overrides);
+		const appUrl = getAppBaseURL(config?.name, config?.overrides);
 
 		try {
 			const otp = generateSignupOTP();

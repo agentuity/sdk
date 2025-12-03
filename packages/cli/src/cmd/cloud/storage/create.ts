@@ -51,7 +51,7 @@ export const createSubcommand = defineSubcommand({
 			};
 		}
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth);
+		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
 
 		const created = await tui.spinner({
 			message: `Creating storage in ${region}`,

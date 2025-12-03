@@ -28,7 +28,7 @@ export const getSubcommand = createSubcommand({
 			description: 'Get a thread by ID',
 		},
 	],
-	requires: { auth: true },
+	requires: { auth: true, region: true },
 	idempotent: true,
 	schema: {
 		args: z.object({
@@ -37,8 +37,8 @@ export const getSubcommand = createSubcommand({
 		response: ThreadGetResponseSchema,
 	},
 	async handler(ctx) {
-		const { config, logger, auth, args, options } = ctx;
-		const catalystClient = getCatalystAPIClient(config, logger, auth);
+		const { config, logger, auth, args, options, region } = ctx;
+		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
 
 		try {
 			const thread = await threadGet(catalystClient, { id: args.thread_id });

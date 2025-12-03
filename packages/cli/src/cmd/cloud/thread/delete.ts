@@ -17,15 +17,15 @@ export const deleteSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['rm'],
-	requires: { auth: true },
+	requires: { auth: true, region: true },
 	schema: {
 		args: z.object({
 			thread_id: z.string().describe('Thread ID'),
 		}),
 	},
 	async handler(ctx) {
-		const { config, logger, auth, args } = ctx;
-		const catalystClient = getCatalystAPIClient(config, logger, auth);
+		const { config, logger, auth, args, region } = ctx;
+		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
 
 		try {
 			await threadDelete(catalystClient, { id: args.thread_id });

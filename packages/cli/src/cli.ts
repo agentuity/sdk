@@ -398,6 +398,7 @@ interface ResolveRegionOptions {
 	apiClient: APIClientType;
 	logger: Logger;
 	required: boolean;
+	region?: string;
 }
 
 async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
@@ -425,7 +426,7 @@ async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undef
 	}
 
 	// Check if region was provided via flag
-	let region = options.region as string | undefined;
+	let region = opts.region ?? (options.region as string | undefined);
 
 	// Validate --region flag if provided
 	if (region) {
@@ -746,6 +747,7 @@ async function registerSubcommand(
 									apiClient,
 									logger: baseCtx.logger,
 									required: !!normalized.requiresRegion,
+									region: project?.region,
 								});
 							},
 						});
@@ -810,6 +812,7 @@ async function registerSubcommand(
 							apiClient,
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
+							region: project?.region,
 						});
 					});
 					if (region) {
@@ -921,6 +924,7 @@ async function registerSubcommand(
 							apiClient,
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
+							region: project?.region,
 						});
 						if (region) {
 							ctx.region = region;
@@ -1092,6 +1096,7 @@ async function registerSubcommand(
 						apiClient,
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
+						region: project?.region,
 					});
 					if (region) {
 						ctx.region = region;

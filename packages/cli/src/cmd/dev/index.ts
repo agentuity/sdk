@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { resolve, join } from 'node:path';
 import { bundle } from '../build/bundler';
+import { getServiceUrls } from '@agentuity/server';
 import { getBuildMetadata } from '../build/plugin';
 import { existsSync, type FSWatcher, watch, statSync, readdirSync } from 'node:fs';
 import {
@@ -15,7 +16,7 @@ import { type Config, createCommand } from '../../types';
 import * as tui from '../../tui';
 import { createAgentTemplates, createAPITemplates } from './templates';
 import { generateEndpoint, type DevmodeResponse } from './api';
-import { APIClient, getAPIBaseURL } from '../../api';
+import { APIClient, getAPIBaseURL, getGravityDevModeURL } from '../../api';
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
@@ -101,6 +102,7 @@ export const command = createCommand({
 
 		let devmode: DevmodeResponse | undefined;
 		let gravityBin: string | undefined;
+		let gravityURL: string | undefined;
 
 		if (auth && project && opts.public) {
 			// Generate devmode endpoint only when using --public
@@ -118,6 +120,8 @@ export const command = createCommand({
 			await saveConfig(_config);
 			config = _config;
 			devmode = endpoint;
+			gravityURL = getGravityDevModeURL(project.region, config);
+			logger.error('gravity url: %s', gravityURL);
 		}
 
 		logger.debug(
@@ -183,33 +187,23 @@ export const command = createCommand({
 		env.AGENTUITY_SDK_DEV_MODE = 'true';
 		env.AGENTUITY_ENV = 'development';
 		env.NODE_ENV = 'development';
+		env.AGENTUITY_REGION = project?.region;
 		env.PORT = Number(opts.port).toFixed();
 		env.AGENTUITY_PORT = env.PORT;
+		const serviceUrls = getServiceUrls(project?.region);
 		if (options.logLevel !== undefined) env.AGENTUITY_LOG_LEVEL = options.logLevel;
 		// Pass through AGENTUITY_SDK_LOG_LEVEL for internal SDK logger
 		if (process.env.AGENTUITY_SDK_LOG_LEVEL) {
 			env.AGENTUITY_SDK_LOG_LEVEL = process.env.AGENTUITY_SDK_LOG_LEVEL;
 		}
 		env.AGENTUITY_FORCE_LOCAL_SERVICES = opts.local === true ? 'true' : 'false';
-		if (config?.overrides?.transport_url) {
-			env.AGENTUITY_TRANSPORT_URL = config.overrides.transport_url;
-		}
-		if (config?.overrides?.catalyst_url) {
-			env.AGENTUITY_CATALYST_URL = config.overrides.catalyst_url;
-		}
-		if (config?.overrides?.vector_url) {
-			env.AGENTUITY_VECTOR_URL = config.overrides.vector_url;
-		}
-		if (config?.overrides?.object_url) {
-			env.AGENTUITY_OBJECTSTORE_URL = config.overrides.object_url;
-		}
-		if (config?.overrides?.kv_url) {
-			env.AGENTUITY_KEYVALUE_URL = config.overrides.kv_url;
-		}
-		if (config?.overrides?.stream_url) {
-			env.AGENTUITY_STREAM_URL = config.overrides.stream_url;
-		}
 		if (project) {
+			env.AGENTUITY_TRANSPORT_URL = serviceUrls.catalyst;
+			env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
+			env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
+			env.AGENTUITY_OBJECTSTORE_URL = serviceUrls.objectstore;
+			env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
+			env.AGENTUITY_STREAM_URL = serviceUrls.stream;
 			env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
 			env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;
 		}
@@ -295,7 +289,7 @@ export const command = createCommand({
 						'--port',
 						env.PORT!,
 						'--url',
-						config?.overrides?.gravity_url ?? 'grpc://devmode.agentuity.com',
+						gravityURL!,
 						'--log-level',
 						process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
 					],

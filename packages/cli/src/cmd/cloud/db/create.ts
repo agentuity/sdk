@@ -49,7 +49,7 @@ export const createSubcommand = defineSubcommand({
 			};
 		}
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth);
+		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
 
 		try {
 			const created = await tui.spinner({

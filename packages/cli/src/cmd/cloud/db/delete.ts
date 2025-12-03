@@ -37,7 +37,7 @@ export const deleteSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { logger, args, opts, config, orgId, region, auth, options } = ctx;
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth);
+		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
 
 		let dbName = args.name;
 
