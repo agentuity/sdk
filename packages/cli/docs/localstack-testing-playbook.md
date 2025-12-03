@@ -22,12 +22,13 @@ git clone https://github.com/agentuity/sdk.git
 
 The following secrets are needed (available as Devin secrets):
 
-| Secret Name        | Purpose                         | Destination                       |
-| ------------------ | ------------------------------- | --------------------------------- |
-| `GLUON_GCP_CREDS`  | GCP service account credentials | `~/.agentuity-gluon-sa.json`      |
-| `GLUON_LOCALSTACK` | Gluon localstack profile config | `~/.config/gluon/localstack.yaml` |
-| `GCP_DOCKER`       | Docker registry credentials     | Used with `docker login`          |
-| `AGENTUITY_USC`    | CLI profile for v1 API          | `~/.config/agentuity/usc.yaml`    |
+| Secret Name            | Purpose                         | Destination                       |
+| ---------------------- | ------------------------------- | --------------------------------- |
+| `LOCALSTACK_GCP_CREDS` | GCP service account credentials | `~/.agentuity-gluon-sa.json`      |
+| `LOCALSTACK_GLUON`     | Gluon localstack profile config | `~/.config/gluon/localstack.yaml` |
+| `LOCALSTACK_CONFIG`    | CLI profile for v1 API          | `~/.config/agentuity/local.yaml`  |
+| `LOCALSTACK_USER`      | ClickHouse database username    | Used with `USER=` when starting   |
+| `GCP_DOCKER`           | Docker registry credentials     | Used with `docker login`          |
 
 ## One-Time VM Setup
 
@@ -49,8 +50,8 @@ gluon version
 ### 2. Set Up GCP Credentials
 
 ```bash
-# Store GCP credentials from GLUON_GCP_CREDS secret
-echo "$GLUON_GCP_CREDS" > ~/.agentuity-gluon-sa.json
+# Store GCP credentials from LOCALSTACK_GCP_CREDS secret
+echo "$LOCALSTACK_GCP_CREDS" > ~/.agentuity-gluon-sa.json
 
 # Set environment variable (add to ~/.bashrc for persistence)
 export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.agentuity-gluon-sa.json
@@ -58,7 +59,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=$HOME/.agentuity-gluon-sa.json
 
 ### 3. Create Gluon Localstack Profile
 
-Create `~/.config/gluon/localstack.yaml` with the content from the `GLUON_LOCALSTACK` secret.
+Create `~/.config/gluon/localstack.yaml` with the content from the `LOCALSTACK_GLUON` secret.
 
 **Important:** The secret may be stored as a single line. Ensure the YAML is properly formatted with newlines and indentation:
 
@@ -114,10 +115,9 @@ ports:
 ```bash
 cd /home/ubuntu/repos/app/api
 
-# Set USER to your ClickHouse database name
+# Set USER to your ClickHouse database name (from LOCALSTACK_USER secret)
 # Each developer has their own ClickHouse database named after their username
-# Use an existing database name (e.g., "pedro") or have one created for you
-USER=<your_clickhouse_db_name> npm run dev
+USER=$LOCALSTACK_USER npm run dev
 ```
 
 The stack will pull Docker images and start approximately 11 containers:
@@ -159,70 +159,24 @@ bun run build
 
 ### 2. Create CLI Profile
 
-Create `~/.config/agentuity/usc.yaml` with the content from the `AGENTUITY_USC` secret (properly formatted):
-
-```yaml
-name: 'usc'
-overrides:
-   api_url: 'https://api-v1.agentuity.com'
-   app_url: 'https://app-v1.agentuity.com'
-   transport_url: 'https://catalyst-usc.agentuity.cloud'
-   stream_url: 'https://streams-usc.agentuity.cloud'
-   kv_url: 'https://catalyst-usc.agentuity.cloud'
-   object_url: 'https://catalyst-usc.agentuity.cloud'
-   vector_url: 'https://catalyst-usc.agentuity.cloud'
-   catalyst_url: 'https://catalyst-usc.agentuity.cloud'
-   gravity_url: 'grpc://gravity-usc.agentuity.cloud'
+```bash
+# Create the CLI profile from LOCALSTACK_CONFIG secret
+mkdir -p ~/.config/agentuity
+echo "$LOCALSTACK_CONFIG" > ~/.config/agentuity/local.yaml
 ```
+
+**Important:** The CLI profile contains production-looking URLs (e.g., `https://api.agentuity.io`). Do NOT change these URLs to point to `localhost` or `127.0.0.1`. The local stack's gluon/ion/aether components handle routing these hostnames to local containers.
 
 ### 3. Set Active Profile
 
 ```bash
-echo "usc" > ~/.config/agentuity/profile
+# The profile file should contain just the profile name, not the full path
+echo "local" > ~/.config/agentuity/profile
 ```
 
-### 4. Authenticate CLI
+### 4. Test CLI
 
-The CLI needs authentication credentials. There are two ways to authenticate:
-
-#### Option A: Browser-Based Authentication (Interactive)
-
-```bash
-cd /home/ubuntu/repos/sdk
-./packages/cli/bin/cli.ts auth login
-```
-
-Follow the prompts to authenticate via browser.
-
-#### Option B: Browserless Authentication (Automated/CI)
-
-For automated testing or CI environments, you can authenticate using environment variables. A test user has been pre-created in the database for this purpose:
-
-| Field   | Value                  |
-| ------- | ---------------------- |
-| User ID | `user_devin_test_001`  |
-| Email   | `devin@agentuity.test` |
-| Org ID  | `org_devin_test_001`   |
-
-```bash
-# Get an API key from the short-token endpoint using the devin test user
-APIKEY=$(curl -s http://127.0.0.1:3012/cli/auth/short-token \
-  -H 'Content-Type: application/json' \
-  -d '{"secret":"<AGENTUITY_CATALYST_SECRET>","userId":"user_devin_test_001"}' \
-  | jq -r '.data.apiKey')
-
-# Set environment variables for CLI authentication
-export AGENTUITY_API_URL="http://127.0.0.1:3012"
-export AGENTUITY_USER_ID="user_devin_test_001"
-export AGENTUITY_CLI_API_KEY="$APIKEY"
-
-# Now CLI commands will use these credentials
-./packages/cli/bin/cli.ts auth whoami
-```
-
-**Note:** The `AGENTUITY_CATALYST_SECRET` can be found in the `agentuity/app/api/.dev.vars` file after starting the local stack.
-
-### 5. Test CLI
+No need to go through the login flow - the credentials are already loaded from the `local.yaml` config file. The auth section in the YAML profile contains pre-configured `api_key`, `user_id`, and `expires` fields.
 
 ```bash
 cd /home/ubuntu/repos/sdk
@@ -239,118 +193,49 @@ cd /home/ubuntu/repos/sdk
 ./packages/cli/bin/cli.ts project create \
   --name test-project \
   --dir /tmp/test-project \
-  --template-dir ./templates \
-  --no-install \
-  --no-build \
-  --no-register
+  --template-dir ./templates
 ```
+
+**Important Notes:**
+
+- Do NOT use `--no-register` flag if you want to deploy the project later. The `--no-register` flag skips creating the `agentuity.json` file, which is required for deployment.
+- The CLI will prompt you to select an organization, template, and optionally create resources (SQL Database, Storage Bucket). You can skip the resource creation prompts.
+- The project will be created in a subdirectory: `/tmp/test-project/test-project/`
 
 ### Deploy to Local Stack
 
 ```bash
-./packages/cli/bin/cli.ts deploy --dir /tmp/test-project
+# Note: The project is created in a subdirectory with the project name
+./packages/cli/bin/cli.ts deploy --dir /tmp/test-project/test-project
 ```
+
+The deployment will go through these steps:
+
+1. Sync Env & Secrets
+2. Create Deployment
+3. Build, Verify and Package
+4. Encrypt and Upload Deployment
+5. Provision Deployment
+
+Upon successful deployment, you'll receive:
+
+- Deployment ID
+- Deployment URL (e.g., `https://d7d12c4c4292f1a8e.agentuity.io`)
+- Project URL (e.g., `https://p970c8e29d2710bf8.agentuity.io`)
 
 ## Troubleshooting
 
-### ClickHouse Database Error
+### "Invalid project folder" Error on Deploy
 
-**Error:** `Database ubuntu does not exist`
+This error occurs when the `agentuity.json` file is missing from the project directory. This happens if you used the `--no-register` flag when creating the project. Create a new project without that flag.
 
-**Cause:** The `CLICKHOUSE_DATABASE` environment variable is set to `${env:USER}` in gluon, which resolves to the VM username (e.g., "ubuntu").
+### Container Constantly Restarting
 
-**Solution:** Run the stack with a USER that has an existing ClickHouse database:
-
-```bash
-USER=pedro npm run dev
-```
-
-Or have a new database created for your username.
-
-### Port 22 Conflict
-
-**Error:** `failed to bind port 0.0.0.0:22/tcp: address already in use`
-
-**Cause:** The ion container tries to bind to port 22, which is used by SSH.
-
-**Solution:** Change the port mapping in `docker-compose.yml`:
-
-```yaml
-# Change "22:22" to "2222:22" in the ion service ports section
-```
-
-### Gluon Profile Not Found
-
-**Error:** `profile not found: localstack`
-
-**Cause:** The gluon profile file doesn't exist or is malformed.
-
-**Solution:** Ensure `~/.config/gluon/localstack.yaml` exists with properly formatted YAML.
-
-### Docker Authentication Failed
-
-**Error:** `unauthorized: authentication failed` when pulling images
-
-**Cause:** Docker is not authenticated with GCP Artifact Registry.
-
-**Solution:** Run:
+If a container (e.g., `api-hadron-1`) is constantly restarting, check the container logs:
 
 ```bash
-echo "$GCP_DOCKER" | docker login -u _json_key --password-stdin https://us-central1-docker.pkg.dev
+docker logs api-hadron-1
 ```
-
-### YAML Parsing Errors
-
-**Error:** `mapping values are not allowed in this context`
-
-**Cause:** YAML file has incorrect formatting (often from secrets stored as single lines).
-
-**Solution:** Ensure YAML files have proper newlines and indentation. Use a YAML validator to check formatting.
-
-### Socket Connection Closed Unexpectedly (Bun/IPv6 Issue)
-
-**Error:** `The socket connection was closed unexpectedly` with `code: "ECONNRESET"`
-
-**Cause:** Bun's fetch has issues connecting to Docker containers via IPv6. On systems where `localhost` resolves to `::1` (IPv6) first, Bun will fail to connect even though the Docker container is listening on both IPv4 and IPv6.
-
-**Solution:** Use `127.0.0.1` instead of `localhost` in all URL configurations:
-
-```bash
-# Check how localhost resolves on your system
-getent hosts localhost
-# If it shows "::1 localhost", use 127.0.0.1 instead
-
-# Set environment variable with IPv4 address
-export AGENTUITY_API_URL="http://127.0.0.1:3012"
-
-# Or update your CLI profile to use 127.0.0.1
-```
-
-**Verification:** Test with curl (which is more forgiving) vs Bun:
-
-```bash
-# This may work with curl but fail with Bun's fetch
-curl http://localhost:3012/cli/auth/user
-
-# This should work with both
-curl http://127.0.0.1:3012/cli/auth/user
-```
-
-## Key URLs and Ports
-
-**Important:** Use `127.0.0.1` instead of `localhost` in all URLs. Bun's fetch has issues with IPv6 connections to Docker containers, and `localhost` may resolve to IPv6 (`::1`) on some systems.
-
-| Service            | Local URL              | Port  |
-| ------------------ | ---------------------- | ----- |
-| API                | http://127.0.0.1:3012  | 3012  |
-| Catalyst           | http://127.0.0.1:3939  | 3939  |
-| Gravity            | grpc://127.0.0.1:8443  | 8443  |
-| Pulse              | http://127.0.0.1:10101 | 10101 |
-| Hadron             | http://127.0.0.1:9999  | 9999  |
-| Redis              | 127.0.0.1:6379         | 6379  |
-| etcd               | 127.0.0.1:2379         | 2379  |
-| Ion SSH (remapped) | 127.0.0.1:2222         | 2222  |
-| Ion HTTPS          | 127.0.0.1:443          | 443   |
 
 ## Notes
 
@@ -359,3 +244,6 @@ curl http://127.0.0.1:3012/cli/auth/user
 - The `docker-compose.yml` port change for ion should NOT be committed
 - The CLI in `agentuity/sdk/packages/cli` is the new CLI (not the old `agentuity/cli` repo)
 - Always run `bun run build` in the SDK repo after making changes
+- The CLI profile uses production-looking URLs that are routed to local containers by gluon/ion/aether
+- No manual login is required - credentials are pre-configured in the `local.yaml` profile
+- The `--no-register` flag should NOT be used if you want to deploy the project
