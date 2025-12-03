@@ -1,8 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { UIMessage } from 'ai';
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
-import type { WorkbenchContextType } from '../../types/config';
+import type { WorkbenchContextType, ConnectionStatus } from '../../types/config';
 import { useAgentSchemas } from '../../hooks/useAgentSchemas';
+import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
 
 const WorkbenchContext = createContext<WorkbenchContextType | null>(null);
 
@@ -24,6 +25,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const [selectedAgent, setSelectedAgent] = useState<string>('');
 	const [inputMode, setInputMode] = useState<'text' | 'form'>('text');
 	const [isLoading, setIsLoading] = useState(false);
+	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
 
 	// Config values
 	const baseUrl = config.port ? `http://localhost:${config.port}` : undefined;
@@ -50,6 +52,34 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		apiKey,
 		enabled: shouldUseSchemas,
 	});
+
+	// WebSocket connection for dev server restart detection
+	const { connected } = useWorkbenchWebsocket({
+		baseUrl,
+		apiKey,
+		onConnect: () => {
+			setConnectionStatus('connected');
+			refetchSchemas();
+		},
+		onReconnect: () => {
+			setConnectionStatus('connected');
+			refetchSchemas();
+		},
+		onAlive: () => {
+			setConnectionStatus('connected');
+			refetchSchemas();
+		},
+		onRestarting: () => {
+			setConnectionStatus('restarting');
+		},
+	});
+
+	// Update connection status based on WebSocket connection state
+	useEffect(() => {
+		if (!connected && connectionStatus !== 'restarting') {
+			setConnectionStatus('disconnected');
+		}
+	}, [connected, connectionStatus]);
 
 	// Convert schema data to Agent format, no fallback
 	const agents = schemaData?.agents;
@@ -227,6 +257,8 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		schemasLoading: !!schemasLoading,
 		schemasError,
 		refetchSchemas,
+		// Connection status
+		connectionStatus,
 	};
 
 	return <WorkbenchContext.Provider value={contextValue}>{children}</WorkbenchContext.Provider>;

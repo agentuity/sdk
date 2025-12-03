@@ -3,6 +3,7 @@ export { Chat } from './components/internal/Chat';
 export { Header } from './components/internal/Header';
 export { App } from './components/App';
 export { Inline } from './components/Inline';
+export { ConnectionStatus } from './components/ConnectionStatus';
 
 // Export provider
 export { WorkbenchProvider } from './components/internal/WorkbenchProvider';
@@ -23,3 +24,5 @@ export type {
 	UseAgentSchemasOptions,
 	UseAgentSchemasResult,
 } from './hooks/useAgentSchemas';
+
+export type { ConnectionStatus as ConnectionStatusType } from './types/config';

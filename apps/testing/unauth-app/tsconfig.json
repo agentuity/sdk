@@ -1,6 +1,10 @@
 {
 	"compilerOptions": {
-		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"lib": [
+			"ESNext",
+			"DOM",
+			"DOM.Iterable"
+		],
 		"target": "ESNext",
 		"module": "Preserve",
 		"moduleDetection": "force",
@@ -19,5 +23,9 @@
 		"noUnusedParameters": false,
 		"noPropertyAccessFromIndexSignature": false
 	},
-	"include": ["src/**/*", "app.ts"]
+	"include": [
+		"src/**/*",
+		"app.ts",
+		".agentuity/.agentuity_types.ts"
+	]
 }

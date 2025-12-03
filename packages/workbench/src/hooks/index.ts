@@ -4,6 +4,7 @@ export {
 	useWorkbenchAgentSchema,
 	useWorkbenchAllAgentSchemas,
 } from './useWorkbenchSchemas';
+export { useWorkbenchWebsocket } from './useWorkbenchWebsocket';
 export type {
 	AgentSchema,
 	AgentMetadata,
@@ -12,3 +13,7 @@ export type {
 	UseAgentSchemasOptions,
 	UseAgentSchemasResult,
 } from './useAgentSchemas';
+export type {
+	UseWorkbenchWebsocketOptions,
+	UseWorkbenchWebsocketResult,
+} from './useWorkbenchWebsocket';

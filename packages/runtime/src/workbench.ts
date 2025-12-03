@@ -1,18 +1,15 @@
 import { z } from 'zod';
-import type { Context, Handler } from 'hono';
+import type { Context, Handler, MiddlewareHandler } from 'hono';
 import { timingSafeEqual } from 'node:crypto';
 import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';
+import type { WebSocketConnection } from './router';
 
 export const createWorkbenchExecutionRoute = (): Handler => {
-	console.log('🏗️ [Workbench] createWorkbenchExecutionRoute called - route handler created');
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
 		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
 		: undefined;
 	return async (ctx: Context) => {
-		console.error('🚨 [Workbench] ROUTE HIT - execution route called');
-		console.log('🚨 [Workbench] ROUTE HIT - execution route called');
-
 		// Authentication check
 		if (authHeader) {
 			try {
@@ -31,27 +28,18 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 		}
 
 		try {
-			console.log('🚀 [Workbench] Starting execution route');
-
 			let agentId: string;
 			let input: unknown;
 			try {
 				const requestData = await ctx.req.json();
 				agentId = requestData.agentId;
 				input = requestData.input;
-			} catch (error) {
-				console.error('❌ [Workbench] JSON parse error:', error);
+			} catch (_error) {
 				return ctx.json({ error: 'Invalid JSON in request body' }, { status: 400 });
 			}
-			console.log('📝 [Workbench] Request data:', {
-				agentId,
-				inputType: typeof input,
-				hasInput: input !== undefined,
-			});
 
 			// Get agents registry and find the agent
 			const agents = getAgents();
-			console.log('📋 [Workbench] Available agents:', Object.keys(agents).length);
 
 			let agentObj;
 			let agentName;
@@ -65,22 +53,14 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			}
 
 			if (!agentObj || !agentName) {
-				console.error('❌ [Workbench] Agent not found:', agentId);
 				return ctx.text('Agent not found', { status: 404 });
 			}
-
-			console.log('✅ [Workbench] Found agent:', {
-				name: agentName,
-				hasInputSchema: !!agentObj.inputSchema,
-			});
 
 			// Validate input if schema exists
 			let validatedInput = input;
 			if (agentObj.inputSchema) {
-				console.log('🔍 [Workbench] Validating input schema');
 				const inputResult = await agentObj.inputSchema['~standard'].validate(input);
 				if (inputResult.issues) {
-					console.error('❌ [Workbench] Input validation failed:', inputResult.issues);
 					return ctx.json(
 						{
 							error: 'Validation failed',
@@ -98,39 +78,24 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			// Get agent runner from context.var.agent (should be available via middleware)
 			const agentRunner = ctx.var.agent[agentName];
 			if (!agentRunner) {
-				console.error('❌ [Workbench] Agent runner not found in context for:', agentName);
-				console.log('📋 [Workbench] Available runners:', Object.keys(ctx.var.agent || {}));
 				return ctx.text('Agent runner not found', { status: 404 });
 			}
-
-			console.log('✅ [Workbench] Found agent runner, executing...');
 
 			// Execute the agent
 			let result;
 			if (agentObj.inputSchema) {
-				console.log('🔄 [Workbench] Running agent with input');
 				result = await agentRunner.run(validatedInput);
 			} else {
-				console.log('🔄 [Workbench] Running agent without input');
 				result = await agentRunner.run();
 			}
 
-			console.log('✅ [Workbench] Agent execution completed:', {
-				resultType: typeof result,
-				isNull: result === null,
-				isUndefined: result === undefined,
-			});
-
 			// Handle cases where result might be undefined/null
 			if (result === undefined || result === null) {
-				console.log('ℹ️ [Workbench] Result is null/undefined, returning success wrapper');
 				return ctx.json({ success: true, result: null });
 			}
 
-			console.log('📤 [Workbench] Returning result');
 			return ctx.json(result);
 		} catch (error) {
-			console.error('💥 [Workbench] Execution error:', error);
 			return ctx.json(
 				{
 					error: 'Internal server error',
@@ -146,20 +111,39 @@ export const createWorkbenchExecutionRoute = (): Handler => {
  * Creates a workbench router with proper agent middleware for execution routes
  */
 export const createWorkbenchRouter = () => {
-	console.log('🏗️ [Workbench] createWorkbenchRouter called - creating router');
+	// Try to extract API key from inline workbench config if available
+	try {
+		// @ts-expect-error - AGENTUITY_WORKBENCH_CONFIG_INLINE will be replaced at build time
+		if (typeof AGENTUITY_WORKBENCH_CONFIG_INLINE !== 'undefined') {
+			// @ts-expect-error - AGENTUITY_WORKBENCH_CONFIG_INLINE will be replaced at build time
+			const encoded = AGENTUITY_WORKBENCH_CONFIG_INLINE;
+
+			// Decode the config manually to avoid async import
+			const json = Buffer.from(encoded, 'base64').toString('utf-8');
+			const config = JSON.parse(json);
+
+			// Extract API key from Authorization header if present
+			if (config.headers?.['Authorization']) {
+				const authHeader = config.headers['Authorization'];
+				if (authHeader.startsWith('Bearer ')) {
+					const apiKey = authHeader.slice('Bearer '.length);
+					process.env.AGENTUITY_WORKBENCH_APIKEY = apiKey;
+				}
+			}
+		}
+	} catch {
+		// Silently ignore if config is not available or invalid
+	}
+
 	const router = createRouter();
 
 	// Apply agent middleware to ensure proper context is available
-	console.log('🔧 [Workbench] Adding middleware to /_agentuity/workbench/*');
 	router.use('/_agentuity/workbench/*', createAgentMiddleware(''));
 
 	// Add workbench routes
-	console.log('📡 [Workbench] Adding GET /_agentuity/workbench/metadata.json');
+	router.websocket('/_agentuity/workbench/ws', createWorkbenchWebsocketRoute());
 	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
-	console.log('📡 [Workbench] Adding POST /_agentuity/workbench/execute');
 	router.post('/_agentuity/workbench/execute', createWorkbenchExecutionRoute());
-
-	console.log('✅ [Workbench] Router created successfully');
 	return router;
 };
 
@@ -187,7 +171,7 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 		const schemas: { agents: Record<string, unknown> } = { agents: {} };
 		// TODO: this is going to only work for zod schema for now. need a way to handle others
 		for (const [, agent] of agents) {
-			schemas.agents[agent.metadata.id] = {
+			schemas.agents[agent.metadata.identifier] = {
 				schema: {
 					input: agent.inputSchema
 						? {
@@ -206,5 +190,41 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 			};
 		}
 		return ctx.json(schemas);
+	};
+};
+
+// Store WebSocket connections to notify them on app restart
+const workbenchWebSockets = new Set<WebSocketConnection>();
+
+export const createWorkbenchWebsocketRoute = () => {
+	return (_ctx: Context) => {
+		return (ws: WebSocketConnection) => {
+			ws.onOpen(() => {
+				workbenchWebSockets.add(ws);
+				ws.send('alive');
+			});
+
+			ws.onMessage((event) => {
+				const message = event.data;
+
+				// If a client sends a message (CLI), broadcast to all other clients
+				if (message === 'restarting' || message === 'alive') {
+					// Broadcast the message to all other clients (excluding this CLI connection)
+					for (const clientWs of workbenchWebSockets) {
+						if (clientWs !== ws) {
+							try {
+								clientWs.send(message);
+							} catch (_error) {
+								workbenchWebSockets.delete(clientWs);
+							}
+						}
+					}
+				}
+			});
+
+			ws.onClose(() => {
+				workbenchWebSockets.delete(ws);
+			});
+		};
 	};
 };

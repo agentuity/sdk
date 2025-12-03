@@ -9,6 +9,8 @@ export interface Agent {
 	avatar?: string;
 }
 
+export type ConnectionStatus = 'connected' | 'restarting' | 'disconnected';
+
 // Context type for the provider
 export interface WorkbenchContextType {
 	config: WorkbenchConfig;
@@ -27,4 +29,6 @@ export interface WorkbenchContextType {
 	schemasLoading: boolean;
 	schemasError: Error | null;
 	refetchSchemas: () => void;
+	// Connection status
+	connectionStatus: ConnectionStatus;
 }

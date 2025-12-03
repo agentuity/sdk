@@ -21,6 +21,7 @@ import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
 import { BuildMetadata } from '@agentuity/server';
 import { getCommand } from '../../command-prefix';
+import { notifyWorkbenchClients } from '../../utils/workbench-notify';
 
 const shouldDisableInteractive = (interactive?: boolean) => {
 	if (!interactive) {
@@ -469,6 +470,16 @@ export const command = createCommand({
 					checkRestartThrottle();
 					tui.info('Restarting on file change');
 					showedRestartMessage = true;
+
+					// Notify workbench clients before killing the server
+					await notifyWorkbenchClients({
+						port: opts.port,
+						message: 'restarting'
+					});
+
+					// Small delay to ensure the restart message is processed before killing server
+					await new Promise(resolve => setTimeout(resolve, 200));
+
 					await kill();
 					logger.trace('Server killed, continuing with restart');
 					// Continue with restart after kill completes
@@ -642,6 +653,15 @@ export const command = createCommand({
 					initialStartupComplete = true;
 					logger.trace('Initial startup complete, file watcher restarts now enabled');
 				}
+
+				// Notify workbench clients that the server is alive and ready
+				// Use setTimeout to ensure server is fully ready before notifying
+				setTimeout(async () => {
+					await notifyWorkbenchClients({
+						port: opts.port,
+						message: 'alive',
+					});
+				}, 500);
 
 				logger.trace('Attaching exit handler to dev server process...');
 				// Attach non-blocking exit handler

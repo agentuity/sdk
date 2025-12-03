@@ -289,8 +289,8 @@ export function InputSection({
 								<CommandGroup>
 									{Object.values(agents).map((agent) => (
 										<CommandItem
-											key={agent.metadata.id}
-											value={agent.metadata.id}
+											key={agent.metadata.identifier}
+											value={agent.metadata.identifier}
 											onSelect={(currentValue) => {
 												setSelectedAgent(currentValue);
 												setAgentSelectOpen(false);
@@ -299,7 +299,7 @@ export function InputSection({
 											<CheckIcon
 												className={cn(
 													'size-4 text-green-500',
-													selectedAgent === agent.metadata.id
+													selectedAgent === agent.metadata.identifier
 														? 'opacity-100'
 														: 'opacity-0'
 												)}
