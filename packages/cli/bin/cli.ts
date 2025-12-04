@@ -36,6 +36,22 @@ process.once('SIGTERM', () => {
 
 validateRuntime();
 
+// Check for help flags before anything else
+const args = process.argv.slice(2);
+const hasHelpJson = args.includes('--help=json');
+const helpFlags = ['--help', '-h', 'help'];
+const hasHelp = helpFlags.some((flag) => args.includes(flag));
+
+// Check for --help=json early (needs to exit before full initialization)
+if (args.length === 1 && hasHelpJson) {
+	const version = getVersion();
+	const program = await createCLI(version);
+	const commands = await discoverCommands();
+	const cliSchema = generateCLISchema(program, commands, version);
+	console.log(JSON.stringify(cliSchema, null, 2));
+	process.exit(0);
+}
+
 // Check for legacy CLI and warn user (skip if --skip-legacy-check flag is present)
 const skipLegacyCheck = process.argv.includes('--skip-legacy-check');
 if (!skipLegacyCheck) {
@@ -47,7 +63,10 @@ const version = getVersion();
 const program = await createCLI(version);
 
 // Parse options early to check for color scheme override
-program.parseOptions(process.argv);
+// Skip parseOptions if we have help flags to avoid "unknown option" error
+if (!hasHelp) {
+	program.parseOptions(process.argv);
+}
 const earlyOpts = program.opts();
 
 // Detect or override terminal color scheme
@@ -98,13 +117,6 @@ const commands = await discoverCommands();
 const cliSchema = generateCLISchema(program, commands, version);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (global as any).__CLI_SCHEMA__ = cliSchema;
-
-// Check for --help=json before registering commands
-const hasHelpJson = process.argv.includes('--help=json');
-if (hasHelpJson) {
-	console.log(JSON.stringify(cliSchema, null, 2));
-	process.exit(0);
-}
 
 await registerCommands(program, commands, ctx as unknown as CommandContext);
 

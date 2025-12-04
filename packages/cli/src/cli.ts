@@ -286,6 +286,10 @@ export async function createCLI(version: string): Promise<Command> {
 	// Custom error handling for argument/command parsing errors
 	program.configureOutput({
 		outputError: (str, write) => {
+			// Suppress "unknown option '--help'" error since we handle help flags specially
+			if (str.includes("unknown option '--help'")) {
+				return;
+			}
 			// Intercept commander.js error messages
 			if (str.includes('too many arguments') || str.includes('unknown command')) {
 				// Extract potential command name from error context
@@ -540,6 +544,14 @@ async function registerSubcommand(
 		for (const nestedSub of subDef.subcommands) {
 			await registerSubcommand(cmd, nestedSub, baseCtx);
 		}
+		
+		// Add a virtual 'help' subcommand
+		cmd.command('help', { hidden: true })
+			.description('Display help')
+			.action(() => {
+				cmd.help();
+			});
+		
 		return;
 	}
 
@@ -1305,6 +1317,13 @@ export async function registerCommands(
 			for (const sub of cmdDef.subcommands) {
 				await registerSubcommand(cmd, sub, baseCtx);
 			}
+			
+			// Add a virtual 'help' subcommand for commands with subcommands
+			cmd.command('help', { hidden: true })
+				.description('Display help')
+				.action(() => {
+					cmd.help();
+				});
 		} else {
 			await registerSubcommand(
 				program,
