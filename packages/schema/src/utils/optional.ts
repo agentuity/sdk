@@ -1,5 +1,5 @@
-import type { Schema, Infer } from '../base.js';
-import { success, createParseMethods } from '../base.js';
+import type { Schema, Infer } from '../base';
+import { success, createParseMethods } from '../base';
 
 /**
  * Schema for optional values (T | undefined).
@@ -19,27 +19,42 @@ import { success, createParseMethods } from '../base.js';
 export class OptionalSchema<T extends Schema<any, any>>
 	implements Schema<Infer<T> | undefined, Infer<T> | undefined>
 {
+	readonly schema: T;
 	description?: string;
-	private parseMethods = createParseMethods<Infer<T> | undefined>();
-
-	constructor(private schema: T) {}
 
 	readonly '~standard' = {
 		version: 1 as const,
 		vendor: 'agentuity',
 		validate: (value: unknown) => {
 			if (value === undefined) {
-				return success(undefined);
+				return success(undefined as Infer<T> | undefined);
 			}
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			return this.schema['~standard'].validate(value) as any;
+			return this.schema['~standard'].validate(value);
 		},
 		types: undefined as unknown as { input: Infer<T> | undefined; output: Infer<T> | undefined },
 	};
 
+	// Type-safe parse methods for this instance
+	private parseMethods = createParseMethods<Infer<T> | undefined>();
+
+	constructor(schema: T) {
+		this.schema = schema;
+	}
+
 	describe(description: string): this {
 		this.description = description;
 		return this;
+	}
+
+	optional() {
+		return this; // Already optional
+	}
+
+	nullable(): Schema<Infer<T> | undefined | null, Infer<T> | undefined | null> {
+		// Import here to avoid circular dependency
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const { nullable } = require('./nullable.js');
+		return nullable(this);
 	}
 
 	parse = this.parseMethods.parse;

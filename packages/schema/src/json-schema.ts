@@ -1,16 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { Schema } from './base.js';
-import { StringSchema, string } from './primitives/string.js';
-import { NumberSchema, number } from './primitives/number.js';
-import { BooleanSchema, boolean } from './primitives/boolean.js';
-import { NullSchema, null_ } from './primitives/null.js';
-import { UndefinedSchema } from './primitives/undefined.js';
-import { ObjectSchema, object } from './complex/object.js';
-import { ArraySchema, array } from './complex/array.js';
-import { LiteralSchema, literal } from './utils/literal.js';
-import { OptionalSchema, optional } from './utils/optional.js';
-import { NullableSchema, nullable } from './utils/nullable.js';
-import { UnionSchema, union } from './utils/union.js';
+import type { Schema } from './base';
+import { StringSchema, string } from './primitives/string';
+import { NumberSchema, number } from './primitives/number';
+import { BooleanSchema, boolean } from './primitives/boolean';
+import { NullSchema, null_ } from './primitives/null';
+import { UndefinedSchema } from './primitives/undefined';
+import { ObjectSchema, object } from './complex/object';
+import { ArraySchema, array } from './complex/array';
+import { LiteralSchema, literal } from './utils/literal';
+import { OptionalSchema, optional } from './utils/optional';
+import { NullableSchema, nullable } from './utils/nullable';
+import { UnionSchema, union } from './utils/union';
 
 /**
  * JSON Schema object representation.

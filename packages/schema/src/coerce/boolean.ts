@@ -1,5 +1,7 @@
-import type { Schema } from '../base.js';
-import { success, createParseMethods } from '../base.js';
+import type { Schema } from '../base';
+import { success, createParseMethods } from '../base';
+import { optional } from '../utils/optional';
+import { nullable } from '../utils/nullable';
 
 const parseMethods = createParseMethods<boolean>();
 
@@ -34,6 +36,13 @@ export class CoerceBooleanSchema implements Schema<unknown, boolean> {
 		return this;
 	}
 
+	optional() {
+		return optional(this);
+	}
+
+	nullable() {
+		return nullable(this);
+	}
 	parse = parseMethods.parse;
 	safeParse = parseMethods.safeParse;
 }

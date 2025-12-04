@@ -1,4 +1,4 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent({
 	metadata: {

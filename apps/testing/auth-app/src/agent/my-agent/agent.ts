@@ -1,5 +1,5 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
@@ -7,8 +7,8 @@ const agent = createAgent({
 		description: 'Test agent with hyphenated name (my-agent)',
 	},
 	schema: {
-		input: z.object({ message: z.string() }),
-		output: z.string(),
+		input: s.object({ message: s.string() }),
+		output: s.string(),
 	},
 	handler: async (_c, { message }) => {
 		return `Processed: ${message}`;

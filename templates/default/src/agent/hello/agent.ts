@@ -1,5 +1,5 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
@@ -7,8 +7,8 @@ const agent = createAgent({
 		description: 'This is my first agent ✨',
 	},
 	schema: {
-		input: z.object({ name: z.string() }),
-		output: z.string(),
+		input: s.object({ name: s.string() }),
+		output: s.string(),
 	},
 	handler: async (_c, { name }) => {
 		return `Hello, ${name}! Welcome to Agentuity 🤖.`;

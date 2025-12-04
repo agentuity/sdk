@@ -1,5 +1,5 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
@@ -7,8 +7,8 @@ const agent = createAgent({
 		description: 'Subagent with hyphenated child name (notification-service.send-push)',
 	},
 	schema: {
-		input: z.object({ device: z.string(), message: z.string() }),
-		output: z.string(),
+		input: s.object({ device: s.string(), message: s.string() }),
+		output: s.string(),
 	},
 	handler: async (_c, { device, message }) => {
 		return `Push notification sent to ${device}: ${message}`;

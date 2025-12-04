@@ -489,10 +489,19 @@ Generate release notes in Markdown format with the following sections:
 - **Documentation** - Documentation updates
 - **Internal** - Internal changes (refactoring, tests, tooling)
 
+General Instructions:
+- Do NOT make general statements about "improvements", be very specific about what was changed.
+- Do NOT include any information about code changes if they do not affect the user facing changes.
+- For commits that are already well-written and descriptive, avoid rewording them. Simply capitalize the first letter, fix any misspellings, and ensure proper English grammar.
+- DO NOT read any other commits than the ones listed above (THIS IS IMPORTANT TO AVOID DUPLICATING THINGS IN OUR CHANGELOG)
+- If a commit was made and then reverted do not include it in the changelog. If the commits only include a revert but not the original commit, then include the revert in the changelog.
+
 Formatting Instructions:
 - Use bullet points (- item) for each change. Be concise and user-focused. Only include sections that have changes.
 - If there are no breaking changes, omit that section entirely.
+- Link to the author name and author github url if available.
 - Link to Pull Request URLs if relevant such as: [#12](https://github.com/agentuity/sdk/pull/12) [DESCRIPTION]
+- IMPORTANT: ONLY return a bulleted list of changes, do not include any other information. Do not include a preamble like "Based on my analysis..."
 `;
 
 	try {

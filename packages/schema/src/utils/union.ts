@@ -1,5 +1,7 @@
-import type { Schema, Infer } from '../base.js';
-import { createIssue, failure, createParseMethods } from '../base.js';
+import type { Schema, Infer } from '../base';
+import { createIssue, failure, createParseMethods } from '../base';
+import { optional } from '../utils/optional';
+import { nullable } from '../utils/nullable';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type InferUnion<T extends Schema<any, any>[]> = Infer<T[number]>;
@@ -65,6 +67,14 @@ export class UnionSchema<T extends Schema<any, any>[]>
 	describe(description: string): this {
 		this.description = description;
 		return this;
+	}
+
+	optional() {
+		return optional(this);
+	}
+
+	nullable() {
+		return nullable(this);
 	}
 
 	parse = this.parseMethods.parse;

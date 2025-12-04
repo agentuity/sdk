@@ -1,13 +1,13 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'KeyValue Demo',
 	},
 	schema: {
-		input: z.object({
-			operation: z.enum([
+		input: s.object({
+			operation: s.enum([
 				'set',
 				'get',
 				'delete',
@@ -16,17 +16,18 @@ const agent = createAgent({
 				'getStats',
 				'getNamespaces',
 			]),
-			key: z.string().optional(),
-			value: z.string().optional(),
-			keyword: z.string().optional(),
+			key: s.string().optional(),
+			value: s.string().optional(),
+			keyword: s.string().optional(),
 		}),
-		output: z.object({
-			operation: z.string(),
-			success: z.boolean(),
-			result: z.any().optional(),
+		output: s.object({
+			operation: s.string(),
+			success: s.boolean(),
+			result: s.any().optional(),
 		}),
 	},
-	handler: async (c, { operation, key, value, keyword }) => {
+	handler: async (c, input) => {
+		const { operation, key, value, keyword } = input;
 		const storeName = 'test-kv-store';
 
 		switch (operation) {
@@ -104,6 +105,9 @@ const agent = createAgent({
 					result: namespaces,
 				};
 			}
+
+			default:
+				throw new Error(`Unknown operation: ${operation}`);
 		}
 	},
 });

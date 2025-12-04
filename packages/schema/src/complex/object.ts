@@ -1,10 +1,29 @@
-import type { Schema, Infer } from '../base.js';
-import { createIssue, failure, success, createParseMethods } from '../base.js';
+import type { Schema, Infer } from '../base';
+import { createIssue, failure, success, createParseMethods } from '../base';
+import { optional, OptionalSchema } from '../utils/optional';
+import { nullable } from '../utils/nullable';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ObjectShape = Record<string, Schema<any, any>>;
+
+// Helper to check if a schema is optional
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type IsOptional<T> = T extends OptionalSchema<any> ? true : false;
+
+// Split required and optional keys
+type RequiredKeys<T extends ObjectShape> = {
+	[K in keyof T]: IsOptional<T[K]> extends true ? never : K;
+}[keyof T];
+
+type OptionalKeys<T extends ObjectShape> = {
+	[K in keyof T]: IsOptional<T[K]> extends true ? K : never;
+}[keyof T];
+
+// Infer object shape with proper optional handling
 type InferObjectShape<T extends ObjectShape> = {
-	[K in keyof T]: Infer<T[K]>;
+	[K in RequiredKeys<T>]: Infer<T[K]>;
+} & {
+	[K in OptionalKeys<T>]?: Infer<T[K]>;
 };
 
 /**
@@ -86,6 +105,14 @@ export class ObjectSchema<T extends ObjectShape>
 	describe(description: string): this {
 		this.description = description;
 		return this;
+	}
+
+	optional() {
+		return optional(this);
+	}
+
+	nullable() {
+		return nullable(this);
 	}
 
 	parse = this.parseMethods.parse;

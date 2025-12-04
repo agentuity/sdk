@@ -8,48 +8,54 @@ export type {
 	SafeParseResult,
 	SafeParseSuccess,
 	SafeParseError,
-} from './base.js';
-export { createIssue, success, failure, ValidationError } from './base.js';
+} from './base';
+export { createIssue, success, failure, ValidationError } from './base';
 
-export { StringSchema, string } from './primitives/string.js';
-export { NumberSchema, number } from './primitives/number.js';
-export { BooleanSchema, boolean } from './primitives/boolean.js';
-export { NullSchema, null_ } from './primitives/null.js';
-export { UndefinedSchema, undefined_ } from './primitives/undefined.js';
+export { StringSchema, string } from './primitives/string';
+export { NumberSchema, number } from './primitives/number';
+export { BooleanSchema, boolean } from './primitives/boolean';
+export { NullSchema, null_ } from './primitives/null';
+export { UndefinedSchema, undefined_ } from './primitives/undefined';
+export { UnknownSchema, unknown } from './primitives/unknown';
+export { AnySchema, any } from './primitives/any';
 
-export { ObjectSchema, object } from './complex/object.js';
-export { ArraySchema, array } from './complex/array.js';
+export { ObjectSchema, object } from './complex/object';
+export { ArraySchema, array } from './complex/array';
+export { RecordSchema, record } from './complex/record';
 
-export { LiteralSchema, literal } from './utils/literal.js';
-export { OptionalSchema, optional } from './utils/optional.js';
-export { NullableSchema, nullable } from './utils/nullable.js';
-export { UnionSchema, union } from './utils/union.js';
+export { LiteralSchema, literal } from './utils/literal';
+export { OptionalSchema, optional } from './utils/optional';
+export { NullableSchema, nullable } from './utils/nullable';
+export { UnionSchema, union } from './utils/union';
 
-export { toJSONSchema, fromJSONSchema, type JSONSchema } from './json-schema.js';
+export { toJSONSchema, fromJSONSchema, type JSONSchema } from './json-schema';
 
-export { CoerceStringSchema, coerceString } from './coerce/string.js';
-export { CoerceNumberSchema, coerceNumber } from './coerce/number.js';
-export { CoerceBooleanSchema, coerceBoolean } from './coerce/boolean.js';
-export { CoerceDateSchema, coerceDate } from './coerce/date.js';
+export { CoerceStringSchema, coerceString } from './coerce/string';
+export { CoerceNumberSchema, coerceNumber } from './coerce/number';
+export { CoerceBooleanSchema, coerceBoolean } from './coerce/boolean';
+export { CoerceDateSchema, coerceDate } from './coerce/date';
 
-import { string } from './primitives/string.js';
-import { number } from './primitives/number.js';
-import { boolean } from './primitives/boolean.js';
-import { null_ } from './primitives/null.js';
-import { undefined_ } from './primitives/undefined.js';
-import { object } from './complex/object.js';
-import { array } from './complex/array.js';
-import { literal } from './utils/literal.js';
-import { optional } from './utils/optional.js';
-import { nullable } from './utils/nullable.js';
-import { union } from './utils/union.js';
-import { toJSONSchema, fromJSONSchema } from './json-schema.js';
-import { coerceString } from './coerce/string.js';
-import { coerceNumber } from './coerce/number.js';
-import { coerceBoolean } from './coerce/boolean.js';
-import { coerceDate } from './coerce/date.js';
+import { string } from './primitives/string';
+import { number } from './primitives/number';
+import { boolean } from './primitives/boolean';
+import { null_ } from './primitives/null';
+import { undefined_ } from './primitives/undefined';
+import { unknown } from './primitives/unknown';
+import { any } from './primitives/any';
+import { object } from './complex/object';
+import { array } from './complex/array';
+import { record } from './complex/record';
+import { literal } from './utils/literal';
+import { optional } from './utils/optional';
+import { nullable } from './utils/nullable';
+import { union } from './utils/union';
+import { toJSONSchema, fromJSONSchema } from './json-schema';
+import { coerceString } from './coerce/string';
+import { coerceNumber } from './coerce/number';
+import { coerceBoolean } from './coerce/boolean';
+import { coerceDate } from './coerce/date';
 
-import type { Infer as InferType, Schema } from './base.js';
+import type { Infer as InferType, Schema } from './base';
 
 /**
  * Create an enum schema (union of literal values).
@@ -106,10 +112,16 @@ export const s = {
 	null: null_,
 	/** Create an undefined schema */
 	undefined: undefined_,
+	/** Create an unknown schema (accepts any value) */
+	unknown,
+	/** Create an any schema (accepts any value) */
+	any,
 	/** Create an object schema with typed properties */
 	object,
 	/** Create an array schema with typed elements */
 	array,
+	/** Create a record schema (object with string keys and typed values) */
+	record,
 	/** Create a literal value schema */
 	literal,
 	/** Make a schema optional (T | undefined) */

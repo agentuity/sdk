@@ -62,7 +62,7 @@ export class ValidationError extends Error {
 					? `[${issue.path
 							.map((p) =>
 								// eslint-disable-next-line @typescript-eslint/no-explicit-any
-								typeof p === 'object' ? (p as any).key : p,
+								typeof p === 'object' ? (p as any).key : p
 							)
 							.join('.')}]`
 					: '';
@@ -99,6 +99,10 @@ export interface Schema<Input = unknown, Output = Input> extends StandardSchemaV
 	parse(value: unknown): Output;
 	/** Parse and validate data, returning result object without throwing */
 	safeParse(value: unknown): SafeParseResult<Output>;
+	/** Make this schema optional (allow undefined) */
+	optional(): Schema<Input | undefined, Output | undefined>;
+	/** Make this schema nullable (allow null) */
+	nullable(): Schema<Input | null, Output | null>;
 }
 
 /**

@@ -1,5 +1,7 @@
-import type { Schema, Infer } from '../base.js';
-import { createIssue, failure, success, createParseMethods } from '../base.js';
+import type { Schema, Infer } from '../base';
+import { createIssue, failure, success, createParseMethods } from '../base';
+import { optional } from '../utils/optional';
+import { nullable } from '../utils/nullable';
 
 /**
  * Schema for validating arrays with typed elements.
@@ -70,6 +72,14 @@ export class ArraySchema<T extends Schema<any, any>>
 	describe(description: string): this {
 		this.description = description;
 		return this;
+	}
+
+	optional() {
+		return optional(this);
+	}
+
+	nullable() {
+		return nullable(this);
 	}
 
 	parse = this.parseMethods.parse;

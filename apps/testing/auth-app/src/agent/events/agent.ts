@@ -1,12 +1,12 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'Events Demo',
 	},
 	schema: {
-		output: z.string(),
+		output: s.string(),
 	},
 	handler: async (c) => {
 		console.log('session', c.sessionId);

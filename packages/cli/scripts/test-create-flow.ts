@@ -162,7 +162,7 @@ async function linkLocalPackages(): Promise<boolean> {
 	logStep('Step 3: Install Local Packages');
 
 	// Pack and install local packages (same as smoke test - avoids symlink issues)
-	const packagesToInstall = ['core', 'react', 'runtime', 'server', 'cli'];
+	const packagesToInstall = ['core', 'schema', 'react', 'runtime', 'server', 'cli'];
 	const packagePaths: string[] = [];
 
 	// Ensure packages directory exists
@@ -190,6 +190,7 @@ async function linkLocalPackages(): Promise<boolean> {
 	const packageJson = await Bun.file(packageJsonPath).json();
 	delete packageJson.dependencies['@agentuity/cli'];
 	delete packageJson.dependencies['@agentuity/core'];
+	delete packageJson.dependencies['@agentuity/schema'];
 	delete packageJson.dependencies['@agentuity/react'];
 	delete packageJson.dependencies['@agentuity/runtime'];
 	await Bun.write(packageJsonPath, JSON.stringify(packageJson, null, '\t') + '\n');

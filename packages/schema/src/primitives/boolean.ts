@@ -1,5 +1,7 @@
-import type { Schema } from '../base.js';
-import { createIssue, failure, success, createParseMethods } from '../base.js';
+import type { Schema } from '../base';
+import { createIssue, failure, success, createParseMethods } from '../base';
+import { optional } from '../utils/optional';
+import { nullable } from '../utils/nullable';
 
 const parseMethods = createParseMethods<boolean>();
 
@@ -33,6 +35,13 @@ export class BooleanSchema implements Schema<boolean, boolean> {
 		return this;
 	}
 
+	optional() {
+		return optional(this);
+	}
+
+	nullable() {
+		return nullable(this);
+	}
 	parse = parseMethods.parse;
 	safeParse = parseMethods.safeParse;
 }

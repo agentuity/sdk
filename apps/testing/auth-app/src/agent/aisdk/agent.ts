@@ -1,5 +1,5 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 import { openai } from '@ai-sdk/openai';
 import { generateText, type AssistantModelMessage, type TextPart } from 'ai';
 
@@ -8,8 +8,8 @@ const agent = createAgent({
 		name: 'AI SDK Demo',
 	},
 	schema: {
-		input: z.string('the prompt to send'),
-		output: z.string('the prompt output'),
+		input: s.string().describe('the prompt to send'),
+		output: s.string().describe('the prompt output'),
 	},
 	handler: async (_c, prompt) => {
 		const { response } = await generateText({

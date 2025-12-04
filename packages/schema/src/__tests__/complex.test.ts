@@ -113,3 +113,12 @@ describe('Complex Schemas', () => {
 		});
 	});
 });
+describe('record', () => {
+	const schema = s.record(s.string(), s.number());
+	test('should validate records', () => {
+		expect(schema.parse({ a: 1, b: 2 })).toEqual({ a: 1, b: 2 });
+	});
+	test('should reject non-objects', () => {
+		expect(() => schema.parse([])).toThrow(ValidationError);
+	});
+});

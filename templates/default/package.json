@@ -15,11 +15,10 @@
 		"@agentuity/core": "latest",
 		"@agentuity/react": "latest",
 		"@agentuity/runtime": "latest",
-		"@hono/zod-validator": "^0.7.4",
+		"@agentuity/schema": "latest",
 		"hono": "^4.7.10",
 		"react": "^19.2.0",
-		"react-dom": "^19.2.0",
-		"zod": "^4.1.12"
+		"react-dom": "^19.2.0"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

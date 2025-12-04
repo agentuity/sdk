@@ -1,12 +1,12 @@
 import { createAgent, type AgentContext } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'Eval Input Only Demo',
 	},
 	schema: {
-		input: z.object({ message: z.string() }),
+		input: s.object({ message: s.string() }),
 	},
 	handler: async (_c, { message }) => {
 		console.log('input-only message', message);

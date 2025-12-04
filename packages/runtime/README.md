@@ -30,15 +30,15 @@ logger.info('Server running on http://localhost:3500');
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	schema: {
-		input: z.object({
-			message: z.string(),
+		input: s.object({
+			message: s.string(),
 		}),
-		output: z.object({
-			response: z.string(),
+		output: s.object({
+			response: s.string(),
 		}),
 	},
 	handler: async (ctx, input) => {
@@ -136,7 +136,7 @@ Creates a type-safe agent with input/output validation.
 
 - `schema.input?` - Schema for input validation (Zod, Valibot, etc.)
 - `schema.output?` - Schema for output validation
-- `handler` - Agent handler function `(ctx: AgentContext, input) => output`
+- `handler` - Agent handler function `(ctx, input) => output`
 
 ### createRouter()
 

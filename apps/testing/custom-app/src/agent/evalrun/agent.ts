@@ -1,5 +1,5 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 export default createAgent({
 	metadata: {
@@ -7,11 +7,11 @@ export default createAgent({
 		description: 'Agent for testing eval run functionality',
 	},
 	schema: {
-		input: z.object({
-			action: z.string().describe('The action to perform'),
+		input: s.object({
+			action: s.string().describe('The action to perform'),
 		}),
-		output: z.object({
-			success: z.boolean().describe('Whether the action succeeded'),
+		output: s.object({
+			success: s.boolean().describe('Whether the action succeeded'),
 		}),
 	},
 	handler: async (_ctx: any, _input: any) => {

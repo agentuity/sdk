@@ -1,19 +1,19 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 export default createAgent({
 	metadata: {
 		name: 'ObjectStore Test',
 	},
 	schema: {
-		input: z.object({
-			operation: z.enum(['put', 'get', 'delete']),
-			bucket: z.string(),
-			key: z.string(),
-			data: z.string(),
+		input: s.object({
+			operation: s.enum(['put', 'get', 'delete']),
+			bucket: s.string(),
+			key: s.string(),
+			data: s.string(),
 		}),
-		output: z.object({
-			success: z.boolean(),
-			result: z.any(),
+		output: s.object({
+			success: s.boolean(),
+			result: s.any(),
 		}),
 	},
 	handler: async (c, { operation, bucket, key, data }) => {

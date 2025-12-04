@@ -1363,7 +1363,7 @@ Create a test agent to verify the service is available:
 ```typescript
 // In your agent file
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 export default createAgent({
 	metadata: {
@@ -1372,11 +1372,11 @@ export default createAgent({
 		description: 'Test vector search',
 	},
 	schema: {
-		input: z.object({
-			query: z.string(),
+		input: s.object({
+			query: s.string(),
 		}),
-		output: z.object({
-			results: z.array(z.any()),
+		output: s.object({
+			results: s.array(s.any()),
 		}),
 	},
 	async handler(c, input) {
@@ -1417,18 +1417,18 @@ mkdir -p test-app/src/agent/yourservice
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	schema: {
-		input: z.object({
-			operation: z.enum(['testOp1', 'testOp2']),
-			param: z.string(),
+		input: s.object({
+			operation: s.union([s.literal('testOp1'), s.literal('testOp2')]),
+			param: s.string(),
 		}),
-		output: z.object({
-			operation: z.string(),
-			success: z.boolean(),
-			result: z.any().optional(),
+		output: s.object({
+			operation: s.string(),
+			success: s.boolean(),
+			result: s.optional(s.any()),
 		}),
 	},
 	handler: async ({ operation, param }) => {
@@ -1463,7 +1463,6 @@ export default agent;
 
 ```typescript
 import { createRouter } from '@agentuity/runtime';
-import { zValidator } from '@hono/zod-validator';
 import agent from './agent';
 
 const router = createRouter();
@@ -1476,7 +1475,7 @@ router.get('/', async (c) => {
 	return c.json(result);
 });
 
-router.post('/', zValidator('json', agent.inputSchema!), async (c) => {
+router.post('/', agent.validator(), async (c) => {
 	const data = c.req.valid('json');
 	const result = await c.agent.yourservice.run(data);
 	return c.json(result);

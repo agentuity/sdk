@@ -1,5 +1,5 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 export default createAgent({
 	metadata: {
@@ -7,8 +7,8 @@ export default createAgent({
 		description: 'A test agent that streams data',
 	},
 	schema: {
-		input: z.file(),
-		output: z.string(),
+		input: s.any(),
+		output: s.string(),
 	},
 	handler: async (c, input) => {
 		console.log('🔍 [Stream Test] Input:', input);

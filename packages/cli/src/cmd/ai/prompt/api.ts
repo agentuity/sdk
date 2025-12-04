@@ -66,18 +66,21 @@ export default router;
 
 \`\`\`typescript
 import { createRouter } from '@agentuity/runtime';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const router = createRouter();
 
-const createUserSchema = z.object({
-	name: z.string(),
-	email: z.string().email(),
-	age: z.number().min(0),
+const createUserSchema = s.object({
+	name: s.string(),
+	email: s.string(),
+	age: s.number(),
 });
 
-router.post('/', zValidator('json', createUserSchema), async (c) => {
+const validator = createRouter.validator({
+	input: createUserSchema,
+});
+
+router.post('/', validator, async (c) => {
 	const data = c.req.valid('json');
 	// data is fully typed: { name: string, email: string, age: number }
 	return c.json({ 
@@ -267,7 +270,7 @@ return c.json({ data: 'value' }, 200, {
 - **route.ts** must export default the router instance
 - Use c.var.logger for logging, not console.log
 - All agents are accessible via c.agent.{agentName}
-- Validation should use zValidator with Zod schemas or any Standard Schema compatible library
+- Validation should use @agentuity/schema or any Standard Schema compatible library
 - Return appropriate HTTP status codes
 - APIs run at \`/api/{folderName}\` by default
 `;

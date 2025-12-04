@@ -1,5 +1,5 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
@@ -7,15 +7,15 @@ const agent = createAgent({
 		description: 'Tests thread and session state persistence',
 	},
 	schema: {
-		input: z.object({
-			action: z.enum(['save', 'read']),
-			threadData: z.string().optional(),
-			sessionData: z.string().optional(),
+		input: s.object({
+			action: s.enum(['save', 'read']),
+			threadData: s.string().optional(),
+			sessionData: s.string().optional(),
 		}),
-		output: z.object({
-			success: z.boolean(),
-			threadState: z.record(z.string(), z.unknown()).optional(),
-			sessionState: z.record(z.string(), z.unknown()).optional(),
+		output: s.object({
+			success: s.boolean(),
+			threadState: s.record(s.string(), s.unknown()).optional(),
+			sessionState: s.record(s.string(), s.unknown()).optional(),
 		}),
 	},
 	handler: async (c, { action, threadData, sessionData }) => {

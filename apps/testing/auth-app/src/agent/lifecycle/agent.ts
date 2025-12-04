@@ -1,5 +1,5 @@
 import { createAgent, type AppState } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const lifecycleAgent = createAgent({
 	metadata: {
@@ -7,13 +7,13 @@ const lifecycleAgent = createAgent({
 		description: 'Agent that tests lifecycle setup and shutdown methods',
 	},
 	schema: {
-		input: z.object({
-			message: z.string(),
+		input: s.object({
+			message: s.string(),
 		}),
-		output: z.object({
-			result: z.string(),
-			appName: z.string(),
-			agentId: z.string(),
+		output: s.object({
+			result: s.string(),
+			appName: s.string(),
+			agentId: s.string(),
 		}),
 	},
 	setup: async (app: AppState) => {

@@ -550,38 +550,38 @@ describe('agent.validator() - output validation', () => {
 	});
 });
 
-	test('skips output validation for streaming agents', async () => {
-		const streamingAgent = createAgent({
-			metadata: { name: 'Streaming' },
-			schema: {
-				input: z.object({ data: z.string() }),
-				output: z.string(),
-				stream: true,
-			},
-			handler: async (_ctx, input) => {
-				return new ReadableStream({
-					start(controller) {
-						controller.enqueue(input.data);
-						controller.close();
-					},
-				});
-			},
-		});
-
-		const app = new Hono();
-		app.post('/test', streamingAgent.validator(), async (c) => {
-			const data = c.req.valid('json');
-			// Return any JSON - output validation should be skipped for streams
-			return c.json({ stream: 'response', data: data.data });
-		});
-
-		const res = await app.request('/test', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ data: 'test' }),
-		});
-		// Should succeed even though output doesn't match schema (stream validation skipped)
-		expect(res.status).toBe(200);
-		const result: any = await res.json();
-		expect(result.data).toBe('test');
+test('skips output validation for streaming agents', async () => {
+	const streamingAgent = createAgent({
+		metadata: { name: 'Streaming' },
+		schema: {
+			input: z.object({ data: z.string() }),
+			output: z.string(),
+			stream: true,
+		},
+		handler: async (_ctx, input) => {
+			return new ReadableStream({
+				start(controller) {
+					controller.enqueue(input.data);
+					controller.close();
+				},
+			});
+		},
 	});
+
+	const app = new Hono();
+	app.post('/test', streamingAgent.validator(), async (c) => {
+		const data = c.req.valid('json');
+		// Return any JSON - output validation should be skipped for streams
+		return c.json({ stream: 'response', data: data.data });
+	});
+
+	const res = await app.request('/test', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ data: 'test' }),
+	});
+	// Should succeed even though output doesn't match schema (stream validation skipped)
+	expect(res.status).toBe(200);
+	const result: any = await res.json();
+	expect(result.data).toBe('test');
+});

@@ -43,7 +43,7 @@ src/agent/
 
 \`\`\`typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
@@ -51,11 +51,11 @@ const agent = createAgent({
 		description: 'What this agent does',
 	},
 	schema: {
-		input: z.object({ 
-			name: z.string(),
-			age: z.number() 
+		input: s.object({ 
+			name: s.string(),
+			age: s.number() 
 		}),
-		output: z.string(),
+		output: s.string(),
 	},
 	handler: async (c, input) => {
 		// Access context: c.app, c.config, c.logger, c.kv, c.vector, c.stream
@@ -70,7 +70,7 @@ export default agent;
 
 \`\`\`typescript
 import { createAgent, type AppState } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
@@ -78,8 +78,8 @@ const agent = createAgent({
 		description: 'Agent with setup and shutdown',
 	},
 	schema: {
-		input: z.object({ message: z.string() }),
-		output: z.object({ result: z.string() }),
+		input: s.object({ message: s.string() }),
+		output: s.object({ result: s.string() }),
 	},
 	setup: async (app: AppState) => {
 		// Initialize resources (runs once on startup)
@@ -128,7 +128,6 @@ Routes expose HTTP endpoints for your agent:
 
 \`\`\`typescript
 import { createRouter } from '@agentuity/runtime';
-import { zValidator } from '@hono/zod-validator';
 import agent from './agent';
 
 const router = createRouter();
@@ -140,7 +139,7 @@ router.get('/', async (c) => {
 });
 
 // POST /agent/hello with validation
-router.post('/', zValidator('json', agent.inputSchema), async (c) => {
+router.post('/', agent.validator(), async (c) => {
 	const data = c.req.valid('json');
 	const result = await c.agent.hello.run(data);
 	return c.text(result);
@@ -227,17 +226,17 @@ src/agent/
 
 \`\`\`typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'Team Manager',
 	},
 	schema: {
-		input: z.object({ action: z.enum(['info', 'count']) }),
-		output: z.object({ 
-			message: z.string(),
-			timestamp: z.string() 
+		input: s.object({ action: s.union([s.literal('info'), s.literal('count')]) }),
+		output: s.object({ 
+			message: s.string(),
+			timestamp: s.string() 
 		}),
 	},
 	handler: async (ctx, { action }) => {
@@ -255,20 +254,20 @@ export default agent;
 
 \`\`\`typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'Members Subagent',
 	},
 	schema: {
-		input: z.object({
-			action: z.enum(['list', 'add', 'remove']),
-			name: z.string().optional(),
+		input: s.object({
+			action: s.union([s.literal('list'), s.literal('add'), s.literal('remove')]),
+			name: s.optional(s.string()),
 		}),
-		output: z.object({
-			members: z.array(z.string()),
-			parentInfo: z.string().optional(),
+		output: s.object({
+			members: s.array(s.string()),
+			parentInfo: s.optional(s.string()),
 		}),
 	},
 	handler: async (ctx, { action, name }) => {
@@ -331,7 +330,7 @@ Routes for subagents automatically mount under the parent path:
 - Each agent folder name becomes the agent's route name (e.g., \`hello/\` → \`/agent/hello\`)
 - **agent.ts** must export default the agent instance
 - **route.ts** must export default the router instance
-- Input/output schemas are enforced with Zod validation
+- Input/output schemas are enforced with @agentuity/schema validation
 - Setup return value type automatically flows to ctx.config (fully typed)
 - Use c.logger for logging, not console.log
 - Agent names in routes are accessed via c.agent.{folderName}

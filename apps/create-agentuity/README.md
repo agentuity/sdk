@@ -88,22 +88,22 @@ Create a new agent by adding a folder in `src/agent/`:
 
 ```typescript
 // src/agent/my-agent/agent.ts
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		description: 'My amazing agent',
 	},
 	schema: {
-		input: z.object({
-			message: z.string(),
+		input: s.object({
+			message: s.string(),
 		}),
-		output: z.object({
-			response: z.string(),
+		output: s.object({
+			response: s.string(),
 		}),
 	},
-	handler: async (ctx: AgentContext, input) => {
+	handler: async (ctx, input) => {
 		return { response: `Processed: ${input.message}` };
 	},
 });
@@ -118,7 +118,6 @@ Create custom routes in `src/web/` or add routes to an agent folder:
 ```typescript
 // src/agent/my-agent/route.ts
 import { createRouter } from '@agentuity/runtime';
-import { zValidator } from '@hono/zod-validator';
 import agent from './agent';
 
 const router = createRouter();
@@ -128,7 +127,7 @@ router.get('/', async (c) => {
 	return c.json(result);
 });
 
-router.post('/', zValidator('json', agent.inputSchema!), async (c) => {
+router.post('/', agent.validator(), async (c) => {
 	const data = c.req.valid('json');
 	const result = await c.agent.myAgent.run(data);
 	return c.json(result);

@@ -1,12 +1,12 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'SSE Demo',
 	},
 	schema: {
-		output: z.string(),
+		output: s.string(),
 	},
 	handler: async (_c) => {
 		return `The time is: ${new Date().toISOString()}`;

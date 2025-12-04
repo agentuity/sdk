@@ -1,13 +1,13 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'ObjectStore Demo',
 	},
 	schema: {
-		input: z.object({
-			operation: z.enum([
+		input: s.object({
+			operation: s.enum([
 				'put',
 				'get',
 				'delete',
@@ -18,25 +18,33 @@ const agent = createAgent({
 				'listObjects',
 				'headObject',
 			]),
-			bucket: z.string().optional(),
-			key: z.string().optional(),
-			data: z.string().optional(),
-			binaryData: z.array(z.number()).optional(),
-			contentType: z.string().optional(),
-			expiresDuration: z.number().optional(),
-			prefix: z.string().optional(),
-			limit: z.number().optional(),
+			bucket: s.string().optional(),
+			key: s.string().optional(),
+			data: s.string().optional(),
+			binaryData: s.array(s.number()).optional(),
+			contentType: s.string().optional(),
+			expiresDuration: s.number().optional(),
+			prefix: s.string().optional(),
+			limit: s.number().optional(),
 		}),
-		output: z.object({
-			operation: z.string(),
-			success: z.boolean(),
-			result: z.any().optional(),
+		output: s.object({
+			operation: s.string(),
+			success: s.boolean(),
+			result: s.any().optional(),
 		}),
 	},
-	handler: async (
-		c,
-		{ operation, bucket, key, data, binaryData, contentType, expiresDuration, prefix, limit }
-	) => {
+	handler: async (c, input) => {
+		const {
+			operation,
+			bucket,
+			key,
+			data,
+			binaryData,
+			contentType,
+			expiresDuration,
+			prefix,
+			limit,
+		} = input;
 		switch (operation) {
 			case 'put': {
 				if (!bucket || !key) {
@@ -45,11 +53,7 @@ const agent = createAgent({
 				if (!data) {
 					throw new Error('Data is required for put operation');
 				}
-				const encoder = new TextEncoder();
-				const bytes = encoder.encode(data);
-				await c.objectstore.put(bucket, key, bytes, {
-					contentType: contentType || 'text/plain',
-				});
+				await c.objectstore.put(bucket, key, new TextEncoder().encode(data));
 				return {
 					operation,
 					success: true,
@@ -62,22 +66,21 @@ const agent = createAgent({
 					throw new Error('Bucket and key are required for get operation');
 				}
 				const result = await c.objectstore.get(bucket, key);
-				if (result.exists) {
-					const decoder = new TextDecoder();
-					const text = decoder.decode(result.data);
+				if (!result.exists) {
 					return {
 						operation,
-						success: true,
-						result: {
-							data: text,
-							contentType: result.contentType,
-						},
+						success: false,
+						result: { exists: false },
 					};
+				}
+				let data: string | Uint8Array = result.data;
+				if (result.data instanceof Uint8Array) {
+					data = new TextDecoder().decode(result.data);
 				}
 				return {
 					operation,
-					success: false,
-					result: 'Object not found',
+					success: true,
+					result: { exists: true, data, contentType: result.contentType },
 				};
 			}
 
@@ -86,11 +89,19 @@ const agent = createAgent({
 					throw new Error('Bucket and key are required for delete operation');
 				}
 				const deleted = await c.objectstore.delete(bucket, key);
-				return {
-					operation,
-					success: deleted,
-					result: deleted ? `Deleted ${key}` : 'Object not found',
-				};
+				if (deleted) {
+					return {
+						operation,
+						success: true,
+						result: `Deleted ${key} from ${bucket}`,
+					};
+				} else {
+					return {
+						operation,
+						success: false,
+						result: `Object ${key} not found in ${bucket} or deletion failed`,
+					};
+				}
 			}
 
 			case 'createPublicURL': {
@@ -98,7 +109,7 @@ const agent = createAgent({
 					throw new Error('Bucket and key are required for createPublicURL operation');
 				}
 				const url = await c.objectstore.createPublicURL(bucket, key, {
-					expiresDuration: expiresDuration || 3600000, // default 1 hour
+					expiresDuration,
 				});
 				return {
 					operation,
@@ -108,42 +119,42 @@ const agent = createAgent({
 			}
 
 			case 'putBinary': {
-				if (!bucket || !key) {
-					throw new Error('Bucket and key are required for putBinary operation');
+				if (!bucket || !key || !binaryData) {
+					throw new Error('Bucket, key, and binaryData are required for putBinary operation');
 				}
-				if (!binaryData) {
-					throw new Error('Binary data is required for putBinary operation');
-				}
-				// Store binary data - including null bytes and high bytes
-				const bytes = new Uint8Array(binaryData);
-				await c.objectstore.put(bucket, key, bytes, {
+				const buffer = new Uint8Array(binaryData);
+				await c.objectstore.put(bucket, key, buffer, {
 					contentType: contentType || 'application/octet-stream',
 				});
 				return {
 					operation,
 					success: true,
-					result: `Stored ${bytes.length} bytes in ${bucket}/${key}`,
+					result: `Stored binary data in ${bucket}/${key}`,
 				};
 			}
 
 			case 'getBinary': {
-				const result = await c.objectstore.get(bucket!, key!);
-				if (result.exists) {
-					// Return binary data as array of numbers to verify no transformation
+				if (!bucket || !key) {
+					throw new Error('Bucket and key are required for getBinary operation');
+				}
+				const result = await c.objectstore.get(bucket, key);
+				if (!result.exists) {
 					return {
 						operation,
-						success: true,
-						result: {
-							bytes: Array.from(result.data),
-							contentType: result.contentType,
-							length: result.data.length,
-						},
+						success: false,
+						result: { exists: false, bytes: [], length: 0 },
 					};
 				}
+				const bytes = Array.from(result.data);
 				return {
 					operation,
-					success: false,
-					result: 'Object not found',
+					success: true,
+					result: {
+						exists: true,
+						bytes,
+						length: bytes.length,
+						contentType: result.contentType,
+					},
 				};
 			}
 
@@ -186,10 +197,13 @@ const agent = createAgent({
 					return {
 						operation,
 						success: false,
-						error: error instanceof Error ? error.message : 'Unknown error',
+						result: error instanceof Error ? error.message : 'Unknown error',
 					};
 				}
 			}
+
+			default:
+				throw new Error(`Unknown operation: ${operation}`);
 		}
 	},
 });

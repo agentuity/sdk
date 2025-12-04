@@ -1,4 +1,4 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 
 // This agent demonstrates TypeScript type checking for createAgent metadata.
 // It verifies that internal metadata fields (id, filename, version) cannot be passed.

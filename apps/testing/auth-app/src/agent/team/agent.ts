@@ -1,17 +1,17 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'SubAgents Demo',
 	},
 	schema: {
-		input: z.object({
-			action: z.enum(['info', 'count']),
+		input: s.object({
+			action: s.enum(['info', 'count']),
 		}),
-		output: z.object({
-			message: z.string(),
-			timestamp: z.string(),
+		output: s.object({
+			message: s.string(),
+			timestamp: s.string(),
 		}),
 	},
 	handler: async (ctx, { action }) => {

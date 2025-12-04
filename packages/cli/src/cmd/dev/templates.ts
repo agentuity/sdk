@@ -4,7 +4,7 @@ import { basename, join } from 'node:path';
 import { toCamelCase } from '../../utils/string';
 
 const newAgentTemplate = (name: string) => `import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
@@ -12,8 +12,8 @@ const agent = createAgent({
         description: 'Add your agent description here',
     },
 	schema: {
-		input: z.string(),
-		output: z.string(),
+		input: s.string(),
+		output: s.string(),
 	},
 	handler: async (_c, input) => {
 		// TODO: add your code here

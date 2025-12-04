@@ -1,5 +1,7 @@
-import type { Schema } from '../base.js';
-import { createIssue, failure, success, createParseMethods } from '../base.js';
+import type { Schema } from '../base';
+import { createIssue, failure, success, createParseMethods } from '../base';
+import { optional } from '../utils/optional';
+import { nullable } from '../utils/nullable';
 
 /**
  * Schema for validating exact literal values.
@@ -38,6 +40,14 @@ export class LiteralSchema<T extends string | number | boolean> implements Schem
 	describe(description: string): this {
 		this.description = description;
 		return this;
+	}
+
+	optional() {
+		return optional(this);
+	}
+
+	nullable() {
+		return nullable(this);
 	}
 
 	parse = this.parseMethods.parse;

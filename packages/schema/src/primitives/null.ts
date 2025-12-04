@@ -1,5 +1,7 @@
-import type { Schema } from '../base.js';
-import { createIssue, failure, success, createParseMethods } from '../base.js';
+import type { Schema } from '../base';
+import { createIssue, failure, success, createParseMethods } from '../base';
+import { optional } from '../utils/optional';
+import { nullable } from '../utils/nullable';
 
 const parseMethods = createParseMethods<null>();
 
@@ -26,6 +28,13 @@ export class NullSchema implements Schema<null, null> {
 		return this;
 	}
 
+	optional() {
+		return optional(this);
+	}
+
+	nullable() {
+		return nullable(this);
+	}
 	parse = parseMethods.parse;
 	safeParse = parseMethods.safeParse;
 }

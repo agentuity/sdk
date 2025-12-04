@@ -3,6 +3,7 @@
 	"references": [
 		{ "path": "./packages/cli" },
 		{ "path": "./packages/core" },
+		{ "path": "./packages/schema" },
 		{ "path": "./packages/react" },
 		{ "path": "./packages/runtime" },
 		{ "path": "./packages/server" },

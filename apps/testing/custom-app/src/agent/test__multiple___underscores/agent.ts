@@ -1,5 +1,5 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
@@ -7,8 +7,8 @@ const agent = createAgent({
 		description: 'Test agent with multiple underscores',
 	},
 	schema: {
-		input: z.string(),
-		output: z.string(),
+		input: s.string(),
+		output: s.string(),
 	},
 	handler: async (_c, input) => {
 		return input;

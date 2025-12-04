@@ -1,5 +1,5 @@
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
@@ -7,8 +7,8 @@ const agent = createAgent({
 		description: 'Test agent with hyphenated name (send-email)',
 	},
 	schema: {
-		input: z.object({ to: z.string(), subject: z.string() }),
-		output: z.string(),
+		input: s.object({ to: s.string(), subject: s.string() }),
+		output: s.string(),
 	},
 	handler: async (_c, { to, subject }) => {
 		return `Email sent to ${to} with subject: ${subject}`;

@@ -96,7 +96,7 @@ The validator supports three overload signatures:
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 export default createAgent({
 	metadata: {
@@ -108,10 +108,10 @@ export default createAgent({
 		version: 'hash-or-version',
 	},
 	schema: {
-		input: z.object({
+		input: s.object({
 			/* ... */
 		}),
-		output: z.object({
+		output: s.object({
 			/* ... */
 		}),
 	},

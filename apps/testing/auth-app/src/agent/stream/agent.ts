@@ -1,25 +1,26 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'Streams Demo',
 	},
 	schema: {
-		input: z.object({
-			operation: z.enum(['create', 'list', 'delete', 'read']),
-			name: z.string().optional(),
-			id: z.string().optional(),
-			content: z.string().optional(),
-			contentType: z.string().optional(),
+		input: s.object({
+			operation: s.enum(['create', 'list', 'delete', 'read']),
+			name: s.string().optional(),
+			id: s.string().optional(),
+			content: s.string().optional(),
+			contentType: s.string().optional(),
 		}),
-		output: z.object({
-			operation: z.string(),
-			success: z.boolean(),
-			result: z.any().optional(),
+		output: s.object({
+			operation: s.string(),
+			success: s.boolean(),
+			result: s.any().optional(),
 		}),
 	},
-	handler: async (c, { operation, name, id, content, contentType }) => {
+	handler: async (c, input) => {
+		const { operation, name, id, content, contentType } = input;
 		switch (operation) {
 			case 'create': {
 				if (!name || !content) {
@@ -107,6 +108,9 @@ const agent = createAgent({
 					},
 				};
 			}
+
+			default:
+				throw new Error(`Unknown operation: ${operation}`);
 		}
 	},
 });

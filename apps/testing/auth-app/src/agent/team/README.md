@@ -59,7 +59,7 @@ router.get('/', async (c) => {
 
 ```typescript
 // In subagent agent.ts
-handler: async (ctx: AgentContext, input) => {
+handler: async (ctx, input) => {
 	// Access parent agent
 	if (ctx.parent) {
 		const parentResult = await ctx.parent.run({ action: 'info' });

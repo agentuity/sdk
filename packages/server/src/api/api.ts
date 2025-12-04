@@ -345,7 +345,10 @@ export class APIClient {
 
 					// Provide status-aware fallback messages when no structured error data is available
 					throw new APIError({
-						message: this.#getStatusAwareErrorMessage(response.status, isJsonResponse ?? false),
+						message: this.#getStatusAwareErrorMessage(
+							response.status,
+							isJsonResponse ?? false
+						),
 						url: url,
 						status: response.status,
 						sessionId,

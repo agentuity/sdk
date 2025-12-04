@@ -1,26 +1,26 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'SubAgents Tasks Demo',
 	},
 	schema: {
-		input: z.object({
-			action: z.enum(['list', 'add', 'complete', 'remove']),
-			task: z.string().optional(),
-			testRunId: z.string().optional(),
+		input: s.object({
+			action: s.enum(['list', 'add', 'complete', 'remove']),
+			task: s.string().optional(),
+			testRunId: s.string().optional(),
 		}),
-		output: z.object({
-			tasks: z.array(
-				z.object({
-					id: z.number(),
-					task: z.string(),
-					completed: z.boolean(),
+		output: s.object({
+			tasks: s.array(
+				s.object({
+					id: s.number(),
+					task: s.string(),
+					completed: s.boolean(),
 				})
 			),
-			action: z.string(),
-			currentAgent: z.string(),
+			action: s.string(),
+			currentAgent: s.string(),
 		}),
 	},
 	handler: async (ctx, { action, task, testRunId }) => {

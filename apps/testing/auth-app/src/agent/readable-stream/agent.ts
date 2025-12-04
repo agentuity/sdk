@@ -1,13 +1,13 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'ReadableStream Demo',
 	},
 	schema: {
-		input: z.string(),
-		output: z.string(),
+		input: s.string(),
+		output: s.string(),
 		stream: true,
 	},
 	handler: (_c, input: string) => {

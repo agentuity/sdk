@@ -1,13 +1,13 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'SMS Demo',
 	},
 	schema: {
-		input: z.object({ number: z.string(), message: z.string() }),
-		output: z.string(),
+		input: s.object({ number: s.string(), message: s.string() }),
+		output: s.string(),
 	},
 	handler: async (_c, { number, message }) => {
 		return `Received SMS message "${message}" from number ${number}`;

@@ -87,7 +87,8 @@ const agent = createAgent({
 			}),
 		]),
 	},
-	handler: async (c, { operation, key, keys, document, query, category }) => {
+	handler: async (c, input) => {
+		const { operation, key, keys, document, query, category } = input;
 		const storeName = 'test-vector-store';
 
 		switch (operation) {
@@ -184,6 +185,9 @@ const agent = createAgent({
 					result: { exists },
 				};
 			}
+
+			default:
+				throw new Error(`Unknown operation: ${operation}`);
 		}
 	},
 });

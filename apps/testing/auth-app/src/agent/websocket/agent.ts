@@ -1,13 +1,13 @@
-import { type AgentContext, createAgent } from '@agentuity/runtime';
-import { z } from 'zod';
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'Websockets Demo',
 	},
 	schema: {
-		input: z.string(),
-		output: z.object({ action: z.string(), result: z.string() }),
+		input: s.string(),
+		output: s.object({ action: s.string(), result: s.string() }),
 	},
 	handler: async (_c, input) => {
 		return { action: 'token', result: `you sent us: ${input}` };

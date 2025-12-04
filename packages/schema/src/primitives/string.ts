@@ -1,5 +1,7 @@
-import type { Schema } from '../base.js';
-import { createIssue, failure, success, createParseMethods } from '../base.js';
+import type { Schema } from '../base';
+import { createIssue, failure, success, createParseMethods } from '../base';
+import { optional } from '../utils/optional';
+import { nullable } from '../utils/nullable';
 
 const parseMethods = createParseMethods<string>();
 
@@ -15,6 +17,8 @@ const parseMethods = createParseMethods<string>();
  */
 export class StringSchema implements Schema<string, string> {
 	description?: string;
+	private _min?: number;
+	private _max?: number;
 
 	readonly '~standard' = {
 		version: 1 as const,
@@ -22,6 +26,16 @@ export class StringSchema implements Schema<string, string> {
 		validate: (value: unknown) => {
 			if (typeof value !== 'string') {
 				return failure([createIssue(`Expected string, got ${typeof value}`)]);
+			}
+			if (this._min !== undefined && value.length < this._min) {
+				return failure([
+					createIssue(`String must be at least ${this._min} characters, got ${value.length}`),
+				]);
+			}
+			if (this._max !== undefined && value.length > this._max) {
+				return failure([
+					createIssue(`String must be at most ${this._max} characters, got ${value.length}`),
+				]);
 			}
 			return success(value);
 		},
@@ -31,6 +45,54 @@ export class StringSchema implements Schema<string, string> {
 	describe(description: string): this {
 		this.description = description;
 		return this;
+	}
+
+	/**
+	 * Set minimum length.
+	 *
+	 * @example
+	 * ```typescript
+	 * const schema = s.string().min(3);
+	 * schema.parse('hello'); // "hello"
+	 * schema.parse('hi'); // throws ValidationError
+	 * ```
+	 */
+	min(length: number): StringSchema {
+		const clone = this._clone();
+		clone._min = length;
+		return clone;
+	}
+
+	/**
+	 * Set maximum length.
+	 *
+	 * @example
+	 * ```typescript
+	 * const schema = s.string().max(10);
+	 * schema.parse('hello'); // "hello"
+	 * schema.parse('hello world'); // throws ValidationError
+	 * ```
+	 */
+	max(length: number): StringSchema {
+		const clone = this._clone();
+		clone._max = length;
+		return clone;
+	}
+
+	optional() {
+		return optional(this);
+	}
+
+	nullable() {
+		return nullable(this);
+	}
+
+	private _clone(): StringSchema {
+		const clone = new StringSchema();
+		clone.description = this.description;
+		clone._min = this._min;
+		clone._max = this._max;
+		return clone;
 	}
 
 	parse = parseMethods.parse;

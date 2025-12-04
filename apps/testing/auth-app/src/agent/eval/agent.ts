@@ -1,13 +1,13 @@
 import { createAgent, type AgentContext } from '@agentuity/runtime';
-import { z } from 'zod';
+import { s } from '@agentuity/schema';
 
 const agent = createAgent({
 	metadata: {
 		name: 'Eval Demo',
 	},
 	schema: {
-		input: z.object({ name: z.string(), age: z.number() }),
-		output: z.string(),
+		input: s.object({ name: s.string(), age: s.number() }),
+		output: s.string(),
 	},
 	handler: async (_c, { name }) => {
 		return `Hello, ${name}!`;

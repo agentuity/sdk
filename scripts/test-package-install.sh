@@ -50,7 +50,7 @@ bunx tsc --build --force
 
 # Verify dist/ directories exist after build
 log_info "Verifying dist/ directories exist after build..."
-for pkg in core react runtime server cli; do
+for pkg in core schema react runtime server cli; do
     if [ ! -d "packages/$pkg/dist" ]; then
         log_error "Package $pkg missing dist/ directory after build"
         log_info "Contents of packages/$pkg/:"
@@ -68,6 +68,10 @@ mkdir -p "$PACKAGES_DIR"
 cd "$SDK_ROOT/packages/core"
 CORE_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
 log_success "Packed core: $CORE_PKG"
+
+cd "$SDK_ROOT/packages/schema"
+SCHEMA_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
+log_success "Packed schema: $SCHEMA_PKG"
 
 cd "$SDK_ROOT/packages/react"
 REACT_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
@@ -133,6 +137,7 @@ EOF
 
 log_info "Installing CLI and dependencies from packed tarballs..."
 bun add "$PACKAGES_DIR/$CORE_PKG"
+bun add "$PACKAGES_DIR/$SCHEMA_PKG"
 bun add "$PACKAGES_DIR/$REACT_PKG"
 bun add "$PACKAGES_DIR/$RUNTIME_PKG"
 bun add "$PACKAGES_DIR/$SERVER_PKG"
@@ -189,7 +194,7 @@ log_info "Step 5: Installing packed packages..."
 
 # Remove Agentuity dependencies from package.json to avoid conflicts
 cat package.json | \
-  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/react"], .dependencies["@agentuity/runtime"])' \
+  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/runtime"])' \
   > package.json.tmp && mv package.json.tmp package.json
 
 # Install other dependencies first
@@ -201,6 +206,7 @@ bun install
 log_info "Installing @agentuity packages from tarballs..."
 bun add --no-save \
   "$PACKAGES_DIR/$CORE_PKG" \
+  "$PACKAGES_DIR/$SCHEMA_PKG" \
   "$PACKAGES_DIR/$REACT_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
   "$PACKAGES_DIR/$SERVER_PKG" \

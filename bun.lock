@@ -44,11 +44,10 @@
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
         "@agentuity/runtime": "workspace:*",
+        "@agentuity/schema": "workspace:*",
         "@ai-sdk/openai": "^2.0.58",
-        "@hono/zod-validator": "^0.7.4",
         "ai": "^5.0.82",
         "hono": "^4.7.13",
-        "zod": "^4.1.12",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -67,9 +66,9 @@
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
         "@agentuity/runtime": "workspace:*",
+        "@agentuity/schema": "workspace:*",
         "@hono/zod-validator": "^0.7.4",
         "hono": "^4.7.13",
-        "zod": "^4.1.12",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -88,10 +87,10 @@
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
         "@agentuity/runtime": "workspace:*",
+        "@agentuity/schema": "workspace:*",
         "@agentuity/workbench": "workspace:*",
         "@hono/zod-validator": "^0.7.4",
         "hono": "^4.7.13",
-        "zod": "^4.1.12",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -207,7 +206,7 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "0.0.1",
+      "version": "0.0.68",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
