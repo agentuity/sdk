@@ -519,9 +519,7 @@ const AgentuityBundler: BunPlugin = {
 					// Detect if this is a subagent route using shared utility
 					const { isSubagent, parentName } = detectSubagent(route);
 
-					const agentPath = route
-						.replace(/\/route$/, '/*')
-						.replace('./', '/');
+					const agentPath = route.replace(/\/route$/, '/*').replace('./', '/');
 					const routePath = route
 						.replace(/\/route$/, '')
 						.replace('/web/', '/api/')

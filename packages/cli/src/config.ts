@@ -270,7 +270,7 @@ export async function saveAuth(auth: AuthData): Promise<void> {
 	if (isMacOS()) {
 		try {
 			await saveAuthToKeychain(profileName, authData);
-			
+
 			// Successfully stored in keychain, remove from config if present
 			if (config.auth) {
 				delete config.auth;
@@ -327,7 +327,6 @@ export async function saveOrgId(orgId: string): Promise<void> {
 	(config.preferences as Record<string, unknown>).orgId = orgId;
 	await saveConfig(config);
 }
-
 
 export async function getAuth(): Promise<AuthData | null> {
 	const config = await loadConfig();

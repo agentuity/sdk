@@ -22,7 +22,7 @@
 - **Imports**: Use @agentuity/\* for framework imports, relative paths for local modules
 - **Agents**: Export default agent from agent.ts, define Zod schemas for input/output
 - **Routes**: Use createRouter() from @agentuity/runtime, access agents via c.agent.<name>.run()
-- **Validation**: Use @hono/zod-validator for request validation
+- **Validation**: Use agent.validator() for request validation in route handlers
 - **Naming**: Agent folders are lowercase, use camelCase for variables/functions
 
 ## Testing

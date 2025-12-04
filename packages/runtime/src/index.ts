@@ -10,6 +10,7 @@ export { getRouter, getAppState } from './_server';
 export { Email, parseEmail } from './io/email';
 export * from './services/evalrun';
 export { getEvalRunEventProvider, getThreadProvider, getSessionProvider } from './_services';
+export type { RouteSchema, GetRouteSchema } from './_validation';
 
 /**
  * Application state interface that gets automatically augmented based on your createApp setup function.

@@ -10,6 +10,8 @@ import {
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
+import type { Handler } from 'hono/types';
+import { validator } from 'hono/validator';
 import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
 import type { Logger } from './logger';
 import type {
@@ -29,6 +31,7 @@ import { getEvalRunEventProvider } from './_services';
 import * as runtimeConfig from './_config';
 import type { EvalRunStartEvent } from '@agentuity/core';
 import type { AppState } from './index';
+import { validateSchema, formatValidationIssues } from './_validation';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
@@ -395,6 +398,147 @@ type CreateEvalMethod<
 > = (config: CreateEvalConfig<TInput, TOutput>) => Eval<TInput, TOutput>;
 
 /**
+ * Validator function type with method overloads for different validation scenarios.
+ * Provides type-safe validation middleware that integrates with Hono's type system.
+ *
+ * This validator automatically validates incoming JSON request bodies using StandardSchema-compatible
+ * schemas (Zod, Valibot, ArkType, etc.) and provides full TypeScript type inference for validated data
+ * accessible via `c.req.valid('json')`.
+ *
+ * The validator returns 400 Bad Request with validation error details if validation fails.
+ *
+ * @template TInput - Agent's input schema type (StandardSchemaV1 or undefined)
+ * @template _TOutput - Agent's output schema type (reserved for future output validation)
+ *
+ * @example Basic usage with agent's schema
+ * ```typescript
+ * router.post('/', agent.validator(), async (c) => {
+ *   const data = c.req.valid('json'); // Fully typed from agent's input schema
+ *   return c.json(data);
+ * });
+ * ```
+ *
+ * @example Override with custom input schema
+ * ```typescript
+ * router.post('/custom', agent.validator({ input: z.object({ id: z.string() }) }), async (c) => {
+ *   const data = c.req.valid('json'); // Typed as { id: string }
+ *   return c.json(data);
+ * });
+ * ```
+ */
+export interface AgentValidator<
+	TInput extends StandardSchemaV1 | undefined,
+	_TOutput extends StandardSchemaV1 | undefined,
+> {
+	/**
+	 * Validates using the agent's input schema (no override).
+	 * Returns Hono middleware handler that validates JSON request body.
+	 *
+	 * @returns Middleware handler with type inference for validated data
+	 *
+	 * @example
+	 * ```typescript
+	 * // Agent has schema: { input: z.object({ name: z.string() }) }
+	 * router.post('/', agent.validator(), async (c) => {
+	 *   const data = c.req.valid('json'); // { name: string }
+	 *   return c.json({ received: data.name });
+	 * });
+	 * ```
+	 */
+	(): TInput extends StandardSchemaV1
+		? Handler<
+				any,
+				any,
+				{
+					// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+					in: {};
+					out: { json: StandardSchemaV1.InferOutput<TInput> };
+				}
+			>
+		: Handler<any, any, any>;
+
+	/**
+	 * Output-only validation override.
+	 * Validates only the response body (no input validation).
+	 *
+	 * Useful for GET routes or routes where input validation is handled elsewhere.
+	 * The middleware validates the JSON response body and throws 500 Internal Server Error
+	 * if validation fails.
+	 *
+	 * @template TOverrideOutput - Custom output schema type
+	 * @param override - Object containing output schema
+	 * @returns Middleware handler that validates response output
+	 *
+	 * @example GET route with output validation
+	 * ```typescript
+	 * router.get('/', agent.validator({ output: z.array(z.object({ id: z.string() })) }), async (c) => {
+	 *   // Returns array of objects - validated against schema
+	 *   return c.json([{ id: '123' }, { id: '456' }]);
+	 * });
+	 * ```
+	 */
+	<TOverrideOutput extends StandardSchemaV1>(override: {
+		output: TOverrideOutput;
+	}): Handler<
+		any,
+		any,
+		{
+			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+			in: {};
+			out: { json: StandardSchemaV1.InferOutput<TOverrideOutput> };
+		}
+	>;
+
+	/**
+	 * Validates with custom input and optional output schemas (POST/PUT/PATCH/DELETE).
+	 * Overrides the agent's schema for this specific route.
+	 *
+	 * @template TOverrideInput - Custom input schema type
+	 * @template TOverrideOutput - Optional custom output schema type
+	 * @param override - Object containing input (required) and output (optional) schemas
+	 * @returns Middleware handler with type inference from custom schemas
+	 *
+	 * @example Custom input schema
+	 * ```typescript
+	 * router.post('/users', agent.validator({
+	 *   input: z.object({ email: z.string().email(), name: z.string() })
+	 * }), async (c) => {
+	 *   const data = c.req.valid('json'); // { email: string, name: string }
+	 *   return c.json({ id: '123', ...data });
+	 * });
+	 * ```
+	 *
+	 * @example Custom input and output schemas
+	 * ```typescript
+	 * router.post('/convert', agent.validator({
+	 *   input: z.string(),
+	 *   output: z.number()
+	 * }), async (c) => {
+	 *   const data = c.req.valid('json'); // string
+	 *   return c.json(123);
+	 * });
+	 * ```
+	 */
+	<
+		TOverrideInput extends StandardSchemaV1,
+		TOverrideOutput extends StandardSchemaV1 | undefined = undefined,
+	>(override: {
+		input: TOverrideInput;
+		output?: TOverrideOutput;
+	}): Handler<
+		any,
+		any,
+		{
+			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+			in: {};
+			out: {
+				json: StandardSchemaV1.InferOutput<TOverrideInput>;
+			};
+		}
+	>;
+}
+
+/**
  * Agent instance type returned by createAgent().
  * Represents a fully configured agent with metadata, handler, lifecycle hooks, and event listeners.
  *
@@ -448,6 +592,76 @@ export type Agent<
 		ctx: AgentContext<any, any, any, TConfig, TAppState>,
 		...args: any[]
 	) => any | Promise<any>;
+
+	/**
+	 * Creates a type-safe validation middleware for routes using StandardSchema validation.
+	 *
+	 * This method validates incoming JSON request bodies against the agent's **input schema**
+	 * and optionally validates outgoing JSON responses against the **output schema**.
+	 * Provides full TypeScript type inference for validated input data accessible via `c.req.valid('json')`.
+	 *
+	 * **Validation behavior:**
+	 * - **Input**: Validates request JSON body, returns 400 Bad Request on failure
+	 * - **Output**: Validates response JSON body (if output schema provided), throws 500 on failure
+	 * - Passes validated input data to handler via `c.req.valid('json')`
+	 * - Full TypeScript type inference for validated input data
+	 *
+	 * **Supported schema libraries:**
+	 * - Zod (z.object, z.string, etc.)
+	 * - Valibot (v.object, v.string, etc.)
+	 * - ArkType (type({ ... }))
+	 * - Any StandardSchema-compatible library
+	 *
+	 * **Method overloads:**
+	 * - `agent.validator()` - Validates using agent's input/output schemas
+	 * - `agent.validator({ output: schema })` - Output-only validation (no input validation)
+	 * - `agent.validator({ input: schema })` - Custom input schema override
+	 * - `agent.validator({ input: schema, output: schema })` - Both input and output validated
+	 *
+	 * @returns Hono middleware handler with proper type inference
+	 *
+	 * @example Automatic validation using agent's schema
+	 * ```typescript
+	 * // Agent defined with: schema: { input: z.object({ name: z.string(), age: z.number() }) }
+	 * router.post('/', agent.validator(), async (c) => {
+	 *   const data = c.req.valid('json'); // Fully typed: { name: string, age: number }
+	 *   return c.json({ greeting: `Hello ${data.name}, age ${data.age}` });
+	 * });
+	 * ```
+	 *
+	 * @example Override with custom schema per-route
+	 * ```typescript
+	 * router.post('/email', agent.validator({
+	 *   input: z.object({ email: z.string().email() })
+	 * }), async (c) => {
+	 *   const data = c.req.valid('json'); // Typed as { email: string }
+	 *   return c.json({ sent: data.email });
+	 * });
+	 * ```
+	 *
+	 * @example Works with any StandardSchema library
+	 * ```typescript
+	 * import * as v from 'valibot';
+	 *
+	 * router.post('/valibot', agent.validator({
+	 *   input: v.object({ count: v.number() })
+	 * }), async (c) => {
+	 *   const data = c.req.valid('json'); // Typed correctly
+	 *   return c.json({ count: data.count });
+	 * });
+	 * ```
+	 *
+	 * @example Validation error response (400)
+	 * ```typescript
+	 * // Request: { "name": "Bob" } (missing 'age')
+	 * // Response: {
+	 * //   "error": "Validation failed",
+	 * //   "message": "age: Invalid input: expected number, received undefined",
+	 * //   "issues": [{ "message": "...", "path": ["age"] }]
+	 * // }
+	 * ```
+	 */
+	validator: AgentValidator<TInput, TOutput>;
 
 	/**
 	 * Array of evaluation functions created via agent.createEval().
@@ -1536,6 +1750,108 @@ export function createAgent<
 		agent.stream = config.schema.stream;
 	}
 
+	// Add validator method with overloads
+	agent.validator = ((override?: any) => {
+		const effectiveInputSchema = override?.input ?? inputSchema;
+		const effectiveOutputSchema = override?.output ?? outputSchema;
+
+		// Helper to build the standard Hono input validator so types flow
+		const buildInputValidator = (schema?: StandardSchemaV1) =>
+			validator('json', async (value, c) => {
+				if (schema) {
+					const result = await validateSchema(schema, value);
+					if (!result.success) {
+						return c.json(
+							{
+								error: 'Validation failed',
+								message: formatValidationIssues(result.issues),
+								issues: result.issues,
+							},
+							400
+						);
+					}
+					return result.data;
+				}
+				return value;
+			});
+
+		// If no output schema, preserve existing behavior: pure input validation
+		if (!effectiveOutputSchema) {
+			return buildInputValidator(effectiveInputSchema);
+		}
+
+		// Output validation middleware (runs after handler)
+		const outputValidator: MiddlewareHandler = async (c, next) => {
+			await next();
+
+			const res = c.res;
+			if (!res) return;
+
+			// Skip output validation for streaming agents
+			if (config.schema?.stream) {
+				return;
+			}
+
+			// Only validate JSON responses
+			const contentType = res.headers.get('Content-Type') ?? '';
+			if (!contentType.toLowerCase().includes('application/json')) {
+				return;
+			}
+
+			// Clone so we don't consume the body that will be sent
+			let responseBody: unknown;
+			try {
+				const cloned = res.clone();
+				responseBody = await cloned.json();
+			} catch {
+				const OutputValidationError = StructuredError('OutputValidationError')<{
+					issues: any[];
+				}>();
+				throw new OutputValidationError({
+					message: 'Output validation failed: response is not valid JSON',
+					issues: [],
+				});
+			}
+
+			const result = await validateSchema(effectiveOutputSchema, responseBody);
+			if (!result.success) {
+				const OutputValidationError = StructuredError('OutputValidationError')<{
+					issues: any[];
+				}>();
+				throw new OutputValidationError({
+					message: `Output validation failed: ${formatValidationIssues(result.issues)}`,
+					issues: result.issues,
+				});
+			}
+
+			// Replace response with validated/sanitized JSON
+			c.res = new Response(JSON.stringify(result.data), {
+				status: res.status,
+				headers: res.headers,
+			});
+		};
+
+		// If we have no input schema, we only do output validation
+		if (!effectiveInputSchema) {
+			return outputValidator as unknown as Handler;
+		}
+
+		// Compose: input validator → output validator
+		const inputMiddleware = buildInputValidator(effectiveInputSchema);
+
+		const composed: MiddlewareHandler = async (c, next) => {
+			// Run the validator first; its next() runs the output validator,
+			// whose next() runs the actual handler(s)
+			const result = await inputMiddleware(c, async () => {
+				await outputValidator(c, next);
+			});
+			// If inputMiddleware returned early (validation failed), return that response
+			return result;
+		};
+
+		return composed as unknown as Handler;
+	}) as AgentValidator<TInput, TOutput>;
+
 	return agent as Agent<TInput, TOutput, TStream, TConfig, TAppState>;
 }
 
@@ -1625,17 +1941,21 @@ export const populateAgentsRegistry = (ctx: Context): any => {
 			if (rawParentName && rawChildName) {
 				// Convert parent name to camelCase for registry key
 				const parentKey = toCamelCase(rawParentName);
-				
+
 				// Validate parentKey is non-empty
 				if (!parentKey) {
-					internal.warn(`Agent name "${rawParentName}" converts to empty camelCase key. Skipping.`);
+					internal.warn(
+						`Agent name "${rawParentName}" converts to empty camelCase key. Skipping.`
+					);
 					continue;
 				}
 
 				// Detect collision on parent key - check ownership
 				const existingOwner = ownershipMap.get(parentKey);
 				if (existingOwner && existingOwner !== rawParentName) {
-					internal.error(`Agent registry collision: "${rawParentName}" conflicts with "${existingOwner}" (both map to camelCase key "${parentKey}")`);
+					internal.error(
+						`Agent registry collision: "${rawParentName}" conflicts with "${existingOwner}" (both map to camelCase key "${parentKey}")`
+					);
 					throw new Error(`Agent registry collision detected for key "${parentKey}"`);
 				}
 
@@ -1648,13 +1968,15 @@ export const populateAgentsRegistry = (ctx: Context): any => {
 						ownershipMap.set(parentKey, rawParentName);
 					}
 				}
-				
+
 				// Attach subagent to parent using camelCase property name
 				const childKey = toCamelCase(rawChildName);
-				
+
 				// Validate childKey is non-empty
 				if (!childKey) {
-					internal.warn(`Agent name "${rawChildName}" converts to empty camelCase key. Skipping subagent "${name}".`);
+					internal.warn(
+						`Agent name "${rawChildName}" converts to empty camelCase key. Skipping subagent "${name}".`
+					);
 					continue;
 				}
 
@@ -1662,8 +1984,12 @@ export const populateAgentsRegistry = (ctx: Context): any => {
 				const childOwnershipKey = `${parentKey}.${childKey}`;
 				const existingChildOwner = childOwnershipMap.get(childOwnershipKey);
 				if (existingChildOwner && existingChildOwner !== name) {
-					internal.error(`Agent registry collision: subagent "${name}" conflicts with "${existingChildOwner}" (both map to camelCase key "${childOwnershipKey}")`);
-					throw new Error(`Agent registry collision detected for subagent key "${childOwnershipKey}"`);
+					internal.error(
+						`Agent registry collision: subagent "${name}" conflicts with "${existingChildOwner}" (both map to camelCase key "${childOwnershipKey}")`
+					);
+					throw new Error(
+						`Agent registry collision detected for subagent key "${childOwnershipKey}"`
+					);
 				}
 
 				if (agentsObj[parentKey]) {
@@ -1677,7 +2003,7 @@ export const populateAgentsRegistry = (ctx: Context): any => {
 		} else {
 			// Parent agent or standalone agent - convert to camelCase for registry key
 			const parentKey = toCamelCase(name);
-			
+
 			// Validate parentKey is non-empty
 			if (!parentKey) {
 				internal.warn(`Agent name "${name}" converts to empty camelCase key. Skipping.`);
@@ -1687,7 +2013,9 @@ export const populateAgentsRegistry = (ctx: Context): any => {
 			// Detect collision on parent key - check ownership
 			const existingOwner = ownershipMap.get(parentKey);
 			if (existingOwner && existingOwner !== name) {
-				internal.error(`Agent registry collision: "${name}" conflicts with "${existingOwner}" (both map to camelCase key "${parentKey}")`);
+				internal.error(
+					`Agent registry collision: "${name}" conflicts with "${existingOwner}" (both map to camelCase key "${parentKey}")`
+				);
 				throw new Error(`Agent registry collision detected for key "${parentKey}"`);
 			}
 

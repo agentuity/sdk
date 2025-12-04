@@ -77,7 +77,11 @@ export async function listOrgResources(
 	const query = params.toString();
 	const url = `/resource/2025-11-16${query ? `?${query}` : ''}`;
 
-	const resp = await client.request<OrgResourceListResponse>('GET', url, OrgResourceListResponseSchema);
+	const resp = await client.request<OrgResourceListResponse>(
+		'GET',
+		url,
+		OrgResourceListResponseSchema
+	);
 	if (resp.success) {
 		return resp.data;
 	}

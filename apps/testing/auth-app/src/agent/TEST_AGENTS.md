@@ -136,7 +136,7 @@ The following agents test that the agent registry properly handles different nam
 ### Hyphenated Names
 
 - **send-email** (`/agent/send-email`) - Tests `send-email` → `sendEmail` conversion
-- **my-agent** (`/agent/my-agent`) - Tests `my-agent` → `myAgent` conversion  
+- **my-agent** (`/agent/my-agent`) - Tests `my-agent` → `myAgent` conversion
 - **multi-word-test** (`/agent/multi-word-test`) - Tests `multi-word-test` → `multiWordTest` conversion
 
 ### Parent/Child with Hyphens
@@ -153,6 +153,7 @@ Run all naming tests:
 ```
 
 This verifies:
+
 1. Hyphenated names convert correctly to camelCase
 2. Multi-word hyphenated names work properly
 3. Parent/child subagent naming with hyphens

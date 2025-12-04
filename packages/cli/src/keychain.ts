@@ -1,12 +1,12 @@
 /**
  * macOS Keychain integration for secure auth token storage
- * 
+ *
  * Stores auth tokens encrypted in the macOS Keychain using a per-device AES-256 key.
  * No user prompts required - fully automatic and secure.
  */
 
-const SERVICE_PREFIX = "com.agentuity.cli";
-const KEY_ACCOUNT = "aes-encryption-key";
+const SERVICE_PREFIX = 'com.agentuity.cli';
+const KEY_ACCOUNT = 'aes-encryption-key';
 
 /**
  * Check if we're running on macOS
@@ -108,10 +108,9 @@ export async function saveAuthToKeychain(
 
 	// Store encrypted auth in keychain
 	// First try to delete if exists, then add
-	const del = Bun.spawn(
-		['security', 'delete-generic-password', '-s', service, '-a', account],
-		{ stderr: 'ignore' }
-	);
+	const del = Bun.spawn(['security', 'delete-generic-password', '-s', service, '-a', account], {
+		stderr: 'ignore',
+	});
 	await del.exited;
 
 	const add = Bun.spawn([
@@ -170,9 +169,8 @@ export async function deleteAuthFromKeychain(profileName: string): Promise<void>
 	const service = `${SERVICE_PREFIX}.${profileName}`;
 	const account = 'auth-token';
 
-	const del = Bun.spawn(
-		['security', 'delete-generic-password', '-s', service, '-a', account],
-		{ stderr: 'ignore' }
-	);
+	const del = Bun.spawn(['security', 'delete-generic-password', '-s', service, '-a', account], {
+		stderr: 'ignore',
+	});
 	await del.exited;
 }

@@ -1,5 +1,4 @@
 import { createRouter } from '@agentuity/runtime';
-import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import agent from './agent';
 
@@ -26,17 +25,13 @@ router.get('/', async (c) => {
 	return c.json(result);
 });
 
-if (!agent.inputSchema) {
-	throw new Error('Agent inputSchema is required for POST route validation');
-}
-
-router.post('/', zValidator('json', agent.inputSchema), async (c) => {
+router.post('/', agent.validator(), async (c) => {
 	const data = c.req.valid('json');
 	const result = await c.agent.team.tasks.run(data);
 	return c.json(result);
 });
 
-router.post('/add', zValidator('json', addTaskSchema), async (c) => {
+router.post('/add', agent.validator({ input: addTaskSchema }), async (c) => {
 	const data = c.req.valid('json');
 	const result = await c.agent.team.tasks.run({
 		action: 'add',
@@ -46,7 +41,7 @@ router.post('/add', zValidator('json', addTaskSchema), async (c) => {
 	return c.json(result);
 });
 
-router.post('/complete', zValidator('json', completeTaskSchema), async (c) => {
+router.post('/complete', agent.validator({ input: completeTaskSchema }), async (c) => {
 	const data = c.req.valid('json');
 	const result = await c.agent.team.tasks.run({
 		action: 'complete',

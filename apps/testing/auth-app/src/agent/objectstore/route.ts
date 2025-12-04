@@ -1,5 +1,4 @@
 import { createRouter } from '@agentuity/runtime';
-import { zValidator } from '@hono/zod-validator';
 import agent from './agent';
 
 const router = createRouter();
@@ -21,7 +20,7 @@ router.get('/', async (c) => {
 	});
 });
 
-router.post('/', zValidator('json', agent.inputSchema!), async (c) => {
+router.post('/', agent.validator(), async (c) => {
 	const data = c.req.valid('json');
 	const result = await c.agent.objectstore.run(data);
 	return c.json(result);

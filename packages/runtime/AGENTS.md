@@ -44,11 +44,53 @@ src/
 
 - **Agent context** - Every agent handler receives `AgentContext` as first parameter
 - **Schema validation** - Support StandardSchemaV1 (works with Zod, Valibot, etc.)
+- **Route validation** - Use `agent.validator()` for automatic input validation with full type safety
 - **Streaming support** - Agents can return ReadableStream for streaming responses
 - **WebSocket support** - Use `router.websocket()` for WebSocket routes
 - **SSE support** - Use `router.sse()` for Server-Sent Events
 - **Session tracking** - Each request gets unique sessionId
 - **Storage abstractions** - Provide kv, objectstore, stream, vector interfaces
+
+## Route Validation
+
+Routes can use `agent.validator()` to automatically validate request input using the agent's schema:
+
+```typescript
+import { createRouter } from '@agentuity/runtime';
+import agent from './agent';
+
+const router = createRouter();
+
+// Automatic validation using agent's input schema
+router.post('/', agent.validator(), async (c) => {
+	const data = c.req.valid('json'); // Fully typed from agent schema!
+	const output = await c.agent.myAgent.run(data);
+	return c.json(output);
+});
+
+// Override with custom schema
+router.post(
+	'/custom',
+	agent.validator({
+		input: z.object({ custom: z.string() }),
+	}),
+	async (c) => {
+		const data = c.req.valid('json'); // Typed as { custom: string }
+		return c.json(data);
+	}
+);
+
+// GET routes don't need validation
+router.get('/', async (c) => {
+	return c.json({ hello: 'world' });
+});
+```
+
+The validator supports three overload signatures:
+
+- `agent.validator()` - Uses agent's input/output schemas
+- `agent.validator({ output: schema })` - Output-only validation (GET-compatible)
+- `agent.validator({ input: schema, output?: schema })` - Custom input/output schemas
 
 ## Agent Definition Pattern
 

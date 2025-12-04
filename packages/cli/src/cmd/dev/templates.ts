@@ -27,6 +27,7 @@ export default agent;
 const newAgentRouteTemplate = (name: string) => {
 	const camelName = toCamelCase(name);
 	return `import { createRouter } from '@agentuity/runtime';
+import agent from './agent';
 
 const router = createRouter();
 
@@ -34,6 +35,12 @@ router.get('/', async (c) => {
 	// TODO: add your code here
 	const output = await c.agent.${camelName}.run('hello world');
 	return c.text(output);
+});
+
+router.post('/', agent.validator(), async (c) => {
+	const data = c.req.valid('json');
+	const output = await c.agent.${camelName}.run(data);
+	return c.json(output);
 });
 
 export default router;

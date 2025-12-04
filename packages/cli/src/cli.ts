@@ -544,14 +544,14 @@ async function registerSubcommand(
 		for (const nestedSub of subDef.subcommands) {
 			await registerSubcommand(cmd, nestedSub, baseCtx);
 		}
-		
+
 		// Add a virtual 'help' subcommand
 		cmd.command('help', { hidden: true })
 			.description('Display help')
 			.action(() => {
 				cmd.help();
 			});
-		
+
 		return;
 	}
 
@@ -1317,7 +1317,7 @@ export async function registerCommands(
 			for (const sub of cmdDef.subcommands) {
 				await registerSubcommand(cmd, sub, baseCtx);
 			}
-			
+
 			// Add a virtual 'help' subcommand for commands with subcommands
 			cmd.command('help', { hidden: true })
 				.description('Display help')
