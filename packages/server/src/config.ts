@@ -4,6 +4,7 @@ export interface ServiceUrls {
 	stream: string;
 	vector: string;
 	catalyst: string;
+	otel: string;
 }
 
 /**
@@ -18,6 +19,7 @@ export function getServiceUrls(region?: string): ServiceUrls {
 		stream: process.env.AGENTUITY_STREAM_URL || buildRegionalURL(region, 'streams'),
 		vector: process.env.AGENTUITY_VECTOR_URL || transportUrl,
 		catalyst: process.env.AGENTUITY_CATALYST_URL || transportUrl,
+		otel: process.env.AGENTUITY_OTLP_URL || buildRegionalURL(region, 'otel'),
 	};
 }
 

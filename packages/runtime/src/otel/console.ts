@@ -1,26 +1,14 @@
 import { SeverityNumber } from '@opentelemetry/api-logs';
 import { type ExportResult, ExportResultCode } from '@opentelemetry/core';
 import type { LogRecordExporter, ReadableLogRecord } from '@opentelemetry/sdk-logs';
-import { type ColorScheme, createLogger } from '@agentuity/server';
-import type { Logger, LogLevel } from '@agentuity/core';
+import type { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { __originalConsole } from './logger';
 
 /**
  * Console implementation of the LogRecordExporter interface
+ * Uses __originalConsole to avoid infinite loop when console is patched
  */
 export class ConsoleLogRecordExporter implements LogRecordExporter {
-	private readonly logger: Logger;
-
-	/**
-	 * Creates a new console log record exporter
-	 */
-	constructor(logLevel: LogLevel) {
-		this.logger = createLogger(
-			logLevel,
-			false,
-			(process.env.COLOR_SCHEME as ColorScheme) ?? 'dark'
-		);
-	}
-
 	/**
 	 * Exports log records to the console
 	 *
@@ -29,21 +17,23 @@ export class ConsoleLogRecordExporter implements LogRecordExporter {
 	 */
 	export(logs: ReadableLogRecord[], resultCallback: (result: ExportResult) => void): void {
 		for (const log of logs) {
+			const severity = log.severityNumber ? SeverityNumber[log.severityNumber] : 'INFO';
+			const msg = `[${severity}] ${log.body}`;
 			switch (log.severityNumber) {
 				case SeverityNumber.DEBUG:
-					this.logger.debug(log.body);
+					__originalConsole.debug(msg);
 					break;
 				case SeverityNumber.INFO:
-					this.logger.info(log.body);
+					__originalConsole.info(msg);
 					break;
 				case SeverityNumber.WARN:
-					this.logger.warn(log.body);
+					__originalConsole.warn(msg);
 					break;
 				case SeverityNumber.ERROR:
-					this.logger.error(log.body);
+					__originalConsole.error(msg);
 					break;
 				default:
-					this.logger.info(log.body);
+					__originalConsole.log(msg);
 					break;
 			}
 		}
@@ -55,6 +45,30 @@ export class ConsoleLogRecordExporter implements LogRecordExporter {
 	 *
 	 * @returns A promise that resolves when shutdown is complete
 	 */
+	shutdown(): Promise<void> {
+		return Promise.resolve();
+	}
+}
+
+/**
+ * Console implementation of the SpanExporter interface
+ * Uses __originalConsole to avoid infinite loop when console is patched
+ */
+export class DebugSpanExporter implements SpanExporter {
+	export(spans: ReadableSpan[], resultCallback: (result: ExportResult) => void): void {
+		for (const span of spans) {
+			__originalConsole.log('[SPAN]', {
+				name: span.name,
+				traceId: span.spanContext().traceId,
+				spanId: span.spanContext().spanId,
+				duration: span.duration,
+				status: span.status,
+				attributes: span.attributes,
+			});
+		}
+		resultCallback({ code: ExportResultCode.SUCCESS });
+	}
+
 	shutdown(): Promise<void> {
 		return Promise.resolve();
 	}

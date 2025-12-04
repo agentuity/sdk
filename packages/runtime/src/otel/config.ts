@@ -1,5 +1,6 @@
 import type { LogLevel } from '@agentuity/core';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { getServiceUrls } from '@agentuity/server';
 import * as runtimeConfig from '../_config';
 import type { OtelConfig, OtelResponse } from './otel';
 import { registerOtel } from './otel';
@@ -22,8 +23,10 @@ interface OtelRegisterConfig {
 }
 
 export function register(registerConfig: OtelRegisterConfig): OtelResponse {
-	const url = process.env.AGENTUITY_OTLP_URL ?? 'https://otel.agentuity.cloud';
-	const bearerToken = process.env.AGENTUITY_OTLP_BEARER_TOKEN;
+	const region = process.env.AGENTUITY_REGION ?? 'usc';
+	const serviceUrls = getServiceUrls(region);
+	const url = serviceUrls.otel;
+	const bearerToken = process.env.AGENTUITY_OTLP_BEARER_TOKEN ?? process.env.AGENTUITY_SDK_KEY;
 	const config: OtelConfig = {
 		spanProcessors: registerConfig.processors,
 		name: runtimeConfig.getAppName(),

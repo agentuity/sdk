@@ -1,5 +1,5 @@
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { BatchSpanProcessor, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import opentelemetry, { type Meter, metrics, propagation, type Tracer } from '@opentelemetry/api';
 import * as LogsAPI from '@opentelemetry/api-logs';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
@@ -26,7 +26,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
 import { initialize } from '@traceloop/node-server-sdk';
 import type { Logger } from '../logger';
-import { ConsoleLogRecordExporter } from './console';
+import { ConsoleLogRecordExporter, DebugSpanExporter } from './console';
 import { instrumentFetch } from './fetch';
 import { createLogger, patchConsole } from './logger';
 import { getSDKVersion, isAuthenticated } from '../_config';
@@ -88,19 +88,22 @@ export const createAgentuityLoggerProvider = ({
 	url,
 	headers,
 	resource,
-	logLevel,
 	jsonlBasePath,
+	useConsoleExporters,
 }: {
 	url?: string;
 	headers?: Record<string, string>;
 	resource: Resource;
 	logLevel: LogLevel;
 	jsonlBasePath?: string;
+	useConsoleExporters: boolean;
 }) => {
 	let processor: LogRecordProcessor;
 	let exporter: OTLPLogExporter | JSONLLogExporter | undefined;
 
-	if (jsonlBasePath) {
+	if (useConsoleExporters) {
+		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter());
+	} else if (jsonlBasePath) {
 		exporter = new JSONLLogExporter(jsonlBasePath);
 		processor = new BatchLogRecordProcessor(exporter);
 	} else if (url) {
@@ -114,7 +117,7 @@ export const createAgentuityLoggerProvider = ({
 		exporter = otlpExporter;
 		processor = new BatchLogRecordProcessor(otlpExporter);
 	} else {
-		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter(logLevel));
+		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter());
 	}
 	const provider = new LoggerProvider({
 		resource,
@@ -184,6 +187,9 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		headers.Authorization = `Bearer ${bearerToken}`;
 	}
 
+	// use console debug exporters for local debugging
+	const useConsoleExporters = process.env.AGENTUITY_DEBUG_OTEL_CONSOLE === 'true';
+
 	const resource = createResource(config);
 	const loggerProvider = createAgentuityLoggerProvider({
 		url,
@@ -191,6 +197,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		resource,
 		logLevel,
 		jsonlBasePath,
+		useConsoleExporters,
 	});
 	const attrs = {
 		'@agentuity/orgId': orgId ?? 'unknown',
@@ -205,6 +212,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 	// must do this after we have created the logger
 	patchConsole(!!url, attrs, logLevel);
 
+	// Build trace exporter (OTLP or JSONL)
 	const traceExporter = jsonlBasePath
 		? new JSONLTraceExporter(jsonlBasePath)
 		: url
@@ -216,6 +224,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 				})
 			: undefined;
 
+	// Build metric exporter (OTLP or JSONL)
 	const metricExporter = jsonlBasePath
 		? new JSONLMetricExporter(jsonlBasePath)
 		: url
@@ -227,28 +236,36 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 				})
 			: undefined;
 
-	// Create span processor for the trace exporter
-	const traceSpanProcessor = traceExporter ? new BatchSpanProcessor(traceExporter) : undefined;
+	// Create span processors
+	const spanProcessors: SpanProcessor[] = [];
+
+	// Add OTLP/JSONL span processor if we have an exporter
+	if (traceExporter) {
+		spanProcessors.push(new BatchSpanProcessor(traceExporter));
+	}
+
+	// Add debug span processor if console debugging is enabled
+	if (useConsoleExporters) {
+		spanProcessors.push(new SimpleSpanProcessor(new DebugSpanExporter()));
+	}
 
 	// Create a separate metric reader for the NodeSDK
-	const sdkMetricReader =
-		url && metricExporter
-			? new PeriodicExportingMetricReader({
-					exporter: metricExporter,
-					exportTimeoutMillis: devmode ? devmodeExportInterval : productionExportInterval,
-					exportIntervalMillis: devmode ? devmodeExportInterval : productionExportInterval,
-				})
-			: undefined;
+	const sdkMetricReader = metricExporter
+		? new PeriodicExportingMetricReader({
+				exporter: metricExporter,
+				exportTimeoutMillis: devmode ? devmodeExportInterval : productionExportInterval,
+				exportIntervalMillis: devmode ? devmodeExportInterval : productionExportInterval,
+			})
+		: undefined;
 
 	// Create a separate metric reader for the MeterProvider
-	const hostMetricReader =
-		url && metricExporter
-			? new PeriodicExportingMetricReader({
-					exporter: metricExporter,
-					exportTimeoutMillis: devmode ? devmodeExportInterval : productionExportInterval,
-					exportIntervalMillis: devmode ? devmodeExportInterval : productionExportInterval,
-				})
-			: undefined;
+	const hostMetricReader = metricExporter
+		? new PeriodicExportingMetricReader({
+				exporter: metricExporter,
+				exportTimeoutMillis: devmode ? devmodeExportInterval : productionExportInterval,
+				exportIntervalMillis: devmode ? devmodeExportInterval : productionExportInterval,
+			})
+		: undefined;
 
 	const meterProvider = hostMetricReader
 		? new MeterProvider({
@@ -266,7 +283,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 	let running = false;
 	let instrumentationSDK: NodeSDK | undefined;
 
-	if (url) {
+	if (url || useConsoleExporters) {
 		const propagator = new CompositePropagator({
 			propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
 		});
@@ -274,11 +291,8 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 
 		instrumentFetch();
 
-		// Combine custom span processors with the trace exporter processor
-		const allSpanProcessors = [
-			...(traceSpanProcessor ? [traceSpanProcessor] : []),
-			...(config.spanProcessors || []),
-		];
+		// Combine custom span processors with our span processors
+		const allSpanProcessors = [...spanProcessors, ...(config.spanProcessors || [])];
 
 		instrumentationSDK = new NodeSDK({
 			logRecordProcessor: loggerProvider.processor,
