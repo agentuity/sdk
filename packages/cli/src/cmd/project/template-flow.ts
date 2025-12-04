@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { cwd } from 'node:process';
 import { homedir } from 'node:os';
-import enquirer from 'enquirer';
 import {
 	projectCreate,
 	projectExists,
@@ -16,6 +15,7 @@ import {
 } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui';
+import { createPrompt, note } from '../../tui';
 import { playSound } from '../../sound';
 import { fetchTemplates, type TemplateInfo } from './templates';
 import { downloadTemplate, setupProject } from './download';
@@ -95,10 +95,15 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		catalystClient = new ServerAPIClient(catalystUrl, logger, auth.apiKey);
 	}
 
+	// Create prompt flow
+	const prompt = createPrompt();
+
+	if (!skipPrompts) {
+		prompt.intro('Create Agentuity Project');
+	}
+
 	if (!projectName && !skipPrompts) {
-		const response = await enquirer.prompt<{ name: string }>({
-			type: 'input',
-			name: 'name',
+		projectName = await prompt.text({
 			message: 'What is the name of your project?',
 			initial: 'My First Agent',
 			validate: async (value: string) => {
@@ -117,7 +122,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				return true;
 			},
 		});
-		projectName = response.name;
 	}
 	projectName = projectName || 'My First Agent';
 
@@ -140,14 +144,13 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		// In TTY mode, ask if they want to overwrite
 		if (process.stdin.isTTY && !skipPrompts) {
 			tui.warning(`Directory ${dest} already exists and is not empty.`, true);
-			const response = await enquirer.prompt<{ overwrite: boolean }>({
-				type: 'confirm',
-				name: 'overwrite',
+			console.log(tui.tuiColors.secondary('│'));
+			const overwrite = await prompt.confirm({
 				message: 'Delete and overwrite the directory?',
 				initial: false,
 			});
 
-			if (!response.overwrite) {
+			if (!overwrite) {
 				tui.info('Operation cancelled');
 				process.exit(0);
 			}
@@ -160,6 +163,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			}
 			rmSync(dest, { recursive: true, force: true });
 			tui.success(`Deleted ${dest}`);
+			console.log(tui.tuiColors.secondary('│'));
 		} else {
 			logger.fatal(
 				`Directory ${dest} already exists and is not empty.`,
@@ -180,24 +184,21 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	} else if (skipPrompts) {
 		selectedTemplate = templates[0];
 	} else {
-		const response = await enquirer.prompt<{ template: string }>({
-			type: 'select',
-			name: 'template',
+		const templateId = await prompt.select({
 			message: 'Select a template:',
-			choices: templates.map((t) => ({
-				name: t.id,
-				message: `${t.name.padEnd(15, ' ')} ${tui.muted(t.description)}`,
+			options: templates.map((t) => ({
+				value: t.id,
+				label: t.name,
+				hint: t.description,
 			})),
 		});
-		const found = templates.find((t) => t.id === response.template);
+		const found = templates.find((t) => t.id === templateId);
 		if (!found) {
 			logger.fatal('Template selection failed', ErrorCode.USER_CANCELLED);
 			return;
 		}
 		selectedTemplate = found;
 	}
-
-	tui.info(`✨ Using template: ${tui.bold(selectedTemplate.name)}`);
 
 	// Download template
 	await downloadTemplate({
@@ -218,6 +219,17 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		logger,
 	});
 
+	// Re-display template selection after spinners clear it
+	if (!skipPrompts) {
+		const { symbols, tuiColors } = tui;
+		console.log(`${tuiColors.completed(symbols.completed)}  Select a template:`);
+		console.log(`${tuiColors.secondary(symbols.bar)}  ${tuiColors.muted(selectedTemplate.name)}`);
+		// Only add bar if we're going to show resource prompts
+		if (auth && apiClient && catalystClient && orgId && region) {
+			console.log(tuiColors.secondary(symbols.bar));
+		}
+	}
+
 	const resourceConfig: ResourcesTypes = Resources.parse({});
 
 	if (auth && apiClient && catalystClient && orgId && region) {
@@ -232,37 +244,31 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 		logger.debug(`Resources for org ${orgId} in region ${region}:`, resources);
 
-		const choices = await enquirer.prompt<{
-			db_action: string;
-			s3_action: string;
-		}>([
-			{
-				type: 'select',
-				name: 'db_action',
-				message: 'Create SQL Database?',
-				choices: [
-					{ name: 'Create New', message: 'Create a new (free)' },
-					{ name: 'Skip', message: 'Skip or Setup later' },
-					...resources.db.map((db) => ({
-						name: db.name,
-						message: `Use database: ${db.name}`,
-					})),
-				],
-			},
-			{
-				type: 'select',
-				name: 's3_action',
-				message: 'Create Storage Bucket?',
-				choices: [
-					{ name: 'Create New', message: 'Create a new (free)' },
-					{ name: 'Skip', message: 'Skip or Setup later' },
-					...resources.s3.map((db) => ({
-						name: db.bucket_name,
-						message: `Use bucket: ${db.bucket_name}`,
-					})),
-				],
-			},
-		]);
+		const db_action = await prompt.select({
+			message: 'Create SQL Database?',
+			options: [
+				{ value: 'Create New', label: 'Create a new (free)' },
+				{ value: 'Skip', label: 'Skip or Setup later' },
+				...resources.db.map((db) => ({
+					value: db.name,
+					label: `Use database: ${tui.tuiColors.primary(db.name)}`,
+				})),
+			],
+		});
+
+		const s3_action = await prompt.select({
+			message: 'Create Storage Bucket?',
+			options: [
+				{ value: 'Create New', label: 'Create a new (free)' },
+				{ value: 'Skip', label: 'Skip or Setup later' },
+				...resources.s3.map((bucket) => ({
+					value: bucket.bucket_name,
+					label: `Use bucket: ${tui.tuiColors.primary(bucket.bucket_name)}`,
+				})),
+			],
+		});
+
+		const choices = { db_action, s3_action };
 		switch (choices.s3_action) {
 			case 'Create New': {
 				const created = await tui.spinner({
@@ -364,16 +370,30 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	}
 
 	// Show completion message
-	tui.success('✨ Project created successfully!\n');
-	tui.info('Next steps:');
-	if (dirName !== '.') {
-		const dirDisplay = cwd() === targetDir ? basename(dirName) : dest;
-		tui.newline();
-		console.log(`  1. ${tui.bold(`cd ${dirDisplay}`)}`);
-		console.log(`  2. ${tui.bold('bun run dev')}`);
+	if (!skipPrompts) {
+		tui.success('✨ Project created successfully!\n');
+
+		// Show next steps in a box with primary color for commands
+		if (dirName !== '.') {
+			// Use relative path if dest is under cwd, otherwise show full path
+			const currentDir = cwd();
+			const dirDisplay = dest.startsWith(currentDir) ? basename(dest) : dest;
+			note(
+				`${tui.tuiColors.primary(`cd ${dirDisplay}`)}\n${tui.tuiColors.primary('bun run dev')}`,
+				'Next steps'
+			);
+		} else {
+			note(tui.tuiColors.primary('bun run dev'), 'Next steps');
+		}
+
+		prompt.outro(
+			`${tui.tuiColors.muted('🛟 Need help?')} ${tui.link('https://discord.gg/agentuity')}`,
+			`${tui.tuiColors.muted('⭐️ Follow us:')} ${tui.link('https://github.com/agentuity/sdk')}`
+		);
 	} else {
-		console.log(`  ${tui.bold('bun run dev')}`);
+		tui.success('✨ Project created successfully!');
 	}
+
 	playSound();
 }
 

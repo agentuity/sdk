@@ -18,6 +18,20 @@ import { maskSecret } from './env-util';
 // Re-export maskSecret for convenience
 export { maskSecret };
 
+// Export new TUI components
+export { createPrompt, PromptFlow } from './tui/prompt';
+export { group } from './tui/group';
+export { note, drawBox } from './tui/box';
+export { symbols } from './tui/symbols';
+export { colors as tuiColors } from './tui/colors';
+export type {
+	TextOptions,
+	ConfirmOptions,
+	SelectOptions,
+	SelectOption,
+	MultiSelectOptions,
+} from './tui/prompt';
+
 // Icons
 const ICONS = {
 	success: '✓',
