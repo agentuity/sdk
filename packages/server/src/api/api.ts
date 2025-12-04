@@ -262,15 +262,29 @@ export class APIClient {
 				// Handle error responses
 				if (!response.ok) {
 					const responseBody = await response.text();
+					const contentType = response.headers.get('content-type');
 
 					let errorData: z.infer<typeof APIErrorSchema> | undefined;
 
-					try {
-						errorData = APIErrorSchema.parse(JSON.parse(responseBody));
-					} catch (parseEx) {
-						this.#logger.warn(
-							'parsing response data against APIError schema failed: %s',
-							parseEx
+					// Only attempt to parse as JSON if the content type indicates JSON
+					const isJsonResponse =
+						contentType?.includes('application/json') || contentType?.includes('+json');
+
+					if (isJsonResponse) {
+						try {
+							errorData = APIErrorSchema.parse(JSON.parse(responseBody));
+						} catch (parseEx) {
+							// Log at debug level since this is a contract violation from the server
+							this.#logger.debug(
+								'Failed to parse JSON error response from API: %s',
+								parseEx
+							);
+						}
+					} else {
+						// Non-JSON response (e.g., HTML error page), skip structured error parsing
+						this.#logger.debug(
+							'Received non-JSON error response (content-type: %s), skipping structured error parsing',
+							contentType ?? 'unknown'
 						);
 					}
 
@@ -329,9 +343,9 @@ export class APIClient {
 						});
 					}
 
+					// Provide status-aware fallback messages when no structured error data is available
 					throw new APIError({
-						message:
-							'The API encountered an unexpected error attempting to reach the service.',
+						message: this.#getStatusAwareErrorMessage(response.status, isJsonResponse ?? false),
 						url: url,
 						status: response.status,
 						sessionId,
@@ -426,6 +440,36 @@ export class APIClient {
 		}
 
 		return null;
+	}
+
+	#getStatusAwareErrorMessage(status: number, isJsonResponse: boolean): string {
+		// Provide helpful, status-specific error messages
+		switch (status) {
+			case 400:
+				return 'The API request was invalid (HTTP 400). Please check your request parameters.';
+			case 401:
+				return 'Authentication failed (HTTP 401). Please check your credentials or try logging in again.';
+			case 403:
+				return 'Access denied (HTTP 403). You do not have permission to perform this action.';
+			case 404:
+				return isJsonResponse
+					? 'The requested resource was not found (HTTP 404).'
+					: 'The API endpoint was not found (HTTP 404). Please verify your API URL configuration is correct.';
+			case 409:
+				return 'A conflict occurred (HTTP 409). The resource may already exist or be in use.';
+			case 429:
+				return 'Too many requests (HTTP 429). Please wait a moment and try again.';
+			case 500:
+				return 'The API server encountered an internal error (HTTP 500). Please try again later.';
+			case 502:
+				return 'The API service is temporarily unavailable (HTTP 502). Please try again later.';
+			case 503:
+				return 'The API service is currently unavailable (HTTP 503). Please try again later.';
+			case 504:
+				return 'The API request timed out (HTTP 504). Please try again later.';
+			default:
+				return `The API returned an unexpected error (HTTP ${status}).`;
+		}
 	}
 }
 
