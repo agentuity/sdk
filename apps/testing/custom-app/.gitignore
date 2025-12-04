@@ -2,6 +2,6 @@ node_modules/
 .agentuity/
 out/
 *.tsbuildinfo
-src/agents/*.generated.*
+**/*.generated.*
 .env
 .env.*
