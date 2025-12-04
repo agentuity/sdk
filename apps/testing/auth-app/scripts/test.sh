@@ -281,7 +281,8 @@ run_parallel_group "Feature Tests" \
 	"WaitUntil:test-waituntil.sh" \
 	"Eval Functionality:test-evals.sh" \
 	"Email:test-email.sh" \
-	"State Persistence:test-state-persistence.sh"
+	"State Persistence:test-state-persistence.sh" \
+	"Agent Naming:test-naming.sh"
 
 # ============================================================================
 # GROUP 4: Misc Tests (Can run in parallel or serial)

@@ -129,6 +129,36 @@ lsof -ti:3500 | xargs kill -9
 5. **Telemetry** - Operations are traced (check logs)
 6. **End-to-End Flow** - Agent → Service → Platform API → Response
 
+## Naming Edge Case Tests
+
+The following agents test that the agent registry properly handles different naming conventions and converts them to camelCase:
+
+### Hyphenated Names
+
+- **send-email** (`/agent/send-email`) - Tests `send-email` → `sendEmail` conversion
+- **my-agent** (`/agent/my-agent`) - Tests `my-agent` → `myAgent` conversion  
+- **multi-word-test** (`/agent/multi-word-test`) - Tests `multi-word-test` → `multiWordTest` conversion
+
+### Parent/Child with Hyphens
+
+- **notification-service** (`/agent/notification-service`) - Parent with hyphens → `notificationService`
+- **notification-service.send-push** (`/agent/notification-service.send-push`) - Subagent → `notificationService.sendPush`
+
+### Test Script
+
+Run all naming tests:
+
+```bash
+./scripts/test-naming.sh
+```
+
+This verifies:
+1. Hyphenated names convert correctly to camelCase
+2. Multi-word hyphenated names work properly
+3. Parent/child subagent naming with hyphens
+4. Collision detection for duplicate camelCase keys
+5. Empty key validation (e.g., `---` names)
+
 ## Adding a New Test Agent
 
 When you create a new service, add a test agent:

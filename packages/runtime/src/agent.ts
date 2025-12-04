@@ -1601,9 +1601,13 @@ const createAgentRunner = <
 
 /**
  * Populate the agents object with all registered agents
+ * Keys are converted to camelCase to match the generated TypeScript types
  */
 export const populateAgentsRegistry = (ctx: Context): any => {
 	const agentsObj: any = {};
+	// Track ownership of camelCase keys to detect collisions between different raw names
+	const ownershipMap = new Map<string, string>();
+	const childOwnershipMap = new Map<string, string>();
 
 	// Build nested structure for agents and subagents
 	for (const [name, agentFn] of agents) {
@@ -1616,25 +1620,82 @@ export const populateAgentsRegistry = (ctx: Context): any => {
 				internal.warn(`Invalid subagent name format: "${name}". Expected "parent.child".`);
 				continue;
 			}
-			const parentName = parts[0];
-			const childName = parts[1];
-			if (parentName && childName) {
-				if (!agentsObj[parentName]) {
-					// Ensure parent exists
-					const parentAgent = agents.get(parentName);
+			const rawParentName = parts[0];
+			const rawChildName = parts[1];
+			if (rawParentName && rawChildName) {
+				// Convert parent name to camelCase for registry key
+				const parentKey = toCamelCase(rawParentName);
+				
+				// Validate parentKey is non-empty
+				if (!parentKey) {
+					internal.warn(`Agent name "${rawParentName}" converts to empty camelCase key. Skipping.`);
+					continue;
+				}
+
+				// Detect collision on parent key - check ownership
+				const existingOwner = ownershipMap.get(parentKey);
+				if (existingOwner && existingOwner !== rawParentName) {
+					internal.error(`Agent registry collision: "${rawParentName}" conflicts with "${existingOwner}" (both map to camelCase key "${parentKey}")`);
+					throw new Error(`Agent registry collision detected for key "${parentKey}"`);
+				}
+
+				if (!agentsObj[parentKey]) {
+					// Ensure parent exists - look up by raw name in agents map
+					const parentAgent = agents.get(rawParentName);
 					if (parentAgent) {
-						agentsObj[parentName] = createAgentRunner(parentAgent, ctx);
+						agentsObj[parentKey] = createAgentRunner(parentAgent, ctx);
+						// Record ownership
+						ownershipMap.set(parentKey, rawParentName);
 					}
 				}
+				
 				// Attach subagent to parent using camelCase property name
-				const camelChildName = toCamelCase(childName);
-				if (agentsObj[parentName]) {
-					agentsObj[parentName][camelChildName] = runner;
+				const childKey = toCamelCase(rawChildName);
+				
+				// Validate childKey is non-empty
+				if (!childKey) {
+					internal.warn(`Agent name "${rawChildName}" converts to empty camelCase key. Skipping subagent "${name}".`);
+					continue;
+				}
+
+				// Detect collision on child key - check ownership
+				const childOwnershipKey = `${parentKey}.${childKey}`;
+				const existingChildOwner = childOwnershipMap.get(childOwnershipKey);
+				if (existingChildOwner && existingChildOwner !== name) {
+					internal.error(`Agent registry collision: subagent "${name}" conflicts with "${existingChildOwner}" (both map to camelCase key "${childOwnershipKey}")`);
+					throw new Error(`Agent registry collision detected for subagent key "${childOwnershipKey}"`);
+				}
+
+				if (agentsObj[parentKey]) {
+					if (agentsObj[parentKey][childKey] === undefined) {
+						agentsObj[parentKey][childKey] = runner;
+						// Record ownership
+						childOwnershipMap.set(childOwnershipKey, name);
+					}
 				}
 			}
 		} else {
-			// Parent agent or standalone agent
-			agentsObj[name] = runner;
+			// Parent agent or standalone agent - convert to camelCase for registry key
+			const parentKey = toCamelCase(name);
+			
+			// Validate parentKey is non-empty
+			if (!parentKey) {
+				internal.warn(`Agent name "${name}" converts to empty camelCase key. Skipping.`);
+				continue;
+			}
+
+			// Detect collision on parent key - check ownership
+			const existingOwner = ownershipMap.get(parentKey);
+			if (existingOwner && existingOwner !== name) {
+				internal.error(`Agent registry collision: "${name}" conflicts with "${existingOwner}" (both map to camelCase key "${parentKey}")`);
+				throw new Error(`Agent registry collision detected for key "${parentKey}"`);
+			}
+
+			if (!agentsObj[parentKey]) {
+				agentsObj[parentKey] = runner;
+				// Record ownership
+				ownershipMap.set(parentKey, name);
+			}
 		}
 	}
 
@@ -1656,15 +1717,19 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 		if (agentName?.includes('.')) {
 			// This is a subagent
 			const parts = agentName.split('.');
-			const parentName = parts[0];
-			const childName = parts[1];
-			if (parentName && childName) {
-				currentAgent = agentsObj[parentName]?.[childName];
-				parentAgent = agentsObj[parentName];
+			const rawParentName = parts[0];
+			const rawChildName = parts[1];
+			if (rawParentName && rawChildName) {
+				// Use camelCase keys to look up in agentsObj (which uses camelCase keys)
+				const parentKey = toCamelCase(rawParentName);
+				const childKey = toCamelCase(rawChildName);
+				currentAgent = agentsObj[parentKey]?.[childKey];
+				parentAgent = agentsObj[parentKey];
 			}
 		} else if (agentName) {
-			// This is a parent or standalone agent
-			currentAgent = agentsObj[agentName];
+			// This is a parent or standalone agent - use camelCase key
+			const parentKey = toCamelCase(agentName);
+			currentAgent = agentsObj[parentKey];
 		}
 
 		const _ctx = privateContext(ctx);
