@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const SessionStartEventSchema = z
 	.object({
 		id: z.string().describe('the session id'),
-		threadId: z.string().describe('the thread id'),
+		threadId: z.string().optional().describe('the thread id (optional, can be set in complete)'),
 		orgId: z.string().describe('the organization id'),
 		projectId: z.string().describe('the project id'),
 		deploymentId: z.string().optional().describe('the deployment id'),
@@ -23,6 +23,7 @@ export type SessionStartEvent = z.infer<typeof SessionStartEventSchema>;
 export const SessionCompleteEventSchema = z
 	.object({
 		id: z.string().describe('the session id'),
+		threadId: z.string().nullable().describe('the thread id (null if thread has no data)'),
 		error: z.string().optional().describe('the optional error message if the session failed'),
 		agentIds: z
 			.array(z.string())

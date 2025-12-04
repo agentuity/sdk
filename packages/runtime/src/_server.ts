@@ -541,6 +541,7 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 									sessionEventProvider
 										.complete({
 											id: sessionId,
+											threadId: thread.empty() ? null : thread.id,
 											statusCode: c.res.status,
 											agentIds: Array.from(agentIds),
 											userData,
@@ -565,6 +566,7 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 									sessionEventProvider
 										.complete({
 											id: sessionId,
+											threadId: thread.empty() ? null : thread.id,
 											statusCode: c.res.status,
 											error: message,
 											agentIds: Array.from(agentIds),
@@ -584,6 +586,7 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 							sessionEventProvider
 								.complete({
 									id: sessionId,
+									threadId: thread.empty() ? null : thread.id,
 									statusCode: c.res.status,
 									agentIds: Array.from(agentIds),
 									userData,
@@ -607,6 +610,7 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 						sessionEventProvider
 							.complete({
 								id: sessionId,
+								threadId: thread.empty() ? null : thread.id,
 								statusCode: c.res.status,
 								error: message,
 								agentIds: Array.from(agentIds),

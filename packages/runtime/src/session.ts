@@ -112,6 +112,19 @@ export interface Thread {
 	 * ```
 	 */
 	destroy(): Promise<void>;
+
+	/**
+	 * Check if the thread has any data.
+	 * Returns true if thread state is empty (no data to save).
+	 *
+	 * @example
+	 * ```typescript
+	 * if (ctx.thread.empty()) {
+	 *   // Thread has no data, won't be persisted
+	 * }
+	 * ```
+	 */
+	empty(): boolean;
 }
 
 /**
@@ -504,6 +517,13 @@ export class DefaultThread implements Thread {
 		const currentJson = JSON.stringify(Object.fromEntries(this.state));
 
 		return currentJson !== this.#initialStateJson;
+	}
+
+	/**
+	 * Check if thread has any data
+	 */
+	empty(): boolean {
+		return this.state.size === 0;
 	}
 
 	/**
