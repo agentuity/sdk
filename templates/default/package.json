@@ -16,7 +16,7 @@
 		"@agentuity/react": "latest",
 		"@agentuity/runtime": "latest",
 		"@agentuity/schema": "latest",
-		"hono": "^4.7.10",
+		"@agentuity/workbench": "latest",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0"
 	},

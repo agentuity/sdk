@@ -1,14 +1,13 @@
 import { $ } from 'bun';
 import { join, relative, resolve, dirname, basename } from 'node:path';
-import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
 import AgentuityBundler, { getBuildMetadata } from './plugin';
 import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
 import type { Project } from '../../types';
 import { fixDuplicateExportsInDirectory } from './fix-duplicate-exports';
-import { createLogger } from '@agentuity/server';
-import type { LogLevel } from '../../types';
+import type { Logger } from '../../types';
 import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench-templates';
 import { analyzeWorkbench } from './ast';
 import { StructuredError } from '@agentuity/core';
@@ -28,6 +27,7 @@ export interface BundleOptions extends DeployOptions {
 	port?: number;
 	outDir?: string;
 	region: string;
+	logger: Logger;
 }
 
 type BuildResult = Awaited<ReturnType<typeof Bun.build>>;
@@ -75,6 +75,7 @@ export async function bundle({
 	message,
 	env,
 	region,
+	logger,
 }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
@@ -150,6 +151,92 @@ export async function bundle({
 		}
 	}
 
+	// Common externals for native modules (same as legacy CLI)
+	const commonExternals = ['bun', 'fsevents', 'chromium-bidi', 'sharp'];
+
+	// OpenTelemetry packages need to be externalized due to CommonJS/ESM hybrid issues
+	const otelExternals = ['@opentelemetry/*', '@traceloop/*'];
+
+	// Allow projects to specify custom externals via package.json "externals" field
+	const customExternals: string[] = [];
+	if (pkgContents.externals && Array.isArray(pkgContents.externals)) {
+		customExternals.push(...pkgContents.externals.filter((e: unknown) => typeof e === 'string'));
+	}
+
+	const externalPatterns = [...commonExternals, ...otelExternals, ...customExternals];
+
+	// For production builds: install externals FIRST, then discover full dependency tree
+	// This prevents bundling dependencies that will be in node_modules anyway
+	let external = externalPatterns;
+	if (!dev) {
+		logger.debug('Installing externalized packages to discover full dependency tree...');
+		
+		// Step 1: Collect packages matching external patterns
+		const externalInstalls: string[] = [];
+		for (const pattern of externalPatterns) {
+			if (pattern.endsWith('/*')) {
+				const prefix = pattern.slice(0, -2);
+				const nmDir = join(rootDir, 'node_modules', prefix);
+				if (existsSync(nmDir)) {
+					const entries = readdirSync(nmDir);
+					for (const entry of entries) {
+						const pkgName = `${prefix}/${entry}`;
+						if (existsSync(join(rootDir, 'node_modules', pkgName))) {
+							externalInstalls.push(pkgName);
+						}
+					}
+				}
+			} else {
+				if (existsSync(join(rootDir, 'node_modules', pattern))) {
+					externalInstalls.push(pattern);
+				}
+			}
+		}
+
+		// Step 2: Write minimal package.json and install externals
+		if (externalInstalls.length > 0) {
+			await Bun.write(
+				`${outDir}/package.json`,
+				JSON.stringify({ name: pkgContents.name, version: pkgContents.version }, null, 2)
+			);
+
+			logger.debug('Installing %d packages: %s', externalInstalls.length, externalInstalls.join(', '));
+			await $`bun install --no-save --ignore-scripts --target=bun-linux-x64 ${externalInstalls}`.cwd(outDir).quiet();
+
+			// Step 3: Scan what actually got installed (includes transitive dependencies)
+			const installedNmDir = join(outDir, 'node_modules');
+			if (existsSync(installedNmDir)) {
+				const allInstalled: string[] = [];
+				
+				// Recursively find all installed packages
+				const scanDir = (dir: string, prefix = '') => {
+					const entries = readdirSync(dir, { withFileTypes: true });
+					for (const entry of entries) {
+						if (entry.isDirectory()) {
+							const pkgName = prefix ? `${prefix}/${entry.name}` : entry.name;
+							
+							// Check if this is a package (has package.json)
+							if (existsSync(join(dir, entry.name, 'package.json'))) {
+								allInstalled.push(pkgName);
+							}
+							
+							// Recurse into scoped packages (@org/package)
+							if (entry.name.startsWith('@')) {
+								scanDir(join(dir, entry.name), entry.name);
+							}
+						}
+					}
+				};
+				
+				scanDir(installedNmDir);
+				logger.debug('Discovered %d total packages (including dependencies)', allInstalled.length);
+				
+				// Step 4: Use ALL installed packages as externals for bundling
+				external = allInstalled;
+			}
+		}
+	}
+
 	await (async () => {
 		const config: Bun.BuildConfig = {
 			entrypoints: appEntrypoints,
@@ -168,6 +255,7 @@ export async function bundle({
 			drop: isProd ? ['debugger'] : undefined,
 			splitting: true,
 			conditions: [isProd ? 'production' : 'development', 'bun'],
+			external,
 			naming: {
 				entry: '[dir]/[name].[ext]',
 				chunk: 'chunk/[name]-[hash].[ext]',
@@ -328,7 +416,6 @@ export async function bundle({
 			// Create workbench config with proper defaults
 			const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
 			const config = { ...defaultConfig, ...analysis.config };
-			const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL as LogLevel) || 'info');
 			try {
 				// Generate workbench files on the fly instead of using files from package
 				const tempWorkbenchDir = join(outDir, 'temp-workbench');
@@ -569,10 +656,13 @@ export async function bundle({
 		}
 	}
 
-	await Bun.write(
-		`${outDir}/package.json`,
-		JSON.stringify({ name: pkgContents.name, version: pkgContents.version }, null, 2)
-	);
+	// Write minimal package.json for dev mode (production already wrote it above)
+	if (dev) {
+		await Bun.write(
+			`${outDir}/package.json`,
+			JSON.stringify({ name: pkgContents.name, version: pkgContents.version }, null, 2)
+		);
+	}
 
 	await Bun.write(
 		`${outDir}/agentuity.metadata.json`,

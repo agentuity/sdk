@@ -70,7 +70,6 @@ export async function readEnvFile(path: string): Promise<EnvVars> {
 	const file = Bun.file(path);
 
 	if (!(await file.exists())) {
-		console.log(`[ENV] File does not exist: ${path}`);
 		return {};
 	}
 
@@ -85,8 +84,6 @@ export async function readEnvFile(path: string): Promise<EnvVars> {
 		}
 	}
 
-	console.log(`[ENV] Read ${Object.keys(env).length} variables from: ${path}`);
-	console.log(`[ENV] Variables: ${Object.keys(env).join(', ')}`);
 	return env;
 }
 

@@ -74,6 +74,7 @@ export const command = createCommand({
 				projectId: project?.projectId,
 				env,
 				region: project?.region ?? 'local',
+				logger: ctx.logger,
 			});
 
 			// Run TypeScript type checking after registry generation (skip in dev mode)

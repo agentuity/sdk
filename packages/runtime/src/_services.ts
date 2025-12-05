@@ -30,6 +30,7 @@ import {
 } from './services/evalrun';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getTracer } from './_server';
+import { populateAgentsRegistry } from './agent.js';
 import { getSDKVersion, isAuthenticated, isProduction } from './_config';
 import type { AppConfig } from './app';
 import {
@@ -300,9 +301,7 @@ export function registerServices(o: any, includeAgents = false) {
 		Object.defineProperty(o, 'agent', {
 			get: () => {
 				if (!cachedRegistry) {
-					// Lazy-load to avoid circular dependency
-					// eslint-disable-next-line @typescript-eslint/no-require-imports
-					const { populateAgentsRegistry } = require('./agent');
+					// ESM-friendly: populateAgentsRegistry is imported statically
 					cachedRegistry = populateAgentsRegistry(o);
 				}
 				return cachedRegistry;

@@ -499,6 +499,7 @@ export const command = createCommand({
 								deploymentId,
 								port: opts.port,
 								region: project?.region ?? 'local',
+								logger,
 							});
 							building = false;
 							buildCompletedAt = Date.now();
