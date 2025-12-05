@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/core",
-	"version": "0.0.69",
+	"version": "0.0.70",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -32,6 +32,7 @@
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {
+		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"

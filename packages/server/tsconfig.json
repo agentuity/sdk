@@ -6,6 +6,6 @@
 		"rootDir": "./src"
 	},
 	"include": ["src/**/*"],
-	"exclude": ["src/**/__test__/**/*"],
+	"exclude": ["test/**/*"],
 	"references": [{ "path": "../core" }]
 }

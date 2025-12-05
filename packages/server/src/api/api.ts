@@ -117,6 +117,65 @@ export class APIClient {
 		}
 	}
 
+	/**
+	 * GET request
+	 */
+	async get<TResponse = void>(
+		endpoint: string,
+		responseSchema?: z.ZodType<TResponse>
+	): Promise<TResponse> {
+		return this.request('GET', endpoint, responseSchema);
+	}
+
+	/**
+	 * POST request with optional body
+	 */
+	async post<TResponse = void, TBody = unknown>(
+		endpoint: string,
+		body?: TBody,
+		responseSchema?: z.ZodType<TResponse>,
+		bodySchema?: z.ZodType<TBody>
+	): Promise<TResponse> {
+		return this.request('POST', endpoint, responseSchema, body, bodySchema);
+	}
+
+	/**
+	 * PUT request with optional body
+	 */
+	async put<TResponse = void, TBody = unknown>(
+		endpoint: string,
+		body?: TBody,
+		responseSchema?: z.ZodType<TResponse>,
+		bodySchema?: z.ZodType<TBody>
+	): Promise<TResponse> {
+		return this.request('PUT', endpoint, responseSchema, body, bodySchema);
+	}
+
+	/**
+	 * DELETE request
+	 */
+	async delete<TResponse = void>(
+		endpoint: string,
+		responseSchema?: z.ZodType<TResponse>
+	): Promise<TResponse> {
+		return this.request('DELETE', endpoint, responseSchema);
+	}
+
+	/**
+	 * PATCH request with optional body
+	 */
+	async patch<TResponse = void, TBody = unknown>(
+		endpoint: string,
+		body?: TBody,
+		responseSchema?: z.ZodType<TResponse>,
+		bodySchema?: z.ZodType<TBody>
+	): Promise<TResponse> {
+		return this.request('PATCH', endpoint, responseSchema, body, bodySchema);
+	}
+
+	/**
+	 * Generic request method (prefer HTTP verb methods: get, post, put, delete, patch)
+	 */
 	async request<TResponse = void, TBody = unknown>(
 		method: string,
 		endpoint: string,

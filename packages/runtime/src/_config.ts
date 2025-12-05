@@ -115,3 +115,22 @@ export function getEnvironment(): string {
 export function isAuthenticated(): boolean {
 	return !!process.env.AGENTUITY_SDK_KEY;
 }
+
+/**
+ * Symbol for accessing internal runtime state.
+ * Defined here to avoid circular dependency.
+ */
+export const AGENT_RUNTIME = Symbol('AGENT_RUNTIME');
+
+/**
+ * Symbol for accessing internal agent from AgentRunner.
+ * @internal
+ */
+export const INTERNAL_AGENT = Symbol('INTERNAL_AGENT');
+
+/**
+ * Symbol for tracking the current executing agent (for telemetry).
+ * Not exposed on public AgentContext interface.
+ * @internal
+ */
+export const CURRENT_AGENT = Symbol('CURRENT_AGENT');

@@ -170,9 +170,6 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 			if (process.env.AGENTUITY_KEYVALUE_URL) {
 				overrides.kv_url = process.env.AGENTUITY_KEYVALUE_URL;
 			}
-			if (process.env.AGENTUITY_OBJECTSTORE_URL) {
-				overrides.object_url = process.env.AGENTUITY_OBJECTSTORE_URL;
-			}
 			if (process.env.AGENTUITY_VECTOR_URL) {
 				overrides.vector_url = process.env.AGENTUITY_VECTOR_URL;
 			}

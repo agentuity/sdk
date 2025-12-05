@@ -23,7 +23,6 @@ import { getServiceUrls, type ServiceUrls } from '@agentuity/server';
 const urls: ServiceUrls = getServiceUrls(region);
 
 console.log(urls.keyvalue); // https://agentuity.ai (or AGENTUITY_KEYVALUE_URL)
-console.log(urls.objectstore); // https://agentuity.ai (or AGENTUITY_OBJECTSTORE_URL)
 console.log(urls.stream); // https://streams.agentuity.cloud (or AGENTUITY_STREAM_URL)
 console.log(urls.vector); // https://agentuity.ai (or AGENTUITY_VECTOR_URL)
 ```

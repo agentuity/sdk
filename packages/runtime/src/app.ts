@@ -8,7 +8,6 @@ import { createServer, getLogger } from './_server';
 import type { Meter, Tracer } from '@opentelemetry/api';
 import type {
 	KeyValueStorage,
-	ObjectStorage,
 	SessionEventProvider,
 	EvalRunEventProvider,
 	StreamStorage,
@@ -16,7 +15,7 @@ import type {
 	SessionStartEvent,
 } from '@agentuity/core';
 import type { Email } from './io/email';
-import type { Agent, AgentContext, AgentRegistry } from './agent';
+import type { Agent, AgentContext } from './agent';
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
 import type WaitUntilHandler from './_waituntil';
 
@@ -44,10 +43,6 @@ export interface AppConfig<TAppState = Record<string, never>> {
 		 * the KeyValueStorage to override instead of the default
 		 */
 		keyvalue?: KeyValueStorage;
-		/**
-		 * the ObjectStorage to override instead of the default
-		 */
-		object?: ObjectStorage;
 		/**
 		 * the StreamStorage to override instead of the default
 		 */
@@ -97,9 +92,7 @@ export interface Variables<TAppState = Record<string, never>> {
 	sessionId: string;
 	thread: Thread;
 	session: Session;
-	agent: AgentRegistry;
 	kv: KeyValueStorage;
-	objectstore: ObjectStorage;
 	stream: StreamStorage;
 	vector: VectorStorage;
 	app: TAppState;
@@ -119,17 +112,11 @@ export interface Env<TAppState = Record<string, never>> extends HonoEnv {
 }
 
 type AppEventMap<TAppState = Record<string, never>> = {
-	'agent.started': [
-		Agent<any, any, any, any, TAppState>,
-		AgentContext<any, any, any, any, TAppState>,
-	];
-	'agent.completed': [
-		Agent<any, any, any, any, TAppState>,
-		AgentContext<any, any, any, any, TAppState>,
-	];
+	'agent.started': [Agent<any, any, any, any, TAppState>, AgentContext<any, any, TAppState>];
+	'agent.completed': [Agent<any, any, any, any, TAppState>, AgentContext<any, any, TAppState>];
 	'agent.errored': [
 		Agent<any, any, any, any, TAppState>,
-		AgentContext<any, any, any, any, TAppState>,
+		AgentContext<any, any, TAppState>,
 		Error,
 	];
 	'session.started': [Session];
@@ -356,7 +343,7 @@ export function getApp(): App<any> | null {
  * });
  *
  * // Access state in agents
- * const agent = createAgent({
+ * const agent = createAgent('user-query', {
  *   handler: async (ctx, input) => {
  *     const db = ctx.app.db; // Strongly typed!
  *     return db.query('SELECT * FROM users');

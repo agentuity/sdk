@@ -30,7 +30,7 @@ type SessionEventCallback<T extends Session> = (
  * @example
  * ```typescript
  * // Access thread in agent handler
- * const agent = createAgent({
+ * const agent = createAgent('conversation', {
  *   handler: async (ctx, input) => {
  *     // Get thread ID
  *     ctx.logger.info('Thread: %s', ctx.thread.id);
@@ -135,7 +135,7 @@ export interface Thread {
  *
  * @example
  * ```typescript
- * const agent = createAgent({
+ * const agent = createAgent('request-handler', {
  *   handler: async (ctx, input) => {
  *     // Get session ID (unique per request)
  *     ctx.logger.info('Session: %s', ctx.session.id);

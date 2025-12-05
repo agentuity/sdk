@@ -54,7 +54,7 @@ export async function apikeyList(
 	const queryString = params.toString();
 	const endpoint = `/cli/apikey${queryString ? `?${queryString}` : ''}`;
 
-	const resp = await client.request<APIKeyListResponse>('GET', endpoint, APIKeyListResponseSchema);
+	const resp = await client.get<APIKeyListResponse>(endpoint, APIKeyListResponseSchema);
 
 	if (resp.success) {
 		return resp.data;

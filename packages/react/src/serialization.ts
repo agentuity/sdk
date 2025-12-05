@@ -4,12 +4,10 @@
  */
 export const deserializeData = <T>(data: string): T => {
 	if (data) {
-		if (data.startsWith('{') || data.startsWith('[')) {
-			try {
-				return JSON.parse(data) as T;
-			} catch (ex) {
-				console.error('error parsing data as JSON', ex, data);
-			}
+		try {
+			return JSON.parse(data) as T;
+		} catch {
+			/* */
 		}
 	}
 	return data as T;

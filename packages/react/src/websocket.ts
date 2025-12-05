@@ -2,19 +2,52 @@ import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'r
 import type { InferInput, InferOutput } from '@agentuity/core';
 import { AgentuityContext } from './context';
 import { buildUrl } from './url';
-import type { AgentName, AgentRegistry } from './types';
 import { deserializeData } from './serialization';
 import { createReconnectManager } from './reconnect';
+import { jsonEqual } from './memo';
+import type { WebSocketRouteRegistry } from './types';
 
 type onMessageHandler<T = unknown> = (data: T) => void;
 
-interface WebsocketArgs {
+/**
+ * Extract WebSocket route keys (e.g., '/ws', '/chat')
+ */
+export type WebSocketRouteKey = keyof WebSocketRouteRegistry;
+
+/**
+ * Extract input type for a WebSocket route
+ */
+export type WebSocketRouteInput<TRoute extends WebSocketRouteKey> =
+	TRoute extends keyof WebSocketRouteRegistry
+		? WebSocketRouteRegistry[TRoute] extends { inputSchema: infer TSchema }
+			? TSchema extends undefined | never
+				? never
+				: InferInput<TSchema>
+			: never
+		: never;
+
+/**
+ * Extract output type for a WebSocket route
+ */
+export type WebSocketRouteOutput<TRoute extends WebSocketRouteKey> =
+	TRoute extends keyof WebSocketRouteRegistry
+		? WebSocketRouteRegistry[TRoute] extends { outputSchema: infer TSchema }
+			? TSchema extends undefined | never
+				? void
+				: InferOutput<TSchema>
+			: void
+		: void;
+
+/**
+ * Options for WebSocket hooks
+ */
+export interface WebsocketOptions {
 	/**
 	 * Optional query parameters to append to the websocket URL
 	 */
 	query?: URLSearchParams;
 	/**
-	 * Optional subpath to append to the agent path (such as /agent/:agent_name/:subpath)
+	 * Optional subpath to append to the websocket path
 	 */
 	subpath?: string;
 	/**
@@ -38,21 +71,31 @@ const serializeWSData = (
 	throw new Error('unsupported data type for websocket: ' + typeof data);
 };
 
-interface WebsocketResponse<TInput, TOutput> {
-	connected: boolean;
+interface WebsocketResponseInternal<TInput, TOutput> {
+	/** Whether WebSocket is currently connected */
+	isConnected: boolean;
+	/** Most recent data received from WebSocket */
 	data?: TOutput;
+	/** Error if connection or message failed */
 	error: Error | null;
+	/** Whether an error has occurred */
+	isError: boolean;
+	/** Send data through the WebSocket */
 	send: (data: TInput) => void;
+	/** Set handler for incoming messages (use data property instead) */
 	setHandler: (handler: onMessageHandler<TOutput>) => void;
+	/** WebSocket connection state (CONNECTING=0, OPEN=1, CLOSING=2, CLOSED=3) */
 	readyState: WebSocket['readyState'];
+	/** Close the WebSocket connection */
 	close: () => void;
+	/** Reset state to initial values */
 	reset: () => void;
 }
 
-export const useWebsocket = <TInput, TOutput>(
+const useWebsocketInternal = <TInput, TOutput>(
 	path: string,
-	options?: WebsocketArgs
-): WebsocketResponse<TInput, TOutput> => {
+	options?: WebsocketOptions
+): WebsocketResponseInternal<TInput, TOutput> => {
 	const context = useContext(AgentuityContext);
 
 	if (!context) {
@@ -70,7 +113,8 @@ export const useWebsocket = <TInput, TOutput>(
 
 	const [data, setData] = useState<TOutput>();
 	const [error, setError] = useState<Error | null>(null);
-	const [connected, setConnected] = useState(false);
+	const [isError, setIsError] = useState(false);
+	const [isConnected, setIsConnected] = useState(false);
 
 	const wsUrl = useMemo(() => {
 		const base = context.baseUrl!;
@@ -85,8 +129,9 @@ export const useWebsocket = <TInput, TOutput>(
 
 		wsRef.current.onopen = () => {
 			reconnectManagerRef.current?.recordSuccess();
-			setConnected(true);
+			setIsConnected(true);
 			setError(null);
+			setIsError(false);
 			if (queued.current.length > 0) {
 				queued.current.forEach((msg: unknown) => wsRef.current!.send(serializeWSData(msg)));
 				queued.current = [];
@@ -95,24 +140,27 @@ export const useWebsocket = <TInput, TOutput>(
 
 		wsRef.current.onerror = () => {
 			setError(new Error('WebSocket error'));
+			setIsError(true);
 		};
 
 		wsRef.current.onclose = (evt) => {
 			wsRef.current = undefined;
-			setConnected(false);
+			setIsConnected(false);
 			if (manualClose.current) {
 				queued.current = [];
 				return;
 			}
 			if (evt.code !== 1000) {
 				setError(new Error(`WebSocket closed: ${evt.code} ${evt.reason || ''}`));
+				setIsError(true);
 			}
 			reconnectManagerRef.current?.recordFailure();
 		};
 
 		wsRef.current.onmessage = (event: { data: string }) => {
 			const payload = deserializeData<TOutput>(event.data);
-			setData(payload);
+			// Use JSON memoization to prevent re-renders when data hasn't changed
+			setData((prev) => (prev !== undefined && jsonEqual(prev, payload) ? prev : payload));
 			if (handler.current) {
 				handler.current(payload);
 			} else {
@@ -149,7 +197,7 @@ export const useWebsocket = <TInput, TOutput>(
 		handler.current = undefined;
 		pending.current = [];
 		queued.current = [];
-		setConnected(false);
+		setIsConnected(false);
 	}, []);
 
 	useEffect(() => {
@@ -173,7 +221,10 @@ export const useWebsocket = <TInput, TOutput>(
 		}
 	}, [options?.signal, cleanup]);
 
-	const reset = () => setError(null);
+	const reset = () => {
+		setError(null);
+		setIsError(false);
+	};
 
 	const send = (data: TInput) => {
 		if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -194,10 +245,11 @@ export const useWebsocket = <TInput, TOutput>(
 	};
 
 	return {
-		connected,
+		isConnected,
 		close,
 		data,
 		error,
+		isError,
 		send,
 		setHandler,
 		reset,
@@ -205,43 +257,57 @@ export const useWebsocket = <TInput, TOutput>(
 	};
 };
 
-interface UseAgentWebsocketResponse<TInput, TOutput>
-	extends Omit<WebsocketResponse<TInput, TOutput>, 'setHandler'> {
-	/**
-	 * Data received from the agent via WebSocket
-	 */
-	data?: TOutput;
-}
-
-export const useAgentWebsocket = <
-	TName extends AgentName,
-	TInput = TName extends keyof AgentRegistry
-		? InferInput<AgentRegistry[TName]['inputSchema']>
-		: never,
-	TOutput = TName extends keyof AgentRegistry
-		? InferOutput<AgentRegistry[TName]['outputSchema']>
-		: never,
->(
-	agent: TName,
-	options?: WebsocketArgs
-): UseAgentWebsocketResponse<TInput, TOutput> => {
-	const [data, setData] = useState<TOutput>();
-	const { connected, close, send, setHandler, readyState, error, reset } = useWebsocket<
-		TInput,
-		TOutput
-	>(`/agent/${agent}`, options);
+/**
+ * Type-safe WebSocket hook for connecting to WebSocket routes.
+ *
+ * Provides automatic type inference for route inputs and outputs based on
+ * the WebSocketRouteRegistry generated from your routes.
+ *
+ * @template TRoute - WebSocket route key from WebSocketRouteRegistry (e.g., '/ws', '/chat')
+ *
+ * @example Simple WebSocket connection
+ * ```typescript
+ * const { isConnected, data, send } = useWebsocket('/ws');
+ *
+ * // Send typed data
+ * send({ message: 'Hello' }); // Fully typed based on route schema!
+ * ```
+ *
+ * @example WebSocket with query parameters
+ * ```typescript
+ * const { isConnected, data, send } = useWebsocket('/chat', {
+ *   query: new URLSearchParams({ room: 'general' })
+ * });
+ * ```
+ */
+export function useWebsocket<TRoute extends WebSocketRouteKey>(
+	route: TRoute,
+	options?: WebsocketOptions
+): Omit<
+	WebsocketResponseInternal<WebSocketRouteInput<TRoute>, WebSocketRouteOutput<TRoute>>,
+	'setHandler'
+> & {
+	data?: WebSocketRouteOutput<TRoute>;
+} {
+	const [data, setData] = useState<WebSocketRouteOutput<TRoute>>();
+	const { isConnected, close, send, setHandler, readyState, error, isError, reset } =
+		useWebsocketInternal<WebSocketRouteInput<TRoute>, WebSocketRouteOutput<TRoute>>(
+			route as string,
+			options
+		);
 
 	useEffect(() => {
 		setHandler(setData);
-	}, [agent, setHandler]);
+	}, [route, setHandler]);
 
 	return {
-		connected,
+		isConnected,
 		close,
 		data,
 		error,
+		isError,
 		reset,
 		send,
 		readyState,
 	};
-};
+}

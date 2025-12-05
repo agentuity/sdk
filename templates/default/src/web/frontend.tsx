@@ -7,12 +7,15 @@
 
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { AgentuityProvider } from '@agentuity/react';
 import { App } from './App';
 
 const elem = document.getElementById('root')!;
 const app = (
 	<StrictMode>
-		<App />
+		<AgentuityProvider>
+			<App />
+		</AgentuityProvider>
 	</StrictMode>
 );
 

@@ -82,7 +82,7 @@ agentuity --log-level=error example list
 Commands are organized into groups:
 
 - **Top-level**: `auth`, `project`, `version`, `build` (alias: `bundle`), `dev`
-- **Cloud** (`cloud`): `keyvalue`, `agents`, `objectstore`, `env`, `secret`, and deployment-related commands
+- **Cloud** (`cloud`): `keyvalue`, `agents`, `env`, `secret`, and deployment-related commands
 - **AI** (`ai`): `capabilities`, `prompt`, `schema`
 - **Hidden**: `profile` (internal use only)
 

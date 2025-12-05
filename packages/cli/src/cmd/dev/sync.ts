@@ -5,28 +5,16 @@ import type { APIClient } from '../../api';
 interface AgentSyncPayload {
 	id: string;
 	name: string;
-	identifier: string;
 	agentId: string;
 	description?: string;
 	version: string;
 	filename: string;
 	projectId: string;
-	subagents?: Array<{
-		id: string;
-		name: string;
-		identifier: string;
-		agentId: string;
-		description?: string;
-		version: string;
-		filename: string;
-		projectId: string;
-	}>;
 }
 
 interface EvalSyncPayload {
 	id: string;
 	name: string;
-	identifier: string;
 	evalId: string;
 	description?: string;
 	version: string;
@@ -64,30 +52,14 @@ function getAgentsToSync(
 				agent.name
 			);
 
-			// Add projectId to subagents if they exist
-			const subagents = agent.subagents?.map((subagent) => {
-				return {
-					id: subagent.id,
-					name: subagent.name,
-					identifier: subagent.identifier,
-					agentId: subagent.agentId,
-					description: subagent.description,
-					version: subagent.version,
-					filename: subagent.filename,
-					projectId,
-				};
-			});
-
 			agentsToCreate.push({
 				id: agent.id,
 				name: agent.name,
-				identifier: agent.identifier,
 				agentId: agent.agentId,
 				description: agent.description,
 				version: agent.version,
 				filename: agent.filename,
 				projectId,
-				...(subagents && { subagents }),
 			});
 		}
 	}

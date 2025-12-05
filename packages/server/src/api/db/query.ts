@@ -44,7 +44,7 @@ export async function dbQuery(client: APIClient, request: DbQueryRequest): Promi
 	const url = `/resource/2025-03-17/${orgId}/${region}/${database}/query`;
 
 	try {
-		const resp = await client.request('POST', url, QueryResponseSchema, { query });
+		const resp = await client.post(url, { query }, QueryResponseSchema);
 
 		if (resp.success && resp.data) {
 			return resp.data;

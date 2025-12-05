@@ -1,11 +1,8 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const agent = createAgent({
-	metadata: {
-		name: 'My First Agent',
-		description: 'This is my first agent ✨',
-	},
+const agent = createAgent('hello', {
+	description: 'This is my first agent ✨',
 	schema: {
 		input: s.object({ name: s.string() }),
 		output: s.string(),

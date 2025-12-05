@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import type { Context, Handler } from 'hono';
+import { s } from '@agentuity/schema';
 import { timingSafeEqual } from 'node:crypto';
 import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';
 import type { WebSocketConnection } from './router';
+import { privateContext } from './_server';
 
 export const createWorkbenchExecutionRoute = (): Handler => {
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
@@ -39,12 +41,12 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			}
 
 			// Get agents registry and find the agent
-			const agents = getAgents();
+			const allAgents = getAgents();
 
 			let agentObj;
 			let agentName;
 
-			for (const [name, agent] of agents) {
+			for (const [name, agent] of allAgents) {
 				if (agent.metadata.id === agentId) {
 					agentObj = agent;
 					agentName = name;
@@ -56,37 +58,23 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				return ctx.text('Agent not found', { status: 404 });
 			}
 
-			// Validate input if schema exists
-			let validatedInput = input;
-			if (agentObj.inputSchema) {
-				const inputResult = await agentObj.inputSchema['~standard'].validate(input);
-				if (inputResult.issues) {
-					return ctx.json(
-						{
-							error: 'Validation failed',
-							issues: inputResult.issues,
-						},
-						{ status: 400 }
-					);
-				}
-				validatedInput = inputResult.value;
-				console.log('✅ [Workbench] Input validation passed');
-			} else {
-				console.log('ℹ️ [Workbench] No input schema, skipping validation');
+			// Track agent ID for telemetry (otelMiddleware sets up agentIds)
+			const _ctx = privateContext(ctx);
+			if (agentObj.metadata?.id) {
+				_ctx.var.agentIds.add(agentObj.metadata.id);
+				_ctx.var.agentIds.add(agentObj.metadata.agentId);
 			}
 
-			// Get agent runner from context.var.agent (should be available via middleware)
-			const agentRunner = ctx.var.agent[agentName];
-			if (!agentRunner) {
-				return ctx.text('Agent runner not found', { status: 404 });
-			}
-
-			// Execute the agent
+			// Execute the agent handler directly
+			// The agentMiddleware has already set up the AsyncLocalStorage context
+			// so the handler can access it via getAgentContext()
 			let result;
 			if (agentObj.inputSchema) {
-				result = await agentRunner.run(validatedInput);
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				result = await (agentObj as any).handler(input);
 			} else {
-				result = await agentRunner.run();
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				result = await (agentObj as any).handler();
 			}
 
 			// Handle cases where result might be undefined/null
@@ -147,6 +135,25 @@ export const createWorkbenchRouter = () => {
 	return router;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const toJSONSchema = (schema: any) => {
+	// Check if it's an Agentuity schema via StandardSchemaV1 vendor
+	if (schema?.['~standard']?.vendor === 'agentuity') {
+		return s.toJSONSchema(schema);
+	}
+	// Check if it's a Zod schema
+	if (schema?._def?.typeName) {
+		try {
+			return z.toJSONSchema(schema);
+		} catch {
+			return {};
+		}
+	}
+	// TODO: this is going to only work for zod schema for now. need a way to handle others
+	// Unknown schema type
+	return {};
+};
+
 export const createWorkbenchMetadataRoute = (): Handler => {
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
 		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
@@ -169,20 +176,19 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 			}
 		}
 		const schemas: { agents: Record<string, unknown> } = { agents: {} };
-		// TODO: this is going to only work for zod schema for now. need a way to handle others
 		for (const [, agent] of agents) {
-			schemas.agents[agent.metadata.identifier] = {
+			schemas.agents[agent.metadata.id] = {
 				schema: {
 					input: agent.inputSchema
 						? {
 								code: agent.metadata.inputSchemaCode || undefined,
-								json: z.toJSONSchema(agent.inputSchema),
+								json: toJSONSchema(agent.inputSchema),
 							}
 						: undefined,
 					output: agent.outputSchema
 						? {
 								code: agent.metadata.outputSchemaCode || undefined,
-								json: z.toJSONSchema(agent.outputSchema),
+								json: toJSONSchema(agent.outputSchema),
 							}
 						: undefined,
 				},

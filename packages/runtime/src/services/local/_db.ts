@@ -47,25 +47,6 @@ function initializeTables(db: Database): void {
 		WHERE expires_at IS NOT NULL
 	`);
 
-	// Object Storage table
-	db.run(`
-		CREATE TABLE IF NOT EXISTS object_storage (
-			project_path TEXT NOT NULL,
-			bucket TEXT NOT NULL,
-			key TEXT NOT NULL,
-			data BLOB NOT NULL,
-			content_type TEXT NOT NULL DEFAULT 'application/octet-stream',
-			content_encoding TEXT,
-			cache_control TEXT,
-			content_disposition TEXT,
-			content_language TEXT,
-			metadata TEXT,
-			created_at INTEGER NOT NULL,
-			updated_at INTEGER NOT NULL,
-			PRIMARY KEY (project_path, bucket, key)
-		)
-	`);
-
 	// Stream Storage table
 	db.run(`
 		CREATE TABLE IF NOT EXISTS stream_storage (
@@ -125,9 +106,6 @@ function cleanupOrphanedProjects(db: Database): void {
 	const kvPaths = db.query('SELECT DISTINCT project_path FROM kv_storage').all() as Array<{
 		project_path: string;
 	}>;
-	const objectPaths = db.query('SELECT DISTINCT project_path FROM object_storage').all() as Array<{
-		project_path: string;
-	}>;
 	const streamPaths = db.query('SELECT DISTINCT project_path FROM stream_storage').all() as Array<{
 		project_path: string;
 	}>;
@@ -137,7 +115,7 @@ function cleanupOrphanedProjects(db: Database): void {
 
 	// Combine and deduplicate all project paths
 	const allPaths = new Set<string>();
-	[...kvPaths, ...objectPaths, ...streamPaths, ...vectorPaths].forEach((row) => {
+	[...kvPaths, ...streamPaths, ...vectorPaths].forEach((row) => {
 		allPaths.add(row.project_path);
 	});
 
@@ -155,9 +133,6 @@ function cleanupOrphanedProjects(db: Database): void {
 
 		// Delete from all tables
 		const deleteKv = db.prepare(`DELETE FROM kv_storage WHERE project_path IN (${placeholders})`);
-		const deleteObject = db.prepare(
-			`DELETE FROM object_storage WHERE project_path IN (${placeholders})`
-		);
 		const deleteStream = db.prepare(
 			`DELETE FROM stream_storage WHERE project_path IN (${placeholders})`
 		);
@@ -166,7 +141,6 @@ function cleanupOrphanedProjects(db: Database): void {
 		);
 
 		deleteKv.run(...pathsToDelete);
-		deleteObject.run(...pathsToDelete);
 		deleteStream.run(...pathsToDelete);
 		deleteVector.run(...pathsToDelete);
 

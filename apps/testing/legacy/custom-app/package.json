@@ -1,0 +1,29 @@
+{
+	"name": "custom-app",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"build": "agentuity build --dir .",
+		"dev": "agentuity dev --dir .",
+		"test": "echo 'Custom app build verification (no runtime tests needed)'",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/react": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"@hono/zod-validator": "^0.7.4"
+	},
+	"version": "0.0.1"
+}

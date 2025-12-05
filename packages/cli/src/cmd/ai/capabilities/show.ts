@@ -137,19 +137,6 @@ export const showSubcommand = createSubcommand({
 					requiresProject: true,
 				},
 				{
-					id: 'objectstore',
-					name: 'Object Storage',
-					description: 'Manage object storage buckets and files',
-					commands: [
-						'objectstore list',
-						'objectstore upload',
-						'objectstore download',
-						'objectstore delete',
-					],
-					requiresAuth: true,
-					requiresProject: true,
-				},
-				{
 					id: 'databases',
 					name: 'Cloud Databases',
 					description: 'Manage database resources',

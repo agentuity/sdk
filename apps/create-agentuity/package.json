@@ -1,6 +1,6 @@
 {
 	"name": "create-agentuity",
-	"version": "0.0.69",
+	"version": "0.0.70",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"description": "Create a new Agentuity project",
@@ -9,7 +9,8 @@
 		"create-agentuity": "./bin.js"
 	},
 	"scripts": {
-		"build": "echo 'No build required'"
+		"build": "echo 'No build required'",
+		"test": "echo 'No tests for create-agentuity (CLI wrapper)'"
 	},
 	"files": [
 		"bin.js"

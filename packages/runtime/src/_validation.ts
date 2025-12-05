@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { StandardSchemaV1 } from '@agentuity/core';
+import type { StandardSchemaV1, InferInput, InferOutput } from '@agentuity/core';
 
 /**
  * Schema definition for routes that can have input (POST, PUT, PATCH, DELETE).
@@ -50,9 +50,7 @@ export type GetRouteSchema<
  *
  * @template T - Schema type
  */
-export type InferSchemaInput<T> = T extends StandardSchemaV1
-	? StandardSchemaV1.InferInput<T>
-	: undefined;
+export type InferSchemaInput<T> = T extends StandardSchemaV1 ? InferInput<T> : undefined;
 
 /**
  * Infer the output type from a StandardSchema.
@@ -60,9 +58,7 @@ export type InferSchemaInput<T> = T extends StandardSchemaV1
  *
  * @template T - Schema type
  */
-export type InferSchemaOutput<T> = T extends StandardSchemaV1
-	? StandardSchemaV1.InferOutput<T>
-	: undefined;
+export type InferSchemaOutput<T> = T extends StandardSchemaV1 ? InferOutput<T> : undefined;
 
 /**
  * Extract input schema from RouteSchema or GetRouteSchema.

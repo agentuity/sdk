@@ -175,6 +175,14 @@ function generateStableEvalId(projectId: string, agentId: string, name: string):
 }
 
 /**
+ * Type guard to check if an AST node is an ObjectExpression
+ */
+function isObjectExpression(node: unknown): node is ASTObjectExpression {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return typeof node === 'object' && node !== null && (node as any).type === 'ObjectExpression';
+}
+
+/**
  * Extract schema code from createAgent call arguments
  * Returns input and output schema code as strings
  */
@@ -227,7 +235,6 @@ const MetadataError = StructuredError('MetatadataNameMissingError')<{
 function augmentAgentMetadataNode(
 	projectId: string,
 	id: string,
-	identifier: string,
 	rel: string,
 	version: string,
 	ast: AcornParseResultType,
@@ -246,19 +253,10 @@ function augmentAgentMetadataNode(
 		});
 	}
 	const name = metadata.get('name')!;
-	if (metadata.has('identifier') && identifier !== metadata.get('identifier')) {
-		const location = ast.loc?.start?.line ? ` on line ${ast.loc.start.line}` : '';
-		throw new MetadataError({
-			filename,
-			line: ast.loc?.start?.line,
-			message: `metadata.identifier (${metadata.get('identifier')}) in ${filename}${location} is mismatched (${name}). This is an internal error.`,
-		});
-	}
 	const descriptionNode = propvalue.properties.find((x) => x.key.name === 'description')?.value;
 	const description = descriptionNode ? (descriptionNode as ASTLiteral).value : '';
 	const agentId = generateStableAgentId(projectId, name);
 	metadata.set('version', version);
-	metadata.set('identifier', identifier);
 	metadata.set('filename', rel);
 	metadata.set('id', id);
 	metadata.set('agentId', agentId);
@@ -273,7 +271,6 @@ function augmentAgentMetadataNode(
 		createObjectPropertyNode('id', id),
 		createObjectPropertyNode('agentId', agentId),
 		createObjectPropertyNode('version', version),
-		createObjectPropertyNode('identifier', name),
 		createObjectPropertyNode('filename', rel),
 		createObjectPropertyNode('description', description)
 	);
@@ -297,15 +294,25 @@ function createAgentMetadataNode(
 	version: string,
 	ast: AcornParseResultType,
 	callargexp: ASTObjectExpression,
-	_filename: string
+	_filename: string,
+	projectId: string,
+	inputSchemaCode?: string,
+	outputSchemaCode?: string
 ): [string, Map<string, string>] {
 	const newmetadata = createNewMetadataNode();
+	const agentId = generateStableAgentId(projectId, name);
 	const md = new Map<string, string>();
 	md.set('id', id);
+	md.set('agentId', agentId);
 	md.set('version', version);
 	md.set('name', name);
-	md.set('identifier', name);
 	md.set('filename', rel);
+	if (inputSchemaCode) {
+		md.set('inputSchemaCode', inputSchemaCode);
+	}
+	if (outputSchemaCode) {
+		md.set('outputSchemaCode', outputSchemaCode);
+	}
 	for (const [key, value] of md) {
 		newmetadata.value.properties.push(createObjectPropertyNode(key, value));
 	}
@@ -315,132 +322,6 @@ function createAgentMetadataNode(
 
 	// Evals imports are now handled in registry.generated.ts
 	return [newsource, md];
-}
-
-function camelToKebab(str: string): string {
-	return str
-		.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-		.replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
-		.toLowerCase();
-}
-
-function setLiteralValue(literal: ASTLiteral, value: string) {
-	literal.value = value;
-	if (literal.raw !== undefined) {
-		literal.raw = JSON.stringify(value);
-	}
-}
-
-function augmentEvalMetadataNode(
-	projectId: string,
-	agentId: string,
-	id: string,
-	name: string,
-	rel: string,
-	version: string,
-	_ast: AcornParseResultType,
-	metadataObj: ASTObjectExpression,
-	_filename: string
-): void {
-	const metadata = parseObjectExpressionToMap(metadataObj);
-	// Name can come from metadata.name or variable name (already resolved in caller)
-	// If metadata doesn't have name, we'll add it from the resolved name
-	if (!metadata.has('name')) {
-		metadataObj.properties.push(createObjectPropertyNode('name', name));
-	}
-	const descriptionNode = metadataObj.properties.find((x) => x.key.name === 'description')?.value;
-	const description = descriptionNode ? (descriptionNode as ASTLiteral).value : '';
-	const effectiveAgentId = agentId || '';
-	const _evalId = getEvalId(projectId, effectiveAgentId, rel, name, version); // Deployment-specific ID (not used, kept for potential future use)
-	const stableEvalId = generateStableEvalId(projectId, effectiveAgentId, name);
-
-	// Check if id, version, identifier, filename, evalId already exist
-	const existingKeys = new Set<string>();
-	for (const prop of metadataObj.properties) {
-		if (prop.key.type === 'Identifier') {
-			existingKeys.add(prop.key.name);
-		}
-	}
-
-	// Add or update metadata properties
-	if (!existingKeys.has('id')) {
-		metadataObj.properties.push(createObjectPropertyNode('id', id));
-	} else {
-		// Update existing id
-		for (const prop of metadataObj.properties) {
-			if (prop.key.type === 'Identifier' && prop.key.name === 'id') {
-				if (prop.value.type === 'Literal') {
-					setLiteralValue(prop.value as ASTLiteral, id);
-				}
-				break;
-			}
-		}
-	}
-
-	if (!existingKeys.has('version')) {
-		metadataObj.properties.push(createObjectPropertyNode('version', version));
-	} else {
-		for (const prop of metadataObj.properties) {
-			if (prop.key.type === 'Identifier' && prop.key.name === 'version') {
-				if (prop.value.type === 'Literal') {
-					setLiteralValue(prop.value as ASTLiteral, version);
-				}
-				break;
-			}
-		}
-	}
-
-	if (!existingKeys.has('identifier')) {
-		metadataObj.properties.push(createObjectPropertyNode('identifier', name));
-	} else {
-		for (const prop of metadataObj.properties) {
-			if (prop.key.type === 'Identifier' && prop.key.name === 'identifier') {
-				if (prop.value.type === 'Literal') {
-					setLiteralValue(prop.value as ASTLiteral, name);
-				}
-				break;
-			}
-		}
-	}
-
-	if (!existingKeys.has('filename')) {
-		metadataObj.properties.push(createObjectPropertyNode('filename', rel));
-	} else {
-		for (const prop of metadataObj.properties) {
-			if (prop.key.type === 'Identifier' && prop.key.name === 'filename') {
-				if (prop.value.type === 'Literal') {
-					setLiteralValue(prop.value as ASTLiteral, rel);
-				}
-				break;
-			}
-		}
-	}
-
-	if (!existingKeys.has('evalId')) {
-		metadataObj.properties.push(createObjectPropertyNode('evalId', stableEvalId));
-	} else {
-		for (const prop of metadataObj.properties) {
-			if (prop.key.type === 'Identifier' && prop.key.name === 'evalId') {
-				if (prop.value.type === 'Literal') {
-					setLiteralValue(prop.value as ASTLiteral, stableEvalId);
-				}
-				break;
-			}
-		}
-	}
-
-	if (!existingKeys.has('description')) {
-		metadataObj.properties.push(createObjectPropertyNode('description', description));
-	} else {
-		for (const prop of metadataObj.properties) {
-			if (prop.key.type === 'Identifier' && prop.key.name === 'description') {
-				if (prop.value.type === 'Literal') {
-					setLiteralValue(prop.value as ASTLiteral, description);
-				}
-				break;
-			}
-		}
-	}
 }
 
 const DuplicateNameError = StructuredError('DuplicateNameError')<{ filename: string }>();
@@ -458,7 +339,6 @@ export function parseEvalMetadata(
 		filename: string;
 		id: string;
 		version: string;
-		identifier: string;
 		name: string;
 		evalId: string;
 		description?: string;
@@ -483,7 +363,6 @@ export function parseEvalMetadata(
 		filename: string;
 		id: string;
 		version: string;
-		identifier: string;
 		name: string;
 		evalId: string;
 		description?: string;
@@ -520,110 +399,73 @@ export function parseEvalMetadata(
 							property.name === 'createEval'
 						) {
 							// Found agent.createEval() call
-							if (call.arguments.length > 0) {
+							// New signature: agent.createEval(name, { description?, handler })
+							if (call.arguments.length >= 2) {
 								const firstArg = call.arguments[0] as ASTNode;
-								if (firstArg.type === 'ObjectExpression') {
-									const evalConfig = firstArg as ASTObjectExpression;
-									let evalName: string | undefined;
-									let evalDescription: string | undefined;
-									let variableName: string | undefined;
-									let metadataObj: ASTObjectExpression | undefined;
+								const secondArg = call.arguments[1] as ASTNode;
 
-									// Capture variable name if available
-									if (vardecl.id.type === 'Identifier') {
-										variableName = (vardecl.id as ASTNodeIdentifier).name;
-									}
+								let evalName: string | undefined;
+								let evalDescription: string | undefined;
+								let configObj: ASTObjectExpression | undefined;
 
-									// Extract metadata from the eval config
-									for (const prop of evalConfig.properties) {
-										if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
-											if (prop.value.type === 'ObjectExpression') {
-												metadataObj = prop.value as ASTObjectExpression;
-												for (const metaProp of metadataObj.properties) {
-													if (metaProp.key.type === 'Identifier') {
-														if (
-															metaProp.key.name === 'name' &&
-															metaProp.value.type === 'Literal'
-														) {
-															evalName = (metaProp.value as ASTLiteral).value;
-														} else if (
-															metaProp.key.name === 'description' &&
-															metaProp.value.type === 'Literal'
-														) {
-															evalDescription = (metaProp.value as ASTLiteral).value;
-														}
-													}
-												}
+								// First argument should be a string literal (the name)
+								if (
+									firstArg.type === 'Literal' &&
+									typeof (firstArg as ASTLiteral).value === 'string'
+								) {
+									evalName = (firstArg as ASTLiteral).value;
+								} else {
+									throw new MetadataError({
+										filename,
+										line: body.loc?.start?.line,
+										message:
+											'agent.createEval() first argument must be a string literal name.',
+									});
+								}
+
+								// Second argument should be the config object
+								if (secondArg.type === 'ObjectExpression') {
+									configObj = secondArg as ASTObjectExpression;
+
+									// Extract description from config object
+									for (const prop of configObj.properties) {
+										if (
+											prop.key.type === 'Identifier' &&
+											prop.key.name === 'description'
+										) {
+											if (prop.value.type === 'Literal') {
+												evalDescription = (prop.value as ASTLiteral).value;
 											}
 										}
 									}
-
-									// Use metadata.name if provided, otherwise use variable name
-									// Throw error if neither is available (should never happen)
-									let finalName: string;
-									if (evalName) {
-										finalName = evalName;
-									} else if (variableName) {
-										finalName = camelToKebab(variableName);
-									} else {
-										throw new MetadataError({
-											filename,
-											line: body.loc?.start?.line,
-											message:
-												'Eval is missing a name. Please provide metadata.name or use a named export.',
-										});
-									}
-
-									logger.trace(
-										`Found eval: ${finalName}${evalDescription ? ` - ${evalDescription}` : ''}`
-									);
-									const evalId = getEvalId(
-										projectId,
-										deploymentId,
-										rel,
-										finalName,
-										version
-									);
-
-									// Inject metadata into AST if metadata object exists
-									let stableEvalId: string;
-									const effectiveAgentId = agentId || '';
-									if (metadataObj) {
-										augmentEvalMetadataNode(
-											projectId,
-											effectiveAgentId,
-											evalId,
-											finalName,
-											rel,
-											version,
-											ast,
-											metadataObj,
-											filename
-										);
-										// Extract evalId from metadata after augmentation
-										const metadata = parseObjectExpressionToMap(metadataObj);
-										stableEvalId =
-											metadata.get('evalId') ||
-											generateStableEvalId(projectId, effectiveAgentId, finalName);
-									} else {
-										// If no metadata object, generate stable evalId
-										stableEvalId = generateStableEvalId(
-											projectId,
-											effectiveAgentId,
-											finalName
-										);
-									}
-
-									evals.push({
-										filename: rel,
-										id: evalId,
-										version,
-										identifier: finalName,
-										name: finalName,
-										evalId: stableEvalId,
-										description: evalDescription,
-									});
 								}
+
+								const finalName = evalName;
+
+								logger.trace(
+									`Found eval: ${finalName}${evalDescription ? ` - ${evalDescription}` : ''}`
+								);
+								const evalId = getEvalId(projectId, deploymentId, rel, finalName, version);
+
+								// Generate stable evalId
+								const effectiveAgentId = agentId || '';
+								const stableEvalId = generateStableEvalId(
+									projectId,
+									effectiveAgentId,
+									finalName
+								);
+
+								// Note: We no longer inject metadata into the AST since there's no metadata object
+								// The runtime will generate IDs from the name parameter
+
+								evals.push({
+									filename: rel,
+									id: evalId,
+									version,
+									name: finalName,
+									evalId: stableEvalId,
+									description: evalDescription,
+								});
 							}
 						}
 					}
@@ -662,7 +504,6 @@ export function parseEvalMetadata(
 }
 
 const InvalidExportError = StructuredError('InvalidExportError')<{ filename: string }>();
-const InvalidCreateAgentError = StructuredError('InvalidCreateAgentError')<{ filename: string }>();
 
 export async function parseAgentMetadata(
 	rootDir: string,
@@ -670,7 +511,12 @@ export async function parseAgentMetadata(
 	contents: string,
 	projectId: string,
 	deploymentId: string
-): Promise<[string, Map<string, string>]> {
+): Promise<[string, Map<string, string>] | undefined> {
+	// Quick string search optimization - skip AST parsing if no createAgent call
+	if (!contents.includes('createAgent')) {
+		return undefined;
+	}
+
 	const ast = acornLoose.parse(contents, {
 		locations: true,
 		ecmaVersion: 'latest',
@@ -690,63 +536,87 @@ export async function parseAgentMetadata(
 			if (body.declaration?.type === 'CallExpression') {
 				const call = body.declaration as ASTCallExpression;
 				if (call.callee.name === 'createAgent') {
-					for (const callarg of call.arguments) {
-						const callargexp = callarg as ASTObjectExpression;
+					// Enforce new API: createAgent('name', {config})
+					if (call.arguments.length < 2) {
+						throw new Error(
+							`createAgent requires 2 arguments: createAgent('name', config) in ${filename}`
+						);
+					}
 
-						// Extract schema code before processing metadata
-						let inputSchemaCode: string | undefined;
-						let outputSchemaCode: string | undefined;
-						if (!schemaCodeExtracted) {
-							const schemaCode = extractSchemaCode(callargexp);
-							inputSchemaCode = schemaCode.inputSchemaCode;
-							outputSchemaCode = schemaCode.outputSchemaCode;
-							schemaCodeExtracted = true;
-						}
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const nameArg = call.arguments[0] as any;
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const configArg = call.arguments[1] as any;
 
-						for (const prop of callargexp.properties) {
-							if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
-								result = augmentAgentMetadataNode(
-									projectId,
-									id,
-									name,
-									rel,
-									version,
-									ast,
-									prop.value as ASTObjectExpression,
-									filename,
-									inputSchemaCode,
-									outputSchemaCode
-								);
-								break;
-							}
-						}
-						if (!result) {
-							result = createAgentMetadataNode(
+					if (!nameArg || nameArg.type !== 'Literal' || typeof nameArg.value !== 'string') {
+						throw new Error(
+							`createAgent first argument must be a string literal in ${filename}`
+						);
+					}
+
+					if (!isObjectExpression(configArg)) {
+						throw new Error(
+							`createAgent second argument must be a config object in ${filename}`
+						);
+					}
+
+					const callargexp = configArg;
+
+					// Extract schema code before processing metadata
+					let inputSchemaCode: string | undefined;
+					let outputSchemaCode: string | undefined;
+					if (!schemaCodeExtracted) {
+						const schemaCode = extractSchemaCode(callargexp);
+						inputSchemaCode = schemaCode.inputSchemaCode;
+						outputSchemaCode = schemaCode.outputSchemaCode;
+						schemaCodeExtracted = true;
+					}
+
+					for (const prop of callargexp.properties) {
+						if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
+							result = augmentAgentMetadataNode(
+								projectId,
 								id,
-								name,
 								rel,
 								version,
 								ast,
-								callargexp,
-								filename
+								prop.value as ASTObjectExpression,
+								filename,
+								inputSchemaCode,
+								outputSchemaCode
 							);
+							break;
 						}
-						break;
 					}
+					if (!result) {
+						result = createAgentMetadataNode(
+							id,
+							name,
+							rel,
+							version,
+							ast,
+							callargexp,
+							filename,
+							projectId,
+							inputSchemaCode,
+							outputSchemaCode
+						);
+					}
+					break;
 				}
 			}
-			if (!result) {
-				const identifier = body.declaration as ASTNodeIdentifier;
-				exportName = identifier.name;
-				break;
-			}
+		}
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		if (!result && (body as any).declaration?.type === 'Identifier') {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const identifier = (body as any).declaration as ASTNodeIdentifier;
+			exportName = identifier.name;
+			break;
 		}
 	}
+	// If no default export or createAgent found, skip this file (it's not an agent)
 	if (!result && !exportName) {
-		throw new InvalidExportError({
-			filename,
-			message: `could not find default export for ${filename} using ${rootDir}`,
-		});
+		return undefined;
 	}
 	if (!result) {
 		for (const body of ast.body) {
@@ -758,52 +628,77 @@ export async function parseAgentMetadata(
 							if (vardecl.init?.type === 'CallExpression') {
 								const call = vardecl.init as ASTCallExpression;
 								if (call.callee.name === 'createAgent') {
-									for (const callarg of call.arguments) {
-										const callargexp = callarg as ASTObjectExpression;
+									// Enforce new API: createAgent('name', {config})
+									if (call.arguments.length < 2) {
+										throw new Error(
+											`createAgent requires 2 arguments: createAgent('name', config) in ${filename}`
+										);
+									}
 
-										// Extract schema code before processing metadata
-										let inputSchemaCode: string | undefined;
-										let outputSchemaCode: string | undefined;
-										if (!schemaCodeExtracted) {
-											const schemaCode = extractSchemaCode(callargexp);
-											inputSchemaCode = schemaCode.inputSchemaCode;
-											outputSchemaCode = schemaCode.outputSchemaCode;
-											schemaCodeExtracted = true;
-										}
+									// eslint-disable-next-line @typescript-eslint/no-explicit-any
+									const nameArg = call.arguments[0] as any;
+									// eslint-disable-next-line @typescript-eslint/no-explicit-any
+									const configArg = call.arguments[1] as any;
 
-										for (const prop of callargexp.properties) {
-											if (
-												prop.key.type === 'Identifier' &&
-												prop.key.name === 'metadata'
-											) {
-												result = augmentAgentMetadataNode(
-													projectId,
-													id,
-													name,
-													rel,
-													version,
-													ast,
-													prop.value as ASTObjectExpression,
-													filename,
-													inputSchemaCode,
-													outputSchemaCode
-												);
-												break;
-											}
-										}
-										if (!result) {
-											result = createAgentMetadataNode(
+									if (
+										!nameArg ||
+										nameArg.type !== 'Literal' ||
+										typeof nameArg.value !== 'string'
+									) {
+										throw new Error(
+											`createAgent first argument must be a string literal in ${filename}`
+										);
+									}
+
+									if (!isObjectExpression(configArg)) {
+										throw new Error(
+											`createAgent second argument must be a config object in ${filename}`
+										);
+									}
+
+									const callargexp = configArg;
+
+									// Extract schema code before processing metadata
+									let inputSchemaCode: string | undefined;
+									let outputSchemaCode: string | undefined;
+									if (!schemaCodeExtracted) {
+										const schemaCode = extractSchemaCode(callargexp);
+										inputSchemaCode = schemaCode.inputSchemaCode;
+										outputSchemaCode = schemaCode.outputSchemaCode;
+										schemaCodeExtracted = true;
+									}
+
+									for (const prop of callargexp.properties) {
+										if (prop.key.type === 'Identifier' && prop.key.name === 'metadata') {
+											result = augmentAgentMetadataNode(
+												projectId,
 												id,
-												name,
 												rel,
 												version,
 												ast,
-												callargexp,
-												filename
+												prop.value as ASTObjectExpression,
+												filename,
+												inputSchemaCode,
+												outputSchemaCode
 											);
+											break;
 										}
-										break;
 									}
+									if (!result) {
+										result = createAgentMetadataNode(
+											id,
+											name,
+											rel,
+											version,
+											ast,
+											callargexp,
+											filename,
+											projectId,
+											inputSchemaCode,
+											outputSchemaCode
+										);
+									}
+									break;
 								}
 							}
 						}
@@ -812,11 +707,9 @@ export async function parseAgentMetadata(
 			}
 		}
 	}
+	// If no createAgent found after checking all declarations, skip this file
 	if (!result) {
-		throw new InvalidCreateAgentError({
-			filename,
-			message: `error parsing: ${filename}. could not find an proper createAgent defined in this file`,
-		});
+		return undefined;
 	}
 
 	// Parse evals from eval.ts file in the same directory
@@ -869,6 +762,89 @@ const InvalidRouterConfigError = StructuredError('InvalidRouterConfigError')<{
 	line?: number;
 }>();
 
+/**
+ * Check if an AST node contains a validator() call
+ */
+interface ValidatorInfo {
+	hasValidator: boolean;
+	agentVariable?: string;
+	inputSchemaVariable?: string;
+	outputSchemaVariable?: string;
+}
+
+function hasValidatorCall(args: unknown[]): ValidatorInfo {
+	if (!args || args.length === 0) return { hasValidator: false };
+
+	for (const arg of args) {
+		if (!arg || typeof arg !== 'object') continue;
+		const node = arg as ASTNode;
+
+		// Check if this is a CallExpression with callee named 'validator'
+		if (node.type === 'CallExpression') {
+			const callExpr = node as ASTCallExpression;
+			if (callExpr.callee.type === 'Identifier') {
+				const identifier = callExpr.callee as ASTNodeIdentifier;
+				if (identifier.name === 'validator') {
+					// Try to extract schema variables from validator({ input, output })
+					const schemas = extractValidatorSchemas(callExpr);
+					return { hasValidator: true, ...schemas };
+				}
+			}
+			// Check for agent.validator()
+			if (callExpr.callee.type === 'MemberExpression') {
+				const member = callExpr.callee as ASTMemberExpression;
+				if (member.property && (member.property as ASTNodeIdentifier).name === 'validator') {
+					// Extract agent variable name (the object before .validator())
+					const agentVariable =
+						member.object.type === 'Identifier'
+							? (member.object as ASTNodeIdentifier).name
+							: undefined;
+					return { hasValidator: true, agentVariable };
+				}
+			}
+		}
+	}
+
+	return { hasValidator: false };
+}
+
+/**
+ * Extract schema variable names from validator() call arguments
+ * Example: validator({ input: myInputSchema, output: myOutputSchema })
+ */
+function extractValidatorSchemas(callExpr: ASTCallExpression): {
+	inputSchemaVariable?: string;
+	outputSchemaVariable?: string;
+} {
+	const result: { inputSchemaVariable?: string; outputSchemaVariable?: string } = {};
+
+	// Check if validator has arguments
+	if (!callExpr.arguments || callExpr.arguments.length === 0) {
+		return result;
+	}
+
+	// First argument should be an object expression
+	const firstArg = callExpr.arguments[0] as ASTNode;
+	if (!firstArg || firstArg.type !== 'ObjectExpression') {
+		return result;
+	}
+
+	const objExpr = firstArg as ASTObjectExpression;
+	for (const prop of objExpr.properties) {
+		const keyName = prop.key.name;
+		if ((keyName === 'input' || keyName === 'output') && prop.value.type === 'Identifier') {
+			const valueName = (prop.value as ASTNodeIdentifier).name;
+			if (keyName === 'input') {
+				result.inputSchemaVariable = valueName;
+			} else {
+				result.outputSchemaVariable = valueName;
+			}
+		}
+	}
+
+	return result;
+}
+
 export async function parseRoute(
 	rootDir: string,
 	filename: string,
@@ -884,6 +860,32 @@ export async function parseRoute(
 	});
 	let exportName: string | undefined;
 	let variableName: string | undefined;
+
+	// Extract import statements to map variable names to their import sources
+	const importMap = new Map<string, string>(); // Maps variable name to import path
+	for (const body of ast.body) {
+		if (body.type === 'ImportDeclaration') {
+			const importDecl = body as {
+				source?: { value?: string };
+				specifiers?: Array<{
+					type: string;
+					local?: { name?: string };
+				}>;
+			};
+			const importPath = importDecl.source?.value;
+			if (importPath && importDecl.specifiers) {
+				for (const spec of importDecl.specifiers) {
+					if (spec.type === 'ImportDefaultSpecifier' && spec.local?.name) {
+						// import hello from '@agent/hello'
+						importMap.set(spec.local.name, importPath);
+					} else if (spec.type === 'ImportSpecifier' && spec.local?.name) {
+						// import { hello } from './shared'
+						importMap.set(spec.local.name, importPath);
+					}
+				}
+			}
+		}
+	}
 	for (const body of ast.body) {
 		if (body.type === 'ExportDefaultDeclaration') {
 			const identifier = body.declaration as ASTNodeIdentifier;
@@ -905,7 +907,15 @@ export async function parseRoute(
 					if (identifier.name === exportName) {
 						if (vardecl.init?.type === 'CallExpression') {
 							const call = vardecl.init as ASTCallExpression;
+							// Support both createRouter() and new Hono()
 							if (call.callee.name === 'createRouter') {
+								variableName = identifier.name;
+								break;
+							}
+						} else if (vardecl.init?.type === 'NewExpression') {
+							const newExpr = vardecl.init as ASTCallExpression;
+							// Support new Hono() pattern
+							if (newExpr.callee.name === 'Hono') {
 								variableName = identifier.name;
 								break;
 							}
@@ -918,7 +928,7 @@ export async function parseRoute(
 	if (!variableName) {
 		throw new InvalidCreateRouterError({
 			filename,
-			message: `error parsing: ${filename}. could not find an proper createRouter defined in this file`,
+			message: `error parsing: ${filename}. could not find an proper createRouter or new Hono() defined in this file`,
 		});
 	}
 
@@ -926,16 +936,12 @@ export async function parseRoute(
 	const dir = dirname(filename);
 	const name = basename(dir);
 
-	// Detect if this is a subagent route and build proper path
-	const relativePath = relative(rootDir, dir)
-		.replace(/^src\/agent\//, '')
-		.replace(/^src\/web\//, '');
-	const pathParts = relativePath.split('/').filter(Boolean);
-	const isSubagent = pathParts.length === 2 && filename.includes('src/agent');
-	const routeName = isSubagent ? pathParts.join('/') : name;
+	// For src/api/index.ts, we don't want to add the folder name since it's the root API router
+	const isRootApi = filename.includes('src/api/index.ts');
+	const routeName = isRootApi ? '' : name;
 
 	const routes: RouteDefinition = [];
-	const routePrefix = filename.includes('src/agent') ? '/agent' : '/api';
+	const routePrefix = '/api';
 
 	try {
 		for (const body of ast.body) {
@@ -1067,6 +1073,30 @@ export async function parseRoute(
 							thepath,
 							version
 						);
+
+						// Check if this route uses validator middleware
+						const validatorInfo = hasValidatorCall(statement.expression.arguments);
+
+						// Store validator info in config if present
+						const routeConfig = config ? { ...config } : {};
+						if (validatorInfo.hasValidator) {
+							routeConfig.hasValidator = true;
+							if (validatorInfo.agentVariable) {
+								routeConfig.agentVariable = validatorInfo.agentVariable;
+								// Look up where this agent variable is imported from
+								const agentImportPath = importMap.get(validatorInfo.agentVariable);
+								if (agentImportPath) {
+									routeConfig.agentImportPath = agentImportPath;
+								}
+							}
+							if (validatorInfo.inputSchemaVariable) {
+								routeConfig.inputSchemaVariable = validatorInfo.inputSchemaVariable;
+							}
+							if (validatorInfo.outputSchemaVariable) {
+								routeConfig.outputSchemaVariable = validatorInfo.outputSchemaVariable;
+							}
+						}
+
 						routes.push({
 							id,
 							method: method as 'get' | 'post' | 'put' | 'delete' | 'patch',
@@ -1074,7 +1104,7 @@ export async function parseRoute(
 							filename: rel,
 							path: thepath,
 							version,
-							config,
+							config: Object.keys(routeConfig).length > 0 ? routeConfig : undefined,
 						});
 					}
 				}

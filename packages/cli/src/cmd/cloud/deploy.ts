@@ -186,6 +186,7 @@ export const deploySubcommand = createSubcommand({
 									provider: opts?.provider,
 									trigger: opts?.trigger,
 									tag: opts?.tag,
+									region: project.region,
 								});
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
 								instructions = await projectDeploymentUpdate(

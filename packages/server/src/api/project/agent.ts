@@ -50,7 +50,7 @@ export async function projectAgentList(
 
 	const url = `/cli/agent/${projectId}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
 
-	const resp = await client.request('GET', url, AgentListResponseSchema);
+	const resp = await client.get(url, AgentListResponseSchema);
 
 	if (resp.success) {
 		return resp.data;
@@ -66,8 +66,7 @@ export async function projectAgentGet(
 	projectId: string,
 	agentId: string
 ): Promise<Agent> {
-	const resp = await client.request(
-		'GET',
+	const resp = await client.get(
 		`/cli/agent/${projectId}?identifier=${agentId}`,
 		AgentGetResponseSchema
 	);

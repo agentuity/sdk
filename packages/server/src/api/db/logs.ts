@@ -62,7 +62,7 @@ export async function dbLogs(client: APIClient, request: DbLogsRequest): Promise
 	const queryString = params.toString();
 	const url = `/resource/2025-03-17/${orgId}/${region}/${database}/logs${queryString ? `?${queryString}` : ''}`;
 
-	const resp = await client.request<DbLogsResponse>('GET', url, DbLogsResponseSchema);
+	const resp = await client.get<DbLogsResponse>(url, DbLogsResponseSchema);
 
 	if (resp.success) {
 		return resp.data;

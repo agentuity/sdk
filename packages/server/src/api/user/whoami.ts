@@ -24,7 +24,7 @@ export type User = z.infer<typeof WhoamiResponse>;
  * @returns
  */
 export async function whoami(client: APIClient): Promise<User> {
-	const resp = await client.request<WhoamiResponse>('GET', '/cli/auth/user', WhoamiResponseSchema);
+	const resp = await client.get<WhoamiResponse>('/cli/auth/user', WhoamiResponseSchema);
 	if (resp.success) {
 		return resp.data;
 	}

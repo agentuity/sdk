@@ -166,7 +166,7 @@ Route handlers have additional context:
 
 - **c.req** - Hono request object
 - **c.var.logger** - Logger instance
-- **c.var.agent** or **c.agent** - Access to all agents
+- **Import agents directly** - Import and call agents directly instead of using c.var.agent
 
 ## Examples
 

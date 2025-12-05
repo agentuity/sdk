@@ -3,7 +3,6 @@ import { safeStringify, type LogLevel } from '@agentuity/core';
 import * as LogsAPI from '@opentelemetry/api-logs';
 import type { Logger } from '../logger';
 import ConsoleLogger from '../logger/console';
-import { getAgentContext } from '../_context';
 
 /**
  * Reference to the original console object before patching
@@ -41,23 +40,6 @@ export class OtelLogger implements Logger {
 	}
 
 	private getAttributes(): Record<string, unknown> | undefined {
-		try {
-			const actx = getAgentContext();
-			const current = actx.current?.metadata;
-			if (current) {
-				const result: Record<string, unknown> = {
-					...(this.context ?? {}),
-				};
-				for (const [key, value] of Object.entries(current)) {
-					if (value !== null && value !== undefined) {
-						result[`@agentuity/${key}`] = value as unknown;
-					}
-				}
-				return result;
-			}
-		} catch {
-			/* fall through */
-		}
 		return this.context;
 	}
 

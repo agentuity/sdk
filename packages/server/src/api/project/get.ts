@@ -23,8 +23,7 @@ type ProjectGetResponse = z.infer<typeof ProjectGetResponseSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
 
 export async function projectGet(client: APIClient, request: ProjectGetRequest): Promise<Project> {
-	const resp = await client.request<ProjectGetResponse, ProjectGetRequest>(
-		'GET',
+	const resp = await client.get<ProjectGetResponse>(
 		`/cli/project/${request.id}?mask=${request.mask ?? true}`,
 		ProjectGetResponseSchema
 	);

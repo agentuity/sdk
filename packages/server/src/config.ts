@@ -1,6 +1,5 @@
 export interface ServiceUrls {
 	keyvalue: string;
-	objectstore: string;
 	stream: string;
 	vector: string;
 	catalyst: string;
@@ -15,7 +14,6 @@ export function getServiceUrls(region?: string): ServiceUrls {
 
 	return {
 		keyvalue: process.env.AGENTUITY_KEYVALUE_URL || transportUrl,
-		objectstore: process.env.AGENTUITY_OBJECTSTORE_URL || transportUrl,
 		stream: process.env.AGENTUITY_STREAM_URL || buildRegionalURL(region, 'streams'),
 		vector: process.env.AGENTUITY_VECTOR_URL || transportUrl,
 		catalyst: process.env.AGENTUITY_CATALYST_URL || transportUrl,

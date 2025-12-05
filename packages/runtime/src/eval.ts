@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { StandardSchemaV1 } from '@agentuity/core';
+import type { StandardSchemaV1, InferInput, InferOutput } from '@agentuity/core';
 import type { AgentContext } from './agent';
 
 // Eval SDK types
@@ -75,14 +75,14 @@ export type ExternalEvalMetadata = {
 
 export type EvalMetadata = InternalEvalMetadata & ExternalEvalMetadata;
 
-type InferSchemaInput<T> = T extends StandardSchemaV1 ? StandardSchemaV1.InferInput<T> : any;
-type InferSchemaOutput<T> = T extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<T> : any;
+type InferSchemaInput<T> = T extends StandardSchemaV1 ? InferInput<T> : any;
+type InferSchemaOutput<T> = T extends StandardSchemaV1 ? InferOutput<T> : any;
 
-export type EvalFunction<TInput = any, TOutput = any> = TInput extends undefined
-	? TOutput extends undefined
+export type EvalFunction<TInput = any, TOutput = any> = [TInput] extends [undefined]
+	? [TOutput] extends [undefined]
 		? (ctx: EvalContext) => Promise<EvalRunResult>
 		: (ctx: EvalContext, output: TOutput) => Promise<EvalRunResult>
-	: TOutput extends undefined
+	: [TOutput] extends [undefined]
 		? (ctx: EvalContext, input: TInput) => Promise<EvalRunResult>
 		: (ctx: EvalContext, input: TInput, output: TOutput) => Promise<EvalRunResult>;
 

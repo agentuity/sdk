@@ -4,3 +4,6 @@ production = false
 
 [install.scopes]
 "@agentuity" = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
+
+[test]
+preload = ["./packages/react/test/happydom.ts", "./packages/react/test/testing-library.ts"]

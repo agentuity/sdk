@@ -62,8 +62,7 @@ export async function projectDeploymentList(
 	projectId: string,
 	limit = 10
 ): Promise<DeploymentInfo[]> {
-	const resp = await client.request(
-		'GET',
+	const resp = await client.get(
 		`/cli/project/${projectId}/deployments?limit=${limit}`,
 		DeploymentListResponseSchema
 	);
@@ -78,8 +77,7 @@ export async function projectDeploymentGet(
 	projectId: string,
 	deploymentId: string
 ): Promise<DeploymentInfo> {
-	const resp = await client.request(
-		'GET',
+	const resp = await client.get(
 		`/cli/project/${projectId}/deployments/${deploymentId}`,
 		DeploymentGetResponseSchema
 	);
@@ -94,8 +92,7 @@ export async function projectDeploymentDelete(
 	projectId: string,
 	deploymentId: string
 ): Promise<void> {
-	const resp = await client.request(
-		'DELETE',
+	const resp = await client.delete(
 		`/cli/project/${projectId}/deployments/${deploymentId}`,
 		DeploymentActionResponseSchema
 	);
@@ -109,9 +106,9 @@ export async function projectDeploymentRollback(
 	projectId: string,
 	deploymentId: string
 ): Promise<void> {
-	const resp = await client.request(
-		'POST',
+	const resp = await client.post(
 		`/cli/project/${projectId}/deployments/${deploymentId}/rollback`,
+		undefined,
 		DeploymentActionResponseSchema
 	);
 	if (!resp.success) {
@@ -123,9 +120,9 @@ export async function projectDeploymentUndeploy(
 	client: APIClient,
 	projectId: string
 ): Promise<void> {
-	const resp = await client.request(
-		'POST',
+	const resp = await client.post(
 		`/cli/project/${projectId}/deployments/undeploy`,
+		undefined,
 		DeploymentActionResponseSchema
 	);
 	if (!resp.success) {
@@ -152,8 +149,7 @@ export async function projectDeploymentLogs(
 	deploymentId: string,
 	limit = 100
 ): Promise<DeploymentLog[]> {
-	const resp = await client.request(
-		'GET',
+	const resp = await client.get(
 		`/cli/project/${projectId}/deployments/${deploymentId}/logs?limit=${limit}`,
 		DeploymentLogsResponseSchema
 	);

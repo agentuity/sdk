@@ -2,26 +2,24 @@
 import {
 	StructuredError,
 	type KeyValueStorage,
-	type ObjectStorage,
 	type StandardSchemaV1,
 	type StreamStorage,
 	type VectorStorage,
+	type InferOutput,
 	toCamelCase,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Handler } from 'hono/types';
 import { validator } from 'hono/validator';
-import { getAgentContext, runInAgentContext, type RequestAgentContextArgs } from './_context';
+import { AGENT_RUNTIME, INTERNAL_AGENT, CURRENT_AGENT } from './_config';
+import {
+	getAgentContext,
+	setupRequestAgentContext,
+	type RequestAgentContextArgs,
+} from './_context';
 import type { Logger } from './logger';
-import type {
-	Eval,
-	EvalContext,
-	EvalRunResult,
-	EvalMetadata,
-	EvalFunction,
-	ExternalEvalMetadata,
-} from './eval';
+import type { Eval, EvalContext, EvalRunResult, EvalFunction } from './eval';
 import { internal } from './logger/internal';
 import { getApp } from './app';
 import type { Thread, Session } from './session';
@@ -54,23 +52,35 @@ export type AgentEventCallback<TAgent extends Agent<any, any, any>> =
 	  ) => Promise<void> | void);
 
 /**
+ * Runtime state container for agents and event listeners.
+ * Isolates global state into context for better testing.
+ */
+export interface AgentRuntimeState {
+	agents: Map<string, Agent<any, any, any, any, any>>;
+	agentConfigs: Map<string, unknown>;
+	agentEventListeners: WeakMap<
+		Agent<any, any, any, any, any>,
+		Map<AgentEventName, Set<AgentEventCallback<any>>>
+	>;
+}
+
+/**
  * Context object passed to every agent handler providing access to runtime services and state.
  *
  * @template TAgentRegistry - Registry of all available agents (auto-generated, strongly-typed)
- * @template TCurrent - Current agent runner type
- * @template TParent - Parent agent runner type (if called from another agent)
  * @template TConfig - Agent-specific configuration type from setup function
  * @template TAppState - Application-wide state type from createApp
  *
  * @example
  * ```typescript
- * const agent = createAgent({
+ * const agent = createAgent('my-agent', {
  *   handler: async (ctx, input) => {
  *     // Logging
  *     ctx.logger.info('Processing request', { input });
  *
- *     // Call another agent
- *     const result = await ctx.agent.otherAgent.run({ data: input });
+ *     // Call another agent (import it directly)
+ *     import otherAgent from './other-agent';
+ *     const result = await otherAgent.run({ data: input });
  *
  *     // Store data
  *     await ctx.kv.set('key', { value: result });
@@ -89,12 +99,17 @@ export type AgentEventCallback<TAgent extends Agent<any, any, any>> =
  * ```
  */
 export interface AgentContext<
-	TAgentRegistry extends AgentRegistry = AgentRegistry,
-	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
-	TParent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
+	_TAgentRegistry extends AgentRegistry = AgentRegistry,
 	TConfig = unknown,
 	TAppState = Record<string, never>,
 > {
+	/**
+	 * Internal runtime state (agents, configs, event listeners).
+	 * Stored with Symbol key to prevent accidental access.
+	 * Use getAgentRuntime(ctx) to access.
+	 * @internal
+	 */
+	[AGENT_RUNTIME]: AgentRuntimeState;
 	/**
 	 * Schedule a background task that continues after the response is sent.
 	 * Useful for cleanup, logging, or async operations that don't block the response.
@@ -110,34 +125,6 @@ export interface AgentContext<
 	 * ```
 	 */
 	waitUntil: (promise: Promise<void> | (() => void | Promise<void>)) => void;
-
-	/**
-	 * Registry of all agents in the application. Strongly-typed and auto-generated.
-	 * Use to call other agents from within your handler.
-	 *
-	 * @example
-	 * ```typescript
-	 * const emailResult = await ctx.agent.email.run({ to: 'user@example.com' });
-	 * const smsResult = await ctx.agent.sms.run({ phone: '+1234567890' });
-	 * ```
-	 */
-	agent: TAgentRegistry;
-
-	/**
-	 * Information about the currently executing agent.
-	 */
-	current: TCurrent;
-
-	/**
-	 * Information about the parent agent (if this agent was called by another agent).
-	 * Use ctx.agent.parentName for strongly-typed access.
-	 */
-	parent: TParent;
-
-	/**
-	 * Name of the current agent being executed.
-	 */
-	agentName: AgentName;
 
 	/**
 	 * Structured logger with OpenTelemetry integration.
@@ -186,19 +173,6 @@ export interface AgentContext<
 	 * ```
 	 */
 	kv: KeyValueStorage;
-
-	/**
-	 * Object storage for files and blobs (S3-compatible).
-	 *
-	 * @example
-	 * ```typescript
-	 * await ctx.objectstore.put('images/photo.jpg', buffer);
-	 * const file = await ctx.objectstore.get('images/photo.jpg');
-	 * await ctx.objectstore.delete('images/photo.jpg');
-	 * const objects = await ctx.objectstore.list('images/');
-	 * ```
-	 */
-	objectstore: ObjectStorage;
 
 	/**
 	 * Stream storage for real-time data streams and logs.
@@ -286,13 +260,13 @@ export interface AgentContext<
 
 type InternalAgentMetadata = {
 	/**
+	 * the unique name for the agent (user-provided).
+	 */
+	name: string;
+	/**
 	 * the unique identifier for this project, agent and deployment.
 	 */
 	id: string;
-	/**
-	 * the unique identifier for this project and agent across multiple deployments.
-	 */
-	identifier: string;
 	/**
 	 * the unique identifier for this agent across multiple deployments
 	 */
@@ -319,10 +293,6 @@ type InternalAgentMetadata = {
 
 type ExternalAgentMetadata = {
 	/**
-	 * the human readable name for the agent.
-	 */
-	name: string;
-	/**
 	 * the human readable description for the agent
 	 */
 	description?: string;
@@ -333,25 +303,22 @@ type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
 /**
  * Configuration object for creating an agent evaluation function.
  *
- * @template TInput - Input schema type from the parent agent
- * @template TOutput - Output schema type from the parent agent
+ * @template TInput - Input schema type from the agent
+ * @template TOutput - Output schema type from the agent
  */
 export interface CreateEvalConfig<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
 > {
 	/**
-	 * Optional metadata for the evaluation function.
+	 * Optional description of what this evaluation does.
 	 *
 	 * @example
 	 * ```typescript
-	 * metadata: {
-	 *   name: 'Validate positive output',
-	 *   description: 'Ensures output is greater than zero'
-	 * }
+	 * description: 'Ensures output is greater than zero'
 	 * ```
 	 */
-	metadata?: Partial<ExternalEvalMetadata>;
+	description?: string;
 
 	/**
 	 * Evaluation handler function that tests the agent's behavior.
@@ -386,8 +353,8 @@ export interface CreateEvalConfig<
 	 * ```
 	 */
 	handler: EvalFunction<
-		TInput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TInput> : undefined,
-		TOutput extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<TOutput> : undefined
+		TInput extends StandardSchemaV1 ? InferOutput<TInput> : undefined,
+		TOutput extends StandardSchemaV1 ? InferOutput<TOutput> : undefined
 	>;
 }
 
@@ -395,7 +362,7 @@ export interface CreateEvalConfig<
 type CreateEvalMethod<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
-> = (config: CreateEvalConfig<TInput, TOutput>) => Eval<TInput, TOutput>;
+> = (name: string, config: CreateEvalConfig<TInput, TOutput>) => Eval<TInput, TOutput>;
 
 /**
  * Validator function type with method overloads for different validation scenarios.
@@ -452,7 +419,7 @@ export interface AgentValidator<
 				{
 					// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 					in: {};
-					out: { json: StandardSchemaV1.InferOutput<TInput> };
+					out: { json: InferOutput<TInput> };
 				}
 			>
 		: Handler<any, any, any>;
@@ -485,7 +452,7 @@ export interface AgentValidator<
 		{
 			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			in: {};
-			out: { json: StandardSchemaV1.InferOutput<TOverrideOutput> };
+			out: { json: InferOutput<TOverrideOutput> };
 		}
 	>;
 
@@ -532,7 +499,7 @@ export interface AgentValidator<
 			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			in: {};
 			out: {
-				json: StandardSchemaV1.InferOutput<TOverrideInput>;
+				json: InferOutput<TOverrideInput>;
 			};
 		}
 	>;
@@ -565,7 +532,8 @@ export interface AgentValidator<
  * });
  *
  * // Create evals for testing
- * const eval1 = agent.createEval({
+ * const eval1 = agent.createEval('check-positive', {
+ *   description: 'Ensures result is greater than 5',
  *   handler: async (run, result) => {
  *     return result > 5; // Assert output is greater than 5
  *   }
@@ -586,12 +554,9 @@ export type Agent<
 
 	/**
 	 * The main handler function that processes agent requests.
-	 * Receives AgentContext and validated input, returns output or stream.
+	 * Gets AgentContext from AsyncLocalStorage, receives validated input, returns output or stream.
 	 */
-	handler: (
-		ctx: AgentContext<any, any, any, TConfig, TAppState>,
-		...args: any[]
-	) => any | Promise<any>;
+	handler: (...args: any[]) => any | Promise<any>;
 
 	/**
 	 * Creates a type-safe validation middleware for routes using StandardSchema validation.
@@ -685,8 +650,8 @@ export type Agent<
 	 * });
 	 *
 	 * // Create eval to validate output
-	 * agent.createEval({
-	 *   metadata: { name: 'Check positive output' },
+	 * agent.createEval('check-positive', {
+	 *   description: 'Ensures output is a positive number',
 	 *   handler: async (run, result) => {
 	 *     return result > 0; // Assert output is positive
 	 *   }
@@ -725,7 +690,7 @@ export type Agent<
 		callback: (
 			eventName: 'started',
 			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
-			context: AgentContext<any, any, any, TConfig, TAppState>
+			context: AgentContext<any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
 
@@ -747,7 +712,7 @@ export type Agent<
 		callback: (
 			eventName: 'completed',
 			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
-			context: AgentContext<any, any, any, TConfig, TAppState>
+			context: AgentContext<any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
 
@@ -769,7 +734,7 @@ export type Agent<
 		callback: (
 			eventName: 'errored',
 			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
-			context: AgentContext<any, any, any, TConfig, TAppState>,
+			context: AgentContext<any, TConfig, TAppState>,
 			data: Error
 		) => Promise<void> | void
 	): void;
@@ -785,7 +750,7 @@ export type Agent<
 		callback: (
 			eventName: 'started',
 			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
-			context: AgentContext<any, any, any, TConfig, TAppState>
+			context: AgentContext<any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
 
@@ -800,7 +765,7 @@ export type Agent<
 		callback: (
 			eventName: 'completed',
 			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
-			context: AgentContext<any, any, any, TConfig, TAppState>
+			context: AgentContext<any, TConfig, TAppState>
 		) => Promise<void> | void
 	): void;
 
@@ -815,7 +780,7 @@ export type Agent<
 		callback: (
 			eventName: 'errored',
 			agent: Agent<TInput, TOutput, TStream, TConfig, TAppState>,
-			context: AgentContext<any, any, any, TConfig, TAppState>,
+			context: AgentContext<any, TConfig, TAppState>,
 			data: Error
 		) => Promise<void> | void
 	): void;
@@ -823,14 +788,14 @@ export type Agent<
 	(TOutput extends StandardSchemaV1 ? { outputSchema: TOutput } : { outputSchema?: never }) &
 	(TStream extends true ? { stream: true } : { stream?: false });
 
-type InferSchemaInput<T> = T extends StandardSchemaV1 ? StandardSchemaV1.InferOutput<T> : never;
+type InferSchemaInput<T> = T extends StandardSchemaV1 ? InferOutput<T> : never;
 
 type InferStreamOutput<TOutput, TStream extends boolean> = TStream extends true
 	? TOutput extends StandardSchemaV1
-		? ReadableStream<StandardSchemaV1.InferOutput<TOutput>>
+		? ReadableStream<InferOutput<TOutput>>
 		: ReadableStream<unknown>
 	: TOutput extends StandardSchemaV1
-		? StandardSchemaV1.InferOutput<TOutput>
+		? InferOutput<TOutput>
 		: void;
 
 type SchemaInput<TSchema> = TSchema extends { input: infer I } ? I : undefined;
@@ -844,10 +809,10 @@ type SchemaStream<TSchema> = TSchema extends { stream: infer S }
 type SchemaHandlerReturn<TSchema> =
 	SchemaStream<TSchema> extends true
 		? SchemaOutput<TSchema> extends StandardSchemaV1
-			? ReadableStream<StandardSchemaV1.InferOutput<SchemaOutput<TSchema>>>
+			? ReadableStream<InferOutput<SchemaOutput<TSchema>>>
 			: ReadableStream<unknown>
 		: SchemaOutput<TSchema> extends StandardSchemaV1
-			? StandardSchemaV1.InferOutput<SchemaOutput<TSchema>>
+			? InferOutput<SchemaOutput<TSchema>>
 			: void;
 
 // Handler signature based on schema + setup result (no self-reference)
@@ -855,21 +820,37 @@ type AgentHandlerFromConfig<TSchema, TSetupReturn, TAppState = AppState> =
 	SchemaInput<TSchema> extends infer I
 		? I extends StandardSchemaV1
 			? (
-					ctx: AgentContext<any, any, any, TSetupReturn, TAppState>,
-					input: StandardSchemaV1.InferOutput<I>
+					ctx: AgentContext<any, TSetupReturn, TAppState>,
+					input: InferOutput<I>
 				) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
 			: (
-					ctx: AgentContext<any, any, any, TSetupReturn, TAppState>
+					ctx: AgentContext<any, TSetupReturn, TAppState>
 				) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
 		: (
-				ctx: AgentContext<any, any, any, TSetupReturn, TAppState>
+				ctx: AgentContext<any, TSetupReturn, TAppState>
 			) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>;
 
 /**
  * Configuration object for creating an agent with automatic type inference.
  *
+ * Passed as the second parameter to createAgent(name, config).
+ *
  * @template TSchema - Schema definition object containing optional input, output, and stream properties
  * @template TConfig - Function type that returns agent-specific configuration from setup
+ *
+ * @example
+ * ```typescript
+ * const agent = createAgent('greeting', {
+ *   description: 'Generates personalized greetings',
+ *   schema: {
+ *     input: z.object({ name: z.string(), age: z.number() }),
+ *     output: z.string()
+ *   },
+ *   handler: async (ctx, { name, age }) => {
+ *     return `Hello, ${name}! You are ${age} years old.`;
+ *   }
+ * });
+ * ```
  */
 export interface CreateAgentConfig<
 	TSchema extends
@@ -896,17 +877,22 @@ export interface CreateAgentConfig<
 	schema?: TSchema;
 
 	/**
-	 * Agent metadata visible in the Agentuity platform.
+	 * Optional description of what this agent does, visible in the Agentuity platform.
 	 *
 	 * @example
 	 * ```typescript
-	 * metadata: {
-	 *   name: 'Greeting Agent',
-	 *   description: 'Returns personalized greetings'
-	 * }
+	 * description: 'Returns personalized greetings'
 	 * ```
 	 */
-	metadata: ExternalAgentMetadata;
+	description?: string;
+
+	/**
+	 * Optional metadata object (typically injected by build plugin during compilation).
+	 * Contains agent identification and versioning information.
+	 *
+	 * @internal - Usually populated by build tooling, not manually set
+	 */
+	metadata?: Partial<AgentMetadata>;
 
 	/**
 	 * Optional async function called once on app startup to initialize agent-specific resources.
@@ -970,17 +956,187 @@ export interface CreateAgentConfig<
 	) => Promise<void> | void;
 }
 
+/**
+ * The public interface returned by createAgent().
+ * Provides methods to run the agent, create evaluations, and manage event listeners.
+ *
+ * @template TInput - Input schema type (StandardSchemaV1 or undefined if no input)
+ * @template TOutput - Output schema type (StandardSchemaV1 or undefined if no output)
+ * @template TStream - Whether the agent returns a stream (true/false)
+ *
+ * @example
+ * ```typescript
+ * const agent = createAgent('greeting', {
+ *   schema: {
+ *     input: z.object({ name: z.string() }),
+ *     output: z.string()
+ *   },
+ *   handler: async (ctx, { name }) => `Hello, ${name}!`
+ * });
+ *
+ * // Run the agent
+ * const result = await agent.run({ name: 'Alice' });
+ *
+ * // Create evaluation
+ * const evalDef = agent.createEval('greeting-accuracy', {
+ *   description: 'Checks if greeting includes the user name',
+ *   handler: async (ctx, input, output) => {
+ *     return { score: output.includes(input.name) ? 1 : 0 };
+ *   }
+ * });
+ *
+ * // Listen to events
+ * agent.addEventListener('completed', async (eventName, agent, context) => {
+ *   console.log('Agent completed successfully');
+ * });
+ * ```
+ */
 export interface AgentRunner<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
 	TStream extends boolean = false,
 > {
+	/** Agent metadata (id, name, description, etc.) */
 	metadata: AgentMetadata;
+
+	/**
+	 * Execute the agent with validated input.
+	 * If agent has no input schema, call with no arguments.
+	 * If agent has input schema, pass validated input object.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Agent with input
+	 * const result = await agent.run({ name: 'Alice' });
+	 *
+	 * // Agent without input
+	 * const result = await agent.run();
+	 * ```
+	 */
 	run: undefined extends TInput
 		? () => Promise<InferStreamOutput<Exclude<TOutput, undefined>, TStream>>
 		: (
 				input: InferSchemaInput<Exclude<TInput, undefined>>
 			) => Promise<InferStreamOutput<Exclude<TOutput, undefined>, TStream>>;
+
+	/**
+	 * Create Hono validator middleware for this agent.
+	 * Automatically validates request input against the agent's schema.
+	 *
+	 * @example
+	 * ```typescript
+	 * import myAgent from './my-agent';
+	 * router.post('/', myAgent.validator(), async (c) => {
+	 *   const data = c.req.valid('json'); // Fully typed!
+	 *   return c.json(await myAgent.run(data));
+	 * });
+	 * ```
+	 */
+	validator: AgentValidator<TInput, TOutput>;
+
+	/** Input schema (if defined) */
+	inputSchema?: TInput;
+
+	/** Output schema (if defined) */
+	outputSchema?: TOutput;
+
+	/** Whether agent returns a stream */
+	stream?: TStream;
+
+	/**
+	 * Create an evaluation for this agent.
+	 * Evaluations run automatically after the agent completes.
+	 *
+	 * @example
+	 * ```typescript
+	 * const accuracyEval = agent.createEval('accuracy', {
+	 *   description: 'Validates output length is non-zero',
+	 *   handler: async (ctx, input, output) => ({
+	 *     score: output.length > 0 ? 1 : 0,
+	 *     metadata: { outputLength: output.length }
+	 *   })
+	 * });
+	 * ```
+	 */
+	createEval: CreateEvalMethod<TInput, TOutput>;
+
+	/**
+	 * Add event listener for 'started' or 'completed' events.
+	 * Listeners fire sequentially in the order they were added.
+	 *
+	 * @param eventName - 'started' or 'completed'
+	 * @param callback - Function to call when event fires
+	 *
+	 * @example
+	 * ```typescript
+	 * agent.addEventListener('started', async (eventName, agent, context) => {
+	 *   context.logger.info('Agent execution started');
+	 * });
+	 * ```
+	 */
+	addEventListener(
+		eventName: 'started' | 'completed',
+		callback: (
+			eventName: 'started' | 'completed',
+			agent: Agent<TInput, TOutput, TStream, any, any>,
+			context: AgentContext<any, any, any>
+		) => Promise<void> | void
+	): void;
+
+	/**
+	 * Add event listener for 'errored' event.
+	 * Fires when agent handler throws an error.
+	 *
+	 * @param eventName - 'errored'
+	 * @param callback - Function to call when error occurs
+	 *
+	 * @example
+	 * ```typescript
+	 * agent.addEventListener('errored', async (eventName, agent, context, error) => {
+	 *   context.logger.error('Agent failed', { error: error.message });
+	 * });
+	 * ```
+	 */
+	addEventListener(
+		eventName: 'errored',
+		callback: (
+			eventName: 'errored',
+			agent: Agent<TInput, TOutput, TStream, any, any>,
+			context: AgentContext<any, any, any>,
+			error: Error
+		) => Promise<void> | void
+	): void;
+
+	/**
+	 * Remove event listener for 'started' or 'completed' events.
+	 *
+	 * @param eventName - 'started' or 'completed'
+	 * @param callback - The same callback function that was added
+	 */
+	removeEventListener(
+		eventName: 'started' | 'completed',
+		callback: (
+			eventName: 'started' | 'completed',
+			agent: Agent<TInput, TOutput, TStream, any, any>,
+			context: AgentContext<any, any, any>
+		) => Promise<void> | void
+	): void;
+
+	/**
+	 * Remove event listener for 'errored' event.
+	 *
+	 * @param eventName - 'errored'
+	 * @param callback - The same callback function that was added
+	 */
+	removeEventListener(
+		eventName: 'errored',
+		callback: (
+			eventName: 'errored',
+			agent: Agent<TInput, TOutput, TStream, any, any>,
+			context: AgentContext<any, any, any>,
+			error: Error
+		) => Promise<void> | void
+	): void;
 }
 
 // Will be populated at runtime with strongly typed agents
@@ -995,26 +1151,49 @@ const agentEventListeners = new WeakMap<
 // Map to store agent configs returned from setup (keyed by agent name)
 const agentConfigs = new Map<string, unknown>();
 
+/**
+ * Get the global runtime state (for production use).
+ * In tests, use TestAgentContext which has isolated runtime state.
+ */
+export function getGlobalRuntimeState(): AgentRuntimeState {
+	return {
+		agents,
+		agentConfigs,
+		agentEventListeners,
+	};
+}
+
+/**
+ * Get the runtime state from an AgentContext.
+ * @internal
+ */
+export function getAgentRuntime(ctx: AgentContext<any, any, any>): AgentRuntimeState {
+	return ctx[AGENT_RUNTIME];
+}
+
 // Helper to fire event listeners sequentially, abort on first error
 async function fireAgentEvent(
+	runtime: AgentRuntimeState,
 	agent: Agent<any, any, any, any, any>,
 	eventName: 'started' | 'completed',
-	context: AgentContext<any, any, any, any, any>
+	context: AgentContext<any, any, any>
 ): Promise<void>;
 async function fireAgentEvent(
+	runtime: AgentRuntimeState,
 	agent: Agent<any, any, any, any, any>,
 	eventName: 'errored',
-	context: AgentContext<any, any, any, any, any>,
+	context: AgentContext<any, any, any>,
 	data: Error
 ): Promise<void>;
 async function fireAgentEvent(
+	runtime: AgentRuntimeState,
 	agent: Agent<any, any, any, any, any>,
 	eventName: AgentEventName,
-	context: AgentContext<any, any, any, any, any>,
+	context: AgentContext<any, any, any>,
 	data?: Error
 ): Promise<void> {
 	// Fire agent-level listeners
-	const listeners = agentEventListeners.get(agent);
+	const listeners = runtime.agentEventListeners.get(agent);
 	if (listeners) {
 		const callbacks = listeners.get(eventName);
 		if (callbacks && callbacks.size > 0) {
@@ -1109,17 +1288,22 @@ export interface CreateAgentConfigExplicit<
 	};
 
 	/**
-	 * Agent metadata.
+	 * Optional description of what this agent does.
 	 *
 	 * @example
 	 * ```typescript
-	 * metadata: {
-	 *   name: 'My Agent',
-	 *   description: 'Does something useful'
-	 * }
+	 * description: 'Does something useful'
 	 * ```
 	 */
-	metadata: ExternalAgentMetadata;
+	description?: string;
+
+	/**
+	 * Optional metadata object (typically injected by build plugin during compilation).
+	 * Contains agent identification and versioning information.
+	 *
+	 * @internal - Usually populated by build tooling, not manually set
+	 */
+	metadata?: Partial<AgentMetadata>;
 
 	/**
 	 * Optional setup function receiving app state, returns agent config.
@@ -1169,43 +1353,39 @@ export interface CreateAgentConfigExplicit<
 		? TStream extends true
 			? TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext<any, any, any, TConfig, TAppState>,
-						input: StandardSchemaV1.InferOutput<TInput>
+						c: AgentContext<any, TConfig, TAppState>,
+						input: InferOutput<TInput>
 					) =>
-						| Promise<ReadableStream<StandardSchemaV1.InferOutput<TOutput>>>
-						| ReadableStream<StandardSchemaV1.InferOutput<TOutput>>
+						| Promise<ReadableStream<InferOutput<TOutput>>>
+						| ReadableStream<InferOutput<TOutput>>
 				: (
-						c: AgentContext<any, any, any, TConfig, TAppState>,
-						input: StandardSchemaV1.InferOutput<TInput>
+						c: AgentContext<any, TConfig, TAppState>,
+						input: InferOutput<TInput>
 					) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
 			: TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext<any, any, any, TConfig, TAppState>,
-						input: StandardSchemaV1.InferOutput<TInput>
-					) =>
-						| Promise<StandardSchemaV1.InferOutput<TOutput>>
-						| StandardSchemaV1.InferOutput<TOutput>
+						c: AgentContext<any, TConfig, TAppState>,
+						input: InferOutput<TInput>
+					) => Promise<InferOutput<TOutput>> | InferOutput<TOutput>
 				: (
-						c: AgentContext<any, any, any, TConfig, TAppState>,
-						input: StandardSchemaV1.InferOutput<TInput>
+						c: AgentContext<any, TConfig, TAppState>,
+						input: InferOutput<TInput>
 					) => Promise<void> | void
 		: TStream extends true
 			? TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext<any, any, any, TConfig, TAppState>
+						c: AgentContext<any, TConfig, TAppState>
 					) =>
-						| Promise<ReadableStream<StandardSchemaV1.InferOutput<TOutput>>>
-						| ReadableStream<StandardSchemaV1.InferOutput<TOutput>>
+						| Promise<ReadableStream<InferOutput<TOutput>>>
+						| ReadableStream<InferOutput<TOutput>>
 				: (
-						c: AgentContext<any, any, any, TConfig, TAppState>
+						c: AgentContext<any, TConfig, TAppState>
 					) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
 			: TOutput extends StandardSchemaV1
 				? (
-						c: AgentContext<any, any, any, TConfig, TAppState>
-					) =>
-						| Promise<StandardSchemaV1.InferOutput<TOutput>>
-						| StandardSchemaV1.InferOutput<TOutput>
-				: (c: AgentContext<any, any, any, TConfig, TAppState>) => Promise<void> | void;
+						c: AgentContext<any, TConfig, TAppState>
+					) => Promise<InferOutput<TOutput>> | InferOutput<TOutput>
+				: (c: AgentContext<any, TConfig, TAppState>) => Promise<void> | void;
 }
 
 /**
@@ -1216,17 +1396,15 @@ export interface CreateAgentConfigExplicit<
  * @template TSchema - Schema definition object containing optional input, output, and stream properties
  * @template TConfig - Function type that returns agent-specific configuration from setup
  *
+ * @param name - Unique agent name (must be unique within the project)
  * @param config - Agent configuration object
  *
- * @returns Agent instance that can be registered with the runtime
+ * @returns AgentRunner with a run method for executing the agent
  *
  * @example
  * ```typescript
- * const agent = createAgent({
- *   metadata: {
- *     name: 'Greeting Agent',
- *     description: 'Returns personalized greetings'
- *   },
+ * const agent = createAgent('greeting-agent', {
+ *   description: 'Returns personalized greetings',
  *   schema: {
  *     input: z.object({ name: z.string(), age: z.number() }),
  *     output: z.string()
@@ -1236,6 +1414,9 @@ export interface CreateAgentConfigExplicit<
  *     return `Hello, ${name}! You are ${age} years old.`;
  *   }
  * });
+ *
+ * // Call the agent directly
+ * const result = await agent.run({ name: 'Alice', age: 30 });
  * ```
  */
 export function createAgent<
@@ -1248,14 +1429,9 @@ export function createAgent<
 		| undefined = undefined,
 	TConfig extends (app: AppState) => any = any,
 >(
+	name: string,
 	config: CreateAgentConfig<TSchema, TConfig>
-): Agent<
-	SchemaInput<TSchema>,
-	SchemaOutput<TSchema>,
-	SchemaStream<TSchema>,
-	TConfig extends (app: AppState) => infer R ? Awaited<R> : undefined,
-	AppState
->;
+): AgentRunner<SchemaInput<TSchema>, SchemaOutput<TSchema>, SchemaStream<TSchema>>;
 
 /**
  * Creates an agent with explicit generic type parameters.
@@ -1268,9 +1444,10 @@ export function createAgent<
  * @template TConfig - Type returned by setup function
  * @template TAppState - Custom app state type from createApp
  *
+ * @param name - Unique agent name (must be unique within the project)
  * @param config - Agent configuration object
  *
- * @returns Agent instance with explicit types
+ * @returns AgentRunner with explicit types and a run method
  *
  * @example
  * ```typescript
@@ -1280,11 +1457,8 @@ export function createAgent<
  * const agent = createAgent<
  *   z.ZodObject<any>, // TInput
  *   z.ZodString,      // TOutput
- *   false,            // TStream
- *   MyConfig,         // TConfig
- *   MyAppState        // TAppState
- * >({
- *   metadata: { name: 'Custom Agent' },
+ *   false            // TStream
+ * >('custom-agent', {
  *   setup: async (app) => ({ cache: new Map() }),
  *   handler: async (ctx, input) => {
  *     const db = ctx.app.db;
@@ -1301,8 +1475,9 @@ export function createAgent<
 	TConfig = unknown,
 	TAppState = AppState,
 >(
+	name: string,
 	config: CreateAgentConfigExplicit<TInput, TOutput, TStream, TConfig, TAppState>
-): Agent<TInput, TOutput, TStream, TConfig, TAppState>;
+): AgentRunner<TInput, TOutput, TStream>;
 
 // Implementation
 export function createAgent<
@@ -1312,8 +1487,9 @@ export function createAgent<
 	TConfig = unknown,
 	TAppState = AppState,
 >(
+	name: string,
 	config: CreateAgentConfigExplicit<TInput, TOutput, TStream, TConfig, TAppState>
-): Agent<TInput, TOutput, TStream, TConfig, TAppState> {
+): AgentRunner<TInput, TOutput, TStream> {
 	const inputSchema = config.schema?.input;
 	const outputSchema = config.schema?.output;
 
@@ -1321,7 +1497,7 @@ export function createAgent<
 	// Evals should only be added via agent.createEval() after agent creation
 	const evalsArray: Eval[] = [];
 
-	const handler = async (_ctx: Context, input?: any) => {
+	const handler = async (input?: any) => {
 		let validatedInput: any = undefined;
 
 		if (inputSchema) {
@@ -1335,17 +1511,16 @@ export function createAgent<
 			validatedInput = inputResult.value;
 		}
 
-		const agentCtx = getAgentContext() as AgentContext<any, any, any, TConfig, TAppState>;
+		const agentCtx = getAgentContext() as AgentContext<any, TConfig, TAppState>;
 
-		// Get the agent instance from the agents Map to fire events
-		// The agent will be registered in the agents Map before the handler is called
-		const agentName = agentCtx.agentName;
-		const registeredAgent = agentName ? agents.get(agentName) : undefined;
+		// Store current agent for telemetry (using Symbol to keep it internal)
+		(agentCtx as any)[CURRENT_AGENT] = agent;
 
-		// Fire 'started' event (only if agent is registered)
-		if (registeredAgent) {
-			await fireAgentEvent(registeredAgent, 'started', agentCtx);
-		}
+		// Get the agent instance from the runtime state to fire events
+		const runtime = getAgentRuntime(agentCtx);
+
+		// Fire 'started' event
+		await fireAgentEvent(runtime, agent as Agent, 'started', agentCtx);
 
 		try {
 			const result = inputSchema
@@ -1353,7 +1528,8 @@ export function createAgent<
 				: await (config.handler as any)(agentCtx);
 
 			let validatedOutput: any = result;
-			if (outputSchema) {
+			// Skip output validation for streaming agents (they return ReadableStream)
+			if (outputSchema && !config.schema?.stream) {
 				const outputResult = await outputSchema['~standard'].validate(result);
 				if (outputResult.issues) {
 					throw new ValidationError({
@@ -1369,50 +1545,44 @@ export function createAgent<
 			agentCtx.state.set('_evalOutput', validatedOutput);
 
 			// Fire 'completed' event - evals will run via event listener
-			if (registeredAgent) {
-				await fireAgentEvent(registeredAgent, 'completed', agentCtx);
-			}
+			await fireAgentEvent(runtime, agent as Agent, 'completed', agentCtx);
 
 			return validatedOutput;
 		} catch (error) {
 			// Fire 'errored' event
-			if (registeredAgent) {
-				await fireAgentEvent(registeredAgent, 'errored', agentCtx, error as Error);
-			}
+			await fireAgentEvent(runtime, agent as Agent, 'errored', agentCtx, error as Error);
 			throw error;
 		}
 	};
 
 	// Infer input/output types from agent schema
-	type AgentInput = TInput extends StandardSchemaV1
-		? StandardSchemaV1.InferOutput<TInput>
-		: undefined;
-	type AgentOutput = TOutput extends StandardSchemaV1
-		? StandardSchemaV1.InferOutput<TOutput>
-		: undefined;
+	type AgentInput = TInput extends StandardSchemaV1 ? InferOutput<TInput> : undefined;
+	type AgentOutput = TOutput extends StandardSchemaV1 ? InferOutput<TOutput> : undefined;
 
 	// Create createEval method that infers types from agent and automatically adds to agent
-	const createEval = (evalConfig: {
-		metadata?: Partial<EvalMetadata>;
-		handler: EvalFunction<AgentInput, AgentOutput>;
-	}): Eval<TInput, TOutput> => {
-		const evalName = evalConfig.metadata?.name || 'unnamed';
+	const createEval = (
+		evalName: string,
+		evalConfig: {
+			description?: string;
+			handler: EvalFunction<AgentInput, AgentOutput>;
+		}
+	): Eval<TInput, TOutput> => {
 		// Trace log to verify evals file is imported
 		internal.debug(
-			`createEval called for agent "${config?.metadata?.name || 'unknown'}": registering eval "${evalName}"`
+			`createEval called for agent "${name || 'unknown'}": registering eval "${evalName}"`
 		);
 
-		// Get filename (can be provided via __filename or set by bundler)
-		const filename = evalConfig.metadata?.filename || '';
+		// Get filename (set by bundler)
+		const filename = '';
 
 		// Use name as identifier for consistency (same as agents)
 		const identifier = evalName;
 
 		// Use build-time injected id/version if available, otherwise generate at runtime
 		// Build-time injection happens via bundler AST transformation
-		let evalId = evalConfig.metadata?.id;
-		let stableEvalId = evalConfig.metadata?.evalId;
-		let version = evalConfig.metadata?.version;
+		let evalId: string | undefined;
+		let stableEvalId: string | undefined;
+		let version: string | undefined;
 
 		// Generate version from available metadata if not provided (deterministic hash)
 		// At build-time, version is hash of file contents; at runtime we use metadata
@@ -1453,8 +1623,8 @@ export function createAgent<
 				evalId: stableEvalId,
 				version,
 				identifier,
-				name: evalConfig.metadata?.name || '',
-				description: evalConfig.metadata?.description || '',
+				name: evalName,
+				description: evalConfig.description || '',
 				filename,
 			},
 			handler: evalConfig.handler,
@@ -1471,15 +1641,31 @@ export function createAgent<
 		// Automatically add eval to agent's evals array
 		evalsArray.push(evalType);
 		internal.debug(
-			`Added eval "${evalName}" to agent "${config?.metadata?.name || 'unknown'}". Total evals: ${evalsArray.length}`
+			`Added eval "${evalName}" to agent "${name || 'unknown'}". Total evals: ${evalsArray.length}`
 		);
 
 		return evalType as Eval<TInput, TOutput>;
 	};
 
+	// Build metadata - merge user-provided metadata with defaults
+	// The build plugin injects metadata via config.metadata during AST transformation
+	const metadata: Partial<AgentMetadata> = {
+		// Defaults (used when running without build, e.g., dev mode)
+		name,
+		description: config.description,
+		id: '',
+		agentId: '',
+		filename: '',
+		version: '',
+		inputSchemaCode: '',
+		outputSchemaCode: '',
+		// Merge in build-time injected metadata (overrides defaults)
+		...config.metadata,
+	};
+
 	const agent: any = {
 		handler,
-		metadata: config.metadata,
+		metadata,
 		evals: evalsArray,
 		createEval,
 		setup: config.setup,
@@ -1505,14 +1691,12 @@ export function createAgent<
 
 	// Automatically add event listener for 'completed' event to run evals
 	(agent as Agent).addEventListener('completed', async (_event, _agent, ctx) => {
-		// Get the agent instance from the agents Map to access its current evals array
+		// Use the agent instance passed to event listener to access its evals array
 		// This ensures we get evals that were added via agent.createEval() after agent creation
-		const agentName = ctx.agentName;
-		const registeredAgent = agentName ? agents.get(agentName) : undefined;
-		const agentEvals = registeredAgent?.evals || evalsArray;
+		const agentEvals = _agent?.evals || evalsArray;
 
 		internal.debug(
-			`Checking evals: agentName=${agentName}, evalsArray.length=${evalsArray?.length || 0}, agent.evals.length=${registeredAgent?.evals?.length || 0}`
+			`Checking evals: agent=${_agent.metadata?.name}, evalsArray.length=${evalsArray?.length || 0}, agent.evals.length=${_agent?.evals?.length || 0}`
 		);
 
 		if (agentEvals && agentEvals.length > 0) {
@@ -1852,7 +2036,57 @@ export function createAgent<
 		return composed as unknown as Handler;
 	}) as AgentValidator<TInput, TOutput>;
 
-	return agent as Agent<TInput, TOutput, TStream, TConfig, TAppState>;
+	// Register the agent for runtime use
+	// @ts-expect-error - metadata might be incomplete until build plugin injects InternalAgentMetadata
+	agents.set(name, agent as Agent<TInput, TOutput, TStream, TConfig, TAppState>);
+
+	// Create and return AgentRunner
+	const runner: any = {
+		metadata: metadata as AgentMetadata,
+		validator: agent.validator,
+		inputSchema: inputSchema as TInput,
+		outputSchema: outputSchema as TOutput,
+		stream: (config.schema?.stream as TStream) || (false as TStream),
+		createEval,
+		addEventListener: agent.addEventListener,
+		removeEventListener: agent.removeEventListener,
+		run: inputSchema
+			? async (input: InferSchemaInput<Exclude<TInput, undefined>>) => {
+					// Get tracer from AsyncLocalStorage context if available
+					try {
+						const agentCtx = getAgentContext();
+						if (agentCtx?.tracer) {
+							return runWithSpan<any, TInput, TOutput, TStream>(
+								agentCtx.tracer,
+								agent as Agent<TInput, TOutput, TStream>,
+								async () => await agent.handler(input)
+							);
+						}
+					} catch {
+						// Context not available, skip span creation
+					}
+					return await agent.handler(input);
+				}
+			: async () => {
+					// Get tracer from AsyncLocalStorage context if available
+					try {
+						const agentCtx = getAgentContext();
+						if (agentCtx?.tracer) {
+							return runWithSpan<any, TInput, TOutput, TStream>(
+								agentCtx.tracer,
+								agent as Agent<TInput, TOutput, TStream>,
+								async () => await agent.handler()
+							);
+						}
+					} catch {
+						// Context not available, skip span creation
+					}
+					return await agent.handler();
+				},
+		[INTERNAL_AGENT]: agent, // Store reference to internal agent for testing
+	};
+
+	return runner as AgentRunner<TInput, TOutput, TStream>;
 }
 
 const runWithSpan = async <
@@ -1897,7 +2131,7 @@ const createAgentRunner = <
 				return runWithSpan<any, TInput, TOutput, TStream>(
 					tracer,
 					agent,
-					async () => await agent.handler(ctx as unknown as AgentContext<any, any, any>, input)
+					async () => await agent.handler(input)
 				);
 			},
 		} as AgentRunner<TInput, TOutput, TStream>;
@@ -1908,7 +2142,7 @@ const createAgentRunner = <
 				return runWithSpan<any, TInput, TOutput, TStream>(
 					tracer,
 					agent,
-					async () => await agent.handler(ctx as unknown as AgentContext<any, any, any>)
+					async () => await agent.handler()
 				);
 			},
 		} as AgentRunner<TInput, TOutput, TStream>;
@@ -1923,108 +2157,30 @@ export const populateAgentsRegistry = (ctx: Context): any => {
 	const agentsObj: any = {};
 	// Track ownership of camelCase keys to detect collisions between different raw names
 	const ownershipMap = new Map<string, string>();
-	const childOwnershipMap = new Map<string, string>();
 
-	// Build nested structure for agents and subagents
+	// Build flat registry of agents
 	for (const [name, agentFn] of agents) {
 		const runner = createAgentRunner(agentFn, ctx);
+		const key = toCamelCase(name);
 
-		if (name.includes('.')) {
-			// Subagent: "parent.child"
-			const parts = name.split('.');
-			if (parts.length !== 2) {
-				internal.warn(`Invalid subagent name format: "${name}". Expected "parent.child".`);
-				continue;
-			}
-			const rawParentName = parts[0];
-			const rawChildName = parts[1];
-			if (rawParentName && rawChildName) {
-				// Convert parent name to camelCase for registry key
-				const parentKey = toCamelCase(rawParentName);
-
-				// Validate parentKey is non-empty
-				if (!parentKey) {
-					internal.warn(
-						`Agent name "${rawParentName}" converts to empty camelCase key. Skipping.`
-					);
-					continue;
-				}
-
-				// Detect collision on parent key - check ownership
-				const existingOwner = ownershipMap.get(parentKey);
-				if (existingOwner && existingOwner !== rawParentName) {
-					internal.error(
-						`Agent registry collision: "${rawParentName}" conflicts with "${existingOwner}" (both map to camelCase key "${parentKey}")`
-					);
-					throw new Error(`Agent registry collision detected for key "${parentKey}"`);
-				}
-
-				if (!agentsObj[parentKey]) {
-					// Ensure parent exists - look up by raw name in agents map
-					const parentAgent = agents.get(rawParentName);
-					if (parentAgent) {
-						agentsObj[parentKey] = createAgentRunner(parentAgent, ctx);
-						// Record ownership
-						ownershipMap.set(parentKey, rawParentName);
-					}
-				}
-
-				// Attach subagent to parent using camelCase property name
-				const childKey = toCamelCase(rawChildName);
-
-				// Validate childKey is non-empty
-				if (!childKey) {
-					internal.warn(
-						`Agent name "${rawChildName}" converts to empty camelCase key. Skipping subagent "${name}".`
-					);
-					continue;
-				}
-
-				// Detect collision on child key - check ownership
-				const childOwnershipKey = `${parentKey}.${childKey}`;
-				const existingChildOwner = childOwnershipMap.get(childOwnershipKey);
-				if (existingChildOwner && existingChildOwner !== name) {
-					internal.error(
-						`Agent registry collision: subagent "${name}" conflicts with "${existingChildOwner}" (both map to camelCase key "${childOwnershipKey}")`
-					);
-					throw new Error(
-						`Agent registry collision detected for subagent key "${childOwnershipKey}"`
-					);
-				}
-
-				if (agentsObj[parentKey]) {
-					if (agentsObj[parentKey][childKey] === undefined) {
-						agentsObj[parentKey][childKey] = runner;
-						// Record ownership
-						childOwnershipMap.set(childOwnershipKey, name);
-					}
-				}
-			}
-		} else {
-			// Parent agent or standalone agent - convert to camelCase for registry key
-			const parentKey = toCamelCase(name);
-
-			// Validate parentKey is non-empty
-			if (!parentKey) {
-				internal.warn(`Agent name "${name}" converts to empty camelCase key. Skipping.`);
-				continue;
-			}
-
-			// Detect collision on parent key - check ownership
-			const existingOwner = ownershipMap.get(parentKey);
-			if (existingOwner && existingOwner !== name) {
-				internal.error(
-					`Agent registry collision: "${name}" conflicts with "${existingOwner}" (both map to camelCase key "${parentKey}")`
-				);
-				throw new Error(`Agent registry collision detected for key "${parentKey}"`);
-			}
-
-			if (!agentsObj[parentKey]) {
-				agentsObj[parentKey] = runner;
-				// Record ownership
-				ownershipMap.set(parentKey, name);
-			}
+		// Validate key is non-empty
+		if (!key) {
+			internal.warn(`Agent name "${name}" converts to empty camelCase key. Skipping.`);
+			continue;
 		}
+
+		// Detect collision on key - check ownership
+		const existingOwner = ownershipMap.get(key);
+		if (existingOwner && existingOwner !== name) {
+			internal.error(
+				`Agent registry collision: "${name}" conflicts with "${existingOwner}" (both map to camelCase key "${key}")`
+			);
+			throw new Error(`Agent registry collision detected for key "${key}"`);
+		}
+
+		agentsObj[key] = runner;
+		// Record ownership
+		ownershipMap.set(key, name);
 	}
 
 	return agentsObj;
@@ -2035,36 +2191,16 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 		// Populate agents object with strongly-typed keys
 		const agentsObj = populateAgentsRegistry(ctx);
 
-		// Set agent registry on context for access via c.var.agent
-		ctx.set('agent', agentsObj);
-
-		// Determine current and parent agents
-		let currentAgent: AgentRunner | undefined;
-		let parentAgent: AgentRunner | undefined;
-
-		if (agentName?.includes('.')) {
-			// This is a subagent
-			const parts = agentName.split('.');
-			const rawParentName = parts[0];
-			const rawChildName = parts[1];
-			if (rawParentName && rawChildName) {
-				// Use camelCase keys to look up in agentsObj (which uses camelCase keys)
-				const parentKey = toCamelCase(rawParentName);
-				const childKey = toCamelCase(rawChildName);
-				currentAgent = agentsObj[parentKey]?.[childKey];
-				parentAgent = agentsObj[parentKey];
+		// Track agent ID for session telemetry
+		if (agentName) {
+			const agentKey = toCamelCase(agentName);
+			const agent = agentsObj[agentKey];
+			const _ctx = privateContext(ctx);
+			if (agent?.metadata?.id) {
+				// we add both so that you can query by either
+				_ctx.var.agentIds.add(agent.metadata.id);
+				_ctx.var.agentIds.add(agent.metadata.agentId);
 			}
-		} else if (agentName) {
-			// This is a parent or standalone agent - use camelCase key
-			const parentKey = toCamelCase(agentName);
-			currentAgent = agentsObj[parentKey];
-		}
-
-		const _ctx = privateContext(ctx);
-		if (currentAgent?.metadata?.id) {
-			// we add both so that you can query by either
-			_ctx.var.agentIds.add(currentAgent.metadata.id);
-			_ctx.var.agentIds.add(currentAgent.metadata.agentId);
 		}
 
 		const sessionId = ctx.var.sessionId;
@@ -2073,18 +2209,9 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 		const config = agentName ? getAgentConfig(agentName as AgentName) : undefined;
 		const app = ctx.var.app;
 
-		const args: RequestAgentContextArgs<
-			AgentRegistry,
-			AgentRunner | undefined,
-			AgentRunner | undefined,
-			unknown,
-			unknown
-		> = {
+		const args: RequestAgentContextArgs<AgentRegistry, unknown, unknown> = {
 			agent: agentsObj,
-			current: currentAgent,
-			parent: parentAgent,
-			agentName: agentName as AgentName,
-			logger: ctx.var.logger.child({ agent: agentName }),
+			logger: ctx.var.logger,
 			tracer: ctx.var.tracer,
 			sessionId,
 			session,
@@ -2092,9 +2219,10 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 			handler: ctx.var.waitUntilHandler,
 			config: config || {},
 			app: app || {},
+			runtime: getGlobalRuntimeState(),
 		};
 
-		return runInAgentContext(ctx as unknown as Record<string, unknown>, args, next);
+		return setupRequestAgentContext(ctx as unknown as Record<string, unknown>, args, next);
 	};
 };
 
@@ -2111,10 +2239,89 @@ export const runAgentSetups = async (appState: AppState): Promise<void> => {
 };
 
 export const runAgentShutdowns = async (appState: AppState): Promise<void> => {
-	for (const [name, agent] of agents.entries()) {
+	const runtime = getGlobalRuntimeState();
+	for (const [name, agent] of runtime.agents.entries()) {
 		if (agent.shutdown) {
-			const config = getAgentConfig(name as AgentName);
+			const config = runtime.agentConfigs.get(name) as any;
 			await agent.shutdown(appState, config);
 		}
 	}
 };
+
+/**
+ * Run an agent within a specific AgentContext.
+ * Sets up AsyncLocalStorage with the provided context and executes the agent.
+ *
+ * This is the recommended way to test agents in unit tests. It automatically:
+ * - Registers the agent in the runtime state so event listeners fire
+ * - Sets up AsyncLocalStorage so getAgentContext() works inside the agent
+ * - Handles both agents with input and agents without input
+ *
+ * **Use cases:**
+ * - Unit testing agents with TestAgentContext
+ * - Running agents outside HTTP request flow
+ * - Custom agent execution environments
+ * - Testing event listeners and evaluations
+ *
+ * @template TInput - Type of the input parameter
+ * @template TOutput - Type of the return value
+ *
+ * @param ctx - The AgentContext to use (typically TestAgentContext in tests)
+ * @param agent - The AgentRunner to execute (returned from createAgent)
+ * @param input - Input data (required if agent has input schema, omit otherwise)
+ *
+ * @returns Promise resolving to the agent's output
+ *
+ * @example
+ * ```typescript
+ * import { runInAgentContext, TestAgentContext } from '@agentuity/runtime/test';
+ *
+ * test('greeting agent', async () => {
+ *   const ctx = new TestAgentContext();
+ *   const result = await runInAgentContext(ctx, greetingAgent, {
+ *     name: 'Alice',
+ *     age: 30
+ *   });
+ *   expect(result).toBe('Hello, Alice! You are 30 years old.');
+ * });
+ *
+ * test('no-input agent', async () => {
+ *   const ctx = new TestAgentContext();
+ *   const result = await runInAgentContext(ctx, statusAgent);
+ *   expect(result).toEqual({ status: 'ok' });
+ * });
+ * ```
+ */
+export async function runInAgentContext<TInput, TOutput>(
+	ctx: AgentContext<any, any, any>,
+	agent: AgentRunner<any, any, any>,
+	input?: TInput
+): Promise<TOutput> {
+	const { getAgentAsyncLocalStorage } = await import('./_context');
+	const storage = getAgentAsyncLocalStorage();
+
+	// Register agent in runtime state so events fire (lookup by metadata.name)
+	const agentName = agent.metadata.name;
+	const runtime = getAgentRuntime(ctx);
+
+	// Get internal agent from runner (stored via symbol) or global registry
+	const internalAgent = (agent as any)[INTERNAL_AGENT] || agents.get(agentName);
+
+	if (internalAgent && agentName) {
+		runtime.agents.set(agentName, internalAgent);
+
+		// Copy event listeners from global to context runtime
+		const globalListeners = agentEventListeners.get(internalAgent);
+		if (globalListeners) {
+			runtime.agentEventListeners.set(internalAgent, globalListeners);
+		}
+	}
+
+	return storage.run(ctx, async () => {
+		if (input !== undefined) {
+			return await (agent.run as any)(input);
+		} else {
+			return await (agent.run as any)();
+		}
+	});
+}

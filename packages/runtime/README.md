@@ -159,7 +159,6 @@ interface AgentContext {
 	tracer: Tracer; // OpenTelemetry tracer
 	sessionId: string; // Unique session ID
 	kv: KeyValueStorage; // Key-value storage
-	objectstore: ObjectStorage; // Object storage
 	stream: StreamStorage; // Stream storage
 	vector: VectorStorage; // Vector storage
 	agent: AgentRegistry; // Access to other agents
@@ -172,7 +171,6 @@ interface AgentContext {
 Agentuity provides built-in storage abstractions:
 
 - **KeyValueStorage** - Simple key-value storage
-- **ObjectStorage** - Object/blob storage
 - **StreamStorage** - Streaming data storage
 - **VectorStorage** - Vector embeddings storage
 

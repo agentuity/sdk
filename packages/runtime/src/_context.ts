@@ -4,11 +4,11 @@ import type { Tracer } from '@opentelemetry/api';
 import {
 	StructuredError,
 	type KeyValueStorage,
-	type ObjectStorage,
 	type StreamStorage,
 	type VectorStorage,
 } from '@agentuity/core';
-import type { AgentContext, AgentName, AgentRegistry, AgentRunner } from './agent';
+import type { AgentContext, AgentRegistry, AgentRunner, AgentRuntimeState } from './agent';
+import { AGENT_RUNTIME, CURRENT_AGENT } from './_config';
 import type { Logger } from './logger';
 import type WaitUntilHandler from './_waituntil';
 import { registerServices } from './_services';
@@ -16,18 +16,11 @@ import type { Thread, Session } from './session';
 
 export interface RequestAgentContextArgs<
 	TAgentMap extends AgentRegistry = AgentRegistry,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	TParent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
 	TConfig = unknown,
 	TAppState = Record<string, never>,
 > {
 	sessionId: string;
 	agent: TAgentMap;
-	current: TCurrent;
-	parent: TParent;
-	agentName: AgentName;
 	logger: Logger;
 	tracer: Tracer;
 	session: Session;
@@ -35,27 +28,20 @@ export interface RequestAgentContextArgs<
 	handler: WaitUntilHandler;
 	config: TConfig;
 	app: TAppState;
+	runtime: AgentRuntimeState;
 }
 
 export class RequestAgentContext<
 	TAgentMap extends AgentRegistry = AgentRegistry,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	TParent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
 	TConfig = unknown,
 	TAppState = Record<string, never>,
-> implements AgentContext<TAgentMap, TCurrent, TParent, TConfig, TAppState>
+> implements AgentContext<TAgentMap, TConfig, TAppState>
 {
 	agent: TAgentMap;
-	current: TCurrent;
-	parent: TParent;
-	agentName: AgentName;
 	logger: Logger;
 	sessionId: string;
 	tracer: Tracer;
 	kv!: KeyValueStorage;
-	objectstore!: ObjectStorage;
 	stream!: StreamStorage;
 	vector!: VectorStorage;
 	state: Map<string, unknown>;
@@ -63,13 +49,11 @@ export class RequestAgentContext<
 	thread: Thread;
 	config: TConfig;
 	app: TAppState;
+	[AGENT_RUNTIME]: AgentRuntimeState;
 	private handler: WaitUntilHandler;
 
-	constructor(args: RequestAgentContextArgs<TAgentMap, TCurrent, TParent, TConfig, TAppState>) {
+	constructor(args: RequestAgentContextArgs<TAgentMap, TConfig, TAppState>) {
 		this.agent = args.agent;
-		this.current = args.current;
-		this.parent = args.parent;
-		this.agentName = args.agentName;
 		this.logger = args.logger;
 		this.sessionId = args.sessionId;
 		this.tracer = args.tracer;
@@ -77,6 +61,7 @@ export class RequestAgentContext<
 		this.session = args.session;
 		this.config = args.config;
 		this.app = args.app;
+		this[AGENT_RUNTIME] = args.runtime;
 		this.state = new Map<string, unknown>();
 		this.handler = args.handler;
 		registerServices(this, false); // agents already populated via args.agent
@@ -88,7 +73,7 @@ export class RequestAgentContext<
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const agentAsyncLocalStorage = new AsyncLocalStorage<AgentContext<any, any, any, any, any>>();
+const agentAsyncLocalStorage = new AsyncLocalStorage<AgentContext<any, any, any>>();
 const httpAsyncLocalStorage = new AsyncLocalStorage<HonoContext>();
 
 export const inAgentContext = (): boolean => {
@@ -107,7 +92,7 @@ const AgentContextNotAvailableError = StructuredError(
 );
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const getAgentContext = (): AgentContext<any, any, any, any, any> => {
+export const getAgentContext = (): AgentContext<any, any, any> => {
 	const context = agentAsyncLocalStorage.getStore();
 	if (!context) {
 		throw new AgentContextNotAvailableError();
@@ -131,20 +116,29 @@ export const getHTTPContext = (): HonoContext => {
 export const getAgentAsyncLocalStorage = () => agentAsyncLocalStorage;
 export const getHTTPAsyncLocalStorage = () => httpAsyncLocalStorage;
 
-export const runInAgentContext = <
+/**
+ * Get the current executing agent's metadata (for internal telemetry use only).
+ * Returns undefined if not in an agent context or no agent is executing.
+ * @internal
+ */
+export const getCurrentAgentMetadata = (): AgentRunner['metadata'] | undefined => {
+	const context = agentAsyncLocalStorage.getStore();
+	if (!context) return undefined;
+	// Access internal symbol property
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return (context as any)[CURRENT_AGENT]?.metadata;
+};
+
+export const setupRequestAgentContext = <
 	TAgentMap extends AgentRegistry = AgentRegistry,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	TCurrent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	TParent extends AgentRunner<any, any, any> | undefined = AgentRunner<any, any, any> | undefined,
 	TConfig = unknown,
 	TAppState = Record<string, never>,
 >(
 	ctxObject: Record<string, unknown>,
-	args: RequestAgentContextArgs<TAgentMap, TCurrent, TParent, TConfig, TAppState>,
+	args: RequestAgentContextArgs<TAgentMap, TConfig, TAppState>,
 	next: () => Promise<void>
 ) => {
-	const ctx = new RequestAgentContext<TAgentMap, TCurrent, TParent, TConfig, TAppState>(args);
+	const ctx = new RequestAgentContext<TAgentMap, TConfig, TAppState>(args);
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const _ctx = ctx as any;
 	Object.getOwnPropertyNames(ctx).forEach((k) => {

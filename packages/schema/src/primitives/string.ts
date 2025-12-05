@@ -19,6 +19,8 @@ export class StringSchema implements Schema<string, string> {
 	description?: string;
 	private _min?: number;
 	private _max?: number;
+	private _email?: boolean;
+	private _url?: boolean;
 
 	readonly '~standard' = {
 		version: 1 as const,
@@ -36,6 +38,20 @@ export class StringSchema implements Schema<string, string> {
 				return failure([
 					createIssue(`String must be at most ${this._max} characters, got ${value.length}`),
 				]);
+			}
+			if (this._email) {
+				// Basic email regex - matches most valid emails
+				const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+				if (!emailRegex.test(value)) {
+					return failure([createIssue(`Invalid email format`)]);
+				}
+			}
+			if (this._url) {
+				try {
+					new URL(value);
+				} catch {
+					return failure([createIssue(`Invalid URL format`)]);
+				}
 			}
 			return success(value);
 		},
@@ -79,6 +95,38 @@ export class StringSchema implements Schema<string, string> {
 		return clone;
 	}
 
+	/**
+	 * Validate email format.
+	 *
+	 * @example
+	 * ```typescript
+	 * const schema = s.string().email();
+	 * schema.parse('user@example.com'); // "user@example.com"
+	 * schema.parse('invalid'); // throws ValidationError
+	 * ```
+	 */
+	email(): StringSchema {
+		const clone = this._clone();
+		clone._email = true;
+		return clone;
+	}
+
+	/**
+	 * Validate URL format.
+	 *
+	 * @example
+	 * ```typescript
+	 * const schema = s.string().url();
+	 * schema.parse('https://example.com'); // "https://example.com"
+	 * schema.parse('invalid'); // throws ValidationError
+	 * ```
+	 */
+	url(): StringSchema {
+		const clone = this._clone();
+		clone._url = true;
+		return clone;
+	}
+
 	optional() {
 		return optional(this);
 	}
@@ -92,6 +140,8 @@ export class StringSchema implements Schema<string, string> {
 		clone.description = this.description;
 		clone._min = this._min;
 		clone._max = this._max;
+		clone._email = this._email;
+		clone._url = this._url;
 		return clone;
 	}
 

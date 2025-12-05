@@ -56,7 +56,6 @@ export const command = createCommand({
 				env.set('AGENTUITY_TRANSPORT_URL', serviceUrls.catalyst);
 				env.set('AGENTUITY_CATALYST_URL', serviceUrls.catalyst);
 				env.set('AGENTUITY_VECTOR_URL', serviceUrls.vector);
-				env.set('AGENTUITY_OBJECTSTORE_URL', serviceUrls.objectstore);
 				env.set('AGENTUITY_KEYVALUE_URL', serviceUrls.keyvalue);
 				env.set('AGENTUITY_STREAM_URL', serviceUrls.stream);
 				env.set('AGENTUITY_CLOUD_ORG_ID', project.orgId);
@@ -74,6 +73,7 @@ export const command = createCommand({
 				orgId: project?.orgId,
 				projectId: project?.projectId,
 				env,
+				region: project?.region ?? 'local',
 			});
 
 			// Run TypeScript type checking after registry generation (skip in dev mode)

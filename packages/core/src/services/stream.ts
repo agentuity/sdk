@@ -2,6 +2,10 @@ import { safeStringify } from '../json';
 import { FetchAdapter, FetchResponse } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { StructuredError } from '../error';
+import {
+	WritableStream as WebWritableStream,
+	TransformStream as WebTransformStream,
+} from 'stream/web';
 
 /**
  * Properties for creating a stream
@@ -268,7 +272,7 @@ const ReadStreamFailedError = StructuredError('ReadStreamFailedError')<{ status:
 /**
  * A writable stream implementation that extends WritableStream
  */
-class StreamImpl extends WritableStream implements Stream {
+class StreamImpl extends WebWritableStream implements Stream {
 	public readonly id: string;
 	public readonly url: string;
 	#activeWriter: WritableStreamDefaultWriter<Uint8Array> | null = null;
@@ -317,7 +321,7 @@ class StreamImpl extends WritableStream implements Stream {
 		}
 
 		if (!this.#activeWriter) {
-			this.#activeWriter = this.getWriter();
+			this.#activeWriter = super.getWriter();
 		}
 		await this.#activeWriter.write(binaryChunk);
 	}
@@ -337,7 +341,7 @@ class StreamImpl extends WritableStream implements Stream {
 			}
 
 			// Otherwise, get a writer and close it
-			const writer = this.getWriter();
+			const writer = super.getWriter();
 			await writer.close();
 		} catch (error) {
 			// If we get a TypeError about the stream being closed, locked, or errored,
@@ -462,17 +466,15 @@ class UnderlyingSink {
 
 		// Create a ReadableStream to pipe data to the PUT request
 		// eslint-disable-next-line prefer-const
-		let { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
+		let { readable, writable } = new WebTransformStream<Uint8Array, Uint8Array>();
 
 		// If compression is enabled, add gzip transform
 		if (this.props?.compress) {
 			const { Readable, Writable } = await import('node:stream');
 
 			// Create a new transform for the compressed output
-			const { readable: compressedReadable, writable: compressedWritable } = new TransformStream<
-				Uint8Array,
-				Uint8Array
-			>();
+			const { readable: compressedReadable, writable: compressedWritable } =
+				new WebTransformStream<Uint8Array, Uint8Array>();
 
 			// Set up compression pipeline
 			const { createGzip } = await import('node:zlib');

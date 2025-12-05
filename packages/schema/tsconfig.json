@@ -6,7 +6,7 @@
 		"rootDir": "./src"
 	},
 	"include": ["src/**/*"],
-	"exclude": ["src/**/__tests__/**/*", "src/**/*.test.ts"],
+	"exclude": ["test/**/*"],
 	"references": [
 		{
 			"path": "../core"

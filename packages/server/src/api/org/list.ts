@@ -20,11 +20,7 @@ export type OrganizationList = z.infer<typeof ListOrganizationsResponse>;
  * @returns
  */
 export async function listOrganizations(client: APIClient): Promise<OrganizationList> {
-	const resp = await client.request<ListOrganizationsResponse>(
-		'GET',
-		'/cli/organization',
-		ListOrganizationsResponseSchema
-	);
+	const resp = await client.get('/cli/organization', ListOrganizationsResponseSchema);
 	if (resp.success) {
 		return resp.data;
 	}

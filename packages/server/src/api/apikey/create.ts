@@ -9,7 +9,7 @@ const APIKeyCreateResponseSchema = z.object({
 
 const APIKeyCreateFullResponseSchema = APIResponseSchema(APIKeyCreateResponseSchema);
 
-type APIKeyCreateFullResponse = z.infer<typeof APIKeyCreateFullResponseSchema>;
+type _APIKeyCreateFullResponse = z.infer<typeof APIKeyCreateFullResponseSchema>;
 
 export type APIKeyCreateResponse = z.infer<typeof APIKeyCreateResponseSchema>;
 
@@ -31,12 +31,7 @@ export async function apikeyCreate(
 	client: APIClient,
 	request: APIKeyCreateRequest
 ): Promise<APIKeyCreateResponse> {
-	const resp = await client.request<APIKeyCreateFullResponse>(
-		'POST',
-		'/cli/apikey',
-		APIKeyCreateFullResponseSchema,
-		request
-	);
+	const resp = await client.post('/cli/apikey', request, APIKeyCreateFullResponseSchema);
 
 	if (resp.success) {
 		return resp.data;

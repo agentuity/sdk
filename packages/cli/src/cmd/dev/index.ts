@@ -121,7 +121,7 @@ export const command = createCommand({
 			config = _config;
 			devmode = endpoint;
 			gravityURL = getGravityDevModeURL(project.region, config);
-			logger.error('gravity url: %s', gravityURL);
+			logger.trace('gravity url: %s', gravityURL);
 		}
 
 		logger.debug(
@@ -201,7 +201,6 @@ export const command = createCommand({
 			env.AGENTUITY_TRANSPORT_URL = serviceUrls.catalyst;
 			env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
 			env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
-			env.AGENTUITY_OBJECTSTORE_URL = serviceUrls.objectstore;
 			env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
 			env.AGENTUITY_STREAM_URL = serviceUrls.stream;
 			env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
@@ -499,6 +498,7 @@ export const command = createCommand({
 								projectId: project?.projectId,
 								deploymentId,
 								port: opts.port,
+								region: project?.region ?? 'local',
 							});
 							building = false;
 							buildCompletedAt = Date.now();
@@ -1005,7 +1005,7 @@ export const command = createCommand({
 						if (changedFile?.startsWith('src/agent/')) {
 							logger.debug('agent directory created: %s', changedFile);
 							createAgentTemplates(absPath);
-						} else if (changedFile?.startsWith('src/web/')) {
+						} else if (changedFile?.startsWith('src/api/')) {
 							logger.debug('api directory created: %s', changedFile);
 							createAPITemplates(absPath);
 						}

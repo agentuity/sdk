@@ -1,0 +1,15 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": false,
+		"outDir": "./dist-test",
+		"rootDir": ".",
+		"types": ["bun-types"],
+		"paths": {
+			"@agentuity/core": ["../core/src"],
+			"@agentuity/server": ["../server/src"]
+		}
+	},
+	"include": ["test/**/*", "src/**/*"],
+	"references": [{ "path": "../core" }, { "path": "../server" }]
+}

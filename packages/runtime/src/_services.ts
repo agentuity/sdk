@@ -1,12 +1,10 @@
 import { context, SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import {
 	KeyValueStorageService,
-	ObjectStorageService,
 	StreamStorageService,
 	VectorStorageService,
 	type FetchAdapter,
 	type KeyValueStorage,
-	type ObjectStorage,
 	type StreamStorage,
 	type VectorStorage,
 	type ListStreamsResponse,
@@ -42,7 +40,6 @@ import {
 } from './session';
 import {
 	LocalKeyValueStorage,
-	LocalObjectStorage,
 	LocalStreamStorage,
 	LocalVectorStorage,
 	getLocalDB,
@@ -58,7 +55,6 @@ const serviceUrls = getServiceUrls(process.env.AGENTUITY_REGION ?? 'usc');
 const kvBaseUrl = serviceUrls.keyvalue;
 const streamBaseUrl = serviceUrls.stream;
 const vectorBaseUrl = serviceUrls.vector;
-const objectBaseUrl = serviceUrls.objectstore;
 const catalystBaseUrl = serviceUrls.catalyst;
 
 let adapter: FetchAdapter;
@@ -157,22 +153,6 @@ const createFetchAdapter = (logger: Logger) =>
 						}
 						break;
 					}
-					case 'agentuity.objectstore.get': {
-						if (result.response.status === 404) {
-							span?.addEvent('miss');
-						} else if (result.response.ok) {
-							span?.addEvent('hit');
-						}
-						break;
-					}
-					case 'agentuity.objectstore.delete': {
-						if (result.response.status === 404) {
-							span?.addEvent('not_found', { deleted: false });
-						} else if (result.response.ok) {
-							span?.addEvent('deleted', { deleted: true });
-						}
-						break;
-					}
 				}
 			},
 		},
@@ -180,7 +160,6 @@ const createFetchAdapter = (logger: Logger) =>
 	);
 
 let kv: KeyValueStorage;
-let objectStore: ObjectStorage;
 let stream: StreamStorage;
 let vector: VectorStorage;
 let session: SessionProvider;
@@ -217,7 +196,6 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 		logger.info('Using local services (development only)');
 
 		kv = config?.services?.keyvalue || new LocalKeyValueStorage(db, projectPath);
-		objectStore = config?.services?.object || new LocalObjectStorage(db, projectPath, serverUrl);
 		stream = config?.services?.stream || new LocalStreamStorage(db, projectPath, serverUrl);
 		vector = config?.services?.vector || new LocalVectorStorage(db, projectPath);
 		session = config?.services?.session || new DefaultSessionProvider();
@@ -245,7 +223,6 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 
 	// At this point we must be authenticated (since !authenticated would trigger local services above)
 	kv = config?.services?.keyvalue || new KeyValueStorageService(kvBaseUrl, adapter);
-	objectStore = config?.services?.object || new ObjectStorageService(objectBaseUrl, adapter);
 	stream = config?.services?.stream || new StreamStorageService(streamBaseUrl, adapter);
 	vector = config?.services?.vector || new VectorStorageService(vectorBaseUrl, adapter);
 	session = config?.services?.session || new DefaultSessionProvider();
@@ -301,11 +278,6 @@ export function getEvalRunEventProvider() {
 export function registerServices(o: any, includeAgents = false) {
 	Object.defineProperty(o, 'kv', {
 		get: () => kv,
-		enumerable: false,
-		configurable: false,
-	});
-	Object.defineProperty(o, 'objectstore', {
-		get: () => objectStore,
 		enumerable: false,
 		configurable: false,
 	});

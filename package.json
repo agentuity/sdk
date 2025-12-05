@@ -1,6 +1,6 @@
 {
 	"name": "sdk-mono",
-	"version": "0.0.69",
+	"version": "0.0.70",
 	"private": true,
 	"workspaces": [
 		"packages/*",
@@ -25,6 +25,11 @@
 	"devDependencies": {
 		"@eslint/js": "^9.38.0",
 		"@eslint/json": "^0.13.2",
+		"@happy-dom/global-registrator": "^20.0.11",
+		"@testing-library/dom": "^10.4.1",
+		"@testing-library/jest-dom": "^6.9.1",
+		"@testing-library/react": "^16.3.0",
+		"@testing-library/react-hooks": "^8.0.1",
 		"@types/bun": "latest",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3",
@@ -35,8 +40,8 @@
 		"globals": "^16.4.0",
 		"jiti": "^2.6.1",
 		"prettier": "3.6.2",
-		"react": "^19.2.0",
-		"react-dom": "^19.2.0",
+		"react": "^19.2.1",
+		"react-dom": "^19.2.1",
 		"typescript": "^5.9.0",
 		"typescript-eslint": "^8.46.2"
 	}

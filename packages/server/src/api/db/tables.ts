@@ -42,7 +42,7 @@ export async function dbTables(
 
 	const url = `/resource/2025-03-17/${orgId}/${region}/${database}/tables`;
 
-	const resp = await client.request('GET', url, TablesResponseSchema);
+	const resp = await client.get(url, TablesResponseSchema);
 
 	if (resp.success) {
 		return resp.data.tables;

@@ -41,7 +41,7 @@ src/
     ├── cloud/     # Cloud commands group
     │   ├── keyvalue/    # Key-value storage
     │   ├── agents/      # Agent management
-    │   ├── objectstore/ # Object storage
+
     │   ├── env/         # Environment variables
     │   ├── secret/      # Secrets management
     │   └── ...          # Other cloud commands

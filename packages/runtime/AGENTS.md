@@ -49,7 +49,7 @@ src/
 - **WebSocket support** - Use `router.websocket()` for WebSocket routes
 - **SSE support** - Use `router.sse()` for Server-Sent Events
 - **Session tracking** - Each request gets unique sessionId
-- **Storage abstractions** - Provide kv, objectstore, stream, vector interfaces
+- **Storage abstractions** - Provide kv, stream, vector interfaces
 
 ## Route Validation
 
@@ -57,14 +57,14 @@ Routes can use `agent.validator()` to automatically validate request input using
 
 ```typescript
 import { createRouter } from '@agentuity/runtime';
-import agent from './agent';
+import myAgent from './my-agent';
 
 const router = createRouter();
 
 // Automatic validation using agent's input schema
-router.post('/', agent.validator(), async (c) => {
+router.post('/', myAgent.validator(), async (c) => {
 	const data = c.req.valid('json'); // Fully typed from agent schema!
-	const output = await c.agent.myAgent.run(data);
+	const output = await myAgent.run(data);
 	return c.json(output);
 });
 
@@ -141,10 +141,8 @@ interface AgentContext {
 	tracer: Tracer; // OpenTelemetry tracer
 	sessionId: string; // Unique session ID
 	kv: KeyValueStorage; // Key-value storage
-	objectstore: ObjectStorage; // Object storage
 	stream: StreamStorage; // Stream storage
 	vector: VectorStorage; // Vector storage
-	agent: AgentRegistry; // Access other agents
 	waitUntil: (promise) => void; // Background tasks
 }
 ```
@@ -156,12 +154,92 @@ interface AgentContext {
 - **Metrics**: Access via `c.var.meter` in Hono context
 - **Environment**: Metrics/traces sent to OTLP endpoints
 
+## Type Safety
+
+**End-to-end type safety is a core feature of the runtime.** When you use `createAgent()` with schemas and `agent.validator()` in routes, TypeScript automatically infers correct types throughout your application.
+
+### What IS Type-Safe ✅
+
+1. **Route handler input types** - `c.req.valid('json')` is automatically typed from agent schema
+2. **Agent handler types** - Both `ctx` and `input` parameters are fully typed
+3. **Runtime validation** - Input/output validation happens automatically
+4. **Schema overrides** - Custom schemas in `agent.validator({ input, output })` maintain type safety
+5. **Multiple agents** - Each route maintains independent type safety
+
+### Type Inference Best Practices
+
+**CRITICAL:** Do NOT add type annotations to agent handler parameters - let TypeScript infer them:
+
+```typescript
+// ✅ CORRECT: Let TypeScript infer types from schema
+const agent = createAgent('user', {
+  schema: {
+    input: z.object({ name: z.string(), age: z.number() }),
+    output: z.object({ id: z.string() }),
+  },
+  handler: async (ctx, input) => {
+    // ctx is typed as AgentContext
+    // input is typed as { name: string, age: number }
+    return { id: `user-${input.name}` };
+  },
+});
+
+// ❌ WRONG: Explicit types defeat inference
+handler: async (ctx: AgentContext, input: any) => { ... }
+```
+
+### Hono Method Chaining
+
+For best type inference with Hono, use method chaining:
+
+```typescript
+// ✅ RECOMMENDED: Method chaining preserves types
+const app = new Hono()
+	.post('/users', userAgent.validator(), handler)
+	.get('/users/:id', userAgent.validator({ output: UserSchema }), handler);
+```
+
+### Testing Type Safety
+
+**IMPORTANT:** Due to Hono's `testClient()` type inference limitations with method-chained apps, use `app.request()` for testing:
+
+```typescript
+// ✅ CORRECT: Use app.request() for testing
+test('creates user', async () => {
+	const app = new Hono().post('/users', agent.validator(), async (c) => {
+		const data = c.req.valid('json'); // Fully typed!
+		return c.json({ id: `user-${data.name}` });
+	});
+
+	const res = await app.request('/users', {
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ name: 'Alice', age: 30 }),
+	});
+
+	expect(res.status).toBe(200);
+	const result = await res.json();
+	expect(result.id).toBe('user-Alice');
+});
+
+// ❌ AVOID: testClient has type inference issues
+import { testClient } from 'hono/testing';
+const client = testClient(app); // Returns unknown type
+```
+
+See `test/agent-type-safety.test.ts` for comprehensive type-safe testing examples.
+
+For detailed type safety documentation, see `TYPE_SAFETY.md`.
+
 ## Testing
 
-- Use Bun's test runner: `bun test`
-- Mock storage interfaces (kv, objectstore, etc.)
-- Test agent handlers with mock context
-- Use Hono's testing utilities for routes
+- **Test runner**: Use Bun's test runner: `bun test`
+- **Test structure**: All tests in `test/` folder parallel to `src/`
+- **Test imports**: Import from `../src/` not `../`
+- **Mock contexts**: Use `TestAgentContext` from `test/helpers/test-context.ts`
+- **Mock services**: Use mock storage interfaces (kv, stream, vector, etc.)
+- **Route testing**: Use `app.request()` for testing routes (NOT `testClient()`)
+- **Type verification**: Let TypeScript infer agent handler types - do NOT add type annotations
 
 ## Publishing Checklist
 

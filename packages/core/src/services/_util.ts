@@ -158,7 +158,16 @@ export async function fromResponse<T>(response: Response): Promise<T> {
 	}
 
 	if (contentType.startsWith('text/')) {
-		return (await response.text()) as T;
+		// Try to parse as JSON first (some environments default to text/plain)
+		const text = await response.text();
+		if (text.trim().startsWith('{') || text.trim().startsWith('[')) {
+			try {
+				return JSON.parse(text) as T;
+			} catch {
+				// Not JSON, return as text
+			}
+		}
+		return text as T;
 	}
 
 	return (await response.arrayBuffer()) as T;

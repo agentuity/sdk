@@ -5,6 +5,7 @@ export * from './router';
 export * from './eval';
 export * from './session';
 export * from './workbench';
+export * from './validator';
 export type { Logger } from './logger';
 export { getRouter, getAppState } from './_server';
 export { Email, parseEmail } from './io/email';
@@ -36,7 +37,7 @@ export type { RouteSchema, GetRouteSchema } from './_validation';
  * });
  *
  * // In your agent:
- * const agent = createAgent({
+ * const agent = createAgent('user-query', {
  *   handler: async (ctx, input) => {
  *     // ctx.app is strongly typed with { db, redis }!
  *     const user = await ctx.app.db.query('SELECT * FROM users');

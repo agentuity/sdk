@@ -1,22 +1,21 @@
 import type { BunPlugin } from 'bun';
-import { dirname, basename, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { existsSync, writeFileSync, mkdirSync, unlinkSync } from 'node:fs';
 import type { BuildMetadata } from '@agentuity/server';
 import {
 	parseAgentMetadata,
-	parseRoute,
 	parseEvalMetadata,
+	parseRoute,
 	analyzeWorkbench,
-	checkRouteConflicts,
 	generateLifecycleTypes,
 	findCreateAppEndPosition,
 } from './ast';
 import { StructuredError, type WorkbenchConfig } from '@agentuity/core';
 import { applyPatch, generatePatches } from './patch';
-import { detectSubagent } from '../../utils/detectSubagent';
 import { createLogger } from '@agentuity/server';
 import type { LogLevel } from '../../types';
 import { toCamelCase, toPascalCase } from '../../utils/string';
+import { generateRouteRegistry, type RouteInfo } from './route-registry';
 
 /**
  * Setup lifecycle types by analyzing app.ts for setup() function
@@ -77,53 +76,21 @@ async function setupWorkbench(srcDir: string): Promise<WorkbenchConfig | null> {
 
 	const workbenchConfig = analysis.config;
 
-	// Check for route conflicts if workbench is being used
-	if (workbenchConfig?.route) {
-		const hasConflict = checkRouteConflicts(appContent, workbenchConfig.route);
-		if (hasConflict) {
-			const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL as LogLevel) || 'info');
-			logger.error(`🚨 Route conflict detected!\n`);
-			logger.error(
-				`   Workbench route '${workbenchConfig.route}' conflicts with existing application route`
-			);
-			logger.error(`   Please use a different route or remove the conflicting route.\n`);
-		}
-	}
-
 	return workbenchConfig;
 }
 
 const AgentIdentifierCollisionError = StructuredError('AgentIdentifierCollisionError');
-const SubAgentNameCollisionError = StructuredError('SubAgentNameCollisionError');
 
 function generateAgentRegistry(srcDir: string, agentInfo: Array<Record<string, string>>) {
-	// Separate parent agents and subagents
-	const parentAgents = agentInfo.filter((a) => !a.parent);
-	const subagents = agentInfo.filter((a) => a.parent);
-
-	// Group subagents by parent
-	const subagentsByParent = new Map<string, Array<Record<string, string>>>();
-	for (const subagent of subagents) {
-		const parentName = subagent.parent!;
-		if (!subagentsByParent.has(parentName)) {
-			subagentsByParent.set(parentName, []);
-		}
-		subagentsByParent.get(parentName)!.push(subagent);
-	}
-
 	// Detect naming collisions in generated identifiers
-	// Naming strategy: parent + child names are combined as `${parent}_${name}` then converted to camelCase
-	// Example: parent="user", child="profile" → "user_profile" → "userProfile"
-	// Potential collision: parent="user_profile", child="info" and parent="user", child="profile_info" both → "userProfileInfo"
 	const generatedNames = new Set<string>();
 	const collisions: string[] = [];
 
 	for (const agent of agentInfo) {
-		const fullName = agent.parent ? `${agent.parent}_${agent.name}` : agent.name;
-		const camelName = toCamelCase(fullName);
+		const camelName = toCamelCase(agent.name);
 
 		if (generatedNames.has(camelName)) {
-			collisions.push(`Identifier collision detected: "${camelName}" (from "${fullName}")`);
+			collisions.push(`Identifier collision detected: "${camelName}" (from "${agent.name}")`);
 		}
 		generatedNames.add(camelName);
 	}
@@ -138,158 +105,45 @@ function generateAgentRegistry(srcDir: string, agentInfo: Array<Record<string, s
 	}
 
 	// Generate imports for all agents
+	// Registry is now in .agentuity/, so imports need to go up one level and into src/
 	const imports = agentInfo
-		.map(({ name, path, parent }) => {
-			const fullName = parent ? `${parent}.${name}` : name;
-			const camelName = toCamelCase(fullName.replace('.', '_'));
-			const relativePath = path.replace(/^\.\/agent\//, './');
+		.map(({ name, path }) => {
+			const camelName = toCamelCase(name);
+			const relativePath = path.replace(/^\.\/agent\//, '../src/agent/');
 			return `import ${camelName}Agent from '${relativePath}';`;
 		})
 		.join('\n');
 
-	// Evals are now imported in plugin.ts when agents are registered
-	// No need to import them in registry.generated.ts
-	const evalsImportsStr = '';
-
-	// Validate that child property names don't collide with parent agent properties
-	const reservedAgentProperties = ['metadata', 'run', 'inputSchema', 'outputSchema', 'stream'];
-	for (const parentAgent of parentAgents) {
-		const children = subagentsByParent.get(parentAgent.name) || [];
-		for (const child of children) {
-			const childPropertyName = toCamelCase(child.name);
-
-			// Check for collision with reserved agent properties
-			if (reservedAgentProperties.includes(childPropertyName)) {
-				throw new SubAgentNameCollisionError({
-					message:
-						`Subagent property name collision detected: "${childPropertyName}" in parent "${parentAgent.name}"\n` +
-						`The child name "${child.name}" conflicts with a reserved agent property (${reservedAgentProperties.join(', ')}).\n` +
-						`Please rename the subagent to avoid this collision.`,
-				});
-			}
-		}
-	}
-
-	// Generate nested registry structure
-	const registryLines: string[] = [];
-	for (const parentAgent of parentAgents) {
-		const parentCamelName = toCamelCase(parentAgent.name);
-		const children = subagentsByParent.get(parentAgent.name) || [];
-
-		if (children.length === 0) {
-			// No subagents, simple assignment
-			registryLines.push(`  ${parentCamelName}: ${parentCamelName}Agent,`);
-		} else {
-			// Has subagents, create nested structure using object spread (no mutation)
-			registryLines.push(`  ${parentCamelName}: {`);
-			registryLines.push(`    ...${parentCamelName}Agent,`);
-			for (const child of children) {
-				const childCamelName = toCamelCase(`${parentAgent.name}_${child.name}`);
-				registryLines.push(`    ${toCamelCase(child.name)}: ${childCamelName}Agent,`);
-			}
-			registryLines.push(`  },`);
-		}
-	}
-	const registry = registryLines.join('\n');
+	// Generate flat registry structure (no subagents)
+	const registry = agentInfo
+		.map(({ name }) => {
+			const camelName = toCamelCase(name);
+			return `  ${camelName}: ${camelName}Agent,`;
+		})
+		.join('\n');
 
 	// Generate type exports for all agents
 	const typeExports = agentInfo
-		.map(({ name, parent }) => {
-			const fullName = parent ? `${parent}_${name}` : name;
-			const camelName = toCamelCase(fullName);
-			const pascalName = toPascalCase(fullName);
+		.map(({ name }) => {
+			const camelName = toCamelCase(name);
+			const pascalName = toPascalCase(name);
 			return `export type ${pascalName}AgentRunner = AgentRunner<typeof ${camelName}Agent['inputSchema'], typeof ${camelName}Agent['outputSchema'], typeof ${camelName}Agent['stream'] extends true ? true : false>;`;
 		})
 		.join('\n');
 
-	// Generate nested agent type definitions for Hono Context augmentation
-	const honoAgentTypeLines: string[] = [];
-	for (const parentAgent of parentAgents) {
-		const parentCamelName = toCamelCase(parentAgent.name);
-		const children = subagentsByParent.get(parentAgent.name) || [];
-
-		if (children.length === 0) {
-			// No subagents
-			honoAgentTypeLines.push(
-				`	   ${parentCamelName}: AgentRunner<LocalAgentRegistry['${parentCamelName}']['inputSchema'], LocalAgentRegistry['${parentCamelName}']['outputSchema'], LocalAgentRegistry['${parentCamelName}']['stream'] extends true ? true : false>;`
-			);
-		} else {
-			// Has subagents - create intersection type
-			honoAgentTypeLines.push(
-				`	   ${parentCamelName}: AgentRunner<LocalAgentRegistry['${parentCamelName}']['inputSchema'], LocalAgentRegistry['${parentCamelName}']['outputSchema'], LocalAgentRegistry['${parentCamelName}']['stream'] extends true ? true : false> & {`
-			);
-			for (const child of children) {
-				const childCamelName = toCamelCase(child.name);
-				const fullChildName = toCamelCase(`${parentAgent.name}_${child.name}`);
-				honoAgentTypeLines.push(
-					`	     ${childCamelName}: AgentRunner<typeof ${fullChildName}Agent['inputSchema'], typeof ${fullChildName}Agent['outputSchema'], typeof ${fullChildName}Agent['stream'] extends true ? true : false>;`
-				);
-			}
-			honoAgentTypeLines.push(`	   };`);
-		}
-	}
-	const honoAgentTypes = honoAgentTypeLines.join('\n');
-
-	// Generate agent type definitions for AgentRegistry interface augmentation
-	const runtimeAgentTypeLines: string[] = [];
-	for (const parentAgent of parentAgents) {
-		const parentCamelName = toCamelCase(parentAgent.name);
-		const children = subagentsByParent.get(parentAgent.name) || [];
-
-		if (children.length === 0) {
-			// No subagents - use typeof the imported agent
-			runtimeAgentTypeLines.push(
-				`		${parentCamelName}: AgentRunner<typeof ${parentCamelName}Agent['inputSchema'], typeof ${parentCamelName}Agent['outputSchema'], typeof ${parentCamelName}Agent['stream'] extends true ? true : false>;`
-			);
-		} else {
-			// Has subagents - create intersection type using typeof
-			runtimeAgentTypeLines.push(
-				`		${parentCamelName}: AgentRunner<typeof ${parentCamelName}Agent['inputSchema'], typeof ${parentCamelName}Agent['outputSchema'], typeof ${parentCamelName}Agent['stream'] extends true ? true : false> & {`
-			);
-			for (const child of children) {
-				const childCamelName = toCamelCase(child.name);
-				const fullChildName = toCamelCase(`${parentAgent.name}_${child.name}`);
-				runtimeAgentTypeLines.push(
-					`			${childCamelName}: AgentRunner<typeof ${fullChildName}Agent['inputSchema'], typeof ${fullChildName}Agent['outputSchema'], typeof ${fullChildName}Agent['stream'] extends true ? true : false>;`
-				);
-			}
-			runtimeAgentTypeLines.push(`		};`);
-		}
-	}
-	const runtimeAgentTypes = runtimeAgentTypeLines.join('\n');
-
-	// Generate React client types with nested structure
-	const clientAgentTypeLines: string[] = [];
-	for (const parentAgent of parentAgents) {
-		const parentCamelName = toCamelCase(parentAgent.name);
-		const children = subagentsByParent.get(parentAgent.name) || [];
-
-		if (children.length === 0) {
-			// No subagents
-			clientAgentTypeLines.push(
-				`		'${parentAgent.name}': Agent<typeof ${parentCamelName}Agent['inputSchema'], typeof ${parentCamelName}Agent['outputSchema']>;`
-			);
-		} else {
-			// Has subagents - create nested type with subagent access via dot notation
-			clientAgentTypeLines.push(
-				`		'${parentAgent.name}': Agent<typeof ${parentCamelName}Agent['inputSchema'], typeof ${parentCamelName}Agent['outputSchema']>;`
-			);
-			for (const child of children) {
-				const fullChildName = toCamelCase(`${parentAgent.name}_${child.name}`);
-				clientAgentTypeLines.push(
-					`		'${parentAgent.name}.${child.name}': Agent<typeof ${fullChildName}Agent['inputSchema'], typeof ${fullChildName}Agent['outputSchema']>;`
-				);
-			}
-		}
-	}
-	const reactAgentTypes = clientAgentTypeLines.join('\n');
+	// Generate flat agent type definitions for AgentRegistry interface augmentation
+	const runtimeAgentTypes = agentInfo
+		.map(({ name }) => {
+			const camelName = toCamelCase(name);
+			return `		${camelName}: AgentRunner<typeof ${camelName}Agent['inputSchema'], typeof ${camelName}Agent['outputSchema'], typeof ${camelName}Agent['stream'] extends true ? true : false>;`;
+		})
+		.join('\n');
 
 	const generatedContent = `/// <reference types="hono" />
 // Auto-generated by Agentuity - do not edit manually
-${imports}${evalsImportsStr}
+${imports}
 import type { AgentRunner, Logger } from '@agentuity/runtime';
-import type { KeyValueStorage, ObjectStorage, StreamStorage, VectorStorage } from '@agentuity/core';
-import type { Agent } from '@agentuity/react';
+import type { KeyValueStorage, StreamStorage, VectorStorage } from '@agentuity/core';
 
 /**
  * Registry of all agents in this application.
@@ -315,38 +169,20 @@ ${runtimeAgentTypes}
 	}
 }
 
-// Augment Hono Context to provide strongly-typed agents and runtime services
-// Note: Properties are added to Context via middleware in @agentuity/runtime
-declare module "hono" {
-	interface Context {
-		agentName: LocalAgentName;
-		agent: {
-${honoAgentTypes}
-		};
-		waitUntil: (promise: Promise<void> | (() => void | Promise<void>)) => void;
-		logger: Logger;
-		kv: KeyValueStorage;
-		objectstore: ObjectStorage;
-		stream: StreamStorage;
-		vector: VectorStorage;
-	}
-}
-
-// Augment @agentuity/react types with strongly-typed agents from this project
-declare module '@agentuity/react' {
-	interface AgentRegistry {
-${reactAgentTypes}
-	}
-}
+// NOTE: Hono Context properties are accessed via c.var (e.g., c.var.logger, c.var.kv)
+// The Variables interface in @agentuity/runtime defines all available context properties
 `;
 
+	const projectRoot = join(srcDir, '..');
+	const agentuityDir = join(projectRoot, '.agentuity');
+	const registryPath = join(agentuityDir, 'registry.generated.ts');
+
 	const agentsDir = join(srcDir, 'agent');
-	const registryPath = join(agentsDir, 'registry.generated.ts');
 	const legacyTypesPath = join(agentsDir, 'types.generated.d.ts');
 
-	// Ensure agent directory exists
-	if (!existsSync(agentsDir)) {
-		mkdirSync(agentsDir, { recursive: true });
+	// Ensure .agentuity directory exists
+	if (!existsSync(agentuityDir)) {
+		mkdirSync(agentuityDir, { recursive: true });
 	}
 
 	writeFileSync(registryPath, generatedContent, 'utf-8');
@@ -364,11 +200,9 @@ export function getBuildMetadata(): Partial<BuildMetadata> {
 }
 
 const AgentNameDuplicateError = StructuredError('AgentNameDuplicateError');
-const MetadataMissingError = StructuredError('MetadataMissingError');
 const MetadataPropertyMissingError = StructuredError('MetadataPropertyMissingError')<{
 	name: string;
 }>();
-const SubAgentMissingError = StructuredError('SubAgentMissingError');
 
 const AgentuityBundler: BunPlugin = {
 	name: 'Agentuity Bundler',
@@ -389,69 +223,51 @@ const AgentuityBundler: BunPlugin = {
 			(build.config.define?.['process.env.NODE_ENV']
 				? JSON.parse(build.config.define['process.env.NODE_ENV'])
 				: 'production') === 'development';
-		const routes: Set<string> = new Set();
 		const agentInfo: Array<Record<string, string>> = [];
 		const agentMetadata: Map<string, Map<string, string>> = new Map<
 			string,
 			Map<string, string>
 		>();
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
-		let routeDefinitions: BuildMetadata['routes'] = [];
 
-		build.onResolve({ filter: /\/route\.ts$/, namespace: 'file' }, async (args) => {
-			if (args.path.startsWith(srcDir)) {
-				const importPath = args.path
-					.replace(rootDir, '')
-					.replace('.ts', '')
-					.replace('/src/', './');
-				routes.add(importPath);
-			}
-			return args;
-		});
-
-		build.onLoad({ filter: /\/route\.ts$/, namespace: 'file' }, async (args) => {
-			if (args.path.startsWith(srcDir)) {
-				const importPath = args.path
-					.replace(rootDir, '')
-					.replace('.ts', '')
-					.replace('/src/', './');
-				routes.add(importPath);
-			}
-			// return undefined to let Bun handle loading normally
-			return;
-		});
-
-		build.onLoad({ filter: /\/agent\.ts$/, namespace: 'file' }, async (args) => {
+		// Scan ALL .ts files in src/agent directory for agents
+		build.onLoad({ filter: /\/agent\/.*\.ts$/, namespace: 'file' }, async (args) => {
 			let newsource = await Bun.file(args.path).text();
 			if (args.path.startsWith(srcDir)) {
 				const contents = transpiler.transformSync(newsource);
-				const [ns, md] = await parseAgentMetadata(
+				const result = await parseAgentMetadata(
 					rootDir,
 					args.path,
 					contents,
 					projectId,
 					deploymentId
 				);
+
+				// Skip files that don't have a createAgent export
+				if (result === undefined) {
+					return {
+						contents: newsource,
+						loader: 'ts',
+					};
+				}
+
+				const [ns, md] = result;
 				newsource = ns;
 
-				// Detect if this is a subagent by checking path structure
-				// Note: Path structure assumption - 4 segments: agent/parent/child/agent.ts
-				const { isSubagent, parentName } = detectSubagent(args.path, srcDir);
-				if (isSubagent && parentName) {
-					md.set('parent', parentName);
-				}
-
-				const newAgentName = md.get('name');
-				for (const [, kv] of agentMetadata) {
-					const found = kv.get('name');
-					if (newAgentName === found) {
-						throw new AgentNameDuplicateError({
-							message: `The agent in ${kv.get('filename')} and the agent in ${md.get('filename')} have the same name (${found}). Agent Names must be unique within a project.`,
-						});
+				// Only process files that actually export an agent
+				if (md.has('name')) {
+					const newAgentName = md.get('name');
+					for (const [, kv] of agentMetadata) {
+						const found = kv.get('name');
+						if (newAgentName === found) {
+							throw new AgentNameDuplicateError({
+								message: `The agent in ${kv.get('filename')} and the agent in ${md.get('filename')} have the same name (${found}). Agent Names must be unique within a project.`,
+							});
+						}
 					}
-				}
 
-				agentMetadata.set(md.get('identifier')!, md);
+					agentMetadata.set(md.get('name')!, md);
+				}
 			}
 			return {
 				contents: newsource,
@@ -509,121 +325,6 @@ const AgentuityBundler: BunPlugin = {
 				await args.defer();
 
 				const inserts: string[] = [];
-				const routeMapping: Record<string, string> = {};
-
-				for (const route of routes) {
-					const name = basename(dirname(route));
-					const agent = route.replace(/\/route$/, '/agent');
-					const hasAgent = existsSync(join(srcDir, agent + '.ts'));
-
-					// Detect if this is a subagent route using shared utility
-					const { isSubagent, parentName } = detectSubagent(route);
-
-					const agentPath = route.replace(/\/route$/, '/*').replace('./', '/');
-					const routePath = route
-						.replace(/\/route$/, '')
-						.replace('/web/', '/api/')
-						.replace('/web', '/api')
-						.replace('./', '/');
-
-					const definitions = await parseRoute(
-						rootDir,
-						join(srcDir, `${route}.ts`),
-						projectId,
-						deploymentId
-					);
-
-					let agentDetail: Record<string, string> = {};
-
-					if (hasAgent) {
-						const md = agentMetadata.get(name);
-						if (!md) {
-							throw new MetadataMissingError({
-								message: `Couldn't find agent metadata for ${route}`,
-							});
-						}
-						agentDetail = {
-							name,
-							id: md.get('id')!,
-							path: `.${agent}`,
-							filename: md.get('filename')!,
-							identifier: md.get('identifier')!,
-							description: md.get('description') ?? '',
-							agentId: md.get('agentId')!,
-						};
-						if (isSubagent && parentName) {
-							agentDetail.parent = parentName;
-						}
-						agentInfo.push(agentDetail);
-						for (const def of definitions) {
-							def.agentIds = [agentDetail.agentId, agentDetail.id];
-						}
-					}
-
-					// do this after handling the agent association (if any)
-					routeDefinitions = [...routeDefinitions, ...definitions];
-
-					let buffer = `await (async() => {
-    const { createAgentMiddleware, getRouter, registerAgent } = await import('@agentuity/runtime');
-    const router = getRouter()!;
-    const route = require('./src/${route}').default;`;
-					if (hasAgent) {
-						const agentRegistrationName =
-							isSubagent && parentName ? `${parentName}.${name}` : name;
-						// Build evals path from agent path (e.g., 'agent/eval/agent' -> 'agent/eval/eval.ts')
-						const agentDirPath = agent.replace(/\/agent$/, '');
-						const evalsPath = join(srcDir, agentDirPath, 'eval.ts');
-						const evalsImport = existsSync(evalsPath)
-							? `\n    require('./src/${agentDirPath}/eval');`
-							: '';
-						buffer += `
-    const agent = require('./src/${agent}').default;
-    router.all("${agentPath}", createAgentMiddleware('${agentRegistrationName}'));
-    registerAgent("${agentRegistrationName}", agent);${evalsImport}`;
-					}
-					buffer += `
-    router.route("${routePath}", route);
-})();`;
-					inserts.push(buffer);
-
-					for (const def of definitions) {
-						routeMapping[`${def.method} ${def.path}`] = def.id;
-					}
-				}
-
-				// Register standalone agents (agents without routes)
-				const routeAgentNames = new Set(
-					agentInfo
-						.filter((a) => {
-							// Check if this agent was added via a route (has a corresponding route file)
-							const agentPath = a.path.replace(/^\./, '').replace(/\/agent$/, '/route');
-							return routes.has(agentPath.replace(/^\/src\//, './'));
-						})
-						.map((a) => a.name)
-				);
-
-				for (const agentDetail of agentInfo) {
-					if (!routeAgentNames.has(agentDetail.name)) {
-						// This is a standalone agent - register it without a route
-						const agentPath = agentDetail.path;
-						const agentDirPath = agentPath.replace(/\/agent$/, '');
-						const evalsPath = join(srcDir, agentDirPath.replace(/^\./, ''), 'eval.ts');
-						const evalsImport = existsSync(evalsPath)
-							? `\n    require('./src/${agentDirPath.replace(/^\.\//, '')}/eval');`
-							: '';
-						const isSubagent = !!agentDetail.parent;
-						const agentRegistrationName = isSubagent
-							? `${agentDetail.parent}.${agentDetail.name}`
-							: agentDetail.name;
-
-						const buffer = `await (async() => {
-    const { registerAgent } = await import('@agentuity/runtime');
-    const agent = require('./src${agentPath}').default;
-    registerAgent("${agentRegistrationName}", agent);${evalsImport}
-})();`;
-						inserts.push(buffer);
-					}
-				}
 
 				const indexFile = join(srcDir, 'web', 'index.html');
 
@@ -677,39 +378,48 @@ import { readFileSync, existsSync } from 'node:fs';
 })();`);
 				}
 
-				// Add standalone agents (agents without routes) to agentInfo
-				// These agents can still be called by other agents or routes via ctx.agent
-				const registeredIdentifiers = new Set(agentInfo.map((a) => a.identifier));
-				for (const [identifier, md] of agentMetadata) {
-					if (!registeredIdentifiers.has(identifier)) {
-						// md.get('filename') can be either absolute or relative to rootDir
-						const filename = md.get('filename')!;
-						const absolutePath = filename.startsWith('/')
-							? filename
-							: join(rootDir, filename);
+				// Build agentInfo from all discovered agents and track directories
+				const agentDirs = new Set<string>();
+				for (const [_identifier, md] of agentMetadata) {
+					// md.get('filename') can be either absolute or relative to rootDir
+					const filename = md.get('filename')!;
+					const absolutePath = filename.startsWith('/') ? filename : join(rootDir, filename);
 
-						// Convert to path relative to srcDir like route-based agents
-						// e.g., /path/to/src/agent/lifecycle/agent.ts -> ./agent/lifecycle/agent
-						const agentPath = absolutePath.replace(srcDir, '.').replace('.ts', '');
+					// Track which directories have agents
+					const dir = dirname(absolutePath);
+					agentDirs.add(dir);
 
-						// Extract folder name as agent name (same as route-based logic)
-						const folderName = basename(dirname(absolutePath));
+					// Convert to path relative to srcDir
+					// e.g., /path/to/src/agent/my-agent.ts -> ./agent/my-agent
+					const agentPath = absolutePath.replace(srcDir, '.').replace('.ts', '');
 
-						const { isSubagent, parentName } = detectSubagent(absolutePath, srcDir);
+					const agentDetail: Record<string, string> = {
+						name: md.get('name')!,
+						id: md.get('id')!,
+						path: agentPath,
+						filename: absolutePath,
+						description: md.get('description') ?? '',
+						agentId: md.get('agentId')!,
+					};
+					agentInfo.push(agentDetail);
+				}
 
-						const agentDetail: Record<string, string> = {
-							name: folderName,
-							id: md.get('id')!,
-							path: agentPath,
-							filename: absolutePath,
-							identifier: md.get('identifier')!,
-							description: md.get('description') ?? '',
-							agentId: md.get('agentId')!,
-						};
-						if (isSubagent && parentName) {
-							agentDetail.parent = parentName;
+				// Validate that all directories in src/agent have at least one agent
+				const agentBaseDir = join(srcDir, 'agent');
+				if (existsSync(agentBaseDir)) {
+					const { readdirSync, statSync } = await import('node:fs');
+					const subdirs = readdirSync(agentBaseDir).filter((name) => {
+						const fullPath = join(agentBaseDir, name);
+						return statSync(fullPath).isDirectory();
+					});
+
+					for (const subdir of subdirs) {
+						const fullPath = join(agentBaseDir, subdir);
+						if (!agentDirs.has(fullPath)) {
+							throw new Error(
+								`Directory ${subdir} in src/agent must contain at least one agent (a file with a createAgent export)`
+							);
 						}
-						agentInfo.push(agentDetail);
 					}
 				}
 
@@ -722,6 +432,72 @@ import { readFileSync, existsSync } from 'node:fs';
 
 				// Generate lifecycle types if setup() is present in app.ts
 				await setupLifecycleTypes(rootDir, outDir, srcDir, logger);
+
+				// Parse routes from src/api directory
+				const apiRoutesMetadata: BuildMetadata['routes'] = [];
+				const routeInfoList: RouteInfo[] = [];
+				const apiDir = join(srcDir, 'api');
+				if (existsSync(apiDir)) {
+					const { readdirSync, statSync } = await import('node:fs');
+					const apiFiles = readdirSync(apiDir)
+						.filter((name) => name.endsWith('.ts') && !name.endsWith('.generated.ts'))
+						.map((name) => join(apiDir, name));
+
+					for (const apiFile of apiFiles) {
+						if (statSync(apiFile).isFile()) {
+							try {
+								const routes = await parseRoute(rootDir, apiFile, projectId, deploymentId);
+								apiRoutesMetadata.push(...routes);
+
+								// Collect route info for RouteRegistry generation
+								for (const route of routes) {
+									routeInfoList.push({
+										method: route.method.toUpperCase(),
+										path: route.path,
+										filename: route.filename,
+										hasValidator: route.config?.hasValidator === true,
+										routeType: route.type || 'api',
+										agentVariable: route.config?.agentVariable as string | undefined,
+										agentImportPath: route.config?.agentImportPath as string | undefined,
+										inputSchemaVariable: route.config?.inputSchemaVariable as
+											| string
+											| undefined,
+										outputSchemaVariable: route.config?.outputSchemaVariable as
+											| string
+											| undefined,
+									});
+								}
+							} catch (error) {
+								// Skip files that don't have createRouter (they might be utilities)
+								if (
+									error instanceof Error &&
+									error.message.includes('could not find an proper createRouter')
+								) {
+									logger.trace(`Skipping ${apiFile}: no createRouter found`);
+								} else {
+									throw error;
+								}
+							}
+						}
+					}
+				}
+
+				// Generate RouteRegistry for type-safe route access
+				if (routeInfoList.length > 0) {
+					logger.trace(`Generating RouteRegistry with ${routeInfoList.length} routes`);
+					generateRouteRegistry(srcDir, routeInfoList);
+				}
+
+				// Auto-mount src/api/index.ts if it exists
+				const apiIndexPath = join(srcDir, 'api', 'index.ts');
+				if (existsSync(apiIndexPath)) {
+					inserts.push(`await (async() => {
+	const { getRouter } = await import('@agentuity/runtime');
+	const router = getRouter()!;
+	const api = require('./src/api/index').default;
+	router.route('/api', api);
+})();`);
+				}
 
 				// Only create the workbench routes if workbench is actually configured
 				if (workbenchConfig) {
@@ -772,14 +548,11 @@ await (async() => {
 
 				// generate the build metadata
 				metadata = {
-					routes: routeDefinitions,
+					routes: apiRoutesMetadata,
 					agents: [],
 				};
 
-				// Group agents by parent/child relationship
-				const parentAgentMetadata = new Map<string, Map<string, string>>();
-				const subagentsByParent = new Map<string, Array<Map<string, string>>>();
-
+				// Validate required metadata properties and build agent metadata
 				for (const [, v] of agentMetadata) {
 					if (!v.has('filename')) {
 						throw new MetadataPropertyMissingError({
@@ -791,12 +564,6 @@ await (async() => {
 						throw new MetadataPropertyMissingError({
 							name: 'id',
 							message: 'agent metadata is missing expected id property',
-						});
-					}
-					if (!v.has('identifier')) {
-						throw new MetadataPropertyMissingError({
-							name: 'identifier',
-							message: 'agent metadata is missing expected identifier property',
 						});
 					}
 					if (!v.has('version')) {
@@ -817,45 +584,13 @@ await (async() => {
 							message: 'agent metadata is missing expected agentId property',
 						});
 					}
-
-					const parentName = v.get('parent');
-					if (parentName) {
-						// This is a subagent
-						if (!subagentsByParent.has(parentName)) {
-							subagentsByParent.set(parentName, []);
-						}
-						subagentsByParent.get(parentName)!.push(v);
-					} else {
-						// This is a parent or standalone agent
-						parentAgentMetadata.set(v.get('identifier')!, v);
-					}
-				}
-
-				// Validate that all subagents reference existing parent agents
-				for (const [parentName, subagents] of subagentsByParent) {
-					const parentExists = Array.from(parentAgentMetadata.values()).some(
-						(meta) => meta.get('name') === parentName || meta.get('identifier') === parentName
-					);
-					if (!parentExists) {
-						const subagentPaths = subagents.map((s) => s.get('filename')).join(', ');
-						throw new SubAgentMissingError({
-							message:
-								`Subagent(s) [${subagentPaths}] reference parent "${parentName}" which does not exist. ` +
-								`Ensure the parent agent is defined.`,
-						});
-					}
-				}
-
-				// Build metadata with nested subagents
-				for (const [_identifier, v] of parentAgentMetadata) {
 					const agentData: BuildMetadata['agents'][number] = {
 						filename: v.get('filename')!,
 						id: v.get('id')!,
-						identifier: v.get('identifier')!,
 						agentId: v.get('agentId')!,
 						version: v.get('version')!,
 						name: v.get('name')!,
-						description: v.get('description') ?? '<no description provided>',
+						description: v.get('description') ?? '',
 						projectId,
 					};
 
@@ -889,65 +624,8 @@ await (async() => {
 						logger.trace(`[plugin] No evals found for agent ${agentData.name}`);
 					}
 
-					// Add subagents if any (check both name and identifier)
-					const subagents =
-						subagentsByParent.get(agentData.name) ||
-						subagentsByParent.get(agentData.identifier);
-					if (subagents && subagents.length > 0) {
-						agentData.subagents = subagents.map((sub) => {
-							const subagentData: BuildMetadata['agents'][number] = {
-								filename: sub.get('filename')!,
-								id: sub.get('id')!,
-								identifier: sub.get('identifier')!,
-								agentId: sub.get('agentId')!,
-								version: sub.get('version')!,
-								name: sub.get('name')!,
-								description: sub.get('description') ?? '<no description provided>',
-								projectId,
-							};
-
-							// Add evals for subagents if any
-							const subEvalsStr = sub.get('evals');
-							if (subEvalsStr) {
-								logger.trace(
-									`[plugin] Found evals string for subagent ${subagentData.name}, parsing...`
-								);
-								try {
-									const parsedSubEvals = JSON.parse(subEvalsStr) as Array<
-										Omit<
-											NonNullable<BuildMetadata['agents'][number]['evals']>[number],
-											'agentIdentifier' | 'projectId'
-										>
-									>;
-									subagentData.evals = parsedSubEvals.map((evalItem) => ({
-										...evalItem,
-										agentIdentifier: subagentData.agentId,
-										projectId,
-									}));
-									logger.trace(
-										`[plugin] Successfully parsed ${subagentData.evals?.length ?? 0} eval(s) for subagent ${subagentData.name}`
-									);
-								} catch (e) {
-									logger.trace(
-										`[plugin] Failed to parse evals for subagent ${subagentData.name}: ${e}`
-									);
-									console.warn(
-										`Failed to parse evals for subagent ${subagentData.name}: ${e}`
-									);
-								}
-							} else {
-								logger.trace(`[plugin] No evals found for subagent ${subagentData.name}`);
-							}
-
-							return subagentData;
-						});
-					}
-
 					metadata.agents!.push(agentData);
 				}
-
-				const routeMappingJSFile = Bun.file(join(outDir, '.routemapping.json'));
-				await routeMappingJSFile.write(JSON.stringify(routeMapping));
 
 				return {
 					contents,

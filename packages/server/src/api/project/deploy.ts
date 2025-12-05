@@ -30,7 +30,6 @@ export const Deployment = z.object({
 const BaseFileFields = {
 	filename: z.string().describe('the relative path for the file'),
 	version: z.string().describe('the SHA256 content of the file'),
-	identifier: z.string().describe('the folder for the file'),
 };
 
 const EvalSchema = z.object({
@@ -55,7 +54,6 @@ const BaseAgentFields = {
 
 const AgentSchema = z.object({
 	...BaseAgentFields,
-	subagents: z.array(z.object(BaseAgentFields)).optional().describe('subagents of this agent'),
 });
 
 export const BuildMetadataSchema = z.object({

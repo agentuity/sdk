@@ -130,13 +130,7 @@ Body.`;
 	describe('Email router integration', () => {
 		test('should reject requests without message/rfc822 content-type', async () => {
 			const app = new Hono();
-			const router = createRouter({
-				agent: {
-					id: 'test-agent',
-					name: 'Test Agent',
-					projectId: 'test-project',
-				},
-			});
+			const router = createRouter();
 
 			const emailAddress = 'test@example.com';
 			router.email(emailAddress, async (email, c) => {
@@ -162,13 +156,7 @@ Body.`;
 
 		test('should parse email and pass to handler', async () => {
 			const app = new Hono();
-			const router = createRouter({
-				agent: {
-					id: 'test-agent',
-					name: 'Test Agent',
-					projectId: 'test-project',
-				},
-			});
+			const router = createRouter();
 
 			let receivedEmail: Email | null = null;
 
@@ -199,19 +187,14 @@ Test body.`;
 			const res = await app.fetch(req);
 			expect(res.status).toBe(200);
 			expect(receivedEmail).not.toBeNull();
-			expect(receivedEmail?.subject()).toBe('Test Email');
-			expect(receivedEmail?.fromEmail()).toBe('sender@example.com');
+			const email = receivedEmail!;
+			expect(email.subject()).toBe('Test Email');
+			expect(email.fromEmail()).toBe('sender@example.com');
 		});
 
 		test('should return error status when parseEmail throws', async () => {
 			const app = new Hono();
-			const router = createRouter({
-				agent: {
-					id: 'test-agent',
-					name: 'Test Agent',
-					projectId: 'test-project',
-				},
-			});
+			const router = createRouter();
 
 			const emailAddress = 'test@example.com';
 			router.email(emailAddress, async (email, c) => {

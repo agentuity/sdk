@@ -27,6 +27,7 @@ export interface BundleOptions extends DeployOptions {
 	project?: Project;
 	port?: number;
 	outDir?: string;
+	region: string;
 }
 
 type BuildResult = Awaited<ReturnType<typeof Bun.build>>;
@@ -73,6 +74,7 @@ export async function bundle({
 	pullRequestURL,
 	message,
 	env,
+	region,
 }: BundleOptions) {
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
@@ -259,6 +261,7 @@ export async function bundle({
 				mkdirSync(webOutDir, { recursive: true });
 				mkdirSync(join(webOutDir, 'chunk'), { recursive: true });
 				mkdirSync(join(webOutDir, 'asset'), { recursive: true });
+				const isLocalRegion = region === 'local' || region === 'l';
 
 				const config: Bun.BuildConfig = {
 					entrypoints: webEntrypoints,
@@ -276,8 +279,10 @@ export async function bundle({
 					splitting: true,
 					packages: 'bundle',
 					external: workspaceRoot !== rootDir ? [] : undefined,
+					// Ensure React is resolved from the consuming app's node_modules
+					conditions: ['browser', 'import', 'default'],
 					publicPath:
-						isProd && deploymentId
+						isProd && deploymentId && !isLocalRegion
 							? `https://static.agentuity.com/${deploymentId}/`
 							: undefined,
 					naming: {
@@ -572,5 +577,15 @@ export async function bundle({
 	await Bun.write(
 		`${outDir}/agentuity.metadata.json`,
 		dev ? JSON.stringify(buildmetadata, null, 2) : JSON.stringify(buildmetadata)
+	);
+
+	// Generate route mapping file for runtime route tracking
+	const routeMapping: Record<string, string> = {};
+	for (const route of buildmetadata.routes ?? []) {
+		routeMapping[`${route.method} ${route.path}`] = route.id;
+	}
+	await Bun.write(
+		`${outDir}/.routemapping.json`,
+		dev ? JSON.stringify(routeMapping, null, 2) : JSON.stringify(routeMapping)
 	);
 }

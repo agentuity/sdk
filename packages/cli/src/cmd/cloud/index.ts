@@ -9,7 +9,6 @@ import { scpSubcommand } from './scp';
 import { deploymentCommand } from './deployment';
 import keyvalueCommand from './keyvalue';
 import { agentCommand } from './agent';
-import objectstoreCommand from './objectstore';
 import envCommand from './env';
 import secretCommand from './secret';
 import apikeyCommand from './apikey';
@@ -29,7 +28,6 @@ export const command = createCommand({
 		apikeyCommand,
 		keyvalueCommand,
 		agentCommand,
-		objectstoreCommand,
 		streamCommand,
 		vectorCommand,
 		envCommand,

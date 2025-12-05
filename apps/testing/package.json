@@ -2,9 +2,9 @@
 	"name": "testing",
 	"private": true,
 	"scripts": {
-		"typecheck": "cd auth-app && bun run typecheck && cd ../custom-app && bun run typecheck && cd ../unauth-app && bun run typecheck",
-		"build": "cd auth-app && bun run build && cd ../custom-app && bun run build && cd ../unauth-app && bun run build",
-		"test": "cd auth-app && bun run test && cd ../custom-app && bun run test && cd ../unauth-app && bun run test"
+		"typecheck": "echo 'No testing apps (moved to legacy)'",
+		"build": "echo 'No testing apps (moved to legacy)'",
+		"test": "echo 'No testing apps (moved to legacy)'"
 	},
-	"version": "0.0.69"
+	"version": "0.0.70"
 }

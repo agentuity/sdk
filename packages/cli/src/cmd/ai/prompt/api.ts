@@ -157,7 +157,7 @@ The route handler receives a Hono context object with:
 - **c.html()** - Return HTML response
 - **c.redirect()** - Redirect to URL
 - **c.var.logger** - Structured logger (info, warn, error, debug, trace)
-- **c.var.agent** or **c.agent** - Access to all agents
+- **Import agents directly** - Import and call agents directly instead of using c.var.agent
 - **c.var.kv** - Key-value storage
 - **c.var.vector** - Vector storage
 - **c.var.stream** - Stream management

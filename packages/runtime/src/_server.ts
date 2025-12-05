@@ -26,7 +26,8 @@ import { register } from './otel/config';
 import type { Logger } from './logger';
 import { isIdle } from './_idle';
 import * as runtimeConfig from './_config';
-import { inAgentContext, getAgentContext, runInHTTPContext } from './_context';
+import { inAgentContext, runInHTTPContext } from './_context';
+import { runAgentShutdowns, createAgentMiddleware } from './agent';
 import {
 	createServices,
 	getThreadProvider,
@@ -107,12 +108,14 @@ function registerAgentuitySpanProcessor() {
 				'@agentuity/environment': environment,
 			};
 			if (inAgentContext()) {
-				const agentCtx = getAgentContext();
-				if (agentCtx.current?.metadata) {
-					attrs['@agentuity/agentId'] = agentCtx.current.metadata.id;
-					attrs['@agentuity/agentInstanceId'] = agentCtx.current.metadata.agentId;
-					attrs['@agentuity/agentDescription'] = agentCtx.current.metadata.description;
-					attrs['@agentuity/agentName'] = agentCtx.current.metadata.name;
+				// eslint-disable-next-line @typescript-eslint/no-require-imports
+				const { getCurrentAgentMetadata } = require('./_context');
+				const current = getCurrentAgentMetadata();
+				if (current) {
+					attrs['@agentuity/agentId'] = current.id;
+					attrs['@agentuity/agentInstanceId'] = current.agentId;
+					attrs['@agentuity/agentDescription'] = current.description;
+					attrs['@agentuity/agentName'] = current.name;
 				}
 			}
 			span.setAttributes(attrs);
@@ -294,9 +297,14 @@ export const createServer = async <TAppState>(
 			}
 			const file = Bun.file(routeMappingPath);
 			if (!(await file.exists())) {
-				c.var.logger.fatal('error loading %s. this is a build issue!', routeMappingPath);
+				c.var.logger.warn(
+					'Route mapping file not found at %s. Route tracking will be disabled.',
+					routeMappingPath
+				);
+				routeMapping = {}; // Empty mapping, no route tracking
+			} else {
+				routeMapping = (await file.json()) as Record<string, string>;
 			}
-			routeMapping = (await file.json()) as Record<string, string>;
 		}
 		const matches = matchedRoutes(c).filter(
 			(m) => m.method !== 'ALL' && (m.path.startsWith('/api') || m.path.startsWith('/agent/'))
@@ -316,12 +324,10 @@ export const createServer = async <TAppState>(
 		return next();
 	});
 
-	router.use('/agent/*', routePathMapper);
 	router.use('/api/*', routePathMapper);
 
 	// Attach services and agent registry to context for API routes
 	router.use('/api/*', async (c, next) => {
-		const { createAgentMiddleware } = await import('./agent');
 		// Use a null agent name to just populate the agent registry without setting current agent
 		return createAgentMiddleware('')(c, next);
 	});
@@ -334,11 +340,18 @@ export const createServer = async <TAppState>(
 			await next();
 		});
 		router.use(`/api/${trigger}/*`, middleware);
-		router.use(`/agent/${trigger}/*`, middleware);
 	}
 
 	router.use('/api/*', otelMiddleware);
-	router.use('/agent/*', otelMiddleware);
+
+	// Apply otelMiddleware to workbench routes for full telemetry and session tracking
+	if (config?.services?.workbench) {
+		router.use('/_agentuity/workbench/*', async (c, next) => {
+			// Use a null agent name to just populate the agent registry without setting current agent
+			return createAgentMiddleware('')(c, next);
+		});
+		router.use('/_agentuity/workbench/*', otelMiddleware);
+	}
 
 	const shutdown = async () => {
 		if (isShutdown) {
@@ -370,7 +383,6 @@ export const createServer = async <TAppState>(
 			otel.logger.debug('no more pending connections');
 
 			// Run agent shutdowns first
-			const { runAgentShutdowns } = await import('./agent');
 			await runAgentShutdowns(globalAppState);
 
 			// Run app shutdown if provided

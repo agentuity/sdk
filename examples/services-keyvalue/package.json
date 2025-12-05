@@ -1,0 +1,16 @@
+{
+	"name": "example-services-keyvalue",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "agentuity build --dir .",
+		"dev": "agentuity dev --dir ."
+	},
+	"dependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*"
+	}
+}

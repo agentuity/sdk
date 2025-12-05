@@ -18,8 +18,15 @@ export const buildUrl = (
 	return url;
 };
 
+const tryOrigin = () => {
+	if (typeof window !== 'undefined') {
+		return window.location.origin;
+	}
+};
+
 export const defaultBaseUrl: string =
 	getProcessEnv('NEXT_PUBLIC_AGENTUITY_URL') ||
 	getProcessEnv('VITE_AGENTUITY_URL') ||
 	getProcessEnv('AGENTUITY_URL') ||
+	tryOrigin() ||
 	'http://localhost:3500';

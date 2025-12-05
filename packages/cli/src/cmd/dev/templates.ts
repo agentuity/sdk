@@ -1,16 +1,13 @@
 /* eslint-disable no-control-regex */
 import { writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { toCamelCase } from '../../utils/string';
+import { toPascalCase } from '../../utils/string';
 
 const newAgentTemplate = (name: string) => `import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const agent = createAgent({
-	metadata: {
-        name: '${name}',
-        description: 'Add your agent description here',
-    },
+export const ${name} = createAgent('${name}', {
+    description: 'Add your agent description here',
 	schema: {
 		input: s.string(),
 		output: s.string(),
@@ -20,46 +17,24 @@ const agent = createAgent({
 		return input;
 	},
 });
-
-export default agent;
 `;
 
-const newAgentRouteTemplate = (name: string) => {
-	const camelName = toCamelCase(name);
+const newAgentIndexTemplate = (name: string) => `export { ${name} } from './agent';
+`;
+
+const newRouteTemplate = () => {
 	return `import { createRouter } from '@agentuity/runtime';
-import agent from './agent';
 
 const router = createRouter();
 
 router.get('/', async (c) => {
-	// TODO: add your code here
-	const output = await c.agent.${camelName}.run('hello world');
+	// TODO: add your code here - for now we just echo back what you sent
 	return c.text(output);
 });
 
-router.post('/', agent.validator(), async (c) => {
-	const data = c.req.valid('json');
-	const output = await c.agent.${camelName}.run(data);
-	return c.json(output);
-});
-
 export default router;
-
 `;
 };
-
-const newAPIRouteTemplate = (_name: string) => `import { createRouter } from '@agentuity/runtime';
-
-const router = createRouter();
-
-router.get('/', async (c) => {
-	// TODO: add your code here
-	return c.text('Hello');
-});
-
-export default router;
-
-`;
 
 const invalidDirRegex = /[<>:"/\\|?*]/;
 
@@ -82,8 +57,9 @@ export function createAgentTemplates(dir: string) {
 	if (!isValidDirectoryName(name)) {
 		return;
 	}
-	writeFileSync(join(dir, 'agent.ts'), newAgentTemplate(name));
-	writeFileSync(join(dir, 'route.ts'), newAgentRouteTemplate(name));
+	const agentName = toPascalCase(name);
+	writeFileSync(join(dir, 'agent.ts'), newAgentTemplate(agentName));
+	writeFileSync(join(dir, 'index.ts'), newAgentIndexTemplate(agentName));
 }
 
 export function createAPITemplates(dir: string) {
@@ -91,5 +67,5 @@ export function createAPITemplates(dir: string) {
 	if (!isValidDirectoryName(name)) {
 		return;
 	}
-	writeFileSync(join(dir, 'route.ts'), newAPIRouteTemplate(name));
+	writeFileSync(join(dir, 'index.ts'), newRouteTemplate());
 }

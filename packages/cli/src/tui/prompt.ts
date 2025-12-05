@@ -115,12 +115,12 @@ export class PromptFlow {
 						const result = await validate(value);
 						if (result !== true) {
 							const errorMsg = typeof result === 'string' ? result : 'Invalid input';
-							
+
 							// Clear all previous lines (prompt + optional error)
 							const linesToClear = hasError ? 3 : 2;
 							readline.moveCursor(process.stdout, 0, -linesToClear);
 							readline.clearScreenDown(process.stdout);
-							
+
 							// Redraw prompt with error
 							process.stdout.write(
 								`${colors.error(symbols.error)}  ${message}\n${colors.secondary(symbols.bar)}  ${colors.error(errorMsg)}\n${colors.secondary(symbols.bar)}  `
@@ -131,22 +131,22 @@ export class PromptFlow {
 					} catch (error) {
 						// Handle validation errors
 						const errorMsg = error instanceof Error ? error.message : 'Validation failed';
-						
+
 						// Clear all previous lines
 						const linesToClear = hasError ? 3 : 2;
 						readline.moveCursor(process.stdout, 0, -linesToClear);
 						readline.clearScreenDown(process.stdout);
-						
+
 						// Show error and cleanup
 						process.stdout.write(
 							`${colors.error(symbols.error)}  ${message}\n${colors.secondary(symbols.bar)}  ${colors.error(errorMsg)}\n`
 						);
-						
+
 						rl.close();
 						if (process.stdin.isTTY) {
 							process.stdin.pause();
 						}
-						
+
 						reject(error);
 						return;
 					}
@@ -443,7 +443,7 @@ export class PromptFlow {
 					render();
 				} else if (key.name === 'return') {
 					cleanup();
-					
+
 					// Sort indices to get consistent order for both values and labels
 					const sortedIndices = Array.from(selected).sort((a, b) => a - b);
 					const values = sortedIndices.map((i) => choices[i].value);

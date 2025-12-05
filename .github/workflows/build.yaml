@@ -42,9 +42,9 @@ jobs:
               bun install
          - name: Create testing/auth-app .env
            run: |
-              echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" > apps/testing/auth-app/.env
-              echo "AGENTUITY_CLOUD_PROJECT_ID=${{ env.AGENTUITY_CLOUD_PROJECT_ID }}" >> apps/testing/auth-app/.env
-              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> apps/testing/auth-app/.env
+              #echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" > apps/testing/auth-app/.env
+              #echo "AGENTUITY_CLOUD_PROJECT_ID=${{ env.AGENTUITY_CLOUD_PROJECT_ID }}" >> apps/testing/auth-app/.env
+              #echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> apps/testing/auth-app/.env
               APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_CATALYST_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
          - name: Build and Test
@@ -55,6 +55,6 @@ jobs:
               bun run whoami
               ./packages/cli/bin/cli.ts profile show --json
               bun all
-         - name: Cleanup .env
-           if: always()
-           run: rm -f apps/testing/auth-app/.env
+         # - name: Cleanup .env
+         #   if: always()
+         #   run: rm -f apps/testing/auth-app/.env

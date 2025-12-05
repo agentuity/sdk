@@ -1,11 +1,10 @@
 import { test } from 'bun:test';
 import { expectTypeOf } from 'expect-type';
-import { createAgent, type AppState } from '../src/agent';
+import { createAgent, type AppState } from '../src/index';
 import { z } from 'zod';
 
 test('Handler with input schema - parameters should NOT be any', () => {
-	const agentWithInput = createAgent({
-		metadata: { name: 'Test Agent' },
+	const agentWithInput = createAgent('test-agent', {
 		schema: {
 			input: z.object({ name: z.string(), age: z.number() }),
 			output: z.string(),
@@ -22,8 +21,7 @@ test('Handler with input schema - parameters should NOT be any', () => {
 });
 
 test('Handler without input schema - should only have ctx parameter', () => {
-	const agentWithoutInput = createAgent({
-		metadata: { name: 'No Input Agent' },
+	const agentWithoutInput = createAgent('no-input-agent', {
 		schema: {
 			output: z.string(),
 		},
@@ -37,8 +35,7 @@ test('Handler without input schema - should only have ctx parameter', () => {
 });
 
 test('Setup function - parameter and return type should be typed', () => {
-	const agentWithSetup = createAgent({
-		metadata: { name: 'Setup Agent' },
+	const agentWithSetup = createAgent('setup-agent', {
 		setup: async (_app: AppState) => {
 			// app must be explicitly typed for inference to work
 			return { foo: 'bar', count: 42 };
@@ -59,8 +56,7 @@ test('Setup function - parameter and return type should be typed', () => {
 });
 
 test('Shutdown function - parameters should be typed', () => {
-	const agentWithShutdown = createAgent({
-		metadata: { name: 'Shutdown Agent' },
+	const agentWithShutdown = createAgent('shutdown-agent', {
 		setup: async (_app: AppState) => {
 			// app must be explicitly typed for inference to work
 			return { connection: 'active' };
@@ -78,8 +74,7 @@ test('Shutdown function - parameters should be typed', () => {
 });
 
 test('Streaming agent - return type should be ReadableStream', () => {
-	const streamingAgent = createAgent({
-		metadata: { name: 'Streaming Agent' },
+	const streamingAgent = createAgent('streaming-agent', {
 		schema: {
 			input: z.string(),
 			output: z.number(),
