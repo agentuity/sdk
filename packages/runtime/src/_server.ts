@@ -333,12 +333,6 @@ export const createServer = async <TAppState>(
 
 	router.use('/api/*', routePathMapper);
 
-	// Attach services and agent registry to context for API routes
-	router.use('/api/*', async (c, next) => {
-		// Use a null agent name to just populate the agent registry without setting current agent
-		return createAgentMiddleware('')(c, next);
-	});
-
 	// set the trigger for specific types
 	for (const trigger of ['sms', 'email', 'cron'] as const) {
 		const middleware = createMiddleware(async (c, next) => {
@@ -349,15 +343,23 @@ export const createServer = async <TAppState>(
 		router.use(`/api/${trigger}/*`, middleware);
 	}
 
+	// otelMiddleware must run before createAgentMiddleware to set session/thread
 	router.use('/api/*', otelMiddleware);
+
+	// Attach services and agent registry to context for API routes
+	router.use('/api/*', async (c, next) => {
+		// Use a null agent name to just populate the agent registry without setting current agent
+		return createAgentMiddleware('')(c, next);
+	});
 
 	// Apply otelMiddleware to workbench routes for full telemetry and session tracking
 	if (config?.services?.workbench) {
+		// otelMiddleware must run before createAgentMiddleware to set session/thread
+		router.use('/_agentuity/workbench/*', otelMiddleware);
 		router.use('/_agentuity/workbench/*', async (c, next) => {
 			// Use a null agent name to just populate the agent registry without setting current agent
 			return createAgentMiddleware('')(c, next);
 		});
-		router.use('/_agentuity/workbench/*', otelMiddleware);
 	}
 
 	const shutdown = async () => {
