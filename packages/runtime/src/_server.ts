@@ -274,7 +274,13 @@ export const createServer = async <TAppState>(
 				'X-Requested-With',
 			],
 			allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
-			exposeHeaders: ['Content-Length', TOKENS_HEADER, DURATION_HEADER, SESSION_HEADER, 'x-deployment'],
+			exposeHeaders: [
+				'Content-Length',
+				TOKENS_HEADER,
+				DURATION_HEADER,
+				SESSION_HEADER,
+				'x-deployment',
+			],
 			maxAge: 600,
 			credentials: true,
 			...(config?.cors ?? {}), // allow the app config to override

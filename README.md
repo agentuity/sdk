@@ -22,6 +22,7 @@ TypeScript monorepo using Bun 1.3+ workspaces.
 - `packages/runtime` - Server-side package (Bun runtime)
 - `packages/server` - Runtime-agnostic server utilities (Node.js & Bun)
 - `packages/workbench` - Workbench UI component
+- `packages/schema` - Schema validation library
 
 ## Setup
 

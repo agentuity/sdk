@@ -17,6 +17,7 @@
 - **@agentuity/react**: Browser-only React components, depends on core
 - **@agentuity/runtime**: Bun server runtime using Hono framework, depends on core
 - **@agentuity/server**: Runtime-agnostic server utilities for Node.js and Bun, depends on core
+- **@agentuity/schema**: Schema validation library similar to zod
 - **@agentuity/workbench**: The workbench React component
 - **@agentuity/cli**: Bun-native CLI framework with commander.js, auto-discovery, and YAML config
 - **@agentuity/test-utils**: Private test utilities package (never published), provides shared test helpers

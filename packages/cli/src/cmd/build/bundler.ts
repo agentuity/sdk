@@ -170,7 +170,7 @@ export async function bundle({
 	let external = externalPatterns;
 	if (!dev) {
 		logger.debug('Installing externalized packages to discover full dependency tree...');
-		
+
 		// Step 1: Collect packages matching external patterns
 		const externalInstalls: string[] = [];
 		for (const pattern of externalPatterns) {
@@ -200,26 +200,32 @@ export async function bundle({
 				JSON.stringify({ name: pkgContents.name, version: pkgContents.version }, null, 2)
 			);
 
-			logger.debug('Installing %d packages: %s', externalInstalls.length, externalInstalls.join(', '));
-			await $`bun install --no-save --ignore-scripts --target=bun-linux-x64 ${externalInstalls}`.cwd(outDir).quiet();
+			logger.debug(
+				'Installing %d packages: %s',
+				externalInstalls.length,
+				externalInstalls.join(', ')
+			);
+			await $`bun install --no-save --ignore-scripts --target=bun-linux-x64 ${externalInstalls}`
+				.cwd(outDir)
+				.quiet();
 
 			// Step 3: Scan what actually got installed (includes transitive dependencies)
 			const installedNmDir = join(outDir, 'node_modules');
 			if (existsSync(installedNmDir)) {
 				const allInstalled: string[] = [];
-				
+
 				// Recursively find all installed packages
 				const scanDir = (dir: string, prefix = '') => {
 					const entries = readdirSync(dir, { withFileTypes: true });
 					for (const entry of entries) {
 						if (entry.isDirectory()) {
 							const pkgName = prefix ? `${prefix}/${entry.name}` : entry.name;
-							
+
 							// Check if this is a package (has package.json)
 							if (existsSync(join(dir, entry.name, 'package.json'))) {
 								allInstalled.push(pkgName);
 							}
-							
+
 							// Recurse into scoped packages (@org/package)
 							if (entry.name.startsWith('@')) {
 								scanDir(join(dir, entry.name), entry.name);
@@ -227,10 +233,13 @@ export async function bundle({
 						}
 					}
 				};
-				
+
 				scanDir(installedNmDir);
-				logger.debug('Discovered %d total packages (including dependencies)', allInstalled.length);
-				
+				logger.debug(
+					'Discovered %d total packages (including dependencies)',
+					allInstalled.length
+				);
+
 				// Step 4: Use ALL installed packages as externals for bundling
 				external = allInstalled;
 			}

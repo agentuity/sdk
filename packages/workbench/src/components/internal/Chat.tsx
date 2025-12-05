@@ -67,8 +67,12 @@ export function Chat({ className: _className }: ChatProps) {
 							const isStreaming = parts.some(
 								(part) => part.type === 'text' && part.state === 'streaming'
 							);
-							const tokens = 'tokens' in message ? (message as { tokens?: string }).tokens : undefined;
-							const duration = 'duration' in message ? (message as { duration?: string }).duration : undefined;
+							const tokens =
+								'tokens' in message ? (message as { tokens?: string }).tokens : undefined;
+							const duration =
+								'duration' in message
+									? (message as { duration?: string }).duration
+									: undefined;
 
 							return (
 								<div key={id} className="mb-2">
