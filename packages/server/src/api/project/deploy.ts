@@ -220,6 +220,7 @@ export async function projectDeploymentUpdate(
 }
 
 const DeploymentCompleteObject = z.object({
+	streamId: z.string().optional().describe('the stream id for warmup logs'),
 	publicUrls: z
 		.object({
 			latest: z.url().describe('the public url for the latest deployment'),
@@ -233,6 +234,20 @@ const DeploymentCompleteObjectSchema = APIResponseSchema(DeploymentCompleteObjec
 
 type DeploymentCompleteResponse = z.infer<typeof DeploymentCompleteObjectSchema>;
 export type DeploymentComplete = z.infer<typeof DeploymentCompleteObject>;
+
+export const DeploymentStateValue = z.enum(['pending', 'building', 'failed', 'completed']);
+
+export type DeploymentState = z.infer<typeof DeploymentStateValue>;
+
+const DeploymentStatusObject = z.object({
+	state: DeploymentStateValue.describe('the current deployment state'),
+	active: z.boolean().describe('whether this deployment is the active one for the project'),
+});
+
+const DeploymentStatusObjectSchema = APIResponseSchema(DeploymentStatusObject);
+
+type DeploymentStatusResponse = z.infer<typeof DeploymentStatusObjectSchema>;
+export type DeploymentStatusResult = z.infer<typeof DeploymentStatusObject>;
 
 /**
  * Complete the deployment once build is uploaded
@@ -249,6 +264,28 @@ export async function projectDeploymentComplete(
 		'POST',
 		`/cli/deploy/1/complete/${deploymentId}`,
 		DeploymentCompleteObjectSchema
+	);
+	if (resp.success) {
+		return resp.data;
+	}
+	throw new ProjectResponseError({ message: resp.message });
+}
+
+/**
+ * Get the current provisioning status of a deployment
+ *
+ * @param client
+ * @param deploymentId
+ * @returns
+ */
+export async function projectDeploymentStatus(
+	client: APIClient,
+	deploymentId: string
+): Promise<DeploymentStatusResult> {
+	const resp = await client.request<DeploymentStatusResponse>(
+		'GET',
+		`/cli/deploy/1/status/${deploymentId}`,
+		DeploymentStatusObjectSchema
 	);
 	if (resp.success) {
 		return resp.data;

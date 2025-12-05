@@ -14,10 +14,12 @@ import {
 	projectDeploymentCreate,
 	projectDeploymentUpdate,
 	projectDeploymentComplete,
+	projectDeploymentStatus,
 	type Deployment,
 	type BuildMetadata,
 	type DeploymentInstructions,
 	type DeploymentComplete,
+	type DeploymentStatusResult,
 } from '@agentuity/server';
 import {
 	findEnvFile,
@@ -83,6 +85,7 @@ export const deploySubcommand = createSubcommand({
 		let build: BuildMetadata | undefined;
 		let instructions: DeploymentInstructions | undefined;
 		let complete: DeploymentComplete | undefined;
+		let statusResult: DeploymentStatusResult | undefined;
 
 		try {
 			await saveProjectDir(projectDir);
@@ -367,43 +370,124 @@ export const deploySubcommand = createSubcommand({
 				].filter(Boolean) as Step[],
 				options.logLevel
 			);
-			tui.success('Your project was deployed!');
 
-			if (complete?.publicUrls && deployment) {
-				tui.arrow(tui.bold(tui.padRight('Deployment ID:', 17)) + tui.link(deployment.id));
-				if (complete.publicUrls.custom?.length) {
-					for (const url of complete.publicUrls.custom) {
-						tui.arrow(tui.bold(tui.padRight('Deployment URL:', 17)) + tui.link(url));
-					}
-				} else {
-					tui.arrow(
-						tui.bold(tui.padRight('Deployment URL:', 17)) +
-							tui.link(complete.publicUrls.deployment)
-					);
-					tui.arrow(
-						tui.bold(tui.padRight('Project URL:', 17)) + tui.link(complete.publicUrls.latest)
-					);
-				}
-			}
-
-			// Return deployment result (if available)
-			if (deployment && complete?.publicUrls) {
+			if (!deployment) {
 				return {
-					success: true,
-					deploymentId: deployment.id,
+					success: false,
+					deploymentId: '',
 					projectId: project.projectId,
-					urls: {
-						deployment: complete.publicUrls.deployment,
-						latest: complete.publicUrls.latest,
-						custom: complete.publicUrls.custom,
-					},
 				};
 			}
 
-			// Fallback response
+			const streamId = complete?.streamId;
+			let logStreamController: AbortController | undefined;
+
+			if (streamId) {
+				tui.info('Streaming warmup logs...');
+				console.log('');
+
+				logStreamController = new AbortController();
+				const streamsUrl = config?.overrides?.stream_url ?? 'https://streams.agentuity.cloud';
+
+				(async () => {
+					try {
+						const resp = await fetch(`${streamsUrl}/${streamId}`, {
+							signal: logStreamController.signal,
+						});
+						if (!resp.ok || !resp.body) {
+							ctx.logger.trace(`Failed to connect to warmup log stream: ${resp.status}`);
+							return;
+						}
+						const reader = resp.body.getReader();
+						const decoder = new TextDecoder();
+						while (true) {
+							const { done, value } = await reader.read();
+							if (done) break;
+							const text = decoder.decode(value, { stream: true });
+							process.stdout.write(tui.muted(text));
+						}
+					} catch (err) {
+						if (err instanceof Error && err.name === 'AbortError') {
+							return;
+						}
+						ctx.logger.trace(`Warmup log stream error: ${err}`);
+					}
+				})();
+			}
+
+			const pollInterval = 500;
+			const maxAttempts = 600;
+			let attempts = 0;
+
+			while (attempts < maxAttempts) {
+				attempts++;
+				try {
+					statusResult = await projectDeploymentStatus(apiClient, deployment.id);
+
+					if (statusResult.state === 'completed') {
+						logStreamController?.abort();
+						console.log('');
+						tui.success('Your project was deployed!');
+
+						if (complete?.publicUrls) {
+							tui.arrow(
+								tui.bold(tui.padRight('Deployment ID:', 17)) + tui.link(deployment.id)
+							);
+							if (complete.publicUrls.custom?.length) {
+								for (const url of complete.publicUrls.custom) {
+									tui.arrow(
+										tui.bold(tui.padRight('Deployment URL:', 17)) + tui.link(url)
+									);
+								}
+							} else {
+								tui.arrow(
+									tui.bold(tui.padRight('Deployment URL:', 17)) +
+										tui.link(complete.publicUrls.deployment)
+								);
+								tui.arrow(
+									tui.bold(tui.padRight('Project URL:', 17)) +
+										tui.link(complete.publicUrls.latest)
+								);
+							}
+						}
+
+						return {
+							success: true,
+							deploymentId: deployment.id,
+							projectId: project.projectId,
+							urls: complete?.publicUrls
+								? {
+										deployment: complete.publicUrls.deployment,
+										latest: complete.publicUrls.latest,
+										custom: complete.publicUrls.custom,
+									}
+								: undefined,
+						};
+					}
+
+					if (statusResult.state === 'failed') {
+						logStreamController?.abort();
+						console.log('');
+						tui.error('Deployment failed');
+						return {
+							success: false,
+							deploymentId: deployment.id,
+							projectId: project.projectId,
+						};
+					}
+
+					await new Promise((resolve) => setTimeout(resolve, pollInterval));
+				} catch (err) {
+					ctx.logger.trace(`Status poll error: ${err}`);
+					await new Promise((resolve) => setTimeout(resolve, pollInterval));
+				}
+			}
+
+			logStreamController?.abort();
+			tui.error('Deployment timed out waiting for completed status');
 			return {
 				success: false,
-				deploymentId: '',
+				deploymentId: deployment.id,
 				projectId: project.projectId,
 			};
 		} catch (ex) {
