@@ -1,7 +1,7 @@
-import { Hono } from 'hono';
+import { createRouter } from '@agentuity/runtime';
 import hello from '@agent/hello';
 
-const api = new Hono();
+const api = createRouter();
 
 api.post('/hello', hello.validator(), async (c) => {
 	const data = c.req.valid('json');
