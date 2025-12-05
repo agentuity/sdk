@@ -1,6 +1,7 @@
 {
 	"extends": "../../tsconfig.base.json",
 	"compilerOptions": {
+		"composite": true,
 		"outDir": "./dist",
 		"rootDir": "./src",
 		"declaration": true,
@@ -8,5 +9,5 @@
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": [{ "path": "../core" }, { "path": "../server" }]
+	"references": [{ "path": "../core" }, { "path": "../schema" }, { "path": "../server" }]
 }

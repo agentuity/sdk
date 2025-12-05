@@ -43,6 +43,16 @@ Run the following to do a cycle of `lint`, `typecheck`, `format` and `test`:
 bun all
 ```
 
+## Linking to External Projects
+
+To use the SDK in development mode with an existing project outside this repo:
+
+```bash
+./scripts/link-local.sh /path/to/your/project
+```
+
+This script builds all packages, creates tarballs, and installs them in your target project. After linking, run `bun run build | bun run dev` in your project to rebuild with the local SDK changes.
+
 ## Development
 
 For development workflow verification, ensure all commands run successfully before creating a PR.

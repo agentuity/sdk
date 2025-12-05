@@ -1,7 +1,13 @@
 #!/bin/bash
 set -e
 
-TARGET_DIR="${1:-/Users/jhaynie/tmp/v1/refactor-2}"
+if [ -z "$1" ]; then
+	echo "❌ Error: Target directory is required"
+	echo "Usage: $0 <target-directory>"
+	exit 1
+fi
+
+TARGET_DIR="$1"
 
 echo "📦 Building and packing SDK packages for local development..."
 
