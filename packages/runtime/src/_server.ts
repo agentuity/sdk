@@ -36,7 +36,7 @@ import {
 } from './_services';
 import { generateId } from './session';
 import WaitUntilHandler from './_waituntil';
-import registerTokenProcessor, { TOKENS_HEADER } from './_tokens';
+import registerTokenProcessor, { TOKENS_HEADER, DURATION_HEADER } from './_tokens';
 
 const SESSION_HEADER = 'x-session-id';
 
@@ -242,6 +242,13 @@ export const createServer = async <TAppState>(
 
 		await runInHTTPContext(c, next);
 
+		// Calculate and add duration header for all HTTP requests (not WebSocket)
+		if (!isWebSocket) {
+			const endTime = performance.now();
+			const duration = ((endTime - started) / 1000).toFixed(1); // Duration in seconds
+			c.header(DURATION_HEADER, `${duration}s`);
+		}
+
 		// Don't log completion for websocket upgrades - they stay open
 		if (!skipLogging && !isWebSocket) {
 			otel.logger.debug(
@@ -267,7 +274,7 @@ export const createServer = async <TAppState>(
 				'X-Requested-With',
 			],
 			allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
-			exposeHeaders: ['Content-Length', TOKENS_HEADER, SESSION_HEADER, 'x-deployment'],
+			exposeHeaders: ['Content-Length', TOKENS_HEADER, DURATION_HEADER, SESSION_HEADER, 'x-deployment'],
 			maxAge: 600,
 			credentials: true,
 			...(config?.cors ?? {}), // allow the app config to override

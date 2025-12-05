@@ -62,10 +62,13 @@ export function Chat({ className: _className }: ChatProps) {
 			>
 				<Conversation className="flex-1 overflow-y-auto">
 					<ConversationContent className="pb-0">
-						{messages.map(({ role, parts, id }) => {
+						{messages.map((message) => {
+							const { role, parts, id } = message;
 							const isStreaming = parts.some(
 								(part) => part.type === 'text' && part.state === 'streaming'
 							);
+							const tokens = 'tokens' in message ? (message as { tokens?: string }).tokens : undefined;
+							const duration = 'duration' in message ? (message as { duration?: string }).duration : undefined;
 
 							return (
 								<div key={id} className="mb-2">
@@ -87,11 +90,14 @@ export function Chat({ className: _className }: ChatProps) {
 												<Shimmer duration={1}>Running...</Shimmer>
 											) : (
 												<>
-													Ran for
-													<span className="mx-1">2.9s</span>
-													and consumed
-													<span className="mx-1">124 tokens</span>
-													<ChevronRight className="size-4" />
+													{duration && (
+														<>
+															Ran for
+															<span className="mx-1">{duration}</span>
+														</>
+													)}
+													{duration && tokens && ` and consumed  ${tokens} tokens`}
+													{(duration || tokens) && <ChevronRight className="size-4" />}
 												</>
 											)}
 										</div>

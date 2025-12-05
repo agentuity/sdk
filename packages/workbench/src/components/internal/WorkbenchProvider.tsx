@@ -4,6 +4,7 @@ import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type { WorkbenchContextType, ConnectionStatus } from '../../types/config';
 import { useAgentSchemas } from '../../hooks/useAgentSchemas';
 import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
+import { getTotalTokens, parseTokensHeader } from '../../lib/utils';
 
 const WorkbenchContext = createContext<WorkbenchContextType | null>(null);
 
@@ -174,6 +175,8 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
+			const startTime = performance.now();
+
 			try {
 				const response = await fetch(`${baseUrl}/_agentuity/workbench/execute`, {
 					method: 'POST',
@@ -194,15 +197,28 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 				}
 
 				const result = await response.json();
+				const endTime = performance.now();
+				const clientDuration = ((endTime - startTime) / 1000).toFixed(1); // Duration in seconds
+
+				// Extract duration from response header, fallback to client-side timing
+				const durationHeader = response.headers.get('x-agentuity-duration');
+				const duration = durationHeader || `${clientDuration}s`;
+
+				// Extract token count from response header
+				const tokensHeader = response.headers.get('x-agentuity-tokens');
+				const tokensRecord = tokensHeader ? parseTokensHeader(tokensHeader) : undefined;
+				const totalTokens = tokensRecord ? getTotalTokens(tokensRecord) : undefined;
 
 				// Format result as JSON string for display
 				const resultText =
 					typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
 
-				const assistantMessage: UIMessage = {
+				const assistantMessage: UIMessage & { tokens?: string; duration?: string } = {
 					id: (Date.now() + 1).toString(),
 					role: 'assistant',
 					parts: [{ type: 'text', text: resultText }],
+					tokens: totalTokens?.toString(),
+					duration,
 				};
 
 				setMessages((prev) => [...prev, assistantMessage]);

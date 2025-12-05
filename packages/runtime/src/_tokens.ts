@@ -6,6 +6,7 @@ import { SpanAttributes } from '@traceloop/ai-semantic-conventions';
 import { addSpanProcessor } from './_server';
 
 export const TOKENS_HEADER = 'x-agentuity-tokens';
+export const DURATION_HEADER = 'x-agentuity-duration';
 
 const AI_SDK_SPAN_NAME = 'ai.generateText';
 const AI_SDK_MODEL_NAME = 'ai.model.id';
