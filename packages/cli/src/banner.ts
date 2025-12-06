@@ -41,7 +41,7 @@ export function generateBanner(version?: string, compact?: true): string {
 		compact
 			? undefined
 			: CYAN +
-				`│ Dashboard:      ${link('https://app.agentuity.com', undefined, WHITE!)}${CYAN}          │` +
+				`│ Dashboard:      ${link('https://app-v1.agentuity.com', undefined, WHITE!)}${CYAN}       │` +
 				RESET,
 		CYAN + '╰────────────────────────────────────────────────────╯' + RESET,
 	].filter(Boolean) as string[];

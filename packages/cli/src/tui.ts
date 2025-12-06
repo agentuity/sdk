@@ -700,7 +700,7 @@ export function showLoggedOutMessage(): void {
 
 	const signupTitle = 'Sign up / Login';
 	const showInline = supportsHyperlinks();
-	const signupURL = 'https://app.agentuity.com/sign-up';
+	const signupURL = 'https://app-v1.agentuity.com/sign-up';
 	const signupLink = showInline
 		? link(signupURL, signupTitle)
 		: ' '.repeat(stringWidth(signupTitle));

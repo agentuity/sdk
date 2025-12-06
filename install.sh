@@ -652,7 +652,7 @@ printf "${CYAN}│${NC}                                                    ${CYA
 printf "${CYAN}│${NC} Version:        ${specific_version}$(printf '%*s' $((35 - ${#specific_version})) '')${CYAN}│${NC}\n"
 printf "${CYAN}│${NC} Docs:           https://agentuity.dev              ${CYAN}│${NC}\n"
 printf "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYAN}│${NC}\n"
-printf "${CYAN}│${NC} Dashboard:      https://app.agentuity.com          ${CYAN}│${NC}\n"
+printf "${CYAN}│${NC} Dashboard:      https://app-v1.agentuity.com       ${CYAN}│${NC}\n"
 printf "${CYAN}╰────────────────────────────────────────────────────╯${NC}\n"
 printf "\n"
 
