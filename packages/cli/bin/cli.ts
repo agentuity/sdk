@@ -38,20 +38,26 @@ validateRuntime();
 
 // Preprocess arguments to convert --help=json to --help json
 // Commander.js doesn't support --option=value syntax for optional values
-const args = process.argv.slice(2).flatMap((arg) => {
+const preprocessedArgs = process.argv.slice(2).flatMap((arg) => {
 	if (arg === '--help=json') {
 		return ['--help', 'json'];
 	}
 	return arg;
 });
-process.argv = ['node', 'cli.ts', ...args];
+// Preserve the original process.argv[0] (runtime) and process.argv[1] (script path)
+// This is important for Bun, Node, and bundled executables
+process.argv = [process.argv[0], process.argv[1], ...preprocessedArgs];
 
-const hasHelpJson = args.includes('json') && args.includes('--help');
 const helpFlags = ['--help', '-h', 'help'];
-const hasHelp = helpFlags.some((flag) => args.includes(flag));
+const hasHelp = helpFlags.some((flag) => preprocessedArgs.includes(flag));
 
 // Check for --help=json early (needs to exit before full initialization)
-if (args.length === 1 && hasHelpJson) {
+// After preprocessing, --help=json becomes ['--help', 'json'] (length 2)
+if (
+	preprocessedArgs.length === 2 &&
+	preprocessedArgs[0] === '--help' &&
+	preprocessedArgs[1] === 'json'
+) {
 	const version = getVersion();
 	const program = await createCLI(version);
 	const commands = await discoverCommands();
