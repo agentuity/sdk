@@ -39,7 +39,13 @@ export function isQuietMode(options: GlobalOptions): boolean {
  * Check if progress indicators should be disabled
  */
 export function shouldDisableProgress(options: GlobalOptions): boolean {
-	return options.noProgress === true || options.json === true || options.quiet === true;
+	return (
+		options.noProgress === true ||
+		options.json === true ||
+		options.quiet === true ||
+		options.logLevel === 'debug' ||
+		options.logLevel === 'trace'
+	);
 }
 
 /**

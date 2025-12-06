@@ -65,9 +65,9 @@ export const getSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, opts, options, orgId, region, config, auth } = ctx;
+		const { logger, args, opts, options, orgId, region, auth } = ctx;
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
+		const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 		const resources = await tui.spinner({
 			message: `Fetching database ${args.name}`,

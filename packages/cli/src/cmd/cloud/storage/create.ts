@@ -35,7 +35,7 @@ export const createSubcommand = defineSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, orgId, region, config, auth, options } = ctx;
+		const { logger, orgId, region, auth, options } = ctx;
 
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
@@ -51,7 +51,7 @@ export const createSubcommand = defineSubcommand({
 			};
 		}
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
+		const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 		const created = await tui.spinner({
 			message: `Creating storage in ${region}`,

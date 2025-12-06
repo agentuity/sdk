@@ -49,9 +49,9 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, opts, config, orgId, region, auth, options } = ctx;
+		const { logger, args, opts, orgId, region, auth, options } = ctx;
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
+		const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 		const resources = await tui.spinner({
 			message: `Fetching storage for ${orgId} in ${region}`,

@@ -74,9 +74,9 @@ export const listSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, opts, options, orgId, region, config, auth } = ctx;
+		const { logger, args, opts, options, orgId, region, auth } = ctx;
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
+		const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 		const resources = await tui.spinner({
 			message: `Fetching storage for ${orgId} in ${region}`,

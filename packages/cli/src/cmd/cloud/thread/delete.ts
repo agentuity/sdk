@@ -24,8 +24,8 @@ export const deleteSubcommand = createSubcommand({
 		}),
 	},
 	async handler(ctx) {
-		const { config, logger, auth, args, region } = ctx;
-		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
+		const { logger, auth, args, region } = ctx;
+		const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 		try {
 			await threadDelete(catalystClient, { id: args.thread_id });

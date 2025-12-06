@@ -62,8 +62,8 @@ export const listSubcommand = createSubcommand({
 		response: ThreadListResponseSchema,
 	},
 	async handler(ctx) {
-		const { config, logger, auth, project, opts, options, region } = ctx;
-		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
+		const { logger, auth, project, opts, options, region } = ctx;
+		const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 		const projectId = opts.projectId || project?.projectId;
 		const orgId = opts.orgId;

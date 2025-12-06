@@ -43,11 +43,7 @@ const OTPGenerationError = StructuredError(
 );
 
 export async function generateLoginOTP(apiClient: APIClient): Promise<string> {
-	const resp = await apiClient.request(
-		'GET',
-		'/cli/auth/start',
-		APIResponseSchema(OTPStartDataSchema)
-	);
+	const resp = await apiClient.get('/cli/auth/start', APIResponseSchema(OTPStartDataSchema));
 
 	if (!resp.success) {
 		throw new OTPGenerationError();

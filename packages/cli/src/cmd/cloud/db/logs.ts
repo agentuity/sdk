@@ -78,14 +78,14 @@ export const logsSubcommand = createSubcommand({
 		response: DbLogsResponseSchema,
 	},
 	async handler(ctx) {
-		const { args, options, orgId, region, config, logger, auth } = ctx;
+		const { args, options, orgId, region, logger, auth } = ctx;
 		const showTimestamps = ctx.opts.timestamps ?? true;
 		const showSessionId = ctx.opts.showSessionId ?? false;
 		const showUsername = ctx.opts.showUsername ?? false;
 		const prettySQL = ctx.opts.pretty ?? false;
 
 		try {
-			const catalystClient = getCatalystAPIClient(config, logger, auth, region);
+			const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 			const logs = await dbLogs(catalystClient, {
 				database: args.database,

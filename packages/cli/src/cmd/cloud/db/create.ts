@@ -31,7 +31,7 @@ export const createSubcommand = defineSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, orgId, region, config, auth, options } = ctx;
+		const { logger, opts, orgId, region, auth, options } = ctx;
 
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
@@ -49,7 +49,7 @@ export const createSubcommand = defineSubcommand({
 			};
 		}
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
+		const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 		try {
 			const created = await tui.spinner({

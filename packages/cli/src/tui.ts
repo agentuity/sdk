@@ -342,6 +342,85 @@ function getDisplayWidth(str: string): number {
 }
 
 /**
+ * Strip all ANSI escape sequences from a string
+ */
+function stripAnsi(str: string): string {
+	// eslint-disable-next-line no-control-regex
+	return str.replace(/\u001b\[[0-9;]*m/g, '').replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
+}
+
+/**
+ * Truncate a string to a maximum display width, handling ANSI codes and Unicode correctly
+ * Preserves ANSI escape sequences and doesn't break multi-byte characters or grapheme clusters
+ */
+function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): string {
+	const totalWidth = getDisplayWidth(str);
+	if (totalWidth <= maxWidth) {
+		return str;
+	}
+
+	// Strip ANSI to get visible text
+	const visible = stripAnsi(str);
+
+	// Use Intl.Segmenter for grapheme-aware iteration
+	const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+	const segments = Array.from(segmenter.segment(visible));
+
+	// Find the cutoff point by accumulating display width
+	let currentWidth = 0;
+	let cutIndex = 0;
+	const targetWidth = maxWidth - ellipsis.length;
+
+	for (let i = 0; i < segments.length; i++) {
+		const segment = segments[i].segment;
+		const segmentWidth = Bun.stringWidth(segment);
+
+		if (currentWidth + segmentWidth > targetWidth) {
+			break;
+		}
+
+		currentWidth += segmentWidth;
+		cutIndex = segments[i].index + segment.length;
+	}
+
+	// Now reconstruct with ANSI codes preserved
+	// Walk through original string and copy characters + ANSI codes until we hit cutIndex in visible content
+	let result = '';
+	let visibleIndex = 0;
+	let i = 0;
+
+	while (i < str.length && visibleIndex < cutIndex) {
+		// Check for ANSI escape sequence
+		if (str[i] === '\u001b') {
+			// Copy entire ANSI sequence
+			// eslint-disable-next-line no-control-regex
+			const match = str.slice(i).match(/^\u001b\[[0-9;]*m/);
+			if (match) {
+				result += match[0];
+				i += match[0].length;
+				continue;
+			}
+
+			// Check for OSC 8 hyperlink
+			// eslint-disable-next-line no-control-regex
+			const oscMatch = str.slice(i).match(/^\u001b\]8;;[^\u0007]*\u0007/);
+			if (oscMatch) {
+				result += oscMatch[0];
+				i += oscMatch[0].length;
+				continue;
+			}
+		}
+
+		// Copy visible character
+		result += str[i];
+		visibleIndex++;
+		i++;
+	}
+
+	return result + ellipsis;
+}
+
+/**
  * Pad a string to a specific length on the right
  */
 export function padRight(str: string, length: number, pad = ' '): string {
@@ -797,6 +876,11 @@ function wrapText(text: string, maxWidth: number): string[] {
 export type SpinnerProgressCallback = (progress: number) => void;
 
 /**
+ * Log callback for spinner
+ */
+export type SpinnerLogCallback = (message: string) => void;
+
+/**
  * Spinner options (simple without progress)
  */
 export interface SimpleSpinnerOptions<T> {
@@ -825,9 +909,31 @@ export interface ProgressSpinnerOptions<T> {
 }
 
 /**
+ * Spinner options (with logger streaming)
+ */
+export interface LoggerSpinnerOptions<T> {
+	type: 'logger';
+	message: string;
+	callback: (log: SpinnerLogCallback) => Promise<T>;
+	/**
+	 * If true, clear the spinner output on success (no icon, no message)
+	 * Defaults to false
+	 */
+	clearOnSuccess?: boolean;
+	/**
+	 * Maximum number of log lines to show while running
+	 * If < 0, shows all lines. Defaults to 3.
+	 */
+	maxLines?: number;
+}
+
+/**
  * Spinner options (discriminated union)
  */
-export type SpinnerOptions<T> = SimpleSpinnerOptions<T> | ProgressSpinnerOptions<T>;
+export type SpinnerOptions<T> =
+	| SimpleSpinnerOptions<T>
+	| ProgressSpinnerOptions<T>
+	| LoggerSpinnerOptions<T>;
 
 /**
  * Run a callback with an animated spinner (simple overload)
@@ -882,9 +988,14 @@ export async function spinner<T>(
 			const result =
 				options.type === 'progress'
 					? await options.callback(() => {})
-					: typeof options.callback === 'function'
-						? await options.callback()
-						: await options.callback;
+					: options.type === 'logger'
+						? await options.callback((logMessage: string) => {
+								// In non-TTY mode, just write logs directly to stdout
+								process.stdout.write(logMessage + '\n');
+							})
+						: typeof options.callback === 'function'
+							? await options.callback()
+							: await options.callback;
 
 			// If clearOnSuccess is true, don't show success message
 			// Also skip success message in JSON mode
@@ -914,12 +1025,22 @@ export async function spinner<T>(
 
 	let frameIndex = 0;
 	let currentProgress: number | undefined;
+	const logLines: string[] = [];
+	const maxLines = options.type === 'logger' ? (options.maxLines ?? 3) : 0;
+	const mutedColor = getColor('muted');
+	let linesRendered = 0;
 
-	// Save cursor position and hide cursor
-	process.stderr.write('\x1B[s\x1B[?25l');
+	// Get terminal width for truncation
+	const termWidth = process.stderr.columns || 80;
+	const maxLineWidth = Math.min(80, termWidth);
 
-	// Start animation
-	const interval = setInterval(() => {
+	// Function to render spinner with optional log lines
+	const renderSpinner = () => {
+		// Move cursor up to start of our output area if we've rendered before
+		if (linesRendered > 0) {
+			process.stderr.write(`\x1b[${linesRendered}A`);
+		}
+
 		const colorDef = spinnerColors[frameIndex % spinnerColors.length];
 		const color = colorDef[currentColorScheme];
 		const frame = `${color}${bold}${frames[frameIndex % frames.length]}${reset}`;
@@ -930,14 +1051,42 @@ export async function spinner<T>(
 				? ` ${cyanColor}${Math.floor(currentProgress)}%${reset}`
 				: '';
 
-		// Clear line and render
-		process.stderr.write('\r\x1B[K' + `${frame} ${message}${progressIndicator}`);
+		// Render spinner line
+		process.stderr.write(`\r\x1b[K${frame} ${message}${progressIndicator}\n`);
+
+		// Render log lines if in logger mode
+		if (options.type === 'logger') {
+			const displayLines = maxLines < 0 ? logLines : logLines.slice(-maxLines);
+			for (const line of displayLines) {
+				const displayLine =
+					getDisplayWidth(line) > maxLineWidth ? truncateToWidth(line, maxLineWidth) : line;
+				process.stderr.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
+			}
+			linesRendered = 1 + displayLines.length;
+		} else {
+			linesRendered = 1;
+		}
+
 		frameIndex++;
-	}, 120);
+	};
+
+	// Save cursor position and hide cursor
+	process.stderr.write('\x1B[s\x1B[?25l');
+
+	// Initial render
+	renderSpinner();
+
+	// Start animation
+	const interval = setInterval(renderSpinner, 120);
 
 	// Progress callback
 	const progressCallback: SpinnerProgressCallback = (progress: number) => {
 		currentProgress = Math.min(100, Math.max(0, progress));
+	};
+
+	// Log callback
+	const logCallback: SpinnerLogCallback = (logMessage: string) => {
+		logLines.push(logMessage);
 	};
 
 	try {
@@ -945,16 +1094,21 @@ export async function spinner<T>(
 		const result =
 			options.type === 'progress'
 				? await options.callback(progressCallback)
-				: typeof options.callback === 'function'
-					? await options.callback()
-					: await options.callback;
+				: options.type === 'logger'
+					? await options.callback(logCallback)
+					: typeof options.callback === 'function'
+						? await options.callback()
+						: await options.callback;
 
 		// Stop animation first
 		clearInterval(interval);
 
-		// Restore cursor position, clear to end of screen, show cursor
-		// This removes spinner and any partial output that happened during animation
-		process.stderr.write('\x1B[u\x1B[J\x1B[?25h');
+		// Move cursor to start of output, clear all lines
+		if (linesRendered > 0) {
+			process.stderr.write(`\x1b[${linesRendered}A`);
+		}
+		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
+		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		// If clearOnSuccess is false, show success message
 		if (!options.clearOnSuccess) {
@@ -968,16 +1122,26 @@ export async function spinner<T>(
 		// Stop animation first
 		clearInterval(interval);
 
-		// Restore cursor position, clear to end of screen, show cursor
-		process.stderr.write('\x1B[u\x1B[J\x1B[?25h');
+		// Move cursor to start of output, clear all lines
+		if (linesRendered > 0) {
+			process.stderr.write(`\x1b[${linesRendered}A`);
+		}
+		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
+		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		// Show error
 		const errorColor = getColor('error');
-		console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
+		const errorMessage = err instanceof Error ? err.message : String(err);
+		console.error(`${errorColor}${ICONS.error} ${message}: ${errorMessage}${reset}`);
 
 		throw err;
 	}
 }
+
+/**
+ * Alias for spinner function (for better semantics when using progress/logger types)
+ */
+export const progress = spinner;
 
 /**
  * Options for running a command with streaming output
@@ -1072,11 +1236,8 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 	const maxLineWidth = Math.min(80, termWidth);
 
 	// Truncate command if needed
-	let displayCmd = command;
-	if (getDisplayWidth(displayCmd) > maxCmdWidth) {
-		// Simple truncation for now - could be smarter about this
-		displayCmd = displayCmd.slice(0, maxCmdWidth - 3) + '...';
-	}
+	const displayCmd =
+		getDisplayWidth(command) > maxCmdWidth ? truncateToWidth(command, maxCmdWidth) : command;
 
 	// Store all output lines, display subset based on context
 	const allOutputLines: string[] = [];
@@ -1100,11 +1261,8 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 
 		// Render output lines
 		for (const line of displayLines) {
-			// Truncate line if needed
-			let displayLine = line;
-			if (getDisplayWidth(displayLine) > maxLineWidth) {
-				displayLine = displayLine.slice(0, maxLineWidth - 3) + '...';
-			}
+			const displayLine =
+				getDisplayWidth(line) > maxLineWidth ? truncateToWidth(line, maxLineWidth) : line;
 			process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
 		}
 
@@ -1198,10 +1356,10 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 		// Show final output lines
 		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
 		for (const line of finalOutputLines) {
-			let displayLine = line;
-			if (truncate && getDisplayWidth(displayLine) > maxLineWidth) {
-				displayLine = displayLine.slice(0, maxLineWidth - 3) + '...';
-			}
+			const displayLine =
+				truncate && getDisplayWidth(line) > maxLineWidth
+					? truncateToWidth(line, maxLineWidth)
+					: line;
 			process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
 		}
 

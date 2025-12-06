@@ -42,9 +42,9 @@ export const sqlSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, options, orgId, region, config, auth } = ctx;
+		const { logger, args, options, orgId, region, auth } = ctx;
 
-		const catalystClient = getCatalystAPIClient(config, logger, auth, region);
+		const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 		const result = await tui.spinner({
 			message: `Executing query on ${args.name}`,
