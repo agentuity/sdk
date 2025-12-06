@@ -15,6 +15,10 @@ const DeploymentShowResponseSchema = z.object({
 	tags: z.array(z.string()).describe('Deployment tags'),
 	customDomains: z.array(z.string()).optional().describe('Custom domains'),
 	cloudRegion: z.string().optional().describe('Cloud region'),
+	resourceDb: z.string().nullable().optional().describe('the database name'),
+	resourceStorage: z.string().nullable().optional().describe('the storage name'),
+	deploymentLogsURL: z.string().nullable().optional().describe('the url to the deployment logs'),
+	buildLogsURL: z.string().nullable().optional().describe('the url to the build logs'),
 	metadata: z
 		.object({
 			git: z
@@ -87,27 +91,51 @@ export const showSubcommand = createSubcommand({
 
 			// Skip TUI output in JSON mode
 			if (!options.json) {
-				console.log(tui.bold('ID:       ') + deployment.id);
-				console.log(tui.bold('Project:  ') + projectId);
-				console.log(tui.bold('State:    ') + (deployment.state || 'unknown'));
-				console.log(tui.bold('Active:   ') + (deployment.active ? 'Yes' : 'No'));
-				console.log(tui.bold('Created:  ') + new Date(deployment.createdAt).toLocaleString());
+				const maxWidth = 18;
+				console.log(tui.bold('ID:'.padEnd(maxWidth)) + deployment.id);
+				console.log(tui.bold('Project:'.padEnd(maxWidth)) + projectId);
+				console.log(tui.bold('State:'.padEnd(maxWidth)) + (deployment.state || 'unknown'));
+				console.log(tui.bold('Active:'.padEnd(maxWidth)) + (deployment.active ? 'Yes' : 'No'));
+				console.log(
+					tui.bold('Created:'.padEnd(maxWidth)) +
+						new Date(deployment.createdAt).toLocaleString()
+				);
 				if (deployment.updatedAt) {
 					console.log(
-						tui.bold('Updated:  ') + new Date(deployment.updatedAt).toLocaleString()
+						tui.bold('Updated:'.padEnd(maxWidth)) +
+							new Date(deployment.updatedAt).toLocaleString()
 					);
 				}
 				if (deployment.message) {
-					console.log(tui.bold('Message:  ') + deployment.message);
+					console.log(tui.bold('Message:'.padEnd(maxWidth)) + deployment.message);
 				}
 				if (deployment.tags.length > 0) {
-					console.log(tui.bold('Tags:     ') + deployment.tags.join(', '));
+					console.log(tui.bold('Tags:'.padEnd(maxWidth)) + deployment.tags.join(', '));
 				}
 				if (deployment.customDomains && deployment.customDomains.length > 0) {
-					console.log(tui.bold('Domains:  ') + deployment.customDomains.join(', '));
+					console.log(
+						tui.bold('Domains:'.padEnd(maxWidth)) + deployment.customDomains.join(', ')
+					);
 				}
 				if (deployment.cloudRegion) {
-					console.log(tui.bold('Region:   ') + deployment.cloudRegion);
+					console.log(tui.bold('Region:'.padEnd(maxWidth)) + deployment.cloudRegion);
+				}
+				if (deployment.resourceDb) {
+					console.log(tui.bold('Database:'.padEnd(maxWidth)) + deployment.resourceDb);
+				}
+				if (deployment.resourceStorage) {
+					console.log(tui.bold('Storage:'.padEnd(maxWidth)) + deployment.resourceStorage);
+				}
+				if (deployment.deploymentLogsURL) {
+					console.log(
+						tui.bold('Deployment Logs:'.padEnd(maxWidth)) +
+							tui.link(deployment.deploymentLogsURL)
+					);
+				}
+				if (deployment.buildLogsURL) {
+					console.log(
+						tui.bold('Build Logs:'.padEnd(maxWidth)) + tui.link(deployment.buildLogsURL)
+					);
 				}
 
 				// Git metadata
@@ -153,6 +181,10 @@ export const showSubcommand = createSubcommand({
 				customDomains: deployment.customDomains ?? undefined,
 				cloudRegion: deployment.cloudRegion ?? undefined,
 				metadata: deployment.metadata ?? undefined,
+				resourceDb: deployment.resourceDb ?? undefined,
+				resourceStorage: deployment.resourceStorage ?? undefined,
+				deploymentLogsURL: deployment.deploymentLogsURL ?? undefined,
+				buildLogsURL: deployment.buildLogsURL ?? undefined,
 			};
 		} catch (ex) {
 			tui.fatal(`Failed to show deployment: ${ex}`);

@@ -47,6 +47,10 @@ const DeploymentSchema = z.object({
 	metadata: DeploymentMetadataSchema.optional(),
 	customDomains: z.array(z.string()).nullable().optional(),
 	cloudRegion: z.string().nullable().optional(),
+	resourceDb: z.string().nullable().optional(),
+	resourceStorage: z.string().nullable().optional(),
+	deploymentLogsURL: z.string().nullable().optional(),
+	buildLogsURL: z.string().nullable().optional(),
 });
 
 const DeploymentListResponseSchema = APIResponseSchema(z.array(DeploymentSchema));
