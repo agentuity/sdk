@@ -254,7 +254,13 @@ const DeploymentCompleteObjectSchema = APIResponseSchema(DeploymentCompleteObjec
 type DeploymentCompleteResponse = z.infer<typeof DeploymentCompleteObjectSchema>;
 export type DeploymentComplete = z.infer<typeof DeploymentCompleteObject>;
 
-export const DeploymentStateValue = z.enum(['pending', 'building', 'failed', 'completed']);
+export const DeploymentStateValue = z.enum([
+	'pending',
+	'building',
+	'deploying',
+	'failed',
+	'completed',
+]);
 
 export type DeploymentState = z.infer<typeof DeploymentStateValue>;
 

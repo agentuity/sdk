@@ -89,6 +89,7 @@ if [ -f "package.json" ]; then
         if (!pkg.scripts) pkg.scripts = {};
         pkg.scripts.build = 'bun $CLI_PATH build';
         pkg.scripts.dev = 'bun $CLI_PATH dev';
+        pkg.scripts.deploy = 'bun $CLI_PATH deploy';
         fs.writeFileSync('package.json', JSON.stringify(pkg, null, 3) + '\n');
         console.log('  ✓ Updated build and dev scripts to use $CLI_PATH');
     "
