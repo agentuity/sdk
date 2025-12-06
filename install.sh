@@ -11,6 +11,18 @@ NC='\033[0m' # No Color
 requested_version=${VERSION:-}
 force_install=false
 non_interactive=false
+path_modified=false
+
+# Restore terminal state on exit/interrupt
+cleanup_terminal() {
+  # Restore cursor visibility
+  printf '\033[?25h' 2>/dev/null || true
+  # Reset terminal to sane state
+  stty sane 2>/dev/null || true
+}
+
+# Set up global trap for terminal cleanup
+trap cleanup_terminal EXIT INT TERM
 
 # Parse command line arguments
 while [ $# -gt 0 ]; do
@@ -380,7 +392,7 @@ download_with_progress() {
   # Hide cursor
   printf "\033[?25l" >&4
 
-  trap 'rm -f "$_dwp_tracefile"; printf "\033[?25h" >&4 2>/dev/null; exec 4>&- 2>/dev/null' EXIT INT TERM
+  trap 'rm -f "$_dwp_tracefile"; printf "\033[?25h" >&4 2>/dev/null; exec 4>&- 2>/dev/null; cleanup_terminal' EXIT INT TERM
 
   (
     curl --trace-ascii "$_dwp_tracefile" -s -L -f -o "$_dwp_output" "$_dwp_url"
@@ -418,10 +430,10 @@ download_with_progress() {
   wait $_dwp_curl_pid
   _dwp_ret=$?
   printf "\n" >&4 2>/dev/null
-  trap - EXIT INT TERM
   rm -f "$_dwp_tracefile"
   printf '\033[?25h' >&4 2>/dev/null
   exec 4>&- 2>/dev/null
+  trap cleanup_terminal EXIT INT TERM
   return $_dwp_ret
 }
 
@@ -430,7 +442,7 @@ download_and_install() {
   tmpdir=$(mktemp -d 2>/dev/null || mktemp -d -t tmp)
   
   # Ensure cleanup on exit or interrupt
-  trap 'cd / 2>/dev/null; rm -rf "$tmpdir"; print_message error "Installation cancelled"; exit 130' EXIT INT TERM
+  trap 'cd / 2>/dev/null; rm -rf "$tmpdir"; cleanup_terminal; print_message error "Installation cancelled"; exit 130' EXIT INT TERM
   
   cd "$tmpdir"
 
@@ -505,7 +517,7 @@ download_and_install() {
   chmod 755 "${INSTALL_DIR}/agentuity"
   cd /
   rm -rf "$tmpdir"
-  trap - EXIT INT TERM
+  trap cleanup_terminal EXIT INT TERM
 }
 
 # Check for legacy installations before proceeding
@@ -532,7 +544,6 @@ printf "${RED}│${NC}                                                          
 printf "${RED}│${NC}  ${MUTED}Thank you for your assistance during this final testing period!${NC}    ${RED}│${NC}\n"
 printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
 printf "${RED}╰─────────────────────────────────────────────────────────────────────╯${NC}\n"
-printf "\n"
 
 
 if [ "$force_install" = false ]; then
@@ -550,9 +561,11 @@ add_to_path() {
     printf "\n# agentuity\n" >>"$_atp_config_file"
     printf "%s\n" "$_atp_command" >>"$_atp_config_file"
     print_message info "${MUTED}Successfully added ${NC}agentuity ${MUTED}to \$PATH in ${NC}$_atp_config_file"
+    path_modified=true
   else
     print_message warning "Manually add the directory to $_atp_config_file (or similar):"
     print_message info "  $_atp_command"
+    path_modified=true
   fi
 }
 
@@ -642,9 +655,36 @@ printf "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYA
 printf "${CYAN}│${NC} Dashboard:      https://app.agentuity.com          ${CYAN}│${NC}\n"
 printf "${CYAN}╰────────────────────────────────────────────────────╯${NC}\n"
 printf "\n"
+
+# Show prominent message if PATH was modified
+if [ "$path_modified" = true ]; then
+  printf "${RED}╭────────────────────────────────────────────────────╮${NC}\n"
+  printf "${RED}│${NC} ${RED}⚠  ACTION REQUIRED${NC}                                 ${RED}│${NC}\n"
+  printf "${RED}│${NC}                                                    ${RED}│${NC}\n"
+  printf "${RED}│${NC}${MUTED} Your shell configuration has been updated.         ${RED}│${NC}\n"
+  printf "${RED}│${NC}                                                    ${RED}│${NC}\n"
+  printf "${RED}│ Please restart your terminal or run:               │${NC}\n"
+  printf "${RED}│${NC}                                                    ${RED}│${NC}\n"
+
+  if [ -n "$config_file" ]; then
+    cmd="source $config_file"
+    # Box width is 52 (between the borders)
+    # Command takes: 1 space + cmd length
+    # We need to pad the rest
+    padding=$((52 - 1 - ${#cmd}))
+    printf "${RED}│${NC} ${CYAN}%s${NC}%*s${RED}│${NC}\n" "$cmd" "$padding" ""
+  else
+    cmd="export PATH=$INSTALL_DIR:\$PATH"
+    padding=$((52 - 2 - ${#cmd}))
+    printf "${RED}│${NC}  ${CYAN}%s${NC}%*s${RED}│${NC}\n" "$cmd" "$padding" ""
+  fi
+
+  printf "${RED}╰────────────────────────────────────────────────────╯${NC}\n"
+  printf "\n"
+fi
+
 printf "${MUTED}To get started, run:${NC}\n"
 printf "\n"
 printf "agentuity create       ${MUTED}Create a project${NC}\n"
 printf "agentuity login        ${MUTED}Login to an existing account${NC}\n"
 printf "agentuity help         ${MUTED}List commands and options${NC}\n"
-printf "\n"
