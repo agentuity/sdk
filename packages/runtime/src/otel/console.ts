@@ -9,6 +9,11 @@ import { __originalConsole } from './logger';
  * Uses __originalConsole to avoid infinite loop when console is patched
  */
 export class ConsoleLogRecordExporter implements LogRecordExporter {
+	private dumpRecords = false;
+
+	constructor(dumpRecords: boolean) {
+		this.dumpRecords = dumpRecords;
+	}
 	/**
 	 * Exports log records to the console
 	 *
@@ -17,24 +22,35 @@ export class ConsoleLogRecordExporter implements LogRecordExporter {
 	 */
 	export(logs: ReadableLogRecord[], resultCallback: (result: ExportResult) => void): void {
 		for (const log of logs) {
-			const severity = log.severityNumber ? SeverityNumber[log.severityNumber] : 'INFO';
-			const msg = `[${severity}] ${log.body}`;
-			switch (log.severityNumber) {
-				case SeverityNumber.DEBUG:
-					__originalConsole.debug(msg);
-					break;
-				case SeverityNumber.INFO:
-					__originalConsole.info(msg);
-					break;
-				case SeverityNumber.WARN:
-					__originalConsole.warn(msg);
-					break;
-				case SeverityNumber.ERROR:
-					__originalConsole.error(msg);
-					break;
-				default:
-					__originalConsole.log(msg);
-					break;
+			if (this.dumpRecords) {
+				__originalConsole.log('[LOG]', {
+					body: log.body,
+					severityNumber: log.severityNumber,
+					severityText: log.severityText,
+					timestamp: log.hrTime,
+					attributes: log.attributes,
+					resource: log.resource.attributes,
+				});
+			} else {
+				const severity = log.severityNumber ? SeverityNumber[log.severityNumber] : 'INFO';
+				const msg = `[${severity}] ${log.body}`;
+				switch (log.severityNumber) {
+					case SeverityNumber.DEBUG:
+						__originalConsole.debug(msg);
+						break;
+					case SeverityNumber.INFO:
+						__originalConsole.info(msg);
+						break;
+					case SeverityNumber.WARN:
+						__originalConsole.warn(msg);
+						break;
+					case SeverityNumber.ERROR:
+						__originalConsole.error(msg);
+						break;
+					default:
+						__originalConsole.log(msg);
+						break;
+				}
 			}
 		}
 		resultCallback({ code: ExportResultCode.SUCCESS });

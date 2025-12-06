@@ -102,7 +102,7 @@ export const createAgentuityLoggerProvider = ({
 	let exporter: OTLPLogExporter | JSONLLogExporter | undefined;
 
 	if (useConsoleExporters) {
-		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter());
+		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter(true));
 	} else if (jsonlBasePath) {
 		exporter = new JSONLLogExporter(jsonlBasePath);
 		processor = new BatchLogRecordProcessor(exporter);
@@ -117,7 +117,7 @@ export const createAgentuityLoggerProvider = ({
 		exporter = otlpExporter;
 		processor = new BatchLogRecordProcessor(otlpExporter);
 	} else {
-		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter());
+		processor = new SimpleLogRecordProcessor(new ConsoleLogRecordExporter(false));
 	}
 	const provider = new LoggerProvider({
 		resource,
@@ -210,7 +210,10 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 	const logger = createLogger(!!url, attrs, logLevel);
 
 	// must do this after we have created the logger
-	patchConsole(!!url, attrs, logLevel);
+	// don't patch console if we're using console exporters (to avoid double logging)
+	if (!useConsoleExporters) {
+		patchConsole(!!url, attrs, logLevel);
+	}
 
 	// Build trace exporter (OTLP or JSONL)
 	const traceExporter = jsonlBasePath

@@ -7,6 +7,7 @@ import {
 	type VectorStorage,
 	type InferOutput,
 	toCamelCase,
+	EvalRunStartEvent,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -15,6 +16,8 @@ import { validator } from 'hono/validator';
 import { AGENT_RUNTIME, INTERNAL_AGENT, CURRENT_AGENT } from './_config';
 import {
 	getAgentContext,
+	inHTTPContext,
+	getHTTPContext,
 	setupRequestAgentContext,
 	type RequestAgentContextArgs,
 } from './_context';
@@ -27,7 +30,6 @@ import { privateContext, notifyReady } from './_server';
 import { generateId } from './session';
 import { getEvalRunEventProvider } from './_services';
 import * as runtimeConfig from './_config';
-import type { EvalRunStartEvent } from '@agentuity/core';
 import type { AppState } from './index';
 import { validateSchema, formatValidationIssues } from './_validation';
 
@@ -1515,6 +1517,29 @@ export function createAgent<
 
 		// Store current agent for telemetry (using Symbol to keep it internal)
 		(agentCtx as any)[CURRENT_AGENT] = agent;
+
+		const attrs = {
+			'@agentuity/agentId': agent.metadata.id,
+			'@agentuity/agentInstanceId': agent.metadata.agentId,
+			'@agentuity/agentDescription': agent.metadata.description,
+			'@agentuity/agentName': agent.metadata.name,
+		};
+
+		// Set agent attributes on the current active span
+		const activeSpan = trace.getActiveSpan();
+		if (activeSpan) {
+			activeSpan.setAttributes(attrs);
+		}
+
+		if (inHTTPContext()) {
+			const honoCtx = privateContext(getHTTPContext());
+			if (honoCtx.var.agentIds) {
+				honoCtx.var.agentIds.add(agent.metadata.id);
+				honoCtx.var.agentIds.add(agent.metadata.agentId);
+			}
+		}
+
+		agentCtx.logger = agentCtx.logger.child(attrs);
 
 		// Get the agent instance from the runtime state to fire events
 		const runtime = getAgentRuntime(agentCtx);

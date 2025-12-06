@@ -26,7 +26,7 @@ import { register } from './otel/config';
 import type { Logger } from './logger';
 import { isIdle } from './_idle';
 import * as runtimeConfig from './_config';
-import { inAgentContext, runInHTTPContext } from './_context';
+import { runInHTTPContext } from './_context';
 import { runAgentShutdowns, createAgentMiddleware } from './agent';
 import {
 	createServices,
@@ -107,17 +107,6 @@ function registerAgentuitySpanProcessor() {
 				'@agentuity/devmode': devmode,
 				'@agentuity/environment': environment,
 			};
-			if (inAgentContext()) {
-				// eslint-disable-next-line @typescript-eslint/no-require-imports
-				const { getCurrentAgentMetadata } = require('./_context');
-				const current = getCurrentAgentMetadata();
-				if (current) {
-					attrs['@agentuity/agentId'] = current.id;
-					attrs['@agentuity/agentInstanceId'] = current.agentId;
-					attrs['@agentuity/agentDescription'] = current.description;
-					attrs['@agentuity/agentName'] = current.name;
-				}
-			}
 			span.setAttributes(attrs);
 		}
 
