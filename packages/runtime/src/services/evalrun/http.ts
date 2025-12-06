@@ -46,11 +46,10 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 		this.logger.debug('[EVALRUN HTTP] Start event payload: %s', JSON.stringify(payload, null, 2));
 
 		try {
-			const resp = await this.apiClient.request(
-				'POST',
+			const resp = await this.apiClient.post(
 				endpoint,
-				APIResponseSchemaNoData(),
 				payload,
+				APIResponseSchemaNoData(),
 				EvalRunStartEventDelayedSchema
 			);
 			if (resp.success) {
@@ -93,11 +92,10 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 		this.logger.debug('[EVALRUN HTTP] Base URL: %s', this.baseUrl);
 
 		try {
-			const resp = await this.apiClient.request(
-				'PUT',
+			const resp = await this.apiClient.put(
 				endpoint,
-				APIResponseSchemaNoData(),
 				{ ...event, timestamp: Date.now() },
+				APIResponseSchemaNoData(),
 				EvalRunCompleteEventDelayedSchema
 			);
 			if (resp.success) {

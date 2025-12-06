@@ -39,7 +39,7 @@ const client = new APIClient('https://api.agentuity.com', logger, apiKey, {
 
 ## Making Requests
 
-All requests require a response schema for validation:
+Use the HTTP verb methods (recommended) or the generic `request()` method:
 
 ```typescript
 import { APIClient, z, ValidationError } from '@agentuity/server';
@@ -59,13 +59,9 @@ const CreateUserSchema = z.object({
 const logger = createLogger('info');
 const client = new APIClient('https://api.agentuity.com', logger, apiKey);
 
-// GET request with response validation
+// GET request with response validation (recommended)
 try {
-	const user = await client.request(
-		'GET',
-		'/users/123',
-		UserSchema // response schema (required)
-	);
+	const user = await client.get('/users/123', UserSchema);
 	console.log(user.name); // Fully typed!
 } catch (error) {
 	if (error instanceof ValidationError) {
@@ -73,17 +69,33 @@ try {
 	}
 }
 
-// POST request with request and response validation
-const newUser = await client.request(
-	'POST',
+// POST request with request and response validation (recommended)
+const newUser = await client.post(
 	'/users',
-	UserSchema, // response schema (required)
 	{
 		// request body
 		name: 'John Doe',
 		email: 'john@example.com',
 	},
+	UserSchema, // response schema (optional)
 	CreateUserSchema // request body schema (optional)
+);
+
+// PUT request
+const updatedUser = await client.put(
+	'/users/123',
+	{ name: 'Jane Doe' },
+	UserSchema
+);
+
+// DELETE request
+await client.delete('/users/123');
+
+// PATCH request
+const patchedUser = await client.patch(
+	'/users/123',
+	{ email: 'newemail@example.com' },
+	UserSchema
 );
 ```
 
@@ -105,7 +117,7 @@ const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
 // Use it
 const UserDataSchema = z.object({ id: z.string(), name: z.string() });
 
-const response = await client.request('GET', '/users/123', APIResponseSchema(UserDataSchema));
+const response = await client.get('/users/123', APIResponseSchema(UserDataSchema));
 
 if (response.success && response.data) {
 	console.log(response.data.name);
@@ -135,7 +147,7 @@ const client = new APIClient('https://api.agentuity.com', logger, apiKey, config
 const ResponseSchema = z.object({
 	/* ... */
 });
-const data = await client.request('GET', '/endpoint', ResponseSchema);
+const data = await client.get('/endpoint', ResponseSchema);
 ```
 
 ## Error Handling
@@ -144,7 +156,7 @@ const data = await client.request('GET', '/endpoint', ResponseSchema);
 import { APIClient, APIError, ValidationError, UpgradeRequiredError } from '@agentuity/server';
 
 try {
-	const data = await client.request('GET', '/endpoint', schema);
+	const data = await client.get('/endpoint', schema);
 } catch (error) {
 	if (error instanceof ValidationError) {
 		// Response didn't match schema

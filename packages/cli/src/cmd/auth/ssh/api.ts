@@ -58,11 +58,10 @@ const AddSSHKeyUnexpectedError = StructuredError(
 );
 
 export async function addSSHKey(apiClient: APIClient, publicKey: string): Promise<AddSSHKeyResult> {
-	const resp = await apiClient.request(
-		'POST',
+	const resp = await apiClient.post(
 		'/cli/auth/ssh-keys',
-		APIResponseSchema(AddSSHKeyResponseSchema),
-		{ publicKey }
+		{ publicKey },
+		APIResponseSchema(AddSSHKeyResponseSchema)
 	);
 
 	if (!resp.success) {
@@ -79,8 +78,7 @@ export async function addSSHKey(apiClient: APIClient, publicKey: string): Promis
 const ListSSHKeysError = StructuredError('ListSSHKeysError');
 
 export async function listSSHKeys(apiClient: APIClient): Promise<SSHKey[]> {
-	const resp = await apiClient.request(
-		'GET',
+	const resp = await apiClient.get(
 		'/cli/auth/ssh-keys',
 		APIResponseSchema(z.array(SSHKeySchema))
 	);
@@ -95,6 +93,7 @@ export async function listSSHKeys(apiClient: APIClient): Promise<SSHKey[]> {
 const RemoveSSHKeysError = StructuredError('RemoveSSHKeysError');
 
 export async function removeSSHKey(apiClient: APIClient, fingerprint: string): Promise<boolean> {
+	// NOTE: Using .request() here because DELETE with body is required by the API
 	const resp = await apiClient.request(
 		'DELETE',
 		'/cli/auth/ssh-keys',

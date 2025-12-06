@@ -70,11 +70,10 @@ export async function pollForLoginCompletion(
 	const started = Date.now();
 
 	while (Date.now() - started < timeoutMs) {
-		const resp = await apiClient.request(
-			'POST',
+		const resp = await apiClient.post(
 			'/cli/auth/check',
-			APIResponseSchemaOptionalData(CodeCompleteDataSchema),
 			{ code },
+			APIResponseSchemaOptionalData(CodeCompleteDataSchema),
 			CodeCheckRequestSchema
 		);
 
@@ -126,8 +125,7 @@ export async function pollForSignupCompletion(
 
 	while (Date.now() - started < timeoutMs) {
 		try {
-			const resp = await apiClient.request(
-				'GET',
+			const resp = await apiClient.get(
 				`/cli/auth/signup/${otp}`,
 				APIResponseSchema(SignupCompleteDataSchema)
 			);

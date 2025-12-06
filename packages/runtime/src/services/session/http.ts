@@ -30,11 +30,10 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 	 */
 	async start(event: SessionStartEvent): Promise<void> {
 		this.logger.debug('Sending session start event: %s', event.id);
-		const resp = await this.apiClient.request(
-			'POST',
+		const resp = await this.apiClient.post(
 			'/session/2025-03-17',
-			APIResponseSchemaNoData(),
 			{ ...event, timestamp: Date.now() },
+			APIResponseSchemaNoData(),
 			SessionStartEventDelayedSchema
 		);
 		if (resp.success) {
@@ -51,11 +50,10 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 	 */
 	async complete(event: SessionCompleteEvent): Promise<void> {
 		this.logger.debug('Sending session complete event: %s', event.id);
-		const resp = await this.apiClient.request(
-			'PUT',
+		const resp = await this.apiClient.put(
 			'/session/2025-03-17',
-			APIResponseSchemaNoData(),
 			{ ...event, timestamp: Date.now() },
+			APIResponseSchemaNoData(),
 			SessionCompleteEventDelayedSchema
 		);
 		if (resp.success) {
