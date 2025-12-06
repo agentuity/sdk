@@ -129,10 +129,36 @@ if [ -z "$requested_version" ]; then
     printf "${RED}Failed to fetch version information${NC}\n"
     exit 1
   fi
+  
+  # Validate the version string format (should be vX.Y.Z or X.Y.Z)
+  case "$specific_version" in
+    v[0-9]*.[0-9]*.[0-9]*|[0-9]*.[0-9]*.[0-9]*)
+      # Valid version format
+      ;;
+    *"message"*|*"error"*|*"Error"*|*"<html>"*|*"<!DOCTYPE"*)
+      printf "${RED}Error: Server returned an error instead of version: $specific_version${NC}\n"
+      exit 1
+      ;;
+    *)
+      printf "${RED}Error: Invalid version format received: $specific_version${NC}\n"
+      exit 1
+      ;;
+  esac
+  
+  # Normalize version to always have 'v' prefix for consistent comparisons
+  case "$specific_version" in
+    v*) ;;
+    *) specific_version="v${specific_version}" ;;
+  esac
+  
   url="https://agentuity.sh/release/sdk/${specific_version}/${os}/${arch}"
 else
-  url="https://agentuity.sh/release/sdk/v${requested_version}/${os}/${arch}"
-  specific_version=$requested_version
+  # Normalize user-provided version to always have 'v' prefix
+  case "$requested_version" in
+    v*) specific_version=$requested_version ;;
+    *) specific_version="v${requested_version}" ;;
+  esac
+  url="https://agentuity.sh/release/sdk/${specific_version}/${os}/${arch}"
 fi
 
 print_message() {
