@@ -14,6 +14,9 @@ describe('project API', () => {
 							success: true,
 							data: {
 								id: 'project-123',
+								name: 'Test Project',
+								description: 'A test project',
+								tags: ['test', 'example'],
 								orgId: 'org-456',
 								api_key: 'masked-key',
 								env: {
@@ -51,6 +54,9 @@ describe('project API', () => {
 						success: true,
 						data: {
 							id: 'project-123',
+							name: 'Test Project',
+							description: null,
+							tags: null,
 							orgId: 'org-456',
 							secrets: {
 								DB_PASSWORD: 'real-password-123',

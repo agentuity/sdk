@@ -6,8 +6,10 @@ import { getCommand } from '../../command-prefix';
 
 const ProjectShowResponseSchema = z.object({
 	id: z.string().describe('Project ID'),
+	name: z.string().describe('Project name'),
+	description: z.string().nullable().optional().describe('Project description'),
+	tags: z.array(z.string()).nullable().optional().describe('Project tags'),
 	orgId: z.string().describe('Organization ID'),
-	name: z.string().optional().describe('Project name'),
 	secrets: z.record(z.string(), z.string()).optional().describe('Project secrets (masked)'),
 	env: z.record(z.string(), z.string()).optional().describe('Environment variables'),
 });
@@ -45,16 +47,16 @@ export const showSubcommand = createSubcommand({
 			tui.fatal('Project not found');
 		}
 
-		if (options.json) {
-			console.log(JSON.stringify(project, null, 2));
-		} else {
-			tui.table([project], ['id', 'orgId']);
+		if (!options.json) {
+			tui.table([project], ['id', 'name', 'description', 'tags', 'orgId']);
 		}
 
 		return {
 			id: project.id,
+			name: project.name,
+			description: project.description,
+			tags: project.tags,
 			orgId: project.orgId,
-			name: undefined,
 			secrets: project.secrets,
 			env: project.env,
 		};

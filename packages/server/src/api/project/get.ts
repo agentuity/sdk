@@ -9,6 +9,9 @@ const _ProjectGetRequestSchema = z.object({
 
 const ProjectSchema = z.object({
 	id: z.string().describe('the project id'),
+	name: z.string().describe('the project name'),
+	description: z.string().nullable().optional().describe('the project description'),
+	tags: z.array(z.string()).nullable().optional().describe('the project tags'),
 	orgId: z.string().describe('the organization id'),
 	api_key: z.string().optional().describe('the SDK api key for the project'),
 	env: z.record(z.string(), z.string()).optional().describe('the environment key/values'),

@@ -312,6 +312,8 @@ export async function bundle({
 		id: projectId ?? '',
 		name: pkgContents.name,
 		version: pkgContents.version,
+		description: pkgContents.description,
+		keywords: pkgContents.keywords,
 		orgId: orgId ?? '',
 	};
 	buildmetadata.deployment = {

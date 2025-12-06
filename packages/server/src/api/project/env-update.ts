@@ -50,11 +50,6 @@ export async function projectEnvUpdate(
 		throw new ProjectResponseError({ message: resp.message ?? 'failed to update project env' });
 	}
 
-	if (resp.data) {
-		return resp.data;
-	}
-
-	// If the API didn't return data, fetch the updated project
-	// This handles backends that return success without the full project data
+	// Fetch the updated project to ensure we have complete data including name
 	return projectGet(client, { id, mask: false });
 }

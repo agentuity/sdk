@@ -177,7 +177,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	if (initialTemplate) {
 		const found = templates.find((t) => t.id === initialTemplate);
 		if (!found) {
-			logger.fatal(`Template "${initialTemplate}" not found`, ErrorCode.RESOURCE_NOT_FOUND);
+			const availableTemplates = templates.map((t) => `  - ${t.id.padEnd(20)} ${t.description}`).join('\n');
+			logger.fatal(
+				`Template "${initialTemplate}" not found\n\nAvailable templates:\n${availableTemplates}`,
+				ErrorCode.RESOURCE_NOT_FOUND
+			);
 			return;
 		}
 		selectedTemplate = found;
@@ -232,7 +236,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 	const resourceConfig: ResourcesTypes = Resources.parse({});
 
-	if (auth && apiClient && catalystClient && orgId && region) {
+	if (auth && apiClient && catalystClient && orgId && region && !skipPrompts) {
 		// Fetch resources for selected org and region using Catalyst API
 		const resources = await tui.spinner({
 			message: 'Fetching resources',
@@ -316,12 +320,25 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 		const cloudRegion = region ?? process.env.AGENTUITY_REGION ?? 'usc';
 
+		const pkgJsonPath = resolve(dest, 'package.json');
+		let pkgJson: { description?: string; keywords?: string[] } = {};
+		if (existsSync(pkgJsonPath)) {
+			pkgJson = await Bun.file(pkgJsonPath).json();
+		}
+
+		const keywords = Array.isArray(pkgJson.keywords) ? pkgJson.keywords : [];
+		const tags = keywords.filter(
+			(tag) => tag.toLowerCase() !== 'agentuity' && !tag.toLowerCase().startsWith('agentuity')
+		);
+
 		await tui.spinner({
 			message: 'Registering your project',
 			clearOnSuccess: true,
 			callback: async () => {
 				const project = await projectCreate(apiClient, {
 					name: projectName,
+					description: pkgJson.description,
+					tags: tags.length > 0 ? tags : undefined,
 					orgId,
 					cloudRegion,
 				});
