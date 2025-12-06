@@ -4,11 +4,11 @@ import type { APIClient } from '../../api';
 import { StructuredError } from '@agentuity/core';
 
 // Zod schemas for API validation
-const OTPStartDataSchema = z.object({
-	otp: z.string(),
+const CodeStartDataSchema = z.object({
+	code: z.string(),
 });
 
-const OTPCompleteDataSchema = z.object({
+const CodeCompleteDataSchema = z.object({
 	apiKey: z.string(),
 	userId: z.string(),
 	expires: z.number(),
@@ -20,8 +20,8 @@ const SignupCompleteDataSchema = z.object({
 	expiresAt: z.number(),
 });
 
-const OTPCheckRequestSchema = z.object({
-	otp: z.string(),
+const CodeCheckRequestSchema = z.object({
+	code: z.string(),
 });
 
 // Exported result types
@@ -37,23 +37,23 @@ export interface SignupResult {
 	expires: Date;
 }
 
-const OTPGenerationError = StructuredError(
-	'OTPGenerationError',
-	'Error generating the one-time login code'
+const CodeGenerationError = StructuredError(
+	'CodeGenerationError',
+	'Error generating the login code'
 );
 
-export async function generateLoginOTP(apiClient: APIClient): Promise<string> {
-	const resp = await apiClient.get('/cli/auth/start', APIResponseSchema(OTPStartDataSchema));
+export async function generateLoginCode(apiClient: APIClient): Promise<string> {
+	const resp = await apiClient.get('/cli/auth/start', APIResponseSchema(CodeStartDataSchema));
 
 	if (!resp.success) {
-		throw new OTPGenerationError();
+		throw new CodeGenerationError();
 	}
 
 	if (!resp.data) {
-		throw new OTPGenerationError();
+		throw new CodeGenerationError();
 	}
 
-	return resp.data.otp;
+	return resp.data.code;
 }
 
 const PollForLoginError = StructuredError('PollForLoginError');
@@ -64,8 +64,8 @@ const PollForLoginTimeout = StructuredError(
 
 export async function pollForLoginCompletion(
 	apiClient: APIClient,
-	otp: string,
-	timeoutMs = 60000
+	code: string,
+	timeoutMs = 300000 // 5 minutes
 ): Promise<LoginResult> {
 	const started = Date.now();
 
@@ -73,9 +73,9 @@ export async function pollForLoginCompletion(
 		const resp = await apiClient.request(
 			'POST',
 			'/cli/auth/check',
-			APIResponseSchemaOptionalData(OTPCompleteDataSchema),
-			{ otp },
-			OTPCheckRequestSchema
+			APIResponseSchemaOptionalData(CodeCompleteDataSchema),
+			{ code },
+			CodeCheckRequestSchema
 		);
 
 		if (!resp.success) {

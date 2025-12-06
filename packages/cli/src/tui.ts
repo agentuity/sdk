@@ -928,12 +928,33 @@ export interface LoggerSpinnerOptions<T> {
 }
 
 /**
+ * Spinner options (with countdown timer)
+ */
+export interface CountdownSpinnerOptions<T> {
+	type: 'countdown';
+	message: string;
+	timeoutMs: number;
+	callback: () => Promise<T>;
+	/**
+	 * If true, clear the spinner output on success (no icon, no message)
+	 * Defaults to false
+	 */
+	clearOnSuccess?: boolean;
+	/**
+	 * Optional callback to handle Enter key press
+	 * Can be used to open a URL in the browser
+	 */
+	onEnterPress?: () => void;
+}
+
+/**
  * Spinner options (discriminated union)
  */
 export type SpinnerOptions<T> =
 	| SimpleSpinnerOptions<T>
 	| ProgressSpinnerOptions<T>
-	| LoggerSpinnerOptions<T>;
+	| LoggerSpinnerOptions<T>
+	| CountdownSpinnerOptions<T>;
 
 /**
  * Run a callback with an animated spinner (simple overload)
@@ -993,9 +1014,11 @@ export async function spinner<T>(
 								// In non-TTY mode, just write logs directly to stdout
 								process.stdout.write(logMessage + '\n');
 							})
-						: typeof options.callback === 'function'
+						: options.type === 'countdown'
 							? await options.callback()
-							: await options.callback;
+							: typeof options.callback === 'function'
+								? await options.callback()
+								: await options.callback;
 
 			// If clearOnSuccess is true, don't show success message
 			// Also skip success message in JSON mode
@@ -1025,6 +1048,7 @@ export async function spinner<T>(
 
 	let frameIndex = 0;
 	let currentProgress: number | undefined;
+	let remainingTime: number | undefined;
 	const logLines: string[] = [];
 	const maxLines = options.type === 'logger' ? (options.maxLines ?? 3) : 0;
 	const mutedColor = getColor('muted');
@@ -1045,14 +1069,19 @@ export async function spinner<T>(
 		const color = colorDef[currentColorScheme];
 		const frame = `${color}${bold}${frames[frameIndex % frames.length]}${reset}`;
 
-		// Add progress indicator if available
-		const progressIndicator =
-			currentProgress !== undefined
-				? ` ${cyanColor}${Math.floor(currentProgress)}%${reset}`
-				: '';
+		// Add progress indicator or countdown timer if available
+		let indicator = '';
+		if (currentProgress !== undefined) {
+			indicator = ` ${cyanColor}${Math.floor(currentProgress)}%${reset}`;
+		} else if (remainingTime !== undefined) {
+			const minutes = Math.floor(remainingTime / 60);
+			const seconds = Math.floor(remainingTime % 60);
+			const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+			indicator = ` ${mutedColor}(${timeStr} remaining)${reset}`;
+		}
 
 		// Render spinner line
-		process.stderr.write(`\r\x1b[K${frame} ${message}${progressIndicator}\n`);
+		process.stderr.write(`\r\x1b[K${frame} ${message}${indicator}\n`);
 
 		// Render log lines if in logger mode
 		if (options.type === 'logger') {
@@ -1089,16 +1118,88 @@ export async function spinner<T>(
 		logLines.push(logMessage);
 	};
 
+	// Countdown interval tracking
+	let countdownInterval: NodeJS.Timeout | undefined;
+	let keypressListener: ((chunk: Buffer) => void) | undefined;
+
+	// Helper to clean up all resources
+	const cleanup = () => {
+		if (countdownInterval) {
+			clearInterval(countdownInterval);
+		}
+		if (keypressListener) {
+			process.stdin.off('data', keypressListener);
+			if (process.stdin.isTTY) {
+				process.stdin.setRawMode(false);
+				process.stdin.pause();
+			}
+		}
+		process.off('SIGINT', cleanupAndExit);
+	};
+
+	// Set up SIGINT handler for clean exit
+	const cleanupAndExit = () => {
+		cleanup();
+
+		// Stop animation
+		clearInterval(interval);
+
+		// Move cursor to start of output, clear all lines
+		if (linesRendered > 0) {
+			process.stderr.write(`\x1b[${linesRendered}A`);
+		}
+		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
+		process.stderr.write('\x1B[?25h'); // Show cursor
+
+		process.exit(130); // Standard exit code for SIGINT
+	};
+
+	process.on('SIGINT', cleanupAndExit);
+
 	try {
+		// For countdown, set up timer tracking and optional keyboard listener
+		if (options.type === 'countdown') {
+			const startTime = Date.now();
+			remainingTime = options.timeoutMs / 1000;
+			countdownInterval = setInterval(() => {
+				const elapsed = Date.now() - startTime;
+				remainingTime = Math.max(0, (options.timeoutMs - elapsed) / 1000);
+			}, 100);
+
+			// Set up Enter key listener if callback provided
+			if (options.onEnterPress && process.stdin.isTTY) {
+				process.stdin.setRawMode(true);
+				process.stdin.resume();
+
+				keypressListener = (chunk: Buffer) => {
+					const key = chunk.toString();
+					// Check for Enter key (both \r and \n)
+					if (key === '\r' || key === '\n') {
+						options.onEnterPress!();
+					}
+					// Check for Ctrl+C - let it propagate as SIGINT
+					if (key === '\x03') {
+						process.kill(process.pid, 'SIGINT');
+					}
+				};
+
+				process.stdin.on('data', keypressListener);
+			}
+		}
+
 		// Execute callback
 		const result =
-			options.type === 'progress'
-				? await options.callback(progressCallback)
-				: options.type === 'logger'
-					? await options.callback(logCallback)
-					: typeof options.callback === 'function'
-						? await options.callback()
-						: await options.callback;
+			options.type === 'countdown'
+				? await options.callback()
+				: options.type === 'progress'
+					? await options.callback(progressCallback)
+					: options.type === 'logger'
+						? await options.callback(logCallback)
+						: typeof options.callback === 'function'
+							? await options.callback()
+							: await options.callback;
+
+		cleanup();
 
 		// Stop animation first
 		clearInterval(interval);
@@ -1119,6 +1220,8 @@ export async function spinner<T>(
 
 		return result;
 	} catch (err) {
+		cleanup();
+
 		// Stop animation first
 		clearInterval(interval);
 

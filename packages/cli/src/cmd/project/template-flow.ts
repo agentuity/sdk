@@ -177,7 +177,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	if (initialTemplate) {
 		const found = templates.find((t) => t.id === initialTemplate);
 		if (!found) {
-			const availableTemplates = templates.map((t) => `  - ${t.id.padEnd(20)} ${t.description}`).join('\n');
+			const availableTemplates = templates
+				.map((t) => `  - ${t.id.padEnd(20)} ${t.description}`)
+				.join('\n');
 			logger.fatal(
 				`Template "${initialTemplate}" not found\n\nAvailable templates:\n${availableTemplates}`,
 				ErrorCode.RESOURCE_NOT_FOUND

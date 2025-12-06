@@ -88,7 +88,10 @@ export const BuildMetadataSchema = z.object({
 		id: z.string().describe('the project id'),
 		name: z.string().describe('the name of the project (from package.json)'),
 		version: z.string().optional().describe('the version of the project (from package.json)'),
-		description: z.string().optional().describe('the description of the project (from package.json)'),
+		description: z
+			.string()
+			.optional()
+			.describe('the description of the project (from package.json)'),
 		keywords: z.array(z.string()).optional().describe('the keywords from package.json'),
 		orgId: z.string().describe('the organization id for the project'),
 	}),

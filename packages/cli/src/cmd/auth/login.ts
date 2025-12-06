@@ -1,7 +1,7 @@
 import { createSubcommand } from '../../types';
 import { getAppBaseURL } from '../../api';
 import { saveAuth } from '../../config';
-import { generateLoginOTP, pollForLoginCompletion } from './api';
+import { generateLoginCode, pollForLoginCompletion } from './api';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
@@ -23,41 +23,60 @@ export const loginCommand = createSubcommand({
 		const appUrl = getAppBaseURL(config);
 
 		try {
-			const otp = await tui.spinner({
-				message: 'Generating login one time code...',
+			const code = await tui.spinner({
+				message: 'Generating login code...',
 				clearOnSuccess: true,
 				callback: () => {
-					return generateLoginOTP(apiClient);
+					return generateLoginCode(apiClient);
 				},
 			});
 
-			if (!otp) {
+			if (!code) {
 				return;
 			}
 
-			const authURL = `${appUrl}/auth/cli`;
+			const authURL = `${appUrl}/auth/cli?code=${code}`;
 
-			const copied = await tui.copyToClipboard(otp);
+			const copied = await tui.copyToClipboard(authURL);
 
+			tui.newline();
+			console.log(`Your login code: ${tui.bold(code)}`);
 			tui.newline();
 			if (copied) {
-				console.log(`Code copied to clipboard: ${tui.bold(otp)}`);
+				console.log('Login URL copied to clipboard! Open it in your browser:');
 			} else {
-				console.log('Copy the following code:');
-				tui.newline();
-				console.log(`  ${tui.bold(otp)}`);
+				console.log('Open this URL in your browser to approve the login:');
 			}
-			tui.newline();
-			console.log('Then open the URL in your browser and paste the code:');
 			tui.newline();
 			console.log(`  ${tui.link(authURL)}`);
 			tui.newline();
-			console.log(tui.muted('This code will expire in 60 seconds'));
+			console.log(tui.muted('Press Enter to open in your browser, or Ctrl+C to cancel'));
 			tui.newline();
 
-			console.log('Waiting for login to complete...');
-
-			const result = await pollForLoginCompletion(apiClient, otp);
+			const result = await tui.spinner({
+				type: 'countdown',
+				message: 'Waiting for approval',
+				timeoutMs: 300000, // 5 minutes
+				clearOnSuccess: true,
+				onEnterPress: () => {
+					// Open URL in default browser
+					const platform = process.platform;
+					if (platform === 'win32') {
+						// Windows: use cmd.exe to invoke start (it's a shell builtin, not an executable)
+						// Empty string is required as the window title argument
+						Bun.spawn(['cmd', '/c', 'start', '', authURL], {
+							stdout: 'ignore',
+							stderr: 'ignore',
+						});
+					} else {
+						const command = platform === 'darwin' ? 'open' : 'xdg-open';
+						Bun.spawn([command, authURL], { stdout: 'ignore', stderr: 'ignore' });
+					}
+				},
+				callback: async () => {
+					return await pollForLoginCompletion(apiClient, code);
+				},
+			});
 
 			await saveAuth({
 				apiKey: result.apiKey,
