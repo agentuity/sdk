@@ -6,48 +6,15 @@ export function App() {
 	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
 
 	return (
-		<div
-			style={{
-				backgroundColor: '#09090b',
-				color: '#fff',
-				display: 'flex',
-				fontFamily:
-					'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-				justifyContent: 'center',
-				minHeight: '100vh',
-			}}
-		>
-			<div
-				style={{
-					display: 'flex',
-					flexDirection: 'column',
-					gap: '2rem',
-					maxWidth: '48rem',
-					padding: '4rem',
-					width: '100%',
-				}}
-			>
-				<div
-					style={{
-						alignItems: 'center',
-						display: 'flex',
-						flexDirection: 'column',
-						gap: '0.5rem',
-						justifyContent: 'center',
-						marginBottom: '2rem',
-						textAlign: 'center',
-					}}
-				>
+		<div className="app-container">
+			<div className="content-wrapper">
+				<div className="header">
 					<svg
 						aria-hidden="true"
 						aria-label="Agentuity Logo"
+						className="logo"
 						fill="none"
 						height="191"
-						style={{
-							height: 'auto',
-							marginBottom: '1rem',
-							width: '3rem',
-						}}
 						viewBox="0 0 220 191"
 						width="220"
 						xmlns="http://www.w3.org/2000/svg"
@@ -66,130 +33,35 @@ export function App() {
 						/>
 					</svg>
 
-					<h1
-						style={{
-							fontSize: '3rem',
-							fontWeight: 100,
-							margin: 0,
-						}}
-					>
-						Welcome to Agentuity
-					</h1>
+					<h1 className="title">Welcome to Agentuity</h1>
 
-					<p
-						style={{
-							color: '#a1a1aa',
-							fontSize: '1.15rem',
-							margin: 0,
-						}}
-					>
-						The{' '}
-						<span
-							style={{
-								fontFamily: 'Georgia, "Times New Roman", Times, serif',
-								fontStyle: 'italic',
-								fontWeight: 100,
-							}}
-						>
-							Full-Stack
-						</span>{' '}
-						Platform for AI Agents
+					<p className="subtitle">
+						The <span className="italic">Full-Stack</span> Platform for AI Agents
 					</p>
 				</div>
 
-				<div
-					style={{
-						background: '#000',
-						border: '1px solid #18181B',
-						borderRadius: '0.5rem',
-						boxShadow: '0 1.5rem 3rem -0.75rem #00000040',
-						display: 'flex',
-						flexDirection: 'column',
-						gap: '2rem',
-						overflow: 'hidden',
-						padding: '2rem',
-					}}
-				>
-					<h2
-						style={{
-							color: '#a1a1aa',
-							fontSize: '1.25rem',
-							fontWeight: 400,
-							lineHeight: 1,
-							margin: 0,
-						}}
-					>
-						Try the <span style={{ color: '#fff' }}>Hello Agent</span>
+				<div className="card card-interactive">
+					<h2 className="card-title">
+						Try the <span className="highlight">Hello Agent</span>
 					</h2>
 
-					<div
-						style={{
-							display: 'flex',
-							gap: '1rem',
-						}}
-					>
+					<div className="input-group">
 						<input
+							className="input"
 							disabled={running}
 							onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.currentTarget.value)}
 							placeholder="Enter your name"
 							type="text"
 							value={name}
-							style={{
-								background: '#09090b',
-								border: '1px solid #2b2b30',
-								borderRadius: '0.375rem',
-								color: '#fff',
-								flex: 1,
-								outline: 'none',
-								padding: '0.75rem 1rem',
-								zIndex: 2,
-							}}
 						/>
 
-						<div
-							className="glow-btn"
-							style={{
-								position: 'relative',
-								zIndex: 1,
-							}}
-						>
-							<div
-								className="glow-bg"
-								style={{
-									background: 'linear-gradient(to right, #155e75, #3b82f6, #9333ea)',
-									borderRadius: '0.5rem',
-									inset: 0,
-									position: 'absolute',
-								}}
-							/>
-
-							<div
-								style={{
-									background: '#0891b280',
-									borderRadius: '0.5rem',
-									filter: 'blur(2.5rem)',
-									inset: 0,
-									opacity: 0.5,
-									position: 'absolute',
-								}}
-							/>
-
+						<div className="glow-btn">
+							<div className="glow-bg" />
+							<div className="glow-effect" />
 							<button
+								className={`button ${running ? 'disabled' : ''}`}
 								disabled={running}
 								onClick={() => invoke({ name })}
-								style={{
-									backgroundColor: '#030712',
-									border: 'none',
-									borderRadius: '0.5rem',
-									color: '#fff',
-									cursor: running ? 'not-allowed' : 'pointer',
-									height: '100%',
-									opacity: running ? 0.5 : 1,
-									padding: '0 1.5rem',
-									position: 'relative',
-									transition: 'opacity 0.2s',
-									whiteSpace: 'nowrap',
-								}}
 								type="button"
 							>
 								{running ? 'Running...' : 'Say Hello'}
@@ -197,58 +69,22 @@ export function App() {
 						</div>
 					</div>
 
-					<div
-						data-loading={!greeting}
-						style={{
-							background: '#09090b',
-							border: '1px solid #2b2b30',
-							borderRadius: '0.375rem',
-							color: greeting ? '#22d3ee' : '#a1a1aa',
-							flex: 1,
-							fontFamily: 'monospace',
-							lineHeight: '1.5',
-							padding: '0.75rem 1rem',
-							zIndex: 2,
-						}}
-					>
+					<div className="output" data-loading={!greeting}>
 						{greeting ?? 'Waiting for request'}
 					</div>
 				</div>
 
-				<div
-					style={{
-						background: '#000',
-						border: '1px solid #18181b',
-						borderRadius: '0.5rem',
-						padding: '2rem',
-					}}
-				>
-					<h3
-						style={{
-							color: '#fff',
-							fontSize: '1.25rem',
-							fontWeight: 400,
-							lineHeight: 1,
-							margin: '0 0 1.5rem 0',
-						}}
-					>
-						Next Steps
-					</h3>
+				<div className="card">
+					<h3 className="section-title">Next Steps</h3>
 
-					<div
-						style={{
-							display: 'flex',
-							flexDirection: 'column',
-							gap: '1.5rem',
-						}}
-					>
+					<div className="steps-list">
 						{[
 							{
 								title: 'Customize your agent',
 								text: (
 									<>
-										Edit <code style={{ color: '#fff' }}>src/agent/hello/agent.ts</code>{' '}
-										to change how your agent responds.
+										Edit <code>src/agent/hello/agent.ts</code> to change how your agent
+										responds.
 									</>
 								),
 							},
@@ -256,8 +92,7 @@ export function App() {
 								title: 'Add new API routes',
 								text: (
 									<>
-										Create new files in <code style={{ color: '#fff' }}>src/web/</code> to
-										expose more endpoints.
+										Create new files in <code>src/web/</code> to expose more endpoints.
 									</>
 								),
 							},
@@ -265,44 +100,22 @@ export function App() {
 								title: 'Update the frontend',
 								text: (
 									<>
-										Modify <code style={{ color: '#fff' }}>src/web/App.tsx</code> to build
-										your custom UI.
+										Modify <code>src/web/App.tsx</code> to build your custom UI.
 									</>
 								),
 							},
 						].map((step) => (
-							<div
-								key={step.title}
-								style={{
-									alignItems: 'flex-start',
-									display: 'flex',
-									gap: '0.75rem',
-								}}
-							>
-								<div
-									style={{
-										alignItems: 'center',
-										backgroundColor: '#002810',
-										border: '1px solid #00c951',
-										borderRadius: '0.25rem',
-										display: 'flex',
-										height: '1rem',
-										justifyContent: 'center',
-										width: '1rem',
-									}}
-								>
+							<div key={step.title} className="step">
+								<div className="step-icon">
 									<svg
 										aria-hidden="true"
+										className="checkmark"
 										fill="none"
 										height="24"
 										stroke="#00c951"
 										strokeLinecap="round"
 										strokeLinejoin="round"
 										strokeWidth="2"
-										style={{
-											height: '0.65rem',
-											width: '0.65rem',
-										}}
 										viewBox="0 0 24 24"
 										width="24"
 										xmlns="http://www.w3.org/2000/svg"
@@ -312,26 +125,8 @@ export function App() {
 								</div>
 
 								<div>
-									<h4
-										style={{
-											color: '#fff',
-											fontSize: '0.875rem',
-											fontWeight: 400,
-											margin: '0 0 0.25rem 0',
-										}}
-									>
-										{step.title}
-									</h4>
-
-									<p
-										style={{
-											color: '#a1a1aa',
-											fontSize: '0.75rem',
-											margin: 0,
-										}}
-									>
-										{step.text}
-									</p>
+									<h4 className="step-title">{step.title}</h4>
+									<p className="step-text">{step.text}</p>
 								</div>
 							</div>
 						))}
@@ -341,15 +136,221 @@ export function App() {
 
 			<style>
 				{`
-					.glow-btn .glow-bg {
+					body {
+						background-color: #09090b;
+					}
+
+					.app-container {
+						background-color: #09090b;
+						color: #fff;
+						display: flex;
+						font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+						justify-content: center;
+						min-height: 100vh;
+					}
+
+					.content-wrapper {
+						display: flex;
+						flex-direction: column;
+						gap: 2rem;
+						max-width: 48rem;
+						padding: 4rem;
+						width: 100%;
+					}
+
+					.header {
+						align-items: center;
+						display: flex;
+						flex-direction: column;
+						gap: 0.5rem;
+						justify-content: center;
+						margin-bottom: 2rem;
+						text-align: center;
+					}
+
+					.logo {
+						height: auto;
+						margin-bottom: 1rem;
+						width: 3rem;
+					}
+
+					.title {
+						font-size: 3rem;
+						font-weight: 100;
+						margin: 0;
+					}
+
+					.subtitle {
+						color: #a1a1aa;
+						font-size: 1.15rem;
+						margin: 0;
+					}
+
+					.italic {
+						font-family: Georgia, "Times New Roman", Times, serif;
+						font-style: italic;
+						font-weight: 100;
+					}
+
+					.card {
+						background: #000;
+						border: 1px solid #18181b;
+						border-radius: 0.5rem;
+						padding: 2rem;
+					}
+
+					.card-interactive {
+						box-shadow: 0 1.5rem 3rem -0.75rem #00000040;
+						display: flex;
+						flex-direction: column;
+						gap: 2rem;
+						overflow: hidden;
+					}
+
+					.card-title {
+						color: #a1a1aa;
+						font-size: 1.25rem;
+						font-weight: 400;
+						line-height: 1;
+						margin: 0;
+					}
+
+					.highlight {
+						color: #fff;
+					}
+
+					.input-group {
+						display: flex;
+						gap: 1rem;
+					}
+
+					.input {
+						background: #09090b;
+						border: 1px solid #2b2b30;
+						border-radius: 0.375rem;
+						color: #fff;
+						flex: 1;
+						outline: none;
+						padding: 0.75rem 1rem;
+						z-index: 2;
+					}
+
+					.glow-btn {
+						position: relative;
+						z-index: 1;
+					}
+
+					.glow-bg {
+						background: linear-gradient(to right, #155e75, #3b82f6, #9333ea);
+						border-radius: 0.5rem;
+						inset: 0;
+						position: absolute;
 						filter: blur(1.25rem);
 						opacity: 0.75;
 						transition: all 700ms;
 					}
+
 					.glow-btn:hover .glow-bg {
 						filter: blur(2rem);
 						opacity: 1;
 					}
+
+					.glow-effect {
+						background: #0891b280;
+						border-radius: 0.5rem;
+						filter: blur(2.5rem);
+						inset: 0;
+						opacity: 0.5;
+						position: absolute;
+					}
+
+					.button {
+						background-color: #030712;
+						border: none;
+						border-radius: 0.5rem;
+						color: #fff;
+						cursor: pointer;
+						height: 100%;
+						padding: 0 1.5rem;
+						position: relative;
+						transition: opacity 0.2s;
+						white-space: nowrap;
+					}
+
+					.button.disabled {
+						cursor: not-allowed;
+						opacity: 0.5;
+					}
+
+					.output {
+						background: #09090b;
+						border: 1px solid #2b2b30;
+						border-radius: 0.375rem;
+						color: #22d3ee;
+						flex: 1;
+						font-family: monospace;
+						line-height: 1.5;
+						padding: 0.75rem 1rem;
+						z-index: 2;
+					}
+
+					.output[data-loading="true"] {
+						color: #a1a1aa;
+					}
+
+					.section-title {
+						color: #fff;
+						font-size: 1.25rem;
+						font-weight: 400;
+						line-height: 1;
+						margin: 0 0 1.5rem 0;
+					}
+
+					.steps-list {
+						display: flex;
+						flex-direction: column;
+						gap: 1.5rem;
+					}
+
+					.step {
+						align-items: flex-start;
+						display: flex;
+						gap: 0.75rem;
+					}
+
+					.step-icon {
+						align-items: center;
+						background-color: #002810;
+						border: 1px solid #00c951;
+						border-radius: 0.25rem;
+						display: flex;
+						height: 1rem;
+						justify-content: center;
+						width: 1rem;
+					}
+
+					.checkmark {
+						height: 0.65rem;
+						width: 0.65rem;
+					}
+
+					.step-title {
+						color: #fff;
+						font-size: 0.875rem;
+						font-weight: 400;
+						margin: 0 0 0.25rem 0;
+					}
+
+					.step-text {
+						color: #a1a1aa;
+						font-size: 0.75rem;
+						margin: 0;
+					}
+
+					.step-text code {
+						color: #fff;
+					}
+
 					@keyframes ellipsis {
 						0% { content: ""; }
 						25% { content: "."; }
@@ -357,14 +358,12 @@ export function App() {
 						75% { content: "..."; }
 						100% { content: ""; }
 					}
+
 					[data-loading="true"]::after {
 						animation: ellipsis 1.2s steps(1, end) infinite;
 						content: ".";
 						display: inline-block;
 						width: 1em;
-					}
-					body {
-						background-color: #09090b;
 					}
 				`}
 			</style>
