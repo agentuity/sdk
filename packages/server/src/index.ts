@@ -2,6 +2,7 @@ export * from './config';
 export * from './logger';
 export * from './server';
 export * from './api';
+export * from './schema';
 export { z } from 'zod';
 export type {
 	FetchAdapter,

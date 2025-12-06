@@ -81,7 +81,7 @@ export const command = createCommand({
 			if (opts.dev && ctx.config?.name) {
 				const envSourcePath = join(absoluteProjectDir, `.env.${ctx.config.name}`);
 				const envDestPath = join(outDir, '.env');
-				
+
 				const envFile = Bun.file(envSourcePath);
 				if (await envFile.exists()) {
 					await Bun.write(envDestPath, envFile);

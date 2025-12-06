@@ -190,31 +190,22 @@ test('schema', 'empty-record', async () => {
 
 // Test: Missing required nested field throws
 test('schema', 'missing-nested-required', async () => {
-	await assertThrows(
-		async () => {
-			await schemaComplexAgent.run({
-				operation: 'nested-object',
-				nested: {
-					level1: {} as any,
-				},
-			});
-		},
-		'Should throw for missing nested required field'
-	);
+	await assertThrows(async () => {
+		await schemaComplexAgent.run({
+			operation: 'nested-object',
+			nested: {
+				level1: {} as any,
+			},
+		});
+	}, 'Should throw for missing nested required field');
 });
 
 // Test: Invalid array item type throws
 test('schema', 'invalid-array-item', async () => {
-	await assertThrows(
-		async () => {
-			await schemaComplexAgent.run({
-				operation: 'array-of-objects',
-				arrayOfObjects: [
-					{ id: 'valid', count: 10 },
-					{ id: 'invalid' } as any,
-				],
-			});
-		},
-		'Should throw for invalid array item'
-	);
+	await assertThrows(async () => {
+		await schemaComplexAgent.run({
+			operation: 'array-of-objects',
+			arrayOfObjects: [{ id: 'valid', count: 10 }, { id: 'invalid' } as any],
+		});
+	}, 'Should throw for invalid array item');
 });

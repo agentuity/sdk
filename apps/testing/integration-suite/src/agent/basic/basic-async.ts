@@ -15,12 +15,12 @@ const asyncAgent = createAgent('async', {
 	},
 	handler: async (ctx, input) => {
 		const start = Date.now();
-		
+
 		// Simulate async work
 		await new Promise((resolve) => setTimeout(resolve, input.delay));
-		
+
 		const elapsed = Date.now() - start;
-		
+
 		return {
 			result: `Processed: ${input.message}`,
 			elapsed,

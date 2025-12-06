@@ -29,7 +29,7 @@ const vectorCrudAgent = createAgent('storage-vector-crud', {
 		switch (operation) {
 			case 'upsert-single': {
 				if (!key) throw new Error('Key required for upsert');
-				
+
 				// Use pre-computed embeddings to bypass OpenAI API for testing
 				// This is a valid 1536-dimensional embedding vector (all zeros for simplicity)
 				const testEmbeddings = new Array(1536).fill(0.1);

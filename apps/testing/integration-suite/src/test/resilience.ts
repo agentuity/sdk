@@ -85,7 +85,10 @@ test('resilience', 'type-error-caught', async () => {
 		await crashAttemptsAgent.run({ scenario: 'type-error' });
 		throw new Error('Should have thrown');
 	} catch (err: any) {
-		assert(err.message.includes('not a function') || err.message.includes('toFixed'), 'Should catch type error');
+		assert(
+			err.message.includes('not a function') || err.message.includes('toFixed'),
+			'Should catch type error'
+		);
 	}
 });
 

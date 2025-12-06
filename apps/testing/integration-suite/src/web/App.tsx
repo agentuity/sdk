@@ -90,7 +90,7 @@ export function App() {
 					stack: data.stack,
 					duration: data.duration,
 				});
-				
+
 				// Check if suite is complete and all passed
 				const suiteName = data.test.split(':')[0];
 				const suiteInfo = suites.find((s) => s.name === suiteName);
@@ -98,7 +98,7 @@ export function App() {
 					const suiteTests = suiteInfo.tests.map((t) => `${suiteName}:${t.name}`);
 					const suiteComplete = suiteTests.every((testKey) => next.has(testKey));
 					const allPassed = suiteTests.every((testKey) => next.get(testKey)?.passed);
-					
+
 					// Auto-collapse suite if all tests passed
 					if (suiteComplete && allPassed) {
 						setExpandedSuites((prevExpanded) => {
@@ -108,7 +108,7 @@ export function App() {
 						});
 					}
 				}
-				
+
 				return next;
 			});
 		});
@@ -204,7 +204,10 @@ export function App() {
 						Comprehensive SDK Validation & Testing
 					</p>
 
-					<div className="glow-btn" style={{ marginTop: '1.5rem', position: 'relative', zIndex: 1 }}>
+					<div
+						className="glow-btn"
+						style={{ marginTop: '1.5rem', position: 'relative', zIndex: 1 }}
+					>
 						<div
 							className="glow-bg"
 							style={{
@@ -277,12 +280,27 @@ export function App() {
 							boxShadow: '0 1.5rem 3rem -0.75rem #00000040',
 						}}
 					>
-						<h2 style={{ fontSize: '1.25rem', fontWeight: 400, marginBottom: '1.5rem', color: '#fff' }}>
+						<h2
+							style={{
+								fontSize: '1.25rem',
+								fontWeight: 400,
+								marginBottom: '1.5rem',
+								color: '#fff',
+							}}
+						>
 							Test Results
 						</h2>
-						<div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem' }}>
+						<div
+							style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2rem' }}
+						>
 							<div>
-								<div style={{ color: '#a1a1aa', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+								<div
+									style={{
+										color: '#a1a1aa',
+										fontSize: '0.875rem',
+										marginBottom: '0.5rem',
+									}}
+								>
 									Total
 								</div>
 								<div style={{ fontSize: '2.5rem', fontWeight: 100, color: '#fff' }}>
@@ -290,7 +308,13 @@ export function App() {
 								</div>
 							</div>
 							<div>
-								<div style={{ color: '#a1a1aa', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+								<div
+									style={{
+										color: '#a1a1aa',
+										fontSize: '0.875rem',
+										marginBottom: '0.5rem',
+									}}
+								>
 									Passed
 								</div>
 								<div style={{ fontSize: '2.5rem', fontWeight: 100, color: '#00c951' }}>
@@ -298,7 +322,13 @@ export function App() {
 								</div>
 							</div>
 							<div>
-								<div style={{ color: '#a1a1aa', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+								<div
+									style={{
+										color: '#a1a1aa',
+										fontSize: '0.875rem',
+										marginBottom: '0.5rem',
+									}}
+								>
 									Failed
 								</div>
 								<div style={{ fontSize: '2.5rem', fontWeight: 100, color: '#ef4444' }}>
@@ -306,7 +336,13 @@ export function App() {
 								</div>
 							</div>
 							<div>
-								<div style={{ color: '#a1a1aa', fontSize: '0.875rem', marginBottom: '0.5rem' }}>
+								<div
+									style={{
+										color: '#a1a1aa',
+										fontSize: '0.875rem',
+										marginBottom: '0.5rem',
+									}}
+								>
 									Duration
 								</div>
 								<div style={{ fontSize: '2.5rem', fontWeight: 100, color: '#22d3ee' }}>
@@ -347,7 +383,14 @@ export function App() {
 										borderBottom: isExpanded ? '1px solid #18181b' : 'none',
 									}}
 								>
-									<div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+									<div
+										style={{
+											display: 'flex',
+											alignItems: 'center',
+											gap: '1rem',
+											flex: 1,
+										}}
+									>
 										<button
 											onClick={() => toggleSuite(suite.name)}
 											style={{
@@ -377,7 +420,13 @@ export function App() {
 											{suite.count} tests
 										</span>
 										{suiteResults.length > 0 && (
-											<div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.875rem' }}>
+											<div
+												style={{
+													display: 'flex',
+													gap: '0.75rem',
+													fontSize: '0.875rem',
+												}}
+											>
 												{suitePassed > 0 && (
 													<span style={{ color: '#00c951' }}>✓ {suitePassed}</span>
 												)}
@@ -451,7 +500,8 @@ export function App() {
 																		display: 'flex',
 																		alignItems: 'center',
 																		justifyContent: 'center',
-																		animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+																		animation:
+																			'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
 																	}}
 																>
 																	<span

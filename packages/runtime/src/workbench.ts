@@ -1,7 +1,6 @@
-import { z } from 'zod';
 import type { Context, Handler } from 'hono';
-import { s } from '@agentuity/schema';
 import { timingSafeEqual } from 'node:crypto';
+import { toJSONSchema } from '@agentuity/server';
 import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';
 import type { WebSocketConnection } from './router';
@@ -133,25 +132,6 @@ export const createWorkbenchRouter = () => {
 	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
 	router.post('/_agentuity/workbench/execute', createWorkbenchExecutionRoute());
 	return router;
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const toJSONSchema = (schema: any) => {
-	// Check if it's an Agentuity schema via StandardSchemaV1 vendor
-	if (schema?.['~standard']?.vendor === 'agentuity') {
-		return s.toJSONSchema(schema);
-	}
-	// Check if it's a Zod schema
-	if (schema?._def?.typeName) {
-		try {
-			return z.toJSONSchema(schema);
-		} catch {
-			return {};
-		}
-	}
-	// TODO: this is going to only work for zod schema for now. need a way to handle others
-	// Unknown schema type
-	return {};
 };
 
 export const createWorkbenchMetadataRoute = (): Handler => {

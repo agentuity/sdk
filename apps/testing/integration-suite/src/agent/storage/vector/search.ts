@@ -13,20 +13,22 @@ const vectorSearchAgent = createAgent('storage-vector-search', {
 		}),
 		output: s.object({
 			success: s.boolean(),
-			results: s.array(
-				s.object({
-					id: s.string(),
-					key: s.string(),
-					similarity: s.number(),
-					metadata: s.record(s.string(), s.any()).optional(),
-				})
-			).optional(),
+			results: s
+				.array(
+					s.object({
+						id: s.string(),
+						key: s.string(),
+						similarity: s.number(),
+						metadata: s.record(s.string(), s.any()).optional(),
+					})
+				)
+				.optional(),
 			count: s.number(),
 		}),
 	},
 	handler: async (ctx, input) => {
 		const { namespace, limit, similarity, metadata } = input;
-		
+
 		// Use static query text - will leverage embedding cache from upsert operations
 		const query = input.query || 'test document';
 
@@ -39,12 +41,15 @@ const vectorSearchAgent = createAgent('storage-vector-search', {
 
 		return {
 			success: true,
-			results: results?.length > 0 ? results.map((r) => ({
-				id: r.id,
-				key: r.key,
-				similarity: r.similarity,
-				metadata: r.metadata || undefined,
-			})) : [],
+			results:
+				results?.length > 0
+					? results.map((r) => ({
+							id: r.id,
+							key: r.key,
+							similarity: r.similarity,
+							metadata: r.metadata || undefined,
+						}))
+					: [],
 			count: results?.length || 0,
 		};
 	},

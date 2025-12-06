@@ -78,6 +78,22 @@ for pkg in runtime server cli schema react; do
     fi
 done
 
+# Update package.json scripts to use local CLI
+echo ""
+echo "🔧 Updating package.json scripts to use local CLI..."
+if [ -f "package.json" ]; then
+    CLI_PATH="$SDK_ROOT/packages/cli/bin/cli.ts"
+    bun -e "
+        const fs = require('fs');
+        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+        if (!pkg.scripts) pkg.scripts = {};
+        pkg.scripts.build = 'bun $CLI_PATH build';
+        pkg.scripts.dev = 'bun $CLI_PATH dev';
+        fs.writeFileSync('package.json', JSON.stringify(pkg, null, 3) + '\n');
+        console.log('  ✓ Updated build and dev scripts to use $CLI_PATH');
+    "
+fi
+
 # Cleanup
 rm -rf "$TEMP_DIR"
 

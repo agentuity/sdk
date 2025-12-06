@@ -97,16 +97,13 @@ export default class WaitUntilHandler {
 			// Use allSettled so one failing promise doesn't stop others
 			const results = await Promise.allSettled(this.promises);
 			const duration = Date.now() - (this.started as number);
-			
+
 			// Log any failures
 			const failures = results.filter((r) => r.status === 'rejected');
 			if (failures.length > 0) {
-				logger.error(
-					'%d background task(s) failed during execution',
-					failures.length
-				);
+				logger.error('%d background task(s) failed during execution', failures.length);
 			}
-			
+
 			internal.debug(
 				'✅ All promises completed, marking session completed (duration %dms)',
 				duration

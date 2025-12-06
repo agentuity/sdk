@@ -85,7 +85,7 @@ router.get('/test/suites', (c) => {
 router.get('/test/list', (c) => {
 	const suite = c.req.query('suite');
 	const tests = testSuite.getTests(suite);
-	
+
 	// Group tests by suite
 	const grouped = new Map<string, { name: string }[]>();
 	for (const t of tests) {
@@ -94,13 +94,13 @@ router.get('/test/list', (c) => {
 		}
 		grouped.get(t.suite)!.push({ name: t.name });
 	}
-	
+
 	const suites = Array.from(grouped.entries()).map(([suiteName, suiteTests]) => ({
 		name: suiteName,
 		tests: suiteTests,
 		count: suiteTests.length,
 	}));
-	
+
 	return c.json({
 		total: tests.length,
 		suites,

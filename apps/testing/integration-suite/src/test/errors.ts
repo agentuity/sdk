@@ -26,29 +26,23 @@ test('errors', 'validation-success', async () => {
 
 // Test: Missing required field throws error
 test('errors', 'validation-missing-field', async () => {
-	await assertThrows(
-		async () => {
-			await errorValidationAgent.run({
-				name: 'John Doe',
-				age: 30,
-			} as any);
-		},
-		'Should throw error for missing required field'
-	);
+	await assertThrows(async () => {
+		await errorValidationAgent.run({
+			name: 'John Doe',
+			age: 30,
+		} as any);
+	}, 'Should throw error for missing required field');
 });
 
 // Test: Wrong type throws error
 test('errors', 'validation-wrong-type', async () => {
-	await assertThrows(
-		async () => {
-			await errorValidationAgent.run({
-				name: 'John Doe',
-				age: 'thirty' as any,
-				email: 'john@example.com',
-			});
-		},
-		'Should throw error for wrong type'
-	);
+	await assertThrows(async () => {
+		await errorValidationAgent.run({
+			name: 'John Doe',
+			age: 'thirty' as any,
+			email: 'john@example.com',
+		});
+	}, 'Should throw error for wrong type');
 });
 
 // Test: Optional field with default
@@ -65,41 +59,32 @@ test('errors', 'validation-optional-field', async () => {
 
 // Test: StructuredError with custom data
 test('errors', 'structured-error-validation', async () => {
-	await assertThrows(
-		async () => {
-			await errorStructuredAgent.run({
-				operation: 'throw-validation-error',
-				field: 'email',
-			});
-		},
-		'Should throw CustomValidationError'
-	);
+	await assertThrows(async () => {
+		await errorStructuredAgent.run({
+			operation: 'throw-validation-error',
+			field: 'email',
+		});
+	}, 'Should throw CustomValidationError');
 });
 
 // Test: StructuredError not found pattern
 test('errors', 'structured-error-not-found', async () => {
-	await assertThrows(
-		async () => {
-			await errorStructuredAgent.run({
-				operation: 'throw-not-found-error',
-				resource: 'user',
-				id: '123',
-			});
-		},
-		'Should throw CustomNotFoundError'
-	);
+	await assertThrows(async () => {
+		await errorStructuredAgent.run({
+			operation: 'throw-not-found-error',
+			resource: 'user',
+			id: '123',
+		});
+	}, 'Should throw CustomNotFoundError');
 });
 
 // Test: Generic error
 test('errors', 'generic-error', async () => {
-	await assertThrows(
-		async () => {
-			await errorStructuredAgent.run({
-				operation: 'throw-generic-error',
-			});
-		},
-		'Should throw generic Error'
-	);
+	await assertThrows(async () => {
+		await errorStructuredAgent.run({
+			operation: 'throw-generic-error',
+		});
+	}, 'Should throw generic Error');
 });
 
 // Test: Try-catch in agent handler

@@ -1,6 +1,6 @@
 /**
  * Basic Agent Tests
- * 
+ *
  * Tests core agent functionality: creation, execution, validation, async behavior
  */
 
@@ -22,7 +22,7 @@ async function callAgent(agent: any, input?: any) {
 // Test: Simple agent with valid input
 test('basic', 'simple-valid-input', async () => {
 	const result = await callAgent(simpleAgent, { name: 'Alice', age: 30 });
-	
+
 	assertDefined(result, 'Result should be defined');
 	assertEqual(result.message, 'Hello, Alice! You are 30 years old.');
 	assert(typeof result.timestamp === 'number', 'Timestamp should be a number');
@@ -42,17 +42,23 @@ test('basic', 'async-handler', async () => {
 	const start = Date.now();
 	const result = await callAgent(asyncAgent, { delay, message: 'Test' });
 	const actualElapsed = Date.now() - start;
-	
+
 	assertDefined(result, 'Result should be defined');
 	assertEqual(result.result, 'Processed: Test');
-	assert(result.elapsed >= delay, `Elapsed time (${result.elapsed}) should be >= delay (${delay})`);
-	assert(actualElapsed >= delay, `Actual elapsed (${actualElapsed}) should be >= delay (${delay})`);
+	assert(
+		result.elapsed >= delay,
+		`Elapsed time (${result.elapsed}) should be >= delay (${delay})`
+	);
+	assert(
+		actualElapsed >= delay,
+		`Actual elapsed (${actualElapsed}) should be >= delay (${delay})`
+	);
 });
 
 // Test: No-input agent
 test('basic', 'no-input-agent', async () => {
 	const result = await callAgent(noInputAgent);
-	
+
 	assertDefined(result, 'Result should be defined');
 	assert(typeof result.timestamp === 'number', 'Timestamp should be a number');
 	assert(typeof result.random === 'number', 'Random should be a number');
@@ -62,7 +68,7 @@ test('basic', 'no-input-agent', async () => {
 // Test: No-output agent
 test('basic', 'no-output-agent', async () => {
 	const result = await callAgent(noOutputAgent, { action: 'test-action' });
-	
+
 	// Agent returns void/undefined
 	assert(result === undefined, 'Result should be undefined for void output');
 });
@@ -76,14 +82,14 @@ test('basic', 'agent-schemas-defined', async () => {
 
 // Test: Concurrent agent calls
 test('basic', 'concurrent-execution', async () => {
-	const calls = Array.from({ length: 5 }, (_, i) => 
+	const calls = Array.from({ length: 5 }, (_, i) =>
 		callAgent(simpleAgent, { name: `User${i}`, age: 20 + i })
 	);
-	
+
 	const results = await Promise.all(calls);
-	
+
 	assertEqual(results.length, 5, 'Should have 5 results');
-	
+
 	for (let i = 0; i < 5; i++) {
 		assertEqual(results[i].message, `Hello, User${i}! You are ${20 + i} years old.`);
 	}
@@ -93,7 +99,7 @@ test('basic', 'concurrent-execution', async () => {
 test('basic', 'async-promise-handling', async () => {
 	// Verify that handlers properly handle promises
 	const result = await callAgent(asyncAgent, { delay: 1, message: 'async-test' });
-	
+
 	assertDefined(result, 'Async result should be defined');
 	assertEqual(result.result, 'Processed: async-test');
 });

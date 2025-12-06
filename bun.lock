@@ -242,6 +242,7 @@
       "version": "0.0.72",
       "dependencies": {
         "@agentuity/core": "workspace:*",
+        "@agentuity/schema": "workspace:*",
         "zod": "^4.1.12",
       },
       "devDependencies": {

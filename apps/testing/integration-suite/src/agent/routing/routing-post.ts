@@ -19,7 +19,7 @@ const postAgent = createAgent('routing-post', {
 	},
 	handler: async (ctx, input) => {
 		const id = `post-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-		
+
 		return {
 			id,
 			title: input.title,

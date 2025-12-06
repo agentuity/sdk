@@ -34,12 +34,15 @@ router.get('/api/test/run', async (c) => {
 				const results = await Promise.allSettled(batch.map((t) => testSuite.runTest(t)));
 
 				for (const result of results) {
-					const testResult = result.status === 'fulfilled' ? result.value : {
-						name: 'unknown',
-						passed: false,
-						error: String(result.reason),
-						duration: 0,
-					};
+					const testResult =
+						result.status === 'fulfilled'
+							? result.value
+							: {
+									name: 'unknown',
+									passed: false,
+									error: String(result.reason),
+									duration: 0,
+								};
 
 					if (testResult.passed) passed++;
 					else failed++;
@@ -81,7 +84,7 @@ router.get('/api/test/suites', (c) => {
 router.get('/api/test/list', (c) => {
 	const suite = c.req.query('suite');
 	const tests = testSuite.getTests(suite);
-	
+
 	// Group tests by suite
 	const grouped = new Map<string, { name: string }[]>();
 	for (const t of tests) {
@@ -90,13 +93,13 @@ router.get('/api/test/list', (c) => {
 		}
 		grouped.get(t.suite)!.push({ name: t.name });
 	}
-	
+
 	const suites = Array.from(grouped.entries()).map(([suiteName, suiteTests]) => ({
 		name: suiteName,
 		tests: suiteTests,
 		count: suiteTests.length,
 	}));
-	
+
 	return c.json({
 		total: tests.length,
 		suites,

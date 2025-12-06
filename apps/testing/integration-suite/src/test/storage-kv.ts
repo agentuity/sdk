@@ -1,6 +1,6 @@
 /**
  * KeyValue Storage Tests
- * 
+ *
  * Tests KV storage CRUD operations, types, and isolation
  */
 
@@ -103,7 +103,11 @@ test('storage-kv', 'delete', async () => {
 	});
 
 	// Check exists flag instead of value
-	assertEqual(getResult.exists, false, `Deleted key should not exist (exists=${getResult.exists}, value=${getResult.value})`);
+	assertEqual(
+		getResult.exists,
+		false,
+		`Deleted key should not exist (exists=${getResult.exists}, value=${getResult.value})`
+	);
 });
 
 // Test: KV Has operation

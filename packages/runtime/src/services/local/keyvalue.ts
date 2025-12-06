@@ -83,7 +83,11 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 			buffer = Buffer.from(value);
 		} else if (value instanceof ArrayBuffer) {
 			buffer = Buffer.from(new Uint8Array(value));
-		} else if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'object') {
+		} else if (
+			typeof value === 'number' ||
+			typeof value === 'boolean' ||
+			typeof value === 'object'
+		) {
 			// Use JSON for numbers, booleans, and objects to preserve type on round-trip
 			buffer = Buffer.from(JSON.stringify(value), 'utf-8');
 			contentType = 'application/json';

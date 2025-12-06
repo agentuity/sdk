@@ -7,7 +7,7 @@ export function decodeKVValue(value: any): any {
 		const text = new TextDecoder().decode(value);
 		return tryParseValue(text);
 	}
-	
+
 	// Handle stringified Uint8Array (e.g., "114,101,...") - must contain commas
 	if (typeof value === 'string' && value.includes(',') && /^\d+(,\d+)+$/.test(value)) {
 		const bytes = value.split(',').map((n) => parseInt(n, 10));
@@ -15,12 +15,12 @@ export function decodeKVValue(value: any): any {
 		const text = new TextDecoder().decode(uint8);
 		return tryParseValue(text);
 	}
-	
+
 	// Handle regular strings (including numeric strings like "123")
 	if (typeof value === 'string') {
 		return tryParseValue(value);
 	}
-	
+
 	return value;
 }
 
@@ -30,7 +30,7 @@ function tryParseValue(text: string): any {
 	if (!isNaN(num) && text.trim() !== '') {
 		return num;
 	}
-	
+
 	// Try to parse as JSON for objects/arrays
 	try {
 		return JSON.parse(text);

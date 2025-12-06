@@ -1,6 +1,6 @@
 /**
  * Process protection utilities
- * 
+ *
  * Prevents user code from calling process.exit() which would crash the server.
  * The runtime can still exit gracefully using the internal exit function.
  */

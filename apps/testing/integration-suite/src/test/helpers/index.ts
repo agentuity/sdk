@@ -44,7 +44,10 @@ export function assertDeepEqual<T>(actual: T, expected: T, message?: string): vo
 /**
  * Assert that a value is defined (not null/undefined)
  */
-export function assertDefined<T>(value: T | null | undefined, message?: string): asserts value is T {
+export function assertDefined<T>(
+	value: T | null | undefined,
+	message?: string
+): asserts value is T {
 	const msg = message || `Expected value to be defined, got ${value}`;
 	assert(value !== null && value !== undefined, msg);
 }

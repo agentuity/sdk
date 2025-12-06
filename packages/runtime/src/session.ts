@@ -991,7 +991,9 @@ export class DefaultThreadProvider implements ThreadProvider {
 					} catch {
 						// Thread might not exist in remote storage if it was never persisted
 						// This is normal for ephemeral threads, so just log at debug level
-						internal.debug(`Thread ${thread.id} not found in remote storage (already deleted or never persisted)`);
+						internal.debug(
+							`Thread ${thread.id} not found in remote storage (already deleted or never persisted)`
+						);
 						// Continue with local cleanup even if remote delete fails
 					}
 				}

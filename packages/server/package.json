@@ -26,6 +26,7 @@
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
+		"@agentuity/schema": "workspace:*",
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {

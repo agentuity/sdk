@@ -50,6 +50,13 @@ const BaseAgentFields = {
 	name: z.string().describe('the name of the agent'),
 	description: z.string().optional().describe('the agent description'),
 	evals: z.array(EvalSchema).optional().describe('the evals for the agent'),
+	schema: z
+		.object({
+			input: z.string().optional().describe('JSON schema for input (stringified JSON)'),
+			output: z.string().optional().describe('JSON schema for output (stringified JSON)'),
+		})
+		.optional()
+		.describe('input and output JSON schemas for the agent'),
 };
 
 const AgentSchema = z.object({
@@ -73,6 +80,13 @@ export const BuildMetadataSchema = z.object({
 				.record(z.string(), z.unknown())
 				.optional()
 				.describe('type specific configuration'),
+			schema: z
+				.object({
+					input: z.string().optional().describe('JSON schema for input (stringified JSON)'),
+					output: z.string().optional().describe('JSON schema for output (stringified JSON)'),
+				})
+				.optional()
+				.describe('input and output JSON schemas for the route'),
 		})
 	),
 	agents: z.array(AgentSchema),

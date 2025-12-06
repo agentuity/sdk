@@ -1,6 +1,6 @@
 /**
  * Routing & HTTP Tests
- * 
+ *
  * Tests HTTP routing, methods, query params, headers, and request handling
  */
 
@@ -23,7 +23,7 @@ async function callAgent(agent: any, input?: any) {
 // Test: GET agent with query parameters
 test('routing', 'get-with-query-params', async () => {
 	const result = await callAgent(getAgent, { query: 'test search', limit: 20 });
-	
+
 	assertDefined(result, 'Result should be defined');
 	assertEqual(result.query, 'test search');
 	assertEqual(result.limit, 20);
@@ -33,7 +33,7 @@ test('routing', 'get-with-query-params', async () => {
 // Test: GET agent with default limit
 test('routing', 'get-default-params', async () => {
 	const result = await callAgent(getAgent, { query: 'test' });
-	
+
 	assertDefined(result, 'Result should be defined');
 	assertEqual(result.query, 'test');
 	assertEqual(result.limit, 10, 'Should use default limit of 10');
@@ -46,7 +46,7 @@ test('routing', 'post-json-body', async () => {
 		content: 'This is a test post',
 		tags: ['test', 'example'],
 	});
-	
+
 	assertDefined(result, 'Result should be defined');
 	assert(result.id.startsWith('post-'), 'ID should have post- prefix');
 	assertEqual(result.title, 'Test Post');
@@ -62,7 +62,7 @@ test('routing', 'post-optional-fields', async () => {
 		title: 'Minimal Post',
 		content: 'Just the basics',
 	});
-	
+
 	assertDefined(result, 'Result should be defined');
 	assertEqual(result.tags.length, 0, 'Tags should be empty array when not provided');
 });
@@ -73,7 +73,7 @@ test('routing', 'multiple-methods', async () => {
 		action: 'create',
 		data: 'test data',
 	});
-	
+
 	assertDefined(result, 'Result should be defined');
 	assertEqual(result.action, 'create');
 	assertEqual(result.method, 'POST');
@@ -85,7 +85,7 @@ test('routing', 'custom-headers', async () => {
 	const result = await callAgent(headersAgent, {
 		message: 'Hello with headers',
 	});
-	
+
 	assertDefined(result, 'Result should be defined');
 	assertEqual(result.message, 'Hello with headers');
 	assertDefined(result.sessionId, 'Should have session ID from context');
@@ -100,7 +100,7 @@ test('routing', 'route-params', async () => {
 		id: 'user-123',
 		action: 'edit',
 	});
-	
+
 	assertDefined(result, 'Result should be defined');
 	assertEqual(result.id, 'user-123');
 	assertEqual(result.action, 'edit');
@@ -112,7 +112,7 @@ test('routing', 'route-params-defaults', async () => {
 	const result = await callAgent(paramsAgent, {
 		id: 'user-456',
 	});
-	
+
 	assertDefined(result, 'Result should be defined');
 	assertEqual(result.id, 'user-456');
 	assertEqual(result.action, 'view', 'Should use default action');
@@ -125,7 +125,7 @@ test('routing', 'content-type-json', async () => {
 		title: 'JSON Test',
 		content: 'Testing JSON content type',
 	});
-	
+
 	assertDefined(result, 'Result should be defined');
 	assert(typeof result === 'object', 'Result should be an object (JSON)');
 });
@@ -134,7 +134,7 @@ test('routing', 'content-type-json', async () => {
 test('routing', 'successful-response', async () => {
 	// All successful agent calls should implicitly return 200
 	const result = await callAgent(getAgent, { query: 'success test' });
-	
+
 	assertDefined(result, 'Successful agent should return result');
 });
 
@@ -146,9 +146,9 @@ test('routing', 'concurrent-requests', async () => {
 		callAgent(postAgent, { title: 'Post 1', content: 'Content 1' }),
 		callAgent(postAgent, { title: 'Post 2', content: 'Content 2' }),
 	];
-	
+
 	const results = await Promise.all(requests);
-	
+
 	assertEqual(results.length, 4, 'All requests should complete');
 	assertEqual(results[0].query, 'req1');
 	assertEqual(results[1].query, 'req2');
@@ -160,7 +160,7 @@ test('routing', 'concurrent-requests', async () => {
 test('routing', 'query-param-types', async () => {
 	// Numbers should be properly typed
 	const result = await callAgent(getAgent, { query: 'test', limit: 25 });
-	
+
 	assert(typeof result.limit === 'number', 'Limit should be a number');
 	assertEqual(result.limit, 25);
 });

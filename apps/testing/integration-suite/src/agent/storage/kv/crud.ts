@@ -29,12 +29,12 @@ const kvCrudAgent = createAgent('storage-kv-crud', {
 
 			case 'get': {
 				const result = await ctx.kv.get<string>(namespace, key);
-				return { 
-					operation, 
-					key, 
-					value: result.exists ? result.data : undefined, 
+				return {
+					operation,
+					key,
+					value: result.exists ? result.data : undefined,
 					exists: result.exists,
-					success: true 
+					success: true,
 				};
 			}
 

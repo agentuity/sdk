@@ -10,6 +10,7 @@ import type { LogLevel } from '../../types';
 import { join } from 'node:path';
 import { existsSync, mkdirSync } from 'node:fs';
 import JSON5 from 'json5';
+import { formatSchemaCode } from './format-schema';
 
 const logger = createLogger((process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel);
 
@@ -213,11 +214,11 @@ function extractSchemaCode(callargexp: ASTObjectExpression): {
 	for (const prop of schemaObj.properties) {
 		if (prop.key.type === 'Identifier') {
 			if (prop.key.name === 'input' && prop.value) {
-				// Generate source code from AST node
-				inputSchemaCode = generate(prop.value);
+				// Generate source code from AST node and format it
+				inputSchemaCode = formatSchemaCode(generate(prop.value));
 			} else if (prop.key.name === 'output' && prop.value) {
-				// Generate source code from AST node
-				outputSchemaCode = generate(prop.value);
+				// Generate source code from AST node and format it
+				outputSchemaCode = formatSchemaCode(generate(prop.value));
 			}
 		}
 	}
@@ -562,7 +563,7 @@ export async function parseAgentMetadata(
 
 					// Extract agent identifier from createAgent first argument
 					name = nameArg.value;
-					
+
 					const callargexp = configArg;
 
 					// Extract schema code before processing metadata
@@ -661,7 +662,7 @@ export async function parseAgentMetadata(
 
 									// Extract agent identifier from createAgent first argument
 									name = nameArg.value;
-									
+
 									const callargexp = configArg;
 
 									// Extract schema code before processing metadata
@@ -788,6 +789,8 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 		// Check if this is a CallExpression with callee named 'validator'
 		if (node.type === 'CallExpression') {
 			const callExpr = node as ASTCallExpression;
+
+			// Check for standalone validator({ input, output })
 			if (callExpr.callee.type === 'Identifier') {
 				const identifier = callExpr.callee as ASTNodeIdentifier;
 				if (identifier.name === 'validator') {
@@ -795,7 +798,13 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 					const schemas = extractValidatorSchemas(callExpr);
 					return { hasValidator: true, ...schemas };
 				}
+				// Check for zValidator('json', schema)
+				if (identifier.name === 'zValidator') {
+					const schemas = extractZValidatorSchema(callExpr);
+					return { hasValidator: true, ...schemas };
+				}
 			}
+
 			// Check for agent.validator()
 			if (callExpr.callee.type === 'MemberExpression') {
 				const member = callExpr.callee as ASTMemberExpression;
@@ -805,7 +814,9 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 						member.object.type === 'Identifier'
 							? (member.object as ASTNodeIdentifier).name
 							: undefined;
-					return { hasValidator: true, agentVariable };
+					// Also check for schema overrides: agent.validator({ input, output })
+					const schemas = extractValidatorSchemas(callExpr);
+					return { hasValidator: true, agentVariable, ...schemas };
 				}
 			}
 		}
@@ -847,6 +858,48 @@ function extractValidatorSchemas(callExpr: ASTCallExpression): {
 			}
 		}
 	}
+
+	return result;
+}
+
+/**
+ * Extract schema from zValidator() call arguments
+ * Example: zValidator('json', mySchema) or zValidator('json', z.object({...}))
+ * Returns the schema as inputSchemaVariable since zValidator is for request body validation
+ * Only extracts schemas for 'json' target, not 'query', 'param', 'header', or 'cookie'
+ */
+function extractZValidatorSchema(callExpr: ASTCallExpression): {
+	inputSchemaVariable?: string;
+} {
+	const result: { inputSchemaVariable?: string } = {};
+
+	// zValidator requires at least 2 arguments: zValidator(target, schema)
+	if (!callExpr.arguments || callExpr.arguments.length < 2) {
+		return result;
+	}
+
+	// First argument should be 'json' literal
+	const targetArg = callExpr.arguments[0] as ASTNode;
+	if (targetArg.type === 'Literal') {
+		const targetValue = (targetArg as ASTLiteral).value;
+		// Only extract schemas for JSON body validation
+		if (targetValue !== 'json') {
+			return result;
+		}
+	} else {
+		// If first arg is not a literal, we can't determine the target, skip
+		return result;
+	}
+
+	// Second argument is the schema
+	const schemaArg = callExpr.arguments[1] as ASTNode;
+
+	// If it's an identifier (variable reference), extract the name
+	if (schemaArg.type === 'Identifier') {
+		result.inputSchemaVariable = (schemaArg as ASTNodeIdentifier).name;
+	}
+	// If it's inline schema (CallExpression like z.object({...})), we detect but don't extract yet
+	// TODO: Extract inline schema code
 
 	return result;
 }

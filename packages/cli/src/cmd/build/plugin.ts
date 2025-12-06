@@ -471,6 +471,56 @@ import { readFileSync, existsSync } from 'node:fs';
 						if (statSync(apiFile).isFile()) {
 							try {
 								const routes = await parseRoute(rootDir, apiFile, projectId, deploymentId);
+
+								// Extract schemas from agents for routes that use validators
+								for (const route of routes) {
+									// Check if route has custom schema overrides from validator({ input, output })
+									const hasCustomInput = route.config?.inputSchemaVariable;
+									const hasCustomOutput = route.config?.outputSchemaVariable;
+
+									// If route uses agent.validator(), get schemas from the agent (unless overridden)
+									if (
+										route.config?.agentImportPath &&
+										(!hasCustomInput || !hasCustomOutput)
+									) {
+										const agentImportPath = route.config.agentImportPath as string;
+										// Match by import path: @agent/zod-test -> src/agent/zod-test/agent.ts
+										// Normalize import path by removing leading '@' -> agent/zod-test
+										const importPattern = agentImportPath.replace(/^@/, '');
+										// Escape regex special characters for safe pattern matching
+										const escapedPattern = importPattern.replace(
+											/[.*+?^${}()|[\]\\]/g,
+											'\\$&'
+										);
+										// Match as complete path segment to avoid false positives (e.g., "agent/hello" matching "agent/hello-world")
+										const segmentPattern = new RegExp(`(^|/)${escapedPattern}(/|$)`);
+
+										for (const [, agentMd] of agentMetadata) {
+											const agentFilename = agentMd.get('filename');
+											if (agentFilename && segmentPattern.test(agentFilename)) {
+												// Use agent schemas unless overridden
+												const inputSchemaCode = hasCustomInput
+													? undefined
+													: agentMd.get('inputSchemaCode');
+												const outputSchemaCode = hasCustomOutput
+													? undefined
+													: agentMd.get('outputSchemaCode');
+
+												if (inputSchemaCode || outputSchemaCode) {
+													route.schema = {
+														input: inputSchemaCode,
+														output: outputSchemaCode,
+													};
+												}
+												break;
+											}
+										}
+									}
+
+									// TODO: Extract inline schema code from custom validator({ input: z.string(), output: ... })
+									// For now, custom schema overrides with inline code are not extracted (would require parsing the validator call's object expression)
+								}
+
 								apiRoutesMetadata.push(...routes);
 
 								// Collect route info for RouteRegistry generation
@@ -617,6 +667,16 @@ await (async() => {
 						description: v.get('description') ?? '',
 						projectId,
 					};
+
+					// Extract schema codes if available
+					const inputSchemaCode = v.get('inputSchemaCode');
+					const outputSchemaCode = v.get('outputSchemaCode');
+					if (inputSchemaCode || outputSchemaCode) {
+						agentData.schema = {
+							input: inputSchemaCode,
+							output: outputSchemaCode,
+						};
+					}
 
 					const evalsStr = v.get('evals');
 					if (evalsStr) {

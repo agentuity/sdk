@@ -69,7 +69,7 @@ const crashAttemptsAgent = createAgent('resilience-crash-attempts', {
 				const causeError = async () => {
 					throw new Error('Inner error');
 				};
-				
+
 				try {
 					await causeError();
 				} catch (err) {
@@ -87,7 +87,7 @@ const crashAttemptsAgent = createAgent('resilience-crash-attempts', {
 					}
 					return recurse();
 				};
-				
+
 				try {
 					recurse();
 				} catch (err) {
