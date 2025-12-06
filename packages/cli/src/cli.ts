@@ -11,7 +11,7 @@ import type {
 	AuthData,
 	GlobalOptions,
 } from './types';
-import { showBanner, generateBanner } from './banner';
+import { showBanner } from './banner';
 import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
 import { listRegions, type RegionList } from '@agentuity/server';
 import enquirer from 'enquirer';
@@ -313,6 +313,46 @@ export async function createCLI(version: string): Promise<Command> {
 	program.configureHelp({
 		subcommandTerm: (cmd) => cmd.name(),
 		formatHelp: (cmd, helper) => {
+			// Check if JSON help was requested via --help=json (converted to --help json)
+			const args = process.argv.slice(2);
+			const helpIndex = args.findIndex((a) => a === '--help' || a === '-h');
+			const wantsJson = helpIndex !== -1 && args[helpIndex + 1] === 'json';
+
+			if (wantsJson) {
+				// Generate JSON help for this specific command
+				const commands = helper.visibleCommands(cmd);
+
+				// Extract examples if available
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const cmdAny = cmd as any;
+				const examples = cmdAny._examples || [];
+
+				const cmdHelp = {
+					name: cmd.name(),
+					description: cmd.description(),
+					usage: cmd.usage(),
+					commands: commands.map((c) => ({
+						name: c.name(),
+						aliases: c.aliases(),
+						description: c.description(),
+					})),
+					arguments: helper.visibleArguments(cmd).map((arg) => ({
+						term: helper.argumentTerm(arg),
+						description: helper.argumentDescription(arg),
+					})),
+					options: helper.visibleOptions(cmd).map((opt) => ({
+						flags: helper.optionTerm(opt),
+						description: helper.optionDescription(opt),
+					})),
+					globalOptions: helper.visibleGlobalOptions(cmd).map((opt) => ({
+						flags: helper.optionTerm(opt),
+						description: helper.optionDescription(opt),
+					})),
+					...(examples.length > 0 && { examples }),
+				};
+				return JSON.stringify(cmdHelp, null, 2);
+			}
+
 			const termWidth = helper.padWidth(cmd, helper);
 			const itemIndentWidth = 2;
 			const itemSeparatorWidth = 2;
@@ -326,8 +366,8 @@ export async function createCLI(version: string): Promise<Command> {
 				return term;
 			}
 
-			// Format each section
-			let output = cmd.parent ? generateBanner(undefined, true) + '\n' : '';
+			// Format each section (don't show banner for subcommands)
+			let output = '';
 
 			// Description
 			const description = helper.commandDescription(cmd);
@@ -513,28 +553,38 @@ async function registerSubcommand(
 ): Promise<void> {
 	const cmd = parent.command(subcommand.name, { hidden }).description(subcommand.description);
 
-	cmd.helpOption('-h, --help', 'Display help');
+	cmd.helpOption('-h, --help=[json]', 'Display help (with optional JSON output)');
 
 	if (subcommand.aliases) {
 		cmd.aliases(subcommand.aliases);
 	}
 
-	// Add examples to help text
+	// Add examples to help text (skip in JSON mode)
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const examples = (subcommand as any).examples as
 		| Array<{ command: string; description: string }>
 		| undefined;
 	if (examples && examples.length > 0) {
-		// Find the longest command to align comments
-		const maxLength = Math.max(...examples.map((ex) => ex.command.length));
-		const formatted = examples.map((ex) => {
-			const padding = ' '.repeat(maxLength - ex.command.length + 1);
-			return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
+		// Store examples for JSON help generation
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(cmd as any)._examples = examples;
+
+		// Add formatted examples to text help
+		cmd.addHelpText('after', () => {
+			// Skip examples in JSON mode
+			const args = process.argv.slice(2);
+			const helpIndex = args.findIndex((a) => a === '--help' || a === '-h');
+			if (helpIndex !== -1 && args[helpIndex + 1] === 'json') {
+				return '';
+			}
+
+			const maxLength = Math.max(...examples.map((ex) => ex.command.length));
+			const formatted = examples.map((ex) => {
+				const padding = ' '.repeat(maxLength - ex.command.length + 1);
+				return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
+			});
+			return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n');
 		});
-		cmd.addHelpText(
-			'after',
-			`\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n')
-		);
 	}
 
 	// Check if this subcommand has its own subcommands (nested subcommands)
@@ -1158,28 +1208,38 @@ export async function registerCommands(
 				.command(cmdDef.name, { hidden: cmdDef.hidden })
 				.description(cmdDef.description);
 
-			cmd.helpOption('-h, --help', 'Display help');
+			cmd.helpOption('-h, --help=[json]', 'Display help (with optional JSON output)');
 
 			if (cmdDef.aliases) {
 				cmd.aliases(cmdDef.aliases);
 			}
 
-			// Add examples to help text
+			// Add examples to help text (skip in JSON mode)
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const examples = (cmdDef as any).examples as
 				| Array<{ command: string; description: string }>
 				| undefined;
 			if (examples && examples.length > 0) {
-				// Find the longest command to align comments
-				const maxLength = Math.max(...examples.map((ex) => ex.command.length));
-				const formatted = examples.map((ex) => {
-					const padding = ' '.repeat(maxLength - ex.command.length + 1);
-					return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
+				// Store examples for JSON help generation
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				(cmd as any)._examples = examples;
+
+				// Add formatted examples to text help
+				cmd.addHelpText('after', () => {
+					// Skip examples in JSON mode
+					const args = process.argv.slice(2);
+					const helpIndex = args.findIndex((a) => a === '--help' || a === '-h');
+					if (helpIndex !== -1 && args[helpIndex + 1] === 'json') {
+						return '';
+					}
+
+					const maxLength = Math.max(...examples.map((ex) => ex.command.length));
+					const formatted = examples.map((ex) => {
+						const padding = ' '.repeat(maxLength - ex.command.length + 1);
+						return `  ${tui.colorPrimary(ex.command)}${padding}${tui.muted('#')} ${tui.muted(ex.description)}`;
+					});
+					return `\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n');
 				});
-				cmd.addHelpText(
-					'after',
-					`\n${tui.colorPrimary('\x1b[4mExamples:\x1b[24m')}\n` + formatted.join('\n')
-				);
 			}
 
 			if (cmdDef.handler) {

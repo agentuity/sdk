@@ -36,9 +36,17 @@ process.once('SIGTERM', () => {
 
 validateRuntime();
 
-// Check for help flags before anything else
-const args = process.argv.slice(2);
-const hasHelpJson = args.includes('--help=json');
+// Preprocess arguments to convert --help=json to --help json
+// Commander.js doesn't support --option=value syntax for optional values
+const args = process.argv.slice(2).flatMap((arg) => {
+	if (arg === '--help=json') {
+		return ['--help', 'json'];
+	}
+	return arg;
+});
+process.argv = ['node', 'cli.ts', ...args];
+
+const hasHelpJson = args.includes('json') && args.includes('--help');
 const helpFlags = ['--help', '-h', 'help'];
 const hasHelp = helpFlags.some((flag) => args.includes(flag));
 
