@@ -1,7 +1,9 @@
-import { $ } from 'bun';
+import { $, semver } from 'bun';
 import { join, relative, resolve, dirname, basename } from 'node:path';
 import { cpSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
+import { StructuredError } from '@agentuity/core';
+import * as tui from '../../tui';
 import AgentuityBundler, { getBuildMetadata } from './plugin';
 import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
@@ -10,11 +12,31 @@ import { fixDuplicateExportsInDirectory } from './fix-duplicate-exports';
 import type { Logger } from '../../types';
 import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench-templates';
 import { analyzeWorkbench } from './ast';
-import { StructuredError } from '@agentuity/core';
-import { DeployOptionsSchema, type DeployOptions } from '../../schemas/deploy';
+import { type DeployOptions } from '../../schemas/deploy';
 
-// Re-export for backward compatibility
-export { DeployOptionsSchema };
+const minBunVersion = '>=1.3.3';
+
+async function checkBunVersion() {
+	if (semver.satisfies(Bun.version, minBunVersion)) {
+		return;
+	}
+	const message = `The current Bun installed is using version ${Bun.version}. This project requires Bun version ${minBunVersion} to build.`;
+	tui.warning(message);
+	if (process.stdin.isTTY) {
+		const ok = await tui.confirm('You would you to upgrade now?');
+		if (ok) {
+			await $`bun upgrade`.quiet();
+			const version = (await $`bun -v`.quiet().text()).trim();
+			tui.success(`Bun upgraded to ${version}`);
+			return;
+		}
+	}
+	throw new InvalidBunVersion({
+		current: Bun.version,
+		required: minBunVersion,
+		message: `Please see https://bun.sh/ for information on how to download the latest version.`,
+	});
+}
 
 export interface BundleOptions extends DeployOptions {
 	rootDir: string;
@@ -36,6 +58,10 @@ type BuildLogs = BuildResult['logs'];
 const AppFileNotFoundError = StructuredError('AppFileNotFoundError');
 const AgentsDirNotFoundError = StructuredError('AgentsDirNotFoundError');
 const BuildFailedError = StructuredError('BuildFailedError')<{ logs?: BuildLogs }>();
+const InvalidBunVersion = StructuredError('InvalidBunVersion')<{
+	current: string;
+	required: string;
+}>();
 
 const handleBuildFailure = (buildResult: BuildResult) => {
 	// Collect all build errors with full details
@@ -83,6 +109,9 @@ export async function bundle({
 			message: `App file not found at expected location: ${appFile}`,
 		});
 	}
+
+	await checkBunVersion();
+
 	const outDir = customOutDir ?? join(rootDir, '.agentuity');
 	const srcDir = join(rootDir, 'src');
 
@@ -154,16 +183,13 @@ export async function bundle({
 	// Common externals for native modules (same as legacy CLI)
 	const commonExternals = ['bun', 'fsevents', 'chromium-bidi', 'sharp'];
 
-	// OpenTelemetry packages need to be externalized due to CommonJS/ESM hybrid issues
-	const otelExternals = ['@opentelemetry/*', '@traceloop/*'];
-
 	// Allow projects to specify custom externals via package.json "externals" field
 	const customExternals: string[] = [];
 	if (pkgContents.externals && Array.isArray(pkgContents.externals)) {
 		customExternals.push(...pkgContents.externals.filter((e: unknown) => typeof e === 'string'));
 	}
 
-	const externalPatterns = [...commonExternals, ...otelExternals, ...customExternals];
+	const externalPatterns = [...commonExternals, ...customExternals];
 
 	// For production builds: install externals FIRST, then discover full dependency tree
 	// This prevents bundling dependencies that will be in node_modules anyway
