@@ -95,7 +95,7 @@ describe('KeyValueStorageService', () => {
 			await service.set('mystore', 'mykey', 123);
 
 			expect(calls[0].options?.body).toBe('123');
-			expect(calls[0].options?.contentType).toBe('text/plain');
+			expect(calls[0].options?.contentType).toBe('application/json');
 		});
 
 		test('should set boolean value', async () => {
@@ -105,7 +105,7 @@ describe('KeyValueStorageService', () => {
 			await service.set('mystore', 'mykey', true);
 
 			expect(calls[0].options?.body).toBe('true');
-			expect(calls[0].options?.contentType).toBe('text/plain');
+			expect(calls[0].options?.contentType).toBe('application/json');
 		});
 
 		test('should include ttl in url when provided', async () => {

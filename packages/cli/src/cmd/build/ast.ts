@@ -524,7 +524,7 @@ export async function parseAgentMetadata(
 	});
 	let exportName: string | undefined;
 	const rel = relative(rootDir, filename);
-	const name = basename(dirname(filename));
+	let name: string | undefined; // Will be set from createAgent identifier
 	const version = hash(contents);
 	const id = getAgentId(projectId, deploymentId, rel, version);
 
@@ -560,6 +560,9 @@ export async function parseAgentMetadata(
 						);
 					}
 
+					// Extract agent identifier from createAgent first argument
+					name = nameArg.value;
+					
 					const callargexp = configArg;
 
 					// Extract schema code before processing metadata
@@ -588,7 +591,7 @@ export async function parseAgentMetadata(
 							break;
 						}
 					}
-					if (!result) {
+					if (!result && name) {
 						result = createAgentMetadataNode(
 							id,
 							name,
@@ -656,6 +659,9 @@ export async function parseAgentMetadata(
 										);
 									}
 
+									// Extract agent identifier from createAgent first argument
+									name = nameArg.value;
+									
 									const callargexp = configArg;
 
 									// Extract schema code before processing metadata
@@ -684,7 +690,7 @@ export async function parseAgentMetadata(
 											break;
 										}
 									}
-									if (!result) {
+									if (!result && name) {
 										result = createAgentMetadataNode(
 											id,
 											name,

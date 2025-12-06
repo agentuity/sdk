@@ -283,17 +283,17 @@ describe('toPayload', () => {
 	test('should handle boolean values', async () => {
 		const [bodyTrue, ctTrue] = await toPayload(true);
 		expect(bodyTrue).toBe('true');
-		expect(ctTrue).toBe('text/plain');
+		expect(ctTrue).toBe('application/json');
 
 		const [bodyFalse, ctFalse] = await toPayload(false);
 		expect(bodyFalse).toBe('false');
-		expect(ctFalse).toBe('text/plain');
+		expect(ctFalse).toBe('application/json');
 	});
 
 	test('should handle number values', async () => {
 		const [body, contentType] = await toPayload(42);
 		expect(body).toBe('42');
-		expect(contentType).toBe('text/plain');
+		expect(contentType).toBe('application/json');
 	});
 
 	test('should handle null', async () => {

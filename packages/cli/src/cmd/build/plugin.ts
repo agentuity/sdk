@@ -435,7 +435,11 @@ import { readFileSync, existsSync } from 'node:fs';
 
 					for (const subdir of subdirs) {
 						const fullPath = join(agentBaseDir, subdir);
-						if (!agentDirs.has(fullPath)) {
+						// Check if this directory or any subdirectory contains agents
+						const hasAgentInTree = Array.from(agentDirs).some((agentDir) =>
+							agentDir.startsWith(fullPath)
+						);
+						if (!hasAgentInTree) {
 							throw new Error(
 								`Directory ${subdir} in src/agent must contain at least one agent (a file with a createAgent export)`
 							);

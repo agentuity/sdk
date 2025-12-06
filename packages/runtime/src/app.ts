@@ -6,6 +6,7 @@ import type { BunWebSocketData } from 'hono/bun';
 import type { Logger } from './logger';
 import { createServer, getLogger } from './_server';
 import type { Meter, Tracer } from '@opentelemetry/api';
+import { internal } from './logger/internal';
 import type {
 	KeyValueStorage,
 	SessionEventProvider,
@@ -279,7 +280,12 @@ export class App<TAppState = Record<string, never>> {
 		if (!callbacks || callbacks.size === 0) return;
 
 		for (const callback of callbacks) {
-			await callback(eventName, ...args);
+			try {
+				await callback(eventName, ...args);
+			} catch (error) {
+				// Log but don't re-throw - event listener errors should not crash the server
+				internal.error(`Error in app event listener for '${eventName}':`, error);
+			}
 		}
 	}
 }

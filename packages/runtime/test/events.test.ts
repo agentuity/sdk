@@ -195,7 +195,7 @@ describe('Event Listener Context Access', () => {
 });
 
 describe('Event Error Handling', () => {
-	test('error in started listener propagates', async () => {
+	test('error in started listener is caught and logged', async () => {
 		const agent = createAgent('error-listener', {
 			handler: async (_ctx) => {},
 		});
@@ -206,12 +206,11 @@ describe('Event Error Handling', () => {
 
 		const ctx = new TestAgentContext();
 
-		await expect(async () => {
-			await runInAgentContext(ctx, agent);
-		}).toThrow('Listener error');
+		// Should not throw - errors are caught and logged
+		await runInAgentContext(ctx, agent);
 	});
 
-	test('error in completed listener propagates', async () => {
+	test('error in completed listener is caught and logged', async () => {
 		const agent = createAgent('error-listener', {
 			handler: async (_ctx) => {},
 		});
@@ -222,9 +221,8 @@ describe('Event Error Handling', () => {
 
 		const ctx = new TestAgentContext();
 
-		await expect(async () => {
-			await runInAgentContext(ctx, agent);
-		}).toThrow('Listener error');
+		// Should not throw - errors are caught and logged
+		await runInAgentContext(ctx, agent);
 	});
 });
 

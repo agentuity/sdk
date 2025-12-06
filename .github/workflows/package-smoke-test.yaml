@@ -26,3 +26,21 @@ jobs:
 
          - name: Run package smoke test
            run: bash scripts/test-package-install.sh
+
+   integration-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 10
+      name: SDK Integration Test Suite
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Run integration test suite
+           env:
+              AGENTUITY_SDK_KEY: ${{ secrets.AGENTUITY_SDK_KEY }}
+           run: bash apps/testing/integration-suite/scripts/ci-test.sh

@@ -61,7 +61,8 @@ export default class WaitUntilHandler {
 			} catch (ex: unknown) {
 				span.recordException(ex as Error);
 				span.setStatus({ code: SpanStatusCode.ERROR });
-				throw ex;
+				// Log the error but don't re-throw - background tasks should never crash the server
+				internal.error('Background task error: %s', ex);
 			} finally {
 				span.end();
 			}
@@ -93,8 +94,19 @@ export default class WaitUntilHandler {
 		internal.debug(`⏳ Waiting for ${this.promises.length} promises to complete...`);
 		try {
 			// Promises are already executing, just wait for them to complete
-			await Promise.all(this.promises);
+			// Use allSettled so one failing promise doesn't stop others
+			const results = await Promise.allSettled(this.promises);
 			const duration = Date.now() - (this.started as number);
+			
+			// Log any failures
+			const failures = results.filter((r) => r.status === 'rejected');
+			if (failures.length > 0) {
+				logger.error(
+					'%d background task(s) failed during execution',
+					failures.length
+				);
+			}
+			
 			internal.debug(
 				'✅ All promises completed, marking session completed (duration %dms)',
 				duration

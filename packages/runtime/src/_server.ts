@@ -28,6 +28,7 @@ import { isIdle } from './_idle';
 import * as runtimeConfig from './_config';
 import { runInHTTPContext } from './_context';
 import { runAgentShutdowns, createAgentMiddleware } from './agent';
+import { enableProcessExitProtection, internalExit } from './_process-protection';
 import {
 	createServices,
 	getThreadProvider,
@@ -156,6 +157,9 @@ export const createServer = async <TAppState>(
 	const port = getPort();
 	const hostname = '127.0.0.1';
 	const serverUrl = `http://${hostname}:${port}`;
+
+	// Enable process.exit protection before any user code can run
+	enableProcessExitProtection();
 
 	// this must come before registering any otel stuff
 	registerAgentuitySpanProcessor();
@@ -366,7 +370,7 @@ export const createServer = async <TAppState>(
 		// Force exit after timeout if cleanup hangs
 		const forceExitTimer = setTimeout(() => {
 			otel.logger.warn('shutdown timed out after 5s, forcing exit');
-			process.exit(1);
+			internalExit(1);
 		}, 5_000);
 		try {
 			// stop accepting new connections
@@ -413,21 +417,21 @@ export const createServer = async <TAppState>(
 
 	process.once('SIGINT', async () => {
 		await shutdown();
-		process.exit(0);
+		internalExit(0);
 	});
 	process.once('SIGTERM', async () => {
 		await shutdown();
-		process.exit(0);
+		internalExit(0);
 	});
 	process.once('uncaughtException', async (err) => {
 		otel.logger.error('An uncaught exception was received: %s', err);
 		await shutdown();
-		process.exit(1);
+		internalExit(1);
 	});
 	process.once('unhandledRejection', async (reason) => {
 		otel.logger.error('An unhandled promise rejection was received: %s', reason);
 		await shutdown();
-		process.exit(1);
+		internalExit(1);
 	});
 
 	const server = Bun.serve({

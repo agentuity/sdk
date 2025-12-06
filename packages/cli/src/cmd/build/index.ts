@@ -77,6 +77,20 @@ export const command = createCommand({
 				logger: ctx.logger,
 			});
 
+			// Copy profile-specific .env file AFTER bundling (bundler clears outDir first)
+			if (opts.dev && ctx.config?.name) {
+				const envSourcePath = join(absoluteProjectDir, `.env.${ctx.config.name}`);
+				const envDestPath = join(outDir, '.env');
+				
+				const envFile = Bun.file(envSourcePath);
+				if (await envFile.exists()) {
+					await Bun.write(envDestPath, envFile);
+					ctx.logger.debug(`Copied ${envSourcePath} to ${envDestPath}`);
+				} else {
+					ctx.logger.debug(`No .env.${ctx.config.name} file found, skipping env copy`);
+				}
+			}
+
 			// Run TypeScript type checking after registry generation (skip in dev mode)
 			if (!opts.dev && !opts.skipTypeCheck) {
 				try {

@@ -6,6 +6,7 @@ import { type Env, fireEvent } from './app';
 import type { AppState } from './index';
 import { getServiceUrls } from '@agentuity/server';
 import { WebSocket } from 'ws';
+import { internal } from './logger/internal';
 
 export type ThreadEventName = 'destroyed';
 export type SessionEventName = 'completed';
@@ -418,7 +419,12 @@ async function fireThreadEvent(thread: Thread, eventName: ThreadEventName): Prom
 	if (!callbacks || callbacks.size === 0) return;
 
 	for (const callback of callbacks) {
-		await (callback as any)(eventName, thread);
+		try {
+			await (callback as any)(eventName, thread);
+		} catch (error) {
+			// Log but don't re-throw - event listener errors should not crash the server
+			internal.error(`Error in thread event listener for '${eventName}':`, error);
+		}
 	}
 }
 
@@ -431,7 +437,12 @@ async function fireSessionEvent(session: Session, eventName: SessionEventName): 
 	if (!callbacks || callbacks.size === 0) return;
 
 	for (const callback of callbacks) {
-		await (callback as any)(eventName, session);
+		try {
+			await (callback as any)(eventName, session);
+		} catch (error) {
+			// Log but don't re-throw - event listener errors should not crash the server
+			internal.error(`Error in session event listener for '${eventName}':`, error);
+		}
 	}
 }
 
@@ -977,8 +988,10 @@ export class DefaultThreadProvider implements ThreadProvider {
 				if (this.wsClient) {
 					try {
 						await this.wsClient.delete(thread.id);
-					} catch (err) {
-						console.error(`Failed to delete thread ${thread.id} from remote storage:`, err);
+					} catch {
+						// Thread might not exist in remote storage if it was never persisted
+						// This is normal for ephemeral threads, so just log at debug level
+						internal.debug(`Thread ${thread.id} not found in remote storage (already deleted or never persisted)`);
 						// Continue with local cleanup even if remote delete fails
 					}
 				}

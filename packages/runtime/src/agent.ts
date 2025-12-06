@@ -1200,10 +1200,15 @@ async function fireAgentEvent(
 		const callbacks = listeners.get(eventName);
 		if (callbacks && callbacks.size > 0) {
 			for (const callback of callbacks) {
-				if (eventName === 'errored' && data) {
-					await (callback as any)(eventName, agent, context, data);
-				} else if (eventName === 'started' || eventName === 'completed') {
-					await (callback as any)(eventName, agent, context);
+				try {
+					if (eventName === 'errored' && data) {
+						await (callback as any)(eventName, agent, context, data);
+					} else if (eventName === 'started' || eventName === 'completed') {
+						await (callback as any)(eventName, agent, context);
+					}
+				} catch (error) {
+					// Log but don't re-throw - event listener errors should not crash the server
+					internal.error(`Error in agent event listener for '${eventName}':`, error);
 				}
 			}
 		}

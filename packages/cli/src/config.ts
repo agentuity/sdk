@@ -51,6 +51,16 @@ export async function saveProfile(path: string): Promise<void> {
 }
 
 export async function getProfile(): Promise<string> {
+	// Check environment variable first
+	if (process.env.AGENTUITY_PROFILE) {
+		const profileName = process.env.AGENTUITY_PROFILE;
+		const envProfilePath = join(getDefaultConfigDir(), `${profileName}.yaml`);
+		const envFile = Bun.file(envProfilePath);
+		if (await envFile.exists()) {
+			return envProfilePath;
+		}
+	}
+
 	const profilePath = getProfilePath();
 	const defaultConfigPath = getDefaultConfigPath();
 

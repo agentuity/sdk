@@ -124,9 +124,9 @@ export async function toPayload(data: unknown): Promise<[Body, string]> {
 			}
 			return [data, textContentType];
 		case 'boolean':
-			return [String(data), textContentType];
 		case 'number':
-			return [String(data), textContentType];
+			// Use JSON to preserve type on round-trip
+			return [JSON.stringify(data), jsonContentType];
 		case 'object': {
 			if (data instanceof ArrayBuffer) {
 				return [data, binaryContentType];

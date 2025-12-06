@@ -1,0 +1,25 @@
+{
+	"name": "integration-suite",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "bun ../../../packages/cli/bin/cli.ts build --dir . --dev",
+		"dev": "bun ../../../packages/cli/bin/cli.ts dev --dir .",
+		"test": "bash scripts/ci-test.sh",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/react": "^18.3.1",
+		"@types/react-dom": "^18.3.1"
+	}
+}
