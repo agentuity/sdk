@@ -20,7 +20,8 @@
 		"format": "bunx prettier '**/*.{ts,tsx,js,jsx,json,md,yml,yaml}' --write --ignore-unknown",
 		"lint": "bunx eslint packages",
 		"all": "bun clean && bun format && bun run build && bun lint && bun typecheck && bun run test",
-		"whoami": "./packages/cli/bin/cli.ts auth whoami"
+		"whoami": "./packages/cli/bin/cli.ts auth whoami",
+		"cli": "./packages/cli/bin/cli.ts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^9.38.0",

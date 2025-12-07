@@ -92,15 +92,16 @@ export class PromptFlow {
 			const rl = readline.createInterface({
 				input: process.stdin,
 				output: process.stdout,
+				prompt: `${colors.secondary(symbols.bar)}  `, // custom prompt instead of default ">"
 			});
 
 			let hasError = false;
 
 			const showPrompt = () => {
 				// Show prompt with active symbol
-				process.stdout.write(
-					`${colors.active(symbols.active)}  ${message}\n${colors.secondary(symbols.bar)}  `
-				);
+				process.stdout.write(`${colors.active(symbols.active)}  ${message}\n`);
+				// Use readline's prompt for the input line
+				rl.prompt();
 			};
 
 			showPrompt();
@@ -123,8 +124,10 @@ export class PromptFlow {
 
 							// Redraw prompt with error
 							process.stdout.write(
-								`${colors.error(symbols.error)}  ${message}\n${colors.secondary(symbols.bar)}  ${colors.error(errorMsg)}\n${colors.secondary(symbols.bar)}  `
+								`${colors.error(symbols.error)}  ${message}\n${colors.secondary(symbols.bar)}  ${colors.error(errorMsg)}\n`
 							);
+							// Use readline's prompt for the input line
+							rl.prompt();
 							hasError = true;
 							return;
 						}
