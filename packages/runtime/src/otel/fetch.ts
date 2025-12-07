@@ -50,13 +50,7 @@ export function instrumentFetch() {
 		);
 
 		try {
-			// Add trace context to headers
-			// Add trace context to headers; preserve headers from Request input
-			const baseHeaders =
-				typeof input !== 'string' && !(input instanceof URL) && input instanceof Request
-					? input.headers
-					: undefined;
-			const headers = new Headers(baseHeaders ?? init?.headers ?? {});
+			// Prepare trace context injection
 			const carrier: Record<string, string> = {};
 
 			// Create a new context with the child span
@@ -65,7 +59,15 @@ export function instrumentFetch() {
 			// Use the new context for propagation
 			propagation.inject(newContext, carrier);
 
-			// Copy the carrier properties to headers
+			// Preserve original headers and add trace context
+			// Handle headers from both Request input and init parameter
+			const baseHeaders =
+				typeof input !== 'string' && !(input instanceof URL) && input instanceof Request
+					? input.headers
+					: undefined;
+			const headers = new Headers(baseHeaders ?? init?.headers ?? {});
+
+			// Add trace context headers (overwriting any already present)
 			for (const [key, value] of Object.entries(carrier)) {
 				headers.set(key, value);
 			}
