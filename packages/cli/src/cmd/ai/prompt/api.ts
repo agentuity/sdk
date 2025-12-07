@@ -26,13 +26,14 @@ Each API folder must contain:
 
 Example structure:
 \`\`\`
-src/web/
+src/api/
+├── index.ts         (optional, mounted at /api)
 ├── status/
-│   └── route.ts
+│   └── route.ts     (mounted at /api/status)
 ├── users/
-│   └── route.ts
+│   └── route.ts     (mounted at /api/users)
 ├── agent-call/
-    └── route.ts
+    └── route.ts     (mounted at /api/agent-call)
 \`\`\`
 
 ## Creating an API

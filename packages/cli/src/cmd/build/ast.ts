@@ -1,5 +1,5 @@
 import * as acornLoose from 'acorn-loose';
-import { basename, dirname, relative } from 'node:path';
+import { dirname, relative } from 'node:path';
 import { parse as parseCronExpression } from '@datasert/cronjs-parser';
 import { generate } from 'astring';
 import type { BuildMetadata } from '../../types';
@@ -910,8 +910,11 @@ export async function parseRoute(
 	projectId: string,
 	deploymentId: string
 ): Promise<BuildMetadata['routes']> {
-	const contents = await Bun.file(filename).text();
-	const version = hash(contents);
+	const rawContents = await Bun.file(filename).text();
+	const version = hash(rawContents);
+	// Transpile TypeScript to JavaScript so acorn-loose can parse it properly
+	const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
+	const contents = transpiler.transformSync(rawContents);
 	const ast = acornLoose.parse(contents, {
 		locations: true,
 		ecmaVersion: 'latest',
@@ -992,12 +995,24 @@ export async function parseRoute(
 	}
 
 	const rel = relative(rootDir, filename);
-	const dir = dirname(filename);
-	const name = basename(dir);
 
 	// For src/api/index.ts, we don't want to add the folder name since it's the root API router
 	const isRootApi = filename.includes('src/api/index.ts');
-	const routeName = isRootApi ? '' : name;
+	
+	// For nested routes, use the full path from src/api/ instead of just the immediate parent
+	// e.g., src/api/v1/users/route.ts -> routeName = "v1/users"
+	//       src/api/auth/route.ts -> routeName = "auth"
+	//       src/api/test.ts -> routeName = "" (file directly in src/api/)
+	let routeName = '';
+	if (!isRootApi) {
+		const apiMatch = filename.match(/src\/api\/(.+?)\/[^/]+\.ts$/);
+		if (apiMatch) {
+			// File in subdirectory: src/api/auth/route.ts -> "auth"
+			routeName = apiMatch[1];
+		}
+		// For files directly in src/api/ (e.g., test.ts), routeName stays empty
+		// This prevents double /api prefix since these files often define full paths
+	}
 
 	const routes: RouteDefinition = [];
 	const routePrefix = '/api';

@@ -12,7 +12,7 @@
 		"dev:workbench": "cd packages/workbench && bun run dev",
 		"dev:unauth-app": "cd apps/testing/unauth-app && bun run dev",
 		"dev:unauth-app-watch": "cd apps/testing/unauth-app && agentuity dev --watch ../../../packages/workbench/dist",
-		"test": "bun test && cd packages/cli && bun run test && cd ../../apps/testing && bun run test",
+		"test": "cd apps/testing/integration-suite && bun run build && cd ../../.. && bun test && cd packages/cli && bun run test && cd ../../apps/testing && bun run test",
 		"typecheck:apps": "bun run --filter='./apps/*' typecheck",
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
 		"typecheck": "bun run typecheck:apps && bun run typecheck:packages",

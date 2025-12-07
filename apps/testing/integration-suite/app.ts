@@ -2,7 +2,9 @@ import { createApp } from '@agentuity/runtime';
 
 // Import test files to register tests
 import './src/test/basic-agents';
+import './src/test/agent-nested';
 import './src/test/routing-agents';
+import './src/test/routing-subdirs';
 import './src/test/storage-kv';
 import './src/test/storage-stream';
 import './src/test/storage-vector';

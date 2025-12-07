@@ -16,6 +16,7 @@ import { createLogger } from '@agentuity/server';
 import type { LogLevel } from '../../types';
 import { toCamelCase, toPascalCase } from '../../utils/string';
 import { generateRouteRegistry, type RouteInfo } from './route-registry';
+import { discoverRouteFiles } from './route-discovery';
 
 /**
  * Setup lifecycle types by analyzing app.ts for setup() function
@@ -461,96 +462,116 @@ import { readFileSync, existsSync } from 'node:fs';
 				const apiRoutesMetadata: BuildMetadata['routes'] = [];
 				const routeInfoList: RouteInfo[] = [];
 				const apiDir = join(srcDir, 'api');
+				// Track subdirectory routes for auto-mounting
+				const subRouteInserts: string[] = [];
 				if (existsSync(apiDir)) {
-					const { readdirSync, statSync } = await import('node:fs');
-					const apiFiles = readdirSync(apiDir)
-						.filter((name) => name.endsWith('.ts') && !name.endsWith('.generated.ts'))
-						.map((name) => join(apiDir, name));
+					// Use recursive route discovery to find all route files in subdirectories
+					const discoveredRoutes = discoverRouteFiles(apiDir);
+					
+					// Collect all API files: index.ts and discovered subdirectory routes
+					const apiFiles: string[] = [];
+					
+					// Check for root index.ts
+					const indexFile = join(apiDir, 'index.ts');
+					if (existsSync(indexFile)) {
+						apiFiles.push(indexFile);
+					}
+					
+					// Add all discovered route files
+					for (const route of discoveredRoutes) {
+						apiFiles.push(route.filepath);
+						
+						// Generate auto-mount code for this subdirectory route
+						subRouteInserts.push(`await (async() => {
+						const { getRouter } = await import('@agentuity/runtime');
+						const router = getRouter()!;
+						const ${route.variableName} = (await import('${route.importPath}')).default;
+						router.route('${route.mountPath}', ${route.variableName});
+						})();`);
+					}
 
 					for (const apiFile of apiFiles) {
-						if (statSync(apiFile).isFile()) {
-							try {
-								const routes = await parseRoute(rootDir, apiFile, projectId, deploymentId);
+						try {
+							const routes = await parseRoute(rootDir, apiFile, projectId, deploymentId);
 
-								// Extract schemas from agents for routes that use validators
-								for (const route of routes) {
-									// Check if route has custom schema overrides from validator({ input, output })
-									const hasCustomInput = route.config?.inputSchemaVariable;
-									const hasCustomOutput = route.config?.outputSchemaVariable;
+							// Extract schemas from agents for routes that use validators
+							for (const route of routes) {
+								// Check if route has custom schema overrides from validator({ input, output })
+								const hasCustomInput = route.config?.inputSchemaVariable;
+								const hasCustomOutput = route.config?.outputSchemaVariable;
 
-									// If route uses agent.validator(), get schemas from the agent (unless overridden)
-									if (
-										route.config?.agentImportPath &&
-										(!hasCustomInput || !hasCustomOutput)
-									) {
-										const agentImportPath = route.config.agentImportPath as string;
-										// Match by import path: @agent/zod-test -> src/agent/zod-test/agent.ts
-										// Normalize import path by removing leading '@' -> agent/zod-test
-										const importPattern = agentImportPath.replace(/^@/, '');
-										// Escape regex special characters for safe pattern matching
-										const escapedPattern = importPattern.replace(
-											/[.*+?^${}()|[\]\\]/g,
-											'\\$&'
-										);
-										// Match as complete path segment to avoid false positives (e.g., "agent/hello" matching "agent/hello-world")
-										const segmentPattern = new RegExp(`(^|/)${escapedPattern}(/|$)`);
+								// If route uses agent.validator(), get schemas from the agent (unless overridden)
+								if (
+									route.config?.agentImportPath &&
+									(!hasCustomInput || !hasCustomOutput)
+								) {
+									const agentImportPath = route.config.agentImportPath as string;
+									// Match by import path: @agent/zod-test -> src/agent/zod-test/agent.ts
+									// Normalize import path by removing leading '@' -> agent/zod-test
+									const importPattern = agentImportPath.replace(/^@/, '');
+									// Escape regex special characters for safe pattern matching
+									const escapedPattern = importPattern.replace(
+										/[.*+?^${}()|[\]\\]/g,
+										'\\$&'
+									);
+									// Match as complete path segment to avoid false positives (e.g., "agent/hello" matching "agent/hello-world")
+									const segmentPattern = new RegExp(`(^|/)${escapedPattern}(/|$)`);
 
-										for (const [, agentMd] of agentMetadata) {
-											const agentFilename = agentMd.get('filename');
-											if (agentFilename && segmentPattern.test(agentFilename)) {
-												// Use agent schemas unless overridden
-												const inputSchemaCode = hasCustomInput
-													? undefined
-													: agentMd.get('inputSchemaCode');
-												const outputSchemaCode = hasCustomOutput
-													? undefined
-													: agentMd.get('outputSchemaCode');
+									for (const [, agentMd] of agentMetadata) {
+										const agentFilename = agentMd.get('filename');
+										if (agentFilename && segmentPattern.test(agentFilename)) {
+											// Use agent schemas unless overridden
+											const inputSchemaCode = hasCustomInput
+												? undefined
+												: agentMd.get('inputSchemaCode');
+											const outputSchemaCode = hasCustomOutput
+												? undefined
+												: agentMd.get('outputSchemaCode');
 
-												if (inputSchemaCode || outputSchemaCode) {
-													route.schema = {
-														input: inputSchemaCode,
-														output: outputSchemaCode,
-													};
-												}
-												break;
+											if (inputSchemaCode || outputSchemaCode) {
+												route.schema = {
+													input: inputSchemaCode,
+													output: outputSchemaCode,
+												};
 											}
+											break;
 										}
 									}
-
-									// TODO: Extract inline schema code from custom validator({ input: z.string(), output: ... })
-									// For now, custom schema overrides with inline code are not extracted (would require parsing the validator call's object expression)
 								}
 
-								apiRoutesMetadata.push(...routes);
+								// TODO: Extract inline schema code from custom validator({ input: z.string(), output: ... })
+								// For now, custom schema overrides with inline code are not extracted (would require parsing the validator call's object expression)
+							}
 
-								// Collect route info for RouteRegistry generation
-								for (const route of routes) {
-									routeInfoList.push({
-										method: route.method.toUpperCase(),
-										path: route.path,
-										filename: route.filename,
-										hasValidator: route.config?.hasValidator === true,
-										routeType: route.type || 'api',
-										agentVariable: route.config?.agentVariable as string | undefined,
-										agentImportPath: route.config?.agentImportPath as string | undefined,
-										inputSchemaVariable: route.config?.inputSchemaVariable as
-											| string
-											| undefined,
-										outputSchemaVariable: route.config?.outputSchemaVariable as
-											| string
-											| undefined,
-									});
-								}
-							} catch (error) {
-								// Skip files that don't have createRouter (they might be utilities)
-								if (
-									error instanceof Error &&
-									error.message.includes('could not find an proper createRouter')
-								) {
-									logger.trace(`Skipping ${apiFile}: no createRouter found`);
-								} else {
-									throw error;
-								}
+							apiRoutesMetadata.push(...routes);
+
+							// Collect route info for RouteRegistry generation
+							for (const route of routes) {
+								routeInfoList.push({
+									method: route.method.toUpperCase(),
+									path: route.path,
+									filename: route.filename,
+									hasValidator: route.config?.hasValidator === true,
+									routeType: route.type || 'api',
+									agentVariable: route.config?.agentVariable as string | undefined,
+									agentImportPath: route.config?.agentImportPath as string | undefined,
+									inputSchemaVariable: route.config?.inputSchemaVariable as
+										| string
+										| undefined,
+									outputSchemaVariable: route.config?.outputSchemaVariable as
+										| string
+										| undefined,
+								});
+							}
+						} catch (error) {
+							// Skip files that don't have createRouter (they might be utilities)
+							if (
+								error instanceof Error &&
+								error.message.includes('could not find an proper createRouter')
+							) {
+								logger.trace(`Skipping ${apiFile}: no createRouter found`);
+							} else {
+								throw error;
 							}
 						}
 					}
@@ -571,6 +592,11 @@ import { readFileSync, existsSync } from 'node:fs';
 	const api = require('./src/api/index').default;
 	router.route('/api', api);
 })();`);
+				}
+
+				// Auto-mount subdirectory routes (src/api/foo/route.ts -> /api/foo)
+				for (const subRouteInsert of subRouteInserts) {
+					inserts.push(subRouteInsert);
 				}
 
 				// Only create the workbench routes if workbench is actually configured
