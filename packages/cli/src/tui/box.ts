@@ -12,13 +12,17 @@ function getTerminalWidth(): number {
 }
 
 /**
- * Get string width (accounting for ANSI codes)
+ * Get string width (accounting for ANSI codes and OSC 8 hyperlinks)
  */
 function stringWidth(str: string): number {
-	// Remove ANSI escape codes
+	// Remove ANSI escape codes (colors, etc.)
 	// eslint-disable-next-line no-control-regex
-	const cleaned = str.replace(/\x1b\[[0-9;]*m/g, '');
-	return cleaned.length;
+	let cleaned = str.replace(/\x1b\[[0-9;]*m/g, '');
+	// Remove OSC 8 hyperlink sequences
+	// eslint-disable-next-line no-control-regex
+	cleaned = cleaned.replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
+	// Use Bun.stringWidth for proper Unicode width calculation
+	return Bun.stringWidth(cleaned);
 }
 
 /**
