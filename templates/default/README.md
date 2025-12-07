@@ -1,6 +1,6 @@
 # {{PROJECT_NAME}}
 
-A new Agentuity project created with `create-agentuity`.
+A new Agentuity project created with `agentuity create`.
 
 ## What You Get
 
@@ -19,15 +19,22 @@ A fully configured Agentuity project with:
 ```
 my-app/
 ├── src/
-│   ├── agent/          # Agent definitions
+│   ├── agent/            # Agent definitions
 │   │   └── hello/
-│   │       └── agent.ts # Example agent
-│   └── web/            # React web application
-│       └── app.tsx     # Main React component
-├── app.ts              # Application entry point
-├── tsconfig.json       # TypeScript configuration
-├── package.json        # Dependencies and scripts
-└── README.md           # Project documentation
+│   │       ├── agent.ts  # Example agent
+│   │       └── index.ts  # Default exports
+│   ├── api/              # API definitions
+│   │   └── index.ts      # Example routes
+│   └── web/              # React web application
+│       ├── public/       # Static assets
+│       ├── App.tsx       # Main React component
+│       ├── frontend.tsx  # Entry point
+│       └── index.html    # HTML template
+├── AGENTS.md             # Agent guidelines
+├── app.ts                # Application entry point
+├── tsconfig.json         # TypeScript configuration
+├── package.json          # Dependencies and scripts
+└── README.md             # Project documentation
 ```
 
 ## Available Commands
@@ -37,15 +44,15 @@ After creating your project, you can run:
 ### Development
 
 ```bash
-bun run dev
+bun dev
 ```
 
-Starts the development server at http://localhost:3500
+Starts the development server at `http://localhost:3500`
 
 ### Build
 
 ```bash
-bun run build
+bun build
 ```
 
 Compiles your application into the `.agentuity/` directory
@@ -53,10 +60,18 @@ Compiles your application into the `.agentuity/` directory
 ### Type Check
 
 ```bash
-bun run typecheck
+bun typecheck
 ```
 
 Runs TypeScript type checking
+
+### Deploy to Agentuity
+
+```bash
+bun run deploy
+```
+
+Deploys your application to the Agentuity cloud
 
 ## Next Steps
 
@@ -64,9 +79,10 @@ After creating your project:
 
 1. **Customize the example agent** - Edit `src/agent/hello/agent.ts`
 2. **Add new agents** - Create new folders in `src/agent/`
-3. **Add API routes** - Create new routes in `src/web/`
-4. **Customize the UI** - Edit `src/web/app.tsx`
-5. **Configure your app** - Modify `app.ts` to add middleware, configure services, etc.
+3. **Add new APIs** - Create new folders in `src/api/`
+4. **Add Web files** - Create new routes in `src/web/`
+5. **Customize the UI** - Edit `src/web/app.tsx`
+6. **Configure your app** - Modify `app.ts` to add middleware, configure services, etc.
 
 ## Creating Custom Agents
 
@@ -78,19 +94,15 @@ import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 const agent = createAgent({
-	metadata: {
-		description: 'My amazing agent',
-	},
+	description: 'My amazing agent',
 	schema: {
 		input: s.object({
-			message: s.string(),
+			name: s.string(),
 		}),
-		output: s.object({
-			response: s.string(),
-		}),
+		output: s.string(),
 	},
-	handler: async (_ctx, input) => {
-		return { response: `Processed: ${input.message}` };
+	handler: async (_ctx, { name }) => {
+		return `Hello, ${name}! This is my custom agent.`;
 	},
 });
 
@@ -99,23 +111,23 @@ export default agent;
 
 ## Adding API Routes
 
-Create custom routes in `src/web/` or add routes to an agent folder:
+Create custom routes in `src/api/`:
 
 ```typescript
-// src/agent/my-agent/route.ts
+// src/api/my-agent/route.ts
 import { createRouter } from '@agentuity/runtime';
-import agent from './agent';
+import myAgent from './agent';
 
 const router = createRouter();
 
 router.get('/', async (c) => {
-	const result = await c.agent.myAgent.run({ message: 'Hello!' });
+	const result = await myAgent.run({ message: 'Hello!' });
 	return c.json(result);
 });
 
-router.post('/', agent.validator(), async (c) => {
+router.post('/', myAgent.validator(), async (c) => {
 	const data = c.req.valid('json');
-	const result = await c.agent.myAgent.run(data);
+	const result = await myAgent.run(data);
 	return c.json(result);
 });
 
@@ -133,7 +145,3 @@ export default router;
 
 - [Bun](https://bun.sh/) v1.0 or higher
 - TypeScript 5+
-
-## License
-
-Apache 2.0
