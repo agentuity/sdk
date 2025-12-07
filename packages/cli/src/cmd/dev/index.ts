@@ -256,6 +256,7 @@ export const command = createCommand({
 		let building = false;
 		let buildCompletedAt = 0;
 		const BUILD_COOLDOWN_MS = 500; // Ignore file changes for 500ms after build completes
+		const templatedDirectories = new Map<string, number>(); // Track directories that just had templates created
 		let metadata: Partial<BuildMetadata> | undefined;
 		let showInitialReadyMessage = true;
 		let serverStartTime = 0;
@@ -997,6 +998,7 @@ export const command = createCommand({
 						}
 					}
 
+					// Handle new empty directories in src/agent/ or src/api/ paths
 					if (
 						eventType === 'rename' &&
 						existsSync(absPath) &&
@@ -1006,9 +1008,32 @@ export const command = createCommand({
 						if (changedFile?.startsWith('src/agent/')) {
 							logger.debug('agent directory created: %s', changedFile);
 							createAgentTemplates(absPath);
+							// Mark this directory as recently templated to avoid immediate rebuild
+							templatedDirectories.set(absPath, Date.now());
+							// Schedule cleanup of this marker after enough time for file events
+							setTimeout(() => templatedDirectories.delete(absPath), 1000);
+							// Don't restart - wait for the template files to trigger the rebuild
+							return;
 						} else if (changedFile?.startsWith('src/api/')) {
 							logger.debug('api directory created: %s', changedFile);
 							createAPITemplates(absPath);
+							// Mark this directory as recently templated to avoid immediate rebuild
+							templatedDirectories.set(absPath, Date.now());
+							// Schedule cleanup of this marker after enough time for file events
+							setTimeout(() => templatedDirectories.delete(absPath), 1000);
+							// Don't restart - wait for the template files to trigger the rebuild
+							return;
+						}
+					}
+
+					// Check if this file/directory was just templated - skip restart to avoid race condition
+					for (const [templatedPath, timestamp] of templatedDirectories.entries()) {
+						if (absPath.startsWith(templatedPath) && Date.now() - timestamp < 500) {
+							logger.trace(
+								'Ignoring event in recently templated directory: %s',
+								templatedPath
+							);
+							return;
 						}
 					}
 
