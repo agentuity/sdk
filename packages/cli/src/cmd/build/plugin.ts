@@ -467,20 +467,20 @@ import { readFileSync, existsSync } from 'node:fs';
 				if (existsSync(apiDir)) {
 					// Use recursive route discovery to find all route files in subdirectories
 					const discoveredRoutes = discoverRouteFiles(apiDir);
-					
+
 					// Collect all API files: index.ts and discovered subdirectory routes
 					const apiFiles: string[] = [];
-					
+
 					// Check for root index.ts
 					const indexFile = join(apiDir, 'index.ts');
 					if (existsSync(indexFile)) {
 						apiFiles.push(indexFile);
 					}
-					
+
 					// Add all discovered route files
 					for (const route of discoveredRoutes) {
 						apiFiles.push(route.filepath);
-						
+
 						// Generate auto-mount code for this subdirectory route
 						subRouteInserts.push(`await (async() => {
 						const { getRouter } = await import('@agentuity/runtime');

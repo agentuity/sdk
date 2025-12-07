@@ -67,17 +67,17 @@ export function discoverRouteFiles(
 			// src/api/admin/login.ts -> /api/admin
 			const pathParts = relativePath.split('/');
 			pathParts.pop(); // Remove filename
-			
+
 			// Skip files directly in src/api/ to avoid mount path conflicts with root index.ts
 			if (pathParts.length === 0) {
 				continue;
 			}
-			
+
 			const mountPath = `/api/${pathParts.join('/')}`;
 
 			// Generate safe variable name
 			// auth/route.ts -> authRoute
-			// v1/users/route.ts -> v1UsersRoute  
+			// v1/users/route.ts -> v1UsersRoute
 			// admin/login.ts -> adminLoginRoute
 			const variableParts = pathParts.map((p, idx) => {
 				const camel = toCamelCase(p);
@@ -146,7 +146,7 @@ export function detectRouteConflicts(
 			const [method] = methodPath.split(' ', 2);
 			conflicts.push({
 				type: 'duplicate',
-				routes: routeList.map(r => ({ method, path: r.path, filename: r.filename })),
+				routes: routeList.map((r) => ({ method, path: r.path, filename: r.filename })),
 				message: `Duplicate route: ${methodPath} defined in ${routeList.length} files`,
 			});
 		}
@@ -165,7 +165,7 @@ export function detectRouteConflicts(
 
 	for (const [method, routeList] of methodGroups.entries()) {
 		// Normalize params to check for conflicts
-		const normalized = routeList.map(r => ({
+		const normalized = routeList.map((r) => ({
 			...r,
 			normalizedPath: r.path.replace(/:[^/]+/g, ':param'),
 		}));
@@ -181,7 +181,7 @@ export function detectRouteConflicts(
 		for (const [normalizedPath, paths] of pathMap.entries()) {
 			if (paths.length > 1 && normalizedPath.includes(':param')) {
 				// Check if the actual param names differ
-				const uniquePaths = new Set(paths.map(p => p.path));
+				const uniquePaths = new Set(paths.map((p) => p.path));
 				if (uniquePaths.size > 1) {
 					conflicts.push({
 						type: 'ambiguous-param',

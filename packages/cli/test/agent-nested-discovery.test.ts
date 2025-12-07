@@ -219,16 +219,22 @@ export default agent;
 			writeFileSync(agentFile, code);
 
 			const transpiled = transpiler.transformSync(code);
-			const result = await parseAgentMetadata(TEST_DIR, agentFile, transpiled, 'proj_1', 'dep_1');
-			
+			const result = await parseAgentMetadata(
+				TEST_DIR,
+				agentFile,
+				transpiled,
+				'proj_1',
+				'dep_1'
+			);
+
 			if (result) {
 				results.push(result[1]);
 			}
 		}
 
 		expect(results).toHaveLength(5);
-		
-		const names = results.map(r => r.get('name')).sort();
+
+		const names = results.map((r) => r.get('name')).sort();
 		expect(names).toEqual([
 			'admin-settings-agent',
 			'create-user-agent',

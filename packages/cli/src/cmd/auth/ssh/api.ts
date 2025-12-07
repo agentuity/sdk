@@ -78,10 +78,7 @@ export async function addSSHKey(apiClient: APIClient, publicKey: string): Promis
 const ListSSHKeysError = StructuredError('ListSSHKeysError');
 
 export async function listSSHKeys(apiClient: APIClient): Promise<SSHKey[]> {
-	const resp = await apiClient.get(
-		'/cli/auth/ssh-keys',
-		APIResponseSchema(z.array(SSHKeySchema))
-	);
+	const resp = await apiClient.get('/cli/auth/ssh-keys', APIResponseSchema(z.array(SSHKeySchema)));
 
 	if (!resp.success) {
 		throw new ListSSHKeysError({ message: resp.message });

@@ -253,11 +253,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 			JSON.stringify(payload, null, 2)
 		);
 
-		await this.apiClient.post(
-			'/cli/devmode/agent',
-			payload,
-			z.object({ success: z.boolean() })
-		);
+		await this.apiClient.post('/cli/devmode/agent', payload, z.object({ success: z.boolean() }));
 	}
 
 	private async syncEvals(
@@ -279,11 +275,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 			JSON.stringify(payload, null, 2)
 		);
 
-		await this.apiClient.post(
-			'/cli/devmode/eval',
-			payload,
-			z.object({ success: z.boolean() })
-		);
+		await this.apiClient.post('/cli/devmode/eval', payload, z.object({ success: z.boolean() }));
 	}
 }
 

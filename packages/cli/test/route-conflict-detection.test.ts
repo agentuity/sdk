@@ -34,13 +34,13 @@ export default router;
 		writeFileSync(routeFile, code);
 
 		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
-		
+
 		// Should parse both routes successfully
 		expect(routes).toHaveLength(2);
-		
+
 		// Validation logic should detect this as a conflict
 		// (This will be implemented in plugin.ts validation)
-		const paths = routes.map(r => `${r.method.toUpperCase()} ${r.path}`);
+		const paths = routes.map((r) => `${r.method.toUpperCase()} ${r.path}`);
 		const duplicates = paths.filter((p, i) => paths.indexOf(p) !== i);
 		expect(duplicates).toHaveLength(1);
 		// Path will have /api/{folder} prefix
@@ -66,7 +66,7 @@ export default router;
 		// This might throw during parse or we catch it in validation
 		try {
 			const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
-			const normalized = routes.map(r => `${r.method.toUpperCase()} ${r.path}`);
+			const normalized = routes.map((r) => `${r.method.toUpperCase()} ${r.path}`);
 			const unique = new Set(normalized);
 			expect(unique.size).toBeLessThan(normalized.length);
 		} catch (error) {
@@ -94,9 +94,9 @@ export default router;
 
 		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
 		expect(routes).toHaveLength(4);
-		
+
 		// Should NOT be conflicts - different methods
-		const methodPathPairs = routes.map(r => `${r.method.toUpperCase()} ${r.path}`);
+		const methodPathPairs = routes.map((r) => `${r.method.toUpperCase()} ${r.path}`);
 		const unique = new Set(methodPathPairs);
 		expect(unique.size).toBe(4);
 	});
@@ -118,7 +118,7 @@ export default router;
 
 		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
 		expect(routes).toHaveLength(2);
-		
+
 		// These are runtime conflicts in Hono - both match same pattern
 		// Validation should warn about ambiguous routes
 		const hasParamConflict = routes[0].path.includes(':') && routes[1].path.includes(':');
@@ -143,11 +143,11 @@ export default router;
 
 		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
 		expect(routes).toHaveLength(3);
-		
+
 		// All three routes could match "/files/test"
-		// This is a potential conflict to warn about  
+		// This is a potential conflict to warn about
 		// Routes will have /api/{folder}/files prefix
-		const allFilesRoutes = routes.every(r => r.path.includes('/files'));
+		const allFilesRoutes = routes.every((r) => r.path.includes('/files'));
 		expect(allFilesRoutes).toBe(true);
 	});
 
@@ -168,17 +168,17 @@ export default router;
 
 		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
 		expect(routes).toHaveLength(2);
-		
+
 		// Hono treats these as different routes, but they might be unintentional duplicates
 		// Normalize for comparison
-		const normalized = routes.map(r => ({
+		const normalized = routes.map((r) => ({
 			method: r.method,
-			path: r.path.replace(/\/+$/, '') // Remove trailing slashes
+			path: r.path.replace(/\/+$/, ''), // Remove trailing slashes
 		}));
-		
-		const paths = normalized.map(r => `${r.method.toUpperCase()} ${r.path}`);
+
+		const paths = normalized.map((r) => `${r.method.toUpperCase()} ${r.path}`);
 		const duplicates = paths.filter((p, i) => paths.indexOf(p) !== i);
-		
+
 		// Should detect conflict between /users and /users/ (normalized to same path)
 		expect(duplicates.length).toBeGreaterThan(0);
 	});
@@ -186,13 +186,13 @@ export default router;
 	test('should validate variable name collisions in auto-mount', async () => {
 		// Test camelCase conversion for potential collisions
 		const { toCamelCase } = await import('../src/utils/string');
-		
+
 		const folders = ['user-api', 'userApi', 'user_api', 'UserAPI'];
-		const camelNames = folders.map(f => toCamelCase(f));
-		
+		const camelNames = folders.map((f) => toCamelCase(f));
+
 		// Check for collisions
 		const unique = new Set(camelNames);
-		
+
 		// If collision exists, we need validation
 		if (unique.size < camelNames.length) {
 			expect(unique.size).toBeLessThan(folders.length);
@@ -201,7 +201,7 @@ export default router;
 
 	test('should detect cross-file route conflicts', async () => {
 		const { parseRoute } = await import('../src/cmd/build/ast');
-		
+
 		// Create two files with potentially conflicting routes
 		const file1 = join(TEST_DIR, 'route1.ts');
 		const file2 = join(TEST_DIR, 'route2.ts');
@@ -233,9 +233,9 @@ export default router;
 		// But when combined, there's a conflict
 		// This validation should happen in plugin.ts when collecting all routes
 		const allRoutes = [...routes1, ...routes2];
-		const methodPaths = allRoutes.map(r => `${r.method.toUpperCase()} ${r.path}`);
+		const methodPaths = allRoutes.map((r) => `${r.method.toUpperCase()} ${r.path}`);
 		const duplicates = methodPaths.filter((p, i) => methodPaths.indexOf(p) !== i);
-		
+
 		expect(duplicates).toHaveLength(1);
 		// Path will have /api/{folder} prefix
 		expect(duplicates[0]).toContain('GET /api');
@@ -250,30 +250,30 @@ export default router;
 
 		const apiIndexRoutes = [
 			{ method: 'get', path: '/users', filename: 'src/api/index.ts' },
-			{ method: 'get', path: '/status', filename: 'src/api/index.ts' }
+			{ method: 'get', path: '/status', filename: 'src/api/index.ts' },
 		];
 
 		const usersRouteRoutes = [
-			{ method: 'get', path: '/', filename: 'src/api/users/route.ts' } // Will be mounted at /api/users
+			{ method: 'get', path: '/', filename: 'src/api/users/route.ts' }, // Will be mounted at /api/users
 		];
 
 		// After mounting users at /api/users, the effective path is /api/users/
 		// This conflicts with /users from index.ts if index is also at /api
-		
+
 		// Build effective paths (this logic should be in plugin.ts)
-		const apiIndexEffective = apiIndexRoutes.map(r => ({
+		const apiIndexEffective = apiIndexRoutes.map((r) => ({
 			...r,
-			effectivePath: r.path // Already under /api mount
+			effectivePath: r.path, // Already under /api mount
 		}));
 
-		const usersEffective = usersRouteRoutes.map(r => ({
+		const usersEffective = usersRouteRoutes.map((r) => ({
 			...r,
-			effectivePath: `/users${r.path}` // Mounted at /api/users
+			effectivePath: `/users${r.path}`, // Mounted at /api/users
 		}));
 
 		const allEffective = [...apiIndexEffective, ...usersEffective];
-		const paths = allEffective.map(r => `${r.method.toUpperCase()} ${r.effectivePath}`);
-		
+		const paths = allEffective.map((r) => `${r.method.toUpperCase()} ${r.effectivePath}`);
+
 		// Check for overlaps - should have both 'GET /users' from index and 'GET /users/' from subdirectory
 		const hasConflict = paths.includes('GET /users') && paths.includes('GET /users/');
 		expect(hasConflict).toBe(true);

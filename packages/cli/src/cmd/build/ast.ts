@@ -998,7 +998,7 @@ export async function parseRoute(
 
 	// For src/api/index.ts, we don't want to add the folder name since it's the root API router
 	const isRootApi = filename.includes('src/api/index.ts');
-	
+
 	// For nested routes, use the full path from src/api/ instead of just the immediate parent
 	// e.g., src/api/v1/users/route.ts -> routeName = "v1/users"
 	//       src/api/auth/route.ts -> routeName = "auth"

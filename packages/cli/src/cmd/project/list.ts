@@ -43,16 +43,9 @@ export const listSubcommand = createSubcommand({
 			},
 		});
 
-		// TODO: might want to sort by the last org_id we used
-		if (projects) {
-			projects.sort((a, b) => {
-				return a.name.localeCompare(b.name);
-			});
-		}
+		// Projects are sorted by createdAt (most recent first) from the API
 
-		if (options.json) {
-			console.log(JSON.stringify(projects, null, 2));
-		} else {
+		if (!options.json) {
 			tui.table(projects, ['id', 'name', 'orgName']);
 		}
 

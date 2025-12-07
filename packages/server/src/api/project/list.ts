@@ -23,15 +23,25 @@ export type ProjectList = z.infer<typeof ProjectListResponse>;
  *
  * @param client
  * @param hasDeployment if true, filter by projects with at least one deployment
+ * @param limit maximum number of projects to return (default: 1000, max: 10000)
  * @returns
  */
 export async function projectList(
 	client: APIClient,
-	hasDeployment?: boolean
+	hasDeployment?: boolean,
+	limit?: number
 ): Promise<ProjectList> {
+	const params = new URLSearchParams();
+	if (hasDeployment) {
+		params.append('hasDeployment', 'true');
+	}
+	if (limit !== undefined) {
+		params.append('limit', limit.toString());
+	}
+	const queryString = params.toString();
 	const resp = await client.request<ProjectListResponse>(
 		'GET',
-		`/cli/project${hasDeployment ? '?hasDeployment=true' : ''}`,
+		`/cli/project${queryString ? `?${queryString}` : ''}`,
 		ProjectListResponseSchema
 	);
 

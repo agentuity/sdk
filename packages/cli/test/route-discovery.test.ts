@@ -27,8 +27,8 @@ describe('Route Discovery', () => {
 		const routes = discoverRouteFiles(apiDir);
 
 		expect(routes).toHaveLength(2); // index.ts is skipped
-		expect(routes.find(r => r.mountPath === '/api/auth')).toBeDefined();
-		expect(routes.find(r => r.mountPath === '/api/users')).toBeDefined();
+		expect(routes.find((r) => r.mountPath === '/api/auth')).toBeDefined();
+		expect(routes.find((r) => r.mountPath === '/api/users')).toBeDefined();
 	});
 
 	test('should discover nested route files', () => {
@@ -42,13 +42,13 @@ describe('Route Discovery', () => {
 		const routes = discoverRouteFiles(apiDir);
 
 		expect(routes).toHaveLength(2);
-		
-		const adminUsers = routes.find(r => r.mountPath === '/api/v1/admin/users');
+
+		const adminUsers = routes.find((r) => r.mountPath === '/api/v1/admin/users');
 		expect(adminUsers).toBeDefined();
 		expect(adminUsers!.variableName).toBe('v1AdminUsersRoute');
 		expect(adminUsers!.importPath).toBe('./src/api/v1/admin/users/route');
 
-		const publicV2 = routes.find(r => r.mountPath === '/api/v2/public');
+		const publicV2 = routes.find((r) => r.mountPath === '/api/v2/public');
 		expect(publicV2).toBeDefined();
 		expect(publicV2!.variableName).toBe('v2PublicRoute');
 	});
@@ -64,9 +64,9 @@ describe('Route Discovery', () => {
 		const routes = discoverRouteFiles(apiDir);
 
 		expect(routes).toHaveLength(3);
-		expect(routes.every(r => r.mountPath === '/api/auth')).toBe(true);
-		
-		const variableNames = routes.map(r => r.variableName).sort();
+		expect(routes.every((r) => r.mountPath === '/api/auth')).toBe(true);
+
+		const variableNames = routes.map((r) => r.variableName).sort();
 		expect(variableNames).toEqual(['authLoginRoute', 'authLogoutRoute', 'authVerifyRoute']);
 	});
 
@@ -108,11 +108,11 @@ describe('Route Discovery', () => {
 		const routes = discoverRouteFiles(apiDir);
 
 		expect(routes).toHaveLength(2);
-		
-		const userMgmt = routes.find(r => r.mountPath === '/api/user-management');
+
+		const userMgmt = routes.find((r) => r.mountPath === '/api/user-management');
 		expect(userMgmt!.variableName).toBe('userManagementRoute');
 
-		const apiKeys = routes.find(r => r.mountPath === '/api/api-keys');
+		const apiKeys = routes.find((r) => r.mountPath === '/api/api-keys');
 		expect(apiKeys!.variableName).toBe('apiKeysRoute');
 	});
 
@@ -149,7 +149,7 @@ describe('Route Discovery', () => {
 		expect(routes).toHaveLength(4);
 
 		// Verify all files discovered
-		const filenames = routes.map(r => r.relativePath).sort();
+		const filenames = routes.map((r) => r.relativePath).sort();
 		expect(filenames).toEqual([
 			'custom/foobar.ts',
 			'custom/handler.ts',
@@ -158,16 +158,16 @@ describe('Route Discovery', () => {
 		]);
 
 		// Verify variable names
-		const foobar = routes.find(r => r.relativePath === 'custom/foobar.ts');
+		const foobar = routes.find((r) => r.relativePath === 'custom/foobar.ts');
 		expect(foobar!.variableName).toBe('customFoobarRoute');
 
-		const handler = routes.find(r => r.relativePath === 'custom/handler.ts');
+		const handler = routes.find((r) => r.relativePath === 'custom/handler.ts');
 		expect(handler!.variableName).toBe('customHandlerRoute');
 
-		const index = routes.find(r => r.relativePath === 'service/index.ts');
+		const index = routes.find((r) => r.relativePath === 'service/index.ts');
 		expect(index!.variableName).toBe('serviceRoute'); // index doesn't add to name
 
-		const api = routes.find(r => r.relativePath === 'service/api.ts');
+		const api = routes.find((r) => r.relativePath === 'service/api.ts');
 		expect(api!.variableName).toBe('serviceApiRoute');
 	});
 
@@ -183,13 +183,13 @@ describe('Route Discovery', () => {
 		expect(routes).toHaveLength(2);
 
 		// Both should be mounted at /api/admin (directory name, not file name)
-		expect(routes.every(r => r.mountPath === '/api/admin')).toBe(true);
+		expect(routes.every((r) => r.mountPath === '/api/admin')).toBe(true);
 
 		// But have different variable names
-		const users = routes.find(r => r.relativePath === 'admin/users.ts');
+		const users = routes.find((r) => r.relativePath === 'admin/users.ts');
 		expect(users!.variableName).toBe('adminUsersRoute');
 
-		const settings = routes.find(r => r.relativePath === 'admin/settings.ts');
+		const settings = routes.find((r) => r.relativePath === 'admin/settings.ts');
 		expect(settings!.variableName).toBe('adminSettingsRoute');
 	});
 });
@@ -260,7 +260,7 @@ describe('Route Conflict Detection', () => {
 		// Should detect conflict in v1 routes only
 		expect(conflicts).toHaveLength(1);
 		expect(conflicts[0].routes).toHaveLength(2);
-		expect(conflicts[0].routes.every(r => r.path.includes('/v1/'))).toBe(true);
+		expect(conflicts[0].routes.every((r) => r.path.includes('/v1/'))).toBe(true);
 	});
 
 	test('should handle multiple conflicts', () => {
@@ -274,6 +274,6 @@ describe('Route Conflict Detection', () => {
 		const conflicts = detectRouteConflicts(routes);
 
 		expect(conflicts).toHaveLength(2);
-		expect(conflicts.every(c => c.type === 'duplicate')).toBe(true);
+		expect(conflicts.every((c) => c.type === 'duplicate')).toBe(true);
 	});
 });

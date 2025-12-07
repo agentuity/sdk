@@ -82,21 +82,13 @@ const newUser = await client.post(
 );
 
 // PUT request
-const updatedUser = await client.put(
-	'/users/123',
-	{ name: 'Jane Doe' },
-	UserSchema
-);
+const updatedUser = await client.put('/users/123', { name: 'Jane Doe' }, UserSchema);
 
 // DELETE request
 await client.delete('/users/123');
 
 // PATCH request
-const patchedUser = await client.patch(
-	'/users/123',
-	{ email: 'newemail@example.com' },
-	UserSchema
-);
+const patchedUser = await client.patch('/users/123', { email: 'newemail@example.com' }, UserSchema);
 ```
 
 ## API Response Wrapper Pattern

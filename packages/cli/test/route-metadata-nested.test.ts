@@ -3,7 +3,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 // Use the integration suite's built metadata since it has nested routes
-const INTEGRATION_SUITE_DIR = join(__dirname, '..', '..', '..', 'apps', 'testing', 'integration-suite');
+const INTEGRATION_SUITE_DIR = join(
+	__dirname,
+	'..',
+	'..',
+	'..',
+	'apps',
+	'testing',
+	'integration-suite'
+);
 const METADATA_PATH = join(INTEGRATION_SUITE_DIR, '.agentuity', 'agentuity.metadata.json');
 
 interface Route {
@@ -21,7 +29,7 @@ function ensureMetadataExists() {
 	if (!existsSync(METADATA_PATH)) {
 		throw new Error(
 			'Integration suite metadata not found. ' +
-			'Build integration-suite first: cd apps/testing/integration-suite && bun run build'
+				'Build integration-suite first: cd apps/testing/integration-suite && bun run build'
 		);
 	}
 }
@@ -80,11 +88,12 @@ describe('Route Metadata - Nested Routes', () => {
 		ensureMetadataExists();
 		const metadata: Metadata = JSON.parse(readFileSync(METADATA_PATH, 'utf-8'));
 
-		const routes = metadata.routes.filter((r) => 
-			r.filename.startsWith('src/api/') && 
-			r.filename !== 'src/api/test.ts' && // test.ts has hardcoded /api paths (known issue)
-			r.filename !== 'src/api/hello.ts' && 
-			!r.path.startsWith('/workbench')
+		const routes = metadata.routes.filter(
+			(r) =>
+				r.filename.startsWith('src/api/') &&
+				r.filename !== 'src/api/test.ts' && // test.ts has hardcoded /api paths (known issue)
+				r.filename !== 'src/api/hello.ts' &&
+				!r.path.startsWith('/workbench')
 		);
 
 		// All filtered routes should start with /api and not have duplicate /api prefixes

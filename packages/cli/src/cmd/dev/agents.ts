@@ -63,15 +63,9 @@ export const agentsSubcommand = createSubcommand({
 		const queryParams = deploymentId ? `?deploymentId=${deploymentId}` : '';
 
 		const response = options.json
-			? await apiClient.get(
-					`/cli/agent/${projectId}${queryParams}`,
-					AgentsResponseSchema
-				)
+			? await apiClient.get(`/cli/agent/${projectId}${queryParams}`, AgentsResponseSchema)
 			: await tui.spinner('Fetching agents', async () => {
-					return apiClient.get(
-						`/cli/agent/${projectId}${queryParams}`,
-						AgentsResponseSchema
-					);
+					return apiClient.get(`/cli/agent/${projectId}${queryParams}`, AgentsResponseSchema);
 				});
 
 		if (!response.success) {

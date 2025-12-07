@@ -125,10 +125,7 @@ test('agent-nested', 'path-alias-imports', async () => {
 	assertDefined(helperAgent, 'Utils helper agent should be imported');
 
 	// Verify agents have correct metadata
-	assert(
-		dataAgent.metadata.name === 'v1-data-processor',
-		'Data agent should have correct name'
-	);
+	assert(dataAgent.metadata.name === 'v1-data-processor', 'Data agent should have correct name');
 	assert(
 		helperAgent.metadata.name === 'utils-string-helper',
 		'Helper agent should have correct name'
