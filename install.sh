@@ -8,6 +8,8 @@ RED='\033[0;31m'
 CYAN='\033[38;2;0;139;139m'
 NC='\033[0m' # No Color
 
+MIN_BUN_VERSION="1.3.3"
+
 requested_version=${VERSION:-}
 force_install=false
 non_interactive=false
@@ -338,6 +340,140 @@ check_musl_and_gcompat() {
   fi
 }
 
+version_compare() {
+  _vc_ver1="$1"
+  _vc_ver2="$2"
+  
+  # Remove 'v' prefix if present
+  _vc_ver1=$(echo "$_vc_ver1" | sed 's/^v//')
+  _vc_ver2=$(echo "$_vc_ver2" | sed 's/^v//')
+  
+  # Split versions into components
+  _vc_major1=$(echo "$_vc_ver1" | cut -d. -f1)
+  _vc_minor1=$(echo "$_vc_ver1" | cut -d. -f2)
+  _vc_patch1=$(echo "$_vc_ver1" | cut -d. -f3)
+  
+  _vc_major2=$(echo "$_vc_ver2" | cut -d. -f1)
+  _vc_minor2=$(echo "$_vc_ver2" | cut -d. -f2)
+  _vc_patch2=$(echo "$_vc_ver2" | cut -d. -f3)
+  
+  # Compare major version
+  if [ "$_vc_major1" -gt "$_vc_major2" ]; then
+    return 0
+  elif [ "$_vc_major1" -lt "$_vc_major2" ]; then
+    return 1
+  fi
+  
+  # Compare minor version
+  if [ "$_vc_minor1" -gt "$_vc_minor2" ]; then
+    return 0
+  elif [ "$_vc_minor1" -lt "$_vc_minor2" ]; then
+    return 1
+  fi
+  
+  # Compare patch version
+  if [ "$_vc_patch1" -ge "$_vc_patch2" ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+check_bun_version() {
+  # Check if we're in CI mode (auto-install enabled)
+  is_ci=false
+  if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${GITLAB_CI:-}" ] || [ -n "${CIRCLECI:-}" ] || [ -n "${JENKINS_HOME:-}" ] || [ -n "${TRAVIS:-}" ]; then
+    is_ci=true
+  fi
+  
+  if ! command -v bun >/dev/null 2>&1; then
+    print_message warning "${RED}Bun is not installed${NC}"
+    print_message info "${MUTED}Bun ${MIN_BUN_VERSION} or higher is required${NC}"
+    
+    if [ "$is_ci" = true ]; then
+      print_message info "${MUTED}CI environment detected - auto-installing Bun...${NC}"
+      if curl -fsSL https://bun.sh/install | bash; then
+        print_message info "${MUTED}Bun installed successfully${NC}"
+        # Add Bun to PATH for the current session
+        export PATH="$HOME/.bun/bin:$PATH"
+        print_message info "${MUTED}Continuing with installation...${NC}"
+      else
+        print_message error "Failed to install Bun"
+        exit 1
+      fi
+    elif [ "$non_interactive" = false ]; then
+      printf "Would you like to install Bun now? (Y/n): "
+      read -r response
+      case "$response" in
+        [nN][oO]|[nN])
+          print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
+          exit 1
+          ;;
+        *)
+          print_message info "${MUTED}Installing Bun...${NC}"
+          if curl -fsSL https://bun.sh/install | bash; then
+            print_message info "${MUTED}Bun installed successfully${NC}"
+            # Add Bun to PATH for the current session
+            export PATH="$HOME/.bun/bin:$PATH"
+            print_message info "${MUTED}Continuing with installation...${NC}"
+          else
+            print_message error "Failed to install Bun"
+            exit 1
+          fi
+          ;;
+      esac
+    else
+      print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
+      exit 1
+    fi
+  fi
+  
+  # Get installed Bun version
+  installed_bun_version=$(bun --version 2>/dev/null || echo "unknown")
+  
+  if [ "$installed_bun_version" = "unknown" ]; then
+    print_message error "Could not determine Bun version"
+    exit 1
+  fi
+  
+  # Check if version meets minimum requirement
+  if ! version_compare "$installed_bun_version" "$MIN_BUN_VERSION"; then
+    print_message warning "${RED}Bun version ${installed_bun_version} is installed${NC}"
+    print_message info "${MUTED}Bun ${MIN_BUN_VERSION} or higher is required${NC}"
+    
+    if [ "$is_ci" = true ]; then
+      print_message info "${MUTED}CI environment detected - auto-upgrading Bun...${NC}"
+      if bun upgrade; then
+        print_message info "${MUTED}Bun upgraded successfully${NC}"
+      else
+        print_message error "Failed to upgrade Bun"
+        exit 1
+      fi
+    elif [ "$non_interactive" = false ]; then
+      printf "Would you like to upgrade Bun now? (Y/n): "
+      read -r response
+      case "$response" in
+        [nN][oO]|[nN])
+          print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
+          exit 1
+          ;;
+        *)
+          print_message info "${MUTED}Upgrading Bun...${NC}"
+          if bun upgrade; then
+            print_message info "${MUTED}Bun upgraded successfully${NC}"
+          else
+            print_message error "Failed to upgrade Bun"
+            exit 1
+          fi
+          ;;
+      esac
+    else
+      print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
+      exit 1
+    fi
+  fi
+}
+
 unbuffered_sed() {
   if echo | sed -u -e "" >/dev/null 2>&1; then
     sed -nu "$@"
@@ -519,6 +655,9 @@ download_and_install() {
   rm -rf "$tmpdir"
   trap cleanup_terminal EXIT INT TERM
 }
+
+# Check for Bun installation and version
+check_bun_version
 
 # Check for legacy installations before proceeding
 check_brew_install

@@ -7,17 +7,22 @@ on:
       paths:
          - 'install.sh'
          - 'scripts/test-install.sh'
+         - 'scripts/test-bun-check.sh'
          - 'packages/cli/**'
          - '.github/workflows/test-install.yaml'
    pull_request:
       paths:
          - 'install.sh'
          - 'scripts/test-install.sh'
+         - 'scripts/test-bun-check.sh'
          - '.github/workflows/test-install.yaml'
 
 concurrency:
    group: ${{ github.workflow }}-${{ github.ref }}
    cancel-in-progress: true
+
+env:
+   CI: true
 
 jobs:
    # Test on native macOS and Linux runners
@@ -86,33 +91,33 @@ jobs:
                #   arch: ''
                - name: Debian 12 (Bookworm)
                  image: debian:12
-                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
                  arch: ''
                - name: Debian 11 (Bullseye)
                  image: debian:11
-                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
                  arch: ''
                - name: Ubuntu 24.04
                  image: ubuntu:24.04
-                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
                  arch: ''
                - name: Ubuntu 22.04
                  image: ubuntu:22.04
-                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
                  arch: ''
                - name: Ubuntu 20.04
                  image: ubuntu:20.04
-                 setup: 'apt-get update -qq && apt-get install -y -qq curl'
+                 setup: 'apt-get update -qq && apt-get install -y -qq curl unzip'
                  arch: ''
                - name: Fedora Latest
                  image: fedora:latest
-                 setup: 'dnf install -y -q curl'
+                 setup: 'dnf install -y -q curl unzip'
                  arch: ''
                # Note: Amazon Linux has curl-minimal pre-installed which conflicts with curl package
                # The install script works with curl-minimal, only gzip needs to be installed
                - name: Amazon Linux 2023
                  image: amazonlinux:2023
-                 setup: 'yum install -y -q gzip'
+                 setup: 'yum install -y -q gzip unzip'
                  arch: ''
 
       steps:
@@ -162,8 +167,8 @@ jobs:
 
               chmod +x test-container.sh
 
-              # Run test in container
-              if docker run --rm -v "$PWD:/app" -w /app ${{ matrix.distro.image }} sh -c './test-container.sh'; then
+              # Run test in container with CI env var
+              if docker run --rm -e CI=true -v "$PWD:/app" -w /app ${{ matrix.distro.image }} sh -c './test-container.sh'; then
                 echo "✅ ${{ matrix.distro.name }} test passed"
               else
                 echo "❌ ${{ matrix.distro.name }} test failed"
@@ -183,6 +188,20 @@ jobs:
            run: |
               chmod +x scripts/test-install.sh
               ./scripts/test-install.sh
+
+   # Test Bun version checking
+   test-bun-checks:
+      name: Test Bun Version Checks
+      runs-on: ubuntu-latest
+      timeout-minutes: 20
+      steps:
+         - name: Checkout
+           uses: actions/checkout@v4
+
+         - name: Run Bun version check tests
+           run: |
+              chmod +x scripts/test-bun-check.sh
+              ./scripts/test-bun-check.sh
 
    # Test specific scenarios
    test-scenarios:
@@ -208,8 +227,8 @@ jobs:
 
                - name: Force reinstall
                  test: |
-                    docker run --rm -v "$PWD:/app" -w /app ubuntu:latest sh -c '
-                      apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1
+                    docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
+                      apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
                       ./install.sh -y > /dev/null 2>&1
                       first_version=$($HOME/.agentuity/bin/agentuity --version)
                       ./install.sh -y --force
@@ -223,8 +242,8 @@ jobs:
 
                - name: Interactive mode simulation
                  test: |
-                    docker run --rm -v "$PWD:/app" -w /app ubuntu:latest sh -c '
-                      apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1
+                    docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
+                      apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
                       echo | ./install.sh > /tmp/install.log 2>&1 || true
                       $HOME/.agentuity/bin/agentuity --version
                     '
@@ -244,7 +263,7 @@ jobs:
    test-summary:
       name: Test Summary
       runs-on: ubuntu-latest
-      needs: [test-native, test-linux-distros, test-suite, test-scenarios]
+      needs: [test-native, test-linux-distros, test-suite, test-bun-checks, test-scenarios]
       if: always()
       steps:
          - name: Check results
@@ -252,6 +271,7 @@ jobs:
               if [ "${{ needs.test-native.result }}" != "success" ] || \
                  [ "${{ needs.test-linux-distros.result }}" != "success" ] || \
                  [ "${{ needs.test-suite.result }}" != "success" ] || \
+                 [ "${{ needs.test-bun-checks.result }}" != "success" ] || \
                  [ "${{ needs.test-scenarios.result }}" != "success" ]; then
                 echo "❌ Some tests failed"
                 exit 1

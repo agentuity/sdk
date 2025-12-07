@@ -82,6 +82,9 @@ set -e
 # Setup package manager and install dependencies if needed
 '"$setup_cmd"'
 
+# Ensure CI env var is set
+export CI=true
+
 # Run install script
 if ! ./install.sh -y > /tmp/install.log 2>&1; then
   echo "Install failed:"
@@ -167,7 +170,7 @@ main() {
     
     # Test Debian
     total=$((total + 1))
-    if test_docker_image "Debian" "debian:latest" "apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1"; then
+    if test_docker_image "Debian" "debian:latest" "apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1"; then
       passed=$((passed + 1))
     else
       failed=$((failed + 1))
@@ -175,7 +178,7 @@ main() {
     
     # Test Ubuntu
     total=$((total + 1))
-    if test_docker_image "Ubuntu" "ubuntu:latest" "apt-get update -qq && apt-get install -y -qq curl > /dev/null 2>&1"; then
+    if test_docker_image "Ubuntu" "ubuntu:latest" "apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1"; then
       passed=$((passed + 1))
     else
       failed=$((failed + 1))
@@ -185,7 +188,7 @@ main() {
     total=$((total + 1))
     arch=$(uname -m)
     if [ "$arch" = "x86_64" ]; then
-      if test_docker_image "Arch Linux" "archlinux:latest" "pacman -Sy --noconfirm curl > /dev/null 2>&1"; then
+      if test_docker_image "Arch Linux" "archlinux:latest" "pacman -Sy --noconfirm curl unzip > /dev/null 2>&1"; then
         passed=$((passed + 1))
       else
         failed=$((failed + 1))
