@@ -230,11 +230,25 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 	// Initialize git repository if git is available
 	const gitPath = Bun.which('git');
 	if (gitPath) {
+		// Get default branch from git config, fallback to 'main'
+		let defaultBranch = 'main';
+		try {
+			const result = Bun.spawnSync(['git', 'config', '--global', 'init.defaultBranch']);
+			if (result.exitCode === 0) {
+				const branch = result.stdout.toString().trim();
+				if (branch) {
+					defaultBranch = branch;
+				}
+			}
+		} catch {
+			// Ignore errors, use fallback
+		}
+
 		// Git is available, initialize repository
 		await tui.runCommand({
-			command: 'git init',
+			command: `git init -b ${defaultBranch}`,
 			cwd: dest,
-			cmd: ['git', 'init'],
+			cmd: ['git', 'init', '-b', defaultBranch],
 			clearOnSuccess: true,
 		});
 
