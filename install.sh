@@ -348,6 +348,11 @@ version_compare() {
   _vc_ver1=$(echo "$_vc_ver1" | sed 's/^v//')
   _vc_ver2=$(echo "$_vc_ver2" | sed 's/^v//')
   
+  # Strip prerelease identifiers (e.g., -alpha.1) and build metadata (e.g., +abc123)
+  # This ensures 1.3.3-alpha.1 is treated as 1.3.3 for comparison
+  _vc_ver1=$(echo "$_vc_ver1" | sed 's/[-+].*//')
+  _vc_ver2=$(echo "$_vc_ver2" | sed 's/[-+].*//')
+  
   # Split versions into components
   _vc_major1=$(echo "$_vc_ver1" | cut -d. -f1)
   _vc_minor1=$(echo "$_vc_ver1" | cut -d. -f2)
@@ -356,6 +361,14 @@ version_compare() {
   _vc_major2=$(echo "$_vc_ver2" | cut -d. -f1)
   _vc_minor2=$(echo "$_vc_ver2" | cut -d. -f2)
   _vc_patch2=$(echo "$_vc_ver2" | cut -d. -f3)
+  
+  # Validate that all components are numeric
+  case "$_vc_major1" in ''|*[!0-9]*) return 2 ;; esac
+  case "$_vc_minor1" in ''|*[!0-9]*) return 2 ;; esac
+  case "$_vc_patch1" in ''|*[!0-9]*) return 2 ;; esac
+  case "$_vc_major2" in ''|*[!0-9]*) return 2 ;; esac
+  case "$_vc_minor2" in ''|*[!0-9]*) return 2 ;; esac
+  case "$_vc_patch2" in ''|*[!0-9]*) return 2 ;; esac
   
   # Compare major version
   if [ "$_vc_major1" -gt "$_vc_major2" ]; then
