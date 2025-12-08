@@ -23,6 +23,7 @@ import { getDevmodeDeploymentId } from '../build/ast';
 import { BuildMetadata } from '@agentuity/server';
 import { getCommand } from '../../command-prefix';
 import { notifyWorkbenchClients } from '../../utils/workbench-notify';
+import { getEnvFilePaths, readEnvFile } from '../../env-util';
 
 const shouldDisableInteractive = (interactive?: boolean) => {
 	if (!interactive) {
@@ -183,7 +184,25 @@ export const command = createCommand({
 
 		showBanner();
 
-		const env = { ...process.env };
+		// Load .env file(s) based on config profile (Bun no longer auto-loads .env files)
+		const isProduction = process.env.NODE_ENV === 'production' || config?.name !== 'local';
+		const envFiles = getEnvFilePaths(rootDir, {
+			configName: config?.name,
+			isProduction,
+		});
+
+		// Load and merge all .env files (later files override earlier ones)
+		let envVars: Record<string, string> = {};
+		for (const envFilePath of envFiles) {
+			if (await Bun.file(envFilePath).exists()) {
+				const vars = await readEnvFile(envFilePath);
+				envVars = { ...envVars, ...vars };
+				logger.debug('Loaded environment variables from %s', envFilePath);
+			}
+		}
+
+		// Start with process.env and merge in .env file vars
+		const env: Record<string, string | undefined> = { ...process.env, ...envVars };
 		env.AGENTUITY_SDK_DEV_MODE = 'true';
 		env.AGENTUITY_ENV = 'development';
 		env.NODE_ENV = 'development';

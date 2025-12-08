@@ -253,7 +253,7 @@ export async function saveConfig(config: Config, customPath?: string): Promise<v
 	cachedConfig = config;
 }
 
-async function getOrInitConfig(): Promise<Config> {
+export async function getOrInitConfig(): Promise<Config> {
 	const config = await loadConfig();
 	if (config) {
 		return config;

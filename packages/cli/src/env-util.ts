@@ -33,6 +33,29 @@ export async function findExistingEnvFile(dir: string): Promise<string> {
 }
 
 /**
+ * Find env files to load based on config profile.
+ * Returns list of .env file paths in order of precedence:
+ * - For production or non-local: .env.{configName}, .env, .env.production
+ * - For local/development: .env.{configName}, .env.development, .env
+ */
+export function getEnvFilePaths(
+	dir: string,
+	options: { configName?: string; isProduction?: boolean }
+): string[] {
+	const { configName, isProduction = false } = options;
+
+	const files: string[] = isProduction
+		? ['.env', '.env.production']
+		: ['.env.development', '.env'];
+
+	if (configName) {
+		files.unshift(`.env.${configName}`);
+	}
+
+	return files.map((f) => join(dir, f));
+}
+
+/**
  * Parse a single line from an .env file
  * Handles comments, empty lines, and quoted values
  */
