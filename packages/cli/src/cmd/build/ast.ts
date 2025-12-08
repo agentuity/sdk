@@ -1,5 +1,5 @@
 import * as acornLoose from 'acorn-loose';
-import { dirname, relative } from 'node:path';
+import { dirname, relative, join, basename } from 'node:path';
 import { parse as parseCronExpression } from '@datasert/cronjs-parser';
 import { generate } from 'astring';
 import type { BuildMetadata } from '../../types';
@@ -7,7 +7,7 @@ import { createLogger } from '@agentuity/server';
 import * as ts from 'typescript';
 import { StructuredError, type WorkbenchConfig } from '@agentuity/core';
 import type { LogLevel } from '../../types';
-import { join } from 'node:path';
+
 import { existsSync, mkdirSync } from 'node:fs';
 import JSON5 from 'json5';
 import { formatSchemaCode } from './format-schema';
@@ -152,7 +152,7 @@ function getEvalId(
 	name: string,
 	version: string
 ): string {
-	return `eval_${hashSHA1(projectId, deploymentId, filename, name, version)}`;
+	return `evalid_${hashSHA1(projectId, deploymentId, filename, name, version)}`;
 }
 
 function generateRouteId(
@@ -172,7 +172,7 @@ function generateStableAgentId(projectId: string, name: string): string {
 }
 
 function generateStableEvalId(projectId: string, agentId: string, name: string): string {
-	return `evalid_${hashSHA1(projectId, agentId, name)}`.substring(0, 64);
+	return `eval_${hashSHA1(projectId, agentId, name)}`.substring(0, 64);
 }
 
 /**
@@ -328,14 +328,118 @@ function createAgentMetadataNode(
 
 const DuplicateNameError = StructuredError('DuplicateNameError')<{ filename: string }>();
 
-export function parseEvalMetadata(
+function injectEvalMetadata(
+	configObj: ASTObjectExpression,
+	evalId: string,
+	stableEvalId: string,
+	version: string,
+	filename: string,
+	agentId?: string
+): void {
+	// Create metadata object with eval IDs and version
+	const properties = [
+		createObjectPropertyNode('id', evalId),
+		createObjectPropertyNode('evalId', stableEvalId),
+		createObjectPropertyNode('version', version),
+		createObjectPropertyNode('filename', filename),
+	];
+
+	// Add agentId if available
+	if (agentId) {
+		properties.push(createObjectPropertyNode('agentId', agentId));
+	}
+
+	const metadataObj: ASTPropertyNode = {
+		type: 'Property',
+		kind: 'init',
+		key: {
+			type: 'Identifier',
+			name: 'metadata',
+		},
+		value: {
+			type: 'ObjectExpression',
+			properties,
+		} as ASTObjectExpression,
+	};
+
+	// Add metadata to the config object
+	configObj.properties.push(metadataObj);
+}
+
+function findAgentVariableAndImport(ast: ASTProgram): { varName: string; importPath: string } | undefined {
+	// First, find what variable is being used in agent.createEval() calls
+	let agentVarName: string | undefined;
+	
+	for (const node of ast.body) {
+		if (node.type === 'ExportNamedDeclaration') {
+			const exportDecl = node as {
+				declaration?: { type: string; declarations?: Array<ASTVariableDeclarator> };
+			};
+			if (exportDecl.declaration?.type === 'VariableDeclaration') {
+				const variableDeclaration = exportDecl.declaration as {
+					declarations: Array<ASTVariableDeclarator>;
+				};
+				
+				for (const vardecl of variableDeclaration.declarations) {
+					if (vardecl.type === 'VariableDeclarator' && vardecl.init?.type === 'CallExpression') {
+						const call = vardecl.init as ASTCallExpression;
+						if (call.callee.type === 'MemberExpression') {
+							const memberExpr = call.callee as ASTMemberExpression;
+							const object = memberExpr.object as ASTNodeIdentifier;
+							const property = memberExpr.property as ASTNodeIdentifier;
+							if (
+								object.type === 'Identifier' &&
+								property.type === 'Identifier' &&
+								property.name === 'createEval'
+							) {
+								agentVarName = object.name;
+								break;
+							}
+						}
+					}
+				}
+				if (agentVarName) break;
+			}
+		}
+	}
+	
+	if (!agentVarName) return undefined;
+	
+	// Now find the import for this variable
+	for (const node of ast.body) {
+		if (node.type === 'ImportDeclaration') {
+			const importDecl = node as unknown as {
+				source: ASTLiteral;
+				specifiers: Array<{
+					type: string;
+					local: ASTNodeIdentifier;
+				}>;
+			};
+			
+			// Find default import specifier that matches our variable
+			for (const spec of importDecl.specifiers) {
+				if (spec.type === 'ImportDefaultSpecifier' && spec.local.name === agentVarName) {
+					const importPath = importDecl.source.value;
+					if (typeof importPath === 'string') {
+						return { varName: agentVarName, importPath };
+					}
+				}
+			}
+		}
+	}
+	
+	return undefined;
+}
+
+export async function parseEvalMetadata(
 	rootDir: string,
 	filename: string,
 	contents: string,
 	projectId: string,
 	deploymentId: string,
-	agentId?: string
-): [
+	agentId?: string,
+	agentMetadata?: Map<string, Map<string, string>>
+): Promise<[
 	string,
 	Array<{
 		filename: string;
@@ -345,7 +449,7 @@ export function parseEvalMetadata(
 		evalId: string;
 		description?: string;
 	}>,
-] {
+]> {
 	const logLevel = (process.env.AGENTUITY_LOG_LEVEL || 'info') as
 		| 'trace'
 		| 'debug'
@@ -369,6 +473,41 @@ export function parseEvalMetadata(
 		evalId: string;
 		description?: string;
 	}> = [];
+
+	// Try to find the corresponding agent to get the agentId
+	let resolvedAgentId = agentId;
+	if (!resolvedAgentId && agentMetadata) {
+		const agentInfo = findAgentVariableAndImport(ast);
+		if (agentInfo) {
+			logger.trace(`[EVAL METADATA] Found agent variable '${agentInfo.varName}' imported from '${agentInfo.importPath}'`);
+			
+			// Resolve the import path to actual file path
+			let resolvedPath = agentInfo.importPath;
+			if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
+				// Convert relative path to match the format in agentMetadata
+				const baseDir = dirname(filename);
+				resolvedPath = join(baseDir, resolvedPath);
+				// Normalize and ensure .ts extension
+				if (!resolvedPath.endsWith('.ts')) {
+					resolvedPath += '.ts';
+				}
+			}
+			
+			// Find the agent metadata from the passed agentMetadata map
+			for (const [agentFile, metadata] of agentMetadata) {
+				// Check if this agent file matches the resolved import path
+				if (agentFile.includes(basename(resolvedPath)) && metadata.has('agentId')) {
+					resolvedAgentId = metadata.get('agentId');
+					logger.trace(`[EVAL METADATA] Resolved agentId from agent metadata: ${resolvedAgentId} (file: ${agentFile})`);
+					break;
+				}
+			}
+			
+			if (!resolvedAgentId) {
+				logger.warn(`[EVAL METADATA] Could not find agent metadata for import path: ${resolvedPath}`);
+			}
+		}
+	}
 
 	// Find all exported agent.createEval() calls
 	for (const body of ast.body) {
@@ -451,16 +590,18 @@ export function parseEvalMetadata(
 								);
 								const evalId = getEvalId(projectId, deploymentId, rel, finalName, version);
 
-								// Generate stable evalId
-								const effectiveAgentId = agentId || '';
+								// Generate stable evalId using resolved agentId
+								const effectiveAgentId = resolvedAgentId || '';
 								const stableEvalId = generateStableEvalId(
 									projectId,
 									effectiveAgentId,
 									finalName
 								);
 
-								// Note: We no longer inject metadata into the AST since there's no metadata object
-								// The runtime will generate IDs from the name parameter
+								// Inject eval metadata into the AST (same pattern as agents)
+								if (configObj) {
+									injectEvalMetadata(configObj, evalId, stableEvalId, version, rel, resolvedAgentId);
+								}
 
 								evals.push({
 									filename: rel,
@@ -740,13 +881,14 @@ export async function parseAgentMetadata(
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const evalsContents = transpiler.transformSync(evalsSource);
 		const agentId = result[1].get('agentId') || '';
-		const [, evals] = parseEvalMetadata(
+		const [, evals] = await parseEvalMetadata(
 			rootDir,
 			evalsPath,
 			evalsContents,
 			projectId,
 			deploymentId,
-			agentId
+			agentId,
+			new Map() // Empty map since we already have agentId
 		);
 		if (evals.length > 0) {
 			logger.trace(`Adding ${evals.length} eval(s) to agent metadata for ${name}`);

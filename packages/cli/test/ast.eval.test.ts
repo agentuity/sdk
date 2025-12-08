@@ -15,7 +15,7 @@ describe('parseEvalMetadata - createEval Parsing', () => {
 		rmSync(TEST_DIR, { recursive: true, force: true });
 	};
 
-	test('should parse createEval with name and description', () => {
+	test('should parse createEval with name and description', async () => {
 		setup();
 		const agentFile = join(TEST_DIR, 'agent.ts');
 		const code = `
@@ -43,7 +43,7 @@ export default agent;
 
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const contents = transpiler.transformSync(code);
-		const [, evals] = parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1');
+		const [, evals] = await parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1');
 
 		expect(evals).toHaveLength(1);
 		expect(evals[0].name).toBe('doubles-correctly');
@@ -54,7 +54,7 @@ export default agent;
 		cleanup();
 	});
 
-	test('should parse createEval with only name (no description)', () => {
+	test('should parse createEval with only name (no description)', async () => {
 		setup();
 		const agentFile = join(TEST_DIR, 'agent.ts');
 		const code = `
@@ -80,7 +80,7 @@ export default agent;
 
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const contents = transpiler.transformSync(code);
-		const [, evals] = parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1');
+		const [, evals] = await parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1');
 
 		expect(evals).toHaveLength(1);
 		expect(evals[0].name).toBe('basic-eval');
@@ -89,7 +89,7 @@ export default agent;
 		cleanup();
 	});
 
-	test('should parse multiple createEval calls', () => {
+	test('should parse multiple createEval calls', async () => {
 		setup();
 		const agentFile = join(TEST_DIR, 'agent.ts');
 		const code = `
@@ -124,7 +124,7 @@ export default agent;
 
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const contents = transpiler.transformSync(code);
-		const [, evals] = parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1');
+		const [, evals] = await parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1');
 
 		expect(evals).toHaveLength(3);
 		expect(evals[0].name).toBe('doubles-input');
@@ -137,7 +137,7 @@ export default agent;
 		cleanup();
 	});
 
-	test('should throw error if createEval name is not a string literal', () => {
+	test('should throw error if createEval name is not a string literal', async () => {
 		setup();
 		const agentFile = join(TEST_DIR, 'agent.ts');
 		const code = `
@@ -159,14 +159,14 @@ export default agent;
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const contents = transpiler.transformSync(code);
 
-		expect(() => parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1')).toThrow(
+		await expect(parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1')).rejects.toThrow(
 			'first argument must be a string literal'
 		);
 
 		cleanup();
 	});
 
-	test('should detect duplicate eval names', () => {
+	test('should detect duplicate eval names', async () => {
 		setup();
 		const agentFile = join(TEST_DIR, 'agent.ts');
 		const code = `
@@ -191,14 +191,14 @@ export default agent;
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const contents = transpiler.transformSync(code);
 
-		expect(() => parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1')).toThrow(
+		await expect(parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1')).rejects.toThrow(
 			'duplicate-name'
 		);
 
 		cleanup();
 	});
 
-	test('should handle agent with no evals', () => {
+	test('should handle agent with no evals', async () => {
 		setup();
 		const agentFile = join(TEST_DIR, 'agent.ts');
 		const code = `
@@ -214,7 +214,7 @@ export default agent;
 
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const contents = transpiler.transformSync(code);
-		const [, evals] = parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1');
+		const [, evals] = await parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1');
 
 		expect(evals).toHaveLength(0);
 

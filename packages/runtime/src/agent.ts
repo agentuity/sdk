@@ -1553,9 +1553,24 @@ export function createAgent<
 		await fireAgentEvent(runtime, agent as Agent, 'started', agentCtx);
 
 		try {
-			const result = inputSchema
-				? await (config.handler as any)(agentCtx, validatedInput)
-				: await (config.handler as any)(agentCtx);
+			// Wrap agent execution with span tracking if tracer is available
+			const result = await (async () => {
+				if (agentCtx.tracer && inHTTPContext()) {
+					const honoCtx = getHTTPContext();
+					return runWithSpan<any, TInput, TOutput, TStream>(
+						agentCtx.tracer,
+						agent as Agent<TInput, TOutput, TStream>,
+						honoCtx,
+						async () => inputSchema
+							? await (config.handler as any)(agentCtx, validatedInput)
+							: await (config.handler as any)(agentCtx)
+					);
+				} else {
+					return inputSchema
+						? await (config.handler as any)(agentCtx, validatedInput)
+						: await (config.handler as any)(agentCtx);
+				}
+			})();
 
 			let validatedOutput: any = result;
 			// Skip output validation for streaming agents (they return ReadableStream)
@@ -1595,6 +1610,12 @@ export function createAgent<
 		evalConfig: {
 			description?: string;
 			handler: EvalFunction<AgentInput, AgentOutput>;
+			metadata?: {
+				id?: string;
+				evalId?: string;
+				version?: string;
+				filename?: string;
+			};
 		}
 	): Eval<TInput, TOutput> => {
 		// Trace log to verify evals file is imported
@@ -1602,63 +1623,25 @@ export function createAgent<
 			`createEval called for agent "${name || 'unknown'}": registering eval "${evalName}"`
 		);
 
-		// Get filename (set by bundler)
-		const filename = '';
-
-		// Use name as identifier for consistency (same as agents)
-		const identifier = evalName;
-
-		// Use build-time injected id/version if available, otherwise generate at runtime
-		// Build-time injection happens via bundler AST transformation
-		let evalId: string | undefined;
-		let stableEvalId: string | undefined;
-		let version: string | undefined;
-
-		// Generate version from available metadata if not provided (deterministic hash)
-		// At build-time, version is hash of file contents; at runtime we use metadata
-		if (!version) {
-			const versionHasher = new Bun.CryptoHasher('sha1');
-			versionHasher.update(identifier);
-			versionHasher.update(evalName);
-			versionHasher.update(filename);
-			version = versionHasher.digest('hex');
-		}
-
-		// Generate eval ID using same logic as build-time (getEvalId) if not provided
-		// Format: eval_${hashSHA1(projectId, deploymentId, filename, name, version)}
-		if (!evalId) {
-			const projectId = runtimeConfig.getProjectId() || '';
-			const deploymentId = runtimeConfig.getDeploymentId() || '';
-			const idHasher = new Bun.CryptoHasher('sha1');
-			idHasher.update(projectId);
-			idHasher.update(deploymentId);
-			idHasher.update(filename);
-			idHasher.update(evalName);
-			idHasher.update(version);
-			evalId = `eval_${idHasher.digest('hex')}`;
-		}
-
-		// Generate stable evalId if not provided (for project-wide identification)
-		if (!stableEvalId) {
-			const projectId = runtimeConfig.getProjectId() || '';
-			const stableHasher = new Bun.CryptoHasher('sha1');
-			stableHasher.update(projectId);
-			stableHasher.update(evalName);
-			stableEvalId = `evalid_${stableHasher.digest('hex')}`.substring(0, 64);
-		}
-
+		// Use build-time injected metadata if available (same pattern as agents)
+		const evalMetadata = evalConfig.metadata || {};
+		
+		// Build eval metadata - merge injected metadata with defaults
 		const evalType: any = {
 			metadata: {
-				id: evalId,
-				evalId: stableEvalId,
-				version,
-				identifier,
+				// Use build-time injected metadata if available, otherwise fallback to empty/undefined
+				id: evalMetadata.id || undefined,
+				evalId: evalMetadata.evalId || undefined,
+				version: evalMetadata.version || undefined,
+				filename: evalMetadata.filename || '',
+				identifier: evalName,
 				name: evalName,
 				description: evalConfig.description || '',
-				filename,
 			},
 			handler: evalConfig.handler,
 		};
+		
+
 
 		if (inputSchema) {
 			evalType.inputSchema = inputSchema;
@@ -1736,6 +1719,16 @@ export function createAgent<
 			const validatedInput = ctx.state.get('_evalInput');
 			const validatedOutput = ctx.state.get('_evalOutput');
 
+			// Capture agentRunSpanId synchronously before waitUntil (which may run outside AsyncLocalStorage)
+			let agentRunSpanId: string | undefined;
+			try {
+				const httpCtx = getHTTPContext();
+				const _httpCtx = privateContext(httpCtx);
+				agentRunSpanId = _httpCtx.var.agentRunSpanId;
+			} catch {
+				// HTTP context may not be available, spanId will be undefined
+			}
+
 			// Execute each eval using waitUntil to avoid blocking the response
 			for (const evalItem of agentEvals) {
 				const evalName = evalItem.metadata.name || 'unnamed';
@@ -1744,7 +1737,29 @@ export function createAgent<
 					(async () => {
 						internal.info(`[EVALRUN] Starting eval run tracking for '${evalName}'`);
 						const evalRunId = generateId('evalrun');
+						// Use build-time injected eval ID (now properly injected via AST transformation)
 						const evalId = evalItem.metadata.id || '';
+						
+						// Log eval metadata using structured logging and tracing
+						ctx.logger.debug('Starting eval run with metadata', {
+							evalName,
+							evalRunId,
+							evalId,
+							evalMetadata: evalItem.metadata,
+						});
+						
+						// Add eval metadata to the active span for observability
+						const activeSpan = ctx.tracer ? trace.getActiveSpan() : undefined;
+						if (activeSpan) {
+							activeSpan.setAttributes({
+								'eval.name': evalName,
+								'eval.id': evalId,
+								'eval.runId': evalRunId,
+								'eval.description': evalItem.metadata.description || '',
+								'eval.filename': evalItem.metadata.filename || '',
+							});
+						}
+						
 						const orgId = runtimeConfig.getOrganizationId();
 						const projectId = runtimeConfig.getProjectId();
 						const devMode = runtimeConfig.isDevMode() ?? false;
@@ -1782,6 +1797,12 @@ export function createAgent<
 								);
 								try {
 									const deploymentId = runtimeConfig.getDeploymentId();
+									// Use captured agentRunSpanId (may be undefined if HTTP context unavailable)
+									if (!agentRunSpanId) {
+										internal.warn(
+											`[EVALRUN] agentRunSpanId not available for eval '${evalName}' (id: ${evalRunId}). This may occur if waitUntil runs outside AsyncLocalStorage context.`
+										);
+									}
 									const startEvent: EvalRunStartEvent = {
 										id: evalRunId,
 										sessionId: ctx.sessionId,
@@ -1790,6 +1811,7 @@ export function createAgent<
 										projectId: projectId!,
 										devmode: Boolean(devMode),
 										deploymentId: deploymentId || undefined,
+										spanId: agentRunSpanId,
 									};
 									internal.debug(
 										'[EVALRUN] Start event payload: %s',
@@ -2082,35 +2104,9 @@ export function createAgent<
 		removeEventListener: agent.removeEventListener,
 		run: inputSchema
 			? async (input: InferSchemaInput<Exclude<TInput, undefined>>) => {
-					// Get tracer from AsyncLocalStorage context if available
-					try {
-						const agentCtx = getAgentContext();
-						if (agentCtx?.tracer) {
-							return runWithSpan<any, TInput, TOutput, TStream>(
-								agentCtx.tracer,
-								agent as Agent<TInput, TOutput, TStream>,
-								async () => await agent.handler(input)
-							);
-						}
-					} catch {
-						// Context not available, skip span creation
-					}
 					return await agent.handler(input);
 				}
 			: async () => {
-					// Get tracer from AsyncLocalStorage context if available
-					try {
-						const agentCtx = getAgentContext();
-						if (agentCtx?.tracer) {
-							return runWithSpan<any, TInput, TOutput, TStream>(
-								agentCtx.tracer,
-								agent as Agent<TInput, TOutput, TStream>,
-								async () => await agent.handler()
-							);
-						}
-					} catch {
-						// Context not available, skip span creation
-					}
 					return await agent.handler();
 				},
 		[INTERNAL_AGENT]: agent, // Store reference to internal agent for testing
@@ -2127,10 +2123,17 @@ const runWithSpan = async <
 >(
 	tracer: Tracer,
 	agent: Agent<TInput, TOutput, TStream>,
+	ctx: Context,
 	handler: () => Promise<T>
 ): Promise<T> => {
 	const currentContext = context.active();
 	const span = tracer.startSpan('agent.run', {}, currentContext);
+
+	const spanId = span.spanContext().spanId;
+
+	// Store span ID in PrivateVariables
+	const _ctx = privateContext(ctx);
+	_ctx.set('agentRunSpanId', spanId);
 
 	try {
 		const spanContext = trace.setSpan(currentContext, span);
@@ -2161,6 +2164,7 @@ const createAgentRunner = <
 				return runWithSpan<any, TInput, TOutput, TStream>(
 					tracer,
 					agent,
+					ctx,
 					async () => await agent.handler(input)
 				);
 			},
@@ -2172,6 +2176,7 @@ const createAgentRunner = <
 				return runWithSpan<any, TInput, TOutput, TStream>(
 					tracer,
 					agent,
+					ctx,
 					async () => await agent.handler()
 				);
 			},

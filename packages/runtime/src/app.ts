@@ -106,6 +106,7 @@ export interface PrivateVariables {
 	routeId?: string;
 	agentIds: Set<string>;
 	trigger: TriggerType;
+	agentRunSpanId?: string;
 }
 
 export interface Env<TAppState = Record<string, never>> extends HonoEnv {

@@ -236,52 +236,56 @@ const AgentuityBundler: BunPlugin = {
 			let newsource = await Bun.file(args.path).text();
 			if (args.path.startsWith(srcDir)) {
 				const contents = transpiler.transformSync(newsource);
-				const result = await parseAgentMetadata(
-					rootDir,
-					args.path,
-					contents,
-					projectId,
-					deploymentId
-				);
 
-				// Skip files that don't have a createAgent export
-				if (result === undefined) {
-					return {
-						contents: newsource,
-						loader: 'ts',
-					};
-				}
+				// Check if this is an eval file (eval.ts)
+				if (args.path.endsWith('/eval.ts')) {
+					// parseEvalMetadata will find the agent from the import statement
+					const [ns] = await parseEvalMetadata(
+						rootDir,
+						args.path,
+						contents,
+						projectId,
+						deploymentId,
+						undefined, // No agentId - will be resolved from import
+						agentMetadata
+					);
+					newsource = ns;
+				} else {
+					// Handle regular agent files
+					const result = await parseAgentMetadata(
+						rootDir,
+						args.path,
+						contents,
+						projectId,
+						deploymentId
+					);
 
-				const [ns, md] = result;
-				newsource = ns;
-
-				// Only process files that actually export an agent
-				if (md.has('name')) {
-					const newAgentName = md.get('name');
-					for (const [, kv] of agentMetadata) {
-						const found = kv.get('name');
-						if (newAgentName === found) {
-							throw new AgentNameDuplicateError({
-								message: `The agent in ${kv.get('filename')} and the agent in ${md.get('filename')} have the same name (${found}). Agent Names must be unique within a project.`,
-							});
-						}
+					// Skip files that don't have a createAgent export
+					if (result === undefined) {
+						return {
+							contents: newsource,
+							loader: 'ts',
+						};
 					}
 
-					agentMetadata.set(md.get('name')!, md);
-				}
-			}
-			return {
-				contents: newsource,
-				loader: 'ts',
-			};
-		});
+					const [ns, md] = result;
+					newsource = ns;
 
-		build.onLoad({ filter: /\/eval\.ts$/, namespace: 'file' }, async (args) => {
-			let newsource = await Bun.file(args.path).text();
-			if (args.path.startsWith(srcDir)) {
-				const contents = transpiler.transformSync(newsource);
-				const [ns] = parseEvalMetadata(rootDir, args.path, contents, projectId, deploymentId);
-				newsource = ns;
+					// Only process files that actually export an agent
+					if (md.has('name')) {
+						const newAgentName = md.get('name');
+						for (const [, kv] of agentMetadata) {
+							const found = kv.get('name');
+							if (newAgentName === found) {
+								throw new AgentNameDuplicateError({
+									message: `The agent in ${kv.get('filename')} and the agent in ${md.get('filename')} have the same name (${found}). Agent Names must be unique within a project.`,
+								});
+							}
+						}
+
+						agentMetadata.set(md.get('name')!, md);
+					}
+				}
 			}
 			return {
 				contents: newsource,
