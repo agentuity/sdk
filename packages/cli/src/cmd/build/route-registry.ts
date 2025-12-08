@@ -37,13 +37,13 @@ export interface RouteInfo {
  * @param routes - Array of route information
  */
 export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void {
-	// Filter routes by type and validator presence
-	const apiRoutes = routes.filter((r) => r.hasValidator && r.routeType === 'api');
-	const websocketRoutes = routes.filter((r) => r.hasValidator && r.routeType === 'websocket');
-	const sseRoutes = routes.filter((r) => r.hasValidator && r.routeType === 'sse');
+	// Filter routes by type (include ALL routes, not just those with validators)
+	const apiRoutes = routes.filter((r) => r.routeType === 'api');
+	const websocketRoutes = routes.filter((r) => r.routeType === 'websocket');
+	const sseRoutes = routes.filter((r) => r.routeType === 'sse');
 
 	if (apiRoutes.length === 0 && websocketRoutes.length === 0 && sseRoutes.length === 0) {
-		// No typed routes, skip generation
+		// No routes, skip generation
 		return;
 	}
 
@@ -52,11 +52,15 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 	const agentImports = new Map<string, string>(); // Maps agent variable to unique import name
 	const schemaImports = new Set<string>(); // Track which schema variables we've seen
 
-	// Combine all typed routes for import collection
-	const allTypedRoutes = [...apiRoutes, ...websocketRoutes, ...sseRoutes];
+	// Combine all routes for import collection
+	const allRoutes = [...apiRoutes, ...websocketRoutes, ...sseRoutes];
 
-	// First pass: collect all unique agents and schema variables
-	allTypedRoutes.forEach((route) => {
+	// First pass: collect all unique agents and schema variables (only for routes with validators)
+	allRoutes.forEach((route) => {
+		// Skip routes without validators - they won't need imports
+		if (!route.hasValidator) {
+			return;
+		}
 		// If this route uses an agent, import it directly
 		if (route.agentVariable && route.agentImportPath && !agentImports.has(route.agentVariable)) {
 			// Resolve the import path (could be @agent/hello, ../shared, etc.)
@@ -90,7 +94,11 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 
 	// Import schema variables from route files
 	const routeFileImports = new Map<string, Set<string>>(); // Maps route file to schema variables
-	allTypedRoutes.forEach((route) => {
+	allRoutes.forEach((route) => {
+		// Only import schemas for routes with validators
+		if (!route.hasValidator) {
+			return;
+		}
 		if (route.inputSchemaVariable || route.outputSchemaVariable) {
 			const filename = route.filename.replace(/\\/g, '/');
 			const importPath = `../${filename.replace(/\.ts$/, '')}`;
@@ -119,6 +127,14 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 	// Helper function to generate route entry
 	const generateRouteEntry = (route: RouteInfo): string => {
 		const routeKey = route.path; // Use path only for websocket/sse, or METHOD path for API
+
+		// If route doesn't have a validator, use never for schemas
+		if (!route.hasValidator) {
+			return `  '${routeKey}': {
+    inputSchema: never;
+    outputSchema: never;
+  };`;
+		}
 
 		// If we have an agent variable, we can infer types from it
 		if (route.agentVariable) {
