@@ -6,8 +6,8 @@ import { toPascalCase } from '../../utils/string';
 const newAgentTemplate = (name: string) => `import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-export const ${name} = createAgent('${name}', {
-    description: 'Add your agent description here',
+export default createAgent('${name}', {
+	description: 'Add your agent description here',
 	schema: {
 		input: s.string(),
 		output: s.string(),
@@ -19,7 +19,7 @@ export const ${name} = createAgent('${name}', {
 });
 `;
 
-const newAgentIndexTemplate = (name: string) => `export { ${name} } from './agent';
+const newAgentIndexTemplate = (_name: string) => `export { default } from './agent';
 `;
 
 const newRouteTemplate = () => {
