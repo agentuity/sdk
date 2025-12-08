@@ -16,7 +16,6 @@ const OrgDBResource = z.object({
 	username: z.string().nullable().optional().describe('the database username'),
 	password: z.string().nullable().optional().describe('the database password'),
 	url: z.string().nullable().optional().describe('the full database connection URL'),
-	logical_databases: z.array(z.string()).optional().describe('list of logical databases'),
 	cloud_region: z.string().describe('the cloud region where this resource is provisioned'),
 });
 
@@ -35,8 +34,6 @@ export type OrgDBResource = z.infer<typeof OrgDBResource>;
 export interface ListOrgResourcesOptions {
 	/** Filter by resource type (default: "all") */
 	type?: 'all' | 's3' | 'db';
-	/** Include logical databases in DB resources (default: true) */
-	includeLogicalDbs?: boolean;
 }
 
 /**
@@ -56,11 +53,8 @@ export interface ListOrgResourcesOptions {
  * const s3Only = await listOrgResources(client, { type: 's3' });
  *
  * @example
- * // Get only DBs without logical databases (faster)
- * const dbsOnly = await listOrgResources(client, {
- *   type: 'db',
- *   includeLogicalDbs: false
- * });
+ * // Get only DBs
+ * const dbsOnly = await listOrgResources(client, { type: 'db' });
  */
 export async function listOrgResources(
 	client: APIClient,
@@ -69,9 +63,6 @@ export async function listOrgResources(
 	const params = new URLSearchParams();
 	if (options?.type && options.type !== 'all') {
 		params.set('type', options.type);
-	}
-	if (options?.includeLogicalDbs === false) {
-		params.set('include_logical_dbs', 'false');
 	}
 
 	const query = params.toString();
