@@ -5,7 +5,7 @@
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface RouteRegistry {
 	// Will be augmented by generated code
-	// Format: 'METHOD /path': { inputSchema: ..., outputSchema: ... }
+	// Format: 'METHOD /path': { inputSchema: ..., outputSchema: ..., stream?: boolean }
 }
 
 /**

@@ -196,7 +196,7 @@ export function App() {
 						/>
 					</svg>
 
-					<h1 style={{ fontSize: '3rem', fontWeight: 100, margin: 0 }}>
+					<h1 style={{ fontSize: '3rem', fontWeight: 100, margin: 0, color: 'white' }}>
 						Integration Test Suite
 					</h1>
 

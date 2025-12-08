@@ -69,6 +69,7 @@ export interface RouteValidator {
 	 */
 	<TOutput extends StandardSchemaV1>(options: {
 		output: TOutput;
+		stream?: boolean;
 	}): Handler<
 		any,
 		any,
@@ -95,6 +96,7 @@ export interface RouteValidator {
 	>(options: {
 		input: TInput;
 		output?: TOutput;
+		stream?: boolean;
 	}): Handler<
 		any,
 		any,
@@ -157,8 +159,9 @@ export interface RouteValidator {
 export const validator: RouteValidator = ((options: {
 	input?: StandardSchemaV1;
 	output?: StandardSchemaV1;
+	stream?: boolean;
 }) => {
-	const { input: inputSchema, output: outputSchema } = options;
+	const { input: inputSchema, output: outputSchema, stream } = options;
 
 	// Helper to build input validator that detects HTTP method
 	const buildInputValidator = (schema: StandardSchemaV1): MiddlewareHandler => {
@@ -208,6 +211,9 @@ export const validator: RouteValidator = ((options: {
 		await next();
 
 		if (!outputSchema) return;
+
+		// Skip output validation for streaming routes
+		if (stream) return;
 
 		const res = c.res;
 		if (!res) return;

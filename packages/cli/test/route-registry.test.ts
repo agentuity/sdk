@@ -227,4 +227,121 @@ describe('Route Registry Generation', () => {
 			cleanup();
 		}
 	});
+
+	test('should include stream flag for streaming agents', () => {
+		const { tempDir, cleanup } = createTestDir();
+
+		try {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/stream',
+					filename: 'src/api/stream.ts',
+					hasValidator: true,
+					routeType: 'api',
+					agentVariable: 'streamAgent',
+					agentImportPath: '@agent/stream',
+				},
+				{
+					method: 'POST',
+					path: '/api/regular',
+					filename: 'src/api/regular.ts',
+					hasValidator: true,
+					routeType: 'api',
+					agentVariable: 'regularAgent',
+					agentImportPath: '@agent/regular',
+				},
+			];
+
+			generateRouteRegistry(join(tempDir, 'src'), routes);
+
+			const registryPath = join(tempDir, '.agentuity', 'routes.generated.ts');
+			const content = readFileSync(registryPath, 'utf-8');
+
+			// Stream route should have stream flag
+			const streamMatch = content.match(/'GET \/api\/stream'[\s\S]*?};/);
+			expect(streamMatch?.[0]).toContain('stream:');
+			expect(streamMatch?.[0]).toContain('agent_streamAgent');
+
+			// Regular route should also have stream flag (inferred from agent type)
+			const regularMatch = content.match(/'POST \/api\/regular'[\s\S]*?};/);
+			expect(regularMatch?.[0]).toContain('stream:');
+			expect(regularMatch?.[0]).toContain('agent_regularAgent');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('should infer stream flag from agent type using conditional type', () => {
+		const { tempDir, cleanup } = createTestDir();
+
+		try {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/events',
+					filename: 'src/api/events.ts',
+					hasValidator: true,
+					routeType: 'api',
+					agentVariable: 'eventsAgent',
+					agentImportPath: '@agent/events',
+				},
+			];
+
+			generateRouteRegistry(join(tempDir, 'src'), routes);
+
+			const registryPath = join(tempDir, '.agentuity', 'routes.generated.ts');
+			const content = readFileSync(registryPath, 'utf-8');
+
+			// Should use conditional type to infer stream flag
+			expect(content).toContain(
+				'stream: typeof agent_eventsAgent extends { stream?: infer S } ? S : false'
+			);
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('should include stream flag from validator({ stream: true })', () => {
+		const { tempDir, cleanup } = createTestDir();
+
+		try {
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/stream-post',
+					filename: 'src/api/stream.ts',
+					hasValidator: true,
+					routeType: 'api',
+					inputSchemaVariable: 'InputSchema',
+					outputSchemaVariable: 'OutputSchema',
+					stream: true,
+				},
+				{
+					method: 'GET',
+					path: '/api/normal',
+					filename: 'src/api/normal.ts',
+					hasValidator: true,
+					routeType: 'api',
+					outputSchemaVariable: 'OutputSchema',
+					stream: false,
+				},
+			];
+
+			generateRouteRegistry(join(tempDir, 'src'), routes);
+
+			const registryPath = join(tempDir, '.agentuity', 'routes.generated.ts');
+			const content = readFileSync(registryPath, 'utf-8');
+
+			// Stream route should have stream: true
+			const streamMatch = content.match(/'POST \/api\/stream-post'[\s\S]*?};/);
+			expect(streamMatch?.[0]).toContain('stream: true');
+
+			// Non-stream route should have stream: false
+			const normalMatch = content.match(/'GET \/api\/normal'[\s\S]*?};/);
+			expect(normalMatch?.[0]).toContain('stream: false');
+		} finally {
+			cleanup();
+		}
+	});
 });

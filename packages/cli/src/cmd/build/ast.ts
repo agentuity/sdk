@@ -48,7 +48,7 @@ interface ASTObjectExpression extends ASTNode {
 }
 
 interface ASTLiteral extends ASTNode {
-	value: string;
+	value: string | number | boolean | null;
 	raw?: string;
 }
 
@@ -75,7 +75,7 @@ function parseObjectExpressionToMap(expr: ASTObjectExpression): Map<string, stri
 		switch (prop.value.type) {
 			case 'Literal': {
 				const value = prop.value as unknown as ASTLiteral;
-				result.set(prop.key.name, value.value);
+				result.set(prop.key.name, String(value.value));
 				break;
 			}
 			default: {
@@ -255,7 +255,8 @@ function augmentAgentMetadataNode(
 	}
 	const name = metadata.get('name')!;
 	const descriptionNode = propvalue.properties.find((x) => x.key.name === 'description')?.value;
-	const description = descriptionNode ? (descriptionNode as ASTLiteral).value : '';
+	const descriptionValue = descriptionNode ? (descriptionNode as ASTLiteral).value : '';
+	const description = typeof descriptionValue === 'string' ? descriptionValue : '';
 	const agentId = generateStableAgentId(projectId, name);
 	metadata.set('version', version);
 	metadata.set('filename', rel);
@@ -414,7 +415,7 @@ export function parseEvalMetadata(
 									firstArg.type === 'Literal' &&
 									typeof (firstArg as ASTLiteral).value === 'string'
 								) {
-									evalName = (firstArg as ASTLiteral).value;
+									evalName = (firstArg as ASTLiteral).value as string;
 								} else {
 									throw new MetadataError({
 										filename,
@@ -435,7 +436,9 @@ export function parseEvalMetadata(
 											prop.key.name === 'description'
 										) {
 											if (prop.value.type === 'Literal') {
-												evalDescription = (prop.value as ASTLiteral).value;
+												const literalValue = (prop.value as ASTLiteral).value;
+												evalDescription =
+													typeof literalValue === 'string' ? literalValue : undefined;
 											}
 										}
 									}
@@ -777,6 +780,7 @@ interface ValidatorInfo {
 	agentVariable?: string;
 	inputSchemaVariable?: string;
 	outputSchemaVariable?: string;
+	stream?: boolean;
 }
 
 function hasValidatorCall(args: unknown[]): ValidatorInfo {
@@ -826,14 +830,16 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 }
 
 /**
- * Extract schema variable names from validator() call arguments
- * Example: validator({ input: myInputSchema, output: myOutputSchema })
+ * Extract schema variable names and stream flag from validator() call arguments
+ * Example: validator({ input: myInputSchema, output: myOutputSchema, stream: true })
  */
 function extractValidatorSchemas(callExpr: ASTCallExpression): {
 	inputSchemaVariable?: string;
 	outputSchemaVariable?: string;
+	stream?: boolean;
 } {
-	const result: { inputSchemaVariable?: string; outputSchemaVariable?: string } = {};
+	const result: { inputSchemaVariable?: string; outputSchemaVariable?: string; stream?: boolean } =
+		{};
 
 	// Check if validator has arguments
 	if (!callExpr.arguments || callExpr.arguments.length === 0) {
@@ -848,13 +854,63 @@ function extractValidatorSchemas(callExpr: ASTCallExpression): {
 
 	const objExpr = firstArg as ASTObjectExpression;
 	for (const prop of objExpr.properties) {
-		const keyName = prop.key.name;
+		// Extract key name defensively - could be Identifier or Literal
+		let keyName: string | undefined;
+		const propKey = prop.key as { type: string; name?: string; value?: unknown };
+		if (propKey.type === 'Identifier') {
+			keyName = propKey.name;
+		} else if (propKey.type === 'Literal') {
+			keyName = String(propKey.value);
+		}
+
+		if (!keyName) continue;
+
 		if ((keyName === 'input' || keyName === 'output') && prop.value.type === 'Identifier') {
 			const valueName = (prop.value as ASTNodeIdentifier).name;
 			if (keyName === 'input') {
 				result.inputSchemaVariable = valueName;
 			} else {
 				result.outputSchemaVariable = valueName;
+			}
+		}
+		// Extract stream flag - can be Literal, Identifier, or UnaryExpression (!0 or !1)
+		if (keyName === 'stream') {
+			if (prop.value.type === 'Literal') {
+				const literal = prop.value as ASTLiteral;
+				if (typeof literal.value === 'boolean') {
+					result.stream = literal.value;
+				}
+			} else if (prop.value.type === 'Identifier') {
+				const identifier = prop.value as ASTNodeIdentifier;
+				// Handle stream: true or stream: false as identifiers
+				if (identifier.name === 'true') {
+					result.stream = true;
+				} else if (identifier.name === 'false') {
+					result.stream = false;
+				}
+			} else if (prop.value.type === 'UnaryExpression') {
+				// Handle !0 (true) or !1 (false) - acorn-loose transpiles booleans this way
+				const unary = prop.value as { type: string; operator?: string; argument?: ASTNode };
+				if (unary.argument?.type === 'Literal') {
+					const literal = unary.argument as ASTLiteral;
+					// Numeric literal: !0 = true, !1 = false
+					if (typeof literal.value === 'number') {
+						if (unary.operator === '!') {
+							result.stream = literal.value === 0;
+						}
+					} else if (typeof literal.value === 'boolean') {
+						result.stream = unary.operator === '!' ? !literal.value : literal.value;
+					}
+				}
+				// Handle true/false as identifiers
+				if (unary.argument?.type === 'Identifier') {
+					const identifier = unary.argument as ASTNodeIdentifier;
+					if (identifier.name === 'true') {
+						result.stream = unary.operator === '!' ? false : true;
+					} else if (identifier.name === 'false') {
+						result.stream = unary.operator === '!' ? true : false;
+					}
+				}
 			}
 		}
 	}
@@ -883,7 +939,7 @@ function extractZValidatorSchema(callExpr: ASTCallExpression): {
 	if (targetArg.type === 'Literal') {
 		const targetValue = (targetArg as ASTLiteral).value;
 		// Only extract schemas for JSON body validation
-		if (targetValue !== 'json') {
+		if (typeof targetValue === 'string' && targetValue !== 'json') {
 			return result;
 		}
 	} else {
@@ -1051,7 +1107,7 @@ export async function parseRoute(
 							case 'patch':
 							case 'delete': {
 								if (action && (action as ASTLiteral).type === 'Literal') {
-									suffix = (action as ASTLiteral).value;
+									suffix = String((action as ASTLiteral).value);
 								} else {
 									throw new InvalidRouterConfigError({
 										filename,
@@ -1068,7 +1124,7 @@ export async function parseRoute(
 								method = 'post';
 								const theaction = action as ASTLiteral;
 								if (theaction.type === 'Literal') {
-									suffix = theaction.value;
+									suffix = String(theaction.value);
 									break;
 								}
 								break;
@@ -1088,7 +1144,7 @@ export async function parseRoute(
 									const number = theaction.properties.find((p) => p.key.name === 'number');
 									if (number && number.value.type === 'Literal') {
 										const phoneNumber = number.value as ASTLiteral;
-										suffix = hash(phoneNumber.value);
+										suffix = hash(String(phoneNumber.value));
 										break;
 									}
 								}
@@ -1099,7 +1155,7 @@ export async function parseRoute(
 								method = 'post';
 								const theaction = action as ASTLiteral;
 								if (theaction.type === 'Literal') {
-									const email = theaction.value;
+									const email = String(theaction.value);
 									suffix = hash(email);
 									break;
 								}
@@ -1110,7 +1166,7 @@ export async function parseRoute(
 								method = 'post';
 								const theaction = action as ASTLiteral;
 								if (theaction.type === 'Literal') {
-									const expression = theaction.value;
+									const expression = String(theaction.value);
 									try {
 										parseCronExpression(expression, { hasSeconds: false });
 									} catch (ex) {
@@ -1168,6 +1224,9 @@ export async function parseRoute(
 							}
 							if (validatorInfo.outputSchemaVariable) {
 								routeConfig.outputSchemaVariable = validatorInfo.outputSchemaVariable;
+							}
+							if (validatorInfo.stream !== undefined) {
+								routeConfig.stream = validatorInfo.stream;
 							}
 						}
 

@@ -25,6 +25,8 @@ export interface RouteInfo {
 	inputSchemaVariable?: string;
 	/** Output schema variable name if using validator({ output }) */
 	outputSchemaVariable?: string;
+	/** Whether this route is a streaming route (from validator({ stream: true })) */
+	stream?: boolean;
 }
 
 /**
@@ -38,7 +40,8 @@ export interface RouteInfo {
  */
 export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void {
 	// Filter routes by type (include ALL routes, not just those with validators)
-	const apiRoutes = routes.filter((r) => r.routeType === 'api');
+	// Note: 'stream' routes are HTTP routes that return ReadableStream, so include them with API routes
+	const apiRoutes = routes.filter((r) => r.routeType === 'api' || r.routeType === 'stream');
 	const websocketRoutes = routes.filter((r) => r.routeType === 'websocket');
 	const sseRoutes = routes.filter((r) => r.routeType === 'sse');
 
@@ -142,6 +145,7 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 			return `  '${routeKey}': {
     inputSchema: typeof ${importName} extends { inputSchema?: infer I } ? I : never;
     outputSchema: typeof ${importName} extends { outputSchema?: infer O } ? O : never;
+    stream: typeof ${importName} extends { stream?: infer S } ? S : false;
   };`;
 		}
 
@@ -153,9 +157,11 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 			const outputType = route.outputSchemaVariable
 				? `typeof ${route.outputSchemaVariable}`
 				: 'never';
+			const streamValue = route.stream === true ? 'true' : 'false';
 			return `  '${routeKey}': {
     inputSchema: ${inputType};
     outputSchema: ${outputType};
+    stream: ${streamValue};
   };`;
 		}
 

@@ -507,10 +507,12 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 			});
 		};
 
+		// Use POST for stream routes - allows accepting request body
+		// (validators will handle input validation if present)
 		if (middleware) {
-			return router.get(path, middleware, wrapper);
+			return router.post(path, middleware, wrapper);
 		} else {
-			return router.get(path, wrapper);
+			return router.post(path, wrapper);
 		}
 	};
 
