@@ -228,7 +228,7 @@ export async function createCLI(version: string): Promise<Command> {
 
 	program
 		.name('agentuity')
-		.version(version, '-V, --version', 'Display version')
+		.version(version, '-v, --version', 'Display version')
 		.helpOption('-h, --help=[json]', 'Display help (with optional JSON output)')
 		.allowUnknownOption(false)
 		.allowExcessArguments(false)
