@@ -17,7 +17,7 @@ Visit [https://agentuity.com](https://agentuity.com) to get started with Agentui
 The fastest way to install and get started is to install the CLI:
 
 ```bash
-curl -sSL https://v1.agentuity.com | sh
+curl -sSL https://v1.agentuity.sh | sh
 ```
 
 # Documentation
