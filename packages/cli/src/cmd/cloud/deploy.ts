@@ -27,6 +27,7 @@ import {
 	type DeploymentInstructions,
 	type DeploymentComplete,
 	type DeploymentStatusResult,
+	getAppBaseURL,
 } from '@agentuity/server';
 import {
 	findEnvFile,
@@ -51,6 +52,7 @@ const DeployResponseSchema = z.object({
 			deployment: z.string().describe('Deployment-specific URL'),
 			latest: z.string().describe('Latest/active deployment URL'),
 			custom: z.array(z.string()).optional().describe('Custom domain URLs'),
+			dashboard: z.string().describe('The dashboard URL for the deployment'),
 		})
 		.optional()
 		.describe('Deployment URLs'),
@@ -551,6 +553,10 @@ export const deploySubcommand = createSubcommand({
 				tui.success('Your project was deployed!');
 			}
 
+			const appUrl = getAppBaseURL(config?.name, config?.overrides);
+
+			const dashboard = `${appUrl}/r/${deployment.id}`;
+
 			// Show deployment URLs
 			if (complete?.publicUrls) {
 				tui.arrow(tui.bold(tui.padRight('Deployment ID:', 17)) + tui.link(deployment.id));
@@ -566,6 +572,7 @@ export const deploySubcommand = createSubcommand({
 					tui.arrow(
 						tui.bold(tui.padRight('Project URL:', 17)) + tui.link(complete.publicUrls.latest)
 					);
+					tui.arrow(tui.bold(tui.padRight('Dashboard URL:', 17)) + tui.link(dashboard));
 				}
 			}
 
@@ -579,6 +586,7 @@ export const deploySubcommand = createSubcommand({
 							deployment: complete.publicUrls.deployment,
 							latest: complete.publicUrls.latest,
 							custom: complete.publicUrls.custom,
+							dashboard,
 						}
 					: undefined,
 			};
