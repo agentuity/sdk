@@ -139,15 +139,12 @@ export const setupRequestAgentContext = <
 	next: () => Promise<void>
 ) => {
 	const ctx = new RequestAgentContext<TAgentMap, TConfig, TAppState>(args);
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const _ctx = ctx as any;
-	Object.getOwnPropertyNames(ctx).forEach((k) => {
-		ctxObject[k] = _ctx[k];
-	});
-	for (const k of ['waitUntil']) {
-		ctxObject[k] = _ctx[k];
-	}
-	// Replace executionCtx.waitUntil with our WaitUntilHandler
+
+	// Note: All Hono context variables are set via c.set() in _server.ts middleware.
+	// RequestAgentContext is only used within agents via AsyncLocalStorage.
+	// No properties need to be copied between them.
+
+	// Provide executionCtx.waitUntil for compatibility with Cloudflare Workers API
 	Object.defineProperty(ctxObject, 'executionCtx', {
 		get() {
 			return {

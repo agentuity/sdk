@@ -34,6 +34,7 @@ import {
 	getThreadProvider,
 	getSessionProvider,
 	getSessionEventProvider,
+	getServices,
 } from './_services';
 import { generateId } from './session';
 import WaitUntilHandler from './_waituntil';
@@ -225,6 +226,12 @@ export const createServer = async <TAppState>(
 		c.set('tracer', otel.tracer);
 		c.set('meter', otel.meter);
 		c.set('app', globalAppState);
+
+		// Set storage services so they're available in c.var
+		const services = getServices();
+		c.set('kv', services.kv);
+		c.set('stream', services.stream);
+		c.set('vector', services.vector);
 
 		const isWebSocket = c.req.header('upgrade')?.toLowerCase() === 'websocket';
 		const skipLogging = c.req.path.startsWith('/_agentuity/');

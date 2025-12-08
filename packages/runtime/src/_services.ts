@@ -275,6 +275,10 @@ export function getEvalRunEventProvider() {
 	return evalRunEvent;
 }
 
+export function getServices() {
+	return { kv, stream, vector };
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function registerServices(o: any, includeAgents = false) {
 	Object.defineProperty(o, 'kv', {
