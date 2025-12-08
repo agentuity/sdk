@@ -7,9 +7,10 @@ if [ -z "$1" ]; then
 	exit 1
 fi
 
-TARGET_DIR="$1"
+TARGET_DIR="$(cd "$1" && pwd)"
 
-echo "📦 Building and packing SDK packages for local development..."
+
+echo "📦 Building and packing SDK packages for local development to $TARGET_DIR..."
 
 cd "$(dirname "$0")/.."
 SDK_ROOT=$(pwd)
@@ -81,8 +82,9 @@ done
 # Update package.json scripts to use local CLI
 echo ""
 echo "🔧 Updating package.json scripts to use local CLI..."
-if [ -f "package.json" ]; then
+if [ -f "$TARGET_DIR/package.json" ]; then
     CLI_PATH="$SDK_ROOT/packages/cli/bin/cli.ts"
+    cd $TARGET_DIR
     bun -e "
         const fs = require('fs');
         const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
@@ -93,6 +95,7 @@ if [ -f "package.json" ]; then
         fs.writeFileSync('package.json', JSON.stringify(pkg, null, 3) + '\n');
         console.log('  ✓ Updated build and dev scripts to use $CLI_PATH');
     "
+    cd -
 fi
 
 # Cleanup

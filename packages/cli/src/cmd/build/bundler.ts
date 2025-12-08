@@ -305,10 +305,12 @@ export async function bundle({
 			format: 'esm',
 			banner: `// Generated file. DO NOT EDIT`,
 			// Disable minify for server bundle (keep code readable for debugging)
-			// Enable splitting to reduce bundle size by extracting common code
-			minify: false,
+			minify: !dev,
 			drop: isProd ? ['debugger'] : undefined,
-			splitting: true,
+			// Disable splitting - causes module initialization issues with externalized packages
+			// The chunk helper functions (__commonJS, __esm, etc.) don't properly handle
+			// CommonJS packages in node_modules that require() other modules
+			splitting: false,
 			conditions: [isProd ? 'production' : 'development', 'bun'],
 			external,
 			naming: {
@@ -322,9 +324,6 @@ export async function bundle({
 		if (!buildResult.success) {
 			handleBuildFailure(buildResult);
 		}
-		// Fix duplicate exports caused by Bun splitting bug
-		// See: https://github.com/oven-sh/bun/issues/5344
-		await fixDuplicateExportsInDirectory(outDir, false);
 	})();
 
 	const buildmetadata = getBuildMetadata();
@@ -486,19 +485,19 @@ export async function bundle({
 				await Bun.write(workbenchIndexFile, generateWorkbenchIndexHtml());
 
 				// Bundle workbench using generated files
-				// NOTE: Don't set 'root' to tempWorkbenchDir because it breaks module resolution
-				// Bun needs to resolve @agentuity/* packages from the project's node_modules
+				// Use same strategy as web bundle - fully bundle all dependencies to avoid cross-bundle chunk conflicts
 				const workbenchBuildConfig: Bun.BuildConfig = {
 					entrypoints: [workbenchIndexFile],
 					outdir: join(outDir, 'workbench'),
 					sourcemap: dev ? 'inline' : 'linked',
-					plugins: [AgentuityBundler], // i dont think we need this plugin here
 					target: 'browser',
 					format: 'esm',
 					banner: `// Generated file. DO NOT EDIT`,
-					minify: !dev, // Disable minification in dev to avoid module resolution issues
-					splitting: !dev, // Disable code splitting in dev to avoid relative import resolution issues
+					minify: true,
+					drop: isProd ? ['debugger'] : undefined,
+					splitting: true,
 					packages: 'bundle',
+					conditions: ['browser', 'import', 'default'],
 					naming: {
 						entry: '[dir]/[name].[ext]',
 						chunk: 'workbench/chunk/[name]-[hash].[ext]',
