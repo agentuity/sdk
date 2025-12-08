@@ -190,12 +190,24 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	} else if (skipPrompts) {
 		selectedTemplate = templates[0];
 	} else {
+		let maxLength = 15;
+		templates.forEach((t) => {
+			if (maxLength < t.name.length) {
+				maxLength = t.name.length;
+			}
+		});
+		maxLength = Math.min(maxLength + 1, 40);
+		const [_winWidth] = process.stdout.getWindowSize();
+		const winWidth = _winWidth - maxLength - 8; // space for the name and left indent
 		const templateId = await prompt.select({
 			message: 'Select a template:',
 			options: templates.map((t) => ({
 				value: t.id,
-				label: t.name,
-				hint: t.description,
+				label: t.name.padEnd(maxLength),
+				hint:
+					t.description.length > winWidth
+						? t.description.substring(0, winWidth - 3) + '...'
+						: t.description,
 			})),
 		});
 		const found = templates.find((t) => t.id === templateId);
