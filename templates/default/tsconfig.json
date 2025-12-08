@@ -21,7 +21,7 @@
 		"paths": {
 			"@agentuity/runtime": ["./.agentuity/.agentuity_runtime.ts"],
 			"@agent/*": ["./src/agent/*"],
-			"@api/*": ["./src/web/*"]
+			"@api/*": ["./src/api/*"]
 		}
 	},
 	"include": ["src/**/*", "app.ts", ".agentuity/*.generated.ts"]
