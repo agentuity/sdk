@@ -864,7 +864,9 @@ async function registerSubcommand(
 					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
 				}
 				if (normalized.optionalOrg && ctx.auth) {
-					ctx.orgId = await selectOptionalOrg(ctx as CommandContext & { apiClient: APIClientType });
+					ctx.orgId = await selectOptionalOrg(
+						ctx as CommandContext & { apiClient: APIClientType }
+					);
 				}
 				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;

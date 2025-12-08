@@ -83,7 +83,7 @@ export {
 	type CommandHandler,
 	type TableColumn,
 } from './repl';
-export { runSteps, setStepsColorScheme, stepSuccess, stepSkipped, stepError } from './steps';
+export { runSteps, stepSuccess, stepSkipped, stepError } from './steps';
 export { playSound } from './sound';
 export {
 	downloadWithProgress,
@@ -105,4 +105,4 @@ export type {
 } from './types';
 export { createSubcommand, createCommand } from './types';
 export type { ColorScheme } from './terminal';
-export type { Step, SimpleStep, ProgressStep, StepOutcome, ProgressCallback } from './steps';
+export type { Step, StepOutcome, StepContext } from './steps';

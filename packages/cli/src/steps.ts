@@ -1,65 +1,13 @@
 /**
- * Step progress UI component for showing animated steps with callbacks
+ * Steps UI Component v2 - Clean state-driven implementation
  *
- * Displays a checklist where each step animates in place with a spinner,
- * then shows success, skipped, or error icon based on callback result.
+ * Key principle: Render entire step list from state on every update cycle.
+ * Track total lines rendered to calculate cursor movement.
  */
 
 import type { ColorScheme } from './terminal';
 import type { LogLevel } from './types';
 import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server';
-
-/**
- * Get the appropriate exit function (Bun.exit or process.exit)
- */
-function getExitFn(): (code: number) => never {
-	const bunExit = (globalThis as { Bun?: { exit?: (code: number) => never } }).Bun?.exit;
-	return typeof bunExit === 'function' ? bunExit : process.exit.bind(process);
-}
-
-/**
- * Install interrupt handlers (SIGINT/SIGTERM + TTY raw mode for Ctrl+C)
- */
-function installInterruptHandlers(onInterrupt: () => void): () => void {
-	const cleanupFns: Array<() => void> = [];
-
-	const sigHandler = () => onInterrupt();
-	process.on('SIGINT', sigHandler);
-	process.on('SIGTERM', sigHandler);
-	cleanupFns.push(() => {
-		process.off('SIGINT', sigHandler);
-		process.off('SIGTERM', sigHandler);
-	});
-
-	// TTY raw mode fallback for Bun/Windows/inconsistent SIGINT delivery
-	const stdin = process.stdin as unknown as NodeJS.ReadStream;
-	if (stdin && stdin.isTTY) {
-		const onData = (buf: Buffer) => {
-			// Ctrl+C is ASCII ETX (0x03)
-			if (buf.length === 1 && buf[0] === 0x03) onInterrupt();
-		};
-		try {
-			stdin.setRawMode?.(true);
-		} catch {
-			// ignore if not supported
-		}
-		stdin.resume?.();
-		stdin.on('data', onData);
-		cleanupFns.push(() => {
-			stdin.off?.('data', onData);
-			stdin.pause?.();
-			try {
-				stdin.setRawMode?.(false);
-			} catch {
-				// ignore if setRawMode fails
-			}
-		});
-	}
-
-	return () => {
-		for (const fn of cleanupFns.splice(0)) fn();
-	};
-}
 
 // Spinner frames
 const FRAMES = ['◐', '◓', '◑', '◒'];
@@ -72,7 +20,7 @@ const ICONS = {
 	pending: '☐',
 } as const;
 
-// Color definitions (light/dark adaptive)
+// Color definitions
 const COLORS = {
 	cyan: { light: '\x1b[36m', dark: '\x1b[96m' },
 	blue: { light: '\x1b[34m', dark: '\x1b[94m' },
@@ -86,14 +34,9 @@ const COLORS = {
 	reset: '\x1b[0m',
 } as const;
 
-// Spinner color sequence
 const SPINNER_COLORS = ['cyan', 'blue', 'magenta', 'cyan'] as const;
 
-let currentColorScheme: ColorScheme = process.env.CI ? 'light' : 'dark';
-
-export function setStepsColorScheme(scheme: ColorScheme): void {
-	currentColorScheme = scheme;
-}
+const currentColorScheme: ColorScheme = process.env.CI ? 'light' : 'dark';
 
 function getColor(colorKey: keyof typeof COLORS): string {
 	const color = COLORS[colorKey];
@@ -104,103 +47,132 @@ function getColor(colorKey: keyof typeof COLORS): string {
 }
 
 /**
- * Step outcome
+ * Step outcome returned by step.run()
  */
 export type StepOutcome =
-	| { status: 'success' }
-	| { status: 'skipped'; reason?: string }
-	| { status: 'error'; message: string; cause?: Error };
+	| { status: 'success'; output?: string[] }
+	| { status: 'skipped'; reason?: string; output?: string[] }
+	| { status: 'error'; message: string; cause?: Error; output?: string[] };
 
 /**
  * Helper functions for creating step outcomes
  */
-export const stepSuccess = (): StepOutcome => ({ status: 'success' });
-export const stepSkipped = (reason?: string): StepOutcome => ({ status: 'skipped', reason });
-export const stepError = (message: string, cause?: Error): StepOutcome => ({
+export const stepSuccess = (output?: string[]): StepOutcome => ({ status: 'success', output });
+export const stepSkipped = (reason?: string, output?: string[]): StepOutcome => ({
+	status: 'skipped',
+	reason,
+	output,
+});
+export const stepError = (message: string, cause?: Error, output?: string[]): StepOutcome => ({
 	status: 'error',
 	message,
 	cause,
+	output,
 });
 
 /**
- * Progress callback function
+ * Context passed to step run function
  */
-export type ProgressCallback = (progress: number) => void;
-
-/**
- * Step definition (without progress tracking)
- */
-export interface SimpleStep {
-	type?: 'simple';
-	label: string;
-	run: () => Promise<StepOutcome>;
+export interface StepContext {
+	progress: (n: number) => void;
 }
 
 /**
- * Step definition (with progress tracking)
+ * Step definition
  */
-export interface ProgressStep {
-	type: 'progress';
+export interface Step {
 	label: string;
-	run: (progress: ProgressCallback) => Promise<StepOutcome>;
+	run: (ctx: StepContext) => Promise<StepOutcome>;
 }
-
-/**
- * Step definition (discriminated union)
- */
-export type Step = SimpleStep | ProgressStep;
 
 /**
  * Internal step state
  */
-type StepState =
-	| {
-			type: 'simple';
-			label: string;
-			run: () => Promise<StepOutcome>;
-			outcome?: StepOutcome;
-			progress?: number;
-	  }
-	| {
-			type: 'progress';
-			label: string;
-			run: (progress: ProgressCallback) => Promise<StepOutcome>;
-			outcome?: StepOutcome;
-			progress?: number;
-	  };
+type StepStatus = 'pending' | 'running' | 'success' | 'skipped' | 'error';
+
+interface StepState {
+	label: string;
+	status: StepStatus;
+	progress?: number;
+	output?: string[];
+	skipReason?: string;
+	errorMessage?: string;
+	errorCause?: Error;
+}
 
 /**
- * Run a series of steps with animated progress
- *
- * Each step runs its callback while showing a spinner animation.
- * Steps can complete with success, skipped, or error status.
- * Exits with code 1 if any step errors.
- *
- * When there's no TTY or log level is debug/trace, uses plain output instead of TUI.
+ * Render a single step line (without output box)
  */
-export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void> {
-	const state: StepState[] = steps.map((s) => {
-		const stepType = s.type === 'progress' ? 'progress' : 'simple';
-		return stepType === 'progress'
-			? {
-					type: 'progress' as const,
-					label: s.label,
-					run: s.run as (progress: ProgressCallback) => Promise<StepOutcome>,
-				}
-			: { type: 'simple' as const, label: s.label, run: s.run as () => Promise<StepOutcome> };
-	});
+function renderStepLine(step: StepState, spinner?: string): string {
+	const grayColor = getColor('gray');
+	const greenColor = getColor('green');
+	const yellowColor = getColor('yellow');
+	const redColor = getColor('red');
+	const cyanColor = getColor('cyan');
 
-	// Detect if we should use TUI (animated) or plain mode
-	const useTUI =
-		process.stdout.isTTY && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
-
-	if (useTUI) {
-		await runStepsTUI(state);
+	if (step.status === 'success') {
+		return `${greenColor}${ICONS.success}${COLORS.reset} ${grayColor}${COLORS.strikethrough}${step.label}${COLORS.reset}`;
+	} else if (step.status === 'skipped') {
+		const reason = step.skipReason ? ` ${grayColor}(${step.skipReason})${COLORS.reset}` : '';
+		return `${yellowColor}${ICONS.skipped}${COLORS.reset} ${grayColor}${COLORS.strikethrough}${step.label}${COLORS.reset}${reason}`;
+	} else if (step.status === 'error') {
+		return `${redColor}${ICONS.error}${COLORS.reset} ${step.label}`;
+	} else if (step.status === 'running' && spinner) {
+		const progressIndicator =
+			step.progress !== undefined
+				? ` ${cyanColor}${Math.floor(step.progress)}%${COLORS.reset}`
+				: '';
+		return `${spinner} ${step.label}${progressIndicator}`;
 	} else {
-		await runStepsPlain(state);
+		return `${grayColor}${ICONS.pending}${COLORS.reset} ${step.label}`;
 	}
 }
 
+/**
+ * Render all steps from state, including output boxes
+ * Returns the rendered output and total line count
+ */
+function renderAllSteps(
+	state: StepState[],
+	runningStepIndex: number,
+	spinner?: string
+): { output: string; totalLines: number } {
+	const lines: string[] = [];
+	let totalLines = 0;
+	const grayColor = getColor('gray');
+
+	for (let i = 0; i < state.length; i++) {
+		const step = state[i];
+		const isRunning = i === runningStepIndex;
+		const stepSpinner = isRunning && spinner ? spinner : undefined;
+
+		// Render step line
+		lines.push(renderStepLine(step, stepSpinner));
+		totalLines++;
+
+		// Render output box if present
+		if (step.output && step.output.length > 0) {
+			lines.push(`${grayColor}╭─ Output${COLORS.reset}`);
+			totalLines++;
+
+			for (const line of step.output) {
+				lines.push(`${grayColor}│${COLORS.reset} ${line}`);
+				totalLines++;
+			}
+
+			lines.push(`${grayColor}╰─${COLORS.reset}`);
+			totalLines++;
+
+			// Don't add blank line here - the '\n' we append during write creates separation
+		}
+	}
+
+	return { output: lines.join('\n'), totalLines };
+}
+
+/**
+ * Print validation issues (for ValidationInputError/ValidationOutputError)
+ */
 function printValidationIssues(issues?: IssuesType) {
 	const errorColor = getColor('red');
 	console.error(`${errorColor}Validation details:${COLORS.reset}`);
@@ -213,17 +185,147 @@ function printValidationIssues(issues?: IssuesType) {
 }
 
 /**
- * Run steps with animated TUI (original behavior)
+ * Global pause state and tracking
  */
-async function runStepsTUI(state: StepState[]): Promise<void> {
+let isPaused = false;
+let getTotalLinesFn: (() => number) | null = null;
+let forceRerenderFn: ((skipMove?: boolean) => void) | null = null;
+
+export function isStepUIPaused(): boolean {
+	return isPaused;
+}
+
+/**
+ * Internal function to set pause capability
+ */
+function enablePauseResume(
+	getTotalLines: () => number,
+	forceRerender: (skipMove?: boolean) => void
+): void {
+	getTotalLinesFn = getTotalLines;
+	forceRerenderFn = forceRerender;
+}
+
+/**
+ * Pause step rendering for interactive input
+ * Returns resume function
+ */
+export function pauseStepUI(): () => void {
+	if (!process.stdout.isTTY || !getTotalLinesFn) {
+		return () => {}; // No-op if not TTY or not in step context
+	}
+
+	isPaused = true;
+
+	const originalStdoutWrite = process.stdout.write.bind(process.stdout);
+	const originalStderrWrite = process.stderr.write.bind(process.stderr);
+
+	// Intercept writes during pause (unused but prevents issues with interactive prompts)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	process.stdout.write = ((chunk: any, ..._args: any[]) => {
+		return originalStdoutWrite(chunk);
+	}) as typeof process.stdout.write;
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	process.stderr.write = ((chunk: any, ..._args: any[]) => {
+		return originalStderrWrite(chunk);
+	}) as typeof process.stderr.write;
+
+	// Show cursor and add newline for separation
+	process.stdout.write('\x1B[?25h');
+	process.stdout.write('\n');
+
+	// Return resume function
+	return () => {
+		isPaused = false;
+
+		// Restore original write functions
+		process.stdout.write = originalStdoutWrite;
+		process.stderr.write = originalStderrWrite;
+
+		// Restore cursor to saved position (where steps began)
+		process.stdout.write('\x1B[u'); // Restore cursor position
+		process.stdout.write('\x1B[0J'); // Clear from saved position to end of screen
+		process.stdout.write('\x1B[?25l'); // Hide cursor
+
+		// Force immediate re-render (cursor already at step start)
+		if (forceRerenderFn) {
+			forceRerenderFn(true);
+		}
+	};
+}
+
+/**
+ * Get exit function (Bun.exit or process.exit)
+ */
+function getExitFn(): (code: number) => never {
+	const bunExit = (globalThis as { Bun?: { exit?: (code: number) => never } }).Bun?.exit;
+	return typeof bunExit === 'function' ? bunExit : process.exit.bind(process);
+}
+
+/**
+ * Install interrupt handlers (SIGINT/SIGTERM + raw mode)
+ */
+function installInterruptHandlers(onInterrupt: () => void): () => void {
+	const cleanupFns: Array<() => void> = [];
+
+	const sigHandler = () => onInterrupt();
+	process.on('SIGINT', sigHandler);
+	process.on('SIGTERM', sigHandler);
+	cleanupFns.push(() => {
+		process.off('SIGINT', sigHandler);
+		process.off('SIGTERM', sigHandler);
+	});
+
+	// TTY raw mode fallback
+	const stdin = process.stdin as unknown as NodeJS.ReadStream;
+	if (stdin && stdin.isTTY) {
+		const onData = (buf: Buffer) => {
+			if (buf.length === 1 && buf[0] === 0x03) onInterrupt();
+		};
+		try {
+			stdin.setRawMode?.(true);
+		} catch {
+			// Ignore errors
+		}
+		stdin.resume?.();
+		stdin.on('data', onData);
+		cleanupFns.push(() => {
+			stdin.off?.('data', onData);
+			stdin.pause?.();
+			try {
+				stdin.setRawMode?.(false);
+			} catch {
+				// Ignore errors
+			}
+		});
+	}
+
+	return () => {
+		for (const fn of cleanupFns.splice(0)) fn();
+	};
+}
+
+/**
+ * Run steps with TUI (animated mode)
+ */
+async function runStepsTUI(steps: Step[]): Promise<void> {
+	// Initialize state
+	const state: StepState[] = steps.map((s) => ({
+		label: s.label,
+		status: 'pending' as const,
+	}));
+
+	let totalLinesFromLastRender = 0;
+	let interrupted = false;
+	let activeInterval: ReturnType<typeof setInterval> | null = null;
+	let currentStepIndex = -1;
+	let currentFrameIndex = 0;
+
 	// Hide cursor
 	process.stdout.write('\x1B[?25l');
 
-	// Track active interval and interrupted state
-	let activeInterval: ReturnType<typeof setInterval> | null = null;
-	let interrupted = false;
-
-	// Set up Ctrl+C handler for graceful exit
+	// Set up interrupt handler
 	const exit = getExitFn();
 	const onInterrupt = () => {
 		if (interrupted) return;
@@ -234,71 +336,147 @@ async function runStepsTUI(state: StepState[]): Promise<void> {
 	};
 	const restoreInterrupts = installInterruptHandlers(onInterrupt);
 
-	try {
-		// Initial render
-		process.stdout.write(renderSteps(state, -1) + '\n');
+	// Force re-render function
+	const forceRerender = (skipMove = false) => {
+		if (currentStepIndex < 0 || currentStepIndex >= state.length) return;
 
-		for (let stepIndex = 0; stepIndex < state.length; stepIndex++) {
+		const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length];
+		const color = getColor(colorKey);
+		const spinner = `${color}${COLORS.bold}${FRAMES[currentFrameIndex % FRAMES.length]}${COLORS.reset}`;
+		const rendered = renderAllSteps(state, currentStepIndex, spinner);
+
+		// Optionally move up, then to column 0
+		if (!skipMove && totalLinesFromLastRender > 0) {
+			process.stdout.write(`\x1B[${totalLinesFromLastRender}A`);
+			process.stdout.write('\x1B[0G');
+		}
+		process.stdout.write('\x1B[0J');
+		process.stdout.write(rendered.output + '\n');
+
+		totalLinesFromLastRender = rendered.totalLines;
+	};
+
+	try {
+		// Enable pause/resume capability
+		enablePauseResume(() => totalLinesFromLastRender, forceRerender);
+
+		// Save cursor position BEFORE rendering steps
+		process.stdout.write('\x1B[s');
+
+		// Initial render
+		const initialRender = renderAllSteps(state, -1);
+		process.stdout.write(initialRender.output + '\n');
+		totalLinesFromLastRender = initialRender.totalLines;
+
+		// Execute steps
+		for (let stepIndex = 0; stepIndex < steps.length; stepIndex++) {
 			if (interrupted) break;
 
-			const step = state[stepIndex];
-			let frameIndex = 0;
-			let currentFrame = '';
+			currentStepIndex = stepIndex;
+			currentFrameIndex = 0;
+
+			const step = steps[stepIndex];
+			const stepState = state[stepIndex];
+			stepState.status = 'running';
 
 			// Start spinner animation
 			activeInterval = setInterval(() => {
-				const colorKey = SPINNER_COLORS[frameIndex % SPINNER_COLORS.length];
+				if (isPaused) return;
+
+				const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length];
 				const color = getColor(colorKey);
-				currentFrame = `${color}${COLORS.bold}${FRAMES[frameIndex % FRAMES.length]}${COLORS.reset}`;
+				const spinner = `${color}${COLORS.bold}${FRAMES[currentFrameIndex % FRAMES.length]}${COLORS.reset}`;
 
-				// Move cursor up to the top of checklist
-				process.stdout.write(`\x1B[${state.length}A`);
-				process.stdout.write(renderSteps(state, stepIndex, currentFrame) + '\n');
+				// Render all steps from state
+				const rendered = renderAllSteps(state, currentStepIndex, spinner);
 
-				frameIndex++;
+				// Move to start, clear, render
+				if (totalLinesFromLastRender > 0) {
+					process.stdout.write(`\x1B[${totalLinesFromLastRender}A`); // Move up
+					process.stdout.write('\x1B[0G'); // Move to column 0 (using absolute positioning)
+				}
+				process.stdout.write('\x1B[0J'); // Clear from cursor to end
+				process.stdout.write(rendered.output + '\n');
+
+				totalLinesFromLastRender = rendered.totalLines;
+				currentFrameIndex++;
 			}, 120);
 
-			// Run the step with progress tracking
-			const progressCallback: ProgressCallback = (progress: number) => {
-				step.progress = Math.min(100, Math.max(0, progress));
+			// Progress callback
+			const progressCallback = (progress: number) => {
+				if (isPaused) return;
 
-				// Move cursor up and render with current spinner frame
-				process.stdout.write(`\x1B[${state.length}A`);
-				process.stdout.write(renderSteps(state, stepIndex, currentFrame) + '\n');
+				stepState.progress = Math.min(100, Math.max(0, progress));
+
+				// Render all steps from state
+				const colorKey = SPINNER_COLORS[currentFrameIndex % SPINNER_COLORS.length];
+				const color = getColor(colorKey);
+				const spinner = `${color}${COLORS.bold}${FRAMES[currentFrameIndex % FRAMES.length]}${COLORS.reset}`;
+				const rendered = renderAllSteps(state, currentStepIndex, spinner);
+
+				// Move to start, clear, render
+				if (totalLinesFromLastRender > 0) {
+					process.stdout.write(`\x1B[${totalLinesFromLastRender}A`);
+					process.stdout.write('\x1B[0G');
+				}
+				process.stdout.write('\x1B[0J');
+				process.stdout.write(rendered.output + '\n');
+
+				totalLinesFromLastRender = rendered.totalLines;
 			};
 
+			// Run the step
 			try {
-				// Use discriminant to determine if step has progress callback
-				const outcome =
-					step.type === 'progress' ? await step.run(progressCallback) : await step.run();
-				step.outcome = outcome;
+				const outcome = await step.run({ progress: progressCallback });
+
+				// Update state from outcome
+				if (outcome.status === 'success') {
+					stepState.status = 'success';
+					stepState.output = outcome.output;
+				} else if (outcome.status === 'skipped') {
+					stepState.status = 'skipped';
+					stepState.skipReason = outcome.reason;
+					stepState.output = outcome.output;
+				} else {
+					stepState.status = 'error';
+					stepState.errorMessage = outcome.message;
+					stepState.errorCause = outcome.cause;
+					stepState.output = outcome.output;
+				}
 			} catch (err) {
-				step.outcome = {
-					status: 'error',
-					message: err instanceof Error ? err.message : String(err),
-					cause: err instanceof Error ? err : undefined,
-				};
+				stepState.status = 'error';
+				stepState.errorMessage = err instanceof Error ? err.message : String(err);
+				stepState.errorCause = err instanceof Error ? err : undefined;
 			}
 
+			// Stop spinner
 			if (activeInterval) {
 				clearInterval(activeInterval);
 				activeInterval = null;
 			}
 
-			// Clear progress and final render with outcome
-			step.progress = undefined;
-			process.stdout.write(`\x1B[${state.length}A`);
-			process.stdout.write(renderSteps(state, -1) + '\n');
+			// Final render with outcome
+			stepState.progress = undefined;
+			const finalRender = renderAllSteps(state, -1);
 
-			// If error, show error message and exit
-			if (step.outcome?.status === 'error') {
+			if (totalLinesFromLastRender > 0) {
+				process.stdout.write(`\x1B[${totalLinesFromLastRender}A`);
+				process.stdout.write('\x1B[0G');
+			}
+			process.stdout.write('\x1B[0J');
+			process.stdout.write(finalRender.output + '\n');
+
+			totalLinesFromLastRender = finalRender.totalLines;
+
+			// Handle errors
+			if (stepState.status === 'error') {
 				const errorColor = getColor('red');
-				console.error(`\n${errorColor}Error: ${step.outcome.message}${COLORS.reset}`);
+				console.error(`\n${errorColor}Error: ${stepState.errorMessage}${COLORS.reset}`);
 				if (
-					step.outcome.cause instanceof ValidationInputError ||
-					step.outcome.cause instanceof ValidationOutputError
+					stepState.errorCause instanceof ValidationInputError ||
+					stepState.errorCause instanceof ValidationOutputError
 				) {
-					printValidationIssues(step.outcome.cause.issues);
+					printValidationIssues(stepState.errorCause.issues);
 				}
 				console.error('');
 				process.stdout.write('\x1B[?25h'); // Show cursor
@@ -306,57 +484,79 @@ async function runStepsTUI(state: StepState[]): Promise<void> {
 			}
 		}
 
-		// Show cursor again
+		// Show cursor
 		process.stdout.write('\x1B[?25h');
 	} catch (err) {
-		// Ensure cursor is shown even if something goes wrong
 		process.stdout.write('\x1B[?25h');
 		throw err;
 	} finally {
-		// Remove signal/TTY handlers
 		restoreInterrupts();
+		getTotalLinesFn = null; // Clear pause capability
+		forceRerenderFn = null;
 	}
 }
 
 /**
- * Run steps in plain mode (no TUI animations)
+ * Run steps in plain mode (no animations)
  */
-async function runStepsPlain(state: StepState[]): Promise<void> {
+async function runStepsPlain(steps: Step[]): Promise<void> {
 	const grayColor = getColor('gray');
 	const greenColor = getColor('green');
 	const yellowColor = getColor('yellow');
 	const redColor = getColor('red');
 
-	for (const step of state) {
-		// Run the step (no progress callback for plain mode)
+	for (const step of steps) {
+		let outcome: StepOutcome;
+
 		try {
-			const outcome = step.type === 'progress' ? await step.run(() => {}) : await step.run();
-			step.outcome = outcome;
+			outcome = await step.run({ progress: () => {} });
 		} catch (err) {
-			step.outcome = {
+			outcome = {
 				status: 'error',
 				message: err instanceof Error ? err.message : String(err),
 				cause: err instanceof Error ? err : undefined,
 			};
 		}
 
-		// Print final state only
-		if (step.outcome?.status === 'success') {
+		// Print final state
+		if (outcome.status === 'success') {
 			console.log(`${greenColor}${ICONS.success}${COLORS.reset} ${step.label}`);
-		} else if (step.outcome?.status === 'skipped') {
-			const reason = step.outcome.reason
-				? ` ${grayColor}(${step.outcome.reason})${COLORS.reset}`
-				: '';
+			if (outcome.output && outcome.output.length > 0) {
+				console.log(`${grayColor}╭─ Output${COLORS.reset}`);
+				for (const line of outcome.output) {
+					console.log(`${grayColor}│${COLORS.reset} ${line}`);
+				}
+				console.log(`${grayColor}╰─${COLORS.reset}`);
+				console.log('');
+			}
+		} else if (outcome.status === 'skipped') {
+			const reason = outcome.reason ? ` ${grayColor}(${outcome.reason})${COLORS.reset}` : '';
 			console.log(`${yellowColor}${ICONS.skipped}${COLORS.reset} ${step.label}${reason}`);
-		} else if (step.outcome?.status === 'error') {
+			if (outcome.output && outcome.output.length > 0) {
+				console.log(`${grayColor}╭─ Output${COLORS.reset}`);
+				for (const line of outcome.output) {
+					console.log(`${grayColor}│${COLORS.reset} ${line}`);
+				}
+				console.log(`${grayColor}╰─${COLORS.reset}`);
+				console.log('');
+			}
+		} else {
 			console.log(`${redColor}${ICONS.error}${COLORS.reset} ${step.label}`);
+			if (outcome.output && outcome.output.length > 0) {
+				console.log(`${grayColor}╭─ Output${COLORS.reset}`);
+				for (const line of outcome.output) {
+					console.log(`${grayColor}│${COLORS.reset} ${line}`);
+				}
+				console.log(`${grayColor}╰─${COLORS.reset}`);
+				console.log('');
+			}
 			const errorColor = getColor('red');
-			console.error(`\n${errorColor}Error: ${step.outcome.message}${COLORS.reset}`);
+			console.error(`\n${errorColor}Error: ${outcome.message}${COLORS.reset}`);
 			if (
-				step.outcome.cause instanceof ValidationInputError ||
-				step.outcome.cause instanceof ValidationOutputError
+				outcome.cause instanceof ValidationInputError ||
+				outcome.cause instanceof ValidationOutputError
 			) {
-				printValidationIssues(step.outcome.cause.issues);
+				printValidationIssues(outcome.cause.issues);
 			}
 			console.error('');
 			process.exit(1);
@@ -365,47 +565,15 @@ async function runStepsPlain(state: StepState[]): Promise<void> {
 }
 
 /**
- * Render a progress indicator
+ * Run a series of steps with animated progress
  */
-function renderProgress(progress: number): string {
-	const cyanColor = getColor('cyan');
+export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void> {
+	const useTUI =
+		process.stdout.isTTY && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
 
-	const percentage = `${Math.floor(progress)}%`;
-	return ` ${cyanColor}${percentage}${COLORS.reset}`;
-}
-
-/**
- * Render all steps as a multiline string
- */
-function renderSteps(steps: StepState[], activeIndex: number, spinner?: string): string {
-	const grayColor = getColor('gray');
-	const greenColor = getColor('green');
-	const yellowColor = getColor('yellow');
-	const redColor = getColor('red');
-
-	const lines: string[] = [];
-
-	steps.forEach((s, i) => {
-		// Don't show progress indicator for steps with outcomes (success/skipped/error)
-		if (s.outcome?.status === 'success') {
-			lines.push(
-				`${greenColor}${ICONS.success}${COLORS.reset} ${grayColor}${COLORS.strikethrough}${s.label}${COLORS.reset}`
-			);
-		} else if (s.outcome?.status === 'skipped') {
-			const reason = s.outcome.reason ? ` ${grayColor}(${s.outcome.reason})${COLORS.reset}` : '';
-			lines.push(
-				`${yellowColor}${ICONS.skipped}${COLORS.reset} ${grayColor}${COLORS.strikethrough}${s.label}${COLORS.reset}${reason}`
-			);
-		} else if (s.outcome?.status === 'error') {
-			lines.push(`${redColor}${ICONS.error}${COLORS.reset} ${s.label}`);
-		} else if (i === activeIndex && spinner) {
-			// Only show progress for active step with spinner
-			const progressIndicator = s.progress !== undefined ? renderProgress(s.progress) : '';
-			lines.push(`${spinner} ${s.label}${progressIndicator}`);
-		} else {
-			lines.push(`${grayColor}${ICONS.pending}${COLORS.reset} ${s.label}`);
-		}
-	});
-
-	return lines.join('\n');
+	if (useTUI) {
+		await runStepsTUI(steps);
+	} else {
+		await runStepsPlain(steps);
+	}
 }

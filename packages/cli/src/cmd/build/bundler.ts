@@ -4,6 +4,7 @@ import { cpSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
 import { StructuredError } from '@agentuity/core';
 import * as tui from '../../tui';
+import { pauseStepUI } from '../../steps';
 import AgentuityBundler, { getBuildMetadata } from './plugin';
 import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
@@ -16,25 +17,38 @@ import { type DeployOptions } from '../../schemas/deploy';
 
 const minBunVersion = '>=1.3.3';
 
-async function checkBunVersion() {
+async function checkBunVersion(): Promise<string[]> {
 	if (semver.satisfies(Bun.version, minBunVersion)) {
-		return;
+		return []; // Version is OK, no output needed
 	}
-	const message = `The current Bun installed is using version ${Bun.version}. This project requires Bun version ${minBunVersion} to build.`;
-	tui.warning(message);
-	if (process.stdin.isTTY) {
-		const ok = await tui.confirm('You would you to upgrade now?');
+
+	const message = `Bun is using version ${Bun.version}. This project requires Bun version ${minBunVersion} to build.`;
+
+	if (process.stdin.isTTY && process.stdout.isTTY) {
+		// Pause the step UI for interactive prompt
+		const resume = pauseStepUI();
+
+		tui.warning(message);
+		const ok = await tui.confirm('Would you like to upgrade now?');
+
+		// Small delay to ensure console.log('') in confirm completes
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		resume(); // Resume step UI
+
 		if (ok) {
 			await $`bun upgrade`.quiet();
 			const version = (await $`bun -v`.quiet().text()).trim();
-			tui.success(`Bun upgraded to ${version}`);
-			return;
+			// Return success message to show in output box
+			return [tui.colorSuccess(`Upgraded Bun to ${version}`)];
 		}
 	}
+
+	// Failed to upgrade or user declined
 	throw new InvalidBunVersion({
 		current: Bun.version,
 		required: minBunVersion,
-		message: `Please see https://bun.sh/ for information on how to download the latest version.`,
+		message,
 	});
 }
 
@@ -102,7 +116,9 @@ export async function bundle({
 	env,
 	region,
 	logger,
-}: BundleOptions) {
+}: BundleOptions): Promise<{ output: string[] }> {
+	const output: string[] = [];
+
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
 		throw new AppFileNotFoundError({
@@ -110,7 +126,8 @@ export async function bundle({
 		});
 	}
 
-	await checkBunVersion();
+	const versionOutput = await checkBunVersion();
+	output.push(...versionOutput);
 
 	const outDir = customOutDir ?? join(rootDir, '.agentuity');
 	const srcDir = join(rootDir, 'src');
@@ -715,4 +732,6 @@ export async function bundle({
 		`${outDir}/.routemapping.json`,
 		dev ? JSON.stringify(routeMapping, null, 2) : JSON.stringify(routeMapping)
 	);
+
+	return { output };
 }

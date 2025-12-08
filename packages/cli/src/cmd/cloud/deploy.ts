@@ -6,7 +6,14 @@ import { tmpdir } from 'node:os';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { saveProjectDir, getDefaultConfigDir } from '../../config';
-import { runSteps, stepSuccess, stepSkipped, stepError, Step, ProgressCallback } from '../../steps';
+import {
+	runSteps,
+	stepSuccess,
+	stepSkipped,
+	stepError,
+	type Step,
+	type StepContext,
+} from '../../steps';
 import { bundle } from '../build/bundler';
 import { loadBuildMetadata, getStreamURL } from '../../config';
 import {
@@ -179,8 +186,9 @@ export const deploySubcommand = createSubcommand({
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
+							let capturedOutput: string[] = [];
 							try {
-								await bundle({
+								const bundleResult = await bundle({
 									rootDir: resolve(projectDir),
 									dev: false,
 									deploymentId: deployment.id,
@@ -195,23 +203,28 @@ export const deploySubcommand = createSubcommand({
 									region: project.region,
 									logger: ctx.logger,
 								});
+								capturedOutput = bundleResult.output;
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
 								instructions = await projectDeploymentUpdate(
 									apiClient,
 									deployment.id,
 									build
 								);
-								return stepSuccess();
+								return stepSuccess(capturedOutput.length > 0 ? capturedOutput : undefined);
 							} catch (ex) {
 								const _ex = ex as Error;
-								return stepError(_ex.message ?? 'Error building your project');
+								return stepError(
+									_ex.message ?? 'Error building your project',
+									_ex,
+									capturedOutput.length > 0 ? capturedOutput : undefined
+								);
 							}
 						},
 					},
 					{
-						type: 'progress',
 						label: 'Encrypt and Upload Deployment',
-						run: async (progress: ProgressCallback) => {
+						run: async (stepCtx: StepContext) => {
+							const progress = stepCtx.progress;
 							if (!deployment) {
 								return stepError('deployment was null');
 							}
