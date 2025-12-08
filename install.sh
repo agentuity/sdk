@@ -264,6 +264,45 @@ check_bun_install() {
 }
 
 check_legacy_binaries() {
+  # First check if agentuity command exists and test if it's the legacy CLI
+  if command -v agentuity >/dev/null 2>&1; then
+    agentuity_path=$(which agentuity)
+    
+    # Test if it's the legacy CLI by running 'agentuity ai' (which should fail on legacy)
+    if agentuity ai >/dev/null 2>&1; then
+      # Command succeeded, this is the new CLI - no action needed
+      :
+    else
+      # Command failed (exit 1), this is the legacy CLI
+      print_message warning "${RED}Warning: ${NC}Legacy Go-based CLI detected at ${CYAN}$agentuity_path${NC}"
+      print_message info "${MUTED}The new TypeScript-based CLI replaces the legacy version.${NC}"
+
+      if [ "$non_interactive" = false ]; then
+        printf "Do you want to remove the legacy CLI? (y/N): "
+        read -r response </dev/tty 2>/dev/null || read -r response
+        case "$response" in
+          [yY][eE][sS]|[yY])
+            if rm -f "$agentuity_path" 2>/dev/null; then
+              print_message info "${MUTED}Successfully removed legacy CLI${NC}"
+            else
+              print_message error "Failed to remove legacy CLI at $agentuity_path"
+              print_message error "Please remove it manually: rm $agentuity_path"
+              exit 1
+            fi
+            ;;
+          *)
+            print_message error "Please remove the legacy CLI first: rm $agentuity_path"
+            exit 1
+            ;;
+        esac
+      else
+        print_message error "Please remove the legacy CLI first: rm $agentuity_path"
+        exit 1
+      fi
+    fi
+  fi
+  
+  # Also check for legacy install script binaries in known locations
   # Legacy install script used these paths (in order of preference):
   # $HOME/.local/bin, $HOME/.bin, $HOME/bin, /usr/local/bin
   
@@ -272,6 +311,14 @@ check_legacy_binaries() {
 
   for path in "$HOME/.local/bin/agentuity" "$HOME/.bin/agentuity" "$HOME/bin/agentuity" "/usr/local/bin/agentuity"; do
     if [ -f "$path" ] && [ "$path" != "$INSTALL_DIR/agentuity" ]; then
+      # Skip if this is the same binary we already handled above
+      if command -v agentuity >/dev/null 2>&1; then
+        current_path=$(which agentuity)
+        if [ "$path" = "$current_path" ]; then
+          continue
+        fi
+      fi
+      
       found_legacy=true
       legacy_locations="$legacy_locations $path"
     fi
@@ -316,6 +363,13 @@ check_legacy_binaries() {
 check_version() {
   if command -v agentuity >/dev/null 2>&1; then
     agentuity_path=$(which agentuity)
+    
+    # Check if it's a legacy CLI - if so, skip version check (will be overwritten)
+    if ! agentuity ai >/dev/null 2>&1; then
+      # This is a legacy CLI, skip version check and continue to install
+      return
+    fi
+    
     installed_version=v$(agentuity version 2>/dev/null || echo "unknown")
 
     if [ "$installed_version" != "$specific_version" ] && [ "$installed_version" != "unknown" ]; then
