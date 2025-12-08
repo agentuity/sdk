@@ -117,10 +117,12 @@ export async function checkLegacyCLI(): Promise<void> {
 	}
 
 	console.log('  ' + tui.bold('After removal, install the new CLI:'));
-	tui.bullet('bun install -g @agentuity/cli');
+	tui.bullet('curl -sSL https://v1.agentuity.sh | sh');
 	tui.newline();
 
-	console.log(`  Learn more: ${tui.link('https://docs.agentuity.dev/cli/migration')}`);
+	console.log(
+		`  Learn more: ${tui.link('https://preview.agentuity.dev/v1/Reference/migration-guide')}`
+	);
 	tui.newline();
 
 	process.exit(1);
