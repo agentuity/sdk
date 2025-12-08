@@ -5,6 +5,30 @@
 			"name": "Default Template",
 			"description": "A basic Agentuity project with React UI and example agents",
 			"directory": "default"
+		},
+		{
+			"id": "vercel-openai",
+			"name": "Vercel AI + OpenAI",
+			"description": "Agentuity project using Vercel AI SDK with OpenAI GPT-5-mini",
+			"directory": "vercel-openai"
+		},
+		{
+			"id": "openai",
+			"name": "OpenAI SDK",
+			"description": "Agentuity project using OpenAI SDK",
+			"directory": "openai"
+		},
+		{
+			"id": "groq",
+			"name": "Groq (GPT OSS)",
+			"description": "Agentuity project using Groq SDK with GPT OSS open-source model",
+			"directory": "groq"
+		},
+		{
+			"id": "xai",
+			"name": "xAI Grok",
+			"description": "Agentuity project using Vercel AI SDK with xAI Grok",
+			"directory": "xai"
 		}
 	]
 }
