@@ -26,7 +26,7 @@ Visit [https://agentuity.dev](https://agentuity.dev) to view the full documentat
 
 # Community
 
-The Agentuity community can be found on [GitHub Discussions](https://github.com/agentuity/sdk/discussions) where you can discuss idea, give feedback and share your projects with others.
+The Agentuity community can be found on [GitHub Discussions](https://github.com/agentuity/sdk/discussions) where you can discuss ideas, give feedback and share your projects with others.
 
 To chat with other community members you can join the [Agentuity Discord server](https://discord.gg/agentuity).
 
