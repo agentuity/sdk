@@ -289,6 +289,9 @@ export async function bundle({
 		}
 	}
 
+	const tsconfigPath = join(rootDir, 'tsconfig.json');
+	const hasTsconfig = existsSync(tsconfigPath);
+
 	await (async () => {
 		const config: Bun.BuildConfig = {
 			entrypoints: appEntrypoints,
@@ -313,6 +316,7 @@ export async function bundle({
 				chunk: 'chunk/[name]-[hash].[ext]',
 				asset: 'asset/[name]-[hash].[ext]',
 			},
+			tsconfig: hasTsconfig ? tsconfigPath : undefined,
 		};
 		const buildResult = await Bun.build(config);
 		if (!buildResult.success) {
@@ -432,6 +436,7 @@ export async function bundle({
 						chunk: 'web/chunk/[name]-[hash].[ext]',
 						asset: 'web/asset/[name]-[hash].[ext]',
 					},
+					tsconfig: hasTsconfig ? tsconfigPath : undefined,
 				};
 				const result = await Bun.build(config);
 				if (result.success) {
