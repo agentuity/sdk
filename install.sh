@@ -52,9 +52,14 @@ if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${GITLAB_CI:-}" ] |
   non_interactive=true
 fi
 
-# If stdin is not a TTY, we're non-interactive
+# Check if we can prompt the user
+# When piped (curl ... | sh), stdin is not a TTY but we can still use /dev/tty
 if [ ! -t 0 ]; then
-  non_interactive=true
+  # stdin is not a TTY (likely piped), check if /dev/tty is available
+  if ! [ -r /dev/tty ] 2>/dev/null; then
+    # /dev/tty is not readable - truly non-interactive
+    non_interactive=true
+  fi
 fi
 
 # Check prerequisites - either curl or wget
@@ -198,7 +203,7 @@ check_brew_install() {
 
       if [ "$non_interactive" = false ]; then
         printf "Do you want to uninstall the Homebrew version? (y/N): "
-        read -r response
+        read -r response </dev/tty 2>/dev/null || read -r response
         case "$response" in
           [yY][eE][sS]|[yY])
             print_message info "${MUTED}Uninstalling Homebrew version...${NC}"
@@ -239,7 +244,7 @@ check_bun_install() {
           print_message info "  2. Re-run this install script"
           print_message info ""
           printf "Continue anyway? (y/N): "
-          read -r response
+          read -r response </dev/tty 2>/dev/null || read -r response
           case "$response" in
             [yY][eE][sS]|[yY])
               print_message info "${MUTED}Continuing with installation. Note: You may need to adjust your PATH.${NC}"
@@ -280,7 +285,7 @@ check_legacy_binaries() {
 
     if [ "$non_interactive" = false ]; then
       printf "Remove legacy binaries? (Y/n): "
-      read -r response
+      read -r response </dev/tty 2>/dev/null || read -r response
       case "$response" in
         [nN][oO]|[nN])
           print_message info "${MUTED}Skipping legacy binary removal. Note: You may have conflicts.${NC}"
@@ -416,7 +421,7 @@ check_bun_version() {
       fi
     elif [ "$non_interactive" = false ]; then
       printf "Would you like to install Bun now? (Y/n): "
-      read -r response
+      read -r response </dev/tty 2>/dev/null || read -r response
       case "$response" in
         [nN][oO]|[nN])
           print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
@@ -464,7 +469,7 @@ check_bun_version() {
       fi
     elif [ "$non_interactive" = false ]; then
       printf "Would you like to upgrade Bun now? (Y/n): "
-      read -r response
+      read -r response </dev/tty 2>/dev/null || read -r response
       case "$response" in
         [nN][oO]|[nN])
           print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
