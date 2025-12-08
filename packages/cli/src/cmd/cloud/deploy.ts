@@ -559,7 +559,6 @@ export const deploySubcommand = createSubcommand({
 
 			// Show deployment URLs
 			if (complete?.publicUrls) {
-				tui.arrow(tui.bold(tui.padRight('Deployment ID:', 17)) + tui.link(deployment.id));
 				if (complete.publicUrls.custom?.length) {
 					for (const url of complete.publicUrls.custom) {
 						tui.arrow(tui.bold(tui.padRight('Deployment URL:', 17)) + tui.link(url));
