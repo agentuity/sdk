@@ -1541,10 +1541,12 @@ export async function selectOrganization(
 		}
 	}
 
+	// Auto-select if only one org (regardless of TTY mode)
+	if (orgs.length === 1) {
+		return orgs[0].id;
+	}
+
 	if (!process.stdin.isTTY) {
-		if (orgs.length === 1) {
-			return orgs[0].id;
-		}
 		if (initial) {
 			return initial;
 		}

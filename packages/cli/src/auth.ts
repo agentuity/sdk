@@ -230,8 +230,12 @@ export async function requireOrg(
 	}
 
 	// Fetch organizations
-	const orgs = await tui.spinner('Fetching organizations', async () => {
-		return listOrganizations(apiClient);
+	const orgs = await tui.spinner({
+		message: 'Fetching organizations',
+		clearOnSuccess: true,
+		callback: async () => {
+			return listOrganizations(apiClient);
+		},
 	});
 
 	if (orgs.length === 0) {
@@ -265,21 +269,20 @@ export async function optionalOrg(
 		return options.orgId;
 	}
 
-	// Check if org is saved in config preferences
-	if (config?.preferences?.orgId) {
-		return config.preferences.orgId;
-	}
-
 	// Fetch organizations
-	const orgs = await tui.spinner('Fetching organizations', async () => {
-		return listOrganizations(apiClient);
+	const orgs = await tui.spinner({
+		message: 'Fetching organizations',
+		clearOnSuccess: true,
+		callback: async () => {
+			return listOrganizations(apiClient);
+		},
 	});
 
 	if (orgs.length === 0) {
 		return undefined;
 	}
 
-	// Use selectOrganization which handles single org and prompting
+	// Always prompt for org selection (use saved preference as initial/default)
 	const orgId = await tui.selectOrganization(orgs, config?.preferences?.orgId);
 
 	// Save selected org to config if different
