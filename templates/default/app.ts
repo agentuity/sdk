@@ -1,4 +1,7 @@
 import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const workbench = createWorkbench();
 
 const { server, logger } = await createApp({
 	setup: async () => {
@@ -11,6 +14,9 @@ const { server, logger } = await createApp({
 		// the state variable will be the same value was what you
 		// return from setup above. you can use this callback to
 		// close any resources or other shutdown related tasks
+	},
+	services: {
+		workbench,
 	},
 });
 
