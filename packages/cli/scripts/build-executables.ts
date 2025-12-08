@@ -127,7 +127,7 @@ async function buildExecutable(platform: Platform, version: string) {
 	console.log(`\n📦 Building ${platform.output} (version ${version})...`);
 
 	try {
-		await $`bun build ${entryPoint} --compile --production --minify --sourcemap --no-compile-autoload-bunfig --target=${platform.target} --outfile=${outputPath} --define AGENTUITY_CLI_VERSION='"${version}"'`.cwd(
+		await $`bun build ${entryPoint} --compile --production --minify --sourcemap --compile-autoload-dotenv --target=${platform.target} --outfile=${outputPath} --define AGENTUITY_CLI_VERSION='"${version}"'`.cwd(
 			rootDir
 		);
 		console.log(`✓ Built ${platform.output}`);
