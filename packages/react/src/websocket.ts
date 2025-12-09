@@ -4,7 +4,6 @@ import { AgentuityContext } from './context';
 import { buildUrl } from './url';
 import { deserializeData } from './serialization';
 import { createReconnectManager } from './reconnect';
-import { jsonEqual } from './memo';
 import type { WebSocketRouteRegistry } from './types';
 
 type onMessageHandler<T = unknown> = (data: T) => void;
@@ -54,6 +53,12 @@ export interface WebsocketOptions {
 	 * Optional AbortSignal to cancel the websocket connection
 	 */
 	signal?: AbortSignal;
+	/**
+	 * Maximum number of messages to keep in the messages array.
+	 * When exceeded, oldest messages are removed.
+	 * @default undefined (no limit)
+	 */
+	maxMessages?: number;
 }
 
 const serializeWSData = (
@@ -74,15 +79,13 @@ const serializeWSData = (
 interface WebsocketResponseInternal<TInput, TOutput> {
 	/** Whether WebSocket is currently connected */
 	isConnected: boolean;
-	/** Most recent data received from WebSocket */
-	data?: TOutput;
 	/** Error if connection or message failed */
 	error: Error | null;
 	/** Whether an error has occurred */
 	isError: boolean;
 	/** Send data through the WebSocket */
 	send: (data: TInput) => void;
-	/** Set handler for incoming messages (use data property instead) */
+	/** Set handler for incoming messages */
 	setHandler: (handler: onMessageHandler<TOutput>) => void;
 	/** WebSocket connection state (CONNECTING=0, OPEN=1, CLOSING=2, CLOSED=3) */
 	readyState: WebSocket['readyState'];
@@ -111,7 +114,6 @@ const useWebsocketInternal = <TInput, TOutput>(
 		undefined
 	);
 
-	const [data, setData] = useState<TOutput>();
 	const [error, setError] = useState<Error | null>(null);
 	const [isError, setIsError] = useState(false);
 	const [isConnected, setIsConnected] = useState(false);
@@ -159,8 +161,6 @@ const useWebsocketInternal = <TInput, TOutput>(
 
 		wsRef.current.onmessage = (event: { data: string }) => {
 			const payload = deserializeData<TOutput>(event.data);
-			// Use JSON memoization to prevent re-renders when data hasn't changed
-			setData((prev) => (prev !== undefined && jsonEqual(prev, payload) ? prev : payload));
 			if (handler.current) {
 				handler.current(payload);
 			} else {
@@ -247,7 +247,6 @@ const useWebsocketInternal = <TInput, TOutput>(
 	return {
 		isConnected,
 		close,
-		data,
 		error,
 		isError,
 		send,
@@ -313,9 +312,16 @@ export function useWebsocket<TRoute extends WebSocketRouteKey>(
 	useEffect(() => {
 		setHandler((message) => {
 			setData(message);
-			setMessages((prev) => [...prev, message]);
+			setMessages((prev) => {
+				const newMessages = [...prev, message];
+				// Enforce maxMessages limit if specified
+				if (options?.maxMessages && newMessages.length > options.maxMessages) {
+					return newMessages.slice(-options.maxMessages);
+				}
+				return newMessages;
+			});
 		});
-	}, [route, setHandler]);
+	}, [route, setHandler, options?.maxMessages]);
 
 	const clearMessages = useCallback(() => {
 		setMessages([]);

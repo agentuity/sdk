@@ -421,4 +421,37 @@ describe('useWebsocket', () => {
 		expect(result.current.messages).toHaveLength(1);
 		expect(result.current.messages[0]).toEqual({ batch: 1, id: 1 });
 	});
+
+	test('should enforce maxMessages limit', async () => {
+		const { result } = renderHook(() => useWebsocket('/test-ws', { maxMessages: 3 }), {
+			wrapper,
+		});
+
+		// Wait for connection
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		// Send 5 messages
+		await act(async () => {
+			const ws = MockWebSocket.instances[0];
+			if (ws) {
+				ws.simulateMessage({ id: 1 });
+				ws.simulateMessage({ id: 2 });
+				ws.simulateMessage({ id: 3 });
+				ws.simulateMessage({ id: 4 });
+				ws.simulateMessage({ id: 5 });
+			}
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		// Should only keep the last 3 messages
+		expect(result.current.messages).toHaveLength(3);
+		expect(result.current.messages[0]).toEqual({ id: 3 });
+		expect(result.current.messages[1]).toEqual({ id: 4 });
+		expect(result.current.messages[2]).toEqual({ id: 5 });
+
+		// data should still have the last message
+		expect(result.current.data).toEqual({ id: 5 });
+	});
 });
