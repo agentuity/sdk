@@ -13,13 +13,13 @@ interface MonacoJsonEditorProps {
 }
 
 // Convert Shiki theme to Monaco theme
-function convertShikiToMonaco(shikiTheme: any, themeName: string) {
+function convertShikiToMonaco(shikiTheme: { colors?: Record<string, string>; tokenColors?: Array<{ scope?: string | string[]; settings?: { foreground?: string; fontStyle?: string } }> }, themeName: string) {
 	const colors = shikiTheme.colors || {};
 	const tokenColors = shikiTheme.tokenColors || [];
 	
 	// Convert token colors to Monaco rules
-	const rules: any[] = [];
-	tokenColors.forEach((tokenColor: any) => {
+	const rules: Array<{ token: string; foreground: string; fontStyle?: string }> = [];
+	tokenColors.forEach((tokenColor) => {
 		if (tokenColor.scope && tokenColor.settings?.foreground) {
 			const scopes = Array.isArray(tokenColor.scope) ? tokenColor.scope : [tokenColor.scope];
 			scopes.forEach((scope: string) => {
