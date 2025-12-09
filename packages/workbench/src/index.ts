@@ -16,4 +16,5 @@ export { Input } from './components/ui/input';
 // Export components
 export { default as App } from './components/App';
 export { default as Inline } from './components/Inline';
+export { MonacoJsonEditor } from './components/internal/MonacoJsonEditor';
 export { createWorkbench } from './workbench';

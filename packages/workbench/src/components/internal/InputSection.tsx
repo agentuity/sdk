@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
 	CheckIcon,
 	ChevronsUpDownIcon,
@@ -7,8 +7,7 @@ import {
 	Loader2Icon,
 	Sparkles,
 } from 'lucide-react';
-import { init } from 'modern-monaco';
-import type * as Monaco from 'modern-monaco/editor-core';
+import { MonacoJsonEditor } from './MonacoJsonEditor';
 import {
 	PromptInput,
 	PromptInputBody,
@@ -70,8 +69,6 @@ export function InputSection({
 }: InputSectionProps) {
 	const logger = useLogger('InputSection');
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
-	const monacoEditorRef = useRef<HTMLDivElement>(null);
-	const editorInstanceRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
 
 	const selectedAgentData = Object.values(agents).find(agent => agent.metadata.agentId === selectedAgent);
 
@@ -104,176 +101,12 @@ export function InputSection({
 			const sampleData = zocker(zodSchema).generate();
 			const sampleJson = JSON.stringify(sampleData, null, 2);
 			onChange(sampleJson);
-
-			// Update Monaco editor directly if it exists
-			if (editorInstanceRef.current) {
-				editorInstanceRef.current.setValue(sampleJson);
-				editorInstanceRef.current.layout();
-			}
 		} catch (error) {
 			console.error('Failed to generate sample JSON:', error);
 		}
 	};
 
-	useEffect(() => {
-		if (!isObjectSchema || !monacoEditorRef.current) {
-			if (editorInstanceRef.current) {
-				editorInstanceRef.current.dispose();
-				editorInstanceRef.current = null;
-			}
-			return;
-		}
 
-		let isMounted = true;
-		let disposed = false;
-		let resizeObserver: ResizeObserver | null = null;
-
-		init({
-			theme: 'vitesse-dark',
-			langs: ['json'],
-		}).then((monaco) => {
-			if (!isMounted || !monacoEditorRef.current) return;
-
-			if (editorInstanceRef.current) {
-				editorInstanceRef.current.dispose();
-			}
-
-			// Configure JSON schema if available
-			const jsonSchema = selectedAgentData?.schema.input?.json;
-			if (jsonSchema) {
-				// Parse schema if it's a string, otherwise use directly
-				const schemaObject =
-					typeof jsonSchema === 'string' ? JSON.parse(jsonSchema) : jsonSchema;
-
-				// Access json namespace directly from monaco
-				if ('json' in monaco && typeof monaco.json === 'object' && monaco.json !== null) {
-					const jsonModule = monaco.json;
-					if (
-						'jsonDefaults' in jsonModule &&
-						typeof jsonModule.jsonDefaults === 'object' &&
-						jsonModule.jsonDefaults !== null
-					) {
-						const jsonDefaults = jsonModule.jsonDefaults;
-						if (
-							'setDiagnosticsOptions' in jsonDefaults &&
-							typeof jsonDefaults.setDiagnosticsOptions === 'function'
-						) {
-							jsonDefaults.setDiagnosticsOptions({
-								validate: true,
-								schemas: [
-									{
-										// URI is just an identifier, doesn't need to be a real URL
-										uri: `agentuity://schema/${selectedAgentData.metadata.id}/input`,
-										fileMatch: ['*'],
-										schema: schemaObject,
-									},
-								],
-							});
-						}
-					}
-				}
-			}
-
-			// Set initial height
-			const container = monacoEditorRef.current;
-			container.style.height = '64px'; // min-h-16 = 4rem = 64px
-
-			const editor = monaco.editor.create(container, {
-				value: value || '{}',
-				language: 'json',
-				minimap: { enabled: false },
-				autoIndentOnPaste: true,
-				overviewRulerBorder: false,
-				overviewRulerLanes: 0,
-				hideCursorInOverviewRuler: true,
-				codeLens: false,
-				fontSize: 14,
-				lineNumbers: 'off',
-				scrollBeyondLastLine: false,
-				wordWrap: 'on',
-				automaticLayout: true,
-				scrollbar: {
-					vertical: 'auto',
-					horizontal: 'auto',
-				},
-				padding: { top: 12, bottom: 12 },
-			});
-
-			// Make background transparent
-			setTimeout(() => {
-				if (disposed) return;
-				const editorElement = container.querySelector('.monaco-editor');
-				if (editorElement) {
-					(editorElement as HTMLElement).style.backgroundColor = 'transparent';
-				}
-
-				const backgroundElement = container.querySelector(
-					'.monaco-editor .monaco-editor-background'
-				);
-				if (backgroundElement) {
-					(backgroundElement as HTMLElement).style.backgroundColor = 'transparent';
-				}
-
-				const viewLines = container.querySelector('.monaco-editor .view-lines');
-				if (viewLines) {
-					(viewLines as HTMLElement).style.backgroundColor = 'transparent';
-				}
-			}, 0);
-
-			editor.onDidChangeModelContent(() => {
-				const newValue = editor.getValue();
-				logger.debug('📝 Monaco value changed:', newValue);
-				onChange(newValue);
-
-				// Auto-resize based on content
-				if (container) {
-					const contentHeight = editor.getContentHeight();
-					const maxHeight = 192; // max-h-48 = 12rem = 192px
-					const minHeight = 64; // min-h-16 = 4rem = 64px
-					const newHeight = Math.min(Math.max(contentHeight + 24, minHeight), maxHeight);
-					container.style.height = `${newHeight}px`;
-					editor.layout();
-				}
-			});
-
-			// Resize observer for container size changes
-			resizeObserver = new ResizeObserver(() => {
-				if (!disposed && editor && isMounted) {
-					editor.layout();
-				}
-			});
-			resizeObserver.observe(container);
-
-			// Force layout update after creation
-			setTimeout(() => {
-				if (disposed) return;
-				editor.layout();
-			}, 0);
-
-			editorInstanceRef.current = editor;
-		});
-
-		return () => {
-			isMounted = false;
-			disposed = true;
-			if (resizeObserver) {
-				resizeObserver.disconnect();
-			}
-			if (editorInstanceRef.current) {
-				editorInstanceRef.current.dispose();
-				editorInstanceRef.current = null;
-			}
-		};
-	}, [isObjectSchema, onChange, selectedAgentData]);
-
-	useEffect(() => {
-		if (isObjectSchema && editorInstanceRef.current) {
-			const currentValue = editorInstanceRef.current.getValue();
-			if (currentValue !== value) {
-				editorInstanceRef.current.setValue(value || '{}');
-			}
-		}
-	}, [value, isObjectSchema]);
 
 	return (
 		<>
@@ -379,10 +212,11 @@ export function InputSection({
 						switch (inputType) {
 							case 'object':
 								return (
-									<div
-										ref={monacoEditorRef}
-										className="w-full rounded-md bg-transparent overflow-hidden"
-										style={{ minHeight: '64px', maxHeight: '192px', height: '64px' }}
+									<MonacoJsonEditor
+										value={value}
+										onChange={onChange}
+										schema={selectedAgentData?.schema.input?.json}
+										schemaUri={`agentuity://schema/${selectedAgentData?.metadata.id}/input`}
 									/>
 								);
 
