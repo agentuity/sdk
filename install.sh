@@ -195,6 +195,22 @@ print_message() {
   printf "${_pm_color}${_pm_message}${NC}\n"
 }
 
+# Ensure bun is on PATH by checking $HOME/.bun/bin if not already found
+ensure_bun_on_path() {
+  # If bun is already on PATH, nothing to do
+  if command -v bun >/dev/null 2>&1; then
+    return 0
+  fi
+  
+  # Check if bun exists in $HOME/.bun/bin
+  if [ -f "$HOME/.bun/bin/bun" ]; then
+    export PATH="$HOME/.bun/bin:$PATH"
+  fi
+  
+  # Always return 0 - this is a best-effort helper
+  return 0
+}
+
 check_brew_install() {
   if command -v brew >/dev/null 2>&1; then
     if brew list agentuity >/dev/null 2>&1; then
@@ -452,6 +468,9 @@ version_compare() {
 }
 
 check_bun_version() {
+  # First, try to ensure bun is on PATH if it's installed in $HOME/.bun/bin
+  ensure_bun_on_path
+  
   # Check if we're in CI mode (auto-install enabled)
   is_ci=false
   if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${GITLAB_CI:-}" ] || [ -n "${CIRCLECI:-}" ] || [ -n "${JENKINS_HOME:-}" ] || [ -n "${TRAVIS:-}" ]; then
@@ -814,12 +833,64 @@ for file in $config_files; do
 done
 
 if [ -z "$config_file" ]; then
-  if [ "$non_interactive" = false ]; then
-    print_message warning "No config file found for $current_shell"
+  # No existing config file found - create one based on shell type
+  case $current_shell in
+  fish)
+    config_file="$HOME/.config/fish/config.fish"
+    mkdir -p "$(dirname "$config_file")"
+    ;;
+  zsh)
+    config_file="$HOME/.zshrc"
+    ;;
+  bash)
+    config_file="$HOME/.bashrc"
+    ;;
+  ash|sh)
+    config_file="$HOME/.profile"
+    ;;
+  *)
+    config_file="$HOME/.profile"
+    ;;
+  esac
+  
+  # Create the file if it doesn't exist
+  if [ ! -f "$config_file" ]; then
+    touch "$config_file" 2>/dev/null || true
+  fi
+  
+  # Verify we can write to it
+  if [ ! -w "$config_file" ]; then
+    print_message warning "Cannot create or write to $config_file"
     print_message info "Manually add to your PATH:"
     print_message info "  export PATH=$INSTALL_DIR:\$PATH"
+    config_file=""
+  else
+    print_message info "${MUTED}Created new config file: ${NC}$config_file"
   fi
-else
+fi
+
+if [ -n "$config_file" ]; then
+  # Add bun to PATH if it exists in $HOME/.bun/bin and not already on PATH
+  bun_bin_dir="$HOME/.bun/bin"
+  if [ -f "$bun_bin_dir/bun" ]; then
+    case ":$PATH:" in
+      *":$bun_bin_dir:"*)
+        # Bun already on PATH
+        ;;
+      *)
+        case $current_shell in
+        fish)
+          add_to_path "$config_file" "fish_add_path $bun_bin_dir"
+          ;;
+        *)
+          add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH"
+          ;;
+        esac
+        ;;
+    esac
+  fi
+  
+  # Add agentuity to PATH if not already on PATH
   case ":$PATH:" in
     *":$INSTALL_DIR:"*)
       ;;

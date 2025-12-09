@@ -1,5 +1,6 @@
 export { createCLI, registerCommands } from './cli';
 export { validateRuntime, isBun } from './runtime';
+export { ensureBunOnPath } from './bun-path';
 export {
 	generateCLISchema,
 	type CLISchema,

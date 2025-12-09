@@ -13,6 +13,7 @@ import type { CommandContext, LogLevel } from '../src/types';
 import { generateCLISchema } from '../src/schema-generator';
 import { setOutputOptions } from '../src/output';
 import type { GlobalOptions } from '../src/types';
+import { ensureBunOnPath } from '../src/bun-path';
 
 // Cleanup TTY state before exit
 function cleanupAndExit() {
@@ -35,6 +36,7 @@ process.once('SIGTERM', () => {
 });
 
 validateRuntime();
+await ensureBunOnPath();
 
 // Preprocess arguments to convert --help=json to --help json
 // Commander.js doesn't support --option=value syntax for optional values
