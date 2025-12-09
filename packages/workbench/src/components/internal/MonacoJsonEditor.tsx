@@ -126,15 +126,10 @@ export function MonacoJsonEditor({
 	// Configure JSON schema when schema or monacoInstance changes
 	useEffect(() => {
 		if (!monacoInstance || !schema) {
-			console.log('MonacoJsonEditor: Missing monaco instance or schema', {
-				monacoInstance: !!monacoInstance,
-				schema: !!schema,
-			});
 			return;
 		}
 
 		const schemaObject = typeof schema === 'string' ? JSON.parse(schema) : schema;
-		console.log('MonacoJsonEditor: Configuring schema validation', { schemaUri, schemaObject });
 
 		// Configure Monaco JSON language support for schema validation
 		monacoInstance.languages.json.jsonDefaults.setDiagnosticsOptions({

@@ -14,6 +14,7 @@ const simpleAgent = createAgent('simple', {
 		}),
 	},
 	handler: async (ctx, input) => {
+		// Intentional delay for testing loading/streaming states in workbench UI
 		await new Promise((resolve) => setTimeout(resolve, 3000));
 
 		return {

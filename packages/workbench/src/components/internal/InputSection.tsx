@@ -99,32 +99,35 @@ export function InputSection({
 			return 'string'; // String schema
 		}
 		return 'none'; // Default to none for other types
-	}, [selectedAgentData?.schema.input?.json]);
+	}, [selectedAgentData?.schema.input?.json, logger]);
 
 	const isObjectSchema = inputType === 'object';
 
 	// Validate JSON input against schema using zod (fallback for non-Monaco cases)
-	const validateInput = useCallback((inputValue: string, schema?: JSONSchema7): boolean => {
-		if (!schema || !isObjectSchema || !inputValue.trim()) {
-			return true; // No validation needed or empty input
-		}
+	const validateInput = useCallback(
+		(inputValue: string, schema?: JSONSchema7): boolean => {
+			if (!schema || !isObjectSchema || !inputValue.trim()) {
+				return true; // No validation needed or empty input
+			}
 
-		try {
-			// Parse JSON first
-			const parsedJson = JSON.parse(inputValue);
+			try {
+				// Parse JSON first
+				const parsedJson = JSON.parse(inputValue);
 
-			// Convert schema to zod and validate
-			const schemaObject = typeof schema === 'string' ? JSON.parse(schema) : schema;
-			const zodSchema = convertJsonSchemaToZod(schemaObject);
+				// Convert schema to zod and validate
+				const schemaObject = typeof schema === 'string' ? JSON.parse(schema) : schema;
+				const zodSchema = convertJsonSchemaToZod(schemaObject);
 
-			// Validate with zod
-			const result = zodSchema.safeParse(parsedJson);
-			return result.success;
-		} catch {
-			// JSON parse error or schema validation error
-			return false;
-		}
-	}, [isObjectSchema]);
+				// Validate with zod
+				const result = zodSchema.safeParse(parsedJson);
+				return result.success;
+			} catch {
+				// JSON parse error or schema validation error
+				return false;
+			}
+		},
+		[isObjectSchema]
+	);
 
 	// Reset Monaco error state when schema changes
 	useEffect(() => {
@@ -148,7 +151,13 @@ export function InputSection({
 			// No schema or not object schema
 			setIsValidInput(true);
 		}
-	}, [value, selectedAgentData?.schema?.input?.json, validateInput, isObjectSchema, monacoHasErrors]);
+	}, [
+		value,
+		selectedAgentData?.schema?.input?.json,
+		validateInput,
+		isObjectSchema,
+		monacoHasErrors,
+	]);
 
 	const handleGenerateSample = () => {
 		if (!selectedAgentData?.schema.input?.json || !isObjectSchema) return;
@@ -165,6 +174,14 @@ export function InputSection({
 			console.error('Failed to generate sample JSON:', error);
 		}
 	};
+
+	// Memoized submit disabled condition for readability
+	const isSubmitDisabled = useMemo(() => {
+		if (isLoading) return true;
+		if (inputType === 'string' && !value.trim()) return true;
+		if (inputType === 'object' && (!isValidInput || !value.trim())) return true;
+		return false;
+	}, [isLoading, inputType, value, isValidInput]);
 
 	return (
 		<>
@@ -264,10 +281,10 @@ export function InputSection({
 				)}
 
 				<Button
-					aria-label={isSchemaOpen ? "Hide Schema" : "View Schema"}
+					aria-label={isSchemaOpen ? 'Hide Schema' : 'View Schema'}
 					size="sm"
-					variant={isSchemaOpen ? "default" : "outline"}
-					className={cn("font-normal", isSchemaOpen ? "bg-primary" : "bg-none")}
+					variant={isSchemaOpen ? 'default' : 'outline'}
+					className={cn('font-normal', isSchemaOpen ? 'bg-primary' : 'bg-none')}
 					onClick={onSchemaToggle}
 				>
 					<FileJson className="size-4" /> Schema
@@ -332,7 +349,7 @@ export function InputSection({
 							aria-label="Submit"
 							size="icon"
 							variant="default"
-							disabled={isLoading || (inputType === 'string' && !value.trim()) || (inputType === 'object' && (!isValidInput || !value.trim()))}
+							disabled={isSubmitDisabled}
 							onClick={() => {
 								logger.debug(
 									'🔥 Submit button clicked! inputType:',
