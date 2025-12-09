@@ -1,8 +1,8 @@
-import { useAPI, getProcessEnv } from '@agentuity/react';
+import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 
 // Get configurable workbench path from environment, default to '/workbench'
-const WORKBENCH_PATH = import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH || '/workbench';
+const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH || '/workbench';
 
 export function App() {
 	const [prompt, setPrompt] = useState('Tell me a joke');

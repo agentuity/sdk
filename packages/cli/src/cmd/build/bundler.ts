@@ -388,7 +388,7 @@ export async function bundle({
 			// Create workbench config with proper defaults
 			const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
 			const config = { ...defaultConfig, ...workbench.config };
-			
+
 			// Add to define so process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH gets replaced at build time
 			define['process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH'] = JSON.stringify(config.route);
 		}
@@ -484,101 +484,101 @@ export async function bundle({
 		})();
 	}
 
-	// Bundle workbench app if detected via setupWorkbench  
+	// Bundle workbench app if detected via setupWorkbench
 	if (existsSync(appFile) && workbench && workbench.hasWorkbench) {
 		// Create workbench config with proper defaults
 		const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
 		const config = { ...defaultConfig, ...workbench.config };
 		try {
-				// Generate workbench files on the fly instead of using files from package
-				const tempWorkbenchDir = join(outDir, 'temp-workbench');
-				mkdirSync(tempWorkbenchDir, { recursive: true });
+			// Generate workbench files on the fly instead of using files from package
+			const tempWorkbenchDir = join(outDir, 'temp-workbench');
+			mkdirSync(tempWorkbenchDir, { recursive: true });
 
-				// Generate files using templates
-				await Bun.write(join(tempWorkbenchDir, 'main.tsx'), generateWorkbenchMainTsx(config));
-				const workbenchIndexFile = join(tempWorkbenchDir, 'index.html');
-				await Bun.write(workbenchIndexFile, generateWorkbenchIndexHtml());
+			// Generate files using templates
+			await Bun.write(join(tempWorkbenchDir, 'main.tsx'), generateWorkbenchMainTsx(config));
+			const workbenchIndexFile = join(tempWorkbenchDir, 'index.html');
+			await Bun.write(workbenchIndexFile, generateWorkbenchIndexHtml());
 
-				// Bundle workbench using generated files
-				// Disable splitting to avoid CommonJS/ESM module resolution conflicts
-				const workbenchBuildConfig: Bun.BuildConfig = {
-					entrypoints: [workbenchIndexFile],
-					outdir: join(outDir, 'workbench'),
-					sourcemap: dev ? 'inline' : 'linked',
-					target: 'browser',
-					format: 'esm',
-					banner: `// Generated file. DO NOT EDIT`,
-					minify: !dev,
-					drop: isProd ? ['debugger'] : undefined,
-					splitting: false,
-					packages: 'bundle',
-					conditions: ['browser', 'import', 'default'],
-					naming: {
-						entry: '[dir]/[name].[ext]',
-						chunk: 'workbench/chunk/[name]-[hash].[ext]',
-						asset: 'workbench/asset/[name]-[hash].[ext]',
-					},
-				};
+			// Bundle workbench using generated files
+			// Disable splitting to avoid CommonJS/ESM module resolution conflicts
+			const workbenchBuildConfig: Bun.BuildConfig = {
+				entrypoints: [workbenchIndexFile],
+				outdir: join(outDir, 'workbench'),
+				sourcemap: dev ? 'inline' : 'linked',
+				target: 'browser',
+				format: 'esm',
+				banner: `// Generated file. DO NOT EDIT`,
+				minify: !dev,
+				drop: isProd ? ['debugger'] : undefined,
+				splitting: false,
+				packages: 'bundle',
+				conditions: ['browser', 'import', 'default'],
+				naming: {
+					entry: '[dir]/[name].[ext]',
+					chunk: 'workbench/chunk/[name]-[hash].[ext]',
+					asset: 'workbench/asset/[name]-[hash].[ext]',
+				},
+			};
 
-				const workbenchResult = await Bun.build(workbenchBuildConfig);
-				if (workbenchResult.success) {
-					logger.debug('Workbench bundled successfully');
-					// Clean up temp directory
-					rmSync(tempWorkbenchDir, { recursive: true, force: true });
-				} else {
-					logger.error('Workbench bundling failed. Logs:', workbenchResult.logs);
-					if (workbenchResult.logs.length === 0) {
-						logger.error('No build logs available. Checking generated files...');
-						logger.error('Temp dir exists:', await Bun.file(tempWorkbenchDir).exists());
-						logger.error('Index file exists:', await Bun.file(workbenchIndexFile).exists());
-						logger.error(
-							'Main.tsx exists:',
-							await Bun.file(join(tempWorkbenchDir, 'main.tsx')).exists()
-						);
-					}
-					// Clean up temp directory even on failure
-					rmSync(tempWorkbenchDir, { recursive: true, force: true });
-					logger.fatal('Workbench bundling failed');
+			const workbenchResult = await Bun.build(workbenchBuildConfig);
+			if (workbenchResult.success) {
+				logger.debug('Workbench bundled successfully');
+				// Clean up temp directory
+				rmSync(tempWorkbenchDir, { recursive: true, force: true });
+			} else {
+				logger.error('Workbench bundling failed. Logs:', workbenchResult.logs);
+				if (workbenchResult.logs.length === 0) {
+					logger.error('No build logs available. Checking generated files...');
+					logger.error('Temp dir exists:', await Bun.file(tempWorkbenchDir).exists());
+					logger.error('Index file exists:', await Bun.file(workbenchIndexFile).exists());
+					logger.error(
+						'Main.tsx exists:',
+						await Bun.file(join(tempWorkbenchDir, 'main.tsx')).exists()
+					);
 				}
-			} catch (error) {
-				logger.error('Failed to bundle workbench:', error);
-				// Collect all error messages
-				const errorMessages: string[] = [];
-				if (error instanceof AggregateError && Array.isArray(error.errors)) {
-					for (const err of error.errors) {
-						// Extract useful info from Bun's ResolveMessage errors
-						if (err && typeof err === 'object') {
-							const errObj = err as Record<string, unknown>;
-							if (typeof errObj.message === 'string') {
-								errorMessages.push(`  ${errObj.message}`);
-							}
-							const position = errObj.position as Record<string, unknown> | undefined;
-							if (position?.file && position?.line && position?.column) {
-								errorMessages.push(
-									`  at ${position.file}:${position.line}:${position.column}`
-								);
-							}
+				// Clean up temp directory even on failure
+				rmSync(tempWorkbenchDir, { recursive: true, force: true });
+				logger.fatal('Workbench bundling failed');
+			}
+		} catch (error) {
+			logger.error('Failed to bundle workbench:', error);
+			// Collect all error messages
+			const errorMessages: string[] = [];
+			if (error instanceof AggregateError && Array.isArray(error.errors)) {
+				for (const err of error.errors) {
+					// Extract useful info from Bun's ResolveMessage errors
+					if (err && typeof err === 'object') {
+						const errObj = err as Record<string, unknown>;
+						if (typeof errObj.message === 'string') {
+							errorMessages.push(`  ${errObj.message}`);
+						}
+						const position = errObj.position as Record<string, unknown> | undefined;
+						if (position?.file && position?.line && position?.column) {
+							errorMessages.push(
+								`  at ${position.file}:${position.line}:${position.column}`
+							);
 						}
 					}
 				}
-
-				// Show different tips based on whether we're in a monorepo or published package
-				const isMonorepo = await Bun.file(join(rootDir, '../../packages')).exists();
-				if (isMonorepo) {
-					errorMessages.push(
-						'\nTip: Make sure all @agentuity/* packages are built by',
-						'running "bun run build" from the monorepo root.'
-					);
-				} else {
-					errorMessages.push(
-						'\nTip: If you see module resolution errors, try running',
-						'"bun install" to ensure all dependencies are installed.'
-					);
-				}
-
-				// Don't continue if workbench bundling fails
-				logger.fatal(errorMessages.join('\n'));
 			}
+
+			// Show different tips based on whether we're in a monorepo or published package
+			const isMonorepo = await Bun.file(join(rootDir, '../../packages')).exists();
+			if (isMonorepo) {
+				errorMessages.push(
+					'\nTip: Make sure all @agentuity/* packages are built by',
+					'running "bun run build" from the monorepo root.'
+				);
+			} else {
+				errorMessages.push(
+					'\nTip: If you see module resolution errors, try running',
+					'"bun install" to ensure all dependencies are installed.'
+				);
+			}
+
+			// Don't continue if workbench bundling fails
+			logger.fatal(errorMessages.join('\n'));
+		}
 	}
 
 	if (!dev && buildmetadata) {

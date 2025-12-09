@@ -1,8 +1,8 @@
-import { useAPI, getProcessEnv } from '@agentuity/react';
+import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 
 // Get configurable workbench path from environment, default to '/workbench'
-const WORKBENCH_PATH = import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH || '/workbench';
+const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH || '/workbench';
 
 export function App() {
 	const [name, setName] = useState('World');
@@ -114,14 +114,13 @@ export function App() {
 								key: 'try-workbench',
 								title: (
 									<>
-										Try <a href={WORKBENCH_PATH} className="workbench-link">Workbench</a>
+										Try{' '}
+										<a href={WORKBENCH_PATH} className="workbench-link">
+											Workbench
+										</a>
 									</>
 								),
-								text: (
-									<>
-										A chat interface to test your agents in isolation.
-									</>
-								),
+								text: <>A chat interface to test your agents in isolation.</>,
 							},
 						].map((step) => (
 							<div key={step.key} className="step">
