@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Editor, { type Monaco, type OnMount } from '@monaco-editor/react';
 import { useTheme } from '../ui/theme-provider';
+import { bundledThemes } from 'shiki';
 import type { JSONSchema7 } from 'ai';
 
 interface MonacoJsonEditorProps {
@@ -9,6 +10,45 @@ interface MonacoJsonEditorProps {
 	schema?: JSONSchema7;
 	schemaUri?: string;
 	className?: string;
+}
+
+// Convert Shiki theme to Monaco theme
+function convertShikiToMonaco(shikiTheme: any, themeName: string) {
+	const colors = shikiTheme.colors || {};
+	const tokenColors = shikiTheme.tokenColors || [];
+	
+	// Convert token colors to Monaco rules
+	const rules: any[] = [];
+	tokenColors.forEach((tokenColor: any) => {
+		if (tokenColor.scope && tokenColor.settings?.foreground) {
+			const scopes = Array.isArray(tokenColor.scope) ? tokenColor.scope : [tokenColor.scope];
+			scopes.forEach((scope: string) => {
+				// Map common scopes to Monaco tokens
+				let token = scope;
+				if (scope.includes('string.quoted.double.json')) token = 'string.value.json';
+				if (scope.includes('support.type.property-name.json')) token = 'string.key.json';
+				if (scope.includes('constant.numeric.json')) token = 'number.json';
+				if (scope.includes('constant.language.json')) token = 'keyword.json';
+				if (scope.includes('punctuation.definition.string.json')) token = 'delimiter.bracket.json';
+				
+				rules.push({
+					token,
+					foreground: tokenColor.settings.foreground.replace('#', ''),
+					fontStyle: tokenColor.settings.fontStyle || undefined,
+				});
+			});
+		}
+	});
+
+	return {
+		base: themeName.includes('dark') ? 'vs-dark' : 'vs',
+		inherit: true,
+		rules,
+		colors: {
+			'editor.background': '#00000000', // Always transparent
+			'editor.foreground': colors['editor.foreground'] || (themeName.includes('dark') ? '#abb2bf' : '#383a42'),
+		},
+	};
 }
 
 export function MonacoJsonEditor({
@@ -186,59 +226,63 @@ export function MonacoJsonEditor({
 						}
 					}, 0);
 				}}
-				beforeMount={(monaco) => {
+				beforeMount={async (monaco) => {
 					setMonacoInstance(monaco);
-					// Match Shiki's 'one-light' theme colors for JSON
-					monaco.editor.defineTheme('custom-light', {
-						base: 'vs',
-						inherit: true,
-						rules: [
-							// JSON specific tokens to match Shiki one-light
-							{ token: 'string.key.json', foreground: 'e45649' }, // Property keys (red)
-							{ token: 'string.value.json', foreground: '50a14f' }, // String values (green)
-							{ token: 'number.json', foreground: '986801' }, // Numbers (brown)
-							{ token: 'keyword.json', foreground: '986801' }, // true/false/null (brown)
-							{ token: 'delimiter.bracket.json', foreground: '383a42' }, // Brackets
-							{ token: 'delimiter.array.json', foreground: '383a42' }, // Array brackets
-							{ token: 'delimiter.colon.json', foreground: '383a42' }, // Colons
-							{ token: 'delimiter.comma.json', foreground: '383a42' }, // Commas
-							{ token: 'comment.json', foreground: 'a0a1a7', fontStyle: 'italic' },
-							// Fallbacks for general tokens
-							{ token: 'string', foreground: '50a14f' },
-							{ token: 'number', foreground: '986801' },
-							{ token: 'keyword', foreground: '986801' },
-						],
-						colors: {
-							'editor.background': '#00000000', // Transparent
-							'editor.foreground': '#383a42', // One Light main text color
-						},
-					});
+					
+					try {
+						// Try to use actual Shiki themes
+						const oneLightTheme = bundledThemes['one-light'];
+						const oneDarkProTheme = bundledThemes['one-dark-pro'];
+						
+						if (oneLightTheme) {
+							const lightMonacoTheme = convertShikiToMonaco(oneLightTheme, 'one-light');
+							monaco.editor.defineTheme('custom-light', lightMonacoTheme);
+						}
+						
+						if (oneDarkProTheme) {
+							const darkMonacoTheme = convertShikiToMonaco(oneDarkProTheme, 'one-dark-pro');
+							monaco.editor.defineTheme('custom-dark', darkMonacoTheme);
+						}
+					} catch (error) {
+						console.warn('Failed to load Shiki themes, falling back to manual themes:', error);
+						
+						// Fallback to manual theme definitions
+						monaco.editor.defineTheme('custom-light', {
+							base: 'vs',
+							inherit: true,
+							rules: [
+								{ token: 'string.key.json', foreground: 'e45649' },
+								{ token: 'string.value.json', foreground: '50a14f' },
+								{ token: 'number.json', foreground: '986801' },
+								{ token: 'keyword.json', foreground: '986801' },
+								{ token: 'string', foreground: '50a14f' },
+								{ token: 'number', foreground: '986801' },
+								{ token: 'keyword', foreground: '986801' },
+							],
+							colors: {
+								'editor.background': '#00000000',
+								'editor.foreground': '#383a42',
+							},
+						});
 
-					// Match Shiki's 'one-dark-pro' theme colors for JSON
-					monaco.editor.defineTheme('custom-dark', {
-						base: 'vs-dark',
-						inherit: true,
-						rules: [
-							// JSON specific tokens to match Shiki one-dark-pro
-							{ token: 'string.key.json', foreground: 'e06c75' }, // Property keys (red)
-							{ token: 'string.value.json', foreground: '98c379' }, // String values (green)
-							{ token: 'number.json', foreground: 'd19a66' }, // Numbers (orange)
-							{ token: 'keyword.json', foreground: 'c678dd' }, // true/false/null (purple)
-							{ token: 'delimiter.bracket.json', foreground: 'abb2bf' }, // Brackets
-							{ token: 'delimiter.array.json', foreground: 'abb2bf' }, // Array brackets
-							{ token: 'delimiter.colon.json', foreground: 'abb2bf' }, // Colons
-							{ token: 'delimiter.comma.json', foreground: 'abb2bf' }, // Commas
-							{ token: 'comment.json', foreground: '5c6370', fontStyle: 'italic' },
-							// Fallbacks for general tokens
-							{ token: 'string', foreground: '98c379' },
-							{ token: 'number', foreground: 'd19a66' },
-							{ token: 'keyword', foreground: 'c678dd' },
-						],
-						colors: {
-							'editor.background': '#00000000', // Transparent
-							'editor.foreground': '#abb2bf', // One Dark Pro main text color
-						},
-					});
+						monaco.editor.defineTheme('custom-dark', {
+							base: 'vs-dark',
+							inherit: true,
+							rules: [
+								{ token: 'string.key.json', foreground: 'e06c75' },
+								{ token: 'string.value.json', foreground: '98c379' },
+								{ token: 'number.json', foreground: 'd19a66' },
+								{ token: 'keyword.json', foreground: 'c678dd' },
+								{ token: 'string', foreground: '98c379' },
+								{ token: 'number', foreground: 'd19a66' },
+								{ token: 'keyword', foreground: 'c678dd' },
+							],
+							colors: {
+								'editor.background': '#00000000',
+								'editor.foreground': '#abb2bf',
+							},
+						});
+					}
 				}}
 			/>
 		</div>
