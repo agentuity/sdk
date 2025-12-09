@@ -3,6 +3,7 @@ import Editor, { type Monaco, type OnMount } from '@monaco-editor/react';
 import { useTheme } from '../ui/theme-provider';
 import { bundledThemes } from 'shiki';
 import type { JSONSchema7 } from 'ai';
+import type * as monaco from 'monaco-editor';
 
 interface MonacoJsonEditorProps {
 	value: string;
@@ -125,7 +126,10 @@ export function MonacoJsonEditor({
 	// Configure JSON schema when schema or monacoInstance changes
 	useEffect(() => {
 		if (!monacoInstance || !schema) {
-			console.log('MonacoJsonEditor: Missing monaco instance or schema', { monacoInstance: !!monacoInstance, schema: !!schema });
+			console.log('MonacoJsonEditor: Missing monaco instance or schema', {
+				monacoInstance: !!monacoInstance,
+				schema: !!schema,
+			});
 			return;
 		}
 
@@ -244,7 +248,7 @@ export function MonacoJsonEditor({
 							if (model) {
 								const markers = monaco.editor.getModelMarkers({ resource: model.uri });
 								const hasErrors = markers.some(
-									(marker) => marker.severity === monaco.MarkerSeverity.Error
+									(marker: monaco.editor.IMarker) => marker.severity === monaco.MarkerSeverity.Error
 								);
 								onValidationChange(hasErrors);
 							}
@@ -254,7 +258,7 @@ export function MonacoJsonEditor({
 						editor.onDidChangeModelContent(checkValidationErrors);
 
 						// Check when markers change
-						monaco.editor.onDidChangeMarkers((uris) => {
+						monaco.editor.onDidChangeMarkers((uris: monaco.Uri[]) => {
 							const model = editor.getModel();
 							if (model && uris.includes(model.uri)) {
 								checkValidationErrors();
