@@ -1,0 +1,455 @@
+{
+	"name": "agentuity-vscode",
+	"displayName": "Agentuity VSCode Extension",
+	"description": "Build, deploy, and manage AI agents with Agentuity",
+	"version": "0.0.80",
+	"publisher": "agentuity",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/agentuity/sdk"
+	},
+	"engines": {
+		"vscode": "^1.90.0"
+	},
+	"categories": ["Other", "Snippets"],
+	"keywords": ["agentuity", "ai", "agents", "llm"],
+	"icon": "resources/icon.png",
+	"activationEvents": ["onStartupFinished"],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "agentuity.login",
+				"title": "Login",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.logout",
+				"title": "Logout",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.whoami",
+				"title": "Who Am I?",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.refresh",
+				"title": "Refresh All",
+				"category": "Agentuity",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "agentuity.agents.refresh",
+				"title": "Refresh Agents",
+				"category": "Agentuity",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "agentuity.deployments.refresh",
+				"title": "Refresh Deployments",
+				"category": "Agentuity",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "agentuity.data.refresh",
+				"title": "Refresh Data",
+				"category": "Agentuity",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "agentuity.dev.start",
+				"title": "Start Dev Server",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.dev.stop",
+				"title": "Stop Dev Server",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.dev.restart",
+				"title": "Restart Dev Server",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.dev.showLogs",
+				"title": "Show Dev Server Logs",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.workbench.open",
+				"title": "Open Workbench",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.deploy",
+				"title": "Deploy",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.getAiCapabilities",
+				"title": "Get AI Capabilities (JSON)",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.getAiSchema",
+				"title": "Get AI Schema (JSON)",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.deployment.viewLogs",
+				"title": "View Deployment Logs",
+				"category": "Agentuity",
+				"icon": "$(output)"
+			},
+			{
+				"command": "agentuity.deployment.showDetails",
+				"title": "Show Deployment Details",
+				"category": "Agentuity",
+				"icon": "$(info)"
+			},
+			{
+				"command": "agentuity.db.copyConnectionString",
+				"title": "Copy Connection String",
+				"category": "Agentuity",
+				"icon": "$(copy)"
+			},
+			{
+				"command": "agentuity.db.openConnectionUri",
+				"title": "Open Connection URI",
+				"category": "Agentuity",
+				"icon": "$(link-external)"
+			},
+			{
+				"command": "agentuity.db.viewLogs",
+				"title": "View Database Logs",
+				"category": "Agentuity",
+				"icon": "$(output)"
+			},
+			{
+				"command": "agentuity.vector.search",
+				"title": "Search Vectors",
+				"category": "Agentuity",
+				"icon": "$(search)"
+			},
+			{
+				"command": "agentuity.vector.clearSearches",
+				"title": "Clear Vector Searches",
+				"category": "Agentuity",
+				"icon": "$(clear-all)"
+			},
+			{
+				"command": "agentuity.agent.goToFile",
+				"title": "Go to Source File",
+				"category": "Agentuity",
+				"icon": "$(go-to-file)"
+			},
+			{
+				"command": "agentuity.agent.viewSessions",
+				"title": "View Sessions",
+				"category": "Agentuity",
+				"icon": "$(pulse)"
+			},
+			{
+				"command": "agentuity.agent.viewSessionLogs",
+				"title": "View Session Logs",
+				"category": "Agentuity",
+				"icon": "$(output)"
+			},
+			{
+				"command": "agentuity.installCli",
+				"title": "Install CLI",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.createProject",
+				"title": "Create Project",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.codeLens.openInWorkbench",
+				"title": "Open Agent in Workbench",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.codeLens.viewSessions",
+				"title": "View Agent Sessions",
+				"category": "Agentuity"
+			}
+		],
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "agentuity",
+					"title": "Agentuity",
+					"icon": "resources/icon.svg"
+				}
+			]
+		},
+		"views": {
+			"agentuity": [
+				{
+					"id": "agentuity.agents",
+					"name": "Agents",
+					"contextualTitle": "Agentuity Agents"
+				},
+				{
+					"id": "agentuity.deployments",
+					"name": "Deployments",
+					"contextualTitle": "Agentuity Deployments"
+				},
+				{
+					"id": "agentuity.data",
+					"name": "Data",
+					"contextualTitle": "Agentuity Data"
+				}
+			]
+		},
+		"menus": {
+			"view/title": [
+				{
+					"command": "agentuity.agents.refresh",
+					"when": "view == agentuity.agents",
+					"group": "navigation"
+				},
+				{
+					"command": "agentuity.deploy",
+					"when": "view == agentuity.agents && agentuity.hasProject",
+					"group": "1_actions"
+				},
+				{
+					"command": "agentuity.dev.start",
+					"when": "view == agentuity.agents && agentuity.hasProject && !agentuity.devServerRunning",
+					"group": "1_actions"
+				},
+				{
+					"command": "agentuity.dev.stop",
+					"when": "view == agentuity.agents && agentuity.devServerRunning",
+					"group": "1_actions"
+				},
+				{
+					"command": "agentuity.workbench.open",
+					"when": "view == agentuity.agents && agentuity.hasProject",
+					"group": "2_links"
+				},
+				{
+					"command": "agentuity.deployments.refresh",
+					"when": "view == agentuity.deployments",
+					"group": "navigation"
+				},
+				{
+					"command": "agentuity.data.refresh",
+					"when": "view == agentuity.data",
+					"group": "navigation"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "agentuity.deployment.viewLogs",
+					"when": "view == agentuity.deployments && viewItem == deployment",
+					"group": "inline"
+				},
+				{
+					"command": "agentuity.deployment.showDetails",
+					"when": "view == agentuity.deployments && viewItem == deployment",
+					"group": "context"
+				},
+				{
+					"command": "agentuity.db.copyConnectionString",
+					"when": "view == agentuity.data && viewItem == database",
+					"group": "inline"
+				},
+				{
+					"command": "agentuity.db.openConnectionUri",
+					"when": "view == agentuity.data && viewItem == database",
+					"group": "context"
+				},
+				{
+					"command": "agentuity.db.viewLogs",
+					"when": "view == agentuity.data && viewItem == database",
+					"group": "context"
+				},
+				{
+					"command": "agentuity.vector.search",
+					"when": "view == agentuity.data && viewItem == category-vector",
+					"group": "inline"
+				},
+				{
+					"command": "agentuity.vector.clearSearches",
+					"when": "view == agentuity.data && viewItem == vectorSearchGroup",
+					"group": "context"
+				},
+				{
+					"command": "agentuity.agent.viewSessions",
+					"when": "view == agentuity.agents && viewItem == agent",
+					"group": "inline"
+				},
+				{
+					"command": "agentuity.agent.goToFile",
+					"when": "view == agentuity.agents && viewItem == agent",
+					"group": "1_navigation"
+				},
+				{
+					"command": "agentuity.agent.viewSessions",
+					"when": "view == agentuity.agents && viewItem == agent",
+					"group": "2_actions"
+				}
+			]
+		},
+		"configuration": {
+			"title": "Agentuity",
+			"properties": {
+				"agentuity.cliPath": {
+					"type": "string",
+					"default": "",
+					"description": "Path to the Agentuity CLI executable. Leave empty to use PATH."
+				},
+				"agentuity.devServer.port": {
+					"type": "number",
+					"default": 3500,
+					"description": "Default port for the dev server."
+				}
+			}
+		},
+		"chatParticipants": [
+			{
+				"id": "agentuity.assistant",
+				"name": "agentuity",
+				"fullName": "Agentuity Assistant",
+				"description": "Help with building and managing Agentuity agents",
+				"isSticky": false,
+				"commands": [
+					{
+						"name": "help",
+						"description": "Show CLI reference and getting started guide"
+					},
+					{
+						"name": "agents",
+						"description": "List agents in this project"
+					},
+					{
+						"name": "deploy",
+						"description": "Deploy to Agentuity Cloud"
+					},
+					{
+						"name": "dev",
+						"description": "Start or stop the dev server"
+					},
+					{
+						"name": "sessions",
+						"description": "Show recent sessions"
+					},
+					{
+						"name": "status",
+						"description": "Show project and auth status"
+					},
+					{
+						"name": "kv",
+						"description": "List KV namespaces or keys in a namespace"
+					},
+					{
+						"name": "db",
+						"description": "List databases with connection info"
+					},
+					{
+						"name": "vector",
+						"description": "Search vectors in a namespace"
+					},
+					{
+						"name": "deployments",
+						"description": "List deployments with details"
+					},
+					{
+						"name": "logs",
+						"description": "View logs for a session"
+					}
+				]
+			}
+		],
+		"languageModelTools": [
+			{
+				"name": "agentuity_run_cli",
+				"displayName": "Run Agentuity CLI",
+				"toolReferenceName": "agentuity-cli",
+				"icon": "$(terminal)",
+				"userDescription": "Execute Agentuity CLI commands to manage agents and cloud resources",
+				"modelDescription": "Execute an Agentuity CLI command. Use this to run CLI commands like 'cloud agent list', 'cloud session list', 'ai capabilities show', etc. The command should be the subcommand and arguments only, not 'agentuity' itself. Destructive commands (delete, logout) are blocked.",
+				"canBeReferencedInPrompt": true,
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"command": {
+							"type": "string",
+							"description": "The Agentuity CLI subcommand and arguments (e.g., 'cloud agent list', 'cloud session list --count 10')"
+						},
+						"jsonOutput": {
+							"type": "boolean",
+							"description": "Whether to request JSON output from the CLI (default: true)",
+							"default": true
+						}
+					},
+					"required": ["command"]
+				}
+			}
+		],
+
+		"walkthroughs": [
+			{
+				"id": "gettingStarted",
+				"title": "Getting Started with Agentuity",
+				"description": "Set up the CLI, login, and deploy your first agent.",
+				"steps": [
+					{
+						"id": "installCli",
+						"title": "Install the Agentuity CLI",
+						"description": "The CLI is required for all Agentuity features.\n\nRun `bun install -g @agentuity/cli` to install.\n\n[Install CLI](command:agentuity.installCli)",
+						"completionEvents": ["onContext:agentuity.cliInstalled"]
+					},
+					{
+						"id": "login",
+						"title": "Login to Agentuity",
+						"description": "Authenticate with your Agentuity account.\n\nRun `agentuity auth login` in your terminal.\n\n[Login](command:agentuity.login)",
+						"completionEvents": ["onContext:agentuity.authenticated"]
+					},
+					{
+						"id": "createProject",
+						"title": "Create or Open a Project",
+						"description": "Create a new project or open an existing one.\n\nRun `agentuity project new` to create a new project.\n\n[Create Project](command:agentuity.createProject)",
+						"completionEvents": ["onContext:agentuity.hasProject"]
+					},
+					{
+						"id": "startDev",
+						"title": "Start the Dev Server",
+						"description": "Run your agents locally.\n\nThe dev server lets you test agents locally.\n\n[Start Dev Server](command:agentuity.dev.start)",
+						"completionEvents": ["onCommand:agentuity.dev.start"]
+					},
+					{
+						"id": "deploy",
+						"title": "Deploy to Agentuity Cloud",
+						"description": "Deploy your agents to production.\n\nDeploy to make your agents available online.\n\n[Deploy](command:agentuity.deploy)",
+						"completionEvents": ["onCommand:agentuity.deploy"]
+					}
+				]
+			}
+		]
+	},
+	"scripts": {
+		"build": "bun run compile",
+		"compile": "bunx esbuild ./src/extension.ts --bundle --outfile=./dist/extension.js --platform=node --format=cjs --external:vscode --main-fields=module,main",
+		"watch": "bunx esbuild ./src/extension.ts --bundle --outfile=./dist/extension.js --platform=node --format=cjs --external:vscode --main-fields=module,main --watch",
+		"typecheck": "bunx tsc --noEmit",
+		"vscode:prepublish": "bun run build",
+		"package": "bunx @vscode/vsce package --no-dependencies",
+		"clean": "rm -rf dist *.vsix"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.90.0",
+		"@vscode/vsce": "^3.3.2",
+		"typescript": "^5.9.0"
+	},
+	"dependencies": {
+		"jsonc-parser": "^3.3.1"
+	}
+}
