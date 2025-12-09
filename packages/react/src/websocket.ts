@@ -279,6 +279,17 @@ const useWebsocketInternal = <TInput, TOutput>(
  *   query: new URLSearchParams({ room: 'general' })
  * });
  * ```
+ *
+ * @example Access all messages (prevents message loss in rapid succession)
+ * ```typescript
+ * const { messages, clearMessages } = useWebsocket('/chat');
+ *
+ * // messages array contains ALL received messages
+ * messages.forEach(msg => console.log(msg));
+ *
+ * // Clear messages when needed
+ * clearMessages();
+ * ```
  */
 export function useWebsocket<TRoute extends WebSocketRouteKey>(
 	route: TRoute,
@@ -288,8 +299,11 @@ export function useWebsocket<TRoute extends WebSocketRouteKey>(
 	'setHandler'
 > & {
 	data?: WebSocketRouteOutput<TRoute>;
+	messages: WebSocketRouteOutput<TRoute>[];
+	clearMessages: () => void;
 } {
 	const [data, setData] = useState<WebSocketRouteOutput<TRoute>>();
+	const [messages, setMessages] = useState<WebSocketRouteOutput<TRoute>[]>([]);
 	const { isConnected, close, send, setHandler, readyState, error, isError, reset } =
 		useWebsocketInternal<WebSocketRouteInput<TRoute>, WebSocketRouteOutput<TRoute>>(
 			route as string,
@@ -297,13 +311,22 @@ export function useWebsocket<TRoute extends WebSocketRouteKey>(
 		);
 
 	useEffect(() => {
-		setHandler(setData);
+		setHandler((message) => {
+			setData(message);
+			setMessages((prev) => [...prev, message]);
+		});
 	}, [route, setHandler]);
+
+	const clearMessages = useCallback(() => {
+		setMessages([]);
+	}, []);
 
 	return {
 		isConnected,
 		close,
 		data,
+		messages,
+		clearMessages,
 		error,
 		isError,
 		reset,
