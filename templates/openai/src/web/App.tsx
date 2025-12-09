@@ -1,4 +1,4 @@
-import { useAPI } from '@agentuity/react';
+import { useAPI, getProcessEnv } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 
 // Get configurable workbench path from environment, default to '/workbench'
