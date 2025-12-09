@@ -14,6 +14,8 @@ const simpleAgent = createAgent('simple', {
 		}),
 	},
 	handler: async (ctx, input) => {
+		await new Promise((resolve) => setTimeout(resolve, 3000));
+
 		return {
 			message: `Hello, ${input.name}! You are ${input.age} years old.`,
 			timestamp: Date.now(),

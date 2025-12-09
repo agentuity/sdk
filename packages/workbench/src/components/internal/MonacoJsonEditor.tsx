@@ -120,13 +120,18 @@ export function MonacoJsonEditor({
 
 	// Configure JSON schema when schema or monacoInstance changes
 	useEffect(() => {
-		if (!monacoInstance || !schema) return;
+		if (!monacoInstance || !schema) {
+			console.log('MonacoJsonEditor: Missing monaco instance or schema', { monacoInstance: !!monacoInstance, schema: !!schema });
+			return;
+		}
 
 		const schemaObject = typeof schema === 'string' ? JSON.parse(schema) : schema;
+		console.log('MonacoJsonEditor: Configuring schema validation', { schemaUri, schemaObject });
 
 		// Configure Monaco JSON language support for schema validation
 		monacoInstance.languages.json.jsonDefaults.setDiagnosticsOptions({
 			validate: true,
+			allowComments: false,
 			schemas: [
 				{
 					uri: schemaUri,
@@ -134,6 +139,9 @@ export function MonacoJsonEditor({
 					schema: schemaObject,
 				},
 			],
+			enableSchemaRequest: true,
+			schemaRequest: 'error',
+			schemaValidation: 'error',
 		});
 	}, [monacoInstance, schema, schemaUri]);
 
@@ -192,7 +200,7 @@ export function MonacoJsonEditor({
 					},
 					padding: { top: 12, bottom: 12 },
 					// Additional background transparency options
-					renderValidationDecorations: 'off',
+					renderValidationDecorations: 'on',
 					guides: {
 						indentation: false,
 						highlightActiveIndentation: false,

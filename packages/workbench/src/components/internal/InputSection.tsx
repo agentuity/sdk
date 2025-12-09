@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
 	CheckIcon,
 	ChevronsUpDownIcon,
@@ -41,7 +41,8 @@ export interface InputSectionProps {
 	selectedAgent: string;
 	setSelectedAgent: (agentId: string) => void;
 	suggestions: string[];
-	onSchemaOpen: () => void;
+	isSchemaOpen: boolean;
+	onSchemaToggle: () => void;
 }
 
 function isSchemaRootObject(schemaJson?: JSONSchema7): boolean {
@@ -65,10 +66,12 @@ export function InputSection({
 	selectedAgent,
 	setSelectedAgent,
 	suggestions,
-	onSchemaOpen,
+	isSchemaOpen,
+	onSchemaToggle,
 }: InputSectionProps) {
 	const logger = useLogger('InputSection');
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
+	const [isValidInput, setIsValidInput] = useState(true);
 
 	const selectedAgentData = Object.values(agents).find(
 		(agent) => agent.metadata.agentId === selectedAgent
@@ -98,6 +101,35 @@ export function InputSection({
 	}, [selectedAgentData?.schema.input?.json]);
 
 	const isObjectSchema = inputType === 'object';
+
+	// Validate JSON input against schema using zod
+	const validateInput = useCallback((inputValue: string, schema?: JSONSchema7): boolean => {
+		if (!schema || !isObjectSchema || !inputValue.trim()) {
+			return true; // No validation needed or empty input
+		}
+
+		try {
+			// Parse JSON first
+			const parsedJson = JSON.parse(inputValue);
+			
+			// Convert schema to zod and validate
+			const schemaObject = typeof schema === 'string' ? JSON.parse(schema) : schema;
+			const zodSchema = convertJsonSchemaToZod(schemaObject);
+			
+			// Validate with zod
+			const result = zodSchema.safeParse(parsedJson);
+			return result.success;
+		} catch (error) {
+			// JSON parse error or schema validation error
+			return false;
+		}
+	}, [isObjectSchema]);
+
+	// Update validation state when value or schema changes
+	useEffect(() => {
+		const isValid = validateInput(value, selectedAgentData?.schema?.input?.json);
+		setIsValidInput(isValid);
+	}, [value, selectedAgentData?.schema?.input?.json, validateInput]);
 
 	const handleGenerateSample = () => {
 		if (!selectedAgentData?.schema.input?.json || !isObjectSchema) return;
@@ -213,11 +245,11 @@ export function InputSection({
 				)}
 
 				<Button
-					aria-label="View Schema"
+					aria-label={isSchemaOpen ? "Hide Schema" : "View Schema"}
 					size="sm"
-					variant="outline"
-					className="bg-none font-normal"
-					onClick={onSchemaOpen}
+					variant={isSchemaOpen ? "default" : "outline"}
+					className={cn("font-normal", isSchemaOpen ? "bg-primary" : "bg-none")}
+					onClick={onSchemaToggle}
 				>
 					<FileJson className="size-4" /> Schema
 				</Button>
@@ -279,7 +311,7 @@ export function InputSection({
 							aria-label="Submit"
 							size="icon"
 							variant="default"
-							disabled={isLoading || (inputType === 'string' && !value.trim())}
+							disabled={isLoading || (inputType === 'string' && !value.trim()) || (inputType === 'object' && (!isValidInput || !value.trim()))}
 							onClick={() => {
 								logger.debug(
 									'🔥 Submit button clicked! inputType:',
