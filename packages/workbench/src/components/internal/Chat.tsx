@@ -40,7 +40,9 @@ export function Chat({ className: _className }: ChatProps) {
 
 	const handleSubmit = async () => {
 		logger.debug('🎯 Chat handleSubmit - selectedAgent:', selectedAgent, 'value:', value);
-		const selectedAgentData = Object.values(agents).find(agent => agent.metadata.agentId === selectedAgent);
+		const selectedAgentData = Object.values(agents).find(
+			(agent) => agent.metadata.agentId === selectedAgent
+		);
 		logger.debug('📊 Chat handleSubmit - selectedAgentData:', selectedAgentData);
 		const hasInputSchema = selectedAgentData?.schema?.input?.json;
 		logger.debug('📝 Chat handleSubmit - hasInputSchema:', hasInputSchema);
