@@ -72,6 +72,7 @@ export function InputSection({
 	const logger = useLogger('InputSection');
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
 	const [isValidInput, setIsValidInput] = useState(true);
+	const [monacoHasErrors, setMonacoHasErrors] = useState<boolean | null>(null);
 
 	const selectedAgentData = Object.values(agents).find(
 		(agent) => agent.metadata.agentId === selectedAgent
@@ -102,7 +103,7 @@ export function InputSection({
 
 	const isObjectSchema = inputType === 'object';
 
-	// Validate JSON input against schema using zod
+	// Validate JSON input against schema using zod (fallback for non-Monaco cases)
 	const validateInput = useCallback((inputValue: string, schema?: JSONSchema7): boolean => {
 		if (!schema || !isObjectSchema || !inputValue.trim()) {
 			return true; // No validation needed or empty input
@@ -111,25 +112,43 @@ export function InputSection({
 		try {
 			// Parse JSON first
 			const parsedJson = JSON.parse(inputValue);
-			
+
 			// Convert schema to zod and validate
 			const schemaObject = typeof schema === 'string' ? JSON.parse(schema) : schema;
 			const zodSchema = convertJsonSchemaToZod(schemaObject);
-			
+
 			// Validate with zod
 			const result = zodSchema.safeParse(parsedJson);
 			return result.success;
-		} catch (error) {
+		} catch {
 			// JSON parse error or schema validation error
 			return false;
 		}
 	}, [isObjectSchema]);
 
-	// Update validation state when value or schema changes
+	// Reset Monaco error state when schema changes
 	useEffect(() => {
-		const isValid = validateInput(value, selectedAgentData?.schema?.input?.json);
-		setIsValidInput(isValid);
-	}, [value, selectedAgentData?.schema?.input?.json, validateInput]);
+		if (isObjectSchema) {
+			setMonacoHasErrors(null);
+		}
+	}, [selectedAgentData?.schema?.input?.json, isObjectSchema]);
+
+	// Update validation state - use Monaco errors if available, otherwise fall back to zod validation
+	useEffect(() => {
+		if (isObjectSchema) {
+			if (monacoHasErrors !== null) {
+				// Monaco is handling validation, use its error state
+				setIsValidInput(!monacoHasErrors);
+			} else {
+				// Monaco hasn't reported yet, use zod validation as fallback
+				const isValid = validateInput(value, selectedAgentData?.schema?.input?.json);
+				setIsValidInput(isValid);
+			}
+		} else {
+			// No schema or not object schema
+			setIsValidInput(true);
+		}
+	}, [value, selectedAgentData?.schema?.input?.json, validateInput, isObjectSchema, monacoHasErrors]);
 
 	const handleGenerateSample = () => {
 		if (!selectedAgentData?.schema.input?.json || !isObjectSchema) return;
@@ -266,6 +285,8 @@ export function InputSection({
 										onChange={onChange}
 										schema={selectedAgentData?.schema.input?.json}
 										schemaUri={`agentuity://schema/${selectedAgentData?.metadata.id}/input`}
+										aria-invalid={!isValidInput}
+										onValidationChange={setMonacoHasErrors}
 									/>
 								);
 
