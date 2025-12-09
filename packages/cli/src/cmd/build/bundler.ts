@@ -386,7 +386,7 @@ export async function bundle({
 
 		if (workbench.hasWorkbench) {
 			// Create workbench config with proper defaults
-			const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
+			const defaultConfig = { route: '/workbench', headers: {} };
 			const config = { ...defaultConfig, ...workbench.config };
 
 			// Add to define so process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH gets replaced at build time
@@ -487,7 +487,7 @@ export async function bundle({
 	// Bundle workbench app if detected via setupWorkbench
 	if (existsSync(appFile) && workbench && workbench.hasWorkbench) {
 		// Create workbench config with proper defaults
-		const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
+		const defaultConfig = { route: '/workbench', headers: {} };
 		const config = { ...defaultConfig, ...workbench.config };
 		try {
 			// Generate workbench files on the fly instead of using files from package
