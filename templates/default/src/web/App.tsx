@@ -1,6 +1,9 @@
 import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 
+// Get configurable workbench path from environment, default to '/workbench'
+const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH || '/workbench';
+
 export function App() {
 	const [name, setName] = useState('World');
 	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
@@ -80,6 +83,7 @@ export function App() {
 					<div className="steps-list">
 						{[
 							{
+								key: 'customize-agent',
 								title: 'Customize your agent',
 								text: (
 									<>
@@ -89,6 +93,7 @@ export function App() {
 								),
 							},
 							{
+								key: 'add-routes',
 								title: 'Add new API routes',
 								text: (
 									<>
@@ -97,6 +102,7 @@ export function App() {
 								),
 							},
 							{
+								key: 'update-frontend',
 								title: 'Update the frontend',
 								text: (
 									<>
@@ -104,8 +110,20 @@ export function App() {
 									</>
 								),
 							},
+							{
+								key: 'try-workbench',
+								title: (
+									<>
+										Try{' '}
+										<a href={WORKBENCH_PATH} className="workbench-link">
+											Workbench
+										</a>
+									</>
+								),
+								text: <>A chat interface to test your agents in isolation.</>,
+							},
 						].map((step) => (
-							<div key={step.title} className="step">
+							<div key={step.key} className="step">
 								<div className="step-icon">
 									<svg
 										aria-hidden="true"
@@ -165,7 +183,47 @@ export function App() {
 						gap: 0.5rem;
 						justify-content: center;
 						margin-bottom: 2rem;
+						position: relative;
 						text-align: center;
+					}
+
+					.workbench-link {
+						background: linear-gradient(90deg, #155e75, #3b82f6, #9333ea, #155e75);
+						background-size: 300% 100%;
+						background-clip: text;
+						-webkit-background-clip: text;
+						-webkit-text-fill-color: transparent;
+						color: transparent;
+						text-decoration: none;
+						animation: gradientShift 2s ease-in-out infinite alternate;
+						position: relative;
+					}
+
+					.workbench-link::after {
+						content: '';
+						position: absolute;
+						bottom: 0;
+						left: 0;
+						width: 100%;
+						height: 1px;
+						background: linear-gradient(90deg, #155e75, #3b82f6, #9333ea, #155e75);
+						background-size: 300% 100%;
+						animation: gradientShift 2s ease-in-out infinite alternate;
+						opacity: 0;
+						transition: opacity 0.3s ease;
+					}
+
+					.workbench-link:hover::after {
+						opacity: 1;
+					}
+
+					@keyframes gradientShift {
+						0% {
+							background-position: 0% 50%;
+						}
+						100% {
+							background-position: 100% 50%;
+						}
 					}
 
 					.logo {

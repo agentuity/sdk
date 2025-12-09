@@ -1,6 +1,9 @@
 import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 
+// Get configurable workbench path from environment, default to '/workbench'
+const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH || '/workbench';
+
 export function App() {
 	const [prompt, setPrompt] = useState('Tell me a joke');
 	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
@@ -82,6 +85,7 @@ export function App() {
 					<div className="steps-list">
 						{[
 							{
+								key: 'customize-agent',
 								title: 'Customize your agent',
 								text: (
 									<>
@@ -91,6 +95,7 @@ export function App() {
 								),
 							},
 							{
+								key: 'add-api-routes',
 								title: 'Add new API routes',
 								text: (
 									<>
@@ -99,6 +104,7 @@ export function App() {
 								),
 							},
 							{
+								key: 'update-frontend',
 								title: 'Update the frontend',
 								text: (
 									<>
@@ -106,8 +112,17 @@ export function App() {
 									</>
 								),
 							},
+							{
+								key: 'try-workbench',
+								title: (
+									<a href={WORKBENCH_PATH} className="workbench-link">
+										Workbench
+									</a>
+								),
+								text: 'A chat interface to test your agents in isolation.',
+							},
 						].map((step) => (
-							<div key={step.title} className="step">
+							<div key={step.key} className="step">
 								<div className="step-icon">
 									<svg
 										aria-hidden="true"
@@ -351,6 +366,27 @@ export function App() {
 
 					.step-text code {
 						color: #fff;
+					}
+
+					.workbench-link {
+						background: linear-gradient(90deg, #00ffff, #0080ff, #8000ff, #ff0080, #ff8000, #ffff00);
+						background-size: 300% 100%;
+						-webkit-background-clip: text;
+						-webkit-text-fill-color: transparent;
+						background-clip: text;
+						text-decoration: none;
+						animation: gradientShift 3s ease-in-out infinite;
+						font-weight: 600;
+					}
+
+					.workbench-link:hover {
+						animation-duration: 1.5s;
+					}
+
+					@keyframes gradientShift {
+						0% { background-position: 0% 50%; }
+						50% { background-position: 100% 50%; }
+						100% { background-position: 0% 50%; }
 					}
 
 					@keyframes ellipsis {
