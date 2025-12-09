@@ -489,7 +489,7 @@ export async function bundle({
 				await Bun.write(workbenchIndexFile, generateWorkbenchIndexHtml());
 
 				// Bundle workbench using generated files
-				// Use same strategy as web bundle - fully bundle all dependencies to avoid cross-bundle chunk conflicts
+				// Disable splitting to avoid CommonJS/ESM module resolution conflicts
 				const workbenchBuildConfig: Bun.BuildConfig = {
 					entrypoints: [workbenchIndexFile],
 					outdir: join(outDir, 'workbench'),
@@ -497,7 +497,7 @@ export async function bundle({
 					target: 'browser',
 					format: 'esm',
 					banner: `// Generated file. DO NOT EDIT`,
-					minify: true,
+					minify: !dev,
 					drop: isProd ? ['debugger'] : undefined,
 					splitting: false,
 					packages: 'bundle',

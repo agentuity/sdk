@@ -12,6 +12,7 @@ import { InputSection } from './InputSection';
 import { Shimmer } from '../ai-elements/shimmer';
 import { cn } from '../../lib/utils';
 import { useWorkbench } from './WorkbenchProvider';
+import { useLogger } from '../../hooks/useLogger';
 import { Schema } from './Schema';
 
 export interface ChatProps {
@@ -23,6 +24,7 @@ export interface ChatProps {
  * Must be used within WorkbenchProvider
  */
 export function Chat({ className: _className }: ChatProps) {
+	const logger = useLogger('Chat');
 	const {
 		agents,
 		suggestions,
@@ -37,8 +39,11 @@ export function Chat({ className: _className }: ChatProps) {
 	const [schemaOpen, setSchemaOpen] = useState(false);
 
 	const handleSubmit = async () => {
-		const selectedAgentData = agents[selectedAgent];
+		logger.debug('🎯 Chat handleSubmit - selectedAgent:', selectedAgent, 'value:', value);
+		const selectedAgentData = Object.values(agents).find(agent => agent.metadata.agentId === selectedAgent);
+		logger.debug('📊 Chat handleSubmit - selectedAgentData:', selectedAgentData);
 		const hasInputSchema = selectedAgentData?.schema?.input?.json;
+		logger.debug('📝 Chat handleSubmit - hasInputSchema:', hasInputSchema);
 
 		// If agent has no input schema, submit without requiring input
 		if (!hasInputSchema) {

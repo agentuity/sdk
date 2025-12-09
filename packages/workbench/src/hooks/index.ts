@@ -5,6 +5,7 @@ export {
 	useWorkbenchAllAgentSchemas,
 } from './useWorkbenchSchemas';
 export { useWorkbenchWebsocket } from './useWorkbenchWebsocket';
+export { useLogger } from './useLogger';
 export type {
 	AgentSchema,
 	AgentMetadata,

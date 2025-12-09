@@ -1,4 +1,5 @@
 import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
 
 // Import test files to register tests
 import './src/test/basic-agents';
@@ -16,7 +17,12 @@ import './src/test/evals';
 import './src/test/events';
 import './src/test/resilience';
 
-const app = await createApp();
+const workbench = createWorkbench();
+const app = await createApp({
+	services: {
+		workbench,
+	},
+});
 
 // Log server URL for debugging
 console.log(`[TEST-SUITE] Server started: ${app.server.url}`);

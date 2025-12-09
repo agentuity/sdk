@@ -8,10 +8,9 @@
 	],
 	"scripts": {
 		"build": "bunx tsc --build && bun run --filter='./packages/core' build && bun run --filter='./packages/schema' build && bun run --filter='./packages/server' build && bun run --filter='./packages/react' build && bun run --filter='./packages/workbench' build && bun run --filter='./packages/runtime' build && bun run --filter='./packages/cli' build && bun run --filter='./apps/*' build",
-		"dev": "concurrently \"bun run dev:workbench\" \"bun run dev:unauth-app-watch\" --names \"workbench,unauth-app\" --prefix-colors \"blue,green\"",
-		"dev:workbench": "cd packages/workbench && bun run dev",
-		"dev:unauth-app": "cd apps/testing/unauth-app && bun run dev",
-		"dev:unauth-app-watch": "cd apps/testing/unauth-app && agentuity dev --watch ../../../packages/workbench/dist",
+		"dev:workbench": "concurrently \"bun run dev:watch-workbench\" \"bun run dev:integration-suite --watch ../../../packages/workbench/dist\" --names \"workbench,integration-suite\" --prefix-colors \"blue,green\"",
+		"dev:watch-workbench": "cd packages/workbench && bun run dev",
+		"dev:integration-suite": "cd apps/testing/integration-suite && bun run dev",
 		"test": "cd apps/testing/integration-suite && bun run build && cd ../../.. && bun test && cd packages/cli && bun run test && cd ../../apps/testing && bun run test",
 		"typecheck:apps": "bun run --filter='./apps/*' typecheck",
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",

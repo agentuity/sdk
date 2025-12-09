@@ -15,6 +15,7 @@ export {
 	useWorkbenchAgentSchema,
 	useWorkbenchAllAgentSchemas,
 } from './hooks/useWorkbenchSchemas';
+export { useLogger } from './hooks/useLogger';
 
 export type {
 	AgentSchema,

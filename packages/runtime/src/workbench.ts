@@ -46,7 +46,7 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			let agentName;
 
 			for (const [name, agent] of allAgents) {
-				if (agent.metadata.id === agentId) {
+				if (agent.metadata.agentId === agentId) {
 					agentObj = agent;
 					agentName = name;
 					break;

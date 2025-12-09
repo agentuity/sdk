@@ -14,7 +14,7 @@ export interface SchemaProps {
 export function Schema({ open, onOpenChange }: SchemaProps) {
 	const { agents, selectedAgent, schemasLoading, schemasError } = useWorkbench();
 
-	const selectedAgentData = agents[selectedAgent] || null;
+	const selectedAgentData = Object.values(agents).find(agent => agent.metadata.agentId === selectedAgent) || null;
 
 	return (
 		<>

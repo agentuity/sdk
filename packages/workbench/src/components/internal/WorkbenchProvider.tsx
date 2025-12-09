@@ -4,6 +4,7 @@ import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type { WorkbenchContextType, ConnectionStatus } from '../../types/config';
 import { useAgentSchemas } from '../../hooks/useAgentSchemas';
 import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
+import { useLogger } from '../../hooks/useLogger';
 import { getTotalTokens, parseTokensHeader, defaultBaseUrl } from '../../lib/utils';
 
 const WorkbenchContext = createContext<WorkbenchContextType | null>(null);
@@ -22,6 +23,8 @@ interface WorkbenchProviderProps {
 }
 
 export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) {
+	const logger = useLogger('WorkbenchProvider');
+
 	const [messages, setMessages] = useState<UIMessage[]>([]);
 	const [selectedAgent, setSelectedAgent] = useState<string>('');
 	const [inputMode, setInputMode] = useState<'text' | 'form'>('text');
@@ -99,7 +102,11 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	// Set initial agent selection
 	useEffect(() => {
 		if (agents && Object.keys(agents).length > 0 && !selectedAgent) {
-			setSelectedAgent(Object.keys(agents)[0]);
+			logger.debug('🔍 Available agents:', agents);
+			const firstAgent = Object.values(agents)[0];
+			logger.debug('🎯 First agent:', firstAgent);
+			logger.debug('🆔 Setting selectedAgent to:', firstAgent.metadata.agentId);
+			setSelectedAgent(firstAgent.metadata.agentId);
 		}
 	}, [agents, selectedAgent]);
 
@@ -115,11 +122,19 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const submitMessage = async (value: string, _mode: 'text' | 'form' = 'text') => {
 		if (!selectedAgent) return;
 
-		const selectedAgentData = agents?.[selectedAgent];
+		logger.debug('🚀 Submitting message with selectedAgent:', selectedAgent);
+		const selectedAgentData = agents ? Object.values(agents).find(agent => agent.metadata.agentId === selectedAgent) : undefined;
+		logger.debug('📊 Found selectedAgentData:', selectedAgentData);
 		const hasInputSchema = selectedAgentData?.schema?.input?.json;
+		logger.debug('📝 hasInputSchema:', hasInputSchema, 'value:', value);
 
 		// Only require value for agents with input schemas
-		if (hasInputSchema && !value.trim()) return;
+		if (hasInputSchema && !value.trim()) {
+			logger.debug('❌ Returning early - hasInputSchema but no value');
+			return;
+		}
+
+		logger.debug('✅ Validation passed, continuing with message submission...');
 
 		// Add user message
 		const displayText = hasInputSchema
@@ -134,7 +149,9 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		setMessages((prev) => [...prev, userMessage]);
 		setIsLoading(true);
 
+		logger.debug('🔗 baseUrl:', baseUrl);
 		if (!baseUrl) {
+			logger.debug('❌ No baseUrl configured!');
 			const errorMessage: UIMessage = {
 				id: (Date.now() + 1).toString(),
 				role: 'assistant',
@@ -164,6 +181,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 				}
 			}
 
+			logger.debug('🌐 About to make API call...');
 			// Call execution endpoint with timeout
 			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
@@ -178,13 +196,15 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 			const startTime = performance.now();
 
 			try {
+				const requestPayload = {
+					agentId: selectedAgent,
+					input: parsedInput,
+				};
+				logger.debug('📤 API Request payload:', requestPayload);
 				const response = await fetch(`${baseUrl}/_agentuity/workbench/execute`, {
 					method: 'POST',
 					headers,
-					body: JSON.stringify({
-						agentId: selectedAgent,
-						input: parsedInput,
-					}),
+					body: JSON.stringify(requestPayload),
 					signal: controller.signal,
 				});
 				clearTimeout(timeoutId);
@@ -252,6 +272,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	};
 
 	const handleAgentSelect = async (agentId: string) => {
+		logger.debug('🔄 handleAgentSelect called with:', agentId);
 		setSelectedAgent(agentId);
 		// No handlers configured for now
 	};

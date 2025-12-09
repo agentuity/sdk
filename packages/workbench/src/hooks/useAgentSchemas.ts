@@ -19,6 +19,7 @@ export interface AgentMetadata {
 	version?: string;
 	filename?: string;
 	identifier?: string;
+	agentId: string;
 }
 
 export interface AgentSchemaData {
