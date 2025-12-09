@@ -64,18 +64,18 @@ import OpenAI from 'openai';
 const client = new OpenAI();
 
 const agent = createAgent('hello', {
-  description: 'My AI agent',
-  schema: {
-    input: s.object({ prompt: s.string() }),
-    output: s.string(),
-  },
-  handler: async (_ctx, { prompt }) => {
-    const completion = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [{ role: 'user', content: prompt }],
-    });
-    return completion.choices[0]?.message?.content ?? '';
-  },
+	description: 'My AI agent',
+	schema: {
+		input: s.object({ prompt: s.string() }),
+		output: s.string(),
+	},
+	handler: async (_ctx, { prompt }) => {
+		const completion = await client.chat.completions.create({
+			model: 'gpt-4o-mini',
+			messages: [{ role: 'user', content: prompt }],
+		});
+		return completion.choices[0]?.message?.content ?? '';
+	},
 });
 
 export default agent;

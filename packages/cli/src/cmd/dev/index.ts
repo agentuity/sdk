@@ -20,6 +20,7 @@ import { APIClient, getAPIBaseURL, getGravityDevModeURL } from '../../api';
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
+import { getWorkbench } from '../build/workbench';
 import { BuildMetadata } from '@agentuity/server';
 import { getCommand } from '../../command-prefix';
 import { notifyWorkbenchClients } from '../../utils/workbench-notify';
@@ -159,15 +160,24 @@ export const command = createCommand({
 			}
 		}
 
+		const workbench = await getWorkbench(rootDir);
+
 		const canDoInput =
 			interactive && !!(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI);
 
+		const padding = 12;
+
 		const devmodebody =
-			tui.muted(tui.padRight('Local:', 10)) +
+			tui.muted(tui.padRight('Local:', padding)) +
 			tui.link(`http://127.0.0.1:${opts.port}`) +
 			'\n' +
-			tui.muted(tui.padRight('Public:', 10)) +
+			tui.muted(tui.padRight('Public:', padding)) +
 			(devmode?.hostname ? tui.link(`https://${devmode.hostname}`) : tui.warn('Disabled')) +
+			'\n' +
+			tui.muted(tui.padRight('Workbench:', padding)) +
+			(workbench.hasWorkbench
+				? tui.link(`http://127.0.0.1:${opts.port}${workbench.config?.route ?? '/workbench'}`)
+				: tui.warn('Disabled')) +
 			'\n' +
 			(canDoInput
 				? '\n' + tui.muted('Press ') + tui.bold('h') + tui.muted(' for keyboard shortcuts')
@@ -520,6 +530,7 @@ export const command = createCommand({
 								port: opts.port,
 								region: project?.region ?? 'local',
 								logger,
+								workbench,
 							});
 							building = false;
 							buildCompletedAt = Date.now();

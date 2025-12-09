@@ -63,18 +63,18 @@ import { generateText } from 'ai';
 import { xai } from '@ai-sdk/xai';
 
 const agent = createAgent('hello', {
-  description: 'My AI agent',
-  schema: {
-    input: s.object({ prompt: s.string() }),
-    output: s.string(),
-  },
-  handler: async (_ctx, { prompt }) => {
-    const { text } = await generateText({
-      model: xai('grok-3-beta'),
-      prompt,
-    });
-    return text;
-  },
+	description: 'My AI agent',
+	schema: {
+		input: s.object({ prompt: s.string() }),
+		output: s.string(),
+	},
+	handler: async (_ctx, { prompt }) => {
+		const { text } = await generateText({
+			model: xai('grok-3-beta'),
+			prompt,
+		});
+		return text;
+	},
 });
 
 export default agent;

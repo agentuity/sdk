@@ -97,5 +97,10 @@
 	},
 	"publishConfig": {
 		"access": "public"
-	}
+	},
+	"sideEffects": [
+		"**/*.css",
+		"src/components/ai-elements/canvas.tsx",
+		"src/components/internal/Chat.tsx"
+	]
 }

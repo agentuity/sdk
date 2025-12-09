@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { resolve, join } from 'node:path';
+import { resolve, join, relative } from 'node:path';
 import { getServiceUrls } from '@agentuity/server';
 import { createCommand } from '../../types';
 import { bundle } from './bundler';
@@ -47,7 +47,10 @@ export const command = createCommand({
 		const outDir = opts.outdir ? resolve(opts.outdir) : join(absoluteProjectDir, '.agentuity');
 
 		try {
-			tui.info(`Bundling project at ${absoluteProjectDir} to ${outDir}`);
+			const rel = outDir.startsWith(absoluteProjectDir)
+				? relative(absoluteProjectDir, outDir)
+				: outDir;
+			tui.info(`Bundling project at ${absoluteProjectDir} to ${rel}`);
 
 			const env: Map<string, string> = new Map();
 

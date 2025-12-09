@@ -14,5 +14,6 @@
 	},
 	"devDependencies": {
 		"bun-types": "^1.3.3"
-	}
+	},
+	"sideEffects": false
 }

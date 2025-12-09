@@ -1,16 +1,112 @@
-export * from './agent';
-export * from './app';
-export * from './devmode';
-export * from './router';
-export * from './eval';
-export * from './session';
-export * from './workbench';
-export * from './validator';
+// agent.ts exports
+export {
+	type AgentEventName,
+	type AgentEventCallback,
+	type AgentRuntimeState,
+	type AgentContext,
+	type CreateEvalConfig,
+	type AgentValidator,
+	type Agent,
+	type CreateAgentConfig,
+	type AgentRunner,
+	getGlobalRuntimeState,
+	getAgentRuntime,
+	type AgentName,
+	type AgentRegistry,
+	registerAgent,
+	setAgentConfig,
+	getAgentConfig,
+	type CreateAgentConfigExplicit,
+	createAgent,
+	populateAgentsRegistry,
+	createAgentMiddleware,
+	getAgents,
+	runAgentSetups,
+	runAgentShutdowns,
+	runInAgentContext,
+} from './agent';
+
+// app.ts exports
+export {
+	type WorkbenchInstance,
+	type AppConfig,
+	type Variables,
+	type TriggerType,
+	type PrivateVariables,
+	type Env,
+	App,
+	getApp,
+	createApp,
+	fireEvent,
+} from './app';
+
+// devmode.ts exports
+export { registerDevModeRoutes } from './devmode';
+
+// router.ts exports
+export { type HonoEnv, type WebSocketConnection, createRouter } from './router';
+
+// eval.ts exports
+export {
+	type EvalContext,
+	type EvalRunResultMetadata,
+	type EvalRunResultBinary,
+	type EvalRunResultScore,
+	type EvalRunResultError,
+	type EvalRunResult,
+	type CreateEvalRunRequest,
+	type ExternalEvalMetadata,
+	type EvalMetadata,
+	type EvalFunction,
+	type Eval,
+} from './eval';
+
+// session.ts exports
+export {
+	type ThreadEventName,
+	type SessionEventName,
+	type Thread,
+	type Session,
+	type ThreadIDProvider,
+	type ThreadProvider,
+	type SessionProvider,
+	generateId,
+	DefaultThreadIDProvider,
+	DefaultThread,
+} from './session';
+
+// workbench.ts exports
+export {
+	createWorkbenchExecutionRoute,
+	createWorkbenchRouter,
+	createWorkbenchMetadataRoute,
+	createWorkbenchWebsocketRoute,
+} from './workbench';
+
+// validator.ts exports
+export { type RouteValidator, validator } from './validator';
+
+// logger exports
 export type { Logger } from './logger';
+
+// _server.ts exports
 export { getRouter, getAppState } from './_server';
+
+// io/email exports
 export { Email, parseEmail } from './io/email';
-export * from './services/evalrun';
+
+// services/evalrun exports
+export {
+	HTTPEvalRunEventProvider,
+	LocalEvalRunEventProvider,
+	JSONEvalRunEventProvider,
+	CompositeEvalRunEventProvider,
+} from './services/evalrun';
+
+// _services.ts exports
 export { getEvalRunEventProvider, getThreadProvider, getSessionProvider } from './_services';
+
+// _validation.ts exports
 export type { RouteSchema, GetRouteSchema } from './_validation';
 
 /**

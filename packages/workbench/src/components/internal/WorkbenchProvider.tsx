@@ -4,7 +4,7 @@ import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type { WorkbenchContextType, ConnectionStatus } from '../../types/config';
 import { useAgentSchemas } from '../../hooks/useAgentSchemas';
 import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
-import { getTotalTokens, parseTokensHeader } from '../../lib/utils';
+import { getTotalTokens, parseTokensHeader, defaultBaseUrl } from '../../lib/utils';
 
 const WorkbenchContext = createContext<WorkbenchContextType | null>(null);
 
@@ -29,7 +29,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
 
 	// Config values
-	const baseUrl = config.port ? `http://localhost:${config.port}` : undefined;
+	const baseUrl = defaultBaseUrl;
 	const apiKey = config.apiKey;
 	const shouldUseSchemas = true;
 

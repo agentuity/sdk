@@ -1,4 +1,6 @@
+import { join } from 'node:path';
 import { encodeWorkbenchConfig, type WorkbenchConfig } from '@agentuity/core';
+import { analyzeWorkbench, WorkbenchAnalysis } from './ast';
 
 export function generateWorkbenchMainTsx(config: WorkbenchConfig): string {
 	const encodedConfig = encodeWorkbenchConfig(config);
@@ -34,4 +36,15 @@ export function generateWorkbenchIndexHtml(): string {
 	<script type="module" src="./main.tsx"></script>
 </body>
 </html>`;
+}
+
+export async function getWorkbench(dir: string): Promise<WorkbenchAnalysis> {
+	const appFile = Bun.file(join(dir, 'app.ts'));
+	if (await appFile.exists()) {
+		return analyzeWorkbench(await appFile.text());
+	}
+	return {
+		hasWorkbench: false,
+		config: null,
+	};
 }

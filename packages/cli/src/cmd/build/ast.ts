@@ -366,10 +366,12 @@ function injectEvalMetadata(
 	configObj.properties.push(metadataObj);
 }
 
-function findAgentVariableAndImport(ast: ASTProgram): { varName: string; importPath: string } | undefined {
+function findAgentVariableAndImport(
+	ast: ASTProgram
+): { varName: string; importPath: string } | undefined {
 	// First, find what variable is being used in agent.createEval() calls
 	let agentVarName: string | undefined;
-	
+
 	for (const node of ast.body) {
 		if (node.type === 'ExportNamedDeclaration') {
 			const exportDecl = node as {
@@ -379,9 +381,12 @@ function findAgentVariableAndImport(ast: ASTProgram): { varName: string; importP
 				const variableDeclaration = exportDecl.declaration as {
 					declarations: Array<ASTVariableDeclarator>;
 				};
-				
+
 				for (const vardecl of variableDeclaration.declarations) {
-					if (vardecl.type === 'VariableDeclarator' && vardecl.init?.type === 'CallExpression') {
+					if (
+						vardecl.type === 'VariableDeclarator' &&
+						vardecl.init?.type === 'CallExpression'
+					) {
 						const call = vardecl.init as ASTCallExpression;
 						if (call.callee.type === 'MemberExpression') {
 							const memberExpr = call.callee as ASTMemberExpression;
@@ -402,9 +407,9 @@ function findAgentVariableAndImport(ast: ASTProgram): { varName: string; importP
 			}
 		}
 	}
-	
+
 	if (!agentVarName) return undefined;
-	
+
 	// Now find the import for this variable
 	for (const node of ast.body) {
 		if (node.type === 'ImportDeclaration') {
@@ -415,7 +420,7 @@ function findAgentVariableAndImport(ast: ASTProgram): { varName: string; importP
 					local: ASTNodeIdentifier;
 				}>;
 			};
-			
+
 			// Find default import specifier that matches our variable
 			for (const spec of importDecl.specifiers) {
 				if (spec.type === 'ImportDefaultSpecifier' && spec.local.name === agentVarName) {
@@ -427,7 +432,7 @@ function findAgentVariableAndImport(ast: ASTProgram): { varName: string; importP
 			}
 		}
 	}
-	
+
 	return undefined;
 }
 
@@ -439,17 +444,19 @@ export async function parseEvalMetadata(
 	deploymentId: string,
 	agentId?: string,
 	agentMetadata?: Map<string, Map<string, string>>
-): Promise<[
-	string,
-	Array<{
-		filename: string;
-		id: string;
-		version: string;
-		name: string;
-		evalId: string;
-		description?: string;
-	}>,
-]> {
+): Promise<
+	[
+		string,
+		Array<{
+			filename: string;
+			id: string;
+			version: string;
+			name: string;
+			evalId: string;
+			description?: string;
+		}>,
+	]
+> {
 	const logLevel = (process.env.AGENTUITY_LOG_LEVEL || 'info') as
 		| 'trace'
 		| 'debug'
@@ -479,8 +486,10 @@ export async function parseEvalMetadata(
 	if (!resolvedAgentId && agentMetadata) {
 		const agentInfo = findAgentVariableAndImport(ast);
 		if (agentInfo) {
-			logger.trace(`[EVAL METADATA] Found agent variable '${agentInfo.varName}' imported from '${agentInfo.importPath}'`);
-			
+			logger.trace(
+				`[EVAL METADATA] Found agent variable '${agentInfo.varName}' imported from '${agentInfo.importPath}'`
+			);
+
 			// Resolve the import path to actual file path
 			let resolvedPath = agentInfo.importPath;
 			if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
@@ -492,19 +501,23 @@ export async function parseEvalMetadata(
 					resolvedPath += '.ts';
 				}
 			}
-			
+
 			// Find the agent metadata from the passed agentMetadata map
 			for (const [agentFile, metadata] of agentMetadata) {
 				// Check if this agent file matches the resolved import path
 				if (agentFile.includes(basename(resolvedPath)) && metadata.has('agentId')) {
 					resolvedAgentId = metadata.get('agentId');
-					logger.trace(`[EVAL METADATA] Resolved agentId from agent metadata: ${resolvedAgentId} (file: ${agentFile})`);
+					logger.trace(
+						`[EVAL METADATA] Resolved agentId from agent metadata: ${resolvedAgentId} (file: ${agentFile})`
+					);
 					break;
 				}
 			}
-			
+
 			if (!resolvedAgentId) {
-				logger.warn(`[EVAL METADATA] Could not find agent metadata for import path: ${resolvedPath}`);
+				logger.warn(
+					`[EVAL METADATA] Could not find agent metadata for import path: ${resolvedPath}`
+				);
 			}
 		}
 	}
@@ -600,7 +613,14 @@ export async function parseEvalMetadata(
 
 								// Inject eval metadata into the AST (same pattern as agents)
 								if (configObj) {
-									injectEvalMetadata(configObj, evalId, stableEvalId, version, rel, resolvedAgentId);
+									injectEvalMetadata(
+										configObj,
+										evalId,
+										stableEvalId,
+										version,
+										rel,
+										resolvedAgentId
+									);
 								}
 
 								evals.push({
@@ -1919,11 +1939,17 @@ export * from '${runtimeImportPath}/src/index';
  */
 export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 	try {
+		if (!content.includes('@agentuity/workbench')) {
+			return {
+				hasWorkbench: false,
+				config: null,
+			};
+		}
 		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true);
 
 		let hasImport = false;
-		let hasUsage = false;
-		let config: WorkbenchConfig | null = null;
+		const workbenchVariables = new Map<string, WorkbenchConfig>();
+		let usedInServices = false;
 
 		function visitNode(node: ts.Node): void {
 			// Check for import declarations with createWorkbench
@@ -1937,18 +1963,55 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 				}
 			}
 
-			// Check for createWorkbench function calls and extract config
-			if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) {
-				if (node.expression.text === 'createWorkbench') {
-					hasUsage = true;
-
+			// Track variables assigned from createWorkbench() calls
+			if (
+				ts.isVariableDeclaration(node) &&
+				node.initializer &&
+				ts.isCallExpression(node.initializer) &&
+				ts.isIdentifier(node.initializer.expression) &&
+				node.initializer.expression.text === 'createWorkbench'
+			) {
+				// Extract variable name
+				if (ts.isIdentifier(node.name)) {
 					// Extract configuration from the first argument (if any)
-					if (node.arguments.length > 0) {
-						const configArg = node.arguments[0];
-						config = parseConfigObject(configArg);
+					let varConfig: WorkbenchConfig;
+					if (node.initializer.arguments.length > 0) {
+						const configArg = node.initializer.arguments[0];
+						varConfig = parseConfigObject(configArg) || { route: '/workbench' };
 					} else {
 						// Default config if no arguments provided
-						config = { route: '/workbench' };
+						varConfig = { route: '/workbench' };
+					}
+					workbenchVariables.set(node.name.text, varConfig);
+				}
+			}
+
+			// Check if workbench variable is used in createApp's services config
+			if (
+				ts.isCallExpression(node) &&
+				ts.isIdentifier(node.expression) &&
+				node.expression.text === 'createApp' &&
+				node.arguments.length > 0
+			) {
+				const configArg = node.arguments[0];
+				if (ts.isObjectLiteralExpression(configArg)) {
+					// Find the services property
+					for (const prop of configArg.properties) {
+						if (
+							ts.isPropertyAssignment(prop) &&
+							ts.isIdentifier(prop.name) &&
+							prop.name.text === 'services'
+						) {
+							// Check if any workbench variable is referenced in services
+							const foundVariableName = checkForWorkbenchUsage(
+								prop.initializer,
+								workbenchVariables
+							);
+							if (foundVariableName) {
+								usedInServices = true;
+							}
+							break;
+						}
 					}
 				}
 			}
@@ -1957,15 +2020,94 @@ export function analyzeWorkbench(content: string): WorkbenchAnalysis {
 			ts.forEachChild(node, visitNode);
 		}
 
+		// Helper function to check if workbench variable is used in services config
+		// Returns the variable name if found, otherwise null
+		function checkForWorkbenchUsage(
+			node: ts.Node,
+			variables: Map<string, WorkbenchConfig>
+		): string | null {
+			let foundVar: string | null = null;
+
+			function visit(n: ts.Node): void {
+				if (foundVar) return; // Already found
+
+				// Check for identifier references
+				if (ts.isIdentifier(n) && variables.has(n.text)) {
+					foundVar = n.text;
+					return;
+				}
+
+				// Check for property shorthand: { workbench } in services
+				if (ts.isShorthandPropertyAssignment(n) && variables.has(n.name.text)) {
+					foundVar = n.name.text;
+					return;
+				}
+
+				// Check for property value: { workbench: workbench } in services
+				if (
+					ts.isPropertyAssignment(n) &&
+					n.initializer &&
+					ts.isIdentifier(n.initializer) &&
+					variables.has(n.initializer.text)
+				) {
+					foundVar = n.initializer.text;
+					return;
+				}
+
+				ts.forEachChild(n, visit);
+			}
+
+			visit(node);
+			return foundVar;
+		}
+
 		visitNode(sourceFile);
 
-		// Set default config if workbench is used but no config was parsed
-		if (hasImport && hasUsage && !config) {
-			config = { route: '/workbench', headers: {}, port: 3500 };
+		// Get the config from the first used workbench variable
+		let config: WorkbenchConfig | null = null;
+		if (hasImport && usedInServices) {
+			// Re-check which variable was used
+			const ast = sourceFile;
+			for (const [varName, varConfig] of workbenchVariables.entries()) {
+				// Simple check: walk through and find if this variable is used in services
+				let used = false;
+				function checkUsage(node: ts.Node): void {
+					if (
+						ts.isCallExpression(node) &&
+						ts.isIdentifier(node.expression) &&
+						node.expression.text === 'createApp' &&
+						node.arguments.length > 0
+					) {
+						const configArg = node.arguments[0];
+						if (ts.isObjectLiteralExpression(configArg)) {
+							for (const prop of configArg.properties) {
+								if (
+									ts.isPropertyAssignment(prop) &&
+									ts.isIdentifier(prop.name) &&
+									prop.name.text === 'services'
+								) {
+									const foundVar = checkForWorkbenchUsage(
+										prop.initializer,
+										workbenchVariables
+									);
+									if (foundVar === varName) {
+										used = true;
+										config = varConfig;
+									}
+									break;
+								}
+							}
+						}
+					}
+					ts.forEachChild(node, checkUsage);
+				}
+				checkUsage(ast);
+				if (used) break;
+			}
 		}
 
 		return {
-			hasWorkbench: hasImport && hasUsage,
+			hasWorkbench: hasImport && usedInServices,
 			config: config,
 		};
 	} catch (error) {

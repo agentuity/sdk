@@ -11,8 +11,8 @@ import { getVersion } from '../../version';
 import type { Project } from '../../types';
 import { fixDuplicateExportsInDirectory } from './fix-duplicate-exports';
 import type { Logger } from '../../types';
-import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench-templates';
-import { analyzeWorkbench } from './ast';
+import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench';
+import { analyzeWorkbench, type WorkbenchAnalysis } from './ast';
 import { type DeployOptions } from '../../schemas/deploy';
 
 const minBunVersion = '>=1.3.3';
@@ -64,6 +64,7 @@ export interface BundleOptions extends DeployOptions {
 	outDir?: string;
 	region: string;
 	logger: Logger;
+	workbench?: WorkbenchAnalysis;
 }
 
 type BuildResult = Awaited<ReturnType<typeof Bun.build>>;
@@ -116,6 +117,7 @@ export async function bundle({
 	env,
 	region,
 	logger,
+	workbench,
 }: BundleOptions): Promise<{ output: string[] }> {
 	const output: string[] = [];
 
@@ -467,13 +469,15 @@ export async function bundle({
 
 	// Bundle workbench app if detected via setupWorkbench
 	if (existsSync(appFile)) {
-		const appContent = await Bun.file(appFile).text();
-		const analysis = analyzeWorkbench(appContent);
+		if (!workbench) {
+			const appContent = await Bun.file(appFile).text();
+			workbench = analyzeWorkbench(appContent);
+		}
 
-		if (analysis.hasWorkbench) {
+		if (workbench.hasWorkbench) {
 			// Create workbench config with proper defaults
 			const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
-			const config = { ...defaultConfig, ...analysis.config };
+			const config = { ...defaultConfig, ...workbench.config };
 			try {
 				// Generate workbench files on the fly instead of using files from package
 				const tempWorkbenchDir = join(outDir, 'temp-workbench');
@@ -495,7 +499,7 @@ export async function bundle({
 					banner: `// Generated file. DO NOT EDIT`,
 					minify: true,
 					drop: isProd ? ['debugger'] : undefined,
-					splitting: true,
+					splitting: false,
 					packages: 'bundle',
 					conditions: ['browser', 'import', 'default'],
 					naming: {

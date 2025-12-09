@@ -49,7 +49,9 @@ export function App() {
 						<input
 							className="input"
 							disabled={running}
-							onChange={(e: ChangeEvent<HTMLInputElement>) => setPrompt(e.currentTarget.value)}
+							onChange={(e: ChangeEvent<HTMLInputElement>) =>
+								setPrompt(e.currentTarget.value)
+							}
 							placeholder="Enter your prompt"
 							type="text"
 							value={prompt}

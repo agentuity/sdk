@@ -1561,9 +1561,10 @@ export function createAgent<
 						agentCtx.tracer,
 						agent as Agent<TInput, TOutput, TStream>,
 						honoCtx,
-						async () => inputSchema
-							? await (config.handler as any)(agentCtx, validatedInput)
-							: await (config.handler as any)(agentCtx)
+						async () =>
+							inputSchema
+								? await (config.handler as any)(agentCtx, validatedInput)
+								: await (config.handler as any)(agentCtx)
 					);
 				} else {
 					return inputSchema
@@ -1625,7 +1626,7 @@ export function createAgent<
 
 		// Use build-time injected metadata if available (same pattern as agents)
 		const evalMetadata = evalConfig.metadata || {};
-		
+
 		// Build eval metadata - merge injected metadata with defaults
 		const evalType: any = {
 			metadata: {
@@ -1640,8 +1641,6 @@ export function createAgent<
 			},
 			handler: evalConfig.handler,
 		};
-		
-
 
 		if (inputSchema) {
 			evalType.inputSchema = inputSchema;
@@ -1739,7 +1738,7 @@ export function createAgent<
 						const evalRunId = generateId('evalrun');
 						// Use build-time injected eval ID (now properly injected via AST transformation)
 						const evalId = evalItem.metadata.id || '';
-						
+
 						// Log eval metadata using structured logging and tracing
 						ctx.logger.debug('Starting eval run with metadata', {
 							evalName,
@@ -1747,7 +1746,7 @@ export function createAgent<
 							evalId,
 							evalMetadata: evalItem.metadata,
 						});
-						
+
 						// Add eval metadata to the active span for observability
 						const activeSpan = ctx.tracer ? trace.getActiveSpan() : undefined;
 						if (activeSpan) {
@@ -1759,7 +1758,7 @@ export function createAgent<
 								'eval.filename': evalItem.metadata.filename || '',
 							});
 						}
-						
+
 						const orgId = runtimeConfig.getOrganizationId();
 						const projectId = runtimeConfig.getProjectId();
 						const devMode = runtimeConfig.isDevMode() ?? false;

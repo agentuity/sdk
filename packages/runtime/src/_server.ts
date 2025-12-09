@@ -24,6 +24,7 @@ import type { AppConfig, Env, PrivateVariables } from './app';
 import { extractTraceContextFromRequest } from './otel/http';
 import { register } from './otel/config';
 import type { Logger } from './logger';
+import { internal } from './logger/internal';
 import { isIdle } from './_idle';
 import * as runtimeConfig from './_config';
 import { runInHTTPContext } from './_context';
@@ -298,7 +299,7 @@ export const createServer = async <TAppState>(
 	let routeMapping: Record<string, string>;
 	const routePathMapper = createMiddleware<Env>(async (c, next) => {
 		if (!routeMapping) {
-			// Look for .routemapping.json in the project's .agentuity directory
+			// Look for .routemapping.json in the project's directory
 			// This is where the build plugin writes it (build.config.outdir)
 			const projectRoot = process.cwd();
 			let routeMappingPath: string;
@@ -306,11 +307,12 @@ export const createServer = async <TAppState>(
 				// in production there is no .agentuity folder
 				routeMappingPath = join(projectRoot, '.routemapping.json');
 			} else {
-				routeMappingPath = join(import.meta.dirname, '..', '.routemapping.json');
+				// in dev mode, look in .agentuity folder (where build writes it)
+				routeMappingPath = join(projectRoot, '.agentuity', '.routemapping.json');
 			}
 			const file = Bun.file(routeMappingPath);
 			if (!(await file.exists())) {
-				c.var.logger.warn(
+				internal.warn(
 					'Route mapping file not found at %s. Route tracking will be disabled.',
 					routeMappingPath
 				);

@@ -38,3 +38,44 @@ export function parseTokensHeader(header: string): Record<string, number> {
 export function getTotalTokens(tokens: Record<string, number>): number {
 	return Object.keys(tokens).reduce((sum, key) => sum + tokens[key], 0);
 }
+
+export const getProcessEnv = (key: string): string | undefined => {
+	if (typeof process !== 'undefined' && process.env) {
+		return process.env[key];
+	}
+	if (typeof import.meta.env !== 'undefined') {
+		return import.meta.env[key];
+	}
+	return undefined;
+};
+
+export const buildUrl = (
+	base: string,
+	path: string,
+	subpath?: string,
+	query?: URLSearchParams
+): string => {
+	path = path.startsWith('/') ? path : `/${path}`;
+	let url = base.replace(/\/$/, '') + path;
+	if (subpath) {
+		subpath = subpath.startsWith('/') ? subpath : `/${subpath}`;
+		url += subpath;
+	}
+	if (query) {
+		url += `?${query.toString()}`;
+	}
+	return url;
+};
+
+const tryOrigin = () => {
+	if (typeof window !== 'undefined') {
+		return window.location.origin;
+	}
+};
+
+export const defaultBaseUrl: string =
+	getProcessEnv('NEXT_PUBLIC_AGENTUITY_URL') ||
+	getProcessEnv('VITE_AGENTUITY_URL') ||
+	getProcessEnv('AGENTUITY_URL') ||
+	tryOrigin() ||
+	'http://localhost:3500';

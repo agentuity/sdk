@@ -1,9 +1,22 @@
-export * from './config';
-export * from './logger';
-export * from './server';
+// api exports (from api/index.ts which has barrel exports)
 export * from './api';
-export * from './schema';
+
+// config.ts exports
+export { type ServiceUrls, getServiceUrls } from './config';
+
+// logger.ts exports
+export { type ColorScheme, ConsoleLogger, createLogger } from './logger';
+
+// server.ts exports
+export { createServerFetchAdapter } from './server';
+
+// schema.ts exports
+export { toJSONSchema } from './schema';
+
+// zod re-export
 export { z } from 'zod';
+
+// @agentuity/core re-exports
 export type {
 	FetchAdapter,
 	FetchRequest,

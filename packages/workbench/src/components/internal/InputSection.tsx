@@ -179,6 +179,11 @@ export function InputSection({
 				value: value || '{}',
 				language: 'json',
 				minimap: { enabled: false },
+				autoIndentOnPaste: true,
+				overviewRulerBorder: false,
+				overviewRulerLanes: 0,
+				hideCursorInOverviewRuler: true,
+				codeLens: false,
 				fontSize: 14,
 				lineNumbers: 'off',
 				scrollBeyondLastLine: false,
@@ -380,7 +385,7 @@ export function InputSection({
 									<div className="flex flex-col items-center justify-center py-8 px-4 text-center ">
 										<p className="text-sm text-muted-foreground">
 											<span className="font-medium">
-												This agent has not input schema.{' '}
+												This agent has no input schema.{' '}
 											</span>
 										</p>
 										<Button

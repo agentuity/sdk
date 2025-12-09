@@ -159,9 +159,9 @@ export default agent;
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const contents = transpiler.transformSync(code);
 
-		await expect(parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1')).rejects.toThrow(
-			'first argument must be a string literal'
-		);
+		await expect(
+			parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1')
+		).rejects.toThrow('first argument must be a string literal');
 
 		cleanup();
 	});
@@ -191,9 +191,9 @@ export default agent;
 		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
 		const contents = transpiler.transformSync(code);
 
-		await expect(parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1')).rejects.toThrow(
-			'duplicate-name'
-		);
+		await expect(
+			parseEvalMetadata(TEST_DIR, agentFile, contents, 'proj_1', 'dep_1')
+		).rejects.toThrow('duplicate-name');
 
 		cleanup();
 	});

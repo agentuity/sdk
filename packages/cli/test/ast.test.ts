@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { parseRoute } from '../src/cmd/build/ast';
+import { parseRoute, analyzeWorkbench } from '../src/cmd/build/ast';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -169,5 +169,175 @@ export default router;
 		await expect(parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1')).rejects.toThrow();
 
 		cleanup();
+	});
+});
+
+describe('analyzeWorkbench - Detection Scenarios', () => {
+	test('should detect workbench when properly used in services', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const workbench = createWorkbench();
+
+const { server } = await createApp({
+	services: {
+		workbench
+	}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(true);
+		expect(result.config).toEqual({ route: '/workbench' });
+	});
+
+	test('should detect workbench with custom config', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const workbench = createWorkbench({ route: '/admin' });
+
+const { server } = await createApp({
+	services: {
+		workbench
+	}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(true);
+		expect(result.config).toEqual({ route: '/admin' });
+	});
+
+	test('should NOT detect workbench when called but not used in services', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const workbench = createWorkbench();
+
+const { server } = await createApp({
+	services: {
+		// workbench commented out
+	}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(false);
+		expect(result.config).toBe(null);
+	});
+
+	test('should NOT detect workbench when not imported', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+
+const { server } = await createApp({
+	services: {}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(false);
+		expect(result.config).toBe(null);
+	});
+
+	test('should NOT detect workbench when imported but never called', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const { server } = await createApp({
+	services: {}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(false);
+		expect(result.config).toBe(null);
+	});
+
+	test('should detect workbench with property value syntax', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const wb = createWorkbench();
+
+const { server } = await createApp({
+	services: {
+		workbench: wb
+	}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(true);
+		expect(result.config).toEqual({ route: '/workbench' });
+	});
+
+	test('should detect workbench with different variable name', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const myWorkbench = createWorkbench({ route: '/dashboard' });
+
+const { server } = await createApp({
+	services: {
+		workbench: myWorkbench
+	}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(true);
+		expect(result.config).toEqual({ route: '/dashboard' });
+	});
+
+	test('should NOT detect when workbench variable used elsewhere but not in services', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const workbench = createWorkbench();
+
+console.log(workbench); // Used but not in services
+
+const { server } = await createApp({
+	services: {}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(false);
+		expect(result.config).toBe(null);
+	});
+
+	test('should handle empty services object', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const workbench = createWorkbench();
+
+const { server } = await createApp({
+	setup: async () => {},
+	services: {}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(false);
+		expect(result.config).toBe(null);
+	});
+
+	test('should handle missing services property', () => {
+		const code = `
+import { createApp } from '@agentuity/runtime';
+import { createWorkbench } from '@agentuity/workbench';
+
+const workbench = createWorkbench();
+
+const { server } = await createApp({
+	setup: async () => {}
+});
+		`;
+		const result = analyzeWorkbench(code);
+		expect(result.hasWorkbench).toBe(false);
+		expect(result.config).toBe(null);
 	});
 });
