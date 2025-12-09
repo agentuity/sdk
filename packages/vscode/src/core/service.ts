@@ -1,4 +1,4 @@
-import * as vscode from 'vscode';
+
 import {
 	getCliClient,
 	type CliClient,

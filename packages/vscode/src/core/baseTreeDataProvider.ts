@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getAuthStatus, type AuthStatus } from './auth';
+import { getAuthStatus } from './auth';
 import { hasProject } from './project';
 
 export abstract class BaseTreeItem extends vscode.TreeItem {
