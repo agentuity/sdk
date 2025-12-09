@@ -103,8 +103,9 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	useEffect(() => {
 		if (agents && Object.keys(agents).length > 0 && !selectedAgent) {
 			logger.debug('🔍 Available agents:', agents);
-			const firstAgent = Object.values(agents)[0];
-			logger.debug('🎯 First agent:', firstAgent);
+			const sortedAgents = Object.values(agents).sort((a, b) => a.metadata.name.localeCompare(b.metadata.name));
+			const firstAgent = sortedAgents[0];
+			logger.debug('🎯 First agent (alphabetically):', firstAgent);
 			logger.debug('🆔 Setting selectedAgent to:', firstAgent.metadata.agentId);
 			setSelectedAgent(firstAgent.metadata.agentId);
 		}
