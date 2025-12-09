@@ -468,6 +468,9 @@ version_compare() {
 }
 
 check_bun_version() {
+  # Capture original PATH before we modify it (for later config file checks)
+  ORIGINAL_PATH="$PATH"
+  
   # First, try to ensure bun is on PATH if it's installed in $HOME/.bun/bin
   ensure_bun_on_path
   
@@ -870,10 +873,11 @@ if [ -z "$config_file" ]; then
 fi
 
 if [ -n "$config_file" ]; then
-  # Add bun to PATH if it exists in $HOME/.bun/bin and not already on PATH
+  # Add bun to PATH if it exists in $HOME/.bun/bin and not already on original PATH
+  # Use ORIGINAL_PATH to avoid false positive from ensure_bun_on_path temporary addition
   bun_bin_dir="$HOME/.bun/bin"
   if [ -f "$bun_bin_dir/bun" ]; then
-    case ":$PATH:" in
+    case ":${ORIGINAL_PATH:-$PATH}:" in
       *":$bun_bin_dir:"*)
         # Bun already on PATH
         ;;
