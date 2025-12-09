@@ -1,8 +1,8 @@
 {
-	"name": "@agentuity/vscode",
+	"name": "agentuity-vscode",
 	"displayName": "Agentuity VSCode Extension",
 	"description": "Build, deploy, and manage AI agents with Agentuity",
-	"version": "0.0.1",
+	"version": "0.0.80",
 	"publisher": "agentuity",
 	"license": "MIT",
 	"repository": {
@@ -437,10 +437,11 @@
 	},
 	"scripts": {
 		"build": "bun run compile",
-		"compile": "bun build ./src/extension.ts --outdir ./dist --target node --format cjs --external vscode --external jsonc-parser",
-		"watch": "bun build ./src/extension.ts --outdir ./dist --target node --external vscode --watch",
+		"compile": "bunx esbuild ./src/extension.ts --bundle --outfile=./dist/extension.js --platform=node --format=cjs --external:vscode --main-fields=module,main",
+		"watch": "bunx esbuild ./src/extension.ts --bundle --outfile=./dist/extension.js --platform=node --format=cjs --external:vscode --main-fields=module,main --watch",
 		"typecheck": "bunx tsc --noEmit",
-		"package": "bunx @vscode/vsce package",
+		"vscode:prepublish": "bun run build",
+		"package": "bunx @vscode/vsce package --no-dependencies",
 		"clean": "rm -rf dist *.vsix"
 	},
 	"devDependencies": {

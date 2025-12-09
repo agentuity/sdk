@@ -2,6 +2,24 @@
 
 Build, deploy, and manage AI agents with Agentuity directly from VSCode.
 
+## Installation
+
+### Manual Installation (.vsix)
+
+1. Download the latest `agentuity-vscode-<version>.vsix` from [GitHub Releases](https://github.com/agentuity/sdk/releases)
+
+2. In VS Code:
+   - Open the **Extensions** view (`Ctrl+Shift+X` / `Cmd+Shift+X`)
+   - Click the **⋯** menu in the top-right
+   - Choose **Install from VSIX...**
+   - Select the downloaded `.vsix` file
+
+Or via command line:
+
+```bash
+code --install-extension agentuity-vscode-<version>.vsix
+```
+
 ## Prerequisites
 
 - [Agentuity CLI](https://agentuity.com/docs/cli) must be installed
@@ -123,11 +141,15 @@ bun run clean      # Remove build artifacts
 - All CLI commands use `--json` flag for structured output
 - External dependencies (`vscode`, `jsonc-parser`) are not bundled
 
-## Publishing
+## Packaging
+
+To build the extension and create a `.vsix` for distribution:
 
 ```bash
-bun run package  # Creates .vsix file
+bun run package  # Builds and creates agentuity-vscode-<version>.vsix
 ```
+
+The version is kept in sync with the SDK monorepo version.
 
 ## License
 
