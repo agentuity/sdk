@@ -228,21 +228,13 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 	}
 
 	// Initialize git repository if git is available
-	const gitPath = Bun.which('git');
-	if (gitPath) {
+	// Check for real git (not macOS stub that triggers Xcode CLT popup)
+	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper');
+	const gitAvailable = await isGitAvailable();
+	
+	if (gitAvailable) {
 		// Get default branch from git config, fallback to 'main'
-		let defaultBranch = 'main';
-		try {
-			const result = Bun.spawnSync(['git', 'config', '--global', 'init.defaultBranch']);
-			if (result.exitCode === 0) {
-				const branch = result.stdout.toString().trim();
-				if (branch) {
-					defaultBranch = branch;
-				}
-			}
-		} catch {
-			// Ignore errors, use fallback
-		}
+		const defaultBranch = (await getDefaultBranch()) || 'main';
 
 		// Git is available, initialize repository
 		await tui.runCommand({
