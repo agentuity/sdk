@@ -1,5 +1,7 @@
 export { createCLI, registerCommands } from './cli';
 export { validateRuntime, isBun } from './runtime';
+export { ensureBunOnPath } from './bun-path';
+export { isGitAvailable, getDefaultBranch } from './git-helper';
 export {
 	generateCLISchema,
 	type CLISchema,
