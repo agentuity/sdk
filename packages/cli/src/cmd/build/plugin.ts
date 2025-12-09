@@ -565,6 +565,12 @@ import { readFileSync, existsSync } from 'node:fs';
 									outputSchemaVariable: route.config?.outputSchemaVariable as
 										| string
 										| undefined,
+									stream:
+										route.config?.stream !== undefined && route.config.stream !== null
+											? Boolean(route.config.stream)
+											: route.type === 'stream'
+												? true
+												: undefined,
 								});
 							}
 						} catch (error) {

@@ -133,9 +133,11 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 
 		// If route doesn't have a validator, use never for schemas
 		if (!route.hasValidator) {
+			const streamValue = route.stream === true ? 'true' : 'false';
 			return `  '${routeKey}': {
     inputSchema: never;
     outputSchema: never;
+    stream: ${streamValue};
   };`;
 		}
 
