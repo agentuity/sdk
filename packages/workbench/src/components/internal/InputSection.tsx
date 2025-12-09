@@ -142,16 +142,6 @@ export function InputSection({
 										.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name))
 										.map((agent) => {
 											const isSelected = selectedAgent === agent.metadata.agentId;
-											logger.debug(
-												'🔍 Dropdown render - agent:',
-												agent.metadata.name,
-												'agentId:',
-												agent.metadata.agentId,
-												'selectedAgent:',
-												selectedAgent,
-												'isSelected:',
-												isSelected
-											);
 											// Use name for search but include agentId to ensure uniqueness
 											const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
 											return (

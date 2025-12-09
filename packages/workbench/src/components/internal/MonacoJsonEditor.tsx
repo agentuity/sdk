@@ -12,6 +12,37 @@ interface MonacoJsonEditorProps {
 	className?: string;
 }
 
+// Convert color value to valid hex for Monaco
+function normalizeColorForMonaco(color: string | undefined, isDark: boolean): string {
+	if (!color) return isDark ? 'abb2bf' : '383a42'; // Default foreground colors
+
+	// Remove # prefix if present
+	let normalized = color.replace('#', '');
+
+	// Handle common color names that might appear in themes
+	const colorMap: Record<string, string> = {
+		white: isDark ? 'ffffff' : '383a42',
+		black: isDark ? '000000' : 'abb2bf',
+		red: 'e45649',
+		green: '50a14f',
+		blue: '4078f2',
+		yellow: '986801',
+		cyan: '0184bc',
+		magenta: 'a626a4',
+	};
+
+	if (colorMap[normalized.toLowerCase()]) {
+		normalized = colorMap[normalized.toLowerCase()];
+	}
+
+	// Validate it's a proper hex color (3 or 6 characters)
+	if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(normalized)) {
+		return isDark ? 'abb2bf' : '383a42'; // Fallback to default
+	}
+
+	return normalized;
+}
+
 // Convert Shiki theme to Monaco theme
 function convertShikiToMonaco(
 	shikiTheme: {
@@ -25,6 +56,7 @@ function convertShikiToMonaco(
 ) {
 	const colors = shikiTheme.colors || {};
 	const tokenColors = shikiTheme.tokenColors || [];
+	const isDark = themeName.includes('dark');
 
 	// Convert token colors to Monaco rules
 	const rules: Array<{ token: string; foreground: string; fontStyle?: string }> = [];
@@ -41,9 +73,14 @@ function convertShikiToMonaco(
 				if (scope.includes('punctuation.definition.string.json'))
 					token = 'delimiter.bracket.json';
 
+				const normalizedColor = normalizeColorForMonaco(
+					tokenColor.settings?.foreground,
+					isDark
+				);
+
 				rules.push({
 					token,
-					foreground: tokenColor.settings?.foreground?.replace('#', '') || '',
+					foreground: normalizedColor,
 					fontStyle: tokenColor.settings?.fontStyle || undefined,
 				});
 			});
@@ -51,13 +88,12 @@ function convertShikiToMonaco(
 	});
 
 	return {
-		base: themeName.includes('dark') ? 'vs-dark' : 'vs',
+		base: isDark ? 'vs-dark' : 'vs',
 		inherit: true,
 		rules,
 		colors: {
 			'editor.background': '#00000000', // Always transparent
-			'editor.foreground':
-				colors['editor.foreground'] || (themeName.includes('dark') ? '#abb2bf' : '#383a42'),
+			'editor.foreground': normalizeColorForMonaco(colors['editor.foreground'], isDark),
 		},
 	};
 }

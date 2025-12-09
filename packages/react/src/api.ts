@@ -91,7 +91,8 @@ type UseAPICommonOptions<TRoute extends RouteKey> = {
 				chunk: RouteChunkType<TRoute>
 			) => Promise<RouteChunkType<TRoute>> | RouteChunkType<TRoute>;
 		}
-	: Record<string, never>) &
+	: // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+		{}) &
 	(ExtractMethod<TRoute> extends 'GET'
 		? {
 				/** GET requests cannot have input (use query params instead) */

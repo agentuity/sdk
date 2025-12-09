@@ -28,8 +28,8 @@ const newRouteTemplate = () => {
 const router = createRouter();
 
 router.get('/', async (c) => {
-	// TODO: add your code here - for now we just echo back what you sent
-	return c.text(output);
+	// TODO: add your code here - this returns a static 'hi' greeting
+	return c.text('hi');
 });
 
 export default router;
