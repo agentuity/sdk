@@ -39,7 +39,7 @@ export const uploadCommand = createSubcommand({
 			description: 'Upload multiple files',
 		},
 	],
-	requires: { apiClient: true, auth: true },
+	requires: { apiClient: true, auth: true, region: true },
 	schema: {
 		args,
 		options,
@@ -54,7 +54,7 @@ export const uploadCommand = createSubcommand({
 	prerequisites: ['cloud deploy'],
 
 	async handler(ctx) {
-		const { apiClient, args, opts, project, projectDir, config } = ctx;
+		const { apiClient, args, opts, project, projectDir, config, region } = ctx;
 
 		let identifier = opts?.identifier ?? project?.projectId;
 
@@ -62,7 +62,7 @@ export const uploadCommand = createSubcommand({
 			identifier = await tui.showProjectList(apiClient, true);
 		}
 
-		const hostname = getIONHost(config);
+		const hostname = getIONHost(config, region);
 		const destination = args.destination ?? '.';
 
 		try {

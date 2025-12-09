@@ -35,13 +35,13 @@ export const sshSubcommand = createSubcommand({
 		},
 	],
 	toplevel: true,
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true, apiClient: true, region: true },
 	optional: { project: true },
 	prerequisites: ['cloud deploy'],
 	schema: { args, options },
 
 	async handler(ctx) {
-		const { apiClient, project, projectDir, args, config, opts } = ctx;
+		const { apiClient, project, projectDir, args, config, opts, region } = ctx;
 
 		let projectId = project?.projectId;
 		let identifier = args?.identifier;
@@ -56,7 +56,7 @@ export const sshSubcommand = createSubcommand({
 			projectId = await tui.showProjectList(apiClient, true);
 		}
 
-		const hostname = getIONHost(config);
+		const hostname = getIONHost(config, region);
 
 		const cmd = ['ssh', `${identifier ?? projectId}@${hostname}`, command].filter(
 			Boolean
