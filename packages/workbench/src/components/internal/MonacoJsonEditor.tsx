@@ -3,6 +3,24 @@ import Editor, { type Monaco, type OnMount } from '@monaco-editor/react';
 import { useTheme } from '../ui/theme-provider';
 import type { JSONSchema7 } from 'ai';
 
+interface MonacoThemeRule {
+	token: string;
+	foreground: string;
+	fontStyle?: string;
+}
+
+interface MonacoThemeColors {
+	'editor.background': string;
+	'editor.foreground': string;
+}
+
+interface MonacoThemeDefinition {
+	base: 'vs' | 'vs-dark' | 'hc-black';
+	inherit: boolean;
+	rules: MonacoThemeRule[];
+	colors: MonacoThemeColors;
+}
+
 interface MonacoJsonEditorProps {
 	value: string;
 	onChange: (value: string) => void;
@@ -192,7 +210,7 @@ export function MonacoJsonEditor({
 					setMonacoInstance(monaco);
 					
 					// Use manual themes that match Shiki one-light/one-dark-pro
-					monaco.editor.defineTheme('custom-light', {
+					const lightTheme: MonacoThemeDefinition = {
 						base: 'vs',
 						inherit: true,
 						rules: [
@@ -215,9 +233,10 @@ export function MonacoJsonEditor({
 							'editor.background': '#00000000', // Transparent
 							'editor.foreground': '#383a42', // One Light main text color
 						},
-					});
+					};
+					monaco.editor.defineTheme('custom-light', lightTheme);
 
-					monaco.editor.defineTheme('custom-dark', {
+					const darkTheme: MonacoThemeDefinition = {
 						base: 'vs-dark',
 						inherit: true,
 						rules: [
@@ -240,7 +259,8 @@ export function MonacoJsonEditor({
 							'editor.background': '#00000000', // Transparent
 							'editor.foreground': '#abb2bf', // One Dark Pro main text color
 						},
-					});
+					};
+					monaco.editor.defineTheme('custom-dark', darkTheme);
 				}}
 			/>
 		</div>
