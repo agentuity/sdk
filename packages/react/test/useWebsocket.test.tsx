@@ -276,7 +276,6 @@ describe('useWebsocket', () => {
 	});
 
 	test('should receive all messages in rapid succession (Issue #3)', async () => {
-		const receivedMessages: unknown[] = [];
 		const { result } = renderHook(() => useWebsocket('/test-ws'), { wrapper });
 
 		// Wait for connection
@@ -285,13 +284,6 @@ describe('useWebsocket', () => {
 		});
 
 		expect(result.current.isConnected).toBe(true);
-
-		// Track all data changes
-		const trackData = () => {
-			if (result.current.data) {
-				receivedMessages.push(result.current.data);
-			}
-		};
 
 		// Send 3 messages in rapid succession (simulating the issue from #3)
 		await act(async () => {
@@ -305,15 +297,18 @@ describe('useWebsocket', () => {
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		});
 
-		trackData();
+		// All 3 messages should be captured in messages array
+		expect(result.current.messages).toHaveLength(3);
+		expect(result.current.messages[0]).toEqual({ type: 'tool_call', id: 1 });
+		expect(result.current.messages[1]).toEqual({
+			type: 'tool_result',
+			id: 2,
+			data: 'important data',
+		});
+		expect(result.current.messages[2]).toEqual({ type: 'message_complete', id: 3 });
 
-		// Due to React batching, we might only see the last message
-		// This test documents the bug - after fix, all 3 should be available
-		// For now, we're just checking what we receive
-		expect(result.current.data).toBeDefined();
-
-		// The issue is that result.current.data only shows the LAST message
-		// We need a way to access ALL messages
+		// data should have the last message (backward compatible)
+		expect(result.current.data).toEqual({ type: 'message_complete', id: 3 });
 	});
 
 	test('should accumulate all messages in messages array', async () => {
