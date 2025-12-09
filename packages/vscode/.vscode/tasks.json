@@ -1,0 +1,22 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"command": "bun run compile",
+			"problemMatcher": [],
+			"label": "bun: compile",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"type": "shell",
+			"command": "bun run watch",
+			"problemMatcher": [],
+			"label": "bun: watch",
+			"isBackground": true
+		}
+	]
+}
