@@ -102,7 +102,6 @@ export async function bundle({
 	dev = false,
 	rootDir,
 	project,
-	port,
 	outDir: customOutDir,
 	tag,
 	logsUrl,
