@@ -3,6 +3,7 @@ import { DeploymentTreeDataProvider, DeploymentTreeItem } from './deploymentTree
 import { onAuthStatusChanged } from '../../core/auth';
 import { onProjectChanged } from '../../core/project';
 import { getCliClient } from '../../core/cliClient';
+import { openReadonlyDocument } from '../../core/readonlyDocument';
 
 export function registerDeploymentExplorer(
 	context: vscode.ExtensionContext
@@ -64,11 +65,7 @@ async function showDeploymentDetails(deploymentId: string): Promise<void> {
 
 	if (result.success && result.data) {
 		const content = JSON.stringify(result.data, null, 2);
-		const doc = await vscode.workspace.openTextDocument({
-			content,
-			language: 'json',
-		});
-		await vscode.window.showTextDocument(doc, { preview: true });
+		await openReadonlyDocument(content, 'json', `deployment-${deploymentId.substring(0, 8)}`);
 	} else {
 		vscode.window.showErrorMessage(`Failed to get deployment details: ${result.error}`);
 	}
@@ -99,11 +96,7 @@ async function viewDeploymentLogs(deploymentId: string): Promise<void> {
 					})
 					.join('\n');
 
-				const doc = await vscode.workspace.openTextDocument({
-					content: logContent,
-					language: 'log',
-				});
-				await vscode.window.showTextDocument(doc, { preview: true });
+				await openReadonlyDocument(logContent, 'log', `deployment-logs-${deploymentId.substring(0, 8)}`);
 			} else {
 				vscode.window.showErrorMessage(`Failed to fetch logs: ${result.error}`);
 			}

@@ -3,10 +3,18 @@ import * as path from 'path';
 import { AgentTreeDataProvider, AgentTreeItem } from './agentTreeData';
 import { onAuthStatusChanged } from '../../core/auth';
 import { onProjectChanged, getCurrentProject } from '../../core/project';
-import { getLogsPanelProvider } from '../logsPanel';
+
+const SESSIONS_BASE_URL = 'https://app-v1.agentuity.com';
+
+let agentProvider: AgentTreeDataProvider | undefined;
+
+export function getAgentProvider(): AgentTreeDataProvider | undefined {
+	return agentProvider;
+}
 
 export function registerAgentExplorer(context: vscode.ExtensionContext): AgentTreeDataProvider {
 	const provider = new AgentTreeDataProvider();
+	agentProvider = provider;
 
 	const treeView = vscode.window.createTreeView('agentuity.agents', {
 		treeDataProvider: provider,
@@ -49,27 +57,20 @@ export function registerAgentExplorer(context: vscode.ExtensionContext): AgentTr
 		vscode.commands.registerCommand(
 			'agentuity.agent.viewSessions',
 			async (item: AgentTreeItem) => {
+				const project = getCurrentProject();
+				if (!project) {
+					vscode.window.showErrorMessage('No Agentuity project found');
+					return;
+				}
+
 				const agent = item?.agentData;
 				if (!agent) {
 					vscode.window.showWarningMessage('No agent selected');
 					return;
 				}
 
-				// Use metadata.identifier (human-readable) for filtering, not the hash ID
-				const identifier = agent.metadata?.identifier || agent.identifier;
-				if (!identifier) {
-					vscode.window.showWarningMessage('Agent has no identifier');
-					return;
-				}
-
-				const logsPanel = getLogsPanelProvider();
-				if (logsPanel) {
-					logsPanel.setFilter({ agentIdentifier: identifier, count: 50 });
-					await vscode.commands.executeCommand('agentuity.sessionLogsPanel.focus');
-					vscode.window.showInformationMessage(`Showing sessions for agent: ${agent.name}`);
-				} else {
-					vscode.window.showErrorMessage('Session logs panel not available');
-				}
+				const url = `${SESSIONS_BASE_URL}/projects/${project.projectId}/sessions?agent=${agent.id}`;
+				await vscode.env.openExternal(vscode.Uri.parse(url));
 			}
 		)
 	);
@@ -78,27 +79,20 @@ export function registerAgentExplorer(context: vscode.ExtensionContext): AgentTr
 		vscode.commands.registerCommand(
 			'agentuity.agent.viewSessionLogs',
 			async (item: AgentTreeItem) => {
+				const project = getCurrentProject();
+				if (!project) {
+					vscode.window.showErrorMessage('No Agentuity project found');
+					return;
+				}
+
 				const agent = item?.agentData;
 				if (!agent) {
 					vscode.window.showWarningMessage('No agent selected');
 					return;
 				}
 
-				// Use metadata.identifier (human-readable) for filtering, not the hash ID
-				const identifier = agent.metadata?.identifier || agent.identifier;
-				if (!identifier) {
-					vscode.window.showWarningMessage('Agent has no identifier');
-					return;
-				}
-
-				const logsPanel = getLogsPanelProvider();
-				if (logsPanel) {
-					logsPanel.setFilter({ agentIdentifier: identifier, count: 50 });
-					await vscode.commands.executeCommand('agentuity.sessionLogsPanel.focus');
-					vscode.window.showInformationMessage(`Showing session logs for agent: ${agent.name}`);
-				} else {
-					vscode.window.showErrorMessage('Session logs panel not available');
-				}
+				const url = `${SESSIONS_BASE_URL}/projects/${project.projectId}/sessions?agent=${agent.id}`;
+				await vscode.env.openExternal(vscode.Uri.parse(url));
 			}
 		)
 	);

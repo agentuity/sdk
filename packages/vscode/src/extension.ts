@@ -10,10 +10,10 @@ import {
 	disposeProject,
 	requireAuth,
 } from './core';
+import { registerReadonlyDocumentProvider } from './core/readonlyDocument';
 import { registerAgentExplorer } from './features/agentExplorer';
 import { registerDataExplorer } from './features/dataExplorer';
 import { registerDeploymentExplorer } from './features/deploymentExplorer';
-import { registerLogsPanel } from './features/logsPanel';
 import { registerDevServerCommands } from './features/devServer';
 import { registerWorkbenchCommands } from './features/workbench';
 import { registerChatParticipant, registerCliTool } from './features/chat';
@@ -29,6 +29,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	log('Extension activating...');
 
 	watchProjectConfig(context);
+	registerReadonlyDocumentProvider(context);
 
 	const project = await detectProject();
 	log(`Project: ${project ? project.projectId : 'none'}`);
@@ -77,7 +78,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	registerWorkbenchCommands(context);
 	registerChatParticipant(context);
 	registerCliTool(context);
-	registerLogsPanel(context);
 	registerCodeLens(context);
 
 	log('Extension activated');

@@ -3,7 +3,6 @@ import { getCliClient } from '../../core/cliClient';
 import { getAuthStatus } from '../../core/auth';
 import { hasProject, getCurrentProject } from '../../core/project';
 import { getDevServerManager } from '../devServer';
-import { getLogsPanelProvider } from '../logsPanel';
 
 // Minimal CLI reference as fallback when dynamic help is unavailable
 const CLI_REFERENCE_FALLBACK = `
@@ -508,12 +507,6 @@ async function handleSessions(stream: vscode.ChatResponseStream): Promise<vscode
 	}
 
 	stream.markdown('\n');
-	stream.button({ title: 'View Session Logs Panel', command: 'agentuity.sessionLogs.show' });
-
-	const logsPanel = getLogsPanelProvider();
-	if (logsPanel) {
-		logsPanel.refresh();
-	}
 
 	return { metadata: { command: 'sessions' } };
 }
@@ -817,8 +810,6 @@ async function handleLogs(
 	if (logs.length > 50) {
 		stream.markdown(`\n*...and ${logs.length - 50} more entries*\n`);
 	}
-
-	stream.button({ title: 'Open Session Logs Panel', command: 'agentuity.sessionLogs.show' });
 
 	return { metadata: { command: 'logs' } };
 }

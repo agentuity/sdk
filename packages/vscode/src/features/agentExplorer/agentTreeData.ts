@@ -133,4 +133,17 @@ export class AgentTreeDataProvider extends BaseTreeDataProvider<AgentTreeItem> {
 		this.agents = [];
 		await super.forceRefresh();
 	}
+
+	getAgents(): Agent[] {
+		return this.agents;
+	}
+
+	findAgentByIdentifier(identifier: string): Agent | undefined {
+		return this.agents.find(
+			(a) =>
+				a.metadata?.identifier === identifier ||
+				a.identifier === identifier ||
+				a.name === identifier
+		);
+	}
 }

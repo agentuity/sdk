@@ -159,23 +159,6 @@
 				"icon": "$(output)"
 			},
 			{
-				"command": "agentuity.sessionLogs.show",
-				"title": "Show Session Logs Panel",
-				"category": "Agentuity"
-			},
-			{
-				"command": "agentuity.sessionLogs.filter",
-				"title": "Filter Session Logs",
-				"category": "Agentuity",
-				"icon": "$(filter)"
-			},
-			{
-				"command": "agentuity.sessionLogs.refresh",
-				"title": "Refresh Session Logs",
-				"category": "Agentuity",
-				"icon": "$(refresh)"
-			},
-			{
 				"command": "agentuity.installCli",
 				"title": "Install CLI",
 				"category": "Agentuity"
@@ -203,13 +186,6 @@
 					"title": "Agentuity",
 					"icon": "resources/icon.svg"
 				}
-			],
-			"panel": [
-				{
-					"id": "agentuityLogsPanel",
-					"title": "Agentuity",
-					"icon": "resources/icon.svg"
-				}
 			]
 		},
 		"views": {
@@ -228,13 +204,6 @@
 					"id": "agentuity.data",
 					"name": "Data",
 					"contextualTitle": "Agentuity Data"
-				}
-			],
-			"agentuityLogsPanel": [
-				{
-					"type": "webview",
-					"id": "agentuity.sessionLogsPanel",
-					"name": "Session Logs"
 				}
 			]
 		},

@@ -3,6 +3,7 @@ import { DataTreeDataProvider, DataTreeItem } from './dataTreeData';
 import { onAuthStatusChanged } from '../../core/auth';
 import { onProjectChanged } from '../../core/project';
 import { getCliClient } from '../../core/cliClient';
+import { openReadonlyDocument } from '../../core/readonlyDocument';
 
 export function registerDataExplorer(context: vscode.ExtensionContext): DataTreeDataProvider {
 	const provider = new DataTreeDataProvider();
@@ -114,11 +115,7 @@ export function registerDataExplorer(context: vscode.ExtensionContext): DataTree
 						})
 						.join('\n\n');
 
-					const doc = await vscode.workspace.openTextDocument({
-						content: logContent,
-						language: 'log',
-					});
-					await vscode.window.showTextDocument(doc, { preview: true });
+					await openReadonlyDocument(logContent, 'log', `db-logs-${name}`);
 				}
 			);
 		})
@@ -225,11 +222,7 @@ async function openVectorDocument(item: DataTreeItem): Promise<void> {
 	lines.push('');
 	lines.push(result.data.document);
 
-	const doc = await vscode.workspace.openTextDocument({
-		content: lines.join('\n'),
-		language: 'plaintext',
-	});
-	await vscode.window.showTextDocument(doc, { preview: true });
+	await openReadonlyDocument(lines.join('\n'), 'plaintext', `vector-${key}`);
 }
 
 async function openDataValue(item: DataTreeItem): Promise<void> {
@@ -274,11 +267,7 @@ async function openStorageFile(item: DataTreeItem): Promise<void> {
 		lines.push(`Last Modified: ${result.data.lastModified}`);
 	}
 
-	const doc = await vscode.workspace.openTextDocument({
-		content: lines.join('\n'),
-		language: 'plaintext',
-	});
-	await vscode.window.showTextDocument(doc, { preview: true });
+	await openReadonlyDocument(lines.join('\n'), 'plaintext', `storage-${filename}`);
 }
 
 async function openStreamDetails(item: DataTreeItem): Promise<void> {
@@ -296,11 +285,7 @@ async function openStreamDetails(item: DataTreeItem): Promise<void> {
 		2
 	);
 
-	const doc = await vscode.workspace.openTextDocument({
-		content,
-		language: 'json',
-	});
-	await vscode.window.showTextDocument(doc, { preview: true });
+	await openReadonlyDocument(content, 'json', `stream-${stream.name}`);
 }
 
 function formatFileSize(bytes: number): string {
@@ -355,11 +340,7 @@ async function openContent(data: unknown, contentType: string): Promise<void> {
 		content = JSON.stringify(data, null, 2);
 	}
 
-	const doc = await vscode.workspace.openTextDocument({
-		content,
-		language,
-	});
-	await vscode.window.showTextDocument(doc, { preview: true });
+	await openReadonlyDocument(content, language, 'kv-value');
 }
 
 function isRawByteObject(data: unknown): boolean {

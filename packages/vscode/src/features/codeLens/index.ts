@@ -2,9 +2,9 @@ import * as vscode from 'vscode';
 import { AgentCodeLensProvider, type AgentCodeLensInfo } from './agentCodeLensProvider';
 import { getDevServerManager } from '../devServer';
 import { getCurrentProject } from '../../core/project';
-import { getLogsPanelProvider } from '../logsPanel';
+import { getAgentProvider } from '../agentExplorer';
 
-const WORKBENCH_BASE_URL = 'https://app.agentuity.com';
+const SESSIONS_BASE_URL = 'https://app-v1.agentuity.com';
 
 export function registerCodeLens(context: vscode.ExtensionContext): AgentCodeLensProvider {
 	const provider = new AgentCodeLensProvider();
@@ -44,13 +44,8 @@ export function registerCodeLens(context: vscode.ExtensionContext): AgentCodeLen
 					}
 				}
 
-				const project = getCurrentProject();
-				if (!project) {
-					vscode.window.showErrorMessage('No Agentuity project found');
-					return;
-				}
-
-				let url = `${WORKBENCH_BASE_URL}/projects/${project.projectId}/workbench`;
+				const port = vscode.workspace.getConfiguration('agentuity').get<number>('devServer.port', 3500);
+				let url = `http://localhost:${port}/workbench`;
 				if (info.identifier) {
 					url += `?agent=${encodeURIComponent(info.identifier)}`;
 				}
@@ -64,24 +59,34 @@ export function registerCodeLens(context: vscode.ExtensionContext): AgentCodeLen
 		vscode.commands.registerCommand(
 			'agentuity.codeLens.viewSessions',
 			async (info: AgentCodeLensInfo) => {
-				const logsPanel = getLogsPanelProvider();
-
-				if (!logsPanel) {
-					vscode.window.showErrorMessage('Session logs panel not available');
+				const project = getCurrentProject();
+				if (!project) {
+					vscode.window.showErrorMessage('No Agentuity project found');
 					return;
 				}
 
-				if (info.identifier) {
-					logsPanel.setFilter({
-						agentIdentifier: info.identifier,
-						count: 50,
-					});
+				if (!info.identifier) {
+					vscode.window.showErrorMessage('Could not determine agent identifier');
+					return;
 				}
 
-				await vscode.commands.executeCommand('agentuity.sessionLogsPanel.focus');
+				const agentProvider = getAgentProvider();
+				if (!agentProvider) {
+					vscode.window.showErrorMessage('Agent explorer not initialized');
+					return;
+				}
 
-				const agentName = info.name || info.identifier || 'agent';
-				vscode.window.showInformationMessage(`Showing sessions for ${agentName}`);
+				const agent = agentProvider.findAgentByIdentifier(info.identifier);
+
+				if (!agent) {
+					vscode.window.showWarningMessage(
+						`Agent "${info.identifier}" not found. Deploy your project first to view sessions.`
+					);
+					return;
+				}
+
+				const url = `${SESSIONS_BASE_URL}/projects/${project.projectId}/sessions?agent=${agent.id}`;
+				await vscode.env.openExternal(vscode.Uri.parse(url));
 			}
 		)
 	);
