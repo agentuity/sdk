@@ -377,6 +377,23 @@ export async function bundle({
 		}
 	}
 
+	// Analyze workbench config early to set environment variables for web build
+	if (existsSync(appFile)) {
+		if (!workbench) {
+			const appContent = await Bun.file(appFile).text();
+			workbench = analyzeWorkbench(appContent);
+		}
+
+		if (workbench.hasWorkbench) {
+			// Create workbench config with proper defaults
+			const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
+			const config = { ...defaultConfig, ...workbench.config };
+			
+			// Add to define so process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH gets replaced at build time
+			define['process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH'] = JSON.stringify(config.route);
+		}
+	}
+
 	// web folder is optional
 	const webDir = join(srcDir, 'web');
 	if (existsSync(webDir)) {
@@ -467,18 +484,12 @@ export async function bundle({
 		})();
 	}
 
-	// Bundle workbench app if detected via setupWorkbench
-	if (existsSync(appFile)) {
-		if (!workbench) {
-			const appContent = await Bun.file(appFile).text();
-			workbench = analyzeWorkbench(appContent);
-		}
-
-		if (workbench.hasWorkbench) {
-			// Create workbench config with proper defaults
-			const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
-			const config = { ...defaultConfig, ...workbench.config };
-			try {
+	// Bundle workbench app if detected via setupWorkbench  
+	if (existsSync(appFile) && workbench && workbench.hasWorkbench) {
+		// Create workbench config with proper defaults
+		const defaultConfig = { route: '/workbench', headers: {}, port: port || 3500 };
+		const config = { ...defaultConfig, ...workbench.config };
+		try {
 				// Generate workbench files on the fly instead of using files from package
 				const tempWorkbenchDir = join(outDir, 'temp-workbench');
 				mkdirSync(tempWorkbenchDir, { recursive: true });
@@ -568,7 +579,6 @@ export async function bundle({
 				// Don't continue if workbench bundling fails
 				logger.fatal(errorMessages.join('\n'));
 			}
-		}
 	}
 
 	if (!dev && buildmetadata) {
