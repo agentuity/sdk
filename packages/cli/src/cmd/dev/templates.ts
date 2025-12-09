@@ -29,7 +29,7 @@ const router = createRouter();
 
 router.get('/', async (c) => {
 	// TODO: add your code here - for now we just echo back what you sent
-	return c.text(output);
+	return c.text('hi');
 });
 
 export default router;
