@@ -274,4 +274,184 @@ describe('useWebsocket', () => {
 		// Should construct wss:// URL from https://
 		expect(result.current).toBeDefined();
 	});
+
+	test('should receive all messages in rapid succession (Issue #3)', async () => {
+		const { result } = renderHook(() => useWebsocket('/test-ws'), { wrapper });
+
+		// Wait for connection
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		expect(result.current.isConnected).toBe(true);
+
+		// Send 3 messages in rapid succession (simulating the issue from #3)
+		await act(async () => {
+			const ws = MockWebSocket.instances[0];
+			if (ws) {
+				// Simulate server sending 3 messages rapidly
+				ws.simulateMessage({ type: 'tool_call', id: 1 });
+				ws.simulateMessage({ type: 'tool_result', id: 2, data: 'important data' });
+				ws.simulateMessage({ type: 'message_complete', id: 3 });
+			}
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		});
+
+		// All 3 messages should be captured in messages array
+		expect(result.current.messages).toHaveLength(3);
+		expect(result.current.messages[0]).toEqual({ type: 'tool_call', id: 1 });
+		expect(result.current.messages[1]).toEqual({
+			type: 'tool_result',
+			id: 2,
+			data: 'important data',
+		});
+		expect(result.current.messages[2]).toEqual({ type: 'message_complete', id: 3 });
+
+		// data should have the last message (backward compatible)
+		expect(result.current.data).toEqual({ type: 'message_complete', id: 3 });
+	});
+
+	test('should accumulate all messages in messages array', async () => {
+		const { result } = renderHook(() => useWebsocket('/test-ws'), { wrapper });
+
+		// Wait for connection
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		// Initially empty
+		expect(result.current.messages).toEqual([]);
+
+		// Send 3 messages rapidly
+		await act(async () => {
+			const ws = MockWebSocket.instances[0];
+			if (ws) {
+				ws.simulateMessage({ type: 'tool_call', id: 1 });
+				ws.simulateMessage({ type: 'tool_result', id: 2 });
+				ws.simulateMessage({ type: 'message_complete', id: 3 });
+			}
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		});
+
+		// All 3 messages should be captured in messages array
+		expect(result.current.messages).toHaveLength(3);
+		expect(result.current.messages[0]).toEqual({ type: 'tool_call', id: 1 });
+		expect(result.current.messages[1]).toEqual({ type: 'tool_result', id: 2 });
+		expect(result.current.messages[2]).toEqual({ type: 'message_complete', id: 3 });
+
+		// data should still have the last message
+		expect(result.current.data).toEqual({ type: 'message_complete', id: 3 });
+	});
+
+	test('should clear messages array with clearMessages', async () => {
+		const { result } = renderHook(() => useWebsocket('/test-ws'), { wrapper });
+
+		// Wait for connection
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		// Send some messages
+		await act(async () => {
+			const ws = MockWebSocket.instances[0];
+			if (ws) {
+				ws.simulateMessage({ type: 'msg', id: 1 });
+				ws.simulateMessage({ type: 'msg', id: 2 });
+			}
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		// Verify messages accumulated
+		expect(result.current.messages).toHaveLength(2);
+
+		// Clear messages
+		act(() => {
+			result.current.clearMessages();
+		});
+
+		// Messages should be empty
+		expect(result.current.messages).toEqual([]);
+
+		// data should still have the last message
+		expect(result.current.data).toEqual({ type: 'msg', id: 2 });
+
+		// New messages should accumulate again
+		await act(async () => {
+			const ws = MockWebSocket.instances[0];
+			if (ws) {
+				ws.simulateMessage({ type: 'new', id: 3 });
+			}
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		expect(result.current.messages).toHaveLength(1);
+		expect(result.current.messages[0]).toEqual({ type: 'new', id: 3 });
+	});
+
+	test('should persist messages across reconnections', async () => {
+		const { result } = renderHook(() => useWebsocket('/test-ws'), { wrapper });
+
+		// Wait for connection
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		// Send first batch
+		await act(async () => {
+			const ws = MockWebSocket.instances[0];
+			if (ws) {
+				ws.simulateMessage({ batch: 1, id: 1 });
+			}
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		expect(result.current.messages).toHaveLength(1);
+
+		// Close and reconnect
+		act(() => {
+			result.current.close();
+		});
+
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		// Messages should still be there after close
+		// (they're only cleared by explicit clearMessages() call)
+		expect(result.current.messages).toHaveLength(1);
+		expect(result.current.messages[0]).toEqual({ batch: 1, id: 1 });
+	});
+
+	test('should enforce maxMessages limit', async () => {
+		const { result } = renderHook(() => useWebsocket('/test-ws', { maxMessages: 3 }), {
+			wrapper,
+		});
+
+		// Wait for connection
+		await act(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		// Send 5 messages
+		await act(async () => {
+			const ws = MockWebSocket.instances[0];
+			if (ws) {
+				ws.simulateMessage({ id: 1 });
+				ws.simulateMessage({ id: 2 });
+				ws.simulateMessage({ id: 3 });
+				ws.simulateMessage({ id: 4 });
+				ws.simulateMessage({ id: 5 });
+			}
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		});
+
+		// Should only keep the last 3 messages
+		expect(result.current.messages).toHaveLength(3);
+		expect(result.current.messages[0]).toEqual({ id: 3 });
+		expect(result.current.messages[1]).toEqual({ id: 4 });
+		expect(result.current.messages[2]).toEqual({ id: 5 });
+
+		// data should still have the last message
+		expect(result.current.data).toEqual({ id: 5 });
+	});
 });
