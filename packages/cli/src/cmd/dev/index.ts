@@ -16,7 +16,7 @@ import { type Config, createCommand } from '../../types';
 import * as tui from '../../tui';
 import { createAgentTemplates, createAPITemplates } from './templates';
 import { generateEndpoint, type DevmodeResponse } from './api';
-import { APIClient, getAPIBaseURL, getGravityDevModeURL } from '../../api';
+import { APIClient, getAppBaseURL, getAPIBaseURL, getGravityDevModeURL } from '../../api';
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
@@ -105,6 +105,7 @@ export const command = createCommand({
 		let devmode: DevmodeResponse | undefined;
 		let gravityBin: string | undefined;
 		let gravityURL: string | undefined;
+		let appURL: string | undefined;
 
 		if (auth && project && opts.public) {
 			// Generate devmode endpoint only when using --public
@@ -123,6 +124,7 @@ export const command = createCommand({
 			config = _config;
 			devmode = endpoint;
 			gravityURL = getGravityDevModeURL(project.region, config);
+			appURL = `${getAppBaseURL(config)}/r/${project.projectId}`;
 			logger.trace('gravity url: %s', gravityURL);
 		}
 
@@ -178,6 +180,9 @@ export const command = createCommand({
 			(workbench.hasWorkbench
 				? tui.link(`http://127.0.0.1:${opts.port}${workbench.config?.route ?? '/workbench'}`)
 				: tui.warn('Disabled')) +
+			'\n' +
+			tui.muted(tui.padRight('Dashboard:', padding)) +
+			(appURL ? tui.link(appURL) : tui.warn('Disabled')) +
 			'\n' +
 			(canDoInput
 				? '\n' + tui.muted('Press ') + tui.bold('h') + tui.muted(' for keyboard shortcuts')
