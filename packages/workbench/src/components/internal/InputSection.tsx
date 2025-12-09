@@ -115,8 +115,6 @@ export function InputSection({
 		}
 	};
 
-
-
 	return (
 		<>
 			<div className="flex items-center gap-2 py-2 px-3">
@@ -143,51 +141,51 @@ export function InputSection({
 									{Object.values(agents)
 										.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name))
 										.map((agent) => {
-										const isSelected = selectedAgent === agent.metadata.agentId;
-										logger.debug(
-											'🔍 Dropdown render - agent:',
-											agent.metadata.name,
-											'agentId:',
-											agent.metadata.agentId,
-											'selectedAgent:',
-											selectedAgent,
-											'isSelected:',
-											isSelected
-										);
-										// Use name for search but include agentId to ensure uniqueness
-										const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
-										return (
-											<CommandItem
-												key={agent.metadata.agentId}
-												value={searchValue}
-												onSelect={(currentValue) => {
-													// Extract agentId from the compound value
-													const agentId = currentValue.split('|')[1];
-													const selectedAgentData = Object.values(agents).find(
-														(a) => a.metadata.agentId === agentId
-													);
-													if (selectedAgentData) {
-														logger.debug(
-															'🎯 Agent selected by name:',
-															agent.metadata.name,
-															'agentId:',
-															agentId
+											const isSelected = selectedAgent === agent.metadata.agentId;
+											logger.debug(
+												'🔍 Dropdown render - agent:',
+												agent.metadata.name,
+												'agentId:',
+												agent.metadata.agentId,
+												'selectedAgent:',
+												selectedAgent,
+												'isSelected:',
+												isSelected
+											);
+											// Use name for search but include agentId to ensure uniqueness
+											const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
+											return (
+												<CommandItem
+													key={agent.metadata.agentId}
+													value={searchValue}
+													onSelect={(currentValue) => {
+														// Extract agentId from the compound value
+														const agentId = currentValue.split('|')[1];
+														const selectedAgentData = Object.values(agents).find(
+															(a) => a.metadata.agentId === agentId
 														);
-														setSelectedAgent(agentId);
-													}
-													setAgentSelectOpen(false);
-												}}
-											>
-												<CheckIcon
-													className={cn(
-														'size-4 text-green-500',
-														isSelected ? 'opacity-100' : 'opacity-0'
-													)}
-												/>
-												{agent.metadata.name}
-											</CommandItem>
-										);
-									})}
+														if (selectedAgentData) {
+															logger.debug(
+																'🎯 Agent selected by name:',
+																agent.metadata.name,
+																'agentId:',
+																agentId
+															);
+															setSelectedAgent(agentId);
+														}
+														setAgentSelectOpen(false);
+													}}
+												>
+													<CheckIcon
+														className={cn(
+															'size-4 text-green-500',
+															isSelected ? 'opacity-100' : 'opacity-0'
+														)}
+													/>
+													{agent.metadata.name}
+												</CommandItem>
+											);
+										})}
 								</CommandGroup>
 							</CommandList>
 						</Command>

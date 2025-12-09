@@ -13,13 +13,22 @@ interface MonacoJsonEditorProps {
 }
 
 // Convert Shiki theme to Monaco theme
-function convertShikiToMonaco(shikiTheme: any, themeName: string) {
+function convertShikiToMonaco(
+	shikiTheme: {
+		colors?: Record<string, string>;
+		tokenColors?: Array<{
+			scope?: string | string[];
+			settings?: { foreground?: string; fontStyle?: string };
+		}>;
+	},
+	themeName: string
+) {
 	const colors = shikiTheme.colors || {};
 	const tokenColors = shikiTheme.tokenColors || [];
-	
+
 	// Convert token colors to Monaco rules
-	const rules: any[] = [];
-	tokenColors.forEach((tokenColor: any) => {
+	const rules: Array<{ token: string; foreground: string; fontStyle?: string }> = [];
+	tokenColors.forEach((tokenColor) => {
 		if (tokenColor.scope && tokenColor.settings?.foreground) {
 			const scopes = Array.isArray(tokenColor.scope) ? tokenColor.scope : [tokenColor.scope];
 			scopes.forEach((scope: string) => {
@@ -29,12 +38,13 @@ function convertShikiToMonaco(shikiTheme: any, themeName: string) {
 				if (scope.includes('support.type.property-name.json')) token = 'string.key.json';
 				if (scope.includes('constant.numeric.json')) token = 'number.json';
 				if (scope.includes('constant.language.json')) token = 'keyword.json';
-				if (scope.includes('punctuation.definition.string.json')) token = 'delimiter.bracket.json';
-				
+				if (scope.includes('punctuation.definition.string.json'))
+					token = 'delimiter.bracket.json';
+
 				rules.push({
 					token,
-					foreground: tokenColor.settings.foreground.replace('#', ''),
-					fontStyle: tokenColor.settings.fontStyle || undefined,
+					foreground: tokenColor.settings?.foreground?.replace('#', '') || '',
+					fontStyle: tokenColor.settings?.fontStyle || undefined,
 				});
 			});
 		}
@@ -46,7 +56,8 @@ function convertShikiToMonaco(shikiTheme: any, themeName: string) {
 		rules,
 		colors: {
 			'editor.background': '#00000000', // Always transparent
-			'editor.foreground': colors['editor.foreground'] || (themeName.includes('dark') ? '#abb2bf' : '#383a42'),
+			'editor.foreground':
+				colors['editor.foreground'] || (themeName.includes('dark') ? '#abb2bf' : '#383a42'),
 		},
 	};
 }
@@ -100,7 +111,7 @@ export function MonacoJsonEditor({
 	}, [resolvedTheme, editorInstance, monacoInstance]);
 
 	return (
-		<div 
+		<div
 			className={`w-full pl-3 pb-3 [&_.monaco-editor]:!bg-transparent [&_.monaco-editor-background]:!bg-transparent [&_.view-lines]:!bg-transparent [&_.monaco-editor]:!shadow-none [&_.monaco-scrollable-element]:!shadow-none [&_.overflow-guard]:!shadow-none [&_.monaco-scrollable-element>.shadow.top]:!hidden [&_.monaco-editor_.scroll-decoration]:!hidden [&_.shadow.top]:!hidden [&_.scroll-decoration]:!hidden ${className}`}
 			style={{ minHeight: '64px', maxHeight: '192px', height: `${editorHeight}px` }}
 		>
@@ -168,14 +179,14 @@ export function MonacoJsonEditor({
 						const minHeight = 64; // min-h-16 = 4rem = 64px
 						const newHeight = Math.min(Math.max(contentHeight + 24, minHeight), maxHeight);
 						setEditorHeight(newHeight);
-						
+
 						// Layout after height change
 						setTimeout(() => editor.layout(), 0);
 					};
 
 					// Update height on content changes
 					editor.onDidChangeModelContent(updateHeight);
-					
+
 					// Initial height update
 					setTimeout(updateHeight, 0);
 
@@ -195,7 +206,7 @@ export function MonacoJsonEditor({
 								'.decorationsOverviewRuler',
 							];
 
-							elementsToMakeTransparent.forEach(selector => {
+							elementsToMakeTransparent.forEach((selector) => {
 								const element = editorElement.querySelector(selector);
 								if (element) {
 									(element as HTMLElement).style.backgroundColor = 'transparent';
@@ -204,20 +215,33 @@ export function MonacoJsonEditor({
 							});
 
 							// Remove scroll shadows specifically - target the exact classes
-							const shadowTop = editorElement.querySelector('.monaco-scrollable-element > .shadow.top');
+							const shadowTop = editorElement.querySelector(
+								'.monaco-scrollable-element > .shadow.top'
+							);
 							if (shadowTop) {
 								(shadowTop as HTMLElement).style.display = 'none';
 							}
 
-							const scrollDecorations = editorElement.querySelectorAll('.monaco-editor .scroll-decoration, .scroll-decoration');
-							scrollDecorations.forEach(decoration => {
+							const scrollDecorations = editorElement.querySelectorAll(
+								'.monaco-editor .scroll-decoration, .scroll-decoration'
+							);
+							scrollDecorations.forEach((decoration) => {
 								(decoration as HTMLElement).style.display = 'none';
 							});
 
-							const scrollableElement = editorElement.querySelector('.monaco-scrollable-element');
+							const scrollableElement = editorElement.querySelector(
+								'.monaco-scrollable-element'
+							);
 							if (scrollableElement) {
-								(scrollableElement as HTMLElement).style.setProperty('--scroll-shadow', 'none');
-								(scrollableElement as HTMLElement).style.setProperty('box-shadow', 'none', 'important');
+								(scrollableElement as HTMLElement).style.setProperty(
+									'--scroll-shadow',
+									'none'
+								);
+								(scrollableElement as HTMLElement).style.setProperty(
+									'box-shadow',
+									'none',
+									'important'
+								);
 							}
 
 							// Also set transparent and remove shadow on the editor element itself
@@ -228,24 +252,33 @@ export function MonacoJsonEditor({
 				}}
 				beforeMount={async (monaco) => {
 					setMonacoInstance(monaco);
-					
+
 					try {
 						// Try to use actual Shiki themes
-						const oneLightTheme = bundledThemes['one-light'];
-						const oneDarkProTheme = bundledThemes['one-dark-pro'];
-						
-						if (oneLightTheme) {
-							const lightMonacoTheme = convertShikiToMonaco(oneLightTheme, 'one-light');
+						const oneLightThemeModule = await bundledThemes['one-light']();
+						const oneDarkProThemeModule = await bundledThemes['one-dark-pro']();
+
+						if (oneLightThemeModule?.default) {
+							const lightMonacoTheme = convertShikiToMonaco(
+								oneLightThemeModule.default,
+								'one-light'
+							);
 							monaco.editor.defineTheme('custom-light', lightMonacoTheme);
 						}
-						
-						if (oneDarkProTheme) {
-							const darkMonacoTheme = convertShikiToMonaco(oneDarkProTheme, 'one-dark-pro');
+
+						if (oneDarkProThemeModule?.default) {
+							const darkMonacoTheme = convertShikiToMonaco(
+								oneDarkProThemeModule.default,
+								'one-dark-pro'
+							);
 							monaco.editor.defineTheme('custom-dark', darkMonacoTheme);
 						}
 					} catch (error) {
-						console.warn('Failed to load Shiki themes, falling back to manual themes:', error);
-						
+						console.warn(
+							'Failed to load Shiki themes, falling back to manual themes:',
+							error
+						);
+
 						// Fallback to manual theme definitions
 						monaco.editor.defineTheme('custom-light', {
 							base: 'vs',
