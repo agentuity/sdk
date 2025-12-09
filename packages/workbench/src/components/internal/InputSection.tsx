@@ -129,7 +129,9 @@ export function InputSection({
 							<CommandList>
 								<CommandEmpty>No agents found.</CommandEmpty>
 								<CommandGroup>
-									{Object.values(agents).map((agent) => {
+									{Object.values(agents)
+										.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name))
+										.map((agent) => {
 										const isSelected = selectedAgent === agent.metadata.agentId;
 										logger.debug('🔍 Dropdown render - agent:', agent.metadata.name, 'agentId:', agent.metadata.agentId, 'selectedAgent:', selectedAgent, 'isSelected:', isSelected);
 										// Use name for search but include agentId to ensure uniqueness
