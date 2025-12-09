@@ -188,23 +188,55 @@ export function MonacoJsonEditor({
 				}}
 				beforeMount={(monaco) => {
 					setMonacoInstance(monaco);
+					// Match Shiki's 'one-light' theme colors for JSON
 					monaco.editor.defineTheme('custom-light', {
 						base: 'vs',
 						inherit: true,
-						rules: [],
+						rules: [
+							// JSON specific tokens to match Shiki one-light
+							{ token: 'string.key.json', foreground: 'e45649' }, // Property keys (red)
+							{ token: 'string.value.json', foreground: '50a14f' }, // String values (green)
+							{ token: 'number.json', foreground: '986801' }, // Numbers (brown)
+							{ token: 'keyword.json', foreground: '986801' }, // true/false/null (brown)
+							{ token: 'delimiter.bracket.json', foreground: '383a42' }, // Brackets
+							{ token: 'delimiter.array.json', foreground: '383a42' }, // Array brackets
+							{ token: 'delimiter.colon.json', foreground: '383a42' }, // Colons
+							{ token: 'delimiter.comma.json', foreground: '383a42' }, // Commas
+							{ token: 'comment.json', foreground: 'a0a1a7', fontStyle: 'italic' },
+							// Fallbacks for general tokens
+							{ token: 'string', foreground: '50a14f' },
+							{ token: 'number', foreground: '986801' },
+							{ token: 'keyword', foreground: '986801' },
+						],
 						colors: {
 							'editor.background': '#00000000', // Transparent
-							'editor.foreground': '#3F3F46',
+							'editor.foreground': '#383a42', // One Light main text color
 						},
 					});
 
+					// Match Shiki's 'one-dark-pro' theme colors for JSON
 					monaco.editor.defineTheme('custom-dark', {
 						base: 'vs-dark',
 						inherit: true,
-						rules: [],
+						rules: [
+							// JSON specific tokens to match Shiki one-dark-pro
+							{ token: 'string.key.json', foreground: 'e06c75' }, // Property keys (red)
+							{ token: 'string.value.json', foreground: '98c379' }, // String values (green)
+							{ token: 'number.json', foreground: 'd19a66' }, // Numbers (orange)
+							{ token: 'keyword.json', foreground: 'c678dd' }, // true/false/null (purple)
+							{ token: 'delimiter.bracket.json', foreground: 'abb2bf' }, // Brackets
+							{ token: 'delimiter.array.json', foreground: 'abb2bf' }, // Array brackets
+							{ token: 'delimiter.colon.json', foreground: 'abb2bf' }, // Colons
+							{ token: 'delimiter.comma.json', foreground: 'abb2bf' }, // Commas
+							{ token: 'comment.json', foreground: '5c6370', fontStyle: 'italic' },
+							// Fallbacks for general tokens
+							{ token: 'string', foreground: '98c379' },
+							{ token: 'number', foreground: 'd19a66' },
+							{ token: 'keyword', foreground: 'c678dd' },
+						],
 						colors: {
 							'editor.background': '#00000000', // Transparent
-							'editor.foreground': '#F4F4F5',
+							'editor.foreground': '#abb2bf', // One Dark Pro main text color
 						},
 					});
 				}}
