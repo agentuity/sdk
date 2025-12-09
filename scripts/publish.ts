@@ -27,9 +27,10 @@ function showHelp() {
 Usage: bun scripts/publish.ts [options]
 
 Options:
-  --dry-run    Run the publish process without actually publishing to npm.
-               Version changes will be automatically reverted after completion.
-  --help       Show this help message
+  --version=X.Y.Z  Force a specific version instead of interactive prompt
+  --dry-run        Run the publish process without actually publishing to npm.
+                   Version changes will be automatically reverted after completion.
+  --help           Show this help message
 
 Description:
   Interactive script to publish packages to npm. Supports patch, minor, major,
@@ -58,7 +59,6 @@ Description:
     - Marks pre-releases appropriately on GitHub
 
 Required Environment Variables:
-  GITHUB_TOKEN         GitHub personal access token for release creation
   QUILL_SIGN_P12       Path to P12 certificate file
   QUILL_SIGN_PASSWORD  Password for P12 certificate
   QUILL_NOTARY_KEY     Apple notary API key
@@ -384,14 +384,6 @@ async function validateEnvironment(isDryRun: boolean) {
 	console.log('🔍 Validating environment...\n');
 
 	if (!isDryRun) {
-		// Check for GITHUB_TOKEN
-		if (!process.env.GITHUB_TOKEN) {
-			console.error('❌ Error: GITHUB_TOKEN environment variable not set.');
-			console.error('   Required for creating GitHub releases.');
-			console.error('   Get a token at: https://github.com/settings/tokens');
-			process.exit(1);
-		}
-
 		// Check for gh CLI
 		try {
 			await $`gh --version`.quiet();
@@ -586,6 +578,11 @@ async function main() {
 	}
 
 	const isDryRun = process.argv.includes('--dry-run');
+	
+	// Parse --version flag
+	const versionArg = process.argv.find(arg => arg.startsWith('--version='));
+	const forcedVersion = versionArg ? versionArg.split('=')[1] : null;
+	
 	console.log(`🚀 Publishing packages to npm${isDryRun ? ' (DRY RUN)' : ''}\n`);
 
 	// Validate environment early
@@ -594,22 +591,35 @@ async function main() {
 	const rootPkg = await readJSON(join(rootDir, 'package.json'));
 	const currentVersion = rootPkg.version;
 
-	const releaseType = await promptReleaseType(currentVersion);
-
 	let newVersion: string;
-	switch (releaseType) {
-		case 'prerelease':
-			newVersion = bumpPrerelease(currentVersion);
-			break;
-		case 'patch':
-			newVersion = bumpPatch(currentVersion);
-			break;
-		case 'minor':
-			newVersion = bumpMinor(currentVersion);
-			break;
-		case 'major':
-			newVersion = bumpMajor(currentVersion);
-			break;
+	
+	if (forcedVersion) {
+		// Validate version format (basic semver check)
+		if (!/^\d+\.\d+\.\d+(-\d+)?$/.test(forcedVersion)) {
+			console.error(`\n❌ Invalid version format: ${forcedVersion}`);
+			console.error('   Expected format: X.Y.Z or X.Y.Z-N\n');
+			rl.close();
+			process.exit(1);
+		}
+		newVersion = forcedVersion;
+		console.log(`\nUsing forced version: ${newVersion}`);
+	} else {
+		const releaseType = await promptReleaseType(currentVersion);
+
+		switch (releaseType) {
+			case 'prerelease':
+				newVersion = bumpPrerelease(currentVersion);
+				break;
+			case 'patch':
+				newVersion = bumpPatch(currentVersion);
+				break;
+			case 'minor':
+				newVersion = bumpMinor(currentVersion);
+				break;
+			case 'major':
+				newVersion = bumpMajor(currentVersion);
+				break;
+		}
 	}
 
 	const isPreReleaseVersion = isPrerelease(newVersion);
