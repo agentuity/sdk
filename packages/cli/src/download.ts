@@ -18,13 +18,7 @@ export async function downloadWithProgress(
 ): Promise<NodeJS.ReadableStream> {
 	const { url, headers = {}, onProgress } = options;
 
-	// Add GITHUB_TOKEN if available and not already set
-	const requestHeaders = { ...headers };
-	if (process.env.GITHUB_TOKEN && !requestHeaders['Authorization']) {
-		requestHeaders['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
-	}
-
-	const response = await fetch(url, { headers: requestHeaders });
+	const response = await fetch(url, { headers });
 	if (!response.ok) {
 		throw new APIError({
 			url,
