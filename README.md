@@ -78,3 +78,6 @@ To use the SDK in development mode with an existing project outside this repo:
 
 This script builds all packages, creates tarballs, and installs them in your target project. After linking, run `bun run build` or `bun run dev` in your project to rebuild with the local SDK changes.
 
+# LICENSE
+
+See the [LICENSE](./LICENSE.md) for more information about the license to this project. The code is licensed under the Apache-2 License.
