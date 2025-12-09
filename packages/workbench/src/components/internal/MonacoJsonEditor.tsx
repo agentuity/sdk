@@ -10,6 +10,8 @@ interface MonacoJsonEditorProps {
 	schema?: JSONSchema7;
 	schemaUri?: string;
 	className?: string;
+	'aria-invalid'?: boolean;
+	onValidationChange?: (hasErrors: boolean) => void;
 }
 
 // Convert color value to valid hex for Monaco
@@ -104,6 +106,8 @@ export function MonacoJsonEditor({
 	schema,
 	schemaUri = 'agentuity://schema/default',
 	className = '',
+	'aria-invalid': ariaInvalid,
+	onValidationChange,
 }: MonacoJsonEditorProps) {
 	const { theme } = useTheme();
 	const [editorInstance, setEditorInstance] = useState<Parameters<OnMount>[0] | null>(null);
@@ -156,6 +160,8 @@ export function MonacoJsonEditor({
 
 	return (
 		<div
+			data-slot="input-group-control"
+			aria-invalid={ariaInvalid}
 			className={`w-full pl-3 pb-3 [&_.monaco-editor]:!bg-transparent [&_.monaco-editor-background]:!bg-transparent [&_.view-lines]:!bg-transparent [&_.monaco-editor]:!shadow-none [&_.monaco-scrollable-element]:!shadow-none [&_.overflow-guard]:!shadow-none [&_.monaco-scrollable-element>.shadow.top]:!hidden [&_.monaco-editor_.scroll-decoration]:!hidden [&_.shadow.top]:!hidden [&_.scroll-decoration]:!hidden ${className}`}
 			style={{ minHeight: '64px', maxHeight: '192px', height: `${editorHeight}px` }}
 		>
@@ -230,6 +236,34 @@ export function MonacoJsonEditor({
 
 					// Update height on content changes
 					editor.onDidChangeModelContent(updateHeight);
+
+					// Listen to validation markers to detect schema errors
+					if (onValidationChange) {
+						const checkValidationErrors = () => {
+							const model = editor.getModel();
+							if (model) {
+								const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+								const hasErrors = markers.some(
+									(marker) => marker.severity === monaco.MarkerSeverity.Error
+								);
+								onValidationChange(hasErrors);
+							}
+						};
+
+						// Check on model changes
+						editor.onDidChangeModelContent(checkValidationErrors);
+
+						// Check when markers change
+						monaco.editor.onDidChangeMarkers((uris) => {
+							const model = editor.getModel();
+							if (model && uris.includes(model.uri)) {
+								checkValidationErrors();
+							}
+						});
+
+						// Initial check
+						setTimeout(checkValidationErrors, 100);
+					}
 
 					// Initial height update
 					setTimeout(updateHeight, 0);
