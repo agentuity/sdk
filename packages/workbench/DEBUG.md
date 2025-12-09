@@ -13,7 +13,7 @@ localStorage.setItem('AGENTUITY_LOG_LEVEL', 'debug');
 Then refresh the page. You'll now see detailed debug logs in the browser console for:
 
 - Agent selection and dropdown behavior
-- API request payloads and responses  
+- API request payloads and responses
 - Monaco editor value changes
 - Form submission and validation
 - Base URL configuration
@@ -49,12 +49,12 @@ The `useLogger` hook can be used in any workbench component:
 import { useLogger } from '@agentuity/workbench';
 
 function MyComponent() {
-    const logger = useLogger('MyComponent');
-    
-    logger.debug('Debug message');
-    logger.info('Info message'); 
-    logger.warn('Warning message');
-    logger.error('Error message');
+	const logger = useLogger('MyComponent');
+
+	logger.debug('Debug message');
+	logger.info('Info message');
+	logger.warn('Warning message');
+	logger.error('Error message');
 }
 ```
 

@@ -73,12 +73,21 @@ export function InputSection({
 	const monacoEditorRef = useRef<HTMLDivElement>(null);
 	const editorInstanceRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
 
-	const selectedAgentData = Object.values(agents).find(agent => agent.metadata.agentId === selectedAgent);
+	const selectedAgentData = Object.values(agents).find(
+		(agent) => agent.metadata.agentId === selectedAgent
+	);
 
 	// Determine input type for switch case
 	const inputType = useMemo(() => {
 		const schema = selectedAgentData?.schema?.input?.json;
-		logger.debug('🎛️ InputSection - selectedAgent:', selectedAgent, 'selectedAgentData:', selectedAgentData, 'schema:', schema);
+		logger.debug(
+			'🎛️ InputSection - selectedAgent:',
+			selectedAgent,
+			'selectedAgentData:',
+			selectedAgentData,
+			'schema:',
+			schema
+		);
 		if (!schema) {
 			return 'none'; // Agent has no input schema
 		}
@@ -286,7 +295,9 @@ export function InputSection({
 							variant="outline"
 							size="sm"
 						>
-							{Object.values(agents).find(agent => agent.metadata.agentId === selectedAgent)?.metadata.name || 'Select agent'}
+							{Object.values(agents).find(
+								(agent) => agent.metadata.agentId === selectedAgent
+							)?.metadata.name || 'Select agent'}
 							<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
 						</Button>
 					</PopoverTrigger>
@@ -298,7 +309,16 @@ export function InputSection({
 								<CommandGroup>
 									{Object.values(agents).map((agent) => {
 										const isSelected = selectedAgent === agent.metadata.agentId;
-										logger.debug('🔍 Dropdown render - agent:', agent.metadata.name, 'agentId:', agent.metadata.agentId, 'selectedAgent:', selectedAgent, 'isSelected:', isSelected);
+										logger.debug(
+											'🔍 Dropdown render - agent:',
+											agent.metadata.name,
+											'agentId:',
+											agent.metadata.agentId,
+											'selectedAgent:',
+											selectedAgent,
+											'isSelected:',
+											isSelected
+										);
 										// Use name for search but include agentId to ensure uniqueness
 										const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
 										return (
@@ -308,9 +328,16 @@ export function InputSection({
 												onSelect={(currentValue) => {
 													// Extract agentId from the compound value
 													const agentId = currentValue.split('|')[1];
-													const selectedAgentData = Object.values(agents).find(a => a.metadata.agentId === agentId);
+													const selectedAgentData = Object.values(agents).find(
+														(a) => a.metadata.agentId === agentId
+													);
 													if (selectedAgentData) {
-														logger.debug('🎯 Agent selected by name:', agent.metadata.name, 'agentId:', agentId);
+														logger.debug(
+															'🎯 Agent selected by name:',
+															agent.metadata.name,
+															'agentId:',
+															agentId
+														);
 														setSelectedAgent(agentId);
 													}
 													setAgentSelectOpen(false);
@@ -430,7 +457,12 @@ export function InputSection({
 							variant="default"
 							disabled={isLoading || (inputType === 'string' && !value.trim())}
 							onClick={() => {
-								logger.debug('🔥 Submit button clicked! inputType:', inputType, 'value:', value);
+								logger.debug(
+									'🔥 Submit button clicked! inputType:',
+									inputType,
+									'value:',
+									value
+								);
 								onSubmit();
 							}}
 							className="ml-auto"

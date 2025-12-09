@@ -123,7 +123,9 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		if (!selectedAgent) return;
 
 		logger.debug('🚀 Submitting message with selectedAgent:', selectedAgent);
-		const selectedAgentData = agents ? Object.values(agents).find(agent => agent.metadata.agentId === selectedAgent) : undefined;
+		const selectedAgentData = agents
+			? Object.values(agents).find((agent) => agent.metadata.agentId === selectedAgent)
+			: undefined;
 		logger.debug('📊 Found selectedAgentData:', selectedAgentData);
 		const hasInputSchema = selectedAgentData?.schema?.input?.json;
 		logger.debug('📝 hasInputSchema:', hasInputSchema, 'value:', value);
