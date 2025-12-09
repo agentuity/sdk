@@ -2,7 +2,7 @@
 	"name": "agentuity-vscode",
 	"displayName": "Agentuity VSCode Extension",
 	"description": "Build, deploy, and manage AI agents with Agentuity",
-	"version": "0.0.80",
+	"version": "0.0.86",
 	"publisher": "agentuity",
 	"license": "MIT",
 	"repository": {
@@ -12,10 +12,20 @@
 	"engines": {
 		"vscode": "^1.90.0"
 	},
-	"categories": ["Other", "Snippets"],
-	"keywords": ["agentuity", "ai", "agents", "llm"],
+	"categories": [
+		"Other",
+		"Snippets"
+	],
+	"keywords": [
+		"agentuity",
+		"ai",
+		"agents",
+		"llm"
+	],
 	"icon": "resources/icon.png",
-	"activationEvents": ["onStartupFinished"],
+	"activationEvents": [
+		"onStartupFinished"
+	],
 	"main": "./dist/extension.js",
 	"contributes": {
 		"commands": [
@@ -390,11 +400,12 @@
 							"default": true
 						}
 					},
-					"required": ["command"]
+					"required": [
+						"command"
+					]
 				}
 			}
 		],
-
 		"walkthroughs": [
 			{
 				"id": "gettingStarted",
@@ -405,31 +416,41 @@
 						"id": "installCli",
 						"title": "Install the Agentuity CLI",
 						"description": "The CLI is required for all Agentuity features.\n\nRun `bun install -g @agentuity/cli` to install.\n\n[Install CLI](command:agentuity.installCli)",
-						"completionEvents": ["onContext:agentuity.cliInstalled"]
+						"completionEvents": [
+							"onContext:agentuity.cliInstalled"
+						]
 					},
 					{
 						"id": "login",
 						"title": "Login to Agentuity",
 						"description": "Authenticate with your Agentuity account.\n\nRun `agentuity auth login` in your terminal.\n\n[Login](command:agentuity.login)",
-						"completionEvents": ["onContext:agentuity.authenticated"]
+						"completionEvents": [
+							"onContext:agentuity.authenticated"
+						]
 					},
 					{
 						"id": "createProject",
 						"title": "Create or Open a Project",
 						"description": "Create a new project or open an existing one.\n\nRun `agentuity project new` to create a new project.\n\n[Create Project](command:agentuity.createProject)",
-						"completionEvents": ["onContext:agentuity.hasProject"]
+						"completionEvents": [
+							"onContext:agentuity.hasProject"
+						]
 					},
 					{
 						"id": "startDev",
 						"title": "Start the Dev Server",
 						"description": "Run your agents locally.\n\nThe dev server lets you test agents locally.\n\n[Start Dev Server](command:agentuity.dev.start)",
-						"completionEvents": ["onCommand:agentuity.dev.start"]
+						"completionEvents": [
+							"onCommand:agentuity.dev.start"
+						]
 					},
 					{
 						"id": "deploy",
 						"title": "Deploy to Agentuity Cloud",
 						"description": "Deploy your agents to production.\n\nDeploy to make your agents available online.\n\n[Deploy](command:agentuity.deploy)",
-						"completionEvents": ["onCommand:agentuity.deploy"]
+						"completionEvents": [
+							"onCommand:agentuity.deploy"
+						]
 					}
 				]
 			}
