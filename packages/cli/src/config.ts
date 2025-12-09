@@ -744,12 +744,12 @@ export function getCatalystAPIClient(logger: Logger, auth: AuthData, region: str
 }
 
 export function getIONHost(config: Config | null, region: string) {
-	if (config?.name === 'local') {
-		return 'ion.agentuity.io';
-	}
 	if (config?.overrides?.ion_url) {
 		const url = new URL(config.overrides.ion_url);
 		return url.hostname;
+	}
+	if (config?.name === 'local' || region === 'local') {
+		return 'ion.agentuity.io';
 	}
 	return `ion-${region}.agentuity.cloud`;
 }
