@@ -326,7 +326,7 @@ jobs:
                       fi
                       
                       # Check latest version
-                      latest_version=$(curl -s https://agentuity.sh/release/sdk/version 2>/dev/null | tr -d "v" || echo "unknown")
+                      latest_version=$( (curl -s https://agentuity.sh/release/sdk/version 2>/dev/null | tr -d "v") || echo "unknown")
                       echo "Latest available version: $latest_version"
                       
                       # Upgrade to latest

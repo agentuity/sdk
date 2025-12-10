@@ -170,7 +170,7 @@ test_upgrade_from_old_version() {
 	fi
 
 	# Check what the latest version is
-	latest_version=$(curl -s https://agentuity.sh/release/sdk/version 2>/dev/null | tr -d 'v' || echo "unknown")
+	latest_version=$( (curl -s https://agentuity.sh/release/sdk/version 2>/dev/null | tr -d 'v') || echo "unknown")
 	print_info "Latest available version: $latest_version"
 
 	# Now install latest version (should upgrade from 0.0.86 if a newer version exists)
