@@ -74,7 +74,7 @@ describe('WebSocket Reconnection', () => {
 		wss.close();
 	});
 
-	beforeEach(async () => {
+	beforeEach(() => {
 		// Close any lingering connections from previous tests
 		for (const ws of connections) {
 			if (ws.readyState === 1) {
@@ -83,10 +83,9 @@ describe('WebSocket Reconnection', () => {
 			}
 		}
 
-		// Wait a bit for any background reconnection attempts to settle
-		await new Promise((resolve) => setTimeout(resolve, 200));
-
 		// Reset counters and state before each test
+		// Note: No need to wait for background timers since cleanup()
+		// now cancels pending reconnection timers and prevents new ones
 		authAttempts = 0;
 		closeBeforeAuth = false;
 		connectionCount = 0;
@@ -147,9 +146,11 @@ describe('WebSocket Reconnection', () => {
 
 		const client = new ThreadWebSocketClient('test-key', `ws://localhost:${port}`);
 
-		// Track reconnection attempt times for this specific client
+		// Track connection attempt times
+		// NOTE: This test measures wall-clock time, not internal scheduling delays.
+		// For more precise backoff verification, consider using fake timers or
+		// dependency injection to mock setTimeout.
 		const attemptTimes: number[] = [];
-		const clientConnections: WebSocket[] = [];
 
 		// Intercept connections from this specific test
 		const startIndex = connections.length;
@@ -158,38 +159,38 @@ describe('WebSocket Reconnection', () => {
 		attemptTimes.push(Date.now());
 		await client.connect().catch(() => {});
 
-		// Wait for first 2 retries to verify exponential backoff
-		// Retry 1: ~2s, Retry 2: ~4s more = ~6s total
+		// Wait for first 2 retries to verify exponential backoff pattern
+		// Expected: retry 1 after ~2s, retry 2 after ~4s more = ~6s total
 
-		// Wait for retry 1 (after ~2s)
+		// Wait for retry 1 (scheduled after ~2s)
 		await new Promise((resolve) => setTimeout(resolve, 2700));
 		if (connections.length > startIndex + 1) {
 			attemptTimes.push(Date.now());
-			clientConnections.push(connections[startIndex + 1]);
 		}
 
-		// Wait for retry 2 (after ~4s more)
+		// Wait for retry 2 (scheduled after ~4s more)
 		await new Promise((resolve) => setTimeout(resolve, 4700));
 		if (connections.length > startIndex + 2) {
 			attemptTimes.push(Date.now());
-			clientConnections.push(connections[startIndex + 2]);
 		}
 
-		// Behavioral verification: retries happen and use exponential backoff
-		// We verify backoff delays, not exact attempt counts (timing-sensitive)
+		// Behavioral verification: retries happen and delays grow exponentially
+		// Note: Measured delays include connection setup time and test overhead,
+		// so we allow generous bounds rather than strict equality
 		expect(attemptTimes.length).toBeGreaterThanOrEqual(2);
 
 		if (attemptTimes.length >= 3) {
 			const delay1 = attemptTimes[1] - attemptTimes[0];
 			const delay2 = attemptTimes[2] - attemptTimes[1];
 
-			// First retry ~2s, second ~4s (allow variance for system timing)
+			// First retry ~2s, second ~4s (allow variance for system timing + overhead)
 			expect(delay1).toBeGreaterThan(1500);
 			expect(delay1).toBeLessThan(3500);
 			expect(delay2).toBeGreaterThan(3000);
 			expect(delay2).toBeLessThan(6000);
 
 			// Second delay should be roughly 2x the first (exponential backoff)
+			// Allow 1.3-3.0x range to account for timing variance
 			expect(delay2 / delay1).toBeGreaterThan(1.3);
 			expect(delay2 / delay1).toBeLessThan(3.0);
 		}

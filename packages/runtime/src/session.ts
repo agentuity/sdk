@@ -635,6 +635,8 @@ export class ThreadWebSocketClient {
 	private apiKey: string;
 	private wsUrl: string;
 	private wsConnecting: Promise<void> | null = null;
+	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	private isDisposed = false;
 
 	constructor(apiKey: string, wsUrl: string) {
 		this.apiKey = apiKey;
@@ -717,6 +719,11 @@ export class ThreadWebSocketClient {
 						reject(new Error('WebSocket closed before authentication'));
 					}
 
+					// Don't attempt reconnection if disposed
+					if (this.isDisposed) {
+						return;
+					}
+
 					// Attempt reconnection if within retry limits (even if auth didn't complete)
 					// This handles server rollouts where connection closes before auth finishes
 					if (this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -728,7 +735,8 @@ export class ThreadWebSocketClient {
 						);
 
 						// Schedule reconnection with backoff delay
-						setTimeout(() => {
+						this.reconnectTimer = setTimeout(() => {
+							this.reconnectTimer = null;
 							// Create new connection promise for reconnection
 							this.wsConnecting = this.connect().catch(() => {
 								// Reconnection failed, reset
@@ -860,6 +868,15 @@ export class ThreadWebSocketClient {
 	}
 
 	cleanup(): void {
+		// Mark as disposed to prevent new reconnection attempts
+		this.isDisposed = true;
+
+		// Cancel any pending reconnection timer
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer);
+			this.reconnectTimer = null;
+		}
+
 		if (this.ws) {
 			this.ws.close();
 			this.ws = null;
