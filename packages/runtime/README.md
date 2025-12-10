@@ -19,11 +19,9 @@ bun add @agentuity/runtime
 ```typescript
 import { createApp } from '@agentuity/runtime';
 
-const { app, server, logger } = createApp();
+const { server, logger } = await createApp();
 
-// Start the server
-server.listen(3500);
-logger.info('Server running on http://localhost:3500');
+logger.info('Server running on %s', server.url);
 ```
 
 ### Defining an Agent
@@ -32,7 +30,8 @@ logger.info('Server running on http://localhost:3500');
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const agent = createAgent({
+const agent = createAgent('greeting', {
+	description: 'A simple greeting agent',
 	schema: {
 		input: s.object({
 			message: s.string(),
@@ -54,6 +53,7 @@ export default agent;
 
 ```typescript
 import { createRouter } from '@agentuity/runtime';
+import greetingAgent from './agent/greeting';
 
 const router = createRouter();
 
@@ -61,9 +61,11 @@ router.get('/hello', (c) => {
 	return c.json({ message: 'Hello, world!' });
 });
 
-router.post('/data', async (c) => {
-	const body = await c.req.json();
-	return c.json({ received: body });
+// Route with agent validation
+router.post('/greeting', greetingAgent.validator(), async (c) => {
+	const data = c.req.valid('json'); // Fully typed from agent schema!
+	const result = await greetingAgent.run(data);
+	return c.json(result);
 });
 
 export default router;
@@ -161,7 +163,11 @@ interface AgentContext {
 	kv: KeyValueStorage; // Key-value storage
 	stream: StreamStorage; // Stream storage
 	vector: VectorStorage; // Vector storage
-	agent: AgentRegistry; // Access to other agents
+	state: Map<string, unknown>; // Request-scoped state
+	thread: Thread; // Thread information
+	session: Session; // Session information
+	config: TConfig; // Agent-specific config from setup
+	app: TAppState; // Application state from createApp
 	waitUntil: (promise) => void; // Defer cleanup tasks
 }
 ```
@@ -177,9 +183,9 @@ Agentuity provides built-in storage abstractions:
 Access these via the agent context:
 
 ```typescript
-const agent = createAgent({
+const agent = createAgent('storage-example', {
 	schema: {
-		output: z.object({ value: z.string().optional() }),
+		output: s.object({ value: s.string().optional() }),
 	},
 	handler: async (ctx, input) => {
 		await ctx.kv.set('key', 'value');
@@ -194,9 +200,9 @@ const agent = createAgent({
 Built-in OpenTelemetry support for logging, tracing, and metrics:
 
 ```typescript
-const agent = createAgent({
+const agent = createAgent('observability-example', {
 	schema: {
-		output: z.object({ success: z.boolean() }),
+		output: s.object({ success: s.boolean() }),
 	},
 	handler: async (ctx, input) => {
 		ctx.logger.info('Processing request');
