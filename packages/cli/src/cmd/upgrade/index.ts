@@ -2,7 +2,7 @@ import { createCommand } from '../../types';
 import { getVersion } from '../../version';
 import { getCommand } from '../../command-prefix';
 import { z } from 'zod';
-import { ErrorCode } from '../../errors';
+import { ErrorCode, createError, exitWithError } from '../../errors';
 import * as tui from '../../tui';
 import { downloadWithProgress } from '../../download';
 import { $ } from 'bun';
@@ -26,17 +26,29 @@ const UpgradeResponseSchema = z.object({
  * @internal Exported for testing
  */
 export function isRunningFromExecutable(): boolean {
-	// Check if running via bun/bunx
+	const scriptPath = process.argv[1] || '';
+
+	// Check if running from compiled binary (uses Bun's virtual filesystem)
+	// When compiled with `bun build --compile`, the path is in the virtual /$bunfs/root/ directory
+	const isCompiledBinary = process.argv[0] === 'bun' && scriptPath.startsWith('/$bunfs/root/');
+
+	if (isCompiledBinary) {
+		return true;
+	}
+
+	// If running via bun/bunx (from node_modules or .ts files), it's not an executable
 	if (Bun.main.includes('/node_modules/') || Bun.main.includes('.ts')) {
 		return false;
 	}
 
-	// Check if the executable is in a typical install location
-	const executablePath = Bun.main;
-	const homeDir = process.env.HOME || '';
-	const installDir = join(homeDir, '.agentuity', 'bin');
+	// Check if in a bin directory but not in node_modules (globally installed)
+	const normalized = Bun.main;
+	const isGlobal =
+		normalized.includes('/bin/') &&
+		!normalized.includes('/node_modules/') &&
+		!normalized.includes('/packages/cli/bin');
 
-	return executablePath.startsWith(installDir) || executablePath.startsWith('/usr/local/bin');
+	return isGlobal;
 }
 
 /**
@@ -233,6 +245,7 @@ async function replaceBinary(newBinaryPath: string, currentBinaryPath: string): 
 export const command = createCommand({
 	name: 'upgrade',
 	description: 'Upgrade the CLI to the latest version',
+	executable: true,
 	tags: ['update'],
 	examples: [
 		{
@@ -250,26 +263,18 @@ export const command = createCommand({
 	},
 
 	async handler(ctx) {
-		const { logger } = ctx;
+		const { logger, options } = ctx;
 		const { force } = ctx.opts;
 
-		// Check if running from executable
-		if (!isRunningFromExecutable()) {
-			return logger.fatal(
-				'The upgrade command is only available when running from the installed executable.\n' +
-					'You are currently running via bun/bunx. Please install the CLI first:\n' +
-					'  curl -fsSL https://agentuity.sh/install | sh',
-				ErrorCode.RUNTIME_ERROR
-			);
-		}
-
 		const currentVersion = getVersion();
-		const currentBinaryPath = Bun.main;
+		// Use process.execPath to get the actual file path (Bun.main is virtual for compiled binaries)
+		const currentBinaryPath = process.execPath;
 
 		try {
 			// Fetch latest version
 			const latestVersion = await tui.spinner({
 				message: 'Checking for updates...',
+				clearOnSuccess: true,
 				callback: async () => await fetchLatestVersion(),
 			});
 
@@ -345,9 +350,12 @@ export const command = createCommand({
 				message,
 			};
 		} catch (error) {
-			return logger.fatal(
-				`Upgrade failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-				ErrorCode.INTERNAL_ERROR
+			exitWithError(
+				createError(ErrorCode.INTERNAL_ERROR, 'Upgrade failed', {
+					error: error instanceof Error ? error.message : 'Unknown error',
+				}),
+				logger,
+				options.errorFormat
 			);
 		}
 	},
