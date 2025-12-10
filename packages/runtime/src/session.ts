@@ -615,8 +615,13 @@ export class DefaultSession implements Session {
 }
 
 /**
- * WebSocket client for thread state persistence
+ * WebSocket client for thread state persistence.
+ *
+ * **WARNING: This class is exported for testing purposes only and is subject to change
+ * without notice. Do not use this class directly in production code.**
+ *
  * @internal
+ * @experimental
  */
 export class ThreadWebSocketClient {
 	private ws: WebSocket | null = null;

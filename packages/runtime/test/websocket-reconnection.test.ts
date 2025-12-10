@@ -1,6 +1,8 @@
 import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
 import { WebSocketServer } from 'ws';
 import type { WebSocket } from 'ws';
+// Note: ThreadWebSocketClient is an internal class exported for testing only
+// It's not part of the public API and subject to change
 import { ThreadWebSocketClient } from '../src/session';
 
 describe('WebSocket Reconnection', () => {
