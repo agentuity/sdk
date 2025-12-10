@@ -67,17 +67,43 @@ jobs:
               cd packages/cli
               ./scripts/build-executables.ts --skip-sign
               
+              # Debug: Check what the binary sees
+              echo "=== Debug Info ==="
+              echo "Testing binary: ./dist/bin/agentuity-linux-x64"
+              ./dist/bin/agentuity-linux-x64 version || true
+              
               # Test that upgrade command is available in compiled binary
-              ./dist/bin/agentuity-linux-x64 --help | grep -q "upgrade" || (echo "ERROR: upgrade command not found in binary help" && exit 1)
+              echo "=== Testing upgrade command visibility in binary ==="
+              if ./dist/bin/agentuity-linux-x64 --help | grep "upgrade"; then
+                 echo "✓ upgrade command found in binary"
+              else
+                 echo "ERROR: upgrade command not found in binary help"
+                 echo "Full help output:"
+                 ./dist/bin/agentuity-linux-x64 --help
+                 exit 1
+              fi
               
               # Test that upgrade command is NOT available when running via bun
-              ./bin/cli.ts --help | grep -q "upgrade" && (echo "ERROR: upgrade command should not be in bun help" && exit 1) || true
+              echo "=== Testing upgrade command NOT in bun help ==="
+              if ./bin/cli.ts --help | grep "upgrade"; then
+                 echo "ERROR: upgrade command should not be in bun help"
+                 exit 1
+              else
+                 echo "✓ upgrade command correctly hidden in bun"
+              fi
               
               # Test upgrade --force (will fail at network fetch but should get that far)
-              # Set AGENTUITY_SKIP_VERSION_CHECK to bypass the auto-check on startup
-              AGENTUITY_SKIP_VERSION_CHECK=1 ./dist/bin/agentuity-linux-x64 upgrade --force 2>&1 | grep -q "Checking for updates" || (echo "ERROR: upgrade command didn't run" && exit 1)
+              echo "=== Testing upgrade --force execution ==="
+              AGENTUITY_SKIP_VERSION_CHECK=1 ./dist/bin/agentuity-linux-x64 upgrade --force 2>&1 | tee /tmp/upgrade-output.txt
+              if grep -q "Checking for updates" /tmp/upgrade-output.txt; then
+                 echo "✓ upgrade command executed"
+              else
+                 echo "ERROR: upgrade command didn't run"
+                 cat /tmp/upgrade-output.txt
+                 exit 1
+              fi
               
-              echo "✓ Upgrade command tests passed"
+              echo "✓ All upgrade command tests passed"
          - name: Cleanup
            if: always()
            run: rm -f apps/testing/integration-suite/.env
