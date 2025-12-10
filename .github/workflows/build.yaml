@@ -55,6 +55,26 @@ jobs:
               bun run whoami
               ./packages/cli/bin/cli.ts profile show --json
               bun all
+         - name: Test Upgrade Command
+           timeout-minutes: 5
+           run: |
+              set -eou pipefail
+              # Build executables for testing
+              cd packages/cli
+              bun run build
+              ./scripts/build-executables.ts --skip-sign
+              
+              # Test that upgrade command is available in compiled binary
+              ./dist/bin/agentuity-linux-x64 --help | grep -q "upgrade" || (echo "ERROR: upgrade command not found in binary help" && exit 1)
+              
+              # Test that upgrade command is NOT available when running via bun
+              ./bin/cli.ts --help | grep -q "upgrade" && (echo "ERROR: upgrade command should not be in bun help" && exit 1) || true
+              
+              # Test upgrade --force (will fail at network fetch but should get that far)
+              # Set AGENTUITY_SKIP_VERSION_CHECK to bypass the auto-check on startup
+              AGENTUITY_SKIP_VERSION_CHECK=1 ./dist/bin/agentuity-linux-x64 upgrade --force 2>&1 | grep -q "Checking for updates" || (echo "ERROR: upgrade command didn't run" && exit 1)
+              
+              echo "✓ Upgrade command tests passed"
          # - name: Cleanup .env
          #   if: always()
          #   run: rm -f apps/testing/auth-app/.env

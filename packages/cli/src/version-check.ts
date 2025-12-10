@@ -224,7 +224,8 @@ export async function checkForUpdates(
 		// User wants to upgrade - perform it
 		await performUpgrade(logger);
 	} catch (error) {
-		// Non-fatal - just log and continue
+		// Non-fatal - if we can't fetch the latest version (network error, timeout, etc.),
+		// just log at debug level and continue without interrupting the user's command
 		logger.debug(
 			'Version check failed: %s',
 			error instanceof Error ? error.message : 'Unknown error'
