@@ -22,6 +22,8 @@ import './src/test/http-state-persistence';
 import './src/test/cli-deployment';
 import './src/test/cli-apikey';
 import './src/test/cli-vector';
+import './src/test/websocket';
+import './src/test/sse';
 
 const workbench = createWorkbench();
 const threadProvider = new InMemoryThreadProvider();

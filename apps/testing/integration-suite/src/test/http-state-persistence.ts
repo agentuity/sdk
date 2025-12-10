@@ -345,3 +345,217 @@ test('http-state-persistence', 'cookie-jar-extraction', async () => {
 	const cookies = jar.getAll();
 	assert(cookies.size > 0, 'Cookie jar should have cookies');
 });
+
+// Test 9: Cross-agent thread state sharing (writer -> reader)
+test('http-state-persistence', 'cross-agent-state-sharing', async () => {
+	const jar = new CookieJar();
+	const testData = uniqueId('cross-agent-data');
+
+	// Writer agent: Save data to thread state
+	const writeResponse = await httpRequest(
+		`${BASE_URL}/agent/state-writer`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'sharedData',
+				value: testData,
+			}),
+		},
+		jar
+	);
+
+	assertEqual(writeResponse.status, 200);
+	const writeResult = await writeResponse.json();
+	assertEqual(writeResult.success, true);
+	const threadId = writeResult.threadId;
+
+	// Reader agent: Read data from same thread (same cookie)
+	const readResponse = await httpRequest(
+		`${BASE_URL}/agent/state-reader`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'sharedData',
+			}),
+		},
+		jar
+	);
+
+	assertEqual(readResponse.status, 200);
+	const readResult = await readResponse.json();
+	assertEqual(readResult.success, true);
+	assertEqual(readResult.threadId, threadId); // Same thread
+	assertEqual(readResult.value, testData); // Data shared across agents!
+	assert(readResult.allKeys.includes('sharedData'), 'Reader should see sharedData key');
+});
+
+// Test 10: Multiple agents can write and read thread state
+test('http-state-persistence', 'multiple-agents-thread-state', async () => {
+	const jar = new CookieJar();
+
+	// First agent writes
+	await httpRequest(
+		`${BASE_URL}/agent/state-writer`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'key1',
+				value: 'value1',
+			}),
+		},
+		jar
+	);
+
+	// Second agent writes different key
+	await httpRequest(
+		`${BASE_URL}/agent/state-writer`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'key2',
+				value: 'value2',
+			}),
+		},
+		jar
+	);
+
+	// Third agent writes yet another key
+	await httpRequest(
+		`${BASE_URL}/agent/state-writer`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'key3',
+				value: { nested: 'object', count: 42 },
+			}),
+		},
+		jar
+	);
+
+	// Reader can see all keys
+	const readResponse = await httpRequest(
+		`${BASE_URL}/agent/state-reader`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'key3',
+			}),
+		},
+		jar
+	);
+
+	const readResult = await readResponse.json();
+	assertEqual(readResult.success, true);
+	assertEqual(readResult.value.nested, 'object');
+	assertEqual(readResult.value.count, 42);
+	assert(readResult.allKeys.includes('key1'), 'Should have key1');
+	assert(readResult.allKeys.includes('key2'), 'Should have key2');
+	assert(readResult.allKeys.includes('key3'), 'Should have key3');
+	assertEqual(readResult.allKeys.length >= 3, true, 'Should have at least 3 keys');
+});
+
+// Test 11: Thread state persists across agent switches
+test('http-state-persistence', 'thread-state-across-agent-switches', async () => {
+	const jar = new CookieJar();
+	const testValue = uniqueId('switch-test');
+
+	// Use writer agent
+	await httpRequest(
+		`${BASE_URL}/agent/state-writer`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'persistentData',
+				value: testValue,
+			}),
+		},
+		jar
+	);
+
+	// Use original state agent
+	const stateResponse = await httpRequest(
+		`${BASE_URL}/agent/state`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				action: 'save',
+				threadData: 'original-agent-data',
+			}),
+		},
+		jar
+	);
+
+	const stateResult = await stateResponse.json();
+	assertEqual(stateResult.success, true);
+
+	// Use reader agent - should see data from writer
+	const readResponse = await httpRequest(
+		`${BASE_URL}/agent/state-reader`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'persistentData',
+			}),
+		},
+		jar
+	);
+
+	const readResult = await readResponse.json();
+	assertEqual(readResult.success, true);
+	assertEqual(readResult.value, testValue); // Data persists across agent switches
+	assert(readResult.allKeys.includes('testData'), 'Should have original agent data');
+	assert(readResult.allKeys.includes('requestCount'), 'Should have request counter');
+});
+
+// Test 12: Complex object persistence across agents
+test('http-state-persistence', 'complex-object-persistence', async () => {
+	const jar = new CookieJar();
+	const complexData = {
+		user: { id: 123, name: 'Alice', roles: ['admin', 'user'] },
+		metadata: { createdAt: new Date().toISOString(), version: '1.0' },
+		settings: { theme: 'dark', notifications: true },
+	};
+
+	// Writer stores complex object
+	await httpRequest(
+		`${BASE_URL}/agent/state-writer`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'userProfile',
+				value: complexData,
+			}),
+		},
+		jar
+	);
+
+	// Reader retrieves complex object
+	const readResponse = await httpRequest(
+		`${BASE_URL}/agent/state-reader`,
+		{
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				key: 'userProfile',
+			}),
+		},
+		jar
+	);
+
+	const readResult = await readResponse.json();
+	assertEqual(readResult.success, true);
+	assertEqual(readResult.value.user.name, 'Alice');
+	assertEqual(readResult.value.user.roles[0], 'admin');
+	assertEqual(readResult.value.settings.theme, 'dark');
+	assertEqual(readResult.value.metadata.version, '1.0');
+});

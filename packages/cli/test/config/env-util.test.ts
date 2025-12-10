@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { looksLikeSecret } from '../src/env-util';
+import { looksLikeSecret } from '../../src/env-util';
 
 describe('looksLikeSecret', () => {
 	describe('key name patterns', () => {
