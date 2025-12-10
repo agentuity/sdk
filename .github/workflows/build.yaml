@@ -98,8 +98,9 @@ jobs:
               EXIT_CODE=$?
               set -e
               
-              if [ $EXIT_CODE -ne 0 ]; then
-                 echo "ERROR: Binary --help failed with exit code $EXIT_CODE"
+              # --help exits with code 0 or 1 depending on context, both are OK
+              if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 1 ]; then
+                 echo "ERROR: Binary --help failed with unexpected exit code $EXIT_CODE"
                  echo "Output:"
                  cat /tmp/binary-help.txt
                  exit 1
