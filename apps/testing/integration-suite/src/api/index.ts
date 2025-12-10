@@ -1,6 +1,8 @@
 import { createRouter } from '@agentuity/runtime';
 import { testSuite } from '../test/suite';
 import statePersistenceAgent from '../agent/state/agent';
+import stateReaderAgent from '../agent/state/reader-agent';
+import stateWriterAgent from '../agent/state/writer-agent';
 
 const router = createRouter();
 
@@ -112,11 +114,142 @@ router.get('/health', (c) => {
 	return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// State persistence agent endpoint for HTTP tests
+// State persistence agent endpoints for HTTP tests
 router.post('/agent/state', statePersistenceAgent.validator(), async (c) => {
 	const input = c.req.valid('json');
 	const result = await statePersistenceAgent.run(input);
 	return c.json(result);
+});
+
+router.post('/agent/state-reader', stateReaderAgent.validator(), async (c) => {
+	const input = c.req.valid('json');
+	const result = await stateReaderAgent.run(input);
+	return c.json(result);
+});
+
+router.post('/agent/state-writer', stateWriterAgent.validator(), async (c) => {
+	const input = c.req.valid('json');
+	const result = await stateWriterAgent.run(input);
+	return c.json(result);
+});
+
+// WebSocket routes for testing
+router.websocket('/ws/echo', (c) => (ws) => {
+	// Echo back any message received
+	ws.onMessage((event) => {
+		ws.send(event.data);
+	});
+});
+
+// Shared broadcast clients list (outside the handler)
+const broadcastClients: any[] = [];
+
+router.websocket('/ws/broadcast', (c) => (ws) => {
+	// Add to shared clients list
+	broadcastClients.push(ws);
+
+	ws.onMessage((event) => {
+		// Broadcast to all connected clients
+		for (const client of broadcastClients) {
+			client.send(event.data);
+		}
+	});
+
+	ws.onClose(() => {
+		// Remove from clients list
+		const index = broadcastClients.indexOf(ws);
+		if (index > -1) {
+			broadcastClients.splice(index, 1);
+		}
+	});
+});
+
+router.websocket('/ws/counter', (c) => {
+	let count = 0;
+
+	return (ws) => {
+		ws.onOpen(() => {
+			ws.send(JSON.stringify({ type: 'count', value: count }));
+		});
+
+		ws.onMessage((event) => {
+			const data = JSON.parse(event.data as string);
+
+			if (data.action === 'increment') {
+				count++;
+				ws.send(JSON.stringify({ type: 'count', value: count }));
+			} else if (data.action === 'decrement') {
+				count--;
+				ws.send(JSON.stringify({ type: 'count', value: count }));
+			} else if (data.action === 'reset') {
+				count = 0;
+				ws.send(JSON.stringify({ type: 'count', value: count }));
+			}
+		});
+	};
+});
+
+// SSE (Server-Sent Events) routes for testing
+router.sse('/sse/simple', (c) => async (stream) => {
+	// Send a few simple messages
+	stream.writeSSE({ data: 'Message 1' });
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	stream.writeSSE({ data: 'Message 2' });
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	stream.writeSSE({ data: 'Message 3' });
+});
+
+router.sse('/sse/events', (c) => async (stream) => {
+	// Send events with event types
+	stream.writeSSE({ event: 'start', data: JSON.stringify({ timestamp: Date.now() }) });
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	stream.writeSSE({ event: 'update', data: JSON.stringify({ progress: 50 }) });
+	await new Promise((resolve) => setTimeout(resolve, 10));
+	stream.writeSSE({ event: 'complete', data: JSON.stringify({ status: 'done' }) });
+});
+
+router.sse('/sse/counter', (c) => async (stream) => {
+	const count = parseInt(c.req.query('count') || '5', 10);
+	const delay = parseInt(c.req.query('delay') || '50', 10);
+
+	for (let i = 0; i < count; i++) {
+		stream.writeSSE({ data: JSON.stringify({ count: i, timestamp: Date.now() }) });
+		await new Promise((resolve) => setTimeout(resolve, delay));
+	}
+});
+
+router.sse('/sse/long-lived', (c) => async (stream) => {
+	const duration = parseInt(c.req.query('duration') || '2000', 10);
+	const interval = 100;
+	const startTime = Date.now();
+
+	while (Date.now() - startTime < duration) {
+		stream.writeSSE({
+			data: JSON.stringify({
+				elapsed: Date.now() - startTime,
+				message: 'Still alive',
+			}),
+		});
+		await new Promise((resolve) => setTimeout(resolve, interval));
+	}
+
+	stream.writeSSE({ event: 'done', data: 'Completed' });
+});
+
+router.sse('/sse/abort-test', (c) => async (stream) => {
+	let aborted = false;
+
+	stream.onAbort(() => {
+		aborted = true;
+	});
+
+	for (let i = 0; i < 100; i++) {
+		if (aborted) {
+			break;
+		}
+		stream.writeSSE({ data: `Message ${i}` });
+		await new Promise((resolve) => setTimeout(resolve, 50));
+	}
 });
 
 export default router;

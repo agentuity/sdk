@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
-import { parseEmail, Email } from '../src/io/email';
-import { createRouter } from '../src/router';
-import { hash } from '../src/_util';
+import { parseEmail, Email } from '../../src/io/email';
+import { createRouter } from '../../src/router';
+import { hash } from '../../src/_util';
 import { Hono } from 'hono';
 
 describe('Email Router', () => {
