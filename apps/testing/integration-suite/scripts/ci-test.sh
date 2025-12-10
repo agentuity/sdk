@@ -148,14 +148,26 @@ curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -
 			FAILED=$(echo "$DATA" | grep -o '"failed":[0-9]*' | cut -d':' -f2)
 			DURATION=$(echo "$DATA" | grep -o '"duration":[0-9.]*' | cut -d':' -f2)
 			
+			# Calculate duration in seconds
+			DURATION_SEC=$(echo "scale=2; $DURATION / 1000" | bc)
+			
 			echo ""
-			echo "==================================="
-			echo "Test Summary"
-			echo "==================================="
-			echo "Total:    $TOTAL"
-			echo "Passed:   $PASSED"
-			echo "Failed:   $FAILED"
-			echo "Duration: ${DURATION}ms"
+			echo "╔════════════════════════════════════════════════════════════════╗"
+			echo "║              INTEGRATION SUITE - TEST RESULTS                  ║"
+			echo "╠════════════════════════════════════════════════════════════════╣"
+			printf "║  %-30s %30s  ║\n" "Total Tests:" "$TOTAL"
+			printf "║  %-30s %30s  ║\n" "Passed:" "$(printf "${GREEN}%s${NC}" "$PASSED")"
+			printf "║  %-30s %30s  ║\n" "Failed:" "$(printf "${RED}%s${NC}" "$FAILED")"
+			printf "║  %-30s %30s  ║\n" "Duration:" "${DURATION_SEC}s (${DURATION}ms)"
+			echo "╠════════════════════════════════════════════════════════════════╣"
+			
+			if [ "$FAILED" -gt 0 ]; then
+				printf "║  %-60s  ║\n" "$(printf "${RED}✗ RESULT: FAILED - %s test(s) failed${NC}" "$FAILED")"
+			else
+				printf "║  %-60s  ║\n" "$(printf "${GREEN}✓ RESULT: SUCCESS - All tests passed${NC}")"
+			fi
+			
+			echo "╚════════════════════════════════════════════════════════════════╝"
 			echo ""
 			
 			# Kill server
@@ -163,10 +175,8 @@ curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -
 			
 			# Exit with failure if any tests failed
 			if [ "$FAILED" -gt 0 ]; then
-				echo -e "${RED}✗ FAILED:${NC} $FAILED test(s) failed"
 				exit 1
 			else
-				echo -e "${GREEN}✓ SUCCESS:${NC} All tests passed"
 				exit 0
 			fi
 		fi
