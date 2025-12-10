@@ -15,6 +15,35 @@ import { type APIClient as APIClientType } from './api';
 import { getExitCode } from './errors';
 import { maskSecret } from './env-util';
 
+// Install global exit handler to always restore terminal cursor
+// This ensures cursor is restored even when process.exit() is called directly
+let exitHandlerInstalled = false;
+function ensureCursorRestoration(): void {
+	if (exitHandlerInstalled) return;
+	exitHandlerInstalled = true;
+
+	const restoreCursor = () => {
+		// Restore cursor visibility
+		process.stderr.write('\x1B[?25h');
+	};
+
+	// Handle process exit
+	process.on('exit', restoreCursor);
+
+	// Handle termination signals
+	process.on('SIGINT', () => {
+		restoreCursor();
+		process.exit(130);
+	});
+	process.on('SIGTERM', () => {
+		restoreCursor();
+		process.exit(143);
+	});
+}
+
+// Install handler immediately when module loads
+ensureCursorRestoration();
+
 // Re-export maskSecret for convenience
 export { maskSecret };
 
