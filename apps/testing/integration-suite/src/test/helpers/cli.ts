@@ -18,13 +18,13 @@ function resolveCliPath(): string {
 	if (existsSync(devPath)) {
 		return devPath;
 	}
-	
+
 	// Fall back to process.cwd() (built environment running from .agentuity)
 	const builtPath = resolve(process.cwd(), '../../../../packages/cli/bin/cli.ts');
 	if (existsSync(builtPath)) {
 		return builtPath;
 	}
-	
+
 	throw new Error(`CLI not found at ${devPath} or ${builtPath}`);
 }
 

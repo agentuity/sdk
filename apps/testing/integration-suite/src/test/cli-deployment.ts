@@ -56,14 +56,17 @@ test('cli-deployment', 'list-before-deploy', async () => {
 
 	// Command should execute and produce output
 	assertDefined(result.stdout, 'List should output');
-	
+
 	// If successful, validate JSON response
 	if (result.exitCode === 0) {
 		assertDefined(result.json, 'List should return JSON when successful');
 		assert(Array.isArray(result.json), 'List should return array');
 	} else {
 		// Command failed - ensure it's not a silent failure
-		assert(result.stderr !== undefined || result.stdout.length > 0, 'Failed command should output error message');
+		assert(
+			result.stderr !== undefined || result.stdout.length > 0,
+			'Failed command should output error message'
+		);
 	}
 });
 
