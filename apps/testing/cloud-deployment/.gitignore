@@ -8,7 +8,9 @@ node_modules/
 # Environment files (contain secrets)
 .env
 .env.*
-agentuity.*.json
+
+# Local project config (use agentuity.json for CI)
+agentuity.local.json
 
 # Logs
 *.log
