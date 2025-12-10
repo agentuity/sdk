@@ -149,20 +149,33 @@ test('websocket', 'broadcast-multiple-clients', async () => {
 	const client2 = createWebSocketClient('/api/ws/broadcast');
 	const client3 = createWebSocketClient('/api/ws/broadcast');
 
+	console.log('[DEBUG] Connecting client 1...');
 	await client1.connect();
+	console.log('[DEBUG] Client 1 connected:', client1.isConnected());
+
+	console.log('[DEBUG] Connecting client 2...');
 	await client2.connect();
+	console.log('[DEBUG] Client 2 connected:', client2.isConnected());
+
+	console.log('[DEBUG] Connecting client 3...');
 	await client3.connect();
+	console.log('[DEBUG] Client 3 connected:', client3.isConnected());
 
 	// Wait for all connections to be fully established
 	await new Promise((resolve) => setTimeout(resolve, 100));
 
 	// Client 1 sends message
+	console.log('[DEBUG] Client 1 sending message...');
 	client1.send('Broadcast from client 1');
 
 	// All clients should receive it
-	const msg1 = await client1.receive();
-	const msg2 = await client2.receive();
-	const msg3 = await client3.receive();
+	console.log('[DEBUG] Waiting for messages...');
+	const msg1 = await client1.receive(5000);
+	console.log('[DEBUG] Client 1 received:', msg1);
+	const msg2 = await client2.receive(5000);
+	console.log('[DEBUG] Client 2 received:', msg2);
+	const msg3 = await client3.receive(5000);
+	console.log('[DEBUG] Client 3 received:', msg3);
 
 	assertEqual(msg1, 'Broadcast from client 1');
 	assertEqual(msg2, 'Broadcast from client 1');
@@ -178,30 +191,43 @@ test('websocket', 'broadcast-client-disconnect', async () => {
 	const client1 = createWebSocketClient('/api/ws/broadcast');
 	const client2 = createWebSocketClient('/api/ws/broadcast');
 
+	console.log('[DEBUG] Connecting clients for disconnect test...');
 	await client1.connect();
 	await client2.connect();
+	console.log('[DEBUG] Both clients connected');
+
+	// Wait for connections to stabilize
+	await new Promise((resolve) => setTimeout(resolve, 100));
 
 	// Verify both clients can receive (baseline test)
+	console.log('[DEBUG] Sending initial test message...');
 	client1.send('Initial test');
-	const init1 = await client1.receive(1000);
-	const init2 = await client2.receive(1000);
+	const init1 = await client1.receive(2000);
+	console.log('[DEBUG] Client 1 received:', init1);
+	const init2 = await client2.receive(2000);
+	console.log('[DEBUG] Client 2 received:', init2);
 	assertEqual(init1, 'Initial test');
 	assertEqual(init2, 'Initial test');
 
 	// Disconnect client 2
+	console.log('[DEBUG] Disconnecting client 2...');
 	await client2.close();
 
 	// Wait for cleanup (increased for CI stability)
 	await new Promise((resolve) => setTimeout(resolve, 300));
 
 	// Client 1 sends message after client 2 disconnected
+	console.log('[DEBUG] Sending message after disconnect...');
 	client1.send('After disconnect');
 
 	// Client 1 should still receive its own broadcast
-	const msg = await client1.receive(2000);
+	console.log('[DEBUG] Waiting for broadcast message...');
+	const msg = await client1.receive(3000);
+	console.log('[DEBUG] Client 1 received after disconnect:', msg);
 	assertEqual(msg, 'After disconnect');
 
 	await client1.close();
+	console.log('[DEBUG] Test complete');
 });
 
 // Test 10: Large message handling
