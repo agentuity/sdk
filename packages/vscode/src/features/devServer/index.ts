@@ -13,7 +13,11 @@ export function registerDevServerCommands(context: vscode.ExtensionContext): voi
 	);
 
 	manager.onStateChanged((state) => {
-		void vscode.commands.executeCommand('setContext', 'agentuity.devServerRunning', state === 'running');
+		void vscode.commands.executeCommand(
+			'setContext',
+			'agentuity.devServerRunning',
+			state === 'running'
+		);
 	});
 
 	context.subscriptions.push(

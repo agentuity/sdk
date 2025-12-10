@@ -1,16 +1,7 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
-import { readFileSync } from 'node:fs';
+import { describe, test, expect } from 'bun:test';
 import { join } from 'node:path';
 
 describe('upgrade command', () => {
-	let originalBunMain: string;
-	let originalEnv: NodeJS.ProcessEnv;
-
-	beforeEach(() => {
-		originalBunMain = Bun.main;
-		originalEnv = { ...process.env };
-	});
-
 	test('should detect when running from executable', async () => {
 		// Mock Bun.main to simulate running from installed location
 		const homeDir = process.env.HOME || '/home/test';
@@ -67,14 +58,7 @@ describe('upgrade command', () => {
 
 	test('should validate version format', () => {
 		const validVersions = ['v1.2.3', '1.2.3', 'v0.0.1', '10.20.30'];
-		const invalidVersions = [
-			'error',
-			'message',
-			'<html>',
-			'<!DOCTYPE',
-			'not-a-version',
-			'',
-		];
+		const invalidVersions = ['error', 'message', '<html>', '<!DOCTYPE', 'not-a-version', ''];
 
 		for (const version of validVersions) {
 			const trimmed = version.trim();

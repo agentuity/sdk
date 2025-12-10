@@ -14,9 +14,7 @@ export function registerCodeLens(context: vscode.ExtensionContext): AgentCodeLen
 		{ language: 'javascript', scheme: 'file' },
 	];
 
-	context.subscriptions.push(
-		vscode.languages.registerCodeLensProvider(selector, provider)
-	);
+	context.subscriptions.push(vscode.languages.registerCodeLensProvider(selector, provider));
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand(
@@ -44,7 +42,9 @@ export function registerCodeLens(context: vscode.ExtensionContext): AgentCodeLen
 					}
 				}
 
-				const port = vscode.workspace.getConfiguration('agentuity').get<number>('devServer.port', 3500);
+				const port = vscode.workspace
+					.getConfiguration('agentuity')
+					.get<number>('devServer.port', 3500);
 				let url = `http://localhost:${port}/workbench`;
 				if (info.identifier) {
 					url += `?agent=${encodeURIComponent(info.identifier)}`;

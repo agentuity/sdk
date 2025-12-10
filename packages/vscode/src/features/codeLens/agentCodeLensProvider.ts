@@ -49,10 +49,7 @@ export class AgentCodeLensProvider implements vscode.CodeLensProvider {
 		return codeLenses;
 	}
 
-	private extractAgentInfo(
-		document: vscode.TextDocument,
-		startIndex: number
-	): AgentCodeLensInfo {
+	private extractAgentInfo(document: vscode.TextDocument, startIndex: number): AgentCodeLensInfo {
 		const text = document.getText();
 		const afterCreateAgent = text.substring(startIndex);
 

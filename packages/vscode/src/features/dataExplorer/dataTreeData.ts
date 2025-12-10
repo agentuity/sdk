@@ -378,9 +378,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 		}
 
 		if (group.results.length === 0) {
-			return [
-				new DataTreeItem('No results', vscode.TreeItemCollapsibleState.None, 'message'),
-			];
+			return [new DataTreeItem('No results', vscode.TreeItemCollapsibleState.None, 'message')];
 		}
 
 		return group.results.map((result) => {
@@ -459,11 +457,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 		}
 
 		return [
-			new DataTreeItem(
-				'Failed to load files',
-				vscode.TreeItemCollapsibleState.None,
-				'message'
-			),
+			new DataTreeItem('Failed to load files', vscode.TreeItemCollapsibleState.None, 'message'),
 		];
 	}
 

@@ -96,7 +96,11 @@ async function viewDeploymentLogs(deploymentId: string): Promise<void> {
 					})
 					.join('\n');
 
-				await openReadonlyDocument(logContent, 'log', `deployment-logs-${deploymentId.substring(0, 8)}`);
+				await openReadonlyDocument(
+					logContent,
+					'log',
+					`deployment-logs-${deploymentId.substring(0, 8)}`
+				);
 			} else {
 				vscode.window.showErrorMessage(`Failed to fetch logs: ${result.error}`);
 			}

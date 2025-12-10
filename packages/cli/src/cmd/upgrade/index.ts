@@ -102,24 +102,20 @@ async function fetchLatestVersion(): Promise<string> {
 /**
  * Download the binary for the specified version
  */
-async function downloadBinary(version: string, platform: { os: string; arch: string }): Promise<string> {
+async function downloadBinary(
+	version: string,
+	platform: { os: string; arch: string }
+): Promise<string> {
 	const { os, arch } = platform;
 	const url = `https://agentuity.sh/release/sdk/${version}/${os}/${arch}`;
-	
+
 	const tmpDir = tmpdir();
 	const tmpFile = join(tmpDir, `agentuity-${randomUUID()}`);
 	const gzFile = `${tmpFile}.gz`;
 
-	let downloadedBytes = 0;
-	let totalBytes = 0;
-
 	const stream = await downloadWithProgress({
 		url,
 		message: `Downloading version ${version}...`,
-		onProgress: (percent, downloaded, total) => {
-			downloadedBytes = downloaded;
-			totalBytes = total;
-		},
 	});
 
 	// Write to temp file
@@ -167,9 +163,7 @@ async function validateBinary(binaryPath: string, expectedVersion: string): Prom
 		const normalizedActual = actualVersion.replace(/^v/, '');
 
 		if (normalizedActual !== normalizedExpected) {
-			throw new Error(
-				`Version mismatch: expected ${expectedVersion}, got ${actualVersion}`
-			);
+			throw new Error(`Version mismatch: expected ${expectedVersion}, got ${actualVersion}`);
 		}
 	} catch (error) {
 		if (error instanceof Error) {

@@ -108,8 +108,7 @@ export function registerDataExplorer(context: vscode.ExtensionContext): DataTree
 						.map((log) => {
 							const timestamp = new Date(log.timestamp).toLocaleString();
 							const duration = `${log.duration}ms`;
-							const sql =
-								log.sql.length > 200 ? log.sql.substring(0, 200) + '...' : log.sql;
+							const sql = log.sql.length > 200 ? log.sql.substring(0, 200) + '...' : log.sql;
 							const errorLine = log.error ? `\n  ERROR: ${log.error}` : '';
 							return `[${timestamp}] [${log.command}] (${duration})\n  ${sql}${errorLine}`;
 						})
