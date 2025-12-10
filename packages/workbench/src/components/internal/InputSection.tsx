@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import {
 	CheckIcon,
 	ChevronsUpDownIcon,
@@ -41,7 +41,8 @@ export interface InputSectionProps {
 	selectedAgent: string;
 	setSelectedAgent: (agentId: string) => void;
 	suggestions: string[];
-	onSchemaOpen: () => void;
+	isSchemaOpen: boolean;
+	onSchemaToggle: () => void;
 }
 
 function isSchemaRootObject(schemaJson?: JSONSchema7): boolean {
@@ -65,10 +66,13 @@ export function InputSection({
 	selectedAgent,
 	setSelectedAgent,
 	suggestions,
-	onSchemaOpen,
+	isSchemaOpen,
+	onSchemaToggle,
 }: InputSectionProps) {
 	const logger = useLogger('InputSection');
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
+	const [isValidInput, setIsValidInput] = useState(true);
+	const [monacoHasErrors, setMonacoHasErrors] = useState<boolean | null>(null);
 
 	const selectedAgentData = Object.values(agents).find(
 		(agent) => agent.metadata.agentId === selectedAgent
@@ -95,9 +99,65 @@ export function InputSection({
 			return 'string'; // String schema
 		}
 		return 'none'; // Default to none for other types
-	}, [selectedAgentData?.schema.input?.json]);
+	}, [selectedAgentData?.schema.input?.json, logger]);
 
 	const isObjectSchema = inputType === 'object';
+
+	// Validate JSON input against schema using zod (fallback for non-Monaco cases)
+	const validateInput = useCallback(
+		(inputValue: string, schema?: JSONSchema7): boolean => {
+			if (!schema || !isObjectSchema || !inputValue.trim()) {
+				return true; // No validation needed or empty input
+			}
+
+			try {
+				// Parse JSON first
+				const parsedJson = JSON.parse(inputValue);
+
+				// Convert schema to zod and validate
+				const schemaObject = typeof schema === 'string' ? JSON.parse(schema) : schema;
+				const zodSchema = convertJsonSchemaToZod(schemaObject);
+
+				// Validate with zod
+				const result = zodSchema.safeParse(parsedJson);
+				return result.success;
+			} catch {
+				// JSON parse error or schema validation error
+				return false;
+			}
+		},
+		[isObjectSchema]
+	);
+
+	// Reset Monaco error state when schema changes
+	useEffect(() => {
+		if (isObjectSchema) {
+			setMonacoHasErrors(null);
+		}
+	}, [selectedAgentData?.schema?.input?.json, isObjectSchema]);
+
+	// Update validation state - use Monaco errors if available, otherwise fall back to zod validation
+	useEffect(() => {
+		if (isObjectSchema) {
+			if (monacoHasErrors !== null) {
+				// Monaco is handling validation, use its error state
+				setIsValidInput(!monacoHasErrors);
+			} else {
+				// Monaco hasn't reported yet, use zod validation as fallback
+				const isValid = validateInput(value, selectedAgentData?.schema?.input?.json);
+				setIsValidInput(isValid);
+			}
+		} else {
+			// No schema or not object schema
+			setIsValidInput(true);
+		}
+	}, [
+		value,
+		selectedAgentData?.schema?.input?.json,
+		validateInput,
+		isObjectSchema,
+		monacoHasErrors,
+	]);
 
 	const handleGenerateSample = () => {
 		if (!selectedAgentData?.schema.input?.json || !isObjectSchema) return;
@@ -114,6 +174,14 @@ export function InputSection({
 			console.error('Failed to generate sample JSON:', error);
 		}
 	};
+
+	// Memoized submit disabled condition for readability
+	const isSubmitDisabled = useMemo(() => {
+		if (isLoading) return true;
+		if (inputType === 'string' && !value.trim()) return true;
+		if (inputType === 'object' && (!isValidInput || !value.trim())) return true;
+		return false;
+	}, [isLoading, inputType, value, isValidInput]);
 
 	return (
 		<>
@@ -213,11 +281,11 @@ export function InputSection({
 				)}
 
 				<Button
-					aria-label="View Schema"
+					aria-label={isSchemaOpen ? 'Hide Schema' : 'View Schema'}
 					size="sm"
-					variant="outline"
-					className="bg-none font-normal"
-					onClick={onSchemaOpen}
+					variant={isSchemaOpen ? 'default' : 'outline'}
+					className={cn('font-normal', isSchemaOpen ? 'bg-primary' : 'bg-none')}
+					onClick={onSchemaToggle}
 				>
 					<FileJson className="size-4" /> Schema
 				</Button>
@@ -234,6 +302,8 @@ export function InputSection({
 										onChange={onChange}
 										schema={selectedAgentData?.schema.input?.json}
 										schemaUri={`agentuity://schema/${selectedAgentData?.metadata.id}/input`}
+										aria-invalid={!isValidInput}
+										onValidationChange={setMonacoHasErrors}
 									/>
 								);
 
@@ -279,7 +349,7 @@ export function InputSection({
 							aria-label="Submit"
 							size="icon"
 							variant="default"
-							disabled={isLoading || (inputType === 'string' && !value.trim())}
+							disabled={isSubmitDisabled}
 							onClick={() => {
 								logger.debug(
 									'🔥 Submit button clicked! inputType:',

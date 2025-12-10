@@ -2,9 +2,9 @@
 	"name": "testing",
 	"private": true,
 	"scripts": {
-		"typecheck": "echo 'No testing apps (moved to legacy)'",
-		"build": "echo 'No testing apps (moved to legacy)'",
-		"test": "echo 'No testing apps (moved to legacy)'"
+		"typecheck": "cd integration-suite && bun run typecheck",
+		"build": "cd integration-suite && bun run build",
+		"test": "cd integration-suite && bun run test"
 	},
-	"version": "0.0.85"
+	"version": "0.0.86"
 }

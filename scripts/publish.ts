@@ -578,11 +578,11 @@ async function main() {
 	}
 
 	const isDryRun = process.argv.includes('--dry-run');
-	
+
 	// Parse --version flag
-	const versionArg = process.argv.find(arg => arg.startsWith('--version='));
+	const versionArg = process.argv.find((arg) => arg.startsWith('--version='));
 	const forcedVersion = versionArg ? versionArg.split('=')[1] : null;
-	
+
 	console.log(`🚀 Publishing packages to npm${isDryRun ? ' (DRY RUN)' : ''}\n`);
 
 	// Validate environment early
@@ -592,7 +592,7 @@ async function main() {
 	const currentVersion = rootPkg.version;
 
 	let newVersion: string;
-	
+
 	if (forcedVersion) {
 		// Validate version format (basic semver check)
 		if (!/^\d+\.\d+\.\d+(-\d+)?$/.test(forcedVersion)) {

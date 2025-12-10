@@ -114,7 +114,7 @@ export function Chat({ className: _className }: ChatProps) {
 										</div>
 									)}
 
-									{!(isStreaming || isLoading) && (
+									{(role === 'user' || !(isStreaming || isLoading)) && (
 										<>
 											<Message
 												key={id}
@@ -188,7 +188,8 @@ export function Chat({ className: _className }: ChatProps) {
 					selectedAgent={selectedAgent}
 					setSelectedAgent={setSelectedAgent}
 					suggestions={suggestions}
-					onSchemaOpen={() => setSchemaOpen(true)}
+					isSchemaOpen={schemaOpen}
+					onSchemaToggle={() => setSchemaOpen(!schemaOpen)}
 				/>
 			</div>
 

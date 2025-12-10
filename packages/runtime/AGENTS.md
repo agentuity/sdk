@@ -98,15 +98,8 @@ The validator supports three overload signatures:
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-export default createAgent({
-	metadata: {
-		id: 'unique-id',
-		identifier: 'folder-name',
-		name: 'Human Name',
-		description: 'What it does',
-		filename: __filename,
-		version: 'hash-or-version',
-	},
+export default createAgent('my-agent', {
+	description: 'What this agent does',
 	schema: {
 		input: s.object({
 			/* ... */
@@ -116,11 +109,13 @@ export default createAgent({
 		}),
 	},
 	handler: async (ctx, input) => {
-		// ctx.logger, ctx.tracer, ctx.kv, etc.
+		// ctx.logger, ctx.tracer, ctx.kv, ctx.app, etc.
 		return output;
 	},
 });
 ```
+
+**Note:** Internal metadata (id, agentId, filename, version) is automatically injected by the build system.
 
 ## Router Extensions
 
@@ -143,6 +138,11 @@ interface AgentContext {
 	kv: KeyValueStorage; // Key-value storage
 	stream: StreamStorage; // Stream storage
 	vector: VectorStorage; // Vector storage
+	state: Map<string, unknown>; // Request-scoped state
+	thread: Thread; // Thread information
+	session: Session; // Session information
+	config: TConfig; // Agent-specific config from setup
+	app: TAppState; // Application state from createApp
 	waitUntil: (promise) => void; // Background tasks
 }
 ```

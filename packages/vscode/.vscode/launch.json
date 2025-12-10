@@ -1,0 +1,26 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Run Extension",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"${workspaceFolder}/../../apps/testing/auth-app"
+			],
+			"outFiles": ["${workspaceFolder}/dist/**/*.js"],
+			"preLaunchTask": "bun: compile"
+		},
+		{
+			"name": "Run Extension (No Build)",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"${workspaceFolder}/../../apps/testing/auth-app"
+			],
+			"outFiles": ["${workspaceFolder}/dist/**/*.js"]
+		}
+	]
+}

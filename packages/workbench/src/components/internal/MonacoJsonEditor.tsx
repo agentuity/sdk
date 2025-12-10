@@ -3,6 +3,7 @@ import Editor, { type Monaco, type OnMount } from '@monaco-editor/react';
 import { useTheme } from '../ui/theme-provider';
 import { bundledThemes } from 'shiki';
 import type { JSONSchema7 } from 'ai';
+import type * as monaco from 'monaco-editor';
 
 interface MonacoJsonEditorProps {
 	value: string;
@@ -10,6 +11,8 @@ interface MonacoJsonEditorProps {
 	schema?: JSONSchema7;
 	schemaUri?: string;
 	className?: string;
+	'aria-invalid'?: boolean;
+	onValidationChange?: (hasErrors: boolean) => void;
 }
 
 // Convert color value to valid hex for Monaco
@@ -104,6 +107,8 @@ export function MonacoJsonEditor({
 	schema,
 	schemaUri = 'agentuity://schema/default',
 	className = '',
+	'aria-invalid': ariaInvalid,
+	onValidationChange,
 }: MonacoJsonEditorProps) {
 	const { theme } = useTheme();
 	const [editorInstance, setEditorInstance] = useState<Parameters<OnMount>[0] | null>(null);
@@ -120,13 +125,16 @@ export function MonacoJsonEditor({
 
 	// Configure JSON schema when schema or monacoInstance changes
 	useEffect(() => {
-		if (!monacoInstance || !schema) return;
+		if (!monacoInstance || !schema) {
+			return;
+		}
 
 		const schemaObject = typeof schema === 'string' ? JSON.parse(schema) : schema;
 
 		// Configure Monaco JSON language support for schema validation
 		monacoInstance.languages.json.jsonDefaults.setDiagnosticsOptions({
 			validate: true,
+			allowComments: false,
 			schemas: [
 				{
 					uri: schemaUri,
@@ -134,6 +142,9 @@ export function MonacoJsonEditor({
 					schema: schemaObject,
 				},
 			],
+			enableSchemaRequest: true,
+			schemaRequest: 'error',
+			schemaValidation: 'error',
 		});
 	}, [monacoInstance, schema, schemaUri]);
 
@@ -148,6 +159,8 @@ export function MonacoJsonEditor({
 
 	return (
 		<div
+			data-slot="input-group-control"
+			aria-invalid={ariaInvalid}
 			className={`w-full pl-3 pb-3 [&_.monaco-editor]:!bg-transparent [&_.monaco-editor-background]:!bg-transparent [&_.view-lines]:!bg-transparent [&_.monaco-editor]:!shadow-none [&_.monaco-scrollable-element]:!shadow-none [&_.overflow-guard]:!shadow-none [&_.monaco-scrollable-element>.shadow.top]:!hidden [&_.monaco-editor_.scroll-decoration]:!hidden [&_.shadow.top]:!hidden [&_.scroll-decoration]:!hidden ${className}`}
 			style={{ minHeight: '64px', maxHeight: '192px', height: `${editorHeight}px` }}
 		>
@@ -192,7 +205,7 @@ export function MonacoJsonEditor({
 					},
 					padding: { top: 12, bottom: 12 },
 					// Additional background transparency options
-					renderValidationDecorations: 'off',
+					renderValidationDecorations: 'on',
 					guides: {
 						indentation: false,
 						highlightActiveIndentation: false,
@@ -222,6 +235,35 @@ export function MonacoJsonEditor({
 
 					// Update height on content changes
 					editor.onDidChangeModelContent(updateHeight);
+
+					// Listen to validation markers to detect schema errors
+					if (onValidationChange) {
+						const checkValidationErrors = () => {
+							const model = editor.getModel();
+							if (model) {
+								const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+								const hasErrors = markers.some(
+									(marker: monaco.editor.IMarker) =>
+										marker.severity === monaco.MarkerSeverity.Error
+								);
+								onValidationChange(hasErrors);
+							}
+						};
+
+						// Check on model changes
+						editor.onDidChangeModelContent(checkValidationErrors);
+
+						// Check when markers change
+						monaco.editor.onDidChangeMarkers((uris: monaco.Uri[]) => {
+							const model = editor.getModel();
+							if (model && uris.includes(model.uri)) {
+								checkValidationErrors();
+							}
+						});
+
+						// Initial check
+						setTimeout(checkValidationErrors, 100);
+					}
 
 					// Initial height update
 					setTimeout(updateHeight, 0);

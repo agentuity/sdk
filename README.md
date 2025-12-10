@@ -8,11 +8,14 @@
 <br />
 
 > [!CAUTION]
-> This repo contains the upcoming v1 production release and is not yet ready for production. Feedback very much welcome!
+> This repo contains the upcoming v1 Agentuity release but is not yet ready for production. Feedback very much welcome!
+
+> [!NOTE]
+> For more information about this early release, read more [here](https://agentuity.com/blog/agentuity-v1-is-now-in-public-preview)
+
+Visit [https://agentuity.com/](https://agentuity.com/) to learn more about Agentuity and create a free account.
 
 # Getting Started
-
-Visit [https://agentuity.com](https://agentuity.com) to get started with Agentuity.
 
 The fastest way to install and get started is to install the CLI:
 
@@ -22,7 +25,7 @@ curl -sSL https://v1.agentuity.sh | sh
 
 # Documentation
 
-Visit [https://agentuity.dev](https://agentuity.dev) to view the full documentation.
+Visit [https://preview.agentuity.dev/v1](https://preview.agentuity.dev/v1/Get-Started/what-is-agentuity) to view the full documentation.
 
 # Community
 
@@ -43,6 +46,7 @@ The structure of this mono repository:
 - `packages/server` - Runtime-agnostic server utilities (Node.js & Bun)
 - `packages/workbench` - Workbench UI component
 - `packages/schema` - Schema validation library
+- `packages/vscode` - VS Code extension for Agentuity
 
 Each package is its own published npm package but all packages are versioned and published together.
 

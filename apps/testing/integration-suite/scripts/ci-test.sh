@@ -4,6 +4,9 @@
 
 set -e
 
+# Cleanup .env file on exit (regardless of success/failure)
+trap 'rm -f "$APP_DIR/.env"' EXIT
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PORT=3500
@@ -31,6 +34,13 @@ echo -e "${GREEN}✓${NC} API key configured"
 
 # Create .env file for the app
 echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.env"
+
+# Add OpenAI API key if available (required for vector embedding operations)
+if [ -n "$OPENAI_API_KEY" ]; then
+	echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.env"
+	echo -e "${GREEN}✓${NC} OpenAI API key configured"
+fi
+
 echo -e "${GREEN}✓${NC} Created .env file"
 
 # Build SDK packages first (required for integration suite)
@@ -141,14 +151,26 @@ curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -
 			FAILED=$(echo "$DATA" | grep -o '"failed":[0-9]*' | cut -d':' -f2)
 			DURATION=$(echo "$DATA" | grep -o '"duration":[0-9.]*' | cut -d':' -f2)
 			
+			# Calculate duration in seconds
+			DURATION_SEC=$(echo "scale=2; $DURATION / 1000" | bc)
+			
 			echo ""
-			echo "==================================="
-			echo "Test Summary"
-			echo "==================================="
-			echo "Total:    $TOTAL"
-			echo "Passed:   $PASSED"
-			echo "Failed:   $FAILED"
-			echo "Duration: ${DURATION}ms"
+			echo "╔════════════════════════════════════════════════════════════════╗"
+			echo "║              INTEGRATION SUITE - TEST RESULTS                  ║"
+			echo "╠════════════════════════════════════════════════════════════════╣"
+			printf "║  %-30s %30s  ║\n" "Total Tests:" "$TOTAL"
+			printf "║  %-30s %30s  ║\n" "Passed:" "$(printf "${GREEN}%s${NC}" "$PASSED")"
+			printf "║  %-30s %30s  ║\n" "Failed:" "$(printf "${RED}%s${NC}" "$FAILED")"
+			printf "║  %-30s %30s  ║\n" "Duration:" "${DURATION_SEC}s (${DURATION}ms)"
+			echo "╠════════════════════════════════════════════════════════════════╣"
+			
+			if [ "$FAILED" -gt 0 ]; then
+				printf "║  %-60s  ║\n" "$(printf "${RED}✗ RESULT: FAILED - %s test(s) failed${NC}" "$FAILED")"
+			else
+				printf "║  %-60s  ║\n" "$(printf "${GREEN}✓ RESULT: SUCCESS - All tests passed${NC}")"
+			fi
+			
+			echo "╚════════════════════════════════════════════════════════════════╝"
 			echo ""
 			
 			# Kill server
@@ -156,10 +178,8 @@ curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -
 			
 			# Exit with failure if any tests failed
 			if [ "$FAILED" -gt 0 ]; then
-				echo -e "${RED}✗ FAILED:${NC} $FAILED test(s) failed"
 				exit 1
 			else
-				echo -e "${GREEN}✓ SUCCESS:${NC} All tests passed"
 				exit 0
 			fi
 		fi

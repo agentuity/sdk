@@ -1,0 +1,22 @@
+# Source files (not needed in extension)
+src/**
+**/*.ts
+!dist/**
+
+# Config files
+tsconfig.json
+.vscode/**
+.vscode-test/**
+
+# Build artifacts and dev files
+bun.lockb
+*.log
+node_modules/.cache/**
+
+# Git
+.git/**
+.github/**
+.gitignore
+
+# Development documentation
+PLAN.md

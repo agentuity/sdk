@@ -34,6 +34,9 @@ jobs:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 10
       name: SDK Integration Test Suite
+      env:
+         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
       steps:
          - uses: actions/checkout@v4
 
@@ -43,7 +46,17 @@ jobs:
          - name: Install dependencies
            run: bun install
 
+         - name: Setup test credentials
+           run: |
+              # Generate CLI API key for authentication
+              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+
+              # Set SDK key for integration-suite tests
+              echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
+
+              # Set OpenAI API key for embedding operations
+              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+
          - name: Run integration test suite
-           env:
-              AGENTUITY_SDK_KEY: ${{ secrets.AGENTUITY_SDK_KEY }}
            run: bash apps/testing/integration-suite/scripts/ci-test.sh

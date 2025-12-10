@@ -1,5 +1,6 @@
 import { createApp } from '@agentuity/runtime';
 import { createWorkbench } from '@agentuity/workbench';
+import { InMemoryThreadProvider } from './src/test/helpers/thread-provider';
 
 // Import test files to register tests
 import './src/test/basic-agents';
@@ -16,11 +17,19 @@ import './src/test/schema-validation';
 import './src/test/evals';
 import './src/test/events';
 import './src/test/resilience';
+import './src/test/storage-binary';
+import './src/test/http-state-persistence';
+import './src/test/cli-deployment';
+import './src/test/cli-apikey';
+import './src/test/cli-vector';
 
 const workbench = createWorkbench();
+const threadProvider = new InMemoryThreadProvider();
+
 const app = await createApp({
 	services: {
 		workbench,
+		thread: threadProvider,
 	},
 });
 

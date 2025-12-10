@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import type { UIMessage } from 'ai';
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type { WorkbenchContextType, ConnectionStatus } from '../../types/config';
@@ -24,6 +24,43 @@ interface WorkbenchProviderProps {
 
 export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
+
+	// Generate project identifier from config for localStorage scoping
+	const projectId = useMemo(() => {
+		// Use a combination of baseUrl and apiKey hash to create unique project identifier
+		const configHash = btoa(
+			JSON.stringify({
+				route: config.route,
+				apiKey: config.apiKey?.substring(0, 8), // Only first 8 chars for uniqueness without exposing key
+			})
+		)
+			.replace(/[^a-zA-Z0-9]/g, '')
+			.substring(0, 16);
+		return `project_${configHash}`;
+	}, [config]);
+
+	// localStorage utilities scoped by project
+	const getStorageKey = useCallback((key: string) => `agentuity_${projectId}_${key}`, [projectId]);
+
+	const saveSelectedAgent = useCallback(
+		(agentId: string) => {
+			try {
+				localStorage.setItem(getStorageKey('selected_agent'), agentId);
+			} catch (error) {
+				console.warn('Failed to save selected agent to localStorage:', error);
+			}
+		},
+		[getStorageKey]
+	);
+
+	const loadSelectedAgent = useCallback((): string | null => {
+		try {
+			return localStorage.getItem(getStorageKey('selected_agent'));
+		} catch (error) {
+			console.warn('Failed to load selected agent from localStorage:', error);
+			return null;
+		}
+	}, [getStorageKey]);
 
 	const [messages, setMessages] = useState<UIMessage[]>([]);
 	const [selectedAgent, setSelectedAgent] = useState<string>('');
@@ -103,15 +140,36 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	useEffect(() => {
 		if (agents && Object.keys(agents).length > 0 && !selectedAgent) {
 			logger.debug('🔍 Available agents:', agents);
-			const sortedAgents = Object.values(agents).sort((a, b) =>
-				a.metadata.name.localeCompare(b.metadata.name)
-			);
-			const firstAgent = sortedAgents[0];
-			logger.debug('🎯 First agent (alphabetically):', firstAgent);
-			logger.debug('🆔 Setting selectedAgent to:', firstAgent.metadata.agentId);
-			setSelectedAgent(firstAgent.metadata.agentId);
+
+			// Try to load previously selected agent from localStorage
+			const savedAgentId = loadSelectedAgent();
+			logger.debug('💾 Saved agent from localStorage:', savedAgentId);
+
+			// Check if saved agent still exists in available agents
+			const savedAgent = savedAgentId
+				? Object.values(agents).find((agent) => agent.metadata.agentId === savedAgentId)
+				: null;
+
+			if (savedAgent && savedAgentId) {
+				logger.debug('✅ Restoring saved agent:', savedAgent.metadata.name);
+				setSelectedAgent(savedAgentId);
+			} else {
+				// Fallback to first agent alphabetically
+				const sortedAgents = Object.values(agents).sort((a, b) =>
+					a.metadata.name.localeCompare(b.metadata.name)
+				);
+				const firstAgent = sortedAgents[0];
+				logger.debug(
+					'🎯 No saved agent found, using first agent (alphabetically):',
+					firstAgent
+				);
+				logger.debug('🆔 Setting selectedAgent to:', firstAgent.metadata.agentId);
+				setSelectedAgent(firstAgent.metadata.agentId);
+				// Save this selection for next time
+				saveSelectedAgent(firstAgent.metadata.agentId);
+			}
 		}
-	}, [agents, selectedAgent]);
+	}, [agents, selectedAgent, loadSelectedAgent, saveSelectedAgent, logger]);
 
 	// Fetch suggestions from API if endpoint is provided
 	useEffect(() => {
@@ -279,7 +337,8 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const handleAgentSelect = async (agentId: string) => {
 		logger.debug('🔄 handleAgentSelect called with:', agentId);
 		setSelectedAgent(agentId);
-		// No handlers configured for now
+		// Save selection to localStorage for persistence across sessions
+		saveSelectedAgent(agentId);
 	};
 
 	const contextValue: WorkbenchContextType = {

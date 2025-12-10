@@ -7,7 +7,7 @@ import {
 	type VectorStorage,
 	type InferOutput,
 	toCamelCase,
-	EvalRunStartEvent,
+	type EvalRunStartEvent,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
