@@ -24,7 +24,7 @@ export function generatePatches(): Map<string, PatchModule> {
 	const patches = new Map<string, PatchModule>();
 	registerLLMPatch(
 		patches,
-		'@anthropic-ai',
+		'@anthropic-ai/sdk',
 		'index',
 		'ANTHROPIC_API_KEY',
 		'ANTHROPIC_BASE_URL',
