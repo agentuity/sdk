@@ -71,7 +71,18 @@ jobs:
               
               # Test that upgrade command is available in compiled binary
               echo "=== Testing upgrade command visibility in binary ==="
+              set +e  # Don't exit on error yet, capture it
               ./dist/bin/agentuity-linux-x64 --help > /tmp/binary-help.txt 2>&1
+              EXIT_CODE=$?
+              set -e
+              
+              if [ $EXIT_CODE -ne 0 ]; then
+                 echo "ERROR: Binary --help failed with exit code $EXIT_CODE"
+                 echo "Output:"
+                 cat /tmp/binary-help.txt
+                 exit 1
+              fi
+              
               if grep -q "upgrade" /tmp/binary-help.txt; then
                  echo "✓ upgrade command found in binary"
               else
