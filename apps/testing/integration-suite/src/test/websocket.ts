@@ -178,17 +178,24 @@ test('websocket', 'broadcast-client-disconnect', async () => {
 	await client1.connect();
 	await client2.connect();
 
+	// Verify both clients can receive (baseline test)
+	client1.send('Initial test');
+	const init1 = await client1.receive(1000);
+	const init2 = await client2.receive(1000);
+	assertEqual(init1, 'Initial test');
+	assertEqual(init2, 'Initial test');
+
 	// Disconnect client 2
 	await client2.close();
 
 	// Wait for cleanup (increased for CI stability)
-	await new Promise((resolve) => setTimeout(resolve, 200));
+	await new Promise((resolve) => setTimeout(resolve, 300));
 
-	// Client 1 sends message
+	// Client 1 sends message after client 2 disconnected
 	client1.send('After disconnect');
 
-	// Client 1 should still receive it
-	const msg = await client1.receive();
+	// Client 1 should still receive its own broadcast
+	const msg = await client1.receive(2000);
 	assertEqual(msg, 'After disconnect');
 
 	await client1.close();
