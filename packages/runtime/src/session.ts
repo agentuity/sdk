@@ -618,7 +618,7 @@ export class DefaultSession implements Session {
  * WebSocket client for thread state persistence
  * @internal
  */
-class ThreadWebSocketClient {
+export class ThreadWebSocketClient {
 	private ws: WebSocket | null = null;
 	private authenticated = false;
 	private pendingRequests = new Map<
@@ -712,10 +712,15 @@ class ThreadWebSocketClient {
 						reject(new Error('WebSocket closed before authentication'));
 					}
 
-					// Attempt reconnection only if we were previously authenticated
-					if (wasAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
+					// Attempt reconnection if within retry limits (even if auth didn't complete)
+					// This handles server rollouts where connection closes before auth finishes
+					if (this.reconnectAttempts < this.maxReconnectAttempts) {
 						this.reconnectAttempts++;
 						const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30_000);
+
+						internal.info(
+							`WebSocket disconnected, attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`
+						);
 
 						// Schedule reconnection with backoff delay
 						setTimeout(() => {
@@ -725,6 +730,10 @@ class ThreadWebSocketClient {
 								this.wsConnecting = null;
 							});
 						}, delay);
+					} else {
+						internal.error(
+							`WebSocket disconnected after ${this.reconnectAttempts} attempts, giving up`
+						);
 					}
 				});
 			} catch (err) {
