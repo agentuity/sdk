@@ -129,11 +129,11 @@ jobs:
                  echo "✓ upgrade command correctly hidden in bun"
               fi
               
-              # Test upgrade --force (will fail at network fetch but should get that far)
+              # Test upgrade --force (should complete successfully since we're on 0.0.x)
               echo "=== Testing upgrade --force execution ==="
               AGENTUITY_SKIP_VERSION_CHECK=1 $BINARY upgrade --force > /tmp/upgrade-output.txt 2>&1 || true
-              if grep -q "Checking for updates" /tmp/upgrade-output.txt; then
-                 echo "✓ upgrade command executed"
+              if grep -q "Successfully upgraded\|Downloading\|Already on latest" /tmp/upgrade-output.txt; then
+                 echo "✓ upgrade command executed successfully"
               else
                  echo "ERROR: upgrade command didn't run properly"
                  echo "Output was:"
