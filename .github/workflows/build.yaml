@@ -63,9 +63,8 @@ jobs:
            timeout-minutes: 5
            run: |
               set -eou pipefail
-              # Build executables for testing
+              # Build executables for testing (packages already built from previous step)
               cd packages/cli
-              bun run build
               ./scripts/build-executables.ts --skip-sign
               
               # Test that upgrade command is available in compiled binary
