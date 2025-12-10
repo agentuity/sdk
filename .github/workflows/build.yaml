@@ -67,12 +67,34 @@ jobs:
               set -eou pipefail
               # Build executables for testing (packages already built from previous step)
               cd packages/cli
-              ./scripts/build-executables.ts --skip-sign
+              
+              # Detect OS and architecture
+              OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+              ARCH=$(uname -m)
+              
+              # Map architecture names
+              case "$ARCH" in
+                 x86_64) ARCH="x64" ;;
+                 aarch64|arm64) ARCH="arm64" ;;
+              esac
+              
+              PLATFORM="${OS}-${ARCH}"
+              BINARY="./dist/bin/agentuity-${PLATFORM}"
+              
+              echo "=== Platform Info ==="
+              echo "OS: $OS"
+              echo "ARCH: $ARCH"
+              echo "Platform: $PLATFORM"
+              echo "Binary: $BINARY"
+              echo ""
+              
+              # Build only for current platform to save time
+              ./scripts/build-executables.ts --skip-sign --platform="$PLATFORM"
               
               # Test that upgrade command is available in compiled binary
               echo "=== Testing upgrade command visibility in binary ==="
               set +e  # Don't exit on error yet, capture it
-              ./dist/bin/agentuity-linux-x64 --help > /tmp/binary-help.txt 2>&1
+              $BINARY --help > /tmp/binary-help.txt 2>&1
               EXIT_CODE=$?
               set -e
               
@@ -105,7 +127,7 @@ jobs:
               
               # Test upgrade --force (will fail at network fetch but should get that far)
               echo "=== Testing upgrade --force execution ==="
-              AGENTUITY_SKIP_VERSION_CHECK=1 ./dist/bin/agentuity-linux-x64 upgrade --force > /tmp/upgrade-output.txt 2>&1 || true
+              AGENTUITY_SKIP_VERSION_CHECK=1 $BINARY upgrade --force > /tmp/upgrade-output.txt 2>&1 || true
               if grep -q "Checking for updates" /tmp/upgrade-output.txt; then
                  echo "✓ upgrade command executed"
               else
