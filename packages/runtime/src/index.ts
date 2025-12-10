@@ -3,7 +3,6 @@ export {
 	type AgentEventName,
 	type AgentEventCallback,
 	type AgentRuntimeState,
-	type AgentContext,
 	type CreateEvalConfig,
 	type AgentValidator,
 	type Agent,

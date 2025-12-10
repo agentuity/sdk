@@ -1,4 +1,4 @@
-import { createAgent, type AgentContext } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 const agent = createAgent('eval/input-only', {
