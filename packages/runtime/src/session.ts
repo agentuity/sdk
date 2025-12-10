@@ -615,10 +615,15 @@ export class DefaultSession implements Session {
 }
 
 /**
- * WebSocket client for thread state persistence
+ * WebSocket client for thread state persistence.
+ *
+ * **WARNING: This class is exported for testing purposes only and is subject to change
+ * without notice. Do not use this class directly in production code.**
+ *
  * @internal
+ * @experimental
  */
-class ThreadWebSocketClient {
+export class ThreadWebSocketClient {
 	private ws: WebSocket | null = null;
 	private authenticated = false;
 	private pendingRequests = new Map<
@@ -630,6 +635,8 @@ class ThreadWebSocketClient {
 	private apiKey: string;
 	private wsUrl: string;
 	private wsConnecting: Promise<void> | null = null;
+	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+	private isDisposed = false;
 
 	constructor(apiKey: string, wsUrl: string) {
 		this.apiKey = apiKey;
@@ -712,19 +719,34 @@ class ThreadWebSocketClient {
 						reject(new Error('WebSocket closed before authentication'));
 					}
 
-					// Attempt reconnection only if we were previously authenticated
-					if (wasAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
+					// Don't attempt reconnection if disposed
+					if (this.isDisposed) {
+						return;
+					}
+
+					// Attempt reconnection if within retry limits (even if auth didn't complete)
+					// This handles server rollouts where connection closes before auth finishes
+					if (this.reconnectAttempts < this.maxReconnectAttempts) {
 						this.reconnectAttempts++;
 						const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30_000);
 
+						internal.info(
+							`WebSocket disconnected, attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`
+						);
+
 						// Schedule reconnection with backoff delay
-						setTimeout(() => {
+						this.reconnectTimer = setTimeout(() => {
+							this.reconnectTimer = null;
 							// Create new connection promise for reconnection
 							this.wsConnecting = this.connect().catch(() => {
 								// Reconnection failed, reset
 								this.wsConnecting = null;
 							});
 						}, delay);
+					} else {
+						internal.error(
+							`WebSocket disconnected after ${this.reconnectAttempts} attempts, giving up`
+						);
 					}
 				});
 			} catch (err) {
@@ -846,12 +868,23 @@ class ThreadWebSocketClient {
 	}
 
 	cleanup(): void {
+		// Mark as disposed to prevent new reconnection attempts
+		this.isDisposed = true;
+
+		// Cancel any pending reconnection timer
+		if (this.reconnectTimer) {
+			clearTimeout(this.reconnectTimer);
+			this.reconnectTimer = null;
+		}
+
 		if (this.ws) {
 			this.ws.close();
 			this.ws = null;
 		}
 		this.authenticated = false;
 		this.pendingRequests.clear();
+		this.reconnectAttempts = 0;
+		this.wsConnecting = null;
 	}
 }
 
