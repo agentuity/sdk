@@ -10,17 +10,17 @@ import { resolve } from 'path';
 import { existsSync } from 'fs';
 
 // Resolve CLI binary path - works in both dev and built (.agentuity) environments
-// In dev: src/test/helpers -> ../../../../../../packages/cli/bin/cli.ts
-// In built: .agentuity -> ../../../../packages/cli/bin/cli.ts
+// In dev: apps/testing/integration-suite/src/test/helpers -> ../../../../../packages/cli/bin/cli.ts
+// In built: .agentuity -> ../../../packages/cli/bin/cli.ts
 function resolveCliPath(): string {
 	// Try from import.meta.dir first (dev environment)
-	const devPath = resolve(import.meta.dir, '../../../../../../packages/cli/bin/cli.ts');
+	const devPath = resolve(import.meta.dir, '../../../../../packages/cli/bin/cli.ts');
 	if (existsSync(devPath)) {
 		return devPath;
 	}
 
 	// Fall back to process.cwd() (built environment running from .agentuity)
-	const builtPath = resolve(process.cwd(), '../../../../packages/cli/bin/cli.ts');
+	const builtPath = resolve(process.cwd(), '../../../packages/cli/bin/cli.ts');
 	if (existsSync(builtPath)) {
 		return builtPath;
 	}
