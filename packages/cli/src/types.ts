@@ -89,6 +89,7 @@ export interface GlobalOptions {
 	explain?: boolean;
 	dryRun?: boolean;
 	validate?: boolean;
+	skipVersionCheck?: boolean;
 }
 
 export interface PaginationInfo {
@@ -282,6 +283,8 @@ export function createCommand<
 	banner?: true;
 	aliases?: string[];
 	hidden?: boolean;
+	executable?: boolean;
+	skipUpgradeCheck?: boolean;
 	requires?: R;
 	optional?: O;
 	examples?: CommandExample[];
@@ -318,6 +321,8 @@ type CommandDefBase =
 			description: string;
 			aliases?: string[];
 			banner?: boolean;
+			executable?: boolean;
+			skipUpgradeCheck?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -332,6 +337,8 @@ type CommandDefBase =
 			description: string;
 			aliases?: string[];
 			banner?: boolean;
+			executable?: boolean;
+			skipUpgradeCheck?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];

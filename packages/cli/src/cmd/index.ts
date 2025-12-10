@@ -1,4 +1,5 @@
 import type { CommandDefinition } from '../types';
+import { isRunningFromExecutable } from './upgrade';
 
 // Use dynamic imports for bundler compatibility while maintaining lazy loading
 export async function discoverCommands(): Promise<CommandDefinition[]> {
@@ -17,8 +18,14 @@ export async function discoverCommands(): Promise<CommandDefinition[]> {
 	]);
 
 	const commands: CommandDefinition[] = [];
+	const isExecutable = isRunningFromExecutable();
 
 	for (const cmd of commandModules) {
+		// Skip commands that require running from an executable when not in one
+		if (cmd.executable && !isExecutable) {
+			continue;
+		}
+
 		commands.push(cmd);
 
 		// Auto-create hidden top-level aliases for subcommands with toplevel: true
