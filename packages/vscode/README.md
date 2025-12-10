@@ -28,21 +28,27 @@ code --install-extension agentuity-vscode-<version>.vsix
 ## Features
 
 ### Agent Explorer
+
 View all agents in your Agentuity project in the sidebar.
 
 ### Data Explorer
+
 Browse cloud data resources:
+
 - **Key-Value** - View namespaces and keys
 - **Object Store** - View buckets and objects
 - **Vector** - View vector indexes
 
 ### Dev Server
+
 Start, stop, and monitor the development server with status bar integration.
 
 ### Workbench Integration
+
 Open the Agentuity Workbench in your browser with one click.
 
 ### AI Commands (for Coding Agents)
+
 The extension exposes commands that AI coding tools (Claude Code, Cursor, Amp) can use:
 
 ```typescript
@@ -54,6 +60,7 @@ const schema = await vscode.commands.executeCommand('agentuity.getAiSchema');
 ```
 
 ### Chat Participant
+
 Use `@agentuity` in GitHub Copilot Chat to get help with your agents:
 
 - "What agents are available?"
@@ -62,23 +69,23 @@ Use `@agentuity` in GitHub Copilot Chat to get help with your agents:
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `Agentuity: Login` | Login via CLI in terminal |
-| `Agentuity: Logout` | Logout from Agentuity |
-| `Agentuity: Who Am I?` | Show current user |
-| `Agentuity: Start Dev Server` | Start the dev server |
-| `Agentuity: Stop Dev Server` | Stop the dev server |
-| `Agentuity: Open Workbench` | Open Workbench in browser |
-| `Agentuity: Deploy` | Deploy to Agentuity Cloud |
-| `Agentuity: Refresh` | Refresh auth and project state |
+| Command                       | Description                    |
+| ----------------------------- | ------------------------------ |
+| `Agentuity: Login`            | Login via CLI in terminal      |
+| `Agentuity: Logout`           | Logout from Agentuity          |
+| `Agentuity: Who Am I?`        | Show current user              |
+| `Agentuity: Start Dev Server` | Start the dev server           |
+| `Agentuity: Stop Dev Server`  | Stop the dev server            |
+| `Agentuity: Open Workbench`   | Open Workbench in browser      |
+| `Agentuity: Deploy`           | Deploy to Agentuity Cloud      |
+| `Agentuity: Refresh`          | Refresh auth and project state |
 
 ## Configuration
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `agentuity.cliPath` | `""` | Custom path to CLI executable |
-| `agentuity.devServer.port` | `3500` | Default dev server port |
+| Setting                    | Default | Description                   |
+| -------------------------- | ------- | ----------------------------- |
+| `agentuity.cliPath`        | `""`    | Custom path to CLI executable |
+| `agentuity.devServer.port` | `3500`  | Default dev server port       |
 
 ## Development
 
@@ -108,7 +115,8 @@ bun run compile
 
 **Agent Explorer**: Should list agents from your project after the project is detected.
 
-**Data Explorer**: 
+**Data Explorer**:
+
 - Expand "Key-Value" to see namespaces and keys
 - Expand "Object Store" to see buckets and objects
 - Click on a key to view its contents

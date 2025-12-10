@@ -243,7 +243,8 @@ export function MonacoJsonEditor({
 							if (model) {
 								const markers = monaco.editor.getModelMarkers({ resource: model.uri });
 								const hasErrors = markers.some(
-									(marker: monaco.editor.IMarker) => marker.severity === monaco.MarkerSeverity.Error
+									(marker: monaco.editor.IMarker) =>
+										marker.severity === monaco.MarkerSeverity.Error
 								);
 								onValidationChange(hasErrors);
 							}

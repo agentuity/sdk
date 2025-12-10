@@ -1,17 +1,17 @@
 /**
  * Git helper utilities for detecting and using git safely.
- * 
+ *
  * On macOS, git may be a stub that triggers Xcode Command Line Tools installation popup.
  * This helper detects the real git binary and provides safe wrappers.
  */
 
 /**
  * Check if git is available and is the real git binary (not the macOS stub).
- * 
+ *
  * On macOS without Xcode CLT installed, /usr/bin/git exists but it's a stub that
  * triggers a popup asking to install developer tools. We detect this by checking
  * if Xcode Command Line Tools are installed using `xcode-select -p`.
- * 
+ *
  * @returns true if git is available and functional, false otherwise
  */
 export async function isGitAvailable(): Promise<boolean> {
@@ -28,7 +28,7 @@ export async function isGitAvailable(): Promise<boolean> {
 				stdout: 'pipe',
 				stderr: 'pipe',
 			});
-			
+
 			// If xcode-select -p fails, CLT are not installed, git is just a stub
 			if (result.exitCode !== 0) {
 				return false;

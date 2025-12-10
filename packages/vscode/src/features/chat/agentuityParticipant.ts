@@ -154,7 +154,10 @@ async function handleNaturalLanguage(
 		return handleDeploy(stream);
 	}
 
-	if (prompt.includes('session') && (prompt.includes('list') || prompt.includes('show') || prompt.includes('recent'))) {
+	if (
+		prompt.includes('session') &&
+		(prompt.includes('list') || prompt.includes('show') || prompt.includes('recent'))
+	) {
 		return handleSessions(stream);
 	}
 
@@ -206,15 +209,15 @@ async function handleNaturalLanguage(
 	}
 
 	// Deployment patterns
-	if (
-		prompt.includes('deployment') ||
-		(prompt.includes('list') && prompt.includes('deploy'))
-	) {
+	if (prompt.includes('deployment') || (prompt.includes('list') && prompt.includes('deploy'))) {
 		return handleDeployments(stream);
 	}
 
 	// Logs patterns
-	if (prompt.includes('log') && (prompt.includes('session') || prompt.includes('view') || prompt.includes('show'))) {
+	if (
+		prompt.includes('log') &&
+		(prompt.includes('session') || prompt.includes('view') || prompt.includes('show'))
+	) {
 		return handleLogs('', stream);
 	}
 
@@ -500,9 +503,7 @@ async function handleSessions(stream: vscode.ChatResponseStream): Promise<vscode
 		const status = session.success ? '✓' : '✗';
 		const shortId = session.id.substring(0, 8);
 		const time = new Date(session.created_at).toLocaleString();
-		const duration = session.duration
-			? `${(session.duration / 1_000_000).toFixed(0)}ms`
-			: '-';
+		const duration = session.duration ? `${(session.duration / 1_000_000).toFixed(0)}ms` : '-';
 		stream.markdown(`| ${status} | ${shortId} | ${time} | ${duration} | ${session.trigger} |\n`);
 	}
 
@@ -755,7 +756,10 @@ async function handleDeployments(stream: vscode.ChatResponseStream): Promise<vsc
 	}
 
 	stream.markdown('\n');
-	stream.button({ title: 'View in Deployments Explorer', command: 'agentuity.deployments.refresh' });
+	stream.button({
+		title: 'View in Deployments Explorer',
+		command: 'agentuity.deployments.refresh',
+	});
 
 	return { metadata: { command: 'deployments' } };
 }
@@ -776,7 +780,11 @@ async function handleLogs(
 		stream.markdown('## Session Logs\n\n');
 		stream.markdown('Usage: `/logs <session-id>`\n\n');
 		stream.markdown('Get a session ID from `/sessions` first.\n\n');
-		stream.button({ title: 'View Sessions', command: 'workbench.action.chat.open', arguments: [{ query: '@agentuity /sessions' }] });
+		stream.button({
+			title: 'View Sessions',
+			command: 'workbench.action.chat.open',
+			arguments: [{ query: '@agentuity /sessions' }],
+		});
 		return { metadata: { command: 'logs' } };
 	}
 
@@ -832,7 +840,11 @@ async function handleFallback(
 	stream.markdown('- **CLI** - "What CLI commands are available?"\n\n');
 
 	stream.markdown('Type `/help` for complete CLI documentation.\n\n');
-	stream.button({ title: 'Show Help', command: 'workbench.action.chat.open', arguments: [{ query: '@agentuity /help' }] });
+	stream.button({
+		title: 'Show Help',
+		command: 'workbench.action.chat.open',
+		arguments: [{ query: '@agentuity /help' }],
+	});
 
 	return { metadata: { command: 'fallback' } };
 }

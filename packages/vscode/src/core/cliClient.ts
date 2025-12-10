@@ -219,7 +219,11 @@ export class CliClient {
 					);
 					resolveOnce({
 						success: false,
-						error: structuredError?.message || stderr || stdout || `Command failed with exit code ${exitCode}`,
+						error:
+							structuredError?.message ||
+							stderr ||
+							stdout ||
+							`Command failed with exit code ${exitCode}`,
 						structuredError,
 						exitCode,
 					});
@@ -298,15 +302,11 @@ export class CliClient {
 		});
 	}
 
-
-
 	async getKvValue(namespace: string, key: string): Promise<CliResult<KvGetResponse>> {
 		return this.exec<KvGetResponse>(['cloud', 'keyvalue', 'get', namespace, key], {
 			format: 'json',
 		});
 	}
-
-
 
 	async getAiCapabilities(): Promise<CliResult<AiCapabilitiesResponse>> {
 		return this.exec<AiCapabilitiesResponse>(['ai', 'capabilities', 'show'], { format: 'json' });
@@ -379,7 +379,10 @@ export class CliClient {
 	}
 
 	// Stream methods
-	async listStreams(opts?: { size?: number; name?: string }): Promise<CliResult<StreamListResponse>> {
+	async listStreams(opts?: {
+		size?: number;
+		name?: string;
+	}): Promise<CliResult<StreamListResponse>> {
 		const args = ['cloud', 'stream', 'list'];
 		if (opts?.size) {
 			args.push('--size', String(opts.size));
@@ -489,10 +492,10 @@ export class CliClient {
 	}
 
 	async getSessionLogs(sessionId: string): Promise<CliResult<SessionLog[]>> {
-		return this.exec<SessionLog[]>(
-			this.withProjectDir(['cloud', 'session', 'logs', sessionId]),
-			{ format: 'json', timeout: 60000 }
-		);
+		return this.exec<SessionLog[]>(this.withProjectDir(['cloud', 'session', 'logs', sessionId]), {
+			format: 'json',
+			timeout: 60000,
+		});
 	}
 
 	dispose(): void {
@@ -534,8 +537,6 @@ export interface KvGetResponse {
 	data: unknown;
 	contentType: string;
 }
-
-
 
 // Database types
 export interface DbInfo {

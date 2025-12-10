@@ -28,23 +28,30 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	// Generate project identifier from config for localStorage scoping
 	const projectId = useMemo(() => {
 		// Use a combination of baseUrl and apiKey hash to create unique project identifier
-		const configHash = btoa(JSON.stringify({ 
-			route: config.route, 
-			apiKey: config.apiKey?.substring(0, 8) // Only first 8 chars for uniqueness without exposing key
-		})).replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+		const configHash = btoa(
+			JSON.stringify({
+				route: config.route,
+				apiKey: config.apiKey?.substring(0, 8), // Only first 8 chars for uniqueness without exposing key
+			})
+		)
+			.replace(/[^a-zA-Z0-9]/g, '')
+			.substring(0, 16);
 		return `project_${configHash}`;
 	}, [config]);
 
 	// localStorage utilities scoped by project
 	const getStorageKey = useCallback((key: string) => `agentuity_${projectId}_${key}`, [projectId]);
-	
-	const saveSelectedAgent = useCallback((agentId: string) => {
-		try {
-			localStorage.setItem(getStorageKey('selected_agent'), agentId);
-		} catch (error) {
-			console.warn('Failed to save selected agent to localStorage:', error);
-		}
-	}, [getStorageKey]);
+
+	const saveSelectedAgent = useCallback(
+		(agentId: string) => {
+			try {
+				localStorage.setItem(getStorageKey('selected_agent'), agentId);
+			} catch (error) {
+				console.warn('Failed to save selected agent to localStorage:', error);
+			}
+		},
+		[getStorageKey]
+	);
 
 	const loadSelectedAgent = useCallback((): string | null => {
 		try {
@@ -133,16 +140,16 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	useEffect(() => {
 		if (agents && Object.keys(agents).length > 0 && !selectedAgent) {
 			logger.debug('🔍 Available agents:', agents);
-			
+
 			// Try to load previously selected agent from localStorage
 			const savedAgentId = loadSelectedAgent();
 			logger.debug('💾 Saved agent from localStorage:', savedAgentId);
-			
+
 			// Check if saved agent still exists in available agents
-			const savedAgent = savedAgentId ? Object.values(agents).find(
-				(agent) => agent.metadata.agentId === savedAgentId
-			) : null;
-			
+			const savedAgent = savedAgentId
+				? Object.values(agents).find((agent) => agent.metadata.agentId === savedAgentId)
+				: null;
+
 			if (savedAgent && savedAgentId) {
 				logger.debug('✅ Restoring saved agent:', savedAgent.metadata.name);
 				setSelectedAgent(savedAgentId);
@@ -152,7 +159,10 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 					a.metadata.name.localeCompare(b.metadata.name)
 				);
 				const firstAgent = sortedAgents[0];
-				logger.debug('🎯 No saved agent found, using first agent (alphabetically):', firstAgent);
+				logger.debug(
+					'🎯 No saved agent found, using first agent (alphabetically):',
+					firstAgent
+				);
 				logger.debug('🆔 Setting selectedAgent to:', firstAgent.metadata.agentId);
 				setSelectedAgent(firstAgent.metadata.agentId);
 				// Save this selection for next time

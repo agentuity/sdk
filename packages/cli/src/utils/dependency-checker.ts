@@ -145,7 +145,10 @@ export async function checkAndUpgradeDependencies(
 	for (const { name } of packagesToUpgrade) {
 		try {
 			logger.debug('Installing %s@%s', name, cliVersion);
-			const installResult = await $`bun add ${name}@${cliVersion}`.cwd(projectDir).quiet().nothrow();
+			const installResult = await $`bun add ${name}@${cliVersion}`
+				.cwd(projectDir)
+				.quiet()
+				.nothrow();
 
 			if (installResult.exitCode !== 0) {
 				logger.error(
