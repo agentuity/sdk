@@ -46,6 +46,7 @@ The structure of this mono repository:
 - `packages/server` - Runtime-agnostic server utilities (Node.js & Bun)
 - `packages/workbench` - Workbench UI component
 - `packages/schema` - Schema validation library
+- `packages/vscode` - VS Code extension for Agentuity
 
 Each package is its own published npm package but all packages are versioned and published together.
 
