@@ -17,13 +17,13 @@ export class CookieJar {
 		// Parse cookie: "name=value; Path=/; ..."
 		const parts = cookieHeader.split(';');
 		const nameValue = parts[0];
-		
+
 		// Split only on first '=' to preserve '=' in cookie value
 		const equalIndex = nameValue.indexOf('=');
 		if (equalIndex === -1) {
 			return;
 		}
-		
+
 		const name = nameValue.slice(0, equalIndex).trim();
 		const value = nameValue.slice(equalIndex + 1).trim();
 

@@ -51,10 +51,10 @@ jobs:
               # Generate CLI API key for authentication
               APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
-              
+
               # Set SDK key for integration-suite tests
               echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
-              
+
               # Set OpenAI API key for embedding operations
               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 

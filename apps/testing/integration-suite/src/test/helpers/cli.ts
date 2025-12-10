@@ -7,10 +7,28 @@
 
 import { $ } from 'bun';
 import { resolve } from 'path';
+import { existsSync } from 'fs';
 
-// Resolve CLI binary path relative to this file
-// helpers -> test -> src -> integration-suite -> testing -> apps -> sdk (root)
-const CLI_PATH = resolve(import.meta.dir, '../../../../../../packages/cli/bin/cli.ts');
+// Resolve CLI binary path - works in both dev and built (.agentuity) environments
+// In dev: src/test/helpers -> ../../../../../../packages/cli/bin/cli.ts
+// In built: .agentuity -> ../../../../packages/cli/bin/cli.ts
+function resolveCliPath(): string {
+	// Try from import.meta.dir first (dev environment)
+	const devPath = resolve(import.meta.dir, '../../../../../../packages/cli/bin/cli.ts');
+	if (existsSync(devPath)) {
+		return devPath;
+	}
+	
+	// Fall back to process.cwd() (built environment running from .agentuity)
+	const builtPath = resolve(process.cwd(), '../../../../packages/cli/bin/cli.ts');
+	if (existsSync(builtPath)) {
+		return builtPath;
+	}
+	
+	throw new Error(`CLI not found at ${devPath} or ${builtPath}`);
+}
+
+const CLI_PATH = resolveCliPath();
 
 export interface CLIResult {
 	stdout: string;
