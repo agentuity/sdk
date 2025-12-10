@@ -7,7 +7,7 @@ import {
 	type VectorStorage,
 	type InferOutput,
 	toCamelCase,
-	EvalRunStartEvent,
+	type EvalRunStartEvent,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
 import type { Context, MiddlewareHandler } from 'hono';
@@ -37,21 +37,21 @@ export type AgentEventName = 'started' | 'completed' | 'errored';
 
 export type AgentEventCallback<TAgent extends Agent<any, any, any>> =
 	| ((
-			eventName: 'started',
-			agent: TAgent,
-			context: AgentContext<any, any, any>
-	  ) => Promise<void> | void)
+		eventName: 'started',
+		agent: TAgent,
+		context: AgentContext<any, any, any>
+	) => Promise<void> | void)
 	| ((
-			eventName: 'completed',
-			agent: TAgent,
-			context: AgentContext<any, any, any>
-	  ) => Promise<void> | void)
+		eventName: 'completed',
+		agent: TAgent,
+		context: AgentContext<any, any, any>
+	) => Promise<void> | void)
 	| ((
-			eventName: 'errored',
-			agent: TAgent,
-			context: AgentContext<any, any, any>,
-			data: Error
-	  ) => Promise<void> | void);
+		eventName: 'errored',
+		agent: TAgent,
+		context: AgentContext<any, any, any>,
+		data: Error
+	) => Promise<void> | void);
 
 /**
  * Runtime state container for agents and event listeners.
@@ -416,14 +416,14 @@ export interface AgentValidator<
 	 */
 	(): TInput extends StandardSchemaV1
 		? Handler<
-				any,
-				any,
-				{
-					// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-					in: {};
-					out: { json: InferOutput<TInput> };
-				}
-			>
+			any,
+			any,
+			{
+				// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+				in: {};
+				out: { json: InferOutput<TInput>; };
+			}
+		>
 		: Handler<any, any, any>;
 
 	/**
@@ -454,7 +454,7 @@ export interface AgentValidator<
 		{
 			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			in: {};
-			out: { json: InferOutput<TOverrideOutput> };
+			out: { json: InferOutput<TOverrideOutput>; };
 		}
 	>;
 
@@ -786,51 +786,51 @@ export type Agent<
 			data: Error
 		) => Promise<void> | void
 	): void;
-} & (TInput extends StandardSchemaV1 ? { inputSchema: TInput } : { inputSchema?: never }) &
-	(TOutput extends StandardSchemaV1 ? { outputSchema: TOutput } : { outputSchema?: never }) &
-	(TStream extends true ? { stream: true } : { stream?: false });
+} & (TInput extends StandardSchemaV1 ? { inputSchema: TInput; } : { inputSchema?: never; }) &
+	(TOutput extends StandardSchemaV1 ? { outputSchema: TOutput; } : { outputSchema?: never; }) &
+	(TStream extends true ? { stream: true; } : { stream?: false; });
 
 type InferSchemaInput<T> = T extends StandardSchemaV1 ? InferOutput<T> : never;
 
 type InferStreamOutput<TOutput, TStream extends boolean> = TStream extends true
 	? TOutput extends StandardSchemaV1
-		? ReadableStream<InferOutput<TOutput>>
-		: ReadableStream<unknown>
+	? ReadableStream<InferOutput<TOutput>>
+	: ReadableStream<unknown>
 	: TOutput extends StandardSchemaV1
-		? InferOutput<TOutput>
-		: void;
+	? InferOutput<TOutput>
+	: void;
 
-type SchemaInput<TSchema> = TSchema extends { input: infer I } ? I : undefined;
-type SchemaOutput<TSchema> = TSchema extends { output: infer O } ? O : undefined;
-type SchemaStream<TSchema> = TSchema extends { stream: infer S }
+type SchemaInput<TSchema> = TSchema extends { input: infer I; } ? I : undefined;
+type SchemaOutput<TSchema> = TSchema extends { output: infer O; } ? O : undefined;
+type SchemaStream<TSchema> = TSchema extends { stream: infer S; }
 	? S extends boolean
-		? S
-		: false
+	? S
+	: false
 	: false;
 
 type SchemaHandlerReturn<TSchema> =
 	SchemaStream<TSchema> extends true
-		? SchemaOutput<TSchema> extends StandardSchemaV1
-			? ReadableStream<InferOutput<SchemaOutput<TSchema>>>
-			: ReadableStream<unknown>
-		: SchemaOutput<TSchema> extends StandardSchemaV1
-			? InferOutput<SchemaOutput<TSchema>>
-			: void;
+	? SchemaOutput<TSchema> extends StandardSchemaV1
+	? ReadableStream<InferOutput<SchemaOutput<TSchema>>>
+	: ReadableStream<unknown>
+	: SchemaOutput<TSchema> extends StandardSchemaV1
+	? InferOutput<SchemaOutput<TSchema>>
+	: void;
 
 // Handler signature based on schema + setup result (no self-reference)
 type AgentHandlerFromConfig<TSchema, TSetupReturn, TAppState = AppState> =
 	SchemaInput<TSchema> extends infer I
-		? I extends StandardSchemaV1
-			? (
-					ctx: AgentContext<any, TSetupReturn, TAppState>,
-					input: InferOutput<I>
-				) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
-			: (
-					ctx: AgentContext<any, TSetupReturn, TAppState>
-				) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
-		: (
-				ctx: AgentContext<any, TSetupReturn, TAppState>
-			) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>;
+	? I extends StandardSchemaV1
+	? (
+		ctx: AgentContext<any, TSetupReturn, TAppState>,
+		input: InferOutput<I>
+	) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
+	: (
+		ctx: AgentContext<any, TSetupReturn, TAppState>
+	) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>
+	: (
+		ctx: AgentContext<any, TSetupReturn, TAppState>
+	) => Promise<SchemaHandlerReturn<TSchema>> | SchemaHandlerReturn<TSchema>;
 
 /**
  * Configuration object for creating an agent with automatic type inference.
@@ -856,12 +856,12 @@ type AgentHandlerFromConfig<TSchema, TSetupReturn, TAppState = AppState> =
  */
 export interface CreateAgentConfig<
 	TSchema extends
-		| {
-				input?: StandardSchemaV1;
-				output?: StandardSchemaV1;
-				stream?: boolean;
-		  }
-		| undefined = undefined,
+	| {
+		input?: StandardSchemaV1;
+		output?: StandardSchemaV1;
+		stream?: boolean;
+	}
+	| undefined = undefined,
 	TConfig extends (app: AppState) => any = any,
 > {
 	/**
@@ -1016,10 +1016,10 @@ export interface AgentRunner<
 	 * ```
 	 */
 	run: undefined extends TInput
-		? () => Promise<InferStreamOutput<Exclude<TOutput, undefined>, TStream>>
-		: (
-				input: InferSchemaInput<Exclude<TInput, undefined>>
-			) => Promise<InferStreamOutput<Exclude<TOutput, undefined>, TStream>>;
+	? () => Promise<InferStreamOutput<Exclude<TOutput, undefined>, TStream>>
+	: (
+		input: InferSchemaInput<Exclude<TInput, undefined>>
+	) => Promise<InferStreamOutput<Exclude<TOutput, undefined>, TStream>>;
 
 	/**
 	 * Create Hono validator middleware for this agent.
@@ -1239,7 +1239,7 @@ export type AgentName = keyof AgentRegistry extends never ? string : keyof Agent
  * This interface is augmented by generated code to provide strongly-typed agent access.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface AgentRegistry {}
+export interface AgentRegistry { }
 
 export const registerAgent = (name: AgentName, agent: Agent<any, any, any, any, any>): void => {
 	agents.set(name, agent);
@@ -1357,42 +1357,42 @@ export interface CreateAgentConfigExplicit<
 	 * ```
 	 */
 	handler: TInput extends StandardSchemaV1
-		? TStream extends true
-			? TOutput extends StandardSchemaV1
-				? (
-						c: AgentContext<any, TConfig, TAppState>,
-						input: InferOutput<TInput>
-					) =>
-						| Promise<ReadableStream<InferOutput<TOutput>>>
-						| ReadableStream<InferOutput<TOutput>>
-				: (
-						c: AgentContext<any, TConfig, TAppState>,
-						input: InferOutput<TInput>
-					) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
-			: TOutput extends StandardSchemaV1
-				? (
-						c: AgentContext<any, TConfig, TAppState>,
-						input: InferOutput<TInput>
-					) => Promise<InferOutput<TOutput>> | InferOutput<TOutput>
-				: (
-						c: AgentContext<any, TConfig, TAppState>,
-						input: InferOutput<TInput>
-					) => Promise<void> | void
-		: TStream extends true
-			? TOutput extends StandardSchemaV1
-				? (
-						c: AgentContext<any, TConfig, TAppState>
-					) =>
-						| Promise<ReadableStream<InferOutput<TOutput>>>
-						| ReadableStream<InferOutput<TOutput>>
-				: (
-						c: AgentContext<any, TConfig, TAppState>
-					) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
-			: TOutput extends StandardSchemaV1
-				? (
-						c: AgentContext<any, TConfig, TAppState>
-					) => Promise<InferOutput<TOutput>> | InferOutput<TOutput>
-				: (c: AgentContext<any, TConfig, TAppState>) => Promise<void> | void;
+	? TStream extends true
+	? TOutput extends StandardSchemaV1
+	? (
+		c: AgentContext<any, TConfig, TAppState>,
+		input: InferOutput<TInput>
+	) =>
+		| Promise<ReadableStream<InferOutput<TOutput>>>
+		| ReadableStream<InferOutput<TOutput>>
+	: (
+		c: AgentContext<any, TConfig, TAppState>,
+		input: InferOutput<TInput>
+	) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
+	: TOutput extends StandardSchemaV1
+	? (
+		c: AgentContext<any, TConfig, TAppState>,
+		input: InferOutput<TInput>
+	) => Promise<InferOutput<TOutput>> | InferOutput<TOutput>
+	: (
+		c: AgentContext<any, TConfig, TAppState>,
+		input: InferOutput<TInput>
+	) => Promise<void> | void
+	: TStream extends true
+	? TOutput extends StandardSchemaV1
+	? (
+		c: AgentContext<any, TConfig, TAppState>
+	) =>
+		| Promise<ReadableStream<InferOutput<TOutput>>>
+		| ReadableStream<InferOutput<TOutput>>
+	: (
+		c: AgentContext<any, TConfig, TAppState>
+	) => Promise<ReadableStream<unknown>> | ReadableStream<unknown>
+	: TOutput extends StandardSchemaV1
+	? (
+		c: AgentContext<any, TConfig, TAppState>
+	) => Promise<InferOutput<TOutput>> | InferOutput<TOutput>
+	: (c: AgentContext<any, TConfig, TAppState>) => Promise<void> | void;
 }
 
 /**
@@ -1428,12 +1428,12 @@ export interface CreateAgentConfigExplicit<
  */
 export function createAgent<
 	TSchema extends
-		| {
-				input?: StandardSchemaV1;
-				output?: StandardSchemaV1;
-				stream?: boolean;
-		  }
-		| undefined = undefined,
+	| {
+		input?: StandardSchemaV1;
+		output?: StandardSchemaV1;
+		stream?: boolean;
+	}
+	| undefined = undefined,
 	TConfig extends (app: AppState) => any = any,
 >(
 	name: string,
@@ -2103,11 +2103,11 @@ export function createAgent<
 		removeEventListener: agent.removeEventListener,
 		run: inputSchema
 			? async (input: InferSchemaInput<Exclude<TInput, undefined>>) => {
-					return await agent.handler(input);
-				}
+				return await agent.handler(input);
+			}
 			: async () => {
-					return await agent.handler();
-				},
+				return await agent.handler();
+			},
 		[INTERNAL_AGENT]: agent, // Store reference to internal agent for testing
 	};
 
