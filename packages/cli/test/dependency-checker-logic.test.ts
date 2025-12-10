@@ -250,9 +250,7 @@ describe('dependency-checker logic', () => {
 				{ name: '@agentuity/runtime', specifier: '*' },
 			];
 
-			const needsUpgrade = packages.filter(({ specifier }) =>
-				shouldUpgradeVersion(specifier)
-			);
+			const needsUpgrade = packages.filter(({ specifier }) => shouldUpgradeVersion(specifier));
 
 			expect(needsUpgrade).toEqual([
 				{ name: '@agentuity/core', specifier: 'latest' },
@@ -268,9 +266,7 @@ describe('dependency-checker logic', () => {
 				{ name: '@agentuity/cli', specifier: '1.5.0-beta.1' },
 			];
 
-			const needsUpgrade = packages.filter(({ specifier }) =>
-				shouldUpgradeVersion(specifier)
-			);
+			const needsUpgrade = packages.filter(({ specifier }) => shouldUpgradeVersion(specifier));
 
 			expect(needsUpgrade).toEqual([]);
 		});
@@ -282,9 +278,7 @@ describe('dependency-checker logic', () => {
 				{ name: '@agentuity/cli', specifier: '>=1.0.0' },
 			];
 
-			const needsUpgrade = packages.filter(({ specifier }) =>
-				shouldUpgradeVersion(specifier)
-			);
+			const needsUpgrade = packages.filter(({ specifier }) => shouldUpgradeVersion(specifier));
 
 			expect(needsUpgrade).toEqual(packages);
 		});

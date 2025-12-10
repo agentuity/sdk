@@ -51,7 +51,7 @@ describe('WebSocket Reconnection', () => {
 							ws.send(JSON.stringify({ id: message.id, success: true }));
 						}
 					}
-				} catch (err) {
+				} catch {
 					// Ignore parse errors
 				}
 			});

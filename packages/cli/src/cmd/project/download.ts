@@ -231,7 +231,7 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 	// Check for real git (not macOS stub that triggers Xcode CLT popup)
 	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper');
 	const gitAvailable = await isGitAvailable();
-	
+
 	if (gitAvailable) {
 		// Get default branch from git config, fallback to 'main'
 		const defaultBranch = (await getDefaultBranch()) || 'main';
