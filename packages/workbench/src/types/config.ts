@@ -18,6 +18,12 @@ export interface SchemaPanelControls {
 	close: () => void;
 }
 
+export interface ExternalSidebarIntegration {
+	isOpen: boolean;
+	setOpen: (open: boolean) => void;
+	toggle?: () => void;
+}
+
 // Context type for the provider
 export interface WorkbenchContextType {
 	config: WorkbenchConfig;
@@ -42,4 +48,6 @@ export interface WorkbenchContextType {
 	schemaPanel: SchemaPanelControls;
 	// Optional callback for external schema triggers
 	onSchemaToggle?: () => void;
+	// External sidebar integration info
+	externalSidebar?: ExternalSidebarIntegration;
 }

@@ -1,8 +1,7 @@
-// Export 4 main AI elements/components
+// Export main AI elements/components
 export { Chat } from './components/internal/Chat';
 export { Header } from './components/internal/Header';
 export { App } from './components/App';
-export { Inline } from './components/Inline';
 export { ConnectionStatus } from './components/ConnectionStatus';
 
 // Export provider

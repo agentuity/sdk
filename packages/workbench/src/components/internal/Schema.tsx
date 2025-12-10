@@ -11,21 +11,33 @@ export interface SchemaProps {
 }
 
 export function Schema({ className }: SchemaProps) {
-	const { agents, selectedAgent, schemasLoading, schemasError, schemaPanel } = useWorkbench();
+	const { agents, selectedAgent, schemasLoading, schemasError, schemaPanel, externalSidebar } = useWorkbench();
 
 	const selectedAgentData =
 		Object.values(agents).find((agent) => agent.metadata.agentId === selectedAgent) || null;
 
+	// Use different positioning based on whether we're integrated with external sidebar
+	const isExternalSidebar = !!externalSidebar;
+	const baseClasses = isExternalSidebar 
+		? 'h-full w-full bg-background border-l border-border flex flex-col' // Full height/width when external
+		: 'absolute top-0 right-0 h-full w-[600px] max-w-[90vw] bg-background border-l border-border z-50 shadow-xl flex flex-col'; // Overlay when internal
+	
+	const visibilityClasses = isExternalSidebar
+		? '' // External sidebar handles visibility
+		: schemaPanel.isOpen ? 'translate-x-0' : 'translate-x-full'; // Internal handles slide animation
+
 	return (
 		<>
-			{/* Sidebar */}
-			<div
-				className={cn(
-					'absolute top-0 right-0 h-full w-[600px] max-w-[90vw] bg-background border-l border-border z-50 shadow-xl transition-transform duration-300 ease-in-out flex flex-col',
-					schemaPanel.isOpen ? 'translate-x-0' : 'translate-x-full',
-					className
-				)}
-			>
+			{/* Only render if schema panel is open OR if using external sidebar (external sidebar controls visibility) */}
+			{(schemaPanel.isOpen || isExternalSidebar) && (
+				<div
+					className={cn(
+						baseClasses,
+						!isExternalSidebar && 'transition-transform duration-300 ease-in-out',
+						!isExternalSidebar && visibilityClasses,
+						className
+					)}
+				>
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b border-border">
 					<div className="flex items-center gap-2">
@@ -105,6 +117,7 @@ export function Schema({ className }: SchemaProps) {
 					</div>
 				</ScrollArea>
 			</div>
+			)}
 		</>
 	);
 }

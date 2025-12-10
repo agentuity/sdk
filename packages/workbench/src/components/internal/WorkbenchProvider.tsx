@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import type { UIMessage } from 'ai';
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
-import type { WorkbenchContextType, ConnectionStatus } from '../../types/config';
+import type { WorkbenchContextType, ConnectionStatus, ExternalSidebarIntegration } from '../../types/config';
 import { useAgentSchemas } from '../../hooks/useAgentSchemas';
 import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
 import { useLogger } from '../../hooks/useLogger';
@@ -25,9 +25,10 @@ export function useSchemaPanel() {
 interface WorkbenchProviderProps {
 	config: WorkbenchConfig;
 	children: React.ReactNode;
+	externalSidebar?: ExternalSidebarIntegration;
 }
 
-export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) {
+export function WorkbenchProvider({ config, children, externalSidebar }: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
 
 	// Generate project identifier from config for localStorage scoping
@@ -347,13 +348,26 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		saveSelectedAgent(agentId);
 	};
 
-	// Schema panel controls
-	const schemaPanel = useMemo(() => ({
-		isOpen: schemaOpen,
-		toggle: () => setSchemaOpen(prev => !prev),
-		open: () => setSchemaOpen(true),
-		close: () => setSchemaOpen(false),
-	}), [schemaOpen]);
+	// Schema panel controls - use external sidebar when available
+	const schemaPanel = useMemo(() => {
+		if (externalSidebar) {
+			// Use external sidebar integration
+			return {
+				isOpen: externalSidebar.isOpen,
+				toggle: externalSidebar.toggle || (() => externalSidebar.setOpen(!externalSidebar.isOpen)),
+				open: () => externalSidebar.setOpen(true),
+				close: () => externalSidebar.setOpen(false),
+			};
+		}
+		
+		// Fallback to internal state
+		return {
+			isOpen: schemaOpen,
+			toggle: () => setSchemaOpen(prev => !prev),
+			open: () => setSchemaOpen(true),
+			close: () => setSchemaOpen(false),
+		};
+	}, [schemaOpen, externalSidebar]);
 
 	const contextValue: WorkbenchContextType = {
 		config,
@@ -376,6 +390,8 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		connectionStatus,
 		// Schema panel controls
 		schemaPanel,
+		// External sidebar integration
+		externalSidebar,
 	};
 
 	return <WorkbenchContext.Provider value={contextValue}>{children}</WorkbenchContext.Provider>;
