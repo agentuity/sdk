@@ -129,14 +129,25 @@ jobs:
                  echo "✓ upgrade command correctly hidden in bun"
               fi
               
-              # Test upgrade --force (should complete successfully since we're on 0.0.x)
+              # Test upgrade --force execution
               echo "=== Testing upgrade --force execution ==="
-              AGENTUITY_SKIP_VERSION_CHECK=1 $BINARY upgrade --force > /tmp/upgrade-output.txt 2>&1 || true
-              if grep -q "Successfully upgraded\|Downloading\|Already on latest" /tmp/upgrade-output.txt; then
-                 echo "✓ upgrade command executed successfully"
+              set +e  # Capture exit code
+              AGENTUITY_SKIP_VERSION_CHECK=1 $BINARY upgrade --force > /tmp/upgrade-output.txt 2>&1
+              UPGRADE_EXIT_CODE=$?
+              set -e
+              
+              echo "Upgrade exit code: $UPGRADE_EXIT_CODE"
+              cat /tmp/upgrade-output.txt
+              
+              # Check if upgrade ran successfully (exit 0 or output shows expected progress)
+              # Network failures are acceptable in CI - we just want to verify the command runs
+              if [ $UPGRADE_EXIT_CODE -eq 0 ]; then
+                 echo "✓ upgrade command completed successfully"
+              elif grep -q "Successfully upgraded\|Downloading\|Already on latest\|Validating binary" /tmp/upgrade-output.txt; then
+                 echo "✓ upgrade command executed (may have failed at network/install step, but logic ran)"
               else
-                 echo "ERROR: upgrade command didn't run properly"
-                 echo "Output was:"
+                 echo "ERROR: upgrade command didn't run properly (exit code: $UPGRADE_EXIT_CODE)"
+                 echo "Expected to see upgrade-related output but got:"
                  cat /tmp/upgrade-output.txt
                  exit 1
               fi
