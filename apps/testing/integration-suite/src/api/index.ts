@@ -1,8 +1,8 @@
 import { createRouter } from '@agentuity/runtime';
 import { testSuite } from '../test/suite';
-import statePersistenceAgent from '../agent/state/agent';
-import stateReaderAgent from '../agent/state/reader-agent';
-import stateWriterAgent from '../agent/state/writer-agent';
+import statePersistenceAgent from '@agents/state/agent';
+import stateReaderAgent from '@agents/state/reader-agent';
+import stateWriterAgent from '@agents/state/writer-agent';
 
 const router = createRouter();
 
@@ -141,7 +141,9 @@ router.websocket('/ws/echo', (c) => (ws) => {
 	});
 });
 
-// Shared broadcast clients list (outside the handler)
+// Shared broadcast clients list
+// Note: This is intentionally module-level for broadcast functionality
+// Tests close connections which removes them from the list
 const broadcastClients: any[] = [];
 
 router.websocket('/ws/broadcast', (c) => (ws) => {
@@ -219,8 +221,20 @@ router.sse('/sse/events', (c) => async (stream) => {
 });
 
 router.sse('/sse/counter', (c) => async (stream) => {
-	const count = parseInt(c.req.query('count') || '5', 10);
-	const delay = parseInt(c.req.query('delay') || '50', 10);
+	let count = parseInt(c.req.query('count') || '5', 10);
+	let delay = parseInt(c.req.query('delay') || '50', 10);
+
+	// Validate and sanitize count
+	if (!Number.isFinite(count) || !Number.isInteger(count) || count < 0) {
+		count = 5; // Default
+	}
+	if (count > 1000) count = 1000; // Cap at 1000
+
+	// Validate and sanitize delay
+	if (!Number.isFinite(delay) || !Number.isInteger(delay) || delay < 0) {
+		delay = 50; // Default
+	}
+	if (delay > 5000) delay = 5000; // Cap at 5 seconds
 
 	for (let i = 0; i < count; i++) {
 		stream.writeSSE({ data: JSON.stringify({ count: i, timestamp: Date.now() }) });
@@ -229,7 +243,14 @@ router.sse('/sse/counter', (c) => async (stream) => {
 });
 
 router.sse('/sse/long-lived', (c) => async (stream) => {
-	const duration = parseInt(c.req.query('duration') || '2000', 10);
+	let duration = parseInt(c.req.query('duration') || '2000', 10);
+
+	// Validate and sanitize duration
+	if (Number.isNaN(duration) || !Number.isFinite(duration) || duration < 0) {
+		duration = 2000; // Default to 2 seconds
+	}
+	if (duration > 30000) duration = 30000; // Cap at 30 seconds
+
 	const interval = 100;
 	const startTime = Date.now();
 
