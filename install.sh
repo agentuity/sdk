@@ -29,21 +29,21 @@ trap cleanup_terminal EXIT INT TERM
 # Parse command line arguments
 while [ $# -gt 0 ]; do
   case $1 in
-    --force)
-      force_install=true
-      shift
-      ;;
-    --version)
-      requested_version="$2"
-      shift 2
-      ;;
-    -y|--yes|--non-interactive)
-      non_interactive=true
-      shift
-      ;;
-    *)
-      shift
-      ;;
+  --force)
+    force_install=true
+    shift
+    ;;
+  --version)
+    requested_version="$2"
+    shift 2
+    ;;
+  -y | --yes | --non-interactive)
+    non_interactive=true
+    shift
+    ;;
+  *)
+    shift
+    ;;
   esac
 done
 
@@ -109,7 +109,6 @@ linux-x64 | linux-arm64 | darwin-x64 | darwin-arm64) ;;
   ;;
 esac
 
-
 is_musl=false
 if [ "$os" = "linux" ]; then
   if [ -f /etc/alpine-release ]; then
@@ -148,34 +147,34 @@ if [ -z "$requested_version" ]; then
     printf "${RED}Failed to fetch version information${NC}\n"
     exit 1
   fi
-  
+
   # Validate the version string format (should be vX.Y.Z or X.Y.Z)
   case "$specific_version" in
-    v[0-9]*.[0-9]*.[0-9]*|[0-9]*.[0-9]*.[0-9]*)
-      # Valid version format
-      ;;
-    *"message"*|*"error"*|*"Error"*|*"<html>"*|*"<!DOCTYPE"*)
-      printf "${RED}Error: Server returned an error instead of version: $specific_version${NC}\n"
-      exit 1
-      ;;
-    *)
-      printf "${RED}Error: Invalid version format received: $specific_version${NC}\n"
-      exit 1
-      ;;
+  v[0-9]*.[0-9]*.[0-9]* | [0-9]*.[0-9]*.[0-9]*)
+    # Valid version format
+    ;;
+  *"message"* | *"error"* | *"Error"* | *"<html>"* | *"<!DOCTYPE"*)
+    printf "${RED}Error: Server returned an error instead of version: $specific_version${NC}\n"
+    exit 1
+    ;;
+  *)
+    printf "${RED}Error: Invalid version format received: $specific_version${NC}\n"
+    exit 1
+    ;;
   esac
-  
+
   # Normalize version to always have 'v' prefix for consistent comparisons
   case "$specific_version" in
-    v*) ;;
-    *) specific_version="v${specific_version}" ;;
+  v*) ;;
+  *) specific_version="v${specific_version}" ;;
   esac
-  
+
   url="https://agentuity.sh/release/sdk/${specific_version}/${os}/${arch}"
 else
   # Normalize user-provided version to always have 'v' prefix
   case "$requested_version" in
-    v*) specific_version=$requested_version ;;
-    *) specific_version="v${requested_version}" ;;
+  v*) specific_version=$requested_version ;;
+  *) specific_version="v${requested_version}" ;;
   esac
   url="https://agentuity.sh/release/sdk/${specific_version}/${os}/${arch}"
 fi
@@ -201,12 +200,12 @@ ensure_bun_on_path() {
   if command -v bun >/dev/null 2>&1; then
     return 0
   fi
-  
+
   # Check if bun exists in $HOME/.bun/bin
   if [ -f "$HOME/.bun/bin/bun" ]; then
     export PATH="$HOME/.bun/bin:$PATH"
   fi
-  
+
   # Always return 0 - this is a best-effort helper
   return 0
 }
@@ -221,19 +220,19 @@ check_brew_install() {
         printf "Do you want to uninstall the Homebrew version? (y/N): "
         read -r response </dev/tty 2>/dev/null || read -r response
         case "$response" in
-          [yY][eE][sS]|[yY])
-            print_message info "${MUTED}Uninstalling Homebrew version...${NC}"
-            if brew uninstall agentuity; then
-              print_message info "${MUTED}Successfully uninstalled Homebrew version${NC}"
-            else
-              print_message error "Failed to uninstall Homebrew version. Please run: brew uninstall agentuity"
-              exit 1
-            fi
-            ;;
-          *)
-            print_message error "Please uninstall the Homebrew version first: brew uninstall agentuity"
+        [yY][eE][sS] | [yY])
+          print_message info "${MUTED}Uninstalling Homebrew version...${NC}"
+          if brew uninstall agentuity; then
+            print_message info "${MUTED}Successfully uninstalled Homebrew version${NC}"
+          else
+            print_message error "Failed to uninstall Homebrew version. Please run: brew uninstall agentuity"
             exit 1
-            ;;
+          fi
+          ;;
+        *)
+          print_message error "Please uninstall the Homebrew version first: brew uninstall agentuity"
+          exit 1
+          ;;
         esac
       else
         print_message error "Please uninstall the Homebrew version first: brew uninstall agentuity"
@@ -249,32 +248,32 @@ check_bun_install() {
 
     # Check if the binary is in a bun global install location
     case "$agentuity_path" in
-      *"/.bun/bin/"*|*"/bun/bin/"*)
-        print_message warning "${RED}Warning: ${NC}Bun global installation detected at ${CYAN}$agentuity_path${NC}"
-        print_message info "${MUTED}The global binary installation is recommended over bun global install.${NC}"
+    *"/.bun/bin/"* | *"/bun/bin/"*)
+      print_message warning "${RED}Warning: ${NC}Bun global installation detected at ${CYAN}$agentuity_path${NC}"
+      print_message info "${MUTED}The global binary installation is recommended over bun global install.${NC}"
 
-        if [ "$non_interactive" = false ]; then
-          print_message info ""
-          print_message info "To switch to the binary installation:"
-          print_message info "  1. Uninstall the bun global package: ${CYAN}bun remove -g @agentuity/cli${NC}"
-          print_message info "  2. Re-run this install script"
-          print_message info ""
-          printf "Continue anyway? (y/N): "
-          read -r response </dev/tty 2>/dev/null || read -r response
-          case "$response" in
-            [yY][eE][sS]|[yY])
-              print_message info "${MUTED}Continuing with installation. Note: You may need to adjust your PATH.${NC}"
-              ;;
-            *)
-              print_message info "Installation cancelled. Please uninstall the bun global package first."
-              exit 0
-              ;;
-          esac
-        else
-          print_message info "${MUTED}Running in non-interactive mode. Installing anyway.${NC}"
-          print_message info "${MUTED}Note: Ensure $INSTALL_DIR is in your PATH before the bun global path.${NC}"
-        fi
-        ;;
+      if [ "$non_interactive" = false ]; then
+        print_message info ""
+        print_message info "To switch to the binary installation:"
+        print_message info "  1. Uninstall the bun global package: ${CYAN}bun remove -g @agentuity/cli${NC}"
+        print_message info "  2. Re-run this install script"
+        print_message info ""
+        printf "Continue anyway? (y/N): "
+        read -r response </dev/tty 2>/dev/null || read -r response
+        case "$response" in
+        [yY][eE][sS] | [yY])
+          print_message info "${MUTED}Continuing with installation. Note: You may need to adjust your PATH.${NC}"
+          ;;
+        *)
+          print_message info "Installation cancelled. Please uninstall the bun global package first."
+          exit 0
+          ;;
+        esac
+      else
+        print_message info "${MUTED}Running in non-interactive mode. Installing anyway.${NC}"
+        print_message info "${MUTED}Note: Ensure $INSTALL_DIR is in your PATH before the bun global path.${NC}"
+      fi
+      ;;
     esac
   fi
 }
@@ -283,7 +282,7 @@ check_legacy_binaries() {
   # First check if agentuity command exists and test if it's the legacy CLI
   if command -v agentuity >/dev/null 2>&1; then
     agentuity_path=$(which agentuity)
-    
+
     # Test if it's the legacy CLI by running 'agentuity ai' (which should fail on legacy)
     if agentuity ai >/dev/null 2>&1; then
       # Command succeeded, this is the new CLI - no action needed
@@ -297,19 +296,19 @@ check_legacy_binaries() {
         printf "Do you want to remove the legacy CLI? (y/N): "
         read -r response </dev/tty 2>/dev/null || read -r response
         case "$response" in
-          [yY][eE][sS]|[yY])
-            if rm -f "$agentuity_path" 2>/dev/null; then
-              print_message info "${MUTED}Successfully removed legacy CLI${NC}"
-            else
-              print_message error "Failed to remove legacy CLI at $agentuity_path"
-              print_message error "Please remove it manually: rm $agentuity_path"
-              exit 1
-            fi
-            ;;
-          *)
-            print_message error "Please remove the legacy CLI first: rm $agentuity_path"
+        [yY][eE][sS] | [yY])
+          if rm -f "$agentuity_path" 2>/dev/null; then
+            print_message info "${MUTED}Successfully removed legacy CLI${NC}"
+          else
+            print_message error "Failed to remove legacy CLI at $agentuity_path"
+            print_message error "Please remove it manually: rm $agentuity_path"
             exit 1
-            ;;
+          fi
+          ;;
+        *)
+          print_message error "Please remove the legacy CLI first: rm $agentuity_path"
+          exit 1
+          ;;
         esac
       else
         print_message error "Please remove the legacy CLI first: rm $agentuity_path"
@@ -317,11 +316,11 @@ check_legacy_binaries() {
       fi
     fi
   fi
-  
+
   # Also check for legacy install script binaries in known locations
   # Legacy install script used these paths (in order of preference):
   # $HOME/.local/bin, $HOME/.bin, $HOME/bin, /usr/local/bin
-  
+
   found_legacy=false
   legacy_locations=""
 
@@ -334,7 +333,7 @@ check_legacy_binaries() {
           continue
         fi
       fi
-      
+
       found_legacy=true
       legacy_locations="$legacy_locations $path"
     fi
@@ -350,18 +349,18 @@ check_legacy_binaries() {
       printf "Remove legacy binaries? (Y/n): "
       read -r response </dev/tty 2>/dev/null || read -r response
       case "$response" in
-        [nN][oO]|[nN])
-          print_message info "${MUTED}Skipping legacy binary removal. Note: You may have conflicts.${NC}"
-          ;;
-        *)
-          for location in $legacy_locations; do
-            if rm -f "$location" 2>/dev/null; then
-              print_message info "${MUTED}Removed $location${NC}"
-            else
-              print_message warning "Could not remove $location - you may need to remove it manually"
-            fi
-          done
-          ;;
+      [nN][oO] | [nN])
+        print_message info "${MUTED}Skipping legacy binary removal. Note: You may have conflicts.${NC}"
+        ;;
+      *)
+        for location in $legacy_locations; do
+          if rm -f "$location" 2>/dev/null; then
+            print_message info "${MUTED}Removed $location${NC}"
+          else
+            print_message warning "Could not remove $location - you may need to remove it manually"
+          fi
+        done
+        ;;
       esac
     else
       # Non-interactive mode: auto-remove if writable
@@ -379,13 +378,13 @@ check_legacy_binaries() {
 check_version() {
   if command -v agentuity >/dev/null 2>&1; then
     agentuity_path=$(which agentuity)
-    
+
     # Check if it's a legacy CLI - if so, skip version check (will be overwritten)
     if ! agentuity ai >/dev/null 2>&1; then
       # This is a legacy CLI, skip version check and continue to install
       return
     fi
-    
+
     installed_version=v$(agentuity version 2>/dev/null || echo "unknown")
 
     if [ "$installed_version" != "$specific_version" ] && [ "$installed_version" != "unknown" ]; then
@@ -418,47 +417,47 @@ check_musl_and_gcompat() {
 version_compare() {
   _vc_ver1="$1"
   _vc_ver2="$2"
-  
+
   # Remove 'v' prefix if present
   _vc_ver1=$(echo "$_vc_ver1" | sed 's/^v//')
   _vc_ver2=$(echo "$_vc_ver2" | sed 's/^v//')
-  
+
   # Strip prerelease identifiers (e.g., -alpha.1) and build metadata (e.g., +abc123)
   # This ensures 1.3.3-alpha.1 is treated as 1.3.3 for comparison
   _vc_ver1=$(echo "$_vc_ver1" | sed 's/[-+].*//')
   _vc_ver2=$(echo "$_vc_ver2" | sed 's/[-+].*//')
-  
+
   # Split versions into components
   _vc_major1=$(echo "$_vc_ver1" | cut -d. -f1)
   _vc_minor1=$(echo "$_vc_ver1" | cut -d. -f2)
   _vc_patch1=$(echo "$_vc_ver1" | cut -d. -f3)
-  
+
   _vc_major2=$(echo "$_vc_ver2" | cut -d. -f1)
   _vc_minor2=$(echo "$_vc_ver2" | cut -d. -f2)
   _vc_patch2=$(echo "$_vc_ver2" | cut -d. -f3)
-  
+
   # Validate that all components are numeric
-  case "$_vc_major1" in ''|*[!0-9]*) return 2 ;; esac
-  case "$_vc_minor1" in ''|*[!0-9]*) return 2 ;; esac
-  case "$_vc_patch1" in ''|*[!0-9]*) return 2 ;; esac
-  case "$_vc_major2" in ''|*[!0-9]*) return 2 ;; esac
-  case "$_vc_minor2" in ''|*[!0-9]*) return 2 ;; esac
-  case "$_vc_patch2" in ''|*[!0-9]*) return 2 ;; esac
-  
+  case "$_vc_major1" in '' | *[!0-9]*) return 2 ;; esac
+  case "$_vc_minor1" in '' | *[!0-9]*) return 2 ;; esac
+  case "$_vc_patch1" in '' | *[!0-9]*) return 2 ;; esac
+  case "$_vc_major2" in '' | *[!0-9]*) return 2 ;; esac
+  case "$_vc_minor2" in '' | *[!0-9]*) return 2 ;; esac
+  case "$_vc_patch2" in '' | *[!0-9]*) return 2 ;; esac
+
   # Compare major version
   if [ "$_vc_major1" -gt "$_vc_major2" ]; then
     return 0
   elif [ "$_vc_major1" -lt "$_vc_major2" ]; then
     return 1
   fi
-  
+
   # Compare minor version
   if [ "$_vc_minor1" -gt "$_vc_minor2" ]; then
     return 0
   elif [ "$_vc_minor1" -lt "$_vc_minor2" ]; then
     return 1
   fi
-  
+
   # Compare patch version
   if [ "$_vc_patch1" -ge "$_vc_patch2" ]; then
     return 0
@@ -470,20 +469,20 @@ version_compare() {
 check_bun_version() {
   # Capture original PATH before we modify it (for later config file checks)
   ORIGINAL_PATH="$PATH"
-  
+
   # First, try to ensure bun is on PATH if it's installed in $HOME/.bun/bin
   ensure_bun_on_path
-  
+
   # Check if we're in CI mode (auto-install enabled)
   is_ci=false
   if [ -n "${CI:-}" ] || [ -n "${GITHUB_ACTIONS:-}" ] || [ -n "${GITLAB_CI:-}" ] || [ -n "${CIRCLECI:-}" ] || [ -n "${JENKINS_HOME:-}" ] || [ -n "${TRAVIS:-}" ]; then
     is_ci=true
   fi
-  
+
   if ! command -v bun >/dev/null 2>&1; then
     print_message warning "${RED}Bun is not installed${NC}"
     print_message info "${MUTED}Bun ${MIN_BUN_VERSION} or higher is required${NC}"
-    
+
     if [ "$is_ci" = true ]; then
       print_message info "${MUTED}CI environment detected - auto-installing Bun...${NC}"
       if curl -fsSL https://bun.sh/install | bash; then
@@ -499,42 +498,42 @@ check_bun_version() {
       printf "Would you like to install Bun now? (Y/n): "
       read -r response </dev/tty 2>/dev/null || read -r response
       case "$response" in
-        [nN][oO]|[nN])
-          print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
+      [nN][oO] | [nN])
+        print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
+        exit 1
+        ;;
+      *)
+        print_message info "${MUTED}Installing Bun...${NC}"
+        if curl -fsSL https://bun.sh/install | bash; then
+          print_message info "${MUTED}Bun installed successfully${NC}"
+          # Add Bun to PATH for the current session
+          export PATH="$HOME/.bun/bin:$PATH"
+          print_message info "${MUTED}Continuing with installation...${NC}"
+        else
+          print_message error "Failed to install Bun"
           exit 1
-          ;;
-        *)
-          print_message info "${MUTED}Installing Bun...${NC}"
-          if curl -fsSL https://bun.sh/install | bash; then
-            print_message info "${MUTED}Bun installed successfully${NC}"
-            # Add Bun to PATH for the current session
-            export PATH="$HOME/.bun/bin:$PATH"
-            print_message info "${MUTED}Continuing with installation...${NC}"
-          else
-            print_message error "Failed to install Bun"
-            exit 1
-          fi
-          ;;
+        fi
+        ;;
       esac
     else
       print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
       exit 1
     fi
   fi
-  
+
   # Get installed Bun version
   installed_bun_version=$(bun --version 2>/dev/null || echo "unknown")
-  
+
   if [ "$installed_bun_version" = "unknown" ]; then
     print_message error "Could not determine Bun version"
     exit 1
   fi
-  
+
   # Check if version meets minimum requirement
   if ! version_compare "$installed_bun_version" "$MIN_BUN_VERSION"; then
     print_message warning "${RED}Bun version ${installed_bun_version} is installed${NC}"
     print_message info "${MUTED}Bun ${MIN_BUN_VERSION} or higher is required${NC}"
-    
+
     if [ "$is_ci" = true ]; then
       print_message info "${MUTED}CI environment detected - auto-upgrading Bun...${NC}"
       if bun upgrade; then
@@ -547,19 +546,19 @@ check_bun_version() {
       printf "Would you like to upgrade Bun now? (Y/n): "
       read -r response </dev/tty 2>/dev/null || read -r response
       case "$response" in
-        [nN][oO]|[nN])
-          print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
+      [nN][oO] | [nN])
+        print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
+        exit 1
+        ;;
+      *)
+        print_message info "${MUTED}Upgrading Bun...${NC}"
+        if bun upgrade; then
+          print_message info "${MUTED}Bun upgraded successfully${NC}"
+        else
+          print_message error "Failed to upgrade Bun"
           exit 1
-          ;;
-        *)
-          print_message info "${MUTED}Upgrading Bun...${NC}"
-          if bun upgrade; then
-            print_message info "${MUTED}Bun upgraded successfully${NC}"
-          else
-            print_message error "Failed to upgrade Bun"
-            exit 1
-          fi
-          ;;
+        fi
+        ;;
       esac
     else
       print_message error "Bun ${MIN_BUN_VERSION} or higher is required to continue"
@@ -611,7 +610,7 @@ download_with_progress() {
   _dwp_tracefile="${_dwp_basename}.trace"
 
   rm -f "$_dwp_tracefile"
-  
+
   # Check if mkfifo is available and working
   if ! command -v mkfifo >/dev/null 2>&1 || ! mkfifo "$_dwp_tracefile" 2>/dev/null; then
     # Fallback to simple download without progress
@@ -670,16 +669,16 @@ download_with_progress() {
 download_and_install() {
   print_message info "\n${MUTED}Installing ${NC}agentuity ${MUTED}version: ${NC}$specific_version"
   tmpdir=$(mktemp -d 2>/dev/null || mktemp -d -t tmp)
-  
+
   # Ensure cleanup on exit or interrupt
   trap 'cd / 2>/dev/null; rm -rf "$tmpdir"; cleanup_terminal; print_message error "Installation cancelled"; exit 130' EXIT INT TERM
-  
+
   cd "$tmpdir"
 
   # Download compressed file (.gz)
   gz_filename="${filename}.gz"
   gz_url="${url}.gz"
-  
+
   # Try download with progress (only works with curl)
   download_success=false
   if [ "$HAS_CURL" = true ]; then
@@ -702,31 +701,31 @@ download_and_install() {
     print_message error "Failed to download $gz_filename from $gz_url"
     exit 1
   fi
-  
+
   if [ ! -f "$gz_filename" ]; then
     print_message error "Download failed - file not found: $gz_filename"
     exit 1
   fi
-  
+
   # Check if gunzip is available
   if ! command -v gunzip >/dev/null 2>&1; then
     print_message error "gunzip is required but not installed"
     print_message error "Please install gzip: yum install gzip (RedHat/Amazon) or apt-get install gzip (Debian/Ubuntu)"
     exit 1
   fi
-  
+
   # Decompress the file
   print_message info "${MUTED}Decompressing...${NC}"
   if ! gunzip "$gz_filename"; then
     print_message error "Failed to decompress $gz_filename"
     exit 1
   fi
-  
+
   if [ ! -f "$filename" ]; then
     print_message error "Decompression failed - file not found: $filename"
     exit 1
   fi
-  
+
   # Verify it's a valid binary, not an error page
   # Check if file command exists, fallback to checking ELF magic bytes
   if command -v file >/dev/null 2>&1; then
@@ -736,8 +735,8 @@ download_and_install() {
     fi
   else
     # Fallback: check ELF magic bytes (0x7f 'E' 'L' 'F') or Mach-O magic
-    if ! head -c 4 "$filename" 2>/dev/null | grep -q "^.ELF" && \
-       ! head -c 4 "$filename" 2>/dev/null | od -An -tx1 | grep -q "7f 45 4c 46"; then
+    if ! head -c 4 "$filename" 2>/dev/null | grep -q "^.ELF" &&
+      ! head -c 4 "$filename" 2>/dev/null | od -An -tx1 | grep -q "7f 45 4c 46"; then
       print_message error "Downloaded file is not a valid executable (possibly a 404 or error page)"
       exit 1
     fi
@@ -777,7 +776,6 @@ printf "${RED}│${NC}                                                          
 printf "${RED}│${NC}  ${MUTED}Thank you for your assistance during this final testing period!${NC}    ${RED}│${NC}\n"
 printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
 printf "${RED}╰─────────────────────────────────────────────────────────────────────╯${NC}\n"
-
 
 if [ "$force_install" = false ]; then
   check_version
@@ -848,19 +846,19 @@ if [ -z "$config_file" ]; then
   bash)
     config_file="$HOME/.bashrc"
     ;;
-  ash|sh)
+  ash | sh)
     config_file="$HOME/.profile"
     ;;
   *)
     config_file="$HOME/.profile"
     ;;
   esac
-  
+
   # Create the file if it doesn't exist
   if [ ! -f "$config_file" ]; then
     touch "$config_file" 2>/dev/null || true
   fi
-  
+
   # Verify we can write to it
   if [ ! -w "$config_file" ]; then
     print_message warning "Cannot create or write to $config_file"
@@ -878,27 +876,26 @@ if [ -n "$config_file" ]; then
   bun_bin_dir="$HOME/.bun/bin"
   if [ -f "$bun_bin_dir/bun" ]; then
     case ":${ORIGINAL_PATH:-$PATH}:" in
-      *":$bun_bin_dir:"*)
-        # Bun already on PATH
-        ;;
-      *)
-        case $current_shell in
-        fish)
-          add_to_path "$config_file" "fish_add_path $bun_bin_dir"
-          ;;
-        *)
-          add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH"
-          ;;
-        esac
-        ;;
-    esac
-  fi
-  
-  # Add agentuity to PATH if not already on PATH
-  case ":$PATH:" in
-    *":$INSTALL_DIR:"*)
+    *":$bun_bin_dir:"*)
+      # Bun already on PATH
       ;;
     *)
+      case $current_shell in
+      fish)
+        add_to_path "$config_file" "fish_add_path $bun_bin_dir"
+        ;;
+      *)
+        add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH"
+        ;;
+      esac
+      ;;
+    esac
+  fi
+
+  # Add agentuity to PATH if not already on PATH
+  case ":$PATH:" in
+  *":$INSTALL_DIR:"*) ;;
+  *)
 
     case $current_shell in
     fish)
@@ -971,6 +968,6 @@ fi
 
 printf "${MUTED}To get started, run:${NC}\n"
 printf "\n"
+printf "agentuity login        ${MUTED}Login to an existing account (or signup)${NC}\n"
 printf "agentuity create       ${MUTED}Create a project${NC}\n"
-printf "agentuity login        ${MUTED}Login to an existing account${NC}\n"
 printf "agentuity help         ${MUTED}List commands and options${NC}\n"
