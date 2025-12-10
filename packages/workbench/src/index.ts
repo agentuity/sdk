@@ -9,7 +9,7 @@ export { default as App } from './components/App';
 
 // components build workbench app/web
 export { Chat } from './components/internal/Chat';
-export { Schema } from './components/internal/Schema';
+export { Schema, SchemaContent } from './components/internal/Schema';
 export { Schema as SchemaSidebar } from './components/internal/Schema';
 export {
 	useSchemaPanel,
