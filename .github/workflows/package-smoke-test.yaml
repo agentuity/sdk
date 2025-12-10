@@ -123,4 +123,4 @@ jobs:
          - name: Build and run cloud deployment tests
            run: |
               cd apps/testing/cloud-deployment
-              bun test
+              bun run test
