@@ -92,7 +92,9 @@ export function getPlatformInfo(): { os: string; arch: string } {
  * @internal Exported for testing
  */
 export async function fetchLatestVersion(): Promise<string> {
-	const response = await fetch('https://agentuity.sh/release/sdk/version');
+	const response = await fetch('https://agentuity.sh/release/sdk/version', {
+		signal: AbortSignal.timeout(10000), // 10 second timeout
+	});
 	if (!response.ok) {
 		throw new Error(`Failed to fetch version: ${response.statusText}`);
 	}

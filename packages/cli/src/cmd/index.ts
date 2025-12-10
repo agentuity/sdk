@@ -22,8 +22,7 @@ export async function discoverCommands(): Promise<CommandDefinition[]> {
 
 	for (const cmd of commandModules) {
 		// Skip commands that require running from an executable when not in one
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		if ((cmd as any).executable && !isExecutable) {
+		if (cmd.executable && !isExecutable) {
 			continue;
 		}
 
