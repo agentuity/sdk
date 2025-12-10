@@ -407,81 +407,6 @@ function getPlaceholderValue(schema: z.ZodTypeAny): string {
 	}
 }
 
-function extractDefaultValue(schema: z.ZodTypeAny): unknown {
-	let unwrapped = schema;
-
-	// Unwrap optional layers
-	while (unwrapped instanceof z.ZodOptional) {
-		unwrapped = (unwrapped._def as unknown as { innerType: z.ZodTypeAny }).innerType;
-	}
-
-	// Check if it's a ZodDefault (has defaultValue in def or _def)
-	const checkDef = (obj: unknown): unknown => {
-		if (typeof obj !== 'object' || obj === null) return undefined;
-		const anyObj = obj as Record<string, unknown>;
-
-		// Check `def` property first (used in some Zod versions)
-		if ('def' in anyObj && typeof anyObj.def === 'object' && anyObj.def !== null) {
-			const def = anyObj.def as Record<string, unknown>;
-			if (def.type === 'default' && 'defaultValue' in def) {
-				const val = def.defaultValue;
-				return typeof val === 'function' ? (val as () => unknown)() : val;
-			}
-		}
-
-		// Check `_def` property (standard Zod property)
-		if ('_def' in anyObj && typeof anyObj._def === 'object' && anyObj._def !== null) {
-			const def = anyObj._def as Record<string, unknown>;
-			if (def.type === 'default' && 'defaultValue' in def) {
-				const val = def.defaultValue;
-				return typeof val === 'function' ? (val as () => unknown)() : val;
-			}
-		}
-
-		return undefined;
-	};
-
-	return checkDef(unwrapped);
-}
-
-function getValueWithDefaults(schema: z.ZodTypeAny, providedValue: unknown): unknown {
-	// If value is explicitly provided, use it
-	if (providedValue !== undefined) {
-		return providedValue;
-	}
-
-	// Try to extract default value
-	const defaultValue = extractDefaultValue(schema);
-	if (defaultValue !== undefined) {
-		return defaultValue;
-	}
-
-	// For optional fields without defaults, check if it's an object
-	let unwrapped = schema;
-	if (schema instanceof z.ZodOptional) {
-		unwrapped = (schema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
-	}
-
-	// If it's an object schema, recursively populate defaults
-	if (unwrapped instanceof z.ZodObject) {
-		const shape = unwrapped.shape;
-		const result: Record<string, unknown> = {};
-		let hasAnyDefaults = false;
-
-		for (const [key, fieldSchema] of Object.entries(shape)) {
-			const fieldValue = getValueWithDefaults(fieldSchema as z.ZodTypeAny, undefined);
-			if (fieldValue !== undefined) {
-				result[key] = fieldValue;
-				hasAnyDefaults = true;
-			}
-		}
-
-		return hasAnyDefaults ? result : undefined;
-	}
-
-	return undefined;
-}
-
 export function generateYAMLTemplate(name: string): string {
 	const lines: string[] = [];
 
@@ -552,39 +477,6 @@ class ProjectConfigNotFoundExpection extends Error {
 
 type ProjectConfig = z.infer<typeof ProjectSchema>;
 
-function generateJSON5WithComments(
-	jsonSchema: string,
-	schema: z.ZodObject<z.ZodRawShape>,
-	data: Record<string, unknown>
-): string {
-	const lines: string[] = ['{'];
-	const shape = schema.shape;
-	const keys = Object.keys(shape);
-
-	lines.push(`  "$schema": "${jsonSchema}",`);
-
-	for (let i = 0; i < keys.length; i++) {
-		const key = keys[i];
-		const fieldSchema = shape[key] as z.ZodTypeAny;
-		const description = getSchemaDescription(fieldSchema);
-		const providedValue = data[key];
-
-		if (description) {
-			lines.push(`  // ${description}`);
-		}
-
-		// Get value with defaults applied
-		const valueWithDefaults = getValueWithDefaults(fieldSchema, providedValue);
-		const safeValue = valueWithDefaults === undefined ? null : valueWithDefaults;
-		const jsonValue = JSON.stringify(safeValue, null, 2).replace(/\n/g, '\n  ');
-		const comma = i < keys.length - 1 ? ',' : '';
-		lines.push(`  ${JSON.stringify(key)}: ${jsonValue}${comma}`);
-	}
-
-	lines.push('}');
-	return lines.join('\n');
-}
-
 export async function loadProjectConfig(
 	dir: string,
 	config?: Config | null
@@ -636,12 +528,11 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 
 	// generate the project config
 	const configPath = join(dir, 'agentuity.json');
-	const json5Content = generateJSON5WithComments(
-		'https://agentuity.dev/schema/cli/v1/agentuity.json',
-		ProjectSchema,
-		sanitizedConfig
-	);
-	await Bun.write(configPath, json5Content + '\n');
+	const configData = {
+		$schema: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
+		...sanitizedConfig,
+	};
+	await Bun.write(configPath, JSON.stringify(configData, null, 2) + '\n');
 
 	// generate the .env file with initial secret
 	const envPath = join(dir, '.env');
@@ -656,9 +547,6 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	mkdirSync(vscodeDir);
 
 	const settings = {
-		'files.associations': {
-			'agentuity.json': 'jsonc',
-		},
 		'search.exclude': {
 			'**/.git/**': true,
 			'**/node_modules/**': true,
