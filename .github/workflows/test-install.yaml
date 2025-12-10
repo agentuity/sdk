@@ -11,7 +11,7 @@ on:
          - 'scripts/test-upgrade.sh'
          - 'packages/cli/**'
          - '.github/workflows/test-install.yaml'
-      pull_request:
+   pull_request:
       paths:
          - 'install.sh'
          - 'scripts/test-install.sh'
