@@ -1,4 +1,4 @@
-import { createAgent, type AgentContext } from '@agentuity/runtime';
+import { createAgent } from '@agentuity/runtime';
 
 const agent = createAgent('eval/no-schema', {
 	handler: async (_c) => {
