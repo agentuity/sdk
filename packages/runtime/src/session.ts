@@ -866,6 +866,8 @@ export class ThreadWebSocketClient {
 		}
 		this.authenticated = false;
 		this.pendingRequests.clear();
+		this.reconnectAttempts = 0;
+		this.wsConnecting = null;
 	}
 }
 

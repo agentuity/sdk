@@ -56,10 +56,14 @@ describe('WebSocket Reconnection', () => {
 			});
 		});
 
-		// Wait for server to start and get assigned port
-		await new Promise((resolve) => setTimeout(resolve, 100));
-		const address = wss.address() as { port: number };
-		port = address.port;
+		// Wait for server to be ready
+		await new Promise<void>((resolve) => {
+			wss.on('listening', () => {
+				const address = wss.address() as { port: number };
+				port = address.port;
+				resolve();
+			});
+		});
 	});
 
 	afterAll(() => {
