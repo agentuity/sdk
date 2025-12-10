@@ -23,8 +23,9 @@ const UpgradeResponseSchema = z.object({
 
 /**
  * Check if running from a compiled executable (not via bun/bunx)
+ * @internal Exported for testing
  */
-function isRunningFromExecutable(): boolean {
+export function isRunningFromExecutable(): boolean {
 	// Check if running via bun/bunx
 	if (Bun.main.includes('/node_modules/') || Bun.main.includes('.ts')) {
 		return false;
@@ -40,8 +41,9 @@ function isRunningFromExecutable(): boolean {
 
 /**
  * Get the OS and architecture for downloading the binary
+ * @internal Exported for testing
  */
-function getPlatformInfo(): { os: string; arch: string } {
+export function getPlatformInfo(): { os: string; arch: string } {
 	const platform = process.platform;
 	const arch = process.arch;
 
@@ -75,8 +77,9 @@ function getPlatformInfo(): { os: string; arch: string } {
 
 /**
  * Fetch the latest version from the API
+ * @internal Exported for testing
  */
-async function fetchLatestVersion(): Promise<string> {
+export async function fetchLatestVersion(): Promise<string> {
 	const response = await fetch('https://agentuity.sh/release/sdk/version');
 	if (!response.ok) {
 		throw new Error(`Failed to fetch version: ${response.statusText}`);
@@ -131,7 +134,16 @@ async function downloadBinary(
 	}
 
 	// Decompress using gunzip
-	await $`gunzip ${gzFile}`.quiet();
+	try {
+		await $`gunzip ${gzFile}`.quiet();
+	} catch (error) {
+		if (await Bun.file(gzFile).exists()) {
+			await $`rm ${gzFile}`.quiet();
+		}
+		throw new Error(
+			`Decompression failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+		);
+	}
 
 	// Verify decompressed file exists
 	if (!(await Bun.file(tmpFile).exists())) {
@@ -207,6 +219,10 @@ async function replaceBinary(newBinaryPath: string, currentBinaryPath: string): 
 			if (await Bun.file(backupPath).exists()) {
 				await $`mv ${backupPath} ${currentBinaryPath}`.quiet();
 			}
+			// Clean up temp file if it exists
+			if (await Bun.file(tempPath).exists()) {
+				await $`rm ${tempPath}`.quiet();
+			}
 			throw error;
 		}
 	} else {
@@ -276,7 +292,7 @@ export const command = createCommand({
 			if (!force) {
 				tui.info(`Current version: ${tui.muted(currentVersion)}`);
 				tui.info(`Latest version:  ${tui.bold(latestVersion)}`);
-				console.log();
+				tui.info('');
 
 				const shouldUpgrade = await tui.confirm('Do you want to upgrade?', true);
 

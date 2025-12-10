@@ -142,14 +142,14 @@ test_upgrade_from_old_version() {
 	print_header "Test: Upgrade from v0.0.86 to Latest"
 
 	tmpdir=$(mktemp -d 2>/dev/null || mktemp -d -t tmp)
-	trap 'rm -rf "$tmpdir"' EXIT
+	cleanup() { rm -rf "$tmpdir" 2>/dev/null || true; }
+	trap cleanup EXIT
 
 	# Install specific old version (0.0.86 - known to not have upgrade command)
 	print_info "Installing v0.0.86..."
 	if ! HOME="$tmpdir" VERSION=0.0.86 CI=true "$INSTALL_SCRIPT" -y > "$tmpdir/install-old.log" 2>&1; then
 		print_error "Failed to install v0.0.86"
 		cat "$tmpdir/install-old.log"
-		rm -rf "$tmpdir"
 		return 1
 	fi
 
@@ -159,7 +159,6 @@ test_upgrade_from_old_version() {
 
 	if [ "$old_version" != "0.0.86" ]; then
 		print_error "Expected version 0.0.86, got: $old_version"
-		rm -rf "$tmpdir"
 		return 1
 	fi
 
@@ -179,7 +178,6 @@ test_upgrade_from_old_version() {
 	if ! HOME="$tmpdir" CI=true "$INSTALL_SCRIPT" -y --force > "$tmpdir/install-latest.log" 2>&1; then
 		print_error "Failed to upgrade to latest"
 		cat "$tmpdir/install-latest.log"
-		rm -rf "$tmpdir"
 		return 1
 	fi
 
@@ -193,11 +191,8 @@ test_upgrade_from_old_version() {
 			print_success "No newer version available - already on latest ($old_version)"
 		else
 			print_error "Version did not change after upgrade (expected $latest_version, got $new_version)"
-			rm -rf "$tmpdir"
 			return 1
 		fi
-		rm -rf "$tmpdir"
-		trap - EXIT
 		return 0
 	fi
 
@@ -205,7 +200,6 @@ test_upgrade_from_old_version() {
 	if ! PATH="$tmpdir/.agentuity/bin:$PATH" agentuity upgrade --help > "$tmpdir/new-upgrade-check.log" 2>&1; then
 		print_error "New version doesn't have upgrade command"
 		cat "$tmpdir/new-upgrade-check.log"
-		rm -rf "$tmpdir"
 		return 1
 	fi
 
@@ -213,16 +207,19 @@ test_upgrade_from_old_version() {
 
 	# Test the actual upgrade command (with --force since we're already on latest)
 	print_info "Testing upgrade command execution..."
-	if PATH="$tmpdir/.agentuity/bin:$PATH" agentuity upgrade --json > "$tmpdir/upgrade-exec.log" 2>&1 || true; then
-		print_info "Upgrade command output:"
-		cat "$tmpdir/upgrade-exec.log" | head -20
+	PATH="$tmpdir/.agentuity/bin:$PATH" agentuity upgrade --json > "$tmpdir/upgrade-exec.log" 2>&1
+	exit_status=$?
+
+	print_info "Upgrade command output:"
+	cat "$tmpdir/upgrade-exec.log" | head -20
+
+	if [ $exit_status -eq 0 ]; then
 		print_success "Upgrade command executed successfully"
 	else
-		print_info "Upgrade command may have failed (network issues are ok for this test)"
+		print_info "Upgrade command exited with status $exit_status (network issues are tolerated)"
 	fi
 
-	rm -rf "$tmpdir"
-	trap - EXIT
+	cleanup
 	return 0
 }
 

@@ -1,60 +1,38 @@
 import { describe, test, expect } from 'bun:test';
-import { join } from 'node:path';
+import { isRunningFromExecutable, getPlatformInfo } from '../src/cmd/upgrade';
 
 describe('upgrade command', () => {
-	test('should detect when running from executable', async () => {
-		// Mock Bun.main to simulate running from installed location
-		const homeDir = process.env.HOME || '/home/test';
-		const executablePath = join(homeDir, '.agentuity', 'bin', 'agentuity');
-
-		// We can't actually mock Bun.main directly, so we'll test the logic
-		const isFromInstall =
-			!executablePath.includes('/node_modules/') &&
-			!executablePath.includes('.ts') &&
-			(executablePath.startsWith(join(homeDir, '.agentuity', 'bin')) ||
-				executablePath.startsWith('/usr/local/bin'));
-
-		expect(isFromInstall).toBe(true);
+	test('isRunningFromExecutable returns false when running from bun script', () => {
+		const result = isRunningFromExecutable();
+		expect(typeof result).toBe('boolean');
+		expect(result).toBe(false);
 	});
 
-	test('should detect when running from bun script', () => {
-		// Simulate running from bun
-		const scriptPath = '/Users/test/project/src/cli.ts';
-
-		const isFromInstall =
-			!scriptPath.includes('/node_modules/') &&
-			!scriptPath.includes('.ts') &&
-			(scriptPath.startsWith('/home/test/.agentuity/bin') ||
-				scriptPath.startsWith('/usr/local/bin'));
-
-		expect(isFromInstall).toBe(false);
+	test('getPlatformInfo returns valid platform info', () => {
+		const platform = getPlatformInfo();
+		expect(platform).toHaveProperty('os');
+		expect(platform).toHaveProperty('arch');
+		expect(['darwin', 'linux']).toContain(platform.os);
+		expect(['x64', 'arm64']).toContain(platform.arch);
 	});
 
-	test('should detect when running from node_modules', () => {
-		const modulePath = '/Users/test/project/node_modules/@agentuity/cli/bin/cli.js';
-
-		const isFromInstall =
-			!modulePath.includes('/node_modules/') &&
-			!modulePath.includes('.ts') &&
-			(modulePath.startsWith('/home/test/.agentuity/bin') ||
-				modulePath.startsWith('/usr/local/bin'));
-
-		expect(isFromInstall).toBe(false);
-	});
-
-	test('should get correct platform info for darwin arm64', () => {
-		if (process.platform === 'darwin' && process.arch === 'arm64') {
-			expect(process.platform).toBe('darwin');
-			expect(process.arch).toBe('arm64');
+	test.skipIf(process.platform !== 'darwin' || process.arch !== 'arm64')(
+		'getPlatformInfo returns darwin arm64',
+		() => {
+			const platform = getPlatformInfo();
+			expect(platform.os).toBe('darwin');
+			expect(platform.arch).toBe('arm64');
 		}
-	});
+	);
 
-	test('should get correct platform info for linux x64', () => {
-		if (process.platform === 'linux' && process.arch === 'x64') {
-			expect(process.platform).toBe('linux');
-			expect(process.arch).toBe('x64');
+	test.skipIf(process.platform !== 'linux' || process.arch !== 'x64')(
+		'getPlatformInfo returns linux x64',
+		() => {
+			const platform = getPlatformInfo();
+			expect(platform.os).toBe('linux');
+			expect(platform.arch).toBe('x64');
 		}
-	});
+	);
 
 	test('should validate version format', () => {
 		const validVersions = ['v1.2.3', '1.2.3', 'v0.0.1', '10.20.30'];
