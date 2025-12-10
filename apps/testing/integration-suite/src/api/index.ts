@@ -158,6 +158,7 @@ router.websocket('/ws/broadcast', (c) => (ws) => {
 		// Broadcast to all connected clients
 		let sent = 0;
 		let errors = 0;
+
 		for (const client of broadcastClients) {
 			try {
 				client.send(event.data);
