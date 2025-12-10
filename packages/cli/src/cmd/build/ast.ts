@@ -465,6 +465,13 @@ export async function parseEvalMetadata(
 		| 'error';
 	const logger = createLogger(logLevel);
 	logger.trace(`Parsing evals from ${filename}`);
+
+	// Quick string search optimization - skip AST parsing if no createEval call
+	if (!contents.includes('createEval')) {
+		logger.trace(`Skipping ${filename}: no createEval found`);
+		return [contents, []];
+	}
+
 	const ast = acornLoose.parse(contents, {
 		locations: true,
 		ecmaVersion: 'latest',
