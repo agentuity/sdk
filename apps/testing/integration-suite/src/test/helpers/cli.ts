@@ -9,8 +9,8 @@ import { $ } from 'bun';
 import { resolve } from 'path';
 
 // Resolve CLI binary path relative to this file
-// src/test/helpers -> src -> integration-suite -> testing -> apps -> sdk -> packages
-const CLI_PATH = resolve(import.meta.dir, '../../../../packages/cli/bin/cli.ts');
+// helpers -> test -> src -> integration-suite -> testing -> apps -> sdk (root)
+const CLI_PATH = resolve(import.meta.dir, '../../../../../../packages/cli/bin/cli.ts');
 
 export interface CLIResult {
 	stdout: string;
