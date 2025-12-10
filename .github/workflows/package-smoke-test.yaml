@@ -46,4 +46,5 @@ jobs:
          - name: Run integration test suite
            env:
               AGENTUITY_SDK_KEY: ${{ secrets.AGENTUITY_SDK_KEY }}
+              OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
            run: bash apps/testing/integration-suite/scripts/ci-test.sh
