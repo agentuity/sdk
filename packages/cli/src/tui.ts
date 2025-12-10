@@ -29,16 +29,6 @@ function ensureCursorRestoration(): void {
 
 	// Handle process exit
 	process.on('exit', restoreCursor);
-
-	// Handle termination signals
-	process.on('SIGINT', () => {
-		restoreCursor();
-		process.exit(130);
-	});
-	process.on('SIGTERM', () => {
-		restoreCursor();
-		process.exit(143);
-	});
 }
 
 // Install handler immediately when module loads
