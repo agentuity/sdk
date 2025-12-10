@@ -1,7 +1,7 @@
 import React from 'react';
 import { WorkbenchProvider } from './internal/WorkbenchProvider';
 import { Header } from './internal/Header';
-import { Chat } from './internal/Chat';
+import { ChatWithSchema } from './internal/ChatWithSchema';
 import { ThemeProvider } from './ui/theme-provider';
 import { ResizableProvider } from './ui/resizable-provider';
 import { decodeWorkbenchConfig } from '@agentuity/core/workbench';
@@ -18,7 +18,7 @@ export function App({ configBase64 }: AppProps) {
 				<ResizableProvider>
 					<div className="flex flex-col h-screen">
 						<Header />
-						<Chat />
+						<ChatWithSchema />
 					</div>
 				</ResizableProvider>
 			</ThemeProvider>

@@ -17,6 +17,11 @@ export function useWorkbench() {
 	return context;
 }
 
+export function useSchemaPanel() {
+	const { schemaPanel } = useWorkbench();
+	return schemaPanel;
+}
+
 interface WorkbenchProviderProps {
 	config: WorkbenchConfig;
 	children: React.ReactNode;
@@ -67,6 +72,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const [inputMode, setInputMode] = useState<'text' | 'form'>('text');
 	const [isLoading, setIsLoading] = useState(false);
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
+	const [schemaOpen, setSchemaOpen] = useState(false);
 
 	// Config values
 	const baseUrl = defaultBaseUrl;
@@ -341,6 +347,14 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		saveSelectedAgent(agentId);
 	};
 
+	// Schema panel controls
+	const schemaPanel = useMemo(() => ({
+		isOpen: schemaOpen,
+		toggle: () => setSchemaOpen(prev => !prev),
+		open: () => setSchemaOpen(true),
+		close: () => setSchemaOpen(false),
+	}), [schemaOpen]);
+
 	const contextValue: WorkbenchContextType = {
 		config,
 		agents: agents || {},
@@ -360,6 +374,8 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		refetchSchemas,
 		// Connection status
 		connectionStatus,
+		// Schema panel controls
+		schemaPanel,
 	};
 
 	return <WorkbenchContext.Provider value={contextValue}>{children}</WorkbenchContext.Provider>;

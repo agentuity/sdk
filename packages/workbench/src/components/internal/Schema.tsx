@@ -7,12 +7,11 @@ import { cn } from '../../lib/utils';
 import { useWorkbench } from './WorkbenchProvider';
 
 export interface SchemaProps {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
+	className?: string;
 }
 
-export function Schema({ open, onOpenChange }: SchemaProps) {
-	const { agents, selectedAgent, schemasLoading, schemasError } = useWorkbench();
+export function Schema({ className }: SchemaProps) {
+	const { agents, selectedAgent, schemasLoading, schemasError, schemaPanel } = useWorkbench();
 
 	const selectedAgentData =
 		Object.values(agents).find((agent) => agent.metadata.agentId === selectedAgent) || null;
@@ -23,7 +22,8 @@ export function Schema({ open, onOpenChange }: SchemaProps) {
 			<div
 				className={cn(
 					'absolute top-0 right-0 h-full w-[600px] max-w-[90vw] bg-background border-l border-border z-50 shadow-xl transition-transform duration-300 ease-in-out flex flex-col',
-					open ? 'translate-x-0' : 'translate-x-full'
+					schemaPanel.isOpen ? 'translate-x-0' : 'translate-x-full',
+					className
 				)}
 			>
 				{/* Header */}
@@ -42,7 +42,7 @@ export function Schema({ open, onOpenChange }: SchemaProps) {
 					<Button
 						variant="ghost"
 						size="icon"
-						onClick={() => onOpenChange(false)}
+						onClick={schemaPanel.close}
 						className="size-8"
 					>
 						<X className="size-4" />

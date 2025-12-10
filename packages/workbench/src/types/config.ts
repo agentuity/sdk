@@ -11,6 +11,13 @@ export interface Agent {
 
 export type ConnectionStatus = 'connected' | 'restarting' | 'disconnected';
 
+export interface SchemaPanelControls {
+	isOpen: boolean;
+	toggle: () => void;
+	open: () => void;
+	close: () => void;
+}
+
 // Context type for the provider
 export interface WorkbenchContextType {
 	config: WorkbenchConfig;
@@ -31,4 +38,8 @@ export interface WorkbenchContextType {
 	refetchSchemas: () => void;
 	// Connection status
 	connectionStatus: ConnectionStatus;
+	// Schema panel controls
+	schemaPanel: SchemaPanelControls;
+	// Optional callback for external schema triggers
+	onSchemaToggle?: () => void;
 }

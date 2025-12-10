@@ -13,7 +13,6 @@ import { Shimmer } from '../ai-elements/shimmer';
 import { cn } from '../../lib/utils';
 import { useWorkbench } from './WorkbenchProvider';
 import { useLogger } from '../../hooks/useLogger';
-import { Schema } from './Schema';
 
 export interface ChatProps {
 	className?: string;
@@ -33,10 +32,10 @@ export function Chat({ className: _className }: ChatProps) {
 		setSelectedAgent,
 		isLoading,
 		submitMessage,
+		schemaPanel,
 	} = useWorkbench();
 
 	const [value, setValue] = useState('');
-	const [schemaOpen, setSchemaOpen] = useState(false);
 
 	const handleSubmit = async () => {
 		logger.debug('🎯 Chat handleSubmit - selectedAgent:', selectedAgent, 'value:', value);
@@ -60,13 +59,7 @@ export function Chat({ className: _className }: ChatProps) {
 	};
 
 	return (
-		<div className="relative flex flex-1 overflow-hidden">
-			<div
-				className={cn(
-					'flex flex-col flex-1 transition-all duration-300 ease-in-out min-w-0',
-					schemaOpen && 'mr-[600px]'
-				)}
-			>
+		<div className="flex flex-col flex-1 overflow-hidden">
 				<Conversation className="flex-1 overflow-y-auto">
 					<ConversationContent className="pb-0">
 						{messages.map((message) => {
@@ -188,12 +181,9 @@ export function Chat({ className: _className }: ChatProps) {
 					selectedAgent={selectedAgent}
 					setSelectedAgent={setSelectedAgent}
 					suggestions={suggestions}
-					isSchemaOpen={schemaOpen}
-					onSchemaToggle={() => setSchemaOpen(!schemaOpen)}
+					isSchemaOpen={schemaPanel.isOpen}
+					onSchemaToggle={schemaPanel.toggle}
 				/>
-			</div>
-
-			<Schema open={schemaOpen} onOpenChange={setSchemaOpen} />
 		</div>
 	);
 }
