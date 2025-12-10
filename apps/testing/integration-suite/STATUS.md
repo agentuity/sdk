@@ -17,6 +17,7 @@ Successfully completed integration-suite port with:
 - **Thread persistence** ✅ COMPLETE - Cross-agent thread state sharing
 - **WebSocket** ✅ COMPLETE - Real-time bidirectional communication
 - **SSE** ✅ COMPLETE - Server-sent event streaming
+- **Cloud deployment tests** ✅ COMPLETE - End-to-end CLI deployment testing (separate suite)
 - **Ready for production**
 
 ---
@@ -445,6 +446,65 @@ Package-level tests organized by responsibility:
 - Large payload handling (10MB+ files)
 - Memory leak detection
 - Response time percentiles
+
+---
+
+## Cloud Deployment Tests (December 10, 2024)
+
+Successfully created separate **standalone** cloud deployment test suite:
+
+### Architecture
+
+**Location**: `sdk/apps/testing/cloud-deployment/`
+
+**Purpose**: End-to-end integration tests for CLI cloud deployment commands
+
+**Key Features**:
+- Standalone app with minimal test agent (no dependencies on integration-suite)
+- Tests full deployment lifecycle
+- Validates cloud infrastructure interaction
+- Runs in CI with authentication
+- Small footprint (13MB build vs 65MB)
+
+### What It Tests
+
+1. **Authentication** - CLI auth whoami verification
+2. **Deployment** - cloud deploy, list, show, remove, undeploy
+3. **Agent Management** - cloud agent list, get
+4. **Session Tracking** - cloud session get, list, logs
+5. **Rollback** - cloud deployment rollback to previous version
+6. **HTTP Invocation** - Real requests to deployed agents
+7. **Cleanup** - Automatic undeploy after tests
+
+### Running Cloud Deployment Tests
+
+**Local**:
+```bash
+cd sdk/apps/testing/cloud-deployment
+bun test
+```
+
+**CI**: Runs automatically in `cloud-deployment-test` job in `package-smoke-test.yaml`
+
+### Test Coverage
+
+- ✅ 10 test scenarios covering full deployment workflow
+- ✅ ~3-5 minutes execution time
+- ✅ Handles transient deployment errors gracefully
+- ✅ Automatic cleanup (undeploy)
+- ✅ Session capture and log verification
+
+### Key Differences from Integration Suite
+
+| Aspect | Integration Suite | Cloud Deployment Tests |
+|--------|------------------|------------------------|
+| **Focus** | SDK runtime APIs | CLI cloud commands |
+| **Execution** | Local agent.run() | Real cloud deployments |
+| **Scope** | Storage, sessions, agents | Deploy, rollback, sessions |
+| **Duration** | ~70 seconds | ~3-5 minutes |
+| **Network** | Local only | Real cloud infrastructure |
+| **App Size** | 65MB (227 tests) | 13MB (1 simple agent) |
+| **Dependencies** | Standalone | Standalone |
 
 ---
 

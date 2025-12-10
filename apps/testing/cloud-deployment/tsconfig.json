@@ -1,0 +1,10 @@
+{
+	"extends": "../../../tsconfig.base.json",
+	"compilerOptions": {
+		"composite": false,
+		"outDir": "./dist",
+		"rootDir": ".",
+		"types": ["bun-types"]
+	},
+	"include": ["src/**/*", "app.ts"]
+}

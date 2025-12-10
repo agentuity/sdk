@@ -1,0 +1,21 @@
+{
+	"name": "cloud-deployment-tests",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"description": "Cloud deployment integration tests for Agentuity CLI",
+	"scripts": {
+		"build": "bun ../../../packages/cli/bin/cli.ts build --dir .",
+		"test": "bun run build && bash scripts/test-deployment.sh",
+		"test:deployment": "bash scripts/test-deployment.sh"
+	},
+	"dependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	}
+}

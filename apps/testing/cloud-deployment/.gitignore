@@ -1,0 +1,17 @@
+# Build output
+.agentuity/
+dist/
+
+# Dependencies
+node_modules/
+
+# Environment files (contain secrets)
+.env
+.env.*
+agentuity.*.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
