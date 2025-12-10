@@ -73,6 +73,7 @@ export const createCommand = createSubcommand({
 			if (name === 'local') {
 				// if we're creating a local profile, go ahead and fill it out for the dev to make it easier to get started
 				const localConfig = (await loadConfig(filename)) as Config;
+				localConfig.name = name;
 				localConfig.overrides = {
 					api_url: 'https://api.agentuity.io',
 					app_url: 'https://app.agentuity.io',
