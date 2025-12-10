@@ -102,6 +102,24 @@ jobs:
               # Set OpenAI API key for embedding operations
               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 
+         - name: Create .env file for app runtime
+           run: |
+              cd apps/testing/cloud-deployment
+              cat > .env << EOF
+              AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}
+              OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+              AGENTUITY_API_URL=$AGENTUITY_API_URL
+              AGENTUITY_APP_URL=$AGENTUITY_APP_URL
+              AGENTUITY_TRANSPORT_URL=$AGENTUITY_TRANSPORT_URL
+              AGENTUITY_CATALYST_URL=$AGENTUITY_CATALYST_URL
+              AGENTUITY_STREAM_URL=$AGENTUITY_STREAM_URL
+              AGENTUITY_KEYVALUE_URL=$AGENTUITY_KEYVALUE_URL
+              AGENTUITY_OBJECTSTORE_URL=$AGENTUITY_OBJECTSTORE_URL
+              AGENTUITY_VECTOR_URL=$AGENTUITY_VECTOR_URL
+              AGENTUITY_LOG_LEVEL=$AGENTUITY_LOG_LEVEL
+              AGENTUITY_REGION=$AGENTUITY_REGION
+              EOF
+
          - name: Build and run cloud deployment tests
            run: |
               cd apps/testing/cloud-deployment
