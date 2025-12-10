@@ -147,38 +147,23 @@ router.websocket('/ws/echo', (c) => (ws) => {
 const broadcastClients: any[] = [];
 
 router.websocket('/ws/broadcast', (c) => (ws) => {
-	// Add to shared clients list
 	broadcastClients.push(ws);
-	console.log(`[BROADCAST] Client connected. Total clients: ${broadcastClients.length}`);
 
 	ws.onMessage((event) => {
-		console.log(
-			`[BROADCAST] Received message: ${event.data}. Broadcasting to ${broadcastClients.length} clients`
-		);
-		// Broadcast to all connected clients
-		let sent = 0;
-		let errors = 0;
-
 		for (const client of broadcastClients) {
 			try {
 				client.send(event.data);
-				sent++;
 			} catch (error) {
-				errors++;
 				// Ignore errors sending to closed connections
-				console.error('[BROADCAST] Error broadcasting to client:', error);
 			}
 		}
-		console.log(`[BROADCAST] Sent to ${sent} clients, ${errors} errors`);
 	});
 
 	ws.onClose(() => {
-		// Remove from clients list
 		const index = broadcastClients.indexOf(ws);
 		if (index > -1) {
 			broadcastClients.splice(index, 1);
 		}
-		console.log(`[BROADCAST] Client disconnected. Remaining clients: ${broadcastClients.length}`);
 	});
 });
 
