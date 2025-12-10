@@ -151,7 +151,12 @@ router.websocket('/ws/broadcast', (c) => (ws) => {
 	ws.onMessage((event) => {
 		// Broadcast to all connected clients
 		for (const client of broadcastClients) {
-			client.send(event.data);
+			try {
+				client.send(event.data);
+			} catch (error) {
+				// Ignore errors sending to closed connections
+				console.error('Error broadcasting to client:', error);
+			}
 		}
 	});
 

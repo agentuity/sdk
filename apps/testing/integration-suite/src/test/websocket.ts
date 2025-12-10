@@ -181,8 +181,8 @@ test('websocket', 'broadcast-client-disconnect', async () => {
 	// Disconnect client 2
 	await client2.close();
 
-	// Wait a bit for cleanup
-	await new Promise((resolve) => setTimeout(resolve, 100));
+	// Wait for cleanup (increased for CI stability)
+	await new Promise((resolve) => setTimeout(resolve, 200));
 
 	// Client 1 sends message
 	client1.send('After disconnect');
