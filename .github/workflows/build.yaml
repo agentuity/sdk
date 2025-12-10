@@ -64,7 +64,6 @@ jobs:
               bun typecheck
               # Run only package unit tests, skip integration-suite
               bun test
-              cd packages/cli && bun test
          - name: Test Upgrade Command
            timeout-minutes: 5
            env:
