@@ -9,7 +9,7 @@ interface PackageJson {
 	devDependencies?: Record<string, string>;
 }
 
-interface UpgradeResult {
+export interface UpgradeResult {
 	upgraded: string[];
 	skipped: string[];
 	failed: string[];
