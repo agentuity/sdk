@@ -637,6 +637,8 @@ export class ThreadWebSocketClient {
 	private wsConnecting: Promise<void> | null = null;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private isDisposed = false;
+	private initialConnectResolve: (() => void) | null = null;
+	private initialConnectReject: ((err: Error) => void) | null = null;
 
 	constructor(apiKey: string, wsUrl: string) {
 		this.apiKey = apiKey;
@@ -645,10 +647,19 @@ export class ThreadWebSocketClient {
 
 	async connect(): Promise<void> {
 		return new Promise((resolve, reject) => {
+			// Store the initial connect promise callbacks if this is the first attempt
+			if (this.reconnectAttempts === 0) {
+				this.initialConnectResolve = resolve;
+				this.initialConnectReject = reject;
+			}
+
 			// Set connection timeout
 			const connectionTimeout = setTimeout(() => {
 				this.cleanup();
-				reject(new Error('WebSocket connection timeout (10s)'));
+				const rejectFn = this.initialConnectReject || reject;
+				this.initialConnectResolve = null;
+				this.initialConnectReject = null;
+				rejectFn(new Error('WebSocket connection timeout (10s)'));
 			}, 10_000);
 
 			try {
@@ -669,13 +680,21 @@ export class ThreadWebSocketClient {
 							if (message.success) {
 								this.authenticated = true;
 								this.reconnectAttempts = 0;
-								resolve();
+								
+								// Resolve both the current promise and the initial connect promise
+								const resolveFn = this.initialConnectResolve || resolve;
+								this.initialConnectResolve = null;
+								this.initialConnectReject = null;
+								resolveFn();
 							} else {
 								const err = new Error(
 									`WebSocket authentication failed: ${message.error || 'Unknown error'}`
 								);
 								this.cleanup();
-								reject(err);
+								const rejectFn = this.initialConnectReject || reject;
+								this.initialConnectResolve = null;
+								this.initialConnectReject = null;
+								rejectFn(err);
 							}
 							return;
 						}
@@ -699,7 +718,13 @@ export class ThreadWebSocketClient {
 				this.ws.on('error', (err: Error) => {
 					clearTimeout(connectionTimeout);
 					if (!this.authenticated) {
-						reject(new Error(`WebSocket error: ${err.message}`));
+						// Don't reject immediately if we'll attempt reconnection
+						if (this.reconnectAttempts >= this.maxReconnectAttempts || this.isDisposed) {
+							const rejectFn = this.initialConnectReject || reject;
+							this.initialConnectResolve = null;
+							this.initialConnectReject = null;
+							rejectFn(new Error(`WebSocket error: ${err.message}`));
+						}
 					}
 				});
 
@@ -714,13 +739,14 @@ export class ThreadWebSocketClient {
 						this.pendingRequests.delete(id);
 					}
 
-					// Reject connecting promise if still pending
-					if (!wasAuthenticated) {
-						reject(new Error('WebSocket closed before authentication'));
-					}
-
 					// Don't attempt reconnection if disposed
 					if (this.isDisposed) {
+						// Reject initial connect if still pending
+						if (!wasAuthenticated && this.initialConnectReject) {
+							this.initialConnectReject(new Error('WebSocket closed before authentication'));
+							this.initialConnectResolve = null;
+							this.initialConnectReject = null;
+						}
 						return;
 					}
 
@@ -747,11 +773,25 @@ export class ThreadWebSocketClient {
 						internal.error(
 							`WebSocket disconnected after ${this.reconnectAttempts} attempts, giving up`
 						);
+						
+						// Reject initial connect if still pending (all attempts exhausted)
+						if (!wasAuthenticated && this.initialConnectReject) {
+							this.initialConnectReject(
+								new Error(
+									`WebSocket closed before authentication after ${this.reconnectAttempts} attempts`
+								)
+							);
+							this.initialConnectResolve = null;
+							this.initialConnectReject = null;
+						}
 					}
 				});
 			} catch (err) {
 				clearTimeout(connectionTimeout);
-				reject(err);
+				const rejectFn = this.initialConnectReject || reject;
+				this.initialConnectResolve = null;
+				this.initialConnectReject = null;
+				rejectFn(err as Error);
 			}
 		});
 	}
@@ -885,6 +925,8 @@ export class ThreadWebSocketClient {
 		this.pendingRequests.clear();
 		this.reconnectAttempts = 0;
 		this.wsConnecting = null;
+		this.initialConnectResolve = null;
+		this.initialConnectReject = null;
 	}
 }
 
