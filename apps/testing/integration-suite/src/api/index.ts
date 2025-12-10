@@ -173,17 +173,22 @@ router.websocket('/ws/counter', (c) => {
 		});
 
 		ws.onMessage((event) => {
-			const data = JSON.parse(event.data as string);
+			try {
+				const data = JSON.parse(event.data as string);
 
-			if (data.action === 'increment') {
-				count++;
-				ws.send(JSON.stringify({ type: 'count', value: count }));
-			} else if (data.action === 'decrement') {
-				count--;
-				ws.send(JSON.stringify({ type: 'count', value: count }));
-			} else if (data.action === 'reset') {
-				count = 0;
-				ws.send(JSON.stringify({ type: 'count', value: count }));
+				if (data.action === 'increment') {
+					count++;
+					ws.send(JSON.stringify({ type: 'count', value: count }));
+				} else if (data.action === 'decrement') {
+					count--;
+					ws.send(JSON.stringify({ type: 'count', value: count }));
+				} else if (data.action === 'reset') {
+					count = 0;
+					ws.send(JSON.stringify({ type: 'count', value: count }));
+				}
+			} catch (error) {
+				// Ignore malformed JSON messages
+				console.error('Invalid JSON in WebSocket message:', error);
 			}
 		});
 	};
