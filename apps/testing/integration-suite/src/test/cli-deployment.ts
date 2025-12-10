@@ -20,11 +20,18 @@ import { extractDeploymentId, extractSessionId, isAuthenticated } from '@test/he
 
 // Test 1: Check authentication
 test('cli-deployment', 'auth-check', async () => {
+	const authenticated = await isAuthenticated();
+
+	if (!authenticated) {
+		// Skip if not authenticated
+		return;
+	}
+
 	const result = await cliAgent.run({
 		command: 'auth whoami',
 	});
 
-	// Should succeed if authenticated
+	// Should succeed when authenticated
 	assertEqual(result.exitCode, 0, 'Auth whoami should exit 0 when authenticated');
 	assertDefined(result.stdout, 'Whoami should output user info');
 	assert(result.stdout.includes('Name:') || result.stdout.includes('User ID:'), 'Whoami should contain user details');
