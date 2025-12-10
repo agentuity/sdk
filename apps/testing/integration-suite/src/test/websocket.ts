@@ -153,6 +153,9 @@ test('websocket', 'broadcast-multiple-clients', async () => {
 	await client2.connect();
 	await client3.connect();
 
+	// Wait for all connections to be fully established
+	await new Promise((resolve) => setTimeout(resolve, 100));
+
 	// Client 1 sends message
 	client1.send('Broadcast from client 1');
 
