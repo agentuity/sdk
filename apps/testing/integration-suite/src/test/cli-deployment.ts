@@ -24,9 +24,10 @@ test('cli-deployment', 'auth-check', async () => {
 		command: 'auth whoami',
 	});
 
-	// Should succeed if authenticated, fail if not
-	// We'll track this for conditional test execution
-	assert(result.exitCode === 0 || result.exitCode !== 0, 'Auth check should return exit code');
+	// Should succeed if authenticated
+	assertEqual(result.exitCode, 0, 'Auth whoami should exit 0 when authenticated');
+	assertDefined(result.stdout, 'Whoami should output user info');
+	assert(result.stdout.includes('Name:') || result.stdout.includes('User ID:'), 'Whoami should contain user details');
 });
 
 // Test 2: List deployments (before deploy)
@@ -43,8 +44,12 @@ test('cli-deployment', 'list-before-deploy', async () => {
 		expectJSON: true,
 	});
 
-	// Should succeed even with no deployments
-	assert(result.exitCode === 0 || result.exitCode !== 0, 'List should return');
+	// Should succeed
+	assertEqual(result.exitCode, 0, 'List command should exit 0');
+	assertDefined(result.stdout, 'List should output');
+	assertDefined(result.json, 'List should return JSON');
+	assert(Array.isArray(result.json), 'List should return array');
+	assert(result.json.length >= 0, 'List should return valid array');
 });
 
 // Test 3: Deploy project

@@ -29,7 +29,10 @@ test('cli-apikey', 'list-command', async () => {
 	});
 
 	// Should execute successfully
-	assert(result.exitCode === 0 || result.exitCode !== 0, 'List command should return');
+	assertEqual(result.exitCode, 0, 'List command should exit 0');
+	assertDefined(result.json, 'List command should return JSON');
+	assert(Array.isArray(result.json), 'List command should return array');
+	assert(result.json.length >= 0, 'List should return valid array');
 });
 
 // Test 2: Create API key command structure

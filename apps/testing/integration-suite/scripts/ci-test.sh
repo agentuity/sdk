@@ -4,6 +4,9 @@
 
 set -e
 
+# Cleanup .env file on exit (regardless of success/failure)
+trap 'rm -f "$APP_DIR/.env"' EXIT
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PORT=3500

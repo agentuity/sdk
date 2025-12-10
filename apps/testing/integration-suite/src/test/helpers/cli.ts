@@ -8,9 +8,9 @@
 import { $ } from 'bun';
 import { resolve } from 'path';
 
-// Resolve CLI binary path - go up from .agentuity to sdk root
-// .agentuity -> integration-suite -> testing -> apps -> sdk -> packages
-const CLI_PATH = resolve(process.cwd(), '../../../../packages/cli/bin/cli.ts');
+// Resolve CLI binary path relative to this file
+// src/test/helpers -> src -> integration-suite -> testing -> apps -> sdk -> packages
+const CLI_PATH = resolve(import.meta.dir, '../../../../packages/cli/bin/cli.ts');
 
 export interface CLIResult {
 	stdout: string;
