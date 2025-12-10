@@ -14,6 +14,7 @@ import type { Logger } from '../../types';
 import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench';
 import { analyzeWorkbench, type WorkbenchAnalysis } from './ast';
 import { type DeployOptions } from '../../schemas/deploy';
+import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
 
 const minBunVersion = '>=1.3.3';
 
@@ -129,6 +130,14 @@ export async function bundle({
 
 	const versionOutput = await checkBunVersion();
 	output.push(...versionOutput);
+
+	// Check and upgrade @agentuity/* dependencies if needed
+	const upgradeResult = await checkAndUpgradeDependencies(rootDir, logger);
+	if (upgradeResult.failed.length > 0 && process.stdin.isTTY) {
+		throw new BuildFailedError({
+			message: `Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`,
+		});
+	}
 
 	const outDir = customOutDir ?? join(rootDir, '.agentuity');
 	const srcDir = join(rootDir, 'src');
