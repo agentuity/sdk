@@ -43,9 +43,7 @@ export function Schema({ onOpenChange }: SchemaProps) {
 			<ScrollArea className="flex-1">
 				<div className="p-6 space-y-6">
 					{schemasLoading && (
-						<div className="text-center text-muted-foreground py-8">
-							Loading schemas...
-						</div>
+						<div className="text-center text-muted-foreground py-8">Loading schemas...</div>
 					)}
 
 					{schemasError && (
