@@ -19,17 +19,21 @@ export interface DiscoveredRouteFile {
 }
 
 /**
- * Recursively discover all TypeScript route files in an API directory
+ * Recursively discover all TypeScript files in an API directory.
+ * Any .ts file CAN be a route if it exports a router, but not all files MUST be routes.
+ * Files without router exports (utility files, types, helpers) are discovered but gracefully skipped during processing.
+ *
  * Supports nested structures like:
- * - src/api/index.ts (root API router)
+ * - src/api/index.ts (root API router - handled separately)
  * - src/api/auth/route.ts -> mounted at /api/auth
+ * - src/api/auth/login.ts -> mounted at /api/auth
  * - src/api/v1/users/route.ts -> mounted at /api/v1/users
- * - src/api/admin/users/login.ts -> mounted at /api/admin/users (any .ts file works)
+ * - src/api/auth/helpers.ts -> discovered but skipped if no router export
  *
  * @param apiDir - Absolute path to the src/api directory
  * @param currentDir - Current directory being scanned (used for recursion)
  * @param results - Accumulated results (used for recursion)
- * @returns Array of discovered route files with mount information
+ * @returns Array of discovered TypeScript files with mount information
  */
 export function discoverRouteFiles(
 	apiDir: string,
@@ -63,8 +67,9 @@ export function discoverRouteFiles(
 
 			// For subdirectory files, determine mount path
 			// src/api/auth/route.ts -> /api/auth
+			// src/api/auth/login.ts -> /api/auth
 			// src/api/v1/users/route.ts -> /api/v1/users
-			// src/api/admin/login.ts -> /api/admin
+			// src/api/admin/helpers.ts -> /api/admin (discovered but may be skipped during processing)
 			const pathParts = relativePath.split('/');
 			pathParts.pop(); // Remove filename
 

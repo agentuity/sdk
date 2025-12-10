@@ -495,6 +495,14 @@ import { readFileSync, existsSync } from 'node:fs';
 					}
 
 					for (const apiFile of apiFiles) {
+						// Quick check: skip files that don't contain createRouter or Hono
+						// This avoids expensive AST parsing for utility files
+						const fileContent = await Bun.file(apiFile).text();
+						if (!fileContent.includes('createRouter') && !fileContent.includes('new Hono')) {
+							logger.trace(`Skipping ${apiFile}: no createRouter or Hono found`);
+							continue;
+						}
+
 						try {
 							const routes = await parseRoute(rootDir, apiFile, projectId, deploymentId);
 
@@ -574,12 +582,17 @@ import { readFileSync, existsSync } from 'node:fs';
 								});
 							}
 						} catch (error) {
-							// Skip files that don't have createRouter (they might be utilities)
-							if (
-								error instanceof Error &&
-								error.message.includes('could not find an proper createRouter')
-							) {
-								logger.trace(`Skipping ${apiFile}: no createRouter found`);
+							// Skip files that don't have proper router setup despite containing createRouter/Hono
+							// (e.g., files that import but don't use them, or have syntax errors)
+							if (error instanceof Error) {
+								if (
+									error.message.includes('could not find default export') ||
+									error.message.includes('could not find an proper createRouter')
+								) {
+									logger.trace(`Skipping ${apiFile}: ${error.message}`);
+								} else {
+									throw error;
+								}
 							} else {
 								throw error;
 							}
