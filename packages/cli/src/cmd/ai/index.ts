@@ -7,6 +7,7 @@ import { getCommand } from '../../command-prefix';
 export const command = createCommand({
 	name: 'ai',
 	description: 'AI coding agent related commands',
+	skipUpgradeCheck: true,
 	tags: ['fast'],
 	examples: [
 		{

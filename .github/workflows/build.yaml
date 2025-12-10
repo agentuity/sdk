@@ -59,6 +59,100 @@ jobs:
               bun run whoami
               ./packages/cli/bin/cli.ts profile show --json
               bun all
+         - name: Test Upgrade Command
+           timeout-minutes: 5
+           env:
+              AGENTUITY_LOG_LEVEL: error
+           run: |
+              set -eou pipefail
+              # Build executables for testing (packages already built from previous step)
+              cd packages/cli
+              
+              # Detect OS and architecture
+              OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+              ARCH=$(uname -m)
+              
+              # Map architecture names
+              case "$ARCH" in
+                 x86_64) ARCH="x64" ;;
+                 aarch64|arm64) ARCH="arm64" ;;
+              esac
+              
+              PLATFORM="${OS}-${ARCH}"
+              BINARY="./dist/bin/agentuity-${PLATFORM}"
+              
+              echo "=== Platform Info ==="
+              echo "OS: $OS"
+              echo "ARCH: $ARCH"
+              echo "Platform: $PLATFORM"
+              echo "Binary: $BINARY"
+              echo ""
+              
+              # Build only for current platform to save time
+              ./scripts/build-executables.ts --skip-sign --platform="$PLATFORM"
+              
+              # Test that upgrade command is available in compiled binary
+              echo "=== Testing upgrade command visibility in binary ==="
+              set +e  # Don't exit on error yet, capture it
+              $BINARY --help > /tmp/binary-help.txt 2>&1
+              EXIT_CODE=$?
+              set -e
+              
+              # --help exits with code 0 or 1 depending on context, both are OK
+              if [ $EXIT_CODE -ne 0 ] && [ $EXIT_CODE -ne 1 ]; then
+                 echo "ERROR: Binary --help failed with unexpected exit code $EXIT_CODE"
+                 echo "Output:"
+                 cat /tmp/binary-help.txt
+                 exit 1
+              fi
+              
+              if grep -q "upgrade" /tmp/binary-help.txt; then
+                 echo "✓ upgrade command found in binary"
+              else
+                 echo "ERROR: upgrade command not found in binary help"
+                 echo "Full help output:"
+                 cat /tmp/binary-help.txt
+                 exit 1
+              fi
+              
+              # Test that upgrade command is NOT available when running via bun
+              echo "=== Testing upgrade command NOT in bun help ==="
+              set +e  # Don't exit on error
+              ./bin/cli.ts --help > /tmp/bun-help.txt 2>&1
+              set -e
+              
+              if grep -q "upgrade" /tmp/bun-help.txt; then
+                 echo "ERROR: upgrade command should not be in bun help"
+                 cat /tmp/bun-help.txt
+                 exit 1
+              else
+                 echo "✓ upgrade command correctly hidden in bun"
+              fi
+              
+              # Test upgrade --force execution
+              echo "=== Testing upgrade --force execution ==="
+              set +e  # Capture exit code
+              AGENTUITY_SKIP_VERSION_CHECK=1 $BINARY upgrade --force > /tmp/upgrade-output.txt 2>&1
+              UPGRADE_EXIT_CODE=$?
+              set -e
+              
+              echo "Upgrade exit code: $UPGRADE_EXIT_CODE"
+              cat /tmp/upgrade-output.txt
+              
+              # Check if upgrade ran successfully (exit 0 or output shows expected progress)
+              # Network failures are acceptable in CI - we just want to verify the command runs
+              if [ $UPGRADE_EXIT_CODE -eq 0 ]; then
+                 echo "✓ upgrade command completed successfully"
+              elif grep -q "Successfully upgraded\|Downloading\|Already on latest\|Validating binary" /tmp/upgrade-output.txt; then
+                 echo "✓ upgrade command executed (may have failed at network/install step, but logic ran)"
+              else
+                 echo "ERROR: upgrade command didn't run properly (exit code: $UPGRADE_EXIT_CODE)"
+                 echo "Expected to see upgrade-related output but got:"
+                 cat /tmp/upgrade-output.txt
+                 exit 1
+              fi
+              
+              echo "✓ All upgrade command tests passed"
          - name: Cleanup
            if: always()
            run: rm -f apps/testing/integration-suite/.env

@@ -14,6 +14,7 @@ import { generateCLISchema } from '../src/schema-generator';
 import { setOutputOptions } from '../src/output';
 import type { GlobalOptions } from '../src/types';
 import { ensureBunOnPath } from '../src/bun-path';
+import { checkForUpdates } from '../src/version-check';
 
 // Cleanup TTY state before exit
 function cleanupAndExit() {
@@ -128,6 +129,12 @@ if (earlyOpts.json && !earlyOpts.errorFormat) {
 setOutputOptions(earlyOpts as GlobalOptions);
 
 const commands = await discoverCommands();
+
+// Check for updates before running commands (may upgrade and re-exec)
+// Find the command being run to check if it opts out of upgrade check
+const commandName = preprocessedArgs.find((arg) => !arg.startsWith('-'));
+const commandDef = commands.find((cmd) => cmd.name === commandName);
+await checkForUpdates(config, logger, earlyOpts, commandDef, preprocessedArgs);
 
 // Generate and store CLI schema globally for the schema command
 const cliSchema = generateCLISchema(program, commands, version);

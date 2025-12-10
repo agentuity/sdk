@@ -10,6 +10,7 @@ const VersionResponseSchema = z.string().describe('CLI version number');
 export const command = createCommand({
 	name: 'version',
 	description: 'Display version information',
+	skipUpgradeCheck: true,
 	tags: ['read-only', 'fast'],
 	examples: [
 		{ command: getCommand('version'), description: 'Show the CLI semantic version' },
