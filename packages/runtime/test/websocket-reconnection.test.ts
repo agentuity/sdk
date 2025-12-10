@@ -12,6 +12,7 @@ describe('WebSocket Reconnection', () => {
 	let authAttempts = 0;
 	let closeBeforeAuth = false;
 	let connectionCount = 0;
+	let authFailure = false;
 
 	beforeAll(async () => {
 		// Create WebSocket server with dynamic port allocation
@@ -32,6 +33,14 @@ describe('WebSocket Reconnection', () => {
 						// Simulate server closing connection before auth completes (rollout scenario)
 						if (closeBeforeAuth) {
 							ws.close();
+							return;
+						}
+
+						// Simulate authentication failure
+						if (authFailure) {
+							ws.send(JSON.stringify({ success: false, error: 'Invalid API key' }));
+							// Close the connection after sending auth failure
+							setTimeout(() => ws.close(), 10);
 							return;
 						}
 
@@ -84,32 +93,36 @@ describe('WebSocket Reconnection', () => {
 		}
 
 		// Reset counters and state before each test
-		// Note: No need to wait for background timers since cleanup()
-		// now cancels pending reconnection timers and prevents new ones
 		authAttempts = 0;
 		closeBeforeAuth = false;
+		authFailure = false;
 		connectionCount = 0;
 		connections = [];
 	});
 
-	test('reconnects when connection closes before authentication', async () => {
+	test('reconnects transparently when connection closes before authentication', async () => {
+		// Simulate server rollout: first connection closes before auth, second succeeds
 		closeBeforeAuth = true;
 
 		const client = new ThreadWebSocketClient('test-key', `ws://localhost:${port}`);
 
-		// First connection attempt will fail (close before auth)
-		await expect(client.connect()).rejects.toThrow('WebSocket closed before authentication');
+		// Start connection - should not throw immediately
+		const connectPromise = client.connect();
 
-		expect(authAttempts).toBe(1);
-		expect(connectionCount).toBe(1);
+		// Wait a bit for first connection attempt
+		await new Promise((resolve) => setTimeout(resolve, 100));
 
-		// Allow auth to succeed for reconnection
+		// Verify first connection attempted auth
+		expect(authAttempts).toBeGreaterThanOrEqual(1);
+		expect(connectionCount).toBeGreaterThanOrEqual(1);
+
+		// Allow auth to succeed on next attempt (simulating server coming back online)
 		closeBeforeAuth = false;
 
-		// Wait for automatic reconnection attempt (exponential backoff starts at 2^1 = 2s)
-		await new Promise((resolve) => setTimeout(resolve, 2500));
+		// The original connect() promise should resolve after automatic reconnection
+		await expect(connectPromise).resolves.toBeUndefined();
 
-		// Verify reconnection was attempted
+		// Verify reconnection happened
 		expect(connectionCount).toBeGreaterThanOrEqual(2);
 		expect(authAttempts).toBeGreaterThanOrEqual(2);
 
@@ -147,9 +160,6 @@ describe('WebSocket Reconnection', () => {
 		const client = new ThreadWebSocketClient('test-key', `ws://localhost:${port}`);
 
 		// Track connection attempt times
-		// NOTE: This test measures wall-clock time, not internal scheduling delays.
-		// For more precise backoff verification, consider using fake timers or
-		// dependency injection to mock setTimeout.
 		const attemptTimes: number[] = [];
 
 		// Intercept connections from this specific test
@@ -157,7 +167,7 @@ describe('WebSocket Reconnection', () => {
 
 		// First connection attempt fails
 		attemptTimes.push(Date.now());
-		await client.connect().catch(() => {});
+		client.connect().catch(() => {}); // Don't wait, just track
 
 		// Wait for first 2 retries to verify exponential backoff pattern
 		// Expected: retry 1 after ~2s, retry 2 after ~4s more = ~6s total
@@ -174,9 +184,7 @@ describe('WebSocket Reconnection', () => {
 			attemptTimes.push(Date.now());
 		}
 
-		// Behavioral verification: retries happen and delays grow exponentially
-		// Note: Measured delays include connection setup time and test overhead,
-		// so we allow generous bounds rather than strict equality
+		// Verify retries happened and delays grow exponentially
 		expect(attemptTimes.length).toBeGreaterThanOrEqual(2);
 
 		if (attemptTimes.length >= 3) {
@@ -190,7 +198,6 @@ describe('WebSocket Reconnection', () => {
 			expect(delay2).toBeLessThan(6000);
 
 			// Second delay should be roughly 2x the first (exponential backoff)
-			// Allow 1.3-3.0x range to account for timing variance
 			expect(delay2 / delay1).toBeGreaterThan(1.3);
 			expect(delay2 / delay1).toBeLessThan(3.0);
 		}
@@ -221,6 +228,105 @@ describe('WebSocket Reconnection', () => {
 
 		// Now operations should work
 		await expect(client.restore('thrd_test123')).resolves.toBeUndefined();
+
+		client.cleanup();
+	}, 10000);
+
+	test('gives up after max reconnection attempts and rejects initial promise', async () => {
+		// Always close before auth to exhaust all retry attempts
+		closeBeforeAuth = true;
+
+		const client = new ThreadWebSocketClient('test-key', `ws://localhost:${port}`);
+
+		// The connect should eventually fail after all retries are exhausted
+		// Max attempts = 5, exponential backoff: 2s, 4s, 8s, 16s, 30s (capped)
+		// This will take ~60 seconds total
+		await expect(client.connect()).rejects.toThrow(
+			/WebSocket closed before authentication after \d+ attempts/
+		);
+
+		// Verify we made the expected number of connection attempts (1 initial + 5 retries)
+		expect(connectionCount).toBeGreaterThanOrEqual(5);
+		expect(authAttempts).toBeGreaterThanOrEqual(5);
+
+		client.cleanup();
+	}, 70000);
+
+	test('handles authentication failure (not retried)', async () => {
+		// Simulate actual auth failure (bad API key)
+		authFailure = true;
+
+		const client = new ThreadWebSocketClient('test-key', `ws://localhost:${port}`);
+
+		// Auth failure should reject (message may vary due to timing of close event)
+		await expect(client.connect()).rejects.toThrow();
+
+		// Should only have tried once (no retries for auth failures)
+		expect(authAttempts).toBe(1);
+		expect(connectionCount).toBe(1);
+
+		client.cleanup();
+	}, 10000);
+
+	test('handles connection errors during initial connect', async () => {
+		// Try to connect to a port that doesn't exist
+		const client = new ThreadWebSocketClient('test-key', 'ws://localhost:99999');
+
+		// Should fail with connection error
+		await expect(client.connect()).rejects.toThrow(/WebSocket error|ECONNREFUSED|Invalid url/);
+
+		client.cleanup();
+	}, 15000);
+
+	test('cleanup stops reconnection attempts', async () => {
+		closeBeforeAuth = true;
+
+		const client = new ThreadWebSocketClient('test-key', `ws://localhost:${port}`);
+
+		// Start connection (will fail and schedule reconnection)
+		client.connect().catch(() => {});
+
+		// Wait for first connection attempt
+		await new Promise((resolve) => setTimeout(resolve, 200));
+
+		const countBeforeCleanup = connectionCount;
+
+		// Cleanup should stop reconnection timer
+		client.cleanup();
+
+		// Wait for what would have been the reconnection delay
+		await new Promise((resolve) => setTimeout(resolve, 3000));
+
+		// No new connections should have been made after cleanup
+		expect(connectionCount).toBe(countBeforeCleanup);
+	}, 10000);
+
+	test('multiple sequential connects after close before auth', async () => {
+		// First connection: close before auth, then allow success
+		closeBeforeAuth = true;
+
+		const client = new ThreadWebSocketClient('test-key', `ws://localhost:${port}`);
+
+		const firstConnect = client.connect();
+
+		// Wait a bit
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// Allow auth to succeed
+		closeBeforeAuth = false;
+
+		// First connect should succeed via reconnection
+		await expect(firstConnect).resolves.toBeUndefined();
+
+		// Manually close the connection
+		const lastConnection = connections[connections.length - 1];
+		lastConnection?.close();
+
+		// Wait for auto-reconnection
+		await new Promise((resolve) => setTimeout(resolve, 2500));
+
+		// Operations should still work
+		await expect(client.restore('thrd_test456')).resolves.toBeUndefined();
 
 		client.cleanup();
 	}, 10000);
