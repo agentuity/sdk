@@ -6,11 +6,13 @@
  */
 
 import { test } from '@test/suite';
-import { assert, assertEqual, assertDefined } from '@test/helpers';
+import { assert, assertEqual, assertDefined, uniqueId } from '@test/helpers';
 import { createWebSocketClient } from '@test/helpers/websocket-client';
 
+const suiteId = uniqueId('websocket');
+
 // Test 1: Basic WebSocket connection
-test('websocket', 'basic-connection', async () => {
+test(suiteId, uniqueId('basic-connection'), async () => {
 	const client = createWebSocketClient('/api/ws/echo');
 
 	await client.connect();
@@ -21,7 +23,7 @@ test('websocket', 'basic-connection', async () => {
 });
 
 // Test 2: Echo server - single message
-test('websocket', 'echo-single-message', async () => {
+test(suiteId, uniqueId('echo-single-message'), async () => {
 	const client = createWebSocketClient('/api/ws/echo');
 
 	await client.connect();
@@ -37,7 +39,7 @@ test('websocket', 'echo-single-message', async () => {
 });
 
 // Test 3: Echo server - multiple messages
-test('websocket', 'echo-multiple-messages', async () => {
+test(suiteId, uniqueId('echo-multiple-messages'), async () => {
 	const client = createWebSocketClient('/api/ws/echo');
 
 	await client.connect();
@@ -60,7 +62,7 @@ test('websocket', 'echo-multiple-messages', async () => {
 });
 
 // Test 4: JSON message exchange
-test('websocket', 'json-message-exchange', async () => {
+test(suiteId, uniqueId('json-message-exchange'), async () => {
 	const client = createWebSocketClient('/api/ws/echo');
 
 	await client.connect();
@@ -79,7 +81,7 @@ test('websocket', 'json-message-exchange', async () => {
 });
 
 // Test 5: Counter WebSocket - increment
-test('websocket', 'counter-increment', async () => {
+test(suiteId, uniqueId('counter-increment'), async () => {
 	const client = createWebSocketClient('/api/ws/counter');
 
 	await client.connect();
@@ -104,7 +106,7 @@ test('websocket', 'counter-increment', async () => {
 });
 
 // Test 6: Counter WebSocket - decrement
-test('websocket', 'counter-decrement', async () => {
+test(suiteId, uniqueId('counter-decrement'), async () => {
 	const client = createWebSocketClient('/api/ws/counter');
 
 	await client.connect();
@@ -121,7 +123,7 @@ test('websocket', 'counter-decrement', async () => {
 });
 
 // Test 7: Counter WebSocket - reset
-test('websocket', 'counter-reset', async () => {
+test(suiteId, uniqueId('counter-reset'), async () => {
 	const client = createWebSocketClient('/api/ws/counter');
 
 	await client.connect();
@@ -147,7 +149,7 @@ test('websocket', 'counter-reset', async () => {
 // DISABLED: This test has issues with WebSocket broadcast in test environment
 // The broadcast endpoint works but tests fail - needs investigation of server-side WebSocket.send()
 /*
-test('websocket', 'broadcast-multiple-clients', async () => {
+test(suiteId, uniqueId('broadcast-multiple-clients'), async () => {
 	const client1 = createWebSocketClient('/api/ws/broadcast');
 	const client2 = createWebSocketClient('/api/ws/broadcast');
 	const client3 = createWebSocketClient('/api/ws/broadcast');
@@ -177,7 +179,7 @@ test('websocket', 'broadcast-multiple-clients', async () => {
 // Test 9: Broadcast - client disconnect
 // DISABLED: This test has issues with WebSocket broadcast in test environment
 /*
-test('websocket', 'broadcast-client-disconnect', async () => {
+test(suiteId, uniqueId('broadcast-client-disconnect'), async () => {
 	const client1 = createWebSocketClient('/api/ws/broadcast');
 	const client2 = createWebSocketClient('/api/ws/broadcast');
 
@@ -204,7 +206,7 @@ test('websocket', 'broadcast-client-disconnect', async () => {
 */
 
 // Test 10: Large message handling
-test('websocket', 'large-message-handling', async () => {
+test(suiteId, uniqueId('large-message-handling'), async () => {
 	const client = createWebSocketClient('/api/ws/echo');
 
 	await client.connect();
@@ -221,7 +223,7 @@ test('websocket', 'large-message-handling', async () => {
 });
 
 // Test 11: Rapid message exchange
-test('websocket', 'rapid-message-exchange', async () => {
+test(suiteId, uniqueId('rapid-message-exchange'), async () => {
 	const client = createWebSocketClient('/api/ws/echo');
 
 	await client.connect();
@@ -249,7 +251,7 @@ test('websocket', 'rapid-message-exchange', async () => {
 });
 
 // Test 12: Connection persistence
-test('websocket', 'connection-persistence', async () => {
+test(suiteId, uniqueId('connection-persistence'), async () => {
 	const client = createWebSocketClient('/api/ws/counter');
 
 	await client.connect();
