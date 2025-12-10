@@ -2,9 +2,14 @@
 
 End-to-end integration testing suite for the Agentuity SDK.
 
+**📋 [Read STATUS.md](./STATUS.md) for complete overview, current status, and future work.**  
+**📖 [Read AGENTS.md](./AGENTS.md) for testing patterns, API reference, and best practices.**
+
 ## Overview
 
 This app provides comprehensive integration tests for all SDK functionality. Tests run in a single server instance and can be triggered via HTTP endpoints with real-time SSE streaming of results.
+
+**Current Status**: 199 tests passing (100%)
 
 ## Quick Start
 

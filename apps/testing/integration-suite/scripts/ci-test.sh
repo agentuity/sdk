@@ -31,6 +31,13 @@ echo -e "${GREEN}✓${NC} API key configured"
 
 # Create .env file for the app
 echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.env"
+
+# Add OpenAI API key if available (required for vector embedding operations)
+if [ -n "$OPENAI_API_KEY" ]; then
+	echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.env"
+	echo -e "${GREEN}✓${NC} OpenAI API key configured"
+fi
+
 echo -e "${GREEN}✓${NC} Created .env file"
 
 # Build SDK packages first (required for integration suite)

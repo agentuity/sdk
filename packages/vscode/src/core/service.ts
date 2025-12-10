@@ -1,4 +1,3 @@
-
 import {
 	getCliClient,
 	type CliClient,
@@ -179,7 +178,11 @@ export class AgentuityService {
 
 	async getSessionLogs(
 		sessionId: string
-	): Promise<{ success: boolean; logs: Array<{ body: string; severity: string; timestamp: string }>; error?: string }> {
+	): Promise<{
+		success: boolean;
+		logs: Array<{ body: string; severity: string; timestamp: string }>;
+		error?: string;
+	}> {
 		const result = await this.cli.getSessionLogs(sessionId);
 		return {
 			success: result.success,

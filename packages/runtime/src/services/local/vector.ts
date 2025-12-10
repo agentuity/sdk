@@ -173,9 +173,6 @@ export class LocalVectorStorage implements VectorStorage {
 			throw new Error('Query is required');
 		}
 
-		// Generate query embedding
-		const queryEmbedding = simpleEmbedding(params.query);
-
 		// Fetch all vectors for this name
 		const query = this.#db.query(`
 			SELECT id, key, embedding, metadata 
@@ -189,6 +186,18 @@ export class LocalVectorStorage implements VectorStorage {
 			embedding: string;
 			metadata: string | null;
 		}>;
+
+		// If no vectors exist, return empty results
+		if (rows.length === 0) {
+			return [];
+		}
+
+		// Detect dimensionality from first stored vector
+		const firstEmbedding = JSON.parse(rows[0].embedding);
+		const dimensions = firstEmbedding.length;
+
+		// Generate query embedding with matching dimensions
+		const queryEmbedding = simpleEmbedding(params.query, dimensions);
 
 		// Calculate similarities
 		const results: Array<VectorSearchResult<T> & { similarity: number }> = [];

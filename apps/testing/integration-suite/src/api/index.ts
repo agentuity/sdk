@@ -1,5 +1,6 @@
 import { createRouter } from '@agentuity/runtime';
 import { testSuite } from '../test/suite';
+import statePersistenceAgent from '../agent/state/agent';
 
 const router = createRouter();
 
@@ -109,6 +110,13 @@ router.get('/test/list', (c) => {
 
 router.get('/health', (c) => {
 	return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// State persistence agent endpoint for HTTP tests
+router.post('/agent/state', statePersistenceAgent.validator(), async (c) => {
+	const input = c.req.valid('json');
+	const result = await statePersistenceAgent.run(input);
+	return c.json(result);
 });
 
 export default router;
