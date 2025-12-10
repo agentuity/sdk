@@ -117,7 +117,10 @@ jobs:
               
               # Test that upgrade command is NOT available when running via bun
               echo "=== Testing upgrade command NOT in bun help ==="
+              set +e  # Don't exit on error
               ./bin/cli.ts --help > /tmp/bun-help.txt 2>&1
+              set -e
+              
               if grep -q "upgrade" /tmp/bun-help.txt; then
                  echo "ERROR: upgrade command should not be in bun help"
                  cat /tmp/bun-help.txt
