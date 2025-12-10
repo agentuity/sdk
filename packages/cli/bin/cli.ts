@@ -131,8 +131,10 @@ setOutputOptions(earlyOpts as GlobalOptions);
 const commands = await discoverCommands();
 
 // Check for updates before running commands (may upgrade and re-exec)
-// Pass preprocessedArgs to skip check for help, ai, version, and upgrade commands
-await checkForUpdates(config, logger, earlyOpts, preprocessedArgs);
+// Find the command being run to check if it opts out of upgrade check
+const commandName = preprocessedArgs.find((arg) => !arg.startsWith('-'));
+const commandDef = commands.find((cmd) => cmd.name === commandName);
+await checkForUpdates(config, logger, earlyOpts, commandDef, preprocessedArgs);
 
 // Generate and store CLI schema globally for the schema command
 const cliSchema = generateCLISchema(program, commands, version);

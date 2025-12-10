@@ -284,6 +284,7 @@ export function createCommand<
 	aliases?: string[];
 	hidden?: boolean;
 	executable?: boolean;
+	skipUpgradeCheck?: boolean;
 	requires?: R;
 	optional?: O;
 	examples?: CommandExample[];
@@ -321,6 +322,7 @@ type CommandDefBase =
 			aliases?: string[];
 			banner?: boolean;
 			executable?: boolean;
+			skipUpgradeCheck?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -336,6 +338,7 @@ type CommandDefBase =
 			aliases?: string[];
 			banner?: boolean;
 			executable?: boolean;
+			skipUpgradeCheck?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];

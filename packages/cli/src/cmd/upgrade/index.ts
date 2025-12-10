@@ -246,6 +246,7 @@ export const command = createCommand({
 	name: 'upgrade',
 	description: 'Upgrade the CLI to the latest version',
 	executable: true,
+	skipUpgradeCheck: true,
 	tags: ['update'],
 	examples: [
 		{

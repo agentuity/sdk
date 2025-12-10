@@ -1,4 +1,4 @@
-import type { Config, Logger } from './types';
+import type { Config, Logger, CommandDefinition } from './types';
 import { isRunningFromExecutable, fetchLatestVersion } from './cmd/upgrade';
 import { getVersion } from './version';
 import * as tui from './tui';
@@ -19,6 +19,7 @@ function shouldSkipCheck(
 		dryRun?: boolean;
 		skipVersionCheck?: boolean;
 	},
+	commandDef: CommandDefinition | undefined,
 	args: string[]
 ): boolean {
 	// Skip if running via bun/bunx (not installed executable)
@@ -57,24 +58,15 @@ function shouldSkipCheck(
 		return true;
 	}
 
+	// Skip if command explicitly opts out of upgrade check
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if (commandDef && (commandDef as any).skipUpgradeCheck === true) {
+		return true;
+	}
+
 	// Skip for help commands
 	const helpFlags = ['--help', '-h', 'help'];
 	if (args.some((arg) => helpFlags.includes(arg))) {
-		return true;
-	}
-
-	// Skip for AI commands (they can be long-running)
-	if (args.length > 0 && args[0] === 'ai') {
-		return true;
-	}
-
-	// Skip for version command
-	if (args.length > 0 && (args[0] === 'version' || args[0] === '-v' || args[0] === '--version')) {
-		return true;
-	}
-
-	// Skip for upgrade command itself
-	if (args.length > 0 && args[0] === 'upgrade') {
 		return true;
 	}
 
@@ -184,10 +176,11 @@ export async function checkForUpdates(
 		dryRun?: boolean;
 		skipVersionCheck?: boolean;
 	},
+	commandDef: CommandDefinition | undefined,
 	args: string[]
 ): Promise<void> {
 	// Determine if we should skip the check
-	if (shouldSkipCheck(config, options, args)) {
+	if (shouldSkipCheck(config, options, commandDef, args)) {
 		logger.trace('Skipping version check (disabled or not applicable)');
 		return;
 	}
