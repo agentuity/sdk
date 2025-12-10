@@ -36,7 +36,7 @@ export const downloadCommand = createSubcommand({
 			description: 'Download multiple files',
 		},
 	],
-	requires: { apiClient: true, auth: true },
+	requires: { apiClient: true, auth: true, region: true },
 	optional: { project: true },
 	prerequisites: ['cloud deploy'],
 	schema: {
@@ -51,7 +51,7 @@ export const downloadCommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { apiClient, args, opts, project, projectDir, config } = ctx;
+		const { apiClient, args, opts, project, projectDir, config, region } = ctx;
 
 		let identifier = opts?.identifier ?? project?.projectId;
 
@@ -59,7 +59,7 @@ export const downloadCommand = createSubcommand({
 			identifier = await tui.showProjectList(apiClient, true);
 		}
 
-		const hostname = getIONHost(config);
+		const hostname = getIONHost(config, region);
 		const destination = args.destination ?? projectDir;
 
 		try {

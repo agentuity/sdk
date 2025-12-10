@@ -743,12 +743,15 @@ export function getCatalystAPIClient(logger: Logger, auth: AuthData, region: str
 	return new ServerAPIClient(catalystUrl, logger, auth.apiKey);
 }
 
-export function getIONHost(config: Config | null) {
-	if (config?.name === 'local') {
+export function getIONHost(config: Config | null, region: string) {
+	if (config?.overrides?.ion_url) {
+		const url = new URL(config.overrides.ion_url);
+		return url.hostname;
+	}
+	if (config?.name === 'local' || region === 'local') {
 		return 'ion.agentuity.io';
 	}
-	const url = new URL(config?.overrides?.ion_url ?? 'https://ion.agentuity.cloud');
-	return url.hostname;
+	return `ion-${region}.agentuity.cloud`;
 }
 
 export function getStreamURL(region: string, config: Config | null) {
