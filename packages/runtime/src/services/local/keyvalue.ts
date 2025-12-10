@@ -45,7 +45,13 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 		// Deserialize based on content type
 		let data: T;
 		if (row.content_type === 'application/json') {
-			data = JSON.parse(row.value.toString('utf-8'));
+			try {
+				const text = row.value.toString('utf-8');
+				data = JSON.parse(text);
+			} catch {
+				// If JSON parse fails, return the raw buffer as Uint8Array
+				data = new Uint8Array(row.value) as T;
+			}
 		} else if (row.content_type.startsWith('text/')) {
 			data = row.value.toString('utf-8') as T;
 		} else {
