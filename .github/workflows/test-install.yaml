@@ -222,6 +222,9 @@ jobs:
          - name: Install dependencies
            run: bun install
 
+         - name: Build packages
+           run: bun run build
+
          - name: Run upgrade tests
            run: |
               chmod +x scripts/test-upgrade.sh
