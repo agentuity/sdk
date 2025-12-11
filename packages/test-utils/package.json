@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/test-utils",
-	"version": "0.0.89",
+	"version": "0.0.90",
 	"private": true,
 	"type": "module",
 	"description": "Test utilities for Agentuity packages (not published)",
