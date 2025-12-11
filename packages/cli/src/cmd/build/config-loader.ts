@@ -1,6 +1,5 @@
 import { join } from 'node:path';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync, writeFileSync } from 'node:fs';
 import { StructuredError } from '@agentuity/core';
 import type { BuildConfigFunction, BuildPhase, BuildContext, BuildConfig } from '../../types';
 
@@ -25,15 +24,15 @@ export async function loadBuildConfig(rootDir: string): Promise<BuildConfigFunct
 	}
 
 	try {
-		// Create a temporary directory for the wrapper script
-		const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-config-'));
-		const wrapperPath = join(tempDir, 'wrapper.ts');
+		// Create wrapper script in project root so imports resolve correctly
+		// Using a hidden temp file to avoid conflicts with user files
+		const wrapperPath = join(rootDir, `.agentuity-config-loader-${Date.now()}.mts`);
 
 		try {
 			// Create a wrapper script that imports the config and outputs it as JSON
-			// This approach is simpler and more reliable than bundling + vm context
+			// Using relative import so Bun can resolve dependencies from project's node_modules
 			const wrapperCode = `
-import configFunction from ${JSON.stringify(configPath)};
+import configFunction from './agentuity.config.ts';
 
 // Validate it's a function
 if (typeof configFunction !== 'function') {
@@ -104,8 +103,8 @@ console.log('__CONFIG_LOADED__');
 
 			return configFunction as BuildConfigFunction;
 		} finally {
-			// Clean up temp directory
-			rmSync(tempDir, { recursive: true, force: true });
+			// Clean up temp wrapper file
+			rmSync(wrapperPath, { force: true });
 		}
 	} catch (error) {
 		// If it's already our error, re-throw
