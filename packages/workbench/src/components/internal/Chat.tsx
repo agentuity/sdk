@@ -1,4 +1,5 @@
-import '../../styles.css';
+/* Styles should be imported in app's CSS file (e.g., globals.css) */
+/* import '../../styles.css'; */
 import React, { useState } from 'react';
 import { ChevronRight, Copy, Loader, RefreshCcw } from 'lucide-react';
 import { Action, Actions } from '../ai-elements/actions';

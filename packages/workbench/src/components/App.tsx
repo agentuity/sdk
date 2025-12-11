@@ -21,7 +21,7 @@ function AppContent() {
 	const panelSizes = getPanelSizes('main-layout') || defaultSizes;
 
 	return (
-		<div className="flex flex-col h-screen">
+		<div className="flex flex-col h-full">
 			<Header />
 			<ResizablePanelGroup
 				direction="horizontal"

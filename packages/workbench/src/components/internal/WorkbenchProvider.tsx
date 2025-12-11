@@ -362,5 +362,9 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		connectionStatus,
 	};
 
-	return <WorkbenchContext.Provider value={contextValue}>{children}</WorkbenchContext.Provider>;
+	return (
+		<div className="workbench">
+			<WorkbenchContext.Provider value={contextValue}>{children}</WorkbenchContext.Provider>
+		</div>
+	);
 }

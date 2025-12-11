@@ -1,7 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=block');
-@import 'tailwindcss';
-@plugin "tailwindcss-animate";
-@variant dark (&:is(.dark *));
+/* Integration version - no Tailwind import, processed by app's Tailwind */
+/* This file should be imported in the app's CSS file (e.g., globals.css) */
+/* The app must have Tailwind imported before importing this file */
 
 @layer workbench-variables {
 	:root {
