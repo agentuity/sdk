@@ -89,7 +89,7 @@ export { type RouteValidator, validator } from './validator';
 export type { Logger } from './logger';
 
 // _server.ts exports
-export { getRouter, getAppState } from './_server';
+export { getRouter, getAppState, AGENT_CONTEXT_PROPERTIES } from './_server';
 
 // io/email exports
 export { Email, parseEmail } from './io/email';
