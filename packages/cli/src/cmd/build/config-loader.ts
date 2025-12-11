@@ -1,4 +1,6 @@
 import { join } from 'node:path';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { StructuredError } from '@agentuity/core';
 import type { BuildConfigFunction, BuildPhase, BuildContext, BuildConfig } from '../../types';
 
@@ -23,21 +25,83 @@ export async function loadBuildConfig(rootDir: string): Promise<BuildConfigFunct
 	}
 
 	try {
-		// Import the config file (Bun handles TypeScript natively)
-		// Dynamically import using absolute path; Bun resolves TS modules without a file:// URL
-		const configModule = await import(configPath);
+		// Create a temporary directory for the wrapper script
+		const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-config-'));
+		const wrapperPath = join(tempDir, 'wrapper.ts');
 
-		// Get the default export
-		const configFunction = configModule.default;
+		try {
+			// Create a wrapper script that imports the config and outputs it as JSON
+			// This approach is simpler and more reliable than bundling + vm context
+			const wrapperCode = `
+import configFunction from ${JSON.stringify(configPath)};
 
-		// Validate it's a function
-		if (typeof configFunction !== 'function') {
-			throw new BuildConfigValidationError({
-				message: `agentuity.config.ts must export a default function, got ${typeof configFunction}`,
+// Validate it's a function
+if (typeof configFunction !== 'function') {
+	console.error(JSON.stringify({
+		error: 'BuildConfigValidationError',
+		message: \`agentuity.config.ts must export a default function, got \${typeof configFunction}\`
+	}));
+	process.exit(1);
+}
+
+// Output success marker
+console.log('__CONFIG_LOADED__');
+`;
+
+			writeFileSync(wrapperPath, wrapperCode);
+
+			// Run the wrapper script with Bun
+			const proc = Bun.spawn(['bun', wrapperPath], {
+				cwd: rootDir,
+				stdout: 'pipe',
+				stderr: 'pipe',
 			});
-		}
 
-		return configFunction as BuildConfigFunction;
+			const output = await new Response(proc.stdout).text();
+			const errorOutput = await new Response(proc.stderr).text();
+			const exitCode = await proc.exited;
+
+			if (exitCode !== 0) {
+				// Try to parse error as JSON
+				try {
+					const errorData = JSON.parse(errorOutput);
+					if (errorData.error === 'BuildConfigValidationError') {
+						throw new BuildConfigValidationError({
+							message: errorData.message,
+						});
+					}
+				} catch (parseError) {
+					// Not JSON, treat as regular error
+				}
+
+				throw new BuildConfigLoadError({
+					message: `Failed to load agentuity.config.ts:\n${errorOutput}`,
+				});
+			}
+
+			// Verify the success marker
+			if (!output.includes('__CONFIG_LOADED__')) {
+				throw new BuildConfigLoadError({
+					message: 'Config file loaded but did not output expected marker',
+				});
+			}
+
+			// Now import the config file directly - it's been validated
+			const configModule = await import(configPath);
+			const configFunction = configModule.default;
+
+			// Double-check it's a function (should always pass if wrapper succeeded)
+			if (typeof configFunction !== 'function') {
+				throw new BuildConfigValidationError({
+					message: `agentuity.config.ts must export a default function, got ${typeof configFunction}`,
+				});
+			}
+
+			return configFunction as BuildConfigFunction;
+		} finally {
+			// Clean up temp directory
+			rmSync(tempDir, { recursive: true, force: true });
+		}
 	} catch (error) {
 		// If it's already our error, re-throw
 		if (error instanceof BuildConfigValidationError || error instanceof BuildConfigLoadError) {
