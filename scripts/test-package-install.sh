@@ -89,6 +89,10 @@ cd "$SDK_ROOT/packages/cli"
 CLI_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
 log_success "Packed cli: $CLI_PKG"
 
+cd "$SDK_ROOT/packages/workbench"
+WORKBENCH_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
+log_success "Packed workbench: $WORKBENCH_PKG"
+
 echo ""
 log_info "Packed packages:"
 ls -lh "$PACKAGES_DIR"
@@ -142,6 +146,7 @@ bun add "$PACKAGES_DIR/$REACT_PKG"
 bun add "$PACKAGES_DIR/$RUNTIME_PKG"
 bun add "$PACKAGES_DIR/$SERVER_PKG"
 bun add "$PACKAGES_DIR/$CLI_PKG"
+bun add "$PACKAGES_DIR/$WORKBENCH_PKG"
 
 export AGENTUITY_SKIP_VERSION_CHECK=1
 
@@ -210,7 +215,8 @@ bun add --no-save \
   "$PACKAGES_DIR/$REACT_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
   "$PACKAGES_DIR/$SERVER_PKG" \
-  "$PACKAGES_DIR/$CLI_PKG"
+  "$PACKAGES_DIR/$CLI_PKG" \
+  "$PACKAGES_DIR/$WORKBENCH_PKG"
 
 # Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
 # This happens because workspace:* dependencies get resolved to specific versions (e.g. 0.0.58)
