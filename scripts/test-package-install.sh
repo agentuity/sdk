@@ -109,7 +109,7 @@ ls -lh "$PACKAGES_DIR"
 echo ""
 log_info "Verifying package contents..."
 VERIFY_DIR=$(mktemp -d)
-for pkg in "$CORE_PKG" "$REACT_PKG" "$RUNTIME_PKG" "$SERVER_PKG" "$CLI_PKG" "$WORKBENCH_PKG"; do
+for pkg in "$CORE_PKG" "$SCHEMA_PKG" "$REACT_PKG" "$RUNTIME_PKG" "$SERVER_PKG" "$CLI_PKG" "$WORKBENCH_PKG"; do
   # Extract tarball and check for dist/ directory
   tar -xzf "$PACKAGES_DIR/$pkg" -C "$VERIFY_DIR"
   
@@ -276,7 +276,7 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo -e "${GREEN}🎉 All tests passed!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-log_success "Built and packed all 5 packages"
+log_success "Built and packed all 7 packages"
 log_success "CLI runs from packed tarball without missing TypeScript"
 log_success "Created new project using CLI with --template-dir"
 log_success "Installed packed packages as if from npm registry"

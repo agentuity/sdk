@@ -6,26 +6,54 @@
  */
 
 import { $ } from 'bun';
-import { resolve } from 'path';
-import { existsSync } from 'fs';
+import { resolve, join } from 'path';
+import { existsSync, readFileSync } from 'fs';
+
+// Find monorepo root by walking up until we find package.json with workspaces
+function findMonorepoRoot(startDir: string): string | null {
+	let currentDir = startDir;
+	while (true) {
+		const pkgPath = join(currentDir, 'package.json');
+		if (existsSync(pkgPath)) {
+			try {
+				const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+				if (pkg.workspaces) {
+					return currentDir;
+				}
+			} catch {
+				// Ignore parse errors, continue searching
+			}
+		}
+		const parent = resolve(currentDir, '..');
+		if (parent === currentDir) break; // reached filesystem root
+		currentDir = parent;
+	}
+	return null;
+}
 
 // Resolve CLI binary path - works in both dev and built (.agentuity) environments
-// In dev: apps/testing/integration-suite/src/test/helpers -> ../../../../../packages/cli/bin/cli.ts
-// In built: .agentuity -> ../../../../packages/cli/bin/cli.ts
 function resolveCliPath(): string {
 	// Try from import.meta.dir first (dev environment)
-	const devPath = resolve(import.meta.dir, '../../../../../packages/cli/bin/cli.ts');
-	if (existsSync(devPath)) {
-		return devPath;
+	const rootFromFile = findMonorepoRoot(import.meta.dir);
+	if (rootFromFile) {
+		const cliPath = join(rootFromFile, 'packages/cli/bin/cli.ts');
+		if (existsSync(cliPath)) {
+			return cliPath;
+		}
 	}
 
 	// Fall back to process.cwd() (built environment running from .agentuity)
-	const builtPath = resolve(process.cwd(), '../../../../packages/cli/bin/cli.ts');
-	if (existsSync(builtPath)) {
-		return builtPath;
+	const rootFromCwd = findMonorepoRoot(process.cwd());
+	if (rootFromCwd) {
+		const cliPath = join(rootFromCwd, 'packages/cli/bin/cli.ts');
+		if (existsSync(cliPath)) {
+			return cliPath;
+		}
 	}
 
-	throw new Error(`CLI not found at ${devPath} or ${builtPath}`);
+	throw new Error(
+		`CLI not found. Searched from ${import.meta.dir} (root: ${rootFromFile}) and ${process.cwd()} (root: ${rootFromCwd})`
+	);
 }
 
 const CLI_PATH = resolveCliPath();
