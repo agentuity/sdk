@@ -347,6 +347,14 @@ export function newline(): void {
 }
 
 /**
+ * Print plain text output without any prefix or icon
+ * Use for primary command output that shouldn't have semantic formatting
+ */
+export function output(message: string): void {
+	console.log(message);
+}
+
+/**
  * Get the display width of a string, handling ANSI codes and OSC 8 hyperlinks
  *
  * Note: Bun.stringWidth() counts OSC 8 hyperlink escape sequences in the width,

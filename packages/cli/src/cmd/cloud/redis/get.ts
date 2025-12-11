@@ -62,7 +62,7 @@ export const showSubcommand = createSubcommand({
 
 		if (!options.json) {
 			const displayUrl = shouldMask ? tui.maskSecret(resources.redis.url) : resources.redis.url;
-			console.log(tui.bold('Redis URL: ') + displayUrl);
+			tui.output(tui.bold('Redis URL: ') + displayUrl);
 		}
 
 		return {
