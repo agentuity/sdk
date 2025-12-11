@@ -10,11 +10,12 @@ import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
 import type { Project } from '../../types';
 import { fixDuplicateExportsInDirectory } from './fix-duplicate-exports';
-import type { Logger } from '../../types';
+import type { Logger, BuildContext } from '../../types';
 import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench';
 import { analyzeWorkbench, type WorkbenchAnalysis } from './ast';
 import { type DeployOptions } from '../../schemas/deploy';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
+import { loadBuildConfig, executeBuildConfig, mergeBuildConfig } from './config-loader';
 
 const minBunVersion = '>=1.3.3';
 
@@ -373,8 +374,23 @@ export async function bundle({
 	const tsconfigPath = join(rootDir, 'tsconfig.json');
 	const hasTsconfig = existsSync(tsconfigPath);
 
+	// Load user build config (if it exists)
+	const buildConfigFunction = await loadBuildConfig(rootDir);
+
+	// Helper to create build context for config function
+	const createBuildContext = (): BuildContext => ({
+		rootDir,
+		dev,
+		outDir,
+		srcDir,
+		orgId,
+		projectId,
+		region,
+		logger,
+	});
+
 	await (async () => {
-		const config: Bun.BuildConfig = {
+		const baseConfig: Bun.BuildConfig = {
 			entrypoints: appEntrypoints,
 			root: rootDir,
 			outdir: outDir,
@@ -401,7 +417,19 @@ export async function bundle({
 			},
 			tsconfig: hasTsconfig ? tsconfigPath : undefined,
 		};
-		const buildResult = await Bun.build(config);
+
+		// Apply user config for 'api' phase
+		let finalConfig = baseConfig;
+		if (buildConfigFunction) {
+			const userConfig = await executeBuildConfig(
+				buildConfigFunction,
+				'api',
+				createBuildContext()
+			);
+			finalConfig = mergeBuildConfig(baseConfig, userConfig);
+		}
+
+		const buildResult = await Bun.build(finalConfig);
 		if (!buildResult.success) {
 			handleBuildFailure(buildResult);
 		}
@@ -509,7 +537,7 @@ export async function bundle({
 				mkdirSync(join(webOutDir, 'asset'), { recursive: true });
 				const isLocalRegion = region === 'local' || region === 'l';
 
-				const config: Bun.BuildConfig = {
+				const baseConfig: Bun.BuildConfig = {
 					entrypoints: webEntrypoints,
 					root: webDir,
 					outdir: webOutDir,
@@ -538,7 +566,19 @@ export async function bundle({
 					},
 					tsconfig: hasTsconfig ? tsconfigPath : undefined,
 				};
-				const result = await Bun.build(config);
+
+				// Apply user config for 'web' phase
+				let finalConfig = baseConfig;
+				if (buildConfigFunction) {
+					const userConfig = await executeBuildConfig(
+						buildConfigFunction,
+						'web',
+						createBuildContext()
+					);
+					finalConfig = mergeBuildConfig(baseConfig, userConfig);
+				}
+
+				const result = await Bun.build(finalConfig);
 				if (result.success) {
 					// Fix duplicate exports caused by Bun splitting bug
 					// See: https://github.com/oven-sh/bun/issues/5344
@@ -622,7 +662,7 @@ Make sure @agentuity/workbench is installed or available in the workspace.`,
 
 			// Bundle workbench using generated files
 			// Disable splitting to avoid CommonJS/ESM module resolution conflicts
-			const workbenchBuildConfig: Bun.BuildConfig = {
+			const workbenchBaseConfig: Bun.BuildConfig = {
 				entrypoints: [workbenchIndexFile],
 				outdir: join(outDir, 'workbench'),
 				sourcemap: dev ? 'inline' : 'linked',
@@ -641,7 +681,18 @@ Make sure @agentuity/workbench is installed or available in the workspace.`,
 				},
 			};
 
-			const workbenchResult = await Bun.build(workbenchBuildConfig);
+			// Apply user config for 'workbench' phase
+			let finalWorkbenchConfig = workbenchBaseConfig;
+			if (buildConfigFunction) {
+				const userConfig = await executeBuildConfig(
+					buildConfigFunction,
+					'workbench',
+					createBuildContext()
+				);
+				finalWorkbenchConfig = mergeBuildConfig(workbenchBaseConfig, userConfig);
+			}
+
+			const workbenchResult = await Bun.build(finalWorkbenchConfig);
 			if (workbenchResult.success) {
 				logger.debug('Workbench bundled successfully');
 				// Clean up temp directory

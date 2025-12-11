@@ -57,7 +57,9 @@
 		"@types/adm-zip": "^0.5.7",
 		"@types/bun": "latest",
 		"@types/tar-fs": "^2.0.4",
-		"bun-types": "latest"
+		"bun-plugin-tailwind": "^0.1.2",
+		"bun-types": "latest",
+		"tailwindcss": "^4.1.18"
 	},
 	"publishConfig": {
 		"access": "public"
