@@ -103,7 +103,7 @@ export function App() {
 								title: 'Add new API routes',
 								text: (
 									<>
-										Create new files in <code className="text-white">src/web/</code> to
+										Create new files in <code className="text-white">src/api/</code> to
 										expose more endpoints.
 									</>
 								),
