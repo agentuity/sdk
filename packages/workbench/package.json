@@ -9,16 +9,16 @@
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
+			"import": "./dist/index.js",
+			"style": "./src/base.css"
 		},
 		"./server": {
 			"types": "./dist/server.d.ts",
 			"import": "./dist/server.js"
 		},
-		"./styles": "./dist/styles.css",
-		"./styles-source": "./src/styles.css",
-		"./styles-integration": "./src/styles-integration.css",
-		"./styles-source-config": "./src/styles-source-config.css"
+		"./styles": "./src/base.css",
+		"./styles-standalone": "./dist/styles.css",
+		"./styles-source": "./src/styles.css"
 	},
 	"files": [
 		"README.md",

@@ -11,7 +11,7 @@ import { getVersion } from '../../version';
 import type { Project } from '../../types';
 import { fixDuplicateExportsInDirectory } from './fix-duplicate-exports';
 import type { Logger } from '../../types';
-import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench';
+import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml, generateWorkbenchStylesCss } from './workbench';
 import { analyzeWorkbench, type WorkbenchAnalysis } from './ast';
 import { type DeployOptions } from '../../schemas/deploy';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
@@ -504,6 +504,22 @@ export async function bundle({
 
 			// Generate files using templates
 			await Bun.write(join(tempWorkbenchDir, 'main.tsx'), generateWorkbenchMainTsx(config));
+			
+			// Copy the pre-built styles.css from workbench package instead of generating it
+			// This ensures we use the built version with Tailwind already processed
+			const workbenchPackagePath = join(rootDir, 'node_modules', '@agentuity', 'workbench');
+			const workbenchStylesPath = join(workbenchPackagePath, 'dist', 'styles.css');
+			const workbenchStylesOut = join(tempWorkbenchDir, 'styles.css');
+			
+			if (existsSync(workbenchStylesPath)) {
+				cpSync(workbenchStylesPath, workbenchStylesOut);
+				logger.debug('Copied workbench dist/styles.css to temp workbench dir');
+			} else {
+				// Fallback: generate CSS file with import (will fail if Tailwind not installed)
+				await Bun.write(workbenchStylesOut, generateWorkbenchStylesCss());
+				logger.warn('Workbench dist/styles.css not found, using generated CSS with import');
+			}
+			
 			const workbenchIndexFile = join(tempWorkbenchDir, 'index.html');
 			await Bun.write(workbenchIndexFile, generateWorkbenchIndexHtml());
 

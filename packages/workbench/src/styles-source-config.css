@@ -1,6 +1,0 @@
-/* Tailwind source configuration for workbench components */
-/* Import this file in your globals.css after @import "tailwindcss" */
-/* This tells Tailwind to scan workbench components for class names */
-/* Note: The path below is relative to this CSS file's location in the package */
-/* If this doesn't work, you may need to add the @source directive directly in your globals.css */
-@source "./**/*.{ts,tsx}";
