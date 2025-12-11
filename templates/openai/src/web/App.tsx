@@ -1,8 +1,7 @@
 import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 
-// Get configurable workbench path from environment, default to '/workbench'
-const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH || '/workbench';
+const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 
 export function App() {
 	const [prompt, setPrompt] = useState('Tell me a joke');
@@ -95,7 +94,7 @@ export function App() {
 								),
 							},
 							{
-								key: 'add-api-routes',
+								key: 'add-routes',
 								title: 'Add new API routes',
 								text: (
 									<>
@@ -112,41 +111,48 @@ export function App() {
 									</>
 								),
 							},
-							{
-								key: 'try-workbench',
-								title: (
-									<a href={WORKBENCH_PATH} className="workbench-link">
-										Workbench
-									</a>
-								),
-								text: 'A chat interface to test your agents in isolation.',
-							},
-						].map((step) => (
-							<div key={step.key} className="step">
-								<div className="step-icon">
-									<svg
-										aria-hidden="true"
-										className="checkmark"
-										fill="none"
-										height="24"
-										stroke="#00c951"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth="2"
-										viewBox="0 0 24 24"
-										width="24"
-										xmlns="http://www.w3.org/2000/svg"
-									>
-										<path d="M20 6 9 17l-5-5"></path>
-									</svg>
-								</div>
+							WORKBENCH_PATH
+								? {
+										key: 'try-workbench',
+										title: (
+											<>
+												Try{' '}
+												<a href={WORKBENCH_PATH} className="workbench-link">
+													Workbench
+												</a>
+											</>
+										),
+										text: <>A chat interface to test your agents in isolation.</>,
+									}
+								: null,
+						]
+							.filter(Boolean)
+							.map((step) => (
+								<div key={step!.key} className="step">
+									<div className="step-icon">
+										<svg
+											aria-hidden="true"
+											className="checkmark"
+											fill="none"
+											height="24"
+											stroke="#00c951"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth="2"
+											viewBox="0 0 24 24"
+											width="24"
+											xmlns="http://www.w3.org/2000/svg"
+										>
+											<path d="M20 6 9 17l-5-5"></path>
+										</svg>
+									</div>
 
-								<div>
-									<h4 className="step-title">{step.title}</h4>
-									<p className="step-text">{step.text}</p>
+									<div>
+										<h4 className="step-title">{step!.title}</h4>
+										<p className="step-text">{step!.text}</p>
+									</div>
 								</div>
-							</div>
-						))}
+							))}
 					</div>
 				</div>
 			</div>
@@ -182,7 +188,47 @@ export function App() {
 						gap: 0.5rem;
 						justify-content: center;
 						margin-bottom: 2rem;
+						position: relative;
 						text-align: center;
+					}
+
+					.workbench-link {
+						background: linear-gradient(90deg, #155e75, #3b82f6, #9333ea, #155e75);
+						background-size: 300% 100%;
+						background-clip: text;
+						-webkit-background-clip: text;
+						-webkit-text-fill-color: transparent;
+						color: transparent;
+						text-decoration: none;
+						animation: gradientShift 2s ease-in-out infinite alternate;
+						position: relative;
+					}
+
+					.workbench-link::after {
+						content: '';
+						position: absolute;
+						bottom: 0;
+						left: 0;
+						width: 100%;
+						height: 1px;
+						background: linear-gradient(90deg, #155e75, #3b82f6, #9333ea, #155e75);
+						background-size: 300% 100%;
+						animation: gradientShift 2s ease-in-out infinite alternate;
+						opacity: 0;
+						transition: opacity 0.3s ease;
+					}
+
+					.workbench-link:hover::after {
+						opacity: 1;
+					}
+
+					@keyframes gradientShift {
+						0% {
+							background-position: 0% 50%;
+						}
+						100% {
+							background-position: 100% 50%;
+						}
 					}
 
 					.logo {
@@ -366,27 +412,6 @@ export function App() {
 
 					.step-text code {
 						color: #fff;
-					}
-
-					.workbench-link {
-						background: linear-gradient(90deg, #00ffff, #0080ff, #8000ff, #ff0080, #ff8000, #ffff00);
-						background-size: 300% 100%;
-						-webkit-background-clip: text;
-						-webkit-text-fill-color: transparent;
-						background-clip: text;
-						text-decoration: none;
-						animation: gradientShift 3s ease-in-out infinite;
-						font-weight: 600;
-					}
-
-					.workbench-link:hover {
-						animation-duration: 1.5s;
-					}
-
-					@keyframes gradientShift {
-						0% { background-position: 0% 50%; }
-						50% { background-position: 100% 50%; }
-						100% { background-position: 0% 50%; }
 					}
 
 					@keyframes ellipsis {

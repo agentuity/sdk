@@ -385,6 +385,9 @@ export async function bundle({
 		}
 	}
 
+	// must always set for the template always
+	define['process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH'] = JSON.stringify('');
+
 	// Analyze workbench config early to set environment variables for web build
 	if (existsSync(appFile)) {
 		if (!workbench) {
