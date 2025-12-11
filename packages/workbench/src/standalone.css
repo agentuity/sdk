@@ -1,0 +1,25 @@
+/* Standalone version - includes Tailwind and all styles for standalone workbench */
+@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=block');
+@import './base.css';
+@import 'tailwindcss';
+@plugin "tailwindcss-animate";
+@variant dark (&:is(.dark *));
+
+@layer base {
+	html,
+	body {
+		@apply h-full w-full m-0 p-0;
+	}
+
+	:root {
+		@apply font-sans;
+	}
+
+	* {
+		@apply border-border outline-ring/50;
+	}
+
+	#root {
+		@apply w-full h-full relative flex flex-col m-0 bg-background text-foreground;
+	}
+}

@@ -1,8 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@100..900&family=Geist:wght@100..900&display=block');
-@import 'tailwindcss';
-@plugin "tailwindcss-animate";
-@variant dark (&:is(.dark *));
-@import 'tailwindcss';
+/* Common base CSS - shared between standalone and integration versions */
+/* This file contains CSS variables, theme, and keyframes used by both versions */
 
 :root {
 	--background: hsl(0 0% 100%);
@@ -173,63 +170,50 @@
 	--animate-accordion-down: accordion-down 0.2s ease-out;
 	--animate-accordion-up: accordion-up 0.2s ease-out;
 	--animate-ellipsis: ellipsis 1.5s steps(4, end) infinite;
+}
 
-	@keyframes accordion-down {
-		from {
-			height: 0;
-		}
-		to {
-			height: var(--radix-accordion-content-height);
-		}
+@keyframes accordion-down {
+	from {
+		height: 0;
 	}
-
-	@keyframes accordion-up {
-		from {
-			height: var(--radix-accordion-content-height);
-		}
-		to {
-			height: 0;
-		}
-	}
-
-	@keyframes ellipsis {
-		0% {
-			content: '.';
-		}
-		25% {
-			content: '..';
-		}
-		50% {
-			content: '...';
-		}
-		75% {
-			content: '';
-		}
+	to {
+		height: var(--radix-accordion-content-height);
 	}
 }
 
-@layer base {
-	:root {
-		@apply font-sans;
+@keyframes accordion-up {
+	from {
+		height: var(--radix-accordion-content-height);
 	}
-
-	* {
-		@apply border-border outline-ring/50;
+	to {
+		height: 0;
 	}
+}
 
-	#root {
-		@apply w-full h-screen relative flex flex-col m-0 bg-background text-foreground;
-	}
-
-	button:not([disabled]):not([aria-disabled='true']),
-	[role='button']:not([disabled]):not([aria-disabled='true']) {
-		@apply cursor-pointer;
-	}
-
-	[data-loading]::after {
+@keyframes ellipsis {
+	0% {
 		content: '.';
-		display: inline-block;
-		width: 1em;
-		@apply animate-ellipsis;
 	}
+	25% {
+		content: '..';
+	}
+	50% {
+		content: '...';
+	}
+	75% {
+		content: '';
+	}
+}
+
+/* Shared base styles for buttons and loading indicators */
+button:not([disabled]):not([aria-disabled='true']),
+[role='button']:not([disabled]):not([aria-disabled='true']) {
+	cursor: pointer;
+}
+
+[data-loading]::after {
+	content: '.';
+	display: inline-block;
+	width: 1em;
+	animation: ellipsis 1.5s steps(4, end) infinite;
 }

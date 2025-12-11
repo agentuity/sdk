@@ -8,7 +8,6 @@ export function generateWorkbenchMainTsx(config: WorkbenchConfig): string {
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '@agentuity/workbench';
-import '@agentuity/workbench/styles';
 
 // Root element
 const rootElement = document.getElementById('root');
@@ -23,6 +22,14 @@ root.render(<App configBase64="${encodedConfig}" />);
 `;
 }
 
+export function generateWorkbenchStylesCss(): string {
+	// This file will be replaced with the actual dist/styles.css content during build
+	// We use @import here as a placeholder, but the bundler should resolve it to the built file
+	return `/* Generated workbench styles - will be replaced with dist/styles.css */
+@import '@agentuity/workbench/styles-standalone';
+`;
+}
+
 export function generateWorkbenchIndexHtml(): string {
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -30,6 +37,7 @@ export function generateWorkbenchIndexHtml(): string {
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Agentuity Workbench</title>
+	<link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 	<div id="root"></div>

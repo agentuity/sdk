@@ -13,11 +13,28 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import { type BundledLanguage, codeToHtml, type ShikiTransformer } from 'shiki';
+import { createHighlighterCore } from 'shiki/core';
+import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
+import type { ShikiTransformer, ThemeRegistration } from 'shiki';
+import oneLightModule from '@shikijs/themes/one-light';
+import oneDarkProModule from '@shikijs/themes/one-dark-pro';
+import jsonLang from '@shikijs/langs/json';
+import javascriptLang from '@shikijs/langs/javascript';
+import typescriptLang from '@shikijs/langs/typescript';
+
+// Extract theme objects from default exports
+const oneLight = (
+	'default' in oneLightModule ? oneLightModule.default : oneLightModule
+) as ThemeRegistration;
+const oneDarkPro = (
+	'default' in oneDarkProModule ? oneDarkProModule.default : oneDarkProModule
+) as ThemeRegistration;
+
+type SupportedLanguage = 'json' | 'javascript' | 'typescript';
 
 type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
 	code: string;
-	language: BundledLanguage;
+	language: SupportedLanguage;
 	showLineNumbers?: boolean;
 };
 
@@ -28,6 +45,20 @@ type CodeBlockContextType = {
 const CodeBlockContext = createContext<CodeBlockContextType>({
 	code: '',
 });
+
+// Initialize highlighter with only the languages and themes we need
+let highlighterPromise: ReturnType<typeof createHighlighterCore> | null = null;
+
+function getHighlighter() {
+	if (!highlighterPromise) {
+		highlighterPromise = createHighlighterCore({
+			themes: [oneLight, oneDarkPro],
+			langs: [jsonLang, javascriptLang, typescriptLang],
+			engine: createOnigurumaEngine(import('shiki/wasm')),
+		});
+	}
+	return highlighterPromise;
+}
 
 const lineNumberTransformer: ShikiTransformer = {
 	name: 'line-numbers',
@@ -52,23 +83,24 @@ const lineNumberTransformer: ShikiTransformer = {
 
 export async function highlightCode(
 	code: string,
-	language: BundledLanguage,
+	language: SupportedLanguage,
 	showLineNumbers = false
-) {
+): Promise<readonly [string, string]> {
+	const highlighter = await getHighlighter();
 	const transformers: ShikiTransformer[] = showLineNumbers ? [lineNumberTransformer] : [];
 
-	return await Promise.all([
-		codeToHtml(code, {
+	return [
+		highlighter.codeToHtml(code, {
 			lang: language,
-			theme: 'one-light',
+			theme: oneLight.name ?? 'one-light',
 			transformers,
 		}),
-		codeToHtml(code, {
+		highlighter.codeToHtml(code, {
 			lang: language,
-			theme: 'one-dark-pro',
+			theme: oneDarkPro.name ?? 'one-dark-pro',
 			transformers,
 		}),
-	]);
+	] as const;
 }
 
 export const CodeBlock = ({

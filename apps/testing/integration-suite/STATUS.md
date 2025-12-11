@@ -460,6 +460,7 @@ Successfully created separate **standalone** cloud deployment test suite:
 **Purpose**: End-to-end integration tests for CLI cloud deployment commands
 
 **Key Features**:
+
 - Standalone app with minimal test agent (no dependencies on integration-suite)
 - Tests full deployment lifecycle
 - Validates cloud infrastructure interaction
@@ -479,6 +480,7 @@ Successfully created separate **standalone** cloud deployment test suite:
 ### Running Cloud Deployment Tests
 
 **Local**:
+
 ```bash
 cd sdk/apps/testing/cloud-deployment
 bun test
@@ -496,15 +498,15 @@ bun test
 
 ### Key Differences from Integration Suite
 
-| Aspect | Integration Suite | Cloud Deployment Tests |
-|--------|------------------|------------------------|
-| **Focus** | SDK runtime APIs | CLI cloud commands |
-| **Execution** | Local agent.run() | Real cloud deployments |
-| **Scope** | Storage, sessions, agents | Deploy, rollback, sessions |
-| **Duration** | ~70 seconds | ~3-5 minutes |
-| **Network** | Local only | Real cloud infrastructure |
-| **App Size** | 65MB (227 tests) | 13MB (1 simple agent) |
-| **Dependencies** | Standalone | Standalone |
+| Aspect           | Integration Suite         | Cloud Deployment Tests     |
+| ---------------- | ------------------------- | -------------------------- |
+| **Focus**        | SDK runtime APIs          | CLI cloud commands         |
+| **Execution**    | Local agent.run()         | Real cloud deployments     |
+| **Scope**        | Storage, sessions, agents | Deploy, rollback, sessions |
+| **Duration**     | ~70 seconds               | ~3-5 minutes               |
+| **Network**      | Local only                | Real cloud infrastructure  |
+| **App Size**     | 65MB (227 tests)          | 13MB (1 simple agent)      |
+| **Dependencies** | Standalone                | Standalone                 |
 
 ---
 
