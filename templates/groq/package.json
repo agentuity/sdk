@@ -5,9 +5,9 @@
 	"module": "app.ts",
 	"type": "module",
 	"scripts": {
-		"build": "agentuity build --dir .",
-		"dev": "agentuity dev --dir .",
-		"deploy": "agentuity deploy --dir .",
+		"build": "agentuity build",
+		"dev": "agentuity dev",
+		"deploy": "agentuity deploy",
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
