@@ -37,6 +37,7 @@ cloud-deployment/
 ### Local Testing
 
 1. **Authenticated CLI**:
+
    ```bash
    bun ../../packages/cli/bin/cli.ts auth login
    ```
@@ -53,6 +54,7 @@ cloud-deployment/
 ### CI Testing
 
 CI automatically sets up:
+
 - `AGENTUITY_CLI_API_KEY` - Generated from shared secret
 - `AGENTUITY_SDK_KEY` - From GitHub secrets
 - `OPENAI_API_KEY` - From GitHub secrets
@@ -62,6 +64,7 @@ CI automatically sets up:
 ### Run Locally
 
 The `bun test` command will:
+
 1. Build the cloud-deployment app
 2. Run the deployment tests
 
@@ -71,6 +74,7 @@ bun test
 ```
 
 Or run steps manually:
+
 ```bash
 bun run build                      # Build the app
 bash scripts/test-deployment.sh    # Run tests only
