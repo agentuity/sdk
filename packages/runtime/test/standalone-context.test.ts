@@ -79,10 +79,13 @@ describe('createAgentContext', () => {
 	let server: ReturnType<typeof Bun.serve> | undefined;
 
 	beforeAll(async () => {
-		// Initialize app for global state
+		// Initialize app for global state (use local services for testing)
 		const router = createRouter();
 		await createApp({
 			router,
+			services: {
+				useLocal: true,
+			},
 			setup: async () => ({
 				testMode: true,
 				startTime: Date.now(),
