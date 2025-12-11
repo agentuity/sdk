@@ -331,6 +331,7 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 			});
 			logger.debug(`Telemetry initialized with app_name: ${appName}`);
 			logger.debug('Telemetry configured successfully');
+			logger.debug('Sending telemetry data to %s', url);
 		} catch (error) {
 			logger.warn('Telemetry not available, skipping automatic instrumentation', {
 				error: error instanceof Error ? error.message : String(error),
