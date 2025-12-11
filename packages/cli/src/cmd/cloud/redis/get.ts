@@ -9,22 +9,22 @@ const RedisGetResponseSchema = z.object({
 	url: z.string().optional().describe('Redis connection URL'),
 });
 
-export const getSubcommand = createSubcommand({
-	name: 'get',
-	aliases: ['show'],
+export const showSubcommand = createSubcommand({
+	name: 'show',
+	aliases: ['info'],
 	description: 'Show Redis connection URL',
 	tags: ['read-only', 'fast', 'requires-auth'],
 	requires: { auth: true, org: true, region: true },
 	idempotent: true,
 	examples: [
-		{ command: getCommand('cloud redis get'), description: 'Get Redis connection URL' },
+		{ command: getCommand('cloud redis show'), description: 'Show Redis connection URL' },
 		{
-			command: getCommand('cloud redis get --show-credentials'),
-			description: 'Get Redis URL with credentials visible',
+			command: getCommand('cloud redis show --show-credentials'),
+			description: 'Show Redis URL with credentials visible',
 		},
 		{
-			command: getCommand('--json cloud redis get'),
-			description: 'Get Redis URL as JSON',
+			command: getCommand('--json cloud redis show'),
+			description: 'Show Redis URL as JSON',
 		},
 	],
 	schema: {

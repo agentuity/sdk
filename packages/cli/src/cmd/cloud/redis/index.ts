@@ -1,5 +1,5 @@
 import { createCommand } from '../../../types';
-import { getSubcommand } from './get';
+import { showSubcommand } from './get';
 import { getCommand } from '../../../command-prefix';
 
 export const redisCommand = createCommand({
@@ -7,7 +7,7 @@ export const redisCommand = createCommand({
 	description: 'Manage Redis resources',
 	tags: ['slow', 'requires-auth'],
 	examples: [
-		{ command: getCommand('cloud redis get'), description: 'Get Redis connection URL' },
+		{ command: getCommand('cloud redis show'), description: 'Show Redis connection URL' },
 	],
-	subcommands: [getSubcommand],
+	subcommands: [showSubcommand],
 });
