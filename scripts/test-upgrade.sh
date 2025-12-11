@@ -204,8 +204,9 @@ test_upgrade_from_old_version() {
 		return 0
 	fi
 
-	# Verify new version has upgrade command
-	if ! PATH="$tmpdir/.agentuity/bin:$PATH" agentuity upgrade --help > "$tmpdir/new-upgrade-check.log" 2>&1; then
+	# Verify new version has upgrade command (check help text, ignore exit code)
+	PATH="$tmpdir/.agentuity/bin:$PATH" agentuity upgrade --help > "$tmpdir/new-upgrade-check.log" 2>&1 || true
+	if ! grep -q "Upgrade the CLI to the latest version" "$tmpdir/new-upgrade-check.log"; then
 		print_error "New version doesn't have upgrade command"
 		cat "$tmpdir/new-upgrade-check.log"
 		return 1
