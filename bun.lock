@@ -50,6 +50,7 @@
         "@agentuity/core": "workspace:*",
         "@agentuity/runtime": "workspace:*",
         "@agentuity/schema": "workspace:*",
+        "@agentuity/workbench": "workspace:*",
         "react": "^19.2.1",
         "react-dom": "^19.2.1",
       },
