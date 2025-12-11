@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll } from 'bun:test';
+import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { createAgentContext } from '../src/_standalone';
 import { createAgent } from '../src/agent';
 import { s } from '@agentuity/schema';
@@ -76,6 +76,8 @@ const errorAgent = createAgent('error-test', {
 });
 
 describe('createAgentContext', () => {
+	let server: ReturnType<typeof Bun.serve> | undefined;
+
 	beforeAll(async () => {
 		// Initialize app for global state
 		const router = createRouter();
@@ -89,6 +91,17 @@ describe('createAgentContext', () => {
 
 		// Wait for server to be ready
 		await new Promise((resolve) => setTimeout(resolve, 100));
+		
+		// Store server reference for cleanup
+		const { getServer } = await import('../src/_server');
+		server = getServer() ?? undefined;
+	});
+
+	afterAll(async () => {
+		// Clean up server to avoid affecting other tests
+		if (server) {
+			await server.stop();
+		}
 	});
 
 	describe('basic functionality', () => {
