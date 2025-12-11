@@ -1,6 +1,6 @@
 import { $, semver } from 'bun';
 import { join, relative, resolve, dirname, basename } from 'node:path';
-import { cpSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync, readdirSync, readFileSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
 import { StructuredError } from '@agentuity/core';
 import * as tui from '../../tui';
@@ -10,11 +10,12 @@ import { getFilesRecursively } from './file';
 import { getVersion } from '../../version';
 import type { Project } from '../../types';
 import { fixDuplicateExportsInDirectory } from './fix-duplicate-exports';
-import type { Logger } from '../../types';
+import type { Logger, BuildContext } from '../../types';
 import { generateWorkbenchMainTsx, generateWorkbenchIndexHtml } from './workbench';
 import { analyzeWorkbench, type WorkbenchAnalysis } from './ast';
 import { type DeployOptions } from '../../schemas/deploy';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
+import { loadBuildConfig, executeBuildConfig, mergeBuildConfig } from './config-loader';
 
 const minBunVersion = '>=1.3.3';
 
@@ -78,6 +79,77 @@ const InvalidBunVersion = StructuredError('InvalidBunVersion')<{
 	current: string;
 	required: string;
 }>();
+
+/**
+ * Finds the workspace root by walking up the directory tree looking for a package.json with workspaces
+ */
+function findWorkspaceRoot(startDir: string): string | null {
+	let currentDir = startDir;
+	while (true) {
+		const pkgPath = join(currentDir, 'package.json');
+		if (existsSync(pkgPath)) {
+			try {
+				const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+				if (pkg.workspaces) {
+					return currentDir;
+				}
+			} catch {
+				// Ignore parse errors, continue searching
+			}
+		}
+		const parent = resolve(currentDir, '..');
+		if (parent === currentDir) break; // reached filesystem root
+		currentDir = parent;
+	}
+	return null;
+}
+
+/**
+ * Finds a package by searching multiple locations:
+ * 1. App-level node_modules
+ * 2. Workspace root node_modules
+ * 3. Workspace packages directory (for workspace packages)
+ *
+ * @param rootDir - Root directory of the project
+ * @param packageName - Package name (e.g., '@agentuity/workbench')
+ * @param logger - Optional logger for debug messages
+ * @returns Path to the package directory, or null if not found
+ */
+function findPackagePath(rootDir: string, packageName: string, logger?: Logger): string | null {
+	const [scope, name] = packageName.startsWith('@')
+		? packageName.slice(1).split('/')
+		: [null, packageName];
+
+	// 1. Try app-level node_modules
+	const appLevelPath = scope
+		? join(rootDir, 'node_modules', `@${scope}`, name)
+		: join(rootDir, 'node_modules', name);
+	if (existsSync(appLevelPath)) {
+		logger?.debug(`Found ${packageName} at app level: ${appLevelPath}`);
+		return appLevelPath;
+	}
+
+	// 2. Try workspace root node_modules
+	const workspaceRoot = findWorkspaceRoot(rootDir);
+	if (workspaceRoot) {
+		const rootLevelPath = scope
+			? join(workspaceRoot, 'node_modules', `@${scope}`, name)
+			: join(workspaceRoot, 'node_modules', name);
+		if (existsSync(rootLevelPath)) {
+			logger?.debug(`Found ${packageName} at workspace root: ${rootLevelPath}`);
+			return rootLevelPath;
+		}
+
+		// 3. Try workspace packages directory
+		const workspacePackagePath = join(workspaceRoot, 'packages', name);
+		if (existsSync(workspacePackagePath)) {
+			logger?.debug(`Found ${packageName} in workspace packages: ${workspacePackagePath}`);
+			return workspacePackagePath;
+		}
+	}
+
+	return null;
+}
 
 const handleBuildFailure = (buildResult: BuildResult) => {
 	// Collect all build errors with full details
@@ -302,8 +374,23 @@ export async function bundle({
 	const tsconfigPath = join(rootDir, 'tsconfig.json');
 	const hasTsconfig = existsSync(tsconfigPath);
 
+	// Load user build config (if it exists)
+	const buildConfigFunction = await loadBuildConfig(rootDir);
+
+	// Helper to create build context for config function
+	const createBuildContext = (): BuildContext => ({
+		rootDir,
+		dev,
+		outDir,
+		srcDir,
+		orgId,
+		projectId,
+		region,
+		logger,
+	});
+
 	await (async () => {
-		const config: Bun.BuildConfig = {
+		const baseConfig: Bun.BuildConfig = {
 			entrypoints: appEntrypoints,
 			root: rootDir,
 			outdir: outDir,
@@ -330,7 +417,19 @@ export async function bundle({
 			},
 			tsconfig: hasTsconfig ? tsconfigPath : undefined,
 		};
-		const buildResult = await Bun.build(config);
+
+		// Apply user config for 'api' phase
+		let finalConfig = baseConfig;
+		if (buildConfigFunction) {
+			const userConfig = await executeBuildConfig(
+				buildConfigFunction,
+				'api',
+				createBuildContext()
+			);
+			finalConfig = mergeBuildConfig(baseConfig, userConfig);
+		}
+
+		const buildResult = await Bun.build(finalConfig);
 		if (!buildResult.success) {
 			handleBuildFailure(buildResult);
 		}
@@ -438,7 +537,7 @@ export async function bundle({
 				mkdirSync(join(webOutDir, 'asset'), { recursive: true });
 				const isLocalRegion = region === 'local' || region === 'l';
 
-				const config: Bun.BuildConfig = {
+				const baseConfig: Bun.BuildConfig = {
 					entrypoints: webEntrypoints,
 					root: webDir,
 					outdir: webOutDir,
@@ -467,7 +566,19 @@ export async function bundle({
 					},
 					tsconfig: hasTsconfig ? tsconfigPath : undefined,
 				};
-				const result = await Bun.build(config);
+
+				// Apply user config for 'web' phase
+				let finalConfig = baseConfig;
+				if (buildConfigFunction) {
+					const userConfig = await executeBuildConfig(
+						buildConfigFunction,
+						'web',
+						createBuildContext()
+					);
+					finalConfig = mergeBuildConfig(baseConfig, userConfig);
+				}
+
+				const result = await Bun.build(finalConfig);
 				if (result.success) {
 					// Fix duplicate exports caused by Bun splitting bug
 					// See: https://github.com/oven-sh/bun/issues/5344
@@ -507,12 +618,51 @@ export async function bundle({
 
 			// Generate files using templates
 			await Bun.write(join(tempWorkbenchDir, 'main.tsx'), generateWorkbenchMainTsx(config));
+
+			// Copy the pre-built standalone.css from workbench package instead of generating it
+			// This ensures we use the built version with Tailwind already processed
+			const workbenchPackagePath = findPackagePath(rootDir, '@agentuity/workbench', logger);
+			const workbenchStylesOut = join(tempWorkbenchDir, 'styles.css');
+
+			if (workbenchPackagePath) {
+				const workbenchStylesPath = join(workbenchPackagePath, 'dist', 'standalone.css');
+				const workbenchStylesSourcePath = join(workbenchPackagePath, 'src', 'standalone.css');
+
+				if (existsSync(workbenchStylesPath)) {
+					cpSync(workbenchStylesPath, workbenchStylesOut);
+					logger.debug('Copied workbench dist/standalone.css to temp workbench dir');
+				} else if (existsSync(workbenchStylesSourcePath)) {
+					// Fallback: copy source CSS file (contains Tailwind directives that need processing)
+					cpSync(workbenchStylesSourcePath, workbenchStylesOut);
+					logger.warn(
+						'Workbench dist/standalone.css not found, using source CSS. Ensure @agentuity/workbench is built.'
+					);
+				} else {
+					throw new BuildFailedError({
+						message: `Workbench styles not found in ${workbenchPackagePath}. Expected either:
+  - ${workbenchStylesPath}
+  - ${workbenchStylesSourcePath}
+  
+Make sure @agentuity/workbench is built.`,
+					});
+				}
+			} else {
+				throw new BuildFailedError({
+					message: `Workbench package not found. Searched in:
+  - App-level node_modules
+  - Workspace root node_modules
+  - Workspace packages directory
+  
+Make sure @agentuity/workbench is installed or available in the workspace.`,
+				});
+			}
+
 			const workbenchIndexFile = join(tempWorkbenchDir, 'index.html');
 			await Bun.write(workbenchIndexFile, generateWorkbenchIndexHtml());
 
 			// Bundle workbench using generated files
 			// Disable splitting to avoid CommonJS/ESM module resolution conflicts
-			const workbenchBuildConfig: Bun.BuildConfig = {
+			const workbenchBaseConfig: Bun.BuildConfig = {
 				entrypoints: [workbenchIndexFile],
 				outdir: join(outDir, 'workbench'),
 				sourcemap: dev ? 'inline' : 'linked',
@@ -531,7 +681,18 @@ export async function bundle({
 				},
 			};
 
-			const workbenchResult = await Bun.build(workbenchBuildConfig);
+			// Apply user config for 'workbench' phase
+			let finalWorkbenchConfig = workbenchBaseConfig;
+			if (buildConfigFunction) {
+				const userConfig = await executeBuildConfig(
+					buildConfigFunction,
+					'workbench',
+					createBuildContext()
+				);
+				finalWorkbenchConfig = mergeBuildConfig(workbenchBaseConfig, userConfig);
+			}
+
+			const workbenchResult = await Bun.build(finalWorkbenchConfig);
 			if (workbenchResult.success) {
 				logger.debug('Workbench bundled successfully');
 				// Clean up temp directory

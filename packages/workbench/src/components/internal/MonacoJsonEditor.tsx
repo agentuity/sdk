@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import Editor, { type Monaco, type OnMount } from '@monaco-editor/react';
 import { useTheme } from '../ui/theme-provider';
-import { bundledThemes } from 'shiki';
 import type { JSONSchema7 } from 'ai';
 import type * as monaco from 'monaco-editor';
+import type { ThemeRegistration } from 'shiki';
+import oneLightModule from '@shikijs/themes/one-light';
+import oneDarkProModule from '@shikijs/themes/one-dark-pro';
 
 interface MonacoJsonEditorProps {
 	value: string;
@@ -328,72 +330,22 @@ export function MonacoJsonEditor({
 						}
 					}, 0);
 				}}
-				beforeMount={async (monaco) => {
+				beforeMount={(monaco) => {
 					setMonacoInstance(monaco);
 
-					try {
-						// Try to use actual Shiki themes
-						const oneLightThemeModule = await bundledThemes['one-light']();
-						const oneDarkProThemeModule = await bundledThemes['one-dark-pro']();
+					// Use the same direct theme imports as code-block
+					const oneLight = (
+						'default' in oneLightModule ? oneLightModule.default : oneLightModule
+					) as ThemeRegistration;
+					const oneDarkPro = (
+						'default' in oneDarkProModule ? oneDarkProModule.default : oneDarkProModule
+					) as ThemeRegistration;
 
-						if (oneLightThemeModule?.default) {
-							const lightMonacoTheme = convertShikiToMonaco(
-								oneLightThemeModule.default,
-								'one-light'
-							);
-							monaco.editor.defineTheme('custom-light', lightMonacoTheme);
-						}
+					const lightMonacoTheme = convertShikiToMonaco(oneLight, 'one-light');
+					monaco.editor.defineTheme('custom-light', lightMonacoTheme);
 
-						if (oneDarkProThemeModule?.default) {
-							const darkMonacoTheme = convertShikiToMonaco(
-								oneDarkProThemeModule.default,
-								'one-dark-pro'
-							);
-							monaco.editor.defineTheme('custom-dark', darkMonacoTheme);
-						}
-					} catch (error) {
-						console.warn(
-							'Failed to load Shiki themes, falling back to manual themes:',
-							error
-						);
-
-						// Fallback to manual theme definitions
-						monaco.editor.defineTheme('custom-light', {
-							base: 'vs',
-							inherit: true,
-							rules: [
-								{ token: 'string.key.json', foreground: 'e45649' },
-								{ token: 'string.value.json', foreground: '50a14f' },
-								{ token: 'number.json', foreground: '986801' },
-								{ token: 'keyword.json', foreground: '986801' },
-								{ token: 'string', foreground: '50a14f' },
-								{ token: 'number', foreground: '986801' },
-								{ token: 'keyword', foreground: '986801' },
-							],
-							colors: {
-								'editor.background': '#00000000',
-								'editor.foreground': '#383a42',
-							},
-						});
-
-						monaco.editor.defineTheme('custom-dark', {
-							base: 'vs-dark',
-							inherit: true,
-							rules: [
-								{ token: 'string.key.json', foreground: 'e06c75' },
-								{ token: 'string.value.json', foreground: '98c379' },
-								{ token: 'number.json', foreground: 'd19a66' },
-								{ token: 'keyword.json', foreground: 'c678dd' },
-								{ token: 'string', foreground: '98c379' },
-								{ token: 'number', foreground: 'd19a66' },
-								{ token: 'keyword', foreground: 'c678dd' },
-							],
-							colors: {
-								'editor.background': '#00000000',
-								'editor.foreground': '#abb2bf',
-							},
-						});
-					}
+					const darkMonacoTheme = convertShikiToMonaco(oneDarkPro, 'one-dark-pro');
+					monaco.editor.defineTheme('custom-dark', darkMonacoTheme);
 				}}
 			/>
 		</div>

@@ -1,0 +1,15 @@
+/* Integration version - no Tailwind import, processed by app's Tailwind */
+/* This file should be imported in the app's CSS file (e.g., globals.css) */
+/* The app must have Tailwind imported before importing this file */
+
+@import './base.css';
+
+/* Tell Tailwind to scan workbench components for class names */
+/* Note: The path below is relative to this CSS file's location in the package */
+@source "./**/*.{ts,tsx}";
+
+/* Workbench base styles */
+/* Using @layer workbench-base with lower priority than app's base layer */
+@layer workbench-base {
+	/* No global styles - workbench components use explicit classes */
+}

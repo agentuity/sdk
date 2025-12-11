@@ -1,0 +1,31 @@
+{
+	"name": "{{PROJECT_NAME}}",
+	"version": "0.0.1",
+	"private": true,
+	"module": "app.ts",
+	"type": "module",
+	"scripts": {
+		"build": "agentuity build --dir .",
+		"dev": "agentuity dev --dir .",
+		"deploy": "agentuity deploy --dir .",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/cli": "latest",
+		"@agentuity/core": "latest",
+		"@agentuity/react": "latest",
+		"@agentuity/runtime": "latest",
+		"@agentuity/schema": "latest",
+		"@agentuity/workbench": "latest",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"typescript": "^5",
+		"bun-plugin-tailwind": "^0.1.2",
+		"tailwindcss": "^4.1.18"
+	}
+}
