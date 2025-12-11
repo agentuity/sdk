@@ -515,7 +515,7 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 				}
 				sctx.traceState = traceState;
 
-				const thread = await threadProvider.restore(c as unknown as HonoContext<Env>);
+				const thread = await threadProvider.restore(c);
 				const session = await sessionProvider.restore(thread, sessionId);
 				const handler = new WaitUntilHandler(tracer);
 
