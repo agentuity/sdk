@@ -134,3 +134,10 @@ export const INTERNAL_AGENT = Symbol('INTERNAL_AGENT');
  * @internal
  */
 export const CURRENT_AGENT = Symbol('CURRENT_AGENT');
+
+/**
+ * Symbol for tracking agent IDs that have executed in this session.
+ * Used in standalone contexts to track agents for session events.
+ * @internal
+ */
+export const AGENT_IDS = Symbol('AGENT_IDS');

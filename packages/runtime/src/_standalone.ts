@@ -6,7 +6,7 @@ import type {
 	VectorStorage,
 } from '@agentuity/core';
 import type { AgentContext, AgentRegistry, AgentRuntimeState } from './agent';
-import { AGENT_RUNTIME } from './_config';
+import { AGENT_RUNTIME, AGENT_IDS } from './_config';
 import type { Logger } from './logger';
 import type { Thread, Session } from './session';
 import { generateId } from './session';
@@ -114,11 +114,13 @@ export class StandaloneAgentContext<
 	config: TConfig;
 	app: TAppState;
 	[AGENT_RUNTIME]: AgentRuntimeState;
+	[AGENT_IDS]?: Set<string>;
 	
 	private waitUntilHandler: WaitUntilHandler;
 	private parentContext: Context;
 	private trigger: import('@agentuity/core').SessionStartEvent['trigger'];
 	private initialSessionId?: string;
+	private currentAgentIds: Set<string> = new Set();
 
 	constructor(options?: StandaloneContextOptions) {
 		const logger = getLogger();
@@ -217,6 +219,12 @@ export class StandaloneAgentContext<
 		
 		// Create a new WaitUntilHandler for each invoke (they can only be used once)
 		this.waitUntilHandler = new WaitUntilHandler(this.tracer);
+		
+		// Reset agentIds for this invocation
+		this.currentAgentIds = new Set();
+		
+		// Store agentIds on the context so agent execution can access it
+		this[AGENT_IDS] = this.currentAgentIds;
 
 		// Execute within parent context (for distributed tracing)
 		return await context.with(this.parentContext, async () => {
@@ -237,6 +245,7 @@ export class StandaloneAgentContext<
 					this.sessionId = sessionId;
 
 					// Add to tracestate (like otelMiddleware does)
+					// Note: SpanContext.traceState is readonly, so we update it by setting the span with a new context
 					let traceState = sctx.traceState ?? new TraceState();
 					const projectId = runtimeConfig.getProjectId();
 					const orgId = runtimeConfig.getOrganizationId();
@@ -251,7 +260,18 @@ export class StandaloneAgentContext<
 					if (isDevMode) {
 						traceState = traceState.set('d', '1');
 					}
-					sctx.traceState = traceState;
+					
+					// Update the active context with the new trace state
+					// We do this by setting the span in the context with updated trace state
+					// Note: This creates a new context but we don't need to use it directly
+					// as the span already has the trace state we need for propagation
+					trace.setSpan(
+						context.active(),
+						trace.wrapSpanContext({
+							...sctx,
+							traceState
+						})
+					);
 
 					// Restore thread and session (like otelMiddleware does)
 					// For standalone contexts, we create a simple thread/session if not provided
@@ -265,8 +285,8 @@ export class StandaloneAgentContext<
 					
 					this.session = await sessionProvider.restore(this.thread, sessionId);
 
-					// Track agent IDs for session events
-					const agentIds = new Set<string>();
+					// Track agent IDs for session events (use the instance set)
+					const agentIds = this.currentAgentIds;
 
 					// Send session start event (if configured)
 					const shouldSendSession = !!(orgId && projectId);

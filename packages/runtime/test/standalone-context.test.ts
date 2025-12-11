@@ -105,23 +105,21 @@ describe('createAgentContext', () => {
 			expect(ctx.state).toBeInstanceOf(Map);
 		});
 
-		test('throws error if called before server initialization', () => {
-			// Save global state
+		test('succeeds when server is initialized', () => {
+			// Verify global state is available after server init
 			const logger = getLogger();
 			const tracer = getTracer();
 			const app = getAppState();
 
-			// Temporarily clear global state (simulating pre-init)
-			// Note: We can't actually test this without mocking because server is already initialized
-			// This test documents the expected behavior
+			// All globals should be present after beforeAll
+			expect(logger).toBeDefined();
+			expect(tracer).toBeDefined();
+			expect(app).toBeDefined();
 
+			// Creating context should not throw
 			expect(() => {
-				// If globals were null, this would throw
-				if (!logger || !tracer || !app) {
-					throw new Error(
-						'Global state not initialized. Make sure createServer() has been called before createAgentContext().'
-					);
-				}
+				const ctx = createAgentContext();
+				expect(ctx).toBeDefined();
 			}).not.toThrow();
 		});
 

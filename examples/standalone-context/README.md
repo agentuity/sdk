@@ -2,6 +2,8 @@
 
 This example demonstrates how to use `createAgentContext()` to execute agents outside of HTTP request contexts.
 
+**Note:** `createAgentContext()` requires a server to be initialized (via `createApp` with a server). This example is for demonstration purposes - see the test suite in `packages/runtime/test/standalone-context.test.ts` for working examples.
+
 ## Use Cases
 
 - **Discord Bots**: Execute agents in response to Discord messages

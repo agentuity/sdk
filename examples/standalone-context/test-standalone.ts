@@ -13,8 +13,8 @@ import greetingAgent from './agents/greeting';
 
 console.log('🚀 Starting standalone context test...\n');
 
-// Wait for server to be ready (or just initialize the app state)
-await app.ready();
+// Wait for app initialization
+await new Promise((resolve) => setTimeout(resolve, 100));
 
 console.log('📦 App state initialized:', app.state);
 console.log('');

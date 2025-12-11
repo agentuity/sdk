@@ -1542,6 +1542,14 @@ export function createAgent<
 				honoCtx.var.agentIds.add(agent.metadata.id);
 				honoCtx.var.agentIds.add(agent.metadata.agentId);
 			}
+		} else {
+			// For standalone contexts, check for AGENT_IDS symbol
+			const { AGENT_IDS } = await import('./_config');
+			const agentIds = (agentCtx as any)[AGENT_IDS] as Set<string> | undefined;  
+			if (agentIds) {
+				agentIds.add(agent.metadata.id);
+				agentIds.add(agent.metadata.agentId);
+			}
 		}
 
 		agentCtx.logger = agentCtx.logger.child(attrs);
