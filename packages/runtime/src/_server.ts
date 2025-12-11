@@ -48,6 +48,60 @@ let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 let globalRouterInstance: Hono<Env> | null = null;
 
 let globalLogger: Logger | null = null;
+
+/**
+ * List of AgentContext properties that should trigger helpful error messages
+ * when accessed directly on HonoContext in route handlers.
+ * 
+ * Users should access these via c.var.propertyName instead of c.propertyName.
+ */
+export const AGENT_CONTEXT_PROPERTIES = [
+	'logger',
+	'tracer',
+	'sessionId',
+	'kv',
+	'stream',
+	'vector',
+	'state',
+	'thread',
+	'session',
+	'config',
+	'app',
+	'waitUntil',
+] as const;
+
+/**
+ * Install helpful error messages on HonoContext for AgentContext properties.
+ * When users try to access c.logger instead of c.var.logger in route handlers,
+ * they'll get a clear error message explaining the correct usage.
+ */
+function installContextPropertyHelpers(c: HonoContext): void {
+	for (const property of AGENT_CONTEXT_PROPERTIES) {
+		// Skip if property already exists (e.g., native Hono properties)
+		if (Object.prototype.hasOwnProperty.call(c, property)) {
+			continue;
+		}
+
+		Object.defineProperty(c, property, {
+			get() {
+				throw new Error(
+					`In route handlers, use c.var.${property} instead of c.${property}. ` +
+						`The property '${property}' is available on AgentContext (for agent handlers) ` +
+						`but must be accessed via c.var in HonoContext (route handlers).`
+				);
+			},
+			set() {
+				throw new Error(
+					`In route handlers, use c.var.${property} instead of c.${property}. ` +
+						`The property '${property}' is available on AgentContext (for agent handlers) ` +
+						`but must be accessed via c.var in HonoContext (route handlers).`
+				);
+			},
+			configurable: true,
+			enumerable: false,
+		});
+	}
+}
 let globalTracer: Tracer | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let globalAppState: any = null;
@@ -233,6 +287,10 @@ export const createServer = async <TAppState>(
 		c.set('kv', services.kv);
 		c.set('stream', services.stream);
 		c.set('vector', services.vector);
+
+		// Add helpful error messages for common mistakes
+		// Users should use c.var.XYZ in route handlers, not c.XYZ
+		installContextPropertyHelpers(c);
 
 		const isWebSocket = c.req.header('upgrade')?.toLowerCase() === 'websocket';
 		const skipLogging = c.req.path.startsWith('/_agentuity/');

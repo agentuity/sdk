@@ -63,6 +63,79 @@ export type Config = zod.infer<typeof ConfigSchema>;
 
 export type LogLevel = 'debug' | 'trace' | 'info' | 'warn' | 'error';
 
+/**
+ * Build phases for the bundler
+ */
+export type BuildPhase = 'api' | 'web' | 'workbench';
+
+/**
+ * Context provided to the build config function
+ */
+export interface BuildContext {
+	/**
+	 * The root directory of the project
+	 */
+	rootDir: string;
+	/**
+	 * Whether this is a development build
+	 */
+	dev: boolean;
+	/**
+	 * The output directory for the build
+	 */
+	outDir: string;
+	/**
+	 * The source directory
+	 */
+	srcDir: string;
+	/**
+	 * Organization ID (if available)
+	 */
+	orgId?: string;
+	/**
+	 * Project ID (if available)
+	 */
+	projectId?: string;
+	/**
+	 * Deployment region
+	 */
+	region: string;
+	/**
+	 * Logger instance
+	 */
+	logger: Logger;
+}
+
+/**
+ * User-provided build configuration for a specific phase
+ */
+export interface BuildConfig {
+	/**
+	 * Additional Bun plugins to apply during bundling
+	 * These are added AFTER the Agentuity plugin
+	 */
+	plugins?: Array<import('bun').BunPlugin>;
+	/**
+	 * Additional external modules to exclude from bundling
+	 * These are merged with Agentuity's default externals
+	 */
+	external?: string[];
+	/**
+	 * Additional define constants for code replacement
+	 * These are merged with Agentuity's default defines
+	 * Note: Cannot override process.env.AGENTUITY_* or process.env.NODE_ENV
+	 */
+	define?: Record<string, string>;
+}
+
+/**
+ * Configuration function that users export from agentuity.config.ts
+ */
+export type BuildConfigFunction = (
+	phase: BuildPhase,
+	context: BuildContext
+) => BuildConfig | Promise<BuildConfig>;
+
 export interface Profile {
 	name: string;
 	filename: string;

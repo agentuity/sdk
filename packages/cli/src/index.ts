@@ -104,6 +104,10 @@ export type {
 	Profile,
 	AuthData,
 	CommandSchemas,
+	BuildPhase,
+	BuildContext,
+	BuildConfig,
+	BuildConfigFunction,
 } from './types';
 export { createSubcommand, createCommand } from './types';
 export type { ColorScheme } from './terminal';

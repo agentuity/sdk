@@ -395,6 +395,10 @@ import { readFileSync, existsSync } from 'node:fs';
 		if (path.includes('..') || path.includes('%2e%2e')) {
 			return c.notFound();
 		}
+		// Don't catch workbench routes (already handled above)
+		if (path.startsWith('/workbench')) {
+			return c.notFound();
+		}
 		// serve default for any path not explicitly matched
 		return c.html(index);
 	});
