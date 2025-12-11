@@ -71,7 +71,7 @@ console.log('__CONFIG_LOADED__');
 							message: errorData.message,
 						});
 					}
-				} catch (parseError) {
+				} catch (_parseError) {
 					// Not JSON, treat as regular error
 				}
 
