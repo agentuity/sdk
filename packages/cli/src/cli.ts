@@ -1,3 +1,5 @@
+import { homedir } from 'node:os';
+import { resolve } from 'node:path';
 import { Command } from 'commander';
 import type {
 	CommandDefinition,
@@ -726,6 +728,10 @@ async function registerSubcommand(
 		if (dirNeeded) {
 			const dir = (options.dir as string | undefined) ?? process.cwd();
 			projectDir = dir;
+			if (projectDir.startsWith('~/')) {
+				projectDir = projectDir.replace('~/', homedir());
+			}
+			projectDir = resolve(projectDir);
 			try {
 				project = await loadProjectConfig(dir, baseCtx.config);
 			} catch (error) {
