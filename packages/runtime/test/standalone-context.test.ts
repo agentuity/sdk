@@ -177,21 +177,51 @@ describe('createAgentContext', () => {
 			expect(result.result).toBe('success');
 		});
 
-		test('sets sessionId from trace context', async () => {
+		test('generates sessionId from trace context', async () => {
 			const ctx = createAgentContext();
-			await ctx.invoke(() => statusAgent.run());
-
-			// SessionId should be set after invoke
-			expect(ctx.sessionId).toBeDefined();
-			expect(ctx.sessionId).toMatch(/^sess_/);
+			
+			// Session ID is generated per-invocation (not stored on instance)
+			// We can verify it works by checking the agent received a proper session
+			let capturedSessionId: string | undefined;
+			
+			const captureAgent = createAgent('capture', {
+				schema: {
+					output: s.object({ captured: s.string() }),
+				},
+				handler: async (ctx) => {
+					capturedSessionId = ctx.sessionId;
+					return { captured: ctx.sessionId };
+				},
+			});
+			
+			const result = await ctx.invoke(() => captureAgent.run());
+			
+			expect(capturedSessionId).toBeDefined();
+			expect(capturedSessionId).toMatch(/^sess_/);
+			expect(result.captured).toMatch(/^sess_/);
 		});
 
 		test('uses custom sessionId when provided', async () => {
 			const customId = 'discord-msg-12345';
 			const ctx = createAgentContext({ sessionId: customId });
-			await ctx.invoke(() => statusAgent.run());
+			
+			// Verify the custom session ID is used within the agent
+			let capturedSessionId: string | undefined;
+			
+			const captureAgent = createAgent('capture-session', {
+				schema: {
+					output: s.object({ sessionId: s.string() }),
+				},
+				handler: async (ctx) => {
+					capturedSessionId = ctx.sessionId;
+					return { sessionId: ctx.sessionId };
+				},
+			});
+			
+			const result = await ctx.invoke(() => captureAgent.run());
 
-			expect(ctx.sessionId).toBe(customId);
+			expect(capturedSessionId).toBe(customId);
+			expect(result.sessionId).toBe(customId);
 		});
 
 		test('accepts custom span name', async () => {
@@ -333,18 +363,25 @@ describe('createAgentContext', () => {
 		});
 
 		test('waitUntil executes background tasks', async () => {
-			const ctx = createAgentContext();
 			let taskExecuted = false;
 
-			const result = await ctx.invoke(async () => {
-				ctx.waitUntil(async () => {
-					// Simulate async background work
-					await new Promise((resolve) => setTimeout(resolve, 10));
-					taskExecuted = true;
-				});
-
-				return statusAgent.run();
+			// Create an agent that uses waitUntil
+			const waitUntilAgent = createAgent('waituntil-test', {
+				schema: {
+					output: s.object({ status: s.string() }),
+				},
+				handler: async (ctx) => {
+					ctx.waitUntil(async () => {
+						// Simulate async background work
+						await new Promise((resolve) => setTimeout(resolve, 10));
+						taskExecuted = true;
+					});
+					return { status: 'ok' };
+				},
 			});
+
+			const ctx = createAgentContext();
+			const result = await ctx.invoke(() => waitUntilAgent.run());
 
 			expect(result.status).toBe('ok');
 
@@ -440,6 +477,27 @@ describe('createAgentContext', () => {
 			results.forEach((result) => {
 				expect(result.status).toBe('ok');
 			});
+		});
+
+		test('same context can handle concurrent invocations', async () => {
+			const ctx = createAgentContext();
+
+			// Execute multiple agents concurrently on the same context
+			const [result1, result2, result3] = await Promise.all([
+				ctx.invoke(() => greetingAgent.run({ name: 'Concurrent1' })),
+				ctx.invoke(() => greetingAgent.run({ name: 'Concurrent2' })),
+				ctx.invoke(() => greetingAgent.run({ name: 'Concurrent3' })),
+			]);
+
+			// All should complete successfully with their own data
+			expect(result1.message).toBe('Hello, Concurrent1!');
+			expect(result2.message).toBe('Hello, Concurrent2!');
+			expect(result3.message).toBe('Hello, Concurrent3!');
+
+			// Each should have independent counts
+			expect(result1.count).toBeGreaterThan(0);
+			expect(result2.count).toBeGreaterThan(0);
+			expect(result3.count).toBeGreaterThan(0);
 		});
 	});
 });

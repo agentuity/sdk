@@ -101,26 +101,29 @@ export class StandaloneAgentContext<
 	TAppState = Record<string, never>,
 > implements AgentContext<TAgentMap, TConfig, TAppState>
 {
+	// Immutable context properties (safe for concurrent access)
 	agent: TAgentMap = {} as TAgentMap;
 	logger: Logger;
-	sessionId: string;
 	tracer: import('@opentelemetry/api').Tracer;
 	kv!: KeyValueStorage;
 	stream!: StreamStorage;
 	vector!: VectorStorage;
-	state: Map<string, unknown>;
-	session: Session;
-	thread: Thread;
 	config: TConfig;
 	app: TAppState;
 	[AGENT_RUNTIME]: AgentRuntimeState;
+	
+	// Note: The following are mutable and will be set per-invocation via AsyncLocalStorage
+	// They exist on the interface for compatibility but are overwritten during invoke()
+	sessionId: string;
+	state: Map<string, unknown>;
+	session: Session;
+	thread: Thread;
 	[AGENT_IDS]?: Set<string>;
 	
-	private waitUntilHandler: WaitUntilHandler;
-	private parentContext: Context;
-	private trigger: import('@agentuity/core').SessionStartEvent['trigger'];
-	private initialSessionId?: string;
-	private currentAgentIds: Set<string> = new Set();
+	// Immutable options stored from constructor
+	private readonly parentContext: Context;
+	private readonly trigger: import('@agentuity/core').SessionStartEvent['trigger'];
+	private readonly initialSessionId?: string;
 
 	constructor(options?: StandaloneContextOptions) {
 		const logger = getLogger();
@@ -164,8 +167,6 @@ export class StandaloneAgentContext<
 			serializeUserData: () => undefined,
 		} as Session);
 
-		this.waitUntilHandler = new WaitUntilHandler(tracer);
-
 		// Create isolated runtime state
 		this[AGENT_RUNTIME] = {
 			agents: new Map(),
@@ -177,8 +178,11 @@ export class StandaloneAgentContext<
 		registerServices(this, true); // true = populate agents registry
 	}
 
-	waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void {
-		this.waitUntilHandler.waitUntil(callback);
+	waitUntil(_callback: Promise<void> | (() => void | Promise<void>)): void {
+		// This will be called from within invoke() where waitUntilHandler is in scope
+		// We need to access the per-call waitUntilHandler from the current invocation
+		// This is handled by updating the context during invoke() via AsyncLocalStorage
+		throw new Error('waitUntil must be called from within invoke() execution context');
 	}
 
 	/**
@@ -217,14 +221,22 @@ export class StandaloneAgentContext<
 		const sessionEventProvider = getSessionEventProvider();
 		const storage = getAgentAsyncLocalStorage();
 		
-		// Create a new WaitUntilHandler for each invoke (they can only be used once)
-		this.waitUntilHandler = new WaitUntilHandler(this.tracer);
+		// Create per-invocation state (prevents race conditions on concurrent calls)
+		const waitUntilHandler = new WaitUntilHandler(this.tracer);
+		const agentIds = new Set<string>();
+		let invocationSessionId = this.initialSessionId ?? 'pending';
+		let invocationThread: Thread;
+		let invocationSession: Session;
+		const invocationState = new Map<string, unknown>();
 		
-		// Reset agentIds for this invocation
-		this.currentAgentIds = new Set();
-		
-		// Store agentIds on the context so agent execution can access it
-		this[AGENT_IDS] = this.currentAgentIds;
+		// Create a per-call context that inherits from this but has isolated mutable state
+		const callContext = Object.create(this) as StandaloneAgentContext<TAgentMap, TConfig, TAppState>;
+		callContext.sessionId = invocationSessionId;
+		callContext.state = invocationState;
+		callContext[AGENT_IDS] = agentIds;
+		callContext.waitUntil = (callback: Promise<void> | (() => void | Promise<void>)) => {
+			waitUntilHandler.waitUntil(callback);
+		};
 
 		// Execute within parent context (for distributed tracing)
 		return await context.with(this.parentContext, async () => {
@@ -241,8 +253,8 @@ export class StandaloneAgentContext<
 					const sctx = span.spanContext();
 					
 					// Generate sessionId from traceId if not provided
-					const sessionId = this.initialSessionId ?? (sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess'));
-					this.sessionId = sessionId;
+					invocationSessionId = this.initialSessionId ?? (sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess'));
+					callContext.sessionId = invocationSessionId;
 
 					// Add to tracestate (like otelMiddleware does)
 					// Note: SpanContext.traceState is readonly, so we update it by setting the span with a new context
@@ -277,16 +289,13 @@ export class StandaloneAgentContext<
 					// For standalone contexts, we create a simple thread/session if not provided
 					// The threadProvider.restore expects a Hono context with cookie/header access
 					// For standalone contexts without HTTP, we just create a new thread
-					if (!this.thread || this.thread.id === 'pending') {
-						const { DefaultThread, generateId } = await import('./session');
-						const threadId = generateId('thrd');
-						this.thread = new DefaultThread(threadProvider, threadId);
-					}
+					const { DefaultThread, generateId: genId } = await import('./session');
+					const threadId = genId('thrd');
+					invocationThread = new DefaultThread(threadProvider, threadId);
+					callContext.thread = invocationThread;
 					
-					this.session = await sessionProvider.restore(this.thread, sessionId);
-
-					// Track agent IDs for session events (use the instance set)
-					const agentIds = this.currentAgentIds;
+					invocationSession = await sessionProvider.restore(invocationThread, invocationSessionId);
+					callContext.session = invocationSession;
 
 					// Send session start event (if configured)
 					const shouldSendSession = !!(orgId && projectId);
@@ -295,10 +304,10 @@ export class StandaloneAgentContext<
 					if (shouldSendSession) {
 						await sessionEventProvider
 							.start({
-								id: sessionId,
+								id: invocationSessionId,
 								orgId,
 								projectId,
-								threadId: this.thread.id,
+								threadId: invocationThread.id,
 								routeId: 'standalone', // No route for standalone contexts
 								deploymentId,
 								devmode: isDevMode,
@@ -316,25 +325,25 @@ export class StandaloneAgentContext<
 					let hasPendingWaits = false;
 
 					try {
-						// Execute function within AsyncLocalStorage context
-						const result = await storage.run(this, fn);
+						// Execute function within AsyncLocalStorage context with per-call context
+						const result = await storage.run(callContext, fn);
 
 						// Wait for background tasks (like otelMiddleware does)
-						if (this.waitUntilHandler.hasPending()) {
+						if (waitUntilHandler.hasPending()) {
 							hasPendingWaits = true;
-							this.waitUntilHandler
-								.waitUntilAll(this.logger, sessionId)
+							waitUntilHandler
+								.waitUntilAll(this.logger, invocationSessionId)
 								.then(async () => {
-									this.logger.debug('wait until finished for session %s', sessionId);
-									await sessionProvider.save(this.session);
-									await threadProvider.save(this.thread);
+									this.logger.debug('wait until finished for session %s', invocationSessionId);
+									await sessionProvider.save(invocationSession);
+									await threadProvider.save(invocationThread);
 									span.setStatus({ code: SpanStatusCode.OK });
 									if (shouldSendSession && canSendSessionEvents) {
-										const userData = this.session.serializeUserData();
+										const userData = invocationSession.serializeUserData();
 										sessionEventProvider
 											.complete({
-												id: sessionId,
-												threadId: this.thread.empty() ? null : this.thread.id,
+												id: invocationSessionId,
+												threadId: invocationThread.empty() ? null : invocationThread.id,
 												statusCode: 200, // Success
 												agentIds: Array.from(agentIds),
 												userData,
@@ -344,7 +353,7 @@ export class StandaloneAgentContext<
 									}
 								})
 								.catch((ex) => {
-									this.logger.error('wait until errored for session %s. %s', sessionId, ex);
+									this.logger.error('wait until errored for session %s. %s', invocationSessionId, ex);
 									if (ex instanceof Error) {
 										span.recordException(ex);
 									}
@@ -355,11 +364,11 @@ export class StandaloneAgentContext<
 									});
 									this.logger.error(message);
 									if (shouldSendSession && canSendSessionEvents) {
-										const userData = this.session.serializeUserData();
+										const userData = invocationSession.serializeUserData();
 										sessionEventProvider
 											.complete({
-												id: sessionId,
-												threadId: this.thread.empty() ? null : this.thread.id,
+												id: invocationSessionId,
+												threadId: invocationThread.empty() ? null : invocationThread.id,
 												statusCode: 500, // Error
 												error: message,
 												agentIds: Array.from(agentIds),
@@ -375,11 +384,11 @@ export class StandaloneAgentContext<
 						} else {
 							span.setStatus({ code: SpanStatusCode.OK });
 							if (shouldSendSession && canSendSessionEvents) {
-								const userData = this.session.serializeUserData();
+								const userData = invocationSession.serializeUserData();
 								sessionEventProvider
 									.complete({
-										id: sessionId,
-										threadId: this.thread.empty() ? null : this.thread.id,
+										id: invocationSessionId,
+										threadId: invocationThread.empty() ? null : invocationThread.id,
 										statusCode: 200,
 										agentIds: Array.from(agentIds),
 										userData,
@@ -401,11 +410,11 @@ export class StandaloneAgentContext<
 						});
 						this.logger.error(message);
 						if (shouldSendSession && canSendSessionEvents) {
-							const userData = this.session.serializeUserData();
+							const userData = invocationSession.serializeUserData();
 							sessionEventProvider
 								.complete({
-									id: sessionId,
-									threadId: this.thread.empty() ? null : this.thread.id,
+									id: invocationSessionId,
+									threadId: invocationThread.empty() ? null : invocationThread.id,
 									statusCode: 500,
 									error: message,
 									agentIds: Array.from(agentIds),
@@ -418,8 +427,8 @@ export class StandaloneAgentContext<
 					} finally {
 						if (!hasPendingWaits) {
 							try {
-								await sessionProvider.save(this.session);
-								await threadProvider.save(this.thread);
+								await sessionProvider.save(invocationSession);
+								await threadProvider.save(invocationThread);
 							} finally {
 								span.end();
 							}
