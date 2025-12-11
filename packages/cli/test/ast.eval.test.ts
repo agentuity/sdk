@@ -220,4 +220,35 @@ export default agent;
 
 		cleanup();
 	});
+
+	test('should skip eval.ts files without createEval (utility files)', async () => {
+		setup();
+		const evalFile = join(TEST_DIR, 'eval.ts');
+		const code = `
+// Utility file that doesn't contain createEval
+export function helperFunction(x: number): number {
+	return x * 2;
+}
+
+export const CONSTANT = 42;
+		`;
+		writeFileSync(evalFile, code);
+
+		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
+		const contents = transpiler.transformSync(code);
+		const [newSource, evals] = await parseEvalMetadata(
+			TEST_DIR,
+			evalFile,
+			contents,
+			'proj_1',
+			'dep_1'
+		);
+
+		// Should return empty evals array for files without createEval
+		expect(evals).toHaveLength(0);
+		// Should return original contents unchanged
+		expect(newSource).toBe(contents);
+
+		cleanup();
+	});
 });

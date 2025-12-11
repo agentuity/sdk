@@ -60,3 +60,67 @@ jobs:
 
          - name: Run integration test suite
            run: bash apps/testing/integration-suite/scripts/ci-test.sh
+   cloud-deployment-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 15
+      name: Cloud Deployment Tests
+      env:
+         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_APP_URL: https://app-v1.agentuity.com
+         AGENTUITY_TRANSPORT_URL: https://catalyst-usc.agentuity.cloud
+         AGENTUITY_CATALYST_URL: https://catalyst-usc.agentuity.cloud
+         AGENTUITY_STREAM_URL: https://streams-usc.agentuity.cloud
+         AGENTUITY_KEYVALUE_URL: https://catalyst-usc.agentuity.cloud
+         AGENTUITY_OBJECTSTORE_URL: https://catalyst-usc.agentuity.cloud
+         AGENTUITY_VECTOR_URL: https://catalyst-usc.agentuity.cloud
+         AGENTUITY_LOG_LEVEL: error
+         AGENTUITY_REGION: usc
+         AGENTUITY_CLOUD_PROJECT_ID: ${{ vars.AGENTUITY_CLOUD_PROJECT_ID }}
+         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Setup test credentials
+           run: |
+              # Generate CLI API key for cloud operations
+              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+
+              # Set SDK key for runtime operations
+              echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
+
+              # Set OpenAI API key for embedding operations
+              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+
+         - name: Create .env file for app runtime
+           run: |
+              cd apps/testing/cloud-deployment
+              cat > .env << EOF
+              AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}
+              OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+              AGENTUITY_API_URL=$AGENTUITY_API_URL
+              AGENTUITY_APP_URL=$AGENTUITY_APP_URL
+              AGENTUITY_TRANSPORT_URL=$AGENTUITY_TRANSPORT_URL
+              AGENTUITY_CATALYST_URL=$AGENTUITY_CATALYST_URL
+              AGENTUITY_STREAM_URL=$AGENTUITY_STREAM_URL
+              AGENTUITY_KEYVALUE_URL=$AGENTUITY_KEYVALUE_URL
+              AGENTUITY_OBJECTSTORE_URL=$AGENTUITY_OBJECTSTORE_URL
+              AGENTUITY_VECTOR_URL=$AGENTUITY_VECTOR_URL
+              AGENTUITY_LOG_LEVEL=$AGENTUITY_LOG_LEVEL
+              AGENTUITY_REGION=$AGENTUITY_REGION
+              EOF
+
+         - name: Build and run cloud deployment tests
+           run: |
+              cd apps/testing/cloud-deployment
+              bun run test

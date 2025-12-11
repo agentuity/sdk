@@ -375,6 +375,8 @@ import { readFileSync, existsSync } from 'node:fs';
 			index += html;
 		}
 	}
+	// make paths absolute
+	index = index.replaceAll('./web/', '/web/');
 	const webstatic = serveStatic({ root: import.meta.dir + '/web' });
 	// In dev mode, serve from source; in prod, serve from build output
 	const publicRoot = ${isDevMode} ? ${JSON.stringify(join(srcDir, 'web', 'public'))} : import.meta.dir + '/web/public';
@@ -389,16 +391,8 @@ import { readFileSync, existsSync } from 'node:fs';
 		if (path.includes('..') || path.includes('%2e%2e')) {
 			return c.notFound();
 		}
-		// Only serve from public folder at root (skip /web/* routes and /)
-		if (path !== '/' && !path.startsWith('/web/')) {
-			try {
-				// serveStatic calls next() internally if file not found
-				return await publicstatic(c, next);
-			} catch (err) {
-				return next();
-			}
-		}
-		return next();
+		// serve default for any path not explicitly matched
+		return c.html(index);
 	});
 })();`);
 				}
@@ -495,6 +489,14 @@ import { readFileSync, existsSync } from 'node:fs';
 					}
 
 					for (const apiFile of apiFiles) {
+						// Quick check: skip files that don't contain createRouter or Hono
+						// This avoids expensive AST parsing for utility files
+						const fileContent = await Bun.file(apiFile).text();
+						if (!fileContent.includes('createRouter') && !fileContent.includes('new Hono')) {
+							logger.trace(`Skipping ${apiFile}: no createRouter or Hono found`);
+							continue;
+						}
+
 						try {
 							const routes = await parseRoute(rootDir, apiFile, projectId, deploymentId);
 
@@ -574,12 +576,17 @@ import { readFileSync, existsSync } from 'node:fs';
 								});
 							}
 						} catch (error) {
-							// Skip files that don't have createRouter (they might be utilities)
-							if (
-								error instanceof Error &&
-								error.message.includes('could not find an proper createRouter')
-							) {
-								logger.trace(`Skipping ${apiFile}: no createRouter found`);
+							// Skip files that don't have proper router setup despite containing createRouter/Hono
+							// (e.g., files that import but don't use them, or have syntax errors)
+							if (error instanceof Error) {
+								if (
+									error.message.includes('could not find default export') ||
+									error.message.includes('could not find an proper createRouter')
+								) {
+									logger.trace(`Skipping ${apiFile}: ${error.message}`);
+								} else {
+									throw error;
+								}
 							} else {
 								throw error;
 							}

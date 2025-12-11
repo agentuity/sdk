@@ -44,13 +44,13 @@ export function generateGatewayEnvGuard(
 	provider: string
 ): string {
 	return `{
-    const apikey = process.env.AGENTUITY_SDK_KEY;
-    const url = process.env.AGENTUITY_AIGATEWAY_URL || process.env.AGENTUITY_TRANSPORT_URL || (apikey ? 'https://agentuity.ai' : '');
-    if (url && apikey) {
-        process.env.${apikey} = ${apikeyval};
-        process.env.${apibase} = url + '/gateway/${provider}';
+    const _agentuity_sdk_key = process.env.AGENTUITY_SDK_KEY;
+    const _agentuity_url = process.env.AGENTUITY_AIGATEWAY_URL || process.env.AGENTUITY_TRANSPORT_URL || (_agentuity_sdk_key ? 'https://agentuity.ai' : '');
+    if (_agentuity_url && _agentuity_sdk_key) {
+        process.env.${apikey} = _agentuity_sdk_key;
+        process.env.${apibase} = _agentuity_url + '/gateway/${provider}';
         console.debug('Enabled Agentuity AI Gateway for ${provider}');
-    } else {
+    } else if (!process.env.${apikey}) {
      ${generateEnvWarning(apikey)}
     }
 }

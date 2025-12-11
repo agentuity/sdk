@@ -6,6 +6,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INSTALL_SCRIPT="$REPO_ROOT/install.sh"
 CLI_DIR="$REPO_ROOT/packages/cli"
 CLI_BIN="$CLI_DIR/bin/cli.ts"
+CLI_COMPILED="$CLI_DIR/agentuity"
 
 # Colors
 RED='\033[0;31m'
@@ -32,13 +33,25 @@ print_info() {
 	printf "${YELLOW}ℹ${NC} %s\n" "$1"
 }
 
-# Test that upgrade command exists (using local dev CLI)
-test_upgrade_command_exists() {
-	print_header "Test: Upgrade Command Exists (Local Dev)"
+# Build compiled executable for testing
+build_executable() {
+	print_info "Building compiled executable..."
+	(cd "$CLI_DIR" && bun build --compile --minify --sourcemap bin/cli.ts --outfile agentuity) > /dev/null 2>&1
+	if [ ! -f "$CLI_COMPILED" ]; then
+		print_error "Failed to build executable"
+		return 1
+	fi
+	print_success "Executable built successfully"
+	return 0
+}
 
-	print_info "Testing local CLI binary..."
+# Test that upgrade command exists (using compiled executable)
+test_upgrade_command_exists() {
+	print_header "Test: Upgrade Command Exists (Compiled Executable)"
+
+	print_info "Testing compiled CLI binary..."
 	# Run command and capture output (may exit with error code)
-	(cd "$CLI_DIR" && bun "$CLI_BIN" upgrade --help) > /tmp/upgrade-help.log 2>&1 || true
+	"$CLI_COMPILED" upgrade --help > /tmp/upgrade-help.log 2>&1 || true
 
 	# Verify help output contains expected text
 	if ! grep -q "Upgrade the CLI to the latest version" /tmp/upgrade-help.log; then
@@ -51,26 +64,21 @@ test_upgrade_command_exists() {
 	return 0
 }
 
-# Test that upgrade command rejects when run via bun
+# Test that upgrade command is hidden when run via bun
 test_upgrade_rejects_bun() {
-	print_header "Test: Upgrade Rejects Bun Execution"
+	print_header "Test: Upgrade Hidden When Running via Bun"
 
-	print_info "Testing upgrade rejection when run via bun..."
-	if (cd "$CLI_DIR" && bun "$CLI_BIN" upgrade) > /tmp/upgrade-bun.log 2>&1; then
-		print_error "Upgrade should have rejected bun execution"
-		cat /tmp/upgrade-bun.log
+	print_info "Testing upgrade command is hidden when run via bun..."
+	(cd "$CLI_DIR" && bun "$CLI_BIN" --help) > /tmp/upgrade-bun-help.log 2>&1 || true
+
+	# Verify upgrade is NOT in the commands list
+	if grep -q "upgrade" /tmp/upgrade-bun-help.log; then
+		print_error "Upgrade command should not be visible via bun"
+		cat /tmp/upgrade-bun-help.log
 		return 1
 	fi
 
-	# Should show error about needing to run from executable
-	if grep -q "only available when running from the installed executable" /tmp/upgrade-bun.log; then
-		print_success "Upgrade correctly rejects bun execution"
-	else
-		print_error "Expected rejection message not found"
-		cat /tmp/upgrade-bun.log
-		return 1
-	fi
-
+	print_success "Upgrade correctly hidden when running via bun"
 	return 0
 }
 
@@ -105,7 +113,7 @@ test_upgrade_force_flag() {
 	print_header "Test: Upgrade --force Flag"
 
 	print_info "Testing --force flag exists..."
-	(cd "$CLI_DIR" && bun "$CLI_BIN" upgrade --help) > /tmp/upgrade-force-help.log 2>&1 || true
+	"$CLI_COMPILED" upgrade --help > /tmp/upgrade-force-help.log 2>&1 || true
 
 	if grep -q -- "--force" /tmp/upgrade-force-help.log; then
 		print_success "Upgrade --force flag exists"
@@ -123,7 +131,7 @@ test_upgrade_metadata() {
 	print_header "Test: Upgrade Command Metadata"
 
 	print_info "Checking upgrade command metadata..."
-	(cd "$CLI_DIR" && bun "$CLI_BIN" --help) > /tmp/upgrade-commands.log 2>&1 || true
+	"$CLI_COMPILED" --help > /tmp/upgrade-commands.log 2>&1 || true
 
 	# Verify upgrade command is listed
 	if grep -q "upgrade" /tmp/upgrade-commands.log; then
@@ -196,8 +204,9 @@ test_upgrade_from_old_version() {
 		return 0
 	fi
 
-	# Verify new version has upgrade command
-	if ! PATH="$tmpdir/.agentuity/bin:$PATH" agentuity upgrade --help > "$tmpdir/new-upgrade-check.log" 2>&1; then
+	# Verify new version has upgrade command (check help text, ignore exit code)
+	PATH="$tmpdir/.agentuity/bin:$PATH" agentuity upgrade --help > "$tmpdir/new-upgrade-check.log" 2>&1 || true
+	if ! grep -q "Upgrade the CLI to the latest version" "$tmpdir/new-upgrade-check.log"; then
 		print_error "New version doesn't have upgrade command"
 		cat "$tmpdir/new-upgrade-check.log"
 		return 1
@@ -227,6 +236,12 @@ test_upgrade_from_old_version() {
 main() {
 	print_header "Upgrade Command Test Suite"
 
+	# Build executable first
+	if ! build_executable; then
+		print_error "Failed to build executable - cannot run tests"
+		return 1
+	fi
+
 	failed=0
 	total=0
 
@@ -237,10 +252,10 @@ main() {
 		failed=$((failed + 1))
 	fi
 
-	# Test 2: Upgrade rejects bun execution
+	# Test 2: Upgrade hidden when running via bun
 	total=$((total + 1))
 	if ! test_upgrade_rejects_bun; then
-		print_error "Test 2 failed: Upgrade rejects bun execution"
+		print_error "Test 2 failed: Upgrade hidden when running via bun"
 		failed=$((failed + 1))
 	fi
 
@@ -277,6 +292,12 @@ main() {
 	printf "Total: %d\n" "$total"
 	printf "Passed: %d\n" "$((total - failed))"
 	printf "Failed: %d\n" "$failed"
+
+	# Cleanup compiled executable
+	if [ -f "$CLI_COMPILED" ]; then
+		rm -f "$CLI_COMPILED"
+		print_info "Cleaned up compiled executable"
+	fi
 
 	if [ "$failed" -eq 0 ]; then
 		print_success "All upgrade tests passed!"

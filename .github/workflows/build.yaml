@@ -58,7 +58,12 @@ jobs:
               bun run build
               bun run whoami
               ./packages/cli/bin/cli.ts profile show --json
-              bun all
+              # Run all checks except integration-suite (handled by package-smoke-test.yaml)
+              bun format
+              bun lint
+              bun typecheck
+              # Run only package unit tests, skip integration-suite
+              bun test
          - name: Test Upgrade Command
            timeout-minutes: 5
            env:

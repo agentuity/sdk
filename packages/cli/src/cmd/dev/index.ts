@@ -938,6 +938,17 @@ export const command = createCommand({
 						return;
 					}
 
+					// Ignore .git folder
+					if (changedFile && (changedFile === '.git' || changedFile.startsWith('.git/'))) {
+						logger.trace(
+							'File change ignored (.git folder): %s (event: %s, file: %s)',
+							watchDir,
+							eventType,
+							changedFile
+						);
+						return;
+					}
+
 					// Ignore changes in .agentuity directory (build output)
 					// Check both relative path and normalized absolute path
 					const isInAgentuityDir =

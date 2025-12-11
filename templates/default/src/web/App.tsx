@@ -1,8 +1,7 @@
 import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 
-// Get configurable workbench path from environment, default to '/workbench'
-const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH || '/workbench';
+const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 
 export function App() {
 	const [name, setName] = useState('World');
@@ -110,44 +109,48 @@ export function App() {
 									</>
 								),
 							},
-							{
-								key: 'try-workbench',
-								title: (
-									<>
-										Try{' '}
-										<a href={WORKBENCH_PATH} className="workbench-link">
-											Workbench
-										</a>
-									</>
-								),
-								text: <>A chat interface to test your agents in isolation.</>,
-							},
-						].map((step) => (
-							<div key={step.key} className="step">
-								<div className="step-icon">
-									<svg
-										aria-hidden="true"
-										className="checkmark"
-										fill="none"
-										height="24"
-										stroke="#00c951"
-										strokeLinecap="round"
-										strokeLinejoin="round"
-										strokeWidth="2"
-										viewBox="0 0 24 24"
-										width="24"
-										xmlns="http://www.w3.org/2000/svg"
-									>
-										<path d="M20 6 9 17l-5-5"></path>
-									</svg>
-								</div>
+							WORKBENCH_PATH
+								? {
+										key: 'try-workbench',
+										title: (
+											<>
+												Try{' '}
+												<a href={WORKBENCH_PATH} className="workbench-link">
+													Workbench
+												</a>
+											</>
+										),
+										text: <>A chat interface to test your agents in isolation.</>,
+									}
+								: null,
+						]
+							.filter(Boolean)
+							.map((step) => (
+								<div key={step!.key} className="step">
+									<div className="step-icon">
+										<svg
+											aria-hidden="true"
+											className="checkmark"
+											fill="none"
+											height="24"
+											stroke="#00c951"
+											strokeLinecap="round"
+											strokeLinejoin="round"
+											strokeWidth="2"
+											viewBox="0 0 24 24"
+											width="24"
+											xmlns="http://www.w3.org/2000/svg"
+										>
+											<path d="M20 6 9 17l-5-5"></path>
+										</svg>
+									</div>
 
-								<div>
-									<h4 className="step-title">{step.title}</h4>
-									<p className="step-text">{step.text}</p>
+									<div>
+										<h4 className="step-title">{step!.title}</h4>
+										<p className="step-text">{step!.text}</p>
+									</div>
 								</div>
-							</div>
-						))}
+							))}
 					</div>
 				</div>
 			</div>
