@@ -1,6 +1,7 @@
 import { createCommand } from '../../types';
 import { deploySubcommand } from './deploy';
 import { dbCommand } from './db';
+import { redisCommand } from './redis';
 import { storageCommand } from './storage';
 import { sessionCommand } from './session';
 import { threadCommand } from './thread';
@@ -34,6 +35,7 @@ export const command = createCommand({
 		secretCommand,
 		deploySubcommand,
 		dbCommand,
+		redisCommand,
 		storageCommand,
 		sessionCommand,
 		threadCommand,

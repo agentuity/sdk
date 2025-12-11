@@ -21,6 +21,11 @@ const ResourceListResponse = z.object({
 			url: z.string().nullable().optional().describe('the full database connection URL'),
 		})
 	),
+	redis: z
+		.object({
+			url: z.string().describe('the Redis connection URL'),
+		})
+		.optional(),
 });
 const ResourceListResponseSchema = APIResponseSchema(ResourceListResponse);
 
