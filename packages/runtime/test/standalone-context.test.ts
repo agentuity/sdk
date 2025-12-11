@@ -97,10 +97,11 @@ describe('createAgentContext', () => {
 		server = getServer() ?? undefined;
 	});
 
-	afterAll(async () => {
+	afterAll(() => {
 		// Clean up server to avoid affecting other tests
+		// Use synchronous stop to ensure it completes
 		if (server) {
-			await server.stop();
+			server.stop(true);
 		}
 	});
 
