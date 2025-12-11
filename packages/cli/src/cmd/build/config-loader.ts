@@ -8,15 +8,7 @@ const BuildConfigValidationError = StructuredError('BuildConfigValidationError')
 /**
  * Reserved define keys that cannot be overridden by user config
  */
-const RESERVED_DEFINE_PREFIXES = [
-	'process.env.AGENTUITY_',
-	'process.env.NODE_ENV',
-	'process.env.AGENTUITY_CLOUD_SDK_VERSION',
-	'process.env.AGENTUITY_CLOUD_ORG_ID',
-	'process.env.AGENTUITY_CLOUD_PROJECT_ID',
-	'process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID',
-	'process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH',
-];
+const RESERVED_DEFINE_PREFIXES = ['process.env.AGENTUITY_', 'process.env.NODE_ENV'];
 
 /**
  * Load and validate agentuity.config.ts from the project root
