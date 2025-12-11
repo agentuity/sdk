@@ -650,6 +650,7 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 					}
 					throw ex;
 				} finally {
+					c.var.logger.info('finishing');
 					// add otel headers into HTTP response
 					const headers: Record<string, string> = {};
 					propagation.inject(context.active(), headers);
@@ -668,6 +669,7 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 							await threadProvider.save(thread);
 						} finally {
 							span.end();
+							c.var.logger.info('span.end');
 						}
 					}
 				}
