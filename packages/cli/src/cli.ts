@@ -11,7 +11,7 @@ import type {
 	AuthData,
 	GlobalOptions,
 } from './types';
-import { showBanner } from './banner';
+import { showBanner, generateBanner } from './banner';
 import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
 import { listRegions, type RegionList } from '@agentuity/server';
 import enquirer from 'enquirer';
@@ -262,7 +262,6 @@ export async function createCLI(version: string): Promise<Command> {
 	program.addOption(skipVersionCheckOption);
 
 	program.action(() => {
-		showBanner(version);
 		program.help();
 	});
 
@@ -366,8 +365,15 @@ export async function createCLI(version: string): Promise<Command> {
 				return term;
 			}
 
-			// Format each section (don't show banner for subcommands)
+			// Format each section (show banner for root command)
 			let output = '';
+
+			// Show banner if this is the root command (no parent)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const isRootCommand = !(cmd as any).parent;
+			if (isRootCommand) {
+				output += `${generateBanner(version)}\n\n`;
+			}
 
 			// Description
 			const description = helper.commandDescription(cmd);
