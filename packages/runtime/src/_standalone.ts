@@ -260,7 +260,7 @@ export class StandaloneAgentContext<
 					if (!this.thread || this.thread.id === 'pending') {
 						const { DefaultThread, generateId } = await import('./session');
 						const threadId = generateId('thrd');
-						this.thread = new DefaultThread(threadId, new Map());
+						this.thread = new DefaultThread(threadProvider, threadId);
 					}
 					
 					this.session = await sessionProvider.restore(this.thread, sessionId);
