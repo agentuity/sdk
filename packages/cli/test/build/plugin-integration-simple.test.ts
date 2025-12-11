@@ -86,10 +86,10 @@ export default function config(phase, context) {
 		});
 
 		// Test merge with base config
-		const baseConfig = {
+		const baseConfig: import('bun').BuildConfig = {
 			entrypoints: ['test.js'],
 			outdir: outDir,
-			target: 'browser' as const,
+			target: 'browser',
 			plugins: [{ name: 'base-plugin', setup: () => {} }],
 		};
 
@@ -142,7 +142,7 @@ export default function config(phase, context) {
 		};
 
 		// Simulate what happens in the bundler
-		const baseConfig: Partial<import('bun').BuildConfig> = {
+		const baseConfig: import('bun').BuildConfig = {
 			entrypoints: ['test.js'],
 			outdir: '/tmp/test',
 			target: 'browser',

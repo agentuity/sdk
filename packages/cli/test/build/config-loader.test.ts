@@ -199,7 +199,8 @@ export default { plugins: [] };
 			const basePlugin = { name: 'base-plugin', setup: () => {} };
 			const userPlugin = { name: 'user-plugin', setup: () => {} };
 
-			const base = {
+			const base: import('bun').BuildConfig = {
+				entrypoints: ['test.js'],
 				plugins: [basePlugin],
 			};
 
@@ -212,7 +213,8 @@ export default { plugins: [] };
 		});
 
 		test('merges external arrays and deduplicates', () => {
-			const base = {
+			const base: import('bun').BuildConfig = {
+				entrypoints: ['test.js'],
 				external: ['base-module', 'shared-module'],
 			};
 
@@ -225,7 +227,8 @@ export default { plugins: [] };
 		});
 
 		test('merges define objects with user taking precedence', () => {
-			const base = {
+			const base: import('bun').BuildConfig = {
+				entrypoints: ['test.js'],
 				define: {
 					BASE_VAR: '"base"',
 					SHARED_VAR: '"base"',
@@ -248,7 +251,8 @@ export default { plugins: [] };
 		});
 
 		test('handles empty user config', () => {
-			const base = {
+			const base: import('bun').BuildConfig = {
+				entrypoints: ['test.js'],
 				plugins: [{ name: 'test', setup: () => {} }],
 				external: ['test-module'],
 				define: { TEST: '"test"' },
@@ -259,7 +263,9 @@ export default { plugins: [] };
 		});
 
 		test('handles base with no arrays', () => {
-			const base = {};
+			const base: import('bun').BuildConfig = {
+				entrypoints: ['test.js'],
+			};
 			const user = {
 				plugins: [{ name: 'test', setup: () => {} }],
 				external: ['test-module'],

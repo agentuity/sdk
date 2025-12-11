@@ -426,7 +426,7 @@ export async function bundle({
 				'api',
 				createBuildContext()
 			);
-			finalConfig = mergeBuildConfig(baseConfig, userConfig) as Bun.BuildConfig;
+			finalConfig = mergeBuildConfig(baseConfig, userConfig);
 		}
 
 		const buildResult = await Bun.build(finalConfig);
@@ -575,7 +575,7 @@ export async function bundle({
 						'web',
 						createBuildContext()
 					);
-					finalConfig = mergeBuildConfig(baseConfig, userConfig) as Bun.BuildConfig;
+					finalConfig = mergeBuildConfig(baseConfig, userConfig);
 				}
 
 				const result = await Bun.build(finalConfig);
@@ -689,10 +689,7 @@ Make sure @agentuity/workbench is installed or available in the workspace.`,
 					'workbench',
 					createBuildContext()
 				);
-				finalWorkbenchConfig = mergeBuildConfig(
-					workbenchBaseConfig,
-					userConfig
-				) as Bun.BuildConfig;
+				finalWorkbenchConfig = mergeBuildConfig(workbenchBaseConfig, userConfig);
 			}
 
 			const workbenchResult = await Bun.build(finalWorkbenchConfig);

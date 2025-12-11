@@ -165,11 +165,12 @@ export async function executeBuildConfig(
 /**
  * Merge user build config with base Bun.BuildConfig
  * User config is applied AFTER base config with safeguards
+ * Returns a complete Bun.BuildConfig with user overrides applied
  */
 export function mergeBuildConfig(
-	baseConfig: Partial<import('bun').BuildConfig>,
+	baseConfig: import('bun').BuildConfig,
 	userConfig: BuildConfig
-): Partial<import('bun').BuildConfig> {
+): import('bun').BuildConfig {
 	const merged = { ...baseConfig };
 
 	// Merge plugins (user plugins come AFTER Agentuity plugin)
