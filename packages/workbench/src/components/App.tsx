@@ -33,7 +33,7 @@ function AppContent() {
 					}
 				}}
 			>
-				<ResizablePanel defaultSize={panelSizes[0]} minSize={30}>
+				<ResizablePanel defaultSize={panelSizes[0]} minSize={30} className="flex flex-col">
 					<Chat schemaOpen={schemaOpen} onSchemaToggle={() => setSchemaOpen(!schemaOpen)} />
 				</ResizablePanel>
 				{schemaOpen && (

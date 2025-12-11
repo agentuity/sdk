@@ -10,15 +10,15 @@
 		".": {
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
-			"style": "./src/base.css"
+			"style": "./src/integration.css"
 		},
 		"./server": {
 			"types": "./dist/server.d.ts",
 			"import": "./dist/server.js"
 		},
-		"./styles": "./src/base.css",
-		"./styles-standalone": "./dist/styles.css",
-		"./styles-source": "./src/styles.css"
+		"./styles": "./src/integration.css",
+		"./styles-standalone": "./dist/standalone.css",
+		"./base": "./src/base.css"
 	},
 	"files": [
 		"README.md",
@@ -29,10 +29,10 @@
 		"clean": "rm -rf dist",
 		"build": "bun run build:ts && bun run build:css",
 		"build:ts": "bunx tsc --build --force",
-		"build:css": "bun x tailwindcss -i ./src/styles.css -o ./dist/styles.css",
+		"build:css": "bun x tailwindcss -i ./src/standalone.css -o ./dist/standalone.css",
 		"dev": "bun run build && concurrently \"bun run dev:ts\" \"bun run dev:css\" --names \"ts,css\" --prefix-colors \"blue,yellow\"",
 		"dev:ts": "bunx tsc --watch",
-		"dev:css": "bun x tailwindcss -i ./src/styles.css -o ./dist/styles.css --watch",
+		"dev:css": "bun x tailwindcss -i ./src/standalone.css -o ./dist/standalone.css --watch",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},

@@ -363,8 +363,6 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	};
 
 	return (
-		<div className="workbench">
-			<WorkbenchContext.Provider value={contextValue}>{children}</WorkbenchContext.Provider>
-		</div>
+		<WorkbenchContext.Provider value={contextValue}>{children}</WorkbenchContext.Provider>
 	);
 }
