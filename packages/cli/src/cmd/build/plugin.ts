@@ -336,8 +336,11 @@ const AgentuityBundler: BunPlugin = {
 				// Setup workbench configuration - evaluate fresh each time during builds
 				const workbenchConfig = await setupWorkbench(srcDir);
 
+				// Store web routes for later (must be registered AFTER API routes)
+				let webRoutesInsert: string | null = null;
+
 				if (existsSync(indexFile)) {
-					inserts.push(`import { serveStatic } from 'hono/bun';
+					webRoutesInsert = `import { serveStatic } from 'hono/bun';
 import { getRouter, registerDevModeRoutes } from '@agentuity/runtime';
 import { readFileSync, existsSync } from 'node:fs';
 
@@ -387,6 +390,10 @@ import { readFileSync, existsSync } from 'node:fs';
 	// Serve public assets at root (e.g., /favicon.ico) - must be last
 	router.get('/*', async (c, next) => {
 		const path = c.req.path;
+		// Skip API routes - let them 404 naturally
+		if (path === '/api' || path.startsWith('/api/')) {
+			return c.notFound();
+		}
 		// Prevent directory traversal attacks
 		if (path.includes('..') || path.includes('%2e%2e')) {
 			return c.notFound();
@@ -398,7 +405,7 @@ import { readFileSync, existsSync } from 'node:fs';
 		// serve default for any path not explicitly matched
 		return c.html(index);
 	});
-})();`);
+})();`;
 				}
 
 				// Build agentInfo from all discovered agents and track directories
@@ -628,6 +635,11 @@ import { readFileSync, existsSync } from 'node:fs';
 	const workbenchRouter = createWorkbenchRouter();
 	router.route('/', workbenchRouter);
 })();`);
+				}
+
+				// Add web routes AFTER API routes (catch-all must be last)
+				if (webRoutesInsert) {
+					inserts.push(webRoutesInsert);
 				}
 
 				const file = Bun.file(args.path);

@@ -52,7 +52,7 @@ let globalLogger: Logger | null = null;
 /**
  * List of AgentContext properties that should trigger helpful error messages
  * when accessed directly on HonoContext in route handlers.
- * 
+ *
  * Users should access these via c.var.propertyName instead of c.propertyName.
  */
 export const AGENT_CONTEXT_PROPERTIES = [
