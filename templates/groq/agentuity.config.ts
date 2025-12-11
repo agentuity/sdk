@@ -90,7 +90,7 @@ export default function config(phase: BuildPhase, context: BuildContext): BuildC
 			// Build-time constants (replaced during bundling)
 			// define: {
 			//   '__BUILD_TIME__': JSON.stringify(new Date().toISOString()),
-			//   '__VERSION__': JSON.stringify(require('./package.json').version),
+			//   '__VERSION__': JSON.stringify((await Bun.file('./package.json').json()).version),
 			//   'process.env.CUSTOM_VAR': JSON.stringify(process.env.CUSTOM_VAR || ''),
 			// },
 		};
@@ -185,6 +185,7 @@ export default function config(phase: BuildPhase, context: BuildContext): BuildC
 /**
  * Example: Conditional plugin loading
  */
+// import tailwindcss from 'bun-plugin-tailwind';
 // import type { BuildPhase, BuildContext, BuildConfig } from '@agentuity/cli';
 //
 // export default function config(phase: BuildPhase, context: BuildContext): BuildConfig {
@@ -193,7 +194,6 @@ export default function config(phase: BuildPhase, context: BuildContext): BuildC
 //   if (phase === 'web') {
 //     // Only load Tailwind in production for smaller dev builds
 //     if (!context.dev) {
-//       const tailwindcss = require('bun-plugin-tailwind').default;
 //       plugins.push(tailwindcss);
 //     }
 //   }

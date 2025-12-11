@@ -4,13 +4,7 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import {
-	type Thread,
-	type Session,
-	type Variables,
-	type Env,
-	createRouter,
-} from '../src/index';
+import { type Thread, type Session, type Variables, type Env, createRouter } from '../src/index';
 
 describe('Type Exports and Definitions', () => {
 	test('Thread interface is correctly defined and exported', () => {
@@ -170,8 +164,7 @@ describe('Type Exports and Definitions', () => {
 			const id: string = thread.id;
 			const state: Map<string, unknown> = thread.state;
 			const addEventListener: typeof thread.addEventListener = thread.addEventListener;
-			const removeEventListener: typeof thread.removeEventListener =
-				thread.removeEventListener;
+			const removeEventListener: typeof thread.removeEventListener = thread.removeEventListener;
 			const destroy: typeof thread.destroy = thread.destroy;
 			const empty: typeof thread.empty = thread.empty;
 
@@ -202,8 +195,7 @@ describe('Type Exports and Definitions', () => {
 			const addEventListener: typeof session.addEventListener = session.addEventListener;
 			const removeEventListener: typeof session.removeEventListener =
 				session.removeEventListener;
-			const serializeUserData: typeof session.serializeUserData =
-				session.serializeUserData;
+			const serializeUserData: typeof session.serializeUserData = session.serializeUserData;
 
 			// Verify types
 			expect(typeof id).toBe('string');

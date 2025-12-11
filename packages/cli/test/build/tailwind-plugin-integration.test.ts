@@ -1,8 +1,19 @@
 import { describe, test, expect, beforeAll, afterAll } from 'bun:test';
 import { join } from 'node:path';
 import { mkdirSync, rmSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { bundle } from '../../src/cmd/build/bundler';
 import { createLogger } from '@agentuity/server';
+
+// Helper to check if a directory exists
+async function directoryExists(path: string): Promise<boolean> {
+	try {
+		const stats = await stat(path);
+		return stats.isDirectory();
+	} catch {
+		return false;
+	}
+}
 
 const testDir = join(import.meta.dir, 'fixtures', 'tailwind-integration');
 const outDir = join(testDir, '.agentuity');
@@ -125,12 +136,12 @@ export default function config(phase, context) {
 		});
 
 		// Verify output directory exists
-		const outDirExists = await Bun.file(outDir).exists();
+		const outDirExists = await directoryExists(outDir);
 		expect(outDirExists).toBe(true);
 
 		// Verify web output directory exists
 		const webOutDir = join(outDir, 'web');
-		const webOutDirExists = await Bun.file(webOutDir).exists();
+		const webOutDirExists = await directoryExists(webOutDir);
 		expect(webOutDirExists).toBe(true);
 
 		// Read the bundled HTML file
