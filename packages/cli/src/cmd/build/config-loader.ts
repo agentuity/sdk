@@ -24,8 +24,8 @@ export async function loadBuildConfig(rootDir: string): Promise<BuildConfigFunct
 
 	try {
 		// Import the config file (Bun handles TypeScript natively)
-		// Use file:// URL to ensure absolute path resolution
-		const configModule = await import(`file://${configPath}`);
+		// Dynamically import using absolute path; Bun resolves TS modules without a file:// URL
+		const configModule = await import(configPath);
 
 		// Get the default export
 		const configFunction = configModule.default;
