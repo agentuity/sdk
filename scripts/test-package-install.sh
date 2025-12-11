@@ -89,7 +89,15 @@ cd "$SDK_ROOT/packages/cli"
 CLI_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
 log_success "Packed cli: $CLI_PKG"
 
+# Build workbench (includes CSS build) before packing
 cd "$SDK_ROOT/packages/workbench"
+log_info "Building workbench (TypeScript + CSS)..."
+bun run build
+if [ ! -f "dist/standalone.css" ]; then
+    log_error "Workbench dist/standalone.css not found after build"
+    exit 1
+fi
+log_success "Workbench built with CSS"
 WORKBENCH_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
 log_success "Packed workbench: $WORKBENCH_PKG"
 
@@ -101,12 +109,24 @@ ls -lh "$PACKAGES_DIR"
 echo ""
 log_info "Verifying package contents..."
 VERIFY_DIR=$(mktemp -d)
-for pkg in "$CORE_PKG" "$REACT_PKG" "$RUNTIME_PKG" "$SERVER_PKG" "$CLI_PKG"; do
+for pkg in "$CORE_PKG" "$REACT_PKG" "$RUNTIME_PKG" "$SERVER_PKG" "$CLI_PKG" "$WORKBENCH_PKG"; do
   # Extract tarball and check for dist/ directory
   tar -xzf "$PACKAGES_DIR/$pkg" -C "$VERIFY_DIR"
   
   if [ -d "$VERIFY_DIR/package/dist" ]; then
     log_success "$pkg contains dist/"
+    
+    # Special check for workbench: verify standalone.css exists
+    if [ "$pkg" = "$WORKBENCH_PKG" ]; then
+      if [ -f "$VERIFY_DIR/package/dist/standalone.css" ]; then
+        log_success "$pkg contains dist/standalone.css"
+      else
+        log_error "Package $pkg missing dist/standalone.css"
+        log_info "Contents of $VERIFY_DIR/package/dist/:"
+        ls -la "$VERIFY_DIR/package/dist/" || true
+        exit 1
+      fi
+    fi
   else
     log_error "Package $pkg missing dist/ directory"
     log_info "Contents of $pkg:"
