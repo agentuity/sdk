@@ -21,7 +21,7 @@ describe('Router Type Inference', () => {
 
 			// Access Thread properties - should have IntelliSense
 			const threadId: string = thread.id;
-			const threadState: Map<string, unknown> = thread.state;
+			const _threadState: Map<string, unknown> = thread.state;
 
 			// These should be type errors if thread is properly typed:
 			// thread.nonExistentProperty; // Should error
@@ -44,8 +44,8 @@ describe('Router Type Inference', () => {
 
 			// Access Session properties
 			const sessionId: string = session.id;
-			const thread: Thread = session.thread;
-			const sessionState: Map<string, unknown> = session.state;
+			const _thread: Thread = session.thread;
+			const _sessionState: Map<string, unknown> = session.state;
 
 			return c.json({ sessionId });
 		});
@@ -77,16 +77,16 @@ describe('Router Type Inference', () => {
 		router.post('/full', async (c) => {
 			// Extract all variables and verify types
 			const {
-				logger,
-				tracer,
-				meter,
+				logger: _logger,
+				tracer: _tracer,
+				meter: _meter,
 				sessionId,
 				thread,
 				session,
-				kv,
-				stream,
-				vector,
-				app,
+				kv: _kv,
+				stream: _stream,
+				vector: _vector,
+				app: _app,
 			} = c.var;
 
 			// Type checks (compile-time validation)
