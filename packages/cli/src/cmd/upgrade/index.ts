@@ -300,7 +300,7 @@ export const command = createCommand({
 			if (!force) {
 				tui.info(`Current version: ${tui.muted(currentVersion)}`);
 				tui.info(`Latest version:  ${tui.bold(latestVersion)}`);
-				tui.info('');
+				tui.newline();
 
 				const shouldUpgrade = await tui.confirm('Do you want to upgrade?', true);
 
