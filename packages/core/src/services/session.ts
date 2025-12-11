@@ -13,7 +13,7 @@ export const SessionStartEventSchema = z
 		url: z.string().describe('the url for the session event'),
 		method: z.string().describe('the method for the session event'),
 		trigger: z
-			.enum(['agent', 'api', 'email', 'sms', 'cron', 'manual'])
+			.enum(['agent', 'api', 'email', 'sms', 'cron', 'manual', 'discord', 'websocket'])
 			.describe('how the session was triggered'),
 	})
 	.describe('The event to record a session started');
