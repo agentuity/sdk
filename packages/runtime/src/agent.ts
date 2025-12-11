@@ -2128,6 +2128,14 @@ const runWithSpan = async <
 	const currentContext = context.active();
 	const span = tracer.startSpan('agent.run', {}, currentContext);
 
+	// Set agent attributes on the span immediately after creation
+	span.setAttributes({
+		'@agentuity/agentId': agent.metadata.id,
+		'@agentuity/agentInstanceId': agent.metadata.agentId,
+		'@agentuity/agentDescription': agent.metadata.description,
+		'@agentuity/agentName': agent.metadata.name,
+	});
+
 	const spanId = span.spanContext().spanId;
 
 	// Store span ID in PrivateVariables
