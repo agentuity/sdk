@@ -375,6 +375,8 @@ import { readFileSync, existsSync } from 'node:fs';
 			index += html;
 		}
 	}
+	// make paths absolute
+	index = index.replaceAll('./web/', '/web/');
 	const webstatic = serveStatic({ root: import.meta.dir + '/web' });
 	// In dev mode, serve from source; in prod, serve from build output
 	const publicRoot = ${isDevMode} ? ${JSON.stringify(join(srcDir, 'web', 'public'))} : import.meta.dir + '/web/public';
@@ -389,16 +391,8 @@ import { readFileSync, existsSync } from 'node:fs';
 		if (path.includes('..') || path.includes('%2e%2e')) {
 			return c.notFound();
 		}
-		// Only serve from public folder at root (skip /web/* routes and /)
-		if (path !== '/' && !path.startsWith('/web/')) {
-			try {
-				// serveStatic calls next() internally if file not found
-				return await publicstatic(c, next);
-			} catch (err) {
-				return next();
-			}
-		}
-		return next();
+		// serve default for any path not explicitly matched
+		return c.html(index);
 	});
 })();`);
 				}
