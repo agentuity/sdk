@@ -51,10 +51,11 @@ console.log('__CONFIG_LOADED__');
 			writeFileSync(wrapperPath, wrapperCode);
 
 			// Run the wrapper script with Bun
+			// Note: stdout/stderr are piped (not inherited) to suppress output from user's screen
 			const proc = Bun.spawn(['bun', wrapperPath], {
 				cwd: rootDir,
-				stdout: 'pipe',
-				stderr: 'pipe',
+				stdout: 'pipe', // Capture stdout to prevent output to user's terminal
+				stderr: 'pipe', // Capture stderr to prevent output to user's terminal
 			});
 
 			const output = await new Response(proc.stdout).text();
