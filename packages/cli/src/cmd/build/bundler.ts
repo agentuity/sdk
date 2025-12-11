@@ -1,6 +1,6 @@
 import { $, semver } from 'bun';
 import { join, relative, resolve, dirname, basename } from 'node:path';
-import { cpSync, existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync, readdirSync, readFileSync } from 'node:fs';
 import gitParseUrl from 'git-url-parse';
 import { StructuredError } from '@agentuity/core';
 import * as tui from '../../tui';
@@ -78,6 +78,77 @@ const InvalidBunVersion = StructuredError('InvalidBunVersion')<{
 	current: string;
 	required: string;
 }>();
+
+/**
+ * Finds the workspace root by walking up the directory tree looking for a package.json with workspaces
+ */
+function findWorkspaceRoot(startDir: string): string | null {
+	let currentDir = startDir;
+	while (true) {
+		const pkgPath = join(currentDir, 'package.json');
+		if (existsSync(pkgPath)) {
+			try {
+				const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+				if (pkg.workspaces) {
+					return currentDir;
+				}
+			} catch {
+				// Ignore parse errors, continue searching
+			}
+		}
+		const parent = resolve(currentDir, '..');
+		if (parent === currentDir) break; // reached filesystem root
+		currentDir = parent;
+	}
+	return null;
+}
+
+/**
+ * Finds a package by searching multiple locations:
+ * 1. App-level node_modules
+ * 2. Workspace root node_modules
+ * 3. Workspace packages directory (for workspace packages)
+ *
+ * @param rootDir - Root directory of the project
+ * @param packageName - Package name (e.g., '@agentuity/workbench')
+ * @param logger - Optional logger for debug messages
+ * @returns Path to the package directory, or null if not found
+ */
+function findPackagePath(rootDir: string, packageName: string, logger?: Logger): string | null {
+	const [scope, name] = packageName.startsWith('@')
+		? packageName.slice(1).split('/')
+		: [null, packageName];
+
+	// 1. Try app-level node_modules
+	const appLevelPath = scope
+		? join(rootDir, 'node_modules', `@${scope}`, name)
+		: join(rootDir, 'node_modules', name);
+	if (existsSync(appLevelPath)) {
+		logger?.debug(`Found ${packageName} at app level: ${appLevelPath}`);
+		return appLevelPath;
+	}
+
+	// 2. Try workspace root node_modules
+	const workspaceRoot = findWorkspaceRoot(rootDir);
+	if (workspaceRoot) {
+		const rootLevelPath = scope
+			? join(workspaceRoot, 'node_modules', `@${scope}`, name)
+			: join(workspaceRoot, 'node_modules', name);
+		if (existsSync(rootLevelPath)) {
+			logger?.debug(`Found ${packageName} at workspace root: ${rootLevelPath}`);
+			return rootLevelPath;
+		}
+
+		// 3. Try workspace packages directory
+		const workspacePackagePath = join(workspaceRoot, 'packages', name);
+		if (existsSync(workspacePackagePath)) {
+			logger?.debug(`Found ${packageName} in workspace packages: ${workspacePackagePath}`);
+			return workspacePackagePath;
+		}
+	}
+
+	return null;
+}
 
 const handleBuildFailure = (buildResult: BuildResult) => {
 	// Collect all build errors with full details
@@ -507,6 +578,45 @@ export async function bundle({
 
 			// Generate files using templates
 			await Bun.write(join(tempWorkbenchDir, 'main.tsx'), generateWorkbenchMainTsx(config));
+
+			// Copy the pre-built standalone.css from workbench package instead of generating it
+			// This ensures we use the built version with Tailwind already processed
+			const workbenchPackagePath = findPackagePath(rootDir, '@agentuity/workbench', logger);
+			const workbenchStylesOut = join(tempWorkbenchDir, 'styles.css');
+
+			if (workbenchPackagePath) {
+				const workbenchStylesPath = join(workbenchPackagePath, 'dist', 'standalone.css');
+				const workbenchStylesSourcePath = join(workbenchPackagePath, 'src', 'standalone.css');
+
+				if (existsSync(workbenchStylesPath)) {
+					cpSync(workbenchStylesPath, workbenchStylesOut);
+					logger.debug('Copied workbench dist/standalone.css to temp workbench dir');
+				} else if (existsSync(workbenchStylesSourcePath)) {
+					// Fallback: copy source CSS file (contains Tailwind directives that need processing)
+					cpSync(workbenchStylesSourcePath, workbenchStylesOut);
+					logger.warn(
+						'Workbench dist/standalone.css not found, using source CSS. Ensure @agentuity/workbench is built.'
+					);
+				} else {
+					throw new BuildFailedError({
+						message: `Workbench styles not found in ${workbenchPackagePath}. Expected either:
+  - ${workbenchStylesPath}
+  - ${workbenchStylesSourcePath}
+  
+Make sure @agentuity/workbench is built.`,
+					});
+				}
+			} else {
+				throw new BuildFailedError({
+					message: `Workbench package not found. Searched in:
+  - App-level node_modules
+  - Workspace root node_modules
+  - Workspace packages directory
+  
+Make sure @agentuity/workbench is installed or available in the workspace.`,
+				});
+			}
+
 			const workbenchIndexFile = join(tempWorkbenchDir, 'index.html');
 			await Bun.write(workbenchIndexFile, generateWorkbenchIndexHtml());
 

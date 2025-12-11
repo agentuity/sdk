@@ -89,6 +89,18 @@ cd "$SDK_ROOT/packages/cli"
 CLI_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
 log_success "Packed cli: $CLI_PKG"
 
+# Build workbench (includes CSS build) before packing
+cd "$SDK_ROOT/packages/workbench"
+log_info "Building workbench (TypeScript + CSS)..."
+bun run build
+if [ ! -f "dist/standalone.css" ]; then
+    log_error "Workbench dist/standalone.css not found after build"
+    exit 1
+fi
+log_success "Workbench built with CSS"
+WORKBENCH_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
+log_success "Packed workbench: $WORKBENCH_PKG"
+
 echo ""
 log_info "Packed packages:"
 ls -lh "$PACKAGES_DIR"
@@ -97,12 +109,24 @@ ls -lh "$PACKAGES_DIR"
 echo ""
 log_info "Verifying package contents..."
 VERIFY_DIR=$(mktemp -d)
-for pkg in "$CORE_PKG" "$REACT_PKG" "$RUNTIME_PKG" "$SERVER_PKG" "$CLI_PKG"; do
+for pkg in "$CORE_PKG" "$SCHEMA_PKG" "$REACT_PKG" "$RUNTIME_PKG" "$SERVER_PKG" "$CLI_PKG" "$WORKBENCH_PKG"; do
   # Extract tarball and check for dist/ directory
   tar -xzf "$PACKAGES_DIR/$pkg" -C "$VERIFY_DIR"
   
   if [ -d "$VERIFY_DIR/package/dist" ]; then
     log_success "$pkg contains dist/"
+    
+    # Special check for workbench: verify standalone.css exists
+    if [ "$pkg" = "$WORKBENCH_PKG" ]; then
+      if [ -f "$VERIFY_DIR/package/dist/standalone.css" ]; then
+        log_success "$pkg contains dist/standalone.css"
+      else
+        log_error "Package $pkg missing dist/standalone.css"
+        log_info "Contents of $VERIFY_DIR/package/dist/:"
+        ls -la "$VERIFY_DIR/package/dist/" || true
+        exit 1
+      fi
+    fi
   else
     log_error "Package $pkg missing dist/ directory"
     log_info "Contents of $pkg:"
@@ -142,6 +166,7 @@ bun add "$PACKAGES_DIR/$REACT_PKG"
 bun add "$PACKAGES_DIR/$RUNTIME_PKG"
 bun add "$PACKAGES_DIR/$SERVER_PKG"
 bun add "$PACKAGES_DIR/$CLI_PKG"
+bun add "$PACKAGES_DIR/$WORKBENCH_PKG"
 
 export AGENTUITY_SKIP_VERSION_CHECK=1
 
@@ -194,7 +219,7 @@ log_info "Step 5: Installing packed packages..."
 
 # Remove Agentuity dependencies from package.json to avoid conflicts
 cat package.json | \
-  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/runtime"])' \
+  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"])' \
   > package.json.tmp && mv package.json.tmp package.json
 
 # Install other dependencies first
@@ -210,7 +235,8 @@ bun add --no-save \
   "$PACKAGES_DIR/$REACT_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
   "$PACKAGES_DIR/$SERVER_PKG" \
-  "$PACKAGES_DIR/$CLI_PKG"
+  "$PACKAGES_DIR/$CLI_PKG" \
+  "$PACKAGES_DIR/$WORKBENCH_PKG"
 
 # Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
 # This happens because workspace:* dependencies get resolved to specific versions (e.g. 0.0.58)
@@ -250,7 +276,7 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo -e "${GREEN}🎉 All tests passed!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-log_success "Built and packed all 5 packages"
+log_success "Built and packed all 7 packages"
 log_success "CLI runs from packed tarball without missing TypeScript"
 log_success "Created new project using CLI with --template-dir"
 log_success "Installed packed packages as if from npm registry"

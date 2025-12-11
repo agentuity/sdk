@@ -1,4 +1,5 @@
-import '../../styles.css';
+/* Styles should be imported in app's CSS file (e.g., globals.css) */
+/* import '../../styles.css'; */
 import React, { useState } from 'react';
 import { ChevronRight, Copy, Loader, RefreshCcw } from 'lucide-react';
 import { Action, Actions } from '../ai-elements/actions';
@@ -13,17 +14,18 @@ import { Shimmer } from '../ai-elements/shimmer';
 import { cn } from '../../lib/utils';
 import { useWorkbench } from './WorkbenchProvider';
 import { useLogger } from '../../hooks/useLogger';
-import { Schema } from './Schema';
 
 export interface ChatProps {
 	className?: string;
+	schemaOpen: boolean;
+	onSchemaToggle: () => void;
 }
 
 /**
  * Chat component - conversation and input area (everything except header)
  * Must be used within WorkbenchProvider
  */
-export function Chat({ className: _className }: ChatProps) {
+export function Chat({ className: _className, schemaOpen, onSchemaToggle }: ChatProps) {
 	const logger = useLogger('Chat');
 	const {
 		agents,
@@ -36,7 +38,6 @@ export function Chat({ className: _className }: ChatProps) {
 	} = useWorkbench();
 
 	const [value, setValue] = useState('');
-	const [schemaOpen, setSchemaOpen] = useState(false);
 
 	const handleSubmit = async () => {
 		logger.debug('🎯 Chat handleSubmit - selectedAgent:', selectedAgent, 'value:', value);
@@ -60,140 +61,131 @@ export function Chat({ className: _className }: ChatProps) {
 	};
 
 	return (
-		<div className="relative flex flex-1 overflow-hidden">
-			<div
-				className={cn(
-					'flex flex-col flex-1 transition-all duration-300 ease-in-out min-w-0',
-					schemaOpen && 'mr-[600px]'
-				)}
-			>
-				<Conversation className="flex-1 overflow-y-auto">
-					<ConversationContent className="pb-0">
-						{messages.map((message) => {
-							const { role, parts, id } = message;
-							const isStreaming = parts.some(
-								(part) => part.type === 'text' && part.state === 'streaming'
-							);
-							const tokens =
-								'tokens' in message ? (message as { tokens?: string }).tokens : undefined;
-							const duration =
-								'duration' in message
-									? (message as { duration?: string }).duration
-									: undefined;
+		<div className="flex flex-col h-full overflow-hidden">
+			<Conversation className="flex-1 overflow-y-auto">
+				<ConversationContent className="pb-0">
+					{messages.map((message) => {
+						const { role, parts, id } = message;
+						const isStreaming = parts.some(
+							(part) => part.type === 'text' && part.state === 'streaming'
+						);
+						const tokens =
+							'tokens' in message ? (message as { tokens?: string }).tokens : undefined;
+						const duration =
+							'duration' in message
+								? (message as { duration?: string }).duration
+								: undefined;
 
-							return (
-								<div key={id} className="mb-2">
-									{role === 'assistant' && (
-										<div
+						return (
+							<div key={id} className="mb-2">
+								{role === 'assistant' && (
+									<div
+										className={cn(
+											'w-fit flex items-center mb-2 text-muted-foreground text-sm transition-colors',
+											!isStreaming && 'hover:text-foreground cursor-pointer'
+										)}
+									>
+										<Loader
 											className={cn(
-												'w-fit flex items-center mb-2 text-muted-foreground text-sm transition-colors',
-												!isStreaming && 'hover:text-foreground cursor-pointer'
+												'size-4 transition-all',
+												isStreaming || isLoading ? 'animate-spin mr-2' : 'w-0 mr-2.5'
 											)}
+										/>
+
+										{isStreaming || isLoading ? (
+											<Shimmer duration={1}>Running...</Shimmer>
+										) : (
+											<>
+												{duration && (
+													<>
+														Ran for
+														<span className="mx-1">{duration}</span>
+													</>
+												)}
+												{duration && tokens && ` and consumed  ${tokens} tokens`}
+												{(duration || tokens) && <ChevronRight className="size-4" />}
+											</>
+										)}
+									</div>
+								)}
+
+								{(role === 'user' || !(isStreaming || isLoading)) && (
+									<>
+										<Message
+											key={id}
+											from={role as 'user' | 'system' | 'assistant'}
+											className="p-0"
 										>
-											<Loader
-												className={cn(
-													'size-4 transition-all',
-													isStreaming || isLoading ? 'animate-spin mr-2' : 'w-0 mr-2.5'
-												)}
-											/>
+											<MessageContent>
+												{parts.map((part, index) => {
+													switch (part.type) {
+														case 'text':
+															return (
+																<div key={`${id}-${part.text}-${index}`}>
+																	{part.text || ''}
+																</div>
+															);
+													}
+												})}
+											</MessageContent>
+										</Message>
 
-											{isStreaming || isLoading ? (
-												<Shimmer duration={1}>Running...</Shimmer>
-											) : (
-												<>
-													{duration && (
-														<>
-															Ran for
-															<span className="mx-1">{duration}</span>
-														</>
-													)}
-													{duration && tokens && ` and consumed  ${tokens} tokens`}
-													{(duration || tokens) && <ChevronRight className="size-4" />}
-												</>
-											)}
-										</div>
-									)}
-
-									{(role === 'user' || !(isStreaming || isLoading)) && (
-										<>
-											<Message
-												key={id}
-												from={role as 'user' | 'system' | 'assistant'}
-												className="p-0"
-											>
-												<MessageContent>
-													{parts.map((part, index) => {
-														switch (part.type) {
-															case 'text':
-																return (
-																	<div key={`${id}-${part.text}-${index}`}>
-																		{part.text || ''}
-																	</div>
-																);
-														}
-													})}
-												</MessageContent>
-											</Message>
-
-											<Actions
-												className={cn('mt-1 gap-0', role === 'user' && 'justify-end')}
-											>
-												{role === 'user' && (
-													<Action
-														label="Retry"
-														className="size-8 hover:bg-transparent!"
-														onClick={() =>
-															setValue(
-																parts
-																	.filter((part) => part.type === 'text')
-																	.map((part) => part.text)
-																	.join('')
-															)
-														}
-													>
-														<RefreshCcw className="size-4" />
-													</Action>
-												)}
-
+										<Actions
+											className={cn('mt-1 gap-0', role === 'user' && 'justify-end')}
+										>
+											{role === 'user' && (
 												<Action
+													label="Retry"
+													className="size-8 hover:bg-transparent!"
 													onClick={() =>
-														navigator.clipboard.writeText(
+														setValue(
 															parts
 																.filter((part) => part.type === 'text')
 																.map((part) => part.text)
 																.join('')
 														)
 													}
-													label="Copy"
-													className="size-8 hover:bg-transparent!"
 												>
-													<Copy className="size-4" />
+													<RefreshCcw className="size-4" />
 												</Action>
-											</Actions>
-										</>
-									)}
-								</div>
-							);
-						})}
-					</ConversationContent>
+											)}
 
-					<ConversationScrollButton />
-				</Conversation>
-				<InputSection
-					value={value}
-					onChange={setValue}
-					onSubmit={handleSubmit}
-					isLoading={isLoading}
-					agents={agents}
-					selectedAgent={selectedAgent}
-					setSelectedAgent={setSelectedAgent}
-					suggestions={suggestions}
-					isSchemaOpen={schemaOpen}
-					onSchemaToggle={() => setSchemaOpen(!schemaOpen)}
-				/>
-			</div>
+											<Action
+												onClick={() =>
+													navigator.clipboard.writeText(
+														parts
+															.filter((part) => part.type === 'text')
+															.map((part) => part.text)
+															.join('')
+													)
+												}
+												label="Copy"
+												className="size-8 hover:bg-transparent!"
+											>
+												<Copy className="size-4" />
+											</Action>
+										</Actions>
+									</>
+								)}
+							</div>
+						);
+					})}
+				</ConversationContent>
 
-			<Schema open={schemaOpen} onOpenChange={setSchemaOpen} />
+				<ConversationScrollButton />
+			</Conversation>
+			<InputSection
+				value={value}
+				onChange={setValue}
+				onSubmit={handleSubmit}
+				isLoading={isLoading}
+				agents={agents}
+				selectedAgent={selectedAgent}
+				setSelectedAgent={setSelectedAgent}
+				suggestions={suggestions}
+				isSchemaOpen={schemaOpen}
+				onSchemaToggle={onSchemaToggle}
+			/>
 		</div>
 	);
 }

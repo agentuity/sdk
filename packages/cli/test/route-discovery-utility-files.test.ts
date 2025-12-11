@@ -91,9 +91,9 @@ export function hashPassword(password: string): string {
 		);
 
 		// This should throw because utils.ts has no default export
-		await expect(parseRoute(tempDir, utilFile, 'test-project', 'test-deployment')).rejects.toThrow(
-			/could not find default export/
-		);
+		await expect(
+			parseRoute(tempDir, utilFile, 'test-project', 'test-deployment')
+		).rejects.toThrow(/could not find default export/);
 	});
 
 	test('should discover all files but plugin will skip utility files during processing', () => {

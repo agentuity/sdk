@@ -680,7 +680,7 @@ export class ThreadWebSocketClient {
 							if (message.success) {
 								this.authenticated = true;
 								this.reconnectAttempts = 0;
-								
+
 								// Resolve both the current promise and the initial connect promise
 								const resolveFn = this.initialConnectResolve || resolve;
 								this.initialConnectResolve = null;
@@ -773,7 +773,7 @@ export class ThreadWebSocketClient {
 						internal.error(
 							`WebSocket disconnected after ${this.reconnectAttempts} attempts, giving up`
 						);
-						
+
 						// Reject initial connect if still pending (all attempts exhausted)
 						if (!wasAuthenticated && this.initialConnectReject) {
 							this.initialConnectReject(
