@@ -1,10 +1,12 @@
 import type { Context, Handler } from 'hono';
 import { timingSafeEqual } from 'node:crypto';
+import { setCookie } from 'hono/cookie';
 import { toJSONSchema } from '@agentuity/server';
 import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';
 import type { WebSocketConnection } from './router';
 import { privateContext } from './_server';
+import { getThreadProvider } from './_services';
 
 export const createWorkbenchExecutionRoute = (): Handler => {
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
@@ -26,6 +28,12 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				// so we treat all exceptions as invalid
 				return ctx.text('Unauthorized', { status: 401 });
 			}
+		}
+
+		// Content-type validation
+		const contentType = ctx.req.header('Content-Type');
+		if (!contentType || !contentType.includes('application/json')) {
+			return ctx.json({ error: 'Content-Type must be application/json' }, { status: 400 });
 		}
 
 		try {
@@ -76,6 +84,72 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				result = await (agentObj as any).handler();
 			}
 
+			// Store input and output in thread state, keyed by agentId
+			// This allows multiple agents to have separate message histories in the same thread
+			if (ctx.var.thread) {
+				const agentMessagesKey = `messages_${agentId}`;
+				console.log('[Workbench Execute] Thread ID:', ctx.var.thread.id);
+				console.log('[Workbench Execute] Agent ID:', agentId);
+				console.log('[Workbench Execute] Messages key:', agentMessagesKey);
+
+				const existingMessages = ctx.var.thread.state.get(agentMessagesKey);
+				console.log('[Workbench Execute] Existing messages:', existingMessages);
+
+				const messages = (existingMessages as unknown[] | undefined) || [];
+				console.log('[Workbench Execute] Messages array before push:', messages.length);
+
+				messages.push({ type: 'input', data: input });
+				console.log('[Workbench Execute] Added input message');
+
+				if (result !== undefined && result !== null) {
+					messages.push({ type: 'output', data: result });
+					console.log('[Workbench Execute] Added output message');
+				}
+
+				console.log('[Workbench Execute] Messages array after push:', messages.length);
+				ctx.var.thread.state.set(agentMessagesKey, messages);
+				console.log('[Workbench Execute] Set messages in thread state');
+
+				// Verify it was set
+				const verifyMessages = ctx.var.thread.state.get(agentMessagesKey);
+				console.log('[Workbench Execute] Verified messages in state:', verifyMessages);
+
+				// Ensure thread ID cookie is set
+				setCookie(ctx, 'atid', ctx.var.thread.id, {
+					httpOnly: true,
+					secure: false, // Set to true in production with HTTPS
+					sameSite: 'Lax',
+					maxAge: 60 * 60 * 24 * 365, // 1 year
+					path: '/',
+				});
+				console.log('[Workbench Execute] Set thread ID cookie:', ctx.var.thread.id);
+
+				// Manually save the thread to ensure state persists
+				try {
+					const threadProvider = getThreadProvider();
+					await threadProvider.save(ctx.var.thread);
+					console.log('[Workbench Execute] Manually saved thread');
+
+					// Verify thread was saved by checking if it's dirty
+					// Note: This only works if thread is a DefaultThread instance
+					if ('isDirty' in ctx.var.thread && typeof ctx.var.thread.isDirty === 'function') {
+						const isDirty = ctx.var.thread.isDirty();
+						console.log('[Workbench Execute] Thread isDirty after save:', isDirty);
+					}
+				} catch (error) {
+					console.error('[Workbench Execute] Error saving thread:', error);
+					console.error(
+						'[Workbench Execute] This may indicate WebSocket connection issue. State may not persist across restarts.'
+					);
+				}
+
+				// Thread will also be saved automatically by the middleware after the request completes
+			} else {
+				// Log warning if thread is not available
+				console.warn('[Workbench Execute] Thread not available in workbench execution route');
+				ctx.var.logger?.warn('Thread not available in workbench execution route');
+			}
+
 			// Handle cases where result might be undefined/null
 			if (result === undefined || result === null) {
 				return ctx.json({ success: true, result: null });
@@ -91,6 +165,71 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				{ status: 500 }
 			);
 		}
+	};
+};
+
+export const createWorkbenchClearStateRoute = (): Handler => {
+	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
+		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
+		: undefined;
+	return async (ctx: Context) => {
+		// Authentication check
+		if (authHeader) {
+			try {
+				const authValue = ctx.req.header('Authorization');
+				if (
+					!authValue ||
+					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
+				) {
+					return ctx.text('Unauthorized', { status: 401 });
+				}
+			} catch {
+				// timing safe equals will throw if the input/output lengths are mismatched
+				// so we treat all exceptions as invalid
+				return ctx.text('Unauthorized', { status: 401 });
+			}
+		}
+
+		const agentId = ctx.req.query('agentId');
+		console.log('[Workbench Clear State] Requested agentId:', agentId);
+
+		if (!agentId) {
+			return ctx.json({ error: 'agentId query parameter is required' }, { status: 400 });
+		}
+
+		if (!ctx.var.thread) {
+			console.warn('[Workbench Clear State] Thread not available');
+			return ctx.json({ error: 'Thread not available' }, { status: 404 });
+		}
+
+		const agentMessagesKey = `messages_${agentId}`;
+		console.log('[Workbench Clear State] Messages key:', agentMessagesKey);
+		console.log('[Workbench Clear State] Thread ID:', ctx.var.thread.id);
+
+		// Remove the messages for this agent
+		ctx.var.thread.state.delete(agentMessagesKey);
+		console.log('[Workbench Clear State] Deleted messages from thread state');
+
+		// Ensure thread ID cookie is set
+		setCookie(ctx, 'atid', ctx.var.thread.id, {
+			httpOnly: true,
+			secure: false, // Set to true in production with HTTPS
+			sameSite: 'Lax',
+			maxAge: 60 * 60 * 24 * 365, // 1 year
+			path: '/',
+		});
+
+		// Save the thread to persist the cleared state
+		try {
+			const threadProvider = getThreadProvider();
+			await threadProvider.save(ctx.var.thread);
+			console.log('[Workbench Clear State] Saved thread after clearing state');
+		} catch (error) {
+			console.error('[Workbench Clear State] Error saving thread:', error);
+			return ctx.json({ error: 'Failed to save thread state' }, { status: 500 });
+		}
+
+		return ctx.json({ success: true, message: `State cleared for agent ${agentId}` });
 	};
 };
 
@@ -130,8 +269,71 @@ export const createWorkbenchRouter = () => {
 	// Add workbench routes
 	router.websocket('/_agentuity/workbench/ws', createWorkbenchWebsocketRoute());
 	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
+	router.get('/_agentuity/workbench/state', createWorkbenchStateRoute());
+	router.delete('/_agentuity/workbench/state', createWorkbenchClearStateRoute());
 	router.post('/_agentuity/workbench/execute', createWorkbenchExecutionRoute());
 	return router;
+};
+
+export const createWorkbenchStateRoute = (): Handler => {
+	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
+		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
+		: undefined;
+	return async (ctx: Context) => {
+		// Authentication check
+		if (authHeader) {
+			try {
+				const authValue = ctx.req.header('Authorization');
+				if (
+					!authValue ||
+					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
+				) {
+					return ctx.text('Unauthorized', { status: 401 });
+				}
+			} catch {
+				// timing safe equals will throw if the input/output lengths are mismatched
+				// so we treat all exceptions as invalid
+				return ctx.text('Unauthorized', { status: 401 });
+			}
+		}
+
+		const agentId = ctx.req.query('agentId');
+		console.log('[Workbench State] Requested agentId:', agentId);
+
+		if (!agentId) {
+			return ctx.json({ error: 'agentId query parameter is required' }, { status: 400 });
+		}
+
+		// Get messages from thread state, keyed by agentId
+		const agentMessagesKey = `messages_${agentId}`;
+		console.log('[Workbench State] Messages key:', agentMessagesKey);
+
+		if (!ctx.var.thread) {
+			console.warn('[Workbench State] Thread not available');
+			return ctx.json({ messages: [] });
+		}
+
+		console.log('[Workbench State] Thread ID:', ctx.var.thread.id);
+		console.log('[Workbench State] Thread state keys:', Array.from(ctx.var.thread.state.keys()));
+		console.log('[Workbench State] Thread state size:', ctx.var.thread.state.size);
+
+		// Check if thread was restored from remote storage
+		if ('_restoredFromRemote' in ctx.var.thread) {
+			console.log('[Workbench State] Thread was restored from remote storage');
+		} else {
+			console.log('[Workbench State] Thread appears to be new (not restored from remote)');
+		}
+
+		const messages = ctx.var.thread.state.get(agentMessagesKey);
+		console.log('[Workbench State] Retrieved messages:', messages);
+		console.log('[Workbench State] Messages type:', typeof messages);
+		console.log('[Workbench State] Messages is array:', Array.isArray(messages));
+
+		const messagesArray = (messages as unknown[] | undefined) || [];
+		console.log('[Workbench State] Returning messages count:', messagesArray.length);
+
+		return ctx.json({ messages: messagesArray });
+	};
 };
 
 export const createWorkbenchMetadataRoute = (): Handler => {

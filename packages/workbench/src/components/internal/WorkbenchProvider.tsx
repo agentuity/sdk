@@ -69,7 +69,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
 
 	// Config values
-	const baseUrl = defaultBaseUrl;
+	const baseUrl = config.baseUrl ?? defaultBaseUrl;
 	const apiKey = config.apiKey;
 	const shouldUseSchemas = true;
 
@@ -136,6 +136,88 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 
 	const [suggestions, _setSuggestions] = useState<string[]>([]);
 
+	// Fetch state for an agent
+	const fetchAgentState = useCallback(
+		async (agentId: string) => {
+			console.log('[WorkbenchProvider] fetchAgentState called with agentId:', agentId);
+
+			if (!baseUrl) {
+				console.warn('[WorkbenchProvider] No baseUrl configured, skipping state fetch');
+				logger.debug('⚠️ No baseUrl configured, skipping state fetch');
+				return;
+			}
+
+			// Small delay on first load to ensure thread is restored from cookie/remote storage
+			// This is especially important when there's an existing cookie with thread ID
+			if (messages.length === 0) {
+				console.log('[WorkbenchProvider] First load - waiting briefly for thread restoration');
+				await new Promise((resolve) => setTimeout(resolve, 100));
+			}
+
+			try {
+				const headers: Record<string, string> = {};
+				if (apiKey) {
+					headers.Authorization = `Bearer ${apiKey}`;
+				}
+
+				const url = `${baseUrl}/_agentuity/workbench/state?agentId=${encodeURIComponent(agentId)}`;
+				console.log('[WorkbenchProvider] Fetching state from URL:', url);
+				console.log('[WorkbenchProvider] Headers:', { ...headers, Authorization: headers.Authorization ? 'Bearer ***' : undefined });
+
+				logger.debug('📡 Fetching state for agent:', agentId);
+				const response = await fetch(url, {
+					method: 'GET',
+					headers,
+				});
+
+				console.log('[WorkbenchProvider] Response status:', response.status);
+				console.log('[WorkbenchProvider] Response ok:', response.ok);
+
+				if (response.ok) {
+					const data = await response.json();
+					console.log('[WorkbenchProvider] Response data:', data);
+
+					const stateMessages = (data.messages || []) as Array<{
+						type: 'input' | 'output';
+						data: unknown;
+					}>;
+
+					console.log('[WorkbenchProvider] State messages:', stateMessages);
+					console.log('[WorkbenchProvider] State messages count:', stateMessages.length);
+
+					// Convert state messages to UIMessage format
+					// Use stable IDs based on message index to prevent unnecessary re-renders
+					const uiMessages: UIMessage[] = stateMessages.map((msg, index) => {
+						const text =
+							typeof msg.data === 'object' ? JSON.stringify(msg.data, null, 2) : String(msg.data);
+						// Use stable ID based on index and a hash of content to maintain identity
+						const contentHash = text.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '');
+						return {
+							id: `state_${agentId}_${index}_${contentHash}`,
+							role: msg.type === 'input' ? 'user' : 'assistant',
+							parts: [{ type: 'text', text }],
+						};
+					});
+
+					console.log('[WorkbenchProvider] Converted UI messages:', uiMessages);
+					// Update messages - stable IDs will prevent unnecessary re-renders
+					setMessages(uiMessages);
+					logger.debug('✅ Loaded state messages:', uiMessages.length);
+				} else {
+					const errorText = await response.text().catch(() => 'Unknown error');
+					console.warn('[WorkbenchProvider] Failed to fetch state, status:', response.status, 'error:', errorText);
+					logger.debug('⚠️ Failed to fetch state, starting with empty messages');
+					setMessages([]);
+				}
+			} catch (error) {
+				console.error('[WorkbenchProvider] Error fetching state:', error);
+				logger.debug('⚠️ Error fetching state:', error);
+				setMessages([]);
+			}
+		},
+		[baseUrl, apiKey, logger, messages.length]
+	);
+
 	// Set initial agent selection
 	useEffect(() => {
 		if (agents && Object.keys(agents).length > 0 && !selectedAgent) {
@@ -153,6 +235,8 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 			if (savedAgent && savedAgentId) {
 				logger.debug('✅ Restoring saved agent:', savedAgent.metadata.name);
 				setSelectedAgent(savedAgentId);
+				saveSelectedAgent(savedAgentId);
+				fetchAgentState(savedAgentId);
 			} else {
 				// Fallback to first agent alphabetically
 				const sortedAgents = Object.values(agents).sort((a, b) =>
@@ -164,12 +248,14 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 					firstAgent
 				);
 				logger.debug('🆔 Setting selectedAgent to:', firstAgent.metadata.agentId);
-				setSelectedAgent(firstAgent.metadata.agentId);
+				const firstAgentId = firstAgent.metadata.agentId;
+				setSelectedAgent(firstAgentId);
 				// Save this selection for next time
-				saveSelectedAgent(firstAgent.metadata.agentId);
+				saveSelectedAgent(firstAgentId);
+				fetchAgentState(firstAgentId);
 			}
 		}
-	}, [agents, selectedAgent, loadSelectedAgent, saveSelectedAgent, logger]);
+	}, [agents, selectedAgent, loadSelectedAgent, saveSelectedAgent, logger, fetchAgentState]);
 
 	// Fetch suggestions from API if endpoint is provided
 	useEffect(() => {
@@ -339,7 +425,51 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		setSelectedAgent(agentId);
 		// Save selection to localStorage for persistence across sessions
 		saveSelectedAgent(agentId);
+		// Fetch state for the selected agent
+		await fetchAgentState(agentId);
 	};
+
+	const clearAgentState = useCallback(
+		async (agentId: string) => {
+			console.log('[WorkbenchProvider] clearAgentState called with agentId:', agentId);
+
+			if (!baseUrl) {
+				console.warn('[WorkbenchProvider] No baseUrl configured, cannot clear state');
+				return;
+			}
+
+			try {
+				const headers: Record<string, string> = {};
+				if (apiKey) {
+					headers.Authorization = `Bearer ${apiKey}`;
+				}
+
+				const url = `${baseUrl}/_agentuity/workbench/state?agentId=${encodeURIComponent(agentId)}`;
+				console.log('[WorkbenchProvider] Clearing state from URL:', url);
+
+				const response = await fetch(url, {
+					method: 'DELETE',
+					headers,
+				});
+
+				console.log('[WorkbenchProvider] Clear state response status:', response.status);
+
+				if (response.ok) {
+					// Clear messages from UI
+					setMessages([]);
+					logger.debug('✅ Cleared state for agent:', agentId);
+				} else {
+					const errorText = await response.text().catch(() => 'Unknown error');
+					console.warn('[WorkbenchProvider] Failed to clear state, status:', response.status, 'error:', errorText);
+					logger.debug('⚠️ Failed to clear state');
+				}
+			} catch (error) {
+				console.error('[WorkbenchProvider] Error clearing state:', error);
+				logger.debug('⚠️ Error clearing state:', error);
+			}
+		},
+		[baseUrl, apiKey, logger]
+	);
 
 	const contextValue: WorkbenchContextType = {
 		config,
@@ -360,6 +490,8 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		refetchSchemas,
 		// Connection status
 		connectionStatus,
+		// Clear agent state
+		clearAgentState,
 	};
 
 	return <WorkbenchContext.Provider value={contextValue}>{children}</WorkbenchContext.Provider>;

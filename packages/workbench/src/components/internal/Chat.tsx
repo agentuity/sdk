@@ -35,6 +35,7 @@ export function Chat({ className: _className, schemaOpen, onSchemaToggle }: Chat
 		setSelectedAgent,
 		isLoading,
 		submitMessage,
+		clearAgentState,
 	} = useWorkbench();
 
 	const [value, setValue] = useState('');
@@ -185,6 +186,7 @@ export function Chat({ className: _className, schemaOpen, onSchemaToggle }: Chat
 				suggestions={suggestions}
 				isSchemaOpen={schemaOpen}
 				onSchemaToggle={onSchemaToggle}
+				clearAgentState={clearAgentState}
 			/>
 		</div>
 	);
