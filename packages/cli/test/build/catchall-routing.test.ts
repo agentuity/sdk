@@ -22,7 +22,7 @@ describe('Catch-all Routing', () => {
 		// Root route
 		app.get('/', (c) => c.html(index));
 
-		// Catch-all route (simulates plugin.ts lines 388-396)
+		// Catch-all route (simulates plugin.ts lines 388-404)
 		app.get('/*', async (c) => {
 			const path = c.req.path;
 			// Skip API routes - let them 404 naturally
@@ -31,6 +31,10 @@ describe('Catch-all Routing', () => {
 			}
 			// Prevent directory traversal attacks
 			if (path.includes('..') || path.includes('%2e%2e')) {
+				return c.notFound();
+			}
+			// Don't catch workbench routes (already handled above)
+			if (path.startsWith('/workbench')) {
 				return c.notFound();
 			}
 			// serve default for any path not explicitly matched
@@ -146,5 +150,32 @@ describe('Catch-all Routing', () => {
 		expect(res.headers.get('content-type')).toContain('text/html');
 		const html = await res.text();
 		expect(html).toContain('<html>');
+	});
+
+	test('should return 404 for /workbench routes', async () => {
+		const app = createTestApp();
+		const res = await app.request('/workbench');
+
+		expect(res.status).toBe(404);
+		const contentType = res.headers.get('content-type');
+		expect(contentType).not.toContain('text/html');
+	});
+
+	test('should return 404 for /workbench/ with trailing slash', async () => {
+		const app = createTestApp();
+		const res = await app.request('/workbench/');
+
+		expect(res.status).toBe(404);
+		const contentType = res.headers.get('content-type');
+		expect(contentType).not.toContain('text/html');
+	});
+
+	test('should return 404 for nested /workbench routes', async () => {
+		const app = createTestApp();
+		const res = await app.request('/workbench/settings');
+
+		expect(res.status).toBe(404);
+		const contentType = res.headers.get('content-type');
+		expect(contentType).not.toContain('text/html');
 	});
 });
