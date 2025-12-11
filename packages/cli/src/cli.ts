@@ -229,7 +229,7 @@ export async function createCLI(version: string): Promise<Command> {
 	program
 		.name('agentuity')
 		.version(version, '-v, --version', 'Display version')
-		.helpOption('-h, --help=[json]', 'Display help (with optional JSON output)')
+		.helpOption('-h, --help [json]', 'Display help (with optional JSON output)')
 		.allowUnknownOption(false)
 		.allowExcessArguments(false)
 		.showHelpAfterError(true);
@@ -553,7 +553,7 @@ async function registerSubcommand(
 ): Promise<void> {
 	const cmd = parent.command(subcommand.name, { hidden }).description(subcommand.description);
 
-	cmd.helpOption('-h, --help=[json]', 'Display help (with optional JSON output)');
+	cmd.helpOption('-h, --help [json]', 'Display help (with optional JSON output)');
 
 	if (subcommand.aliases) {
 		cmd.aliases(subcommand.aliases);
@@ -1210,7 +1210,7 @@ export async function registerCommands(
 				.command(cmdDef.name, { hidden: cmdDef.hidden })
 				.description(cmdDef.description);
 
-			cmd.helpOption('-h, --help=[json]', 'Display help (with optional JSON output)');
+			cmd.helpOption('-h, --help [json]', 'Display help (with optional JSON output)');
 
 			if (cmdDef.aliases) {
 				cmd.aliases(cmdDef.aliases);
