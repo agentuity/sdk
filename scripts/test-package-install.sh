@@ -219,7 +219,7 @@ log_info "Step 5: Installing packed packages..."
 
 # Remove Agentuity dependencies from package.json to avoid conflicts
 cat package.json | \
-  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/runtime"])' \
+  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"])' \
   > package.json.tmp && mv package.json.tmp package.json
 
 # Install other dependencies first
