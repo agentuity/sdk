@@ -64,17 +64,21 @@ console.log('__CONFIG_LOADED__');
 
 			if (exitCode !== 0) {
 				// Try to parse error as JSON
+				let errorData = null;
 				try {
-					const errorData = JSON.parse(errorOutput);
-					if (errorData.error === 'BuildConfigValidationError') {
-						throw new BuildConfigValidationError({
-							message: errorData.message,
-						});
-					}
+					errorData = JSON.parse(errorOutput);
 				} catch (_parseError) {
-					// Not JSON, treat as regular error
+					// Not JSON, will treat as regular error below
 				}
 
+				// If we successfully parsed a BuildConfigValidationError, throw it
+				if (errorData?.error === 'BuildConfigValidationError') {
+					throw new BuildConfigValidationError({
+						message: errorData.message,
+					});
+				}
+
+				// Otherwise, throw a generic load error with the raw error output
 				throw new BuildConfigLoadError({
 					message: `Failed to load agentuity.config.ts:\n${errorOutput}`,
 				});
