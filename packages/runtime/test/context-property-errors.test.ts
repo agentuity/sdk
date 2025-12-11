@@ -10,42 +10,15 @@
 import { test, expect, describe } from 'bun:test';
 import { Hono } from 'hono';
 import type { Context as HonoContext } from 'hono';
+import { AGENT_CONTEXT_PROPERTIES } from '../src';
 
 describe('HonoContext Property Access Error Messages', () => {
-	// List of AgentContext properties that should show helpful errors
-	const agentContextProperties = [
-		'logger',
-		'tracer',
-		'sessionId',
-		'kv',
-		'stream',
-		'vector',
-		'state',
-		'thread',
-		'session',
-		'config',
-		'app',
-		'waitUntil',
-	] as const;
+	// Use the exported constant to ensure tests stay in sync with implementation
+	const agentContextProperties = AGENT_CONTEXT_PROPERTIES;
 
 	// Helper function to simulate what installContextPropertyHelpers does
 	function installContextPropertyHelpers(c: HonoContext): void {
-		const properties = [
-			'logger',
-			'tracer',
-			'sessionId',
-			'kv',
-			'stream',
-			'vector',
-			'state',
-			'thread',
-			'session',
-			'config',
-			'app',
-			'waitUntil',
-		] as const;
-
-		for (const property of properties) {
+		for (const property of AGENT_CONTEXT_PROPERTIES) {
 			// Skip if property already exists
 			if (Object.prototype.hasOwnProperty.call(c, property)) {
 				continue;
