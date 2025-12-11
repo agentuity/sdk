@@ -387,6 +387,10 @@ import { readFileSync, existsSync } from 'node:fs';
 	// Serve public assets at root (e.g., /favicon.ico) - must be last
 	router.get('/*', async (c, next) => {
 		const path = c.req.path;
+		// Skip API routes - let them 404 naturally
+		if (path === '/api' || path.startsWith('/api/')) {
+			return c.notFound();
+		}
 		// Prevent directory traversal attacks
 		if (path.includes('..') || path.includes('%2e%2e')) {
 			return c.notFound();
