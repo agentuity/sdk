@@ -44,7 +44,7 @@ export function App() {
 
 				<div className="card card-interactive">
 					<h2 className="card-title">
-						Try the <span className="highlight">AI Agent</span>
+						Try the <span className="highlight">Groq powered AI Agent</span>
 					</h2>
 
 					<div className="input-group">
