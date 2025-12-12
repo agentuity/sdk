@@ -1270,6 +1270,13 @@ export async function parseRoute(
 						let suffix = '';
 						let config: Record<string, unknown> | undefined;
 						switch (method) {
+							case 'use':
+							case 'on':
+							case 'all':
+							case 'route': {
+								// Skip Hono middleware/routing methods - they don't represent API routes
+								continue;
+							}
 							case 'get':
 							case 'put':
 							case 'post':
