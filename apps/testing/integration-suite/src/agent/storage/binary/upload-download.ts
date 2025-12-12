@@ -16,7 +16,7 @@ const binaryStorageAgent = createAgent('storage-binary-upload-download', {
 			operation: s.string(), // 'upload', 'download', 'verify'
 			name: s.string().optional(), // Stream name
 			streamId: s.string().optional(), // Stream ID for download
-			data: s.any().optional(), // Binary data (as array for JSON serialization)
+			data: s.string().optional(), // Binary data (base64-encoded)
 			contentType: s.string().optional(), // MIME type
 			md5: s.string().optional(), // Expected MD5 for verification
 		}),
@@ -26,7 +26,7 @@ const binaryStorageAgent = createAgent('storage-binary-upload-download', {
 			streamId: s.string().optional(),
 			name: s.string().optional(),
 			md5: s.string().optional(), // MD5 hash of data
-			data: s.any().optional(), // Downloaded data (as array)
+			data: s.string().optional(), // Downloaded data (base64-encoded)
 			contentType: s.string().optional(),
 			size: s.number().optional(), // Size in bytes
 		}),
@@ -36,12 +36,12 @@ const binaryStorageAgent = createAgent('storage-binary-upload-download', {
 
 		switch (operation) {
 			case 'upload': {
-				if (!name || !data) {
+				if (!name || data === undefined) {
 					throw new Error('Name and data required for upload');
 				}
 
-				// Convert array back to Uint8Array
-				const binaryData = new Uint8Array(data);
+				// Decode base64 to Uint8Array
+				const binaryData = Buffer.from(data, 'base64');
 
 				// Calculate MD5 hash
 				const md5Hash = crypto.createHash('md5').update(binaryData).digest('hex');
@@ -82,32 +82,35 @@ const binaryStorageAgent = createAgent('storage-binary-upload-download', {
 				const readable = await ctx.stream.download(streamId);
 
 				// Read chunks
-				const chunks: Uint8Array[] = [];
+				const chunks: Buffer[] = [];
+				let idx = 0;
 				for await (const chunk of readable as any) {
-					chunks.push(chunk);
+					// Normalize to Buffer
+					const buf = Buffer.isBuffer(chunk)
+						? chunk
+						: chunk instanceof Uint8Array
+							? Buffer.from(chunk)
+							: Buffer.from(chunk);
+
+					chunks.push(buf);
+					idx++;
 				}
 
 				// Combine chunks
-				const totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
-				const combined = new Uint8Array(totalLength);
-				let offset = 0;
-				for (const chunk of chunks) {
-					combined.set(chunk, offset);
-					offset += chunk.length;
-				}
+				const combined = Buffer.concat(chunks);
 
 				// Calculate MD5 hash
 				const md5Hash = crypto.createHash('md5').update(combined).digest('hex');
 
-				// Convert to array for JSON serialization
-				const dataArray = Array.from(combined);
+				// Convert to base64 for JSON serialization
+				const dataBase64 = combined.toString('base64');
 
 				return {
 					operation,
 					success: true,
 					streamId,
 					md5: md5Hash,
-					data: dataArray,
+					data: dataBase64,
 					size: combined.length,
 				};
 			}
@@ -117,8 +120,8 @@ const binaryStorageAgent = createAgent('storage-binary-upload-download', {
 					throw new Error('Data and expected MD5 required for verification');
 				}
 
-				// Convert array back to Uint8Array
-				const binaryData = new Uint8Array(data);
+				// Decode base64 to Buffer
+				const binaryData = Buffer.from(data, 'base64');
 
 				// Calculate MD5 hash
 				const actualMd5 = crypto.createHash('md5').update(binaryData).digest('hex');

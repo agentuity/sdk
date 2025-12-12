@@ -1,10 +1,6 @@
 import { context, SpanKind, SpanStatusCode, type Context, trace } from '@opentelemetry/api';
 import { TraceState } from '@opentelemetry/core';
-import type {
-	KeyValueStorage,
-	StreamStorage,
-	VectorStorage,
-} from '@agentuity/core';
+import type { KeyValueStorage, StreamStorage, VectorStorage } from '@agentuity/core';
 import type { AgentContext, AgentRegistry, AgentRuntimeState } from './agent';
 import { AGENT_RUNTIME, AGENT_IDS } from './_config';
 import type { Logger } from './logger';
@@ -13,21 +9,13 @@ import { generateId } from './session';
 import WaitUntilHandler from './_waituntil';
 import { registerServices } from './_services';
 import { getAgentAsyncLocalStorage } from './_context';
-import {
-	getLogger,
-	getTracer,
-	getAppState,
-} from './_server';
-import {
-	getThreadProvider,
-	getSessionProvider,
-	getSessionEventProvider,
-} from './_services';
+import { getLogger, getTracer, getAppState } from './_server';
+import { getThreadProvider, getSessionProvider, getSessionEventProvider } from './_services';
 import * as runtimeConfig from './_config';
 
 /**
  * Options for creating a standalone agent context.
- * 
+ *
  * Use this when executing agents outside of HTTP requests (Discord bots, cron jobs, etc.)
  */
 export interface StandaloneContextOptions {
@@ -65,30 +53,30 @@ export interface InvokeOptions {
 
 /**
  * Standalone agent context for executing agents outside of HTTP requests.
- * 
+ *
  * This context provides the same infrastructure as HTTP request contexts:
  * - OpenTelemetry tracing with proper span hierarchy
  * - Session and thread management (save/restore)
  * - Background task handling (waitUntil)
  * - Session event tracking (start/complete)
  * - Access to all services (kv, stream, vector)
- * 
+ *
  * @example
  * ```typescript
  * import { createAgentContext } from '@agentuity/runtime';
  * import myAgent from './agents/my-agent';
- * 
+ *
  * // Simple usage:
  * const ctx = createAgentContext();
  * const result = await ctx.invoke(() => myAgent.run(input));
- * 
+ *
  * // With custom session tracking:
- * const ctx = createAgentContext({ 
+ * const ctx = createAgentContext({
  *   sessionId: discordMessage.id,
  *   trigger: 'discord'
  * });
  * const result = await ctx.invoke(() => myAgent.run(input));
- * 
+ *
  * // Reuse context for multiple agents:
  * const ctx = createAgentContext();
  * const result1 = await ctx.invoke(() => agent1.run(input1));
@@ -111,7 +99,7 @@ export class StandaloneAgentContext<
 	config: TConfig;
 	app: TAppState;
 	[AGENT_RUNTIME]: AgentRuntimeState;
-	
+
 	// Note: The following are mutable and will be set per-invocation via AsyncLocalStorage
 	// They exist on the interface for compatibility but are overwritten during invoke()
 	sessionId: string;
@@ -119,7 +107,7 @@ export class StandaloneAgentContext<
 	session: Session;
 	thread: Thread;
 	[AGENT_IDS]?: Set<string>;
-	
+
 	// Immutable options stored from constructor
 	private readonly parentContext: Context;
 	private readonly trigger: import('@agentuity/core').SessionStartEvent['trigger'];
@@ -147,25 +135,29 @@ export class StandaloneAgentContext<
 
 		// Session ID will be set properly in invoke() after span is created
 		this.sessionId = options?.sessionId ?? 'pending';
-		
+
 		// Thread and session will be restored in invoke()
-		this.thread = options?.thread ?? ({
-			id: 'pending',
-			state: new Map(),
-			addEventListener: () => {},
-			removeEventListener: () => {},
-			destroy: async () => {},
-			empty: () => true,
-		} as Thread);
-		
-		this.session = options?.session ?? ({
-			id: 'pending',
-			thread: this.thread,
-			state: new Map(),
-			addEventListener: () => {},
-			removeEventListener: () => {},
-			serializeUserData: () => undefined,
-		} as Session);
+		this.thread =
+			options?.thread ??
+			({
+				id: 'pending',
+				state: new Map(),
+				addEventListener: () => {},
+				removeEventListener: () => {},
+				destroy: async () => {},
+				empty: () => true,
+			} as Thread);
+
+		this.session =
+			options?.session ??
+			({
+				id: 'pending',
+				thread: this.thread,
+				state: new Map(),
+				addEventListener: () => {},
+				removeEventListener: () => {},
+				serializeUserData: () => undefined,
+			} as Session);
 
 		// Create isolated runtime state
 		this[AGENT_RUNTIME] = {
@@ -187,7 +179,7 @@ export class StandaloneAgentContext<
 
 	/**
 	 * Execute a function within this agent context.
-	 * 
+	 *
 	 * This method:
 	 * 1. Creates an OpenTelemetry span for the invocation
 	 * 2. Restores/creates session and thread
@@ -196,16 +188,16 @@ export class StandaloneAgentContext<
 	 * 5. Waits for background tasks (waitUntil)
 	 * 6. Saves session and thread
 	 * 7. Sends session complete event
-	 * 
+	 *
 	 * @param fn - Function to execute (typically () => agent.run(input))
 	 * @param options - Optional configuration for the invocation
 	 * @returns Promise that resolves to the function's return value
-	 * 
+	 *
 	 * @example
 	 * ```typescript
 	 * const result = await ctx.invoke(() => myAgent.run({ userId: '123' }));
 	 * ```
-	 * 
+	 *
 	 * @example
 	 * ```typescript
 	 * // Multiple agents in sequence:
@@ -220,7 +212,7 @@ export class StandaloneAgentContext<
 		const sessionProvider = getSessionProvider();
 		const sessionEventProvider = getSessionEventProvider();
 		const storage = getAgentAsyncLocalStorage();
-		
+
 		// Create per-invocation state (prevents race conditions on concurrent calls)
 		const waitUntilHandler = new WaitUntilHandler(this.tracer);
 		const agentIds = new Set<string>();
@@ -228,9 +220,13 @@ export class StandaloneAgentContext<
 		let invocationThread: Thread;
 		let invocationSession: Session;
 		const invocationState = new Map<string, unknown>();
-		
+
 		// Create a per-call context that inherits from this but has isolated mutable state
-		const callContext = Object.create(this) as StandaloneAgentContext<TAgentMap, TConfig, TAppState>;
+		const callContext = Object.create(this) as StandaloneAgentContext<
+			TAgentMap,
+			TConfig,
+			TAppState
+		>;
 		callContext.sessionId = invocationSessionId;
 		callContext.state = invocationState;
 		callContext[AGENT_IDS] = agentIds;
@@ -246,14 +242,16 @@ export class StandaloneAgentContext<
 				{
 					kind: SpanKind.INTERNAL, // Not HTTP, but internal invocation
 					attributes: {
-						'trigger': this.trigger,
+						trigger: this.trigger,
 					},
 				},
 				async (span) => {
 					const sctx = span.spanContext();
-					
+
 					// Generate sessionId from traceId if not provided
-					invocationSessionId = this.initialSessionId ?? (sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess'));
+					invocationSessionId =
+						this.initialSessionId ??
+						(sctx?.traceId ? `sess_${sctx.traceId}` : generateId('sess'));
 					callContext.sessionId = invocationSessionId;
 
 					// Add to tracestate (like otelMiddleware does)
@@ -272,7 +270,7 @@ export class StandaloneAgentContext<
 					if (isDevMode) {
 						traceState = traceState.set('d', '1');
 					}
-					
+
 					// Update the active context with the new trace state
 					// We do this by setting the span in the context with updated trace state
 					// Note: This creates a new context but we don't need to use it directly
@@ -281,7 +279,7 @@ export class StandaloneAgentContext<
 						context.active(),
 						trace.wrapSpanContext({
 							...sctx,
-							traceState
+							traceState,
 						})
 					);
 
@@ -293,8 +291,11 @@ export class StandaloneAgentContext<
 					const threadId = genId('thrd');
 					invocationThread = new DefaultThread(threadProvider, threadId);
 					callContext.thread = invocationThread;
-					
-					invocationSession = await sessionProvider.restore(invocationThread, invocationSessionId);
+
+					invocationSession = await sessionProvider.restore(
+						invocationThread,
+						invocationSessionId
+					);
 					callContext.session = invocationSession;
 
 					// Send session start event (if configured)
@@ -334,7 +335,10 @@ export class StandaloneAgentContext<
 							waitUntilHandler
 								.waitUntilAll(this.logger, invocationSessionId)
 								.then(async () => {
-									this.logger.debug('wait until finished for session %s', invocationSessionId);
+									this.logger.debug(
+										'wait until finished for session %s',
+										invocationSessionId
+									);
 									await sessionProvider.save(invocationSession);
 									await threadProvider.save(invocationThread);
 									span.setStatus({ code: SpanStatusCode.OK });
@@ -353,7 +357,11 @@ export class StandaloneAgentContext<
 									}
 								})
 								.catch((ex) => {
-									this.logger.error('wait until errored for session %s. %s', invocationSessionId, ex);
+									this.logger.error(
+										'wait until errored for session %s. %s',
+										invocationSessionId,
+										ex
+									);
 									if (ex instanceof Error) {
 										span.recordException(ex);
 									}
@@ -442,34 +450,34 @@ export class StandaloneAgentContext<
 
 /**
  * Create a standalone agent context for executing agents outside of HTTP requests.
- * 
+ *
  * This is useful for Discord bots, cron jobs, WebSocket callbacks, or any scenario
  * where you need to run agents but don't have an HTTP request context.
- * 
+ *
  * @param options - Optional configuration for the context
  * @returns A StandaloneAgentContext instance
- * 
+ *
  * @example
  * ```typescript
  * import { createAgentContext } from '@agentuity/runtime';
  * import myAgent from './agents/my-agent';
- * 
+ *
  * // Simple usage:
  * const ctx = createAgentContext();
  * const result = await ctx.invoke(() => myAgent.run(input));
- * 
+ *
  * // Discord bot example:
  * client.on('messageCreate', async (message) => {
- *   const ctx = createAgentContext({ 
+ *   const ctx = createAgentContext({
  *     sessionId: message.id,
  *     trigger: 'discord'
  *   });
- *   const response = await ctx.invoke(() => 
+ *   const response = await ctx.invoke(() =>
  *     chatAgent.run({ message: message.content })
  *   );
  *   await message.reply(response.text);
  * });
- * 
+ *
  * // Cron job example:
  * cron.schedule('0 * * * *', async () => {
  *   const ctx = createAgentContext({ trigger: 'cron' });

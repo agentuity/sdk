@@ -2,7 +2,7 @@
 
 /**
  * Test script for standalone agent context execution.
- * 
+ *
  * This demonstrates how to run agents outside of HTTP request contexts,
  * such as in Discord bots, cron jobs, or WebSocket callbacks.
  */
@@ -34,10 +34,10 @@ console.log('Example 2: Reuse context for multiple calls');
 console.log('============================================');
 {
 	const ctx = createAgentContext({ trigger: 'manual' });
-	
+
 	const result1 = await ctx.invoke(() => greetingAgent.run({ name: 'Bob' }));
 	console.log('Result 1:', result1);
-	
+
 	const result2 = await ctx.invoke(() => greetingAgent.run({ name: 'Charlie' }));
 	console.log('Result 2:', result2);
 	console.log('');
@@ -48,11 +48,11 @@ console.log('Example 3: Custom session ID (Discord bot simulation)');
 console.log('======================================================');
 {
 	const discordMessageId = 'discord-msg-12345';
-	const ctx = createAgentContext({ 
+	const ctx = createAgentContext({
 		sessionId: discordMessageId,
-		trigger: 'discord'
+		trigger: 'discord',
 	});
-	
+
 	const result = await ctx.invoke(() => greetingAgent.run({ name: 'Discord User' }));
 	console.log('Result:', result);
 	console.log('Session ID:', ctx.sessionId);
@@ -64,17 +64,17 @@ console.log('Example 4: Multiple agents in sequence');
 console.log('=======================================');
 {
 	const ctx = createAgentContext({ trigger: 'cron' });
-	
+
 	const result = await ctx.invoke(async () => {
 		// First agent call
 		const greeting = await greetingAgent.run({ name: 'Workflow User' });
 		console.log('  Step 1 complete:', greeting.message);
-		
+
 		// Could call another agent here with greeting result
 		// For now, just return the greeting
 		return greeting;
 	});
-	
+
 	console.log('Final result:', result);
 	console.log('');
 }
