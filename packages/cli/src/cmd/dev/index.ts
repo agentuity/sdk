@@ -180,7 +180,7 @@ export const command = createCommand({
 
 		const workbenchUrl =
 			auth && sdkKey && project?.projectId
-				? `${getAppBaseURL(config)}/projects/${project.projectId}/workbench`
+				? `${getAppBaseURL(config)}/w/${project.projectId}`
 				: `http://127.0.0.1:${opts.port}${workbench.config?.route ?? '/workbench'}`;
 
 		const devmodebody =
