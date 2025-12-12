@@ -77,6 +77,7 @@ function createReconnectManager(opts: ReconnectOptions): ReconnectManager {
 export interface UseWorkbenchWebsocketOptions {
 	baseUrl?: string;
 	apiKey?: string;
+	enabled?: boolean;
 	onConnect?: () => void;
 	onReconnect?: () => void;
 	onAlive?: () => void;
@@ -126,7 +127,7 @@ export function useWorkbenchWebsocket(
 	}, [baseUrl, apiKey]);
 
 	const connect = useCallback(() => {
-		if (manualClose.current) return;
+		if (manualClose.current || !options.enabled) return;
 		const url = wsUrl();
 		if (!url) return;
 

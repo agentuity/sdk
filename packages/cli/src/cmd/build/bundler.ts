@@ -610,7 +610,7 @@ export async function bundle({
 	if (existsSync(appFile) && workbench && workbench.hasWorkbench) {
 		// Create workbench config with proper defaults
 		const defaultConfig = { route: '/workbench', headers: {} };
-		const config = { ...defaultConfig, ...workbench.config };
+		const config = { ...defaultConfig, ...workbench.config, projectId: projectId };
 		try {
 			// Generate workbench files on the fly instead of using files from package
 			const tempWorkbenchDir = join(outDir, 'temp-workbench');

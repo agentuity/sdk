@@ -293,58 +293,66 @@ export function InputSection({
 
 			<PromptInput onSubmit={onSubmit} className="px-3 pb-3">
 				<PromptInputBody>
-					{(() => {
-						switch (inputType) {
-							case 'object':
-								return (
-									<MonacoJsonEditor
-										value={value}
-										onChange={onChange}
-										schema={selectedAgentData?.schema.input?.json}
-										schemaUri={`agentuity://schema/${selectedAgentData?.metadata.id}/input`}
-										aria-invalid={!isValidInput}
-										onValidationChange={setMonacoHasErrors}
-									/>
-								);
+					{!selectedAgent ? (
+						<div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+							<p className="text-sm text-muted-foreground">
+								Select an agent to get started.
+							</p>
+						</div>
+					) : (
+						(() => {
+							switch (inputType) {
+								case 'object':
+									return (
+										<MonacoJsonEditor
+											value={value}
+											onChange={onChange}
+											schema={selectedAgentData?.schema.input?.json}
+											schemaUri={`agentuity://schema/${selectedAgentData?.metadata.id}/input`}
+											aria-invalid={!isValidInput}
+											onValidationChange={setMonacoHasErrors}
+										/>
+									);
 
-							case 'string':
-								return (
-									<PromptInputTextarea
-										placeholder="Enter a message to send..."
-										value={value}
-										onChange={(e) => onChange(e.target.value)}
-									/>
-								);
-							default:
-								return (
-									<div className="flex flex-col items-center justify-center py-8 px-4 text-center ">
-										<p className="text-sm text-muted-foreground">
-											<span className="font-medium">
-												This agent has no input schema.{' '}
-											</span>
-										</p>
-										<Button
-											aria-label="Run Agent"
-											size="sm"
-											variant="default"
-											disabled={isLoading}
-											onClick={onSubmit}
-											className="mt-2"
-										>
-											{isLoading ? (
-												<Loader2Icon className="size-4 animate-spin mr-2" />
-											) : (
-												<SendIcon className="size-4 mr-2" />
-											)}
-											Run Agent
-										</Button>
-									</div>
-								);
-						}
-					})()}
+								case 'string':
+									return (
+										<PromptInputTextarea
+											placeholder="Enter a message to send..."
+											value={value}
+											onChange={(e) => onChange(e.target.value)}
+										/>
+									);
+								default:
+									return (
+										<div className="flex flex-col items-center justify-center py-8 px-4 text-center ">
+											<p className="text-sm text-muted-foreground">
+												<span className="font-medium">
+													This agent has no input schema.{' '}
+												</span>
+											</p>
+											<Button
+												aria-label="Run Agent"
+												size="sm"
+												variant="default"
+												disabled={isLoading}
+												onClick={onSubmit}
+												className="mt-2"
+											>
+												{isLoading ? (
+													<Loader2Icon className="size-4 animate-spin mr-2" />
+												) : (
+													<SendIcon className="size-4 mr-2" />
+												)}
+												Run Agent
+											</Button>
+										</div>
+									);
+							}
+						})()
+					)}
 				</PromptInputBody>
 				<PromptInputFooter>
-					{inputType !== 'none' && (
+					{selectedAgent && inputType !== 'none' && (
 						<Button
 							aria-label="Submit"
 							size="icon"
