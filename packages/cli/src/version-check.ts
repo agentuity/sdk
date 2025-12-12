@@ -1,6 +1,6 @@
 import type { Config, Logger, CommandDefinition } from './types';
 import { isRunningFromExecutable, fetchLatestVersion } from './cmd/upgrade';
-import { getVersion } from './version';
+import { getVersion, getCompareUrl, getReleaseUrl } from './version';
 import * as tui from './tui';
 import { saveConfig } from './config';
 import { $ } from 'bun';
@@ -96,6 +96,9 @@ async function promptUpgrade(currentVersion: string, latestVersion: string): Pro
 	tui.info(`${tui.bold('A new version of the CLI is available!')}`);
 	tui.info(`Current version: ${tui.muted(currentVersion)}`);
 	tui.info(`Latest version:  ${tui.bold(latestVersion)}`);
+	tui.newline();
+	tui.info(`What's changed:  ${tui.link(getCompareUrl(currentVersion, latestVersion))}`);
+	tui.info(`Release notes:   ${tui.link(getReleaseUrl(latestVersion))}`);
 	tui.newline();
 
 	return await tui.confirm('Would you like to upgrade now?', true);
