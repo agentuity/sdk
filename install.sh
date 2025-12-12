@@ -928,19 +928,9 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" = "true" ]; then
   print_message info "Added $INSTALL_DIR to \$GITHUB_PATH"
 fi
 
-printf "\n"
-printf "${CYAN}╭────────────────────────────────────────────────────╮${NC}\n"
-printf "${CYAN}│${NC} ⨺ Agentuity  The full-stack platform for AI agents ${CYAN}│${NC}\n"
-printf "${CYAN}│${NC}                                                    ${CYAN}│${NC}\n"
-printf "${CYAN}│${NC} Version:        ${specific_version}$(printf '%*s' $((35 - ${#specific_version})) '')${CYAN}│${NC}\n"
-printf "${CYAN}│${NC} Docs:           https://agentuity.dev              ${CYAN}│${NC}\n"
-printf "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYAN}│${NC}\n"
-printf "${CYAN}│${NC} Dashboard:      https://app-v1.agentuity.com       ${CYAN}│${NC}\n"
-printf "${CYAN}╰────────────────────────────────────────────────────╯${NC}\n"
-printf "\n"
-
 # Show prominent message if PATH was modified
 if [ "$path_modified" = true ]; then
+  printf "\n"
   printf "${RED}╭────────────────────────────────────────────────────╮${NC}\n"
   printf "${RED}│${NC} ${RED}⚠  ACTION REQUIRED${NC}                                 ${RED}│${NC}\n"
   printf "${RED}│${NC}                                                    ${RED}│${NC}\n"
@@ -963,11 +953,10 @@ if [ "$path_modified" = true ]; then
   fi
 
   printf "${RED}╰────────────────────────────────────────────────────╯${NC}\n"
-  printf "\n"
 fi
 
-printf "${MUTED}To get started, run:${NC}\n"
-printf "\n"
-printf "agentuity login        ${MUTED}Login to an existing account (or signup)${NC}\n"
-printf "agentuity create       ${MUTED}Create a project${NC}\n"
-printf "agentuity help         ${MUTED}List commands and options${NC}\n"
+# Run the setup command to display banner and getting started steps
+# Use the full path since PATH may not be updated in the current shell session
+if [ "$non_interactive" = false ]; then
+  "$INSTALL_DIR/agentuity" setup --cli-version "$specific_version"
+fi
