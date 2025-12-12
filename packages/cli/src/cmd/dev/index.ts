@@ -27,7 +27,7 @@ import { notifyWorkbenchClients } from '../../utils/workbench-notify';
 import { getEnvFilePaths, readEnvFile } from '../../env-util';
 import { writeAgentsDocs } from '../../agents-docs';
 
-const shouldDisableInteractive= (interactive?: boolean) => {
+const shouldDisableInteractive = (interactive?: boolean) => {
 	if (!interactive) {
 		return true;
 	}
@@ -339,9 +339,17 @@ export const command = createCommand({
 						env: { ...env, AGENTUITY_SDK_KEY: sdkKey },
 					}
 				);
-				gravityClient.exited.then(() => {
-					logger.debug('gravity client exited');
-				});
+				const handler = () => {
+					gravityClient?.kill('SIGINT');
+				};
+				process.on('SIGINT', handler);
+				gravityClient.exited
+					.then(() => {
+						logger.debug('gravity client exited');
+					})
+					.finally(() => {
+						process.off('SIGINT', handler);
+					});
 			} catch (err) {
 				logger.error(
 					'Failed to spawn gravity client: %s',
