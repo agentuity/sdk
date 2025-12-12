@@ -67,6 +67,7 @@
 		"zod-from-json-schema": "^0.5.2"
 	},
 	"devDependencies": {
+		"@agentuity/test-utils": "workspace:*",
 		"@tailwindcss/cli": "^4.1.12",
 		"@types/bun": "latest",
 		"@types/hast": "^3.0.4",
