@@ -69,7 +69,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
 
 	// Config values
-	const baseUrl = defaultBaseUrl;
+	const baseUrl = config.baseUrl ?? defaultBaseUrl;
 	const apiKey = config.apiKey;
 	const shouldUseSchemas = true;
 
