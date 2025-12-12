@@ -45,7 +45,7 @@ export function generateBanner(version?: string, compact?: true): string {
 		compact
 			? undefined
 			: CYAN +
-				`│ Docs:           ${link('https://agentuity.dev', undefined, WHITE!)}${CYAN}              │` +
+				`│ Docs:           ${link('https://preview.agentuity.dev', undefined, WHITE!)}${CYAN}      │` +
 				RESET,
 		compact
 			? undefined
