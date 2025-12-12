@@ -266,46 +266,49 @@ export function InputSection({
 					</Select>
 				)}
 
-				{isObjectSchema && (
-					isAuthenticated ? <Button
-						aria-label="Generate Sample JSON"
-						size="sm"
-						variant="outline"
-						className="bg-none font-normal"
-						onClick={handleGenerateSample}
-						disabled={isGeneratingSample || !isAuthenticated}
-					>
-						{isGeneratingSample ? (
-							<Loader2Icon className="size-4 animate-spin" />
-						) : (
-							<Sparkles className="size-4" />
-						)}{' '}
-						Sample
-					</Button> : <Tooltip>
-						<TooltipTrigger asChild>
-							<span className="inline-flex">
-								<Button
-									aria-label="Generate Sample JSON"
-									size="sm"
-									variant="outline"
-									className="bg-none font-normal"
-									onClick={handleGenerateSample}
-									disabled={isGeneratingSample || !isAuthenticated}
-								>
-									{isGeneratingSample ? (
-										<Loader2Icon className="size-4 animate-spin" />
-									) : (
-										<Sparkles className="size-4" />
-									)}{' '}
-									Sample
-								</Button>
-							</span>
-						</TooltipTrigger>
-						<TooltipContent>
-							<p>{!isAuthenticated ? 'Login to generate a sample' : 'Generate sample JSON'}</p>
-						</TooltipContent>
-					</Tooltip>
-				)}
+				{isObjectSchema &&
+					(isAuthenticated ? (
+						<Button
+							aria-label="Generate Sample JSON"
+							size="sm"
+							variant="outline"
+							className="bg-none font-normal"
+							onClick={handleGenerateSample}
+							disabled={isGeneratingSample || !isAuthenticated}
+						>
+							{isGeneratingSample ? (
+								<Loader2Icon className="size-4 animate-spin" />
+							) : (
+								<Sparkles className="size-4" />
+							)}{' '}
+							Sample
+						</Button>
+					) : (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span className="inline-flex">
+									<Button
+										aria-label="Generate Sample JSON"
+										size="sm"
+										variant="outline"
+										className="bg-none font-normal"
+										onClick={handleGenerateSample}
+										disabled={isGeneratingSample || !isAuthenticated}
+									>
+										{isGeneratingSample ? (
+											<Loader2Icon className="size-4 animate-spin" />
+										) : (
+											<Sparkles className="size-4" />
+										)}{' '}
+										Sample
+									</Button>
+								</span>
+							</TooltipTrigger>
+							<TooltipContent>
+								<p>Login to generate a sample</p>
+							</TooltipContent>
+						</Tooltip>
+					))}
 
 				<Button
 					aria-label={isSchemaOpen ? 'Hide Schema' : 'View Schema'}
