@@ -50,7 +50,7 @@ export const signupCommand = createSubcommand({
 			tui.success('Welcome to Agentuity! You are now logged in');
 		} catch (error) {
 			if (error instanceof UpgradeRequiredError) {
-				const bannerBody = `${error.message}\n\nVisit: ${tui.link('https://agentuity.dev/CLI/installation')}`;
+				const bannerBody = `${error.message}\n\nVisit: ${tui.link('https://preview.agentuity.dev/v1/Get-Started/installation')}`;
 				tui.banner('CLI Upgrade Required', bannerBody);
 				process.exit(1);
 			} else if (error instanceof Error) {
