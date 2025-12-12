@@ -19,13 +19,14 @@ export interface ChatProps {
 	className?: string;
 	schemaOpen: boolean;
 	onSchemaToggle: () => void;
+	emptyState?: React.ReactNode;
 }
 
 /**
  * Chat component - conversation and input area (everything except header)
  * Must be used within WorkbenchProvider
  */
-export function Chat({ className: _className, schemaOpen, onSchemaToggle }: ChatProps) {
+export function Chat({ className: _className, schemaOpen, onSchemaToggle, emptyState }: ChatProps) {
 	const logger = useLogger('Chat');
 	const {
 		agents,
@@ -35,6 +36,7 @@ export function Chat({ className: _className, schemaOpen, onSchemaToggle }: Chat
 		setSelectedAgent,
 		isLoading,
 		submitMessage,
+		connectionStatus,
 	} = useWorkbench();
 
 	const [value, setValue] = useState('');
@@ -63,116 +65,120 @@ export function Chat({ className: _className, schemaOpen, onSchemaToggle }: Chat
 	return (
 		<div className="flex flex-col h-full overflow-hidden">
 			<Conversation className="flex-1 overflow-y-auto">
-				<ConversationContent className="pb-0">
-					{messages.map((message) => {
-						const { role, parts, id } = message;
-						const isStreaming = parts.some(
-							(part) => part.type === 'text' && part.state === 'streaming'
-						);
-						const tokens =
-							'tokens' in message ? (message as { tokens?: string }).tokens : undefined;
-						const duration =
-							'duration' in message
-								? (message as { duration?: string }).duration
-								: undefined;
+				{connectionStatus === 'disconnected' && emptyState ? (
+					<div className="flex flex-col h-full">{emptyState}</div>
+				) : (
+					<ConversationContent className="pb-0">
+						{messages.map((message) => {
+							const { role, parts, id } = message;
+							const isStreaming = parts.some(
+								(part) => part.type === 'text' && part.state === 'streaming'
+							);
+							const tokens =
+								'tokens' in message ? (message as { tokens?: string }).tokens : undefined;
+							const duration =
+								'duration' in message
+									? (message as { duration?: string }).duration
+									: undefined;
 
-						return (
-							<div key={id} className="mb-2">
-								{role === 'assistant' && (
-									<div
-										className={cn(
-											'w-fit flex items-center mb-2 text-muted-foreground text-sm transition-colors',
-											!isStreaming && 'hover:text-foreground cursor-pointer'
-										)}
-									>
-										<Loader
+							return (
+								<div key={id} className="mb-2">
+									{role === 'assistant' && (
+										<div
 											className={cn(
-												'size-4 transition-all',
-												isStreaming || isLoading ? 'animate-spin mr-2' : 'w-0 mr-2.5'
+												'w-fit flex items-center mb-2 text-muted-foreground text-sm transition-colors',
+												!isStreaming && 'hover:text-foreground cursor-pointer'
 											)}
-										/>
-
-										{isStreaming || isLoading ? (
-											<Shimmer duration={1}>Running...</Shimmer>
-										) : (
-											<>
-												{duration && (
-													<>
-														Ran for
-														<span className="mx-1">{duration}</span>
-													</>
+										>
+											<Loader
+												className={cn(
+													'size-4 transition-all',
+													isStreaming || isLoading ? 'animate-spin mr-2' : 'w-0 mr-2.5'
 												)}
-												{duration && tokens && ` and consumed  ${tokens} tokens`}
-												{(duration || tokens) && <ChevronRight className="size-4" />}
-											</>
-										)}
-									</div>
-								)}
+											/>
 
-								{(role === 'user' || !(isStreaming || isLoading)) && (
-									<>
-										<Message
-											key={id}
-											from={role as 'user' | 'system' | 'assistant'}
-											className="p-0"
-										>
-											<MessageContent>
-												{parts.map((part, index) => {
-													switch (part.type) {
-														case 'text':
-															return (
-																<div key={`${id}-${part.text}-${index}`}>
-																	{part.text || ''}
-																</div>
-															);
-													}
-												})}
-											</MessageContent>
-										</Message>
+											{isStreaming || isLoading ? (
+												<Shimmer duration={1}>Running...</Shimmer>
+											) : (
+												<>
+													{duration && (
+														<>
+															Ran for
+															<span className="mx-1">{duration}</span>
+														</>
+													)}
+													{duration && tokens && ` and consumed  ${tokens} tokens`}
+													{(duration || tokens) && <ChevronRight className="size-4" />}
+												</>
+											)}
+										</div>
+									)}
 
-										<Actions
-											className={cn('mt-1 gap-0', role === 'user' && 'justify-end')}
-										>
-											{role === 'user' && (
+									{(role === 'user' || !(isStreaming || isLoading)) && (
+										<>
+											<Message
+												key={id}
+												from={role as 'user' | 'system' | 'assistant'}
+												className="p-0"
+											>
+												<MessageContent>
+													{parts.map((part, index) => {
+														switch (part.type) {
+															case 'text':
+																return (
+																	<div key={`${id}-${part.text}-${index}`}>
+																		{part.text || ''}
+																	</div>
+																);
+														}
+													})}
+												</MessageContent>
+											</Message>
+
+											<Actions
+												className={cn('mt-1 gap-0', role === 'user' && 'justify-end')}
+											>
+												{role === 'user' && (
+													<Action
+														label="Retry"
+														className="size-8 hover:bg-transparent!"
+														onClick={() =>
+															setValue(
+																parts
+																	.filter((part) => part.type === 'text')
+																	.map((part) => part.text)
+																	.join('')
+															)
+														}
+													>
+														<RefreshCcw className="size-4" />
+													</Action>
+												)}
+
 												<Action
-													label="Retry"
-													className="size-8 hover:bg-transparent!"
 													onClick={() =>
-														setValue(
+														navigator.clipboard.writeText(
 															parts
 																.filter((part) => part.type === 'text')
 																.map((part) => part.text)
 																.join('')
 														)
 													}
+													label="Copy"
+													className="size-8 hover:bg-transparent!"
 												>
-													<RefreshCcw className="size-4" />
+													<Copy className="size-4" />
 												</Action>
-											)}
+											</Actions>
+										</>
+									)}
+								</div>
+							);
+						})}
+					</ConversationContent>
+				)}
 
-											<Action
-												onClick={() =>
-													navigator.clipboard.writeText(
-														parts
-															.filter((part) => part.type === 'text')
-															.map((part) => part.text)
-															.join('')
-													)
-												}
-												label="Copy"
-												className="size-8 hover:bg-transparent!"
-											>
-												<Copy className="size-4" />
-											</Action>
-										</Actions>
-									</>
-								)}
-							</div>
-						);
-					})}
-				</ConversationContent>
-
-				<ConversationScrollButton />
+				{connectionStatus !== 'disconnected' && <ConversationScrollButton />}
 			</Conversation>
 			<InputSection
 				value={value}

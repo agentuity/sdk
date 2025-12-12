@@ -19,7 +19,7 @@ export function useWorkbench() {
 
 interface WorkbenchProviderProps {
 	config: Omit<WorkbenchConfig, 'route'> & {
-		baseUrl?: string;
+		baseUrl?: string | null;
 		projectId?: string;
 	};
 	children: React.ReactNode;
@@ -58,22 +58,35 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const [selectedAgent, setSelectedAgent] = useState<string>('');
 	const [inputMode, setInputMode] = useState<'text' | 'form'>('text');
 	const [isLoading, setIsLoading] = useState(false);
-	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
+	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected'); // Default to connected when websocket is disabled
 
 	// Config values
-	const baseUrl = config.baseUrl ?? defaultBaseUrl;
+	const baseUrl = config.baseUrl === undefined ? defaultBaseUrl : config.baseUrl;
 	const apiKey = config.apiKey;
-	const shouldUseSchemas = true;
+	const isBaseUrlNull = config.baseUrl === null;
 
-	// Debug logging
+	// Log baseUrl state
 	useEffect(() => {
-		if (process.env.NODE_ENV === 'development') {
-			console.log('WorkbenchProvider Debug:', {
-				baseUrl,
-				shouldUseSchemas,
-			});
+		if (isBaseUrlNull) {
+			logger.debug('🚫 baseUrl is null - disabling API calls and websocket');
+		} else {
+			logger.debug('✅ baseUrl configured:', baseUrl);
 		}
-	}, [baseUrl, shouldUseSchemas]);
+	}, [isBaseUrlNull, baseUrl, logger]);
+
+	// Set disconnected status if baseUrl is null
+	useEffect(() => {
+		if (isBaseUrlNull) {
+			logger.debug('🔌 Setting connection status to disconnected (baseUrl is null)');
+			setConnectionStatus('disconnected');
+		}
+	}, [isBaseUrlNull, logger]);
+
+	useEffect(() => {
+		if (isBaseUrlNull) {
+			logger.debug('📋 Schema fetching disabled (baseUrl is null)');
+		}
+	}, [isBaseUrlNull, logger]);
 
 	const {
 		data: schemaData,
@@ -83,12 +96,20 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	} = useAgentSchemas({
 		baseUrl,
 		apiKey,
-		enabled: shouldUseSchemas,
+		enabled: !isBaseUrlNull,
 	});
 
 	// WebSocket connection for dev server restart detection
+	const wsBaseUrl = isBaseUrlNull ? undefined : baseUrl;
+	useEffect(() => {
+		if (isBaseUrlNull) {
+			logger.debug('🔌 WebSocket connection disabled (baseUrl is null)');
+		}
+	}, [isBaseUrlNull, logger]);
+
 	const { connected } = useWorkbenchWebsocket({
-		baseUrl,
+		enabled: !isBaseUrlNull,
+		baseUrl: wsBaseUrl,
 		apiKey,
 		onConnect: () => {
 			setConnectionStatus('connected');
@@ -107,12 +128,11 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		},
 	});
 
-	// Update connection status based on WebSocket connection state
 	useEffect(() => {
-		if (!connected && connectionStatus !== 'restarting') {
+		if (!isBaseUrlNull && !connected && connectionStatus !== 'restarting') {
 			setConnectionStatus('disconnected');
 		}
-	}, [connected, connectionStatus]);
+	}, [connected, connectionStatus, isBaseUrlNull]);
 
 	// Convert schema data to Agent format, no fallback
 	const agents = schemaData?.agents;
@@ -204,9 +224,9 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		setMessages((prev) => [...prev, userMessage]);
 		setIsLoading(true);
 
-		logger.debug('🔗 baseUrl:', baseUrl);
-		if (!baseUrl) {
-			logger.debug('❌ No baseUrl configured!');
+		logger.debug('🔗 baseUrl:', baseUrl, 'isBaseUrlNull:', isBaseUrlNull);
+		if (!baseUrl || isBaseUrlNull) {
+			logger.debug('❌ Message submission blocked - baseUrl is null or missing');
 			const errorMessage: UIMessage = {
 				id: (Date.now() + 1).toString(),
 				role: 'assistant',
@@ -265,13 +285,24 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 				clearTimeout(timeoutId);
 
 				if (!response.ok) {
-					const errorData = await response
-						.json()
-						.catch(() => ({ error: response.statusText }));
-					throw new Error(errorData.error || `Request failed with status ${response.status}`);
+					let errorMessage = `Request failed with status ${response.status}`;
+					try {
+						const errorData = await response.json();
+						errorMessage = errorData.error || errorData.message || errorMessage;
+					} catch {
+						// If JSON parsing fails, use status text
+						errorMessage = response.statusText || errorMessage;
+					}
+					throw new Error(errorMessage);
 				}
 
-				const result = await response.json();
+				let result;
+				try {
+					result = await response.json();
+				} catch (jsonError) {
+					throw new Error(`Invalid JSON response from server: ${jsonError}`);
+				}
+
 				const endTime = performance.now();
 				const clientDuration = ((endTime - startTime) / 1000).toFixed(1); // Duration in seconds
 
@@ -343,7 +374,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		setSelectedAgent: handleAgentSelect,
 		inputMode,
 		setInputMode,
-		isLoading: isLoading || (shouldUseSchemas && !!schemasLoading),
+		isLoading: isLoading || !!schemasLoading,
 		submitMessage,
 		// Schema data from API
 		schemas: schemaData,
