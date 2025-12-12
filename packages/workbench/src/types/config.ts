@@ -24,6 +24,9 @@ export interface WorkbenchContextType {
 	setInputMode: (mode: 'text' | 'form') => void;
 	isLoading: boolean;
 	submitMessage: (value: string, mode?: 'text' | 'form') => Promise<void>;
+	generateSample: (agentId: string) => Promise<string>;
+	isGeneratingSample: boolean;
+	isAuthenticated: boolean;
 	// Schema data from API
 	schemas: AgentSchemasResponse | null;
 	schemasLoading: boolean;

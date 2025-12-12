@@ -22,10 +22,11 @@ interface WorkbenchProviderProps {
 		baseUrl?: string | null;
 		projectId?: string;
 	};
+	isAuthenticated: boolean;
 	children: React.ReactNode;
 }
 
-export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) {
+export function WorkbenchProvider({ config, isAuthenticated, children }: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
 
 	// localStorage utilities scoped by project
@@ -58,6 +59,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const [selectedAgent, setSelectedAgent] = useState<string>('');
 	const [inputMode, setInputMode] = useState<'text' | 'form'>('text');
 	const [isLoading, setIsLoading] = useState(false);
+	const [isGeneratingSample, setIsGeneratingSample] = useState(false);
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected'); // Default to connected when websocket is disabled
 
 	// Config values
@@ -357,6 +359,48 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		}
 	};
 
+	const generateSample = async (agentId: string): Promise<string> => {
+		if (!baseUrl || isBaseUrlNull) {
+			throw new Error('Base URL not configured');
+		}
+
+		setIsGeneratingSample(true);
+		try {
+			const url = `${baseUrl}/_agentuity/workbench/sample?agentId=${encodeURIComponent(agentId)}`;
+			const headers: HeadersInit = {
+				'Content-Type': 'application/json',
+			};
+
+			if (apiKey) {
+				headers['Authorization'] = `Bearer ${apiKey}`;
+			}
+
+			const response = await fetch(url, {
+				method: 'GET',
+				headers,
+			});
+
+			if (!response.ok) {
+				let errorMessage = `Request failed with status ${response.status}`;
+				try {
+					const errorData = await response.json();
+					errorMessage = errorData.error || errorData.message || errorMessage;
+				} catch {
+					errorMessage = response.statusText || errorMessage;
+				}
+				throw new Error(errorMessage);
+			}
+
+			const sample = await response.json();
+			return JSON.stringify(sample, null, 2);
+		} catch (error) {
+			logger.error('Failed to generate sample JSON:', error);
+			throw error;
+		} finally {
+			setIsGeneratingSample(false);
+		}
+	};
+
 	const handleAgentSelect = async (agentId: string) => {
 		logger.debug('🔄 handleAgentSelect called with:', agentId);
 		setSelectedAgent(agentId);
@@ -376,6 +420,9 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		setInputMode,
 		isLoading: isLoading || !!schemasLoading,
 		submitMessage,
+		generateSample,
+		isGeneratingSample,
+		isAuthenticated,
 		// Schema data from API
 		schemas: schemaData,
 		schemasLoading: !!schemasLoading,
