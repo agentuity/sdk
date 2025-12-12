@@ -1,6 +1,5 @@
 import type { Context, Handler } from 'hono';
 import { timingSafeEqual } from 'node:crypto';
-import { setCookie } from 'hono/cookie';
 import { toJSONSchema } from '@agentuity/server';
 import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';
@@ -13,6 +12,12 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
 		: undefined;
 	return async (ctx: Context) => {
+		// Echo thread id for the workbench UI (and only this route, per request).
+		// The runtime sets up ctx.var.thread via otelMiddleware before this handler runs.
+		if (ctx.var.thread?.id) {
+			ctx.header('x-agentuity-workbench-thread-id', ctx.var.thread.id);
+		}
+
 		// Authentication check
 		if (authHeader) {
 			try {
@@ -114,16 +119,6 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				const verifyMessages = ctx.var.thread.state.get(agentMessagesKey);
 				console.log('[Workbench Execute] Verified messages in state:', verifyMessages);
 
-				// Ensure thread ID cookie is set
-				setCookie(ctx, 'atid', ctx.var.thread.id, {
-					httpOnly: true,
-					secure: false, // Set to true in production with HTTPS
-					sameSite: 'Lax',
-					maxAge: 60 * 60 * 24 * 365, // 1 year
-					path: '/',
-				});
-				console.log('[Workbench Execute] Set thread ID cookie:', ctx.var.thread.id);
-
 				// Manually save the thread to ensure state persists
 				try {
 					const threadProvider = getThreadProvider();
@@ -210,15 +205,6 @@ export const createWorkbenchClearStateRoute = (): Handler => {
 		ctx.var.thread.state.delete(agentMessagesKey);
 		console.log('[Workbench Clear State] Deleted messages from thread state');
 
-		// Ensure thread ID cookie is set
-		setCookie(ctx, 'atid', ctx.var.thread.id, {
-			httpOnly: true,
-			secure: false, // Set to true in production with HTTPS
-			sameSite: 'Lax',
-			maxAge: 60 * 60 * 24 * 365, // 1 year
-			path: '/',
-		});
-
 		// Save the thread to persist the cleared state
 		try {
 			const threadProvider = getThreadProvider();
@@ -230,6 +216,48 @@ export const createWorkbenchClearStateRoute = (): Handler => {
 		}
 
 		return ctx.json({ success: true, message: `State cleared for agent ${agentId}` });
+	};
+};
+
+export const createWorkbenchStateRoute = (): Handler => {
+	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
+		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
+		: undefined;
+	return async (ctx: Context) => {
+		// Authentication check
+		if (authHeader) {
+			try {
+				const authValue = ctx.req.header('Authorization');
+				if (
+					!authValue ||
+					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
+				) {
+					return ctx.text('Unauthorized', { status: 401 });
+				}
+			} catch {
+				// timing safe equals will throw if the input/output lengths are mismatched
+				// so we treat all exceptions as invalid
+				return ctx.text('Unauthorized', { status: 401 });
+			}
+		}
+
+		const agentId = ctx.req.query('agentId');
+		if (!agentId) {
+			return ctx.json({ error: 'agentId query parameter is required' }, { status: 400 });
+		}
+
+		if (!ctx.var.thread) {
+			return ctx.json({ error: 'Thread not available' }, { status: 404 });
+		}
+
+		const agentMessagesKey = `messages_${agentId}`;
+		const messages = ctx.var.thread.state.get(agentMessagesKey);
+
+		return ctx.json({
+			threadId: ctx.var.thread.id,
+			agentId,
+			messages: Array.isArray(messages) ? messages : [],
+		});
 	};
 };
 
@@ -270,6 +298,8 @@ export const createWorkbenchRouter = () => {
 	router.websocket('/_agentuity/workbench/ws', createWorkbenchWebsocketRoute());
 	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
 	router.get('/_agentuity/workbench/sample', createWorkbenchSampleRoute());
+	router.get('/_agentuity/workbench/state', createWorkbenchStateRoute());
+	router.delete('/_agentuity/workbench/state', createWorkbenchClearStateRoute());
 	router.post('/_agentuity/workbench/execute', createWorkbenchExecutionRoute());
 	return router;
 };

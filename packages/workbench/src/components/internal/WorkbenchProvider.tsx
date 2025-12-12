@@ -55,6 +55,46 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 		}
 	}, [getStorageKey]);
 
+	const saveThreadId = useCallback(
+		(threadId: string) => {
+			try {
+				localStorage.setItem(getStorageKey('thread_id'), threadId);
+			} catch (error) {
+				console.warn('Failed to save thread id to localStorage:', error);
+			}
+		},
+		[getStorageKey]
+	);
+
+	const loadThreadId = useCallback((): string | null => {
+		try {
+			return localStorage.getItem(getStorageKey('thread_id'));
+		} catch (error) {
+			console.warn('Failed to load thread id from localStorage:', error);
+			return null;
+		}
+	}, [getStorageKey]);
+
+	const applyThreadIdHeader = useCallback(
+		(headers: Record<string, string>) => {
+			const threadId = loadThreadId();
+			if (threadId) {
+				headers['x-agentuity-workbench-thread-id'] = threadId;
+			}
+		},
+		[loadThreadId]
+	);
+
+	const persistThreadIdFromResponse = useCallback(
+		(response: Response) => {
+			const threadId = response.headers.get('x-agentuity-workbench-thread-id');
+			if (threadId) {
+				saveThreadId(threadId);
+			}
+		},
+		[saveThreadId]
+	);
+
 	const [messages, setMessages] = useState<UIMessage[]>([]);
 	const [selectedAgent, setSelectedAgent] = useState<string>('');
 	const [inputMode, setInputMode] = useState<'text' | 'form'>('text');
@@ -161,18 +201,12 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				return;
 			}
 
-			// Small delay on first load to ensure thread is restored from cookie/remote storage
-			// This is especially important when there's an existing cookie with thread ID
-			if (messages.length === 0) {
-				console.log('[WorkbenchProvider] First load - waiting briefly for thread restoration');
-				await new Promise((resolve) => setTimeout(resolve, 100));
-			}
-
 			try {
 				const headers: Record<string, string> = {};
 				if (apiKey) {
 					headers.Authorization = `Bearer ${apiKey}`;
 				}
+				applyThreadIdHeader(headers);
 
 				const url = `${baseUrl}/_agentuity/workbench/state?agentId=${encodeURIComponent(agentId)}`;
 				console.log('[WorkbenchProvider] Fetching state from URL:', url);
@@ -183,6 +217,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					method: 'GET',
 					headers,
 				});
+				persistThreadIdFromResponse(response);
 
 				console.log('[WorkbenchProvider] Response status:', response.status);
 				console.log('[WorkbenchProvider] Response ok:', response.ok);
@@ -229,7 +264,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				setMessages([]);
 			}
 		},
-		[baseUrl, apiKey, logger, messages.length]
+		[baseUrl, apiKey, logger, applyThreadIdHeader, persistThreadIdFromResponse]
 	);
 
 	// Set initial agent selection
@@ -362,6 +397,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			if (apiKey) {
 				headers.Authorization = `Bearer ${apiKey}`;
 			}
+			applyThreadIdHeader(headers);
 
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
@@ -380,6 +416,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					body: JSON.stringify(requestPayload),
 					signal: controller.signal,
 				});
+				persistThreadIdFromResponse(response);
 				clearTimeout(timeoutId);
 
 				if (!response.ok) {
@@ -472,11 +509,16 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			if (apiKey) {
 				headers['Authorization'] = `Bearer ${apiKey}`;
 			}
+			// Keep thread id stable across workbench endpoints.
+			if (typeof headers === 'object' && headers && !Array.isArray(headers)) {
+				applyThreadIdHeader(headers as Record<string, string>);
+			}
 
 			const response = await fetch(url, {
 				method: 'GET',
 				headers,
 			});
+			persistThreadIdFromResponse(response);
 
 			if (!response.ok) {
 				let errorMessage = `Request failed with status ${response.status}`;
@@ -522,6 +564,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				if (apiKey) {
 					headers.Authorization = `Bearer ${apiKey}`;
 				}
+				applyThreadIdHeader(headers);
 
 				const url = `${baseUrl}/_agentuity/workbench/state?agentId=${encodeURIComponent(agentId)}`;
 				console.log('[WorkbenchProvider] Clearing state from URL:', url);
@@ -530,6 +573,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					method: 'DELETE',
 					headers,
 				});
+				persistThreadIdFromResponse(response);
 
 				console.log('[WorkbenchProvider] Clear state response status:', response.status);
 
@@ -547,7 +591,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				logger.debug('⚠️ Error clearing state:', error);
 			}
 		},
-		[baseUrl, apiKey, logger]
+		[baseUrl, apiKey, logger, applyThreadIdHeader, persistThreadIdFromResponse]
 	);
 
 	const contextValue: WorkbenchContextType = {
