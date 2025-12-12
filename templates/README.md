@@ -16,6 +16,7 @@ Templates use a **base + overlay** architecture to reduce duplication and simpli
 2. **Template overlays** (e.g., `openai/`, `groq/`) - Contain only template-specific files that differ from the base
 
 When creating a project, the CLI:
+
 1. Copies all files from `_base/` to the destination
 2. Copies overlay files on top (overlay wins on conflicts)
 3. Merges `package.overlay.json` dependencies into the base `package.json`
@@ -120,6 +121,7 @@ If a template has a `package.overlay.json` file, its contents are merged into th
 ```
 
 The merge performs a shallow merge of:
+
 - `dependencies` (overlay wins on conflicts)
 - `devDependencies` (overlay wins on conflicts)
 - `scripts` (overlay wins on conflicts)
@@ -187,7 +189,7 @@ console.log('Setup complete!');
 - **gitignore**: The file is named `gitignore` in templates to prevent Git from ignoring it, then renamed to `.gitignore` during setup
 - **.gitkeep**: These files are skipped during copy (they're just placeholders for empty directories)
 - **package.overlay.json**: This file is not copied directly; its contents are merged into `package.json`
-- **_setup.ts**: This script runs after `bun install` and is deleted afterward
+- **\_setup.ts**: This script runs after `bun install` and is deleted afterward
 
 ## Creating a New Template
 
@@ -251,6 +253,7 @@ agentuity create my-project \
 When modifying files in `_base/`, remember that changes affect ALL templates. Only add files to `_base/` that should be shared across all templates.
 
 Common files in `_base/`:
+
 - `app.ts` - Application entry point with workbench enabled
 - `tsconfig.json` - TypeScript configuration
 - `gitignore` - Git ignore patterns

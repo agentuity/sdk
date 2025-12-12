@@ -166,26 +166,24 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 			});
 		}
 
-		await tui.spinner(
-			{
-				type: 'progress',
-				message: '📦 Copying template files...',
-				clearOnSuccess: true,
-				callback: async (progress) => {
-					// Step 1: Copy base template files (skip gitignore rename for now)
-					await copyTemplateFiles(baseDir, dest, true);
-					progress(33);
+		await tui.spinner({
+			type: 'progress',
+			message: '📦 Copying template files...',
+			clearOnSuccess: true,
+			callback: async (progress) => {
+				// Step 1: Copy base template files (skip gitignore rename for now)
+				await copyTemplateFiles(baseDir, dest, true);
+				progress(33);
 
-					// Step 2: Copy overlay template files (overlay wins on conflicts)
-					await copyTemplateFiles(overlayDir, dest, false);
-					progress(66);
+				// Step 2: Copy overlay template files (overlay wins on conflicts)
+				await copyTemplateFiles(overlayDir, dest, false);
+				progress(66);
 
-					// Step 3: Merge package.json with overlay dependencies
-					await mergePackageJson(dest, overlayDir);
-					progress(100);
-				},
-			}
-		);
+				// Step 3: Merge package.json with overlay dependencies
+				await mergePackageJson(dest, overlayDir);
+				progress(100);
+			},
+		});
 
 		return;
 	}
@@ -266,7 +264,10 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 					baseExtractedCount++;
 				}
 				// Check if this is an overlay template file
-				else if (header.name.startsWith(overlayPrefix) && header.name.length > overlayPrefix.length) {
+				else if (
+					header.name.startsWith(overlayPrefix) &&
+					header.name.length > overlayPrefix.length
+				) {
 					header.name = `overlay/${header.name.substring(overlayPrefix.length)}`;
 					mappedEntries.add(header.name);
 					logger.debug('[extract] MAP OVERLAY: %s -> %s', originalName, header.name);
@@ -305,26 +306,24 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		logger.debug('[extract] Overlay extracted entries: %d', overlayExtractedCount);
 
 		// Step 3: Copy base template files, then overlay template files
-		await tui.spinner(
-			{
-				type: 'progress',
-				message: '📦 Copying template files...',
-				clearOnSuccess: true,
-				callback: async (progress) => {
-					// Copy base template files (skip gitignore rename for now)
-					await copyTemplateFiles(baseExtractDir, dest, true);
-					progress(33);
+		await tui.spinner({
+			type: 'progress',
+			message: '📦 Copying template files...',
+			clearOnSuccess: true,
+			callback: async (progress) => {
+				// Copy base template files (skip gitignore rename for now)
+				await copyTemplateFiles(baseExtractDir, dest, true);
+				progress(33);
 
-					// Copy overlay template files (overlay wins on conflicts)
-					await copyTemplateFiles(overlayExtractDir, dest, false);
-					progress(66);
+				// Copy overlay template files (overlay wins on conflicts)
+				await copyTemplateFiles(overlayExtractDir, dest, false);
+				progress(66);
 
-					// Merge package.json with overlay dependencies
-					await mergePackageJson(dest, overlayExtractDir);
-					progress(100);
-				},
-			}
-		);
+				// Merge package.json with overlay dependencies
+				await mergePackageJson(dest, overlayExtractDir);
+				progress(100);
+			},
+		});
 	} finally {
 		// Clean up temp directory
 		logger.debug('[cleanup] Removing temp dir: %s', tempDir);
