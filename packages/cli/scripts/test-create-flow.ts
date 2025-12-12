@@ -188,12 +188,12 @@ async function linkLocalPackages(): Promise<boolean> {
 	// Remove @agentuity dependencies from package.json first (to avoid conflicts)
 	const packageJsonPath = join(TEST_PROJECT_PATH, 'package.json');
 	const packageJson = await Bun.file(packageJsonPath).json();
-	// Remove from dependencies
 	delete packageJson.dependencies['@agentuity/schema'];
 	delete packageJson.dependencies['@agentuity/react'];
 	delete packageJson.dependencies['@agentuity/runtime'];
+	// Also remove workbench to allow npm install for templates that need it
 	delete packageJson.dependencies['@agentuity/workbench'];
-	// Remove from devDependencies (cli is now a devDependency)
+	// Remove CLI from devDependencies to install from local tarball
 	delete packageJson.devDependencies['@agentuity/cli'];
 	await Bun.write(packageJsonPath, JSON.stringify(packageJson, null, '\t') + '\n');
 
