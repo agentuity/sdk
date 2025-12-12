@@ -1,0 +1,6 @@
+{
+	"devDependencies": {
+		"bun-plugin-tailwind": "^0.1.2",
+		"tailwindcss": "^4.1.18"
+	}
+}

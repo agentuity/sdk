@@ -6,7 +6,50 @@ This directory contains project templates used by the `@agentuity/cli` package t
 
 Templates provide a starting point for new Agentuity projects. The CLI uses these templates when running `agentuity create <project-name>` to set up a complete, working project with example code, configuration, and best practices.
 
-## Template Structure
+## Template Architecture
+
+### Base + Overlay System
+
+Templates use a **base + overlay** architecture to reduce duplication and simplify maintenance:
+
+1. **`_base/`** - Contains all common files shared across templates (app.ts, tsconfig.json, React components, etc.)
+2. **Template overlays** (e.g., `openai/`, `groq/`) - Contain only template-specific files that differ from the base
+
+When creating a project, the CLI:
+1. Copies all files from `_base/` to the destination
+2. Copies overlay files on top (overlay wins on conflicts)
+3. Merges `package.overlay.json` dependencies into the base `package.json`
+
+### Directory Structure
+
+```
+templates/
+├── _base/                    # Base template (shared files)
+│   ├── src/
+│   │   ├── agent/hello/     # Default agent implementation
+│   │   ├── api/             # API routes
+│   │   └── web/             # React web application
+│   ├── AGENTS.md
+│   ├── README.md
+│   ├── agentuity.config.ts
+│   ├── app.ts
+│   ├── gitignore
+│   ├── package.json
+│   └── tsconfig.json
+├── default/                  # Default template (empty overlay)
+│   └── .gitkeep
+├── openai/                   # OpenAI SDK template
+│   ├── package.overlay.json  # Additional dependencies
+│   └── src/agent/hello/agent.ts
+├── groq/                     # Groq SDK template
+│   ├── package.overlay.json
+│   └── src/agent/hello/agent.ts
+├── tailwind/                 # Tailwind CSS template
+│   ├── package.overlay.json
+│   ├── agentuity.config.ts   # Custom build config
+│   └── src/web/index.html    # Modified HTML
+└── templates.json            # Template manifest
+```
 
 ### Manifest File
 
@@ -30,24 +73,7 @@ Each template entry contains:
 - **id**: Unique identifier used by the CLI
 - **name**: Display name shown to users
 - **description**: Brief explanation of what the template includes
-- **directory**: Subdirectory name containing the template files
-
-### Template Directory
-
-Each template directory (e.g., `default/`) contains the complete file structure for a new project:
-
-```
-default/
-├── src/
-│   ├── agent/          # Example agent implementations
-│   └── web/            # React web application
-├── AGENTS.md            # Agent guidelines and conventions
-├── app.ts               # Application entry point
-├── gitignore            # Renamed to .gitignore during setup
-├── package.json         # Dependencies and scripts
-├── README.md            # Project documentation
-└── tsconfig.json        # TypeScript configuration
-```
+- **directory**: Subdirectory name containing the overlay files
 
 ## How the CLI Uses Templates
 
@@ -72,14 +98,33 @@ Relevant code: `packages/cli/src/cmd/project/template-flow.ts`
 
 ### 3. Template Download
 
-The CLI downloads/copies template files to the new project directory:
+The CLI downloads/copies template files using the base + overlay system:
 
-- **Local mode**: Copies files directly from the local template directory
-- **GitHub mode**: Downloads tarball from GitHub and extracts specific template files
+1. Copy all files from `_base/` directory
+2. Copy overlay files from the selected template directory (overlay wins on conflicts)
+3. Merge `package.overlay.json` into `package.json` if present
 
 Relevant code: `packages/cli/src/cmd/project/download.ts`
 
-### 4. Placeholder Replacement
+### 4. Package.json Merging
+
+If a template has a `package.overlay.json` file, its contents are merged into the base `package.json`:
+
+```json
+// package.overlay.json (in template overlay)
+{
+	"dependencies": {
+		"openai": "latest"
+	}
+}
+```
+
+The merge performs a shallow merge of:
+- `dependencies` (overlay wins on conflicts)
+- `devDependencies` (overlay wins on conflicts)
+- `scripts` (overlay wins on conflicts)
+
+### 5. Placeholder Replacement
 
 After downloading, the CLI replaces template placeholders with actual values:
 
@@ -104,7 +149,7 @@ After downloading, the CLI replaces template placeholders with actual values:
 
 Relevant code: `packages/cli/src/cmd/project/download.ts` (`replaceInFiles()`)
 
-### 5. Project Setup
+### 6. Project Setup
 
 After placeholder replacement, the CLI:
 
@@ -113,9 +158,11 @@ After placeholder replacement, the CLI:
 
 Relevant code: `packages/cli/src/cmd/project/download.ts` (`setupProject()`)
 
-### 6. Special Handling
+### 7. Special Handling
 
 - **gitignore**: The file is named `gitignore` in templates to prevent Git from ignoring it, then renamed to `.gitignore` during setup
+- **.gitkeep**: These files are skipped during copy (they're just placeholders for empty directories)
+- **package.overlay.json**: This file is not copied directly; its contents are merged into `package.json`
 
 ## Creating a New Template
 
@@ -125,16 +172,27 @@ Relevant code: `packages/cli/src/cmd/project/download.ts` (`setupProject()`)
 mkdir templates/my-template
 ```
 
-### 2. Add Template Files
+### 2. Add Overlay Files
 
-Create your project structure with:
+Only add files that differ from the base template:
 
-- All necessary source files
-- `package.json` with `{{PROJECT_NAME}}` placeholder
-- `README.md` and `AGENTS.md` documentation
-- `gitignore` file (not `.gitignore`)
-- TypeScript configuration
-- Example code and boilerplate
+- **`package.overlay.json`** - Additional dependencies to merge
+- **`src/agent/hello/agent.ts`** - Custom agent implementation (if different)
+- **`agentuity.config.ts`** - Custom build configuration (if needed)
+- **Any other files** - Will override base files with the same path
+
+Example `package.overlay.json`:
+
+```json
+{
+	"dependencies": {
+		"my-sdk": "latest"
+	},
+	"devDependencies": {
+		"my-dev-tool": "^1.0.0"
+	}
+}
+```
 
 ### 3. Update Manifest
 
@@ -163,14 +221,29 @@ agentuity create my-project \
   --template-dir ./templates
 ```
 
+## Modifying the Base Template
+
+When modifying files in `_base/`, remember that changes affect ALL templates. Only add files to `_base/` that should be shared across all templates.
+
+Common files in `_base/`:
+- `app.ts` - Application entry point with workbench enabled
+- `tsconfig.json` - TypeScript configuration
+- `gitignore` - Git ignore patterns
+- `AGENTS.md` - Agent guidelines
+- `README.md` - Project documentation template
+- `agentuity.config.ts` - Default build configuration
+- `package.json` - Base dependencies
+- `src/agent/hello/` - Default agent implementation
+- `src/api/index.ts` - API routes
+- `src/web/` - React web application
+
 ## Template Best Practices
 
-1. **Use placeholders**: Always use `{{PROJECT_NAME}}` in user-facing text
-2. **Include examples**: Provide working example code (agents, routes, components)
-3. **Document everything**: Include comprehensive AGENTS.md and README.md files
-4. **Follow conventions**: Match the code style and patterns in AGENTS.md
-5. **Keep dependencies current**: Use `latest` for `@agentuity/*` packages
-6. **Test thoroughly**: Verify the template works after `create`, `install`, and `build`
+1. **Minimize overlay files**: Only include files that truly differ from the base
+2. **Use package.overlay.json**: Don't duplicate the entire package.json; only specify additional dependencies
+3. **Include examples**: Provide working example code that showcases the template's SDK/framework
+4. **Document differences**: If your template has special requirements, document them
+5. **Test thoroughly**: Verify the template works after `create`, `install`, and `build`
 
 ## Files That Support Placeholders
 
@@ -214,7 +287,8 @@ agentuity create my-project --no-install --no-build
 - **CLI Template Code**: `packages/cli/src/cmd/project/`
    - `templates.ts` - Template loading and fetching
    - `template-flow.ts` - User interaction flow
-   - `download.ts` - Template download and setup
+   - `download.ts` - Template download and setup (base + overlay merging)
    - `create.ts` - Command definition
 - **Template Manifest**: `templates/templates.json`
-- **Default Template**: `templates/default/`
+- **Base Template**: `templates/_base/`
+- **Template Overlays**: `templates/default/`, `templates/openai/`, etc.
