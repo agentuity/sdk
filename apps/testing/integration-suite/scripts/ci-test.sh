@@ -23,16 +23,23 @@ echo "Integration Suite - CI Test Runner"
 echo "==================================="
 echo ""
 
+# Load .env.local if it exists and AGENTUITY_SDK_KEY is not already set
+if [ -z "$AGENTUITY_SDK_KEY" ] && [ -f "$APP_DIR/.env.local" ]; then
+	echo -e "${YELLOW}ℹ${NC} Loading environment from .env.local for local development"
+	export $(grep -v '^#' "$APP_DIR/.env.local" | xargs)
+fi
+
 # Check for required secrets
 if [ -z "$AGENTUITY_SDK_KEY" ]; then
-	echo -e "${RED}✗ ERROR:${NC} AGENTUITY_SDK_KEY environment variable not set"
-	echo "This secret must be configured in GitHub Actions"
+	echo -e "${RED}✗ ERROR:${NC} AGENTUITY_SDK_KEY not found"
+	echo "For local development, create .env.local with AGENTUITY_SDK_KEY"
+	echo "For CI, configure AGENTUITY_SDK_KEY as a GitHub Actions secret"
 	exit 1
 fi
 
 echo -e "${GREEN}✓${NC} API key configured"
 
-# Create .env file for the app
+# Create .env file for the app (overridden by bootstrapRuntimeEnv for local profile)
 echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.env"
 
 # Add OpenAI API key if available (required for vector embedding operations)

@@ -75,6 +75,11 @@ export { showBanner } from './banner';
 export { discoverCommands } from './cmd';
 export { detectColorScheme } from './terminal';
 export { getCommandPrefix, getCommand } from './command-prefix';
+export {
+	bootstrapRuntimeEnv,
+	type RuntimeBootstrapOptions,
+	type RuntimeBootstrapResult,
+} from './runtime-bootstrap';
 export * as tui from './tui';
 export {
 	createRepl,

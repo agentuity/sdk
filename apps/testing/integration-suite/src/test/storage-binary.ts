@@ -71,7 +71,7 @@ test('storage-binary', 'random-1kb', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 		contentType: 'application/octet-stream',
 	});
 
@@ -91,7 +91,8 @@ test('storage-binary', 'random-1kb', async () => {
 	assertEqual(downloadResult.size, 1024);
 
 	// Verify data matches
-	const downloadedData = new Uint8Array(downloadResult.data);
+	assertDefined(downloadResult.data);
+	const downloadedData = Buffer.from(downloadResult.data, 'base64');
 	assert(downloadedData.length === data.length, 'Data length mismatch');
 	assert(
 		downloadedData.every((byte, i) => byte === data[i]),
@@ -109,7 +110,7 @@ test('storage-binary', 'random-10kb', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 	});
 
 	assertEqual(uploadResult.success, true);
@@ -134,7 +135,7 @@ test('storage-binary', 'random-100kb', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 	});
 
 	assertEqual(uploadResult.md5, expectedMd5);
@@ -158,7 +159,7 @@ test('storage-binary', 'null-bytes', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 	});
 
 	assertEqual(uploadResult.md5, expectedMd5);
@@ -172,7 +173,8 @@ test('storage-binary', 'null-bytes', async () => {
 	assertEqual(downloadResult.md5, expectedMd5);
 
 	// Verify exact bytes
-	const downloadedData = new Uint8Array(downloadResult.data);
+	assertDefined(downloadResult.data);
+	const downloadedData = Buffer.from(downloadResult.data, 'base64');
 	assert(
 		downloadedData.every((byte) => byte === 0x00),
 		'Null bytes corrupted'
@@ -189,7 +191,7 @@ test('storage-binary', 'high-bytes', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 	});
 
 	assertEqual(uploadResult.md5, expectedMd5);
@@ -203,7 +205,8 @@ test('storage-binary', 'high-bytes', async () => {
 	assertEqual(downloadResult.md5, expectedMd5);
 
 	// Verify exact bytes
-	const downloadedData = new Uint8Array(downloadResult.data);
+	assertDefined(downloadResult.data);
+	const downloadedData = Buffer.from(downloadResult.data, 'base64');
 	assert(
 		downloadedData.every((byte) => byte === 0xff),
 		'High bytes corrupted'
@@ -220,7 +223,7 @@ test('storage-binary', 'problematic-bytes', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 	});
 
 	assertEqual(uploadResult.md5, expectedMd5);
@@ -234,7 +237,8 @@ test('storage-binary', 'problematic-bytes', async () => {
 	assertEqual(downloadResult.md5, expectedMd5);
 
 	// Verify byte-by-byte
-	const downloadedData = new Uint8Array(downloadResult.data);
+	assertDefined(downloadResult.data);
+	const downloadedData = Buffer.from(downloadResult.data, 'base64');
 	assert(downloadedData.length === data.length, 'Byte count mismatch');
 	assert(
 		downloadedData.every((byte, i) => byte === data[i]),
@@ -252,7 +256,7 @@ test('storage-binary', 'pdf-upload', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 		contentType: 'application/pdf',
 	});
 
@@ -269,7 +273,8 @@ test('storage-binary', 'pdf-upload', async () => {
 	assertEqual(downloadResult.md5, expectedMd5);
 
 	// Verify PDF structure
-	const downloadedData = new Uint8Array(downloadResult.data);
+	assertDefined(downloadResult.data);
+	const downloadedData = Buffer.from(downloadResult.data, 'base64');
 	const text = new TextDecoder().decode(downloadedData);
 	assert(text.startsWith('%PDF-1.4'), 'PDF header missing');
 	assert(text.includes('%%EOF'), 'PDF footer missing');
@@ -287,7 +292,7 @@ test('storage-binary', 'pdf-binary-content', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(pdfBytes),
+		data: Buffer.from(pdfBytes).toString('base64'),
 		contentType: 'application/pdf',
 	});
 
@@ -312,7 +317,7 @@ test('storage-binary', 'content-type-octet-stream', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 		contentType: 'application/octet-stream',
 	});
 
@@ -328,7 +333,7 @@ test('storage-binary', 'content-type-pdf', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 		contentType: 'application/pdf',
 	});
 
@@ -345,7 +350,7 @@ test('storage-binary', 'large-1mb', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 	});
 
 	assertEqual(uploadResult.md5, expectedMd5);
@@ -371,7 +376,7 @@ test('storage-binary', 'empty-data', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 	});
 
 	assertEqual(uploadResult.md5, expectedMd5);
@@ -397,7 +402,7 @@ test('storage-binary', 'single-byte', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 	});
 
 	assertEqual(uploadResult.md5, expectedMd5);
@@ -411,7 +416,8 @@ test('storage-binary', 'single-byte', async () => {
 	assertEqual(downloadResult.md5, expectedMd5);
 
 	// Verify exact byte
-	const downloadedData = new Uint8Array(downloadResult.data);
+	assertDefined(downloadResult.data);
+	const downloadedData = Buffer.from(downloadResult.data, 'base64');
 	assertEqual(downloadedData[0], 0x42);
 });
 
@@ -425,7 +431,7 @@ test('storage-binary', 'bit-pattern', async () => {
 	const uploadResult = await binaryStorageAgent.run({
 		operation: 'upload',
 		name,
-		data: Array.from(data),
+		data: Buffer.from(data).toString('base64'),
 	});
 
 	assertEqual(uploadResult.md5, expectedMd5);
@@ -439,7 +445,8 @@ test('storage-binary', 'bit-pattern', async () => {
 	assertEqual(downloadResult.md5, expectedMd5);
 
 	// Verify pattern preserved
-	const downloadedData = new Uint8Array(downloadResult.data);
+	assertDefined(downloadResult.data);
+	const downloadedData = Buffer.from(downloadResult.data, 'base64');
 	assert(
 		downloadedData.every((byte, i) => byte === data[i]),
 		'Bit pattern corrupted'
