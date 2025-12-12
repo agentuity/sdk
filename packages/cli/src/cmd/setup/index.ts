@@ -10,6 +10,7 @@ export const command = createCommand({
 	hidden: true,
 	skipUpgradeCheck: true,
 	tags: ['read-only', 'fast'],
+	optional: { auth: true },
 	schema: {
 		options: z.object({
 			nonInteractive: z.boolean().optional().describe('Run in non-interactive mode'),
@@ -17,20 +18,24 @@ export const command = createCommand({
 	},
 
 	async handler(ctx) {
-		const { opts } = ctx;
+		const { opts, auth } = ctx;
 		const _nonInteractive = opts.nonInteractive ?? false;
 
 		tui.newline();
 		showBanner();
 		tui.newline();
 
-		tui.output(`${tui.muted('To get started, run:')}`);
-		tui.newline();
-		tui.output(
-			`${getCommand('login')}        ${tui.muted('Login to an existing account (or signup)')}`
-		);
-		tui.output(`${getCommand('create')}       ${tui.muted('Create a project')}`);
-		tui.output(`${getCommand('help')}         ${tui.muted('List commands and options')}`);
+		if (!auth?.expires) {
+			tui.output(`${tui.muted('To get started, run:')}`);
+			tui.newline();
+			tui.output(
+				`${getCommand('login')}        ${tui.muted('Login to an existing account (or signup)')}`
+			);
+			tui.output(`${getCommand('create')}       ${tui.muted('Create a project')}`);
+			tui.output(`${getCommand('help')}         ${tui.muted('List commands and options')}`);
+		} else {
+			tui.success('Welcome back! 🙌');
+		}
 
 		return undefined;
 	},
