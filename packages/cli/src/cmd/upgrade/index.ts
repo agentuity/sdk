@@ -1,5 +1,5 @@
 import { createCommand } from '../../types';
-import { getVersion } from '../../version';
+import { getVersion, getCompareUrl, getReleaseUrl, toTag } from '../../version';
 import { getCommand } from '../../command-prefix';
 import { z } from 'zod';
 import { ErrorCode, createError, exitWithError } from '../../errors';
@@ -300,6 +300,13 @@ export const command = createCommand({
 			if (!force) {
 				tui.info(`Current version: ${tui.muted(currentVersion)}`);
 				tui.info(`Latest version:  ${tui.bold(latestVersion)}`);
+				tui.newline();
+				if (toTag(currentVersion) !== toTag(latestVersion)) {
+					tui.warning(
+						`What's changed:  ${tui.link(getCompareUrl(currentVersion, latestVersion))}`
+					);
+				}
+				tui.success(`Release notes:   ${tui.link(getReleaseUrl(latestVersion))}`);
 				tui.newline();
 
 				const shouldUpgrade = await tui.confirm('Do you want to upgrade?', true);
