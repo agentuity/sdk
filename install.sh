@@ -957,8 +957,9 @@ fi
 
 # Run the setup command to display banner and getting started steps
 # Use the full path since PATH may not be updated in the current shell session
+# The || true ensures this doesn't fail on older binaries that don't have the setup command
 if [ "$non_interactive" = true ]; then
-  "$INSTALL_DIR/agentuity" setup --non-interactive
+  "$INSTALL_DIR/agentuity" setup --non-interactive || true
 else
-  "$INSTALL_DIR/agentuity" setup
+  "$INSTALL_DIR/agentuity" setup || true
 fi
