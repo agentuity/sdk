@@ -20,6 +20,7 @@ import { writeAgentsDocs } from '../../agents-docs';
 import type { TemplateInfo } from './templates';
 
 const GITHUB_BRANCH = 'main';
+const BASE_TEMPLATE_DIR = '_base';
 
 interface DownloadOptions {
 	dest: string;
@@ -42,7 +43,78 @@ const TemplateDirectoryNotFoundError = StructuredError('TemplateDirectoryNotFoun
 	directory: string;
 }>();
 
-async function cleanup(sourceDir: string, dest: string) {
+async function copyTemplateFiles(sourceDir: string, dest: string, skipGitignoreRename = false) {
+	if (!existsSync(sourceDir)) {
+		return; // Source directory doesn't exist, skip (overlay may be empty)
+	}
+
+	// Copy all files from source to dest (overlay wins on conflicts)
+	const files = readdirSync(sourceDir);
+	for (const file of files) {
+		// Skip package.overlay.json - it's handled separately for merging
+		if (file === 'package.overlay.json') {
+			continue;
+		}
+		// Skip .gitkeep files - they're just placeholders for empty directories
+		if (file === '.gitkeep') {
+			continue;
+		}
+		cpSync(join(sourceDir, file), join(dest, file), { recursive: true });
+	}
+
+	// Rename gitignore -> .gitignore (only do this once, after all copies)
+	if (!skipGitignoreRename) {
+		const gi = join(dest, 'gitignore');
+		if (existsSync(gi)) {
+			renameSync(gi, join(dest, '.gitignore'));
+		}
+	}
+}
+
+async function mergePackageJson(dest: string, overlayDir: string) {
+	const basePackagePath = join(dest, 'package.json');
+	const overlayPackagePath = join(overlayDir, 'package.overlay.json');
+
+	// If no overlay package.json exists, nothing to merge
+	if (!existsSync(overlayPackagePath)) {
+		return;
+	}
+
+	// Read base package.json
+	const basePackage = JSON.parse(await Bun.file(basePackagePath).text());
+
+	// Read overlay package.json
+	const overlayPackage = JSON.parse(await Bun.file(overlayPackagePath).text());
+
+	// Merge dependencies (overlay wins on conflicts)
+	if (overlayPackage.dependencies) {
+		basePackage.dependencies = {
+			...basePackage.dependencies,
+			...overlayPackage.dependencies,
+		};
+	}
+
+	// Merge devDependencies (overlay wins on conflicts)
+	if (overlayPackage.devDependencies) {
+		basePackage.devDependencies = {
+			...basePackage.devDependencies,
+			...overlayPackage.devDependencies,
+		};
+	}
+
+	// Merge scripts (overlay wins on conflicts)
+	if (overlayPackage.scripts) {
+		basePackage.scripts = {
+			...basePackage.scripts,
+			...overlayPackage.scripts,
+		};
+	}
+
+	// Write merged package.json
+	await Bun.write(basePackagePath, JSON.stringify(basePackage, null, '\t') + '\n');
+}
+
+async function _cleanup(sourceDir: string, dest: string) {
 	if (!existsSync(sourceDir)) {
 		throw new TemplateDirectoryNotFoundError({
 			directory: sourceDir,
@@ -72,28 +144,59 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 
 	// Copy from local directory if provided
 	if (templateDir) {
-		const sourceDir = resolve(join(templateDir, template.directory));
+		const baseDir = resolve(join(templateDir, BASE_TEMPLATE_DIR));
+		const overlayDir = resolve(join(templateDir, template.directory));
 
-		if (!existsSync(sourceDir)) {
+		// Base template must exist
+		if (!existsSync(baseDir)) {
 			throw new TemplateDirectoryNotFoundError({
-				directory: sourceDir,
-				message: `Template directory not found: ${sourceDir}`,
+				directory: baseDir,
+				message: `Base template directory not found: ${baseDir}`,
 			});
 		}
 
-		return cleanup(sourceDir, dest);
+		// Overlay directory must exist (even if empty)
+		if (!existsSync(overlayDir)) {
+			throw new TemplateDirectoryNotFoundError({
+				directory: overlayDir,
+				message: `Template directory not found: ${overlayDir}`,
+			});
+		}
+
+		await tui.spinner({
+			type: 'progress',
+			message: '📦 Copying template files...',
+			clearOnSuccess: true,
+			callback: async (progress) => {
+				// Step 1: Copy base template files (skip gitignore rename for now)
+				await copyTemplateFiles(baseDir, dest, true);
+				progress(33);
+
+				// Step 2: Copy overlay template files (overlay wins on conflicts)
+				await copyTemplateFiles(overlayDir, dest, false);
+				progress(66);
+
+				// Step 3: Merge package.json with overlay dependencies
+				await mergePackageJson(dest, overlayDir);
+				progress(100);
+			},
+		});
+
+		return;
 	}
 
 	// Download from GitHub
 	const branch = templateBranch || GITHUB_BRANCH;
-	const templatePath = `templates/${template.directory}`;
+	const basePath = `templates/${BASE_TEMPLATE_DIR}`;
+	const overlayPath = `templates/${template.directory}`;
 	const url = `https://agentuity.sh/template/sdk/${branch}/tar.gz`;
 	const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-'));
 	const tarballPath = join(tempDir, 'download.tar.gz');
 
 	logger.debug('[download] URL: %s', url);
 	logger.debug('[download] Branch: %s', branch);
-	logger.debug('[download] Template path: %s', templatePath);
+	logger.debug('[download] Base path: %s', basePath);
+	logger.debug('[download] Overlay path: %s', overlayPath);
 	logger.debug('[download] Temp dir: %s', tempDir);
 
 	try {
@@ -121,37 +224,53 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 			}
 		);
 
-		// Step 2: Extract tarball
-		// We extract only the files within the template directory
+		// Step 2: Extract tarball - extract both base and overlay templates
 		// The tarball structure is: sdk-{branch}/templates/{template.directory}/...
-		const extractDir = join(tempDir, 'extract');
-		mkdirSync(extractDir, { recursive: true });
+		const baseExtractDir = join(tempDir, 'base');
+		const overlayExtractDir = join(tempDir, 'overlay');
+		mkdirSync(baseExtractDir, { recursive: true });
+		mkdirSync(overlayExtractDir, { recursive: true });
 
-		const prefix = `sdk-${branch}/${templatePath}/`;
-		logger.debug('[extract] Extract dir: %s', extractDir);
-		logger.debug('[extract] Filter prefix: %s', prefix);
+		const basePrefix = `sdk-${branch}/${basePath}/`;
+		const overlayPrefix = `sdk-${branch}/${overlayPath}/`;
+		logger.debug('[extract] Base extract dir: %s', baseExtractDir);
+		logger.debug('[extract] Overlay extract dir: %s', overlayExtractDir);
+		logger.debug('[extract] Base prefix: %s', basePrefix);
+		logger.debug('[extract] Overlay prefix: %s', overlayPrefix);
 
 		// Track extraction stats for debugging
 		let ignoredCount = 0;
-		let extractedCount = 0;
+		let baseExtractedCount = 0;
+		let overlayExtractedCount = 0;
 
 		// Track which entries we've mapped so we don't ignore them later
 		// Note: tar-fs calls map BEFORE ignore (despite what docs say)
 		const mappedEntries = new Set<string>();
 
-		const extractor = extract(extractDir, {
+		const extractor = extract(tempDir, {
 			// map callback: called FIRST, allows modifying the entry before extraction
-			// We strip the prefix so files are extracted to the root of extractDir
+			// We extract base files to baseExtractDir and overlay files to overlayExtractDir
 			map: (header: Headers) => {
 				const originalName = header.name;
-				if (header.name.startsWith(prefix) && header.name.length > prefix.length) {
-					// This is a file/dir we want to extract - strip the prefix
-					header.name = header.name.substring(prefix.length);
-					mappedEntries.add(header.name); // Track that we mapped this
-					logger.debug('[extract] MAP: %s -> %s', originalName, header.name);
-					logger.debug('[extract] EXTRACT: %s', originalName);
-					extractedCount++;
+
+				// Check if this is a base template file
+				if (header.name.startsWith(basePrefix) && header.name.length > basePrefix.length) {
+					header.name = `base/${header.name.substring(basePrefix.length)}`;
+					mappedEntries.add(header.name);
+					logger.debug('[extract] MAP BASE: %s -> %s', originalName, header.name);
+					baseExtractedCount++;
 				}
+				// Check if this is an overlay template file
+				else if (
+					header.name.startsWith(overlayPrefix) &&
+					header.name.length > overlayPrefix.length
+				) {
+					header.name = `overlay/${header.name.substring(overlayPrefix.length)}`;
+					mappedEntries.add(header.name);
+					logger.debug('[extract] MAP OVERLAY: %s -> %s', originalName, header.name);
+					overlayExtractedCount++;
+				}
+
 				return header;
 			},
 			// ignore callback: called AFTER map, receives the MAPPED name
@@ -180,10 +299,28 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 
 		logger.debug('[extract] Extraction complete');
 		logger.debug('[extract] Ignored entries: %d', ignoredCount);
-		logger.debug('[extract] Extracted entries: %d', extractedCount);
+		logger.debug('[extract] Base extracted entries: %d', baseExtractedCount);
+		logger.debug('[extract] Overlay extracted entries: %d', overlayExtractedCount);
 
-		// Step 3: Copy extracted files to destination
-		await cleanup(extractDir, dest);
+		// Step 3: Copy base template files, then overlay template files
+		await tui.spinner({
+			type: 'progress',
+			message: '📦 Copying template files...',
+			clearOnSuccess: true,
+			callback: async (progress) => {
+				// Copy base template files (skip gitignore rename for now)
+				await copyTemplateFiles(baseExtractDir, dest, true);
+				progress(33);
+
+				// Copy overlay template files (overlay wins on conflicts)
+				await copyTemplateFiles(overlayExtractDir, dest, false);
+				progress(66);
+
+				// Merge package.json with overlay dependencies
+				await mergePackageJson(dest, overlayExtractDir);
+				progress(100);
+			},
+		});
 	} finally {
 		// Clean up temp directory
 		logger.debug('[cleanup] Removing temp dir: %s', tempDir);
@@ -208,6 +345,30 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 		});
 		if (exitCode !== 0) {
 			logger.error('Failed to install dependencies');
+		}
+	}
+
+	// Run optional template setup script if it exists
+	// This allows templates to run custom setup logic after bun install
+	const setupScriptPath = join(dest, '_setup.ts');
+	if (existsSync(setupScriptPath)) {
+		try {
+			const exitCode = await tui.runCommand({
+				command: 'bun _setup.ts',
+				cwd: dest,
+				cmd: ['bun', '_setup.ts'],
+				clearOnSuccess: true,
+			});
+			if (exitCode !== 0) {
+				logger.error('Template setup script failed');
+			}
+		} finally {
+			// Always delete the setup script after running (or attempting to run)
+			try {
+				rmSync(setupScriptPath);
+			} catch {
+				// Ignore errors when deleting the setup script
+			}
 		}
 	}
 
