@@ -161,6 +161,7 @@
         "zod": "^4.1.12",
       },
       "devDependencies": {
+        "@agentuity/test-utils": "workspace:*",
         "@types/adm-zip": "^0.5.7",
         "@types/bun": "latest",
         "@types/tar-fs": "^2.0.4",
@@ -176,7 +177,7 @@
         "zod": "^4.1.12",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "0.0.95",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -186,7 +187,7 @@
       "name": "@agentuity/react",
       "version": "0.0.95",
       "dependencies": {
-        "@agentuity/core": "0.0.95",
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -248,6 +249,7 @@
         "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -273,7 +275,7 @@
       "name": "@agentuity/test-utils",
       "version": "0.0.95",
       "dependencies": {
-        "@agentuity/core": "0.0.95",
+        "@agentuity/core": "workspace:*",
       },
       "devDependencies": {
         "bun-types": "^1.3.3",
@@ -295,8 +297,8 @@
       "name": "@agentuity/workbench",
       "version": "0.0.95",
       "dependencies": {
-        "@agentuity/core": "0.0.95",
-        "@agentuity/react": "0.0.95",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/react": "workspace:*",
         "@ai-sdk/react": "^2.0.82",
         "@hookform/resolvers": "^5.2.2",
         "@monaco-editor/react": "^4.6.0",
@@ -325,6 +327,7 @@
         "zod-from-json-schema": "^0.5.2",
       },
       "devDependencies": {
+        "@agentuity/test-utils": "workspace:*",
         "@tailwindcss/cli": "^4.1.12",
         "@types/bun": "latest",
         "@types/hast": "^3.0.4",
