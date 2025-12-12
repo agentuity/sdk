@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { UIMessage } from 'ai';
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
 import type { WorkbenchContextType, ConnectionStatus } from '../../types/config';
@@ -18,29 +18,21 @@ export function useWorkbench() {
 }
 
 interface WorkbenchProviderProps {
-	config: WorkbenchConfig;
+	config: Omit<WorkbenchConfig, 'route'> & {
+		baseUrl?: string;
+		projectId?: string;
+	};
 	children: React.ReactNode;
 }
 
 export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
 
-	// Generate project identifier from config for localStorage scoping
-	const projectId = useMemo(() => {
-		// Use a combination of baseUrl and apiKey hash to create unique project identifier
-		const configHash = btoa(
-			JSON.stringify({
-				route: config.route,
-				apiKey: config.apiKey?.substring(0, 8), // Only first 8 chars for uniqueness without exposing key
-			})
-		)
-			.replace(/[^a-zA-Z0-9]/g, '')
-			.substring(0, 16);
-		return `project_${configHash}`;
-	}, [config]);
-
 	// localStorage utilities scoped by project
-	const getStorageKey = useCallback((key: string) => `agentuity_${projectId}_${key}`, [projectId]);
+	const getStorageKey = useCallback(
+		(key: string) => `agentuity_workbench_${config.projectId}_${key}`,
+		[config.projectId]
+	);
 
 	const saveSelectedAgent = useCallback(
 		(agentId: string) => {
