@@ -1,5 +1,12 @@
-import { getVersion } from './version';
-import { shouldUseColors, isDarkMode, link } from './tui';
+import { getVersion, getReleaseUrl } from './version';
+import {
+	shouldUseColors,
+	isDarkMode,
+	link,
+	supportsHyperlinks,
+	getDisplayWidth,
+	stripAnsi,
+} from './tui';
 
 export function generateBanner(version?: string, compact?: true): string {
 	const _version = version ?? getVersion();
@@ -16,10 +23,15 @@ export function generateBanner(version?: string, compact?: true): string {
 			: Bun.color('black', 'ansi-16m')
 		: '';
 	const RESET = USE_COLORS ? '\x1b[0m' : '';
+	const LINKS = supportsHyperlinks();
 
 	const width = 52; // Content width between pipes
 	const versionLabel = ' Version:        '; // Include leading space
-	const versionPadding = width - versionLabel.length - 1; // Subtract 1 for the space before closing pipe
+	const versionLink = LINKS
+		? link(getReleaseUrl(_version), _version, WHITE ?? undefined)
+		: _version;
+	const versionLinkWidth = getDisplayWidth(stripAnsi(versionLink));
+	const versionPadding = width - versionLabel.length - versionLinkWidth - 1;
 
 	const lines = [
 		CYAN + '╭────────────────────────────────────────────────────╮' + RESET,
@@ -27,7 +39,9 @@ export function generateBanner(version?: string, compact?: true): string {
 		compact ? undefined : CYAN + '│                                                    │' + RESET,
 		compact
 			? undefined
-			: CYAN + `│${versionLabel}${WHITE + _version.padEnd(versionPadding) + CYAN} │` + RESET,
+			: CYAN +
+				`│${versionLabel}${WHITE + versionLink + ''.padEnd(versionPadding) + CYAN} │` +
+				RESET,
 		compact
 			? undefined
 			: CYAN +

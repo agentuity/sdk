@@ -13,6 +13,7 @@ export async function discoverCommands(): Promise<CommandDefinition[]> {
 		import('./profile').then((m) => m.command),
 		import('./project').then((m) => m.command),
 		import('./repl').then((m) => m.command),
+		import('./setup').then((m) => m.command),
 		import('./upgrade').then((m) => m.command),
 		import('./version').then((m) => m.command),
 	]);
