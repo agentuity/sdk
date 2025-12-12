@@ -33,7 +33,7 @@ const GITHUB_REPO_URL = 'https://github.com/agentuity/sdk';
 /**
  * Normalize a version string to a Git tag format (with 'v' prefix)
  */
-function toTag(version: string): string {
+export function toTag(version: string): string {
 	return version.startsWith('v') ? version : `v${version}`;
 }
 
