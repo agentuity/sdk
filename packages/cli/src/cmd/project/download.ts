@@ -166,16 +166,26 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 			});
 		}
 
-		await tui.spinner(`📦 Copying template files...`, async () => {
-			// Step 1: Copy base template files (skip gitignore rename for now)
-			await copyTemplateFiles(baseDir, dest, true);
+		await tui.spinner(
+			{
+				type: 'progress',
+				message: '📦 Copying template files...',
+				clearOnSuccess: true,
+				callback: async (progress) => {
+					// Step 1: Copy base template files (skip gitignore rename for now)
+					await copyTemplateFiles(baseDir, dest, true);
+					progress(33);
 
-			// Step 2: Copy overlay template files (overlay wins on conflicts)
-			await copyTemplateFiles(overlayDir, dest, false);
+					// Step 2: Copy overlay template files (overlay wins on conflicts)
+					await copyTemplateFiles(overlayDir, dest, false);
+					progress(66);
 
-			// Step 3: Merge package.json with overlay dependencies
-			await mergePackageJson(dest, overlayDir);
-		});
+					// Step 3: Merge package.json with overlay dependencies
+					await mergePackageJson(dest, overlayDir);
+					progress(100);
+				},
+			}
+		);
 
 		return;
 	}
@@ -295,16 +305,26 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 		logger.debug('[extract] Overlay extracted entries: %d', overlayExtractedCount);
 
 		// Step 3: Copy base template files, then overlay template files
-		await tui.spinner(`📦 Copying template files...`, async () => {
-			// Copy base template files (skip gitignore rename for now)
-			await copyTemplateFiles(baseExtractDir, dest, true);
+		await tui.spinner(
+			{
+				type: 'progress',
+				message: '📦 Copying template files...',
+				clearOnSuccess: true,
+				callback: async (progress) => {
+					// Copy base template files (skip gitignore rename for now)
+					await copyTemplateFiles(baseExtractDir, dest, true);
+					progress(33);
 
-			// Copy overlay template files (overlay wins on conflicts)
-			await copyTemplateFiles(overlayExtractDir, dest, false);
+					// Copy overlay template files (overlay wins on conflicts)
+					await copyTemplateFiles(overlayExtractDir, dest, false);
+					progress(66);
 
-			// Merge package.json with overlay dependencies
-			await mergePackageJson(dest, overlayExtractDir);
-		});
+					// Merge package.json with overlay dependencies
+					await mergePackageJson(dest, overlayExtractDir);
+					progress(100);
+				},
+			}
+		);
 	} finally {
 		// Clean up temp directory
 		logger.debug('[cleanup] Removing temp dir: %s', tempDir);
@@ -329,6 +349,30 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 		});
 		if (exitCode !== 0) {
 			logger.error('Failed to install dependencies');
+		}
+	}
+
+	// Run optional template setup script if it exists
+	// This allows templates to run custom setup logic after bun install
+	const setupScriptPath = join(dest, '_setup.ts');
+	if (existsSync(setupScriptPath)) {
+		try {
+			const exitCode = await tui.runCommand({
+				command: 'bun _setup.ts',
+				cwd: dest,
+				cmd: ['bun', '_setup.ts'],
+				clearOnSuccess: true,
+			});
+			if (exitCode !== 0) {
+				logger.error('Template setup script failed');
+			}
+		} finally {
+			// Always delete the setup script after running (or attempting to run)
+			try {
+				rmSync(setupScriptPath);
+			} catch {
+				// Ignore errors when deleting the setup script
+			}
 		}
 	}
 

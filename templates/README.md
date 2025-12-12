@@ -154,15 +154,40 @@ Relevant code: `packages/cli/src/cmd/project/download.ts` (`replaceInFiles()`)
 After placeholder replacement, the CLI:
 
 1. Installs dependencies with `bun install` (unless `--no-install`)
-2. Builds the project with `bun run build` (unless `--no-build`)
+2. Runs optional `_setup.ts` script if present (then deletes it)
+3. Builds the project with `bun run build` (unless `--no-build`)
 
 Relevant code: `packages/cli/src/cmd/project/download.ts` (`setupProject()`)
 
-### 7. Special Handling
+### 7. Template Setup Script
+
+Templates can include an optional `_setup.ts` script that runs after `bun install` but before `bun run build`. This allows templates to perform custom setup logic such as:
+
+- Generating configuration files
+- Running code generators
+- Setting up environment-specific files
+- Any other post-install initialization
+
+The script is automatically deleted after execution (whether it succeeds or fails), so it won't be included in the final project.
+
+**Example `_setup.ts`:**
+
+```typescript
+// _setup.ts - This script runs after bun install and is then deleted
+import { writeFileSync } from 'fs';
+
+// Generate a config file based on environment
+writeFileSync('.env.local', 'EXAMPLE_VAR=value\n');
+
+console.log('Setup complete!');
+```
+
+### 8. Special Handling
 
 - **gitignore**: The file is named `gitignore` in templates to prevent Git from ignoring it, then renamed to `.gitignore` during setup
 - **.gitkeep**: These files are skipped during copy (they're just placeholders for empty directories)
 - **package.overlay.json**: This file is not copied directly; its contents are merged into `package.json`
+- **_setup.ts**: This script runs after `bun install` and is deleted afterward
 
 ## Creating a New Template
 
