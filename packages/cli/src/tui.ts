@@ -307,7 +307,7 @@ export function link(url: string, title?: string, color = getColor('link')): str
 /**
  * Check if terminal supports OSC 8 hyperlinks
  */
-function supportsHyperlinks(): boolean {
+export function supportsHyperlinks(): boolean {
 	const term = process.env.TERM || '';
 	const termProgram = process.env.TERM_PROGRAM || '';
 	const wtSession = process.env.WT_SESSION || '';
@@ -361,7 +361,7 @@ export function output(message: string): void {
  * which causes incorrect alignment. We strip OSC 8 codes first, then use Bun.stringWidth()
  * to handle regular ANSI codes and unicode characters correctly.
  */
-function getDisplayWidth(str: string): number {
+export function getDisplayWidth(str: string): number {
 	// Remove OSC-8 hyperlink sequences using Unicode escapes (\u001b = ESC, \u0007 = BEL) to satisfy linter
 	// eslint-disable-next-line no-control-regex
 	const withoutOSC8 = str.replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
@@ -371,7 +371,7 @@ function getDisplayWidth(str: string): number {
 /**
  * Strip all ANSI escape sequences from a string
  */
-function stripAnsi(str: string): string {
+export function stripAnsi(str: string): string {
 	// eslint-disable-next-line no-control-regex
 	return str.replace(/\u001b\[[0-9;]*m/g, '').replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
 }
