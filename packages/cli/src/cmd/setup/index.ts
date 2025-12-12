@@ -12,15 +12,16 @@ export const command = createCommand({
 	tags: ['read-only', 'fast'],
 	schema: {
 		options: z.object({
-			cliVersion: z.string().optional().describe('Version to display in the banner'),
+			nonInteractive: z.boolean().optional().describe('Run in non-interactive mode'),
 		}),
 	},
 
 	async handler(ctx) {
 		const { opts } = ctx;
+		const _nonInteractive = opts.nonInteractive ?? false;
 
 		tui.newline();
-		showBanner(opts.cliVersion);
+		showBanner();
 		tui.newline();
 
 		tui.output(`${tui.muted('To get started, run:')}`);

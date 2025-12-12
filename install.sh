@@ -957,6 +957,8 @@ fi
 
 # Run the setup command to display banner and getting started steps
 # Use the full path since PATH may not be updated in the current shell session
-if [ "$non_interactive" = false ]; then
-  "$INSTALL_DIR/agentuity" setup --cli-version "$specific_version"
+if [ "$non_interactive" = true ]; then
+  "$INSTALL_DIR/agentuity" setup --non-interactive
+else
+  "$INSTALL_DIR/agentuity" setup
 fi
