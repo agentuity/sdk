@@ -6,5 +6,5 @@
 		"build": "cd integration-suite && bun run build",
 		"test": "cd integration-suite && bun run test"
 	},
-	"version": "0.0.92"
+	"version": "0.0.93"
 }
