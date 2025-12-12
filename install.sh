@@ -139,7 +139,7 @@ fi
 
 if [ -z "$requested_version" ]; then
   if [ "$HAS_CURL" = true ]; then
-    http_response=$(curl -s -w "\n%{http_code}" https://agentuity.sh/release/sdk/version)
+    http_response=$(curl --fail --location --connect-timeout 5 --max-time 30 --retry 2 -s -w "\n%{http_code}" https://agentuity.sh/release/sdk/version)
     http_code=$(echo "$http_response" | tail -n1)
     specific_version=$(echo "$http_response" | sed '$d')
     
@@ -641,7 +641,7 @@ download_with_progress() {
   trap 'rm -f "$_dwp_tracefile"; printf "\033[?25h" >&4 2>/dev/null; exec 4>&- 2>/dev/null; cleanup_terminal' EXIT INT TERM
 
   (
-    curl --trace-ascii "$_dwp_tracefile" -s -L -f -o "$_dwp_output" "$_dwp_url"
+    curl --trace-ascii "$_dwp_tracefile" --fail --location --connect-timeout 5 --max-time 30 --retry 2 -s -o "$_dwp_output" "$_dwp_url"
   ) &
   _dwp_curl_pid=$!
 
@@ -701,7 +701,7 @@ download_and_install() {
   if [ "$HAS_CURL" = true ]; then
     if download_with_progress "$gz_url" "$gz_filename"; then
       download_success=true
-    elif curl -# -L -f -o "$gz_filename" "$gz_url"; then
+    elif curl --fail --location --connect-timeout 5 --max-time 30 --retry 2 -# -o "$gz_filename" "$gz_url"; then
       download_success=true
     fi
   else

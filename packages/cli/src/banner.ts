@@ -31,7 +31,7 @@ export function generateBanner(version?: string, compact?: true): string {
 		? link(getReleaseUrl(_version), _version, WHITE ?? undefined)
 		: _version;
 	const versionLinkWidth = getDisplayWidth(stripAnsi(versionLink));
-	const versionPadding = width - versionLinkWidth - _version.length - 12;
+	const versionPadding = width - versionLabel.length - versionLinkWidth - 1;
 
 	const lines = [
 		CYAN + '╭────────────────────────────────────────────────────╮' + RESET,
