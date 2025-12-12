@@ -75,31 +75,21 @@ export const uploadSubcommand = createSubcommand({
 			);
 		}
 
-		// TODO: we need to optimize this to not load the entire file in memory!
-
-		// Read file content
-		let fileContent: Buffer;
+		// Prepare streaming upload - we don't buffer the entire file in memory
+		let stream: ReadableStream<Uint8Array>;
 		let actualFilename: string;
 
 		if (args.filename === '-') {
-			// Read from STDIN (binary-safe)
-			try {
-				const arrayBuffer = await Bun.readableStreamToArrayBuffer(Bun.stdin.stream());
-				fileContent = Buffer.from(arrayBuffer);
-				actualFilename = 'stdin';
-			} catch (error) {
-				tui.fatal(
-					`Cannot read from stdin: ${error instanceof Error ? error.message : String(error)}`,
-					ErrorCode.FILE_NOT_FOUND
-				);
-			}
+			// Stream from STDIN
+			stream = Bun.stdin.stream();
+			actualFilename = 'stdin';
 		} else {
-			// Read from file
+			// Stream from file
 			const file = Bun.file(args.filename);
 			if (!(await file.exists())) {
 				tui.fatal(`File not found: ${args.filename}`, ErrorCode.FILE_NOT_FOUND);
 			}
-			fileContent = Buffer.from(await file.arrayBuffer());
+			stream = file.stream();
 			actualFilename = basename(args.filename);
 		}
 
@@ -139,11 +129,15 @@ export const uploadSubcommand = createSubcommand({
 			region: bucket.region,
 		});
 
+		// Upload using streaming - wrap the stream in a Response object
+		// S3Client.write accepts Response which allows streaming without buffering in memory
+		let bytesUploaded = 0;
+
 		await tui.spinner({
 			message: `Uploading ${actualFilename} to ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				await s3Client.write(actualFilename, fileContent, {
+				bytesUploaded = await s3Client.write(actualFilename, new Response(stream), {
 					type: contentType,
 				});
 			},
@@ -151,7 +145,7 @@ export const uploadSubcommand = createSubcommand({
 
 		if (!options.json) {
 			tui.success(
-				`Uploaded ${tui.bold(actualFilename)} to ${tui.bold(args.name)} (${fileContent.length} bytes)`
+				`Uploaded ${tui.bold(actualFilename)} to ${tui.bold(args.name)} (${bytesUploaded} bytes)`
 			);
 		}
 
@@ -159,7 +153,7 @@ export const uploadSubcommand = createSubcommand({
 			success: true,
 			bucket: args.name,
 			filename: actualFilename,
-			size: fileContent.length,
+			size: bytesUploaded,
 		};
 	},
 });
