@@ -14,20 +14,20 @@ export default createAgent('greeting', {
 	},
 	handler: async (ctx, input) => {
 		ctx.logger.info('Greeting user: %s', input.name);
-		
+
 		// Access app state
 		ctx.logger.debug('App name: %s', ctx.app.name);
-		
+
 		// Use KV storage
 		const count = (await ctx.kv.get<number>('greeting-count')) ?? 0;
 		await ctx.kv.set('greeting-count', count + 1);
 		ctx.logger.debug('Greeting count: %d', count + 1);
-		
+
 		// Schedule background task
 		ctx.waitUntil(async () => {
 			ctx.logger.info('Background task: Logged greeting for %s', input.name);
 		});
-		
+
 		return {
 			message: `Hello, ${input.name}! You are visitor #${count + 1}.`,
 			timestamp: Date.now(),

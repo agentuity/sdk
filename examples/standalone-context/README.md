@@ -52,16 +52,14 @@ const result = await ctx.invoke(() => myAgent.run(input));
 
 ```typescript
 client.on('messageCreate', async (message) => {
-  const ctx = createAgentContext({ 
-    sessionId: message.id,
-    trigger: 'discord'
-  });
-  
-  const response = await ctx.invoke(() => 
-    chatAgent.run({ message: message.content })
-  );
-  
-  await message.reply(response.text);
+	const ctx = createAgentContext({
+		sessionId: message.id,
+		trigger: 'discord',
+	});
+
+	const response = await ctx.invoke(() => chatAgent.run({ message: message.content }));
+
+	await message.reply(response.text);
 });
 ```
 
@@ -69,8 +67,8 @@ client.on('messageCreate', async (message) => {
 
 ```typescript
 cron.schedule('0 * * * *', async () => {
-  const ctx = createAgentContext({ trigger: 'cron' });
-  await ctx.invoke(() => cleanupAgent.run());
+	const ctx = createAgentContext({ trigger: 'cron' });
+	await ctx.invoke(() => cleanupAgent.run());
 });
 ```
 
@@ -81,6 +79,7 @@ cron.schedule('0 * * * *', async () => {
 Creates a standalone agent context for non-HTTP execution.
 
 **Options:**
+
 - `sessionId?: string` - Custom session ID (auto-generated if not provided)
 - `trigger?: string` - Trigger type for telemetry (`'discord'`, `'cron'`, `'websocket'`, `'manual'`)
 - `thread?: Thread` - Custom thread for conversation state
@@ -94,12 +93,14 @@ Creates a standalone agent context for non-HTTP execution.
 Executes a function within the agent context.
 
 **Parameters:**
+
 - `fn: () => Promise<T>` - Function to execute (typically `() => agent.run(input)`)
 - `options?.spanName?: string` - Custom span name for OpenTelemetry
 
 **Returns:** `Promise<T>` - The function's return value
 
 **Features:**
+
 - Creates OpenTelemetry span
 - Restores/saves session and thread
 - Sends session events (start/complete)
