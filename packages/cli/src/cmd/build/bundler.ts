@@ -19,6 +19,37 @@ import { loadBuildConfig, executeBuildConfig, mergeBuildConfig } from './config-
 
 const minBunVersion = '>=1.3.3';
 
+/**
+ * Get correct MIME type for a file based on its extension.
+ * Fixes Bun.build bug where artifact.type returns incorrect MIME types.
+ * See: https://github.com/oven-sh/bun/issues/20131
+ */
+export function getCorrectMimeType(filename: string, bunType: string): string {
+	const ext = filename.split('.').pop()?.toLowerCase();
+	
+	// Map common web asset extensions to correct MIME types
+	const mimeMap: Record<string, string> = {
+		'css': 'text/css;charset=utf-8',
+		'js': 'text/javascript;charset=utf-8',
+		'mjs': 'text/javascript;charset=utf-8',
+		'json': 'application/json;charset=utf-8',
+		'svg': 'image/svg+xml',
+		'png': 'image/png',
+		'jpg': 'image/jpeg',
+		'jpeg': 'image/jpeg',
+		'gif': 'image/gif',
+		'webp': 'image/webp',
+		'woff': 'font/woff',
+		'woff2': 'font/woff2',
+		'ttf': 'font/ttf',
+		'otf': 'font/otf',
+		'map': 'application/json;charset=utf-8',
+	};
+	
+	// Use extension-based mapping if available, otherwise fall back to Bun's type
+	return ext && mimeMap[ext] ? mimeMap[ext] : bunType;
+}
+
 async function checkBunVersion(): Promise<string[]> {
 	if (semver.satisfies(Bun.version, minBunVersion)) {
 		return []; // Version is OK, no output needed
@@ -594,7 +625,7 @@ export async function bundle({
 								assets.push({
 									filename: r,
 									kind: artifact.kind,
-									contentType: artifact.type,
+									contentType: getCorrectMimeType(r, artifact.type),
 									size: artifact.size,
 								});
 							});
