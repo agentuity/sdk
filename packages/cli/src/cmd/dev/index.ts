@@ -335,6 +335,7 @@ export const command = createCommand({
 						cwd: rootDir,
 						stdout: 'inherit',
 						stderr: 'inherit',
+						stdin: 'ignore',
 						env: { ...env, AGENTUITY_SDK_KEY: sdkKey },
 					}
 				);
