@@ -106,6 +106,60 @@ export default router;
 		cleanup();
 	});
 
+	test('should skip wildcard use() middleware without error', async () => {
+		setup();
+		const routeFile = join(TEST_DIR, 'route.ts');
+		const code = `
+import { createRouter } from '@agentuity/runtime';
+import { clerkMiddleware } from '@clerk/clerk-sdk-node';
+
+const router = createRouter();
+
+router.use('*', clerkMiddleware());
+router.get('/users', (c) => c.json({ users: [] }));
+router.post('/users', (c) => c.json({ created: true }));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(2);
+		expect(routes[0].method).toBe('get');
+		expect(routes[1].method).toBe('post');
+
+		cleanup();
+	});
+
+	test('should skip on, all, and route methods without error', async () => {
+		setup();
+		const routeFile = join(TEST_DIR, 'route.ts');
+		const code = `
+import { createRouter } from '@agentuity/runtime';
+import { authMiddleware, loggerMiddleware } from './middleware';
+
+const router = createRouter();
+const subRouter = createRouter();
+
+router.on('GET', '/test', (c) => c.text('test'));
+router.all('/catch-all', (c) => c.text('all'));
+router.route('/api', subRouter);
+router.use('*', authMiddleware());
+router.get('/users', (c) => c.json({ users: [] }));
+router.post('/users', (c) => c.json({ created: true }));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		expect(routes).toHaveLength(2);
+		expect(routes[0].method).toBe('get');
+		expect(routes[1].method).toBe('post');
+
+		cleanup();
+	});
+
 	test('should handle mixed complex scenarios', async () => {
 		setup();
 		const routeFile = join(TEST_DIR, 'route.ts');
