@@ -25,8 +25,9 @@ import { BuildMetadata } from '@agentuity/server';
 import { getCommand } from '../../command-prefix';
 import { notifyWorkbenchClients } from '../../utils/workbench-notify';
 import { getEnvFilePaths, readEnvFile } from '../../env-util';
+import { writeAgentsDocs } from '../../agents-docs';
 
-const shouldDisableInteractive = (interactive?: boolean) => {
+const shouldDisableInteractive= (interactive?: boolean) => {
 	if (!interactive) {
 		return true;
 	}
@@ -101,6 +102,9 @@ export const command = createCommand({
 		}
 
 		await saveProjectDir(rootDir);
+
+		// Regenerate AGENTS.md files if they are missing (e.g., after node_modules reinstall)
+		await writeAgentsDocs(rootDir, { onlyIfMissing: true });
 
 		let devmode: DevmodeResponse | undefined;
 		let gravityBin: string | undefined;

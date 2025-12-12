@@ -16,10 +16,7 @@ import { extract, type Headers } from 'tar-fs';
 import { StructuredError, type Logger } from '@agentuity/core';
 import * as tui from '../../tui';
 import { downloadWithSpinner } from '../../download';
-import { generateLLMPrompt as generateCLIPrompt } from '../ai/prompt/llm';
-import { generateLLMPrompt as generateAgentPrompt } from '../ai/prompt/agent';
-import { generateLLMPrompt as generateWebPrompt } from '../ai/prompt/web';
-import { generateLLMPrompt as generateAPIPrompt } from '../ai/prompt/api';
+import { writeAgentsDocs } from '../../agents-docs';
 import type { TemplateInfo } from './templates';
 
 const GITHUB_BRANCH = 'main';
@@ -278,32 +275,9 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 		});
 	}
 
-	// generate and write the AGENTS.md for the cli
-	const cliDir = join(dest, 'node_modules', '@agentuity', 'cli');
-	if (existsSync(cliDir)) {
-		const agentFile = join(cliDir, 'AGENTS.md');
-		const prompt = generateCLIPrompt();
-		await Bun.write(agentFile, prompt);
-	}
-
-	// generate and write AGENTS.md for each of the main folders
-	const agentDir = join(dest, 'src', 'agent');
-	if (existsSync(agentDir)) {
-		const agentAPIFile = join(agentDir, 'AGENTS.md');
-		await Bun.write(agentAPIFile, generateAgentPrompt());
-	}
-
-	const apiDir = join(dest, 'src', 'api');
-	if (existsSync(apiDir)) {
-		const agentAPIFile = join(apiDir, 'AGENTS.md');
-		await Bun.write(agentAPIFile, generateAPIPrompt());
-	}
-
-	const webDir = join(dest, 'src', 'web');
-	if (existsSync(webDir)) {
-		const webFile = join(webDir, 'AGENTS.md');
-		await Bun.write(webFile, generateWebPrompt());
-	}
+	// Generate and write AGENTS.md files for the CLI and source folders
+	// Always overwrite during project setup to ensure fresh content
+	await writeAgentsDocs(dest);
 }
 
 async function replaceInFiles(dir: string, projectName: string, dirName: string): Promise<void> {
