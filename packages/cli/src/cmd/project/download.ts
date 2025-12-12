@@ -117,7 +117,7 @@ async function mergePackageJson(dest: string, overlayDir: string) {
 	await Bun.write(basePackagePath, JSON.stringify(basePackage, null, '\t') + '\n');
 }
 
-async function cleanup(sourceDir: string, dest: string) {
+async function _cleanup(sourceDir: string, dest: string) {
 	if (!existsSync(sourceDir)) {
 		throw new TemplateDirectoryNotFoundError({
 			directory: sourceDir,
