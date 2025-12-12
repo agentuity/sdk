@@ -93,11 +93,11 @@ export function Chat({ className: _className, schemaOpen, onSchemaToggle, emptyS
 											<Loader
 												className={cn(
 													'size-4 transition-all',
-													isStreaming || isLoading ? 'animate-spin mr-2' : 'w-0 mr-2.5'
+													isStreaming ? 'animate-spin mr-2' : 'w-0 mr-2.5'
 												)}
 											/>
 
-											{isStreaming || isLoading ? (
+											{isStreaming ? (
 												<Shimmer duration={1}>Running...</Shimmer>
 											) : (
 												<>
@@ -114,7 +114,7 @@ export function Chat({ className: _className, schemaOpen, onSchemaToggle, emptyS
 										</div>
 									)}
 
-									{(role === 'user' || !(isStreaming || isLoading)) && (
+									{(role === 'user' || !isStreaming) && (
 										<>
 											<Message
 												key={id}

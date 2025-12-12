@@ -22,10 +22,11 @@ interface WorkbenchProviderProps {
 		baseUrl?: string | null;
 		projectId?: string;
 	};
+	isAuthenticated: boolean;
 	children: React.ReactNode;
 }
 
-export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) {
+export function WorkbenchProvider({ config, isAuthenticated, children }: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
 
 	// localStorage utilities scoped by project
@@ -58,6 +59,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 	const [selectedAgent, setSelectedAgent] = useState<string>('');
 	const [inputMode, setInputMode] = useState<'text' | 'form'>('text');
 	const [isLoading, setIsLoading] = useState(false);
+	const [isGeneratingSample, setIsGeneratingSample] = useState(false);
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('connected'); // Default to connected when websocket is disabled
 
 	// Config values
@@ -212,23 +214,33 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		logger.debug('✅ Validation passed, continuing with message submission...');
 
 		// Add user message
+		// Note: We also add a placeholder assistant message so only the last message
+		// shows a loading state while the request is in-flight.
+		const now = Date.now();
 		const displayText = hasInputSchema
 			? value
 			: `Running ${selectedAgentData?.metadata.name || 'agent'}...`;
 		const userMessage: UIMessage = {
-			id: Date.now().toString(),
+			id: now.toString(),
 			role: 'user',
 			parts: [{ type: 'text', text: displayText }],
 		};
 
-		setMessages((prev) => [...prev, userMessage]);
+		const assistantMessageId = (now + 1).toString();
+		const placeholderAssistantMessage: UIMessage = {
+			id: assistantMessageId,
+			role: 'assistant',
+			parts: [{ type: 'text', text: '', state: 'streaming' }],
+		};
+
+		setMessages((prev) => [...prev, userMessage, placeholderAssistantMessage]);
 		setIsLoading(true);
 
 		logger.debug('🔗 baseUrl:', baseUrl, 'isBaseUrlNull:', isBaseUrlNull);
 		if (!baseUrl || isBaseUrlNull) {
 			logger.debug('❌ Message submission blocked - baseUrl is null or missing');
 			const errorMessage: UIMessage = {
-				id: (Date.now() + 1).toString(),
+				id: assistantMessageId,
 				role: 'assistant',
 				parts: [
 					{
@@ -237,7 +249,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 					},
 				],
 			};
-			setMessages((prev) => [...prev, errorMessage]);
+			setMessages((prev) => prev.map((m) => (m.id === assistantMessageId ? errorMessage : m)));
 			setIsLoading(false);
 			return;
 		}
@@ -320,14 +332,16 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 					typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
 
 				const assistantMessage: UIMessage & { tokens?: string; duration?: string } = {
-					id: (Date.now() + 1).toString(),
+					id: assistantMessageId,
 					role: 'assistant',
 					parts: [{ type: 'text', text: resultText }],
 					tokens: totalTokens?.toString(),
 					duration,
 				};
 
-				setMessages((prev) => [...prev, assistantMessage]);
+				setMessages((prev) =>
+					prev.map((m) => (m.id === assistantMessageId ? assistantMessage : m))
+				);
 			} catch (fetchError) {
 				clearTimeout(timeoutId);
 				throw fetchError;
@@ -342,7 +356,7 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 					: 'Sorry, I encountered an error processing your message.';
 
 			const errorMessage: UIMessage = {
-				id: (Date.now() + 1).toString(),
+				id: assistantMessageId,
 				role: 'assistant',
 				parts: [
 					{
@@ -351,9 +365,51 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 					},
 				],
 			};
-			setMessages((prev) => [...prev, errorMessage]);
+			setMessages((prev) => prev.map((m) => (m.id === assistantMessageId ? errorMessage : m)));
 		} finally {
 			setIsLoading(false);
+		}
+	};
+
+	const generateSample = async (agentId: string): Promise<string> => {
+		if (!baseUrl || isBaseUrlNull) {
+			throw new Error('Base URL not configured');
+		}
+
+		setIsGeneratingSample(true);
+		try {
+			const url = `${baseUrl}/_agentuity/workbench/sample?agentId=${encodeURIComponent(agentId)}`;
+			const headers: HeadersInit = {
+				'Content-Type': 'application/json',
+			};
+
+			if (apiKey) {
+				headers['Authorization'] = `Bearer ${apiKey}`;
+			}
+
+			const response = await fetch(url, {
+				method: 'GET',
+				headers,
+			});
+
+			if (!response.ok) {
+				let errorMessage = `Request failed with status ${response.status}`;
+				try {
+					const errorData = await response.json();
+					errorMessage = errorData.error || errorData.message || errorMessage;
+				} catch {
+					errorMessage = response.statusText || errorMessage;
+				}
+				throw new Error(errorMessage);
+			}
+
+			const sample = await response.json();
+			return JSON.stringify(sample, null, 2);
+		} catch (error) {
+			logger.error('Failed to generate sample JSON:', error);
+			throw error;
+		} finally {
+			setIsGeneratingSample(false);
 		}
 	};
 
@@ -376,6 +432,9 @@ export function WorkbenchProvider({ config, children }: WorkbenchProviderProps) 
 		setInputMode,
 		isLoading: isLoading || !!schemasLoading,
 		submitMessage,
+		generateSample,
+		isGeneratingSample,
+		isAuthenticated,
 		// Schema data from API
 		schemas: schemaData,
 		schemasLoading: !!schemasLoading,

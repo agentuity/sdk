@@ -25,12 +25,13 @@ import {
 } from '../ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '../ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import { cn } from '../../lib/utils';
 import type { AgentSchemaData } from '../../hooks/useAgentSchemas';
 import { useLogger } from '../../hooks/useLogger';
 import type { JSONSchema7 } from 'ai';
+import { useWorkbench } from './WorkbenchProvider';
 import { convertJsonSchemaToZod } from 'zod-from-json-schema';
-import { zocker } from 'zocker';
 
 export interface InputSectionProps {
 	value: string;
@@ -70,6 +71,7 @@ export function InputSection({
 	onSchemaToggle,
 }: InputSectionProps) {
 	const logger = useLogger('InputSection');
+	const { generateSample, isGeneratingSample, isAuthenticated } = useWorkbench();
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
 	const [isValidInput, setIsValidInput] = useState(true);
 	const [monacoHasErrors, setMonacoHasErrors] = useState<boolean | null>(null);
@@ -159,18 +161,14 @@ export function InputSection({
 		monacoHasErrors,
 	]);
 
-	const handleGenerateSample = () => {
-		if (!selectedAgentData?.schema.input?.json || !isObjectSchema) return;
+	const handleGenerateSample = async () => {
+		if (!selectedAgentData?.schema.input?.json || !isObjectSchema || !selectedAgent) return;
 
 		try {
-			const jsonSchema = selectedAgentData.schema.input.json;
-			const schemaObject = typeof jsonSchema === 'string' ? JSON.parse(jsonSchema) : jsonSchema;
-
-			const zodSchema = convertJsonSchemaToZod(schemaObject);
-			const sampleData = zocker(zodSchema).generate();
-			const sampleJson = JSON.stringify(sampleData, null, 2);
+			const sampleJson = await generateSample(selectedAgent);
 			onChange(sampleJson);
 		} catch (error) {
+			logger.error('Failed to generate sample JSON:', error);
 			console.error('Failed to generate sample JSON:', error);
 		}
 	};
@@ -268,17 +266,49 @@ export function InputSection({
 					</Select>
 				)}
 
-				{isObjectSchema && (
-					<Button
-						aria-label="Generate Sample JSON"
-						size="sm"
-						variant="outline"
-						className="bg-none font-normal"
-						onClick={handleGenerateSample}
-					>
-						<Sparkles className="size-4" /> Sample
-					</Button>
-				)}
+				{isObjectSchema &&
+					(isAuthenticated ? (
+						<Button
+							aria-label="Generate Sample JSON"
+							size="sm"
+							variant="outline"
+							className="bg-none font-normal"
+							onClick={handleGenerateSample}
+							disabled={isGeneratingSample || !isAuthenticated}
+						>
+							{isGeneratingSample ? (
+								<Loader2Icon className="size-4 animate-spin" />
+							) : (
+								<Sparkles className="size-4" />
+							)}{' '}
+							Sample
+						</Button>
+					) : (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<span className="inline-flex">
+									<Button
+										aria-label="Generate Sample JSON"
+										size="sm"
+										variant="outline"
+										className="bg-none font-normal"
+										onClick={handleGenerateSample}
+										disabled={isGeneratingSample || !isAuthenticated}
+									>
+										{isGeneratingSample ? (
+											<Loader2Icon className="size-4 animate-spin" />
+										) : (
+											<Sparkles className="size-4" />
+										)}{' '}
+										Sample
+									</Button>
+								</span>
+							</TooltipTrigger>
+							<TooltipContent>
+								<p>Login to generate a sample</p>
+							</TooltipContent>
+						</Tooltip>
+					))}
 
 				<Button
 					aria-label={isSchemaOpen ? 'Hide Schema' : 'View Schema'}

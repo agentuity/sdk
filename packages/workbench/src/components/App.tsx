@@ -7,6 +7,7 @@ import { ThemeProvider } from './ui/theme-provider';
 import { ResizableProvider } from './ui/resizable-provider';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './ui/resizable';
 import { useResizable } from './ui/resizable-provider';
+import { TooltipProvider } from './ui/tooltip';
 import { decodeWorkbenchConfig } from '@agentuity/core/workbench';
 
 export interface AppProps {
@@ -51,12 +52,16 @@ function AppContent() {
 
 export function App({ configBase64 }: AppProps) {
 	const decodedConfig = decodeWorkbenchConfig(configBase64);
+	const isAuthenticated = process.env.AGENTUITY_PUBLIC_HAS_SDK_KEY === 'true';
+
 	return (
-		<WorkbenchProvider config={decodedConfig}>
+		<WorkbenchProvider config={decodedConfig} isAuthenticated={isAuthenticated}>
 			<ThemeProvider>
-				<ResizableProvider>
-					<AppContent />
-				</ResizableProvider>
+				<TooltipProvider>
+					<ResizableProvider>
+						<AppContent />
+					</ResizableProvider>
+				</TooltipProvider>
 			</ThemeProvider>
 		</WorkbenchProvider>
 	);

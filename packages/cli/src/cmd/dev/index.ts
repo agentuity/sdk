@@ -168,10 +168,20 @@ export const command = createCommand({
 
 		const workbench = await getWorkbench(rootDir);
 
+		const sdkKey = await loadProjectSDKKey(logger, rootDir);
+		if (!sdkKey) {
+			tui.warning(`Couldn't find the AGENTUITY_SDK_KEY in ${rootDir} .env file`);
+		}
+
 		const canDoInput =
 			interactive && !!(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI);
 
 		const padding = 12;
+
+		const workbenchUrl =
+			auth && sdkKey && project?.projectId
+				? `${getAppBaseURL(config)}/projects/${project.projectId}/workbench`
+				: `http://127.0.0.1:${opts.port}${workbench.config?.route ?? '/workbench'}`;
 
 		const devmodebody =
 			tui.muted(tui.padRight('Local:', padding)) +
@@ -181,9 +191,7 @@ export const command = createCommand({
 			(devmode?.hostname ? tui.link(`https://${devmode.hostname}`) : tui.warn('Disabled')) +
 			'\n' +
 			tui.muted(tui.padRight('Workbench:', padding)) +
-			(workbench.hasWorkbench
-				? tui.link(`http://127.0.0.1:${opts.port}${workbench.config?.route ?? '/workbench'}`)
-				: tui.warn('Disabled')) +
+			(workbench.hasWorkbench ? tui.link(workbenchUrl) : tui.warn('Disabled')) +
 			'\n' +
 			tui.muted(tui.padRight('Dashboard:', padding)) +
 			(appURL ? tui.link(appURL) : tui.warn('Disabled')) +
@@ -300,11 +308,6 @@ export const command = createCommand({
 		let serverStartTime = 0;
 		let gravityClient: Bun.Subprocess | undefined;
 		let initialStartupComplete = false;
-
-		const sdkKey = await loadProjectSDKKey(logger, rootDir);
-		if (!sdkKey) {
-			tui.warning(`Couldn't find the AGENTUITY_SDK_KEY in ${rootDir} .env file`);
-		}
 		const gravityBinExists = gravityBin ? await Bun.file(gravityBin).exists() : true;
 		if (!gravityBinExists) {
 			logger.error(`Gravity binary not found at ${gravityBin}, skipping gravity client startup`);

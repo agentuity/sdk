@@ -223,6 +223,7 @@ export async function bundle({
 	workbench,
 }: BundleOptions): Promise<{ output: string[] }> {
 	const output: string[] = [];
+	const hasSdkKey = !!process.env.AGENTUITY_SDK_KEY;
 
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
@@ -292,6 +293,7 @@ export async function bundle({
 	const define: Record<string, string> = {
 		'process.env.AGENTUITY_CLOUD_SDK_VERSION': JSON.stringify(getVersion() ?? '1.0.0'),
 		'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
+		'process.env.AGENTUITY_PUBLIC_HAS_SDK_KEY': JSON.stringify(hasSdkKey ? 'true' : 'false'),
 	};
 
 	if (orgId) {
@@ -515,10 +517,10 @@ export async function bundle({
 		}
 	}
 
-	// must always set for the template always
-	define['process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH'] = JSON.stringify('');
+	// Set public environment variables for workbench (must be set before web build)
 
 	// Analyze workbench config early to set environment variables for web build
+	let workbenchPath = '';
 	if (existsSync(appFile)) {
 		if (!workbench) {
 			const appContent = await Bun.file(appFile).text();
@@ -529,11 +531,11 @@ export async function bundle({
 			// Create workbench config with proper defaults
 			const defaultConfig = { route: '/workbench', headers: {} };
 			const config = { ...defaultConfig, ...workbench.config };
-
-			// Add to define so process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH gets replaced at build time
-			define['process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH'] = JSON.stringify(config.route);
+			workbenchPath = config.route;
 		}
 	}
+	// Always set this, even if empty (for template compatibility)
+	define['process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH'] = JSON.stringify(workbenchPath);
 
 	// web folder is optional
 	const webDir = join(srcDir, 'web');
@@ -700,6 +702,11 @@ Make sure @agentuity/workbench is installed or available in the workspace.`,
 				target: 'browser',
 				format: 'esm',
 				banner: `// Generated file. DO NOT EDIT`,
+				define: {
+					'process.env.AGENTUITY_PUBLIC_HAS_SDK_KEY': JSON.stringify(
+						process.env.AGENTUITY_SDK_KEY ? 'true' : 'false'
+					),
+				},
 				minify: !dev,
 				drop: isProd ? ['debugger'] : undefined,
 				splitting: false,
