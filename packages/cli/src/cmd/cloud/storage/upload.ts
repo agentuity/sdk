@@ -25,8 +25,16 @@ export const uploadSubcommand = createSubcommand({
 			description: 'Upload file with content type',
 		},
 		{
+			command: `${getCommand('cloud storage upload')} my-bucket file.txt --key custom-name.txt`,
+			description: 'Upload file with custom object key',
+		},
+		{
 			command: `cat file.txt | ${getCommand('cloud storage upload')} my-bucket -`,
 			description: 'Upload from stdin',
+		},
+		{
+			command: `cat data.json | ${getCommand('cloud storage upload')} my-bucket - --key data.json`,
+			description: 'Upload from stdin with custom key',
 		},
 	],
 	schema: {
@@ -35,6 +43,10 @@ export const uploadSubcommand = createSubcommand({
 			filename: z.string().describe('File path to upload or "-" for STDIN'),
 		}),
 		options: z.object({
+			key: z
+				.string()
+				.optional()
+				.describe('Remote object key (defaults to basename or "stdin" for piped uploads)'),
 			contentType: z
 				.string()
 				.optional()
@@ -77,12 +89,10 @@ export const uploadSubcommand = createSubcommand({
 
 		// Prepare streaming upload - we don't buffer the entire file in memory
 		let stream: ReadableStream<Uint8Array>;
-		let actualFilename: string;
 
 		if (args.filename === '-') {
 			// Stream from STDIN
 			stream = Bun.stdin.stream();
-			actualFilename = 'stdin';
 		} else {
 			// Stream from file
 			const file = Bun.file(args.filename);
@@ -90,15 +100,25 @@ export const uploadSubcommand = createSubcommand({
 				tui.fatal(`File not found: ${args.filename}`, ErrorCode.FILE_NOT_FOUND);
 			}
 			stream = file.stream();
-			actualFilename = basename(args.filename);
 		}
 
-		// Auto-detect content type
+		// Derive the remote object key:
+		// 1. Use --key if provided
+		// 2. For stdin (-), default to 'stdin'
+		// 3. For files, use the basename
+		const objectKey =
+			opts.key && opts.key.trim().length > 0
+				? opts.key
+				: args.filename === '-'
+					? 'stdin'
+					: basename(args.filename);
+
+		// Auto-detect content type from the object key's extension
+		// This allows content-type detection for stdin when --key is provided
 		let contentType = opts.contentType;
-		if (!contentType && args.filename !== '-') {
-			const filename = basename(args.filename);
-			const dotIndex = filename.lastIndexOf('.');
-			const ext = dotIndex > 0 ? filename.substring(dotIndex + 1).toLowerCase() : undefined;
+		if (!contentType) {
+			const dotIndex = objectKey.lastIndexOf('.');
+			const ext = dotIndex > 0 ? objectKey.substring(dotIndex + 1).toLowerCase() : undefined;
 			const mimeTypes: Record<string, string> = {
 				txt: 'text/plain',
 				html: 'text/html',
@@ -134,10 +154,10 @@ export const uploadSubcommand = createSubcommand({
 		let bytesUploaded = 0;
 
 		await tui.spinner({
-			message: `Uploading ${actualFilename} to ${args.name}`,
+			message: `Uploading ${objectKey} to ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				bytesUploaded = await s3Client.write(actualFilename, new Response(stream), {
+				bytesUploaded = await s3Client.write(objectKey, new Response(stream), {
 					type: contentType,
 				});
 			},
@@ -145,14 +165,14 @@ export const uploadSubcommand = createSubcommand({
 
 		if (!options.json) {
 			tui.success(
-				`Uploaded ${tui.bold(actualFilename)} to ${tui.bold(args.name)} (${bytesUploaded} bytes)`
+				`Uploaded ${tui.bold(objectKey)} to ${tui.bold(args.name)} (${bytesUploaded} bytes)`
 			);
 		}
 
 		return {
 			success: true,
 			bucket: args.name,
-			filename: actualFilename,
+			filename: objectKey,
 			size: bytesUploaded,
 		};
 	},
