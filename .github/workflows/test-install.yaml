@@ -267,11 +267,16 @@ jobs:
                       echo "✅ Force reinstall completed: $second_version"
                     '
 
-               - name: Interactive mode simulation
+               - name: Non-interactive with CI env
                  test: |
                     docker run --rm -e CI=true -v "$PWD:/app" -w /app ubuntu:latest sh -c '
                       apt-get update -qq && apt-get install -y -qq curl unzip > /dev/null 2>&1
-                      echo | ./install.sh > /tmp/install.log 2>&1 || true
+                      ./install.sh > /tmp/install.log 2>&1
+                      if [ ! -f "$HOME/.agentuity/bin/agentuity" ]; then
+                        echo "❌ Binary not installed"
+                        cat /tmp/install.log
+                        exit 1
+                      fi
                       $HOME/.agentuity/bin/agentuity --version
                     '
 
