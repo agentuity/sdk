@@ -30,7 +30,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -40,7 +40,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "0.0.87",
+      "version": "0.0.95",
     },
     "apps/testing/cloud-deployment": {
       "name": "cloud-deployment-tests",
@@ -137,7 +137,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -171,12 +171,12 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "dependencies": {
         "zod": "^4.1.12",
       },
       "devDependencies": {
-        "@agentuity/test-utils": "workspace:*",
+        "@agentuity/test-utils": "0.0.95",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",
@@ -184,9 +184,9 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
+        "@agentuity/core": "0.0.95",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -200,7 +200,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
@@ -243,7 +243,7 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -255,7 +255,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
@@ -271,9 +271,9 @@
     },
     "packages/test-utils": {
       "name": "@agentuity/test-utils",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
+        "@agentuity/core": "0.0.95",
       },
       "devDependencies": {
         "bun-types": "^1.3.3",
@@ -281,7 +281,7 @@
     },
     "packages/vscode": {
       "name": "agentuity-vscode",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
       },
@@ -293,10 +293,10 @@
     },
     "packages/workbench": {
       "name": "@agentuity/workbench",
-      "version": "0.0.87",
+      "version": "0.0.95",
       "dependencies": {
-        "@agentuity/core": "workspace:*",
-        "@agentuity/react": "workspace:*",
+        "@agentuity/core": "0.0.95",
+        "@agentuity/react": "0.0.95",
         "@ai-sdk/react": "^2.0.82",
         "@hookform/resolvers": "^5.2.2",
         "@monaco-editor/react": "^4.6.0",
@@ -321,7 +321,6 @@
         "tailwindcss-animate": "^1.0.7",
         "tokenlens": "^1.3.1",
         "use-stick-to-bottom": "^1.1.1",
-        "zocker": "^3.0.0",
         "zod": "^4.1.12",
         "zod-from-json-schema": "^0.5.2",
       },
@@ -452,8 +451,6 @@
     "@eslint/object-schema": ["@eslint/object-schema@2.1.7", "", {}, "sha512-VtAOaymWVfZcmZbp6E2mympDIHvyjXs/12LqWYjVw6qjrfF+VK+fyG33kChz3nnK+SU5/NeHOqrTEHS8sXO3OA=="],
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.3.5", "", { "dependencies": { "@eslint/core": "^0.15.2", "levn": "^0.4.1" } }, "sha512-Z5kJ+wU3oA7MMIqVR9tyZRtjYPr4OC004Q4Rw7pgOKUOKkJfZ3O24nz3WYfGRpMDNmcOi3TwQOmgm7B7Tpii0w=="],
-
-    "@faker-js/faker": ["@faker-js/faker@10.1.0", "", {}, "sha512-C3mrr3b5dRVlKPJdfrAXS8+dq+rq8Qm5SNRazca0JKgw1HQERFmrVb0towvMmw5uu8hHKNiQasMaR/tydf3Zsg=="],
 
     "@floating-ui/core": ["@floating-ui/core@1.7.3", "", { "dependencies": { "@floating-ui/utils": "^0.2.10" } }, "sha512-sGnvb5dmrJaKEZ+LDIpguvdX3bDlEllmv4/ClQ9awcmCZrlx5jQyyMWFM5kBI+EyNOCDDiKk8il0zeuX3Zlg/w=="],
 
@@ -1503,8 +1500,6 @@
 
     "domutils": ["domutils@3.2.2", "", { "dependencies": { "dom-serializer": "^2.0.0", "domelementtype": "^2.3.0", "domhandler": "^5.0.3" } }, "sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw=="],
 
-    "drange": ["drange@1.1.1", "", {}, "sha512-pYxfDYpued//QpnLIm4Avk7rsNtAtQkUES2cwAYSvD/wd2pKD71gN2Ebj3e7klzXwjocvE8c5vx/1fxwpqmSxA=="],
-
     "dunder-proto": ["dunder-proto@1.0.1", "", { "dependencies": { "call-bind-apply-helpers": "^1.0.1", "es-errors": "^1.3.0", "gopd": "^1.2.0" } }, "sha512-KIN/nDJBQRcXw0MLVhZE9iQHmG68qAVIBg9CqmUYjmQIhgij9U5MFvrqkUL5FbtyyzZuOeOt0zdeRe4UY7ct+A=="],
 
     "duplexify": ["duplexify@4.1.3", "", { "dependencies": { "end-of-stream": "^1.4.1", "inherits": "^2.0.3", "readable-stream": "^3.1.1", "stream-shift": "^1.0.2" } }, "sha512-M3BmBhwJRZsSx38lZyhE53Csddgzl5R7xGJNk7CVddZD6CcmwMCH8J+7AprIrQKH7TonKxaCjcv27Qmf+sQ+oA=="],
@@ -2335,8 +2330,6 @@
 
     "quick-lru": ["quick-lru@5.1.1", "", {}, "sha512-WuyALRjWPDGtt/wzJiadO5AXY+8hZ80hVpe6MyivgraREW751X3SbhRvG3eLKOYN+8VEvqLcf3wdnt44Z4S4SA=="],
 
-    "randexp": ["randexp@0.5.3", "", { "dependencies": { "drange": "^1.0.2", "ret": "^0.2.0" } }, "sha512-U+5l2KrcMNOUPYvazA3h5ekF80FHTUG+87SEAmHZmolh1M+i/WyTCxVzmi+tidIa1tM4BSe8g2Y/D3loWDjj+w=="],
-
     "rc": ["rc@1.2.8", "", { "dependencies": { "deep-extend": "^0.6.0", "ini": "~1.3.0", "minimist": "^1.2.0", "strip-json-comments": "~2.0.1" }, "bin": { "rc": "./cli.js" } }, "sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw=="],
 
     "rc-config-loader": ["rc-config-loader@4.1.3", "", { "dependencies": { "debug": "^4.3.4", "js-yaml": "^4.1.0", "json5": "^2.2.2", "require-from-string": "^2.0.2" } }, "sha512-kD7FqML7l800i6pS6pvLyIE2ncbk9Du8Q0gp/4hMPhJU6ZxApkoLcGD8ZeqgiAlfwZ6BlETq6qqe+12DUL207w=="],
@@ -2410,8 +2403,6 @@
     "resolve-from": ["resolve-from@4.0.0", "", {}, "sha512-pb/MYmXstAkysRFx8piNI1tGFNQIFA3vkE3Gq4EuA1dF6gHp/+vgZqsCGJapvy8N3Q+4o7FwvquPJcnZ7RYy4g=="],
 
     "responselike": ["responselike@3.0.0", "", { "dependencies": { "lowercase-keys": "^3.0.0" } }, "sha512-40yHxbNcl2+rzXvZuVkrYohathsSJlMTXKryG5y8uciHv1+xDLHQpgjG64JUO9nrEq2jGLH6IZ8BcZyw3wrweg=="],
-
-    "ret": ["ret@0.2.2", "", {}, "sha512-M0b3YWQs7R3Z917WRQy1HHA7Ba7D8hvZg6UE5mLykJxQVE2ju0IXbGlaHPPlkY+WN7wFP+wUMXmBFA0aV6vYGQ=="],
 
     "retry": ["retry@0.13.1", "", {}, "sha512-XQBQ3I8W1Cge0Seh+6gjj03LbmRFWuoszgK9ooCpwYIrhhoO80pfq4cUkU5DkknwfOfFteRwlZ56PYOGYyFWdg=="],
 
@@ -2759,8 +2750,6 @@
 
     "yocto-queue": ["yocto-queue@0.1.0", "", {}, "sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q=="],
 
-    "zocker": ["zocker@3.0.0", "", { "dependencies": { "@faker-js/faker": "^10.0.0", "randexp": "^0.5.3" }, "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-xSJz2M9AELZKzgpuuZPbTQdMv9263p/zSHDIj81B58X3334Xl6iJ/C3u6OQiOlsrWAoJSJsveBcIdz1eEPL0EA=="],
-
     "zod": ["zod@4.1.13", "", {}, "sha512-AvvthqfqrAhNH9dnfmrfKzX5upOdjUVJYFqNSlkmGf64gRaTzlPwz99IHYnVs28qYAybvAlBV+H7pn0saFY4Ig=="],
 
     "zod-from-json-schema": ["zod-from-json-schema@0.5.2", "", { "dependencies": { "zod": "^4.0.17" } }, "sha512-/dNaicfdhJTOuUd4RImbLUE2g5yrSzzDjI/S6C2vO2ecAGZzn9UcRVgtyLSnENSmAOBRiSpUdzDS6fDWX3Z35g=="],
@@ -2802,8 +2791,6 @@
     "@agentuity/workbench/bun-plugin-tailwind": ["bun-plugin-tailwind@0.0.14", "", { "dependencies": { "tailwindcss": "4.0.0-beta.9" }, "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-Ge8M8DQsRDErCzH/uI8pYjx5vZWXxQvnwM/xMQMElxQqHieGbAopfYo/q/kllkPkRbFHiwhnHwTpRMAMJZCjug=="],
 
     "@agentuity/workbench/bun-types": ["bun-types@1.3.4", "", { "dependencies": { "@types/node": "*" } }, "sha512-5ua817+BZPZOlNaRgGBpZJOSAQ9RQ17pkwPD0yR7CfJg+r8DgIILByFifDTa+IPDDxzf5VNhtNlcKqFzDgJvlQ=="],
-
-    "@agentuity/workbench/tailwindcss": ["tailwindcss@4.1.17", "", {}, "sha512-j9Ee2YjuQqYT9bbRTfTZht9W/ytp5H+jJpZKiYdP/bpnXARAuELt9ofP0lPnmHjbga7SNQIxdTAXCmtKVYjN+Q=="],
 
     "@azure/msal-node/uuid": ["uuid@8.3.2", "", { "bin": { "uuid": "dist/bin/uuid" } }, "sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg=="],
 
