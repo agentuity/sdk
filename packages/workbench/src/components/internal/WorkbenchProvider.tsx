@@ -214,23 +214,33 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 		logger.debug('✅ Validation passed, continuing with message submission...');
 
 		// Add user message
+		// Note: We also add a placeholder assistant message so only the last message
+		// shows a loading state while the request is in-flight.
+		const now = Date.now();
 		const displayText = hasInputSchema
 			? value
 			: `Running ${selectedAgentData?.metadata.name || 'agent'}...`;
 		const userMessage: UIMessage = {
-			id: Date.now().toString(),
+			id: now.toString(),
 			role: 'user',
 			parts: [{ type: 'text', text: displayText }],
 		};
 
-		setMessages((prev) => [...prev, userMessage]);
+		const assistantMessageId = (now + 1).toString();
+		const placeholderAssistantMessage: UIMessage = {
+			id: assistantMessageId,
+			role: 'assistant',
+			parts: [{ type: 'text', text: '', state: 'streaming' }],
+		};
+
+		setMessages((prev) => [...prev, userMessage, placeholderAssistantMessage]);
 		setIsLoading(true);
 
 		logger.debug('🔗 baseUrl:', baseUrl, 'isBaseUrlNull:', isBaseUrlNull);
 		if (!baseUrl || isBaseUrlNull) {
 			logger.debug('❌ Message submission blocked - baseUrl is null or missing');
 			const errorMessage: UIMessage = {
-				id: (Date.now() + 1).toString(),
+				id: assistantMessageId,
 				role: 'assistant',
 				parts: [
 					{
@@ -239,7 +249,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					},
 				],
 			};
-			setMessages((prev) => [...prev, errorMessage]);
+			setMessages((prev) => prev.map((m) => (m.id === assistantMessageId ? errorMessage : m)));
 			setIsLoading(false);
 			return;
 		}
@@ -322,14 +332,16 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
 
 				const assistantMessage: UIMessage & { tokens?: string; duration?: string } = {
-					id: (Date.now() + 1).toString(),
+					id: assistantMessageId,
 					role: 'assistant',
 					parts: [{ type: 'text', text: resultText }],
 					tokens: totalTokens?.toString(),
 					duration,
 				};
 
-				setMessages((prev) => [...prev, assistantMessage]);
+				setMessages((prev) =>
+					prev.map((m) => (m.id === assistantMessageId ? assistantMessage : m))
+				);
 			} catch (fetchError) {
 				clearTimeout(timeoutId);
 				throw fetchError;
@@ -344,7 +356,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					: 'Sorry, I encountered an error processing your message.';
 
 			const errorMessage: UIMessage = {
-				id: (Date.now() + 1).toString(),
+				id: assistantMessageId,
 				role: 'assistant',
 				parts: [
 					{
@@ -353,7 +365,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					},
 				],
 			};
-			setMessages((prev) => [...prev, errorMessage]);
+			setMessages((prev) => prev.map((m) => (m.id === assistantMessageId ? errorMessage : m)));
 		} finally {
 			setIsLoading(false);
 		}
