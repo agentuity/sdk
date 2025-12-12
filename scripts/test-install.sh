@@ -38,7 +38,9 @@ test_current_os() {
   trap 'rm -rf "$tmpdir"' EXIT
   
   print_info "Running install script..."
-  if ! HOME="$tmpdir" "$INSTALL_SCRIPT" -y > "$tmpdir/install.log" 2>&1; then
+  # Get version from package.json to avoid network requests
+  VERSION=$(grep -o '"version": "[^"]*"' "$REPO_ROOT/packages/cli/package.json" | head -1 | cut -d'"' -f4)
+  if ! HOME="$tmpdir" VERSION="$VERSION" "$INSTALL_SCRIPT" -y > "$tmpdir/install.log" 2>&1; then
     print_error "Install script failed"
     cat "$tmpdir/install.log"
     return 1
@@ -84,6 +86,9 @@ set -e
 
 # Ensure CI env var is set
 export CI=true
+
+# Get version from package.json to avoid network requests
+export VERSION=$(grep -o "\"version\": \"[^\"]*\"" packages/cli/package.json | head -1 | cut -d\" -f4)
 
 # Run install script
 if ! ./install.sh -y > /tmp/install.log 2>&1; then

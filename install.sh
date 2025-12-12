@@ -139,12 +139,27 @@ fi
 
 if [ -z "$requested_version" ]; then
   if [ "$HAS_CURL" = true ]; then
-    specific_version=$(curl -s https://agentuity.sh/release/sdk/version)
+    http_response=$(curl -s -w "\n%{http_code}" https://agentuity.sh/release/sdk/version)
+    http_code=$(echo "$http_response" | tail -n1)
+    specific_version=$(echo "$http_response" | sed '$d')
+    
+    if [ "$http_code" != "200" ]; then
+      printf "${RED}Failed to fetch version information (HTTP $http_code)${NC}\n"
+      printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
+      exit 1
+    fi
   else
     specific_version=$(wget -qO- https://agentuity.sh/release/sdk/version)
+    if [ $? -ne 0 ]; then
+      printf "${RED}Failed to fetch version information${NC}\n"
+      printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
+      exit 1
+    fi
   fi
-  if [ $? -ne 0 ] || [ -z "$specific_version" ]; then
-    printf "${RED}Failed to fetch version information${NC}\n"
+  
+  if [ -z "$specific_version" ]; then
+    printf "${RED}Failed to fetch version information (empty response)${NC}\n"
+    printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
     exit 1
   fi
 
@@ -155,10 +170,12 @@ if [ -z "$requested_version" ]; then
     ;;
   *"message"* | *"error"* | *"Error"* | *"<html>"* | *"<!DOCTYPE"*)
     printf "${RED}Error: Server returned an error instead of version: $specific_version${NC}\n"
+    printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
     exit 1
     ;;
   *)
     printf "${RED}Error: Invalid version format received: $specific_version${NC}\n"
+    printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
     exit 1
     ;;
   esac
