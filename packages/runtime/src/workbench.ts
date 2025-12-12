@@ -269,13 +269,12 @@ export const createWorkbenchRouter = () => {
 	// Add workbench routes
 	router.websocket('/_agentuity/workbench/ws', createWorkbenchWebsocketRoute());
 	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
-	router.get('/_agentuity/workbench/state', createWorkbenchStateRoute());
-	router.delete('/_agentuity/workbench/state', createWorkbenchClearStateRoute());
+	router.get('/_agentuity/workbench/sample', createWorkbenchSampleRoute());
 	router.post('/_agentuity/workbench/execute', createWorkbenchExecutionRoute());
 	return router;
 };
 
-export const createWorkbenchStateRoute = (): Handler => {
+export const createWorkbenchSampleRoute = (): Handler => {
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
 		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
 		: undefined;
@@ -291,48 +290,135 @@ export const createWorkbenchStateRoute = (): Handler => {
 					return ctx.text('Unauthorized', { status: 401 });
 				}
 			} catch {
-				// timing safe equals will throw if the input/output lengths are mismatched
-				// so we treat all exceptions as invalid
 				return ctx.text('Unauthorized', { status: 401 });
 			}
 		}
 
-		const agentId = ctx.req.query('agentId');
-		console.log('[Workbench State] Requested agentId:', agentId);
+		try {
+			const agentId = ctx.req.query('agentId');
+			if (!agentId) {
+				return ctx.json({ error: 'Missing agentId query parameter' }, { status: 400 });
+			}
 
-		if (!agentId) {
-			return ctx.json({ error: 'agentId query parameter is required' }, { status: 400 });
+			// Get agents registry and find the agent
+			const allAgents = getAgents();
+
+			let agentObj;
+			for (const [, agent] of allAgents) {
+				if (agent.metadata.agentId === agentId) {
+					agentObj = agent;
+					break;
+				}
+			}
+
+			if (!agentObj) {
+				return ctx.text('Agent not found', { status: 404 });
+			}
+
+			// Check if agent has input schema
+			if (!agentObj.inputSchema) {
+				return ctx.json({ error: 'Agent has no input schema' }, { status: 400 });
+			}
+
+			// Convert schema to JSON Schema
+			const jsonSchema = toJSONSchema(agentObj.inputSchema);
+
+			// Get Agentuity SDK key and gateway URL
+			const sdkKey = process.env.AGENTUITY_SDK_KEY;
+			const gatewayUrl =
+				process.env.AGENTUITY_AIGATEWAY_URL ||
+				process.env.AGENTUITY_TRANSPORT_URL ||
+				(sdkKey ? 'https://agentuity.ai' : '');
+
+			if (!sdkKey || !gatewayUrl) {
+				return ctx.json(
+					{
+						error: 'AGENTUITY_SDK_KEY and gateway URL must be configured',
+						message:
+							'Set AGENTUITY_SDK_KEY and either AGENTUITY_AIGATEWAY_URL, AGENTUITY_TRANSPORT_URL, or use https://agentuity.ai',
+					},
+					{ status: 500 }
+				);
+			}
+
+			// Generate sample using Groq via Agentuity Gateway
+			const prompt = `Generate a realistic sample data object that matches this JSON schema. Return only valid JSON, no markdown code blocks or explanations.
+
+JSON Schema:
+${JSON.stringify(jsonSchema, null, 2)}
+
+Return a JSON object that matches this schema with realistic values.`;
+
+			const gatewayEndpoint = `${gatewayUrl}/gateway/groq/openai/v1/chat/completions`;
+			const groqResponse = await fetch(gatewayEndpoint, {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${sdkKey}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					model: 'llama-3.3-70b-versatile',
+					messages: [
+						{
+							role: 'user',
+							content: prompt,
+						},
+					],
+				}),
+			});
+
+			if (!groqResponse.ok) {
+				const errorText = await groqResponse.text();
+				return ctx.json(
+					{
+						error: 'Groq API request failed',
+						message: `Status ${groqResponse.status}: ${errorText}`,
+					},
+					{ status: 500 }
+				);
+			}
+
+			const groqData = (await groqResponse.json()) as {
+				choices?: Array<{ message?: { content?: string } }>;
+			};
+			const text = groqData.choices?.[0]?.message?.content;
+			if (!text) {
+				return ctx.json(
+					{ error: 'Invalid response from Groq API', response: groqData },
+					{ status: 500 }
+				);
+			}
+
+			// Parse the JSON response
+			let sample: unknown;
+			try {
+				// Remove markdown code blocks if present
+				const cleanedText = text
+					.trim()
+					.replace(/^```json\s*|\s*```$/g, '')
+					.replace(/^```\s*|\s*```$/g, '');
+				sample = JSON.parse(cleanedText);
+			} catch (parseError) {
+				return ctx.json(
+					{
+						error: 'Failed to parse generated JSON',
+						message: parseError instanceof Error ? parseError.message : String(parseError),
+						generatedText: text,
+					},
+					{ status: 500 }
+				);
+			}
+
+			return ctx.json(sample);
+		} catch (error) {
+			return ctx.json(
+				{
+					error: 'Internal server error',
+					message: error instanceof Error ? error.message : String(error),
+				},
+				{ status: 500 }
+			);
 		}
-
-		// Get messages from thread state, keyed by agentId
-		const agentMessagesKey = `messages_${agentId}`;
-		console.log('[Workbench State] Messages key:', agentMessagesKey);
-
-		if (!ctx.var.thread) {
-			console.warn('[Workbench State] Thread not available');
-			return ctx.json({ messages: [] });
-		}
-
-		console.log('[Workbench State] Thread ID:', ctx.var.thread.id);
-		console.log('[Workbench State] Thread state keys:', Array.from(ctx.var.thread.state.keys()));
-		console.log('[Workbench State] Thread state size:', ctx.var.thread.state.size);
-
-		// Check if thread was restored from remote storage
-		if ('_restoredFromRemote' in ctx.var.thread) {
-			console.log('[Workbench State] Thread was restored from remote storage');
-		} else {
-			console.log('[Workbench State] Thread appears to be new (not restored from remote)');
-		}
-
-		const messages = ctx.var.thread.state.get(agentMessagesKey);
-		console.log('[Workbench State] Retrieved messages:', messages);
-		console.log('[Workbench State] Messages type:', typeof messages);
-		console.log('[Workbench State] Messages is array:', Array.isArray(messages));
-
-		const messagesArray = (messages as unknown[] | undefined) || [];
-		console.log('[Workbench State] Returning messages count:', messagesArray.length);
-
-		return ctx.json({ messages: messagesArray });
 	};
 };
 

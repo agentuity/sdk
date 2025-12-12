@@ -19,6 +19,37 @@ import { loadBuildConfig, executeBuildConfig, mergeBuildConfig } from './config-
 
 const minBunVersion = '>=1.3.3';
 
+/**
+ * Get correct MIME type for a file based on its extension.
+ * Fixes Bun.build bug where artifact.type returns incorrect MIME types.
+ * See: https://github.com/oven-sh/bun/issues/20131
+ */
+export function getCorrectMimeType(filename: string, bunType: string): string {
+	const ext = filename.split('.').pop()?.toLowerCase();
+	
+	// Map common web asset extensions to correct MIME types
+	const mimeMap: Record<string, string> = {
+		'css': 'text/css;charset=utf-8',
+		'js': 'text/javascript;charset=utf-8',
+		'mjs': 'text/javascript;charset=utf-8',
+		'json': 'application/json;charset=utf-8',
+		'svg': 'image/svg+xml',
+		'png': 'image/png',
+		'jpg': 'image/jpeg',
+		'jpeg': 'image/jpeg',
+		'gif': 'image/gif',
+		'webp': 'image/webp',
+		'woff': 'font/woff',
+		'woff2': 'font/woff2',
+		'ttf': 'font/ttf',
+		'otf': 'font/otf',
+		'map': 'application/json;charset=utf-8',
+	};
+	
+	// Use extension-based mapping if available, otherwise fall back to Bun's type
+	return ext && mimeMap[ext] ? mimeMap[ext] : bunType;
+}
+
 async function checkBunVersion(): Promise<string[]> {
 	if (semver.satisfies(Bun.version, minBunVersion)) {
 		return []; // Version is OK, no output needed
@@ -192,6 +223,7 @@ export async function bundle({
 	workbench,
 }: BundleOptions): Promise<{ output: string[] }> {
 	const output: string[] = [];
+	const hasSdkKey = !!process.env.AGENTUITY_SDK_KEY;
 
 	const appFile = join(rootDir, 'app.ts');
 	if (!existsSync(appFile)) {
@@ -261,6 +293,7 @@ export async function bundle({
 	const define: Record<string, string> = {
 		'process.env.AGENTUITY_CLOUD_SDK_VERSION': JSON.stringify(getVersion() ?? '1.0.0'),
 		'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
+		'process.env.AGENTUITY_PUBLIC_HAS_SDK_KEY': JSON.stringify(hasSdkKey ? 'true' : 'false'),
 	};
 
 	if (orgId) {
@@ -484,10 +517,10 @@ export async function bundle({
 		}
 	}
 
-	// must always set for the template always
-	define['process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH'] = JSON.stringify('');
+	// Set public environment variables for workbench (must be set before web build)
 
 	// Analyze workbench config early to set environment variables for web build
+	let workbenchPath = '';
 	if (existsSync(appFile)) {
 		if (!workbench) {
 			const appContent = await Bun.file(appFile).text();
@@ -498,11 +531,11 @@ export async function bundle({
 			// Create workbench config with proper defaults
 			const defaultConfig = { route: '/workbench', headers: {} };
 			const config = { ...defaultConfig, ...workbench.config };
-
-			// Add to define so process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH gets replaced at build time
-			define['process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH'] = JSON.stringify(config.route);
+			workbenchPath = config.route;
 		}
 	}
+	// Always set this, even if empty (for template compatibility)
+	define['process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH'] = JSON.stringify(workbenchPath);
 
 	// web folder is optional
 	const webDir = join(srcDir, 'web');
@@ -594,7 +627,7 @@ export async function bundle({
 								assets.push({
 									filename: r,
 									kind: artifact.kind,
-									contentType: artifact.type,
+									contentType: getCorrectMimeType(r, artifact.type),
 									size: artifact.size,
 								});
 							});
@@ -610,7 +643,7 @@ export async function bundle({
 	if (existsSync(appFile) && workbench && workbench.hasWorkbench) {
 		// Create workbench config with proper defaults
 		const defaultConfig = { route: '/workbench', headers: {} };
-		const config = { ...defaultConfig, ...workbench.config };
+		const config = { ...defaultConfig, ...workbench.config, projectId: projectId };
 		try {
 			// Generate workbench files on the fly instead of using files from package
 			const tempWorkbenchDir = join(outDir, 'temp-workbench');
@@ -669,6 +702,11 @@ Make sure @agentuity/workbench is installed or available in the workspace.`,
 				target: 'browser',
 				format: 'esm',
 				banner: `// Generated file. DO NOT EDIT`,
+				define: {
+					'process.env.AGENTUITY_PUBLIC_HAS_SDK_KEY': JSON.stringify(
+						process.env.AGENTUITY_SDK_KEY ? 'true' : 'false'
+					),
+				},
 				minify: !dev,
 				drop: isProd ? ['debugger'] : undefined,
 				splitting: false,

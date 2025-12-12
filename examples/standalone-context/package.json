@@ -1,0 +1,13 @@
+{
+	"name": "@agentuity/example-standalone-context",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"demo": "bun run test-standalone.ts"
+	},
+	"dependencies": {
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*"
+	}
+}

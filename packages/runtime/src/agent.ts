@@ -13,7 +13,7 @@ import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api'
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Handler } from 'hono/types';
 import { validator } from 'hono/validator';
-import { AGENT_RUNTIME, INTERNAL_AGENT, CURRENT_AGENT } from './_config';
+import { AGENT_RUNTIME, INTERNAL_AGENT, CURRENT_AGENT, AGENT_IDS } from './_config';
 import {
 	getAgentContext,
 	inHTTPContext,
@@ -1541,6 +1541,13 @@ export function createAgent<
 			if (honoCtx.var.agentIds) {
 				honoCtx.var.agentIds.add(agent.metadata.id);
 				honoCtx.var.agentIds.add(agent.metadata.agentId);
+			}
+		} else {
+			// For standalone contexts, check for AGENT_IDS symbol
+			const agentIds = (agentCtx as any)[AGENT_IDS] as Set<string> | undefined;
+			if (agentIds) {
+				agentIds.add(agent.metadata.id);
+				agentIds.add(agent.metadata.agentId);
 			}
 		}
 

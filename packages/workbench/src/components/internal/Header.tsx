@@ -10,7 +10,7 @@ export interface HeaderProps {
 	className?: string;
 }
 
-function StatusIndicator({ status }: { status: ConnectionStatus }) {
+export function StatusIndicator({ status }: { status: ConnectionStatus }) {
 	if (status === 'connected') {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">

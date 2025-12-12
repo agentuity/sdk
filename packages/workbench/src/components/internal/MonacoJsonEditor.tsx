@@ -167,7 +167,8 @@ export function MonacoJsonEditor({
 			style={{ minHeight: '64px', maxHeight: '192px', height: `${editorHeight}px` }}
 		>
 			<Editor
-				value={value || '{}'}
+				// Allow the editor to be truly empty. We intentionally do NOT coerce to `{}`.
+				value={value}
 				onChange={(newValue) => onChange(newValue || '')}
 				language="json"
 				theme={resolvedTheme === 'light' ? 'custom-light' : 'custom-dark'}
@@ -243,6 +244,12 @@ export function MonacoJsonEditor({
 						const checkValidationErrors = () => {
 							const model = editor.getModel();
 							if (model) {
+								// Treat an empty editor as a valid "empty state" (avoid Monaco's JSON parse error).
+								if (!model.getValue().trim()) {
+									onValidationChange(false);
+									return;
+								}
+
 								const markers = monaco.editor.getModelMarkers({ resource: model.uri });
 								const hasErrors = markers.some(
 									(marker: monaco.editor.IMarker) =>

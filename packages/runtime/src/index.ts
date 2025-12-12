@@ -91,6 +91,14 @@ export type { Logger } from './logger';
 // _server.ts exports
 export { getRouter, getAppState, AGENT_CONTEXT_PROPERTIES } from './_server';
 
+// _standalone.ts exports
+export {
+	createAgentContext,
+	StandaloneAgentContext,
+	type StandaloneContextOptions,
+	type InvokeOptions,
+} from './_standalone';
+
 // io/email exports
 export { Email, parseEmail } from './io/email';
 

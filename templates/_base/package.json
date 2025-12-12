@@ -1,0 +1,28 @@
+{
+	"name": "{{PROJECT_NAME}}",
+	"version": "0.0.1",
+	"private": true,
+	"module": "app.ts",
+	"type": "module",
+	"scripts": {
+		"build": "agentuity build",
+		"dev": "agentuity dev",
+		"deploy": "agentuity deploy",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/react": "latest",
+		"@agentuity/runtime": "latest",
+		"@agentuity/schema": "latest",
+		"@agentuity/workbench": "latest",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"devDependencies": {
+		"@agentuity/cli": "latest",
+		"@types/bun": "latest",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"typescript": "^5"
+	}
+}

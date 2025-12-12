@@ -93,14 +93,26 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 			});
 
 			if (!response.ok) {
+				// Handle 404/500 gracefully without throwing
 				if (response.status === 401) {
-					throw new Error('Unauthorized: Invalid or missing API key');
+					setError(new Error('Unauthorized: Invalid or missing API key'));
+					return;
 				}
-				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+				if (response.status === 404 || response.status >= 500) {
+					setError(new Error(`Server error: ${response.status} ${response.statusText}`));
+					return;
+				}
+				setError(new Error(`HTTP ${response.status}: ${response.statusText}`));
+				return;
 			}
 
-			const result = (await response.json()) as AgentSchemasResponse;
-			setData(result);
+			try {
+				const result = (await response.json()) as AgentSchemasResponse;
+				setData(result);
+			} catch (jsonError) {
+				setError(new Error('Invalid JSON response from server'));
+				console.error('Failed to parse JSON response:', jsonError);
+			}
 		} catch (err) {
 			const error = err instanceof Error ? err : new Error('Unknown error occurred');
 			setError(error);

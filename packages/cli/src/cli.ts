@@ -1,3 +1,5 @@
+import { homedir } from 'node:os';
+import { resolve } from 'node:path';
 import { Command } from 'commander';
 import type {
 	CommandDefinition,
@@ -11,7 +13,7 @@ import type {
 	AuthData,
 	GlobalOptions,
 } from './types';
-import { showBanner } from './banner';
+import { showBanner, generateBanner } from './banner';
 import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
 import { listRegions, type RegionList } from '@agentuity/server';
 import enquirer from 'enquirer';
@@ -262,7 +264,6 @@ export async function createCLI(version: string): Promise<Command> {
 	program.addOption(skipVersionCheckOption);
 
 	program.action(() => {
-		showBanner(version);
 		program.help();
 	});
 
@@ -366,8 +367,15 @@ export async function createCLI(version: string): Promise<Command> {
 				return term;
 			}
 
-			// Format each section (don't show banner for subcommands)
+			// Format each section (show banner for root command)
 			let output = '';
+
+			// Show banner if this is the root command (no parent)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const isRootCommand = !(cmd as any).parent;
+			if (isRootCommand) {
+				output += `${generateBanner(version)}\n\n`;
+			}
 
 			// Description
 			const description = helper.commandDescription(cmd);
@@ -720,6 +728,10 @@ async function registerSubcommand(
 		if (dirNeeded) {
 			const dir = (options.dir as string | undefined) ?? process.cwd();
 			projectDir = dir;
+			if (projectDir.startsWith('~/')) {
+				projectDir = projectDir.replace('~/', homedir());
+			}
+			projectDir = resolve(projectDir);
 			try {
 				project = await loadProjectConfig(dir, baseCtx.config);
 			} catch (error) {

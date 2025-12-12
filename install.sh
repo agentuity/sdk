@@ -139,12 +139,27 @@ fi
 
 if [ -z "$requested_version" ]; then
   if [ "$HAS_CURL" = true ]; then
-    specific_version=$(curl -s https://agentuity.sh/release/sdk/version)
+    http_response=$(curl --fail --location --connect-timeout 5 --max-time 30 --retry 2 -s -w "\n%{http_code}" https://agentuity.sh/release/sdk/version)
+    http_code=$(echo "$http_response" | tail -n1)
+    specific_version=$(echo "$http_response" | sed '$d')
+    
+    if [ "$http_code" != "200" ]; then
+      printf "${RED}Failed to fetch version information (HTTP $http_code)${NC}\n"
+      printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
+      exit 1
+    fi
   else
     specific_version=$(wget -qO- https://agentuity.sh/release/sdk/version)
+    if [ $? -ne 0 ]; then
+      printf "${RED}Failed to fetch version information${NC}\n"
+      printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
+      exit 1
+    fi
   fi
-  if [ $? -ne 0 ] || [ -z "$specific_version" ]; then
-    printf "${RED}Failed to fetch version information${NC}\n"
+  
+  if [ -z "$specific_version" ]; then
+    printf "${RED}Failed to fetch version information (empty response)${NC}\n"
+    printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
     exit 1
   fi
 
@@ -155,10 +170,12 @@ if [ -z "$requested_version" ]; then
     ;;
   *"message"* | *"error"* | *"Error"* | *"<html>"* | *"<!DOCTYPE"*)
     printf "${RED}Error: Server returned an error instead of version: $specific_version${NC}\n"
+    printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
     exit 1
     ;;
   *)
     printf "${RED}Error: Invalid version format received: $specific_version${NC}\n"
+    printf "${RED}Please try again later or specify a version with VERSION=X.Y.Z${NC}\n"
     exit 1
     ;;
   esac
@@ -624,7 +641,7 @@ download_with_progress() {
   trap 'rm -f "$_dwp_tracefile"; printf "\033[?25h" >&4 2>/dev/null; exec 4>&- 2>/dev/null; cleanup_terminal' EXIT INT TERM
 
   (
-    curl --trace-ascii "$_dwp_tracefile" -s -L -f -o "$_dwp_output" "$_dwp_url"
+    curl --trace-ascii "$_dwp_tracefile" --fail --location --connect-timeout 5 --max-time 30 --retry 2 -s -o "$_dwp_output" "$_dwp_url"
   ) &
   _dwp_curl_pid=$!
 
@@ -684,7 +701,7 @@ download_and_install() {
   if [ "$HAS_CURL" = true ]; then
     if download_with_progress "$gz_url" "$gz_filename"; then
       download_success=true
-    elif curl -# -L -f -o "$gz_filename" "$gz_url"; then
+    elif curl --fail --location --connect-timeout 5 --max-time 30 --retry 2 -# -o "$gz_filename" "$gz_url"; then
       download_success=true
     fi
   else
@@ -928,19 +945,9 @@ if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" = "true" ]; then
   print_message info "Added $INSTALL_DIR to \$GITHUB_PATH"
 fi
 
-printf "\n"
-printf "${CYAN}╭────────────────────────────────────────────────────╮${NC}\n"
-printf "${CYAN}│${NC} ⨺ Agentuity  The full-stack platform for AI agents ${CYAN}│${NC}\n"
-printf "${CYAN}│${NC}                                                    ${CYAN}│${NC}\n"
-printf "${CYAN}│${NC} Version:        ${specific_version}$(printf '%*s' $((35 - ${#specific_version})) '')${CYAN}│${NC}\n"
-printf "${CYAN}│${NC} Docs:           https://agentuity.dev              ${CYAN}│${NC}\n"
-printf "${CYAN}│${NC} Community:      https://discord.gg/agentuity       ${CYAN}│${NC}\n"
-printf "${CYAN}│${NC} Dashboard:      https://app-v1.agentuity.com       ${CYAN}│${NC}\n"
-printf "${CYAN}╰────────────────────────────────────────────────────╯${NC}\n"
-printf "\n"
-
 # Show prominent message if PATH was modified
 if [ "$path_modified" = true ]; then
+  printf "\n"
   printf "${RED}╭────────────────────────────────────────────────────╮${NC}\n"
   printf "${RED}│${NC} ${RED}⚠  ACTION REQUIRED${NC}                                 ${RED}│${NC}\n"
   printf "${RED}│${NC}                                                    ${RED}│${NC}\n"
@@ -963,11 +970,13 @@ if [ "$path_modified" = true ]; then
   fi
 
   printf "${RED}╰────────────────────────────────────────────────────╯${NC}\n"
-  printf "\n"
 fi
 
-printf "${MUTED}To get started, run:${NC}\n"
-printf "\n"
-printf "agentuity login        ${MUTED}Login to an existing account (or signup)${NC}\n"
-printf "agentuity create       ${MUTED}Create a project${NC}\n"
-printf "agentuity help         ${MUTED}List commands and options${NC}\n"
+# Run the setup command to display banner and getting started steps
+# Use the full path since PATH may not be updated in the current shell session
+# The || true ensures this doesn't fail on older binaries that don't have the setup command
+if [ "$non_interactive" = true ]; then
+  "$INSTALL_DIR/agentuity" setup --non-interactive || true
+else
+  "$INSTALL_DIR/agentuity" setup || true
+fi
