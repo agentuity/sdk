@@ -34,4 +34,6 @@ export interface WorkbenchContextType {
 	refetchSchemas: () => void;
 	// Connection status
 	connectionStatus: ConnectionStatus;
+	// Clear agent state
+	clearAgentState: (agentId: string) => Promise<void>;
 }

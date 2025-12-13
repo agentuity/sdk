@@ -331,6 +331,7 @@ export const createServer = async <TAppState>(
 				'Accept',
 				'Origin',
 				'X-Requested-With',
+				'x-agentuity-workbench-thread-id',
 			],
 			allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
 			exposeHeaders: [
@@ -339,6 +340,7 @@ export const createServer = async <TAppState>(
 				DURATION_HEADER,
 				SESSION_HEADER,
 				'x-deployment',
+				'x-agentuity-workbench-thread-id',
 			],
 			maxAge: 600,
 			credentials: true,
@@ -713,6 +715,11 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 					propagation.inject(context.active(), headers);
 					for (const key of Object.keys(headers)) {
 						c.header(key, headers[key]);
+					}
+					// Only expose the workbench thread header on workbench routes.
+					// DefaultThreadIDProvider may set it for thread continuity; we strip it elsewhere.
+					if (!url.pathname.startsWith('/_agentuity/workbench')) {
+						c.res.headers.delete('x-agentuity-workbench-thread-id');
 					}
 					// add session and deployment headers
 					const traceId = sctx?.traceId || sessionId.replace(/^sess_/, '');

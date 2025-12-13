@@ -6,6 +6,7 @@ import {
 	SendIcon,
 	Loader2Icon,
 	Sparkles,
+	Trash2,
 } from 'lucide-react';
 import { MonacoJsonEditor } from './MonacoJsonEditor';
 import {
@@ -44,6 +45,7 @@ export interface InputSectionProps {
 	suggestions: string[];
 	isSchemaOpen: boolean;
 	onSchemaToggle: () => void;
+	clearAgentState?: (agentId: string) => Promise<void>;
 }
 
 function isSchemaRootObject(schemaJson?: JSONSchema7): boolean {
@@ -69,6 +71,7 @@ export function InputSection({
 	suggestions,
 	isSchemaOpen,
 	onSchemaToggle,
+	clearAgentState,
 }: InputSectionProps) {
 	const logger = useLogger('InputSection');
 	const { generateSample, isGeneratingSample, isAuthenticated } = useWorkbench();
@@ -319,6 +322,18 @@ export function InputSection({
 				>
 					<FileJson className="size-4" /> Schema
 				</Button>
+
+				{clearAgentState && selectedAgent && (
+					<Button
+						aria-label="Clear conversation history"
+						size="sm"
+						variant="outline"
+						className="bg-none font-normal text-muted-foreground hover:text-destructive"
+						onClick={() => clearAgentState(selectedAgent)}
+					>
+						<Trash2 className="size-4" /> Clear
+					</Button>
+				)}
 			</div>
 
 			<PromptInput onSubmit={onSubmit} className="px-3 pb-3">

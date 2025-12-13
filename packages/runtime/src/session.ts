@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** biome-ignore-all lint/suspicious/noExplicitAny: anys are great */
 import type { Context } from 'hono';
-import { getCookie, setCookie } from 'hono/cookie';
 import { type Env, fireEvent } from './app';
 import type { AppState } from './index';
 import { getServiceUrls } from '@agentuity/server';
@@ -453,22 +452,29 @@ export function generateId(prefix?: string): string {
 	return `${prefix}${prefix ? '_' : ''}${arr.toHex()}`;
 }
 
+const validThreadIdCharacters = /^[a-zA-Z0-9-]+$/;
+const WORKBENCH_THREAD_HEADER = 'x-agentuity-workbench-thread-id';
+
+function isValidThreadId(threadId: string | undefined): threadId is string {
+	if (!threadId) return false;
+	if (!threadId.startsWith('thrd_')) return false;
+	if (threadId.length > 64) return false;
+	if (threadId.length < 32) return false;
+	if (!validThreadIdCharacters.test(threadId.substring(5))) return false;
+	return true;
+}
+
 /**
- * DefaultThreadIDProvider will look for a cookie named `atid` and use that as
- * the thread id or if not found, generate a new one.
+ * DefaultThreadIDProvider will look for `x-agentuity-workbench-thread-id`
+ * and use it as the thread id or if not found, generate a new one.
  */
 export class DefaultThreadIDProvider implements ThreadIDProvider {
 	getThreadId(_appState: AppState, ctx: Context<Env>): string {
-		const cookie = getCookie(ctx);
-		let threadId: string | undefined;
+		const headerValue = ctx.req.header(WORKBENCH_THREAD_HEADER);
+		const threadId = isValidThreadId(headerValue) ? headerValue : generateId('thrd');
 
-		if (cookie.atid?.startsWith('thrd_')) {
-			threadId = cookie.atid;
-		}
-
-		threadId = threadId || generateId('thrd');
-
-		setCookie(ctx, 'atid', threadId);
+		// Always echo the chosen thread id back to the client so it can persist it (e.g. localStorage).
+		ctx.header(WORKBENCH_THREAD_HEADER, threadId);
 		return threadId;
 	}
 }
@@ -929,8 +935,6 @@ export class ThreadWebSocketClient {
 		this.initialConnectReject = null;
 	}
 }
-
-const validThreadIdCharacters = /^[a-zA-Z0-9-]+$/;
 
 export class DefaultThreadProvider implements ThreadProvider {
 	private appState: AppState | null = null;

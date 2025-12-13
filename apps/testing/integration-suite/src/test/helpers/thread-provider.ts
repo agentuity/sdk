@@ -104,7 +104,9 @@ export class InMemoryThreadProvider implements ThreadProvider {
 		let threadId = getCookie(ctx, THREAD_COOKIE_NAME);
 
 		if (!threadId || !threadId.startsWith('thrd_')) {
-			threadId = `thrd_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+			// Must match runtime thread id constraints: min 32 chars including prefix,
+			// and [a-zA-Z0-9-] after 'thrd_'.
+			threadId = `thrd_${crypto.randomUUID().replaceAll('-', '')}`;
 		}
 
 		// Set cookie for next request
