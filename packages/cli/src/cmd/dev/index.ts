@@ -34,6 +34,25 @@ const shouldDisableInteractive = (interactive?: boolean) => {
 	return process.env.TERM_PROGRAM === 'vscode';
 };
 
+const DEFAULT_PORT = 3500;
+const MIN_PORT = 1024;
+const MAX_PORT = 65535;
+
+const getDefaultPort = (): number => {
+	const envPort = process.env.PORT;
+	if (!envPort) {
+		return DEFAULT_PORT;
+	}
+	const parsed = parseInt(envPort, 10);
+	if (Number.isNaN(parsed) || !Number.isFinite(parsed)) {
+		return DEFAULT_PORT;
+	}
+	if (parsed < MIN_PORT || parsed > MAX_PORT) {
+		return DEFAULT_PORT;
+	}
+	return parsed;
+};
+
 export const command = createCommand({
 	name: 'dev',
 	description: 'Build and run the development server',
@@ -56,10 +75,10 @@ export const command = createCommand({
 				.describe('Turn on or off the public url'),
 			port: z
 				.number()
-				.min(1024) // should we allow a lower root port? probably not?
-				.max(65535)
-				.default(3500)
-				.describe('The TCP port to start the dev start'),
+				.min(MIN_PORT)
+				.max(MAX_PORT)
+				.default(getDefaultPort())
+				.describe('The TCP port to start the dev server (also reads from PORT env)'),
 			watch: z
 				.array(z.string())
 				.optional()
