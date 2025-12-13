@@ -4,7 +4,7 @@
  *
  * This script tests all templates by:
  * 1. Creating a project from each template
- * 2. Installing dependencies (using packed tarballs from workspace)
+ * 2. Installing dependencies from npm registry
  * 3. Building the project
  * 4. Running typecheck
  * 5. Starting the server and testing endpoints
@@ -18,7 +18,7 @@
  */
 
 import { spawn, type Subprocess } from 'bun';
-import { existsSync, mkdirSync, rmSync, readdirSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -176,52 +176,6 @@ async function runCommand(
 	}
 }
 
-async function packPackages(sdkRoot: string, packagesDir: string): Promise<Map<string, string>> {
-	const packages = new Map<string, string>();
-	const packageNames = ['core', 'schema', 'react', 'runtime', 'server', 'cli', 'workbench'];
-
-	logStep('Building SDK packages...');
-	const buildResult = await runCommand(
-		['bunx', 'tsc', '--build', '--force'],
-		sdkRoot,
-		undefined,
-		300000
-	);
-	if (!buildResult.success) {
-		throw new Error(`Failed to build packages: ${buildResult.stderr}`);
-	}
-
-	// Build workbench separately (includes CSS)
-	logStep('Building workbench...');
-	const workbenchResult = await runCommand(
-		['bun', 'run', 'build'],
-		join(sdkRoot, 'packages/workbench'),
-		undefined,
-		120000
-	);
-	if (!workbenchResult.success) {
-		throw new Error(`Failed to build workbench: ${workbenchResult.stderr}`);
-	}
-
-	logStep('Packing packages...');
-	for (const pkg of packageNames) {
-		const pkgDir = join(sdkRoot, 'packages', pkg);
-		const result = await runCommand(['bun', 'pm', 'pack', '--destination', packagesDir], pkgDir);
-		if (!result.success) {
-			throw new Error(`Failed to pack ${pkg}: ${result.stderr}`);
-		}
-
-		// Find the packed tarball
-		const files = readdirSync(packagesDir).filter((f) => f.includes(pkg) && f.endsWith('.tgz'));
-		if (files.length === 0) {
-			throw new Error(`No tarball found for ${pkg}`);
-		}
-		packages.set(pkg, join(packagesDir, files[files.length - 1]));
-		logSuccess(`Packed ${pkg}`);
-	}
-
-	return packages;
-}
 
 async function createProject(
 	sdkRoot: string,
@@ -263,36 +217,12 @@ async function createProject(
 }
 
 async function installDependencies(
-	projectDir: string,
-	packages: Map<string, string>
+	projectDir: string
 ): Promise<{ success: boolean; error?: string }> {
-	// First, install regular dependencies
+	// Install dependencies from npm registry
 	const installResult = await runCommand(['bun', 'install'], projectDir, undefined, 180000);
 	if (!installResult.success) {
 		return { success: false, error: installResult.stderr };
-	}
-
-	// Install packed @agentuity packages
-	const tarballs = Array.from(packages.values());
-	const addResult = await runCommand(
-		['bun', 'add', '--no-save', ...tarballs],
-		projectDir,
-		undefined,
-		180000
-	);
-	if (!addResult.success) {
-		return { success: false, error: addResult.stderr };
-	}
-
-	// Remove nested @agentuity packages that Bun might have installed from npm
-	const nodeModulesDir = join(projectDir, 'node_modules', '@agentuity');
-	if (existsSync(nodeModulesDir)) {
-		for (const pkg of readdirSync(nodeModulesDir)) {
-			const nestedDir = join(nodeModulesDir, pkg, 'node_modules', '@agentuity');
-			if (existsSync(nestedDir)) {
-				rmSync(nestedDir, { recursive: true, force: true });
-			}
-		}
 	}
 
 	return { success: true };
@@ -430,7 +360,6 @@ async function checkOutdatedDependencies(projectDir: string): Promise<string[]> 
 async function testTemplate(
 	sdkRoot: string,
 	template: TemplateInfo,
-	packages: Map<string, string>,
 	basePort: number,
 	skipOutdated: boolean
 ): Promise<TestResult> {
@@ -475,7 +404,7 @@ async function testTemplate(
 		// Step 2: Install dependencies
 		logStep('Installing dependencies...');
 		stepStart = Date.now();
-		const installResult = await installDependencies(projectDir, packages);
+		const installResult = await installDependencies(projectDir);
 		result.steps.push({
 			name: 'Install dependencies',
 			passed: installResult.success,
@@ -649,18 +578,6 @@ async function main() {
 	console.log(`${'='.repeat(60)}`);
 	console.log(`Templates to test: ${templatesToTest.map((t) => t.id).join(', ')}`);
 
-	// Pack packages once for all tests
-	const packagesDir = join(tmpdir(), `agentuity-packages-${Date.now()}`);
-	mkdirSync(packagesDir, { recursive: true });
-
-	let packages: Map<string, string>;
-	try {
-		packages = await packPackages(sdkRoot, packagesDir);
-	} catch (error) {
-		logError(`Failed to pack packages: ${error}`);
-		process.exit(1);
-	}
-
 	// Test each template sequentially (to avoid port conflicts)
 	const results: TestResult[] = [];
 	const basePort = 3500;
@@ -668,15 +585,8 @@ async function main() {
 	for (let i = 0; i < templatesToTest.length; i++) {
 		const template = templatesToTest[i];
 		const port = basePort + i; // Use different ports for each template
-		const result = await testTemplate(sdkRoot, template, packages, port, args.skipOutdated);
+		const result = await testTemplate(sdkRoot, template, port, args.skipOutdated);
 		results.push(result);
-	}
-
-	// Cleanup packages directory
-	try {
-		rmSync(packagesDir, { recursive: true, force: true });
-	} catch {
-		// Ignore cleanup errors
 	}
 
 	// Print summary
