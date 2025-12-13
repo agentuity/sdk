@@ -458,4 +458,46 @@ describe('Thread ID Signing and Verification', () => {
 		expect(threadId).toMatch(/^thrd_[a-f0-9]{32}$/);
 		expect(threadId).not.toBe(threadIdValue);
 	});
+
+	test('verifySignedThreadId correctly decodes base64 signatures', async () => {
+		const threadId = 'thrd_1234567890123456789012345678';
+		const secret = 'test-secret-with-special-chars-!@#$%';
+
+		// Sign the thread ID
+		const signed = await signThreadId(threadId, secret);
+		const [, signature] = signed.split(';');
+
+		// Verify signature is valid base64
+		expect(signature).toMatch(/^[A-Za-z0-9+/]+=*$/);
+
+		// Verify it can be decoded as base64
+		const buffer = Buffer.from(signature, 'base64');
+		expect(buffer.length).toBeGreaterThan(0);
+
+		// Verify the signed value validates correctly
+		const verified = await verifySignedThreadId(signed, secret);
+		expect(verified).toBe(threadId);
+	});
+
+	test('verifySignedThreadId handles different signature lengths correctly', async () => {
+		// Test with various secrets that produce different signature lengths
+		const threadId = 'thrd_1234567890123456789012345678';
+		const secrets = [
+			'short',
+			'medium-length-secret',
+			'very-long-secret-with-many-characters-to-test-hmac-behavior',
+			'!@#$%^&*()',
+			'unicode-测试',
+		];
+
+		for (const secret of secrets) {
+			const signed = await signThreadId(threadId, secret);
+			const verified = await verifySignedThreadId(signed, secret);
+			expect(verified).toBe(threadId);
+
+			// Verify with wrong secret fails
+			const wrongVerified = await verifySignedThreadId(signed, 'wrong-secret');
+			expect(wrongVerified).toBeUndefined();
+		}
+	});
 });

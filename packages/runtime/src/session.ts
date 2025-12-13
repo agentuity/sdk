@@ -589,8 +589,8 @@ export async function verifySignedThreadId(
 
 	try {
 		// Convert to Buffers for constant-time comparison
-		const providedBuffer = Buffer.from(providedSignature, 'utf8');
-		const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+		const providedBuffer = Buffer.from(providedSignature, 'base64');
+		const expectedBuffer = Buffer.from(expectedSignature, 'base64');
 
 		if (timingSafeEqual(providedBuffer, expectedBuffer)) {
 			return threadId;
