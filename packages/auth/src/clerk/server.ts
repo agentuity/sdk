@@ -85,9 +85,21 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 
 		try {
 			// Extract token from Bearer header
-			const token = options.getToken
-				? options.getToken(authHeader)
-				: authHeader.replace(/^Bearer\s+/i, '');
+			let token: string;
+			if (options.getToken) {
+				token = options.getToken(authHeader);
+			} else {
+				// Validate Authorization scheme is Bearer
+				if (!authHeader.match(/^Bearer\s+/i)) {
+					return c.json({ error: 'Unauthorized' }, 401);
+				}
+				token = authHeader.replace(/^Bearer\s+/i, '');
+			}
+
+			// Ensure token is not empty
+			if (!token || token.trim().length === 0) {
+				return c.json({ error: 'Unauthorized' }, 401);
+			}
 
 			// Verify token with Clerk (delegates validation to provider)
 			const payload = (await verifyToken(token, {
