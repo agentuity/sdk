@@ -259,9 +259,9 @@ async function startServer(
 	const appPath = join(projectDir, '.agentuity', 'app.js');
 
 	const proc = spawn({
-		cmd: ['bun', 'run', appPath],
+		cmd: ['bun', 'run', appPath, '--port', String(port)],
 		cwd: projectDir,
-		env: { ...process.env, ...env, PORT: String(port) },
+		env: { ...process.env, ...env },
 		stdout: 'pipe',
 		stderr: 'pipe',
 	});
@@ -578,16 +578,15 @@ async function main() {
 	console.log(`${'='.repeat(60)}`);
 	console.log(`Templates to test: ${templatesToTest.map((t) => t.id).join(', ')}`);
 
-	// Test each template sequentially (to avoid port conflicts)
-	const results: TestResult[] = [];
+	// Test templates in parallel (each uses a different port)
 	const basePort = 3500;
 
-	for (let i = 0; i < templatesToTest.length; i++) {
-		const template = templatesToTest[i];
+	const testPromises = templatesToTest.map((template, i) => {
 		const port = basePort + i; // Use different ports for each template
-		const result = await testTemplate(sdkRoot, template, port, args.skipOutdated);
-		results.push(result);
-	}
+		return testTemplate(sdkRoot, template, port, args.skipOutdated);
+	});
+
+	const results = await Promise.all(testPromises);
 
 	// Print summary
 	console.log('');
