@@ -948,7 +948,7 @@ export class DefaultThreadProvider implements ThreadProvider {
 			const serviceUrls = getServiceUrls(process.env.AGENTUITY_REGION ?? 'usc');
 			const catalystUrl = serviceUrls.catalyst;
 			const wsUrl = new URL('/thread/ws', catalystUrl.replace(/^http/, 'ws'));
-			console.debug('connecting to %s', wsUrl);
+			internal.debug('connecting to %s', wsUrl);
 
 			this.wsClient = new ThreadWebSocketClient(apiKey, wsUrl.toString());
 			// Connect in background, don't block initialization
@@ -958,7 +958,7 @@ export class DefaultThreadProvider implements ThreadProvider {
 					this.wsConnecting = null;
 				})
 				.catch((err) => {
-					console.error('Failed to connect to thread WebSocket:', err);
+					internal.error('Failed to connect to thread WebSocket:', err);
 					this.wsClient = null;
 					this.wsConnecting = null;
 				});

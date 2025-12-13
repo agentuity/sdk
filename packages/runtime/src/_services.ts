@@ -28,6 +28,7 @@ import {
 	JSONEvalRunEventProvider,
 	HTTPEvalRunEventProvider,
 } from './services/evalrun';
+import { LocalThreadProvider } from './services/thread/local';
 import { injectTraceContextToHeaders } from './otel/http';
 import { getTracer } from './_server';
 import { populateAgentsRegistry } from './agent.js';
@@ -200,7 +201,7 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 		stream = config?.services?.stream || new LocalStreamStorage(db, projectPath, serverUrl);
 		vector = config?.services?.vector || new LocalVectorStorage(db, projectPath);
 		session = config?.services?.session || new DefaultSessionProvider();
-		thread = config?.services?.thread || new DefaultThreadProvider();
+		thread = config?.services?.thread || new LocalThreadProvider();
 		sessionEvent = config?.services?.sessionEvent
 			? new CompositeSessionEventProvider(
 					new LocalSessionEventProvider(),
