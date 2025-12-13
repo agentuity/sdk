@@ -12,9 +12,10 @@
 
 ## Architecture
 
-- **Monorepo**: Bun workspaces with 7 packages in `packages/`: `core`, `react`, `runtime`, `server`, `cli`, `workbench`, `test-utils`
+- **Monorepo**: Bun workspaces with 8 packages in `packages/`: `core`, `react`, `auth`, `runtime`, `server`, `cli`, `workbench`, `test-utils`
 - **@agentuity/core**: Shared utilities and schemas, foundation for other packages
 - **@agentuity/react**: Browser-only React components, depends on core
+- **@agentuity/auth**: Authentication helpers for identity providers (Clerk, etc.), depends on react and runtime
 - **@agentuity/runtime**: Bun server runtime using Hono framework, depends on core
 - **@agentuity/server**: Runtime-agnostic server utilities for Node.js and Bun, depends on core
 - **@agentuity/schema**: Schema validation library similar to zod
