@@ -18,7 +18,7 @@
  */
 
 import { spawn, type Subprocess } from 'bun';
-import { existsSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -84,6 +84,11 @@ function parseArgs(): { template?: string; list: boolean; help: boolean; skipOut
 	for (let i = 0; i < args.length; i++) {
 		const arg = args[i];
 		if (arg === '--template' || arg === '-t') {
+			if (i + 1 >= args.length || args[i + 1].startsWith('-')) {
+				console.error(`${RED}Error:${NC} --template requires a value`);
+				showHelp();
+				process.exit(1);
+			}
 			template = args[++i];
 		} else if (arg === '--list' || arg === '-l') {
 			list = true;
@@ -91,6 +96,10 @@ function parseArgs(): { template?: string; list: boolean; help: boolean; skipOut
 			help = true;
 		} else if (arg === '--skip-outdated') {
 			skipOutdated = true;
+		} else if (arg.startsWith('-')) {
+			console.error(`${RED}Error:${NC} Unknown option: ${arg}`);
+			showHelp();
+			process.exit(1);
 		}
 	}
 
@@ -129,6 +138,54 @@ async function loadTemplates(sdkRoot: string): Promise<TemplateInfo[]> {
 	return manifest.templates;
 }
 
+async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, string>> {
+	const packages = new Map<string, string>();
+	const packagesDir = join(tmpdir(), `agentuity-packages-${Date.now()}`);
+	mkdirSync(packagesDir, { recursive: true });
+
+	logStep('Building all packages...');
+	const buildResult = await runCommand(['bunx', 'tsc', '--build', '--force'], sdkRoot);
+	if (!buildResult.success) {
+		throw new Error(`Build failed: ${buildResult.stderr}`);
+	}
+
+	const packagesToPack = ['core', 'schema', 'react', 'runtime', 'server', 'cli', 'workbench'];
+
+	logStep('Packing workspace packages...');
+	for (const pkg of packagesToPack) {
+		const pkgDir = join(sdkRoot, 'packages', pkg);
+
+		// Special case: build workbench CSS before packing
+		if (pkg === 'workbench') {
+			const workbenchBuildResult = await runCommand(['bun', 'run', 'build'], pkgDir);
+			if (!workbenchBuildResult.success) {
+				throw new Error(`Workbench build failed: ${workbenchBuildResult.stderr}`);
+			}
+		}
+
+		const packResult = await runCommand(
+			['bun', 'pm', 'pack', '--destination', packagesDir, '--quiet'],
+			pkgDir
+		);
+
+		if (!packResult.success) {
+			throw new Error(`Failed to pack ${pkg}: ${packResult.stderr}`);
+		}
+
+		const tarballName = packResult.stdout.trim();
+		const tarballPath = join(packagesDir, tarballName);
+
+		if (!existsSync(tarballPath)) {
+			throw new Error(`Packed tarball not found: ${tarballPath}`);
+		}
+
+		packages.set(`@agentuity/${pkg}`, tarballPath);
+		logSuccess(`Packed ${pkg}: ${tarballName}`);
+	}
+
+	return packages;
+}
+
 async function runCommand(
 	cmd: string[],
 	cwd: string,
@@ -143,8 +200,9 @@ async function runCommand(
 		stderr: 'pipe',
 	});
 
+	let timerId: ReturnType<typeof setTimeout> | null = null;
 	const timeoutPromise = new Promise<never>((_, reject) => {
-		setTimeout(() => {
+		timerId = setTimeout(() => {
 			proc.kill();
 			reject(new Error(`Command timed out after ${timeout}ms: ${cmd.join(' ')}`));
 		}, timeout);
@@ -160,6 +218,10 @@ async function runCommand(
 			timeoutPromise,
 		]);
 
+		if (timerId !== null) {
+			clearTimeout(timerId);
+		}
+
 		return {
 			success: exitCode === 0,
 			stdout,
@@ -167,6 +229,9 @@ async function runCommand(
 			exitCode,
 		};
 	} catch (error) {
+		if (timerId !== null) {
+			clearTimeout(timerId);
+		}
 		return {
 			success: false,
 			stdout: '',
@@ -217,12 +282,57 @@ async function createProject(
 }
 
 async function installDependencies(
-	projectDir: string
+	projectDir: string,
+	packedPackages: Map<string, string>
 ): Promise<{ success: boolean; error?: string }> {
-	// Install dependencies from npm registry
+	// Read package.json
+	const packageJsonPath = join(projectDir, 'package.json');
+	const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+
+	// Remove @agentuity dependencies from package.json
+	if (packageJson.dependencies) {
+		for (const pkgName of packedPackages.keys()) {
+			delete packageJson.dependencies[pkgName];
+		}
+	}
+
+	// Write updated package.json
+	writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+
+	// Install other dependencies first
 	const installResult = await runCommand(['bun', 'install'], projectDir, undefined, 180000);
 	if (!installResult.success) {
 		return { success: false, error: installResult.stderr };
+	}
+
+	// Install @agentuity packages from tarballs with --no-save
+	const tarballPaths = Array.from(packedPackages.values());
+	const addResult = await runCommand(
+		['bun', 'add', '--no-save', ...tarballPaths],
+		projectDir,
+		undefined,
+		120000
+	);
+	if (!addResult.success) {
+		return { success: false, error: addResult.stderr };
+	}
+
+	// Remove nested @agentuity packages that Bun installed from npm
+	const nestedPattern = join(projectDir, 'node_modules/@agentuity/*/node_modules/@agentuity');
+	const globResult = await runCommand(
+		['sh', '-c', `find node_modules/@agentuity/*/node_modules/@agentuity -type d 2>/dev/null || true`],
+		projectDir
+	);
+
+	if (globResult.success && globResult.stdout.trim()) {
+		const nestedDirs = globResult.stdout.trim().split('\n');
+		for (const dir of nestedDirs) {
+			const fullPath = join(projectDir, dir);
+			if (existsSync(fullPath)) {
+				logWarning(`Removing nested @agentuity packages from ${dir}`);
+				rmSync(fullPath, { recursive: true, force: true });
+			}
+		}
 	}
 
 	return { success: true };
@@ -258,13 +368,13 @@ async function startServer(
 ): Promise<{ proc: Subprocess; success: boolean; error?: string }> {
 	const appPath = join(projectDir, '.agentuity', 'app.js');
 
-	// The runtime reads port from PORT or AGENTUITY_PORT environment variables
+	// Pass port as CLI flag instead of environment variable
 	const proc = spawn({
-		cmd: ['bun', 'run', appPath],
+		cmd: ['bun', 'run', appPath, '--port', String(port)],
 		cwd: projectDir,
-		env: { ...process.env, ...env, PORT: String(port) },
-		stdout: 'pipe',
-		stderr: 'pipe',
+		env: { ...process.env, ...env },
+		stdout: 'inherit',
+		stderr: 'inherit',
 	});
 
 	// Wait for server to be ready
@@ -283,8 +393,7 @@ async function startServer(
 
 		// Check if process crashed
 		if (proc.exitCode !== null) {
-			const stderr = await new Response(proc.stderr).text();
-			return { proc, success: false, error: `Server crashed: ${stderr}` };
+			return { proc, success: false, error: 'Server crashed (check logs above)' };
 		}
 	}
 
@@ -362,7 +471,8 @@ async function testTemplate(
 	sdkRoot: string,
 	template: TemplateInfo,
 	basePort: number,
-	skipOutdated: boolean
+	skipOutdated: boolean,
+	packedPackages: Map<string, string>
 ): Promise<TestResult> {
 	const startTime = Date.now();
 	const result: TestResult = {
@@ -405,7 +515,7 @@ async function testTemplate(
 		// Step 2: Install dependencies
 		logStep('Installing dependencies...');
 		stepStart = Date.now();
-		const installResult = await installDependencies(projectDir);
+		const installResult = await installDependencies(projectDir, packedPackages);
 		result.steps.push({
 			name: 'Install dependencies',
 			passed: installResult.success,
@@ -465,11 +575,11 @@ async function testTemplate(
 
 		// Add dummy provider keys to prevent SDK initialization failures
 		if (template.id === 'openai' || template.id === 'vercel-openai') {
-			serverEnv.OPENAI_API_KEY = 'sk-dummy-key-for-testing';
+			serverEnv.OPENAI_API_KEY = 'dummy-openai-key';
 		} else if (template.id === 'groq') {
-			serverEnv.GROQ_API_KEY = 'gsk-dummy-key-for-testing';
+			serverEnv.GROQ_API_KEY = 'dummy-groq-key';
 		} else if (template.id === 'xai') {
-			serverEnv.XAI_API_KEY = 'xai-dummy-key-for-testing';
+			serverEnv.XAI_API_KEY = 'dummy-xai-key';
 		}
 
 		const serverResult = await startServer(projectDir, basePort, serverEnv);
@@ -579,12 +689,16 @@ async function main() {
 	console.log(`${'='.repeat(60)}`);
 	console.log(`Templates to test: ${templatesToTest.map((t) => t.id).join(', ')}`);
 
+	// Pack workspace packages once before testing
+	console.log('');
+	const packedPackages = await packWorkspacePackages(sdkRoot);
+
 	// Test templates in parallel (each uses a different port)
 	const basePort = 3500;
 
 	const testPromises = templatesToTest.map((template, i) => {
 		const port = basePort + i; // Use different ports for each template
-		return testTemplate(sdkRoot, template, port, args.skipOutdated);
+		return testTemplate(sdkRoot, template, port, args.skipOutdated, packedPackages);
 	});
 
 	const results = await Promise.all(testPromises);
