@@ -50,6 +50,7 @@ jobs:
            run: |
               # Generate CLI API key for authentication
               APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "::add-mask::${APIKEY}"
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
 
               # Set SDK key for integration-suite tests
@@ -92,6 +93,7 @@ jobs:
            run: |
               # Generate CLI API key for cloud operations
               APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "::add-mask::${APIKEY}"
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
 
               # Set SDK key for runtime operations
