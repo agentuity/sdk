@@ -476,6 +476,38 @@ export function isValidThreadId(threadId: string): boolean {
 }
 
 /**
+ * Validates a thread ID and throws detailed error messages for debugging.
+ * @param threadId The thread ID to validate
+ * @throws Error with detailed message if validation fails
+ */
+export function validateThreadIdOrThrow(threadId: string): void {
+	if (!threadId) {
+		throw new Error(`the ThreadIDProvider returned an empty thread id for getThreadId`);
+	}
+	if (!threadId.startsWith('thrd_')) {
+		throw new Error(
+			`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must start with the prefix 'thrd_'.`
+		);
+	}
+	if (threadId.length > 64) {
+		throw new Error(
+			`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be less than 64 characters long.`
+		);
+	}
+	if (threadId.length < 32) {
+		throw new Error(
+			`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be at least 32 characters long.`
+		);
+	}
+	const validThreadIdCharacters = /^[a-zA-Z0-9]+$/;
+	if (!validThreadIdCharacters.test(threadId.substring(5))) {
+		throw new Error(
+			`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must contain only characters that match the regular expression [a-zA-Z0-9].`
+		);
+	}
+}
+
+/**
  * Determines if the connection is secure (HTTPS) by checking the request protocol
  * and x-forwarded-proto header (for reverse proxy scenarios).
  * Defaults to false (HTTP) if unable to determine.
@@ -1077,8 +1109,6 @@ export class ThreadWebSocketClient {
 	}
 }
 
-const validThreadIdCharacters = /^[a-zA-Z0-9-]+$/;
-
 export class DefaultThreadProvider implements ThreadProvider {
 	private appState: AppState | null = null;
 	private wsClient: ThreadWebSocketClient | null = null;
@@ -1118,30 +1148,7 @@ export class DefaultThreadProvider implements ThreadProvider {
 
 	async restore(ctx: Context<Env>): Promise<Thread> {
 		const threadId = await this.threadIDProvider!.getThreadId(this.appState!, ctx);
-
-		if (!threadId) {
-			throw new Error(`the ThreadIDProvider returned an empty thread id for getThreadId`);
-		}
-		if (!threadId.startsWith('thrd_')) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must start with the prefix 'thrd_'.`
-			);
-		}
-		if (threadId.length > 64) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be less than 64 characters long.`
-			);
-		}
-		if (threadId.length < 32) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be at least 32 characters long.`
-			);
-		}
-		if (!validThreadIdCharacters.test(threadId.substring(5))) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must contain only characters that match the regular expression [a-zA-Z0-9-].`
-			);
-		}
+		validateThreadIdOrThrow(threadId);
 
 		// Wait for WebSocket connection if still connecting
 		if (this.wsConnecting) {

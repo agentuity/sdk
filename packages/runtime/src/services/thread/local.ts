@@ -4,6 +4,7 @@ import type { Env } from '../../app';
 import {
 	DefaultThread,
 	DefaultThreadIDProvider,
+	validateThreadIdOrThrow,
 	type Thread,
 	type ThreadIDProvider,
 	type ThreadProvider,
@@ -34,31 +35,7 @@ export class LocalThreadProvider implements ThreadProvider {
 		}
 
 		const threadId = await this.threadIDProvider.getThreadId(this.appState, ctx);
-
-		if (!threadId) {
-			throw new Error(`the ThreadIDProvider returned an empty thread id for getThreadId`);
-		}
-		if (!threadId.startsWith('thrd_')) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must start with the prefix 'thrd_'.`
-			);
-		}
-		if (threadId.length > 64) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be less than 64 characters long.`
-			);
-		}
-		if (threadId.length < 32) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be at least 32 characters long.`
-			);
-		}
-		const validThreadIdCharacters = /^[a-zA-Z0-9]+$/;
-		if (!validThreadIdCharacters.test(threadId.substring(5))) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must contain only characters that match the regular expression [a-zA-Z0-9].`
-			);
-		}
+		validateThreadIdOrThrow(threadId);
 
 		// Create in-memory thread (no persistence)
 		return new DefaultThread(this, threadId);
