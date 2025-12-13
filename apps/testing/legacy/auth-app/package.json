@@ -28,5 +28,6 @@
 		"@ai-sdk/openai": "^2.0.58",
 		"ai": "^5.0.82"
 	},
-	"version": "0.0.35"
+	"version": "0.0.35",
+	"license": "Apache-2.0"
 }

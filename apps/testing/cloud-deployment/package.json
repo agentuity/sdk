@@ -1,6 +1,7 @@
 {
 	"name": "cloud-deployment-tests",
 	"version": "0.0.1",
+	"license": "Apache-2.0",
 	"private": true,
 	"type": "module",
 	"description": "Cloud deployment integration tests for Agentuity CLI",

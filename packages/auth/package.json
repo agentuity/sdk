@@ -8,7 +8,7 @@
 		"url": "https://github.com/agentuity/sdk.git",
 		"directory": "packages/auth"
 	},
-	"license": "MIT",
+	"license": "Apache-2.0",
 	"exports": {
 		".": "./src/index.ts",
 		"./clerk": "./src/clerk/index.ts"
