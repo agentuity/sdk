@@ -661,15 +661,16 @@ async function main() {
 	console.log('');
 	const packedPackages = await packWorkspacePackages(sdkRoot);
 
-	// Test templates in parallel (each uses a different port)
+	// Test templates serially (one at a time) to avoid port conflicts and easier debugging
 	const basePort = 3500;
 
-	const testPromises = templatesToTest.map((template, i) => {
-		const port = basePort + i; // Use different ports for each template
-		return testTemplate(sdkRoot, template, port, args.skipOutdated, packedPackages);
-	});
-
-	const results = await Promise.all(testPromises);
+	const results: TestResult[] = [];
+	for (let i = 0; i < templatesToTest.length; i++) {
+		const template = templatesToTest[i];
+		const port = basePort; // Use same port since we're running one at a time
+		const result = await testTemplate(sdkRoot, template, port, args.skipOutdated, packedPackages);
+		results.push(result);
+	}
 
 	// Print summary
 	console.log('');
