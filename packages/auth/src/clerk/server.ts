@@ -136,7 +136,7 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 			await next();
 		} catch (error) {
 			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			const errorCode = (error as any)?.code || 'CLERK_AUTH_ERROR';
+			const errorCode = (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') ? error.code : 'CLERK_AUTH_ERROR';
 			console.error(`[Clerk Auth] Authentication failed: ${errorCode} - ${errorMessage}`);
 			return c.json({ error: 'Unauthorized' }, 401);
 		}
