@@ -42,6 +42,8 @@ import WaitUntilHandler from './_waituntil';
 import registerTokenProcessor, { TOKENS_HEADER, DURATION_HEADER } from './_tokens';
 
 const SESSION_HEADER = 'x-session-id';
+const THREAD_HEADER = 'x-thread-id';
+const DEPLOYMENT_HEADER = 'x-deployment';
 
 let globalServerInstance: Bun.Server<BunWebSocketData> | null = null;
 
@@ -331,14 +333,16 @@ export const createServer = async <TAppState>(
 				'Accept',
 				'Origin',
 				'X-Requested-With',
+				THREAD_HEADER,
 			],
 			allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
 			exposeHeaders: [
 				'Content-Length',
 				TOKENS_HEADER,
 				DURATION_HEADER,
+				THREAD_HEADER,
 				SESSION_HEADER,
-				'x-deployment',
+				DEPLOYMENT_HEADER,
 			],
 			maxAge: 600,
 			credentials: true,
