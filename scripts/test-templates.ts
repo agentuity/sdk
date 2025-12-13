@@ -258,10 +258,11 @@ async function startServer(
 ): Promise<{ proc: Subprocess; success: boolean; error?: string }> {
 	const appPath = join(projectDir, '.agentuity', 'app.js');
 
+	// The runtime reads port from PORT or AGENTUITY_PORT environment variables
 	const proc = spawn({
-		cmd: ['bun', 'run', appPath, '--port', String(port)],
+		cmd: ['bun', 'run', appPath],
 		cwd: projectDir,
-		env: { ...process.env, ...env },
+		env: { ...process.env, ...env, PORT: String(port) },
 		stdout: 'pipe',
 		stderr: 'pipe',
 	});
