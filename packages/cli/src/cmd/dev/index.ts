@@ -43,11 +43,12 @@ const getDefaultPort = (): number => {
 	if (!envPort) {
 		return DEFAULT_PORT;
 	}
-	const parsed = parseInt(envPort, 10);
-	if (Number.isNaN(parsed) || !Number.isFinite(parsed)) {
+	const trimmed = envPort.trim();
+	if (!trimmed || !/^\d+$/.test(trimmed)) {
 		return DEFAULT_PORT;
 	}
-	if (parsed < MIN_PORT || parsed > MAX_PORT) {
+	const parsed = Number(trimmed);
+	if (!Number.isInteger(parsed) || parsed < MIN_PORT || parsed > MAX_PORT) {
 		return DEFAULT_PORT;
 	}
 	return parsed;
