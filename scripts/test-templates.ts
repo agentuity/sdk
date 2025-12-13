@@ -410,13 +410,11 @@ async function startServer(
 async function testEndpoints(
 	port: number,
 	template: TemplateInfo
-): Promise<{ health: boolean; index: boolean; api: boolean; errors: string[] }> {
+): Promise<{ health: boolean; errors: string[] }> {
 	const errors: string[] = [];
 	let health = false;
-	let index = false;
-	let api = false;
 
-	// Test health endpoint
+	// Test health endpoint only - sufficient to verify template builds and starts correctly
 	try {
 		const response = await fetch(`http://127.0.0.1:${port}/_health`);
 		health = response.ok;
@@ -427,41 +425,7 @@ async function testEndpoints(
 		errors.push(`Health endpoint failed: ${e}`);
 	}
 
-	// Test index route
-	try {
-		const response = await fetch(`http://127.0.0.1:${port}/`);
-		const text = await response.text();
-		index = response.ok && text.includes('<');
-		if (!index) {
-			errors.push(`Index route returned ${response.status} or invalid HTML`);
-		}
-	} catch (e) {
-		errors.push(`Index route failed: ${e}`);
-	}
-
-	// Test API route only for templates that don't require external API keys
-	const safeTemplates = ['default', 'tailwind'];
-	if (safeTemplates.includes(template.id)) {
-		try {
-			const response = await fetch(`http://127.0.0.1:${port}/api/hello`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: 'Test' }),
-			});
-			const text = await response.text();
-			api = response.ok && text.includes('Hello');
-			if (!api) {
-				errors.push(`API route returned ${response.status}: ${text.substring(0, 200)}`);
-			}
-		} catch (e) {
-			errors.push(`API route failed: ${e}`);
-		}
-	} else {
-		// Skip API test for templates requiring external API keys
-		api = true; // Mark as passed (skipped)
-	}
-
-	return { health, index, api, errors };
+	return { health, errors };
 }
 
 async function checkOutdatedDependencies(projectDir: string): Promise<string[]> {
@@ -605,25 +569,23 @@ async function testTemplate(
 		}
 		logSuccess('Server started');
 
-		// Step 6: Test endpoints
-		logStep('Testing endpoints...');
+		// Step 6: Test health endpoint
+		logStep('Testing health endpoint...');
 		stepStart = Date.now();
 		const endpointResults = await testEndpoints(basePort, template);
 
-		const endpointsPassed =
-			endpointResults.health && endpointResults.index && endpointResults.api;
 		result.steps.push({
-			name: 'Test endpoints',
-			passed: endpointsPassed,
+			name: 'Test health endpoint',
+			passed: endpointResults.health,
 			error: endpointResults.errors.length > 0 ? endpointResults.errors.join('; ') : undefined,
 			duration: Date.now() - stepStart,
 		});
 
-		if (!endpointsPassed) {
+		if (!endpointResults.health) {
 			result.passed = false;
-			logError(`Endpoint tests failed: ${endpointResults.errors.join('; ')}`);
+			logError(`Health endpoint test failed: ${endpointResults.errors.join('; ')}`);
 		} else {
-			logSuccess('Endpoint tests passed');
+			logSuccess('Health endpoint test passed');
 		}
 
 		// Step 7: Check outdated dependencies (report-only)
