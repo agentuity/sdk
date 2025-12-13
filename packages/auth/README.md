@@ -232,12 +232,12 @@ Hook to access Agentuity context (from `@agentuity/react`).
 
 ```typescript
 {
-	baseUrl: string;
-	authHeader?: string | null;
-	authLoading?: boolean;
-	isAuthenticated: boolean; // Convenience: !authLoading && authHeader !== null
-	setAuthHeader?: (token: string | null) => void;
-	setAuthLoading?: (loading: boolean) => void;
+  baseUrl: string;
+  authHeader?: string | null;
+  authLoading?: boolean;
+  isAuthenticated: boolean; // Convenience: !authLoading && authHeader !== null
+  setAuthHeader?: (token: string | null) => void;
+  setAuthLoading?: (loading: boolean) => void;
 }
 ```
 
@@ -320,16 +320,16 @@ Ensure `AgentuityClerk` is a **child** of `AgentuityProvider`:
 ```tsx
 // ✅ CORRECT
 <AgentuityProvider>
-	<AgentuityClerk useAuth={useAuth}>
-		<App />
-	</AgentuityClerk>
+  <AgentuityClerk useAuth={useAuth}>
+    <App />
+  </AgentuityClerk>
 </AgentuityProvider>
 
 // ❌ WRONG
 <AgentuityClerk useAuth={useAuth}>
-	<AgentuityProvider>
-		<App />
-	</AgentuityProvider>
+  <AgentuityProvider>
+    <App />
+  </AgentuityProvider>
 </AgentuityClerk>
 ```
 
@@ -337,7 +337,7 @@ Ensure `AgentuityClerk` is a **child** of `AgentuityProvider`:
 
 See the [Clerk template](../../templates/clerk/) for a complete working example with:
 
-- Sign in/out UI
+- Sign-in/out UI
 - Protected routes
 - Public routes
 - Conditional rendering based on auth state
