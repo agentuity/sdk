@@ -1,10 +1,9 @@
 /**
- * @agentuity/auth - Authentication helpers for popular identity providers
+ * @agentuity/auth - Authentication helpers for identity providers
  *
- * Provides drop-in authentication for Agentuity applications using
- * popular providers like Clerk, WorkOS, Auth0, and Better Auth.
+ * Currently supports Clerk, with more providers coming soon.
  *
- * @example
+ * @example Clerk Integration
  * ```typescript
  * // Client-side (React)
  * import { AgentuityClerk } from '@agentuity/auth/clerk';

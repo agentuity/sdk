@@ -92,14 +92,25 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 			// Verify token with Clerk (delegates validation to provider)
 			const payload = (await verifyToken(token, {
 				secretKey,
-				...(publishableKey && { publishableKey }),
 			})) as ClerkJWTPayload;
+
+			// Validate payload has required subject claim
+			if (!payload.sub || typeof payload.sub !== 'string') {
+				throw new Error('Invalid token: missing or invalid subject claim');
+			}
+
+			// Memoize user fetch to avoid multiple API calls
+			let cachedUser: AgentuityAuthUser<User> | null = null;
 
 			// Create auth object with Clerk user and payload types
 			const auth: AgentuityAuth<User, ClerkJWTPayload> = {
 				async requireUser() {
+					if (cachedUser) {
+						return cachedUser;
+					}
 					const user = await clerkClient.users.getUser(payload.sub);
-					return mapClerkUserToAgentuityUser(user);
+					cachedUser = mapClerkUserToAgentuityUser(user);
+					return cachedUser;
 				},
 
 				async getToken() {
@@ -112,7 +123,9 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 			c.set('auth', auth);
 			await next();
 		} catch (error) {
-			console.error('Clerk auth error:', error);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			const errorCode = (error as any)?.code || 'CLERK_AUTH_ERROR';
+			console.error(`[Clerk Auth] Authentication failed: ${errorCode} - ${errorMessage}`);
 			return c.json({ error: 'Unauthorized' }, 401);
 		}
 	};

@@ -55,7 +55,9 @@ export function AgentuityClerk({
 	// Fetch and update token in AgentuityContext
 	useEffect(() => {
 		if (!isLoaded || !setAuthHeader || !setAuthLoading) {
-			setAuthLoading?.(true);
+			if (setAuthLoading) {
+				setAuthLoading(true);
+			}
 			return;
 		}
 
