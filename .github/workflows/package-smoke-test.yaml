@@ -124,3 +124,19 @@ jobs:
            run: |
               cd apps/testing/cloud-deployment
               bun run test
+
+   template-integration-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 30
+      name: Template Integration Tests
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Run template integration tests
+           run: bun scripts/test-templates.ts --skip-outdated
