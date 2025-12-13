@@ -1,5 +1,7 @@
 {
 	"name": "unauth-app",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
 	"module": "index.ts",
 	"type": "module",
 	"private": true,
@@ -25,7 +27,5 @@
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/workbench": "workspace:*",
 		"@hono/zod-validator": "^0.7.4"
-	},
-	"version": "0.0.1",
-	"license": "Apache-2.0"
+	}
 }
