@@ -538,21 +538,9 @@ export function isSecureConnection(ctx: Context<Env>): boolean {
  * Format: thrd_abc123;base64signature
  */
 export async function signThreadId(threadId: string, secret: string): Promise<string> {
-	const encoder = new TextEncoder();
-	const data = encoder.encode(threadId);
-	const keyData = encoder.encode(secret);
-
-	const key = await crypto.subtle.importKey(
-		'raw',
-		keyData,
-		{ name: 'HMAC', hash: 'SHA-256' },
-		false,
-		['sign']
-	);
-
-	const signature = await crypto.subtle.sign('HMAC', key, data);
-	const signatureArray = new Uint8Array(signature);
-	const signatureBase64 = signatureArray.toBase64();
+	const hasher = new Bun.CryptoHasher('sha256', secret);
+	hasher.update(threadId);
+	const signatureBase64 = hasher.digest('base64');
 
 	return `${threadId};${signatureBase64}`;
 }
