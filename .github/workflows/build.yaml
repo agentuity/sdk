@@ -29,9 +29,7 @@ jobs:
       timeout-minutes: 15
       name: Build
       env:
-         AGENTUITY_CLOUD_PROJECT_ID: ${{ vars.AGENTUITY_CLOUD_PROJECT_ID }}
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
-         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
       steps:
          - uses: actions/checkout@v4
          - name: Setup Bun
@@ -40,17 +38,6 @@ jobs:
            run: |
               set -eou pipefail
               bun install
-         - name: Setup test credentials
-           run: |
-              # Generate CLI API key for whoami command
-              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
-              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
-
-              # Set SDK key for integration-suite tests
-              echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
-
-              # Set OpenAI API key for embedding operations
-              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
          - name: Build and Test
            timeout-minutes: 15
            run: |
@@ -158,6 +145,3 @@ jobs:
               fi
 
               echo "✓ All upgrade command tests passed"
-         - name: Cleanup
-           if: always()
-           run: rm -f apps/testing/integration-suite/.env
