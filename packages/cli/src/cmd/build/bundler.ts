@@ -26,26 +26,26 @@ const minBunVersion = '>=1.3.3';
  */
 export function getCorrectMimeType(filename: string, bunType: string): string {
 	const ext = filename.split('.').pop()?.toLowerCase();
-	
+
 	// Map common web asset extensions to correct MIME types
 	const mimeMap: Record<string, string> = {
-		'css': 'text/css;charset=utf-8',
-		'js': 'text/javascript;charset=utf-8',
-		'mjs': 'text/javascript;charset=utf-8',
-		'json': 'application/json;charset=utf-8',
-		'svg': 'image/svg+xml',
-		'png': 'image/png',
-		'jpg': 'image/jpeg',
-		'jpeg': 'image/jpeg',
-		'gif': 'image/gif',
-		'webp': 'image/webp',
-		'woff': 'font/woff',
-		'woff2': 'font/woff2',
-		'ttf': 'font/ttf',
-		'otf': 'font/otf',
-		'map': 'application/json;charset=utf-8',
+		css: 'text/css;charset=utf-8',
+		js: 'text/javascript;charset=utf-8',
+		mjs: 'text/javascript;charset=utf-8',
+		json: 'application/json;charset=utf-8',
+		svg: 'image/svg+xml',
+		png: 'image/png',
+		jpg: 'image/jpeg',
+		jpeg: 'image/jpeg',
+		gif: 'image/gif',
+		webp: 'image/webp',
+		woff: 'font/woff',
+		woff2: 'font/woff2',
+		ttf: 'font/ttf',
+		otf: 'font/otf',
+		map: 'application/json;charset=utf-8',
 	};
-	
+
 	// Use extension-based mapping if available, otherwise fall back to Bun's type
 	return ext && mimeMap[ext] ? mimeMap[ext] : bunType;
 }

@@ -172,15 +172,18 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 			throw new Error(`Failed to pack ${pkg}: ${packResult.stderr}`);
 		}
 
-		const tarballName = packResult.stdout.trim();
-		const tarballPath = join(packagesDir, tarballName);
+		const tarballOutput = packResult.stdout.trim();
+		// bun pm pack returns full path if --destination is used, not just filename
+		const tarballPath = tarballOutput.startsWith(packagesDir)
+			? tarballOutput
+			: join(packagesDir, tarballOutput);
 
 		if (!existsSync(tarballPath)) {
 			throw new Error(`Packed tarball not found: ${tarballPath}`);
 		}
 
 		packages.set(`@agentuity/${pkg}`, tarballPath);
-		logSuccess(`Packed ${pkg}: ${tarballName}`);
+		logSuccess(`Packed ${pkg}: ${tarballPath.split('/').pop()}`);
 	}
 
 	return packages;
@@ -240,7 +243,6 @@ async function runCommand(
 		};
 	}
 }
-
 
 async function createProject(
 	sdkRoot: string,
@@ -320,7 +322,11 @@ async function installDependencies(
 	// Remove nested @agentuity packages that Bun installed from npm
 	const nestedPattern = join(projectDir, 'node_modules/@agentuity/*/node_modules/@agentuity');
 	const globResult = await runCommand(
-		['sh', '-c', `find node_modules/@agentuity/*/node_modules/@agentuity -type d 2>/dev/null || true`],
+		[
+			'sh',
+			'-c',
+			`find node_modules/@agentuity/*/node_modules/@agentuity -type d 2>/dev/null || true`,
+		],
 		projectDir
 	);
 
