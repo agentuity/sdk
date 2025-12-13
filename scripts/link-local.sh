@@ -54,12 +54,16 @@ cd "$SDK_ROOT/packages/workbench"
 WORKBENCH_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
 echo "  - workbench: $WORKBENCH_PKG"
 
+cd "$SDK_ROOT/packages/auth"
+AUTH_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
+echo "  - auth: $AUTH_PKG"
+
 # Install in target directory
 echo ""
 echo "📥 Installing in $TARGET_DIR..."
 cd "$TARGET_DIR"
 
-bun remove @agentuity/cli @agentuity/core @agentuity/react @agentuity/runtime @agentuity/schema @agentuity/server @agentuity/workbench 2>/dev/null || true
+bun remove @agentuity/cli @agentuity/core @agentuity/react @agentuity/runtime @agentuity/schema @agentuity/server @agentuity/workbench @agentuity/auth 2>/dev/null || true
 
 bun add "$TEMP_DIR/$CORE_PKG"
 bun add "$TEMP_DIR/$SCHEMA_PKG"
@@ -68,11 +72,12 @@ bun add "$TEMP_DIR/$REACT_PKG"
 bun add "$TEMP_DIR/$RUNTIME_PKG"
 bun add "$TEMP_DIR/$CLI_PKG"
 bun add "$TEMP_DIR/$WORKBENCH_PKG"
+bun add "$TEMP_DIR/$AUTH_PKG"
 
 # Cleanup nested @agentuity packages (ensures proper resolution)
 echo ""
 echo "🧹 Cleaning nested @agentuity packages..."
-for pkg in runtime server cli schema react; do
+for pkg in runtime server cli schema react auth; do
     if [ -d "node_modules/@agentuity/$pkg/node_modules/@agentuity" ]; then
         echo "  - Removing node_modules/@agentuity/$pkg/node_modules/@agentuity"
         rm -rf "node_modules/@agentuity/$pkg/node_modules/@agentuity"

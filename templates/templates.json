@@ -7,6 +7,12 @@
 			"directory": "default"
 		},
 		{
+			"id": "clerk",
+			"name": "Clerk Authentication",
+			"description": "Project with Clerk authentication integrated into React UI and API routes",
+			"directory": "clerk"
+		},
+		{
 			"id": "tailwind",
 			"name": "Tailwind CSS Template",
 			"description": "Project with React UI, Tailwind CSS v4, and example agent",
