@@ -124,3 +124,7 @@ jobs:
            run: |
               cd apps/testing/cloud-deployment
               bun run test
+
+         - name: Cleanup
+           if: always()
+           run: rm -rf apps/testing/cloud-deployment/.env
