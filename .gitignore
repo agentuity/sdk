@@ -48,4 +48,5 @@ apps/*-test-*
 packages/cli/test-interop/go-common
 packages/cli/test-interop/go-crypto-tool
 
-/TODO.mdPR.md
+/TODO.md
+/PR.md
