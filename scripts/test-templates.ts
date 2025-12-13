@@ -149,7 +149,16 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 		throw new Error(`Build failed: ${buildResult.stderr}`);
 	}
 
-	const packagesToPack = ['core', 'schema', 'react', 'runtime', 'server', 'cli', 'workbench'];
+	const packagesToPack = [
+		'core',
+		'schema',
+		'react',
+		'auth',
+		'runtime',
+		'server',
+		'cli',
+		'workbench',
+	];
 
 	logStep('Packing workspace packages...');
 	for (const pkg of packagesToPack) {
@@ -550,6 +559,9 @@ async function testTemplate(
 			serverEnv.GROQ_API_KEY = 'dummy-groq-key';
 		} else if (template.id === 'xai') {
 			serverEnv.XAI_API_KEY = 'dummy-xai-key';
+		} else if (template.id === 'clerk') {
+			serverEnv.CLERK_SECRET_KEY = 'sk_test_dummy';
+			serverEnv.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
 		}
 
 		const serverResult = await startServer(projectDir, basePort, serverEnv);
