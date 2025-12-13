@@ -161,4 +161,4 @@ The version is kept in sync with the SDK monorepo version.
 
 ## License
 
-MIT
+Apache-2.0

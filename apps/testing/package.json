@@ -1,10 +1,11 @@
 {
 	"name": "testing",
+	"version": "0.0.95",
+	"license": "Apache-2.0",
 	"private": true,
 	"scripts": {
 		"typecheck": "cd integration-suite && bun run typecheck",
 		"build": "cd integration-suite && bun run build",
 		"test": "cd integration-suite && bun run test"
-	},
-	"version": "0.0.95"
+	}
 }
