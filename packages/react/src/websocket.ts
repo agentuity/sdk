@@ -121,8 +121,22 @@ const useWebsocketInternal = <TInput, TOutput>(
 	const wsUrl = useMemo(() => {
 		const base = context.baseUrl!;
 		const wsBase = base.replace(/^http(s?):/, 'ws$1:');
-		return buildUrl(wsBase, path, options?.subpath, options?.query);
-	}, [context.baseUrl, path, options?.subpath, options?.query?.toString()]);
+
+		// Add auth token to query params if present
+		// (WebSocket doesn't support custom headers, so we pass via query string)
+		let queryParams = options?.query;
+		if (context.authHeader) {
+			const token = context.authHeader.replace(/^Bearer\s+/i, '');
+			const authQuery = new URLSearchParams({ token });
+			if (queryParams) {
+				queryParams = new URLSearchParams([...queryParams, ...authQuery]);
+			} else {
+				queryParams = authQuery;
+			}
+		}
+
+		return buildUrl(wsBase, path, options?.subpath, queryParams);
+	}, [context.baseUrl, context.authHeader, path, options?.subpath, options?.query?.toString()]);
 
 	const connect = useCallback(() => {
 		if (manualClose.current) return;

@@ -1,4 +1,10 @@
-export { AgentuityContext, AgentuityProvider, type ContextProviderArgs } from './context';
+export {
+	AgentuityContext,
+	AgentuityProvider,
+	useAgentuity,
+	type ContextProviderArgs,
+	type AgentuityContextValue,
+} from './context';
 export {
 	useWebsocket,
 	type WebSocketRouteKey,

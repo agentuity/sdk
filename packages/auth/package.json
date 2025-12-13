@@ -1,0 +1,48 @@
+{
+	"name": "@agentuity/auth",
+	"version": "0.0.1",
+	"type": "module",
+	"description": "Authentication helpers for popular identity providers",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/agentuity/sdk.git",
+		"directory": "packages/auth"
+	},
+	"license": "MIT",
+	"exports": {
+		".": "./src/index.ts",
+		"./clerk": "./src/clerk/index.ts"
+	},
+	"scripts": {
+		"build": "tsc --build",
+		"clean": "rm -rf dist .tsbuildinfo",
+		"typecheck": "tsc --noEmit"
+	},
+	"peerDependencies": {
+		"react": "^18.0.0 || ^19.0.0",
+		"@clerk/clerk-react": "^5.0.0",
+		"@clerk/backend": "^1.0.0",
+		"@agentuity/react": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"hono": "^4.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@clerk/clerk-react": {
+			"optional": true
+		},
+		"@clerk/backend": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@agentuity/react": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/test-utils": "workspace:*",
+		"@clerk/clerk-react": "^5.46.1",
+		"@clerk/backend": "^2.26.0",
+		"@types/react": "^18.3.18",
+		"hono": "^4.6.14",
+		"react": "^18.3.1",
+		"typescript": "^5.8.3"
+	}
+}
