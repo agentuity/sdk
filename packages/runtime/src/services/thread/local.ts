@@ -49,7 +49,13 @@ export class LocalThreadProvider implements ThreadProvider {
 	}
 
 	async restore(ctx: Context<Env>): Promise<Thread> {
-		const threadId = this.threadIDProvider.getThreadId(this.appState!, ctx);
+		if (this.appState === null) {
+			throw new Error(
+				'LocalThreadProvider.restore called before initialize(): appState is not set; call initialize(appState) first'
+			);
+		}
+
+		const threadId = this.threadIDProvider.getThreadId(this.appState, ctx);
 
 		if (!threadId) {
 			throw new Error(`the ThreadIDProvider returned an empty thread id for getThreadId`);
