@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** biome-ignore-all lint/suspicious/noExplicitAny: anys are great */
 import type { Context } from 'hono';
-import { getCookie, setCookie } from 'hono/cookie';
+import { getSignedCookie, setSignedCookie } from 'hono/cookie';
 import { type Env, fireEvent } from './app';
 import type { AppState } from './index';
 import { getServiceUrls } from '@agentuity/server';
@@ -229,13 +229,13 @@ export interface ThreadIDProvider {
 	 * thrd_ such as `thrd_212c16896b974ffeb21a748f0eeba620`. The max length of the
 	 * string is 64 characters and the min length is 32 characters long
 	 * (including the prefix). The characters after the prefix must match the
-	 * regular expression [a-zA-Z0-9-].
+	 * regular expression [a-zA-Z0-9].
 	 *
 	 * @param appState - The app state from createApp setup function
 	 * @param ctx - Hono request context
-	 * @returns The thread id to use
+	 * @returns The thread id to use (can be async for signed cookies)
 	 */
-	getThreadId(appState: AppState, ctx: Context<Env>): string;
+	getThreadId(appState: AppState, ctx: Context<Env>): string | Promise<string>;
 }
 
 /**
@@ -255,7 +255,7 @@ export interface ThreadIDProvider {
  *   }
  *
  *   async restore(ctx: Context<Env>): Promise<Thread> {
- *     const threadId = getCookie(ctx, 'atid') || generateId('thrd');
+ *     const threadId = ctx.req.header('x-thread-id') || getCookie(ctx, 'atid') || generateId('thrd');
  *     const data = await this.redis.get(`thread:${threadId}`);
  *     const thread = new DefaultThread(this, threadId);
  *     if (data) {
@@ -454,21 +454,149 @@ export function generateId(prefix?: string): string {
 }
 
 /**
- * DefaultThreadIDProvider will look for a cookie named `atid` and use that as
- * the thread id or if not found, generate a new one.
+ * Validates a thread ID against runtime constraints:
+ * - Must start with 'thrd_'
+ * - Must be at least 32 characters long (including prefix)
+ * - Must be less than 64 characters long
+ * - Must contain only [a-zA-Z0-9] after 'thrd_' prefix (no dashes for maximum randomness)
+ */
+export function isValidThreadId(threadId: string): boolean {
+	if (!threadId.startsWith('thrd_')) {
+		return false;
+	}
+	if (threadId.length < 32 || threadId.length > 64) {
+		return false;
+	}
+	const validThreadIdCharacters = /^[a-zA-Z0-9]+$/;
+	if (!validThreadIdCharacters.test(threadId.substring(5))) {
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Determines if the connection is secure (HTTPS) by checking the request protocol
+ * and x-forwarded-proto header (for reverse proxy scenarios).
+ * Defaults to false (HTTP) if unable to determine.
+ */
+export function isSecureConnection(ctx: Context<Env>): boolean {
+	// Check x-forwarded-proto header first (reverse proxy)
+	const forwardedProto = ctx.req.header('x-forwarded-proto');
+	if (forwardedProto) {
+		return forwardedProto === 'https';
+	}
+
+	// Check the request URL protocol if available
+	try {
+		if (ctx.req.url) {
+			const url = new URL(ctx.req.url);
+			return url.protocol === 'https:';
+		}
+	} catch {
+		// Fall through to default
+	}
+
+	// Default to HTTP (e.g., for localhost development)
+	return false;
+}
+
+/**
+ * Signs a thread ID using HMAC SHA-256 and returns it in the format: threadId;signature
+ * Format: thrd_abc123;base64signature
+ */
+export async function signThreadId(threadId: string, secret: string): Promise<string> {
+	const encoder = new TextEncoder();
+	const data = encoder.encode(threadId);
+	const keyData = encoder.encode(secret);
+
+	const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, [
+		'sign',
+	]);
+
+	const signature = await crypto.subtle.sign('HMAC', key, data);
+	const signatureArray = new Uint8Array(signature);
+	const signatureBase64 = signatureArray.toBase64();
+
+	return `${threadId};${signatureBase64}`;
+}
+
+/**
+ * Verifies a signed thread ID header and returns the thread ID if valid, or undefined if invalid.
+ * Expected format: thrd_abc123;base64signature
+ */
+export async function verifySignedThreadId(
+	signedValue: string,
+	secret: string
+): Promise<string | undefined> {
+	const parts = signedValue.split(';');
+	if (parts.length !== 2) {
+		return undefined;
+	}
+
+	const [threadId, providedSignature] = parts;
+
+	// Validate thread ID format before verifying signature
+	if (!isValidThreadId(threadId)) {
+		return undefined;
+	}
+
+	// Re-sign the thread ID and compare signatures
+	const expectedSigned = await signThreadId(threadId, secret);
+	const expectedSignature = expectedSigned.split(';')[1];
+
+	// Constant-time comparison to prevent timing attacks
+	if (providedSignature === expectedSignature) {
+		return threadId;
+	}
+
+	return undefined;
+}
+
+/**
+ * DefaultThreadIDProvider will look for an HTTP header `x-thread-id` first,
+ * then fall back to a signed cookie named `atid`, and use that as the thread id.
+ * If not found, generate a new one. Validates incoming thread IDs against
+ * runtime constraints. Uses AGENTUITY_SDK_KEY for signing, falls back to 'agentuity'.
  */
 export class DefaultThreadIDProvider implements ThreadIDProvider {
-	getThreadId(_appState: AppState, ctx: Context<Env>): string {
-		const cookie = getCookie(ctx);
-		let threadId: string | undefined;
+	private getSecret(): string {
+		return process.env.AGENTUITY_SDK_KEY || 'agentuity';
+	}
 
-		if (cookie.atid?.startsWith('thrd_')) {
-			threadId = cookie.atid;
+	async getThreadId(_appState: AppState, ctx: Context<Env>): Promise<string> {
+		let threadId: string | undefined;
+		const secret = this.getSecret();
+
+		// Check signed header first
+		const headerValue = ctx.req.header('x-thread-id');
+		if (headerValue) {
+			const verifiedThreadId = await verifySignedThreadId(headerValue, secret);
+			if (verifiedThreadId) {
+				threadId = verifiedThreadId;
+			}
+		}
+
+		// Fall back to signed cookie
+		if (!threadId) {
+			const cookieValue = await getSignedCookie(ctx, secret, 'atid');
+			if (cookieValue && typeof cookieValue === 'string' && isValidThreadId(cookieValue)) {
+				threadId = cookieValue;
+			}
 		}
 
 		threadId = threadId || generateId('thrd');
 
-		setCookie(ctx, 'atid', threadId);
+		await setSignedCookie(ctx, 'atid', threadId, secret, {
+			httpOnly: true,
+			secure: isSecureConnection(ctx),
+			sameSite: 'Lax',
+			path: '/',
+			maxAge: 604800, // 1 week in seconds
+		});
+
+		// Set signed header in response
+		const signedHeader = await signThreadId(threadId, secret);
+		ctx.header('x-thread-id', signedHeader);
 		return threadId;
 	}
 }
@@ -970,7 +1098,7 @@ export class DefaultThreadProvider implements ThreadProvider {
 	}
 
 	async restore(ctx: Context<Env>): Promise<Thread> {
-		const threadId = this.threadIDProvider!.getThreadId(this.appState!, ctx);
+		const threadId = await this.threadIDProvider!.getThreadId(this.appState!, ctx);
 
 		if (!threadId) {
 			throw new Error(`the ThreadIDProvider returned an empty thread id for getThreadId`);
