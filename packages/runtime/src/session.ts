@@ -7,6 +7,7 @@ import type { AppState } from './index';
 import { getServiceUrls } from '@agentuity/server';
 import { WebSocket } from 'ws';
 import { internal } from './logger/internal';
+import { timingSafeEqual } from 'node:crypto';
 
 export type ThreadEventName = 'destroyed';
 export type SessionEventName = 'completed';
@@ -509,9 +510,13 @@ export async function signThreadId(threadId: string, secret: string): Promise<st
 	const data = encoder.encode(threadId);
 	const keyData = encoder.encode(secret);
 
-	const key = await crypto.subtle.importKey('raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, [
-		'sign',
-	]);
+	const key = await crypto.subtle.importKey(
+		'raw',
+		keyData,
+		{ name: 'HMAC', hash: 'SHA-256' },
+		false,
+		['sign']
+	);
 
 	const signature = await crypto.subtle.sign('HMAC', key, data);
 	const signatureArray = new Uint8Array(signature);
@@ -545,8 +550,22 @@ export async function verifySignedThreadId(
 	const expectedSignature = expectedSigned.split(';')[1];
 
 	// Constant-time comparison to prevent timing attacks
-	if (providedSignature === expectedSignature) {
-		return threadId;
+	// Check lengths match first (fail fast if different lengths)
+	if (providedSignature.length !== expectedSignature.length) {
+		return undefined;
+	}
+
+	try {
+		// Convert to Buffers for constant-time comparison
+		const providedBuffer = Buffer.from(providedSignature, 'utf8');
+		const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
+
+		if (timingSafeEqual(providedBuffer, expectedBuffer)) {
+			return threadId;
+		}
+	} catch {
+		// Comparison failed or buffer conversion error
+		return undefined;
 	}
 
 	return undefined;

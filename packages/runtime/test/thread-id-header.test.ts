@@ -59,7 +59,7 @@ describe('Thread ID Header Support', () => {
 		const cookieThreadId = 'thrd_cookie567890123456789012345678';
 		const headers = new Headers();
 		headers.set('Cookie', `atid=${cookieThreadId}`);
-		
+
 		const ctx = {
 			req: {
 				header: () => undefined,
@@ -380,7 +380,9 @@ describe('Thread ID Signing and Verification', () => {
 		const secret = 'test-secret';
 
 		// No semicolon
-		expect(await verifySignedThreadId('thrd_123456789012345678901234567', secret)).toBeUndefined();
+		expect(
+			await verifySignedThreadId('thrd_123456789012345678901234567', secret)
+		).toBeUndefined();
 
 		// Multiple semicolons
 		expect(
@@ -389,7 +391,9 @@ describe('Thread ID Signing and Verification', () => {
 
 		// Empty parts
 		expect(await verifySignedThreadId(';signature', secret)).toBeUndefined();
-		expect(await verifySignedThreadId('thrd_123456789012345678901234567;', secret)).toBeUndefined();
+		expect(
+			await verifySignedThreadId('thrd_123456789012345678901234567;', secret)
+		).toBeUndefined();
 	});
 
 	test('DefaultThreadIDProvider rejects unsigned header', async () => {
