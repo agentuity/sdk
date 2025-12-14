@@ -38,6 +38,10 @@ cd "$SDK_ROOT/packages/server"
 SERVER_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
 echo "  - server: $SERVER_PKG"
 
+cd "$SDK_ROOT/packages/client"
+CLIENT_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
+echo "  - client: $CLIENT_PKG"
+
 cd "$SDK_ROOT/packages/react"
 REACT_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
 echo "  - react: $REACT_PKG"
@@ -63,11 +67,12 @@ echo ""
 echo "📥 Installing in $TARGET_DIR..."
 cd "$TARGET_DIR"
 
-bun remove @agentuity/cli @agentuity/core @agentuity/react @agentuity/runtime @agentuity/schema @agentuity/server @agentuity/workbench @agentuity/auth 2>/dev/null || true
+bun remove @agentuity/cli @agentuity/client @agentuity/core @agentuity/react @agentuity/runtime @agentuity/schema @agentuity/server @agentuity/workbench @agentuity/auth 2>/dev/null || true
 
 bun add "$TEMP_DIR/$CORE_PKG"
 bun add "$TEMP_DIR/$SCHEMA_PKG"
 bun add "$TEMP_DIR/$SERVER_PKG"
+bun add "$TEMP_DIR/$CLIENT_PKG"
 bun add "$TEMP_DIR/$REACT_PKG"
 bun add "$TEMP_DIR/$RUNTIME_PKG"
 bun add "$TEMP_DIR/$CLI_PKG"
@@ -77,7 +82,7 @@ bun add "$TEMP_DIR/$AUTH_PKG"
 # Cleanup nested @agentuity packages (ensures proper resolution)
 echo ""
 echo "🧹 Cleaning nested @agentuity packages..."
-for pkg in runtime server cli schema react auth; do
+for pkg in runtime server cli schema client react auth; do
     if [ -d "node_modules/@agentuity/$pkg/node_modules/@agentuity" ]; then
         echo "  - Removing node_modules/@agentuity/$pkg/node_modules/@agentuity"
         rm -rf "node_modules/@agentuity/$pkg/node_modules/@agentuity"
