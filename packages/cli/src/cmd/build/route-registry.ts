@@ -2,6 +2,28 @@ import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 /**
+ * Convert a route method and path to a camelCase key.
+ * e.g., ("POST", "/api/hello") => "postApiHello"
+ *       ("GET", "/api/users/profile") => "getApiUsersProfile"
+ */
+function routeKeyToCamelCase(method: string, path: string): string {
+	// Lowercase the method
+	const lowerMethod = method.toLowerCase();
+
+	// Remove leading slash and split on / and -
+	const segments = path
+		.replace(/^\//, '')
+		.split(/[/\-_]+/)
+		.filter((s) => s.length > 0);
+
+	// Capitalize first letter of each segment
+	const camelSegments = segments.map((seg) => seg.charAt(0).toUpperCase() + seg.slice(1));
+
+	// Join: method + PascalCased segments
+	return lowerMethod + camelSegments.join('');
+}
+
+/**
  * Route information extracted from route files
  */
 export interface RouteInfo {
@@ -143,12 +165,27 @@ export function generateRouteRegistry(
 	};
 
 	// Helper function to generate route entry
-	const generateRouteEntry = (route: RouteInfo, agentImports: Map<string, string>): string => {
-		const routeKey = route.path;
+	// When forGeneratedDir=true, uses camelCase keys with method property
+	// When forGeneratedDir=false, uses "METHOD /path" keys without method property
+	const generateRouteEntry = (
+		route: RouteInfo,
+		agentImports: Map<string, string>,
+		forGeneratedDir: boolean,
+		originalMethod?: string
+	): string => {
+		// For generatedDir format, use camelCase key and include method property
+		// originalMethod is passed for API routes where route.path already includes "METHOD /path"
+		// For .agentuity/ format, wrap key in quotes since it contains spaces
+		const routeKey = forGeneratedDir
+			? routeKeyToCamelCase(originalMethod ?? route.method, route.path)
+			: `'${route.path}'`;
+		const methodLine = forGeneratedDir
+			? `\n    method: '${(originalMethod ?? route.method).toUpperCase()}';`
+			: '';
 
 		if (!route.hasValidator) {
 			const streamValue = route.stream === true ? 'true' : 'false';
-			return `  '${routeKey}': {
+			return `  ${routeKey}: {${methodLine}
     inputSchema: never;
     outputSchema: never;
     stream: ${streamValue};
@@ -157,7 +194,7 @@ export function generateRouteRegistry(
 
 		if (route.agentVariable) {
 			const importName = agentImports.get(route.agentVariable)!;
-			return `  '${routeKey}': {
+			return `  ${routeKey}: {${methodLine}
     inputSchema: typeof ${importName} extends { inputSchema?: infer I } ? I : never;
     outputSchema: typeof ${importName} extends { outputSchema?: infer O } ? O : never;
     stream: typeof ${importName} extends { stream?: infer S } ? S : false;
@@ -172,14 +209,14 @@ export function generateRouteRegistry(
 				? `typeof ${route.outputSchemaVariable}`
 				: 'never';
 			const streamValue = route.stream === true ? 'true' : 'false';
-			return `  '${routeKey}': {
+			return `  ${routeKey}: {${methodLine}
     inputSchema: ${inputType};
     outputSchema: ${outputType};
     stream: ${streamValue};
   };`;
 		}
 
-		return `  '${routeKey}': {
+		return `  ${routeKey}: {${methodLine}
     // Unable to extract schema types - validator might use inline schemas
     inputSchema: any;
     outputSchema: any;
@@ -187,20 +224,27 @@ export function generateRouteRegistry(
 	};
 
 	// Generate route entries helper
-	const generateRouteEntries = (agentImports: Map<string, string>) => {
+	// When forGeneratedDir=true, uses camelCase keys with method property
+	const generateRouteEntries = (agentImports: Map<string, string>, forGeneratedDir: boolean) => {
 		const apiRouteEntries = apiRoutes
 			.map((route) => {
-				const routeKey = `${route.method.toUpperCase()} ${route.path}`;
-				return generateRouteEntry({ ...route, path: routeKey }, agentImports);
+				if (forGeneratedDir) {
+					// For generatedDir: use original path and pass method separately
+					return generateRouteEntry(route, agentImports, true, route.method);
+				} else {
+					// For .agentuity/: use "METHOD /path" format as the key
+					const routeKey = `${route.method.toUpperCase()} ${route.path}`;
+					return generateRouteEntry({ ...route, path: routeKey }, agentImports, false);
+				}
 			})
 			.join('\n');
 
 		const websocketRouteEntries = websocketRoutes
-			.map((route) => generateRouteEntry(route, agentImports))
+			.map((route) => generateRouteEntry(route, agentImports, forGeneratedDir))
 			.join('\n');
 
 		const sseRouteEntries = sseRoutes
-			.map((route) => generateRouteEntry(route, agentImports))
+			.map((route) => generateRouteEntry(route, agentImports, forGeneratedDir))
 			.join('\n');
 
 		return { apiRouteEntries, websocketRouteEntries, sseRouteEntries };
@@ -222,7 +266,7 @@ export function generateRouteRegistry(
 		apiRouteEntries: agentuityApiEntries,
 		websocketRouteEntries: agentuityWsEntries,
 		sseRouteEntries: agentuitySseEntries,
-	} = generateRouteEntries(agentuityAgentImports);
+	} = generateRouteEntries(agentuityAgentImports, false);
 
 	const generatedContent = `// Auto-generated by Agentuity - do not edit manually
 ${agentuityImports.join('\n')}
@@ -254,13 +298,13 @@ ${agentuitySseEntries}
 			mkdirSync(resolvedGeneratedDir, { recursive: true });
 		}
 
-		// Generate for src/_generated/ (without module augmentation, direct exports)
+		// Generate for src/_generated/ (without module augmentation, direct exports, camelCase keys)
 		const { imports: srcImports, agentImports: srcAgentImports } = generateImports(false);
 		const {
 			apiRouteEntries: srcApiEntries,
 			websocketRouteEntries: srcWsEntries,
 			sseRouteEntries: srcSseEntries,
-		} = generateRouteEntries(srcAgentImports);
+		} = generateRouteEntries(srcAgentImports, true);
 
 		const srcGeneratedContent = `// Auto-generated by Agentuity - do not edit manually
 ${srcImports.join('\n')}

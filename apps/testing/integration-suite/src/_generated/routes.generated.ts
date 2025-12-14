@@ -4,87 +4,104 @@ import type agent_stateReaderAgent from '@agents/state/reader-agent';
 import type agent_stateWriterAgent from '@agents/state/writer-agent';
 
 export interface RouteRegistry {
-  'GET /api/test/run': {
+  getApiTestRun: {
+    method: 'GET';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'GET /api/test/suites': {
+  getApiTestSuites: {
+    method: 'GET';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'GET /api/test/list': {
+  getApiTestList: {
+    method: 'GET';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'GET /api/health': {
+  getApiHealth: {
+    method: 'GET';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'POST /api/agent/state': {
+  postApiAgentState: {
+    method: 'POST';
     inputSchema: typeof agent_statePersistenceAgent extends { inputSchema?: infer I } ? I : never;
     outputSchema: typeof agent_statePersistenceAgent extends { outputSchema?: infer O } ? O : never;
     stream: typeof agent_statePersistenceAgent extends { stream?: infer S } ? S : false;
   };
-  'POST /api/agent/state-reader': {
+  postApiAgentStateReader: {
+    method: 'POST';
     inputSchema: typeof agent_stateReaderAgent extends { inputSchema?: infer I } ? I : never;
     outputSchema: typeof agent_stateReaderAgent extends { outputSchema?: infer O } ? O : never;
     stream: typeof agent_stateReaderAgent extends { stream?: infer S } ? S : false;
   };
-  'POST /api/agent/state-writer': {
+  postApiAgentStateWriter: {
+    method: 'POST';
     inputSchema: typeof agent_stateWriterAgent extends { inputSchema?: infer I } ? I : never;
     outputSchema: typeof agent_stateWriterAgent extends { outputSchema?: infer O } ? O : never;
     stream: typeof agent_stateWriterAgent extends { stream?: infer S } ? S : false;
   };
-  'POST /api/auth/login': {
+  postApiAuthLogin: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'POST /api/auth/logout': {
+  postApiAuthLogout: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'GET /api/auth/verify': {
+  getApiAuthVerify: {
+    method: 'GET';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'GET /api/my-service/status': {
+  getApiMyServiceStatus: {
+    method: 'GET';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'GET /api/my-service/info': {
+  getApiMyServiceInfo: {
+    method: 'GET';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'GET /api/users/profile': {
+  getApiUsersProfile: {
+    method: 'GET';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'PATCH /api/users/profile': {
+  patchApiUsersProfile: {
+    method: 'PATCH';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'DELETE /api/users/profile': {
+  deleteApiUsersProfile: {
+    method: 'DELETE';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'GET /api/custom-name/custom': {
+  getApiCustomNameCustom: {
+    method: 'GET';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  'POST /api/custom-name/test': {
+  postApiCustomNameTest: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
@@ -92,17 +109,20 @@ export interface RouteRegistry {
 }
 
 export interface WebSocketRouteRegistry {
-  '/api/ws/echo': {
+  postApiWsEcho: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  '/api/ws/broadcast': {
+  postApiWsBroadcast: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  '/api/ws/counter': {
+  postApiWsCounter: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
@@ -110,27 +130,32 @@ export interface WebSocketRouteRegistry {
 }
 
 export interface SSERouteRegistry {
-  '/api/sse/simple': {
+  postApiSseSimple: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  '/api/sse/events': {
+  postApiSseEvents: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  '/api/sse/counter': {
+  postApiSseCounter: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  '/api/sse/long-lived': {
+  postApiSseLongLived: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  '/api/sse/abort-test': {
+  postApiSseAbortTest: {
+    method: 'POST';
     inputSchema: never;
     outputSchema: never;
     stream: false;
