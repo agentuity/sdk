@@ -1,0 +1,1 @@
+../../packages/server/skills/SKILL.md

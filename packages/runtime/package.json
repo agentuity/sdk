@@ -16,7 +16,8 @@
 		"AGENTS.md",
 		"README.md",
 		"src",
-		"dist"
+		"dist",
+		"skills"
 	],
 	"scripts": {
 		"clean": "rm -rf dist",

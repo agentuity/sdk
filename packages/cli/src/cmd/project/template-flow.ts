@@ -237,6 +237,18 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		logger,
 	});
 
+	// Link skills from installed @agentuity packages (only if deps were installed)
+	if (!options.noInstall) {
+		await tui.spinner({
+			message: 'Linking skills',
+			clearOnSuccess: true,
+			callback: async () => {
+				const { linkSkills } = await import('../ai/skills/link');
+				await linkSkills(dest, logger);
+			},
+		});
+	}
+
 	// Re-display template selection after spinners clear it
 	if (!skipPrompts) {
 		const { symbols, tuiColors } = tui;

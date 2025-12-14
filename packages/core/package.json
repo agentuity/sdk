@@ -10,7 +10,8 @@
 		"AGENTS.md",
 		"README.md",
 		"src",
-		"dist"
+		"dist",
+		"skills"
 	],
 	"exports": {
 		".": {

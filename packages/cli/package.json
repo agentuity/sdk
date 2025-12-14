@@ -20,7 +20,8 @@
 		"README.md",
 		"src",
 		"dist",
-		"bin"
+		"bin",
+		"skills"
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
