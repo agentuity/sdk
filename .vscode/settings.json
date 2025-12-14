@@ -1,4 +1,8 @@
 {
+	"workbench.colorCustomizations": {
+		"titleBar.activeBackground": "#00FFFF",
+		"titleBar.activeForeground": "#000000"
+	},
 	"files.exclude": {
 		"**/node_modules": true,
 		"**/tsconfig.tsbuildinfo": true,
@@ -13,7 +17,12 @@
 	"editor.codeActionsOnSave": {
 		"source.fixAll.eslint": "explicit"
 	},
-	"eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+	"eslint.validate": [
+		"javascript",
+		"javascriptreact",
+		"typescript",
+		"typescriptreact"
+	],
 	"prettier.useEditorConfig": false,
 	"prettier.configPath": ".prettierrc",
 	"typescript.tsdk": "node_modules/typescript/lib",
