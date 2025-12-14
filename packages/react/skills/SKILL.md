@@ -1,28 +1,21 @@
 ---
-name: agentuity-react-sdk
-description: React hooks and components for building Agentuity web applications with type-safe API calls, WebSocket communication, and SSE event streams
+name: agentuity-react
+description: "Use when: calling API routes with useAPI, real-time WebSocket communication with useWebsocket, server-sent events with useEventStream, or configuring AgentuityProvider."
 globs:
   - "**/*.tsx"
   - "**/*.jsx"
-  - "**/components/**/*.ts"
   - "**/hooks/**/*.ts"
 ---
 
 # Agentuity React SDK
 
-## Configuring AgentuityProvider in React
+## AgentuityProvider
 
-### When to Use
-- Setting up any React app that uses Agentuity hooks
-- Configuring base URL for API calls
-- Managing authentication state across components
-
-### Core API
+Wrap your app to enable hooks:
 
 ```typescript
-import { AgentuityProvider, useAgentuity } from '@agentuity/react';
+import { AgentuityProvider } from '@agentuity/react';
 
-// Wrap your app with the provider
 function App() {
   return (
     <AgentuityProvider baseUrl="https://api.example.com">
@@ -30,363 +23,202 @@ function App() {
     </AgentuityProvider>
   );
 }
-
-// Access context anywhere in your app
-function Component() {
-  const { 
-    baseUrl,           // Current base URL
-    authHeader,        // Current auth header (e.g., "Bearer xxx")
-    setAuthHeader,     // Set auth token
-    authLoading,       // Whether auth is being verified
-    setAuthLoading,    // Set loading state
-    isAuthenticated    // Convenience: !authLoading && authHeader !== null
-  } = useAgentuity();
-}
 ```
 
-### Key Patterns
+Access context anywhere:
 
-**Setting authentication after login:**
 ```typescript
-const { setAuthHeader } = useAgentuity();
+import { useAgentuity } from '@agentuity/react';
 
-async function handleLogin(credentials) {
-  const { token } = await loginAPI(credentials);
+function Component() {
+  const { baseUrl, authHeader, setAuthHeader, isAuthenticated, authLoading } = useAgentuity();
+  
+  // Set auth after login
   setAuthHeader(`Bearer ${token}`);
 }
 ```
 
-**Conditional rendering based on auth:**
-```typescript
-const { isAuthenticated, authLoading } = useAgentuity();
-
-if (authLoading) return <Spinner />;
-if (!isAuthenticated) return <LoginPage />;
-return <Dashboard />;
-```
-
-### Common Pitfalls
-- Using hooks outside `AgentuityProvider` throws an error
-- `baseUrl` defaults to `window.location.origin` if not specified
-- Auth header is automatically included in all `useAPI` and `useWebsocket` calls
-
-### Checklist
-- [ ] Wrap root component with `AgentuityProvider`
-- [ ] Set `baseUrl` if API is on different origin
-- [ ] Handle `authLoading` state during initial auth verification
-
 ---
 
-## Using useAPI Hook
+## useAPI
 
-### When to Use
-- Making HTTP requests to typed API routes
-- Fetching data with automatic caching and refetching
-- Submitting forms or triggering mutations
-- Streaming responses from agents
-
-### Core API
+Call typed API routes. GET requests auto-fetch; others require `invoke()`.
 
 ```typescript
 import { useAPI } from '@agentuity/react';
 
-// GET request - auto-executes on mount
-const { data, isLoading, error, refetch } = useAPI('GET /users');
+// GET - auto-fetches on mount
+const { data, isLoading, error, refetch } = useAPI('GET /api/users');
 
-// POST request - manual invocation
-const { invoke, data, isLoading } = useAPI('POST /users');
+// POST - manual invoke
+const { invoke, data, isLoading } = useAPI('POST /api/users');
 await invoke({ name: 'Alice', email: 'alice@example.com' });
+```
 
-// Alternative syntax with method/path
+### Options
+
+```typescript
 const { data } = useAPI({
-  method: 'GET',
-  path: '/users',
-  query: { search: 'alice' }
+  route: 'GET /api/users',
+  query: { search: 'term' },
+  headers: { 'X-Custom': 'value' },
+  enabled: true,           // Control when request executes
+  staleTime: 5000,         // ms before data is stale
+  refetchInterval: 10000,  // Auto-refetch interval
+  onSuccess: (data) => {},
+  onError: (error) => {},
 });
 ```
 
-**Full options:**
-```typescript
-const result = useAPI({
-  route: 'GET /users',           // Route key from RouteRegistry
-  query: { search: 'term' },     // Query parameters
-  headers: { 'X-Custom': 'val' }, // Additional headers
-  enabled: true,                  // Auto-fetch on mount (default: true for GET)
-  staleTime: 5000,               // Data freshness in ms
-  refetchInterval: 10000,        // Auto-refetch interval
-  onSuccess: (data) => {},       // Success callback
-  onError: (error) => {},        // Error callback
-  // For streaming routes:
-  delimiter: '\n',               // Chunk delimiter
-  onChunk: (chunk) => chunk,     // Transform each chunk
-});
-```
+### Streaming
 
-**Return value:**
 ```typescript
-interface UseAPIResult {
-  data: T | undefined;      // Response data
-  error: Error | null;      // Error if failed
-  isLoading: boolean;       // First load in progress
-  isFetching: boolean;      // Any fetch in progress
-  isSuccess: boolean;       // Request succeeded
-  isError: boolean;         // Request failed
-  reset: () => void;        // Reset state
-  refetch: () => Promise<void>;  // GET only
-  invoke: (input) => Promise<T>; // POST/PUT/PATCH/DELETE only
-}
-```
-
-### Key Patterns
-
-**Streaming responses:**
-```typescript
-const { data, isLoading } = useAPI({
-  route: 'POST /agent/chat',
+const { data } = useAPI({
+  route: 'POST /api/chat',
+  delimiter: '\n',
   onChunk: (chunk) => {
     console.log('Received:', chunk);
     return chunk;
-  }
+  },
 });
-// data is T[] for streaming routes (accumulated chunks)
+// data accumulates as T[]
 ```
 
-**Conditional fetching:**
-```typescript
-const { data } = useAPI({
-  route: 'GET /user/:id',
-  enabled: !!userId,  // Only fetch when userId exists
-  query: { id: userId }
-});
-```
+### Return values
 
-**Form submission:**
-```typescript
-const { invoke, isLoading, isSuccess } = useAPI('POST /contact');
-
-async function handleSubmit(formData) {
-  try {
-    await invoke(formData);
-    showToast('Message sent!');
-  } catch (error) {
-    showToast('Failed to send');
-  }
-}
-```
-
-### Common Pitfalls
-- GET requests cannot have `input` (use `query` instead)
-- 204 No Content responses have no `data` property - check `isSuccess`
-- Streaming routes return `T[]` not `T`
-- Must be used within `AgentuityProvider`
-
-### Checklist
-- [ ] Use `invoke()` for mutations, `refetch()` for queries
-- [ ] Handle `isLoading` state in UI
-- [ ] Add error handling with `onError` or try/catch
-- [ ] Set appropriate `staleTime` to reduce unnecessary requests
-
-Reference: [SDK Reference](https://preview.agentuity.dev/v1/Reference/sdk-reference)
+| Property | Type | Description |
+|----------|------|-------------|
+| `data` | `T \| undefined` | Response data |
+| `error` | `Error \| null` | Error if failed |
+| `isLoading` | `boolean` | First load in progress |
+| `isFetching` | `boolean` | Any fetch in progress |
+| `isSuccess` | `boolean` | Request succeeded |
+| `isError` | `boolean` | Request failed |
+| `reset` | `() => void` | Reset state |
+| `refetch` | `() => Promise<void>` | GET only |
+| `invoke` | `(input) => Promise<T>` | POST/PUT/PATCH/DELETE only |
 
 ---
 
-## Using useWebsocket Hook
+## useWebsocket
 
-### When to Use
-- Real-time bidirectional communication
-- Chat applications
-- Live updates that require client-initiated messages
-- Persistent connections with reconnection handling
-
-### Core API
+Bidirectional real-time communication with auto-reconnection.
 
 ```typescript
 import { useWebsocket } from '@agentuity/react';
 
-const {
-  isConnected,    // Connection status
-  data,           // Most recent message
-  messages,       // All received messages
-  send,           // Send typed data
-  close,          // Close connection
-  clearMessages,  // Clear message history
-  error,          // Connection error
-  isError,        // Error occurred
-  readyState,     // WebSocket.CONNECTING/OPEN/CLOSING/CLOSED
-  reset           // Reset error state
-} = useWebsocket('/chat');
+function Chat() {
+  const { isConnected, messages, send, data, error, close } = useWebsocket('/ws/chat');
+  
+  return (
+    <div>
+      {messages.map((msg, i) => <div key={i}>{msg.text}</div>)}
+      <button onClick={() => send({ text: 'Hello' })} disabled={!isConnected}>
+        Send
+      </button>
+    </div>
+  );
+}
 ```
 
-**Options:**
+### Options
+
 ```typescript
-const ws = useWebsocket('/chat', {
+const ws = useWebsocket('/ws/chat', {
   query: new URLSearchParams({ room: 'general' }),
-  subpath: '/v2',
+  maxMessages: 100,  // Limit stored messages
   signal: abortController.signal,
-  maxMessages: 100  // Limit stored messages
 });
 ```
 
-### Key Patterns
+### Return values
 
-**Chat application:**
-```typescript
-function Chat() {
-  const { isConnected, messages, send } = useWebsocket('/chat');
-  const [input, setInput] = useState('');
-
-  const handleSend = () => {
-    send({ message: input, timestamp: Date.now() });
-    setInput('');
-  };
-
-  return (
-    <div>
-      <ConnectionStatus connected={isConnected} />
-      <MessageList messages={messages} />
-      <input value={input} onChange={e => setInput(e.target.value)} />
-      <button onClick={handleSend} disabled={!isConnected}>Send</button>
-    </div>
-  );
-}
-```
-
-**Handling reconnection:**
-```typescript
-const { isConnected, error, reset } = useWebsocket('/live');
-
-useEffect(() => {
-  if (error) {
-    console.error('WebSocket error:', error);
-    // Auto-reconnection is built-in with exponential backoff
-  }
-}, [error]);
-```
-
-### Common Pitfalls
-- Auth token is passed via query string (WebSocket doesn't support headers)
-- `data` only contains the most recent message; use `messages` for history
-- Messages sent while disconnected are queued and sent on reconnect
-- `close()` prevents auto-reconnection
-
-### Checklist
-- [ ] Handle `isConnected` state in UI
-- [ ] Use `messages` array for complete history
-- [ ] Set `maxMessages` to prevent memory issues in long sessions
-- [ ] Handle errors gracefully (auto-reconnect is built-in)
-
-Reference: [SDK Reference](https://preview.agentuity.dev/v1/Reference/sdk-reference)
+| Property | Type | Description |
+|----------|------|-------------|
+| `isConnected` | `boolean` | WebSocket is open |
+| `data` | `T \| undefined` | Most recent message |
+| `messages` | `T[]` | All received messages |
+| `send` | `(data: TInput) => void` | Send message |
+| `close` | `() => void` | Close connection |
+| `clearMessages` | `() => void` | Clear message history |
+| `error` | `Error \| null` | Connection error |
+| `readyState` | `number` | 0=connecting, 1=open, 2=closing, 3=closed |
 
 ---
 
-## Managing React Agent State and Errors
+## useEventStream
 
-### When to Use
-- Building robust UIs with proper loading/error states
-- Implementing error boundaries for agent failures
-- Combining multiple API calls
-- Optimistic updates
+Server-sent events for one-way server-to-client streaming.
 
-### Key Patterns
-
-**Loading states:**
 ```typescript
-function AgentPanel() {
-  const { data, isLoading, isFetching } = useAPI('GET /agents');
+import { useEventStream } from '@agentuity/react';
 
-  if (isLoading) return <Skeleton />;  // First load
-
-  return (
-    <div>
-      {isFetching && <RefreshIndicator />}  // Background refresh
-      <AgentList agents={data} />
-    </div>
-  );
+function LiveFeed() {
+  const { data, isConnected, error, close } = useEventStream('/api/events');
+  
+  return <div>{data?.message}</div>;
 }
 ```
 
-**Error boundary pattern:**
+---
+
+## Choosing the Right Hook
+
+| Hook | Direction | Use Case |
+|------|-----------|----------|
+| `useAPI` | Request/Response | Forms, data fetching, mutations |
+| `useWebsocket` | Client ↔ Server | Chat, multiplayer, collaborative editing |
+| `useEventStream` | Server → Client | AI streaming, live dashboards, notifications |
+
+---
+
+## Common Patterns
+
+### Loading states
+
 ```typescript
-import { ErrorBoundary } from 'react-error-boundary';
+const { data, isLoading, isFetching } = useAPI('GET /api/users');
 
-function AgentErrorFallback({ error, resetErrorBoundary }) {
-  return (
-    <div role="alert">
-      <p>Agent error: {error.message}</p>
-      <button onClick={resetErrorBoundary}>Retry</button>
-    </div>
-  );
-}
+if (isLoading) return <Skeleton />;  // First load
 
-function App() {
-  return (
-    <ErrorBoundary FallbackComponent={AgentErrorFallback}>
-      <AgentPanel />
-    </ErrorBoundary>
-  );
-}
+return (
+  <div>
+    {isFetching && <RefreshIndicator />}  // Background refresh
+    <UserList users={data} />
+  </div>
+);
 ```
 
-**Combining multiple hooks:**
+### Conditional fetching
+
 ```typescript
-function Dashboard() {
-  const users = useAPI('GET /users');
-  const stats = useAPI('GET /stats');
-
-  const isLoading = users.isLoading || stats.isLoading;
-  const error = users.error || stats.error;
-
-  if (isLoading) return <Loading />;
-  if (error) return <Error message={error.message} />;
-
-  return <DashboardView users={users.data} stats={stats.data} />;
-}
+const { data } = useAPI({
+  route: 'GET /api/user',
+  query: { id: userId },
+  enabled: !!userId,  // Only fetch when userId exists
+});
 ```
 
-**Optimistic updates:**
+### Form submission
+
 ```typescript
-function TodoItem({ todo }) {
-  const [optimisticDone, setOptimisticDone] = useState(todo.done);
-  const { invoke } = useAPI('PATCH /todos/:id');
+const { invoke, isLoading, isSuccess, reset } = useAPI('POST /api/contact');
 
-  const toggleDone = async () => {
-    const newState = !optimisticDone;
-    setOptimisticDone(newState);  // Optimistic update
-
-    try {
-      await invoke({ id: todo.id, done: newState });
-    } catch {
-      setOptimisticDone(!newState);  // Rollback on error
-    }
-  };
-
-  return <Checkbox checked={optimisticDone} onChange={toggleDone} />;
-}
-```
-
-**Reset state after action:**
-```typescript
-const { invoke, reset, isSuccess } = useAPI('POST /message');
-
-useEffect(() => {
-  if (isSuccess) {
-    showNotification('Sent!');
-    reset();  // Clear state for next submission
+async function handleSubmit(formData) {
+  try {
+    await invoke(formData);
+    showToast('Sent!');
+    reset();  // Clear for next submission
+  } catch {
+    showToast('Failed');
   }
-}, [isSuccess, reset]);
+}
 ```
 
-### Common Pitfalls
-- Don't forget to handle both `isLoading` (first load) and `isFetching` (refetch)
-- `error` persists until next successful request or `reset()` is called
-- Streaming routes accumulate data in array - handle accordingly
-- Auth changes trigger automatic refetches
+---
 
-### Checklist
-- [ ] Show loading indicators for `isLoading` state
-- [ ] Display errors from `error` property
-- [ ] Implement error boundaries for catastrophic failures
-- [ ] Use `reset()` to clear state between submissions
-- [ ] Consider optimistic updates for better UX
+## Reference
 
-Reference: [SDK Reference](https://preview.agentuity.dev/v1/Reference/sdk-reference)
+- [React Hooks](https://preview.agentuity.dev/v1/Build/Frontend/react-hooks)
+- [Provider Setup](https://preview.agentuity.dev/v1/Build/Frontend/provider-setup)
+- [Advanced Hooks](https://preview.agentuity.dev/v1/Build/Frontend/advanced-hooks)

@@ -1,1 +1,0 @@
-../../packages/react/skills/SKILL.md

@@ -1,1 +1,0 @@
-../../packages/schema/skills/SKILL.md

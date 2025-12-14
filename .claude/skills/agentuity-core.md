@@ -1,1 +1,0 @@
-../../packages/core/skills/SKILL.md

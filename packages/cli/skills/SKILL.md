@@ -1,296 +1,193 @@
 ---
 name: agentuity-cli
-description: Skills for using the Agentuity CLI for project scaffolding, development, deployment, storage management, and skills linking.
+description: "Use when: creating projects with agentuity create, running dev server, deploying to cloud, managing storage (kv, vector, object), or linking skills."
 globs:
   - "**/agentuity.json"
   - "**/agentuity.*.json"
 ---
 
-# Agentuity CLI Skills
+# Agentuity CLI
 
-Reference: https://preview.agentuity.dev/v1/Reference/CLI
-
-## Using CLI for Project Scaffolding
-
-### When to Use
-
-- Creating a new Agentuity agent project from scratch
-- Initializing projects with specific templates
-- Setting up project structure with agents and APIs
-
-### Commands
+## Installation & Auth
 
 ```bash
-# Create new project (interactive flow)
-agentuity project create
+# Install
+curl -fsSL https://agentuity.sh | bash
+# Or: bun add -g @agentuity/cli
 
-# Create with specific name
-agentuity project create --name my-ai-agent
-
-# Create in specific directory
-agentuity project create --name customer-service --dir ~/projects/agent
-
-# Use specific template
-agentuity project create --template basic
-
-# Skip dependency installation
-agentuity project create --no-install
-
-# Skip build step
-agentuity project create --no-build
-
-# Skip cloud registration (local-only project)
-agentuity project create --no-register
-
-# Use local template directory (for testing)
-agentuity project create --template-dir ./packages/templates
-
-# Aliases work too
-agentuity new --name my-agent
-agentuity init
+# Authenticate
+agentuity login
+agentuity logout
+agentuity signup
 ```
-
-### Key Patterns
-
-- Templates are fetched from GitHub (`agentuity.sh/template/sdk/main`)
-- Projects require: `package.json`, `app.ts`, and `src/` directory
-- Dependencies installed automatically unless `--no-install` specified
-- Projects registered with Agentuity Cloud unless `--no-register` specified
-
-### Common Pitfalls
-
-- Forgetting to authenticate first (`agentuity auth login`) when registering projects
-- Creating projects without Bun installed (Bun 1.3+ required)
-- Template names are case-sensitive
 
 ---
 
-## Using CLI for Local Development
-
-### When to Use
-
-- Running agents locally with hot reload
-- Testing agents with the workbench UI
-- Developing with public tunnels for webhook testing
-- Debugging agent behavior
-
-### Commands
+## Project Creation
 
 ```bash
-# Start dev server with hot reload
+# Interactive
+agentuity create
+
+# With options
+agentuity create --name my-agent --template default --dir ~/projects
+
+# Skip steps
+agentuity create --no-install --no-build --no-register
+```
+
+**Templates:** `default`, `tailwind`, `openai`, `groq`, `xai`, `vercel-openai`
+
+**Shortcuts:** `agentuity new`, `agentuity init`
+
+---
+
+## Development
+
+```bash
+# Start dev server (default port 3500)
 agentuity dev
 
-# Use custom port
+# Options
 agentuity dev --port 8080
-
-# Local mode (use local services, no cloud)
-agentuity dev --local
-
-# Disable public URL tunnel
-agentuity dev --no-public
-
-# Watch additional directories for changes
-agentuity dev --watch ../packages/workbench/dist
+agentuity dev --local          # Offline mode, no cloud services
+agentuity dev --no-public      # Disable public tunnel
+agentuity dev --watch ../pkg   # Watch additional paths
 ```
 
-### Key Patterns
+**Keyboard shortcuts:** `h` help, `c` clear, `r` restart, `o` routes, `a` agents, `q` quit
 
-- Default port is 3500 (or `PORT` env var)
-- Workbench available at `http://127.0.0.1:3500/workbench`
-- Public URL generated via Gravity tunnel (requires auth)
-- Environment loaded from `.env` files based on profile
-- Creating empty directory in `src/agent/` auto-generates agent template
-- Creating empty directory in `src/api/` auto-generates API route template
+**Workbench:** `http://localhost:3500/workbench`
 
-### Keyboard Shortcuts (Interactive Mode)
-
-- `h` - Show help
-- `c` - Clear console
-- `r` - Restart server
-- `o` - Show routes
-- `a` - Show agents
-- `q` - Quit
-
-### Common Pitfalls
-
-- Running in non-project directory (requires `package.json`, `app.ts`, `src/`)
-- Missing `AGENTUITY_SDK_KEY` in `.env` file
-- Port conflicts (specify different port with `--port`)
-- Running without authentication when needing public URL
+**Local mode (`--local`):**
+- No cloud services (KV, Vector, Object Storage disabled)
+- Requires your own API keys in `.env`
+- No public URL tunneling
 
 ---
 
-## Using CLI for Deployment
-
-### When to Use
-
-- Deploying agents to Agentuity Cloud
-- Setting up CI/CD pipelines
-- Managing production deployments
-- Syncing environment variables and secrets
-
-### Commands
+## Deployment
 
 ```bash
-# Deploy current project
-agentuity cloud deploy
-
-# Deploy with verbose output
-agentuity cloud deploy --log-level=debug
-
-# Deploy with tags
-agentuity cloud deploy --tag production --tag v1.0.0
-
-# Deploy with CI metadata
-agentuity cloud deploy --commit-url https://github.com/... --logs-url https://...
-
-# Alias
+# Deploy to cloud
 agentuity deploy
+
+# With tags
+agentuity deploy --tag production --tag v1.0.0
+
+# Management
+agentuity cloud project list
+agentuity cloud deploy list
+agentuity cloud deploy rollback
+agentuity cloud deploy undeploy
 ```
 
-### Key Patterns
+**What deploy does:**
+1. Syncs `.env.production` (or `.env`) to cloud
+2. Variables with `_SECRET`, `_KEY`, `_TOKEN`, `_PASSWORD`, `_PRIVATE` suffixes → encrypted secrets
+3. Builds, packages, encrypts, uploads
+4. Provisions and activates
 
-- Syncs `.env.production` (or `.env`) to cloud env/secrets automatically
-- `SECRET_*` prefixed variables are stored as encrypted secrets
-- Builds, packages, encrypts and uploads deployment artifacts
-- Custom domains validated before deployment
-- Deployment URLs provided after successful deploy
-
-### Deployment Steps
-
-1. Validate custom domains (DNS check)
-2. Sync environment variables and secrets
-3. Create deployment record
-4. Build, verify, and package
-5. Encrypt and upload deployment
-6. Provision deployment
-
-### Common Pitfalls
-
-- Deploying without authentication (`agentuity auth login` first)
-- Missing project registration (run from project with `agentuity.json`)
-- Build failures - check TypeScript errors before deploying
-- DNS not configured for custom domains
+**URLs after deploy:**
+- Deployment URL: `dep_xxx.agentuity.cloud` (specific version)
+- Project URL: `proj_xxx.agentuity.cloud` (always active deployment)
 
 ---
 
-## Managing Storage with CLI
+## Storage Commands
 
-### When to Use
-
-- Inspecting key-value storage contents
-- Managing vector embeddings
-- Uploading/downloading files from object storage
-- Debugging data issues
-
-### Key-Value Commands
+### Key-Value
 
 ```bash
-# Interactive REPL
-agentuity cloud keyvalue repl
-agentuity cloud kv repl
-
-# Get/set values
-agentuity cloud kv get mykey
-agentuity cloud kv set mykey "myvalue"
-agentuity cloud kv delete mykey
-
-# List and search
+agentuity cloud kv get <key>
+agentuity cloud kv set <key> "<value>"
+agentuity cloud kv delete <key>
 agentuity cloud kv keys
-agentuity cloud kv search "pattern"
-agentuity cloud kv stats
-
-# Namespace management
-agentuity cloud kv list-namespaces
-agentuity cloud kv create-namespace myns
-agentuity cloud kv delete-namespace myns
+agentuity cloud kv repl        # Interactive REPL
 ```
 
-### Vector Commands
+### Vector
 
 ```bash
-# Search by text query
-agentuity cloud vector search "query text"
-agentuity cloud vec search "similar documents"
-
-# Get vector by ID
+agentuity cloud vector search "<query>"
 agentuity cloud vec get <id>
-
-# Delete vector
 agentuity cloud vec delete <id>
 ```
 
-### Object Storage Commands
+### Object (S3)
 
 ```bash
-# List files
 agentuity cloud storage list
-agentuity cloud s3 list
-
-# Upload/download
 agentuity cloud storage upload ./file.txt
 agentuity cloud storage download file.txt ./local.txt
-
-# File operations
-agentuity cloud storage get filename.txt
-agentuity cloud storage delete filename.txt
-agentuity cloud storage create --name newfile.txt
+agentuity cloud s3 get filename.txt
+agentuity cloud s3 delete filename.txt
 ```
 
-### Key Patterns
-
-- Aliases: `kv` for `keyvalue`, `vec` for `vector`, `s3` for `storage`
-- All storage commands require authentication and project context
-- REPL mode for interactive exploration of key-value data
-
-### Common Pitfalls
-
-- Running storage commands without deploying first
-- Confusing namespaces (default namespace vs custom)
-- Large file uploads may timeout - use chunking for big files
+**Aliases:** `kv` = `keyvalue`, `vec` = `vector`, `s3` = `storage`
 
 ---
 
-## Managing Skills with CLI
-
-### When to Use
-
-- Setting up Claude/Amp skill files for AI-assisted development
-- After installing or updating @agentuity packages
-- Sharing SDK documentation with AI coding assistants
-
-### Commands
+## Environment & Secrets
 
 ```bash
-# Link skills from installed @agentuity packages
-agentuity ai skills link
+agentuity cloud env list
+agentuity cloud env set KEY=value
+agentuity cloud env delete KEY
 
-# Force overwrite existing skill files
-agentuity ai skills link --force
-
-# Copy files instead of symlinks (Windows compatibility)
-agentuity ai skills link --copy
-
-# Link skills in specific directory
-agentuity ai skills link --dir /path/to/project
+agentuity cloud secret list
+agentuity cloud secret set SECRET_KEY=value
+agentuity cloud secret delete SECRET_KEY
 ```
 
-### Key Patterns
+---
 
-- Skills linked to `.claude/skills/` directory
-- Creates symlinks by default (falls back to copy on Windows)
-- Looks for skills in: `node_modules/@agentuity/{package}/skills/SKILL.md`
-- Supported packages: `runtime`, `react`, `cli`, `core`, `schema`, `server`
-- Output files named: `agentuity-{package}.md`
+## Skills Management
 
-### When Skills Are Linked Automatically
+```bash
+# Link skills from @agentuity packages to .claude/skills/
+agentuity ai skills link
 
-- During `agentuity project create` (after dependencies are installed)
+# Options
+agentuity ai skills link --force  # Overwrite existing
+agentuity ai skills link --copy   # Copy instead of symlink (Windows)
+```
 
-### Common Pitfalls
+Creates symlinks from `.claude/skills/agentuity-{package}.md` to `node_modules/@agentuity/{package}/skills/SKILL.md`.
 
-- Running before `bun install` (packages not installed)
-- Symlinks not supported on some Windows configurations (use `--copy`)
-- Existing files not overwritten without `--force`
+---
 
+## Debugging
 
+```bash
+# SSH into container
+agentuity ssh
+
+# View logs
+agentuity cloud deploy logs
+
+# Session inspection
+agentuity cloud session list
+agentuity cloud session get <id>
+```
+
+---
+
+## Global Options
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Machine-readable output |
+| `--log-level <level>` | debug, trace, info, warn, error |
+| `--quiet` | Suppress non-essential output |
+| `--dry-run` | Simulate without executing |
+| `--explain` | Show what command would do |
+
+---
+
+## Reference
+
+- [CLI Reference](https://preview.agentuity.dev/v1/Reference/CLI)
+- [Getting Started](https://preview.agentuity.dev/v1/Reference/CLI/getting-started)
+- [Development](https://preview.agentuity.dev/v1/Reference/CLI/development)
+- [Deployment](https://preview.agentuity.dev/v1/Reference/CLI/deployment)

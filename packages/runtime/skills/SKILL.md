@@ -1,75 +1,55 @@
 ---
 name: agentuity-runtime
-description: Skills for building Agentuity runtime applications - agents, routing, storage, sessions, evaluations, and observability
+description: "Use when: creating agents with createAgent(), configuring apps with createApp(), accessing storage (ctx.kv, ctx.vector, ctx.stream), managing state (ctx.thread.state, ctx.session.state), handling routes, or working with events/lifecycle hooks."
 globs:
   - "**/agents/**/*.ts"
   - "**/app.ts"
-  - "**/router.ts"
+  - "**/api/**/*.ts"
   - "**/*.agent.ts"
 ---
 
-# Agentuity Runtime Skills
+# Agentuity Runtime
 
-## Creating Runtime Apps with createApp
+## Context Access
 
-### When to Use
-- Bootstrapping a new Agentuity application
-- Configuring app-wide state, services, and lifecycle hooks
-- Setting up shared resources like database connections
+**In agents:** `ctx.logger`, `ctx.kv`, `ctx.thread`, `ctx.vector`, etc.
 
-### Core API
+**In routes:** `c.var.logger`, `c.var.kv`, `c.var.thread`, or `c.get('logger')`.
+
+---
+
+## createApp
 
 ```typescript
-import { createApp, type AppConfig } from '@agentuity/runtime';
+import { createApp } from '@agentuity/runtime';
 
 const app = await createApp({
   setup: async () => {
     const db = await connectDatabase();
-    return { db };
+    return { db };  // Available as ctx.app in agents
   },
   shutdown: async (state) => {
     await state.db.close();
   },
-  services: {
-    useLocal: true,  // Use in-memory storage for development
-  },
+  services: { useLocal: true },  // Development only
   cors: { origin: '*' }
 });
 
-// Access app properties
-app.router;   // Hono router
-app.server;   // Bun server
-app.logger;   // Logger instance
-app.state;    // State from setup()
+// App-level event listeners
+app.addEventListener('agent.started', (_, agent, ctx) => {
+  ctx.logger.info(`Agent ${agent.metadata.name} started`);
+});
 ```
 
-### Key Patterns
-- **Lifecycle hooks**: `setup()` runs before server starts, `shutdown()` on stop
-- **App state**: Return object from `setup()` becomes `ctx.app` in all agents
-- **Service overrides**: Use `services.useLocal: true` for local development
-- **Event listeners**: `app.addEventListener('agent.started', handler)`
-
-### Common Pitfalls
-- Forgetting to await async operations in `setup()`
-- Not closing connections in `shutdown()`
-- Using `services.useLocal` in production
-
-### Checklist
-- [ ] Define `setup()` for shared resources
-- [ ] Define `shutdown()` for cleanup
-- [ ] Configure CORS if needed
-- [ ] Set `useLocal: true` only in development
+**Key points:**
+- `setup()` runs before server starts; return object becomes `ctx.app` in all agents
+- `shutdown()` runs on server stop for cleanup
+- `useLocal: true` uses in-memory storage (development only)
+- Events: `agent.started`, `agent.completed`, `agent.errored`, `session.started`, `session.completed`, `thread.created`, `thread.destroyed`
 
 ---
 
-## Defining Agents with createAgent
-
-### When to Use
-- Creating request handlers with typed input/output
-- Building agents that process data and return responses
-- Setting up agent-specific initialization
-
-### Core API
+## createAgent
 
 ```typescript
 import { createAgent } from '@agentuity/runtime';
@@ -80,128 +60,159 @@ export default createAgent('user-query', {
   schema: {
     input: s.object({ query: s.string(), userId: s.string() }),
     output: s.object({ result: s.string() }),
-    stream: false,
   },
   setup: async (appState) => {
-    return { cache: new Map() };
-  },
-  shutdown: async (appState, config) => {
-    config.cache.clear();
+    return { cache: new Map() };  // Available as ctx.config
   },
   handler: async (ctx, input) => {
-    ctx.logger.info('Processing query', { userId: input.userId });
+    ctx.logger.info('Processing', { userId: input.userId });
     return { result: `Processed: ${input.query}` };
   },
 });
 ```
 
-### Key Patterns
-- **Schema validation**: Input/output validated automatically
-- **Agent config**: `setup()` returns agent-specific config available as `ctx.config`
-- **Streaming**: Set `schema.stream: true` for streaming responses
-- **Type inference**: Types flow from schema to handler parameters
+**Key points:**
+- Let TypeScript infer handler types from schema (never add explicit type annotations)
+- `setup()` returns agent-specific config → `ctx.config`
+- App state → `ctx.app`
+- Export agent as default
 
-### Common Pitfalls
-- Adding explicit type annotations to handler params (defeats inference)
-- Forgetting to export agent as default
-- Not handling errors in handler
-
-### Checklist
-- [ ] Define input/output schemas with `@agentuity/schema`
-- [ ] Let TypeScript infer handler parameter types
-- [ ] Use `setup()` for agent-specific initialization
-- [ ] Export agent as default
+**Calling agents:**
+```typescript
+import summarizeAgent from './summarize.agent';
+const result = await summarizeAgent.run({ text: 'content' });  // Type-safe
+```
 
 ---
 
-## Using AgentContext APIs
-
-### When to Use
-- Accessing runtime services within agent handlers
-- Logging, tracing, storage operations
-- Scheduling background tasks
-
-### Core API
+## AgentContext
 
 ```typescript
 handler: async (ctx, input) => {
   // Logging
   ctx.logger.info('Processing', { data: input });
-  ctx.logger.warn('Rate limit approaching');
-  ctx.logger.error('Operation failed', { error: err });
-
+  
   // Tracing
-  const span = ctx.tracer.startSpan('db-query');
+  const span = ctx.tracer.startSpan('operation');
   try {
-    const result = await query();
+    // ... work
     span.setStatus({ code: SpanStatusCode.OK });
-    return result;
   } finally {
     span.end();
   }
-
-  // Request-scoped state
-  ctx.state.set('startTime', Date.now());
-  const start = ctx.state.get('startTime') as number;
-
-  // Background tasks
+  
+  // Background tasks (non-blocking)
   ctx.waitUntil(async () => {
-    await ctx.kv.set('metrics', 'lastProcessed', Date.now());
+    await sendAnalytics(input);
   });
-
-  // Access app state and agent config
-  await ctx.app.db.query('SELECT 1');
-  ctx.config.cache.get('key');
+  
+  // Access shared resources
+  await ctx.app.db.query('SELECT 1');  // App state
+  ctx.config.cache.get('key');         // Agent config
 }
 ```
 
-### Key Patterns
-- **ctx.logger**: Structured logging with OpenTelemetry correlation
-- **ctx.tracer**: Create spans for performance tracking
-- **ctx.state**: Request-scoped Map for passing data
-- **ctx.waitUntil()**: Schedule tasks that run after response
+---
 
-### Common Pitfalls
-- Using `console.log` instead of `ctx.logger`
-- Forgetting to end tracer spans
-- Blocking response on `waitUntil` tasks
+## State Management
 
-### Checklist
-- [ ] Use `ctx.logger` for all logging
-- [ ] End all tracer spans in finally blocks
-- [ ] Use `waitUntil` for non-blocking cleanup
+| Scope | Lifetime | Access | Use Case |
+|-------|----------|--------|----------|
+| Request | Single request | `ctx.state` | Timing, temp data, event listener sharing |
+| Thread | Up to 1 hour | `ctx.thread.state` | Conversation history, multi-request context |
+| Session | Single request | `ctx.session.state` | Session completion callbacks only |
+
+```typescript
+handler: async (ctx, input) => {
+  // Thread state (persists across requests, 1-hour expiry)
+  const count = (ctx.thread.state.get('messageCount') as number || 0) + 1;
+  ctx.thread.state.set('messageCount', count);
+  
+  // Request state (cleared after response)
+  ctx.state.set('startTime', Date.now());
+  
+  // Thread lifecycle
+  ctx.thread.addEventListener('destroyed', (_, thread) => {
+    ctx.logger.info('Thread destroyed', { id: thread.id });
+  });
+  
+  // Reset conversation
+  await ctx.thread.destroy();
+}
+```
+
+**State limits:** 1MB after JSON serialization. Store large data in KV, keep only recent messages.
 
 ---
 
-## Routing Requests with Runtime Router
+## Storage
 
-### When to Use
-- Defining HTTP routes for agents
-- Setting up WebSocket, SSE, or streaming endpoints
-- Handling email, SMS, or cron triggers
+### Key-Value (namespace + key pattern)
 
-### Core API
+```typescript
+// Set with optional TTL
+await ctx.kv.set('users', '123', { name: 'Alice' }, { ttl: 3600 });
+
+// Get (always check .exists)
+const result = await ctx.kv.get<User>('users', '123');
+if (result.exists) {
+  console.log(result.data.name);
+}
+
+// Delete and list
+await ctx.kv.delete('users', '123');
+const keys = await ctx.kv.keys('users');
+```
+
+### Vector (semantic search)
+
+```typescript
+// Upsert with auto-embedding
+await ctx.vector.upsert('docs', {
+  key: 'doc-1',
+  document: 'Hello world',
+  metadata: { topic: 'greeting' },
+});
+
+// Search
+const results = await ctx.vector.search('docs', {
+  query: 'greeting',
+  limit: 5,
+  similarity: 0.7,
+});
+```
+
+### Durable Streams
+
+```typescript
+const stream = await ctx.stream.create('logs', { contentType: 'text/plain' });
+await stream.write('Processing step 1\n');
+await stream.close();
+console.log(stream.url);  // Public URL
+```
+
+**Common mistakes:**
+- Using `ctx.kv.get(key)` instead of `ctx.kv.get(namespace, key)`
+- Not checking `result.exists` before accessing `result.data`
+- Forgetting to close streams
+
+---
+
+## Routing
+
+Routes live in `src/api/`. Access context via `c.var.*` or `c.get('*')`.
 
 ```typescript
 import { createRouter } from '@agentuity/runtime';
+import myAgent from '../agents/my.agent';
 
 const router = createRouter();
 
-// Standard HTTP
-router.get('/health', (c) => c.text('OK'));
-router.post('/users', agent.validator(), async (c) => {
-  const data = c.req.valid('json');  // Typed from agent schema
-  return c.json({ id: '123', ...data });
-});
-
-// Streaming
-router.stream('/events', (c) => {
-  return new ReadableStream({
-    start(controller) {
-      controller.enqueue('data\n');
-      controller.close();
-    }
-  });
+// HTTP with validation
+router.post('/users', myAgent.validator(), async (c) => {
+  const data = c.req.valid('json');  // Typed from schema
+  const result = await myAgent.run(data);
+  return c.json(result);
 });
 
 // WebSocket
@@ -209,291 +220,73 @@ router.websocket('/ws', (c) => (ws) => {
   ws.onMessage((event) => ws.send('Echo: ' + event.data));
 });
 
-// Server-Sent Events
-router.sse('/notifications', (c) => async (stream) => {
+// SSE
+router.sse('/events', (c) => async (stream) => {
   await stream.writeSSE({ data: 'Hello', event: 'message' });
 });
 
-// Email handler
-router.email('support@example.com', (email, c) => {
-  console.log(email.fromEmail(), email.subject());
-  return c.text('Received');
-});
-
-// Cron schedule
+// Cron, Email, SMS
 router.cron('0 0 * * *', (c) => c.text('Daily task'));
+router.email('support@example.com', (email, c) => c.text('Received'));
 ```
 
-### Key Patterns
-- **Validation**: Use `agent.validator()` for automatic input validation
-- **Type safety**: `c.req.valid('json')` returns typed data
-- **Special routes**: `email()`, `sms()`, `cron()` for non-HTTP triggers
-
-### Common Pitfalls
-- Using `testClient()` in tests (use `app.request()` instead)
-- Forgetting middleware order matters
-- Not handling WebSocket connection errors
-
-### Checklist
-- [ ] Use `agent.validator()` for POST/PUT/PATCH routes
-- [ ] Test with `app.request()` not `testClient()`
-- [ ] Handle errors in WebSocket handlers
+**Testing routes:** Use `app.request()`, not `testClient()`.
 
 ---
 
-## Using Runtime Storage APIs
-
-### When to Use
-- Persisting data with key-value storage
-- Storing embeddings for vector search
-- Streaming data to durable storage
-
-### Core API
+## Evaluations
 
 ```typescript
-handler: async (ctx, input) => {
-  // Key-Value Storage (namespace + key pattern)
-  const namespace = 'users';
-  await ctx.kv.set(namespace, '123', { name: 'Alice', age: 30 });
-  
-  const result = await ctx.kv.get<{ name: string; age: number }>(namespace, '123');
-  if (result.exists) {
-    ctx.logger.info('User found', { user: result.data });
-  }
-  
-  await ctx.kv.delete(namespace, '123');
-  const keys = await ctx.kv.getKeys(namespace);
-  
-  // Vector Storage
-  await ctx.vector.upsert('docs', {
-    key: 'doc-1',
-    document: 'Hello world',  // Auto-generates embeddings
-    metadata: { topic: 'greeting' },
-  });
-  
-  // Or with pre-computed embeddings
-  await ctx.vector.upsert('docs', {
-    key: 'doc-2',
-    embeddings: [0.1, 0.2, 0.3],
-    metadata: { topic: 'example' },
-  });
-  
-  // Semantic search
-  const results = await ctx.vector.search('docs', {
-    query: 'greeting',
-    limit: 5,
-    similarity: 0.7,
-  });
-  
-  // Stream Storage (durable streams with public URLs)
-  const stream = await ctx.stream.create('agent-logs', {
-    contentType: 'text/plain',
-    metadata: { sessionId: ctx.session.id },
-  });
-  
-  await stream.write('Processing step 1\n');
-  await stream.write('Processing step 2\n');
-  await stream.close();
-  
-  ctx.logger.info('Logs available at', { url: stream.url });
-}
-```
-
-### Key Patterns
-- **KV namespaces**: Use `namespace` + `key` pattern (e.g., `'users'`, `'123'`)
-- **Vector documents**: Provide `document` for auto-embedding or `embeddings` for pre-computed
-- **Stream URLs**: Streams have durable public URLs via `stream.url`
-
-### Common Pitfalls
-- Using old `ctx.kv.get(key)` syntax (must be `ctx.kv.get(namespace, key)`)
-- Forgetting to check `result.exists` before accessing `result.data`
-- Not closing streams with `stream.close()`
-- TTL must be ≥60 seconds for KV entries
-
-### Checklist
-- [ ] Use namespace + key pattern for KV operations
-- [ ] Check `.exists` before accessing `.data`
-- [ ] Close streams after writing
-- [ ] Handle storage operation failures gracefully
-
----
-
-## Managing Sessions and Threads
-
-### When to Use
-- Maintaining conversation state across requests
-- Tracking user sessions
-- Persisting thread data between interactions
-
-### Core API
-
-```typescript
-handler: async (ctx, input) => {
-  // Thread (persists across sessions)
-  ctx.logger.info('Thread: %s', ctx.thread.id);
-  ctx.thread.state.set('messageCount',
-    (ctx.thread.state.get('messageCount') as number || 0) + 1
-  );
-
-  ctx.thread.addEventListener('destroyed', (eventName, thread) => {
-    ctx.logger.info('Thread destroyed: %s', thread.id);
-  });
-
-  // Session (per-request)
-  ctx.logger.info('Session: %s', ctx.session.id);
-  ctx.session.state.set('startTime', Date.now());
-
-  ctx.session.addEventListener('completed', (eventName, session) => {
-    ctx.logger.info('Session completed: %s', session.id);
-  });
-
-  // Access parent thread from session
-  ctx.session.thread.state.set('lastAccess', Date.now());
-
-  // Destroy thread manually
-  await ctx.thread.destroy();
-}
-```
-
-### Key Patterns
-- **Thread state**: Persists across multiple requests (1-hour expiry default)
-- **Session state**: Only exists for single request lifecycle
-- **Events**: `thread.destroyed`, `session.completed`
-- **Custom providers**: Implement `ThreadProvider` for Redis/database storage
-
-### Common Pitfalls
-- Storing sensitive data in thread state without encryption
-- Not cleaning up thread listeners
-- Assuming session state persists
-
-### Checklist
-- [ ] Use thread state for conversation history
-- [ ] Use session state for request-scoped data
-- [ ] Register cleanup in event listeners
-
----
-
-## Working with Evaluations and Metrics
-
-### When to Use
-- Testing agent behavior with automated checks
-- Scoring agent outputs
-- Building CI/CD quality gates
-
-### Core API
-
-```typescript
-import { createAgent } from '@agentuity/runtime';
-
 const agent = createAgent('calculator', {
-  schema: {
-    input: s.object({ a: s.number(), b: s.number() }),
-    output: s.number(),
-  },
+  schema: { input: s.object({ a: s.number(), b: s.number() }), output: s.number() },
   handler: async (ctx, input) => input.a + input.b,
 });
 
-// Binary pass/fail evaluation
+// Binary pass/fail
 agent.createEval('positive-result', {
-  description: 'Ensures result is positive',
+  description: 'Result must be positive',
   handler: async (ctx, input, output) => {
-    if (output <= 0) {
-      return { success: true, passed: false, metadata: { reason: 'Result not positive' } };
-    }
-    return { success: true, passed: true, metadata: { reason: 'Result is positive' } };
+    return output > 0
+      ? { success: true, passed: true, metadata: { reason: 'Positive' } }
+      : { success: true, passed: false, metadata: { reason: 'Not positive' } };
   },
 });
 
-// Scored evaluation (0-1 range)
-agent.createEval('accuracy-check', {
-  description: 'Checks calculation accuracy',
-  handler: async (ctx, input, output) => {
-    const expected = input.a + input.b;
-    const score = output === expected ? 1.0 : 0.0;
-    return { success: true, score, metadata: { reason: 'Accuracy check', expected, actual: output } };
-  },
+// Scored (0-1)
+agent.createEval('accuracy', {
+  handler: async (ctx, input, output) => ({
+    success: true,
+    score: output === input.a + input.b ? 1.0 : 0.0,
+    metadata: { reason: 'Accuracy check' },
+  }),
 });
 ```
 
-### Key Patterns
-- **Binary results**: `{ success: true, passed: boolean, metadata }`
-- **Scored results**: `{ success: true, score: 0-1, metadata }`
-- **Error results**: `{ success: false, error: string }`
-- **Metadata**: Always include `reason` in metadata
-
-### Common Pitfalls
-- Returning invalid score range (must be 0-1)
-- Missing metadata.reason field
-- Not handling evaluation errors
-
-### Checklist
-- [ ] Return valid result format
-- [ ] Include descriptive metadata.reason
-- [ ] Handle edge cases gracefully
-
 ---
 
-## Handling Runtime Events and Logging
-
-### When to Use
-- Monitoring agent lifecycle
-- Debugging with structured logs
-- Correlating logs with traces
-
-### Core API
+## Events
 
 ```typescript
-// App-level event listeners
-app.addEventListener('agent.started', (eventName, agent, ctx) => {
-  console.log(`Agent ${agent.metadata.name} started`);
+// Agent-level (in agent definition)
+const agent = createAgent('my-agent', {
+  handler: async (ctx, input) => { /* ... */ },
 });
 
-app.addEventListener('agent.completed', (eventName, agent, ctx) => {
-  console.log(`Agent ${agent.metadata.name} completed`);
-});
+agent.addEventListener('started', (_, agent, ctx) => {});
+agent.addEventListener('completed', (_, agent, ctx) => {});
+agent.addEventListener('errored', (_, agent, ctx, error) => {});
 
-app.addEventListener('agent.errored', (eventName, agent, ctx, error) => {
-  console.error(`Agent ${agent.metadata.name} failed:`, error.message);
-});
-
-app.addEventListener('session.started', (eventName, session) => {
-  console.log(`Session started: ${session.id}`);
-});
-
-// Structured logging in handlers
-handler: async (ctx, input) => {
-  ctx.logger.debug('Verbose debugging', { input });
-  ctx.logger.info('Processing request', { userId: input.userId });
-  ctx.logger.warn('Rate limit approaching', { remaining: 10 });
-  ctx.logger.error('Operation failed', { error: err.message });
-
-  // Child logger with context
-  const logger = ctx.logger.child({ component: 'validator' });
-  logger.info('Validating input');  // Includes component in all logs
-}
+// App-level (in app.ts)
+app.addEventListener('agent.started', (_, agent, ctx) => {});
+app.addEventListener('session.started', (_, session) => {});
+app.addEventListener('thread.created', (_, thread) => {});
 ```
-
-### Key Patterns
-- **Event types**: `agent.started`, `agent.completed`, `agent.errored`, `session.started`, `session.completed`, `thread.created`, `thread.destroyed`
-- **Log levels**: `debug`, `info`, `warn`, `error`
-- **Child loggers**: Add persistent context to logs
-- **Correlation**: Logs automatically linked to traces
-
-### Common Pitfalls
-- Using console.log instead of ctx.logger
-- Not removing event listeners (memory leak)
-- Logging sensitive data
-
-### Checklist
-- [ ] Use ctx.logger for all application logs
-- [ ] Register app-level listeners for monitoring
-- [ ] Remove listeners when no longer needed
-- [ ] Avoid logging PII or secrets
 
 ---
 
-## References
+## Reference
 
-- [SDK Reference](https://preview.agentuity.dev/v1/Reference/sdk-reference)
-- [Agent Context API](https://preview.agentuity.dev/v1/Reference/sdk-reference#agentcontext)
-- [Storage APIs](https://preview.agentuity.dev/v1/Reference/sdk-reference#storage)
+- [Creating Agents](https://preview.agentuity.dev/v1/Build/Agents/creating-agents)
+- [State Management](https://preview.agentuity.dev/v1/Build/Agents/state-management)
+- [Storage APIs](https://preview.agentuity.dev/v1/Build/Storage/key-value)
+- [Routing](https://preview.agentuity.dev/v1/Build/Routes)

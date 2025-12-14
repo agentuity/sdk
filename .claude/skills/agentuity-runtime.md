@@ -1,1 +1,0 @@
-../../packages/runtime/skills/SKILL.md
