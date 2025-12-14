@@ -98,6 +98,7 @@ export interface BundleOptions extends DeployOptions {
 	region: string;
 	logger: Logger;
 	workbench?: WorkbenchAnalysis;
+	generatedDir?: string;
 }
 
 type BuildResult = Awaited<ReturnType<typeof Bun.build>>;
@@ -221,6 +222,7 @@ export async function bundle({
 	region,
 	logger,
 	workbench,
+	generatedDir,
 }: BundleOptions): Promise<{ output: string[] }> {
 	const output: string[] = [];
 	const hasSdkKey = !!process.env.AGENTUITY_SDK_KEY;
@@ -304,6 +306,9 @@ export async function bundle({
 	}
 	if (deploymentId) {
 		define['process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID'] = JSON.stringify(deploymentId);
+	}
+	if (generatedDir) {
+		define['process.env.AGENTUITY_GENERATED_DIR'] = JSON.stringify(generatedDir);
 	}
 
 	if (env) {

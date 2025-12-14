@@ -1,5 +1,5 @@
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 /**
  * Route information extracted from route files
@@ -38,7 +38,11 @@ export interface RouteInfo {
  * @param srcDir - Source directory path
  * @param routes - Array of route information
  */
-export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void {
+export function generateRouteRegistry(
+	srcDir: string,
+	routes: RouteInfo[],
+	generatedDir?: string
+): void {
 	// Filter routes by type (include ALL routes, not just those with validators)
 	// Note: 'stream' routes are HTTP routes that return ReadableStream, so include them with API routes
 	const apiRoutes = routes.filter((r) => r.routeType === 'api' || r.routeType === 'stream');
@@ -50,88 +54,98 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 		return;
 	}
 
-	// Generate imports for agents and schemas
-	const imports: string[] = [];
-	const agentImports = new Map<string, string>(); // Maps agent variable to unique import name
-	const schemaImports = new Set<string>(); // Track which schema variables we've seen
+	// Helper to generate imports for a specific output location
+	const generateImports = (fromAgentuityDir: boolean) => {
+		const imports: string[] = [];
+		const agentImports = new Map<string, string>();
 
-	// Combine all routes for import collection
-	const allRoutes = [...apiRoutes, ...websocketRoutes, ...sseRoutes];
+		const allRoutes = [...apiRoutes, ...websocketRoutes, ...sseRoutes];
 
-	// First pass: collect all unique agents and schema variables (only for routes with validators)
-	allRoutes.forEach((route) => {
-		// Skip routes without validators - they won't need imports
-		if (!route.hasValidator) {
-			return;
-		}
-		// If this route uses an agent, import it directly
-		if (route.agentVariable && route.agentImportPath && !agentImports.has(route.agentVariable)) {
-			// Resolve the import path (could be @agent/hello, ../shared, etc.)
-			let resolvedPath = route.agentImportPath;
-
-			// If it's a path alias like @agent/hello, convert to relative path
-			if (resolvedPath.startsWith('@agent/')) {
-				resolvedPath = `../src/agent/${resolvedPath.substring('@agent/'.length)}`;
-			} else if (resolvedPath.startsWith('@api/')) {
-				resolvedPath = `../src/web/${resolvedPath.substring('@api/'.length)}`;
-			} else if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
-				// Relative path - need to resolve relative to route file location
-				const routeDir = route.filename.substring(0, route.filename.lastIndexOf('/'));
-				resolvedPath = `../${routeDir}/${resolvedPath}`;
+		// First pass: collect all unique agents and schema variables (only for routes with validators)
+		allRoutes.forEach((route) => {
+			if (!route.hasValidator) {
+				return;
 			}
+			if (
+				route.agentVariable &&
+				route.agentImportPath &&
+				!agentImports.has(route.agentVariable)
+			) {
+				let resolvedPath = route.agentImportPath;
 
-			// Generate unique import name: agent_hello, agent_user, etc.
-			const uniqueImportName = `agent_${route.agentVariable}`;
-			imports.push(`import type ${uniqueImportName} from '${resolvedPath}';`);
-			agentImports.set(route.agentVariable, uniqueImportName);
-		}
+				if (fromAgentuityDir) {
+					// From .agentuity/, paths go up one level then into src/
+					if (resolvedPath.startsWith('@agent/')) {
+						resolvedPath = `../src/agent/${resolvedPath.substring('@agent/'.length)}`;
+					} else if (resolvedPath.startsWith('@api/')) {
+						resolvedPath = `../src/web/${resolvedPath.substring('@api/'.length)}`;
+					} else if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
+						const routeDir = route.filename.substring(0, route.filename.lastIndexOf('/'));
+						resolvedPath = `../${routeDir}/${resolvedPath}`;
+					}
+				} else {
+					// From src/_generated/, paths are relative within src/
+					if (resolvedPath.startsWith('@agent/')) {
+						resolvedPath = `../agent/${resolvedPath.substring('@agent/'.length)}`;
+					} else if (resolvedPath.startsWith('@api/')) {
+						resolvedPath = `../web/${resolvedPath.substring('@api/'.length)}`;
+					} else if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
+						// Route filename is like src/api/foo.ts, we need to go from src/_generated/
+						const routeDir = route.filename.substring(0, route.filename.lastIndexOf('/'));
+						// Remove 'src/' prefix if present since we're already in src/_generated/
+						const relativePath = routeDir.replace(/^src\//, '../');
+						resolvedPath = `${relativePath}/${resolvedPath.replace(/^\.\//, '')}`;
+					}
+				}
 
-		// Track schema variables for potential import from route file
-		if (route.inputSchemaVariable) {
-			schemaImports.add(route.inputSchemaVariable);
-		}
-		if (route.outputSchemaVariable) {
-			schemaImports.add(route.outputSchemaVariable);
-		}
-	});
-
-	// Import schema variables from route files
-	const routeFileImports = new Map<string, Set<string>>(); // Maps route file to schema variables
-	allRoutes.forEach((route) => {
-		// Only import schemas for routes with validators
-		if (!route.hasValidator) {
-			return;
-		}
-		if (route.inputSchemaVariable || route.outputSchemaVariable) {
-			const filename = route.filename.replace(/\\/g, '/');
-			const importPath = `../${filename.replace(/\.ts$/, '')}`;
-
-			if (!routeFileImports.has(importPath)) {
-				routeFileImports.set(importPath, new Set());
+				const uniqueImportName = `agent_${route.agentVariable}`;
+				imports.push(`import type ${uniqueImportName} from '${resolvedPath}';`);
+				agentImports.set(route.agentVariable, uniqueImportName);
 			}
+		});
 
-			if (route.inputSchemaVariable) {
-				routeFileImports.get(importPath)!.add(route.inputSchemaVariable);
+		// Import schema variables from route files
+		const routeFileImports = new Map<string, Set<string>>();
+		allRoutes.forEach((route) => {
+			if (!route.hasValidator) {
+				return;
 			}
-			if (route.outputSchemaVariable) {
-				routeFileImports.get(importPath)!.add(route.outputSchemaVariable);
+			if (route.inputSchemaVariable || route.outputSchemaVariable) {
+				const filename = route.filename.replace(/\\/g, '/');
+				let importPath: string;
+
+				if (fromAgentuityDir) {
+					importPath = `../${filename.replace(/\.ts$/, '')}`;
+				} else {
+					// From src/_generated/, remove src/ prefix
+					importPath = `../${filename.replace(/^src\//, '').replace(/\.ts$/, '')}`;
+				}
+
+				if (!routeFileImports.has(importPath)) {
+					routeFileImports.set(importPath, new Set());
+				}
+
+				if (route.inputSchemaVariable) {
+					routeFileImports.get(importPath)!.add(route.inputSchemaVariable);
+				}
+				if (route.outputSchemaVariable) {
+					routeFileImports.get(importPath)!.add(route.outputSchemaVariable);
+				}
 			}
-		}
-	});
+		});
 
-	// Generate imports for schema variables
-	routeFileImports.forEach((schemas, importPath) => {
-		const schemaList = Array.from(schemas).join(', ');
-		imports.push(`import type { ${schemaList} } from '${importPath}';`);
-	});
+		routeFileImports.forEach((schemas, importPath) => {
+			const schemaList = Array.from(schemas).join(', ');
+			imports.push(`import type { ${schemaList} } from '${importPath}';`);
+		});
 
-	const importsStr = imports.join('\n');
+		return { imports, agentImports };
+	};
 
 	// Helper function to generate route entry
-	const generateRouteEntry = (route: RouteInfo): string => {
-		const routeKey = route.path; // Use path only for websocket/sse, or METHOD path for API
+	const generateRouteEntry = (route: RouteInfo, agentImports: Map<string, string>): string => {
+		const routeKey = route.path;
 
-		// If route doesn't have a validator, use never for schemas
 		if (!route.hasValidator) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `  '${routeKey}': {
@@ -141,7 +155,6 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
   };`;
 		}
 
-		// If we have an agent variable, we can infer types from it
 		if (route.agentVariable) {
 			const importName = agentImports.get(route.agentVariable)!;
 			return `  '${routeKey}': {
@@ -151,7 +164,6 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
   };`;
 		}
 
-		// If we have standalone validator with schema variables
 		if (route.inputSchemaVariable || route.outputSchemaVariable) {
 			const inputType = route.inputSchemaVariable
 				? `typeof ${route.inputSchemaVariable}`
@@ -167,7 +179,6 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
   };`;
 		}
 
-		// Fall back to any if we can't determine the schema source
 		return `  '${routeKey}': {
     // Unable to extract schema types - validator might use inline schemas
     inputSchema: any;
@@ -175,38 +186,25 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
   };`;
 	};
 
-	// Generate RouteRegistry interface (API routes use METHOD path format)
-	const apiRouteEntries = apiRoutes
-		.map((route) => {
-			const routeKey = `${route.method.toUpperCase()} ${route.path}`;
-			return generateRouteEntry({ ...route, path: routeKey });
-		})
-		.join('\n');
+	// Generate route entries helper
+	const generateRouteEntries = (agentImports: Map<string, string>) => {
+		const apiRouteEntries = apiRoutes
+			.map((route) => {
+				const routeKey = `${route.method.toUpperCase()} ${route.path}`;
+				return generateRouteEntry({ ...route, path: routeKey }, agentImports);
+			})
+			.join('\n');
 
-	// Generate WebSocketRouteRegistry (path only, no method)
-	const websocketRouteEntries = websocketRoutes.map(generateRouteEntry).join('\n');
+		const websocketRouteEntries = websocketRoutes
+			.map((route) => generateRouteEntry(route, agentImports))
+			.join('\n');
 
-	// Generate SSERouteRegistry (path only, no method)
-	const sseRouteEntries = sseRoutes.map(generateRouteEntry).join('\n');
+		const sseRouteEntries = sseRoutes
+			.map((route) => generateRouteEntry(route, agentImports))
+			.join('\n');
 
-	const generatedContent = `// Auto-generated by Agentuity - do not edit manually
-${importsStr}
-
-// Augment @agentuity/react types with project-specific routes
-declare module '@agentuity/react' {
-  export interface RouteRegistry {
-${apiRouteEntries}
-  }
-  
-  export interface WebSocketRouteRegistry {
-${websocketRouteEntries}
-  }
-  
-  export interface SSERouteRegistry {
-${sseRouteEntries}
-  }
-}
-`;
+		return { apiRouteEntries, websocketRouteEntries, sseRouteEntries };
+	};
 
 	// Get the project root (parent of srcDir)
 	const projectRoot = join(srcDir, '..');
@@ -218,5 +216,69 @@ ${sseRouteEntries}
 		mkdirSync(agentuityDir, { recursive: true });
 	}
 
+	// Generate for .agentuity/ (with module augmentation)
+	const { imports: agentuityImports, agentImports: agentuityAgentImports } = generateImports(true);
+	const {
+		apiRouteEntries: agentuityApiEntries,
+		websocketRouteEntries: agentuityWsEntries,
+		sseRouteEntries: agentuitySseEntries,
+	} = generateRouteEntries(agentuityAgentImports);
+
+	const generatedContent = `// Auto-generated by Agentuity - do not edit manually
+${agentuityImports.join('\n')}
+
+// Augment @agentuity/react types with project-specific routes
+declare module '@agentuity/react' {
+  export interface RouteRegistry {
+${agentuityApiEntries}
+  }
+  
+  export interface WebSocketRouteRegistry {
+${agentuityWsEntries}
+  }
+  
+  export interface SSERouteRegistry {
+${agentuitySseEntries}
+  }
+}
+`;
+
 	writeFileSync(registryPath, generatedContent, 'utf-8');
+
+	// Also generate to the user-configurable generatedDir (without module augmentation)
+	if (generatedDir) {
+		const resolvedGeneratedDir = resolve(projectRoot, generatedDir);
+
+		// Ensure generatedDir exists
+		if (!existsSync(resolvedGeneratedDir)) {
+			mkdirSync(resolvedGeneratedDir, { recursive: true });
+		}
+
+		// Generate for src/_generated/ (without module augmentation, direct exports)
+		const { imports: srcImports, agentImports: srcAgentImports } = generateImports(false);
+		const {
+			apiRouteEntries: srcApiEntries,
+			websocketRouteEntries: srcWsEntries,
+			sseRouteEntries: srcSseEntries,
+		} = generateRouteEntries(srcAgentImports);
+
+		const srcGeneratedContent = `// Auto-generated by Agentuity - do not edit manually
+${srcImports.join('\n')}
+
+export interface RouteRegistry {
+${srcApiEntries}
+}
+
+export interface WebSocketRouteRegistry {
+${srcWsEntries}
+}
+
+export interface SSERouteRegistry {
+${srcSseEntries}
+}
+`;
+
+		const srcRegistryPath = join(resolvedGeneratedDir, 'routes.generated.ts');
+		writeFileSync(srcRegistryPath, srcGeneratedContent, 'utf-8');
+	}
 }

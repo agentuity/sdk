@@ -490,6 +490,10 @@ export const ProjectSchema = zod.object({
 	orgId: zod.string().describe('the organization id'),
 	region: zod.string().describe('the region identifier that the project is deployed into'),
 	deployment: Deployment.optional().describe('the deployment configuration'),
+	generatedDir: zod
+		.string()
+		.optional()
+		.describe('path to generated types directory (default: ./src/_generated)'),
 });
 
 export const BuildMetadataSchema = ServerBuildMetadataSchema;

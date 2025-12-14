@@ -78,6 +78,7 @@ export const command = createCommand({
 				env,
 				region: project?.region ?? 'local',
 				logger: ctx.logger,
+				generatedDir: project?.generatedDir ?? './src/_generated',
 			});
 
 			// Copy profile-specific .env file AFTER bundling (bundler clears outDir first)

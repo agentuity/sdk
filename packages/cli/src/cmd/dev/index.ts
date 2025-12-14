@@ -571,6 +571,7 @@ export const command = createCommand({
 								region: project?.region ?? 'local',
 								logger,
 								workbench,
+								generatedDir: project?.generatedDir ?? './src/_generated',
 							});
 							building = false;
 							buildCompletedAt = Date.now();
