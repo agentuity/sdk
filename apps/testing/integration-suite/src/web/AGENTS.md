@@ -29,12 +29,12 @@ src/web/
 ### App.tsx - Main Component
 
 ```typescript
-import { AgentuityProvider, useAgent } from '@agentuity/react';
+import { AgentuityProvider, useAPI } from '@agentuity/react';
 import { useState } from 'react';
 
 export function App() {
 	const [name, setName] = useState('World');
-	const { run, running, data: greeting } = useAgent('hello');
+	const { invoke, isLoading, data: greeting } = useAPI('POST /hello');
 
 	return (
 		<div style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
@@ -45,14 +45,14 @@ export function App() {
 					type="text"
 					value={name}
 					onChange={(e) => setName(e.target.value)}
-					disabled={running}
+					disabled={isLoading}
 				/>
 
 				<button
-					onClick={() => run({ name })}
-					disabled={running}
+					onClick={() => invoke({ name })}
+					disabled={isLoading}
 				>
-					{running ? 'Running...' : 'Say Hello'}
+					{isLoading ? 'Running...' : 'Say Hello'}
 				</button>
 
 				<div>{greeting ?? 'Waiting for response'}</div>
@@ -93,33 +93,33 @@ createRoot(root).render(<App />);
 
 ## React Hooks
 
-### useAgent - Call Agents
+### useAPI - Call Routes/Agents
 
 ```typescript
-import { useAgent } from '@agentuity/react';
+import { useAPI } from '@agentuity/react';
 
 function MyComponent() {
-	const { run, running, data, error } = useAgent('myAgent');
+	const { invoke, isLoading, data, error } = useAPI('POST /my-agent');
 
 	return (
-		<button onClick={() => run({ input: 'value' })}>
-			{running ? 'Running...' : 'Call Agent'}
+		<button onClick={() => invoke({ input: 'value' })}>
+			{isLoading ? 'Running...' : 'Call Agent'}
 		</button>
 	);
 }
 ```
 
-### useAgentWebsocket - WebSocket Connection
+### useWebsocket - WebSocket Connection
 
 ```typescript
-import { useAgentWebsocket } from '@agentuity/react';
+import { useWebsocket } from '@agentuity/react';
 
 function MyComponent() {
-	const { connected, send, data } = useAgentWebsocket('websocket');
+	const { isConnected, send, data } = useWebsocket('/ws');
 
 	return (
 		<div>
-			<p>Status: {connected ? 'Connected' : 'Disconnected'}</p>
+			<p>Status: {isConnected ? 'Connected' : 'Disconnected'}</p>
 			<button onClick={() => send('Hello')}>Send Message</button>
 			<p>Received: {data}</p>
 		</div>
@@ -127,17 +127,17 @@ function MyComponent() {
 }
 ```
 
-### useAgentEventStream - Server-Sent Events
+### useEventStream - Server-Sent Events
 
 ```typescript
-import { useAgentEventStream } from '@agentuity/react';
+import { useEventStream } from '@agentuity/react';
 
 function MyComponent() {
-	const { connected, data, error } = useAgentEventStream('sse');
+	const { isConnected, data, error } = useEventStream('/sse');
 
 	return (
 		<div>
-			<p>Connected: {connected ? 'Yes' : 'No'}</p>
+			<p>Connected: {isConnected ? 'Yes' : 'No'}</p>
 			{error && <p>Error: {error.message}</p>}
 			<p>Data: {data}</p>
 		</div>
@@ -148,13 +148,13 @@ function MyComponent() {
 ## Complete Example
 
 ```typescript
-import { AgentuityProvider, useAgent, useAgentWebsocket } from '@agentuity/react';
+import { AgentuityProvider, useAPI, useWebsocket } from '@agentuity/react';
 import { useEffect, useState } from 'react';
 
 export function App() {
 	const [count, setCount] = useState(0);
-	const { run, data: agentResult } = useAgent('simple');
-	const { connected, send, data: wsMessage } = useAgentWebsocket('websocket');
+	const { invoke, data: agentResult } = useAPI('POST /simple');
+	const { isConnected, send, data: wsMessage } = useWebsocket('/ws');
 
 	useEffect(() => {
 		// Send WebSocket message every second
@@ -177,7 +177,7 @@ export function App() {
 				</div>
 
 				<div>
-					<button onClick={() => run({ name: 'Jeff', age: 30 })}>
+					<button onClick={() => invoke({ name: 'Jeff', age: 30 })}>
 						Call Agent
 					</button>
 					<p>{agentResult}</p>
@@ -185,7 +185,7 @@ export function App() {
 
 				<div>
 					<strong>WebSocket:</strong>
-					{connected ? JSON.stringify(wsMessage) : 'Not connected'}
+					{isConnected ? JSON.stringify(wsMessage) : 'Not connected'}
 				</div>
 			</AgentuityProvider>
 		</div>
@@ -265,9 +265,9 @@ Import in `index.html`:
 ## Best Practices
 
 - Wrap your app with **AgentuityProvider** for hooks to work
-- Use **useAgent** for one-off agent calls
-- Use **useAgentWebsocket** for bidirectional real-time communication
-- Use **useAgentEventStream** for server-to-client streaming
+- Use **useAPI** for HTTP calls to agents and routes
+- Use **useWebsocket** for bidirectional real-time communication
+- Use **useEventStream** for server-to-client streaming
 - Place reusable components in separate files
 - Keep static assets in the **public/** folder
 - Use TypeScript for type safety
@@ -278,7 +278,7 @@ Import in `index.html`:
 - **App.tsx** must export a function named `App`
 - **frontend.tsx** must render the `App` component to `#root`
 - **index.html** must have a `<div id="root"></div>`
-- All agents are accessible via `useAgent('agentName')`
+- Routes are called via `useAPI('METHOD /path')`
 - The web app is served at `/` by default
 - Static files in `public/` are served at `/public/*`
 - Module script tag: `<script type="module" src="/web/frontend.tsx"></script>`

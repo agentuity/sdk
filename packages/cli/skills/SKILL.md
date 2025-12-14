@@ -1,7 +1,9 @@
 ---
 name: agentuity-cli
-description: Skills for using the Agentuity CLI for project scaffolding, development, deployment, storage management, skills linking, and evaluations.
-globs: []
+description: Skills for using the Agentuity CLI for project scaffolding, development, deployment, storage management, and skills linking.
+globs:
+  - "**/agentuity.json"
+  - "**/agentuity.*.json"
 ---
 
 # Agentuity CLI Skills
@@ -283,8 +285,7 @@ agentuity ai skills link --dir /path/to/project
 
 ### When Skills Are Linked Automatically
 
-- During `agentuity project create` (after dependency install)
-- During `agentuity dev` (if `.claude/skills/` is missing)
+- During `agentuity project create` (after dependencies are installed)
 
 ### Common Pitfalls
 
@@ -292,51 +293,4 @@ agentuity ai skills link --dir /path/to/project
 - Symlinks not supported on some Windows configurations (use `--copy`)
 - Existing files not overwritten without `--force`
 
----
 
-## Running Evaluations with CLI
-
-### When to Use
-
-- Testing agent quality with automated evaluations
-- Running evals in CI/CD pipelines
-- Validating agent behavior before deployment
-
-### Commands
-
-```bash
-# Run all evaluations for a project
-agentuity eval run
-
-# Run specific agent's evaluations
-agentuity eval run --agent my-agent
-
-# Run with verbose output
-agentuity eval run --log-level=debug
-
-# List available evaluations
-agentuity eval list
-```
-
-### Key Patterns
-
-- Evaluations defined in agent files using `defineEval`
-- Evals synced to cloud during `agentuity dev` (if authenticated)
-- Results visible in dashboard and CLI output
-- Evals have versioning for tracking changes
-
-### CI Integration
-
-```yaml
-# GitHub Actions example
-- name: Run Evaluations
-  run: |
-    agentuity auth login --api-key ${{ secrets.AGENTUITY_API_KEY }}
-    agentuity eval run
-```
-
-### Common Pitfalls
-
-- Running evals without authentication
-- Evals not defined in agent files
-- Missing SDK key for cloud evaluation execution

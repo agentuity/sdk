@@ -217,10 +217,7 @@ const client = new APIClient(apiUrl, logger, apiKey, {
 
 ---
 
-## References
+## See Also
 
 - [SDK Reference](https://preview.agentuity.dev/v1/Reference/sdk-reference)
-- [Service Configuration](file:///run/media/rblalock/External/agentuity/sdk/packages/server/src/config.ts)
-- [Fetch Adapter](file:///run/media/rblalock/External/agentuity/sdk/packages/server/src/server.ts)
-- [API Client](file:///run/media/rblalock/External/agentuity/sdk/packages/server/src/api/api.ts)
-- [Logger](file:///run/media/rblalock/External/agentuity/sdk/packages/server/src/logger.ts)
+- [CLI Reference](https://preview.agentuity.dev/v1/Reference/CLI)

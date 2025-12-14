@@ -146,7 +146,7 @@ handler: async (ctx, input) => {
 
   // Background tasks
   ctx.waitUntil(async () => {
-    await ctx.kv.set('processed', Date.now());
+    await ctx.kv.set('metrics', 'lastProcessed', Date.now());
   });
 
   // Access app state and agent config
@@ -246,45 +246,75 @@ router.cron('0 0 * * *', (c) => c.text('Daily task'));
 ### When to Use
 - Persisting data with key-value storage
 - Storing embeddings for vector search
-- Streaming data to clients
+- Streaming data to durable storage
 
 ### Core API
 
 ```typescript
 handler: async (ctx, input) => {
-  // Key-Value Storage
-  await ctx.kv.set('user:123', { name: 'Alice', age: 30 });
-  const user = await ctx.kv.get('user:123');
-  await ctx.kv.delete('user:123');
-  const keys = await ctx.kv.list('user:*');
-
+  // Key-Value Storage (namespace + key pattern)
+  const namespace = 'users';
+  await ctx.kv.set(namespace, '123', { name: 'Alice', age: 30 });
+  
+  const result = await ctx.kv.get<{ name: string; age: number }>(namespace, '123');
+  if (result.exists) {
+    ctx.logger.info('User found', { user: result.data });
+  }
+  
+  await ctx.kv.delete(namespace, '123');
+  const keys = await ctx.kv.getKeys(namespace);
+  
   // Vector Storage
-  await ctx.vector.upsert('docs', [
-    { id: '1', values: [0.1, 0.2, 0.3], metadata: { text: 'Hello' } }
-  ]);
-  const results = await ctx.vector.query('docs', [0.1, 0.2, 0.3], { topK: 5 });
-
-  // Stream Storage
-  const stream = await ctx.stream.create('agent-logs');
-  await ctx.stream.write(stream.id, 'Processing step 1');
-  await ctx.stream.write(stream.id, 'Processing step 2');
+  await ctx.vector.upsert('docs', {
+    key: 'doc-1',
+    document: 'Hello world',  // Auto-generates embeddings
+    metadata: { topic: 'greeting' },
+  });
+  
+  // Or with pre-computed embeddings
+  await ctx.vector.upsert('docs', {
+    key: 'doc-2',
+    embeddings: [0.1, 0.2, 0.3],
+    metadata: { topic: 'example' },
+  });
+  
+  // Semantic search
+  const results = await ctx.vector.search('docs', {
+    query: 'greeting',
+    limit: 5,
+    similarity: 0.7,
+  });
+  
+  // Stream Storage (durable streams with public URLs)
+  const stream = await ctx.stream.create('agent-logs', {
+    contentType: 'text/plain',
+    metadata: { sessionId: ctx.session.id },
+  });
+  
+  await stream.write('Processing step 1\n');
+  await stream.write('Processing step 2\n');
+  await stream.close();
+  
+  ctx.logger.info('Logs available at', { url: stream.url });
 }
 ```
 
 ### Key Patterns
-- **KV prefixes**: Use `entity:id` pattern for organization
-- **Vector metadata**: Store text alongside embeddings for retrieval
-- **Stream IDs**: Create unique streams per operation
+- **KV namespaces**: Use `namespace` + `key` pattern (e.g., `'users'`, `'123'`)
+- **Vector documents**: Provide `document` for auto-embedding or `embeddings` for pre-computed
+- **Stream URLs**: Streams have durable public URLs via `stream.url`
 
 ### Common Pitfalls
-- Storing large objects in KV without compression
-- Not handling storage errors gracefully
-- Exceeding vector dimension limits
+- Using old `ctx.kv.get(key)` syntax (must be `ctx.kv.get(namespace, key)`)
+- Forgetting to check `result.exists` before accessing `result.data`
+- Not closing streams with `stream.close()`
+- TTL must be ≥60 seconds for KV entries
 
 ### Checklist
-- [ ] Use consistent key naming conventions
-- [ ] Handle storage operation failures
-- [ ] Set appropriate TTLs for cached data
+- [ ] Use namespace + key pattern for KV operations
+- [ ] Check `.exists` before accessing `.data`
+- [ ] Close streams after writing
+- [ ] Handle storage operation failures gracefully
 
 ---
 
