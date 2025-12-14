@@ -4,125 +4,141 @@ import type agent_stateReaderAgent from '@agents/state/reader-agent';
 import type agent_stateWriterAgent from '@agents/state/writer-agent';
 
 export interface RouteRegistry {
-  getApiTestRun: {
-    method: 'GET';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
+  get: {
+    api: {
+      test: {
+        run: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+        suites: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+        list: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+      };
+      health: {
+        inputSchema: never;
+        outputSchema: never;
+        stream: false;
+      };
+      auth: {
+        verify: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+      };
+      my-service: {
+        status: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+        info: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+      };
+      users: {
+        profile: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+      };
+      custom-name: {
+        custom: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+      };
+    };
   };
-  getApiTestSuites: {
-    method: 'GET';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
+  post: {
+    api: {
+      agent: {
+        state: {
+          inputSchema: typeof agent_statePersistenceAgent extends { inputSchema?: infer I } ? I : never;
+          outputSchema: typeof agent_statePersistenceAgent extends { outputSchema?: infer O } ? O : never;
+          stream: typeof agent_statePersistenceAgent extends { stream?: infer S } ? S : false;
+        };
+        state-reader: {
+          inputSchema: typeof agent_stateReaderAgent extends { inputSchema?: infer I } ? I : never;
+          outputSchema: typeof agent_stateReaderAgent extends { outputSchema?: infer O } ? O : never;
+          stream: typeof agent_stateReaderAgent extends { stream?: infer S } ? S : false;
+        };
+        state-writer: {
+          inputSchema: typeof agent_stateWriterAgent extends { inputSchema?: infer I } ? I : never;
+          outputSchema: typeof agent_stateWriterAgent extends { outputSchema?: infer O } ? O : never;
+          stream: typeof agent_stateWriterAgent extends { stream?: infer S } ? S : false;
+        };
+      };
+      auth: {
+        login: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+        logout: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+      };
+      custom-name: {
+        test: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+      };
+    };
   };
-  getApiTestList: {
-    method: 'GET';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
+  patch: {
+    api: {
+      users: {
+        profile: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+      };
+    };
   };
-  getApiHealth: {
-    method: 'GET';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  postApiAgentState: {
-    method: 'POST';
-    inputSchema: typeof agent_statePersistenceAgent extends { inputSchema?: infer I } ? I : never;
-    outputSchema: typeof agent_statePersistenceAgent extends { outputSchema?: infer O } ? O : never;
-    stream: typeof agent_statePersistenceAgent extends { stream?: infer S } ? S : false;
-  };
-  postApiAgentStateReader: {
-    method: 'POST';
-    inputSchema: typeof agent_stateReaderAgent extends { inputSchema?: infer I } ? I : never;
-    outputSchema: typeof agent_stateReaderAgent extends { outputSchema?: infer O } ? O : never;
-    stream: typeof agent_stateReaderAgent extends { stream?: infer S } ? S : false;
-  };
-  postApiAgentStateWriter: {
-    method: 'POST';
-    inputSchema: typeof agent_stateWriterAgent extends { inputSchema?: infer I } ? I : never;
-    outputSchema: typeof agent_stateWriterAgent extends { outputSchema?: infer O } ? O : never;
-    stream: typeof agent_stateWriterAgent extends { stream?: infer S } ? S : false;
-  };
-  postApiAuthLogin: {
-    method: 'POST';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  postApiAuthLogout: {
-    method: 'POST';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  getApiAuthVerify: {
-    method: 'GET';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  getApiMyServiceStatus: {
-    method: 'GET';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  getApiMyServiceInfo: {
-    method: 'GET';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  getApiUsersProfile: {
-    method: 'GET';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  patchApiUsersProfile: {
-    method: 'PATCH';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  deleteApiUsersProfile: {
-    method: 'DELETE';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  getApiCustomNameCustom: {
-    method: 'GET';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
-  };
-  postApiCustomNameTest: {
-    method: 'POST';
-    inputSchema: never;
-    outputSchema: never;
-    stream: false;
+  delete: {
+    api: {
+      users: {
+        profile: {
+          inputSchema: never;
+          outputSchema: never;
+          stream: false;
+        };
+      };
+    };
   };
 }
 
 export interface WebSocketRouteRegistry {
-  postApiWsEcho: {
-    method: 'POST';
+  api_ws_echo: {
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  postApiWsBroadcast: {
-    method: 'POST';
+  api_ws_broadcast: {
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  postApiWsCounter: {
-    method: 'POST';
+  api_ws_counter: {
     inputSchema: never;
     outputSchema: never;
     stream: false;
@@ -130,32 +146,27 @@ export interface WebSocketRouteRegistry {
 }
 
 export interface SSERouteRegistry {
-  postApiSseSimple: {
-    method: 'POST';
+  api_sse_simple: {
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  postApiSseEvents: {
-    method: 'POST';
+  api_sse_events: {
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  postApiSseCounter: {
-    method: 'POST';
+  api_sse_counter: {
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  postApiSseLongLived: {
-    method: 'POST';
+  api_sse_long-lived: {
     inputSchema: never;
     outputSchema: never;
     stream: false;
   };
-  postApiSseAbortTest: {
-    method: 'POST';
+  api_sse_abort-test: {
     inputSchema: never;
     outputSchema: never;
     stream: false;
