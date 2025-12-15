@@ -12,12 +12,6 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
 		: undefined;
 	return async (ctx: Context) => {
-		// Echo thread id for the workbench UI (and only this route, per request).
-		// The runtime sets up ctx.var.thread via otelMiddleware before this handler runs.
-		if (ctx.var.thread?.id) {
-			ctx.header('x-agentuity-workbench-thread-id', ctx.var.thread.id);
-		}
-
 		// Authentication check
 		if (authHeader) {
 			try {

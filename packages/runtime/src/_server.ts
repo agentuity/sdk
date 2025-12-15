@@ -718,11 +718,6 @@ const otelMiddleware = createMiddleware<Env>(async (c, next) => {
 					for (const key of Object.keys(headers)) {
 						c.header(key, headers[key]);
 					}
-					// Only expose the workbench thread header on workbench routes.
-					// DefaultThreadIDProvider may set it for thread continuity; we strip it elsewhere.
-					if (!url.pathname.startsWith('/_agentuity/workbench')) {
-						c.res.headers.delete('x-agentuity-workbench-thread-id');
-					}
 					// add session and deployment headers
 					const traceId = sctx?.traceId || sessionId.replace(/^sess_/, '');
 					c.header(SESSION_HEADER, `sess_${traceId}`);

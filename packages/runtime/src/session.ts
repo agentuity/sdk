@@ -454,18 +454,6 @@ export function generateId(prefix?: string): string {
 	return `${prefix}${prefix ? '_' : ''}${arr.toHex()}`;
 }
 
-const validThreadIdCharacters = /^[a-zA-Z0-9-]+$/;
-const WORKBENCH_THREAD_HEADER = 'x-agentuity-workbench-thread-id';
-
-function isValidThreadId(threadId: string | undefined): threadId is string {
-	if (!threadId) return false;
-	if (!threadId.startsWith('thrd_')) return false;
-	if (threadId.length > 64) return false;
-	if (threadId.length < 32) return false;
-	if (!validThreadIdCharacters.test(threadId.substring(5))) return false;
-	return true;
-}
-
 /**
  * Validates a thread ID against runtime constraints:
  * - Must start with 'thrd_'

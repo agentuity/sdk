@@ -162,7 +162,16 @@ async function linkLocalPackages(): Promise<boolean> {
 	logStep('Step 3: Install Local Packages');
 
 	// Pack and install local packages (same as smoke test - avoids symlink issues)
-	const packagesToInstall = ['core', 'schema', 'react', 'auth', 'runtime', 'server', 'cli'];
+	const packagesToInstall = [
+		'core',
+		'schema',
+		'react',
+		'auth',
+		'runtime',
+		'server',
+		'workbench',
+		'cli',
+	];
 	const packagePaths: string[] = [];
 
 	// Ensure packages directory exists

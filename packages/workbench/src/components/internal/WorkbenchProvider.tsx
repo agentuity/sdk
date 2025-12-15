@@ -79,7 +79,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 		(headers: Record<string, string>) => {
 			const threadId = loadThreadId();
 			if (threadId) {
-				headers['x-agentuity-workbench-thread-id'] = threadId;
+				headers['x-thread-id'] = threadId;
 			}
 		},
 		[loadThreadId]
@@ -87,7 +87,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 	const persistThreadIdFromResponse = useCallback(
 		(response: Response) => {
-			const threadId = response.headers.get('x-agentuity-workbench-thread-id');
+			const threadId = response.headers.get('x-thread-id');
 			if (threadId) {
 				saveThreadId(threadId);
 			}
@@ -210,12 +210,16 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 				const url = `${baseUrl}/_agentuity/workbench/state?agentId=${encodeURIComponent(agentId)}`;
 				console.log('[WorkbenchProvider] Fetching state from URL:', url);
-				console.log('[WorkbenchProvider] Headers:', { ...headers, Authorization: headers.Authorization ? 'Bearer ***' : undefined });
+				console.log('[WorkbenchProvider] Headers:', {
+					...headers,
+					Authorization: headers.Authorization ? 'Bearer ***' : undefined,
+				});
 
 				logger.debug('📡 Fetching state for agent:', agentId);
 				const response = await fetch(url, {
 					method: 'GET',
 					headers,
+					credentials: 'include',
 				});
 				persistThreadIdFromResponse(response);
 
@@ -238,7 +242,9 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					// Use stable IDs based on message index to prevent unnecessary re-renders
 					const uiMessages: UIMessage[] = stateMessages.map((msg, index) => {
 						const text =
-							typeof msg.data === 'object' ? JSON.stringify(msg.data, null, 2) : String(msg.data);
+							typeof msg.data === 'object'
+								? JSON.stringify(msg.data, null, 2)
+								: String(msg.data);
 						// Use stable ID based on index and a hash of content to maintain identity
 						const contentHash = text.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '');
 						return {
@@ -254,7 +260,12 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					logger.debug('✅ Loaded state messages:', uiMessages.length);
 				} else {
 					const errorText = await response.text().catch(() => 'Unknown error');
-					console.warn('[WorkbenchProvider] Failed to fetch state, status:', response.status, 'error:', errorText);
+					console.warn(
+						'[WorkbenchProvider] Failed to fetch state, status:',
+						response.status,
+						'error:',
+						errorText
+					);
 					logger.debug('⚠️ Failed to fetch state, starting with empty messages');
 					setMessages([]);
 				}
@@ -415,6 +426,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					headers,
 					body: JSON.stringify(requestPayload),
 					signal: controller.signal,
+					credentials: 'include',
 				});
 				persistThreadIdFromResponse(response);
 				clearTimeout(timeoutId);
@@ -517,6 +529,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			const response = await fetch(url, {
 				method: 'GET',
 				headers,
+				credentials: 'include',
 			});
 			persistThreadIdFromResponse(response);
 
@@ -572,6 +585,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				const response = await fetch(url, {
 					method: 'DELETE',
 					headers,
+					credentials: 'include',
 				});
 				persistThreadIdFromResponse(response);
 
@@ -583,7 +597,12 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					logger.debug('✅ Cleared state for agent:', agentId);
 				} else {
 					const errorText = await response.text().catch(() => 'Unknown error');
-					console.warn('[WorkbenchProvider] Failed to clear state, status:', response.status, 'error:', errorText);
+					console.warn(
+						'[WorkbenchProvider] Failed to clear state, status:',
+						response.status,
+						'error:',
+						errorText
+					);
 					logger.debug('⚠️ Failed to clear state');
 				}
 			} catch (error) {
