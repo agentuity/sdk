@@ -188,12 +188,13 @@ export class LocalVectorStorage implements VectorStorage {
 		}>;
 
 		// If no vectors exist, return empty results
-		if (rows.length === 0) {
+		const row = rows[0];
+		if (!row) {
 			return [];
 		}
 
 		// Detect dimensionality from first stored vector
-		const firstEmbedding = JSON.parse(rows[0].embedding);
+		const firstEmbedding = JSON.parse(row.embedding);
 		const dimensions = firstEmbedding.length;
 
 		// Generate query embedding with matching dimensions
