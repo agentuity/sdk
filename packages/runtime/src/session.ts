@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /** biome-ignore-all lint/suspicious/noExplicitAny: anys are great */
 import type { Context } from 'hono';
+import { getSignedCookie, setSignedCookie } from 'hono/cookie';
 import { type Env, fireEvent } from './app';
 import type { AppState } from './index';
 import { getServiceUrls } from '@agentuity/server';
 import { WebSocket } from 'ws';
 import { internal } from './logger/internal';
+import { timingSafeEqual } from 'node:crypto';
 
 export type ThreadEventName = 'destroyed';
 export type SessionEventName = 'completed';
@@ -228,13 +230,13 @@ export interface ThreadIDProvider {
 	 * thrd_ such as `thrd_212c16896b974ffeb21a748f0eeba620`. The max length of the
 	 * string is 64 characters and the min length is 32 characters long
 	 * (including the prefix). The characters after the prefix must match the
-	 * regular expression [a-zA-Z0-9-].
+	 * regular expression [a-zA-Z0-9].
 	 *
 	 * @param appState - The app state from createApp setup function
 	 * @param ctx - Hono request context
-	 * @returns The thread id to use
+	 * @returns The thread id to use (can be async for signed cookies)
 	 */
-	getThreadId(appState: AppState, ctx: Context<Env>): string;
+	getThreadId(appState: AppState, ctx: Context<Env>): string | Promise<string>;
 }
 
 /**
@@ -254,7 +256,7 @@ export interface ThreadIDProvider {
  *   }
  *
  *   async restore(ctx: Context<Env>): Promise<Thread> {
- *     const threadId = getCookie(ctx, 'atid') || generateId('thrd');
+ *     const threadId = ctx.req.header('x-thread-id') || getCookie(ctx, 'atid') || generateId('thrd');
  *     const data = await this.redis.get(`thread:${threadId}`);
  *     const thread = new DefaultThread(this, threadId);
  *     if (data) {
@@ -465,16 +467,187 @@ function isValidThreadId(threadId: string | undefined): threadId is string {
 }
 
 /**
- * DefaultThreadIDProvider will look for `x-agentuity-workbench-thread-id`
- * and use it as the thread id or if not found, generate a new one.
+ * Validates a thread ID against runtime constraints:
+ * - Must start with 'thrd_'
+ * - Must be at least 32 characters long (including prefix)
+ * - Must be less than 64 characters long
+ * - Must contain only [a-zA-Z0-9] after 'thrd_' prefix (no dashes for maximum randomness)
+ */
+export function isValidThreadId(threadId: string): boolean {
+	if (!threadId.startsWith('thrd_')) {
+		return false;
+	}
+	if (threadId.length < 32 || threadId.length > 64) {
+		return false;
+	}
+	const validThreadIdCharacters = /^[a-zA-Z0-9]+$/;
+	if (!validThreadIdCharacters.test(threadId.substring(5))) {
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Validates a thread ID and throws detailed error messages for debugging.
+ * @param threadId The thread ID to validate
+ * @throws Error with detailed message if validation fails
+ */
+export function validateThreadIdOrThrow(threadId: string): void {
+	if (!threadId) {
+		throw new Error(`the ThreadIDProvider returned an empty thread id for getThreadId`);
+	}
+	if (!threadId.startsWith('thrd_')) {
+		throw new Error(
+			`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must start with the prefix 'thrd_'.`
+		);
+	}
+	if (threadId.length > 64) {
+		throw new Error(
+			`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be less than 64 characters long.`
+		);
+	}
+	if (threadId.length < 32) {
+		throw new Error(
+			`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be at least 32 characters long.`
+		);
+	}
+	const validThreadIdCharacters = /^[a-zA-Z0-9]+$/;
+	if (!validThreadIdCharacters.test(threadId.substring(5))) {
+		throw new Error(
+			`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must contain only characters that match the regular expression [a-zA-Z0-9].`
+		);
+	}
+}
+
+/**
+ * Determines if the connection is secure (HTTPS) by checking the request protocol
+ * and x-forwarded-proto header (for reverse proxy scenarios).
+ * Defaults to false (HTTP) if unable to determine.
+ */
+export function isSecureConnection(ctx: Context<Env>): boolean {
+	// Check x-forwarded-proto header first (reverse proxy)
+	const forwardedProto = ctx.req.header('x-forwarded-proto');
+	if (forwardedProto) {
+		return forwardedProto === 'https';
+	}
+
+	// Check the request URL protocol if available
+	try {
+		if (ctx.req.url) {
+			const url = new URL(ctx.req.url);
+			return url.protocol === 'https:';
+		}
+	} catch {
+		// Fall through to default
+	}
+
+	// Default to HTTP (e.g., for localhost development)
+	return false;
+}
+
+/**
+ * Signs a thread ID using HMAC SHA-256 and returns it in the format: threadId;signature
+ * Format: thrd_abc123;base64signature
+ */
+export async function signThreadId(threadId: string, secret: string): Promise<string> {
+	const hasher = new Bun.CryptoHasher('sha256', secret);
+	hasher.update(threadId);
+	const signatureBase64 = hasher.digest('base64');
+
+	return `${threadId};${signatureBase64}`;
+}
+
+/**
+ * Verifies a signed thread ID header and returns the thread ID if valid, or undefined if invalid.
+ * Expected format: thrd_abc123;base64signature
+ */
+export async function verifySignedThreadId(
+	signedValue: string,
+	secret: string
+): Promise<string | undefined> {
+	const parts = signedValue.split(';');
+	if (parts.length !== 2) {
+		return undefined;
+	}
+
+	const [threadId, providedSignature] = parts;
+
+	// Validate thread ID format before verifying signature
+	if (!isValidThreadId(threadId)) {
+		return undefined;
+	}
+
+	// Re-sign the thread ID and compare signatures
+	const expectedSigned = await signThreadId(threadId, secret);
+	const expectedSignature = expectedSigned.split(';')[1];
+
+	// Constant-time comparison to prevent timing attacks
+	// Check lengths match first (fail fast if different lengths)
+	if (providedSignature.length !== expectedSignature.length) {
+		return undefined;
+	}
+
+	try {
+		// Convert to Buffers for constant-time comparison
+		const providedBuffer = Buffer.from(providedSignature, 'base64');
+		const expectedBuffer = Buffer.from(expectedSignature, 'base64');
+
+		if (timingSafeEqual(providedBuffer, expectedBuffer)) {
+			return threadId;
+		}
+	} catch {
+		// Comparison failed or buffer conversion error
+		return undefined;
+	}
+
+	return undefined;
+}
+
+/**
+ * DefaultThreadIDProvider will look for an HTTP header `x-thread-id` first,
+ * then fall back to a signed cookie named `atid`, and use that as the thread id.
+ * If not found, generate a new one. Validates incoming thread IDs against
+ * runtime constraints. Uses AGENTUITY_SDK_KEY for signing, falls back to 'agentuity'.
  */
 export class DefaultThreadIDProvider implements ThreadIDProvider {
-	getThreadId(_appState: AppState, ctx: Context<Env>): string {
-		const headerValue = ctx.req.header(WORKBENCH_THREAD_HEADER);
-		const threadId = isValidThreadId(headerValue) ? headerValue : generateId('thrd');
+	private getSecret(): string {
+		return process.env.AGENTUITY_SDK_KEY || 'agentuity';
+	}
 
-		// Always echo the chosen thread id back to the client so it can persist it (e.g. localStorage).
-		ctx.header(WORKBENCH_THREAD_HEADER, threadId);
+	async getThreadId(_appState: AppState, ctx: Context<Env>): Promise<string> {
+		let threadId: string | undefined;
+		const secret = this.getSecret();
+
+		// Check signed header first
+		const headerValue = ctx.req.header('x-thread-id');
+		if (headerValue) {
+			const verifiedThreadId = await verifySignedThreadId(headerValue, secret);
+			if (verifiedThreadId) {
+				threadId = verifiedThreadId;
+			}
+		}
+
+		// Fall back to signed cookie
+		if (!threadId) {
+			const cookieValue = await getSignedCookie(ctx, secret, 'atid');
+			if (cookieValue && typeof cookieValue === 'string' && isValidThreadId(cookieValue)) {
+				threadId = cookieValue;
+			}
+		}
+
+		threadId = threadId || generateId('thrd');
+
+		await setSignedCookie(ctx, 'atid', threadId, secret, {
+			httpOnly: true,
+			secure: isSecureConnection(ctx),
+			sameSite: 'Lax',
+			path: '/',
+			maxAge: 604800, // 1 week in seconds
+		});
+
+		// Set signed header in response
+		const signedHeader = await signThreadId(threadId, secret);
+		ctx.header('x-thread-id', signedHeader);
 		return threadId;
 	}
 }
@@ -952,7 +1125,7 @@ export class DefaultThreadProvider implements ThreadProvider {
 			const serviceUrls = getServiceUrls(process.env.AGENTUITY_REGION ?? 'usc');
 			const catalystUrl = serviceUrls.catalyst;
 			const wsUrl = new URL('/thread/ws', catalystUrl.replace(/^http/, 'ws'));
-			console.debug('connecting to %s', wsUrl);
+			internal.debug('connecting to %s', wsUrl);
 
 			this.wsClient = new ThreadWebSocketClient(apiKey, wsUrl.toString());
 			// Connect in background, don't block initialization
@@ -962,7 +1135,7 @@ export class DefaultThreadProvider implements ThreadProvider {
 					this.wsConnecting = null;
 				})
 				.catch((err) => {
-					console.error('Failed to connect to thread WebSocket:', err);
+					internal.error('Failed to connect to thread WebSocket:', err);
 					this.wsClient = null;
 					this.wsConnecting = null;
 				});
@@ -974,31 +1147,8 @@ export class DefaultThreadProvider implements ThreadProvider {
 	}
 
 	async restore(ctx: Context<Env>): Promise<Thread> {
-		const threadId = this.threadIDProvider!.getThreadId(this.appState!, ctx);
-
-		if (!threadId) {
-			throw new Error(`the ThreadIDProvider returned an empty thread id for getThreadId`);
-		}
-		if (!threadId.startsWith('thrd_')) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must start with the prefix 'thrd_'.`
-			);
-		}
-		if (threadId.length > 64) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be less than 64 characters long.`
-			);
-		}
-		if (threadId.length < 32) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must be at least 32 characters long.`
-			);
-		}
-		if (!validThreadIdCharacters.test(threadId.substring(5))) {
-			throw new Error(
-				`the ThreadIDProvider returned an invalid thread id (${threadId}) for getThreadId. The thread id must contain only characters that match the regular expression [a-zA-Z0-9-].`
-			);
-		}
+		const threadId = await this.threadIDProvider!.getThreadId(this.appState!, ctx);
+		validateThreadIdOrThrow(threadId);
 
 		// Wait for WebSocket connection if still connecting
 		if (this.wsConnecting) {

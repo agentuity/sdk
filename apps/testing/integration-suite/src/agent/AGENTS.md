@@ -5,10 +5,12 @@ This folder contains AI agents for your Agentuity application. Each agent is org
 ## Directory Structure
 
 Each agent folder must contain:
+
 - **agent.ts** (required) - Agent definition with metadata, schema, and handler
 - **route.ts** (optional) - HTTP routes for the agent endpoint
 
 Example structure:
+
 ```
 src/agent/
 ├── hello/
@@ -34,9 +36,9 @@ const agent = createAgent({
 		description: 'What this agent does',
 	},
 	schema: {
-		input: s.object({ 
+		input: s.object({
 			name: s.string(),
-			age: s.number() 
+			age: s.number(),
 		}),
 		output: s.string(),
 	},
@@ -160,7 +162,7 @@ handler: async (c, input) => {
 	await c.kv.set('user:123', { name: 'Alice', age: 30 });
 	const user = await c.kv.get('user:123');
 	return user;
-}
+};
 ```
 
 ### Using Streams
@@ -174,7 +176,7 @@ handler: async (c, input) => {
 	await stream.write('Hello from stream');
 	await stream.close();
 	return { streamId: stream.id, url: stream.url };
-}
+};
 ```
 
 ### Calling Another Agent
@@ -183,7 +185,7 @@ handler: async (c, input) => {
 handler: async (c, input) => {
 	const result = await c.agent.otherAgent.run({ data: input.value });
 	return `Other agent returned: ${result}`;
-}
+};
 ```
 
 ## Subagents (Nested Agents)
@@ -217,9 +219,9 @@ const agent = createAgent({
 	},
 	schema: {
 		input: s.object({ action: s.union([s.literal('info'), s.literal('count')]) }),
-		output: s.object({ 
+		output: s.object({
 			message: s.string(),
-			timestamp: s.string() 
+			timestamp: s.string(),
 		}),
 	},
 	handler: async (ctx, { action }) => {
@@ -257,13 +259,13 @@ const agent = createAgent({
 		// Access parent agent
 		const parentResult = await ctx.agent.team.run({ action: 'info' });
 		const parentInfo = `Parent says: ${parentResult.message}`;
-		
+
 		// Subagent logic here
 		let members = ['Alice', 'Bob'];
 		if (action === 'add' && name) {
 			members.push(name);
 		}
-		
+
 		return { members, parentInfo };
 	},
 });
@@ -281,11 +283,11 @@ const router = createRouter();
 router.get('/', async (c) => {
 	// Call parent agent
 	const teamInfo = await c.agent.team.run({ action: 'info' });
-	
+
 	// Call subagents (nested access)
 	const members = await c.agent.team.members.run({ action: 'list' });
 	const tasks = await c.agent.team.tasks.run({ action: 'list' });
-	
+
 	return c.json({ teamInfo, members, tasks });
 });
 

@@ -494,6 +494,7 @@ export function useAPI<TRoute extends RouteKey>(
 				method,
 				headers: {
 					'Content-Type': 'application/json',
+					...(context.authHeader && { Authorization: context.authHeader }),
 					...headers,
 				},
 			};
@@ -593,7 +594,18 @@ export function useAPI<TRoute extends RouteKey>(
 				setIsFetching(false);
 			}
 		}
-	}, [context.baseUrl, path, method, input, query, headers, staleTime, onSuccess, onError]);
+	}, [
+		context.baseUrl,
+		context.authHeader,
+		path,
+		method,
+		input,
+		query,
+		headers,
+		staleTime,
+		onSuccess,
+		onError,
+	]);
 
 	const reset = useCallback(() => {
 		setData(undefined);
@@ -659,6 +671,7 @@ export function useAPI<TRoute extends RouteKey>(
 					method,
 					headers: {
 						'Content-Type': 'application/json',
+						...(context.authHeader && { Authorization: context.authHeader }),
 						...headers,
 					},
 				};
@@ -762,7 +775,7 @@ export function useAPI<TRoute extends RouteKey>(
 				}
 			}
 		},
-		[context.baseUrl, path, method, query, headers, input, onSuccess, onError]
+		[context.baseUrl, context.authHeader, path, method, query, headers, input, onSuccess, onError]
 	);
 
 	return {

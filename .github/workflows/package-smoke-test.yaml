@@ -50,10 +50,11 @@ jobs:
            run: |
               # Generate CLI API key for authentication
               APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "::add-mask::${APIKEY}"
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
 
               # Set SDK key for integration-suite tests
-              echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
+              echo "AGENTUITY_SDK_KEY=${{ secrets.INTEGRATION_SUITE_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
 
               # Set OpenAI API key for embedding operations
               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
@@ -75,9 +76,7 @@ jobs:
          AGENTUITY_VECTOR_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_LOG_LEVEL: error
          AGENTUITY_REGION: usc
-         AGENTUITY_CLOUD_PROJECT_ID: ${{ vars.AGENTUITY_CLOUD_PROJECT_ID }}
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
-         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
       steps:
          - uses: actions/checkout@v4
 
@@ -94,10 +93,11 @@ jobs:
            run: |
               # Generate CLI API key for cloud operations
               APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "::add-mask::${APIKEY}"
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
 
               # Set SDK key for runtime operations
-              echo "AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
+              echo "AGENTUITY_SDK_KEY=${{ secrets.CLOUD_DEPLOYMENT_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
 
               # Set OpenAI API key for embedding operations
               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
@@ -106,7 +106,7 @@ jobs:
            run: |
               cd apps/testing/cloud-deployment
               cat > .env << EOF
-              AGENTUITY_SDK_KEY=${{ secrets.AGENTUITY_SDK_KEY }}
+              AGENTUITY_SDK_KEY=${{ secrets.CLOUD_DEPLOYMENT_AGENTUITY_SDK_KEY }}
               OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
               AGENTUITY_API_URL=$AGENTUITY_API_URL
               AGENTUITY_APP_URL=$AGENTUITY_APP_URL
@@ -124,3 +124,26 @@ jobs:
            run: |
               cd apps/testing/cloud-deployment
               bun run test
+
+         - name: Cleanup
+           if: always()
+           run: rm -rf apps/testing/cloud-deployment/.env
+
+   template-integration-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 30
+      name: Template Integration Tests
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Run template integration tests
+           run: bun scripts/test-templates.ts --skip-outdated

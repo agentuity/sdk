@@ -1,0 +1,7 @@
+{
+	"dependencies": {
+		"@agentuity/auth": "workspace:*",
+		"@clerk/clerk-react": "^5.46.1",
+		"@clerk/backend": "^2.26.0"
+	}
+}

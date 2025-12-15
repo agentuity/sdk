@@ -34,7 +34,9 @@ describe('getCorrectMimeType', () => {
 		expect(getCorrectMimeType('photo.png', 'text/javascript;charset=utf-8')).toBe('image/png');
 		expect(getCorrectMimeType('banner.jpg', 'text/javascript;charset=utf-8')).toBe('image/jpeg');
 		expect(getCorrectMimeType('image.jpeg', 'text/javascript;charset=utf-8')).toBe('image/jpeg');
-		expect(getCorrectMimeType('animation.gif', 'text/javascript;charset=utf-8')).toBe('image/gif');
+		expect(getCorrectMimeType('animation.gif', 'text/javascript;charset=utf-8')).toBe(
+			'image/gif'
+		);
 		expect(getCorrectMimeType('modern.webp', 'text/javascript;charset=utf-8')).toBe('image/webp');
 	});
 

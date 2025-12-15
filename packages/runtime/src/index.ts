@@ -74,6 +74,9 @@ export {
 	DefaultThread,
 } from './session';
 
+// services/thread/local exports
+export { LocalThreadProvider } from './services/thread/local';
+
 // workbench.ts exports
 export {
 	createWorkbenchExecutionRoute,

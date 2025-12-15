@@ -370,11 +370,13 @@ export async function createCLI(version: string): Promise<Command> {
 			// Format each section (show banner for root command)
 			let output = '';
 
-			// Show banner if this is the root command (no parent)
+			// Show banner (full for root, compact for subcommands)
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const isRootCommand = !(cmd as any).parent;
 			if (isRootCommand) {
 				output += `${generateBanner(version)}\n\n`;
+			} else {
+				output += `${generateBanner(version, true)}\n`;
 			}
 
 			// Description

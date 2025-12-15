@@ -54,6 +54,7 @@
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {
+		"@agentuity/test-utils": "workspace:*",
 		"@types/adm-zip": "^0.5.7",
 		"@types/bun": "latest",
 		"@types/tar-fs": "^2.0.4",
