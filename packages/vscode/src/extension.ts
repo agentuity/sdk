@@ -16,8 +16,14 @@ import { registerDataExplorer } from './features/dataExplorer';
 import { registerDeploymentExplorer } from './features/deploymentExplorer';
 import { registerDevServerCommands } from './features/devServer';
 import { registerWorkbenchCommands } from './features/workbench';
-import { registerChatParticipant, registerCliTool } from './features/chat';
+import {
+	registerChatParticipant,
+	registerCliTool,
+	registerChatContextProvider,
+	registerAgentTools,
+} from './features/chat';
 import { registerCodeLens } from './features/codeLens';
+import { registerCustomAgentCommands } from './features/customAgents';
 
 const outputChannel = vscode.window.createOutputChannel('Agentuity');
 
@@ -78,6 +84,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	registerWorkbenchCommands(context);
 	registerChatParticipant(context);
 	registerCliTool(context);
+	registerChatContextProvider(context);
+	registerAgentTools(context);
+	registerCustomAgentCommands(context);
 	registerCodeLens(context);
 
 	log('Extension activated');
