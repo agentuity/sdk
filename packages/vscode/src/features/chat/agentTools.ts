@@ -67,7 +67,7 @@ export class GetProjectStatusTool implements vscode.LanguageModelTool<GetProject
 		status.authentication = {
 			state: authStatus.state,
 			user: authStatus.user
-				? { email: authStatus.user.email, name: authStatus.user.name }
+				? { name: `${authStatus.user.firstName} ${authStatus.user.lastName}` }
 				: null,
 		};
 

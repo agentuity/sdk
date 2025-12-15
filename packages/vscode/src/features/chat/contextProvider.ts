@@ -173,7 +173,7 @@ class AgentuityContextProvider implements vscode.ChatContextProvider<AgentuityCo
 		lines.push('## Authentication');
 		if (authStatus.state === 'authenticated' && authStatus.user) {
 			lines.push(`- Status: Authenticated`);
-			lines.push(`- User: ${authStatus.user.email}`);
+			lines.push(`- User: ${authStatus.user.firstName} ${authStatus.user.lastName}`);
 		} else {
 			lines.push('- Status: Not authenticated');
 		}
