@@ -210,6 +210,19 @@
         "typescript": "^5.9.0",
       },
     },
+    "packages/evals": {
+      "name": "@agentuity/evals",
+      "version": "0.0.95",
+      "dependencies": {
+        "@agentuity/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@agentuity/test-utils": "workspace:*",
+        "@types/bun": "latest",
+        "bun-types": "latest",
+        "typescript": "^5.9.0",
+      },
+    },
     "packages/react": {
       "name": "@agentuity/react",
       "version": "0.0.95",
@@ -389,6 +402,8 @@
     "@agentuity/cli": ["@agentuity/cli@workspace:packages/cli"],
 
     "@agentuity/core": ["@agentuity/core@workspace:packages/core"],
+
+    "@agentuity/evals": ["@agentuity/evals@workspace:packages/evals"],
 
     "@agentuity/react": ["@agentuity/react@workspace:packages/react"],
 
@@ -2827,6 +2842,10 @@
     "@agentuity/core/@types/bun": ["@types/bun@1.3.4", "", { "dependencies": { "bun-types": "1.3.4" } }, "sha512-EEPTKXHP+zKGPkhRLv+HI0UEX8/o+65hqARxLy8Ov5rIxMBPNTjeZww00CIihrIQGEQBYg+0roO5qOnS/7boGA=="],
 
     "@agentuity/core/bun-types": ["bun-types@1.3.4", "", { "dependencies": { "@types/node": "*" } }, "sha512-5ua817+BZPZOlNaRgGBpZJOSAQ9RQ17pkwPD0yR7CfJg+r8DgIILByFifDTa+IPDDxzf5VNhtNlcKqFzDgJvlQ=="],
+
+    "@agentuity/evals/@types/bun": ["@types/bun@1.3.4", "", { "dependencies": { "bun-types": "1.3.4" } }, "sha512-EEPTKXHP+zKGPkhRLv+HI0UEX8/o+65hqARxLy8Ov5rIxMBPNTjeZww00CIihrIQGEQBYg+0roO5qOnS/7boGA=="],
+
+    "@agentuity/evals/bun-types": ["bun-types@1.3.4", "", { "dependencies": { "@types/node": "*" } }, "sha512-5ua817+BZPZOlNaRgGBpZJOSAQ9RQ17pkwPD0yR7CfJg+r8DgIILByFifDTa+IPDDxzf5VNhtNlcKqFzDgJvlQ=="],
 
     "@agentuity/react/@types/bun": ["@types/bun@1.3.4", "", { "dependencies": { "bun-types": "1.3.4" } }, "sha512-EEPTKXHP+zKGPkhRLv+HI0UEX8/o+65hqARxLy8Ov5rIxMBPNTjeZww00CIihrIQGEQBYg+0roO5qOnS/7boGA=="],
 
