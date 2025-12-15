@@ -87,55 +87,25 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			// This allows multiple agents to have separate message histories in the same thread
 			if (ctx.var.thread) {
 				const agentMessagesKey = `messages_${agentId}`;
-				console.log('[Workbench Execute] Thread ID:', ctx.var.thread.id);
-				console.log('[Workbench Execute] Agent ID:', agentId);
-				console.log('[Workbench Execute] Messages key:', agentMessagesKey);
-
 				const existingMessages = ctx.var.thread.state.get(agentMessagesKey);
-				console.log('[Workbench Execute] Existing messages:', existingMessages);
-
 				const messages = (existingMessages as unknown[] | undefined) || [];
-				console.log('[Workbench Execute] Messages array before push:', messages.length);
 
 				messages.push({ type: 'input', data: input });
-				console.log('[Workbench Execute] Added input message');
 
 				if (result !== undefined && result !== null) {
 					messages.push({ type: 'output', data: result });
-					console.log('[Workbench Execute] Added output message');
 				}
 
-				console.log('[Workbench Execute] Messages array after push:', messages.length);
 				ctx.var.thread.state.set(agentMessagesKey, messages);
-				console.log('[Workbench Execute] Set messages in thread state');
-
-				// Verify it was set
-				const verifyMessages = ctx.var.thread.state.get(agentMessagesKey);
-				console.log('[Workbench Execute] Verified messages in state:', verifyMessages);
 
 				// Manually save the thread to ensure state persists
 				try {
 					const threadProvider = getThreadProvider();
 					await threadProvider.save(ctx.var.thread);
-					console.log('[Workbench Execute] Manually saved thread');
-
-					// Verify thread was saved by checking if it's dirty
-					// Note: This only works if thread is a DefaultThread instance
-					if ('isDirty' in ctx.var.thread && typeof ctx.var.thread.isDirty === 'function') {
-						const isDirty = ctx.var.thread.isDirty();
-						console.log('[Workbench Execute] Thread isDirty after save:', isDirty);
-					}
-				} catch (error) {
-					console.error('[Workbench Execute] Error saving thread:', error);
-					console.error(
-						'[Workbench Execute] This may indicate WebSocket connection issue. State may not persist across restarts.'
-					);
+				} catch {
+					ctx.var.logger?.warn('Failed to save thread state');
 				}
-
-				// Thread will also be saved automatically by the middleware after the request completes
 			} else {
-				// Log warning if thread is not available
-				console.warn('[Workbench Execute] Thread not available in workbench execution route');
 				ctx.var.logger?.warn('Thread not available in workbench execution route');
 			}
 
@@ -180,32 +150,25 @@ export const createWorkbenchClearStateRoute = (): Handler => {
 		}
 
 		const agentId = ctx.req.query('agentId');
-		console.log('[Workbench Clear State] Requested agentId:', agentId);
 
 		if (!agentId) {
 			return ctx.json({ error: 'agentId query parameter is required' }, { status: 400 });
 		}
 
 		if (!ctx.var.thread) {
-			console.warn('[Workbench Clear State] Thread not available');
 			return ctx.json({ error: 'Thread not available' }, { status: 404 });
 		}
 
 		const agentMessagesKey = `messages_${agentId}`;
-		console.log('[Workbench Clear State] Messages key:', agentMessagesKey);
-		console.log('[Workbench Clear State] Thread ID:', ctx.var.thread.id);
 
 		// Remove the messages for this agent
 		ctx.var.thread.state.delete(agentMessagesKey);
-		console.log('[Workbench Clear State] Deleted messages from thread state');
 
 		// Save the thread to persist the cleared state
 		try {
 			const threadProvider = getThreadProvider();
 			await threadProvider.save(ctx.var.thread);
-			console.log('[Workbench Clear State] Saved thread after clearing state');
-		} catch (error) {
-			console.error('[Workbench Clear State] Error saving thread:', error);
+		} catch {
 			return ctx.json({ error: 'Failed to save thread state' }, { status: 500 });
 		}
 
