@@ -10,7 +10,7 @@ export interface GetAgentsInput {
 
 export class GetAgentsTool implements vscode.LanguageModelTool<GetAgentsInput> {
 	async invoke(
-		options: vscode.LanguageModelToolInvocationOptions<GetAgentsInput>,
+		_options: vscode.LanguageModelToolInvocationOptions<GetAgentsInput>,
 		_token: vscode.CancellationToken
 	): Promise<vscode.LanguageModelToolResult> {
 		if (!hasProject()) {
@@ -54,7 +54,7 @@ export class GetAgentsTool implements vscode.LanguageModelTool<GetAgentsInput> {
 	}
 }
 
-export interface GetProjectStatusInput {}
+export type GetProjectStatusInput = Record<string, never>;
 
 export class GetProjectStatusTool implements vscode.LanguageModelTool<GetProjectStatusInput> {
 	async invoke(

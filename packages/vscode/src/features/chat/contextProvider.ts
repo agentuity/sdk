@@ -55,7 +55,7 @@ class AgentuityContextProvider implements vscode.ChatContextProvider<AgentuityCo
 	}
 
 	async provideWorkspaceChatContext(
-		token: vscode.CancellationToken
+		_token: vscode.CancellationToken
 	): Promise<AgentuityContextItem[]> {
 		if (!hasProject()) {
 			return [];
@@ -230,7 +230,7 @@ class AgentuityContextProvider implements vscode.ChatContextProvider<AgentuityCo
 		return lines.join('\n');
 	}
 
-	private async resolveAgentsContext(token: vscode.CancellationToken): Promise<string> {
+	private async resolveAgentsContext(_token: vscode.CancellationToken): Promise<string> {
 		if (!hasProject()) {
 			return 'No Agentuity project found in workspace.';
 		}
@@ -260,7 +260,7 @@ class AgentuityContextProvider implements vscode.ChatContextProvider<AgentuityCo
 		return lines.join('\n');
 	}
 
-	private async resolveDeploymentsContext(token: vscode.CancellationToken): Promise<string> {
+	private async resolveDeploymentsContext(_token: vscode.CancellationToken): Promise<string> {
 		if (!hasProject()) {
 			return 'No Agentuity project found in workspace.';
 		}

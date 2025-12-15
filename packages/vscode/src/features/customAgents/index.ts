@@ -152,7 +152,7 @@ You are an Agentuity debugging specialist. Your job is to diagnose and fix issue
 - Validate JSON serialization
 `;
 
-export async function scaffoldCustomAgents(context: vscode.ExtensionContext): Promise<void> {
+export async function scaffoldCustomAgents(): Promise<void> {
 	const workspaceFolders = vscode.workspace.workspaceFolders;
 	if (!workspaceFolders || workspaceFolders.length === 0) {
 		vscode.window.showErrorMessage('No workspace folder open. Open a folder first.');
@@ -210,6 +210,8 @@ export async function scaffoldCustomAgents(context: vscode.ExtensionContext): Pr
 			? agents
 			: agents.filter((a) => a.name.includes(selected.value as string));
 
+	const writtenFiles: vscode.Uri[] = [];
+
 	for (const agent of toCreate) {
 		const filePath = vscode.Uri.file(path.join(agentsDir, agent.name));
 
@@ -228,23 +230,23 @@ export async function scaffoldCustomAgents(context: vscode.ExtensionContext): Pr
 		}
 
 		await vscode.workspace.fs.writeFile(filePath, Buffer.from(agent.content, 'utf-8'));
+		writtenFiles.push(filePath);
 	}
 
-	const createdCount = toCreate.length;
+	if (writtenFiles.length === 0) {
+		vscode.window.showInformationMessage('No custom agents were created.');
+		return;
+	}
+
 	vscode.window.showInformationMessage(
-		`Created ${createdCount} custom agent${createdCount > 1 ? 's' : ''} in .github/agents/`
+		`Created ${writtenFiles.length} custom agent${writtenFiles.length > 1 ? 's' : ''} in .github/agents/`
 	);
 
-	if (toCreate.length > 0) {
-		const firstAgent = vscode.Uri.file(path.join(agentsDir, toCreate[0].name));
-		await vscode.window.showTextDocument(firstAgent);
-	}
+	await vscode.window.showTextDocument(writtenFiles[0]);
 }
 
 export function registerCustomAgentCommands(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(
-		vscode.commands.registerCommand('agentuity.createCustomAgents', () =>
-			scaffoldCustomAgents(context)
-		)
+		vscode.commands.registerCommand('agentuity.createCustomAgents', () => scaffoldCustomAgents())
 	);
 }
