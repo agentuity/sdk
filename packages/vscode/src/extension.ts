@@ -10,6 +10,7 @@ import {
 	disposeProject,
 	requireAuth,
 } from './core';
+import { log, disposeLogger } from './core/logger';
 import { registerReadonlyDocumentProvider } from './core/readonlyDocument';
 import { registerAgentExplorer } from './features/agentExplorer';
 import { registerDataExplorer } from './features/dataExplorer';
@@ -18,12 +19,6 @@ import { registerDevServerCommands } from './features/devServer';
 import { registerWorkbenchCommands } from './features/workbench';
 import { registerChatParticipant, registerCliTool } from './features/chat';
 import { registerCodeLens } from './features/codeLens';
-
-const outputChannel = vscode.window.createOutputChannel('Agentuity');
-
-function log(message: string): void {
-	outputChannel.appendLine(`[${new Date().toISOString()}] ${message}`);
-}
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
 	log('Extension activating...');
@@ -35,7 +30,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	log(`Project: ${project ? project.projectId : 'none'}`);
 
 	const authStatus = await checkAuth();
-	log(`Auth: ${authStatus.state}${authStatus.user ? ` (${authStatus.user.email})` : ''}`);
+	log(`Auth: ${authStatus.state}${authStatus.user ? ` (${authStatus.user.firstName} ${authStatus.user.lastName})` : ''}`);
 
 	if (authStatus.state === 'cli-missing' || authStatus.state === 'unauthenticated') {
 		void promptLogin();
@@ -256,5 +251,5 @@ export function deactivate(): void {
 	disposeCliClient();
 	disposeAuth();
 	disposeProject();
-	outputChannel.dispose();
+	disposeLogger();
 }

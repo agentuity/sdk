@@ -86,17 +86,28 @@ export class DevServerManager {
 		this.hasReceivedOutput = false;
 
 		const cli = getCliClient();
-		const cliPath = cli.getCliPath();
 		const env = cli.getCliEnv();
 
+		// Use bunx to run the local CLI package
+		const cliPath = 'bunx';
+		const args = ['agentuity', 'dev'];
+		const spawnOpts = {
+			cwd: project.rootPath,
+			shell: true,
+			env: {
+				...env,
+				// Disable color output for cleaner logs
+				NO_COLOR: '1',
+				// Force non-interactive mode without disabling public URL
+				TERM: 'dumb',
+			},
+			stdio: ['ignore', 'pipe', 'pipe'] as const,
+			// On Unix, create a new process group so we can kill the entire tree
+			detached: process.platform !== 'win32',
+		};
+
 		try {
-			this.process = spawn(cliPath, ['dev'], {
-				cwd: project.rootPath,
-				shell: true,
-				env,
-				// On Unix, create a new process group so we can kill the entire tree
-				detached: process.platform !== 'win32',
-			});
+			this.process = spawn(cliPath, args, spawnOpts);
 
 			this.process.stdout?.on('data', (data: Buffer) => {
 				const text = data.toString();
@@ -111,7 +122,8 @@ export class DevServerManager {
 			});
 
 			this.process.stderr?.on('data', (data: Buffer) => {
-				this.outputChannel.append(data.toString());
+				const text = data.toString();
+				this.outputChannel.append(text);
 				this.hasReceivedOutput = true;
 			});
 
