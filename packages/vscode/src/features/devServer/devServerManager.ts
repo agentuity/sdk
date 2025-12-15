@@ -91,7 +91,7 @@ export class DevServerManager {
 		// Use bunx to run the local CLI package
 		const cliPath = 'bunx';
 		const args = ['agentuity', 'dev'];
-		const spawnOpts = {
+		const spawnOpts: Parameters<typeof spawn>[2] = {
 			cwd: project.rootPath,
 			shell: true,
 			env: {
@@ -101,7 +101,7 @@ export class DevServerManager {
 				// Force non-interactive mode without disabling public URL
 				TERM: 'dumb',
 			},
-			stdio: ['ignore', 'pipe', 'pipe'] as const,
+			stdio: ['ignore', 'pipe', 'pipe'],
 			// On Unix, create a new process group so we can kill the entire tree
 			detached: process.platform !== 'win32',
 		};
@@ -109,32 +109,38 @@ export class DevServerManager {
 		try {
 			this.process = spawn(cliPath, args, spawnOpts);
 
-			this.process.stdout?.on('data', (data: Buffer) => {
+			const proc = this.process;
+			proc.stdout?.on('data', (data: Buffer) => {
 				const text = data.toString();
 				this.outputChannel.append(text);
 				this.hasReceivedOutput = true;
 
-				// Detect ready signals from the dev server
-				if (text.includes('listening') || text.includes('started') || text.includes('ready')) {
+				// Detect ready signals from the dev server (case-insensitive)
+				const lowerText = text.toLowerCase();
+				if (
+					lowerText.includes('listening') ||
+					lowerText.includes('started') ||
+					lowerText.includes('ready')
+				) {
 					this.clearStartupTimeout();
 					this.setState('running');
 				}
 			});
 
-			this.process.stderr?.on('data', (data: Buffer) => {
+			proc.stderr?.on('data', (data: Buffer) => {
 				const text = data.toString();
 				this.outputChannel.append(text);
 				this.hasReceivedOutput = true;
 			});
 
-			this.process.on('error', (err: Error) => {
+			proc.on('error', (err: Error) => {
 				this.clearStartupTimeout();
 				this.outputChannel.appendLine(`Error: ${err.message}`);
 				this.setState('error');
 				this.process = undefined;
 			});
 
-			this.process.on('close', (code: number | null) => {
+			proc.on('close', (code: number | null) => {
 				this.clearStartupTimeout();
 				this.outputChannel.appendLine(`\nDev server exited with code ${code}`);
 				if (this.state !== 'stopped') {

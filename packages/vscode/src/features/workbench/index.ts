@@ -7,7 +7,6 @@ export function registerWorkbenchCommands(context: vscode.ExtensionContext): voi
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agentuity.workbench.open', async () => {
 			const project = getCurrentProject();
-			console.log(project)
 
 			let url = WORKBENCH_BASE_URL;
 			if (project) {

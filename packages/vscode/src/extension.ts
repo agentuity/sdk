@@ -120,7 +120,7 @@ function registerAuthCommands(context: vscode.ExtensionContext): void {
 			if (result.success && result.data) {
 				const user = result.data;
 				vscode.window.showInformationMessage(
-					`Logged in as: ${user.name || user.email} (${user.email})`
+					`Logged in as: ${user.firstName} ${user.lastName}`
 				);
 			} else {
 				vscode.window.showWarningMessage('Not logged in to Agentuity');
