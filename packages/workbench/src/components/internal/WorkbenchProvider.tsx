@@ -256,22 +256,40 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 		if (agents && Object.keys(agents).length > 0 && !selectedAgent) {
 			logger.debug('🔍 Available agents:', agents);
 
-			// Try to load previously selected agent from localStorage
-			const savedAgentId = loadSelectedAgent();
-			logger.debug('💾 Saved agent from localStorage:', savedAgentId);
+			// First, check for agent query parameter in URL
+			const urlParams = new URLSearchParams(window.location.search);
+			const agentFromUrl = urlParams.get('agent');
+			logger.debug('🔗 Agent from URL query param:', agentFromUrl);
 
-			// Check if saved agent still exists in available agents
-			const savedAgent = savedAgentId
-				? Object.values(agents).find((agent) => agent.metadata.agentId === savedAgentId)
-				: null;
+			// Try to find agent by URL param (matches agentId only)
+			let agentToSelect: string | null = null;
+			if (agentFromUrl) {
+				const matchedAgent = Object.values(agents).find(
+					(agent) => agent.metadata.agentId === agentFromUrl
+				);
+				if (matchedAgent) {
+					logger.debug('✅ Found agent from URL param:', matchedAgent.metadata.name);
+					agentToSelect = matchedAgent.metadata.agentId;
+				}
+			}
 
-			if (savedAgent && savedAgentId) {
-				logger.debug('✅ Restoring saved agent:', savedAgent.metadata.name);
-				setSelectedAgent(savedAgentId);
-				saveSelectedAgent(savedAgentId);
-				fetchAgentState(savedAgentId);
-			} else {
-				// Fallback to first agent alphabetically
+			// If no URL param match, try localStorage
+			if (!agentToSelect) {
+				const savedAgentId = loadSelectedAgent();
+				logger.debug('💾 Saved agent from localStorage:', savedAgentId);
+
+				const savedAgent = savedAgentId
+					? Object.values(agents).find((agent) => agent.metadata.agentId === savedAgentId)
+					: null;
+
+				if (savedAgent && savedAgentId) {
+					logger.debug('✅ Restoring saved agent:', savedAgent.metadata.name);
+					agentToSelect = savedAgentId;
+				}
+			}
+
+			// Fallback to first agent alphabetically
+			if (!agentToSelect) {
 				const sortedAgents = Object.values(agents).sort((a, b) =>
 					a.metadata.name.localeCompare(b.metadata.name)
 				);
@@ -280,13 +298,13 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					'🎯 No saved agent found, using first agent (alphabetically):',
 					firstAgent
 				);
-				logger.debug('🆔 Setting selectedAgent to:', firstAgent.metadata.agentId);
-				const firstAgentId = firstAgent.metadata.agentId;
-				setSelectedAgent(firstAgentId);
-				// Save this selection for next time
-				saveSelectedAgent(firstAgentId);
-				fetchAgentState(firstAgentId);
+				agentToSelect = firstAgent.metadata.agentId;
 			}
+
+			logger.debug('🆔 Setting selectedAgent to:', agentToSelect);
+			setSelectedAgent(agentToSelect);
+			saveSelectedAgent(agentToSelect);
+			fetchAgentState(agentToSelect);
 		}
 	}, [agents, selectedAgent, loadSelectedAgent, saveSelectedAgent, logger, fetchAgentState]);
 

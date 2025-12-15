@@ -86,43 +86,61 @@ export class DevServerManager {
 		this.hasReceivedOutput = false;
 
 		const cli = getCliClient();
-		const cliPath = cli.getCliPath();
 		const env = cli.getCliEnv();
 
-		try {
-			this.process = spawn(cliPath, ['dev'], {
-				cwd: project.rootPath,
-				shell: true,
-				env,
-				// On Unix, create a new process group so we can kill the entire tree
-				detached: process.platform !== 'win32',
-			});
+		// Use bunx to run the local CLI package
+		const cliPath = 'bunx';
+		const args = ['agentuity', 'dev'];
+		const spawnOpts: Parameters<typeof spawn>[2] = {
+			cwd: project.rootPath,
+			shell: true,
+			env: {
+				...env,
+				// Disable color output for cleaner logs
+				NO_COLOR: '1',
+				// Force non-interactive mode without disabling public URL
+				TERM: 'dumb',
+			},
+			stdio: ['ignore', 'pipe', 'pipe'],
+			// On Unix, create a new process group so we can kill the entire tree
+			detached: process.platform !== 'win32',
+		};
 
-			this.process.stdout?.on('data', (data: Buffer) => {
+		try {
+			this.process = spawn(cliPath, args, spawnOpts);
+
+			const proc = this.process;
+			proc.stdout?.on('data', (data: Buffer) => {
 				const text = data.toString();
 				this.outputChannel.append(text);
 				this.hasReceivedOutput = true;
 
-				// Detect ready signals from the dev server
-				if (text.includes('listening') || text.includes('started') || text.includes('ready')) {
+				// Detect ready signals from the dev server (case-insensitive)
+				const lowerText = text.toLowerCase();
+				if (
+					lowerText.includes('listening') ||
+					lowerText.includes('started') ||
+					lowerText.includes('ready')
+				) {
 					this.clearStartupTimeout();
 					this.setState('running');
 				}
 			});
 
-			this.process.stderr?.on('data', (data: Buffer) => {
-				this.outputChannel.append(data.toString());
+			proc.stderr?.on('data', (data: Buffer) => {
+				const text = data.toString();
+				this.outputChannel.append(text);
 				this.hasReceivedOutput = true;
 			});
 
-			this.process.on('error', (err: Error) => {
+			proc.on('error', (err: Error) => {
 				this.clearStartupTimeout();
 				this.outputChannel.appendLine(`Error: ${err.message}`);
 				this.setState('error');
 				this.process = undefined;
 			});
 
-			this.process.on('close', (code: number | null) => {
+			proc.on('close', (code: number | null) => {
 				this.clearStartupTimeout();
 				this.outputChannel.appendLine(`\nDev server exited with code ${code}`);
 				if (this.state !== 'stopped') {
