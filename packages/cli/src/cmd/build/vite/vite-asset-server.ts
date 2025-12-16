@@ -17,6 +17,7 @@ export interface ViteAssetServerResult {
 export interface StartViteAssetServerOptions {
 	rootDir: string;
 	logger: Logger;
+	workbenchPath?: string;
 }
 
 /**
@@ -26,24 +27,25 @@ export interface StartViteAssetServerOptions {
 export async function startViteAssetServer(
 	options: StartViteAssetServerOptions
 ): Promise<ViteAssetServerResult> {
-	const { rootDir, logger } = options;
+	const { rootDir, logger, workbenchPath } = options;
 
 	logger.debug('Starting Vite asset server (HMR only)...');
 
-	// Generate minimal config for asset serving
-	const config = await generateAssetServerConfig({ rootDir, logger });
+	// Pick a port for Vite asset server (try 5173 first, Vite default)
+	const port = 5173;
 
-	// Create Vite server
+	// Generate minimal config with the port configured
+	const config = await generateAssetServerConfig({ rootDir, logger, workbenchPath, port });
+
+	// Create Vite server with config
 	const server = await createServer(config);
 
-	// Start listening - Vite will choose an available port
+	// Start listening on the configured port
 	await server.listen();
-
-	// Extract the actual port Vite chose
-	const port = server.config.server.port || 5173; // Fallback to Vite default
-
+	
 	logger.info(`✅ Vite asset server started on port ${port}`);
 	logger.debug(`Asset server will handle: HMR, React transformation, source maps`);
+	logger.debug(`HMR WebSocket configured to connect to ws://127.0.0.1:${port}`);
 
 	return { server, port };
 }

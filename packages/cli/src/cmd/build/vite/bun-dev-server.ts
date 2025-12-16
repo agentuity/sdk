@@ -43,7 +43,11 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 
 	// Step 1: Start Vite asset server FIRST and get its dynamic port
 	logger.info('🎨 Starting Vite asset server for HMR...');
-	const viteAssetServer = await startViteAssetServer({ rootDir, logger });
+	const viteAssetServer = await startViteAssetServer({ 
+		rootDir, 
+		logger,
+		workbenchPath: workbenchConfig.enabled ? workbenchConfig.route : undefined,
+	});
 	const vitePort = viteAssetServer.port;
 
 	// Step 2: Generate entry file with Vite port for asset proxying

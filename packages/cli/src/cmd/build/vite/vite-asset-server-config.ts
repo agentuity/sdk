@@ -12,6 +12,8 @@ import type { InlineConfig } from 'vite';
 export interface GenerateAssetServerConfigOptions {
 	rootDir: string;
 	logger: Logger;
+	workbenchPath?: string;
+	port: number; // The port Vite will run on (for HMR client configuration)
 }
 
 /**
@@ -20,7 +22,7 @@ export interface GenerateAssetServerConfigOptions {
 export async function generateAssetServerConfig(
 	options: GenerateAssetServerConfigOptions
 ): Promise<InlineConfig> {
-	const { rootDir, logger } = options;
+	const { rootDir, logger, workbenchPath, port } = options;
 
 	// Load path aliases from tsconfig.json if available
 	const tsconfigPath = join(rootDir, 'tsconfig.json');
@@ -45,36 +47,52 @@ export async function generateAssetServerConfig(
 		clearScreen: false,
 		publicDir: false, // Don't serve public dir - Bun server handles that
 
-		resolve: { alias },
+		resolve: { 
+			alias,
+			// Deduplicate React to prevent multiple instances
+			dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
+		},
 
 		// Only allow frontend env vars (server uses process.env)
 		envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 
 		server: {
-			// Let Vite choose an available port
-			strictPort: false,
+			// Use the port we selected
+			port,
+			strictPort: false, // Allow fallback if port is taken
 			host: '127.0.0.1',
-
+			
 			// CORS headers to allow Bun server on port 3500 to proxy requests
 			cors: {
 				origin: 'http://127.0.0.1:3500',
 				credentials: true,
 			},
 
-			// HMR configuration
+			// HMR configuration - client must connect to Vite asset server directly
 			hmr: {
 				protocol: 'ws',
 				host: '127.0.0.1',
+				port, // HMR WebSocket on same port as HTTP
+				clientPort: port, // Tell client to connect to this port (not origin 3500)
 			},
 
 			// Don't open browser - Bun server will be the entry point
 			open: false,
 		},
 
+		// Define environment variables for browser
+		define: {
+			...(workbenchPath ? { 'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': JSON.stringify(workbenchPath) } : {}),
+			'import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY': JSON.stringify(process.env.AGENTUITY_SDK_KEY ? 'true' : 'false'),
+			'process.env.NODE_ENV': JSON.stringify('development'),
+		},
+
 		// Minimal plugins - just React and HMR
 		plugins: [
 			// React plugin for JSX/TSX transformation and Fast Refresh
 			(await import('@vitejs/plugin-react')).default(),
+			// Browser env plugin to map process.env to import.meta.env
+			(await import('./browser-env-plugin')).browserEnvPlugin(),
 		],
 
 		// Suppress build-related options (this is dev-only)

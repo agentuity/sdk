@@ -61,6 +61,7 @@ function generateMainTsx(config: CoreWorkbenchConfig): string {
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '@agentuity/workbench';
+import './styles.css'; // Import CSS for Vite HMR
 
 // Root element
 const rootElement = document.getElementById('root');
@@ -84,7 +85,6 @@ function generateIndexHtml(): string {
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Agentuity Workbench</title>
-	<link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 	<div id="root"></div>

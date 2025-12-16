@@ -148,13 +148,15 @@ const VITE_ASSET_PORT = ${vitePort};
 const proxyToVite = async (c) => {
 	const viteUrl = \`http://127.0.0.1:\${VITE_ASSET_PORT}\${c.req.path}\`;
 	try {
+		otel.logger.debug(\`[Proxy] \${c.req.method} \${c.req.path} -> Vite:\${VITE_ASSET_PORT}\`);
 		const res = await fetch(viteUrl);
+		otel.logger.debug(\`[Proxy] \${c.req.path} -> \${res.status} (\${res.headers.get('content-type')})\`);
 		return new Response(res.body, {
 			status: res.status,
 			headers: res.headers,
 		});
 	} catch (err) {
-		otel.logger.error(\`Failed to proxy to Vite: \${err instanceof Error ? err.message : String(err)}\`);
+		otel.logger.error(\`Failed to proxy to Vite: \${c.req.path} - \${err instanceof Error ? err.message : String(err)}\`);
 		return c.text('Vite asset server error', 500);
 	}
 };
@@ -165,12 +167,29 @@ app.get('/@react-refresh', proxyToVite);
 
 // Source files for HMR
 app.get('/src/web/*', proxyToVite);
+app.get('/src/*', proxyToVite); // Catch-all for other source files
+
+// Workbench source files (in .agentuity/workbench-src/)
+app.get('/.agentuity/workbench-src/*', proxyToVite);
+
+// Node modules (Vite transforms these)
+app.get('/node_modules/*', proxyToVite);
+
+// Scoped packages (e.g., @agentuity/*, @types/*)
+app.get('/@*', proxyToVite);
 
 // File system access (for Vite's @fs protocol)
 app.get('/@fs/*', proxyToVite);
 
-// Module resolution (for Vite's @id protocol)
+// Module resolution (for Vite's @id protocol)  
 app.get('/@id/*', proxyToVite);
+
+// Any .js, .jsx, .ts, .tsx files (catch remaining modules)
+app.get('/*.js', proxyToVite);
+app.get('/*.jsx', proxyToVite);
+app.get('/*.ts', proxyToVite);
+app.get('/*.tsx', proxyToVite);
+app.get('/*.css', proxyToVite);
 `
 			: '';
 
@@ -186,7 +205,7 @@ const devHtmlHandler = async (c) => {
 	const withHmr = html
 		// Fix relative paths to use proxy routes (with or without ./)
 		.replace(/src=["'](?:\\.\\/)?([^"'\\/]+\\.tsx?)["']/g, 'src="/src/web/$1"')
-		// Inject Vite HMR scripts via proxy
+		// Inject Vite HMR scripts - point directly to Vite asset server for WebSocket
 		.replace(
 			'</head>',
 			\`<script type="module">
@@ -195,7 +214,11 @@ const devHtmlHandler = async (c) => {
 				window.$RefreshReg$ = () => {}
 				window.$RefreshSig$ = () => (type) => type
 			</script>
-			<script type="module" src="/@vite/client"></script>
+			<script type="module">
+				// Configure Vite client to connect to asset server for HMR WebSocket
+				window.__VITE_HMR_BASE_URL__ = 'http://127.0.0.1:${vitePort}';
+			</script>
+			<script type="module" src="http://127.0.0.1:${vitePort}/@vite/client"></script>
 			</head>\`
 		);
 	return c.html(withHmr);
