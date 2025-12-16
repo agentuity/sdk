@@ -1,17 +1,19 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { politenessEval } from '@agentuity/evals';
+
+export const AgentInput = s.object({
+	value: s.number(),
+});
+export const AgentOutput = s.object({
+	result: s.number(),
+	doubled: s.boolean(),
+});
 
 const evalsBasicAgent = createAgent('evals-basic', {
 	description: 'Agent with evals for testing',
 	schema: {
-		input: s.object({
-			value: s.number(),
-		}),
-		output: s.object({
-			result: s.number(),
-			doubled: s.boolean(),
-		}),
+		input: AgentInput,
+		output: AgentOutput,
 	},
 	handler: async (ctx, input) => {
 		const result = input.value * 2;
@@ -22,9 +24,5 @@ const evalsBasicAgent = createAgent('evals-basic', {
 		};
 	},
 });
-
-evalsBasicAgent.createEval(
-	politenessEval({ name: 'my-politeness', model: 'gpt-4o', howPolite: 'somewhat' })
-);
 
 export default evalsBasicAgent;
