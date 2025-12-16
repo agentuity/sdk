@@ -5,28 +5,37 @@ import { projectAgentGet } from '@agentuity/server';
 import Table from 'cli-table3';
 import { getCommand } from '../../../command-prefix';
 import { AgentSchema } from './schema';
+import { resolveProjectId } from '../deployment/utils';
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
 	description: 'Get details about a specific agent',
-	requires: { auth: true, apiClient: true, project: true },
+	requires: { auth: true, apiClient: true },
+	optional: { project: true },
 	examples: [
 		{ command: getCommand('cloud agent get agent_abc123'), description: 'Get item details' },
 		{
 			command: getCommand('--json cloud agent get agent_abc123'),
 			description: 'Show output in JSON format',
 		},
+		{
+			command: getCommand('cloud agent get agent_abc123 --project-id=proj_xyz'),
+			description: 'Get agent details for specific project',
+		},
 	],
 	schema: {
 		args: z.object({
 			agent_id: z.string().describe('Agent identifier'),
 		}),
+		options: z.object({
+			'project-id': z.string().optional().describe('Project ID'),
+		}),
 		response: AgentSchema,
 	},
 	async handler(ctx) {
-		const { args, apiClient, project, options } = ctx;
+		const { args, apiClient, opts, options } = ctx;
 		const agentId = args.agent_id;
-		const projectId = project.projectId;
+		const projectId = resolveProjectId(ctx, { projectId: opts['project-id'] });
 
 		const agent = await tui.spinner({
 			message: 'Fetching agent details',
