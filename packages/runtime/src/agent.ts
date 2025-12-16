@@ -361,10 +361,25 @@ export interface CreateEvalConfig<
 }
 
 // Type for createEval method
-type CreateEvalMethod<
+type CreateCustomEvalMethod<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
 > = (name: string, config: CreateEvalConfig<TInput, TOutput>) => Eval<TInput, TOutput>;
+
+export type CannedEvalConfig<
+	TInput extends StandardSchemaV1 | undefined = any,
+	TOutput extends StandardSchemaV1 | undefined = any,
+> = CreateEvalConfig<TInput, TOutput> & { name: string };
+
+type CreateCannedEvalMethod<
+	TInput extends StandardSchemaV1 | undefined = any,
+	TOutput extends StandardSchemaV1 | undefined = any,
+> = (config: CannedEvalConfig) => Eval<TInput, TOutput>;
+
+type CreateEvalMethod<
+	TInput extends StandardSchemaV1 | undefined = any,
+	TOutput extends StandardSchemaV1 | undefined = any,
+> = CreateCustomEvalMethod<TInput, TOutput> | CreateCannedEvalMethod<TInput, TOutput>;
 
 /**
  * Validator function type with method overloads for different validation scenarios.

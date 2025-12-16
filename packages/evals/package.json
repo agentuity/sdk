@@ -29,6 +29,8 @@
 		"@agentuity/core": "workspace:*"
 	},
 	"devDependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
 		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
