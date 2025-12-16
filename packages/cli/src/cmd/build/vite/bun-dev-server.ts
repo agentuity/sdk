@@ -18,17 +18,15 @@ export interface BunDevServerOptions {
 }
 
 export interface BunDevServerResult {
-	viteAssetServer: { server: any; port: number };
+	viteAssetServer: { server: { close: () => void | Promise<void> }; port: number };
 	bunServerPort: number;
 }
 
 /**
  * Start Bun dev server with Vite asset server for HMR
  */
-export async function startBunDevServer(
-	options: BunDevServerOptions
-): Promise<BunDevServerResult> {
-	const { rootDir, port = 3500, projectId = '', orgId = '', deploymentId = '', logger } = options;
+export async function startBunDevServer(options: BunDevServerOptions): Promise<BunDevServerResult> {
+	const { rootDir, port = 3500, projectId = '', deploymentId = '', logger } = options;
 
 	logger.debug('Starting Bun dev server with Vite asset server for HMR...');
 

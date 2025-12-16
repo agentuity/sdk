@@ -1,6 +1,6 @@
 /**
  * Vite Asset Server
- * 
+ *
  * Starts a minimal Vite dev server for frontend asset transformation and HMR only.
  * Does NOT handle API routes or WebSocket - the Bun server proxies to this.
  */
@@ -41,7 +41,7 @@ export async function startViteAssetServer(
 
 	// Extract the actual port Vite chose
 	const port = server.config.server.port || 5173; // Fallback to Vite default
-	
+
 	logger.info(`✅ Vite asset server started on port ${port}`);
 	logger.debug(`Asset server will handle: HMR, React transformation, source maps`);
 

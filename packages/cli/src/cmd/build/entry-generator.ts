@@ -139,8 +139,9 @@ app.route('/', workbenchRouter);
 		: '';
 
 	// Asset proxy routes (dev mode only - proxy to Vite asset server)
-	const assetProxyRoutes = isDev && vitePort
-		? `
+	const assetProxyRoutes =
+		isDev && vitePort
+			? `
 // Asset proxy routes - Forward Vite-specific requests to asset server
 const VITE_ASSET_PORT = ${vitePort};
 
@@ -171,7 +172,7 @@ app.get('/@fs/*', proxyToVite);
 // Module resolution (for Vite's @id protocol)
 app.get('/@id/*', proxyToVite);
 `
-		: '';
+			: '';
 
 	// Web routes (different for dev/prod)
 	let webRoutes = '';

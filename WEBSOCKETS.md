@@ -19,11 +19,13 @@ The `@hono/vite-dev-server` plugin only handles HTTP requests via Vite's middlew
 ## Architecture Overview
 
 ### Production (Works Fine)
+
 - Bun.serve() with native WebSocket support
 - Hono router with `router.websocket()` routes
 - `upgradeWebSocket` from `hono/bun` handles the upgrade protocol
 
 ### Development (Current Issue)
+
 - Vite dev server (Node.js HTTP server) on port 3500
 - Secondary Node.js HTTP server on port 3501 for WebSocket handling
 - Vite proxy forwards WebSocket upgrades to port 3501
@@ -34,10 +36,12 @@ The `@hono/vite-dev-server` plugin only handles HTTP requests via Vite's middlew
 ### 1. Dual Server Architecture
 
 **Port 3500 (Vite):**
+
 - Handles HTTP requests via `@hono/vite-dev-server`
 - Proxies WebSocket upgrades to port 3501
 
 **Port 3501 (Node.js HTTP Server):**
+
 - Created in `vite-dev-server.ts`
 - Hono app attached via `@hono/node-server`
 - WebSocket support via `@hono/node-ws`
@@ -71,23 +75,25 @@ proxy: {
 ### 4. WebSocket Integration
 
 **In `entry-generator.ts` (dev mode):**
+
 ```typescript
 if (globalThis.__AGENTUITY_WS_HTTP_SERVER__ && !globalThis.__AGENTUITY_WS_ATTACHED__) {
-  const nodeServer = await import('@hono/node-server');
-  const nodeWs = await import('@hono/node-ws');
-  
-  const httpServer = globalThis.__AGENTUITY_WS_HTTP_SERVER__;
-  const requestListener = nodeServer.getRequestListener(app.fetch);
-  const { injectWebSocket } = nodeWs.createNodeWebSocket({ app });
-  
-  httpServer.on('request', requestListener);
-  injectWebSocket(httpServer);
-  
-  globalThis.__AGENTUITY_WS_ATTACHED__ = true;
+	const nodeServer = await import('@hono/node-server');
+	const nodeWs = await import('@hono/node-ws');
+
+	const httpServer = globalThis.__AGENTUITY_WS_HTTP_SERVER__;
+	const requestListener = nodeServer.getRequestListener(app.fetch);
+	const { injectWebSocket } = nodeWs.createNodeWebSocket({ app });
+
+	httpServer.on('request', requestListener);
+	injectWebSocket(httpServer);
+
+	globalThis.__AGENTUITY_WS_ATTACHED__ = true;
 }
 ```
 
 **In `router.ts`:**
+
 ```typescript
 // Set upgradeWebSocket globally from @hono/node-ws in dev mode
 const nodeWs = (await import('@hono/node-ws')).createNodeWebSocket({ app: undefined });
@@ -95,7 +101,9 @@ globalThis.__AGENTUITY_UPGRADE_WEBSOCKET__ = nodeWs.upgradeWebSocket;
 
 // Later used in router.websocket() implementation
 const upgradeWebSocketFn = globalThis.__AGENTUITY_UPGRADE_WEBSOCKET__;
-const wrapper = upgradeWebSocketFn((c) => { /* ... */ });
+const wrapper = upgradeWebSocketFn((c) => {
+	/* ... */
+});
 ```
 
 ## What We Observe
@@ -118,43 +126,52 @@ const wrapper = upgradeWebSocketFn((c) => { /* ... */ });
 ## What We've Tried
 
 ### Attempt 1: Global Bypass Function
+
 - Used Vite proxy `bypass()` to detect WebSocket upgrades
 - Problem: Too complex, needed to filter out Vite HMR WebSocket
 
 ### Attempt 2: Path-Based Proxying (Current)
+
 - Explicit proxy configs for `/_agentuity` and `/api`
 - Works better but upgrade still fails
 
 ### Attempt 3: Pre-loading App
+
 - Load app before Vite starts to ensure handlers attached
 - Prevents timing issues but doesn't fix upgrade
 
 ### Attempt 4: HMR Protection
+
 - Added `__AGENTUITY_WS_ATTACHED__` guard to prevent re-attachment
 - Prevents duplicate handlers but doesn't fix the core issue
 
 ### Attempt 5: Debug Logging
+
 - Added upgrade event listener for debugging
 - Never fires, confirming upgrade doesn't reach our server
 
 ## Current Hypotheses
 
 ### Hypothesis 1: `injectWebSocket()` Doesn't Work As Expected
+
 `injectWebSocket()` from `@hono/node-ws` might not properly attach upgrade handlers to an externally-created HTTP server.
 
 **Test:** Check `@hono/node-ws` source code to see what `injectWebSocket()` actually does.
 
 ### Hypothesis 2: Request Handler Conflicts
+
 The `httpServer.on('request', requestListener)` might interfere with upgrade handling.
 
 **Test:** Try NOT attaching request handler, only inject WebSocket.
 
 ### Hypothesis 3: Vite Proxy Doesn't Forward Properly
+
 The proxy might be forwarding incorrectly despite logs saying it works.
 
 **Test:** Use `tcpdump` or raw socket inspection to verify data reaches port 3501.
 
 ### Hypothesis 4: We Need Different Architecture
+
 Maybe we shouldn't use `@hono/vite-dev-server` at all for WebSocket routes.
 
 **Alternative:** Use `@hono/node-server` completely separately, don't integrate with Vite's middleware.
@@ -245,7 +262,7 @@ Vite:<dynamic> → Asset Server ONLY
 ✅ No port conflicts (Vite chooses available port)  
 ✅ Simpler code (no Node.js conditionals)  
 ✅ Single server from browser perspective  
-✅ HMR still works perfectly  
+✅ HMR still works perfectly
 
 ---
 
