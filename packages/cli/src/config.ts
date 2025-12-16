@@ -127,7 +127,9 @@ function expandTilde(path: string): string {
 let cachedConfig: Config | null | undefined;
 
 export async function loadConfig(customPath?: string): Promise<Config | null> {
-	if (cachedConfig !== undefined) {
+	// Don't use cache when explicitly loading a specific file path
+	// This prevents new profiles from inheriting cached config from current profile
+	if (cachedConfig !== undefined && !customPath) {
 		return cachedConfig;
 	}
 	const configPath = customPath ? expandTilde(customPath) : await getProfile();
@@ -428,10 +430,14 @@ export function generateYAMLTemplate(name: string): string {
 
 		const schema = value as z.ZodTypeAny;
 
-		// Unwrap optional to get to the inner schema
+		// Unwrap optional and nullable to get to the inner schema
+		// Note: .optional().nullable() creates ZodNullable(ZodOptional(ZodObject))
 		let innerSchema = schema;
-		if (schema instanceof z.ZodOptional) {
-			innerSchema = (schema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
+		if (innerSchema instanceof z.ZodNullable) {
+			innerSchema = (innerSchema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
+		}
+		if (innerSchema instanceof z.ZodOptional) {
+			innerSchema = (innerSchema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
 		}
 
 		const description = getSchemaDescription(schema);
