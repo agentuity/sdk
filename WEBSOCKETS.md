@@ -1,8 +1,14 @@
-# WebSocket Support in Vite Dev Mode - Investigation Notes
+# WebSocket Support in Vite Dev Mode - Solution
 
 ## Goal
 
 Support WebSocket routes (particularly workbench WebSocket at `/_agentuity/workbench/ws`) in dev mode using Vite dev server with HMR.
+
+## ✅ SOLVED - Final Architecture
+
+**Single Bun Server with Vite Asset Server**
+
+The solution was to abandon the dual Node.js + Vite architecture and instead use Bun's native WebSocket support with Vite running purely as an asset transformation server.
 
 ## The Fundamental Problem
 
@@ -186,9 +192,70 @@ Maybe we shouldn't use `@hono/vite-dev-server` at all for WebSocket routes.
    - Run WebSocket server completely separately from Vite
    - Use different port for WebSocket only (e.g., 3502)
 
+---
+
+## Final Working Solution
+
+### Architecture
+
+```
+Browser:3500 → Bun Server (Bun.serve)
+                 ├─ /api/* → Hono routes
+                 ├─ /_agentuity/* → Workbench + WebSocket (native Bun)
+                 ├─ /@vite/* → Proxy to Vite Asset Server
+                 ├─ /src/web/* → Proxy to Vite Asset Server (HMR)
+                 └─ WebSocket upgrades → hono/bun (native)
+
+Vite:<dynamic> → Asset Server ONLY
+                 └─ Transforms frontend files with HMR
+                 └─ Port chosen automatically
+```
+
+### What Changed
+
+1. **Removed Node.js dependencies:**
+   - Deleted `@hono/node-server`
+   - Deleted `@hono/node-ws`
+
+2. **Bun server runs ALL logic:**
+   - HTTP routes (API, workbench, web)
+   - WebSocket connections (native `hono/bun`)
+   - Asset proxy routes to Vite
+
+3. **Vite is asset-only:**
+   - Runs on dynamically-chosen port
+   - No app logic, no routing
+   - Only transforms TypeScript/JSX and provides HMR
+
+4. **Single WebSocket code path:**
+   - Dev mode uses `hono/bun` (same as production)
+   - No conditional Node.js vs Bun logic
+   - Works exactly like production
+
+### Key Files
+
+- `packages/cli/src/cmd/build/vite/bun-dev-server.ts` - Starts Bun server + Vite asset server
+- `packages/cli/src/cmd/build/vite/vite-asset-server.ts` - Minimal Vite config for assets only
+- `packages/cli/src/cmd/build/entry-generator.ts` - Generates asset proxy routes
+
+### Benefits
+
+✅ WebSocket works natively (no proxy issues)  
+✅ Dev mode architecture matches production  
+✅ No port conflicts (Vite chooses available port)  
+✅ Simpler code (no Node.js conditionals)  
+✅ Single server from browser perspective  
+✅ HMR still works perfectly  
+
+---
+
+## Investigation History (Archived)
+
+The sections below document the failed attempts and investigation process that led to the final solution.
+
 ## References
 
 - Vite WebSocket proxy issue: https://github.com/honojs/vite-plugins/issues/253
-- `@hono/node-ws` package: https://github.com/honojs/node-ws
-- `@hono/node-server` package: https://github.com/honojs/node-server
+- `@hono/node-ws` package: https://github.com/honojs/node-ws (no longer used)
+- `@hono/node-server` package: https://github.com/honojs/node-server (no longer used)
 - Hono WebSocket helpers: https://hono.dev/helpers/websocket
