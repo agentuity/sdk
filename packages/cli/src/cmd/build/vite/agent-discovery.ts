@@ -213,13 +213,16 @@ function extractAgentMetadata(
 						// Check for direct description property
 						if (prop.key.name === 'description' && prop.value.type === 'Literal') {
 							description = String((prop.value as ASTLiteral).value);
+							break; // Direct description takes precedence
 						}
 						// Also check metadata.description for backwards compat
 						if (prop.key.name === 'metadata' && prop.value.type === 'ObjectExpression') {
 							const metadataMap = parseObjectExpressionToMap(
 								prop.value as ASTObjectExpression
 							);
-							description = metadataMap.get('description');
+							if (!description) {
+								description = metadataMap.get('description');
+							}
 							break;
 						}
 					}
@@ -266,13 +269,16 @@ function extractAgentMetadata(
 							// Check for direct description property
 							if (prop.key.name === 'description' && prop.value.type === 'Literal') {
 								description = String((prop.value as ASTLiteral).value);
+								break; // Direct description takes precedence
 							}
 							// Also check metadata.description for backwards compat
 							if (prop.key.name === 'metadata' && prop.value.type === 'ObjectExpression') {
 								const metadataMap = parseObjectExpressionToMap(
 									prop.value as ASTObjectExpression
 								);
-								description = metadataMap.get('description');
+								if (!description) {
+									description = metadataMap.get('description');
+								}
 								break;
 							}
 						}

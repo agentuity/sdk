@@ -33,7 +33,9 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 	const { routeInfoList } = await discoverRoutes(srcDir, projectId, deploymentId, logger);
 
 	// Check for web and workbench
-	const hasWebFrontend = await Bun.file(join(srcDir, 'web', 'frontend.tsx')).exists();
+	const hasWebFrontend =
+		(await Bun.file(join(srcDir, 'web', 'index.html')).exists()) ||
+		(await Bun.file(join(srcDir, 'web', 'frontend.tsx')).exists());
 	const hasWorkbench = !!workbench;
 
 	// Get unique route files that need to be imported (relative to src/)
@@ -72,8 +74,8 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		`import { `,
 		...runtimeImports,
 		`} from '@agentuity/runtime';`,
-		isDev ? '' : `import { websocket } from 'hono/bun';`,
-		hasWebFrontend ? `import { serveStatic } from 'hono/bun';` : '',
+		isDev ? `import { createNodeWebSocket } from '@hono/node-ws';` : `import { websocket } from 'hono/bun';`,
+		!isDev && hasWebFrontend ? `import { serveStatic } from 'hono/bun';` : '',
 	].filter(Boolean);
 
 	imports.push(`import { type LogLevel } from '@agentuity/core';`);
@@ -214,9 +216,44 @@ if (existsSync(workbenchIndexPath)) {
 `
 		: '';
 
-	// Server startup (prod only)
+	// Server startup
 	const serverStartup = isDev
-		? ''
+		? `
+// Dev mode: Attach to externally-started HTTP server (from vite-dev-server.ts)
+if (globalThis.__AGENTUITY_WS_HTTP_SERVER__ && !globalThis.__AGENTUITY_WS_ATTACHED__) {
+	otel.logger.debug('🔌 Attaching Hono app to existing HTTP server...');
+	const nodeServer = await import('@hono/node-server');
+	const nodeWs = await import('@hono/node-ws');
+	
+	// Get the HTTP request listener from Hono app
+	const httpServer = globalThis.__AGENTUITY_WS_HTTP_SERVER__;
+	
+	otel.logger.debug('Creating request listener from Hono app...');
+	const requestListener = nodeServer.getRequestListener(app.fetch);
+	
+	otel.logger.debug('Creating WebSocket injector...');
+	const { injectWebSocket } = nodeWs.createNodeWebSocket({ app });
+	
+	// Attach request handler to existing server
+	otel.logger.debug('Attaching request handler to HTTP server...');
+	httpServer.on('request', requestListener);
+	
+	// Inject WebSocket support
+	otel.logger.debug('Injecting WebSocket support into HTTP server...');
+	injectWebSocket(httpServer);
+	
+	// Mark as attached to prevent re-attachment on HMR
+	globalThis.__AGENTUITY_WS_ATTACHED__ = true;
+	
+	otel.logger.info('✅ Attached app to existing WebSocket server on port 3501');
+	
+	// Log upgrade event listeners for debugging
+	const upgradeListeners = httpServer.listeners('upgrade');
+	otel.logger.debug(\`HTTP Server has \${upgradeListeners.length} upgrade listeners\`);
+} else if (globalThis.__AGENTUITY_WS_ATTACHED__) {
+	otel.logger.debug('ℹ️ Skipping attachment - already attached (HMR reload)');
+}
+`
 		: `
 // Start Bun server for production
 if (typeof Bun !== 'undefined') {
@@ -251,7 +288,14 @@ setGlobalLogger(otel.logger);
 setGlobalTracer(otel.tracer);
 
 // Step 2: Create router and set as global
-const app = createRouter();
+${isDev ? `// Dev mode: Set upgradeWebSocket globally before router creation
+const nodeWs = (await import('@hono/node-ws')).createNodeWebSocket({ app: undefined });
+globalThis.__AGENTUITY_UPGRADE_WEBSOCKET__ = nodeWs.upgradeWebSocket;
+` : `// Production: Set upgradeWebSocket from hono/bun
+const { upgradeWebSocket } = await import('hono/bun');
+globalThis.__AGENTUITY_UPGRADE_WEBSOCKET__ = upgradeWebSocket;
+`}const app = createRouter();
+${isDev ? `\n// Dev mode: Reinitialize with actual app for injectWebSocket\nconst { injectWebSocket } = (await import('@hono/node-ws')).createNodeWebSocket({ app });\n` : ''}
 setGlobalRouter(app);
 
 // Step 3: Apply middleware in correct order (BEFORE mounting routes)

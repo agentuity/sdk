@@ -146,7 +146,7 @@ export async function discoverRoutes(
 }
 
 export interface RouteConflict {
-	type: 'duplicate' | 'ambiguous';
+	type: 'duplicate';
 	routes: Array<{ method: string; path: string; filename: string }>;
 	message: string;
 }

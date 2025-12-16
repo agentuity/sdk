@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { existsSync } from 'node:fs';
 
 /**
@@ -54,11 +54,21 @@ export async function createWebRouter(): Promise<Hono> {
 			);
 		}
 
+		// Compute relative paths for serveStatic (it expects relative paths from cwd)
+		let relClientDir = relative(process.cwd(), clientDir);
+		if (!relClientDir.startsWith('.')) {
+			relClientDir = './' + relClientDir;
+		}
+		let relIndexPath = relative(process.cwd(), indexHtmlPath);
+		if (!relIndexPath.startsWith('.')) {
+			relIndexPath = './' + relIndexPath;
+		}
+
 		// Serve static files from .agentuity/client/
-		router.use('/*', serveStatic({ root: clientDir }));
+		router.use('/*', serveStatic({ root: relClientDir }));
 
 		// Fallback to index.html for SPA routing
-		router.get('*', serveStatic({ path: join(clientDir, 'index.html') }));
+		router.get('*', serveStatic({ path: relIndexPath }));
 	}
 
 	return router;

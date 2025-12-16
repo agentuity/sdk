@@ -273,9 +273,14 @@ export async function createApp<TAppState = Record<string, never>>(
 	};
 
 	// Get router from global (set by entry file before app.ts import)
-	// In dev mode, router may not be available during bundling - return stub
+	// In dev mode, router may not be available during bundling
 	const globalRouter = getRouter();
-	const router = (globalRouter || ({} as any)) as Hono<Env<TAppState>>;
+	if (!globalRouter) {
+		throw new Error(
+			'Router is not available. Ensure router is initialized before calling createApp(). This typically happens during bundling or when the entry file has not properly set up the router.'
+		);
+	}
+	const router = globalRouter as Hono<Env<TAppState>>;
 
 	return {
 		state,

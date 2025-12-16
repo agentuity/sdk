@@ -11,7 +11,15 @@ import { generateId } from './session';
 import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
 import { extractTraceContextFromRequest } from './otel/http';
-import { context, SpanKind, SpanStatusCode, trace, propagation } from '@opentelemetry/api';
+import {
+	context,
+	SpanKind,
+	SpanStatusCode,
+	trace,
+	propagation,
+	Meter,
+	Tracer,
+} from '@opentelemetry/api';
 import { TraceState } from '@opentelemetry/core';
 import * as runtimeConfig from './_config';
 
@@ -57,12 +65,9 @@ function installContextPropertyHelpers(c: any): void {
 
 export interface MiddlewareConfig {
 	logger: Logger;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	tracer: any;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	meter: any;
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	corsOptions?: any;
+	tracer: Tracer;
+	meter: Meter;
+	corsOptions?: Parameters<typeof cors>[0];
 }
 
 /**
@@ -159,8 +164,6 @@ export function createOtelMiddleware() {
 		const url = new URL(c.req.url);
 		const threadProvider = getThreadProvider();
 		const sessionProvider = getSessionProvider();
-		// Session event provider not currently used in Vite-native mode
-		// const sessionEventProvider = getSessionEventProvider();
 
 		await context.with(extractedContext, async (): Promise<void> => {
 			const tracer = trace.getTracer('http-server');
@@ -238,5 +241,3 @@ export function createOtelMiddleware() {
 		});
 	});
 }
-
-// Note: createAgentMiddleware is exported from agent.ts, not re-exported here

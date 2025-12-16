@@ -53,7 +53,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 export default defineConfig(async () => {
-	const rootDir = '${rootDir}';
+	const rootDir = ${JSON.stringify(rootDir)};
 	const logger = createLogger('info');
 	
 	// Load path aliases from tsconfig.json
@@ -90,17 +90,48 @@ export default defineConfig(async () => {
 				// Prevent Vite from serving workbench files - let Hono handle them
 				deny: ['**/.agentuity/workbench/**'],
 			},
+			// Proxy all WebSocket upgrade requests to secondary Node.js server
+			proxy: {
+				'/_agentuity': {
+					target: 'http://127.0.0.1:3501',
+					ws: true,
+					changeOrigin: false,
+					configure: (proxy) => {
+						logger.debug('[Proxy] Configuring WebSocket proxy for /_agentuity');
+						
+						proxy.on('proxyReqWs', (_proxyReq, req, _socket, _options, _head) => {
+							logger.info(\`[Proxy] WebSocket upgrade - proxying \${req.url} to :3501\`);
+							logger.debug(\`[Proxy] Upgrade headers: \${JSON.stringify(req.headers)}\`);
+						});
+						
+						proxy.on('open', (_proxySocket) => {
+							logger.info('[Proxy] WebSocket tunnel opened to :3501');
+						});
+						
+						proxy.on('close', (_res, _socket, _head) => {
+							logger.info('[Proxy] WebSocket tunnel closed');
+						});
+						
+						proxy.on('error', (err, req, _res) => {
+							logger.error(\`[Proxy] WebSocket error on \${req.url}:\`, err.message);
+							logger.error(\`[Proxy] Error stack:\`, err.stack);
+						});
+					},
+				},
+				'/api': {
+					target: 'http://127.0.0.1:3501',
+					ws: true,
+					changeOrigin: false,
+				},
+			},
 		},`
 				: ''
 		}
-		${
-			dev && workbenchPath
-				? `define: {
-			'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': '${JSON.stringify(workbenchPath)}',
-			'process.env.NODE_ENV': '"development"',
-		},`
-				: ''
-		}
+		define: {
+			${workbenchPath ? `'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': ${JSON.stringify(JSON.stringify(workbenchPath))},` : ''}
+			'import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY': ${JSON.stringify(JSON.stringify(process.env.AGENTUITY_SDK_KEY ? 'true' : 'false'))},
+			'process.env.NODE_ENV': ${JSON.stringify(JSON.stringify(dev ? 'development' : 'production'))},
+		},
 		plugins: [
 			react(),
 			browserEnvPlugin(),

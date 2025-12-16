@@ -40,11 +40,12 @@ export function getTotalTokens(tokens: Record<string, number>): number {
 }
 
 export const getProcessEnv = (key: string): string | undefined => {
-	if (typeof process !== 'undefined' && process.env) {
-		return process.env[key];
-	}
+	// Prioritize import.meta.env for browser/Vite environments
 	if (typeof import.meta.env !== 'undefined') {
 		return import.meta.env[key];
+	}
+	if (typeof process !== 'undefined' && process.env) {
+		return process.env[key];
 	}
 	return undefined;
 };

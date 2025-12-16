@@ -175,6 +175,7 @@
         "@hono/vite-build": "^1.8.0",
         "@hono/vite-dev-server": "^0.23.0",
         "@terascope/fetch-github-release": "^2.2.1",
+        "@types/ws": "^8.18.1",
         "@vitejs/plugin-react": "^5.1.2",
         "acorn-loose": "^8.5.2",
         "adm-zip": "^0.5.16",
@@ -189,6 +190,7 @@
         "tar-fs": "^3.1.1",
         "typescript": "^5.9.0",
         "vite": "^7.2.7",
+        "ws": "^8.18.3",
         "zod": "^4.1.12",
       },
       "devDependencies": {
@@ -237,6 +239,8 @@
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
         "@agentuity/server": "workspace:*",
+        "@hono/node-server": "^1.19.7",
+        "@hono/node-ws": "^1.2.0",
         "@opentelemetry/api": "^1.9.0",
         "@opentelemetry/api-logs": "^0.207.0",
         "@opentelemetry/auto-instrumentations-node": "^0.66.0",
@@ -601,6 +605,8 @@
     "@happy-dom/global-registrator": ["@happy-dom/global-registrator@20.0.11", "", { "dependencies": { "@types/node": "^20.0.0", "happy-dom": "^20.0.11" } }, "sha512-GqNqiShBT/lzkHTMC/slKBrvN0DsD4Di8ssBk4aDaVgEn+2WMzE6DXxq701ndSXj7/0cJ8mNT71pM7Bnrr6JRw=="],
 
     "@hono/node-server": ["@hono/node-server@1.19.7", "", { "peerDependencies": { "hono": "^4" } }, "sha512-vUcD0uauS7EU2caukW8z5lJKtoGMokxNbJtBiwHgpqxEXokaHCBkQUmCHhjFB1VUTWdqj25QoMkMKzgjq+uhrw=="],
+
+    "@hono/node-ws": ["@hono/node-ws@1.2.0", "", { "dependencies": { "ws": "^8.17.0" }, "peerDependencies": { "@hono/node-server": "^1.11.1", "hono": "^4.6.0" } }, "sha512-OBPQ8OSHBw29mj00wT/xGYtB6HY54j0fNSdVZ7gZM3TUeq0So11GXaWtFf1xWxQNfumKIsj0wRuLKWfVsO5GgQ=="],
 
     "@hono/vite-build": ["@hono/vite-build@1.8.0", "", { "peerDependencies": { "hono": "*" } }, "sha512-T/w0Tuv8VV6FgjNnw2aW6LXtRfc5tOhaO54tKCRv4Zqc1tP3w6JyqTFtzJFFDvmY0xTxHS+Pj+ZPLhzFsdiFzQ=="],
 

@@ -165,7 +165,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 					schema.output = agent.outputSchemaCode;
 					logger.trace(`Route ${route.path}: added output schema from agent ${agent.name}`);
 				}
-			} else if (importPath) {
+			} else {
 				logger.trace(`No agent found for import path ${importPath} in route ${route.filename}`);
 			}
 		}

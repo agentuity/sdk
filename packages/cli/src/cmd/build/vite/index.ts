@@ -10,9 +10,10 @@ import { generateMetadata, writeMetadataFile, generateRouteMapping } from './met
 import { generateEntryFile } from '../entry-generator';
 import { loadAgentuityConfig, getWorkbenchConfig } from './config-loader';
 
-// Re-export patch plugin
+// Re-export plugins
 export { patchPlugin } from './patch-plugin';
 export { browserEnvPlugin } from './browser-env-plugin';
+export { websocketPlugin } from './websocket-plugin';
 
 export interface AgentuityPluginOptions {
 	dev?: boolean;
@@ -131,7 +132,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			}
 			if (id === '\0virtual:agentuity/routes') {
 				// Re-export from generated route registry
-				return `export { routeRegistry } from '../.agentuity/route-registry.generated.js';`;
+				return `export { routeRegistry } from '../.agentuity/routes.generated.js';`;
 			}
 			return null;
 		},

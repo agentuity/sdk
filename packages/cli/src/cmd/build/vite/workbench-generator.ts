@@ -13,7 +13,7 @@ import type { Logger, WorkbenchConfig } from '../../../types';
 /**
  * Find the @agentuity/workbench package path
  */
-function findWorkbenchPackage(rootDir: string, logger: Logger): string | null {
+async function findWorkbenchPackage(rootDir: string, logger: Logger): Promise<string | null> {
 	// Try app-level node_modules first
 	const appLevel = join(rootDir, 'node_modules', '@agentuity', 'workbench');
 	if (existsSync(appLevel)) {
@@ -26,7 +26,7 @@ function findWorkbenchPackage(rootDir: string, logger: Logger): string | null {
 		const pkgPath = join(current, 'package.json');
 		if (existsSync(pkgPath)) {
 			try {
-				const pkg = JSON.parse(Bun.file(pkgPath).toString());
+				const pkg = JSON.parse(await Bun.file(pkgPath).text());
 				if (pkg.workspaces) {
 					// Found workspace root
 					const workspaceWorkbench = join(current, 'node_modules', '@agentuity', 'workbench');
@@ -128,7 +128,7 @@ export async function generateWorkbenchFiles(
 	logger.debug('Generated workbench index.html');
 
 	// Copy standalone CSS from @agentuity/workbench package
-	const workbenchPackage = findWorkbenchPackage(rootDir, logger);
+	const workbenchPackage = await findWorkbenchPackage(rootDir, logger);
 	if (workbenchPackage) {
 		const distCss = join(workbenchPackage, 'dist', 'standalone.css');
 		const srcCss = join(workbenchPackage, 'src', 'standalone.css');

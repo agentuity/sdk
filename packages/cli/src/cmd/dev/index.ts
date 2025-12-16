@@ -7,7 +7,7 @@ import { startViteDevServer } from '../build/vite/vite-dev-server';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { generateEndpoint, type DevmodeResponse } from './api';
-import { APIClient, getAppBaseURL, getGravityDevModeURL } from '../../api';
+import { APIClient, getAPIBaseURL, getAppBaseURL, getGravityDevModeURL } from '../../api';
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
@@ -20,7 +20,8 @@ const MAX_PORT = 65535;
 
 // Minimal interface for subprocess management
 interface ProcessLike {
-	kill: (signal?: number) => void;
+	kill: (signal?: number | NodeJS.Signals) => void;
+	exitCode: number | null;
 	stdout?: AsyncIterable<Uint8Array>;
 	stderr?: AsyncIterable<Uint8Array>;
 }
@@ -112,10 +113,10 @@ export const command = createCommand({
 
 		// Setup devmode and gravity (if using public URL)
 		const useMockService = process.env.DEVMODE_SYNC_SERVICE_MOCK === 'true';
-		const apiClient = auth ? new APIClient(getAppBaseURL(config), logger, config) : null;
+		const apiClient = auth ? new APIClient(getAPIBaseURL(config), logger, config) : null;
 		createDevmodeSyncService({
 			logger,
-			apiClient: apiClient!,
+			apiClient,
 			mock: useMockService,
 		});
 
@@ -236,6 +237,68 @@ export const command = createCommand({
 		// Make restart function available globally for HMR plugin
 		(globalThis as Record<string, unknown>).__AGENTUITY_RESTART__ = restartServer;
 
+		// Setup signal handlers once before the loop
+		const cleanup = async () => {
+			tui.info('Shutting down...');
+
+			// Kill app process with SIGTERM first, then SIGKILL as fallback
+			if (appProcess) {
+				try {
+					appProcess.kill('SIGTERM');
+					// Give it a moment to gracefully shutdown
+					await new Promise((resolve) => setTimeout(resolve, 100));
+					if (appProcess.exitCode === null) {
+						appProcess.kill('SIGKILL');
+					}
+				} catch (err) {
+					logger.debug('Error killing app process: %s', err);
+				}
+			}
+
+			// Kill gravity client with SIGTERM first, then SIGKILL as fallback
+			if (gravityProcess) {
+				try {
+					gravityProcess.kill('SIGTERM');
+					// Give it a moment to gracefully shutdown
+					await new Promise((resolve) => setTimeout(resolve, 100));
+					if (gravityProcess.exitCode === null) {
+						gravityProcess.kill('SIGKILL');
+					}
+				} catch (err) {
+					logger.debug('Error killing gravity process: %s', err);
+				}
+			}
+
+			// Close Vite server (if exists)
+			if (viteServer) {
+				await viteServer.close();
+			}
+
+			internalExit(0);
+		};
+
+		process.on('SIGINT', cleanup);
+		process.on('SIGTERM', cleanup);
+
+		// Ensure gravity client is always killed on exit (even if cleanup is bypassed)
+		// Use SIGKILL for immediate termination since the process is already exiting
+		process.on('exit', () => {
+			if (gravityProcess && gravityProcess.exitCode === null) {
+				try {
+					gravityProcess.kill('SIGKILL');
+				} catch (_err) {
+					// Ignore errors during exit cleanup
+				}
+			}
+			if (appProcess && appProcess.exitCode === null) {
+				try {
+					appProcess.kill('SIGKILL');
+				} catch (_err) {
+					// Ignore errors during exit cleanup
+				}
+			}
+		});
+
 		while (true) {
 			shouldRestart = false;
 
@@ -308,36 +371,54 @@ export const command = createCommand({
 				// Start gravity client if we have devmode
 				if (gravityBin && gravityURL && devmode) {
 					logger.trace('Starting gravity client: %s', gravityBin);
-					gravityProcess = Bun.spawn([gravityBin, gravityURL], {
-						env: {
-							...process.env,
-							GRAVITY_ENDPOINT_ID: devmode.id,
-							GRAVITY_LOCAL_ADDR: `http://127.0.0.1:${opts.port}`,
-						},
-						stdout: 'pipe',
-						stderr: 'pipe',
-					});
+					gravityProcess = Bun.spawn(
+						[
+							gravityBin,
+							'--endpoint-id',
+							devmode.id,
+							'--port',
+							opts.port.toString(),
+							'--url',
+							gravityURL,
+							'--log-level',
+							process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
+						],
+						{
+							cwd: rootDir,
+							stdout: 'pipe',
+							stderr: 'pipe',
+							detached: false, // Ensure gravity dies with parent process
+						}
+					);
 
 					// Log gravity output
 					(async () => {
-						if (gravityProcess?.stdout) {
-							for await (const chunk of gravityProcess.stdout) {
-								const text = new TextDecoder().decode(chunk);
-								logger.debug('[gravity] %s', text.trim());
+						try {
+							if (gravityProcess?.stdout) {
+								for await (const chunk of gravityProcess.stdout) {
+									const text = new TextDecoder().decode(chunk);
+									logger.debug('[gravity] %s', text.trim());
+								}
 							}
+						} catch (err) {
+							logger.error('Error reading gravity stdout: %s', err);
 						}
 					})();
 
 					(async () => {
-						if (gravityProcess?.stderr) {
-							for await (const chunk of gravityProcess.stderr) {
-								const text = new TextDecoder().decode(chunk);
-								logger.warn('[gravity] %s', text.trim());
+						try {
+							if (gravityProcess?.stderr) {
+								for await (const chunk of gravityProcess.stderr) {
+									const text = new TextDecoder().decode(chunk);
+									logger.warn('[gravity] %s', text.trim());
+								}
 							}
+						} catch (err) {
+							logger.error('Error reading gravity stderr: %s', err);
 						}
 					})();
 
-					logger.info('Gravity client started');
+					logger.debug('Gravity client started');
 				}
 
 				// Sync service integration
@@ -390,31 +471,6 @@ export const command = createCommand({
 
 				showWelcome();
 
-				// Handle graceful shutdown
-				const cleanup = async () => {
-					tui.info('Shutting down...');
-
-					// Kill app process
-					if (appProcess) {
-						appProcess.kill();
-					}
-
-					// Kill gravity client
-					if (gravityProcess) {
-						gravityProcess.kill();
-					}
-
-					// Close Vite server (if exists)
-					if (viteServer) {
-						await viteServer.close();
-					}
-
-					internalExit(0);
-				};
-
-				process.on('SIGINT', cleanup);
-				process.on('SIGTERM', cleanup);
-
 				// Wait for restart signal
 				await new Promise<void>((resolve) => {
 					const checkRestart = setInterval(() => {
@@ -429,10 +485,26 @@ export const command = createCommand({
 				tui.info('Restarting server...');
 
 				if (appProcess) {
-					appProcess.kill();
+					try {
+						appProcess.kill('SIGTERM');
+						await new Promise((resolve) => setTimeout(resolve, 100));
+						if (appProcess.exitCode === null) {
+							appProcess.kill('SIGKILL');
+						}
+					} catch (err) {
+						logger.debug('Error killing app process during restart: %s', err);
+					}
 				}
 				if (gravityProcess) {
-					gravityProcess.kill();
+					try {
+						gravityProcess.kill('SIGTERM');
+						await new Promise((resolve) => setTimeout(resolve, 100));
+						if (gravityProcess.exitCode === null) {
+							gravityProcess.kill('SIGKILL');
+						}
+					} catch (err) {
+						logger.debug('Error killing gravity process during restart: %s', err);
+					}
 				}
 				if (viteServer) {
 					await viteServer.close();
@@ -445,8 +517,28 @@ export const command = createCommand({
 				tui.warn('Waiting for file changes to retry...');
 
 				// Cleanup on error
-				if (appProcess) appProcess.kill();
-				if (gravityProcess) gravityProcess.kill();
+				if (appProcess) {
+					try {
+						appProcess.kill('SIGTERM');
+						await new Promise((resolve) => setTimeout(resolve, 100));
+						if (appProcess.exitCode === null) {
+							appProcess.kill('SIGKILL');
+						}
+					} catch (err) {
+						logger.debug('Error killing app process on error: %s', err);
+					}
+				}
+				if (gravityProcess) {
+					try {
+						gravityProcess.kill('SIGTERM');
+						await new Promise((resolve) => setTimeout(resolve, 100));
+						if (gravityProcess.exitCode === null) {
+							gravityProcess.kill('SIGKILL');
+						}
+					} catch (err) {
+						logger.debug('Error killing gravity process on error: %s', err);
+					}
+				}
 				if (viteServer) await viteServer.close();
 
 				// Wait for next restart trigger

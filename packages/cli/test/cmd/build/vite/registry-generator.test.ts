@@ -127,7 +127,7 @@ describe('registry-generator', () => {
 			}).toThrow();
 		});
 
-		test('should include AgentRegistry augmentation', () => {
+		test('should include AgentRegistry augmentation', async () => {
 			const agents: AgentMetadata[] = [
 				{
 					filename: './agent/test.ts',
@@ -141,18 +141,18 @@ describe('registry-generator', () => {
 			generateAgentRegistry(srcDir, agents);
 
 			const registryPath = join(agentuityDir, 'registry.generated.ts');
-			const registryContent = Bun.file(registryPath).text();
+			const registryContent = await Bun.file(registryPath).text();
 
-			expect(registryContent).resolves.toContain('declare module "@agentuity/runtime"');
-			expect(registryContent).resolves.toContain('export interface AgentRegistry');
+			expect(registryContent).toContain('declare module "@agentuity/runtime"');
+			expect(registryContent).toContain('export interface AgentRegistry');
 		});
 
-		test('should remove legacy types.generated.d.ts if it exists', () => {
+		test('should remove legacy types.generated.d.ts if it exists', async () => {
 			// Create legacy types file
 			const agentDir = join(srcDir, 'agent');
 			mkdirSync(agentDir, { recursive: true });
 			const legacyTypesPath = join(agentDir, 'types.generated.d.ts');
-			Bun.write(legacyTypesPath, '// legacy types');
+			await Bun.write(legacyTypesPath, '// legacy types');
 
 			const agents: AgentMetadata[] = [
 				{
