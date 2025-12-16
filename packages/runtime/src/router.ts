@@ -487,6 +487,9 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 			const asyncLocalStorage = getAgentAsyncLocalStorage();
 			const capturedContext = asyncLocalStorage.getStore();
 
+			// Set Content-Type header for streaming response detection by clients
+			c.header('Content-Type', 'application/octet-stream');
+
 			return honoStream(c, async (s: any) => {
 				const runInContext = async () => {
 					try {
