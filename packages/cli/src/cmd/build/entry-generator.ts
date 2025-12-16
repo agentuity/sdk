@@ -14,13 +14,14 @@ interface GenerateEntryOptions {
 	logger: Logger;
 	mode: 'dev' | 'prod';
 	workbench?: WorkbenchConfig;
+	vitePort?: number; // Port of Vite asset server (dev mode only)
 }
 
 /**
  * Generate entry file with clean Vite-native architecture
  */
 export async function generateEntryFile(options: GenerateEntryOptions): Promise<void> {
-	const { rootDir, projectId, deploymentId, logger, mode, workbench } = options;
+	const { rootDir, projectId, deploymentId, logger, mode, workbench, vitePort } = options;
 	const isDev = mode === 'dev';
 
 	const srcDir = join(rootDir, 'src');
@@ -74,7 +75,7 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		`import { `,
 		...runtimeImports,
 		`} from '@agentuity/runtime';`,
-		isDev ? `import { createNodeWebSocket } from '@hono/node-ws';` : `import { websocket } from 'hono/bun';`,
+		`import { websocket } from 'hono/bun';`, // Always use Bun WebSocket (dev and prod)
 		!isDev && hasWebFrontend ? `import { serveStatic } from 'hono/bun';` : '',
 	].filter(Boolean);
 
@@ -137,19 +138,54 @@ app.route('/', workbenchRouter);
 `
 		: '';
 
+	// Asset proxy routes (dev mode only - proxy to Vite asset server)
+	const assetProxyRoutes = isDev && vitePort
+		? `
+// Asset proxy routes - Forward Vite-specific requests to asset server
+const VITE_ASSET_PORT = ${vitePort};
+
+const proxyToVite = async (c) => {
+	const viteUrl = \`http://127.0.0.1:\${VITE_ASSET_PORT}\${c.req.path}\`;
+	try {
+		const res = await fetch(viteUrl);
+		return new Response(res.body, {
+			status: res.status,
+			headers: res.headers,
+		});
+	} catch (err) {
+		otel.logger.error(\`Failed to proxy to Vite: \${err instanceof Error ? err.message : String(err)}\`);
+		return c.text('Vite asset server error', 500);
+	}
+};
+
+// Vite client scripts and HMR
+app.get('/@vite/*', proxyToVite);
+app.get('/@react-refresh', proxyToVite);
+
+// Source files for HMR
+app.get('/src/web/*', proxyToVite);
+
+// File system access (for Vite's @fs protocol)
+app.get('/@fs/*', proxyToVite);
+
+// Module resolution (for Vite's @id protocol)
+app.get('/@id/*', proxyToVite);
+`
+		: '';
+
 	// Web routes (different for dev/prod)
 	let webRoutes = '';
 	if (hasWebFrontend) {
 		if (isDev) {
 			const htmlPath = join(srcDir, 'web', 'index.html');
 			webRoutes = `
-// Web routes (dev mode with Vite HMR)
+// Web routes (dev mode with Vite HMR via proxy)
 const devHtmlHandler = async (c) => {
 	const html = await Bun.file('${htmlPath}').text();
 	const withHmr = html
-		// Fix relative paths to absolute for Vite dev server (with or without ./)
+		// Fix relative paths to use proxy routes (with or without ./)
 		.replace(/src=["'](?:\\.\\/)?([^"'\\/]+\\.tsx?)["']/g, 'src="/src/web/$1"')
-		// Inject Vite HMR scripts
+		// Inject Vite HMR scripts via proxy
 		.replace(
 			'</head>',
 			\`<script type="module">
@@ -216,46 +252,9 @@ if (existsSync(workbenchIndexPath)) {
 `
 		: '';
 
-	// Server startup
-	const serverStartup = isDev
-		? `
-// Dev mode: Attach to externally-started HTTP server (from vite-dev-server.ts)
-if (globalThis.__AGENTUITY_WS_HTTP_SERVER__ && !globalThis.__AGENTUITY_WS_ATTACHED__) {
-	otel.logger.debug('🔌 Attaching Hono app to existing HTTP server...');
-	const nodeServer = await import('@hono/node-server');
-	const nodeWs = await import('@hono/node-ws');
-	
-	// Get the HTTP request listener from Hono app
-	const httpServer = globalThis.__AGENTUITY_WS_HTTP_SERVER__;
-	
-	otel.logger.debug('Creating request listener from Hono app...');
-	const requestListener = nodeServer.getRequestListener(app.fetch);
-	
-	otel.logger.debug('Creating WebSocket injector...');
-	const { injectWebSocket } = nodeWs.createNodeWebSocket({ app });
-	
-	// Attach request handler to existing server
-	otel.logger.debug('Attaching request handler to HTTP server...');
-	httpServer.on('request', requestListener);
-	
-	// Inject WebSocket support
-	otel.logger.debug('Injecting WebSocket support into HTTP server...');
-	injectWebSocket(httpServer);
-	
-	// Mark as attached to prevent re-attachment on HMR
-	globalThis.__AGENTUITY_WS_ATTACHED__ = true;
-	
-	otel.logger.info('✅ Attached app to existing WebSocket server on port 3501');
-	
-	// Log upgrade event listeners for debugging
-	const upgradeListeners = httpServer.listeners('upgrade');
-	otel.logger.debug(\`HTTP Server has \${upgradeListeners.length} upgrade listeners\`);
-} else if (globalThis.__AGENTUITY_WS_ATTACHED__) {
-	otel.logger.debug('ℹ️ Skipping attachment - already attached (HMR reload)');
-}
-`
-		: `
-// Start Bun server for production
+	// Server startup (same for dev and prod - Bun.serve with native WebSocket)
+	const serverStartup = `
+// Start Bun server${isDev ? ' (dev mode with Vite asset proxy)' : ''}
 if (typeof Bun !== 'undefined') {
 	const port = parseInt(process.env.PORT || '3500', 10);
 	Bun.serve({
@@ -264,7 +263,7 @@ if (typeof Bun !== 'undefined') {
 		port,
 		hostname: '127.0.0.1',
 	});
-	otel.logger.info(\`Server listening on http://127.0.0.1:\${port}\`);
+	otel.logger.info(\`Server listening on http://127.0.0.1:\${port}\`);${isDev && vitePort ? `\n\totel.logger.debug(\`Proxying Vite assets from port ${vitePort}\`);` : ''}
 }
 `;
 
@@ -288,14 +287,11 @@ setGlobalLogger(otel.logger);
 setGlobalTracer(otel.tracer);
 
 // Step 2: Create router and set as global
-${isDev ? `// Dev mode: Set upgradeWebSocket globally before router creation
-const nodeWs = (await import('@hono/node-ws')).createNodeWebSocket({ app: undefined });
-globalThis.__AGENTUITY_UPGRADE_WEBSOCKET__ = nodeWs.upgradeWebSocket;
-` : `// Production: Set upgradeWebSocket from hono/bun
+// Use Bun WebSocket for both dev and prod
 const { upgradeWebSocket } = await import('hono/bun');
 globalThis.__AGENTUITY_UPGRADE_WEBSOCKET__ = upgradeWebSocket;
-`}const app = createRouter();
-${isDev ? `\n// Dev mode: Reinitialize with actual app for injectWebSocket\nconst { injectWebSocket } = (await import('@hono/node-ws')).createNodeWebSocket({ app });\n` : ''}
+
+const app = createRouter();
 setGlobalRouter(app);
 
 // Step 3: Apply middleware in correct order (BEFORE mounting routes)
@@ -330,6 +326,7 @@ await threadProvider.initialize(appState);
 await sessionProvider.initialize(appState);
 
 // Step 6: Mount routes (AFTER middleware is applied)
+${assetProxyRoutes}
 ${apiMount}
 ${workbenchApiMount}
 ${workbenchRoutes}

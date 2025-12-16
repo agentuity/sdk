@@ -3,7 +3,7 @@ import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { internalExit } from '@agentuity/runtime';
 import { createCommand } from '../../types';
-import { startViteDevServer } from '../build/vite/vite-dev-server';
+import { startBunDevServer } from '../build/vite/bun-dev-server';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { generateEndpoint, type DevmodeResponse } from './api';
@@ -223,7 +223,6 @@ export const command = createCommand({
 		// Restart loop - allows server to restart on file changes
 		let shouldRestart = false;
 		let viteServer: ServerLike | null = null;
-		let appProcess: ProcessLike | null = null;
 		let gravityProcess: ProcessLike | null = null;
 
 		const restartServer = () => {
@@ -241,18 +240,9 @@ export const command = createCommand({
 		const cleanup = async () => {
 			tui.info('Shutting down...');
 
-			// Kill app process with SIGTERM first, then SIGKILL as fallback
-			if (appProcess) {
-				try {
-					appProcess.kill('SIGTERM');
-					// Give it a moment to gracefully shutdown
-					await new Promise((resolve) => setTimeout(resolve, 100));
-					if (appProcess.exitCode === null) {
-						appProcess.kill('SIGKILL');
-					}
-				} catch (err) {
-					logger.debug('Error killing app process: %s', err);
-				}
+			// Close Vite asset server first
+			if (viteServer) {
+				await viteServer.close();
 			}
 
 			// Kill gravity client with SIGTERM first, then SIGKILL as fallback
@@ -269,11 +259,6 @@ export const command = createCommand({
 				}
 			}
 
-			// Close Vite server (if exists)
-			if (viteServer) {
-				await viteServer.close();
-			}
-
 			internalExit(0);
 		};
 
@@ -286,13 +271,6 @@ export const command = createCommand({
 			if (gravityProcess && gravityProcess.exitCode === null) {
 				try {
 					gravityProcess.kill('SIGKILL');
-				} catch (_err) {
-					// Ignore errors during exit cleanup
-				}
-			}
-			if (appProcess && appProcess.exitCode === null) {
-				try {
-					appProcess.kill('SIGKILL');
 				} catch (_err) {
 					// Ignore errors during exit cleanup
 				}
@@ -335,8 +313,8 @@ export const command = createCommand({
 			}
 
 			try {
-				// Start Vite dev server (Vite watch + Bun app process)
-				const result = await startViteDevServer({
+				// Start Bun dev server (with Vite asset server for HMR)
+				const result = await startBunDevServer({
 					rootDir,
 					port: opts.port,
 					projectId: project?.projectId,
@@ -345,8 +323,8 @@ export const command = createCommand({
 					logger,
 				});
 
-				viteServer = result.viteServer;
-				appProcess = result.appProcess;
+				viteServer = result.viteAssetServer.server;
+				// Note: Bun server runs in-process, no separate app process needed
 
 				// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
 				// Give it 2 seconds to ensure app initialization completes
@@ -484,17 +462,11 @@ export const command = createCommand({
 				// Restart triggered - cleanup and loop
 				tui.info('Restarting server...');
 
-				if (appProcess) {
-					try {
-						appProcess.kill('SIGTERM');
-						await new Promise((resolve) => setTimeout(resolve, 100));
-						if (appProcess.exitCode === null) {
-							appProcess.kill('SIGKILL');
-						}
-					} catch (err) {
-						logger.debug('Error killing app process during restart: %s', err);
-					}
+				// Close Vite asset server
+				if (viteServer) {
+					await viteServer.close();
 				}
+
 				if (gravityProcess) {
 					try {
 						gravityProcess.kill('SIGTERM');
@@ -506,9 +478,6 @@ export const command = createCommand({
 						logger.debug('Error killing gravity process during restart: %s', err);
 					}
 				}
-				if (viteServer) {
-					await viteServer.close();
-				}
 
 				// Brief pause before restart
 				await new Promise((resolve) => setTimeout(resolve, 500));
@@ -516,18 +485,11 @@ export const command = createCommand({
 				tui.error(`Error during server operation: ${error}`);
 				tui.warn('Waiting for file changes to retry...');
 
-				// Cleanup on error
-				if (appProcess) {
-					try {
-						appProcess.kill('SIGTERM');
-						await new Promise((resolve) => setTimeout(resolve, 100));
-						if (appProcess.exitCode === null) {
-							appProcess.kill('SIGKILL');
-						}
-					} catch (err) {
-						logger.debug('Error killing app process on error: %s', err);
-					}
+				// Cleanup on error - close Vite asset server
+				if (viteServer) {
+					await viteServer.close();
 				}
+
 				if (gravityProcess) {
 					try {
 						gravityProcess.kill('SIGTERM');
