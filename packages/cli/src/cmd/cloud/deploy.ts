@@ -14,7 +14,7 @@ import {
 	type Step,
 	type StepContext,
 } from '../../steps';
-import { bundle } from '../build/bundler';
+import { viteBundle } from '../build/vite-bundler';
 import { loadBuildMetadata, getStreamURL } from '../../config';
 import {
 	projectEnvUpdate,
@@ -90,7 +90,7 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { project, apiClient, projectDir, config, options, opts, logger } = ctx;
+		const { project, apiClient, projectDir, config, options, logger } = ctx;
 
 		let deployment: Deployment | undefined;
 		let build: BuildMetadata | undefined;
@@ -190,19 +190,12 @@ export const deploySubcommand = createSubcommand({
 							}
 							let capturedOutput: string[] = [];
 							try {
-								const bundleResult = await bundle({
+								const bundleResult = await viteBundle({
 									rootDir: resolve(projectDir),
 									dev: false,
 									deploymentId: deployment.id,
 									orgId: deployment.orgId,
 									projectId: project.projectId,
-									project,
-									commitUrl: opts?.commitUrl,
-									logsUrl: opts?.logsUrl,
-									provider: opts?.provider,
-									trigger: opts?.trigger,
-									tag: opts?.tag,
-									region: project.region,
 									logger: ctx.logger,
 								});
 								capturedOutput = bundleResult.output;
@@ -240,7 +233,24 @@ export const deploySubcommand = createSubcommand({
 							const deploymentZip = join(tmpdir(), `${deployment.id}.zip`);
 							await zipDir(join(projectDir, '.agentuity'), deploymentZip, {
 								filter: (_filename: string, relative: string) => {
-									// we don't include assets in the deployment
+									// Exclude Vite-specific build artifacts
+									if (relative.endsWith('.generated.ts')) {
+										return false;
+									}
+									if (relative.startsWith('.vite/')) {
+										return false;
+									}
+									if (relative.startsWith('workbench-src/')) {
+										return false;
+									}
+									// Exclude client/workbench assets (uploaded to CDN separately)
+									if (relative.startsWith('client/')) {
+										return false;
+									}
+									if (relative.startsWith('workbench/')) {
+										return false;
+									}
+									// Legacy: exclude old web directory structure
 									if (relative.startsWith('web/assets/')) {
 										return false;
 									}
@@ -250,7 +260,7 @@ export const deploySubcommand = createSubcommand({
 									if (relative.startsWith('web/public/')) {
 										return false;
 									}
-									// exclude sourcemaps from deployment
+									// Exclude sourcemaps from deployment
 									if (relative.endsWith('.map')) {
 										return false;
 									}
@@ -345,9 +355,8 @@ export const deploySubcommand = createSubcommand({
 										);
 									}
 
-									const file = Bun.file(
-										join(projectDir, '.agentuity', 'web', asset.filename)
-									);
+									// Asset filename already includes the subdirectory (e.g., "client/assets/main-abc123.js")
+									const file = Bun.file(join(projectDir, '.agentuity', asset.filename));
 									promises.push(
 										fetch(assetUrl, {
 											method: 'PUT',

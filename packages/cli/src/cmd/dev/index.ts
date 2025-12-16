@@ -1,42 +1,33 @@
-/** biome-ignore-all lint/style/useTemplate: its easier */
 import { z } from 'zod';
 import { resolve, join } from 'node:path';
-import { bundle } from '../build/bundler';
-import { getServiceUrls } from '@agentuity/server';
-import { getBuildMetadata } from '../build/plugin';
-import { existsSync, type FSWatcher, watch, statSync, readdirSync } from 'node:fs';
-import {
-	getDefaultConfigDir,
-	loadProjectSDKKey,
-	saveProjectDir,
-	saveConfig,
-	loadBuildMetadata,
-} from '../../config';
-import { type Config, createCommand } from '../../types';
+import { existsSync } from 'node:fs';
+import { internalExit } from '@agentuity/runtime';
+import { createCommand } from '../../types';
+import { startViteDevServer } from '../build/vite/vite-dev-server';
 import * as tui from '../../tui';
-import { createAgentTemplates, createAPITemplates } from './templates';
+import { getCommand } from '../../command-prefix';
 import { generateEndpoint, type DevmodeResponse } from './api';
-import { APIClient, getAppBaseURL, getAPIBaseURL, getGravityDevModeURL } from '../../api';
+import { APIClient, getAppBaseURL, getGravityDevModeURL } from '../../api';
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
-import { getWorkbench } from '../build/workbench';
-import { BuildMetadata } from '@agentuity/server';
-import { getCommand } from '../../command-prefix';
-import { notifyWorkbenchClients } from '../../utils/workbench-notify';
-import { getEnvFilePaths, readEnvFile } from '../../env-util';
-import { writeAgentsDocs } from '../../agents-docs';
-
-const shouldDisableInteractive = (interactive?: boolean) => {
-	if (!interactive) {
-		return true;
-	}
-	return process.env.TERM_PROGRAM === 'vscode';
-};
+import { getDefaultConfigDir, saveConfig } from '../../config';
+import type { Config } from '../../types';
 
 const DEFAULT_PORT = 3500;
 const MIN_PORT = 1024;
 const MAX_PORT = 65535;
+
+// Minimal interface for subprocess management
+interface ProcessLike {
+	kill: (signal?: number) => void;
+	stdout?: AsyncIterable<Uint8Array>;
+	stderr?: AsyncIterable<Uint8Array>;
+}
+
+interface ServerLike {
+	close: () => void;
+}
 
 const getDefaultPort = (): number => {
 	const envPort = process.env.PORT;
@@ -52,6 +43,13 @@ const getDefaultPort = (): number => {
 		return DEFAULT_PORT;
 	}
 	return parsed;
+};
+
+const shouldDisableInteractive = (interactive?: boolean) => {
+	if (!interactive) {
+		return true;
+	}
+	return process.env.TERM_PROGRAM === 'vscode';
 };
 
 export const command = createCommand({
@@ -80,28 +78,19 @@ export const command = createCommand({
 				.max(MAX_PORT)
 				.default(getDefaultPort())
 				.describe('The TCP port to start the dev server (also reads from PORT env)'),
-			watch: z
-				.array(z.string())
-				.optional()
-				.describe(
-					'Additional paths to watch for changes (e.g., --watch ../packages/workbench/dist)'
-				),
 		}),
 	},
 	optional: { auth: 'Continue without an account (local only)', project: true },
 
 	async handler(ctx) {
-		const { opts, logger, options, project, projectDir, auth } = ctx;
+		const { opts, logger, project, projectDir, auth } = ctx;
 		let { config } = ctx;
 
-		// Allow sync with mock service even without devmode endpoint
-		const useMockService = process.env.DEVMODE_SYNC_SERVICE_MOCK === 'true';
-		const apiClient = new APIClient(getAPIBaseURL(config), logger, config);
-		const syncService = createDevmodeSyncService({ logger, apiClient, mock: useMockService });
-
-		const rootDir = projectDir;
+		const rootDir = resolve(projectDir);
 		const appTs = join(rootDir, 'app.ts');
 		const srcDir = join(rootDir, 'src');
+
+		// Verify required files exist
 		const mustHaves = [join(rootDir, 'package.json'), appTs, srcDir];
 		const missing: string[] = [];
 
@@ -118,13 +107,17 @@ export const command = createCommand({
 			for (const filename of missing) {
 				tui.bullet(`Missing ${filename}`);
 			}
-			process.exit(1);
+			internalExit(1);
 		}
 
-		await saveProjectDir(rootDir);
-
-		// Regenerate AGENTS.md files if they are missing (e.g., after node_modules reinstall)
-		await writeAgentsDocs(rootDir, { onlyIfMissing: true });
+		// Setup devmode and gravity (if using public URL)
+		const useMockService = process.env.DEVMODE_SYNC_SERVICE_MOCK === 'true';
+		const apiClient = auth ? new APIClient(getAppBaseURL(config), logger, config) : null;
+		createDevmodeSyncService({
+			logger,
+			apiClient: apiClient!,
+			mock: useMockService,
+		});
 
 		let devmode: DevmodeResponse | undefined;
 		let gravityBin: string | undefined;
@@ -132,7 +125,7 @@ export const command = createCommand({
 		let appURL: string | undefined;
 
 		if (auth && project && opts.public) {
-			// Generate devmode endpoint only when using --public
+			// Generate devmode endpoint for public URL
 			const endpoint = await tui.spinner({
 				message: 'Connecting to Gravity',
 				callback: () => {
@@ -140,6 +133,7 @@ export const command = createCommand({
 				},
 				clearOnSuccess: true,
 			});
+
 			const _config = { ...config } as Config;
 			_config.devmode = {
 				hostname: endpoint.hostname,
@@ -149,20 +143,12 @@ export const command = createCommand({
 			devmode = endpoint;
 			gravityURL = getGravityDevModeURL(project.region, config);
 			appURL = `${getAppBaseURL(config)}/r/${project.projectId}`;
-			logger.trace('gravity url: %s', gravityURL);
-		}
 
-		logger.debug(
-			'Getting devmode deployment id for projectId: %s, endpointId: %s',
-			project?.projectId,
-			devmode?.id
-		);
-		const deploymentId = getDevmodeDeploymentId(project?.projectId ?? '', devmode?.id ?? '');
-
-		if (devmode && opts.public) {
+			// Download gravity client
 			const configDir = getDefaultConfigDir();
 			const gravityDir = join(configDir, 'gravity');
 			let mustCheck = true;
+
 			if (
 				config?.gravity?.version &&
 				existsSync(join(gravityDir, config.gravity.version, 'gravity')) &&
@@ -173,6 +159,7 @@ export const command = createCommand({
 					gravityBin = join(gravityDir, config.gravity.version, 'gravity');
 				}
 			}
+
 			if (mustCheck) {
 				const res = await download(gravityDir);
 				gravityBin = res.filename;
@@ -186,20 +173,25 @@ export const command = createCommand({
 			}
 		}
 
-		const workbench = await getWorkbench(rootDir);
+		// Get workbench info from config (new Vite approach)
+		const { loadAgentuityConfig, getWorkbenchConfig } = await import(
+			'../build/vite/config-loader'
+		);
+		const agentuityConfig = await loadAgentuityConfig(rootDir, ctx.logger);
+		const workbenchConfigData = getWorkbenchConfig(agentuityConfig, true); // dev mode
+		const workbench = {
+			hasWorkbench: workbenchConfigData.enabled,
+			config: workbenchConfigData.enabled
+				? { route: workbenchConfigData.route, headers: workbenchConfigData.headers }
+				: null,
+		};
 
-		const sdkKey = await loadProjectSDKKey(logger, rootDir);
-		if (!sdkKey) {
-			tui.warning(`Couldn't find the AGENTUITY_SDK_KEY in ${rootDir} .env file`);
-		}
+		const deploymentId = getDevmodeDeploymentId(project?.projectId ?? '', devmode?.id ?? '');
 
-		const canDoInput =
-			interactive && !!(process.stdin.isTTY && process.stdout.isTTY && !process.env.CI);
-
+		// Calculate URLs for banner
 		const padding = 12;
-
 		const workbenchUrl =
-			auth && sdkKey && project?.projectId
+			auth && project?.projectId
 				? `${getAppBaseURL(config)}/w/${project.projectId}`
 				: `http://127.0.0.1:${opts.port}${workbench.config?.route ?? '/workbench'}`;
 
@@ -216,925 +208,257 @@ export const command = createCommand({
 			tui.muted(tui.padRight('Dashboard:', padding)) +
 			(appURL ? tui.link(appURL) : tui.warn('Disabled')) +
 			'\n' +
-			(canDoInput
+			(interactive
 				? '\n' + tui.muted('Press ') + tui.bold('h') + tui.muted(' for keyboard shortcuts')
 				: '');
 
-		function showBanner() {
-			tui.banner('⨺ Agentuity DevMode', devmodebody, {
-				padding: 2,
-				topSpacer: false,
-				bottomSpacer: false,
-				centerTitle: false,
-			});
-		}
-
-		showBanner();
-
-		// Load .env file(s) based on config profile (Bun no longer auto-loads .env files)
-		const isProduction = process.env.NODE_ENV === 'production' || config?.name !== 'local';
-		const envFiles = getEnvFilePaths(rootDir, {
-			configName: config?.name,
-			isProduction,
+		tui.banner('⨺ Agentuity DevMode', devmodebody, {
+			padding: 2,
+			topSpacer: false,
+			bottomSpacer: false,
+			centerTitle: false,
 		});
 
-		// Load and merge all .env files (later files override earlier ones)
-		let envVars: Record<string, string> = {};
-		for (const envFilePath of envFiles) {
-			if (await Bun.file(envFilePath).exists()) {
-				const vars = await readEnvFile(envFilePath);
-				envVars = { ...envVars, ...vars };
-				logger.debug('Loaded environment variables from %s', envFilePath);
-			}
-		}
+		// Restart loop - allows server to restart on file changes
+		let shouldRestart = false;
+		let viteServer: ServerLike | null = null;
+		let appProcess: ProcessLike | null = null;
+		let gravityProcess: ProcessLike | null = null;
 
-		// Start with process.env and merge in .env file vars
-		const env: Record<string, string | undefined> = { ...process.env, ...envVars };
-		env.AGENTUITY_SDK_DEV_MODE = 'true';
-		env.AGENTUITY_ENV = 'development';
-		env.NODE_ENV = 'development';
-		env.AGENTUITY_REGION = project?.region;
-		env.PORT = Number(opts.port).toFixed();
-		env.AGENTUITY_PORT = env.PORT;
-		const serviceUrls = getServiceUrls(project?.region);
-		if (options.logLevel !== undefined) env.AGENTUITY_LOG_LEVEL = options.logLevel;
-		// Pass through AGENTUITY_SDK_LOG_LEVEL for internal SDK logger
-		if (process.env.AGENTUITY_SDK_LOG_LEVEL) {
-			env.AGENTUITY_SDK_LOG_LEVEL = process.env.AGENTUITY_SDK_LOG_LEVEL;
-		}
-		env.AGENTUITY_FORCE_LOCAL_SERVICES = opts.local === true ? 'true' : 'false';
-		if (project) {
-			env.AGENTUITY_TRANSPORT_URL = serviceUrls.catalyst;
-			env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
-			env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
-			env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
-			env.AGENTUITY_STREAM_URL = serviceUrls.stream;
-			env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
-			env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;
-		}
-		if (!process.stdout.isTTY) {
-			env.NO_COLOR = '1';
-		}
-
-		const agentuityDir = resolve(rootDir, '.agentuity');
-		const appPath = resolve(agentuityDir, 'app.js');
-
-		// Load existing metadata file to use as previousMetadata for sync
-		// This prevents reinserting agents/evals that haven't changed
-		let previousMetadata: BuildMetadata | undefined;
-		try {
-			previousMetadata = await loadBuildMetadata(agentuityDir);
-			logger.debug(
-				'Loaded previous metadata with %d agent(s)',
-				previousMetadata.agents?.length ?? 0
-			);
-		} catch (_error) {
-			// File doesn't exist yet (first run), that's okay
-			logger.debug('No previous metadata file found, will treat all agents/evals as new');
-			previousMetadata = undefined;
-		}
-
-		// Watch directories instead of files to survive atomic replacements (sed -i, cp)
-		const watches = [rootDir];
-
-		// Add additional watch paths from options
-		if (opts.watch) {
-			for (const watchPath of opts.watch) {
-				const resolvedPath = resolve(rootDir, watchPath);
-				if (existsSync(resolvedPath)) {
-					watches.push(resolvedPath);
-					logger.debug('Added additional watch path: %s', resolvedPath);
-				} else {
-					logger.warn('Watch path does not exist: %s', resolvedPath);
-				}
-			}
-		}
-		const watchers: FSWatcher[] = [];
-		let failures = 0;
-		let running = false;
-		let pid = 0;
-		let failed = false;
-		let devServer: Bun.Subprocess | undefined;
-		let exitPromise: Promise<number> | undefined;
-		let restarting = false;
-		let shuttingDownForRestart = false;
-		let pendingRestart = false;
-		let building = false;
-		let buildCompletedAt = 0;
-		const BUILD_COOLDOWN_MS = 500; // Ignore file changes for 500ms after build completes
-		const templatedDirectories = new Map<string, number>(); // Track directories that just had templates created
-		let metadata: Partial<BuildMetadata> | undefined;
-		let showInitialReadyMessage = true;
-		let serverStartTime = 0;
-		let gravityClient: Bun.Subprocess | undefined;
-		let initialStartupComplete = false;
-		const gravityBinExists = gravityBin ? await Bun.file(gravityBin).exists() : true;
-		if (!gravityBinExists) {
-			logger.error(`Gravity binary not found at ${gravityBin}, skipping gravity client startup`);
-		}
-
-		async function restartGravityClient() {
-			if (gravityClient) {
-				gravityClient.kill('SIGINT');
-				gravityClient.kill();
-			}
-			if (!devmode || !opts.public) {
-				return;
-			}
-			try {
-				gravityClient = Bun.spawn(
-					[
-						gravityBin!,
-						'--endpoint-id',
-						devmode.id,
-						'--port',
-						env.PORT!,
-						'--url',
-						gravityURL!,
-						'--log-level',
-						process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
-					],
-					{
-						cwd: rootDir,
-						stdout: 'inherit',
-						stderr: 'inherit',
-						stdin: 'ignore',
-						env: { ...env, AGENTUITY_SDK_KEY: sdkKey },
-					}
-				);
-				const handler = () => {
-					gravityClient?.kill('SIGINT');
-				};
-				process.on('SIGINT', handler);
-				gravityClient.exited
-					.then(() => {
-						logger.debug('gravity client exited');
-					})
-					.finally(() => {
-						process.off('SIGINT', handler);
-					});
-			} catch (err) {
-				logger.error(
-					'Failed to spawn gravity client: %s',
-					err instanceof Error ? err.message : String(err)
-				);
-			}
-		}
-
-		// Track restart timestamps to detect restart loops
-		const restartTimestamps: number[] = [];
-		const MAX_RESTARTS = 10;
-		const TIME_WINDOW_MS = 10000; // 10 seconds
-
-		function checkRestartThrottle() {
-			const now = Date.now();
-			restartTimestamps.push(now);
-
-			// Remove timestamps older than the time window
-			while (restartTimestamps.length > 0 && now - restartTimestamps[0] > TIME_WINDOW_MS) {
-				restartTimestamps.shift();
-			}
-
-			// Check if we've exceeded the threshold
-			if (restartTimestamps.length >= MAX_RESTARTS) {
-				tui.error(`Detected ${MAX_RESTARTS} restarts in ${TIME_WINDOW_MS / 1000} seconds`);
-				tui.error(
-					'This usually indicates a file watcher loop (e.g., log files in the project root)'
-				);
-				tui.fatal('Too many rapid restarts, exiting to prevent infinite loop');
-			}
-		}
-
-		let lastErrorLineCount = 0;
-		let showedRestartMessage = false;
-
-		function clearRestartMessage() {
-			if (showedRestartMessage) {
-				process.stdout.write('\x1b[1A\x1b[2K');
-				showedRestartMessage = false;
-			}
-		}
-
-		function failure(msg: string) {
-			failed = true;
-			failures++;
-			// Exit immediately on initial startup failure
-			if (!initialStartupComplete) {
-				tui.fatal(msg);
-			}
-			// During hot reload, show error but don't exit unless too many failures
-			if (failures >= 5) {
-				tui.error(msg);
-				tui.fatal('too many failures, exiting');
-			} else {
-				// Ensure we're on a new line before printing error
-				tui.error(msg);
-				// Track lines: 1 for "✗ Building..." + 1 for error message
-				lastErrorLineCount = 2;
-			}
-		}
-
-		function clearLastError() {
-			if (lastErrorLineCount > 0) {
-				// Move cursor up and clear each line
-				for (let i = 0; i < lastErrorLineCount; i++) {
-					process.stdout.write('\x1b[1A\x1b[2K');
-				}
-				lastErrorLineCount = 0;
-			}
-		}
-
-		const kill = async () => {
-			if (!running || !devServer) {
-				logger.trace('kill() called but server not running');
-				return;
-			}
-
-			logger.trace('Killing dev server (pid: %d)', pid);
-			shuttingDownForRestart = true;
-			running = false;
-			process.kill(pid, 'SIGINT');
-			try {
-				// Kill the process group (negative PID kills entire group)
-				process.kill(-pid, 'SIGTERM');
-				logger.trace('Sent SIGTERM to process group');
-			} catch {
-				// Fallback: kill the direct process
-				try {
-					if (devServer) {
-						devServer.kill();
-						logger.trace('Killed dev server process directly');
-					}
-				} catch {
-					// Ignore if already dead
-					logger.trace('Process already dead');
-				}
-			}
-
-			// Wait for the server to actually exit
-			if (exitPromise) {
-				logger.trace('Waiting for dev server to exit...');
-				await exitPromise;
-				logger.trace('Dev server exited');
-			}
-
-			devServer = undefined;
-			exitPromise = undefined;
-			shuttingDownForRestart = false;
+		const restartServer = () => {
+			shouldRestart = true;
 		};
 
-		// Handle signals to ensure entire process tree is killed
-		const cleanup = (exitCode = 0) => {
-			logger.trace('cleanup() called with exitCode=%d', exitCode);
-			if (gravityClient) {
-				logger.debug('calling kill on gravity client with pid: %d', gravityClient.pid);
-				gravityClient.kill('SIGINT');
-				gravityClient = undefined;
-			}
-			if (pid && running) {
-				kill();
-			}
-			for (const watcher of watchers) {
-				watcher.close();
-			}
-			watchers.length = 0;
-			process.exit(exitCode);
+		const showWelcome = () => {
+			logger.info('DevMode ready 🚀');
 		};
 
-		process.on('SIGINT', cleanup);
-		process.on('SIGTERM', cleanup);
-		process.on('SIGQUIT', cleanup);
-		process.on('exit', () => {
-			// Synchronous cleanup on exit
-			if (gravityClient) {
-				try {
-					gravityClient.kill('SIGINT');
-				} catch {
-					// Ignore errors
-				}
-			}
-		});
+		// Make restart function available globally for HMR plugin
+		(globalThis as Record<string, unknown>).__AGENTUITY_RESTART__ = restartServer;
 
-		async function restart() {
-			// Queue restart if already restarting
-			if (restarting) {
-				logger.trace('Restart already in progress, queuing another restart');
-				pendingRestart = true;
-				return;
-			}
+		while (true) {
+			shouldRestart = false;
 
-			logger.trace('restart() called, restarting=%s, running=%s', restarting, running);
-			restarting = true;
-			pendingRestart = false;
-			failed = false;
 			try {
-				if (running) {
-					logger.trace('Server is running, killing before restart');
-					checkRestartThrottle();
-					tui.info('Restarting on file change');
-					showedRestartMessage = true;
+				// Generate entry file for Vite before starting dev server
+				await tui.spinner({
+					message: 'Generating entry file',
+					callback: async () => {
+						const { generateEntryFile } = await import('../build/entry-generator');
+						await generateEntryFile({
+							rootDir,
+							projectId: project?.projectId ?? '',
+							deploymentId,
+							logger,
+							mode: 'dev',
+						});
+					},
+					clearOnSuccess: true,
+				});
+			} catch (error) {
+				tui.error(`Failed to generate entry file: ${error}`);
+				tui.warn('Waiting for file changes to retry...');
 
-					// Notify workbench clients before killing the server
-					await notifyWorkbenchClients({
-						port: opts.port,
-						message: 'restarting',
-					});
+				// Wait for next restart trigger
+				await new Promise<void>((resolve) => {
+					const checkRestart = setInterval(() => {
+						if (shouldRestart) {
+							clearInterval(checkRestart);
+							resolve();
+						}
+					}, 100);
+				});
+				continue;
+			}
 
-					// Small delay to ensure the restart message is processed before killing server
-					await new Promise((resolve) => setTimeout(resolve, 200));
+			try {
+				// Start Vite dev server (Vite watch + Bun app process)
+				const result = await startViteDevServer({
+					rootDir,
+					port: opts.port,
+					projectId: project?.projectId,
+					orgId: project?.orgId,
+					deploymentId,
+					logger,
+				});
 
-					await kill();
-					logger.trace('Server killed, continuing with restart');
-					// Continue with restart after kill completes
-				} else {
-					logger.trace('Initial server start');
-				}
-				logger.trace('Starting typecheck and build...');
+				viteServer = result.viteServer;
+				appProcess = result.appProcess;
 
-				// Clear any previous error before starting new build
-				clearLastError();
-				clearRestartMessage();
+				// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
+				// Give it 2 seconds to ensure app initialization completes
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+			} catch (error) {
+				tui.error(`Failed to start dev server: ${error}`);
+				tui.warn('Waiting for file changes to retry...');
 
-				try {
-					await tui.spinner({
-						message: 'Building...',
-						clearOnSuccess: true,
-						callback: async () => {
-							logger.trace('Bundle starting...');
-							building = true;
-							await bundle({
-								rootDir,
-								dev: true,
-								projectId: project?.projectId,
-								deploymentId,
-								port: opts.port,
-								region: project?.region ?? 'local',
-								logger,
-								workbench,
-							});
-							building = false;
-							buildCompletedAt = Date.now();
-							logger.trace('Bundle completed successfully');
-							logger.trace('tsc starting...');
-							const tscExitCode = await tui.runCommand({
-								command: 'tsc',
-								cmd: ['bunx', 'tsc', '--noEmit'],
-								cwd: rootDir,
-								clearOnSuccess: true,
-								truncate: false,
-								maxLinesOutput: 2,
-								maxLinesOnFailure: 15,
-							});
-							if (tscExitCode !== 0) {
-								logger.trace('tsc failed with exit code %d', tscExitCode);
-								failure('Type check failed');
-								return;
-							}
-							logger.trace('tsc completed successfully');
-							await restartGravityClient();
+				// Wait for next restart trigger
+				await new Promise<void>((resolve) => {
+					const checkRestart = setInterval(() => {
+						if (shouldRestart) {
+							clearInterval(checkRestart);
+							resolve();
+						}
+					}, 100);
+				});
+				continue;
+			}
+
+			try {
+				// Start gravity client if we have devmode
+				if (gravityBin && gravityURL && devmode) {
+					logger.trace('Starting gravity client: %s', gravityBin);
+					gravityProcess = Bun.spawn([gravityBin, gravityURL], {
+						env: {
+							...process.env,
+							GRAVITY_ENDPOINT_ID: devmode.id,
+							GRAVITY_LOCAL_ADDR: `http://127.0.0.1:${opts.port}`,
 						},
+						stdout: 'pipe',
+						stderr: 'pipe',
 					});
-				} catch (error) {
-					building = false;
-					const e = error as Error;
-					if (e.constructor.name === 'AggregateError') {
-						const ex = e as AggregateError;
-						for (const err of ex.errors) {
-							if (err) {
-								failure(err);
-								return;
+
+					// Log gravity output
+					(async () => {
+						if (gravityProcess?.stdout) {
+							for await (const chunk of gravityProcess.stdout) {
+								const text = new TextDecoder().decode(chunk);
+								logger.debug('[gravity] %s', text.trim());
 							}
 						}
-						return;
-					}
-					const errorMsg = error instanceof Error ? error.message : String(error);
-					failure(errorMsg);
-					return;
-				}
+					})();
 
-				logger.trace('Typecheck and build completed');
-
-				if (failed) {
-					logger.trace('Restart failed, returning early');
-					return;
-				}
-
-				// Reset failure counter on successful build
-				failures = 0;
-
-				logger.trace('Checking if app file exists: %s', appPath);
-				if (!existsSync(appPath)) {
-					logger.trace('App file not found: %s', appPath);
-					failure(`App file not found: ${appPath}`);
-					return;
-				}
-				logger.trace('App file exists, getting build metadata...');
-
-				metadata = getBuildMetadata();
-				logger.trace('Build metadata retrieved');
-
-				// Sync agents and evals to API if in devmode with auth
-				if (auth && project && apiClient) {
-					try {
-						logger.debug('Loading build metadata for sync...');
-						const currentMetadata = await loadBuildMetadata(agentuityDir);
-						logger.debug(
-							'Found %d agent(s) and %d route(s) in metadata',
-							currentMetadata.agents?.length ?? 0,
-							currentMetadata.routes?.length ?? 0
-						);
-						if (currentMetadata.agents) {
-							for (const agent of currentMetadata.agents) {
-								logger.debug(
-									'Agent: id=%s, name=%s, version=%s, evals=%d',
-									agent.id,
-									agent.name,
-									agent.version,
-									agent.evals?.length ?? 0
-								);
-								if (agent.evals) {
-									for (const evalItem of agent.evals) {
-										logger.debug(
-											'  Eval: id=%s, name=%s, version=%s',
-											evalItem.id,
-											evalItem.name,
-											evalItem.version
-										);
-									}
-								}
+					(async () => {
+						if (gravityProcess?.stderr) {
+							for await (const chunk of gravityProcess.stderr) {
+								const text = new TextDecoder().decode(chunk);
+								logger.warn('[gravity] %s', text.trim());
 							}
 						}
-						logger.debug('Syncing agents and evals...');
+					})();
 
-						await syncService.sync(
-							currentMetadata,
-							previousMetadata,
-							project.projectId,
-							deploymentId
-						);
-						previousMetadata = currentMetadata;
-						logger.debug('Sync completed successfully');
-					} catch (error) {
-						logger.error('Failed to sync agents/evals: %s', error);
-						if (error instanceof Error) {
-							logger.error('Error stack: %s', error.stack);
-						}
-						// Don't fail the build, just log the error
-					}
-				} else {
-					logger.trace(
-						'Skipping sync - auth=%s, project=%s, devmode=%s, apiClient=%s',
-						!!auth,
-						!!project,
-						!!devmode,
-						!!apiClient
-					);
+					logger.info('Gravity client started');
 				}
 
-				logger.trace('Starting dev server: %s', appPath);
-				// Use shell to run in a process group for proper cleanup
-				// The 'exec' ensures the shell is replaced by the actual process
-				logger.trace('Spawning dev server process...');
-				devServer = Bun.spawn(['sh', '-c', `exec bun run "${appPath}"`], {
-					cwd: rootDir,
-					stdout: 'inherit',
-					stderr: 'inherit',
-					stdin: process.stdin.isTTY ? 'ignore' : 'inherit', // Don't inherit stdin, we handle it ourselves
-					env,
-				});
+				// Sync service integration
+				// TODO: Integrate sync service with Vite's buildStart/buildEnd hooks
+				// The sync service will be called when metadata changes are detected
 
-				logger.trace('Dev server process spawned, setting up state...');
-				running = true;
-				failed = false;
-				pid = devServer.pid;
-				exitPromise = devServer.exited;
-				serverStartTime = Date.now();
-				logger.trace('Dev server started (pid: %d)', pid);
-
-				if (showInitialReadyMessage) {
-					showInitialReadyMessage = false;
-					logger.info('DevMode ready 🚀');
-					logger.trace('Initial ready message logged');
-					// Mark initial startup complete immediately to prevent watcher restarts
-					initialStartupComplete = true;
-					logger.trace('Initial startup complete, file watcher restarts now enabled');
-				}
-
-				// Notify workbench clients that the server is alive and ready
-				// Use setTimeout to ensure server is fully ready before notifying
-				setTimeout(async () => {
-					await notifyWorkbenchClients({
-						port: opts.port,
-						message: 'alive',
-					});
-				}, 500);
-
-				logger.trace('Attaching exit handler to dev server process...');
-				// Attach non-blocking exit handler
-				exitPromise
-					.then((exitCode) => {
-						const runtime = Date.now() - serverStartTime;
-						logger.trace(
-							'Dev server exited with code %d (shuttingDownForRestart=%s, runtime=%dms)',
-							exitCode,
-							shuttingDownForRestart,
-							runtime
-						);
-						running = false;
-						devServer = undefined;
-						exitPromise = undefined;
-						// If server exited immediately after starting (< 2 seconds), treat as failure and restart
-						if (runtime < 2000 && !shuttingDownForRestart) {
-							logger.trace('Server exited too quickly, treating as failure and restarting');
-							failure('Server exited immediately after starting');
-							// Trigger a restart after a short delay
-							setTimeout(() => {
-								if (!running && !restarting) {
-									logger.trace('Triggering restart after quick exit');
-									restart();
-								}
-							}, 100);
-							return;
-						}
-						// Only exit the CLI if this is a clean exit AND not a restart AND server ran for a while
-						if (exitCode === 0 && !shuttingDownForRestart && runtime >= 2000) {
-							logger.trace('Clean exit, stopping CLI');
-							cleanup(exitCode);
-						}
-						// Non-zero exit codes are treated as restartable failures
-						// But if it's exit code 1 (common error exit), also exit the CLI
-						if (exitCode === 1 && !shuttingDownForRestart && runtime >= 2000) {
-							logger.trace('Server exited with error code 1, stopping CLI');
-							cleanup(exitCode);
-						}
-					})
-					.catch((error) => {
-						logger.trace(
-							'Dev server exit error (shuttingDownForRestart=%s): %s',
-							shuttingDownForRestart,
-							error
-						);
-						running = false;
-						devServer = undefined;
-						exitPromise = undefined;
-						if (!shuttingDownForRestart) {
-							if (error instanceof Error) {
-								failure(`Dev server failed: ${error.message}`);
-							} else {
-								failure('Dev server failed');
-							}
-						}
-					});
-			} catch (error) {
-				logger.trace('Restart caught error: %s', error);
-				if (error instanceof Error) {
-					logger.trace('Error message: %s, stack: %s', error.message, error.stack);
-					failure(`Dev server failed: ${error.message}`);
-				} else {
-					logger.trace('Non-Error exception: %s', String(error));
-					failure('Dev server failed');
-				}
-				running = false;
-				devServer = undefined;
-			} finally {
-				logger.trace('Entering restart() finally block...');
-				const hadPendingRestart = pendingRestart;
-				restarting = false;
-				pendingRestart = false;
-				logger.trace(
-					'restart() completed, restarting=%s, hadPendingRestart=%s',
-					restarting,
-					hadPendingRestart
-				);
-
-				// If another restart was queued while we were restarting, trigger it now
-				if (hadPendingRestart) {
-					logger.trace('Triggering queued restart');
-					setImmediate(restart);
-				}
-			}
-		}
-
-		logger.trace('Starting initial build and server');
-		await restart();
-		logger.trace('Initial restart completed, setting up watchers');
-		logger.trace('initialStartupComplete is now: %s', initialStartupComplete);
-
-		// Setup keyboard shortcuts (only if we have a TTY)
-		if (canDoInput) {
-			logger.trace('Setting up keyboard shortcuts');
-			process.stdin.setRawMode(true);
-			process.stdin.resume();
-			process.stdin.setEncoding('utf8');
-
-			const showHelp = () => {
-				console.log('\n' + tui.bold('Keyboard Shortcuts:'));
-				console.log(tui.muted('  h') + ' - show this help');
-				console.log(tui.muted('  c') + ' - clear console');
-				console.log(tui.muted('  r') + ' - restart server');
-				console.log(tui.muted('  o') + ' - show routes');
-				console.log(tui.muted('  a') + ' - show agents');
-				console.log(tui.muted('  q') + ' - quit\n');
-			};
-
-			const showRoutes = () => {
-				tui.info('API Route Detail');
-				tui.table(metadata?.routes ?? [], ['method', 'path', 'filename']);
-			};
-
-			const showAgents = () => {
-				tui.info('Agent Detail');
-				tui.table(metadata?.agents ?? [], ['name', 'filename', 'description']);
-			};
-
-			process.stdin.on('data', (data) => {
-				const key = data.toString();
-
-				// Handle Ctrl+C
-				if (key === '\u0003') {
-					cleanup();
-					return;
-				}
-
-				// Handle other shortcuts
-				switch (key) {
-					case 'h':
-						showHelp();
-						break;
-					case 'c':
-						console.clear();
-						showBanner();
-						break;
-					case 'r':
-						tui.info('Manually restarting server...');
-						restart();
-						break;
-					case 'o':
-						showRoutes();
-						break;
-					case 'a':
-						showAgents();
-						break;
-					case 'q':
-						tui.info('Shutting down...');
-						cleanup();
-						break;
-				}
-			});
-
-			logger.trace('✓ Keyboard shortcuts enabled');
-		} else {
-			if (process.stdin) {
-				// still need to monitor stdin in case we are pipeing into another process or file etc
-				if (typeof process.stdin.setRawMode === 'function') {
+				// Handle keyboard shortcuts
+				if (interactive && process.stdin.isTTY && process.stdout.isTTY) {
 					process.stdin.setRawMode(true);
+					process.stdin.resume();
+					process.stdin.setEncoding('utf8');
+
+					const showHelp = () => {
+						console.log('\n' + tui.bold('Keyboard Shortcuts:'));
+						console.log(tui.muted('  h') + ' - show this help');
+						console.log(tui.muted('  c') + ' - clear console');
+						console.log(tui.muted('  q') + ' - quit\n');
+					};
+
+					process.stdin.on('data', (data) => {
+						const key = data.toString();
+
+						// Handle Ctrl+C
+						if (key === '\u0003') {
+							internalExit(0);
+						}
+
+						switch (key) {
+							case 'h':
+								showHelp();
+								break;
+							case 'c':
+								console.clear();
+								tui.banner('⨺ Agentuity DevMode', devmodebody, {
+									padding: 2,
+									topSpacer: false,
+									bottomSpacer: false,
+									centerTitle: false,
+								});
+								break;
+							case 'q':
+								internalExit(0);
+								break;
+							default:
+								console.log(data);
+								break;
+						}
+					});
 				}
-				process.stdin.resume();
-				process.stdin.on('data', (data) => {
-					const key = data.toString();
-					// Handle Ctrl+C
-					if (key === '\u0003') {
-						cleanup();
-						return;
+
+				showWelcome();
+
+				// Handle graceful shutdown
+				const cleanup = async () => {
+					tui.info('Shutting down...');
+
+					// Kill app process
+					if (appProcess) {
+						appProcess.kill();
 					}
+
+					// Kill gravity client
+					if (gravityProcess) {
+						gravityProcess.kill();
+					}
+
+					// Close Vite server (if exists)
+					if (viteServer) {
+						await viteServer.close();
+					}
+
+					internalExit(0);
+				};
+
+				process.on('SIGINT', cleanup);
+				process.on('SIGTERM', cleanup);
+
+				// Wait for restart signal
+				await new Promise<void>((resolve) => {
+					const checkRestart = setInterval(() => {
+						if (shouldRestart) {
+							clearInterval(checkRestart);
+							resolve();
+						}
+					}, 100);
 				});
-			}
-			logger.trace('❌ Keyboard shortcuts disabled');
-		}
 
-		// Patterns to ignore (generated files that change during build)
-		const ignorePatterns = [
-			/\.generated\.(js|ts|d\.ts)$/,
-			/registry\.generated\.ts$/,
-			/types\.generated\.d\.ts$/,
-			/client\.generated\.js$/,
-			/\.tmp$/,
-			/\.tsbuildinfo$/,
-			/\.agentuity\//,
-			// Ignore temporary files created by sed (e.g., sedUprJj0)
-			/\/sed[A-Za-z0-9]+$/,
-		];
+				// Restart triggered - cleanup and loop
+				tui.info('Restarting server...');
 
-		// Helper to check if a file is a temporary file created by sed
-		const isSedTempFile = (filePath: string): boolean => {
-			const basename = filePath.split('/').pop() || '';
-			return /^sed[A-Za-z0-9]+$/.test(basename);
-		};
+				if (appProcess) {
+					appProcess.kill();
+				}
+				if (gravityProcess) {
+					gravityProcess.kill();
+				}
+				if (viteServer) {
+					await viteServer.close();
+				}
 
-		logger.trace('Setting up file watchers for: %s', watches.join(', '));
-		for (const watchDir of watches) {
-			try {
-				logger.trace('Setting up watcher for %s', watchDir);
-				const watcher = watch(watchDir, { recursive: true }, (eventType, changedFile) => {
-					const absPath = changedFile ? resolve(watchDir, changedFile) : watchDir;
-
-					// Ignore file changes during initial startup to prevent spurious restarts
-					if (!initialStartupComplete) {
-						logger.trace(
-							'File change ignored (initial startup): %s (event: %s, file: %s)',
-							watchDir,
-							eventType,
-							changedFile
-						);
-						return;
-					}
-
-					// Ignore file changes during active build to prevent loops
-					if (building) {
-						logger.trace(
-							'File change ignored (build in progress): %s (event: %s, file: %s)',
-							watchDir,
-							eventType,
-							changedFile
-						);
-						return;
-					}
-
-					// Ignore file changes immediately after build completes (cooldown period)
-					// This prevents restarts from build output files that are written asynchronously
-					if (buildCompletedAt > 0 && Date.now() - buildCompletedAt < BUILD_COOLDOWN_MS) {
-						logger.trace(
-							'File change ignored (build cooldown): %s (event: %s, file: %s)',
-							watchDir,
-							eventType,
-							changedFile
-						);
-						return;
-					}
-
-					// Ignore node_modules folder
-					if (absPath.includes('node_modules')) {
-						logger.trace(
-							'File change ignored (node_modules): %s (event: %s, file: %s)',
-							watchDir,
-							eventType,
-							changedFile
-						);
-						return;
-					}
-
-					// Ignore .git folder
-					if (changedFile && (changedFile === '.git' || changedFile.startsWith('.git/'))) {
-						logger.trace(
-							'File change ignored (.git folder): %s (event: %s, file: %s)',
-							watchDir,
-							eventType,
-							changedFile
-						);
-						return;
-					}
-
-					// Ignore changes in .agentuity directory (build output)
-					// Check both relative path and normalized absolute path
-					const isInAgentuityDir =
-						(changedFile &&
-							(changedFile === '.agentuity' || changedFile.startsWith('.agentuity/'))) ||
-						resolve(absPath).startsWith(agentuityDir);
-					if (isInAgentuityDir) {
-						logger.trace(
-							'File change ignored (.agentuity dir): %s (event: %s, file: %s)',
-							watchDir,
-							eventType,
-							changedFile
-						);
-						return;
-					}
-
-					// Ignore changes to src/web/public directory (static assets, not code)
-					if (changedFile && changedFile === 'src/web/public') {
-						logger.trace(
-							'File change ignored (static assets dir): %s (event: %s, file: %s)',
-							watchDir,
-							eventType,
-							changedFile
-						);
-						return;
-					}
-
-					// Check for .tmp file renames that replace watched files (BEFORE ignoring)
-					// This handles cases like sed -i.tmp where agent.ts.tmp is renamed to agent.ts
-					if (eventType === 'rename' && changedFile && changedFile.endsWith('.tmp')) {
-						const targetFile = changedFile.slice(0, -4); // Remove .tmp suffix
-						const targetAbsPath = resolve(watchDir, targetFile);
-
-						// Only trigger restart for source files (ts, tsx, js, jsx, etc.)
-						const isSourceFile = /\.(ts|tsx|js|jsx|mjs|cjs)$/.test(targetFile);
-
-						// Check if target file exists and is not in ignored directories
-						const targetExists = existsSync(targetAbsPath);
-						const inNodeModules = targetAbsPath.includes('node_modules');
-						const inAgentuityDir =
-							(targetFile &&
-								(targetFile === '.agentuity' || targetFile.startsWith('.agentuity/'))) ||
-							resolve(targetAbsPath).startsWith(agentuityDir);
-						let isDirectory = false;
-						if (targetExists) {
-							try {
-								isDirectory = statSync(targetAbsPath).isDirectory();
-							} catch (err) {
-								logger.trace('Failed to stat target file: %s', err);
-							}
-						}
-
-						if (
-							isSourceFile &&
-							targetExists &&
-							!inNodeModules &&
-							!inAgentuityDir &&
-							!isDirectory
-						) {
-							logger.trace(
-								'File change detected (temp file rename): %s -> %s',
-								absPath,
-								targetAbsPath
-							);
-							restart();
-							return;
-						}
-					}
-
-					// Ignore generated files to prevent restart loops
-					if (changedFile) {
-						// Check for sed temporary files
-						if (isSedTempFile(changedFile)) {
-							logger.trace(
-								'File change ignored (sed temp file): %s (event: %s, file: %s)',
-								watchDir,
-								eventType,
-								changedFile
-							);
-							return;
-						}
-						// Check other ignore patterns
-						for (const pattern of ignorePatterns) {
-							if (pattern.test(changedFile)) {
-								logger.trace(
-									'File change ignored (generated file): %s (event: %s, file: %s)',
-									watchDir,
-									eventType,
-									changedFile
-								);
-								return;
-							}
-						}
-					}
-
-					// Handle new empty directories in src/agent/ or src/api/ paths
-					if (
-						eventType === 'rename' &&
-						existsSync(absPath) &&
-						statSync(absPath).isDirectory() &&
-						readdirSync(absPath).length === 0
-					) {
-						if (changedFile?.startsWith('src/agent/')) {
-							logger.debug('agent directory created: %s', changedFile);
-							createAgentTemplates(absPath);
-							// Mark this directory as recently templated to avoid immediate rebuild
-							templatedDirectories.set(absPath, Date.now());
-							// Schedule cleanup of this marker after enough time for file events
-							setTimeout(() => templatedDirectories.delete(absPath), 1000);
-							// Don't restart - wait for the template files to trigger the rebuild
-							return;
-						} else if (changedFile?.startsWith('src/api/')) {
-							logger.debug('api directory created: %s', changedFile);
-							createAPITemplates(absPath);
-							// Mark this directory as recently templated to avoid immediate rebuild
-							templatedDirectories.set(absPath, Date.now());
-							// Schedule cleanup of this marker after enough time for file events
-							setTimeout(() => templatedDirectories.delete(absPath), 1000);
-							// Don't restart - wait for the template files to trigger the rebuild
-							return;
-						}
-					}
-
-					// Check if this file/directory was just templated - skip restart to avoid race condition
-					for (const [templatedPath, timestamp] of templatedDirectories.entries()) {
-						if (absPath.startsWith(templatedPath) && Date.now() - timestamp < 500) {
-							logger.trace(
-								'Ignoring event in recently templated directory: %s',
-								templatedPath
-							);
-							return;
-						}
-					}
-
-					logger.trace(
-						'File change detected: %s (event: %s, file: %s)',
-						absPath,
-						eventType,
-						changedFile
-					);
-					restart();
-				});
-				watchers.push(watcher);
-				logger.trace('✓ Watcher added for %s', watchDir);
+				// Brief pause before restart
+				await new Promise((resolve) => setTimeout(resolve, 500));
 			} catch (error) {
-				logger.error('Failed to setup watcher for %s: %s', watchDir, error);
+				tui.error(`Error during server operation: ${error}`);
+				tui.warn('Waiting for file changes to retry...');
+
+				// Cleanup on error
+				if (appProcess) appProcess.kill();
+				if (gravityProcess) gravityProcess.kill();
+				if (viteServer) await viteServer.close();
+
+				// Wait for next restart trigger
+				await new Promise<void>((resolve) => {
+					const checkRestart = setInterval(() => {
+						if (shouldRestart) {
+							clearInterval(checkRestart);
+							resolve();
+						}
+					}, 100);
+				});
 			}
 		}
-		logger.debug('Dev server watching for changes');
-
-		// Keep the handler alive indefinitely
-		await new Promise(() => {}).catch(() => cleanup());
 	},
 });

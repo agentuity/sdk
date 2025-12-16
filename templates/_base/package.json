@@ -8,6 +8,7 @@
 	"scripts": {
 		"build": "agentuity build",
 		"dev": "agentuity dev",
+		"start": "bun dist/index.js",
 		"deploy": "agentuity deploy",
 		"typecheck": "bunx tsc --noEmit"
 	},

@@ -9,7 +9,8 @@ import { generateId } from './session';
 import WaitUntilHandler from './_waituntil';
 import { registerServices } from './_services';
 import { getAgentAsyncLocalStorage } from './_context';
-import { getLogger, getTracer, getAppState } from './_server';
+import { getLogger, getTracer } from './_server';
+import { getAppState } from './app';
 import { getThreadProvider, getSessionProvider, getSessionEventProvider } from './_services';
 import * as runtimeConfig from './_config';
 

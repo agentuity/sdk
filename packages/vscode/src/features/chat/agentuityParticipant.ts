@@ -522,7 +522,9 @@ async function handleStatus(stream: vscode.ChatResponseStream): Promise<vscode.C
 
 	stream.markdown('### Authentication\n');
 	if (authStatus.state === 'authenticated' && authStatus.user) {
-		stream.markdown(`✓ Logged in as **${authStatus.user.firstName} ${authStatus.user.lastName}**\n\n`);
+		stream.markdown(
+			`✓ Logged in as **${authStatus.user.firstName} ${authStatus.user.lastName}**\n\n`
+		);
 	} else {
 		stream.markdown(`✗ Not logged in\n\n`);
 		stream.button({ title: 'Login', command: 'agentuity.login' });

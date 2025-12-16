@@ -107,7 +107,41 @@ export interface BuildContext {
 }
 
 /**
- * User-provided build configuration for a specific phase
+ * Workbench configuration
+ *
+ * Presence of this config object implicitly enables workbench in dev mode.
+ * To disable workbench, omit this config entirely.
+ */
+export interface WorkbenchConfig {
+	/**
+	 * Route where the workbench UI will be served
+	 * @default '/workbench'
+	 */
+	route?: string;
+	/**
+	 * Custom headers to send with workbench requests
+	 */
+	headers?: Record<string, string>;
+}
+
+/**
+ * Agentuity project configuration (declarative)
+ */
+export interface AgentuityConfig {
+	/**
+	 * Workbench configuration
+	 */
+	workbench?: WorkbenchConfig;
+	/**
+	 * Vite plugins to add to the client build
+	 * These are added AFTER Agentuity's built-in plugins
+	 */
+	plugins?: Array<import('vite').Plugin>;
+}
+
+/**
+ * User-provided build configuration for a specific phase (legacy Bun bundler)
+ * @deprecated Use AgentuityConfig instead
  */
 export interface BuildConfig {
 	/**
