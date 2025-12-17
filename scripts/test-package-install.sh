@@ -267,7 +267,17 @@ if [ ! -d ".agentuity" ]; then
     log_error "Build output directory (.agentuity) not found"
     exit 1
 fi
+
+# Verify registry file was generated
+if [ ! -f ".agentuity/registry.generated.ts" ]; then
+    log_error "registry.generated.ts not found in .agentuity/"
+    log_info "Contents of .agentuity/:"
+    ls -la .agentuity/
+    exit 1
+fi
+
 log_success "Build complete, .agentuity directory created"
+log_success "Registry file generated"
 
 # Step 7: Typecheck
 echo ""
