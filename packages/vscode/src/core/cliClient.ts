@@ -34,13 +34,22 @@ export class CliClient {
 	}
 
 	/**
-	 * Get the CLI executable path from settings, common install locations, or PATH.
+	 * Get the CLI executable path from settings, local project, common install locations, or PATH.
 	 */
 	getCliPath(): string {
 		const config = vscode.workspace.getConfiguration('agentuity');
 		const customPath = config.get<string>('cliPath');
 		if (customPath && customPath.trim() !== '') {
 			return customPath;
+		}
+
+		// Check for local CLI in project's node_modules/.bin first
+		const projectDir = this.getProjectCwd();
+		if (projectDir) {
+			const localCliPath = path.join(projectDir, 'node_modules', '.bin', 'agentuity');
+			if (fs.existsSync(localCliPath)) {
+				return localCliPath;
+			}
 		}
 
 		// Check common install location: ~/.agentuity/bin/agentuity
@@ -505,9 +514,13 @@ export class CliClient {
 
 // Auth types
 export interface WhoamiResponse {
-	id: string;
-	email: string;
-	name?: string;
+	userId: string;
+	firstName: string;
+	lastName: string;
+	organizations: Array<{
+		id: string;
+		name: string;
+	}>;
 }
 
 // Agent types

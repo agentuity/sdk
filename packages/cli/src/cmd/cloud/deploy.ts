@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { StructuredError } from '@agentuity/core';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { saveProjectDir, getDefaultConfigDir } from '../../config';
@@ -41,6 +42,11 @@ import { getCommand } from '../../command-prefix';
 import { checkCustomDomainForDNS } from './domain';
 import { DeployOptionsSchema } from '../../schemas/deploy';
 import { ErrorCode } from '../../errors';
+
+const DeploymentCancelledError = StructuredError(
+	'DeploymentCancelled',
+	'Deployment cancelled by user'
+);
 
 const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
@@ -403,154 +409,187 @@ export const deploySubcommand = createSubcommand({
 			const maxAttempts = 600;
 			let attempts = 0;
 
-			if (streamId) {
-				// Use progress logger to stream logs while polling
-				const streamsUrl = getStreamURL(project.region, config);
+			// Create abort controller to allow Ctrl+C to interrupt polling
+			const pollAbortController = new AbortController();
+			const sigintHandler = () => {
+				pollAbortController.abort();
+			};
+			process.on('SIGINT', sigintHandler);
 
-				await tui
-					.progress({
-						message: 'Deploying project...',
-						type: 'logger',
-						maxLines: 2,
-						clearOnSuccess: true,
-						callback: async (log) => {
-							// Start log streaming
-							const logStreamController = new AbortController();
-							const logStreamPromise = (async () => {
-								try {
-									logger.debug('fetching stream: %s/%s', streamsUrl, streamId);
-									const resp = await fetch(`${streamsUrl}/${streamId}`, {
-										signal: logStreamController.signal,
-									});
-									if (!resp.ok || !resp.body) {
-										ctx.logger.trace(
-											`Failed to connect to warmup log stream: ${resp.status}`
-										);
-										return;
-									}
-									const reader = resp.body.getReader();
-									const decoder = new TextDecoder();
-									let buffer = '';
-									while (true) {
-										const { done, value } = await reader.read();
-										if (done) break;
-										buffer += decoder.decode(value, { stream: true });
-										const lines = buffer.split('\n');
-										buffer = lines.pop() || ''; // Keep incomplete line in buffer
-										for (const line of lines) {
-											// Strip ISO 8601 timestamp prefix if present
-											const message = line.replace(
-												/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s?/,
-												''
+			try {
+				if (streamId) {
+					// Use progress logger to stream logs while polling
+					const streamsUrl = getStreamURL(project.region, config);
+
+					await tui
+						.progress({
+							message: 'Deploying project...',
+							type: 'logger',
+							maxLines: 2,
+							clearOnSuccess: true,
+							callback: async (log) => {
+								// Start log streaming
+								const logStreamController = new AbortController();
+								const logStreamPromise = (async () => {
+									try {
+										logger.debug('fetching stream: %s/%s', streamsUrl, streamId);
+										const resp = await fetch(`${streamsUrl}/${streamId}`, {
+											signal: logStreamController.signal,
+										});
+										if (!resp.ok || !resp.body) {
+											ctx.logger.trace(
+												`Failed to connect to warmup log stream: ${resp.status}`
 											);
-											if (message) {
-												logs.push(message);
-												log(message);
+											return;
+										}
+										const reader = resp.body.getReader();
+										const decoder = new TextDecoder();
+										let buffer = '';
+										while (true) {
+											const { done, value } = await reader.read();
+											if (done) break;
+											buffer += decoder.decode(value, { stream: true });
+											const lines = buffer.split('\n');
+											buffer = lines.pop() || ''; // Keep incomplete line in buffer
+											for (const line of lines) {
+												// Strip ISO 8601 timestamp prefix if present
+												const message = line.replace(
+													/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s?/,
+													''
+												);
+												if (message) {
+													logs.push(message);
+													log(message);
+												}
 											}
 										}
+									} catch (err) {
+										if (err instanceof Error && err.name === 'AbortError') {
+											return;
+										}
+										ctx.logger.trace(`Warmup log stream error: ${err}`);
 									}
-								} catch (err) {
-									if (err instanceof Error && err.name === 'AbortError') {
-										return;
-									}
-									ctx.logger.trace(`Warmup log stream error: ${err}`);
-								}
-							})();
+								})();
 
-							// Poll for deployment status
-							while (attempts < maxAttempts) {
-								attempts++;
-								try {
-									statusResult = await projectDeploymentStatus(
-										apiClient,
-										deployment?.id ?? ''
-									);
-
-									logger.trace('status result: %s', statusResult);
-
-									if (statusResult.state === 'completed') {
+								// Poll for deployment status
+								while (attempts < maxAttempts) {
+									// Check if user pressed Ctrl+C
+									if (pollAbortController.signal.aborted) {
 										logStreamController.abort();
-										break;
+										throw new DeploymentCancelledError();
 									}
 
-									if (statusResult.state === 'failed') {
-										throw new Error('Deployment failed');
-									}
+									attempts++;
+									try {
+										statusResult = await projectDeploymentStatus(
+											apiClient,
+											deployment?.id ?? ''
+										);
 
-									await Bun.sleep(pollInterval);
-								} catch (err) {
-									logStreamController.abort();
-									throw err;
+										logger.trace('status result: %s', statusResult);
+
+										if (statusResult.state === 'completed') {
+											logStreamController.abort();
+											break;
+										}
+
+										if (statusResult.state === 'failed') {
+											throw new Error('Deployment failed');
+										}
+
+										await Bun.sleep(pollInterval);
+									} catch (err) {
+										logStreamController.abort();
+										throw err;
+									}
 								}
-							}
 
-							// Wait for log stream to finish
-							await logStreamPromise;
+								// Wait for log stream to finish
+								await logStreamPromise;
+
+								if (attempts >= maxAttempts) {
+									throw new Error('Deployment timed out');
+								}
+							},
+						})
+						.then(() => {
+							tui.success('Your project was deployed!');
+						})
+						.catch((ex) => {
+							// Handle cancellation
+							if (ex instanceof DeploymentCancelledError) {
+								tui.warning('Deployment cancelled');
+								process.exit(130); // Standard exit code for SIGINT
+							}
+							const exwithmessage = ex as { message: string };
+							const msg =
+								exwithmessage.message === 'Deployment failed'
+									? ''
+									: exwithmessage.toString();
+							tui.error(`Your deployment failed to start${msg ? `: ${msg}` : ''}`);
+							if (logs.length) {
+								const logsDir = join(getDefaultConfigDir(), 'logs');
+								if (!existsSync(logsDir)) {
+									mkdirSync(logsDir, { recursive: true });
+								}
+								const errorFile = join(logsDir, `${deployment?.id ?? Date.now()}.txt`);
+								writeFileSync(errorFile, logs.join('\n'));
+								const count = Math.min(logs.length, 10);
+								const last = logs.length - count;
+								tui.newline();
+								tui.warning(`The last ${count} lines of the log:`);
+								let offset = last + 1; // we want to show the offset from inside the log starting at 1
+								const max = String(logs.length).length;
+								for (const _log of logs.slice(last)) {
+									console.log(tui.muted(`${offset.toFixed().padEnd(max)} | ${_log}`));
+									offset++;
+								}
+								tui.newline();
+								tui.fatal(`The logs were written to ${errorFile}`, ErrorCode.BUILD_FAILED);
+							}
+							tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
+						});
+				} else {
+					// No stream ID - poll without log streaming
+					await tui.spinner({
+						message: 'Deploying project...',
+						type: 'simple',
+						clearOnSuccess: true,
+						callback: async () => {
+							while (attempts < maxAttempts) {
+								// Check if user pressed Ctrl+C
+								if (pollAbortController.signal.aborted) {
+									throw new DeploymentCancelledError();
+								}
+
+								attempts++;
+								statusResult = await projectDeploymentStatus(
+									apiClient,
+									deployment?.id ?? ''
+								);
+
+								if (statusResult.state === 'completed') {
+									break;
+								}
+
+								if (statusResult.state === 'failed') {
+									throw new Error('Deployment failed');
+								}
+
+								await Bun.sleep(pollInterval);
+							}
 
 							if (attempts >= maxAttempts) {
 								throw new Error('Deployment timed out');
 							}
 						},
-					})
-					.then(() => {
-						tui.success('Your project was deployed!');
-					})
-					.catch((ex) => {
-						const exwithmessage = ex as { message: string };
-						const msg =
-							exwithmessage.message === 'Deployment failed' ? '' : exwithmessage.toString();
-						tui.error(`Your deployment failed to start${msg ? `: ${msg}` : ''}`);
-						if (logs.length) {
-							const logsDir = join(getDefaultConfigDir(), 'logs');
-							if (!existsSync(logsDir)) {
-								mkdirSync(logsDir, { recursive: true });
-							}
-							const errorFile = join(logsDir, `${deployment?.id ?? Date.now()}.txt`);
-							writeFileSync(errorFile, logs.join('\n'));
-							const count = Math.min(logs.length, 10);
-							const last = logs.length - count;
-							tui.newline();
-							tui.warning(`The last ${count} lines of the log:`);
-							let offset = last + 1; // we want to show the offset from inside the log starting at 1
-							const max = String(logs.length).length;
-							for (const _log of logs.slice(last)) {
-								console.log(tui.muted(`${offset.toFixed().padEnd(max)} | ${_log}`));
-								offset++;
-							}
-							tui.newline();
-							tui.fatal(`The logs were written to ${errorFile}`, ErrorCode.BUILD_FAILED);
-						}
-						tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 					});
-			} else {
-				// No stream ID - poll without log streaming
-				await tui.spinner({
-					message: 'Deploying project...',
-					type: 'simple',
-					clearOnSuccess: true,
-					callback: async () => {
-						while (attempts < maxAttempts) {
-							attempts++;
-							statusResult = await projectDeploymentStatus(apiClient, deployment?.id ?? '');
 
-							if (statusResult.state === 'completed') {
-								break;
-							}
-
-							if (statusResult.state === 'failed') {
-								throw new Error('Deployment failed');
-							}
-
-							await Bun.sleep(pollInterval);
-						}
-
-						if (attempts >= maxAttempts) {
-							throw new Error('Deployment timed out');
-						}
-					},
-				});
-
-				tui.success('Your project was deployed!');
+					tui.success('Your project was deployed!');
+				}
+			} finally {
+				// Clean up signal handler
+				process.off('SIGINT', sigintHandler);
 			}
 
 			const appUrl = getAppBaseURL(config?.name, config?.overrides);

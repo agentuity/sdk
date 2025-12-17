@@ -5,6 +5,7 @@ import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';
 import type { WebSocketConnection } from './router';
 import { privateContext } from './_server';
+import { getThreadProvider } from './_services';
 
 export const createWorkbenchExecutionRoute = (): Handler => {
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
@@ -26,6 +27,12 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				// so we treat all exceptions as invalid
 				return ctx.text('Unauthorized', { status: 401 });
 			}
+		}
+
+		// Content-type validation
+		const contentType = ctx.req.header('Content-Type');
+		if (!contentType || !contentType.includes('application/json')) {
+			return ctx.json({ error: 'Content-Type must be application/json' }, { status: 400 });
 		}
 
 		try {
@@ -76,6 +83,32 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				result = await (agentObj as any).handler();
 			}
 
+			// Store input and output in thread state, keyed by agentId
+			// This allows multiple agents to have separate message histories in the same thread
+			if (ctx.var.thread) {
+				const agentMessagesKey = `messages_${agentId}`;
+				const existingMessages = ctx.var.thread.state.get(agentMessagesKey);
+				const messages = (existingMessages as unknown[] | undefined) || [];
+
+				messages.push({ type: 'input', data: input });
+
+				if (result !== undefined && result !== null) {
+					messages.push({ type: 'output', data: result });
+				}
+
+				ctx.var.thread.state.set(agentMessagesKey, messages);
+
+				// Manually save the thread to ensure state persists
+				try {
+					const threadProvider = getThreadProvider();
+					await threadProvider.save(ctx.var.thread);
+				} catch {
+					ctx.var.logger?.warn('Failed to save thread state');
+				}
+			} else {
+				ctx.var.logger?.warn('Thread not available in workbench execution route');
+			}
+
 			// Handle cases where result might be undefined/null
 			if (result === undefined || result === null) {
 				return ctx.json({ success: true, result: null });
@@ -91,6 +124,97 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				{ status: 500 }
 			);
 		}
+	};
+};
+
+export const createWorkbenchClearStateRoute = (): Handler => {
+	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
+		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
+		: undefined;
+	return async (ctx: Context) => {
+		// Authentication check
+		if (authHeader) {
+			try {
+				const authValue = ctx.req.header('Authorization');
+				if (
+					!authValue ||
+					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
+				) {
+					return ctx.text('Unauthorized', { status: 401 });
+				}
+			} catch {
+				// timing safe equals will throw if the input/output lengths are mismatched
+				// so we treat all exceptions as invalid
+				return ctx.text('Unauthorized', { status: 401 });
+			}
+		}
+
+		const agentId = ctx.req.query('agentId');
+
+		if (!agentId) {
+			return ctx.json({ error: 'agentId query parameter is required' }, { status: 400 });
+		}
+
+		if (!ctx.var.thread) {
+			return ctx.json({ error: 'Thread not available' }, { status: 404 });
+		}
+
+		const agentMessagesKey = `messages_${agentId}`;
+
+		// Remove the messages for this agent
+		ctx.var.thread.state.delete(agentMessagesKey);
+
+		// Save the thread to persist the cleared state
+		try {
+			const threadProvider = getThreadProvider();
+			await threadProvider.save(ctx.var.thread);
+		} catch {
+			return ctx.json({ error: 'Failed to save thread state' }, { status: 500 });
+		}
+
+		return ctx.json({ success: true, message: `State cleared for agent ${agentId}` });
+	};
+};
+
+export const createWorkbenchStateRoute = (): Handler => {
+	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
+		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
+		: undefined;
+	return async (ctx: Context) => {
+		// Authentication check
+		if (authHeader) {
+			try {
+				const authValue = ctx.req.header('Authorization');
+				if (
+					!authValue ||
+					!timingSafeEqual(Buffer.from(authValue, 'utf-8'), Buffer.from(authHeader, 'utf-8'))
+				) {
+					return ctx.text('Unauthorized', { status: 401 });
+				}
+			} catch {
+				// timing safe equals will throw if the input/output lengths are mismatched
+				// so we treat all exceptions as invalid
+				return ctx.text('Unauthorized', { status: 401 });
+			}
+		}
+
+		const agentId = ctx.req.query('agentId');
+		if (!agentId) {
+			return ctx.json({ error: 'agentId query parameter is required' }, { status: 400 });
+		}
+
+		if (!ctx.var.thread) {
+			return ctx.json({ error: 'Thread not available' }, { status: 404 });
+		}
+
+		const agentMessagesKey = `messages_${agentId}`;
+		const messages = ctx.var.thread.state.get(agentMessagesKey);
+
+		return ctx.json({
+			threadId: ctx.var.thread.id,
+			agentId,
+			messages: Array.isArray(messages) ? messages : [],
+		});
 	};
 };
 
@@ -131,6 +255,8 @@ export const createWorkbenchRouter = () => {
 	router.websocket('/_agentuity/workbench/ws', createWorkbenchWebsocketRoute());
 	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
 	router.get('/_agentuity/workbench/sample', createWorkbenchSampleRoute());
+	router.get('/_agentuity/workbench/state', createWorkbenchStateRoute());
+	router.delete('/_agentuity/workbench/state', createWorkbenchClearStateRoute());
 	router.post('/_agentuity/workbench/execute', createWorkbenchExecutionRoute());
 	return router;
 };

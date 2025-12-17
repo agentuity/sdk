@@ -301,7 +301,7 @@ async function gatherProjectContext(token?: vscode.CancellationToken): Promise<s
 	const authStatus = getAuthStatus();
 	lines.push(`- Authenticated: ${authStatus.state === 'authenticated' ? 'Yes' : 'No'}`);
 	if (authStatus.user) {
-		lines.push(`- User: ${authStatus.user.email}`);
+		lines.push(`- User: ${authStatus.user.firstName} ${authStatus.user.lastName}`);
 	}
 
 	if (token?.isCancellationRequested) {
@@ -522,7 +522,7 @@ async function handleStatus(stream: vscode.ChatResponseStream): Promise<vscode.C
 
 	stream.markdown('### Authentication\n');
 	if (authStatus.state === 'authenticated' && authStatus.user) {
-		stream.markdown(`✓ Logged in as **${authStatus.user.email}**\n\n`);
+		stream.markdown(`✓ Logged in as **${authStatus.user.firstName} ${authStatus.user.lastName}**\n\n`);
 	} else {
 		stream.markdown(`✗ Not logged in\n\n`);
 		stream.button({ title: 'Login', command: 'agentuity.login' });

@@ -10,8 +10,11 @@
 		"url": "https://github.com/agentuity/sdk"
 	},
 	"engines": {
-		"vscode": "^1.90.0"
+		"vscode": "^1.107.0"
 	},
+	"enabledApiProposals": [
+		"chatContextProvider"
+	],
 	"categories": [
 		"Other",
 		"Snippets"
@@ -24,7 +27,8 @@
 	],
 	"icon": "resources/icon.png",
 	"activationEvents": [
-		"onStartupFinished"
+		"onStartupFinished",
+		"onChatContextProvider:agentuity.context"
 	],
 	"main": "./dist/extension.js",
 	"contributes": {
@@ -186,6 +190,11 @@
 			{
 				"command": "agentuity.codeLens.viewSessions",
 				"title": "View Agent Sessions",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.createCustomAgents",
+				"title": "Create Custom Agents for Background Use",
 				"category": "Agentuity"
 			}
 		],
@@ -403,6 +412,168 @@
 					"required": [
 						"command"
 					]
+				}
+			},
+			{
+				"name": "agentuity_get_agents",
+				"displayName": "Get Agentuity Agents",
+				"toolReferenceName": "agentuity-agents",
+				"icon": "$(hubot)",
+				"userDescription": "List all AI agents in the current Agentuity project",
+				"modelDescription": "Get a list of all AI agents defined in the current Agentuity project. Returns agent names, IDs, identifiers, descriptions, and source files. Use this to understand what agents exist in the project before performing operations on them.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.hasProject",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"includeDetails": {
+							"type": "boolean",
+							"description": "Whether to include detailed information about each agent",
+							"default": false
+						}
+					}
+				}
+			},
+			{
+				"name": "agentuity_get_project_status",
+				"displayName": "Get Agentuity Project Status",
+				"toolReferenceName": "agentuity-status",
+				"icon": "$(info)",
+				"userDescription": "Get the current status of the Agentuity project",
+				"modelDescription": "Get comprehensive status information about the Agentuity project including: authentication state, project configuration, dev server state, agent count, and active deployment info. Use this to understand the current state before suggesting actions.",
+				"canBeReferencedInPrompt": true,
+				"inputSchema": {
+					"type": "object",
+					"properties": {}
+				}
+			},
+			{
+				"name": "agentuity_get_sessions",
+				"displayName": "Get Agent Sessions",
+				"toolReferenceName": "agentuity-sessions",
+				"icon": "$(pulse)",
+				"userDescription": "List recent agent execution sessions",
+				"modelDescription": "Get a list of recent agent execution sessions. Each session represents one invocation of an agent and includes success/failure status, duration, trigger type, and environment. Use this to diagnose issues or understand agent usage patterns.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.hasProject",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"count": {
+							"type": "number",
+							"description": "Number of sessions to retrieve (default: 10, max: 100)",
+							"default": 10
+						}
+					}
+				}
+			},
+			{
+				"name": "agentuity_get_session_logs",
+				"displayName": "Get Session Logs",
+				"toolReferenceName": "agentuity-logs",
+				"icon": "$(output)",
+				"userDescription": "Get logs for a specific agent session",
+				"modelDescription": "Retrieve detailed logs for a specific agent execution session. Logs include timestamps, severity levels, and messages. Use this to debug agent behavior or diagnose failures. Requires a session ID which can be obtained from agentuity_get_sessions.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.hasProject",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sessionId": {
+							"type": "string",
+							"description": "The session ID to get logs for (UUID format)"
+						}
+					},
+					"required": [
+						"sessionId"
+					]
+				}
+			},
+			{
+				"name": "agentuity_control_dev_server",
+				"displayName": "Control Dev Server",
+				"toolReferenceName": "agentuity-dev",
+				"icon": "$(server-process)",
+				"userDescription": "Start, stop, or check the Agentuity dev server",
+				"modelDescription": "Control the Agentuity development server for local agent testing. Actions: 'start' launches the server, 'stop' terminates it, 'restart' cycles it, 'status' returns current state. The dev server must be running to test agents locally via the Workbench.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.hasProject",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"action": {
+							"type": "string",
+							"enum": [
+								"start",
+								"stop",
+								"restart",
+								"status"
+							],
+							"description": "The action to perform: start, stop, restart, or status"
+						}
+					},
+					"required": [
+						"action"
+					]
+				}
+			},
+			{
+				"name": "agentuity_get_deployments",
+				"displayName": "Get Deployments",
+				"toolReferenceName": "agentuity-deployments",
+				"icon": "$(cloud-upload)",
+				"userDescription": "List deployments for the Agentuity project",
+				"modelDescription": "Get a list of deployments for the current Agentuity project. Shows deployment IDs, active status, state, creation time, and tags. Use this to understand deployment history and identify the currently active deployment.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.hasProject",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"limit": {
+							"type": "number",
+							"description": "Maximum number of deployments to return (default: 10)",
+							"default": 10
+						}
+					}
+				}
+			},
+			{
+				"name": "agentuity_deploy_project",
+				"displayName": "Deploy Project",
+				"toolReferenceName": "agentuity-deploy",
+				"icon": "$(rocket)",
+				"userDescription": "Deploy the Agentuity project to the cloud",
+				"modelDescription": "Deploy the current Agentuity project to Agentuity Cloud. This makes the agents publicly accessible. The deployment runs in a terminal and requires user confirmation. Use agentuity_get_project_status first to verify the user is authenticated.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.hasProject && agentuity.authenticated",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"message": {
+							"type": "string",
+							"description": "Optional deployment message or description"
+						}
+					}
+				}
+			},
+			{
+				"name": "agentuity_get_health_summary",
+				"displayName": "Get Health Summary",
+				"toolReferenceName": "agentuity-health",
+				"icon": "$(heart)",
+				"userDescription": "Get a health summary of the Agentuity project",
+				"modelDescription": "Get a comprehensive health summary of the Agentuity project including: session success/failure rates, performance metrics (avg/min/max duration), recent failures, deployment status, and dev server state. Use this for monitoring and diagnostics.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.hasProject",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sessionCount": {
+							"type": "number",
+							"description": "Number of recent sessions to analyze (default: 20)",
+							"default": 20
+						}
+					}
 				}
 			}
 		],

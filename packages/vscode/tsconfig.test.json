@@ -9,14 +9,11 @@
 		"skipLibCheck": true,
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
-		"declaration": true,
-		"declarationMap": true,
-		"sourceMap": true,
-		"outDir": "./dist",
-		"rootDir": "./src",
-		"composite": true,
+		"outDir": "./dist-test",
+		"rootDir": ".",
+		"composite": false,
 		"types": ["node"]
 	},
-	"include": ["src/**/*"],
-	"exclude": ["node_modules", "dist", "test/**/*"]
+	"include": ["src/**/*", "test/**/*"],
+	"exclude": ["node_modules", "dist"]
 }

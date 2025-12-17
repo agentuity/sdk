@@ -790,6 +790,22 @@ export class DefaultSession implements Session {
  * @internal
  * @experimental
  */
+/**
+ * Configuration options for ThreadWebSocketClient
+ */
+export interface ThreadWebSocketClientOptions {
+	/** Connection timeout in milliseconds (default: 10000) */
+	connectionTimeoutMs?: number;
+	/** Request timeout in milliseconds (default: 10000) */
+	requestTimeoutMs?: number;
+	/** Base delay for reconnection backoff in milliseconds (default: 1000) */
+	reconnectBaseDelayMs?: number;
+	/** Maximum delay for reconnection backoff in milliseconds (default: 30000) */
+	reconnectMaxDelayMs?: number;
+	/** Maximum number of reconnection attempts (default: 5) */
+	maxReconnectAttempts?: number;
+}
+
 export class ThreadWebSocketClient {
 	private ws: WebSocket | null = null;
 	private authenticated = false;
@@ -798,7 +814,7 @@ export class ThreadWebSocketClient {
 		{ resolve: (data?: string) => void; reject: (err: Error) => void }
 	>();
 	private reconnectAttempts = 0;
-	private maxReconnectAttempts = 5;
+	private maxReconnectAttempts: number;
 	private apiKey: string;
 	private wsUrl: string;
 	private wsConnecting: Promise<void> | null = null;
@@ -806,10 +822,19 @@ export class ThreadWebSocketClient {
 	private isDisposed = false;
 	private initialConnectResolve: (() => void) | null = null;
 	private initialConnectReject: ((err: Error) => void) | null = null;
+	private connectionTimeoutMs: number;
+	private requestTimeoutMs: number;
+	private reconnectBaseDelayMs: number;
+	private reconnectMaxDelayMs: number;
 
-	constructor(apiKey: string, wsUrl: string) {
+	constructor(apiKey: string, wsUrl: string, options: ThreadWebSocketClientOptions = {}) {
 		this.apiKey = apiKey;
 		this.wsUrl = wsUrl;
+		this.connectionTimeoutMs = options.connectionTimeoutMs ?? 10_000;
+		this.requestTimeoutMs = options.requestTimeoutMs ?? 10_000;
+		this.reconnectBaseDelayMs = options.reconnectBaseDelayMs ?? 1_000;
+		this.reconnectMaxDelayMs = options.reconnectMaxDelayMs ?? 30_000;
+		this.maxReconnectAttempts = options.maxReconnectAttempts ?? 5;
 	}
 
 	async connect(): Promise<void> {
@@ -826,8 +851,8 @@ export class ThreadWebSocketClient {
 				const rejectFn = this.initialConnectReject || reject;
 				this.initialConnectResolve = null;
 				this.initialConnectReject = null;
-				rejectFn(new Error('WebSocket connection timeout (10s)'));
-			}, 10_000);
+				rejectFn(new Error(`WebSocket connection timeout (${this.connectionTimeoutMs}ms)`));
+			}, this.connectionTimeoutMs);
 
 			try {
 				this.ws = new WebSocket(this.wsUrl);
@@ -921,7 +946,10 @@ export class ThreadWebSocketClient {
 					// This handles server rollouts where connection closes before auth finishes
 					if (this.reconnectAttempts < this.maxReconnectAttempts) {
 						this.reconnectAttempts++;
-						const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30_000);
+						const delay = Math.min(
+							this.reconnectBaseDelayMs * Math.pow(2, this.reconnectAttempts),
+							this.reconnectMaxDelayMs
+						);
 
 						internal.info(
 							`WebSocket disconnected, attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`
@@ -985,13 +1013,13 @@ export class ThreadWebSocketClient {
 
 			this.ws!.send(JSON.stringify(message));
 
-			// Timeout after 10 seconds
+			// Timeout after configured duration
 			setTimeout(() => {
 				if (this.pendingRequests.has(requestId)) {
 					this.pendingRequests.delete(requestId);
 					reject(new Error('Request timeout'));
 				}
-			}, 10000);
+			}, this.requestTimeoutMs);
 		});
 	}
 
@@ -1029,17 +1057,17 @@ export class ThreadWebSocketClient {
 
 			this.ws!.send(JSON.stringify(message));
 
-			// Timeout after 10 seconds
+			// Timeout after configured duration
 			setTimeout(() => {
 				if (this.pendingRequests.has(requestId)) {
 					this.pendingRequests.delete(requestId);
 					reject(new Error('Request timeout'));
 				}
-			}, 10_000);
-		});
-	}
+			}, this.requestTimeoutMs);
+			});
+			}
 
-	async delete(threadId: string): Promise<void> {
+			async delete(threadId: string): Promise<void> {
 		// Wait for connection/reconnection if in progress
 		if (this.wsConnecting) {
 			await this.wsConnecting;
@@ -1064,15 +1092,15 @@ export class ThreadWebSocketClient {
 
 			this.ws!.send(JSON.stringify(message));
 
-			// Timeout after 10 seconds
+			// Timeout after configured duration
 			setTimeout(() => {
 				if (this.pendingRequests.has(requestId)) {
 					this.pendingRequests.delete(requestId);
 					reject(new Error('Request timeout'));
 				}
-			}, 10_000);
-		});
-	}
+			}, this.requestTimeoutMs);
+			});
+			}
 
 	cleanup(): void {
 		// Mark as disposed to prevent new reconnection attempts
