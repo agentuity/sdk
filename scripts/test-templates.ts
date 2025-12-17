@@ -300,35 +300,32 @@ async function installDependencies(
 	const packageJsonPath = join(projectDir, 'package.json');
 	const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
-	// Remove @agentuity dependencies from package.json
-	if (packageJson.dependencies) {
-		for (const pkgName of packedPackages.keys()) {
-			delete packageJson.dependencies[pkgName];
+	// Replace @agentuity dependencies with local tarball paths
+	for (const [pkgName, tarballPath] of packedPackages.entries()) {
+		if (packageJson.dependencies?.[pkgName]) {
+			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
+		}
+		if (packageJson.devDependencies?.[pkgName]) {
+			packageJson.devDependencies[pkgName] = `file:${tarballPath}`;
 		}
 	}
 
 	// Write updated package.json
 	writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
 
-	// Install other dependencies first
-	const installResult = await runCommand(['bun', 'install'], projectDir, undefined, 180000);
+	// Delete lockfile to ensure fresh resolution
+	const lockfilePath = join(projectDir, 'bun.lock');
+	if (existsSync(lockfilePath)) {
+		rmSync(lockfilePath);
+	}
+
+	// Install all dependencies (including local tarballs) in one go
+	const installResult = await runCommand(['bun', 'install'], projectDir, undefined, 300000);
 	if (!installResult.success) {
 		return { success: false, error: installResult.stderr };
 	}
 
-	// Install @agentuity packages from tarballs with --no-save
-	const tarballPaths = Array.from(packedPackages.values());
-	const addResult = await runCommand(
-		['bun', 'add', '--no-save', ...tarballPaths],
-		projectDir,
-		undefined,
-		300000 // Increased timeout to 5 minutes for cache-cleared installs
-	);
-	if (!addResult.success) {
-		return { success: false, error: addResult.stderr };
-	}
-
-	// Remove nested @agentuity packages that Bun installed from npm
+	// Remove nested @agentuity packages that Bun might have installed from npm
 	const nestedPattern = join(projectDir, 'node_modules/@agentuity/*/node_modules/@agentuity');
 	const globResult = await runCommand(
 		[
