@@ -37,9 +37,20 @@ export async function checkBunVersion(): Promise<string[]> {
 
 		if (ok) {
 			await $`bun upgrade`.quiet();
-			const version = (await $`bun -v`.quiet().text()).trim();
-			// Return success message to show in output box
-			return [tui.colorSuccess(`Upgraded Bun to ${version}`)];
+			const upgradedVersion = (await $`bun -v`.quiet().text()).trim();
+
+			// Verify the upgraded version meets minimum requirements
+			if (semver.satisfies(upgradedVersion, MIN_BUN_VERSION)) {
+				// Return success message to show in output box
+				return [tui.colorSuccess(`Upgraded Bun to ${upgradedVersion}`)];
+			} else {
+				// Upgrade completed but still doesn't meet minimum version
+				throw new InvalidBunVersion({
+					current: upgradedVersion,
+					required: MIN_BUN_VERSION,
+					message: `Bun upgraded to ${upgradedVersion}, but still does not meet minimum requirement ${MIN_BUN_VERSION}`,
+				});
+			}
 		}
 	}
 
