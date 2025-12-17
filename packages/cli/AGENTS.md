@@ -185,6 +185,36 @@ Single Bun server + Vite asset server architecture:
 - Test with custom config: `bun bin/cli.ts --config=/path/to/production.yaml [command]`
 - Debug mode: `bun bin/cli.ts --log-level=debug [command]` (shows API request/response details)
 
+### Test Suite
+
+- **`test:create`** - Integration test for create command (uses source CLI)
+- **`test:bundled-create`** - Tests bundled executable create command (requires pre-built binary)
+- **`test:exit-codes`** - Tests CLI exit codes
+- **`test:response-schema`** - Tests response schema validation
+- **`test:batch`** - Tests batch reporting
+- **`test:envelope`** - Tests response envelope
+
+### Testing Bundled Executable
+
+To test the bundled executable (prevents regressions like missing dependencies):
+
+```bash
+# 1. Build executable for your platform
+./scripts/build-executables.ts --skip-sign --platform=darwin-arm64
+
+# 2. Run bundled create test
+bun test:bundled-create
+
+# Or specify binary path
+bun scripts/test-bundled-create.ts --binary=./dist/bin/agentuity-darwin-arm64
+```
+
+This test verifies:
+
+- Bundled executable can run `create` command without "Cannot find package" errors
+- All dependencies are properly bundled or dynamically imported
+- Project files are created correctly
+
 ### Version Check Bypass (Development Only)
 
 For local development, version checks can be bypassed (in priority order):
