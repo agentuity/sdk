@@ -13,6 +13,7 @@ import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
 import { getDefaultConfigDir, saveConfig } from '../../config';
 import type { Config } from '../../types';
+import { createFileWatcher } from './file-watcher';
 
 const DEFAULT_PORT = 3500;
 const MIN_PORT = 1024;
@@ -236,9 +237,22 @@ export const command = createCommand({
 		// Make restart function available globally for HMR plugin
 		(globalThis as Record<string, unknown>).__AGENTUITY_RESTART__ = restartServer;
 
+		// Create file watcher for backend hot reload
+		const fileWatcher = createFileWatcher({
+			rootDir,
+			logger,
+			onRestart: restartServer,
+		});
+
+		// Start file watcher (will be paused during builds)
+		fileWatcher.start();
+
 		// Setup signal handlers once before the loop
 		const cleanup = async () => {
 			tui.info('Shutting down...');
+
+			// Stop file watcher
+			fileWatcher.stop();
 
 			// Close Vite asset server first
 			if (viteServer) {
@@ -280,6 +294,9 @@ export const command = createCommand({
 		while (true) {
 			shouldRestart = false;
 
+			// Pause file watcher during build to avoid loops
+			fileWatcher.pause();
+
 			try {
 				// Generate entry file for Vite before starting dev server
 				await tui.spinner({
@@ -299,6 +316,9 @@ export const command = createCommand({
 			} catch (error) {
 				tui.error(`Failed to generate entry file: ${error}`);
 				tui.warn('Waiting for file changes to retry...');
+
+				// Resume watcher to detect changes for retry
+				fileWatcher.resume();
 
 				// Wait for next restart trigger
 				await new Promise<void>((resolve) => {
@@ -448,6 +468,9 @@ export const command = createCommand({
 				}
 
 				showWelcome();
+
+				// Start/resume file watcher now that server is ready
+				fileWatcher.resume();
 
 				// Wait for restart signal
 				await new Promise<void>((resolve) => {

@@ -206,31 +206,29 @@ app.get('/*.css', proxyToVite);
 	let webRoutes = '';
 	if (hasWebFrontend) {
 		if (isDev) {
-			const htmlPath = join(srcDir, 'web', 'index.html');
 			webRoutes = `
 // Web routes (dev mode with Vite HMR via proxy)
+// Proxy HTML from Vite to let @vitejs/plugin-react handle React Fast Refresh preamble
 const devHtmlHandler = async (c) => {
-	const html = await Bun.file('${htmlPath}').text();
-	const withHmr = html
-		// Fix relative paths to use proxy routes (with or without ./)
-		.replace(/src=["'](?:\\.\\/)?([^"'\\/]+\\.tsx?)["']/g, 'src="/src/web/$1"')
-		// Inject React Refresh preamble BEFORE any user scripts
-		.replace(
-			/<head>/i,
-			\`<head>
-			<script type="module">
-				import RefreshRuntime from '/@react-refresh'
-				RefreshRuntime.injectIntoGlobalHook(window)
-				window.$RefreshReg$ = () => {}
-				window.$RefreshSig$ = () => (type) => type
-			</script>
-			<script type="module">
-				// Configure Vite client to connect to asset server for HMR WebSocket
-				window.__VITE_HMR_BASE_URL__ = 'http://127.0.0.1:${vitePort}';
-			</script>
-			<script type="module" src="http://127.0.0.1:${vitePort}/@vite/client"></script>\`
-		);
-	return c.html(withHmr);
+	const viteUrl = \`http://127.0.0.1:${vitePort}/src/web/index.html\`;
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), 10000);
+	
+	try {
+		otel.logger.debug('[Proxy] GET /src/web/index.html -> Vite:%d', ${vitePort});
+		const res = await fetch(viteUrl, { signal: controller.signal });
+		clearTimeout(timeout);
+		
+		// Return Vite's transformed HTML (includes @vite/client and React preamble)
+		return new Response(res.body, {
+			status: res.status,
+			headers: res.headers,
+		});
+	} catch (err) {
+		clearTimeout(timeout);
+		otel.logger.error('Failed to proxy HTML to Vite: %s', err instanceof Error ? err.message : String(err));
+		return c.text('Vite asset server error (HTML)', 500);
+	}
 };
 app.get('/', devHtmlHandler);
 // 404 for unmatched API/system routes
