@@ -214,10 +214,11 @@ const devHtmlHandler = async (c) => {
 	const withHmr = html
 		// Fix relative paths to use proxy routes (with or without ./)
 		.replace(/src=["'](?:\\.\\/)?([^"'\\/]+\\.tsx?)["']/g, 'src="/src/web/$1"')
-		// Inject Vite HMR scripts - point directly to Vite asset server for WebSocket
+		// Inject React Refresh preamble BEFORE any user scripts
 		.replace(
-			'</head>',
-			\`<script type="module">
+			/<head>/i,
+			\`<head>
+			<script type="module">
 				import RefreshRuntime from '/@react-refresh'
 				RefreshRuntime.injectIntoGlobalHook(window)
 				window.$RefreshReg$ = () => {}
@@ -227,8 +228,7 @@ const devHtmlHandler = async (c) => {
 				// Configure Vite client to connect to asset server for HMR WebSocket
 				window.__VITE_HMR_BASE_URL__ = 'http://127.0.0.1:${vitePort}';
 			</script>
-			<script type="module" src="http://127.0.0.1:${vitePort}/@vite/client"></script>
-			</head>\`
+			<script type="module" src="http://127.0.0.1:${vitePort}/@vite/client"></script>\`
 		);
 	return c.html(withHmr);
 };
