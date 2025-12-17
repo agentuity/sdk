@@ -68,10 +68,14 @@ export function generateBanner(version?: string, compact?: true): string {
 			: CYAN + `│${docsLabel}${docsLink + ''.padEnd(docsPadding) + CYAN} │` + RESET,
 		compact
 			? undefined
-			: CYAN + `│${communityLabel}${communityLink + ''.padEnd(communityPadding) + CYAN} │` + RESET,
+			: CYAN +
+				`│${communityLabel}${communityLink + ''.padEnd(communityPadding) + CYAN} │` +
+				RESET,
 		compact
 			? undefined
-			: CYAN + `│${dashboardLabel}${dashboardLink + ''.padEnd(dashboardPadding) + CYAN} │` + RESET,
+			: CYAN +
+				`│${dashboardLabel}${dashboardLink + ''.padEnd(dashboardPadding) + CYAN} │` +
+				RESET,
 		CYAN + '╰────────────────────────────────────────────────────╯' + RESET,
 	].filter(Boolean) as string[];
 
