@@ -29,9 +29,30 @@ export function generateBanner(version?: string, compact?: true): string {
 	const versionLabel = ' Version:        '; // Include leading space
 	const versionLink = LINKS
 		? link(getReleaseUrl(_version), _version, WHITE ?? undefined)
-		: _version;
+		: WHITE + _version + RESET;
 	const versionLinkWidth = getDisplayWidth(stripAnsi(versionLink));
 	const versionPadding = width - versionLabel.length - versionLinkWidth - 1;
+
+	const docsLabel = ' Docs:           ';
+	const docsLink = LINKS
+		? link('https://preview.agentuity.dev', 'preview.agentuity.dev', WHITE!)
+		: WHITE + 'https://preview.agentuity.dev' + RESET;
+	const docsWidth = getDisplayWidth(stripAnsi(docsLink));
+	const docsPadding = width - docsLabel.length - docsWidth - 1;
+
+	const communityLabel = ' Community:      ';
+	const communityLink = LINKS
+		? link('https://discord.gg/agentuity', 'discord.gg/agentuity', WHITE!)
+		: WHITE + 'https://discord.gg/agentuity' + RESET;
+	const communityWidth = getDisplayWidth(stripAnsi(communityLink));
+	const communityPadding = width - communityLabel.length - communityWidth - 1;
+
+	const dashboardLabel = ' Dashboard:      ';
+	const dashboardLink = LINKS
+		? link('https://app-v1.agentuity.com', 'app-v1.agentuity.com', WHITE!)
+		: WHITE + 'https://app-v1.agentuity.com' + RESET;
+	const dashboardWidth = getDisplayWidth(stripAnsi(dashboardLink));
+	const dashboardPadding = width - dashboardLabel.length - dashboardWidth - 1;
 
 	const lines = [
 		CYAN + '╭────────────────────────────────────────────────────╮' + RESET,
@@ -44,19 +65,13 @@ export function generateBanner(version?: string, compact?: true): string {
 				RESET,
 		compact
 			? undefined
-			: CYAN +
-				`│ Docs:           ${link('https://preview.agentuity.dev', undefined, WHITE!)}${CYAN}      │` +
-				RESET,
+			: CYAN + `│${docsLabel}${docsLink + ''.padEnd(docsPadding) + CYAN} │` + RESET,
 		compact
 			? undefined
-			: CYAN +
-				`│ Community:      ${link('https://discord.gg/agentuity', undefined, WHITE!)}${CYAN}       │` +
-				RESET,
+			: CYAN + `│${communityLabel}${communityLink + ''.padEnd(communityPadding) + CYAN} │` + RESET,
 		compact
 			? undefined
-			: CYAN +
-				`│ Dashboard:      ${link('https://app-v1.agentuity.com', undefined, WHITE!)}${CYAN}       │` +
-				RESET,
+			: CYAN + `│${dashboardLabel}${dashboardLink + ''.padEnd(dashboardPadding) + CYAN} │` + RESET,
 		CYAN + '╰────────────────────────────────────────────────────╯' + RESET,
 	].filter(Boolean) as string[];
 
