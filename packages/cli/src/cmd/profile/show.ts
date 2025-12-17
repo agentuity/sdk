@@ -55,7 +55,8 @@ export const showCommand = createSubcommand({
 			const profilePath = profile.filename;
 			current = profile.selected;
 
-			const content = await loadConfig(current ? undefined : profilePath);
+			// Use already-loaded config from context (respects --config flag)
+			const content = ctx.config;
 			if (!content) {
 				return logger.fatal(
 					`Failed to load profile configuration`,

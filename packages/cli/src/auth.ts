@@ -259,8 +259,15 @@ export async function optionalOrg(
 ): Promise<string | undefined> {
 	const { options, config, apiClient, auth } = ctx;
 
+	console.log('[DEBUG optionalOrg] auth:', !!auth, 'apiClient:', !!apiClient, 'apiKey:', auth?.apiKey ? 'exists' : 'missing');
+
 	// If not authenticated or no API client, skip org selection
 	if (!auth || !apiClient) {
+		return undefined;
+	}
+
+	// If auth exists but has no API key, skip (likely unauthenticated or test scenario)
+	if (!auth.apiKey) {
 		return undefined;
 	}
 
