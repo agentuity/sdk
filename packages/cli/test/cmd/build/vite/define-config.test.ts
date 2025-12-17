@@ -1,69 +1,157 @@
 import { describe, test, expect } from 'bun:test';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { loadAgentuityConfig } from '../../../../src/cmd/build/vite/config-loader';
+import { generateAssetServerConfig } from '../../../../src/cmd/build/vite/vite-asset-server-config';
+import type { Logger } from '../../../../src/types';
 
 /**
  * Test suite for custom define configuration from agentuity.config.ts
  *
  * This verifies that custom define values specified in agentuity.config.ts
- * should be correctly merged into the Vite configuration for both client builds
- * and dev server.
+ * are correctly merged into the Vite configuration for all build phases.
  *
  * GitHub Issue: https://github.com/agentuity/sdk/issues/218
  */
 describe('Vite Define Configuration', () => {
-	test('should document expected behavior for custom define merging', () => {
-		// This test documents the expected behavior:
-		// 1. User defines custom constants in agentuity.config.ts
-		// 2. Custom defines are merged into Vite's define config
-		// 3. Protected keys (AGENTUITY_PUBLIC_*, process.env.NODE_ENV) cannot be overridden
-		// 4. Custom defines use same format as Vite: JSON.stringify() for values
+	const mockLogger: Logger = {
+		trace: () => {},
+		debug: () => {},
+		info: () => {},
+		warn: () => {},
+		error: () => {},
+		fatal: () => {
+			throw new Error('Fatal error');
+		},
+	};
 
-		const expectedBehavior = {
-			customDefines: {
-				'import.meta.env.CUSTOM_API_URL': JSON.stringify('https://api.example.com'),
-				'import.meta.env.FEATURE_FLAG': JSON.stringify('true'),
-			},
-			protectedKeys: [
-				'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH',
-				'import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY',
-				'process.env.NODE_ENV',
-			],
-			mergeStrategy: 'user-defined-first-then-defaults',
-		};
+	test('should load custom define from agentuity.config.ts', async () => {
+		const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-define-test-'));
+		try {
+			// Create agentuity.config.ts with custom define
+			const configContent = `
+export default {
+	define: {
+		'import.meta.env.CUSTOM_API_URL': JSON.stringify('https://api.example.com'),
+		'import.meta.env.FEATURE_FLAG': JSON.stringify('true'),
+	}
+};
+`;
+			writeFileSync(join(tempDir, 'agentuity.config.ts'), configContent);
 
-		expect(expectedBehavior.customDefines).toBeDefined();
-		expect(expectedBehavior.protectedKeys.length).toBeGreaterThan(0);
+			// Load the config
+			const userConfig = await loadAgentuityConfig(tempDir, mockLogger);
+
+			// Verify define property exists and contains the right values
+			expect(userConfig).toBeDefined();
+			expect(userConfig?.define).toBeDefined();
+			expect(userConfig?.define?.['import.meta.env.CUSTOM_API_URL']).toBe(
+				JSON.stringify('https://api.example.com')
+			);
+			expect(userConfig?.define?.['import.meta.env.FEATURE_FLAG']).toBe(JSON.stringify('true'));
+		} finally {
+			rmSync(tempDir, { recursive: true, force: true });
+		}
 	});
 
-	test('should document where define merging should happen', () => {
-		// Define merging should occur in all build phases:
-		// 1. vite-builder.ts - client mode (Vite build for frontend)
-		// 2. vite-builder.ts - workbench mode (Vite build for workbench UI)
-		// 3. server-bundler.ts - server mode (Bun.build for backend)
-		// 4. vite-asset-server-config.ts - dev mode (Vite dev server for HMR)
+	test('should merge custom define into Vite asset server config', async () => {
+		const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-define-test-'));
+		try {
+			// Create agentuity.config.ts with custom define
+			const configContent = `
+export default {
+	define: {
+		'import.meta.env.MY_CUSTOM_VAR': JSON.stringify('test-value'),
+	}
+};
+`;
+			writeFileSync(join(tempDir, 'agentuity.config.ts'), configContent);
 
+			// Generate Vite asset server config
+			const viteConfig = await generateAssetServerConfig({
+				rootDir: tempDir,
+				logger: mockLogger,
+				port: 5173,
+			});
+
+			// Verify custom define is in the Vite config
+			expect(viteConfig.define).toBeDefined();
+			expect(viteConfig.define?.['import.meta.env.MY_CUSTOM_VAR']).toBe(
+				JSON.stringify('test-value')
+			);
+
+			// Verify default defines are still present
+			expect(viteConfig.define?.['process.env.NODE_ENV']).toBe(JSON.stringify('development'));
+		} finally {
+			rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should not override protected keys', async () => {
+		const tempDir = mkdtempSync(join(tmpdir(), 'agentuity-define-test-'));
+		try {
+			// Try to override protected keys
+			const configContent = `
+export default {
+	define: {
+		'process.env.NODE_ENV': JSON.stringify('hacked'),
+		'import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY': JSON.stringify('hacked'),
+	}
+};
+`;
+			writeFileSync(join(tempDir, 'agentuity.config.ts'), configContent);
+
+			// Generate Vite asset server config
+			const viteConfig = await generateAssetServerConfig({
+				rootDir: tempDir,
+				logger: mockLogger,
+				port: 5173,
+			});
+
+			// Verify protected keys were overridden by defaults (not user values)
+			expect(viteConfig.define?.['process.env.NODE_ENV']).toBe(JSON.stringify('development'));
+			expect(viteConfig.define?.['import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY']).toBe(
+				JSON.stringify('false')
+			);
+		} finally {
+			rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should handle missing agentuity.config.ts gracefully', async () => {
+		// Create a temp dir without config
+		const emptyDir = mkdtempSync(join(tmpdir(), 'agentuity-no-config-'));
+
+		try {
+			const userConfig = await loadAgentuityConfig(emptyDir, mockLogger);
+			expect(userConfig).toBeNull();
+		} finally {
+			rmSync(emptyDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should document where define merging happens', () => {
+		// Documentation test: Define merging occurs in all build phases
 		const mergeLocations = [
 			{
 				file: 'vite-builder.ts',
 				mode: 'client',
-				line: 'around line 107-113 in define block',
 				action: 'merge userConfig.define before default defines',
 			},
 			{
 				file: 'vite-builder.ts',
 				mode: 'workbench',
-				line: 'around line 145-149 in define block',
 				action: 'merge userConfig.define',
 			},
 			{
 				file: 'server-bundler.ts',
 				mode: 'server',
-				line: 'Bun.build config define property',
 				action: 'include userDefine in build config',
 			},
 			{
 				file: 'vite-asset-server-config.ts',
 				mode: 'dev',
-				line: 'around line 95-103 in define block',
 				action: 'merge userConfig.define before default defines',
 			},
 		];
