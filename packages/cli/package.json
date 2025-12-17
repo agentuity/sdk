@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/cli",
-	"version": "0.0.96",
+	"version": "0.0.98",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -36,6 +36,7 @@
 		"test:response-schema": "bun scripts/test-response-schema.ts",
 		"test:batch": "bun scripts/test-batch-reporting.ts",
 		"test:envelope": "bun scripts/test-response-envelope.ts",
+		"test:bundled-create": "bun scripts/test-bundled-create.ts",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {

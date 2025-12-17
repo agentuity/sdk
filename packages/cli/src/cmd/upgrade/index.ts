@@ -181,8 +181,28 @@ async function downloadBinary(
  */
 async function validateBinary(binaryPath: string, expectedVersion: string): Promise<void> {
 	try {
-		const result = await $`${binaryPath} version`.text();
-		const actualVersion = result.trim();
+		// Use spawn to capture both stdout and stderr
+		const proc = Bun.spawn([binaryPath, 'version'], {
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+
+		const [stdout, stderr] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+		]);
+
+		const exitCode = await proc.exited;
+
+		if (exitCode !== 0) {
+			const errorDetails = [];
+			if (stdout.trim()) errorDetails.push(`stdout: ${stdout.trim()}`);
+			if (stderr.trim()) errorDetails.push(`stderr: ${stderr.trim()}`);
+			const details = errorDetails.length > 0 ? `\n${errorDetails.join('\n')}` : '';
+			throw new Error(`Failed with exit code ${exitCode}${details}`);
+		}
+
+		const actualVersion = stdout.trim();
 
 		// Normalize versions for comparison (remove 'v' prefix)
 		const normalizedExpected = expectedVersion.replace(/^v/, '');
@@ -363,10 +383,31 @@ export const command = createCommand({
 				message,
 			};
 		} catch (error) {
+			// Parse validation errors to extract stdout/stderr if present
+			let errorDetails: Record<string, unknown> = {
+				error: error instanceof Error ? error.message : 'Unknown error',
+			};
+
+			if (error instanceof Error && error.message.includes('Binary validation failed')) {
+				// Extract stdout/stderr from validation error
+				const match = error.message.match(
+					/Failed with exit code (\d+)\n(stdout: .+\n)?(stderr: .+)?/s
+				);
+				if (match) {
+					const exitCode = match[1];
+					const stdout = match[2]?.replace('stdout: ', '').trim();
+					const stderr = match[3]?.replace('stderr: ', '').trim();
+
+					errorDetails = {
+						validation_exit_code: exitCode,
+						...(stdout && { validation_stdout: stdout }),
+						...(stderr && { validation_stderr: stderr }),
+					};
+				}
+			}
+
 			exitWithError(
-				createError(ErrorCode.INTERNAL_ERROR, 'Upgrade failed', {
-					error: error instanceof Error ? error.message : 'Unknown error',
-				}),
+				createError(ErrorCode.INTERNAL_ERROR, 'Upgrade failed', errorDetails),
 				logger,
 				options.errorFormat
 			);

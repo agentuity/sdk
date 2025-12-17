@@ -290,9 +290,7 @@ if (existsSync(workbenchIndexPath)) {
 	// Server startup (same for dev and prod - Bun.serve with native WebSocket)
 	const serverStartup = `
 // Start Bun server${isDev ? ' (dev mode with Vite asset proxy)' : ''}
-if (typeof Bun !== 'undefined' && !import.meta.main) {
-	// Not the main module, skip server startup (this is being imported/analyzed)
-} else if (typeof Bun !== 'undefined') {
+if (typeof Bun !== 'undefined') {
 	// Enable process exit protection now that we're starting the server
 	enableProcessExitProtection();
 	

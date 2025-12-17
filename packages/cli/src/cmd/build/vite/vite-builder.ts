@@ -4,9 +4,8 @@
  * Utilities for running Vite builds (client, server, workbench)
  */
 
-import { build as viteBuild, type InlineConfig } from 'vite';
 import { join } from 'node:path';
-import react from '@vitejs/plugin-react';
+import type { InlineConfig } from 'vite';
 import type { Logger } from '../../../types';
 import { patchPlugin } from './patch-plugin';
 import { browserEnvPlugin } from './browser-env-plugin';
@@ -61,6 +60,11 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		return;
 	}
 
+	// Dynamically import vite and react plugin
+	const { build: viteBuild } = await import('vite');
+	const reactModule = await import('@vitejs/plugin-react');
+	const react = reactModule.default;
+
 	// For client/workbench, use inline config (no agentuity plugin needed)
 	let viteConfig: InlineConfig;
 
@@ -85,7 +89,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const isLocalRegion = options.region === 'local';
 		const cdnBaseUrl =
 			!dev && deploymentId && !isLocalRegion
-				? `https://static.agentuity.com/${deploymentId}/`
+				? `https://static.agentuity.com/${deploymentId}/client/`
 				: undefined;
 
 		viteConfig = {
