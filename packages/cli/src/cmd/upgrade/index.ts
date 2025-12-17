@@ -350,7 +350,10 @@ export const command = createCommand({
 				await $`rm ${tmpBinaryPath}`.quiet();
 			}
 
-			const message = `Successfully upgraded from ${normalizedCurrent} to ${normalizedLatest}`;
+			const message =
+				normalizedCurrent === normalizedLatest
+					? `Successfully upgraded to ${normalizedLatest}`
+					: `Successfully upgraded from ${normalizedCurrent} to ${normalizedLatest}`;
 			tui.success(message);
 
 			return {
