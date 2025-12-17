@@ -5,7 +5,7 @@
 set -e
 
 # Cleanup .env file on exit (regardless of success/failure)
-trap 'rm -f "$APP_DIR/.env"' EXIT
+trap 'rm -f "$APP_DIR/.agentuity/.env"' EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -39,17 +39,6 @@ fi
 
 echo -e "${GREEN}✓${NC} API key configured"
 
-# Create .env file for the app (overridden by bootstrapRuntimeEnv for local profile)
-echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.env"
-
-# Add OpenAI API key if available (required for vector embedding operations)
-if [ -n "$OPENAI_API_KEY" ]; then
-	echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.env"
-	echo -e "${GREEN}✓${NC} OpenAI API key configured"
-fi
-
-echo -e "${GREEN}✓${NC} Created .env file"
-
 # Build SDK packages first (required for integration suite)
 echo ""
 echo "Building SDK packages..."
@@ -68,6 +57,19 @@ mkdir -p .agentuity/web
 cp src/web/index.html .agentuity/web/
 
 echo -e "${GREEN}✓${NC} Build complete"
+
+# Create .env file AFTER build (build clears .agentuity directory)
+# This overwrites the .env.local copy with CI/test credentials
+echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.agentuity/.env"
+echo "AGENTUITY_REGION=local" >> "$APP_DIR/.agentuity/.env"
+
+# Add OpenAI API key if available (required for vector embedding operations)
+if [ -n "$OPENAI_API_KEY" ]; then
+        echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.agentuity/.env"
+        echo -e "${GREEN}✓${NC} OpenAI API key configured for vector operations"
+fi
+
+echo -e "${GREEN}✓${NC} Environment configured (region: local)"
 
 # Start server in background
 echo ""

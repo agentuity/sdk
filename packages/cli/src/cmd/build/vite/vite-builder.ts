@@ -18,6 +18,7 @@ export interface ViteBuildOptions {
 	port?: number;
 	projectId?: string;
 	orgId?: string;
+	region?: string;
 	deploymentId?: string;
 	workbenchRoute?: string;
 	workbenchEnabled?: boolean;

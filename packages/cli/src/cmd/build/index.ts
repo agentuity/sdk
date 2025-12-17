@@ -56,6 +56,7 @@ export const command = createCommand({
 				dev: opts.dev || false,
 				projectId: project?.projectId,
 				orgId: project?.orgId,
+				region: project?.region ?? 'local',
 				logger: ctx.logger,
 			});
 

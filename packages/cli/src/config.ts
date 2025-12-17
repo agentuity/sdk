@@ -189,23 +189,23 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 				overrides.stream_url = process.env.AGENTUITY_STREAM_URL;
 			}
 			result.data.overrides = overrides;
-			}
+		}
 
-			// Only cache the default profile, not custom path loads
-			// This prevents explicit loads from overwriting the cached default profile
-			if (!customPath) {
+		// Only cache the default profile, not custom path loads
+		// This prevents explicit loads from overwriting the cached default profile
+		if (!customPath) {
 			cachedConfig = result.data;
-			}
-			return result.data;
-			} catch (error) {
-			tui.error(`Error loading config from ${configPath}: ${error}`);
-			
-			// Only update cache on error if loading default profile
-			if (!customPath) {
-				cachedConfig = null;
-			}
-			return null;
-			}
+		}
+		return result.data;
+	} catch (error) {
+		tui.error(`Error loading config from ${configPath}: ${error}`);
+
+		// Only update cache on error if loading default profile
+		if (!customPath) {
+			cachedConfig = null;
+		}
+		return null;
+	}
 }
 
 function formatYAML(obj: unknown, indent = 0): string {
@@ -258,7 +258,7 @@ export async function saveConfig(config: Config, customPath?: string): Promise<v
 	await writeFile(configPath, content + '\n', { mode: 0o600 });
 	// Ensure existing files get correct permissions on upgrade
 	await chmod(configPath, 0o600);
-	
+
 	// Only cache the default profile, not custom path saves
 	if (!customPath) {
 		cachedConfig = config;

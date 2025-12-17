@@ -264,9 +264,7 @@ function handleProjectConfigError(
 /**
  * Prompt user to select a project from their available projects
  */
-async function promptProjectSelection(
-	baseCtx: CommandContext
-): Promise<ProjectConfig | null> {
+async function promptProjectSelection(baseCtx: CommandContext): Promise<ProjectConfig | null> {
 	const { config } = baseCtx;
 
 	// Need auth and API client to fetch projects
@@ -303,10 +301,7 @@ async function promptProjectSelection(
 	const prompt = createPrompt();
 
 	// Calculate max name length for padding (with reasonable max)
-	const maxNameLength = Math.min(
-		40,
-		Math.max(...sortedProjects.map((p) => p.name.length))
-	);
+	const maxNameLength = Math.min(40, Math.max(...sortedProjects.map((p) => p.name.length)));
 
 	const selectedProjectId = await prompt.select<string>({
 		message: 'Select a project',
@@ -777,7 +772,7 @@ async function registerSubcommand(
 				.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
 				.replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
 				.toLowerCase();
-			
+
 			// Track if this schema defines projectId (as 'projectId' or 'project-id')
 			if (opt.name === 'projectId' || opt.name === 'project-id' || flag === 'project-id') {
 				hasProjectIdInSchema = true;
@@ -883,7 +878,10 @@ async function registerSubcommand(
 								ErrorCode.PROJECT_NOT_FOUND,
 								`Project not found: ${projectId}`,
 								undefined,
-								['Verify the project ID is correct', `Run "${getCommand('project list')}" to see available projects`]
+								[
+									'Verify the project ID is correct',
+									`Run "${getCommand('project list')}" to see available projects`,
+								]
 							),
 							baseCtx.logger,
 							baseCtx.options.errorFormat
@@ -917,7 +915,8 @@ async function registerSubcommand(
 									const selectedProject = await promptProjectSelection(baseCtx);
 									if (selectedProject) {
 										// Set the project ID in options so it can be used by the command
-										(options as Record<string, unknown>).projectId = selectedProject.projectId;
+										(options as Record<string, unknown>).projectId =
+											selectedProject.projectId;
 										project = selectedProject;
 									}
 								} catch (promptError) {
@@ -928,12 +927,17 @@ async function registerSubcommand(
 
 							if (!project) {
 								exitWithError(
-									createError(ErrorCode.PROJECT_NOT_FOUND, 'Invalid project folder', undefined, [
-										'Use --dir to specify a different directory',
-										'Use --project-id to specify a project by ID',
-										'Change to a directory containing agentuity.json',
-										`Run "${getCommand('project create')}" to create a new project`,
-									]),
+									createError(
+										ErrorCode.PROJECT_NOT_FOUND,
+										'Invalid project folder',
+										undefined,
+										[
+											'Use --dir to specify a different directory',
+											'Use --project-id to specify a project by ID',
+											'Change to a directory containing agentuity.json',
+											`Run "${getCommand('project create')}" to create a new project`,
+										]
+									),
 									baseCtx.logger,
 									baseCtx.options.errorFormat
 								);

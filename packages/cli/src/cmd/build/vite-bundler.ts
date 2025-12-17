@@ -18,6 +18,7 @@ export interface ViteBundleOptions {
 	dev?: boolean;
 	projectId?: string;
 	orgId?: string;
+	region?: string;
 	deploymentId?: string;
 	port?: number;
 	logger: Logger;
@@ -27,7 +28,15 @@ export interface ViteBundleOptions {
  * Bundle the project using Vite
  */
 export async function viteBundle(options: ViteBundleOptions): Promise<{ output: string[] }> {
-	const { rootDir, projectId = '', orgId = '', deploymentId = '', port = 3500, logger } = options;
+	const {
+		rootDir,
+		projectId = '',
+		orgId = '',
+		region = 'local',
+		deploymentId = '',
+		port = 3500,
+		logger,
+	} = options;
 
 	const output: string[] = [];
 
@@ -59,6 +68,7 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 			port,
 			projectId,
 			orgId,
+			region,
 			deploymentId,
 			logger,
 		});
