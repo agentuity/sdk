@@ -208,9 +208,10 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		throw error;
 	}
 
-	// 4. Generate metadata (after all builds complete)
-	logger.debug('Generating agentuity.metadata.json...');
+	// 4. Generate registry and metadata (after all builds complete)
+	logger.debug('Generating agent registry and metadata...');
 	const { generateMetadata, writeMetadataFile } = await import('./metadata-generator');
+	const { generateAgentRegistry } = await import('./registry-generator');
 	const { discoverAgents } = await import('./agent-discovery');
 	const { discoverRoutes } = await import('./route-discovery');
 
@@ -218,6 +219,11 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	const agentMetadata = await discoverAgents(srcDir, projectId, options.deploymentId || '', logger);
 	const { routes } = await discoverRoutes(srcDir, projectId, options.deploymentId || '', logger);
 
+	// Generate agent registry for type augmentation
+	generateAgentRegistry(srcDir, agentMetadata);
+	logger.debug('Agent registry generated');
+
+	// Generate metadata
 	const metadata = await generateMetadata({
 		rootDir,
 		projectId,
@@ -230,7 +236,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	});
 
 	writeMetadataFile(rootDir, metadata, dev, logger);
-	logger.debug('Metadata generation complete');
+	logger.debug('Registry and metadata generation complete');
 
 	logger.info('All builds complete');
 }
