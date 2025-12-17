@@ -231,7 +231,7 @@ function handleProjectConfigError(
 async function promptProjectSelection(
 	baseCtx: CommandContext
 ): Promise<ProjectConfig | null> {
-	const { logger, config } = baseCtx;
+	const { config } = baseCtx;
 
 	// Need auth and API client to fetch projects
 	const auth = await requireAuth(baseCtx);
@@ -840,7 +840,7 @@ async function registerSubcommand(
 							region: projectDetails.cloudRegion || '',
 						};
 					}
-				} catch (error) {
+				} catch (_error) {
 					if (normalized.requiresProject) {
 						exitWithError(
 							createError(
