@@ -1,6 +1,6 @@
 import { createSubcommand, ConfigSchema } from '../../types';
 import { z } from 'zod';
-import { fetchProfiles, loadConfig } from '../../config';
+import { fetchProfiles } from '../../config';
 import { readFile } from 'node:fs/promises';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
@@ -34,7 +34,6 @@ export const showCommand = createSubcommand({
 		const { logger, args, options } = ctx;
 
 		try {
-			let current = false;
 			let name = args.name;
 
 			const profiles = await fetchProfiles();
@@ -53,7 +52,6 @@ export const showCommand = createSubcommand({
 			}
 
 			const profilePath = profile.filename;
-			current = profile.selected;
 
 			// Use already-loaded config from context (respects --config flag)
 			const content = ctx.config;
