@@ -297,7 +297,7 @@ if (typeof Bun !== 'undefined' && !import.meta.main) {
 	});
 	
 	// Make server available globally for health checks
-	globalThis.__AGENTUITY_SERVER__ = server;
+	(globalThis as any).__AGENTUITY_SERVER__ = server;
 	
 	otel.logger.info(\`Server listening on http://127.0.0.1:\${port}\`);${isDev && vitePort ? `\n\totel.logger.debug(\`Proxying Vite assets from port ${vitePort}\`);` : ''}
 }
@@ -358,10 +358,10 @@ await sessionProvider.initialize(appState);
 // Step 6: Mount routes (AFTER middleware is applied)
 
 // System health/idle endpoints
-const healthHandler = (c) => c.text('OK');
-const idleHandler = (c) => {
+const healthHandler = (c: any) => c.text('OK');
+const idleHandler = (c: any) => {
 	// Check if server is idle (no pending requests/connections)
-	const server = globalThis.__AGENTUITY_SERVER__;
+	const server = (globalThis as any).__AGENTUITY_SERVER__;
 	if (!server) return c.text('NO', { status: 200 });
 	
 	// Check for pending background tasks
