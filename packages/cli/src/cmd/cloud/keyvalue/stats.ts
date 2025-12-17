@@ -42,6 +42,7 @@ export const statsSubcommand = createCommand({
 		}),
 		response: KVStatsResponseSchema,
 	},
+	webUrl: (ctx) => (ctx.args.name ? `/services/kv/${encodeURIComponent(ctx.args.name)}` : '/services/kv'),
 
 	async handler(ctx) {
 		const { args, options } = ctx;

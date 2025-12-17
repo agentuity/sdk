@@ -34,6 +34,7 @@ export const showSubcommand = createSubcommand({
 		}),
 		response: ProjectShowResponseSchema,
 	},
+	webUrl: (ctx) => `/projects/${encodeURIComponent(ctx.args.id)}`,
 	idempotent: true,
 
 	async handler(ctx) {

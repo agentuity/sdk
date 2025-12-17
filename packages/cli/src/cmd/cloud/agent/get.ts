@@ -23,6 +23,7 @@ export const getSubcommand = createSubcommand({
 		}),
 		response: AgentSchema,
 	},
+	webUrl: (ctx) => `/projects/${encodeURIComponent(ctx.project.projectId)}/agents/${encodeURIComponent(ctx.args.agent_id)}`,
 	async handler(ctx) {
 		const { args, apiClient, project, options } = ctx;
 		const agentId = args.agent_id;
