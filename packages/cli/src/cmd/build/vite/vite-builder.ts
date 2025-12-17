@@ -172,14 +172,21 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		await generateWorkbenchFiles(rootDir, projectId, workbenchConfig, logger);
 	}
 
-	// 1. Build client (pass workbench config for env var)
-	logger.info('Building client assets...');
-	await runViteBuild({
-		...options,
-		mode: 'client',
-		workbenchEnabled: workbenchConfig.enabled,
-		workbenchRoute: workbenchConfig.route,
-	});
+	// Check if web frontend exists
+	const hasWebFrontend = await Bun.file(join(rootDir, 'src', 'web', 'index.html')).exists();
+
+	// 1. Build client (only if web frontend exists)
+	if (hasWebFrontend) {
+		logger.info('Building client assets...');
+		await runViteBuild({
+			...options,
+			mode: 'client',
+			workbenchEnabled: workbenchConfig.enabled,
+			workbenchRoute: workbenchConfig.route,
+		});
+	} else {
+		logger.debug('Skipping client build - no src/web/index.html found');
+	}
 
 	// 2. Build workbench (if enabled in config)
 	if (workbenchConfig.enabled) {

@@ -529,6 +529,31 @@ async function testTemplate(
 		}
 		logSuccess('Project built');
 
+		// Step 3.5: Write .env file with dummy credentials BEFORE starting server
+		// (Some SDKs check env vars at module import time)
+		const envVars: Record<string, string> = {
+			AGENTUITY_SDK_KEY: 'test-key',
+			AGENTUITY_LOG_LEVEL: 'error',
+		};
+
+		// Add dummy provider keys based on template
+		if (template.id === 'openai' || template.id === 'vercel-openai') {
+			envVars.OPENAI_API_KEY = 'dummy-openai-key';
+		} else if (template.id === 'groq') {
+			envVars.GROQ_API_KEY = 'dummy-groq-key';
+		} else if (template.id === 'xai') {
+			envVars.XAI_API_KEY = 'dummy-xai-key';
+		} else if (template.id === 'clerk') {
+			envVars.CLERK_SECRET_KEY = 'sk_test_dummy';
+			envVars.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
+		}
+
+		const envFilePath = join(projectDir, '.env');
+		const envContent = Object.entries(envVars)
+			.map(([key, value]) => `${key}=${value}`)
+			.join('\n');
+		writeFileSync(envFilePath, envContent);
+
 		// Step 4: Typecheck
 		logStep('Running typecheck...');
 		stepStart = Date.now();
@@ -550,25 +575,7 @@ async function testTemplate(
 		logStep('Starting server...');
 		stepStart = Date.now();
 
-		// Set dummy API keys for templates that require them (to prevent crash on import)
-		const serverEnv: Record<string, string> = {
-			AGENTUITY_SDK_KEY: 'test-key',
-			AGENTUITY_LOG_LEVEL: 'error',
-		};
-
-		// Add dummy provider keys to prevent SDK initialization failures
-		if (template.id === 'openai' || template.id === 'vercel-openai') {
-			serverEnv.OPENAI_API_KEY = 'dummy-openai-key';
-		} else if (template.id === 'groq') {
-			serverEnv.GROQ_API_KEY = 'dummy-groq-key';
-		} else if (template.id === 'xai') {
-			serverEnv.XAI_API_KEY = 'dummy-xai-key';
-		} else if (template.id === 'clerk') {
-			serverEnv.CLERK_SECRET_KEY = 'sk_test_dummy';
-			serverEnv.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
-		}
-
-		const serverResult = await startServer(projectDir, basePort, serverEnv);
+		const serverResult = await startServer(projectDir, basePort, {});
 		serverProc = serverResult.proc;
 
 		result.steps.push({
