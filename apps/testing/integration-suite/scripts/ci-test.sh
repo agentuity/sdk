@@ -48,6 +48,12 @@ if [ -n "$OPENAI_API_KEY" ]; then
 	echo -e "${GREEN}✓${NC} OpenAI API key configured"
 fi
 
+# Add log level for detailed debugging
+if [ -n "$AGENTUITY_LOG_LEVEL" ]; then
+	echo "AGENTUITY_LOG_LEVEL=$AGENTUITY_LOG_LEVEL" >> "$APP_DIR/.env"
+	echo -e "${GREEN}✓${NC} Log level set to $AGENTUITY_LOG_LEVEL"
+fi
+
 echo -e "${GREEN}✓${NC} Created .env file"
 
 # Build SDK packages first (required for integration suite)
@@ -185,6 +191,11 @@ curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -
 			
 			# Exit with failure if any tests failed
 			if [ "$FAILED" -gt 0 ]; then
+				echo ""
+				echo "╔════════════════════════════════════════════════════════════════╗"
+				echo "║                       SERVER LOGS                              ║"
+				echo "╚════════════════════════════════════════════════════════════════╝"
+				tail -200 "$LOG_FILE"
 				exit 1
 			else
 				exit 0
