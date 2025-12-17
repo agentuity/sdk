@@ -81,6 +81,7 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 	].filter(Boolean);
 
 	imports.push(`import { type LogLevel } from '@agentuity/core';`);
+	imports.push(`import { bootstrapRuntimeEnv } from '@agentuity/cli/runtime-bootstrap';`);
 
 	// HMR setup (dev only)
 	const hmrSetup = isDev
@@ -316,6 +317,14 @@ if (typeof Bun !== 'undefined') {
 ${imports.join('\n')}
 
 ${hmrSetup}
+
+// Step 0: Bootstrap runtime environment (load profile-specific .env files)
+// Only in development - production env vars are injected by platform
+// This must happen BEFORE any imports that depend on environment variables
+if (process.env.NODE_ENV !== 'production') {
+	// Pass project directory (parent of .agentuity/) so .env files are loaded correctly
+	await bootstrapRuntimeEnv({ projectDir: import.meta.dir + '/..' });
+}
 
 // Step 1: Initialize telemetry and services
 const serverUrl = \`http://127.0.0.1:\${process.env.PORT || '3500'}\`;
