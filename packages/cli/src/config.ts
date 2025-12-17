@@ -198,15 +198,14 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 			}
 			return result.data;
 			} catch (error) {
-			if (error instanceof Error) {
-			console.error(`Error loading config from ${configPath}:`, error.message);
-			}
+			tui.error(`Error loading config from ${configPath}: ${error}`);
+			
 			// Only update cache on error if loading default profile
 			if (!customPath) {
-			cachedConfig = null;
+				cachedConfig = null;
 			}
 			return null;
-	}
+			}
 }
 
 function formatYAML(obj: unknown, indent = 0): string {
