@@ -249,25 +249,7 @@ export const deploySubcommand = createSubcommand({
 									if (relative.startsWith('workbench-src/')) {
 										return false;
 									}
-									// Exclude client/workbench assets (uploaded to CDN separately)
-									if (relative.startsWith('client/')) {
-										return false;
-									}
 									if (relative.startsWith('workbench/')) {
-										return false;
-									}
-									// Legacy: exclude old web directory structure
-									if (relative.startsWith('web/assets/')) {
-										return false;
-									}
-									if (relative.startsWith('web/chunk/')) {
-										return false;
-									}
-									if (relative.startsWith('web/public/')) {
-										return false;
-									}
-									// Exclude sourcemaps from deployment
-									if (relative.endsWith('.map')) {
 										return false;
 									}
 									// ignore common stuff we never want to include in the zip

@@ -6,9 +6,10 @@
 
 import { join } from 'node:path';
 import { existsSync } from 'node:fs';
+import { StructuredError } from '@agentuity/core';
 import type { Logger } from '../../types';
 import { runAllBuilds } from './vite/vite-builder';
-import { StructuredError } from '@agentuity/core';
+import * as tui from '../../tui';
 
 const AppFileNotFoundError = StructuredError('AppFileNotFoundError');
 const BuildFailedError = StructuredError('BuildFailedError');
@@ -60,9 +61,9 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		// Run all Vite builds (client -> workbench -> server)
 		// Note: Always use dev=false for builds (even when --dev flag is passed)
 		// The --dev flag means "development build" not "use dev server"
-		logger.info('Starting Vite builds...');
+		logger.debug('Starting Vite builds...');
 
-		await runAllBuilds({
+		const result = await runAllBuilds({
 			rootDir,
 			dev: false, // Always build in production mode for bundle command
 			port,
@@ -73,12 +74,20 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 			logger,
 		});
 
-		logger.info('Vite builds complete');
-		output.push('Build successful');
+		if (result.client.included) {
+			output.push(tui.muted(`✓ Client Built in ${result.client.duration}ms`));
+		}
+		if (result.workbench.included) {
+			output.push(tui.muted(`✓ Workbench Built in ${result.workbench.duration}ms`));
+		}
+		if (result.server.included) {
+			output.push(tui.muted(`✓ Server Built in ${result.server.duration}ms`));
+		}
+
+		logger.debug('Vite builds complete');
 
 		return { output };
 	} catch (error) {
-		logger.error('Build failed:', error);
 		throw new BuildFailedError({
 			message: `Build failed: ${error instanceof Error ? error.message : String(error)}`,
 		});

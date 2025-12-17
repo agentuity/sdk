@@ -126,9 +126,9 @@ function expandTilde(path: string): string {
 
 let cachedConfig: Config | null | undefined;
 
-export async function loadConfig(customPath?: string): Promise<Config | null> {
-	// Use cache if available
-	if (cachedConfig !== undefined) {
+export async function loadConfig(customPath?: string, skipCache = false): Promise<Config | null> {
+	// Use cache if available and not skipped
+	if (!skipCache && cachedConfig !== undefined) {
 		return cachedConfig;
 	}
 	const configPath = customPath ? expandTilde(customPath) : await getProfile();
@@ -192,13 +192,17 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 
 		// Cache the loaded config (whether default or custom path)
 		// This ensures --config flag is respected across all commands
-		cachedConfig = result.data;
+		if (!skipCache) {
+			cachedConfig = result.data;
+		}
 		return result.data;
 	} catch (error) {
 		tui.error(`Error loading config from ${configPath}: ${error}`);
 
-		// Cache null on error
-		cachedConfig = null;
+		// Cache null on error (only if not skipping cache)
+		if (!skipCache) {
+			cachedConfig = null;
+		}
 		return null;
 	}
 }

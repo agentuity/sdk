@@ -85,11 +85,19 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			}
 		}
 
+		// Determine CDN base URL for production builds
+		const isLocalRegion = options.region === 'local';
+		const cdnBaseUrl =
+			!dev && deploymentId && !isLocalRegion
+				? `https://static.agentuity.com/${deploymentId}/`
+				: undefined;
+
 		viteConfig = {
 			root: join(rootDir, 'src', 'web'), // Set web dir as root
 			plugins,
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 			publicDir: join(rootDir, 'src', 'web', 'public'),
+			base: cdnBaseUrl, // CDN URL for production assets
 			define: {
 				// Set workbench path if enabled (use import.meta.env for client code)
 				'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': workbenchEnabled
@@ -149,11 +157,23 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	}
 }
 
+interface BuildResult {
+	workbench: { included: boolean; duration: number };
+	client: { included: boolean; duration: number };
+	server: { included: boolean; duration: number };
+}
+
 /**
  * Run all builds in sequence: client -> workbench (if enabled) -> server
  */
-export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Promise<void> {
+export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Promise<BuildResult> {
 	const { rootDir, projectId = '', dev = false, logger } = options;
+
+	const result: BuildResult = {
+		workbench: { included: false, duration: 0 },
+		client: { included: false, duration: 0 },
+		server: { included: false, duration: 0 },
+	};
 
 	// Load config to check if workbench is enabled (dev mode only)
 	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
@@ -172,14 +192,17 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 
 	// 1. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
-		logger.info('Building client assets...');
+		logger.debug('Building client assets...');
 		try {
+			const started = Date.now();
 			await runViteBuild({
 				...options,
 				mode: 'client',
 				workbenchEnabled: workbenchConfig.enabled,
 				workbenchRoute: workbenchConfig.route,
 			});
+			result.client.included = true;
+			result.client.duration = Date.now() - started;
 		} catch (error) {
 			logger.error('Client build failed:', error);
 			throw error;
@@ -190,19 +213,25 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 
 	// 2. Build workbench (if enabled in config)
 	if (workbenchConfig.enabled) {
-		logger.info('Building workbench assets...');
+		logger.debug('Building workbench assets...');
+		const started = Date.now();
 		await runViteBuild({
 			...options,
 			mode: 'workbench',
 			workbenchRoute: workbenchConfig.route,
 			workbenchEnabled: true,
 		});
+		result.workbench.included = true;
+		result.workbench.duration = Date.now() - started;
 	}
 
 	// 3. Build server
-	logger.info('Building server...');
+	logger.debug('Building server...');
 	try {
+		const started = Date.now();
 		await runViteBuild({ ...options, mode: 'server' });
+		result.server.included = true;
+		result.server.duration = Date.now() - started;
 	} catch (error) {
 		logger.error('Server build failed:', error);
 		throw error;
@@ -216,8 +245,18 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	const { discoverRoutes } = await import('./route-discovery');
 
 	const srcDir = join(rootDir, 'src');
-	const agentMetadata = await discoverAgents(srcDir, projectId, options.deploymentId || '', logger);
-	const { routes, routeInfoList } = await discoverRoutes(srcDir, projectId, options.deploymentId || '', logger);
+	const agentMetadata = await discoverAgents(
+		srcDir,
+		projectId,
+		options.deploymentId || '',
+		logger
+	);
+	const { routes, routeInfoList } = await discoverRoutes(
+		srcDir,
+		projectId,
+		options.deploymentId || '',
+		logger
+	);
 
 	// Generate agent and route registries for type augmentation
 	generateAgentRegistry(srcDir, agentMetadata);
@@ -239,5 +278,6 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	writeMetadataFile(rootDir, metadata, dev, logger);
 	logger.debug('Registry and metadata generation complete');
 
-	logger.info('All builds complete');
+	logger.debug('All builds complete');
+	return result;
 }

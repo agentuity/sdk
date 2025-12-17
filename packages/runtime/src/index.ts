@@ -126,6 +126,9 @@ export {
 	AGENT_CONTEXT_PROPERTIES,
 } from './_server';
 
+// _waituntil.ts exports
+export { hasWaitUntilPending } from './_waituntil';
+
 // _standalone.ts exports
 export {
 	createAgentContext,

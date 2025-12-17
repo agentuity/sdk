@@ -202,17 +202,11 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		// Handle AggregateError with build/resolve messages
 		if (error instanceof AggregateError && error.errors) {
 			for (const err of error.errors) {
-				if (err.message) {
-					logger.error(`  ${err.message}`);
-				}
+				const parts = [err.message || err.text || 'Unknown error'];
 				if (err.position) {
-					logger.error(
-						`    at ${err.position.file}:${err.position.line}:${err.position.column}`
-					);
+					parts.push(`  at ${err.position.file}:${err.position.line}:${err.position.column}`);
 				}
-				if (err.text) {
-					logger.error(`  ${err.text}`);
-				}
+				logger.error(parts.join('\n'));
 			}
 		} else {
 			logger.error(`  ${error instanceof Error ? error.message : String(error)}`);
@@ -227,21 +221,17 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 			`Build result: success=${result.success}, outputs=${result.outputs.length}, logs=${result.logs.length}`
 		);
 
-		if (result.logs.length === 0) {
-			logger.error(
-				'No build logs available - this may indicate an entry point or configuration issue'
-			);
-			logger.error(`Entry point exists: ${existsSync(entryPath)}`);
-			logger.error(`Output directory exists: ${existsSync(join(outDir, 'server'))}`);
-		} else {
-			for (const log of result.logs) {
-				const pos = log.position
-					? ` at ${log.position.file}:${log.position.line}:${log.position.column}`
-					: '';
-				logger.error(`[${log.level}]${pos}: ${log.message}`);
-			}
-		}
-		throw new Error(`Server build failed with ${result.logs.length} error(s)`);
+		const errorMessages = result.logs
+			.map((log) => {
+				const parts = [log.message];
+				if (log.position) {
+					parts.push(`  at ${log.position.file}:${log.position.line}:${log.position.column}`);
+				}
+				return parts.join('\n');
+			})
+			.join('\n');
+
+		throw new Error(errorMessages || 'Build failed with no error messages');
 	}
 
 	logger.debug(`Server build complete: ${result.outputs.length} files`);

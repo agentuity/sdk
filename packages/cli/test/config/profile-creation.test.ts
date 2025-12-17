@@ -95,8 +95,8 @@ test('profile creation > new profile should not inherit auth from cached config'
 	const template = generateYAMLTemplate(newProfileName);
 	await writeFile(newProfilePath, template, { mode: 0o600 });
 
-	// Load the new profile (this should NOT use cached config)
-	const newProfile = await loadConfig(newProfilePath);
+	// Load the new profile (skip cache to avoid using cached config)
+	const newProfile = await loadConfig(newProfilePath, true);
 
 	// Verify the new profile is clean - no auth, no preferences leaked
 	expect(newProfile).not.toBeNull();
@@ -134,7 +134,7 @@ test('profile creation > new profile should not inherit preferences from cached 
 	const template = generateYAMLTemplate(newProfileName);
 	await writeFile(newProfilePath, template, { mode: 0o600 });
 
-	const newProfile = await loadConfig(newProfilePath);
+	const newProfile = await loadConfig(newProfilePath, true);
 
 	// New profile should be clean
 	expect(newProfile?.name).toBe(newProfileName);
@@ -158,8 +158,8 @@ test('profile creation > new profile should not inherit overrides from cached co
 	const config1Path = join(configDir, 'custom.yaml');
 	await saveConfig(config1, config1Path);
 
-	// Load first config to cache it
-	const loaded1 = await loadConfig(config1Path);
+	// Load first config (skip cache to get fresh data)
+	const loaded1 = await loadConfig(config1Path, true);
 	expect(loaded1?.overrides).toBeDefined();
 	expect(loaded1?.overrides?.api_url).toBe('https://custom.example.com');
 
@@ -169,7 +169,7 @@ test('profile creation > new profile should not inherit overrides from cached co
 	const template = generateYAMLTemplate(newProfileName);
 	await writeFile(newProfilePath, template, { mode: 0o600 });
 
-	const newProfile = await loadConfig(newProfilePath);
+	const newProfile = await loadConfig(newProfilePath, true);
 
 	// New profile should not have the overrides from cached config
 	expect(newProfile?.name).toBe(newProfileName);

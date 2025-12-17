@@ -65,6 +65,7 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		`  setGlobalTracer,`,
 		`  setGlobalRouter,`,
 		`  enableProcessExitProtection,`,
+		`  hasWaitUntilPending,`,
 	];
 
 	if (hasWorkbench) {
@@ -235,15 +236,16 @@ app.get('*', devHtmlHandler);
 		} else {
 			webRoutes = `
 // Web routes (production - static files)
-app.use('/assets/*', serveStatic({ root: './.agentuity/client' }));
-app.get('/', serveStatic({ path: './.agentuity/client/index.html' }));
+import { readFileSync } from 'node:fs';
+const indexHtml = readFileSync(import.meta.dir + '/client/index.html', 'utf-8');
+app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client' }));
+app.get('/', (c) => c.html(indexHtml));
 // 404 for unmatched API/system routes
 app.all('/_agentuity/*', (c) => c.notFound());
 app.all('/api/*', (c) => c.notFound());
 ${hasWorkbench ? '' : `app.all('/workbench/*', (c) => c.notFound());`}
 // SPA fallback - serve index.html for all other GET requests
-// This is last so user routes, API routes, and workbench routes match first
-app.get('*', serveStatic({ path: './.agentuity/client/index.html' }));
+app.get('*', (c) => c.html(indexHtml));
 `;
 		}
 	}
@@ -266,12 +268,13 @@ app.get('${workbenchRoute}', async (c) => {
 `
 			: `
 // Workbench routes (production - serve pre-built assets)
+// Use import.meta.dir for absolute paths (app.js runs from .agentuity/)
 import { readFileSync, existsSync } from 'node:fs';
-const workbenchIndexPath = '${join(agentuityDir, 'workbench')}/index.html';
+const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
 if (existsSync(workbenchIndexPath)) {
 	const workbenchIndex = readFileSync(workbenchIndexPath, 'utf-8');
 	app.get('${workbenchRoute}', (c) => c.html(workbenchIndex));
-	app.get('${workbenchRoute}/*', serveStatic({ root: '${join(agentuityDir, 'workbench')}' }));
+	app.get('${workbenchRoute}/*', serveStatic({ root: import.meta.dir + '/workbench' }));
 }
 `
 		: '';
@@ -286,12 +289,16 @@ if (typeof Bun !== 'undefined' && !import.meta.main) {
 	enableProcessExitProtection();
 	
 	const port = parseInt(process.env.PORT || '3500', 10);
-	Bun.serve({
+	const server = Bun.serve({
 		fetch: app.fetch,
 		websocket,
 		port,
 		hostname: '127.0.0.1',
 	});
+	
+	// Make server available globally for health checks
+	globalThis.__AGENTUITY_SERVER__ = server;
+	
 	otel.logger.info(\`Server listening on http://127.0.0.1:\${port}\`);${isDev && vitePort ? `\n\totel.logger.debug(\`Proxying Vite assets from port ${vitePort}\`);` : ''}
 }
 `;
@@ -349,6 +356,29 @@ await threadProvider.initialize(appState);
 await sessionProvider.initialize(appState);
 
 // Step 6: Mount routes (AFTER middleware is applied)
+
+// System health/idle endpoints
+const healthHandler = (c) => c.text('OK');
+const idleHandler = (c) => {
+	// Check if server is idle (no pending requests/connections)
+	const server = globalThis.__AGENTUITY_SERVER__;
+	if (!server) return c.text('NO', { status: 200 });
+	
+	// Check for pending background tasks
+	if (hasWaitUntilPending()) return c.text('NO', { status: 200 });
+	
+	if (server.pendingRequests > 1) return c.text('NO', { status: 200 });
+	if (server.pendingWebSockets > 0) return c.text('NO', { status: 200 });
+	
+	return c.text('OK', { status: 200 });
+};
+
+// Mount on both /_agentuity/* and /* for backwards compatibility
+app.get('/_agentuity/health', healthHandler);
+app.get('/_health', healthHandler);
+app.get('/_agentuity/idle', idleHandler);
+app.get('/_idle', idleHandler);
+
 ${assetProxyRoutes}
 ${apiMount}
 ${workbenchApiMount}
