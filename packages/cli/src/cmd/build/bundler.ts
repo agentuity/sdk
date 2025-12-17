@@ -570,6 +570,9 @@ export async function bundle({
 				mkdirSync(join(webOutDir, 'asset'), { recursive: true });
 				const isLocalRegion = region === 'local' || region === 'l';
 
+				// Server-only packages that should never be bundled into frontend
+				const serverOnlyExternals = ['jsonwebtoken', 'jwks-rsa', 'crypto', 'util'];
+				
 				const baseConfig: Bun.BuildConfig = {
 					entrypoints: webEntrypoints,
 					root: webDir,
@@ -585,7 +588,7 @@ export async function bundle({
 					drop: isProd ? ['debugger'] : undefined,
 					splitting: true,
 					packages: 'bundle',
-					external: workspaceRoot !== rootDir ? [] : undefined,
+					external: workspaceRoot !== rootDir ? serverOnlyExternals : serverOnlyExternals,
 					// Ensure React is resolved from the consuming app's node_modules
 					conditions: ['browser', 'import', 'default'],
 					publicPath:

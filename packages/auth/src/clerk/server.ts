@@ -132,6 +132,8 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 				raw: payload,
 			};
 
+			// @ts-ignore - Module augmentation conflict when both Clerk and Auth0 are imported
+			// This is expected - users should only use one provider at a time
 			c.set('auth', auth);
 			await next();
 		} catch (error) {
@@ -160,9 +162,13 @@ function mapClerkUserToAgentuityUser(clerkUser: User): AgentuityAuthUser<User> {
 
 /**
  * Augment Hono's context types to include auth.
+ *
+ * Note: This conflicts with Auth0's module augmentation when both are imported.
+ * Users should only use one provider at a time.
  */
 declare module 'hono' {
 	interface ContextVariableMap {
+		// @ts-ignore - Conflicts with Auth0's auth type, but only one provider should be used
 		auth: AgentuityAuth<User, ClerkJWTPayload>;
 	}
 }
