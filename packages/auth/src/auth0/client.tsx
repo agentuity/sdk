@@ -11,17 +11,17 @@ import { useAuth } from '@agentuity/react';
 type UseAuth0 = typeof Auth0UseAuth;
 
 export interface AgentuityAuth0Props {
-    /** React children to render */
-    children: React.ReactNode;
+	/** React children to render */
+	children: React.ReactNode;
 
-    /** Auth0's useAuth0 hook from @auth0/auth0-react */
-    useAuth0: UseAuth0;
+	/** Auth0's useAuth0 hook from @auth0/auth0-react */
+	useAuth0: UseAuth0;
 
-    /** Token refresh interval in milliseconds (default: 60000 = 1 minute) */
-    refreshInterval?: number;
+	/** Token refresh interval in milliseconds (default: 60000 = 1 minute) */
+	refreshInterval?: number;
 
-    /** Options to pass to getAccessTokenSilently */
-    tokenOptions?: Parameters<ReturnType<UseAuth0>['getAccessTokenSilently']>[0];
+	/** Options to pass to getAccessTokenSilently */
+	tokenOptions?: Parameters<ReturnType<UseAuth0>['getAccessTokenSilently']>[0];
 }
 
 /**
@@ -81,7 +81,10 @@ export function AgentuityAuth0({
 				const token = await getAccessTokenSilently(tokenOptionsRef.current);
 				setAuthHeader(token ? `Bearer ${token}` : null);
 			} catch (error) {
-				console.error('Failed to get Auth0 token:', error instanceof Error ? error.message : 'Unknown error');
+				console.error(
+					'Failed to get Auth0 token:',
+					error instanceof Error ? error.message : 'Unknown error'
+				);
 				setAuthHeader(null);
 			} finally {
 				setAuthLoading(false);
@@ -93,7 +96,14 @@ export function AgentuityAuth0({
 		// Refresh token periodically
 		const interval = setInterval(fetchToken, refreshInterval);
 		return () => clearInterval(interval);
-	}, [getAccessTokenSilently, isLoading, isAuthenticated, setAuthHeader, setAuthLoading, refreshInterval]);
+	}, [
+		getAccessTokenSilently,
+		isLoading,
+		isAuthenticated,
+		setAuthHeader,
+		setAuthLoading,
+		refreshInterval,
+	]);
 
 	return <>{children}</>;
 }
