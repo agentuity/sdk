@@ -85,8 +85,8 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 	const hmrSetup = isDev
 		? `
 // HMR restart handler
-if (typeof globalThis.__AGENTUITY_RESTART__ === 'undefined') {
-	globalThis.__AGENTUITY_RESTART__ = () => {
+if (typeof (globalThis as any).__AGENTUITY_RESTART__ === 'undefined') {
+	(globalThis as any).__AGENTUITY_RESTART__ = () => {
 		console.log('[HMR] Restart triggered but handler not ready yet');
 	};
 }
@@ -305,8 +305,9 @@ for (const envFile of envFiles) {
 			const trimmed = line.trim();
 			if (!trimmed || trimmed.startsWith('#')) continue;
 			const match = trimmed.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
-			if (match) {
-				const [, key, value] = match;
+			if (match && match[1] && match[2] !== undefined) {
+				const key = match[1];
+				const value = match[2];
 				if (process.env[key] === undefined) {
 					process.env[key] = value;
 				}
@@ -339,10 +340,6 @@ setGlobalLogger(otel.logger);
 setGlobalTracer(otel.tracer);
 
 // Step 2: Create router and set as global
-// Use Bun WebSocket for both dev and prod
-const { upgradeWebSocket } = await import('hono/bun');
-globalThis.__AGENTUITY_UPGRADE_WEBSOCKET__ = upgradeWebSocket;
-
 const app = createRouter();
 setGlobalRouter(app);
 

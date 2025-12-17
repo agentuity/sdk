@@ -9,6 +9,7 @@ import {
 	type Env as HonoEnv,
 } from 'hono';
 import { stream as honoStream, streamSSE as honoStreamSSE } from 'hono/streaming';
+import { upgradeWebSocket } from 'hono/bun';
 import { hash, returnResponse } from './_util';
 import type { Env } from './app';
 import { getAgentAsyncLocalStorage } from './_context';
@@ -529,13 +530,8 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 			handler = args[1];
 		}
 
-		// Get upgradeWebSocket from global (set by entry file)
-		const upgradeWebSocketFn = (globalThis as any).__AGENTUITY_UPGRADE_WEBSOCKET__;
-		if (!upgradeWebSocketFn) {
-			throw new Error('upgradeWebSocket not initialized. Entry file should set this.');
-		}
-
-		const wrapper = upgradeWebSocketFn((c: Context) => {
+		// Use upgradeWebSocket directly from hono/bun
+		const wrapper = upgradeWebSocket((c: Context) => {
 			let openHandler: ((event: any) => void | Promise<void>) | undefined;
 			let messageHandler: ((event: any) => void | Promise<void>) | undefined;
 			let closeHandler: ((event: any) => void | Promise<void>) | undefined;

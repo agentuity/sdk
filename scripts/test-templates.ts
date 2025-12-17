@@ -353,6 +353,13 @@ async function installDependencies(
 async function buildProject(projectDir: string): Promise<{ success: boolean; error?: string }> {
 	const result = await runCommand(['bun', 'run', 'build'], projectDir, undefined, 120000);
 	if (!result.success) {
+		// Log full error output for debugging
+		if (result.stderr) {
+			console.error('\n' + result.stderr);
+		}
+		if (result.stdout) {
+			console.log('\n' + result.stdout);
+		}
 		return { success: false, error: result.stderr || result.stdout };
 	}
 
