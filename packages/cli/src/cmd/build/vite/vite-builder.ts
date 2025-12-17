@@ -89,7 +89,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const isLocalRegion = options.region === 'local';
 		const cdnBaseUrl =
 			!dev && deploymentId && !isLocalRegion
-				? `https://static.agentuity.com/${deploymentId}/`
+				? `https://static.agentuity.com/${deploymentId}/client/`
 				: undefined;
 
 		viteConfig = {
