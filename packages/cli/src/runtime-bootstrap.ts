@@ -114,6 +114,11 @@ export async function bootstrapRuntimeEnv(
 	let projectConfig: ProjectConfig | null = null;
 	try {
 		projectConfig = await loadProjectConfig(projectDir, cfg ?? undefined);
+		
+		// Set AGENTUITY_REGION from project config if not already set
+		if (projectConfig?.region && !process.env.AGENTUITY_REGION) {
+			process.env.AGENTUITY_REGION = projectConfig.region;
+		}
 	} catch {
 		// OK for tests that don't need project config
 	}
