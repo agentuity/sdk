@@ -60,6 +60,8 @@ jobs:
               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 
          - name: Run integration test suite
+           env:
+              AGENTUITY_LOG_LEVEL: trace
            run: bash apps/testing/integration-suite/scripts/ci-test.sh
    cloud-deployment-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
