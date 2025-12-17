@@ -4,6 +4,7 @@ import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { StructuredError } from '@agentuity/core';
+import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { saveProjectDir, getDefaultConfigDir } from '../../config';
@@ -335,33 +336,49 @@ export const deploySubcommand = createSubcommand({
 									);
 								}
 
-								const promises: Promise<Response>[] = [];
-								for (const asset of build.assets) {
-									const assetUrl = instructions.assets[asset.filename];
-									if (!assetUrl) {
-										return stepError(
-											`server did not provide upload URL for asset "${asset.filename}"; upload aborted`
+								// Workaround for Bun crash in compiled executables (https://github.com/agentuity/sdk/issues/191)
+								// Use limited concurrency (2 at a time) for executables to avoid parallel fetch crash
+								const isExecutable = isRunningFromExecutable();
+								const concurrency = isExecutable ? 2 : build.assets.length;
+
+								if (isExecutable) {
+									ctx.logger.trace(
+										`Running from executable - using limited concurrency (${concurrency} uploads at a time)`
+									);
+								}
+
+								// Process assets in batches with limited concurrency
+								for (let i = 0; i < build.assets.length; i += concurrency) {
+									const batch = build.assets.slice(i, i + concurrency);
+									const promises: Promise<Response>[] = [];
+
+									for (const asset of batch) {
+										const assetUrl = instructions.assets[asset.filename];
+										if (!assetUrl) {
+											return stepError(
+												`server did not provide upload URL for asset "${asset.filename}"; upload aborted`
+											);
+										}
+
+										// Asset filename already includes the subdirectory (e.g., "client/assets/main-abc123.js")
+										const file = Bun.file(join(projectDir, '.agentuity', asset.filename));
+										promises.push(
+											fetch(assetUrl, {
+												method: 'PUT',
+												duplex: 'half',
+												headers: {
+													'Content-Type': asset.contentType,
+												},
+												body: file,
+											})
 										);
 									}
 
-									// Asset filename already includes the subdirectory (e.g., "client/assets/main-abc123.js")
-									const file = Bun.file(join(projectDir, '.agentuity', asset.filename));
-									promises.push(
-										fetch(assetUrl, {
-											method: 'PUT',
-											duplex: 'half',
-											headers: {
-												'Content-Type': asset.contentType,
-											},
-											body: file,
-										})
-									);
-								}
-								ctx.logger.trace('Waiting for asset uploads');
-								const resps = await Promise.all(promises);
-								for (const r of resps) {
-									if (!r.ok) {
-										return stepError(`error uploading asset: ${await r.text()}`);
+									const resps = await Promise.all(promises);
+									for (const r of resps) {
+										if (!r.ok) {
+											return stepError(`error uploading asset: ${await r.text()}`);
+										}
 									}
 								}
 								ctx.logger.trace('Asset uploads complete');
