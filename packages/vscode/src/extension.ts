@@ -36,7 +36,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	log(`Project: ${project ? project.projectId : 'none'}`);
 
 	const authStatus = await checkAuth();
-	log(`Auth: ${authStatus.state}${authStatus.user ? ` (${authStatus.user.firstName} ${authStatus.user.lastName})` : ''}`);
+	log(
+		`Auth: ${authStatus.state}${authStatus.user ? ` (${authStatus.user.firstName} ${authStatus.user.lastName})` : ''}`
+	);
 
 	if (authStatus.state === 'cli-missing' || authStatus.state === 'unauthenticated') {
 		void promptLogin();

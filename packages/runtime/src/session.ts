@@ -5,7 +5,6 @@ import { getSignedCookie, setSignedCookie } from 'hono/cookie';
 import { type Env, fireEvent } from './app';
 import type { AppState } from './index';
 import { getServiceUrls } from '@agentuity/server';
-import { WebSocket } from 'ws';
 import { internal } from './logger/internal';
 import { timingSafeEqual } from 'node:crypto';
 
@@ -560,6 +559,11 @@ export async function verifySignedThreadId(
 
 	const [threadId, providedSignature] = parts;
 
+	// Validate both parts exist
+	if (!threadId || !providedSignature) {
+		return undefined;
+	}
+
 	// Validate thread ID format before verifying signature
 	if (!isValidThreadId(threadId)) {
 		return undefined;
@@ -568,6 +572,11 @@ export async function verifySignedThreadId(
 	// Re-sign the thread ID and compare signatures
 	const expectedSigned = await signThreadId(threadId, secret);
 	const expectedSignature = expectedSigned.split(';')[1];
+
+	// Validate signature exists
+	if (!expectedSignature) {
+		return undefined;
+	}
 
 	// Constant-time comparison to prevent timing attacks
 	// Check lengths match first (fail fast if different lengths)
@@ -857,14 +866,14 @@ export class ThreadWebSocketClient {
 			try {
 				this.ws = new WebSocket(this.wsUrl);
 
-				this.ws.on('open', () => {
+				this.ws.addEventListener('open', () => {
 					// Send authentication (do NOT clear timeout yet - wait for auth response)
 					this.ws?.send(JSON.stringify({ authorization: this.apiKey }));
 				});
 
-				this.ws.on('message', (data: any) => {
+				this.ws.addEventListener('message', (event: MessageEvent) => {
 					try {
-						const message = JSON.parse(data.toString());
+						const message = JSON.parse(event.data);
 
 						// Handle auth response
 						if ('success' in message && !this.authenticated) {
@@ -907,7 +916,7 @@ export class ThreadWebSocketClient {
 					}
 				});
 
-				this.ws.on('error', (err: Error) => {
+				this.ws.addEventListener('error', (_event: Event) => {
 					clearTimeout(connectionTimeout);
 					if (!this.authenticated) {
 						// Don't reject immediately if we'll attempt reconnection
@@ -915,12 +924,12 @@ export class ThreadWebSocketClient {
 							const rejectFn = this.initialConnectReject || reject;
 							this.initialConnectResolve = null;
 							this.initialConnectReject = null;
-							rejectFn(new Error(`WebSocket error: ${err.message}`));
+							rejectFn(new Error(`WebSocket error`));
 						}
 					}
 				});
 
-				this.ws.on('close', () => {
+				this.ws.addEventListener('close', () => {
 					clearTimeout(connectionTimeout);
 					const wasAuthenticated = this.authenticated;
 					this.authenticated = false;
@@ -1064,10 +1073,10 @@ export class ThreadWebSocketClient {
 					reject(new Error('Request timeout'));
 				}
 			}, this.requestTimeoutMs);
-			});
-			}
+		});
+	}
 
-			async delete(threadId: string): Promise<void> {
+	async delete(threadId: string): Promise<void> {
 		// Wait for connection/reconnection if in progress
 		if (this.wsConnecting) {
 			await this.wsConnecting;
@@ -1099,8 +1108,8 @@ export class ThreadWebSocketClient {
 					reject(new Error('Request timeout'));
 				}
 			}, this.requestTimeoutMs);
-			});
-			}
+		});
+	}
 
 	cleanup(): void {
 		// Mark as disposed to prevent new reconnection attempts

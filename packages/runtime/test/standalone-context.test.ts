@@ -102,9 +102,14 @@ const mockSessionEventProvider = {
 mock.module('../src/_server', () => ({
 	getLogger: () => testLogger,
 	getTracer: () => testTracer,
-	getAppState: () => testAppState,
 	getServer: () => null,
 	getRouter: () => null,
+}));
+
+// Mock the app module
+mock.module('../src/app', () => ({
+	getAppState: () => testAppState,
+	getAppConfig: () => ({}),
 }));
 
 // Mock the _services module

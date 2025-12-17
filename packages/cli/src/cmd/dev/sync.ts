@@ -365,11 +365,15 @@ export function createDevmodeSyncService({
 	mock = false,
 }: {
 	logger: Logger;
-	apiClient: APIClient;
+	apiClient: APIClient | null;
 	mock?: boolean;
 }): IDevmodeSyncService {
 	if (mock) {
 		return new MockDevmodeSyncService(logger);
+	}
+
+	if (!apiClient) {
+		throw new Error('apiClient is required when not in mock mode');
 	}
 
 	return new DevmodeSyncService(logger, apiClient);

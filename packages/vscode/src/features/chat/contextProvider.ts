@@ -20,7 +20,11 @@ export function registerChatContextProvider(context: vscode.ExtensionContext): v
 		const provider = new AgentuityContextProvider();
 
 		const disposable = vscode.chat.registerChatContextProvider(
-			[{ language: 'typescript' }, { language: 'javascript' }, { pattern: '**/agentuity*.json' }],
+			[
+				{ language: 'typescript' },
+				{ language: 'javascript' },
+				{ pattern: '**/agentuity*.json' },
+			],
 			CONTEXT_PROVIDER_ID,
 			provider
 		);
@@ -216,7 +220,9 @@ class AgentuityContextProvider implements vscode.ChatContextProvider<AgentuityCo
 				const deploymentsResult = await cli.listDeployments();
 				if (deploymentsResult.success && deploymentsResult.data) {
 					const recent = deploymentsResult.data.slice(0, 5);
-					lines.push(`## Recent Deployments (${recent.length} of ${deploymentsResult.data.length})`);
+					lines.push(
+						`## Recent Deployments (${recent.length} of ${deploymentsResult.data.length})`
+					);
 					for (const dep of recent) {
 						const status = dep.active ? 'Active' : dep.state || 'Inactive';
 						const date = new Date(dep.createdAt).toLocaleDateString();
@@ -355,7 +361,9 @@ class AgentuityContextProvider implements vscode.ChatContextProvider<AgentuityCo
 					for (const session of recentSessions) {
 						const status = session.success ? '✓' : '✗';
 						const time = new Date(session.created_at).toLocaleString();
-						lines.push(`- ${status} ${session.id.substring(0, 8)} - ${time} (${session.trigger})`);
+						lines.push(
+							`- ${status} ${session.id.substring(0, 8)} - ${time} (${session.trigger})`
+						);
 					}
 				}
 			}

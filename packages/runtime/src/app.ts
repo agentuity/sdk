@@ -1,12 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/** biome-ignore-all lint/suspicious/noExplicitAny: any are ok */
-import { type Env as HonoEnv, Hono } from 'hono';
+import { type Env as HonoEnv } from 'hono';
 import type { cors } from 'hono/cors';
-import type { BunWebSocketData } from 'hono/bun';
 import type { Logger } from './logger';
-import { createServer, getLogger } from './_server';
 import type { Meter, Tracer } from '@opentelemetry/api';
-import { internal } from './logger/internal';
 import type {
 	KeyValueStorage,
 	SessionEventProvider,
@@ -16,7 +12,6 @@ import type {
 	SessionStartEvent,
 } from '@agentuity/core';
 import type { Email } from './io/email';
-import type { Agent, AgentContext } from './agent';
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
 import type WaitUntilHandler from './_waituntil';
 
@@ -113,235 +108,97 @@ export interface Env<TAppState = Record<string, never>> extends HonoEnv {
 	Variables: Variables<TAppState>;
 }
 
-type AppEventMap<TAppState = Record<string, never>> = {
-	'agent.started': [Agent<any, any, any, any, TAppState>, AgentContext<any, any, TAppState>];
-	'agent.completed': [Agent<any, any, any, any, TAppState>, AgentContext<any, any, TAppState>];
-	'agent.errored': [
-		Agent<any, any, any, any, TAppState>,
-		AgentContext<any, any, TAppState>,
-		Error,
-	];
-	'session.started': [Session];
-	'session.completed': [Session];
-	'thread.created': [Thread];
-	'thread.destroyed': [Thread];
-};
+/**
+ * Get the global app instance (stub for backwards compatibility)
+ * Returns null in Vite-native architecture
+ */
+export function getApp(): null {
+	return null;
+}
 
-type AppEventCallback<K extends keyof AppEventMap<any>, TAppState = Record<string, never>> = (
-	eventName: K,
-	...args: AppEventMap<TAppState>[K]
-) => void | Promise<void>;
+// Re-export event functions from _events
+export { fireEvent } from './_events';
+import {
+	addEventListener as globalAddEventListener,
+	removeEventListener as globalRemoveEventListener,
+} from './_events';
+import type { AppEventMap } from './_events';
+import { getLogger, getRouter } from './_server';
+import type { Hono } from 'hono';
+
+// ============================================================================
+// Vite-native createApp implementation
+// ============================================================================
 
 /**
- * Main application instance created by createApp().
- * Provides access to the router, server, logger, and app state.
- *
- * @template TAppState - The type of application state returned from setup function
- *
- * @example
- * ```typescript
- * const app = await createApp({
- *   setup: async () => ({ db: await connectDB() })
- * });
- *
- * // Access state
- * console.log(app.state.db);
- *
- * // Add routes
- * app.router.get('/health', (c) => c.text('OK'));
- *
- * // Listen to events
- * app.addEventListener('agent.started', (eventName, agent, ctx) => {
- *   console.log(`Agent ${agent.metadata.name} started`);
- * });
- * ```
+ * Simple server interface for backwards compatibility
  */
-export class App<TAppState = Record<string, never>> {
+export interface Server {
 	/**
-	 * The Hono router instance for defining routes.
+	 * The server URL (e.g., "http://localhost:3500")
 	 */
-	readonly router: Hono<Env<TAppState>>;
-	/**
-	 * The Bun server instance.
-	 */
-	readonly server: Bun.Server<BunWebSocketData>;
-	/**
-	 * The application logger instance.
-	 */
-	readonly logger: Logger;
-	/**
-	 * The application state returned from the setup function.
-	 * Available in all agents via ctx.app.
-	 */
-	readonly state: TAppState;
+	url: string;
+}
 
-	private eventListeners = new Map<
-		keyof AppEventMap<TAppState>,
-		Set<AppEventCallback<any, TAppState>>
-	>();
-
-	constructor(
-		state: TAppState,
-		router: Hono<Env<TAppState>>,
-		server: Bun.Server<BunWebSocketData>
-	) {
-		this.state = state;
-		this.router = router;
-		this.server = server;
-		this.logger = getLogger() as Logger;
-		setGlobalApp(this);
-	}
-
+export interface AppResult<TAppState = Record<string, never>> {
 	/**
-	 * Register an event listener for application lifecycle events.
-	 *
-	 * Available events:
-	 * - `agent.started` - Fired when an agent begins execution
-	 * - `agent.completed` - Fired when an agent completes successfully
-	 * - `agent.errored` - Fired when an agent throws an error
-	 * - `session.started` - Fired when a new session starts
-	 * - `session.completed` - Fired when a session completes
-	 * - `thread.created` - Fired when a thread is created
-	 * - `thread.destroyed` - Fired when a thread is destroyed
-	 *
-	 * @param eventName - The event name to listen for
-	 * @param callback - The callback function to execute when the event fires
-	 *
-	 * @example
-	 * ```typescript
-	 * app.addEventListener('agent.started', (eventName, agent, ctx) => {
-	 *   console.log(`${agent.metadata.name} started for session ${ctx.sessionId}`);
-	 * });
-	 *
-	 * app.addEventListener('agent.errored', (eventName, agent, ctx, error) => {
-	 *   console.error(`${agent.metadata.name} failed:`, error.message);
-	 * });
-	 *
-	 * app.addEventListener('session.started', (eventName, session) => {
-	 *   console.log(`New session: ${session.id}`);
-	 * });
-	 * ```
+	 * The application state returned from setup
+	 */
+	state: TAppState;
+	/**
+	 * Shutdown function to call when server stops
+	 */
+	shutdown?: (state: TAppState) => Promise<void> | void;
+	/**
+	 * App configuration (for middleware setup)
+	 */
+	config?: AppConfig<TAppState>;
+	/**
+	 * The router instance (for backwards compatibility)
+	 */
+	router: import('hono').Hono<Env<TAppState>>;
+	/**
+	 * Server information (for backwards compatibility)
+	 */
+	server: Server;
+	/**
+	 * Logger instance (for backwards compatibility)
+	 */
+	logger: Logger;
+	/**
+	 * Add an event listener for app events
 	 */
 	addEventListener<K extends keyof AppEventMap<TAppState>>(
 		eventName: K,
-		callback: AppEventCallback<K, TAppState>
-	): void {
-		let callbacks = this.eventListeners.get(eventName);
-		if (!callbacks) {
-			callbacks = new Set();
-			this.eventListeners.set(eventName, callbacks);
-		}
-		callbacks.add(callback);
-	}
-
+		callback: (eventName: K, ...args: AppEventMap<TAppState>[K]) => void | Promise<void>
+	): void;
 	/**
-	 * Remove a previously registered event listener.
-	 *
-	 * @param eventName - The event name to stop listening for
-	 * @param callback - The callback function to remove
-	 *
-	 * @example
-	 * ```typescript
-	 * const handler = (eventName, agent, ctx) => {
-	 *   console.log('Agent started:', agent.metadata.name);
-	 * };
-	 *
-	 * app.addEventListener('agent.started', handler);
-	 * // Later...
-	 * app.removeEventListener('agent.started', handler);
-	 * ```
+	 * Remove an event listener for app events
 	 */
 	removeEventListener<K extends keyof AppEventMap<TAppState>>(
 		eventName: K,
-		callback: AppEventCallback<K, TAppState>
-	): void {
-		const callbacks = this.eventListeners.get(eventName);
-		if (!callbacks) return;
-		callbacks.delete(callback);
-	}
-
-	/**
-	 * Manually fire an application event.
-	 * Typically used internally by the runtime, but can be used for custom events.
-	 *
-	 * @param eventName - The event name to fire
-	 * @param args - The arguments to pass to event listeners
-	 *
-	 * @example
-	 * ```typescript
-	 * // Fire a session completed event
-	 * await app.fireEvent('session.completed', session);
-	 * ```
-	 */
-	async fireEvent<K extends keyof AppEventMap<TAppState>>(
-		eventName: K,
-		...args: AppEventMap<TAppState>[K]
-	): Promise<void> {
-		const callbacks = this.eventListeners.get(eventName);
-		if (!callbacks || callbacks.size === 0) return;
-
-		for (const callback of callbacks) {
-			try {
-				await callback(eventName, ...args);
-			} catch (error) {
-				// Log but don't re-throw - event listener errors should not crash the server
-				internal.error(`Error in app event listener for '${eventName}':`, error);
-			}
-		}
-	}
-}
-
-let globalApp: App<any> | null = null;
-
-function setGlobalApp(app: App<any>): void {
-	globalApp = app;
+		callback: (eventName: K, ...args: AppEventMap<TAppState>[K]) => void | Promise<void>
+	): void;
 }
 
 /**
- * Get the global app instance.
- * Returns null if createApp() has not been called yet.
+ * Create an Agentuity application with lifecycle management.
  *
- * @returns The global App instance or null
+ * In Vite-native architecture:
+ * - This only handles setup/shutdown lifecycle
+ * - Router creation and middleware are handled by the generated entry file
+ * - Server is managed by Vite (dev) or Bun.serve (prod)
  *
- * @example
- * ```typescript
- * const app = getApp();
- * if (app) {
- *   console.log('Server running on port:', app.server.port);
- * }
- * ```
- */
-export function getApp(): App<any> | null {
-	return globalApp;
-}
-
-/**
- * Creates a new Agentuity application with optional lifecycle hooks and service configuration.
- *
- * This is the main entry point for creating an Agentuity app. The app will:
- * 1. Run the setup function (if provided) to initialize app state
- * 2. Start the Bun server
- * 3. Make the app state available in all agents via ctx.app
- *
- * @template TAppState - The type of application state returned from setup function
- *
- * @param config - Optional application configuration
- * @param config.setup - Function to initialize app state, runs before server starts
- * @param config.shutdown - Function to clean up resources when server stops
- * @param config.cors - CORS configuration for HTTP routes
- * @param config.services - Override default storage and service providers
- *
- * @returns Promise resolving to App instance with running server
+ * @template TAppState - Type of application state from setup()
  *
  * @example
  * ```typescript
- * // Simple app with no state
- * const app = await createApp();
+ * // app.ts
+ * import { createApp } from '@agentuity/runtime';
  *
- * // App with database connection
  * const app = await createApp({
  *   setup: async () => {
- *     const db = await connectDatabase();
+ *     const db = await connectDB();
  *     return { db };
  *   },
  *   shutdown: async (state) => {
@@ -349,57 +206,118 @@ export function getApp(): App<any> | null {
  *   }
  * });
  *
- * // Access state in agents
- * const agent = createAgent('user-query', {
- *   handler: async (ctx, input) => {
- *     const db = ctx.app.db; // Strongly typed!
- *     return db.query('SELECT * FROM users');
- *   }
- * });
- *
- * // App with custom services
- * const app = await createApp({
- *   services: {
- *     useLocal: true, // Use local in-memory storage for development
- *   }
- * });
+ * // Access state in agents via ctx.app.db
  * ```
  */
 export async function createApp<TAppState = Record<string, never>>(
 	config?: AppConfig<TAppState>
-): Promise<App<TAppState>> {
-	const initializer = async (): Promise<TAppState> => {
-		// Run setup if provided
-		if (config?.setup) {
-			return config.setup();
-		} else {
-			return {} as TAppState;
-		}
+): Promise<AppResult<TAppState>> {
+	// Run setup to get app state
+	const state = config?.setup ? await config.setup() : ({} as TAppState);
+
+	// Store state and config globally for generated entry file to access
+	(globalThis as any).__AGENTUITY_APP_STATE__ = state;
+	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
+
+	// Store shutdown function for cleanup
+	const shutdown = config?.shutdown;
+	if (shutdown) {
+		(globalThis as any).__AGENTUITY_SHUTDOWN__ = shutdown;
+	}
+
+	// Return a logger proxy that lazily resolves to the global logger
+	// This is necessary because Vite bundling inlines and reorders module code,
+	// causing app.ts to execute before entry file sets the global logger.
+	// The proxy ensures logger works correctly when actually used (in handlers/callbacks).
+	const logger: Logger = {
+		trace: (...args) => {
+			const gl = getLogger();
+			if (gl) gl.trace(...args);
+		},
+		debug: (...args) => {
+			const gl = getLogger();
+			if (gl) gl.debug(...args);
+		},
+		info: (...args) => {
+			const gl = getLogger();
+			if (gl) gl.info(...args);
+			else console.log('[INFO]', ...args);
+		},
+		warn: (...args) => {
+			const gl = getLogger();
+			if (gl) gl.warn(...args);
+			else console.warn('[WARN]', ...args);
+		},
+		error: (...args) => {
+			const gl = getLogger();
+			if (gl) gl.error(...args);
+			else console.error('[ERROR]', ...args);
+		},
+		fatal: (...args): never => {
+			const gl = getLogger();
+			if (gl) return gl.fatal(...args);
+			// Fallback: log to console but let the real logger handle exit
+			console.error('[FATAL]', ...args);
+			throw new Error('Fatal error');
+		},
+		child: (bindings) => {
+			const gl = getLogger();
+			return gl ? gl.child(bindings) : logger;
+		},
 	};
 
-	const router = new Hono<Env<TAppState>>();
-	const [server, state] = await createServer<TAppState>(router, initializer, config);
+	// Create server info from environment
+	const port = process.env.PORT || '3500';
+	const server: Server = {
+		url: `http://127.0.0.1:${port}`,
+	};
 
-	return new App(state, router, server);
+	// Get router from global (set by entry file before app.ts import)
+	// In dev mode, router may not be available during bundling
+	const globalRouter = getRouter();
+	if (!globalRouter) {
+		throw new Error(
+			'Router is not available. Ensure router is initialized before calling createApp(). This typically happens during bundling or when the entry file has not properly set up the router.'
+		);
+	}
+	const router = globalRouter as Hono<Env<TAppState>>;
+
+	return {
+		state,
+		shutdown,
+		config,
+		router,
+		server,
+		logger,
+		addEventListener: globalAddEventListener,
+		removeEventListener: globalRemoveEventListener,
+	};
 }
 
 /**
- * Fire a global application event.
- * Convenience function that calls fireEvent on the global app instance.
- *
- * @param eventName - The event name to fire
- * @param args - The arguments to pass to event listeners
- *
- * @example
- * ```typescript
- * // Fire from anywhere in your app
- * await fireEvent('session.started', session);
- * await fireEvent('agent.completed', agent, ctx);
- * ```
+ * Get the global app state
+ * Used by generated entry file and middleware
  */
-export async function fireEvent<K extends keyof AppEventMap<any>>(
-	eventName: K,
-	...args: AppEventMap<any>[K]
-) {
-	await globalApp?.fireEvent(eventName, ...args);
+export function getAppState<TAppState = any>(): TAppState {
+	return (globalThis as any).__AGENTUITY_APP_STATE__ || ({} as TAppState);
+}
+
+/**
+ * Get the global app config
+ * Used by generated entry file for middleware setup
+ */
+export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefined {
+	return (globalThis as any).__AGENTUITY_APP_CONFIG__;
+}
+
+/**
+ * Run the global shutdown function
+ * Called by generated entry file on cleanup
+ */
+export async function runShutdown(): Promise<void> {
+	const shutdown = (globalThis as any).__AGENTUITY_SHUTDOWN__;
+	if (shutdown) {
+		const state = getAppState();
+		await shutdown(state);
+	}
 }

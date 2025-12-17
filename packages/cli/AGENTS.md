@@ -124,6 +124,60 @@ export const deployCommand: CommandDefinition = {
 export default deployCommand;
 ```
 
+## Build Architecture (Vite + Bun)
+
+The CLI uses a hybrid Vite + Bun build system:
+
+### Production Builds (`agentuity build`)
+
+1. **Client Assets** - Vite builds frontend code:
+   - Input: `src/web/index.html` + React components
+   - Output: `.agentuity/client/` with manifest
+   - CDN support for production deployments
+   - Environment variables: `VITE_*`, `AGENTUITY_PUBLIC_*`, `PUBLIC_*`
+
+2. **Workbench** - Vite builds workbench UI (if enabled):
+   - Input: `.agentuity/workbench-src/` (generated)
+   - Output: `.agentuity/workbench/` with manifest
+   - Base path: configured workbench route
+
+3. **Server Bundle** - Bun.build creates single server file:
+   - Input: `.agentuity/app.generated.ts`
+   - Output: `.agentuity/app.js`
+   - Externals: Heavy runtime deps (bun, fsevents, sharp, ws, etc.)
+   - Minification: Controlled by `--dev` flag
+
+### Development Server (`agentuity dev`)
+
+Single Bun server + Vite asset server architecture:
+
+- **Bun Server (port 3500):**
+   - Handles ALL HTTP + WebSocket requests
+   - Routes API calls, serves workbench
+   - Proxies frontend assets to Vite
+   - Uses native Bun WebSocket support (`hono/bun`)
+
+- **Vite Asset Server (dynamic port, typically 5173):**
+   - HMR and React Fast Refresh ONLY
+   - Asset transformation (TypeScript, JSX, CSS)
+   - Browser never connects directly to Vite
+   - Proxied through Bun server
+
+### Build Utilities
+
+- **`bun-version-checker.ts`** - Enforces minimum Bun version (>=1.3.3)
+- **`dependency-checker.ts`** - Auto-upgrades `@agentuity/*` packages
+- **`metadata-generator.ts`** - Creates `agentuity.metadata.json`
+- **`agent-discovery.ts`** - AST-based agent discovery
+- **`route-discovery.ts`** - AST-based route discovery
+- **`registry-generator.ts`** - Generates type-safe registries
+
+### Build Flags
+
+- `--dev` - Development build (no minification, inline sourcemaps, faster)
+- `--skipTypeCheck` - Skip TypeScript validation after build
+- `--outdir` - Custom output directory (default: `.agentuity`)
+
 ## Testing
 
 - Test by running: `bun bin/cli.ts [command]`

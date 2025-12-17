@@ -127,7 +127,19 @@ async function buildExecutable(platform: Platform, version: string) {
 	console.log(`\n📦 Building ${platform.output} (version ${version})...`);
 
 	try {
-		await $`bun build ${entryPoint} --compile --production --minify --sourcemap --compile-autoload-tsconfig --compile-autoload-package-json --target=${platform.target} --outfile=${outputPath} --define AGENTUITY_CLI_VERSION='"${version}"'`.cwd(
+		// Externalize Vite and its dependencies that contain native modules or complex require patterns
+		const externals = [
+			'vite',
+			'@vitejs/plugin-react',
+			'@hono/vite-dev-server',
+			'@hono/vite-build',
+			'lightningcss',
+			'esbuild',
+			'rollup',
+		];
+		const externalArgs = externals.flatMap((pkg) => ['--external', pkg]);
+
+		await $`bun build ${entryPoint} --compile --production --minify --sourcemap --compile-autoload-tsconfig --compile-autoload-package-json ${externalArgs} --target=${platform.target} --outfile=${outputPath} --define AGENTUITY_CLI_VERSION='"${version}"'`.cwd(
 			rootDir
 		);
 		console.log(`✓ Built ${platform.output}`);

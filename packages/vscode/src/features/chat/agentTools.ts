@@ -267,7 +267,9 @@ export class ControlDevServerTool implements vscode.LanguageModelTool<ControlDev
 				]);
 
 			default:
-				throw new Error(`Unknown action: ${action}. Valid actions: start, stop, restart, status`);
+				throw new Error(
+					`Unknown action: ${action}. Valid actions: start, stop, restart, status`
+				);
 		}
 	}
 
@@ -415,7 +417,10 @@ export class GetHealthSummaryTool implements vscode.LanguageModelTool<GetHealthS
 				total: sessions.length,
 				successful,
 				failed,
-				successRate: sessions.length > 0 ? ((successful / sessions.length) * 100).toFixed(1) + '%' : 'N/A',
+				successRate:
+					sessions.length > 0
+						? ((successful / sessions.length) * 100).toFixed(1) + '%'
+						: 'N/A',
 				recentFailures: sessions
 					.filter((s) => !s.success)
 					.slice(0, 5)
@@ -487,7 +492,9 @@ export function registerAgentTools(context: vscode.ExtensionContext): void {
 	}
 
 	try {
-		context.subscriptions.push(vscode.lm.registerTool('agentuity_get_agents', new GetAgentsTool()));
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_get_agents', new GetAgentsTool())
+		);
 
 		context.subscriptions.push(
 			vscode.lm.registerTool('agentuity_get_project_status', new GetProjectStatusTool())

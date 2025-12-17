@@ -41,9 +41,10 @@ export interface RuntimeBootstrapResult {
  * This function:
  * 1. Resolves the active profile (from AGENTUITY_PROFILE env or profile config)
  * 2. Loads .env.{profile}, .env.development, or .env based on profile
- * 3. Sets AGENTUITY_REGION=local for local profile
+ * 3. Sets AGENTUITY_REGION=local for local profile (overrides project config for infrastructure)
  * 4. Loads agentuity.{profile}.json if it exists
- * 5. Does NOT override environment variables already set
+ * 5. Sets AGENTUITY_REGION from project config if not already set (non-local profiles only)
+ * 6. Does NOT override environment variables already set
  *
  * Call this BEFORE createApp() in your app.ts:
  *
@@ -114,6 +115,11 @@ export async function bootstrapRuntimeEnv(
 	let projectConfig: ProjectConfig | null = null;
 	try {
 		projectConfig = await loadProjectConfig(projectDir, cfg ?? undefined);
+
+		// Set AGENTUITY_REGION from project config if not already set
+		if (projectConfig?.region && !process.env.AGENTUITY_REGION) {
+			process.env.AGENTUITY_REGION = projectConfig.region;
+		}
 	} catch {
 		// OK for tests that don't need project config
 	}

@@ -95,7 +95,7 @@ async function promptUpgrade(currentVersion: string, latestVersion: string): Pro
 	// Strip 'v' prefix for display
 	const displayCurrent = currentVersion.replace(/^v/, '');
 	const displayLatest = latestVersion.replace(/^v/, '');
-	
+
 	tui.newline();
 	tui.info(`${tui.bold('A new version of the CLI is available!')}`);
 	tui.info(`Current version: ${tui.muted(displayCurrent)}`);

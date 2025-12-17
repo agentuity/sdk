@@ -222,9 +222,9 @@ log_success "Project created"
 echo ""
 log_info "Step 5: Installing packed packages..."
 
-# Remove Agentuity dependencies from package.json to avoid conflicts
+# Remove Agentuity dependencies from package.json to avoid conflicts (both dependencies and devDependencies)
 cat package.json | \
-  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"])' \
+  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/auth"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"], .devDependencies["@agentuity/cli"], .devDependencies["@agentuity/core"], .devDependencies["@agentuity/schema"], .devDependencies["@agentuity/react"], .devDependencies["@agentuity/auth"], .devDependencies["@agentuity/runtime"], .devDependencies["@agentuity/server"], .devDependencies["@agentuity/workbench"])' \
   > package.json.tmp && mv package.json.tmp package.json
 
 # Install other dependencies first
@@ -238,6 +238,7 @@ bun add --no-save \
   "$PACKAGES_DIR/$CORE_PKG" \
   "$PACKAGES_DIR/$SCHEMA_PKG" \
   "$PACKAGES_DIR/$REACT_PKG" \
+  "$PACKAGES_DIR/$AUTH_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
   "$PACKAGES_DIR/$SERVER_PKG" \
   "$PACKAGES_DIR/$CLI_PKG" \
@@ -267,7 +268,17 @@ if [ ! -d ".agentuity" ]; then
     log_error "Build output directory (.agentuity) not found"
     exit 1
 fi
+
+# Verify registry file was generated
+if [ ! -f ".agentuity/registry.generated.ts" ]; then
+    log_error "registry.generated.ts not found in .agentuity/"
+    log_info "Contents of .agentuity/:"
+    ls -la .agentuity/
+    exit 1
+fi
+
 log_success "Build complete, .agentuity directory created"
+log_success "Registry file generated"
 
 # Step 7: Typecheck
 echo ""

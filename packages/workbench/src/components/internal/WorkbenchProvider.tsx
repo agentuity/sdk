@@ -198,6 +198,11 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				return;
 			}
 
+			if (!agentId) {
+				logger.debug('⚠️ No agentId provided, skipping state fetch');
+				return;
+			}
+
 			try {
 				const headers: Record<string, string> = {};
 				if (apiKey) {

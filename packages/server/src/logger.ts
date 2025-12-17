@@ -1,6 +1,14 @@
 import type { Logger, LogLevel } from '@agentuity/core';
 import { format, inspect } from 'node:util';
 
+// Save original console before it might be patched (must be at module level)
+const originalConsole = {
+	log: console.log.bind(console),
+	error: console.error.bind(console),
+	warn: console.warn.bind(console),
+	debug: console.debug.bind(console),
+};
+
 const LOG_LEVELS: Record<LogLevel, number> = {
 	trace: 0,
 	debug: 1,
@@ -230,12 +238,13 @@ export class ConsoleLogger implements Logger {
 			}
 		}
 
+		// Use original console to avoid recursive logging when console is patched
 		if (level === 'error') {
-			console.error(output);
+			originalConsole.error(output);
 		} else if (level === 'warn') {
-			console.warn(output);
+			originalConsole.warn(output);
 		} else {
-			console.log(output);
+			originalConsole.log(output);
 		}
 	}
 
