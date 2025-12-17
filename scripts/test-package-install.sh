@@ -224,7 +224,7 @@ log_info "Step 5: Installing packed packages..."
 
 # Remove Agentuity dependencies from package.json to avoid conflicts (both dependencies and devDependencies)
 cat package.json | \
-  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"], .devDependencies["@agentuity/cli"], .devDependencies["@agentuity/core"], .devDependencies["@agentuity/schema"], .devDependencies["@agentuity/react"], .devDependencies["@agentuity/runtime"], .devDependencies["@agentuity/server"], .devDependencies["@agentuity/workbench"])' \
+  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/auth"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"], .devDependencies["@agentuity/cli"], .devDependencies["@agentuity/core"], .devDependencies["@agentuity/schema"], .devDependencies["@agentuity/react"], .devDependencies["@agentuity/auth"], .devDependencies["@agentuity/runtime"], .devDependencies["@agentuity/server"], .devDependencies["@agentuity/workbench"])' \
   > package.json.tmp && mv package.json.tmp package.json
 
 # Install other dependencies first
@@ -238,6 +238,7 @@ bun add --no-save \
   "$PACKAGES_DIR/$CORE_PKG" \
   "$PACKAGES_DIR/$SCHEMA_PKG" \
   "$PACKAGES_DIR/$REACT_PKG" \
+  "$PACKAGES_DIR/$AUTH_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
   "$PACKAGES_DIR/$SERVER_PKG" \
   "$PACKAGES_DIR/$CLI_PKG" \
