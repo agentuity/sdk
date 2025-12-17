@@ -298,8 +298,8 @@ export const command = createCommand({
 
 			// Confirm upgrade
 			if (!force) {
-				tui.info(`Current version: ${tui.muted(currentVersion)}`);
-				tui.info(`Latest version:  ${tui.bold(latestVersion)}`);
+				tui.info(`Current version: ${tui.muted(normalizedCurrent)}`);
+				tui.info(`Latest version:  ${tui.bold(normalizedLatest)}`);
 				tui.newline();
 				if (toTag(currentVersion) !== toTag(latestVersion)) {
 					tui.warning(
@@ -350,7 +350,7 @@ export const command = createCommand({
 				await $`rm ${tmpBinaryPath}`.quiet();
 			}
 
-			const message = `Successfully upgraded from ${currentVersion} to ${latestVersion}`;
+			const message = `Successfully upgraded from ${normalizedCurrent} to ${normalizedLatest}`;
 			tui.success(message);
 
 			return {
