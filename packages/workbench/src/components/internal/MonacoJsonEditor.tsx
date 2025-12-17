@@ -93,7 +93,7 @@ function convertShikiToMonaco(
 	});
 
 	return {
-		base: isDark ? 'vs-dark' : 'vs',
+		base: (isDark ? 'vs-dark' : 'vs') as 'vs' | 'vs-dark',
 		inherit: true,
 		rules,
 		colors: {
@@ -263,7 +263,7 @@ export function MonacoJsonEditor({
 						editor.onDidChangeModelContent(checkValidationErrors);
 
 						// Check when markers change
-						monaco.editor.onDidChangeMarkers((uris: monaco.Uri[]) => {
+						monaco.editor.onDidChangeMarkers((uris: readonly monaco.Uri[]) => {
 							const model = editor.getModel();
 							if (model && uris.includes(model.uri)) {
 								checkValidationErrors();
