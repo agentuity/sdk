@@ -35,17 +35,31 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	// These are devDependencies that may exist in node_modules but aren't needed at runtime
 	const buildToolExternals = ['@babel/*', 'lightningcss', '@vitejs/*', 'vite', 'esbuild'];
 
-	// Load custom externals from agentuity.config.ts if it exists
+	// Load custom externals and define from agentuity.config.ts if it exists
 	const customExternals: string[] = [];
+	let userDefine: Record<string, string> = {};
 	const configPath = join(rootDir, 'agentuity.config.ts');
 	if (await Bun.file(configPath).exists()) {
 		try {
 			const config = await import(configPath);
 			const userConfig = config.default;
+
+			// Load custom externals (legacy build.external support)
 			if (userConfig?.build?.external && Array.isArray(userConfig.build.external)) {
 				customExternals.push(
 					...userConfig.build.external.filter((e: unknown) => typeof e === 'string')
 				);
+			}
+
+			// Load custom define values
+			if (userConfig?.define && typeof userConfig.define === 'object') {
+				userDefine = userConfig.define;
+				if (Object.keys(userDefine).length > 0) {
+					logger.debug(
+						'Loaded %d custom define(s) from agentuity.config.ts for server bundle',
+						Object.keys(userDefine).length
+					);
+				}
 			}
 		} catch (error) {
 			logger.info('Failed to load agentuity.config.ts for externals:', error);
@@ -197,6 +211,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		minify: !dev,
 		sourcemap: (dev ? 'inline' : 'external') as 'inline' | 'external',
 		external,
+		define: userDefine, // Include custom define values from agentuity.config.ts
 		naming: {
 			entry: 'app.js', // Output as app.js (not app.generated.js)
 		},
