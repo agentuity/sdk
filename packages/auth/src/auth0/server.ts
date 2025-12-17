@@ -4,10 +4,19 @@
  * @module auth0/server
  */
 
-import type { MiddlewareHandler } from 'hono';
+import { createMiddleware as createHonoMiddleware } from 'hono/factory';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import type { AgentuityAuth, AgentuityAuthUser } from '../types';
+
+/**
+ * Environment type for Auth0 middleware - provides typed context variables.
+ */
+export type Auth0Env = {
+	Variables: {
+		auth: AgentuityAuth<Auth0User, Auth0JWTPayload>;
+	};
+};
 
 /**
  * Auth0 JWT payload structure.
@@ -86,14 +95,16 @@ export interface Auth0MiddlewareOptions {
  * import { createMiddleware } from '@agentuity/auth/auth0';
  *
  * router.get('/api/profile', createMiddleware(), async (c) => {
- *   const user = await c.var.auth.requireUser();
+ *   const user = await c.var.auth.getUser();
  *   return c.json({ email: user.email });
  * });
  * ```
  */
-export function createMiddleware(options: Auth0MiddlewareOptions = {}): MiddlewareHandler {
-	const domain = options.domain || process.env.AUTH0_DOMAIN;
-	const audience = options.audience || process.env.AUTH0_AUDIENCE;
+export function createMiddleware(options: Auth0MiddlewareOptions = {}) {
+	const domain =
+		options.domain || process.env.AGENTUITY_PUBLIC_AUTH0_DOMAIN || process.env.AUTH0_DOMAIN;
+	const audience =
+		options.audience || process.env.AGENTUITY_PUBLIC_AUTH0_AUDIENCE || process.env.AUTH0_AUDIENCE;
 	const issuer = options.issuer || (domain ? `https://${domain}/` : undefined);
 
 	if (!domain) {
@@ -134,7 +145,7 @@ export function createMiddleware(options: Auth0MiddlewareOptions = {}): Middlewa
 		});
 	};
 
-	return async (c, next) => {
+	return createHonoMiddleware<Auth0Env>(async (c, next) => {
 		const authHeader = c.req.header('Authorization');
 
 		if (!authHeader) {
@@ -199,18 +210,19 @@ export function createMiddleware(options: Auth0MiddlewareOptions = {}): Middlewa
 
 			// Create auth object with Auth0 payload types
 			const auth: AgentuityAuth<Auth0User, Auth0JWTPayload> = {
-				async requireUser() {
+				async getUser() {
 					if (cachedUser) {
 						return cachedUser;
 					}
 
-					// If fetchUserProfile is enabled, fetch from Management API
+					// If fetchUserProfile is enabled, fetch from Management API (more complete data)
 					if (options.fetchUserProfile) {
 						const user = await fetchUserFromManagementAPI(payload.sub);
 						cachedUser = mapAuth0UserToAgentuityUser(user);
 					} else {
-						// Use JWT payload directly
-						cachedUser = mapAuth0PayloadToAgentuityUser(payload);
+						// Fetch from /userinfo endpoint (access token has openid scope)
+						const user = await fetchUserFromUserInfo(domain!, token);
+						cachedUser = mapAuth0UserToAgentuityUser(user);
 					}
 
 					return cachedUser;
@@ -223,8 +235,6 @@ export function createMiddleware(options: Auth0MiddlewareOptions = {}): Middlewa
 				raw: payload,
 			};
 
-			// @ts-ignore - Module augmentation conflict when both Clerk and Auth0 are imported
-			// This is expected - users should only use one provider at a time
 			c.set('auth', auth);
 			await next();
 		} catch (error) {
@@ -236,37 +246,47 @@ export function createMiddleware(options: Auth0MiddlewareOptions = {}): Middlewa
 			console.error(`[Auth0 Auth] Authentication failed: ${errorCode} - ${errorMessage}`);
 			return c.json({ error: 'Unauthorized' }, 401);
 		}
-	};
+	});
 }
 
 /**
- * Map Auth0 JWT payload to AgentuityAuthUser.
+ * Fetch user info from Auth0 /userinfo endpoint using access token.
  */
-function mapAuth0PayloadToAgentuityUser(payload: Auth0JWTPayload): AgentuityAuthUser<Auth0User> {
-	const user: Auth0User = {
-		user_id: payload.sub,
-		email: payload.email,
-		email_verified: payload.email_verified,
-		name: payload.name,
-		given_name: payload.given_name,
-		family_name: payload.family_name,
-		picture: payload.picture,
+async function fetchUserFromUserInfo(domain: string, accessToken: string): Promise<Auth0User> {
+	const response = await fetch(`https://${domain}/userinfo`, {
+		headers: {
+			Authorization: `Bearer ${accessToken}`,
+		},
+	});
+
+	if (!response.ok) {
+		throw new Error(`Failed to fetch user info: ${response.status}`);
+	}
+
+	const userInfo = (await response.json()) as {
+		sub: string;
+		email?: string;
+		email_verified?: boolean;
+		name?: string;
+		given_name?: string;
+		family_name?: string;
+		picture?: string;
+		[key: string]: unknown;
 	};
 
 	return {
-		id: payload.sub,
-		name:
-			payload.name ||
-			(payload.given_name && payload.family_name
-				? `${payload.given_name} ${payload.family_name}`.trim()
-				: payload.given_name || payload.family_name),
-		email: payload.email,
-		raw: user,
+		user_id: userInfo.sub,
+		email: userInfo.email,
+		email_verified: userInfo.email_verified,
+		name: userInfo.name,
+		given_name: userInfo.given_name,
+		family_name: userInfo.family_name,
+		picture: userInfo.picture,
 	};
 }
 
 /**
- * Map Auth0 User from Management API to AgentuityAuthUser.
+ * Map Auth0 User to AgentuityAuthUser.
  */
 function mapAuth0UserToAgentuityUser(user: Auth0User): AgentuityAuthUser<Auth0User> {
 	return {
@@ -281,21 +301,22 @@ function mapAuth0UserToAgentuityUser(user: Auth0User): AgentuityAuthUser<Auth0Us
 	};
 }
 
-/**
- * Fetch user profile from Auth0 Management API.
- */
-async function fetchUserFromManagementAPI(userId: string): Promise<Auth0User> {
-	const clientId = process.env.AUTH0_M2M_CLIENT_ID;
-	const clientSecret = process.env.AUTH0_M2M_CLIENT_SECRET;
-	const domain = process.env.AUTH0_DOMAIN;
+// M2M token cache to avoid fetching on every request
+let cachedM2MToken: { token: string; expiresAt: number } | null = null;
 
-	if (!clientId || !clientSecret || !domain) {
-		throw new Error(
-			'AUTH0_M2M_CLIENT_ID, AUTH0_M2M_CLIENT_SECRET, and AUTH0_DOMAIN must be set to fetch user profile'
-		);
+/**
+ * Get M2M access token for Management API, with caching.
+ */
+async function getM2MAccessToken(
+	domain: string,
+	clientId: string,
+	clientSecret: string
+): Promise<string> {
+	// Return cached token if still valid (with 60s buffer before expiry)
+	if (cachedM2MToken && Date.now() < cachedM2MToken.expiresAt - 60000) {
+		return cachedM2MToken.token;
 	}
 
-	// Get Management API access token
 	const tokenResponse = await fetch(`https://${domain}/oauth/token`, {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
@@ -311,14 +332,42 @@ async function fetchUserFromManagementAPI(userId: string): Promise<Auth0User> {
 		throw new Error('Failed to get Management API access token');
 	}
 
-	const { access_token } = (await tokenResponse.json()) as { access_token: string };
+	const { access_token, expires_in } = (await tokenResponse.json()) as {
+		access_token: string;
+		expires_in: number;
+	};
+
+	cachedM2MToken = {
+		token: access_token,
+		expiresAt: Date.now() + expires_in * 1000,
+	};
+
+	return access_token;
+}
+
+/**
+ * Fetch user profile from Auth0 Management API.
+ */
+async function fetchUserFromManagementAPI(userId: string): Promise<Auth0User> {
+	const clientId = process.env.AUTH0_M2M_CLIENT_ID;
+	const clientSecret = process.env.AUTH0_M2M_CLIENT_SECRET;
+	const domain = process.env.AGENTUITY_PUBLIC_AUTH0_DOMAIN || process.env.AUTH0_DOMAIN;
+
+	if (!clientId || !clientSecret || !domain) {
+		throw new Error(
+			'AUTH0_M2M_CLIENT_ID, AUTH0_M2M_CLIENT_SECRET, and AUTH0_DOMAIN must be set to fetch user profile'
+		);
+	}
+
+	// Get cached or fresh Management API access token
+	const accessToken = await getM2MAccessToken(domain, clientId, clientSecret);
 
 	// Fetch user from Management API
 	const userResponse = await fetch(
 		`https://${domain}/api/v2/users/${encodeURIComponent(userId)}`,
 		{
 			headers: {
-				Authorization: `Bearer ${access_token}`,
+				Authorization: `Bearer ${accessToken}`,
 				'Content-Type': 'application/json',
 			},
 		}
@@ -329,17 +378,4 @@ async function fetchUserFromManagementAPI(userId: string): Promise<Auth0User> {
 	}
 
 	return (await userResponse.json()) as Auth0User;
-}
-
-/**
- * Augment Hono's context types to include auth.
- *
- * Note: This conflicts with Clerk's module augmentation when both are imported.
- * Users should only use one provider at a time.
- */
-declare module 'hono' {
-	interface ContextVariableMap {
-		// @ts-ignore - Conflicts with Clerk's auth type, but only one provider should be used
-		auth: AgentuityAuth<Auth0User, Auth0JWTPayload>;
-	}
 }

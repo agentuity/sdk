@@ -23,7 +23,7 @@
  * import { createMiddleware } from '@agentuity/auth/auth0/server';
  *
  * router.get('/api/profile', createMiddleware(), async (c) => {
- *   const user = await c.var.auth.requireUser();
+ *   const user = await c.var.auth.getUser();
  *   return c.json({ email: user.email });
  * });
  * ```

@@ -4,9 +4,9 @@
  * @module auth0/client
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { useAuth0 as Auth0UseAuth } from '@auth0/auth0-react';
-import { useAgentuity } from '@agentuity/react';
+import { useAuth } from '@agentuity/react';
 
 type UseAuth0 = typeof Auth0UseAuth;
 
@@ -48,56 +48,52 @@ export interface AgentuityAuth0Props {
  * ```
  */
 export function AgentuityAuth0({
-    children,
-    useAuth0,
-    refreshInterval = 60000,
-    tokenOptions,
+	children,
+	useAuth0,
+	refreshInterval = 60000,
+	tokenOptions,
 }: AgentuityAuth0Props) {
-    const { getAccessTokenSilently, isLoading, isAuthenticated } = useAuth0();
-    const { setAuthHeader, setAuthLoading } = useAgentuity();
+	const { getAccessTokenSilently, isLoading, isAuthenticated } = useAuth0();
+	const { setAuthHeader, setAuthLoading } = useAuth();
 
-    useEffect(() => {
-        if (isLoading || !setAuthHeader || !setAuthLoading) {
-            if (setAuthLoading) {
-                setAuthLoading(true);
-            }
-            return;
-        }
+	// Use ref for tokenOptions to avoid infinite re-renders when parent passes inline object
+	const tokenOptionsRef = useRef(tokenOptions);
+	tokenOptionsRef.current = tokenOptions;
 
-        // Not authenticated - clear auth header
-        if (!isAuthenticated) {
-            setAuthHeader(null);
-            setAuthLoading(false);
-            return;
-        }
+	useEffect(() => {
+		if (isLoading || !setAuthHeader || !setAuthLoading) {
+			if (setAuthLoading) {
+				setAuthLoading(true);
+			}
+			return;
+		}
 
-        const fetchToken = async () => {
-            try {
-                setAuthLoading(true);
-                const token = await getAccessTokenSilently(tokenOptions);
-                setAuthHeader(token ? `Bearer ${token}` : null);
-            } catch (error) {
-                console.error('Failed to get Auth0 token:', error);
-                setAuthHeader(null);
-            } finally {
-                setAuthLoading(false);
-            }
-        };
+		// Not authenticated - clear auth header
+		if (!isAuthenticated) {
+			setAuthHeader(null);
+			setAuthLoading(false);
+			return;
+		}
 
-        fetchToken();
+		const fetchToken = async () => {
+			try {
+				setAuthLoading(true);
+				const token = await getAccessTokenSilently(tokenOptionsRef.current);
+				setAuthHeader(token ? `Bearer ${token}` : null);
+			} catch (error) {
+				console.error('Failed to get Auth0 token:', error instanceof Error ? error.message : 'Unknown error');
+				setAuthHeader(null);
+			} finally {
+				setAuthLoading(false);
+			}
+		};
 
-        // Refresh token periodically
-        const interval = setInterval(fetchToken, refreshInterval);
-        return () => clearInterval(interval);
-    }, [
-        getAccessTokenSilently,
-        isLoading,
-        isAuthenticated,
-        setAuthHeader,
-        setAuthLoading,
-        refreshInterval,
-        tokenOptions,
-    ]);
+		fetchToken();
 
-    return <>{children}</>;
+		// Refresh token periodically
+		const interval = setInterval(fetchToken, refreshInterval);
+		return () => clearInterval(interval);
+	}, [getAccessTokenSilently, isLoading, isAuthenticated, setAuthHeader, setAuthLoading, refreshInterval]);
+
+	return <>{children}</>;
 }

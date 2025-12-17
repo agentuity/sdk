@@ -4,7 +4,7 @@
  * @module clerk/server
  */
 
-import type { MiddlewareHandler } from 'hono';
+import { createMiddleware as createHonoMiddleware } from 'hono/factory';
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import type { User } from '@clerk/backend';
 import type { AgentuityAuth, AgentuityAuthUser } from '../types';
@@ -18,6 +18,15 @@ export interface ClerkJWTPayload {
 	/** Additional claims */
 	[key: string]: unknown;
 }
+
+/**
+ * Environment type for Clerk middleware - provides typed context variables.
+ */
+export type ClerkEnv = {
+	Variables: {
+		auth: AgentuityAuth<User, ClerkJWTPayload>;
+	};
+};
 
 /**
  * Options for Clerk middleware.
@@ -51,7 +60,7 @@ export interface ClerkMiddlewareOptions {
  * });
  * ```
  */
-export function createMiddleware(options: ClerkMiddlewareOptions = {}): MiddlewareHandler {
+export function createMiddleware(options: ClerkMiddlewareOptions = {}) {
 	const secretKey = options.secretKey || process.env.CLERK_SECRET_KEY;
 	const publishableKey =
 		options.publishableKey ||
@@ -76,7 +85,7 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 	// Create Clerk client instance
 	const clerkClient = createClerkClient({ secretKey });
 
-	return async (c, next) => {
+	return createHonoMiddleware<ClerkEnv>(async (c, next) => {
 		const authHeader = c.req.header('Authorization');
 
 		if (!authHeader) {
@@ -132,8 +141,6 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 				raw: payload,
 			};
 
-			// @ts-ignore - Module augmentation conflict when both Clerk and Auth0 are imported
-			// This is expected - users should only use one provider at a time
 			c.set('auth', auth);
 			await next();
 		} catch (error) {
@@ -145,7 +152,7 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 			console.error(`[Clerk Auth] Authentication failed: ${errorCode} - ${errorMessage}`);
 			return c.json({ error: 'Unauthorized' }, 401);
 		}
-	};
+	});
 }
 
 /**
@@ -158,17 +165,4 @@ function mapClerkUserToAgentuityUser(clerkUser: User): AgentuityAuthUser<User> {
 		email: clerkUser.emailAddresses[0]?.emailAddress,
 		raw: clerkUser,
 	};
-}
-
-/**
- * Augment Hono's context types to include auth.
- *
- * Note: This conflicts with Auth0's module augmentation when both are imported.
- * Users should only use one provider at a time.
- */
-declare module 'hono' {
-	interface ContextVariableMap {
-		// @ts-ignore - Conflicts with Auth0's auth type, but only one provider should be used
-		auth: AgentuityAuth<User, ClerkJWTPayload>;
-	}
 }
