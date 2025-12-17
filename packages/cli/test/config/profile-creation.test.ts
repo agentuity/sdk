@@ -7,6 +7,7 @@ import type { Config } from '../../src/types';
 
 let testConfigDir: string;
 let originalHome: string | undefined;
+let originalEnvVars: Record<string, string | undefined> = {};
 
 beforeEach(async () => {
 	// Create a temporary directory for test configs
@@ -15,6 +16,21 @@ beforeEach(async () => {
 	// Override home directory for config path resolution
 	originalHome = process.env.HOME;
 	process.env.HOME = testConfigDir;
+
+	// Clear any Agentuity environment variables that might affect config loading
+	const envVarsToClear = [
+		'AGENTUITY_API_URL',
+		'AGENTUITY_APP_URL',
+		'AGENTUITY_CATALYST_URL',
+		'AGENTUITY_TRANSPORT_URL',
+		'AGENTUITY_KEYVALUE_URL',
+		'AGENTUITY_VECTOR_URL',
+		'AGENTUITY_STREAM_URL',
+	];
+	for (const key of envVarsToClear) {
+		originalEnvVars[key] = process.env[key];
+		delete process.env[key];
+	}
 });
 
 afterEach(async () => {
@@ -24,6 +40,16 @@ afterEach(async () => {
 	} else {
 		delete process.env.HOME;
 	}
+
+	// Restore original environment variables
+	for (const [key, value] of Object.entries(originalEnvVars)) {
+		if (value !== undefined) {
+			process.env[key] = value;
+		} else {
+			delete process.env[key];
+		}
+	}
+	originalEnvVars = {};
 	
 	// Clean up test directory
 	await rm(testConfigDir, { recursive: true, force: true });
