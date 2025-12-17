@@ -387,11 +387,16 @@ async function startServer(
 ): Promise<{ proc: Subprocess; success: boolean; error?: string }> {
 	const appPath = join(projectDir, '.agentuity', 'app.js');
 
-	// Pass port as CLI flag instead of environment variable
+	// Pass port as CLI flag and merge env vars
+	const mergedEnv = { ...process.env, ...env };
+	
+	// Debug: Verify env vars are set
+	logInfo(`Starting server with env: ${Object.keys(env).join(', ')}`);
+	
 	const proc = spawn({
-		cmd: ['bun', 'run', appPath, '--port', String(port)],
+		cmd: ['bun', appPath, '--port', String(port)],
 		cwd: projectDir,
-		env: { ...process.env, ...env },
+		env: mergedEnv,
 		stdout: 'inherit',
 		stderr: 'inherit',
 	});
@@ -548,11 +553,17 @@ async function testTemplate(
 			envVars.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
 		}
 
-		const envFilePath = join(projectDir, '.env');
+		// Write .env to both project root and .agentuity/ directory
+		// (Bun auto-loads from CWD, but bundled code needs it in .agentuity/ too)
 		const envContent = Object.entries(envVars)
 			.map(([key, value]) => `${key}=${value}`)
 			.join('\n');
+		
+		const envFilePath = join(projectDir, '.env');
+		const agentuityEnvPath = join(projectDir, '.agentuity', '.env');
 		writeFileSync(envFilePath, envContent);
+		writeFileSync(agentuityEnvPath, envContent);
+		logInfo(`Wrote .env file with ${Object.keys(envVars).length} variables`);
 
 		// Step 4: Typecheck
 		logStep('Running typecheck...');
@@ -575,7 +586,7 @@ async function testTemplate(
 		logStep('Starting server...');
 		stepStart = Date.now();
 
-		const serverResult = await startServer(projectDir, basePort, {});
+		const serverResult = await startServer(projectDir, basePort, envVars);
 		serverProc = serverResult.proc;
 
 		result.steps.push({
