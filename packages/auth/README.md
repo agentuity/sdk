@@ -67,7 +67,7 @@ const router = createRouter();
 
 // Protected route
 router.get('/profile', createMiddleware(), async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 	return c.json({
 		id: user.id,
 		name: user.name,
@@ -99,10 +99,10 @@ Get your keys from [Clerk Dashboard](https://dashboard.clerk.com).
 Once you wrap your app with `AgentuityClerk`, all `useAPI` and `useWebsocket` calls automatically include the auth token:
 
 ```tsx
-import { useAPI, useAgentuity } from '@agentuity/react';
+import { useAPI, useAuth } from '@agentuity/react';
 
 function MyComponent() {
-	const { isAuthenticated, authLoading } = useAgentuity();
+	const { isAuthenticated, authLoading } = useAuth();
 	const { data, invoke } = useAPI('POST /api/users');
 
 	if (authLoading) {
@@ -126,7 +126,7 @@ import { createMiddleware } from '@agentuity/auth/clerk';
 
 // Protect a single route
 router.post('/admin', createMiddleware(), async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 	return c.json({ admin: true, userId: user.id });
 });
 ```
@@ -138,7 +138,7 @@ router.post('/admin', createMiddleware(), async (c) => {
 router.use('/api/*', createMiddleware());
 
 router.get('/api/profile', async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 	return c.json({ email: user.email });
 });
 ```
@@ -147,7 +147,7 @@ router.get('/api/profile', async (c) => {
 
 ```typescript
 router.get('/profile', createMiddleware(), async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 
 	// Access generic fields
 	console.log(user.id, user.email, user.name);
@@ -222,22 +222,33 @@ Creates Hono middleware for Clerk authentication.
 - Returns 401 if token is invalid
 - Sets `c.var.auth` with authenticated user context
 
-### Context Hook
+### Context Hooks
 
-#### `useAgentuity()`
+#### `useAuth()`
 
-Hook to access Agentuity context (from `@agentuity/react`).
+Hook to access authentication state (from `@agentuity/react`).
 
 **Returns:**
 
 ```typescript
 {
-  baseUrl: string;
   authHeader?: string | null;
   authLoading?: boolean;
   isAuthenticated: boolean; // Convenience: !authLoading && authHeader !== null
   setAuthHeader?: (token: string | null) => void;
   setAuthLoading?: (loading: boolean) => void;
+}
+```
+
+#### `useAgentuity()`
+
+Hook to access Agentuity context (non-auth properties only, from `@agentuity/react`).
+
+**Returns:**
+
+```typescript
+{
+	baseUrl: string;
 }
 ```
 
@@ -262,7 +273,7 @@ Generic authentication interface exposed on Hono context.
 
 ```typescript
 interface AgentuityAuth<TUser = unknown, TRaw = unknown> {
-	requireUser(): Promise<AgentuityAuthUser<TUser>>;
+	getUser(): Promise<AgentuityAuthUser<TUser>>;
 	getToken(): Promise<string | null>;
 	raw: TRaw; // Provider-specific auth object (e.g., JWT payload)
 }
@@ -301,7 +312,7 @@ bun dev
 **Debug:**
 
 ```tsx
-const { authHeader, authLoading, isAuthenticated } = useAgentuity();
+const { authHeader, authLoading, isAuthenticated } = useAuth();
 console.log({ authHeader, authLoading, isAuthenticated });
 ```
 

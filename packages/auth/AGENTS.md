@@ -172,7 +172,7 @@ mkdir -p src/workos
 ```typescript
 // src/workos/client.tsx
 import React, { useEffect } from 'react';
-import { useAgentuity } from '@agentuity/react';
+import { useAuth } from '@agentuity/react';
 import type { useAuth as WorkOSUseAuth } from '@workos/react';
 
 export interface AgentuityWorkOSProps {
@@ -180,9 +180,9 @@ export interface AgentuityWorkOSProps {
 	useAuth: typeof WorkOSUseAuth;
 }
 
-export function AgentuityWorkOS({ children, useAuth }: AgentuityWorkOSProps) {
-	const { getToken, isLoaded } = useAuth();
-	const { setAuthHeader, setAuthLoading } = useAgentuity();
+export function AgentuityWorkOS({ children, useAuth: workosUseAuth }: AgentuityWorkOSProps) {
+	const { getToken, isLoaded } = workosUseAuth();
+	const { setAuthHeader, setAuthLoading } = useAuth();
 
 	useEffect(() => {
 		if (!isLoaded || !setAuthHeader || !setAuthLoading) {
@@ -351,10 +351,10 @@ Both hooks include `context.authHeader` in their dependency arrays, so they reac
 ### Conditional Rendering Based on Auth
 
 ```tsx
-import { useAgentuity } from '@agentuity/react';
+import { useAuth } from '@agentuity/react';
 
 function ProtectedComponent() {
-	const { isAuthenticated, authLoading } = useAgentuity();
+	const { isAuthenticated, authLoading } = useAuth();
 
 	if (authLoading) {
 		return <div>Loading...</div>;

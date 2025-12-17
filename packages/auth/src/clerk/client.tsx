@@ -6,7 +6,7 @@
 
 import React, { useEffect } from 'react';
 import type { useAuth as ClerkUseAuth } from '@clerk/clerk-react';
-import { useAgentuity } from '@agentuity/react';
+import { useAuth } from '@agentuity/react';
 
 type UseAuth = typeof ClerkUseAuth;
 
@@ -46,11 +46,11 @@ export interface AgentuityClerkProps {
  */
 export function AgentuityClerk({
 	children,
-	useAuth,
+	useAuth: clerkUseAuth,
 	refreshInterval = 60000,
 }: AgentuityClerkProps) {
-	const { getToken, isLoaded } = useAuth();
-	const { setAuthHeader, setAuthLoading } = useAgentuity();
+	const { getToken, isLoaded } = clerkUseAuth();
+	const { setAuthHeader, setAuthLoading } = useAuth();
 
 	// Fetch and update token in AgentuityContext
 	useEffect(() => {

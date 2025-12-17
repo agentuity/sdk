@@ -20,7 +20,7 @@ router.post('/hello', hello.validator(), async (c) => {
 
 // Protected route - requires authentication
 router.get('/profile', createMiddleware(), async (c: Context) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 
 	// Access Clerk JWT payload
 	const payload = c.var.auth.raw;

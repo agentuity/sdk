@@ -2,8 +2,11 @@ export {
 	AgentuityContext,
 	AgentuityProvider,
 	useAgentuity,
+	useAuth,
 	type ContextProviderArgs,
 	type AgentuityContextValue,
+	type AgentuityHookValue,
+	type AuthContextValue,
 } from './context';
 export {
 	useWebsocket,
