@@ -72,7 +72,7 @@ export const listSubcommand = createSubcommand({
 		}),
 		response: StorageListResponseSchema,
 	},
-	webUrl: (ctx) => (ctx.args.name ? `/services/storage/${ctx.args.name}` : '/services/storage'),
+	webUrl: (ctx) => (ctx.args.name ? `/services/storage/${encodeURIComponent(ctx.args.name)}` : '/services/storage'),
 
 	async handler(ctx) {
 		const { logger, args, opts, options, orgId, region, auth } = ctx;

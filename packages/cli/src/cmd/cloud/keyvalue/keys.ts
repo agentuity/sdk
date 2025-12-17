@@ -26,7 +26,7 @@ export const keysSubcommand = createCommand({
 		}),
 		response: KVKeysResponseSchema,
 	},
-	webUrl: (ctx) => `/services/kv/${ctx.args.name}`,
+	webUrl: (ctx) => `/services/kv/${encodeURIComponent(ctx.args.name)}`,
 
 	async handler(ctx) {
 		const { args, options } = ctx;

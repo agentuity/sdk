@@ -26,7 +26,7 @@ export const listSubcommand = createSubcommand({
 		}),
 		response: SecretListResponseSchema,
 	},
-	webUrl: (ctx) => `/projects/${ctx.project.projectId}/settings`,
+	webUrl: (ctx) => `/projects/${encodeURIComponent(ctx.project.projectId)}/settings`,
 
 	async handler(ctx) {
 		const { opts, apiClient, project, options } = ctx;

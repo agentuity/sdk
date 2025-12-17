@@ -90,7 +90,7 @@ export const listSubcommand = createSubcommand({
 	},
 	webUrl: (ctx) => {
 		const projectId = ctx.opts?.projectId || ctx.project?.projectId;
-		return projectId ? `/projects/${projectId}/sessions` : undefined;
+		return projectId ? `/projects/${encodeURIComponent(projectId)}/sessions` : undefined;
 	},
 	async handler(ctx) {
 		const { logger, auth, project, opts, options, region } = ctx;
