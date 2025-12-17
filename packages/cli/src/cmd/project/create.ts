@@ -21,7 +21,7 @@ export const createProjectSubcommand = createSubcommand({
 	banner: true,
 	toplevel: true,
 	idempotent: false,
-	optional: { auth: true, org: true, region: true, apiClient: true },
+	optional: { auth: true, region: true, apiClient: true },
 	examples: [
 		{ command: getCommand('project create'), description: 'Create new item' },
 		{ command: getCommand('project create --name my-ai-agent'), description: 'Create new item' },
@@ -69,7 +69,14 @@ export const createProjectSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, auth, config, apiClient, orgId, region } = ctx;
+		const { logger, opts, auth, config, apiClient, region } = ctx;
+
+		// Only get org if registering
+		let orgId: string | undefined;
+		if (opts.register === true && auth && apiClient) {
+			const { optionalOrg } = await import('../../auth');
+			orgId = await optionalOrg(ctx as any);
+		}
 
 		await runCreateFlow({
 			projectName: opts.name,
