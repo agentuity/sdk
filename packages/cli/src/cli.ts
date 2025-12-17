@@ -225,6 +225,87 @@ function handleProjectConfigError(
 	throw error;
 }
 
+/**
+ * Prompt user to select a project from their available projects
+ */
+async function promptProjectSelection(
+	baseCtx: CommandContext
+): Promise<ProjectConfig | null> {
+	const { logger, config } = baseCtx;
+
+	// Need auth and API client to fetch projects
+	const auth = await requireAuth(baseCtx);
+	if (!auth) {
+		return null;
+	}
+
+	const apiClient = createAPIClient(baseCtx, config);
+
+	// Fetch available projects
+	const { projectList } = await import('@agentuity/server');
+	const projects = await projectList(apiClient);
+
+	if (!projects || projects.length === 0) {
+		tui.warning('No projects found. Please create a project first.');
+		return null;
+	}
+
+	// Sort projects: prioritize those matching orgId in preferences
+	const preferredOrgId = config?.preferences?.orgId;
+	const sortedProjects = [...projects].sort((a, b) => {
+		// Prioritize preferred org
+		if (preferredOrgId) {
+			if (a.orgId === preferredOrgId && b.orgId !== preferredOrgId) return -1;
+			if (b.orgId === preferredOrgId && a.orgId !== preferredOrgId) return 1;
+		}
+		// Otherwise sort by name
+		return a.name.localeCompare(b.name);
+	});
+
+	// Build select options with aligned formatting
+	const { createPrompt } = tui;
+	const prompt = createPrompt();
+
+	// Calculate max name length for padding (with reasonable max)
+	const maxNameLength = Math.min(
+		40,
+		Math.max(...sortedProjects.map((p) => p.name.length))
+	);
+
+	const selectedProjectId = await prompt.select<string>({
+		message: 'Select a project',
+		options: sortedProjects.map((p) => {
+			// Truncate and pad name for alignment
+			const displayName =
+				p.name.length > maxNameLength
+					? p.name.substring(0, maxNameLength - 1) + '…'
+					: p.name.padEnd(maxNameLength);
+
+			return {
+				value: p.id,
+				label: `${displayName}  ${tui.muted(p.id)}`,
+			};
+		}),
+	});
+
+	// Cleanup stdin after prompt to prevent hanging
+	if (process.stdin.isTTY) {
+		process.stdin.pause();
+	}
+
+	const selectedProject = sortedProjects.find((p) => p.id === selectedProjectId);
+	if (!selectedProject) {
+		return null;
+	}
+
+	// Convert to ProjectConfig format
+	return {
+		projectId: selectedProject.id,
+		orgId: selectedProject.orgId,
+		region: '', // Will be set by region resolution logic later
+	};
+}
+
 export async function createCLI(version: string): Promise<Command> {
 	const program = new Command();
 
@@ -612,6 +693,7 @@ async function registerSubcommand(
 				cmd.help();
 			});
 
+		// Don't add options to parent commands - only to leaf commands
 		return;
 	}
 
@@ -649,6 +731,9 @@ async function registerSubcommand(
 		}
 	}
 
+	// Track if projectId is defined in schema options
+	let hasProjectIdInSchema = false;
+
 	if (subcommand.schema?.options) {
 		const parsed = parseOptionsSchema(subcommand.schema.options);
 		for (const opt of parsed) {
@@ -656,6 +741,12 @@ async function registerSubcommand(
 				.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
 				.replace(/([A-Z]+)([A-Z][a-z])/g, '$1-$2')
 				.toLowerCase();
+			
+			// Track if this schema defines projectId (as 'projectId' or 'project-id')
+			if (opt.name === 'projectId' || opt.name === 'project-id' || flag === 'project-id') {
+				hasProjectIdInSchema = true;
+			}
+
 			const desc = opt.description || '';
 			// Add short flag alias for verbose
 			const flagSpec = flag === 'verbose' ? `-v, --${flag}` : `--${flag}`;
@@ -712,6 +803,11 @@ async function registerSubcommand(
 		}
 	}
 
+	// Add --project-id if command requires/optional project and doesn't define it in schema
+	if ((requiresProject || optionalProject) && !hasProjectIdInSchema) {
+		cmd.option('--project-id <id>', 'project ID (alternative to --dir)');
+	}
+
 	cmd.action(async (...rawArgs: unknown[]) => {
 		const cmdObj = rawArgs[rawArgs.length - 1] as { opts: () => Record<string, unknown> };
 		const options = cmdObj.opts();
@@ -728,35 +824,90 @@ async function registerSubcommand(
 		const dirNeeded = normalized.requiresProject || normalized.optionalProject;
 
 		if (dirNeeded) {
-			const dir = (options.dir as string | undefined) ?? process.cwd();
-			projectDir = dir;
-			if (projectDir.startsWith('~/')) {
-				projectDir = projectDir.replace('~/', homedir());
-			}
-			projectDir = resolve(projectDir);
-			try {
-				project = await loadProjectConfig(dir, baseCtx.config);
-			} catch (error) {
-				if (normalized.requiresProject) {
-					if (
-						error &&
-						typeof error === 'object' &&
-						'name' in error &&
-						error.name === 'ProjectConfigNotFoundExpection'
-					) {
+			const projectId = options.projectId as string | undefined;
+
+			// If --project-id is provided, fetch project details from API
+			if (projectId) {
+				try {
+					const auth = await requireAuth(baseCtx);
+					if (auth) {
+						const apiClient = createAPIClient(baseCtx, baseCtx.config);
+						const { projectGet } = await import('@agentuity/server');
+						const projectDetails = await projectGet(apiClient, { id: projectId, mask: true });
+						project = {
+							projectId: projectDetails.id,
+							orgId: projectDetails.orgId,
+							region: projectDetails.cloudRegion || '',
+						};
+					}
+				} catch (error) {
+					if (normalized.requiresProject) {
 						exitWithError(
-							createError(ErrorCode.PROJECT_NOT_FOUND, 'Invalid project folder', undefined, [
-								'Use --dir to specify a different directory',
-								'Change to a directory containing agentuity.json',
-								`Run "${getCommand('project create')}" to create a new project`,
-							]),
+							createError(
+								ErrorCode.PROJECT_NOT_FOUND,
+								`Project not found: ${projectId}`,
+								undefined,
+								['Verify the project ID is correct', `Run "${getCommand('project list')}" to see available projects`]
+							),
 							baseCtx.logger,
 							baseCtx.options.errorFormat
 						);
 					}
-					throw error;
 				}
-				// For optional projects, silently continue without project config
+			} else {
+				// Try to load from directory
+				const dir = (options.dir as string | undefined) ?? process.cwd();
+				projectDir = dir;
+				if (projectDir.startsWith('~/')) {
+					projectDir = projectDir.replace('~/', homedir());
+				}
+				projectDir = resolve(projectDir);
+				try {
+					project = await loadProjectConfig(dir, baseCtx.config);
+				} catch (error) {
+					if (normalized.requiresProject) {
+						if (
+							error &&
+							typeof error === 'object' &&
+							'name' in error &&
+							error.name === 'ProjectConfigNotFoundExpection'
+						) {
+							// If TTY is available, prompt user to select a project
+							const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+
+							if (hasTTY) {
+								// Try to prompt for project selection
+								try {
+									const selectedProject = await promptProjectSelection(baseCtx);
+									if (selectedProject) {
+										// Set the project ID in options so it can be used by the command
+										(options as Record<string, unknown>).projectId = selectedProject.projectId;
+										project = selectedProject;
+									}
+								} catch (promptError) {
+									// If prompting fails, fall through to the original error
+									baseCtx.logger.trace('Project selection prompt failed: %s', promptError);
+								}
+							}
+
+							if (!project) {
+								exitWithError(
+									createError(ErrorCode.PROJECT_NOT_FOUND, 'Invalid project folder', undefined, [
+										'Use --dir to specify a different directory',
+										'Use --project-id to specify a project by ID',
+										'Change to a directory containing agentuity.json',
+										`Run "${getCommand('project create')}" to create a new project`,
+									]),
+									baseCtx.logger,
+									baseCtx.options.errorFormat
+								);
+							}
+						} else {
+							throw error;
+						}
+					}
+					// For optional projects, silently continue without project config
+				}
 			}
 		}
 
