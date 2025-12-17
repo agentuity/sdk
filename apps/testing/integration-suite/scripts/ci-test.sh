@@ -61,7 +61,10 @@ echo -e "${GREEN}✓${NC} Build complete"
 # Create .env file AFTER build (build clears .agentuity directory)
 # This overwrites the .env.local copy with CI/test credentials
 echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.agentuity/.env"
-echo "AGENTUITY_REGION=local" >> "$APP_DIR/.agentuity/.env"
+
+# Set region (use environment variable if set, otherwise default to local for dev)
+REGION="${AGENTUITY_REGION:-local}"
+echo "AGENTUITY_REGION=$REGION" >> "$APP_DIR/.agentuity/.env"
 
 # Add OpenAI API key if available (required for vector embedding operations)
 if [ -n "$OPENAI_API_KEY" ]; then
@@ -69,7 +72,7 @@ if [ -n "$OPENAI_API_KEY" ]; then
         echo -e "${GREEN}✓${NC} OpenAI API key configured for vector operations"
 fi
 
-echo -e "${GREEN}✓${NC} Environment configured (region: local)"
+echo -e "${GREEN}✓${NC} Environment configured (region: $REGION)"
 
 # Start server in background
 echo ""
