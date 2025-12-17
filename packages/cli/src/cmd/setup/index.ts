@@ -31,8 +31,12 @@ export const command = createCommand({
 			tui.output(
 				`${tui.colorPrimary(getCommand('login'))}        ${tui.muted('Login to an existing account (or signup)')}`
 			);
-			tui.output(`${tui.colorPrimary(getCommand('create'))}       ${tui.muted('Create a project')}`);
-			tui.output(`${tui.colorPrimary(getCommand('help'))}         ${tui.muted('List commands and options')}`);
+			tui.output(
+				`${tui.colorPrimary(getCommand('create'))}       ${tui.muted('Create a project')}`
+			);
+			tui.output(
+				`${tui.colorPrimary(getCommand('help'))}         ${tui.muted('List commands and options')}`
+			);
 		} else {
 			tui.success('Welcome back! 🙌');
 		}

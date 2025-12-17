@@ -99,10 +99,10 @@ Get your keys from [Clerk Dashboard](https://dashboard.clerk.com).
 Once you wrap your app with `AgentuityClerk`, all `useAPI` and `useWebsocket` calls automatically include the auth token:
 
 ```tsx
-import { useAPI, useAgentuity } from '@agentuity/react';
+import { useAPI, useAuth } from '@agentuity/react';
 
 function MyComponent() {
-	const { isAuthenticated, authLoading } = useAgentuity();
+	const { isAuthenticated, authLoading } = useAuth();
 	const { data, invoke } = useAPI('POST /api/users');
 
 	if (authLoading) {
@@ -222,22 +222,33 @@ Creates Hono middleware for Clerk authentication.
 - Returns 401 if token is invalid
 - Sets `c.var.auth` with authenticated user context
 
-### Context Hook
+### Context Hooks
 
-#### `useAgentuity()`
+#### `useAuth()`
 
-Hook to access Agentuity context (from `@agentuity/react`).
+Hook to access authentication state (from `@agentuity/react`).
 
 **Returns:**
 
 ```typescript
 {
-  baseUrl: string;
   authHeader?: string | null;
   authLoading?: boolean;
   isAuthenticated: boolean; // Convenience: !authLoading && authHeader !== null
   setAuthHeader?: (token: string | null) => void;
   setAuthLoading?: (loading: boolean) => void;
+}
+```
+
+#### `useAgentuity()`
+
+Hook to access Agentuity context (non-auth properties only, from `@agentuity/react`).
+
+**Returns:**
+
+```typescript
+{
+	baseUrl: string;
 }
 ```
 
@@ -301,7 +312,7 @@ bun dev
 **Debug:**
 
 ```tsx
-const { authHeader, authLoading, isAuthenticated } = useAgentuity();
+const { authHeader, authLoading, isAuthenticated } = useAuth();
 console.log({ authHeader, authLoading, isAuthenticated });
 ```
 

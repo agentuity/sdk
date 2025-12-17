@@ -46,7 +46,7 @@ export interface ClerkMiddlewareOptions {
  * import { createMiddleware } from '@agentuity/auth/clerk';
  *
  * router.get('/api/profile', createMiddleware(), async (c) => {
- *   const user = await c.var.auth.requireUser();
+ *   const user = await c.var.auth.getUser();
  *   return c.json({ email: user.email });
  * });
  * ```
@@ -116,7 +116,7 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 
 			// Create auth object with Clerk user and payload types
 			const auth: AgentuityAuth<User, ClerkJWTPayload> = {
-				async requireUser() {
+				async getUser() {
 					if (cachedUser) {
 						return cachedUser;
 					}

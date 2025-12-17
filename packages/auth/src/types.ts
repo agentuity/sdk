@@ -28,7 +28,7 @@ export interface AgentuityAuthUser<T = unknown> {
  */
 export interface AgentuityAuth<TUser = unknown, TRaw = unknown> {
 	/** Get the authenticated user, throws if not authenticated */
-	requireUser(): Promise<AgentuityAuthUser<TUser>>;
+	getUser(): Promise<AgentuityAuthUser<TUser>>;
 
 	/** Get the raw JWT token */
 	getToken(): Promise<string | null>;

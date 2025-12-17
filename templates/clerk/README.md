@@ -42,6 +42,37 @@ CLERK_SECRET_KEY=sk_test_...
 - **Client-side**: Automatic token injection into API calls via `@agentuity/auth/clerk`
 - **Server-side**: Protected routes with Clerk middleware
 - **Type-safe**: Full TypeScript support with Clerk user types
+- **React hooks**: Access auth state with `useAuth()` hook from `@agentuity/react`
+
+### Client-Side Authentication
+
+Use the `useAuth` hook to access authentication state in your React components:
+
+```typescript
+import { useAuth } from '@agentuity/react';
+
+function MyComponent() {
+	const { isAuthenticated, authLoading } = useAuth();
+
+	if (authLoading) {
+		return <div>Loading...</div>;
+	}
+
+	if (!isAuthenticated) {
+		return <SignInButton />;
+	}
+
+	return <div>Welcome! You're signed in.</div>;
+}
+```
+
+The `useAuth` hook provides:
+
+- `isAuthenticated` - Boolean indicating if user is authenticated
+- `authLoading` - Boolean indicating if auth is still loading
+- `authHeader` - The current auth header value
+- `setAuthHeader` - Function to update auth header (used internally by auth providers)
+- `setAuthLoading` - Function to update loading state (used internally by auth providers)
 
 ### Protected Route Example
 
@@ -49,7 +80,7 @@ CLERK_SECRET_KEY=sk_test_...
 import { createMiddleware } from '@agentuity/auth/clerk';
 
 router.get('/api/profile', createMiddleware(), async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 	return c.json({
 		id: user.id,
 		email: user.email,
@@ -59,7 +90,7 @@ router.get('/api/profile', createMiddleware(), async (c) => {
 
 // Access Clerk-specific fields via user.raw
 router.get('/api/user/metadata', createMiddleware(), async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 	return c.json({
 		metadata: user.raw.publicMetadata,
 		imageUrl: user.raw.imageUrl,
@@ -190,7 +221,7 @@ router.get('/public', async (c) => {
 
 // Protected route
 router.post('/', createMiddleware(), myAgent.validator(), async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 	const data = c.req.valid('json');
 	const result = await myAgent.run(data);
 	return c.json({ user: user.email, result });
