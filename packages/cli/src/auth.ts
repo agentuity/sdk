@@ -268,6 +268,12 @@ export async function optionalOrg(
 		return undefined;
 	}
 
+	// Skip org selection if --no-register is explicitly set (e.g., create command)
+	// Type assertion: register is a command-specific option not in GlobalOptions
+	if ('register' in options && (options as { register?: boolean }).register === false) {
+		return undefined;
+	}
+
 	// Check if org is provided via --org-id flag
 	if (options.orgId) {
 		return options.orgId;
