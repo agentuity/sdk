@@ -8,7 +8,6 @@ import { build as viteBuild, type InlineConfig } from 'vite';
 import { join } from 'node:path';
 import react from '@vitejs/plugin-react';
 import type { Logger } from '../../../types';
-import { generateViteConfig } from './vite-config-generator';
 import { patchPlugin } from './patch-plugin';
 import { browserEnvPlugin } from './browser-env-plugin';
 
@@ -30,39 +29,34 @@ export interface ViteBuildOptions {
  * Generates vite config in .agentuity/.vite/ and uses it
  */
 export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
-	const {
-		rootDir,
-		mode,
-		dev = false,
-		projectId = '',
-		orgId = '',
-		deploymentId = '',
-		logger,
-	} = options;
+	const { rootDir, mode, dev = false, projectId = '', deploymentId = '', logger } = options;
 
 	logger.debug(`Running Vite build for mode: ${mode}`);
 
-	// For server mode, generate the vite config file and build
+	// For server mode, use Bun.build (preserves process.env at runtime)
 	if (mode === 'server') {
-		const configPath = await generateViteConfig({
-			rootDir,
-			dev,
-			projectId,
-			orgId,
-			deploymentId,
-			logger,
-		});
+		try {
+			// First, generate the entry file
+			const { generateEntryFile } = await import('../entry-generator');
+			await generateEntryFile({
+				rootDir,
+				projectId: projectId || '',
+				deploymentId: deploymentId || '',
+				logger,
+				mode: dev ? 'dev' : 'prod',
+			});
 
-		// Build using the generated config file
-		const buildMode = dev ? 'development' : 'production';
-		await viteBuild({
-			root: rootDir,
-			configFile: configPath,
-			mode: buildMode,
-			logLevel: 'warn',
-		});
-
-		logger.debug(`Vite build complete for mode: ${mode}`);
+			// Then, build with Bun.build
+			const { installExternalsAndBuild } = await import('./server-bundler');
+			await installExternalsAndBuild({
+				rootDir,
+				dev,
+				logger,
+			});
+		} catch (error) {
+			logger.error('server-bundler import or execution failed:', error);
+			throw error;
+		}
 		return;
 	}
 
@@ -178,12 +172,17 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 1. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
 		logger.info('Building client assets...');
-		await runViteBuild({
-			...options,
-			mode: 'client',
-			workbenchEnabled: workbenchConfig.enabled,
-			workbenchRoute: workbenchConfig.route,
-		});
+		try {
+			await runViteBuild({
+				...options,
+				mode: 'client',
+				workbenchEnabled: workbenchConfig.enabled,
+				workbenchRoute: workbenchConfig.route,
+			});
+		} catch (error) {
+			logger.error('Client build failed:', error);
+			throw error;
+		}
 	} else {
 		logger.debug('Skipping client build - no src/web/index.html found');
 	}
@@ -201,7 +200,12 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 
 	// 3. Build server
 	logger.info('Building server...');
-	await runViteBuild({ ...options, mode: 'server' });
+	try {
+		await runViteBuild({ ...options, mode: 'server' });
+	} catch (error) {
+		logger.error('Server build failed:', error);
+		throw error;
+	}
 
 	logger.info('All builds complete');
 }
