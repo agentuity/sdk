@@ -33,8 +33,9 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	let paused = false;
 	let buildCooldownTimer: NodeJS.Timeout | null = null;
 
-	// Directories to watch (relative to rootDir)
-	const watchDirs = ['src', 'app.ts', ...(additionalPaths || [])];
+	// Watch the entire root directory recursively
+	// This is simpler and more reliable than watching individual paths
+	const watchDirs = [rootDir];
 
 	// Directories to ignore
 	const ignorePaths = [
@@ -76,6 +77,15 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 				absPath.startsWith(`${ignoreAbsPath}\\`)
 			) {
 				logger.trace('File change ignored (%s): %s', ignorePath, changedFile);
+				return true;
+			}
+
+			// Also check if changedFile path includes the ignore pattern anywhere
+			// This handles cases like "some/path/.agentuity/file.js"
+			const normalizedChanged = changedFile.replace(/\\/g, '/');
+			const normalizedIgnore = ignorePath.replace(/\\/g, '/');
+			if (normalizedChanged.includes(`/${normalizedIgnore}/`) || normalizedChanged.includes(`/${normalizedIgnore}`)) {
+				logger.trace('File change ignored (%s in path): %s', ignorePath, changedFile);
 				return true;
 			}
 		}
@@ -124,20 +134,38 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	function start() {
 		logger.debug('Starting file watchers for hot reload...');
 
+		// Watch root directory (already absolute path)
 		for (const watchPath of watchDirs) {
-			const fullPath = resolve(rootDir, watchPath);
-
 			try {
-				logger.trace('Setting up watcher for: %s', fullPath);
+				logger.trace('Setting up watcher for: %s', watchPath);
 
-				const watcher = watch(fullPath, { recursive: true }, (eventType, changedFile) => {
-					handleFileChange(eventType, changedFile, fullPath);
+				const watcher = watch(watchPath, { recursive: true }, (eventType, changedFile) => {
+					handleFileChange(eventType, changedFile, watchPath);
 				});
 
 				watchers.push(watcher);
-				logger.trace('Watcher started for: %s', fullPath);
+				logger.trace('Watcher started for: %s', watchPath);
 			} catch (error) {
-				logger.warn('Failed to start watcher for %s: %s', fullPath, error);
+				logger.warn('Failed to start watcher for %s: %s', watchPath, error);
+			}
+		}
+
+		// Watch additional paths if provided
+		if (additionalPaths && additionalPaths.length > 0) {
+			for (const additionalPath of additionalPaths) {
+				const fullPath = resolve(rootDir, additionalPath);
+				try {
+					logger.trace('Setting up watcher for additional path: %s', fullPath);
+
+					const watcher = watch(fullPath, { recursive: true }, (eventType, changedFile) => {
+						handleFileChange(eventType, changedFile, fullPath);
+					});
+
+					watchers.push(watcher);
+					logger.trace('Watcher started for additional path: %s', fullPath);
+				} catch (error) {
+					logger.warn('Failed to start watcher for %s: %s', fullPath, error);
+				}
 			}
 		}
 

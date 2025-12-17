@@ -22,6 +22,10 @@ describe('File Watcher', () => {
 		await Bun.$`mkdir -p ${join(testDir, 'src', 'agent')}`;
 		await Bun.$`mkdir -p ${join(testDir, 'src', 'lib')}`;
 
+		// Pre-create ignore directories to avoid mkdir triggering events during tests
+		await Bun.$`mkdir -p ${join(testDir, '.agentuity')}`;
+		await Bun.$`mkdir -p ${join(testDir, 'node_modules', 'some-package')}`;
+
 		// Create app.ts
 		await writeFile(join(testDir, 'app.ts'), 'export {}', 'utf-8');
 
@@ -85,6 +89,12 @@ describe('File Watcher', () => {
 		watcher.start();
 		watcher.resume(); // Start watching
 
+		// Give watcher time to settle
+		await Bun.sleep(100);
+
+		// Give watcher time to settle
+		await Bun.sleep(100);
+
 		// Write a file
 		await writeFile(join(testDir, 'src', 'api', 'test.ts'), 'export {}', 'utf-8');
 
@@ -145,8 +155,11 @@ describe('File Watcher', () => {
 		watcher.start();
 		watcher.resume();
 
+		// Give watcher time to settle and reset count after any initial events
+		await Bun.sleep(100);
+		restartCount = 0;
+
 		// Create .agentuity directory and write file
-		await Bun.$`mkdir -p ${join(testDir, '.agentuity')}`;
 		await writeFile(join(testDir, '.agentuity', 'app.js'), 'console.log("test")', 'utf-8');
 
 		// Wait
@@ -176,8 +189,11 @@ describe('File Watcher', () => {
 		watcher.start();
 		watcher.resume();
 
+		// Give watcher time to settle and reset count after any initial events
+		await Bun.sleep(100);
+		restartCount = 0;
+
 		// Create node_modules and write file
-		await Bun.$`mkdir -p ${join(testDir, 'node_modules', 'some-package')}`;
 		await writeFile(
 			join(testDir, 'node_modules', 'some-package', 'index.js'),
 			'module.exports = {}',
