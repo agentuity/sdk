@@ -169,7 +169,7 @@ jobs:
               esac
               
               PLATFORM="${OS}-${ARCH}"
-              BINARY="./dist/bin/agentuity-${PLATFORM}"
+              BINARY="$(pwd)/dist/bin/agentuity-${PLATFORM}"
               
               echo "=== Testing bundled create command ==="
               echo "Binary: $BINARY"
