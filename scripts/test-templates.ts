@@ -322,7 +322,7 @@ async function installDependencies(
 		['bun', 'add', '--no-save', ...tarballPaths],
 		projectDir,
 		undefined,
-		120000
+		300000 // Increased timeout to 5 minutes for cache-cleared installs
 	);
 	if (!addResult.success) {
 		return { success: false, error: addResult.stderr };
