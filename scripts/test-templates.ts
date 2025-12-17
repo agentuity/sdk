@@ -403,7 +403,7 @@ async function verifyCssInBuild(projectDir: string): Promise<{ success: boolean;
 		return { success: false, error: 'No CSS files found in assets directory' };
 	}
 
-	const cssFiles = assetsResult.stdout.trim().split('\n');
+	const cssFiles = assetsResult.stdout.trim().split('\n').filter(Boolean);
 	if (cssFiles.length === 0) {
 		return { success: false, error: 'No CSS files generated' };
 	}
