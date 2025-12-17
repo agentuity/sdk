@@ -67,7 +67,7 @@ const router = createRouter();
 
 // Protected route
 router.get('/profile', createMiddleware(), async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 	return c.json({
 		id: user.id,
 		name: user.name,
@@ -126,7 +126,7 @@ import { createMiddleware } from '@agentuity/auth/clerk';
 
 // Protect a single route
 router.post('/admin', createMiddleware(), async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 	return c.json({ admin: true, userId: user.id });
 });
 ```
@@ -138,7 +138,7 @@ router.post('/admin', createMiddleware(), async (c) => {
 router.use('/api/*', createMiddleware());
 
 router.get('/api/profile', async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 	return c.json({ email: user.email });
 });
 ```
@@ -147,7 +147,7 @@ router.get('/api/profile', async (c) => {
 
 ```typescript
 router.get('/profile', createMiddleware(), async (c) => {
-	const user = await c.var.auth.requireUser();
+	const user = await c.var.auth.getUser();
 
 	// Access generic fields
 	console.log(user.id, user.email, user.name);
@@ -273,7 +273,7 @@ Generic authentication interface exposed on Hono context.
 
 ```typescript
 interface AgentuityAuth<TUser = unknown, TRaw = unknown> {
-	requireUser(): Promise<AgentuityAuthUser<TUser>>;
+	getUser(): Promise<AgentuityAuthUser<TUser>>;
 	getToken(): Promise<string | null>;
 	raw: TRaw; // Provider-specific auth object (e.g., JWT payload)
 }

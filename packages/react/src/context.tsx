@@ -15,10 +15,8 @@ export interface AgentuityContextValue {
 	setAuthLoading?: (loading: boolean) => void;
 }
 
-export const AgentuityContext: Context<AgentuityContextValue> =
-	createContext<AgentuityContextValue>({
-		baseUrl: '',
-	});
+export const AgentuityContext: Context<AgentuityContextValue | null> =
+	createContext<AgentuityContextValue | null>(null);
 
 export const AgentuityProvider = ({ baseUrl, children }: ContextProviderArgs): ReactElement => {
 	const [authHeader, setAuthHeader] = useState<string | null>(null);
@@ -51,7 +49,7 @@ export interface AgentuityHookValue {
  */
 export function useAgentuity(): AgentuityHookValue {
 	const context = useContext(AgentuityContext);
-	if (!context) {
+	if (!context || !context.baseUrl) {
 		throw new Error('useAgentuity must be used within AgentuityProvider');
 	}
 
@@ -75,12 +73,12 @@ export interface AuthContextValue {
  */
 export function useAuth(): AuthContextValue {
 	const context = useContext(AgentuityContext);
-	if (!context) {
+	if (!context || !context.baseUrl) {
 		throw new Error('useAuth must be used within AgentuityProvider');
 	}
 
 	// Convenience property: authenticated = has token and not loading
-	const isAuthenticated = !context.authLoading && context.authHeader !== null;
+	const isAuthenticated = !context.authLoading && !!context.authHeader;
 
 	return {
 		authHeader: context.authHeader,
