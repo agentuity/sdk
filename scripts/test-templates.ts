@@ -377,6 +377,55 @@ async function buildProject(projectDir: string): Promise<{ success: boolean; err
 	return { success: true };
 }
 
+async function verifyCssInBuild(projectDir: string): Promise<{ success: boolean; error?: string }> {
+	const clientDir = join(projectDir, '.agentuity', 'client');
+	const indexHtmlPath = join(clientDir, 'index.html');
+
+	// Check if index.html exists
+	if (!existsSync(indexHtmlPath)) {
+		return { success: false, error: 'Built index.html not found' };
+	}
+
+	// Read index.html and verify CSS link exists
+	const indexHtml = readFileSync(indexHtmlPath, 'utf-8');
+	if (!indexHtml.includes('<link rel="stylesheet"')) {
+		return { success: false, error: 'No CSS stylesheet link found in built index.html' };
+	}
+
+	// Find CSS files in assets directory
+	const assetsDir = join(clientDir, 'assets');
+	if (!existsSync(assetsDir)) {
+		return { success: false, error: 'Assets directory not found' };
+	}
+
+	const assetsResult = await runCommand(['find', assetsDir, '-name', '*.css'], projectDir);
+	if (!assetsResult.success || !assetsResult.stdout.trim()) {
+		return { success: false, error: 'No CSS files found in assets directory' };
+	}
+
+	const cssFiles = assetsResult.stdout.trim().split('\n');
+	if (cssFiles.length === 0) {
+		return { success: false, error: 'No CSS files generated' };
+	}
+
+	// Verify at least one CSS file contains Tailwind classes
+	let foundTailwindClasses = false;
+	for (const cssFile of cssFiles) {
+		const cssContent = readFileSync(cssFile, 'utf-8');
+		// Check for common Tailwind patterns (theme layer, utility classes)
+		if (cssContent.includes('@layer') || cssContent.includes('.flex{') || cssContent.includes('.bg-')) {
+			foundTailwindClasses = true;
+			break;
+		}
+	}
+
+	if (!foundTailwindClasses) {
+		return { success: false, error: 'CSS files do not contain Tailwind classes' };
+	}
+
+	return { success: true };
+}
+
 async function typecheckProject(projectDir: string): Promise<{ success: boolean; error?: string }> {
 	const result = await runCommand(['bunx', 'tsc', '--noEmit'], projectDir, undefined, 60000);
 	if (!result.success) {
@@ -538,6 +587,25 @@ async function testTemplate(
 			return result;
 		}
 		logSuccess('Project built');
+
+		// Step 3.5: Verify CSS for Tailwind template
+		if (template.id === 'tailwind') {
+			logStep('Verifying Tailwind CSS in build output...');
+			stepStart = Date.now();
+			const cssVerifyResult = await verifyCssInBuild(projectDir);
+			result.steps.push({
+				name: 'Verify CSS in build',
+				passed: cssVerifyResult.success,
+				error: cssVerifyResult.error,
+				duration: Date.now() - stepStart,
+			});
+			if (!cssVerifyResult.success) {
+				result.passed = false;
+				logError(`CSS verification failed: ${cssVerifyResult.error}`);
+				return result;
+			}
+			logSuccess('Tailwind CSS verified in build output');
+		}
 
 		// Step 3.5: Prepare environment variables (passed via spawn, Bun auto-loads .env)
 		const envVars: Record<string, string> = {
