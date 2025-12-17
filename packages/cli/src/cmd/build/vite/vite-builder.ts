@@ -211,17 +211,18 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 4. Generate registry and metadata (after all builds complete)
 	logger.debug('Generating agent registry and metadata...');
 	const { generateMetadata, writeMetadataFile } = await import('./metadata-generator');
-	const { generateAgentRegistry } = await import('./registry-generator');
+	const { generateAgentRegistry, generateRouteRegistry } = await import('./registry-generator');
 	const { discoverAgents } = await import('./agent-discovery');
 	const { discoverRoutes } = await import('./route-discovery');
 
 	const srcDir = join(rootDir, 'src');
 	const agentMetadata = await discoverAgents(srcDir, projectId, options.deploymentId || '', logger);
-	const { routes } = await discoverRoutes(srcDir, projectId, options.deploymentId || '', logger);
+	const { routes, routeInfoList } = await discoverRoutes(srcDir, projectId, options.deploymentId || '', logger);
 
-	// Generate agent registry for type augmentation
+	// Generate agent and route registries for type augmentation
 	generateAgentRegistry(srcDir, agentMetadata);
-	logger.debug('Agent registry generated');
+	generateRouteRegistry(srcDir, routeInfoList);
+	logger.debug('Agent and route registries generated');
 
 	// Generate metadata
 	const metadata = await generateMetadata({
