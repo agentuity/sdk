@@ -1,12 +1,12 @@
 import { SignInButton, SignOutButton, useUser } from '@clerk/clerk-react';
-import { useAPI, useAgentuity } from '@agentuity/react';
+import { useAPI, useAuth } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 
 export function App() {
 	const { user } = useUser();
-	const { authLoading, isAuthenticated } = useAgentuity();
+	const { authLoading, isAuthenticated } = useAuth();
 	const [name, setName] = useState('World');
 	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
 
