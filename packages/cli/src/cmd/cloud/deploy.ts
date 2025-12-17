@@ -202,6 +202,7 @@ export const deploySubcommand = createSubcommand({
 									deploymentId: deployment.id,
 									orgId: deployment.orgId,
 									projectId: project.projectId,
+									region: project.region,
 									logger: ctx.logger,
 								});
 								capturedOutput = bundleResult.output;
