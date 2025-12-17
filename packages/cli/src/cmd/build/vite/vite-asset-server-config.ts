@@ -6,8 +6,8 @@
  */
 
 import { join } from 'node:path';
-import type { Logger } from '../../../types';
 import type { InlineConfig } from 'vite';
+import type { Logger } from '../../../types';
 
 export interface GenerateAssetServerConfigOptions {
 	rootDir: string;

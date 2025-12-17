@@ -5,7 +5,7 @@
  * Does NOT handle API routes or WebSocket - the Bun server proxies to this.
  */
 
-import { createServer, type ViteDevServer } from 'vite';
+import type { ViteDevServer } from 'vite';
 import type { Logger } from '../../../types';
 import { generateAssetServerConfig } from './vite-asset-server-config';
 
@@ -42,6 +42,9 @@ export async function startViteAssetServer(
 		workbenchPath,
 		port: preferredPort,
 	});
+
+	// Dynamically import vite
+	const { createServer } = await import('vite');
 
 	// Create Vite server with config
 	const server = await createServer(config);

@@ -36,6 +36,7 @@
 		"test:response-schema": "bun scripts/test-response-schema.ts",
 		"test:batch": "bun scripts/test-batch-reporting.ts",
 		"test:envelope": "bun scripts/test-response-envelope.ts",
+		"test:bundled-create": "bun scripts/test-bundled-create.ts",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
