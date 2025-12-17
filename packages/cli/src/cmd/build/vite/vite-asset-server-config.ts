@@ -24,6 +24,17 @@ export async function generateAssetServerConfig(
 ): Promise<InlineConfig> {
 	const { rootDir, logger, workbenchPath, port } = options;
 
+	// Load custom user config for define values
+	const { loadAgentuityConfig } = await import('./config-loader');
+	const userConfig = await loadAgentuityConfig(rootDir, logger);
+	const userDefine = userConfig?.define || {};
+	if (Object.keys(userDefine).length > 0) {
+		logger.debug(
+			'Loaded %d custom define(s) from agentuity.config.ts',
+			Object.keys(userDefine).length
+		);
+	}
+
 	// Load path aliases from tsconfig.json if available
 	const tsconfigPath = join(rootDir, 'tsconfig.json');
 	let alias = {};
@@ -82,6 +93,9 @@ export async function generateAssetServerConfig(
 
 		// Define environment variables for browser
 		define: {
+			// Merge user-defined constants first
+			...userDefine,
+			// Then add default defines (these will override any user-defined protected keys)
 			...(workbenchPath
 				? { 'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': JSON.stringify(workbenchPath) }
 				: {}),

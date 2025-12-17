@@ -85,6 +85,15 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
 		}
 
+		// Merge custom define values from user config
+		const userDefine = userConfig?.define || {};
+		if (Object.keys(userDefine).length > 0) {
+			logger.debug(
+				'Loaded %d custom define(s) from agentuity.config.ts',
+				Object.keys(userDefine).length
+			);
+		}
+
 		// Determine CDN base URL for production builds
 		const isLocalRegion = options.region === 'local';
 		const cdnBaseUrl =
@@ -99,6 +108,9 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			publicDir: join(rootDir, 'src', 'web', 'public'),
 			base: cdnBaseUrl, // CDN URL for production assets
 			define: {
+				// Merge user-defined constants first
+				...userDefine,
+				// Then add default defines (these will override any user-defined protected keys)
 				// Set workbench path if enabled (use import.meta.env for client code)
 				'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': workbenchEnabled
 					? JSON.stringify(workbenchRoute)
@@ -121,11 +133,26 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		// Ensure route ends with / for Vite base
 		const base = workbenchRoute.endsWith('/') ? workbenchRoute : `${workbenchRoute}/`;
 
+		// Load custom user config for define values (same as client mode)
+		const { loadAgentuityConfig } = await import('./config-loader');
+		const userConfig = await loadAgentuityConfig(rootDir, logger);
+		const userDefine = userConfig?.define || {};
+		if (Object.keys(userDefine).length > 0) {
+			logger.debug(
+				'Loaded %d custom define(s) from agentuity.config.ts for workbench',
+				Object.keys(userDefine).length
+			);
+		}
+
 		viteConfig = {
 			root: join(rootDir, '.agentuity/workbench-src'), // Use generated workbench source
 			base, // All workbench assets are under the configured route
 			plugins: [react(), patchPlugin({ logger, dev })],
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
+			define: {
+				// Merge user-defined constants
+				...userDefine,
+			},
 			build: {
 				outDir: join(rootDir, '.agentuity/workbench'),
 				rollupOptions: {

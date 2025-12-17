@@ -137,6 +137,12 @@ export interface AgentuityConfig {
 	 * These are added AFTER Agentuity's built-in plugins
 	 */
 	plugins?: Array<import('vite').Plugin>;
+	/**
+	 * Additional define constants for code replacement in Vite builds
+	 * These are merged with Agentuity's default defines
+	 * Note: Cannot override AGENTUITY_PUBLIC_* or process.env.NODE_ENV
+	 */
+	define?: Record<string, string>;
 }
 
 /**
