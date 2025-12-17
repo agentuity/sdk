@@ -159,7 +159,7 @@ jobs:
               set -eou pipefail
               cd packages/cli
               
-              # Binary was already built in previous step (uncompressed)
+              # Rebuild executable to include latest code changes (e.g., auth.ts fix)
               OS=$(uname -s | tr '[:upper:]' '[:lower:]')
               ARCH=$(uname -m)
               
@@ -169,6 +169,10 @@ jobs:
               esac
               
               PLATFORM="${OS}-${ARCH}"
+              
+              echo "=== Rebuilding executable with latest changes ==="
+              ./scripts/build-executables.ts --skip-sign --platform="$PLATFORM"
+              
               BINARY="$(pwd)/dist/bin/agentuity-${PLATFORM}"
               
               echo "=== Testing bundled create command ==="
