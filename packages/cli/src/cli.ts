@@ -20,7 +20,7 @@ import enquirer from 'enquirer';
 import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
 import { defaultProfileName, loadProjectConfig } from './config';
-import { APIClient, getAPIBaseURL, type APIClient as APIClientType } from './api';
+import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
 import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
 import { getCommand } from './command-prefix';
 import { isValidateMode, outputValidation, type ValidationResult } from './output';
@@ -55,6 +55,38 @@ function createAPIClient(baseCtx: CommandContext, config: Config | null): APICli
 	}
 }
 
+type WebUrlSpec = string | ((ctx: CommandContext) => string | undefined | null);
+
+function resolveWebUrl(ctx: CommandContext, spec?: WebUrlSpec): string | undefined {
+	if (!spec) return undefined;
+
+	const raw = typeof spec === 'function' ? spec(ctx) : spec;
+	if (!raw) return undefined;
+
+	if (raw.startsWith('http://') || raw.startsWith('https://')) {
+		return raw;
+	}
+
+	const appBase = getAppBaseURL(ctx.config ?? null).replace(/\/$/, '');
+	const path = raw.startsWith('/') ? raw : `/${raw}`;
+	return `${appBase}${path}`;
+}
+
+function maybeRenderWebLink(ctx: CommandContext, spec?: WebUrlSpec): void {
+	if (ctx.options.json) return;
+	if (isValidateMode(ctx.options)) return;
+
+	const url = resolveWebUrl(ctx, spec);
+	if (!url) return;
+
+	if (tui.supportsHyperlinks()) {
+		tui.output(tui.muted(`→ ${tui.link(url, 'View on the web', '')}`));
+	} else {
+		tui.output(tui.muted(`→ View on the web: ${url}`));
+	}
+	tui.newline();
+}
+
 /**
  * Execute handler or output validation result based on mode
  */
@@ -62,7 +94,8 @@ async function executeOrValidate(
 	ctx: CommandContext,
 	commandName: string,
 	handler?: (ctx: CommandContext) => unknown | Promise<unknown>,
-	hasResponseSchema?: boolean
+	hasResponseSchema?: boolean,
+	webUrl?: WebUrlSpec
 ): Promise<void> {
 	if (isValidateMode(ctx.options)) {
 		// In validate mode, just output success (validation already passed via Zod)
@@ -72,6 +105,9 @@ async function executeOrValidate(
 		};
 		outputValidation(result, ctx.options);
 	} else if (handler) {
+		// Render "View on the web" link before normal execution
+		maybeRenderWebLink(ctx, webUrl);
+
 		// Normal execution
 		const result = await handler(ctx);
 
@@ -835,7 +871,8 @@ async function registerSubcommand(
 						ctx as CommandContext,
 						`${parent.name()} ${subcommand.name}`,
 						subcommand.handler,
-						!!subcommand.schema?.response
+						!!subcommand.schema?.response,
+						subcommand.webUrl
 					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
@@ -898,6 +935,7 @@ async function registerSubcommand(
 					}
 				}
 				if (subcommand.handler) {
+					maybeRenderWebLink(ctx as CommandContext, subcommand.webUrl);
 					const result = await subcommand.handler(ctx as CommandContext);
 
 					// If --json flag is set
@@ -1012,7 +1050,8 @@ async function registerSubcommand(
 						ctx as CommandContext,
 						`${parent.name()} ${subcommand.name}`,
 						subcommand.handler,
-						!!subcommand.schema?.response
+						!!subcommand.schema?.response,
+						subcommand.webUrl
 					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
@@ -1071,6 +1110,7 @@ async function registerSubcommand(
 					}
 				}
 				if (subcommand.handler) {
+					maybeRenderWebLink(ctx as CommandContext, subcommand.webUrl);
 					const result = await subcommand.handler(ctx as CommandContext);
 
 					// If --json flag is set
@@ -1135,7 +1175,8 @@ async function registerSubcommand(
 						ctx as CommandContext,
 						`${parent.name()} ${subcommand.name}`,
 						subcommand.handler,
-						!!subcommand.schema?.response
+						!!subcommand.schema?.response,
+						subcommand.webUrl
 					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
@@ -1181,6 +1222,7 @@ async function registerSubcommand(
 					}
 				}
 				if (subcommand.handler) {
+					maybeRenderWebLink(ctx as CommandContext, subcommand.webUrl);
 					const result = await subcommand.handler(ctx as CommandContext);
 
 					// If --json flag is set

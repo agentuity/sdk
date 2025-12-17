@@ -27,6 +27,7 @@ export const getSubcommand = createCommand({
 		}),
 		response: KVGetResponseSchema,
 	},
+	webUrl: (ctx) => `/services/kv/${ctx.args.namespace}`,
 	idempotent: true,
 
 	async handler(ctx) {

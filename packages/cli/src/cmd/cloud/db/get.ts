@@ -63,6 +63,7 @@ export const getSubcommand = createSubcommand({
 		}),
 		response: DBGetResponseSchema,
 	},
+	webUrl: (ctx) => `/services/database/${ctx.args.name}`,
 
 	async handler(ctx) {
 		const { logger, args, opts, options, orgId, region, auth } = ctx;

@@ -24,6 +24,7 @@ export const listSubcommand = createSubcommand({
 		}),
 		response: z.array(AgentSchema),
 	},
+	webUrl: (ctx) => `/projects/${ctx.project.projectId}/agents`,
 	async handler(ctx) {
 		const { opts, apiClient, project, options } = ctx;
 		const projectId = project.projectId;

@@ -39,6 +39,7 @@ export const getSubcommand = createCommand({
 		}),
 		response: VectorGetResponseSchema,
 	},
+	webUrl: (ctx) => `/services/vector/${ctx.args.namespace}`,
 
 	async handler(ctx) {
 		const { args, options } = ctx;

@@ -19,6 +19,7 @@ export const listNamespacesSubcommand = createCommand({
 	schema: {
 		response: NamespaceListResponseSchema,
 	},
+	webUrl: '/services/kv',
 	idempotent: true,
 
 	async handler(ctx) {

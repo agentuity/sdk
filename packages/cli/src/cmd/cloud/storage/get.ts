@@ -49,6 +49,7 @@ export const getSubcommand = createSubcommand({
 		}),
 		response: StorageGetResponseSchema,
 	},
+	webUrl: (ctx) => `/services/storage/${ctx.args.name}`,
 
 	async handler(ctx) {
 		const { logger, args, opts, options, orgId, region, auth } = ctx;

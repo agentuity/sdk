@@ -46,6 +46,7 @@ export const getSubcommand = createCommand({
 		}),
 		response: GetStreamResponseSchema,
 	},
+	webUrl: (ctx) => `/services/stream/${ctx.args.id}`,
 
 	async handler(ctx) {
 		const { args, opts, options } = ctx;

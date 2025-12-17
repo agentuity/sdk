@@ -60,6 +60,10 @@ export const listSubcommand = createSubcommand({
 		}),
 		response: DeploymentListResponseSchema,
 	},
+	webUrl: (ctx) => {
+		const projectId = ctx.opts?.['project-id'] || ctx.project?.projectId;
+		return projectId ? `/projects/${projectId}/deployments` : undefined;
+	},
 	async handler(ctx) {
 		const projectId = resolveProjectId(ctx, { projectId: ctx.opts['project-id'] });
 		const { apiClient, opts, options } = ctx;

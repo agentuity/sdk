@@ -44,6 +44,7 @@ export const listSubcommand = createSubcommand({
 		}),
 		response: DBListResponseSchema,
 	},
+	webUrl: '/services/database',
 
 	async handler(ctx) {
 		const { logger, opts, options, orgId, region, auth } = ctx;

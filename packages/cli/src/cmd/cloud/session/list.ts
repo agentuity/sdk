@@ -88,6 +88,10 @@ export const listSubcommand = createSubcommand({
 		}),
 		response: SessionListResponseSchema,
 	},
+	webUrl: (ctx) => {
+		const projectId = ctx.opts?.projectId || ctx.project?.projectId;
+		return projectId ? `/projects/${projectId}/sessions` : undefined;
+	},
 	async handler(ctx) {
 		const { logger, auth, project, opts, options, region } = ctx;
 		const catalystClient = getCatalystAPIClient(logger, auth, region);
