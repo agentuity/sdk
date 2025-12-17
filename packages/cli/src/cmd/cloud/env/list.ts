@@ -29,6 +29,7 @@ export const listSubcommand = createSubcommand({
 		}),
 		response: EnvListResponseSchema,
 	},
+	webUrl: (ctx) => `/projects/${encodeURIComponent(ctx.project.projectId)}/settings`,
 
 	async handler(ctx) {
 		const { opts, apiClient, project, options } = ctx;

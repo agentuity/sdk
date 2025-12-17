@@ -127,7 +127,9 @@ function expandTilde(path: string): string {
 let cachedConfig: Config | null | undefined;
 
 export async function loadConfig(customPath?: string): Promise<Config | null> {
-	if (cachedConfig !== undefined) {
+	// Don't use cache when explicitly loading a specific file path
+	// This prevents new profiles from inheriting cached config from current profile
+	if (cachedConfig !== undefined && !customPath) {
 		return cachedConfig;
 	}
 	const configPath = customPath ? expandTilde(customPath) : await getProfile();
@@ -187,17 +189,23 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 				overrides.stream_url = process.env.AGENTUITY_STREAM_URL;
 			}
 			result.data.overrides = overrides;
-		}
+			}
 
-		cachedConfig = result.data;
-		return result.data;
-	} catch (error) {
-		if (error instanceof Error) {
-			console.error(`Error loading config from ${configPath}:`, error.message);
-		}
-		cachedConfig = null;
-		return null;
-	}
+			// Only cache the default profile, not custom path loads
+			// This prevents explicit loads from overwriting the cached default profile
+			if (!customPath) {
+			cachedConfig = result.data;
+			}
+			return result.data;
+			} catch (error) {
+			tui.error(`Error loading config from ${configPath}: ${error}`);
+			
+			// Only update cache on error if loading default profile
+			if (!customPath) {
+				cachedConfig = null;
+			}
+			return null;
+			}
 }
 
 function formatYAML(obj: unknown, indent = 0): string {
@@ -250,7 +258,11 @@ export async function saveConfig(config: Config, customPath?: string): Promise<v
 	await writeFile(configPath, content + '\n', { mode: 0o600 });
 	// Ensure existing files get correct permissions on upgrade
 	await chmod(configPath, 0o600);
-	cachedConfig = config;
+	
+	// Only cache the default profile, not custom path saves
+	if (!customPath) {
+		cachedConfig = config;
+	}
 }
 
 export async function getOrInitConfig(): Promise<Config> {
@@ -428,10 +440,14 @@ export function generateYAMLTemplate(name: string): string {
 
 		const schema = value as z.ZodTypeAny;
 
-		// Unwrap optional to get to the inner schema
+		// Unwrap optional and nullable to get to the inner schema
+		// Note: .optional().nullable() creates ZodNullable(ZodOptional(ZodObject))
 		let innerSchema = schema;
-		if (schema instanceof z.ZodOptional) {
-			innerSchema = (schema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
+		if (innerSchema instanceof z.ZodNullable) {
+			innerSchema = (innerSchema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
+		}
+		if (innerSchema instanceof z.ZodOptional) {
+			innerSchema = (innerSchema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
 		}
 
 		const description = getSchemaDescription(schema);

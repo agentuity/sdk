@@ -402,16 +402,18 @@ check_version() {
       return
     fi
 
-    installed_version=v$(agentuity version 2>/dev/null || echo "unknown")
+    installed_version=$(agentuity version 2>/dev/null || echo "unknown")
+    # Normalize for comparison (strip 'v' prefix from specific_version)
+    normalized_specific=$(echo "$specific_version" | sed 's/^v//')
 
-    if [ "$installed_version" != "$specific_version" ] && [ "$installed_version" != "unknown" ]; then
+    if [ "$installed_version" != "$normalized_specific" ] && [ "$installed_version" != "unknown" ]; then
       print_message info "${MUTED}Installed version: ${NC}$installed_version."
-    elif [ "$installed_version" = "$specific_version" ]; then
+    elif [ "$installed_version" = "$normalized_specific" ]; then
       if [ "$force_install" = false ]; then
-        print_message info "${MUTED}Version ${NC}$specific_version${MUTED} already installed"
+        print_message info "${MUTED}Version ${NC}$normalized_specific${MUTED} already installed"
         exit 0
       else
-        print_message info "${MUTED}Force reinstalling version ${NC}$specific_version"
+        print_message info "${MUTED}Force reinstalling version ${NC}$normalized_specific"
       fi
     fi
   fi
@@ -684,7 +686,9 @@ download_with_progress() {
 }
 
 download_and_install() {
-  print_message info "\n${MUTED}Installing ${NC}agentuity ${MUTED}version: ${NC}$specific_version"
+  # Strip 'v' prefix for display
+  display_version=$(echo "$specific_version" | sed 's/^v//')
+  print_message info "\n${MUTED}Installing ${NC}agentuity ${MUTED}version: ${NC}$display_version"
   tmpdir=$(mktemp -d 2>/dev/null || mktemp -d -t tmp)
 
   # Ensure cleanup on exit or interrupt

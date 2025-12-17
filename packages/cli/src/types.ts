@@ -337,6 +337,13 @@ export type CommandContext<
 	Op extends z.ZodType | undefined = undefined,
 > = CommandContextFromSpecs<R, O, A, Op>;
 
+export type WebUrl<
+	R extends Requires | undefined = undefined,
+	O extends Optional | undefined = undefined,
+	A extends z.ZodType | undefined = undefined,
+	Op extends z.ZodType | undefined = undefined,
+> = string | ((ctx: CommandContext<R, O, A, Op>) => string | undefined | null);
+
 export function createSubcommand<
 	R extends Requires | undefined = undefined,
 	O extends Optional | undefined = undefined,
@@ -356,6 +363,7 @@ export function createSubcommand<
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
 	tags?: string[];
+	webUrl?: WebUrl<R, O, A, Op>;
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
@@ -399,6 +407,7 @@ export function createCommand<
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
 	tags?: string[];
+	webUrl?: WebUrl<R, O, A, Op>;
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
@@ -436,6 +445,7 @@ type CommandDefBase =
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
 	  }
@@ -452,6 +462,7 @@ type CommandDefBase =
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];
 	  };
@@ -469,6 +480,7 @@ type SubcommandDefBase =
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
 	  }
@@ -484,6 +496,7 @@ type SubcommandDefBase =
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];
 	  };

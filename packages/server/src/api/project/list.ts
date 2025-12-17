@@ -9,6 +9,7 @@ const ProjectListResponse = z.array(
 		description: z.string().optional().describe('the project description'),
 		orgId: z.string().describe('the organization id that this project is registered with'),
 		orgName: z.string().describe('the organization name'),
+		cloudRegion: z.string().nullable().optional().describe('the cloud region'),
 		latestDeploymentId: z.string().nullable().describe('the latest deployment id'),
 	})
 );

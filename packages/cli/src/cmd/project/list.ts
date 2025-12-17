@@ -31,6 +31,7 @@ export const listSubcommand = createSubcommand({
 			description: 'Alias for "project list" — list projects (human-readable)',
 		},
 	],
+	webUrl: '/projects',
 
 	async handler(ctx) {
 		const { apiClient, options } = ctx;

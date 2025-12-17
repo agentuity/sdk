@@ -66,6 +66,7 @@ export const searchSubcommand = createCommand({
 		}),
 		response: VectorSearchResponseSchema,
 	},
+	webUrl: '/services/vector',
 
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
