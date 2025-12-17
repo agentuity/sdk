@@ -113,6 +113,8 @@ export type {
 	BuildContext,
 	BuildConfig,
 	BuildConfigFunction,
+	AgentuityConfig,
+	WorkbenchConfig,
 } from './types';
 export { createSubcommand, createCommand } from './types';
 export type { ColorScheme } from './terminal';

@@ -12,11 +12,13 @@ Server runtime for building Agentuity applications. Built on Hono framework and 
 
 ## Architecture
 
-- **Runtime**: Bun server runtime
+- **Runtime**: Bun server runtime (required for native WebSocket support)
 - **Framework**: Hono (lightweight web framework)
 - **Build target**: Bun runtime
 - **Dependencies**: `@agentuity/core`, Hono, OpenTelemetry
 - **Observability**: Built-in OpenTelemetry for logs, traces, and metrics
+- **WebSocket**: Native Bun WebSocket via `hono/bun` (production and development)
+- **Dev Mode**: Integrates with Vite asset server for HMR (proxied through Bun server)
 
 ## Structure
 

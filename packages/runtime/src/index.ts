@@ -25,7 +25,7 @@ export {
 	runInAgentContext,
 } from './agent';
 
-// app.ts exports
+// app.ts exports (all app-related functionality)
 export {
 	type WorkbenchInstance,
 	type AppConfig,
@@ -33,11 +33,26 @@ export {
 	type TriggerType,
 	type PrivateVariables,
 	type Env,
-	App,
-	getApp,
+	type AppResult,
 	createApp,
+	getApp,
+	getAppState,
+	getAppConfig,
+	runShutdown,
 	fireEvent,
 } from './app';
+export { addEventListener, removeEventListener } from './_events';
+
+// middleware.ts exports (Vite-native)
+export { createBaseMiddleware, createCorsMiddleware, createOtelMiddleware } from './middleware';
+
+// Internal exports needed by generated entry files
+export { register } from './otel/config';
+export { createServices } from './_services';
+export { enableProcessExitProtection } from './_process-protection';
+
+// Internal exports (not in main index, imported by CLI only)
+export { internalExit } from './_process-protection';
 
 // devmode.ts exports
 export { registerDevModeRoutes } from './devmode';
@@ -85,6 +100,9 @@ export {
 	createWorkbenchWebsocketRoute,
 } from './workbench';
 
+// web.ts exports
+export { createWebRouter } from './web';
+
 // validator.ts exports
 export { type RouteValidator, validator } from './validator';
 
@@ -92,7 +110,24 @@ export { type RouteValidator, validator } from './validator';
 export type { Logger } from './logger';
 
 // _server.ts exports
-export { getRouter, getAppState, AGENT_CONTEXT_PROPERTIES } from './_server';
+export {
+	getRouter,
+	setGlobalRouter,
+	createLogger,
+	getLogger,
+	setGlobalLogger,
+	getTracer,
+	setGlobalTracer,
+	addSpanProcessor,
+	getSpanProcessors,
+	privateContext,
+	notifyReady,
+	getServer,
+	AGENT_CONTEXT_PROPERTIES,
+} from './_server';
+
+// _waituntil.ts exports
+export { hasWaitUntilPending } from './_waituntil';
 
 // _standalone.ts exports
 export {

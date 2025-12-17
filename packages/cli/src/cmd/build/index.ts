@@ -1,8 +1,7 @@
 import { z } from 'zod';
 import { resolve, join, relative } from 'node:path';
-import { getServiceUrls } from '@agentuity/server';
 import { createCommand } from '../../types';
-import { bundle } from './bundler';
+import { viteBundle } from './vite-bundler';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
@@ -50,32 +49,13 @@ export const command = createCommand({
 			const rel = outDir.startsWith(absoluteProjectDir)
 				? relative(absoluteProjectDir, outDir)
 				: outDir;
-			tui.info(`Bundling project at ${absoluteProjectDir} to ${rel}`);
+			tui.info(`Building project with Vite at ${absoluteProjectDir} to ${rel}`);
 
-			const env: Map<string, string> = new Map();
-
-			if (project) {
-				const serviceUrls = getServiceUrls(project.region);
-				env.set('AGENTUITY_TRANSPORT_URL', serviceUrls.catalyst);
-				env.set('AGENTUITY_CATALYST_URL', serviceUrls.catalyst);
-				env.set('AGENTUITY_VECTOR_URL', serviceUrls.vector);
-				env.set('AGENTUITY_KEYVALUE_URL', serviceUrls.keyvalue);
-				env.set('AGENTUITY_STREAM_URL', serviceUrls.stream);
-				env.set('AGENTUITY_CLOUD_ORG_ID', project.orgId);
-				env.set('AGENTUITY_CLOUD_PROJECT_ID', project.projectId);
-				env.set('AGENTUITY_REGION', project.region);
-			}
-
-			ctx.logger.trace('setting env to %s', env);
-
-			await bundle({
+			await viteBundle({
 				rootDir: absoluteProjectDir,
 				dev: opts.dev || false,
-				outDir,
-				project,
-				orgId: project?.orgId,
 				projectId: project?.projectId,
-				env,
+				orgId: project?.orgId,
 				region: project?.region ?? 'local',
 				logger: ctx.logger,
 			});
@@ -98,7 +78,6 @@ export const command = createCommand({
 			if (!opts.dev && !opts.skipTypeCheck) {
 				try {
 					tui.info('Running type check...');
-					const absoluteProjectDir = resolve(projectDir);
 					const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`
 						.cwd(absoluteProjectDir)
 						.nothrow();
@@ -110,7 +89,7 @@ export const command = createCommand({
 						console.error(result.stderr.toString());
 						tui.fatal('Fix type errors before building');
 					}
-				} catch (error) {
+				} catch (error: unknown) {
 					// If tsc fails to run, show error and fail
 					const errorMsg = error instanceof Error ? error.message : String(error);
 					tui.error(`Type check failed to run: ${errorMsg}`);
@@ -118,7 +97,7 @@ export const command = createCommand({
 				}
 			}
 
-			tui.success('Bundle complete');
+			tui.success('Build complete');
 
 			return {
 				success: true,
@@ -126,7 +105,7 @@ export const command = createCommand({
 				projectName: project?.projectId || 'unknown',
 				dev: opts.dev || false,
 			};
-		} catch (error) {
+		} catch (error: unknown) {
 			if (error instanceof AggregateError) {
 				const ae = error as AggregateError;
 				for (const e of ae.errors) {

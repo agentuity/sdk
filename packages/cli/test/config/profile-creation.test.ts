@@ -12,7 +12,7 @@ let originalEnvVars: Record<string, string | undefined> = {};
 beforeEach(async () => {
 	// Create a temporary directory for test configs
 	testConfigDir = await mkdtemp(join(tmpdir(), 'agentuity-test-'));
-	
+
 	// Override home directory for config path resolution
 	originalHome = process.env.HOME;
 	process.env.HOME = testConfigDir;
@@ -50,10 +50,10 @@ afterEach(async () => {
 		}
 	}
 	originalEnvVars = {};
-	
+
 	// Clean up test directory
 	await rm(testConfigDir, { recursive: true, force: true });
-	
+
 	// Clear module-level config cache by re-importing
 	// Note: This is a workaround since we can't directly access cachedConfig
 	// The fix ensures customPath bypasses cache anyway
@@ -62,7 +62,7 @@ afterEach(async () => {
 test('profile creation > new profile should not inherit auth from cached config', async () => {
 	const configDir = join(testConfigDir, '.config', 'agentuity');
 	await mkdir(configDir, { recursive: true });
-	
+
 	// Create a "production" profile with auth settings
 	const prodConfig: Config = {
 		name: 'production',
@@ -79,31 +79,31 @@ test('profile creation > new profile should not inherit auth from cached config'
 			api_url: 'https://custom-api.example.com',
 		},
 	};
-	
+
 	const prodPath = join(configDir, 'production.yaml');
 	await saveConfig(prodConfig, prodPath);
-	
+
 	// Load the production config to populate cache
 	const loadedProd = await loadConfig(prodPath);
 	expect(loadedProd).not.toBeNull();
 	expect(loadedProd?.auth).toBeDefined();
 	expect((loadedProd?.auth as { api_key?: string })?.api_key).toBe('secret-api-key-123');
-	
+
 	// Now create a new profile (simulating profile create command)
 	const newProfileName = 'staging';
 	const newProfilePath = join(configDir, `${newProfileName}.yaml`);
 	const template = generateYAMLTemplate(newProfileName);
 	await writeFile(newProfilePath, template, { mode: 0o600 });
-	
-	// Load the new profile (this should NOT use cached config)
-	const newProfile = await loadConfig(newProfilePath);
-	
+
+	// Load the new profile (skip cache to avoid using cached config)
+	const newProfile = await loadConfig(newProfilePath, true);
+
 	// Verify the new profile is clean - no auth, no preferences leaked
 	expect(newProfile).not.toBeNull();
 	expect(newProfile?.name).toBe(newProfileName);
 	expect(newProfile?.auth).toBeUndefined();
 	expect(newProfile?.preferences).toBeUndefined();
-	
+
 	// Overrides is initialized to empty object (for env var handling), but should be empty
 	expect(newProfile?.overrides).toEqual({});
 });
@@ -111,7 +111,7 @@ test('profile creation > new profile should not inherit auth from cached config'
 test('profile creation > new profile should not inherit preferences from cached config', async () => {
 	const configDir = join(testConfigDir, '.config', 'agentuity');
 	await mkdir(configDir, { recursive: true });
-	
+
 	// Create a config with preferences
 	const config1: Config = {
 		name: 'local',
@@ -120,22 +120,22 @@ test('profile creation > new profile should not inherit preferences from cached 
 			project_dir: '/path/to/project',
 		},
 	};
-	
+
 	const config1Path = join(configDir, 'local.yaml');
 	await saveConfig(config1, config1Path);
-	
+
 	// Load first config to cache it
 	const loaded1 = await loadConfig(config1Path);
 	expect(loaded1?.preferences).toBeDefined();
-	
+
 	// Create and load a new profile
 	const newProfileName = 'dev';
 	const newProfilePath = join(configDir, `${newProfileName}.yaml`);
 	const template = generateYAMLTemplate(newProfileName);
 	await writeFile(newProfilePath, template, { mode: 0o600 });
-	
-	const newProfile = await loadConfig(newProfilePath);
-	
+
+	const newProfile = await loadConfig(newProfilePath, true);
+
 	// New profile should be clean
 	expect(newProfile?.name).toBe(newProfileName);
 	expect(newProfile?.preferences).toBeUndefined();
@@ -144,7 +144,7 @@ test('profile creation > new profile should not inherit preferences from cached 
 test('profile creation > new profile should not inherit overrides from cached config', async () => {
 	const configDir = join(testConfigDir, '.config', 'agentuity');
 	await mkdir(configDir, { recursive: true });
-	
+
 	// Create a config with custom overrides
 	const config1: Config = {
 		name: 'custom',
@@ -154,23 +154,23 @@ test('profile creation > new profile should not inherit overrides from cached co
 			kv_url: 'https://custom-kv.example.com',
 		},
 	};
-	
+
 	const config1Path = join(configDir, 'custom.yaml');
 	await saveConfig(config1, config1Path);
-	
-	// Load first config to cache it
-	const loaded1 = await loadConfig(config1Path);
+
+	// Load first config (skip cache to get fresh data)
+	const loaded1 = await loadConfig(config1Path, true);
 	expect(loaded1?.overrides).toBeDefined();
 	expect(loaded1?.overrides?.api_url).toBe('https://custom.example.com');
-	
+
 	// Create and load a new profile
 	const newProfileName = 'fresh';
 	const newProfilePath = join(configDir, `${newProfileName}.yaml`);
 	const template = generateYAMLTemplate(newProfileName);
 	await writeFile(newProfilePath, template, { mode: 0o600 });
-	
-	const newProfile = await loadConfig(newProfilePath);
-	
+
+	const newProfile = await loadConfig(newProfilePath, true);
+
 	// New profile should not have the overrides from cached config
 	expect(newProfile?.name).toBe(newProfileName);
 	// Overrides is initialized to empty object, should not contain old config values
@@ -181,7 +181,7 @@ test('profile creation > new profile should not inherit overrides from cached co
 test('profile creation > multiple loads of custom path should reload from disk', async () => {
 	const configDir = join(testConfigDir, '.config', 'agentuity');
 	await mkdir(configDir, { recursive: true });
-	
+
 	const prodConfig: Config = {
 		name: 'production',
 		auth: {
@@ -190,14 +190,14 @@ test('profile creation > multiple loads of custom path should reload from disk',
 			expires: Date.now() + 86400000,
 		},
 	};
-	
+
 	const prodPath = join(configDir, 'production.yaml');
 	await saveConfig(prodConfig, prodPath);
-	
+
 	// First load with custom path - should load from file
 	const load1 = await loadConfig(prodPath);
 	expect(load1?.auth).toBeDefined();
-	
+
 	// Second load with same custom path - should reload from disk (not use cache)
 	// This is the key behavior that prevents profile creation from inheriting cached config
 	const load2 = await loadConfig(prodPath);

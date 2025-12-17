@@ -16,13 +16,12 @@ const ProjectCreateResponseSchema = z.object({
 export const createProjectSubcommand = createSubcommand({
 	name: 'create',
 	description: 'Create a new project',
-	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive', 'requires-auth'],
+	tags: ['mutating', 'creates-resource', 'slow'],
 	aliases: ['new', 'init'],
 	banner: true,
 	toplevel: true,
 	idempotent: false,
-	optional: { auth: true, org: true, region: true },
-	requires: { apiClient: true },
+	optional: { auth: true, org: true, region: true, apiClient: true },
 	examples: [
 		{ command: getCommand('project create'), description: 'Create new item' },
 		{ command: getCommand('project create --name my-ai-agent'), description: 'Create new item' },
@@ -85,7 +84,7 @@ export const createProjectSubcommand = createSubcommand({
 			auth: opts.register === true ? auth : undefined,
 			config: config!,
 			apiClient,
-			orgId,
+			orgId: opts.register === true ? orgId : undefined,
 			region,
 		});
 

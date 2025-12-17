@@ -19,14 +19,15 @@ import {
 	inHTTPContext,
 	getHTTPContext,
 	setupRequestAgentContext,
+	getAgentAsyncLocalStorage,
 	type RequestAgentContextArgs,
 } from './_context';
 import type { Logger } from './logger';
 import type { Eval, EvalContext, EvalRunResult, EvalFunction } from './eval';
 import { internal } from './logger/internal';
-import { getApp } from './app';
+import { fireEvent } from './_events';
 import type { Thread, Session } from './session';
-import { privateContext, notifyReady } from './_server';
+import { privateContext } from './_server';
 import { generateId } from './session';
 import { getEvalRunEventProvider } from './_services';
 import * as runtimeConfig from './_config';
@@ -1214,16 +1215,13 @@ async function fireAgentEvent(
 		}
 	}
 
-	// Fire app-level listeners
-	const app = getApp();
-	if (app) {
-		if (eventName === 'errored' && data) {
-			await app.fireEvent('agent.errored', agent, context, data);
-		} else if (eventName === 'started') {
-			await app.fireEvent('agent.started', agent, context);
-		} else if (eventName === 'completed') {
-			await app.fireEvent('agent.completed', agent, context);
-		}
+	// Fire global app-level events
+	if (eventName === 'errored' && data) {
+		await fireEvent('agent.errored', agent, context, data);
+	} else if (eventName === 'started') {
+		await fireEvent('agent.started', agent, context);
+	} else if (eventName === 'completed') {
+		await fireEvent('agent.completed', agent, context);
 	}
 }
 
@@ -2284,7 +2282,7 @@ export const runAgentSetups = async (appState: AppState): Promise<void> => {
 			setAgentConfig(name as AgentName, config);
 		}
 	}
-	await notifyReady();
+	// Note: Server readiness is managed by Vite (dev) or Bun.serve (prod)
 };
 
 export const runAgentShutdowns = async (appState: AppState): Promise<void> => {
@@ -2346,7 +2344,6 @@ export async function runInAgentContext<TInput, TOutput>(
 	agent: AgentRunner<any, any, any>,
 	input?: TInput
 ): Promise<TOutput> {
-	const { getAgentAsyncLocalStorage } = await import('./_context');
 	const storage = getAgentAsyncLocalStorage();
 
 	// Register agent in runtime state so events fire (lookup by metadata.name)

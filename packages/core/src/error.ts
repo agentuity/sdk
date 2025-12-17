@@ -8,8 +8,10 @@ import { safeStringify } from './json';
 let util: typeof import('node:util') | undefined;
 if (typeof process !== 'undefined' && process.versions?.node) {
 	try {
-		// Use eval to avoid bundler issues with dynamic require
-		util = eval('require')('node:util');
+		// Dynamic import for Node.js util module
+		// This is safe because it's only executed in Node.js/Bun environments
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		util = require('node:util');
 	} catch {
 		// Ignore import errors in browser environments
 	}
