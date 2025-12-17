@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/schema",
-	"version": "0.0.96",
+	"version": "0.0.97",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
