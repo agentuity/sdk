@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { AgentuityProvider, useAuth, useAgentuity } from '../src/context';
 
 describe('useAuth', () => {
@@ -104,7 +104,7 @@ describe('useAuth', () => {
 		expect(screen.getByTestId('authenticated').textContent).toBe('false');
 	});
 
-	test('isAuthenticated is true when authHeader is set and not loading', () => {
+	test('isAuthenticated is true when authHeader is set and not loading', async () => {
 		function TestComponent() {
 			const { setAuthLoading, setAuthHeader, isAuthenticated } = useAuth();
 
@@ -123,8 +123,10 @@ describe('useAuth', () => {
 			</AgentuityProvider>
 		);
 
-		// Note: This might not work in first render due to timing, but tests the logic
-		// In real usage, auth providers set these values asynchronously
+		// Wait for effect to run and set auth state to true
+		await waitFor(() => {
+			expect(screen.getByTestId('authenticated').textContent).toBe('true');
+		});
 	});
 
 	test('provides setAuthHeader and setAuthLoading functions', () => {
