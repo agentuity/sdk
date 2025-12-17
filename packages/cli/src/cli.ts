@@ -302,7 +302,7 @@ async function promptProjectSelection(
 	return {
 		projectId: selectedProject.id,
 		orgId: selectedProject.orgId,
-		region: '', // Will be set by region resolution logic later
+		region: selectedProject.cloudRegion || '',
 	};
 }
 
