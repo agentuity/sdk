@@ -47,7 +47,7 @@ export async function generateAssetServerConfig(
 		clearScreen: false,
 		publicDir: false, // Don't serve public dir - Bun server handles that
 
-		resolve: { 
+		resolve: {
 			alias,
 			// Deduplicate React to prevent multiple instances
 			dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
@@ -61,7 +61,7 @@ export async function generateAssetServerConfig(
 			port,
 			strictPort: false, // Allow fallback if port is taken
 			host: '127.0.0.1',
-			
+
 			// CORS headers to allow Bun server on port 3500 to proxy requests
 			cors: {
 				origin: 'http://127.0.0.1:3500',
@@ -82,8 +82,12 @@ export async function generateAssetServerConfig(
 
 		// Define environment variables for browser
 		define: {
-			...(workbenchPath ? { 'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': JSON.stringify(workbenchPath) } : {}),
-			'import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY': JSON.stringify(process.env.AGENTUITY_SDK_KEY ? 'true' : 'false'),
+			...(workbenchPath
+				? { 'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': JSON.stringify(workbenchPath) }
+				: {}),
+			'import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY': JSON.stringify(
+				process.env.AGENTUITY_SDK_KEY ? 'true' : 'false'
+			),
 			'process.env.NODE_ENV': JSON.stringify('development'),
 		},
 

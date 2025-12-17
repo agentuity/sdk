@@ -42,7 +42,7 @@ export async function startViteAssetServer(
 
 	// Start listening on the configured port
 	await server.listen();
-	
+
 	logger.info(`✅ Vite asset server started on port ${port}`);
 	logger.debug(`Asset server will handle: HMR, React transformation, source maps`);
 	logger.debug(`HMR WebSocket configured to connect to ws://127.0.0.1:${port}`);
