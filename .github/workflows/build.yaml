@@ -158,23 +158,32 @@ jobs:
            run: |
               set -eou pipefail
               cd packages/cli
-
-              # Binary was already built in previous step
+              
+              # Binary was already built in previous step but is compressed
               OS=$(uname -s | tr '[:upper:]' '[:lower:]')
               ARCH=$(uname -m)
-
+              
               case "$ARCH" in
                  x86_64) ARCH="x64" ;;
                  aarch64|arm64) ARCH="arm64" ;;
               esac
-
+              
               PLATFORM="${OS}-${ARCH}"
               BINARY="./dist/bin/agentuity-${PLATFORM}"
-
+              COMPRESSED_BINARY="${BINARY}.gz"
+              
               echo "=== Testing bundled create command ==="
+              echo "Compressed binary: $COMPRESSED_BINARY"
               echo "Binary: $BINARY"
-
+              
+              # Decompress binary if it's compressed
+              if [ -f "$COMPRESSED_BINARY" ]; then
+                 echo "Decompressing binary..."
+                 gunzip -k "$COMPRESSED_BINARY"
+                 chmod +x "$BINARY"
+              fi
+              
               # Run bundled create test
               bun scripts/test-bundled-create.ts --binary="$BINARY"
-
+              
               echo "✓ Bundled create command test passed"
