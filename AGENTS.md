@@ -38,6 +38,7 @@
 
 - **Verification Required**: DO NOT commit files until format, lint, typecheck, build and test cases ALL pass
 - **Main**: NEVER commit directly to the main branch
+- **Documentation**: NEVER create a document unless you've been explicitly asked to create one
 
 ## Testing Standards
 

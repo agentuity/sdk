@@ -191,7 +191,16 @@ export function createOtelMiddleware() {
 					if (projectId) traceState = traceState.set('pid', projectId);
 					if (orgId) traceState = traceState.set('oid', orgId);
 					if (isDevMode) traceState = traceState.set('d', '1');
-					sctx.traceState = traceState;
+
+					// Update the active context with the new trace state
+					// Note: SpanContext.traceState is readonly, so we update it by setting the span with a new context
+					trace.setSpan(
+						context.active(),
+						trace.wrapSpanContext({
+							...sctx,
+							traceState,
+						})
+					);
 
 					const thread = await threadProvider.restore(c);
 					const session = await sessionProvider.restore(thread, sessionId);

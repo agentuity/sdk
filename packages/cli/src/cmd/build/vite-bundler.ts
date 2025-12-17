@@ -5,10 +5,12 @@
  */
 
 import { join } from 'node:path';
-import { existsSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { StructuredError } from '@agentuity/core';
 import type { Logger } from '../../types';
 import { runAllBuilds } from './vite/vite-builder';
+import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
+import { checkBunVersion } from '../../utils/bun-version-checker';
 import * as tui from '../../tui';
 
 const AppFileNotFoundError = StructuredError('AppFileNotFoundError');
@@ -41,9 +43,13 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 
 	const output: string[] = [];
 
+	// Check Bun version meets minimum requirements
+	const versionOutput = await checkBunVersion();
+	output.push(...versionOutput);
+
 	// Verify app.ts exists
 	const appFile = join(rootDir, 'app.ts');
-	if (!existsSync(appFile)) {
+	if (!(await Bun.file(appFile).exists())) {
 		throw new AppFileNotFoundError({
 			message: `App file not found at expected location: ${appFile}`,
 		});
@@ -51,21 +57,30 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 
 	// Verify src directory exists
 	const srcDir = join(rootDir, 'src');
-	if (!existsSync(srcDir)) {
+	const srcDirExists = await stat(srcDir)
+		.then((s) => s.isDirectory())
+		.catch(() => false);
+	if (!srcDirExists) {
 		throw new BuildFailedError({
 			message: `Source directory not found: ${srcDir}`,
 		});
 	}
 
+	// Check and upgrade @agentuity/* dependencies if needed
+	const upgradeResult = await checkAndUpgradeDependencies(rootDir, logger);
+	if (upgradeResult.failed.length > 0 && process.stdin.isTTY) {
+		throw new BuildFailedError({
+			message: `Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`,
+		});
+	}
+
 	try {
 		// Run all Vite builds (client -> workbench -> server)
-		// Note: Always use dev=false for builds (even when --dev flag is passed)
-		// The --dev flag means "development build" not "use dev server"
 		logger.debug('Starting Vite builds...');
 
 		const result = await runAllBuilds({
 			rootDir,
-			dev: false, // Always build in production mode for bundle command
+			dev: options.dev || false, // Pass through dev flag for development builds
 			port,
 			projectId,
 			orgId,

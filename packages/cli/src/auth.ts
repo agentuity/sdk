@@ -1,4 +1,3 @@
-import { existsSync } from 'node:fs';
 import enquirer from 'enquirer';
 import { getDefaultConfigDir, getAuth, saveConfig, loadConfig, saveOrgId } from './config';
 import { getCommand } from './command-prefix';
@@ -12,9 +11,9 @@ export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
 }
 
-export function hasLoggedInBefore(): boolean {
+export async function hasLoggedInBefore(): Promise<boolean> {
 	const configDir = getDefaultConfigDir();
-	return existsSync(configDir);
+	return await Bun.file(configDir).exists();
 }
 
 export async function isAuthenticated(): Promise<boolean> {
@@ -34,7 +33,7 @@ export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthD
 	}
 
 	const loginCmd = getCommand('auth login');
-	const hasConfig = hasLoggedInBefore();
+	const hasConfig = await hasLoggedInBefore();
 
 	if (!isTTY()) {
 		if (hasConfig) {
@@ -109,7 +108,7 @@ export async function optionalAuth(
 		const config = await loadConfig();
 		// check to see if we've shown the banner or logged in before
 		const benefitsShown = config?.preferences?.signup_banner_shown === true;
-		const hasLoggedIn = hasLoggedInBefore();
+		const hasLoggedIn = await hasLoggedInBefore();
 
 		// if we haven't shown it, show it once and then remember that we've shown it
 		if (!benefitsShown && hasLoggedIn) {
@@ -258,15 +257,6 @@ export async function optionalOrg(
 	ctx: CommandContext & { apiClient?: APIClientType; auth?: AuthData }
 ): Promise<string | undefined> {
 	const { options, config, apiClient, auth } = ctx;
-
-	console.log(
-		'[DEBUG optionalOrg] auth:',
-		!!auth,
-		'apiClient:',
-		!!apiClient,
-		'apiKey:',
-		auth?.apiKey ? 'exists' : 'missing'
-	);
 
 	// If not authenticated or no API client, skip org selection
 	if (!auth || !apiClient) {

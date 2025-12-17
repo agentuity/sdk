@@ -10,6 +10,7 @@ import type { BuildMetadata } from '@agentuity/server';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteMetadata } from './route-discovery';
 import type { Logger } from '../../../types';
+import { getVersion } from '../../../version';
 
 interface ViteManifestEntry {
 	file: string;
@@ -398,7 +399,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 			date: new Date().toISOString(),
 			build: {
 				bun: Bun.version,
-				agentuity: pkgContents.dependencies?.['@agentuity/runtime'] || 'unknown',
+				agentuity: getVersion(), // CLI version used to build
 				arch: process.arch,
 				platform: process.platform,
 			},
@@ -411,7 +412,6 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 
 /**
  * Get git information (branch, repo, provider, tags)
- * Based on legacy bundler.ts implementation
  */
 async function getGitInfo(
 	rootDir: string,

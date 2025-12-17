@@ -75,12 +75,9 @@ export const command = createCommand({
 			}
 
 			// Run TypeScript type checking after registry generation (skip in dev mode)
-			// TEMPORARILY DISABLED to test Bun.build changes
-			/*
 			if (!opts.dev && !opts.skipTypeCheck) {
 				try {
 					tui.info('Running type check...');
-					const absoluteProjectDir = resolve(projectDir);
 					const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`
 						.cwd(absoluteProjectDir)
 						.nothrow();
@@ -99,7 +96,6 @@ export const command = createCommand({
 					tui.fatal('Unable to run TypeScript type checking. Ensure TypeScript is installed.');
 				}
 			}
-			*/
 
 			tui.success('Build complete');
 

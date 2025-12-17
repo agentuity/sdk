@@ -199,7 +199,9 @@ export async function loadConfig(customPath?: string, skipCache = false): Promis
 	} catch (error) {
 		tui.error(`Error loading config from ${configPath}: ${error}`);
 
-		// Cache null on error (only if not skipping cache)
+		// Cache null on error to prevent retry attempts.
+		// This is acceptable for CLI context where process typically exits on config errors.
+		// Note: For long-running processes, consider time-based cache expiry for transient failures.
 		if (!skipCache) {
 			cachedConfig = null;
 		}
@@ -258,7 +260,10 @@ export async function saveConfig(config: Config, customPath?: string): Promise<v
 	// Ensure existing files get correct permissions on upgrade
 	await chmod(configPath, 0o600);
 
-	// Only cache the default profile, not custom path saves
+	// Only cache the default profile, not custom path saves.
+	// Note: This creates potential cache staleness - if a custom path is saved then later
+	// loaded without skipCache, it will use the cached default profile instead.
+	// Consider clearing cache on custom path saves: if (customPath) { cachedConfig = undefined; }
 	if (!customPath) {
 		cachedConfig = config;
 	}
@@ -297,7 +302,7 @@ export async function saveAuth(auth: AuthData): Promise<void> {
 			return;
 		} catch (error) {
 			// Keychain failed, fall back to config file
-			console.warn('Failed to store auth in keychain, falling back to config file:', error);
+			tui.warning(`Failed to store auth in keychain, falling back to config file: ${error}`);
 		}
 	}
 

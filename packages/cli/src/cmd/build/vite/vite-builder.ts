@@ -41,7 +41,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			const { generateEntryFile } = await import('../entry-generator');
 			await generateEntryFile({
 				rootDir,
-				projectId: projectId || '',
+				projectId,
 				deploymentId: deploymentId || '',
 				logger,
 				mode: dev ? 'dev' : 'prod',
@@ -73,16 +73,12 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const plugins = [react(), browserEnvPlugin(), patchPlugin({ logger, dev })];
-		const configPath = join(rootDir, 'agentuity.config.ts');
-		if (await Bun.file(configPath).exists()) {
-			try {
-				const config = await import(configPath);
-				const userPlugins = config.default?.plugins || [];
-				plugins.push(...userPlugins);
-				logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
-			} catch (error) {
-				logger.warn('Failed to load agentuity.config.ts:', error);
-			}
+		const { loadAgentuityConfig } = await import('./config-loader');
+		const userConfig = await loadAgentuityConfig(rootDir, logger);
+		const userPlugins = userConfig?.plugins || [];
+		plugins.push(...userPlugins);
+		if (userPlugins.length > 0) {
+			logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
 		}
 
 		// Determine CDN base URL for production builds
@@ -102,7 +98,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				// Set workbench path if enabled (use import.meta.env for client code)
 				'import.meta.env.AGENTUITY_PUBLIC_WORKBENCH_PATH': workbenchEnabled
 					? JSON.stringify(workbenchRoute)
-					: JSON.stringify(undefined),
+					: 'undefined',
 			},
 			build: {
 				outDir: join(rootDir, '.agentuity/client'),
@@ -214,15 +210,20 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 2. Build workbench (if enabled in config)
 	if (workbenchConfig.enabled) {
 		logger.debug('Building workbench assets...');
-		const started = Date.now();
-		await runViteBuild({
-			...options,
-			mode: 'workbench',
-			workbenchRoute: workbenchConfig.route,
-			workbenchEnabled: true,
-		});
-		result.workbench.included = true;
-		result.workbench.duration = Date.now() - started;
+		try {
+			const started = Date.now();
+			await runViteBuild({
+				...options,
+				mode: 'workbench',
+				workbenchRoute: workbenchConfig.route,
+				workbenchEnabled: true,
+			});
+			result.workbench.included = true;
+			result.workbench.duration = Date.now() - started;
+		} catch (error) {
+			logger.error('Workbench build failed:', error);
+			throw error;
+		}
 	}
 
 	// 3. Build server

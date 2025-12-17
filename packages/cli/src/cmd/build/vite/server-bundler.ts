@@ -4,7 +4,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, readdirSync } from 'node:fs';
+import { readdir, stat } from 'node:fs/promises';
 import type { Logger } from '../../../types';
 
 export interface ServerBundleOptions {
@@ -48,7 +48,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 				);
 			}
 		} catch (error) {
-			logger.warn('Failed to load agentuity.config.ts for externals:', error);
+			logger.info('Failed to load agentuity.config.ts for externals:', error);
 		}
 	}
 
@@ -70,18 +70,27 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 				// Pattern like @org/* - install all packages under that scope
 				const prefix = pattern.slice(0, -2);
 				const nmDir = join(rootDir, 'node_modules', prefix);
-				if (existsSync(nmDir)) {
-					const entries = readdirSync(nmDir);
+				const nmDirExists = await stat(nmDir)
+					.then((s) => s.isDirectory())
+					.catch(() => false);
+				if (nmDirExists) {
+					const entries = await readdir(nmDir);
 					for (const entry of entries) {
 						const pkgName = `${prefix}/${entry}`;
-						if (existsSync(join(rootDir, 'node_modules', pkgName, 'package.json'))) {
+						const pkgJsonExists = await Bun.file(
+							join(rootDir, 'node_modules', pkgName, 'package.json')
+						).exists();
+						if (pkgJsonExists) {
 							externalInstalls.push(pkgName);
 						}
 					}
 				}
 			} else {
 				// Exact package name
-				if (existsSync(join(rootDir, 'node_modules', pattern, 'package.json'))) {
+				const pkgJsonExists = await Bun.file(
+					join(rootDir, 'node_modules', pattern, 'package.json')
+				).exists();
+				if (pkgJsonExists) {
 					externalInstalls.push(pattern);
 				}
 			}
@@ -104,7 +113,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 			);
 
 			// Install with Bun (production mode, no scripts, linux target for deployment)
-			const result = await Bun.spawn(
+			const proc = Bun.spawn(
 				[
 					'bun',
 					'install',
@@ -118,38 +127,49 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 					stdout: 'pipe',
 					stderr: 'pipe',
 				}
-			).exited;
+			);
 
-			if (result !== 0) {
-				throw new Error(`Failed to install external dependencies (exit code ${result})`);
+			const exitCode = await proc.exited;
+
+			if (exitCode !== 0) {
+				const stderr = await new Response(proc.stderr).text();
+				throw new Error(
+					`Failed to install external dependencies (exit code ${exitCode}):\n${stderr}`
+				);
 			}
 
 			// Step 3: Scan what actually got installed (includes transitive dependencies)
 			const installedNmDir = join(outDir, 'node_modules');
-			if (existsSync(installedNmDir)) {
+			const installedNmDirExists = await stat(installedNmDir)
+				.then((s) => s.isDirectory())
+				.catch(() => false);
+			if (installedNmDirExists) {
 				const allInstalled: string[] = [];
 
 				// Recursively find all installed packages
-				const scanDir = (dir: string, prefix = '') => {
-					const entries = readdirSync(dir, { withFileTypes: true });
+				const scanDir = async (dir: string, prefix = '') => {
+					const entries = await readdir(dir, { withFileTypes: true });
 					for (const entry of entries) {
 						if (entry.isDirectory()) {
 							const pkgName = prefix ? `${prefix}/${entry.name}` : entry.name;
 
 							// Check if this is a package (has package.json)
-							if (existsSync(join(dir, entry.name, 'package.json'))) {
+							const pkgJsonExists = await Bun.file(
+								join(dir, entry.name, 'package.json')
+							).exists();
+							if (pkgJsonExists) {
 								allInstalled.push(pkgName);
 							}
 
 							// Recurse into scoped packages (@org/package)
 							if (entry.name.startsWith('@')) {
-								scanDir(join(dir, entry.name), entry.name);
+								await scanDir(join(dir, entry.name), entry.name);
 							}
 						}
 					}
 				};
 
-				scanDir(installedNmDir);
+				await scanDir(installedNmDir);
 				logger.debug(
 					'Discovered %d total packages (including transitive deps)',
 					allInstalled.length
@@ -187,7 +207,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	);
 
 	// Verify entry point exists before building
-	if (!existsSync(entryPath)) {
+	if (!(await Bun.file(entryPath).exists())) {
 		throw new Error(`Entry point not found: ${entryPath}`);
 	}
 

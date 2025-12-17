@@ -13,7 +13,6 @@ import { loadAgentuityConfig, getWorkbenchConfig } from './config-loader';
 // Re-export plugins
 export { patchPlugin } from './patch-plugin';
 export { browserEnvPlugin } from './browser-env-plugin';
-export { websocketPlugin } from './websocket-plugin';
 
 export interface AgentuityPluginOptions {
 	dev?: boolean;

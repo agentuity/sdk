@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs';
 
 /**
  * Create a router that serves the web application.
- * In dev mode (DEV=true), serves HTML with Vite HMR scripts (@hono/vite-dev-server handles asset serving).
+ * In dev mode (DEV=true), serves HTML with Vite HMR scripts (Bun server proxies assets to Vite).
  * In production, serves static files from .agentuity/client/.
  */
 export async function createWebRouter(): Promise<Hono> {
@@ -15,7 +15,7 @@ export async function createWebRouter(): Promise<Hono> {
 
 	if (isDev) {
 		// In dev mode, serve HTML with Vite client scripts for HMR
-		// @hono/vite-dev-server middleware handles /src/* requests
+		// Bun server proxies /src/*, /@vite/*, etc. to Vite asset server
 		router.get('/', (c) => {
 			return c.html(
 				`<!DOCTYPE html>
