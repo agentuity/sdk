@@ -85,7 +85,7 @@ export const createProjectSubcommand = createSubcommand({
 			auth: opts.register === true ? auth : undefined,
 			config: config!,
 			apiClient,
-			orgId,
+			orgId: opts.register === true ? orgId : undefined,
 			region,
 		});
 
