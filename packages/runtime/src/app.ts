@@ -15,11 +15,6 @@ import type { Email } from './io/email';
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
 import type WaitUntilHandler from './_waituntil';
 
-// TODO: This should be imported from workbench package, but causes circular dependency
-export interface WorkbenchInstance {
-	config: { route?: string; headers?: Record<string, string> };
-}
-
 type CorsOptions = Parameters<typeof cors>[0];
 
 export interface AppConfig<TAppState = Record<string, never>> {
@@ -63,10 +58,6 @@ export interface AppConfig<TAppState = Record<string, never>> {
 		 * the EvalRunEventProvider to override instead of the default
 		 */
 		evalRunEvent?: EvalRunEventProvider;
-		/**
-		 * the Workbench to override instead of the default
-		 */
-		workbench?: WorkbenchInstance;
 	};
 	/**
 	 * Optional setup function called before server starts

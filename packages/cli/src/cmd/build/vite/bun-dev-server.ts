@@ -56,7 +56,7 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 
 	// Step 3: Load the generated app - this will start Bun.serve() internally
 	logger.debug('📦 Loading generated app (Bun server will start)...');
-	const appPath = `${rootDir}/.agentuity/app.generated.ts`;
+	const appPath = `${rootDir}/src/generated/app.ts`;
 
 	// Set PORT env var so the generated app uses the correct port
 	process.env.PORT = String(port);

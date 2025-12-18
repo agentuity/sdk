@@ -3,6 +3,7 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import type { Logger } from '@agentuity/core';
 import { createFileWatcher } from '../src/cmd/dev/file-watcher';
 import { join } from 'node:path';
 import { mkdtemp, writeFile, rm, readFile, mkdir } from 'node:fs/promises';
@@ -44,7 +45,7 @@ describe('File Watcher', () => {
 		await rm(testDir, { recursive: true, force: true });
 	});
 
-	test('creates watcher successfully', () => {
+	test.serial('creates watcher successfully', () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
@@ -56,6 +57,7 @@ describe('File Watcher', () => {
 				fatal: (): never => {
 					throw new Error('Fatal error');
 				},
+				child: () => ({}) as unknown as Logger,
 			},
 			onRestart: () => {
 				restartCount++;
@@ -69,7 +71,7 @@ describe('File Watcher', () => {
 		expect(typeof watcher.resume).toBe('function');
 	});
 
-	test('triggers restart on file change', async () => {
+	test.serial('triggers restart on file change', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
@@ -81,6 +83,7 @@ describe('File Watcher', () => {
 				fatal: (): never => {
 					throw new Error('Fatal error');
 				},
+				child: () => ({}) as unknown as Logger,
 			},
 			onRestart: () => {
 				restartCount++;
@@ -105,7 +108,7 @@ describe('File Watcher', () => {
 		expect(restartCount).toBeGreaterThan(0);
 	});
 
-	test('does not trigger restart when paused', async () => {
+	test.serial('does not trigger restart when paused', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
@@ -117,6 +120,7 @@ describe('File Watcher', () => {
 				fatal: (): never => {
 					throw new Error('Fatal error');
 				},
+				child: () => ({}) as unknown as Logger,
 			},
 			onRestart: () => {
 				restartCount++;
@@ -135,7 +139,7 @@ describe('File Watcher', () => {
 		expect(restartCount).toBe(0);
 	});
 
-	test('ignores changes in .agentuity directory', async () => {
+	test.serial('ignores changes in .agentuity directory', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
@@ -147,6 +151,7 @@ describe('File Watcher', () => {
 				fatal: (): never => {
 					throw new Error('Fatal error');
 				},
+				child: () => ({}) as unknown as Logger,
 			},
 			onRestart: () => {
 				restartCount++;
@@ -164,12 +169,12 @@ describe('File Watcher', () => {
 		await writeFile(join(testDir, '.agentuity', 'app.js'), 'console.log("test")', 'utf-8');
 
 		// Wait
-		await Bun.sleep(1000);
+		await Bun.sleep(1500);
 
 		expect(restartCount).toBe(0);
 	});
 
-	test('ignores changes in node_modules', async () => {
+	test.serial('ignores changes in node_modules', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
@@ -181,6 +186,7 @@ describe('File Watcher', () => {
 				fatal: (): never => {
 					throw new Error('Fatal error');
 				},
+				child: () => ({}) as unknown as Logger,
 			},
 			onRestart: () => {
 				restartCount++;
@@ -207,7 +213,7 @@ describe('File Watcher', () => {
 		expect(restartCount).toBe(0);
 	});
 
-	test('resumes watching after pause', async () => {
+	test.serial('resumes watching after pause', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
@@ -219,6 +225,7 @@ describe('File Watcher', () => {
 				fatal: (): never => {
 					throw new Error('Fatal error');
 				},
+				child: () => ({}) as unknown as Logger,
 			},
 			onRestart: () => {
 				restartCount++;
@@ -241,7 +248,7 @@ describe('File Watcher', () => {
 		expect(restartCount).toBeGreaterThan(0);
 	});
 
-	test('creates agent templates when new agent directory is created', async () => {
+	test.serial('creates agent templates when new agent directory is created', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
@@ -253,6 +260,7 @@ describe('File Watcher', () => {
 				fatal: (): never => {
 					throw new Error('Fatal error');
 				},
+				child: () => ({}) as unknown as Logger,
 			},
 			onRestart: () => {
 				restartCount++;
@@ -297,7 +305,7 @@ describe('File Watcher', () => {
 		expect(restartCount).toBeGreaterThan(0);
 	});
 
-	test('creates API templates when new API directory is created', async () => {
+	test.serial('creates API templates when new API directory is created', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
@@ -309,6 +317,7 @@ describe('File Watcher', () => {
 				fatal: (): never => {
 					throw new Error('Fatal error');
 				},
+				child: () => ({}) as unknown as Logger,
 			},
 			onRestart: () => {
 				restartCount++;
@@ -349,7 +358,7 @@ describe('File Watcher', () => {
 		expect(restartCount).toBeGreaterThan(0);
 	});
 
-	test('does not create templates for non-empty directories', async () => {
+	test.serial('does not create templates for non-empty directories', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
@@ -361,6 +370,7 @@ describe('File Watcher', () => {
 				fatal: (): never => {
 					throw new Error('Fatal error');
 				},
+				child: () => ({}) as unknown as Logger,
 			},
 			onRestart: () => {
 				restartCount++;
@@ -386,39 +396,43 @@ describe('File Watcher', () => {
 		expect(existsSync(join(agentDir, 'index.ts'))).toBe(false);
 	});
 
-	test('does not create templates for directories outside src/agent or src/api', async () => {
-		watcher = createFileWatcher({
-			rootDir: testDir,
-			logger: {
-				trace: () => {},
-				debug: () => {},
-				info: () => {},
-				warn: () => {},
-				error: () => {},
-				fatal: (): never => {
-					throw new Error('Fatal error');
+	test.serial(
+		'does not create templates for directories outside src/agent or src/api',
+		async () => {
+			watcher = createFileWatcher({
+				rootDir: testDir,
+				logger: {
+					trace: () => {},
+					debug: () => {},
+					info: () => {},
+					warn: () => {},
+					error: () => {},
+					fatal: (): never => {
+						throw new Error('Fatal error');
+					},
+					child: () => ({}) as unknown as Logger,
 				},
-			},
-			onRestart: () => {
-				restartCount++;
-			},
-		});
+				onRestart: () => {
+					restartCount++;
+				},
+			});
 
-		watcher.start();
-		watcher.resume();
+			watcher.start();
+			watcher.resume();
 
-		// Give watcher time to settle
-		await Bun.sleep(100);
+			// Give watcher time to settle
+			await Bun.sleep(100);
 
-		// Create a directory in a different location
-		const libDir = join(testDir, 'src', 'lib', 'utils');
-		await mkdir(libDir, { recursive: true });
+			// Create a directory in a different location
+			const libDir = join(testDir, 'src', 'lib', 'utils');
+			await mkdir(libDir, { recursive: true });
 
-		// Wait
-		await Bun.sleep(1000);
+			// Wait
+			await Bun.sleep(1000);
 
-		// No templates should be created
-		expect(existsSync(join(libDir, 'agent.ts'))).toBe(false);
-		expect(existsSync(join(libDir, 'index.ts'))).toBe(false);
-	});
+			// No templates should be created
+			expect(existsSync(join(libDir, 'agent.ts'))).toBe(false);
+			expect(existsSync(join(libDir, 'index.ts'))).toBe(false);
+		}
+	);
 });

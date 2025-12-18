@@ -142,7 +142,7 @@ The CLI uses a hybrid Vite + Bun build system:
    - Base path: configured workbench route
 
 3. **Server Bundle** - Bun.build creates single server file:
-   - Input: `.agentuity/app.generated.ts`
+   - Input: `src/generated/app.ts`
    - Output: `.agentuity/app.js`
    - Externals: Heavy runtime deps (bun, fsevents, sharp, ws, etc.)
    - Minification: Controlled by `--dev` flag
