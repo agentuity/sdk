@@ -330,7 +330,6 @@ async function installDependencies(
 	}
 
 	// Remove nested @agentuity packages that Bun might have installed from npm
-	const nestedPattern = join(projectDir, 'node_modules/@agentuity/*/node_modules/@agentuity');
 	const globResult = await runCommand(
 		[
 			'sh',
@@ -484,10 +483,7 @@ async function startServer(
 	return { proc, success: false, error: 'Server failed to start within 30 seconds' };
 }
 
-async function testEndpoints(
-	port: number,
-	template: TemplateInfo
-): Promise<{ health: boolean; errors: string[] }> {
+async function testEndpoints(port: number): Promise<{ health: boolean; errors: string[] }> {
 	const errors: string[] = [];
 	let health = false;
 
@@ -630,8 +626,7 @@ async function testTemplate(
 			envVars.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
 		}
 
-		// Step 4: Typecheck (TEMPORARILY DISABLED)
-		/*
+		// Step 4: Typecheck
 		logStep('Running typecheck...');
 		stepStart = Date.now();
 		const typecheckResult = await typecheckProject(projectDir);
@@ -647,7 +642,6 @@ async function testTemplate(
 			return result;
 		}
 		logSuccess('Typecheck passed');
-		*/
 
 		// Step 5: Start server and test endpoints
 		logStep('Starting server...');
@@ -673,7 +667,7 @@ async function testTemplate(
 		// Step 6: Test health endpoint
 		logStep('Testing health endpoint...');
 		stepStart = Date.now();
-		const endpointResults = await testEndpoints(basePort, template);
+		const endpointResults = await testEndpoints(basePort);
 
 		result.steps.push({
 			name: 'Test health endpoint',

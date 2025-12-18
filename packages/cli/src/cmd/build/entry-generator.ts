@@ -194,12 +194,22 @@ if (process.env.NODE_ENV !== 'production') {
 `
 		: '';
 
-	// Web routes (build-time mode selection)
+	// Runtime mode detection helper (defined at top level for reuse)
+	// Dynamic property access prevents Bun.build from inlining NODE_ENV at build time
+	const modeDetection = `
+// Runtime mode detection helper
+// Dynamic string concatenation prevents Bun.build from inlining NODE_ENV at build time
+// See: https://github.com/oven-sh/bun/issues/20183
+const getEnv = (key: string) => process.env[key];
+const isDevelopment = () => getEnv('NODE' + '_' + 'ENV') !== 'production';
+`;
+
+	// Web routes (runtime mode detection)
 	let webRoutes = '';
 	if (hasWebFrontend) {
-		if (mode === 'dev') {
-			webRoutes = `
-// Web routes - Development mode (proxies to Vite for HMR)
+		webRoutes = `
+// Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
+if (isDevelopment()) {
 	// Development mode: Proxy HTML from Vite to enable React Fast Refresh
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '${vitePort || 5173}', 10);
 	
@@ -242,77 +252,73 @@ if (process.env.NODE_ENV !== 'production') {
 		}
 		return devHtmlHandler(c);
 	});
-`;
-		} else {
-			webRoutes = `
-// Web routes - Production mode (serves static files)
-const indexHtmlPath = import.meta.dir + '/../../.agentuity/client/index.html';
-const indexHtml = existsSync(indexHtmlPath)
-	? readFileSync(indexHtmlPath, 'utf-8')
-	: '';
-
-if (!indexHtml) {
-	otel.logger.warn('Production HTML not found at %s', indexHtmlPath);
-}
-
-app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
-
-// Serve static assets from /assets/* (Vite bundled output)
-app.use('/assets/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client' }));
-
-// Serve static public assets (favicon.ico, robots.txt, etc.)
-app.use('/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client', rewriteRequestPath: (path) => path }));
-
-// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
-app.all('/_agentuity/*', (c: Context) => c.notFound());
-app.all('/api/*', (c: Context) => c.notFound());
-${hasWorkbench ? '' : `app.all('/workbench/*', (c: Context) => c.notFound());`}
-
-// SPA fallback with asset protection
-app.get('*', (c: Context) => {
-	const path = c.req.path;
-	// If path has a file extension, it's likely an asset request - return 404
-	if (/\\.[a-zA-Z0-9]+$/.test(path)) {
-		return c.notFound();
+} else {
+	// Production mode: Serve static files from bundled output
+	const indexHtmlPath = import.meta.dir + '/../../.agentuity/client/index.html';
+	const indexHtml = existsSync(indexHtmlPath)
+		? readFileSync(indexHtmlPath, 'utf-8')
+		: '';
+	
+	if (!indexHtml) {
+		otel.logger.warn('Production HTML not found at %s', indexHtmlPath);
 	}
-	return c.html(indexHtml);
-});
-`;
+	
+	app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
+
+	// Serve static assets from /assets/* (Vite bundled output)
+	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client' }));
+
+	// Serve static public assets (favicon.ico, robots.txt, etc.)
+	app.use('/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client', rewriteRequestPath: (path) => path }));
+
+	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
+	app.all('/_agentuity/*', (c: Context) => c.notFound());
+	app.all('/api/*', (c: Context) => c.notFound());
+	${hasWorkbench ? '' : `app.all('/workbench/*', (c: Context) => c.notFound());`}
+
+	// SPA fallback with asset protection
+	app.get('*', (c: Context) => {
+		const path = c.req.path;
+		// If path has a file extension, it's likely an asset request - return 404
+		if (/\\.[a-zA-Z0-9]+$/.test(path)) {
+			return c.notFound();
 		}
+		return c.html(indexHtml);
+	});
+}
+`;
 	}
 
-	// Workbench routes (if enabled) - build-time mode selection
+	// Workbench routes (if enabled) - runtime mode detection
 	const workbenchRoute = workbench?.route ?? '/workbench';
-	let workbenchRoutes = '';
-	if (hasWorkbench) {
-		if (mode === 'dev') {
-			workbenchRoutes = `
-// Workbench routes - Development mode (Vite serves source files)
+	const workbenchRoutes = hasWorkbench
+		? `
+// Workbench routes - Runtime mode detection
 const workbenchSrcDir = import.meta.dir + '/../../.agentuity/workbench-src';
-app.get('${workbenchRoute}', async (c: Context) => {
-	const html = await Bun.file(workbenchSrcDir + '/index.html').text();
-	// Rewrite script/css paths to use Vite's @fs protocol
-	const withVite = html
-		.replace('src="./main.tsx"', \`src="/@fs\${workbenchSrcDir}/main.tsx"\`)
-		.replace('href="./styles.css"', \`href="/@fs\${workbenchSrcDir}/styles.css"\`);
-	return c.html(withVite);
-});
-`;
-		} else {
-			workbenchRoutes = `
-// Workbench routes - Production mode (serves pre-built assets)
 const workbenchIndexPath = import.meta.dir + '/../../.agentuity/workbench/index.html';
 const workbenchIndex = existsSync(workbenchIndexPath) 
 	? readFileSync(workbenchIndexPath, 'utf-8')
 	: '';
 
-if (workbenchIndex) {
-	app.get('${workbenchRoute}', (c: Context) => c.html(workbenchIndex));
-	app.get('${workbenchRoute}/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/workbench' }));
-}
-`;
-		}
+if (isDevelopment()) {
+	// Development mode: Let Vite serve source files with HMR
+	app.get('${workbenchRoute}', async (c: Context) => {
+		const html = await Bun.file(workbenchSrcDir + '/index.html').text();
+		// Rewrite script/css paths to use Vite's @fs protocol
+		const withVite = html
+			.replace('src="./main.tsx"', \`src="/@fs\${workbenchSrcDir}/main.tsx"\`)
+			.replace('href="./styles.css"', \`href="/@fs\${workbenchSrcDir}/styles.css"\`);
+		return c.html(withVite);
+	});
+} else {
+	// Production mode: Serve pre-built assets
+	if (workbenchIndex) {
+		app.get('${workbenchRoute}', (c: Context) => c.html(workbenchIndex));
+		app.get('${workbenchRoute}/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/workbench' }));
 	}
+}
+`
+		: '';
 
 	// Server startup (same for dev and prod - Bun.serve with native WebSocket)
 	const serverStartup = `
@@ -333,9 +339,9 @@ if (typeof Bun !== 'undefined') {
 	(globalThis as any).__AGENTUITY_SERVER__ = server;
 	
 	otel.logger.info(\`Server listening on http://127.0.0.1:\${port}\`);
-	${mode === 'dev' ? `if (process.env.VITE_PORT) {
+	if (isDevelopment() && process.env.VITE_PORT) {
 		otel.logger.debug(\`Proxying Vite assets from port \${process.env.VITE_PORT}\`);
-	}` : ''}
+	}
 }
 
 // FOUND AN ERROR IN THIS FILE?
@@ -343,10 +349,11 @@ if (typeof Bun !== 'undefined') {
 // or if you know the fix please submit a PR!
 `;
 
-	const healthRoutes = mode === 'prod' ? `
+	const healthRoutes = `
 // Health check routes (production only)
-const healthHandler = (c: Context) => c.text('OK');
-const idleHandler = (c: Context) => {
+if (!isDevelopment()) {
+	const healthHandler = (c: Context) => c.text('OK');
+	const idleHandler = (c: Context) => {
 		// Check if server is idle (no pending requests/connections)
 		const server = (globalThis as any).__AGENTUITY_SERVER__;
 		if (!server) return c.text('NO', { status: 200 });
@@ -359,22 +366,25 @@ const idleHandler = (c: Context) => {
 		
 		return c.text('OK', { status: 200 });
 	};
-app.get('/_agentuity/health', healthHandler);
-app.get('/_health', healthHandler);
-app.get('/_agentuity/idle', idleHandler);
-app.get('/_idle', idleHandler);
-` : '';
+	app.get('/_agentuity/health', healthHandler);
+	app.get('/_health', healthHandler);
+	app.get('/_agentuity/idle', idleHandler);
+	app.get('/_idle', idleHandler);
+}
+`;
 
 	const code = `// @generated
 // Auto-generated by Agentuity
 // DO NOT EDIT - This file is regenerated on every build
-// Build mode: ${mode === 'dev' ? 'development' : 'production'}
+// Supports both development and production modes via runtime detection
 ${imports.join('\n')}
+
+${modeDetection}
 
 // Step 0: Bootstrap runtime environment (load profile-specific .env files)
 // Only in development - production env vars are injected by platform
 // This must happen BEFORE any imports that depend on environment variables
-if (process.env.NODE_ENV !== 'production') {
+if (isDevelopment()) {
 	// Pass project directory (two levels up from src/generated/) so .env files are loaded correctly
 	await bootstrapRuntimeEnv({ projectDir: import.meta.dir + '/../..' });
 }
