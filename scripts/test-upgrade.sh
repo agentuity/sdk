@@ -36,7 +36,15 @@ print_info() {
 # Build compiled executable for testing
 build_executable() {
 	print_info "Building compiled executable..."
-	(cd "$CLI_DIR" && bun build --compile --minify --sourcemap bin/cli.ts --outfile agentuity) > /dev/null 2>&1
+	(cd "$CLI_DIR" && bun build --compile --minify --sourcemap \
+		--external vite \
+		--external @vitejs/plugin-react \
+		--external @hono/vite-dev-server \
+		--external @hono/vite-build \
+		--external lightningcss \
+		--external esbuild \
+		--external rollup \
+		bin/cli.ts --outfile agentuity) > /dev/null 2>&1
 	if [ ! -f "$CLI_COMPILED" ]; then
 		print_error "Failed to build executable"
 		return 1
