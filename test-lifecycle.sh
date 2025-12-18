@@ -3,6 +3,10 @@ set -e
 
 echo "Testing lifecycle generation..."
 
+# Get script directory and SDK root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SDK_ROOT="$SCRIPT_DIR"
+
 # Create temp project
 TMP=$(mktemp -d)
 cd "$TMP"
@@ -39,14 +43,14 @@ export { default } from './agent';
 EOF
 
 # Copy tsconfig and package.json from template
-cp -r /Users/jhaynie/code/agentuity/worktree/refactor-generated-code/sdk/templates/_base/tsconfig.json .
-cp -r /Users/jhaynie/code/agentuity/worktree/refactor-generated-code/sdk/templates/_base/package.json .
+cp -r "$SDK_ROOT/templates/_base/tsconfig.json" .
+cp -r "$SDK_ROOT/templates/_base/package.json" .
 
 echo "Installing..."
 bun install > /dev/null 2>&1
 
 echo "Building..."
-bun /Users/jhaynie/code/agentuity/worktree/refactor-generated-code/sdk/packages/cli/bin/cli.ts build
+bun "$SDK_ROOT/packages/cli/bin/cli.ts" build
 
 echo ""
 echo "Generated files in src/generated:"

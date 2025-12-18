@@ -118,11 +118,6 @@ const { default: router_4 } = await import('../api/auth/route.js');
 app.route('/api/auth', router_4);
 
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
-// Production assets (loaded at top level, used only in production mode)
-const indexHtml = existsSync(import.meta.dir + '/../../.agentuity/client/index.html')
-	? readFileSync(import.meta.dir + '/../../.agentuity/client/index.html', 'utf-8')
-	: '';
-
 if (process.env.NODE_ENV !== 'production') {
 	// Development mode: Proxy HTML from Vite to enable React Fast Refresh
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '5173', 10);
@@ -168,6 +163,8 @@ if (process.env.NODE_ENV !== 'production') {
 	});
 } else {
 	// Production mode: Serve static files from bundled output
+	const indexHtml = readFileSync(import.meta.dir + '/../../.agentuity/client/index.html', 'utf-8');
+	
 	app.get('/', (c: Context) => c.html(indexHtml));
 
 	// Serve static assets from /assets/* (Vite bundled output)

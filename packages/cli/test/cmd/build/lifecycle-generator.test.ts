@@ -172,6 +172,31 @@ export default app;`;
 		});
 	});
 
+	describe('edge cases', () => {
+		test('should handle variable reference in expression body', async () => {
+			const appContent = `import { createApp } from '@agentuity/runtime';
+
+const state = { connected: true, port: 3000 };
+
+const app = await createApp({
+	setup: () => state,
+});
+
+export default app;`;
+
+			const appPath = join(rootDir, 'app.ts');
+			await Bun.write(appPath, appContent);
+
+			const result = await generateLifecycleTypes(rootDir, srcDir, logger);
+
+			expect(result).toBe(true);
+
+			const typesContent = await Bun.file(join(generatedDir, 'state.ts')).text();
+			expect(typesContent).toContain('connected: boolean');
+			expect(typesContent).toContain('port: number');
+		});
+	});
+
 	describe('no setup function', () => {
 		test('should return false when no setup exists', async () => {
 			const appContent = `import { createApp } from '@agentuity/runtime';

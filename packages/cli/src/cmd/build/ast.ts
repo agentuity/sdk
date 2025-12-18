@@ -1528,7 +1528,7 @@ export function checkRouteConflicts(content: string, workbenchEndpoint: string):
  */
 export function extractAppStateType(content: string): string | null {
 	try {
-		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true);
+		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 		let appStateType: string | null = null;
 		let foundCreateApp = false;
 		let foundSetup = false;
@@ -1614,10 +1614,13 @@ export function extractAppStateType(content: string): string | null {
 				}
 				if (ts.isIdentifier(expr)) {
 					// Support: const state = {...}; const setup = () => state;
-					// Try to find variable in parent scope
-					const parent = func.parent;
-					if (parent) {
-						findVariableDeclaration(parent, expr.text);
+					// Walk up to find the enclosing source file or statement list
+					let scope: ts.Node = func;
+					while (scope && !ts.isSourceFile(scope) && !ts.isBlock(scope)) {
+						scope = scope.parent;
+					}
+					if (scope) {
+						findVariableDeclaration(scope, expr.text);
 					}
 					return returnObject;
 				}
