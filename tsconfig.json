@@ -9,5 +9,6 @@
 		{ "path": "./packages/runtime" },
 		{ "path": "./packages/server" },
 		{ "path": "./packages/workbench" }
-	]
+	],
+	"exclude": ["e2e", "test-results", "playwright-report", "playwright.config.ts"]
 }

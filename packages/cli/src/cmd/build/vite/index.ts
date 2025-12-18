@@ -11,7 +11,6 @@ import { generateEntryFile } from '../entry-generator';
 import { loadAgentuityConfig, getWorkbenchConfig } from './config-loader';
 
 // Re-export plugins
-export { patchPlugin } from './patch-plugin';
 export { browserEnvPlugin } from './browser-env-plugin';
 
 export interface AgentuityPluginOptions {

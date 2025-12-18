@@ -76,24 +76,13 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		`import { `,
 		...runtimeImports,
 		`} from '@agentuity/runtime';`,
+		`import type { Context } from 'hono';`,
 		`import { websocket } from 'hono/bun';`, // Always use Bun WebSocket (dev and prod)
 		!isDev && hasWebFrontend ? `import { serveStatic } from 'hono/bun';` : '',
 	].filter(Boolean);
 
 	imports.push(`import { type LogLevel } from '@agentuity/core';`);
 	imports.push(`import { bootstrapRuntimeEnv } from '@agentuity/cli/runtime-bootstrap';`);
-
-	// HMR setup (dev only)
-	const hmrSetup = isDev
-		? `
-// HMR restart handler
-if (typeof (globalThis as any).__AGENTUITY_RESTART__ === 'undefined') {
-	(globalThis as any).__AGENTUITY_RESTART__ = () => {
-		console.log('[HMR] Restart triggered but handler not ready yet');
-	};
-}
-`
-		: '';
 
 	// Generate route mounting code for all discovered routes
 	const routeImportsAndMounts: string[] = [];
@@ -147,7 +136,7 @@ app.route('/', workbenchRouter);
 // Asset proxy routes - Forward Vite-specific requests to asset server
 const VITE_ASSET_PORT = ${vitePort};
 
-const proxyToVite = async (c) => {
+const proxyToVite = async (c: Context) => {
 	const viteUrl = \`http://127.0.0.1:\${VITE_ASSET_PORT}\${c.req.path}\`;
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
@@ -207,54 +196,82 @@ app.get('/*.css', proxyToVite);
 	let webRoutes = '';
 	if (hasWebFrontend) {
 		if (isDev) {
-			const htmlPath = join(srcDir, 'web', 'index.html');
 			webRoutes = `
 // Web routes (dev mode with Vite HMR via proxy)
-const devHtmlHandler = async (c) => {
-	const html = await Bun.file('${htmlPath}').text();
-	const withHmr = html
-		// Fix relative paths to use proxy routes (with or without ./)
-		.replace(/src=["'](?:\\.\\/)?([^"'\\/]+\\.tsx?)["']/g, 'src="/src/web/$1"')
-		// Inject React Refresh preamble BEFORE any user scripts
-		.replace(
-			/<head>/i,
-			\`<head>
-			<script type="module">
-				import RefreshRuntime from '/@react-refresh'
-				RefreshRuntime.injectIntoGlobalHook(window)
-				window.$RefreshReg$ = () => {}
-				window.$RefreshSig$ = () => (type) => type
-			</script>
-			<script type="module">
-				// Configure Vite client to connect to asset server for HMR WebSocket
-				window.__VITE_HMR_BASE_URL__ = 'http://127.0.0.1:${vitePort}';
-			</script>
-			<script type="module" src="http://127.0.0.1:${vitePort}/@vite/client"></script>\`
-		);
-	return c.html(withHmr);
+// Proxy HTML from Vite to let @vitejs/plugin-react handle React Fast Refresh preamble
+const devHtmlHandler = async (c: Context) => {
+	const viteUrl = \`http://127.0.0.1:${vitePort}/src/web/index.html\`;
+
+	try {
+		otel.logger.debug('[Proxy] GET /src/web/index.html -> Vite:%d', ${vitePort});
+		const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
+
+		// Get HTML text and transform relative paths to absolute
+		const html = await res.text();
+		const transformedHtml = html
+			.replace(/src="\\.\\//g, 'src="/src/web/')
+			.replace(/href="\\.\\//g, 'href="/src/web/');
+
+		return new Response(transformedHtml, {
+			status: res.status,
+			headers: res.headers,
+		});
+	} catch (err) {
+		otel.logger.error('Failed to proxy HTML to Vite: %s', err instanceof Error ? err.message : String(err));
+		return c.text('Vite asset server error (HTML)', 500);
+	}
 };
 app.get('/', devHtmlHandler);
 // 404 for unmatched API/system routes
-app.all('/_agentuity/*', (c) => c.notFound());
-app.all('/api/*', (c) => c.notFound());
-${hasWorkbench ? '' : `app.all('/workbench/*', (c) => c.notFound());`}
-// SPA fallback - serve index.html for all other GET requests
-// This is last so user routes, API routes, and workbench routes match first
-app.get('*', devHtmlHandler);
+app.all('/_agentuity/*', (c: Context) => c.notFound());
+app.all('/api/*', (c: Context) => c.notFound());
+${hasWorkbench ? '' : `app.all('/workbench/*', (c: Context) => c.notFound());`}
+// SPA fallback - serve index.html for client-side routing
+// Asset requests (/*.js, /*.tsx, /*.css, etc.) are handled by Vite proxy routes if present,
+// otherwise we check for file extensions to avoid returning HTML for missing assets
+app.get('*', (c: Context) => {
+	const path = c.req.path;
+	// If path has a file extension and Vite proxy isn't handling it, return 404
+	// This prevents returning HTML for missing assets like /foo.js
+	if (${!vitePort} && /\\.[a-zA-Z0-9]+$/.test(path)) {
+		return c.notFound();
+	}
+	return devHtmlHandler(c);
+});
 `;
 		} else {
 			webRoutes = `
 // Web routes (production - static files)
 import { readFileSync } from 'node:fs';
 const indexHtml = readFileSync(import.meta.dir + '/client/index.html', 'utf-8');
+
+app.get('/', (c: Context) => c.html(indexHtml));
+
+// Serve static assets from /assets/* (Vite bundled output)
 app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client' }));
-app.get('/', (c) => c.html(indexHtml));
-// 404 for unmatched API/system routes
-app.all('/_agentuity/*', (c) => c.notFound());
-app.all('/api/*', (c) => c.notFound());
-${hasWorkbench ? '' : `app.all('/workbench/*', (c) => c.notFound());`}
-// SPA fallback - serve index.html for all other GET requests
-app.get('*', (c) => c.html(indexHtml));
+
+// Serve static public assets (favicon.ico, robots.txt, etc. from Vite's public folder)
+app.use('/*', serveStatic({ root: import.meta.dir + '/client', rewriteRequestPath: (path) => path }));
+
+// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
+app.all('/_agentuity/*', (c: Context) => c.notFound());
+app.all('/api/*', (c: Context) => c.notFound());
+${hasWorkbench ? '' : `app.all('/workbench/*', (c: Context) => c.notFound());`}
+
+// SPA fallback with asset protection
+// In production, we need to distinguish between:
+//   - SPA routes like /dashboard, /users/123 (should return HTML)
+//   - Missing assets like /foo.js, /bar.css (should return 404)
+// We check for file extensions to detect asset requests
+app.get('*', (c: Context) => {
+	const path = c.req.path;
+	// If path has a file extension, it's likely an asset request
+	// Return 404 instead of serving HTML
+	if (/\\.[a-zA-Z0-9]+$/.test(path)) {
+		return c.notFound();
+	}
+	return c.html(indexHtml);
+});
 `;
 		}
 	}
@@ -266,7 +283,7 @@ app.get('*', (c) => c.html(indexHtml));
 		? isDev
 			? `
 // Workbench route (dev mode - let Vite serve source files with HMR)
-app.get('${workbenchRoute}', async (c) => {
+app.get('${workbenchRoute}', async (c: Context) => {
 	const html = await Bun.file('${workbenchSrcDir}/index.html').text();
 	// Rewrite script/css paths to use Vite's @fs protocol
 	const withVite = html
@@ -282,7 +299,7 @@ import { readFileSync, existsSync } from 'node:fs';
 const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
 if (existsSync(workbenchIndexPath)) {
 	const workbenchIndex = readFileSync(workbenchIndexPath, 'utf-8');
-	app.get('${workbenchRoute}', (c) => c.html(workbenchIndex));
+	app.get('${workbenchRoute}', (c: Context) => c.html(workbenchIndex));
 	app.get('${workbenchRoute}/*', serveStatic({ root: import.meta.dir + '/workbench' }));
 }
 `
@@ -312,11 +329,7 @@ if (typeof Bun !== 'undefined') {
 
 	const code = `// Auto-generated by Agentuity for ${mode} mode
 // DO NOT EDIT - This file is regenerated on every build
-// NOTE: Bun auto-loads .env files from CWD before executing JavaScript
-
 ${imports.join('\n')}
-
-${hmrSetup}
 
 // Step 0: Bootstrap runtime environment (load profile-specific .env files)
 // Only in development - production env vars are injected by platform
@@ -329,7 +342,12 @@ if (process.env.NODE_ENV !== 'production') {
 // Step 1: Initialize telemetry and services
 const serverUrl = \`http://127.0.0.1:\${process.env.PORT || '3500'}\`;
 const otel = register({ processors: [], logLevel: (process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel });
-const servicesResult = createServices(otel.logger, undefined, serverUrl);
+
+// Get app state and config for use below
+const appState = getAppState();
+const appConfig = getAppConfig();
+
+createServices(otel.logger, appConfig, serverUrl);
 
 // Make logger and tracer globally available for user's app.ts
 setGlobalLogger(otel.logger);
@@ -359,10 +377,6 @@ app.use('/api/*', createAgentMiddleware(''));
 // Step 4: Import user's app.ts (runs createApp, gets state/config)
 await import('../app.ts');
 
-// Get app state and config for use below
-const appState = getAppState();
-const appConfig = getAppConfig();
-
 // Step 5: Initialize providers
 const threadProvider = getThreadProvider();
 const sessionProvider = getSessionProvider();
@@ -373,8 +387,8 @@ await sessionProvider.initialize(appState);
 // Step 6: Mount routes (AFTER middleware is applied)
 
 // System health/idle endpoints
-const healthHandler = (c: any) => c.text('OK');
-const idleHandler = (c: any) => {
+const healthHandler = (c: Context) => c.text('OK');
+const idleHandler = (c: Context) => {
 	// Check if server is idle (no pending requests/connections)
 	const server = (globalThis as any).__AGENTUITY_SERVER__;
 	if (!server) return c.text('NO', { status: 200 });
@@ -388,7 +402,6 @@ const idleHandler = (c: any) => {
 	return c.text('OK', { status: 200 });
 };
 
-// Mount on both /_agentuity/* and /* for backwards compatibility
 app.get('/_agentuity/health', healthHandler);
 app.get('/_health', healthHandler);
 app.get('/_agentuity/idle', idleHandler);

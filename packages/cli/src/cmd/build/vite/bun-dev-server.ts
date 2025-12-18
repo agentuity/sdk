@@ -6,7 +6,6 @@
  */
 
 import type { Logger } from '../../../types';
-import { startViteAssetServer } from './vite-asset-server';
 
 export interface BunDevServerOptions {
 	rootDir: string;
@@ -15,20 +14,21 @@ export interface BunDevServerOptions {
 	orgId?: string;
 	deploymentId?: string;
 	logger: Logger;
+	vitePort: number; // Port of already-running Vite asset server
 }
 
 export interface BunDevServerResult {
-	viteAssetServer: { server: { close: () => void | Promise<void> }; port: number };
 	bunServerPort: number;
 }
 
 /**
- * Start Bun dev server with Vite asset server for HMR
+ * Start Bun dev server (Vite asset server must already be running)
+ * Generates entry file with proxy routes pointing to Vite
  */
 export async function startBunDevServer(options: BunDevServerOptions): Promise<BunDevServerResult> {
-	const { rootDir, port = 3500, projectId = '', deploymentId = '', logger } = options;
+	const { rootDir, port = 3500, projectId = '', deploymentId = '', logger, vitePort } = options;
 
-	logger.debug('Starting Bun dev server with Vite asset server for HMR...');
+	logger.debug('Starting Bun dev server (Vite already running on port %d)...', vitePort);
 
 	// Generate workbench source files if enabled (dev mode)
 	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
@@ -40,15 +40,6 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 		const { generateWorkbenchFiles } = await import('./workbench-generator');
 		await generateWorkbenchFiles(rootDir, projectId, workbenchConfig, logger);
 	}
-
-	// Step 1: Start Vite asset server FIRST and get its dynamic port
-	logger.debug('🎨 Starting Vite asset server for HMR...');
-	const viteAssetServer = await startViteAssetServer({
-		rootDir,
-		logger,
-		workbenchPath: workbenchConfig.enabled ? workbenchConfig.route : undefined,
-	});
-	const vitePort = viteAssetServer.port;
 
 	// Step 2: Generate entry file with Vite port for asset proxying
 	logger.debug('📝 Generating entry file with asset proxy configuration...');
@@ -105,11 +96,10 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 		);
 	}
 
-	logger.info(`✅ Bun dev server started on http://127.0.0.1:${port}`);
+	logger.debug(`Bun dev server started on http://127.0.0.1:${port}`);
 	logger.debug(`Asset requests (/@vite/*, /src/web/*, etc.) proxied to Vite:${vitePort}`);
 
 	return {
-		viteAssetServer,
 		bunServerPort: port,
 	};
 }

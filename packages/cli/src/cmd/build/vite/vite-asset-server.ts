@@ -55,7 +55,7 @@ export async function startViteAssetServer(
 	// Get the actual port Vite is using (may differ from preferred if port was taken)
 	const actualPort = server.config.server.port || preferredPort;
 
-	logger.info(`✅ Vite asset server started on port ${actualPort}`);
+	logger.debug(`✅ Vite asset server started on port ${actualPort}`);
 	if (actualPort !== preferredPort) {
 		logger.debug(`Port ${preferredPort} was taken, using ${actualPort} instead`);
 	}

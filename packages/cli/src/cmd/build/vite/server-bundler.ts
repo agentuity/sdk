@@ -6,6 +6,8 @@
 import { join } from 'node:path';
 import { readdir, stat } from 'node:fs/promises';
 import type { Logger } from '../../../types';
+import type { BunPlugin } from 'bun';
+import { generatePatches, applyPatch } from '../patch';
 
 export interface ServerBundleOptions {
 	rootDir: string;
@@ -202,6 +204,39 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	logger.debug('Building server with Bun.build...');
 	logger.debug(`External packages (${external.length}): ${external.join(', ')}`);
 
+	// Create Bun plugin to apply LLM patches during bundling
+	const patches = generatePatches();
+	logger.debug(`Loaded ${patches.size} patch(es) for LLM providers`);
+
+	const patchPlugin: BunPlugin = {
+		name: 'agentuity:patch',
+		setup(build) {
+			for (const [, patch] of patches) {
+				let modulePath = join('node_modules', patch.module, '.*');
+				if (patch.filename) {
+					modulePath = join('node_modules', patch.module, patch.filename + '.*');
+				}
+				build.onLoad(
+					{
+						filter: new RegExp(modulePath),
+						namespace: 'file',
+					},
+					async (args) => {
+						if (build.config.target !== 'bun') {
+							return;
+						}
+						logger.trace(`Applying patch to: ${args.path}`);
+						const [contents, loader] = await applyPatch(args.path, patch);
+						return {
+							contents,
+							loader,
+						};
+					}
+				);
+			}
+		},
+	};
+
 	const buildConfig = {
 		entrypoints: [entryPath],
 		outdir: outDir, // Output to .agentuity/ directly (not .agentuity/server/)
@@ -212,6 +247,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		sourcemap: (dev ? 'inline' : 'external') as 'inline' | 'external',
 		external,
 		define: userDefine, // Include custom define values from agentuity.config.ts
+		plugins: [patchPlugin],
 		naming: {
 			entry: 'app.js', // Output as app.js (not app.generated.js)
 		},
