@@ -128,7 +128,7 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 			return;
 		}
 
-		// Check if an empty directory was created in src/agents/ or src/apis/
+		// Check if an empty directory was created in src/agent/ or src/api/
 		// This helps with developer experience by auto-scaffolding template files
 		if (changedFile && eventType === 'rename') {
 			try {
@@ -142,10 +142,10 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 					const contents = readdirSync(absPath);
 					if (contents.length === 0) {
 						// Check if this is an agent or API directory
-						if (normalizedPath.startsWith('src/agents/') || normalizedPath.includes('/src/agents/')) {
+						if (normalizedPath.startsWith('src/agent/') || normalizedPath.includes('/src/agent/')) {
 							logger.debug('Agent directory created: %s', changedFile);
 							createAgentTemplates(absPath);
-						} else if (normalizedPath.startsWith('src/apis/') || normalizedPath.includes('/src/apis/')) {
+						} else if (normalizedPath.startsWith('src/api/') || normalizedPath.includes('/src/api/')) {
 							logger.debug('API directory created: %s', changedFile);
 							createAPITemplates(absPath);
 						}

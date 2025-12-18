@@ -262,15 +262,24 @@ describe('File Watcher', () => {
 		watcher.start();
 		watcher.resume();
 
-		// Give watcher time to settle
-		await Bun.sleep(100);
+		// Give watcher time to settle (longer for CI)
+		await Bun.sleep(500);
 
 		// Create a new agent directory (empty)
-		const agentDir = join(testDir, 'src', 'agents', 'my-agent');
+		const agentDir = join(testDir, 'src', 'agent', 'my-agent');
 		await mkdir(agentDir, { recursive: true });
 
-		// Wait for watcher to detect and create templates
-		await Bun.sleep(1000);
+		// Wait for watcher to detect and create templates with polling
+		const maxWait = 3000; // 3 seconds max
+		const pollInterval = 100; // check every 100ms
+		let elapsed = 0;
+		while (elapsed < maxWait) {
+			if (existsSync(join(agentDir, 'agent.ts')) && existsSync(join(agentDir, 'index.ts'))) {
+				break;
+			}
+			await Bun.sleep(pollInterval);
+			elapsed += pollInterval;
+		}
 
 		// Verify templates were created
 		expect(existsSync(join(agentDir, 'agent.ts'))).toBe(true);
@@ -309,15 +318,24 @@ describe('File Watcher', () => {
 		watcher.start();
 		watcher.resume();
 
-		// Give watcher time to settle
-		await Bun.sleep(100);
+		// Give watcher time to settle (longer for CI)
+		await Bun.sleep(500);
 
 		// Create a new API directory (empty)
-		const apiDir = join(testDir, 'src', 'apis', 'my-api');
+		const apiDir = join(testDir, 'src', 'api', 'my-api');
 		await mkdir(apiDir, { recursive: true });
 
-		// Wait for watcher to detect and create templates
-		await Bun.sleep(1000);
+		// Wait for watcher to detect and create templates with polling
+		const maxWait = 3000; // 3 seconds max
+		const pollInterval = 100; // check every 100ms
+		let elapsed = 0;
+		while (elapsed < maxWait) {
+			if (existsSync(join(apiDir, 'index.ts'))) {
+				break;
+			}
+			await Bun.sleep(pollInterval);
+			elapsed += pollInterval;
+		}
 
 		// Verify template was created
 		expect(existsSync(join(apiDir, 'index.ts'))).toBe(true);
@@ -356,7 +374,7 @@ describe('File Watcher', () => {
 		await Bun.sleep(100);
 
 		// Create a new agent directory with a file already in it
-		const agentDir = join(testDir, 'src', 'agents', 'existing-agent');
+		const agentDir = join(testDir, 'src', 'agent', 'existing-agent');
 		await mkdir(agentDir, { recursive: true });
 		await writeFile(join(agentDir, 'existing.ts'), 'export {}', 'utf-8');
 
@@ -368,7 +386,7 @@ describe('File Watcher', () => {
 		expect(existsSync(join(agentDir, 'index.ts'))).toBe(false);
 	});
 
-	test('does not create templates for directories outside src/agents or src/apis', async () => {
+	test('does not create templates for directories outside src/agent or src/api', async () => {
 		watcher = createFileWatcher({
 			rootDir: testDir,
 			logger: {
