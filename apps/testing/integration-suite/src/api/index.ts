@@ -3,8 +3,18 @@ import { testSuite } from '../test/suite';
 import statePersistenceAgent from '@agents/state/agent';
 import stateReaderAgent from '@agents/state/reader-agent';
 import stateWriterAgent from '@agents/state/writer-agent';
+import { mockDatabaseMiddleware } from '../lib/custom-middleware';
 
 const router = createRouter();
+
+// Add API-level middleware (applies to all routes under /api)
+// This demonstrates the pattern from ops-center where middleware is in api/index.ts
+router.use('*', mockDatabaseMiddleware('clickhouse'));
+router.use('*', mockDatabaseMiddleware('postgres'));
+router.use('*', async (c, next) => {
+	c.set('apiLevelData', 'set-in-api-index-ts');
+	await next();
+});
 
 // Test execution endpoint with SSE streaming
 router.get('/test/run', async (c) => {

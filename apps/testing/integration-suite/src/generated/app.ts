@@ -124,6 +124,8 @@ const { default: router_3 } = await import('../api/my-service/index.js');
 app.route('/api/my-service', router_3);
 const { default: router_4 } = await import('../api/auth/route.js');
 app.route('/api/auth', router_4);
+const { default: router_5 } = await import('../api/middleware-test/route.js');
+app.route('/api/middleware-test', router_5);
 
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
 if (isDevelopment()) {
