@@ -37,7 +37,11 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		try {
 			const srcDir = join(rootDir, 'src');
 
-			// Generate lifecycle types first (if setup() exists)
+			// Generate documentation files (if they don't exist)
+			const { generateDocumentation } = await import('./docs-generator');
+			generateDocumentation(srcDir, logger);
+
+			// Generate lifecycle types (if setup() exists)
 			const { generateLifecycleTypes } = await import('./lifecycle-generator');
 			await generateLifecycleTypes(rootDir, srcDir, logger);
 

@@ -8,8 +8,9 @@ This directory contains auto-generated TypeScript files created by the Agentuity
 
 - `registry.ts` - Agent registry from `src/agent/**`
 - `routes.ts` - Route registry from `src/api/**`
-- `lifecycle.d.ts` - Type definitions for app.ts setup()
 - `app.ts` - Application entry point
+- `state.ts` - App state types (when setup() exists)
+- `router.ts` - Runtime wrapper (when setup() exists)
 
 ## For Developers
 

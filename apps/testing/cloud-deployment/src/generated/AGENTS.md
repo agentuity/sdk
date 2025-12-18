@@ -14,7 +14,8 @@
 
 - `registry.ts` - Built from agent discovery in `src/agent/`
 - `routes.ts` - Built from route discovery in `src/api/`
-- `lifecycle.d.ts` - Built from analyzing `app.ts` exports
 - `app.ts` - Entry point assembled from project configuration
+- `state.ts` - App state type from `setup()` return value
+- `router.ts` - Runtime wrapper with type augmentation
 
 These files are regenerated on every `bun run build` or `bun run dev`.

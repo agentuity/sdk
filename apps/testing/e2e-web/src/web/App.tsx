@@ -35,7 +35,7 @@ export function App() {
 						/>
 					</svg>
 
-					<h1 className="title">Welcome to Agentuity</h1>
+					<h1 className="title">HMR Test v2</h1>
 
 					<p className="subtitle">
 						The <span className="italic">Full-Stack</span> Platform for AI Agents
