@@ -1079,7 +1079,7 @@ export class ThreadWebSocketClient {
 		});
 	}
 
-	async save(threadId: string, userData: string): Promise<void> {
+	async save(threadId: string, userData: string, threadMetadata?: Record<string, unknown>): Promise<void> {
 		// Wait for connection/reconnection if in progress
 		if (this.wsConnecting) {
 			await this.wsConnecting;
@@ -1110,8 +1110,8 @@ export class ThreadWebSocketClient {
 				user_data: userData,
 			};
 
-			if (metadata && Object.keys(metadata).length > 0) {
-				data.metadata = metadata;
+			if (threadMetadata && Object.keys(threadMetadata).length > 0) {
+				data.metadata = threadMetadata;
 			}
 
 			const message = {
