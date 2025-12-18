@@ -446,7 +446,8 @@ async function startServer(
 	const appPath = join(projectDir, '.agentuity', 'app.js');
 
 	// Pass port as CLI flag and merge env vars
-	const mergedEnv = { ...process.env, ...env };
+	// Set NODE_ENV=production to ensure runtime mode detection works correctly
+	const mergedEnv = { ...process.env, ...env, NODE_ENV: 'production' };
 
 	// Debug: Verify env vars are set
 	logInfo(`Starting server with env: ${Object.keys(env).join(', ')}`);
