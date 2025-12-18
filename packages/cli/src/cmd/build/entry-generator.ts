@@ -130,11 +130,12 @@ app.route('/', workbenchRouter);
 `
 		: '';
 
-	// Asset proxy routes - always generated, runtime gated by NODE_ENV
-	const assetProxyRoutes = `
+	// Asset proxy routes - only generated in dev mode when vitePort is available
+	const assetProxyRoutes = vitePort
+		? `
 // Asset proxy routes - Development mode only (proxies to Vite asset server)
 if (process.env.NODE_ENV !== 'production') {
-	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '${vitePort || 5173}', 10);
+	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '${vitePort}', 10);
 
 	const proxyToVite = async (c: Context) => {
 		const viteUrl = \`http://127.0.0.1:\${VITE_ASSET_PORT}\${c.req.path}\`;
@@ -190,7 +191,8 @@ if (process.env.NODE_ENV !== 'production') {
 	app.get('/*.tsx', proxyToVite);
 	app.get('/*.css', proxyToVite);
 }
-`;
+`
+		: '';
 
 	// Web routes (runtime detection - dev vs prod)
 	let webRoutes = '';
