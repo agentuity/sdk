@@ -23,7 +23,6 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	const { rootDir, dev, logger } = options;
 
 	logger.debug('[server-bundler] Starting server bundle process');
-	logger.debug(`[server-bundler] process.env.NODE_ENV during build: ${process.env.NODE_ENV}`);
 
 	const entryPath = join(rootDir, 'src/generated/app.ts');
 	const outDir = join(rootDir, '.agentuity');
@@ -266,9 +265,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	// See: https://github.com/oven-sh/bun/issues/20183
 	// Even with env: 'disable', Bun.build still inlines NODE_ENV at build time
 	const originalNodeEnv = process.env.NODE_ENV;
-	logger.debug(`[server-bundler] Deleting NODE_ENV before build (was: ${originalNodeEnv})`);
 	delete process.env.NODE_ENV;
-	logger.debug(`[server-bundler] NODE_ENV after deletion: ${process.env.NODE_ENV}`);
 
 	// Verify entry point exists before building
 	if (!(await Bun.file(entryPath).exists())) {

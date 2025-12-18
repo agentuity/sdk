@@ -451,8 +451,6 @@ async function startServer(
 
 	// Debug: Verify env vars are set
 	logInfo(`Starting server with env: ${Object.keys(env).join(', ')}`);
-	logInfo(`NODE_ENV in mergedEnv: ${mergedEnv.NODE_ENV}`);
-	logInfo(`process.env.NODE_ENV in test script: ${process.env.NODE_ENV}`);
 
 	const proc = spawn({
 		cmd: ['bun', '--no-install', appPath, '--port', String(port)],
