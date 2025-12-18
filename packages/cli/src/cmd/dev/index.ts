@@ -257,9 +257,6 @@ export const command = createCommand({
 			logger.info('DevMode ready 🚀');
 		};
 
-		// Make restart function available globally for HMR plugin
-		(globalThis as Record<string, unknown>).__AGENTUITY_RESTART__ = restartServer;
-
 		// Create file watcher for backend hot reload
 		const fileWatcher = createFileWatcher({
 			rootDir,
