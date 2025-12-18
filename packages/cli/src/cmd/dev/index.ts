@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
-import { internalExit } from '@agentuity/runtime';
 import { createCommand } from '../../types';
 import { startBunDevServer } from '../build/vite/bun-dev-server';
 import { startViteAssetServer } from '../build/vite/vite-asset-server';
@@ -110,7 +109,7 @@ export const command = createCommand({
 			for (const filename of missing) {
 				tui.bullet(`Missing ${filename}`);
 			}
-			internalExit(1);
+			process.exit(1);
 		}
 
 		// Setup devmode and gravity (if using public URL)
@@ -241,7 +240,7 @@ export const command = createCommand({
 			);
 		} catch (error) {
 			tui.error(`Failed to start Vite asset server: ${error}`);
-			internalExit(1);
+			process.exit(1);
 		}
 
 		// Restart loop - allows BACKEND server to restart on file changes
@@ -293,7 +292,7 @@ export const command = createCommand({
 				}
 			}
 
-			internalExit(0);
+			process.exit(0);
 		};
 
 		process.on('SIGINT', cleanup);
@@ -472,7 +471,7 @@ export const command = createCommand({
 
 						// Handle Ctrl+C
 						if (key === '\u0003') {
-							internalExit(0);
+							process.exit(0);
 						}
 
 						switch (key) {
@@ -489,7 +488,7 @@ export const command = createCommand({
 								});
 								break;
 							case 'q':
-								internalExit(0);
+								process.exit(0);
 								break;
 							default:
 								process.stdout.write(data);
