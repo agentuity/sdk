@@ -1,20 +1,23 @@
 {
-	"name": "cloud-deployment-tests",
+	"name": "e2e-web-tests",
 	"version": "0.0.1",
 	"license": "Apache-2.0",
 	"private": true,
 	"type": "module",
-	"description": "Cloud deployment integration tests for Agentuity CLI",
+	"description": "E2E web tests for Agentuity SDK",
 	"scripts": {
 		"build": "bun ../../../packages/cli/bin/cli.ts build --dir .",
-		"test": "bun run build && bash scripts/test-deployment.sh",
-		"test:deployment": "bash scripts/test-deployment.sh"
+		"dev": "bun ../../../packages/cli/bin/cli.ts dev --dir . --port 3500 --local --no-public",
+		"typecheck": "bunx tsc --project tsconfig.json --noEmit"
 	},
 	"dependencies": {
 		"@agentuity/cli": "workspace:*",
 		"@agentuity/core": "workspace:*",
+		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
-		"@agentuity/schema": "workspace:*"
+		"@agentuity/schema": "workspace:*",
+		"react": "^19.2.1",
+		"react-dom": "^19.2.1"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"
