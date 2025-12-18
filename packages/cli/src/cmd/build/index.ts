@@ -45,10 +45,6 @@ export const command = createCommand({
 		const absoluteProjectDir = resolve(projectDir);
 		const outDir = opts.outdir ? resolve(opts.outdir) : join(absoluteProjectDir, '.agentuity');
 
-		// Set NODE_ENV based on --dev flag to prevent build-time inlining issues
-		// Production builds should have NODE_ENV=production, dev builds use development
-		process.env.NODE_ENV = opts.dev ? 'development' : 'production';
-
 		try {
 			const rel = outDir.startsWith(absoluteProjectDir)
 				? relative(absoluteProjectDir, outDir)

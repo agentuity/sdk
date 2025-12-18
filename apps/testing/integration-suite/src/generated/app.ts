@@ -118,6 +118,7 @@ const { default: router_4 } = await import('../api/auth/route.js');
 app.route('/api/auth', router_4);
 
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
+otel.logger.error('[Runtime] NODE_ENV=%s, Mode=%s', process.env.NODE_ENV, process.env.NODE_ENV !== 'production' ? 'dev' : 'prod');
 if (process.env.NODE_ENV !== 'production') {
 	// Development mode: Proxy HTML from Vite to enable React Fast Refresh
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '5173', 10);

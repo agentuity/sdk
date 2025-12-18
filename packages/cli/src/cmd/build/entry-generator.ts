@@ -78,8 +78,8 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		`import type { Context } from 'hono';`,
 		`import { websocket } from 'hono/bun';`,
 		// Conditionally import serveStatic and readFileSync for web frontend or workbench support
-		(hasWebFrontend || hasWorkbench) ? `import { serveStatic } from 'hono/bun';` : '',
-		(hasWebFrontend || hasWorkbench) ? `import { readFileSync, existsSync } from 'node:fs';` : '',
+		hasWebFrontend || hasWorkbench ? `import { serveStatic } from 'hono/bun';` : '',
+		hasWebFrontend || hasWorkbench ? `import { readFileSync, existsSync } from 'node:fs';` : '',
 	].filter(Boolean);
 
 	imports.push(`import { type LogLevel } from '@agentuity/core';`);
@@ -194,13 +194,12 @@ if (process.env.NODE_ENV !== 'production') {
 `
 		: '';
 
-	// Web routes (runtime detection - dev vs prod)
+	// Web routes (build-time mode selection)
 	let webRoutes = '';
 	if (hasWebFrontend) {
-		webRoutes = `
-// Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
-otel.logger.error('[Runtime] NODE_ENV=%s, Mode=%s', process.env.NODE_ENV, process.env.NODE_ENV !== 'production' ? 'dev' : 'prod');
-if (process.env.NODE_ENV !== 'production') {
+		if (mode === 'dev') {
+			webRoutes = `
+// Web routes - Development mode (proxies to Vite for HMR)
 	// Development mode: Proxy HTML from Vite to enable React Fast Refresh
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '${vitePort || 5173}', 10);
 	
@@ -243,74 +242,77 @@ if (process.env.NODE_ENV !== 'production') {
 		}
 		return devHtmlHandler(c);
 	});
-} else {
-	// Production mode: Serve static files from bundled output
-	const indexHtmlPath = import.meta.dir + '/../../.agentuity/client/index.html';
-	const indexHtml = existsSync(indexHtmlPath)
-		? readFileSync(indexHtmlPath, 'utf-8')
-		: '';
-	
-	if (!indexHtml) {
-		otel.logger.warn('Production HTML not found at %s', indexHtmlPath);
-	}
-	
-	app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
-
-	// Serve static assets from /assets/* (Vite bundled output)
-	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client' }));
-
-	// Serve static public assets (favicon.ico, robots.txt, etc.)
-	app.use('/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client', rewriteRequestPath: (path) => path }));
-
-	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
-	app.all('/_agentuity/*', (c: Context) => c.notFound());
-	app.all('/api/*', (c: Context) => c.notFound());
-	${hasWorkbench ? '' : `app.all('/workbench/*', (c: Context) => c.notFound());`}
-
-	// SPA fallback with asset protection
-	app.get('*', (c: Context) => {
-		const path = c.req.path;
-		// If path has a file extension, it's likely an asset request - return 404
-		if (/\\.[a-zA-Z0-9]+$/.test(path)) {
-			return c.notFound();
-		}
-		return c.html(indexHtml);
-	});
-}
 `;
+		} else {
+			webRoutes = `
+// Web routes - Production mode (serves static files)
+const indexHtmlPath = import.meta.dir + '/../../.agentuity/client/index.html';
+const indexHtml = existsSync(indexHtmlPath)
+	? readFileSync(indexHtmlPath, 'utf-8')
+	: '';
+
+if (!indexHtml) {
+	otel.logger.warn('Production HTML not found at %s', indexHtmlPath);
+}
+
+app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
+
+// Serve static assets from /assets/* (Vite bundled output)
+app.use('/assets/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client' }));
+
+// Serve static public assets (favicon.ico, robots.txt, etc.)
+app.use('/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client', rewriteRequestPath: (path) => path }));
+
+// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
+app.all('/_agentuity/*', (c: Context) => c.notFound());
+app.all('/api/*', (c: Context) => c.notFound());
+${hasWorkbench ? '' : `app.all('/workbench/*', (c: Context) => c.notFound());`}
+
+// SPA fallback with asset protection
+app.get('*', (c: Context) => {
+	const path = c.req.path;
+	// If path has a file extension, it's likely an asset request - return 404
+	if (/\\.[a-zA-Z0-9]+$/.test(path)) {
+		return c.notFound();
+	}
+	return c.html(indexHtml);
+});
+`;
+		}
 	}
 
-	// Workbench routes (if enabled) - runtime mode detection
+	// Workbench routes (if enabled) - build-time mode selection
 	const workbenchRoute = workbench?.route ?? '/workbench';
 	const workbenchSrcDir = join(rootDir, '.agentuity', 'workbench-src');
-	const workbenchRoutes = hasWorkbench
-		? `
-// Workbench routes - Runtime mode detection
-// Production assets (loaded at top level, used only in production mode)
+	let workbenchRoutes = '';
+	if (hasWorkbench) {
+		if (mode === 'dev') {
+			workbenchRoutes = `
+// Workbench routes - Development mode (Vite serves source files)
+app.get('${workbenchRoute}', async (c: Context) => {
+	const html = await Bun.file('${workbenchSrcDir}/index.html').text();
+	// Rewrite script/css paths to use Vite's @fs protocol
+	const withVite = html
+		.replace('src="./main.tsx"', 'src="/@fs${workbenchSrcDir}/main.tsx"')
+		.replace('href="./styles.css"', 'href="/@fs${workbenchSrcDir}/styles.css"');
+	return c.html(withVite);
+});
+`;
+		} else {
+			workbenchRoutes = `
+// Workbench routes - Production mode (serves pre-built assets)
 const workbenchIndexPath = import.meta.dir + '/../../.agentuity/workbench/index.html';
 const workbenchIndex = existsSync(workbenchIndexPath) 
 	? readFileSync(workbenchIndexPath, 'utf-8')
 	: '';
 
-if (process.env.NODE_ENV !== 'production') {
-	// Development mode: Let Vite serve source files with HMR
-	app.get('${workbenchRoute}', async (c: Context) => {
-		const html = await Bun.file('${workbenchSrcDir}/index.html').text();
-		// Rewrite script/css paths to use Vite's @fs protocol
-		const withVite = html
-			.replace('src="./main.tsx"', 'src="/@fs${workbenchSrcDir}/main.tsx"')
-			.replace('href="./styles.css"', 'href="/@fs${workbenchSrcDir}/styles.css"');
-		return c.html(withVite);
-	});
-} else {
-	// Production mode: Serve pre-built assets
-	if (workbenchIndex) {
-		app.get('${workbenchRoute}', (c: Context) => c.html(workbenchIndex));
-		app.get('${workbenchRoute}/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/workbench' }));
-	}
+if (workbenchIndex) {
+	app.get('${workbenchRoute}', (c: Context) => c.html(workbenchIndex));
+	app.get('${workbenchRoute}/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/workbench' }));
 }
-`
-		: '';
+`;
+		}
+	}
 
 	// Server startup (same for dev and prod - Bun.serve with native WebSocket)
 	const serverStartup = `
@@ -331,9 +333,9 @@ if (typeof Bun !== 'undefined') {
 	(globalThis as any).__AGENTUITY_SERVER__ = server;
 	
 	otel.logger.info(\`Server listening on http://127.0.0.1:\${port}\`);
-	if (process.env.NODE_ENV !== 'production' && process.env.VITE_PORT) {
+	${mode === 'dev' ? `if (process.env.VITE_PORT) {
 		otel.logger.debug(\`Proxying Vite assets from port \${process.env.VITE_PORT}\`);
-	}
+	}` : ''}
 }
 
 // FOUND AN ERROR IN THIS FILE?
@@ -341,11 +343,10 @@ if (typeof Bun !== 'undefined') {
 // or if you know the fix please submit a PR!
 `;
 
-	const healthRoutes = `
-if (process.env.NODE_ENV === 'production') {
-	// These routes are used in production for monitoring
-	const healthHandler = (c: Context) => c.text('OK');
-	const idleHandler = (c: Context) => {
+	const healthRoutes = mode === 'prod' ? `
+// Health check routes (production only)
+const healthHandler = (c: Context) => c.text('OK');
+const idleHandler = (c: Context) => {
 		// Check if server is idle (no pending requests/connections)
 		const server = (globalThis as any).__AGENTUITY_SERVER__;
 		if (!server) return c.text('NO', { status: 200 });
@@ -358,16 +359,16 @@ if (process.env.NODE_ENV === 'production') {
 		
 		return c.text('OK', { status: 200 });
 	};
-	app.get('/_agentuity/health', healthHandler);
-	app.get('/_health', healthHandler);
-	app.get('/_agentuity/idle', idleHandler);
-	app.get('/_idle', idleHandler);
-}`;
+app.get('/_agentuity/health', healthHandler);
+app.get('/_health', healthHandler);
+app.get('/_agentuity/idle', idleHandler);
+app.get('/_idle', idleHandler);
+` : '';
 
 	const code = `// @generated
 // Auto-generated by Agentuity
 // DO NOT EDIT - This file is regenerated on every build
-// Supports both development and production modes via NODE_ENV runtime detection
+// Build mode: ${mode === 'dev' ? 'development' : 'production'}
 ${imports.join('\n')}
 
 // Step 0: Bootstrap runtime environment (load profile-specific .env files)
