@@ -21,5 +21,3 @@ Do not modify these files. Instead:
 - Configure app in `app.ts`
 
 These files ARE version controlled to enable better tooling and type checking.
-
-# MODIFIED
