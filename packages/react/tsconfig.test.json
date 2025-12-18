@@ -1,0 +1,14 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"lib": ["ESNext", "DOM"],
+		"outDir": "./dist-test",
+		"rootDir": ".",
+		"composite": false,
+		"noEmit": true,
+		"jsx": "react-jsx",
+		"types": ["bun-types"]
+	},
+	"include": ["src/**/*", "test/**/*"],
+	"references": [{ "path": "../core" }, { "path": "../schema" }]
+}

@@ -30,7 +30,7 @@ test.describe('Hot Module Replacement (HMR)', () => {
 
 		await page.goto('/');
 		await expect(page.locator('h1')).toContainText('Welcome to Agentuity');
-		
+
 		// Give initial page time to fully load
 		await page.waitForTimeout(500);
 

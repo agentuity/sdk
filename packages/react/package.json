@@ -29,6 +29,7 @@
 		"@agentuity/core": "workspace:*"
 	},
 	"devDependencies": {
+		"@agentuity/schema": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"
