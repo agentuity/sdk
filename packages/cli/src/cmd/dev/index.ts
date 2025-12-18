@@ -247,6 +247,7 @@ export const command = createCommand({
 		// Vite stays running and handles frontend changes via HMR
 		let shouldRestart = false;
 		let gravityProcess: ProcessLike | null = null;
+		let stdinListenerRegistered = false; // Track if stdin listener is already registered
 
 		const restartServer = () => {
 			shouldRestart = true;
@@ -453,8 +454,9 @@ export const command = createCommand({
 				// TODO: Integrate sync service with Vite's buildStart/buildEnd hooks
 				// The sync service will be called when metadata changes are detected
 
-				// Handle keyboard shortcuts
-				if (interactive && process.stdin.isTTY && process.stdout.isTTY) {
+				// Handle keyboard shortcuts - only register listener once
+				if (interactive && process.stdin.isTTY && process.stdout.isTTY && !stdinListenerRegistered) {
+					stdinListenerRegistered = true;
 					process.stdin.setRawMode(true);
 					process.stdin.resume();
 					process.stdin.setEncoding('utf8');
