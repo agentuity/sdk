@@ -143,6 +143,7 @@ export class StandaloneAgentContext<
 			({
 				id: 'pending',
 				state: new Map(),
+				metadata: {},
 				addEventListener: () => {},
 				removeEventListener: () => {},
 				destroy: async () => {},
@@ -155,6 +156,7 @@ export class StandaloneAgentContext<
 				id: 'pending',
 				thread: this.thread,
 				state: new Map(),
+				metadata: {},
 				addEventListener: () => {},
 				removeEventListener: () => {},
 				serializeUserData: () => undefined,
@@ -317,6 +319,9 @@ export class StandaloneAgentContext<
 								method: 'STANDALONE',
 								url: '',
 								trigger: this.trigger,
+								metadata: Object.keys(invocationSession.metadata).length > 0 
+									? invocationSession.metadata 
+									: undefined,
 							})
 							.catch((ex) => {
 								canSendSessionEvents = false;
@@ -352,6 +357,9 @@ export class StandaloneAgentContext<
 												statusCode: 200, // Success
 												agentIds: Array.from(agentIds),
 												userData,
+												metadata: Object.keys(invocationSession.metadata).length > 0 
+													? invocationSession.metadata 
+													: undefined,
 											})
 											.then(() => {})
 											.catch((ex) => this.logger.error(ex));
@@ -382,6 +390,9 @@ export class StandaloneAgentContext<
 												error: message,
 												agentIds: Array.from(agentIds),
 												userData,
+												metadata: Object.keys(invocationSession.metadata).length > 0 
+													? invocationSession.metadata 
+													: undefined,
 											})
 											.then(() => {})
 											.catch((ex) => this.logger.error(ex));
@@ -401,6 +412,9 @@ export class StandaloneAgentContext<
 										statusCode: 200,
 										agentIds: Array.from(agentIds),
 										userData,
+										metadata: Object.keys(invocationSession.metadata).length > 0 
+											? invocationSession.metadata 
+											: undefined,
 									})
 									.then(() => {})
 									.catch((ex) => this.logger.error(ex));
@@ -428,6 +442,9 @@ export class StandaloneAgentContext<
 									error: message,
 									agentIds: Array.from(agentIds),
 									userData,
+									metadata: Object.keys(invocationSession.metadata).length > 0 
+										? invocationSession.metadata 
+										: undefined,
 								})
 								.then(() => {})
 								.catch((ex) => this.logger.error(ex));

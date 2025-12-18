@@ -73,6 +73,19 @@ export interface Thread {
 	state: Map<string, unknown>;
 
 	/**
+	 * Unencrypted metadata for filtering and querying threads.
+	 * Unlike state, metadata is stored as-is in the database with GIN indexes
+	 * for efficient filtering. Initialized to empty object, only persisted if non-empty.
+	 *
+	 * @example
+	 * ```typescript
+	 * ctx.thread.metadata.userId = 'user123';
+	 * ctx.thread.metadata.department = 'sales';
+	 * ```
+	 */
+	metadata: Record<string, unknown>;
+
+	/**
 	 * Register an event listener for when the thread is destroyed.
 	 * Thread is destroyed when it expires or is manually destroyed.
 	 *
@@ -181,6 +194,19 @@ export interface Session {
 	 * ```
 	 */
 	state: Map<string, unknown>;
+
+	/**
+	 * Unencrypted metadata for filtering and querying sessions.
+	 * Unlike state, metadata is stored as-is in the database with GIN indexes
+	 * for efficient filtering. Initialized to empty object, only persisted if non-empty.
+	 *
+	 * @example
+	 * ```typescript
+	 * ctx.session.metadata.userId = 'user123';
+	 * ctx.session.metadata.requestType = 'chat';
+	 * ```
+	 */
+	metadata: Record<string, unknown>;
 
 	/**
 	 * Register an event listener for when the session completes.
@@ -653,13 +679,15 @@ export class DefaultThread implements Thread {
 	#initialStateJson: string | undefined;
 	readonly id: string;
 	readonly state: Map<string, unknown>;
+	metadata: Record<string, unknown>;
 	private provider: ThreadProvider;
 
-	constructor(provider: ThreadProvider, id: string, initialStateJson?: string) {
+	constructor(provider: ThreadProvider, id: string, initialStateJson?: string, metadata?: Record<string, unknown>) {
 		this.provider = provider;
 		this.id = id;
 		this.state = new Map();
 		this.#initialStateJson = initialStateJson;
+		this.metadata = metadata || {};
 	}
 
 	addEventListener(eventName: ThreadEventName, callback: ThreadEventCallback<any>): void {
@@ -726,11 +754,13 @@ export class DefaultSession implements Session {
 	readonly id: string;
 	readonly thread: Thread;
 	readonly state: Map<string, unknown>;
+	metadata: Record<string, unknown>;
 
-	constructor(thread: Thread, id: string) {
+	constructor(thread: Thread, id: string, metadata?: Record<string, unknown>) {
 		this.id = id;
 		this.thread = thread;
 		this.state = new Map();
+		this.metadata = metadata || {};
 	}
 
 	addEventListener(eventName: SessionEventName, callback: SessionEventCallback<any>): void {

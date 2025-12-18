@@ -22,7 +22,7 @@ const SessionSchema = z.object({
 	pending: z.boolean().describe('whether the session is pending'),
 	success: z.boolean().describe('whether the session succeeded'),
 	error: z.string().nullable().describe('the error message if failed'),
-	metadata: z.string().nullable().describe('additional metadata'),
+	metadata: z.record(z.string(), z.unknown()).nullable().optional().describe('unencrypted key-value metadata'),
 	cpu_time: z.number().nullable().describe('the CPU time in nanoseconds'),
 	llm_cost: z.number().nullable().describe('the LLM cost'),
 	llm_prompt_token_count: z.number().nullable().describe('the LLM prompt token count'),
@@ -58,6 +58,7 @@ export interface SessionListOptions {
 	agentIdentifier?: string;
 	startAfter?: string;
 	startBefore?: string;
+	metadata?: Record<string, unknown>;
 }
 
 /**
@@ -83,6 +84,7 @@ export async function sessionList(
 		agentIdentifier,
 		startAfter,
 		startBefore,
+		metadata,
 	} = options;
 	const params = new URLSearchParams({ count: count.toString() });
 	if (projectId) params.set('projectId', projectId);
@@ -95,6 +97,7 @@ export async function sessionList(
 	if (agentIdentifier) params.set('agentIdentifier', agentIdentifier);
 	if (startAfter) params.set('startAfter', startAfter);
 	if (startBefore) params.set('startBefore', startBefore);
+	if (metadata) params.set('metadata', JSON.stringify(metadata));
 
 	const resp = await client.request<SessionListResponse>(
 		'GET',
