@@ -25,6 +25,7 @@ import './src/test/cli-apikey';
 import './src/test/cli-vector';
 import './src/test/websocket';
 import './src/test/sse';
+import './src/test/web-rendering';
 
 // Bootstrap runtime environment based on active profile
 // This loads .env.{profile} and agentuity.{profile}.json

@@ -46,7 +46,7 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		'build',
 		'.next',
 		'.turbo',
-		'src/web/public', // Static assets don't need restart
+		'src/web', // Vite handles frontend with HMR - no backend restart needed
 	];
 
 	/**
@@ -84,7 +84,10 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 			// This handles cases like "some/path/.agentuity/file.js"
 			const normalizedChanged = changedFile.replace(/\\/g, '/');
 			const normalizedIgnore = ignorePath.replace(/\\/g, '/');
-			if (normalizedChanged.includes(`/${normalizedIgnore}/`) || normalizedChanged.includes(`/${normalizedIgnore}`)) {
+			if (
+				normalizedChanged.includes(`/${normalizedIgnore}/`) ||
+				normalizedChanged.includes(`/${normalizedIgnore}`)
+			) {
 				logger.trace('File change ignored (%s in path): %s', ignorePath, changedFile);
 				return true;
 			}
