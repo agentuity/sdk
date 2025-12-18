@@ -6,7 +6,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, mkdirSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
 import type { Logger } from '../../../types';
 
 const README_CONTENT = `# Generated Files - DO NOT EDIT
@@ -60,28 +60,26 @@ These files are regenerated on every \`bun run build\` or \`bun run dev\`.
  * Generate documentation files in src/generated/ directory
  * Only creates files if they don't already exist
  */
-export function generateDocumentation(srcDir: string, logger: Logger): void {
+export async function generateDocumentation(srcDir: string, logger: Logger): Promise<void> {
 	const generatedDir = join(srcDir, 'generated');
 
 	// Ensure directory exists
-	if (!existsSync(generatedDir)) {
-		mkdirSync(generatedDir, { recursive: true });
-	}
+	await mkdir(generatedDir, { recursive: true });
 
 	const readmePath = join(generatedDir, 'README.md');
 	const agentsMdPath = join(generatedDir, 'AGENTS.md');
 
 	// Generate README.md if it doesn't exist
-	if (!existsSync(readmePath)) {
-		Bun.write(readmePath, README_CONTENT);
+	if (!(await Bun.file(readmePath).exists())) {
+		await Bun.write(readmePath, README_CONTENT);
 		logger.debug('Generated src/generated/README.md');
 	} else {
 		logger.trace('Skipping README.md - file already exists');
 	}
 
 	// Generate AGENTS.md if it doesn't exist
-	if (!existsSync(agentsMdPath)) {
-		Bun.write(agentsMdPath, AGENTS_MD_CONTENT);
+	if (!(await Bun.file(agentsMdPath).exists())) {
+		await Bun.write(agentsMdPath, AGENTS_MD_CONTENT);
 		logger.debug('Generated src/generated/AGENTS.md');
 	} else {
 		logger.trace('Skipping AGENTS.md - file already exists');
