@@ -223,10 +223,36 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		await generateWorkbenchFiles(rootDir, projectId, workbenchConfig, logger);
 	}
 
+	// 1. Discover agents and routes BEFORE builds
+	logger.debug('Discovering agents and routes...');
+	const { generateAgentRegistry, generateRouteRegistry } = await import('./registry-generator');
+	const { discoverAgents } = await import('./agent-discovery');
+	const { discoverRoutes } = await import('./route-discovery');
+
+	const srcDir = join(rootDir, 'src');
+	const agentMetadata = await discoverAgents(
+		srcDir,
+		projectId,
+		options.deploymentId || '',
+		logger
+	);
+	const { routes, routeInfoList } = await discoverRoutes(
+		srcDir,
+		projectId,
+		options.deploymentId || '',
+		logger
+	);
+
+	// Generate agent and route registries for type augmentation BEFORE builds
+	// (TypeScript needs these files to exist during type checking)
+	generateAgentRegistry(srcDir, agentMetadata);
+	generateRouteRegistry(srcDir, routeInfoList);
+	logger.debug('Agent and route registries generated');
+
 	// Check if web frontend exists
 	const hasWebFrontend = await Bun.file(join(rootDir, 'src', 'web', 'index.html')).exists();
 
-	// 1. Build client (only if web frontend exists)
+	// 2. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
 		logger.debug('Building client assets...');
 		try {
@@ -247,7 +273,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		logger.debug('Skipping client build - no src/web/index.html found');
 	}
 
-	// 2. Build workbench (if enabled in config)
+	// 3. Build workbench (if enabled in config)
 	if (workbenchConfig.enabled) {
 		logger.debug('Building workbench assets...');
 		try {
@@ -266,7 +292,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		}
 	}
 
-	// 3. Build server
+	// 4. Build server
 	logger.debug('Building server...');
 	try {
 		const started = Date.now();
@@ -278,31 +304,9 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		throw error;
 	}
 
-	// 4. Generate registry and metadata (after all builds complete)
-	logger.debug('Generating agent registry and metadata...');
+	// 5. Generate metadata (after all builds complete)
+	logger.debug('Generating metadata...');
 	const { generateMetadata, writeMetadataFile } = await import('./metadata-generator');
-	const { generateAgentRegistry, generateRouteRegistry } = await import('./registry-generator');
-	const { discoverAgents } = await import('./agent-discovery');
-	const { discoverRoutes } = await import('./route-discovery');
-
-	const srcDir = join(rootDir, 'src');
-	const agentMetadata = await discoverAgents(
-		srcDir,
-		projectId,
-		options.deploymentId || '',
-		logger
-	);
-	const { routes, routeInfoList } = await discoverRoutes(
-		srcDir,
-		projectId,
-		options.deploymentId || '',
-		logger
-	);
-
-	// Generate agent and route registries for type augmentation
-	generateAgentRegistry(srcDir, agentMetadata);
-	generateRouteRegistry(srcDir, routeInfoList);
-	logger.debug('Agent and route registries generated');
 
 	// Generate metadata
 	const metadata = await generateMetadata({
