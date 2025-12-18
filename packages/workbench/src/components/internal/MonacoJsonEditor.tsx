@@ -349,10 +349,16 @@ export function MonacoJsonEditor({
 					) as ThemeRegistration;
 
 					const lightMonacoTheme = convertShikiToMonaco(oneLight, 'one-light');
-					monaco.editor.defineTheme('custom-light', lightMonacoTheme);
+					monaco.editor.defineTheme(
+						'custom-light',
+						lightMonacoTheme as monaco.editor.IStandaloneThemeData
+					);
 
 					const darkMonacoTheme = convertShikiToMonaco(oneDarkPro, 'one-dark-pro');
-					monaco.editor.defineTheme('custom-dark', darkMonacoTheme);
+					monaco.editor.defineTheme(
+						'custom-dark',
+						darkMonacoTheme as monaco.editor.IStandaloneThemeData
+					);
 				}}
 			/>
 		</div>

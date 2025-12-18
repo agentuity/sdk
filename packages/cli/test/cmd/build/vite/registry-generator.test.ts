@@ -12,13 +12,13 @@ import type { RouteInfo } from '../../../../src/cmd/build/vite/route-discovery';
 describe('registry-generator', () => {
 	let testDir: string;
 	let srcDir: string;
-	let agentuityDir: string;
+	let generatedDir: string;
 
 	beforeEach(() => {
 		// Create unique temp directory for each test
 		testDir = join(tmpdir(), `registry-gen-test-${Date.now()}-${Math.random()}`);
 		srcDir = join(testDir, 'src');
-		agentuityDir = join(testDir, '.agentuity');
+		generatedDir = join(srcDir, 'generated');
 		mkdirSync(srcDir, { recursive: true });
 	});
 
@@ -46,13 +46,13 @@ describe('registry-generator', () => {
 
 			generateAgentRegistry(srcDir, agents);
 
-			const registryPath = join(agentuityDir, 'registry.generated.ts');
+			const registryPath = join(generatedDir, 'registry.ts');
 			expect(existsSync(registryPath)).toBe(true);
 
 			const registryContent = await Bun.file(registryPath).text();
 			expect(registryContent).toContain('import testAgent from');
-			expect(registryContent).toContain('testAgent: testAgent');
-			expect(registryContent).toContain('export type TestAgentRunner');
+			expect(registryContent).toContain('testAgent');
+			expect(registryContent).toContain('export type TestAgentAgent');
 		});
 
 		test('should generate registry for multiple agents', async () => {
@@ -75,13 +75,13 @@ describe('registry-generator', () => {
 
 			generateAgentRegistry(srcDir, agents);
 
-			const registryPath = join(agentuityDir, 'registry.generated.ts');
+			const registryPath = join(generatedDir, 'registry.ts');
 			const registryContent = await Bun.file(registryPath).text();
 
 			expect(registryContent).toContain('import firstAgent from');
 			expect(registryContent).toContain('import secondAgent from');
-			expect(registryContent).toContain('firstAgent: firstAgent');
-			expect(registryContent).toContain('secondAgent: secondAgent');
+			expect(registryContent).toContain('firstAgent');
+			expect(registryContent).toContain('secondAgent');
 		});
 
 		test('should convert kebab-case names to camelCase', async () => {
@@ -97,11 +97,11 @@ describe('registry-generator', () => {
 
 			generateAgentRegistry(srcDir, agents);
 
-			const registryPath = join(agentuityDir, 'registry.generated.ts');
+			const registryPath = join(generatedDir, 'registry.ts');
 			const registryContent = await Bun.file(registryPath).text();
 
 			expect(registryContent).toContain('myCoolAgent');
-			expect(registryContent).toContain('export type MyCoolAgentRunner');
+			expect(registryContent).toContain('export type MyCoolAgentAgent');
 		});
 
 		test('should throw error on naming collision', () => {
@@ -140,7 +140,7 @@ describe('registry-generator', () => {
 
 			generateAgentRegistry(srcDir, agents);
 
-			const registryPath = join(agentuityDir, 'registry.generated.ts');
+			const registryPath = join(generatedDir, 'registry.ts');
 			const registryContent = await Bun.file(registryPath).text();
 
 			expect(registryContent).toContain('declare module "@agentuity/runtime"');
@@ -192,7 +192,7 @@ describe('registry-generator', () => {
 
 			generateRouteRegistry(srcDir, routes);
 
-			const registryPath = join(agentuityDir, 'route-registry.generated.ts');
+			const registryPath = join(generatedDir, 'routes.ts');
 			expect(existsSync(registryPath)).toBe(true);
 
 			const registryContent = Bun.file(registryPath).text();
@@ -229,7 +229,7 @@ describe('registry-generator', () => {
 
 			generateRouteRegistry(srcDir, routes);
 
-			const registryPath = join(agentuityDir, 'route-registry.generated.ts');
+			const registryPath = join(generatedDir, 'routes.ts');
 			const registryContent = Bun.file(registryPath).text();
 
 			expect(registryContent).resolves.toContain("routeType: 'api'");
@@ -250,7 +250,7 @@ describe('registry-generator', () => {
 
 			generateRouteRegistry(srcDir, routes);
 
-			const registryPath = join(agentuityDir, 'route-registry.generated.ts');
+			const registryPath = join(generatedDir, 'routes.ts');
 			const registryContent = Bun.file(registryPath).text();
 
 			expect(registryContent).resolves.toContain('export type RouteKey');

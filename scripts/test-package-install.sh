@@ -270,10 +270,10 @@ if [ ! -d ".agentuity" ]; then
 fi
 
 # Verify registry file was generated
-if [ ! -f ".agentuity/registry.generated.ts" ]; then
-    log_error "registry.generated.ts not found in .agentuity/"
-    log_info "Contents of .agentuity/:"
-    ls -la .agentuity/
+if [ ! -f "src/generated/registry.ts" ]; then
+	log_error "registry.ts not found in src/generated/"
+	log_info "Contents of src/generated/:"
+	ls -la src/generated/ || echo "Directory does not exist"
     exit 1
 fi
 

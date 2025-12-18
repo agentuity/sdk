@@ -13,7 +13,7 @@ import {
 	type APIClientConfig,
 } from '@agentuity/server';
 
-function getUserAgent(config?: Config | null): string {
+export function getUserAgent(config?: Config | null): string {
 	// If we're skipping version check, send "dev" to signal the server to skip too
 	let version = getVersion();
 	if (shouldSkipVersionCheck(config)) {

@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { internalExit } from '@agentuity/runtime';
 import { createCommand } from '../../types';
 import { startBunDevServer } from '../build/vite/bun-dev-server';
+import { startViteAssetServer } from '../build/vite/vite-asset-server';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { generateEndpoint, type DevmodeResponse } from './api';
@@ -13,6 +14,7 @@ import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
 import { getDefaultConfigDir, saveConfig } from '../../config';
 import type { Config } from '../../types';
+import { createFileWatcher } from './file-watcher';
 
 const DEFAULT_PORT = 3500;
 const MIN_PORT = 1024;
@@ -220,9 +222,31 @@ export const command = createCommand({
 			centerTitle: false,
 		});
 
-		// Restart loop - allows server to restart on file changes
-		let shouldRestart = false;
+		// Start Vite asset server ONCE before restart loop
+		// Vite handles frontend HMR independently and stays running across backend restarts
+		let vitePort: number;
 		let viteServer: ServerLike | null = null;
+
+		try {
+			logger.debug('Starting Vite asset server...');
+			const viteResult = await startViteAssetServer({
+				rootDir,
+				logger,
+				workbenchPath: workbench.config?.route,
+			});
+			viteServer = viteResult.server;
+			vitePort = viteResult.port;
+			logger.debug(
+				`Vite asset server running on port ${vitePort} (stays running across backend restarts)`
+			);
+		} catch (error) {
+			tui.error(`Failed to start Vite asset server: ${error}`);
+			internalExit(1);
+		}
+
+		// Restart loop - allows BACKEND server to restart on file changes
+		// Vite stays running and handles frontend changes via HMR
+		let shouldRestart = false;
 		let gravityProcess: ProcessLike | null = null;
 
 		const restartServer = () => {
@@ -233,12 +257,22 @@ export const command = createCommand({
 			logger.info('DevMode ready 🚀');
 		};
 
-		// Make restart function available globally for HMR plugin
-		(globalThis as Record<string, unknown>).__AGENTUITY_RESTART__ = restartServer;
+		// Create file watcher for backend hot reload
+		const fileWatcher = createFileWatcher({
+			rootDir,
+			logger,
+			onRestart: restartServer,
+		});
+
+		// Start file watcher (will be paused during builds)
+		fileWatcher.start();
 
 		// Setup signal handlers once before the loop
 		const cleanup = async () => {
 			tui.info('Shutting down...');
+
+			// Stop file watcher
+			fileWatcher.stop();
 
 			// Close Vite asset server first
 			if (viteServer) {
@@ -265,13 +299,24 @@ export const command = createCommand({
 		process.on('SIGINT', cleanup);
 		process.on('SIGTERM', cleanup);
 
-		// Ensure gravity client is always killed on exit (even if cleanup is bypassed)
-		// Use SIGKILL for immediate termination since the process is already exiting
+		// Ensure Vite and gravity are always killed on exit (even if cleanup is bypassed)
 		process.on('exit', () => {
+			// Close Vite server synchronously if possible
+			// Note: Vite's close() is async, but we can't await in 'exit' handler
+			// Most Vite implementations handle sync close gracefully
+			if (viteServer) {
+				try {
+					viteServer.close();
+				} catch {
+					// Ignore errors during exit cleanup
+				}
+			}
+
+			// Kill gravity client with SIGKILL for immediate termination
 			if (gravityProcess && gravityProcess.exitCode === null) {
 				try {
 					gravityProcess.kill('SIGKILL');
-				} catch (_err) {
+				} catch {
 					// Ignore errors during exit cleanup
 				}
 			}
@@ -279,6 +324,9 @@ export const command = createCommand({
 
 		while (true) {
 			shouldRestart = false;
+
+			// Pause file watcher during build to avoid loops
+			fileWatcher.pause();
 
 			try {
 				// Generate entry file for Vite before starting dev server
@@ -300,6 +348,9 @@ export const command = createCommand({
 				tui.error(`Failed to generate entry file: ${error}`);
 				tui.warn('Waiting for file changes to retry...');
 
+				// Resume watcher to detect changes for retry
+				fileWatcher.resume();
+
 				// Wait for next restart trigger
 				await new Promise<void>((resolve) => {
 					const checkRestart = setInterval(() => {
@@ -313,17 +364,17 @@ export const command = createCommand({
 			}
 
 			try {
-				// Start Bun dev server (with Vite asset server for HMR)
-				const result = await startBunDevServer({
+				// Start Bun dev server (Vite already running, just start backend)
+				await startBunDevServer({
 					rootDir,
 					port: opts.port,
 					projectId: project?.projectId,
 					orgId: project?.orgId,
 					deploymentId,
 					logger,
+					vitePort, // Pass port of already-running Vite server
 				});
 
-				viteServer = result.viteAssetServer.server;
 				// Note: Bun server runs in-process, no separate app process needed
 
 				// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
@@ -441,13 +492,16 @@ export const command = createCommand({
 								internalExit(0);
 								break;
 							default:
-								console.log(data);
+								process.stdout.write(data);
 								break;
 						}
 					});
 				}
 
 				showWelcome();
+
+				// Start/resume file watcher now that server is ready
+				fileWatcher.resume();
 
 				// Wait for restart signal
 				await new Promise<void>((resolve) => {
@@ -459,14 +513,10 @@ export const command = createCommand({
 					}, 100);
 				});
 
-				// Restart triggered - cleanup and loop
-				tui.info('Restarting server...');
+				// Restart triggered - cleanup and loop (Vite stays running)
+				logger.debug('Restarting backend server...');
 
-				// Close Vite asset server
-				if (viteServer) {
-					await viteServer.close();
-				}
-
+				// Kill gravity client (if running)
 				if (gravityProcess) {
 					try {
 						gravityProcess.kill('SIGTERM');
@@ -485,11 +535,7 @@ export const command = createCommand({
 				tui.error(`Error during server operation: ${error}`);
 				tui.warn('Waiting for file changes to retry...');
 
-				// Cleanup on error - close Vite asset server
-				if (viteServer) {
-					await viteServer.close();
-				}
-
+				// Cleanup on error (Vite stays running)
 				if (gravityProcess) {
 					try {
 						gravityProcess.kill('SIGTERM');
@@ -501,7 +547,6 @@ export const command = createCommand({
 						logger.debug('Error killing gravity process on error: %s', err);
 					}
 				}
-				if (viteServer) await viteServer.close();
 
 				// Wait for next restart trigger
 				await new Promise<void>((resolve) => {

@@ -6,8 +6,9 @@ import { tmpdir } from 'node:os';
 import { StructuredError } from '@agentuity/core';
 import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand } from '../../types';
+import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
-import { saveProjectDir, getDefaultConfigDir } from '../../config';
+import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey } from '../../config';
 import {
 	runSteps,
 	stepSuccess,
@@ -105,6 +106,15 @@ export const deploySubcommand = createSubcommand({
 		let complete: DeploymentComplete | undefined;
 		let statusResult: DeploymentStatusResult | undefined;
 		const logs: string[] = [];
+
+		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
+		
+		// Ensure SDK key is present before proceeding
+		if (!sdkKey) {
+			ctx.logger.fatal(
+				'SDK key not found. Run "agentuity auth login" to authenticate or set AGENTUITY_SDK_KEY environment variable.'
+			);
+		}
 
 		try {
 			await saveProjectDir(projectDir);
@@ -241,10 +251,6 @@ export const deploySubcommand = createSubcommand({
 							const deploymentZip = join(tmpdir(), `${deployment.id}.zip`);
 							await zipDir(join(projectDir, '.agentuity'), deploymentZip, {
 								filter: (_filename: string, relative: string) => {
-									// Exclude Vite-specific build artifacts
-									if (relative.endsWith('.generated.ts')) {
-										return false;
-									}
 									if (relative.startsWith('.vite/')) {
 										return false;
 									}
@@ -444,6 +450,10 @@ export const deploySubcommand = createSubcommand({
 										logger.debug('fetching stream: %s/%s', streamsUrl, streamId);
 										const resp = await fetch(`${streamsUrl}/${streamId}`, {
 											signal: logStreamController.signal,
+											headers: {
+												Authorization: `Bearer ${sdkKey}`,
+												'User-Agent': getUserAgent(),
+											},
 										});
 										if (!resp.ok || !resp.body) {
 											ctx.logger.trace(

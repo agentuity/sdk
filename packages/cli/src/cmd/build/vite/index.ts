@@ -11,7 +11,6 @@ import { generateEntryFile } from '../entry-generator';
 import { loadAgentuityConfig, getWorkbenchConfig } from './config-loader';
 
 // Re-export plugins
-export { patchPlugin } from './patch-plugin';
 export { browserEnvPlugin } from './browser-env-plugin';
 
 export interface AgentuityPluginOptions {
@@ -29,9 +28,9 @@ export interface AgentuityPluginOptions {
  * Responsibilities:
  * - Agent discovery via READ-ONLY AST analysis
  * - Route discovery via READ-ONLY AST analysis
- * - Registry generation (.agentuity/registry.generated.ts)
- * - Lifecycle types generation (.agentuity/lifecycle.generated.d.ts)
- * - Entry file generation (.agentuity/agentuity_app.generated.ts)
+ * - Registry generation (src/generated/registry.ts)
+ * - Lifecycle types generation (src/generated/lifecycle.d.ts)
+ * - Entry file generation (src/generated/app.ts)
  * - Virtual modules (virtual:agentuity/agents, virtual:agentuity/routes)
  * - Metadata generation (agentuity.metadata.json)
  */
@@ -91,7 +90,9 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			}
 
 			// Generate lifecycle types
-			await generateLifecycleTypes(rootDir, srcDir, logger);
+			logger.debug('[vite-plugin] About to call generateLifecycleTypes');
+			const lifecycleResult = await generateLifecycleTypes(rootDir, srcDir, logger);
+			logger.debug(`[vite-plugin] generateLifecycleTypes returned: ${lifecycleResult}`);
 
 			// Generate entry file (pass workbench config for route mounting)
 			await generateEntryFile({
@@ -127,11 +128,11 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 		load(id) {
 			if (id === '\0virtual:agentuity/agents') {
 				// Re-export from generated registry
-				return `export { agentRegistry } from '../.agentuity/registry.generated.js';`;
+				return `export { agentRegistry } from '../src/generated/registry.js';`;
 			}
 			if (id === '\0virtual:agentuity/routes') {
 				// Re-export from generated route registry
-				return `export { routeRegistry } from '../.agentuity/routes.generated.js';`;
+				return `export { routeRegistry } from '../src/generated/routes.js';`;
 			}
 			return null;
 		},

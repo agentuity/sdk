@@ -6,6 +6,8 @@
 import { join } from 'node:path';
 import { readdir, stat } from 'node:fs/promises';
 import type { Logger } from '../../../types';
+import type { BunPlugin } from 'bun';
+import { generatePatches, applyPatch } from '../patch';
 
 export interface ServerBundleOptions {
 	rootDir: string;
@@ -22,7 +24,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 
 	logger.debug('[server-bundler] Starting server bundle process');
 
-	const entryPath = join(rootDir, '.agentuity/app.generated.ts');
+	const entryPath = join(rootDir, 'src/generated/app.ts');
 	const outDir = join(rootDir, '.agentuity');
 
 	logger.debug(`[server-bundler] Entry: ${entryPath}, OutDir: ${outDir}`);
@@ -202,6 +204,39 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	logger.debug('Building server with Bun.build...');
 	logger.debug(`External packages (${external.length}): ${external.join(', ')}`);
 
+	// Create Bun plugin to apply LLM patches during bundling
+	const patches = generatePatches();
+	logger.debug(`Loaded ${patches.size} patch(es) for LLM providers`);
+
+	const patchPlugin: BunPlugin = {
+		name: 'agentuity:patch',
+		setup(build) {
+			for (const [, patch] of patches) {
+				let modulePath = join('node_modules', patch.module, '.*');
+				if (patch.filename) {
+					modulePath = join('node_modules', patch.module, patch.filename + '.*');
+				}
+				build.onLoad(
+					{
+						filter: new RegExp(modulePath),
+						namespace: 'file',
+					},
+					async (args) => {
+						if (build.config.target !== 'bun') {
+							return;
+						}
+						logger.trace(`Applying patch to: ${args.path}`);
+						const [contents, loader] = await applyPatch(args.path, patch);
+						return {
+							contents,
+							loader,
+						};
+					}
+				);
+			}
+		},
+	};
+
 	const buildConfig = {
 		entrypoints: [entryPath],
 		outdir: outDir, // Output to .agentuity/ directly (not .agentuity/server/)
@@ -211,7 +246,12 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		minify: !dev,
 		sourcemap: (dev ? 'inline' : 'external') as 'inline' | 'external',
 		external,
+		// CRITICAL: Disable environment variable inlining for server builds
+		// Server code must read process.env at RUNTIME, not have values baked in at build time
+		// Without this, NODE_ENV and other env vars get inlined as string literals
+		env: 'disable' as const,
 		define: userDefine, // Include custom define values from agentuity.config.ts
+		plugins: [patchPlugin],
 		naming: {
 			entry: 'app.js', // Output as app.js (not app.generated.js)
 		},
@@ -220,6 +260,12 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	logger.debug(
 		`Bun.build config: ${JSON.stringify({ ...buildConfig, external: `[${external.length} packages]` }, null, 2)}`
 	);
+
+	// WORKAROUND: Temporarily delete NODE_ENV to prevent Bun.build from inlining it
+	// See: https://github.com/oven-sh/bun/issues/20183
+	// Even with env: 'disable', Bun.build still inlines NODE_ENV at build time
+	const originalNodeEnv = process.env.NODE_ENV;
+	delete process.env.NODE_ENV;
 
 	// Verify entry point exists before building
 	if (!(await Bun.file(entryPath).exists())) {
@@ -232,6 +278,10 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	try {
 		result = await Bun.build(buildConfig);
 	} catch (error: unknown) {
+		// Restore NODE_ENV after build attempt
+		if (originalNodeEnv !== undefined) {
+			process.env.NODE_ENV = originalNodeEnv;
+		}
 		logger.error('Bun.build threw an exception');
 
 		// Handle AggregateError with build/resolve messages
@@ -248,6 +298,11 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		}
 
 		throw error;
+	}
+
+	// Restore NODE_ENV after successful build
+	if (originalNodeEnv !== undefined) {
+		process.env.NODE_ENV = originalNodeEnv;
 	}
 
 	if (!result.success) {

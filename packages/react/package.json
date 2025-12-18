@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/react",
-	"version": "0.0.98",
+	"version": "0.0.100",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -29,6 +29,7 @@
 		"@agentuity/core": "workspace:*"
 	},
 	"devDependencies": {
+		"@agentuity/schema": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"

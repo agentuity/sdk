@@ -246,8 +246,8 @@ start_server_if_needed() {
 		else
 			# Run the pre-built app directly (--dev build has config baked in)
 			echo "Running pre-built app from $BUILD_DIR..."
-			echo "Command: PORT=$PORT bun --env-file=$ENV_FILE $BUILD_DIR/app.js"
-			PORT=$PORT bun --env-file=$ENV_FILE "$BUILD_DIR/app.js" > "$LOG_FILE" 2>&1 &
+			echo "Command: NODE_ENV=production PORT=$PORT bun --env-file=$ENV_FILE $BUILD_DIR/app.js"
+			NODE_ENV=production PORT=$PORT bun --env-file=$ENV_FILE "$BUILD_DIR/app.js" > "$LOG_FILE" 2>&1 &
 		fi
 		
 		SERVER_PID=$!

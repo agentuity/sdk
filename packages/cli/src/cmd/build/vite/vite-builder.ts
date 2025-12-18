@@ -7,7 +7,6 @@
 import { join } from 'node:path';
 import type { InlineConfig } from 'vite';
 import type { Logger } from '../../../types';
-import { patchPlugin } from './patch-plugin';
 import { browserEnvPlugin } from './browser-env-plugin';
 
 export interface ViteBuildOptions {
@@ -26,7 +25,7 @@ export interface ViteBuildOptions {
 
 /**
  * Run a Vite build for the specified mode
- * Generates vite config in .agentuity/.vite/ and uses it
+ * Uses inline Vite config (customizable via agentuity.config.ts)
  */
 export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	const { rootDir, mode, dev = false, projectId = '', deploymentId = '', logger } = options;
@@ -36,7 +35,17 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	// For server mode, use Bun.build (preserves process.env at runtime)
 	if (mode === 'server') {
 		try {
-			// First, generate the entry file
+			const srcDir = join(rootDir, 'src');
+
+			// Generate documentation files (if they don't exist)
+			const { generateDocumentation } = await import('./docs-generator');
+			await generateDocumentation(srcDir, logger);
+
+			// Generate lifecycle types (if setup() exists)
+			const { generateLifecycleTypes } = await import('./lifecycle-generator');
+			await generateLifecycleTypes(rootDir, srcDir, logger);
+
+			// Then, generate the entry file
 			const { generateEntryFile } = await import('../entry-generator');
 			await generateEntryFile({
 				rootDir,
@@ -46,7 +55,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				mode: dev ? 'dev' : 'prod',
 			});
 
-			// Then, build with Bun.build
+			// Finally, build with Bun.build
 			const { installExternalsAndBuild } = await import('./server-bundler');
 			await installExternalsAndBuild({
 				rootDir,
@@ -54,7 +63,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				logger,
 			});
 		} catch (error) {
-			logger.error('server-bundler import or execution failed:', error);
+			logger.error('server-bundler import or execution failed: %s', error);
 			throw error;
 		}
 		return;
@@ -76,7 +85,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const { workbenchEnabled = false, workbenchRoute = '/workbench' } = options;
 
 		// Load custom user plugins from agentuity.config.ts if it exists
-		const plugins = [react(), browserEnvPlugin(), patchPlugin({ logger, dev })];
+		const plugins = [react(), browserEnvPlugin()];
 		const { loadAgentuityConfig } = await import('./config-loader');
 		const userConfig = await loadAgentuityConfig(rootDir, logger);
 		const userPlugins = userConfig?.plugins || [];
@@ -147,7 +156,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		viteConfig = {
 			root: join(rootDir, '.agentuity/workbench-src'), // Use generated workbench source
 			base, // All workbench assets are under the configured route
-			plugins: [react(), patchPlugin({ logger, dev })],
+			plugins: [react()],
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 			define: {
 				// Merge user-defined constants

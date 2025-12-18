@@ -23,5 +23,5 @@
 			"@api/*": ["./src/api/*"]
 		}
 	},
-	"include": ["src/**/*", "app.ts", ".agentuity/*.generated.ts"]
+	"include": ["src/**/*", "app.ts"]
 }
