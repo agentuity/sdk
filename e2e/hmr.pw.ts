@@ -18,6 +18,14 @@ test.describe('Hot Module Replacement (HMR)', () => {
 		originalAgent = await readFile(AGENT_PATH, 'utf-8');
 	});
 
+	// Use afterEach to restore after each test (even on failure)
+	test.afterEach(async () => {
+		await writeFile(APP_TSX_PATH, originalAppTsx);
+		await writeFile(API_INDEX_PATH, originalApiIndex);
+		await writeFile(AGENT_PATH, originalAgent);
+	});
+
+	// Also restore after all tests as final cleanup
 	test.afterAll(async () => {
 		await writeFile(APP_TSX_PATH, originalAppTsx);
 		await writeFile(API_INDEX_PATH, originalApiIndex);
