@@ -31,7 +31,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 
 	// Runtime externals: native modules and packages that need to be external
 	// These WILL be installed into .agentuity/node_modules for production
-	const runtimeExternals = ['bun', 'fsevents', 'chromium-bidi', 'sharp', 'ws', 'hono'];
+	const runtimeExternals = ['bun', 'fsevents', 'chromium-bidi', 'sharp', 'ws'];
 
 	// Build tool externals: packages that should be external but NOT installed
 	// These are devDependencies that may exist in node_modules but aren't needed at runtime
