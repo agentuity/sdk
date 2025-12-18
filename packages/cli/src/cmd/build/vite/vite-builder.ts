@@ -54,7 +54,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				logger,
 			});
 		} catch (error) {
-			logger.error('server-bundler import or execution failed:', error);
+			logger.error('server-bundler import or execution failed: %s', error);
 			throw error;
 		}
 		return;
