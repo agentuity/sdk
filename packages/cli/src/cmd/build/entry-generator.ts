@@ -77,9 +77,9 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 		`} from '@agentuity/runtime';`,
 		`import type { Context } from 'hono';`,
 		`import { websocket } from 'hono/bun';`,
-		// Conditionally import serveStatic and readFileSync for web frontend support
-		hasWebFrontend ? `import { serveStatic } from 'hono/bun';` : '',
-		hasWebFrontend ? `import { readFileSync, existsSync } from 'node:fs';` : '',
+		// Conditionally import serveStatic and readFileSync for web frontend or workbench support
+		(hasWebFrontend || hasWorkbench) ? `import { serveStatic } from 'hono/bun';` : '',
+		(hasWebFrontend || hasWorkbench) ? `import { readFileSync, existsSync } from 'node:fs';` : '',
 	].filter(Boolean);
 
 	imports.push(`import { type LogLevel } from '@agentuity/core';`);
