@@ -352,19 +352,21 @@ if (typeof Bun !== 'undefined') {
 	const healthRoutes = `
 // Health check routes (production only)
 if (!isDevelopment()) {
-	const healthHandler = (c: Context) => c.text('OK');
+	const healthHandler = (c: Context) => {
+		return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+	};
 	const idleHandler = (c: Context) => {
 		// Check if server is idle (no pending requests/connections)
 		const server = (globalThis as any).__AGENTUITY_SERVER__;
-		if (!server) return c.text('NO', { status: 200 });
+		if (!server) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
 		// Check for pending background tasks
-		if (hasWaitUntilPending()) return c.text('NO', { status: 200 });
+		if (hasWaitUntilPending()) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
-		if (server.pendingRequests > 1) return c.text('NO', { status: 200 });
-		if (server.pendingWebSockets > 0) return c.text('NO', { status: 200 });
+		if (server.pendingRequests > 1) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+		if (server.pendingWebSockets > 0) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
-		return c.text('OK', { status: 200 });
+		return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 	};
 	app.get('/_agentuity/health', healthHandler);
 	app.get('/_health', healthHandler);

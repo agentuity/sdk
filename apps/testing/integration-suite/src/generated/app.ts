@@ -91,19 +91,21 @@ await sessionProvider.initialize(appState);
 
 // Health check routes (production only)
 if (!isDevelopment()) {
-	const healthHandler = (c: Context) => c.text('OK');
+	const healthHandler = (c: Context) => {
+		return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+	};
 	const idleHandler = (c: Context) => {
 		// Check if server is idle (no pending requests/connections)
 		const server = (globalThis as any).__AGENTUITY_SERVER__;
-		if (!server) return c.text('NO', { status: 200 });
+		if (!server) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
 		// Check for pending background tasks
-		if (hasWaitUntilPending()) return c.text('NO', { status: 200 });
+		if (hasWaitUntilPending()) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
-		if (server.pendingRequests > 1) return c.text('NO', { status: 200 });
-		if (server.pendingWebSockets > 0) return c.text('NO', { status: 200 });
+		if (server.pendingRequests > 1) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+		if (server.pendingWebSockets > 0) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
-		return c.text('OK', { status: 200 });
+		return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 	};
 	app.get('/_agentuity/health', healthHandler);
 	app.get('/_health', healthHandler);
@@ -169,7 +171,7 @@ if (isDevelopment()) {
 	});
 } else {
 	// Production mode: Serve static files from bundled output
-	const indexHtmlPath = import.meta.dir + '/../../.agentuity/client/index.html';
+	const indexHtmlPath = import.meta.dir + '/client/index.html';
 	const indexHtml = existsSync(indexHtmlPath)
 		? readFileSync(indexHtmlPath, 'utf-8')
 		: '';
@@ -181,10 +183,10 @@ if (isDevelopment()) {
 	app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
 
 	// Serve static assets from /assets/* (Vite bundled output)
-	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client' }));
+	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client' }));
 
 	// Serve static public assets (favicon.ico, robots.txt, etc.)
-	app.use('/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client', rewriteRequestPath: (path) => path }));
+	app.use('/*', serveStatic({ root: import.meta.dir + '/client', rewriteRequestPath: (path) => path }));
 
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
