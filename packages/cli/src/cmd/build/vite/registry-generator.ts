@@ -263,8 +263,26 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 					: suffix.replace(/\.tsx?$/, '') + '.js';
 				resolvedPath = `../api/${finalPath}`;
 			} else if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
+				// Resolve relative import from route file's directory
 				const routeDir = route.filename.substring(0, route.filename.lastIndexOf('/'));
-				resolvedPath = `../${routeDir}/${resolvedPath}`;
+				// Join and normalize the path
+				const joined = `${routeDir}/${resolvedPath}`;
+				// Normalize by resolving .. and . segments
+				const normalized = joined
+					.split('/')
+					.reduce((acc: string[], segment) => {
+						if (segment === '..') {
+							acc.pop();
+						} else if (segment !== '.' && segment !== '') {
+							acc.push(segment);
+						}
+						return acc;
+					}, [])
+					.join('/');
+				// Remove 'src/' prefix if present (routes are in src/, generated is in src/generated/)
+				const withoutSrc = normalized.startsWith('src/') ? normalized.substring(4) : normalized;
+				// Make it relative from src/generated/
+				resolvedPath = `../${withoutSrc}`;
 				// Add .js extension if not already present
 				if (!resolvedPath.endsWith('.js')) {
 					resolvedPath = resolvedPath.replace(/\.tsx?$/, '') + '.js';
