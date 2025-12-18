@@ -12,7 +12,7 @@
  */
 
 import { test } from '@test/suite';
-import { assert, assertEqual } from '@test/helpers';
+import { assert, assertEqual, uniqueId } from '@test/helpers';
 
 // Check if we're in dev mode with Vite
 const isDev = process.env.DEV === 'true';
