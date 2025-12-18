@@ -5,6 +5,7 @@ import {
 	type StandardSchemaV1,
 	type StreamStorage,
 	type VectorStorage,
+	type InferInput,
 	type InferOutput,
 	toCamelCase,
 	type EvalRunStartEvent,
@@ -422,7 +423,7 @@ export interface AgentValidator<
 				{
 					// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 					in: {};
-					out: { json: InferOutput<TInput> };
+					out: { json: InferInput<TInput> };
 				}
 			>
 		: Handler<any, any, any>;
@@ -502,7 +503,7 @@ export interface AgentValidator<
 			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			in: {};
 			out: {
-				json: InferOutput<TOverrideInput>;
+				json: InferInput<TOverrideInput>;
 			};
 		}
 	>;
