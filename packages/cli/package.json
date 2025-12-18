@@ -46,6 +46,7 @@
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
 		"@agentuity/server": "workspace:*",
+		"hono": "^4.7.13",
 		"@datasert/cronjs-parser": "^1.4.0",
 		"@terascope/fetch-github-release": "^2.2.1",
 		"@vitejs/plugin-react": "^5.1.2",
