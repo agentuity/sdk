@@ -1,8 +1,8 @@
-import { createSubcommand, type CommandContext } from '../../types';
+import { createSubcommand, type CommandContext, type AuthData } from '../../types';
 import { z } from 'zod';
 import { runCreateFlow } from './template-flow';
 import { getCommand } from '../../command-prefix';
-import type { APIClient as APIClientType, AuthData } from '../../auth';
+import type { APIClient as APIClientType } from '../../api';
 
 const ProjectCreateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
