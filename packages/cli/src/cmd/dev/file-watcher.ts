@@ -142,10 +142,16 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 					const contents = readdirSync(absPath);
 					if (contents.length === 0) {
 						// Check if this is an agent or API directory
-						if (normalizedPath.startsWith('src/agent/') || normalizedPath.includes('/src/agent/')) {
+						if (
+							normalizedPath.startsWith('src/agent/') ||
+							normalizedPath.includes('/src/agent/')
+						) {
 							logger.debug('Agent directory created: %s', changedFile);
 							createAgentTemplates(absPath);
-						} else if (normalizedPath.startsWith('src/api/') || normalizedPath.includes('/src/api/')) {
+						} else if (
+							normalizedPath.startsWith('src/api/') ||
+							normalizedPath.includes('/src/api/')
+						) {
 							logger.debug('API directory created: %s', changedFile);
 							createAPITemplates(absPath);
 						}
