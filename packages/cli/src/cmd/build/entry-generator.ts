@@ -199,6 +199,7 @@ if (process.env.NODE_ENV !== 'production') {
 	if (hasWebFrontend) {
 		webRoutes = `
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
+otel.logger.error('[Runtime] NODE_ENV=%s, Mode=%s', process.env.NODE_ENV, process.env.NODE_ENV !== 'production' ? 'dev' : 'prod');
 if (process.env.NODE_ENV !== 'production') {
 	// Development mode: Proxy HTML from Vite to enable React Fast Refresh
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '${vitePort || 5173}', 10);
