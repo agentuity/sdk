@@ -42,7 +42,7 @@ The structure of this mono repository:
 - `packages/cli` - the command line tool
 - `packages/core` - Shared utilities
 - `packages/react` - React package for the Browser
-- `packages/auth` - Authentication helpers for identity providers (Clerk, etc.)
+- `packages/auth` - Authentication helpers for identity providers (Clerk, Auth0, etc.)
 - `packages/runtime` - Server-side package for the Agent runtime
 - `packages/server` - Runtime-agnostic server utilities (Node.js & Bun)
 - `packages/workbench` - Workbench UI component

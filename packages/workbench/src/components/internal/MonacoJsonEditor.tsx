@@ -93,7 +93,7 @@ function convertShikiToMonaco(
 	});
 
 	return {
-		base: isDark ? 'vs-dark' : 'vs',
+		base: (isDark ? 'vs-dark' : 'vs') as 'vs' | 'vs-dark',
 		inherit: true,
 		rules,
 		colors: {

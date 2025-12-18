@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { createContext, useContext, type Context, type ReactElement } from 'react';
+import { createContext, useContext, type Context } from 'react';
 import { defaultBaseUrl } from './url';
 
 export interface ContextProviderArgs {
@@ -18,7 +18,10 @@ export interface AgentuityContextValue {
 export const AgentuityContext: Context<AgentuityContextValue | null> =
 	createContext<AgentuityContextValue | null>(null);
 
-export const AgentuityProvider = ({ baseUrl, children }: ContextProviderArgs): ReactElement => {
+export const AgentuityProvider = ({
+	baseUrl,
+	children,
+}: ContextProviderArgs): React.JSX.Element => {
 	const [authHeader, setAuthHeader] = useState<string | null>(null);
 	const [authLoading, setAuthLoading] = useState<boolean>(false);
 

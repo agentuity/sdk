@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import { StreamStorageService } from '../src/services/stream';
-import { createMockAdapter } from '@agentuity/test-utils';
+import { createMockAdapter } from './mock-adapter';
 import { ServiceException } from '../src/services/exception';
 
 describe('StreamStorageService', () => {
