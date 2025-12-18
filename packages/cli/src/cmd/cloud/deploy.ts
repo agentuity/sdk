@@ -108,6 +108,13 @@ export const deploySubcommand = createSubcommand({
 		const logs: string[] = [];
 
 		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
+		
+		// Ensure SDK key is present before proceeding
+		if (!sdkKey) {
+			ctx.logger.fatal(
+				'SDK key not found. Run "agentuity auth login" to authenticate or set AGENTUITY_SDK_KEY environment variable.'
+			);
+		}
 
 		try {
 			await saveProjectDir(projectDir);
