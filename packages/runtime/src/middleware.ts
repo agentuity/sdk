@@ -22,6 +22,7 @@ import {
 } from '@opentelemetry/api';
 import { TraceState } from '@opentelemetry/core';
 import * as runtimeConfig from './_config';
+import { getSessionEventProvider } from './_services';
 
 const SESSION_HEADER = 'x-session-id';
 const THREAD_HEADER = 'x-thread-id';
@@ -211,10 +212,35 @@ export function createOtelMiddleware() {
 					c.set('session', session);
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('waitUntilHandler', handler);
+					const agentIds = new Set<string>();
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(c as any).set('agentIds', new Set<string>());
+					(c as any).set('agentIds', agentIds);
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('trigger', 'api');
+
+					// Send session start event (so evalruns can reference this session)
+					const sessionEventProvider = getSessionEventProvider();
+					const shouldSendSession = !!(orgId && projectId);
+					if (shouldSendSession && sessionEventProvider) {
+						try {
+							const routeId = (c as any).var?.routeId || '';
+							await sessionEventProvider.start({
+								id: sessionId,
+								threadId: thread.id,
+								orgId,
+								projectId,
+								deploymentId: deploymentId || undefined,
+								devmode: isDevMode,
+								trigger: 'api',
+								routeId,
+								environment: runtimeConfig.getEnvironment(),
+								url: c.req.path,
+								method: c.req.method,
+							});
+						} catch (_ex) {
+							// Silently ignore session start errors - don't block request
+						}
+					}
 
 					try {
 						await next();
@@ -233,6 +259,20 @@ export function createOtelMiddleware() {
 						});
 						throw ex;
 					} finally {
+						// Send session complete event
+						if (shouldSendSession && sessionEventProvider) {
+							try {
+								await sessionEventProvider.complete({
+									id: sessionId,
+									threadId: thread.empty() ? null : thread.id,
+									statusCode: c.res?.status ?? 200,
+									agentIds: Array.from(agentIds),
+								});
+							} catch (_ex) {
+								// Silently ignore session complete errors - don't block response
+							}
+						}
+
 						const headers: Record<string, string> = {};
 						propagation.inject(context.active(), headers);
 						for (const key of Object.keys(headers)) {

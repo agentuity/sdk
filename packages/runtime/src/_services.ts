@@ -50,15 +50,16 @@ import {
 } from './services/local';
 
 const userAgent = `Agentuity SDK/${getSDKVersion()}`;
-const sdkKey = process.env.AGENTUITY_SDK_KEY;
-const bearerKey = `Bearer ${sdkKey}`;
 
-const region = process.env.AGENTUITY_REGION ?? 'usc';
-const serviceUrls = getServiceUrls(region);
-const kvBaseUrl = serviceUrls.keyvalue;
-const streamBaseUrl = serviceUrls.stream;
-const vectorBaseUrl = serviceUrls.vector;
-const catalystBaseUrl = serviceUrls.catalyst;
+// Lazy getters - these must be functions to read env vars AFTER bootstrapRuntimeEnv() runs
+const getSdkKey = () => process.env.AGENTUITY_SDK_KEY;
+const getBearerKey = () => `Bearer ${getSdkKey()}`;
+const getRegion = () => process.env.AGENTUITY_REGION ?? 'usc';
+const getLazyServiceUrls = () => getServiceUrls(getRegion());
+const getKvBaseUrl = () => getLazyServiceUrls().keyvalue;
+const getStreamBaseUrl = () => getLazyServiceUrls().stream;
+const getVectorBaseUrl = () => getLazyServiceUrls().vector;
+const getCatalystBaseUrl = () => getLazyServiceUrls().catalyst;
 
 let adapter: FetchAdapter;
 
@@ -66,7 +67,7 @@ const createFetchAdapter = (logger: Logger) =>
 	createServerFetchAdapter(
 		{
 			headers: {
-				Authorization: bearerKey,
+				Authorization: getBearerKey(),
 				'User-Agent': userAgent,
 			},
 			onBefore: async (url, options, callback) => {
@@ -115,7 +116,7 @@ const createFetchAdapter = (logger: Logger) =>
 							const res = result.data as { id: string };
 							span?.setAttributes({
 								'stream.id': res.id,
-								'stream.url': `${streamBaseUrl}/${res.id}`,
+								'stream.url': `${getStreamBaseUrl()}/${res.id}`,
 							});
 						}
 						break;
@@ -225,29 +226,32 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 	localRouter = null;
 
 	// At this point we must be authenticated (since !authenticated would trigger local services above)
-	kv = config?.services?.keyvalue || new KeyValueStorageService(kvBaseUrl, adapter);
-	stream = config?.services?.stream || new StreamStorageService(streamBaseUrl, adapter);
-	vector = config?.services?.vector || new VectorStorageService(vectorBaseUrl, adapter);
+	const catalystUrl = getCatalystBaseUrl();
+	kv = config?.services?.keyvalue || new KeyValueStorageService(getKvBaseUrl(), adapter);
+	stream = config?.services?.stream || new StreamStorageService(getStreamBaseUrl(), adapter);
+	vector = config?.services?.vector || new VectorStorageService(getVectorBaseUrl(), adapter);
 	session = config?.services?.session || new DefaultSessionProvider();
 	thread = config?.services?.thread || new DefaultThreadProvider();
 	// FIXME: this is turned off for now for production until we have the new changes deployed
 	sessionEvent =
 		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
 			? new JSONSessionEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)
-			: new HTTPSessionEventProvider(new APIClient(catalystBaseUrl, logger), logger);
+			: new HTTPSessionEventProvider(new APIClient(catalystUrl, logger), logger);
 	new LocalSessionEventProvider();
 	if (config?.services?.sessionEvent) {
 		sessionEvent = new CompositeSessionEventProvider(sessionEvent, config.services.sessionEvent);
 	}
 	// FIXME: this is turned off for now for production until we have the new changes deployed
+	logger.debug(
+		'[SERVICES] Initializing eval run provider - region: %s, catalystBaseUrl: %s, isProduction: %s',
+		getRegion(),
+		catalystUrl,
+		isProduction()
+	);
 	evalRunEvent =
 		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
 			? new JSONEvalRunEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)
-			: new HTTPEvalRunEventProvider(
-					new APIClient(catalystBaseUrl, logger),
-					logger,
-					catalystBaseUrl
-				);
+			: new HTTPEvalRunEventProvider(new APIClient(catalystUrl, logger), logger, catalystUrl);
 	new LocalEvalRunEventProvider();
 	if (config?.services?.evalRunEvent) {
 		evalRunEvent = new CompositeEvalRunEventProvider(evalRunEvent, config.services.evalRunEvent);
