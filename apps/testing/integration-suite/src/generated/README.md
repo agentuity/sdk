@@ -15,7 +15,6 @@ This directory contains auto-generated TypeScript files created by the Agentuity
 ## For Developers
 
 Do not modify these files. Instead:
-
 - Add/modify agents in `src/agent/`
 - Add/modify routes in `src/api/`
 - Configure app in `app.ts`
