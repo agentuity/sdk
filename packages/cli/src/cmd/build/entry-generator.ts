@@ -283,18 +283,18 @@ app.get('*', (c: Context) => {
 
 	// Workbench routes (if enabled) - build-time mode selection
 	const workbenchRoute = workbench?.route ?? '/workbench';
-	const workbenchSrcDir = join(rootDir, '.agentuity', 'workbench-src');
 	let workbenchRoutes = '';
 	if (hasWorkbench) {
 		if (mode === 'dev') {
 			workbenchRoutes = `
 // Workbench routes - Development mode (Vite serves source files)
+const workbenchSrcDir = import.meta.dir + '/../../.agentuity/workbench-src';
 app.get('${workbenchRoute}', async (c: Context) => {
-	const html = await Bun.file('${workbenchSrcDir}/index.html').text();
+	const html = await Bun.file(workbenchSrcDir + '/index.html').text();
 	// Rewrite script/css paths to use Vite's @fs protocol
 	const withVite = html
-		.replace('src="./main.tsx"', 'src="/@fs${workbenchSrcDir}/main.tsx"')
-		.replace('href="./styles.css"', 'href="/@fs${workbenchSrcDir}/styles.css"');
+		.replace('src="./main.tsx"', \`src="/@fs\${workbenchSrcDir}/main.tsx"\`)
+		.replace('href="./styles.css"', \`href="/@fs\${workbenchSrcDir}/styles.css"\`);
 	return c.html(withVite);
 });
 `;
