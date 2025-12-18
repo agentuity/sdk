@@ -7,7 +7,6 @@
 import { join } from 'node:path';
 import type { InlineConfig } from 'vite';
 import type { Logger } from '../../../types';
-import { patchPlugin } from './patch-plugin';
 import { browserEnvPlugin } from './browser-env-plugin';
 
 export interface ViteBuildOptions {
@@ -76,7 +75,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const { workbenchEnabled = false, workbenchRoute = '/workbench' } = options;
 
 		// Load custom user plugins from agentuity.config.ts if it exists
-		const plugins = [react(), browserEnvPlugin(), patchPlugin({ logger, dev })];
+		const plugins = [react(), browserEnvPlugin()];
 		const { loadAgentuityConfig } = await import('./config-loader');
 		const userConfig = await loadAgentuityConfig(rootDir, logger);
 		const userPlugins = userConfig?.plugins || [];
@@ -147,7 +146,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		viteConfig = {
 			root: join(rootDir, '.agentuity/workbench-src'), // Use generated workbench source
 			base, // All workbench assets are under the configured route
-			plugins: [react(), patchPlugin({ logger, dev })],
+			plugins: [react()],
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 			define: {
 				// Merge user-defined constants

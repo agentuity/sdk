@@ -17,10 +17,14 @@ describe('agent.validator() - Edge Cases', () => {
 			handler: async () => ({ items: ['a', 'b', 'c'] }),
 		});
 
-		const app = new Hono().get('/items', agent.validator({ output: agent.outputSchema! }), async (c) => {
-			// No input validation should occur
-			return c.json({ items: ['a', 'b', 'c'] });
-		});
+		const app = new Hono().get(
+			'/items',
+			agent.validator({ output: agent.outputSchema! }),
+			async (c) => {
+				// No input validation should occur
+				return c.json({ items: ['a', 'b', 'c'] });
+			}
+		);
 
 		const res = await app.request('/items');
 		expect(res.status).toBe(200);
@@ -210,7 +214,10 @@ describe('agent.validator() - Edge Cases', () => {
 		const agent = createAgent('transform-agent', {
 			schema: {
 				input: z.object({
-					email: z.string().email().transform((e) => e.toLowerCase()),
+					email: z
+						.string()
+						.email()
+						.transform((e) => e.toLowerCase()),
 				}),
 				output: z.object({ email: z.string() }),
 			},
@@ -287,16 +294,12 @@ describe('agent.validator() - Edge Cases', () => {
 
 		const CustomOutput = z.object({ customField: z.number() });
 
-		const app = new Hono().post(
-			'/test',
-			agent.validator({ output: CustomOutput }),
-			async (c) => {
-				const data = c.req.valid('json');
-				// Input validation still happens from agent's input schema
-				expect(data.data).toBe('test-value');
-				return c.json({ customField: 42 });
-			}
-		);
+		const app = new Hono().post('/test', agent.validator({ output: CustomOutput }), async (c) => {
+			const data = c.req.valid('json');
+			// Input validation still happens from agent's input schema
+			expect(data.data).toBe('test-value');
+			return c.json({ customField: 42 });
+		});
 
 		// Valid input according to agent's input schema
 		const res = await app.request('/test', {
