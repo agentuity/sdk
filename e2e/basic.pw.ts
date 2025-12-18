@@ -1,9 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Basic Web UI', () => {
-	test('should load homepage, enter text, click button, and validate output', async ({
-		page,
-	}) => {
+	test('should load homepage, enter text, click button, and validate output', async ({ page }) => {
 		// Set up console logging
 		page.on('console', (msg) => console.log('BROWSER LOG:', msg.text()));
 		page.on('pageerror', (err) => console.error('PAGE ERROR:', err));
