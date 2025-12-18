@@ -238,12 +238,9 @@ export function createMiddleware(options: Auth0MiddlewareOptions = {}) {
 			c.set('auth', auth);
 			await next();
 		} catch (error) {
-			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-			const errorCode =
-				error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
-					? error.code
-					: 'AUTH0_AUTH_ERROR';
-			console.error(`[Auth0 Auth] Authentication failed: ${errorCode} - ${errorMessage}`);
+			const hasErrorCode =
+				error && typeof error === 'object' && 'code' in error && typeof error.code === 'string';
+			console.error('[Auth0 Auth] Authentication failed', { hasErrorCode });
 			return c.json({ error: 'Unauthorized' }, 401);
 		}
 	});
