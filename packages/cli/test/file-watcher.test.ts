@@ -5,8 +5,9 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { createFileWatcher } from '../src/cmd/dev/file-watcher';
 import { join } from 'node:path';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, rm, readFile, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
 
 describe('File Watcher', () => {
 	let testDir: string;
@@ -238,5 +239,168 @@ describe('File Watcher', () => {
 		await Bun.sleep(1000);
 
 		expect(restartCount).toBeGreaterThan(0);
+	});
+
+	test('creates agent templates when new agent directory is created', async () => {
+		watcher = createFileWatcher({
+			rootDir: testDir,
+			logger: {
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('Fatal error');
+				},
+			},
+			onRestart: () => {
+				restartCount++;
+			},
+		});
+
+		watcher.start();
+		watcher.resume();
+
+		// Give watcher time to settle
+		await Bun.sleep(100);
+
+		// Create a new agent directory (empty)
+		const agentDir = join(testDir, 'src', 'agents', 'my-agent');
+		await mkdir(agentDir, { recursive: true });
+
+		// Wait for watcher to detect and create templates
+		await Bun.sleep(1000);
+
+		// Verify templates were created
+		expect(existsSync(join(agentDir, 'agent.ts'))).toBe(true);
+		expect(existsSync(join(agentDir, 'index.ts'))).toBe(true);
+
+		// Verify content
+		const agentContent = await readFile(join(agentDir, 'agent.ts'), 'utf-8');
+		expect(agentContent).toContain('createAgent');
+		expect(agentContent).toContain('MyAgent'); // PascalCase name
+
+		const indexContent = await readFile(join(agentDir, 'index.ts'), 'utf-8');
+		expect(indexContent).toContain("export { default } from './agent'");
+
+		// Should also trigger restart
+		expect(restartCount).toBeGreaterThan(0);
+	});
+
+	test('creates API templates when new API directory is created', async () => {
+		watcher = createFileWatcher({
+			rootDir: testDir,
+			logger: {
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('Fatal error');
+				},
+			},
+			onRestart: () => {
+				restartCount++;
+			},
+		});
+
+		watcher.start();
+		watcher.resume();
+
+		// Give watcher time to settle
+		await Bun.sleep(100);
+
+		// Create a new API directory (empty)
+		const apiDir = join(testDir, 'src', 'apis', 'my-api');
+		await mkdir(apiDir, { recursive: true });
+
+		// Wait for watcher to detect and create templates
+		await Bun.sleep(1000);
+
+		// Verify template was created
+		expect(existsSync(join(apiDir, 'index.ts'))).toBe(true);
+
+		// Verify content
+		const indexContent = await readFile(join(apiDir, 'index.ts'), 'utf-8');
+		expect(indexContent).toContain('createRouter');
+		expect(indexContent).toContain("router.get('/'");
+
+		// Should also trigger restart
+		expect(restartCount).toBeGreaterThan(0);
+	});
+
+	test('does not create templates for non-empty directories', async () => {
+		watcher = createFileWatcher({
+			rootDir: testDir,
+			logger: {
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('Fatal error');
+				},
+			},
+			onRestart: () => {
+				restartCount++;
+			},
+		});
+
+		watcher.start();
+		watcher.resume();
+
+		// Give watcher time to settle
+		await Bun.sleep(100);
+
+		// Create a new agent directory with a file already in it
+		const agentDir = join(testDir, 'src', 'agents', 'existing-agent');
+		await mkdir(agentDir, { recursive: true });
+		await writeFile(join(agentDir, 'existing.ts'), 'export {}', 'utf-8');
+
+		// Wait
+		await Bun.sleep(1000);
+
+		// Templates should NOT be created (directory was not empty)
+		expect(existsSync(join(agentDir, 'agent.ts'))).toBe(false);
+		expect(existsSync(join(agentDir, 'index.ts'))).toBe(false);
+	});
+
+	test('does not create templates for directories outside src/agents or src/apis', async () => {
+		watcher = createFileWatcher({
+			rootDir: testDir,
+			logger: {
+				trace: () => {},
+				debug: () => {},
+				info: () => {},
+				warn: () => {},
+				error: () => {},
+				fatal: (): never => {
+					throw new Error('Fatal error');
+				},
+			},
+			onRestart: () => {
+				restartCount++;
+			},
+		});
+
+		watcher.start();
+		watcher.resume();
+
+		// Give watcher time to settle
+		await Bun.sleep(100);
+
+		// Create a directory in a different location
+		const libDir = join(testDir, 'src', 'lib', 'utils');
+		await mkdir(libDir, { recursive: true });
+
+		// Wait
+		await Bun.sleep(1000);
+
+		// No templates should be created
+		expect(existsSync(join(libDir, 'agent.ts'))).toBe(false);
+		expect(existsSync(join(libDir, 'index.ts'))).toBe(false);
 	});
 });

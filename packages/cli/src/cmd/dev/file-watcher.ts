@@ -5,9 +5,10 @@
  * Handles both backend (API, agents, lib) and generates restart signals.
  */
 
-import { watch, type FSWatcher } from 'node:fs';
+import { watch, type FSWatcher, statSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Logger } from '../../types';
+import { createAgentTemplates, createAPITemplates } from './templates';
 
 export interface FileWatcherOptions {
 	rootDir: string;
@@ -125,6 +126,25 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		if (buildCooldownTimer) {
 			logger.trace('File change ignored (build cooldown): %s', changedFile);
 			return;
+		}
+
+		// Check if an empty directory was created in src/agents/ or src/apis/
+		if (changedFile && eventType === 'rename') {
+			try {
+				const absPath = resolve(watchDir, changedFile);
+				if (statSync(absPath).isDirectory() && readdirSync(absPath).length === 0) {
+					if (changedFile.startsWith('src/agents/')) {
+						logger.debug('Agent directory created: %s', changedFile);
+						createAgentTemplates(absPath);
+					} else if (changedFile.startsWith('src/apis/')) {
+						logger.debug('API directory created: %s', changedFile);
+						createAPITemplates(absPath);
+					}
+				}
+			} catch (error) {
+				// File might have been deleted or doesn't exist yet
+				logger.trace('Unable to check directory for template creation: %s', error);
+			}
 		}
 
 		logger.debug('File changed (%s): %s', eventType, changedFile || watchDir);
