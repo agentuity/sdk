@@ -1,5 +1,10 @@
 import { createApp } from '@agentuity/runtime';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider';
+import {
+	mockDatabaseMiddleware,
+	mockAuthMiddleware,
+	analyticsMiddleware,
+} from './src/lib/custom-middleware';
 
 // Import test files to register tests
 import './src/test/basic-agents';
@@ -25,6 +30,7 @@ import './src/test/websocket';
 import './src/test/sse';
 import './src/test/web-rendering';
 import './src/test/env-loading';
+import './src/test/middleware-patterns';
 
 const threadProvider = new InMemoryThreadProvider();
 
@@ -35,6 +41,15 @@ const app = await createApp({
 	services: {
 		thread: threadProvider,
 	},
+});
+
+// Add app-level middleware (applies to ALL routes)
+// This demonstrates the pattern of adding middleware in app.ts
+app.router.use('/api/*', mockAuthMiddleware());
+app.router.use('/api/*', analyticsMiddleware());
+app.router.use('/api/*', async (c, next) => {
+	c.set('appLevelData', 'set-in-app-ts');
+	await next();
 });
 
 // Log server URL for debugging
