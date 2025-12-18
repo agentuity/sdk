@@ -413,7 +413,11 @@ async function verifyCssInBuild(projectDir: string): Promise<{ success: boolean;
 	for (const cssFile of cssFiles) {
 		const cssContent = readFileSync(cssFile, 'utf-8');
 		// Check for common Tailwind patterns (theme layer, utility classes)
-		if (cssContent.includes('@layer') || cssContent.includes('.flex{') || cssContent.includes('.bg-')) {
+		if (
+			cssContent.includes('@layer') ||
+			cssContent.includes('.flex{') ||
+			cssContent.includes('.bg-')
+		) {
 			foundTailwindClasses = true;
 			break;
 		}

@@ -24,15 +24,20 @@ export async function generateAssetServerConfig(
 ): Promise<InlineConfig> {
 	const { rootDir, logger, workbenchPath, port } = options;
 
-	// Load custom user config for define values
+	// Load custom user config for define values and plugins
 	const { loadAgentuityConfig } = await import('./config-loader');
 	const userConfig = await loadAgentuityConfig(rootDir, logger);
 	const userDefine = userConfig?.define || {};
+	const userPlugins = userConfig?.plugins || [];
+
 	if (Object.keys(userDefine).length > 0) {
 		logger.debug(
 			'Loaded %d custom define(s) from agentuity.config.ts',
 			Object.keys(userDefine).length
 		);
+	}
+	if (userPlugins.length > 0) {
+		logger.debug('Loaded %d custom plugin(s) from agentuity.config.ts', userPlugins.length);
 	}
 
 	// Load path aliases from tsconfig.json if available
@@ -105,8 +110,10 @@ export async function generateAssetServerConfig(
 			'process.env.NODE_ENV': JSON.stringify('development'),
 		},
 
-		// Minimal plugins - just React and HMR
+		// Plugins: User plugins first (e.g., Tailwind), then React and browser env
 		plugins: [
+			// User-defined plugins from agentuity.config.ts (e.g., Tailwind CSS)
+			...userPlugins,
 			// React plugin for JSX/TSX transformation and Fast Refresh
 			(await import('@vitejs/plugin-react')).default(),
 			// Browser env plugin to map process.env to import.meta.env
