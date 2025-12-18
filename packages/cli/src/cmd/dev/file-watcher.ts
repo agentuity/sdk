@@ -129,20 +129,30 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		}
 
 		// Check if an empty directory was created in src/agents/ or src/apis/
+		// This helps with developer experience by auto-scaffolding template files
 		if (changedFile && eventType === 'rename') {
 			try {
 				const absPath = resolve(watchDir, changedFile);
-				if (statSync(absPath).isDirectory() && readdirSync(absPath).length === 0) {
-					if (changedFile.startsWith('src/agents/')) {
-						logger.debug('Agent directory created: %s', changedFile);
-						createAgentTemplates(absPath);
-					} else if (changedFile.startsWith('src/apis/')) {
-						logger.debug('API directory created: %s', changedFile);
-						createAPITemplates(absPath);
+				// Normalize the path for comparison (use forward slashes)
+				const normalizedPath = changedFile.replace(/\\/g, '/');
+
+				// Check if it's a directory and empty
+				const stats = statSync(absPath);
+				if (stats.isDirectory()) {
+					const contents = readdirSync(absPath);
+					if (contents.length === 0) {
+						// Check if this is an agent or API directory
+						if (normalizedPath.startsWith('src/agents/') || normalizedPath.includes('/src/agents/')) {
+							logger.debug('Agent directory created: %s', changedFile);
+							createAgentTemplates(absPath);
+						} else if (normalizedPath.startsWith('src/apis/') || normalizedPath.includes('/src/apis/')) {
+							logger.debug('API directory created: %s', changedFile);
+							createAPITemplates(absPath);
+						}
 					}
 				}
 			} catch (error) {
-				// File might have been deleted or doesn't exist yet
+				// File might have been deleted or doesn't exist yet - this is normal
 				logger.trace('Unable to check directory for template creation: %s', error);
 			}
 		}
