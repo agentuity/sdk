@@ -1,7 +1,8 @@
-import { createSubcommand } from '../../types';
+import { createSubcommand, type CommandContext } from '../../types';
 import { z } from 'zod';
 import { runCreateFlow } from './template-flow';
 import { getCommand } from '../../command-prefix';
+import type { APIClient as APIClientType, AuthData } from '../../auth';
 
 const ProjectCreateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -75,7 +76,7 @@ export const createProjectSubcommand = createSubcommand({
 		let orgId: string | undefined;
 		if (opts.register === true && auth && apiClient) {
 			const { optionalOrg } = await import('../../auth');
-			orgId = await optionalOrg(ctx as any);
+			orgId = await optionalOrg(ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData });
 		}
 
 		await runCreateFlow({
