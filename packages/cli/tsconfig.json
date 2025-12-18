@@ -6,10 +6,11 @@
 		"rootDir": "./src",
 		"paths": {
 			"@agentuity/core": ["../core/src"],
-			"@agentuity/server": ["../server/src"]
+			"@agentuity/server": ["../server/src"],
+			"@agentuity/runtime": ["../runtime/src"]
 		}
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": [{ "path": "../core" }, { "path": "../server" }]
+	"references": [{ "path": "../core" }, { "path": "../server" }, { "path": "../runtime" }]
 }
