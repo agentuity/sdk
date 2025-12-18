@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import { KeyValueStorageService } from '../src/services/keyvalue';
-import { createMockAdapter } from '@agentuity/test-utils';
+import { createMockAdapter } from './mock-adapter';
 import { ServiceException } from '../src/services/exception';
 
 describe('KeyValueStorageService', () => {
