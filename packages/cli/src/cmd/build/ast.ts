@@ -1532,6 +1532,7 @@ export function extractAppStateType(content: string): string | null {
 		let appStateType: string | null = null;
 		let foundCreateApp = false;
 		let foundSetup = false;
+		let exportedSetupFunc: ts.FunctionDeclaration | undefined;
 
 		function visitNode(node: ts.Node): void {
 			// Look for createApp call expression (can be on await expression)
@@ -1584,13 +1585,45 @@ export function extractAppStateType(content: string): string | null {
 				}
 			}
 
+			// Also record exported setup function
+			if (
+				ts.isFunctionDeclaration(node) &&
+				node.name &&
+				node.name.text === 'setup' &&
+				node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+			) {
+				exportedSetupFunc = node;
+			}
+
 			ts.forEachChild(node, visitNode);
 		}
 
 		function findReturnObject(
-			func: ts.FunctionExpression | ts.ArrowFunction
+			func: ts.FunctionExpression | ts.ArrowFunction | ts.FunctionDeclaration
 		): ts.ObjectLiteralExpression | null {
 			let returnObject: ts.ObjectLiteralExpression | null = null;
+
+			// Handle arrow function with expression body: () => ({ ... })
+			if (ts.isArrowFunction(func) && !ts.isBlock(func.body)) {
+				const bodyExpr = func.body;
+				// Handle parenthesized expression: () => ({ ... })
+				const expr = ts.isParenthesizedExpression(bodyExpr) ? bodyExpr.expression : bodyExpr;
+
+				if (ts.isObjectLiteralExpression(expr)) {
+					return expr;
+				}
+				if (ts.isIdentifier(expr)) {
+					// Support: const state = {...}; const setup = () => state;
+					// Try to find variable in parent scope
+					const parent = func.parent;
+					if (parent) {
+						findVariableDeclaration(parent, expr.text);
+					}
+					return returnObject;
+				}
+				// For other expressions, can't extract type
+				return null;
+			}
 
 			function visitFuncNode(node: ts.Node): void {
 				if (ts.isReturnStatement(node) && node.expression) {
@@ -1603,7 +1636,9 @@ export function extractAppStateType(content: string): string | null {
 						// Try to find the variable declaration
 						const varName = node.expression.text;
 						// Walk back through the function to find the declaration
-						findVariableDeclaration(func.body!, varName);
+						if (func.body && ts.isBlock(func.body)) {
+							findVariableDeclaration(func.body, varName);
+						}
 					}
 				}
 				ts.forEachChild(node, visitFuncNode);
@@ -1625,7 +1660,7 @@ export function extractAppStateType(content: string): string | null {
 				visitForVar(body);
 			}
 
-			if (func.body) {
+			if (func.body && ts.isBlock(func.body)) {
 				visitFuncNode(func.body);
 			}
 
@@ -1682,6 +1717,17 @@ export function extractAppStateType(content: string): string | null {
 
 		visitNode(sourceFile);
 
+		// If no inline setup found but we have an exported setup function, use that
+		if (foundCreateApp && !foundSetup && exportedSetupFunc) {
+			foundSetup = true;
+			const returnObj = findReturnObject(exportedSetupFunc);
+			if (returnObj) {
+				appStateType = objectLiteralToTypeDefinition(returnObj, sourceFile);
+			} else {
+				logger.debug('Exported setup function found but no return object');
+			}
+		}
+
 		if (!foundCreateApp) {
 			logger.debug('Did not find createApp call in app.ts');
 		} else if (!foundSetup) {
@@ -1728,17 +1774,7 @@ async function updateTsconfigPathMapping(rootDir: string, shouldAdd: boolean): P
 
 		if (shouldAdd) {
 			// Add or update the path mapping
-			tsconfig.compilerOptions.paths['@agentuity/runtime'] = [
-				'./.agentuity/.agentuity_runtime.ts',
-			];
-
-			// Ensure .agentuity_types.ts is included so module augmentation works
-			if (!tsconfig.include) {
-				tsconfig.include = [];
-			}
-			if (!tsconfig.include.includes('.agentuity/.agentuity_types.ts')) {
-				tsconfig.include.push('.agentuity/.agentuity_types.ts');
-			}
+			tsconfig.compilerOptions.paths['@agentuity/runtime'] = ['./src/generated/router.ts'];
 
 			logger.debug('Added @agentuity/runtime path mapping to tsconfig.json');
 		} else {
@@ -1769,9 +1805,10 @@ async function updateTsconfigPathMapping(rootDir: string, shouldAdd: boolean): P
 const RuntimePackageNotFound = StructuredError('RuntimePackageNotFound');
 
 /**
- * Generate lifecycle type files (.agentuity/types.ts and .agentuity/.agentuity_runtime.ts)
+ * Generate lifecycle type files (src/generated/state.ts and src/generated/router.ts)
  *
  * @param rootDir - Root directory of the project
+ * @param outDir - Output directory (typically src/generated/)
  * @param appFilePath - Path to app.ts file
  * @returns true if files were generated, false if no setup found
  */
@@ -1794,44 +1831,60 @@ export async function generateLifecycleTypes(
 		return false;
 	}
 
-	const agentuityDir = join(rootDir, '.agentuity');
-
-	// Ensure .agentuity directory exists
-	if (!existsSync(agentuityDir)) {
-		mkdirSync(agentuityDir, { recursive: true });
+	// Ensure output directory exists (now src/generated instead of .agentuity)
+	if (!existsSync(outDir)) {
+		mkdirSync(outDir, { recursive: true });
 	}
 
-	// First, determine the runtime package location
-	// Try multiple locations: app-level node_modules, then monorepo root
-	const appLevelPath = join(rootDir, 'node_modules', '@agentuity', 'runtime');
-	// From apps/testing/auth-app to monorepo root is 3 levels up (../../..)
-	const rootLevelPath = join(rootDir, '..', '..', '..', 'node_modules', '@agentuity', 'runtime');
+	// Find @agentuity/runtime by walking up directory tree
+	// This works in any project structure - monorepos, nested projects, etc.
+	let runtimePkgPath: string | null = null;
+	let currentDir = rootDir;
+	const searchedPaths: string[] = [];
 
-	let runtimePkgPath: string;
-	if (existsSync(appLevelPath)) {
-		runtimePkgPath = appLevelPath;
-		logger.debug(`Found runtime package at app level: ${appLevelPath}`);
-	} else if (existsSync(rootLevelPath)) {
-		runtimePkgPath = rootLevelPath;
-		logger.debug(`Found runtime package at root level: ${rootLevelPath}`);
-	} else {
+	while (currentDir && currentDir !== '/' && currentDir !== '.') {
+		const candidatePath = join(currentDir, 'node_modules', '@agentuity', 'runtime');
+		searchedPaths.push(candidatePath);
+
+		if (existsSync(candidatePath)) {
+			runtimePkgPath = candidatePath;
+			logger.debug(`Found runtime package at: ${candidatePath}`);
+			break;
+		}
+
+		// Try packages/ for monorepo source layout
+		const packagesPath = join(currentDir, 'packages', 'runtime');
+		searchedPaths.push(packagesPath);
+
+		if (existsSync(packagesPath)) {
+			runtimePkgPath = packagesPath;
+			logger.debug(`Found runtime package (source) at: ${packagesPath}`);
+			break;
+		}
+
+		// Move up one directory
+		const parent = dirname(currentDir);
+		if (parent === currentDir) break; // Reached root
+		currentDir = parent;
+	}
+
+	if (!runtimePkgPath) {
 		throw new RuntimePackageNotFound({
 			message:
-				`@agentuity/runtime package not found in:\n` +
-				`  - ${appLevelPath}\n` +
-				`  - ${rootLevelPath}\n` +
+				`@agentuity/runtime package not found.\n` +
+				`Searched paths:\n${searchedPaths.map((p) => `  - ${p}`).join('\n')}\n` +
 				`Make sure dependencies are installed by running 'bun install' or 'npm install'`,
 		});
 	}
 
 	let runtimeImportPath: string | null = null;
 
-	// Calculate relative path from .agentuity/ to the package location
+	// Calculate relative path from src/generated/ to the package location
 	// Don't resolve symlinks - we want to use the symlink path so it works in both
 	// local dev (symlinked to packages/) and CI (actual node_modules)
 	if (existsSync(runtimePkgPath)) {
-		// Calculate relative path from .agentuity/ to node_modules package
-		const relPath = relative(agentuityDir, runtimePkgPath);
+		// Calculate relative path from src/generated/ to node_modules package
+		const relPath = relative(outDir, runtimePkgPath);
 		runtimeImportPath = relPath;
 		logger.debug(`Using relative path to runtime package: ${relPath}`);
 	} else {
@@ -1848,10 +1901,11 @@ export async function generateLifecycleTypes(
 		});
 	}
 
-	// Now generate .agentuity_types.ts
+	// Now generate state.ts with AppState type
 	// NOTE: We can ONLY augment the package name, not relative paths
 	// TypeScript resolves @agentuity/runtime through path mapping -> wrapper -> actual package
-	const typesContent = `// AUTO-GENERATED from app.ts setup() return type
+	const typesContent = `// @generated
+// AUTO-GENERATED from app.ts setup() return type
 // This file is auto-generated by the build tool - do not edit manually
 
 /**
@@ -1877,17 +1931,22 @@ export type GeneratedAppState = ${appStateType};
 declare module '@agentuity/runtime' {
 	interface AppState extends GeneratedAppState {}
 }
+
+// FOUND AN ERROR IN THIS FILE?
+// Please file an issue at https://github.com/agentuity/sdk/issues
+// or if you know the fix please submit a PR!
 `;
-	const typesPath = join(outDir, '.agentuity_types.ts');
+	const typesPath = join(outDir, 'state.ts');
 	await Bun.write(typesPath, typesContent);
 	logger.debug(`Generated lifecycle types: ${typesPath}`);
 
-	const wrapperContent = `// AUTO-GENERATED runtime wrapper
+	const wrapperContent = `// @generated
+// AUTO-GENERATED runtime wrapper
 // This file is auto-generated by the build tool - do not edit manually
 
 // Import augmentations file (NOT type-only) to trigger module augmentation
-import type { GeneratedAppState } from './.agentuity_types';
-import './.agentuity_types';
+import type { GeneratedAppState } from './state';
+import './state';
 
 // Import from actual package location
 import { createRouter as baseCreateRouter, type Env } from '${runtimeImportPath}/src/index';
@@ -1934,8 +1993,12 @@ export function createRouter(): AppRouter {
 
 // Re-export everything else
 export * from '${runtimeImportPath}/src/index';
+
+// FOUND AN ERROR IN THIS FILE?
+// Please file an issue at https://github.com/agentuity/sdk/issues
+// or if you know the fix please submit a PR!
 `;
-	const wrapperPath = join(outDir, '.agentuity_runtime.ts');
+	const wrapperPath = join(outDir, 'router.ts');
 	await Bun.write(wrapperPath, wrapperContent);
 	logger.debug(`Generated lifecycle wrapper: ${wrapperPath}`);
 

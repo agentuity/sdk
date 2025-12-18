@@ -1,7 +1,7 @@
 /**
  * Lifecycle Types Generator
  *
- * Generates .agentuity/lifecycle.generated.d.ts by analyzing app.ts for setup() function
+ * Generates src/generated/lifecycle.d.ts by analyzing app.ts for setup() function
  */
 
 import { join } from 'node:path';
@@ -16,7 +16,12 @@ export async function generateLifecycleTypes(
 	srcDir: string,
 	logger: Logger
 ): Promise<boolean> {
-	const outDir = join(rootDir, '.agentuity');
+	logger.debug('[lifecycle] Starting lifecycle type generation...');
+	logger.debug(`[lifecycle] rootDir: ${rootDir}`);
+	logger.debug(`[lifecycle] srcDir: ${srcDir}`);
+
+	const outDir = join(srcDir, 'generated');
+	logger.debug(`[lifecycle] outDir: ${outDir}`);
 
 	// Look for app.ts in both root and src directories
 	const rootAppFile = join(rootDir, 'app.ts');
@@ -25,19 +30,28 @@ export async function generateLifecycleTypes(
 	let appFile = '';
 	if (await Bun.file(rootAppFile).exists()) {
 		appFile = rootAppFile;
+		logger.debug(`[lifecycle] Found app.ts at root: ${rootAppFile}`);
 	} else if (await Bun.file(srcAppFile).exists()) {
 		appFile = srcAppFile;
+		logger.debug(`[lifecycle] Found app.ts in src: ${srcAppFile}`);
 	}
 
 	if (!appFile || !(await Bun.file(appFile).exists())) {
-		logger.trace('No app.ts found for lifecycle types generation');
+		logger.debug('[lifecycle] No app.ts found for lifecycle types generation');
 		return false;
 	}
 
 	try {
-		return await generateLifecycleTypesFromAST(rootDir, outDir, appFile);
+		logger.debug(`[lifecycle] Calling generateLifecycleTypesFromAST...`);
+		const result = await generateLifecycleTypesFromAST(rootDir, outDir, appFile);
+		if (result) {
+			logger.debug(`[lifecycle] Lifecycle types generated successfully in ${outDir}`);
+		} else {
+			logger.debug('[lifecycle] generateLifecycleTypesFromAST returned false (no setup found)');
+		}
+		return result;
 	} catch (error) {
-		logger.error('Failed to generate lifecycle types:', error);
+		logger.error('[lifecycle] Failed to generate lifecycle types:', error);
 		return false;
 	}
 }

@@ -35,7 +35,13 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	// For server mode, use Bun.build (preserves process.env at runtime)
 	if (mode === 'server') {
 		try {
-			// First, generate the entry file
+			const srcDir = join(rootDir, 'src');
+
+			// Generate lifecycle types first (if setup() exists)
+			const { generateLifecycleTypes } = await import('./lifecycle-generator');
+			await generateLifecycleTypes(rootDir, srcDir, logger);
+
+			// Then, generate the entry file
 			const { generateEntryFile } = await import('../entry-generator');
 			await generateEntryFile({
 				rootDir,
@@ -45,7 +51,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 				mode: dev ? 'dev' : 'prod',
 			});
 
-			// Then, build with Bun.build
+			// Finally, build with Bun.build
 			const { installExternalsAndBuild } = await import('./server-bundler');
 			await installExternalsAndBuild({
 				rootDir,

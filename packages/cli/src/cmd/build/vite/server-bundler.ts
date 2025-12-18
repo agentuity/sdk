@@ -24,7 +24,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 
 	logger.debug('[server-bundler] Starting server bundle process');
 
-	const entryPath = join(rootDir, '.agentuity/app.generated.ts');
+	const entryPath = join(rootDir, 'src/generated/app.ts');
 	const outDir = join(rootDir, '.agentuity');
 
 	logger.debug(`[server-bundler] Entry: ${entryPath}, OutDir: ${outDir}`);

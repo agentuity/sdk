@@ -27,7 +27,6 @@ export {
 
 // app.ts exports (all app-related functionality)
 export {
-	type WorkbenchInstance,
 	type AppConfig,
 	type Variables,
 	type TriggerType,

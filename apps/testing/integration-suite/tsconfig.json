@@ -2,17 +2,19 @@
 	"extends": "../../../tsconfig.base.json",
 	"compilerOptions": {
 		"outDir": "./.agentuity",
-		"rootDir": "./src",
+		"rootDir": ".",
 		"allowImportingTsExtensions": true,
 		"noEmit": true,
 		"jsx": "react-jsx",
 		"lib": ["ESNext", "DOM"],
 		"types": ["bun-types"],
+		"skipLibCheck": true,
 		"paths": {
 			"@agents/*": ["./src/agent/*"],
-			"@test/*": ["./src/test/*"]
+			"@test/*": ["./src/test/*"],
+			"@agentuity/runtime": ["./src/generated/router.ts"]
 		}
 	},
-	"include": ["src/**/*"],
-	"exclude": ["node_modules", ".agentuity", "test"]
+	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],
+	"exclude": ["node_modules", ".agentuity", "test", "src/generated/routes.ts"]
 }

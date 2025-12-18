@@ -241,10 +241,7 @@ export const deploySubcommand = createSubcommand({
 							const deploymentZip = join(tmpdir(), `${deployment.id}.zip`);
 							await zipDir(join(projectDir, '.agentuity'), deploymentZip, {
 								filter: (_filename: string, relative: string) => {
-									// Exclude Vite-specific build artifacts
-									if (relative.endsWith('.generated.ts')) {
-										return false;
-									}
+									// No need to filter .generated.ts anymore - they're in src/generated (not in .agentuity)
 									if (relative.startsWith('.vite/')) {
 										return false;
 									}

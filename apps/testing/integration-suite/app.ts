@@ -1,6 +1,4 @@
 import { createApp } from '@agentuity/runtime';
-import { createWorkbench } from '@agentuity/workbench';
-import { bootstrapRuntimeEnv } from '@agentuity/cli';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider';
 
 // Import test files to register tests
@@ -28,16 +26,13 @@ import './src/test/sse';
 import './src/test/web-rendering';
 import './src/test/env-loading';
 
-// Bootstrap runtime environment based on active profile
-// This loads .env.{profile} and agentuity.{profile}.json
-await bootstrapRuntimeEnv();
-
-const workbench = createWorkbench();
 const threadProvider = new InMemoryThreadProvider();
 
 const app = await createApp({
+	setup: () => {
+		return { foo: 'bar' };
+	},
 	services: {
-		workbench,
 		thread: threadProvider,
 	},
 });
