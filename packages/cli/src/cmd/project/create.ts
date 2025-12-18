@@ -76,7 +76,9 @@ export const createProjectSubcommand = createSubcommand({
 		let orgId: string | undefined;
 		if (opts.register === true && auth && apiClient) {
 			const { optionalOrg } = await import('../../auth');
-			orgId = await optionalOrg(ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData });
+			orgId = await optionalOrg(
+				ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
+			);
 		}
 
 		await runCreateFlow({

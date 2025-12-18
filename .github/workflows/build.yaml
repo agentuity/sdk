@@ -158,27 +158,27 @@ jobs:
            run: |
               set -eou pipefail
               cd packages/cli
-              
+
               # Rebuild executable to include latest code changes (e.g., auth.ts fix)
               OS=$(uname -s | tr '[:upper:]' '[:lower:]')
               ARCH=$(uname -m)
-              
+
               case "$ARCH" in
                  x86_64) ARCH="x64" ;;
                  aarch64|arm64) ARCH="arm64" ;;
               esac
-              
+
               PLATFORM="${OS}-${ARCH}"
-              
+
               echo "=== Rebuilding executable with latest changes ==="
               ./scripts/build-executables.ts --skip-sign --platform="$PLATFORM"
-              
+
               BINARY="$(pwd)/dist/bin/agentuity-${PLATFORM}"
-              
+
               echo "=== Testing bundled create command ==="
               echo "Binary: $BINARY"
-              
+
               # Run bundled create test
               bun scripts/test-bundled-create.ts --binary="$BINARY"
-              
+
               echo "✓ Bundled create command test passed"
