@@ -254,7 +254,7 @@ if (isDevelopment()) {
 	});
 } else {
 	// Production mode: Serve static files from bundled output
-	const indexHtmlPath = import.meta.dir + '/../../.agentuity/client/index.html';
+	const indexHtmlPath = import.meta.dir + '/client/index.html';
 	const indexHtml = existsSync(indexHtmlPath)
 		? readFileSync(indexHtmlPath, 'utf-8')
 		: '';
@@ -266,10 +266,10 @@ if (isDevelopment()) {
 	app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
 
 	// Serve static assets from /assets/* (Vite bundled output)
-	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client' }));
+	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client' }));
 
 	// Serve static public assets (favicon.ico, robots.txt, etc.)
-	app.use('/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client', rewriteRequestPath: (path) => path }));
+	app.use('/*', serveStatic({ root: import.meta.dir + '/client', rewriteRequestPath: (path) => path }));
 
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
@@ -294,8 +294,8 @@ if (isDevelopment()) {
 	const workbenchRoutes = hasWorkbench
 		? `
 // Workbench routes - Runtime mode detection
-const workbenchSrcDir = import.meta.dir + '/../../.agentuity/workbench-src';
-const workbenchIndexPath = import.meta.dir + '/../../.agentuity/workbench/index.html';
+const workbenchSrcDir = import.meta.dir + '/workbench-src';
+const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
 const workbenchIndex = existsSync(workbenchIndexPath) 
 	? readFileSync(workbenchIndexPath, 'utf-8')
 	: '';
@@ -314,7 +314,7 @@ if (isDevelopment()) {
 	// Production mode: Serve pre-built assets
 	if (workbenchIndex) {
 		app.get('${workbenchRoute}', (c: Context) => c.html(workbenchIndex));
-		app.get('${workbenchRoute}/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/workbench' }));
+		app.get('${workbenchRoute}/*', serveStatic({ root: import.meta.dir + '/workbench' }));
 	}
 }
 `
