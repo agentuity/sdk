@@ -91,83 +91,26 @@ await sessionProvider.initialize(appState);
 
 // Health check routes (production only)
 if (!isDevelopment()) {
-	const healthHandler = (c: Context) => c.text('OK');
+	const healthHandler = (c: Context) => {
+		return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+	};
 	const idleHandler = (c: Context) => {
 		// Check if server is idle (no pending requests/connections)
 		const server = (globalThis as any).__AGENTUITY_SERVER__;
-		if (!server) return c.text('NO', { status: 200 });
+		if (!server) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
 		// Check for pending background tasks
-		if (hasWaitUntilPending()) return c.text('NO', { status: 200 });
+		if (hasWaitUntilPending()) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
-		if (server.pendingRequests > 1) return c.text('NO', { status: 200 });
-		if (server.pendingWebSockets > 0) return c.text('NO', { status: 200 });
+		if (server.pendingRequests > 1) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+		if (server.pendingWebSockets > 0) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
-		return c.text('OK', { status: 200 });
+		return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 	};
 	app.get('/_agentuity/health', healthHandler);
 	app.get('/_health', healthHandler);
 	app.get('/_agentuity/idle', idleHandler);
 	app.get('/_idle', idleHandler);
-}
-
-// Asset proxy routes - Development mode only (proxies to Vite asset server)
-if (process.env.NODE_ENV !== 'production') {
-	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '5173', 10);
-
-	const proxyToVite = async (c: Context) => {
-		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${c.req.path}`;
-		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
-		try {
-			otel.logger.debug(`[Proxy] ${c.req.method} ${c.req.path} -> Vite:${VITE_ASSET_PORT}`);
-			const res = await fetch(viteUrl, { signal: controller.signal });
-			clearTimeout(timeout);
-			otel.logger.debug(`[Proxy] ${c.req.path} -> ${res.status} (${res.headers.get('content-type')})`);
-			return new Response(res.body, {
-				status: res.status,
-				headers: res.headers,
-			});
-		} catch (err) {
-			clearTimeout(timeout);
-			if (err instanceof Error && err.name === 'AbortError') {
-				otel.logger.error(`Vite proxy timeout: ${c.req.path}`);
-				return c.text('Vite asset server timeout', 504);
-			}
-			otel.logger.error(`Failed to proxy to Vite: ${c.req.path} - ${err instanceof Error ? err.message : String(err)}`);
-			return c.text('Vite asset server error', 500);
-		}
-	};
-
-	// Vite client scripts and HMR
-	app.get('/@vite/*', proxyToVite);
-	app.get('/@react-refresh', proxyToVite);
-
-	// Source files for HMR
-	app.get('/src/web/*', proxyToVite);
-	app.get('/src/*', proxyToVite); // Catch-all for other source files
-
-	// Workbench source files (in .agentuity/workbench-src/)
-	app.get('/.agentuity/workbench-src/*', proxyToVite);
-
-	// Node modules (Vite transforms these)
-	app.get('/node_modules/*', proxyToVite);
-
-	// Scoped packages (e.g., @agentuity/*, @types/*)
-	app.get('/@*', proxyToVite);
-
-	// File system access (for Vite's @fs protocol)
-	app.get('/@fs/*', proxyToVite);
-
-	// Module resolution (for Vite's @id protocol)  
-	app.get('/@id/*', proxyToVite);
-
-	// Any .js, .jsx, .ts, .tsx files (catch remaining modules)
-	app.get('/*.js', proxyToVite);
-	app.get('/*.jsx', proxyToVite);
-	app.get('/*.ts', proxyToVite);
-	app.get('/*.tsx', proxyToVite);
-	app.get('/*.css', proxyToVite);
 }
 
 // Mount API routes
@@ -220,7 +163,7 @@ if (isDevelopment()) {
 	});
 } else {
 	// Production mode: Serve static files from bundled output
-	const indexHtmlPath = import.meta.dir + '/../../.agentuity/client/index.html';
+	const indexHtmlPath = import.meta.dir + '/client/index.html';
 	const indexHtml = existsSync(indexHtmlPath)
 		? readFileSync(indexHtmlPath, 'utf-8')
 		: '';
@@ -232,10 +175,10 @@ if (isDevelopment()) {
 	app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
 
 	// Serve static assets from /assets/* (Vite bundled output)
-	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client' }));
+	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client' }));
 
 	// Serve static public assets (favicon.ico, robots.txt, etc.)
-	app.use('/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client', rewriteRequestPath: (path) => path }));
+	app.use('/*', serveStatic({ root: import.meta.dir + '/client', rewriteRequestPath: (path) => path }));
 
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());

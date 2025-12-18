@@ -52,7 +52,6 @@
         "@agentuity/core": "workspace:*",
         "@agentuity/runtime": "workspace:*",
         "@agentuity/schema": "workspace:*",
-        "hono": "^4.7.13",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -83,7 +82,6 @@
         "@agentuity/runtime": "workspace:*",
         "@agentuity/schema": "workspace:*",
         "@agentuity/workbench": "workspace:*",
-        "hono": "^4.7.13",
         "react": "^19.2.1",
         "react-dom": "^19.2.1",
       },
@@ -165,6 +163,7 @@
         "@types/tar-fs": "^2.0.4",
         "bun-plugin-tailwind": "^0.1.2",
         "bun-types": "latest",
+        "hono": "^4.7.13",
         "tailwindcss": "^4.1.18",
       },
     },
@@ -189,6 +188,7 @@
       },
       "devDependencies": {
         "@agentuity/schema": "workspace:*",
+        "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
         "typescript": "^5.9.0",

@@ -14,8 +14,7 @@
 		"@agentuity/cli": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
-		"@agentuity/schema": "workspace:*",
-		"hono": "^4.7.13"
+		"@agentuity/schema": "workspace:*"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"

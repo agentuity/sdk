@@ -30,6 +30,7 @@
 	},
 	"devDependencies": {
 		"@agentuity/schema": "workspace:*",
+		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"

@@ -108,7 +108,7 @@ export const deploySubcommand = createSubcommand({
 		const logs: string[] = [];
 
 		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
-		
+
 		// Ensure SDK key is present before proceeding
 		if (!sdkKey) {
 			ctx.logger.fatal(
