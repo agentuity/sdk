@@ -7,14 +7,18 @@
 	"description": "Cloud deployment integration tests for Agentuity CLI",
 	"scripts": {
 		"build": "bun ../../../packages/cli/bin/cli.ts build --dir .",
+		"dev": "bun ../../../packages/cli/bin/cli.ts dev --dir . --port 3500 --local --no-public",
 		"test": "bun run build && bash scripts/test-deployment.sh",
 		"test:deployment": "bash scripts/test-deployment.sh"
 	},
 	"dependencies": {
 		"@agentuity/cli": "workspace:*",
 		"@agentuity/core": "workspace:*",
+		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
-		"@agentuity/schema": "workspace:*"
+		"@agentuity/schema": "workspace:*",
+		"react": "^19.2.1",
+		"react-dom": "^19.2.1"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"
