@@ -23,6 +23,8 @@ import {
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { websocket } from 'hono/bun';
+import { serveStatic } from 'hono/bun';
+import { readFileSync, existsSync } from 'node:fs';
 import { type LogLevel } from '@agentuity/core';
 import { bootstrapRuntimeEnv } from '@agentuity/cli/runtime-bootstrap';
 
@@ -160,6 +162,89 @@ if (process.env.NODE_ENV !== 'production') {
 	app.get('/*.ts', proxyToVite);
 	app.get('/*.tsx', proxyToVite);
 	app.get('/*.css', proxyToVite);
+}
+
+// Mount API routes
+const { default: router_0 } = await import('../api/index.js');
+app.route('/api', router_0);
+
+// Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
+if (process.env.NODE_ENV !== 'production') {
+	// Development mode: Proxy HTML from Vite to enable React Fast Refresh
+	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '5173', 10);
+	
+	const devHtmlHandler = async (c: Context) => {
+		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}/src/web/index.html`;
+
+		try {
+			otel.logger.debug('[Proxy] GET /src/web/index.html -> Vite:%d', VITE_ASSET_PORT);
+			const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
+
+			// Get HTML text and transform relative paths to absolute
+			const html = await res.text();
+			const transformedHtml = html
+				.replace(/src="\.\//g, 'src="/src/web/')
+				.replace(/href="\.\//g, 'href="/src/web/');
+
+			return new Response(transformedHtml, {
+				status: res.status,
+				headers: res.headers,
+			});
+		} catch (err) {
+			otel.logger.error('Failed to proxy HTML to Vite: %s', err instanceof Error ? err.message : String(err));
+			return c.text('Vite asset server error (HTML)', 500);
+		}
+	};
+	
+	app.get('/', devHtmlHandler);
+	
+	// 404 for unmatched API/system routes
+	app.all('/_agentuity/*', (c: Context) => c.notFound());
+	app.all('/api/*', (c: Context) => c.notFound());
+	app.all('/workbench/*', (c: Context) => c.notFound());
+	
+	// SPA fallback - serve index.html for client-side routing
+	app.get('*', (c: Context) => {
+		const path = c.req.path;
+		// If path has a file extension, return 404 (prevents serving HTML for missing assets)
+		if (/\.[a-zA-Z0-9]+$/.test(path)) {
+			return c.notFound();
+		}
+		return devHtmlHandler(c);
+	});
+} else {
+	// Production mode: Serve static files from bundled output
+	const indexHtmlPath = import.meta.dir + '/../../.agentuity/client/index.html';
+	const indexHtml = existsSync(indexHtmlPath)
+		? readFileSync(indexHtmlPath, 'utf-8')
+		: '';
+	
+	if (!indexHtml) {
+		otel.logger.warn('Production HTML not found at %s', indexHtmlPath);
+	}
+	
+	app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
+
+	// Serve static assets from /assets/* (Vite bundled output)
+	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client' }));
+
+	// Serve static public assets (favicon.ico, robots.txt, etc.)
+	app.use('/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client', rewriteRequestPath: (path) => path }));
+
+	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
+	app.all('/_agentuity/*', (c: Context) => c.notFound());
+	app.all('/api/*', (c: Context) => c.notFound());
+	app.all('/workbench/*', (c: Context) => c.notFound());
+
+	// SPA fallback with asset protection
+	app.get('*', (c: Context) => {
+		const path = c.req.path;
+		// If path has a file extension, it's likely an asset request - return 404
+		if (/\.[a-zA-Z0-9]+$/.test(path)) {
+			return c.notFound();
+		}
+		return c.html(indexHtml);
+	});
 }
 
 // Step 7: Run agent setup to signal completion

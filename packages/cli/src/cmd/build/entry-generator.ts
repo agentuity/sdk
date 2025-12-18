@@ -130,13 +130,11 @@ app.route('/', workbenchRouter);
 `
 		: '';
 
-	// Asset proxy routes (dev mode only - proxy to Vite asset server)
-	// Note: We include vitePort in generated code for dev mode default, but runtime checks NODE_ENV
-	const assetProxyRoutes = vitePort
-		? `
+	// Asset proxy routes - always generated, runtime gated by NODE_ENV
+	const assetProxyRoutes = `
 // Asset proxy routes - Development mode only (proxies to Vite asset server)
 if (process.env.NODE_ENV !== 'production') {
-	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '${vitePort}', 10);
+	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '${vitePort || 5173}', 10);
 
 	const proxyToVite = async (c: Context) => {
 		const viteUrl = \`http://127.0.0.1:\${VITE_ASSET_PORT}\${c.req.path}\`;
@@ -192,8 +190,7 @@ if (process.env.NODE_ENV !== 'production') {
 	app.get('/*.tsx', proxyToVite);
 	app.get('/*.css', proxyToVite);
 }
-`
-		: '';
+`;
 
 	// Web routes (runtime detection - dev vs prod)
 	let webRoutes = '';
@@ -245,9 +242,16 @@ if (process.env.NODE_ENV !== 'production') {
 	});
 } else {
 	// Production mode: Serve static files from bundled output
-	const indexHtml = readFileSync(import.meta.dir + '/../../.agentuity/client/index.html', 'utf-8');
+	const indexHtmlPath = import.meta.dir + '/../../.agentuity/client/index.html';
+	const indexHtml = existsSync(indexHtmlPath)
+		? readFileSync(indexHtmlPath, 'utf-8')
+		: '';
 	
-	app.get('/', (c: Context) => c.html(indexHtml));
+	if (!indexHtml) {
+		otel.logger.warn('Production HTML not found at %s', indexHtmlPath);
+	}
+	
+	app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
 
 	// Serve static assets from /assets/* (Vite bundled output)
 	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/../../.agentuity/client' }));

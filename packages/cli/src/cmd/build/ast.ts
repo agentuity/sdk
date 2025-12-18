@@ -1528,7 +1528,13 @@ export function checkRouteConflicts(content: string, workbenchEndpoint: string):
  */
 export function extractAppStateType(content: string): string | null {
 	try {
-		const sourceFile = ts.createSourceFile('app.ts', content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+		const sourceFile = ts.createSourceFile(
+			'app.ts',
+			content,
+			ts.ScriptTarget.Latest,
+			true,
+			ts.ScriptKind.TS
+		);
 		let appStateType: string | null = null;
 		let foundCreateApp = false;
 		let foundSetup = false;
