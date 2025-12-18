@@ -7,7 +7,7 @@
 	"description": "E2E web tests for Agentuity SDK",
 	"scripts": {
 		"build": "bun ../../../packages/cli/bin/cli.ts build --dir .",
-		"dev": "bun ../../../packages/cli/bin/cli.ts dev --dir . --port 3500 --local --no-public",
+		"dev": "AGENTUITY_MOCK_MODE=true bun ../../../packages/cli/bin/cli.ts dev --dir . --port 3500 --local --no-public --no-interactive",
 		"typecheck": "bunx tsc --project tsconfig.json --noEmit"
 	},
 	"dependencies": {

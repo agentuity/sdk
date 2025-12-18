@@ -62,6 +62,7 @@ jobs:
 
          - name: Run integration test suite
            run: bash apps/testing/integration-suite/scripts/ci-test.sh
+   
    cloud-deployment-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 15
@@ -150,7 +151,7 @@ jobs:
            run: bun scripts/test-templates.ts --skip-outdated
 
    playwright-e2e-test:
-      runs-on: blacksmith-2vcpu-ubuntu-2404
+      runs-on: blacksmith-4vcpu-ubuntu-2204
       timeout-minutes: 10
       name: Playwright E2E Smoke Test
       steps:
