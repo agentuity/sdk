@@ -735,10 +735,10 @@ export class DefaultThread implements Thread {
 	}
 
 	/**
-	 * Check if thread has any data
+	 * Check if thread has any data (state or metadata)
 	 */
 	empty(): boolean {
-		return this.state.size === 0;
+		return this.state.size === 0 && Object.keys(this.metadata).length === 0;
 	}
 
 	/**
@@ -746,7 +746,24 @@ export class DefaultThread implements Thread {
 	 * @internal
 	 */
 	getSerializedState(): string {
-		return JSON.stringify(Object.fromEntries(this.state));
+		const hasState = this.state.size > 0;
+		const hasMetadata = Object.keys(this.metadata).length > 0;
+
+		if (!hasState && !hasMetadata) {
+			return '';
+		}
+
+		const data: { state?: Record<string, unknown>; metadata?: Record<string, unknown> } = {};
+
+		if (hasState) {
+			data.state = Object.fromEntries(this.state);
+		}
+
+		if (hasMetadata) {
+			data.metadata = this.metadata;
+		}
+
+		return JSON.stringify(data);
 	}
 }
 
@@ -1088,10 +1105,19 @@ export class ThreadWebSocketClient {
 				reject,
 			});
 
+			const data: { thread_id: string; user_data: string; metadata?: Record<string, unknown> } = {
+				thread_id: threadId,
+				user_data: userData,
+			};
+
+			if (metadata && Object.keys(metadata).length > 0) {
+				data.metadata = metadata;
+			}
+
 			const message = {
 				id: requestId,
 				action: 'save',
-				data: { thread_id: threadId, user_data: userData },
+				data,
 			};
 
 			this.ws!.send(JSON.stringify(message));
@@ -1210,20 +1236,40 @@ export class DefaultThreadProvider implements ThreadProvider {
 			await this.wsConnecting;
 		}
 
-		// Restore thread state from WebSocket if available
+		// Restore thread state and metadata from WebSocket if available
 		let initialStateJson: string | undefined;
+		let restoredMetadata: Record<string, unknown> | undefined;
 		if (this.wsClient) {
 			try {
 				const restoredData = await this.wsClient.restore(threadId);
 				if (restoredData) {
 					initialStateJson = restoredData;
+					// Parse to check if it includes metadata
+					try {
+						const parsed = JSON.parse(restoredData);
+						// New format: { state?: {...}, metadata?: {...} }
+						if (parsed && typeof parsed === 'object' && ('state' in parsed || 'metadata' in parsed)) {
+							if (parsed.metadata) {
+								restoredMetadata = parsed.metadata;
+							}
+							// Update initialStateJson to be just the state part for backwards compatibility
+							if (parsed.state) {
+								initialStateJson = JSON.stringify(parsed.state);
+							} else {
+								initialStateJson = undefined;
+							}
+						}
+						// else: Old format (just state object), keep as-is
+					} catch {
+						// Keep original if parse fails
+					}
 				}
 			} catch {
 				// Continue with empty state rather than failing
 			}
 		}
 
-		const thread = new DefaultThread(this, threadId, initialStateJson);
+		const thread = new DefaultThread(this, threadId, initialStateJson, restoredMetadata);
 
 		// Populate thread state from restored data
 		if (initialStateJson) {
@@ -1252,7 +1298,8 @@ export class DefaultThreadProvider implements ThreadProvider {
 			if (this.wsClient && thread.isDirty()) {
 				try {
 					const serialized = thread.getSerializedState();
-					await this.wsClient.save(thread.id, serialized);
+					const metadata = Object.keys(thread.metadata).length > 0 ? thread.metadata : undefined;
+					await this.wsClient.save(thread.id, serialized, metadata);
 				} catch {
 					// Don't throw - allow request to complete even if save fails
 				}

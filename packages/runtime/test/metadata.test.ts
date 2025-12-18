@@ -219,3 +219,92 @@ describe('Metadata Type Safety', () => {
 		expect(thread.metadata.nullValue).toBeNull();
 	});
 });
+
+describe('Thread Serialization and Persistence', () => {
+	test('getSerializedState returns empty string when no state or metadata', () => {
+		const mockProvider = {} as ThreadProvider;
+		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+
+		const serialized = thread.getSerializedState();
+		expect(serialized).toBe('');
+	});
+
+	test('getSerializedState includes only state when metadata is empty', () => {
+		const mockProvider = {} as ThreadProvider;
+		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+
+		thread.state.set('key1', 'value1');
+
+		const serialized = thread.getSerializedState();
+		const parsed = JSON.parse(serialized);
+
+		expect(parsed.state).toBeDefined();
+		expect(parsed.state.key1).toBe('value1');
+		expect(parsed.metadata).toBeUndefined();
+	});
+
+	test('getSerializedState includes only metadata when state is empty', () => {
+		const mockProvider = {} as ThreadProvider;
+		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+
+		thread.metadata.userId = 'user123';
+
+		const serialized = thread.getSerializedState();
+		const parsed = JSON.parse(serialized);
+
+		expect(parsed.metadata).toBeDefined();
+		expect(parsed.metadata.userId).toBe('user123');
+		expect(parsed.state).toBeUndefined();
+	});
+
+	test('getSerializedState includes both state and metadata when both exist', () => {
+		const mockProvider = {} as ThreadProvider;
+		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+
+		thread.state.set('counter', 5);
+		thread.metadata.userId = 'user123';
+
+		const serialized = thread.getSerializedState();
+		const parsed = JSON.parse(serialized);
+
+		expect(parsed.state).toBeDefined();
+		expect(parsed.state.counter).toBe(5);
+		expect(parsed.metadata).toBeDefined();
+		expect(parsed.metadata.userId).toBe('user123');
+	});
+
+	test('empty() returns true when both state and metadata are empty', () => {
+		const mockProvider = {} as ThreadProvider;
+		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+
+		expect(thread.empty()).toBe(true);
+	});
+
+	test('empty() returns false when state has data', () => {
+		const mockProvider = {} as ThreadProvider;
+		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+
+		thread.state.set('key', 'value');
+
+		expect(thread.empty()).toBe(false);
+	});
+
+	test('empty() returns false when metadata has data', () => {
+		const mockProvider = {} as ThreadProvider;
+		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+
+		thread.metadata.userId = 'user123';
+
+		expect(thread.empty()).toBe(false);
+	});
+
+	test('empty() returns false when both state and metadata have data', () => {
+		const mockProvider = {} as ThreadProvider;
+		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+
+		thread.state.set('key', 'value');
+		thread.metadata.userId = 'user123';
+
+		expect(thread.empty()).toBe(false);
+	});
+});
