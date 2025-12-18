@@ -51,7 +51,7 @@ describe('registry-generator', () => {
 
 			const registryContent = await Bun.file(registryPath).text();
 			expect(registryContent).toContain('import testAgent from');
-			expect(registryContent).toContain('testAgent: testAgent');
+			expect(registryContent).toContain('testAgent');
 			expect(registryContent).toContain('export type TestAgentAgent');
 		});
 
@@ -80,8 +80,8 @@ describe('registry-generator', () => {
 
 			expect(registryContent).toContain('import firstAgent from');
 			expect(registryContent).toContain('import secondAgent from');
-			expect(registryContent).toContain('firstAgent: firstAgent');
-			expect(registryContent).toContain('secondAgent: secondAgent');
+			expect(registryContent).toContain('firstAgent');
+			expect(registryContent).toContain('secondAgent');
 		});
 
 		test('should convert kebab-case names to camelCase', async () => {

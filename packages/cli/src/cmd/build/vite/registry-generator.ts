@@ -113,10 +113,10 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 			const descComment = description ? `\n\t * ${description}` : '';
 
 			return `\t/**
-	\t * ${name}${descComment}
-	\t * @type {${pascalName}Agent}
-	\t */
-	\t${camelName}: ${camelName},`;
+\t * ${name}${descComment}
+\t * @type {${pascalName}Agent}
+\t */
+\t${camelName},`;
 		})
 		.join('\n');
 

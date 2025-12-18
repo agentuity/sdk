@@ -70,11 +70,11 @@ export type SimpleAgent = AgentRunner<
  */
 export const AgentDefinitions = {
 	/**
-		 * simple
+	 * simple
 	 * A simple test agent that returns a greeting
-		 * @type {SimpleAgent}
-		 */
-		simple: simple,
+	 * @type {SimpleAgent}
+	 */
+	simple,
 } as const;
 
 // ============================================================================

@@ -1495,255 +1495,255 @@ export type V1DataProcessorAgent = AgentRunner<
  */
 export const AgentDefinitions = {
 	/**
-		 * session-basic
+	 * session-basic
 	 * Basic session ID and state access
-		 * @type {SessionBasicAgent}
-		 */
-		sessionBasic: sessionBasic,
+	 * @type {SessionBasicAgent}
+	 */
+	sessionBasic,
 	/**
-		 * session-events
+	 * session-events
 	 * Session and thread event listeners
-		 * @type {SessionEventsAgent}
-		 */
-		sessionEvents: sessionEvents,
+	 * @type {SessionEventsAgent}
+	 */
+	sessionEvents,
 	/**
-		 * events-multiple
+	 * events-multiple
 	 * Tests multiple event listeners on same event
-		 * @type {EventsMultipleAgent}
-		 */
-		eventsMultiple: eventsMultiple,
+	 * @type {EventsMultipleAgent}
+	 */
+	eventsMultiple,
 	/**
-		 * events-session
+	 * events-session
 	 * Tests session event listeners (completed)
-		 * @type {EventsSessionAgent}
-		 */
-		eventsSession: eventsSession,
+	 * @type {EventsSessionAgent}
+	 */
+	eventsSession,
 	/**
-		 * events-removal
+	 * events-removal
 	 * Tests event listener removal (removeEventListener)
-		 * @type {EventsRemovalAgent}
-		 */
-		eventsRemoval: eventsRemoval,
+	 * @type {EventsRemovalAgent}
+	 */
+	eventsRemoval,
 	/**
-		 * events-agent
+	 * events-agent
 	 * Tests agent event listeners (started, completed, errored)
-		 * @type {EventsAgentAgent}
-		 */
-		eventsAgent: eventsAgent,
+	 * @type {EventsAgentAgent}
+	 */
+	eventsAgent,
 	/**
-		 * events-thread
+	 * events-thread
 	 * Tests thread event listeners (destroyed)
-		 * @type {EventsThreadAgent}
-		 */
-		eventsThread: eventsThread,
+	 * @type {EventsThreadAgent}
+	 */
+	eventsThread,
 	/**
-		 * errors-validation
+	 * errors-validation
 	 * Test schema validation error handling
-		 * @type {ErrorsValidationAgent}
-		 */
-		errorsValidation: errorsValidation,
+	 * @type {ErrorsValidationAgent}
+	 */
+	errorsValidation,
 	/**
-		 * errors-structured
+	 * errors-structured
 	 * Test StructuredError patterns
-		 * @type {ErrorsStructuredAgent}
-		 */
-		errorsStructured: errorsStructured,
+	 * @type {ErrorsStructuredAgent}
+	 */
+	errorsStructured,
 	/**
-		 * errors-propagation
+	 * errors-propagation
 	 * Test error propagation patterns
-		 * @type {ErrorsPropagationAgent}
-		 */
-		errorsPropagation: errorsPropagation,
+	 * @type {ErrorsPropagationAgent}
+	 */
+	errorsPropagation,
 	/**
-		 * routing-params
+	 * routing-params
 	 * Agent for testing route parameters
-		 * @type {RoutingParamsAgent}
-		 */
-		routingParams: routingParams,
+	 * @type {RoutingParamsAgent}
+	 */
+	routingParams,
 	/**
-		 * routing-headers
+	 * routing-headers
 	 * Agent that works with custom headers
-		 * @type {RoutingHeadersAgent}
-		 */
-		routingHeaders: routingHeaders,
+	 * @type {RoutingHeadersAgent}
+	 */
+	routingHeaders,
 	/**
-		 * routing-get
+	 * routing-get
 	 * GET endpoint that reads query parameters
-		 * @type {RoutingGetAgent}
-		 */
-		routingGet: routingGet,
+	 * @type {RoutingGetAgent}
+	 */
+	routingGet,
 	/**
-		 * routing-post
+	 * routing-post
 	 * POST endpoint that accepts JSON body
-		 * @type {RoutingPostAgent}
-		 */
-		routingPost: routingPost,
+	 * @type {RoutingPostAgent}
+	 */
+	routingPost,
 	/**
-		 * routing-methods
+	 * routing-methods
 	 * Agent that supports multiple HTTP methods
-		 * @type {RoutingMethodsAgent}
-		 */
-		routingMethods: routingMethods,
+	 * @type {RoutingMethodsAgent}
+	 */
+	routingMethods,
 	/**
-		 * resilience-crash-attempts
+	 * resilience-crash-attempts
 	 * Tests various ways that should NOT crash the server
-		 * @type {ResilienceCrashAttemptsAgent}
-		 */
-		resilienceCrashAttempts: resilienceCrashAttempts,
+	 * @type {ResilienceCrashAttemptsAgent}
+	 */
+	resilienceCrashAttempts,
 	/**
-		 * schema-complex
+	 * schema-complex
 	 * Test complex nested schemas
-		 * @type {SchemaComplexAgent}
-		 */
-		schemaComplex: schemaComplex,
+	 * @type {SchemaComplexAgent}
+	 */
+	schemaComplex,
 	/**
-		 * schema-types
+	 * schema-types
 	 * Test basic schema types
-		 * @type {SchemaTypesAgent}
-		 */
-		schemaTypes: schemaTypes,
+	 * @type {SchemaTypesAgent}
+	 */
+	schemaTypes,
 	/**
-		 * schema-optional
+	 * schema-optional
 	 * Test optional fields and defaults
-		 * @type {SchemaOptionalAgent}
-		 */
-		schemaOptional: schemaOptional,
+	 * @type {SchemaOptionalAgent}
+	 */
+	schemaOptional,
 	/**
-		 * env-sdk-key-check
+	 * env-sdk-key-check
 	 * Verifies AGENTUITY_SDK_KEY is available in process.env
-		 * @type {EnvSdkKeyCheckAgent}
-		 */
-		envSdkKeyCheck: envSdkKeyCheck,
+	 * @type {EnvSdkKeyCheckAgent}
+	 */
+	envSdkKeyCheck,
 	/**
-		 * storage-vector-crud
+	 * storage-vector-crud
 	 * Vector storage CRUD operations
-		 * @type {StorageVectorCrudAgent}
-		 */
-		storageVectorCrud: storageVectorCrud,
+	 * @type {StorageVectorCrudAgent}
+	 */
+	storageVectorCrud,
 	/**
-		 * storage-vector-search
+	 * storage-vector-search
 	 * Vector storage search operations
-		 * @type {StorageVectorSearchAgent}
-		 */
-		storageVectorSearch: storageVectorSearch,
+	 * @type {StorageVectorSearchAgent}
+	 */
+	storageVectorSearch,
 	/**
-		 * storage-binary-upload-download
+	 * storage-binary-upload-download
 	 * Upload and download binary data with integrity verification
-		 * @type {StorageBinaryUploadDownloadAgent}
-		 */
-		storageBinaryUploadDownload: storageBinaryUploadDownload,
+	 * @type {StorageBinaryUploadDownloadAgent}
+	 */
+	storageBinaryUploadDownload,
 	/**
-		 * storage-stream-crud
+	 * storage-stream-crud
 	 * Stream storage CRUD operations
-		 * @type {StorageStreamCrudAgent}
-		 */
-		storageStreamCrud: storageStreamCrud,
+	 * @type {StorageStreamCrudAgent}
+	 */
+	storageStreamCrud,
 	/**
-		 * storage-stream-types
+	 * storage-stream-types
 	 * Stream storage with different data types
-		 * @type {StorageStreamTypesAgent}
-		 */
-		storageStreamTypes: storageStreamTypes,
+	 * @type {StorageStreamTypesAgent}
+	 */
+	storageStreamTypes,
 	/**
-		 * storage-stream-metadata
+	 * storage-stream-metadata
 	 * Stream storage metadata operations
-		 * @type {StorageStreamMetadataAgent}
-		 */
-		storageStreamMetadata: storageStreamMetadata,
+	 * @type {StorageStreamMetadataAgent}
+	 */
+	storageStreamMetadata,
 	/**
-		 * storage-kv-crud
+	 * storage-kv-crud
 	 * KeyValue storage CRUD operations
-		 * @type {StorageKvCrudAgent}
-		 */
-		storageKvCrud: storageKvCrud,
+	 * @type {StorageKvCrudAgent}
+	 */
+	storageKvCrud,
 	/**
-		 * storage-kv-types
+	 * storage-kv-types
 	 * KeyValue storage with different value types
-		 * @type {StorageKvTypesAgent}
-		 */
-		storageKvTypes: storageKvTypes,
+	 * @type {StorageKvTypesAgent}
+	 */
+	storageKvTypes,
 	/**
-		 * storage-kv-isolation
+	 * storage-kv-isolation
 	 * Test KV isolation between requests
-		 * @type {StorageKvIsolationAgent}
-		 */
-		storageKvIsolation: storageKvIsolation,
+	 * @type {StorageKvIsolationAgent}
+	 */
+	storageKvIsolation,
 	/**
-		 * state
+	 * state
 	 * Test thread and session state persistence across requests
-		 * @type {StateAgent}
-		 */
-		state: state,
+	 * @type {StateAgent}
+	 */
+	state,
 	/**
-		 * state-writer
+	 * state-writer
 	 * Write thread state for other agents to read
-		 * @type {StateWriterAgent}
-		 */
-		stateWriter: stateWriter,
+	 * @type {StateWriterAgent}
+	 */
+	stateWriter,
 	/**
-		 * state-reader
+	 * state-reader
 	 * Read thread state set by other agents
-		 * @type {StateReaderAgent}
-		 */
-		stateReader: stateReader,
+	 * @type {StateReaderAgent}
+	 */
+	stateReader,
 	/**
-		 * cli
+	 * cli
 	 * Execute CLI commands for deployment, API keys, and other operations
-		 * @type {CliAgent}
-		 */
-		cli: cli,
+	 * @type {CliAgent}
+	 */
+	cli,
 	/**
-		 * utils-string-helper
-		 * @type {UtilsStringHelperAgent}
-		 */
-		utilsStringHelper: utilsStringHelper,
+	 * utils-string-helper
+	 * @type {UtilsStringHelperAgent}
+	 */
+	utilsStringHelper,
 	/**
-		 * lifecycle-waituntil
+	 * lifecycle-waituntil
 	 * WaitUntil background task testing
-		 * @type {LifecycleWaituntilAgent}
-		 */
-		lifecycleWaituntil: lifecycleWaituntil,
+	 * @type {LifecycleWaituntilAgent}
+	 */
+	lifecycleWaituntil,
 	/**
-		 * no-input
+	 * no-input
 	 * Agent with no input schema (void input)
-		 * @type {NoInputAgent}
-		 */
-		noInput: noInput,
+	 * @type {NoInputAgent}
+	 */
+	noInput,
 	/**
-		 * no-output
+	 * no-output
 	 * Agent with void output (side effects only)
-		 * @type {NoOutputAgent}
-		 */
-		noOutput: noOutput,
+	 * @type {NoOutputAgent}
+	 */
+	noOutput,
 	/**
-		 * async
+	 * async
 	 * Agent with async handler execution
-		 * @type {AsyncAgent}
-		 */
-		async: async,
+	 * @type {AsyncAgent}
+	 */
+	async,
 	/**
-		 * simple
+	 * simple
 	 * Basic agent with input/output validation
-		 * @type {SimpleAgent}
-		 */
-		simple: simple,
+	 * @type {SimpleAgent}
+	 */
+	simple,
 	/**
-		 * evals-basic
+	 * evals-basic
 	 * Agent with evals for testing
-		 * @type {EvalsBasicAgent}
-		 */
-		evalsBasic: evalsBasic,
+	 * @type {EvalsBasicAgent}
+	 */
+	evalsBasic,
 	/**
-		 * websocket-echo
+	 * websocket-echo
 	 * WebSocket echo server for testing
-		 * @type {WebsocketEchoAgent}
-		 */
-		websocketEcho: websocketEcho,
+	 * @type {WebsocketEchoAgent}
+	 */
+	websocketEcho,
 	/**
-		 * v1-data-processor
-		 * @type {V1DataProcessorAgent}
-		 */
-		v1DataProcessor: v1DataProcessor,
+	 * v1-data-processor
+	 * @type {V1DataProcessorAgent}
+	 */
+	v1DataProcessor,
 } as const;
 
 // ============================================================================
