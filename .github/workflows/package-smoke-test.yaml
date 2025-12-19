@@ -47,21 +47,24 @@ jobs:
          - name: Install dependencies
            run: bun install
 
-         - name: Setup test credentials
-           run: |
-              # Generate CLI API key for authentication
-              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
-              echo "::add-mask::${APIKEY}"
-              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+         - name: Link workspace packages in test apps
+            run: bash scripts/ci-link-workspace.sh
 
-              # Set SDK key for integration-suite tests
-              echo "AGENTUITY_SDK_KEY=${{ secrets.INTEGRATION_SUITE_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
+          - name: Setup test credentials
+            run: |
+               # Generate CLI API key for authentication
+               APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+               echo "::add-mask::${APIKEY}"
+               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
 
-              # Set OpenAI API key for embedding operations
-              echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+               # Set SDK key for integration-suite tests
+               echo "AGENTUITY_SDK_KEY=${{ secrets.INTEGRATION_SUITE_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
 
-         - name: Run integration test suite
-           run: bash apps/testing/integration-suite/scripts/ci-test.sh
+               # Set OpenAI API key for embedding operations
+               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+
+          - name: Run integration test suite
+            run: bash apps/testing/integration-suite/scripts/ci-test.sh
 
    cloud-deployment-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -89,14 +92,17 @@ jobs:
            run: bun install
 
          - name: Build packages
-           run: bun run build
+            run: bun run build
 
-         - name: Setup test credentials
-           run: |
-              # Generate CLI API key for cloud operations
-              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
-              echo "::add-mask::${APIKEY}"
-              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+          - name: Link workspace packages in test apps
+            run: bash scripts/ci-link-workspace.sh
+
+          - name: Setup test credentials
+            run: |
+               # Generate CLI API key for cloud operations
+               APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+               echo "::add-mask::${APIKEY}"
+               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
 
               # Set SDK key for runtime operations
               echo "AGENTUITY_SDK_KEY=${{ secrets.CLOUD_DEPLOYMENT_AGENTUITY_SDK_KEY }}" >> $GITHUB_ENV
@@ -177,10 +183,13 @@ jobs:
               echo "Cleaned nested @agentuity in apps/"
 
          - name: Build packages
-           run: bun run build
+            run: bun run build
 
-         - name: Run Playwright E2E tests
-           run: bun run test:e2e
+          - name: Link workspace packages in test apps
+            run: bash scripts/ci-link-workspace.sh
+
+          - name: Run Playwright E2E tests
+            run: bun run test:e2e
 
          - name: Upload Playwright report
            uses: actions/upload-artifact@v4
