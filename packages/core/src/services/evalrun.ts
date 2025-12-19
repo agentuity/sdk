@@ -4,7 +4,8 @@ export const EvalRunStartEventSchema = z
 	.object({
 		id: z.string().describe('the eval run id'),
 		sessionId: z.string().describe('the session id'),
-		evalId: z.string().describe('the eval id'),
+		evalId: z.string().describe('the evaluation record id (evalid_...)'),
+		evalIdentifier: z.string().describe('the stable eval identifier (eval_...)'),
 		orgId: z.string().describe('the organization id'),
 		projectId: z.string().describe('the project id'),
 		devmode: z.boolean().describe('true if running in devmode'),

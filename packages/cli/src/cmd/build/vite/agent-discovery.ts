@@ -306,7 +306,8 @@ function extractAgentMetadata(
 }
 
 /**
- * Extract evals from eval.ts file (READ-ONLY)
+ * Extract evals from a file (READ-ONLY)
+ * Finds createEval calls regardless of whether they're exported or not
  */
 async function extractEvalMetadata(
 	evalsPath: string,
@@ -322,72 +323,135 @@ async function extractEvalMetadata(
 
 	try {
 		const evalsSource = await evalsFile.text();
-		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
-		const evalsContents = transpiler.transformSync(evalsSource);
-		const version = hash(evalsContents);
+		return extractEvalsFromSource(
+			evalsSource,
+			evalsPath,
+			agentId,
+			projectId,
+			deploymentId,
+			logger
+		);
+	} catch (error) {
+		logger.warn(`Failed to parse evals from ${evalsPath}: ${error}`);
+		return [];
+	}
+}
 
-		const ast = acornLoose.parse(evalsContents, { ecmaVersion: 'latest', sourceType: 'module' });
+/**
+ * Extract evals from source code (READ-ONLY)
+ * Finds all createEval calls in the source, exported or not
+ */
+function extractEvalsFromSource(
+	source: string,
+	filename: string,
+	agentId: string,
+	projectId: string,
+	deploymentId: string,
+	logger: Logger
+): EvalMetadata[] {
+	// Quick check - skip if no createEval in source
+	if (!source.includes('createEval')) {
+		return [];
+	}
+
+	try {
+		const transpiler = new Bun.Transpiler({ loader: 'ts', target: 'bun' });
+		const contents = transpiler.transformSync(source);
+		const version = hash(contents);
+
+		const ast = acornLoose.parse(contents, { ecmaVersion: 'latest', sourceType: 'module' });
 		const evals: EvalMetadata[] = [];
 
-		// Find createEval calls
-		for (const node of (ast as { body: ASTNode[] }).body) {
-			if (node.type === 'ExportNamedDeclaration') {
-				const declaration = (
-					node as unknown as { declaration: { declarations?: ASTVariableDeclarator[] } }
-				).declaration;
+		// Recursively find all createEval calls in the AST
+		function findCreateEvalCalls(node: unknown): void {
+			if (!node || typeof node !== 'object') return;
 
-				if (declaration?.declarations) {
-					for (const decl of declaration.declarations) {
-						if (decl.init && decl.init.type === 'CallExpression') {
-							const callExpr = decl.init as ASTCallExpression;
+			const n = node as Record<string, unknown>;
 
-							if (
-								callExpr.callee.type === 'Identifier' &&
-								(callExpr.callee as ASTNodeIdentifier).name === 'createEval' &&
-								callExpr.arguments.length >= 2
-							) {
-								const nameArg = callExpr.arguments[0] as ASTLiteral;
-								const evalName = String(nameArg.value);
+			// Check if this is a createEval call (either direct or method call)
+			// Direct: createEval('name', {...})
+			// Method: agent.createEval('name', {...})
+			let isCreateEvalCall = false;
 
-								const callargexp = callExpr.arguments[1] as ASTObjectExpression;
-								let description: string | undefined;
+			if (n.type === 'CallExpression' && n.callee && typeof n.callee === 'object') {
+				const callee = n.callee as ASTNode & { property?: ASTNodeIdentifier };
 
-								for (const prop of callargexp.properties) {
-									if (
-										prop.key.name === 'metadata' &&
-										prop.value.type === 'ObjectExpression'
-									) {
-										const metadataMap = parseObjectExpressionToMap(
-											prop.value as ASTObjectExpression
-										);
-										description = metadataMap.get('description');
-										break;
-									}
-								}
+				// Direct function call: createEval(...)
+				if (
+					callee.type === 'Identifier' &&
+					(callee as ASTNodeIdentifier).name === 'createEval'
+				) {
+					isCreateEvalCall = true;
+				}
 
-								const id = getEvalId(projectId, deploymentId, evalsPath, evalName, version);
-								const evalId = generateStableEvalId(projectId, agentId, evalName);
+				// Method call: someAgent.createEval(...)
+				if (
+					callee.type === 'MemberExpression' &&
+					callee.property &&
+					callee.property.type === 'Identifier' &&
+					callee.property.name === 'createEval'
+				) {
+					isCreateEvalCall = true;
+				}
+			}
 
-								evals.push({
-									id,
-									evalId,
-									name: evalName,
-									filename: evalsPath,
-									version,
-									description,
-									agentIdentifier: agentId,
-									projectId,
-								});
+			if (isCreateEvalCall) {
+				const callExpr = n as unknown as ASTCallExpression;
+				if (callExpr.arguments.length >= 2) {
+					const nameArg = callExpr.arguments[0] as ASTLiteral;
+					const evalName = String(nameArg.value);
+
+					const callargexp = callExpr.arguments[1] as ASTObjectExpression;
+					let description: string | undefined;
+
+					if (callargexp.properties) {
+						for (const prop of callargexp.properties) {
+							if (prop.key.name === 'metadata' && prop.value.type === 'ObjectExpression') {
+								const metadataMap = parseObjectExpressionToMap(
+									prop.value as ASTObjectExpression
+								);
+								description = metadataMap.get('description');
+								break;
 							}
 						}
 					}
+
+					const id = getEvalId(projectId, deploymentId, filename, evalName, version);
+					const evalId = generateStableEvalId(projectId, agentId, evalName);
+
+					logger.trace(`Found eval '${evalName}' in ${filename} (evalId: ${evalId})`);
+
+					evals.push({
+						id,
+						evalId,
+						name: evalName,
+						filename,
+						version,
+						description,
+						agentIdentifier: agentId,
+						projectId,
+					});
+				}
+			}
+
+			// Recursively search child nodes
+			for (const key of Object.keys(n)) {
+				const value = n[key];
+				if (Array.isArray(value)) {
+					for (const item of value) {
+						findCreateEvalCalls(item);
+					}
+				} else if (value && typeof value === 'object') {
+					findCreateEvalCalls(value);
 				}
 			}
 		}
 
+		findCreateEvalCalls(ast);
+
 		return evals;
 	} catch (error) {
-		logger.warn(`Failed to parse evals from ${evalsPath}: ${error}`);
+		logger.warn(`Failed to parse evals from ${filename}: ${error}`);
 		return [];
 	}
 }
@@ -439,20 +503,49 @@ export async function discoverAgents(
 			if (agentMetadata) {
 				logger.trace('Discovered agent: %s at %s', agentMetadata.name, relativeFilename);
 
-				// Check for evals in same directory
+				// Collect evals from multiple sources
+				const allEvals: EvalMetadata[] = [];
+
+				// 1. Extract evals from the agent file itself (agent.createEval() pattern)
+				const evalsInAgentFile = extractEvalsFromSource(
+					source,
+					relativeFilename,
+					agentMetadata.agentId,
+					projectId,
+					deploymentId,
+					logger
+				);
+				if (evalsInAgentFile.length > 0) {
+					logger.trace(
+						'Found %d eval(s) in agent file for %s',
+						evalsInAgentFile.length,
+						agentMetadata.name
+					);
+					allEvals.push(...evalsInAgentFile);
+				}
+
+				// 2. Check for evals in separate eval.ts file in same directory
 				const agentDir = dirname(filePath);
 				const evalsPath = join(agentDir, 'eval.ts');
-				const evals = await extractEvalMetadata(
+				const evalsInSeparateFile = await extractEvalMetadata(
 					evalsPath,
 					agentMetadata.agentId,
 					projectId,
 					deploymentId,
 					logger
 				);
+				if (evalsInSeparateFile.length > 0) {
+					logger.trace(
+						'Found %d eval(s) in eval.ts for agent %s',
+						evalsInSeparateFile.length,
+						agentMetadata.name
+					);
+					allEvals.push(...evalsInSeparateFile);
+				}
 
-				if (evals.length > 0) {
-					agentMetadata.evals = evals;
-					logger.trace('Found %d eval(s) for agent %s', evals.length, agentMetadata.name);
+				if (allEvals.length > 0) {
+					agentMetadata.evals = allEvals;
+					logger.trace('Total %d eval(s) for agent %s', allEvals.length, agentMetadata.name);
 				}
 
 				agents.push(agentMetadata);

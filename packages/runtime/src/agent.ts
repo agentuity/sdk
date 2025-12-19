@@ -34,7 +34,7 @@ import { getEvalRunEventProvider } from './_services';
 import * as runtimeConfig from './_config';
 import type { AppState } from './index';
 import { validateSchema, formatValidationIssues } from './_validation';
-import { getAgentMetadataByName } from './_metadata';
+import { getAgentMetadataByName, getEvalMetadata } from './_metadata';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
@@ -1759,19 +1759,39 @@ export function createAgent<
 			// Execute each eval using waitUntil to avoid blocking the response
 			for (const evalItem of agentEvals) {
 				const evalName = evalItem.metadata.name || 'unnamed';
+				const agentName = _agent?.metadata?.name || name;
 
 				ctx.waitUntil(
 					(async () => {
 						internal.info(`[EVALRUN] Starting eval run tracking for '${evalName}'`);
 						const evalRunId = generateId('evalrun');
-						// Use build-time injected eval ID (now properly injected via AST transformation)
-						const evalId = evalItem.metadata.id || '';
+
+						// Look up eval metadata from agentuity.metadata.json by agent name and eval name
+						internal.info(
+							`[EVALRUN] Looking up eval metadata: agentName='${agentName}', evalName='${evalName}'`
+						);
+						const evalMeta = getEvalMetadata(agentName, evalName);
+						internal.info(`[EVALRUN] Eval metadata lookup result:`, {
+							found: !!evalMeta,
+							evalId: evalMeta?.evalId,
+							id: evalMeta?.id,
+							filename: evalMeta?.filename,
+						});
+
+						// evalId = deployment-specific ID (evalid_...), evalIdentifier = stable (eval_...)
+						const evalId = evalMeta?.id || '';
+						const evalIdentifier = evalMeta?.evalId || '';
+						internal.info(
+							`[EVALRUN] Resolved evalId='${evalId}', evalIdentifier='${evalIdentifier}'`
+						);
 
 						// Log eval metadata using structured logging and tracing
 						ctx.logger.debug('Starting eval run with metadata', {
 							evalName,
+							agentName,
 							evalRunId,
 							evalId,
+							evalMetaFromFile: !!evalMeta,
 							evalMetadata: evalItem.metadata,
 						});
 
@@ -1782,8 +1802,9 @@ export function createAgent<
 								'eval.name': evalName,
 								'eval.id': evalId,
 								'eval.runId': evalRunId,
-								'eval.description': evalItem.metadata.description || '',
-								'eval.filename': evalItem.metadata.filename || '',
+								'eval.description':
+									evalMeta?.description || evalItem.metadata.description || '',
+								'eval.filename': evalMeta?.filename || evalItem.metadata.filename || '',
 							});
 						}
 
@@ -1793,12 +1814,14 @@ export function createAgent<
 						const evalRunEventProvider = getEvalRunEventProvider();
 
 						// Only send events if we have required context (devmode flag will be set based on devMode)
-						const shouldSendEvalRunEvents = orgId && projectId && evalId !== '';
+						const shouldSendEvalRunEvents =
+							orgId && projectId && evalId !== '' && evalIdentifier !== '';
 
 						internal.info(`[EVALRUN] Checking conditions for eval '${evalName}':`, {
 							orgId: orgId,
 							projectId: projectId,
 							evalId: evalId,
+							evalIdentifier: evalIdentifier,
 							devMode,
 							hasEvalRunEventProvider: !!evalRunEventProvider,
 							shouldSendEvalRunEvents,
@@ -1809,6 +1832,8 @@ export function createAgent<
 							if (!orgId) reasons.push('missing orgId');
 							if (!projectId) reasons.push('missing projectId');
 							if (!evalId || evalId === '') reasons.push('empty evalId');
+							if (!evalIdentifier || evalIdentifier === '')
+								reasons.push('empty evalIdentifier');
 							internal.info(
 								`[EVALRUN] Skipping eval run events for '${evalName}': ${reasons.join(', ')}`
 							);
@@ -1833,7 +1858,8 @@ export function createAgent<
 									const startEvent: EvalRunStartEvent = {
 										id: evalRunId,
 										sessionId: ctx.sessionId,
-										evalId: evalId,
+										evalId: evalId, // deployment-specific ID (evalid_...)
+										evalIdentifier: evalIdentifier, // stable identifier (eval_...)
 										orgId: orgId!,
 										projectId: projectId!,
 										devmode: Boolean(devMode),
