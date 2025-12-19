@@ -1528,6 +1528,7 @@ export function createAgent<
 			'@agentuity/agentInstanceId': agent.metadata.agentId,
 			'@agentuity/agentDescription': agent.metadata.description,
 			'@agentuity/agentName': agent.metadata.name,
+			'@agentuity/threadId': agentCtx.thread.id,
 		};
 
 		// Set agent attributes on the current active span
@@ -2161,6 +2162,7 @@ const runWithSpan = async <
 		'@agentuity/agentInstanceId': agent.metadata.agentId,
 		'@agentuity/agentDescription': agent.metadata.description,
 		'@agentuity/agentName': agent.metadata.name,
+		'@agentuity/threadId': ctx.var.thread.id,
 	});
 
 	const spanId = span.spanContext().spanId;
