@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { resolve, join } from 'node:path';
 import { existsSync } from 'node:fs';
+import { getServiceUrls } from '@agentuity/server';
 import { createCommand } from '../../types';
 import { startBunDevServer } from '../build/vite/bun-dev-server';
 import { startViteAssetServer } from '../build/vite/vite-asset-server';
@@ -98,6 +99,13 @@ export const command = createCommand({
 
 		const interactive = !shouldDisableInteractive(opts.interactive);
 
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		let originalExit = (globalThis as any).AGENTUITY_PROCESS_EXIT;
+
+		if (!originalExit) {
+			originalExit = process.exit.bind(process);
+		}
+
 		for (const filename of mustHaves) {
 			if (!existsSync(filename)) {
 				missing.push(filename);
@@ -109,7 +117,7 @@ export const command = createCommand({
 			for (const filename of missing) {
 				tui.bullet(`Missing ${filename}`);
 			}
-			process.exit(1);
+			originalExit(1);
 		}
 
 		// Setup devmode and gravity (if using public URL)
@@ -223,8 +231,8 @@ export const command = createCommand({
 
 		// Start Vite asset server ONCE before restart loop
 		// Vite handles frontend HMR independently and stays running across backend restarts
-		let vitePort: number;
 		let viteServer: ServerLike | null = null;
+		let vitePort: number;
 
 		try {
 			logger.debug('Starting Vite asset server...');
@@ -240,7 +248,8 @@ export const command = createCommand({
 			);
 		} catch (error) {
 			tui.error(`Failed to start Vite asset server: ${error}`);
-			process.exit(1);
+			originalExit(1);
+			return;
 		}
 
 		// Restart loop - allows BACKEND server to restart on file changes
@@ -293,11 +302,22 @@ export const command = createCommand({
 				}
 			}
 
-			process.exit(0);
+			originalExit(0);
 		};
 
-		process.on('SIGINT', cleanup);
-		process.on('SIGTERM', cleanup);
+		// SIGINT/SIGTERM: coordinate shutdown between bundle and dev resources
+		let devShutdownHandled = false;
+		process.on('SIGINT', async () => {
+			if (devShutdownHandled) return;
+			devShutdownHandled = true;
+			// The bundle handles its own shutdown, we clean up dev resources
+			await cleanup();
+		});
+		process.on('SIGTERM', async () => {
+			if (devShutdownHandled) return;
+			devShutdownHandled = true;
+			await cleanup();
+		});
 
 		// Ensure Vite and gravity are always killed on exit (even if cleanup is bypassed)
 		process.on('exit', () => {
@@ -329,9 +349,9 @@ export const command = createCommand({
 			fileWatcher.pause();
 
 			try {
-				// Generate entry file for Vite before starting dev server
+				// Generate entry file and bundle for dev server (with LLM patches)
 				await tui.spinner({
-					message: 'Generating entry file',
+					message: 'Building dev bundle',
 					callback: async () => {
 						const { generateEntryFile } = await import('../build/entry-generator');
 						await generateEntryFile({
@@ -341,11 +361,19 @@ export const command = createCommand({
 							logger,
 							mode: 'dev',
 						});
+
+						// Bundle the app with LLM patches (dev mode = no minification)
+						const { installExternalsAndBuild } = await import('../build/vite/server-bundler');
+						await installExternalsAndBuild({
+							rootDir,
+							dev: true, // DevMode: no minification, inline sourcemaps
+							logger,
+						});
 					},
 					clearOnSuccess: true,
 				});
 			} catch (error) {
-				tui.error(`Failed to generate entry file: ${error}`);
+				tui.error(`Failed to build dev bundle: ${error}`);
 				tui.warn('Waiting for file changes to retry...');
 
 				// Resume watcher to detect changes for retry
@@ -364,6 +392,34 @@ export const command = createCommand({
 			}
 
 			try {
+				// Set environment variables for LLM provider patches BEFORE starting server
+				// These must be set so the bundled patches can route LLM calls through AI Gateway
+				const serviceUrls = getServiceUrls(project?.region);
+
+				process.env.AGENTUITY_SDK_DEV_MODE = 'true';
+				process.env.AGENTUITY_ENV = 'development';
+				process.env.NODE_ENV = 'development';
+				if (project?.region) {
+					process.env.AGENTUITY_REGION = project.region;
+				}
+				process.env.PORT = String(opts.port);
+				process.env.AGENTUITY_PORT = process.env.PORT;
+
+				if (project) {
+					process.env.AGENTUITY_TRANSPORT_URL = serviceUrls.catalyst;
+					process.env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
+					process.env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
+					process.env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
+					process.env.AGENTUITY_STREAM_URL = serviceUrls.stream;
+					process.env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
+					process.env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;
+				}
+
+				// Set Vite port for asset proxying in bundled app
+				process.env.VITE_PORT = String(vitePort);
+
+				logger.debug('Set VITE_PORT=%s for asset proxying', process.env.VITE_PORT);
+
 				// Start Bun dev server (Vite already running, just start backend)
 				await startBunDevServer({
 					rootDir,
@@ -374,8 +430,6 @@ export const command = createCommand({
 					logger,
 					vitePort, // Pass port of already-running Vite server
 				});
-
-				// Note: Bun server runs in-process, no separate app process needed
 
 				// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
 				// Give it 2 seconds to ensure app initialization completes
@@ -455,7 +509,12 @@ export const command = createCommand({
 				// The sync service will be called when metadata changes are detected
 
 				// Handle keyboard shortcuts - only register listener once
-				if (interactive && process.stdin.isTTY && process.stdout.isTTY && !stdinListenerRegistered) {
+				if (
+					interactive &&
+					process.stdin.isTTY &&
+					process.stdout.isTTY &&
+					!stdinListenerRegistered
+				) {
 					stdinListenerRegistered = true;
 					process.stdin.setRawMode(true);
 					process.stdin.resume();
@@ -471,9 +530,10 @@ export const command = createCommand({
 					process.stdin.on('data', (data) => {
 						const key = data.toString();
 
-						// Handle Ctrl+C
+						// Handle Ctrl+C - send SIGINT to trigger graceful shutdown
 						if (key === '\u0003') {
-							process.exit(0);
+							process.kill(process.pid, 'SIGINT');
+							return;
 						}
 
 						switch (key) {
@@ -490,7 +550,7 @@ export const command = createCommand({
 								});
 								break;
 							case 'q':
-								process.exit(0);
+								originalExit(0);
 								break;
 							default:
 								process.stdout.write(data);
