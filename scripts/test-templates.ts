@@ -330,12 +330,13 @@ async function installDependencies(
 		return { success: false, error: installResult.stderr };
 	}
 
-	// Remove nested @agentuity packages that Bun might have installed from npm
+	// Remove ALL nested @agentuity packages (not just specific ones)
+	// This prevents Rollup from resolving stale/nested versions
 	const globResult = await runCommand(
 		[
 			'sh',
 			'-c',
-			`find node_modules/@agentuity/*/node_modules/@agentuity -type d 2>/dev/null || true`,
+			`find node_modules -path '*/node_modules/@agentuity' ! -path 'node_modules/@agentuity' -type d 2>/dev/null || true`,
 		],
 		projectDir
 	);
@@ -345,9 +346,21 @@ async function installDependencies(
 		for (const dir of nestedDirs) {
 			const fullPath = join(projectDir, dir);
 			if (existsSync(fullPath)) {
-				logWarning(`Removing nested @agentuity packages from ${dir}`);
+				logWarning(`Removing ALL nested @agentuity scope from ${dir}`);
 				rmSync(fullPath, { recursive: true, force: true });
 			}
+		}
+	}
+
+	// Verify frontend package has createClient export
+	const frontendIndexPath = join(projectDir, 'node_modules/@agentuity/frontend/dist/index.js');
+	if (existsSync(frontendIndexPath)) {
+		const frontendIndex = readFileSync(frontendIndexPath, 'utf-8');
+		if (!frontendIndex.includes('createClient')) {
+			logWarning('⚠️  frontend/dist/index.js does NOT export createClient!');
+			logWarning(`First 500 chars: ${frontendIndex.substring(0, 500)}`);
+		} else {
+			logInfo('✓ frontend/dist/index.js exports createClient');
 		}
 	}
 
