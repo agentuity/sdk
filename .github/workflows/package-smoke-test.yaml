@@ -45,13 +45,13 @@ jobs:
            uses: oven-sh/setup-bun@v2
 
          - name: Install dependencies
-            run: bun install
+           run: bun install
 
          - name: Link workspace packages in test apps
-            run: bash scripts/ci-link-workspace.sh
+           run: bash scripts/ci-link-workspace.sh
 
          - name: Setup test credentials
-            run: |
+           run: |
                # Generate CLI API key for authentication
                APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
                echo "::add-mask::${APIKEY}"
@@ -63,8 +63,8 @@ jobs:
                # Set OpenAI API key for embedding operations
                echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 
-          - name: Run integration test suite
-            run: bash apps/testing/integration-suite/scripts/ci-test.sh
+         - name: Run integration test suite
+           run: bash apps/testing/integration-suite/scripts/ci-test.sh
 
    cloud-deployment-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
@@ -92,13 +92,13 @@ jobs:
            run: bun install
 
          - name: Build packages
-            run: bun run build
+           run: bun run build
 
          - name: Link workspace packages in test apps
-            run: bash scripts/ci-link-workspace.sh
+           run: bash scripts/ci-link-workspace.sh
 
          - name: Setup test credentials
-            run: |
+           run: |
                # Generate CLI API key for cloud operations
                APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
                echo "::add-mask::${APIKEY}"
@@ -183,13 +183,13 @@ jobs:
               echo "Cleaned nested @agentuity in apps/"
 
          - name: Build packages
-            run: bun run build
+           run: bun run build
 
          - name: Link workspace packages in test apps
-            run: bash scripts/ci-link-workspace.sh
+           run: bash scripts/ci-link-workspace.sh
 
          - name: Run Playwright E2E tests
-            run: bun run test:e2e
+           run: bun run test:e2e
 
          - name: Upload Playwright report
            uses: actions/upload-artifact@v4
