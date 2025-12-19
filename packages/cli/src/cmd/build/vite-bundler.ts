@@ -75,8 +75,8 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 	}
 
 	try {
-		// Run all Vite builds (client -> workbench -> server)
-		logger.debug('Starting Vite builds...');
+		// Run all builds (client -> workbench -> server)
+		logger.debug('Starting builds...');
 
 		const result = await runAllBuilds({
 			rootDir,
@@ -90,16 +90,16 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		});
 
 		if (result.client.included) {
-			output.push(tui.muted(`✓ Client Built in ${result.client.duration}ms`));
+			output.push(tui.muted(`✓ Client built in ${result.client.duration}ms`));
 		}
 		if (result.workbench.included) {
-			output.push(tui.muted(`✓ Workbench Built in ${result.workbench.duration}ms`));
+			output.push(tui.muted(`✓ Workbench built in ${result.workbench.duration}ms`));
 		}
 		if (result.server.included) {
-			output.push(tui.muted(`✓ Server Built in ${result.server.duration}ms`));
+			output.push(tui.muted(`✓ Server built in ${result.server.duration}ms`));
 		}
 
-		logger.debug('Vite builds complete');
+		logger.debug('All builds complete');
 
 		return { output };
 	} catch (error) {
