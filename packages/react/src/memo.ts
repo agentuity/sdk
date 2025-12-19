@@ -1,5 +1,9 @@
 import { useRef } from 'react';
+<<<<<<< Updated upstream
 import { jsonEqual } from '@agentuity/frontend';
+=======
+import { jsonEqual } from '@agentuity/web';
+>>>>>>> Stashed changes
 
 /**
  * Hook to memoize a value based on JSON equality instead of reference equality.

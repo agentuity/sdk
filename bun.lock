@@ -90,6 +90,7 @@
       },
       "devDependencies": {
         "@agentuity/react": "workspace:*",
+        "@agentuity/web": "workspace:*",
         "@types/bun": "latest",
         "@types/react": "^19.2.7",
         "@types/react-dom": "^19.2.3",
@@ -201,7 +202,11 @@
       "version": "0.0.100",
       "dependencies": {
         "@agentuity/core": "workspace:*",
+<<<<<<< Updated upstream
         "@agentuity/frontend": "workspace:*",
+=======
+        "@agentuity/web": "workspace:*",
+>>>>>>> Stashed changes
       },
       "devDependencies": {
         "@agentuity/schema": "workspace:*",
@@ -310,6 +315,19 @@
         "typescript": "^5.9.0",
       },
     },
+    "packages/web": {
+      "name": "@agentuity/web",
+      "version": "0.0.100",
+      "dependencies": {
+        "@agentuity/core": "workspace:*",
+      },
+      "devDependencies": {
+        "@agentuity/test-utils": "workspace:*",
+        "@types/bun": "latest",
+        "bun-types": "latest",
+        "typescript": "^5.9.0",
+      },
+    },
     "packages/workbench": {
       "name": "@agentuity/workbench",
       "version": "0.0.100",
@@ -396,6 +414,8 @@
     "@agentuity/server": ["@agentuity/server@workspace:packages/server"],
 
     "@agentuity/test-utils": ["@agentuity/test-utils@workspace:packages/test-utils"],
+
+    "@agentuity/web": ["@agentuity/web@workspace:packages/web"],
 
     "@agentuity/workbench": ["@agentuity/workbench@workspace:packages/workbench"],
 
@@ -3038,6 +3058,8 @@
     "@agentuity/schema/@types/bun": ["@types/bun@1.3.5", "", { "dependencies": { "bun-types": "1.3.5" } }, "sha512-RnygCqNrd3srIPEWBd5LFeUYG7plCoH2Yw9WaZGyNmdTEei+gWaHqydbaIRkIkcbXwhBT94q78QljxN0Sk838w=="],
 
     "@agentuity/server/@types/bun": ["@types/bun@1.3.5", "", { "dependencies": { "bun-types": "1.3.5" } }, "sha512-RnygCqNrd3srIPEWBd5LFeUYG7plCoH2Yw9WaZGyNmdTEei+gWaHqydbaIRkIkcbXwhBT94q78QljxN0Sk838w=="],
+
+    "@agentuity/web/@types/bun": ["@types/bun@1.3.5", "", { "dependencies": { "bun-types": "1.3.5" } }, "sha512-RnygCqNrd3srIPEWBd5LFeUYG7plCoH2Yw9WaZGyNmdTEei+gWaHqydbaIRkIkcbXwhBT94q78QljxN0Sk838w=="],
 
     "@agentuity/workbench/@types/bun": ["@types/bun@1.3.5", "", { "dependencies": { "bun-types": "1.3.5" } }, "sha512-RnygCqNrd3srIPEWBd5LFeUYG7plCoH2Yw9WaZGyNmdTEei+gWaHqydbaIRkIkcbXwhBT94q78QljxN0Sk838w=="],
 

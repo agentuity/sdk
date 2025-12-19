@@ -50,7 +50,11 @@ bunx tsc --build --force
 
 # Verify dist/ directories exist after build
 log_info "Verifying dist/ directories exist after build..."
+<<<<<<< Updated upstream
 for pkg in core schema frontend react auth runtime server cli; do
+=======
+for pkg in core schema web react auth runtime server cli; do
+>>>>>>> Stashed changes
     if [ ! -d "packages/$pkg/dist" ]; then
         log_error "Package $pkg missing dist/ directory after build"
         log_info "Contents of packages/$pkg/:"
@@ -91,10 +95,19 @@ log_success "Packed core: $CORE_PKG"
 SCHEMA_PKG=$(pack_package "$SDK_ROOT/packages/schema")
 log_success "Packed schema: $SCHEMA_PKG"
 
+<<<<<<< Updated upstream
 FRONTEND_PKG=$(pack_package "$SDK_ROOT/packages/frontend")
 log_success "Packed frontend: $FRONTEND_PKG"
 
 REACT_PKG=$(pack_package "$SDK_ROOT/packages/react")
+=======
+cd "$SDK_ROOT/packages/web"
+WEB_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
+log_success "Packed web: $WEB_PKG"
+
+cd "$SDK_ROOT/packages/react"
+REACT_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
+>>>>>>> Stashed changes
 log_success "Packed react: $REACT_PKG"
 
 AUTH_PKG=$(pack_package "$SDK_ROOT/packages/auth")
@@ -129,7 +142,11 @@ ls -lh "$PACKAGES_DIR"
 echo ""
 log_info "Verifying package contents..."
 VERIFY_DIR=$(mktemp -d)
+<<<<<<< Updated upstream
 for pkg in "$CORE_PKG" "$SCHEMA_PKG" "$FRONTEND_PKG" "$REACT_PKG" "$AUTH_PKG" "$RUNTIME_PKG" "$SERVER_PKG" "$CLI_PKG" "$WORKBENCH_PKG"; do
+=======
+for pkg in "$CORE_PKG" "$SCHEMA_PKG" "$WEB_PKG" "$REACT_PKG" "$AUTH_PKG" "$RUNTIME_PKG" "$SERVER_PKG" "$CLI_PKG" "$WORKBENCH_PKG"; do
+>>>>>>> Stashed changes
   # Extract tarball and check for dist/ directory
   tar -xzf "$PACKAGES_DIR/$pkg" -C "$VERIFY_DIR"
   
@@ -181,6 +198,7 @@ cat > package.json << 'EOF'
 EOF
 
 log_info "Installing CLI and dependencies from packed tarballs..."
+<<<<<<< Updated upstream
 # Add all packages at once with --no-save so Bun can resolve interdependencies from provided tarballs
 bun add --no-save \
   "$PACKAGES_DIR/$CORE_PKG" \
@@ -192,6 +210,17 @@ bun add --no-save \
   "$PACKAGES_DIR/$SERVER_PKG" \
   "$PACKAGES_DIR/$CLI_PKG" \
   "$PACKAGES_DIR/$WORKBENCH_PKG"
+=======
+bun add "$PACKAGES_DIR/$CORE_PKG"
+bun add "$PACKAGES_DIR/$SCHEMA_PKG"
+bun add "$PACKAGES_DIR/$WEB_PKG"
+bun add "$PACKAGES_DIR/$REACT_PKG"
+bun add "$PACKAGES_DIR/$AUTH_PKG"
+bun add "$PACKAGES_DIR/$RUNTIME_PKG"
+bun add "$PACKAGES_DIR/$SERVER_PKG"
+bun add "$PACKAGES_DIR/$CLI_PKG"
+bun add "$PACKAGES_DIR/$WORKBENCH_PKG"
+>>>>>>> Stashed changes
 
 export AGENTUITY_SKIP_VERSION_CHECK=1
 
@@ -252,7 +281,11 @@ log_info "Installing @agentuity packages from tarballs..."
 bun add --no-save \
   "$PACKAGES_DIR/$CORE_PKG" \
   "$PACKAGES_DIR/$SCHEMA_PKG" \
+<<<<<<< Updated upstream
   "$PACKAGES_DIR/$FRONTEND_PKG" \
+=======
+  "$PACKAGES_DIR/$WEB_PKG" \
+>>>>>>> Stashed changes
   "$PACKAGES_DIR/$REACT_PKG" \
   "$PACKAGES_DIR/$AUTH_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \

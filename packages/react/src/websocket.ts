@@ -1,6 +1,10 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
+<<<<<<< Updated upstream
 import { buildUrl, WebSocketManager, type WebSocketRouteRegistry } from '@agentuity/frontend';
+=======
+import { buildUrl, WebSocketManager, type WebSocketRouteRegistry } from '@agentuity/web';
+>>>>>>> Stashed changes
 import { AgentuityContext } from './context';
 
 /**

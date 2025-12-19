@@ -273,9 +273,12 @@ function generateRPCRegistryType(
 			.replace(/_+/g, '_');
 		const pascalName = toPascalCase(safeName);
 
+		// Only reference type names if route has schemas, otherwise use 'unknown'
+		const hasSchemas = route.hasValidator || route.inputSchemaVariable || route.outputSchemaVariable || route.agentVariable;
+		
 		current[terminalMethod] = {
-			input: `${pascalName}Input`,
-			output: `${pascalName}Output`,
+			input: hasSchemas ? `${pascalName}Input` : 'unknown',
+			output: hasSchemas ? `${pascalName}Output` : 'unknown',
 			type: `'${routeType}'`,
 			route,
 		};

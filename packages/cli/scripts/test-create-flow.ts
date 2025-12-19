@@ -165,7 +165,11 @@ async function linkLocalPackages(): Promise<boolean> {
 	const packagesToInstall = [
 		'core',
 		'schema',
+<<<<<<< Updated upstream
 		'frontend',
+=======
+		'web',
+>>>>>>> Stashed changes
 		'react',
 		'auth',
 		'runtime',
@@ -199,6 +203,7 @@ async function linkLocalPackages(): Promise<boolean> {
 	const packageJsonPath = join(TEST_PROJECT_PATH, 'package.json');
 	const packageJson = await Bun.file(packageJsonPath).json();
 	delete packageJson.dependencies['@agentuity/schema'];
+	delete packageJson.dependencies['@agentuity/web'];
 	delete packageJson.dependencies['@agentuity/react'];
 	delete packageJson.dependencies['@agentuity/runtime'];
 	// Also remove workbench to allow npm install for templates that need it
@@ -210,10 +215,12 @@ async function linkLocalPackages(): Promise<boolean> {
 	// Install other dependencies first
 	await Bun.$`bun install`.cwd(TEST_PROJECT_PATH);
 
-	// Install @agentuity packages from packed tarballs
-	for (const tarballPath of packagePaths) {
-		await Bun.$`bun add ${tarballPath}`.cwd(TEST_PROJECT_PATH);
-	}
+	// install these together
+	const pkgs = packagesToInstall.map((p) => `@agentuity/${p}`);
+	Bun.spawnSync({
+		cmd: ['bun', 'add', ...pkgs],
+		cwd: TEST_PROJECT_PATH,
+	});
 
 	// Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
 	// This happens because workspace:* dependencies get resolved to specific versions (e.g. 0.0.60)

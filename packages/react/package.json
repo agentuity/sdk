@@ -27,7 +27,11 @@
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
+<<<<<<< Updated upstream
 		"@agentuity/frontend": "workspace:*"
+=======
+		"@agentuity/web": "workspace:*"
+>>>>>>> Stashed changes
 	},
 	"devDependencies": {
 		"@agentuity/schema": "workspace:*",

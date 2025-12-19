@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createContext, useContext, type Context } from 'react';
+<<<<<<< Updated upstream
 import { defaultBaseUrl } from '@agentuity/frontend';
 import { setGlobalBaseUrl, setGlobalAuthHeader } from './client';
+=======
+import { defaultBaseUrl } from '@agentuity/web';
+>>>>>>> Stashed changes
 
 export interface ContextProviderArgs {
 	children?: React.ReactNode;

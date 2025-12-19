@@ -64,6 +64,7 @@ export {
 	type EventStreamCallbacks,
 	type EventStreamManagerOptions,
 	type EventStreamManagerState,
+<<<<<<< Updated upstream
 	// Client type exports (createClient is exported from ./client.ts)
 	type Client,
 	type ClientOptions,
@@ -73,3 +74,6 @@ export {
 	type StreamClient,
 	type EventHandler,
 } from '@agentuity/frontend';
+=======
+} from '@agentuity/web';
+>>>>>>> Stashed changes

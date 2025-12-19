@@ -1,11 +1,15 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { InferOutput } from '@agentuity/core';
+<<<<<<< Updated upstream
 import {
 	buildUrl,
 	EventStreamManager,
 	jsonEqual,
 	type SSERouteRegistry,
 } from '@agentuity/frontend';
+=======
+import { buildUrl, EventStreamManager, jsonEqual, type SSERouteRegistry } from '@agentuity/web';
+>>>>>>> Stashed changes
 import { AgentuityContext } from './context';
 
 /**
