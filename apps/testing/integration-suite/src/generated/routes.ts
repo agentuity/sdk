@@ -5,7 +5,6 @@ import type stateReaderAgent from '../agent/state/reader-agent.js';
 import type stateWriterAgent from '../agent/state/writer-agent.js';
 import type { InferInput, InferOutput } from '@agentuity/core';
 
-import { createClient } from '@agentuity/frontend';
 // ============================================================================
 // Route Schema Type Exports
 // ============================================================================
@@ -486,18 +485,18 @@ const _rpcRouteMetadata = {
 								"type": "api"
 						}
 				},
-				"state-reader": {
+				"stateReader": {
 						"post": {
 								"type": "api"
 						}
 				},
-				"state-writer": {
+				"stateWriter": {
 						"post": {
 								"type": "api"
 						}
 				}
 		},
-		"custom-name": {
+		"customName": {
 				"custom": {
 						"get": {
 								"type": "api"
@@ -522,7 +521,7 @@ const _rpcRouteMetadata = {
 						}
 				}
 		},
-		"my-service": {
+		"myService": {
 				"status": {
 						"get": {
 								"type": "api"
@@ -551,23 +550,23 @@ const _rpcRouteMetadata = {
 						}
 				}
 		},
-		"middleware-test": {
-				"check-all": {
+		"middlewareTest": {
+				"checkAll": {
 						"get": {
 								"type": "api"
 						}
 				},
-				"query-database": {
+				"queryDatabase": {
 						"get": {
 								"type": "api"
 						}
 				},
-				"check-auth": {
+				"checkAuth": {
 						"get": {
 								"type": "api"
 						}
 				},
-				"analytics-info": {
+				"analyticsInfo": {
 						"get": {
 								"type": "api"
 						}
@@ -606,12 +605,12 @@ const _rpcRouteMetadata = {
 								"type": "sse"
 						}
 				},
-				"long-lived": {
+				"longLived": {
 						"eventstream": {
 								"type": "sse"
 						}
 				},
-				"abort-test": {
+				"abortTest": {
 						"eventstream": {
 								"type": "sse"
 						}
@@ -625,24 +624,16 @@ if (typeof globalThis !== 'undefined') {
 }
 
 /**
- * Create a type-safe API client with optional configuration.
- * 
+ * Type-safe API client is available from @agentuity/react
+ *
  * @example
  * ```typescript
- * import { createAPIClient } from './generated/routes';
- * 
- * // Basic usage
+ * import { createAPIClient } from '@agentuity/react';
+ *
  * const api = createAPIClient();
  * const result = await api.hello.post({ name: 'World' });
- * 
- * // With custom headers
- * const api = createAPIClient({ headers: { 'X-Custom-Header': 'value' } });
- * await api.hello.post({ name: 'World' });
  * ```
  */
-export function createAPIClient(options?: Parameters<typeof createClient>[0]): import('@agentuity/react').Client<import('@agentuity/react').RPCRouteRegistry> {
-	return createClient(options || {}, _rpcRouteMetadata) as import('@agentuity/react').Client<import('@agentuity/react').RPCRouteRegistry>;
-}
 
 // FOUND AN ERROR IN THIS FILE?
 // Please file an issue at https://github.com/agentuity/sdk/issues

@@ -81,6 +81,7 @@
       "dependencies": {
         "@agentuity/cli": "workspace:*",
         "@agentuity/core": "workspace:*",
+        "@agentuity/react": "workspace:*",
         "@agentuity/runtime": "workspace:*",
         "@agentuity/schema": "workspace:*",
         "@agentuity/workbench": "workspace:*",
@@ -89,7 +90,6 @@
         "react-dom": "^19.2.1",
       },
       "devDependencies": {
-        "@agentuity/react": "workspace:*",
         "@types/bun": "latest",
         "@types/react": "^19.2.7",
         "@types/react-dom": "^19.2.3",
