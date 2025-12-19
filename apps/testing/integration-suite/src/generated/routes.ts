@@ -294,20 +294,20 @@ declare module '@agentuity/react' {
 				 */
 				post: { input: POSTApiAgentStateInput; output: POSTApiAgentStateOutput; type: 'api' };
 			};
-			state-reader: {
+			stateReader: {
 				/**
 				 * Route: POST /api/agent/state-reader
 				 */
 				post: { input: POSTApiAgentStateReaderInput; output: POSTApiAgentStateReaderOutput; type: 'api' };
 			};
-			state-writer: {
+			stateWriter: {
 				/**
 				 * Route: POST /api/agent/state-writer
 				 */
 				post: { input: POSTApiAgentStateWriterInput; output: POSTApiAgentStateWriterOutput; type: 'api' };
 			};
 		};
-		custom-name: {
+		customName: {
 			custom: {
 				/**
 				 * Route: GET /api/custom-name/custom
@@ -337,7 +337,7 @@ declare module '@agentuity/react' {
 				delete: { input: never; output: never; type: 'api' };
 			};
 		};
-		my-service: {
+		myService: {
 			status: {
 				/**
 				 * Route: GET /api/my-service/status
@@ -371,26 +371,26 @@ declare module '@agentuity/react' {
 				get: { input: never; output: never; type: 'api' };
 			};
 		};
-		middleware-test: {
-			check-all: {
+		middlewareTest: {
+			checkAll: {
 				/**
 				 * Route: GET /api/middleware-test/check-all
 				 */
 				get: { input: never; output: never; type: 'api' };
 			};
-			query-database: {
+			queryDatabase: {
 				/**
 				 * Route: GET /api/middleware-test/query-database
 				 */
 				get: { input: never; output: never; type: 'api' };
 			};
-			check-auth: {
+			checkAuth: {
 				/**
 				 * Route: GET /api/middleware-test/check-auth
 				 */
 				get: { input: never; output: never; type: 'api' };
 			};
-			analytics-info: {
+			analyticsInfo: {
 				/**
 				 * Route: GET /api/middleware-test/analytics-info
 				 */
@@ -436,13 +436,13 @@ declare module '@agentuity/react' {
 				 */
 				eventstream: { input: never; output: never; type: 'sse' };
 			};
-			long-lived: {
+			longLived: {
 				/**
 				 * Route: POST /api/sse/long-lived
 				 */
 				eventstream: { input: never; output: never; type: 'sse' };
 			};
-			abort-test: {
+			abortTest: {
 				/**
 				 * Route: POST /api/sse/abort-test
 				 */
@@ -621,7 +621,7 @@ const _rpcRouteMetadata = {
 
 // Store metadata globally for createAPIClient() to access
 if (typeof globalThis !== 'undefined') {
-	(globalThis as any).__rpcRouteMetadata = _rpcRouteMetadata;
+	(globalThis as Record<string, unknown>).__rpcRouteMetadata = _rpcRouteMetadata;
 }
 
 /**
@@ -641,7 +641,7 @@ if (typeof globalThis !== 'undefined') {
  * ```
  */
 export function createAPIClient(options?: Parameters<typeof createClient>[0]): import('@agentuity/react').Client<import('@agentuity/react').RPCRouteRegistry> {
-	return createClient(options || {}, _rpcRouteMetadata) as any;
+	return createClient(options || {}, _rpcRouteMetadata) as import('@agentuity/react').Client<import('@agentuity/react').RPCRouteRegistry>;
 }
 
 // FOUND AN ERROR IN THIS FILE?

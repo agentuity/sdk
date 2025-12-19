@@ -244,9 +244,9 @@ function generateRPCRegistryType(
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let current: any = tree;
 
-		// Add path segments (all parts)
+		// Add path segments (all parts) - convert to camelCase for safe property access
 		for (let i = 0; i < pathParts.length; i++) {
-			const part = pathParts[i];
+			const part = toCamelCase(pathParts[i]);
 			if (!current[part]) {
 				current[part] = {};
 			}
@@ -809,7 +809,7 @@ const _rpcRouteMetadata = ${rpcRuntimeMetadata} as const;
 
 // Store metadata globally for createAPIClient() to access
 if (typeof globalThis !== 'undefined') {
-	(globalThis as any).__rpcRouteMetadata = _rpcRouteMetadata;
+	(globalThis as Record<string, unknown>).__rpcRouteMetadata = _rpcRouteMetadata;
 }
 
 /**
@@ -829,7 +829,7 @@ if (typeof globalThis !== 'undefined') {
  * \`\`\`
  */
 export function createAPIClient(options?: Parameters<typeof createClient>[0]): import('@agentuity/react').Client<import('@agentuity/react').RPCRouteRegistry> {
-	return createClient(options || {}, _rpcRouteMetadata) as any;
+	return createClient(options || {}, _rpcRouteMetadata) as import('@agentuity/react').Client<import('@agentuity/react').RPCRouteRegistry>;
 }
 
 // FOUND AN ERROR IN THIS FILE?
