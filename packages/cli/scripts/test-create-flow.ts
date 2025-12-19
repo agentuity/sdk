@@ -218,6 +218,7 @@ async function linkLocalPackages(): Promise<boolean> {
 	// Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
 	// This happens because workspace:* dependencies get resolved to specific versions (e.g. 0.0.60)
 	// and Bun installs those from npm as nested dependencies, shadowing the correct local tarballs
+	// Clean ALL @agentuity packages to prevent Rollup resolution issues
 	logInfo('Removing nested @agentuity packages to ensure proper module resolution...');
 	const agentuityDir = join(TEST_PROJECT_PATH, 'node_modules/@agentuity');
 	if (existsSync(agentuityDir)) {
