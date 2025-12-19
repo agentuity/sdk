@@ -465,4 +465,156 @@ export default router;
 			cleanup();
 		}
 	});
+
+	test('websocket with exported schemas - should extract inputSchema and outputSchema', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export const inputSchema = s.object({
+	message: s.string(),
+});
+
+export const outputSchema = s.object({
+	echo: s.string(),
+});
+
+const router = createRouter();
+router.websocket('/echo', (c) => (ws) => {
+	ws.onMessage((event) => {
+		ws.send(event.data);
+	});
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].type).toBe('websocket');
+			expect(routes[0].path).toBe('/api/echo');
+			expect(routes[0].config?.hasValidator).toBeFalsy();
+			expect(routes[0].config?.inputSchemaVariable).toBe('inputSchema');
+			expect(routes[0].config?.outputSchemaVariable).toBe('outputSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('websocket without schemas - should have no schema variables', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+router.websocket('/untyped', (c) => (ws) => {
+	ws.onMessage((event) => {
+		ws.send(event.data);
+	});
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].type).toBe('websocket');
+			expect(routes[0].path).toBe('/api/untyped');
+			expect(routes[0].config?.hasValidator).toBeFalsy();
+			expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
+			expect(routes[0].config?.outputSchemaVariable).toBeUndefined();
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('sse with exported outputSchema - should extract schema', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export const outputSchema = s.object({
+	event: s.string(),
+	count: s.number(),
+});
+
+const router = createRouter();
+router.sse('/events', (c) => async (stream) => {
+	stream.writeSSE({ data: 'test' });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].type).toBe('sse');
+			expect(routes[0].path).toBe('/api/events');
+			expect(routes[0].config?.hasValidator).toBeFalsy();
+			expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
+			expect(routes[0].config?.outputSchemaVariable).toBe('outputSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('sse without schemas - should have no schema variables', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+router.sse('/stream', (c) => async (stream) => {
+	stream.writeSSE({ data: 'test' });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].type).toBe('sse');
+			expect(routes[0].path).toBe('/api/stream');
+			expect(routes[0].config?.hasValidator).toBeFalsy();
+			expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
+			expect(routes[0].config?.outputSchemaVariable).toBeUndefined();
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('websocket with only outputSchema - should extract just output', async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export const outputSchema = s.object({
+	message: s.string(),
+});
+
+const router = createRouter();
+router.websocket('/one-way', (c) => (ws) => {
+	ws.send('hello');
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].type).toBe('websocket');
+			expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
+			expect(routes[0].config?.outputSchemaVariable).toBe('outputSchema');
+		} finally {
+			cleanup();
+		}
+	});
 });

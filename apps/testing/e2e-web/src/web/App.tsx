@@ -1,9 +1,17 @@
 import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
+import { StreamsPage } from './StreamsPage';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 
 export function App() {
+	// Simple client-side routing
+	const path = window.location.pathname;
+
+	if (path === '/streams') {
+		return <StreamsPage />;
+	}
+
 	const [name, setName] = useState('World');
 	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
 

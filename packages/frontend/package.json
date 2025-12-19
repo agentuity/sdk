@@ -1,0 +1,39 @@
+{
+	"name": "@agentuity/frontend",
+	"version": "0.0.100",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"dist",
+		"src"
+	],
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"dependencies": {},
+	"devDependencies": {
+		"@agentuity/test-utils": "workspace:*",
+		"@types/bun": "latest",
+		"bun-types": "latest",
+		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false
+}

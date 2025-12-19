@@ -9,6 +9,7 @@
 import { loadConfig, loadProjectConfig } from './config';
 import { getEnvFilePaths, readEnvFile, type EnvVars } from './env-util';
 import type { Config, ProjectConfig } from './types';
+import { getServiceUrls } from '@agentuity/server';
 
 export interface RuntimeBootstrapOptions {
 	/**
@@ -132,6 +133,31 @@ export async function bootstrapRuntimeEnv(
 		}
 	} catch {
 		// OK for tests that don't need project config
+	}
+
+	// Set service URLs based on region (required for LLM patching)
+	// This mirrors what dev mode does in dev/index.ts
+	const region = process.env.AGENTUITY_REGION || projectConfig?.region;
+	const serviceUrls = getServiceUrls(region);
+
+	// Only set if not already defined (env vars from shell/CI take precedence)
+	if (!process.env.AGENTUITY_TRANSPORT_URL) {
+		process.env.AGENTUITY_TRANSPORT_URL = serviceUrls.catalyst;
+	}
+	if (!process.env.AGENTUITY_KEYVALUE_URL) {
+		process.env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
+	}
+	if (!process.env.AGENTUITY_STREAM_URL) {
+		process.env.AGENTUITY_STREAM_URL = serviceUrls.stream;
+	}
+	if (!process.env.AGENTUITY_VECTOR_URL) {
+		process.env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
+	}
+	if (!process.env.AGENTUITY_CATALYST_URL) {
+		process.env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
+	}
+	if (!process.env.AGENTUITY_OTLP_URL) {
+		process.env.AGENTUITY_OTLP_URL = serviceUrls.otel;
 	}
 
 	return {

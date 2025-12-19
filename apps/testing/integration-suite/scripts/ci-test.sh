@@ -74,6 +74,12 @@ fi
 
 echo -e "${GREEN}✓${NC} Environment configured (region: $REGION)"
 
+# Set service URLs based on region (required for LLM patching)
+# This mirrors what dev mode does in dev/index.ts - uses getServiceUrls() from @agentuity/server
+echo "Computing service URLs for region: $REGION"
+eval "$(bun "$SCRIPT_DIR/get-service-urls.ts")"
+echo -e "${GREEN}✓${NC} Service URLs configured: $AGENTUITY_TRANSPORT_URL"
+
 # Start server in background
 echo ""
 echo "Starting test server on port $PORT..."

@@ -230,11 +230,18 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 
 	const allRoutes = [...apiRoutes, ...websocketRoutes, ...sseRoutes];
 
-	// Collect agent imports
+	// Collect agent and schema imports from routes with validators or exported schemas
 	allRoutes.forEach((route) => {
-		if (!route.hasValidator) return;
+		const hasSchemaVars = !!route.inputSchemaVariable || !!route.outputSchemaVariable;
+		if (!route.hasValidator && !hasSchemaVars) return;
 
-		if (route.agentVariable && route.agentImportPath && !agentImports.has(route.agentVariable)) {
+		// Collect agent imports (when using agent.validator())
+		if (
+			route.hasValidator &&
+			route.agentVariable &&
+			route.agentImportPath &&
+			!agentImports.has(route.agentVariable)
+		) {
 			let resolvedPath = route.agentImportPath;
 
 			if (resolvedPath.startsWith('@agents/') || resolvedPath.startsWith('@agent/')) {
@@ -263,8 +270,26 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 					: suffix.replace(/\.tsx?$/, '') + '.js';
 				resolvedPath = `../api/${finalPath}`;
 			} else if (resolvedPath.startsWith('./') || resolvedPath.startsWith('../')) {
+				// Resolve relative import from route file's directory
 				const routeDir = route.filename.substring(0, route.filename.lastIndexOf('/'));
-				resolvedPath = `../${routeDir}/${resolvedPath}`;
+				// Join and normalize the path
+				const joined = `${routeDir}/${resolvedPath}`;
+				// Normalize by resolving .. and . segments
+				const normalized = joined
+					.split('/')
+					.reduce((acc: string[], segment) => {
+						if (segment === '..') {
+							acc.pop();
+						} else if (segment !== '.' && segment !== '') {
+							acc.push(segment);
+						}
+						return acc;
+					}, [])
+					.join('/');
+				// Remove 'src/' prefix if present (routes are in src/, generated is in src/generated/)
+				const withoutSrc = normalized.startsWith('src/') ? normalized.substring(4) : normalized;
+				// Make it relative from src/generated/
+				resolvedPath = `../${withoutSrc}`;
 				// Add .js extension if not already present
 				if (!resolvedPath.endsWith('.js')) {
 					resolvedPath = resolvedPath.replace(/\.tsx?$/, '') + '.js';
@@ -279,7 +304,12 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 		// Collect schema variable imports
 		if (route.inputSchemaVariable || route.outputSchemaVariable) {
 			const filename = route.filename.replace(/\\/g, '/');
-			const importPath = `../${filename.replace(/\.ts$/, '')}`;
+			// Remove 'src/' prefix if present (routes.filename might be './api/...' or 'src/api/...')
+			const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
+			const withoutLeadingDot = withoutSrc.startsWith('./')
+				? withoutSrc.substring(2)
+				: withoutSrc;
+			const importPath = `../${withoutLeadingDot.replace(/\.ts$/, '')}`;
 
 			if (!routeFileImports.has(importPath)) {
 				routeFileImports.set(importPath, new Set());
@@ -294,23 +324,38 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 		}
 	});
 
-	// Generate schema imports
+	// Generate schema imports with unique aliases to avoid conflicts
+	const schemaImportAliases = new Map<string, Map<string, string>>(); // importPath -> (schemaName -> alias)
+	let aliasCounter = 0;
+
 	routeFileImports.forEach((schemas, importPath) => {
-		const schemaList = Array.from(schemas).join(', ');
-		imports.push(`import type { ${schemaList} } from '${importPath}';`);
+		const aliases = new Map<string, string>();
+		const importParts: string[] = [];
+
+		for (const schemaName of Array.from(schemas)) {
+			// Create a unique alias for this schema to avoid collisions
+			const alias = `${schemaName}_${aliasCounter++}`;
+			aliases.set(schemaName, alias);
+			importParts.push(`${schemaName} as ${alias}`);
+		}
+
+		schemaImportAliases.set(importPath, aliases);
+		imports.push(`import type { ${importParts.join(', ')} } from '${importPath}';`);
 	});
 
 	const importsStr = imports.length > 0 ? imports.join('\n') + '\n' : '';
 
-	// Add InferInput/InferOutput imports if we have any routes with validators
-	const hasValidators = allRoutes.some((r) => r.hasValidator);
-	const typeImports = hasValidators
+	// Add InferInput/InferOutput imports if we have any routes with schemas
+	const hasSchemas = allRoutes.some(
+		(r) => r.hasValidator || r.inputSchemaVariable || r.outputSchemaVariable
+	);
+	const typeImports = hasSchemas
 		? `import type { InferInput, InferOutput } from '@agentuity/core';\n`
 		: '';
 
 	// Generate individual route schema types
 	const routeSchemaTypes = allRoutes
-		.filter((r) => r.hasValidator)
+		.filter((r) => r.hasValidator || r.inputSchemaVariable || r.outputSchemaVariable)
 		.map((route) => {
 			const routeKey = route.method ? `${route.method.toUpperCase()} ${route.path}` : route.path;
 			const safeName = routeKey
@@ -331,18 +376,23 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 				inputSchemaType = `typeof ${importName} extends { inputSchema?: infer I } ? I : never`;
 				outputSchemaType = `typeof ${importName} extends { outputSchema?: infer O } ? O : never`;
 			} else if (route.inputSchemaVariable || route.outputSchemaVariable) {
-				inputType = route.inputSchemaVariable
-					? `InferInput<typeof ${route.inputSchemaVariable}>`
-					: 'never';
-				outputType = route.outputSchemaVariable
-					? `InferOutput<typeof ${route.outputSchemaVariable}>`
-					: 'never';
-				inputSchemaType = route.inputSchemaVariable
-					? `typeof ${route.inputSchemaVariable}`
-					: 'never';
-				outputSchemaType = route.outputSchemaVariable
-					? `typeof ${route.outputSchemaVariable}`
-					: 'never';
+				// Get the aliased schema names for this route's file
+				const filename = route.filename.replace(/\\/g, '/');
+				const withoutSrc = filename.startsWith('src/') ? filename.substring(4) : filename;
+				const withoutLeadingDot = withoutSrc.startsWith('./')
+					? withoutSrc.substring(2)
+					: withoutSrc;
+				const importPath = `../${withoutLeadingDot.replace(/\.ts$/, '')}`;
+				const aliases = schemaImportAliases.get(importPath);
+
+				const inputAlias = route.inputSchemaVariable && aliases?.get(route.inputSchemaVariable);
+				const outputAlias =
+					route.outputSchemaVariable && aliases?.get(route.outputSchemaVariable);
+
+				inputType = inputAlias ? `InferInput<typeof ${inputAlias}>` : 'never';
+				outputType = outputAlias ? `InferOutput<typeof ${outputAlias}>` : 'never';
+				inputSchemaType = inputAlias ? `typeof ${inputAlias}` : 'never';
+				outputSchemaType = outputAlias ? `typeof ${outputAlias}` : 'never';
 			}
 
 			if (inputType === 'never' && outputType === 'never') {
@@ -377,15 +427,21 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 		.join('\n');
 
 	// Helper to generate route entry - uses exported schema types
-	const generateRouteEntry = (route: RouteInfo): string => {
+	const generateRouteEntry = (route: RouteInfo, pathIncludesMethod = false): string => {
 		const routeKey = route.path;
-		const safeName = routeKey
+		// For WebSocket/SSE routes, we need to include the method in the type name
+		// to match the generated types (which use "POST /api/websocket/echo" as the routeKey)
+		// For API routes, the method is already in the path from the caller
+		const typeRouteKey = pathIncludesMethod
+			? route.path
+			: `${route.method?.toUpperCase()} ${route.path}`;
+		const safeName = typeRouteKey
 			.replace(/[^a-zA-Z0-9]/g, '_')
 			.replace(/^_+|_+$/g, '')
 			.replace(/_+/g, '_');
 		const pascalName = toPascalCase(safeName);
 
-		if (!route.hasValidator) {
+		if (!route.hasValidator && !route.inputSchemaVariable && !route.outputSchemaVariable) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `\t'${routeKey}': {
 \t\tinputSchema: never;
@@ -413,12 +469,14 @@ export function generateRouteRegistry(srcDir: string, routes: RouteInfo[]): void
 	const apiRouteEntries = apiRoutes
 		.map((route) => {
 			const routeKey = `${route.method.toUpperCase()} ${route.path}`;
-			return generateRouteEntry({ ...route, path: routeKey });
+			return generateRouteEntry({ ...route, path: routeKey }, true);
 		})
 		.join('\n');
 
-	const websocketRouteEntries = websocketRoutes.map(generateRouteEntry).join('\n');
-	const sseRouteEntries = sseRoutes.map(generateRouteEntry).join('\n');
+	const websocketRouteEntries = websocketRoutes
+		.map((r) => generateRouteEntry(r, false))
+		.join('\n');
+	const sseRouteEntries = sseRoutes.map((r) => generateRouteEntry(r, false)).join('\n');
 
 	const generatedContent = `// @generated
 // Auto-generated by Agentuity - DO NOT EDIT

@@ -34,4 +34,4 @@
 export { AgentuityClerk } from './client';
 export type { AgentuityClerkProps } from './client';
 export { createMiddleware } from './server';
-export type { ClerkMiddlewareOptions, ClerkJWTPayload } from './server';
+export type { ClerkMiddlewareOptions, ClerkJWTPayload, ClerkEnv } from './server';

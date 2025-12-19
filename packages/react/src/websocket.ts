@@ -1,12 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
+import { buildUrl, WebSocketManager, type WebSocketRouteRegistry } from '@agentuity/frontend';
 import { AgentuityContext } from './context';
-import { buildUrl } from './url';
-import { deserializeData } from './serialization';
-import { createReconnectManager } from './reconnect';
-import type { WebSocketRouteRegistry } from './types';
-
-type onMessageHandler<T = unknown> = (data: T) => void;
 
 /**
  * Extract WebSocket route keys (e.g., '/ws', '/chat')
@@ -61,215 +56,6 @@ export interface WebsocketOptions {
 	maxMessages?: number;
 }
 
-const serializeWSData = (
-	data: unknown
-): string | ArrayBufferLike | Blob | ArrayBufferView<ArrayBufferLike> => {
-	if (typeof data === 'string') {
-		return data;
-	}
-	if (typeof data === 'object') {
-		if (data instanceof ArrayBuffer || ArrayBuffer.isView(data) || data instanceof Blob) {
-			return data;
-		}
-		return JSON.stringify(data);
-	}
-	throw new Error('unsupported data type for websocket: ' + typeof data);
-};
-
-interface WebsocketResponseInternal<TInput, TOutput> {
-	/** Whether WebSocket is currently connected */
-	isConnected: boolean;
-	/** Error if connection or message failed */
-	error: Error | null;
-	/** Whether an error has occurred */
-	isError: boolean;
-	/** Send data through the WebSocket */
-	send: (data: TInput) => void;
-	/** Set handler for incoming messages */
-	setHandler: (handler: onMessageHandler<TOutput>) => void;
-	/** WebSocket connection state (CONNECTING=0, OPEN=1, CLOSING=2, CLOSED=3) */
-	readyState: WebSocket['readyState'];
-	/** Close the WebSocket connection */
-	close: () => void;
-	/** Reset state to initial values */
-	reset: () => void;
-}
-
-const useWebsocketInternal = <TInput, TOutput>(
-	path: string,
-	options?: WebsocketOptions
-): WebsocketResponseInternal<TInput, TOutput> => {
-	const context = useContext(AgentuityContext);
-
-	if (!context) {
-		throw new Error('useWebsocket must be used within a AgentuityProvider');
-	}
-
-	const manualClose = useRef(false);
-	const wsRef = useRef<WebSocket | undefined>(undefined);
-	const pending = useRef<TOutput[]>([]);
-	const queued = useRef<TInput[]>([]);
-	const handler = useRef<onMessageHandler<TOutput> | undefined>(undefined);
-	const reconnectManagerRef = useRef<ReturnType<typeof createReconnectManager> | undefined>(
-		undefined
-	);
-
-	const [error, setError] = useState<Error | null>(null);
-	const [isError, setIsError] = useState(false);
-	const [isConnected, setIsConnected] = useState(false);
-
-	const wsUrl = useMemo(() => {
-		const base = context.baseUrl!;
-		const wsBase = base.replace(/^http(s?):/, 'ws$1:');
-
-		// Add auth token to query params if present
-		// (WebSocket doesn't support custom headers, so we pass via query string)
-		let queryParams = options?.query;
-		if (context.authHeader) {
-			const token = context.authHeader.replace(/^Bearer\s+/i, '');
-			const authQuery = new URLSearchParams({ token });
-			if (queryParams) {
-				queryParams = new URLSearchParams([...queryParams, ...authQuery]);
-			} else {
-				queryParams = authQuery;
-			}
-		}
-
-		return buildUrl(wsBase, path, options?.subpath, queryParams);
-	}, [context.baseUrl, context.authHeader, path, options?.subpath, options?.query?.toString()]);
-
-	const connect = useCallback(() => {
-		if (manualClose.current) return;
-
-		wsRef.current = new WebSocket(wsUrl);
-
-		wsRef.current.onopen = () => {
-			reconnectManagerRef.current?.recordSuccess();
-			setIsConnected(true);
-			setError(null);
-			setIsError(false);
-			if (queued.current.length > 0) {
-				queued.current.forEach((msg: unknown) => wsRef.current!.send(serializeWSData(msg)));
-				queued.current = [];
-			}
-		};
-
-		wsRef.current.onerror = () => {
-			setError(new Error('WebSocket error'));
-			setIsError(true);
-		};
-
-		wsRef.current.onclose = (evt) => {
-			wsRef.current = undefined;
-			setIsConnected(false);
-			if (manualClose.current) {
-				queued.current = [];
-				return;
-			}
-			if (evt.code !== 1000) {
-				setError(new Error(`WebSocket closed: ${evt.code} ${evt.reason || ''}`));
-				setIsError(true);
-			}
-			reconnectManagerRef.current?.recordFailure();
-		};
-
-		wsRef.current.onmessage = (event: { data: string }) => {
-			const payload = deserializeData<TOutput>(event.data);
-			if (handler.current) {
-				handler.current(payload);
-			} else {
-				pending.current.push(payload);
-			}
-		};
-	}, [wsUrl]);
-
-	useEffect(() => {
-		reconnectManagerRef.current = createReconnectManager({
-			onReconnect: connect,
-			threshold: 0,
-			baseDelay: 500,
-			factor: 2,
-			maxDelay: 30000,
-			jitter: 500,
-			enabled: () => !manualClose.current,
-		});
-		return () => reconnectManagerRef.current?.dispose();
-	}, [connect]);
-
-	const cleanup = useCallback(() => {
-		manualClose.current = true;
-		reconnectManagerRef.current?.dispose();
-		const ws = wsRef.current;
-		if (ws) {
-			ws.onopen = null;
-			ws.onerror = null;
-			ws.onclose = null;
-			ws.onmessage = null;
-			ws.close();
-		}
-		wsRef.current = undefined;
-		handler.current = undefined;
-		pending.current = [];
-		queued.current = [];
-		setIsConnected(false);
-	}, []);
-
-	useEffect(() => {
-		manualClose.current = false;
-		connect();
-
-		return () => {
-			cleanup();
-		};
-	}, [connect, cleanup]);
-
-	useEffect(() => {
-		if (options?.signal) {
-			const listener = () => {
-				cleanup();
-			};
-			options.signal.addEventListener('abort', listener);
-			return () => {
-				options.signal?.removeEventListener('abort', listener);
-			};
-		}
-	}, [options?.signal, cleanup]);
-
-	const reset = () => {
-		setError(null);
-		setIsError(false);
-	};
-
-	const send = (data: TInput) => {
-		if (wsRef.current?.readyState === WebSocket.OPEN) {
-			wsRef.current.send(serializeWSData(data));
-		} else {
-			queued.current.push(data);
-		}
-	};
-
-	const setHandler = useCallback((h: onMessageHandler<TOutput>) => {
-		handler.current = h;
-		pending.current.forEach(h);
-		pending.current = [];
-	}, []);
-
-	const close = () => {
-		cleanup();
-	};
-
-	return {
-		isConnected,
-		close,
-		error,
-		isError,
-		send,
-		setHandler,
-		reset,
-		readyState: wsRef.current?.readyState ?? WebSocket.CLOSED,
-	};
-};
-
 /**
  * Type-safe WebSocket hook for connecting to WebSocket routes.
  *
@@ -307,24 +93,84 @@ const useWebsocketInternal = <TInput, TOutput>(
 export function useWebsocket<TRoute extends WebSocketRouteKey>(
 	route: TRoute,
 	options?: WebsocketOptions
-): Omit<
-	WebsocketResponseInternal<WebSocketRouteInput<TRoute>, WebSocketRouteOutput<TRoute>>,
-	'setHandler'
-> & {
+): {
+	isConnected: boolean;
+	close: () => void;
 	data?: WebSocketRouteOutput<TRoute>;
 	messages: WebSocketRouteOutput<TRoute>[];
 	clearMessages: () => void;
+	error: Error | null;
+	isError: boolean;
+	reset: () => void;
+	send: (data: WebSocketRouteInput<TRoute>) => void;
+	readyState: WebSocket['readyState'];
 } {
+	const context = useContext(AgentuityContext);
+
+	if (!context) {
+		throw new Error('useWebsocket must be used within a AgentuityProvider');
+	}
+
+	const managerRef = useRef<WebSocketManager<
+		WebSocketRouteInput<TRoute>,
+		WebSocketRouteOutput<TRoute>
+	> | null>(null);
+
 	const [data, setData] = useState<WebSocketRouteOutput<TRoute>>();
 	const [messages, setMessages] = useState<WebSocketRouteOutput<TRoute>[]>([]);
-	const { isConnected, close, send, setHandler, readyState, error, isError, reset } =
-		useWebsocketInternal<WebSocketRouteInput<TRoute>, WebSocketRouteOutput<TRoute>>(
-			route as string,
-			options
-		);
+	const [error, setError] = useState<Error | null>(null);
+	const [isError, setIsError] = useState(false);
+	const [isConnected, setIsConnected] = useState(false);
+	const [readyState, setReadyState] = useState<WebSocket['readyState']>(WebSocket.CLOSED);
 
+	// Build WebSocket URL
+	const wsUrl = useMemo(() => {
+		const base = context.baseUrl!;
+		const wsBase = base.replace(/^http(s?):/, 'ws$1:');
+
+		// Add auth token to query params if present
+		// (WebSocket doesn't support custom headers, so we pass via query string)
+		let queryParams = options?.query;
+		if (context.authHeader) {
+			const token = context.authHeader.replace(/^Bearer\s+/i, '');
+			const authQuery = new URLSearchParams({ token });
+			if (queryParams) {
+				queryParams = new URLSearchParams([...queryParams, ...authQuery]);
+			} else {
+				queryParams = authQuery;
+			}
+		}
+
+		return buildUrl(wsBase, route as string, options?.subpath, queryParams);
+	}, [context.baseUrl, context.authHeader, route, options?.subpath, options?.query?.toString()]);
+
+	// Initialize manager and connect
 	useEffect(() => {
-		setHandler((message) => {
+		const manager = new WebSocketManager<
+			WebSocketRouteInput<TRoute>,
+			WebSocketRouteOutput<TRoute>
+		>({
+			url: wsUrl,
+			callbacks: {
+				onConnect: () => {
+					setIsConnected(true);
+					setError(null);
+					setIsError(false);
+					setReadyState(WebSocket.OPEN);
+				},
+				onDisconnect: () => {
+					setIsConnected(false);
+					setReadyState(WebSocket.CLOSED);
+				},
+				onError: (err) => {
+					setError(err);
+					setIsError(true);
+				},
+			},
+		});
+
+		// Set message handler
+		manager.setMessageHandler((message) => {
 			setData(message);
 			setMessages((prev) => {
 				const newMessages = [...prev, message];
@@ -335,7 +181,41 @@ export function useWebsocket<TRoute extends WebSocketRouteKey>(
 				return newMessages;
 			});
 		});
-	}, [route, setHandler, options?.maxMessages]);
+
+		manager.connect();
+		managerRef.current = manager;
+
+		return () => {
+			manager.dispose();
+			managerRef.current = null;
+		};
+	}, [wsUrl, options?.maxMessages]);
+
+	// Handle abort signal
+	useEffect(() => {
+		if (options?.signal) {
+			const listener = () => {
+				managerRef.current?.close();
+			};
+			options.signal.addEventListener('abort', listener);
+			return () => {
+				options.signal?.removeEventListener('abort', listener);
+			};
+		}
+	}, [options?.signal]);
+
+	const reset = useCallback(() => {
+		setError(null);
+		setIsError(false);
+	}, []);
+
+	const send = useCallback((sendData: WebSocketRouteInput<TRoute>) => {
+		managerRef.current?.send(sendData);
+	}, []);
+
+	const close = useCallback(() => {
+		managerRef.current?.close();
+	}, []);
 
 	const clearMessages = useCallback(() => {
 		setMessages([]);

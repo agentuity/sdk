@@ -15,6 +15,10 @@ export const SessionStartEventSchema = z
 		trigger: z
 			.enum(['agent', 'api', 'email', 'sms', 'cron', 'manual', 'discord', 'websocket'])
 			.describe('how the session was triggered'),
+		metadata: z
+			.record(z.string(), z.unknown())
+			.optional()
+			.describe('optional unencrypted key-value metadata'),
 	})
 	.describe('The event to record a session started');
 
@@ -31,6 +35,10 @@ export const SessionCompleteEventSchema = z
 			.describe('optional array of ids for the agents that executed for the session'),
 		statusCode: z.number().describe('the HTTP status code'),
 		userData: z.string().optional().describe('optional JSON string of session state data'),
+		metadata: z
+			.record(z.string(), z.unknown())
+			.optional()
+			.describe('optional unencrypted key-value metadata'),
 	})
 	.describe('The event to record a session completed successfully');
 

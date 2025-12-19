@@ -1,7 +1,7 @@
 import { describe, test, expect } from 'bun:test';
 import { VectorStorageService } from '../src/services/vector';
 import type { VectorUpsertParams } from '../src/services/vector';
-import { createMockAdapter } from '@agentuity/test-utils';
+import { createMockAdapter } from './mock-adapter';
 
 describe('VectorStorageService', () => {
 	const baseUrl = 'https://api.example.com';

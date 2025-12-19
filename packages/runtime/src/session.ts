@@ -73,6 +73,19 @@ export interface Thread {
 	state: Map<string, unknown>;
 
 	/**
+	 * Unencrypted metadata for filtering and querying threads.
+	 * Unlike state, metadata is stored as-is in the database with GIN indexes
+	 * for efficient filtering. Initialized to empty object, only persisted if non-empty.
+	 *
+	 * @example
+	 * ```typescript
+	 * ctx.thread.metadata.userId = 'user123';
+	 * ctx.thread.metadata.department = 'sales';
+	 * ```
+	 */
+	metadata: Record<string, unknown>;
+
+	/**
 	 * Register an event listener for when the thread is destroyed.
 	 * Thread is destroyed when it expires or is manually destroyed.
 	 *
@@ -181,6 +194,19 @@ export interface Session {
 	 * ```
 	 */
 	state: Map<string, unknown>;
+
+	/**
+	 * Unencrypted metadata for filtering and querying sessions.
+	 * Unlike state, metadata is stored as-is in the database with GIN indexes
+	 * for efficient filtering. Initialized to empty object, only persisted if non-empty.
+	 *
+	 * @example
+	 * ```typescript
+	 * ctx.session.metadata.userId = 'user123';
+	 * ctx.session.metadata.requestType = 'chat';
+	 * ```
+	 */
+	metadata: Record<string, unknown>;
 
 	/**
 	 * Register an event listener for when the session completes.
@@ -653,13 +679,20 @@ export class DefaultThread implements Thread {
 	#initialStateJson: string | undefined;
 	readonly id: string;
 	readonly state: Map<string, unknown>;
+	metadata: Record<string, unknown>;
 	private provider: ThreadProvider;
 
-	constructor(provider: ThreadProvider, id: string, initialStateJson?: string) {
+	constructor(
+		provider: ThreadProvider,
+		id: string,
+		initialStateJson?: string,
+		metadata?: Record<string, unknown>
+	) {
 		this.provider = provider;
 		this.id = id;
 		this.state = new Map();
 		this.#initialStateJson = initialStateJson;
+		this.metadata = metadata || {};
 	}
 
 	addEventListener(eventName: ThreadEventName, callback: ThreadEventCallback<any>): void {
@@ -707,10 +740,10 @@ export class DefaultThread implements Thread {
 	}
 
 	/**
-	 * Check if thread has any data
+	 * Check if thread has any data (state or metadata)
 	 */
 	empty(): boolean {
-		return this.state.size === 0;
+		return this.state.size === 0 && Object.keys(this.metadata).length === 0;
 	}
 
 	/**
@@ -718,7 +751,24 @@ export class DefaultThread implements Thread {
 	 * @internal
 	 */
 	getSerializedState(): string {
-		return JSON.stringify(Object.fromEntries(this.state));
+		const hasState = this.state.size > 0;
+		const hasMetadata = Object.keys(this.metadata).length > 0;
+
+		if (!hasState && !hasMetadata) {
+			return '';
+		}
+
+		const data: { state?: Record<string, unknown>; metadata?: Record<string, unknown> } = {};
+
+		if (hasState) {
+			data.state = Object.fromEntries(this.state);
+		}
+
+		if (hasMetadata) {
+			data.metadata = this.metadata;
+		}
+
+		return JSON.stringify(data);
 	}
 }
 
@@ -726,11 +776,13 @@ export class DefaultSession implements Session {
 	readonly id: string;
 	readonly thread: Thread;
 	readonly state: Map<string, unknown>;
+	metadata: Record<string, unknown>;
 
-	constructor(thread: Thread, id: string) {
+	constructor(thread: Thread, id: string, metadata?: Record<string, unknown>) {
 		this.id = id;
 		this.thread = thread;
 		this.state = new Map();
+		this.metadata = metadata || {};
 	}
 
 	addEventListener(eventName: SessionEventName, callback: SessionEventCallback<any>): void {
@@ -1032,7 +1084,11 @@ export class ThreadWebSocketClient {
 		});
 	}
 
-	async save(threadId: string, userData: string): Promise<void> {
+	async save(
+		threadId: string,
+		userData: string,
+		threadMetadata?: Record<string, unknown>
+	): Promise<void> {
 		// Wait for connection/reconnection if in progress
 		if (this.wsConnecting) {
 			await this.wsConnecting;
@@ -1058,10 +1114,20 @@ export class ThreadWebSocketClient {
 				reject,
 			});
 
+			const data: { thread_id: string; user_data: string; metadata?: Record<string, unknown> } =
+				{
+					thread_id: threadId,
+					user_data: userData,
+				};
+
+			if (threadMetadata && Object.keys(threadMetadata).length > 0) {
+				data.metadata = threadMetadata;
+			}
+
 			const message = {
 				id: requestId,
 				action: 'save',
-				data: { thread_id: threadId, user_data: userData },
+				data,
 			};
 
 			this.ws!.send(JSON.stringify(message));
@@ -1182,8 +1248,9 @@ export class DefaultThreadProvider implements ThreadProvider {
 			await this.wsConnecting;
 		}
 
-		// Restore thread state from WebSocket if available
+		// Restore thread state and metadata from WebSocket if available
 		let initialStateJson: string | undefined;
+		let restoredMetadata: Record<string, unknown> | undefined;
 		if (this.wsClient) {
 			try {
 				internal.info('[thread] restoring state from WebSocket');
@@ -1191,6 +1258,29 @@ export class DefaultThreadProvider implements ThreadProvider {
 				if (restoredData) {
 					initialStateJson = restoredData;
 					internal.info('[thread] restored state: %d bytes', restoredData.length);
+					// Parse to check if it includes metadata
+					try {
+						const parsed = JSON.parse(restoredData);
+						// New format: { state?: {...}, metadata?: {...} }
+						if (
+							parsed &&
+							typeof parsed === 'object' &&
+							('state' in parsed || 'metadata' in parsed)
+						) {
+							if (parsed.metadata) {
+								restoredMetadata = parsed.metadata;
+							}
+							// Update initialStateJson to be just the state part for backwards compatibility
+							if (parsed.state) {
+								initialStateJson = JSON.stringify(parsed.state);
+							} else {
+								initialStateJson = undefined;
+							}
+						}
+						// else: Old format (just state object), keep as-is
+					} catch {
+						// Keep original if parse fails
+					}
 				} else {
 					internal.info('[thread] no existing state found');
 				}
@@ -1202,7 +1292,7 @@ export class DefaultThreadProvider implements ThreadProvider {
 			internal.info('[thread] no WebSocket client available');
 		}
 
-		const thread = new DefaultThread(this, threadId, initialStateJson);
+		const thread = new DefaultThread(this, threadId, initialStateJson, restoredMetadata);
 
 		// Populate thread state from restored data
 		if (initialStateJson) {
@@ -1245,7 +1335,9 @@ export class DefaultThreadProvider implements ThreadProvider {
 						'[thread] saving to WebSocket, serialized length: %d',
 						serialized.length
 					);
-					await this.wsClient.save(thread.id, serialized);
+					const metadata =
+						Object.keys(thread.metadata).length > 0 ? thread.metadata : undefined;
+					await this.wsClient.save(thread.id, serialized, metadata);
 					internal.info('[thread] WebSocket save completed');
 				} catch (err) {
 					internal.info('[thread] WebSocket save failed: %s', err);

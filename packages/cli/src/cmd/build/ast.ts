@@ -1173,6 +1173,37 @@ export async function parseRoute(
 			}
 		}
 	}
+
+	// Scan for exported schemas (for WebSocket/SSE routes)
+	let exportedInputSchemaName: string | undefined;
+	let exportedOutputSchemaName: string | undefined;
+	for (const body of ast.body) {
+		if (body.type === 'ExportNamedDeclaration') {
+			const exportDecl = body as {
+				declaration?: {
+					type: string;
+					declarations?: Array<ASTVariableDeclarator>;
+				};
+			};
+
+			if (exportDecl.declaration?.type === 'VariableDeclaration') {
+				const varDecl = exportDecl.declaration as {
+					declarations: Array<ASTVariableDeclarator>;
+				};
+				for (const d of varDecl.declarations) {
+					if (d.id.type === 'Identifier') {
+						const name = (d.id as ASTNodeIdentifier).name;
+						if (name === 'inputSchema') {
+							exportedInputSchemaName = name;
+						} else if (name === 'outputSchema') {
+							exportedOutputSchemaName = name;
+						}
+					}
+				}
+			}
+		}
+	}
+
 	for (const body of ast.body) {
 		if (body.type === 'ExportDefaultDeclaration') {
 			const identifier = body.declaration as ASTNodeIdentifier;
@@ -1403,6 +1434,16 @@ export async function parseRoute(
 							}
 							if (validatorInfo.stream !== undefined) {
 								routeConfig.stream = validatorInfo.stream;
+							}
+						}
+
+						// For WebSocket/SSE routes that don't use validator(), fall back to exported schemas
+						if (!routeConfig.hasValidator && (type === 'websocket' || type === 'sse')) {
+							if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
+								routeConfig.inputSchemaVariable = exportedInputSchemaName;
+							}
+							if (!routeConfig.outputSchemaVariable && exportedOutputSchemaName) {
+								routeConfig.outputSchemaVariable = exportedOutputSchemaName;
 							}
 						}
 

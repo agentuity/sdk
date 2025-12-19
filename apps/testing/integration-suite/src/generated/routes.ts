@@ -175,6 +175,26 @@ declare module '@agentuity/react' {
 		outputSchema: never;
 		stream: false;
 	};
+	'GET /api/middleware-test/check-all': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/middleware-test/query-database': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/middleware-test/check-auth': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/middleware-test/analytics-info': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
 	}
 	
 	/**

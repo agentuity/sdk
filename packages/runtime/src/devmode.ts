@@ -78,12 +78,23 @@ const overlay = `
 </style>
 `;
 
+// Global controller to avoid registering multiple SIGINT listeners
+let globalController: AbortController | undefined;
+let globalSigintHandler: (() => void) | undefined;
+
 export function registerDevModeRoutes(router: Hono) {
-	const controller = new AbortController();
-	const signal = controller.signal;
-	process.on('SIGINT', () => {
-		controller.abort();
-	});
+	// Reuse existing controller or create new one
+	if (!globalController) {
+		globalController = new AbortController();
+
+		// Only register SIGINT handler once
+		globalSigintHandler = () => {
+			globalController?.abort();
+		};
+		process.on('SIGINT', globalSigintHandler);
+	}
+
+	const signal = globalController.signal;
 	router.get('/__dev__/reload', () => {
 		const stream = new ReadableStream({
 			start(controller): void {

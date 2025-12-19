@@ -4,6 +4,7 @@
 		{ "path": "./packages/auth" },
 		{ "path": "./packages/cli" },
 		{ "path": "./packages/core" },
+		{ "path": "./packages/frontend" },
 		{ "path": "./packages/schema" },
 		{ "path": "./packages/react" },
 		{ "path": "./packages/runtime" },
