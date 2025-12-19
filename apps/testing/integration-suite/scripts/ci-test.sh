@@ -40,11 +40,16 @@ fi
 echo -e "${GREEN}✓${NC} API key configured"
 
 # Build SDK packages first (required for integration suite)
-echo ""
-echo "Building SDK packages..."
-cd "$APP_DIR/../../.."
-bun run build
-echo -e "${GREEN}✓${NC} SDK packages built"
+if [ "$SKIP_SDK_BUILD" != "true" ]; then
+	echo ""
+	echo "Building SDK packages..."
+	cd "$APP_DIR/../../.."
+	bun run build
+	echo -e "${GREEN}✓${NC} SDK packages built"
+else
+	echo ""
+	echo "Skipping SDK build (already built in CI)"
+fi
 
 # Build the app
 echo ""
