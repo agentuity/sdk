@@ -1,0 +1,2 @@
+[test]
+# No preload needed for web package tests

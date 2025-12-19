@@ -86,14 +86,14 @@ export function registerDevModeRoutes(router: Hono) {
 	// Reuse existing controller or create new one
 	if (!globalController) {
 		globalController = new AbortController();
-		
+
 		// Only register SIGINT handler once
 		globalSigintHandler = () => {
 			globalController?.abort();
 		};
 		process.on('SIGINT', globalSigintHandler);
 	}
-	
+
 	const signal = globalController.signal;
 	router.get('/__dev__/reload', () => {
 		const stream = new ReadableStream({

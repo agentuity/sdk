@@ -31,10 +31,7 @@ test('middleware-patterns', 'app-level-middleware-available', async () => {
 	assertEqual(data.appMiddleware.authUser.role, 'admin');
 	assertEqual(data.appMiddleware.appLevelData, 'set-in-app-ts');
 	assertDefined(data.appMiddleware.requestId);
-	assert(
-		data.appMiddleware.requestCount > 0,
-		'Request count should be greater than 0'
-	);
+	assert(data.appMiddleware.requestCount > 0, 'Request count should be greater than 0');
 });
 
 // Test: API-level middleware (from index.ts) is available in routes

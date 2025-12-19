@@ -21,7 +21,6 @@ export {
 	type SSERouteOutput,
 	type EventStreamOptions,
 } from './eventstream';
-export { type RouteRegistry, type WebSocketRouteRegistry, type SSERouteRegistry } from './types';
 export {
 	useAPI,
 	type RouteKey,
@@ -32,5 +31,29 @@ export {
 	type UseAPIOptions,
 	type UseAPIResult,
 } from './api';
-export { jsonEqual, useJsonMemo } from './memo';
-export { buildUrl, defaultBaseUrl } from './url';
+export { useJsonMemo } from './memo';
+
+// Re-export web utilities for convenience
+export {
+	buildUrl,
+	defaultBaseUrl,
+	deserializeData,
+	createReconnectManager,
+	jsonEqual,
+	getProcessEnv,
+	WebSocketManager,
+	EventStreamManager,
+	type RouteRegistry,
+	type WebSocketRouteRegistry,
+	type SSERouteRegistry,
+	type ReconnectOptions,
+	type ReconnectManager,
+	type WebSocketMessageHandler,
+	type WebSocketCallbacks,
+	type WebSocketManagerOptions,
+	type WebSocketManagerState,
+	type EventStreamMessageHandler,
+	type EventStreamCallbacks,
+	type EventStreamManagerOptions,
+	type EventStreamManagerState,
+} from '@agentuity/frontend';

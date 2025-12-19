@@ -208,7 +208,9 @@ describe('Metadata Type Safety', () => {
 
 		thread.metadata.objectValue = { nested: { deep: 'value' } };
 		expect(typeof thread.metadata.objectValue).toBe('object');
-		expect((thread.metadata.objectValue as Record<string, Record<string, string>>).nested.deep).toBe('value');
+		expect(
+			(thread.metadata.objectValue as Record<string, Record<string, string>>).nested.deep
+		).toBe('value');
 	});
 
 	test('metadata accepts null values', () => {
