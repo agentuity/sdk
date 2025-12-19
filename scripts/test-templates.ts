@@ -198,6 +198,23 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 
 		packages.set(`@agentuity/${pkg}`, tarballPath);
 		logSuccess(`Packed ${pkg}: ${tarballPath.split('/').pop()}`);
+
+		// Verify frontend tarball has createClient export
+		if (pkg === 'frontend') {
+			const verifyResult = await runCommand(
+				['tar', '-xzOf', tarballPath, 'package/dist/index.js'],
+				pkgDir
+			);
+			if (verifyResult.success) {
+				const indexContent = verifyResult.stdout;
+				if (!indexContent.includes('createClient')) {
+					logWarning(`⚠️  Packed tarball for frontend does NOT contain createClient export!`);
+					logWarning(`Content (first 500): ${indexContent.substring(0, 500)}`);
+				} else {
+					logInfo(`✓ Packed tarball for frontend contains createClient export`);
+				}
+			}
+		}
 	}
 
 	return packages;
@@ -306,8 +323,15 @@ async function installDependencies(
 	const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
 	// Replace @agentuity dependencies with local tarball paths
+	// IMPORTANT: Also add packages that aren't direct deps but are transitive deps of packed packages
+	// This ensures bun doesn't pull them from npm
 	for (const [pkgName, tarballPath] of packedPackages.entries()) {
 		if (packageJson.dependencies?.[pkgName]) {
+			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
+		} else if (pkgName === '@agentuity/frontend' || pkgName === '@agentuity/server') {
+			// Frontend is a transitive dep of react, server is a transitive dep of runtime
+			// Add them explicitly to prevent bun from pulling from npm
+			if (!packageJson.dependencies) packageJson.dependencies = {};
 			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
 		}
 		if (packageJson.devDependencies?.[pkgName]) {
@@ -317,6 +341,12 @@ async function installDependencies(
 
 	// Write updated package.json
 	writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+
+	// Log the package.json to verify file:// paths
+	logInfo('Package.json @agentuity dependencies:');
+	Object.keys(packageJson.dependencies || {})
+		.filter((k) => k.startsWith('@agentuity'))
+		.forEach((k) => logInfo(`  ${k}: ${packageJson.dependencies[k]}`));
 
 	// Delete lockfile to ensure fresh resolution
 	const lockfilePath = join(projectDir, 'bun.lock');
@@ -358,10 +388,13 @@ async function installDependencies(
 		const frontendIndex = readFileSync(frontendIndexPath, 'utf-8');
 		if (!frontendIndex.includes('createClient')) {
 			logWarning('⚠️  frontend/dist/index.js does NOT export createClient!');
-			logWarning(`First 500 chars: ${frontendIndex.substring(0, 500)}`);
+			logWarning(`File size: ${frontendIndex.length} bytes`);
+			logWarning(`Full content:\n${frontendIndex}`);
 		} else {
 			logInfo('✓ frontend/dist/index.js exports createClient');
 		}
+	} else {
+		logWarning('⚠️  frontend/dist/index.js does NOT exist!');
 	}
 
 	return { success: true };
