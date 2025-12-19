@@ -12,6 +12,7 @@ const ThreadSchema = z.object({
 	org_id: z.string().describe('the organization id'),
 	project_id: z.string().describe('the project id'),
 	user_data: z.string().nullable().optional().describe('the user data as JSON'),
+	metadata: z.record(z.string(), z.unknown()).nullable().optional().describe('unencrypted key-value metadata'),
 });
 
 export { ThreadSchema };
@@ -28,6 +29,7 @@ export interface ThreadListOptions {
 	count?: number;
 	orgId?: string;
 	projectId?: string;
+	metadata?: Record<string, unknown>;
 }
 
 /**
@@ -41,10 +43,11 @@ export async function threadList(
 	client: APIClient,
 	options: ThreadListOptions = {}
 ): Promise<ThreadList> {
-	const { count = 10, orgId, projectId } = options;
+	const { count = 10, orgId, projectId, metadata } = options;
 	const params = new URLSearchParams({ count: count.toString() });
 	if (orgId) params.set('orgId', orgId);
 	if (projectId) params.set('projectId', projectId);
+	if (metadata) params.set('metadata', JSON.stringify(metadata));
 
 	const resp = await client.request<ThreadListResponse>(
 		'GET',
