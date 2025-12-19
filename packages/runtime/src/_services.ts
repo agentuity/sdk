@@ -237,7 +237,6 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
 			? new JSONSessionEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)
 			: new HTTPSessionEventProvider(new APIClient(catalystUrl, logger), logger);
-	new LocalSessionEventProvider();
 	if (config?.services?.sessionEvent) {
 		sessionEvent = new CompositeSessionEventProvider(sessionEvent, config.services.sessionEvent);
 	}
@@ -252,7 +251,6 @@ export function createServices(logger: Logger, config?: AppConfig<any>, serverUr
 		isProduction() && process.env.AGENTUITY_CLOUD_EXPORT_DIR
 			? new JSONEvalRunEventProvider(process.env.AGENTUITY_CLOUD_EXPORT_DIR)
 			: new HTTPEvalRunEventProvider(new APIClient(catalystUrl, logger), logger, catalystUrl);
-	new LocalEvalRunEventProvider();
 	if (config?.services?.evalRunEvent) {
 		evalRunEvent = new CompositeEvalRunEventProvider(evalRunEvent, config.services.evalRunEvent);
 	}
