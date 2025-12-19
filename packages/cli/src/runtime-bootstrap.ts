@@ -51,7 +51,7 @@ export interface RuntimeBootstrapResult {
  *
  * @example
  * ```ts
- * import { bootstrapRuntimeEnv } from '@agentuity/cli/runtime-bootstrap';
+ * import { bootstrapRuntimeEnv } from '@agentuity/server';
  * import { createApp } from '@agentuity/runtime';
  *
  * // Load config and env based on active profile

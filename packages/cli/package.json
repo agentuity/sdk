@@ -17,10 +17,6 @@
 		"./vite-plugin": {
 			"import": "./dist/cmd/build/vite/index.js",
 			"types": "./dist/cmd/build/vite/index.d.ts"
-		},
-		"./runtime-bootstrap": {
-			"import": "./dist/runtime-bootstrap.js",
-			"types": "./dist/runtime-bootstrap.d.ts"
 		}
 	},
 	"files": [

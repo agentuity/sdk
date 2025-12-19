@@ -782,6 +782,21 @@ ${routeSchemaTypes}
  * This module augmentation is auto-generated from your route files during build.
  * Individual route Input/Output types are exported above for direct usage.
  */
+${
+	!hasReactDependency
+		? `
+/**
+ * RPC Route Registry
+ * 
+ * Nested structure for RPC-style client access (e.g., client.hello.post())
+ * Used by createClient() from @agentuity/frontend for type-safe RPC calls.
+ */
+export interface RPCRouteRegistry {
+${rpcRegistryType}
+}
+`
+		: ''
+}
 declare module '@agentuity/react' {
 \t/**
 \t * API Route Registry

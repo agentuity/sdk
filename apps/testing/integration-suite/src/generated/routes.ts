@@ -83,6 +83,7 @@ export type POSTApiAgentStateWriterOutputSchema = typeof stateWriterAgent extend
  * This module augmentation is auto-generated from your route files during build.
  * Individual route Input/Output types are exported above for direct usage.
  */
+
 declare module '@agentuity/react' {
 	/**
 	 * API Route Registry
