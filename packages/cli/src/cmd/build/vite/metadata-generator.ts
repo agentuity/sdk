@@ -549,6 +549,147 @@ async function getGitInfo(
 }
 
 /**
+ * Generate AGENTS.md content for AI coding agents
+ */
+function generateAgentsMd(metadata: BuildMetadata): string {
+	const lines: string[] = [];
+
+	lines.push('# Compiled Agentuity Application');
+	lines.push('');
+	lines.push(
+		'This directory contains compiled and bundled source code from an Agentuity application.'
+	);
+	lines.push('');
+
+	// Add source repository info if available
+	if (metadata.deployment?.git?.repo) {
+		lines.push('## Source Repository');
+		lines.push('');
+		lines.push(`**Repository:** ${metadata.deployment.git.repo}`);
+
+		if (metadata.deployment.git.branch) {
+			lines.push(`**Branch:** ${metadata.deployment.git.branch}`);
+		}
+
+		if (metadata.deployment.git.commit) {
+			const shortCommit = metadata.deployment.git.commit.substring(0, 7);
+			const commitUrl = metadata.deployment.git.repo.endsWith('.git')
+				? metadata.deployment.git.repo.slice(0, -4)
+				: metadata.deployment.git.repo;
+			lines.push(
+				`**Commit:** [\`${shortCommit}\`](${commitUrl}/commit/${metadata.deployment.git.commit})`
+			);
+		}
+
+		if (metadata.deployment.git.message) {
+			lines.push(`**Message:** ${metadata.deployment.git.message}`);
+		}
+
+		lines.push('');
+	}
+
+	// Add build info
+	lines.push('## Build Information');
+	lines.push('');
+	if (metadata.project?.name) {
+		lines.push(
+			`**Project:** ${metadata.project.name}${metadata.project.version ? ` v${metadata.project.version}` : ''}`
+		);
+	}
+	if (metadata.deployment?.build) {
+		lines.push(
+			`**Built with:** Agentuity CLI v${metadata.deployment.build.agentuity}, Bun v${metadata.deployment.build.bun}`
+		);
+		lines.push(
+			`**Platform:** ${metadata.deployment.build.platform}-${metadata.deployment.build.arch}`
+		);
+	}
+	if (metadata.deployment?.date) {
+		lines.push(`**Build date:** ${metadata.deployment.date}`);
+	}
+	lines.push('');
+
+	// Add structure overview
+	lines.push('## Structure');
+	lines.push('');
+	lines.push('```');
+	lines.push('.agentuity/');
+	lines.push('├── app.js                     # Bundled server application');
+	lines.push('├── agentuity.metadata.json    # Build metadata and schemas');
+	if (metadata.assets?.some((a) => a.filename.startsWith('client/'))) {
+		lines.push('├── client/                    # Frontend assets (if applicable)');
+	}
+	if (metadata.assets?.some((a) => a.filename.startsWith('workbench/'))) {
+		lines.push('├── workbench/                 # Workbench UI (if enabled)');
+	}
+	if (metadata.assets?.some((a) => a.filename.startsWith('public/'))) {
+		lines.push('├── public/                    # Static assets');
+	}
+	lines.push('└── AGENTS.md                   # This file');
+	lines.push('```');
+	lines.push('');
+
+	// Add agent/route summary
+	if (metadata.agents && metadata.agents.length > 0) {
+		lines.push(`**Agents:** ${metadata.agents.length} agent(s) defined`);
+	}
+	if (metadata.routes && metadata.routes.length > 0) {
+		lines.push(`**Routes:** ${metadata.routes.length} route(s) defined`);
+	}
+	lines.push('');
+
+	// Add runtime environment info
+	lines.push('## Runtime Environment');
+	lines.push('');
+	lines.push('When deployed, this application runs in a managed runtime environment with:');
+	lines.push('');
+	lines.push('**User & Permissions:**');
+	lines.push('- User: `agentuity` (UID: 1022, GID: 1777)');
+	lines.push('- Home directory: `/home/agentuity`');
+	lines.push('- Working directory: `/home/agentuity` (application code deployed here)');
+	lines.push('');
+	lines.push('**Pre-installed Tools:**');
+	lines.push('- **Runtimes:** Node.js 24, Bun 1.x');
+	lines.push('- **AI Tools:** Amp, Opencode AI, Claude Code');
+	lines.push('- **Version Control:** git, GitHub CLI (gh)');
+	lines.push('- **Browser Automation:** Chromium, ChromeDriver, Xvfb (headless display)');
+	lines.push('- **Media Processing:** ffmpeg');
+	lines.push('- **Network Tools:** curl, wget, netcat, dnsutils');
+	lines.push('- **Other:** openssh-client, openssh-sftp-server, strace, unzip, fuse');
+	lines.push('');
+	lines.push('**Environment Variables:**');
+	lines.push('- `AGENTUITY_DATA_DIR=/home/agentuity/data` - Persistent data storage');
+	lines.push('- `AGENTUITY_LOG_DIR=/home/agentuity/logs` - Application logs');
+	lines.push('- `CHROME_BIN=/usr/bin/chromium` - Chromium browser path');
+	lines.push('- `DISPLAY=:99` - X11 display for headless browser');
+	lines.push('- `PATH` includes `/home/agentuity/.local/bin` and `/home/agentuity/.agentuity/bin`');
+	lines.push('');
+
+	// Add note about metadata
+	lines.push('## For AI Coding Agents');
+	lines.push('');
+	lines.push(
+		'This is production-ready compiled code. For development and source code modifications:'
+	);
+	lines.push('');
+	if (metadata.deployment?.git?.repo) {
+		lines.push(`1. Clone the source repository: ${metadata.deployment.git.repo}`);
+		lines.push('2. Make changes to source files in `src/`');
+		lines.push('3. Run `agentuity build` to rebuild this bundle');
+	} else {
+		lines.push('1. Locate the original source repository');
+		lines.push('2. Make changes to source files in `src/`');
+		lines.push('3. Run `agentuity build` to rebuild this bundle');
+	}
+	lines.push('');
+	lines.push(
+		'See `agentuity.metadata.json` for detailed information about agents, routes, and schemas.'
+	);
+
+	return lines.join('\n');
+}
+
+/**
  * Write agentuity.metadata.json to .agentuity directory
  */
 export function writeMetadataFile(
@@ -569,6 +710,13 @@ export function writeMetadataFile(
 
 	writeFileSync(metadataPath, metadataContent, 'utf-8');
 	logger.trace('Wrote agentuity.metadata.json');
+
+	// Write AGENTS.md for AI coding agents
+	const agentMdPath = join(agentuityDir, 'AGENTS.md');
+	const agentMdContent = generateAgentsMd(metadata);
+
+	writeFileSync(agentMdPath, agentMdContent, 'utf-8');
+	logger.trace('Wrote AGENTS.md');
 }
 
 /**
