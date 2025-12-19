@@ -50,11 +50,12 @@ export interface EvalRunEventProvider {
 	 * @example
 	 * ```typescript
 	 * await evalProvider.start({
-	 *   id: 'eval-run-123',
-	 *   sessionId: 'session-abc',
-	 *   evalId: 'eval-def',
-	 *   orgId: 'org-456',
-	 *   projectId: 'proj-789',
+	 *   id: 'evalrun_abc123',
+	 *   sessionId: 'sess_abc123',
+	 *   evalId: 'evalid_abc123',
+	 *   evalIdentifier: 'eval_abc123',
+	 *   orgId: 'org_456',
+	 *   projectId: 'proj_789',
 	 *   devmode: true
 	 * });
 	 * ```
