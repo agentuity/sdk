@@ -113,6 +113,65 @@ if (!isDevelopment()) {
 	app.get('/_idle', idleHandler);
 }
 
+// Asset proxy routes - Development mode only (proxies to Vite asset server)
+if (process.env.NODE_ENV !== 'production') {
+	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '5173', 10);
+
+	const proxyToVite = async (c: Context) => {
+		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${c.req.path}`;
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+		try {
+			otel.logger.debug(`[Proxy] ${c.req.method} ${c.req.path} -> Vite:${VITE_ASSET_PORT}`);
+			const res = await fetch(viteUrl, { signal: controller.signal });
+			clearTimeout(timeout);
+			otel.logger.debug(`[Proxy] ${c.req.path} -> ${res.status} (${res.headers.get('content-type')})`);
+			return new Response(res.body, {
+				status: res.status,
+				headers: res.headers,
+			});
+		} catch (err) {
+			clearTimeout(timeout);
+			if (err instanceof Error && err.name === 'AbortError') {
+				otel.logger.error(`Vite proxy timeout: ${c.req.path}`);
+				return c.text('Vite asset server timeout', 504);
+			}
+			otel.logger.error(`Failed to proxy to Vite: ${c.req.path} - ${err instanceof Error ? err.message : String(err)}`);
+			return c.text('Vite asset server error', 500);
+		}
+	};
+
+	// Vite client scripts and HMR
+	app.get('/@vite/*', proxyToVite);
+	app.get('/@react-refresh', proxyToVite);
+
+	// Source files for HMR
+	app.get('/src/web/*', proxyToVite);
+	app.get('/src/*', proxyToVite); // Catch-all for other source files
+
+	// Workbench source files (in .agentuity/workbench-src/)
+	app.get('/.agentuity/workbench-src/*', proxyToVite);
+
+	// Node modules (Vite transforms these)
+	app.get('/node_modules/*', proxyToVite);
+
+	// Scoped packages (e.g., @agentuity/*, @types/*)
+	app.get('/@*', proxyToVite);
+
+	// File system access (for Vite's @fs protocol)
+	app.get('/@fs/*', proxyToVite);
+
+	// Module resolution (for Vite's @id protocol)  
+	app.get('/@id/*', proxyToVite);
+
+	// Any .js, .jsx, .ts, .tsx files (catch remaining modules)
+	app.get('/*.js', proxyToVite);
+	app.get('/*.jsx', proxyToVite);
+	app.get('/*.ts', proxyToVite);
+	app.get('/*.tsx', proxyToVite);
+	app.get('/*.css', proxyToVite);
+}
+
 // Mount API routes
 const { default: router_0 } = await import('../api/index.js');
 app.route('/api', router_0);

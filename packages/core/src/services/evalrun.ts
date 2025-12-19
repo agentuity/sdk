@@ -4,7 +4,8 @@ export const EvalRunStartEventSchema = z
 	.object({
 		id: z.string().describe('the eval run id'),
 		sessionId: z.string().describe('the session id'),
-		evalId: z.string().describe('the eval id'),
+		evalId: z.string().describe('the evaluation record id (evalid_...)'),
+		evalIdentifier: z.string().describe('the stable eval identifier (eval_...)'),
 		orgId: z.string().describe('the organization id'),
 		projectId: z.string().describe('the project id'),
 		devmode: z.boolean().describe('true if running in devmode'),
@@ -49,11 +50,12 @@ export interface EvalRunEventProvider {
 	 * @example
 	 * ```typescript
 	 * await evalProvider.start({
-	 *   id: 'eval-run-123',
-	 *   sessionId: 'session-abc',
-	 *   evalId: 'eval-def',
-	 *   orgId: 'org-456',
-	 *   projectId: 'proj-789',
+	 *   id: 'evalrun_abc123',
+	 *   sessionId: 'sess_abc123',
+	 *   evalId: 'evalid_abc123',
+	 *   evalIdentifier: 'eval_abc123',
+	 *   orgId: 'org_456',
+	 *   projectId: 'proj_789',
 	 *   devmode: true
 	 * });
 	 * ```
