@@ -596,6 +596,15 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 			`**Project:** ${metadata.project.name}${metadata.project.version ? ` v${metadata.project.version}` : ''}`
 		);
 	}
+	if (metadata.project?.id) {
+		lines.push(`**Project ID:** ${metadata.project.id}`);
+	}
+	if (metadata.project?.orgId) {
+		lines.push(`**Org ID:** ${metadata.project.orgId}`);
+	}
+	if (metadata.deployment.id) {
+		lines.push(`**Deployment ID:** ${metadata.deployment.id}`);
+	}
 	if (metadata.deployment?.build) {
 		lines.push(
 			`**Built with:** Agentuity CLI v${metadata.deployment.build.agentuity}, Bun v${metadata.deployment.build.bun}`
@@ -617,26 +626,37 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 	lines.push('├── app.js                     # Bundled server application');
 	lines.push('├── agentuity.metadata.json    # Build metadata and schemas');
 	if (metadata.assets?.some((a) => a.filename.startsWith('client/'))) {
-		lines.push('├── client/                    # Frontend assets (if applicable)');
-	}
-	if (metadata.assets?.some((a) => a.filename.startsWith('workbench/'))) {
-		lines.push('├── workbench/                 # Workbench UI (if enabled)');
+		lines.push('├── client/                # Frontend assets (fallback, CDN by default)');
 	}
 	if (metadata.assets?.some((a) => a.filename.startsWith('public/'))) {
-		lines.push('├── public/                    # Static assets');
+		lines.push('├── public/                # Static assets');
 	}
-	lines.push('└── AGENTS.md                   # This file');
+	lines.push('└── AGENTS.md                  # This file');
 	lines.push('```');
 	lines.push('');
 
-	// Add agent/route summary
+	// Add agent/route details
 	if (metadata.agents && metadata.agents.length > 0) {
-		lines.push(`**Agents:** ${metadata.agents.length} agent(s) defined`);
+		lines.push('## Agents');
+		lines.push('');
+		lines.push(`This application defines ${metadata.agents.length} agent(s):`);
+		lines.push('');
+		for (const agent of metadata.agents) {
+			lines.push(`- **${agent.name}** (ID: \`${agent.id}\`)`);
+		}
+		lines.push('');
 	}
+
 	if (metadata.routes && metadata.routes.length > 0) {
-		lines.push(`**Routes:** ${metadata.routes.length} route(s) defined`);
+		lines.push('## Routes');
+		lines.push('');
+		lines.push(`This application defines ${metadata.routes.length} route(s):`);
+		lines.push('');
+		for (const route of metadata.routes) {
+			lines.push(`- \`${route.method.toUpperCase()} ${route.path}\` (${route.type})`);
+		}
+		lines.push('');
 	}
-	lines.push('');
 
 	// Add runtime environment info
 	lines.push('## Runtime Environment');
@@ -646,7 +666,8 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 	lines.push('**User & Permissions:**');
 	lines.push('- User: `agentuity` (UID: 1022, GID: 1777)');
 	lines.push('- Home directory: `/home/agentuity`');
-	lines.push('- Working directory: `/home/agentuity` (application code deployed here)');
+	lines.push('- Working directory: `/home/agentuity/app` (application code deployed here)');
+	lines.push('- Logs directory: `/home/agentuity/logs`');
 	lines.push('');
 	lines.push('**Pre-installed Tools:**');
 	lines.push('- **Runtimes:** Node.js 24, Bun 1.x');
@@ -664,6 +685,11 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 	lines.push('- `DISPLAY=:99` - X11 display for headless browser');
 	lines.push(
 		'- `PATH` includes `/home/agentuity/.local/bin` and `/home/agentuity/.agentuity/bin`'
+	);
+	lines.push('');
+	lines.push('**Ports:**');
+	lines.push(
+		'- `3000: This default port that the project is running. Use PORT environment if not available'
 	);
 	lines.push('');
 
@@ -714,11 +740,13 @@ export function writeMetadataFile(
 	logger.trace('Wrote agentuity.metadata.json');
 
 	// Write AGENTS.md for AI coding agents
-	const agentMdPath = join(agentuityDir, 'AGENTS.md');
-	const agentMdContent = generateAgentsMd(metadata);
+	if (!dev) {
+		const agentMdPath = join(agentuityDir, 'AGENTS.md');
+		const agentMdContent = generateAgentsMd(metadata);
 
-	writeFileSync(agentMdPath, agentMdContent, 'utf-8');
-	logger.trace('Wrote AGENTS.md');
+		writeFileSync(agentMdPath, agentMdContent, 'utf-8');
+		logger.trace('Wrote AGENTS.md');
+	}
 }
 
 /**
