@@ -76,7 +76,8 @@ export interface MiddlewareConfig {
  * Create base middleware that sets up context variables
  */
 export function createBaseMiddleware(config: MiddlewareConfig) {
-	return createMiddleware<Env>(async (c, next) => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return createMiddleware<Env<any>>(async (c, next) => {
 		c.set('logger', config.logger);
 		c.set('tracer', config.tracer);
 		c.set('meter', config.meter);
@@ -156,7 +157,8 @@ export function createCorsMiddleware(corsOptions?: Parameters<typeof cors>[0]) {
  * This is the critical middleware that creates AgentContext
  */
 export function createOtelMiddleware() {
-	return createMiddleware<Env>(async (c, next) => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return createMiddleware<Env<any>>(async (c, next) => {
 		// Import providers dynamically to avoid circular deps
 		const { getThreadProvider, getSessionProvider } = await import('./_services');
 		const WaitUntilHandler = (await import('./_waituntil')).default;
