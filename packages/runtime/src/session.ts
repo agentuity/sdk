@@ -1331,13 +1331,10 @@ export class DefaultThreadProvider implements ThreadProvider {
 			if (this.wsClient && thread.isDirty()) {
 				try {
 					const serialized = thread.getSerializedState();
-<<<<<<< Updated upstream
 					internal.info(
 						'[thread] saving to WebSocket, serialized length: %d',
 						serialized.length
 					);
-=======
->>>>>>> Stashed changes
 					const metadata =
 						Object.keys(thread.metadata).length > 0 ? thread.metadata : undefined;
 					await this.wsClient.save(thread.id, serialized, metadata);

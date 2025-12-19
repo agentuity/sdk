@@ -49,7 +49,6 @@ The structure of this mono repository:
 - `packages/workbench` - Workbench UI component
 - `packages/schema` - Schema validation library
 - `packages/vscode` - VS Code extension for Agentuity
-- `packages/web` - Generic frontend code that can be shared with other frontend frameworks
 
 Each package is its own published npm package but all packages are versioned and published together.
 

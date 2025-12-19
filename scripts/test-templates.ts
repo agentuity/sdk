@@ -156,11 +156,7 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 	const packagesToPack = [
 		'core',
 		'schema',
-<<<<<<< Updated upstream
 		'frontend',
-=======
-		'web',
->>>>>>> Stashed changes
 		'react',
 		'auth',
 		'runtime',

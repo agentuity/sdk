@@ -34,9 +34,9 @@ cd "$SDK_ROOT/packages/schema"
 SCHEMA_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
 echo "  - schema: $SCHEMA_PKG"
 
-cd "$SDK_ROOT/packages/web"
-WEB_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - web: $WEB_PKG"
+cd "$SDK_ROOT/packages/frontend"
+FRONTEND_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
+echo "  - web: $FRONTEND_PKG"
 
 cd "$SDK_ROOT/packages/server"
 SERVER_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
@@ -67,12 +67,12 @@ echo ""
 echo "📥 Installing in $TARGET_DIR..."
 cd "$TARGET_DIR"
 
-bun remove @agentuity/cli @agentuity/core @agentuity/react @agentuity/runtime @agentuity/schema @agentuity/server @agentuity/workbench @agentuity/auth @agentuity/web 2>/dev/null || true
+bun remove @agentuity/cli @agentuity/core @agentuity/react @agentuity/runtime @agentuity/schema @agentuity/server @agentuity/workbench @agentuity/auth @agentuity/frontend 2>/dev/null || true
 
 # Extract tarballs directly into node_modules to avoid npm registry resolution
 mkdir -p node_modules/@agentuity
 
-for pkg in "$CORE_PKG" "$SCHEMA_PKG" "$WEB_PKG" "$SERVER_PKG" "$REACT_PKG" "$RUNTIME_PKG" "$CLI_PKG" "$WORKBENCH_PKG" "$AUTH_PKG"; do
+for pkg in "$CORE_PKG" "$SCHEMA_PKG" "$FRONTEND_PKG" "$SERVER_PKG" "$REACT_PKG" "$RUNTIME_PKG" "$CLI_PKG" "$WORKBENCH_PKG" "$AUTH_PKG"; do
   pkg_name=$(echo "$pkg" | sed 's/agentuity-//' | sed 's/-0.0.100.tgz//')
   tar -xzf "$TEMP_DIR/$pkg" -C node_modules/@agentuity
   mv node_modules/@agentuity/package "node_modules/@agentuity/$pkg_name"

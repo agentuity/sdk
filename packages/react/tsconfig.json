@@ -12,9 +12,5 @@
 		"jsx": "react-jsx"
 	},
 	"include": ["src/**/*"],
-<<<<<<< Updated upstream
 	"references": [{ "path": "../core" }, { "path": "../frontend" }]
-=======
-	"references": [{ "path": "../core" }, { "path": "../web" }]
->>>>>>> Stashed changes
 }

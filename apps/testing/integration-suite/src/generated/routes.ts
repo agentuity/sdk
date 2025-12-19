@@ -5,7 +5,7 @@ import type stateReaderAgent from '../agent/state/reader-agent.js';
 import type stateWriterAgent from '../agent/state/writer-agent.js';
 import type { InferInput, InferOutput } from '@agentuity/core';
 
-import { createClient } from '@agentuity/react';
+import { createClient } from '@agentuity/frontend';
 // ============================================================================
 // Route Schema Type Exports
 // ============================================================================
@@ -266,26 +266,26 @@ declare module '@agentuity/react' {
 				/**
 				 * Route: GET /api/test/run
 				 */
-				get: { input: GETApiTestRunInput; output: GETApiTestRunOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 			suites: {
 				/**
 				 * Route: GET /api/test/suites
 				 */
-				get: { input: GETApiTestSuitesInput; output: GETApiTestSuitesOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 			list: {
 				/**
 				 * Route: GET /api/test/list
 				 */
-				get: { input: GETApiTestListInput; output: GETApiTestListOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 		};
 		health: {
 			/**
 			 * Route: GET /api/health
 			 */
-			get: { input: GETApiHealthInput; output: GETApiHealthOutput; type: 'api' };
+			get: { input: never; output: never; type: 'api' };
 		};
 		agent: {
 			state: {
@@ -312,13 +312,13 @@ declare module '@agentuity/react' {
 				/**
 				 * Route: GET /api/custom-name/custom
 				 */
-				get: { input: GETApiCustomNameCustomInput; output: GETApiCustomNameCustomOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 			test: {
 				/**
 				 * Route: POST /api/custom-name/test
 				 */
-				post: { input: POSTApiCustomNameTestInput; output: POSTApiCustomNameTestOutput; type: 'api' };
+				post: { input: never; output: never; type: 'api' };
 			};
 		};
 		users: {
@@ -326,15 +326,15 @@ declare module '@agentuity/react' {
 				/**
 				 * Route: GET /api/users/profile
 				 */
-				get: { input: GETApiUsersProfileInput; output: GETApiUsersProfileOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 				/**
 				 * Route: PATCH /api/users/profile
 				 */
-				patch: { input: PATCHApiUsersProfileInput; output: PATCHApiUsersProfileOutput; type: 'api' };
+				patch: { input: never; output: never; type: 'api' };
 				/**
 				 * Route: DELETE /api/users/profile
 				 */
-				delete: { input: DELETEApiUsersProfileInput; output: DELETEApiUsersProfileOutput; type: 'api' };
+				delete: { input: never; output: never; type: 'api' };
 			};
 		};
 		my-service: {
@@ -342,13 +342,13 @@ declare module '@agentuity/react' {
 				/**
 				 * Route: GET /api/my-service/status
 				 */
-				get: { input: GETApiMyServiceStatusInput; output: GETApiMyServiceStatusOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 			info: {
 				/**
 				 * Route: GET /api/my-service/info
 				 */
-				get: { input: GETApiMyServiceInfoInput; output: GETApiMyServiceInfoOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 		};
 		auth: {
@@ -356,19 +356,19 @@ declare module '@agentuity/react' {
 				/**
 				 * Route: POST /api/auth/login
 				 */
-				post: { input: POSTApiAuthLoginInput; output: POSTApiAuthLoginOutput; type: 'api' };
+				post: { input: never; output: never; type: 'api' };
 			};
 			logout: {
 				/**
 				 * Route: POST /api/auth/logout
 				 */
-				post: { input: POSTApiAuthLogoutInput; output: POSTApiAuthLogoutOutput; type: 'api' };
+				post: { input: never; output: never; type: 'api' };
 			};
 			verify: {
 				/**
 				 * Route: GET /api/auth/verify
 				 */
-				get: { input: GETApiAuthVerifyInput; output: GETApiAuthVerifyOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 		};
 		middleware-test: {
@@ -376,25 +376,25 @@ declare module '@agentuity/react' {
 				/**
 				 * Route: GET /api/middleware-test/check-all
 				 */
-				get: { input: GETApiMiddlewareTestCheckAllInput; output: GETApiMiddlewareTestCheckAllOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 			query-database: {
 				/**
 				 * Route: GET /api/middleware-test/query-database
 				 */
-				get: { input: GETApiMiddlewareTestQueryDatabaseInput; output: GETApiMiddlewareTestQueryDatabaseOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 			check-auth: {
 				/**
 				 * Route: GET /api/middleware-test/check-auth
 				 */
-				get: { input: GETApiMiddlewareTestCheckAuthInput; output: GETApiMiddlewareTestCheckAuthOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 			analytics-info: {
 				/**
 				 * Route: GET /api/middleware-test/analytics-info
 				 */
-				get: { input: GETApiMiddlewareTestAnalyticsInfoInput; output: GETApiMiddlewareTestAnalyticsInfoOutput; type: 'api' };
+				get: { input: never; output: never; type: 'api' };
 			};
 		};
 		ws: {
@@ -402,19 +402,19 @@ declare module '@agentuity/react' {
 				/**
 				 * Route: POST /api/ws/echo
 				 */
-				websocket: { input: POSTApiWsEchoInput; output: POSTApiWsEchoOutput; type: 'websocket' };
+				websocket: { input: never; output: never; type: 'websocket' };
 			};
 			broadcast: {
 				/**
 				 * Route: POST /api/ws/broadcast
 				 */
-				websocket: { input: POSTApiWsBroadcastInput; output: POSTApiWsBroadcastOutput; type: 'websocket' };
+				websocket: { input: never; output: never; type: 'websocket' };
 			};
 			counter: {
 				/**
 				 * Route: POST /api/ws/counter
 				 */
-				websocket: { input: POSTApiWsCounterInput; output: POSTApiWsCounterOutput; type: 'websocket' };
+				websocket: { input: never; output: never; type: 'websocket' };
 			};
 		};
 		sse: {
@@ -422,31 +422,31 @@ declare module '@agentuity/react' {
 				/**
 				 * Route: POST /api/sse/simple
 				 */
-				eventstream: { input: POSTApiSseSimpleInput; output: POSTApiSseSimpleOutput; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse' };
 			};
 			events: {
 				/**
 				 * Route: POST /api/sse/events
 				 */
-				eventstream: { input: POSTApiSseEventsInput; output: POSTApiSseEventsOutput; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse' };
 			};
 			counter: {
 				/**
 				 * Route: POST /api/sse/counter
 				 */
-				eventstream: { input: POSTApiSseCounterInput; output: POSTApiSseCounterOutput; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse' };
 			};
 			long-lived: {
 				/**
 				 * Route: POST /api/sse/long-lived
 				 */
-				eventstream: { input: POSTApiSseLongLivedInput; output: POSTApiSseLongLivedOutput; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse' };
 			};
 			abort-test: {
 				/**
 				 * Route: POST /api/sse/abort-test
 				 */
-				eventstream: { input: POSTApiSseAbortTestInput; output: POSTApiSseAbortTestOutput; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse' };
 			};
 		};
 	}

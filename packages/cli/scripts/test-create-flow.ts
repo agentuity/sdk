@@ -165,11 +165,7 @@ async function linkLocalPackages(): Promise<boolean> {
 	const packagesToInstall = [
 		'core',
 		'schema',
-<<<<<<< Updated upstream
 		'frontend',
-=======
-		'web',
->>>>>>> Stashed changes
 		'react',
 		'auth',
 		'runtime',
@@ -203,7 +199,7 @@ async function linkLocalPackages(): Promise<boolean> {
 	const packageJsonPath = join(TEST_PROJECT_PATH, 'package.json');
 	const packageJson = await Bun.file(packageJsonPath).json();
 	delete packageJson.dependencies['@agentuity/schema'];
-	delete packageJson.dependencies['@agentuity/web'];
+	delete packageJson.dependencies['@agentuity/frontend'];
 	delete packageJson.dependencies['@agentuity/react'];
 	delete packageJson.dependencies['@agentuity/runtime'];
 	// Also remove workbench to allow npm install for templates that need it
@@ -215,10 +211,9 @@ async function linkLocalPackages(): Promise<boolean> {
 	// Install other dependencies first
 	await Bun.$`bun install`.cwd(TEST_PROJECT_PATH);
 
-	// install these together
-	const pkgs = packagesToInstall.map((p) => `@agentuity/${p}`);
+	// install from tarballs (not from npm)
 	Bun.spawnSync({
-		cmd: ['bun', 'add', ...pkgs],
+		cmd: ['bun', 'add', ...packagePaths],
 		cwd: TEST_PROJECT_PATH,
 	});
 

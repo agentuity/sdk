@@ -6,7 +6,6 @@
 		{ "path": "./packages/core" },
 		{ "path": "./packages/frontend" },
 		{ "path": "./packages/schema" },
-		{ "path": "./packages/web" },
 		{ "path": "./packages/react" },
 		{ "path": "./packages/runtime" },
 		{ "path": "./packages/server" },

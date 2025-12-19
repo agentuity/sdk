@@ -23,7 +23,6 @@
 - **@agentuity/workbench**: The workbench React component
 - **@agentuity/cli**: Bun-native CLI framework with commander.js, auto-discovery, and YAML config
 - **@agentuity/test-utils**: Private test utilities package (never published), provides shared test helpers
-- **@agentuity/web**: Generic frontend code that can be shared with other frontend frameworks
 - **Cross-package imports**: Use workspace protocol `@agentuity/<package>` in package.json dependencies
 - **Test Apps**: The `apps/testing` folder contains multiple test applications
 - **Profile-based config**: Project configs support profile overrides via `agentuity.[PROFILE].json` (e.g., `agentuity.production.json`). If the profile-specific file exists and matches the active profile name, it takes precedence over `agentuity.json`

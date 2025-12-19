@@ -56,7 +56,7 @@ echo "🔨 Building packages..."
 cd "$SDK_ROOT/packages/core"
 bun run build
 
-cd "$SDK_ROOT/packages/web"
+cd "$SDK_ROOT/packages/frontend"
 bun run build
 
 cd "$SDK_ROOT/packages/react"
@@ -78,11 +78,11 @@ CORE_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
 restore_version "$SDK_ROOT/packages/core" "$CORE_ORIGINAL"
 echo "  - core: $CORE_PKG"
 
-cd "$SDK_ROOT/packages/web"
-WEB_ORIGINAL=$(update_version "$SDK_ROOT/packages/web" "$DEV_VERSION")
-WEB_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-restore_version "$SDK_ROOT/packages/web" "$WEB_ORIGINAL"
-echo "  - web: $WEB_PKG"
+cd "$SDK_ROOT/packages/frontend"
+FRONTEND_ORIGINAL=$(update_version "$SDK_ROOT/packages/frontend" "$DEV_VERSION")
+FRONTEND_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
+restore_version "$SDK_ROOT/packages/frontend" "$FRONTEND_ORIGINAL"
+echo "  - frontend: $FRONTEND_PKG"
 
 cd "$SDK_ROOT/packages/react"
 REACT_ORIGINAL=$(update_version "$SDK_ROOT/packages/react" "$DEV_VERSION")
@@ -102,14 +102,14 @@ echo "📥 Installing workbench in $TARGET_DIR..."
 cd "$TARGET_DIR"
 
 bun rm @agentuity/workbench 2>/dev/null || true
-bun rm @agentuity/web 2>/dev/null || true
+bun rm @agentuity/frontend 2>/dev/null || true
 bun rm @agentuity/react 2>/dev/null || true
 bun rm @agentuity/core 2>/dev/null || true
 
 # Extract tarballs directly into node_modules to avoid npm registry resolution
 mkdir -p node_modules/@agentuity
 
-for pkg in "$CORE_PKG" "$WEB_PKG" "$REACT_PKG" "$WORKBENCH_PKG"; do
+for pkg in "$CORE_PKG" "$FRONTEND_PKG" "$REACT_PKG" "$WORKBENCH_PKG"; do
   pkg_name=$(echo "$pkg" | sed 's/agentuity-//' | sed 's/-0.0.*\.tgz//')
   tar -xzf "$TEMP_DIR/$pkg" -C node_modules/@agentuity
   mv node_modules/@agentuity/package "node_modules/@agentuity/$pkg_name"

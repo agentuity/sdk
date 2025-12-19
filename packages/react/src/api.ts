@@ -1,11 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
-<<<<<<< Updated upstream
 import { deserializeData, buildUrl, type RouteRegistry } from '@agentuity/frontend';
-=======
-import { deserializeData, buildUrl, type RouteRegistry } from '@agentuity/web';
->>>>>>> Stashed changes
 import { AgentuityContext } from './context';
 
 /**
