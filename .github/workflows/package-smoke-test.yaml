@@ -166,6 +166,16 @@ jobs:
          - name: Install Playwright browsers
            run: bunx playwright install --with-deps chromium
 
+         - name: Clean nested dependencies in apps
+           run: |
+              # Remove nested @agentuity in apps directory only (not packages)
+              # Apps have actual nested deps, packages have workspace symlinks
+              find apps -path '*/node_modules/@agentuity' -type d 2>/dev/null | while read dir; do
+                echo "Removing nested in apps: $dir"
+                rm -rf "$dir"
+              done
+              echo "Cleaned nested @agentuity in apps/"
+
          - name: Build packages
            run: bun run build
 
