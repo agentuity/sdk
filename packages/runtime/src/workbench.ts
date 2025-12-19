@@ -6,8 +6,7 @@ import { createRouter } from './router';
 import type { WebSocketConnection } from './router';
 import { privateContext } from './_server';
 import { getThreadProvider } from './_services';
-import { readFileSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { loadBuildMetadata, getAgentMetadataByAgentId, hasMetadata } from './_metadata';
 
 export const createWorkbenchExecutionRoute = (): Handler => {
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
@@ -49,16 +48,11 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			}
 
 			// Read metadata to find agent name by agentId
-			const metadataPath = join(process.cwd(), '.agentuity', 'agentuity.metadata.json');
-			if (!existsSync(metadataPath)) {
-				return ctx.json({ error: 'Metadata file not found' }, { status: 500 });
-			}
-
-			const fileContent = readFileSync(metadataPath, 'utf-8');
-			const metadata = JSON.parse(fileContent);
-			const agentMeta = metadata.agents?.find((a: { agentId: string }) => a.agentId === agentId);
-
+			const agentMeta = getAgentMetadataByAgentId(agentId);
 			if (!agentMeta) {
+				if (!hasMetadata()) {
+					return ctx.json({ error: 'Metadata file not found' }, { status: 500 });
+				}
 				return ctx.text('Agent not found', { status: 404 });
 			}
 
@@ -75,6 +69,8 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			const _ctx = privateContext(ctx);
 			if (agentObj.metadata?.id) {
 				_ctx.var.agentIds.add(agentObj.metadata.id);
+			}
+			if (agentObj.metadata?.agentId) {
 				_ctx.var.agentIds.add(agentObj.metadata.agentId);
 			}
 
@@ -295,16 +291,11 @@ export const createWorkbenchSampleRoute = (): Handler => {
 			}
 
 			// Read metadata to find agent name by agentId
-			const metadataPath = join(process.cwd(), '.agentuity', 'agentuity.metadata.json');
-			if (!existsSync(metadataPath)) {
-				return ctx.json({ error: 'Metadata file not found' }, { status: 500 });
-			}
-
-			const fileContent = readFileSync(metadataPath, 'utf-8');
-			const metadata = JSON.parse(fileContent);
-			const agentMeta = metadata.agents?.find((a: { agentId: string }) => a.agentId === agentId);
-
+			const agentMeta = getAgentMetadataByAgentId(agentId);
 			if (!agentMeta) {
+				if (!hasMetadata()) {
+					return ctx.json({ error: 'Metadata file not found' }, { status: 500 });
+				}
 				return ctx.text('Agent not found', { status: 404 });
 			}
 
@@ -446,9 +437,8 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 		}
 
 		// Read metadata from agentuity.metadata.json file
-		const metadataPath = join(process.cwd(), '.agentuity', 'agentuity.metadata.json');
-
-		if (!existsSync(metadataPath)) {
+		const metadata = loadBuildMetadata();
+		if (!metadata) {
 			return ctx.json(
 				{ error: 'Metadata file not found. Run build to generate metadata.' },
 				{ status: 500 }
@@ -456,9 +446,6 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 		}
 
 		try {
-			const fileContent = readFileSync(metadataPath, 'utf-8');
-			const metadata = JSON.parse(fileContent);
-
 			// Get runtime agents for JSON schema generation
 			const agents = getAgents();
 			const agentsByName = new Map();

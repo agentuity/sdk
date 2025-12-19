@@ -177,10 +177,8 @@ const { default: router_0 } = await import('../api/index.js');
 app.route('/api', router_0);
 const { default: router_1 } = await import('../api/events/route.js');
 app.route('/api/events', router_1);
-const { default: router_2 } = await import('../api/streams-page/route.js');
-app.route('/api/streams-page', router_2);
-const { default: router_3 } = await import('../api/websocket/route.js');
-app.route('/api/websocket', router_3);
+const { default: router_2 } = await import('../api/websocket/route.js');
+app.route('/api/websocket', router_2);
 
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
 if (isDevelopment()) {

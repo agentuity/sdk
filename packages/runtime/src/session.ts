@@ -1240,9 +1240,11 @@ export class DefaultThreadProvider implements ThreadProvider {
 	async restore(ctx: Context<Env>): Promise<Thread> {
 		const threadId = await this.threadIDProvider!.getThreadId(this.appState!, ctx);
 		validateThreadIdOrThrow(threadId);
+		internal.info('[thread] restoring thread %s', threadId);
 
 		// Wait for WebSocket connection if still connecting
 		if (this.wsConnecting) {
+			internal.info('[thread] waiting for WebSocket connection');
 			await this.wsConnecting;
 		}
 
@@ -1251,9 +1253,11 @@ export class DefaultThreadProvider implements ThreadProvider {
 		let restoredMetadata: Record<string, unknown> | undefined;
 		if (this.wsClient) {
 			try {
+				internal.info('[thread] restoring state from WebSocket');
 				const restoredData = await this.wsClient.restore(threadId);
 				if (restoredData) {
 					initialStateJson = restoredData;
+					internal.info('[thread] restored state: %d bytes', restoredData.length);
 					// Parse to check if it includes metadata
 					try {
 						const parsed = JSON.parse(restoredData);
@@ -1277,10 +1281,15 @@ export class DefaultThreadProvider implements ThreadProvider {
 					} catch {
 						// Keep original if parse fails
 					}
+				} else {
+					internal.info('[thread] no existing state found');
 				}
-			} catch {
+			} catch (err) {
+				internal.info('[thread] WebSocket restore failed: %s', err);
 				// Continue with empty state rather than failing
 			}
+		} else {
+			internal.info('[thread] no WebSocket client available');
 		}
 
 		const thread = new DefaultThread(this, threadId, initialStateJson, restoredMetadata);
@@ -1292,7 +1301,9 @@ export class DefaultThreadProvider implements ThreadProvider {
 				for (const [key, value] of Object.entries(data)) {
 					thread.state.set(key, value);
 				}
-			} catch {
+				internal.info('[thread] populated state with %d keys', thread.state.size);
+			} catch (err) {
+				internal.info('[thread] failed to parse state JSON: %s', err);
 				// Continue with empty state if parsing fails
 			}
 		}
@@ -1303,8 +1314,16 @@ export class DefaultThreadProvider implements ThreadProvider {
 
 	async save(thread: Thread): Promise<void> {
 		if (thread instanceof DefaultThread) {
+			internal.info(
+				'[thread] DefaultThreadProvider.save() - thread %s, isDirty: %s, hasWsClient: %s',
+				thread.id,
+				thread.isDirty(),
+				!!this.wsClient
+			);
+
 			// Wait for WebSocket connection if still connecting
 			if (this.wsConnecting) {
+				internal.info('[thread] waiting for WebSocket connection');
 				await this.wsConnecting;
 			}
 
@@ -1312,12 +1331,20 @@ export class DefaultThreadProvider implements ThreadProvider {
 			if (this.wsClient && thread.isDirty()) {
 				try {
 					const serialized = thread.getSerializedState();
+					internal.info(
+						'[thread] saving to WebSocket, serialized length: %d',
+						serialized.length
+					);
 					const metadata =
 						Object.keys(thread.metadata).length > 0 ? thread.metadata : undefined;
 					await this.wsClient.save(thread.id, serialized, metadata);
-				} catch {
+					internal.info('[thread] WebSocket save completed');
+				} catch (err) {
+					internal.info('[thread] WebSocket save failed: %s', err);
 					// Don't throw - allow request to complete even if save fails
 				}
+			} else {
+				internal.info('[thread] skipping save - no wsClient or thread not dirty');
 			}
 		}
 	}
@@ -1361,20 +1388,30 @@ export class DefaultSessionProvider implements SessionProvider {
 	}
 
 	async restore(thread: Thread, sessionId: string): Promise<Session> {
+		internal.info('[session] restoring session %s for thread %s', sessionId, thread.id);
 		let session = this.sessions.get(sessionId);
 		if (!session) {
 			session = new DefaultSession(thread, sessionId);
 			this.sessions.set(sessionId, session);
+			internal.info('[session] created new session, firing session.started');
 			await fireEvent('session.started', session);
+		} else {
+			internal.info('[session] found existing session');
 		}
 		return session;
 	}
 
 	async save(session: Session): Promise<void> {
 		if (session instanceof DefaultSession) {
+			internal.info(
+				'[session] DefaultSessionProvider.save() - firing completed event for session %s',
+				session.id
+			);
 			try {
 				await session.fireEvent('completed');
+				internal.info('[session] session.fireEvent completed, firing app event');
 				await fireEvent('session.completed', session);
+				internal.info('[session] session.completed app event fired');
 			} finally {
 				this.sessions.delete(session.id);
 				sessionEventListeners.delete(session);
