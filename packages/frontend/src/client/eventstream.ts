@@ -2,9 +2,18 @@ import type { EventHandler, EventStreamClient } from './types';
 
 /**
  * Create an EventSource (SSE) client wrapper with event-based API.
+ *
+ * Note: Native EventSource has limited authentication support.
+ * - withCredentials: true will send cookies and HTTP auth headers
+ * - For custom Authorization headers, consider using @microsoft/fetch-event-source
  */
-export function createEventStreamClient(url: string): EventStreamClient {
-	const eventSource = new EventSource(url);
+export function createEventStreamClient(
+	url: string,
+	options?: { withCredentials?: boolean }
+): EventStreamClient {
+	const eventSource = new EventSource(url, {
+		withCredentials: options?.withCredentials ?? false,
+	});
 	const handlers: {
 		message: Set<EventHandler<MessageEvent>>;
 		open: Set<EventHandler<Event>>;
