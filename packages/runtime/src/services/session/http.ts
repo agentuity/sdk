@@ -8,6 +8,7 @@ import {
 	type Logger,
 	StructuredError,
 } from '@agentuity/core';
+import { internal } from '../../logger/internal';
 
 const SessionResponseError = StructuredError('SessionResponseError');
 
@@ -29,6 +30,7 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 	 * @param event SessionStartEvent
 	 */
 	async start(event: SessionStartEvent): Promise<void> {
+		internal.info('[session-http] sending start event: %s', event.id);
 		this.logger.debug('Sending session start event: %s', event.id);
 		const resp = await this.apiClient.post(
 			'/session/2025-03-17',
@@ -37,9 +39,11 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			SessionStartEventDelayedSchema
 		);
 		if (resp.success) {
+			internal.info('[session-http] start event sent successfully: %s', event.id);
 			this.logger.debug('Session start event sent successfully: %s', event.id);
 			return;
 		}
+		internal.info('[session-http] start event failed: %s - %s', event.id, resp.message);
 		throw new SessionResponseError({ message: resp.message });
 	}
 
@@ -49,6 +53,11 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 	 * @param event SessionCompleteEvent
 	 */
 	async complete(event: SessionCompleteEvent): Promise<void> {
+		internal.info(
+			'[session-http] sending complete event: %s, userData: %s',
+			event.id,
+			event.userData ? `${event.userData.length} bytes` : 'none'
+		);
 		this.logger.debug('Sending session complete event: %s', event.id);
 		const resp = await this.apiClient.put(
 			'/session/2025-03-17',
@@ -57,9 +66,11 @@ export class HTTPSessionEventProvider implements SessionEventProvider {
 			SessionCompleteEventDelayedSchema
 		);
 		if (resp.success) {
+			internal.info('[session-http] complete event sent successfully: %s', event.id);
 			this.logger.debug('Session complete event sent successfully: %s', event.id);
 			return;
 		}
+		internal.info('[session-http] complete event failed: %s - %s', event.id, resp.message);
 		throw new SessionResponseError({ message: resp.message });
 	}
 }

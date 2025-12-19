@@ -43,7 +43,7 @@ export interface RuntimeBootstrapResult {
  * 2. Loads .env.{profile}, .env.development, or .env based on profile
  * 3. Sets AGENTUITY_REGION=local for local profile (overrides project config for infrastructure)
  * 4. Loads agentuity.{profile}.json if it exists
- * 5. Sets AGENTUITY_REGION from project config if not already set (non-local profiles only)
+ * 5. Sets AGENTUITY_REGION, AGENTUITY_CLOUD_ORG_ID, AGENTUITY_CLOUD_PROJECT_ID from project config
  * 6. Does NOT override environment variables already set
  *
  * Call this BEFORE createApp() in your app.ts:
@@ -119,6 +119,16 @@ export async function bootstrapRuntimeEnv(
 		// Set AGENTUITY_REGION from project config if not already set
 		if (projectConfig?.region && !process.env.AGENTUITY_REGION) {
 			process.env.AGENTUITY_REGION = projectConfig.region;
+		}
+
+		// Set AGENTUITY_CLOUD_ORG_ID from project config if not already set
+		if (projectConfig?.orgId && !process.env.AGENTUITY_CLOUD_ORG_ID) {
+			process.env.AGENTUITY_CLOUD_ORG_ID = projectConfig.orgId;
+		}
+
+		// Set AGENTUITY_CLOUD_PROJECT_ID from project config if not already set
+		if (projectConfig?.projectId && !process.env.AGENTUITY_CLOUD_PROJECT_ID) {
+			process.env.AGENTUITY_CLOUD_PROJECT_ID = projectConfig.projectId;
 		}
 	} catch {
 		// OK for tests that don't need project config

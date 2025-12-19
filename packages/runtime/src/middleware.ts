@@ -23,6 +23,7 @@ import {
 import { TraceState } from '@opentelemetry/core';
 import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
+import { internal } from './logger/internal';
 
 const SESSION_HEADER = 'x-session-id';
 const THREAD_HEADER = 'x-thread-id';
@@ -189,6 +190,14 @@ export function createOtelMiddleware() {
 					const deploymentId = runtimeConfig.getDeploymentId();
 					const isDevMode = runtimeConfig.isDevMode();
 
+					internal.info(
+						'[session] config: orgId=%s, projectId=%s, deploymentId=%s, isDevMode=%s',
+						orgId ?? 'NOT SET (AGENTUITY_CLOUD_ORG_ID)',
+						projectId ?? 'NOT SET (AGENTUITY_CLOUD_PROJECT_ID)',
+						deploymentId ?? 'none',
+						isDevMode
+					);
+
 					if (projectId) traceState = traceState.set('pid', projectId);
 					if (orgId) traceState = traceState.set('oid', orgId);
 					if (isDevMode) traceState = traceState.set('d', '1');
@@ -223,6 +232,7 @@ export function createOtelMiddleware() {
 					const shouldSendSession = !!(orgId && projectId);
 					if (shouldSendSession && sessionEventProvider) {
 						try {
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							const routeId = (c as any).var?.routeId || '';
 							await sessionEventProvider.start({
 								id: sessionId,
@@ -244,10 +254,12 @@ export function createOtelMiddleware() {
 
 					try {
 						await next();
-
 						// Save session/thread and send events
+						internal.info('[session] saving session %s (thread: %s)', sessionId, thread.id);
 						await sessionProvider.save(session);
+						internal.info('[session] session saved, now saving thread');
 						await threadProvider.save(thread);
+						internal.info('[session] thread saved');
 						span.setStatus({ code: SpanStatusCode.OK });
 					} catch (ex) {
 						if (ex instanceof Error) {
@@ -260,15 +272,32 @@ export function createOtelMiddleware() {
 						throw ex;
 					} finally {
 						// Send session complete event
+						internal.info(
+							'[session] shouldSendSession: %s, hasSessionEventProvider: %s',
+							shouldSendSession,
+							!!sessionEventProvider
+						);
 						if (shouldSendSession && sessionEventProvider) {
 							try {
+								const userData = session.serializeUserData();
+								internal.info(
+									'[session] sending session complete event, userData: %s',
+									userData ? `${userData.length} bytes` : 'none'
+								);
+								// eslint-disable-next-line @typescript-eslint/no-explicit-any
+								const agentIdsSet = (c as any).get('agentIds') as Set<string> | undefined;
+								const agentIds = agentIdsSet ? [...agentIdsSet].filter(Boolean) : undefined;
+								internal.info('[session] agentIds: %o', agentIds);
 								await sessionEventProvider.complete({
 									id: sessionId,
 									threadId: thread.empty() ? null : thread.id,
 									statusCode: c.res?.status ?? 200,
-									agentIds: Array.from(agentIds),
+									agentIds: agentIds?.length ? agentIds : undefined,
+									userData,
 								});
-							} catch (_ex) {
+								internal.info('[session] session complete event sent');
+							} catch (ex) {
+								internal.info('[session] session complete event failed: %s', ex);
 								// Silently ignore session complete errors - don't block response
 							}
 						}

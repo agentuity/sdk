@@ -7,7 +7,7 @@ import type { GeneratedAppState } from './state';
 import './state';
 
 // Import from actual package location
-import { createRouter as baseCreateRouter, type Env } from '../../../../../node_modules/@agentuity/runtime/src/index';
+import { createRouter as baseCreateRouter, type Env } from '../../node_modules/@agentuity/runtime/src/index';
 import type { Hono } from 'hono';
 
 // Type aliases to avoid repeating the generic parameter
@@ -50,7 +50,7 @@ export function createRouter(): AppRouter {
 }
 
 // Re-export everything else
-export * from '../../../../../node_modules/@agentuity/runtime/src/index';
+export * from '../../node_modules/@agentuity/runtime/src/index';
 
 // FOUND AN ERROR IN THIS FILE?
 // Please file an issue at https://github.com/agentuity/sdk/issues
