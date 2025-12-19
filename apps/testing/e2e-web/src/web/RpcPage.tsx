@@ -1,29 +1,27 @@
-import { useAPI } from '@agentuity/react';
+import { createClient } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
-import { StreamsPage } from './StreamsPage';
-import { RpcPage } from './RpcPage';
-import { RpcTestPage } from './RpcTestPage';
+import type { RPCRouteRegistry } from '@agentuity/react';
 
-const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
+const client = createClient<RPCRouteRegistry>();
 
-export function App() {
-	// Simple client-side routing
-	const path = window.location.pathname;
-
-	if (path === '/streams') {
-		return <StreamsPage />;
-	}
-
-	if (path === '/rpc') {
-		return <RpcPage />;
-	}
-
-	if (path === '/rpc-test') {
-		return <RpcTestPage />;
-	}
-
+export function RpcPage() {
 	const [name, setName] = useState('World');
-	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
+	const [greeting, setGreeting] = useState<string | null>(null);
+	const [running, setRunning] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	const handleInvoke = async () => {
+		setRunning(true);
+		setError(null);
+		try {
+			const result = await client.hello.post({ name });
+			setGreeting(result);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setRunning(false);
+		}
+	};
 
 	return (
 		<div className="app-container">
@@ -53,16 +51,20 @@ export function App() {
 						/>
 					</svg>
 
-					<h1 className="title">Welcome to Agentuity</h1>
+					<h1 className="title">RPC Client Test</h1>
 
 					<p className="subtitle">
-						The <span className="italic">Full-Stack</span> Platform for AI Agents
+						Testing <span className="italic">createClient()</span> API
 					</p>
+
+					<a href="/" className="back-link">
+						← Back to Home
+					</a>
 				</div>
 
 				<div className="card card-interactive">
 					<h2 className="card-title">
-						Try the <span className="highlight">Hello Agent</span>
+						Try the <span className="highlight">RPC Client</span>
 					</h2>
 
 					<div className="input-group">
@@ -81,7 +83,7 @@ export function App() {
 							<button
 								className={`button ${running ? 'disabled' : ''}`}
 								disabled={running}
-								onClick={() => invoke({ name })}
+								onClick={handleInvoke}
 								type="button"
 							>
 								{running ? 'Running...' : 'Say Hello'}
@@ -89,110 +91,72 @@ export function App() {
 						</div>
 					</div>
 
+					{error && <div className="error">{error}</div>}
+
 					<div className="output" data-loading={!greeting}>
 						{greeting ?? 'Waiting for request'}
 					</div>
 				</div>
 
 				<div className="card">
-					<h3 className="section-title">Next Steps</h3>
+					<h3 className="section-title">RPC Client Features</h3>
 
 					<div className="steps-list">
 						{[
 							{
-								key: 'customize-agent',
-								title: 'Customize your agent',
+								key: 'type-safe',
+								title: 'Type-safe API calls',
 								text: (
 									<>
-										Edit <code>src/agent/hello/agent.ts</code> to change how your agent
-										responds.
+										The client automatically infers types from <code>RouteRegistry</code>
 									</>
 								),
 							},
 							{
-								key: 'add-routes',
-								title: 'Add new API routes',
+								key: 'simple',
+								title: 'Simple API',
 								text: (
 									<>
-										Create new files in <code>src/web/</code> to expose more endpoints.
+										Use <code>client.post.api.hello.run()</code> to invoke endpoints
 									</>
 								),
 							},
 							{
-								key: 'update-frontend',
-								title: 'Update the frontend',
+								key: 'methods',
+								title: 'Multiple methods',
 								text: (
 									<>
-										Modify <code>src/web/App.tsx</code> to build your custom UI.
+										Supports <code>.run()</code>, <code>.websocket()</code>,{' '}
+										<code>.eventstream()</code>, and <code>.stream()</code>
 									</>
 								),
 							},
-							{
-								key: 'try-rpc',
-								title: (
-									<>
-										Try{' '}
-										<a href="/rpc" className="workbench-link">
-											RPC Client
-										</a>
-									</>
-								),
-								text: <>Test the new type-safe RPC client API.</>,
-							},
-							{
-								key: 'try-rpc-all',
-								title: (
-									<>
-										Try{' '}
-										<a href="/rpc-test" className="workbench-link">
-											RPC All Methods
-										</a>
-									</>
-								),
-								text: <>Test all RPC client methods (run, websocket, eventstream).</>,
-							},
-							WORKBENCH_PATH
-								? {
-										key: 'try-workbench',
-										title: (
-											<>
-												Try{' '}
-												<a href={WORKBENCH_PATH} className="workbench-link">
-													Workbench
-												</a>
-											</>
-										),
-										text: <>A chat interface to test your agents in isolation.</>,
-									}
-								: null,
-						]
-							.filter(Boolean)
-							.map((step) => (
-								<div key={step!.key} className="step">
-									<div className="step-icon">
-										<svg
-											aria-hidden="true"
-											className="checkmark"
-											fill="none"
-											height="24"
-											stroke="#00c951"
-											strokeLinecap="round"
-											strokeLinejoin="round"
-											strokeWidth="2"
-											viewBox="0 0 24 24"
-											width="24"
-											xmlns="http://www.w3.org/2000/svg"
-										>
-											<path d="M20 6 9 17l-5-5"></path>
-										</svg>
-									</div>
-
-									<div>
-										<h4 className="step-title">{step!.title}</h4>
-										<p className="step-text">{step!.text}</p>
-									</div>
+						].map((step) => (
+							<div key={step.key} className="step">
+								<div className="step-icon">
+									<svg
+										aria-hidden="true"
+										className="checkmark"
+										fill="none"
+										height="24"
+										stroke="#00c951"
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth="2"
+										viewBox="0 0 24 24"
+										width="24"
+										xmlns="http://www.w3.org/2000/svg"
+									>
+										<path d="M20 6 9 17l-5-5"></path>
+									</svg>
 								</div>
-							))}
+
+								<div>
+									<h4 className="step-title">{step.title}</h4>
+									<p className="step-text">{step.text}</p>
+								</div>
+							</div>
+						))}
 					</div>
 				</div>
 			</div>
@@ -232,43 +196,14 @@ export function App() {
 						text-align: center;
 					}
 
-					.workbench-link {
-						background: linear-gradient(90deg, #155e75, #3b82f6, #9333ea, #155e75);
-						background-size: 300% 100%;
-						background-clip: text;
-						-webkit-background-clip: text;
-						-webkit-text-fill-color: transparent;
-						color: transparent;
+					.back-link {
+						color: #3b82f6;
 						text-decoration: none;
-						animation: gradientShift 2s ease-in-out infinite alternate;
-						position: relative;
+						margin-top: 1rem;
 					}
 
-					.workbench-link::after {
-						content: '';
-						position: absolute;
-						bottom: 0;
-						left: 0;
-						width: 100%;
-						height: 1px;
-						background: linear-gradient(90deg, #155e75, #3b82f6, #9333ea, #155e75);
-						background-size: 300% 100%;
-						animation: gradientShift 2s ease-in-out infinite alternate;
-						opacity: 0;
-						transition: opacity 0.3s ease;
-					}
-
-					.workbench-link:hover::after {
-						opacity: 1;
-					}
-
-					@keyframes gradientShift {
-						0% {
-							background-position: 0% 50%;
-						}
-						100% {
-							background-position: 100% 50%;
-						}
+					.back-link:hover {
+						text-decoration: underline;
 					}
 
 					.logo {
@@ -383,6 +318,14 @@ export function App() {
 					.button.disabled {
 						cursor: not-allowed;
 						opacity: 0.5;
+					}
+
+					.error {
+						background: #7f1d1d;
+						border: 1px solid #991b1b;
+						border-radius: 0.375rem;
+						color: #fca5a5;
+						padding: 0.75rem 1rem;
 					}
 
 					.output {

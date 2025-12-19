@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createContext, useContext, type Context } from 'react';
 import { defaultBaseUrl } from '@agentuity/frontend';
+import { setGlobalBaseUrl, setGlobalAuthHeader } from './client';
 
 export interface ContextProviderArgs {
 	children?: React.ReactNode;
@@ -24,11 +25,22 @@ export const AgentuityProvider = ({
 }: ContextProviderArgs): React.JSX.Element => {
 	const [authHeader, setAuthHeader] = useState<string | null>(null);
 	const [authLoading, setAuthLoading] = useState<boolean>(false);
+	const resolvedBaseUrl = baseUrl || defaultBaseUrl;
+
+	// Set global baseUrl for RPC clients
+	useEffect(() => {
+		setGlobalBaseUrl(resolvedBaseUrl);
+	}, [resolvedBaseUrl]);
+
+	// Sync authHeader to global state for RPC clients
+	useEffect(() => {
+		setGlobalAuthHeader(authHeader);
+	}, [authHeader]);
 
 	return (
 		<AgentuityContext.Provider
 			value={{
-				baseUrl: baseUrl || defaultBaseUrl,
+				baseUrl: resolvedBaseUrl,
 				authHeader,
 				setAuthHeader,
 				authLoading,

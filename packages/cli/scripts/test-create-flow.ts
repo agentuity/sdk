@@ -165,6 +165,7 @@ async function linkLocalPackages(): Promise<boolean> {
 	const packagesToInstall = [
 		'core',
 		'schema',
+		'frontend',
 		'react',
 		'auth',
 		'runtime',

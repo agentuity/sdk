@@ -17,6 +17,8 @@
 		"test:e2e:ui": "bunx playwright test --ui",
 		"test:e2e:headed": "bunx playwright test --headed",
 		"test:templates": "bun ./scripts/test-templates.ts",
+		"test:cloud": "cd apps/testing/cloud-deployment && bun run test",
+		"test:create": "bun ./packages/cli/scripts/test-create-flow.ts",
 		"typecheck:apps": "bun run --filter='./apps/testing/integration-suite' typecheck",
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
 		"typecheck": "bun run typecheck:apps && bun run typecheck:packages",

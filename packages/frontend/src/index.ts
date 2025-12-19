@@ -18,3 +18,15 @@ export {
 	type EventStreamManagerOptions,
 	type EventStreamManagerState,
 } from './eventstream-manager';
+
+// Export client implementation (local to this package)
+export { createClient } from './client/index';
+export type {
+	Client,
+	ClientOptions,
+	RouteEndpoint,
+	WebSocketClient,
+	EventStreamClient,
+	StreamClient,
+	EventHandler,
+} from './client/types';

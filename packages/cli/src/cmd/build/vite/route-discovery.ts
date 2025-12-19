@@ -33,8 +33,12 @@ export interface RouteInfo {
 	routeType: 'api' | 'sms' | 'email' | 'cron' | 'websocket' | 'sse' | 'stream';
 	agentVariable?: string;
 	agentImportPath?: string;
+	agentName?: string;
+	agentDescription?: string;
 	inputSchemaVariable?: string;
 	outputSchemaVariable?: string;
+	inputSchemaCode?: string;
+	outputSchemaCode?: string;
 	stream?: boolean;
 }
 

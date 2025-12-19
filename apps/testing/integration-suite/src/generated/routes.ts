@@ -5,6 +5,7 @@ import type stateReaderAgent from '../agent/state/reader-agent.js';
 import type stateWriterAgent from '../agent/state/writer-agent.js';
 import type { InferInput, InferOutput } from '@agentuity/core';
 
+import { createClient } from '@agentuity/react';
 // ============================================================================
 // Route Schema Type Exports
 // ============================================================================
@@ -252,6 +253,395 @@ declare module '@agentuity/react' {
 		stream: false;
 	};
 	}
+
+	/**
+	 * RPC Route Registry
+	 * 
+	 * Nested structure for RPC-style client access (e.g., client.hello.post())
+	 * Used by createClient() from @agentuity/core for type-safe RPC calls.
+	 */
+	export interface RPCRouteRegistry {
+		test: {
+			run: {
+				/**
+				 * Route: GET /api/test/run
+				 */
+				get: { input: GETApiTestRunInput; output: GETApiTestRunOutput; type: 'api' };
+			};
+			suites: {
+				/**
+				 * Route: GET /api/test/suites
+				 */
+				get: { input: GETApiTestSuitesInput; output: GETApiTestSuitesOutput; type: 'api' };
+			};
+			list: {
+				/**
+				 * Route: GET /api/test/list
+				 */
+				get: { input: GETApiTestListInput; output: GETApiTestListOutput; type: 'api' };
+			};
+		};
+		health: {
+			/**
+			 * Route: GET /api/health
+			 */
+			get: { input: GETApiHealthInput; output: GETApiHealthOutput; type: 'api' };
+		};
+		agent: {
+			state: {
+				/**
+				 * Route: POST /api/agent/state
+				 */
+				post: { input: POSTApiAgentStateInput; output: POSTApiAgentStateOutput; type: 'api' };
+			};
+			state-reader: {
+				/**
+				 * Route: POST /api/agent/state-reader
+				 */
+				post: { input: POSTApiAgentStateReaderInput; output: POSTApiAgentStateReaderOutput; type: 'api' };
+			};
+			state-writer: {
+				/**
+				 * Route: POST /api/agent/state-writer
+				 */
+				post: { input: POSTApiAgentStateWriterInput; output: POSTApiAgentStateWriterOutput; type: 'api' };
+			};
+		};
+		custom-name: {
+			custom: {
+				/**
+				 * Route: GET /api/custom-name/custom
+				 */
+				get: { input: GETApiCustomNameCustomInput; output: GETApiCustomNameCustomOutput; type: 'api' };
+			};
+			test: {
+				/**
+				 * Route: POST /api/custom-name/test
+				 */
+				post: { input: POSTApiCustomNameTestInput; output: POSTApiCustomNameTestOutput; type: 'api' };
+			};
+		};
+		users: {
+			profile: {
+				/**
+				 * Route: GET /api/users/profile
+				 */
+				get: { input: GETApiUsersProfileInput; output: GETApiUsersProfileOutput; type: 'api' };
+				/**
+				 * Route: PATCH /api/users/profile
+				 */
+				patch: { input: PATCHApiUsersProfileInput; output: PATCHApiUsersProfileOutput; type: 'api' };
+				/**
+				 * Route: DELETE /api/users/profile
+				 */
+				delete: { input: DELETEApiUsersProfileInput; output: DELETEApiUsersProfileOutput; type: 'api' };
+			};
+		};
+		my-service: {
+			status: {
+				/**
+				 * Route: GET /api/my-service/status
+				 */
+				get: { input: GETApiMyServiceStatusInput; output: GETApiMyServiceStatusOutput; type: 'api' };
+			};
+			info: {
+				/**
+				 * Route: GET /api/my-service/info
+				 */
+				get: { input: GETApiMyServiceInfoInput; output: GETApiMyServiceInfoOutput; type: 'api' };
+			};
+		};
+		auth: {
+			login: {
+				/**
+				 * Route: POST /api/auth/login
+				 */
+				post: { input: POSTApiAuthLoginInput; output: POSTApiAuthLoginOutput; type: 'api' };
+			};
+			logout: {
+				/**
+				 * Route: POST /api/auth/logout
+				 */
+				post: { input: POSTApiAuthLogoutInput; output: POSTApiAuthLogoutOutput; type: 'api' };
+			};
+			verify: {
+				/**
+				 * Route: GET /api/auth/verify
+				 */
+				get: { input: GETApiAuthVerifyInput; output: GETApiAuthVerifyOutput; type: 'api' };
+			};
+		};
+		middleware-test: {
+			check-all: {
+				/**
+				 * Route: GET /api/middleware-test/check-all
+				 */
+				get: { input: GETApiMiddlewareTestCheckAllInput; output: GETApiMiddlewareTestCheckAllOutput; type: 'api' };
+			};
+			query-database: {
+				/**
+				 * Route: GET /api/middleware-test/query-database
+				 */
+				get: { input: GETApiMiddlewareTestQueryDatabaseInput; output: GETApiMiddlewareTestQueryDatabaseOutput; type: 'api' };
+			};
+			check-auth: {
+				/**
+				 * Route: GET /api/middleware-test/check-auth
+				 */
+				get: { input: GETApiMiddlewareTestCheckAuthInput; output: GETApiMiddlewareTestCheckAuthOutput; type: 'api' };
+			};
+			analytics-info: {
+				/**
+				 * Route: GET /api/middleware-test/analytics-info
+				 */
+				get: { input: GETApiMiddlewareTestAnalyticsInfoInput; output: GETApiMiddlewareTestAnalyticsInfoOutput; type: 'api' };
+			};
+		};
+		ws: {
+			echo: {
+				/**
+				 * Route: POST /api/ws/echo
+				 */
+				websocket: { input: POSTApiWsEchoInput; output: POSTApiWsEchoOutput; type: 'websocket' };
+			};
+			broadcast: {
+				/**
+				 * Route: POST /api/ws/broadcast
+				 */
+				websocket: { input: POSTApiWsBroadcastInput; output: POSTApiWsBroadcastOutput; type: 'websocket' };
+			};
+			counter: {
+				/**
+				 * Route: POST /api/ws/counter
+				 */
+				websocket: { input: POSTApiWsCounterInput; output: POSTApiWsCounterOutput; type: 'websocket' };
+			};
+		};
+		sse: {
+			simple: {
+				/**
+				 * Route: POST /api/sse/simple
+				 */
+				eventstream: { input: POSTApiSseSimpleInput; output: POSTApiSseSimpleOutput; type: 'sse' };
+			};
+			events: {
+				/**
+				 * Route: POST /api/sse/events
+				 */
+				eventstream: { input: POSTApiSseEventsInput; output: POSTApiSseEventsOutput; type: 'sse' };
+			};
+			counter: {
+				/**
+				 * Route: POST /api/sse/counter
+				 */
+				eventstream: { input: POSTApiSseCounterInput; output: POSTApiSseCounterOutput; type: 'sse' };
+			};
+			long-lived: {
+				/**
+				 * Route: POST /api/sse/long-lived
+				 */
+				eventstream: { input: POSTApiSseLongLivedInput; output: POSTApiSseLongLivedOutput; type: 'sse' };
+			};
+			abort-test: {
+				/**
+				 * Route: POST /api/sse/abort-test
+				 */
+				eventstream: { input: POSTApiSseAbortTestInput; output: POSTApiSseAbortTestOutput; type: 'sse' };
+			};
+		};
+	}
+}
+
+/**
+ * Runtime metadata for RPC routes.
+ * Contains route type information for client routing decisions.
+ * @internal
+ */
+const _rpcRouteMetadata = {
+		"test": {
+				"run": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"suites": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"list": {
+						"get": {
+								"type": "api"
+						}
+				}
+		},
+		"health": {
+				"get": {
+						"type": "api"
+				}
+		},
+		"agent": {
+				"state": {
+						"post": {
+								"type": "api"
+						}
+				},
+				"state-reader": {
+						"post": {
+								"type": "api"
+						}
+				},
+				"state-writer": {
+						"post": {
+								"type": "api"
+						}
+				}
+		},
+		"custom-name": {
+				"custom": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"test": {
+						"post": {
+								"type": "api"
+						}
+				}
+		},
+		"users": {
+				"profile": {
+						"get": {
+								"type": "api"
+						},
+						"patch": {
+								"type": "api"
+						},
+						"delete": {
+								"type": "api"
+						}
+				}
+		},
+		"my-service": {
+				"status": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"info": {
+						"get": {
+								"type": "api"
+						}
+				}
+		},
+		"auth": {
+				"login": {
+						"post": {
+								"type": "api"
+						}
+				},
+				"logout": {
+						"post": {
+								"type": "api"
+						}
+				},
+				"verify": {
+						"get": {
+								"type": "api"
+						}
+				}
+		},
+		"middleware-test": {
+				"check-all": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"query-database": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"check-auth": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"analytics-info": {
+						"get": {
+								"type": "api"
+						}
+				}
+		},
+		"ws": {
+				"echo": {
+						"websocket": {
+								"type": "websocket"
+						}
+				},
+				"broadcast": {
+						"websocket": {
+								"type": "websocket"
+						}
+				},
+				"counter": {
+						"websocket": {
+								"type": "websocket"
+						}
+				}
+		},
+		"sse": {
+				"simple": {
+						"eventstream": {
+								"type": "sse"
+						}
+				},
+				"events": {
+						"eventstream": {
+								"type": "sse"
+						}
+				},
+				"counter": {
+						"eventstream": {
+								"type": "sse"
+						}
+				},
+				"long-lived": {
+						"eventstream": {
+								"type": "sse"
+						}
+				},
+				"abort-test": {
+						"eventstream": {
+								"type": "sse"
+						}
+				}
+		}
+} as const;
+
+// Store metadata globally for createAPIClient() to access
+if (typeof globalThis !== 'undefined') {
+	(globalThis as any).__rpcRouteMetadata = _rpcRouteMetadata;
+}
+
+/**
+ * Create a type-safe API client with optional configuration.
+ * 
+ * @example
+ * ```typescript
+ * import { createAPIClient } from './generated/routes';
+ * 
+ * // Basic usage
+ * const api = createAPIClient();
+ * const result = await api.hello.post({ name: 'World' });
+ * 
+ * // With custom headers
+ * const api = createAPIClient({ headers: { 'X-Custom-Header': 'value' } });
+ * await api.hello.post({ name: 'World' });
+ * ```
+ */
+export function createAPIClient(options?: Parameters<typeof createClient>[0]): import('@agentuity/react').Client<import('@agentuity/react').RPCRouteRegistry> {
+	return createClient(options || {}, _rpcRouteMetadata) as any;
 }
 
 // FOUND AN ERROR IN THIS FILE?

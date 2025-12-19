@@ -9,6 +9,14 @@ export {
 	type AuthContextValue,
 } from './context';
 export {
+	createClient,
+	createAPIClient,
+	setGlobalBaseUrl,
+	getGlobalBaseUrl,
+	setGlobalAuthHeader,
+	getGlobalAuthHeader,
+} from './client';
+export {
 	useWebsocket,
 	type WebSocketRouteKey,
 	type WebSocketRouteInput,
@@ -56,4 +64,12 @@ export {
 	type EventStreamCallbacks,
 	type EventStreamManagerOptions,
 	type EventStreamManagerState,
+	// Client type exports (createClient is exported from ./client.ts)
+	type Client,
+	type ClientOptions,
+	type RouteEndpoint,
+	type WebSocketClient,
+	type EventStreamClient,
+	type StreamClient,
+	type EventHandler,
 } from '@agentuity/frontend';
