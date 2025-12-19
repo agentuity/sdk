@@ -156,6 +156,7 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 	const packagesToPack = [
 		'core',
 		'schema',
+		'frontend',
 		'react',
 		'auth',
 		'runtime',
