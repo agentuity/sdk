@@ -166,6 +166,12 @@ jobs:
          - name: Install Playwright browsers
            run: bunx playwright install --with-deps chromium
 
+         - name: Clean nested node_modules
+           run: |
+             # Remove nested @agentuity packages to prevent EMFILE errors
+             find . -path '*/node_modules/@agentuity/*/node_modules/@agentuity' -type d -exec rm -rf {} + 2>/dev/null || true
+             echo "Cleaned nested @agentuity dependencies"
+
          - name: Build packages
            run: bun run build
 
