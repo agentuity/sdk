@@ -364,6 +364,15 @@ export async function getAuth(): Promise<AuthData | null> {
 		};
 	}
 
+	// Priority 1a: Allow automated login from environment variables (this is set in deployment)
+	if (process.env.AGENTUITY_API_KEY) {
+		return {
+			apiKey: process.env.AGENTUITY_API_KEY,
+			userId: '',
+			expires: new Date(Date.now() + 30 * 60_000),
+		};
+	}
+
 	// Priority 2: On macOS, try to read from Keychain
 	if (isMacOS()) {
 		try {
