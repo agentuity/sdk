@@ -29,7 +29,7 @@ function createLoggerWithChildTracking(): {
 			error: noop,
 			fatal: (() => {
 				throw new Error('fatal');
-			}) as any,
+			}) as Logger['fatal'],
 			child: (opts: Record<string, unknown>) => createLogger(opts),
 		};
 	};
@@ -70,7 +70,7 @@ describe('OpenTelemetry Attributes', () => {
 				schema: {
 					output: z.string(),
 				},
-				handler: async (ctx) => {
+				handler: async () => {
 					return 'done';
 				},
 			});
@@ -93,7 +93,7 @@ describe('OpenTelemetry Attributes', () => {
 				schema: {
 					output: z.string(),
 				},
-				handler: async (ctx) => {
+				handler: async () => {
 					return 'done';
 				},
 			});
@@ -122,7 +122,7 @@ describe('OpenTelemetry Attributes', () => {
 				schema: {
 					output: z.string(),
 				},
-				handler: async (ctx) => {
+				handler: async () => {
 					return 'done';
 				},
 			});
