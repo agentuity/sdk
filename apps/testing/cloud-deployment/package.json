@@ -15,7 +15,6 @@
 		"@agentuity/core": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/schema": "workspace:*",
-		"@agentuity/server": "workspace:*",
 		"hono": "^4.7.13"
 	},
 	"devDependencies": {
