@@ -45,12 +45,12 @@ jobs:
            uses: oven-sh/setup-bun@v2
 
          - name: Install dependencies
-           run: bun install
+            run: bun install
 
          - name: Link workspace packages in test apps
             run: bash scripts/ci-link-workspace.sh
 
-          - name: Setup test credentials
+         - name: Setup test credentials
             run: |
                # Generate CLI API key for authentication
                APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
@@ -94,10 +94,10 @@ jobs:
          - name: Build packages
             run: bun run build
 
-          - name: Link workspace packages in test apps
+         - name: Link workspace packages in test apps
             run: bash scripts/ci-link-workspace.sh
 
-          - name: Setup test credentials
+         - name: Setup test credentials
             run: |
                # Generate CLI API key for cloud operations
                APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
@@ -185,10 +185,10 @@ jobs:
          - name: Build packages
             run: bun run build
 
-          - name: Link workspace packages in test apps
+         - name: Link workspace packages in test apps
             run: bash scripts/ci-link-workspace.sh
 
-          - name: Run Playwright E2E tests
+         - name: Run Playwright E2E tests
             run: bun run test:e2e
 
          - name: Upload Playwright report
