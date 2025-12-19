@@ -14,12 +14,14 @@ const THREAD_EXPIRY = 3600; // 1 hour
 
 class TestThread implements Thread {
 	id: string;
+	metadata: Record<string, unknown>;
 	private _state: Map<string, unknown>;
 	private dirty = false;
 	private listeners = new Map<'destroyed', Set<Function>>();
 
 	constructor(id: string, initialState?: Record<string, unknown>) {
 		this.id = id;
+		this.metadata = {};
 		this._state = new Map(Object.entries(initialState || {}));
 	}
 
