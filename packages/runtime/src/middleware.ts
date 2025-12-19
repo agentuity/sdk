@@ -22,6 +22,8 @@ import {
 } from '@opentelemetry/api';
 import { TraceState } from '@opentelemetry/core';
 import * as runtimeConfig from './_config';
+import { getSessionEventProvider } from './_services';
+import { internal } from './logger/internal';
 
 const SESSION_HEADER = 'x-session-id';
 const THREAD_HEADER = 'x-thread-id';
@@ -74,7 +76,8 @@ export interface MiddlewareConfig {
  * Create base middleware that sets up context variables
  */
 export function createBaseMiddleware(config: MiddlewareConfig) {
-	return createMiddleware<Env>(async (c, next) => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return createMiddleware<Env<any>>(async (c, next) => {
 		c.set('logger', config.logger);
 		c.set('tracer', config.tracer);
 		c.set('meter', config.meter);
@@ -154,7 +157,8 @@ export function createCorsMiddleware(corsOptions?: Parameters<typeof cors>[0]) {
  * This is the critical middleware that creates AgentContext
  */
 export function createOtelMiddleware() {
-	return createMiddleware<Env>(async (c, next) => {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return createMiddleware<Env<any>>(async (c, next) => {
 		// Import providers dynamically to avoid circular deps
 		const { getThreadProvider, getSessionProvider } = await import('./_services');
 		const WaitUntilHandler = (await import('./_waituntil')).default;
@@ -188,6 +192,14 @@ export function createOtelMiddleware() {
 					const deploymentId = runtimeConfig.getDeploymentId();
 					const isDevMode = runtimeConfig.isDevMode();
 
+					internal.info(
+						'[session] config: orgId=%s, projectId=%s, deploymentId=%s, isDevMode=%s',
+						orgId ?? 'NOT SET (AGENTUITY_CLOUD_ORG_ID)',
+						projectId ?? 'NOT SET (AGENTUITY_CLOUD_PROJECT_ID)',
+						deploymentId ?? 'none',
+						isDevMode
+					);
+
 					if (projectId) traceState = traceState.set('pid', projectId);
 					if (orgId) traceState = traceState.set('oid', orgId);
 					if (isDevMode) traceState = traceState.set('d', '1');
@@ -211,17 +223,45 @@ export function createOtelMiddleware() {
 					c.set('session', session);
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('waitUntilHandler', handler);
+					const agentIds = new Set<string>();
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					(c as any).set('agentIds', new Set<string>());
+					(c as any).set('agentIds', agentIds);
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					(c as any).set('trigger', 'api');
 
+					// Send session start event (so evalruns can reference this session)
+					const sessionEventProvider = getSessionEventProvider();
+					const shouldSendSession = !!(orgId && projectId);
+					if (shouldSendSession && sessionEventProvider) {
+						try {
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							const routeId = (c as any).var?.routeId || '';
+							await sessionEventProvider.start({
+								id: sessionId,
+								threadId: thread.id,
+								orgId,
+								projectId,
+								deploymentId: deploymentId || undefined,
+								devmode: isDevMode,
+								trigger: 'api',
+								routeId,
+								environment: runtimeConfig.getEnvironment(),
+								url: c.req.path,
+								method: c.req.method,
+							});
+						} catch (_ex) {
+							// Silently ignore session start errors - don't block request
+						}
+					}
+
 					try {
 						await next();
-
 						// Save session/thread and send events
+						internal.info('[session] saving session %s (thread: %s)', sessionId, thread.id);
 						await sessionProvider.save(session);
+						internal.info('[session] session saved, now saving thread');
 						await threadProvider.save(thread);
+						internal.info('[session] thread saved');
 						span.setStatus({ code: SpanStatusCode.OK });
 					} catch (ex) {
 						if (ex instanceof Error) {
@@ -233,6 +273,37 @@ export function createOtelMiddleware() {
 						});
 						throw ex;
 					} finally {
+						// Send session complete event
+						internal.info(
+							'[session] shouldSendSession: %s, hasSessionEventProvider: %s',
+							shouldSendSession,
+							!!sessionEventProvider
+						);
+						if (shouldSendSession && sessionEventProvider) {
+							try {
+								const userData = session.serializeUserData();
+								internal.info(
+									'[session] sending session complete event, userData: %s',
+									userData ? `${userData.length} bytes` : 'none'
+								);
+								// eslint-disable-next-line @typescript-eslint/no-explicit-any
+								const agentIdsSet = (c as any).get('agentIds') as Set<string> | undefined;
+								const agentIds = agentIdsSet ? [...agentIdsSet].filter(Boolean) : undefined;
+								internal.info('[session] agentIds: %o', agentIds);
+								await sessionEventProvider.complete({
+									id: sessionId,
+									threadId: thread.empty() ? null : thread.id,
+									statusCode: c.res?.status ?? 200,
+									agentIds: agentIds?.length ? agentIds : undefined,
+									userData,
+								});
+								internal.info('[session] session complete event sent');
+							} catch (ex) {
+								internal.info('[session] session complete event failed: %s', ex);
+								// Silently ignore session complete errors - don't block response
+							}
+						}
+
 						const headers: Record<string, string> = {};
 						propagation.inject(context.active(), headers);
 						for (const key of Object.keys(headers)) {

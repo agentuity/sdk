@@ -34,6 +34,7 @@ import { getEvalRunEventProvider } from './_services';
 import * as runtimeConfig from './_config';
 import type { AppState } from './index';
 import { validateSchema, formatValidationIssues } from './_validation';
+import { getAgentMetadataByName } from './_metadata';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
@@ -1527,6 +1528,7 @@ export function createAgent<
 			'@agentuity/agentInstanceId': agent.metadata.agentId,
 			'@agentuity/agentDescription': agent.metadata.description,
 			'@agentuity/agentName': agent.metadata.name,
+			'@agentuity/threadId': agentCtx.thread.id,
 		};
 
 		// Set agent attributes on the current active span
@@ -1538,15 +1540,15 @@ export function createAgent<
 		if (inHTTPContext()) {
 			const honoCtx = privateContext(getHTTPContext());
 			if (honoCtx.var.agentIds) {
-				honoCtx.var.agentIds.add(agent.metadata.id);
-				honoCtx.var.agentIds.add(agent.metadata.agentId);
+				if (agent.metadata.id) honoCtx.var.agentIds.add(agent.metadata.id);
+				if (agent.metadata.agentId) honoCtx.var.agentIds.add(agent.metadata.agentId);
 			}
 		} else {
 			// For standalone contexts, check for AGENT_IDS symbol
 			const agentIds = (agentCtx as any)[AGENT_IDS] as Set<string> | undefined;
 			if (agentIds) {
-				agentIds.add(agent.metadata.id);
-				agentIds.add(agent.metadata.agentId);
+				if (agent.metadata.id) agentIds.add(agent.metadata.id);
+				if (agent.metadata.agentId) agentIds.add(agent.metadata.agentId);
 			}
 		}
 
@@ -1667,7 +1669,7 @@ export function createAgent<
 
 	// Build metadata - merge user-provided metadata with defaults
 	// The build plugin injects metadata via config.metadata during AST transformation
-	const metadata: Partial<AgentMetadata> = {
+	let metadata: Partial<AgentMetadata> = {
 		// Defaults (used when running without build, e.g., dev mode)
 		name,
 		description: config.description,
@@ -1680,6 +1682,26 @@ export function createAgent<
 		// Merge in build-time injected metadata (overrides defaults)
 		...config.metadata,
 	};
+
+	// If id/agentId are empty, try to load from agentuity.metadata.json
+	if (!metadata.id || !metadata.agentId) {
+		const fileMetadata = getAgentMetadataByName(name);
+		if (fileMetadata) {
+			internal.info(
+				'[agent] loaded metadata for "%s" from file: id=%s, agentId=%s',
+				name,
+				fileMetadata.id,
+				fileMetadata.agentId
+			);
+			metadata = {
+				...metadata,
+				id: fileMetadata.id || metadata.id,
+				agentId: fileMetadata.agentId || metadata.agentId,
+				filename: fileMetadata.filename || metadata.filename,
+				version: fileMetadata.version || metadata.version,
+			};
+		}
+	}
 
 	const agent: any = {
 		handler,
@@ -2140,6 +2162,7 @@ const runWithSpan = async <
 		'@agentuity/agentInstanceId': agent.metadata.agentId,
 		'@agentuity/agentDescription': agent.metadata.description,
 		'@agentuity/agentName': agent.metadata.name,
+		'@agentuity/threadId': ctx.var.thread.id,
 	});
 
 	const spanId = span.spanContext().spanId;
@@ -2244,9 +2267,11 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 			const agentKey = toCamelCase(agentName);
 			const agent = agentsObj[agentKey];
 			const _ctx = privateContext(ctx);
+			// we add both so that you can query by either
 			if (agent?.metadata?.id) {
-				// we add both so that you can query by either
 				_ctx.var.agentIds.add(agent.metadata.id);
+			}
+			if (agent?.metadata?.agentId) {
 				_ctx.var.agentIds.add(agent.metadata.agentId);
 			}
 		}

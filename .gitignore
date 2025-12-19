@@ -52,5 +52,5 @@ packages/cli/test-interop/go-crypto-tool
 test-results/
 playwright-report/
 
-/TODO.md
-/PR.md
+/TODO*.md
+/PR*.md
