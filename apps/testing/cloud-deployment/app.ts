@@ -1,5 +1,5 @@
 import { createApp } from '@agentuity/runtime';
-import { bootstrapRuntimeEnv } from '@agentuity/cli';
+import { bootstrapRuntimeEnv } from '@agentuity/runtime';
 
 // Bootstrap runtime environment based on active profile
 // This loads .env.{profile} and agentuity.{profile}.json

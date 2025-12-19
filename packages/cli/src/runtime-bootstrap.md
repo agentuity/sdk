@@ -43,7 +43,7 @@ Call `bootstrapRuntimeEnv()` at the top of your `app.ts` **before** `createApp()
 
 ```ts
 import { createApp } from '@agentuity/runtime';
-import { bootstrapRuntimeEnv } from '@agentuity/cli';
+import { bootstrapRuntimeEnv } from '@agentuity/runtime';
 
 // Bootstrap runtime environment based on active profile
 await bootstrapRuntimeEnv();
