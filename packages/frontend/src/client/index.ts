@@ -28,28 +28,28 @@ function resolveHeaders(
  * Create a type-safe API client from a RouteRegistry.
  *
  * Uses a Proxy to build up the path as you navigate the object,
- * then executes the request when you call a terminal method (.run, .websocket, etc.).
+ * then executes the request when you call a terminal method (.post(), .get(), .websocket(), etc.).
  *
  * @example
  * ```typescript
- * import { createClient } from '@agentuity/core';
- * import type { RouterRegistry } from './generated/registry';
+ * import { createClient } from '@agentuity/frontend';
+ * import type { RPCRouteRegistry } from './generated/routes';
  *
- * const client = createClient<RouterRegistry>();
+ * const client = createClient<RPCRouteRegistry>();
  *
  * // Type-safe API call
- * const result = await client.post.api.hello.run({ name: 'World' });
+ * const result = await client.hello.post({ name: 'World' });
  *
  * // WebSocket
- * const ws = client.post.api.chat.websocket();
+ * const ws = client.chat.websocket();
  * ws.on('message', (msg) => console.log(msg));
  *
  * // Server-Sent Events
- * const es = client.get.api.events.eventstream();
+ * const es = client.events.eventstream();
  * es.on('message', (event) => console.log(event.data));
  *
  * // Streaming response
- * const stream = client.post.api.data.stream({ query: 'foo' });
+ * const stream = await client.data.stream({ query: 'foo' });
  * stream.on('chunk', (chunk) => console.log(chunk));
  * ```
  */
@@ -116,7 +116,12 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 
 					// SSE endpoint
 					if (routeType === 'sse') {
-						return createEventStreamClient(`${resolvedBaseUrl}${urlPath}`);
+						const sseUrl = `${resolvedBaseUrl}${urlPath}`;
+						// Note: Native EventSource doesn't support custom headers
+						// For auth, use withCredentials or consider fetch-based alternatives like @microsoft/fetch-event-source
+						return createEventStreamClient(sseUrl, {
+							withCredentials: Object.keys(resolvedHeaders).length > 0,
+						});
 					}
 
 					// Stream endpoint

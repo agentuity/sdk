@@ -68,16 +68,21 @@ export function createClient<R>(
 	metadata?: unknown
 ): Client<R> {
 	// Merge user headers with auth headers
+	// User-provided headers take precedence over global auth header
 	const mergedHeaders = (): Record<string, string> => {
+		const authHeader = getGlobalAuthHeader();
 		const userHeaders =
 			typeof options?.headers === 'function' ? options.headers() : options?.headers || {};
-		const authHeader = getGlobalAuthHeader();
 
+		const headers: Record<string, string> = {};
+
+		// Add global auth header first (lower priority)
 		if (authHeader) {
-			return { ...userHeaders, Authorization: authHeader };
+			headers.Authorization = authHeader;
 		}
 
-		return userHeaders;
+		// User headers override global auth
+		return { ...headers, ...userHeaders };
 	};
 
 	return coreCreateClient<R>(

@@ -6,6 +6,7 @@ import { setGlobalBaseUrl, setGlobalAuthHeader } from './client';
 export interface ContextProviderArgs {
 	children?: React.ReactNode;
 	baseUrl?: string;
+	authHeader?: string | null;
 }
 
 export interface AgentuityContextValue {
@@ -21,9 +22,10 @@ export const AgentuityContext: Context<AgentuityContextValue | null> =
 
 export const AgentuityProvider = ({
 	baseUrl,
+	authHeader: authHeaderProp,
 	children,
 }: ContextProviderArgs): React.JSX.Element => {
-	const [authHeader, setAuthHeader] = useState<string | null>(null);
+	const [authHeader, setAuthHeader] = useState<string | null>(authHeaderProp ?? null);
 	const [authLoading, setAuthLoading] = useState<boolean>(false);
 	const resolvedBaseUrl = baseUrl || defaultBaseUrl;
 
@@ -36,6 +38,13 @@ export const AgentuityProvider = ({
 	useEffect(() => {
 		setGlobalAuthHeader(authHeader);
 	}, [authHeader]);
+
+	// Sync authHeader prop changes to state
+	useEffect(() => {
+		if (authHeaderProp !== undefined) {
+			setAuthHeader(authHeaderProp);
+		}
+	}, [authHeaderProp]);
 
 	return (
 		<AgentuityContext.Provider

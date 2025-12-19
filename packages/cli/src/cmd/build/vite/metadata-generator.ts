@@ -662,7 +662,9 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 	lines.push('- `AGENTUITY_LOG_DIR=/home/agentuity/logs` - Application logs');
 	lines.push('- `CHROME_BIN=/usr/bin/chromium` - Chromium browser path');
 	lines.push('- `DISPLAY=:99` - X11 display for headless browser');
-	lines.push('- `PATH` includes `/home/agentuity/.local/bin` and `/home/agentuity/.agentuity/bin`');
+	lines.push(
+		'- `PATH` includes `/home/agentuity/.local/bin` and `/home/agentuity/.agentuity/bin`'
+	);
 	lines.push('');
 
 	// Add note about metadata

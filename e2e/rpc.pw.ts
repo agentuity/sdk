@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('RPC Client', () => {
-	test('should test API endpoint with .run()', async ({ page }) => {
+	test('should test API endpoint with .post()', async ({ page }) => {
 		page.on('console', (msg) => console.log('BROWSER LOG:', msg.text()));
 		page.on('pageerror', (err) => console.error('PAGE ERROR:', err));
 

@@ -167,39 +167,32 @@ describe('React client auth integration', () => {
 
 			expect(capturedHeaders).toBeDefined();
 			const headers = capturedHeaders as Record<string, string>;
-			// User headers come first in merge, so auth header gets overridden
-			expect(headers['Authorization']).toBe('Bearer old-token');
+			// User headers override global auth header
+			expect(headers['Authorization']).toBe('Bearer override-token');
 		});
 	});
 
 	describe('AgentuityProvider integration', () => {
-		test('should sync auth header changes to global state', async () => {
-			let authToken: string | null = null;
-
+		test('should sync auth header from provider to global state', async () => {
 			const TestComponent = () => {
-				const [, setToken] = React.useState<string | null>(null);
-
-				React.useEffect(() => {
-					// Simulate auth provider setting token
-					setTimeout(() => {
-						authToken = 'Bearer provider-token';
-						setToken(authToken);
-						setGlobalAuthHeader(authToken);
-					}, 10);
-				}, []);
-
 				return <div>Test</div>;
 			};
 
+			// Render with auth header prop
 			render(
-				<AgentuityProvider baseUrl="http://localhost:3000">
+				<AgentuityProvider baseUrl="http://localhost:3000" authHeader="Bearer provider-token">
 					<TestComponent />
 				</AgentuityProvider>
 			);
 
-			await waitFor(() => {
-				expect(getGlobalAuthHeader()).toBe('Bearer provider-token');
-			});
+			// Provider syncs authHeader prop to global state via useEffect
+			// In happy-dom, effects run synchronously, so we can check immediately
+			await waitFor(
+				() => {
+					expect(getGlobalAuthHeader()).toBe('Bearer provider-token');
+				},
+				{ timeout: 100 }
+			);
 		});
 	});
 
