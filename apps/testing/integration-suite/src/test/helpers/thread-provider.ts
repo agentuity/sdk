@@ -14,15 +14,32 @@ const THREAD_EXPIRY = 3600; // 1 hour
 
 class TestThread implements Thread {
 	id: string;
-	metadata: Record<string, unknown>;
+	private _metadata: Record<string, unknown>;
 	private _state: Map<string, unknown>;
 	private dirty = false;
 	private listeners = new Map<'destroyed', Set<Function>>();
 
 	constructor(id: string, initialState?: Record<string, unknown>) {
 		this.id = id;
-		this.metadata = {};
+		this._metadata = {};
 		this._state = new Map(Object.entries(initialState || {}));
+	}
+
+	// Proxy the metadata object to automatically mark dirty on modifications
+	get metadata(): Record<string, unknown> {
+		const self = this;
+		return new Proxy(this._metadata, {
+			set(target, prop, value) {
+				target[prop as string] = value;
+				self.dirty = true;
+				return true;
+			},
+			deleteProperty(target, prop) {
+				delete target[prop as string];
+				self.dirty = true;
+				return true;
+			},
+		});
 	}
 
 	// Proxy the state Map to automatically mark dirty on modifications
