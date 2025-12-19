@@ -28,7 +28,9 @@ describe('Session Metadata Filtering', () => {
 
 		expect(capturedUrl).toBeDefined();
 		expect(capturedUrl).toContain('metadata=');
-		expect(capturedUrl).toContain(encodeURIComponent(JSON.stringify({ userId: 'user123', department: 'sales' })));
+		expect(capturedUrl).toContain(
+			encodeURIComponent(JSON.stringify({ userId: 'user123', department: 'sales' }))
+		);
 	});
 
 	test('sessionList omits metadata param when not provided', async () => {
@@ -82,47 +84,50 @@ describe('Session Metadata Filtering', () => {
 
 	test('sessionList response includes metadata in schema', async () => {
 		mockFetch(async () => {
-			return new Response(JSON.stringify({
-				success: true,
-				data: [
-					{
-						id: 'sess_123',
-						created_at: '2025-01-01T00:00:00Z',
-						updated_at: '2025-01-01T00:00:00Z',
-						deleted: false,
-						deleted_at: null,
-						deleted_by: null,
-						start_time: '2025-01-01T00:00:00Z',
-						end_time: null,
-						duration: null,
-						org_id: 'org_123',
-						project_id: 'proj_123',
-						deployment_id: 'deploy_123',
-						agent_ids: [],
-						trigger: 'api',
-						env: 'production',
-						devmode: false,
-						pending: false,
-						success: true,
-						error: null,
-						metadata: { userId: 'user123' },
-						cpu_time: null,
-						llm_cost: null,
-						llm_prompt_token_count: null,
-						llm_completion_token_count: null,
-						total_cost: null,
-						method: 'POST',
-						url: '/api/test',
-						route_id: 'route_123',
-						thread_id: 'thrd_123',
-						timeline: null,
-						user_data: null,
-					},
-				],
-			}), {
-				status: 200,
-				headers: { 'content-type': 'application/json' },
-			});
+			return new Response(
+				JSON.stringify({
+					success: true,
+					data: [
+						{
+							id: 'sess_123',
+							created_at: '2025-01-01T00:00:00Z',
+							updated_at: '2025-01-01T00:00:00Z',
+							deleted: false,
+							deleted_at: null,
+							deleted_by: null,
+							start_time: '2025-01-01T00:00:00Z',
+							end_time: null,
+							duration: null,
+							org_id: 'org_123',
+							project_id: 'proj_123',
+							deployment_id: 'deploy_123',
+							agent_ids: [],
+							trigger: 'api',
+							env: 'production',
+							devmode: false,
+							pending: false,
+							success: true,
+							error: null,
+							metadata: { userId: 'user123' },
+							cpu_time: null,
+							llm_cost: null,
+							llm_prompt_token_count: null,
+							llm_completion_token_count: null,
+							total_cost: null,
+							method: 'POST',
+							url: '/api/test',
+							route_id: 'route_123',
+							thread_id: 'thrd_123',
+							timeline: null,
+							user_data: null,
+						},
+					],
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
 		});
 
 		const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');
@@ -155,7 +160,9 @@ describe('Thread Metadata Filtering', () => {
 
 		expect(capturedUrl).toBeDefined();
 		expect(capturedUrl).toContain('metadata=');
-		expect(capturedUrl).toContain(encodeURIComponent(JSON.stringify({ userId: 'user123', department: 'sales' })));
+		expect(capturedUrl).toContain(
+			encodeURIComponent(JSON.stringify({ userId: 'user123', department: 'sales' }))
+		);
 	});
 
 	test('threadList omits metadata param when not provided', async () => {
@@ -179,26 +186,29 @@ describe('Thread Metadata Filtering', () => {
 
 	test('threadList response includes metadata in schema', async () => {
 		mockFetch(async () => {
-			return new Response(JSON.stringify({
-				success: true,
-				data: [
-					{
-						id: 'thrd_123',
-						created_at: '2025-01-01T00:00:00Z',
-						updated_at: '2025-01-01T00:00:00Z',
-						deleted: false,
-						deleted_at: null,
-						deleted_by: null,
-						org_id: 'org_123',
-						project_id: 'proj_123',
-						user_data: null,
-						metadata: { userId: 'user456', department: 'engineering' },
-					},
-				],
-			}), {
-				status: 200,
-				headers: { 'content-type': 'application/json' },
-			});
+			return new Response(
+				JSON.stringify({
+					success: true,
+					data: [
+						{
+							id: 'thrd_123',
+							created_at: '2025-01-01T00:00:00Z',
+							updated_at: '2025-01-01T00:00:00Z',
+							deleted: false,
+							deleted_at: null,
+							deleted_by: null,
+							org_id: 'org_123',
+							project_id: 'proj_123',
+							user_data: null,
+							metadata: { userId: 'user456', department: 'engineering' },
+						},
+					],
+				}),
+				{
+					status: 200,
+					headers: { 'content-type': 'application/json' },
+				}
+			);
 		});
 
 		const client = new APIClient('https://api.example.com', createMockLogger(), 'test-key');

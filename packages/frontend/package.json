@@ -1,5 +1,5 @@
 {
-	"name": "@agentuity/react",
+	"name": "@agentuity/frontend",
 	"version": "0.0.100",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
@@ -25,20 +25,12 @@
 		"test": "bun test",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
-	"dependencies": {
-		"@agentuity/core": "workspace:*",
-		"@agentuity/frontend": "workspace:*"
-	},
+	"dependencies": {},
 	"devDependencies": {
-		"@agentuity/schema": "workspace:*",
 		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"
-	},
-	"peerDependencies": {
-		"@types/react": "^19.0.0",
-		"react": "^19.0.0"
 	},
 	"publishConfig": {
 		"access": "public"

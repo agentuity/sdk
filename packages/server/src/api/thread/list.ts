@@ -12,7 +12,11 @@ const ThreadSchema = z.object({
 	org_id: z.string().describe('the organization id'),
 	project_id: z.string().describe('the project id'),
 	user_data: z.string().nullable().optional().describe('the user data as JSON'),
-	metadata: z.record(z.string(), z.unknown()).nullable().optional().describe('unencrypted key-value metadata'),
+	metadata: z
+		.record(z.string(), z.unknown())
+		.nullable()
+		.optional()
+		.describe('unencrypted key-value metadata'),
 });
 
 export { ThreadSchema };

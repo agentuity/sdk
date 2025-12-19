@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { createContext, useContext, type Context } from 'react';
-import { defaultBaseUrl } from './url';
+import { defaultBaseUrl } from '@agentuity/frontend';
 
 export interface ContextProviderArgs {
 	children?: React.ReactNode;

@@ -19,8 +19,8 @@ export const SessionStartEventSchema = z
 			.record(z.string(), z.unknown())
 			.optional()
 			.describe('optional unencrypted key-value metadata'),
-		})
-		.describe('The event to record a session started');
+	})
+	.describe('The event to record a session started');
 
 export type SessionStartEvent = z.infer<typeof SessionStartEventSchema>;
 
@@ -39,8 +39,8 @@ export const SessionCompleteEventSchema = z
 			.record(z.string(), z.unknown())
 			.optional()
 			.describe('optional unencrypted key-value metadata'),
-		})
-		.describe('The event to record a session completed successfully');
+	})
+	.describe('The event to record a session completed successfully');
 
 export type SessionCompleteEvent = z.infer<typeof SessionCompleteEventSchema>;
 

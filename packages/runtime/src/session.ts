@@ -682,7 +682,12 @@ export class DefaultThread implements Thread {
 	metadata: Record<string, unknown>;
 	private provider: ThreadProvider;
 
-	constructor(provider: ThreadProvider, id: string, initialStateJson?: string, metadata?: Record<string, unknown>) {
+	constructor(
+		provider: ThreadProvider,
+		id: string,
+		initialStateJson?: string,
+		metadata?: Record<string, unknown>
+	) {
 		this.provider = provider;
 		this.id = id;
 		this.state = new Map();
@@ -1079,7 +1084,11 @@ export class ThreadWebSocketClient {
 		});
 	}
 
-	async save(threadId: string, userData: string, threadMetadata?: Record<string, unknown>): Promise<void> {
+	async save(
+		threadId: string,
+		userData: string,
+		threadMetadata?: Record<string, unknown>
+	): Promise<void> {
 		// Wait for connection/reconnection if in progress
 		if (this.wsConnecting) {
 			await this.wsConnecting;
@@ -1105,10 +1114,11 @@ export class ThreadWebSocketClient {
 				reject,
 			});
 
-			const data: { thread_id: string; user_data: string; metadata?: Record<string, unknown> } = {
-				thread_id: threadId,
-				user_data: userData,
-			};
+			const data: { thread_id: string; user_data: string; metadata?: Record<string, unknown> } =
+				{
+					thread_id: threadId,
+					user_data: userData,
+				};
 
 			if (threadMetadata && Object.keys(threadMetadata).length > 0) {
 				data.metadata = threadMetadata;
@@ -1248,7 +1258,11 @@ export class DefaultThreadProvider implements ThreadProvider {
 					try {
 						const parsed = JSON.parse(restoredData);
 						// New format: { state?: {...}, metadata?: {...} }
-						if (parsed && typeof parsed === 'object' && ('state' in parsed || 'metadata' in parsed)) {
+						if (
+							parsed &&
+							typeof parsed === 'object' &&
+							('state' in parsed || 'metadata' in parsed)
+						) {
 							if (parsed.metadata) {
 								restoredMetadata = parsed.metadata;
 							}
@@ -1298,7 +1312,8 @@ export class DefaultThreadProvider implements ThreadProvider {
 			if (this.wsClient && thread.isDirty()) {
 				try {
 					const serialized = thread.getSerializedState();
-					const metadata = Object.keys(thread.metadata).length > 0 ? thread.metadata : undefined;
+					const metadata =
+						Object.keys(thread.metadata).length > 0 ? thread.metadata : undefined;
 					await this.wsClient.save(thread.id, serialized, metadata);
 				} catch {
 					// Don't throw - allow request to complete even if save fails

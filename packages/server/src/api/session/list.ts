@@ -22,7 +22,11 @@ const SessionSchema = z.object({
 	pending: z.boolean().describe('whether the session is pending'),
 	success: z.boolean().describe('whether the session succeeded'),
 	error: z.string().nullable().describe('the error message if failed'),
-	metadata: z.record(z.string(), z.unknown()).nullable().optional().describe('unencrypted key-value metadata'),
+	metadata: z
+		.record(z.string(), z.unknown())
+		.nullable()
+		.optional()
+		.describe('unencrypted key-value metadata'),
 	cpu_time: z.number().nullable().describe('the CPU time in nanoseconds'),
 	llm_cost: z.number().nullable().describe('the LLM cost'),
 	llm_prompt_token_count: z.number().nullable().describe('the LLM prompt token count'),

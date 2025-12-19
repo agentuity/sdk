@@ -8,9 +8,7 @@
 		"declarationDir": "./dist",
 		"noEmit": false,
 		"isolatedDeclarations": true,
-		"composite": true,
-		"jsx": "react-jsx"
+		"composite": true
 	},
-	"include": ["src/**/*"],
-	"references": [{ "path": "../core" }, { "path": "../frontend" }]
+	"include": ["src/**/*"]
 }
