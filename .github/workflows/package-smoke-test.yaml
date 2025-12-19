@@ -47,9 +47,6 @@ jobs:
          - name: Install dependencies
            run: bun install
 
-         - name: Link workspace packages in test apps
-           run: bash scripts/ci-link-workspace.sh
-
          - name: Setup test credentials
            run: |
               # Generate CLI API key for authentication
@@ -64,7 +61,13 @@ jobs:
               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 
          - name: Run integration test suite
-           run: bash apps/testing/integration-suite/scripts/ci-test.sh
+           run: |
+              # Build packages first
+              bun run build
+              # Link workspace packages after build
+              bash scripts/ci-link-workspace.sh
+              # Run tests
+              bash apps/testing/integration-suite/scripts/ci-test.sh
 
    cloud-deployment-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
