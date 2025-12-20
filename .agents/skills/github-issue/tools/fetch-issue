@@ -58,9 +58,7 @@ if ! gh auth status &> /dev/null; then
 fi
 
 # Fetch issue details using gh CLI
-ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json number,title,body,state,author,assignees,labels,milestone,createdAt,updatedAt,comments,url 2>&1)
-
-if [ $? -ne 0 ]; then
+if ! ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json number,title,body,state,author,assignees,labels,milestone,createdAt,updatedAt,comments,url 2>&1); then
     echo "Error: Could not fetch issue #$ISSUE_NUMBER from $REPO"
     echo "$ISSUE_JSON"
     exit 1
