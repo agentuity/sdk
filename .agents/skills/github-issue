@@ -1,0 +1,163 @@
+#!/bin/bash
+# GitHub Issue Skill - Fetch issue details and generate a resolution plan prompt
+#
+# Usage:
+#   github-issue <issue-number-or-url>
+#
+# Examples:
+#   github-issue 123
+#   github-issue https://github.com/agentuity/sdk/issues/123
+
+set -e
+
+# Check if issue argument is provided
+if [ $# -eq 0 ]; then
+    echo "Usage: github-issue <issue-number-or-url>"
+    echo "Examples:"
+    echo "  github-issue 123"
+    echo "  github-issue https://github.com/agentuity/sdk/issues/123"
+    exit 2
+fi
+
+ISSUE_ARG="$1"
+REPO="agentuity/sdk"
+
+# Extract issue number if URL is provided
+if [[ "$ISSUE_ARG" == *"github.com"* ]]; then
+    # Extract repo and issue number from URL
+    # Handles: https://github.com/owner/repo/issues/123
+    if [[ "$ISSUE_ARG" =~ github\.com/([^/]+/[^/]+)/issues/([0-9]+) ]]; then
+        REPO="${BASH_REMATCH[1]}"
+        ISSUE_NUMBER="${BASH_REMATCH[2]}"
+    else
+        echo "Error: Could not parse GitHub issue URL"
+        exit 1
+    fi
+else
+    ISSUE_NUMBER="$ISSUE_ARG"
+fi
+
+# Validate issue number format
+if [[ ! "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+    echo "Error: Invalid issue number format. Expected a number."
+    exit 1
+fi
+
+# Check if gh CLI is available
+if ! command -v gh &> /dev/null; then
+    echo "Error: GitHub CLI (gh) is not installed."
+    echo "Install it from: https://cli.github.com/"
+    exit 1
+fi
+
+# Check if authenticated
+if ! gh auth status &> /dev/null; then
+    echo "Error: Not authenticated with GitHub CLI."
+    echo "Run: gh auth login"
+    exit 1
+fi
+
+# Fetch issue details using gh CLI
+ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json number,title,body,state,author,assignees,labels,milestone,createdAt,updatedAt,comments,url 2>&1)
+
+if [ $? -ne 0 ]; then
+    echo "Error: Could not fetch issue #$ISSUE_NUMBER from $REPO"
+    echo "$ISSUE_JSON"
+    exit 1
+fi
+
+# Extract fields using jq
+TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
+BODY=$(echo "$ISSUE_JSON" | jq -r '.body // ""')
+STATE=$(echo "$ISSUE_JSON" | jq -r '.state')
+AUTHOR=$(echo "$ISSUE_JSON" | jq -r '.author.login')
+URL=$(echo "$ISSUE_JSON" | jq -r '.url')
+CREATED_AT=$(echo "$ISSUE_JSON" | jq -r '.createdAt')
+UPDATED_AT=$(echo "$ISSUE_JSON" | jq -r '.updatedAt')
+
+# Extract labels as comma-separated list
+LABELS=$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | join(", ") // "None"')
+if [ -z "$LABELS" ]; then
+    LABELS="None"
+fi
+
+# Extract assignees as comma-separated list
+ASSIGNEES=$(echo "$ISSUE_JSON" | jq -r '[.assignees[].login] | join(", ") // "Unassigned"')
+if [ -z "$ASSIGNEES" ]; then
+    ASSIGNEES="Unassigned"
+fi
+
+# Extract milestone
+MILESTONE=$(echo "$ISSUE_JSON" | jq -r '.milestone.title // "None"')
+
+# Extract comments
+COMMENTS_COUNT=$(echo "$ISSUE_JSON" | jq -r '.comments | length')
+COMMENTS=""
+if [ "$COMMENTS_COUNT" -gt 0 ]; then
+    COMMENTS=$(echo "$ISSUE_JSON" | jq -r '.comments[] | "### Comment by @\(.author.login) (\(.createdAt))\n\(.body)\n"')
+fi
+
+# Output formatted content for the agent
+cat <<EOF
+# GitHub Issue: $TITLE
+
+## Issue Details
+- **Issue:** #$ISSUE_NUMBER
+- **Repository:** $REPO
+- **URL:** $URL
+- **State:** $STATE
+- **Author:** @$AUTHOR
+- **Assignees:** $ASSIGNEES
+- **Labels:** $LABELS
+- **Milestone:** $MILESTONE
+- **Created:** $CREATED_AT
+- **Updated:** $UPDATED_AT
+
+## Description
+
+$BODY
+
+EOF
+
+if [ "$COMMENTS_COUNT" -gt 0 ]; then
+    cat <<EOF
+## Comments ($COMMENTS_COUNT)
+
+$COMMENTS
+EOF
+fi
+
+cat <<EOF
+---
+
+# Task
+
+You are working on GitHub issue #$ISSUE_NUMBER in the $REPO repository.
+
+## Instructions
+
+1. **Understand the Issue**: Carefully read the issue description and any comments above to fully understand what needs to be done.
+
+2. **Analyze the Codebase**: Use the finder and Grep tools to locate relevant code, existing patterns, and related functionality in the codebase.
+
+3. **Create a Plan**: Before making any changes, create a detailed implementation plan that includes:
+   - Which files need to be modified or created
+   - What changes need to be made in each file
+   - Any potential breaking changes or side effects
+   - Testing strategy to verify the fix/feature works
+
+4. **Implement the Solution**: Follow the plan and implement the changes, adhering to the project's code style and conventions defined in AGENTS.md.
+
+5. **Test Your Changes**: Run the appropriate tests to verify your implementation:
+   - \`bun run build\` - Ensure the project builds
+   - \`bun run typecheck\` - Verify type safety
+   - \`bun run lint\` - Check code style
+   - \`bun run test\` - Run the test suite
+
+6. **Summarize**: After completing the implementation, provide a summary of:
+   - What changes were made
+   - How to test the changes
+   - Any follow-up items or considerations
+
+Begin by analyzing the issue and creating your implementation plan.
+EOF
