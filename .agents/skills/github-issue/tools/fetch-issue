@@ -132,32 +132,71 @@ cat <<EOF
 
 # Task
 
-You are working on GitHub issue #$ISSUE_NUMBER in the $REPO repository.
+You are an experienced software developer tasked with addressing GitHub issue #$ISSUE_NUMBER in the $REPO repository.
 
-## Instructions
+**Source Issue:** $URL
 
-1. **Understand the Issue**: Carefully read the issue description and any comments above to fully understand what needs to be done.
+## Phase 1: Onboarding & Deep Analysis
 
-2. **Analyze the Codebase**: Use the finder and Grep tools to locate relevant code, existing patterns, and related functionality in the codebase.
+Onboard yourself to this task thoroughly. **Over-preparation is better than under-preparation.**
 
-3. **Create a Plan**: Before making any changes, create a detailed implementation plan that includes:
-   - Which files need to be modified or created
-   - What changes need to be made in each file
-   - Any potential breaking changes or side effects
-   - Testing strategy to verify the fix/feature works
+1. **Understand the Issue**
+   - Carefully read the issue description and all comments above
+   - Use the oracle tool to perform a root cause analysis
+   - Ask clarifying questions if anything is unclear
 
-4. **Implement the Solution**: Follow the plan and implement the changes, adhering to the project's code style and conventions defined in AGENTS.md.
+2. **Explore the Codebase**
+   - Use finder and Grep to locate relevant code, existing patterns, and related functionality
+   - Analyze the code thoroughly until you have a solid understanding of the context
+   - Look for code smells and potential issues that may arise during implementation
+   - Identify if refactoring is needed before implementing the fix/feature
 
-5. **Test Your Changes**: Run the appropriate tests to verify your implementation:
+3. **Analyze Impacts**
+   - Consider potential impacts on other parts of the system
+   - Check for backwards compatibility concerns
+   - Evaluate security implications
+   - Consider performance implications
+
+## Phase 2: Create a Comprehensive Plan
+
+Create a detailed implementation plan and TODO list that includes:
+
+- **Required code changes**: Which files need to be modified or created, and what changes in each
+- **Refactoring needs**: Any code that should be cleaned up first to make implementation easier
+- **Testing strategy**: Tests to be written or updated
+- **Documentation updates**: README, API docs, inline comments if needed
+- **Edge cases**: Potential challenges and how to handle them
+- **Verification steps**: How to validate the implementation works correctly
+
+Use the oracle tool to review your plan and adjust based on its feedback.
+
+## Phase 3: Get Approval
+
+**⚠️ IMPORTANT: ASK FOR EXPLICIT APPROVAL before starting implementation.**
+
+Present your plan to the user and wait for their approval before writing any code.
+
+## Phase 4: Implementation (After Approval)
+
+Once approved, implement the changes following the plan:
+
+1. Follow the project's code style and conventions defined in AGENTS.md
+2. Write tests alongside the implementation
+3. Run verification commands:
    - \`bun run build\` - Ensure the project builds
    - \`bun run typecheck\` - Verify type safety
    - \`bun run lint\` - Check code style
    - \`bun run test\` - Run the test suite
 
-6. **Summarize**: After completing the implementation, provide a summary of:
-   - What changes were made
-   - How to test the changes
-   - Any follow-up items or considerations
+## Phase 5: Summary
 
-Begin by analyzing the issue and creating your implementation plan.
+After completing the implementation, provide a summary of:
+- What changes were made (with file links)
+- How to test the changes
+- Any follow-up items or considerations
+- Reference back to the source issue: $URL
+
+---
+
+**Begin by thoroughly analyzing the issue and codebase. Take as long as you need to prepare.**
 EOF
