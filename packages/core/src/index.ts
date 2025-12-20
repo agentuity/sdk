@@ -90,3 +90,5 @@ export {
 	getWorkbenchConfig,
 	type WorkbenchConfig,
 } from './workbench-config';
+
+// Client code moved to @agentuity/frontend for better bundler compatibility

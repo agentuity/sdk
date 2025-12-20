@@ -3,11 +3,7 @@ import { useState } from 'react';
 
 export function StreamsPage() {
 	const [message, setMessage] = useState('');
-	const {
-		isConnected: wsConnected,
-		send,
-		messages: wsMessages,
-	} = useWebsocket('/api/websocket/echo');
+	const { isConnected: wsConnected, send, messages: wsMessages } = useWebsocket('/api/echo');
 	const { isConnected: sseConnected, data: sseData } = useEventStream('/api/events');
 
 	const handleSend = () => {

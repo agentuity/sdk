@@ -14,6 +14,7 @@
 		"@agentuity/cli": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
+		"@agentuity/react": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/workbench": "workspace:*",
 		"hono": "^4.7.13",
@@ -21,7 +22,6 @@
 		"react-dom": "^19.2.1"
 	},
 	"devDependencies": {
-		"@agentuity/react": "workspace:*",
 		"@types/bun": "latest",
 		"@types/react": "^19.2.7",
 		"@types/react-dom": "^19.2.3"

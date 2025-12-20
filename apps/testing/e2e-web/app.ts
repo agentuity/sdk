@@ -1,5 +1,5 @@
 import { createApp } from '@agentuity/runtime';
-import { bootstrapRuntimeEnv } from '@agentuity/cli';
+import { bootstrapRuntimeEnv } from '@agentuity/runtime';
 
 await bootstrapRuntimeEnv();
 

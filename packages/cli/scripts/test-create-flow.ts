@@ -165,6 +165,7 @@ async function linkLocalPackages(): Promise<boolean> {
 	const packagesToInstall = [
 		'core',
 		'schema',
+		'frontend',
 		'react',
 		'auth',
 		'runtime',
@@ -198,6 +199,7 @@ async function linkLocalPackages(): Promise<boolean> {
 	const packageJsonPath = join(TEST_PROJECT_PATH, 'package.json');
 	const packageJson = await Bun.file(packageJsonPath).json();
 	delete packageJson.dependencies['@agentuity/schema'];
+	delete packageJson.dependencies['@agentuity/frontend'];
 	delete packageJson.dependencies['@agentuity/react'];
 	delete packageJson.dependencies['@agentuity/runtime'];
 	// Also remove workbench to allow npm install for templates that need it
@@ -209,14 +211,16 @@ async function linkLocalPackages(): Promise<boolean> {
 	// Install other dependencies first
 	await Bun.$`bun install`.cwd(TEST_PROJECT_PATH);
 
-	// Install @agentuity packages from packed tarballs
-	for (const tarballPath of packagePaths) {
-		await Bun.$`bun add ${tarballPath}`.cwd(TEST_PROJECT_PATH);
-	}
+	// install from tarballs (not from npm)
+	Bun.spawnSync({
+		cmd: ['bun', 'add', ...packagePaths],
+		cwd: TEST_PROJECT_PATH,
+	});
 
 	// Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
 	// This happens because workspace:* dependencies get resolved to specific versions (e.g. 0.0.60)
 	// and Bun installs those from npm as nested dependencies, shadowing the correct local tarballs
+	// Clean ALL @agentuity packages to prevent Rollup resolution issues
 	logInfo('Removing nested @agentuity packages to ensure proper module resolution...');
 	const agentuityDir = join(TEST_PROJECT_PATH, 'node_modules/@agentuity');
 	if (existsSync(agentuityDir)) {

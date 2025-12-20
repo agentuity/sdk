@@ -1,6 +1,8 @@
 import { useAPI } from '@agentuity/react';
 import { type ChangeEvent, useState } from 'react';
 import { StreamsPage } from './StreamsPage';
+import { RpcPage } from './RpcPage';
+import { RpcTestPage } from './RpcTestPage';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 
@@ -10,6 +12,14 @@ export function App() {
 
 	if (path === '/streams') {
 		return <StreamsPage />;
+	}
+
+	if (path === '/rpc') {
+		return <RpcPage />;
+	}
+
+	if (path === '/rpc-test') {
+		return <RpcTestPage />;
 	}
 
 	const [name, setName] = useState('World');
@@ -116,6 +126,30 @@ export function App() {
 										Modify <code>src/web/App.tsx</code> to build your custom UI.
 									</>
 								),
+							},
+							{
+								key: 'try-rpc',
+								title: (
+									<>
+										Try{' '}
+										<a href="/rpc" className="workbench-link">
+											RPC Client
+										</a>
+									</>
+								),
+								text: <>Test the new type-safe RPC client API.</>,
+							},
+							{
+								key: 'try-rpc-all',
+								title: (
+									<>
+										Try{' '}
+										<a href="/rpc-test" className="workbench-link">
+											RPC All Methods
+										</a>
+									</>
+								),
+								text: <>Test all RPC client methods (run, websocket, eventstream).</>,
 							},
 							WORKBENCH_PATH
 								? {

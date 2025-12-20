@@ -139,7 +139,7 @@ test('sse', 'json-data-parsing', async () => {
 
 // Test 7: Long-lived connection
 test('sse', 'long-lived-connection', async () => {
-	const client = createSSEClient('/api/sse/long-lived', { duration: '500', delay: '50' });
+	const client = createSSEClient('/api/sse/long-lived', { duration: '500', delay: '10' });
 
 	await client.connect();
 

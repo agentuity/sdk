@@ -49,8 +49,8 @@ packages/cli/test-interop/go-common
 packages/cli/test-interop/go-crypto-tool
 
 # Playwright test artifacts
-/test-results/
-/playwright-report/
+test-results/
+playwright-report/
 
 /TODO*.md
 /PR*.md

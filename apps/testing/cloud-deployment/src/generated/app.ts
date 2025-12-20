@@ -24,7 +24,7 @@ import {
 import type { Context } from 'hono';
 import { websocket } from 'hono/bun';
 import { type LogLevel } from '@agentuity/core';
-import { bootstrapRuntimeEnv } from '@agentuity/cli/runtime-bootstrap';
+import { bootstrapRuntimeEnv } from '@agentuity/runtime';
 
 // Runtime mode detection helper
 // Dynamic string concatenation prevents Bun.build from inlining NODE_ENV at build time

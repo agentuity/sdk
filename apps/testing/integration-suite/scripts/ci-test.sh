@@ -1,6 +1,8 @@
 #!/bin/bash
-# CI test runner for integration suite
-# Runs all tests against production Catalyst API
+# Integration Suite Test Runner
+# Expects SDK packages to be pre-installed from tarballs
+# Run locally: bash scripts/ci-test.sh
+# Run in CI: Same command (env vars differ)
 
 set -e
 
@@ -19,7 +21,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo "==================================="
-echo "Integration Suite - CI Test Runner"
+echo "Integration Suite - Test Runner"
 echo "==================================="
 echo ""
 
@@ -39,12 +41,17 @@ fi
 
 echo -e "${GREEN}✓${NC} API key configured"
 
-# Build SDK packages first (required for integration suite)
+# Verify SDK packages are installed
 echo ""
-echo "Building SDK packages..."
-cd "$APP_DIR/../../.."
-bun run build
-echo -e "${GREEN}✓${NC} SDK packages built"
+echo "Verifying SDK packages are installed..."
+if [ ! -d "$APP_DIR/node_modules/@agentuity/core" ] || \
+   [ ! -d "$APP_DIR/node_modules/@agentuity/runtime" ] || \
+   [ ! -d "$APP_DIR/node_modules/@agentuity/cli" ]; then
+	echo -e "${RED}✗ ERROR:${NC} SDK packages not installed"
+	echo "Run: bash scripts/install-sdk-tarballs.sh apps/testing/integration-suite"
+	exit 1
+fi
+echo -e "${GREEN}✓${NC} SDK packages installed"
 
 # Build the app
 echo ""

@@ -2038,7 +2038,7 @@ type AppRouter = Hono<AppEnv>;
  * \`\`\`
  */
 export function createRouter(): AppRouter {
-	return baseCreateRouter() as any;
+	return baseCreateRouter() as unknown as AppRouter;
 }
 
 // Re-export everything else

@@ -192,3 +192,8 @@ export type { RouteSchema, GetRouteSchema } from './_validation';
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AppState {}
+
+// Re-export bootstrapRuntimeEnv from @agentuity/server for convenience
+// This allows generated code to import from @agentuity/runtime instead of having
+// a direct dependency on @agentuity/server
+export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions } from '@agentuity/server';

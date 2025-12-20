@@ -25,7 +25,9 @@
 		"test": "bun test",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
-	"dependencies": {},
+	"dependencies": {
+		"@agentuity/core": "workspace:*"
+	},
 	"devDependencies": {
 		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",

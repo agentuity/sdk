@@ -26,7 +26,7 @@ import { websocket } from 'hono/bun';
 import { serveStatic } from 'hono/bun';
 import { readFileSync, existsSync } from 'node:fs';
 import { type LogLevel } from '@agentuity/core';
-import { bootstrapRuntimeEnv } from '@agentuity/cli/runtime-bootstrap';
+import { bootstrapRuntimeEnv } from '@agentuity/runtime';
 
 // Runtime mode detection helper
 // Dynamic string concatenation prevents Bun.build from inlining NODE_ENV at build time
@@ -177,8 +177,8 @@ const { default: router_0 } = await import('../api/index.js');
 app.route('/api', router_0);
 const { default: router_1 } = await import('../api/events/route.js');
 app.route('/api/events', router_1);
-const { default: router_2 } = await import('../api/websocket/route.js');
-app.route('/api/websocket', router_2);
+const { default: router_2 } = await import('../api/echo/route.js');
+app.route('/api/echo', router_2);
 
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
 if (isDevelopment()) {

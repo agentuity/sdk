@@ -13,6 +13,9 @@ export { createServerFetchAdapter } from './server';
 // schema.ts exports
 export { toJSONSchema } from './schema';
 
+// runtime-bootstrap.ts exports
+export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions } from './runtime-bootstrap';
+
 // zod re-export
 export { z } from 'zod';
 

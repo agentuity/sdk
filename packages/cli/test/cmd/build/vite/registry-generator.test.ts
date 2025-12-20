@@ -172,6 +172,41 @@ describe('registry-generator', () => {
 	});
 
 	describe('generateRouteRegistry', () => {
+		test('should generate RPC route registry with nested structure', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+				{
+					method: 'get',
+					path: '/api/users/profile',
+					filename: './api/users/profile/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'profileAgent',
+					agentImportPath: '@agent/profile',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			expect(routesContent).toContain('hello: {');
+			expect(routesContent).toContain('post: { input:');
+			expect(routesContent).toContain('users: {');
+			expect(routesContent).toContain('profile: {');
+			expect(routesContent).toContain('get: { input:');
+		});
+
 		test.skip('should generate route registry', () => {
 			const routes: RouteInfo[] = [
 				{

@@ -53,7 +53,7 @@ function validateMessage<T>(
 
 const router = createRouter();
 
-router.websocket('/echo', (c) => (ws) => {
+router.websocket('/', (c) => (ws) => {
 	ws.onMessage((event) => {
 		const data = validateMessage(inputSchema, event, ws, c.var.logger);
 		if (!data) return;
