@@ -163,7 +163,7 @@ Create a detailed implementation plan and TODO list that includes:
 
 - **Required code changes**: Which files need to be modified or created, and what changes in each
 - **Refactoring needs**: Any code that should be cleaned up first to make implementation easier
-- **Testing strategy**: Tests to be written or updated
+- **Testing strategy**: Tests to be written or updated. Make sure we can reproduce the issue before starting the fix and we look for edge cases.
 - **Documentation updates**: README, API docs, inline comments if needed
 - **Edge cases**: Potential challenges and how to handle them
 - **Verification steps**: How to validate the implementation works correctly
