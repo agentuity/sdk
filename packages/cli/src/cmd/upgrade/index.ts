@@ -6,9 +6,41 @@ import { ErrorCode, createError, exitWithError } from '../../errors';
 import * as tui from '../../tui';
 import { downloadWithProgress } from '../../download';
 import { $ } from 'bun';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { access, constants } from 'node:fs/promises';
+
+export class PermissionError extends Error {
+	constructor(
+		public readonly binaryPath: string,
+		public readonly reason: string
+	) {
+		super(`Permission denied: ${reason}`);
+		this.name = 'PermissionError';
+	}
+}
+
+async function checkWritePermission(binaryPath: string): Promise<void> {
+	try {
+		await access(binaryPath, constants.W_OK);
+	} catch {
+		throw new PermissionError(
+			binaryPath,
+			`Cannot write to ${binaryPath}. You may need to run with elevated permissions (e.g., sudo) or reinstall to a user-writable location.`
+		);
+	}
+
+	const parentDir = dirname(binaryPath);
+	try {
+		await access(parentDir, constants.W_OK);
+	} catch {
+		throw new PermissionError(
+			binaryPath,
+			`Cannot write to directory ${parentDir}. You may need to run with elevated permissions (e.g., sudo) or reinstall to a user-writable location.`
+		);
+	}
+}
 
 const UpgradeOptionsSchema = z.object({
 	force: z.boolean().optional().describe('Force upgrade even if version is the same'),
@@ -316,7 +348,7 @@ export const command = createCommand({
 				};
 			}
 
-			// Confirm upgrade
+			// Show version info
 			if (!force) {
 				tui.info(`Current version: ${tui.muted(normalizedCurrent)}`);
 				tui.info(`Latest version:  ${tui.bold(normalizedLatest)}`);
@@ -328,7 +360,43 @@ export const command = createCommand({
 				}
 				tui.success(`Release notes:   ${tui.link(getReleaseUrl(latestVersion))}`);
 				tui.newline();
+			}
 
+			// Check write permissions before prompting - fail early with helpful message
+			try {
+				await checkWritePermission(currentBinaryPath);
+			} catch (error) {
+				if (error instanceof PermissionError) {
+					tui.error('Unable to upgrade: permission denied');
+					tui.newline();
+					tui.warning(`The CLI binary at ${tui.bold(error.binaryPath)} is not writable.`);
+					tui.newline();
+					if (process.env.AGENTUITY_RUNTIME) {
+						console.log('You cannot self-upgrade the agentuity cli in the cloud runtime.');
+						console.log('The runtime will automatically update the cli and other software');
+						console.log('within a day or so. If you need assistance, please contact us');
+						console.log('at support@agentuity.com.');
+					} else {
+						console.log('To fix this, you can either:');
+						console.log(
+							`  1. Run with elevated permissions: ${tui.muted('sudo agentuity upgrade')}`
+						);
+						console.log(`  2. Reinstall to a user-writable location`);
+					}
+					tui.newline();
+					exitWithError(
+						createError(ErrorCode.PERMISSION_DENIED, 'Upgrade failed: permission denied', {
+							path: error.binaryPath,
+						}),
+						logger,
+						options.errorFormat
+					);
+				}
+				throw error;
+			}
+
+			// Confirm upgrade
+			if (!force) {
 				const shouldUpgrade = await tui.confirm('Do you want to upgrade?', true);
 
 				if (!shouldUpgrade) {
@@ -383,13 +451,11 @@ export const command = createCommand({
 				message,
 			};
 		} catch (error) {
-			// Parse validation errors to extract stdout/stderr if present
 			let errorDetails: Record<string, unknown> = {
 				error: error instanceof Error ? error.message : 'Unknown error',
 			};
 
 			if (error instanceof Error && error.message.includes('Binary validation failed')) {
-				// Extract stdout/stderr from validation error
 				const match = error.message.match(
 					/Failed with exit code (\d+)\n(stdout: .+\n)?(stderr: .+)?/s
 				);
