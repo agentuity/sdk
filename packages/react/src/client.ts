@@ -4,6 +4,23 @@ import {
 	type ClientOptions,
 } from '@agentuity/frontend';
 
+/**
+ * RPC Route Registry interface that gets augmented by generated code.
+ * Applications should not define this directly - it's populated by the build system.
+ *
+ * @example
+ * ```typescript
+ * // Generated code augments this interface:
+ * declare module '@agentuity/react' {
+ *   export interface RPCRouteRegistry {
+ *     hello: { post: { input: HelloInput; output: HelloOutput; type: 'api' } };
+ *   }
+ * }
+ * ```
+ */
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface RPCRouteRegistry {}
+
 let globalBaseUrl: string | undefined;
 let globalAuthHeader: string | null | undefined;
 
@@ -102,11 +119,14 @@ export function createClient<R>(
  * It automatically includes auth headers from AgentuityProvider and allows
  * custom headers to be passed.
  *
+ * The generic type parameter defaults to RPCRouteRegistry which is augmented
+ * by generated code, so you don't need to specify it manually.
+ *
  * @example
  * ```typescript
  * import { createAPIClient } from '@agentuity/react';
  *
- * // Without custom options
+ * // Types are automatically inferred from generated routes
  * const api = createAPIClient();
  * await api.hello.post({ name: 'World' });
  *
@@ -115,8 +135,7 @@ export function createClient<R>(
  * await api.hello.post({ name: 'World' });
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function createAPIClient<R = any>(
+export function createAPIClient<R = RPCRouteRegistry>(
 	options?: Omit<ClientOptions, 'baseUrl' | 'headers'> & {
 		baseUrl?: string | (() => string);
 		headers?: Record<string, string> | (() => Record<string, string>);

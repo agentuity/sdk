@@ -47,6 +47,12 @@ jobs:
          - name: Install dependencies
            run: bun install
 
+         - name: Prepare SDK for testing
+           run: bash scripts/prepare-sdk-for-testing.sh
+
+         - name: Install SDK in integration-suite
+           run: bash scripts/install-sdk-tarballs.sh apps/testing/integration-suite
+
          - name: Setup test credentials
            run: |
               # Generate CLI API key for authentication
@@ -60,15 +66,7 @@ jobs:
               # Set OpenAI API key for embedding operations
               echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
 
-         - name: Build packages
-           run: bun run build
-
-         - name: Link workspace packages in test apps
-           run: bash scripts/ci-link-workspace.sh
-
          - name: Run integration test suite
-           env:
-              SKIP_SDK_BUILD: 'true'
            run: bash apps/testing/integration-suite/scripts/ci-test.sh
 
    cloud-deployment-test:
@@ -96,11 +94,11 @@ jobs:
          - name: Install dependencies
            run: bun install
 
-         - name: Build packages
-           run: bun run build
+         - name: Prepare SDK for testing
+           run: bash scripts/prepare-sdk-for-testing.sh
 
-         - name: Link workspace packages in test apps
-           run: bash scripts/ci-link-workspace.sh
+         - name: Install SDK in cloud-deployment
+           run: bash scripts/install-sdk-tarballs.sh apps/testing/cloud-deployment
 
          - name: Setup test credentials
            run: |
@@ -133,10 +131,8 @@ jobs:
               AGENTUITY_REGION=$AGENTUITY_REGION
               EOF
 
-         - name: Build and run cloud deployment tests
-           run: |
-              cd apps/testing/cloud-deployment
-              bun run test
+         - name: Run cloud deployment tests
+           run: bash scripts/test-cloud-deployment.sh
 
          - name: Cleanup
            if: always()
@@ -177,24 +173,14 @@ jobs:
          - name: Install Playwright browsers
            run: bunx playwright install --with-deps chromium
 
-         - name: Clean nested dependencies in apps
-           run: |
-              # Remove nested @agentuity in apps directory only (not packages)
-              # Apps have actual nested deps, packages have workspace symlinks
-              find apps -path '*/node_modules/@agentuity' -type d 2>/dev/null | while read dir; do
-                echo "Removing nested in apps: $dir"
-                rm -rf "$dir"
-              done
-              echo "Cleaned nested @agentuity in apps/"
+         - name: Prepare SDK for testing
+           run: bash scripts/prepare-sdk-for-testing.sh
 
-         - name: Build packages
-           run: bun run build
-
-         - name: Link workspace packages in test apps
-           run: bash scripts/ci-link-workspace.sh
+         - name: Install SDK in e2e-web
+           run: bash scripts/install-sdk-tarballs.sh apps/testing/e2e-web
 
          - name: Run Playwright E2E tests
-           run: bun run test:e2e
+           run: bash scripts/test-e2e.sh
 
          - name: Upload Playwright report
            uses: actions/upload-artifact@v4

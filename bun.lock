@@ -62,11 +62,11 @@
       "name": "e2e-web-tests",
       "version": "0.0.1",
       "dependencies": {
-        "@agentuity/cli": "workspace:*",
-        "@agentuity/core": "workspace:*",
-        "@agentuity/react": "workspace:*",
-        "@agentuity/runtime": "workspace:*",
-        "@agentuity/schema": "workspace:*",
+        "@agentuity/cli": "file:/Users/jhaynie/code/sdk/dist/packages/agentuity-cli-0.0.100.tgz",
+        "@agentuity/core": "file:/Users/jhaynie/code/sdk/dist/packages/agentuity-core-0.0.100.tgz",
+        "@agentuity/react": "file:/Users/jhaynie/code/sdk/dist/packages/agentuity-react-0.0.100.tgz",
+        "@agentuity/runtime": "file:/Users/jhaynie/code/sdk/dist/packages/agentuity-runtime-0.0.100.tgz",
+        "@agentuity/schema": "file:/Users/jhaynie/code/sdk/dist/packages/agentuity-schema-0.0.100.tgz",
         "hono": "^4.7.13",
         "react": "^19.2.3",
         "react-dom": "^19.2.3",
@@ -3215,6 +3215,16 @@
 
     "decompress-response/mimic-response": ["mimic-response@3.1.0", "", {}, "sha512-z0yWI+4FDrrweS8Zmt4Ej5HdJmky15+L2e6Wgn3+iK5fWzb6T3fhNFq2+MeTRb064c6Wr4N/wv0DzQTjNzHNGQ=="],
 
+    "e2e-web-tests/@agentuity/cli": ["@agentuity/cli@/Users/jhaynie/code/sdk/dist/packages/agentuity-cli-0.0.100.tgz", { "dependencies": { "@agentuity/core": "0.0.100", "@agentuity/server": "0.0.100", "@datasert/cronjs-parser": "^1.4.0", "@terascope/fetch-github-release": "^2.2.1", "@vitejs/plugin-react": "^5.1.2", "acorn-loose": "^8.5.2", "adm-zip": "^0.5.16", "astring": "^1.9.0", "cli-table3": "^0.6.5", "commander": "^14.0.2", "enquirer": "^2.4.1", "git-url-parse": "^16.1.0", "json-colorizer": "^3.0.1", "json5": "^2.2.3", "tar": "^7.5.2", "tar-fs": "^3.1.1", "typescript": "^5.9.0", "vite": "^7.2.7", "zod": "^4.1.12" }, "bin": { "agentuity": "./bin/cli.ts" } }],
+
+    "e2e-web-tests/@agentuity/core": ["@agentuity/core@/Users/jhaynie/code/sdk/dist/packages/agentuity-core-0.0.100.tgz", { "dependencies": { "zod": "^4.1.12" } }],
+
+    "e2e-web-tests/@agentuity/react": ["@agentuity/react@/Users/jhaynie/code/sdk/dist/packages/agentuity-react-0.0.100.tgz", { "dependencies": { "@agentuity/core": "0.0.100", "@agentuity/frontend": "0.0.100" }, "peerDependencies": { "@types/react": "^19.0.0", "react": "^19.0.0" } }],
+
+    "e2e-web-tests/@agentuity/runtime": ["@agentuity/runtime@/Users/jhaynie/code/sdk/dist/packages/agentuity-runtime-0.0.100.tgz", { "dependencies": { "@agentuity/core": "0.0.100", "@agentuity/schema": "0.0.100", "@agentuity/server": "0.0.100", "@opentelemetry/api": "^1.9.0", "@opentelemetry/api-logs": "^0.207.0", "@opentelemetry/auto-instrumentations-node": "^0.66.0", "@opentelemetry/core": "^2.2.0", "@opentelemetry/exporter-logs-otlp-http": "^0.207.0", "@opentelemetry/exporter-metrics-otlp-http": "^0.207.0", "@opentelemetry/exporter-trace-otlp-http": "^0.207.0", "@opentelemetry/host-metrics": "^0.36.2", "@opentelemetry/otlp-exporter-base": "^0.207.0", "@opentelemetry/resources": "^2.2.0", "@opentelemetry/sdk-logs": "^0.207.0", "@opentelemetry/sdk-metrics": "^2.2.0", "@opentelemetry/sdk-node": "^0.207.0", "@opentelemetry/sdk-trace-base": "^2.2.0", "@opentelemetry/semantic-conventions": "^1.37.0", "@traceloop/ai-semantic-conventions": "0.21.0", "@traceloop/node-server-sdk": "0.21.1", "@types/mailparser": "^3.4.6", "hono": "^4.7.13", "mailparser": "^3.7.1", "zod": "^4.1.12" } }],
+
+    "e2e-web-tests/@agentuity/schema": ["@agentuity/schema@/Users/jhaynie/code/sdk/dist/packages/agentuity-schema-0.0.100.tgz", { "dependencies": { "@agentuity/core": "0.0.100" } }],
+
     "eslint/@eslint/core": ["@eslint/core@0.17.0", "", { "dependencies": { "@types/json-schema": "^7.0.15" } }, "sha512-yL/sLrpmtDaFEiUj1osRP4TI2MDz1AddJL+jZ7KSqvBuliN4xqYY54IfdN8qD8Toa6g1iloph1fxQNkjOxrrpQ=="],
 
     "eslint/@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA=="],
@@ -3470,6 +3480,16 @@
     "d3-sankey/d3-array/internmap": ["internmap@1.0.1", "", {}, "sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw=="],
 
     "d3-sankey/d3-shape/d3-path": ["d3-path@1.0.9", "", {}, "sha512-VLaYcn81dtHVTjEHd8B+pbe9yHWpXKZUC87PzoFmsFrJqgFwDe/qxfp5MlfsfM1V5E/iVt0MmEbWQ7FVIXh/bg=="],
+
+    "e2e-web-tests/@agentuity/cli/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
+
+    "e2e-web-tests/@agentuity/react/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
+
+    "e2e-web-tests/@agentuity/runtime/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
+
+    "e2e-web-tests/@agentuity/runtime/@agentuity/schema": ["@agentuity/schema@workspace:packages/schema"],
+
+    "e2e-web-tests/@agentuity/schema/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
 
     "normalize-package-data/hosted-git-info/lru-cache": ["lru-cache@10.4.3", "", {}, "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=="],
 

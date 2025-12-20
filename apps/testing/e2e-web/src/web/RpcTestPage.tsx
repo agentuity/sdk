@@ -1,5 +1,5 @@
 import { type ChangeEvent, useState } from 'react';
-import { createAPIClient } from '../generated/routes';
+import { createAPIClient } from '@agentuity/react';
 
 const api = createAPIClient();
 

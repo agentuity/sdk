@@ -5,7 +5,6 @@ import type { inputSchema as inputSchema_0, outputSchema as outputSchema_1 } fro
 import type { outputSchema as outputSchema_2 } from '../api/events/route';
 import type { InferInput, InferOutput } from '@agentuity/core';
 
-import { createClient } from '@agentuity/react';
 // ============================================================================
 // Route Schema Type Exports
 // ============================================================================
@@ -84,6 +83,7 @@ export type POSTApiEventsOutputSchema = typeof outputSchema_2;
  * This module augmentation is auto-generated from your route files during build.
  * Individual route Input/Output types are exported above for direct usage.
  */
+
 declare module '@agentuity/react' {
 	/**
 	 * API Route Registry
@@ -177,28 +177,20 @@ const _rpcRouteMetadata = {
 
 // Store metadata globally for createAPIClient() to access
 if (typeof globalThis !== 'undefined') {
-	(globalThis as any).__rpcRouteMetadata = _rpcRouteMetadata;
+	(globalThis as Record<string, unknown>).__rpcRouteMetadata = _rpcRouteMetadata;
 }
 
 /**
- * Create a type-safe API client with optional configuration.
- * 
+ * Type-safe API client is available from @agentuity/react
+ *
  * @example
  * ```typescript
- * import { createAPIClient } from './generated/routes';
- * 
- * // Basic usage
+ * import { createAPIClient } from '@agentuity/react';
+ *
  * const api = createAPIClient();
  * const result = await api.hello.post({ name: 'World' });
- * 
- * // With custom headers
- * const api = createAPIClient({ headers: { 'X-Custom-Header': 'value' } });
- * await api.hello.post({ name: 'World' });
  * ```
  */
-export function createAPIClient(options?: Parameters<typeof createClient>[0]): import('@agentuity/react').Client<import('@agentuity/react').RPCRouteRegistry> {
-	return createClient(options || {}, _rpcRouteMetadata) as any;
-}
 
 // FOUND AN ERROR IN THIS FILE?
 // Please file an issue at https://github.com/agentuity/sdk/issues

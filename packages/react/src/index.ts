@@ -15,6 +15,7 @@ export {
 	getGlobalBaseUrl,
 	setGlobalAuthHeader,
 	getGlobalAuthHeader,
+	type RPCRouteRegistry,
 } from './client';
 export {
 	useWebsocket,
