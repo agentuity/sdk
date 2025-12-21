@@ -162,9 +162,32 @@ curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -
 				echo -e "${GREEN}✓${NC} $TEST_NAME"
 			else
 				echo -e "${RED}✗${NC} $TEST_NAME"
-				ERROR=$(echo "$DATA" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 | head -c 100)
+				ERROR=$(echo "$DATA" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 | head -c 200)
 				if [ -n "$ERROR" ]; then
-					echo "  Error: $ERROR"
+					echo "    Error: $ERROR"
+				fi
+				
+				# Extract diagnostics for debugging (sessionId, statusCode, method, url)
+				if echo "$DATA" | grep -q '"diagnostics"'; then
+					SESSION_ID=$(echo "$DATA" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
+					STATUS_CODE=$(echo "$DATA" | grep -o '"statusCode":[0-9]*' | cut -d':' -f2)
+					METHOD=$(echo "$DATA" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
+					URL=$(echo "$DATA" | grep -o '"url":"[^"]*"' | cut -d'"' -f4 | head -c 100)
+					ERROR_TYPE=$(echo "$DATA" | grep -o '"errorType":"[^"]*"' | cut -d'"' -f4)
+					
+					echo -e "    ${YELLOW}Diagnostics:${NC}"
+					if [ -n "$ERROR_TYPE" ]; then
+						echo "      Type: $ERROR_TYPE"
+					fi
+					if [ -n "$STATUS_CODE" ]; then
+						echo "      Status: $STATUS_CODE"
+					fi
+					if [ -n "$METHOD" ] && [ -n "$URL" ]; then
+						echo "      Request: $METHOD $URL"
+					fi
+					if [ -n "$SESSION_ID" ]; then
+						echo -e "      ${YELLOW}Session ID: $SESSION_ID${NC} (use this to find in backend logs)"
+					fi
 				fi
 			fi
 		fi

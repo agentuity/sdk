@@ -56,6 +56,7 @@ router.get('/test/run', async (c) => {
 									passed: false,
 									error: String(result.reason),
 									duration: 0,
+									diagnostics: undefined,
 								};
 
 					if (testResult.passed) passed++;
@@ -69,6 +70,8 @@ router.get('/test/run', async (c) => {
 						error: testResult.error,
 						stack: testResult.stack,
 						duration: testResult.duration,
+						// Include diagnostics for failed tests to help with debugging
+						...(testResult.diagnostics && { diagnostics: testResult.diagnostics }),
 					});
 				}
 			}

@@ -2,12 +2,30 @@
  * Test suite registry and definitions
  */
 
+/**
+ * Diagnostic information for failed tests, especially from service calls
+ */
+export interface TestDiagnostics {
+	/** Session ID from x-session-id header for correlating with backend logs */
+	sessionId?: string;
+	/** HTTP status code if the error came from an HTTP request */
+	statusCode?: number;
+	/** HTTP method used (GET, POST, PUT, DELETE, etc.) */
+	method?: string;
+	/** URL that was called when the error occurred */
+	url?: string;
+	/** Error type/class name */
+	errorType?: string;
+}
+
 export interface TestResult {
 	name: string;
 	passed: boolean;
 	error?: string;
 	stack?: string;
 	duration: number;
+	/** Additional diagnostic info for debugging failed tests */
+	diagnostics?: TestDiagnostics;
 }
 
 export interface TestFunction {
@@ -60,6 +78,49 @@ export class TestSuite {
 	}
 
 	/**
+	 * Extract diagnostic information from an error, especially for ServiceException
+	 */
+	private extractDiagnostics(error: unknown): TestDiagnostics | undefined {
+		if (!(error instanceof Error)) {
+			return undefined;
+		}
+
+		const diagnostics: TestDiagnostics = {
+			errorType: error.constructor.name,
+		};
+
+		// Check for ServiceException-like structured errors with known properties
+		// ServiceException has: statusCode, method, url, sessionId
+		const e = error as unknown as Record<string, unknown>;
+
+		if (typeof e.sessionId === 'string') {
+			diagnostics.sessionId = e.sessionId;
+		}
+		if (typeof e.statusCode === 'number') {
+			diagnostics.statusCode = e.statusCode;
+		}
+		if (typeof e.method === 'string') {
+			diagnostics.method = e.method;
+		}
+		if (typeof e.url === 'string') {
+			diagnostics.url = e.url;
+		}
+
+		// Only return diagnostics if we found something useful
+		if (
+			diagnostics.sessionId ||
+			diagnostics.statusCode ||
+			diagnostics.method ||
+			diagnostics.url
+		) {
+			return diagnostics;
+		}
+
+		// Still return errorType for any Error
+		return { errorType: diagnostics.errorType };
+	}
+
+	/**
 	 * Run a single test and return the result
 	 */
 	async runTest(test: TestDefinition): Promise<TestResult> {
@@ -74,12 +135,14 @@ export class TestSuite {
 			};
 		} catch (error) {
 			const duration = performance.now() - startTime;
+			const diagnostics = this.extractDiagnostics(error);
 			return {
 				name: `${test.suite}:${test.name}`,
 				passed: false,
 				error: error instanceof Error ? error.message : String(error),
 				stack: error instanceof Error ? error.stack : undefined,
 				duration,
+				diagnostics,
 			};
 		}
 	}
