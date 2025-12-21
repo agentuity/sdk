@@ -132,7 +132,9 @@ export const command = createCommand({
 			: null;
 
 		// Track previous metadata for sync diffing
-		let previousMetadata: Awaited<ReturnType<typeof import('../build/vite/metadata-generator').generateMetadata>> | undefined;
+		let previousMetadata:
+			| Awaited<ReturnType<typeof import('../build/vite/metadata-generator').generateMetadata>>
+			| undefined;
 
 		let devmode: DevmodeResponse | undefined;
 		let gravityBin: string | undefined;
@@ -358,67 +360,67 @@ export const command = createCommand({
 				await tui.spinner({
 					message: 'Building dev bundle',
 					callback: async () => {
-					const { generateEntryFile } = await import('../build/entry-generator');
-					await generateEntryFile({
-						rootDir,
-						projectId: project?.projectId ?? '',
-						deploymentId,
-						logger,
-						mode: 'dev',
-					});
+						const { generateEntryFile } = await import('../build/entry-generator');
+						await generateEntryFile({
+							rootDir,
+							projectId: project?.projectId ?? '',
+							deploymentId,
+							logger,
+							mode: 'dev',
+						});
 
-					// Bundle the app with LLM patches (dev mode = no minification)
-					const { installExternalsAndBuild } = await import('../build/vite/server-bundler');
-					await installExternalsAndBuild({
-						rootDir,
-						dev: true, // DevMode: no minification, inline sourcemaps
-						logger,
-					});
+						// Bundle the app with LLM patches (dev mode = no minification)
+						const { installExternalsAndBuild } = await import('../build/vite/server-bundler');
+						await installExternalsAndBuild({
+							rootDir,
+							dev: true, // DevMode: no minification, inline sourcemaps
+							logger,
+						});
 
-					// Generate metadata file (needed for eval ID lookup at runtime)
-					const { discoverAgents } = await import('../build/vite/agent-discovery');
-					const { discoverRoutes } = await import('../build/vite/route-discovery');
-					const { generateMetadata, writeMetadataFile } = await import(
-						'../build/vite/metadata-generator'
-					);
-
-					const srcDir = join(rootDir, 'src');
-					const agents = await discoverAgents(
-						srcDir,
-						project?.projectId ?? '',
-						deploymentId,
-						logger
-					);
-					const { routes } = await discoverRoutes(
-						srcDir,
-						project?.projectId ?? '',
-						deploymentId,
-						logger
-					);
-
-					const metadata = await generateMetadata({
-						rootDir,
-						projectId: project?.projectId ?? '',
-						orgId: project?.orgId ?? '',
-						deploymentId,
-						agents,
-						routes,
-						dev: true,
-						logger,
-					});
-
-					writeMetadataFile(rootDir, metadata, true, logger);
-
-					// Sync metadata with backend (creates agents and evals in the database)
-					if (syncService && project?.projectId) {
-						await syncService.sync(
-							metadata,
-							previousMetadata,
-							project.projectId,
-							deploymentId
+						// Generate metadata file (needed for eval ID lookup at runtime)
+						const { discoverAgents } = await import('../build/vite/agent-discovery');
+						const { discoverRoutes } = await import('../build/vite/route-discovery');
+						const { generateMetadata, writeMetadataFile } = await import(
+							'../build/vite/metadata-generator'
 						);
-						previousMetadata = metadata;
-					}
+
+						const srcDir = join(rootDir, 'src');
+						const agents = await discoverAgents(
+							srcDir,
+							project?.projectId ?? '',
+							deploymentId,
+							logger
+						);
+						const { routes } = await discoverRoutes(
+							srcDir,
+							project?.projectId ?? '',
+							deploymentId,
+							logger
+						);
+
+						const metadata = await generateMetadata({
+							rootDir,
+							projectId: project?.projectId ?? '',
+							orgId: project?.orgId ?? '',
+							deploymentId,
+							agents,
+							routes,
+							dev: true,
+							logger,
+						});
+
+						writeMetadataFile(rootDir, metadata, true, logger);
+
+						// Sync metadata with backend (creates agents and evals in the database)
+						if (syncService && project?.projectId) {
+							await syncService.sync(
+								metadata,
+								previousMetadata,
+								project.projectId,
+								deploymentId
+							);
+							previousMetadata = metadata;
+						}
 					},
 					clearOnSuccess: true,
 				});

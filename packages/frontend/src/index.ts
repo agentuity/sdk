@@ -18,6 +18,13 @@ export {
 	type EventStreamManagerOptions,
 	type EventStreamManagerState,
 } from './eventstream-manager';
+export {
+	WebRTCManager,
+	type WebRTCStatus,
+	type WebRTCCallbacks,
+	type WebRTCManagerOptions,
+	type WebRTCManagerState,
+} from './webrtc-manager';
 
 // Export client implementation (local to this package)
 export { createClient } from './client/index';

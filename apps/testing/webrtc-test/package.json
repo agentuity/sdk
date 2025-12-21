@@ -1,0 +1,30 @@
+{
+	"name": "webrtc-test",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"private": true,
+	"module": ".agentuity/app.js",
+	"type": "module",
+	"scripts": {
+		"build": "agentuity build",
+		"dev": "agentuity dev",
+		"start": "bun .agentuity/app.js",
+		"deploy": "agentuity deploy",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/react": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"@agentuity/workbench": "workspace:*",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"devDependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@types/bun": "latest",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"typescript": "^5"
+	}
+}

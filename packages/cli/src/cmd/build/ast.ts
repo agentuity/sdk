@@ -1336,6 +1336,17 @@ export async function parseRoute(
 								}
 								break;
 							}
+							case 'webrtc': {
+								// webrtc() registers a signaling endpoint at ${path}/signal
+								type = 'websocket';
+								method = 'get';
+								const theaction = action as ASTLiteral;
+								if (theaction.type === 'Literal') {
+									suffix = `${String(theaction.value)}/signal`;
+									break;
+								}
+								break;
+							}
 							case 'sms': {
 								type = method;
 								method = 'post';
