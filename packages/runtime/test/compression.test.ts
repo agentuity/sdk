@@ -7,7 +7,10 @@
  * logic (config resolution, bypasses) rather than actual compression.
  */
 
-import { test, expect, describe, beforeEach, afterEach } from 'bun:test';
+import { expect, describe, beforeEach, afterEach, test as baseTest } from 'bun:test';
+
+// Use serial tests to avoid race conditions with global app config state
+const test = baseTest.serial;
 import { Hono } from 'hono';
 import { createCompressionMiddleware } from '../src/middleware';
 
@@ -15,9 +18,6 @@ import { createCompressionMiddleware } from '../src/middleware';
 function generateLargePayload(size = 2048): string {
 	return 'x'.repeat(size);
 }
-
-// Store original global state
-let originalAppConfig: unknown;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setAppConfig(config: any) {
@@ -30,20 +30,14 @@ function clearAppConfig() {
 	delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
 }
 
+// Tests use global app config state, so beforeEach/afterEach ensure isolation
 describe('Compression Middleware', () => {
 	beforeEach(() => {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		originalAppConfig = (globalThis as any).__AGENTUITY_APP_CONFIG__;
 		clearAppConfig();
 	});
 
 	afterEach(() => {
-		if (originalAppConfig !== undefined) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(globalThis as any).__AGENTUITY_APP_CONFIG__ = originalAppConfig;
-		} else {
-			clearAppConfig();
-		}
+		clearAppConfig();
 	});
 
 	describe('Basic behavior', () => {
@@ -232,9 +226,6 @@ describe('Compression Middleware', () => {
 		});
 
 		test('works without any config (uses defaults)', async () => {
-			// Ensure no config is set (previous test may have set one)
-			clearAppConfig();
-
 			const app = new Hono();
 			app.use('*', createCompressionMiddleware());
 			app.get('/test', (c) => {

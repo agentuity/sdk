@@ -3,12 +3,12 @@
  * Tests that createCorsMiddleware correctly uses config from createApp().
  */
 
-import { test, expect, describe, beforeEach, afterEach } from 'bun:test';
+import { expect, describe, beforeEach, afterEach, test as baseTest } from 'bun:test';
+
+// Use serial tests to avoid race conditions with global app config state
+const test = baseTest.serial;
 import { Hono } from 'hono';
 import { createCorsMiddleware } from '../src/middleware';
-
-// Store original global state
-let originalAppConfig: unknown;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setAppConfig(config: any) {
@@ -21,20 +21,14 @@ function clearAppConfig() {
 	delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
 }
 
+// Tests use global app config state, so beforeEach/afterEach ensure isolation
 describe('CORS Middleware', () => {
 	beforeEach(() => {
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		originalAppConfig = (globalThis as any).__AGENTUITY_APP_CONFIG__;
 		clearAppConfig();
 	});
 
 	afterEach(() => {
-		if (originalAppConfig !== undefined) {
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			(globalThis as any).__AGENTUITY_APP_CONFIG__ = originalAppConfig;
-		} else {
-			clearAppConfig();
-		}
+		clearAppConfig();
 	});
 
 	describe('Basic CORS behavior', () => {
