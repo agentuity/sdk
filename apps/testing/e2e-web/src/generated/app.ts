@@ -8,6 +8,7 @@ import {
   createCorsMiddleware,
   createOtelMiddleware,
   createAgentMiddleware,
+  createCompressionMiddleware,
   getAppState,
   getAppConfig,
   register,
@@ -61,6 +62,9 @@ const app = createRouter();
 setGlobalRouter(app);
 
 // Step 3: Apply middleware in correct order (BEFORE mounting routes)
+// Compression runs first (outermost) so it can compress the final response
+app.use('*', createCompressionMiddleware());
+
 app.use('*', createBaseMiddleware({
 	logger: otel.logger,
 	tracer: otel.tracer,

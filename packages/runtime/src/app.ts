@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { type Env as HonoEnv } from 'hono';
 import type { cors } from 'hono/cors';
+import type { compress } from 'hono/compress';
 import type { Logger } from './logger';
 import type { Meter, Tracer } from '@opentelemetry/api';
 import type {
@@ -14,14 +15,86 @@ import type {
 import type { Email } from './io/email';
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
 import type WaitUntilHandler from './_waituntil';
+import type { Context } from 'hono';
 
 type CorsOptions = Parameters<typeof cors>[0];
+type HonoCompressOptions = Parameters<typeof compress>[0];
+
+/**
+ * Configuration options for response compression middleware.
+ *
+ * @example
+ * ```typescript
+ * const app = await createApp({
+ *   compression: {
+ *     enabled: true,
+ *     threshold: 1024,
+ *     contentTypes: ['text/', 'application/json'],
+ *   }
+ * });
+ * ```
+ */
+export interface CompressionConfig {
+	/**
+	 * Enable or disable compression globally.
+	 * @default true
+	 */
+	enabled?: boolean;
+
+	/**
+	 * Minimum response body size in bytes before compression is attempted.
+	 * Responses smaller than this threshold will not be compressed.
+	 * @default 1024
+	 */
+	threshold?: number;
+
+	/**
+	 * Content types to compress. Uses prefix matching.
+	 * @default ['text/', 'application/json', 'application/javascript', 'application/xml']
+	 */
+	contentTypes?: string[];
+
+	/**
+	 * Optional filter function to skip compression for specific requests.
+	 * Return false to skip compression for the request.
+	 *
+	 * @example
+	 * ```typescript
+	 * filter: (c) => !c.req.path.startsWith('/internal')
+	 * ```
+	 */
+	filter?: (c: Context) => boolean;
+
+	/**
+	 * Raw options passed through to Hono's compress middleware.
+	 * These are merged with Agentuity's defaults.
+	 */
+	honoOptions?: HonoCompressOptions;
+}
 
 export interface AppConfig<TAppState = Record<string, never>> {
 	/**
 	 * Override the default cors settings
 	 */
 	cors?: CorsOptions;
+	/**
+	 * Configure response compression.
+	 * Set to `false` to disable compression entirely.
+	 *
+	 * @example
+	 * ```typescript
+	 * const app = await createApp({
+	 *   compression: {
+	 *     threshold: 2048,
+	 *     contentTypes: ['text/', 'application/json'],
+	 *   }
+	 * });
+	 *
+	 * // Or disable compression:
+	 * const app = await createApp({ compression: false });
+	 * ```
+	 */
+	compression?: CompressionConfig | false;
 	/**
 	 * Override the default services
 	 */

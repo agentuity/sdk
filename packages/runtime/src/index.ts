@@ -28,6 +28,7 @@ export {
 // app.ts exports (all app-related functionality)
 export {
 	type AppConfig,
+	type CompressionConfig,
 	type Variables,
 	type TriggerType,
 	type PrivateVariables,
@@ -43,7 +44,12 @@ export {
 export { addEventListener, removeEventListener } from './_events';
 
 // middleware.ts exports (Vite-native)
-export { createBaseMiddleware, createCorsMiddleware, createOtelMiddleware } from './middleware';
+export {
+	createBaseMiddleware,
+	createCorsMiddleware,
+	createOtelMiddleware,
+	createCompressionMiddleware,
+} from './middleware';
 
 // Internal exports needed by generated entry files
 export { register } from './otel/config';

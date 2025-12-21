@@ -2,9 +2,9 @@
 name: fetch-issue
 description: Fetch a GitHub issue and generate a resolution plan
 parameters:
-  - name: issue
-    description: The issue number or full GitHub issue URL
-    required: true
+   - name: issue
+     description: The issue number or full GitHub issue URL
+     required: true
 ---
 
 # Fetch Issue Tool
