@@ -18,7 +18,7 @@ export const Mode = z.object({
 	idle: z.string().optional().describe('duration in seconds if on-demand'),
 });
 
-export const Deployment = z.object({
+export const DeploymentConfig = z.object({
 	resources: Resources.optional().describe('the resource requirements for your deployed project'),
 	mode: Mode.optional().describe('the provisioning mode for the project'),
 	dependencies: z
@@ -95,6 +95,7 @@ export const BuildMetadataSchema = z.object({
 			filename: z.string().describe('the relative path for the file'),
 			kind: z.string().describe('the type of asset'),
 			contentType: z.string().describe('the content-type for the file'),
+			contentEncoding: z.string().optional().describe('the content-encoding for the file'),
 			size: z.number().describe('the size in bytes for the file'),
 		})
 	),
@@ -110,7 +111,7 @@ export const BuildMetadataSchema = z.object({
 		orgId: z.string().describe('the organization id for the project'),
 	}),
 	deployment: z.intersection(
-		Deployment,
+		DeploymentConfig,
 		z.object({
 			id: z.string().describe('the deployment id'),
 			date: z.string().describe('the date the deployment was created in UTC format'),
@@ -184,7 +185,7 @@ export type Deployment = z.infer<typeof CreateProjectDeployment>;
 export async function projectDeploymentCreate(
 	client: APIClient,
 	projectId: string,
-	deploymentConfig?: z.infer<typeof Deployment>
+	deploymentConfig?: z.infer<typeof DeploymentConfig>
 ): Promise<Deployment> {
 	const resp = await client.request<CreateProjectDeploymentPayload>(
 		'POST',

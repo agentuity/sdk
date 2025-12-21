@@ -8,6 +8,7 @@
 import type { ColorScheme } from './terminal';
 import type { LogLevel } from './types';
 import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server';
+import { clearLastLines } from './tui';
 
 // Spinner frames
 const FRAMES = ['◐', '◓', '◑', '◒'];
@@ -210,7 +211,7 @@ function enablePauseResume(
  * Pause step rendering for interactive input
  * Returns resume function
  */
-export function pauseStepUI(): () => void {
+export function pauseStepUI(clear = false): () => void {
 	if (!process.stdout.isTTY || !getTotalLinesFn) {
 		return () => {}; // No-op if not TTY or not in step context
 	}
@@ -232,8 +233,16 @@ export function pauseStepUI(): () => void {
 	}) as typeof process.stderr.write;
 
 	// Show cursor and add newline for separation
-	process.stdout.write('\x1B[?25h');
-	process.stdout.write('\n');
+	if (clear) {
+		const lines = getTotalLinesFn();
+		if (lines) {
+			clearLastLines(lines + 1, originalStdoutWrite);
+		}
+	}
+	originalStdoutWrite('\x1B[?25h');
+	if (!clear) {
+		originalStdoutWrite('\n');
+	}
 
 	// Return resume function
 	return () => {
@@ -244,8 +253,10 @@ export function pauseStepUI(): () => void {
 		process.stderr.write = originalStderrWrite;
 
 		// Restore cursor to saved position (where steps began)
-		process.stdout.write('\x1B[u'); // Restore cursor position
-		process.stdout.write('\x1B[0J'); // Clear from saved position to end of screen
+		if (!clear) {
+			process.stdout.write('\x1B[u'); // Restore cursor position
+			process.stdout.write('\x1B[0J'); // Clear from saved position to end of screen
+		}
 		process.stdout.write('\x1B[?25l'); // Hide cursor
 
 		// Force immediate re-render (cursor already at step start)
