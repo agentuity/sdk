@@ -1,4 +1,11 @@
 #!/bin/bash
+# Link Local SDK Packages
+# Builds, packs, and installs SDK packages into a target test project
+# Reuses the same scripts used by CI for consistency
+#
+# Usage: ./scripts/link-local.sh <target-directory>
+# Example: ./scripts/link-local.sh /Users/me/my-test-project
+
 set -e
 
 if [ -z "$1" ]; then
@@ -8,113 +15,92 @@ if [ -z "$1" ]; then
 fi
 
 TARGET_DIR="$(cd "$1" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-
-echo "📦 Building and packing SDK packages for local development to $TARGET_DIR..."
-
-cd "$(dirname "$0")/.."
-SDK_ROOT=$(pwd)
-
-# Build all packages
-echo "🔨 Building packages..."
-bun run build
-
-# Create temp directory for tarballs
-TEMP_DIR=$(mktemp -d)
-echo "📁 Using temp directory: $TEMP_DIR"
-
-# Pack each package and capture filenames
-echo "📦 Packing packages..."
-
-cd "$SDK_ROOT/packages/core"
-CORE_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - core: $CORE_PKG"
-
-cd "$SDK_ROOT/packages/schema"
-SCHEMA_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - schema: $SCHEMA_PKG"
-
-cd "$SDK_ROOT/packages/frontend"
-FRONTEND_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - web: $FRONTEND_PKG"
-
-cd "$SDK_ROOT/packages/server"
-SERVER_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - server: $SERVER_PKG"
-
-cd "$SDK_ROOT/packages/react"
-REACT_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - react: $REACT_PKG"
-
-cd "$SDK_ROOT/packages/runtime"
-RUNTIME_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - runtime: $RUNTIME_PKG"
-
-cd "$SDK_ROOT/packages/cli"
-CLI_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - cli: $CLI_PKG"
-
-cd "$SDK_ROOT/packages/workbench"
-WORKBENCH_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - workbench: $WORKBENCH_PKG"
-
-cd "$SDK_ROOT/packages/auth"
-AUTH_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
-echo "  - auth: $AUTH_PKG"
-
-# Install in target directory
+echo "📦 Linking local SDK packages to $TARGET_DIR..."
 echo ""
-echo "📥 Installing in $TARGET_DIR..."
-cd "$TARGET_DIR"
 
-bun remove @agentuity/cli @agentuity/core @agentuity/react @agentuity/runtime @agentuity/schema @agentuity/server @agentuity/workbench @agentuity/auth @agentuity/frontend 2>/dev/null || true
+# Step 1: Prepare SDK (build + pack)
+bash "$SCRIPT_DIR/prepare-sdk-for-testing.sh"
 
-# Extract tarballs directly into node_modules to avoid npm registry resolution
-mkdir -p node_modules/@agentuity
+# Step 2: Install tarballs into target directory
+# We need to handle external directories differently than internal apps
+TARBALL_DIR="$SDK_ROOT/dist/packages"
 
-for pkg in "$CORE_PKG" "$SCHEMA_PKG" "$FRONTEND_PKG" "$SERVER_PKG" "$REACT_PKG" "$RUNTIME_PKG" "$CLI_PKG" "$WORKBENCH_PKG" "$AUTH_PKG"; do
-  pkg_name=$(echo "$pkg" | sed 's/agentuity-//' | sed 's/-0.0.100.tgz//')
-  tar -xzf "$TEMP_DIR/$pkg" -C node_modules/@agentuity
-  mv node_modules/@agentuity/package "node_modules/@agentuity/$pkg_name"
-  echo "  ✓ Extracted $pkg_name"
-done
-
-# Run bun install to link peer dependencies
-bun install
-
-# Cleanup nested @agentuity packages (ensures proper resolution)
-echo ""
-echo "🧹 Cleaning nested @agentuity packages..."
-for pkg in runtime server cli schema web react auth workbench; do
-    if [ -d "node_modules/@agentuity/$pkg/node_modules/@agentuity" ]; then
-        echo "  - Removing node_modules/@agentuity/$pkg/node_modules/@agentuity"
-        rm -rf "node_modules/@agentuity/$pkg/node_modules/@agentuity"
-    fi
-done
-
-# Update package.json scripts to use local CLI
-echo ""
-echo "🔧 Updating package.json scripts to use local CLI..."
-if [ -f "$TARGET_DIR/package.json" ]; then
-    CLI_PATH="$SDK_ROOT/packages/cli/bin/cli.ts"
-    cd $TARGET_DIR
-    bun -e "
-        const fs = require('fs');
-        const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-        if (!pkg.scripts) pkg.scripts = {};
-        pkg.scripts.build = 'bun $CLI_PATH build';
-        pkg.scripts.dev = 'bun $CLI_PATH dev';
-        pkg.scripts.deploy = 'bun $CLI_PATH deploy';
-        fs.writeFileSync('package.json', JSON.stringify(pkg, null, 3) + '\n');
-        console.log('  ✓ Updated build and dev scripts to use $CLI_PATH');
-    "
-    cd -
+# Verify tarballs exist
+if [ ! -d "$TARBALL_DIR" ] || [ -z "$(ls -A "$TARBALL_DIR"/*.tgz 2>/dev/null)" ]; then
+	echo "❌ ERROR: No tarballs found in $TARBALL_DIR"
+	exit 1
 fi
 
-# Cleanup
-rm -rf "$TEMP_DIR"
+echo ""
+echo "📥 Installing SDK Tarballs into $TARGET_DIR"
+echo "============================================"
+
+# Navigate to target directory
+cd "$TARGET_DIR"
+
+# Remove existing @agentuity packages
+echo "Removing existing @agentuity packages..."
+rm -rf node_modules/@agentuity
+
+# Clear Bun cache for clean install
+echo "Clearing Bun cache..."
+rm -rf "$HOME/.bun/install/cache"
+
+# Backup package.json
+cp package.json package.json.backup
+
+# Add/update @agentuity dependencies to use tarball file references
+echo "Rewriting package.json to use tarball dependencies..."
+bun -e "
+const fs = require('fs');
+const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+if (!pkg.dependencies) pkg.dependencies = {};
+
+const tarballs = fs.readdirSync('$TARBALL_DIR').filter(f => f.startsWith('agentuity-') && f.endsWith('.tgz'));
+for (const tarball of tarballs) {
+	// Extract package name (e.g., agentuity-core-0.0.101.tgz -> core)
+	const pkgBase = tarball.replace('agentuity-', '').replace(/-[0-9].*/, '');
+	const pkgName = '@agentuity/' + pkgBase;
+	pkg.dependencies[pkgName] = 'file:$TARBALL_DIR/' + tarball;
+	console.log('  + ' + pkgName);
+}
+
+fs.writeFileSync('package.json', JSON.stringify(pkg, null, 3) + '\n');
+"
+
+# Install from modified package.json
+echo "Installing SDK packages from tarballs..."
+bun install
+
+# Restore original package.json
+mv package.json.backup package.json
+
+# Update package.json scripts to use local CLI for development
+echo ""
+echo "🔧 Updating package.json scripts to use local CLI..."
+CLI_PATH="$SDK_ROOT/packages/cli/bin/cli.ts"
+bun -e "
+	const fs = require('fs');
+	const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+	if (!pkg.scripts) pkg.scripts = {};
+	pkg.scripts.build = 'bun $CLI_PATH build';
+	pkg.scripts.dev = 'bun $CLI_PATH dev';
+	pkg.scripts.deploy = 'bun $CLI_PATH deploy';
+	fs.writeFileSync('package.json', JSON.stringify(pkg, null, 3) + '\n');
+	console.log('  ✓ Updated build and dev scripts to use $CLI_PATH');
+"
 
 echo ""
-echo "✅ Local SDK packages installed successfully!"
+echo "✅ Local SDK packages linked successfully!"
 echo ""
-echo "Run 'bun run build' in your test app to rebuild with the local changes."
+echo "Installed packages:"
+for pkg in core schema frontend server react runtime cli workbench auth; do
+	if [ -d "node_modules/@agentuity/$pkg" ]; then
+		echo "  ✓ @agentuity/$pkg"
+	fi
+done
+echo ""
+echo "Run 'bun run dev' or 'bun run build' to test with the local SDK changes."

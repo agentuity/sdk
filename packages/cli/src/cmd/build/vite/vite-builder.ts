@@ -99,10 +99,14 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		}
 
 		// Determine CDN base URL for production builds
+		// Use CDN for all non-dev builds with a deploymentId (including local region)
 		const isLocalRegion = options.region === 'local';
+		const cdnDomain = isLocalRegion
+			? 'localstack-static-assets.t3.storage.dev'
+			: 'static.agentuity.com';
 		const cdnBaseUrl =
-			!dev && deploymentId && !isLocalRegion
-				? `https://static.agentuity.com/${deploymentId}/client/`
+			!dev && deploymentId
+				? `https://${cdnDomain}/${deploymentId}/client/`
 				: undefined;
 
 		viteConfig = {
