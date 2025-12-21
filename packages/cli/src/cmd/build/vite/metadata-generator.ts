@@ -668,6 +668,7 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 	lines.push('- Home directory: `/home/agentuity`');
 	lines.push('- Working directory: `/home/agentuity/app` (application code deployed here)');
 	lines.push('- Logs directory: `/home/agentuity/logs`');
+	lines.push('- Temp directory: `/home/agentuity/tmp`');
 	lines.push('');
 	lines.push('**Pre-installed Tools:**');
 	lines.push('- **Runtimes:** Node.js 24, Bun 1.x');
