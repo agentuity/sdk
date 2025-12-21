@@ -105,9 +105,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			? 'localstack-static-assets.t3.storage.dev'
 			: 'static.agentuity.com';
 		const cdnBaseUrl =
-			!dev && deploymentId
-				? `https://${cdnDomain}/${deploymentId}/client/`
-				: undefined;
+			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
 
 		viteConfig = {
 			root: join(rootDir, 'src', 'web'), // Set web dir as root

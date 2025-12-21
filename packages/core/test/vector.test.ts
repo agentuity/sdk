@@ -911,9 +911,7 @@ describe('VectorStorageService', () => {
 		});
 
 		test('includes telemetry in request', async () => {
-			const { adapter, calls } = createMockAdapter([
-				{ ok: true, data: { sum: 0, count: 0 } },
-			]);
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: { sum: 0, count: 0 } }]);
 
 			const service = new VectorStorageService(baseUrl, adapter);
 			await service.getStats('my-vectors');

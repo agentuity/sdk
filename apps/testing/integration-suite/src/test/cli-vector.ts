@@ -129,7 +129,10 @@ test('cli-vector', 'stats-all-command', async () => {
 	});
 
 	// Command should execute
-	assert(result.stdout !== undefined || result.stderr !== undefined, 'Stats should produce output');
+	assert(
+		result.stdout !== undefined || result.stderr !== undefined,
+		'Stats should produce output'
+	);
 });
 
 // Test 7: Stats command - specific namespace

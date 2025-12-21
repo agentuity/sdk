@@ -244,9 +244,10 @@ export interface VectorItemStats {
 	lastUsed: number;
 
 	/**
-	 * Number of times the vector was accessed
+	 * Number of times the vector was accessed.
+	 * Note: This is only tracked in cloud storage; local development returns undefined.
 	 */
-	count: number;
+	count?: number;
 }
 
 /**
@@ -910,10 +911,7 @@ export class VectorStorageService implements VectorStorage {
 			throw new VectorStorageNameRequiredError();
 		}
 
-		const url = buildUrl(
-			this.#baseUrl,
-			`/vector/2025-03-17/stats/${encodeURIComponent(name)}`
-		);
+		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/stats/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(10_000);
 
 		const res = await this.#adapter.invoke<VectorStatsResponse>(url, {

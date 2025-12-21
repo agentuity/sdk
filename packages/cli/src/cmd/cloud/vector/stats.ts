@@ -11,7 +11,7 @@ const VectorItemStatsSchema = z.object({
 	metadata: z.record(z.string(), z.unknown()).optional().describe('Metadata'),
 	firstUsed: z.number().describe('First access timestamp (ms)'),
 	lastUsed: z.number().describe('Last access timestamp (ms)'),
-	count: z.number().describe('Access count'),
+	count: z.number().optional().describe('Access count (only available in cloud storage)'),
 });
 
 const VectorNamespaceStatsSchema = z.object({
@@ -91,7 +91,7 @@ export const statsSubcommand = createCommand({
 							return {
 								Key: key,
 								Size: `${item.size} bytes`,
-								Accesses: item.count,
+								Accesses: item.count ?? '-',
 								'Last Used': new Date(item.lastUsed).toLocaleDateString(),
 								Document: docPreview,
 							};

@@ -39,7 +39,9 @@ export const deleteSubcommand = createCommand({
 		const storage = await createStorageAdapter(ctx);
 		await storage.delete(args.namespace, args.key);
 		const durationMs = Date.now() - started;
-		tui.success(`deleted in ${durationMs.toFixed(1)}ms`);
+		if (!ctx.options.json) {
+			tui.success(`deleted in ${durationMs.toFixed(1)}ms`);
+		}
 
 		return {
 			success: true,
