@@ -86,6 +86,9 @@ async function fetchDNSRecord(name: string, type: string): Promise<string | null
 	return null;
 }
 
+const LOCAL_DNS = 'agentuity.io';
+const PRODUCTION_DNS = 'agentuity.run';
+
 /**
  * This function will check for each of the custom domains and make sure they are correctly
  * configured in DNS
@@ -100,9 +103,7 @@ export async function checkCustomDomainForDNS(
 	domains: string[],
 	config?: Config | null
 ): Promise<DNSResult[]> {
-	const suffix = config?.overrides?.api_url?.includes('agentuity.io')
-		? 'agentuity.io'
-		: 'agentuity.cloud';
+	const suffix = config?.overrides?.api_url?.includes('agentuity.io') ? LOCAL_DNS : PRODUCTION_DNS;
 	const id = Bun.hash.xxHash64(projectId).toString(16);
 	const proxy = `p${id}.${suffix}`;
 
@@ -253,16 +254,16 @@ export async function promptForDNS(
 				linesShown += 6;
 			}
 
-			await tui.waitForAnyKey('Press any key to check again or ctrl+c to cancel...');
-			tui.clearLastLines(linesShown + 1);
-			linesShown = 0;
+			// await tui.waitForAnyKey('Press any key to check again or ctrl+c to cancel...');
 			await tui.spinner({
-				message: 'Checking...',
+				message: 'Checking again in 5s...',
 				clearOnSuccess: true,
 				callback: () => {
-					return Bun.sleep(2000);
+					return Bun.sleep(5000);
 				},
 			});
+			tui.clearLastLines(linesShown);
+			linesShown = 0;
 			continue;
 		}
 		tui.clearLastLines(1);
