@@ -156,7 +156,7 @@ export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResul
                 },
             },
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
     }, [signalUrl, options.roomId, options.polite, options.iceServers, options.media]);
 
     // Initialize manager
