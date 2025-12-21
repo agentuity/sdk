@@ -45,6 +45,54 @@ import { checkCustomDomainForDNS } from './domain';
 import { DeployOptionsSchema } from '../../schemas/deploy';
 import { ErrorCode } from '../../errors';
 
+function shouldCompressAsset(asset: {
+	filename: string;
+	contentType: string;
+	kind: string;
+}): boolean {
+	const ct = asset.contentType.toLowerCase();
+	const filename = asset.filename.toLowerCase();
+
+	if (ct.startsWith('image/') && ct !== 'image/svg+xml') {
+		return false;
+	}
+	if (ct.startsWith('video/') || ct.startsWith('audio/')) {
+		return false;
+	}
+	if (ct === 'font/woff' || ct === 'font/woff2') {
+		return false;
+	}
+	if (/\.(zip|gz|tgz|tar|bz2|br)$/.test(filename)) {
+		return false;
+	}
+
+	if (
+		ct.startsWith('text/') ||
+		ct === 'application/javascript' ||
+		ct === 'application/json' ||
+		ct === 'application/xml' ||
+		ct === 'application/xhtml+xml' ||
+		ct === 'image/svg+xml'
+	) {
+		return true;
+	}
+
+	if (ct === 'font/ttf' || ct === 'application/vnd.ms-fontobject') {
+		return true;
+	}
+
+	if (
+		asset.kind === 'entry-point' ||
+		asset.kind === 'script' ||
+		asset.kind === 'stylesheet' ||
+		asset.kind === 'sourcemap'
+	) {
+		return true;
+	}
+
+	return false;
+}
+
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
 	'Deployment cancelled by user'
@@ -367,15 +415,33 @@ export const deploySubcommand = createSubcommand({
 										}
 
 										// Asset filename already includes the subdirectory (e.g., "client/assets/main-abc123.js")
-										const file = Bun.file(join(projectDir, '.agentuity', asset.filename));
+										const filePath = join(projectDir, '.agentuity', asset.filename);
+										const compress = shouldCompressAsset(asset);
+
+										const headers: Record<string, string> = {
+											'Content-Type': asset.contentType,
+										};
+
+										let body: Uint8Array | Blob;
+										if (compress) {
+											const file = Bun.file(filePath);
+											const ab = await file.arrayBuffer();
+											const gzipped = Bun.gzipSync(new Uint8Array(ab));
+											headers['Content-Encoding'] = 'gzip';
+											body = gzipped;
+											ctx.logger.trace(
+												`Compressing ${asset.filename} (${asset.size} -> ${gzipped.byteLength} bytes)`
+											);
+										} else {
+											body = Bun.file(filePath);
+										}
+
 										promises.push(
 											fetch(assetUrl, {
 												method: 'PUT',
 												duplex: 'half',
-												headers: {
-													'Content-Type': asset.contentType,
-												},
-												body: file,
+												headers,
+												body,
 											})
 										);
 									}
