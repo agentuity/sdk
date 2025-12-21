@@ -34,38 +34,33 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 
 	// For server mode, use Bun.build (preserves process.env at runtime)
 	if (mode === 'server') {
-		try {
-			const srcDir = join(rootDir, 'src');
+		const srcDir = join(rootDir, 'src');
 
-			// Generate documentation files (if they don't exist)
-			const { generateDocumentation } = await import('./docs-generator');
-			await generateDocumentation(srcDir, logger);
+		// Generate documentation files (if they don't exist)
+		const { generateDocumentation } = await import('./docs-generator');
+		await generateDocumentation(srcDir, logger);
 
-			// Generate lifecycle types (if setup() exists)
-			const { generateLifecycleTypes } = await import('./lifecycle-generator');
-			await generateLifecycleTypes(rootDir, srcDir, logger);
+		// Generate lifecycle types (if setup() exists)
+		const { generateLifecycleTypes } = await import('./lifecycle-generator');
+		await generateLifecycleTypes(rootDir, srcDir, logger);
 
-			// Then, generate the entry file
-			const { generateEntryFile } = await import('../entry-generator');
-			await generateEntryFile({
-				rootDir,
-				projectId,
-				deploymentId: deploymentId || '',
-				logger,
-				mode: dev ? 'dev' : 'prod',
-			});
+		// Then, generate the entry file
+		const { generateEntryFile } = await import('../entry-generator');
+		await generateEntryFile({
+			rootDir,
+			projectId,
+			deploymentId: deploymentId || '',
+			logger,
+			mode: dev ? 'dev' : 'prod',
+		});
 
-			// Finally, build with Bun.build
-			const { installExternalsAndBuild } = await import('./server-bundler');
-			await installExternalsAndBuild({
-				rootDir,
-				dev,
-				logger,
-			});
-		} catch (error) {
-			logger.error('server-bundler import or execution failed: %s', error);
-			throw error;
-		}
+		// Finally, build with Bun.build
+		const { installExternalsAndBuild } = await import('./server-bundler');
+		await installExternalsAndBuild({
+			rootDir,
+			dev,
+			logger,
+		});
 		return;
 	}
 
@@ -177,20 +172,15 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	}
 
 	// Build with Vite
-	try {
-		// Force the build to use the correct mode
-		const buildMode = dev ? 'development' : 'production';
+	// Force the build to use the correct mode
+	const buildMode = dev ? 'development' : 'production';
 
-		await viteBuild({
-			...viteConfig,
-			mode: buildMode,
-		});
+	await viteBuild({
+		...viteConfig,
+		mode: buildMode,
+	});
 
-		logger.debug(`Vite build complete for mode: ${mode}`);
-	} catch (error) {
-		logger.error(`Vite build failed for mode ${mode}:`, error);
-		throw error;
-	}
+	logger.debug(`Vite build complete for mode: ${mode}`);
 }
 
 interface BuildResult {
@@ -255,20 +245,15 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 2. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
 		logger.debug('Building client assets...');
-		try {
-			const started = Date.now();
-			await runViteBuild({
-				...options,
-				mode: 'client',
-				workbenchEnabled: workbenchConfig.enabled,
-				workbenchRoute: workbenchConfig.route,
-			});
-			result.client.included = true;
-			result.client.duration = Date.now() - started;
-		} catch (error) {
-			logger.error('Client build failed:', error);
-			throw error;
-		}
+		const started = Date.now();
+		await runViteBuild({
+			...options,
+			mode: 'client',
+			workbenchEnabled: workbenchConfig.enabled,
+			workbenchRoute: workbenchConfig.route,
+		});
+		result.client.included = true;
+		result.client.duration = Date.now() - started;
 	} else {
 		logger.debug('Skipping client build - no src/web/index.html found');
 	}
@@ -276,33 +261,23 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 3. Build workbench (if enabled in config)
 	if (workbenchConfig.enabled) {
 		logger.debug('Building workbench assets...');
-		try {
-			const started = Date.now();
-			await runViteBuild({
-				...options,
-				mode: 'workbench',
-				workbenchRoute: workbenchConfig.route,
-				workbenchEnabled: true,
-			});
-			result.workbench.included = true;
-			result.workbench.duration = Date.now() - started;
-		} catch (error) {
-			logger.error('Workbench build failed:', error);
-			throw error;
-		}
+		const started = Date.now();
+		await runViteBuild({
+			...options,
+			mode: 'workbench',
+			workbenchRoute: workbenchConfig.route,
+			workbenchEnabled: true,
+		});
+		result.workbench.included = true;
+		result.workbench.duration = Date.now() - started;
 	}
 
 	// 4. Build server
 	logger.debug('Building server...');
-	try {
-		const started = Date.now();
-		await runViteBuild({ ...options, mode: 'server' });
-		result.server.included = true;
-		result.server.duration = Date.now() - started;
-	} catch (error) {
-		logger.error('Server build failed:', error);
-		throw error;
-	}
+	const serverStarted = Date.now();
+	await runViteBuild({ ...options, mode: 'server' });
+	result.server.included = true;
+	result.server.duration = Date.now() - serverStarted;
 
 	// 5. Generate metadata (after all builds complete)
 	logger.debug('Generating metadata...');

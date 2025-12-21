@@ -9,6 +9,37 @@ import type { Logger } from '../../../types';
 import type { BunPlugin } from 'bun';
 import { generatePatches, applyPatch } from '../patch';
 
+/**
+ * Format a Bun build log (BuildMessage or ResolveMessage) into a readable string
+ */
+export function formatBuildLog(log: BuildMessage | ResolveMessage): string {
+	const parts: string[] = [];
+
+	// For ResolveMessage, format with specifier info
+	if (log.name === 'ResolveMessage') {
+		const resolveLog = log as ResolveMessage;
+		if (resolveLog.specifier) {
+			parts.push(`Could not resolve "${resolveLog.specifier}"`);
+			// Use referrer if available, otherwise fall back to position.file
+			const referrer = resolveLog.referrer || resolveLog.position?.file;
+			if (referrer) {
+				parts.push(`  imported from: ${referrer}`);
+			}
+		} else if (resolveLog.message) {
+			parts.push(resolveLog.message);
+		}
+	} else if (log.message) {
+		parts.push(log.message);
+	}
+
+	// Add position info if available (only if we haven't already shown referrer from position)
+	if (log.position && log.name !== 'ResolveMessage') {
+		parts.push(`  at ${log.position.file}:${log.position.line}:${log.position.column}`);
+	}
+
+	return parts.join('\n');
+}
+
 export interface ServerBundleOptions {
 	rootDir: string;
 	dev: boolean;
@@ -282,19 +313,29 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 		if (originalNodeEnv !== undefined) {
 			process.env.NODE_ENV = originalNodeEnv;
 		}
-		logger.error('Bun.build threw an exception');
 
 		// Handle AggregateError with build/resolve messages
 		if (error instanceof AggregateError && error.errors) {
-			for (const err of error.errors) {
-				const parts = [err.message || err.text || 'Unknown error'];
-				if (err.position) {
-					parts.push(`  at ${err.position.file}:${err.position.line}:${err.position.column}`);
-				}
-				logger.error(parts.join('\n'));
-			}
-		} else {
-			logger.error(`  ${error instanceof Error ? error.message : String(error)}`);
+			const formattedErrors = error.errors
+				.map((err) => {
+					// Try to use formatBuildLog if it looks like a BuildMessage/ResolveMessage
+					if (err && typeof err === 'object' && 'name' in err) {
+						const formatted = formatBuildLog(err as BuildMessage | ResolveMessage);
+						if (formatted) return formatted;
+					}
+					// Fallback for other error types
+					const parts = [err.message || err.text || 'Unknown error'];
+					if (err.position) {
+						parts.push(
+							`  at ${err.position.file}:${err.position.line}:${err.position.column}`
+						);
+					}
+					return parts.join('\n');
+				})
+				.filter(Boolean)
+				.join('\n');
+
+			throw new Error(formattedErrors || 'Build failed');
 		}
 
 		throw error;
@@ -306,19 +347,9 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	}
 
 	if (!result.success) {
-		logger.error('Bun.build failed for server');
-		logger.error(
-			`Build result: success=${result.success}, outputs=${result.outputs.length}, logs=${result.logs.length}`
-		);
-
 		const errorMessages = result.logs
-			.map((log) => {
-				const parts = [log.message];
-				if (log.position) {
-					parts.push(`  at ${log.position.file}:${log.position.line}:${log.position.column}`);
-				}
-				return parts.join('\n');
-			})
+			.map((log) => formatBuildLog(log))
+			.filter(Boolean)
 			.join('\n');
 
 		throw new Error(errorMessages || 'Build failed with no error messages');
