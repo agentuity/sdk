@@ -13,12 +13,6 @@ import { createCorsMiddleware } from '../src/middleware';
 // Use the same global key that getAppConfig uses
 const APP_CONFIG_KEY = '__AGENTUITY_APP_CONFIG__';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setAppConfig(config: any) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any)[APP_CONFIG_KEY] = config;
-}
-
 function clearAppConfig() {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	delete (globalThis as any)[APP_CONFIG_KEY];
