@@ -49,12 +49,6 @@ export interface CompressionConfig {
 	threshold?: number;
 
 	/**
-	 * Content types to compress. Uses prefix matching.
-	 * @default ['text/', 'application/json', 'application/javascript', 'application/xml']
-	 */
-	contentTypes?: string[];
-
-	/**
 	 * Optional filter function to skip compression for specific requests.
 	 * Return false to skip compression for the request.
 	 *

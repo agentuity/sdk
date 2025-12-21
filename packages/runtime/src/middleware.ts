@@ -342,59 +342,6 @@ export function createOtelMiddleware() {
 }
 
 /**
- * Default content types that should be compressed.
- * Uses prefix matching (e.g., 'text/' matches 'text/html', 'text/plain', etc.)
- */
-const DEFAULT_COMPRESSIBLE_CONTENT_TYPES = [
-	'text/',
-	'application/json',
-	'application/javascript',
-	'application/xml',
-	'application/xhtml+xml',
-	'application/rss+xml',
-	'application/atom+xml',
-	'image/svg+xml',
-];
-
-/**
- * Content types that should never be compressed.
- * These are typically already compressed or are streaming protocols.
- */
-const NON_COMPRESSIBLE_CONTENT_TYPES = [
-	'text/event-stream', // SSE
-	'application/octet-stream', // Binary streams
-];
-
-/**
- * Check if a content type should be compressed based on the allowlist.
- */
-function shouldCompressContentType(
-	contentType: string | undefined,
-	allowedTypes: string[]
-): boolean {
-	if (!contentType) return false;
-
-	// Normalize content type (remove charset, etc.)
-	const normalizedType = contentType.split(';')[0].trim().toLowerCase();
-
-	// Never compress these types
-	for (const nonCompressible of NON_COMPRESSIBLE_CONTENT_TYPES) {
-		if (normalizedType === nonCompressible || normalizedType.startsWith(nonCompressible)) {
-			return false;
-		}
-	}
-
-	// Check against allowed types (supports prefix matching)
-	for (const allowedType of allowedTypes) {
-		if (normalizedType === allowedType || normalizedType.startsWith(allowedType)) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
-/**
  * Create compression middleware with lazy config resolution.
  *
  * Compresses response bodies using gzip or deflate based on the Accept-Encoding header.
@@ -434,13 +381,7 @@ export function createCompressionMiddleware(staticConfig?: CompressionConfig) {
 			...staticConfig,
 		};
 
-		const {
-			enabled = true,
-			threshold = 1024,
-			contentTypes = DEFAULT_COMPRESSIBLE_CONTENT_TYPES,
-			filter,
-			honoOptions,
-		} = config;
+		const { enabled = true, threshold = 1024, filter, honoOptions } = config;
 
 		// Skip if explicitly disabled
 		if (!enabled) {
@@ -470,19 +411,6 @@ export function createCompressionMiddleware(staticConfig?: CompressionConfig) {
 			...honoOptions,
 		});
 
-		// Run the compress middleware, but with post-processing to check content type
-		// Hono's compress middleware handles the actual compression
-		await compressMiddleware(c, async () => {
-			await next();
-
-			// After next() returns, check if we should have compressed
-			// Note: Hono's compress handles this internally, but we add our content-type filter
-			const responseContentType = c.res.headers.get('content-type') ?? undefined;
-			if (!shouldCompressContentType(responseContentType, contentTypes)) {
-				// Content type not in allowlist - remove Content-Encoding if set
-				// This is a safeguard; Hono's compress should handle most cases
-				return;
-			}
-		});
+		await compressMiddleware(c, next);
 	});
 }
