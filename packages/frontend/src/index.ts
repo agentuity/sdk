@@ -24,7 +24,11 @@ export {
 	type WebRTCCallbacks,
 	type WebRTCManagerOptions,
 	type WebRTCManagerState,
+	type WebRTCClientCallbacks,
 } from './webrtc-manager';
+
+// Re-export core WebRTC types for convenience
+export type { WebRTCConnectionState, WebRTCDisconnectReason } from '@agentuity/core';
 
 // Export client implementation (local to this package)
 export { createClient } from './client/index';

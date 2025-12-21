@@ -1,31 +1,26 @@
 import type { WebSocketConnection } from './router';
+import type {
+	SDPDescription,
+	ICECandidate,
+	SignalMessage,
+	WebRTCSignalingCallbacks,
+} from '@agentuity/core';
 
-// WebRTC types for signaling (not using DOM types since this runs on server)
-export interface SDPDescription {
-	type: 'offer' | 'answer' | 'pranswer' | 'rollback';
-	sdp?: string;
-}
+export type { SDPDescription, ICECandidate, SignalMessage, WebRTCSignalingCallbacks };
 
-export interface ICECandidate {
-	candidate?: string;
-	sdpMid?: string | null;
-	sdpMLineIndex?: number | null;
-	usernameFragment?: string | null;
-}
+/**
+ * @deprecated Use `SignalMessage` instead. Alias for backwards compatibility.
+ */
+export type SignalMsg = SignalMessage;
 
-// Signaling message protocol
-export type SignalMsg =
-	| { t: 'join'; roomId: string }
-	| { t: 'joined'; peerId: string; roomId: string; peers: string[] }
-	| { t: 'peer-joined'; peerId: string }
-	| { t: 'peer-left'; peerId: string }
-	| { t: 'sdp'; from: string; to?: string; description: SDPDescription }
-	| { t: 'ice'; from: string; to?: string; candidate: ICECandidate }
-	| { t: 'error'; message: string };
-
+/**
+ * Configuration options for WebRTC signaling.
+ */
 export interface WebRTCOptions {
 	/** Maximum number of peers per room (default: 2) */
 	maxPeers?: number;
+	/** Callbacks for signaling events */
+	callbacks?: WebRTCSignalingCallbacks;
 }
 
 interface PeerConnection {
@@ -36,6 +31,27 @@ interface PeerConnection {
 /**
  * In-memory room manager for WebRTC signaling.
  * Tracks rooms and their connected peers.
+ *
+ * @example
+ * ```ts
+ * // Basic usage
+ * router.webrtc('/call');
+ *
+ * // With callbacks for monitoring
+ * router.webrtc('/call', {
+ *   maxPeers: 2,
+ *   callbacks: {
+ *     onRoomCreated: (roomId) => console.log(`Room ${roomId} created`),
+ *     onPeerJoin: (peerId, roomId) => console.log(`${peerId} joined ${roomId}`),
+ *     onPeerLeave: (peerId, roomId, reason) => {
+ *       analytics.track('peer_left', { peerId, roomId, reason });
+ *     },
+ *     onMessage: (type, from, to, roomId) => {
+ *       metrics.increment(`webrtc.${type}`);
+ *     },
+ *   },
+ * });
+ * ```
  */
 export class WebRTCRoomManager {
 	// roomId -> Map<peerId, PeerConnection>
@@ -44,20 +60,22 @@ export class WebRTCRoomManager {
 	private wsToPeer = new Map<WebSocketConnection, { peerId: string; roomId: string }>();
 	private maxPeers: number;
 	private peerIdCounter = 0;
+	private callbacks: WebRTCSignalingCallbacks;
 
 	constructor(options?: WebRTCOptions) {
 		this.maxPeers = options?.maxPeers ?? 2;
+		this.callbacks = options?.callbacks ?? {};
 	}
 
 	private generatePeerId(): string {
 		return `peer-${Date.now()}-${++this.peerIdCounter}`;
 	}
 
-	private send(ws: WebSocketConnection, msg: SignalMsg): void {
+	private send(ws: WebSocketConnection, msg: SignalMessage): void {
 		ws.send(JSON.stringify(msg));
 	}
 
-	private broadcast(roomId: string, msg: SignalMsg, excludePeerId?: string): void {
+	private broadcast(roomId: string, msg: SignalMessage, excludePeerId?: string): void {
 		const room = this.rooms.get(roomId);
 		if (!room) return;
 
@@ -73,6 +91,7 @@ export class WebRTCRoomManager {
 	 */
 	handleJoin(ws: WebSocketConnection, roomId: string): void {
 		let room = this.rooms.get(roomId);
+		const isNewRoom = !room;
 
 		// Create room if it doesn't exist
 		if (!room) {
@@ -82,7 +101,9 @@ export class WebRTCRoomManager {
 
 		// Check room capacity
 		if (room.size >= this.maxPeers) {
-			this.send(ws, { t: 'error', message: `Room is full (max ${this.maxPeers} peers)` });
+			const error = new Error(`Room is full (max ${this.maxPeers} peers)`);
+			this.callbacks.onError?.(error, undefined, roomId);
+			this.send(ws, { t: 'error', message: error.message });
 			return;
 		}
 
@@ -92,6 +113,12 @@ export class WebRTCRoomManager {
 		// Add peer to room
 		room.set(peerId, { ws, roomId });
 		this.wsToPeer.set(ws, { peerId, roomId });
+
+		// Fire callbacks
+		if (isNewRoom) {
+			this.callbacks.onRoomCreated?.(roomId);
+		}
+		this.callbacks.onPeerJoin?.(peerId, roomId);
 
 		// Send joined confirmation with list of existing peers
 		this.send(ws, { t: 'joined', peerId, roomId, peers: existingPeers });
@@ -113,12 +140,16 @@ export class WebRTCRoomManager {
 		if (room) {
 			room.delete(peerId);
 
+			// Fire callback
+			this.callbacks.onPeerLeave?.(peerId, roomId, 'disconnect');
+
 			// Notify remaining peers
 			this.broadcast(roomId, { t: 'peer-left', peerId });
 
 			// Clean up empty room
 			if (room.size === 0) {
 				this.rooms.delete(roomId);
+				this.callbacks.onRoomDestroyed?.(roomId);
 			}
 		}
 
@@ -131,7 +162,9 @@ export class WebRTCRoomManager {
 	handleSDP(ws: WebSocketConnection, to: string | undefined, description: SDPDescription): void {
 		const peerInfo = this.wsToPeer.get(ws);
 		if (!peerInfo) {
-			this.send(ws, { t: 'error', message: 'Not in a room' });
+			const error = new Error('Not in a room');
+			this.callbacks.onError?.(error);
+			this.send(ws, { t: 'error', message: error.message });
 			return;
 		}
 
@@ -139,8 +172,11 @@ export class WebRTCRoomManager {
 		const room = this.rooms.get(roomId);
 		if (!room) return;
 
+		// Fire callback
+		this.callbacks.onMessage?.('sdp', peerId, to, roomId);
+
 		// Server injects 'from' to prevent spoofing
-		const msg: SignalMsg = { t: 'sdp', from: peerId, description };
+		const msg: SignalMessage = { t: 'sdp', from: peerId, description };
 
 		if (to) {
 			// Send to specific peer
@@ -160,7 +196,9 @@ export class WebRTCRoomManager {
 	handleICE(ws: WebSocketConnection, to: string | undefined, candidate: ICECandidate): void {
 		const peerInfo = this.wsToPeer.get(ws);
 		if (!peerInfo) {
-			this.send(ws, { t: 'error', message: 'Not in a room' });
+			const error = new Error('Not in a room');
+			this.callbacks.onError?.(error);
+			this.send(ws, { t: 'error', message: error.message });
 			return;
 		}
 
@@ -168,8 +206,11 @@ export class WebRTCRoomManager {
 		const room = this.rooms.get(roomId);
 		if (!room) return;
 
+		// Fire callback
+		this.callbacks.onMessage?.('ice', peerId, to, roomId);
+
 		// Server injects 'from' to prevent spoofing
-		const msg: SignalMsg = { t: 'ice', from: peerId, candidate };
+		const msg: SignalMessage = { t: 'ice', from: peerId, candidate };
 
 		if (to) {
 			// Send to specific peer
@@ -187,11 +228,13 @@ export class WebRTCRoomManager {
 	 * Handle incoming signaling message
 	 */
 	handleMessage(ws: WebSocketConnection, data: string): void {
-		let msg: SignalMsg;
+		let msg: SignalMessage;
 		try {
 			msg = JSON.parse(data);
 		} catch {
-			this.send(ws, { t: 'error', message: 'Invalid JSON' });
+			const error = new Error('Invalid JSON');
+			this.callbacks.onError?.(error);
+			this.send(ws, { t: 'error', message: error.message });
 			return;
 		}
 

@@ -4,6 +4,7 @@ import {
 	type SignalMsg,
 	type SDPDescription,
 	type ICECandidate,
+	type WebRTCSignalingCallbacks,
 } from '../src/webrtc-signaling';
 import type { WebSocketConnection } from '../src/router';
 
@@ -319,6 +320,118 @@ describe('WebRTCRoomManager', () => {
 
 			const stats = manager.getRoomStats();
 			expect(stats.totalPeers).toBe(3);
+		});
+	});
+
+	describe('callbacks', () => {
+		test('should call onRoomCreated when first peer joins', () => {
+			const events: string[] = [];
+			const callbacks: WebRTCSignalingCallbacks = {
+				onRoomCreated: (roomId) => events.push(`room-created:${roomId}`),
+			};
+			const manager = new WebRTCRoomManager({ callbacks });
+			const ws = createMockWs();
+
+			manager.handleJoin(ws, 'room-1');
+
+			expect(events).toContain('room-created:room-1');
+		});
+
+		test('should call onPeerJoin when peer joins', () => {
+			const events: string[] = [];
+			const callbacks: WebRTCSignalingCallbacks = {
+				onPeerJoin: (peerId, roomId) => events.push(`peer-join:${peerId}:${roomId}`),
+			};
+			const manager = new WebRTCRoomManager({ callbacks });
+			const ws = createMockWs();
+
+			manager.handleJoin(ws, 'room-1');
+
+			expect(events.length).toBe(1);
+			expect(events[0]).toMatch(/^peer-join:peer-.*:room-1$/);
+		});
+
+		test('should call onPeerLeave when peer disconnects', () => {
+			const events: string[] = [];
+			const callbacks: WebRTCSignalingCallbacks = {
+				onPeerLeave: (peerId, roomId, reason) => events.push(`peer-leave:${peerId}:${roomId}:${reason}`),
+			};
+			const manager = new WebRTCRoomManager({ callbacks });
+			const ws = createMockWs();
+
+			manager.handleJoin(ws, 'room-1');
+			manager.handleDisconnect(ws);
+
+			expect(events.length).toBe(1);
+			expect(events[0]).toMatch(/^peer-leave:peer-.*:room-1:disconnect$/);
+		});
+
+		test('should call onRoomDestroyed when last peer leaves', () => {
+			const events: string[] = [];
+			const callbacks: WebRTCSignalingCallbacks = {
+				onRoomDestroyed: (roomId) => events.push(`room-destroyed:${roomId}`),
+			};
+			const manager = new WebRTCRoomManager({ callbacks });
+			const ws = createMockWs();
+
+			manager.handleJoin(ws, 'room-1');
+			manager.handleDisconnect(ws);
+
+			expect(events).toContain('room-destroyed:room-1');
+		});
+
+		test('should call onMessage for SDP messages', () => {
+			const events: string[] = [];
+			const callbacks: WebRTCSignalingCallbacks = {
+				onMessage: (type, from, to, roomId) => events.push(`message:${type}:${from}:${to}:${roomId}`),
+			};
+			const manager = new WebRTCRoomManager({ callbacks });
+			const ws1 = createMockWs();
+			const ws2 = createMockWs();
+
+			manager.handleJoin(ws1, 'room-1');
+			manager.handleJoin(ws2, 'room-1');
+
+			const sdp: SDPDescription = { type: 'offer', sdp: 'test-sdp' };
+			manager.handleSDP(ws1, undefined, sdp);
+
+			expect(events.length).toBe(1);
+			expect(events[0]).toMatch(/^message:sdp:peer-.*:undefined:room-1$/);
+		});
+
+		test('should call onMessage for ICE messages', () => {
+			const events: string[] = [];
+			const callbacks: WebRTCSignalingCallbacks = {
+				onMessage: (type, from, to, roomId) => events.push(`message:${type}:${from}:${to}:${roomId}`),
+			};
+			const manager = new WebRTCRoomManager({ callbacks });
+			const ws1 = createMockWs();
+			const ws2 = createMockWs();
+
+			manager.handleJoin(ws1, 'room-1');
+			manager.handleJoin(ws2, 'room-1');
+
+			const candidate: ICECandidate = { candidate: 'test-candidate' };
+			manager.handleICE(ws1, undefined, candidate);
+
+			expect(events.length).toBe(1);
+			expect(events[0]).toMatch(/^message:ice:peer-.*:undefined:room-1$/);
+		});
+
+		test('should call onError for room full errors', () => {
+			const errors: Error[] = [];
+			const callbacks: WebRTCSignalingCallbacks = {
+				onError: (error) => errors.push(error),
+			};
+			const manager = new WebRTCRoomManager({ maxPeers: 1, callbacks });
+			const ws1 = createMockWs();
+			const ws2 = createMockWs();
+
+			manager.handleJoin(ws1, 'room-1');
+			manager.handleJoin(ws2, 'room-1');
+
+			expect(errors.length).toBe(1);
+			expect(errors[0].message).toContain('full');
 		});
 	});
 });

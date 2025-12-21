@@ -35,6 +35,8 @@ export {
 	type UseWebRTCCallOptions,
 	type UseWebRTCCallResult,
 	type WebRTCStatus,
+	type WebRTCConnectionState,
+	type WebRTCClientCallbacks,
 } from './webrtc';
 export {
 	useAPI,
@@ -75,6 +77,7 @@ export {
 	type WebRTCCallbacks,
 	type WebRTCManagerOptions,
 	type WebRTCManagerState,
+	type WebRTCDisconnectReason,
 	// Client type exports (createClient is exported from ./client.ts)
 	type Client,
 	type ClientOptions,

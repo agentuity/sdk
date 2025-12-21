@@ -1,60 +1,80 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    WebRTCManager,
-    buildUrl,
-    type WebRTCStatus,
-    type WebRTCManagerOptions,
+	WebRTCManager,
+	buildUrl,
+	type WebRTCStatus,
+	type WebRTCManagerOptions,
+	type WebRTCConnectionState,
+	type WebRTCClientCallbacks,
 } from '@agentuity/frontend';
+
+export type { WebRTCClientCallbacks };
 import { AgentuityContext } from './context';
 
-export type { WebRTCStatus };
+export type { WebRTCStatus, WebRTCConnectionState };
 
 /**
  * Options for useWebRTCCall hook
  */
 export interface UseWebRTCCallOptions {
-    /** Room ID to join */
-    roomId: string;
-    /** WebSocket signaling URL (e.g., '/call/signal' or full URL) */
-    signalUrl: string;
-    /** Whether this peer is "polite" in perfect negotiation (default: true for first joiner) */
-    polite?: boolean;
-    /** ICE servers configuration */
-    iceServers?: RTCIceServer[];
-    /** Media constraints for getUserMedia */
-    media?: MediaStreamConstraints;
-    /** Whether to auto-connect on mount (default: true) */
-    autoConnect?: boolean;
+	/** Room ID to join */
+	roomId: string;
+	/** WebSocket signaling URL (e.g., '/call/signal' or full URL) */
+	signalUrl: string;
+	/** Whether this peer is "polite" in perfect negotiation (default: true for first joiner) */
+	polite?: boolean;
+	/** ICE servers configuration */
+	iceServers?: RTCIceServer[];
+	/** Media constraints for getUserMedia */
+	media?: MediaStreamConstraints;
+	/** Whether to auto-connect on mount (default: true) */
+	autoConnect?: boolean;
+	/**
+	 * Optional callbacks for WebRTC events.
+	 * These are called in addition to the hook's internal state management.
+	 */
+	callbacks?: Partial<WebRTCClientCallbacks>;
 }
 
 /**
  * Return type for useWebRTCCall hook
  */
 export interface UseWebRTCCallResult {
-    /** Ref to attach to local video element */
-    localVideoRef: React.RefObject<HTMLVideoElement | null>;
-    /** Ref to attach to remote video element */
-    remoteVideoRef: React.RefObject<HTMLVideoElement | null>;
-    /** Current connection status */
-    status: WebRTCStatus;
-    /** Current error if any */
-    error: Error | null;
-    /** Local peer ID assigned by server */
-    peerId: string | null;
-    /** Remote peer ID */
-    remotePeerId: string | null;
-    /** Whether audio is muted */
-    isAudioMuted: boolean;
-    /** Whether video is muted */
-    isVideoMuted: boolean;
-    /** Manually start the connection (if autoConnect is false) */
-    connect: () => void;
-    /** End the call */
-    hangup: () => void;
-    /** Mute or unmute audio */
-    muteAudio: (muted: boolean) => void;
-    /** Mute or unmute video */
-    muteVideo: (muted: boolean) => void;
+	/** Ref to attach to local video element */
+	localVideoRef: React.RefObject<HTMLVideoElement | null>;
+	/** Ref to attach to remote video element */
+	remoteVideoRef: React.RefObject<HTMLVideoElement | null>;
+	/** Current connection state (new state machine) */
+	state: WebRTCConnectionState;
+	/** @deprecated Use `state` instead. Current connection status */
+	status: WebRTCStatus;
+	/** Current error if any */
+	error: Error | null;
+	/** Local peer ID assigned by server */
+	peerId: string | null;
+	/** Remote peer ID */
+	remotePeerId: string | null;
+	/** Whether audio is muted */
+	isAudioMuted: boolean;
+	/** Whether video is muted */
+	isVideoMuted: boolean;
+	/** Manually start the connection (if autoConnect is false) */
+	connect: () => void;
+	/** End the call */
+	hangup: () => void;
+	/** Mute or unmute audio */
+	muteAudio: (muted: boolean) => void;
+	/** Mute or unmute video */
+	muteVideo: (muted: boolean) => void;
+}
+
+/**
+ * Map new state to legacy status for backwards compatibility
+ */
+function stateToStatus(state: WebRTCConnectionState): WebRTCStatus {
+	if (state === 'idle') return 'disconnected';
+	if (state === 'negotiating') return 'connecting';
+	return state as WebRTCStatus;
 }
 
 /**
@@ -68,20 +88,27 @@ export interface UseWebRTCCallResult {
  *   const {
  *     localVideoRef,
  *     remoteVideoRef,
- *     status,
+ *     state,
  *     hangup,
  *     muteAudio,
  *     isAudioMuted,
  *   } = useWebRTCCall({
  *     roomId,
  *     signalUrl: '/call/signal',
+ *     callbacks: {
+ *       onStateChange: (from, to, reason) => {
+ *         console.log(`State: ${from} → ${to}`, reason);
+ *       },
+ *       onConnect: () => console.log('Connected!'),
+ *       onDisconnect: (reason) => console.log('Disconnected:', reason),
+ *     },
  *   });
  *
  *   return (
  *     <div>
  *       <video ref={localVideoRef} autoPlay muted playsInline />
  *       <video ref={remoteVideoRef} autoPlay playsInline />
- *       <p>Status: {status}</p>
+ *       <p>State: {state}</p>
  *       <button onClick={() => muteAudio(!isAudioMuted)}>
  *         {isAudioMuted ? 'Unmute' : 'Mute'}
  *       </button>
@@ -92,122 +119,154 @@ export interface UseWebRTCCallResult {
  * ```
  */
 export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResult {
-    const context = useContext(AgentuityContext);
+	const context = useContext(AgentuityContext);
 
-    const managerRef = useRef<WebRTCManager | null>(null);
-    const localVideoRef = useRef<HTMLVideoElement | null>(null);
-    const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+	const managerRef = useRef<WebRTCManager | null>(null);
+	const localVideoRef = useRef<HTMLVideoElement | null>(null);
+	const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
 
-    const [status, setStatus] = useState<WebRTCStatus>('disconnected');
-    const [error, setError] = useState<Error | null>(null);
-    const [peerId, setPeerId] = useState<string | null>(null);
-    const [remotePeerId, setRemotePeerId] = useState<string | null>(null);
-    const [isAudioMuted, setIsAudioMuted] = useState(false);
-    const [isVideoMuted, setIsVideoMuted] = useState(false);
+	const [state, setState] = useState<WebRTCConnectionState>('idle');
+	const [error, setError] = useState<Error | null>(null);
+	const [peerId, setPeerId] = useState<string | null>(null);
+	const [remotePeerId, setRemotePeerId] = useState<string | null>(null);
+	const [isAudioMuted, setIsAudioMuted] = useState(false);
+	const [isVideoMuted, setIsVideoMuted] = useState(false);
 
-    // Build full signaling URL
-    const signalUrl = useMemo(() => {
-        // If it's already a full URL, use as-is
-        if (options.signalUrl.startsWith('ws://') || options.signalUrl.startsWith('wss://')) {
-            return options.signalUrl;
-        }
+	// Store user callbacks in a ref to avoid recreating manager
+	const userCallbacksRef = useRef(options.callbacks);
+	userCallbacksRef.current = options.callbacks;
 
-        // Build from context base URL
-        const base = context?.baseUrl ?? window.location.origin;
-        const wsBase = base.replace(/^http(s?):/, 'ws$1:');
-        return buildUrl(wsBase, options.signalUrl);
-    }, [context?.baseUrl, options.signalUrl]);
+	// Build full signaling URL
+	const signalUrl = useMemo(() => {
+		// If it's already a full URL, use as-is
+		if (options.signalUrl.startsWith('ws://') || options.signalUrl.startsWith('wss://')) {
+			return options.signalUrl;
+		}
 
-    // Create manager options - use refs to avoid recreating manager on state changes
-    const managerOptions = useMemo((): WebRTCManagerOptions => {
-        return {
-            signalUrl,
-            roomId: options.roomId,
-            polite: options.polite,
-            iceServers: options.iceServers,
-            media: options.media,
-            callbacks: {
-                onLocalStream: (stream) => {
-                    if (localVideoRef.current) {
-                        localVideoRef.current.srcObject = stream;
-                    }
-                },
-                onRemoteStream: (stream) => {
-                    if (remoteVideoRef.current) {
-                        remoteVideoRef.current.srcObject = stream;
-                    }
-                },
-                onStatusChange: (newStatus) => {
-                    setStatus(newStatus);
-                    if (managerRef.current) {
-                        const state = managerRef.current.getState();
-                        setPeerId(state.peerId);
-                        setRemotePeerId(state.remotePeerId);
-                    }
-                },
-                onError: (err) => {
-                    setError(err);
-                },
-                onPeerJoined: (id) => {
-                    setRemotePeerId(id);
-                },
-                onPeerLeft: (id) => {
-                    setRemotePeerId((current) => current === id ? null : current);
-                },
-            },
-        };
-    // eslint-disable-next-line
-    }, [signalUrl, options.roomId, options.polite, options.iceServers, options.media]);
+		// Build from context base URL
+		const base = context?.baseUrl ?? window.location.origin;
+		const wsBase = base.replace(/^http(s?):/, 'ws$1:');
+		return buildUrl(wsBase, options.signalUrl);
+	}, [context?.baseUrl, options.signalUrl]);
 
-    // Initialize manager
-    useEffect(() => {
-        const manager = new WebRTCManager(managerOptions);
-        managerRef.current = manager;
+	// Create manager options - use refs to avoid recreating manager on state changes
+	const managerOptions = useMemo((): WebRTCManagerOptions => {
+		return {
+			signalUrl,
+			roomId: options.roomId,
+			polite: options.polite,
+			iceServers: options.iceServers,
+			media: options.media,
+			callbacks: {
+				onStateChange: (from, to, reason) => {
+					setState(to);
+					if (managerRef.current) {
+						const managerState = managerRef.current.getState();
+						setPeerId(managerState.peerId);
+						setRemotePeerId(managerState.remotePeerId);
+					}
+					userCallbacksRef.current?.onStateChange?.(from, to, reason);
+				},
+				onConnect: () => {
+					userCallbacksRef.current?.onConnect?.();
+				},
+				onDisconnect: (reason) => {
+					userCallbacksRef.current?.onDisconnect?.(reason);
+				},
+				onLocalStream: (stream) => {
+					if (localVideoRef.current) {
+						localVideoRef.current.srcObject = stream;
+					}
+					userCallbacksRef.current?.onLocalStream?.(stream);
+				},
+				onRemoteStream: (stream) => {
+					if (remoteVideoRef.current) {
+						remoteVideoRef.current.srcObject = stream;
+					}
+					userCallbacksRef.current?.onRemoteStream?.(stream);
+				},
+				onTrackAdded: (track, stream) => {
+					userCallbacksRef.current?.onTrackAdded?.(track, stream);
+				},
+				onTrackRemoved: (track) => {
+					userCallbacksRef.current?.onTrackRemoved?.(track);
+				},
+				onPeerJoined: (id) => {
+					setRemotePeerId(id);
+					userCallbacksRef.current?.onPeerJoined?.(id);
+				},
+				onPeerLeft: (id) => {
+					setRemotePeerId((current) => (current === id ? null : current));
+					userCallbacksRef.current?.onPeerLeft?.(id);
+				},
+				onNegotiationStart: () => {
+					userCallbacksRef.current?.onNegotiationStart?.();
+				},
+				onNegotiationComplete: () => {
+					userCallbacksRef.current?.onNegotiationComplete?.();
+				},
+				onIceCandidate: (candidate) => {
+					userCallbacksRef.current?.onIceCandidate?.(candidate);
+				},
+				onIceStateChange: (iceState) => {
+					userCallbacksRef.current?.onIceStateChange?.(iceState);
+				},
+				onError: (err, currentState) => {
+					setError(err);
+					userCallbacksRef.current?.onError?.(err, currentState);
+				},
+			},
+		};
+		// eslint-disable-next-line
+	}, [signalUrl, options.roomId, options.polite, options.iceServers, options.media]);
 
-        // Auto-connect if enabled (default: true)
-        if (options.autoConnect !== false) {
-            manager.connect();
-        }
+	// Initialize manager
+	useEffect(() => {
+		const manager = new WebRTCManager(managerOptions);
+		managerRef.current = manager;
 
-        return () => {
-            manager.dispose();
-            managerRef.current = null;
-        };
-    }, [managerOptions, options.autoConnect]);
+		// Auto-connect if enabled (default: true)
+		if (options.autoConnect !== false) {
+			manager.connect();
+		}
 
-    const connect = useCallback(() => {
-        managerRef.current?.connect();
-    }, []);
+		return () => {
+			manager.dispose();
+			managerRef.current = null;
+		};
+	}, [managerOptions, options.autoConnect]);
 
-    const hangup = useCallback(() => {
-        managerRef.current?.hangup();
-        setStatus('disconnected');
-        setPeerId(null);
-        setRemotePeerId(null);
-    }, []);
+	const connect = useCallback(() => {
+		managerRef.current?.connect();
+	}, []);
 
-    const muteAudio = useCallback((muted: boolean) => {
-        managerRef.current?.muteAudio(muted);
-        setIsAudioMuted(muted);
-    }, []);
+	const hangup = useCallback(() => {
+		managerRef.current?.hangup();
+	}, []);
 
-    const muteVideo = useCallback((muted: boolean) => {
-        managerRef.current?.muteVideo(muted);
-        setIsVideoMuted(muted);
-    }, []);
+	const muteAudio = useCallback((muted: boolean) => {
+		managerRef.current?.muteAudio(muted);
+		setIsAudioMuted(muted);
+	}, []);
 
-    return {
-        localVideoRef,
-        remoteVideoRef,
-        status,
-        error,
-        peerId,
-        remotePeerId,
-        isAudioMuted,
-        isVideoMuted,
-        connect,
-        hangup,
-        muteAudio,
-        muteVideo,
-    };
+	const muteVideo = useCallback((muted: boolean) => {
+		managerRef.current?.muteVideo(muted);
+		setIsVideoMuted(muted);
+	}, []);
+
+	return {
+		localVideoRef,
+		remoteVideoRef,
+		state,
+		status: stateToStatus(state),
+		error,
+		peerId,
+		remotePeerId,
+		isAudioMuted,
+		isVideoMuted,
+		connect,
+		hangup,
+		muteAudio,
+		muteVideo,
+	};
 }

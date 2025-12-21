@@ -1,22 +1,107 @@
+import type {
+	SignalMessage,
+	WebRTCConnectionState,
+	WebRTCDisconnectReason,
+} from '@agentuity/core';
+
 /**
- * WebRTC connection status
+ * Callbacks for WebRTC client state changes and events.
+ * All callbacks are optional - only subscribe to events you care about.
+ */
+export interface WebRTCClientCallbacks {
+	/**
+	 * Called on every state transition.
+	 * @param from - Previous state
+	 * @param to - New state
+	 * @param reason - Optional reason for the transition
+	 */
+	onStateChange?: (from: WebRTCConnectionState, to: WebRTCConnectionState, reason?: string) => void;
+
+	/**
+	 * Called when connection is fully established.
+	 */
+	onConnect?: () => void;
+
+	/**
+	 * Called when disconnected from the call.
+	 * @param reason - Why the disconnection happened
+	 */
+	onDisconnect?: (reason: WebRTCDisconnectReason) => void;
+
+	/**
+	 * Called when local media stream is acquired.
+	 * @param stream - The local MediaStream
+	 */
+	onLocalStream?: (stream: MediaStream) => void;
+
+	/**
+	 * Called when remote media stream is received.
+	 * @param stream - The remote MediaStream
+	 */
+	onRemoteStream?: (stream: MediaStream) => void;
+
+	/**
+	 * Called when a new track is added to a stream.
+	 * @param track - The added track
+	 * @param stream - The stream containing the track
+	 */
+	onTrackAdded?: (track: MediaStreamTrack, stream: MediaStream) => void;
+
+	/**
+	 * Called when a track is removed from a stream.
+	 * @param track - The removed track
+	 */
+	onTrackRemoved?: (track: MediaStreamTrack) => void;
+
+	/**
+	 * Called when a peer joins the room.
+	 * @param peerId - The peer's ID
+	 */
+	onPeerJoined?: (peerId: string) => void;
+
+	/**
+	 * Called when a peer leaves the room.
+	 * @param peerId - The peer's ID
+	 */
+	onPeerLeft?: (peerId: string) => void;
+
+	/**
+	 * Called when SDP/ICE negotiation starts.
+	 */
+	onNegotiationStart?: () => void;
+
+	/**
+	 * Called when SDP/ICE negotiation completes successfully.
+	 */
+	onNegotiationComplete?: () => void;
+
+	/**
+	 * Called for each ICE candidate generated.
+	 * @param candidate - The ICE candidate
+	 */
+	onIceCandidate?: (candidate: RTCIceCandidateInit) => void;
+
+	/**
+	 * Called when ICE connection state changes.
+	 * @param state - The new ICE connection state
+	 */
+	onIceStateChange?: (state: string) => void;
+
+	/**
+	 * Called when an error occurs.
+	 * @param error - The error that occurred
+	 * @param state - The state when the error occurred
+	 */
+	onError?: (error: Error, state: WebRTCConnectionState) => void;
+}
+
+/**
+ * @deprecated Use `WebRTCConnectionState` from @agentuity/core instead.
  */
 export type WebRTCStatus = 'disconnected' | 'connecting' | 'signaling' | 'connected';
 
 /**
- * Signaling message types (must match server protocol)
- */
-type SignalMsg =
-	| { t: 'join'; roomId: string }
-	| { t: 'joined'; peerId: string; roomId: string; peers: string[] }
-	| { t: 'peer-joined'; peerId: string }
-	| { t: 'peer-left'; peerId: string }
-	| { t: 'sdp'; from: string; to?: string; description: RTCSessionDescriptionInit }
-	| { t: 'ice'; from: string; to?: string; candidate: RTCIceCandidateInit }
-	| { t: 'error'; message: string };
-
-/**
- * Callbacks for WebRTC manager state changes
+ * @deprecated Use `WebRTCClientCallbacks` from @agentuity/core instead.
  */
 export interface WebRTCCallbacks {
 	onLocalStream?: (stream: MediaStream) => void;
@@ -41,19 +126,24 @@ export interface WebRTCManagerOptions {
 	iceServers?: RTCIceServer[];
 	/** Media constraints for getUserMedia */
 	media?: MediaStreamConstraints;
-	/** Callbacks for state changes */
-	callbacks?: WebRTCCallbacks;
+	/**
+	 * Callbacks for state changes and events.
+	 * Supports both legacy WebRTCCallbacks and new WebRTCClientCallbacks.
+	 */
+	callbacks?: WebRTCClientCallbacks;
 }
 
 /**
  * WebRTC manager state
  */
 export interface WebRTCManagerState {
-	status: WebRTCStatus;
+	state: WebRTCConnectionState;
 	peerId: string | null;
 	remotePeerId: string | null;
 	isAudioMuted: boolean;
 	isVideoMuted: boolean;
+	/** @deprecated Use `state` instead */
+	status: WebRTCStatus;
 }
 
 /**
@@ -65,8 +155,44 @@ const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
 ];
 
 /**
+ * Map new state to legacy status for backwards compatibility
+ */
+function stateToStatus(state: WebRTCConnectionState): WebRTCStatus {
+	if (state === 'idle') return 'disconnected';
+	if (state === 'negotiating') return 'connecting';
+	return state as WebRTCStatus;
+}
+
+/**
  * Framework-agnostic WebRTC connection manager with signaling,
  * perfect negotiation, and media stream handling.
+ *
+ * Uses an explicit state machine for connection lifecycle:
+ * - idle: No resources allocated, ready to connect
+ * - connecting: Acquiring media + opening WebSocket
+ * - signaling: In room, waiting for peer
+ * - negotiating: SDP/ICE exchange in progress
+ * - connected: Media flowing
+ *
+ * @example
+ * ```ts
+ * const manager = new WebRTCManager({
+ *   signalUrl: 'wss://example.com/call/signal',
+ *   roomId: 'my-room',
+ *   callbacks: {
+ *     onStateChange: (from, to, reason) => {
+ *       console.log(`State: ${from} → ${to}`, reason);
+ *     },
+ *     onConnect: () => console.log('Connected!'),
+ *     onDisconnect: (reason) => console.log('Disconnected:', reason),
+ *     onLocalStream: (stream) => { localVideo.srcObject = stream; },
+ *     onRemoteStream: (stream) => { remoteVideo.srcObject = stream; },
+ *     onError: (error, state) => console.error(`Error in ${state}:`, error),
+ *   },
+ * });
+ *
+ * await manager.connect();
+ * ```
  */
 export class WebRTCManager {
 	private ws: WebSocket | null = null;
@@ -76,9 +202,11 @@ export class WebRTCManager {
 
 	private peerId: string | null = null;
 	private remotePeerId: string | null = null;
-	private status: WebRTCStatus = 'disconnected';
 	private isAudioMuted = false;
 	private isVideoMuted = false;
+
+	// State machine
+	private _state: WebRTCConnectionState = 'idle';
 
 	// Perfect negotiation state
 	private makingOffer = false;
@@ -90,7 +218,7 @@ export class WebRTCManager {
 	private hasRemoteDescription = false;
 
 	private options: WebRTCManagerOptions;
-	private callbacks: WebRTCCallbacks;
+	private callbacks: WebRTCClientCallbacks;
 
 	constructor(options: WebRTCManagerOptions) {
 		this.options = options;
@@ -99,11 +227,19 @@ export class WebRTCManager {
 	}
 
 	/**
+	 * Current connection state
+	 */
+	get state(): WebRTCConnectionState {
+		return this._state;
+	}
+
+	/**
 	 * Get current manager state
 	 */
 	getState(): WebRTCManagerState {
 		return {
-			status: this.status,
+			state: this._state,
+			status: stateToStatus(this._state),
 			peerId: this.peerId,
 			remotePeerId: this.remotePeerId,
 			isAudioMuted: this.isAudioMuted,
@@ -125,12 +261,42 @@ export class WebRTCManager {
 		return this.remoteStream;
 	}
 
-	private setStatus(status: WebRTCStatus): void {
-		this.status = status;
-		this.callbacks.onStatusChange?.(status);
+	/**
+	 * Transition to a new state with callback notifications
+	 */
+	private setState(newState: WebRTCConnectionState, reason?: string): void {
+		const prevState = this._state;
+		if (prevState === newState) return;
+
+		this._state = newState;
+
+		// Fire state change callback
+		this.callbacks.onStateChange?.(prevState, newState, reason);
+
+		// Fire connect/disconnect callbacks
+		if (newState === 'connected' && prevState !== 'connected') {
+			this.callbacks.onConnect?.();
+			this.callbacks.onNegotiationComplete?.();
+		}
+
+		if (newState === 'idle' && prevState !== 'idle') {
+			const disconnectReason = this.mapToDisconnectReason(reason);
+			this.callbacks.onDisconnect?.(disconnectReason);
+		}
+
+		if (newState === 'negotiating' && prevState !== 'negotiating') {
+			this.callbacks.onNegotiationStart?.();
+		}
 	}
 
-	private send(msg: SignalMsg): void {
+	private mapToDisconnectReason(reason?: string): WebRTCDisconnectReason {
+		if (reason === 'hangup') return 'hangup';
+		if (reason === 'peer-left') return 'peer-left';
+		if (reason === 'timeout') return 'timeout';
+		return 'error';
+	}
+
+	private send(msg: SignalMessage): void {
 		if (this.ws?.readyState === WebSocket.OPEN) {
 			this.ws.send(JSON.stringify(msg));
 		}
@@ -140,9 +306,9 @@ export class WebRTCManager {
 	 * Connect to the signaling server and start the call
 	 */
 	async connect(): Promise<void> {
-		if (this.status !== 'disconnected') return;
+		if (this._state !== 'idle') return;
 
-		this.setStatus('connecting');
+		this.setState('connecting', 'connect() called');
 
 		try {
 			// Get local media
@@ -154,31 +320,33 @@ export class WebRTCManager {
 			this.ws = new WebSocket(this.options.signalUrl);
 
 			this.ws.onopen = () => {
-				this.setStatus('signaling');
+				this.setState('signaling', 'WebSocket opened');
 				this.send({ t: 'join', roomId: this.options.roomId });
 			};
 
 			this.ws.onmessage = (event) => {
-				const msg = JSON.parse(event.data) as SignalMsg;
+				const msg = JSON.parse(event.data) as SignalMessage;
 				this.handleSignalingMessage(msg);
 			};
 
 			this.ws.onerror = () => {
-				this.callbacks.onError?.(new Error('WebSocket connection error'));
+				const error = new Error('WebSocket connection error');
+				this.callbacks.onError?.(error, this._state);
 			};
 
 			this.ws.onclose = () => {
-				if (this.status !== 'disconnected') {
-					this.setStatus('disconnected');
+				if (this._state !== 'idle') {
+					this.setState('idle', 'WebSocket closed');
 				}
 			};
 		} catch (err) {
-			this.setStatus('disconnected');
-			this.callbacks.onError?.(err instanceof Error ? err : new Error(String(err)));
+			const error = err instanceof Error ? err : new Error(String(err));
+			this.callbacks.onError?.(error, this._state);
+			this.setState('idle', 'error');
 		}
 	}
 
-	private async handleSignalingMessage(msg: SignalMsg): Promise<void> {
+	private async handleSignalingMessage(msg: SignalMessage): Promise<void> {
 		switch (msg.t) {
 			case 'joined':
 				this.peerId = msg.peerId;
@@ -188,6 +356,7 @@ export class WebRTCManager {
 					// Late joiner is impolite (makes the offer, wins collisions)
 					this.polite = this.options.polite ?? false;
 					await this.createPeerConnection();
+					this.setState('negotiating', 'creating offer');
 					await this.createOffer();
 				} else {
 					// First peer is polite (waits for offers, yields on collision)
@@ -207,11 +376,14 @@ export class WebRTCManager {
 				if (msg.peerId === this.remotePeerId) {
 					this.remotePeerId = null;
 					this.closePeerConnection();
-					this.setStatus('signaling');
+					this.setState('signaling', 'peer-left');
 				}
 				break;
 
 			case 'sdp':
+				if (this._state === 'signaling') {
+					this.setState('negotiating', 'received SDP');
+				}
 				await this.handleRemoteSDP(msg.description);
 				break;
 
@@ -220,7 +392,8 @@ export class WebRTCManager {
 				break;
 
 			case 'error':
-				this.callbacks.onError?.(new Error(msg.message));
+				const error = new Error(msg.message);
+				this.callbacks.onError?.(error, this._state);
 				break;
 		}
 	}
@@ -235,6 +408,7 @@ export class WebRTCManager {
 		if (this.localStream) {
 			for (const track of this.localStream.getTracks()) {
 				this.pc.addTrack(track, this.localStream);
+				this.callbacks.onTrackAdded?.(track, this.localStream);
 			}
 		}
 
@@ -259,14 +433,17 @@ export class WebRTCManager {
 				}
 			}
 
-			if (this.status !== 'connected') {
-				this.setStatus('connected');
+			this.callbacks.onTrackAdded?.(event.track, this.remoteStream!);
+
+			if (this._state !== 'connected') {
+				this.setState('connected', 'track received');
 			}
 		};
 
 		// Handle ICE candidates
 		this.pc.onicecandidate = (event) => {
 			if (event.candidate) {
+				this.callbacks.onIceCandidate?.(event.candidate.toJSON());
 				this.send({
 					t: 'ice',
 					from: this.peerId!,
@@ -288,17 +465,26 @@ export class WebRTCManager {
 					description: this.pc!.localDescription!,
 				});
 			} catch (err) {
-				this.callbacks.onError?.(err instanceof Error ? err : new Error(String(err)));
+				const error = err instanceof Error ? err : new Error(String(err));
+				this.callbacks.onError?.(error, this._state);
 			} finally {
 				this.makingOffer = false;
 			}
 		};
 
 		this.pc.oniceconnectionstatechange = () => {
-			if (this.pc?.iceConnectionState === 'disconnected') {
-				this.setStatus('signaling');
-			} else if (this.pc?.iceConnectionState === 'connected') {
-				this.setStatus('connected');
+			const iceState = this.pc?.iceConnectionState;
+			if (iceState) {
+				this.callbacks.onIceStateChange?.(iceState);
+			}
+
+			if (iceState === 'disconnected') {
+				this.setState('signaling', 'ICE disconnected');
+			} else if (iceState === 'connected') {
+				this.setState('connected', 'ICE connected');
+			} else if (iceState === 'failed') {
+				const error = new Error('ICE connection failed');
+				this.callbacks.onError?.(error, this._state);
 			}
 		};
 	}
@@ -401,6 +587,7 @@ export class WebRTCManager {
 		if (this.localStream) {
 			for (const track of this.localStream.getTracks()) {
 				track.stop();
+				this.callbacks.onTrackRemoved?.(track);
 			}
 			this.localStream = null;
 		}
@@ -412,7 +599,7 @@ export class WebRTCManager {
 
 		this.peerId = null;
 		this.remotePeerId = null;
-		this.setStatus('disconnected');
+		this.setState('idle', 'hangup');
 	}
 
 	/**
