@@ -41,6 +41,10 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	// Directories to ignore
 	const ignorePaths = [
 		'.agentuity',
+		'.agents',
+		'.claude',
+		'.code',
+		'.opencode',
 		'node_modules',
 		'.git',
 		'dist',
