@@ -96,6 +96,7 @@ export class PromptFlow {
 			});
 
 			let hasError = false;
+			let hadValidationError = false;
 
 			const showPrompt = () => {
 				// Show prompt with active symbol
@@ -108,7 +109,8 @@ export class PromptFlow {
 
 			rl.on('line', async (input) => {
 				const trimmed = input.trim();
-				const value = trimmed.length > 0 ? trimmed : initial;
+				// After a validation error, require explicit input - don't fall back to initial
+				const value = trimmed.length > 0 ? trimmed : hadValidationError ? '' : initial;
 
 				// Validate
 				if (validate) {
@@ -129,6 +131,7 @@ export class PromptFlow {
 							// Use readline's prompt for the input line
 							rl.prompt();
 							hasError = true;
+							hadValidationError = true;
 							return;
 						}
 					} catch (error) {
