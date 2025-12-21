@@ -347,8 +347,6 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 	}
 
 	if (!result.success) {
-		logger.error('Bun.build failed for server');
-
 		const errorMessages = result.logs
 			.map((log) => formatBuildLog(log))
 			.filter(Boolean)
