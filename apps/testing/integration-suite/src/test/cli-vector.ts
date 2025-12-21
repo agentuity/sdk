@@ -126,13 +126,15 @@ test('cli-vector', 'stats-all-command', async () => {
 
 	const result = await cliAgent.run({
 		command: 'cloud vector stats',
+		expectJSON: true,
 	});
 
-	// Command should execute
-	assert(
-		result.stdout !== undefined || result.stderr !== undefined,
-		'Stats should produce output'
-	);
+	// Command should succeed
+	assert(result.exitCode === 0, `Stats command failed with exit code ${result.exitCode}`);
+
+	// JSON output should be valid and contain expected structure (object with namespace keys or empty)
+	assert(result.json !== undefined, 'Stats should return JSON output');
+	assert(typeof result.json === 'object', 'Stats JSON should be an object');
 });
 
 // Test 7: Stats command - specific namespace
@@ -148,13 +150,18 @@ test('cli-vector', 'stats-namespace-command', async () => {
 	const result = await cliAgent.run({
 		command: 'cloud vector stats',
 		args: [namespace],
+		expectJSON: true,
 	});
 
-	// Command should execute
-	assert(
-		result.stdout !== undefined || result.stderr !== undefined,
-		'Stats namespace should produce output'
-	);
+	// Command should succeed
+	assert(result.exitCode === 0, `Stats namespace command failed with exit code ${result.exitCode}`);
+
+	// JSON output should contain namespace stats structure
+	assert(result.json !== undefined, 'Stats namespace should return JSON output');
+	assert(typeof result.json === 'object', 'Stats namespace JSON should be an object');
+	assert('namespace' in result.json, 'Stats should include namespace field');
+	assert('count' in result.json, 'Stats should include count field');
+	assert('sum' in result.json, 'Stats should include sum field');
 });
 
 // Test 8: List namespaces command
@@ -167,13 +174,18 @@ test('cli-vector', 'list-namespaces-command', async () => {
 
 	const result = await cliAgent.run({
 		command: 'cloud vector list-namespaces',
+		expectJSON: true,
 	});
 
-	// Command should execute
+	// Command should succeed
 	assert(
-		result.stdout !== undefined || result.stderr !== undefined,
-		'List namespaces should produce output'
+		result.exitCode === 0,
+		`List namespaces command failed with exit code ${result.exitCode}`
 	);
+
+	// JSON output should be an array of namespace strings
+	assert(result.json !== undefined, 'List namespaces should return JSON output');
+	assert(Array.isArray(result.json), 'List namespaces should return an array');
 });
 
 // Test 9: List namespaces alias (ns)
@@ -186,13 +198,18 @@ test('cli-vector', 'list-namespaces-alias-command', async () => {
 
 	const result = await cliAgent.run({
 		command: 'cloud vector ns',
+		expectJSON: true,
 	});
 
-	// Command should execute
+	// Command should succeed
 	assert(
-		result.stdout !== undefined || result.stderr !== undefined,
-		'List namespaces alias should produce output'
+		result.exitCode === 0,
+		`List namespaces alias command failed with exit code ${result.exitCode}`
 	);
+
+	// JSON output should be an array (same as list-namespaces)
+	assert(result.json !== undefined, 'List namespaces alias should return JSON output');
+	assert(Array.isArray(result.json), 'List namespaces alias should return an array');
 });
 
 // Test 10: Delete namespace command
@@ -208,13 +225,20 @@ test('cli-vector', 'delete-namespace-command', async () => {
 	const result = await cliAgent.run({
 		command: 'cloud vector delete-namespace',
 		args: [namespace, '--confirm'],
+		expectJSON: true,
 	});
 
-	// Command should execute
+	// Command should succeed
 	assert(
-		result.stdout !== undefined || result.stderr !== undefined,
-		'Delete namespace should produce output'
+		result.exitCode === 0,
+		`Delete namespace command failed with exit code ${result.exitCode}`
 	);
+
+	// JSON output should confirm deletion
+	assert(result.json !== undefined, 'Delete namespace should return JSON output');
+	assert(typeof result.json === 'object', 'Delete namespace JSON should be an object');
+	assert('success' in result.json, 'Delete namespace should include success field');
+	assert('namespace' in result.json, 'Delete namespace should include namespace field');
 });
 
 // Test 11: Upsert with metadata
@@ -231,11 +255,19 @@ test('cli-vector', 'upsert-with-metadata-command', async () => {
 	const result = await cliAgent.run({
 		command: 'cloud vector upsert',
 		args: [namespace, key, '--document', 'test document', '--metadata', '{"category":"test"}'],
+		expectJSON: true,
 	});
 
-	// Command should execute
+	// Command should succeed
 	assert(
-		result.stdout !== undefined || result.stderr !== undefined,
-		'Upsert with metadata should produce output'
+		result.exitCode === 0,
+		`Upsert with metadata command failed with exit code ${result.exitCode}`
 	);
+
+	// JSON output should contain the upserted key and success indication
+	assert(result.json !== undefined, 'Upsert with metadata should return JSON output');
+	assert(typeof result.json === 'object', 'Upsert JSON should be an object');
+	assert('success' in result.json, 'Upsert should include success field');
+	assert('key' in result.json, 'Upsert should include key field');
+	assert(result.json.key === key, `Upsert key should match: expected ${key}, got ${result.json.key}`);
 });
