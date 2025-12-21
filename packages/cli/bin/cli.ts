@@ -23,7 +23,10 @@ function cleanupAndExit() {
 		process.stdout.write('\x1B[?25h'); // Restore cursor
 	}
 	process.exitCode = 0;
-	process.exit(0);
+	// Use the reserved exit function if available (for dev mode with runtime protection)
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
+	exit(0);
 }
 
 // Handle Ctrl+C gracefully
@@ -66,7 +69,9 @@ if (
 	const commands = await discoverCommands();
 	const cliSchema = generateCLISchema(program, commands, version);
 	console.log(JSON.stringify(cliSchema, null, 2));
-	process.exit(0);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
+	exit(0);
 }
 
 // Check for legacy CLI and warn user (skip if --skip-legacy-check flag is present)
@@ -146,6 +151,8 @@ await registerCommands(program, commands, ctx as unknown as CommandContext);
 try {
 	await program.parseAsync(process.argv);
 } catch (error) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
 	// Don't log error if it's from Ctrl+C, user cancellation, or signal termination
 	if (error instanceof Error) {
 		const msg = error.message.toLowerCase();
@@ -157,15 +164,15 @@ try {
 			msg.includes('canceled') || // US
 			msg === ''
 		) {
-			process.exit(0);
+			exit(0);
 		}
 		if ('name' in error && error.name === 'AbortError') {
-			process.exit(0);
+			exit(0);
 		}
 	}
 	// Also exit cleanly if error is empty/undefined (user cancellation)
 	if (!error) {
-		process.exit(0);
+		exit(0);
 	}
 	const errorWithMessage = error as { message?: string };
 	if (isStructuredError(error)) {
@@ -177,5 +184,5 @@ try {
 			error
 		);
 	}
-	process.exit(1);
+	exit(1);
 }
