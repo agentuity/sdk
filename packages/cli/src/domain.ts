@@ -33,13 +33,14 @@ interface DNSMisconfigured extends BaseDNSResult {
 }
 
 export type DNSResult = DNSSuccess | DNSPending | DNSMissing | DNSError | DNSMisconfigured;
+export type DNSFailed = DNSPending | DNSMissing | DNSError | DNSMisconfigured;
 
 export function isMisconfigured(x: DNSResult): x is DNSMisconfigured {
 	return 'misconfigured' in x && !!x.misconfigured;
 }
 
 export function isMissing(x: DNSResult): x is DNSMissing {
-	return 'pending' in x && x.success === false;
+	return 'pending' in x && x.pending === false && 'success' in x && x.success === false;
 }
 
 export function isError(x: DNSResult): x is DNSError {
@@ -47,10 +48,10 @@ export function isError(x: DNSResult): x is DNSError {
 }
 
 export function isPending(x: DNSResult): x is DNSPending {
-	return 'pending' in x && x.pending && x.success;
+	return 'pending' in x && x.pending === true && x.success === true;
 }
 
-export function isSuccess(x: DNSResult): x is DNSPending {
+export function isSuccess(x: DNSResult): x is DNSSuccess {
 	return x.success == true && !('pending' in x) && !('error' in x) && !('misconfigured' in x);
 }
 
@@ -160,6 +161,8 @@ export async function checkCustomDomainForDNS(
 								: JSON.stringify(ex);
 					return {
 						domain,
+						target: proxy,
+						recordType: 'CNAME',
 						success: false,
 						error: errMsg,
 					} as DNSError;
@@ -186,7 +189,7 @@ export async function promptForDNS(
 	let resume: (() => void) | undefined;
 	for (;;) {
 		const result = await checkCustomDomainForDNS(projectId, domains, config);
-		const failed = result.filter((x) => !isSuccess(x));
+		const failed = result.filter((x): x is DNSFailed => !isSuccess(x));
 		if (failed.length) {
 			const records: {
 				domain: string;
@@ -215,29 +218,26 @@ export async function promptForDNS(
 				if (isError(r)) {
 					resume?.();
 					throw new Error(r.error);
-				}
-				if (isMisconfigured(r)) {
+				} else if (isMisconfigured(r)) {
 					records.push({
 						domain: r.domain,
 						type: r.recordType,
 						target: r.target,
 						status: tui.colorWarning(`${tui.ICONS.error} ${r.misconfigured}`),
 					});
-				}
-				if (isMissing(r)) {
-					records.push({
-						domain: r.domain,
-						type: r.recordType,
-						target: r.target,
-						status: tui.colorError(`${tui.ICONS.error} Missing`),
-					});
-				}
-				if (isPending(r)) {
+				} else if (isPending(r)) {
 					records.push({
 						domain: r.domain,
 						type: r.recordType,
 						target: r.target,
 						status: tui.colorWarning('⌛️ Pending'),
+					});
+				} else if (isMissing(r)) {
+					records.push({
+						domain: r.domain,
+						type: r.recordType,
+						target: r.target,
+						status: tui.colorError(`${tui.ICONS.error} Missing`),
 					});
 				}
 			}
@@ -247,7 +247,7 @@ export async function promptForDNS(
 				console.log();
 				console.log(`${tui.colorInfo('Domain:')}  ${tui.colorPrimary(record.domain)}`);
 				console.log(`${tui.colorInfo('Type:')}    ${tui.colorPrimary(record.type)}`);
-				console.log(`${tui.colorInfo('Domain:')}  ${tui.colorPrimary(record.target)}`);
+				console.log(`${tui.colorInfo('Target:')}  ${tui.colorPrimary(record.target)}`);
 				console.log(`${tui.colorInfo('Status:')}  ${tui.colorPrimary(record.status)}`);
 				console.log();
 				linesShown += 6;
