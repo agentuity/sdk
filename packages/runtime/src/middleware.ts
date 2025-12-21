@@ -5,8 +5,10 @@
 
 import { createMiddleware } from 'hono/factory';
 import { cors } from 'hono/cors';
-import type { Env } from './app';
+import { compress } from 'hono/compress';
+import type { Env, CompressionConfig } from './app';
 import type { Logger } from './logger';
+import { getAppConfig } from './app';
 import { generateId } from './session';
 import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
@@ -124,31 +126,77 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 }
 
 /**
- * Create CORS middleware
+ * Create CORS middleware with lazy config resolution.
+ *
+ * Handles Cross-Origin Resource Sharing (CORS) headers for API routes.
+ * Config is resolved at request time, allowing it to be set via createApp().
+ * Static options passed here take precedence over app config.
+ *
+ * Default behavior:
+ * - Reflects the request origin (allows any origin)
+ * - Allows common headers: Content-Type, Authorization, Accept, Origin, X-Requested-With
+ * - Allows all standard HTTP methods
+ * - Enables credentials
+ * - Sets max-age to 600 seconds (10 minutes)
+ *
+ * @param staticOptions - Optional static CORS options that override app config
+ *
+ * @example
+ * ```typescript
+ * // Use with default settings
+ * app.use('/api/*', createCorsMiddleware());
+ *
+ * // Or configure via createApp
+ * const app = await createApp({
+ *   cors: {
+ *     origin: 'https://example.com',
+ *     allowHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
+ *     maxAge: 3600,
+ *   }
+ * });
+ *
+ * // Or pass static options directly (overrides app config)
+ * app.use('/api/*', createCorsMiddleware({
+ *   origin: ['https://app.example.com', 'https://admin.example.com'],
+ *   credentials: true,
+ * }));
+ * ```
  */
-export function createCorsMiddleware(corsOptions?: Parameters<typeof cors>[0]) {
-	return cors({
-		origin: corsOptions?.origin ?? ((origin) => origin),
-		allowHeaders: corsOptions?.allowHeaders ?? [
-			'Content-Type',
-			'Authorization',
-			'Accept',
-			'Origin',
-			'X-Requested-With',
-			THREAD_HEADER,
-		],
-		allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
-		exposeHeaders: [
-			'Content-Length',
-			TOKENS_HEADER,
-			DURATION_HEADER,
-			THREAD_HEADER,
-			SESSION_HEADER,
-			DEPLOYMENT_HEADER,
-		],
-		maxAge: 600,
-		credentials: true,
-		...(corsOptions ?? {}),
+export function createCorsMiddleware(staticOptions?: Parameters<typeof cors>[0]) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return createMiddleware<Env<any>>(async (c, next) => {
+		// Lazy resolve: merge app config with static options
+		const appConfig = getAppConfig();
+		const corsOptions = {
+			...appConfig?.cors,
+			...staticOptions,
+		};
+
+		const corsMiddleware = cors({
+			origin: corsOptions?.origin ?? ((origin: string) => origin),
+			allowHeaders: corsOptions?.allowHeaders ?? [
+				'Content-Type',
+				'Authorization',
+				'Accept',
+				'Origin',
+				'X-Requested-With',
+				THREAD_HEADER,
+			],
+			allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
+			exposeHeaders: [
+				'Content-Length',
+				TOKENS_HEADER,
+				DURATION_HEADER,
+				THREAD_HEADER,
+				SESSION_HEADER,
+				DEPLOYMENT_HEADER,
+			],
+			maxAge: 600,
+			credentials: true,
+			...(corsOptions ?? {}),
+		});
+
+		return corsMiddleware(c, next);
 	});
 }
 
@@ -319,5 +367,78 @@ export function createOtelMiddleware() {
 				}
 			);
 		});
+	});
+}
+
+/**
+ * Create compression middleware with lazy config resolution.
+ *
+ * Compresses response bodies using gzip or deflate based on the Accept-Encoding header.
+ * Config is resolved at request time, allowing it to be set via createApp().
+ *
+ * @param staticConfig - Optional static config that overrides app config
+ *
+ * @example
+ * ```typescript
+ * // Use with default settings
+ * app.use('*', createCompressionMiddleware());
+ *
+ * // Or configure via createApp
+ * const app = await createApp({
+ *   compression: {
+ *     threshold: 2048,
+ *   }
+ * });
+ * ```
+ */
+export function createCompressionMiddleware(staticConfig?: CompressionConfig) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return createMiddleware<Env<any>>(async (c, next) => {
+		// Lazy resolve: merge app config with static config
+		const appConfig = getAppConfig();
+		const appCompressionConfig = appConfig?.compression;
+
+		// Check if compression is explicitly disabled
+		if (appCompressionConfig === false || staticConfig?.enabled === false) {
+			return next();
+		}
+
+		// Merge configs: static config takes precedence over app config
+		const config: CompressionConfig = {
+			...(typeof appCompressionConfig === 'object' ? appCompressionConfig : {}),
+			...staticConfig,
+		};
+
+		const { enabled = true, threshold = 1024, filter, honoOptions } = config;
+
+		// Skip if explicitly disabled
+		if (!enabled) {
+			return next();
+		}
+
+		// Skip WebSocket upgrade requests
+		const upgrade = c.req.header('upgrade');
+		if (upgrade && upgrade.toLowerCase() === 'websocket') {
+			return next();
+		}
+
+		// Skip if no Accept-Encoding header
+		const acceptEncoding = c.req.header('accept-encoding');
+		if (!acceptEncoding) {
+			return next();
+		}
+
+		// Check custom filter
+		if (filter && !filter(c)) {
+			return next();
+		}
+
+		// Create and run the Hono compress middleware
+		const compressMiddleware = compress({
+			threshold,
+			...honoOptions,
+		});
+
+		await compressMiddleware(c, next);
 	});
 }
