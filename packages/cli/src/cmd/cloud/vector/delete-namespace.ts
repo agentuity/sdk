@@ -73,7 +73,10 @@ export const deleteNamespaceSubcommand = createCommand({
 		}
 
 		await storage.deleteNamespace(args.name);
-		tui.success(`Namespace ${tui.bold(args.name)} deleted`);
+
+		if (!ctx.options.json) {
+			tui.success(`Namespace ${tui.bold(args.name)} deleted`);
+		}
 
 		return {
 			success: true,
