@@ -231,14 +231,13 @@ describe('Compression Middleware', () => {
 			expect(res.headers.get('Content-Encoding')).toBeNull();
 		});
 
-		test('no config means defaults are used', async () => {
-			// No app config set - test middleware handles request without crashing
+		test('works without any config (uses defaults)', async () => {
+			// No app config, no static config - middleware should work with defaults
 
 			const app = new Hono();
-			// Disable to avoid compression parsing issues in test
-			app.use('*', createCompressionMiddleware({ enabled: false }));
+			app.use('*', createCompressionMiddleware());
 			app.get('/test', (c) => {
-				return c.json({ message: 'test' });
+				return c.json({ data: generateLargePayload(2048) });
 			});
 
 			const res = await app.request('/test', {
@@ -247,9 +246,8 @@ describe('Compression Middleware', () => {
 			});
 
 			expect(res.status).toBe(200);
-			// Should work with defaults (response may or may not be compressed)
-			const data = await res.json();
-			expect((data as { message: string }).message).toBe('test');
+			// With defaults and large payload, compression should be applied
+			expect(res.headers.get('Content-Encoding')).toBe('gzip');
 		});
 	});
 
