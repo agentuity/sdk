@@ -232,7 +232,8 @@ describe('Compression Middleware', () => {
 		});
 
 		test('works without any config (uses defaults)', async () => {
-			// No app config, no static config - middleware should work with defaults
+			// Ensure no config is set (previous test may have set one)
+			clearAppConfig();
 
 			const app = new Hono();
 			app.use('*', createCompressionMiddleware());

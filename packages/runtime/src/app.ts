@@ -29,7 +29,6 @@ type HonoCompressOptions = Parameters<typeof compress>[0];
  *   compression: {
  *     enabled: true,
  *     threshold: 1024,
- *     contentTypes: ['text/', 'application/json'],
  *   }
  * });
  * ```
@@ -80,7 +79,6 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 * const app = await createApp({
 	 *   compression: {
 	 *     threshold: 2048,
-	 *     contentTypes: ['text/', 'application/json'],
 	 *   }
 	 * });
 	 *

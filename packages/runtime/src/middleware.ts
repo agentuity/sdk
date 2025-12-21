@@ -128,10 +128,39 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 /**
  * Create CORS middleware with lazy config resolution.
  *
+ * Handles Cross-Origin Resource Sharing (CORS) headers for API routes.
  * Config is resolved at request time, allowing it to be set via createApp().
  * Static options passed here take precedence over app config.
  *
+ * Default behavior:
+ * - Reflects the request origin (allows any origin)
+ * - Allows common headers: Content-Type, Authorization, Accept, Origin, X-Requested-With
+ * - Allows all standard HTTP methods
+ * - Enables credentials
+ * - Sets max-age to 600 seconds (10 minutes)
+ *
  * @param staticOptions - Optional static CORS options that override app config
+ *
+ * @example
+ * ```typescript
+ * // Use with default settings
+ * app.use('/api/*', createCorsMiddleware());
+ *
+ * // Or configure via createApp
+ * const app = await createApp({
+ *   cors: {
+ *     origin: 'https://example.com',
+ *     allowHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
+ *     maxAge: 3600,
+ *   }
+ * });
+ *
+ * // Or pass static options directly (overrides app config)
+ * app.use('/api/*', createCorsMiddleware({
+ *   origin: ['https://app.example.com', 'https://admin.example.com'],
+ *   credentials: true,
+ * }));
+ * ```
  */
 export function createCorsMiddleware(staticOptions?: Parameters<typeof cors>[0]) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -358,7 +387,6 @@ export function createOtelMiddleware() {
  * const app = await createApp({
  *   compression: {
  *     threshold: 2048,
- *     contentTypes: ['text/', 'application/json'],
  *   }
  * });
  * ```
