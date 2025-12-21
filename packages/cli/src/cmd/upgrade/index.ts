@@ -10,35 +10,33 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import { access, constants } from 'node:fs/promises';
+import { StructuredError } from '@agentuity/core';
 
-export class PermissionError extends Error {
-	constructor(
-		public readonly binaryPath: string,
-		public readonly reason: string
-	) {
-		super(`Permission denied: ${reason}`);
-		this.name = 'PermissionError';
-	}
-}
+export const PermissionError = StructuredError('PermissionError')<{
+	binaryPath: string;
+	reason: string;
+}>();
 
 async function checkWritePermission(binaryPath: string): Promise<void> {
 	try {
 		await access(binaryPath, constants.W_OK);
 	} catch {
-		throw new PermissionError(
+		throw new PermissionError({
 			binaryPath,
-			`Cannot write to ${binaryPath}. You may need to run with elevated permissions (e.g., sudo) or reinstall to a user-writable location.`
-		);
+			reason: `Cannot write to ${binaryPath}. You may need to run with elevated permissions (e.g., sudo) or reinstall to a user-writable location.`,
+			message: `Permission denied: Cannot write to ${binaryPath}`,
+		});
 	}
 
 	const parentDir = dirname(binaryPath);
 	try {
 		await access(parentDir, constants.W_OK);
 	} catch {
-		throw new PermissionError(
+		throw new PermissionError({
 			binaryPath,
-			`Cannot write to directory ${parentDir}. You may need to run with elevated permissions (e.g., sudo) or reinstall to a user-writable location.`
-		);
+			reason: `Cannot write to directory ${parentDir}. You may need to run with elevated permissions (e.g., sudo) or reinstall to a user-writable location.`,
+			message: `Permission denied: Cannot write to directory ${parentDir}`,
+		});
 	}
 }
 
