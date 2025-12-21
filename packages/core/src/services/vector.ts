@@ -185,6 +185,81 @@ export type VectorResult<T extends Record<string, unknown> = Record<string, unkn
 	| VectorResultNotFound;
 
 /**
+ * Statistics for a vector namespace
+ */
+export interface VectorNamespaceStats {
+	/**
+	 * Total size in bytes
+	 */
+	sum: number;
+
+	/**
+	 * Number of vectors in the namespace
+	 */
+	count: number;
+
+	/**
+	 * Unix timestamp (milliseconds) when the namespace was created
+	 */
+	createdAt?: number;
+
+	/**
+	 * Unix timestamp (milliseconds) when the namespace was last used
+	 */
+	lastUsed?: number;
+}
+
+/**
+ * Statistics for an individual vector item
+ */
+export interface VectorItemStats {
+	/**
+	 * The embedding vector
+	 */
+	embedding?: number[];
+
+	/**
+	 * The original document text
+	 */
+	document?: string;
+
+	/**
+	 * Size in bytes
+	 */
+	size: number;
+
+	/**
+	 * Metadata associated with the vector
+	 */
+	metadata?: Record<string, unknown>;
+
+	/**
+	 * Unix timestamp (milliseconds) when the vector was first accessed
+	 */
+	firstUsed: number;
+
+	/**
+	 * Unix timestamp (milliseconds) when the vector was last accessed
+	 */
+	lastUsed: number;
+
+	/**
+	 * Number of times the vector was accessed
+	 */
+	count: number;
+}
+
+/**
+ * Namespace statistics with sampled vector results
+ */
+export interface VectorNamespaceStatsWithSamples extends VectorNamespaceStats {
+	/**
+	 * A sample of vectors in the namespace (up to 20)
+	 */
+	sampledResults?: Record<string, VectorItemStats>;
+}
+
+/**
  * Vector storage service for managing vector embeddings and semantic search
  */
 export interface VectorStorage {
@@ -330,6 +405,66 @@ export interface VectorStorage {
 	 * ```
 	 */
 	exists(name: string): Promise<boolean>;
+
+	/**
+	 * Get statistics for a specific namespace including sampled results
+	 *
+	 * @param name - the name of the vector storage namespace
+	 * @returns statistics for the namespace with sampled vector results
+	 *
+	 * @example
+	 * ```typescript
+	 * const stats = await vectorStore.getStats('products');
+	 * console.log(`Namespace has ${stats.count} vectors (${stats.sum} bytes)`);
+	 * if (stats.sampledResults) {
+	 *   for (const [key, item] of Object.entries(stats.sampledResults)) {
+	 *     console.log(`${key}: ${item.size} bytes, accessed ${item.count} times`);
+	 *   }
+	 * }
+	 * ```
+	 */
+	getStats(name: string): Promise<VectorNamespaceStatsWithSamples>;
+
+	/**
+	 * Get statistics for all namespaces in the organization
+	 *
+	 * @returns map of namespace names to their statistics
+	 *
+	 * @example
+	 * ```typescript
+	 * const allStats = await vectorStore.getAllStats();
+	 * for (const [name, stats] of Object.entries(allStats)) {
+	 *   console.log(`${name}: ${stats.count} vectors, ${stats.sum} bytes`);
+	 * }
+	 * ```
+	 */
+	getAllStats(): Promise<Record<string, VectorNamespaceStats>>;
+
+	/**
+	 * Get all namespace names
+	 *
+	 * @returns array of namespace names
+	 *
+	 * @example
+	 * ```typescript
+	 * const namespaces = await vectorStore.getNamespaces();
+	 * console.log('Namespaces:', namespaces.join(', '));
+	 * ```
+	 */
+	getNamespaces(): Promise<string[]>;
+
+	/**
+	 * Delete an entire namespace and all its vectors
+	 *
+	 * @param name - the name of the vector storage namespace to delete
+	 *
+	 * @example
+	 * ```typescript
+	 * await vectorStore.deleteNamespace('old-products');
+	 * console.log('Namespace deleted');
+	 * ```
+	 */
+	deleteNamespace(name: string): Promise<void>;
 }
 
 interface VectorUpsertSuccessResponse {
@@ -379,6 +514,24 @@ interface VectorDeleteErrorResponse {
 }
 
 type VectorDeleteResponse = VectorDeleteSuccessResponse | VectorDeleteErrorResponse;
+
+type VectorStatsResponse = VectorNamespaceStatsWithSamples;
+
+type VectorAllStatsResponse = Record<string, VectorNamespaceStats>;
+
+interface VectorDeleteNamespaceSuccessResponse {
+	success: true;
+	data: number;
+}
+
+interface VectorDeleteNamespaceErrorResponse {
+	success: false;
+	message: string;
+}
+
+type VectorDeleteNamespaceResponse =
+	| VectorDeleteNamespaceSuccessResponse
+	| VectorDeleteNamespaceErrorResponse;
 
 const VectorStorageNameRequiredError = StructuredError(
 	'VectorStorageNameRequiredError',
@@ -750,5 +903,99 @@ export class VectorStorageService implements VectorStorage {
 			}
 			throw error;
 		}
+	}
+
+	async getStats(name: string): Promise<VectorNamespaceStatsWithSamples> {
+		if (!name || typeof name !== 'string' || name.trim().length === 0) {
+			throw new VectorStorageNameRequiredError();
+		}
+
+		const url = buildUrl(
+			this.#baseUrl,
+			`/vector/2025-03-17/stats/${encodeURIComponent(name)}`
+		);
+		const signal = AbortSignal.timeout(10_000);
+
+		const res = await this.#adapter.invoke<VectorStatsResponse>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.vector.getStats',
+				attributes: {
+					name,
+				},
+			},
+		});
+
+		if (res.ok) {
+			return res.data;
+		}
+
+		if (res.response.status === 404) {
+			return { sum: 0, count: 0 };
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async getAllStats(): Promise<Record<string, VectorNamespaceStats>> {
+		const url = buildUrl(this.#baseUrl, '/vector/2025-03-17/stats');
+		const signal = AbortSignal.timeout(10_000);
+
+		const res = await this.#adapter.invoke<VectorAllStatsResponse>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.vector.getAllStats',
+				attributes: {},
+			},
+		});
+
+		if (res.ok) {
+			return res.data;
+		}
+
+		throw await toServiceException('GET', url, res.response);
+	}
+
+	async getNamespaces(): Promise<string[]> {
+		const stats = await this.getAllStats();
+		return Object.keys(stats);
+	}
+
+	async deleteNamespace(name: string): Promise<void> {
+		if (!name || typeof name !== 'string' || name.trim().length === 0) {
+			throw new VectorStorageNameRequiredError();
+		}
+
+		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/${encodeURIComponent(name)}`);
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.#adapter.invoke<VectorDeleteNamespaceResponse>(url, {
+			method: 'DELETE',
+			signal,
+			telemetry: {
+				name: 'agentuity.vector.deleteNamespace',
+				attributes: {
+					name,
+				},
+			},
+		});
+
+		if (res.response.status === 404) {
+			return;
+		}
+
+		if (res.ok) {
+			if (res.data.success) {
+				return;
+			}
+			throw new VectorStorageResponseError({
+				status: res.response.status,
+				message: res.data.message,
+			});
+		}
+
+		throw await toServiceException('DELETE', url, res.response);
 	}
 }

@@ -58,6 +58,9 @@ export {
 	type VectorResultFound,
 	type VectorResultNotFound,
 	type VectorResult,
+	type VectorNamespaceStats,
+	type VectorItemStats,
+	type VectorNamespaceStatsWithSamples,
 	type VectorStorage,
 	VectorStorageService,
 } from './services/vector';
