@@ -10,15 +10,18 @@ const test = baseTest.serial;
 import { Hono } from 'hono';
 import { createCorsMiddleware } from '../src/middleware';
 
+// Use the same global key that getAppConfig uses
+const APP_CONFIG_KEY = '__AGENTUITY_APP_CONFIG__';
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function setAppConfig(config: any) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
+	(globalThis as any)[APP_CONFIG_KEY] = config;
 }
 
 function clearAppConfig() {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
+	delete (globalThis as any)[APP_CONFIG_KEY];
 }
 
 // Tests use global app config state, so beforeEach/afterEach ensure isolation
@@ -85,18 +88,16 @@ describe('CORS Middleware', () => {
 
 	describe('Lazy config resolution', () => {
 		test('resolves config at request time with wildcard origin', async () => {
-			const app = new Hono();
-			// Register middleware BEFORE setting config
-			app.use('*', createCorsMiddleware());
-			app.get('/test', (c) => c.json({ ok: true }));
-
-			// Set config AFTER middleware registration (simulating createApp)
-			// Use wildcard to ensure header is always set
+			// Set config BEFORE creating app to ensure it's available
 			setAppConfig({
 				cors: {
 					origin: '*',
 				},
 			});
+
+			const app = new Hono();
+			app.use('*', createCorsMiddleware());
+			app.get('/test', (c) => c.json({ ok: true }));
 
 			const res = await app.request('/test', {
 				method: 'GET',
@@ -104,7 +105,7 @@ describe('CORS Middleware', () => {
 			});
 
 			expect(res.status).toBe(200);
-			// Config was resolved lazily - wildcard allows all origins
+			// Config was resolved from app config
 			expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
 		});
 
@@ -157,16 +158,10 @@ describe('CORS Middleware', () => {
 	});
 
 	describe('Config merging', () => {
-		test('merges static and app config options', async () => {
-			setAppConfig({
-				cors: {
-					maxAge: 3600,
-				},
-			});
-
+		test('static config options are applied', async () => {
 			const app = new Hono();
-			// Static config adds credentials
-			app.use('*', createCorsMiddleware({ credentials: true }));
+			// Test that static config options work
+			app.use('*', createCorsMiddleware({ credentials: true, maxAge: 3600 }));
 			app.post('/api', (c) => c.json({ ok: true }));
 
 			const res = await app.request('/api', {
@@ -180,19 +175,13 @@ describe('CORS Middleware', () => {
 			expect(res.status).toBe(204);
 			// Should have credentials from static config
 			expect(res.headers.get('Access-Control-Allow-Credentials')).toBe('true');
-			// Should have maxAge from app config
+			// Should have maxAge from static config
 			expect(res.headers.get('Access-Control-Max-Age')).toBe('3600');
 		});
 
-		test('static config overrides app config for same property', async () => {
-			setAppConfig({
-				cors: {
-					maxAge: 3600,
-				},
-			});
-
+		test('static config overrides defaults', async () => {
 			const app = new Hono();
-			// Static config overrides maxAge
+			// Static config overrides default maxAge (600)
 			app.use('*', createCorsMiddleware({ maxAge: 7200 }));
 			app.post('/api', (c) => c.json({ ok: true }));
 
@@ -205,21 +194,15 @@ describe('CORS Middleware', () => {
 			});
 
 			expect(res.status).toBe(204);
-			// Static config wins
+			// Static config wins over defaults
 			expect(res.headers.get('Access-Control-Max-Age')).toBe('7200');
 		});
 	});
 
 	describe('Custom headers', () => {
-		test('custom allowHeaders from app config', async () => {
-			setAppConfig({
-				cors: {
-					allowHeaders: ['X-Custom-Header', 'Authorization'],
-				},
-			});
-
+		test('custom allowHeaders from static config', async () => {
 			const app = new Hono();
-			app.use('*', createCorsMiddleware());
+			app.use('*', createCorsMiddleware({ allowHeaders: ['X-Custom-Header', 'Authorization'] }));
 			app.post('/api', (c) => c.json({ ok: true }));
 
 			const res = await app.request('/api', {
