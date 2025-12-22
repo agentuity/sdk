@@ -2,13 +2,13 @@ import { politenessEval } from '@agentuity/evals';
 import evalsBasicAgent, { AgentOutput, AgentInput } from './basic';
 
 /**
- * Example 1: Using canned eval with defaults
+ * Example 1: Using preset eval with defaults
  * The eval expects { request: string, context?: string } for input
  * and { response: string } for output, so we need middleware to transform.
  */
-export const politenessCheck = evalsBasicAgent.createEval(
+export const politenessCheckCustom = evalsBasicAgent.createEval(
 	politenessEval<typeof AgentInput, typeof AgentOutput>({
-		name: 'politeness-check',
+		name: 'politeness-custom',
 		model: 'gpt-4o-mini',
 		threshold: 0.7,
 		middleware: {
@@ -21,23 +21,7 @@ export const politenessCheck = evalsBasicAgent.createEval(
 );
 
 /**
- * Example 2: Inline eval without using canned evals
- * This is simpler when you don't need the canned eval's LLM logic.
+ * Example 2: Inline eval without using preset evals
+ * This is simpler when you don't need the preset eval's LLM logic.
  */
-export const accuracyEval = evalsBasicAgent.createEval('accuracy-check', {
-	description: 'Verifies the doubling calculation is correct',
-	handler: async (ctx, input, output) => {
-		const expected = input.value * 2;
-		const passed = output.result === expected;
-
-		return {
-			success: true,
-			passed,
-			metadata: {
-				reason: passed
-					? `Correctly doubled ${input.value} to ${output.result}`
-					: `Expected ${expected} but got ${output.result}`,
-			},
-		};
-	},
-});
+export const accuracyEval = evalsBasicAgent.createEval(politenessEval());

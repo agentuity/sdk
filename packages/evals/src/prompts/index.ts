@@ -1,1 +1,0 @@
-export { politenessPrompt } from './politeness';

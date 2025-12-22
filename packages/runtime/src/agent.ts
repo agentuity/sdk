@@ -363,7 +363,7 @@ export interface CreateEvalConfig<
 	>;
 }
 
-export type CannedEvalConfig<
+export type PresetEvalConfig<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
 > = CreateEvalConfig<TInput, TOutput> & { name: string };
@@ -372,7 +372,7 @@ type CreateEvalMethod<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
 > = {
-	(config: CannedEvalConfig<TInput, TOutput>): Eval<TInput, TOutput>;
+	(config: PresetEvalConfig<TInput, TOutput>): Eval<TInput, TOutput>;
 	(name: string, config: CreateEvalConfig<TInput, TOutput>): Eval<TInput, TOutput>;
 };
 
@@ -1622,7 +1622,7 @@ export function createAgent<
 
 	// Create createEval method that infers types from agent and automatically adds to agent
 	const createEval: CreateEvalMethod<TInput, TOutput> = ((
-		evalNameOrConfig: string | CannedEvalConfig<TInput, TOutput>,
+		evalNameOrConfig: string | PresetEvalConfig<TInput, TOutput>,
 		evalConfig?: {
 			description?: string;
 			handler: EvalFunction<AgentInput, AgentOutput>;
@@ -1634,22 +1634,22 @@ export function createAgent<
 			};
 		}
 	): Eval<TInput, TOutput> => {
-		// Handle canned eval config (single argument with name property)
+		// Handle preset eval config (single argument with name property)
 		if (typeof evalNameOrConfig !== 'string' && 'name' in evalNameOrConfig) {
-			const cannedConfig = evalNameOrConfig as CannedEvalConfig<TInput, TOutput>;
-			const evalName = cannedConfig.name;
+			const presetConfig = evalNameOrConfig as PresetEvalConfig<TInput, TOutput>;
+			const evalName = presetConfig.name;
 
 			internal.debug(
-				`createEval called for agent "${name || 'unknown'}": registering canned eval "${evalName}"`
+				`createEval called for agent "${name || 'unknown'}": registering preset eval "${evalName}"`
 			);
 
 			const evalType: any = {
 				metadata: {
 					identifier: evalName,
 					name: evalName,
-					description: cannedConfig.description || '',
+					description: presetConfig.description || '',
 				},
-				handler: cannedConfig.handler,
+				handler: presetConfig.handler,
 			};
 
 			if (inputSchema) {
@@ -1662,7 +1662,7 @@ export function createAgent<
 
 			evalsArray.push(evalType);
 			internal.debug(
-				`Added canned eval "${evalName}" to agent "${name || 'unknown'}". Total evals: ${evalsArray.length}`
+				`Added preset eval "${evalName}" to agent "${name || 'unknown'}". Total evals: ${evalsArray.length}`
 			);
 
 			return evalType as Eval<TInput, TOutput>;
@@ -1671,7 +1671,7 @@ export function createAgent<
 		// Handle custom eval config (name + config)
 		if (typeof evalNameOrConfig !== 'string' || !evalConfig) {
 			throw new Error(
-				'Invalid arguments: expected (name: string, config) or (config: CannedEvalConfig)'
+				'Invalid arguments: expected (name: string, config) or (config: PresetEvalConfig)'
 			);
 		}
 

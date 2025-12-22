@@ -3,7 +3,7 @@ import type { CreateEvalConfig, EvalContext } from '@agentuity/runtime';
 import type { BaseEvalOptions, EvalMiddleware } from './types';
 import { s } from '@agentuity/schema';
 
-// Default schemas for canned evals - change these to update all evals
+// Default schemas for preset evals - change these to update all evals
 export const DefaultEvalInputSchema = s.object({
 	request: s.string(),
 	context: s.string().optional(),
@@ -37,7 +37,7 @@ export function interpolatePrompt(template: string, variables: Record<string, st
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type InferSchemaOutput<T> = T extends StandardSchemaV1 ? InferOutput<T> : any;
 
-type CannedEvalOverrides<
+type PresetEvalOverrides<
 	TEvalInput extends StandardSchemaV1 | undefined,
 	TEvalOutput extends StandardSchemaV1 | undefined,
 	TOptions extends BaseEvalOptions,
@@ -54,12 +54,12 @@ type CannedEvalOverrides<
 
 // Return type is compatible with any agent's createEval method
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type CannedEvalResult<TOptions extends BaseEvalOptions> = CreateEvalConfig<any, any> & {
+type PresetEvalResult<TOptions extends BaseEvalOptions> = CreateEvalConfig<any, any> & {
 	name: string;
 	options: TOptions;
 };
 
-export function createCannedEval<
+export function createPresetEval<
 	TEvalInput extends StandardSchemaV1 | undefined = StandardSchemaV1 | undefined,
 	TEvalOutput extends StandardSchemaV1 | undefined = StandardSchemaV1 | undefined,
 	TOptions extends BaseEvalOptions = BaseEvalOptions,
@@ -79,14 +79,14 @@ export function createCannedEval<
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	TAgentOutput extends StandardSchemaV1 | undefined = any,
 >(
-	overrides?: CannedEvalOverrides<
+	overrides?: PresetEvalOverrides<
 		TEvalInput,
 		TEvalOutput,
 		TOptions,
 		InferSchemaOutput<TAgentInput>,
 		InferSchemaOutput<TAgentOutput>
 	>
-) => CannedEvalResult<TOptions> {
+) => PresetEvalResult<TOptions> {
 	return (overrides) => {
 		const { name, description, middleware, ...optionOverrides } = overrides ?? {};
 		const currentOptions = { ...config.options, ...optionOverrides } as TOptions;

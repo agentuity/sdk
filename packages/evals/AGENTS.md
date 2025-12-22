@@ -2,19 +2,19 @@
 
 ## Overview
 
-The `@agentuity/evals` package provides a framework for creating reusable, configurable evaluation functions ("canned evals") that can be attached to agents to assess their behavior.
+The `@agentuity/evals` package provides a framework for creating reusable, configurable evaluation functions ("preset evals") that can be attached to agents to assess their behavior.
 
 ## Core Concepts
 
-### Canned Evals
+### Preset Evals
 
-A "canned eval" is a pre-configured evaluation that can be reused across multiple agents with optional overrides. They're created with `createCannedEval()` and return a factory function.
+A "preset eval" is a pre-configured evaluation that can be reused across multiple agents with optional overrides. They're created with `createPresetEval()` and return a factory function.
 
 ```typescript
-import { createCannedEval } from '@agentuity/evals';
+import { createPresetEval } from '@agentuity/evals';
 
-// Create a canned eval
-export const myEval = createCannedEval<TInput, TOutput, TOptions>({
+// Create a preset eval
+export const myEval = createPresetEval<TInput, TOutput, TOptions>({
 	name: 'eval-name',
 	description: 'What this eval checks',
 	options: {
@@ -32,10 +32,10 @@ agent.createEval(myEval({ name: 'custom-name', ...optionOverrides }));
 
 ## Generics
 
-`createCannedEval` accepts three generic parameters:
+`createPresetEval` accepts three generic parameters:
 
 ```typescript
-createCannedEval<TInput, TOutput, TOptions>();
+createPresetEval<TInput, TOutput, TOptions>();
 ```
 
 ### TInput / TOutput (Schema Types)
@@ -49,7 +49,7 @@ import { s } from '@agentuity/schema';
 const inputSchema = s.object({ value: s.string() });
 const outputSchema = s.object({ result: s.number() });
 
-export const typedEval = createCannedEval<typeof inputSchema, typeof outputSchema, MyOptions>({
+export const typedEval = createPresetEval<typeof inputSchema, typeof outputSchema, MyOptions>({
 	handler: async (ctx, input, output, options) => {
 		// input is typed as { value: string }
 		// output is typed as { result: number }
@@ -60,7 +60,7 @@ export const typedEval = createCannedEval<typeof inputSchema, typeof outputSchem
 **Use `undefined` for generic evals** that work with any agent:
 
 ```typescript
-export const genericEval = createCannedEval<undefined, undefined, MyOptions>({
+export const genericEval = createPresetEval<undefined, undefined, MyOptions>({
 	handler: async (ctx, input, output, options) => {
 		// input and output are typed as unknown
 	},
@@ -89,7 +89,7 @@ type MyEvalOptions = BaseEvalOptions & {
 	mode: 'strict' | 'lenient';
 };
 
-export const myEval = createCannedEval<undefined, undefined, MyEvalOptions>({
+export const myEval = createPresetEval<undefined, undefined, MyEvalOptions>({
 	options: {
 		model: 'gpt-4o', // from BaseEvalOptions
 		threshold: 0.8,
@@ -101,7 +101,7 @@ export const myEval = createCannedEval<undefined, undefined, MyEvalOptions>({
 
 ## Flattened Override API
 
-When calling a canned eval, options are flattened into the base object (not nested under `options`):
+When calling a preset eval, options are flattened into the base object (not nested under `options`):
 
 ```typescript
 // ✅ CORRECT - flattened
@@ -113,7 +113,7 @@ agent.createEval(myEval({ name: 'custom', options: { model: 'gpt-4o-mini' } }));
 
 ## Middleware
 
-Middleware allows reusing canned evals across agents with different schemas by transforming agent input/output to the eval's expected types.
+Middleware allows reusing preset evals across agents with different schemas by transforming agent input/output to the eval's expected types.
 
 ```typescript
 // Define agent schemas
@@ -174,7 +174,7 @@ return {
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 import { s } from '@agentuity/schema';
-import { createCannedEval, type BaseEvalOptions } from '@agentuity/evals';
+import { createPresetEval, type BaseEvalOptions } from '@agentuity/evals';
 
 // Schema for typed access (optional)
 const inputSchema = s.object({ message: s.string() });
@@ -185,7 +185,7 @@ type ToneEvalOptions = BaseEvalOptions & {
 	expectedTone: 'formal' | 'casual' | 'friendly';
 };
 
-export const toneEval = createCannedEval<typeof inputSchema, typeof outputSchema, ToneEvalOptions>({
+export const toneEval = createPresetEval<typeof inputSchema, typeof outputSchema, ToneEvalOptions>({
 	name: 'tone-check',
 	description: 'Evaluates if the response matches the expected tone',
 	options: {
@@ -224,8 +224,8 @@ agent.createEval(toneEval({ name: 'formal-tone', expectedTone: 'formal', model: 
 ```
 packages/evals/
 ├── src/
-│   ├── index.ts      # Exports + example canned evals
-│   ├── _utils.ts     # createCannedEval implementation
+│   ├── index.ts      # Exports + example preset evals
+│   ├── _utils.ts     # createPresetEval implementation
 │   └── types.ts      # BaseEvalOptions, EvalMiddleware types
 ├── test/
 │   └── *.test.ts
@@ -239,5 +239,5 @@ packages/evals/
 2. **Flattened options** - Override options directly in the call, not nested under `options`
 3. **Extend BaseEvalOptions** - Custom options must extend `BaseEvalOptions` for the `model` field
 4. **Return format** - Always return `{ success, passed/score, metadata: { reason } }`
-5. **Reusable** - Canned evals are designed to be shared across agents with different configurations
+5. **Reusable** - Preset evals are designed to be shared across agents with different configurations
 6. **Middleware** - Use `middleware` to transform agent input/output to eval's expected types when schemas differ
