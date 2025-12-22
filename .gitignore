@@ -54,3 +54,6 @@ playwright-report/
 
 /TODO*.md
 /PR*.md
+
+# Generated CLI skills in integration-suite
+apps/testing/integration-suite/.agents/skills/
