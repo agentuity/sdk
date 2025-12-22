@@ -1,4 +1,9 @@
-import type { CLISchema, SchemaCommand, SchemaOption, SchemaArgument } from '../../../schema-generator';
+import type {
+	CLISchema,
+	SchemaCommand,
+	SchemaOption,
+	SchemaArgument,
+} from '../../../schema-generator';
 import * as path from 'node:path';
 
 interface SkillInfo {
@@ -234,10 +239,41 @@ function buildUsageString(command: SchemaCommand, fullPath: string[]): string {
 }
 
 function escapeYamlString(str: string): string {
-	if (/[:[\]{}#&*!|>'"%@`]/.test(str) || str.includes('\n')) {
-		return `"${str.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+	// Check if string needs quoting:
+	// - Contains YAML special characters
+	// - Has leading/trailing whitespace
+	// - Looks like a boolean, null, or number
+	// - Contains control characters
+	const specialCharsRegex = /[:[\]{}#&*!|>'"%@`,?<>=~-]/;
+	// eslint-disable-next-line no-control-regex
+	const controlCharsRegex = new RegExp('[\\x00-\\x1f\\x7f]');
+	const needsQuoting =
+		specialCharsRegex.test(str) ||
+		controlCharsRegex.test(str) ||
+		str !== str.trim() ||
+		/^(true|false|yes|no|on|off|null|~)$/i.test(str) ||
+		/^-?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i.test(str) ||
+		str === '';
+
+	if (!needsQuoting) {
+		return str;
 	}
-	return str;
+
+	// Escape special characters for double-quoted YAML string
+	// eslint-disable-next-line no-control-regex
+	const nonPrintableRegex = new RegExp('[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\x7f]', 'g');
+	const escaped = str
+		.replace(/\\/g, '\\\\')
+		.replace(/"/g, '\\"')
+		.replace(/\n/g, '\\n')
+		.replace(/\r/g, '\\r')
+		.replace(/\t/g, '\\t')
+		.replace(nonPrintableRegex, (char) => {
+			const code = char.charCodeAt(0);
+			return `\\x${code.toString(16).padStart(2, '0')}`;
+		});
+
+	return `"${escaped}"`;
 }
 
 function buildArgumentHint(command: SchemaCommand): string | null {
@@ -284,9 +320,7 @@ function generateSkillContent(skill: SkillInfo, version: string): string {
 	lines.push('---');
 	lines.push('');
 
-	const title = fullCommandPath
-		.map((p) => p.charAt(0).toUpperCase() + p.slice(1))
-		.join(' ');
+	const title = fullCommandPath.map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
 	lines.push(`# ${title}`);
 	lines.push('');
 	lines.push(command.description);
@@ -342,6 +376,32 @@ function generateSkillContent(skill: SkillInfo, version: string): string {
 	return lines.join('\n');
 }
 
+function collectAllSkills(
+	schema: CLISchema,
+	outputDir: string,
+	includeHidden: boolean
+): SkillInfo[] {
+	const baseDir = path.join(outputDir, 'skills');
+	const allSkills: SkillInfo[] = [];
+
+	for (const command of schema.commands) {
+		if (EXCLUDED_COMMANDS.has(command.name)) {
+			continue;
+		}
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const isHidden = (command as any).hidden === true;
+		if (isHidden && !includeHidden) {
+			continue;
+		}
+
+		const skills = collectLeafCommands(command, [], baseDir, isHidden);
+		allSkills.push(...skills);
+	}
+
+	return allSkills;
+}
+
 function generateReadme(version: string, skills: SkillInfo[]): string {
 	const groups = new Map<string, SkillInfo[]>();
 	for (const skill of skills) {
@@ -382,7 +442,9 @@ function generateReadme(version: string, skills: SkillInfo[]): string {
 
 		for (const skill of groupSkills.sort((a, b) => a.skillName.localeCompare(b.skillName))) {
 			const cmd = `\`agentuity ${skill.fullCommandPath.join(' ')}\``;
-			const desc = skill.command.description.substring(0, 60) + (skill.command.description.length > 60 ? '...' : '');
+			const desc =
+				skill.command.description.substring(0, 60) +
+				(skill.command.description.length > 60 ? '...' : '');
 			lines.push(`| [${skill.skillName}](./${skill.skillName}) | ${cmd} | ${desc} |`);
 		}
 
@@ -391,8 +453,12 @@ function generateReadme(version: string, skills: SkillInfo[]): string {
 
 	lines.push('## Usage');
 	lines.push('');
-	lines.push('These skills are designed for AI coding agents that support the Agent Skills format.');
-	lines.push('Place this directory in your project or install globally for your agent to discover.');
+	lines.push(
+		'These skills are designed for AI coding agents that support the Agent Skills format.'
+	);
+	lines.push(
+		'Place this directory in your project or install globally for your agent to discover.'
+	);
 	lines.push('');
 	lines.push('## Regenerating');
 	lines.push('');
@@ -415,24 +481,7 @@ export function collectSkillsForPreview(
 	outputDir: string,
 	includeHidden: boolean
 ): string[] {
-	const baseDir = path.join(outputDir, 'skills');
-	const allSkills: SkillInfo[] = [];
-
-	for (const command of schema.commands) {
-		if (EXCLUDED_COMMANDS.has(command.name)) {
-			continue;
-		}
-
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const isHidden = (command as any).hidden === true;
-		if (isHidden && !includeHidden) {
-			continue;
-		}
-
-		const skills = collectLeafCommands(command, [], baseDir, isHidden);
-		allSkills.push(...skills);
-	}
-
+	const allSkills = collectAllSkills(schema, outputDir, includeHidden);
 	return allSkills.map((s) => s.skillPath);
 }
 
@@ -441,29 +490,15 @@ export async function generateSkills(
 	outputDir: string,
 	includeHidden: boolean
 ): Promise<number> {
-	const baseDir = path.join(outputDir, 'skills');
-	const allSkills: SkillInfo[] = [];
-
-	for (const command of schema.commands) {
-		if (EXCLUDED_COMMANDS.has(command.name)) {
-			continue;
-		}
-
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const isHidden = (command as any).hidden === true;
-		if (isHidden && !includeHidden) {
-			continue;
-		}
-
-		const skills = collectLeafCommands(command, [], baseDir, isHidden);
-		allSkills.push(...skills);
-	}
+	const allSkills = collectAllSkills(schema, outputDir, includeHidden);
 
 	if (allSkills.length === 0) {
 		return 0;
 	}
 
+	const baseDir = path.join(outputDir, 'skills');
 	let created = 0;
+
 	for (const skill of allSkills) {
 		const content = generateSkillContent(skill, schema.version);
 		const skillDir = path.dirname(skill.skillPath);
