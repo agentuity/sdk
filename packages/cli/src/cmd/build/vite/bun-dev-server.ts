@@ -58,10 +58,28 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 	logger.debug('📦 Loading generated app (Bun server will start)...');
 	const appPath = `${rootDir}/src/generated/app.ts`;
 
+	// Clear Bun's module cache for the generated app to ensure fresh code is loaded.
+	// This is essential for hot reload to work - otherwise Bun returns the cached module
+	// and the server continues serving stale code.
+	try {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const bunAny = Bun as any;
+		const loader = bunAny.loader ?? bunAny.Loader;
+		if (loader?.registry?.delete) {
+			logger.debug('Clearing loader cache for %s', appPath);
+			loader.registry.delete(appPath);
+		}
+	} catch (err) {
+		logger.debug('Failed to clear Bun module cache for %s: %s', appPath, err);
+	}
+
 	// Set PORT env var so the generated app uses the correct port
 	process.env.PORT = String(port);
 
-	await import(appPath);
+	// Use a unique specifier to force fresh evaluation (cache-busting fallback)
+	// Even if loader.registry.delete() worked, this provides extra insurance
+	const appSpecifier = `${appPath}?ts=${Date.now()}`;
+	await import(appSpecifier);
 
 	// Wait for server to actually start listening
 	// The generated app sets (globalThis as any).__AGENTUITY_SERVER__ when server starts
