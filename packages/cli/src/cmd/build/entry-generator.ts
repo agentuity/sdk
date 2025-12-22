@@ -132,8 +132,9 @@ app.route('/', workbenchRouter);
 		: '';
 
 	// Asset proxy routes - generated for dev mode, reads VITE_PORT from env at runtime
-	const assetProxyRoutes = mode === 'dev'
-		? `
+	const assetProxyRoutes =
+		mode === 'dev'
+			? `
 // Asset proxy routes - Development mode only (proxies to Vite asset server)
 if (isDevelopment() && process.env.VITE_PORT) {
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT, 10);
@@ -182,7 +183,7 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	// File system access (for Vite's @fs protocol)
 	app.get('/@fs/*', proxyToVite);
 
-	// Module resolution (for Vite's @id protocol)  
+	// Module resolution (for Vite's @id protocol)
 	app.get('/@id/*', proxyToVite);
 
 	// Any .js, .jsx, .ts, .tsx files (catch remaining modules)
@@ -193,7 +194,7 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	app.get('/*.css', proxyToVite);
 }
 `
-		: '';
+			: '';
 
 	// Runtime mode detection helper (defined at top level for reuse)
 	// Dynamic property access prevents Bun.build from inlining NODE_ENV at build time
@@ -385,16 +386,16 @@ if (isDevelopment()) {
 			// No Vite port means we're not using Vite proxy
 			return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		}
-		
+
 		try {
 			// Probe Vite to check if it can serve the main entry point
 			// Use @vite/client as a lightweight check - it's always available
 			const viteUrl = \`http://127.0.0.1:\${vitePort}/@vite/client\`;
-			const res = await fetch(viteUrl, { 
+			const res = await fetch(viteUrl, {
 				signal: AbortSignal.timeout(5000),
 				method: 'HEAD'
 			});
-			
+
 			if (res.ok) {
 				return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 			}
