@@ -39,7 +39,6 @@ import noInput from '../agent/basic/basic-no-input.js';
 import noOutput from '../agent/basic/basic-no-output.js';
 import async from '../agent/basic/basic-async.js';
 import simple from '../agent/basic/basic-simple.js';
-import evalsSafetyTest from '../agent/evals/safety-test.js';
 import evalsBasic from '../agent/evals/basic.js';
 import websocketEcho from '../agent/websocket/echo-agent.js';
 import v1DataProcessor from '../agent/v1/data/agent.js';
@@ -1372,40 +1371,6 @@ export type SimpleAgent = AgentRunner<
 >;
 
 /**
- * Input type for evals-safety-test agent
- * Agent for testing safety eval
- */
-export type EvalsSafetyTestInput = InferInput<typeof evalsSafetyTest['inputSchema']>;
-
-/**
- * Output type for evals-safety-test agent
- * Agent for testing safety eval
- */
-export type EvalsSafetyTestOutput = InferOutput<typeof evalsSafetyTest['outputSchema']>;
-
-/**
- * Input schema type for evals-safety-test agent
- * Agent for testing safety eval
- */
-export type EvalsSafetyTestInputSchema = typeof evalsSafetyTest['inputSchema'];
-
-/**
- * Output schema type for evals-safety-test agent
- * Agent for testing safety eval
- */
-export type EvalsSafetyTestOutputSchema = typeof evalsSafetyTest['outputSchema'];
-
-/**
- * Agent type for evals-safety-test
- * Agent for testing safety eval
- */
-export type EvalsSafetyTestAgent = AgentRunner<
-	EvalsSafetyTestInputSchema,
-	EvalsSafetyTestOutputSchema,
-	typeof evalsSafetyTest['stream'] extends true ? true : false
->;
-
-/**
  * Input type for evals-basic agent
  * Agent with evals for testing
  */
@@ -1763,12 +1728,6 @@ export const AgentDefinitions = {
 	 */
 	simple,
 	/**
-	 * evals-safety-test
-	 * Agent for testing safety eval
-	 * @type {EvalsSafetyTestAgent}
-	 */
-	evalsSafetyTest,
-	/**
 	 * evals-basic
 	 * Agent with evals for testing
 	 * @type {EvalsBasicAgent}
@@ -1834,7 +1793,6 @@ declare module "@agentuity/runtime" {
 		noOutput: NoOutputAgent;
 		async: AsyncAgent;
 		simple: SimpleAgent;
-		evalsSafetyTest: EvalsSafetyTestAgent;
 		evalsBasic: EvalsBasicAgent;
 		websocketEcho: WebsocketEchoAgent;
 		v1DataProcessor: V1DataProcessorAgent;
