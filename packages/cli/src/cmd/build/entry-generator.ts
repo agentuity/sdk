@@ -131,12 +131,12 @@ app.route('/', workbenchRouter);
 `
 		: '';
 
-	// Asset proxy routes - only generated in dev mode when vitePort is available
-	const assetProxyRoutes = vitePort
+	// Asset proxy routes - generated for dev mode, reads VITE_PORT from env at runtime
+	const assetProxyRoutes = mode === 'dev'
 		? `
 // Asset proxy routes - Development mode only (proxies to Vite asset server)
-if (process.env.NODE_ENV !== 'production') {
-	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '${vitePort}', 10);
+if (isDevelopment() && process.env.VITE_PORT) {
+	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT, 10);
 
 	const proxyToVite = async (c: Context) => {
 		const viteUrl = \`http://127.0.0.1:\${VITE_ASSET_PORT}\${c.req.path}\`;
@@ -295,11 +295,9 @@ if (isDevelopment()) {
 	const workbenchRoutes = hasWorkbench
 		? `
 // Workbench routes - Runtime mode detection
-// In dev mode, entry runs from src/generated/app.ts, so we go up 2 levels to reach .agentuity/
-// In prod mode, entry runs from .agentuity/app.js, so workbench is in same directory
-const workbenchSrcDir = isDevelopment() 
-	? import.meta.dir + '/../../.agentuity/workbench-src'
-	: import.meta.dir + '/workbench-src';
+// Both dev and prod run from .agentuity/app.js (dev bundles before running)
+// So workbench-src is always in the same directory
+const workbenchSrcDir = import.meta.dir + '/workbench-src';
 const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
 const workbenchIndex = existsSync(workbenchIndexPath) 
 	? readFileSync(workbenchIndexPath, 'utf-8')
