@@ -290,5 +290,143 @@ describe('registry-generator', () => {
 
 			expect(registryContent).resolves.toContain('export type RouteKey');
 		});
+
+		test('should generate types for routes with agentVariable (issue #291)', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'get',
+					path: '/api/services',
+					filename: './api/services/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'servicesAgent',
+					agentImportPath: '@agent/services',
+				},
+				{
+					method: 'get',
+					path: '/api/logs',
+					filename: './api/logs/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'logsAgent',
+					agentImportPath: '@agent/logs',
+				},
+				{
+					method: 'get',
+					path: '/api/traces',
+					filename: './api/traces/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'tracesAgent',
+					agentImportPath: '@agent/traces',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			expect(routesContent).toContain('services: {');
+			expect(routesContent).toContain('logs: {');
+			expect(routesContent).toContain('traces: {');
+			expect(routesContent).toContain('export type GETApiServicesInput');
+			expect(routesContent).toContain('export type GETApiServicesOutput');
+			expect(routesContent).toContain('export type GETApiLogsInput');
+			expect(routesContent).toContain('export type GETApiLogsOutput');
+			expect(routesContent).toContain('export type GETApiTracesInput');
+			expect(routesContent).toContain('export type GETApiTracesOutput');
+		});
+
+		test('should include agentVariable in schema type generation filter', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/data',
+					filename: './api/data/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'dataAgent',
+					agentImportPath: '@agent/data',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain('export type POSTApiDataInput');
+			expect(routesContent).toContain('export type POSTApiDataOutput');
+			expect(routesContent).toContain('export type POSTApiDataInputSchema');
+			expect(routesContent).toContain('export type POSTApiDataOutputSchema');
+			expect(routesContent).toContain("import type { InferInput, InferOutput } from '@agentuity/core'");
+		});
+
+		test('should use never for routes without validator or schemas', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'get',
+					path: '/api/health',
+					filename: './api/health/route.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain('health: {');
+			expect(routesContent).toContain('input: never');
+			expect(routesContent).toContain('output: never');
+			expect(routesContent).not.toContain('export type GETApiHealthInput');
+		});
+
+		test('should generate imports for routes with agentVariable', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/process',
+					filename: './api/process/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'processAgent',
+					agentImportPath: '@agent/process',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain("import type processAgent from '../agent/process/index.js'");
+		});
+
+		test('should handle routes with inputSchemaVariable without hasValidator', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/submit',
+					filename: 'src/api/submit/route.ts',
+					routeType: 'api',
+					hasValidator: false,
+					inputSchemaVariable: 'submitInputSchema',
+					outputSchemaVariable: 'submitOutputSchema',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain('export type POSTApiSubmitInput');
+			expect(routesContent).toContain('export type POSTApiSubmitOutput');
+		});
 	});
 });
