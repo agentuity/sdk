@@ -478,7 +478,7 @@ export function generateRouteRegistry(
 	// Collect agent and schema imports from routes with validators or exported schemas
 	allRoutes.forEach((route) => {
 		const hasSchemaVars = !!route.inputSchemaVariable || !!route.outputSchemaVariable;
-		if (!route.hasValidator && !hasSchemaVars) return;
+		if (!route.hasValidator && !hasSchemaVars && !route.agentVariable) return;
 
 		// Collect agent imports (when using agent.validator())
 		if (
@@ -592,7 +592,7 @@ export function generateRouteRegistry(
 
 	// Add InferInput/InferOutput imports if we have any routes with schemas
 	const hasSchemas = allRoutes.some(
-		(r) => r.hasValidator || r.inputSchemaVariable || r.outputSchemaVariable
+		(r) => r.hasValidator || r.inputSchemaVariable || r.outputSchemaVariable || r.agentVariable
 	);
 	const typeImports = hasSchemas
 		? `import type { InferInput, InferOutput } from '@agentuity/core';\n`
@@ -600,7 +600,9 @@ export function generateRouteRegistry(
 
 	// Generate individual route schema types
 	const routeSchemaTypes = allRoutes
-		.filter((r) => r.hasValidator || r.inputSchemaVariable || r.outputSchemaVariable)
+		.filter(
+			(r) => r.hasValidator || r.inputSchemaVariable || r.outputSchemaVariable || r.agentVariable
+		)
 		.map((route) => {
 			const routeKey = route.method ? `${route.method.toUpperCase()} ${route.path}` : route.path;
 			const safeName = routeKey
@@ -707,7 +709,12 @@ export function generateRouteRegistry(
 			.replace(/_+/g, '_');
 		const pascalName = toPascalCase(safeName);
 
-		if (!route.hasValidator && !route.inputSchemaVariable && !route.outputSchemaVariable) {
+		if (
+			!route.hasValidator &&
+			!route.inputSchemaVariable &&
+			!route.outputSchemaVariable &&
+			!route.agentVariable
+		) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `\t'${routeKey}': {
 \t\tinputSchema: never;

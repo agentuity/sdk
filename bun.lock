@@ -70,6 +70,7 @@
         "@agentuity/react": "workspace:*",
         "@agentuity/runtime": "workspace:*",
         "@agentuity/schema": "workspace:*",
+        "@agentuity/workbench": "workspace:*",
         "hono": "^4.7.13",
         "react": "^19.2.3",
         "react-dom": "^19.2.3",

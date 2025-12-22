@@ -21,6 +21,7 @@ import {
   setGlobalRouter,
   enableProcessExitProtection,
   hasWaitUntilPending,
+  createWorkbenchRouter,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { websocket } from 'hono/bun';
@@ -184,6 +185,39 @@ app.route('/api/events', router_1);
 const { default: router_2 } = await import('../api/echo/route.js');
 app.route('/api/echo', router_2);
 
+// Mount workbench API routes (/_agentuity/workbench/*)
+const workbenchRouter = createWorkbenchRouter();
+app.route('/', workbenchRouter);
+
+// Workbench routes - Runtime mode detection
+// In dev mode, entry runs from src/generated/app.ts, so we go up 2 levels to reach .agentuity/
+// In prod mode, entry runs from .agentuity/app.js, so workbench is in same directory
+const workbenchSrcDir = isDevelopment() 
+	? import.meta.dir + '/../../.agentuity/workbench-src'
+	: import.meta.dir + '/workbench-src';
+const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
+const workbenchIndex = existsSync(workbenchIndexPath) 
+	? readFileSync(workbenchIndexPath, 'utf-8')
+	: '';
+
+if (isDevelopment()) {
+	// Development mode: Let Vite serve source files with HMR
+	app.get('/workbench', async (c: Context) => {
+		const html = await Bun.file(workbenchSrcDir + '/index.html').text();
+		// Rewrite script/css paths to use Vite's @fs protocol
+		const withVite = html
+			.replace('src="./main.tsx"', `src="/@fs${workbenchSrcDir}/main.tsx"`)
+			.replace('href="./styles.css"', `href="/@fs${workbenchSrcDir}/styles.css"`);
+		return c.html(withVite);
+	});
+} else {
+	// Production mode: Serve pre-built assets
+	if (workbenchIndex) {
+		app.get('/workbench', (c: Context) => c.html(workbenchIndex));
+		app.get('/workbench/*', serveStatic({ root: import.meta.dir + '/workbench' }));
+	}
+}
+
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
 if (isDevelopment()) {
 	// Development mode: Proxy HTML from Vite to enable React Fast Refresh
@@ -217,7 +251,7 @@ if (isDevelopment()) {
 	// 404 for unmatched API/system routes
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	app.all('/workbench/*', (c: Context) => c.notFound());
+	
 	
 	// SPA fallback - serve index.html for client-side routing
 	app.get('*', (c: Context) => {
@@ -250,7 +284,7 @@ if (isDevelopment()) {
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	app.all('/workbench/*', (c: Context) => c.notFound());
+	
 
 	// SPA fallback with asset protection
 	app.get('*', (c: Context) => {

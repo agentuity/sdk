@@ -5,9 +5,42 @@
  */
 
 import { join } from 'node:path';
-import type { InlineConfig } from 'vite';
+import { existsSync, renameSync, rmSync } from 'node:fs';
+import type { InlineConfig, Plugin } from 'vite';
 import type { Logger } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
+
+/**
+ * Vite plugin to flatten the output structure for index.html
+ *
+ * When root is set to the project root (for TanStack Router compatibility),
+ * Vite outputs index.html to .agentuity/client/src/web/index.html instead of
+ * .agentuity/client/index.html. This plugin moves it to the expected location.
+ */
+function flattenHtmlOutputPlugin(outDir: string): Plugin {
+	return {
+		name: 'agentuity:flatten-html-output',
+		apply: 'build',
+		closeBundle() {
+			const nestedHtmlPath = join(outDir, 'src', 'web', 'index.html');
+			const targetHtmlPath = join(outDir, 'index.html');
+
+			if (existsSync(nestedHtmlPath)) {
+				renameSync(nestedHtmlPath, targetHtmlPath);
+
+				// Clean up empty src/web directory structure
+				const srcWebDir = join(outDir, 'src', 'web');
+				const srcDir = join(outDir, 'src');
+				try {
+					rmSync(srcWebDir, { recursive: true, force: true });
+					rmSync(srcDir, { recursive: true, force: true });
+				} catch {
+					// Ignore cleanup errors
+				}
+			}
+		},
+	};
+}
 
 export interface ViteBuildOptions {
 	rootDir: string;
@@ -39,6 +72,13 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		// Generate documentation files (if they don't exist)
 		const { generateDocumentation } = await import('./docs-generator');
 		await generateDocumentation(srcDir, logger);
+
+		// Generate/update prompt files in dev mode only (non-blocking)
+		if (dev) {
+			import('./prompt-generator')
+				.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
+				.catch((err) => logger.warn('Failed to generate prompt files: %s', err.message));
+		}
 
 		// Generate lifecycle types (if setup() exists)
 		const { generateLifecycleTypes } = await import('./lifecycle-generator');
@@ -80,7 +120,8 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const { workbenchEnabled = false, workbenchRoute = '/workbench' } = options;
 
 		// Load custom user plugins from agentuity.config.ts if it exists
-		const plugins = [react(), browserEnvPlugin()];
+		const clientOutDir = join(rootDir, '.agentuity/client');
+		const plugins = [react(), browserEnvPlugin(), flattenHtmlOutputPlugin(clientOutDir)];
 		const { loadAgentuityConfig } = await import('./config-loader');
 		const userConfig = await loadAgentuityConfig(rootDir, logger);
 		const userPlugins = userConfig?.plugins || [];
@@ -108,7 +149,9 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
 
 		viteConfig = {
-			root: join(rootDir, 'src', 'web'), // Set web dir as root
+			// Use project root as Vite root so plugins (e.g., TanStack Router) resolve paths
+			// from the repo root, matching where agentuity.config.ts is located
+			root: rootDir,
 			plugins,
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 			publicDir: join(rootDir, 'src', 'web', 'public'),
@@ -123,7 +166,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 					: 'undefined',
 			},
 			build: {
-				outDir: join(rootDir, '.agentuity/client'),
+				outDir: clientOutDir,
 				rollupOptions: {
 					input: htmlPath,
 				},

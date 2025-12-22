@@ -115,6 +115,35 @@ if (!isDevelopment()) {
 	app.get('/_idle', idleHandler);
 }
 
+// Dev readiness check - verifies Vite asset server is ready to serve frontend
+if (isDevelopment()) {
+	app.get('/_agentuity/ready', async (c: Context) => {
+		const vitePort = process.env.VITE_PORT;
+		if (!vitePort) {
+			// No Vite port means we're not using Vite proxy
+			return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+		}
+
+		try {
+			// Probe Vite to check if it can serve the main entry point
+			// Use @vite/client as a lightweight check - it's always available
+			const viteUrl = `http://127.0.0.1:${vitePort}/@vite/client`;
+			const res = await fetch(viteUrl, {
+				signal: AbortSignal.timeout(5000),
+				method: 'HEAD'
+			});
+
+			if (res.ok) {
+				return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+			}
+			return c.text('VITE_NOT_READY', 503, { 'Content-Type': 'text/plain; charset=utf-8' });
+		} catch (err) {
+			otel.logger.debug('Vite readiness check failed: %s', err instanceof Error ? err.message : String(err));
+			return c.text('VITE_NOT_READY', 503, { 'Content-Type': 'text/plain; charset=utf-8' });
+		}
+	});
+}
+
 // Step 7: Run agent setup to signal completion
 await runAgentSetups(appState);
 
