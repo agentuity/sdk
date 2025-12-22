@@ -31,10 +31,10 @@ A fully configured Agentuity project with:
 ```
 my-app/
 ├── src/
-│   ├── agents/          # Agent definitions
+│   ├── agent/           # Agent definitions
 │   │   └── hello/
 │   │       └── agent.ts # Example agent
-│   ├── apis/            # Custom API routes
+│   ├── api/             # Custom API routes
 │   │   └── route.ts     # Example route
 │   └── web/             # React web application
 │       └── app.tsx      # Main React component
@@ -113,23 +113,23 @@ export default agent;
 
 ## Adding API Routes
 
-Create custom routes in `src/web/` or add routes to an agent folder:
+Create custom routes in `src/api/`:
 
 ```typescript
-// src/agent/my-agent/route.ts
+// src/api/my-route/route.ts
 import { createRouter } from '@agentuity/runtime';
-import agent from './agent';
+import myAgent from '../../agent/my-agent/agent';
 
 const router = createRouter();
 
 router.get('/', async (c) => {
-	const result = await c.agent.myAgent.run({ message: 'Hello!' });
+	const result = await myAgent.run({ message: 'Hello!' });
 	return c.json(result);
 });
 
-router.post('/', agent.validator(), async (c) => {
+router.post('/', myAgent.validator(), async (c) => {
 	const data = c.req.valid('json');
-	const result = await c.agent.myAgent.run(data);
+	const result = await myAgent.run(data);
 	return c.json(result);
 });
 
