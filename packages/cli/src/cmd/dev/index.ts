@@ -545,6 +545,22 @@ export const command = createCommand({
 				await tui.spinner({
 					message: 'Building dev bundle',
 					callback: async () => {
+						// Step 1: Generate workbench files if enabled (must be done before entry generation)
+						if (workbenchConfigData.enabled) {
+							logger.debug('Workbench enabled, generating source files before bundle...');
+							const { generateWorkbenchFiles } = await import(
+								'../build/vite/workbench-generator'
+							);
+							await generateWorkbenchFiles(
+								rootDir,
+								project?.projectId ?? '',
+								workbenchConfigData,
+								logger
+							);
+						}
+
+						// Step 2: Generate entry file with workbench config
+						// Note: vitePort is NOT passed here - the app reads process.env.VITE_PORT at runtime
 						const { generateEntryFile } = await import('../build/entry-generator');
 						await generateEntryFile({
 							rootDir,
@@ -552,9 +568,11 @@ export const command = createCommand({
 							deploymentId,
 							logger,
 							mode: 'dev',
+							workbench: workbenchConfigData.enabled ? workbenchConfigData : undefined,
 						});
 
-						// Bundle the app with LLM patches (dev mode = no minification)
+						// Step 3: Bundle the app with LLM patches (dev mode = no minification)
+						// This produces .agentuity/app.js with AI Gateway routing patches applied
 						const { installExternalsAndBuild } = await import('../build/vite/server-bundler');
 						await installExternalsAndBuild({
 							rootDir,
