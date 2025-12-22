@@ -23,40 +23,33 @@ export interface BunDevServerResult {
 
 /**
  * Start Bun dev server (Vite asset server must already be running)
- * Generates entry file with proxy routes pointing to Vite
+ *
+ * IMPORTANT: This function assumes that the dev bundle has already been built:
+ * - Entry file generated at src/generated/app.ts (with workbench config if enabled)
+ * - Bundled to .agentuity/app.js with LLM patches applied
+ *
+ * The bundle is loaded here to ensure AI Gateway routing patches are active.
+ * Vite port is read from process.env.VITE_PORT at runtime.
  */
 export async function startBunDevServer(options: BunDevServerOptions): Promise<BunDevServerResult> {
-	const { rootDir, port = 3500, projectId = '', deploymentId = '', logger, vitePort } = options;
+	const { rootDir, port = 3500, logger, vitePort } = options;
 
 	logger.debug('Starting Bun dev server (Vite already running on port %d)...', vitePort);
 
-	// Generate workbench source files if enabled (dev mode)
-	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
-	const config = await loadAgentuityConfig(rootDir, logger);
-	const workbenchConfig = getWorkbenchConfig(config, true); // dev mode
+	// Load the bundled app - this will start Bun.serve() internally
+	// IMPORTANT: We must import the bundled .agentuity/app.js (NOT src/generated/app.ts)
+	// because the bundled version has LLM provider patches applied that enable AI Gateway routing.
+	// Importing the source file directly would bypass these patches.
+	logger.debug('📦 Loading bundled app (Bun server will start)...');
+	const appPath = `${rootDir}/.agentuity/app.js`;
 
-	if (workbenchConfig.enabled) {
-		logger.debug('Workbench enabled (dev mode), generating source files...');
-		const { generateWorkbenchFiles } = await import('./workbench-generator');
-		await generateWorkbenchFiles(rootDir, projectId, workbenchConfig, logger);
+	// Verify bundle exists before attempting to load
+	const appFile = Bun.file(appPath);
+	if (!(await appFile.exists())) {
+		throw new Error(
+			`Dev bundle not found at ${appPath}. The bundle must be generated before starting the dev server.`
+		);
 	}
-
-	// Step 2: Generate entry file with Vite port for asset proxying
-	logger.debug('📝 Generating entry file with asset proxy configuration...');
-	const { generateEntryFile } = await import('../entry-generator');
-	await generateEntryFile({
-		rootDir,
-		projectId: projectId || '',
-		deploymentId: deploymentId || '',
-		logger,
-		mode: 'dev',
-		workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
-		vitePort, // Pass Vite port for proxy routes
-	});
-
-	// Step 3: Load the generated app - this will start Bun.serve() internally
-	logger.debug('📦 Loading generated app (Bun server will start)...');
-	const appPath = `${rootDir}/src/generated/app.ts`;
 
 	// Set PORT env var so the generated app uses the correct port
 	process.env.PORT = String(port);
