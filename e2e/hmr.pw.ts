@@ -30,6 +30,8 @@ test.describe('Hot Module Replacement (HMR)', () => {
 		await writeFile(APP_TSX_PATH, originalAppTsx);
 		await writeFile(API_INDEX_PATH, originalApiIndex);
 		await writeFile(AGENT_PATH, originalAgent);
+		// Give Vite time to process the file restoration before next tests run
+		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 	test('should support HMR for frontend changes', async ({ page }) => {
