@@ -295,7 +295,11 @@ if (isDevelopment()) {
 	const workbenchRoutes = hasWorkbench
 		? `
 // Workbench routes - Runtime mode detection
-const workbenchSrcDir = import.meta.dir + '/workbench-src';
+// In dev mode, entry runs from src/generated/app.ts, so we go up 2 levels to reach .agentuity/
+// In prod mode, entry runs from .agentuity/app.js, so workbench is in same directory
+const workbenchSrcDir = isDevelopment() 
+	? import.meta.dir + '/../../.agentuity/workbench-src'
+	: import.meta.dir + '/workbench-src';
 const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
 const workbenchIndex = existsSync(workbenchIndexPath) 
 	? readFileSync(workbenchIndexPath, 'utf-8')
