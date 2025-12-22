@@ -89,19 +89,15 @@ async function generatePromptFile(
 	const srcFolderPath = join(srcDir, config.srcFolder);
 
 	// Check if the src folder exists (e.g., src/agent/)
-	const srcFolderExists = await Bun.file(srcFolderPath).exists().catch(() => false);
-	if (!srcFolderExists) {
-		// Try directory check
-		try {
-			const stat = await Bun.$`test -d ${srcFolderPath}`.nothrow();
-			if (stat.exitCode !== 0) {
-				logger.trace(`Skipping ${config.name} prompt - src/${config.srcFolder}/ does not exist`);
-				return;
-			}
-		} catch {
+	try {
+		const stat = await Bun.$`test -d ${srcFolderPath}`.nothrow();
+		if (stat.exitCode !== 0) {
 			logger.trace(`Skipping ${config.name} prompt - src/${config.srcFolder}/ does not exist`);
 			return;
 		}
+	} catch {
+		logger.trace(`Skipping ${config.name} prompt - src/${config.srcFolder}/ does not exist`);
+		return;
 	}
 
 	// Generate files

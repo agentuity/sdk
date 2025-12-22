@@ -1,8 +1,8 @@
 import { createSubcommand } from '../../../types';
 import type { CommandContext } from '../../../types';
 import { getCommand } from '../../../command-prefix';
-import agentPromptContent from './agent.md';
 import { appendHashComment } from './version';
+import agentPromptContent from './agent.md' with { type: 'text' };
 
 export const agentSubcommand = createSubcommand({
 	name: 'agent',

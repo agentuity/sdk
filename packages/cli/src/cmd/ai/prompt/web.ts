@@ -1,8 +1,8 @@
 import { createSubcommand } from '../../../types';
 import type { CommandContext } from '../../../types';
 import { getCommand } from '../../../command-prefix';
-import webPromptContent from './web.md';
 import { appendHashComment } from './version';
+import webPromptContent from './web.md' with { type: 'text' };
 
 export const webSubcommand = createSubcommand({
 	name: 'web',

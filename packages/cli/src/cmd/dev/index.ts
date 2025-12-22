@@ -385,6 +385,11 @@ export const command = createCommand({
 						);
 
 						const srcDir = join(rootDir, 'src');
+
+						// Generate/update prompt files (non-blocking)
+						import('../build/vite/prompt-generator')
+							.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
+							.catch((err) => logger.warn('Failed to generate prompt files: %s', err.message));
 						const agents = await discoverAgents(
 							srcDir,
 							project?.projectId ?? '',

@@ -1,8 +1,8 @@
 import { createSubcommand } from '../../../types';
 import type { CommandContext } from '../../../types';
 import { getCommand } from '../../../command-prefix';
-import apiPromptContent from './api.md';
 import { appendHashComment } from './version';
+import apiPromptContent from './api.md' with { type: 'text' };
 
 export const apiSubcommand = createSubcommand({
 	name: 'api',
