@@ -219,7 +219,7 @@ async function openVectorDocument(item: DataTreeItem): Promise<void> {
 	lines.push('');
 	lines.push('=== Document ===');
 	lines.push('');
-	lines.push(result.data.document);
+	lines.push(result.data.document ?? '(no document)');
 
 	await openReadonlyDocument(lines.join('\n'), 'plaintext', `vector-${key}`);
 }
