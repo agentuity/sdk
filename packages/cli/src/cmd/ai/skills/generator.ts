@@ -64,6 +64,16 @@ function collectLeafCommands(
 	const skills: SkillInfo[] = [];
 	const currentPath = [...parentPath, command.name];
 
+	// Skip commands marked with skipSkill
+	if (command.skipSkill) {
+		return skills;
+	}
+
+	// Skip toplevel aliases (subcommands that have toplevel: true create duplicates)
+	if (command.toplevel && parentPath.length === 0) {
+		return skills;
+	}
+
 	if (command.subcommands && command.subcommands.length > 0) {
 		for (const sub of command.subcommands) {
 			skills.push(...collectLeafCommands(sub, currentPath, baseDir, _isHidden));
@@ -467,7 +477,7 @@ export async function generateSkills(
 	const readmeContent = generateReadme(schema.version, allSkills);
 	await Bun.write(Bun.file(readmePath), readmeContent);
 
-	const versionPath = path.join(baseDir, 'version.txt');
+	const versionPath = path.join(baseDir, 'agentuity-version.txt');
 	await Bun.write(Bun.file(versionPath), schema.version);
 
 	return created;

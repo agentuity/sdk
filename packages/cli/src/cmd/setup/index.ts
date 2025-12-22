@@ -9,6 +9,7 @@ export const command = createCommand({
 	description: 'Display first-run setup information (internal use)',
 	hidden: true,
 	skipUpgradeCheck: true,
+	skipSkill: true,
 	tags: ['read-only', 'fast'],
 	optional: { auth: true },
 	schema: {
