@@ -18,7 +18,6 @@ import './src/test/session-basic';
 import './src/test/lifecycle-waituntil';
 import './src/test/errors';
 import './src/test/schema-validation';
-import './src/test/evals';
 import './src/test/events';
 import './src/test/resilience';
 import './src/test/storage-binary';
@@ -31,6 +30,7 @@ import './src/test/sse';
 import './src/test/web-rendering';
 import './src/test/env-loading';
 import './src/test/middleware-patterns';
+import './src/test/evals';
 
 const threadProvider = new InMemoryThreadProvider();
 
