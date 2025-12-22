@@ -1,4 +1,5 @@
 #!/bin/bash
+# This is script is for linking the workbench for agentuity and not agentuity projects. Dont put agentuity projects specific stuff in this script. Use link-local.sh for that.
 set -e
 
 if [ -z "$1" ]; then
@@ -51,7 +52,7 @@ restore_version() {
 	"
 }
 
-# Build workbench and its dependencies (core, react)
+# Build workbench and its dependencies (core, frontend, react)
 echo "🔨 Building packages..."
 cd "$SDK_ROOT/packages/core"
 bun run build
@@ -101,28 +102,20 @@ echo ""
 echo "📥 Installing workbench in $TARGET_DIR..."
 cd "$TARGET_DIR"
 
-bun rm @agentuity/workbench 2>/dev/null || true
-bun rm @agentuity/frontend 2>/dev/null || true
-bun rm @agentuity/react 2>/dev/null || true
-bun rm @agentuity/core 2>/dev/null || true
+npm rm @agentuity/workbench 2>/dev/null || true
+npm rm @agentuity/frontend 2>/dev/null || true
+npm rm @agentuity/react 2>/dev/null || true
+npm rm @agentuity/core 2>/dev/null || true
 
-# Extract tarballs directly into node_modules to avoid npm registry resolution
-mkdir -p node_modules/@agentuity
-
-for pkg in "$CORE_PKG" "$FRONTEND_PKG" "$REACT_PKG" "$WORKBENCH_PKG"; do
-  pkg_name=$(echo "$pkg" | sed 's/agentuity-//' | sed 's/-0.0.*\.tgz//')
-  tar -xzf "$TEMP_DIR/$pkg" -C node_modules/@agentuity
-  mv node_modules/@agentuity/package "node_modules/@agentuity/$pkg_name"
-  echo "  ✓ Extracted $pkg_name"
-done
-
-# Run bun install to link peer dependencies
-bun install
+npm i "$TEMP_DIR/$CORE_PKG"
+npm i "$TEMP_DIR/$FRONTEND_PKG"
+npm i "$TEMP_DIR/$REACT_PKG"
+npm i "$TEMP_DIR/$WORKBENCH_PKG"
 
 # Cleanup nested @agentuity packages (ensures proper resolution)
 echo ""
 echo "🧹 Cleaning nested @agentuity packages..."
-for pkg in workbench react web core; do
+for pkg in workbench react frontend core; do
     if [ -d "node_modules/@agentuity/$pkg/node_modules/@agentuity" ]; then
         echo "  - Removing node_modules/@agentuity/$pkg/node_modules/@agentuity"
         rm -rf "node_modules/@agentuity/$pkg/node_modules/@agentuity"
