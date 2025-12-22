@@ -1,9 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-// Skip workbench tests in CI - they require special setup and can be flaky
-// The workbench bundle fix is validated by the app starting successfully
 test.describe('Workbench Dev Mode', () => {
-	test.skip(({ }, testInfo) => testInfo.project.name === 'chromium' && !!process.env.CI, 'Skipping workbench tests in CI');
 	test('should load workbench page and render correctly', async ({ page }) => {
 		page.on('console', (msg) => console.log('BROWSER LOG:', msg.text()));
 		page.on('pageerror', (err) => console.error('PAGE ERROR:', err));
