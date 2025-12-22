@@ -37,7 +37,9 @@ export const createNamespaceSubcommand = createCommand({
 		const kv = await createStorageAdapter(ctx);
 
 		await kv.createNamespace(args.name);
-		tui.success(`Namespace ${tui.bold(args.name)} created`);
+		if (!ctx.options.json) {
+			tui.success(`Namespace ${tui.bold(args.name)} created`);
+		}
 
 		return {
 			success: true,

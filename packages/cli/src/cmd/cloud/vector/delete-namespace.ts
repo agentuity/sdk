@@ -4,30 +4,33 @@ import { ErrorCode } from '../../../errors';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
+
 export const deleteNamespaceSubcommand = createCommand({
 	name: 'delete-namespace',
 	aliases: ['rm-namespace'],
-	description: 'Delete a keyvalue namespace and all its keys',
-	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-project'],
+	description: 'Delete a vector namespace and all its vectors',
+	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,
 	requires: { auth: true, project: true },
 	examples: [
 		{
-			command: getCommand('kv delete-namespace staging'),
+			command: getCommand('vector delete-namespace staging'),
 			description: 'Delete staging namespace (interactive)',
 		},
 		{
-			command: getCommand('kv rm-namespace cache --confirm'),
+			command: getCommand('vector rm-namespace cache --confirm'),
 			description: 'Delete cache without confirmation',
 		},
 		{
-			command: getCommand('kv delete-namespace production --confirm'),
-			description: 'Force delete production',
+			command: getCommand('vector delete-namespace old-data --confirm'),
+			description: 'Force delete old-data namespace',
 		},
 	],
 	schema: {
 		args: z.object({
-			name: z.string().min(1).max(64).describe('the namespace name'),
+			name: z.string().min(1).describe('the namespace name to delete'),
+		}),
+		options: z.object({
 			confirm: z
 				.boolean()
 				.optional()
@@ -42,17 +45,19 @@ export const deleteNamespaceSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args } = ctx;
-		const kv = await createStorageAdapter(ctx);
+		const { args, opts } = ctx;
+		const storage = await createStorageAdapter(ctx);
 
-		if (!args.confirm) {
+		if (!opts.confirm) {
 			if (!process.stdin.isTTY) {
 				tui.fatal(
 					'No TTY and --confirm is not set. Refusing to delete',
 					ErrorCode.VALIDATION_FAILED
 				);
 			}
-			tui.warning(`This will delete namespace ${tui.bold(args.name)} and ALL its keys.`);
+			tui.warning(
+				`This will delete namespace ${tui.bold(args.name)} and ALL its vectors permanently.`
+			);
 			const confirm = await new Promise<boolean>((resolve) => {
 				process.stdout.write('Are you sure? (yes/no): ');
 				process.stdin.once('data', (data) => {
@@ -67,7 +72,8 @@ export const deleteNamespaceSubcommand = createCommand({
 			}
 		}
 
-		await kv.deleteNamespace(args.name);
+		await storage.deleteNamespace(args.name);
+
 		if (!ctx.options.json) {
 			tui.success(`Namespace ${tui.bold(args.name)} deleted`);
 		}

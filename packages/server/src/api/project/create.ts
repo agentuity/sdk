@@ -8,6 +8,7 @@ const CreateProjectRequestSchema = z.object({
 	tags: z.array(z.string()).optional().describe('tags for the project'),
 	orgId: z.string().max(255).min(1).describe('the organization id to create the project in'),
 	cloudRegion: z.string().describe('the cloud region to create the project'),
+	domains: z.array(z.string()).optional().describe('the custom domains for this project'),
 });
 
 const CreateProjectResponse = z.object({

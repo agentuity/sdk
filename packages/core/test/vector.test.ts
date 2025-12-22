@@ -816,4 +816,316 @@ describe('VectorStorageService', () => {
 			expect(deleteCount).toBe(2);
 		});
 	});
+
+	// ===================================================================
+	// 6. STATS AND NAMESPACE MANAGEMENT TESTS
+	// ===================================================================
+
+	describe('Input Validation - GetStats', () => {
+		test('rejects empty storage name', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new VectorStorageService(baseUrl, adapter);
+
+			await expect(service.getStats('')).rejects.toThrow(
+				'Vector storage name is required and must be a non-empty string'
+			);
+		});
+
+		test('rejects whitespace-only storage name', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new VectorStorageService(baseUrl, adapter);
+
+			await expect(service.getStats('   ')).rejects.toThrow(
+				'Vector storage name is required and must be a non-empty string'
+			);
+		});
+	});
+
+	describe('Input Validation - DeleteNamespace', () => {
+		test('rejects empty storage name', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new VectorStorageService(baseUrl, adapter);
+
+			await expect(service.deleteNamespace('')).rejects.toThrow(
+				'Vector storage name is required and must be a non-empty string'
+			);
+		});
+
+		test('rejects whitespace-only storage name', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new VectorStorageService(baseUrl, adapter);
+
+			await expect(service.deleteNamespace('   ')).rejects.toThrow(
+				'Vector storage name is required and must be a non-empty string'
+			);
+		});
+	});
+
+	describe('GetStats Operation', () => {
+		test('returns namespace stats with sampled results', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						sum: 1024,
+						count: 5,
+						createdAt: 1700000000000,
+						lastUsed: 1700001000000,
+						sampledResults: {
+							doc1: {
+								embedding: [0.1, 0.2],
+								document: 'Test document',
+								size: 256,
+								metadata: { type: 'test' },
+								firstUsed: 1700000000000,
+								lastUsed: 1700001000000,
+								count: 3,
+							},
+						},
+					},
+				},
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			const stats = await service.getStats('my-vectors');
+
+			expect(stats.sum).toBe(1024);
+			expect(stats.count).toBe(5);
+			expect(stats.createdAt).toBe(1700000000000);
+			expect(stats.lastUsed).toBe(1700001000000);
+			expect(stats.sampledResults).toBeDefined();
+			expect(stats.sampledResults?.doc1.size).toBe(256);
+			expect(calls).toHaveLength(1);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/stats/my-vectors`);
+			expect(calls[0].options.method).toBe('GET');
+		});
+
+		test('returns empty stats for non-existent namespace (404)', async () => {
+			const { adapter } = createMockAdapter([{ ok: false, status: 404 }]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			const stats = await service.getStats('non-existent');
+
+			expect(stats.sum).toBe(0);
+			expect(stats.count).toBe(0);
+		});
+
+		test('includes telemetry in request', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: { sum: 0, count: 0 } }]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.getStats('my-vectors');
+
+			expect(calls[0].options).toMatchObject({
+				telemetry: {
+					name: 'agentuity.vector.getStats',
+					attributes: { name: 'my-vectors' },
+				},
+			});
+		});
+	});
+
+	describe('GetAllStats Operation', () => {
+		test('returns stats for all namespaces', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						products: { sum: 1024, count: 10, createdAt: 1700000000000 },
+						embeddings: { sum: 2048, count: 20, lastUsed: 1700001000000 },
+					},
+				},
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			const allStats = await service.getAllStats();
+
+			expect(Object.keys(allStats)).toHaveLength(2);
+			expect(allStats.products.count).toBe(10);
+			expect(allStats.embeddings.count).toBe(20);
+			expect(calls).toHaveLength(1);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/stats`);
+		});
+
+		test('returns empty object when no namespaces exist', async () => {
+			const { adapter } = createMockAdapter([{ ok: true, data: {} }]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			const allStats = await service.getAllStats();
+
+			expect(Object.keys(allStats)).toHaveLength(0);
+		});
+
+		test('includes telemetry in request', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: {} }]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.getAllStats();
+
+			expect(calls[0].options).toMatchObject({
+				telemetry: {
+					name: 'agentuity.vector.getAllStats',
+					attributes: {},
+				},
+			});
+		});
+	});
+
+	describe('GetNamespaces Operation', () => {
+		test('returns array of namespace names', async () => {
+			const { adapter } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						products: { sum: 1024, count: 10 },
+						embeddings: { sum: 2048, count: 20 },
+						documents: { sum: 512, count: 5 },
+					},
+				},
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			const namespaces = await service.getNamespaces();
+
+			expect(namespaces).toHaveLength(3);
+			expect(namespaces).toContain('products');
+			expect(namespaces).toContain('embeddings');
+			expect(namespaces).toContain('documents');
+		});
+
+		test('returns empty array when no namespaces exist', async () => {
+			const { adapter } = createMockAdapter([{ ok: true, data: {} }]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			const namespaces = await service.getNamespaces();
+
+			expect(namespaces).toHaveLength(0);
+		});
+	});
+
+	describe('DeleteNamespace Operation', () => {
+		test('successfully deletes namespace', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: 10 } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.deleteNamespace('my-vectors');
+
+			expect(calls).toHaveLength(1);
+			expect(calls[0].url).toBe(`${baseUrl}/vector/2025-03-17/my-vectors`);
+			expect(calls[0].options.method).toBe('DELETE');
+			expect(calls[0].options.body).toBeUndefined();
+		});
+
+		test('handles 404 gracefully (namespace does not exist)', async () => {
+			const { adapter } = createMockAdapter([{ ok: false, status: 404 }]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+
+			// Should not throw
+			await expect(service.deleteNamespace('non-existent')).resolves.toBeUndefined();
+		});
+
+		test('encodes namespace name in URL', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: 5 } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.deleteNamespace('my vectors/special');
+
+			expect(calls[0].url).toContain('my%20vectors%2Fspecial');
+		});
+
+		test('includes telemetry in request', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { success: true, data: 0 } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			await service.deleteNamespace('my-vectors');
+
+			expect(calls[0].options).toMatchObject({
+				telemetry: {
+					name: 'agentuity.vector.deleteNamespace',
+					attributes: { name: 'my-vectors' },
+				},
+			});
+		});
+
+		test('throws error when server returns success:false', async () => {
+			const { adapter } = createMockAdapter([
+				{ ok: true, data: { success: false, message: 'Namespace deletion failed' } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+
+			await expect(service.deleteNamespace('my-vectors')).rejects.toThrow(
+				'Namespace deletion failed'
+			);
+		});
+	});
+
+	describe('Stats and Namespace Workflow', () => {
+		test('complete workflow: getAllStats -> getStats -> getNamespaces -> deleteNamespace', async () => {
+			const { adapter } = createMockAdapter([
+				// getAllStats
+				{
+					ok: true,
+					data: {
+						products: { sum: 1024, count: 10, createdAt: 1700000000000 },
+						test: { sum: 256, count: 2 },
+					},
+				},
+				// getStats
+				{
+					ok: true,
+					data: {
+						sum: 1024,
+						count: 10,
+						createdAt: 1700000000000,
+						sampledResults: {
+							item1: {
+								size: 128,
+								firstUsed: 1700000000000,
+								lastUsed: 1700001000000,
+								count: 5,
+							},
+						},
+					},
+				},
+				// getNamespaces (via getAllStats)
+				{
+					ok: true,
+					data: {
+						products: { sum: 1024, count: 10 },
+						test: { sum: 256, count: 2 },
+					},
+				},
+				// deleteNamespace
+				{ ok: true, data: { success: true, data: 2 } },
+			]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+
+			// Get all stats
+			const allStats = await service.getAllStats();
+			expect(Object.keys(allStats)).toHaveLength(2);
+			expect(allStats.products.count).toBe(10);
+
+			// Get specific namespace stats
+			const stats = await service.getStats('products');
+			expect(stats.count).toBe(10);
+			expect(stats.sampledResults?.item1.count).toBe(5);
+
+			// Get namespace list
+			const namespaces = await service.getNamespaces();
+			expect(namespaces).toContain('products');
+			expect(namespaces).toContain('test');
+
+			// Delete namespace
+			await service.deleteNamespace('test');
+		});
+	});
 });

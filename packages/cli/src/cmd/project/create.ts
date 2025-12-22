@@ -12,6 +12,7 @@ const ProjectCreateResponseSchema = z.object({
 	template: z.string().describe('Template used'),
 	installed: z.boolean().describe('Whether dependencies were installed'),
 	built: z.boolean().describe('Whether the project was built'),
+	domains: z.array(z.string()).optional().describe('Array of custom domains'),
 });
 
 export const createProjectSubcommand = createSubcommand({
@@ -40,6 +41,7 @@ export const createProjectSubcommand = createSubcommand({
 		options: z.object({
 			name: z.string().optional().describe('Project name'),
 			dir: z.string().optional().describe('Directory to create the project in'),
+			domains: z.array(z.string()).optional().describe('Array of custom domains'),
 			template: z.string().optional().describe('Template to use'),
 			templateDir: z
 				.string()
@@ -84,6 +86,7 @@ export const createProjectSubcommand = createSubcommand({
 		await runCreateFlow({
 			projectName: opts.name,
 			dir: opts.dir,
+			domains: opts.domains,
 			template: opts.template,
 			templateDir: opts.templateDir,
 			templateBranch: opts.templateBranch,
