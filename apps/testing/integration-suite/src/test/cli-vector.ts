@@ -26,7 +26,7 @@ test('cli-vector', 'help-command', async () => {
 	assert(result.stdout !== undefined, 'Help should produce output');
 });
 
-// Test 2: Upsert command structure
+// Test 2: Upsert command
 test('cli-vector', 'upsert-command', async () => {
 	const authenticated = await isAuthenticated();
 
@@ -37,20 +37,18 @@ test('cli-vector', 'upsert-command', async () => {
 	const namespace = uniqueId('vec-ns');
 	const key = uniqueId('vec-key');
 
-	// Test upsert command structure (may fail without proper args)
 	const result = await cliAgent.run({
 		command: 'cloud vector upsert',
 		args: [namespace, key, '--document', 'test document for vector storage'],
+		expectJSON: true,
 	});
 
-	// Command should execute
-	assert(
-		result.stdout !== undefined || result.stderr !== undefined,
-		'Upsert should produce output'
-	);
+	// Command should succeed
+	assert(result.exitCode === 0, `Upsert command failed with exit code ${result.exitCode}`);
+	assert(result.json !== undefined, 'Upsert should return JSON output');
 });
 
-// Test 3: Search command structure
+// Test 3: Search command
 test('cli-vector', 'search-command', async () => {
 	const authenticated = await isAuthenticated();
 
@@ -64,16 +62,15 @@ test('cli-vector', 'search-command', async () => {
 	const result = await cliAgent.run({
 		command: 'cloud vector search',
 		args: [namespace, query],
+		expectJSON: true,
 	});
 
-	// Command should execute
-	assert(
-		result.stdout !== undefined || result.stderr !== undefined,
-		'Search should produce output'
-	);
+	// Command should succeed (empty results is fine for non-existent namespace)
+	assert(result.exitCode === 0, `Search command failed with exit code ${result.exitCode}`);
+	assert(result.json !== undefined, 'Search should return JSON output');
 });
 
-// Test 4: Get command structure
+// Test 4: Get command
 test('cli-vector', 'get-command', async () => {
 	const authenticated = await isAuthenticated();
 
@@ -87,13 +84,15 @@ test('cli-vector', 'get-command', async () => {
 	const result = await cliAgent.run({
 		command: 'cloud vector get',
 		args: [namespace, key],
+		expectJSON: true,
 	});
 
-	// Command should execute
-	assert(result.stdout !== undefined || result.stderr !== undefined, 'Get should produce output');
+	// Command should succeed (not found is returned as JSON, not an error)
+	assert(result.exitCode === 0, `Get command failed with exit code ${result.exitCode}`);
+	assert(result.json !== undefined, 'Get should return JSON output');
 });
 
-// Test 5: Delete command structure
+// Test 5: Delete command
 test('cli-vector', 'delete-command', async () => {
 	const authenticated = await isAuthenticated();
 
@@ -107,13 +106,12 @@ test('cli-vector', 'delete-command', async () => {
 	const result = await cliAgent.run({
 		command: 'cloud vector delete',
 		args: [namespace, key, '--confirm'],
+		expectJSON: true,
 	});
 
-	// Command should execute
-	assert(
-		result.stdout !== undefined || result.stderr !== undefined,
-		'Delete should produce output'
-	);
+	// Command should succeed (deleting non-existent key is idempotent)
+	assert(result.exitCode === 0, `Delete command failed with exit code ${result.exitCode}`);
+	assert(result.json !== undefined, 'Delete should return JSON output');
 });
 
 // Test 6: Stats command - all namespaces
@@ -154,7 +152,10 @@ test('cli-vector', 'stats-namespace-command', async () => {
 	});
 
 	// Command should succeed
-	assert(result.exitCode === 0, `Stats namespace command failed with exit code ${result.exitCode}`);
+	assert(
+		result.exitCode === 0,
+		`Stats namespace command failed with exit code ${result.exitCode}`
+	);
 
 	// JSON output should contain namespace stats structure
 	assert(result.json !== undefined, 'Stats namespace should return JSON output');
@@ -269,5 +270,8 @@ test('cli-vector', 'upsert-with-metadata-command', async () => {
 	assert(typeof result.json === 'object', 'Upsert JSON should be an object');
 	assert('success' in result.json, 'Upsert should include success field');
 	assert('key' in result.json, 'Upsert should include key field');
-	assert(result.json.key === key, `Upsert key should match: expected ${key}, got ${result.json.key}`);
+	assert(
+		result.json.key === key,
+		`Upsert key should match: expected ${key}, got ${result.json.key}`
+	);
 });
