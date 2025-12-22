@@ -1,6 +1,9 @@
-import type { UIMessage } from 'ai';
-import type { WorkbenchConfig } from '@agentuity/core/workbench';
-import type { AgentSchemaData, AgentSchemasResponse } from '../hooks/useAgentSchemas';
+import type { WorkbenchConfig } from "@agentuity/core/workbench";
+import type { UIMessage } from "ai";
+import type {
+	AgentSchemaData,
+	AgentSchemasResponse,
+} from "../hooks/useAgentSchemas";
 
 export interface Agent {
 	id: string;
@@ -9,7 +12,7 @@ export interface Agent {
 	avatar?: string;
 }
 
-export type ConnectionStatus = 'connected' | 'restarting' | 'disconnected';
+export type ConnectionStatus = "connected" | "restarting" | "disconnected";
 
 // Context type for the provider
 export interface WorkbenchContextType {
@@ -17,13 +20,15 @@ export interface WorkbenchContextType {
 	agents: Record<string, AgentSchemaData>;
 	suggestions: string[];
 	messages: UIMessage[];
-	setMessages: (messages: UIMessage[] | ((prev: UIMessage[]) => UIMessage[])) => void;
+	setMessages: (
+		messages: UIMessage[] | ((prev: UIMessage[]) => UIMessage[]),
+	) => void;
 	selectedAgent: string;
 	setSelectedAgent: (agentId: string) => void;
-	inputMode: 'text' | 'form';
-	setInputMode: (mode: 'text' | 'form') => void;
+	inputMode: "text" | "form";
+	setInputMode: (mode: "text" | "form") => void;
 	isLoading: boolean;
-	submitMessage: (value: string, mode?: 'text' | 'form') => Promise<void>;
+	submitMessage: (value: string, mode?: "text" | "form") => Promise<void>;
 	generateSample: (agentId: string) => Promise<string>;
 	isGeneratingSample: boolean;
 	isAuthenticated: boolean;

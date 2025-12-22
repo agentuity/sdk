@@ -1,21 +1,25 @@
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import type { JSONSchema7 } from "ai";
 import {
 	CheckIcon,
 	ChevronsUpDownIcon,
 	FileJson,
-	SendIcon,
 	Loader2Icon,
+	SendIcon,
 	Sparkles,
 	Trash2,
-} from 'lucide-react';
-import { MonacoJsonEditor } from './MonacoJsonEditor';
+} from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { convertJsonSchemaToZod } from "zod-from-json-schema";
+import type { AgentSchemaData } from "../../hooks/useAgentSchemas";
+import { useLogger } from "../../hooks/useLogger";
+import { cn } from "../../lib/utils";
 import {
 	PromptInput,
 	PromptInputBody,
 	PromptInputFooter,
 	PromptInputTextarea,
-} from '../ai-elements/prompt-input';
-import { Button } from '../ui/button';
+} from "../ai-elements/prompt-input";
+import { Button } from "../ui/button";
 import {
 	Command,
 	CommandEmpty,
@@ -23,16 +27,12 @@ import {
 	CommandInput,
 	CommandItem,
 	CommandList,
-} from '../ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger } from '../ui/select';
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import { cn } from '../../lib/utils';
-import type { AgentSchemaData } from '../../hooks/useAgentSchemas';
-import { useLogger } from '../../hooks/useLogger';
-import type { JSONSchema7 } from 'ai';
-import { useWorkbench } from './WorkbenchProvider';
-import { convertJsonSchemaToZod } from 'zod-from-json-schema';
+} from "../ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "../ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+import { MonacoJsonEditor } from "./MonacoJsonEditor";
+import { useWorkbench } from "./WorkbenchProvider";
 
 export interface InputSectionProps {
 	value: string;
@@ -52,7 +52,7 @@ function isSchemaRootObject(schemaJson?: JSONSchema7): boolean {
 	if (!schemaJson) return false;
 	try {
 		return (
-			schemaJson.type === 'object' ||
+			schemaJson.type === "object" ||
 			(schemaJson.type === undefined && schemaJson.properties !== undefined)
 		);
 	} catch {
@@ -73,40 +73,41 @@ export function InputSection({
 	onSchemaToggle,
 	clearAgentState,
 }: InputSectionProps) {
-	const logger = useLogger('InputSection');
-	const { generateSample, isGeneratingSample, isAuthenticated } = useWorkbench();
+	const logger = useLogger("InputSection");
+	const { generateSample, isGeneratingSample, isAuthenticated } =
+		useWorkbench();
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
 	const [isValidInput, setIsValidInput] = useState(true);
 	const [monacoHasErrors, setMonacoHasErrors] = useState<boolean | null>(null);
 
 	const selectedAgentData = Object.values(agents).find(
-		(agent) => agent.metadata.agentId === selectedAgent
+		(agent) => agent.metadata.agentId === selectedAgent,
 	);
 
 	// Determine input type for switch case
 	const inputType = useMemo(() => {
 		const schema = selectedAgentData?.schema?.input?.json;
 		logger.debug(
-			'🎛️ InputSection - selectedAgent:',
+			"🎛️ InputSection - selectedAgent:",
 			selectedAgent,
-			'selectedAgentData:',
+			"selectedAgentData:",
 			selectedAgentData,
-			'schema:',
-			schema
+			"schema:",
+			schema,
 		);
 		if (!schema) {
-			return 'none'; // Agent has no input schema
+			return "none"; // Agent has no input schema
 		}
 		if (isSchemaRootObject(schema)) {
-			return 'object'; // Complex object schema
+			return "object"; // Complex object schema
 		}
-		if (schema.type === 'string') {
-			return 'string'; // String schema
+		if (schema.type === "string") {
+			return "string"; // String schema
 		}
-		return 'none'; // Default to none for other types
+		return "none"; // Default to none for other types
 	}, [selectedAgentData?.schema.input?.json, logger]);
 
-	const isObjectSchema = inputType === 'object';
+	const isObjectSchema = inputType === "object";
 
 	// Validate JSON input against schema using zod (fallback for non-Monaco cases)
 	const validateInput = useCallback(
@@ -120,7 +121,8 @@ export function InputSection({
 				const parsedJson = JSON.parse(inputValue);
 
 				// Convert schema to zod and validate
-				const schemaObject = typeof schema === 'string' ? JSON.parse(schema) : schema;
+				const schemaObject =
+					typeof schema === "string" ? JSON.parse(schema) : schema;
 				const zodSchema = convertJsonSchemaToZod(schemaObject);
 
 				// Validate with zod
@@ -131,7 +133,7 @@ export function InputSection({
 				return false;
 			}
 		},
-		[isObjectSchema]
+		[isObjectSchema],
 	);
 
 	// Reset Monaco error state when schema changes
@@ -149,7 +151,10 @@ export function InputSection({
 				setIsValidInput(!monacoHasErrors);
 			} else {
 				// Monaco hasn't reported yet, use zod validation as fallback
-				const isValid = validateInput(value, selectedAgentData?.schema?.input?.json);
+				const isValid = validateInput(
+					value,
+					selectedAgentData?.schema?.input?.json,
+				);
 				setIsValidInput(isValid);
 			}
 		} else {
@@ -165,22 +170,27 @@ export function InputSection({
 	]);
 
 	const handleGenerateSample = async () => {
-		if (!selectedAgentData?.schema.input?.json || !isObjectSchema || !selectedAgent) return;
+		if (
+			!selectedAgentData?.schema.input?.json ||
+			!isObjectSchema ||
+			!selectedAgent
+		)
+			return;
 
 		try {
 			const sampleJson = await generateSample(selectedAgent);
 			onChange(sampleJson);
 		} catch (error) {
-			logger.error('Failed to generate sample JSON:', error);
-			console.error('Failed to generate sample JSON:', error);
+			logger.error("Failed to generate sample JSON:", error);
+			console.error("Failed to generate sample JSON:", error);
 		}
 	};
 
 	// Memoized submit disabled condition for readability
 	const isSubmitDisabled = useMemo(() => {
 		if (isLoading) return true;
-		if (inputType === 'string' && !value.trim()) return true;
-		if (inputType === 'object' && (!isValidInput || !value.trim())) return true;
+		if (inputType === "string" && !value.trim()) return true;
+		if (inputType === "object" && (!isValidInput || !value.trim())) return true;
 		return false;
 	}, [isLoading, inputType, value, isValidInput]);
 
@@ -196,8 +206,8 @@ export function InputSection({
 							size="sm"
 						>
 							{Object.values(agents).find(
-								(agent) => agent.metadata.agentId === selectedAgent
-							)?.metadata.name || 'Select agent'}
+								(agent) => agent.metadata.agentId === selectedAgent,
+							)?.metadata.name || "Select agent"}
 							<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
 						</Button>
 					</PopoverTrigger>
@@ -208,9 +218,12 @@ export function InputSection({
 								<CommandEmpty>No agents found.</CommandEmpty>
 								<CommandGroup>
 									{Object.values(agents)
-										.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name))
+										.sort((a, b) =>
+											a.metadata.name.localeCompare(b.metadata.name),
+										)
 										.map((agent) => {
-											const isSelected = selectedAgent === agent.metadata.agentId;
+											const isSelected =
+												selectedAgent === agent.metadata.agentId;
 											// Use name for search but include agentId to ensure uniqueness
 											const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
 											return (
@@ -219,16 +232,16 @@ export function InputSection({
 													value={searchValue}
 													onSelect={(currentValue) => {
 														// Extract agentId from the compound value
-														const agentId = currentValue.split('|')[1];
-														const selectedAgentData = Object.values(agents).find(
-															(a) => a.metadata.agentId === agentId
-														);
+														const agentId = currentValue.split("|")[1];
+														const selectedAgentData = Object.values(
+															agents,
+														).find((a) => a.metadata.agentId === agentId);
 														if (selectedAgentData) {
 															logger.debug(
-																'🎯 Agent selected by name:',
+																"🎯 Agent selected by name:",
 																agent.metadata.name,
-																'agentId:',
-																agentId
+																"agentId:",
+																agentId,
 															);
 															setSelectedAgent(agentId);
 														}
@@ -237,8 +250,8 @@ export function InputSection({
 												>
 													<CheckIcon
 														className={cn(
-															'size-4 text-green-500',
-															isSelected ? 'opacity-100' : 'opacity-0'
+															"size-4 text-green-500",
+															isSelected ? "opacity-100" : "opacity-0",
 														)}
 													/>
 													{agent.metadata.name}
@@ -283,7 +296,7 @@ export function InputSection({
 								<Loader2Icon className="size-4 animate-spin" />
 							) : (
 								<Sparkles className="size-4" />
-							)}{' '}
+							)}{" "}
 							Sample
 						</Button>
 					) : (
@@ -302,7 +315,7 @@ export function InputSection({
 											<Loader2Icon className="size-4 animate-spin" />
 										) : (
 											<Sparkles className="size-4" />
-										)}{' '}
+										)}{" "}
 										Sample
 									</Button>
 								</span>
@@ -314,10 +327,10 @@ export function InputSection({
 					))}
 
 				<Button
-					aria-label={isSchemaOpen ? 'Hide Schema' : 'View Schema'}
+					aria-label={isSchemaOpen ? "Hide Schema" : "View Schema"}
 					size="sm"
-					variant={isSchemaOpen ? 'default' : 'outline'}
-					className={cn('font-normal', isSchemaOpen ? 'bg-primary' : 'bg-none')}
+					variant={isSchemaOpen ? "default" : "outline"}
+					className={cn("font-normal", isSchemaOpen ? "bg-primary" : "bg-none")}
 					onClick={onSchemaToggle}
 				>
 					<FileJson className="size-4" /> Schema
@@ -347,7 +360,7 @@ export function InputSection({
 					) : (
 						(() => {
 							switch (inputType) {
-								case 'object':
+								case "object":
 									return (
 										<MonacoJsonEditor
 											value={value}
@@ -359,7 +372,7 @@ export function InputSection({
 										/>
 									);
 
-								case 'string':
+								case "string":
 									return (
 										<PromptInputTextarea
 											placeholder="Enter a message to send..."
@@ -372,7 +385,7 @@ export function InputSection({
 										<div className="flex flex-col items-center justify-center py-8 px-4 text-center ">
 											<p className="text-sm text-muted-foreground">
 												<span className="font-medium">
-													This agent has no input schema.{' '}
+													This agent has no input schema.{" "}
 												</span>
 											</p>
 											<Button
@@ -397,7 +410,7 @@ export function InputSection({
 					)}
 				</PromptInputBody>
 				<PromptInputFooter>
-					{selectedAgent && inputType !== 'none' && (
+					{selectedAgent && inputType !== "none" && (
 						<Button
 							aria-label="Submit"
 							size="icon"
@@ -405,10 +418,10 @@ export function InputSection({
 							disabled={isSubmitDisabled}
 							onClick={() => {
 								logger.debug(
-									'🔥 Submit button clicked! inputType:',
+									"🔥 Submit button clicked! inputType:",
 									inputType,
-									'value:',
-									value
+									"value:",
+									value,
 								);
 								onSubmit();
 							}}

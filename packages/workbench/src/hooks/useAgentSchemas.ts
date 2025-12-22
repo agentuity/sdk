@@ -1,5 +1,5 @@
-import { JSONSchema7 } from 'ai';
-import { useState, useEffect, useCallback } from 'react';
+import type { JSONSchema7 } from "ai";
+import { useCallback, useEffect, useState } from "react";
 
 export interface AgentSchema {
 	input?: {
@@ -64,8 +64,10 @@ export interface UseAgentSchemasResult {
  * }
  * ```
  */
-export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentSchemasResult {
-	const { baseUrl = '', apiKey, enabled = true } = options;
+export function useAgentSchemas(
+	options: UseAgentSchemasOptions = {},
+): UseAgentSchemasResult {
+	const { baseUrl = "", apiKey, enabled = true } = options;
 
 	const [data, setData] = useState<AgentSchemasResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
@@ -80,26 +82,30 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 		try {
 			const url = `${baseUrl}/_agentuity/workbench/metadata.json`;
 			const headers: HeadersInit = {
-				'Content-Type': 'application/json',
+				"Content-Type": "application/json",
 			};
 
 			if (apiKey) {
-				headers['Authorization'] = `Bearer ${apiKey}`;
+				headers["Authorization"] = `Bearer ${apiKey}`;
 			}
 
 			const response = await fetch(url, {
-				method: 'GET',
+				method: "GET",
 				headers,
 			});
 
 			if (!response.ok) {
 				// Handle 404/500 gracefully without throwing
 				if (response.status === 401) {
-					setError(new Error('Unauthorized: Invalid or missing API key'));
+					setError(new Error("Unauthorized: Invalid or missing API key"));
 					return;
 				}
 				if (response.status === 404 || response.status >= 500) {
-					setError(new Error(`Server error: ${response.status} ${response.statusText}`));
+					setError(
+						new Error(
+							`Server error: ${response.status} ${response.statusText}`,
+						),
+					);
 					return;
 				}
 				setError(new Error(`HTTP ${response.status}: ${response.statusText}`));
@@ -110,13 +116,14 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 				const result = (await response.json()) as AgentSchemasResponse;
 				setData(result);
 			} catch (jsonError) {
-				setError(new Error('Invalid JSON response from server'));
-				console.error('Failed to parse JSON response:', jsonError);
+				setError(new Error("Invalid JSON response from server"));
+				console.error("Failed to parse JSON response:", jsonError);
 			}
 		} catch (err) {
-			const error = err instanceof Error ? err : new Error('Unknown error occurred');
+			const error =
+				err instanceof Error ? err : new Error("Unknown error occurred");
 			setError(error);
-			console.error('Failed to fetch agent schemas:', error);
+			console.error("Failed to fetch agent schemas:", error);
 		} finally {
 			setIsLoading(false);
 		}
@@ -141,7 +148,10 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 /**
  * Helper hook to get a specific agent's schema by name
  */
-export function useAgentSchema(agentName: string, options: UseAgentSchemasOptions = {}) {
+export function useAgentSchema(
+	agentName: string,
+	options: UseAgentSchemasOptions = {},
+) {
 	const { data, isLoading, error, refetch } = useAgentSchemas(options);
 
 	const agentData = data?.agents[agentName] || null;

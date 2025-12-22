@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
+import { useCallback } from "react";
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = "debug" | "info" | "warn" | "error";
 
 interface Logger {
 	debug: (...args: unknown[]) => void;
@@ -11,8 +11,8 @@ interface Logger {
 
 const getLogLevel = (): LogLevel | null => {
 	try {
-		const level = localStorage.getItem('AGENTUITY_LOG_LEVEL');
-		if (level && ['debug', 'info', 'warn', 'error'].includes(level)) {
+		const level = localStorage.getItem("AGENTUITY_LOG_LEVEL");
+		if (level && ["debug", "info", "warn", "error"].includes(level)) {
 			return level as LogLevel;
 		}
 		return null;
@@ -41,17 +41,17 @@ export function useLogger(component?: string): Logger {
 			(...args: unknown[]) => {
 				if (!shouldLog(level)) return;
 
-				const prefix = component ? `[${component}]` : '[Workbench]';
+				const prefix = component ? `[${component}]` : "[Workbench]";
 				const consoleFn = console[level] || console.log;
 				consoleFn(prefix, ...args);
 			},
-		[component]
+		[component],
 	);
 
 	return {
-		debug: createLogFunction('debug'),
-		info: createLogFunction('info'),
-		warn: createLogFunction('warn'),
-		error: createLogFunction('error'),
+		debug: createLogFunction("debug"),
+		info: createLogFunction("info"),
+		warn: createLogFunction("warn"),
+		error: createLogFunction("error"),
 	};
 }

@@ -1,19 +1,22 @@
-import React from 'react';
-import { X, FileJson } from 'lucide-react';
-import { Button } from '../ui/button';
-import { CodeBlock, CodeBlockCopyButton } from '../ai-elements/code-block';
-import { ScrollArea } from '../ui/scroll-area';
-import { useWorkbench } from './WorkbenchProvider';
+import { FileJson, X } from "lucide-react";
+import React from "react";
+import { CodeBlock, CodeBlockCopyButton } from "../ai-elements/code-block";
+import { Button } from "../ui/button";
+import { ScrollArea } from "../ui/scroll-area";
+import { useWorkbench } from "./WorkbenchProvider";
 
 export interface SchemaProps {
 	onOpenChange: (open: boolean) => void;
 }
 
 export function Schema({ onOpenChange }: SchemaProps) {
-	const { agents, selectedAgent, schemasLoading, schemasError } = useWorkbench();
+	const { agents, selectedAgent, schemasLoading, schemasError } =
+		useWorkbench();
 
 	const selectedAgentData =
-		Object.values(agents).find((agent) => agent.metadata.agentId === selectedAgent) || null;
+		Object.values(agents).find(
+			(agent) => agent.metadata.agentId === selectedAgent,
+		) || null;
 
 	return (
 		<div className="h-full bg-background border-l border-border flex flex-col">
@@ -43,7 +46,9 @@ export function Schema({ onOpenChange }: SchemaProps) {
 			<ScrollArea className="flex-1">
 				<div className="p-6 space-y-6">
 					{schemasLoading && (
-						<div className="text-center text-muted-foreground py-8">Loading schemas...</div>
+						<div className="text-center text-muted-foreground py-8">
+							Loading schemas...
+						</div>
 					)}
 
 					{schemasError && (

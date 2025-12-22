@@ -1,17 +1,17 @@
-import React from 'react';
-import { Settings } from 'lucide-react';
-import Logo from './logo';
-import { Button } from '../ui/button';
-import { ThemeToggle } from '../ui/theme-toggle';
-import { useWorkbench } from './WorkbenchProvider';
-import type { ConnectionStatus } from '../../types/config';
+import { Settings } from "lucide-react";
+import React from "react";
+import type { ConnectionStatus } from "../../types/config";
+import { Button } from "../ui/button";
+import { ThemeToggle } from "../ui/theme-toggle";
+import Logo from "./logo";
+import { useWorkbench } from "./WorkbenchProvider";
 
 export interface HeaderProps {
 	className?: string;
 }
 
 export function StatusIndicator({ status }: { status: ConnectionStatus }) {
-	if (status === 'connected') {
+	if (status === "connected") {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
 				<div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
@@ -20,7 +20,7 @@ export function StatusIndicator({ status }: { status: ConnectionStatus }) {
 		);
 	}
 
-	if (status === 'restarting') {
+	if (status === "restarting") {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
 				<div className="w-2 h-2 rounded-full bg-amber-500 animate-spin"></div>
@@ -29,7 +29,7 @@ export function StatusIndicator({ status }: { status: ConnectionStatus }) {
 		);
 	}
 
-	if (status === 'disconnected') {
+	if (status === "disconnected") {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
 				<div className="w-2 h-2 rounded-full bg-red-500"></div>
@@ -48,12 +48,12 @@ export function StatusIndicator({ status }: { status: ConnectionStatus }) {
 export function Header({ className }: HeaderProps) {
 	const { connectionStatus } = useWorkbench();
 	const LogoComponent = Logo;
-	const title = 'Workbench';
+	const title = "Workbench";
 	const showSettings = true;
 
 	return (
 		<nav
-			className={`flex items-center justify-between gap-6 py-2 px-4 border-b ${className || ''}`}
+			className={`flex items-center justify-between gap-6 py-2 px-4 border-b ${className || ""}`}
 		>
 			<div className="flex items-center gap-2.5">
 				<LogoComponent />

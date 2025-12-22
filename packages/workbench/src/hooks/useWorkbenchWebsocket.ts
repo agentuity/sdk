@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface ReconnectOptions {
 	onReconnect: () => void;
@@ -42,7 +42,7 @@ function createReconnectManager(opts: ReconnectOptions): ReconnectManager {
 		const factor = opts.factor ?? 2;
 		const max = opts.maxDelay ?? 30000;
 		const jitterMax = opts.jitter ?? 250;
-		const backoff = Math.min(base * Math.pow(factor, attemptAfterThreshold), max);
+		const backoff = Math.min(base * factor ** attemptAfterThreshold, max);
 		const jitter = jitterMax > 0 ? Math.random() * jitterMax : 0;
 		return backoff + jitter;
 	};
@@ -90,15 +90,16 @@ export interface UseWorkbenchWebsocketResult {
 }
 
 export function useWorkbenchWebsocket(
-	options: UseWorkbenchWebsocketOptions = {}
+	options: UseWorkbenchWebsocketOptions = {},
 ): UseWorkbenchWebsocketResult {
-	const { baseUrl, apiKey, onConnect, onReconnect, onAlive, onRestarting } = options;
+	const { baseUrl, apiKey, onConnect, onReconnect, onAlive, onRestarting } =
+		options;
 
 	const manualClose = useRef(false);
 	const wsRef = useRef<WebSocket | undefined>(undefined);
-	const reconnectManagerRef = useRef<ReturnType<typeof createReconnectManager> | undefined>(
-		undefined
-	);
+	const reconnectManagerRef = useRef<
+		ReturnType<typeof createReconnectManager> | undefined
+	>(undefined);
 	const onConnectRef = useRef(onConnect);
 	const onReconnectRef = useRef(onReconnect);
 	const onAliveRef = useRef(onAlive);
@@ -118,10 +119,10 @@ export function useWorkbenchWebsocket(
 
 	const wsUrl = useCallback(() => {
 		if (!baseUrl) return null;
-		const wsBase = baseUrl.replace(/^http(s?):/, 'ws$1:');
+		const wsBase = baseUrl.replace(/^http(s?):/, "ws$1:");
 		const url = new URL(`${wsBase}/_agentuity/workbench/ws`);
 		if (apiKey) {
-			url.searchParams.set('apiKey', apiKey);
+			url.searchParams.set("apiKey", apiKey);
 		}
 		return url.toString();
 	}, [baseUrl, apiKey]);
@@ -148,7 +149,7 @@ export function useWorkbenchWebsocket(
 		};
 
 		wsRef.current.onerror = () => {
-			setError(new Error('WebSocket error'));
+			setError(new Error("WebSocket error"));
 		};
 
 		wsRef.current.onclose = (evt) => {
@@ -158,16 +159,18 @@ export function useWorkbenchWebsocket(
 				return;
 			}
 			if (evt.code !== 1000) {
-				setError(new Error(`WebSocket closed: ${evt.code} ${evt.reason || ''}`));
+				setError(
+					new Error(`WebSocket closed: ${evt.code} ${evt.reason || ""}`),
+				);
 			}
 			reconnectManagerRef.current?.recordFailure();
 		};
 
 		wsRef.current.onmessage = (event: { data: string }) => {
-			if (event.data === 'alive') {
+			if (event.data === "alive") {
 				// Server is alive - trigger onAlive callback to refetch schemas
 				onAliveRef.current?.();
-			} else if (event.data === 'restarting') {
+			} else if (event.data === "restarting") {
 				// Server is about to restart - trigger onRestarting callback
 				onRestartingRef.current?.();
 			}
