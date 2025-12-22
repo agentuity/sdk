@@ -245,8 +245,11 @@ function generateRPCRegistryType(
 		let current: any = tree;
 
 		// Add path segments (all parts) - convert to camelCase for safe property access
+		// Strip route parameter characters that produce invalid TypeScript property names:
+		// - Leading colon from path parameters (e.g., :id -> id)
+		// - Trailing ? for optional params, + for one-or-more, * for wildcards
 		for (let i = 0; i < pathParts.length; i++) {
-			const part = toCamelCase(pathParts[i]);
+			const part = toCamelCase(pathParts[i].replace(/^[:*]|[?+*]$/g, ''));
 			if (!current[part]) {
 				current[part] = {};
 			}
