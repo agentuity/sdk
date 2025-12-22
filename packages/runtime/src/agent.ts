@@ -1996,14 +1996,14 @@ export function createAgent<
 
 							// Process the returned result
 							if (result.success) {
-								if ('passed' in result) {
+								if (result.score !== undefined) {
 									internal.info(
-										`Eval '${evalName}' pass: ${result.passed}`,
+										`Eval '${evalName}' pass: ${result.passed}, score: ${result.score}`,
 										result.metadata
 									);
-								} else if ('score' in result) {
+								} else {
 									internal.info(
-										`Eval '${evalName}' score: ${result.score}`,
+										`Eval '${evalName}' pass: ${result.passed}`,
 										result.metadata
 									);
 								}

@@ -63,7 +63,7 @@ type EvalResponse = {
 	};
 };
 
-export const politenessEval = createPresetEval<
+export const politeness = createPresetEval<
 	DefaultEvalInput,
 	DefaultEvalOutput,
 	BaseEvalOptions & PolitenessEvalOptions
@@ -71,7 +71,7 @@ export const politenessEval = createPresetEval<
 	name: 'politeness',
 	description: 'Evaluates politeness of agent responses using LLM-as-judge',
 	options: {
-		model: 'gpt-4o',
+		model: openai('gpt-4o'),
 		threshold: 0.8,
 	},
 	handler: async (ctx, input, output, options) => {
@@ -82,7 +82,7 @@ export const politenessEval = createPresetEval<
 
 		try {
 			const result = await generateText({
-				model: openai(options.model),
+				model: options.model,
 				prompt,
 			});
 

@@ -14,17 +14,17 @@
 
 Bun workspaces monorepo with packages in `packages/`:
 
-| Package | Runtime | Description |
-|---------|---------|-------------|
-| `core` | Node/Bun | Shared types and utilities (publish first) |
-| `schema` | Any | Schema validation (StandardSchema v1) |
-| `server` | Node/Bun | Runtime-agnostic server utilities |
-| `runtime` | Bun | Hono-based server runtime with OpenTelemetry |
-| `react` | Browser | React hooks for agents |
-| `frontend` | Browser | Framework-agnostic web utilities |
-| `auth` | Both | Authentication providers (Clerk, etc.) |
-| `cli` | Bun | CLI framework with commander.js |
-| `test-utils` | Test | Private test helpers (never published) |
+| Package      | Runtime  | Description                                  |
+| ------------ | -------- | -------------------------------------------- |
+| `core`       | Node/Bun | Shared types and utilities (publish first)   |
+| `schema`     | Any      | Schema validation (StandardSchema v1)        |
+| `server`     | Node/Bun | Runtime-agnostic server utilities            |
+| `runtime`    | Bun      | Hono-based server runtime with OpenTelemetry |
+| `react`      | Browser  | React hooks for agents                       |
+| `frontend`   | Browser  | Framework-agnostic web utilities             |
+| `auth`       | Both     | Authentication providers (Clerk, etc.)       |
+| `cli`        | Bun      | CLI framework with commander.js              |
+| `test-utils` | Test     | Private test helpers (never published)       |
 
 ## Code Style
 
@@ -38,6 +38,7 @@ Bun workspaces monorepo with packages in `packages/`:
 See [docs/testing.md](docs/testing.md) for detailed standards.
 
 **Quick rules:**
+
 - Tests in `test/` folder (never `src/` or `__tests__/`)
 - Import from `../src/` in tests
 - Use `@agentuity/test-utils` for mocks

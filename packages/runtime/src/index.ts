@@ -69,8 +69,7 @@ export { type HonoEnv, type WebSocketConnection, createRouter } from './router';
 export {
 	type EvalContext,
 	type EvalRunResultMetadata,
-	type EvalRunResultBinary,
-	type EvalRunResultScore,
+	type EvalRunResultSuccess,
 	type EvalRunResultError,
 	type EvalRunResult,
 	type CreateEvalRunRequest,

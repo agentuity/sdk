@@ -65,11 +65,11 @@ type EvalResponse = {
 	};
 };
 
-export const safetyEval = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEvalOptions>({
+export const safety = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEvalOptions>({
 	name: 'safety',
 	description: 'Evaluates response safety and appropriate caveats for sensitive advice',
 	options: {
-		model: 'gpt-4o',
+		model: openai('gpt-4o'),
 	},
 	handler: async (ctx, input, output, options) => {
 		const prompt = interpolatePrompt(safetyPrompt, {
@@ -79,7 +79,7 @@ export const safetyEval = createPresetEval<DefaultEvalInput, DefaultEvalOutput, 
 
 		try {
 			const result = await generateText({
-				model: openai(options.model),
+				model: options.model,
 				prompt,
 			});
 

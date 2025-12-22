@@ -65,12 +65,12 @@
       "name": "e2e-web-tests",
       "version": "0.0.1",
       "dependencies": {
-        "@agentuity/cli": "workspace:*",
-        "@agentuity/core": "workspace:*",
-        "@agentuity/react": "workspace:*",
-        "@agentuity/runtime": "workspace:*",
-        "@agentuity/schema": "workspace:*",
-        "@agentuity/workbench": "workspace:*",
+        "@agentuity/cli": "file:/Users/bobby/Code/platform/sdk/dist/packages/agentuity-cli-0.0.101.tgz",
+        "@agentuity/core": "file:/Users/bobby/Code/platform/sdk/dist/packages/agentuity-core-0.0.101.tgz",
+        "@agentuity/react": "file:/Users/bobby/Code/platform/sdk/dist/packages/agentuity-react-0.0.101.tgz",
+        "@agentuity/runtime": "file:/Users/bobby/Code/platform/sdk/dist/packages/agentuity-runtime-0.0.101.tgz",
+        "@agentuity/schema": "file:/Users/bobby/Code/platform/sdk/dist/packages/agentuity-schema-0.0.101.tgz",
+        "@agentuity/workbench": "file:/Users/bobby/Code/platform/sdk/dist/packages/agentuity-workbench-0.0.101.tgz",
         "hono": "^4.7.13",
         "react": "^19.2.3",
         "react-dom": "^19.2.3",
@@ -90,6 +90,8 @@
         "@agentuity/runtime": "workspace:*",
         "@agentuity/schema": "workspace:*",
         "@agentuity/workbench": "workspace:*",
+        "@ai-sdk/openai": "^1.0.0",
+        "ai": "^4.0.0",
         "hono": "^4.7.13",
         "react": "^19.2.1",
         "react-dom": "^19.2.1",
@@ -3267,6 +3269,18 @@
 
     "decompress-response/mimic-response": ["mimic-response@3.1.0", "", {}, "sha512-z0yWI+4FDrrweS8Zmt4Ej5HdJmky15+L2e6Wgn3+iK5fWzb6T3fhNFq2+MeTRb064c6Wr4N/wv0DzQTjNzHNGQ=="],
 
+    "e2e-web-tests/@agentuity/cli": ["@agentuity/cli@/Users/bobby/Code/platform/sdk/dist/packages/agentuity-cli-0.0.101.tgz", { "dependencies": { "@agentuity/core": "0.0.101", "@agentuity/server": "0.0.101", "@datasert/cronjs-parser": "^1.4.0", "@terascope/fetch-github-release": "^2.2.1", "@vitejs/plugin-react": "^5.1.2", "acorn-loose": "^8.5.2", "adm-zip": "^0.5.16", "astring": "^1.9.0", "cli-table3": "^0.6.5", "commander": "^14.0.2", "enquirer": "^2.4.1", "git-url-parse": "^16.1.0", "json-colorizer": "^3.0.1", "json5": "^2.2.3", "tar": "^7.5.2", "tar-fs": "^3.1.1", "typescript": "^5.9.0", "vite": "^7.2.7", "zod": "^4.1.12" }, "bin": { "agentuity": "./bin/cli.ts" } }],
+
+    "e2e-web-tests/@agentuity/core": ["@agentuity/core@/Users/bobby/Code/platform/sdk/dist/packages/agentuity-core-0.0.101.tgz", { "dependencies": { "zod": "^4.1.12" } }],
+
+    "e2e-web-tests/@agentuity/react": ["@agentuity/react@/Users/bobby/Code/platform/sdk/dist/packages/agentuity-react-0.0.101.tgz", { "dependencies": { "@agentuity/core": "0.0.101", "@agentuity/frontend": "0.0.101" }, "peerDependencies": { "@types/react": "^19.0.0", "react": "^19.0.0" } }],
+
+    "e2e-web-tests/@agentuity/runtime": ["@agentuity/runtime@/Users/bobby/Code/platform/sdk/dist/packages/agentuity-runtime-0.0.101.tgz", { "dependencies": { "@agentuity/core": "0.0.101", "@agentuity/schema": "0.0.101", "@agentuity/server": "0.0.101", "@opentelemetry/api": "^1.9.0", "@opentelemetry/api-logs": "^0.207.0", "@opentelemetry/auto-instrumentations-node": "^0.66.0", "@opentelemetry/core": "^2.2.0", "@opentelemetry/exporter-logs-otlp-http": "^0.207.0", "@opentelemetry/exporter-metrics-otlp-http": "^0.207.0", "@opentelemetry/exporter-trace-otlp-http": "^0.207.0", "@opentelemetry/host-metrics": "^0.36.2", "@opentelemetry/otlp-exporter-base": "^0.207.0", "@opentelemetry/resources": "^2.2.0", "@opentelemetry/sdk-logs": "^0.207.0", "@opentelemetry/sdk-metrics": "^2.2.0", "@opentelemetry/sdk-node": "^0.207.0", "@opentelemetry/sdk-trace-base": "^2.2.0", "@opentelemetry/semantic-conventions": "^1.37.0", "@traceloop/ai-semantic-conventions": "0.21.0", "@traceloop/node-server-sdk": "0.21.1", "@types/mailparser": "^3.4.6", "hono": "^4.7.13", "mailparser": "^3.7.1", "zod": "^4.1.12" } }],
+
+    "e2e-web-tests/@agentuity/schema": ["@agentuity/schema@/Users/bobby/Code/platform/sdk/dist/packages/agentuity-schema-0.0.101.tgz", { "dependencies": { "@agentuity/core": "0.0.101" } }],
+
+    "e2e-web-tests/@agentuity/workbench": ["@agentuity/workbench@/Users/bobby/Code/platform/sdk/dist/packages/agentuity-workbench-0.0.101.tgz", { "dependencies": { "@agentuity/core": "0.0.101", "@agentuity/react": "0.0.101", "@ai-sdk/react": "^2.0.82", "@hookform/resolvers": "^5.2.2", "@monaco-editor/react": "^4.6.0", "@shikijs/langs": "^3.19.0", "@shikijs/themes": "^3.19.0", "@xyflow/react": "^12.9.1", "ai": "^5.0.82", "bun-plugin-tailwind": "^0.0.14", "class-variance-authority": "^0.7.1", "clsx": "^2.1.1", "cmdk": "^1.1.1", "embla-carousel-react": "^8.6.0", "lucide-react": "^0.548.0", "motion": "^12.23.24", "nanoid": "^5.1.6", "non.geist": "^1.0.4", "react-hook-form": "^7.65.0", "react-resizable-panels": "^3.0.6", "shiki": "^3.14.0", "streamdown": "^1.4.0", "tailwind-merge": "^3.3.1", "tailwindcss-animate": "^1.0.7", "tokenlens": "^1.3.1", "use-stick-to-bottom": "^1.1.1", "zod": "^4.1.12", "zod-from-json-schema": "^0.5.2" }, "peerDependencies": { "@radix-ui/react-avatar": "^1.1.8", "@radix-ui/react-dialog": "^1.1.12", "@radix-ui/react-dropdown-menu": "^2.1.13", "@radix-ui/react-hover-card": "^1.1.12", "@radix-ui/react-popover": "^1.1.12", "@radix-ui/react-scroll-area": "^1.2.7", "@radix-ui/react-select": "^2.2.3", "@radix-ui/react-slot": "^1.1.2", "@radix-ui/react-tooltip": "^1.2.5", "@radix-ui/react-use-controllable-state": "^1.2.2", "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0", "react": "^19.0.0", "react-dom": "^19.0.0" } }],
+
     "eslint/@eslint/core": ["@eslint/core@0.17.0", "", { "dependencies": { "@types/json-schema": "^7.0.15" } }, "sha512-yL/sLrpmtDaFEiUj1osRP4TI2MDz1AddJL+jZ7KSqvBuliN4xqYY54IfdN8qD8Toa6g1iloph1fxQNkjOxrrpQ=="],
 
     "eslint/@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA=="],
@@ -3286,6 +3300,8 @@
     "got/get-stream": ["get-stream@6.0.1", "", {}, "sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg=="],
 
     "happy-dom/@types/node": ["@types/node@20.19.27", "", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-N2clP5pJhB2YnZJ3PIHFk5RkygRX5WO/5f0WC08tp0wd+sv0rsJk3MqWn3CbNmT2J505a5336jaQj4ph1AdMug=="],
+
+    "integration-suite/ai": ["ai@4.3.19", "", { "dependencies": { "@ai-sdk/provider": "1.1.3", "@ai-sdk/provider-utils": "2.2.8", "@ai-sdk/react": "1.2.12", "@ai-sdk/ui-utils": "1.2.11", "@opentelemetry/api": "1.9.0", "jsondiffpatch": "0.6.0" }, "peerDependencies": { "react": "^18 || ^19 || ^19.0.0-rc", "zod": "^3.23.8" }, "optionalPeers": ["react"] }, "sha512-dIE2bfNpqHN3r6IINp9znguYdhIOheKW2LDigAMrgt/upT3B8eBGPSCblENvaZGoq+hxaN9fSMzjWpbqloP+7Q=="],
 
     "jsondiffpatch/chalk": ["chalk@5.6.2", "", {}, "sha512-7NzBL0rN6fMUW+f7A6Io4h40qQlG+xGmtMxfbnH/K7TAtt8JQWVQK+6g0UXKMeVJoyV5EkkNsErQ8pVD3bLHbA=="],
 
@@ -3535,6 +3551,30 @@
 
     "d3-sankey/d3-shape/d3-path": ["d3-path@1.0.9", "", {}, "sha512-VLaYcn81dtHVTjEHd8B+pbe9yHWpXKZUC87PzoFmsFrJqgFwDe/qxfp5MlfsfM1V5E/iVt0MmEbWQ7FVIXh/bg=="],
 
+    "e2e-web-tests/@agentuity/cli/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
+
+    "e2e-web-tests/@agentuity/react/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
+
+    "e2e-web-tests/@agentuity/runtime/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
+
+    "e2e-web-tests/@agentuity/runtime/@agentuity/schema": ["@agentuity/schema@workspace:packages/schema"],
+
+    "e2e-web-tests/@agentuity/schema/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
+
+    "e2e-web-tests/@agentuity/workbench/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
+
+    "e2e-web-tests/@agentuity/workbench/@agentuity/react": ["@agentuity/react@workspace:packages/react"],
+
+    "e2e-web-tests/@agentuity/workbench/bun-plugin-tailwind": ["bun-plugin-tailwind@0.0.14", "", { "dependencies": { "tailwindcss": "4.0.0-beta.9" }, "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-Ge8M8DQsRDErCzH/uI8pYjx5vZWXxQvnwM/xMQMElxQqHieGbAopfYo/q/kllkPkRbFHiwhnHwTpRMAMJZCjug=="],
+
+    "integration-suite/ai/@ai-sdk/provider": ["@ai-sdk/provider@1.1.3", "", { "dependencies": { "json-schema": "^0.4.0" } }, "sha512-qZMxYJ0qqX/RfnuIaab+zp8UAeJn/ygXXAffR5I4N0n1IrvA6qBsjc8hXLmBiMV2zoXlifkacF7sEFnYnjBcqg=="],
+
+    "integration-suite/ai/@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@2.2.8", "", { "dependencies": { "@ai-sdk/provider": "1.1.3", "nanoid": "^3.3.8", "secure-json-parse": "^2.7.0" }, "peerDependencies": { "zod": "^3.23.8" } }, "sha512-fqhG+4sCVv8x7nFzYnFo19ryhAa3w096Kmc3hWxMQfW/TubPOmt3A6tYZhl4mUfQWWQMsuSkLrtjlWuXBVSGQA=="],
+
+    "integration-suite/ai/@ai-sdk/react": ["@ai-sdk/react@1.2.12", "", { "dependencies": { "@ai-sdk/provider-utils": "2.2.8", "@ai-sdk/ui-utils": "1.2.11", "swr": "^2.2.5", "throttleit": "2.1.0" }, "peerDependencies": { "react": "^18 || ^19 || ^19.0.0-rc", "zod": "^3.23.8" }, "optionalPeers": ["zod"] }, "sha512-jK1IZZ22evPZoQW3vlkZ7wvjYGYF+tRBKXtrcolduIkQ/m/sOAVcVeVDUDvh1T91xCnWCdUGCPZg2avZ90mv3g=="],
+
+    "integration-suite/ai/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
+
     "normalize-package-data/hosted-git-info/lru-cache": ["lru-cache@10.4.3", "", {}, "sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ=="],
 
     "prebuild-install/tar-fs/chownr": ["chownr@1.1.4", "", {}, "sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg=="],
@@ -3620,5 +3660,11 @@
     "@traceloop/node-server-sdk/@opentelemetry/sdk-node/@opentelemetry/exporter-trace-otlp-http/@opentelemetry/otlp-transformer": ["@opentelemetry/otlp-transformer@0.203.0", "", { "dependencies": { "@opentelemetry/api-logs": "0.203.0", "@opentelemetry/core": "2.0.1", "@opentelemetry/resources": "2.0.1", "@opentelemetry/sdk-logs": "0.203.0", "@opentelemetry/sdk-metrics": "2.0.1", "@opentelemetry/sdk-trace-base": "2.0.1", "protobufjs": "^7.3.0" }, "peerDependencies": { "@opentelemetry/api": "^1.3.0" } }, "sha512-Y8I6GgoCna0qDQ2W6GCRtaF24SnvqvA8OfeTi7fqigD23u8Jpb4R5KFv/pRvrlGagcCLICMIyh9wiejp4TXu/A=="],
 
     "@traceloop/node-server-sdk/@opentelemetry/sdk-node/@opentelemetry/sdk-trace-node/@opentelemetry/context-async-hooks": ["@opentelemetry/context-async-hooks@2.0.1", "", { "peerDependencies": { "@opentelemetry/api": ">=1.0.0 <1.10.0" } }, "sha512-XuY23lSI3d4PEqKA+7SLtAgwqIfc6E/E9eAQWLN1vlpC53ybO3o6jW4BsXo1xvz9lYyyWItfQDDLzezER01mCw=="],
+
+    "e2e-web-tests/@agentuity/workbench/@agentuity/react/@agentuity/schema": ["@agentuity/schema@workspace:packages/schema"],
+
+    "e2e-web-tests/@agentuity/workbench/bun-plugin-tailwind/tailwindcss": ["tailwindcss@4.0.0-beta.9", "", {}, "sha512-96KpsfQi+/sFIOfyFnGzyy5pobuzf1iMBD9NVtelerPM/lPI2XUS4Kikw9yuKRniXXw77ov1sl7gCSKLsn6CJA=="],
+
+    "integration-suite/ai/@ai-sdk/provider-utils/nanoid": ["nanoid@3.3.11", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w=="],
   }
 }

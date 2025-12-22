@@ -30,7 +30,6 @@ import './src/test/sse';
 import './src/test/web-rendering';
 import './src/test/env-loading';
 import './src/test/middleware-patterns';
-import './src/test/evals';
 
 const threadProvider = new InMemoryThreadProvider();
 

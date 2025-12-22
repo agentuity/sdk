@@ -44,14 +44,14 @@ Single Bun server + Vite asset server architecture:
 
 ## Build Utilities
 
-| Utility | Purpose |
-|---------|---------|
+| Utility                  | Purpose                                |
+| ------------------------ | -------------------------------------- |
 | `bun-version-checker.ts` | Enforces minimum Bun version (>=1.3.3) |
-| `dependency-checker.ts` | Auto-upgrades `@agentuity/*` packages |
-| `metadata-generator.ts` | Creates `agentuity.metadata.json` |
-| `agent-discovery.ts` | AST-based agent discovery |
-| `route-discovery.ts` | AST-based route discovery |
-| `registry-generator.ts` | Generates type-safe registries |
+| `dependency-checker.ts`  | Auto-upgrades `@agentuity/*` packages  |
+| `metadata-generator.ts`  | Creates `agentuity.metadata.json`      |
+| `agent-discovery.ts`     | AST-based agent discovery              |
+| `route-discovery.ts`     | AST-based route discovery              |
+| `registry-generator.ts`  | Generates type-safe registries         |
 
 ## Build Flags
 
@@ -71,14 +71,14 @@ bun bin/cli.ts --config=/path/to/production.yaml [command]
 
 ### Test Suite
 
-| Script | Description |
-|--------|-------------|
-| `test:create` | Integration test for create command |
-| `test:bundled-create` | Tests bundled executable |
-| `test:exit-codes` | Tests CLI exit codes |
-| `test:response-schema` | Tests response schema validation |
-| `test:batch` | Tests batch reporting |
-| `test:envelope` | Tests response envelope |
+| Script                 | Description                         |
+| ---------------------- | ----------------------------------- |
+| `test:create`          | Integration test for create command |
+| `test:bundled-create`  | Tests bundled executable            |
+| `test:exit-codes`      | Tests CLI exit codes                |
+| `test:response-schema` | Tests response schema validation    |
+| `test:batch`           | Tests batch reporting               |
+| `test:envelope`        | Tests response envelope             |
 
 ### Testing Bundled Executable
 
@@ -93,6 +93,7 @@ bun test:bundled-create
 ## Version Check Bypass (Development Only)
 
 Priority order:
+
 1. CLI flag: `--skip-version-check`
 2. Environment: `AGENTUITY_SKIP_VERSION_CHECK=1`
 3. Config: `skip_version_check: true` in profile overrides

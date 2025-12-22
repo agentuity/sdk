@@ -1,6 +1,7 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
-import { politenessEval } from '@agentuity/evals';
+import { politeness } from '@agentuity/evals';
+import { openai } from '@ai-sdk/openai';
 
 export const AgentInput = s.object({
 	value: s.number(),
@@ -32,9 +33,9 @@ const evalsBasicAgent = createAgent('evals-basic', {
  * and { response: string } for output, so we need middleware to transform.
  */
 export const politenessCheckCustom = evalsBasicAgent.createEval(
-	politenessEval<typeof AgentInput, typeof AgentOutput>({
+	politeness<typeof AgentInput, typeof AgentOutput>({
 		name: 'politeness-custom',
-		model: 'gpt-4o-mini',
+		model: openai('gpt-4o-mini'),
 		threshold: 0.7,
 		middleware: {
 			transformInput: (input) => ({ request: `Calculate double of ${input.value}` }),
@@ -49,6 +50,6 @@ export const politenessCheckCustom = evalsBasicAgent.createEval(
  * Example 2: Inline eval without using preset evals
  * This is simpler when you don't need the preset eval's LLM logic.
  */
-export const accuracyEval = evalsBasicAgent.createEval(politenessEval());
+export const accuracyEval = evalsBasicAgent.createEval(politeness());
 
 export default evalsBasicAgent;

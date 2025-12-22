@@ -1,5 +1,7 @@
+import type { LanguageModel } from 'ai';
+
 export type BaseEvalOptions = {
-	model: string;
+	model: LanguageModel;
 };
 
 /**
