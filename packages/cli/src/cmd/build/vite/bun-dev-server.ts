@@ -51,10 +51,47 @@ export async function startBunDevServer(options: BunDevServerOptions): Promise<B
 		);
 	}
 
+	// Clear Bun's module cache for the bundled app to ensure fresh code is loaded.
+	// This is essential for hot reload to work - otherwise Bun returns the cached module
+	// and the server continues serving stale code.
+	try {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const bunAny = Bun as any;
+		// Try multiple possible locations for the loader registry
+		const loader = bunAny.loader ?? bunAny.Loader ?? bunAny.Main;
+		const registry = loader?.registry ?? loader?.Registry;
+		if (registry?.delete) {
+			logger.debug('Clearing Bun module cache for: %s', appPath);
+			registry.delete(appPath);
+		} else if (typeof loader?.clearModuleCache === 'function') {
+			// Alternative API that may exist in some Bun versions
+			logger.debug('Clearing Bun module cache via clearModuleCache: %s', appPath);
+			loader.clearModuleCache(appPath);
+		} else {
+			logger.debug(
+				'Bun module cache API not available - module may be cached. Available loader keys: %s',
+				loader ? Object.keys(loader).join(', ') : 'none'
+			);
+		}
+	} catch (err) {
+		logger.warn(
+			'Failed to clear Bun module cache for %s: %s. Server restart may serve stale code.',
+			appPath,
+			err instanceof Error ? err.message : String(err)
+		);
+	}
+
 	// Set PORT env var so the generated app uses the correct port
 	process.env.PORT = String(port);
 
-	await import(appPath);
+	// Import the generated app using the canonical file path
+	try {
+		await import(appPath);
+	} catch (err) {
+		const errorMessage = err instanceof Error ? err.message : String(err);
+		logger.error('Failed to import generated app from %s: %s', appPath, errorMessage);
+		throw new Error(`Failed to load generated app: ${errorMessage}`);
+	}
 
 	// Wait for server to actually start listening
 	// The generated app sets (globalThis as any).__AGENTUITY_SERVER__ when server starts

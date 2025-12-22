@@ -33,6 +33,81 @@ interface ServerLike {
 	close: () => void;
 }
 
+interface BunServer {
+	stop: (closeActiveConnections?: boolean) => void;
+	port: number;
+}
+
+/**
+ * Kill any lingering gravity processes from previous dev sessions.
+ * This is a defensive measure to clean up orphaned processes.
+ */
+async function killLingeringGravityProcesses(
+	logger: { debug: (msg: string, ...args: unknown[]) => void }
+): Promise<void> {
+	// Only attempt on Unix-like systems (macOS, Linux)
+	if (process.platform === 'win32') {
+		return;
+	}
+
+	try {
+		// Use pkill to kill gravity processes owned by current user
+		// The -f flag matches against full command line
+		// We specifically match the gravity binary name to avoid killing unrelated processes
+		const result = Bun.spawnSync(['pkill', '-f', 'gravity.*--endpoint-id'], {
+			stdout: 'ignore',
+			stderr: 'ignore',
+		});
+
+		// Exit code 0 = processes killed, 1 = no matching processes, other = error
+		if (result.exitCode === 0) {
+			logger.debug('Killed lingering gravity processes from previous session');
+			// Brief pause to let processes fully terminate
+			await new Promise((resolve) => setTimeout(resolve, 100));
+		}
+	} catch {
+		// pkill not available or failed - not critical, continue
+	}
+}
+
+/**
+ * Stop the existing Bun server if one is running.
+ * Waits for the port to become available before returning.
+ */
+async function stopBunServer(
+	port: number,
+	logger: { debug: (msg: string, ...args: unknown[]) => void }
+): Promise<void> {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const globalAny = globalThis as any;
+	const server = globalAny.__AGENTUITY_SERVER__ as BunServer | undefined;
+	if (!server) return;
+
+	try {
+		logger.debug('Stopping previous Bun server...');
+		server.stop(true); // Close active connections immediately
+	} catch (err) {
+		logger.debug('Error stopping previous Bun server: %s', err);
+	}
+
+	// Wait for socket to close to avoid EADDRINUSE races
+	for (let i = 0; i < 20; i++) {
+		try {
+			await fetch(`http://127.0.0.1:${port}/`, {
+				method: 'HEAD',
+				signal: AbortSignal.timeout(200),
+			});
+			// Still responding, wait a bit more
+			await new Promise((r) => setTimeout(r, 50));
+		} catch {
+			// Connection refused or timeout => server is down
+			break;
+		}
+	}
+
+	globalAny.__AGENTUITY_SERVER__ = undefined;
+}
+
 const getDefaultPort = (): number => {
 	const envPort = process.env.PORT;
 	if (!envPort) {
@@ -120,6 +195,10 @@ export const command = createCommand({
 			}
 			originalExit(1);
 		}
+
+		// Kill any lingering gravity processes from previous dev sessions
+		// This prevents "zombie" gravity clients from blocking the public URL
+		await killLingeringGravityProcesses(logger);
 
 		// Setup devmode and gravity (if using public URL)
 		const useMockService = process.env.DEVMODE_SYNC_SERVICE_MOCK === 'true';
@@ -290,16 +369,36 @@ export const command = createCommand({
 		// Start file watcher (will be paused during builds)
 		fileWatcher.start();
 
-		// Setup signal handlers once before the loop
-		const cleanup = async () => {
-			tui.info('Shutting down...');
+		// Track if cleanup is in progress to avoid duplicate cleanup
+		let cleaningUp = false;
 
-			// Stop file watcher
-			fileWatcher.stop();
+		/**
+		 * Centralized cleanup function for all resources.
+		 * Called on restart, shutdown, and fatal errors.
+		 * @param exitAfter - If true, exit the process after cleanup
+		 * @param exitCode - Exit code to use if exitAfter is true
+		 * @param silent - If true, don't show "Shutting down" message
+		 */
+		const cleanup = async (exitAfter = false, exitCode = 0, silent = false) => {
+			if (cleaningUp) return;
+			cleaningUp = true;
 
-			// Close Vite asset server first
-			if (viteServer) {
-				await viteServer.close();
+			if (!silent) {
+				tui.info('Shutting down...');
+			}
+
+			// Stop file watcher first to prevent restart triggers during cleanup
+			try {
+				fileWatcher.stop();
+			} catch (err) {
+				logger.debug('Error stopping file watcher: %s', err);
+			}
+
+			// Stop Bun server
+			try {
+				await stopBunServer(opts.port, logger);
+			} catch (err) {
+				logger.debug('Error stopping Bun server during cleanup: %s', err);
 			}
 
 			// Kill gravity client with SIGTERM first, then SIGKILL as fallback
@@ -307,37 +406,114 @@ export const command = createCommand({
 				try {
 					gravityProcess.kill('SIGTERM');
 					// Give it a moment to gracefully shutdown
-					await new Promise((resolve) => setTimeout(resolve, 100));
+					await new Promise((resolve) => setTimeout(resolve, 150));
 					if (gravityProcess.exitCode === null) {
 						gravityProcess.kill('SIGKILL');
 					}
 				} catch (err) {
 					logger.debug('Error killing gravity process: %s', err);
+				} finally {
+					gravityProcess = null;
 				}
 			}
 
-			originalExit(0);
+			// Close Vite asset server last (it handles frontend, should stay up longest)
+			if (viteServer) {
+				try {
+					await viteServer.close();
+				} catch (err) {
+					logger.debug('Error closing Vite server: %s', err);
+				} finally {
+					viteServer = null;
+				}
+			}
+
+			// Reset cleanup flag if not exiting (allows restart)
+			if (!exitAfter) {
+				cleaningUp = false;
+			} else {
+				originalExit(exitCode);
+			}
+		};
+
+		/**
+		 * Cleanup for restart: stops Bun server and Gravity, keeps Vite running
+		 */
+		const cleanupForRestart = async () => {
+			logger.debug('Cleaning up for restart...');
+
+			// Stop Bun server
+			try {
+				await stopBunServer(opts.port, logger);
+			} catch (err) {
+				logger.debug('Error stopping Bun server for restart: %s', err);
+			}
+
+			// Kill gravity client
+			if (gravityProcess) {
+				try {
+					gravityProcess.kill('SIGTERM');
+					await new Promise((resolve) => setTimeout(resolve, 150));
+					if (gravityProcess.exitCode === null) {
+						gravityProcess.kill('SIGKILL');
+					}
+				} catch (err) {
+					logger.debug('Error killing gravity process for restart: %s', err);
+				} finally {
+					gravityProcess = null;
+				}
+			}
 		};
 
 		// SIGINT/SIGTERM: coordinate shutdown between bundle and dev resources
-		let devShutdownHandled = false;
-		process.on('SIGINT', async () => {
-			if (devShutdownHandled) return;
-			devShutdownHandled = true;
-			// The bundle handles its own shutdown, we clean up dev resources
-			await cleanup();
-		});
-		process.on('SIGTERM', async () => {
-			if (devShutdownHandled) return;
-			devShutdownHandled = true;
-			await cleanup();
-		});
+		let signalHandlersRegistered = false;
+		if (!signalHandlersRegistered) {
+			signalHandlersRegistered = true;
 
-		// Ensure Vite and gravity are always killed on exit (even if cleanup is bypassed)
+			const safeExit = async (code: number, reason?: string) => {
+				if (reason) {
+					logger.debug('DevMode terminating (%d) due to: %s', code, reason);
+				}
+				await cleanup(true, code);
+			};
+
+			process.on('SIGINT', () => {
+				void safeExit(0, 'SIGINT');
+			});
+
+			process.on('SIGTERM', () => {
+				void safeExit(0, 'SIGTERM');
+			});
+
+			// Handle uncaught exceptions - clean up and exit rather than limping on
+			process.on('uncaughtException', (err) => {
+				tui.error(
+					`Uncaught exception: ${err instanceof Error ? err.stack ?? err.message : String(err)}`
+				);
+				void safeExit(1, 'uncaughtException');
+			});
+
+			// Handle unhandled rejections - log but don't exit (usually recoverable)
+			process.on('unhandledRejection', (reason) => {
+				logger.warn(
+					'Unhandled promise rejection: %s',
+					reason instanceof Error ? reason.stack ?? reason.message : String(reason)
+				);
+			});
+		}
+
+		// Ensure resources are always cleaned up on exit (synchronous fallback)
 		process.on('exit', () => {
+			// Kill gravity client with SIGKILL for immediate termination
+			if (gravityProcess && gravityProcess.exitCode === null) {
+				try {
+					gravityProcess.kill('SIGKILL');
+				} catch {
+					// Ignore errors during exit cleanup
+				}
+			}
+
 			// Close Vite server synchronously if possible
-			// Note: Vite's close() is async, but we can't await in 'exit' handler
-			// Most Vite implementations handle sync close gracefully
 			if (viteServer) {
 				try {
 					viteServer.close();
@@ -346,10 +522,12 @@ export const command = createCommand({
 				}
 			}
 
-			// Kill gravity client with SIGKILL for immediate termination
-			if (gravityProcess && gravityProcess.exitCode === null) {
+			// Stop Bun server synchronously (best effort)
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const server = (globalThis as any).__AGENTUITY_SERVER__;
+			if (server?.stop) {
 				try {
-					gravityProcess.kill('SIGKILL');
+					server.stop(true);
 				} catch {
 					// Ignore errors during exit cleanup
 				}
@@ -632,7 +810,7 @@ export const command = createCommand({
 								});
 								break;
 							case 'q':
-								originalExit(0);
+								void cleanup(true, 0);
 								break;
 							default:
 								process.stdout.write(data);
@@ -659,18 +837,8 @@ export const command = createCommand({
 				// Restart triggered - cleanup and loop (Vite stays running)
 				logger.debug('Restarting backend server...');
 
-				// Kill gravity client (if running)
-				if (gravityProcess) {
-					try {
-						gravityProcess.kill('SIGTERM');
-						await new Promise((resolve) => setTimeout(resolve, 100));
-						if (gravityProcess.exitCode === null) {
-							gravityProcess.kill('SIGKILL');
-						}
-					} catch (err) {
-						logger.debug('Error killing gravity process during restart: %s', err);
-					}
-				}
+				// Clean up Bun server and Gravity (Vite stays running)
+				await cleanupForRestart();
 
 				// Brief pause before restart
 				await new Promise((resolve) => setTimeout(resolve, 500));
@@ -679,17 +847,10 @@ export const command = createCommand({
 				tui.warn('Waiting for file changes to retry...');
 
 				// Cleanup on error (Vite stays running)
-				if (gravityProcess) {
-					try {
-						gravityProcess.kill('SIGTERM');
-						await new Promise((resolve) => setTimeout(resolve, 100));
-						if (gravityProcess.exitCode === null) {
-							gravityProcess.kill('SIGKILL');
-						}
-					} catch (err) {
-						logger.debug('Error killing gravity process on error: %s', err);
-					}
-				}
+				await cleanupForRestart();
+
+				// Resume file watcher to detect changes for retry
+				fileWatcher.resume();
 
 				// Wait for next restart trigger
 				await new Promise<void>((resolve) => {
