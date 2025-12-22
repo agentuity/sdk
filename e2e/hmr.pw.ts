@@ -4,34 +4,20 @@ import { join } from 'node:path';
 
 const APP_PATH = join(process.cwd(), 'apps/testing/e2e-web');
 const APP_TSX_PATH = join(APP_PATH, 'src/web/App.tsx');
-const API_INDEX_PATH = join(APP_PATH, 'src/api/index.ts');
-const AGENT_PATH = join(APP_PATH, 'src/agent/hello/agent.ts');
 
 test.describe('Hot Module Replacement (HMR)', () => {
 	let originalAppTsx: string;
-	let originalApiIndex: string;
-	let originalAgent: string;
 
 	test.beforeAll(async () => {
 		originalAppTsx = await readFile(APP_TSX_PATH, 'utf-8');
-		originalApiIndex = await readFile(API_INDEX_PATH, 'utf-8');
-		originalAgent = await readFile(AGENT_PATH, 'utf-8');
 	});
 
-	// Use afterEach to restore after each test (even on failure)
 	test.afterEach(async () => {
 		await writeFile(APP_TSX_PATH, originalAppTsx);
-		await writeFile(API_INDEX_PATH, originalApiIndex);
-		await writeFile(AGENT_PATH, originalAgent);
 	});
 
-	// Also restore after all tests as final cleanup
 	test.afterAll(async () => {
 		await writeFile(APP_TSX_PATH, originalAppTsx);
-		await writeFile(API_INDEX_PATH, originalApiIndex);
-		await writeFile(AGENT_PATH, originalAgent);
-		// Give Vite time to process the file restoration before next tests run
-		await new Promise((resolve) => setTimeout(resolve, 2000));
 	});
 
 	test('should support HMR for frontend changes', async ({ page }) => {
