@@ -31,7 +31,8 @@ export function registerAgentExplorer(context: vscode.ExtensionContext): AgentTr
 
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agentuity.agent.goToFile', async (item: AgentTreeItem) => {
-			if (!item?.agentData?.metadata?.filename) {
+			const filename = item?.agentData?.metadata?.filename;
+			if (typeof filename !== 'string') {
 				vscode.window.showWarningMessage('No source file associated with this agent');
 				return;
 			}
@@ -42,7 +43,7 @@ export function registerAgentExplorer(context: vscode.ExtensionContext): AgentTr
 				return;
 			}
 
-			const filePath = path.join(project.rootPath, item.agentData.metadata.filename);
+			const filePath = path.join(project.rootPath, filename);
 			const uri = vscode.Uri.file(filePath);
 
 			try {

@@ -383,7 +383,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 
 		return group.results.map((result) => {
 			const item = new DataTreeItem(
-				result.key,
+				result.key ?? '(unknown)',
 				vscode.TreeItemCollapsibleState.None,
 				'vectorResult',
 				'vector',
@@ -391,7 +391,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 				result
 			);
 			item.description = `${(result.similarity * 100).toFixed(1)}%`;
-			item.tooltip = `Similarity: ${(result.similarity * 100).toFixed(2)}%\nID: ${result.id}`;
+			item.tooltip = `Similarity: ${(result.similarity * 100).toFixed(2)}%\nID: ${result.id ?? '(unknown)'}`;
 			return item;
 		});
 	}

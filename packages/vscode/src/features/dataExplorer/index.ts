@@ -210,8 +210,8 @@ async function openVectorDocument(item: DataTreeItem): Promise<void> {
 
 	// Add metadata section
 	lines.push('=== Metadata ===');
-	lines.push(`Key: ${result.data.key}`);
-	lines.push(`ID: ${result.data.id}`);
+	lines.push(`Key: ${result.data.key ?? '(unknown)'}`);
+	lines.push(`ID: ${result.data.id ?? '(unknown)'}`);
 	if (result.data.metadata && Object.keys(result.data.metadata).length > 0) {
 		lines.push(`Metadata: ${JSON.stringify(result.data.metadata, null, 2)}`);
 	}
@@ -219,7 +219,7 @@ async function openVectorDocument(item: DataTreeItem): Promise<void> {
 	lines.push('');
 	lines.push('=== Document ===');
 	lines.push('');
-	lines.push(result.data.document);
+	lines.push(result.data.document ?? '(no document)');
 
 	await openReadonlyDocument(lines.join('\n'), 'plaintext', `vector-${key}`);
 }
