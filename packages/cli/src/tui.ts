@@ -52,7 +52,7 @@ export type {
 } from './tui/prompt';
 
 // Icons
-const ICONS = {
+export const ICONS = {
 	success: '✓',
 	error: '✗',
 	warning: '⚠',
@@ -831,7 +831,7 @@ function endsWithReset(str: string): boolean {
  * Handles explicit newlines and word wrapping
  * Preserves ANSI color codes across wrapped lines
  */
-function wrapText(text: string, maxWidth: number): string[] {
+export function wrapText(text: string, maxWidth: number): string[] {
 	const allLines: string[] = [];
 
 	// First split by explicit newlines
@@ -1810,5 +1810,24 @@ export function table<T extends Record<string, unknown>>(
 		return output;
 	} else {
 		console.log(output);
+	}
+}
+
+export function formatBytes(bytes: number): string {
+	if (bytes === 0) return '0 B';
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+	return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+export function clearLastLines(n: number, s?: (v: string) => void) {
+	const x = s ?? ((v: string) => process.stdout.write(v));
+	for (let i = 0; i < n; i++) {
+		x('\x1b[2K'); // clear line
+		x('\x1b[0G'); // cursor to col 0
+		if (i < n - 1) {
+			x('\x1b[1A'); // move up
+		}
 	}
 }

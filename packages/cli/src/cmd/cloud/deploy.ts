@@ -14,6 +14,7 @@ import {
 	stepSuccess,
 	stepSkipped,
 	stepError,
+	pauseStepUI,
 	type Step,
 	type StepContext,
 } from '../../steps';
@@ -41,57 +42,9 @@ import {
 import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { getCommand } from '../../command-prefix';
-import { checkCustomDomainForDNS } from './domain';
+import * as domain from '../../domain';
 import { DeployOptionsSchema } from '../../schemas/deploy';
 import { ErrorCode } from '../../errors';
-
-function shouldCompressAsset(asset: {
-	filename: string;
-	contentType: string;
-	kind: string;
-}): boolean {
-	const ct = asset.contentType.toLowerCase();
-	const filename = asset.filename.toLowerCase();
-
-	if (ct.startsWith('image/') && ct !== 'image/svg+xml') {
-		return false;
-	}
-	if (ct.startsWith('video/') || ct.startsWith('audio/')) {
-		return false;
-	}
-	if (ct === 'font/woff' || ct === 'font/woff2') {
-		return false;
-	}
-	if (/\.(zip|gz|tgz|tar|bz2|br)$/.test(filename)) {
-		return false;
-	}
-
-	if (
-		ct.startsWith('text/') ||
-		ct === 'application/javascript' ||
-		ct === 'application/json' ||
-		ct === 'application/xml' ||
-		ct === 'application/xhtml+xml' ||
-		ct === 'image/svg+xml'
-	) {
-		return true;
-	}
-
-	if (ct === 'font/ttf' || ct === 'application/vnd.ms-fontobject') {
-		return true;
-	}
-
-	if (
-		asset.kind === 'entry-point' ||
-		asset.kind === 'script' ||
-		asset.kind === 'stylesheet' ||
-		asset.kind === 'sourcemap'
-	) {
-		return true;
-	}
-
-	return false;
-}
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -172,24 +125,20 @@ export const deploySubcommand = createSubcommand({
 					!project.deployment?.domains?.length
 						? null
 						: {
-								label: `Validate Custom Domain${project.deployment.domains.length > 1 ? `s: ${project.deployment.domains.join(', ')}` : `: ${project.deployment.domains[0]}`}`,
+								label: `Validate Custom ${tui.plural(project.deployment.domains.length, 'Domain', 'Domains')}`,
 								run: async () => {
 									if (project.deployment?.domains?.length) {
-										const result = await checkCustomDomainForDNS(
-											project.projectId,
-											project.deployment.domains,
-											config
-										);
-										for (const r of result) {
-											if (r.success) {
-												continue;
-											}
-											if (r.message) {
-												return stepError(r.message);
-											}
-											return stepError('unknown dns error'); // shouldn't get here
+										try {
+											await domain.promptForDNS(
+												project.projectId,
+												project.deployment.domains,
+												config!,
+												() => pauseStepUI(true)
+											);
+											return stepSuccess();
+										} catch (ex) {
+											return stepError(String(ex), ex as Error);
 										}
-										return stepSuccess();
 									}
 									return stepSkipped();
 								},
@@ -382,6 +331,7 @@ export const deploySubcommand = createSubcommand({
 							}
 
 							progress(80);
+							let bytes = 0;
 							if (build?.assets) {
 								ctx.logger.trace(`Uploading ${build.assets.length} assets`);
 								if (!instructions.assets) {
@@ -391,9 +341,9 @@ export const deploySubcommand = createSubcommand({
 								}
 
 								// Workaround for Bun crash in compiled executables (https://github.com/agentuity/sdk/issues/191)
-								// Use limited concurrency (2 at a time) for executables to avoid parallel fetch crash
+								// Use limited concurrency (1 at a time) for executables to avoid parallel fetch crash
 								const isExecutable = isRunningFromExecutable();
-								const concurrency = isExecutable ? 2 : build.assets.length;
+								const concurrency = isExecutable ? 1 : Math.min(4, build.assets.length);
 
 								if (isExecutable) {
 									ctx.logger.trace(
@@ -416,14 +366,15 @@ export const deploySubcommand = createSubcommand({
 
 										// Asset filename already includes the subdirectory (e.g., "client/assets/main-abc123.js")
 										const filePath = join(projectDir, '.agentuity', asset.filename);
-										const compress = shouldCompressAsset(asset);
 
 										const headers: Record<string, string> = {
 											'Content-Type': asset.contentType,
 										};
 
+										bytes += asset.size;
+
 										let body: Uint8Array | Blob;
-										if (compress) {
+										if (asset.contentEncoding === 'gzip') {
 											const file = Bun.file(filePath);
 											const ab = await file.arrayBuffer();
 											const gzipped = Bun.gzipSync(new Uint8Array(ab));
@@ -458,7 +409,14 @@ export const deploySubcommand = createSubcommand({
 							}
 
 							progress(100);
-							return stepSuccess();
+							const output = build?.assets.length
+								? [
+										tui.muted(
+											`✓ Uploaded ${build.assets.length} ${tui.plural(build.assets.length, 'asset', 'assets')} (${tui.formatBytes(bytes)}) to CDN`
+										),
+									]
+								: undefined;
+							return stepSuccess(output);
 						},
 					},
 					{
@@ -683,20 +641,36 @@ export const deploySubcommand = createSubcommand({
 
 			// Show deployment URLs
 			if (complete?.publicUrls) {
+				const lines: string[] = [];
 				if (complete.publicUrls.custom?.length) {
 					for (const url of complete.publicUrls.custom) {
-						tui.arrow(tui.bold(tui.padRight('Deployment URL:', 17)) + tui.link(url));
+						lines.push(
+							`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Deployment:', 12)) + tui.link(url)}`
+						);
 					}
 				} else {
-					tui.arrow(
-						tui.bold(tui.padRight('Deployment URL:', 17)) +
+					lines.push(
+						`${tui.ICONS.arrow} ${
+							tui.bold(tui.padRight('Deployment:', 12)) +
 							tui.link(complete.publicUrls.deployment)
+						}`
 					);
-					tui.arrow(
-						tui.bold(tui.padRight('Project URL:', 17)) + tui.link(complete.publicUrls.latest)
+					lines.push(
+						`${tui.ICONS.arrow} ${
+							tui.bold(tui.padRight('Project:', 12)) + tui.link(complete.publicUrls.latest)
+						}`
 					);
-					tui.arrow(tui.bold(tui.padRight('Dashboard URL:', 17)) + tui.link(dashboard));
 				}
+				lines.push(
+					`${tui.ICONS.arrow} ${
+						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
+					}`
+				);
+				tui.banner(`Deployment: ${tui.colorPrimary(deployment.id)}`, lines.join('\n'), {
+					centerTitle: false,
+					topSpacer: false,
+					bottomSpacer: false,
+				});
 			}
 
 			return {

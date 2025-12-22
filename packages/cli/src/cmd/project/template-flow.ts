@@ -29,12 +29,14 @@ import {
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
 } from '../../env-util';
+import { promptForDNS } from '../../domain';
 
 type ResourcesTypes = z.infer<typeof Resources>;
 
 interface CreateFlowOptions {
 	projectName?: string;
 	dir?: string;
+	domains?: string[];
 	template?: string;
 	templateDir?: string;
 	templateBranch?: string;
@@ -63,6 +65,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		orgId: selectedOrgId,
 		region,
 		apiClient,
+		domains,
 	} = options;
 
 	// Fetch available templates
@@ -105,7 +108,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	if (!projectName && !skipPrompts) {
 		projectName = await prompt.text({
 			message: 'What is the name of your project?',
-			initial: 'My First Agent',
+			hint: 'The name must be unique for your organization',
+			initial: '',
 			validate: async (value: string) => {
 				if (!value || value.trim().length === 0) {
 					return 'Project name is required';
@@ -249,6 +253,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	}
 
 	const resourceConfig: ResourcesTypes = Resources.parse({});
+	let _domains = domains;
 
 	if (auth && apiClient && catalystClient && orgId && region && !skipPrompts) {
 		// Fetch resources for selected org and region using Catalyst API
@@ -265,8 +270,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		const db_action = await prompt.select({
 			message: 'Create SQL Database?',
 			options: [
-				{ value: 'Create New', label: 'Create a new (free)' },
 				{ value: 'Skip', label: 'Skip or Setup later' },
+				{ value: 'Create New', label: 'Create a new database' },
 				...resources.db.map((db) => ({
 					value: db.name,
 					label: `Use database: ${tui.tuiColors.primary(db.name)}`,
@@ -277,14 +282,30 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		const s3_action = await prompt.select({
 			message: 'Create Storage Bucket?',
 			options: [
-				{ value: 'Create New', label: 'Create a new (free)' },
 				{ value: 'Skip', label: 'Skip or Setup later' },
+				{ value: 'Create New', label: 'Create a new bucket' },
 				...resources.s3.map((bucket) => ({
 					value: bucket.bucket_name,
 					label: `Use bucket: ${tui.tuiColors.primary(bucket.bucket_name)}`,
 				})),
 			],
 		});
+
+		if (!domains?.length) {
+			const customDns = await prompt.text({
+				message: 'Setup custom DNS?',
+				hint: 'Enter a domain name or press Enter to skip',
+				validate: (val: string) =>
+					val === ''
+						? true
+						: /^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,63}$/.test(
+								val
+							),
+			});
+			if (customDns) {
+				_domains = [customDns];
+			}
+		}
 
 		const choices = { db_action, s3_action };
 		switch (choices.s3_action) {
@@ -329,9 +350,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 	}
 
-	if (auth && apiClient && orgId) {
-		let projectId: string | undefined;
+	let projectId: string | undefined;
 
+	if (auth && apiClient && orgId) {
 		const cloudRegion = region ?? process.env.AGENTUITY_REGION ?? 'usc';
 
 		const pkgJsonPath = resolve(dest, 'package.json');
@@ -355,6 +376,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					tags: tags.length > 0 ? tags : undefined,
 					orgId,
 					cloudRegion,
+					domains: _domains,
 				});
 				projectId = project.id;
 				return createProjectConfig(dest, {
@@ -363,6 +385,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					sdkKey: project.sdkKey,
 					deployment: {
 						resources: resourceConfig,
+						domains: _domains,
 					},
 					region: cloudRegion,
 				});
@@ -426,6 +449,15 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	}
 
 	playSound();
+
+	if (process.stdin.isTTY && !skipPrompts && _domains?.length && projectId) {
+		tui.newline();
+		const ok = await tui.confirm('Would you like to configure DNS now?', true);
+		if (ok) {
+			tui.newline();
+			await promptForDNS(projectId, _domains, config);
+		}
+	}
 }
 
 /**

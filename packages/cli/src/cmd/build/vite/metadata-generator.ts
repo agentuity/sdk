@@ -25,6 +25,7 @@ interface AssetInfo {
 	kind: string;
 	contentType: string;
 	size: number;
+	contentEncoding?: string;
 }
 
 function getContentType(filename: string): string {
@@ -63,6 +64,59 @@ function getContentType(filename: string): string {
 		default:
 			return 'application/octet-stream';
 	}
+}
+
+/**
+ * Determine if an asset should be compressed with gzip.
+ * The result is included in asset metadata so the API can generate
+ * presigned URLs with matching Content-Encoding.
+ */
+function shouldCompressAsset(asset: {
+	filename: string;
+	contentType: string;
+	kind: string;
+}): boolean {
+	const ct = asset.contentType.toLowerCase();
+	const filename = asset.filename.toLowerCase();
+
+	if (ct.startsWith('image/') && ct !== 'image/svg+xml') {
+		return false;
+	}
+	if (ct.startsWith('video/') || ct.startsWith('audio/')) {
+		return false;
+	}
+	if (ct === 'font/woff' || ct === 'font/woff2') {
+		return false;
+	}
+	if (/\.(zip|gz|tgz|tar|bz2|br)$/.test(filename)) {
+		return false;
+	}
+
+	if (
+		ct.startsWith('text/') ||
+		ct === 'application/javascript' ||
+		ct === 'application/json' ||
+		ct === 'application/xml' ||
+		ct === 'application/xhtml+xml' ||
+		ct === 'image/svg+xml'
+	) {
+		return true;
+	}
+
+	if (ct === 'font/ttf' || ct === 'application/vnd.ms-fontobject') {
+		return true;
+	}
+
+	if (
+		asset.kind === 'entry-point' ||
+		asset.kind === 'script' ||
+		asset.kind === 'stylesheet' ||
+		asset.kind === 'sourcemap'
+	) {
+		return true;
+	}
+
+	return false;
 }
 
 function getAssetKind(filename: string, isEntry: boolean = false): string {
@@ -220,12 +274,18 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 			}
 
 			seenAssets.add(assetPath);
-			assets.push({
+			const kind = getAssetKind(relativePath, isEntry);
+			const contentType = getContentType(relativePath);
+			const assetInfo: AssetInfo = {
 				filename: assetPath,
-				kind: getAssetKind(relativePath, isEntry),
-				contentType: getContentType(relativePath),
+				kind,
+				contentType,
 				size: stats.size,
-			});
+			};
+			if (shouldCompressAsset(assetInfo)) {
+				assetInfo.contentEncoding = 'gzip';
+			}
+			assets.push(assetInfo);
 		}
 	};
 
@@ -328,12 +388,17 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 						const assetPath = `public/${relativePath}`;
 						if (!seenAssets.has(assetPath)) {
 							seenAssets.add(assetPath);
-							assets.push({
+							const contentType = getContentType(entry.name);
+							const assetInfo: AssetInfo = {
 								filename: assetPath,
 								kind: 'static',
-								contentType: getContentType(entry.name),
+								contentType,
 								size: stats.size,
-							});
+							};
+							if (shouldCompressAsset(assetInfo)) {
+								assetInfo.contentEncoding = 'gzip';
+							}
+							assets.push(assetInfo);
 						}
 					}
 				}

@@ -1,10 +1,13 @@
 import type { Logger } from '@agentuity/core';
-import { Deployment, BuildMetadataSchema as ServerBuildMetadataSchema } from '@agentuity/server';
+import {
+	DeploymentConfig,
+	BuildMetadataSchema as ServerBuildMetadataSchema,
+} from '@agentuity/server';
 import type * as z from 'zod';
 import { z as zod } from 'zod';
 import type { APIClient } from './api';
 
-export { Deployment };
+export { DeploymentConfig };
 
 export type { Logger };
 
@@ -542,7 +545,7 @@ export const ProjectSchema = zod.object({
 	projectId: zod.string().describe('the project id'),
 	orgId: zod.string().describe('the organization id'),
 	region: zod.string().describe('the region identifier that the project is deployed into'),
-	deployment: Deployment.optional().describe('the deployment configuration'),
+	deployment: DeploymentConfig.optional().describe('the deployment configuration'),
 });
 
 export const BuildMetadataSchema = ServerBuildMetadataSchema;
