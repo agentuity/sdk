@@ -196,6 +196,11 @@
 				"command": "agentuity.createCustomAgents",
 				"title": "Create Custom Agents for Background Use",
 				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.generateSkills",
+				"title": "Generate AI Skills",
+				"category": "Agentuity"
 			}
 		],
 		"viewsContainers": {

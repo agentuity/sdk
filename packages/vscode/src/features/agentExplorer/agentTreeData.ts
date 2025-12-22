@@ -17,10 +17,11 @@ export class AgentTreeItem extends vscode.TreeItem {
 			this.iconPath = new vscode.ThemeIcon('robot');
 			this.contextValue = 'agent';
 			this.tooltip = this.buildAgentTooltip(agentData);
-			if (agentData?.metadata?.filename) {
+			const filename = agentData?.metadata?.filename;
+			if (typeof filename === 'string') {
 				const project = getCurrentProject();
 				if (project) {
-					const filePath = path.join(project.rootPath, agentData.metadata.filename);
+					const filePath = path.join(project.rootPath, filename);
 					this.command = {
 						command: 'vscode.open',
 						title: 'Open Agent',
@@ -48,8 +49,9 @@ export class AgentTreeItem extends vscode.TreeItem {
 		if (agent?.identifier) {
 			lines.push(`Identifier: ${agent.identifier}`);
 		}
-		if (agent?.metadata?.filename) {
-			lines.push(`File: ${agent.metadata.filename}`);
+		const filename = agent?.metadata?.filename;
+		if (typeof filename === 'string') {
+			lines.push(`File: ${filename}`);
 		}
 		lines.push('');
 		lines.push('Right-click for more actions');
