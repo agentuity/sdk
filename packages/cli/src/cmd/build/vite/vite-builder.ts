@@ -40,6 +40,13 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const { generateDocumentation } = await import('./docs-generator');
 		await generateDocumentation(srcDir, logger);
 
+		// Generate/update prompt files in dev mode only (non-blocking)
+		if (dev) {
+			import('./prompt-generator')
+				.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
+				.catch((err) => logger.warn('Failed to generate prompt files: %s', err.message));
+		}
+
 		// Generate lifecycle types (if setup() exists)
 		const { generateLifecycleTypes } = await import('./lifecycle-generator');
 		await generateLifecycleTypes(rootDir, srcDir, logger);

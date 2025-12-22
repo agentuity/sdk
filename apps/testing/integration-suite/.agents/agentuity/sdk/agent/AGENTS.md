@@ -2,11 +2,27 @@
 
 This folder contains AI agents for your Agentuity application. Each agent is organized in its own subdirectory.
 
+## Generated Types
+
+The `src/generated/` folder contains auto-generated TypeScript files:
+
+- `registry.ts` - Agent registry with strongly-typed agent definitions and schema types
+- `routes.ts` - Route registry for API, WebSocket, and SSE endpoints
+- `app.ts` - Application entry point (regenerated on every build)
+
+**Important:** Never edit files in `src/generated/` - they are overwritten on every build.
+
+Import generated types in your agents:
+
+```typescript
+import type { HelloInput, HelloOutput } from '../generated/registry';
+```
+
 ## Directory Structure
 
 Each agent folder must contain:
 
-- **agent.ts** (required) - Agent definition with metadata, schema, and handler
+- **agent.ts** (required) - Agent definition with schema and handler
 
 Example structure:
 
@@ -16,7 +32,7 @@ src/agent/
 │   └── agent.ts
 ├── process-data/
 │   └── agent.ts
-└── registry.generated.ts (auto-generated)
+└── (generated files in src/generated/)
 ```
 
 **Note:** HTTP routes are defined separately in `src/api/` - see the API folder guide for details.
@@ -117,12 +133,18 @@ export default agent;
 
 The handler receives a context object with:
 
-- **ctx.app** - Application state (appName, version, startedAt, config)
+- **ctx.app** - Application state (appName, version, startedAt, config from createApp)
 - **ctx.config** - Agent-specific config (from setup return value, fully typed)
 - **ctx.logger** - Structured logger (info, warn, error, debug, trace)
+- **ctx.tracer** - OpenTelemetry tracer for custom spans
+- **ctx.sessionId** - Unique session identifier
 - **ctx.kv** - Key-value storage
-- **ctx.vector** - Vector storage
-- **ctx.stream** - Stream management (create, list, delete)
+- **ctx.vector** - Vector storage for embeddings
+- **ctx.stream** - Stream storage for real-time data
+- **ctx.state** - In-memory request-scoped state (Map)
+- **ctx.thread** - Thread information for multi-turn conversations
+- **ctx.session** - Session information
+- **ctx.waitUntil** - Schedule background tasks
 
 ## Examples
 
@@ -132,7 +154,21 @@ The handler receives a context object with:
 handler: async (ctx, input) => {
 	await ctx.kv.set('user:123', { name: 'Alice', age: 30 });
 	const user = await ctx.kv.get('user:123');
+	await ctx.kv.delete('user:123');
+	const keys = await ctx.kv.list('user:*');
 	return user;
+};
+```
+
+### Using Vector Storage
+
+```typescript
+handler: async (ctx, input) => {
+	await ctx.vector.upsert('docs', [
+		{ id: '1', values: [0.1, 0.2, 0.3], metadata: { text: 'Hello' } },
+	]);
+	const results = await ctx.vector.query('docs', [0.1, 0.2, 0.3], { topK: 5 });
+	return results;
 };
 ```
 
@@ -140,13 +176,24 @@ handler: async (ctx, input) => {
 
 ```typescript
 handler: async (ctx, input) => {
-	const stream = await ctx.stream.create('output', {
-		metadata: { createdBy: 'my-agent' },
-		contentType: 'text/plain',
+	const stream = await ctx.stream.create('agent-logs');
+	await ctx.stream.write(stream.id, 'Processing step 1');
+	await ctx.stream.write(stream.id, 'Processing step 2');
+	return { streamId: stream.id };
+};
+```
+
+### Background Tasks with waitUntil
+
+```typescript
+handler: async (ctx, input) => {
+	// Schedule background work that continues after response
+	ctx.waitUntil(async () => {
+		await ctx.kv.set('processed', Date.now());
+		ctx.logger.info('Background task complete');
 	});
-	await stream.write('Hello from stream');
-	await stream.close();
-	return { streamId: stream.id, url: stream.url };
+
+	return { status: 'processing' };
 };
 ```
 
@@ -257,3 +304,5 @@ export default agent;
 - Use ctx.logger for logging, not console.log
 - Import agents directly to call them (recommended approach)
 - Subagents are one level deep only (team/members/, not team/members/subagent/)
+
+<!-- prompt_hash: 9a71bb6d5544990d6ab3ecdf143b3a5caad26ce2e250df3b728a8d70bbf1fbad -->
