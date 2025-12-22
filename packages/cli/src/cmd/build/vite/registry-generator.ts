@@ -14,6 +14,22 @@ import type { RouteInfo } from './route-discovery';
 const AgentIdentifierCollisionError = StructuredError('AgentIdentifierCollisionError');
 
 /**
+ * Regex to strip route parameter characters that produce invalid TypeScript property names:
+ * - Leading : (path parameters, e.g., :id)
+ * - Leading * (wildcard routes, e.g., *path)
+ * - Trailing ?, +, * (optional/one-or-more/wildcard modifiers, e.g., :userId?)
+ */
+const ROUTE_PARAM_CHARS = /^[:*]|[?+*]$/g;
+
+/**
+ * Sanitize a route path segment for use as a TypeScript property name.
+ * Strips route parameter characters and converts to camelCase.
+ */
+function sanitizePathSegment(segment: string): string {
+	return toCamelCase(segment.replace(ROUTE_PARAM_CHARS, ''));
+}
+
+/**
  * Generate src/generated/registry.ts with agent registry and types
  */
 export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): void {
@@ -244,9 +260,9 @@ function generateRPCRegistryType(
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let current: any = tree;
 
-		// Add path segments (all parts) - convert to camelCase for safe property access
+		// Add path segments - sanitize for valid TypeScript property names
 		for (let i = 0; i < pathParts.length; i++) {
-			const part = toCamelCase(pathParts[i]);
+			const part = sanitizePathSegment(pathParts[i]);
 			if (!current[part]) {
 				current[part] = {};
 			}
@@ -382,11 +398,11 @@ function generateRPCRuntimeMetadata(
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let current: any = tree;
 
-		// Convert path segments to camelCase for safe property access
+		// Sanitize path segments for valid property names (must match type generation)
 		for (const part of pathParts) {
-			const camelPart = toCamelCase(part);
-			if (!current[camelPart]) current[camelPart] = {};
-			current = current[camelPart];
+			const sanitized = sanitizePathSegment(part);
+			if (!current[sanitized]) current[sanitized] = {};
+			current = current[sanitized];
 		}
 
 		// Use terminal method name based on route type
