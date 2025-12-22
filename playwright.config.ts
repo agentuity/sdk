@@ -23,5 +23,9 @@ export default defineConfig({
 		url: 'http://localhost:3500',
 		reuseExistingServer: !process.env.CI,
 		timeout: 120000,
+		stdout: 'pipe',
+		wait: {
+			stdout: /DevMode ready/,
+		},
 	},
 });
