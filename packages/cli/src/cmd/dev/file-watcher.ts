@@ -5,8 +5,8 @@
  * Handles both backend (API, agents, lib) and generates restart signals.
  */
 
-import { watch, type FSWatcher, statSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { watch, type FSWatcher, statSync, readdirSync, lstatSync } from 'node:fs';
+import { resolve, basename, relative } from 'node:path';
 import type { Logger } from '../../types';
 import { createAgentTemplates, createAPITemplates } from './templates';
 
@@ -34,11 +34,23 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	let paused = false;
 	let buildCooldownTimer: NodeJS.Timeout | null = null;
 
-	// Watch the entire root directory recursively
-	// This is simpler and more reliable than watching individual paths
-	const watchDirs = [rootDir];
+	// Directories to ignore - these are NEVER traversed into
+	// This prevents EMFILE errors from symlink cycles in node_modules
+	const ignoreDirs = new Set([
+		'.agentuity',
+		'.agents',
+		'.claude',
+		'.code',
+		'.opencode',
+		'node_modules',
+		'.git',
+		'dist',
+		'build',
+		'.next',
+		'.turbo',
+	]);
 
-	// Directories to ignore
+	// Paths to ignore for file change events (but may still be traversed)
 	const ignorePaths = [
 		'.agentuity',
 		'.agents',
@@ -172,47 +184,100 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	}
 
 	/**
+	 * Recursively collect all directories to watch, skipping ignored directories.
+	 * This prevents EMFILE errors from symlink cycles in node_modules.
+	 */
+	function collectWatchDirs(dir: string, visited: Set<string> = new Set()): string[] {
+		const dirs: string[] = [dir];
+
+		try {
+			// Use lstat to check for symlinks - get the real path to detect cycles
+			const stat = lstatSync(dir);
+
+			// Skip symlinks to prevent following circular symlinks
+			if (stat.isSymbolicLink()) {
+				logger.trace('Skipping symlink: %s', dir);
+				return [];
+			}
+
+			// Track visited inodes to detect cycles
+			const key = `${stat.dev}:${stat.ino}`;
+			if (visited.has(key)) {
+				logger.trace('Skipping already visited directory (cycle detected): %s', dir);
+				return [];
+			}
+			visited.add(key);
+
+			const entries = readdirSync(dir, { withFileTypes: true });
+
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+
+				const name = entry.name;
+
+				// Skip ignored directories entirely - this is the key fix
+				if (ignoreDirs.has(name)) {
+					logger.trace('Skipping ignored directory: %s', resolve(dir, name));
+					continue;
+				}
+
+				// Skip hidden directories (except specific ones like .env folders)
+				if (name.startsWith('.')) {
+					logger.trace('Skipping hidden directory: %s', resolve(dir, name));
+					continue;
+				}
+
+				const fullPath = resolve(dir, name);
+				dirs.push(...collectWatchDirs(fullPath, visited));
+			}
+		} catch (error) {
+			logger.trace('Error reading directory %s: %s', dir, error);
+		}
+
+		return dirs;
+	}
+
+	/**
 	 * Start watching files
 	 */
 	function start() {
 		logger.debug('Starting file watchers for hot reload...');
 
-		// Watch root directory (already absolute path)
-		for (const watchPath of watchDirs) {
-			try {
-				logger.trace('Setting up watcher for: %s', watchPath);
+		// Collect all directories to watch, excluding node_modules and other ignored dirs
+		const allDirs = collectWatchDirs(rootDir);
 
-				const watcher = watch(watchPath, { recursive: true }, (eventType, changedFile) => {
-					handleFileChange(eventType, changedFile, watchPath);
-				});
-
-				watchers.push(watcher);
-				logger.trace('Watcher started for: %s', watchPath);
-			} catch (error) {
-				logger.warn('Failed to start watcher for %s: %s', watchPath, error);
-			}
-		}
-
-		// Watch additional paths if provided
+		// Add additional paths
 		if (additionalPaths && additionalPaths.length > 0) {
 			for (const additionalPath of additionalPaths) {
 				const fullPath = resolve(rootDir, additionalPath);
-				try {
-					logger.trace('Setting up watcher for additional path: %s', fullPath);
-
-					const watcher = watch(fullPath, { recursive: true }, (eventType, changedFile) => {
-						handleFileChange(eventType, changedFile, fullPath);
-					});
-
-					watchers.push(watcher);
-					logger.trace('Watcher started for additional path: %s', fullPath);
-				} catch (error) {
-					logger.warn('Failed to start watcher for %s: %s', fullPath, error);
-				}
+				allDirs.push(...collectWatchDirs(fullPath));
 			}
 		}
 
-		logger.debug('File watchers started (%d paths)', watchers.length);
+		// De-duplicate directories
+		const uniqueDirs = [...new Set(allDirs)];
+
+		logger.debug('Collected %d directories to watch', uniqueDirs.length);
+
+		// Watch each directory non-recursively
+		for (const watchPath of uniqueDirs) {
+			try {
+				// Use non-recursive watch to avoid traversing into node_modules
+				const watcher = watch(watchPath, { recursive: false }, (eventType, changedFile) => {
+					// Construct relative path from rootDir for consistent handling
+					const relPath = changedFile
+						? relative(rootDir, resolve(watchPath, changedFile))
+						: relative(rootDir, watchPath);
+					handleFileChange(eventType, relPath || changedFile, rootDir);
+				});
+
+				watchers.push(watcher);
+			} catch (error) {
+				logger.trace('Failed to start watcher for %s: %s', watchPath, error);
+			}
+		}
+
+		logger.debug('File watchers started (%d directories)', watchers.length);
 	}
 
 	/**
