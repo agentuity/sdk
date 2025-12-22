@@ -13,7 +13,7 @@ interface KeypressEvent {
 export interface TextOptions {
 	message: string;
 	initial?: string;
-	placeholder?: string;
+	hint?: string;
 	validate?: (value: string) => boolean | string | Promise<boolean | string>;
 }
 
@@ -54,7 +54,6 @@ interface PromptState {
  */
 export class PromptFlow {
 	private states: PromptState[] = [];
-	private hasIntro = false;
 
 	/**
 	 * Display intro banner
@@ -62,7 +61,6 @@ export class PromptFlow {
 	intro(title: string): void {
 		console.log(`${colors.secondary(symbols.squareTL)}   ${colors.inverseCyan(` ⨺ ${title} `)}`);
 		console.log(colors.secondary(symbols.bar));
-		this.hasIntro = true;
 	}
 
 	/**
@@ -96,10 +94,16 @@ export class PromptFlow {
 			});
 
 			let hasError = false;
+			let hadValidationError = false;
 
 			const showPrompt = () => {
 				// Show prompt with active symbol
 				process.stdout.write(`${colors.active(symbols.active)}  ${message}\n`);
+				if (options.hint) {
+					process.stdout.write(
+						`${colors.secondary(symbols.bar)}  ${colors.muted(options.hint)}\n`
+					);
+				}
 				// Use readline's prompt for the input line
 				rl.prompt();
 			};
@@ -108,7 +112,8 @@ export class PromptFlow {
 
 			rl.on('line', async (input) => {
 				const trimmed = input.trim();
-				const value = trimmed.length > 0 ? trimmed : initial;
+				// After a validation error, require explicit input - don't fall back to initial
+				const value = trimmed.length > 0 ? trimmed : hadValidationError ? '' : initial;
 
 				// Validate
 				if (validate) {
@@ -129,6 +134,7 @@ export class PromptFlow {
 							// Use readline's prompt for the input line
 							rl.prompt();
 							hasError = true;
+							hadValidationError = true;
 							return;
 						}
 					} catch (error) {
@@ -156,7 +162,7 @@ export class PromptFlow {
 				}
 
 				// Clear all lines and show completed state
-				const linesToClear = hasError ? 3 : 2;
+				const linesToClear = hasError ? 4 : 3;
 				readline.moveCursor(process.stdout, 0, -linesToClear);
 				readline.clearScreenDown(process.stdout);
 

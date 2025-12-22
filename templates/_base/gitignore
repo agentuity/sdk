@@ -15,7 +15,7 @@ coverage
 
 # logs
 
-logs
+/logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]\*.json
 
@@ -41,4 +41,3 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]\*.json
 # Agentuity build files
 
 .agentuity
-**/*.generated.*

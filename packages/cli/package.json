@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/cli",
-	"version": "0.0.95",
+	"version": "0.0.101",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -13,6 +13,10 @@
 		".": {
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
+		},
+		"./vite-plugin": {
+			"import": "./dist/cmd/build/vite/index.js",
+			"types": "./dist/cmd/build/vite/index.d.ts"
 		}
 	},
 	"files": [
@@ -32,6 +36,7 @@
 		"test:response-schema": "bun scripts/test-response-schema.ts",
 		"test:batch": "bun scripts/test-batch-reporting.ts",
 		"test:envelope": "bun scripts/test-response-envelope.ts",
+		"test:bundled-create": "bun scripts/test-bundled-create.ts",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
@@ -39,6 +44,7 @@
 		"@agentuity/server": "workspace:*",
 		"@datasert/cronjs-parser": "^1.4.0",
 		"@terascope/fetch-github-release": "^2.2.1",
+		"@vitejs/plugin-react": "^5.1.2",
 		"acorn-loose": "^8.5.2",
 		"adm-zip": "^0.5.16",
 		"astring": "^1.9.0",
@@ -51,6 +57,7 @@
 		"tar": "^7.5.2",
 		"tar-fs": "^3.1.1",
 		"typescript": "^5.9.0",
+		"vite": "^7.2.7",
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {
@@ -60,6 +67,7 @@
 		"@types/tar-fs": "^2.0.4",
 		"bun-plugin-tailwind": "^0.1.2",
 		"bun-types": "latest",
+		"hono": "^4.7.13",
 		"tailwindcss": "^4.1.18"
 	},
 	"publishConfig": {

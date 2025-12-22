@@ -5,6 +5,7 @@ import {
 	type StandardSchemaV1,
 	type StreamStorage,
 	type VectorStorage,
+	type InferInput,
 	type InferOutput,
 	toCamelCase,
 	type EvalRunStartEvent,
@@ -19,19 +20,21 @@ import {
 	inHTTPContext,
 	getHTTPContext,
 	setupRequestAgentContext,
+	getAgentAsyncLocalStorage,
 	type RequestAgentContextArgs,
 } from './_context';
 import type { Logger } from './logger';
 import type { Eval, EvalContext, EvalRunResult, EvalFunction } from './eval';
 import { internal } from './logger/internal';
-import { getApp } from './app';
+import { fireEvent } from './_events';
 import type { Thread, Session } from './session';
-import { privateContext, notifyReady } from './_server';
+import { privateContext } from './_server';
 import { generateId } from './session';
 import { getEvalRunEventProvider } from './_services';
 import * as runtimeConfig from './_config';
 import type { AppState } from './index';
 import { validateSchema, formatValidationIssues } from './_validation';
+import { getAgentMetadataByName, getEvalMetadata } from './_metadata';
 
 export type AgentEventName = 'started' | 'completed' | 'errored';
 
@@ -428,7 +431,7 @@ export interface AgentValidator<
 				{
 					// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 					in: {};
-					out: { json: InferOutput<TInput> };
+					out: { json: InferInput<TInput> };
 				}
 			>
 		: Handler<any, any, any>;
@@ -508,7 +511,7 @@ export interface AgentValidator<
 			// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			in: {};
 			out: {
-				json: InferOutput<TOverrideInput>;
+				json: InferInput<TOverrideInput>;
 			};
 		}
 	>;
@@ -1221,16 +1224,13 @@ async function fireAgentEvent(
 		}
 	}
 
-	// Fire app-level listeners
-	const app = getApp();
-	if (app) {
-		if (eventName === 'errored' && data) {
-			await app.fireEvent('agent.errored', agent, context, data);
-		} else if (eventName === 'started') {
-			await app.fireEvent('agent.started', agent, context);
-		} else if (eventName === 'completed') {
-			await app.fireEvent('agent.completed', agent, context);
-		}
+	// Fire global app-level events
+	if (eventName === 'errored' && data) {
+		await fireEvent('agent.errored', agent, context, data);
+	} else if (eventName === 'started') {
+		await fireEvent('agent.started', agent, context);
+	} else if (eventName === 'completed') {
+		await fireEvent('agent.completed', agent, context);
 	}
 }
 
@@ -1535,6 +1535,7 @@ export function createAgent<
 			'@agentuity/agentInstanceId': agent.metadata.agentId,
 			'@agentuity/agentDescription': agent.metadata.description,
 			'@agentuity/agentName': agent.metadata.name,
+			'@agentuity/threadId': agentCtx.thread.id,
 		};
 
 		// Set agent attributes on the current active span
@@ -1546,15 +1547,15 @@ export function createAgent<
 		if (inHTTPContext()) {
 			const honoCtx = privateContext(getHTTPContext());
 			if (honoCtx.var.agentIds) {
-				honoCtx.var.agentIds.add(agent.metadata.id);
-				honoCtx.var.agentIds.add(agent.metadata.agentId);
+				if (agent.metadata.id) honoCtx.var.agentIds.add(agent.metadata.id);
+				if (agent.metadata.agentId) honoCtx.var.agentIds.add(agent.metadata.agentId);
 			}
 		} else {
 			// For standalone contexts, check for AGENT_IDS symbol
 			const agentIds = (agentCtx as any)[AGENT_IDS] as Set<string> | undefined;
 			if (agentIds) {
-				agentIds.add(agent.metadata.id);
-				agentIds.add(agent.metadata.agentId);
+				if (agent.metadata.id) agentIds.add(agent.metadata.id);
+				if (agent.metadata.agentId) agentIds.add(agent.metadata.agentId);
 			}
 		}
 
@@ -1718,7 +1719,7 @@ export function createAgent<
 
 	// Build metadata - merge user-provided metadata with defaults
 	// The build plugin injects metadata via config.metadata during AST transformation
-	const metadata: Partial<AgentMetadata> = {
+	let metadata: Partial<AgentMetadata> = {
 		// Defaults (used when running without build, e.g., dev mode)
 		name,
 		description: config.description,
@@ -1731,6 +1732,26 @@ export function createAgent<
 		// Merge in build-time injected metadata (overrides defaults)
 		...config.metadata,
 	};
+
+	// If id/agentId are empty, try to load from agentuity.metadata.json
+	if (!metadata.id || !metadata.agentId) {
+		const fileMetadata = getAgentMetadataByName(name);
+		if (fileMetadata) {
+			internal.info(
+				'[agent] loaded metadata for "%s" from file: id=%s, agentId=%s',
+				name,
+				fileMetadata.id,
+				fileMetadata.agentId
+			);
+			metadata = {
+				...metadata,
+				id: fileMetadata.id || metadata.id,
+				agentId: fileMetadata.agentId || metadata.agentId,
+				filename: fileMetadata.filename || metadata.filename,
+				version: fileMetadata.version || metadata.version,
+			};
+		}
+	}
 
 	const agent: any = {
 		handler,
@@ -1788,19 +1809,39 @@ export function createAgent<
 			// Execute each eval using waitUntil to avoid blocking the response
 			for (const evalItem of agentEvals) {
 				const evalName = evalItem.metadata.name || 'unnamed';
+				const agentName = _agent?.metadata?.name || name;
 
 				ctx.waitUntil(
 					(async () => {
 						internal.info(`[EVALRUN] Starting eval run tracking for '${evalName}'`);
 						const evalRunId = generateId('evalrun');
-						// Use build-time injected eval ID (now properly injected via AST transformation)
-						const evalId = evalItem.metadata.id || '';
+
+						// Look up eval metadata from agentuity.metadata.json by agent name and eval name
+						internal.info(
+							`[EVALRUN] Looking up eval metadata: agentName='${agentName}', evalName='${evalName}'`
+						);
+						const evalMeta = getEvalMetadata(agentName, evalName);
+						internal.info(`[EVALRUN] Eval metadata lookup result:`, {
+							found: !!evalMeta,
+							evalId: evalMeta?.evalId,
+							id: evalMeta?.id,
+							filename: evalMeta?.filename,
+						});
+
+						// evalId = deployment-specific ID (evalid_...), evalIdentifier = stable (eval_...)
+						const evalId = evalMeta?.id || '';
+						const evalIdentifier = evalMeta?.evalId || '';
+						internal.info(
+							`[EVALRUN] Resolved evalId='${evalId}', evalIdentifier='${evalIdentifier}'`
+						);
 
 						// Log eval metadata using structured logging and tracing
 						ctx.logger.debug('Starting eval run with metadata', {
 							evalName,
+							agentName,
 							evalRunId,
 							evalId,
+							evalMetaFromFile: !!evalMeta,
 							evalMetadata: evalItem.metadata,
 						});
 
@@ -1811,8 +1852,9 @@ export function createAgent<
 								'eval.name': evalName,
 								'eval.id': evalId,
 								'eval.runId': evalRunId,
-								'eval.description': evalItem.metadata.description || '',
-								'eval.filename': evalItem.metadata.filename || '',
+								'eval.description':
+									evalMeta?.description || evalItem.metadata.description || '',
+								'eval.filename': evalMeta?.filename || evalItem.metadata.filename || '',
 							});
 						}
 
@@ -1822,12 +1864,14 @@ export function createAgent<
 						const evalRunEventProvider = getEvalRunEventProvider();
 
 						// Only send events if we have required context (devmode flag will be set based on devMode)
-						const shouldSendEvalRunEvents = orgId && projectId && evalId !== '';
+						const shouldSendEvalRunEvents =
+							orgId && projectId && evalId !== '' && evalIdentifier !== '';
 
 						internal.info(`[EVALRUN] Checking conditions for eval '${evalName}':`, {
 							orgId: orgId,
 							projectId: projectId,
 							evalId: evalId,
+							evalIdentifier: evalIdentifier,
 							devMode,
 							hasEvalRunEventProvider: !!evalRunEventProvider,
 							shouldSendEvalRunEvents,
@@ -1838,6 +1882,8 @@ export function createAgent<
 							if (!orgId) reasons.push('missing orgId');
 							if (!projectId) reasons.push('missing projectId');
 							if (!evalId || evalId === '') reasons.push('empty evalId');
+							if (!evalIdentifier || evalIdentifier === '')
+								reasons.push('empty evalIdentifier');
 							internal.info(
 								`[EVALRUN] Skipping eval run events for '${evalName}': ${reasons.join(', ')}`
 							);
@@ -1862,7 +1908,8 @@ export function createAgent<
 									const startEvent: EvalRunStartEvent = {
 										id: evalRunId,
 										sessionId: ctx.sessionId,
-										evalId: evalId,
+										evalId: evalId, // deployment-specific ID (evalid_...)
+										evalIdentifier: evalIdentifier, // stable identifier (eval_...)
 										orgId: orgId!,
 										projectId: projectId!,
 										devmode: Boolean(devMode),
@@ -2191,6 +2238,7 @@ const runWithSpan = async <
 		'@agentuity/agentInstanceId': agent.metadata.agentId,
 		'@agentuity/agentDescription': agent.metadata.description,
 		'@agentuity/agentName': agent.metadata.name,
+		'@agentuity/threadId': ctx.var.thread.id,
 	});
 
 	const spanId = span.spanContext().spanId;
@@ -2295,9 +2343,11 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 			const agentKey = toCamelCase(agentName);
 			const agent = agentsObj[agentKey];
 			const _ctx = privateContext(ctx);
+			// we add both so that you can query by either
 			if (agent?.metadata?.id) {
-				// we add both so that you can query by either
 				_ctx.var.agentIds.add(agent.metadata.id);
+			}
+			if (agent?.metadata?.agentId) {
 				_ctx.var.agentIds.add(agent.metadata.agentId);
 			}
 		}
@@ -2334,7 +2384,7 @@ export const runAgentSetups = async (appState: AppState): Promise<void> => {
 			setAgentConfig(name as AgentName, config);
 		}
 	}
-	await notifyReady();
+	// Note: Server readiness is managed by Vite (dev) or Bun.serve (prod)
 };
 
 export const runAgentShutdowns = async (appState: AppState): Promise<void> => {
@@ -2396,7 +2446,6 @@ export async function runInAgentContext<TInput, TOutput>(
 	agent: AgentRunner<any, any, any>,
 	input?: TInput
 ): Promise<TOutput> {
-	const { getAgentAsyncLocalStorage } = await import('./_context');
 	const storage = getAgentAsyncLocalStorage();
 
 	// Register agent in runtime state so events fire (lookup by metadata.name)

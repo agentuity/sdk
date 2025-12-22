@@ -56,6 +56,9 @@ echo "🔨 Building packages..."
 cd "$SDK_ROOT/packages/core"
 bun run build
 
+cd "$SDK_ROOT/packages/frontend"
+bun run build
+
 cd "$SDK_ROOT/packages/react"
 bun run build
 
@@ -75,6 +78,12 @@ CORE_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
 restore_version "$SDK_ROOT/packages/core" "$CORE_ORIGINAL"
 echo "  - core: $CORE_PKG"
 
+cd "$SDK_ROOT/packages/frontend"
+FRONTEND_ORIGINAL=$(update_version "$SDK_ROOT/packages/frontend" "$DEV_VERSION")
+FRONTEND_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
+restore_version "$SDK_ROOT/packages/frontend" "$FRONTEND_ORIGINAL"
+echo "  - frontend: $FRONTEND_PKG"
+
 cd "$SDK_ROOT/packages/react"
 REACT_ORIGINAL=$(update_version "$SDK_ROOT/packages/react" "$DEV_VERSION")
 REACT_PKG=$(bun pm pack --destination "$TEMP_DIR" --quiet | xargs basename)
@@ -92,27 +101,33 @@ echo ""
 echo "📥 Installing workbench in $TARGET_DIR..."
 cd "$TARGET_DIR"
 
-npm rm @agentuity/workbench 2>/dev/null || true
+bun rm @agentuity/workbench 2>/dev/null || true
+bun rm @agentuity/frontend 2>/dev/null || true
+bun rm @agentuity/react 2>/dev/null || true
+bun rm @agentuity/core 2>/dev/null || true
 
-npm rm @agentuity/react 2>/dev/null || true
-npm rm @agentuity/core 2>/dev/null || true
+# Extract tarballs directly into node_modules to avoid npm registry resolution
+mkdir -p node_modules/@agentuity
 
+for pkg in "$CORE_PKG" "$FRONTEND_PKG" "$REACT_PKG" "$WORKBENCH_PKG"; do
+  pkg_name=$(echo "$pkg" | sed 's/agentuity-//' | sed 's/-0.0.*\.tgz//')
+  tar -xzf "$TEMP_DIR/$pkg" -C node_modules/@agentuity
+  mv node_modules/@agentuity/package "node_modules/@agentuity/$pkg_name"
+  echo "  ✓ Extracted $pkg_name"
+done
 
-npm i "$TEMP_DIR/$CORE_PKG"
-npm i "$TEMP_DIR/$REACT_PKG"
-npm i "$TEMP_DIR/$WORKBENCH_PKG"
+# Run bun install to link peer dependencies
+bun install
 
 # Cleanup nested @agentuity packages (ensures proper resolution)
 echo ""
 echo "🧹 Cleaning nested @agentuity packages..."
-if [ -d "node_modules/@agentuity/workbench/node_modules/@agentuity" ]; then
-    echo "  - Removing node_modules/@agentuity/workbench/node_modules/@agentuity"
-    rm -rf "node_modules/@agentuity/workbench/node_modules/@agentuity"
-fi
-if [ -d "node_modules/@agentuity/react/node_modules/@agentuity" ]; then
-    echo "  - Removing node_modules/@agentuity/react/node_modules/@agentuity"
-    rm -rf "node_modules/@agentuity/react/node_modules/@agentuity"
-fi
+for pkg in workbench react web core; do
+    if [ -d "node_modules/@agentuity/$pkg/node_modules/@agentuity" ]; then
+        echo "  - Removing node_modules/@agentuity/$pkg/node_modules/@agentuity"
+        rm -rf "node_modules/@agentuity/$pkg/node_modules/@agentuity"
+    fi
+done
 
 # Cleanup
 rm -rf "$TEMP_DIR"

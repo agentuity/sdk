@@ -19,10 +19,9 @@
 		"noUnusedParameters": false,
 		"noPropertyAccessFromIndexSignature": false,
 		"paths": {
-			"@agentuity/runtime": ["./.agentuity/.agentuity_runtime.ts"],
 			"@agent/*": ["./src/agent/*"],
 			"@api/*": ["./src/api/*"]
 		}
 	},
-	"include": ["src/**/*", "app.ts", ".agentuity/*.generated.ts"]
+	"include": ["src/**/*", "app.ts"]
 }

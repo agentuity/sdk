@@ -9,7 +9,8 @@ import { generateId } from './session';
 import WaitUntilHandler from './_waituntil';
 import { registerServices } from './_services';
 import { getAgentAsyncLocalStorage } from './_context';
-import { getLogger, getTracer, getAppState } from './_server';
+import { getLogger, getTracer } from './_server';
+import { getAppState } from './app';
 import { getThreadProvider, getSessionProvider, getSessionEventProvider } from './_services';
 import * as runtimeConfig from './_config';
 
@@ -142,6 +143,7 @@ export class StandaloneAgentContext<
 			({
 				id: 'pending',
 				state: new Map(),
+				metadata: {},
 				addEventListener: () => {},
 				removeEventListener: () => {},
 				destroy: async () => {},
@@ -154,6 +156,7 @@ export class StandaloneAgentContext<
 				id: 'pending',
 				thread: this.thread,
 				state: new Map(),
+				metadata: {},
 				addEventListener: () => {},
 				removeEventListener: () => {},
 				serializeUserData: () => undefined,
@@ -316,6 +319,10 @@ export class StandaloneAgentContext<
 								method: 'STANDALONE',
 								url: '',
 								trigger: this.trigger,
+								metadata:
+									Object.keys(invocationSession.metadata).length > 0
+										? invocationSession.metadata
+										: undefined,
 							})
 							.catch((ex) => {
 								canSendSessionEvents = false;
@@ -351,6 +358,10 @@ export class StandaloneAgentContext<
 												statusCode: 200, // Success
 												agentIds: Array.from(agentIds),
 												userData,
+												metadata:
+													Object.keys(invocationSession.metadata).length > 0
+														? invocationSession.metadata
+														: undefined,
 											})
 											.then(() => {})
 											.catch((ex) => this.logger.error(ex));
@@ -381,6 +392,10 @@ export class StandaloneAgentContext<
 												error: message,
 												agentIds: Array.from(agentIds),
 												userData,
+												metadata:
+													Object.keys(invocationSession.metadata).length > 0
+														? invocationSession.metadata
+														: undefined,
 											})
 											.then(() => {})
 											.catch((ex) => this.logger.error(ex));
@@ -400,6 +415,10 @@ export class StandaloneAgentContext<
 										statusCode: 200,
 										agentIds: Array.from(agentIds),
 										userData,
+										metadata:
+											Object.keys(invocationSession.metadata).length > 0
+												? invocationSession.metadata
+												: undefined,
 									})
 									.then(() => {})
 									.catch((ex) => this.logger.error(ex));
@@ -427,6 +446,10 @@ export class StandaloneAgentContext<
 									error: message,
 									agentIds: Array.from(agentIds),
 									userData,
+									metadata:
+										Object.keys(invocationSession.metadata).length > 0
+											? invocationSession.metadata
+											: undefined,
 								})
 								.then(() => {})
 								.catch((ex) => this.logger.error(ex));

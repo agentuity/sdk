@@ -22,6 +22,10 @@ import { existsSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'node
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 
+// Path to local CLI bin (use development version, not npm)
+const SDK_ROOT = resolve(join(import.meta.dir, '..'));
+const CLI_BIN = join(SDK_ROOT, 'packages/cli/bin/cli.ts');
+
 // Colors for output
 const RED = '\x1b[0;31m';
 const GREEN = '\x1b[0;32m';
@@ -152,6 +156,7 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 	const packagesToPack = [
 		'core',
 		'schema',
+		'frontend',
 		'react',
 		'auth',
 		'runtime',
@@ -193,6 +198,23 @@ async function packWorkspacePackages(sdkRoot: string): Promise<Map<string, strin
 
 		packages.set(`@agentuity/${pkg}`, tarballPath);
 		logSuccess(`Packed ${pkg}: ${tarballPath.split('/').pop()}`);
+
+		// Verify frontend tarball has createClient export
+		if (pkg === 'frontend') {
+			const verifyResult = await runCommand(
+				['tar', '-xzOf', tarballPath, 'package/dist/index.js'],
+				pkgDir
+			);
+			if (verifyResult.success) {
+				const indexContent = verifyResult.stdout;
+				if (!indexContent.includes('createClient')) {
+					logWarning(`⚠️  Packed tarball for frontend does NOT contain createClient export!`);
+					logWarning(`Content (first 500): ${indexContent.substring(0, 500)}`);
+				} else {
+					logInfo(`✓ Packed tarball for frontend contains createClient export`);
+				}
+			}
+		}
 	}
 
 	return packages;
@@ -300,41 +322,51 @@ async function installDependencies(
 	const packageJsonPath = join(projectDir, 'package.json');
 	const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
 
-	// Remove @agentuity dependencies from package.json
-	if (packageJson.dependencies) {
-		for (const pkgName of packedPackages.keys()) {
-			delete packageJson.dependencies[pkgName];
+	// Replace @agentuity dependencies with local tarball paths
+	// IMPORTANT: Also add packages that aren't direct deps but are transitive deps of packed packages
+	// This ensures bun doesn't pull them from npm
+	for (const [pkgName, tarballPath] of packedPackages.entries()) {
+		if (packageJson.dependencies?.[pkgName]) {
+			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
+		} else if (pkgName === '@agentuity/frontend' || pkgName === '@agentuity/server') {
+			// Frontend is a transitive dep of react, server is a transitive dep of runtime
+			// Add them explicitly to prevent bun from pulling from npm
+			if (!packageJson.dependencies) packageJson.dependencies = {};
+			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
+		}
+		if (packageJson.devDependencies?.[pkgName]) {
+			packageJson.devDependencies[pkgName] = `file:${tarballPath}`;
 		}
 	}
 
 	// Write updated package.json
 	writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
 
-	// Install other dependencies first
-	const installResult = await runCommand(['bun', 'install'], projectDir, undefined, 180000);
+	// Log the package.json to verify file:// paths
+	logInfo('Package.json @agentuity dependencies:');
+	Object.keys(packageJson.dependencies || {})
+		.filter((k) => k.startsWith('@agentuity'))
+		.forEach((k) => logInfo(`  ${k}: ${packageJson.dependencies[k]}`));
+
+	// Delete lockfile to ensure fresh resolution
+	const lockfilePath = join(projectDir, 'bun.lock');
+	if (existsSync(lockfilePath)) {
+		rmSync(lockfilePath);
+	}
+
+	// Install all dependencies (including local tarballs) in one go
+	const installResult = await runCommand(['bun', 'install'], projectDir, undefined, 300000);
 	if (!installResult.success) {
 		return { success: false, error: installResult.stderr };
 	}
 
-	// Install @agentuity packages from tarballs with --no-save
-	const tarballPaths = Array.from(packedPackages.values());
-	const addResult = await runCommand(
-		['bun', 'add', '--no-save', ...tarballPaths],
-		projectDir,
-		undefined,
-		120000
-	);
-	if (!addResult.success) {
-		return { success: false, error: addResult.stderr };
-	}
-
-	// Remove nested @agentuity packages that Bun installed from npm
-	const nestedPattern = join(projectDir, 'node_modules/@agentuity/*/node_modules/@agentuity');
+	// Remove ALL nested @agentuity packages (not just specific ones)
+	// This prevents Rollup from resolving stale/nested versions
 	const globResult = await runCommand(
 		[
 			'sh',
 			'-c',
-			`find node_modules/@agentuity/*/node_modules/@agentuity -type d 2>/dev/null || true`,
+			`find node_modules -path '*/node_modules/@agentuity' ! -path 'node_modules/@agentuity' -type d 2>/dev/null || true`,
 		],
 		projectDir
 	);
@@ -344,18 +376,41 @@ async function installDependencies(
 		for (const dir of nestedDirs) {
 			const fullPath = join(projectDir, dir);
 			if (existsSync(fullPath)) {
-				logWarning(`Removing nested @agentuity packages from ${dir}`);
+				logWarning(`Removing ALL nested @agentuity scope from ${dir}`);
 				rmSync(fullPath, { recursive: true, force: true });
 			}
 		}
+	}
+
+	// Verify frontend package has createClient export
+	const frontendIndexPath = join(projectDir, 'node_modules/@agentuity/frontend/dist/index.js');
+	if (existsSync(frontendIndexPath)) {
+		const frontendIndex = readFileSync(frontendIndexPath, 'utf-8');
+		if (!frontendIndex.includes('createClient')) {
+			logWarning('⚠️  frontend/dist/index.js does NOT export createClient!');
+			logWarning(`File size: ${frontendIndex.length} bytes`);
+			logWarning(`Full content:\n${frontendIndex}`);
+		} else {
+			logInfo('✓ frontend/dist/index.js exports createClient');
+		}
+	} else {
+		logWarning('⚠️  frontend/dist/index.js does NOT exist!');
 	}
 
 	return { success: true };
 }
 
 async function buildProject(projectDir: string): Promise<{ success: boolean; error?: string }> {
-	const result = await runCommand(['bun', 'run', 'build'], projectDir, undefined, 120000);
+	// Use local CLI bin to ensure we test the current code
+	const result = await runCommand(['bun', CLI_BIN, 'build'], projectDir, undefined, 120000);
 	if (!result.success) {
+		// Log full error output for debugging
+		if (result.stderr) {
+			console.error('\n' + result.stderr);
+		}
+		if (result.stdout) {
+			console.log('\n' + result.stdout);
+		}
 		return { success: false, error: result.stderr || result.stdout };
 	}
 
@@ -363,6 +418,59 @@ async function buildProject(projectDir: string): Promise<{ success: boolean; err
 	const agentuityDir = join(projectDir, '.agentuity');
 	if (!existsSync(agentuityDir)) {
 		return { success: false, error: 'Build output directory (.agentuity) not found' };
+	}
+
+	return { success: true };
+}
+
+async function verifyCssInBuild(projectDir: string): Promise<{ success: boolean; error?: string }> {
+	const clientDir = join(projectDir, '.agentuity', 'client');
+	const indexHtmlPath = join(clientDir, 'index.html');
+
+	// Check if index.html exists
+	if (!existsSync(indexHtmlPath)) {
+		return { success: false, error: 'Built index.html not found' };
+	}
+
+	// Read index.html and verify CSS link exists
+	const indexHtml = readFileSync(indexHtmlPath, 'utf-8');
+	if (!indexHtml.includes('<link rel="stylesheet"')) {
+		return { success: false, error: 'No CSS stylesheet link found in built index.html' };
+	}
+
+	// Find CSS files in assets directory
+	const assetsDir = join(clientDir, 'assets');
+	if (!existsSync(assetsDir)) {
+		return { success: false, error: 'Assets directory not found' };
+	}
+
+	const assetsResult = await runCommand(['find', assetsDir, '-name', '*.css'], projectDir);
+	if (!assetsResult.success || !assetsResult.stdout.trim()) {
+		return { success: false, error: 'No CSS files found in assets directory' };
+	}
+
+	const cssFiles = assetsResult.stdout.trim().split('\n').filter(Boolean);
+	if (cssFiles.length === 0) {
+		return { success: false, error: 'No CSS files generated' };
+	}
+
+	// Verify at least one CSS file contains Tailwind classes
+	let foundTailwindClasses = false;
+	for (const cssFile of cssFiles) {
+		const cssContent = readFileSync(cssFile, 'utf-8');
+		// Check for common Tailwind patterns (theme layer, utility classes)
+		if (
+			cssContent.includes('@layer') ||
+			cssContent.includes('.flex{') ||
+			cssContent.includes('.bg-')
+		) {
+			foundTailwindClasses = true;
+			break;
+		}
+	}
+
+	if (!foundTailwindClasses) {
+		return { success: false, error: 'CSS files do not contain Tailwind classes' };
 	}
 
 	return { success: true };
@@ -383,11 +491,17 @@ async function startServer(
 ): Promise<{ proc: Subprocess; success: boolean; error?: string }> {
 	const appPath = join(projectDir, '.agentuity', 'app.js');
 
-	// Pass port as CLI flag instead of environment variable
+	// Pass port as CLI flag and merge env vars
+	// Set NODE_ENV=production to ensure runtime mode detection works correctly
+	const mergedEnv = { ...process.env, ...env, NODE_ENV: 'production' };
+
+	// Debug: Verify env vars are set
+	logInfo(`Starting server with env: ${Object.keys(env).join(', ')}`);
+
 	const proc = spawn({
-		cmd: ['bun', 'run', appPath, '--port', String(port)],
+		cmd: ['bun', '--no-install', appPath, '--port', String(port)],
 		cwd: projectDir,
-		env: { ...process.env, ...env },
+		env: mergedEnv,
 		stdout: 'inherit',
 		stderr: 'inherit',
 	});
@@ -416,10 +530,7 @@ async function startServer(
 	return { proc, success: false, error: 'Server failed to start within 30 seconds' };
 }
 
-async function testEndpoints(
-	port: number,
-	template: TemplateInfo
-): Promise<{ health: boolean; errors: string[] }> {
+async function testEndpoints(port: number): Promise<{ health: boolean; errors: string[] }> {
 	const errors: string[] = [];
 	let health = false;
 
@@ -525,6 +636,43 @@ async function testTemplate(
 		}
 		logSuccess('Project built');
 
+		// Step 3.5: Verify CSS for Tailwind template
+		if (template.id === 'tailwind') {
+			logStep('Verifying Tailwind CSS in build output...');
+			stepStart = Date.now();
+			const cssVerifyResult = await verifyCssInBuild(projectDir);
+			result.steps.push({
+				name: 'Verify CSS in build',
+				passed: cssVerifyResult.success,
+				error: cssVerifyResult.error,
+				duration: Date.now() - stepStart,
+			});
+			if (!cssVerifyResult.success) {
+				result.passed = false;
+				logError(`CSS verification failed: ${cssVerifyResult.error}`);
+				return result;
+			}
+			logSuccess('Tailwind CSS verified in build output');
+		}
+
+		// Step 3.5: Prepare environment variables (passed via spawn, Bun auto-loads .env)
+		const envVars: Record<string, string> = {
+			AGENTUITY_SDK_KEY: 'test-key',
+			AGENTUITY_LOG_LEVEL: 'error',
+		};
+
+		// Add dummy provider keys based on template
+		if (template.id === 'openai' || template.id === 'vercel-openai') {
+			envVars.OPENAI_API_KEY = 'dummy-openai-key';
+		} else if (template.id === 'groq') {
+			envVars.GROQ_API_KEY = 'dummy-groq-key';
+		} else if (template.id === 'xai') {
+			envVars.XAI_API_KEY = 'dummy-xai-key';
+		} else if (template.id === 'clerk') {
+			envVars.CLERK_SECRET_KEY = 'sk_test_dummy';
+			envVars.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
+		}
+
 		// Step 4: Typecheck
 		logStep('Running typecheck...');
 		stepStart = Date.now();
@@ -546,25 +694,7 @@ async function testTemplate(
 		logStep('Starting server...');
 		stepStart = Date.now();
 
-		// Set dummy API keys for templates that require them (to prevent crash on import)
-		const serverEnv: Record<string, string> = {
-			AGENTUITY_SDK_KEY: 'test-key',
-			AGENTUITY_LOG_LEVEL: 'error',
-		};
-
-		// Add dummy provider keys to prevent SDK initialization failures
-		if (template.id === 'openai' || template.id === 'vercel-openai') {
-			serverEnv.OPENAI_API_KEY = 'dummy-openai-key';
-		} else if (template.id === 'groq') {
-			serverEnv.GROQ_API_KEY = 'dummy-groq-key';
-		} else if (template.id === 'xai') {
-			serverEnv.XAI_API_KEY = 'dummy-xai-key';
-		} else if (template.id === 'clerk') {
-			serverEnv.CLERK_SECRET_KEY = 'sk_test_dummy';
-			serverEnv.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
-		}
-
-		const serverResult = await startServer(projectDir, basePort, serverEnv);
+		const serverResult = await startServer(projectDir, basePort, envVars);
 		serverProc = serverResult.proc;
 
 		result.steps.push({
@@ -584,7 +714,7 @@ async function testTemplate(
 		// Step 6: Test health endpoint
 		logStep('Testing health endpoint...');
 		stepStart = Date.now();
-		const endpointResults = await testEndpoints(basePort, template);
+		const endpointResults = await testEndpoints(basePort);
 
 		result.steps.push({
 			name: 'Test health endpoint',

@@ -58,6 +58,9 @@ export {
 	type VectorResultFound,
 	type VectorResultNotFound,
 	type VectorResult,
+	type VectorNamespaceStats,
+	type VectorItemStats,
+	type VectorNamespaceStatsWithSamples,
 	type VectorStorage,
 	VectorStorageService,
 } from './services/vector';
@@ -90,3 +93,5 @@ export {
 	getWorkbenchConfig,
 	type WorkbenchConfig,
 } from './workbench-config';
+
+// Client code moved to @agentuity/frontend for better bundler compatibility

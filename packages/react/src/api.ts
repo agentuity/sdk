@@ -1,10 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
+import { deserializeData, buildUrl, type RouteRegistry } from '@agentuity/frontend';
 import { AgentuityContext } from './context';
-import { deserializeData } from './serialization';
-import { buildUrl } from './url';
-import type { RouteRegistry } from './types';
 
 /**
  * Extract route keys from RouteRegistry (e.g., 'GET /users', 'POST /users')

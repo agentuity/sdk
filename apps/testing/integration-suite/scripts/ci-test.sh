@@ -1,11 +1,13 @@
 #!/bin/bash
-# CI test runner for integration suite
-# Runs all tests against production Catalyst API
+# Integration Suite Test Runner
+# Expects SDK packages to be pre-installed from tarballs
+# Run locally: bash scripts/ci-test.sh
+# Run in CI: Same command (env vars differ)
 
 set -e
 
 # Cleanup .env file on exit (regardless of success/failure)
-trap 'rm -f "$APP_DIR/.env"' EXIT
+trap 'rm -f "$APP_DIR/.agentuity/.env"' EXIT
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 APP_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -19,7 +21,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 echo "==================================="
-echo "Integration Suite - CI Test Runner"
+echo "Integration Suite - Test Runner"
 echo "==================================="
 echo ""
 
@@ -39,23 +41,17 @@ fi
 
 echo -e "${GREEN}✓${NC} API key configured"
 
-# Create .env file for the app (overridden by bootstrapRuntimeEnv for local profile)
-echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.env"
-
-# Add OpenAI API key if available (required for vector embedding operations)
-if [ -n "$OPENAI_API_KEY" ]; then
-	echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.env"
-	echo -e "${GREEN}✓${NC} OpenAI API key configured"
-fi
-
-echo -e "${GREEN}✓${NC} Created .env file"
-
-# Build SDK packages first (required for integration suite)
+# Verify SDK packages are installed
 echo ""
-echo "Building SDK packages..."
-cd "$APP_DIR/../../.."
-bun run build
-echo -e "${GREEN}✓${NC} SDK packages built"
+echo "Verifying SDK packages are installed..."
+if [ ! -d "$APP_DIR/node_modules/@agentuity/core" ] || \
+   [ ! -d "$APP_DIR/node_modules/@agentuity/runtime" ] || \
+   [ ! -d "$APP_DIR/node_modules/@agentuity/cli" ]; then
+	echo -e "${RED}✗ ERROR:${NC} SDK packages not installed"
+	echo "Run: bash scripts/install-sdk-tarballs.sh apps/testing/integration-suite"
+	exit 1
+fi
+echo -e "${GREEN}✓${NC} SDK packages installed"
 
 # Build the app
 echo ""
@@ -68,6 +64,36 @@ mkdir -p .agentuity/web
 cp src/web/index.html .agentuity/web/
 
 echo -e "${GREEN}✓${NC} Build complete"
+
+# Create .env file AFTER build (build clears .agentuity directory)
+# This overwrites the .env.local copy with CI/test credentials
+echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.agentuity/.env"
+
+# Set region (use environment variable if set, otherwise default to local for dev)
+REGION="${AGENTUITY_REGION:-local}"
+echo "AGENTUITY_REGION=$REGION" >> "$APP_DIR/.agentuity/.env"
+
+# Add OpenAI API key if available (required for vector embedding operations)
+if [ -n "$OPENAI_API_KEY" ]; then
+        echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.agentuity/.env"
+        echo -e "${GREEN}✓${NC} OpenAI API key configured for vector operations"
+fi
+
+# Also create .env in project directory for CLI commands (they run from project dir, not .agentuity)
+# The CLI looks for SDK key in the project directory's .env file
+echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.env"
+echo "AGENTUITY_REGION=$REGION" >> "$APP_DIR/.env"
+if [ -n "$OPENAI_API_KEY" ]; then
+        echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.env"
+fi
+
+echo -e "${GREEN}✓${NC} Environment configured (region: $REGION)"
+
+# Set service URLs based on region (required for LLM patching)
+# This mirrors what dev mode does in dev/index.ts - uses getServiceUrls() from @agentuity/server
+echo "Computing service URLs for region: $REGION"
+eval "$(bun "$SCRIPT_DIR/get-service-urls.ts")"
+echo -e "${GREEN}✓${NC} Service URLs configured: $AGENTUITY_TRANSPORT_URL"
 
 # Start server in background
 echo ""
@@ -144,9 +170,32 @@ curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -
 				echo -e "${GREEN}✓${NC} $TEST_NAME"
 			else
 				echo -e "${RED}✗${NC} $TEST_NAME"
-				ERROR=$(echo "$DATA" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 | head -c 100)
+				ERROR=$(echo "$DATA" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 | head -c 200)
 				if [ -n "$ERROR" ]; then
-					echo "  Error: $ERROR"
+					echo "    Error: $ERROR"
+				fi
+				
+				# Extract diagnostics for debugging (sessionId, statusCode, method, url)
+				if echo "$DATA" | grep -q '"diagnostics"'; then
+					SESSION_ID=$(echo "$DATA" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
+					STATUS_CODE=$(echo "$DATA" | grep -o '"statusCode":[0-9]*' | cut -d':' -f2)
+					METHOD=$(echo "$DATA" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
+					URL=$(echo "$DATA" | grep -o '"url":"[^"]*"' | cut -d'"' -f4 | head -c 100)
+					ERROR_TYPE=$(echo "$DATA" | grep -o '"errorType":"[^"]*"' | cut -d'"' -f4)
+					
+					echo -e "    ${YELLOW}Diagnostics:${NC}"
+					if [ -n "$ERROR_TYPE" ]; then
+						echo "      Type: $ERROR_TYPE"
+					fi
+					if [ -n "$STATUS_CODE" ]; then
+						echo "      Status: $STATUS_CODE"
+					fi
+					if [ -n "$METHOD" ] && [ -n "$URL" ]; then
+						echo "      Request: $METHOD $URL"
+					fi
+					if [ -n "$SESSION_ID" ]; then
+						echo -e "      ${YELLOW}Session ID: $SESSION_ID${NC} (use this to find in backend logs)"
+					fi
 				fi
 			fi
 		fi

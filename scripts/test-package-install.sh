@@ -43,106 +43,33 @@ log_info "SDK root: $SDK_ROOT"
 log_info "Packages dir: $PACKAGES_DIR"
 log_info "Test project dir: $TEST_PROJECT_DIR"
 
-# Step 1: Build all packages (skip test apps)
-log_info "Step 1: Building all packages..."
-cd "$SDK_ROOT"
-bunx tsc --build --force
+# Step 1 & 2: Use shared prepare script
+log_info "Step 1 & 2: Building and packing SDK packages..."
+bash "$SCRIPT_DIR/prepare-sdk-for-testing.sh"
+log_success "SDK prepared"
 
-# Verify dist/ directories exist after build
-log_info "Verifying dist/ directories exist after build..."
-for pkg in core schema react auth runtime server cli; do
-    if [ ! -d "packages/$pkg/dist" ]; then
-        log_error "Package $pkg missing dist/ directory after build"
-        log_info "Contents of packages/$pkg/:"
-        ls -la "packages/$pkg/" || true
-        exit 1
-    fi
-    log_success "$pkg has dist/"
-done
-log_success "Build complete"
-
-# Step 2: Pack packages
-log_info "Step 2: Packing packages..."
+# Copy tarballs to our test directory
+log_info "Copying tarballs to test directory..."
 mkdir -p "$PACKAGES_DIR"
+cp "$SDK_ROOT/dist/packages"/*.tgz "$PACKAGES_DIR/"
+log_success "Tarballs copied"
 
-cd "$SDK_ROOT/packages/core"
-CORE_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
-log_success "Packed core: $CORE_PKG"
-
-cd "$SDK_ROOT/packages/schema"
-SCHEMA_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
-log_success "Packed schema: $SCHEMA_PKG"
-
-cd "$SDK_ROOT/packages/react"
-REACT_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
-log_success "Packed react: $REACT_PKG"
-
-cd "$SDK_ROOT/packages/auth"
-AUTH_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
-log_success "Packed auth: $AUTH_PKG"
-
-cd "$SDK_ROOT/packages/runtime"
-RUNTIME_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
-log_success "Packed runtime: $RUNTIME_PKG"
-
-cd "$SDK_ROOT/packages/server"
-SERVER_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
-log_success "Packed server: $SERVER_PKG"
-
-cd "$SDK_ROOT/packages/cli"
-CLI_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
-log_success "Packed cli: $CLI_PKG"
-
-# Build workbench (includes CSS build) before packing
-cd "$SDK_ROOT/packages/workbench"
-log_info "Building workbench (TypeScript + CSS)..."
-bun run build
-if [ ! -f "dist/standalone.css" ]; then
-    log_error "Workbench dist/standalone.css not found after build"
-    exit 1
-fi
-log_success "Workbench built with CSS"
-WORKBENCH_PKG=$(bun pm pack --destination "$PACKAGES_DIR" --quiet | xargs basename)
-log_success "Packed workbench: $WORKBENCH_PKG"
+# Get tarball filenames
+CORE_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-core-*.tgz)
+SCHEMA_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-schema-*.tgz)
+FRONTEND_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-frontend-*.tgz)
+REACT_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-react-*.tgz)
+AUTH_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-auth-*.tgz)
+RUNTIME_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-runtime-*.tgz)
+SERVER_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-server-*.tgz)
+CLI_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-cli-*.tgz)
+WORKBENCH_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-workbench-*.tgz)
 
 echo ""
-log_info "Packed packages:"
-ls -lh "$PACKAGES_DIR"
-
-# Verify tarballs contain dist/ - fail if missing
-echo ""
-log_info "Verifying package contents..."
-VERIFY_DIR=$(mktemp -d)
-for pkg in "$CORE_PKG" "$SCHEMA_PKG" "$REACT_PKG" "$AUTH_PKG" "$RUNTIME_PKG" "$SERVER_PKG" "$CLI_PKG" "$WORKBENCH_PKG"; do
-  # Extract tarball and check for dist/ directory
-  tar -xzf "$PACKAGES_DIR/$pkg" -C "$VERIFY_DIR"
-  
-  if [ -d "$VERIFY_DIR/package/dist" ]; then
-    log_success "$pkg contains dist/"
-    
-    # Special check for workbench: verify standalone.css exists
-    if [ "$pkg" = "$WORKBENCH_PKG" ]; then
-      if [ -f "$VERIFY_DIR/package/dist/standalone.css" ]; then
-        log_success "$pkg contains dist/standalone.css"
-      else
-        log_error "Package $pkg missing dist/standalone.css"
-        log_info "Contents of $VERIFY_DIR/package/dist/:"
-        ls -la "$VERIFY_DIR/package/dist/" || true
-        exit 1
-      fi
-    fi
-  else
-    log_error "Package $pkg missing dist/ directory"
-    log_info "Contents of $pkg:"
-    ls -la "$VERIFY_DIR/package/" || true
-    exit 1
-  fi
-  
-  # Clean up extracted files for next package
-  rm -rf "$VERIFY_DIR/package"
+log_info "Using tarballs:"
+for pkg in $CORE_PKG $SCHEMA_PKG $FRONTEND_PKG $REACT_PKG $AUTH_PKG $RUNTIME_PKG $SERVER_PKG $CLI_PKG $WORKBENCH_PKG; do
+    log_success "  $pkg"
 done
-rm -rf "$VERIFY_DIR"
-log_success "All packages contain dist/"
 
 # Step 3: Validate CLI runs from packed tarball without project TypeScript
 # This catches the case where a runtime dependency (like typescript) is incorrectly
@@ -159,19 +86,23 @@ cat > package.json << 'EOF'
 {
   "name": "cli-typescript-smoke-test",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "dependencies": {}
 }
 EOF
 
 log_info "Installing CLI and dependencies from packed tarballs..."
-bun add "$PACKAGES_DIR/$CORE_PKG"
-bun add "$PACKAGES_DIR/$SCHEMA_PKG"
-bun add "$PACKAGES_DIR/$REACT_PKG"
-bun add "$PACKAGES_DIR/$AUTH_PKG"
-bun add "$PACKAGES_DIR/$RUNTIME_PKG"
-bun add "$PACKAGES_DIR/$SERVER_PKG"
-bun add "$PACKAGES_DIR/$CLI_PKG"
-bun add "$PACKAGES_DIR/$WORKBENCH_PKG"
+# Add all packages at once with --no-save so Bun can resolve interdependencies from provided tarballs
+bun add --no-save \
+  "$PACKAGES_DIR/$CORE_PKG" \
+  "$PACKAGES_DIR/$SCHEMA_PKG" \
+  "$PACKAGES_DIR/$FRONTEND_PKG" \
+  "$PACKAGES_DIR/$REACT_PKG" \
+  "$PACKAGES_DIR/$AUTH_PKG" \
+  "$PACKAGES_DIR/$RUNTIME_PKG" \
+  "$PACKAGES_DIR/$SERVER_PKG" \
+  "$PACKAGES_DIR/$CLI_PKG" \
+  "$PACKAGES_DIR/$WORKBENCH_PKG"
 
 export AGENTUITY_SKIP_VERSION_CHECK=1
 
@@ -222,26 +153,27 @@ log_success "Project created"
 echo ""
 log_info "Step 5: Installing packed packages..."
 
-# Remove Agentuity dependencies from package.json to avoid conflicts
+# Remove ALL Agentuity dependencies from package.json before installing from tarballs
 cat package.json | \
-  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/react"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"])' \
+  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/frontend"], .dependencies["@agentuity/react"], .dependencies["@agentuity/auth"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"], .devDependencies["@agentuity/cli"], .devDependencies["@agentuity/core"], .devDependencies["@agentuity/schema"], .devDependencies["@agentuity/frontend"], .devDependencies["@agentuity/react"], .devDependencies["@agentuity/auth"], .devDependencies["@agentuity/runtime"], .devDependencies["@agentuity/server"], .devDependencies["@agentuity/workbench"])' \
   > package.json.tmp && mv package.json.tmp package.json
 
-# Install other dependencies first
-log_info "Installing other dependencies..."
-bun install
-
-# Now install Agentuity packages from tarballs
-# Install with --no-save to prevent Bun from trying to resolve nested dependencies from npm
+# Install Agentuity packages from tarballs FIRST (all at once so interdependencies resolve)
 log_info "Installing @agentuity packages from tarballs..."
 bun add --no-save \
   "$PACKAGES_DIR/$CORE_PKG" \
   "$PACKAGES_DIR/$SCHEMA_PKG" \
+  "$PACKAGES_DIR/$FRONTEND_PKG" \
   "$PACKAGES_DIR/$REACT_PKG" \
+  "$PACKAGES_DIR/$AUTH_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
   "$PACKAGES_DIR/$SERVER_PKG" \
   "$PACKAGES_DIR/$CLI_PKG" \
   "$PACKAGES_DIR/$WORKBENCH_PKG"
+
+# Now install other dependencies (react, react-dom, etc.)
+log_info "Installing other dependencies..."
+bun install
 
 # Remove nested @agentuity packages that Bun installed from npm (instead of using workspace tarballs)
 # This happens because workspace:* dependencies get resolved to specific versions (e.g. 0.0.58)
@@ -267,7 +199,17 @@ if [ ! -d ".agentuity" ]; then
     log_error "Build output directory (.agentuity) not found"
     exit 1
 fi
+
+# Verify registry file was generated
+if [ ! -f "src/generated/registry.ts" ]; then
+	log_error "registry.ts not found in src/generated/"
+	log_info "Contents of src/generated/:"
+	ls -la src/generated/ || echo "Directory does not exist"
+    exit 1
+fi
+
 log_success "Build complete, .agentuity directory created"
+log_success "Registry file generated"
 
 # Step 7: Typecheck
 echo ""
@@ -281,7 +223,7 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo -e "${GREEN}🎉 All tests passed!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-log_success "Built and packed all 7 packages"
+log_success "Built and packed all 8 packages"
 log_success "CLI runs from packed tarball without missing TypeScript"
 log_success "Created new project using CLI with --template-dir"
 log_success "Installed packed packages as if from npm registry"

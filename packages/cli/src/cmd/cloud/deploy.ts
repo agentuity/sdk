@@ -3,18 +3,22 @@ import { join, resolve } from 'node:path';
 import { createPublicKey } from 'node:crypto';
 import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { StructuredError } from '@agentuity/core';
+import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand } from '../../types';
+import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
-import { saveProjectDir, getDefaultConfigDir } from '../../config';
+import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey } from '../../config';
 import {
 	runSteps,
 	stepSuccess,
 	stepSkipped,
 	stepError,
+	pauseStepUI,
 	type Step,
 	type StepContext,
 } from '../../steps';
-import { bundle } from '../build/bundler';
+import { viteBundle } from '../build/vite-bundler';
 import { loadBuildMetadata, getStreamURL } from '../../config';
 import {
 	projectEnvUpdate,
@@ -38,9 +42,14 @@ import {
 import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { getCommand } from '../../command-prefix';
-import { checkCustomDomainForDNS } from './domain';
+import * as domain from '../../domain';
 import { DeployOptionsSchema } from '../../schemas/deploy';
 import { ErrorCode } from '../../errors';
+
+const DeploymentCancelledError = StructuredError(
+	'DeploymentCancelled',
+	'Deployment cancelled by user'
+);
 
 const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
@@ -90,7 +99,7 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { project, apiClient, projectDir, config, options, opts, logger } = ctx;
+		const { project, apiClient, projectDir, config, options, logger } = ctx;
 
 		let deployment: Deployment | undefined;
 		let build: BuildMetadata | undefined;
@@ -98,6 +107,15 @@ export const deploySubcommand = createSubcommand({
 		let complete: DeploymentComplete | undefined;
 		let statusResult: DeploymentStatusResult | undefined;
 		const logs: string[] = [];
+
+		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
+
+		// Ensure SDK key is present before proceeding
+		if (!sdkKey) {
+			ctx.logger.fatal(
+				'SDK key not found. Run "agentuity auth login" to authenticate or set AGENTUITY_SDK_KEY environment variable.'
+			);
+		}
 
 		try {
 			await saveProjectDir(projectDir);
@@ -107,24 +125,20 @@ export const deploySubcommand = createSubcommand({
 					!project.deployment?.domains?.length
 						? null
 						: {
-								label: `Validate Custom Domain${project.deployment.domains.length > 1 ? `s: ${project.deployment.domains.join(', ')}` : `: ${project.deployment.domains[0]}`}`,
+								label: `Validate Custom ${tui.plural(project.deployment.domains.length, 'Domain', 'Domains')}`,
 								run: async () => {
 									if (project.deployment?.domains?.length) {
-										const result = await checkCustomDomainForDNS(
-											project.projectId,
-											project.deployment.domains,
-											config
-										);
-										for (const r of result) {
-											if (r.success) {
-												continue;
-											}
-											if (r.message) {
-												return stepError(r.message);
-											}
-											return stepError('unknown dns error'); // shouldn't get here
+										try {
+											await domain.promptForDNS(
+												project.projectId,
+												project.deployment.domains,
+												config!,
+												() => pauseStepUI(true)
+											);
+											return stepSuccess();
+										} catch (ex) {
+											return stepError(String(ex), ex as Error);
 										}
-										return stepSuccess();
 									}
 									return stepSkipped();
 								},
@@ -190,18 +204,12 @@ export const deploySubcommand = createSubcommand({
 							}
 							let capturedOutput: string[] = [];
 							try {
-								const bundleResult = await bundle({
+								const bundleResult = await viteBundle({
 									rootDir: resolve(projectDir),
 									dev: false,
 									deploymentId: deployment.id,
 									orgId: deployment.orgId,
 									projectId: project.projectId,
-									project,
-									commitUrl: opts?.commitUrl,
-									logsUrl: opts?.logsUrl,
-									provider: opts?.provider,
-									trigger: opts?.trigger,
-									tag: opts?.tag,
 									region: project.region,
 									logger: ctx.logger,
 								});
@@ -240,18 +248,13 @@ export const deploySubcommand = createSubcommand({
 							const deploymentZip = join(tmpdir(), `${deployment.id}.zip`);
 							await zipDir(join(projectDir, '.agentuity'), deploymentZip, {
 								filter: (_filename: string, relative: string) => {
-									// we don't include assets in the deployment
-									if (relative.startsWith('web/assets/')) {
+									if (relative.startsWith('.vite/')) {
 										return false;
 									}
-									if (relative.startsWith('web/chunk/')) {
+									if (relative.startsWith('workbench-src/')) {
 										return false;
 									}
-									if (relative.startsWith('web/public/')) {
-										return false;
-									}
-									// exclude sourcemaps from deployment
-									if (relative.endsWith('.map')) {
+									if (relative.startsWith('workbench/')) {
 										return false;
 									}
 									// ignore common stuff we never want to include in the zip
@@ -328,6 +331,7 @@ export const deploySubcommand = createSubcommand({
 							}
 
 							progress(80);
+							let bytes = 0;
 							if (build?.assets) {
 								ctx.logger.trace(`Uploading ${build.assets.length} assets`);
 								if (!instructions.assets) {
@@ -336,34 +340,68 @@ export const deploySubcommand = createSubcommand({
 									);
 								}
 
-								const promises: Promise<Response>[] = [];
-								for (const asset of build.assets) {
-									const assetUrl = instructions.assets[asset.filename];
-									if (!assetUrl) {
-										return stepError(
-											`server did not provide upload URL for asset "${asset.filename}"; upload aborted`
+								// Workaround for Bun crash in compiled executables (https://github.com/agentuity/sdk/issues/191)
+								// Use limited concurrency (1 at a time) for executables to avoid parallel fetch crash
+								const isExecutable = isRunningFromExecutable();
+								const concurrency = isExecutable ? 1 : Math.min(4, build.assets.length);
+
+								if (isExecutable) {
+									ctx.logger.trace(
+										`Running from executable - using limited concurrency (${concurrency} uploads at a time)`
+									);
+								}
+
+								// Process assets in batches with limited concurrency
+								for (let i = 0; i < build.assets.length; i += concurrency) {
+									const batch = build.assets.slice(i, i + concurrency);
+									const promises: Promise<Response>[] = [];
+
+									for (const asset of batch) {
+										const assetUrl = instructions.assets[asset.filename];
+										if (!assetUrl) {
+											return stepError(
+												`server did not provide upload URL for asset "${asset.filename}"; upload aborted`
+											);
+										}
+
+										// Asset filename already includes the subdirectory (e.g., "client/assets/main-abc123.js")
+										const filePath = join(projectDir, '.agentuity', asset.filename);
+
+										const headers: Record<string, string> = {
+											'Content-Type': asset.contentType,
+										};
+
+										bytes += asset.size;
+
+										let body: Uint8Array | Blob;
+										if (asset.contentEncoding === 'gzip') {
+											const file = Bun.file(filePath);
+											const ab = await file.arrayBuffer();
+											const gzipped = Bun.gzipSync(new Uint8Array(ab));
+											headers['Content-Encoding'] = 'gzip';
+											body = gzipped;
+											ctx.logger.trace(
+												`Compressing ${asset.filename} (${asset.size} -> ${gzipped.byteLength} bytes)`
+											);
+										} else {
+											body = Bun.file(filePath);
+										}
+
+										promises.push(
+											fetch(assetUrl, {
+												method: 'PUT',
+												duplex: 'half',
+												headers,
+												body,
+											})
 										);
 									}
 
-									const file = Bun.file(
-										join(projectDir, '.agentuity', 'web', asset.filename)
-									);
-									promises.push(
-										fetch(assetUrl, {
-											method: 'PUT',
-											duplex: 'half',
-											headers: {
-												'Content-Type': asset.contentType,
-											},
-											body: file,
-										})
-									);
-								}
-								ctx.logger.trace('Waiting for asset uploads');
-								const resps = await Promise.all(promises);
-								for (const r of resps) {
-									if (!r.ok) {
-										return stepError(`error uploading asset: ${await r.text()}`);
+									const resps = await Promise.all(promises);
+									for (const r of resps) {
+										if (!r.ok) {
+											return stepError(`error uploading asset: ${await r.text()}`);
+										}
 									}
 								}
 								ctx.logger.trace('Asset uploads complete');
@@ -371,7 +409,14 @@ export const deploySubcommand = createSubcommand({
 							}
 
 							progress(100);
-							return stepSuccess();
+							const output = build?.assets.length
+								? [
+										tui.muted(
+											`✓ Uploaded ${build.assets.length} ${tui.plural(build.assets.length, 'asset', 'assets')} (${tui.formatBytes(bytes)}) to CDN`
+										),
+									]
+								: undefined;
+							return stepSuccess(output);
 						},
 					},
 					{
@@ -403,154 +448,191 @@ export const deploySubcommand = createSubcommand({
 			const maxAttempts = 600;
 			let attempts = 0;
 
-			if (streamId) {
-				// Use progress logger to stream logs while polling
-				const streamsUrl = getStreamURL(project.region, config);
+			// Create abort controller to allow Ctrl+C to interrupt polling
+			const pollAbortController = new AbortController();
+			const sigintHandler = () => {
+				pollAbortController.abort();
+			};
+			process.on('SIGINT', sigintHandler);
 
-				await tui
-					.progress({
-						message: 'Deploying project...',
-						type: 'logger',
-						maxLines: 2,
-						clearOnSuccess: true,
-						callback: async (log) => {
-							// Start log streaming
-							const logStreamController = new AbortController();
-							const logStreamPromise = (async () => {
-								try {
-									logger.debug('fetching stream: %s/%s', streamsUrl, streamId);
-									const resp = await fetch(`${streamsUrl}/${streamId}`, {
-										signal: logStreamController.signal,
-									});
-									if (!resp.ok || !resp.body) {
-										ctx.logger.trace(
-											`Failed to connect to warmup log stream: ${resp.status}`
-										);
-										return;
-									}
-									const reader = resp.body.getReader();
-									const decoder = new TextDecoder();
-									let buffer = '';
-									while (true) {
-										const { done, value } = await reader.read();
-										if (done) break;
-										buffer += decoder.decode(value, { stream: true });
-										const lines = buffer.split('\n');
-										buffer = lines.pop() || ''; // Keep incomplete line in buffer
-										for (const line of lines) {
-											// Strip ISO 8601 timestamp prefix if present
-											const message = line.replace(
-												/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s?/,
-												''
+			try {
+				if (streamId) {
+					// Use progress logger to stream logs while polling
+					const streamsUrl = getStreamURL(project.region, config);
+
+					await tui
+						.progress({
+							message: 'Deploying project...',
+							type: 'logger',
+							maxLines: 2,
+							clearOnSuccess: true,
+							callback: async (log) => {
+								// Start log streaming
+								const logStreamController = new AbortController();
+								const logStreamPromise = (async () => {
+									try {
+										logger.debug('fetching stream: %s/%s', streamsUrl, streamId);
+										const resp = await fetch(`${streamsUrl}/${streamId}`, {
+											signal: logStreamController.signal,
+											headers: {
+												Authorization: `Bearer ${sdkKey}`,
+												'User-Agent': getUserAgent(),
+											},
+										});
+										if (!resp.ok || !resp.body) {
+											ctx.logger.trace(
+												`Failed to connect to warmup log stream: ${resp.status}`
 											);
-											if (message) {
-												logs.push(message);
-												log(message);
+											return;
+										}
+										const reader = resp.body.getReader();
+										const decoder = new TextDecoder();
+										let buffer = '';
+										while (true) {
+											const { done, value } = await reader.read();
+											if (done) break;
+											buffer += decoder.decode(value, { stream: true });
+											const lines = buffer.split('\n');
+											buffer = lines.pop() || ''; // Keep incomplete line in buffer
+											for (const line of lines) {
+												// Strip ISO 8601 timestamp prefix if present
+												const message = line.replace(
+													/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z\s?/,
+													''
+												);
+												if (message) {
+													logs.push(message);
+													log(message);
+												}
 											}
 										}
+									} catch (err) {
+										if (err instanceof Error && err.name === 'AbortError') {
+											return;
+										}
+										ctx.logger.trace(`Warmup log stream error: ${err}`);
 									}
-								} catch (err) {
-									if (err instanceof Error && err.name === 'AbortError') {
-										return;
-									}
-									ctx.logger.trace(`Warmup log stream error: ${err}`);
-								}
-							})();
+								})();
 
-							// Poll for deployment status
-							while (attempts < maxAttempts) {
-								attempts++;
-								try {
-									statusResult = await projectDeploymentStatus(
-										apiClient,
-										deployment?.id ?? ''
-									);
-
-									logger.trace('status result: %s', statusResult);
-
-									if (statusResult.state === 'completed') {
+								// Poll for deployment status
+								while (attempts < maxAttempts) {
+									// Check if user pressed Ctrl+C
+									if (pollAbortController.signal.aborted) {
 										logStreamController.abort();
-										break;
+										throw new DeploymentCancelledError();
 									}
 
-									if (statusResult.state === 'failed') {
-										throw new Error('Deployment failed');
-									}
+									attempts++;
+									try {
+										statusResult = await projectDeploymentStatus(
+											apiClient,
+											deployment?.id ?? ''
+										);
 
-									await Bun.sleep(pollInterval);
-								} catch (err) {
-									logStreamController.abort();
-									throw err;
+										logger.trace('status result: %s', statusResult);
+
+										if (statusResult.state === 'completed') {
+											logStreamController.abort();
+											break;
+										}
+
+										if (statusResult.state === 'failed') {
+											throw new Error('Deployment failed');
+										}
+
+										await Bun.sleep(pollInterval);
+									} catch (err) {
+										logStreamController.abort();
+										throw err;
+									}
 								}
-							}
 
-							// Wait for log stream to finish
-							await logStreamPromise;
+								// Wait for log stream to finish
+								await logStreamPromise;
+
+								if (attempts >= maxAttempts) {
+									throw new Error('Deployment timed out');
+								}
+							},
+						})
+						.then(() => {
+							tui.success('Your project was deployed!');
+						})
+						.catch((ex) => {
+							// Handle cancellation
+							if (ex instanceof DeploymentCancelledError) {
+								tui.warning('Deployment cancelled');
+								process.exit(130); // Standard exit code for SIGINT
+							}
+							const exwithmessage = ex as { message: string };
+							const msg =
+								exwithmessage.message === 'Deployment failed'
+									? ''
+									: exwithmessage.toString();
+							tui.error(`Your deployment failed to start${msg ? `: ${msg}` : ''}`);
+							if (logs.length) {
+								const logsDir = join(getDefaultConfigDir(), 'logs');
+								if (!existsSync(logsDir)) {
+									mkdirSync(logsDir, { recursive: true });
+								}
+								const errorFile = join(logsDir, `${deployment?.id ?? Date.now()}.txt`);
+								writeFileSync(errorFile, logs.join('\n'));
+								const count = Math.min(logs.length, 10);
+								const last = logs.length - count;
+								tui.newline();
+								tui.warning(`The last ${count} lines of the log:`);
+								let offset = last + 1; // we want to show the offset from inside the log starting at 1
+								const max = String(logs.length).length;
+								for (const _log of logs.slice(last)) {
+									console.log(tui.muted(`${offset.toFixed().padEnd(max)} | ${_log}`));
+									offset++;
+								}
+								tui.newline();
+								tui.fatal(`The logs were written to ${errorFile}`, ErrorCode.BUILD_FAILED);
+							}
+							tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
+						});
+				} else {
+					// No stream ID - poll without log streaming
+					await tui.spinner({
+						message: 'Deploying project...',
+						type: 'simple',
+						clearOnSuccess: true,
+						callback: async () => {
+							while (attempts < maxAttempts) {
+								// Check if user pressed Ctrl+C
+								if (pollAbortController.signal.aborted) {
+									throw new DeploymentCancelledError();
+								}
+
+								attempts++;
+								statusResult = await projectDeploymentStatus(
+									apiClient,
+									deployment?.id ?? ''
+								);
+
+								if (statusResult.state === 'completed') {
+									break;
+								}
+
+								if (statusResult.state === 'failed') {
+									throw new Error('Deployment failed');
+								}
+
+								await Bun.sleep(pollInterval);
+							}
 
 							if (attempts >= maxAttempts) {
 								throw new Error('Deployment timed out');
 							}
 						},
-					})
-					.then(() => {
-						tui.success('Your project was deployed!');
-					})
-					.catch((ex) => {
-						const exwithmessage = ex as { message: string };
-						const msg =
-							exwithmessage.message === 'Deployment failed' ? '' : exwithmessage.toString();
-						tui.error(`Your deployment failed to start${msg ? `: ${msg}` : ''}`);
-						if (logs.length) {
-							const logsDir = join(getDefaultConfigDir(), 'logs');
-							if (!existsSync(logsDir)) {
-								mkdirSync(logsDir, { recursive: true });
-							}
-							const errorFile = join(logsDir, `${deployment?.id ?? Date.now()}.txt`);
-							writeFileSync(errorFile, logs.join('\n'));
-							const count = Math.min(logs.length, 10);
-							const last = logs.length - count;
-							tui.newline();
-							tui.warning(`The last ${count} lines of the log:`);
-							let offset = last + 1; // we want to show the offset from inside the log starting at 1
-							const max = String(logs.length).length;
-							for (const _log of logs.slice(last)) {
-								console.log(tui.muted(`${offset.toFixed().padEnd(max)} | ${_log}`));
-								offset++;
-							}
-							tui.newline();
-							tui.fatal(`The logs were written to ${errorFile}`, ErrorCode.BUILD_FAILED);
-						}
-						tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 					});
-			} else {
-				// No stream ID - poll without log streaming
-				await tui.spinner({
-					message: 'Deploying project...',
-					type: 'simple',
-					clearOnSuccess: true,
-					callback: async () => {
-						while (attempts < maxAttempts) {
-							attempts++;
-							statusResult = await projectDeploymentStatus(apiClient, deployment?.id ?? '');
 
-							if (statusResult.state === 'completed') {
-								break;
-							}
-
-							if (statusResult.state === 'failed') {
-								throw new Error('Deployment failed');
-							}
-
-							await Bun.sleep(pollInterval);
-						}
-
-						if (attempts >= maxAttempts) {
-							throw new Error('Deployment timed out');
-						}
-					},
-				});
-
-				tui.success('Your project was deployed!');
+					tui.success('Your project was deployed!');
+				}
+			} finally {
+				// Clean up signal handler
+				process.off('SIGINT', sigintHandler);
 			}
 
 			const appUrl = getAppBaseURL(config?.name, config?.overrides);
@@ -559,20 +641,36 @@ export const deploySubcommand = createSubcommand({
 
 			// Show deployment URLs
 			if (complete?.publicUrls) {
+				const lines: string[] = [];
 				if (complete.publicUrls.custom?.length) {
 					for (const url of complete.publicUrls.custom) {
-						tui.arrow(tui.bold(tui.padRight('Deployment URL:', 17)) + tui.link(url));
+						lines.push(
+							`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Deployment:', 12)) + tui.link(url)}`
+						);
 					}
 				} else {
-					tui.arrow(
-						tui.bold(tui.padRight('Deployment URL:', 17)) +
+					lines.push(
+						`${tui.ICONS.arrow} ${
+							tui.bold(tui.padRight('Deployment:', 12)) +
 							tui.link(complete.publicUrls.deployment)
+						}`
 					);
-					tui.arrow(
-						tui.bold(tui.padRight('Project URL:', 17)) + tui.link(complete.publicUrls.latest)
+					lines.push(
+						`${tui.ICONS.arrow} ${
+							tui.bold(tui.padRight('Project:', 12)) + tui.link(complete.publicUrls.latest)
+						}`
 					);
-					tui.arrow(tui.bold(tui.padRight('Dashboard URL:', 17)) + tui.link(dashboard));
 				}
+				lines.push(
+					`${tui.ICONS.arrow} ${
+						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
+					}`
+				);
+				tui.banner(`Deployment: ${tui.colorPrimary(deployment.id)}`, lines.join('\n'), {
+					centerTitle: false,
+					topSpacer: false,
+					bottomSpacer: false,
+				});
 			}
 
 			return {

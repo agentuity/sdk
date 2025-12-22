@@ -92,10 +92,14 @@ function shouldCheckNow(config: Config | null): boolean {
  * Returns true if user wants to upgrade, false otherwise
  */
 async function promptUpgrade(currentVersion: string, latestVersion: string): Promise<boolean> {
+	// Strip 'v' prefix for display
+	const displayCurrent = currentVersion.replace(/^v/, '');
+	const displayLatest = latestVersion.replace(/^v/, '');
+
 	tui.newline();
 	tui.info(`${tui.bold('A new version of the CLI is available!')}`);
-	tui.info(`Current version: ${tui.muted(currentVersion)}`);
-	tui.info(`Latest version:  ${tui.bold(latestVersion)}`);
+	tui.info(`Current version: ${tui.muted(displayCurrent)}`);
+	tui.info(`Latest version:  ${tui.bold(displayLatest)}`);
 	tui.newline();
 	if (toTag(currentVersion) !== toTag(latestVersion)) {
 		tui.warning(`What's changed:  ${tui.link(getCompareUrl(currentVersion, latestVersion))}`);

@@ -8,6 +8,8 @@ import type {
 	VectorSearchResultWithDocument,
 	VectorSearchParams,
 	VectorSearchResult,
+	VectorNamespaceStats,
+	VectorNamespaceStatsWithSamples,
 } from '@agentuity/core';
 import { randomUUID } from 'node:crypto';
 import { simpleEmbedding, cosineSimilarity, now } from './_util';
@@ -188,12 +190,13 @@ export class LocalVectorStorage implements VectorStorage {
 		}>;
 
 		// If no vectors exist, return empty results
-		if (rows.length === 0) {
+		const row = rows[0];
+		if (!row) {
 			return [];
 		}
 
 		// Detect dimensionality from first stored vector
-		const firstEmbedding = JSON.parse(rows[0].embedding);
+		const firstEmbedding = JSON.parse(row.embedding);
 		const dimensions = firstEmbedding.length;
 
 		// Generate query embedding with matching dimensions
@@ -269,5 +272,163 @@ export class LocalVectorStorage implements VectorStorage {
 
 		const { count } = query.get(this.#projectPath, name) as { count: number };
 		return count > 0;
+	}
+
+	async getStats(name: string): Promise<VectorNamespaceStatsWithSamples> {
+		if (!name?.trim()) {
+			throw new Error('Vector storage name is required');
+		}
+
+		const countQuery = this.#db.query(`
+			SELECT COUNT(*) as count,
+			MIN(created_at) as created_at, MAX(updated_at) as last_used
+			FROM vector_storage 
+			WHERE project_path = ? AND name = ?
+		`);
+
+		const stats = countQuery.get(this.#projectPath, name) as {
+			count: number;
+			created_at: number | null;
+			last_used: number | null;
+		};
+
+		if (stats.count === 0) {
+			return { sum: 0, count: 0 };
+		}
+
+		const sampleQuery = this.#db.query(`
+			SELECT key, embedding, document, metadata, created_at, updated_at
+			FROM vector_storage 
+			WHERE project_path = ? AND name = ?
+			LIMIT 20
+		`);
+
+		const samples = sampleQuery.all(this.#projectPath, name) as Array<{
+			key: string;
+			embedding: string;
+			document: string | null;
+			metadata: string | null;
+			created_at: number;
+			updated_at: number;
+		}>;
+
+		const encoder = new TextEncoder();
+		let totalSum = 0;
+		const sampledResults: VectorNamespaceStatsWithSamples['sampledResults'] = {};
+		for (const sample of samples) {
+			const embeddingBytes = encoder.encode(sample.embedding).length;
+			const documentBytes = sample.document ? encoder.encode(sample.document).length : 0;
+			const size = embeddingBytes + documentBytes;
+			totalSum += size;
+			sampledResults![sample.key] = {
+				embedding: JSON.parse(sample.embedding),
+				document: sample.document || undefined,
+				size,
+				metadata: sample.metadata ? JSON.parse(sample.metadata) : undefined,
+				firstUsed: sample.created_at,
+				lastUsed: sample.updated_at,
+			};
+		}
+
+		// Estimate total size based on sampled average if we have more records than samples
+		const estimatedSum =
+			stats.count <= samples.length
+				? totalSum
+				: Math.round((totalSum / samples.length) * stats.count);
+
+		return {
+			sum: estimatedSum,
+			count: stats.count,
+			createdAt: stats.created_at || undefined,
+			lastUsed: stats.last_used || undefined,
+			sampledResults,
+		};
+	}
+
+	async getAllStats(): Promise<Record<string, VectorNamespaceStats>> {
+		const query = this.#db.query(`
+			SELECT name, embedding, document
+			FROM vector_storage 
+			WHERE project_path = ?
+		`);
+
+		const rows = query.all(this.#projectPath) as Array<{
+			name: string;
+			embedding: string;
+			document: string | null;
+		}>;
+
+		const encoder = new TextEncoder();
+		const namespaceStats = new Map<
+			string,
+			{ sum: number; count: number; createdAt?: number; lastUsed?: number }
+		>();
+
+		for (const row of rows) {
+			const embeddingBytes = encoder.encode(row.embedding).length;
+			const documentBytes = row.document ? encoder.encode(row.document).length : 0;
+			const size = embeddingBytes + documentBytes;
+
+			const existing = namespaceStats.get(row.name);
+			if (existing) {
+				existing.sum += size;
+				existing.count += 1;
+			} else {
+				namespaceStats.set(row.name, { sum: size, count: 1 });
+			}
+		}
+
+		// Get timestamps in a separate query
+		const timestampQuery = this.#db.query(`
+			SELECT name, MIN(created_at) as created_at, MAX(updated_at) as last_used
+			FROM vector_storage 
+			WHERE project_path = ?
+			GROUP BY name
+		`);
+
+		const timestamps = timestampQuery.all(this.#projectPath) as Array<{
+			name: string;
+			created_at: number | null;
+			last_used: number | null;
+		}>;
+
+		for (const ts of timestamps) {
+			const stats = namespaceStats.get(ts.name);
+			if (stats) {
+				stats.createdAt = ts.created_at || undefined;
+				stats.lastUsed = ts.last_used || undefined;
+			}
+		}
+
+		const results: Record<string, VectorNamespaceStats> = {};
+		for (const [name, stats] of namespaceStats) {
+			results[name] = stats;
+		}
+
+		return results;
+	}
+
+	async getNamespaces(): Promise<string[]> {
+		const query = this.#db.query(`
+			SELECT DISTINCT name 
+			FROM vector_storage 
+			WHERE project_path = ?
+		`);
+
+		const rows = query.all(this.#projectPath) as Array<{ name: string }>;
+		return rows.map((row) => row.name);
+	}
+
+	async deleteNamespace(name: string): Promise<void> {
+		if (!name?.trim()) {
+			throw new Error('Vector storage name is required');
+		}
+
+		const stmt = this.#db.prepare(`
+			DELETE FROM vector_storage 
+			WHERE project_path = ? AND name = ?
+		`);
+
+		stmt.run(this.#projectPath, name);
 	}
 }

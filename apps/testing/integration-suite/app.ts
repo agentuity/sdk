@@ -1,7 +1,10 @@
 import { createApp } from '@agentuity/runtime';
-import { createWorkbench } from '@agentuity/workbench';
-import { bootstrapRuntimeEnv } from '@agentuity/cli';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider';
+import {
+	mockDatabaseMiddleware,
+	mockAuthMiddleware,
+	analyticsMiddleware,
+} from './src/lib/custom-middleware';
 
 // Import test files to register tests
 import './src/test/basic-agents';
@@ -25,19 +28,28 @@ import './src/test/cli-apikey';
 import './src/test/cli-vector';
 import './src/test/websocket';
 import './src/test/sse';
+import './src/test/web-rendering';
+import './src/test/env-loading';
+import './src/test/middleware-patterns';
 
-// Bootstrap runtime environment based on active profile
-// This loads .env.{profile} and agentuity.{profile}.json
-await bootstrapRuntimeEnv();
-
-const workbench = createWorkbench();
 const threadProvider = new InMemoryThreadProvider();
 
 const app = await createApp({
+	setup: () => {
+		return { foo: 'bar' };
+	},
 	services: {
-		workbench,
 		thread: threadProvider,
 	},
+});
+
+// Add app-level middleware (applies to ALL routes)
+// This demonstrates the pattern of adding middleware in app.ts
+app.router.use('/api/*', mockAuthMiddleware());
+app.router.use('/api/*', analyticsMiddleware());
+app.router.use('/api/*', async (c, next) => {
+	c.set('appLevelData', 'set-in-app-ts');
+	await next();
 });
 
 // Log server URL for debugging

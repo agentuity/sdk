@@ -4,10 +4,12 @@
 		{ "path": "./packages/auth" },
 		{ "path": "./packages/cli" },
 		{ "path": "./packages/core" },
+		{ "path": "./packages/frontend" },
 		{ "path": "./packages/schema" },
 		{ "path": "./packages/react" },
 		{ "path": "./packages/runtime" },
 		{ "path": "./packages/server" },
 		{ "path": "./packages/workbench" }
-	]
+	],
+	"exclude": ["e2e", "test-results", "playwright-report", "playwright.config.ts"]
 }

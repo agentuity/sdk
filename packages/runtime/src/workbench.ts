@@ -6,6 +6,7 @@ import { createRouter } from './router';
 import type { WebSocketConnection } from './router';
 import { privateContext } from './_server';
 import { getThreadProvider } from './_services';
+import { loadBuildMetadata, getAgentMetadataByAgentId, hasMetadata } from './_metadata';
 
 export const createWorkbenchExecutionRoute = (): Handler => {
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
@@ -46,19 +47,19 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				return ctx.json({ error: 'Invalid JSON in request body' }, { status: 400 });
 			}
 
-			// Get agents registry and find the agent
-			const allAgents = getAgents();
-
-			let agentObj;
-			let agentName;
-
-			for (const [name, agent] of allAgents) {
-				if (agent.metadata.agentId === agentId) {
-					agentObj = agent;
-					agentName = name;
-					break;
+			// Read metadata to find agent name by agentId
+			const agentMeta = getAgentMetadataByAgentId(agentId);
+			if (!agentMeta) {
+				if (!hasMetadata()) {
+					return ctx.json({ error: 'Metadata file not found' }, { status: 500 });
 				}
+				return ctx.text('Agent not found', { status: 404 });
 			}
+
+			// Get runtime agent by name
+			const allAgents = getAgents();
+			const agentName = agentMeta.name;
+			const agentObj = allAgents.get(agentName);
 
 			if (!agentObj || !agentName) {
 				return ctx.text('Agent not found', { status: 404 });
@@ -68,6 +69,8 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			const _ctx = privateContext(ctx);
 			if (agentObj.metadata?.id) {
 				_ctx.var.agentIds.add(agentObj.metadata.id);
+			}
+			if (agentObj.metadata?.agentId) {
 				_ctx.var.agentIds.add(agentObj.metadata.agentId);
 			}
 
@@ -287,16 +290,18 @@ export const createWorkbenchSampleRoute = (): Handler => {
 				return ctx.json({ error: 'Missing agentId query parameter' }, { status: 400 });
 			}
 
-			// Get agents registry and find the agent
-			const allAgents = getAgents();
-
-			let agentObj;
-			for (const [, agent] of allAgents) {
-				if (agent.metadata.agentId === agentId) {
-					agentObj = agent;
-					break;
+			// Read metadata to find agent name by agentId
+			const agentMeta = getAgentMetadataByAgentId(agentId);
+			if (!agentMeta) {
+				if (!hasMetadata()) {
+					return ctx.json({ error: 'Metadata file not found' }, { status: 500 });
 				}
+				return ctx.text('Agent not found', { status: 404 });
 			}
+
+			// Get runtime agent by name
+			const allAgents = getAgents();
+			const agentObj = allAgents.get(agentMeta.name);
 
 			if (!agentObj) {
 				return ctx.text('Agent not found', { status: 404 });
@@ -413,7 +418,7 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
 		? `Bearer ${process.env.AGENTUITY_WORKBENCH_APIKEY}`
 		: undefined;
-	const agents = getAgents();
+
 	return async (ctx) => {
 		if (authHeader) {
 			try {
@@ -430,27 +435,71 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 				return ctx.text('Unauthorized', { status: 401 });
 			}
 		}
-		const schemas: { agents: Record<string, unknown> } = { agents: {} };
-		for (const [, agent] of agents) {
-			schemas.agents[agent.metadata.id] = {
-				schema: {
-					input: agent.inputSchema
-						? {
-								code: agent.metadata.inputSchemaCode || undefined,
-								json: toJSONSchema(agent.inputSchema),
-							}
-						: undefined,
-					output: agent.outputSchema
-						? {
-								code: agent.metadata.outputSchemaCode || undefined,
-								json: toJSONSchema(agent.outputSchema),
-							}
-						: undefined,
-				},
-				metadata: agent.metadata,
-			};
+
+		// Read metadata from agentuity.metadata.json file
+		const metadata = loadBuildMetadata();
+		if (!metadata) {
+			return ctx.json(
+				{ error: 'Metadata file not found. Run build to generate metadata.' },
+				{ status: 500 }
+			);
 		}
-		return ctx.json(schemas);
+
+		try {
+			// Get runtime agents for JSON schema generation
+			const agents = getAgents();
+			const agentsByName = new Map();
+			for (const [name, agent] of agents) {
+				agentsByName.set(name, agent);
+			}
+
+			// Transform metadata structure to workbench format
+			const schemas: { agents: Record<string, unknown> } = { agents: {} };
+
+			for (const agent of metadata.agents || []) {
+				// Try to find runtime agent by name to get JSON schemas
+				const runtimeAgent = agentsByName.get(agent.name);
+
+				schemas.agents[agent.id] = {
+					schema: {
+						input: agent.schema?.input
+							? {
+									code: agent.schema.input,
+									json: runtimeAgent?.inputSchema
+										? toJSONSchema(runtimeAgent.inputSchema)
+										: undefined,
+								}
+							: undefined,
+						output: agent.schema?.output
+							? {
+									code: agent.schema.output,
+									json: runtimeAgent?.outputSchema
+										? toJSONSchema(runtimeAgent.outputSchema)
+										: undefined,
+								}
+							: undefined,
+					},
+					metadata: {
+						id: agent.id,
+						agentId: agent.agentId,
+						name: agent.name,
+						description: agent.description,
+						filename: agent.filename,
+						version: agent.version,
+					},
+				};
+			}
+
+			return ctx.json(schemas);
+		} catch (error) {
+			return ctx.json(
+				{
+					error: 'Failed to read metadata file',
+					message: error instanceof Error ? error.message : String(error),
+				},
+				{ status: 500 }
+			);
+		}
 	};
 };
 

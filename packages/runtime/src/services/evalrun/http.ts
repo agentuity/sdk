@@ -13,6 +13,7 @@ import {
 	type Logger,
 	StructuredError,
 } from '@agentuity/core';
+import { internal } from '../../logger/internal';
 
 const EvalRunResponseError = StructuredError('EvalRunResponseError');
 
@@ -38,12 +39,22 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 	async start(event: EvalRunStartEvent): Promise<void> {
 		const endpoint = '/evalrun/2025-03-17';
 		const fullUrl = `${this.baseUrl}${endpoint}`;
-		this.logger.debug('[EVALRUN HTTP] Sending eval run start event: %s', event.id);
-		this.logger.debug('[EVALRUN HTTP] URL: %s %s', 'POST', fullUrl);
-		this.logger.debug('[EVALRUN HTTP] Base URL: %s', this.baseUrl);
 
 		const payload = { ...event, timestamp: Date.now() };
-		this.logger.debug('[EVALRUN HTTP] Start event payload: %s', JSON.stringify(payload, null, 2));
+
+		// Log full payload using internal logger
+		internal.info('[EVALRUN HTTP] ========== START PAYLOAD ==========');
+		internal.info('[EVALRUN HTTP] id: %s', payload.id);
+		internal.info('[EVALRUN HTTP] evalId: %s', payload.evalId);
+		internal.info('[EVALRUN HTTP] evalIdentifier: %s', payload.evalIdentifier);
+		internal.info('[EVALRUN HTTP] sessionId: %s', payload.sessionId);
+		internal.info('[EVALRUN HTTP] orgId: %s', payload.orgId);
+		internal.info('[EVALRUN HTTP] projectId: %s', payload.projectId);
+		internal.info('[EVALRUN HTTP] devmode: %s', payload.devmode);
+		internal.info('[EVALRUN HTTP] deploymentId: %s', payload.deploymentId);
+		internal.info('[EVALRUN HTTP] spanId: %s', payload.spanId);
+		internal.info('[EVALRUN HTTP] URL: POST %s', fullUrl);
+		internal.info('[EVALRUN HTTP] ============================================');
 
 		try {
 			const resp = await this.apiClient.post(

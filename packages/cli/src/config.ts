@@ -126,8 +126,9 @@ function expandTilde(path: string): string {
 
 let cachedConfig: Config | null | undefined;
 
-export async function loadConfig(customPath?: string): Promise<Config | null> {
-	if (cachedConfig !== undefined) {
+export async function loadConfig(customPath?: string, skipCache = false): Promise<Config | null> {
+	// Use cache if available and not skipped
+	if (!skipCache && cachedConfig !== undefined) {
 		return cachedConfig;
 	}
 	const configPath = customPath ? expandTilde(customPath) : await getProfile();
@@ -189,13 +190,21 @@ export async function loadConfig(customPath?: string): Promise<Config | null> {
 			result.data.overrides = overrides;
 		}
 
-		cachedConfig = result.data;
+		// Cache the loaded config (whether default or custom path)
+		// This ensures --config flag is respected across all commands
+		if (!skipCache) {
+			cachedConfig = result.data;
+		}
 		return result.data;
 	} catch (error) {
-		if (error instanceof Error) {
-			console.error(`Error loading config from ${configPath}:`, error.message);
+		tui.error(`Error loading config from ${configPath}: ${error}`);
+
+		// Cache null on error to prevent retry attempts.
+		// This is acceptable for CLI context where process typically exits on config errors.
+		// Note: For long-running processes, consider time-based cache expiry for transient failures.
+		if (!skipCache) {
+			cachedConfig = null;
 		}
-		cachedConfig = null;
 		return null;
 	}
 }
@@ -250,7 +259,14 @@ export async function saveConfig(config: Config, customPath?: string): Promise<v
 	await writeFile(configPath, content + '\n', { mode: 0o600 });
 	// Ensure existing files get correct permissions on upgrade
 	await chmod(configPath, 0o600);
-	cachedConfig = config;
+
+	// Only cache the default profile, not custom path saves.
+	// Note: This creates potential cache staleness - if a custom path is saved then later
+	// loaded without skipCache, it will use the cached default profile instead.
+	// Consider clearing cache on custom path saves: if (customPath) { cachedConfig = undefined; }
+	if (!customPath) {
+		cachedConfig = config;
+	}
 }
 
 export async function getOrInitConfig(): Promise<Config> {
@@ -286,7 +302,7 @@ export async function saveAuth(auth: AuthData): Promise<void> {
 			return;
 		} catch (error) {
 			// Keychain failed, fall back to config file
-			console.warn('Failed to store auth in keychain, falling back to config file:', error);
+			tui.warning(`Failed to store auth in keychain, falling back to config file: ${error}`);
 		}
 	}
 
@@ -344,6 +360,15 @@ export async function getAuth(): Promise<AuthData | null> {
 		return {
 			apiKey: process.env.AGENTUITY_CLI_API_KEY,
 			userId: process.env.AGENTUITY_USER_ID,
+			expires: new Date(Date.now() + 30 * 60_000),
+		};
+	}
+
+	// Priority 1a: Allow automated login from environment variables (this is set in deployment)
+	if (process.env.AGENTUITY_API_KEY) {
+		return {
+			apiKey: process.env.AGENTUITY_API_KEY,
+			userId: '',
 			expires: new Date(Date.now() + 30 * 60_000),
 		};
 	}
@@ -428,10 +453,14 @@ export function generateYAMLTemplate(name: string): string {
 
 		const schema = value as z.ZodTypeAny;
 
-		// Unwrap optional to get to the inner schema
+		// Unwrap optional and nullable to get to the inner schema
+		// Note: .optional().nullable() creates ZodNullable(ZodOptional(ZodObject))
 		let innerSchema = schema;
-		if (schema instanceof z.ZodOptional) {
-			innerSchema = (schema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
+		if (innerSchema instanceof z.ZodNullable) {
+			innerSchema = (innerSchema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
+		}
+		if (innerSchema instanceof z.ZodOptional) {
+			innerSchema = (innerSchema._def as unknown as { innerType: z.ZodTypeAny }).innerType;
 		}
 
 		const description = getSchemaDescription(schema);

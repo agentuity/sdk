@@ -23,7 +23,7 @@
  * import { createMiddleware } from '@agentuity/auth/clerk';
  *
  * router.get('/api/profile', createMiddleware(), async (c) => {
- *   const user = await c.var.auth.requireUser();
+ *   const user = await c.var.auth.getUser();
  *   return c.json({ email: user.email });
  * });
  * ```
@@ -34,4 +34,4 @@
 export { AgentuityClerk } from './client';
 export type { AgentuityClerkProps } from './client';
 export { createMiddleware } from './server';
-export type { ClerkMiddlewareOptions, ClerkJWTPayload } from './server';
+export type { ClerkMiddlewareOptions, ClerkJWTPayload, ClerkEnv } from './server';

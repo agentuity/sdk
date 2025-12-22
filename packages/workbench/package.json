@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/workbench",
-	"version": "0.0.95",
+	"version": "0.0.101",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -69,6 +69,7 @@
 	"devDependencies": {
 		"@agentuity/test-utils": "workspace:*",
 		"@tailwindcss/cli": "^4.1.12",
+		"monaco-editor": "^0.52.2",
 		"@types/bun": "latest",
 		"@types/hast": "^3.0.4",
 		"bun-types": "latest",

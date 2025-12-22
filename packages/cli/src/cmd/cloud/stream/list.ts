@@ -56,6 +56,7 @@ export const listSubcommand = createCommand({
 		}),
 		response: ListStreamsResponseSchema,
 	},
+	webUrl: '/services/stream',
 
 	async handler(ctx) {
 		const { opts, options } = ctx;

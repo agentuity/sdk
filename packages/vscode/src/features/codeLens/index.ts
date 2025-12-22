@@ -19,7 +19,10 @@ interface BuildMetadata {
 	agents?: BuildMetadataAgent[];
 }
 
-function findAgentIdFromMetadata(project: { rootPath: string }, info: AgentCodeLensInfo): string | undefined {
+function findAgentIdFromMetadata(
+	project: { rootPath: string },
+	info: AgentCodeLensInfo
+): string | undefined {
 	try {
 		const metadataPath = path.join(project.rootPath, '.agentuity', 'agentuity.metadata.json');
 		if (!fs.existsSync(metadataPath)) {

@@ -19,6 +19,7 @@
 - **@agentuity/runtime**: Bun server runtime using Hono framework, depends on core
 - **@agentuity/server**: Runtime-agnostic server utilities for Node.js and Bun, depends on core
 - **@agentuity/schema**: Schema validation library similar to zod
+- **@agentuity/frontend**: Reusable code for web frontends
 - **@agentuity/workbench**: The workbench React component
 - **@agentuity/cli**: Bun-native CLI framework with commander.js, auto-discovery, and YAML config
 - **@agentuity/test-utils**: Private test utilities package (never published), provides shared test helpers
@@ -38,6 +39,7 @@
 
 - **Verification Required**: DO NOT commit files until format, lint, typecheck, build and test cases ALL pass
 - **Main**: NEVER commit directly to the main branch
+- **Documentation**: NEVER create a document unless you've been explicitly asked to create one
 
 ## Testing Standards
 

@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/react",
-	"version": "0.0.95",
+	"version": "0.0.101",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -26,9 +26,12 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*"
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*"
 	},
 	"devDependencies": {
+		"@agentuity/schema": "workspace:*",
+		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
 		"typescript": "^5.9.0"

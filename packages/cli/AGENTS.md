@@ -124,12 +124,96 @@ export const deployCommand: CommandDefinition = {
 export default deployCommand;
 ```
 
+## Build Architecture (Vite + Bun)
+
+The CLI uses a hybrid Vite + Bun build system:
+
+### Production Builds (`agentuity build`)
+
+1. **Client Assets** - Vite builds frontend code:
+   - Input: `src/web/index.html` + React components
+   - Output: `.agentuity/client/` with manifest
+   - CDN support for production deployments
+   - Environment variables: `VITE_*`, `AGENTUITY_PUBLIC_*`, `PUBLIC_*`
+
+2. **Workbench** - Vite builds workbench UI (if enabled):
+   - Input: `.agentuity/workbench-src/` (generated)
+   - Output: `.agentuity/workbench/` with manifest
+   - Base path: configured workbench route
+
+3. **Server Bundle** - Bun.build creates single server file:
+   - Input: `src/generated/app.ts`
+   - Output: `.agentuity/app.js`
+   - Externals: Heavy runtime deps (bun, fsevents, sharp, ws, etc.)
+   - Minification: Controlled by `--dev` flag
+
+### Development Server (`agentuity dev`)
+
+Single Bun server + Vite asset server architecture:
+
+- **Bun Server (port 3500):**
+   - Handles ALL HTTP + WebSocket requests
+   - Routes API calls, serves workbench
+   - Proxies frontend assets to Vite
+   - Uses native Bun WebSocket support (`hono/bun`)
+
+- **Vite Asset Server (dynamic port, typically 5173):**
+   - HMR and React Fast Refresh ONLY
+   - Asset transformation (TypeScript, JSX, CSS)
+   - Browser never connects directly to Vite
+   - Proxied through Bun server
+
+### Build Utilities
+
+- **`bun-version-checker.ts`** - Enforces minimum Bun version (>=1.3.3)
+- **`dependency-checker.ts`** - Auto-upgrades `@agentuity/*` packages
+- **`metadata-generator.ts`** - Creates `agentuity.metadata.json`
+- **`agent-discovery.ts`** - AST-based agent discovery
+- **`route-discovery.ts`** - AST-based route discovery
+- **`registry-generator.ts`** - Generates type-safe registries
+
+### Build Flags
+
+- `--dev` - Development build (no minification, inline sourcemaps, faster)
+- `--skipTypeCheck` - Skip TypeScript validation after build
+- `--outdir` - Custom output directory (default: `.agentuity`)
+
 ## Testing
 
 - Test by running: `bun bin/cli.ts [command]`
 - Test with log levels: `bun bin/cli.ts --log-level=debug [command]`
 - Test with custom config: `bun bin/cli.ts --config=/path/to/production.yaml [command]`
 - Debug mode: `bun bin/cli.ts --log-level=debug [command]` (shows API request/response details)
+
+### Test Suite
+
+- **`test:create`** - Integration test for create command (uses source CLI)
+- **`test:bundled-create`** - Tests bundled executable create command (requires pre-built binary)
+- **`test:exit-codes`** - Tests CLI exit codes
+- **`test:response-schema`** - Tests response schema validation
+- **`test:batch`** - Tests batch reporting
+- **`test:envelope`** - Tests response envelope
+
+### Testing Bundled Executable
+
+To test the bundled executable (prevents regressions like missing dependencies):
+
+```bash
+# 1. Build executable for your platform
+./scripts/build-executables.ts --skip-sign --platform=darwin-arm64
+
+# 2. Run bundled create test
+bun test:bundled-create
+
+# Or specify binary path
+bun scripts/test-bundled-create.ts --binary=./dist/bin/agentuity-darwin-arm64
+```
+
+This test verifies:
+
+- Bundled executable can run `create` command without "Cannot find package" errors
+- All dependencies are properly bundled or dynamically imported
+- Project files are created correctly
 
 ### Version Check Bypass (Development Only)
 

@@ -1,30 +1,38 @@
 import { describe, expect, test, beforeAll, afterAll } from 'bun:test';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import React from 'react';
+import { s } from '@agentuity/schema';
+import { mockFetch } from '@agentuity/test-utils';
 import { AgentuityProvider } from '../src/context';
 import { useAPI } from '../src/api';
+
+// Define schemas for testing
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const getTestOutput = s.object({ message: s.string() });
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const postTestInput = s.object({ name: s.string() });
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const postTestOutput = s.object({ id: s.string(), name: s.string() });
 
 // Extend RouteRegistry for testing
 declare module '../src/types' {
 	interface RouteRegistry {
 		'GET /test': {
 			inputSchema: never;
-			outputSchema: { message: string };
+			outputSchema: typeof getTestOutput;
 		};
 		'POST /test': {
-			inputSchema: { name: string };
-			outputSchema: { id: string; name: string };
+			inputSchema: typeof postTestInput;
+			outputSchema: typeof postTestOutput;
 		};
 	}
 }
 
 // Mock fetch
 const originalFetch = globalThis.fetch;
-let fetchMock: typeof fetch;
 
 beforeAll(() => {
-	fetchMock = async (input: RequestInfo | URL, init?: RequestInit) => {
-		const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+	mockFetch(async (url, init) => {
 		const method = init?.method || 'GET';
 
 		if (method === 'GET' && url.includes('/test')) {
@@ -43,8 +51,7 @@ beforeAll(() => {
 		}
 
 		return new Response('Not Found', { status: 404 });
-	};
-	globalThis.fetch = fetchMock as typeof fetch;
+	});
 });
 
 afterAll(() => {
@@ -58,9 +65,7 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 describe('useAPI - Input Formats', () => {
 	test('should work with string format', async () => {
 		const { result } = renderHook(() => useAPI('GET /test'), { wrapper });
-
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
-
 		expect(result.current.data).toEqual({ message: 'Hello from GET' });
 		expect(result.current.error).toBeNull();
 	});

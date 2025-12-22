@@ -13,6 +13,7 @@ const ProjectSchema = z.object({
 	description: z.string().nullable().optional().describe('the project description'),
 	tags: z.array(z.string()).nullable().optional().describe('the project tags'),
 	orgId: z.string().describe('the organization id'),
+	cloudRegion: z.string().nullable().optional().describe('the cloud region'),
 	api_key: z.string().optional().describe('the SDK api key for the project'),
 	env: z.record(z.string(), z.string()).optional().describe('the environment key/values'),
 	secrets: z.record(z.string(), z.string()).optional().describe('the secrets key/values'),

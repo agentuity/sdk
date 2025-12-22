@@ -37,6 +37,7 @@ jobs:
       env:
          AGENTUITY_API_URL: https://api-v1.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_REGION: usc
       steps:
          - uses: actions/checkout@v4
 
@@ -45,6 +46,12 @@ jobs:
 
          - name: Install dependencies
            run: bun install
+
+         - name: Prepare SDK for testing
+           run: bash scripts/prepare-sdk-for-testing.sh
+
+         - name: Install SDK in integration-suite
+           run: bash scripts/install-sdk-tarballs.sh apps/testing/integration-suite
 
          - name: Setup test credentials
            run: |
@@ -61,6 +68,7 @@ jobs:
 
          - name: Run integration test suite
            run: bash apps/testing/integration-suite/scripts/ci-test.sh
+
    cloud-deployment-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 15
@@ -86,8 +94,11 @@ jobs:
          - name: Install dependencies
            run: bun install
 
-         - name: Build packages
-           run: bun run build
+         - name: Prepare SDK for testing
+           run: bash scripts/prepare-sdk-for-testing.sh
+
+         - name: Install SDK in cloud-deployment
+           run: bash scripts/install-sdk-tarballs.sh apps/testing/cloud-deployment
 
          - name: Setup test credentials
            run: |
@@ -120,10 +131,8 @@ jobs:
               AGENTUITY_REGION=$AGENTUITY_REGION
               EOF
 
-         - name: Build and run cloud deployment tests
-           run: |
-              cd apps/testing/cloud-deployment
-              bun run test
+         - name: Run cloud deployment tests
+           run: bash scripts/test-cloud-deployment.sh
 
          - name: Cleanup
            if: always()
@@ -147,3 +156,36 @@ jobs:
 
          - name: Run template integration tests
            run: bun scripts/test-templates.ts --skip-outdated
+
+   playwright-e2e-test:
+      runs-on: blacksmith-4vcpu-ubuntu-2204
+      timeout-minutes: 10
+      name: Playwright E2E Smoke Test
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Install Playwright browsers
+           run: bunx playwright install --with-deps chromium
+
+         - name: Prepare SDK for testing
+           run: bash scripts/prepare-sdk-for-testing.sh
+
+         - name: Install SDK in e2e-web
+           run: bash scripts/install-sdk-tarballs.sh apps/testing/e2e-web
+
+         - name: Run Playwright E2E tests
+           run: bash scripts/test-e2e.sh
+
+         - name: Upload Playwright report
+           uses: actions/upload-artifact@v4
+           if: always()
+           with:
+              name: playwright-report
+              path: playwright-report/
+              retention-days: 7

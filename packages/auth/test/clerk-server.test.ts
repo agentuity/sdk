@@ -31,4 +31,21 @@ describe('Clerk server middleware', () => {
 		const middleware = createMiddleware();
 		expect(typeof middleware).toBe('function');
 	});
+
+	test('middleware rejects requests with invalid tokens', async () => {
+		const app = new Hono();
+		app.use('/protected', createMiddleware());
+		app.get('/protected', (c) => c.json({ success: true }));
+
+		const res = await app.request('/protected', {
+			method: 'GET',
+			headers: {
+				Authorization: 'Bearer invalid_token',
+			},
+		});
+
+		expect(res.status).toBe(401);
+		const body = await res.json();
+		expect(body).toEqual({ error: 'Unauthorized' });
+	});
 });

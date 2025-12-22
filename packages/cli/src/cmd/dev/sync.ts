@@ -171,9 +171,21 @@ class DevmodeSyncService implements IDevmodeSyncService {
 		for (const agent of currentMetadata.agents || []) {
 			if (agent.evals) {
 				currentEvalCount += agent.evals.length;
+				this.logger.debug(
+					'[CLI EVAL SYNC] Agent "%s" has %d eval(s)',
+					agent.name,
+					agent.evals.length
+				);
+				for (const evalItem of agent.evals) {
+					this.logger.debug(
+						'[CLI EVAL SYNC]   - %s (evalId: %s)',
+						evalItem.name,
+						evalItem.evalId
+					);
+				}
 			}
 		}
-		this.logger.debug('Processing %d current eval(s)', currentEvalCount);
+		this.logger.debug('[CLI EVAL SYNC] Total current eval(s): %d', currentEvalCount);
 
 		// Get agents and evals to sync using shared diff logic
 		const { create: agentsToCreate, delete: agentsToDelete } = getAgentsToSync(
@@ -261,7 +273,14 @@ class DevmodeSyncService implements IDevmodeSyncService {
 		evalsToDelete: string[],
 		deploymentId: string
 	): Promise<void> {
+		this.logger.info(
+			'[CLI EVAL SYNC] syncEvals called: %d to create, %d to delete',
+			evals.length,
+			evalsToDelete.length
+		);
+
 		if (evals.length === 0 && evalsToDelete.length === 0) {
+			this.logger.debug('[CLI EVAL SYNC] No evals to sync, skipping');
 			return;
 		}
 
@@ -270,12 +289,28 @@ class DevmodeSyncService implements IDevmodeSyncService {
 			create: evals,
 			delete: evalsToDelete,
 		};
-		this.logger.trace(
-			'[CLI EVAL SYNC] Sending payload to POST /cli/devmode/eval: %s',
-			JSON.stringify(payload, null, 2)
-		);
 
-		await this.apiClient.post('/cli/devmode/eval', payload, z.object({ success: z.boolean() }));
+		this.logger.debug('[CLI EVAL SYNC] Sending payload to POST /cli/devmode/eval:');
+		for (const evalItem of evals) {
+			this.logger.debug(
+				'[CLI EVAL SYNC]   - %s (id: %s, evalId: %s)',
+				evalItem.name,
+				evalItem.id,
+				evalItem.evalId
+			);
+		}
+
+		try {
+			await this.apiClient.post(
+				'/cli/devmode/eval',
+				payload,
+				z.object({ success: z.boolean() })
+			);
+			this.logger.debug('[CLI EVAL SYNC] Sync successful');
+		} catch (error) {
+			this.logger.error('[CLI EVAL SYNC] Sync failed: %s', error);
+			throw error;
+		}
 	}
 }
 
@@ -365,11 +400,15 @@ export function createDevmodeSyncService({
 	mock = false,
 }: {
 	logger: Logger;
-	apiClient: APIClient;
+	apiClient: APIClient | null;
 	mock?: boolean;
 }): IDevmodeSyncService {
 	if (mock) {
 		return new MockDevmodeSyncService(logger);
+	}
+
+	if (!apiClient) {
+		throw new Error('apiClient is required when not in mock mode');
 	}
 
 	return new DevmodeSyncService(logger, apiClient);

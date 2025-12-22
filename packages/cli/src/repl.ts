@@ -236,7 +236,7 @@ async function loadHistory(name: string): Promise<string[]> {
 
 		const content = await Bun.file(historyFile).text();
 		return content.split('\n').filter((line) => line.trim());
-	} catch (_err) {
+	} catch {
 		return [];
 	}
 }
@@ -253,7 +253,7 @@ async function saveHistory(name: string, history: string[]): Promise<void> {
 
 		const historyFile = join(historyDir, `${name}.txt`);
 		await Bun.write(historyFile, history.join('\n'));
-	} catch (_err) {
+	} catch {
 		// Silently fail - history is not critical
 	}
 }

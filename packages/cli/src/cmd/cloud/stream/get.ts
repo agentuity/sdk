@@ -3,13 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-function formatBytes(bytes: number): string {
-	if (bytes === 0) return '0 B';
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-	return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
 
 const GetStreamResponseSchema = z.object({
 	id: z.string().describe('Stream ID'),
@@ -46,6 +39,7 @@ export const getSubcommand = createCommand({
 		}),
 		response: GetStreamResponseSchema,
 	},
+	webUrl: (ctx) => `/services/stream/${encodeURIComponent(ctx.args.id)}`,
 
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
@@ -69,7 +63,7 @@ export const getSubcommand = createCommand({
 				const durationMs = Date.now() - started;
 				const stats = await Bun.file(opts.output).stat();
 				tui.success(
-					`downloaded ${formatBytes(stats.size)} to ${opts.output} in ${durationMs.toFixed(1)}ms`
+					`downloaded ${tui.formatBytes(stats.size)} to ${opts.output} in ${durationMs.toFixed(1)}ms`
 				);
 
 				// Fetch stream metadata to populate the response
@@ -99,7 +93,7 @@ export const getSubcommand = createCommand({
 
 			console.log(`Name:     ${tui.bold(stream.name ?? 'unknown')}`);
 			console.log(`ID:       ${stream.id}`);
-			console.log(`Size:     ${formatBytes(sizeBytes)}`);
+			console.log(`Size:     ${tui.formatBytes(sizeBytes)}`);
 			console.log(`URL:      ${tui.link(stream.url ?? 'unknown')}`);
 			if (stream.metadata && Object.keys(stream.metadata).length > 0) {
 				console.log(`Metadata:`);

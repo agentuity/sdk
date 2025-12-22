@@ -93,7 +93,7 @@ function convertShikiToMonaco(
 	});
 
 	return {
-		base: isDark ? 'vs-dark' : 'vs',
+		base: (isDark ? 'vs-dark' : 'vs') as 'vs' | 'vs-dark',
 		inherit: true,
 		rules,
 		colors: {
@@ -263,7 +263,7 @@ export function MonacoJsonEditor({
 						editor.onDidChangeModelContent(checkValidationErrors);
 
 						// Check when markers change
-						monaco.editor.onDidChangeMarkers((uris: monaco.Uri[]) => {
+						monaco.editor.onDidChangeMarkers((uris: readonly monaco.Uri[]) => {
 							const model = editor.getModel();
 							if (model && uris.includes(model.uri)) {
 								checkValidationErrors();
@@ -349,10 +349,16 @@ export function MonacoJsonEditor({
 					) as ThemeRegistration;
 
 					const lightMonacoTheme = convertShikiToMonaco(oneLight, 'one-light');
-					monaco.editor.defineTheme('custom-light', lightMonacoTheme);
+					monaco.editor.defineTheme(
+						'custom-light',
+						lightMonacoTheme as monaco.editor.IStandaloneThemeData
+					);
 
 					const darkMonacoTheme = convertShikiToMonaco(oneDarkPro, 'one-dark-pro');
-					monaco.editor.defineTheme('custom-dark', darkMonacoTheme);
+					monaco.editor.defineTheme(
+						'custom-dark',
+						darkMonacoTheme as monaco.editor.IStandaloneThemeData
+					);
 				}}
 			/>
 		</div>

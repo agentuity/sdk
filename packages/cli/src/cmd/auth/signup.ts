@@ -11,6 +11,7 @@ export const signupCommand = createSubcommand({
 	description: 'Create a new Agentuity Cloud Platform account',
 	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive'],
 	toplevel: true,
+	skipSkill: true,
 	idempotent: false,
 	requires: { apiClient: true },
 	examples: [

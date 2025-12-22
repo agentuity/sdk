@@ -4,7 +4,7 @@
  * @module clerk/server
  */
 
-import type { MiddlewareHandler } from 'hono';
+import { createMiddleware as createHonoMiddleware } from 'hono/factory';
 import { createClerkClient, verifyToken } from '@clerk/backend';
 import type { User } from '@clerk/backend';
 import type { AgentuityAuth, AgentuityAuthUser } from '../types';
@@ -18,6 +18,15 @@ export interface ClerkJWTPayload {
 	/** Additional claims */
 	[key: string]: unknown;
 }
+
+/**
+ * Environment type for Clerk middleware - provides typed context variables.
+ */
+export type ClerkEnv = {
+	Variables: {
+		auth: AgentuityAuth<User, ClerkJWTPayload>;
+	};
+};
 
 /**
  * Options for Clerk middleware.
@@ -46,12 +55,12 @@ export interface ClerkMiddlewareOptions {
  * import { createMiddleware } from '@agentuity/auth/clerk';
  *
  * router.get('/api/profile', createMiddleware(), async (c) => {
- *   const user = await c.var.auth.requireUser();
+ *   const user = await c.var.auth.getUser();
  *   return c.json({ email: user.email });
  * });
  * ```
  */
-export function createMiddleware(options: ClerkMiddlewareOptions = {}): MiddlewareHandler {
+export function createMiddleware(options: ClerkMiddlewareOptions = {}) {
 	const secretKey = options.secretKey || process.env.CLERK_SECRET_KEY;
 	const publishableKey =
 		options.publishableKey ||
@@ -76,7 +85,7 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 	// Create Clerk client instance
 	const clerkClient = createClerkClient({ secretKey });
 
-	return async (c, next) => {
+	return createHonoMiddleware<ClerkEnv>(async (c, next) => {
 		const authHeader = c.req.header('Authorization');
 
 		if (!authHeader) {
@@ -116,7 +125,7 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 
 			// Create auth object with Clerk user and payload types
 			const auth: AgentuityAuth<User, ClerkJWTPayload> = {
-				async requireUser() {
+				async getUser() {
 					if (cachedUser) {
 						return cachedUser;
 					}
@@ -143,7 +152,7 @@ export function createMiddleware(options: ClerkMiddlewareOptions = {}): Middlewa
 			console.error(`[Clerk Auth] Authentication failed: ${errorCode} - ${errorMessage}`);
 			return c.json({ error: 'Unauthorized' }, 401);
 		}
-	};
+	});
 }
 
 /**
@@ -156,13 +165,4 @@ function mapClerkUserToAgentuityUser(clerkUser: User): AgentuityAuthUser<User> {
 		email: clerkUser.emailAddresses[0]?.emailAddress,
 		raw: clerkUser,
 	};
-}
-
-/**
- * Augment Hono's context types to include auth.
- */
-declare module 'hono' {
-	interface ContextVariableMap {
-		auth: AgentuityAuth<User, ClerkJWTPayload>;
-	}
 }

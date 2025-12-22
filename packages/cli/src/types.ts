@@ -1,10 +1,13 @@
 import type { Logger } from '@agentuity/core';
-import { Deployment, BuildMetadataSchema as ServerBuildMetadataSchema } from '@agentuity/server';
+import {
+	DeploymentConfig,
+	BuildMetadataSchema as ServerBuildMetadataSchema,
+} from '@agentuity/server';
 import type * as z from 'zod';
 import { z as zod } from 'zod';
 import type { APIClient } from './api';
 
-export { Deployment };
+export { DeploymentConfig };
 
 export type { Logger };
 
@@ -107,7 +110,47 @@ export interface BuildContext {
 }
 
 /**
- * User-provided build configuration for a specific phase
+ * Workbench configuration
+ *
+ * Presence of this config object implicitly enables workbench in dev mode.
+ * To disable workbench, omit this config entirely.
+ */
+export interface WorkbenchConfig {
+	/**
+	 * Route where the workbench UI will be served
+	 * @default '/workbench'
+	 */
+	route?: string;
+	/**
+	 * Custom headers to send with workbench requests
+	 */
+	headers?: Record<string, string>;
+}
+
+/**
+ * Agentuity project configuration (declarative)
+ */
+export interface AgentuityConfig {
+	/**
+	 * Workbench configuration
+	 */
+	workbench?: WorkbenchConfig;
+	/**
+	 * Vite plugins to add to the client build
+	 * These are added AFTER Agentuity's built-in plugins
+	 */
+	plugins?: Array<import('vite').Plugin>;
+	/**
+	 * Additional define constants for code replacement in Vite builds
+	 * These are merged with Agentuity's default defines
+	 * Note: Cannot override AGENTUITY_PUBLIC_* or process.env.NODE_ENV
+	 */
+	define?: Record<string, string>;
+}
+
+/**
+ * User-provided build configuration for a specific phase (legacy Bun bundler)
+ * @deprecated Use AgentuityConfig instead
  */
 export interface BuildConfig {
 	/**
@@ -303,6 +346,13 @@ export type CommandContext<
 	Op extends z.ZodType | undefined = undefined,
 > = CommandContextFromSpecs<R, O, A, Op>;
 
+export type WebUrl<
+	R extends Requires | undefined = undefined,
+	O extends Optional | undefined = undefined,
+	A extends z.ZodType | undefined = undefined,
+	Op extends z.ZodType | undefined = undefined,
+> = string | ((ctx: CommandContext<R, O, A, Op>) => string | undefined | null);
+
 export function createSubcommand<
 	R extends Requires | undefined = undefined,
 	O extends Optional | undefined = undefined,
@@ -322,6 +372,8 @@ export function createSubcommand<
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
 	tags?: string[];
+	skipSkill?: boolean;
+	webUrl?: WebUrl<R, O, A, Op>;
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
@@ -365,6 +417,8 @@ export function createCommand<
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
 	tags?: string[];
+	skipSkill?: boolean;
+	webUrl?: WebUrl<R, O, A, Op>;
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
@@ -396,12 +450,14 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
 	  }
@@ -412,12 +468,14 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];
 	  };
@@ -429,12 +487,14 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler(ctx: CommandContext): unknown | Promise<unknown>;
 			subcommands?: SubcommandDefinition[];
 	  }
@@ -444,12 +504,14 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
 			pagination?: PaginationInfo;
 			tags?: string[];
 			schema?: CommandSchemas;
+			webUrl?: string | ((ctx: CommandContext) => string | undefined | null);
 			handler?: undefined;
 			subcommands: SubcommandDefinition[];
 	  };
@@ -489,7 +551,7 @@ export const ProjectSchema = zod.object({
 	projectId: zod.string().describe('the project id'),
 	orgId: zod.string().describe('the organization id'),
 	region: zod.string().describe('the region identifier that the project is deployed into'),
-	deployment: Deployment.optional().describe('the deployment configuration'),
+	deployment: DeploymentConfig.optional().describe('the deployment configuration'),
 });
 
 export const BuildMetadataSchema = ServerBuildMetadataSchema;

@@ -31,6 +31,9 @@ export function enableProcessExitProtection(): void {
 
 	protectionEnabled = true;
 
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	(globalThis as any).AGENTUITY_PROCESS_EXIT = originalExit;
+
 	// Replace process.exit with a function that throws
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(process as any).exit = function (code?: number | string | null | undefined): never {
@@ -45,6 +48,9 @@ export function disableProcessExitProtection(): void {
 	if (!protectionEnabled) {
 		return;
 	}
+
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	(globalThis as any).AGENTUITY_PROCESS_EXIT = undefined;
 
 	protectionEnabled = false;
 	process.exit = originalExit;

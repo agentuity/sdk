@@ -1,7 +1,8 @@
-import { createSubcommand } from '../../types';
+import { createSubcommand, type CommandContext, type AuthData } from '../../types';
 import { z } from 'zod';
 import { runCreateFlow } from './template-flow';
 import { getCommand } from '../../command-prefix';
+import type { APIClient as APIClientType } from '../../api';
 
 const ProjectCreateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -11,18 +12,18 @@ const ProjectCreateResponseSchema = z.object({
 	template: z.string().describe('Template used'),
 	installed: z.boolean().describe('Whether dependencies were installed'),
 	built: z.boolean().describe('Whether the project was built'),
+	domains: z.array(z.string()).optional().describe('Array of custom domains'),
 });
 
 export const createProjectSubcommand = createSubcommand({
 	name: 'create',
 	description: 'Create a new project',
-	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive', 'requires-auth'],
+	tags: ['mutating', 'creates-resource', 'slow'],
 	aliases: ['new', 'init'],
 	banner: true,
 	toplevel: true,
 	idempotent: false,
-	optional: { auth: true, org: true, region: true },
-	requires: { apiClient: true },
+	optional: { auth: true, region: true, apiClient: true },
 	examples: [
 		{ command: getCommand('project create'), description: 'Create new item' },
 		{ command: getCommand('project create --name my-ai-agent'), description: 'Create new item' },
@@ -40,6 +41,7 @@ export const createProjectSubcommand = createSubcommand({
 		options: z.object({
 			name: z.string().optional().describe('Project name'),
 			dir: z.string().optional().describe('Directory to create the project in'),
+			domains: z.array(z.string()).optional().describe('Array of custom domains'),
 			template: z.string().optional().describe('Template to use'),
 			templateDir: z
 				.string()
@@ -70,11 +72,21 @@ export const createProjectSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, auth, config, apiClient, orgId, region } = ctx;
+		const { logger, opts, auth, config, apiClient, region } = ctx;
+
+		// Only get org if registering
+		let orgId: string | undefined;
+		if (opts.register === true && auth && apiClient) {
+			const { optionalOrg } = await import('../../auth');
+			orgId = await optionalOrg(
+				ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
+			);
+		}
 
 		await runCreateFlow({
 			projectName: opts.name,
 			dir: opts.dir,
+			domains: opts.domains,
 			template: opts.template,
 			templateDir: opts.templateDir,
 			templateBranch: opts.templateBranch,
@@ -85,7 +97,7 @@ export const createProjectSubcommand = createSubcommand({
 			auth: opts.register === true ? auth : undefined,
 			config: config!,
 			apiClient,
-			orgId,
+			orgId: opts.register === true ? orgId : undefined,
 			region,
 		});
 
