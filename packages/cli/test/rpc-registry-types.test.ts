@@ -163,6 +163,63 @@ describe('RPC Registry Type Generation', () => {
 		expect(exists).toBe(false);
 	});
 
+	test('should handle path parameters by stripping special characters', async () => {
+		const routes: RouteInfo[] = [
+			{
+				method: 'get',
+				path: '/api/agents/:id',
+				filename: './api/agents/[id]/route.ts',
+				routeType: 'api',
+				hasValidator: true,
+				agentVariable: 'getAgentAgent',
+				agentImportPath: '@agent/agents',
+			},
+			{
+				method: 'get',
+				path: '/api/codegen/:agentId/stream',
+				filename: './api/codegen/[agentId]/route.ts',
+				routeType: 'stream',
+				hasValidator: true,
+				agentVariable: 'codegenAgent',
+				agentImportPath: '@agent/codegen',
+			},
+			{
+				method: 'get',
+				path: '/api/files/*path',
+				filename: './api/files/route.ts',
+				routeType: 'api',
+				hasValidator: true,
+				agentVariable: 'filesAgent',
+				agentImportPath: '@agent/files',
+			},
+			{
+				method: 'get',
+				path: '/api/users/:userId?',
+				filename: './api/users/route.ts',
+				routeType: 'api',
+				hasValidator: true,
+				agentVariable: 'usersAgent',
+				agentImportPath: '@agent/users',
+			},
+		];
+
+		generateRouteRegistry(srcDir, routes);
+
+		const routesPath = join(generatedDir, 'routes.ts');
+		const routesContent = await Bun.file(routesPath).text();
+
+		// Path parameters should have special characters stripped
+		expect(routesContent).toContain('id: {');
+		expect(routesContent).toContain('agentId: {');
+		expect(routesContent).toContain('path: {');
+		expect(routesContent).toContain('userId: {');
+		// Should NOT contain invalid TypeScript with special characters
+		expect(routesContent).not.toContain(':id:');
+		expect(routesContent).not.toContain(':agentId:');
+		expect(routesContent).not.toContain('*path:');
+		expect(routesContent).not.toContain('userId?:');
+	});
+
 	test('should generate correct nested structure for complex paths', async () => {
 		const routes: RouteInfo[] = [
 			{

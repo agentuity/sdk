@@ -54,3 +54,6 @@ playwright-report/
 
 /TODO*.md
 /PR*.md
+
+# Generated CLI skills
+**/.agents/skills/
