@@ -1,0 +1,1 @@
+export { politenessPrompt } from './politeness';

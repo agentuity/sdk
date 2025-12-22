@@ -4,10 +4,34 @@ import type { BaseEvalOptions, EvalMiddleware } from './types';
 import { s } from '@agentuity/schema';
 
 // Default schemas for canned evals - change these to update all evals
-export const DefaultEvalInputSchema = s.object({ string: s.string() });
-export const DefaultEvalOutputSchema = s.object({ string: s.string() });
+export const DefaultEvalInputSchema = s.object({
+	request: s.string(),
+	context: s.string().optional(),
+});
+export const DefaultEvalOutputSchema = s.object({
+	response: s.string(),
+});
 export type DefaultEvalInput = typeof DefaultEvalInputSchema;
 export type DefaultEvalOutput = typeof DefaultEvalOutputSchema;
+
+/**
+ * Interpolates a prompt template with the provided variables.
+ * Replaces {{VARIABLE_NAME}} placeholders with their values.
+ *
+ * @example
+ * ```typescript
+ * const prompt = interpolatePrompt(politenessPrompt, {
+ *   USER_REQUEST: input.request,
+ *   MODEL_RESPONSE: output.response,
+ * });
+ * ```
+ */
+export function interpolatePrompt(template: string, variables: Record<string, string>): string {
+	return Object.entries(variables).reduce(
+		(prompt, [key, value]) => prompt.replaceAll(`{{${key}}}`, value),
+		template
+	);
+}
 
 // Infer the output type from a schema, or any if undefined
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

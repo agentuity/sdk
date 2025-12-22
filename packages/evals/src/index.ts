@@ -1,12 +1,33 @@
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
-import { createCannedEval, type DefaultEvalInput, type DefaultEvalOutput } from './_utils';
+import {
+	createCannedEval,
+	interpolatePrompt,
+	type DefaultEvalInput,
+	type DefaultEvalOutput,
+} from './_utils';
 import type { BaseEvalOptions } from './types';
-export { createCannedEval, type DefaultEvalInput, type DefaultEvalOutput } from './_utils';
+import { politenessPrompt } from './prompts';
+
+export {
+	createCannedEval,
+	interpolatePrompt,
+	type DefaultEvalInput,
+	type DefaultEvalOutput,
+} from './_utils';
 export type { BaseEvalOptions, EvalMiddleware } from './types';
+export { politenessPrompt } from './prompts';
 
 type PolitenessEvalOptions = {
-	howPolite: 'very' | 'somewhat' | 'not very' | 'not at all' | 'unknown';
+	threshold: number;
+};
+
+type EvalResponse = {
+	score: number;
+	passed: boolean;
+	metadata: {
+		reason: string;
+	};
 };
 
 export const politenessEval = createCannedEval<
@@ -15,23 +36,41 @@ export const politenessEval = createCannedEval<
 	BaseEvalOptions & PolitenessEvalOptions
 >({
 	name: 'politeness',
-	description: 'Checks if the agent is polite',
+	description: 'Evaluates politeness of agent responses using LLM-as-judge',
 	options: {
 		model: 'gpt-4o',
-		howPolite: 'very',
+		threshold: 0.8,
 	},
 	handler: async (ctx, input, output, options) => {
-		await generateText({
-			model: openai(options.model),
-			prompt: `Are you polite? Input: ${input.string}, Output: ${output.string}`,
+		const prompt = interpolatePrompt(politenessPrompt, {
+			USER_REQUEST: input.request,
+			MODEL_RESPONSE: output.response,
 		});
 
-		return {
-			success: true as const,
-			passed: true,
-			metadata: {
-				reason: 'test',
-			},
-		};
+		try {
+			const result = await generateText({
+				model: openai(options.model),
+				prompt,
+			});
+
+			const evaluation = JSON.parse(result.text) as EvalResponse;
+
+			return {
+				success: true as const,
+				passed: evaluation.passed && evaluation.score >= options.threshold,
+				score: evaluation.score,
+				metadata: {
+					reason: evaluation.metadata.reason,
+					model: options.model,
+					threshold: options.threshold,
+				},
+			};
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Unknown error';
+			return {
+				success: false as const,
+				error: `Eval failed: ${message}`,
+			};
+		}
 	},
 });

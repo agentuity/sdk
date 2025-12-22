@@ -3,17 +3,19 @@ import evalsBasicAgent, { AgentOutput, AgentInput } from './basic';
 
 /**
  * Example 1: Using canned eval with defaults
- * The eval expects { string: string } for both input and output,
- * so we need middleware to transform our agent's schema.
+ * The eval expects { request: string, context?: string } for input
+ * and { response: string } for output, so we need middleware to transform.
  */
 export const politenessCheck = evalsBasicAgent.createEval(
 	politenessEval<typeof AgentInput, typeof AgentOutput>({
 		name: 'politeness-check',
 		model: 'gpt-4o-mini',
-		howPolite: 'somewhat',
+		threshold: 0.7,
 		middleware: {
-			transformInput: (input) => ({ string: `User requested calculation for value: ${input.value}` }),
-			transformOutput: (output) => ({ string: `Result: ${output.result}, Doubled: ${output.doubled}` }),
+			transformInput: (input) => ({ request: `Calculate double of ${input.value}` }),
+			transformOutput: (output) => ({
+				response: `Result: ${output.result}, Doubled: ${output.doubled}`,
+			}),
 		},
 	})
 );
