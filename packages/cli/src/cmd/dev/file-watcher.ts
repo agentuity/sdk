@@ -6,7 +6,7 @@
  */
 
 import { watch, type FSWatcher, statSync, readdirSync, lstatSync } from 'node:fs';
-import { resolve, basename, relative } from 'node:path';
+import { resolve, relative } from 'node:path';
 import type { Logger } from '../../types';
 import { createAgentTemplates, createAPITemplates } from './templates';
 
