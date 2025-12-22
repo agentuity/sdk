@@ -108,6 +108,22 @@ export const deploySubcommand = createSubcommand({
 		let statusResult: DeploymentStatusResult | undefined;
 		const logs: string[] = [];
 
+		// Check for pre-created deployment from CI/Nova
+		const deploymentEnv = process.env.AGENTUITY_DEPLOYMENT;
+		let useExistingDeployment = false;
+		if (deploymentEnv) {
+			try {
+				const parsed = JSON.parse(deploymentEnv) as { id: string; orgId: string; publicKey: string };
+				if (parsed.id && parsed.orgId && parsed.publicKey) {
+					deployment = parsed;
+					useExistingDeployment = true;
+					logger.info(`Using existing deployment: ${parsed.id}`);
+				}
+			} catch {
+				logger.warn('Invalid AGENTUITY_DEPLOYMENT env var, ignoring');
+			}
+		}
+
 		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
 
 		// Ensure SDK key is present before proceeding
@@ -183,6 +199,9 @@ export const deploySubcommand = createSubcommand({
 					{
 						label: 'Create Deployment',
 						run: async () => {
+							if (useExistingDeployment && deployment) {
+								return stepSkipped('using existing deployment');
+							}
 							try {
 								deployment = await projectDeploymentCreate(
 									apiClient,
@@ -430,7 +449,7 @@ export const deploySubcommand = createSubcommand({
 						},
 					},
 				].filter(Boolean) as Step[],
-				options.logLevel
+				useExistingDeployment ? 'debug' : options.logLevel
 			);
 
 			if (!deployment) {
