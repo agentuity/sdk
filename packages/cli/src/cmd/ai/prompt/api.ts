@@ -2,12 +2,7 @@ import { createSubcommand } from '../../../types';
 import type { CommandContext } from '../../../types';
 import { getCommand } from '../../../command-prefix';
 import apiPromptContent from './api.md';
-import { appendVersionComment } from './version';
-
-/**
- * Prompt version for api.md - increment this when prompt content changes.
- */
-export const PROMPT_VERSION = 1;
+import { appendHashComment } from './version';
 
 export const apiSubcommand = createSubcommand({
 	name: 'api',
@@ -22,8 +17,15 @@ export const apiSubcommand = createSubcommand({
 });
 
 /**
- * Generate the API prompt with version comment.
+ * Get the raw prompt content without hash.
+ */
+export function getPromptContent(): string {
+	return apiPromptContent;
+}
+
+/**
+ * Generate the API prompt with hash comment.
  */
 export function generateLLMPrompt(): string {
-	return appendVersionComment(apiPromptContent, PROMPT_VERSION);
+	return appendHashComment(apiPromptContent);
 }

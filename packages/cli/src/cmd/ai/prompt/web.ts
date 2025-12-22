@@ -2,12 +2,7 @@ import { createSubcommand } from '../../../types';
 import type { CommandContext } from '../../../types';
 import { getCommand } from '../../../command-prefix';
 import webPromptContent from './web.md';
-import { appendVersionComment } from './version';
-
-/**
- * Prompt version for web.md - increment this when prompt content changes.
- */
-export const PROMPT_VERSION = 1;
+import { appendHashComment } from './version';
 
 export const webSubcommand = createSubcommand({
 	name: 'web',
@@ -22,8 +17,15 @@ export const webSubcommand = createSubcommand({
 });
 
 /**
- * Generate the web prompt with version comment.
+ * Get the raw prompt content without hash.
+ */
+export function getPromptContent(): string {
+	return webPromptContent;
+}
+
+/**
+ * Generate the web prompt with hash comment.
  */
 export function generateLLMPrompt(): string {
-	return appendVersionComment(webPromptContent, PROMPT_VERSION);
+	return appendHashComment(webPromptContent);
 }

@@ -1,125 +1,173 @@
 /**
  * Prompt Generator
  *
- * Generates AGENTS.md prompt files in src/agent/, src/api/, and src/web/ directories.
- * Uses version tracking to detect user modifications and avoid overwriting.
+ * Generates AGENTS.md prompt files in .agents/agentuity/sdk/[type]/ directories.
+ * Also creates reference files in src/[type]/AGENTS.md (write-once, only if missing).
+ *
+ * Uses hash tracking to detect template changes in .agents/ folder.
+ * Reference files in src/ are never overwritten once created.
  *
  * Only runs in dev mode.
  */
 
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import type { Logger } from '../../../types';
-import { checkUpdateStatus } from '../../ai/prompt/version';
+import { needsUpdate } from '../../ai/prompt/version';
 import {
 	generateLLMPrompt as generateAgentPrompt,
-	PROMPT_VERSION as AGENT_PROMPT_VERSION,
+	getPromptContent as getAgentContent,
 } from '../../ai/prompt/agent';
 import {
 	generateLLMPrompt as generateApiPrompt,
-	PROMPT_VERSION as API_PROMPT_VERSION,
+	getPromptContent as getApiContent,
 } from '../../ai/prompt/api';
 import {
 	generateLLMPrompt as generateWebPrompt,
-	PROMPT_VERSION as WEB_PROMPT_VERSION,
+	getPromptContent as getWebContent,
 } from '../../ai/prompt/web';
 
 interface PromptConfig {
 	name: string;
-	folder: string;
-	filename: string;
-	version: number;
+	srcFolder: string;
 	generate: () => string;
+	getContent: () => string;
 }
 
 const PROMPTS: PromptConfig[] = [
 	{
 		name: 'agent',
-		folder: 'agent',
-		filename: 'AGENTS.md',
-		version: AGENT_PROMPT_VERSION,
+		srcFolder: 'agent',
 		generate: generateAgentPrompt,
+		getContent: getAgentContent,
 	},
 	{
 		name: 'api',
-		folder: 'api',
-		filename: 'AGENTS.md',
-		version: API_PROMPT_VERSION,
+		srcFolder: 'api',
 		generate: generateApiPrompt,
+		getContent: getApiContent,
 	},
 	{
 		name: 'web',
-		folder: 'web',
-		filename: 'AGENTS.md',
-		version: WEB_PROMPT_VERSION,
+		srcFolder: 'web',
 		generate: generateWebPrompt,
+		getContent: getWebContent,
 	},
 ];
 
 /**
- * Generate or update prompt files in src/agent/, src/api/, and src/web/ directories.
- * Respects user modifications by checking content hash before overwriting.
+ * Generate the reference file content that points to .agents/
+ */
+function generateReferenceContent(name: string): string {
+	return `See [.agents/agentuity/sdk/${name}/AGENTS.md](../../.agents/agentuity/sdk/${name}/AGENTS.md) for Agentuity ${name} development guidelines.
+`;
+}
+
+/**
+ * Generate or update prompt files.
+ *
+ * - .agents/agentuity/sdk/[type]/AGENTS.md: Full content, updated when hash differs
+ * - src/[type]/AGENTS.md: Reference file, only created if missing
  *
  * @param srcDir - The src/ directory path
  * @param logger - Logger for output
  */
 export async function generatePromptFiles(srcDir: string, logger: Logger): Promise<void> {
+	const projectRoot = dirname(srcDir);
+
 	for (const prompt of PROMPTS) {
-		await generatePromptFile(srcDir, prompt, logger);
+		await generatePromptFile(projectRoot, srcDir, prompt, logger);
 	}
 }
 
 async function generatePromptFile(
+	projectRoot: string,
 	srcDir: string,
 	config: PromptConfig,
 	logger: Logger
 ): Promise<void> {
-	const folderPath = join(srcDir, config.folder);
-	const filePath = join(folderPath, config.filename);
+	const srcFolderPath = join(srcDir, config.srcFolder);
 
-	// Check if the folder exists
-	let folderExists = false;
-	try {
-		const stat = await Bun.$`test -d ${folderPath}`.nothrow();
-		folderExists = stat.exitCode === 0;
-	} catch {
-		folderExists = false;
+	// Check if the src folder exists (e.g., src/agent/)
+	const srcFolderExists = await Bun.file(srcFolderPath).exists().catch(() => false);
+	if (!srcFolderExists) {
+		// Try directory check
+		try {
+			const stat = await Bun.$`test -d ${srcFolderPath}`.nothrow();
+			if (stat.exitCode !== 0) {
+				logger.trace(`Skipping ${config.name} prompt - src/${config.srcFolder}/ does not exist`);
+				return;
+			}
+		} catch {
+			logger.trace(`Skipping ${config.name} prompt - src/${config.srcFolder}/ does not exist`);
+			return;
+		}
 	}
 
-	if (!folderExists) {
-		logger.trace(`Skipping ${config.name} prompt - src/${config.folder}/ does not exist`);
-		return;
-	}
+	// Generate files
+	await generateAgentsFile(projectRoot, config, logger);
+	await generateReferenceFile(srcFolderPath, config, logger);
+}
+
+/**
+ * Generate/update the .agents/agentuity/sdk/[type]/AGENTS.md file.
+ * Overwrites if hash differs from source template.
+ */
+async function generateAgentsFile(
+	projectRoot: string,
+	config: PromptConfig,
+	logger: Logger
+): Promise<void> {
+	const agentsDir = join(projectRoot, '.agents', 'agentuity', 'sdk', config.name);
+	const filePath = join(agentsDir, 'AGENTS.md');
 
 	const file = Bun.file(filePath);
 	const fileExists = await file.exists();
 
 	if (!fileExists) {
 		// File doesn't exist - create it
-		await mkdir(folderPath, { recursive: true });
+		await mkdir(agentsDir, { recursive: true });
 		const content = config.generate();
 		await Bun.write(filePath, content);
-		logger.debug(`Generated src/${config.folder}/${config.filename}`);
+		logger.debug(`Generated .agents/agentuity/sdk/${config.name}/AGENTS.md`);
 		return;
 	}
 
 	// File exists - check if it needs to be updated
 	const existingContent = await file.text();
-	const status = checkUpdateStatus(existingContent, config.version);
+	const sourceContent = config.getContent();
 
-	if (status.isUserModified) {
-		logger.trace(`Skipping ${config.name} prompt update - file has been modified by user`);
-		return;
-	}
-
-	if (status.needsUpdate) {
+	if (needsUpdate(existingContent, sourceContent)) {
 		const content = config.generate();
 		await Bun.write(filePath, content);
-		logger.debug(
-			`Updated src/${config.folder}/${config.filename} (v${status.fileVersion} → v${config.version})`
-		);
+		logger.debug(`Updated .agents/agentuity/sdk/${config.name}/AGENTS.md`);
 		return;
 	}
 
-	logger.trace(`Skipping ${config.name} prompt - already up to date (v${config.version})`);
+	logger.trace(`Skipping ${config.name} prompt - already up to date`);
+}
+
+/**
+ * Generate the src/[type]/AGENTS.md reference file.
+ * Only creates if missing (write-once).
+ */
+async function generateReferenceFile(
+	srcFolderPath: string,
+	config: PromptConfig,
+	logger: Logger
+): Promise<void> {
+	const filePath = join(srcFolderPath, 'AGENTS.md');
+
+	const file = Bun.file(filePath);
+	const fileExists = await file.exists();
+
+	if (fileExists) {
+		logger.trace(`Skipping src/${config.srcFolder}/AGENTS.md - already exists`);
+		return;
+	}
+
+	// Create the reference file
+	const content = generateReferenceContent(config.name);
+	await Bun.write(filePath, content);
+	logger.debug(`Generated src/${config.srcFolder}/AGENTS.md (reference)`);
 }

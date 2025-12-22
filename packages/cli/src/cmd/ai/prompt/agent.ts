@@ -2,12 +2,7 @@ import { createSubcommand } from '../../../types';
 import type { CommandContext } from '../../../types';
 import { getCommand } from '../../../command-prefix';
 import agentPromptContent from './agent.md';
-import { appendVersionComment } from './version';
-
-/**
- * Prompt version for agent.md - increment this when prompt content changes.
- */
-export const PROMPT_VERSION = 1;
+import { appendHashComment } from './version';
 
 export const agentSubcommand = createSubcommand({
 	name: 'agent',
@@ -22,8 +17,15 @@ export const agentSubcommand = createSubcommand({
 });
 
 /**
- * Generate the agent prompt with version comment.
+ * Get the raw prompt content without hash.
+ */
+export function getPromptContent(): string {
+	return agentPromptContent;
+}
+
+/**
+ * Generate the agent prompt with hash comment.
  */
 export function generateLLMPrompt(): string {
-	return appendVersionComment(agentPromptContent, PROMPT_VERSION);
+	return appendHashComment(agentPromptContent);
 }

@@ -1,22 +1,14 @@
 /**
  * Prompt file versioning utilities.
  *
- * Version format at end of file: <!-- prompt_version: [version]/[hash] -->
+ * Hash format at end of file: <!-- prompt_hash: [hash] -->
  *
- * - version: manually incremented number when prompt content changes
- * - hash: SHA256 of file content (excluding the version line)
+ * - hash: SHA256 of file content (excluding the hash line)
  *
- * This allows detecting:
- * - If user has modified the file (hash doesn't match)
- * - If our version is newer (version number comparison)
+ * This allows detecting if the source template has changed.
  */
 
-const VERSION_REGEX = /\n?<!-- prompt_version: (\d+)\/([a-f0-9]+) -->$/;
-
-export interface PromptVersionInfo {
-	version: number;
-	hash: string;
-}
+const HASH_REGEX = /\n?<!-- prompt_hash: ([a-f0-9]+) -->$/;
 
 /**
  * Compute SHA256 hash of content using Bun's built-in hasher.
@@ -24,109 +16,46 @@ export interface PromptVersionInfo {
 export function computeHash(content: string): string {
 	const hasher = new Bun.CryptoHasher('sha256');
 	hasher.update(content);
-	return hasher.digest('hex');
+	return hasher.digest().toHex();
 }
 
 /**
- * Strip the version comment from content.
+ * Strip the hash comment from content.
  */
-export function stripVersionComment(content: string): string {
-	return content.replace(VERSION_REGEX, '');
+export function stripHashComment(content: string): string {
+	return content.replace(HASH_REGEX, '');
 }
 
 /**
- * Extract version info from file content.
- * Returns null if no version comment found.
+ * Extract hash from file content.
+ * Returns null if no hash comment found.
  */
-export function extractVersionInfo(content: string): PromptVersionInfo | null {
-	const match = content.match(VERSION_REGEX);
-	if (!match) {
-		return null;
-	}
-	return {
-		version: parseInt(match[1], 10),
-		hash: match[2],
-	};
+export function extractHash(content: string): string | null {
+	const match = content.match(HASH_REGEX);
+	return match ? match[1] : null;
 }
 
 /**
- * Generate content with version comment appended.
+ * Generate content with hash comment appended.
  */
-export function appendVersionComment(content: string, version: number): string {
+export function appendHashComment(content: string): string {
 	const hash = computeHash(content);
-	return `${content}\n<!-- prompt_version: ${version}/${hash} -->`;
+	return `${content}\n<!-- prompt_hash: ${hash} -->`;
 }
 
 /**
- * Check if a file has been modified by the user.
- * Returns true if the file content doesn't match the expected hash.
+ * Check if a file needs to be updated based on hash comparison.
+ *
+ * @param fileContent - Current file content (with hash comment)
+ * @param sourceContent - Source template content (without hash comment)
+ * @returns true if file needs to be updated (hashes differ)
  */
-export function isUserModified(fileContent: string): boolean {
-	const versionInfo = extractVersionInfo(fileContent);
-	if (!versionInfo) {
-		// No version info = either new file or user completely rewrote it
+export function needsUpdate(fileContent: string, sourceContent: string): boolean {
+	const fileHash = extractHash(fileContent);
+	if (!fileHash) {
 		return true;
 	}
 
-	const contentWithoutVersion = stripVersionComment(fileContent);
-	const actualHash = computeHash(contentWithoutVersion);
-
-	return actualHash !== versionInfo.hash;
-}
-
-/**
- * Check if a prompt file needs to be updated.
- *
- * @param fileContent - Current file content
- * @param currentVersion - Our current prompt version
- * @returns Object with update status and reason
- */
-export function checkUpdateStatus(
-	fileContent: string,
-	currentVersion: number
-): {
-	needsUpdate: boolean;
-	isUserModified: boolean;
-	fileVersion: number | null;
-	reason: string;
-} {
-	const versionInfo = extractVersionInfo(fileContent);
-
-	if (!versionInfo) {
-		return {
-			needsUpdate: true,
-			isUserModified: false,
-			fileVersion: null,
-			reason: 'No version info found',
-		};
-	}
-
-	const contentWithoutVersion = stripVersionComment(fileContent);
-	const actualHash = computeHash(contentWithoutVersion);
-	const userModified = actualHash !== versionInfo.hash;
-
-	if (userModified) {
-		return {
-			needsUpdate: false,
-			isUserModified: true,
-			fileVersion: versionInfo.version,
-			reason: 'File has been modified by user',
-		};
-	}
-
-	if (versionInfo.version < currentVersion) {
-		return {
-			needsUpdate: true,
-			isUserModified: false,
-			fileVersion: versionInfo.version,
-			reason: `File version ${versionInfo.version} is older than current version ${currentVersion}`,
-		};
-	}
-
-	return {
-		needsUpdate: false,
-		isUserModified: false,
-		fileVersion: versionInfo.version,
-		reason: 'File is up to date',
-	};
+	const sourceHash = computeHash(sourceContent);
+	return fileHash !== sourceHash;
 }
