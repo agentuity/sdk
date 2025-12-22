@@ -48,6 +48,8 @@ export interface SchemaCommand {
 	prerequisites?: string[];
 	pagination?: SchemaPagination;
 	tags?: string[];
+	skipSkill?: boolean;
+	toplevel?: boolean;
 	subcommands?: SchemaCommand[];
 	requires?: {
 		auth?: boolean;
@@ -119,6 +121,13 @@ function extractCommandSchema(def: CommandDefinition): SchemaCommand {
 	if ((def as any).tags) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.tags = (def as any).tags;
+	}
+
+	// Extract skipSkill
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if ((def as any).skipSkill !== undefined) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		schema.skipSkill = (def as any).skipSkill;
 	}
 
 	// Extract requires/optional
@@ -200,6 +209,20 @@ function extractSubcommandSchema(def: SubcommandDefinition): SchemaCommand {
 	if ((def as any).tags) {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		schema.tags = (def as any).tags;
+	}
+
+	// Extract skipSkill
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if ((def as any).skipSkill !== undefined) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		schema.skipSkill = (def as any).skipSkill;
+	}
+
+	// Extract toplevel
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if ((def as any).toplevel !== undefined) {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		schema.toplevel = (def as any).toplevel;
 	}
 
 	// Extract requires/optional

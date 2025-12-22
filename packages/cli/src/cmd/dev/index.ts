@@ -15,6 +15,7 @@ import { getDevmodeDeploymentId } from '../build/ast';
 import { getDefaultConfigDir, saveConfig } from '../../config';
 import type { Config } from '../../types';
 import { createFileWatcher } from './file-watcher';
+import { regenerateSkillsAsync } from './skills';
 
 const DEFAULT_PORT = 3500;
 const MIN_PORT = 1024;
@@ -235,6 +236,12 @@ export const command = createCommand({
 			bottomSpacer: false,
 			centerTitle: false,
 		});
+
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const cliVersion = ((global as any).__CLI_SCHEMA__?.version as string) ?? '';
+		if (cliVersion) {
+			regenerateSkillsAsync(rootDir, cliVersion, logger).catch(() => {});
+		}
 
 		// Start Vite asset server ONCE before restart loop
 		// Vite handles frontend HMR independently and stays running across backend restarts

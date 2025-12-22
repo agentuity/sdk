@@ -372,6 +372,7 @@ export function createSubcommand<
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
 	tags?: string[];
+	skipSkill?: boolean;
 	webUrl?: WebUrl<R, O, A, Op>;
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
@@ -416,6 +417,7 @@ export function createCommand<
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
 	tags?: string[];
+	skipSkill?: boolean;
 	webUrl?: WebUrl<R, O, A, Op>;
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
@@ -448,6 +450,7 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -465,6 +468,7 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -483,6 +487,7 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -499,6 +504,7 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];

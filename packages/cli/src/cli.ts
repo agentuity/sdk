@@ -138,6 +138,35 @@ async function executeOrValidate(
 /**
  * Handle validation error - output structured result in validate mode, otherwise log and exit
  */
+/**
+ * Format a user-friendly message for a validation issue
+ */
+function formatValidationIssueMessage(field: string, message: string): string {
+	// Detect "expected X, received undefined" pattern (missing required value)
+	if (message.includes('received undefined')) {
+		if (field && field !== 'unknown') {
+			return `Missing required option: --${field}`;
+		}
+		return 'Missing required value';
+	}
+
+	// Detect "expected X, received Y" pattern (wrong type)
+	const typeMatch = message.match(/expected (\w+), received (\w+)/i);
+	if (typeMatch) {
+		const [, expected, received] = typeMatch;
+		if (field && field !== 'unknown') {
+			return `Invalid value for --${field}: expected ${expected}, got ${received}`;
+		}
+		return `Invalid value: expected ${expected}, got ${received}`;
+	}
+
+	// Default: include the field name if we have it
+	if (field && field !== 'unknown') {
+		return `--${field}: ${message}`;
+	}
+	return message;
+}
+
 function handleValidationError(
 	error: unknown,
 	commandName: string,
@@ -146,30 +175,36 @@ function handleValidationError(
 	if (error && typeof error === 'object' && 'issues' in error) {
 		const issues = (error as { issues: Array<{ path: string[]; message: string }> }).issues;
 
+		const formattedIssues = issues.map((issue) => {
+			const field = issue.path?.length ? issue.path.join('.') : 'unknown';
+			return {
+				field,
+				message: issue.message,
+				formatted: formatValidationIssueMessage(field, issue.message),
+			};
+		});
+
 		if (isValidateMode(baseCtx.options)) {
 			// In validate mode, output structured validation result
 			const result: ValidationResult = {
 				valid: false,
 				command: commandName,
-				errors: issues.map((issue) => ({
-					field: issue.path?.length ? issue.path.join('.') : 'unknown',
-					message: issue.message,
-				})),
+				errors: formattedIssues.map(({ field, message }) => ({ field, message })),
 			};
 			outputValidation(result, baseCtx.options);
 			process.exit(ExitCode.VALIDATION_ERROR);
 		} else {
-			// Use centralized error handling
+			// Build a clear, actionable error message
+			const errorMessages = formattedIssues.map((i) => i.formatted);
+			const primaryMessage =
+				errorMessages.length === 1 ? errorMessages[0] : 'Invalid options or arguments';
+
 			exitWithError(
 				{
 					code: ErrorCode.VALIDATION_FAILED,
-					message: 'Validation error',
-					details: {
-						issues: issues.map((issue) => ({
-							field: issue.path?.length ? issue.path.join('.') : 'unknown',
-							message: issue.message,
-						})),
-					},
+					message: primaryMessage,
+					details: errorMessages.length > 1 ? { errors: errorMessages } : undefined,
+					suggestions: [`Run 'agentuity ${commandName} --help' for usage information`],
 				},
 				baseCtx.logger,
 				baseCtx.options.errorFormat ?? 'text'
