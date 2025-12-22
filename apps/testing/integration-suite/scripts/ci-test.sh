@@ -79,6 +79,14 @@ if [ -n "$OPENAI_API_KEY" ]; then
         echo -e "${GREEN}✓${NC} OpenAI API key configured for vector operations"
 fi
 
+# Also create .env in project directory for CLI commands (they run from project dir, not .agentuity)
+# The CLI looks for SDK key in the project directory's .env file
+echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.env"
+echo "AGENTUITY_REGION=$REGION" >> "$APP_DIR/.env"
+if [ -n "$OPENAI_API_KEY" ]; then
+        echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.env"
+fi
+
 echo -e "${GREEN}✓${NC} Environment configured (region: $REGION)"
 
 # Set service URLs based on region (required for LLM patching)

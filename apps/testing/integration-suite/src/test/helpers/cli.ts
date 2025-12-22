@@ -31,6 +31,21 @@ function findMonorepoRoot(startDir: string): string | null {
 	return null;
 }
 
+// Find project directory (directory containing agentuity.json)
+function findProjectDir(startDir: string): string | null {
+	let currentDir = startDir;
+	while (true) {
+		const configPath = join(currentDir, 'agentuity.json');
+		if (existsSync(configPath)) {
+			return currentDir;
+		}
+		const parent = resolve(currentDir, '..');
+		if (parent === currentDir) break; // reached filesystem root
+		currentDir = parent;
+	}
+	return null;
+}
+
 // Resolve CLI binary path - works in both dev and built (.agentuity) environments
 function resolveCliPath(): string {
 	// Try from import.meta.dir first (dev environment)
@@ -58,6 +73,11 @@ function resolveCliPath(): string {
 
 const CLI_PATH = resolveCliPath();
 
+// Find the project directory containing agentuity.json
+// This is needed because the test server runs from .agentuity/ but CLI needs the parent
+const PROJECT_DIR =
+	findProjectDir(process.cwd()) || findProjectDir(import.meta.dir) || process.cwd();
+
 export interface CLIResult {
 	stdout: string;
 	stderr: string;
@@ -67,10 +87,12 @@ export interface CLIResult {
 
 /**
  * Execute CLI command and return result
+ * Commands are run from the project directory (containing agentuity.json)
+ * Uses the profile from AGENTUITY_PROFILE env var if set, otherwise CLI defaults
  */
 export async function runCLI(args: string[]): Promise<CLIResult> {
 	try {
-		const result = await $`bun ${CLI_PATH} ${args}`.quiet();
+		const result = await $`bun ${CLI_PATH} ${args}`.cwd(PROJECT_DIR).env(process.env).quiet();
 
 		return {
 			stdout: result.stdout.toString(),
