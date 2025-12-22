@@ -112,15 +112,24 @@ export const deploySubcommand = createSubcommand({
 		const deploymentEnv = process.env.AGENTUITY_DEPLOYMENT;
 		let useExistingDeployment = false;
 		if (deploymentEnv) {
+			const ExistingDeploymentSchema = z.object({
+				id: z.string(),
+				orgId: z.string(),
+				publicKey: z.string(),
+			});
 			try {
-				const parsed = JSON.parse(deploymentEnv) as { id: string; orgId: string; publicKey: string };
-				if (parsed.id && parsed.orgId && parsed.publicKey) {
-					deployment = parsed;
+				const parsed = JSON.parse(deploymentEnv);
+				const result = ExistingDeploymentSchema.safeParse(parsed);
+				if (result.success) {
+					deployment = result.data;
 					useExistingDeployment = true;
-					logger.info(`Using existing deployment: ${parsed.id}`);
+					logger.info(`Using existing deployment: ${result.data.id}`);
+				} else {
+					const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ');
+					logger.warn(`Invalid AGENTUITY_DEPLOYMENT schema: ${errors}`);
 				}
-			} catch {
-				logger.warn('Invalid AGENTUITY_DEPLOYMENT env var, ignoring');
+			} catch (err) {
+				logger.warn(`Failed to parse AGENTUITY_DEPLOYMENT: ${err instanceof Error ? err.message : String(err)}`);
 			}
 		}
 
