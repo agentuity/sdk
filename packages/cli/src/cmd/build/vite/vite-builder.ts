@@ -115,7 +115,9 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
 
 		viteConfig = {
-			root: join(rootDir, 'src', 'web'), // Set web dir as root
+			// Use project root as Vite root so plugins (e.g., TanStack Router) resolve paths
+			// from the repo root, matching where agentuity.config.ts is located
+			root: rootDir,
 			plugins,
 			envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 			publicDir: join(rootDir, 'src', 'web', 'public'),
