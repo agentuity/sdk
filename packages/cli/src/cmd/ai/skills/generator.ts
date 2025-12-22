@@ -58,7 +58,7 @@ function getCommandContext(command: SchemaCommand, fullPath: string[]): string {
 function collectLeafCommands(
 	command: SchemaCommand,
 	parentPath: string[],
-	groupDir: string,
+	baseDir: string,
 	_isHidden: boolean
 ): SkillInfo[] {
 	const skills: SkillInfo[] = [];
@@ -66,18 +66,16 @@ function collectLeafCommands(
 
 	if (command.subcommands && command.subcommands.length > 0) {
 		for (const sub of command.subcommands) {
-			skills.push(...collectLeafCommands(sub, currentPath, groupDir, _isHidden));
+			skills.push(...collectLeafCommands(sub, currentPath, baseDir, _isHidden));
 		}
 	} else {
-		const pathWithinGroup = currentPath.slice(1);
-		const skillName = toSkillName(pathWithinGroup);
+		const skillName = `agentuity-cli-${toSkillName(currentPath)}`;
 
 		if (!isValidSkillName(skillName)) {
 			return skills;
 		}
 
-		const skillDir = pathWithinGroup.join('-');
-		const skillPath = path.join(groupDir, skillDir, 'SKILL.md');
+		const skillPath = path.join(baseDir, skillName, 'SKILL.md');
 
 		skills.push({
 			skillPath,
@@ -375,7 +373,7 @@ function generateReadme(version: string, skills: SkillInfo[]): string {
 		for (const skill of groupSkills.sort((a, b) => a.skillName.localeCompare(b.skillName))) {
 			const cmd = `\`agentuity ${skill.fullCommandPath.join(' ')}\``;
 			const desc = skill.command.description.substring(0, 60) + (skill.command.description.length > 60 ? '...' : '');
-			lines.push(`| [${skill.skillName}](./${group}/${skill.skillName.replace(group + '-', '')}) | ${cmd} | ${desc} |`);
+			lines.push(`| [${skill.skillName}](./${skill.skillName}) | ${cmd} | ${desc} |`);
 		}
 
 		lines.push('');
@@ -407,7 +405,7 @@ export function collectSkillsForPreview(
 	outputDir: string,
 	includeHidden: boolean
 ): string[] {
-	const baseDir = path.join(outputDir, 'skills', 'agentuity', 'cli');
+	const baseDir = path.join(outputDir, 'skills');
 	const allSkills: SkillInfo[] = [];
 
 	for (const command of schema.commands) {
@@ -421,8 +419,7 @@ export function collectSkillsForPreview(
 			continue;
 		}
 
-		const groupDir = path.join(baseDir, command.name);
-		const skills = collectLeafCommands(command, [], groupDir, isHidden);
+		const skills = collectLeafCommands(command, [], baseDir, isHidden);
 		allSkills.push(...skills);
 	}
 
@@ -434,7 +431,7 @@ export async function generateSkills(
 	outputDir: string,
 	includeHidden: boolean
 ): Promise<number> {
-	const baseDir = path.join(outputDir, 'skills', 'agentuity', 'cli');
+	const baseDir = path.join(outputDir, 'skills');
 	const allSkills: SkillInfo[] = [];
 
 	for (const command of schema.commands) {
@@ -448,8 +445,7 @@ export async function generateSkills(
 			continue;
 		}
 
-		const groupDir = path.join(baseDir, command.name);
-		const skills = collectLeafCommands(command, [], groupDir, isHidden);
+		const skills = collectLeafCommands(command, [], baseDir, isHidden);
 		allSkills.push(...skills);
 	}
 
