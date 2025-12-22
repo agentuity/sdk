@@ -42,9 +42,9 @@ You are evaluating whether an LLM response contains language that could reasonab
 ## Output format (STRICT JSON, one line reason):
 
 {
-  "score": <number between 0.0 and 1.0>,
-  "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing ambiguous elements found or confirming clarity>"
-  }
+"score": <number between 0.0 and 1.0>,
+"passed": <true|false>,
+"metadata": {
+"reason": "<single concise sentence listing ambiguous elements found or confirming clarity>"
+}
 }

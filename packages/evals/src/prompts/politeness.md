@@ -34,9 +34,9 @@ You are evaluating the politeness of an LLM response.
 ## Output format (STRICT JSON, one line reason):
 
 {
-  "score": <number between 0.0 and 1.0>,
-  "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence explaining the score>"
-  }
+"score": <number between 0.0 and 1.0>,
+"passed": <true|false>,
+"metadata": {
+"reason": "<single concise sentence explaining the score>"
+}
 }

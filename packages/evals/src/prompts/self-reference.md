@@ -32,8 +32,8 @@ You are evaluating whether an LLM response inappropriately references the model 
 ## Output format (STRICT JSON, one line reason):
 
 {
-  "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence quoting self-referential language found or confirming none detected>"
-  }
+"passed": <true|false>,
+"metadata": {
+"reason": "<single concise sentence quoting self-referential language found or confirming none detected>"
+}
 }

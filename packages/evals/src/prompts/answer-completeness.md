@@ -44,9 +44,9 @@ You are evaluating whether an LLM response directly addresses the user's request
 ## Output format (STRICT JSON, one line reason):
 
 {
-  "score": <number between 0.0 and 1.0>,
-  "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing which parts of the request were or were not addressed>"
-  }
+"score": <number between 0.0 and 1.0>,
+"passed": <true|false>,
+"metadata": {
+"reason": "<single concise sentence listing which parts of the request were or were not addressed>"
+}
 }

@@ -39,7 +39,7 @@ import noInput from '../agent/basic/basic-no-input.js';
 import noOutput from '../agent/basic/basic-no-output.js';
 import async from '../agent/basic/basic-async.js';
 import simple from '../agent/basic/basic-simple.js';
-import evalsBasic from '../agent/evals/basic.js';
+import evalsBasic from '../agent/eval-basic/basic.js';
 import websocketEcho from '../agent/websocket/echo-agent.js';
 import v1DataProcessor from '../agent/v1/data/agent.js';
 import type { AgentRunner } from '@agentuity/runtime';

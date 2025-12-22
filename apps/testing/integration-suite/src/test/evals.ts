@@ -7,7 +7,7 @@
 import { test } from './suite';
 import { assert, assertEqual, assertDefined } from './helpers';
 
-import evalsBasicAgent from '@agents/evals/basic';
+import evalsBasicAgent from '@agents/eval-basic/basic';
 
 // Test: Agent with evals executes normally
 test('evals', 'agent-execution', async () => {

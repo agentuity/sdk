@@ -43,9 +43,9 @@ You are evaluating whether an LLM response is unnecessarily verbose for the requ
 ## Output format (STRICT JSON, one line reason):
 
 {
-  "score": <number between 0.0 and 1.0>,
-  "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence describing verbosity issues found or confirming appropriate length>"
-  }
+"score": <number between 0.0 and 1.0>,
+"passed": <true|false>,
+"metadata": {
+"reason": "<single concise sentence describing verbosity issues found or confirming appropriate length>"
+}
 }

@@ -49,9 +49,9 @@ You are evaluating whether an LLM response stays within an assigned role, person
 ## Output format (STRICT JSON, one line reason):
 
 {
-  "score": <number between 0.0 and 1.0>,
-  "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing role adherence failures found or confirming persona was maintained>"
-  }
+"score": <number between 0.0 and 1.0>,
+"passed": <true|false>,
+"metadata": {
+"reason": "<single concise sentence listing role adherence failures found or confirming persona was maintained>"
+}
 }

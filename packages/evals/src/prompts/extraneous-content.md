@@ -45,9 +45,9 @@ You are evaluating whether an LLM response contains content clearly unrelated or
 ## Output format (STRICT JSON, one line reason):
 
 {
-  "score": <number between 0.0 and 1.0>,
-  "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing extraneous content found or confirming all content was relevant>"
-  }
+"score": <number between 0.0 and 1.0>,
+"passed": <true|false>,
+"metadata": {
+"reason": "<single concise sentence listing extraneous content found or confirming all content was relevant>"
+}
 }

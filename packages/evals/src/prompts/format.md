@@ -40,8 +40,8 @@ You are evaluating whether an LLM response matches the format requested by the u
 ## Output format (STRICT JSON, one line reason):
 
 {
-  "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence stating format requirement and whether it was met, or confirming no format was requested>"
-  }
+"passed": <true|false>,
+"metadata": {
+"reason": "<single concise sentence stating format requirement and whether it was met, or confirming no format was requested>"
+}
 }

@@ -48,9 +48,9 @@ You are evaluating whether an LLM response correctly retains and applies facts o
 ## Output format (STRICT JSON, one line reason):
 
 {
-  "score": <number between 0.0 and 1.0>,
-  "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing retention failures found or confirming context was correctly maintained>"
-  }
+"score": <number between 0.0 and 1.0>,
+"passed": <true|false>,
+"metadata": {
+"reason": "<single concise sentence listing retention failures found or confirming context was correctly maintained>"
+}
 }

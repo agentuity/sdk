@@ -26,10 +26,12 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
-		"@agentuity/core": "workspace:*"
+		"@agentuity/core": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"@ai-sdk/openai": "^1.0.0",
+		"ai": "^4.0.0"
 	},
 	"devDependencies": {
-		"@agentuity/core": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
