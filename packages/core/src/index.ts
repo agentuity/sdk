@@ -94,4 +94,15 @@ export {
 	type WorkbenchConfig,
 } from './workbench-config';
 
+// webrtc.ts exports
+export type {
+	SDPDescription,
+	ICECandidate,
+	SignalMessage,
+	SignalMsg,
+	WebRTCConnectionState,
+	WebRTCDisconnectReason,
+	WebRTCSignalingCallbacks,
+} from './webrtc';
+
 // Client code moved to @agentuity/frontend for better bundler compatibility

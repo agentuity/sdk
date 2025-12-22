@@ -14,6 +14,7 @@ import { hash, returnResponse } from './_util';
 import type { Env } from './app';
 import { getAgentAsyncLocalStorage } from './_context';
 import { parseEmail, type Email } from './io/email';
+import { WebRTCRoomManager, type WebRTCOptions } from './webrtc-signaling';
 
 // Re-export both Env types
 export type { Env };
@@ -274,6 +275,28 @@ declare module 'hono' {
 			middleware: MiddlewareHandler,
 			handler: (c: Context) => (stream: any) => void
 		): this;
+
+		/**
+		 * Create a WebRTC signaling endpoint for peer-to-peer audio/video communication.
+		 *
+		 * Registers a WebSocket signaling route at `${path}/signal` that handles:
+		 * - Room membership and peer discovery
+		 * - SDP offer/answer relay
+		 * - ICE candidate relay
+		 *
+		 * @param path - The base route path (e.g., '/call')
+		 * @param options - Optional configuration for the WebRTC endpoint
+		 *
+		 * @example
+		 * ```typescript
+		 * // Create a WebRTC signaling endpoint at /call/signal
+		 * router.webrtc('/call');
+		 *
+		 * // With options
+		 * router.webrtc('/call', { maxPeers: 2 });
+		 * ```
+		 */
+		webrtc(path: string, options?: WebRTCOptions): this;
 	}
 }
 
@@ -284,6 +307,7 @@ declare module 'hono' {
  * - **stream()** - Stream responses with ReadableStream
  * - **websocket()** - WebSocket connections
  * - **sse()** - Server-Sent Events
+ * - **webrtc()** - WebRTC signaling for peer-to-peer communication
  * - **email()** - Email handler routing
  * - **sms()** - SMS handler routing
  * - **cron()** - Scheduled task routing
@@ -713,6 +737,42 @@ export const createRouter = <E extends Env = Env, S extends Schema = Schema>(): 
 		} else {
 			return router.get(path, wrapper);
 		}
+	};
+
+	_router.webrtc = (path: string, options?: WebRTCOptions) => {
+		const roomManager = new WebRTCRoomManager(options);
+		const signalPath = `${path}/signal`;
+
+		// Use the existing websocket implementation for the signaling route
+		const wrapper = upgradeWebSocket((_c: Context) => {
+			let currentWs: WebSocketConnection | undefined;
+
+			return {
+				onOpen: (_event: any, ws: any) => {
+					currentWs = {
+						onOpen: () => {},
+						onMessage: () => {},
+						onClose: () => {},
+						send: (data) => ws.send(data),
+					};
+				},
+				onMessage: (event: any, _ws: any) => {
+					if (currentWs) {
+						roomManager.handleMessage(currentWs, String(event.data));
+					}
+				},
+				onClose: (_event: any, _ws: any) => {
+					if (currentWs) {
+						roomManager.handleDisconnect(currentWs);
+					}
+				},
+			};
+		});
+
+		const wsMiddleware: MiddlewareHandler = (c, next) =>
+			(wrapper as unknown as MiddlewareHandler)(c, next);
+
+		return router.get(signalPath, wsMiddleware);
 	};
 
 	return router;

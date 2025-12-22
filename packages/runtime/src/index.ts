@@ -65,6 +65,17 @@ export { registerDevModeRoutes } from './devmode';
 // router.ts exports
 export { type HonoEnv, type WebSocketConnection, createRouter } from './router';
 
+// webrtc-signaling.ts exports
+export {
+	type SignalMsg,
+	type SignalMessage,
+	type SDPDescription,
+	type ICECandidate,
+	type WebRTCOptions,
+	type WebRTCSignalingCallbacks,
+	WebRTCRoomManager,
+} from './webrtc-signaling';
+
 // eval.ts exports
 export {
 	type EvalContext,
