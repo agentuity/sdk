@@ -71,12 +71,18 @@ describe('Type Inference', () => {
 
 		type Format = s.infer<typeof formatSchema>;
 
-		// This test verifies that the type is correctly inferred as "summary" | "bullet-points"
-		// and not widened to `any` or `string`
+		// Compile-time assertions to prevent type inference regressions
+		// These will cause TypeScript compilation to fail if the type widens to `any` or `string`
+		type _AssertFormat = Format extends 'summary' | 'bullet-points' ? true : false;
+		type _AssertNotAny = 0 extends 1 & Format ? false : true;
+		type _AssertNotString = string extends Format ? false : true;
+		const _typeChecks: _AssertFormat & _AssertNotAny & _AssertNotString = true;
+		void _typeChecks;
+
+		// Runtime tests
 		const format: Format = formatSchema.parse('summary');
 		expect(format).toBe('summary');
 
-		// TypeScript should allow assigning literal values
 		const validFormat: Format = 'bullet-points';
 		expect(validFormat).toBe('bullet-points');
 	});
@@ -86,6 +92,13 @@ describe('Type Inference', () => {
 
 		type Status = s.infer<typeof statusSchema>;
 
+		// Compile-time assertions
+		type _AssertStatus = Status extends 1 | 2 | 3 ? true : false;
+		type _AssertNotAny = 0 extends 1 & Status ? false : true;
+		type _AssertNotNumber = number extends Status ? false : true;
+		const _typeChecks: _AssertStatus & _AssertNotAny & _AssertNotNumber = true;
+		void _typeChecks;
+
 		const status: Status = statusSchema.parse(2);
 		expect(status).toBe(2);
 	});
@@ -94,6 +107,12 @@ describe('Type Inference', () => {
 		const mixedSchema = s.enum(['active', 'inactive', 0, 1]);
 
 		type Mixed = s.infer<typeof mixedSchema>;
+
+		// Compile-time assertions
+		type _AssertMixed = Mixed extends 'active' | 'inactive' | 0 | 1 ? true : false;
+		type _AssertNotAny = 0 extends 1 & Mixed ? false : true;
+		const _typeChecks: _AssertMixed & _AssertNotAny = true;
+		void _typeChecks;
 
 		const mixed: Mixed = mixedSchema.parse('active');
 		expect(mixed).toBe('active');
