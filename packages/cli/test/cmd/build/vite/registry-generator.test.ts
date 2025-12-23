@@ -361,7 +361,9 @@ describe('registry-generator', () => {
 			expect(routesContent).toContain('export type POSTApiDataOutput');
 			expect(routesContent).toContain('export type POSTApiDataInputSchema');
 			expect(routesContent).toContain('export type POSTApiDataOutputSchema');
-			expect(routesContent).toContain("import type { InferInput, InferOutput } from '@agentuity/core'");
+			expect(routesContent).toContain(
+				"import type { InferInput, InferOutput } from '@agentuity/core'"
+			);
 		});
 
 		test('should use never for routes without validator or schemas', async () => {
@@ -404,7 +406,9 @@ describe('registry-generator', () => {
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
 
-			expect(routesContent).toContain("import type processAgent from '../agent/process/index.js'");
+			expect(routesContent).toContain(
+				"import type processAgent from '../agent/process/index.js'"
+			);
 		});
 
 		test('should handle routes with inputSchemaVariable without hasValidator', async () => {

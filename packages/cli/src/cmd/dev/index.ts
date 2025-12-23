@@ -602,7 +602,6 @@ export const command = createCommand({
 									logger.warn('Failed to generate prompt files: %s', err.message)
 								)
 						);
-
 						const agents = await discoverAgents(
 							srcDir,
 							project?.projectId ?? '',

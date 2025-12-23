@@ -24,7 +24,7 @@ import {
 	type RequestAgentContextArgs,
 } from './_context';
 import type { Logger } from './logger';
-import type { Eval, EvalContext, EvalRunResult, EvalFunction } from './eval';
+import type { Eval, EvalContext, EvalHandlerResult, EvalRunResult, EvalFunction } from './eval';
 import { internal } from './logger/internal';
 import { fireEvent } from './_events';
 import type { Thread, Session } from './session';
@@ -363,11 +363,18 @@ export interface CreateEvalConfig<
 	>;
 }
 
-// Type for createEval method
+export type PresetEvalConfig<
+	TInput extends StandardSchemaV1 | undefined = any,
+	TOutput extends StandardSchemaV1 | undefined = any,
+> = CreateEvalConfig<TInput, TOutput> & { name: string };
+
 type CreateEvalMethod<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
-> = (name: string, config: CreateEvalConfig<TInput, TOutput>) => Eval<TInput, TOutput>;
+> = {
+	(config: PresetEvalConfig<TInput, TOutput>): Eval<TInput, TOutput>;
+	(name: string, config: CreateEvalConfig<TInput, TOutput>): Eval<TInput, TOutput>;
+};
 
 /**
  * Validator function type with method overloads for different validation scenarios.
@@ -1614,9 +1621,9 @@ export function createAgent<
 	type AgentOutput = TOutput extends StandardSchemaV1 ? InferOutput<TOutput> : undefined;
 
 	// Create createEval method that infers types from agent and automatically adds to agent
-	const createEval = (
-		evalName: string,
-		evalConfig: {
+	const createEval: CreateEvalMethod<TInput, TOutput> = ((
+		evalNameOrConfig: string | PresetEvalConfig<TInput, TOutput>,
+		evalConfig?: {
 			description?: string;
 			handler: EvalFunction<AgentInput, AgentOutput>;
 			metadata?: {
@@ -1627,6 +1634,49 @@ export function createAgent<
 			};
 		}
 	): Eval<TInput, TOutput> => {
+		// Handle preset eval config (single argument with name property)
+		if (typeof evalNameOrConfig !== 'string' && 'name' in evalNameOrConfig) {
+			const presetConfig = evalNameOrConfig as PresetEvalConfig<TInput, TOutput>;
+			const evalName = presetConfig.name;
+
+			internal.debug(
+				`createEval called for agent "${name || 'unknown'}": registering preset eval "${evalName}"`
+			);
+
+			const evalType: any = {
+				metadata: {
+					identifier: evalName,
+					name: evalName,
+					description: presetConfig.description || '',
+				},
+				handler: presetConfig.handler,
+			};
+
+			if (inputSchema) {
+				evalType.inputSchema = inputSchema;
+			}
+
+			if (outputSchema) {
+				evalType.outputSchema = outputSchema;
+			}
+
+			evalsArray.push(evalType);
+			internal.debug(
+				`Added preset eval "${evalName}" to agent "${name || 'unknown'}". Total evals: ${evalsArray.length}`
+			);
+
+			return evalType as Eval<TInput, TOutput>;
+		}
+
+		// Handle custom eval config (name + config)
+		if (typeof evalNameOrConfig !== 'string' || !evalConfig) {
+			throw new Error(
+				'Invalid arguments: expected (name: string, config) or (config: PresetEvalConfig)'
+			);
+		}
+
+		const evalName = evalNameOrConfig;
+
 		// Trace log to verify evals file is imported
 		internal.debug(
 			`createEval called for agent "${name || 'unknown'}": registering eval "${evalName}"`
@@ -1665,7 +1715,7 @@ export function createAgent<
 		);
 
 		return evalType as Eval<TInput, TOutput>;
-	};
+	}) as CreateEvalMethod<TInput, TOutput>;
 
 	// Build metadata - merge user-provided metadata with defaults
 	// The build plugin injects metadata via config.metadata during AST transformation
@@ -1925,40 +1975,45 @@ export function createAgent<
 							const evalContext: EvalContext = ctx;
 
 							// Execute the eval handler conditionally based on agent schema
-							let result: EvalRunResult;
+							let handlerResult: EvalHandlerResult;
 							if (inputSchema && outputSchema) {
 								// Both input and output defined
-								result = await (evalItem.handler as any)(
+								handlerResult = await (evalItem.handler as any)(
 									evalContext,
 									evalValidatedInput,
 									evalValidatedOutput
 								);
 							} else if (inputSchema) {
 								// Only input defined
-								result = await (evalItem.handler as any)(evalContext, evalValidatedInput);
+								handlerResult = await (evalItem.handler as any)(
+									evalContext,
+									evalValidatedInput
+								);
 							} else if (outputSchema) {
 								// Only output defined
-								result = await (evalItem.handler as any)(evalContext, evalValidatedOutput);
+								handlerResult = await (evalItem.handler as any)(
+									evalContext,
+									evalValidatedOutput
+								);
 							} else {
 								// Neither defined
-								result = await (evalItem.handler as any)(evalContext);
+								handlerResult = await (evalItem.handler as any)(evalContext);
 							}
 
-							// Process the returned result
-							if (result.success) {
-								if ('passed' in result) {
-									internal.info(
-										`Eval '${evalName}' pass: ${result.passed}`,
-										result.metadata
-									);
-								} else if ('score' in result) {
-									internal.info(
-										`Eval '${evalName}' score: ${result.score}`,
-										result.metadata
-									);
-								}
+							// Wrap handler result with success for catalyst
+							const result: EvalRunResult = {
+								success: true,
+								...handlerResult,
+							};
+
+							// Log the result
+							if (result.score !== undefined) {
+								internal.info(
+									`Eval '${evalName}' pass: ${result.passed}, score: ${result.score}`,
+									result.metadata
+								);
 							} else {
-								internal.error(`Eval '${evalName}' failed: ${result.error}`);
+								internal.info(`Eval '${evalName}' pass: ${result.passed}`, result.metadata);
 							}
 
 							// Send eval run complete event
@@ -1969,8 +2024,7 @@ export function createAgent<
 								try {
 									await evalRunEventProvider.complete({
 										id: evalRunId,
-										result: result.success ? result : undefined,
-										error: result.success ? undefined : result.error,
+										result,
 									});
 									internal.info(
 										`[EVALRUN] Complete event sent successfully for eval '${evalName}' (id: ${evalRunId})`

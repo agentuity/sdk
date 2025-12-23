@@ -43,7 +43,9 @@ test.describe('Workbench Dev Mode', () => {
 
 		await expect(page.locator('h1')).toContainText('Workbench');
 
-		const agentSelector = page.locator('button:has-text("Select agent"), button:has-text("hello")');
+		const agentSelector = page.locator(
+			'button:has-text("Select agent"), button:has-text("hello")'
+		);
 		await expect(agentSelector).toBeVisible({ timeout: 10000 });
 
 		await agentSelector.click();
