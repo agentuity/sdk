@@ -17,26 +17,26 @@ import { ensureBunOnPath } from '../src/bun-path';
 import { checkForUpdates } from '../src/version-check';
 
 // Cleanup TTY state before exit
-function cleanupAndExit() {
+function cleanupTTY() {
 	if (process.stdin.isTTY) {
-		process.stdin.setRawMode(false);
+		try {
+			process.stdin.setRawMode(false);
+		} catch {
+			// Ignore errors if stdin is already closed
+		}
 		process.stdout.write('\x1B[?25h'); // Restore cursor
 	}
-	process.exitCode = 0;
-	// Use the reserved exit function if available (for dev mode with runtime protection)
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
-	exit(0);
 }
 
-// Handle Ctrl+C gracefully
-process.once('SIGINT', () => {
+// Handle Ctrl+C gracefully - only cleanup TTY, let command handlers run
+// Commands like 'dev' register their own SIGINT handlers for cleanup
+process.on('SIGINT', () => {
 	process.stdout.write('\b \b'); // erase the ctrl+c display
-	cleanupAndExit();
+	cleanupTTY();
 });
 
-process.once('SIGTERM', () => {
-	cleanupAndExit();
+process.on('SIGTERM', () => {
+	cleanupTTY();
 });
 
 validateRuntime();

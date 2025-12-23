@@ -273,7 +273,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 		evalsToDelete: string[],
 		deploymentId: string
 	): Promise<void> {
-		this.logger.info(
+		this.logger.debug(
 			'[CLI EVAL SYNC] syncEvals called: %d to create, %d to delete',
 			evals.length,
 			evalsToDelete.length
@@ -360,24 +360,24 @@ class MockDevmodeSyncService implements IDevmodeSyncService {
 
 		// Log the requests that would be made
 		if (agentsToCreate.length > 0 || agentsToDelete.length > 0) {
-			this.logger.info(
+			this.logger.debug(
 				'[MOCK] Would make request: POST /cli/devmode/agent with %d agent(s) to create, %d agent(s) to delete',
 				agentsToCreate.length,
 				agentsToDelete.length
 			);
-			this.logger.info(
+			this.logger.debug(
 				'[MOCK] Request payload: %s',
 				JSON.stringify({ create: agentsToCreate, delete: agentsToDelete }, null, 2)
 			);
 		}
 
 		if (evalsToCreate.length > 0 || evalsToDelete.length > 0) {
-			this.logger.info(
+			this.logger.debug(
 				'[MOCK] Would make request: POST /cli/devmode/eval with %d eval(s) to create, %d eval(s) to delete',
 				evalsToCreate.length,
 				evalsToDelete.length
 			);
-			this.logger.info(
+			this.logger.debug(
 				'[MOCK] Request payload: %s',
 				JSON.stringify({ create: evalsToCreate, delete: evalsToDelete }, null, 2)
 			);
@@ -389,7 +389,7 @@ class MockDevmodeSyncService implements IDevmodeSyncService {
 			evalsToCreate.length === 0 &&
 			evalsToDelete.length === 0
 		) {
-			this.logger.info('[MOCK] No requests would be made (no changes detected)');
+			this.logger.debug('[MOCK] No requests would be made (no changes detected)');
 		}
 	}
 }

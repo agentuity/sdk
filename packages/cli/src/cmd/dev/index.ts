@@ -371,6 +371,8 @@ export const command = createCommand({
 
 		// Track if cleanup is in progress to avoid duplicate cleanup
 		let cleaningUp = false;
+		// Track if shutdown was requested (SIGINT/SIGTERM) to break the main loop
+		let shutdownRequested = false;
 
 		/**
 		 * Centralized cleanup function for all resources.
@@ -474,6 +476,7 @@ export const command = createCommand({
 				if (reason) {
 					logger.debug('DevMode terminating (%d) due to: %s', code, reason);
 				}
+				shutdownRequested = true;
 				await cleanup(true, code);
 			};
 
@@ -534,7 +537,7 @@ export const command = createCommand({
 			}
 		});
 
-		while (true) {
+		while (!shutdownRequested) {
 			shouldRestart = false;
 
 			// Pause file watcher during build to avoid loops
@@ -589,12 +592,16 @@ export const command = createCommand({
 
 						const srcDir = join(rootDir, 'src');
 
+						const promises: Promise<void>[] = [];
+
 						// Generate/update prompt files (non-blocking)
-						import('../build/vite/prompt-generator')
-							.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
-							.catch((err) =>
-								logger.warn('Failed to generate prompt files: %s', err.message)
-							);
+						promises.push(
+							import('../build/vite/prompt-generator')
+								.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
+								.catch((err) =>
+									logger.warn('Failed to generate prompt files: %s', err.message)
+								)
+						);
 						const agents = await discoverAgents(
 							srcDir,
 							project?.projectId ?? '',
@@ -623,14 +630,17 @@ export const command = createCommand({
 
 						// Sync metadata with backend (creates agents and evals in the database)
 						if (syncService && project?.projectId) {
-							await syncService.sync(
-								metadata,
-								previousMetadata,
-								project.projectId,
-								deploymentId
+							promises.push(
+								syncService.sync(
+									metadata,
+									previousMetadata,
+									project.projectId,
+									deploymentId
+								)
 							);
 							previousMetadata = metadata;
 						}
+						await Promise.all(promises);
 					},
 					clearOnSuccess: true,
 				});
@@ -696,20 +706,33 @@ export const command = createCommand({
 				// Wait for app.ts to finish loading (Vite is ready but app may still be initializing)
 				// Give it 2 seconds to ensure app initialization completes
 				await new Promise((resolve) => setTimeout(resolve, 2000));
+
+				// Check if shutdown was requested during startup
+				if (shutdownRequested) {
+					break;
+				}
 			} catch (error) {
 				tui.error(`Failed to start dev server: ${error}`);
 				tui.warn('Waiting for file changes to retry...');
 
-				// Wait for next restart trigger
+				// Wait for next restart trigger or shutdown
 				await new Promise<void>((resolve) => {
 					const checkRestart = setInterval(() => {
-						if (shouldRestart) {
+						if (shouldRestart || shutdownRequested) {
 							clearInterval(checkRestart);
 							resolve();
 						}
 					}, 100);
 				});
+				if (shutdownRequested) {
+					break;
+				}
 				continue;
+			}
+
+			// Exit early if shutdown was requested
+			if (shutdownRequested) {
+				break;
 			}
 
 			try {
@@ -826,15 +849,20 @@ export const command = createCommand({
 				// Start/resume file watcher now that server is ready
 				fileWatcher.resume();
 
-				// Wait for restart signal
+				// Wait for restart signal or shutdown
 				await new Promise<void>((resolve) => {
 					const checkRestart = setInterval(() => {
-						if (shouldRestart) {
+						if (shouldRestart || shutdownRequested) {
 							clearInterval(checkRestart);
 							resolve();
 						}
 					}, 100);
 				});
+
+				// Exit loop if shutdown was requested
+				if (shutdownRequested) {
+					break;
+				}
 
 				// Restart triggered - cleanup and loop (Vite stays running)
 				logger.debug('Restarting backend server...');
@@ -851,13 +879,18 @@ export const command = createCommand({
 				// Cleanup on error (Vite stays running)
 				await cleanupForRestart();
 
+				// Exit if shutdown was requested during error handling
+				if (shutdownRequested) {
+					break;
+				}
+
 				// Resume file watcher to detect changes for retry
 				fileWatcher.resume();
 
-				// Wait for next restart trigger
+				// Wait for next restart trigger or shutdown
 				await new Promise<void>((resolve) => {
 					const checkRestart = setInterval(() => {
-						if (shouldRestart) {
+						if (shouldRestart || shutdownRequested) {
 							clearInterval(checkRestart);
 							resolve();
 						}

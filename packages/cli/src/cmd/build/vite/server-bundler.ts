@@ -95,7 +95,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 				}
 			}
 		} catch (error) {
-			logger.info('Failed to load agentuity.config.ts for externals:', error);
+			logger.debug('Failed to load agentuity.config.ts for externals:', error);
 		}
 	}
 
