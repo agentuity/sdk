@@ -240,6 +240,10 @@ interface BuildResult {
 export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Promise<BuildResult> {
 	const { rootDir, projectId = '', dev = false, logger } = options;
 
+	if (!dev) {
+		rmSync(join(rootDir, '.agentuity'), { force: true, recursive: true });
+	}
+
 	const result: BuildResult = {
 		workbench: { included: false, duration: 0 },
 		client: { included: false, duration: 0 },
@@ -250,7 +254,6 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
 	const config = await loadAgentuityConfig(rootDir, logger);
 	const workbenchConfig = getWorkbenchConfig(config, dev);
-
 	// Generate workbench files BEFORE any builds if enabled (dev mode only)
 	if (workbenchConfig.enabled) {
 		logger.debug('Workbench enabled (dev mode), generating files before build...');
