@@ -9,17 +9,12 @@ export function init() {
 	if (inited) {
 		return;
 	}
-	console.log('isproduction', isProduction());
-	console.log('isdevmode', isDevMode());
-	console.log('environmnet', getEnvironment());
 	const f = join(import.meta.dir, isProduction() ? 'package.json' : '/../package.json');
-	console.log('TRYING TO READ', f);
 	if (existsSync(f)) {
 		try {
 			const pkg = JSON.parse(readFileSync(f, 'utf-8'));
 			appName = pkg.name;
 			appVersion = pkg.version;
-			console.log(' READ', pkg);
 		} catch {
 			// Fallback to defaults if parsing fails
 		}
