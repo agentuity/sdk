@@ -65,4 +65,40 @@ describe('Type Inference', () => {
 
 		expect(data.value).toBe(null);
 	});
+
+	test('should infer enum literal types', () => {
+		const formatSchema = s.enum(['summary', 'bullet-points']);
+
+		type Format = s.infer<typeof formatSchema>;
+
+		// This test verifies that the type is correctly inferred as "summary" | "bullet-points"
+		// and not widened to `any` or `string`
+		const format: Format = formatSchema.parse('summary');
+		expect(format).toBe('summary');
+
+		// TypeScript should allow assigning literal values
+		const validFormat: Format = 'bullet-points';
+		expect(validFormat).toBe('bullet-points');
+	});
+
+	test('should infer enum with numbers', () => {
+		const statusSchema = s.enum([1, 2, 3]);
+
+		type Status = s.infer<typeof statusSchema>;
+
+		const status: Status = statusSchema.parse(2);
+		expect(status).toBe(2);
+	});
+
+	test('should infer enum with mixed types', () => {
+		const mixedSchema = s.enum(['active', 'inactive', 0, 1]);
+
+		type Mixed = s.infer<typeof mixedSchema>;
+
+		const mixed: Mixed = mixedSchema.parse('active');
+		expect(mixed).toBe('active');
+
+		const mixedNum: Mixed = mixedSchema.parse(1);
+		expect(mixedNum).toBe(1);
+	});
 });
