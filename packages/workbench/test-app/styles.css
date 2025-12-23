@@ -1,0 +1,6 @@
+/* Dev styles - imports standalone.css and adds source scanning */
+@import '../src/standalone.css';
+
+/* Tell Tailwind 4 where to find content */
+@source "../src/**/*.{ts,tsx}";
+

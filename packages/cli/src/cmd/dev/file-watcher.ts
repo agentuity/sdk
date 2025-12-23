@@ -181,7 +181,7 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		}
 
 		// If change is from additional watch paths (like workbench dist),
-		// clear Vite's optimized deps cache so it picks up the new code
+		// clear Vite's optimized deps cache so it re-bundles on next request
 		if (changedFile && resolvedAdditionalPaths.length > 0) {
 			const absPath = resolve(watchDir, changedFile);
 			if (isFromAdditionalPath(absPath)) {

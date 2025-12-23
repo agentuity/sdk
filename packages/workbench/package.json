@@ -33,6 +33,7 @@
 		"dev": "bun run build && concurrently \"bun run dev:ts\" \"bun run dev:css\" --names \"ts,css\" --prefix-colors \"blue,yellow\"",
 		"dev:ts": "bunx tsc --watch",
 		"dev:css": "bun x tailwindcss -i ./src/standalone.css -o ./dist/standalone.css --watch",
+		"dev:app": "bunx vite --config test-app/vite.config.ts",
 		"typecheck": "bunx tsc --noEmit",
 		"prepublishOnly": "bun run clean && bun run build"
 	},
@@ -69,13 +70,16 @@
 	"devDependencies": {
 		"@agentuity/test-utils": "workspace:*",
 		"@tailwindcss/cli": "^4.1.12",
+		"@tailwindcss/vite": "^4.1.12",
+		"@vitejs/plugin-react": "^4.5.3",
 		"monaco-editor": "^0.52.2",
 		"@types/bun": "latest",
 		"@types/hast": "^3.0.4",
 		"bun-types": "latest",
 		"concurrently": "^9.2.1",
 		"tailwindcss": "^4.1.12",
-		"typescript": "^5.9.0"
+		"typescript": "^5.9.0",
+		"vite": "^6.0.0"
 	},
 	"peerDependencies": {
 		"@radix-ui/react-avatar": "^1.1.8",
