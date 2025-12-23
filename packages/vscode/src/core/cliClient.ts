@@ -524,15 +524,27 @@ export interface WhoamiResponse {
 }
 
 // Agent types
+export interface AgentEval {
+	id: string;
+	name: string;
+	description: string | null;
+	identifier: string | null;
+	devmode: boolean;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface Agent {
 	id: string;
 	name: string;
-	description?: string;
-	identifier?: string;
-	metadata?: {
-		filename?: string;
-		identifier?: string;
-	};
+	description: string | null;
+	identifier: string;
+	deploymentId: string | null;
+	devmode: boolean;
+	metadata: Record<string, unknown> | null;
+	createdAt: string;
+	updatedAt: string;
+	evals: AgentEval[];
 }
 
 export type AgentListResponse = Agent[];
@@ -631,10 +643,11 @@ export interface VectorSearchResponse {
 
 export interface VectorGetResponse {
 	exists: boolean;
-	key: string;
-	id: string;
-	document: string;
+	key?: string;
+	id?: string;
+	document?: string;
 	metadata?: Record<string, unknown>;
+	similarity?: number;
 }
 
 // AI types

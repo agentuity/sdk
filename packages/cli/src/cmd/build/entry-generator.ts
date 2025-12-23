@@ -131,12 +131,13 @@ app.route('/', workbenchRouter);
 `
 		: '';
 
-	// Asset proxy routes - only generated in dev mode when vitePort is available
-	const assetProxyRoutes = vitePort
-		? `
+	// Asset proxy routes - Always generated, but only active at runtime when:
+	//   - NODE_ENV !== 'production' (isDevelopment())
+	//   - and process.env.VITE_PORT is set
+	const assetProxyRoutes = `
 // Asset proxy routes - Development mode only (proxies to Vite asset server)
-if (process.env.NODE_ENV !== 'production') {
-	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '${vitePort}', 10);
+if (isDevelopment() && process.env.VITE_PORT) {
+	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT, 10);
 
 	const proxyToVite = async (c: Context) => {
 		const viteUrl = \`http://127.0.0.1:\${VITE_ASSET_PORT}\${c.req.path}\`;
@@ -182,7 +183,7 @@ if (process.env.NODE_ENV !== 'production') {
 	// File system access (for Vite's @fs protocol)
 	app.get('/@fs/*', proxyToVite);
 
-	// Module resolution (for Vite's @id protocol)  
+	// Module resolution (for Vite's @id protocol)
 	app.get('/@id/*', proxyToVite);
 
 	// Any .js, .jsx, .ts, .tsx files (catch remaining modules)
@@ -192,8 +193,7 @@ if (process.env.NODE_ENV !== 'production') {
 	app.get('/*.tsx', proxyToVite);
 	app.get('/*.css', proxyToVite);
 }
-`
-		: '';
+`;
 
 	// Runtime mode detection helper (defined at top level for reuse)
 	// Dynamic property access prevents Bun.build from inlining NODE_ENV at build time
@@ -295,11 +295,9 @@ if (isDevelopment()) {
 	const workbenchRoutes = hasWorkbench
 		? `
 // Workbench routes - Runtime mode detection
-// In dev mode, entry runs from src/generated/app.ts, so we go up 2 levels to reach .agentuity/
-// In prod mode, entry runs from .agentuity/app.js, so workbench is in same directory
-const workbenchSrcDir = isDevelopment() 
-	? import.meta.dir + '/../../.agentuity/workbench-src'
-	: import.meta.dir + '/workbench-src';
+// Both dev and prod run from .agentuity/app.js (dev bundles before running)
+// So workbench-src is always in the same directory
+const workbenchSrcDir = import.meta.dir + '/workbench-src';
 const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
 const workbenchIndex = existsSync(workbenchIndexPath) 
 	? readFileSync(workbenchIndexPath, 'utf-8')
@@ -377,6 +375,35 @@ if (!isDevelopment()) {
 	app.get('/_health', healthHandler);
 	app.get('/_agentuity/idle', idleHandler);
 	app.get('/_idle', idleHandler);
+}
+
+// Dev readiness check - verifies Vite asset server is ready to serve frontend
+if (isDevelopment()) {
+	app.get('/_agentuity/ready', async (c: Context) => {
+		const vitePort = process.env.VITE_PORT;
+		if (!vitePort) {
+			// No Vite port means we're not using Vite proxy
+			return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+		}
+
+		try {
+			// Probe Vite to check if it can serve the main entry point
+			// Use @vite/client as a lightweight check - it's always available
+			const viteUrl = \`http://127.0.0.1:\${vitePort}/@vite/client\`;
+			const res = await fetch(viteUrl, {
+				signal: AbortSignal.timeout(5000),
+				method: 'HEAD'
+			});
+
+			if (res.ok) {
+				return c.text('OK', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
+			}
+			return c.text('VITE_NOT_READY', 503, { 'Content-Type': 'text/plain; charset=utf-8' });
+		} catch (err) {
+			otel.logger.debug('Vite readiness check failed: %s', err instanceof Error ? err.message : String(err));
+			return c.text('VITE_NOT_READY', 503, { 'Content-Type': 'text/plain; charset=utf-8' });
+		}
+	});
 }
 `;
 

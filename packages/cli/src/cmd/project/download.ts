@@ -375,9 +375,9 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 	// Build project
 	if (!noBuild) {
 		const exitCode = await tui.runCommand({
-			command: 'bun run build',
+			command: 'bun run build --dev',
 			cwd: dest,
-			cmd: ['bun', 'run', 'build'],
+			cmd: ['bun', 'run', 'build', '--dev'],
 			clearOnSuccess: true,
 		});
 		if (exitCode !== 0) {
@@ -385,6 +385,12 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 		}
 	}
 
+	// Generate and write AGENTS.md files for the CLI and source folders
+	// Always overwrite during project setup to ensure fresh content
+	await writeAgentsDocs(dest);
+}
+
+export async function initGitRepo(dest: string): Promise<void> {
 	// Initialize git repository if git is available
 	// Check for real git (not macOS stub that triggers Xcode CLT popup)
 	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper');
@@ -435,10 +441,6 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 			clearOnSuccess: true,
 		});
 	}
-
-	// Generate and write AGENTS.md files for the CLI and source folders
-	// Always overwrite during project setup to ensure fresh content
-	await writeAgentsDocs(dest);
 }
 
 async function replaceInFiles(dir: string, projectName: string, dirName: string): Promise<void> {

@@ -2,7 +2,7 @@
 	"name": "agentuity-vscode",
 	"displayName": "Agentuity VSCode Extension",
 	"description": "Build, deploy, and manage AI agents with Agentuity",
-	"version": "0.0.101",
+	"version": "0.0.103",
 	"publisher": "agentuity",
 	"license": "Apache-2.0",
 	"repository": {
@@ -195,6 +195,11 @@
 			{
 				"command": "agentuity.createCustomAgents",
 				"title": "Create Custom Agents for Background Use",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.generateSkills",
+				"title": "Generate AI Skills",
 				"category": "Agentuity"
 			}
 		],

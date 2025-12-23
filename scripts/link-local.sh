@@ -49,9 +49,6 @@ rm -rf node_modules/@agentuity
 echo "Clearing Bun cache..."
 rm -rf "$HOME/.bun/install/cache"
 
-# Backup package.json
-cp package.json package.json.backup
-
 # Add/update @agentuity dependencies to use tarball file references
 echo "Rewriting package.json to use tarball dependencies..."
 bun -e "
@@ -64,6 +61,10 @@ for (const tarball of tarballs) {
 	// Extract package name (e.g., agentuity-core-0.0.101.tgz -> core)
 	const pkgBase = tarball.replace('agentuity-', '').replace(/-[0-9].*/, '');
 	const pkgName = '@agentuity/' + pkgBase;
+	// Remove from devDependencies to avoid duplicates
+	if (pkg.devDependencies && pkg.devDependencies[pkgName]) {
+		delete pkg.devDependencies[pkgName];
+	}
 	pkg.dependencies[pkgName] = 'file:$TARBALL_DIR/' + tarball;
 	console.log('  + ' + pkgName);
 }
@@ -74,9 +75,6 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 3) + '\n');
 # Install from modified package.json
 echo "Installing SDK packages from tarballs..."
 bun install
-
-# Restore original package.json
-mv package.json.backup package.json
 
 # Update package.json scripts to use local CLI for development
 echo ""

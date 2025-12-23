@@ -1,0 +1,45 @@
+{
+	"name": "@agentuity/evals",
+	"version": "0.0.103",
+	"license": "Apache-2.0",
+	"author": "Agentuity employees and contributors",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"AGENTS.md",
+		"README.md",
+		"src",
+		"dist"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"clean": "rm -rf dist",
+		"build": "bunx tsc --build --force",
+		"typecheck": "bunx tsc --noEmit",
+		"test": "bun test",
+		"prepublishOnly": "bun run clean && bun run build"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"@ai-sdk/groq": "latest",
+		"ai": "^6.0.0"
+	},
+	"devDependencies": {
+		"@agentuity/test-utils": "workspace:*",
+		"@types/bun": "latest",
+		"bun-types": "latest",
+		"typescript": "^5.9.0"
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"sideEffects": false
+}
