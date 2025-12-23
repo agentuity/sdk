@@ -24,7 +24,6 @@ function AppContent() {
 	return (
 		<div className="flex flex-col h-full">
 			<Header />
-
 			<ResizablePanelGroup
 				direction="horizontal"
 				className="flex-1"

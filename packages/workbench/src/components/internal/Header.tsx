@@ -48,7 +48,7 @@ export function StatusIndicator({ status }: { status: ConnectionStatus }) {
 export function Header({ className }: HeaderProps) {
 	const { connectionStatus } = useWorkbench();
 	const LogoComponent = Logo;
-	const title = 'Bobby test 7';
+	const title = 'Workbench';
 	const showSettings = true;
 
 	return (

@@ -141,10 +141,6 @@ export const command = createCommand({
 		{ command: getCommand('dev --port 8080'), description: 'Specify custom port' },
 		{ command: getCommand('dev --local'), description: 'Run in local mode' },
 		{ command: getCommand('dev --no-public'), description: 'Disable public URL' },
-		{
-			command: getCommand('dev --watch ../lib --watch ../shared'),
-			description: 'Watch additional directories for changes',
-		},
 	],
 	schema: {
 		options: z.object({
@@ -161,10 +157,6 @@ export const command = createCommand({
 				.max(MAX_PORT)
 				.default(getDefaultPort())
 				.describe('The TCP port to start the dev server (also reads from PORT env)'),
-			watch: z
-				.array(z.string())
-				.optional()
-				.describe('Additional directories to watch for changes (triggers rebuild)'),
 		}),
 	},
 	optional: { auth: 'Continue without an account (local only)', project: true },
@@ -372,7 +364,6 @@ export const command = createCommand({
 			rootDir,
 			logger,
 			onRestart: restartServer,
-			additionalPaths: opts.watch,
 		});
 
 		// Start file watcher (will be paused during builds)
