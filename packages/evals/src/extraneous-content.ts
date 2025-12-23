@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import {
 	createPresetEval,
 	interpolatePrompt,
@@ -6,7 +5,7 @@ import {
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
-import type { BaseEvalOptions } from './types';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const extraneousContentPrompt = `You are evaluating whether an LLM response contains content clearly unrelated or unnecessary for fulfilling the request.
 
@@ -74,7 +73,7 @@ export const extraneousContent = createPresetEval<
 	name: 'extraneous-content',
 	description: 'Evaluates whether response contains unnecessary or off-topic content',
 	options: {
-		model: openai('gpt-4o'),
+		model: DEFAULT_EVAL_MODEL,
 		threshold: 0.7,
 	},
 	handler: async (ctx, input, output, options) => {
@@ -87,13 +86,8 @@ export const extraneousContent = createPresetEval<
 		const evaluation = await generateEvalResult({ model: options.model, prompt });
 
 		return {
+			...evaluation,
 			passed: evaluation.passed && (evaluation.score ?? 1) >= options.threshold,
-			score: evaluation.score,
-			metadata: {
-				...evaluation.metadata,
-				model: options.model,
-				threshold: options.threshold,
-			},
 		};
 	},
 });

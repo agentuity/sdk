@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import {
 	createPresetEval,
 	interpolatePrompt,
@@ -6,7 +5,7 @@ import {
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
-import type { BaseEvalOptions } from './types';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const knowledgeRetentionPrompt = `You are evaluating whether an LLM response correctly retains and applies facts or decisions provided earlier in the conversation.
 
@@ -77,7 +76,7 @@ export const knowledgeRetention = createPresetEval<
 	name: 'knowledge-retention',
 	description: 'Evaluates whether response correctly retains context from earlier in conversation',
 	options: {
-		model: openai('gpt-4o'),
+		model: DEFAULT_EVAL_MODEL,
 		threshold: 0.7,
 	},
 	handler: async (ctx, input, output, options) => {
@@ -89,13 +88,8 @@ export const knowledgeRetention = createPresetEval<
 		const evaluation = await generateEvalResult({ model: options.model, prompt });
 
 		return {
+			...evaluation,
 			passed: evaluation.passed && (evaluation.score ?? 1) >= options.threshold,
-			score: evaluation.score,
-			metadata: {
-				...evaluation.metadata,
-				model: options.model,
-				threshold: options.threshold,
-			},
 		};
 	},
 });

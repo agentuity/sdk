@@ -1,4 +1,7 @@
 import type { LanguageModel } from 'ai';
+import { xai } from '@ai-sdk/xai';
+
+export const DEFAULT_EVAL_MODEL: LanguageModel = xai('grok-4-fast');
 
 export type BaseEvalOptions = {
 	model: LanguageModel;

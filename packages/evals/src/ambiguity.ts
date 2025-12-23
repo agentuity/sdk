@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import {
 	createPresetEval,
 	interpolatePrompt,
@@ -6,7 +5,7 @@ import {
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
-import type { BaseEvalOptions } from './types';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const ambiguityPrompt = `You are evaluating whether an LLM response contains language that could reasonably be interpreted in multiple conflicting ways.
 
@@ -72,7 +71,7 @@ export const ambiguity = createPresetEval<
 	description:
 		'Evaluates whether response contains ambiguous language that could be misinterpreted',
 	options: {
-		model: openai('gpt-4o'),
+		model: DEFAULT_EVAL_MODEL,
 		threshold: 0.7,
 	},
 	handler: async (ctx, input, output, options) => {
@@ -84,13 +83,8 @@ export const ambiguity = createPresetEval<
 		const evaluation = await generateEvalResult({ model: options.model, prompt });
 
 		return {
+			...evaluation,
 			passed: evaluation.passed && (evaluation.score ?? 1) >= options.threshold,
-			score: evaluation.score,
-			metadata: {
-				...evaluation.metadata,
-				model: options.model,
-				threshold: options.threshold,
-			},
 		};
 	},
 });

@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import {
 	createPresetEval,
 	interpolatePrompt,
@@ -6,7 +5,7 @@ import {
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
-import type { BaseEvalOptions } from './types';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const selfReferencePrompt = `You are evaluating whether an LLM response inappropriately references the model itself.
 
@@ -53,7 +52,7 @@ export const selfReference = createPresetEval<DefaultEvalInput, DefaultEvalOutpu
 		name: 'self-reference',
 		description: 'Evaluates whether response inappropriately references the AI model itself',
 		options: {
-			model: openai('gpt-4o'),
+			model: DEFAULT_EVAL_MODEL,
 		},
 		handler: async (ctx, input, output, options) => {
 			const prompt = interpolatePrompt(selfReferencePrompt, {
@@ -61,15 +60,7 @@ export const selfReference = createPresetEval<DefaultEvalInput, DefaultEvalOutpu
 				MODEL_RESPONSE: output.response,
 			});
 
-			const evaluation = await generateEvalResult({ model: options.model, prompt });
-
-			return {
-				passed: evaluation.passed,
-				metadata: {
-					...evaluation.metadata,
-					model: options.model,
-				},
-			};
+			return generateEvalResult({ model: options.model, prompt });
 		},
 	}
 );

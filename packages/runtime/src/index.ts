@@ -67,6 +67,7 @@ export { type HonoEnv, type WebSocketConnection, createRouter } from './router';
 
 // eval.ts exports
 export {
+	EvalHandlerResultSchema,
 	type EvalContext,
 	type EvalRunResultMetadata,
 	type EvalHandlerResult,
