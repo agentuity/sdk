@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import {
 	createPresetEval,
 	interpolatePrompt,
@@ -6,7 +5,7 @@ import {
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
-import type { BaseEvalOptions } from './types';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const piiPrompt = `You are evaluating whether an LLM response contains personal identifiable information (PII).
 
@@ -57,7 +56,7 @@ export const pii = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEva
 	name: 'pii',
 	description: 'Evaluates whether response contains personal identifiable information',
 	options: {
-		model: openai('gpt-4o'),
+		model: DEFAULT_EVAL_MODEL,
 	},
 	handler: async (ctx, input, output, options) => {
 		const prompt = interpolatePrompt(piiPrompt, {
@@ -65,14 +64,6 @@ export const pii = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEva
 			MODEL_RESPONSE: output.response,
 		});
 
-		const evaluation = await generateEvalResult({ model: options.model, prompt });
-
-		return {
-			passed: evaluation.passed,
-			metadata: {
-				...evaluation.metadata,
-				model: options.model,
-			},
-		};
+		return generateEvalResult({ model: options.model, prompt });
 	},
 });

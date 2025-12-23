@@ -1,4 +1,7 @@
 import type { LanguageModel } from 'ai';
+import { groq } from '@ai-sdk/groq';
+
+export const DEFAULT_EVAL_MODEL: LanguageModel = groq('openai/gpt-oss-20b');
 
 export type BaseEvalOptions = {
 	model: LanguageModel;

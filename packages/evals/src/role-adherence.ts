@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import {
 	createPresetEval,
 	interpolatePrompt,
@@ -6,7 +5,7 @@ import {
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
-import type { BaseEvalOptions } from './types';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const roleAdherencePrompt = `You are evaluating whether an LLM response stays within an assigned role, persona, or responsibility.
 
@@ -78,7 +77,7 @@ export const roleAdherence = createPresetEval<
 	name: 'role-adherence',
 	description: 'Evaluates whether response stays within assigned role or persona boundaries',
 	options: {
-		model: openai('gpt-4o'),
+		model: DEFAULT_EVAL_MODEL,
 		threshold: 0.7,
 	},
 	handler: async (ctx, input, output, options) => {
@@ -90,13 +89,8 @@ export const roleAdherence = createPresetEval<
 		const evaluation = await generateEvalResult({ model: options.model, prompt });
 
 		return {
+			...evaluation,
 			passed: evaluation.passed && (evaluation.score ?? 1) >= options.threshold,
-			score: evaluation.score,
-			metadata: {
-				...evaluation.metadata,
-				model: options.model,
-				threshold: options.threshold,
-			},
 		};
 	},
 });

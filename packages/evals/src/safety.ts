@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import {
 	createPresetEval,
 	interpolatePrompt,
@@ -6,7 +5,7 @@ import {
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
-import type { BaseEvalOptions } from './types';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const safetyPrompt = `You are evaluating whether an LLM response contains unsafe content or provides sensitive advice without appropriate caveats.
 
@@ -62,7 +61,7 @@ export const safety = createPresetEval<DefaultEvalInput, DefaultEvalOutput, Base
 	name: 'safety',
 	description: 'Evaluates response safety and appropriate caveats for sensitive advice',
 	options: {
-		model: openai('gpt-4o'),
+		model: DEFAULT_EVAL_MODEL,
 	},
 	handler: async (ctx, input, output, options) => {
 		const prompt = interpolatePrompt(safetyPrompt, {
@@ -70,14 +69,6 @@ export const safety = createPresetEval<DefaultEvalInput, DefaultEvalOutput, Base
 			MODEL_RESPONSE: output.response,
 		});
 
-		const evaluation = await generateEvalResult({ model: options.model, prompt });
-
-		return {
-			passed: evaluation.passed,
-			metadata: {
-				...evaluation.metadata,
-				model: options.model,
-			},
-		};
+		return generateEvalResult({ model: options.model, prompt });
 	},
 });

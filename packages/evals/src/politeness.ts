@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import {
 	createPresetEval,
 	interpolatePrompt,
@@ -6,7 +5,7 @@ import {
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
-import type { BaseEvalOptions } from './types';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const politenessPrompt = `You are evaluating the politeness of an LLM response.
 
@@ -63,7 +62,7 @@ export const politeness = createPresetEval<
 	name: 'politeness',
 	description: 'Evaluates politeness of agent responses using LLM-as-judge',
 	options: {
-		model: openai('gpt-4o'),
+		model: DEFAULT_EVAL_MODEL,
 		threshold: 0.8,
 	},
 	handler: async (ctx, input, output, options) => {
@@ -75,13 +74,8 @@ export const politeness = createPresetEval<
 		const evaluation = await generateEvalResult({ model: options.model, prompt });
 
 		return {
+			...evaluation,
 			passed: evaluation.passed && (evaluation.score ?? 1) >= options.threshold,
-			score: evaluation.score,
-			metadata: {
-				...evaluation.metadata,
-				model: options.model,
-				threshold: options.threshold,
-			},
 		};
 	},
 });

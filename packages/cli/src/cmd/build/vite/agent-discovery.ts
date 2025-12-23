@@ -397,13 +397,15 @@ function extractEvalsFromSource(
 
 			if (isCreateEvalCall) {
 				const callExpr = n as unknown as ASTCallExpression;
+				let evalName: string | undefined;
+				let description: string | undefined;
+
 				if (callExpr.arguments.length >= 2) {
+					// Format: agent.createEval('name', { config })
 					const nameArg = callExpr.arguments[0] as ASTLiteral;
-					const evalName = String(nameArg.value);
+					evalName = String(nameArg.value);
 
 					const callargexp = callExpr.arguments[1] as ASTObjectExpression;
-					let description: string | undefined;
-
 					if (callargexp.properties) {
 						for (const prop of callargexp.properties) {
 							if (prop.key.name === 'metadata' && prop.value.type === 'ObjectExpression') {
@@ -415,7 +417,47 @@ function extractEvalsFromSource(
 							}
 						}
 					}
+				} else if (callExpr.arguments.length === 1) {
+					// Format: agent.createEval(presetEval({ name: '...', ... }))
+					// or: agent.createEval(presetEval()) - uses preset's default name
+					// or: agent.createEval({ name: '...', ... })
+					const arg = callExpr.arguments[0] as ASTNode;
 
+					// Handle CallExpression: presetEval({ name: '...' }) or presetEval()
+					if (arg.type === 'CallExpression') {
+						const innerCall = arg as unknown as ASTCallExpression;
+
+						// Try to get name from the call arguments first
+						if (innerCall.arguments.length >= 1) {
+							const configArg = innerCall.arguments[0] as ASTObjectExpression;
+							if (configArg.type === 'ObjectExpression' && configArg.properties) {
+								const configMap = parseObjectExpressionToMap(configArg);
+								evalName = configMap.get('name');
+								description = configMap.get('description');
+							}
+						}
+
+						// Fallback: use the callee name as the eval name (e.g., politeness())
+						if (!evalName && innerCall.callee) {
+							const callee = innerCall.callee as ASTNode;
+							if (callee.type === 'Identifier') {
+								evalName = (callee as ASTNodeIdentifier).name;
+							}
+						}
+					}
+
+					// Handle ObjectExpression: { name: '...', handler: ... }
+					if (arg.type === 'ObjectExpression') {
+						const configArg = arg as ASTObjectExpression;
+						if (configArg.properties) {
+							const configMap = parseObjectExpressionToMap(configArg);
+							evalName = configMap.get('name');
+							description = configMap.get('description');
+						}
+					}
+				}
+
+				if (evalName) {
 					const id = getEvalId(projectId, deploymentId, filename, evalName, version);
 					const evalId = generateStableEvalId(projectId, agentId, evalName);
 
