@@ -27,12 +27,12 @@
 	},
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@ai-sdk/groq": "latest",
 		"ai": "^6.0.0"
 	},
 	"devDependencies": {
-		"@agentuity/runtime": "workspace:*",
 		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
