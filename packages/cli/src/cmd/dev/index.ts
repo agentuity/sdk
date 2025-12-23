@@ -640,7 +640,7 @@ export const command = createCommand({
 							);
 							previousMetadata = metadata;
 						}
-						await promises;
+						await Promise.all(promises);
 					},
 					clearOnSuccess: true,
 				});
