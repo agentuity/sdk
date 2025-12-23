@@ -2,7 +2,7 @@ import type { InferOutput, StandardSchemaV1 } from '@agentuity/core';
 import type { CreateEvalConfig, EvalContext, EvalHandlerResult } from '@agentuity/runtime';
 import type { BaseEvalOptions, EvalMiddleware } from './types';
 import { s } from '@agentuity/schema';
-import { generateText, type LanguageModelV1 } from 'ai';
+import { generateText, type LanguageModel } from 'ai';
 
 // Default schemas for preset evals - change these to update all evals
 export const DefaultEvalInputSchema = s.object({
@@ -35,7 +35,7 @@ export function interpolatePrompt(template: string, variables: Record<string, st
 }
 
 export type GenerateEvalResultOptions = {
-	model: LanguageModelV1;
+	model: LanguageModel;
 	prompt: string;
 	maxRetries?: number;
 };
