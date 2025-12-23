@@ -69,9 +69,11 @@ export async function generateAssetServerConfig(
 			dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
 		},
 
-		// Pre-bundle @agentuity/workbench to avoid React preamble issues with pre-built JSX
+		// Pre-bundle these packages for faster startup
+		// Note: @agentuity/workbench is excluded so changes are picked up during dev
 		optimizeDeps: {
-			include: ['@agentuity/workbench', '@agentuity/core', '@agentuity/react'],
+			include: ['@agentuity/core', '@agentuity/react'],
+			exclude: ['@agentuity/workbench'],
 		},
 
 		// Only allow frontend env vars (server uses process.env)

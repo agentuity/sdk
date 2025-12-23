@@ -5,8 +5,8 @@
  * Handles both backend (API, agents, lib) and generates restart signals.
  */
 
-import { watch, type FSWatcher, statSync, readdirSync, lstatSync } from 'node:fs';
-import { resolve, relative } from 'node:path';
+import { watch, type FSWatcher, statSync, readdirSync, lstatSync, rmSync } from 'node:fs';
+import { resolve, relative, join } from 'node:path';
 import type { Logger } from '../../types';
 import { createAgentTemplates, createAPITemplates } from './templates';
 
@@ -33,6 +33,9 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	const watchers: FSWatcher[] = [];
 	let paused = false;
 	let buildCooldownTimer: NodeJS.Timeout | null = null;
+
+	// Resolve additional paths to absolute paths for comparison
+	const resolvedAdditionalPaths = additionalPaths.map((p) => resolve(rootDir, p));
 
 	// Directories to ignore - these are NEVER traversed into
 	// This prevents EMFILE errors from symlink cycles in node_modules
@@ -67,12 +70,45 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	];
 
 	/**
+	 * Check if a file change is from an additional watch path
+	 */
+	function isFromAdditionalPath(absPath: string): boolean {
+		for (const additionalPath of resolvedAdditionalPaths) {
+			if (absPath.startsWith(additionalPath + '/') || absPath === additionalPath) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Clear Vite's optimized deps cache
+	 * This is needed when external packages (like workbench) are rebuilt
+	 */
+	function clearViteCache() {
+		const viteCachePath = join(rootDir, 'node_modules', '.vite');
+		try {
+			rmSync(viteCachePath, { recursive: true, force: true });
+			logger.debug('Cleared Vite cache at %s', viteCachePath);
+		} catch (error) {
+			// Cache might not exist, that's fine
+			logger.trace('Could not clear Vite cache: %s', error);
+		}
+	}
+
+	/**
 	 * Check if a path should be ignored
 	 */
 	function shouldIgnorePath(changedFile: string | null, watchDir: string): boolean {
 		if (!changedFile) return false;
 
 		const absPath = resolve(watchDir, changedFile);
+
+		// Don't ignore changes from explicitly requested additional paths
+		if (isFromAdditionalPath(absPath)) {
+			logger.trace('File change from explicit watch path: %s', changedFile);
+			return false;
+		}
 
 		// Check against ignore list - match both relative path and absolute path
 		for (const ignorePath of ignorePaths) {
@@ -142,6 +178,15 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		if (buildCooldownTimer) {
 			logger.trace('File change ignored (build cooldown): %s', changedFile);
 			return;
+		}
+
+		// If change is from additional watch paths (like workbench dist),
+		// clear Vite's optimized deps cache so it picks up the new code
+		if (changedFile && resolvedAdditionalPaths.length > 0) {
+			const absPath = resolve(watchDir, changedFile);
+			if (isFromAdditionalPath(absPath)) {
+				clearViteCache();
+			}
 		}
 
 		// Check if an empty directory was created in src/agent/ or src/api/
