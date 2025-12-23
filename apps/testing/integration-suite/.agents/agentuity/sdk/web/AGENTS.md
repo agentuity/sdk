@@ -153,17 +153,17 @@ function MyComponent() {
 
 **useAPI Return Values:**
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `data` | `T \| undefined` | Response data (typed from route schema) |
-| `error` | `Error \| null` | Error if request failed |
-| `isLoading` | `boolean` | True during initial load |
-| `isFetching` | `boolean` | True during any fetch (including refetch) |
-| `isSuccess` | `boolean` | True if last request succeeded |
-| `isError` | `boolean` | True if last request failed |
-| `invoke` | `(input?) => Promise<T>` | Manual trigger (POST/PUT/DELETE) |
-| `refetch` | `() => Promise<void>` | Refetch data (GET) |
-| `reset` | `() => void` | Reset state to initial |
+| Property     | Type                     | Description                               |
+| ------------ | ------------------------ | ----------------------------------------- |
+| `data`       | `T \| undefined`         | Response data (typed from route schema)   |
+| `error`      | `Error \| null`          | Error if request failed                   |
+| `isLoading`  | `boolean`                | True during initial load                  |
+| `isFetching` | `boolean`                | True during any fetch (including refetch) |
+| `isSuccess`  | `boolean`                | True if last request succeeded            |
+| `isError`    | `boolean`                | True if last request failed               |
+| `invoke`     | `(input?) => Promise<T>` | Manual trigger (POST/PUT/DELETE)          |
+| `refetch`    | `() => Promise<void>`    | Refetch data (GET)                        |
+| `reset`      | `() => void`             | Reset state to initial                    |
 
 ### useAPI Options
 
@@ -225,18 +225,18 @@ function ChatComponent() {
 
 **useWebsocket Return Values:**
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `isConnected` | `boolean` | True when WebSocket is connected |
-| `data` | `T \| undefined` | Most recent message received |
-| `messages` | `T[]` | Array of all received messages |
-| `send` | `(data) => void` | Send a message (typed from route schema) |
-| `clearMessages` | `() => void` | Clear the messages array |
-| `close` | `() => void` | Close the connection |
-| `error` | `Error \| null` | Error if connection failed |
-| `isError` | `boolean` | True if there's an error |
-| `reset` | `() => void` | Reset state and reconnect |
-| `readyState` | `number` | WebSocket ready state |
+| Property        | Type             | Description                              |
+| --------------- | ---------------- | ---------------------------------------- |
+| `isConnected`   | `boolean`        | True when WebSocket is connected         |
+| `data`          | `T \| undefined` | Most recent message received             |
+| `messages`      | `T[]`            | Array of all received messages           |
+| `send`          | `(data) => void` | Send a message (typed from route schema) |
+| `clearMessages` | `() => void`     | Clear the messages array                 |
+| `close`         | `() => void`     | Close the connection                     |
+| `error`         | `Error \| null`  | Error if connection failed               |
+| `isError`       | `boolean`        | True if there's an error                 |
+| `reset`         | `() => void`     | Reset state and reconnect                |
+| `readyState`    | `number`         | WebSocket ready state                    |
 
 ### useEventStream - Server-Sent Events
 
@@ -261,15 +261,15 @@ function NotificationsComponent() {
 
 **useEventStream Return Values:**
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `isConnected` | `boolean` | True when EventSource is connected |
-| `data` | `T \| undefined` | Most recent event data |
-| `error` | `Error \| null` | Error if connection failed |
-| `isError` | `boolean` | True if there's an error |
-| `close` | `() => void` | Close the connection |
-| `reset` | `() => void` | Reset state and reconnect |
-| `readyState` | `number` | EventSource ready state |
+| Property      | Type             | Description                        |
+| ------------- | ---------------- | ---------------------------------- |
+| `isConnected` | `boolean`        | True when EventSource is connected |
+| `data`        | `T \| undefined` | Most recent event data             |
+| `error`       | `Error \| null`  | Error if connection failed         |
+| `isError`     | `boolean`        | True if there's an error           |
+| `close`       | `() => void`     | Close the connection               |
+| `reset`       | `() => void`     | Reset state and reconnect          |
+| `readyState`  | `number`         | EventSource ready state            |
 
 ### useAgentuity - Access Context
 
@@ -319,13 +319,13 @@ function AuthStatus() {
 
 **useAuth Return Values:**
 
-| Property | Type | Description |
-|----------|------|-------------|
-| `isAuthenticated` | `boolean` | True if user has auth token and not loading |
-| `authHeader` | `string \| null` | Current auth header (e.g., "Bearer ...") |
-| `setAuthHeader` | `(token) => void` | Set auth header (null to clear) |
-| `authLoading` | `boolean` | True during auth state changes |
-| `setAuthLoading` | `(loading) => void` | Set auth loading state |
+| Property          | Type                | Description                                 |
+| ----------------- | ------------------- | ------------------------------------------- |
+| `isAuthenticated` | `boolean`           | True if user has auth token and not loading |
+| `authHeader`      | `string \| null`    | Current auth header (e.g., "Bearer ...")    |
+| `setAuthHeader`   | `(token) => void`   | Set auth header (null to clear)             |
+| `authLoading`     | `boolean`           | True during auth state changes              |
+| `setAuthLoading`  | `(loading) => void` | Set auth loading state                      |
 
 ## Complete Example
 
@@ -476,14 +476,14 @@ async function fetchData() {
 
 **When to use `createClient` vs `useAPI`:**
 
-| Use Case | Recommendation |
-|----------|----------------|
-| React component rendering | `useAPI` hook |
-| Event handlers | Either works |
-| Utility functions | `createClient` |
-| Non-React code | `createClient` |
-| Need loading/error state | `useAPI` hook |
-| Need caching/refetch | `useAPI` hook |
+| Use Case                  | Recommendation |
+| ------------------------- | -------------- |
+| React component rendering | `useAPI` hook  |
+| Event handlers            | Either works   |
+| Utility functions         | `createClient` |
+| Non-React code            | `createClient` |
+| Need loading/error state  | `useAPI` hook  |
+| Need caching/refetch      | `useAPI` hook  |
 
 ## Best Practices
 
@@ -508,4 +508,4 @@ async function fetchData() {
 - Module script tag: `<script type="module" src="/web/frontend.tsx"></script>`
 - **Never use raw `fetch()` calls** - always use `useAPI` or `createClient`
 
-<!-- prompt_hash: 3b7e3e0265e95b75876138a5c514abcb9134cb01ad8171bf1018bfe0d2bcebbd -->
+<!-- prompt_hash: 8b53bca757470f12c19fbe0fbeeccb603e3950e3e207ca9c047219bab637d0ff -->

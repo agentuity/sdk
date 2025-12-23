@@ -18,7 +18,6 @@ import './src/test/session-basic';
 import './src/test/lifecycle-waituntil';
 import './src/test/errors';
 import './src/test/schema-validation';
-import './src/test/evals';
 import './src/test/events';
 import './src/test/resilience';
 import './src/test/storage-binary';

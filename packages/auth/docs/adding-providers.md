@@ -208,6 +208,7 @@ declare module 'hono' {
 ## Environment Variables
 
 Support these patterns:
+
 - **Public keys**: `AGENTUITY_PUBLIC_<PROVIDER>_<KEY>`
 - **Secret keys**: `<PROVIDER>_SECRET_KEY`
 - **Fallback**: Standard provider env var names

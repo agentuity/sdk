@@ -125,11 +125,15 @@ export const deploySubcommand = createSubcommand({
 					useExistingDeployment = true;
 					logger.info(`Using existing deployment: ${result.data.id}`);
 				} else {
-					const errors = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ');
+					const errors = result.error.issues
+						.map((i) => `${i.path.join('.')}: ${i.message}`)
+						.join(', ');
 					logger.warn(`Invalid AGENTUITY_DEPLOYMENT schema: ${errors}`);
 				}
 			} catch (err) {
-				logger.warn(`Failed to parse AGENTUITY_DEPLOYMENT: ${err instanceof Error ? err.message : String(err)}`);
+				logger.warn(
+					`Failed to parse AGENTUITY_DEPLOYMENT: ${err instanceof Error ? err.message : String(err)}`
+				);
 			}
 		}
 

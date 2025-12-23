@@ -57,8 +57,8 @@ function HelloComponent() {
 			<div className="card">
 				<h2 className="card-title">How It Works</h2>
 				<p className="card-text">
-					This page uses <code>useAPI</code> from <code>@agentuity/react</code> to call the Hello
-					agent via the <code>/api/hello</code> endpoint. The agent is defined in{' '}
+					This page uses <code>useAPI</code> from <code>@agentuity/react</code> to call the
+					Hello agent via the <code>/api/hello</code> endpoint. The agent is defined in{' '}
 					<code>src/agent/hello/agent.ts</code>.
 				</p>
 			</div>

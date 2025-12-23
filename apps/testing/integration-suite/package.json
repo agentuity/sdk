@@ -17,6 +17,9 @@
 		"@agentuity/react": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/workbench": "workspace:*",
+		"@agentuity/evals": "workspace:*",
+		"@ai-sdk/openai": "^3.0.0",
+		"ai": "^6.0.0",
 		"hono": "^4.7.13",
 		"react": "^19.2.1",
 		"react-dom": "^19.2.1"

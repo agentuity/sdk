@@ -42,9 +42,9 @@ interface BunServer {
  * Kill any lingering gravity processes from previous dev sessions.
  * This is a defensive measure to clean up orphaned processes.
  */
-async function killLingeringGravityProcesses(
-	logger: { debug: (msg: string, ...args: unknown[]) => void }
-): Promise<void> {
+async function killLingeringGravityProcesses(logger: {
+	debug: (msg: string, ...args: unknown[]) => void;
+}): Promise<void> {
 	// Only attempt on Unix-like systems (macOS, Linux)
 	if (process.platform === 'win32') {
 		return;
@@ -488,7 +488,7 @@ export const command = createCommand({
 			// Handle uncaught exceptions - clean up and exit rather than limping on
 			process.on('uncaughtException', (err) => {
 				tui.error(
-					`Uncaught exception: ${err instanceof Error ? err.stack ?? err.message : String(err)}`
+					`Uncaught exception: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`
 				);
 				void safeExit(1, 'uncaughtException');
 			});
@@ -497,7 +497,7 @@ export const command = createCommand({
 			process.on('unhandledRejection', (reason) => {
 				logger.warn(
 					'Unhandled promise rejection: %s',
-					reason instanceof Error ? reason.stack ?? reason.message : String(reason)
+					reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)
 				);
 			});
 		}
@@ -592,7 +592,9 @@ export const command = createCommand({
 						// Generate/update prompt files (non-blocking)
 						import('../build/vite/prompt-generator')
 							.then(({ generatePromptFiles }) => generatePromptFiles(srcDir, logger))
-							.catch((err) => logger.warn('Failed to generate prompt files: %s', err.message));
+							.catch((err) =>
+								logger.warn('Failed to generate prompt files: %s', err.message)
+							);
 						const agents = await discoverAgents(
 							srcDir,
 							project?.projectId ?? '',

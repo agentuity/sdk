@@ -16,10 +16,7 @@ import { join } from 'path';
 describe('Dev Server Bundle Loading', () => {
 	test('bun-dev-server should reference .agentuity/app.js bundle path', async () => {
 		// Read the bun-dev-server source to verify it imports the bundled output
-		const serverPath = join(
-			import.meta.dir,
-			'../../src/cmd/build/vite/bun-dev-server.ts'
-		);
+		const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
 		const serverSource = await Bun.file(serverPath).text();
 
 		// Must import from .agentuity/app.js (the bundled output with patches)
@@ -35,10 +32,7 @@ describe('Dev Server Bundle Loading', () => {
 
 	test('bun-dev-server should not regenerate entry file', async () => {
 		// Read the bun-dev-server source
-		const serverPath = join(
-			import.meta.dir,
-			'../../src/cmd/build/vite/bun-dev-server.ts'
-		);
+		const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
 		const serverSource = await Bun.file(serverPath).text();
 
 		// Should NOT call generateEntryFile (that's done before bundling in dev/index.ts)
@@ -49,10 +43,7 @@ describe('Dev Server Bundle Loading', () => {
 	});
 
 	test('bun-dev-server should verify bundle exists before loading', async () => {
-		const serverPath = join(
-			import.meta.dir,
-			'../../src/cmd/build/vite/bun-dev-server.ts'
-		);
+		const serverPath = join(import.meta.dir, '../../src/cmd/build/vite/bun-dev-server.ts');
 		const serverSource = await Bun.file(serverPath).text();
 
 		// Should check that bundle file exists
@@ -91,9 +82,7 @@ describe('Dev Server Bundle Loading', () => {
 		const devIndexSource = await Bun.file(devIndexPath).text();
 
 		// Find the generateEntryFile call in the build section
-		const entryFileCall = devIndexSource.match(
-			/generateEntryFile\(\{[\s\S]*?\}\)/
-		)?.[0];
+		const entryFileCall = devIndexSource.match(/generateEntryFile\(\{[\s\S]*?\}\)/)?.[0];
 
 		expect(entryFileCall).toBeDefined();
 
