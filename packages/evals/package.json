@@ -28,7 +28,7 @@
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
 		"@agentuity/schema": "workspace:*",
-		"@ai-sdk/xai": "latest",
+		"@ai-sdk/groq": "latest",
 		"ai": "^6.0.0"
 	},
 	"devDependencies": {

@@ -1,7 +1,7 @@
 import type { LanguageModel } from 'ai';
-import { xai } from '@ai-sdk/xai';
+import { groq } from '@ai-sdk/groq';
 
-export const DEFAULT_EVAL_MODEL: LanguageModel = xai('grok-4-fast');
+export const DEFAULT_EVAL_MODEL: LanguageModel = groq('openai/gpt-oss-20b');
 
 export type BaseEvalOptions = {
 	model: LanguageModel;
