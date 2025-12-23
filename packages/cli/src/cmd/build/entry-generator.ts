@@ -131,10 +131,10 @@ app.route('/', workbenchRouter);
 `
 		: '';
 
-	// Asset proxy routes - generated for dev mode, reads VITE_PORT from env at runtime
-	const assetProxyRoutes =
-		mode === 'dev'
-			? `
+	// Asset proxy routes - Always generated, but only active at runtime when:
+	//   - NODE_ENV !== 'production' (isDevelopment())
+	//   - and process.env.VITE_PORT is set
+	const assetProxyRoutes = `
 // Asset proxy routes - Development mode only (proxies to Vite asset server)
 if (isDevelopment() && process.env.VITE_PORT) {
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT, 10);
@@ -193,8 +193,7 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	app.get('/*.tsx', proxyToVite);
 	app.get('/*.css', proxyToVite);
 }
-`
-			: '';
+`;
 
 	// Runtime mode detection helper (defined at top level for reuse)
 	// Dynamic property access prevents Bun.build from inlining NODE_ENV at build time
