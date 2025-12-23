@@ -28,8 +28,8 @@
 	"dependencies": {
 		"@agentuity/core": "workspace:*",
 		"@agentuity/schema": "workspace:*",
-		"@ai-sdk/openai": "^1.0.0",
-		"ai": "^4.0.0"
+		"@ai-sdk/openai": "^2.0.0",
+		"ai": "^6.0.0"
 	},
 	"devDependencies": {
 		"@agentuity/runtime": "workspace:*",

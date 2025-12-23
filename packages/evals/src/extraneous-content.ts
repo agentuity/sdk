@@ -42,7 +42,7 @@ export const extraneousContentPrompt = `You are evaluating whether an LLM respon
 
 ## Pass/Fail
 
-- passed = true only if score ≥ 0.7 AND no major tangents or significant off-topic content is present.
+- passed = true only if score ≥ {{THRESHOLD}} AND no major tangents or significant off-topic content is present.
 
 ## Constraints
 
@@ -81,6 +81,7 @@ export const extraneousContent = createPresetEval<
 		const prompt = interpolatePrompt(extraneousContentPrompt, {
 			USER_REQUEST: input.request,
 			MODEL_RESPONSE: output.response,
+			THRESHOLD: options.threshold.toString(),
 		});
 
 		const evaluation = await generateEvalResult({ model: options.model, prompt });

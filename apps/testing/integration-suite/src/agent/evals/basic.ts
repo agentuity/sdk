@@ -50,7 +50,7 @@ export const politenessCheckCustom = evalsBasicAgent.createEval(
  * Example 2: Inline eval without using preset evals
  * This is simpler when you don't need the preset eval's LLM logic.
  */
-export const accuracyEval = evalsBasicAgent.createEval(politeness());
+export const anotherPolitenessEval = evalsBasicAgent.createEval(politeness());
 
 /**
  * Example 3: Eval that throws to test error handling
