@@ -1,8 +1,10 @@
 export {
 	createPresetEval,
 	interpolatePrompt,
+	generateEvalResult,
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
+	type GenerateEvalResultOptions,
 } from './_utils';
 export type { BaseEvalOptions, EvalMiddleware } from './types';
 

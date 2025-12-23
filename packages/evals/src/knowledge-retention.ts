@@ -1,8 +1,8 @@
 import { openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
 import {
 	createPresetEval,
 	interpolatePrompt,
+	generateEvalResult,
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
@@ -69,14 +69,6 @@ type KnowledgeRetentionEvalOptions = BaseEvalOptions & {
 	threshold: number;
 };
 
-type EvalResponse = {
-	score: number;
-	passed: boolean;
-	metadata: {
-		reason: string;
-	};
-};
-
 export const knowledgeRetention = createPresetEval<
 	DefaultEvalInput,
 	DefaultEvalOutput,
@@ -94,30 +86,16 @@ export const knowledgeRetention = createPresetEval<
 			MODEL_RESPONSE: output.response,
 		});
 
-		try {
-			const result = await generateText({
+		const evaluation = await generateEvalResult({ model: options.model, prompt });
+
+		return {
+			passed: evaluation.passed && (evaluation.score ?? 1) >= options.threshold,
+			score: evaluation.score,
+			metadata: {
+				...evaluation.metadata,
 				model: options.model,
-				prompt,
-			});
-
-			const evaluation = JSON.parse(result.text) as EvalResponse;
-
-			return {
-				success: true as const,
-				passed: evaluation.passed && evaluation.score >= options.threshold,
-				score: evaluation.score,
-				metadata: {
-					reason: evaluation.metadata.reason,
-					model: options.model,
-					threshold: options.threshold,
-				},
-			};
-		} catch (error) {
-			const message = error instanceof Error ? error.message : 'Unknown error';
-			return {
-				success: false as const,
-				error: `Eval failed: ${message}`,
-			};
-		}
+				threshold: options.threshold,
+			},
+		};
 	},
 });

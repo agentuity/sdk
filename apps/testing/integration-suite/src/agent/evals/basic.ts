@@ -52,4 +52,15 @@ export const politenessCheckCustom = evalsBasicAgent.createEval(
  */
 export const accuracyEval = evalsBasicAgent.createEval(politeness());
 
+/**
+ * Example 3: Eval that throws to test error handling
+ */
+export const throwingEval = evalsBasicAgent.createEval({
+	name: 'throwing-eval',
+	description: 'Eval that throws to test error handling',
+	handler: async (_ctx, _input, _output) => {
+		throw new Error('Intentional eval error for testing');
+	},
+});
+
 export default evalsBasicAgent;

@@ -1,7 +1,8 @@
 import type { InferOutput, StandardSchemaV1 } from '@agentuity/core';
-import type { CreateEvalConfig, EvalContext } from '@agentuity/runtime';
+import type { CreateEvalConfig, EvalContext, EvalHandlerResult } from '@agentuity/runtime';
 import type { BaseEvalOptions, EvalMiddleware } from './types';
 import { s } from '@agentuity/schema';
+import { generateText, type LanguageModelV1 } from 'ai';
 
 // Default schemas for preset evals - change these to update all evals
 export const DefaultEvalInputSchema = s.object({
@@ -30,6 +31,83 @@ export function interpolatePrompt(template: string, variables: Record<string, st
 	return Object.entries(variables).reduce(
 		(prompt, [key, value]) => prompt.replaceAll(`{{${key}}}`, value),
 		template
+	);
+}
+
+export type GenerateEvalResultOptions = {
+	model: LanguageModelV1;
+	prompt: string;
+	maxRetries?: number;
+};
+
+function validateEvalResult(parsed: unknown): EvalHandlerResult {
+	if (typeof parsed !== 'object' || parsed === null) {
+		throw new Error('Expected object');
+	}
+
+	const obj = parsed as Record<string, unknown>;
+
+	if (typeof obj.passed !== 'boolean') {
+		throw new Error('Expected "passed" to be boolean');
+	}
+
+	if (
+		obj.score !== undefined &&
+		(typeof obj.score !== 'number' || obj.score < 0 || obj.score > 1)
+	) {
+		throw new Error('Expected "score" to be number between 0 and 1');
+	}
+
+	if (typeof obj.metadata !== 'object' || obj.metadata === null) {
+		throw new Error('Expected "metadata" to be object');
+	}
+
+	return {
+		passed: obj.passed,
+		score: obj.score as number | undefined,
+		metadata: obj.metadata as Record<string, unknown>,
+	};
+}
+
+/**
+ * Generates an eval result using LLM with built-in JSON parsing and validation retries.
+ *
+ * @example
+ * ```typescript
+ * const result = await generateEvalResult({
+ *   model: options.model,
+ *   prompt: interpolatePrompt(myPrompt, { ... }),
+ * });
+ * // result is typed as EvalHandlerResult
+ * ```
+ */
+export async function generateEvalResult(
+	options: GenerateEvalResultOptions
+): Promise<EvalHandlerResult> {
+	const { model, prompt, maxRetries = 3 } = options;
+
+	let lastError: Error | undefined;
+
+	for (let attempt = 0; attempt < maxRetries; attempt++) {
+		const result = await generateText({ model, prompt });
+
+		try {
+			// Extract JSON from response (handles markdown code blocks)
+			const jsonMatch = result.text.match(/```(?:json)?\s*([\s\S]*?)```/) || [null, result.text];
+			const jsonText = jsonMatch[1]?.trim() || result.text.trim();
+
+			const parsed = JSON.parse(jsonText);
+			return validateEvalResult(parsed);
+		} catch (error) {
+			lastError = error instanceof Error ? error : new Error(String(error));
+
+			// Don't retry on last attempt
+			if (attempt === maxRetries - 1) break;
+		}
+	}
+
+	throw new Error(
+		`Failed to generate valid eval result after ${maxRetries} attempts: ${lastError?.message}`
 	);
 }
 

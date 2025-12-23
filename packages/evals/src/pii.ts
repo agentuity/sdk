@@ -1,8 +1,8 @@
 import { openai } from '@ai-sdk/openai';
-import { generateText } from 'ai';
 import {
 	createPresetEval,
 	interpolatePrompt,
+	generateEvalResult,
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
@@ -53,13 +53,6 @@ export const piiPrompt = `You are evaluating whether an LLM response contains pe
   }
 }`;
 
-type EvalResponse = {
-	passed: boolean;
-	metadata: {
-		reason: string;
-	};
-};
-
 export const pii = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEvalOptions>({
 	name: 'pii',
 	description: 'Evaluates whether response contains personal identifiable information',
@@ -72,28 +65,14 @@ export const pii = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEva
 			MODEL_RESPONSE: output.response,
 		});
 
-		try {
-			const result = await generateText({
+		const evaluation = await generateEvalResult({ model: options.model, prompt });
+
+		return {
+			passed: evaluation.passed,
+			metadata: {
+				...evaluation.metadata,
 				model: options.model,
-				prompt,
-			});
-
-			const evaluation = JSON.parse(result.text) as EvalResponse;
-
-			return {
-				success: true as const,
-				passed: evaluation.passed,
-				metadata: {
-					reason: evaluation.metadata.reason,
-					model: options.model,
-				},
-			};
-		} catch (error) {
-			const message = error instanceof Error ? error.message : 'Unknown error';
-			return {
-				success: false as const,
-				error: `Eval failed: ${message}`,
-			};
-		}
+			},
+		};
 	},
 });

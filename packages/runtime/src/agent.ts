@@ -24,7 +24,7 @@ import {
 	type RequestAgentContextArgs,
 } from './_context';
 import type { Logger } from './logger';
-import type { Eval, EvalContext, EvalRunResult, EvalFunction } from './eval';
+import type { Eval, EvalContext, EvalHandlerResult, EvalRunResult, EvalFunction } from './eval';
 import { internal } from './logger/internal';
 import { fireEvent } from './_events';
 import type { Thread, Session } from './session';
@@ -1975,40 +1975,45 @@ export function createAgent<
 							const evalContext: EvalContext = ctx;
 
 							// Execute the eval handler conditionally based on agent schema
-							let result: EvalRunResult;
+							let handlerResult: EvalHandlerResult;
 							if (inputSchema && outputSchema) {
 								// Both input and output defined
-								result = await (evalItem.handler as any)(
+								handlerResult = await (evalItem.handler as any)(
 									evalContext,
 									evalValidatedInput,
 									evalValidatedOutput
 								);
 							} else if (inputSchema) {
 								// Only input defined
-								result = await (evalItem.handler as any)(evalContext, evalValidatedInput);
+								handlerResult = await (evalItem.handler as any)(
+									evalContext,
+									evalValidatedInput
+								);
 							} else if (outputSchema) {
 								// Only output defined
-								result = await (evalItem.handler as any)(evalContext, evalValidatedOutput);
+								handlerResult = await (evalItem.handler as any)(
+									evalContext,
+									evalValidatedOutput
+								);
 							} else {
 								// Neither defined
-								result = await (evalItem.handler as any)(evalContext);
+								handlerResult = await (evalItem.handler as any)(evalContext);
 							}
 
-							// Process the returned result
-							if (result.success) {
-								if (result.score !== undefined) {
-									internal.info(
-										`Eval '${evalName}' pass: ${result.passed}, score: ${result.score}`,
-										result.metadata
-									);
-								} else {
-									internal.info(
-										`Eval '${evalName}' pass: ${result.passed}`,
-										result.metadata
-									);
-								}
+							// Wrap handler result with success for catalyst
+							const result: EvalRunResult = {
+								success: true,
+								...handlerResult,
+							};
+
+							// Log the result
+							if (result.score !== undefined) {
+								internal.info(
+									`Eval '${evalName}' pass: ${result.passed}, score: ${result.score}`,
+									result.metadata
+								);
 							} else {
-								internal.error(`Eval '${evalName}' failed: ${result.error}`);
+								internal.info(`Eval '${evalName}' pass: ${result.passed}`, result.metadata);
 							}
 
 							// Send eval run complete event
@@ -2019,8 +2024,7 @@ export function createAgent<
 								try {
 									await evalRunEventProvider.complete({
 										id: evalRunId,
-										result: result.success ? result : undefined,
-										error: result.success ? undefined : result.error,
+										result,
 									});
 									internal.info(
 										`[EVALRUN] Complete event sent successfully for eval '${evalName}' (id: ${evalRunId})`

@@ -21,8 +21,8 @@ export const myEval = createPresetEval<TInput, TOutput, TOptions>({
 		/* default options */
 	},
 	handler: async (ctx, input, output, options) => {
-		// Evaluation logic
-		return { success: true, passed: true, metadata: { reason: '...' } };
+		// Evaluation logic - throw on error, runtime wraps with success
+		return { passed: true, metadata: { reason: '...' } };
 	},
 });
 
@@ -150,22 +150,24 @@ The middleware is optional. When not provided, the agent's input/output are pass
 
 ## Handler Return Types
 
-Eval handlers must return an `EvalResult`:
+Eval handlers return `EvalHandlerResult` (no `success` field - just throw on error):
 
 ```typescript
 // Binary pass/fail
 return {
-	success: true,
 	passed: true, // or false
 	metadata: { reason: 'Why it passed/failed' },
 };
 
 // Scored result (0.0-1.0)
 return {
-	success: true,
+	passed: true,
 	score: 0.85,
 	metadata: { reason: 'Accuracy score explanation' },
 };
+
+// On error, just throw - runtime handles it
+throw new Error('LLM call failed');
 ```
 
 ## Complete Example
@@ -201,7 +203,6 @@ export const toneEval = createPresetEval<typeof inputSchema, typeof outputSchema
 		const passed = result.text.toLowerCase().includes('yes');
 
 		return {
-			success: true,
 			passed,
 			metadata: {
 				reason: passed
@@ -238,6 +239,6 @@ packages/evals/
 1. **Schema types required** - Use `s.object({...})` for typed input/output, or `undefined` for generic evals
 2. **Flattened options** - Override options directly in the call, not nested under `options`
 3. **Extend BaseEvalOptions** - Custom options must extend `BaseEvalOptions` for the `model` field
-4. **Return format** - Always return `{ success, passed/score, metadata: { reason } }`
+4. **Return format** - Return `{ passed, score?, metadata }` - throw on error, no `success` field needed
 5. **Reusable** - Preset evals are designed to be shared across agents with different configurations
 6. **Middleware** - Use `middleware` to transform agent input/output to eval's expected types when schemas differ

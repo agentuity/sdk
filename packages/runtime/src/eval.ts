@@ -11,6 +11,15 @@ export type EvalRunResultMetadata = {
 	[key: string]: any;
 };
 
+export const EvalHandlerResultSchema = z.object({
+	passed: z.boolean(),
+	score: z.number().min(0).max(1).optional(),
+	metadata: z.record(z.string(), z.any()),
+});
+
+export type EvalHandlerResult = z.infer<typeof EvalHandlerResultSchema>;
+
+// Internal types for catalyst (include success field)
 export const EvalRunResultSuccessSchema = z.object({
 	success: z.literal(true),
 	passed: z.boolean(),
@@ -77,11 +86,11 @@ type InferSchemaOutput<T> = T extends StandardSchemaV1 ? InferOutput<T> : any;
 
 export type EvalFunction<TInput = any, TOutput = any> = [TInput] extends [undefined]
 	? [TOutput] extends [undefined]
-		? (ctx: EvalContext) => Promise<EvalRunResult>
-		: (ctx: EvalContext, output: TOutput) => Promise<EvalRunResult>
+		? (ctx: EvalContext) => Promise<EvalHandlerResult>
+		: (ctx: EvalContext, output: TOutput) => Promise<EvalHandlerResult>
 	: [TOutput] extends [undefined]
-		? (ctx: EvalContext, input: TInput) => Promise<EvalRunResult>
-		: (ctx: EvalContext, input: TInput, output: TOutput) => Promise<EvalRunResult>;
+		? (ctx: EvalContext, input: TInput) => Promise<EvalHandlerResult>
+		: (ctx: EvalContext, input: TInput, output: TOutput) => Promise<EvalHandlerResult>;
 
 /**
  * The Eval handler interface.
