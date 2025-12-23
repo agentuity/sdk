@@ -18,7 +18,7 @@ import * as tui from '../../tui';
 import { createPrompt, note } from '../../tui';
 import { playSound } from '../../sound';
 import { fetchTemplates, type TemplateInfo } from './templates';
-import { downloadTemplate, setupProject } from './download';
+import { downloadTemplate, setupProject, initGitRepo } from './download';
 import { type AuthData, type Config } from '../../types';
 import { ErrorCode } from '../../errors';
 import type { APIClient } from '../../api';
@@ -422,6 +422,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			});
 		}
 	}
+
+	// Initialize git repository after all files are generated
+	await initGitRepo(dest);
 
 	// Show completion message
 	if (!skipPrompts) {
