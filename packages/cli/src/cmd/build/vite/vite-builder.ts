@@ -5,7 +5,7 @@
  */
 
 import { join } from 'node:path';
-import { existsSync, renameSync, rmdirSync, rmSync } from 'node:fs';
+import { existsSync, renameSync, rmSync } from 'node:fs';
 import type { InlineConfig, Plugin } from 'vite';
 import type { Logger } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
