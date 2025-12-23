@@ -31,7 +31,9 @@ export type EvalRunResultSuccess = z.infer<typeof EvalRunResultSuccessSchema>;
 
 export type EvalRunResultError = {
 	success: false;
+	passed: false;
 	error: string;
+	metadata: EvalRunResultMetadata;
 };
 
 export type EvalRunResult = EvalRunResultSuccess | EvalRunResultError;

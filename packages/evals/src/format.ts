@@ -1,4 +1,3 @@
-import { openai } from '@ai-sdk/openai';
 import {
 	createPresetEval,
 	interpolatePrompt,
@@ -6,7 +5,7 @@ import {
 	type DefaultEvalInput,
 	type DefaultEvalOutput,
 } from './_utils';
-import type { BaseEvalOptions } from './types';
+import { DEFAULT_EVAL_MODEL, type BaseEvalOptions } from './types';
 
 export const formatPrompt = `You are evaluating whether an LLM response matches the format requested by the user.
 
@@ -60,7 +59,7 @@ export const format = createPresetEval<DefaultEvalInput, DefaultEvalOutput, Base
 	name: 'format',
 	description: 'Evaluates whether response matches the requested format',
 	options: {
-		model: openai('gpt-4o'),
+		model: DEFAULT_EVAL_MODEL,
 	},
 	handler: async (ctx, input, output, options) => {
 		const prompt = interpolatePrompt(formatPrompt, {
@@ -68,14 +67,6 @@ export const format = createPresetEval<DefaultEvalInput, DefaultEvalOutput, Base
 			MODEL_RESPONSE: output.response,
 		});
 
-		const evaluation = await generateEvalResult({ model: options.model, prompt });
-
-		return {
-			passed: evaluation.passed,
-			metadata: {
-				...evaluation.metadata,
-				model: options.model,
-			},
-		};
+		return generateEvalResult({ model: options.model, prompt });
 	},
 });

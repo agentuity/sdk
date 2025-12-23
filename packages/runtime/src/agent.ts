@@ -2053,6 +2053,12 @@ export function createAgent<
 									await evalRunEventProvider.complete({
 										id: evalRunId,
 										error: errorMessage,
+										result: {
+											success: false,
+											passed: false,
+											error: errorMessage,
+											metadata: {},
+										},
 									});
 									internal.info(
 										`[EVALRUN] Complete event (error) sent successfully for eval '${evalName}' (id: ${evalRunId})`

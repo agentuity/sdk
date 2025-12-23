@@ -1,5 +1,10 @@
 import type { InferOutput, StandardSchemaV1 } from '@agentuity/core';
-import type { CreateEvalConfig, EvalContext, EvalHandlerResult } from '@agentuity/runtime';
+import {
+	EvalHandlerResultSchema,
+	type CreateEvalConfig,
+	type EvalContext,
+	type EvalHandlerResult,
+} from '@agentuity/runtime';
 import type { BaseEvalOptions, EvalMiddleware } from './types';
 import { s } from '@agentuity/schema';
 import { generateText, type LanguageModel } from 'ai';
@@ -40,35 +45,6 @@ export type GenerateEvalResultOptions = {
 	maxRetries?: number;
 };
 
-function validateEvalResult(parsed: unknown): EvalHandlerResult {
-	if (typeof parsed !== 'object' || parsed === null) {
-		throw new Error('Expected object');
-	}
-
-	const obj = parsed as Record<string, unknown>;
-
-	if (typeof obj.passed !== 'boolean') {
-		throw new Error('Expected "passed" to be boolean');
-	}
-
-	if (
-		obj.score !== undefined &&
-		(typeof obj.score !== 'number' || obj.score < 0 || obj.score > 1)
-	) {
-		throw new Error('Expected "score" to be number between 0 and 1');
-	}
-
-	if (typeof obj.metadata !== 'object' || obj.metadata === null) {
-		throw new Error('Expected "metadata" to be object');
-	}
-
-	return {
-		passed: obj.passed,
-		score: obj.score as number | undefined,
-		metadata: obj.metadata as Record<string, unknown>,
-	};
-}
-
 /**
  * Generates an eval result using LLM with built-in JSON parsing and validation retries.
  *
@@ -97,7 +73,7 @@ export async function generateEvalResult(
 			const jsonText = jsonMatch[1]?.trim() || result.text.trim();
 
 			const parsed = JSON.parse(jsonText);
-			return validateEvalResult(parsed);
+			return EvalHandlerResultSchema.parse(parsed);
 		} catch (error) {
 			lastError = error instanceof Error ? error : new Error(String(error));
 
