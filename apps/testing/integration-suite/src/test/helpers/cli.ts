@@ -46,9 +46,19 @@ function findProjectDir(startDir: string): string | null {
 	return null;
 }
 
-// Resolve CLI binary path - works in both dev and built (.agentuity) environments
+// Resolve CLI binary path - prioritizes installed CLI from node_modules
 function resolveCliPath(): string {
-	// Try from import.meta.dir first (dev environment)
+	// First check for CLI installed in node_modules (tarball install in CI)
+	// This is the correct path when SDK is installed from tarballs
+	const projectDir = findProjectDir(process.cwd()) || findProjectDir(import.meta.dir);
+	if (projectDir) {
+		const installedCliPath = join(projectDir, 'node_modules/@agentuity/cli/bin/cli.ts');
+		if (existsSync(installedCliPath)) {
+			return installedCliPath;
+		}
+	}
+
+	// Fall back to monorepo source (local development with workspace links)
 	const rootFromFile = findMonorepoRoot(import.meta.dir);
 	if (rootFromFile) {
 		const cliPath = join(rootFromFile, 'packages/cli/bin/cli.ts');
@@ -67,7 +77,7 @@ function resolveCliPath(): string {
 	}
 
 	throw new Error(
-		`CLI not found. Searched from ${import.meta.dir} (root: ${rootFromFile}) and ${process.cwd()} (root: ${rootFromCwd})`
+		`CLI not found. Searched in node_modules, from ${import.meta.dir} (root: ${rootFromFile}) and ${process.cwd()} (root: ${rootFromCwd})`
 	);
 }
 
