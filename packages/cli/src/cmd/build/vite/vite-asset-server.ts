@@ -49,11 +49,61 @@ export async function startViteAssetServer(
 	// Create Vite server with config
 	const server = await createServer(config);
 
-	// Start listening - Vite will choose alternate port if preferred is taken
-	await server.listen();
+	// Start listening with timeout to prevent hangs
+	// Vite will choose alternate port if preferred is taken
+	const STARTUP_TIMEOUT_MS = 30000; // 30 seconds
+	const listenPromise = server.listen();
+	const timeoutPromise = new Promise<never>((_, reject) => {
+		setTimeout(() => {
+			reject(
+				new Error(`Vite asset server failed to start within ${STARTUP_TIMEOUT_MS / 1000}s`)
+			);
+		}, STARTUP_TIMEOUT_MS);
+	});
 
-	// Get the actual port Vite is using (may differ from preferred if port was taken)
-	const actualPort = server.config.server.port || preferredPort;
+	try {
+		await Promise.race([listenPromise, timeoutPromise]);
+	} catch (error) {
+		// Attempt to close the server on failure
+		try {
+			await server.close();
+		} catch {
+			// Ignore close errors
+		}
+		throw error;
+	}
+
+	// Get the actual port Vite is using from the httpServer
+	// server.config.server.port is the requested port, not the actual one
+	// We need to get the actual port from the underlying http server
+	let actualPort = preferredPort;
+
+	// The resolved URL contains the actual port being used
+	const resolvedUrls = server.resolvedUrls;
+	if (resolvedUrls?.local && resolvedUrls.local.length > 0) {
+		try {
+			const url = new URL(resolvedUrls.local[0]);
+			actualPort = parseInt(url.port, 10) || preferredPort;
+		} catch {
+			// Fall back to httpServer if URL parsing fails
+			const httpServer = server.httpServer;
+			if (httpServer) {
+				const address = httpServer.address();
+				if (address && typeof address === 'object' && 'port' in address) {
+					actualPort = address.port;
+				}
+			}
+		}
+	} else {
+		// Fall back to httpServer address
+		const httpServer = server.httpServer;
+		if (httpServer) {
+			const address = httpServer.address();
+			if (address && typeof address === 'object' && 'port' in address) {
+				actualPort = address.port;
+			}
+		}
+	}
 
 	logger.debug(`✅ Vite asset server started on port ${actualPort}`);
 	if (actualPort !== preferredPort) {
