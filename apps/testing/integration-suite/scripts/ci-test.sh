@@ -141,13 +141,19 @@ echo ""
 echo "Running all tests (concurrency=10)..."
 echo ""
 
-# Parse SSE stream and track results
+# Save SSE output to temp file for parsing
+# This avoids subshell issues with pipes that would lose exit codes
+RESULT_FILE="/tmp/integration-suite-results.txt"
+curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" > "$RESULT_FILE"
+
+# Track results
 TOTAL=0
 PASSED=0
 FAILED=0
 DURATION=0
 
-curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -r line; do
+# Parse results from file
+while IFS= read -r line; do
 	# Skip empty lines
 	[ -z "$line" ] && continue
 	
@@ -206,41 +212,45 @@ curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -
 			PASSED=$(echo "$DATA" | grep -o '"passed":[0-9]*' | cut -d':' -f2)
 			FAILED=$(echo "$DATA" | grep -o '"failed":[0-9]*' | cut -d':' -f2)
 			DURATION=$(echo "$DATA" | grep -o '"duration":[0-9.]*' | cut -d':' -f2)
-			
-			# Calculate duration in seconds
-			DURATION_SEC=$(echo "scale=2; $DURATION / 1000" | bc)
-			
-			echo ""
-			echo "╔════════════════════════════════════════════════════════════════╗"
-			echo "║              INTEGRATION SUITE - TEST RESULTS                  ║"
-			echo "╠════════════════════════════════════════════════════════════════╣"
-			printf "║  %-30s %30s  ║\n" "Total Tests:" "$TOTAL"
-			printf "║  %-30s %30s  ║\n" "Passed:" "$(printf "${GREEN}%s${NC}" "$PASSED")"
-			printf "║  %-30s %30s  ║\n" "Failed:" "$(printf "${RED}%s${NC}" "$FAILED")"
-			printf "║  %-30s %30s  ║\n" "Duration:" "${DURATION_SEC}s (${DURATION}ms)"
-			echo "╠════════════════════════════════════════════════════════════════╣"
-			
-			if [ "$FAILED" -gt 0 ]; then
-				printf "║  %-60s  ║\n" "$(printf "${RED}✗ RESULT: FAILED - %s test(s) failed${NC}" "$FAILED")"
-			else
-				printf "║  %-60s  ║\n" "$(printf "${GREEN}✓ RESULT: SUCCESS - All tests passed${NC}")"
-			fi
-			
-			echo "╚════════════════════════════════════════════════════════════════╝"
-			echo ""
-			
-			# Kill server
-			kill $SERVER_PID 2>/dev/null || true
-			
-			# Exit with failure if any tests failed
-			if [ "$FAILED" -gt 0 ]; then
-				exit 1
-			else
-				exit 0
-			fi
 		fi
 	fi
-done
+done < "$RESULT_FILE"
 
-# Cleanup (in case curl fails)
+# Cleanup temp file
+rm -f "$RESULT_FILE"
+
+# Kill server
 kill $SERVER_PID 2>/dev/null || true
+
+# Validate we got test results
+if [ "$TOTAL" -eq 0 ]; then
+	echo -e "${RED}✗ ERROR:${NC} No test results received!"
+	echo "This usually means the test suite failed to start or crashed."
+	exit 1
+fi
+
+# Calculate duration in seconds
+DURATION_SEC=$(echo "scale=2; $DURATION / 1000" | bc)
+
+# Print summary
+echo ""
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║              INTEGRATION SUITE - TEST RESULTS                  ║"
+echo "╠════════════════════════════════════════════════════════════════╣"
+printf "║  %-30s %30s  ║\n" "Total Tests:" "$TOTAL"
+printf "║  %-30s %30s  ║\n" "Passed:" "$(printf "${GREEN}%s${NC}" "$PASSED")"
+printf "║  %-30s %30s  ║\n" "Failed:" "$(printf "${RED}%s${NC}" "$FAILED")"
+printf "║  %-30s %30s  ║\n" "Duration:" "${DURATION_SEC}s (${DURATION}ms)"
+echo "╠════════════════════════════════════════════════════════════════╣"
+
+if [ "$FAILED" -gt 0 ]; then
+	printf "║  %-60s  ║\n" "$(printf "${RED}✗ RESULT: FAILED - %s test(s) failed${NC}" "$FAILED")"
+	echo "╚════════════════════════════════════════════════════════════════╝"
+	echo ""
+	exit 1
+else
+	printf "║  %-60s  ║\n" "$(printf "${GREEN}✓ RESULT: SUCCESS - All tests passed${NC}")"
+	echo "╚════════════════════════════════════════════════════════════════╝"
+	echo ""
+	exit 0
+fi
