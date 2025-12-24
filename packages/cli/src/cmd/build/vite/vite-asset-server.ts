@@ -52,17 +52,20 @@ export async function startViteAssetServer(
 	// Start listening with timeout to prevent hangs
 	// Vite will choose alternate port if preferred is taken
 	const STARTUP_TIMEOUT_MS = 30000; // 30 seconds
-	const listenPromise = server.listen();
-	const timeoutPromise = new Promise<never>((_, reject) => {
-		setTimeout(() => {
-			reject(
-				new Error(`Vite asset server failed to start within ${STARTUP_TIMEOUT_MS / 1000}s`)
-			);
-		}, STARTUP_TIMEOUT_MS);
-	});
 
 	try {
-		await Promise.race([listenPromise, timeoutPromise]);
+		await Promise.race([
+			server.listen(),
+			new Promise<never>((_, reject) => {
+				const timeoutId = setTimeout(() => {
+					reject(
+						new Error(`Vite asset server failed to start within ${STARTUP_TIMEOUT_MS / 1000}s`)
+					);
+				}, STARTUP_TIMEOUT_MS);
+				// Clean up timeout when listen succeeds (via finally in the outer try)
+				server.httpServer?.once('listening', () => clearTimeout(timeoutId));
+			}),
+		]);
 	} catch (error) {
 		// Attempt to close the server on failure
 		try {
@@ -73,9 +76,20 @@ export async function startViteAssetServer(
 		throw error;
 	}
 
+	// Helper to get port from httpServer
+	const getPortFromHttpServer = (): number | null => {
+		const httpServer = server.httpServer;
+		if (httpServer) {
+			const address = httpServer.address();
+			if (address && typeof address === 'object' && 'port' in address) {
+				return address.port;
+			}
+		}
+		return null;
+	};
+
 	// Get the actual port Vite is using from the httpServer
 	// server.config.server.port is the requested port, not the actual one
-	// We need to get the actual port from the underlying http server
 	let actualPort = preferredPort;
 
 	// The resolved URL contains the actual port being used
@@ -85,24 +99,10 @@ export async function startViteAssetServer(
 			const url = new URL(resolvedUrls.local[0]);
 			actualPort = parseInt(url.port, 10) || preferredPort;
 		} catch {
-			// Fall back to httpServer if URL parsing fails
-			const httpServer = server.httpServer;
-			if (httpServer) {
-				const address = httpServer.address();
-				if (address && typeof address === 'object' && 'port' in address) {
-					actualPort = address.port;
-				}
-			}
+			actualPort = getPortFromHttpServer() ?? preferredPort;
 		}
 	} else {
-		// Fall back to httpServer address
-		const httpServer = server.httpServer;
-		if (httpServer) {
-			const address = httpServer.address();
-			if (address && typeof address === 'object' && 'port' in address) {
-				actualPort = address.port;
-			}
-		}
+		actualPort = getPortFromHttpServer() ?? preferredPort;
 	}
 
 	logger.debug(`✅ Vite asset server started on port ${actualPort}`);

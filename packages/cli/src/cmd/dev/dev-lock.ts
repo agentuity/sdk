@@ -136,16 +136,28 @@ async function removeLock(lockPath: string, logger: LoggerLike): Promise<void> {
 }
 
 /**
- * Check if a port is in use by attempting to connect to it
+ * Check if a port is in use by attempting to connect to it.
+ * Uses GET instead of HEAD since some servers return 405 for HEAD requests.
+ * Any response (including errors like 404, 500) means the port is in use.
  */
 async function isPortResponding(port: number): Promise<boolean> {
 	try {
-		await fetch(`http://127.0.0.1:${port}/`, {
-			method: 'HEAD',
+		const response = await fetch(`http://127.0.0.1:${port}/`, {
+			method: 'GET',
 			signal: AbortSignal.timeout(500),
 		});
+		// Consume body to avoid memory leaks
+		await response.text().catch(() => {});
 		return true;
-	} catch {
+	} catch (err: unknown) {
+		// Connection refused (ECONNREFUSED) means nothing is listening
+		// Other errors (timeout, reset) might indicate a busy port
+		const error = err as Error & { cause?: { code?: string } };
+		const code = error.cause?.code;
+		if (code === 'ECONNREFUSED' || code === 'ECONNRESET') {
+			return false;
+		}
+		// For other errors (like timeout), assume port might be in use but unresponsive
 		return false;
 	}
 }
