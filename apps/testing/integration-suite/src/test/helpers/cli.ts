@@ -155,6 +155,23 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 			console.log(`[CLI-DEBUG] error.cause: ${JSON.stringify(error.cause)}`);
 		}
 
+		// Log all error properties
+		console.log(`[CLI-DEBUG] error keys: ${Object.keys(error).join(', ')}`);
+		for (const key of Object.keys(error)) {
+			try {
+				const val = error[key];
+				const valStr = typeof val === 'object' ? JSON.stringify(val) : String(val);
+				console.log(`[CLI-DEBUG] error.${key}: ${valStr?.slice(0, 200)}`);
+			} catch {
+				console.log(`[CLI-DEBUG] error.${key}: [cannot stringify]`);
+			}
+		}
+
+		// Also try to log the error stack
+		if (error.stack) {
+			console.log(`[CLI-DEBUG] error.stack: ${error.stack.slice(0, 500)}`);
+		}
+
 		return {
 			stdout,
 			stderr: stderr || message,
