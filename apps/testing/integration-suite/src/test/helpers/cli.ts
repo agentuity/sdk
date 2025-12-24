@@ -123,6 +123,23 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 	console.log(`[CLI-DEBUG] PROJECT_DIR: ${PROJECT_DIR}`);
 	console.log(`[CLI-DEBUG] CLI file exists: ${existsSync(CLI_PATH)}`);
 
+	// Additional debug: check if CLI path is symlink and resolve it
+	try {
+		const fs = await import('fs/promises');
+		const realPath = await fs.realpath(CLI_PATH);
+		console.log(`[CLI-DEBUG] CLI realpath: ${realPath}`);
+		const stats = await fs.stat(realPath);
+		console.log(`[CLI-DEBUG] CLI file size: ${stats.size} bytes`);
+		console.log(`[CLI-DEBUG] CLI is file: ${stats.isFile()}`);
+
+		// Check first line of CLI file
+		const content = await fs.readFile(realPath, 'utf-8');
+		console.log(`[CLI-DEBUG] CLI first line: ${content.split('\n')[0]}`);
+		console.log(`[CLI-DEBUG] CLI has debugLog: ${content.includes('debugLog')}`);
+	} catch (e: any) {
+		console.log(`[CLI-DEBUG] Error checking CLI file: ${e.message}`);
+	}
+
 	try {
 		console.log(`[CLI-DEBUG] Executing: bun ${CLI_PATH} ${args.join(' ')}`);
 		const result = await $`bun ${CLI_PATH} ${args}`.cwd(PROJECT_DIR).env(env).quiet();
