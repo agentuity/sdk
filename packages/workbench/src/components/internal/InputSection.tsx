@@ -35,6 +35,7 @@ import { MonacoJsonEditor } from "./MonacoJsonEditor";
 import { useWorkbench } from "./WorkbenchProvider";
 
 export interface InputSectionProps {
+	className?: string;
 	value: string;
 	onChange: (value: string) => void;
 	onSubmit: () => void | Promise<void>;
@@ -61,6 +62,7 @@ function isSchemaRootObject(schemaJson?: JSONSchema7): boolean {
 }
 
 export function InputSection({
+	className,
 	value,
 	onChange,
 	onSubmit,
@@ -77,6 +79,7 @@ export function InputSection({
 	const { generateSample, isGeneratingSample, isAuthenticated } =
 		useWorkbench();
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
+	const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 	const [isValidInput, setIsValidInput] = useState(true);
 	const [monacoHasErrors, setMonacoHasErrors] = useState<boolean | null>(null);
 
@@ -195,15 +198,15 @@ export function InputSection({
 	}, [isLoading, inputType, value, isValidInput]);
 
 	return (
-		<>
-			<div className="flex items-center gap-2 py-2 px-3">
+		<div className={className}>
+			<div className="flex items-center gap-2 py-2 px-4">
 				<Popover open={agentSelectOpen} onOpenChange={setAgentSelectOpen}>
 					<PopoverTrigger asChild>
 						<Button
 							aria-expanded={agentSelectOpen}
-							className="font-normal bg-transparent dark:bg-transparent"
 							variant="outline"
 							size="sm"
+							className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
 						>
 							{Object.values(agents).find(
 								(agent) => agent.metadata.agentId === selectedAgent,
@@ -211,7 +214,7 @@ export function InputSection({
 							<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
 						</Button>
 					</PopoverTrigger>
-					<PopoverContent className="w-fit p-0">
+					<PopoverContent side="top" align="start" className="w-fit p-0 z-101">
 						<Command>
 							<CommandInput placeholder="Search agents..." />
 							<CommandList>
@@ -265,21 +268,43 @@ export function InputSection({
 				</Popover>
 
 				{suggestions.length > 0 && (
-					<Select onValueChange={(value) => onChange(value)}>
-						<SelectTrigger
-							size="sm"
-							className="ml-auto bg-transparent dark:bg-transparent text-foreground!"
+					<Popover open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
+						<PopoverTrigger asChild>
+							<Button
+								aria-expanded={suggestionsOpen}
+								variant="outline"
+								size="sm"
+								className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
+							>
+								Suggestions
+								<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent
+							side="top"
+							align="start"
+							className="w-fit p-0 z-101"
 						>
-							Suggestions
-						</SelectTrigger>
-						<SelectContent className="text-sm" side="top" align="end">
-							{suggestions.map((suggestion) => (
-								<SelectItem key={suggestion} value={suggestion}>
-									{suggestion}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+							<Command>
+								<CommandList>
+									<CommandGroup>
+										{suggestions.map((suggestion) => (
+											<CommandItem
+												key={suggestion}
+												value={suggestion}
+												onSelect={() => {
+													onChange(suggestion);
+													setSuggestionsOpen(false);
+												}}
+											>
+												{suggestion}
+											</CommandItem>
+										))}
+									</CommandGroup>
+								</CommandList>
+							</Command>
+						</PopoverContent>
+					</Popover>
 				)}
 
 				{isObjectSchema &&
@@ -288,7 +313,7 @@ export function InputSection({
 							aria-label="Generate Sample JSON"
 							size="sm"
 							variant="outline"
-							className="bg-none font-normal"
+							className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
 							onClick={handleGenerateSample}
 							disabled={isGeneratingSample || !isAuthenticated}
 						>
@@ -307,7 +332,7 @@ export function InputSection({
 										aria-label="Generate Sample JSON"
 										size="sm"
 										variant="outline"
-										className="bg-none font-normal"
+										className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50"
 										onClick={handleGenerateSample}
 										disabled={isGeneratingSample || !isAuthenticated}
 									>
@@ -330,7 +355,10 @@ export function InputSection({
 					aria-label={isSchemaOpen ? "Hide Schema" : "View Schema"}
 					size="sm"
 					variant={isSchemaOpen ? "default" : "outline"}
-					className={cn("font-normal", isSchemaOpen ? "bg-primary" : "bg-none")}
+					className={cn(
+						"font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50",
+						isSchemaOpen ? "bg-primary" : "",
+					)}
 					onClick={onSchemaToggle}
 				>
 					<FileJson className="size-4" /> Schema
@@ -341,7 +369,7 @@ export function InputSection({
 						aria-label="Clear conversation history"
 						size="sm"
 						variant="outline"
-						className="bg-none font-normal text-muted-foreground hover:text-destructive"
+						className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50 text-foreground hover:text-destructive"
 						onClick={() => clearAgentState(selectedAgent)}
 					>
 						<Trash2 className="size-4" /> Clear
@@ -349,7 +377,10 @@ export function InputSection({
 				)}
 			</div>
 
-			<PromptInput onSubmit={onSubmit} className="px-3 pb-3">
+			<PromptInput
+				onSubmit={onSubmit}
+				className="px-4 pb-4 bg-background [&>div]:bg-background!"
+			>
 				<PromptInputBody>
 					{!selectedAgent ? (
 						<div className="flex flex-col items-center justify-center py-8 px-4 text-center">
@@ -409,6 +440,7 @@ export function InputSection({
 						})()
 					)}
 				</PromptInputBody>
+
 				<PromptInputFooter>
 					{selectedAgent && inputType !== "none" && (
 						<Button
@@ -436,6 +468,6 @@ export function InputSection({
 					)}
 				</PromptInputFooter>
 			</PromptInput>
-		</>
+		</div>
 	);
 }

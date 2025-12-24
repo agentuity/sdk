@@ -1,11 +1,9 @@
-/* Styles should be imported in app's CSS file (e.g., globals.css) */
-/* import '../../styles.css'; */
-
-import { ChevronRight, Copy, Loader, RefreshCcw } from "lucide-react";
+import { Copy, Loader, RefreshCcw } from "lucide-react";
 import { useState } from "react";
 import { useLogger } from "../../hooks/useLogger";
 import { cn } from "../../lib/utils";
 import { Action, Actions } from "../ai-elements/actions";
+import { CodeBlock } from "../ai-elements/code-block";
 import {
 	Conversation,
 	ConversationContent,
@@ -23,10 +21,6 @@ export interface ChatProps {
 	emptyState?: React.ReactNode;
 }
 
-/**
- * Chat component - conversation and input area (everything except header)
- * Must be used within WorkbenchProvider
- */
 export function Chat({
 	className: _className,
 	schemaOpen,
@@ -87,21 +81,24 @@ export function Chat({
 	};
 
 	return (
-		<div className="flex flex-col h-full overflow-hidden">
+		<div className="relative flex flex-col h-full w-full overflow-hidden">
 			<Conversation className="flex-1 overflow-y-auto">
 				{connectionStatus === "disconnected" && emptyState ? (
 					<div className="flex flex-col h-full">{emptyState}</div>
 				) : (
-					<ConversationContent className="pb-0">
+					<ConversationContent className=" pb-48">
 						{messages.map((message) => {
 							const { role, parts, id } = message;
+
 							const isStreaming = parts.some(
 								(part) => part.type === "text" && part.state === "streaming",
 							);
+
 							const tokens =
 								"tokens" in message
 									? (message as { tokens?: string }).tokens
 									: undefined;
+
 							const duration =
 								"duration" in message
 									? (message as { duration?: string }).duration
@@ -135,10 +132,11 @@ export function Chat({
 													)}
 													{duration &&
 														tokens &&
-														` and consumed  ${tokens} tokens`}
-													{(duration || tokens) && (
+														`and consumed ${tokens} tokens`}
+
+													{/* {(duration || tokens) && (
 														<ChevronRight className="size-4" />
-													)}
+													)} */}
 												</>
 											)}
 										</div>
@@ -155,11 +153,41 @@ export function Chat({
 													{parts.map((part, index) => {
 														switch (part.type) {
 															case "text":
+																// json?
+																if (
+																	part.text.startsWith("{") &&
+																	part.text.endsWith("}")
+																) {
+																	try {
+																		const json = JSON.parse(part.text);
+
+																		// json!
+																		return (
+																			<CodeBlock
+																				key={`${id}-${part.text}-${index}`}
+																				code={JSON.stringify(json, null, 2)}
+																				language="json"
+																				className="bg-transparent border-0 [&>div>div>pre]:bg-transparent! [&_pre]:p-0!"
+																			/>
+																		);
+																	} catch (_error) {
+																		// not json :(
+																		return (
+																			<div key={`${id}-${part.text}-${index}`}>
+																				{part.text || ""}
+																			</div>
+																		);
+																	}
+																}
+
+																// text/markdown
 																return (
 																	<div key={`${id}-${part.text}-${index}`}>
 																		{part.text || ""}
 																	</div>
 																);
+															default:
+																return null;
 														}
 													})}
 												</MessageContent>
@@ -211,10 +239,11 @@ export function Chat({
 					</ConversationContent>
 				)}
 
-				{connectionStatus !== "disconnected" && <ConversationScrollButton />}
+				<ConversationScrollButton className="mb-34 z-101" />
 			</Conversation>
 
 			<InputSection
+				className="absolute inset-x-0 bottom-0 z-100"
 				value={value}
 				onChange={setValue}
 				onSubmit={handleSubmit}

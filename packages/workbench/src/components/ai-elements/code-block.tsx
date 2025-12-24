@@ -3,8 +3,8 @@
 import javascriptLang from "@shikijs/langs/javascript";
 import jsonLang from "@shikijs/langs/json";
 import typescriptLang from "@shikijs/langs/typescript";
-import oneDarkProModule from "@shikijs/themes/one-dark-pro";
-import oneLightModule from "@shikijs/themes/one-light";
+import themeDarkModule from "@shikijs/themes/vitesse-dark";
+import themeLightModule from "@shikijs/themes/vitesse-light";
 import type { Element } from "hast";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import {
@@ -23,11 +23,11 @@ import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
 
 // Extract theme objects from default exports
-const oneLight = (
-	"default" in oneLightModule ? oneLightModule.default : oneLightModule
+const themeLight = (
+	"default" in themeLightModule ? themeLightModule.default : themeLightModule
 ) as ThemeRegistration;
-const oneDarkPro = (
-	"default" in oneDarkProModule ? oneDarkProModule.default : oneDarkProModule
+const themeDark = (
+	"default" in themeDarkModule ? themeDarkModule.default : themeDarkModule
 ) as ThemeRegistration;
 
 type SupportedLanguage = "json" | "javascript" | "typescript";
@@ -52,7 +52,7 @@ let highlighterPromise: ReturnType<typeof createHighlighterCore> | null = null;
 function getHighlighter() {
 	if (!highlighterPromise) {
 		highlighterPromise = createHighlighterCore({
-			themes: [oneLight, oneDarkPro],
+			themes: [themeLight, themeDark],
 			langs: [jsonLang, javascriptLang, typescriptLang],
 			engine: createOnigurumaEngine(import("shiki/wasm")),
 		});
@@ -87,6 +87,7 @@ export async function highlightCode(
 	showLineNumbers = false,
 ): Promise<readonly [string, string]> {
 	const highlighter = await getHighlighter();
+
 	const transformers: ShikiTransformer[] = showLineNumbers
 		? [lineNumberTransformer]
 		: [];
@@ -94,12 +95,12 @@ export async function highlightCode(
 	return [
 		highlighter.codeToHtml(code, {
 			lang: language,
-			theme: oneLight.name ?? "one-light",
+			theme: themeLight.name ?? "github-light",
 			transformers,
 		}),
 		highlighter.codeToHtml(code, {
 			lang: language,
-			theme: oneDarkPro.name ?? "one-dark-pro",
+			theme: themeDark.name ?? "github-dark",
 			transformers,
 		}),
 	] as const;
@@ -113,14 +114,14 @@ export const CodeBlock = ({
 	children,
 	...props
 }: CodeBlockProps) => {
-	const [html, setHtml] = useState<string>("");
+	const [lightHtml, setLightHtml] = useState<string>("");
 	const [darkHtml, setDarkHtml] = useState<string>("");
 	const mounted = useRef(false);
 
 	useEffect(() => {
 		highlightCode(code, language, showLineNumbers).then(([light, dark]) => {
 			if (!mounted.current) {
-				setHtml(light);
+				setLightHtml(light);
 				setDarkHtml(dark);
 				mounted.current = true;
 			}
@@ -141,16 +142,28 @@ export const CodeBlock = ({
 				{...props}
 			>
 				<div className="relative">
+					{/* Light Mode */}
 					<div
-						className="overflow-hidden dark:hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
-						// biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
-						dangerouslySetInnerHTML={{ __html: html }}
+						className={cn(
+							"overflow-hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm",
+							"group-[.is-user]:hidden dark:hidden dark:group-[.is-user]:block",
+							"not-[.is-user]:block dark:not-[.is-user]:hidden",
+						)}
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: must be added via this method as per the library
+						dangerouslySetInnerHTML={{ __html: lightHtml }}
 					/>
+
+					{/* Dark Mode */}
 					<div
-						className="hidden overflow-hidden dark:block [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
-						// biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
+						className={cn(
+							"overflow-hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm",
+							"hidden group-[.is-user]:block dark:block dark:group-[.is-user]:hidden",
+							"not-[.is-user]:hidden dark:not-[.is-user]:block",
+						)}
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: must be added via this method as per the library
 						dangerouslySetInnerHTML={{ __html: darkHtml }}
 					/>
+
 					{children && (
 						<div className="absolute top-2 right-2 flex items-center gap-2">
 							{children}

@@ -205,7 +205,16 @@
 	}
 }
 
-/* Shared base styles for buttons and loading indicators */
+body {
+	/* [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-thumb]:bg-gray-800 [&::-webkit-scrollbar-track]:bg-transparent */
+	scrollbar-width: thin;
+	scrollbar-color: var(--color-gray-200) transparent;
+}
+
+.dark body {
+	scrollbar-color: var(--color-gray-800) transparent;
+}
+
 button:not([disabled]):not([aria-disabled='true']),
 [role='button']:not([disabled]):not([aria-disabled='true']) {
 	cursor: pointer;
