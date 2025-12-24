@@ -46,9 +46,19 @@ function findProjectDir(startDir: string): string | null {
 	return null;
 }
 
-// Resolve CLI binary path - works in both dev and built (.agentuity) environments
+// Resolve CLI binary path - prioritize installed CLI from node_modules (for tarball installs in CI)
 function resolveCliPath(): string {
-	// Try from import.meta.dir first (dev environment)
+	// First, try to find the installed CLI from node_modules (tarball install)
+	// This is the preferred path for CI where SDK is installed from tarballs
+	const projectDir = findProjectDir(process.cwd()) || findProjectDir(import.meta.dir);
+	if (projectDir) {
+		const installedCliPath = join(projectDir, 'node_modules/@agentuity/cli/bin/cli.ts');
+		if (existsSync(installedCliPath)) {
+			return installedCliPath;
+		}
+	}
+
+	// Fall back to monorepo source (local development)
 	const rootFromFile = findMonorepoRoot(import.meta.dir);
 	if (rootFromFile) {
 		const cliPath = join(rootFromFile, 'packages/cli/bin/cli.ts');
@@ -67,7 +77,7 @@ function resolveCliPath(): string {
 	}
 
 	throw new Error(
-		`CLI not found. Searched from ${import.meta.dir} (root: ${rootFromFile}) and ${process.cwd()} (root: ${rootFromCwd})`
+		`CLI not found. Searched in node_modules, from ${import.meta.dir} (root: ${rootFromFile}) and ${process.cwd()} (root: ${rootFromCwd})`
 	);
 }
 
@@ -100,20 +110,9 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 			exitCode: result.exitCode,
 		};
 	} catch (error: any) {
-		// Build debug info to include in stderr
-		const debugInfo = [
-			`[CLI_PATH: ${CLI_PATH}]`,
-			`[PROJECT_DIR: ${PROJECT_DIR}]`,
-			`[args: ${args.join(' ')}]`,
-			`[error.name: ${error.name}]`,
-			`[error.message: ${error.message?.slice(0, 200)}]`,
-			`[error.signal: ${error.signal}]`,
-			`[error.killed: ${error.killed}]`,
-		].join(' ');
-
 		return {
 			stdout: error.stdout?.toString() || '',
-			stderr: `${error.stderr?.toString() || error.message || 'unknown error'} ${debugInfo}`,
+			stderr: error.stderr?.toString() || error.message,
 			exitCode: error.exitCode || 1,
 		};
 	}

@@ -132,11 +132,7 @@ test('cli-deployment', 'cli-path-exists', async () => {
 		command: 'help',
 	});
 
-	assertEqual(
-		result.success,
-		true,
-		`CLI help failed with exit code ${result.exitCode}. stderr: ${result.stderr || 'none'}, stdout: ${result.stdout?.slice(0, 200) || 'none'}`
-	);
+	assertEqual(result.success, true);
 	assert(
 		(result.stdout?.includes('agentuity') || result.stdout?.includes('Commands')) ?? false,
 		'Help output should contain CLI info'
@@ -149,11 +145,7 @@ test('cli-deployment', 'profile-current', async () => {
 		command: 'profile current',
 	});
 
-	assertEqual(
-		result.success,
-		true,
-		`Profile current failed with exit code ${result.exitCode}. stderr: ${result.stderr || 'none'}, stdout: ${result.stdout?.slice(0, 200) || 'none'}`
-	);
+	assertEqual(result.success, true);
 	assertDefined(result.stdout);
 	assert(result.stdout.trim().length > 0, 'Profile should return non-empty value');
 });
@@ -193,11 +185,7 @@ test('cli-deployment', 'help-command', async () => {
 		command: 'cloud help',
 	});
 
-	assertEqual(
-		result.success,
-		true,
-		`Cloud help failed with exit code ${result.exitCode}. stderr: ${result.stderr || 'none'}, stdout: ${result.stdout?.slice(0, 200) || 'none'}`
-	);
+	assertEqual(result.success, true);
 	assert(
 		(result.stdout?.includes('cloud') || result.stdout?.includes('Commands')) ?? false,
 		'Help should show cloud commands'
