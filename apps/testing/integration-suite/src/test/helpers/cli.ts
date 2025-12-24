@@ -2,10 +2,9 @@
  * CLI Helper
  *
  * Utilities for executing Agentuity CLI commands via subprocess.
- * Uses Bun.$ for subprocess execution with JSON output parsing.
+ * Uses Bun.spawn for subprocess execution with JSON output parsing.
  */
 
-import { $ } from 'bun';
 import { resolve, join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 
@@ -123,76 +122,75 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 	console.log(`[CLI-DEBUG] PROJECT_DIR: ${PROJECT_DIR}`);
 	console.log(`[CLI-DEBUG] CLI file exists: ${existsSync(CLI_PATH)}`);
 
-	// Additional debug: check if CLI path is symlink and resolve it
 	try {
-		const fs = await import('fs/promises');
-		const realPath = await fs.realpath(CLI_PATH);
-		console.log(`[CLI-DEBUG] CLI realpath: ${realPath}`);
-		const stats = await fs.stat(realPath);
-		console.log(`[CLI-DEBUG] CLI file size: ${stats.size} bytes`);
-		console.log(`[CLI-DEBUG] CLI is file: ${stats.isFile()}`);
+		// Use Bun.spawn instead of Bun.$ for more reliable subprocess execution
+		// Bun.$ has issues with array argument expansion in some environments
+		const cmd = ['bun', CLI_PATH, ...args];
+		console.log(`[CLI-DEBUG] Executing: ${cmd.join(' ')}`);
 
-		// Check first line of CLI file
-		const content = await fs.readFile(realPath, 'utf-8');
-		console.log(`[CLI-DEBUG] CLI first line: ${content.split('\n')[0]}`);
-		console.log(`[CLI-DEBUG] CLI has debugLog: ${content.includes('debugLog')}`);
-	} catch (e: any) {
-		console.log(`[CLI-DEBUG] Error checking CLI file: ${e.message}`);
-	}
+		const proc = Bun.spawn(cmd, {
+			cwd: PROJECT_DIR,
+			env,
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
 
-	try {
-		console.log(`[CLI-DEBUG] Executing: bun ${CLI_PATH} ${args.join(' ')}`);
-		const result = await $`bun ${CLI_PATH} ${args}`.cwd(PROJECT_DIR).env(env).quiet();
+		// Read stdout and stderr
+		const stdoutChunks: Uint8Array[] = [];
+		const stderrChunks: Uint8Array[] = [];
 
-		console.log(`[CLI-DEBUG] Success - exitCode: ${result.exitCode}`);
-		console.log(`[CLI-DEBUG] stdout length: ${result.stdout?.length || 0}`);
-		console.log(`[CLI-DEBUG] stderr length: ${result.stderr?.length || 0}`);
-
-		return {
-			stdout: result.stdout.toString(),
-			stderr: result.stderr.toString(),
-			exitCode: result.exitCode,
-		};
-	} catch (error: any) {
-		// Capture as much error info as possible for debugging
-		const stdout = error.stdout?.toString() || '';
-		const stderr = error.stderr?.toString() || '';
-		const message = error.message || '';
-
-		console.log(`[CLI-DEBUG] Error caught!`);
-		console.log(`[CLI-DEBUG] error.exitCode: ${error.exitCode}`);
-		console.log(`[CLI-DEBUG] error.message: ${message}`);
-		console.log(`[CLI-DEBUG] stdout: "${stdout.slice(0, 500)}"`);
-		console.log(`[CLI-DEBUG] stderr: "${stderr.slice(0, 500)}"`);
-		console.log(`[CLI-DEBUG] error.name: ${error.name}`);
-		console.log(`[CLI-DEBUG] error.constructor.name: ${error.constructor?.name}`);
-
-		// Try to get more details from the error object
-		if (error.cause) {
-			console.log(`[CLI-DEBUG] error.cause: ${JSON.stringify(error.cause)}`);
-		}
-
-		// Log all error properties
-		console.log(`[CLI-DEBUG] error keys: ${Object.keys(error).join(', ')}`);
-		for (const key of Object.keys(error)) {
-			try {
-				const val = error[key];
-				const valStr = typeof val === 'object' ? JSON.stringify(val) : String(val);
-				console.log(`[CLI-DEBUG] error.${key}: ${valStr?.slice(0, 200)}`);
-			} catch {
-				console.log(`[CLI-DEBUG] error.${key}: [cannot stringify]`);
+		// Read stdout
+		if (proc.stdout) {
+			const reader = proc.stdout.getReader();
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				stdoutChunks.push(value);
 			}
 		}
 
-		// Also try to log the error stack
-		if (error.stack) {
-			console.log(`[CLI-DEBUG] error.stack: ${error.stack.slice(0, 500)}`);
+		// Read stderr
+		if (proc.stderr) {
+			const reader = proc.stderr.getReader();
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				stderrChunks.push(value);
+			}
+		}
+
+		// Wait for process to exit
+		const exitCode = await proc.exited;
+
+		// Combine chunks into strings
+		const stdout = new TextDecoder().decode(
+			new Uint8Array(stdoutChunks.reduce((acc, chunk) => [...acc, ...chunk], [] as number[]))
+		);
+		const stderr = new TextDecoder().decode(
+			new Uint8Array(stderrChunks.reduce((acc, chunk) => [...acc, ...chunk], [] as number[]))
+		);
+
+		console.log(`[CLI-DEBUG] exitCode: ${exitCode}`);
+		console.log(`[CLI-DEBUG] stdout length: ${stdout.length}`);
+		console.log(`[CLI-DEBUG] stderr length: ${stderr.length}`);
+
+		if (exitCode !== 0 && stderr) {
+			console.log(`[CLI-DEBUG] stderr: ${stderr.slice(0, 500)}`);
 		}
 
 		return {
 			stdout,
-			stderr: stderr || message,
-			exitCode: error.exitCode ?? 1,
+			stderr,
+			exitCode,
+		};
+	} catch (error: any) {
+		console.log(`[CLI-DEBUG] Error caught: ${error.message}`);
+		console.log(`[CLI-DEBUG] Error stack: ${error.stack?.slice(0, 500)}`);
+
+		return {
+			stdout: '',
+			stderr: error.message || 'Unknown error',
+			exitCode: 1,
 		};
 	}
 }
