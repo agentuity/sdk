@@ -88,6 +88,10 @@ const CLI_PATH = resolveCliPath();
 const PROJECT_DIR =
 	findProjectDir(process.cwd()) || findProjectDir(import.meta.dir) || process.cwd();
 
+// Log CLI path for debugging (will appear in server startup logs)
+console.log(`[CLI-TEST] CLI_PATH: ${CLI_PATH}`);
+console.log(`[CLI-TEST] PROJECT_DIR: ${PROJECT_DIR}`);
+
 export interface CLIResult {
 	stdout: string;
 	stderr: string;
