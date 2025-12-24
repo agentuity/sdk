@@ -247,6 +247,10 @@ if [ "$FAILED" -gt 0 ]; then
 	printf "║  %-60s  ║\n" "$(printf "${RED}✗ RESULT: FAILED - %s test(s) failed${NC}" "$FAILED")"
 	echo "╚════════════════════════════════════════════════════════════════╝"
 	echo ""
+	echo "Server logs (last 50 lines):"
+	echo "-----------------------------"
+	tail -50 "$LOG_FILE" 2>/dev/null || echo "(no logs available)"
+	echo ""
 	exit 1
 else
 	printf "║  %-60s  ║\n" "$(printf "${GREEN}✓ RESULT: SUCCESS - All tests passed${NC}")"

@@ -103,10 +103,17 @@ export interface CLIResult {
  * Execute CLI command and return result
  * Commands are run from the project directory (containing agentuity.json)
  * Uses the profile from AGENTUITY_PROFILE env var if set, otherwise CLI defaults
+ *
+ * Note: We add --skip-legacy-check and --skip-version-check flags to avoid:
+ * - Legacy CLI check calling process.exit(1) if old CLI binary is found
+ * - Version check making network requests that could fail/timeout in CI
  */
 export async function runCLI(args: string[]): Promise<CLIResult> {
+	// Add flags to skip checks that could cause silent exits
+	const fullArgs = ['--skip-legacy-check', '--skip-version-check', ...args];
+
 	try {
-		const result = await $`bun ${CLI_PATH} ${args}`.cwd(PROJECT_DIR).env(process.env).quiet();
+		const result = await $`bun ${CLI_PATH} ${fullArgs}`.cwd(PROJECT_DIR).env(process.env).quiet();
 
 		return {
 			stdout: result.stdout.toString(),
@@ -114,10 +121,15 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 			exitCode: result.exitCode,
 		};
 	} catch (error: any) {
+		// Capture as much error info as possible for debugging
+		const stdout = error.stdout?.toString() || '';
+		const stderr = error.stderr?.toString() || '';
+		const message = error.message || '';
+
 		return {
-			stdout: error.stdout?.toString() || '',
-			stderr: error.stderr?.toString() || error.message,
-			exitCode: error.exitCode || 1,
+			stdout,
+			stderr: stderr || message,
+			exitCode: error.exitCode ?? 1,
 		};
 	}
 }
