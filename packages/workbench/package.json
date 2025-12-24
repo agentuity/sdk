@@ -2,7 +2,7 @@
 	"name": "@agentuity/workbench",
 	"version": "0.0.103",
 	"license": "Apache-2.0",
-	"author": "Agentuity employees and contributors",
+	"author": "Agentuity",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

@@ -1,5 +1,4 @@
 import { FileJson, X } from "lucide-react";
-import React from "react";
 import { CodeBlock, CodeBlockCopyButton } from "../ai-elements/code-block";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
@@ -19,20 +18,14 @@ export function Schema({ onOpenChange }: SchemaProps) {
 		) || null;
 
 	return (
-		<div className="h-full bg-background border-l border-border flex flex-col">
-			{/* Header */}
-			<div className="flex items-center justify-between p-4 border-b border-border">
+		<div className="h-full flex flex-col">
+			<div className="flex items-center justify-between py-2.5 px-4.5 border-b border-border">
 				<div className="flex items-center gap-2">
 					<FileJson className="size-5 text-muted-foreground" />
-					<div>
-						<h2 className="text-lg font-semibold">Schema</h2>
-						{selectedAgentData && (
-							<p className="text-sm text-muted-foreground">
-								{selectedAgentData.metadata.name}
-							</p>
-						)}
-					</div>
+
+					<h2 className="font-medium mt-0.5">Schema</h2>
 				</div>
+
 				<Button
 					variant="ghost"
 					size="icon"
@@ -42,53 +35,59 @@ export function Schema({ onOpenChange }: SchemaProps) {
 					<X className="size-4" />
 				</Button>
 			</div>
-			{/* Content */}
-			<ScrollArea className="flex-1">
-				<div className="p-6 space-y-6">
+
+			<ScrollArea className="flex-1 text-sm overflow-hidden">
+				<div className="flex flex-col gap-6 p-4">
 					{schemasLoading && (
-						<div className="text-center text-muted-foreground py-8">
-							Loading schemas...
+						<div
+							className="text-center text-muted-foreground/70 py-8"
+							data-loading
+						>
+							Loading schema
 						</div>
 					)}
 
 					{schemasError && (
-						<div className="rounded-md bg-destructive/10 text-destructive p-4">
-							<p className="font-medium">Error loading schemas</p>
-							<p className="text-sm mt-1">{schemasError.message}</p>
+						<div className="flex flex-col gap-1 rounded-md bg-destructive/10 text-destructive py-2.5 px-4">
+							<p className="font-medium">Error Loading Schemas</p>
+							<p className="text-xs">{schemasError.message}</p>
 						</div>
 					)}
 
 					{!schemasLoading && !schemasError && !selectedAgentData && (
-						<div className="text-center text-muted-foreground py-8">
+						<div className="text-center text-muted-foreground/70 py-8">
 							<p>No schema available for selected agent</p>
 						</div>
 					)}
 
 					{!schemasLoading && !schemasError && selectedAgentData && (
 						<>
-							{/* Input Schema */}
 							{selectedAgentData.schema.input?.code ? (
-								<div className="space-y-2">
-									<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+								<div className="flex flex-col gap-2">
+									<h3 className="text-sm text-muted-foreground">
 										Input Schema
 									</h3>
+
 									<CodeBlock
 										code={selectedAgentData.schema.input?.code}
 										language="typescript"
+										className="text-xs! [&_code]:text-xs! [&_pre]:py-3!"
 									>
 										<CodeBlockCopyButton />
 									</CodeBlock>
 								</div>
 							) : null}
-							{/* Output Schema */}
+
 							{selectedAgentData.schema.output?.code ? (
-								<div className="space-y-2">
-									<h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+								<div className="flex flex-col gap-2">
+									<h3 className="text-sm text-muted-foreground">
 										Output Schema
 									</h3>
+
 									<CodeBlock
 										code={selectedAgentData.schema.output?.code}
 										language="typescript"
+										className="text-xs! [&_code]:text-xs! [&_pre]:py-3!"
 									>
 										<CodeBlockCopyButton />
 									</CodeBlock>

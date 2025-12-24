@@ -1,5 +1,5 @@
 import { decodeWorkbenchConfig } from "@agentuity/core/workbench";
-import React, { useState } from "react";
+import { useState } from "react";
 import { Chat } from "./internal/Chat";
 import { Header } from "./internal/Header";
 import { Schema } from "./internal/Schema";
@@ -20,13 +20,12 @@ export interface AppProps {
 function AppContent() {
 	const [schemaOpen, setSchemaOpen] = useState(false);
 	const { getPanelSizes, setPanelSizes } = useResizable();
-
-	const defaultSizes = [55, 45];
-	const panelSizes = getPanelSizes("main-layout") || defaultSizes;
+	const panelSizes = getPanelSizes("main-layout") || [70, 30];
 
 	return (
 		<div className="flex flex-col h-full">
 			<Header />
+
 			<ResizablePanelGroup
 				direction="horizontal"
 				className="flex-1"
@@ -38,22 +37,27 @@ function AppContent() {
 				}}
 			>
 				<ResizablePanel
-					defaultSize={panelSizes[0]}
-					minSize={30}
-					className="flex flex-col"
+					defaultSize={schemaOpen ? panelSizes[0] : 100}
+					minSize={50}
+					id="chat-panel"
+					order={0}
 				>
 					<Chat
 						schemaOpen={schemaOpen}
 						onSchemaToggle={() => setSchemaOpen(!schemaOpen)}
 					/>
 				</ResizablePanel>
+
 				{schemaOpen && (
 					<>
 						<ResizableHandle withHandle />
+
 						<ResizablePanel
 							defaultSize={panelSizes[1]}
-							minSize={20}
+							minSize={25}
 							maxSize={50}
+							id="schema-panel"
+							order={1}
 						>
 							<Schema onOpenChange={setSchemaOpen} />
 						</ResizablePanel>

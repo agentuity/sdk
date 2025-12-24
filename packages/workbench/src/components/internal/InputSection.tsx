@@ -8,7 +8,7 @@ import {
 	Sparkles,
 	Trash2,
 } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { convertJsonSchemaToZod } from "zod-from-json-schema";
 import type { AgentSchemaData } from "../../hooks/useAgentSchemas";
 import { useLogger } from "../../hooks/useLogger";

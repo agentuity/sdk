@@ -215,5 +215,6 @@ button:not([disabled]):not([aria-disabled='true']),
 	content: '.';
 	display: inline-block;
 	width: 1em;
+	text-align: left;
 	animation: ellipsis 1.5s steps(4, end) infinite;
 }

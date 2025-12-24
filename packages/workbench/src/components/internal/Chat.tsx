@@ -2,7 +2,6 @@
 /* import '../../styles.css'; */
 
 import { ChevronRight, Copy, Loader, RefreshCcw } from "lucide-react";
-import type React from "react";
 import { useState } from "react";
 import { useLogger } from "../../hooks/useLogger";
 import { cn } from "../../lib/utils";
@@ -56,25 +55,34 @@ export function Chat({
 			"value:",
 			value,
 		);
+
 		const selectedAgentData = Object.values(agents).find(
 			(agent) => agent.metadata.agentId === selectedAgent,
 		);
+
 		logger.debug(
 			"📊 Chat handleSubmit - selectedAgentData:",
 			selectedAgentData,
 		);
+
 		const hasInputSchema = selectedAgentData?.schema?.input?.json;
+
 		logger.debug("📝 Chat handleSubmit - hasInputSchema:", hasInputSchema);
 
 		// If agent has no input schema, submit without requiring input
 		if (!hasInputSchema) {
 			await submitMessage("");
+
 			return;
 		}
 
 		// For agents with input schema, require input
-		if (!value.trim()) return;
+		if (!value.trim()) {
+			return;
+		}
+
 		await submitMessage(value);
+
 		setValue("");
 	};
 
@@ -205,6 +213,7 @@ export function Chat({
 
 				{connectionStatus !== "disconnected" && <ConversationScrollButton />}
 			</Conversation>
+
 			<InputSection
 				value={value}
 				onChange={setValue}

@@ -1,9 +1,12 @@
-'use client';
+"use client";
 
-import { Button } from '../ui/button';
-import { cn } from '../../lib/utils';
-import type { Element } from 'hast';
-import { CheckIcon, CopyIcon } from 'lucide-react';
+import javascriptLang from "@shikijs/langs/javascript";
+import jsonLang from "@shikijs/langs/json";
+import typescriptLang from "@shikijs/langs/typescript";
+import oneDarkProModule from "@shikijs/themes/one-dark-pro";
+import oneLightModule from "@shikijs/themes/one-light";
+import type { Element } from "hast";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import {
 	type ComponentProps,
 	createContext,
@@ -12,25 +15,22 @@ import {
 	useEffect,
 	useRef,
 	useState,
-} from 'react';
-import { createHighlighterCore } from 'shiki/core';
-import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
-import type { ShikiTransformer, ThemeRegistration } from 'shiki';
-import oneLightModule from '@shikijs/themes/one-light';
-import oneDarkProModule from '@shikijs/themes/one-dark-pro';
-import jsonLang from '@shikijs/langs/json';
-import javascriptLang from '@shikijs/langs/javascript';
-import typescriptLang from '@shikijs/langs/typescript';
+} from "react";
+import type { ShikiTransformer, ThemeRegistration } from "shiki";
+import { createHighlighterCore } from "shiki/core";
+import { createOnigurumaEngine } from "shiki/engine/oniguruma";
+import { cn } from "../../lib/utils";
+import { Button } from "../ui/button";
 
 // Extract theme objects from default exports
 const oneLight = (
-	'default' in oneLightModule ? oneLightModule.default : oneLightModule
+	"default" in oneLightModule ? oneLightModule.default : oneLightModule
 ) as ThemeRegistration;
 const oneDarkPro = (
-	'default' in oneDarkProModule ? oneDarkProModule.default : oneDarkProModule
+	"default" in oneDarkProModule ? oneDarkProModule.default : oneDarkProModule
 ) as ThemeRegistration;
 
-type SupportedLanguage = 'json' | 'javascript' | 'typescript';
+type SupportedLanguage = "json" | "javascript" | "typescript";
 
 type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
 	code: string;
@@ -43,7 +43,7 @@ type CodeBlockContextType = {
 };
 
 const CodeBlockContext = createContext<CodeBlockContextType>({
-	code: '',
+	code: "",
 });
 
 // Initialize highlighter with only the languages and themes we need
@@ -54,29 +54,29 @@ function getHighlighter() {
 		highlighterPromise = createHighlighterCore({
 			themes: [oneLight, oneDarkPro],
 			langs: [jsonLang, javascriptLang, typescriptLang],
-			engine: createOnigurumaEngine(import('shiki/wasm')),
+			engine: createOnigurumaEngine(import("shiki/wasm")),
 		});
 	}
 	return highlighterPromise;
 }
 
 const lineNumberTransformer: ShikiTransformer = {
-	name: 'line-numbers',
+	name: "line-numbers",
 	line(node: Element, line: number) {
 		node.children.unshift({
-			type: 'element',
-			tagName: 'span',
+			type: "element",
+			tagName: "span",
 			properties: {
 				className: [
-					'inline-block',
-					'min-w-10',
-					'mr-4',
-					'text-right',
-					'select-none',
-					'text-muted-foreground',
+					"inline-block",
+					"min-w-10",
+					"mr-4",
+					"text-right",
+					"select-none",
+					"text-muted-foreground",
 				],
 			},
-			children: [{ type: 'text', value: String(line) }],
+			children: [{ type: "text", value: String(line) }],
 		});
 	},
 };
@@ -84,20 +84,22 @@ const lineNumberTransformer: ShikiTransformer = {
 export async function highlightCode(
 	code: string,
 	language: SupportedLanguage,
-	showLineNumbers = false
+	showLineNumbers = false,
 ): Promise<readonly [string, string]> {
 	const highlighter = await getHighlighter();
-	const transformers: ShikiTransformer[] = showLineNumbers ? [lineNumberTransformer] : [];
+	const transformers: ShikiTransformer[] = showLineNumbers
+		? [lineNumberTransformer]
+		: [];
 
 	return [
 		highlighter.codeToHtml(code, {
 			lang: language,
-			theme: oneLight.name ?? 'one-light',
+			theme: oneLight.name ?? "one-light",
 			transformers,
 		}),
 		highlighter.codeToHtml(code, {
 			lang: language,
-			theme: oneDarkPro.name ?? 'one-dark-pro',
+			theme: oneDarkPro.name ?? "one-dark-pro",
 			transformers,
 		}),
 	] as const;
@@ -111,8 +113,8 @@ export const CodeBlock = ({
 	children,
 	...props
 }: CodeBlockProps) => {
-	const [html, setHtml] = useState<string>('');
-	const [darkHtml, setDarkHtml] = useState<string>('');
+	const [html, setHtml] = useState<string>("");
+	const [darkHtml, setDarkHtml] = useState<string>("");
 	const mounted = useRef(false);
 
 	useEffect(() => {
@@ -133,8 +135,8 @@ export const CodeBlock = ({
 		<CodeBlockContext.Provider value={{ code }}>
 			<div
 				className={cn(
-					'group relative w-full overflow-hidden rounded-md border bg-background text-foreground',
-					className
+					"group relative w-full overflow-hidden rounded-md border bg-background text-foreground",
+					className,
 				)}
 				{...props}
 			>
@@ -150,7 +152,9 @@ export const CodeBlock = ({
 						dangerouslySetInnerHTML={{ __html: darkHtml }}
 					/>
 					{children && (
-						<div className="absolute top-2 right-2 flex items-center gap-2">{children}</div>
+						<div className="absolute top-2 right-2 flex items-center gap-2">
+							{children}
+						</div>
 					)}
 				</div>
 			</div>
@@ -176,8 +180,8 @@ export const CodeBlockCopyButton = ({
 	const { code } = useContext(CodeBlockContext);
 
 	const copyToClipboard = async () => {
-		if (typeof window === 'undefined' || !navigator?.clipboard?.writeText) {
-			onError?.(new Error('Clipboard API not available'));
+		if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
+			onError?.(new Error("Clipboard API not available"));
 			return;
 		}
 
@@ -195,7 +199,7 @@ export const CodeBlockCopyButton = ({
 
 	return (
 		<Button
-			className={cn('shrink-0', className)}
+			className={cn("shrink-0", className)}
 			onClick={copyToClipboard}
 			size="icon"
 			variant="ghost"
