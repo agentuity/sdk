@@ -333,7 +333,8 @@ if (typeof Bun !== 'undefined') {
 	const port = parseInt(process.env.PORT || '3500', 10);
 	const server = Bun.serve({
 		fetch: (req, server) => {
-			server.timeout(req, appConfig?.requestTimeout ?? 0);
+			// Get timeout from config on each request (0 = no timeout)
+			server.timeout(req, getAppConfig()?.requestTimeout ?? 0);
 			return app.fetch(req, server);
 		},
 		websocket,
