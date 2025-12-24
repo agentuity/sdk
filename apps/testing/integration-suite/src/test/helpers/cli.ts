@@ -104,16 +104,21 @@ export interface CLIResult {
  * Commands are run from the project directory (containing agentuity.json)
  * Uses the profile from AGENTUITY_PROFILE env var if set, otherwise CLI defaults
  *
- * Note: We add --skip-legacy-check and --skip-version-check flags to avoid:
- * - Legacy CLI check calling process.exit(1) if old CLI binary is found
- * - Version check making network requests that could fail/timeout in CI
+ * Note: We set environment variables to skip startup checks:
+ * - AGENTUITY_SKIP_LEGACY_CHECK=1 - Skip legacy CLI detection that could exit(1)
+ * - AGENTUITY_SKIP_VERSION_CHECK=1 - Skip version check network requests
  */
 export async function runCLI(args: string[]): Promise<CLIResult> {
-	// Add flags to skip checks that could cause silent exits
-	const fullArgs = ['--skip-legacy-check', '--skip-version-check', ...args];
+	// Create environment with skip flags (using env vars instead of CLI flags
+	// because Commander.js would fail on unknown options)
+	const env = {
+		...process.env,
+		AGENTUITY_SKIP_LEGACY_CHECK: '1',
+		AGENTUITY_SKIP_VERSION_CHECK: '1',
+	};
 
 	try {
-		const result = await $`bun ${CLI_PATH} ${fullArgs}`.cwd(PROJECT_DIR).env(process.env).quiet();
+		const result = await $`bun ${CLI_PATH} ${args}`.cwd(PROJECT_DIR).env(env).quiet();
 
 		return {
 			stdout: result.stdout.toString(),
