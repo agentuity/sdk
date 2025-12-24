@@ -123,10 +123,13 @@ test('cli-apikey', 'help-command', async () => {
 	});
 
 	// Help should succeed
-	assert(result.stdout !== undefined, 'Help should produce output');
+	assert(
+		result.stdout !== undefined,
+		`Help should produce output: exitCode=${result.exitCode}, stderr="${result.stderr?.slice(0, 200)}"`
+	);
 	assert(
 		(result.stdout?.includes('apikey') || result.stdout?.includes('API')) ?? false,
-		'Help should mention API keys'
+		`Help should mention API keys: stdout="${result.stdout?.slice(0, 200)}"`
 	);
 });
 
