@@ -117,8 +117,19 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 		AGENTUITY_SKIP_VERSION_CHECK: '1',
 	};
 
+	// Debug logging
+	console.log(`[CLI-DEBUG] runCLI called with args: ${JSON.stringify(args)}`);
+	console.log(`[CLI-DEBUG] CLI_PATH: ${CLI_PATH}`);
+	console.log(`[CLI-DEBUG] PROJECT_DIR: ${PROJECT_DIR}`);
+	console.log(`[CLI-DEBUG] CLI file exists: ${existsSync(CLI_PATH)}`);
+
 	try {
+		console.log(`[CLI-DEBUG] Executing: bun ${CLI_PATH} ${args.join(' ')}`);
 		const result = await $`bun ${CLI_PATH} ${args}`.cwd(PROJECT_DIR).env(env).quiet();
+
+		console.log(`[CLI-DEBUG] Success - exitCode: ${result.exitCode}`);
+		console.log(`[CLI-DEBUG] stdout length: ${result.stdout?.length || 0}`);
+		console.log(`[CLI-DEBUG] stderr length: ${result.stderr?.length || 0}`);
 
 		return {
 			stdout: result.stdout.toString(),
@@ -130,6 +141,19 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 		const stdout = error.stdout?.toString() || '';
 		const stderr = error.stderr?.toString() || '';
 		const message = error.message || '';
+
+		console.log(`[CLI-DEBUG] Error caught!`);
+		console.log(`[CLI-DEBUG] error.exitCode: ${error.exitCode}`);
+		console.log(`[CLI-DEBUG] error.message: ${message}`);
+		console.log(`[CLI-DEBUG] stdout: "${stdout.slice(0, 500)}"`);
+		console.log(`[CLI-DEBUG] stderr: "${stderr.slice(0, 500)}"`);
+		console.log(`[CLI-DEBUG] error.name: ${error.name}`);
+		console.log(`[CLI-DEBUG] error.constructor.name: ${error.constructor?.name}`);
+
+		// Try to get more details from the error object
+		if (error.cause) {
+			console.log(`[CLI-DEBUG] error.cause: ${JSON.stringify(error.cause)}`);
+		}
 
 		return {
 			stdout,
