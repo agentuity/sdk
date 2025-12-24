@@ -206,8 +206,7 @@
 }
 
 body {
-	/* [&::-webkit-scrollbar]:w-3 [&::-webkit-scrollbar-thumb]:bg-gray-800 [&::-webkit-scrollbar-track]:bg-transparent */
-	scrollbar-width: thin;
+	scrollbar-width: 12px;
 	scrollbar-color: var(--color-gray-200) transparent;
 }
 
