@@ -100,24 +100,20 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 			exitCode: result.exitCode,
 		};
 	} catch (error: any) {
-		// Capture full error details for debugging
-		const errorDetails = {
-			message: error.message,
-			name: error.name,
-			exitCode: error.exitCode,
-			stdout: error.stdout?.toString(),
-			stderr: error.stderr?.toString(),
-			signal: error.signal,
-			killed: error.killed,
-		};
-		console.error('[CLI DEBUG] Error running CLI:', JSON.stringify(errorDetails, null, 2));
-		console.error('[CLI DEBUG] CLI_PATH:', CLI_PATH);
-		console.error('[CLI DEBUG] PROJECT_DIR:', PROJECT_DIR);
-		console.error('[CLI DEBUG] args:', args);
+		// Build debug info to include in stderr
+		const debugInfo = [
+			`[CLI_PATH: ${CLI_PATH}]`,
+			`[PROJECT_DIR: ${PROJECT_DIR}]`,
+			`[args: ${args.join(' ')}]`,
+			`[error.name: ${error.name}]`,
+			`[error.message: ${error.message?.slice(0, 200)}]`,
+			`[error.signal: ${error.signal}]`,
+			`[error.killed: ${error.killed}]`,
+		].join(' ');
 
 		return {
 			stdout: error.stdout?.toString() || '',
-			stderr: error.stderr?.toString() || error.message,
+			stderr: `${error.stderr?.toString() || error.message || 'unknown error'} ${debugInfo}`,
 			exitCode: error.exitCode || 1,
 		};
 	}
