@@ -134,6 +134,12 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 * Receives the app state returned from setup
 	 */
 	shutdown?: (state: TAppState) => Promise<void> | void;
+
+	/**
+	 * Optional request timeout in seconds. If not provided, will default
+	 * to zero which will cause the request to wait indefinitely.
+	 */
+	requestTimeout?: number;
 }
 
 export interface Variables<TAppState = Record<string, never>> {
