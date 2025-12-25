@@ -65,3 +65,18 @@ export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) 
  * Type helper to extract the auth instance type.
  */
 export type AgentuityAuthInstance = ReturnType<typeof createAgentuityAuth>;
+
+/**
+ * Alias for createAgentuityAuth.
+ *
+ * @example
+ * ```typescript
+ * import { withAgentuityAuth } from '@agentuity/auth/agentuity';
+ *
+ * export const auth = withAgentuityAuth({
+ *   database: pool,
+ *   basePath: '/api/auth',
+ * });
+ * ```
+ */
+export const withAgentuityAuth = createAgentuityAuth;

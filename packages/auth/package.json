@@ -15,7 +15,8 @@
 		"./auth0": "./src/auth0/index.ts",
 		"./auth0/client": "./src/auth0/client.tsx",
 		"./auth0/server": "./src/auth0/server.ts",
-		"./agentuity": "./src/agentuity/index.ts"
+		"./agentuity": "./src/agentuity/index.ts",
+		"./agentuity/react": "./src/agentuity/react.ts"
 	},
 	"scripts": {
 		"build": "tsc --build",

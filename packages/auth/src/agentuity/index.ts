@@ -32,7 +32,7 @@
  */
 
 // Config
-export { createAgentuityAuth, getDefaultPlugins } from './config';
+export { createAgentuityAuth, withAgentuityAuth, getDefaultPlugins } from './config';
 export type { AgentuityAuthOptions, AgentuityAuthInstance } from './config';
 
 // Server (Hono middleware)

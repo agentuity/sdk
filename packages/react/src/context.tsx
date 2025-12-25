@@ -91,7 +91,30 @@ export interface AuthContextValue {
 }
 
 /**
- * Hook to access authentication-specific functionality.
+ * Low-level hook for Agentuity's transport auth.
+ *
+ * This hook exposes the Authorization header and loading state used by
+ * Agentuity's API clients (useAPI, useWebsocket, etc.).
+ *
+ * **Important**: This does NOT provide user identity or session data.
+ * For auth state in your app, use your auth provider's hooks instead:
+ * - BetterAuth: `useSession()` from your auth client
+ * - Clerk: `useAuth()` / `useUser()` from `@clerk/clerk-react`
+ * - Auth0: `useAuth0()` from `@auth0/auth0-react`
+ *
+ * This hook is primarily used internally by auth bridge components
+ * (AgentuityBetterAuth, AgentuityClerk, etc.) and for advanced use cases.
+ *
+ * @example
+ * ```tsx
+ * // For normal auth state, use your provider's hooks:
+ * import { useSession } from './auth-client'; // BetterAuth
+ * const { data: session } = useSession();
+ *
+ * // useAuth() is for advanced/internal use only:
+ * import { useAuth } from '@agentuity/react';
+ * const { authHeader, isAuthenticated } = useAuth();
+ * ```
  *
  * @throws Error if used outside of AgentuityProvider
  */

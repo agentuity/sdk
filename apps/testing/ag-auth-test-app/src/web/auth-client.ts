@@ -1,13 +1,12 @@
 /**
  * BetterAuth client for the frontend.
  *
- * This creates a type-safe client for interacting with BetterAuth endpoints.
+ * Uses the Agentuity-provided client factory for zero-config setup.
+ * Import from '@agentuity/auth/agentuity/react' for the React-specific client.
  */
 
-import { createAuthClient } from 'better-auth/react';
+import { createAgentuityAuthClient } from '@agentuity/auth/agentuity/react';
 
-export const authClient = createAuthClient({
-	baseURL: window.location.origin,
-});
+export const authClient = createAgentuityAuthClient();
 
 export const { signIn, signUp, signOut, useSession, getSession } = authClient;
