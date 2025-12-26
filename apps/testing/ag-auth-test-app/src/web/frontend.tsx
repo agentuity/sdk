@@ -8,7 +8,7 @@
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AgentuityProvider } from '@agentuity/react';
-import { AgentuityBetterAuth } from '@agentuity/auth/agentuity';
+import { AgentuityBetterAuth } from '@agentuity/auth/agentuity/client';
 import { App } from './App';
 
 const elem = document.getElementById('root')!;

@@ -16,6 +16,7 @@
 		"./auth0/client": "./src/auth0/client.tsx",
 		"./auth0/server": "./src/auth0/server.ts",
 		"./agentuity": "./src/agentuity/index.ts",
+		"./agentuity/client": "./src/agentuity/client.tsx",
 		"./agentuity/react": "./src/agentuity/react.ts"
 	},
 	"scripts": {
