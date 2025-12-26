@@ -6,6 +6,7 @@ import {
 	AUTH_DEPENDENCIES,
 	AGENTUITY_AUTH_BASELINE_SQL,
 	generateAuthFileContent,
+	splitSqlStatements,
 } from '../../../../src/cmd/project/auth/shared';
 
 describe('project auth shared', () => {
@@ -120,6 +121,55 @@ describe('project auth shared', () => {
 		test('should set basePath to /api/auth', () => {
 			const content = generateAuthFileContent();
 			expect(content).toContain("basePath: '/api/auth'");
+		});
+	});
+
+	describe('splitSqlStatements', () => {
+		test('should split simple statements', () => {
+			const sql = 'SELECT 1;\nSELECT 2;';
+			const statements = splitSqlStatements(sql);
+			expect(statements).toHaveLength(2);
+			expect(statements[0]).toBe('SELECT 1;');
+			expect(statements[1]).toBe('SELECT 2;');
+		});
+
+		test('should handle multi-line statements', () => {
+			const sql = `CREATE TABLE test (
+    id INT
+);`;
+			const statements = splitSqlStatements(sql);
+			expect(statements).toHaveLength(1);
+			expect(statements[0]).toContain('CREATE TABLE test');
+		});
+
+		test('should skip comments', () => {
+			const sql = '-- This is a comment\nSELECT 1;';
+			const statements = splitSqlStatements(sql);
+			expect(statements).toHaveLength(1);
+			expect(statements[0]).toBe('SELECT 1;');
+		});
+
+		test('should skip empty lines', () => {
+			const sql = 'SELECT 1;\n\n\nSELECT 2;';
+			const statements = splitSqlStatements(sql);
+			expect(statements).toHaveLength(2);
+		});
+
+		test('should handle AGENTUITY_AUTH_BASELINE_SQL', () => {
+			const statements = splitSqlStatements(AGENTUITY_AUTH_BASELINE_SQL);
+			// Should have 9 tables + 7 indexes = 16 statements
+			expect(statements.length).toBeGreaterThanOrEqual(15);
+			// Each statement should be valid (not empty, ends with semicolon)
+			for (const stmt of statements) {
+				expect(stmt.trim()).not.toBe('');
+				expect(stmt.trim().endsWith(';')).toBe(true);
+			}
+		});
+
+		test('should not include standalone semicolons', () => {
+			const sql = 'SELECT 1;\n;\nSELECT 2;';
+			const statements = splitSqlStatements(sql);
+			expect(statements).toHaveLength(2);
 		});
 	});
 });

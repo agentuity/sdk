@@ -281,6 +281,43 @@ CREATE INDEX IF NOT EXISTS "apiKey_key_idx" ON "apiKey"("key");
 `;
 
 /**
+ * Split SQL into individual statements for sequential execution
+ * The dbQuery API only supports single statements
+ */
+export function splitSqlStatements(sql: string): string[] {
+	// Split on semicolons, but be careful about edge cases
+	const statements: string[] = [];
+	let current = '';
+
+	for (const line of sql.split('\n')) {
+		const trimmed = line.trim();
+
+		// Skip empty lines and comments
+		if (!trimmed || trimmed.startsWith('--')) {
+			continue;
+		}
+
+		current += line + '\n';
+
+		// If line ends with semicolon, it's end of statement
+		if (trimmed.endsWith(';')) {
+			const stmt = current.trim();
+			if (stmt && stmt !== ';') {
+				statements.push(stmt);
+			}
+			current = '';
+		}
+	}
+
+	// Handle any remaining content
+	if (current.trim()) {
+		statements.push(current.trim());
+	}
+
+	return statements;
+}
+
+/**
  * Run auth migrations against a database
  */
 export async function runAuthMigrations(options: {
@@ -293,16 +330,21 @@ export async function runAuthMigrations(options: {
 	const { logger, auth, orgId, region, databaseName } = options;
 	const catalystClient = getCatalystAPIClient(logger, auth, region);
 
+	// Split into individual statements since dbQuery only supports single statements
+	const statements = splitSqlStatements(AGENTUITY_AUTH_BASELINE_SQL);
+
 	await tui.spinner({
-		message: `Running auth migrations on ${databaseName}`,
+		message: `Running auth migrations on ${databaseName} (${statements.length} statements)`,
 		clearOnSuccess: true,
 		callback: async () => {
-			await dbQuery(catalystClient, {
-				database: databaseName,
-				query: AGENTUITY_AUTH_BASELINE_SQL,
-				orgId,
-				region,
-			});
+			for (const statement of statements) {
+				await dbQuery(catalystClient, {
+					database: databaseName,
+					query: statement,
+					orgId,
+					region,
+				});
+			}
 		},
 	});
 
