@@ -1,43 +1,37 @@
-# dependencies (bun install)
+# Agentuity build files
+.agentuity/
 
-node_modules
+# Dependencies
+node_modules/
 
-# output
+# Environment files
+.env
+.env.local
+.env.*
 
+# Auto-generated AGENTS.md files in source directories
+src/web/AGENTS.md
+src/api/AGENTS.md
+src/agent/AGENTS.md
+
+# Output
 out
 dist
 *.tgz
 
-# code coverage
-
+# Code coverage
 coverage
 *.lcov
 
-# logs
-
+# Logs
 /logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]\*.json
+*.log
 
-# dotenv environment variable files
-
-.env
-.env.\*
-
-# caches
-
+# Caches
 .eslintcache
 .cache
 *.tsbuildinfo
 
-# IntelliJ based IDEs
-
+# IDE
 .idea
-
-# Finder (MacOS) folder config
-
 .DS_Store
-
-# Agentuity build files
-
-.agentuity
