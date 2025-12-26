@@ -55,7 +55,7 @@ export async function selectOrCreateDatabase(options: {
 	if (existingUrl && existingDbName) {
 		choices.push({
 			name: '__existing__',
-			message: `${tui.tuiColors.success('✓')} Use existing: ${existingDbName}`,
+			message: `${tui.tuiColors.success('✓')} Use existing (found in .env): ${existingDbName}`,
 		});
 	}
 
