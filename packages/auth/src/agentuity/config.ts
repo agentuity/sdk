@@ -110,7 +110,7 @@ export const DEFAULT_API_KEY_OPTIONS: Required<ApiKeyPluginOptions> = {
 	defaultPrefix: 'ag_',
 	defaultKeyLength: 64,
 	enableMetadata: true,
-	storage: 'secondary-storage',
+	storage: 'database', // Default to database - use 'secondary-storage' when KV is available
 	fallbackToDatabase: true,
 };
 

@@ -74,6 +74,76 @@ declare module '@agentuity/react' {
 		outputSchema: never;
 		stream: false;
 	};
+	'GET /api/admin': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/projects': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/api-keys': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/api-keys': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'DELETE /api/api-keys/:id': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/jwt': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/bearer-info': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/organizations': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/organizations': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/organizations/active': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/organizations/:id/activate': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/organizations/:id/invitations': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/organizations/:id/members': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/whoami': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
 	}
 	
 	/**
@@ -131,6 +201,88 @@ declare module '@agentuity/react' {
 			 */
 			get: { input: never; output: never; type: 'api' };
 		};
+		admin: {
+			/**
+			 * Route: GET /api/admin
+			 */
+			get: { input: never; output: never; type: 'api' };
+		};
+		projects: {
+			/**
+			 * Route: POST /api/projects
+			 */
+			post: { input: never; output: never; type: 'api' };
+		};
+		apiKeys: {
+			/**
+			 * Route: POST /api/api-keys
+			 */
+			post: { input: never; output: never; type: 'api' };
+			/**
+			 * Route: GET /api/api-keys
+			 */
+			get: { input: never; output: never; type: 'api' };
+			id: {
+				/**
+				 * Route: DELETE /api/api-keys/:id
+				 */
+				delete: { input: never; output: never; type: 'api' };
+			};
+		};
+		jwt: {
+			/**
+			 * Route: GET /api/jwt
+			 */
+			get: { input: never; output: never; type: 'api' };
+		};
+		bearerInfo: {
+			/**
+			 * Route: GET /api/bearer-info
+			 */
+			get: { input: never; output: never; type: 'api' };
+		};
+		organizations: {
+			/**
+			 * Route: POST /api/organizations
+			 */
+			post: { input: never; output: never; type: 'api' };
+			/**
+			 * Route: GET /api/organizations
+			 */
+			get: { input: never; output: never; type: 'api' };
+			active: {
+				/**
+				 * Route: GET /api/organizations/active
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+			id: {
+				activate: {
+					/**
+					 * Route: POST /api/organizations/:id/activate
+					 */
+					post: { input: never; output: never; type: 'api' };
+				};
+				invitations: {
+					/**
+					 * Route: POST /api/organizations/:id/invitations
+					 */
+					post: { input: never; output: never; type: 'api' };
+				};
+				members: {
+					/**
+					 * Route: GET /api/organizations/:id/members
+					 */
+					get: { input: never; output: never; type: 'api' };
+				};
+			};
+		};
+		whoami: {
+			/**
+			 * Route: GET /api/whoami
+			 */
+			get: { input: never; output: never; type: 'api' };
+		};
 	}
 }
 
@@ -161,6 +313,74 @@ const _rpcRouteMetadata = {
 				}
 		},
 		"token": {
+				"get": {
+						"type": "api"
+				}
+		},
+		"admin": {
+				"get": {
+						"type": "api"
+				}
+		},
+		"projects": {
+				"post": {
+						"type": "api"
+				}
+		},
+		"apiKeys": {
+				"post": {
+						"type": "api"
+				},
+				"get": {
+						"type": "api"
+				},
+				"id": {
+						"delete": {
+								"type": "api"
+						}
+				}
+		},
+		"jwt": {
+				"get": {
+						"type": "api"
+				}
+		},
+		"bearerInfo": {
+				"get": {
+						"type": "api"
+				}
+		},
+		"organizations": {
+				"post": {
+						"type": "api"
+				},
+				"get": {
+						"type": "api"
+				},
+				"active": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"id": {
+						"activate": {
+								"post": {
+										"type": "api"
+								}
+						},
+						"invitations": {
+								"post": {
+										"type": "api"
+								}
+						},
+						"members": {
+								"get": {
+										"type": "api"
+								}
+						}
+				}
+		},
+		"whoami": {
 				"get": {
 						"type": "api"
 				}

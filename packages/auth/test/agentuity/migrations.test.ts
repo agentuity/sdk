@@ -20,19 +20,15 @@ describe('AGENTUITY_AUTH_BASELINE_SQL', () => {
 	});
 
 	test('contains API key plugin table', () => {
-		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "apiKey"');
+		// Note: BetterAuth expects lowercase table name "apikey"
+		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS apikey');
 	});
 
 	test('contains indexes', () => {
-		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain(
-			'CREATE INDEX IF NOT EXISTS "session_userId_idx"'
-		);
-		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain(
-			'CREATE INDEX IF NOT EXISTS "account_userId_idx"'
-		);
-		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain(
-			'CREATE INDEX IF NOT EXISTS "apiKey_userId_idx"'
-		);
+		// Note: Index names are lowercase (without quotes) for PostgreSQL compatibility
+		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE INDEX IF NOT EXISTS session_userId_idx');
+		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE INDEX IF NOT EXISTS account_userId_idx');
+		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE INDEX IF NOT EXISTS apikey_userId_idx');
 	});
 
 	test('uses IF NOT EXISTS for idempotency', () => {
@@ -82,19 +78,22 @@ describe('ensureAuthSchema', () => {
 	});
 
 	test('uses custom schema when provided', async () => {
-		let schemaUsed = '';
+		const schemasUsed: string[] = [];
 
 		const mockDb = {
 			query: async (text: string, params?: unknown[]) => {
 				if (text.includes('to_regclass') && params) {
-					schemaUsed = params[0] as string;
-					return { rows: [{ table_name: 'user' }] };
+					schemasUsed.push(params[0] as string);
+					// Simulate tables exist to avoid running migrations
+					return { rows: [{ table_name: 'exists' }] };
 				}
 				return { rows: [] };
 			},
 		};
 
 		await ensureAuthSchema({ db: mockDb, schema: 'custom_schema' });
-		expect(schemaUsed).toBe('custom_schema.user');
+		// Checks both user and apikey tables with custom schema
+		expect(schemasUsed).toContain('custom_schema.user');
+		expect(schemasUsed).toContain('custom_schema.apikey');
 	});
 });

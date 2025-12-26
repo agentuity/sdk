@@ -116,45 +116,46 @@ CREATE TABLE IF NOT EXISTS "jwks" (
 
 -- =============================================================================
 -- API Key Plugin Table
+-- Note: BetterAuth expects lowercase table name "apikey" (not "apiKey")
 -- =============================================================================
 
-CREATE TABLE IF NOT EXISTS "apiKey" (
-  "id" text NOT NULL PRIMARY KEY,
-  "name" text,
-  "start" text,
-  "prefix" text,
-  "key" text NOT NULL,
-  "userId" text NOT NULL REFERENCES "user" ("id") ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS apikey (
+  id text NOT NULL PRIMARY KEY,
+  name text,
+  start text,
+  prefix text,
+  key text NOT NULL,
+  "userId" text NOT NULL REFERENCES "user" (id) ON DELETE CASCADE,
   "refillInterval" integer,
   "refillAmount" integer,
   "lastRefillAt" timestamptz,
-  "enabled" boolean NOT NULL DEFAULT true,
+  enabled boolean NOT NULL DEFAULT true,
   "rateLimitEnabled" boolean NOT NULL DEFAULT true,
   "rateLimitTimeWindow" integer NOT NULL DEFAULT 86400000,
   "rateLimitMax" integer NOT NULL DEFAULT 10,
   "requestCount" integer NOT NULL DEFAULT 0,
-  "remaining" integer,
+  remaining integer,
   "lastRequest" timestamptz,
   "expiresAt" timestamptz,
   "createdAt" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  "permissions" text,
-  "metadata" text
+  permissions text,
+  metadata text
 );
 
 -- =============================================================================
 -- Indexes
 -- =============================================================================
 
-CREATE INDEX IF NOT EXISTS "session_userId_idx" ON "session" ("userId");
-CREATE INDEX IF NOT EXISTS "account_userId_idx" ON "account" ("userId");
-CREATE INDEX IF NOT EXISTS "verification_identifier_idx" ON "verification" ("identifier");
-CREATE INDEX IF NOT EXISTS "member_organizationId_idx" ON "member" ("organizationId");
-CREATE INDEX IF NOT EXISTS "member_userId_idx" ON "member" ("userId");
-CREATE INDEX IF NOT EXISTS "invitation_organizationId_idx" ON "invitation" ("organizationId");
-CREATE INDEX IF NOT EXISTS "invitation_email_idx" ON "invitation" ("email");
-CREATE INDEX IF NOT EXISTS "apiKey_userId_idx" ON "apiKey" ("userId");
-CREATE INDEX IF NOT EXISTS "apiKey_key_idx" ON "apiKey" ("key");
+CREATE INDEX IF NOT EXISTS session_userId_idx ON session ("userId");
+CREATE INDEX IF NOT EXISTS account_userId_idx ON account ("userId");
+CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification (identifier);
+CREATE INDEX IF NOT EXISTS member_organizationId_idx ON member ("organizationId");
+CREATE INDEX IF NOT EXISTS member_userId_idx ON member ("userId");
+CREATE INDEX IF NOT EXISTS invitation_organizationId_idx ON invitation ("organizationId");
+CREATE INDEX IF NOT EXISTS invitation_email_idx ON invitation (email);
+CREATE INDEX IF NOT EXISTS apikey_userId_idx ON apikey ("userId");
+CREATE INDEX IF NOT EXISTS apikey_key_idx ON apikey (key);
 `;
 
 /**
@@ -208,15 +209,23 @@ export async function ensureAuthSchema(
 ): Promise<EnsureAuthSchemaResult> {
 	const { db, schema = 'public' } = options;
 
-	const result = await db.query(`SELECT to_regclass($1) as table_name`, [`${schema}.user`]);
+	// Check if the core user table exists
+	const userResult = await db.query(`SELECT to_regclass($1) as table_name`, [`${schema}.user`]);
+	const userRow = userResult.rows[0] as { table_name: string | null } | undefined;
+	const userExists = !!userRow?.table_name;
 
-	const row = result.rows[0] as { table_name: string | null } | undefined;
-	const exists = !!row?.table_name;
+	// Check if the apikey table exists (plugin table that might be missing)
+	// Note: BetterAuth expects lowercase "apikey" table name
+	const apiKeyResult = await db.query(`SELECT to_regclass($1) as table_name`, [`${schema}.apikey`]);
+	const apiKeyRow = apiKeyResult.rows[0] as { table_name: string | null } | undefined;
+	const apiKeyExists = !!apiKeyRow?.table_name;
 
-	if (exists) {
-		return { created: false };
+	// Run schema if any tables are missing
+	// The SQL uses IF NOT EXISTS so it's safe to run even if some tables exist
+	if (!userExists || !apiKeyExists) {
+		await db.query(AGENTUITY_AUTH_BASELINE_SQL);
+		return { created: true };
 	}
 
-	await db.query(AGENTUITY_AUTH_BASELINE_SQL);
-	return { created: true };
+	return { created: false };
 }

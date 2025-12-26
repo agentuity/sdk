@@ -1,11 +1,16 @@
 import { createApp } from '@agentuity/runtime';
+import { ensureAuthSchema } from '@agentuity/auth/agentuity/migrations';
+import { Pool } from 'pg';
 
 const { server, logger } = await createApp({
 	setup: async () => {
-		// anything you return from this will be automatically
-		// available in the ctx.app. this allows you to initialize
-		// global resources and make them available to routes and
-		// agents in a typesafe way
+		// Ensure auth tables exist (idempotent - safe to call on every startup)
+		const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+		const { created } = await ensureAuthSchema({ db: pool });
+		if (created) {
+			console.log('[Auth] Created auth schema tables');
+		}
+		await pool.end();
 	},
 	shutdown: async (_state) => {
 		// the state variable will be the same value was what you
