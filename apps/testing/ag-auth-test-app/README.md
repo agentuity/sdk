@@ -43,10 +43,10 @@ import { createAgentuityAuth, createMiddleware } from '@agentuity/auth/agentuity
 const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
 
 export const auth = createAgentuityAuth({
-  database: pool,
-  secret: process.env.BETTER_AUTH_SECRET,
-  basePath: '/api/auth',
-  emailAndPassword: { enabled: true },
+	database: pool,
+	secret: process.env.BETTER_AUTH_SECRET,
+	basePath: '/api/auth',
+	emailAndPassword: { enabled: true },
 });
 
 export const authMiddleware = createMiddleware(auth);
@@ -61,23 +61,23 @@ api.on(['GET', 'POST'], '/auth/*', (c) => auth.handler(c.req.raw));
 
 // Protected route - requires auth
 api.get('/me', authMiddleware, async (c) => {
-  const user = await c.var.auth.getUser();
-  return c.json({ id: user.id, name: user.name });
+	const user = await c.var.auth.getUser();
+	return c.json({ id: user.id, name: user.name });
 });
 
 // Optional auth - works for authenticated and anonymous
 api.get('/greeting', optionalAuthMiddleware, async (c) => {
-  try {
-    const user = await c.var.auth.getUser();
-    return c.json({ message: `Hello, ${user.name}!` });
-  } catch {
-    return c.json({ message: 'Hello, anonymous!' });
-  }
+	try {
+		const user = await c.var.auth.getUser();
+		return c.json({ message: `Hello, ${user.name}!` });
+	} catch {
+		return c.json({ message: 'Hello, anonymous!' });
+	}
 });
 
 // Scope-based protection
 api.get('/admin', authMiddleware, requireScopes(['admin']), async (c) => {
-  return c.json({ message: 'Admin access granted' });
+	return c.json({ message: 'Admin access granted' });
 });
 ```
 
@@ -98,13 +98,11 @@ import { AgentuityBetterAuth } from '@agentuity/auth/agentuity/client';
 import { authClient } from './auth-client';
 
 export function App() {
-  return (
-    <AgentuityProvider>
-      <AgentuityBetterAuth authClient={authClient}>
-        {/* Your app */}
-      </AgentuityBetterAuth>
-    </AgentuityProvider>
-  );
+	return (
+		<AgentuityProvider>
+			<AgentuityBetterAuth authClient={authClient}>{/* Your app */}</AgentuityBetterAuth>
+		</AgentuityProvider>
+	);
 }
 ```
 
@@ -115,11 +113,13 @@ export function App() {
 Auth tables are stored in your Postgres database. Create them using either:
 
 **Option A: CLI (recommended)**
+
 ```bash
 agentuity project auth init
 ```
 
 **Option B: Runtime (auto-migration)**
+
 ```typescript
 import { ensureAuthSchema } from '@agentuity/auth/agentuity';
 await ensureAuthSchema({ db: pool });
@@ -180,12 +180,12 @@ Both methods produce the same `c.var.auth` context in routes.
 
 ## Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `bun dev` | Start development server |
-| `bun run build` | Build for production |
-| `bun run typecheck` | Run TypeScript checks |
-| `bun run deploy` | Deploy to Agentuity cloud |
+| Command             | Description               |
+| ------------------- | ------------------------- |
+| `bun dev`           | Start development server  |
+| `bun run build`     | Build for production      |
+| `bun run typecheck` | Run TypeScript checks     |
+| `bun run deploy`    | Deploy to Agentuity cloud |
 
 ## Learn More
 

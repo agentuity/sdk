@@ -368,7 +368,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		const enableAuth = await prompt.select({
 			message: 'Enable Agentuity Authentication?',
 			options: [
-				{ value: 'no', label: 'No, I\'ll add auth later' },
+				{ value: 'no', label: "No, I'll add auth later" },
 				{ value: 'yes', label: 'Yes, set up Agentuity Auth (BetterAuth)' },
 			],
 		});

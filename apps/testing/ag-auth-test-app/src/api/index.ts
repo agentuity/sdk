@@ -86,7 +86,7 @@ api.post('/api-keys', authMiddleware, async (c) => {
 	const name = body.name ?? 'default-key';
 
 	// Use BetterAuth's API to create an API key
-	const result = await (auth.api as any).createApiKey({
+	const result = await auth.api.createApiKey({
 		body: {
 			name,
 			expiresIn: 60 * 60 * 24 * 30, // 30 days
@@ -105,7 +105,7 @@ api.post('/api-keys', authMiddleware, async (c) => {
 
 // List API keys for the authenticated user
 api.get('/api-keys', authMiddleware, async (c) => {
-	const result = await (auth.api as any).listApiKeys({
+	const result = await auth.api.listApiKeys({
 		headers: c.req.raw.headers,
 	});
 
@@ -116,7 +116,7 @@ api.get('/api-keys', authMiddleware, async (c) => {
 api.delete('/api-keys/:id', authMiddleware, async (c) => {
 	const id = c.req.param('id');
 
-	await (auth.api as any).deleteApiKey({
+	await auth.api.deleteApiKey({
 		body: { keyId: id },
 		headers: c.req.raw.headers,
 	});
@@ -174,7 +174,7 @@ api.post('/organizations', authMiddleware, async (c) => {
 		return c.json({ error: 'name and slug are required' }, 400);
 	}
 
-	const result = await (auth.api as any).createOrganization({
+	const result = await auth.api.createOrganization({
 		body: { name, slug },
 		headers: c.req.raw.headers,
 	});
@@ -184,7 +184,7 @@ api.post('/organizations', authMiddleware, async (c) => {
 
 // List organizations for the authenticated user
 api.get('/organizations', authMiddleware, async (c) => {
-	const result = await (auth.api as any).listOrganizations({
+	const result = await auth.api.listOrganizations({
 		headers: c.req.raw.headers,
 	});
 
@@ -193,7 +193,7 @@ api.get('/organizations', authMiddleware, async (c) => {
 
 // Get the currently active organization
 api.get('/organizations/active', authMiddleware, async (c) => {
-	const result = await (auth.api as any).getFullOrganization({
+	const result = await auth.api.getFullOrganization({
 		headers: c.req.raw.headers,
 	});
 
@@ -204,7 +204,7 @@ api.get('/organizations/active', authMiddleware, async (c) => {
 api.post('/organizations/:id/activate', authMiddleware, async (c) => {
 	const organizationId = c.req.param('id');
 
-	const result = await (auth.api as any).setActiveOrganization({
+	const result = await auth.api.setActiveOrganization({
 		body: { organizationId },
 		headers: c.req.raw.headers,
 	});
@@ -222,7 +222,7 @@ api.post('/organizations/:id/invitations', authMiddleware, async (c) => {
 		return c.json({ error: 'email is required' }, 400);
 	}
 
-	const result = await (auth.api as any).createInvitation({
+	const result = await auth.api.createInvitation({
 		body: {
 			organizationId,
 			email,
@@ -239,12 +239,12 @@ api.get('/organizations/:id/members', authMiddleware, async (c) => {
 	const organizationId = c.req.param('id');
 
 	// First activate the org to access its members
-	await (auth.api as any).setActiveOrganization({
+	await auth.api.setActiveOrganization({
 		body: { organizationId },
 		headers: c.req.raw.headers,
 	});
 
-	const result = await (auth.api as any).getFullOrganization({
+	const result = await auth.api.getFullOrganization({
 		headers: c.req.raw.headers,
 	});
 
@@ -257,7 +257,7 @@ api.get('/whoami', authMiddleware, async (c) => {
 
 	let activeOrg = null;
 	try {
-		activeOrg = await (auth.api as any).getFullOrganization({
+		activeOrg = await auth.api.getFullOrganization({
 			headers: c.req.raw.headers,
 		});
 	} catch {

@@ -11,6 +11,133 @@ import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
 import type { BetterAuthSecondaryStorage } from './api-key-storage';
 
 /**
+ * API extensions added by the organization plugin.
+ */
+export interface OrganizationApiMethods {
+	createOrganization: (params: {
+		body: { name: string; slug: string; logo?: string; metadata?: Record<string, unknown> };
+		headers?: Headers;
+	}) => Promise<{ id: string; name: string; slug: string; logo?: string; createdAt: Date }>;
+
+	listOrganizations: (params: { headers?: Headers }) => Promise<
+		Array<{
+			id: string;
+			name: string;
+			slug: string;
+			logo?: string;
+		}>
+	>;
+
+	getFullOrganization: (params: { headers?: Headers }) => Promise<{
+		id: string;
+		name: string;
+		slug: string;
+		logo?: string;
+		members?: Array<{ userId: string; role: string }>;
+	} | null>;
+
+	setActiveOrganization: (params: {
+		body: { organizationId: string };
+		headers?: Headers;
+	}) => Promise<{ id: string; name: string; slug: string }>;
+
+	createInvitation: (params: {
+		body: { organizationId: string; email: string; role?: string };
+		headers?: Headers;
+	}) => Promise<{ id: string; email: string; role: string; organizationId: string }>;
+
+	cancelInvitation: (params: {
+		body: { invitationId: string };
+		headers?: Headers;
+	}) => Promise<{ success: boolean }>;
+
+	rejectInvitation: (params: {
+		body: { invitationId: string };
+		headers?: Headers;
+	}) => Promise<{ success: boolean }>;
+
+	acceptInvitation: (params: {
+		body: { invitationId: string };
+		headers?: Headers;
+	}) => Promise<{ success: boolean }>;
+
+	removeMember: (params: {
+		body: { memberIdOrEmail: string; organizationId?: string };
+		headers?: Headers;
+	}) => Promise<{ success: boolean }>;
+
+	updateMemberRole: (params: {
+		body: { memberId: string; role: string; organizationId?: string };
+		headers?: Headers;
+	}) => Promise<{ success: boolean }>;
+
+	checkSlug: (params: {
+		body: { slug: string };
+		headers?: Headers;
+	}) => Promise<{ exists: boolean }>;
+}
+
+/**
+ * API extensions added by the API Key plugin.
+ */
+export interface ApiKeyApiMethods {
+	createApiKey: (params: {
+		body: {
+			name?: string;
+			expiresIn?: number;
+			prefix?: string;
+			userId?: string;
+			remaining?: number;
+			metadata?: Record<string, unknown>;
+			refillAmount?: number;
+			refillInterval?: number;
+			rateLimitTimeWindow?: number;
+			rateLimitMax?: number;
+			rateLimitEnabled?: boolean;
+		};
+		headers?: Headers;
+	}) => Promise<{
+		id: string;
+		name: string;
+		key: string;
+		expiresAt?: Date;
+		createdAt: Date;
+	}>;
+
+	listApiKeys: (params: { headers?: Headers }) => Promise<
+		Array<{
+			id: string;
+			name: string;
+			start: string;
+			expiresAt?: Date;
+			createdAt: Date;
+		}>
+	>;
+
+	deleteApiKey: (params: {
+		body: { keyId: string };
+		headers?: Headers;
+	}) => Promise<{ success: boolean }>;
+
+	verifyApiKey: (params: { body: { key: string }; headers?: Headers }) => Promise<{
+		valid: boolean;
+		apiKey?: { id: string; name: string; userId: string };
+	}>;
+}
+
+/**
+ * API extensions added by the JWT plugin.
+ */
+export interface JwtApiMethods {
+	getToken: (params: { headers?: Headers }) => Promise<{ token: string }>;
+}
+
+/**
+ * Combined API extensions from all default plugins.
+ */
+export type DefaultPluginApiMethods = OrganizationApiMethods & ApiKeyApiMethods & JwtApiMethods;
+
+/**
  * API Key plugin configuration options.
  */
 export interface ApiKeyPluginOptions {
@@ -195,11 +322,13 @@ export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) 
 		plugins: [...defaultPlugins, ...plugins],
 	});
 
-	return authInstance;
+	return authInstance as typeof authInstance & {
+		api: typeof authInstance.api & DefaultPluginApiMethods;
+	};
 }
 
 /**
- * Type helper to extract the auth instance type.
+ * Type helper for the auth instance with default plugin methods.
  */
 export type AgentuityAuthInstance = ReturnType<typeof createAgentuityAuth>;
 

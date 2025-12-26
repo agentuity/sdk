@@ -216,7 +216,9 @@ export async function ensureAuthSchema(
 
 	// Check if the apikey table exists (plugin table that might be missing)
 	// Note: BetterAuth expects lowercase "apikey" table name
-	const apiKeyResult = await db.query(`SELECT to_regclass($1) as table_name`, [`${schema}.apikey`]);
+	const apiKeyResult = await db.query(`SELECT to_regclass($1) as table_name`, [
+		`${schema}.apikey`,
+	]);
 	const apiKeyRow = apiKeyResult.rows[0] as { table_name: string | null } | undefined;
 	const apiKeyExists = !!apiKeyRow?.table_name;
 

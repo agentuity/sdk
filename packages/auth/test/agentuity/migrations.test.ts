@@ -26,8 +26,12 @@ describe('AGENTUITY_AUTH_BASELINE_SQL', () => {
 
 	test('contains indexes', () => {
 		// Note: Index names are lowercase (without quotes) for PostgreSQL compatibility
-		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE INDEX IF NOT EXISTS session_userId_idx');
-		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE INDEX IF NOT EXISTS account_userId_idx');
+		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain(
+			'CREATE INDEX IF NOT EXISTS session_userId_idx'
+		);
+		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain(
+			'CREATE INDEX IF NOT EXISTS account_userId_idx'
+		);
 		expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE INDEX IF NOT EXISTS apikey_userId_idx');
 	});
 

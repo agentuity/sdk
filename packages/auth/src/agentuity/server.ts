@@ -242,7 +242,9 @@ export function createMiddleware(
  * api.on(['GET', 'POST'], '/api/auth/*', mountBetterAuthRoutes(auth));
  * ```
  */
-export function mountBetterAuthRoutes(auth: AgentuityAuthInstance): (c: Context) => Promise<Response> {
+export function mountBetterAuthRoutes(
+	auth: AgentuityAuthInstance
+): (c: Context) => Promise<Response> {
 	return async (c: Context): Promise<Response> => {
 		const response = await auth.handler(c.req.raw);
 

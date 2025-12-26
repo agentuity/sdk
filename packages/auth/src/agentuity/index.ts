@@ -60,7 +60,15 @@ export {
 	getDefaultPlugins,
 	DEFAULT_API_KEY_OPTIONS,
 } from './config';
-export type { AgentuityAuthOptions, AgentuityAuthInstance, ApiKeyPluginOptions } from './config';
+export type {
+	AgentuityAuthOptions,
+	AgentuityAuthInstance,
+	ApiKeyPluginOptions,
+	OrganizationApiMethods,
+	ApiKeyApiMethods,
+	JwtApiMethods,
+	DefaultPluginApiMethods,
+} from './config';
 
 // =============================================================================
 // Migrations
