@@ -550,30 +550,26 @@ class UnderlyingSinkState {
 			duplex: 'half',
 		});
 
+		// Acquire writer immediately to prevent race conditions in concurrent write() calls
+		this.writer = this.writable.getWriter();
+
 		return this.writable;
 	}
 
 	async write(chunk: Uint8Array) {
-		if (!this.writable) {
+		if (!this.writer) {
 			throw new StreamWriterInitializationError();
 		}
-		if (!this.writer) {
-			this.writer = this.writable.getWriter();
-		}
-		// Write the chunk to the writable stream
 		await this.writer.write(chunk);
 	}
+
 	async close() {
 		if (this.closed) {
 			return;
 		}
 		this.closed = true;
 
-		// Close the writable stream - get writer if we don't have one
-		if (this.writable) {
-			if (!this.writer) {
-				this.writer = this.writable.getWriter();
-			}
+		if (this.writer) {
 			await this.writer.close();
 			this.writer = null;
 		}
