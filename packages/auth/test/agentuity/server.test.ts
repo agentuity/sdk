@@ -1,6 +1,7 @@
-import { describe, test, expect, mock, beforeEach } from 'bun:test';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
-import { createHonoMiddleware } from '../../src/agentuity/server';
+import { createMiddleware } from '../../src/agentuity/server';
 
 const createMockAuth = (sessionResult: unknown) => ({
 	api: {
@@ -9,15 +10,11 @@ const createMockAuth = (sessionResult: unknown) => ({
 });
 
 describe('Agentuity BetterAuth server middleware', () => {
-	beforeEach(() => {
-		// Reset any state if needed
-	});
-
 	test('returns 401 when session is null', async () => {
 		const mockAuth = createMockAuth(null);
 		const app = new Hono();
 
-		app.use('/protected', createHonoMiddleware(mockAuth as any));
+		app.use('/protected', createMiddleware(mockAuth as any));
 		app.get('/protected', (c) => c.json({ success: true }));
 
 		const res = await app.request('/protected', {
@@ -37,7 +34,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		};
 		const app = new Hono();
 
-		app.use('/protected', createHonoMiddleware(mockAuth as any));
+		app.use('/protected', createMiddleware(mockAuth as any));
 		app.get('/protected', (c) => c.json({ success: true }));
 
 		const res = await app.request('/protected', {
@@ -64,7 +61,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createHonoMiddleware(mockAuth as any));
+		app.use('/protected', createMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			const user = await c.var.auth.getUser();
 			return c.json({
@@ -97,7 +94,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createHonoMiddleware(mockAuth as any));
+		app.use('/protected', createMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			const user1 = await c.var.auth.getUser();
 			const user2 = await c.var.auth.getUser();
@@ -121,7 +118,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createHonoMiddleware(mockAuth as any));
+		app.use('/protected', createMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			const token = await c.var.auth.getToken();
 			return c.json({ token });
@@ -143,7 +140,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createHonoMiddleware(mockAuth as any));
+		app.use('/protected', createMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			const token = await c.var.auth.getToken();
 			return c.json({ token });
@@ -162,7 +159,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createHonoMiddleware(mockAuth as any));
+		app.use('/protected', createMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			return c.json({
 				userId: c.var.auth.raw.user.id,
@@ -185,7 +182,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(null);
 			const app = new Hono();
 
-			app.use('/public', createHonoMiddleware(mockAuth as any, { optional: true }));
+			app.use('/public', createMiddleware(mockAuth as any, { optional: true }));
 			app.get('/public', (c) => {
 				return c.json({
 					hasAuth: c.var.auth !== undefined,
@@ -204,7 +201,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(mockSession);
 			const app = new Hono();
 
-			app.use('/public', createHonoMiddleware(mockAuth as any, { optional: true }));
+			app.use('/public', createMiddleware(mockAuth as any, { optional: true }));
 			app.get('/public', async (c) => {
 				const user = await c.var.auth.getUser();
 				return c.json({ userId: user.id });
@@ -219,7 +216,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(null);
 			const app = new Hono();
 
-			app.use('/public', createHonoMiddleware(mockAuth as any, { optional: true }));
+			app.use('/public', createMiddleware(mockAuth as any, { optional: true }));
 			app.get('/public', (c) => {
 				return c.json({
 					user: c.var.user,
@@ -243,7 +240,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(mockSession);
 			const app = new Hono();
 
-			app.use('/api', createHonoMiddleware(mockAuth as any));
+			app.use('/api', createMiddleware(mockAuth as any));
 			app.get('/api', (c) => {
 				return c.json({
 					userId: (c.var.user as any)?.id,

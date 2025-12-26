@@ -1,14 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * End-to-end tests for Agentuity BetterAuth integration.
  *
  * These tests verify the complete auth flow using mocked BetterAuth responses.
  */
 
-import { describe, test, expect, mock, beforeEach } from 'bun:test';
+import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
-import { createHonoMiddleware } from '../../src/agentuity/server';
-import { withAuth, createScopeChecker } from '../../src/agentuity/agent';
-import type { AgentAuthContext } from '../../src/agentuity/agent';
+import { createMiddleware } from '../../src/agentuity/server';
+import { createScopeChecker } from '../../src/agentuity/agent';
 
 describe('Agentuity BetterAuth E2E flow', () => {
 	const mockUser = {
@@ -38,7 +38,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/api/*', createHonoMiddleware(mockAuth as any));
+			app.use('/api/*', createMiddleware(mockAuth as any));
 
 			app.get('/api/me', async (c) => {
 				const user = await c.var.auth.getUser();
@@ -64,7 +64,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth(null);
 			const app = new Hono();
 
-			app.use('/api/*', createHonoMiddleware(mockAuth as any));
+			app.use('/api/*', createMiddleware(mockAuth as any));
 			app.get('/api/me', async (c) => {
 				const user = await c.var.auth.getUser();
 				return c.json({ id: user.id });
@@ -82,7 +82,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 
 			// Anonymous request
 			const anonAuth = createMockAuth(null);
-			app.use('/greeting', createHonoMiddleware(anonAuth as any, { optional: true }));
+			app.use('/greeting', createMiddleware(anonAuth as any, { optional: true }));
 			app.get('/greeting', async (c) => {
 				try {
 					const user = await c.var.auth.getUser();
@@ -98,7 +98,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			// Authenticated request
 			const authApp = new Hono();
 			const authedAuth = createMockAuth({ user: mockUser, session: mockSession });
-			authApp.use('/greeting', createHonoMiddleware(authedAuth as any, { optional: true }));
+			authApp.use('/greeting', createMiddleware(authedAuth as any, { optional: true }));
 			authApp.get('/greeting', async (c) => {
 				try {
 					const user = await c.var.auth.getUser();
@@ -118,7 +118,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/api/*', createHonoMiddleware(mockAuth as any));
+			app.use('/api/*', createMiddleware(mockAuth as any));
 			app.get('/api/token', async (c) => {
 				const token = await c.var.auth.getToken();
 				return c.json({ token });
@@ -134,64 +134,19 @@ describe('Agentuity BetterAuth E2E flow', () => {
 		});
 	});
 
-	describe('Agent auth context flow', () => {
-		test('withAuth wrapper provides typed context to agents', async () => {
-			const handler = withAuth(async (ctx, input: { action: string }) => {
-				return {
-					userId: ctx.auth?.user.id,
-					action: input.action,
-					hasReadScope: ctx.hasScope('read'),
-				};
-			});
-
-			const ctx: AgentAuthContext = {
-				auth: { user: mockUser, session: mockSession } as any,
-				hasScope: createScopeChecker(['read', 'write']),
-			};
-
-			const result = await handler(ctx, { action: 'test' });
-
-			expect(result).toEqual({
-				userId: 'user_e2e_123',
-				action: 'test',
-				hasReadScope: true,
-			});
-		});
-
+	describe('Scope checking', () => {
 		test('scope checking works correctly with wildcards', async () => {
-			const handler = withAuth(
-				async (ctx, _input: {}) => {
-					return {
-						canRead: ctx.hasScope('read'),
-						canWrite: ctx.hasScope('write'),
-						canDelete: ctx.hasScope('delete'),
-						canAdmin: ctx.hasScope('admin'),
-					};
-				},
-				{ requiredScopes: [] }
-			);
-
 			// Test with wildcard scope
-			const wildcardCtx: AgentAuthContext = {
-				auth: { user: mockUser, session: mockSession } as any,
-				hasScope: createScopeChecker(['*']),
-			};
-
-			const wildcardResult = await handler(wildcardCtx, {});
-			expect(wildcardResult.canRead).toBe(true);
-			expect(wildcardResult.canWrite).toBe(true);
-			expect(wildcardResult.canDelete).toBe(true);
-			expect(wildcardResult.canAdmin).toBe(true);
+			const wildcardChecker = createScopeChecker(['*']);
+			expect(wildcardChecker('read')).toBe(true);
+			expect(wildcardChecker('write')).toBe(true);
+			expect(wildcardChecker('delete')).toBe(true);
+			expect(wildcardChecker('admin')).toBe(true);
 
 			// Test with limited scopes
-			const limitedCtx: AgentAuthContext = {
-				auth: { user: mockUser, session: mockSession } as any,
-				hasScope: createScopeChecker(['read']),
-			};
-
-			const limitedResult = await handler(limitedCtx, {});
-			expect(limitedResult.canRead).toBe(true);
-			expect(limitedResult.canWrite).toBe(false);
+			const limitedChecker = createScopeChecker(['read']);
+			expect(limitedChecker('read')).toBe(true);
+			expect(limitedChecker('write')).toBe(false);
 		});
 	});
 
@@ -200,7 +155,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/api/*', createHonoMiddleware(mockAuth as any));
+			app.use('/api/*', createMiddleware(mockAuth as any));
 			app.get('/api/session', async (c) => {
 				return c.json({
 					userId: c.var.auth.raw.user.id,

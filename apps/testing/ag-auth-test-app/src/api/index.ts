@@ -1,4 +1,5 @@
 import { createRouter } from '@agentuity/runtime';
+import { requireScopes } from '@agentuity/auth/agentuity';
 import hello from '@agent/hello';
 import { auth, authMiddleware, optionalAuthMiddleware } from '../auth';
 
@@ -22,13 +23,19 @@ api.post('/hello', hello.validator(), async (c) => {
 	return c.json(result);
 });
 
-// Protected route - requires authentication
+// Protected route - requires authentication (session or API key)
 api.get('/me', authMiddleware, async (c) => {
 	const user = await c.var.auth.getUser();
+
+	// Detect auth method for demo purposes
+	const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
+	const authMethod = apiKeyHeader ? 'api-key' : 'session';
+
 	return c.json({
 		id: user.id,
 		name: user.name,
 		email: user.email,
+		authMethod,
 	});
 });
 
@@ -48,6 +55,25 @@ api.get('/token', authMiddleware, async (c) => {
 	return c.json({
 		hasToken: token !== null,
 		tokenPreview: token ? `${token.slice(0, 10)}...` : null,
+	});
+});
+
+// Example: Protected route with scope requirements
+// This shows how to use requireScopes middleware for fine-grained access control
+api.get('/admin', authMiddleware, requireScopes(['admin']), async (c) => {
+	const user = await c.var.auth.getUser();
+	return c.json({
+		message: 'Welcome to the admin area!',
+		userId: user.id,
+	});
+});
+
+// Example: Protected route requiring multiple scopes
+api.post('/projects', authMiddleware, requireScopes(['project:write']), async (c) => {
+	const user = await c.var.auth.getUser();
+	return c.json({
+		message: 'Project creation authorized',
+		userId: user.id,
 	});
 });
 

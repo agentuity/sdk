@@ -8,14 +8,33 @@
  * @example Server-side setup
  * ```typescript
  * // auth.ts
- * import { createAgentuityAuth, createHonoMiddleware } from '@agentuity/auth/agentuity';
+ * import { createAgentuityAuth, createMiddleware, ensureAuthSchema } from '@agentuity/auth/agentuity';
+ * import { Pool } from 'pg';
+ *
+ * const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+ *
+ * // Auto-create auth tables if they don't exist
+ * await ensureAuthSchema({ db: pool });
  *
  * export const auth = createAgentuityAuth({
- *   database: { url: process.env.DATABASE_URL! },
- *   basePath: '/auth',
+ *   database: pool,
+ *   basePath: '/api/auth',
  * });
  *
- * export const authMiddleware = createHonoMiddleware(auth);
+ * export const authMiddleware = createMiddleware(auth);
+ * ```
+ *
+ * @example Agent with auth
+ * ```typescript
+ * import { createAgent } from '@agentuity/runtime';
+ * import { withSession } from '@agentuity/auth/agentuity';
+ *
+ * export default createAgent('my-agent', {
+ *   handler: withSession(async ({ auth, org, hasScope }, input) => {
+ *     if (!auth) return { error: 'Not authenticated' };
+ *     return { userId: auth.user.id };
+ *   }, { optional: true }),
+ * });
  * ```
  *
  * @example Client-side setup
@@ -31,21 +50,63 @@
  * ```
  */
 
+// =============================================================================
 // Config
-export { createAgentuityAuth, withAgentuityAuth, getDefaultPlugins } from './config';
-export type { AgentuityAuthOptions, AgentuityAuthInstance } from './config';
+// =============================================================================
 
+export {
+	createAgentuityAuth,
+	withAgentuityAuth,
+	getDefaultPlugins,
+	DEFAULT_API_KEY_OPTIONS,
+} from './config';
+export type { AgentuityAuthOptions, AgentuityAuthInstance, ApiKeyPluginOptions } from './config';
+
+// =============================================================================
+// Migrations
+// =============================================================================
+
+export { ensureAuthSchema, AGENTUITY_AUTH_BASELINE_SQL } from './migrations';
+export type { DatabaseClient, EnsureAuthSchemaOptions, EnsureAuthSchemaResult } from './migrations';
+
+// =============================================================================
+// API Key Storage (KV adapter for BetterAuth)
+// =============================================================================
+
+export { createAgentuityApiKeyStorage, AGENTUITY_API_KEY_NAMESPACE } from './api-key-storage';
+export type {
+	BetterAuthSecondaryStorage,
+	AgentuityApiKeyStorageOptions,
+	AgentuityApiKeyStorage,
+} from './api-key-storage';
+
+// =============================================================================
 // Server (Hono middleware)
-export { createHonoMiddleware } from './server';
-export type { AgentuityMiddlewareOptions, AgentuityAuthEnv } from './server';
+// =============================================================================
 
+export { createMiddleware, requireScopes } from './server';
+export type { AgentuityMiddlewareOptions, AgentuityAuthEnv, RequireScopesOptions } from './server';
+
+// =============================================================================
 // Client (React)
+// =============================================================================
+
 export { AgentuityBetterAuth } from './client';
 export type { AgentuityBetterAuthProps } from './client';
 
-// Agent wrappers
-export { withAuth, createScopeChecker } from './agent';
-export type { AgentAuthContext } from './agent';
+// =============================================================================
+// Agent Wrappers
+// =============================================================================
 
+export { withSession, createScopeChecker, createRoleScopeChecker } from './agent';
+
+// =============================================================================
 // Types
-export type { AgentuityAuthContext, WithAuthOptions, AuthenticatedHandler } from './types';
+// =============================================================================
+
+export type {
+	AgentuityAuthContext,
+	AgentuityOrgContext,
+	WithSessionOptions,
+	WithSessionContext,
+} from './types';
