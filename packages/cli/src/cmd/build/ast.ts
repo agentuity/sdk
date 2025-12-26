@@ -1450,8 +1450,8 @@ export async function parseRoute(
 							}
 						}
 
-						// For WebSocket/SSE routes that don't use validator(), fall back to exported schemas
-						if (!routeConfig.hasValidator && (type === 'websocket' || type === 'sse')) {
+						// For WebSocket/SSE/stream routes that don't use validator(), fall back to exported schemas
+						if (!routeConfig.hasValidator && (type === 'websocket' || type === 'sse' || type === 'stream')) {
 							if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
 								routeConfig.inputSchemaVariable = exportedInputSchemaName;
 							}
