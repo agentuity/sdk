@@ -172,23 +172,21 @@ export interface DatabaseClient {
 export interface EnsureAuthSchemaOptions {
 	/** Database client with query method (e.g., pg.Pool) */
 	db: DatabaseClient;
-	/** Schema name, defaults to 'public' */
-	schema?: string;
 }
 
 /**
  * Result of ensureAuthSchema operation.
  */
 export interface EnsureAuthSchemaResult {
-	/** Whether the schema was created (true) or already existed (false) */
+	/** Always true - schema SQL was executed */
 	created: boolean;
 }
 
 /**
  * Idempotent helper to ensure the auth schema exists.
  *
- * Checks for the existence of the "user" table. If missing, runs the
- * full baseline SQL schema. Safe to call at application startup.
+ * Runs the full baseline SQL schema. All statements use IF NOT EXISTS,
+ * making this safe to call on every application startup.
  *
  * @example
  * ```typescript
@@ -207,27 +205,11 @@ export interface EnsureAuthSchemaResult {
 export async function ensureAuthSchema(
 	options: EnsureAuthSchemaOptions
 ): Promise<EnsureAuthSchemaResult> {
-	const { db, schema = 'public' } = options;
+	const { db } = options;
 
-	// Check if the core user table exists
-	const userResult = await db.query(`SELECT to_regclass($1) as table_name`, [`${schema}.user`]);
-	const userRow = userResult.rows[0] as { table_name: string | null } | undefined;
-	const userExists = !!userRow?.table_name;
+	// All statements use IF NOT EXISTS - safe and idempotent to run every time
+	// This ensures any new tables (from updated plugins) are always created
+	await db.query(AGENTUITY_AUTH_BASELINE_SQL);
 
-	// Check if the apikey table exists (plugin table that might be missing)
-	// Note: BetterAuth expects lowercase "apikey" table name
-	const apiKeyResult = await db.query(`SELECT to_regclass($1) as table_name`, [
-		`${schema}.apikey`,
-	]);
-	const apiKeyRow = apiKeyResult.rows[0] as { table_name: string | null } | undefined;
-	const apiKeyExists = !!apiKeyRow?.table_name;
-
-	// Run schema if any tables are missing
-	// The SQL uses IF NOT EXISTS so it's safe to run even if some tables exist
-	if (!userExists || !apiKeyExists) {
-		await db.query(AGENTUITY_AUTH_BASELINE_SQL);
-		return { created: true };
-	}
-
-	return { created: false };
+	return { created: true };
 }

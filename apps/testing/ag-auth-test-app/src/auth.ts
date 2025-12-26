@@ -72,6 +72,11 @@ export const auth = createAgentuityAuth({
 	emailAndPassword: {
 		enabled: true,
 	},
+	// Use database storage for API keys in this demo app
+	// In production, configure secondaryStorage with createAgentuityApiKeyStorage for KV-backed storage
+	apiKey: {
+		storage: 'database',
+	},
 });
 
 /**
