@@ -12,7 +12,7 @@ import type {
 	VectorStorage,
 	SessionStartEvent,
 } from '@agentuity/core';
-import type { Email } from './io/email';
+
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
 import type WaitUntilHandler from './_waituntil';
 import type { Context } from 'hono';
@@ -146,7 +146,6 @@ export interface Variables<TAppState = Record<string, never>> {
 	logger: Logger;
 	meter: Meter;
 	tracer: Tracer;
-	email?: Email;
 	sessionId: string;
 	thread: Thread;
 	session: Session;

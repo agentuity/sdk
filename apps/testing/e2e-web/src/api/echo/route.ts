@@ -1,7 +1,6 @@
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, websocket, type WebSocketConnection } from '@agentuity/runtime';
 import { s, type Schema } from '@agentuity/schema';
 import type { Context } from 'hono';
-import type { WebSocketConnection } from '@agentuity/runtime';
 
 export const inputSchema = s.object({
 	message: s.string(),
@@ -53,20 +52,23 @@ function validateMessage<T>(
 
 const router = createRouter();
 
-router.websocket('/', (c) => (ws) => {
-	ws.onMessage((event) => {
-		const data = validateMessage(inputSchema, event, ws, c.var.logger);
-		if (!data) return;
+router.get(
+	'/',
+	websocket((c, ws) => {
+		ws.onMessage((event) => {
+			const data = validateMessage(inputSchema, event, ws, c.var.logger);
+			if (!data) return;
 
-		c.var.logger.info('WebSocket received valid message:', data);
+			c.var.logger.info('WebSocket received valid message:', data);
 
-		ws.send(
-			JSON.stringify({
-				echo: data.message,
-				timestamp: Date.now(),
-			})
-		);
-	});
-});
+			ws.send(
+				JSON.stringify({
+					echo: data.message,
+					timestamp: Date.now(),
+				})
+			);
+		});
+	})
+);
 
 export default router;

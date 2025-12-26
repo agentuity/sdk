@@ -1315,6 +1315,47 @@ export async function parseRoute(
 							case 'delete': {
 								if (action && (action as ASTLiteral).type === 'Literal') {
 									suffix = String((action as ASTLiteral).value);
+
+									// Check if any argument is a middleware function call (websocket, sse, stream, cron)
+									// New pattern: router.get('/ws', websocket((c, ws) => { ... }))
+									for (const arg of statement.expression.arguments) {
+										if ((arg as ASTCallExpression).type === 'CallExpression') {
+											const callExpr = arg as ASTCallExpression;
+											const calleeName = (callExpr.callee as ASTNodeIdentifier).name;
+											if (
+												calleeName === 'websocket' ||
+												calleeName === 'sse' ||
+												calleeName === 'stream'
+											) {
+												type = calleeName;
+												break;
+											}
+											if (calleeName === 'cron') {
+												type = 'cron';
+												// First argument to cron() is the schedule expression
+												if (callExpr.arguments && callExpr.arguments.length > 0) {
+													const cronArg = callExpr.arguments[0] as ASTLiteral;
+													if (cronArg.type === 'Literal') {
+														const expression = String(cronArg.value);
+														try {
+															parseCronExpression(expression, {
+																hasSeconds: false,
+															});
+														} catch (ex) {
+															throw new InvalidRouterConfigError({
+																filename,
+																cause: ex,
+																line: body.loc?.start?.line,
+																message: `invalid cron expression "${expression}" in ${filename} at line ${body.loc?.start?.line}`,
+															});
+														}
+														config = { expression };
+													}
+												}
+												break;
+											}
+										}
+									}
 								} else {
 									throw new InvalidRouterConfigError({
 										filename,
@@ -1327,6 +1368,8 @@ export async function parseRoute(
 							case 'stream':
 							case 'sse':
 							case 'websocket': {
+								// DEPRECATED: router.stream(), router.sse(), router.websocket()
+								// These methods now throw errors at runtime
 								type = method;
 								method = 'post';
 								const theaction = action as ASTLiteral;
@@ -1336,39 +1379,9 @@ export async function parseRoute(
 								}
 								break;
 							}
-							case 'sms': {
-								type = method;
-								method = 'post';
-								const theaction = action as ASTObjectExpression;
-								if (theaction.type === 'ObjectExpression') {
-									config = {};
-									theaction.properties.forEach((p) => {
-										if (p.value.type === 'Literal') {
-											const literal = p.value as ASTLiteral;
-											config![p.key.name] = literal.value;
-										}
-									});
-									const number = theaction.properties.find((p) => p.key.name === 'number');
-									if (number && number.value.type === 'Literal') {
-										const phoneNumber = number.value as ASTLiteral;
-										suffix = hash(String(phoneNumber.value));
-										break;
-									}
-								}
-								break;
-							}
-							case 'email': {
-								type = method;
-								method = 'post';
-								const theaction = action as ASTLiteral;
-								if (theaction.type === 'Literal') {
-									const email = String(theaction.value);
-									suffix = hash(email);
-									break;
-								}
-								break;
-							}
 							case 'cron': {
+								// DEPRECATED: router.cron()
+								// This method now throws errors at runtime
 								type = method;
 								method = 'post';
 								const theaction = action as ASTLiteral;
