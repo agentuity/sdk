@@ -356,12 +356,15 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 	}
 
-	// Auth setup prompt
+	// Auth setup prompt (skip for templates that already have auth configured)
+	const templatesWithAuth = ['clerk', 'auth0'];
+	const templateHasAuth = templatesWithAuth.includes(selectedTemplate.id);
+
 	let authEnabled = false;
 	let authDatabaseName: string | undefined;
 	let authDatabaseUrl: string | undefined;
 
-	if (auth && catalystClient && orgId && region && !skipPrompts) {
+	if (auth && catalystClient && orgId && region && !skipPrompts && !templateHasAuth) {
 		const enableAuth = await prompt.select({
 			message: 'Enable Agentuity Authentication?',
 			options: [
