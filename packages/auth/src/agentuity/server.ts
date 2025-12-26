@@ -1,5 +1,5 @@
 /**
- * Agentuity BetterAuth Hono middleware.
+ * Agentuity BetterAuth Hono middleware and handlers.
  *
  * Follows BetterAuth's recommended Hono integration patterns:
  * @see https://www.better-auth.com/docs/integrations/hono
@@ -7,7 +7,7 @@
  * @module agentuity/server
  */
 
-import type { MiddlewareHandler } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import { context, trace, SpanStatusCode } from '@opentelemetry/api';
 import type { AgentuityAuth, AgentuityAuthUser } from '../types';
 import type { AgentuityAuthInstance } from './config';
@@ -194,6 +194,73 @@ export function createMiddleware(
 			}
 			return c.json({ error: 'Unauthorized' }, 401);
 		}
+	};
+}
+
+// =============================================================================
+// Auth Handler
+// =============================================================================
+
+/**
+ * Mount BetterAuth routes with proper cookie handling.
+ *
+ * This wrapper is required because of how Hono handles raw `Response` objects
+ * returned from route handlers. When BetterAuth's `auth.handler()` returns a
+ * `Response` with `Set-Cookie` headers, those headers are not automatically
+ * merged with headers set by Agentuity's middleware (like the `atid` thread cookie).
+ *
+ * This function explicitly copies all headers from BetterAuth's response into
+ * Hono's context, ensuring both BetterAuth's session cookies AND Agentuity's
+ * cookies are preserved in the final response.
+ *
+ * Without this wrapper, BetterAuth's session cookies would be lost, causing
+ * `useSession()` to always return null on the client.
+ *
+ * @remarks
+ * This issue affects any integration where a route handler returns a raw
+ * `Response` object with `Set-Cookie` headers while Agentuity middleware
+ * has also set cookies via `c.header()`.
+ *
+ * TODO: Discuss whether this header merging behavior should be added to the
+ * Agentuity runtime's `createRouter` so raw `Response` objects automatically
+ * preserve middleware-set headers.
+ *
+ * @example Basic usage
+ * ```typescript
+ * import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
+ * import { auth } from './auth';
+ *
+ * const api = createRouter();
+ *
+ * // Mount all BetterAuth routes (sign-in, sign-up, sign-out, session, etc.)
+ * api.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(auth));
+ * ```
+ *
+ * @example With custom base path
+ * ```typescript
+ * // If your auth is configured with basePath: '/api/auth'
+ * api.on(['GET', 'POST'], '/api/auth/*', mountBetterAuthRoutes(auth));
+ * ```
+ */
+export function mountBetterAuthRoutes(auth: AgentuityAuthInstance): (c: Context) => Promise<Response> {
+	return async (c: Context): Promise<Response> => {
+		const response = await auth.handler(c.req.raw);
+
+		// Forward all headers, preserving multiple Set-Cookie values
+		response.headers.forEach((value, key) => {
+			if (key.toLowerCase() === 'set-cookie') {
+				c.header(key, value, { append: true });
+			} else {
+				c.header(key, value);
+			}
+		});
+
+		// Get the body and create a new response with Hono's headers merged in
+		const body = await response.text();
+		return new Response(body, {
+			status: response.status,
+			headers: c.res.headers,
+		});
 	};
 }
 

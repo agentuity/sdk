@@ -1,15 +1,13 @@
 import { createRouter } from '@agentuity/runtime';
-import { requireScopes } from '@agentuity/auth/agentuity';
+import { mountBetterAuthRoutes, requireScopes } from '@agentuity/auth/agentuity';
 import hello from '@agent/hello';
 import { auth, authMiddleware, optionalAuthMiddleware } from '../auth';
 
 const api = createRouter();
 
-// BetterAuth handler routes - handles signup, signin, signout, session, token, etc.
-// Routes: /auth/sign-up/email, /auth/sign-in/email, /auth/sign-out, /auth/session, /auth/token, etc.
-api.on(['GET', 'POST'], '/auth/*', (c) => {
-	return auth.handler(c.req.raw);
-});
+// Mount BetterAuth routes (sign-in, sign-up, sign-out, session, token, etc.)
+// See mountBetterAuthRoutes docs for why this wrapper is required
+api.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(auth));
 
 // Public route - no auth required
 api.get('/health', (c) => {

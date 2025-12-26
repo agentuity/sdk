@@ -81,10 +81,10 @@ export type {
 } from './api-key-storage';
 
 // =============================================================================
-// Server (Hono middleware)
+// Server (Hono middleware and handlers)
 // =============================================================================
 
-export { createMiddleware, requireScopes } from './server';
+export { createMiddleware, mountBetterAuthRoutes, requireScopes } from './server';
 export type { AgentuityMiddlewareOptions, AgentuityAuthEnv, RequireScopesOptions } from './server';
 
 // =============================================================================

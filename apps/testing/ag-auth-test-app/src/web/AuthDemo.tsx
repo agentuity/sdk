@@ -4,6 +4,7 @@
  * Minimal login/signup UI for testing BetterAuth integration.
  */
 
+import React from 'react';
 import { useState, type FormEvent } from 'react';
 import { authClient, useSession } from './auth-client';
 import { useAPI, useAuth } from '@agentuity/react';
@@ -14,7 +15,6 @@ export function LoginForm() {
 	const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
-	const { setAuthHeader } = useAuth();
 
 	const onSubmit = async (e: FormEvent) => {
 		e.preventDefault();
@@ -22,28 +22,19 @@ export function LoginForm() {
 		setLoading(true);
 
 		try {
-			if (mode === 'signin') {
-				const result = await authClient.signIn.email({
-					email,
-					password,
-				});
-				if (result.error) {
-					setError(result.error.message || 'Sign in failed');
-				} else if (result.data?.token) {
-					setAuthHeader?.(`Bearer ${result.data.token}`);
-				}
-			} else {
-				const result = await authClient.signUp.email({
-					email,
-					password,
-					name: email.split('@')[0] ?? 'User',
-				});
-				if (result.error) {
-					setError(result.error.message || 'Sign up failed');
-				} else if (result.data?.token) {
-					setAuthHeader?.(`Bearer ${result.data.token}`);
-				}
+			const result =
+				mode === 'signin'
+					? await authClient.signIn.email({ email, password })
+					: await authClient.signUp.email({
+							email,
+							password,
+							name: email.split('@')[0] ?? 'User',
+						});
+
+			if (result.error) {
+				setError(result.error.message || `Sign ${mode === 'signin' ? 'in' : 'up'} failed`);
 			}
+			// No manual token bridging needed - session cookies handle auth
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Unknown error');
 		} finally {
@@ -154,14 +145,15 @@ export function LoginForm() {
 
 export function UserProfile() {
 	const { data: session, isPending } = useSession();
-	const { isAuthenticated, setAuthHeader } = useAuth();
+	const { isAuthenticated } = useAuth();
 	const { data: meData, refetch } = useAPI('GET /api/me');
-	
+
 	const userData = meData as { id?: string; name?: string; email?: string } | undefined;
 
 	const handleSignOut = async () => {
 		await authClient.signOut();
-		setAuthHeader?.(null);
+		// Reload to clear client-side session cache
+		window.location.reload();
 	};
 
 	const handleTestProtectedRoute = () => {
@@ -267,16 +259,22 @@ export function UserProfile() {
 }
 
 export function AuthDemo() {
+	const { data: session, isPending } = useSession();
 	const { isAuthenticated, authLoading } = useAuth();
 
-	if (authLoading) {
+	if (isPending || authLoading) {
 		return <div>Loading auth state...</div>;
 	}
+
+	// Use either BetterAuth session OR Agentuity auth state
+	const hasSession = !!session?.user || isAuthenticated;
+
+	console.log('AuthDemo', { session, isAuthenticated, hasSession });
 
 	return (
 		<div className="auth-demo">
 			<h2>Auth Demo</h2>
-			{isAuthenticated ? <UserProfile /> : <LoginForm />}
+			{hasSession ? <UserProfile /> : <LoginForm />}
 
 			<style>{`
 				.auth-demo {

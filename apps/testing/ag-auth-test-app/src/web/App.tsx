@@ -1,4 +1,5 @@
 import { useAPI } from '@agentuity/react';
+import React from 'react';
 import { type ChangeEvent, useState } from 'react';
 import { AuthDemo } from './AuthDemo';
 
