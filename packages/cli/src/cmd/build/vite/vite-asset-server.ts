@@ -59,7 +59,9 @@ export async function startViteAssetServer(
 			new Promise<never>((_, reject) => {
 				const timeoutId = setTimeout(() => {
 					reject(
-						new Error(`Vite asset server failed to start within ${STARTUP_TIMEOUT_MS / 1000}s`)
+						new Error(
+							`Vite asset server failed to start within ${STARTUP_TIMEOUT_MS / 1000}s`
+						)
 					);
 				}, STARTUP_TIMEOUT_MS);
 				// Clean up timeout when listen succeeds (via finally in the outer try)

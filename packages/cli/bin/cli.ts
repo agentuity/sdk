@@ -74,14 +74,16 @@ if (
 	exit(0);
 }
 
-// Check for legacy CLI and warn user (skip if --skip-legacy-check flag is present)
-const skipLegacyCheck = process.argv.includes('--skip-legacy-check');
+// Check for legacy CLI and warn user (skip via flag or env var)
+// Env var is preferred for programmatic use (e.g., test runners) since Commander.js
+// would fail on unknown CLI flags
+const skipLegacyCheck =
+	process.argv.includes('--skip-legacy-check') || process.env.AGENTUITY_SKIP_LEGACY_CHECK === '1';
 if (!skipLegacyCheck) {
 	await checkLegacyCLI();
 }
 
 const version = getVersion();
-
 const program = await createCLI(version);
 
 // Parse options early to check for color scheme override
@@ -139,6 +141,7 @@ const commands = await discoverCommands();
 // Find the command being run to check if it opts out of upgrade check
 const commandName = preprocessedArgs.find((arg) => !arg.startsWith('-'));
 const commandDef = commands.find((cmd) => cmd.name === commandName);
+
 await checkForUpdates(config, logger, earlyOpts, commandDef, preprocessedArgs);
 
 // Generate and store CLI schema globally for the schema command
