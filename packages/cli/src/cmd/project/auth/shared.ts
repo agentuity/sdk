@@ -431,9 +431,9 @@ export default createAgent({
 	tui.newline();
 	console.log(tui.muted('━'.repeat(60)));
 	tui.info('Checklist:');
-	console.log(`  ${tui.success('✓')} DATABASE_URL configured`);
-	console.log(`  ${tui.success('✓')} Auth tables migrated`);
-	console.log(`  ${tui.success('✓')} Dependencies installed`);
+	console.log(`  ${tui.tuiColors.success('✓')} DATABASE_URL configured`);
+	console.log(`  ${tui.tuiColors.success('✓')} Auth tables migrated`);
+	console.log(`  ${tui.tuiColors.success('✓')} Dependencies installed`);
 	console.log(`  ${tui.muted('○')} Wire Hono middleware`);
 	console.log(`  ${tui.muted('○')} Add auth routes`);
 	console.log(`  ${tui.muted('○')} Wrap app with AuthProvider`);
