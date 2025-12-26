@@ -2,10 +2,18 @@ import { safeStringify } from '../json';
 import { FetchAdapter, FetchResponse } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { StructuredError } from '../error';
-import {
-	WritableStream as WebWritableStream,
-	TransformStream as WebTransformStream,
-} from 'stream/web';
+
+// Use Web API streams - in Node.js/Bun, import from 'stream/web' which provides proper Web API
+// In browsers, use globalThis directly
+// Check for Node.js/Bun by looking for process.versions.node
+const isNode =
+	typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const streamWeb = isNode ? require('stream/web') : globalThis;
+const NativeWritableStream = streamWeb.WritableStream as typeof WritableStream;
+const NativeReadableStream = streamWeb.ReadableStream as typeof ReadableStream;
+const NativeCompressionStream = (streamWeb.CompressionStream ??
+	globalThis.CompressionStream) as typeof CompressionStream;
 
 /**
  * Properties for creating a stream
@@ -270,29 +278,32 @@ const encoder = new TextEncoder();
 const ReadStreamFailedError = StructuredError('ReadStreamFailedError')<{ status: number }>();
 
 /**
- * A writable stream implementation that extends WritableStream
+ * A writable stream implementation using composition (browser-compatible)
+ * This approach works across all environments since native WritableStream can't be properly extended
  */
-class StreamImpl extends WebWritableStream implements Stream {
+class StreamImpl implements Stream {
 	public readonly id: string;
 	public readonly url: string;
-	#activeWriter: WritableStreamDefaultWriter<Uint8Array> | null = null;
+	readonly #writable: WritableStream<Uint8Array>;
 	#compressed: boolean;
 	#adapter: FetchAdapter;
-	#sink: UnderlyingSink;
+	#sink: UnderlyingSinkState;
+	#closed = false;
 
 	constructor(
 		id: string,
 		url: string,
 		compressed: boolean,
-		underlyingSink: UnderlyingSink,
+		sink: UnderlyingSinkState,
+		writable: WritableStream<Uint8Array>,
 		adapter: FetchAdapter
 	) {
-		super(underlyingSink);
 		this.id = id;
 		this.url = url;
 		this.#compressed = compressed;
 		this.#adapter = adapter;
-		this.#sink = underlyingSink;
+		this.#sink = sink;
+		this.#writable = writable;
 	}
 
 	get bytesWritten(): number {
@@ -301,6 +312,11 @@ class StreamImpl extends WebWritableStream implements Stream {
 
 	get compressed(): boolean {
 		return this.#compressed;
+	}
+
+	// WritableStream interface properties
+	get locked(): boolean {
+		return this.#writable.locked;
 	}
 
 	/**
@@ -320,29 +336,21 @@ class StreamImpl extends WebWritableStream implements Stream {
 			binaryChunk = encoder.encode(String(chunk));
 		}
 
-		if (!this.#activeWriter) {
-			this.#activeWriter = super.getWriter();
-		}
-		await this.#activeWriter.write(binaryChunk);
+		// Delegate to the underlying sink's write method
+		await this.#sink.write(binaryChunk);
 	}
 
 	/**
-	 * Override close to handle already closed streams gracefully
-	 * This method safely closes the stream, or silently returns if already closed
+	 * Close the stream gracefully, handling already closed streams without error
 	 */
 	async close(): Promise<void> {
-		try {
-			// If we have an active writer from write() calls, use that
-			if (this.#activeWriter) {
-				const writer = this.#activeWriter;
-				this.#activeWriter = null;
-				await writer.close();
-				return;
-			}
+		if (this.#closed) {
+			return;
+		}
+		this.#closed = true;
 
-			// Otherwise, get a writer and close it
-			const writer = super.getWriter();
-			await writer.close();
+		try {
+			await this.#sink.close();
 		} catch (error) {
 			// If we get a TypeError about the stream being closed, locked, or errored,
 			// that means pipeTo() or another operation already closed it or it's in use
@@ -353,16 +361,30 @@ class StreamImpl extends WebWritableStream implements Stream {
 					error.message.includes('Cannot close'))
 			) {
 				// Silently return - this is the desired behavior
-				return Promise.resolve();
+				return;
 			}
 			// If the stream is locked, try to close the underlying writer
 			if (error instanceof TypeError && error.message.includes('locked')) {
 				// Best-effort closure for locked streams
-				return Promise.resolve();
+				return;
 			}
 			// Re-throw any other errors
 			throw error;
 		}
+	}
+
+	/**
+	 * Abort the stream with an optional reason
+	 */
+	abort(reason?: unknown): Promise<void> {
+		return this.#writable.abort(reason);
+	}
+
+	/**
+	 * Get a writer for the underlying stream
+	 */
+	getWriter(): WritableStreamDefaultWriter<Uint8Array> {
+		return this.#writable.getWriter();
 	}
 
 	/**
@@ -377,7 +399,8 @@ class StreamImpl extends WebWritableStream implements Stream {
 		const url = this.url;
 		const adapter = this.#adapter;
 		let ac: AbortController | null = null;
-		return new ReadableStream({
+		// Use native ReadableStream to avoid polyfill interference
+		return new NativeReadableStream({
 			async start(controller) {
 				try {
 					ac = new AbortController();
@@ -442,12 +465,13 @@ const StreamWriterInitializationError = StructuredError(
 
 const StreamAPIError = StructuredError('StreamAPIError')<{ status: number }>();
 
-// Create a WritableStream that writes to the backend stream
-// Create the underlying sink that will handle the actual streaming
-class UnderlyingSink {
+// State object that handles the actual streaming to the backend
+// This is used by StreamImpl to manage write operations
+class UnderlyingSinkState {
 	adapter: FetchAdapter;
 	abortController: AbortController | null = null;
 	writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
+	writable: WritableStream<Uint8Array> | null = null;
 	putRequestPromise: Promise<FetchResponse<unknown>> | null = null;
 	total = 0;
 	closed = false;
@@ -460,43 +484,39 @@ class UnderlyingSink {
 		this.props = props;
 	}
 
-	async start() {
+	async start(): Promise<WritableStream<Uint8Array>> {
 		// Create AbortController for the fetch request
 		this.abortController = new AbortController();
 
-		// Create a ReadableStream to pipe data to the PUT request
-		// eslint-disable-next-line prefer-const
-		let { readable, writable } = new WebTransformStream<Uint8Array, Uint8Array>();
+		// Create a pass-through WritableStream that writes to a ReadableStream
+		// Use native streams captured at module load to avoid polyfill interference
+		let readableController: ReadableStreamDefaultController<Uint8Array>;
+		const readable = new NativeReadableStream<Uint8Array>({
+			start: (controller) => {
+				readableController = controller;
+			},
+		});
 
-		// If compression is enabled, add gzip transform
+		// Create a WritableStream that pushes chunks to the ReadableStream
+		this.writable = new NativeWritableStream<Uint8Array>({
+			write: (chunk) => {
+				readableController.enqueue(chunk);
+				this.total += chunk.length;
+			},
+			close: () => {
+				readableController.close();
+			},
+			abort: (reason) => {
+				readableController.error(reason);
+			},
+		});
+
+		// If compression is enabled, pipe through gzip
+		let bodyStream: ReadableStream<Uint8Array> = readable;
 		if (this.props?.compress) {
-			const { Readable, Writable } = await import('node:stream');
-
-			// Create a new transform for the compressed output
-			const { readable: compressedReadable, writable: compressedWritable } =
-				new WebTransformStream<Uint8Array, Uint8Array>();
-
-			// Set up compression pipeline
-			const { createGzip } = await import('node:zlib');
-			const gzipStream = createGzip();
-			const nodeWritable = Writable.toWeb(gzipStream) as WritableStream<Uint8Array>;
-
-			// Pipe gzip output to the compressed readable
-			const gzipReader = Readable.toWeb(gzipStream) as ReadableStream<Uint8Array>;
-			gzipReader.pipeTo(compressedWritable).catch((error) => {
-				this.abortController?.abort(error);
-				this.writer?.abort(error).catch(() => {});
-			});
-
-			// Chain: writable -> gzip -> compressedReadable
-			readable.pipeTo(nodeWritable).catch((error) => {
-				this.abortController?.abort(error);
-				this.writer?.abort(error).catch(() => {});
-			});
-			readable = compressedReadable;
+			const compressionStream = new NativeCompressionStream('gzip');
+			bodyStream = readable.pipeThrough(compressionStream);
 		}
-
-		this.writer = writable.getWriter();
 
 		// Start the PUT request with the readable stream as body
 		const headers: Record<string, string> = {
@@ -510,44 +530,39 @@ class UnderlyingSink {
 		this.putRequestPromise = this.adapter.invoke(this.url, {
 			method: 'PUT',
 			headers,
-			body: readable,
+			body: bodyStream,
 			signal: this.abortController.signal,
 			duplex: 'half',
 		});
+
+		return this.writable;
 	}
 
-	async write(chunk: string | Uint8Array | ArrayBuffer | Buffer | object) {
-		if (!this.writer) {
+	async write(chunk: Uint8Array) {
+		if (!this.writable) {
 			throw new StreamWriterInitializationError();
 		}
-		// Convert input to Uint8Array if needed
-		let binaryChunk: Uint8Array;
-		if (chunk instanceof Uint8Array) {
-			binaryChunk = chunk;
-		} else if (typeof chunk === 'string') {
-			binaryChunk = new TextEncoder().encode(chunk);
-		} else if (chunk instanceof ArrayBuffer) {
-			binaryChunk = new Uint8Array(chunk);
-		} else if (typeof chunk === 'object' && chunk !== null) {
-			// Convert objects to JSON string, then to bytes
-			binaryChunk = new TextEncoder().encode(safeStringify(chunk));
-		} else {
-			// Handle primitive types (number, boolean, etc.)
-			binaryChunk = new TextEncoder().encode(String(chunk));
+		if (!this.writer) {
+			this.writer = this.writable.getWriter();
 		}
-		// Write the chunk to the transform stream, which pipes to the PUT request
-		await this.writer.write(binaryChunk);
-		this.total += binaryChunk.length;
+		// Write the chunk to the writable stream
+		await this.writer.write(chunk);
 	}
 	async close() {
 		if (this.closed) {
 			return;
 		}
 		this.closed = true;
-		if (this.writer) {
+
+		// Close the writable stream - get writer if we don't have one
+		if (this.writable) {
+			if (!this.writer) {
+				this.writer = this.writable.getWriter();
+			}
 			await this.writer.close();
 			this.writer = null;
 		}
+
 		// Wait for the PUT request to complete
 		if (this.putRequestPromise) {
 			try {
@@ -641,13 +656,16 @@ export class StreamStorageService implements StreamStorage {
 		});
 		if (res.ok) {
 			const streamUrl = buildUrl(this.#baseUrl, res.data.id);
-			const underlyingSink = new UnderlyingSink(streamUrl, this.#adapter, props);
+			const sink = new UnderlyingSinkState(streamUrl, this.#adapter, props);
+			// Initialize the sink (start the PUT request) and get the writable stream
+			const writable = await sink.start();
 
 			const stream = new StreamImpl(
 				res.data.id,
 				streamUrl,
 				props?.compress ?? false,
-				underlyingSink,
+				sink,
+				writable,
 				this.#adapter
 			);
 

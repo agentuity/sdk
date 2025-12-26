@@ -509,6 +509,336 @@ describe('StreamStorageService', () => {
 		});
 	});
 
+	describe('get', () => {
+		test('should get stream info by id', async () => {
+			const mockResponse = {
+				id: 'stream-123',
+				name: 'test-stream',
+				metadata: { type: 'video' },
+				url: 'https://example.com/stream-123',
+				size_bytes: 2048,
+			};
+			const { adapter, calls } = createMockAdapter([{ ok: true, data: mockResponse }]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			const result = await service.get('stream-123');
+
+			expect(result.id).toBe('stream-123');
+			expect(result.name).toBe('test-stream');
+			expect(result.metadata).toEqual({ type: 'video' });
+			expect(result.sizeBytes).toBe(2048);
+			expect(calls[0].url).toBe(`${baseUrl}/stream-123/info`);
+			expect(calls[0].options?.method).toBe('POST');
+		});
+
+		test('should throw error for empty id', async () => {
+			const { adapter } = createMockAdapter([]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+
+			await expect(service.get('')).rejects.toThrow(
+				'Stream id is required and must be a non-empty string'
+			);
+		});
+
+		test('should throw ServiceException on error response', async () => {
+			const { adapter } = createMockAdapter([
+				{ ok: false, status: 404, body: { error: 'Not Found' } },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+
+			await expect(service.get('nonexistent-stream')).rejects.toBeInstanceOf(ServiceException);
+		});
+	});
+
+	describe('download', () => {
+		test('should download stream content as ReadableStream', async () => {
+			const testData = new TextEncoder().encode('hello world');
+			const mockResponse = {
+				ok: true,
+				data: undefined,
+				headers: { 'content-type': 'application/octet-stream' },
+			};
+
+			const { adapter, calls } = createMockAdapter([mockResponse]);
+
+			// Override the response to have a proper body
+			const originalInvoke = adapter.invoke;
+			adapter.invoke = async <T>(
+				url: string,
+				options: import('../src/services/adapter').FetchRequest
+			) => {
+				const result = await originalInvoke<T>(url, options);
+				if (options.method === 'GET' && url.includes('stream-123')) {
+					const stream = new ReadableStream({
+						start(controller) {
+							controller.enqueue(testData);
+							controller.close();
+						},
+					});
+					return {
+						ok: true as const,
+						data: undefined as never,
+						response: new Response(stream, { status: 200 }),
+					};
+				}
+				return result;
+			};
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			const readable = await service.download('stream-123');
+
+			expect(readable).toBeInstanceOf(ReadableStream);
+
+			// Read the stream content
+			const reader = readable.getReader();
+			const { value, done } = await reader.read();
+			expect(done).toBe(false);
+			expect(value).toEqual(testData);
+
+			const { done: done2 } = await reader.read();
+			expect(done2).toBe(true);
+
+			expect(calls[0].url).toBe(`${baseUrl}/stream-123`);
+			expect(calls[0].options?.method).toBe('GET');
+		});
+
+		test('should throw error for empty id', async () => {
+			const { adapter } = createMockAdapter([]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+
+			await expect(service.download('')).rejects.toThrow(
+				'Stream id is required and must be a non-empty string'
+			);
+		});
+	});
+
+	describe('compression with Web Compression Streams API', () => {
+		test('should write compressed data using CompressionStream', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-compressed' } },
+				{ ok: true },
+			]);
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			const stream = await service.create('test-stream', { compress: true });
+
+			expect(stream.compressed).toBe(true);
+
+			await stream.write('hello world');
+			await stream.close();
+
+			// Verify the PUT request has Content-Encoding: gzip header
+			const putCall = calls.find((c) => c.options?.method === 'PUT');
+			expect(putCall).toBeDefined();
+			expect(putCall?.options?.headers?.['Content-Encoding']).toBe('gzip');
+		});
+
+		test('should produce valid gzip compressed output', async () => {
+			const chunks: Uint8Array[] = [];
+			const { adapter } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-gzip-test' } },
+				{ ok: true },
+			]);
+
+			// Intercept the PUT request to capture the compressed data
+			const originalInvoke = adapter.invoke;
+			adapter.invoke = async <T>(
+				url: string,
+				options: import('../src/services/adapter').FetchRequest
+			) => {
+				if (options.method === 'PUT' && options.body instanceof ReadableStream) {
+					const reader = options.body.getReader();
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) break;
+						if (value) chunks.push(value);
+					}
+					return {
+						ok: true as const,
+						data: undefined as never,
+						response: new Response(null, { status: 200 }),
+					};
+				}
+				return originalInvoke<T>(url, options);
+			};
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			const stream = await service.create('test-stream', { compress: true });
+
+			const testData = 'Hello, this is test data for compression!';
+			await stream.write(testData);
+			await stream.close();
+
+			// Verify we got compressed data (gzip magic bytes are 0x1f 0x8b)
+			expect(chunks.length).toBeGreaterThan(0);
+			const allData = new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0));
+			let offset = 0;
+			for (const chunk of chunks) {
+				allData.set(chunk, offset);
+				offset += chunk.length;
+			}
+
+			// Check gzip magic bytes
+			expect(allData[0]).toBe(0x1f);
+			expect(allData[1]).toBe(0x8b);
+
+			// Decompress and verify original content
+			const decompressedStream = new ReadableStream({
+				start(controller) {
+					controller.enqueue(allData);
+					controller.close();
+				},
+			}).pipeThrough(new DecompressionStream('gzip'));
+
+			const decompressedReader = decompressedStream.getReader();
+			const decompressedChunks: Uint8Array[] = [];
+			while (true) {
+				const { done, value } = await decompressedReader.read();
+				if (done) break;
+				if (value) decompressedChunks.push(value);
+			}
+
+			const decompressedData = new TextDecoder().decode(
+				new Uint8Array(decompressedChunks.reduce((acc, c) => acc + c.length, 0)).map((_, i) => {
+					let offset = 0;
+					for (const chunk of decompressedChunks) {
+						if (i < offset + chunk.length) {
+							return chunk[i - offset];
+						}
+						offset += chunk.length;
+					}
+					return 0;
+				})
+			);
+
+			expect(decompressedData).toBe(testData);
+		});
+	});
+
+	describe('getReader', () => {
+		test('should return a ReadableStream from getReader()', async () => {
+			const testData = new TextEncoder().encode('streamed content');
+			const { adapter } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-reader' } },
+				{ ok: true },
+			]);
+
+			// Override invoke for GET request to stream URL
+			const originalInvoke = adapter.invoke;
+			adapter.invoke = async <T>(
+				url: string,
+				options: import('../src/services/adapter').FetchRequest
+			) => {
+				if (options.method === 'GET' && url.includes('stream-reader')) {
+					const stream = new ReadableStream({
+						start(controller) {
+							controller.enqueue(testData);
+							controller.close();
+						},
+					});
+					return {
+						ok: true as const,
+						data: undefined as never,
+						response: new Response(stream, { status: 200 }),
+					};
+				}
+				return originalInvoke<T>(url, options);
+			};
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			const stream = await service.create('test-stream');
+
+			const readable = stream.getReader();
+
+			expect(readable).toBeInstanceOf(ReadableStream);
+
+			// Read the content
+			const reader = readable.getReader();
+			const { value } = await reader.read();
+			expect(value).toEqual(testData);
+		});
+
+		test('should handle errors in getReader stream', async () => {
+			const { adapter } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-error' } },
+				{ ok: true },
+			]);
+
+			// Override invoke to return error for GET
+			const originalInvoke = adapter.invoke;
+			adapter.invoke = async <T>(
+				url: string,
+				options: import('../src/services/adapter').FetchRequest
+			) => {
+				if (options.method === 'GET' && url.includes('stream-error')) {
+					return {
+						ok: false as const,
+						data: undefined as never,
+						response: new Response(null, {
+							status: 500,
+							statusText: 'Internal Server Error',
+						}),
+					};
+				}
+				return originalInvoke<T>(url, options);
+			};
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			const stream = await service.create('test-stream');
+
+			const readable = stream.getReader();
+			const reader = readable.getReader();
+
+			await expect(reader.read()).rejects.toThrow();
+		});
+
+		test('should support cancellation in getReader', async () => {
+			let abortCalled = false;
+			const { adapter } = createMockAdapter([
+				{ ok: true, data: { id: 'stream-cancel' } },
+				{ ok: true },
+			]);
+
+			// Override invoke to track abort
+			const originalInvoke = adapter.invoke;
+			adapter.invoke = async <T>(
+				url: string,
+				options: import('../src/services/adapter').FetchRequest
+			) => {
+				if (options.method === 'GET' && url.includes('stream-cancel')) {
+					if (options.signal) {
+						options.signal.addEventListener('abort', () => {
+							abortCalled = true;
+						});
+					}
+					// Return a stream that never completes
+					const stream = new ReadableStream({
+						start() {
+							// Don't close - simulates long-running stream
+						},
+					});
+					return {
+						ok: true as const,
+						data: undefined as never,
+						response: new Response(stream, { status: 200 }),
+					};
+				}
+				return originalInvoke<T>(url, options);
+			};
+
+			const service = new StreamStorageService(baseUrl, adapter);
+			const stream = await service.create('test-stream');
+
+			const readable = stream.getReader();
+			await readable.cancel('test cancellation');
+
+			expect(abortCalled).toBe(true);
+		});
+	});
+
 	describe('telemetry attributes', () => {
 		test('should include telemetry for create operation', async () => {
 			const { adapter, calls } = createMockAdapter([
