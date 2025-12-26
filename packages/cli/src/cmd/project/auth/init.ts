@@ -77,42 +77,36 @@ export const initSubcommand = createSubcommand({
 			}
 		}
 
-		if (!databaseUrl) {
-			tui.info('No DATABASE_URL found. Let\'s set up a database.');
-			tui.newline();
+		// Show database picker (with existing as first option if configured)
+		const dbInfo = await selectOrCreateDatabase({
+			logger,
+			auth,
+			orgId,
+			region,
+			existingUrl: databaseUrl,
+		});
 
-			const dbInfo = await selectOrCreateDatabase({
-				logger,
-				auth,
-				orgId,
-				region,
-			});
+		databaseName = dbInfo.name;
 
-			databaseUrl = dbInfo.url;
-			databaseName = dbInfo.name;
-
-			// Write to .env
+		// Update .env if database changed
+		if (dbInfo.url !== databaseUrl) {
 			const envPath = path.join(projectDir, '.env');
 			let envContent = '';
 
 			if (fs.existsSync(envPath)) {
 				envContent = fs.readFileSync(envPath, 'utf-8');
-				if (!envContent.endsWith('\n')) {
+				// Remove existing DATABASE_URL if present
+				envContent = envContent.replace(/^DATABASE_URL=.*\n?/m, '');
+				if (!envContent.endsWith('\n') && envContent.length > 0) {
 					envContent += '\n';
 				}
 			}
 
-			envContent += `DATABASE_URL="${databaseUrl}"\n`;
+			envContent += `DATABASE_URL="${dbInfo.url}"\n`;
 			fs.writeFileSync(envPath, envContent);
-			tui.success('DATABASE_URL added to .env');
+			tui.success('DATABASE_URL updated in .env');
 		} else {
-			tui.success('DATABASE_URL already configured');
-
-			// Try to extract database name from URL for migrations
-			const urlMatch = databaseUrl.match(/\/([^/?]+)(\?|$)/);
-			if (urlMatch) {
-				databaseName = urlMatch[1];
-			}
+			tui.success(`Using database: ${databaseName}`);
 		}
 
 		// Step 2: Install dependencies

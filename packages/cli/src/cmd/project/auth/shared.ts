@@ -26,8 +26,9 @@ export async function selectOrCreateDatabase(options: {
 	auth: AuthData;
 	orgId: string;
 	region: string;
+	existingUrl?: string;
 }): Promise<DatabaseInfo> {
-	const { logger, auth, orgId, region } = options;
+	const { logger, auth, orgId, region, existingUrl } = options;
 	const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 	const resources = await tui.spinner({
@@ -38,14 +39,38 @@ export async function selectOrCreateDatabase(options: {
 
 	const databases = resources.db;
 
+	// Extract existing database name from URL if provided
+	let existingDbName: string | undefined;
+	if (existingUrl) {
+		const urlMatch = existingUrl.match(/\/([^/?]+)(\?|$)/);
+		if (urlMatch) {
+			existingDbName = urlMatch[1];
+		}
+	}
+
 	type Choice = { name: string; message: string };
-	const choices: Choice[] = [
-		{ name: '__create__', message: tui.bold('+ Create new database') },
-		...databases.map((db) => ({
-			name: db.name,
-			message: `${db.name}`,
-		})),
-	];
+	const choices: Choice[] = [];
+
+	// Add "use existing" option first if we have an existing URL
+	if (existingUrl && existingDbName) {
+		choices.push({
+			name: '__existing__',
+			message: `${tui.tuiColors.success('✓')} Use existing: ${existingDbName}`,
+		});
+	}
+
+	// Add create new option
+	choices.push({ name: '__create__', message: tui.bold('+ Create new database') });
+
+	// Add other databases
+	choices.push(
+		...databases
+			.filter((db) => db.name !== existingDbName) // Don't duplicate existing
+			.map((db) => ({
+				name: db.name,
+				message: db.name,
+			}))
+	);
 
 	const response = await enquirer.prompt<{ database: string }>({
 		type: 'select',
@@ -53,6 +78,11 @@ export async function selectOrCreateDatabase(options: {
 		message: 'Select a database for auth:',
 		choices,
 	});
+
+	// Handle "use existing" selection
+	if (response.database === '__existing__' && existingUrl && existingDbName) {
+		return { name: existingDbName, url: existingUrl };
+	}
 
 	if (response.database === '__create__') {
 		const created = await tui.spinner({
