@@ -465,6 +465,18 @@ const StreamWriterInitializationError = StructuredError(
 
 const StreamAPIError = StructuredError('StreamAPIError')<{ status: number }>();
 
+/**
+ * Check if compression is available in the current environment.
+ * CompressionStream is available in:
+ * - Node.js 18+ (via stream/web)
+ * - Chrome 80+
+ * - Safari 16.4+
+ * - Firefox 113+
+ */
+function isCompressionAvailable(): boolean {
+	return typeof NativeCompressionStream !== 'undefined' && NativeCompressionStream !== null;
+}
+
 // State object that handles the actual streaming to the backend
 // This is used by StreamImpl to manage write operations
 class UnderlyingSinkState {
@@ -477,6 +489,7 @@ class UnderlyingSinkState {
 	closed = false;
 	url: string;
 	props?: CreateStreamProps;
+	compressionEnabled = false;
 
 	constructor(url: string, adapter: FetchAdapter, props?: CreateStreamProps) {
 		this.url = url;
@@ -511,9 +524,11 @@ class UnderlyingSinkState {
 			},
 		});
 
-		// If compression is enabled, pipe through gzip
+		// If compression is enabled and available, pipe through gzip
+		// Gracefully skip compression if CompressionStream is not available
 		let bodyStream: ReadableStream<Uint8Array> = readable;
-		if (this.props?.compress) {
+		this.compressionEnabled = !!(this.props?.compress && isCompressionAvailable());
+		if (this.compressionEnabled) {
 			const compressionStream = new NativeCompressionStream('gzip');
 			bodyStream = readable.pipeThrough(compressionStream);
 		}
@@ -523,7 +538,7 @@ class UnderlyingSinkState {
 			'Content-Type': this.props?.contentType || 'application/octet-stream',
 		};
 
-		if (this.props?.compress) {
+		if (this.compressionEnabled) {
 			headers['Content-Encoding'] = 'gzip';
 		}
 
@@ -663,7 +678,7 @@ export class StreamStorageService implements StreamStorage {
 			const stream = new StreamImpl(
 				res.data.id,
 				streamUrl,
-				props?.compress ?? false,
+				sink.compressionEnabled,
 				sink,
 				writable,
 				this.#adapter
