@@ -8,6 +8,12 @@
 import { resolve, join } from 'path';
 import { existsSync, readFileSync } from 'fs';
 
+// Debug logging - only enabled in CI
+const DEBUG = process.env.CI === 'true';
+const debug = (msg: string) => {
+	if (DEBUG) console.log(`[CLI] ${msg}`);
+};
+
 // Find monorepo root by walking up until we find package.json with workspaces
 function findMonorepoRoot(startDir: string): string | null {
 	let currentDir = startDir;
@@ -87,9 +93,9 @@ const CLI_PATH = resolveCliPath();
 const PROJECT_DIR =
 	findProjectDir(process.cwd()) || findProjectDir(import.meta.dir) || process.cwd();
 
-// Log CLI path for debugging (will appear in server startup logs)
-console.log(`[CLI-TEST] CLI_PATH: ${CLI_PATH}`);
-console.log(`[CLI-TEST] PROJECT_DIR: ${PROJECT_DIR}`);
+// Log CLI path once at startup (only in CI)
+debug(`CLI_PATH: ${CLI_PATH}`);
+debug(`PROJECT_DIR: ${PROJECT_DIR}`);
 
 export interface CLIResult {
 	stdout: string;
@@ -116,17 +122,10 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 		AGENTUITY_SKIP_VERSION_CHECK: '1',
 	};
 
-	// Debug logging
-	console.log(`[CLI-DEBUG] runCLI called with args: ${JSON.stringify(args)}`);
-	console.log(`[CLI-DEBUG] CLI_PATH: ${CLI_PATH}`);
-	console.log(`[CLI-DEBUG] PROJECT_DIR: ${PROJECT_DIR}`);
-	console.log(`[CLI-DEBUG] CLI file exists: ${existsSync(CLI_PATH)}`);
-
 	try {
 		// Use Bun.spawn instead of Bun.$ for more reliable subprocess execution
 		// Bun.$ has issues with array argument expansion in some environments
 		const cmd = ['bun', CLI_PATH, ...args];
-		console.log(`[CLI-DEBUG] Executing: ${cmd.join(' ')}`);
 
 		const proc = Bun.spawn(cmd, {
 			cwd: PROJECT_DIR,
@@ -139,7 +138,6 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 		const stdoutChunks: Uint8Array[] = [];
 		const stderrChunks: Uint8Array[] = [];
 
-		// Read stdout
 		if (proc.stdout) {
 			const reader = proc.stdout.getReader();
 			while (true) {
@@ -149,7 +147,6 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 			}
 		}
 
-		// Read stderr
 		if (proc.stderr) {
 			const reader = proc.stderr.getReader();
 			while (true) {
@@ -159,7 +156,6 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 			}
 		}
 
-		// Wait for process to exit
 		const exitCode = await proc.exited;
 
 		// Combine chunks into strings
@@ -170,23 +166,15 @@ export async function runCLI(args: string[]): Promise<CLIResult> {
 			new Uint8Array(stderrChunks.reduce((acc, chunk) => [...acc, ...chunk], [] as number[]))
 		);
 
-		console.log(`[CLI-DEBUG] exitCode: ${exitCode}`);
-		console.log(`[CLI-DEBUG] stdout length: ${stdout.length}`);
-		console.log(`[CLI-DEBUG] stderr length: ${stderr.length}`);
-
-		if (exitCode !== 0 && stderr) {
-			console.log(`[CLI-DEBUG] stderr: ${stderr.slice(0, 500)}`);
+		// Log failures in CI for debugging
+		if (exitCode !== 0) {
+			debug(`Command failed: ${args.join(' ')} (exit ${exitCode})`);
+			if (stderr) debug(`stderr: ${stderr.slice(0, 200)}`);
 		}
 
-		return {
-			stdout,
-			stderr,
-			exitCode,
-		};
+		return { stdout, stderr, exitCode };
 	} catch (error: any) {
-		console.log(`[CLI-DEBUG] Error caught: ${error.message}`);
-		console.log(`[CLI-DEBUG] Error stack: ${error.stack?.slice(0, 500)}`);
-
+		debug(`Error: ${error.message}`);
 		return {
 			stdout: '',
 			stderr: error.message || 'Unknown error',
