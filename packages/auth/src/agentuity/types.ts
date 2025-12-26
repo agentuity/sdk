@@ -92,5 +92,3 @@ export interface WithSessionContext<TUser = unknown, TSession = unknown> {
 	 */
 	hasScope: (scope: string) => boolean;
 }
-
-
