@@ -1,0 +1,125 @@
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { mkdirSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import {
+	AUTH_DEPENDENCIES,
+	AGENTUITY_AUTH_BASELINE_SQL,
+	generateAuthFileContent,
+} from '../../../../src/cmd/project/auth/shared';
+
+describe('project auth shared', () => {
+	let testDir: string;
+
+	beforeEach(() => {
+		testDir = join(tmpdir(), `auth-shared-test-${Date.now()}-${Math.random()}`);
+		mkdirSync(testDir, { recursive: true });
+	});
+
+	afterEach(() => {
+		if (testDir) {
+			rmSync(testDir, { recursive: true, force: true });
+		}
+	});
+
+	describe('AUTH_DEPENDENCIES', () => {
+		test('should include @agentuity/auth', () => {
+			expect(AUTH_DEPENDENCIES['@agentuity/auth']).toBe('latest');
+		});
+
+		test('should include better-auth', () => {
+			expect(AUTH_DEPENDENCIES['better-auth']).toBe('^1.2.0');
+		});
+
+		test('should include pg', () => {
+			expect(AUTH_DEPENDENCIES['pg']).toBe('^8.13.0');
+		});
+
+		test('should have exactly 3 dependencies', () => {
+			expect(Object.keys(AUTH_DEPENDENCIES)).toHaveLength(3);
+		});
+	});
+
+	describe('AGENTUITY_AUTH_BASELINE_SQL', () => {
+		test('should include user table creation', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "user"');
+		});
+
+		test('should include session table creation', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "session"');
+		});
+
+		test('should include account table creation', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "account"');
+		});
+
+		test('should include verification table creation', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "verification"');
+		});
+
+		test('should include organization table creation', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "organization"');
+		});
+
+		test('should include member table creation', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "member"');
+		});
+
+		test('should include invitation table creation', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "invitation"');
+		});
+
+		test('should include jwks table creation', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "jwks"');
+		});
+
+		test('should include apiKey table creation', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "apiKey"');
+		});
+
+		test('should include indexes', () => {
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE INDEX IF NOT EXISTS');
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('"session_userId_idx"');
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('"apiKey_key_idx"');
+		});
+
+		test('should be idempotent (uses IF NOT EXISTS)', () => {
+			const createStatements = AGENTUITY_AUTH_BASELINE_SQL.match(/CREATE TABLE/g) || [];
+			const ifNotExistsCount =
+				AGENTUITY_AUTH_BASELINE_SQL.match(/CREATE TABLE IF NOT EXISTS/g) || [];
+			expect(createStatements.length).toBe(ifNotExistsCount.length);
+		});
+	});
+
+	describe('generateAuthFileContent', () => {
+		test('should return valid TypeScript content', () => {
+			const content = generateAuthFileContent();
+			expect(content).toContain("import { Pool } from 'pg'");
+		});
+
+		test('should import from @agentuity/auth/agentuity', () => {
+			const content = generateAuthFileContent();
+			expect(content).toContain("from '@agentuity/auth/agentuity'");
+		});
+
+		test('should create pool with DATABASE_URL', () => {
+			const content = generateAuthFileContent();
+			expect(content).toContain('connectionString: process.env.DATABASE_URL');
+		});
+
+		test('should export auth instance', () => {
+			const content = generateAuthFileContent();
+			expect(content).toContain('export const auth = createAgentuityAuth');
+		});
+
+		test('should export authMiddleware', () => {
+			const content = generateAuthFileContent();
+			expect(content).toContain('export const authMiddleware = createMiddleware');
+		});
+
+		test('should set basePath to /api/auth', () => {
+			const content = generateAuthFileContent();
+			expect(content).toContain("basePath: '/api/auth'");
+		});
+	});
+});
