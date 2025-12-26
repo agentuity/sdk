@@ -400,19 +400,19 @@ declare module '@agentuity/react' {
 		ws: {
 			echo: {
 				/**
-				 * Route: POST /api/ws/echo
+				 * Route: GET /api/ws/echo
 				 */
 				websocket: { input: never; output: never; type: 'websocket' };
 			};
 			broadcast: {
 				/**
-				 * Route: POST /api/ws/broadcast
+				 * Route: GET /api/ws/broadcast
 				 */
 				websocket: { input: never; output: never; type: 'websocket' };
 			};
 			counter: {
 				/**
-				 * Route: POST /api/ws/counter
+				 * Route: GET /api/ws/counter
 				 */
 				websocket: { input: never; output: never; type: 'websocket' };
 			};
@@ -420,31 +420,31 @@ declare module '@agentuity/react' {
 		sse: {
 			simple: {
 				/**
-				 * Route: POST /api/sse/simple
+				 * Route: GET /api/sse/simple
 				 */
 				eventstream: { input: never; output: never; type: 'sse' };
 			};
 			events: {
 				/**
-				 * Route: POST /api/sse/events
+				 * Route: GET /api/sse/events
 				 */
 				eventstream: { input: never; output: never; type: 'sse' };
 			};
 			counter: {
 				/**
-				 * Route: POST /api/sse/counter
+				 * Route: GET /api/sse/counter
 				 */
 				eventstream: { input: never; output: never; type: 'sse' };
 			};
 			longLived: {
 				/**
-				 * Route: POST /api/sse/long-lived
+				 * Route: GET /api/sse/long-lived
 				 */
 				eventstream: { input: never; output: never; type: 'sse' };
 			};
 			abortTest: {
 				/**
-				 * Route: POST /api/sse/abort-test
+				 * Route: GET /api/sse/abort-test
 				 */
 				eventstream: { input: never; output: never; type: 'sse' };
 			};

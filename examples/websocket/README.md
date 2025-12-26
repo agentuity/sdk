@@ -32,34 +32,31 @@ websocat ws://localhost:3500/agent/websocket
 ### Creating a WebSocket Agent
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, websocket } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.websocket('/agent/websocket', (c) => {
-	return {
-		onOpen: (evt, ws) => {
+router.get(
+	'/agent/websocket',
+	websocket((c, ws) => {
+		ws.onOpen(() => {
 			console.log('Client connected');
 			ws.send('Welcome!');
-		},
+		});
 
-		onMessage: (evt, ws) => {
-			const message = evt.data;
+		ws.onMessage((event) => {
+			const message = event.data;
 			console.log('Received:', message);
 
 			// Echo back
 			ws.send(`Echo: ${message}`);
-		},
+		});
 
-		onClose: () => {
+		ws.onClose(() => {
 			console.log('Client disconnected');
-		},
-
-		onError: (evt, ws) => {
-			console.error('WebSocket error:', evt);
-		},
-	};
-});
+		});
+	})
+);
 
 export default router;
 ```

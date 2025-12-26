@@ -32,12 +32,13 @@ curl http://localhost:3500/agent/sse
 ### Creating an SSE Endpoint
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, sse } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.sse('/agent/sse', (c) => {
-	return c.streamSSE(async (stream) => {
+router.get(
+	'/agent/sse',
+	sse((c, stream) => {
 		let id = 0;
 
 		const interval = setInterval(() => {
@@ -55,8 +56,8 @@ router.sse('/agent/sse', (c) => {
 		stream.onAbort(() => {
 			clearInterval(interval);
 		});
-	});
-});
+	})
+);
 
 export default router;
 ```
