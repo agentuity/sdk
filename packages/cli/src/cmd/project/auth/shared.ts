@@ -2,7 +2,6 @@
  * Shared helpers for Agentuity Auth setup
  */
 
-import { z } from 'zod';
 import { listResources, createResources, dbQuery } from '@agentuity/server';
 import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
@@ -132,7 +131,7 @@ export async function ensureAuthDependencies(options: {
 	projectDir: string;
 	logger: Logger;
 }): Promise<boolean> {
-	const { projectDir, logger } = options;
+	const { projectDir } = options;
 	const fs = await import('fs');
 	const path = await import('path');
 

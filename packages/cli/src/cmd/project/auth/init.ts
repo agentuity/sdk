@@ -41,7 +41,7 @@ export const initSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, auth, orgId, region, options } = ctx;
+		const { logger, opts, auth, orgId, region } = ctx;
 
 		tui.newline();
 		tui.info(tui.bold('Agentuity Auth Setup'));
@@ -63,7 +63,6 @@ export const initSubcommand = createSubcommand({
 
 		// Step 1: Check for DATABASE_URL or select/create database
 		let databaseUrl = process.env.DATABASE_URL;
-		let databaseName: string | undefined;
 
 		if (!databaseUrl) {
 			// Check .env file
@@ -86,7 +85,7 @@ export const initSubcommand = createSubcommand({
 			existingUrl: databaseUrl,
 		});
 
-		databaseName = dbInfo.name;
+		const databaseName = dbInfo.name;
 
 		// Update .env if database changed
 		if (dbInfo.url !== databaseUrl) {

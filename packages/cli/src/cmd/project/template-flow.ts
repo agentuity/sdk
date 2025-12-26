@@ -30,6 +30,12 @@ import {
 	splitEnvAndSecrets,
 } from '../../env-util';
 import { promptForDNS } from '../../domain';
+import {
+	ensureAuthDependencies,
+	runAuthMigrations,
+	generateAuthFileContent,
+	printIntegrationExamples,
+} from './auth/shared';
 
 type ResourcesTypes = z.infer<typeof Resources>;
 
@@ -350,6 +356,92 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 	}
 
+	// Auth setup prompt
+	let authEnabled = false;
+	let authDatabaseName: string | undefined;
+	let authDatabaseUrl: string | undefined;
+
+	if (auth && catalystClient && orgId && region && !skipPrompts) {
+		const enableAuth = await prompt.select({
+			message: 'Enable Agentuity Authentication?',
+			options: [
+				{ value: 'no', label: 'No, I\'ll add auth later' },
+				{ value: 'yes', label: 'Yes, set up Agentuity Auth (BetterAuth)' },
+			],
+		});
+
+		if (enableAuth === 'yes') {
+			authEnabled = true;
+
+			// If a database was already selected/created above, offer to use it
+			if (resourceConfig.db) {
+				const useExisting = await prompt.confirm({
+					message: `Use the database "${resourceConfig.db}" for auth?`,
+					initial: true,
+				});
+
+				if (useExisting) {
+					authDatabaseName = resourceConfig.db;
+					// Fetch the URL for this database
+					const resources = await listResources(catalystClient, orgId, region);
+					const dbInfo = resources.db.find((d) => d.name === resourceConfig.db);
+					if (dbInfo?.url) {
+						authDatabaseUrl = dbInfo.url;
+					}
+				}
+			}
+
+			// If no database selected yet, create one for auth
+			if (!authDatabaseName) {
+				const created = await tui.spinner({
+					message: 'Provisioning database for auth',
+					clearOnSuccess: true,
+					callback: async () => {
+						return createResources(catalystClient, orgId, region!, [{ type: 'db' }]);
+					},
+				});
+				authDatabaseName = created[0].name;
+
+				// Fetch the URL
+				const resources = await listResources(catalystClient, orgId, region);
+				const dbInfo = resources.db.find((d) => d.name === authDatabaseName);
+				if (dbInfo?.url) {
+					authDatabaseUrl = dbInfo.url;
+				}
+
+				// Also set it as the project's database if not already set
+				if (!resourceConfig.db) {
+					resourceConfig.db = authDatabaseName;
+				}
+			}
+
+			// Install auth dependencies
+			await ensureAuthDependencies({ projectDir: dest, logger });
+
+			// Generate auth.ts
+			const authFilePath = resolve(dest, 'src', 'auth.ts');
+			if (!existsSync(authFilePath)) {
+				const srcDir = resolve(dest, 'src');
+				if (!existsSync(srcDir)) {
+					await Bun.write(resolve(srcDir, '.gitkeep'), '');
+				}
+				await Bun.write(authFilePath, generateAuthFileContent());
+				tui.success('Created src/auth.ts');
+			}
+
+			// Run migrations
+			if (authDatabaseName) {
+				await runAuthMigrations({
+					logger,
+					auth,
+					orgId,
+					region,
+					databaseName: authDatabaseName,
+				});
+			}
+		}
+	}
+
 	let projectId: string | undefined;
 
 	if (auth && apiClient && orgId) {
@@ -391,6 +483,23 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				});
 			},
 		});
+
+		// Write DATABASE_URL to .env after createProjectConfig (which overwrites .env)
+		if (authDatabaseUrl) {
+			const envPath = resolve(dest, '.env');
+			let envContent = '';
+
+			if (existsSync(envPath)) {
+				envContent = await Bun.file(envPath).text();
+				if (!envContent.endsWith('\n') && envContent.length > 0) {
+					envContent += '\n';
+				}
+			}
+
+			envContent += `DATABASE_URL="${authDatabaseUrl}"\n`;
+			await Bun.write(envPath, envContent);
+			tui.success('DATABASE_URL added to .env');
+		}
 
 		// After registration, push any existing env/secrets from .env.production
 		if (projectId) {
@@ -460,6 +569,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			tui.newline();
 			await promptForDNS(projectId, _domains, config);
 		}
+	}
+
+	// Print auth integration examples if auth was enabled
+	if (authEnabled) {
+		printIntegrationExamples();
 	}
 }
 
