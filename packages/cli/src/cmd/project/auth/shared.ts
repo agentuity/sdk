@@ -182,132 +182,14 @@ export async function ensureAuthDependencies(options: {
 }
 
 /**
- * The baseline SQL for Agentuity Auth tables
- * This is the same SQL used by ensureAuthSchema() in @agentuity/auth
+ * Import the baseline SQL from @agentuity/auth to ensure single source of truth.
+ * This SQL is used by both the CLI (for initial setup) and ensureAuthSchema() at runtime.
+ *
+ * Note: We import directly from the migrations module to avoid pulling in client-side
+ * JSX code that would cause TypeScript errors in the CLI build.
  */
-export const AGENTUITY_AUTH_BASELINE_SQL = `
--- Agentuity Auth baseline schema (BetterAuth + plugins)
--- This SQL is idempotent (uses IF NOT EXISTS)
-
--- Core BetterAuth tables
-CREATE TABLE IF NOT EXISTS "user" (
-    "id" TEXT PRIMARY KEY,
-    "name" TEXT NOT NULL,
-    "email" TEXT UNIQUE NOT NULL,
-    "emailVerified" BOOLEAN DEFAULT FALSE,
-    "image" TEXT,
-    "createdAt" TIMESTAMP DEFAULT NOW(),
-    "updatedAt" TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "session" (
-    "id" TEXT PRIMARY KEY,
-    "token" TEXT UNIQUE NOT NULL,
-    "userId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-    "expiresAt" TIMESTAMP NOT NULL,
-    "ipAddress" TEXT,
-    "userAgent" TEXT,
-    "createdAt" TIMESTAMP DEFAULT NOW(),
-    "updatedAt" TIMESTAMP DEFAULT NOW(),
-    "activeOrganizationId" TEXT
-);
-
-CREATE TABLE IF NOT EXISTS "account" (
-    "id" TEXT PRIMARY KEY,
-    "userId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-    "accountId" TEXT NOT NULL,
-    "providerId" TEXT NOT NULL,
-    "accessToken" TEXT,
-    "refreshToken" TEXT,
-    "accessTokenExpiresAt" TIMESTAMP,
-    "refreshTokenExpiresAt" TIMESTAMP,
-    "scope" TEXT,
-    "idToken" TEXT,
-    "password" TEXT,
-    "createdAt" TIMESTAMP DEFAULT NOW(),
-    "updatedAt" TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "verification" (
-    "id" TEXT PRIMARY KEY,
-    "identifier" TEXT NOT NULL,
-    "value" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP NOT NULL,
-    "createdAt" TIMESTAMP DEFAULT NOW(),
-    "updatedAt" TIMESTAMP DEFAULT NOW()
-);
-
--- Organization plugin tables
-CREATE TABLE IF NOT EXISTS "organization" (
-    "id" TEXT PRIMARY KEY,
-    "name" TEXT NOT NULL,
-    "slug" TEXT UNIQUE,
-    "logo" TEXT,
-    "metadata" TEXT,
-    "createdAt" TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "member" (
-    "id" TEXT PRIMARY KEY,
-    "userId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-    "organizationId" TEXT NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
-    "role" TEXT NOT NULL DEFAULT 'member',
-    "createdAt" TIMESTAMP DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS "invitation" (
-    "id" TEXT PRIMARY KEY,
-    "email" TEXT NOT NULL,
-    "organizationId" TEXT NOT NULL REFERENCES "organization"("id") ON DELETE CASCADE,
-    "role" TEXT NOT NULL DEFAULT 'member',
-    "inviterId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-    "status" TEXT NOT NULL DEFAULT 'pending',
-    "expiresAt" TIMESTAMP NOT NULL,
-    "createdAt" TIMESTAMP DEFAULT NOW()
-);
-
--- JWT plugin table
-CREATE TABLE IF NOT EXISTS "jwks" (
-    "id" TEXT PRIMARY KEY,
-    "publicKey" TEXT NOT NULL,
-    "privateKey" TEXT NOT NULL,
-    "createdAt" TIMESTAMP DEFAULT NOW()
-);
-
--- API Key plugin table
-CREATE TABLE IF NOT EXISTS "apiKey" (
-    "id" TEXT PRIMARY KEY,
-    "name" TEXT,
-    "start" TEXT,
-    "prefix" TEXT,
-    "key" TEXT NOT NULL,
-    "userId" TEXT NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
-    "refillInterval" INTEGER,
-    "refillAmount" INTEGER,
-    "lastRefillAt" TIMESTAMP,
-    "enabled" BOOLEAN DEFAULT TRUE,
-    "rateLimitEnabled" BOOLEAN DEFAULT FALSE,
-    "rateLimitTimeWindow" INTEGER,
-    "rateLimitMax" INTEGER,
-    "requestCount" INTEGER DEFAULT 0,
-    "remaining" INTEGER,
-    "lastRequest" TIMESTAMP,
-    "expiresAt" TIMESTAMP,
-    "createdAt" TIMESTAMP DEFAULT NOW(),
-    "updatedAt" TIMESTAMP DEFAULT NOW(),
-    "permissions" TEXT,
-    "metadata" TEXT
-);
-
--- Indexes
-CREATE INDEX IF NOT EXISTS "session_userId_idx" ON "session"("userId");
-CREATE INDEX IF NOT EXISTS "session_token_idx" ON "session"("token");
-CREATE INDEX IF NOT EXISTS "account_userId_idx" ON "account"("userId");
-CREATE INDEX IF NOT EXISTS "member_userId_idx" ON "member"("userId");
-CREATE INDEX IF NOT EXISTS "member_organizationId_idx" ON "member"("organizationId");
-CREATE INDEX IF NOT EXISTS "apiKey_userId_idx" ON "apiKey"("userId");
-CREATE INDEX IF NOT EXISTS "apiKey_key_idx" ON "apiKey"("key");
-`;
+import { AGENTUITY_AUTH_BASELINE_SQL } from '@agentuity/auth/agentuity/migrations';
+export { AGENTUITY_AUTH_BASELINE_SQL };
 
 /**
  * Split SQL into individual statements for sequential execution

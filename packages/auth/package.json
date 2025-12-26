@@ -17,7 +17,8 @@
 		"./auth0/server": "./src/auth0/server.ts",
 		"./agentuity": "./src/agentuity/index.ts",
 		"./agentuity/client": "./src/agentuity/client.tsx",
-		"./agentuity/react": "./src/agentuity/react.ts"
+		"./agentuity/react": "./src/agentuity/react.ts",
+		"./agentuity/migrations": "./src/agentuity/migrations.ts"
 	},
 	"scripts": {
 		"build": "tsc --build",
