@@ -1,147 +1,194 @@
-# ag-auth-test-app
+# Agentuity Auth Test App
 
-A new Agentuity project created with `agentuity create`.
+A canonical example demonstrating **Agentuity Auth** (BetterAuth) integration with the Agentuity runtime.
 
-## What You Get
+## What This Demonstrates
 
-A fully configured Agentuity project with:
-
-- ✅ **TypeScript** - Full type safety out of the box
-- ✅ **Bun runtime** - Fast JavaScript runtime and package manager
-- ✅ **Hot reload** - Development server with auto-rebuild
-- ✅ **Example agent** - Sample "hello" agent to get started
-- ✅ **React frontend** - Pre-configured web interface
-- ✅ **API routes** - Example API endpoints
-- ✅ **Type checking** - TypeScript configuration ready to go
+- ✅ **BetterAuth Integration** - Full auth setup with `@agentuity/auth/agentuity`
+- ✅ **Session & API Key Auth** - Both authentication methods via unified middleware
+- ✅ **Protected Routes** - Using `authMiddleware` and `requireScopes()`
+- ✅ **Protected Agents** - Using `withSession()` wrapper
+- ✅ **React Client** - `AgentuityBetterAuth` provider with `useSession()`
+- ✅ **Optional Auth** - Routes that work for both authenticated and anonymous users
 
 ## Project Structure
 
 ```
-my-app/
+ag-auth-test-app/
 ├── src/
-│   ├── agent/            # Agent definitions
-│   │   └── hello/
-│   │       ├── agent.ts  # Example agent
-│   │       └── index.ts  # Default exports
-│   ├── api/              # API definitions
-│   │   └── index.ts      # Example routes
-│   └── web/              # React web application
-│       ├── public/       # Static assets
-│       ├── App.tsx       # Main React component
-│       ├── frontend.tsx  # Entry point
-│       └── index.html    # HTML template
-├── AGENTS.md             # Agent guidelines
-├── app.ts                # Application entry point
-├── tsconfig.json         # TypeScript configuration
-├── package.json          # Dependencies and scripts
-└── README.md             # Project documentation
+│   ├── auth.ts              # Auth configuration (single source of truth)
+│   ├── agent/
+│   │   └── hello/agent.ts   # Example agent
+│   ├── api/
+│   │   └── index.ts         # API routes with auth middleware
+│   └── web/
+│       ├── App.tsx          # Main React app
+│       ├── AuthDemo.tsx     # Auth UI demo component
+│       ├── auth-client.ts   # BetterAuth React client
+│       └── frontend.tsx     # Entry point
+├── app.ts                   # Application entry point
+└── agentuity.config.ts      # Agentuity configuration
 ```
 
-## Available Commands
+## Key Files
 
-After creating your project, you can run:
+### `src/auth.ts` - Server Configuration
 
-### Development
+The single source of truth for authentication:
+
+```typescript
+import { Pool } from 'pg';
+import { createAgentuityAuth, createMiddleware } from '@agentuity/auth/agentuity';
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+
+export const auth = createAgentuityAuth({
+  database: pool,
+  secret: process.env.BETTER_AUTH_SECRET,
+  basePath: '/api/auth',
+  emailAndPassword: { enabled: true },
+});
+
+export const authMiddleware = createMiddleware(auth);
+export const optionalAuthMiddleware = createMiddleware(auth, { optional: true });
+```
+
+### `src/api/index.ts` - Route Protection
+
+```typescript
+// BetterAuth routes (signup, signin, signout, session, etc.)
+api.on(['GET', 'POST'], '/auth/*', (c) => auth.handler(c.req.raw));
+
+// Protected route - requires auth
+api.get('/me', authMiddleware, async (c) => {
+  const user = await c.var.auth.getUser();
+  return c.json({ id: user.id, name: user.name });
+});
+
+// Optional auth - works for authenticated and anonymous
+api.get('/greeting', optionalAuthMiddleware, async (c) => {
+  try {
+    const user = await c.var.auth.getUser();
+    return c.json({ message: `Hello, ${user.name}!` });
+  } catch {
+    return c.json({ message: 'Hello, anonymous!' });
+  }
+});
+
+// Scope-based protection
+api.get('/admin', authMiddleware, requireScopes(['admin']), async (c) => {
+  return c.json({ message: 'Admin access granted' });
+});
+```
+
+### `src/web/auth-client.ts` - React Client
+
+```typescript
+import { createAuthClient } from 'better-auth/react';
+
+export const authClient = createAuthClient({ baseURL: window.location.origin });
+export const { useSession, signIn, signUp, signOut } = authClient;
+```
+
+### `src/web/App.tsx` - Provider Setup
+
+```tsx
+import { AgentuityProvider } from '@agentuity/react';
+import { AgentuityBetterAuth } from '@agentuity/auth/agentuity/client';
+import { authClient } from './auth-client';
+
+export function App() {
+  return (
+    <AgentuityProvider>
+      <AgentuityBetterAuth authClient={authClient}>
+        {/* Your app */}
+      </AgentuityBetterAuth>
+    </AgentuityProvider>
+  );
+}
+```
+
+## Setup
+
+### 1. Database
+
+Auth tables are stored in your Postgres database. Create them using either:
+
+**Option A: CLI (recommended)**
+```bash
+agentuity project auth init
+```
+
+**Option B: Runtime (auto-migration)**
+```typescript
+import { ensureAuthSchema } from '@agentuity/auth/agentuity';
+await ensureAuthSchema({ db: pool });
+```
+
+### 2. Environment Variables
+
+```bash
+# Required
+DATABASE_URL="postgresql://..."
+
+# Optional (defaults to dev secret)
+BETTER_AUTH_SECRET="your-32-char-secret"
+```
+
+### 3. Install Dependencies
+
+```bash
+bun install
+```
+
+### 4. Run Development Server
 
 ```bash
 bun dev
 ```
 
-Starts the development server at `http://localhost:3500`
+## Authentication Methods
 
-### Build
+### Session (Cookie-based)
 
-```bash
-bun build
-```
-
-Compiles your application into the `.agentuity/` directory
-
-### Type Check
-
-```bash
-bun typecheck
-```
-
-Runs TypeScript type checking
-
-### Deploy to Agentuity
-
-```bash
-bun run deploy
-```
-
-Deploys your application to the Agentuity cloud
-
-## Next Steps
-
-After creating your project:
-
-1. **Customize the example agent** - Edit `src/agent/hello/agent.ts`
-2. **Add new agents** - Create new folders in `src/agent/`
-3. **Add new APIs** - Create new folders in `src/api/`
-4. **Add Web files** - Create new routes in `src/web/`
-5. **Customize the UI** - Edit `src/web/app.tsx`
-6. **Configure your app** - Modify `app.ts` to add middleware, configure services, etc.
-
-## Creating Custom Agents
-
-Create a new agent by adding a folder in `src/agent/`:
+Default for browser clients. Uses `better-auth` session cookies.
 
 ```typescript
-// src/agent/my-agent/agent.ts
-import { createAgent } from '@agentuity/runtime';
-import { s } from '@agentuity/schema';
+// Sign up
+await signUp.email({ email, password, name });
 
-const agent = createAgent({
-	description: 'My amazing agent',
-	schema: {
-		input: s.object({
-			name: s.string(),
-		}),
-		output: s.string(),
-	},
-	handler: async (_ctx, { name }) => {
-		return `Hello, ${name}! This is my custom agent.`;
-	},
-});
+// Sign in
+await signIn.email({ email, password });
 
-export default agent;
+// Sign out
+await signOut();
+
+// Check session
+const { data: session } = useSession();
 ```
 
-## Adding API Routes
+### API Key
 
-Create custom routes in `src/api/`:
+For programmatic access. Enable with `enableSessionForAPIKeys: true` (default).
 
-```typescript
-// src/api/my-agent/route.ts
-import { createRouter } from '@agentuity/runtime';
-import myAgent from './agent';
-
-const router = createRouter();
-
-router.get('/', async (c) => {
-	const result = await myAgent.run({ message: 'Hello!' });
-	return c.json(result);
-});
-
-router.post('/', myAgent.validator(), async (c) => {
-	const data = c.req.valid('json');
-	const result = await myAgent.run(data);
-	return c.json(result);
-});
-
-export default router;
+```bash
+# Using API key header
+curl -H "x-api-key: YOUR_API_KEY" https://your-app.agentuity.cloud/api/me
 ```
+
+Both methods produce the same `c.var.auth` context in routes.
+
+## Available Scripts
+
+| Command | Description |
+|---------|-------------|
+| `bun dev` | Start development server |
+| `bun run build` | Build for production |
+| `bun run typecheck` | Run TypeScript checks |
+| `bun run deploy` | Deploy to Agentuity cloud |
 
 ## Learn More
 
-- [Agentuity Documentation](https://agentuity.dev)
-- [Bun Documentation](https://bun.sh/docs)
-- [Hono Documentation](https://hono.dev/)
-- [Zod Documentation](https://zod.dev/)
-
-## Requirements
-
-- [Bun](https://bun.sh/) v1.0 or higher
-- TypeScript 5+
+- [Agentuity Auth Documentation](https://agentuity.dev/docs/auth)
+- [BetterAuth Documentation](https://better-auth.com/docs)
+- [Agentuity SDK](https://github.com/agentuity/sdk)

@@ -35,3 +35,8 @@ coverage
 # IDE
 .idea
 .DS_Store
+
+# Auth test artifacts
+cookies.txt
+dev.db
+*.db
