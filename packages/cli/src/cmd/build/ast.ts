@@ -1321,6 +1321,11 @@ export async function parseRoute(
 									for (const arg of statement.expression.arguments) {
 										if ((arg as ASTCallExpression).type === 'CallExpression') {
 											const callExpr = arg as ASTCallExpression;
+											// Only handle simple Identifier callees (e.g., websocket(), sse())
+											// Skip MemberExpression callees (e.g., obj.method())
+											if (callExpr.callee.type !== 'Identifier') {
+												continue;
+											}
 											const calleeName = (callExpr.callee as ASTNodeIdentifier).name;
 											if (
 												calleeName === 'websocket' ||

@@ -1,4 +1,4 @@
-import { createRouter, websocket, sse } from '@agentuity/runtime';
+import { createRouter, websocket, sse, type WebSocketConnection } from '@agentuity/runtime';
 import { testSuite } from '../test/suite';
 import statePersistenceAgent from '@agents/state/agent';
 import stateReaderAgent from '@agents/state/reader-agent';
@@ -160,7 +160,7 @@ router.get(
 // Shared broadcast clients list
 // Note: This is intentionally module-level for broadcast functionality
 // Tests close connections which removes them from the list
-const broadcastClients: any[] = [];
+const broadcastClients: WebSocketConnection[] = [];
 
 router.get(
 	'/ws/broadcast',
@@ -211,7 +211,7 @@ router.get(
 				}
 			} catch (error) {
 				// Ignore malformed JSON messages
-				console.error('Invalid JSON in WebSocket message:', error);
+				c.var.logger?.error('Invalid JSON in WebSocket message:', error);
 			}
 		});
 	})

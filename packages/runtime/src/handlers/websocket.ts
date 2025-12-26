@@ -35,17 +35,17 @@ export type WebSocketHandler<E extends Env = Env> = (
  *
  * router.get('/ws', websocket((c, ws) => {
  *   ws.onOpen(() => {
- *     console.log('WebSocket opened');
+ *     c.var.logger.info('WebSocket opened');
  *     ws.send('Welcome!');
  *   });
  *
  *   ws.onMessage((event) => {
- *     console.log('Received:', event.data);
+ *     c.var.logger.info('Received:', event.data);
  *     ws.send('Echo: ' + event.data);
  *   });
  *
  *   ws.onClose(() => {
- *     console.log('WebSocket closed');
+ *     c.var.logger.info('WebSocket closed');
  *   });
  * }));
  * ```

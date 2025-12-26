@@ -24,12 +24,13 @@ export type CronHandler<E extends Env = Env> = (c: Context<E>) => unknown | Prom
  *
  * // Daily cleanup at midnight
  * router.post('/daily-cleanup', cron('0 0 * * *', (c) => {
- *   console.log('Running daily cleanup');
+ *   c.var.logger.info('Running daily cleanup');
  *   return { status: 'cleanup complete' };
  * }));
  *
  * // Hourly health check
  * router.post('/health-check', cron('0 * * * *', (c) => {
+ *   c.var.logger.info('Running hourly health check');
  *   return c.text('OK');
  * }));
  * ```

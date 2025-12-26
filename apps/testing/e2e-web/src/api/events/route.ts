@@ -10,20 +10,16 @@ const router = createRouter();
 
 router.get(
 	'/',
-	sse((c, stream) => {
+	sse(async (c, stream) => {
 		let count = 0;
 
-		const sendEvents = async () => {
-			for (let i = 0; i < 5; i++) {
-				count++;
-				stream.writeSSE({
-					data: JSON.stringify({ event: 'tick', count }),
-				});
-				await new Promise((resolve) => setTimeout(resolve, 500));
-			}
-		};
-
-		sendEvents();
+		for (let i = 0; i < 5; i++) {
+			count++;
+			stream.writeSSE({
+				data: JSON.stringify({ event: 'tick', count }),
+			});
+			await new Promise((resolve) => setTimeout(resolve, 500));
+		}
 	})
 );
 
