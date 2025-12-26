@@ -126,16 +126,6 @@ declare module '@agentuity/react' {
 		outputSchema: POSTApiAgentStateWriterOutputSchema;
 		stream: typeof stateWriterAgent extends { stream?: infer S } ? S : false;
 	};
-	'GET /api/custom-name/custom': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/custom-name/test': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
 	'GET /api/users/profile': {
 		inputSchema: never;
 		outputSchema: never;
@@ -161,21 +151,6 @@ declare module '@agentuity/react' {
 		outputSchema: never;
 		stream: false;
 	};
-	'POST /api/auth/login': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/auth/logout': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/auth/verify': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
 	'GET /api/middleware-test/check-all': {
 		inputSchema: never;
 		outputSchema: never;
@@ -192,6 +167,31 @@ declare module '@agentuity/react' {
 		stream: false;
 	};
 	'GET /api/middleware-test/analytics-info': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/custom-name/custom': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/custom-name/test': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/auth/login': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/auth/logout': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/auth/verify': {
 		inputSchema: never;
 		outputSchema: never;
 		stream: false;
@@ -307,20 +307,6 @@ declare module '@agentuity/react' {
 				post: { input: POSTApiAgentStateWriterInput; output: POSTApiAgentStateWriterOutput; type: 'api' };
 			};
 		};
-		customName: {
-			custom: {
-				/**
-				 * Route: GET /api/custom-name/custom
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-			test: {
-				/**
-				 * Route: POST /api/custom-name/test
-				 */
-				post: { input: never; output: never; type: 'api' };
-			};
-		};
 		users: {
 			profile: {
 				/**
@@ -351,26 +337,6 @@ declare module '@agentuity/react' {
 				get: { input: never; output: never; type: 'api' };
 			};
 		};
-		auth: {
-			login: {
-				/**
-				 * Route: POST /api/auth/login
-				 */
-				post: { input: never; output: never; type: 'api' };
-			};
-			logout: {
-				/**
-				 * Route: POST /api/auth/logout
-				 */
-				post: { input: never; output: never; type: 'api' };
-			};
-			verify: {
-				/**
-				 * Route: GET /api/auth/verify
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-		};
 		middlewareTest: {
 			checkAll: {
 				/**
@@ -393,6 +359,40 @@ declare module '@agentuity/react' {
 			analyticsInfo: {
 				/**
 				 * Route: GET /api/middleware-test/analytics-info
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+		};
+		customName: {
+			custom: {
+				/**
+				 * Route: GET /api/custom-name/custom
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+			test: {
+				/**
+				 * Route: POST /api/custom-name/test
+				 */
+				post: { input: never; output: never; type: 'api' };
+			};
+		};
+		auth: {
+			login: {
+				/**
+				 * Route: POST /api/auth/login
+				 */
+				post: { input: never; output: never; type: 'api' };
+			};
+			logout: {
+				/**
+				 * Route: POST /api/auth/logout
+				 */
+				post: { input: never; output: never; type: 'api' };
+			};
+			verify: {
+				/**
+				 * Route: GET /api/auth/verify
 				 */
 				get: { input: never; output: never; type: 'api' };
 			};
@@ -497,18 +497,6 @@ const _rpcRouteMetadata = {
 						}
 				}
 		},
-		"customName": {
-				"custom": {
-						"get": {
-								"type": "api"
-						}
-				},
-				"test": {
-						"post": {
-								"type": "api"
-						}
-				}
-		},
 		"users": {
 				"profile": {
 						"get": {
@@ -534,23 +522,6 @@ const _rpcRouteMetadata = {
 						}
 				}
 		},
-		"auth": {
-				"login": {
-						"post": {
-								"type": "api"
-						}
-				},
-				"logout": {
-						"post": {
-								"type": "api"
-						}
-				},
-				"verify": {
-						"get": {
-								"type": "api"
-						}
-				}
-		},
 		"middlewareTest": {
 				"checkAll": {
 						"get": {
@@ -568,6 +539,35 @@ const _rpcRouteMetadata = {
 						}
 				},
 				"analyticsInfo": {
+						"get": {
+								"type": "api"
+						}
+				}
+		},
+		"customName": {
+				"custom": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"test": {
+						"post": {
+								"type": "api"
+						}
+				}
+		},
+		"auth": {
+				"login": {
+						"post": {
+								"type": "api"
+						}
+				},
+				"logout": {
+						"post": {
+								"type": "api"
+						}
+				},
+				"verify": {
 						"get": {
 								"type": "api"
 						}

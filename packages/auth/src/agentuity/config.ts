@@ -8,7 +8,6 @@
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
-import type { BetterAuthSecondaryStorage } from './api-key-storage';
 
 /**
  * API extensions added by the organization plugin.
@@ -177,20 +176,6 @@ export interface ApiKeyPluginOptions {
 	 * Defaults to true.
 	 */
 	enableMetadata?: boolean;
-
-	/**
-	 * Storage mode for API keys.
-	 * - 'secondary-storage': Store in secondaryStorage (e.g., KV) with database fallback (default)
-	 * - 'database': Store only in database
-	 * Defaults to 'secondary-storage'.
-	 */
-	storage?: 'database' | 'secondary-storage';
-
-	/**
-	 * When storage is 'secondary-storage', whether to fall back to database if key not found.
-	 * Defaults to true.
-	 */
-	fallbackToDatabase?: boolean;
 }
 
 /**
@@ -209,22 +194,6 @@ export interface AgentuityAuthOptions extends BetterAuthOptions {
 	 * Set to false to disable the API key plugin entirely.
 	 */
 	apiKey?: ApiKeyPluginOptions | false;
-
-	/**
-	 * Secondary storage for API keys (e.g., Agentuity KV).
-	 * If provided, API keys can be stored/cached in this storage.
-	 *
-	 * @example
-	 * ```typescript
-	 * import { createAgentuityApiKeyStorage } from '@agentuity/auth/agentuity';
-	 *
-	 * const auth = createAgentuityAuth({
-	 *   database: pool,
-	 *   secondaryStorage: createAgentuityApiKeyStorage({ kv }),
-	 * });
-	 * ```
-	 */
-	secondaryStorage?: BetterAuthSecondaryStorage;
 }
 
 /**
@@ -237,8 +206,6 @@ export const DEFAULT_API_KEY_OPTIONS: Required<ApiKeyPluginOptions> = {
 	defaultPrefix: 'ag_',
 	defaultKeyLength: 64,
 	enableMetadata: true,
-	storage: 'secondary-storage', // Uses KV for fast lookups with database fallback
-	fallbackToDatabase: true,
 };
 
 /**
@@ -262,8 +229,6 @@ export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
 					defaultPrefix: opts.defaultPrefix,
 					defaultKeyLength: opts.defaultKeyLength,
 					enableMetadata: opts.enableMetadata,
-					storage: opts.storage,
-					fallbackToDatabase: opts.fallbackToDatabase,
 				})
 			);
 		}
@@ -281,44 +246,23 @@ export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
  * - Bearer plugin for API auth
  * - API Key plugin for programmatic access (with enableSessionForAPIKeys)
  *
- * @example Basic usage with KV storage (recommended)
- * ```typescript
- * import { createAgentuityAuth, createAgentuityApiKeyStorage } from '@agentuity/auth/agentuity';
- *
- * export const auth = createAgentuityAuth({
- *   database: pool,
- *   basePath: '/api/auth',
- *   secondaryStorage: createAgentuityApiKeyStorage({ kv }),
- * });
- * ```
- *
- * @example Database-only storage (no KV)
+ * @example Basic usage
  * ```typescript
  * import { createAgentuityAuth } from '@agentuity/auth/agentuity';
  *
  * export const auth = createAgentuityAuth({
  *   database: pool,
  *   basePath: '/api/auth',
- *   apiKey: {
- *     storage: 'database',
- *   },
  * });
  * ```
  */
 export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) {
-	const {
-		skipDefaultPlugins,
-		plugins = [],
-		apiKey: apiKeyOptions,
-		secondaryStorage,
-		...restOptions
-	} = options;
+	const { skipDefaultPlugins, plugins = [], apiKey: apiKeyOptions, ...restOptions } = options;
 
 	const defaultPlugins = skipDefaultPlugins ? [] : getDefaultPlugins(apiKeyOptions);
 
 	const authInstance = betterAuth({
 		...restOptions,
-		secondaryStorage,
 		plugins: [...defaultPlugins, ...plugins],
 	});
 

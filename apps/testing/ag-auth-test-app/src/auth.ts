@@ -36,17 +36,6 @@ const pool = new Pool({
 });
 
 /**
- * Ensure auth tables exist (idempotent - safe to call on every startup).
- * This creates all BetterAuth tables if they don't exist:
- * - user, session, account, verification (core)
- * - organization, member, invitation (org plugin)
- * - jwks (JWT plugin)
- * - apiKey (API key plugin)
- */
-// Note: In production, you might want to run this separately during deployment
-// await ensureAuthSchema({ db: pool });
-
-/**
  * BetterAuth instance with Agentuity defaults.
  *
  * Default plugins included:
@@ -71,11 +60,6 @@ export const auth = createAgentuityAuth({
 	basePath: '/api/auth',
 	emailAndPassword: {
 		enabled: true,
-	},
-	// Use database storage for API keys in this demo app
-	// In production, configure secondaryStorage with createAgentuityApiKeyStorage for KV-backed storage
-	apiKey: {
-		storage: 'database',
 	},
 });
 

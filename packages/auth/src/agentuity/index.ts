@@ -78,17 +78,6 @@ export { ensureAuthSchema, AGENTUITY_AUTH_BASELINE_SQL } from './migrations';
 export type { DatabaseClient, EnsureAuthSchemaOptions, EnsureAuthSchemaResult } from './migrations';
 
 // =============================================================================
-// API Key Storage (KV adapter for BetterAuth)
-// =============================================================================
-
-export { createAgentuityApiKeyStorage, AGENTUITY_API_KEY_NAMESPACE } from './api-key-storage';
-export type {
-	BetterAuthSecondaryStorage,
-	AgentuityApiKeyStorageOptions,
-	AgentuityApiKeyStorage,
-} from './api-key-storage';
-
-// =============================================================================
 // Server (Hono middleware and handlers)
 // =============================================================================
 
