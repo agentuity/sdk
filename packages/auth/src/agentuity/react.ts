@@ -7,6 +7,7 @@
  */
 
 import { createAuthClient } from 'better-auth/react';
+import { organizationClient, apiKeyClient } from 'better-auth/client/plugins';
 
 /**
  * Options for creating the Agentuity auth client.
@@ -62,7 +63,21 @@ export function createAgentuityAuthClient(options: AgentuityAuthClientOptions = 
 	return createAuthClient({
 		baseURL,
 		basePath,
+		plugins: getDefaultClientPlugins(),
 	});
+}
+
+/**
+ * Get the default client plugins for Agentuity auth.
+ *
+ * These mirror the server-side plugins:
+ * - organizationClient: Multi-tenancy support
+ * - apiKeyClient: Programmatic API key management
+ *
+ * Note: jwt() and bearer() are server-only plugins.
+ */
+function getDefaultClientPlugins() {
+	return [organizationClient(), apiKeyClient()];
 }
 
 /**

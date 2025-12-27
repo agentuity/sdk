@@ -120,7 +120,7 @@ export async function selectOrCreateDatabase(options: {
  */
 export const AUTH_DEPENDENCIES = {
 	'@agentuity/auth': 'latest',
-	'better-auth': '^1.2.0',
+	'better-auth': '^1.4.9',
 	pg: '^8.13.0',
 } as const;
 

@@ -22,7 +22,7 @@
 		"@agentuity/workbench": "workspace:*",
 		"@ai-sdk/openai": "^3.0.1",
 		"ai": "^6.0.3",
-		"better-auth": "^1.2.0",
+		"better-auth": "^1.4.9",
 		"hono": "^4.7.13",
 		"pg": "^8.16.0",
 		"react": "^19.2.0",

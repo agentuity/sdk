@@ -35,7 +35,7 @@
 		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"hono": "^4.0.0",
-		"better-auth": "^1.2.0"
+		"better-auth": "^1.4.9"
 	},
 	"peerDependenciesMeta": {
 		"@clerk/clerk-react": {
@@ -66,7 +66,7 @@
 		"@clerk/clerk-react": "^5.46.1",
 		"@types/jsonwebtoken": "^9.0.10",
 		"@types/react": "^18.3.18",
-		"better-auth": "^1.2.0",
+		"better-auth": "^1.4.9",
 		"hono": "^4.6.14",
 		"jsonwebtoken": "^9.0.3",
 		"jwks-rsa": "^3.2.0",
