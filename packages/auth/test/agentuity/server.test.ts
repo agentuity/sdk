@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
-import { createMiddleware } from '../../src/agentuity/server';
+import { createMiddleware, mountBetterAuthRoutes } from '../../src/agentuity/server';
 
 const createMockAuth = (sessionResult: unknown) => ({
 	api: {
@@ -253,5 +253,211 @@ describe('Agentuity BetterAuth server middleware', () => {
 			expect(body.userId).toBe('user_123');
 			expect(body.sessionId).toBe('session_456');
 		});
+	});
+
+	describe('organization enrichment', () => {
+		test('fetches and enriches user with organization data', async () => {
+			const mockSession = {
+				user: { id: 'user_123', name: 'Test' },
+				session: { id: 'session_456', activeOrganizationId: 'org_789' },
+			};
+			const mockOrg = {
+				id: 'org_789',
+				name: 'Test Org',
+				slug: 'test-org',
+				members: [{ userId: 'user_123', role: 'admin' }],
+			};
+			const mockAuth = {
+				api: {
+					getSession: mock(() => Promise.resolve(mockSession)),
+					getFullOrganization: mock(() => Promise.resolve(mockOrg)),
+				},
+			};
+			const app = new Hono();
+
+			app.use('/api', createMiddleware(mockAuth as any));
+			app.get('/api', (c) => {
+				const user = c.var.user as any;
+				return c.json({
+					userId: user?.id,
+					orgId: user?.activeOrganization?.id,
+					orgName: user?.activeOrganization?.name,
+					role: user?.activeOrganizationRole,
+				});
+			});
+
+			const res = await app.request('/api');
+			const body = await res.json();
+			expect(body.userId).toBe('user_123');
+			expect(body.orgId).toBe('org_789');
+			expect(body.orgName).toBe('Test Org');
+			expect(body.role).toBe('admin');
+		});
+
+		test('continues without org data when fetch fails', async () => {
+			const mockSession = {
+				user: { id: 'user_123' },
+				session: { id: 'session_456', activeOrganizationId: 'org_789' },
+			};
+			const mockAuth = {
+				api: {
+					getSession: mock(() => Promise.resolve(mockSession)),
+					getFullOrganization: mock(() => Promise.reject(new Error('Org fetch failed'))),
+				},
+			};
+			const app = new Hono();
+
+			app.use('/api', createMiddleware(mockAuth as any));
+			app.get('/api', (c) => {
+				const user = c.var.user as any;
+				return c.json({
+					userId: user?.id,
+					hasOrg: !!user?.activeOrganization,
+				});
+			});
+
+			const res = await app.request('/api');
+			expect(res.status).toBe(200);
+			const body = await res.json();
+			expect(body.userId).toBe('user_123');
+			expect(body.hasOrg).toBe(false);
+		});
+	});
+
+	describe('API key detection', () => {
+		test('detects x-api-key header', async () => {
+			const mockSession = {
+				user: { id: 'user_123' },
+				session: { id: 'session_456' },
+			};
+			const mockAuth = createMockAuth(mockSession);
+			const app = new Hono();
+
+			app.use('/api', createMiddleware(mockAuth as any));
+			app.get('/api', (c) => c.json({ success: true }));
+
+			const res = await app.request('/api', {
+				headers: { 'x-api-key': 'ak_test_123' },
+			});
+
+			expect(res.status).toBe(200);
+		});
+
+		test('detects Authorization: ApiKey header', async () => {
+			const mockSession = {
+				user: { id: 'user_123' },
+				session: { id: 'session_456' },
+			};
+			const mockAuth = createMockAuth(mockSession);
+			const app = new Hono();
+
+			app.use('/api', createMiddleware(mockAuth as any));
+			app.get('/api', (c) => c.json({ success: true }));
+
+			const res = await app.request('/api', {
+				headers: { Authorization: 'ApiKey ak_test_123' },
+			});
+
+			expect(res.status).toBe(200);
+		});
+	});
+});
+
+describe('mountBetterAuthRoutes', () => {
+
+	test('forwards requests to auth handler', async () => {
+		const mockHandler = mock(async (req: Request) => {
+			return new Response(JSON.stringify({ path: new URL(req.url).pathname }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		});
+		const mockAuth = { handler: mockHandler };
+		const app = new Hono();
+
+		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+
+		const res = await app.request('/auth/session');
+		expect(res.status).toBe(200);
+		expect(mockHandler).toHaveBeenCalled();
+	});
+
+	test('preserves Set-Cookie headers from auth handler', async () => {
+		const mockHandler = mock(async () => {
+			const headers = new Headers();
+			headers.append('Set-Cookie', 'session=abc123; Path=/; HttpOnly');
+			headers.append('Set-Cookie', 'csrf=xyz789; Path=/');
+			return new Response('{"ok": true}', {
+				status: 200,
+				headers,
+			});
+		});
+		const mockAuth = { handler: mockHandler };
+		const app = new Hono();
+
+		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+
+		const res = await app.request('/auth/sign-in', { method: 'POST' });
+		expect(res.status).toBe(200);
+
+		const cookies = res.headers.getSetCookie();
+		expect(cookies.length).toBeGreaterThanOrEqual(1);
+	});
+
+	test('returns response body from auth handler', async () => {
+		const mockHandler = mock(async () => {
+			return new Response(JSON.stringify({ user: { id: 'user_123' } }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		});
+		const mockAuth = { handler: mockHandler };
+		const app = new Hono();
+
+		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+
+		const res = await app.request('/auth/session');
+		const body = await res.json();
+		expect(body).toEqual({ user: { id: 'user_123' } });
+	});
+
+	test('preserves status code from auth handler', async () => {
+		const mockHandler = mock(async () => {
+			return new Response('{"error": "Unauthorized"}', {
+				status: 401,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		});
+		const mockAuth = { handler: mockHandler };
+		const app = new Hono();
+
+		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+
+		const res = await app.request('/auth/session');
+		expect(res.status).toBe(401);
+	});
+
+	test('merges headers set by Hono middleware', async () => {
+		const mockHandler = mock(async () => {
+			return new Response('{"ok": true}', {
+				status: 200,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Auth-Header': 'from-auth',
+				},
+			});
+		});
+		const mockAuth = { handler: mockHandler };
+		const app = new Hono();
+
+		app.use('/auth/*', async (c, next) => {
+			c.header('X-Middleware-Header', 'from-middleware');
+			await next();
+		});
+		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+
+		const res = await app.request('/auth/session');
+		expect(res.headers.get('X-Auth-Header')).toBe('from-auth');
+		expect(res.headers.get('X-Middleware-Header')).toBe('from-middleware');
 	});
 });

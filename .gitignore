@@ -58,3 +58,4 @@ playwright-report/
 # Generated CLI skills
 **/.agents/skills/
 apps/testing/ag-auth-test-app/cookies.txt
+apps/testing/ag-auth-test-app/agentuity.json

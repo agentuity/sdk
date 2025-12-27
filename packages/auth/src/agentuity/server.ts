@@ -124,19 +124,53 @@ export function createMiddleware(
 				return c.json({ error: 'Unauthorized' }, 401);
 			}
 
-			// Set user and session directly (BetterAuth recommended pattern)
-			c.set('user', session.user);
-			c.set('session', session.session);
-
 			// Detect auth method (API key vs session)
 			const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
 			const authHeader = c.req.header('Authorization');
 			const viaApiKey = !!apiKeyHeader || authHeader?.toLowerCase().startsWith('apikey ');
 
+			// Check for active organization and fetch full details if present
+			const sess = session.session as Record<string, unknown>;
+			const activeOrgId = sess.activeOrganizationId as string | undefined;
+			let activeOrg: Record<string, unknown> | null = null;
+			let activeMemberRole: string | null = null;
+
+			if (activeOrgId) {
+				try {
+					// NOTE - I'm  a little worried about getting the full org details here.
+					// Fetch full organization details
+					const fullOrg = await auth.api.getFullOrganization({
+						headers: c.req.raw.headers,
+					});
+					if (fullOrg) {
+						activeOrg = fullOrg as Record<string, unknown>;
+						// Find current user's role in the org
+						const members = (fullOrg.members ?? []) as Array<{
+							userId: string;
+							role: string;
+						}>;
+						const currentMember = members.find((m) => m.userId === session.user.id);
+						activeMemberRole = currentMember?.role ?? null;
+					}
+				} catch {
+					// Org fetch failed, continue without org details
+				}
+			}
+
+			// Build enriched user object with org info
+			const enrichedUser = {
+				...session.user,
+				activeOrganization: activeOrg,
+				activeOrganizationRole: activeMemberRole,
+			};
+
+			// Set user and session directly (BetterAuth recommended pattern)
+			c.set('user', enrichedUser);
+			c.set('session', session.session);
+
 			// Add OTEL attributes for successful auth
 			if (span) {
 				const user = session.user as Record<string, unknown>;
-				const sess = session.session as Record<string, unknown>;
 
 				span.setAttributes({
 					'auth.user.id': (user.id as string) ?? '',
@@ -146,9 +180,11 @@ export function createMiddleware(
 				});
 
 				// Add org info if present
-				const activeOrgId = sess.activeOrganizationId as string | undefined;
 				if (activeOrgId) {
 					span.setAttribute('auth.org.id', activeOrgId);
+					if (activeOrg?.name) {
+						span.setAttribute('auth.org.name', activeOrg.name as string);
+					}
 				}
 			}
 
@@ -162,7 +198,7 @@ export function createMiddleware(
 						id: session.user.id,
 						name: session.user.name ?? undefined,
 						email: session.user.email ?? undefined,
-						raw: session.user,
+						raw: enrichedUser,
 					};
 					return cachedUser;
 				},
@@ -172,7 +208,7 @@ export function createMiddleware(
 					return header.replace(/^Bearer\s+/i, '') || null;
 				},
 				raw: {
-					user: session.user,
+					user: enrichedUser,
 					session: session.session,
 				},
 			};

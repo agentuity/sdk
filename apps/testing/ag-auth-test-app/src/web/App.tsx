@@ -7,6 +7,7 @@ const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 
 export function App() {
 	const [name, setName] = useState('World');
+	const [wantPoem, setWantPoem] = useState(false);
 	const { data: greeting, invoke, isLoading: running } = useAPI('POST /api/hello');
 
 	return (
@@ -65,7 +66,7 @@ export function App() {
 							<button
 								className={`button ${running ? 'disabled' : ''}`}
 								disabled={running}
-								onClick={() => invoke({ name })}
+								onClick={() => invoke({ name, wantPoem })}
 								type="button"
 							>
 								{running ? 'Running...' : 'Say Hello'}
@@ -73,8 +74,28 @@ export function App() {
 						</div>
 					</div>
 
+					<div className="poem-option">
+						<label className="checkbox-label">
+							<input
+								type="checkbox"
+								checked={wantPoem}
+								onChange={(e) => setWantPoem(e.target.checked)}
+								disabled={running}
+							/>
+							<span>Generate a poem about me (uses AI)</span>
+						</label>
+						<p className="poem-note">
+							This triggers an agent-to-agent handoff to the Poem Agent,
+							demonstrating auth propagation via withSession.
+						</p>
+					</div>
+
 					<div className="output" data-loading={!greeting}>
-						{greeting ?? 'Waiting for request'}
+						{greeting
+							? (greeting as string).split('\n').map((line, i) => (
+									<div key={i}>{line || '\u00A0'}</div>
+								))
+							: 'Waiting for request'}
 					</div>
 				</div>
 
@@ -416,6 +437,39 @@ export function App() {
 
 					.step-text code {
 						color: #fff;
+					}
+
+					.poem-option {
+						display: flex;
+						flex-direction: column;
+						gap: 0.5rem;
+					}
+
+					.checkbox-label {
+						display: flex;
+						align-items: center;
+						gap: 0.5rem;
+						cursor: pointer;
+						font-size: 0.875rem;
+						color: #a1a1aa;
+					}
+
+					.checkbox-label input[type="checkbox"] {
+						width: 1rem;
+						height: 1rem;
+						accent-color: #22d3ee;
+						cursor: pointer;
+					}
+
+					.checkbox-label span {
+						color: #fff;
+					}
+
+					.poem-note {
+						color: #71717a;
+						font-size: 0.75rem;
+						margin: 0;
+						padding-left: 1.5rem;
 					}
 
 					@keyframes ellipsis {

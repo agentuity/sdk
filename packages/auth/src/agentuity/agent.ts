@@ -7,7 +7,13 @@
  * @module agentuity/agent
  */
 
-import { inAgentContext, inHTTPContext, getAgentContext, getHTTPContext } from '@agentuity/runtime';
+import {
+	inAgentContext,
+	inHTTPContext,
+	getAgentContext,
+	getHTTPContext,
+	type AgentContext,
+} from '@agentuity/runtime';
 import type {
 	WithSessionOptions,
 	WithSessionContext,
@@ -251,8 +257,9 @@ export function createRoleScopeChecker(
  * import { withSession } from '@agentuity/auth/agentuity';
  *
  * export default createAgent('my-agent', {
- *   handler: withSession(async ({ auth, org, hasScope }, input) => {
+ *   handler: withSession(async (ctx, { auth, org, hasScope }, input) => {
  *     // auth is guaranteed non-null here
+ *     // ctx is the standard AgentContext
  *     return { userId: auth.user.id };
  *   }),
  * });
@@ -261,7 +268,7 @@ export function createRoleScopeChecker(
  * @example Optional auth (allow anonymous)
  * ```typescript
  * export default createAgent('public-agent', {
- *   handler: withSession(async ({ auth }, input) => {
+ *   handler: withSession(async (ctx, { auth }, input) => {
  *     if (auth) {
  *       return { message: `Hello, ${auth.user.name}!` };
  *     }
@@ -273,7 +280,7 @@ export function createRoleScopeChecker(
  * @example With scope requirements
  * ```typescript
  * export default createAgent('admin-agent', {
- *   handler: withSession(async ({ auth, hasScope }, input) => {
+ *   handler: withSession(async (ctx, { auth, hasScope }, input) => {
  *     // Will throw if user doesn't have 'admin' scope
  *     return { isAdmin: true };
  *   }, { requiredScopes: ['admin'] }),
@@ -283,20 +290,24 @@ export function createRoleScopeChecker(
  * @example With organization context
  * ```typescript
  * export default createAgent('org-agent', {
- *   handler: withSession(async ({ auth, org }, input) => {
+ *   handler: withSession(async (ctx, { auth, org }, input) => {
  *     if (!org) throw new Error('No organization selected');
  *     return { orgId: org.id, role: org.role };
  *   }),
  * });
  * ```
  */
-export function withSession<TInput, TOutput>(
-	handler: (ctx: WithSessionContext, input: TInput) => Promise<TOutput> | TOutput,
+export function withSession<TContext extends AgentContext, TInput, TOutput>(
+	handler: (
+		ctx: TContext,
+		session: WithSessionContext,
+		input: TInput
+	) => Promise<TOutput> | TOutput,
 	options: WithSessionOptions = {}
-): (input: TInput) => Promise<TOutput> {
+): (ctx: TContext, input: TInput) => Promise<TOutput> {
 	const { requiredScopes = [], optional = false } = options;
 
-	return async (input: TInput): Promise<TOutput> => {
+	return async (ctx: TContext, input: TInput): Promise<TOutput> => {
 		// Verify we're in an agent context
 		if (!inAgentContext()) {
 			throw new Error(
@@ -330,6 +341,6 @@ export function withSession<TInput, TOutput>(
 			hasScope,
 		};
 
-		return await handler(sessionCtx, input);
+		return await handler(ctx, sessionCtx, input);
 	};
 }

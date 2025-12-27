@@ -1,5 +1,6 @@
 // agent.ts exports
 export {
+	type AgentContext,
 	type AgentEventName,
 	type AgentEventCallback,
 	type AgentRuntimeState,

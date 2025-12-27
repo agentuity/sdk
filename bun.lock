@@ -58,6 +58,8 @@
         "@agentuity/runtime": "workspace:*",
         "@agentuity/schema": "workspace:*",
         "@agentuity/workbench": "workspace:*",
+        "@ai-sdk/openai": "^3.0.1",
+        "ai": "^6.0.3",
         "better-auth": "^1.2.0",
         "hono": "^4.7.13",
         "pg": "^8.16.0",

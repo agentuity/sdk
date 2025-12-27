@@ -279,7 +279,11 @@ export const auth = createAgentuityAuth({
 	basePath: '/api/auth',
 });
 
+// Required auth middleware - returns 401 if not authenticated
 export const authMiddleware = createMiddleware(auth);
+
+// Optional auth middleware - allows anonymous access, sets null auth
+export const optionalAuthMiddleware = createMiddleware(auth, { optional: true });
 `;
 }
 
@@ -305,9 +309,11 @@ app.use('/api/*', authMiddleware);
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
 // In your API routes (e.g., src/api/index.ts)
+import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
 import { auth } from '../auth';
 
-app.on(['GET', 'POST'], '/api/auth/*', (c) => auth.handler(c.req.raw));
+// Mount all BetterAuth routes (sign-in, sign-up, sign-out, session, etc.)
+api.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(auth));
 `);
 
 	console.log(tui.muted('━'.repeat(60)));
@@ -329,13 +335,19 @@ function App() {
 	console.log(tui.bold(' 4. Protect agents with withSession:'));
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
+import { createAgent } from '@agentuity/runtime';
 import { withSession } from '@agentuity/auth/agentuity';
 
-export default createAgent({
-  handler: withSession(async ({ auth }, input) => {
-    const user = await auth.getUser();
-    // ...
-  }),
+export default createAgent('my-agent', {
+  schema: { input: s.object({ name: s.string() }), output: s.string() },
+  handler: withSession(async (ctx, { auth, org, hasScope }, input) => {
+    // ctx = AgentContext, auth = { user, session } | null, org = org context
+    if (auth) {
+      const email = (auth.user as { email?: string }).email;
+      return \`Hello, \${email}!\`;
+    }
+    return 'Hello, anonymous!';
+  }, { optional: true }), // optional: true allows unauthenticated access
 });
 `);
 
