@@ -200,7 +200,8 @@ export function Chat({
 											>
 												{role === "user" && (
 													<Action
-														label="Retry"
+														tooltip="Re-run"
+														label="Re-run"
 														className="size-8 hover:bg-transparent!"
 														onClick={() =>
 															setValue(
@@ -216,6 +217,9 @@ export function Chat({
 												)}
 
 												<Action
+													tooltip="Copy to clipboard"
+													label="Copy to clipboard"
+													className="size-8 hover:bg-transparent!"
 													onClick={() =>
 														navigator.clipboard.writeText(
 															parts
@@ -224,8 +228,6 @@ export function Chat({
 																.join(""),
 														)
 													}
-													label="Copy"
-													className="size-8 hover:bg-transparent!"
 												>
 													<Copy className="size-4" />
 												</Action>
