@@ -34,6 +34,7 @@ export const ConfigSchema = zod.object({
 			transport_url: zod.url().optional().describe('Override transport URL'),
 			stream_url: zod.url().optional().describe('Override stream URL'),
 			kv_url: zod.url().optional().describe('Override keyvalue URL'),
+			sandbox_url: zod.url().optional().describe('Override sandbox URL'),
 			vector_url: zod.url().optional().describe('Override vector store URL'),
 			catalyst_url: zod.url().optional().describe('Override catalyst URL'),
 			ion_url: zod.url().optional().describe('Override ion URL'),
