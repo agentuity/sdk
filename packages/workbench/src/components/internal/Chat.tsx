@@ -16,29 +16,29 @@ import { useWorkbench } from "./WorkbenchProvider";
 
 export interface ChatProps {
 	className?: string;
-	schemaOpen: boolean;
-	onSchemaToggle: () => void;
 	emptyState?: React.ReactNode;
+	onSchemaToggle: () => void;
+	schemaOpen: boolean;
 }
 
 export function Chat({
 	className: _className,
-	schemaOpen,
-	onSchemaToggle,
 	emptyState,
+	onSchemaToggle,
+	schemaOpen,
 }: ChatProps) {
-	const logger = useLogger("Chat");
 	const {
 		agents,
-		suggestions,
+		clearAgentState,
+		connectionStatus,
+		isLoading,
 		messages,
 		selectedAgent,
 		setSelectedAgent,
-		isLoading,
 		submitMessage,
-		clearAgentState,
-		connectionStatus,
+		suggestions,
 	} = useWorkbench();
+	const logger = useLogger("Chat");
 	const [value, setValue] = useState("");
 
 	const handleSubmit = async () => {
@@ -242,17 +242,17 @@ export function Chat({
 			</Conversation>
 
 			<InputSection
-				value={value}
-				onChange={setValue}
-				onSubmit={handleSubmit}
-				isLoading={isLoading}
 				agents={agents}
+				clearAgentState={clearAgentState}
+				isLoading={isLoading}
+				isSchemaOpen={schemaOpen}
+				onChange={setValue}
+				onSchemaToggle={onSchemaToggle}
+				onSubmit={handleSubmit}
 				selectedAgent={selectedAgent}
 				setSelectedAgent={setSelectedAgent}
 				suggestions={suggestions}
-				isSchemaOpen={schemaOpen}
-				onSchemaToggle={onSchemaToggle}
-				clearAgentState={clearAgentState}
+				value={value}
 			/>
 		</div>
 	);

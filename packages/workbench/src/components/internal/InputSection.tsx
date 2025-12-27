@@ -63,18 +63,18 @@ function isSchemaRootObject(schemaJson?: JSONSchema7): boolean {
 }
 
 export function InputSection({
-	className,
-	value,
-	onChange,
-	onSubmit,
-	isLoading,
 	agents,
+	className,
+	clearAgentState,
+	isLoading,
+	isSchemaOpen,
+	onChange,
+	onSchemaToggle,
+	onSubmit,
 	selectedAgent,
 	setSelectedAgent,
 	suggestions,
-	isSchemaOpen,
-	onSchemaToggle,
-	clearAgentState,
+	value,
 }: InputSectionProps) {
 	const logger = useLogger("InputSection");
 	const { generateSample, isGeneratingSample, isAuthenticated } =
@@ -418,21 +418,22 @@ export function InputSection({
 								case "object":
 									return (
 										<MonacoJsonEditor
-											value={value}
+											aria-invalid={!isValidInput}
 											onChange={onChange}
+											onSubmit={onSubmit}
+											onValidationChange={setMonacoHasErrors}
 											schema={selectedAgentData?.schema.input?.json}
 											schemaUri={`agentuity://schema/${selectedAgentData?.metadata.id}/input`}
-											aria-invalid={!isValidInput}
-											onValidationChange={setMonacoHasErrors}
+											value={value}
 										/>
 									);
 
 								case "string":
 									return (
 										<PromptInputTextarea
+											onChange={(e) => onChange(e.target.value)}
 											placeholder="Enter a message to send..."
 											value={value}
-											onChange={(e) => onChange(e.target.value)}
 										/>
 									);
 								default:

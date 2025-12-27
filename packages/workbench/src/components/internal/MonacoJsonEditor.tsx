@@ -3,18 +3,19 @@ import oneDarkProModule from "@shikijs/themes/one-dark-pro";
 import oneLightModule from "@shikijs/themes/one-light";
 import type { JSONSchema7 } from "ai";
 import type * as monaco from "monaco-editor";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import type { ThemeRegistration } from "shiki";
 import { useTheme } from "../ui/theme-provider";
 
 interface MonacoJsonEditorProps {
-	value: string;
+	"aria-invalid"?: boolean;
+	className?: string;
 	onChange: (value: string) => void;
+	onSubmit: () => void;
+	onValidationChange?: (hasErrors: boolean) => void;
 	schema?: JSONSchema7;
 	schemaUri?: string;
-	className?: string;
-	"aria-invalid"?: boolean;
-	onValidationChange?: (hasErrors: boolean) => void;
+	value: string;
 }
 
 // Convert color value to valid hex for Monaco
@@ -118,13 +119,14 @@ function convertShikiToMonaco(
 }
 
 export function MonacoJsonEditor({
-	value,
+	"aria-invalid": ariaInvalid,
+	className = "",
 	onChange,
+	onSubmit,
+	onValidationChange,
 	schema,
 	schemaUri = "agentuity://schema/default",
-	className = "",
-	"aria-invalid": ariaInvalid,
-	onValidationChange,
+	value,
 }: MonacoJsonEditorProps) {
 	const { theme } = useTheme();
 	const [editorInstance, setEditorInstance] = useState<
@@ -132,6 +134,11 @@ export function MonacoJsonEditor({
 	>(null);
 	const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
 	const [editorHeight, setEditorHeight] = useState(120);
+	const handleSubmit = useRef(onSubmit);
+
+	useEffect(() => {
+		handleSubmit.current = onSubmit;
+	}, [onSubmit]);
 
 	// Get resolved theme (similar to useTheme's resolvedTheme from next-themes)
 	const resolvedTheme = React.useMemo(() => {
@@ -237,7 +244,12 @@ export function MonacoJsonEditor({
 				onMount={(editor, monaco) => {
 					setEditorInstance(editor);
 					setMonacoInstance(monaco);
+
 					editor.focus();
+
+					editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () =>
+						handleSubmit.current(),
+					);
 
 					// Auto-resize based on content
 					const updateHeight = () => {
@@ -248,6 +260,7 @@ export function MonacoJsonEditor({
 							Math.max(contentHeight + 24, minHeight),
 							maxHeight,
 						);
+
 						setEditorHeight(newHeight);
 
 						// Layout after height change
@@ -261,20 +274,24 @@ export function MonacoJsonEditor({
 					if (onValidationChange) {
 						const checkValidationErrors = () => {
 							const model = editor.getModel();
+
 							if (model) {
 								// Treat an empty editor as a valid "empty state" (avoid Monaco's JSON parse error).
 								if (!model.getValue().trim()) {
 									onValidationChange(false);
+
 									return;
 								}
 
 								const markers = monaco.editor.getModelMarkers({
 									resource: model.uri,
 								});
+
 								const hasErrors = markers.some(
 									(marker: monaco.editor.IMarker) =>
 										marker.severity === monaco.MarkerSeverity.Error,
 								);
+
 								onValidationChange(hasErrors);
 							}
 						};
@@ -285,6 +302,7 @@ export function MonacoJsonEditor({
 						// Check when markers change
 						monaco.editor.onDidChangeMarkers((uris: readonly monaco.Uri[]) => {
 							const model = editor.getModel();
+
 							if (model && uris.includes(model.uri)) {
 								checkValidationErrors();
 							}
@@ -300,6 +318,7 @@ export function MonacoJsonEditor({
 					// Ensure background transparency and remove shadows
 					setTimeout(() => {
 						const editorElement = editor.getDomNode();
+
 						if (editorElement) {
 							// Set transparent backgrounds on all relevant elements
 							const elementsToMakeTransparent = [
@@ -315,6 +334,7 @@ export function MonacoJsonEditor({
 
 							elementsToMakeTransparent.forEach((selector) => {
 								const element = editorElement.querySelector(selector);
+
 								if (element) {
 									(element as HTMLElement).style.backgroundColor =
 										"transparent";
@@ -326,6 +346,7 @@ export function MonacoJsonEditor({
 							const shadowTop = editorElement.querySelector(
 								".monaco-scrollable-element > .shadow.top",
 							);
+
 							if (shadowTop) {
 								(shadowTop as HTMLElement).style.display = "none";
 							}
@@ -333,6 +354,7 @@ export function MonacoJsonEditor({
 							const scrollDecorations = editorElement.querySelectorAll(
 								".monaco-editor .scroll-decoration, .scroll-decoration",
 							);
+
 							scrollDecorations.forEach((decoration) => {
 								(decoration as HTMLElement).style.display = "none";
 							});
@@ -340,6 +362,7 @@ export function MonacoJsonEditor({
 							const scrollableElement = editorElement.querySelector(
 								".monaco-scrollable-element",
 							);
+
 							if (scrollableElement) {
 								(scrollableElement as HTMLElement).style.setProperty(
 									"--scroll-shadow",
@@ -368,6 +391,7 @@ export function MonacoJsonEditor({
 							? oneLightModule.default
 							: oneLightModule
 					) as ThemeRegistration;
+
 					const oneDarkPro = (
 						"default" in oneDarkProModule
 							? oneDarkProModule.default
@@ -375,6 +399,7 @@ export function MonacoJsonEditor({
 					) as ThemeRegistration;
 
 					const lightMonacoTheme = convertShikiToMonaco(oneLight, "one-light");
+
 					monaco.editor.defineTheme(
 						"custom-light",
 						lightMonacoTheme as monaco.editor.IStandaloneThemeData,
@@ -384,6 +409,7 @@ export function MonacoJsonEditor({
 						oneDarkPro,
 						"one-dark-pro",
 					);
+
 					monaco.editor.defineTheme(
 						"custom-dark",
 						darkMonacoTheme as monaco.editor.IStandaloneThemeData,
