@@ -42,12 +42,6 @@ export interface AgentuityOrgContext {
  */
 export interface WithSessionOptions {
 	/**
-	 * Scopes required to execute the handler.
-	 * Handler will throw if user doesn't have all required scopes.
-	 */
-	requiredScopes?: string[];
-
-	/**
 	 * If true, allow unauthenticated execution (auth will be null).
 	 * If false (default), throws error when no auth is present.
 	 */
@@ -78,17 +72,4 @@ export interface WithSessionContext<TUser = unknown, TSession = unknown> {
 	 * Populated from BetterAuth's organization plugin.
 	 */
 	org: AgentuityOrgContext | null;
-
-	/**
-	 * Check if the current auth context has a specific scope.
-	 * Returns false if not authenticated or scope is missing.
-	 *
-	 * @example
-	 * ```typescript
-	 * if (!ctx.hasScope('admin')) {
-	 *   throw new Error('Admin access required');
-	 * }
-	 * ```
-	 */
-	hasScope: (scope: string) => boolean;
 }

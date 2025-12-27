@@ -1,5 +1,5 @@
 import { createRouter } from '@agentuity/runtime';
-import { mountBetterAuthRoutes, requireScopes } from '@agentuity/auth/agentuity';
+import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
 import { APIError } from 'better-auth/api';
 import hello from '@agent/hello';
 import { auth, authMiddleware, optionalAuthMiddleware } from '../auth';
@@ -59,142 +59,100 @@ api.get('/token', authMiddleware, async (c) => {
 });
 
 // =============================================================================
-// Scope-Based Access Control Examples
+// Organization Role-Based Access Control Examples
 // =============================================================================
 
-/**
- * Custom scope extractor that works with BetterAuth's API key permissions.
- * BetterAuth uses `permissions: Record<string, string[]>` format, e.g.:
- *   { project: ['read', 'write'], admin: ['*'] }
- *
- * This extractor converts them to flat scopes like:
- *   ['project:read', 'project:write', 'admin:*']
- *
- * It also checks org roles for role-based scopes.
- *
- * NOTE: For API keys with permissions, we need to verify the key to get permissions
- * since enableSessionForAPIKeys doesn't include them in the mock session.
- */
-function extractBetterAuthScopes(authContext: { user: unknown; session: unknown }): string[] {
-	const scopes: string[] = [];
+// Admin route - requires owner or admin role in the active organization
+api.get('/admin', authMiddleware, async (c) => {
+	const user = await c.var.auth.getUser();
+	const activeOrg = await auth.api
+		.getFullOrganization({
+			headers: c.req.raw.headers,
+		})
+		.catch(() => null);
 
-	// 1. Check API key permissions (if using API key auth)
-	const session = authContext.session as Record<string, unknown>;
-	const apiKeyPermissions = session.permissions as Record<string, string[]> | undefined;
+	const role = activeOrg?.members?.find((m: { userId: string }) => m.userId === user.id)?.role;
 
-	if (apiKeyPermissions) {
-		for (const [resource, actions] of Object.entries(apiKeyPermissions)) {
-			for (const action of actions) {
-				scopes.push(`${resource}:${action}`);
-			}
-		}
+	if (role !== 'owner' && role !== 'admin') {
+		return c.json({ error: 'Forbidden: admin role required' }, 403);
 	}
 
-	// 2. Check for flat scopes on session or user
-	const user = authContext.user as Record<string, unknown>;
-	const sessionScopes = session.scopes as string[] | string | undefined;
-	const userScopes = user.scopes as string[] | string | undefined;
+	return c.json({
+		message: 'Welcome to the admin area!',
+		userId: user.id,
+		role,
+	});
+});
 
-	const flatScopes = sessionScopes ?? userScopes;
-	if (flatScopes) {
-		if (Array.isArray(flatScopes)) {
-			scopes.push(...flatScopes);
-		} else if (typeof flatScopes === 'string') {
-			scopes.push(...flatScopes.split(/\s+/).filter(Boolean));
-		}
+// =============================================================================
+// API Key Permission Examples (BetterAuth Native)
+// =============================================================================
+
+// Example: Protected route requiring API key permission
+// Uses BetterAuth's native permissions: Record<string, string[]> format
+api.post('/projects', authMiddleware, async (c) => {
+	const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
+
+	if (!apiKeyHeader) {
+		return c.json({ error: 'API key required for this endpoint' }, 401);
 	}
 
-	// 3. Add org role as a scope (e.g., 'org:owner', 'org:admin', 'org:member')
-	const activeOrgRole = user.activeOrganizationRole as string | undefined;
-	if (activeOrgRole) {
-		scopes.push(`org:${activeOrgRole}`);
-		// Owner gets admin privileges
-		if (activeOrgRole === 'owner') {
-			scopes.push('org:admin');
+	// Verify API key and check permissions using BetterAuth's native API
+	try {
+		const result = await auth.api.verifyApiKey({
+			body: { key: apiKeyHeader },
+		});
+
+		if (!result.valid || !result.key?.permissions) {
+			return c.json({ error: 'Invalid API key' }, 401);
 		}
+
+		const permissions = result.key.permissions as Record<string, string[]>;
+		const projectPerms = permissions.project ?? [];
+		const canWriteProject = projectPerms.includes('write') || projectPerms.includes('*');
+
+		if (!canWriteProject) {
+			return c.json(
+				{ error: 'Forbidden', missingPermissions: { project: ['write'] } },
+				403
+			);
+		}
+
+		const user = await c.var.auth.getUser();
+		return c.json({
+			message: 'Project creation authorized',
+			userId: user.id,
+			usedPermissions: permissions,
+		});
+	} catch (err) {
+		return c.json({ error: 'API key verification failed', detail: String(err) }, 500);
 	}
+});
 
-	return scopes;
-}
+// Debug route to see current API key permissions (useful for testing)
+api.get('/debug/permissions', authMiddleware, async (c) => {
+	const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
 
-/**
- * Async scope extractor that verifies API key to get permissions.
- * Use this for routes that need to check API key permissions.
- */
-async function extractScopesWithApiKeyVerification(
-	authContext: { user: unknown; session: unknown },
-	apiKeyHeader: string | undefined
-): Promise<string[]> {
-	const scopes = extractBetterAuthScopes(authContext);
+	let permissions: Record<string, string[]> | null = null;
 
-	// If we have an API key header and no permissions yet, verify it
-	if (apiKeyHeader && scopes.length === 0) {
+	if (apiKeyHeader) {
 		try {
 			const result = await auth.api.verifyApiKey({
 				body: { key: apiKeyHeader },
 			});
 			if (result.valid && result.key?.permissions) {
-				const permissions = result.key.permissions as Record<string, string[]>;
-				for (const [resource, actions] of Object.entries(permissions)) {
-					for (const action of actions) {
-						scopes.push(`${resource}:${action}`);
-					}
-				}
+				permissions = result.key.permissions as Record<string, string[]>;
 			}
 		} catch {
-			// Verification failed, return scopes as-is
+			// Verification failed, keep permissions as null
 		}
 	}
 
-	return scopes;
-}
-
-// Example: Protected route with scope requirements using custom extractor
-api.get(
-	'/admin',
-	authMiddleware,
-	requireScopes(['org:admin'], { getScopes: extractBetterAuthScopes }),
-	async (c) => {
-		const user = await c.var.auth.getUser();
-		return c.json({
-			message: 'Welcome to the admin area!',
-			userId: user.id,
-		});
-	}
-);
-
-// Example: Protected route requiring API key permission
-// Uses custom async middleware since API key permissions require verification
-api.post('/projects', authMiddleware, async (c, next) => {
 	const authContext = c.var.auth.raw as { user: unknown; session: unknown };
-	const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
-	const scopes = await extractScopesWithApiKeyVerification(authContext, apiKeyHeader);
-
-	const requiredScope = 'project:write';
-	const hasScope = scopes.includes(requiredScope) || scopes.includes('*');
-
-	if (!hasScope) {
-		return c.json({ error: 'Forbidden', missingScopes: [requiredScope] }, 403);
-	}
-
-	return next();
-}, async (c) => {
-	const user = await c.var.auth.getUser();
-	return c.json({
-		message: 'Project creation authorized',
-		userId: user.id,
-	});
-});
-
-// Debug route to see current scopes (useful for testing scope configuration)
-api.get('/debug/scopes', authMiddleware, async (c) => {
-	const authContext = c.var.auth.raw as { user: unknown; session: unknown };
-	const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
-	const scopes = await extractScopesWithApiKeyVerification(authContext, apiKeyHeader);
 	const user = authContext.user as Record<string, unknown>;
 
 	return c.json({
-		scopes,
+		permissions,
 		activeOrgRole: user.activeOrganizationRole ?? null,
 		authMethod: apiKeyHeader ? 'api-key' : 'session',
 	});

@@ -30,7 +30,7 @@
  * import { withSession } from '@agentuity/auth/agentuity';
  *
  * export default createAgent('my-agent', {
- *   handler: withSession(async ({ auth, org, hasScope }, input) => {
+ *   handler: withSession(async (ctx, { auth, org }, input) => {
  *     if (!auth) return { error: 'Not authenticated' };
  *     return { userId: auth.user.id };
  *   }, { optional: true }),
@@ -81,8 +81,8 @@ export type { DatabaseClient, EnsureAuthSchemaOptions, EnsureAuthSchemaResult } 
 // Server (Hono middleware and handlers)
 // =============================================================================
 
-export { createMiddleware, mountBetterAuthRoutes, requireScopes } from './server';
-export type { AgentuityMiddlewareOptions, AgentuityAuthEnv, RequireScopesOptions } from './server';
+export { createMiddleware, mountBetterAuthRoutes } from './server';
+export type { AgentuityMiddlewareOptions, AgentuityAuthEnv } from './server';
 
 // =============================================================================
 // Client (React)
@@ -95,7 +95,7 @@ export type { AgentuityBetterAuthProps } from './client';
 // Agent Wrappers
 // =============================================================================
 
-export { withSession, createScopeChecker, createRoleScopeChecker } from './agent';
+export { withSession } from './agent';
 
 // =============================================================================
 // Types

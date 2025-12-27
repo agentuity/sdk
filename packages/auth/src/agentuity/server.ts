@@ -12,7 +12,6 @@ import { context, trace, SpanStatusCode } from '@opentelemetry/api';
 import type { AgentuityAuth, AgentuityAuthUser } from '../types';
 import type { AgentuityAuthInstance } from './config';
 import type { AgentuityAuthContext } from './types';
-import { createScopeChecker } from './agent';
 
 export interface AgentuityMiddlewareOptions {
 	/**
@@ -299,125 +298,6 @@ export function mountBetterAuthRoutes(
 			status: response.status,
 			headers: c.res.headers,
 		});
-	};
-}
-
-// =============================================================================
-// Scope Middleware
-// =============================================================================
-
-/**
- * Options for requireScopes middleware.
- */
-export interface RequireScopesOptions {
-	/**
-	 * Custom function to extract scopes from the auth context.
-	 * Default: looks for `session.scopes` (string[] or space-delimited string).
-	 */
-	getScopes?: (auth: AgentuityAuthContext) => string[];
-
-	/**
-	 * Custom unauthorized response handler.
-	 */
-	onUnauthorized?: (c: Parameters<MiddlewareHandler>[0]) => Response | Promise<Response>;
-
-	/**
-	 * Custom forbidden response handler.
-	 */
-	onForbidden?: (
-		c: Parameters<MiddlewareHandler>[0],
-		missingScopes: string[]
-	) => Response | Promise<Response>;
-}
-
-/**
- * Default scope extractor.
- * Looks for scopes in session.scopes or user.scopes.
- */
-function defaultGetScopes(auth: AgentuityAuthContext): string[] {
-	const session = auth.session as Record<string, unknown>;
-	const user = auth.user as Record<string, unknown>;
-
-	const scopes = (session.scopes as string[] | string) ?? (user.scopes as string[] | string);
-
-	if (!scopes) return [];
-	if (Array.isArray(scopes)) return scopes;
-	if (typeof scopes === 'string') return scopes.split(/\s+/).filter(Boolean);
-	return [];
-}
-
-/**
- * Hono middleware that enforces required scopes on the current session.
- *
- * Must be used AFTER createHonoMiddleware which sets c.var.auth.
- *
- * @example Basic usage
- * ```typescript
- * import { createHonoMiddleware, requireScopes } from '@agentuity/auth/agentuity';
- *
- * app.use('/api/*', createHonoMiddleware(auth));
- *
- * // Require 'admin' scope for this route
- * app.get('/api/admin', requireScopes(['admin']), (c) => {
- *   return c.json({ admin: true });
- * });
- * ```
- *
- * @example Multiple scopes (all required)
- * ```typescript
- * app.post('/api/users', requireScopes(['user:read', 'user:write']), (c) => {
- *   // User must have BOTH scopes
- * });
- * ```
- *
- * @example Custom scope extraction
- * ```typescript
- * app.get('/api/custom', requireScopes(['read'], {
- *   getScopes: (auth) => auth.user.permissions ?? [],
- * }), (c) => {
- *   // Uses custom scope extraction logic
- * });
- * ```
- */
-export function requireScopes(
-	requiredScopes: string[],
-	options: RequireScopesOptions = {}
-): MiddlewareHandler<AgentuityAuthEnv> {
-	const {
-		getScopes = defaultGetScopes,
-		onUnauthorized = (c) => c.json({ error: 'Unauthorized' }, 401),
-		onForbidden = (c, missing) => c.json({ error: 'Forbidden', missingScopes: missing }, 403),
-	} = options;
-
-	return async (c, next) => {
-		const span = trace.getSpan(context.active());
-		const auth = c.var.auth;
-
-		// No auth context - unauthorized
-		if (!auth?.raw) {
-			span?.addEvent('auth.scope_check.unauthorized');
-			return onUnauthorized(c);
-		}
-
-		const authContext = auth.raw as AgentuityAuthContext;
-		const scopes = getScopes(authContext);
-		const hasScope = createScopeChecker(scopes);
-		const missing = requiredScopes.filter((s) => !hasScope(s));
-
-		if (missing.length > 0) {
-			span?.addEvent('auth.scope_check.forbidden', {
-				requiredScopes: requiredScopes.join(','),
-				missingScopes: missing.join(','),
-			});
-			return onForbidden(c, missing);
-		}
-
-		// Add OTEL attributes for successful scope check
-		span?.addEvent('auth.scope_check.passed', {
-			requiredScopes: requiredScopes.join(','),
-		});
-
-		return next();
 	};
 }
 

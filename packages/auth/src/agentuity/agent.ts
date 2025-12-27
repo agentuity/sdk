@@ -109,32 +109,6 @@ function extractOrgFromAuth(auth: AgentuityAuthContext | null): AgentuityOrgCont
 }
 
 /**
- * Extract scopes from auth context.
- * Looks for scopes in session claims, user claims, or API key permissions.
- */
-function extractScopes(auth: AgentuityAuthContext | null): string[] {
-	if (!auth) return [];
-
-	try {
-		const session = auth.session as Record<string, unknown>;
-		const user = auth.user as Record<string, unknown>;
-
-		// Check various possible scope locations
-		const scopes =
-			(session.scopes as string[] | string) ??
-			(user.scopes as string[] | string) ??
-			(session.permissions as string[] | string) ??
-			[];
-
-		if (Array.isArray(scopes)) return scopes;
-		if (typeof scopes === 'string') return scopes.split(/\s+/).filter(Boolean);
-		return [];
-	} catch {
-		return [];
-	}
-}
-
-/**
  * Resolve auth context from current execution environment.
  *
  * Resolution order:
@@ -199,56 +173,12 @@ function resolveOrg(auth: AgentuityAuthContext | null): AgentuityOrgContext | nu
 // =============================================================================
 
 /**
- * Create a scope checker function.
- *
- * @example
- * ```typescript
- * const hasScope = createScopeChecker(['read', 'write', 'admin']);
- * hasScope('read'); // true
- * hasScope('delete'); // false
- * hasScope('*'); // true (if '*' is in scopes)
- * ```
- */
-export function createScopeChecker(scopes: string[]): (scope: string) => boolean {
-	const scopeSet = new Set(scopes);
-	return (scope: string) => {
-		if (scopeSet.has('*')) return true;
-		return scopeSet.has(scope);
-	};
-}
-
-/**
- * Create a role-to-scope checker.
- *
- * Maps organization roles to scopes and returns a scope checker.
- *
- * @example
- * ```typescript
- * const roleScopes = {
- *   owner: ['*'],
- *   admin: ['project:read', 'project:write', 'user:read'],
- *   member: ['project:read'],
- * };
- * const hasScope = createRoleScopeChecker('admin', roleScopes);
- * hasScope('project:write'); // true
- * hasScope('user:delete'); // false
- * ```
- */
-export function createRoleScopeChecker(
-	role: string | null | undefined,
-	roleScopes: Record<string, string[]>
-): (scope: string) => boolean {
-	const scopes = role ? (roleScopes[role] ?? []) : [];
-	return createScopeChecker(scopes);
-}
-
-/**
  * Unified auth wrapper for agent handlers.
  *
  * Works across ALL execution contexts:
  * - **HTTP requests**: Extracts auth from BetterAuth session or API key
  * - **Agent-to-agent calls**: Automatically inherits auth from calling agent
- * - **Cron jobs**: `auth` is null, `hasScope()` returns false
+ * - **Cron jobs**: `auth` is null
  * - **Standalone invocations**: `auth` is null unless manually set
  *
  * @example Basic usage (require auth)
@@ -257,7 +187,7 @@ export function createRoleScopeChecker(
  * import { withSession } from '@agentuity/auth/agentuity';
  *
  * export default createAgent('my-agent', {
- *   handler: withSession(async (ctx, { auth, org, hasScope }, input) => {
+ *   handler: withSession(async (ctx, { auth, org }, input) => {
  *     // auth is guaranteed non-null here
  *     // ctx is the standard AgentContext
  *     return { userId: auth.user.id };
@@ -274,16 +204,6 @@ export function createRoleScopeChecker(
  *     }
  *     return { message: 'Hello, anonymous!' };
  *   }, { optional: true }),
- * });
- * ```
- *
- * @example With scope requirements
- * ```typescript
- * export default createAgent('admin-agent', {
- *   handler: withSession(async (ctx, { auth, hasScope }, input) => {
- *     // Will throw if user doesn't have 'admin' scope
- *     return { isAdmin: true };
- *   }, { requiredScopes: ['admin'] }),
  * });
  * ```
  *
@@ -305,7 +225,7 @@ export function withSession<TContext extends AgentContext, TInput, TOutput>(
 	) => Promise<TOutput> | TOutput,
 	options: WithSessionOptions = {}
 ): (ctx: TContext, input: TInput) => Promise<TOutput> {
-	const { requiredScopes = [], optional = false } = options;
+	const { optional = false } = options;
 
 	return async (ctx: TContext, input: TInput): Promise<TOutput> => {
 		// Verify we're in an agent context
@@ -319,26 +239,15 @@ export function withSession<TContext extends AgentContext, TInput, TOutput>(
 		// Resolve auth (from HTTP context or cache)
 		const auth = resolveAuth();
 		const org = resolveOrg(auth);
-		const scopes = extractScopes(auth);
-		const hasScope = createScopeChecker(scopes);
 
 		// Enforce auth requirement
 		if (!auth && !optional) {
 			throw new Error('Unauthenticated: This agent requires authentication');
 		}
 
-		// Enforce scope requirements
-		if (requiredScopes.length > 0) {
-			const missing = requiredScopes.filter((s) => !hasScope(s));
-			if (missing.length > 0) {
-				throw new Error(`Forbidden: Missing required scopes: ${missing.join(', ')}`);
-			}
-		}
-
 		const sessionCtx: WithSessionContext = {
 			auth,
 			org,
-			hasScope,
 		};
 
 		return await handler(ctx, sessionCtx, input);

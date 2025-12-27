@@ -7,8 +7,7 @@
 
 import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
-import { createMiddleware, requireScopes } from '../../src/agentuity/server';
-import { createScopeChecker } from '../../src/agentuity/agent';
+import { createMiddleware } from '../../src/agentuity/server';
 
 describe('Agentuity BetterAuth E2E flow', () => {
 	const mockUser = {
@@ -125,50 +124,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 		});
 	});
 
-	describe('Scope-protected routes', () => {
-		test('returns 403 when required scopes are missing', async () => {
-			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
-			const app = new Hono();
 
-			app.use('/api/*', createMiddleware(mockAuth as any));
-			app.get('/api/admin', requireScopes(['admin']), (c) => c.json({ admin: true }));
-
-			const res = await app.request('/api/admin');
-
-			expect(res.status).toBe(403);
-			const body = (await res.json()) as { error: string; missingScopes: string[] };
-			expect(body.error).toBe('Forbidden');
-			expect(body.missingScopes).toContain('admin');
-		});
-
-		test('allows access when required scopes are present', async () => {
-			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
-			const app = new Hono();
-
-			app.use('/api/*', createMiddleware(mockAuth as any));
-			app.get('/api/data', requireScopes(['read']), (c) => c.json({ data: 'secret' }));
-
-			const res = await app.request('/api/data');
-
-			expect(res.status).toBe(200);
-			expect(await res.json()).toEqual({ data: 'secret' });
-		});
-
-		test('supports multiple required scopes', async () => {
-			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
-			const app = new Hono();
-
-			app.use('/api/*', createMiddleware(mockAuth as any));
-			app.post('/api/projects', requireScopes(['read', 'write']), (c) =>
-				c.json({ created: true })
-			);
-
-			const res = await app.request('/api/projects', { method: 'POST' });
-
-			expect(res.status).toBe(200);
-			expect(await res.json()).toEqual({ created: true });
-		});
-	});
 
 	describe('Auth method detection', () => {
 		test('detects session-based auth', async () => {
@@ -269,26 +225,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 		});
 	});
 
-	describe('Scope checking utilities', () => {
-		test('createScopeChecker works with specific scopes', () => {
-			const hasScope = createScopeChecker(['read', 'write']);
-			expect(hasScope('read')).toBe(true);
-			expect(hasScope('write')).toBe(true);
-			expect(hasScope('delete')).toBe(false);
-		});
 
-		test('createScopeChecker supports wildcard', () => {
-			const hasScope = createScopeChecker(['*']);
-			expect(hasScope('anything')).toBe(true);
-			expect(hasScope('at')).toBe(true);
-			expect(hasScope('all')).toBe(true);
-		});
-
-		test('createScopeChecker returns false for empty scopes', () => {
-			const hasScope = createScopeChecker([]);
-			expect(hasScope('read')).toBe(false);
-		});
-	});
 
 	describe('Full app simulation', () => {
 		test('simulates complete app with multiple route types', async () => {
@@ -306,10 +243,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 				return c.json({ id: user.id, name: user.name });
 			});
 
-			// Scope-protected route
-			app.get('/api/admin', requireScopes(['admin']), (c) => c.json({ admin: true }));
-
-			app.get('/api/data', requireScopes(['read']), (c) => c.json({ data: 'allowed' }));
+			app.get('/api/data', (c) => c.json({ data: 'allowed' }));
 
 			// Test all routes
 			const healthRes = await app.request('/health');
@@ -319,9 +253,6 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const meRes = await app.request('/api/me');
 			expect(meRes.status).toBe(200);
 			expect(await meRes.json()).toEqual({ id: 'user_e2e_123', name: 'E2E Test User' });
-
-			const adminRes = await app.request('/api/admin');
-			expect(adminRes.status).toBe(403);
 
 			const dataRes = await app.request('/api/data');
 			expect(dataRes.status).toBe(200);

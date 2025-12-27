@@ -340,7 +340,7 @@ import { withSession } from '@agentuity/auth/agentuity';
 
 export default createAgent('my-agent', {
   schema: { input: s.object({ name: s.string() }), output: s.string() },
-  handler: withSession(async (ctx, { auth, org, hasScope }, input) => {
+  handler: withSession(async (ctx, { auth, org }, input) => {
     // ctx = AgentContext, auth = { user, session } | null, org = org context
     if (auth) {
       const email = (auth.user as { email?: string }).email;

@@ -61,11 +61,7 @@ describe('withSession', () => {
 
 		const { withSession } = await import('../../src/agentuity/agent');
 
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			input: string
-		) => {
+		const testHandler = async (_ctx: any, session: { auth: any; org: any }, input: string) => {
 			return { input, auth: session.auth };
 		};
 
@@ -84,11 +80,7 @@ describe('withSession', () => {
 
 		const { withSession } = await import('../../src/agentuity/agent');
 
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			input: string
-		) => {
+		const testHandler = async (_ctx: any, session: { auth: any; org: any }, input: string) => {
 			return { input, auth: session.auth, org: session.org };
 		};
 
@@ -100,102 +92,30 @@ describe('withSession', () => {
 		expect(result.org).toBeNull();
 	});
 
-	test('returns hasScope function that works correctly', async () => {
-		const agentContext = createMockAgentContext([
-			[
-				'@agentuity/auth',
-				{
-					user: { id: 'user-123', scopes: ['read', 'write'] },
-					session: { id: 'sess-456' },
-				},
-			],
-		]);
+	test('extracts auth from cached state', async () => {
+		const authData = {
+			user: { id: 'user-123', email: 'test@example.com' },
+			session: { id: 'sess-456' },
+		};
+		const agentContext = createMockAgentContext([['@agentuity/auth', authData]]);
 		inAgentContextSpy.mockReturnValue(true);
 		getAgentContextSpy.mockReturnValue(agentContext);
 		inHTTPContextSpy.mockReturnValue(false);
 
 		const { withSession } = await import('../../src/agentuity/agent');
 
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			_input: string
-		) => {
+		const testHandler = async (_ctx: any, session: { auth: any; org: any }, _input: string) => {
 			return {
-				hasRead: session.hasScope('read'),
-				hasWrite: session.hasScope('write'),
-				hasAdmin: session.hasScope('admin'),
+				userId: session.auth?.user?.id,
+				email: session.auth?.user?.email,
 			};
 		};
 
 		const wrapped = withSession(testHandler, { optional: true });
 		const result = await wrapped(agentContext as any, 'test-input');
 
-		expect(result.hasRead).toBe(true);
-		expect(result.hasWrite).toBe(true);
-		expect(result.hasAdmin).toBe(false);
-	});
-
-	test('throws when required scopes are missing', async () => {
-		const agentContext = createMockAgentContext([
-			[
-				'@agentuity/auth',
-				{
-					user: { id: 'user-123', scopes: ['read'] },
-					session: { id: 'sess-456' },
-				},
-			],
-		]);
-		inAgentContextSpy.mockReturnValue(true);
-		getAgentContextSpy.mockReturnValue(agentContext);
-		inHTTPContextSpy.mockReturnValue(false);
-
-		const { withSession } = await import('../../src/agentuity/agent');
-
-		const testHandler = async (
-			_ctx: any,
-			_session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			input: string
-		) => {
-			return { input };
-		};
-
-		const wrapped = withSession(testHandler, { requiredScopes: ['read', 'admin'] });
-
-		await expect(wrapped(agentContext as any, 'test-input')).rejects.toThrow(
-			'Forbidden: Missing required scopes: admin'
-		);
-	});
-
-	test('passes when all required scopes are present', async () => {
-		const agentContext = createMockAgentContext([
-			[
-				'@agentuity/auth',
-				{
-					user: { id: 'user-123', scopes: ['read', 'write', 'admin'] },
-					session: { id: 'sess-456' },
-				},
-			],
-		]);
-		inAgentContextSpy.mockReturnValue(true);
-		getAgentContextSpy.mockReturnValue(agentContext);
-		inHTTPContextSpy.mockReturnValue(false);
-
-		const { withSession } = await import('../../src/agentuity/agent');
-
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			input: string
-		) => {
-			return { input, userId: session.auth.user.id };
-		};
-
-		const wrapped = withSession(testHandler, { requiredScopes: ['read', 'admin'] });
-		const result = await wrapped(agentContext as any, 'test-input');
-
-		expect(result.input).toBe('test-input');
 		expect(result.userId).toBe('user-123');
+		expect(result.email).toBe('test@example.com');
 	});
 
 	test('extracts organization context from auth', async () => {
@@ -223,11 +143,7 @@ describe('withSession', () => {
 
 		const { withSession } = await import('../../src/agentuity/agent');
 
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			_input: string
-		) => {
+		const testHandler = async (_ctx: any, session: { auth: any; org: any }, _input: string) => {
 			return {
 				orgId: session.org?.id,
 				orgSlug: session.org?.slug,
@@ -247,114 +163,6 @@ describe('withSession', () => {
 		expect(result.memberId).toBe('member-456');
 	});
 
-	test('wildcard scope (*) grants all permissions', async () => {
-		const agentContext = createMockAgentContext([
-			[
-				'@agentuity/auth',
-				{
-					user: { id: 'user-123', scopes: ['*'] },
-					session: { id: 'sess-456' },
-				},
-			],
-		]);
-		inAgentContextSpy.mockReturnValue(true);
-		getAgentContextSpy.mockReturnValue(agentContext);
-		inHTTPContextSpy.mockReturnValue(false);
-
-		const { withSession } = await import('../../src/agentuity/agent');
-
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			_input: string
-		) => {
-			return {
-				hasAny: session.hasScope('anything'),
-				hasAdmin: session.hasScope('admin'),
-				hasSuper: session.hasScope('super:secret:scope'),
-			};
-		};
-
-		const wrapped = withSession(testHandler, { requiredScopes: ['admin', 'super:secret:scope'] });
-		const result = await wrapped(agentContext as any, 'test-input');
-
-		expect(result.hasAny).toBe(true);
-		expect(result.hasAdmin).toBe(true);
-		expect(result.hasSuper).toBe(true);
-	});
-
-	test('handles scopes as space-delimited string', async () => {
-		const agentContext = createMockAgentContext([
-			[
-				'@agentuity/auth',
-				{
-					user: { id: 'user-123' },
-					session: { id: 'sess-456', scopes: 'read write admin' },
-				},
-			],
-		]);
-		inAgentContextSpy.mockReturnValue(true);
-		getAgentContextSpy.mockReturnValue(agentContext);
-		inHTTPContextSpy.mockReturnValue(false);
-
-		const { withSession } = await import('../../src/agentuity/agent');
-
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			_input: string
-		) => {
-			return {
-				hasRead: session.hasScope('read'),
-				hasWrite: session.hasScope('write'),
-				hasAdmin: session.hasScope('admin'),
-				hasDelete: session.hasScope('delete'),
-			};
-		};
-
-		const wrapped = withSession(testHandler, { optional: true });
-		const result = await wrapped(agentContext as any, 'test-input');
-
-		expect(result.hasRead).toBe(true);
-		expect(result.hasWrite).toBe(true);
-		expect(result.hasAdmin).toBe(true);
-		expect(result.hasDelete).toBe(false);
-	});
-
-	test('scopes in session take precedence over scopes in user', async () => {
-		const agentContext = createMockAgentContext([
-			[
-				'@agentuity/auth',
-				{
-					user: { id: 'user-123', scopes: ['user-scope'] },
-					session: { id: 'sess-456', scopes: ['session-scope'] },
-				},
-			],
-		]);
-		inAgentContextSpy.mockReturnValue(true);
-		getAgentContextSpy.mockReturnValue(agentContext);
-		inHTTPContextSpy.mockReturnValue(false);
-
-		const { withSession } = await import('../../src/agentuity/agent');
-
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			_input: string
-		) => {
-			return {
-				hasSessionScope: session.hasScope('session-scope'),
-				hasUserScope: session.hasScope('user-scope'),
-			};
-		};
-
-		const wrapped = withSession(testHandler, { optional: true });
-		const result = await wrapped(agentContext as any, 'test-input');
-
-		expect(result.hasSessionScope).toBe(true);
-		expect(result.hasUserScope).toBe(false);
-	});
-
 	test('caches auth in agent state for subsequent calls', async () => {
 		const authData = {
 			user: { id: 'user-123' },
@@ -367,11 +175,7 @@ describe('withSession', () => {
 
 		const { withSession } = await import('../../src/agentuity/agent');
 
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			_input: string
-		) => {
+		const testHandler = async (_ctx: any, session: { auth: any; org: any }, _input: string) => {
 			return { userId: session.auth?.user?.id };
 		};
 
@@ -400,11 +204,7 @@ describe('withSession', () => {
 
 		const { withSession } = await import('../../src/agentuity/agent');
 
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			_input: string
-		) => {
+		const testHandler = async (_ctx: any, session: { auth: any; org: any }, _input: string) => {
 			return { org: session.org };
 		};
 
@@ -414,61 +214,63 @@ describe('withSession', () => {
 		expect(result.org).toBeNull();
 	});
 
-	test('hasScope returns false when no auth', async () => {
+	test('extracts auth from HTTP context when available', async () => {
 		const agentContext = createMockAgentContext();
 		inAgentContextSpy.mockReturnValue(true);
 		getAgentContextSpy.mockReturnValue(agentContext);
-		inHTTPContextSpy.mockReturnValue(false);
-
-		const { withSession } = await import('../../src/agentuity/agent');
-
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			_input: string
-		) => {
-			return { hasScope: session.hasScope('any') };
-		};
-
-		const wrapped = withSession(testHandler, { optional: true });
-		const result = await wrapped(agentContext as any, 'test-input');
-
-		expect(result.hasScope).toBe(false);
-	});
-
-	test('handles permissions field as fallback for scopes', async () => {
-		const agentContext = createMockAgentContext([
-			[
-				'@agentuity/auth',
-				{
-					user: { id: 'user-123' },
-					session: { id: 'sess-456', permissions: ['perm1', 'perm2'] },
+		inHTTPContextSpy.mockReturnValue(true);
+		getHTTPContextSpy.mockReturnValue({
+			var: {
+				auth: {
+					raw: {
+						user: { id: 'http-user-123', email: 'http@example.com' },
+						session: { id: 'http-sess' },
+					},
 				},
-			],
-		]);
-		inAgentContextSpy.mockReturnValue(true);
-		getAgentContextSpy.mockReturnValue(agentContext);
-		inHTTPContextSpy.mockReturnValue(false);
+			},
+		});
 
 		const { withSession } = await import('../../src/agentuity/agent');
 
-		const testHandler = async (
-			_ctx: any,
-			session: { auth: any; org: any; hasScope: (s: string) => boolean },
-			_input: string
-		) => {
+		const testHandler = async (_ctx: any, session: { auth: any; org: any }, _input: string) => {
 			return {
-				hasPerm1: session.hasScope('perm1'),
-				hasPerm2: session.hasScope('perm2'),
-				hasPerm3: session.hasScope('perm3'),
+				userId: session.auth?.user?.id,
+				email: session.auth?.user?.email,
 			};
 		};
 
 		const wrapped = withSession(testHandler, { optional: true });
 		const result = await wrapped(agentContext as any, 'test-input');
 
-		expect(result.hasPerm1).toBe(true);
-		expect(result.hasPerm2).toBe(true);
-		expect(result.hasPerm3).toBe(false);
+		expect(result.userId).toBe('http-user-123');
+		expect(result.email).toBe('http@example.com');
+	});
+
+	test('falls back to raw user/session when auth.raw not present', async () => {
+		const agentContext = createMockAgentContext();
+		inAgentContextSpy.mockReturnValue(true);
+		getAgentContextSpy.mockReturnValue(agentContext);
+		inHTTPContextSpy.mockReturnValue(true);
+		getHTTPContextSpy.mockReturnValue({
+			var: {
+				user: { id: 'fallback-user', email: 'fallback@example.com' },
+				session: { id: 'fallback-sess' },
+			},
+		});
+
+		const { withSession } = await import('../../src/agentuity/agent');
+
+		const testHandler = async (_ctx: any, session: { auth: any; org: any }, _input: string) => {
+			return {
+				userId: session.auth?.user?.id,
+				email: session.auth?.user?.email,
+			};
+		};
+
+		const wrapped = withSession(testHandler, { optional: true });
+		const result = await wrapped(agentContext as any, 'test-input');
+
+		expect(result.userId).toBe('fallback-user');
+		expect(result.email).toBe('fallback@example.com');
 	});
 });
