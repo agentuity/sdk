@@ -5,10 +5,10 @@ describe('getServiceUrls', () => {
 	beforeEach(() => {
 		delete process.env.AGENTUITY_TRANSPORT_URL;
 		delete process.env.AGENTUITY_KEYVALUE_URL;
+		delete process.env.AGENTUITY_SANDBOX_URL;
 		delete process.env.AGENTUITY_OBJECTSTORE_URL;
 		delete process.env.AGENTUITY_STREAM_URL;
 		delete process.env.AGENTUITY_VECTOR_URL;
-		delete process.env.AGENTUITY_CATALYST_URL;
 	});
 
 	test('should build URLs for us-east region', () => {
@@ -33,10 +33,12 @@ describe('getServiceUrls', () => {
 	});
 
 	test('should override individual service URLs', () => {
+		process.env.AGENTUITY_SANDBOX_URL = 'https://custom-sandbox.example.com';
 		process.env.AGENTUITY_KEYVALUE_URL = 'https://custom-kv.example.com';
 		const urls = getServiceUrls('us-east');
 
 		expect(urls.keyvalue).toBe('https://custom-kv.example.com');
 		expect(urls.catalyst).toBe('https://catalyst-us-east.agentuity.cloud');
+		expect(urls.sandbox).toBe('https://custom-sandbox.example.com');
 	});
 });

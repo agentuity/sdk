@@ -81,10 +81,6 @@ export const createSubcommand = createCommand({
 		if (!options.json) {
 			const duration = Date.now() - started;
 			tui.success(`created sandbox ${tui.bold(result.sandboxId)} in ${duration}ms`);
-			tui.info(`Status: ${result.status}`);
-			if (result.stdoutStreamUrl) {
-				tui.info(`Stream: ${result.stdoutStreamUrl}`);
-			}
 		}
 
 		return {

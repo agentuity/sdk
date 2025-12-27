@@ -344,6 +344,16 @@ export interface Execution {
 	 * Duration in milliseconds (set when completed)
 	 */
 	durationMs?: number;
+
+	/**
+	 * URL to stream stdout output for this execution
+	 */
+	stdoutStreamUrl?: string;
+
+	/**
+	 * URL to stream stderr output for this execution
+	 */
+	stderrStreamUrl?: string;
 }
 
 /**

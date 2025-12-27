@@ -50,12 +50,23 @@ export const getSubcommand = createCommand({
 							? tui.colorError
 							: tui.colorMuted;
 
-			tui.info(`Sandbox: ${tui.bold(result.sandboxId)}`);
-			tui.info(`Status: ${statusColor(result.status)}`);
-			tui.info(`Created: ${result.createdAt}`);
-			tui.info(`Executions: ${result.executions}`);
-			if (result.stdoutStreamUrl) {
-				tui.info(`Stream: ${result.stdoutStreamUrl}`);
+			console.log(`${tui.muted('Sandbox:')}         ${tui.bold(result.sandboxId)}`);
+			console.log(`${tui.muted('Status:')}          ${statusColor(result.status)}`);
+			console.log(`${tui.muted('Created:')}         ${result.createdAt}`);
+			console.log(`${tui.muted('Executions:')}      ${result.executions}`);
+			if (
+				result.stdoutStreamUrl &&
+				result.stderrStreamUrl &&
+				result.stdoutStreamUrl === result.stderrStreamUrl
+			) {
+				console.log(`${tui.muted('Stream:')}          ${tui.link(result.stdoutStreamUrl)}`);
+			} else {
+				if (result.stdoutStreamUrl) {
+					console.log(`${tui.muted('Stream (stdout):')} ${tui.link(result.stdoutStreamUrl)}`);
+				}
+				if (result.stderrStreamUrl) {
+					console.log(`${tui.muted('Stream (stderr):')} ${tui.link(result.stderrStreamUrl)}`);
+				}
 			}
 		}
 

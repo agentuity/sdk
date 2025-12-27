@@ -139,7 +139,7 @@ export const listSubcommand = createCommand({
 				{ name: 'URL', alignment: 'left' },
 			]);
 
-			tui.info(`Total: ${result.total} stream(s)`);
+			tui.info(`Total: ${result.total} ${tui.plural(result.total, 'stream', 'streams')}`);
 		}
 
 		return {

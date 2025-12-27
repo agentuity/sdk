@@ -84,23 +84,22 @@ export const listSubcommand = createCommand({
 			if (result.sandboxes.length === 0) {
 				tui.info('No sandboxes found');
 			} else {
-				const scope = projectId ? ` for project ${tui.bold(projectId)}` : '';
-				tui.info(`Found ${result.total} sandbox(es)${scope}:`);
-				tui.newline();
-				for (const sandbox of result.sandboxes) {
-					const statusColor =
-						sandbox.status === 'running'
-							? tui.colorSuccess
-							: sandbox.status === 'idle'
-								? tui.colorWarning
-								: sandbox.status === 'failed'
-									? tui.colorError
-									: tui.colorMuted;
-					tui.info(
-						`  ${tui.bold(sandbox.sandboxId)} - ${statusColor(sandbox.status)} (${sandbox.executions} executions)`
-					);
-					tui.info(`    Created: ${sandbox.createdAt}`);
-				}
+				const tableData = result.sandboxes.map((sandbox) => {
+					return {
+						ID: sandbox.sandboxId,
+						Status: sandbox.status,
+						'Created At': sandbox.createdAt,
+						Executions: sandbox.executions,
+					};
+				});
+				tui.table(tableData, [
+					{ name: 'ID', alignment: 'left' },
+					{ name: 'Status', alignment: 'left' },
+					{ name: 'Created At', alignment: 'left' },
+					{ name: 'Executions', alignment: 'right' },
+				]);
+
+				tui.info(`Total: ${result.total} ${tui.plural(result.total, 'sandbox', 'sandboxes')}`);
 			}
 		}
 

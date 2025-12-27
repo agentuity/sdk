@@ -20,6 +20,8 @@ const ExecuteDataSchema = z.object({
 	status: z.enum(['queued', 'running', 'completed', 'failed', 'timeout', 'cancelled']),
 	exitCode: z.number().optional(),
 	durationMs: z.number().optional(),
+	stdoutStreamUrl: z.string().optional(),
+	stderrStreamUrl: z.string().optional(),
 });
 
 const ExecuteResponseSchema = APIResponseSchema(ExecuteDataSchema);
@@ -69,6 +71,8 @@ export async function sandboxExecute(
 			status: resp.data.status as ExecutionStatus,
 			exitCode: resp.data.exitCode,
 			durationMs: resp.data.durationMs,
+			stdoutStreamUrl: resp.data.stdoutStreamUrl,
+			stderrStreamUrl: resp.data.stderrStreamUrl,
 		};
 	}
 

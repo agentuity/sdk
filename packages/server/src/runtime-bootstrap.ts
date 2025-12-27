@@ -72,6 +72,9 @@ export function bootstrapRuntimeEnv(options: RuntimeBootstrapOptions = {}): void
 	if (!process.env.AGENTUITY_KEYVALUE_URL) {
 		process.env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
 	}
+	if (!process.env.AGENTUITY_SANDBOX_URL) {
+		process.env.AGENTUITY_SANDBOX_URL = serviceUrls.sandbox;
+	}
 	if (!process.env.AGENTUITY_STREAM_URL) {
 		process.env.AGENTUITY_STREAM_URL = serviceUrls.stream;
 	}
