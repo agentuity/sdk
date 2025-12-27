@@ -43,6 +43,7 @@ See [docs/testing.md](docs/testing.md) for detailed standards.
 - Import from `../src/` in tests
 - Use `@agentuity/test-utils` for mocks
 - All errors AND warnings must be zero
+- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
 
 ## Special Instructions
 

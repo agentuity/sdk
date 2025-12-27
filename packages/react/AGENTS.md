@@ -88,6 +88,7 @@ export interface AgentRegistry {
 - Mock fetch and WebSocket APIs
 - Test error boundaries
 - Test with and without provider
+- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
 
 ## Publishing Checklist
 

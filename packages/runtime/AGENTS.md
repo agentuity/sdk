@@ -67,6 +67,7 @@ See [TYPE_SAFETY.md](TYPE_SAFETY.md) for detailed documentation.
 - Use `app.request()` for route testing (NOT `testClient()`)
 - Mock contexts from `test/helpers/test-context.ts`
 - Import from `../src/` in tests
+- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
 
 ## Publishing
 

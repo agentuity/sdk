@@ -47,6 +47,7 @@ src/
 - Use Bun's built-in test runner: `bun test`
 - Test with both Node.js and Bun when possible
 - Avoid runtime-specific test utilities
+- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
 
 ## Publishing Checklist
 

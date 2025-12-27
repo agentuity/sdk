@@ -47,6 +47,7 @@ src/
 
 - No test framework configured yet
 - When adding tests, use Bun's built-in test runner: `bun test`
+- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
 
 ## Publishing Checklist
 
