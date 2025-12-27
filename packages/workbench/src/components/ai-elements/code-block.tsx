@@ -133,6 +133,9 @@ export const CodeBlock = ({
 		};
 	}, [code, language, showLineNumbers]);
 
+	const baseClass =
+		"overflow-hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&>pre]:whitespace-pre-wrap [&_code]:font-mono [&_code]:text-sm";
+
 	return (
 		<CodeBlockContext.Provider value={{ code }}>
 			<div
@@ -146,7 +149,7 @@ export const CodeBlock = ({
 					{/* Light Mode */}
 					<div
 						className={cn(
-							"overflow-hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm",
+							baseClass,
 							"group-[.is-user]:hidden dark:hidden dark:group-[.is-user]:block",
 							"not-[.is-user]:block dark:not-[.is-user]:hidden",
 						)}
@@ -157,7 +160,7 @@ export const CodeBlock = ({
 					{/* Dark Mode */}
 					<div
 						className={cn(
-							"overflow-hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm",
+							baseClass,
 							"hidden group-[.is-user]:block dark:block dark:group-[.is-user]:hidden",
 							"not-[.is-user]:hidden dark:not-[.is-user]:block",
 						)}
