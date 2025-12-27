@@ -3,8 +3,8 @@
 import javascriptLang from "@shikijs/langs/javascript";
 import jsonLang from "@shikijs/langs/json";
 import typescriptLang from "@shikijs/langs/typescript";
-import themeDarkModule from "@shikijs/themes/vitesse-dark";
-import themeLightModule from "@shikijs/themes/vitesse-light";
+import themeDarkModule from "@shikijs/themes/dark-plus";
+import themeLightModule from "@shikijs/themes/light-plus";
 import type { Element } from "hast";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import {
