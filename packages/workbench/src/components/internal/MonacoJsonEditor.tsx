@@ -182,7 +182,7 @@ export function MonacoJsonEditor({
 		<div
 			data-slot="input-group-control"
 			aria-invalid={ariaInvalid}
-			className={`w-full pl-3 pb-3 [&_.monaco-editor]:!bg-transparent [&_.monaco-editor-background]:!bg-transparent [&_.view-lines]:!bg-transparent [&_.monaco-editor]:!shadow-none [&_.monaco-scrollable-element]:!shadow-none [&_.overflow-guard]:!shadow-none [&_.monaco-scrollable-element>.shadow.top]:!hidden [&_.monaco-editor_.scroll-decoration]:!hidden [&_.shadow.top]:!hidden [&_.scroll-decoration]:!hidden ${className}`}
+			className={`w-full pl-3 pb-3 [&_.monaco-editor]:bg-transparent! [&_.monaco-editor-background]:bg-transparent! [&_.view-lines]:bg-transparent! [&_.monaco-editor]:shadow-none! [&_.monaco-scrollable-element]:shadow-none! [&_.overflow-guard]:shadow-none! [&_.monaco-scrollable-element>.shadow.top]:hidden! [&_.monaco-editor_.scroll-decoration]:hidden! [&_.shadow.top]:hidden! [&_.scroll-decoration]:hidden! [&_.native-edit-context]:outline-gray-200! [&_.native-edit-context]:dark:outline-gray-800! ${className}`}
 			style={{
 				minHeight: "64px",
 				maxHeight: "192px",
@@ -197,50 +197,42 @@ export function MonacoJsonEditor({
 				theme={resolvedTheme === "light" ? "custom-light" : "custom-dark"}
 				height="100%"
 				options={{
-					minimap: { enabled: false },
-					lineNumbers: "off",
-					folding: false,
-					scrollBeyondLastLine: false,
-					wordWrap: "on",
-					renderLineHighlight: "none",
-					overviewRulerBorder: false,
-					overviewRulerLanes: 0,
-					hideCursorInOverviewRuler: true,
+					autoIndent: "full",
+					automaticLayout: true,
 					fixedOverflowWidgets: true,
-					roundedSelection: false,
-					occurrencesHighlight: "off",
-					selectionHighlight: false,
-					renderWhitespace: "none",
+					folding: false,
 					fontSize: 14,
 					fontWeight: "400",
 					formatOnPaste: true,
 					formatOnType: true,
-					autoIndent: "full",
 					glyphMargin: false,
+					guides: { highlightActiveIndentation: false, indentation: false },
+					hideCursorInOverviewRuler: true,
 					lineDecorationsWidth: 0,
+					lineNumbers: "off",
 					lineNumbersMinChars: 0,
-					automaticLayout: true,
-					scrollbar: {
-						vertical: "auto",
-						horizontal: "auto",
-						verticalScrollbarSize: 10,
-						horizontalScrollbarSize: 10,
-						// Disable scroll shadows
-						verticalHasArrows: false,
-						horizontalHasArrows: false,
-					},
+					minimap: { enabled: false },
+					occurrencesHighlight: "off",
+					overviewRulerBorder: false,
+					overviewRulerLanes: 0,
 					padding: { top: 12, bottom: 12 },
-					// Additional background transparency options
+					renderLineHighlight: "none",
 					renderValidationDecorations: "on",
-					guides: {
-						indentation: false,
-						highlightActiveIndentation: false,
+					renderWhitespace: "none",
+					roundedSelection: false,
+					scrollbar: {
+						horizontal: "auto",
+						horizontalHasArrows: false,
+						horizontalScrollbarSize: 10,
+						vertical: "auto",
+						verticalHasArrows: false,
+						verticalScrollbarSize: 10,
 					},
-					// Disable sticky scroll feature
-					stickyScroll: { enabled: false },
-					// Disable scroll decorations/shadows
 					scrollBeyondLastColumn: 0,
-					renderLineHighlightOnlyWhenFocus: true,
+					scrollBeyondLastLine: false,
+					selectionHighlight: false,
+					stickyScroll: { enabled: false },
+					wordWrap: "on",
 				}}
 				onMount={(editor, monaco) => {
 					setEditorInstance(editor);

@@ -21,6 +21,7 @@ import { createHighlighterCore } from "shiki/core";
 import { createOnigurumaEngine } from "shiki/engine/oniguruma";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 // Extract theme objects from default exports
 const themeLight = (
@@ -165,7 +166,7 @@ export const CodeBlock = ({
 					/>
 
 					{children && (
-						<div className="absolute top-2 right-2 flex items-center gap-2">
+						<div className="absolute top-1 right-1 flex items-center gap-2">
 							{children}
 						</div>
 					)}
@@ -211,14 +212,19 @@ export const CodeBlockCopyButton = ({
 	const Icon = isCopied ? CheckIcon : CopyIcon;
 
 	return (
-		<Button
-			className={cn("shrink-0", className)}
-			onClick={copyToClipboard}
-			size="icon"
-			variant="ghost"
-			{...props}
-		>
-			{children ?? <Icon size={14} />}
-		</Button>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button
+					className={cn("size-7 shrink-0 rounded-sm", className)}
+					onClick={copyToClipboard}
+					size="icon"
+					variant="ghost"
+					{...props}
+				>
+					{children ?? <Icon size={14} />}
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent>Copy to clipboard</TooltipContent>
+		</Tooltip>
 	);
 };

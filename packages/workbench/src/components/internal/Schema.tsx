@@ -1,4 +1,4 @@
-import { FileJson, X } from "lucide-react";
+import { Braces, X } from "lucide-react";
 import { CodeBlock, CodeBlockCopyButton } from "../ai-elements/code-block";
 import { Button } from "../ui/button";
 import { ScrollArea } from "../ui/scroll-area";
@@ -21,7 +21,7 @@ export function Schema({ onOpenChange }: SchemaProps) {
 		<div className="h-full flex flex-col">
 			<div className="flex items-center justify-between py-2.5 px-4.5 border-b border-border">
 				<div className="flex items-center gap-2">
-					<FileJson className="size-5 text-muted-foreground" />
+					<Braces className="size-5 text-muted-foreground" />
 
 					<h2 className="font-medium mt-0.5">Schema</h2>
 				</div>

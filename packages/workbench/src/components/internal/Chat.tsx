@@ -1,5 +1,5 @@
 import { Copy, Loader, RefreshCcw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useLogger } from "../../hooks/useLogger";
 import { cn } from "../../lib/utils";
 import { Action, Actions } from "../ai-elements/actions";
@@ -39,7 +39,6 @@ export function Chat({
 		clearAgentState,
 		connectionStatus,
 	} = useWorkbench();
-
 	const [value, setValue] = useState("");
 
 	const handleSubmit = async () => {
@@ -80,41 +79,13 @@ export function Chat({
 		setValue("");
 	};
 
-	// var hasVerticalScrollbar = div.scrollHeight > div.clientHeight;
-
-	const [hasVerticalScrollbar, setHasVerticalScrollbar] = useState(false);
-
-	const checkForVerticalScrollbar = () => {
-		const conversation =
-			document.getElementById("chat-conversation")?.firstElementChild;
-
-		if (!conversation) return;
-
-		const hasVerticalScrollbar =
-			conversation.scrollHeight > conversation.clientHeight;
-
-		setHasVerticalScrollbar(hasVerticalScrollbar);
-	};
-
-	useEffect(() => {
-		checkForVerticalScrollbar();
-	}, [messages.length]);
-
-	useEffect(() => {
-		window.addEventListener("resize", checkForVerticalScrollbar);
-
-		return () => {
-			window.removeEventListener("resize", checkForVerticalScrollbar);
-		};
-	}, []);
-
 	return (
 		<div className="relative flex flex-col h-full w-full overflow-hidden">
 			<Conversation className="flex-1 overflow-y-auto" id="chat-conversation">
 				{connectionStatus === "disconnected" && emptyState ? (
 					<div className="flex flex-col h-full">{emptyState}</div>
 				) : (
-					<ConversationContent className="pb-48">
+					<ConversationContent>
 						{messages.map((message) => {
 							const { role, parts, id } = message;
 
@@ -267,14 +238,10 @@ export function Chat({
 					</ConversationContent>
 				)}
 
-				<ConversationScrollButton className="mb-34 z-101" />
+				<ConversationScrollButton />
 			</Conversation>
 
 			<InputSection
-				className={cn(
-					"absolute left-0 bottom-0 z-100",
-					hasVerticalScrollbar ? "right-3.5" : "right-0",
-				)}
 				value={value}
 				onChange={setValue}
 				onSubmit={handleSubmit}
