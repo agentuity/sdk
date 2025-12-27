@@ -269,7 +269,7 @@ export function generateAuthFileContent(): string {
 	return `import { Pool } from 'pg';
 import {
 	createAgentuityAuth,
-	createMiddleware,
+	createSessionMiddleware,
 } from '@agentuity/auth/agentuity';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
@@ -283,10 +283,10 @@ export const auth = createAgentuityAuth({
 });
 
 // Required auth middleware - returns 401 if not authenticated
-export const authMiddleware = createMiddleware(auth);
+export const authMiddleware = createSessionMiddleware(auth);
 
 // Optional auth middleware - allows anonymous access, sets null auth
-export const optionalAuthMiddleware = createMiddleware(auth, { optional: true });
+export const optionalAuthMiddleware = createSessionMiddleware(auth, { optional: true });
 `;
 }
 

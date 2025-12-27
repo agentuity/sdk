@@ -8,7 +8,7 @@
  * @example Server-side setup
  * ```typescript
  * // auth.ts
- * import { createAgentuityAuth, createMiddleware, ensureAuthSchema } from '@agentuity/auth/agentuity';
+ * import { createAgentuityAuth, createSessionMiddleware, ensureAuthSchema } from '@agentuity/auth/agentuity';
  * import { Pool } from 'pg';
  *
  * const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -21,7 +21,7 @@
  *   basePath: '/api/auth',
  * });
  *
- * export const authMiddleware = createMiddleware(auth);
+ * export const authMiddleware = createSessionMiddleware(auth);
  * ```
  *
  * @example Agent with auth
@@ -84,7 +84,6 @@ export type { DatabaseClient, EnsureAuthSchemaOptions, EnsureAuthSchemaResult } 
 export {
 	createSessionMiddleware,
 	createApiKeyMiddleware,
-	createMiddleware,
 	mountBetterAuthRoutes,
 } from './server';
 export type {

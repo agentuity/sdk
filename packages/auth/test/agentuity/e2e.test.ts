@@ -7,7 +7,7 @@
 
 import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
-import { createMiddleware } from '../../src/agentuity/server';
+import { createSessionMiddleware } from '../../src/agentuity/server';
 
 describe('Agentuity BetterAuth E2E flow', () => {
 	const mockUser = {
@@ -49,7 +49,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/api/*', createMiddleware(mockAuth as any));
+			app.use('/api/*', createSessionMiddleware(mockAuth as any));
 			app.get('/api/me', async (c) => {
 				const user = await c.var.auth.getUser();
 				return c.json({
@@ -73,7 +73,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth(null);
 			const app = new Hono();
 
-			app.use('/api/*', createMiddleware(mockAuth as any));
+			app.use('/api/*', createSessionMiddleware(mockAuth as any));
 			app.get('/api/me', async (c) => {
 				const user = await c.var.auth.getUser();
 				return c.json({ id: user.id });
@@ -91,7 +91,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth(null);
 			const app = new Hono();
 
-			app.use('/greeting', createMiddleware(mockAuth as any, { optional: true }));
+			app.use('/greeting', createSessionMiddleware(mockAuth as any, { optional: true }));
 			app.get('/greeting', async (c) => {
 				const user = c.var.user;
 				if (user) {
@@ -109,7 +109,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/greeting', createMiddleware(mockAuth as any, { optional: true }));
+			app.use('/greeting', createSessionMiddleware(mockAuth as any, { optional: true }));
 			app.get('/greeting', async (c) => {
 				const user = c.var.user;
 				if (user) {
@@ -131,7 +131,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/api/*', createMiddleware(mockAuth as any));
+			app.use('/api/*', createSessionMiddleware(mockAuth as any));
 			app.get('/api/me', async (c) => {
 				const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
 				const authMethod = apiKeyHeader ? 'api-key' : 'session';
@@ -148,7 +148,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/api/*', createMiddleware(mockAuth as any));
+			app.use('/api/*', createSessionMiddleware(mockAuth as any));
 			app.get('/api/me', async (c) => {
 				const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
 				const authMethod = apiKeyHeader ? 'api-key' : 'session';
@@ -169,7 +169,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/api/*', createMiddleware(mockAuth as any));
+			app.use('/api/*', createSessionMiddleware(mockAuth as any));
 			app.get('/api/token', async (c) => {
 				const token = await c.var.auth.getToken();
 				return c.json({ token });
@@ -187,7 +187,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/api/*', createMiddleware(mockAuth as any));
+			app.use('/api/*', createSessionMiddleware(mockAuth as any));
 			app.get('/api/token', async (c) => {
 				const token = await c.var.auth.getToken();
 				return c.json({ token });
@@ -205,7 +205,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
 			const app = new Hono();
 
-			app.use('/api/*', createMiddleware(mockAuth as any));
+			app.use('/api/*', createSessionMiddleware(mockAuth as any));
 			app.get('/api/session', async (c) => {
 				return c.json({
 					userId: c.var.auth.raw.user.id,
@@ -236,7 +236,7 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			app.get('/health', (c) => c.json({ status: 'ok' }));
 
 			// Protected routes
-			app.use('/api/*', createMiddleware(mockAuth as any));
+			app.use('/api/*', createSessionMiddleware(mockAuth as any));
 
 			app.get('/api/me', async (c) => {
 				const user = await c.var.auth.getUser();

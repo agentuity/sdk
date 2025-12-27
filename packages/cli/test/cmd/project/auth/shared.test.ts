@@ -116,7 +116,7 @@ describe('project auth shared', () => {
 
 		test('should export authMiddleware', () => {
 			const content = generateAuthFileContent();
-			expect(content).toContain('export const authMiddleware = createMiddleware');
+			expect(content).toContain('export const authMiddleware = createSessionMiddleware');
 		});
 
 		test('should set basePath to /api/auth', () => {

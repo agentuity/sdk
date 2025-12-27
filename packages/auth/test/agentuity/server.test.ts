@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
-import { createMiddleware, mountBetterAuthRoutes } from '../../src/agentuity/server';
+import { createSessionMiddleware, mountBetterAuthRoutes } from '../../src/agentuity/server';
 
 const createMockAuth = (sessionResult: unknown) => ({
 	api: {
@@ -14,7 +14,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(null);
 		const app = new Hono();
 
-		app.use('/protected', createMiddleware(mockAuth as any));
+		app.use('/protected', createSessionMiddleware(mockAuth as any));
 		app.get('/protected', (c) => c.json({ success: true }));
 
 		const res = await app.request('/protected', {
@@ -34,7 +34,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		};
 		const app = new Hono();
 
-		app.use('/protected', createMiddleware(mockAuth as any));
+		app.use('/protected', createSessionMiddleware(mockAuth as any));
 		app.get('/protected', (c) => c.json({ success: true }));
 
 		const res = await app.request('/protected', {
@@ -61,7 +61,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createMiddleware(mockAuth as any));
+		app.use('/protected', createSessionMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			const user = await c.var.auth.getUser();
 			return c.json({
@@ -94,7 +94,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createMiddleware(mockAuth as any));
+		app.use('/protected', createSessionMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			const user1 = await c.var.auth.getUser();
 			const user2 = await c.var.auth.getUser();
@@ -118,7 +118,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createMiddleware(mockAuth as any));
+		app.use('/protected', createSessionMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			const token = await c.var.auth.getToken();
 			return c.json({ token });
@@ -140,7 +140,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createMiddleware(mockAuth as any));
+		app.use('/protected', createSessionMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			const token = await c.var.auth.getToken();
 			return c.json({ token });
@@ -159,7 +159,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		const mockAuth = createMockAuth(mockSession);
 		const app = new Hono();
 
-		app.use('/protected', createMiddleware(mockAuth as any));
+		app.use('/protected', createSessionMiddleware(mockAuth as any));
 		app.get('/protected', async (c) => {
 			return c.json({
 				userId: c.var.auth.raw.user.id,
@@ -182,7 +182,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(null);
 			const app = new Hono();
 
-			app.use('/public', createMiddleware(mockAuth as any, { optional: true }));
+			app.use('/public', createSessionMiddleware(mockAuth as any, { optional: true }));
 			app.get('/public', (c) => {
 				return c.json({
 					hasAuth: c.var.auth !== undefined,
@@ -201,7 +201,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(mockSession);
 			const app = new Hono();
 
-			app.use('/public', createMiddleware(mockAuth as any, { optional: true }));
+			app.use('/public', createSessionMiddleware(mockAuth as any, { optional: true }));
 			app.get('/public', async (c) => {
 				const user = await c.var.auth.getUser();
 				return c.json({ userId: user.id });
@@ -216,7 +216,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(null);
 			const app = new Hono();
 
-			app.use('/public', createMiddleware(mockAuth as any, { optional: true }));
+			app.use('/public', createSessionMiddleware(mockAuth as any, { optional: true }));
 			app.get('/public', (c) => {
 				return c.json({
 					user: c.var.user,
@@ -240,7 +240,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(mockSession);
 			const app = new Hono();
 
-			app.use('/api', createMiddleware(mockAuth as any));
+			app.use('/api', createSessionMiddleware(mockAuth as any));
 			app.get('/api', (c) => {
 				return c.json({
 					userId: (c.var.user as any)?.id,
@@ -279,7 +279,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			};
 			const app = new Hono();
 
-			app.use('/api', createMiddleware(mockAuth as any));
+			app.use('/api', createSessionMiddleware(mockAuth as any));
 			app.get('/api', async (c) => {
 				const user = c.var.user as any;
 				const minimalOrg = c.var.org;
@@ -314,7 +314,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(mockSession);
 			const app = new Hono();
 
-			app.use('/api', createMiddleware(mockAuth as any));
+			app.use('/api', createSessionMiddleware(mockAuth as any));
 			app.get('/api', (c) => {
 				const user = c.var.user as any;
 				return c.json({
@@ -340,7 +340,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(mockSession);
 			const app = new Hono();
 
-			app.use('/api', createMiddleware(mockAuth as any));
+			app.use('/api', createSessionMiddleware(mockAuth as any));
 			app.get('/api', (c) => c.json({ success: true }));
 
 			const res = await app.request('/api', {
@@ -358,7 +358,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 			const mockAuth = createMockAuth(mockSession);
 			const app = new Hono();
 
-			app.use('/api', createMiddleware(mockAuth as any));
+			app.use('/api', createSessionMiddleware(mockAuth as any));
 			app.get('/api', (c) => c.json({ success: true }));
 
 			const res = await app.request('/api', {

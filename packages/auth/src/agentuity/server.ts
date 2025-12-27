@@ -416,12 +416,6 @@ export function createSessionMiddleware(
 	};
 }
 
-/**
- * Alias for createSessionMiddleware for backward compatibility.
- * @deprecated Use createSessionMiddleware instead.
- */
-export const createMiddleware = createSessionMiddleware;
-
 // =============================================================================
 // API Key Middleware
 // =============================================================================
