@@ -1,6 +1,11 @@
 import { context, SpanKind, SpanStatusCode, type Context, trace } from '@opentelemetry/api';
 import { TraceState } from '@opentelemetry/core';
-import type { KeyValueStorage, StreamStorage, VectorStorage } from '@agentuity/core';
+import type {
+	KeyValueStorage,
+	StreamStorage,
+	VectorStorage,
+	SandboxService,
+} from '@agentuity/core';
 import type { AgentContext, AgentRegistry, AgentRuntimeState } from './agent';
 import { AGENT_RUNTIME, AGENT_IDS } from './_config';
 import type { Logger } from './logger';
@@ -97,6 +102,7 @@ export class StandaloneAgentContext<
 	kv!: KeyValueStorage;
 	stream!: StreamStorage;
 	vector!: VectorStorage;
+	sandbox!: SandboxService;
 	config: TConfig;
 	app: TAppState;
 	[AGENT_RUNTIME]: AgentRuntimeState;

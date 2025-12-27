@@ -5,20 +5,14 @@
  */
 
 import { getServiceUrls } from '../../../../packages/server/src/index';
-import { loadConfig } from '../../../../packages/cli/src/config';
 
 async function main() {
 	// Load config to get region
 	let region = process.env.AGENTUITY_REGION;
 
 	if (!region) {
-		try {
-			const config = await loadConfig();
-			region = config.region || 'local';
-		} catch {
-			// Default to local if no config
-			region = 'local';
-		}
+		// Default to local if no config
+		region = 'local';
 	}
 
 	// Get service URLs for the region
@@ -27,6 +21,7 @@ async function main() {
 	// Output as environment variable exports for bash
 	console.log(`export AGENTUITY_TRANSPORT_URL="${serviceUrls.catalyst}"`);
 	console.log(`export AGENTUITY_KEYVALUE_URL="${serviceUrls.keyvalue}"`);
+	console.log(`export AGENTUITY_SANDBOX_URL="${serviceUrls.sandbox}"`);
 	console.log(`export AGENTUITY_STREAM_URL="${serviceUrls.stream}"`);
 	console.log(`export AGENTUITY_VECTOR_URL="${serviceUrls.vector}"`);
 	console.log(`export AGENTUITY_CATALYST_URL="${serviceUrls.catalyst}"`);

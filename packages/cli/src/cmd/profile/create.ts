@@ -79,6 +79,7 @@ export const createCommand = createSubcommand({
 					app_url: 'https://app.agentuity.io',
 					transport_url: 'https://catalyst.agentuity.io',
 					stream_url: 'https://streams.agentuity.io',
+					sandbox_url: 'https://catalyst.agentuity.io',
 					kv_url: 'https://catalyst.agentuity.io',
 					vector_url: 'https://catalyst.agentuity.io',
 					catalyst_url: 'https://catalyst.agentuity.io',

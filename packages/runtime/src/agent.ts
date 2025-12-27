@@ -5,6 +5,7 @@ import {
 	type StandardSchemaV1,
 	type StreamStorage,
 	type VectorStorage,
+	type SandboxService,
 	type InferInput,
 	type InferOutput,
 	toCamelCase,
@@ -203,6 +204,31 @@ export interface AgentContext<
 	 * ```
 	 */
 	vector: VectorStorage;
+
+	/**
+	 * Sandbox service for creating and running isolated code execution environments.
+	 *
+	 * @example
+	 * ```typescript
+	 * // One-shot execution
+	 * const result = await ctx.sandbox.run({
+	 *   command: {
+	 *     exec: ['bun', 'run', 'index.ts'],
+	 *     files: { 'index.ts': 'console.log("hello")' }
+	 *   }
+	 * });
+	 * console.log('Exit:', result.exitCode);
+	 *
+	 * // Interactive sandbox
+	 * const sandbox = await ctx.sandbox.create({
+	 *   resources: { memory: '1Gi', cpu: '1000m' }
+	 * });
+	 * await sandbox.execute({ command: ['bun', 'init'] });
+	 * await sandbox.execute({ command: ['bun', 'add', 'zod'] });
+	 * await sandbox.destroy();
+	 * ```
+	 */
+	sandbox: SandboxService;
 
 	/**
 	 * In-memory state storage scoped to the current request.

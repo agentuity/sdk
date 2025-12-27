@@ -1723,11 +1723,93 @@ export interface TableColumn {
 }
 
 /**
+ * Table options
+ */
+export interface TableOptions {
+	/**
+	 * If true, returns the table as a string instead of printing to stdout
+	 */
+	render?: boolean;
+	/**
+	 * Force a specific layout mode
+	 * - 'horizontal': Traditional table with columns side by side
+	 * - 'vertical': Stacked format with "Column: value" on separate lines
+	 * - 'auto': Automatically choose based on terminal width (default)
+	 */
+	layout?: 'horizontal' | 'vertical' | 'auto';
+}
+
+/**
+ * Calculate the minimum width needed to display a horizontal table
+ * Accounts for column padding, borders, and content width
+ */
+function calculateTableWidth<T extends Record<string, unknown>>(
+	data: T[],
+	columnNames: string[]
+): number {
+	const columnWidths = columnNames.map((colName) => {
+		let maxWidth = getDisplayWidth(colName);
+		for (const row of data) {
+			const value = row[colName];
+			const valueStr = value !== undefined && value !== null ? String(value) : '';
+			const valueWidth = getDisplayWidth(valueStr);
+			if (valueWidth > maxWidth) {
+				maxWidth = valueWidth;
+			}
+		}
+		return maxWidth;
+	});
+
+	// Add padding (1 space each side) and border characters per column
+	// cli-table3 uses: │ col1 │ col2 │ = 3 chars per column + 1 for final border
+	const paddingPerColumn = 3;
+	const totalWidth = columnWidths.reduce((sum, w) => sum + w + paddingPerColumn, 0) + 1;
+
+	return totalWidth;
+}
+
+/**
+ * Render table in vertical (stacked) format for narrow terminals
+ */
+function renderVerticalTable<T extends Record<string, unknown>>(
+	data: T[],
+	columnNames: string[]
+): string {
+	const lines: string[] = [];
+	const mutedColor = getColor('muted');
+	const reset = getColor('reset');
+
+	// Calculate max column name width for alignment
+	const maxLabelWidth = Math.max(...columnNames.map((name) => 1 + getDisplayWidth(name)));
+
+	for (let i = 0; i < data.length; i++) {
+		const row = data[i];
+
+		for (const colName of columnNames) {
+			const value = row[colName];
+			const valueStr = value !== undefined && value !== null ? String(value) : '';
+			const paddedLabel = `${colName}:`.padEnd(maxLabelWidth);
+			lines.push(`${mutedColor}${paddedLabel}${reset}  ${valueStr}`);
+		}
+
+		// Add empty line between rows (but not after last row)
+		if (i < data.length - 1) {
+			lines.push('');
+		}
+	}
+
+	return lines.join('\n') + '\n';
+}
+
+/**
  * Display data in a formatted table using cli-table3
  *
  * Supports two modes:
  * 1. Simple mode: Pass data array and optional column names
  * 2. Advanced mode: Pass column configurations with custom names and alignment
+ *
+ * Automatically switches between horizontal (wide) and vertical (narrow) layouts
+ * based on terminal width. Use the `layout` option to force a specific mode.
  *
  * @param data - Array of data objects to display
  * @param columns - Column names or column configurations
@@ -1737,23 +1819,8 @@ export interface TableColumn {
 export function table<T extends Record<string, unknown>>(
 	data: T[],
 	columns?: (keyof T)[] | TableColumn[],
-	options?: { render?: boolean }
+	options?: TableOptions
 ): string | void {
-	// eslint-disable-next-line @typescript-eslint/no-require-imports
-	const Table = require('cli-table3') as new (options?: {
-		head?: string[];
-		colAligns?: Array<'left' | 'right' | 'center'>;
-		wordWrap?: boolean;
-		style?: {
-			head?: string[];
-			border?: string[];
-		};
-		colors?: boolean;
-	}) => {
-		push(row: unknown[]): void;
-		toString(): string;
-	};
-
 	if (!data || data.length === 0) {
 		return options?.render ? '' : undefined;
 	}
@@ -1764,14 +1831,11 @@ export function table<T extends Record<string, unknown>>(
 	let columnNames: string[];
 	let colAligns: Array<'left' | 'right' | 'center'>;
 
-	let headings: string[];
-
 	if (isAdvancedMode) {
 		// Advanced mode: use provided column configurations
 		const columnConfigs = columns as TableColumn[];
 		columnNames = columnConfigs.map((col) => col.name);
 		colAligns = columnConfigs.map((col) => col.alignment || 'left');
-		headings = columnNames.map((name) => heading(name));
 	} else {
 		// Simple mode: determine column names from data or columns parameter
 		columnNames = columns
@@ -1780,31 +1844,59 @@ export function table<T extends Record<string, unknown>>(
 				? Object.keys(data[0])
 				: [];
 		colAligns = columnNames.map(() => 'left' as const);
-		headings = columnNames.map((name) => heading(name));
 	}
 
-	const t = new Table({
-		head: headings,
-		colAligns,
-		wordWrap: true,
-		style: {
-			head: [], // Disable cli-table3's default red styling - we apply our own via heading()
-			border: [], // Disable default border styling too
-		},
-		colors: false, // Completely disable cli-table3's color system to preserve our ANSI codes
-	});
+	// Determine layout mode
+	const layout = options?.layout ?? 'auto';
+	const termWidth = process.stdout.columns || 80;
+	const tableWidth = calculateTableWidth(data, columnNames);
+	const useVertical = layout === 'vertical' || (layout === 'auto' && tableWidth > termWidth);
 
-	// Add rows to table
-	for (const row of data) {
-		const rowData: unknown[] = [];
-		for (const colName of columnNames) {
-			const value = row[colName];
-			rowData.push(value !== undefined && value !== null ? String(value) : '');
+	let output: string;
+
+	if (useVertical) {
+		output = renderVerticalTable(data, columnNames);
+	} else {
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const Table = require('cli-table3') as new (options?: {
+			head?: string[];
+			colAligns?: Array<'left' | 'right' | 'center'>;
+			wordWrap?: boolean;
+			style?: {
+				head?: string[];
+				border?: string[];
+			};
+			colors?: boolean;
+		}) => {
+			push(row: unknown[]): void;
+			toString(): string;
+		};
+
+		const headings = columnNames.map((name) => heading(name));
+
+		const t = new Table({
+			head: headings,
+			colAligns,
+			wordWrap: true,
+			style: {
+				head: [], // Disable cli-table3's default red styling - we apply our own via heading()
+				border: [], // Disable default border styling too
+			},
+			colors: false, // Completely disable cli-table3's color system to preserve our ANSI codes
+		});
+
+		// Add rows to table
+		for (const row of data) {
+			const rowData: unknown[] = [];
+			for (const colName of columnNames) {
+				const value = row[colName];
+				rowData.push(value !== undefined && value !== null ? String(value) : '');
+			}
+			t.push(rowData);
 		}
-		t.push(rowData);
-	}
 
-	const output = t.toString();
+		output = t.toString();
+	}
 
 	if (options?.render) {
 		return output;

@@ -38,6 +38,7 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'kv',
 	'stream',
 	'vector',
+	'sandbox',
 	'state',
 	'thread',
 	'session',
@@ -94,6 +95,7 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 		c.set('kv', services.kv);
 		c.set('stream', services.stream);
 		c.set('vector', services.vector);
+		c.set('sandbox', services.sandbox);
 
 		installContextPropertyHelpers(c);
 
