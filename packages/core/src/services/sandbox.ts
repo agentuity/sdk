@@ -166,6 +166,12 @@ export interface SandboxCreateOptions {
 	 * Command to execute (if provided, creates a sandbox with initial execution)
 	 */
 	command?: SandboxCommand;
+
+	/**
+	 * Snapshot ID or tag to restore from when creating the sandbox.
+	 * The sandbox will start with the filesystem state from the snapshot.
+	 */
+	snapshot?: string;
 }
 
 /**

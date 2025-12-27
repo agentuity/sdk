@@ -50,6 +50,7 @@ export const createSubcommand = createCommand({
 				.array(z.string())
 				.optional()
 				.describe('Files to create in sandbox (sandbox-path:local-path)'),
+			snapshot: z.string().optional().describe('Snapshot ID or tag to restore from'),
 		}),
 		response: SandboxCreateResponseSchema,
 	},
@@ -86,6 +87,7 @@ export const createSubcommand = createCommand({
 				timeout: opts.idleTimeout ? { idle: opts.idleTimeout } : undefined,
 				env: Object.keys(envMap).length > 0 ? envMap : undefined,
 				command: hasFiles ? { exec: [], files: filesMap } : undefined,
+				snapshot: opts.snapshot,
 			},
 			orgId,
 		});

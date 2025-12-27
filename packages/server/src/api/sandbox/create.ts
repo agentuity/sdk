@@ -38,6 +38,7 @@ const SandboxCreateRequestSchema = z.object({
 			mode: z.enum(['oneshot', 'interactive']).optional(),
 		})
 		.optional(),
+	snapshot: z.string().optional(),
 });
 
 const SandboxCreateDataSchema = z.object({
@@ -89,6 +90,9 @@ export async function sandboxCreate(
 	}
 	if (options.command) {
 		body.command = options.command;
+	}
+	if (options.snapshot) {
+		body.snapshot = options.snapshot;
 	}
 
 	const queryParams = new URLSearchParams();

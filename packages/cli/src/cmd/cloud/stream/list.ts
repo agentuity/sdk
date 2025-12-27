@@ -3,13 +3,6 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createStorageAdapter } from './util';
 import { getCommand } from '../../../command-prefix';
-function formatBytes(bytes: number): string {
-	if (bytes === 0) return '0 B';
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
-	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
-	return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
 
 const StreamInfoSchema = z.object({
 	id: z.string().describe('Stream ID'),
@@ -124,7 +117,7 @@ export const listSubcommand = createCommand({
 				return {
 					Name: stream.name,
 					ID: stream.id,
-					Size: formatBytes(sizeBytes),
+					Size: tui.formatBytes(sizeBytes),
 					Metadata:
 						metadataStr.length > 40 ? metadataStr.substring(0, 37) + '...' : metadataStr,
 					URL: tui.link(stream.url),

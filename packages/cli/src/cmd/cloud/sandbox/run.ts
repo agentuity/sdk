@@ -52,6 +52,7 @@ export const runSubcommand = createCommand({
 				.default(false)
 				.optional()
 				.describe('Include timestamps in output (default: true)'),
+			snapshot: z.string().optional().describe('Snapshot ID or tag to restore from'),
 		}),
 		response: SandboxRunResponseSchema,
 	},
@@ -113,6 +114,7 @@ export const runSubcommand = createCommand({
 					timeout: opts.timeout ? { execution: opts.timeout } : undefined,
 					env: Object.keys(envMap).length > 0 ? envMap : undefined,
 					stream: opts.timestamps !== undefined ? { timestamps: opts.timestamps } : undefined,
+					snapshot: opts.snapshot,
 				},
 				orgId,
 				region,
