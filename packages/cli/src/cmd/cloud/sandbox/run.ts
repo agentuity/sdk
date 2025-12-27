@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { Writable } from 'node:stream';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { createSandboxClient, parseFileArgs } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxRun } from '@agentuity/server';
 
@@ -39,12 +40,16 @@ export const runSubcommand = createCommand({
 			memory: z.string().optional().describe('Memory limit (e.g., "500Mi", "1Gi")'),
 			cpu: z.string().optional().describe('CPU limit in millicores (e.g., "500m", "1000m")'),
 			disk: z.string().optional().describe('Disk limit (e.g., "500Mi", "1Gi")'),
-			network: z.boolean().optional().describe('Enable outbound network access'),
+			network: z.boolean().default(false).optional().describe('Enable outbound network access'),
 			timeout: z.string().optional().describe('Execution timeout (e.g., "5m", "1h")'),
 			env: z.array(z.string()).optional().describe('Environment variables (KEY=VALUE)'),
+			file: z
+				.array(z.string())
+				.optional()
+				.describe('Files to create in sandbox (sandbox-path:local-path)'),
 			timestamps: z
 				.boolean()
-				.default(true)
+				.default(false)
 				.optional()
 				.describe('Include timestamps in output (default: true)'),
 		}),
@@ -66,6 +71,9 @@ export const runSubcommand = createCommand({
 			}
 		}
 
+		const filesMap = parseFileArgs(opts.file);
+		const hasFiles = Object.keys(filesMap).length > 0;
+
 		const abortController = new AbortController();
 		const handleSignal = () => {
 			abortController.abort();
@@ -75,11 +83,23 @@ export const runSubcommand = createCommand({
 
 		const outputChunks: string[] = [];
 
+		// Determine if we have stdin data (not a TTY means piped input)
+		const hasStdin = !process.stdin.isTTY;
+
+		// For JSON output, we need to capture output instead of streaming to process
+		const stdout = options.json
+			? createCaptureStream((chunk) => outputChunks.push(chunk))
+			: process.stdout;
+		const stderr = options.json
+			? createCaptureStream((chunk) => outputChunks.push(chunk))
+			: process.stderr;
+
 		try {
 			const result = await sandboxRun(client, {
 				options: {
 					command: {
 						exec: args.command,
+						files: hasFiles ? filesMap : undefined,
 					},
 					resources:
 						opts.memory || opts.cpu || opts.disk
@@ -95,14 +115,12 @@ export const runSubcommand = createCommand({
 					stream: opts.timestamps !== undefined ? { timestamps: opts.timestamps } : undefined,
 				},
 				orgId,
+				region,
+				apiKey: auth.apiKey,
 				signal: abortController.signal,
-				onOutput: (chunk) => {
-					if (options.json) {
-						outputChunks.push(chunk);
-					} else {
-						process.stdout.write(chunk);
-					}
-				},
+				stdin: hasStdin ? process.stdin : undefined,
+				stdout,
+				stderr,
 				logger,
 			});
 
@@ -110,9 +128,7 @@ export const runSubcommand = createCommand({
 			const output = outputChunks.join('');
 
 			if (!options.json) {
-				if (result.exitCode === 0) {
-					tui.success(`completed in ${duration}ms with exit code ${result.exitCode}`);
-				} else {
+				if (result.exitCode !== 0) {
 					tui.error(`failed with exit code ${result.exitCode} in ${duration}ms`);
 				}
 			}
@@ -129,5 +145,19 @@ export const runSubcommand = createCommand({
 		}
 	},
 });
+
+function createCaptureStream(onChunk: (chunk: string) => void): Writable {
+	return new Writable({
+		write(
+			chunk: Buffer | string,
+			_encoding: string,
+			callback: (error?: Error | null) => void
+		): void {
+			const text = typeof chunk === 'string' ? chunk : chunk.toString('utf-8');
+			onChunk(text);
+			callback();
+		},
+	});
+}
 
 export default runSubcommand;

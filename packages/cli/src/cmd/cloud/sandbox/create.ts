@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { createSandboxClient, parseFileArgs } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxCreate } from '@agentuity/server';
 
@@ -30,6 +30,10 @@ export const createSubcommand = createCommand({
 			command: getCommand('cloud sandbox create --network --idle-timeout 30m'),
 			description: 'Create a sandbox with network and custom timeout',
 		},
+		{
+			command: getCommand('cloud sandbox create --env KEY=VAL'),
+			description: 'Create a sandbox with a specific environment variable',
+		},
 	],
 	schema: {
 		options: z.object({
@@ -42,6 +46,10 @@ export const createSubcommand = createCommand({
 				.optional()
 				.describe('Idle timeout before sandbox is reaped (e.g., "10m", "1h")'),
 			env: z.array(z.string()).optional().describe('Environment variables (KEY=VALUE)'),
+			file: z
+				.array(z.string())
+				.optional()
+				.describe('Files to create in sandbox (sandbox-path:local-path)'),
 		}),
 		response: SandboxCreateResponseSchema,
 	},
@@ -61,6 +69,9 @@ export const createSubcommand = createCommand({
 			}
 		}
 
+		const filesMap = parseFileArgs(opts.file);
+		const hasFiles = Object.keys(filesMap).length > 0;
+
 		const result = await sandboxCreate(client, {
 			options: {
 				resources:
@@ -74,6 +85,7 @@ export const createSubcommand = createCommand({
 				network: opts.network ? { enabled: true } : undefined,
 				timeout: opts.idleTimeout ? { idle: opts.idleTimeout } : undefined,
 				env: Object.keys(envMap).length > 0 ? envMap : undefined,
+				command: hasFiles ? { exec: [], files: filesMap } : undefined,
 			},
 			orgId,
 		});
