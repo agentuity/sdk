@@ -318,6 +318,7 @@ export interface ExecuteOptions {
 	stream?: {
 		stdout?: string;
 		stderr?: string;
+		timestamps?: boolean;
 	};
 }
 

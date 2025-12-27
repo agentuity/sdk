@@ -11,6 +11,7 @@ const ExecuteRequestSchema = z.object({
 		.object({
 			stdout: z.string().optional(),
 			stderr: z.string().optional(),
+			timestamps: z.boolean().optional(),
 		})
 		.optional(),
 });

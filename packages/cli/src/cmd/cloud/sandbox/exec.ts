@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { Writable } from 'node:stream';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createSandboxClient } from './util';
@@ -40,6 +41,11 @@ export const execSubcommand = createCommand({
 		}),
 		options: z.object({
 			timeout: z.string().optional().describe('Execution timeout (e.g., "5m", "1h")'),
+			timestamps: z
+				.boolean()
+				.default(false)
+				.optional()
+				.describe('Include timestamps in output (default: false)'),
 		}),
 		response: SandboxExecResponseSchema,
 	},
@@ -58,38 +64,54 @@ export const execSubcommand = createCommand({
 
 		const outputChunks: string[] = [];
 
+		// For JSON output, capture to buffer; otherwise stream to process
+		const stdout = options.json
+			? createCaptureStream((chunk) => outputChunks.push(chunk))
+			: process.stdout;
+		const stderr = options.json
+			? createCaptureStream((chunk) => outputChunks.push(chunk))
+			: process.stderr;
+
 		try {
 			const execution = await sandboxExecute(client, {
 				sandboxId: args.sandboxId,
 				options: {
 					command: args.command,
 					timeout: opts.timeout,
+					stream: opts.timestamps !== undefined ? { timestamps: opts.timestamps } : undefined,
 				},
 				orgId,
 			});
 
-			const streamUrl = execution.stdoutStreamUrl;
-			let streamAbortController: AbortController | undefined;
-			let streamReceivedData = false;
+			const stdoutStreamUrl = execution.stdoutStreamUrl;
+			const stderrStreamUrl = execution.stderrStreamUrl;
+			const streamAbortController = new AbortController();
+			const streamPromises: Promise<void>[] = [];
 
-			if (streamUrl) {
-				streamAbortController = new AbortController();
-				logger.debug('starting stream from: %s', streamUrl);
-				streamOutput(
-					streamUrl,
-					(chunk) => {
-						streamReceivedData = true;
-						if (options.json) {
-							outputChunks.push(chunk);
-						} else {
-							process.stdout.write(chunk);
-						}
-					},
-					streamAbortController.signal,
-					logger
-				).catch((err) => {
-					logger.debug('stream error: %s', err);
-				});
+			// Check if stdout and stderr are the same stream (combined output)
+			const isCombinedOutput =
+				stdoutStreamUrl && stderrStreamUrl && stdoutStreamUrl === stderrStreamUrl;
+
+			if (isCombinedOutput) {
+				// Stream combined output to stdout only to avoid duplicates
+				logger.debug('using combined output stream (stdout === stderr): %s', stdoutStreamUrl);
+				streamPromises.push(
+					streamUrlToWritable(stdoutStreamUrl, stdout, streamAbortController.signal, logger)
+				);
+			} else {
+				if (stdoutStreamUrl) {
+					logger.debug('starting stdout stream from: %s', stdoutStreamUrl);
+					streamPromises.push(
+						streamUrlToWritable(stdoutStreamUrl, stdout, streamAbortController.signal, logger)
+					);
+				}
+
+				if (stderrStreamUrl) {
+					logger.debug('starting stderr stream from: %s', stderrStreamUrl);
+					streamPromises.push(
+						streamUrlToWritable(stderrStreamUrl, stderr, streamAbortController.signal, logger)
+					);
+				}
 			}
 
 			let attempts = 0;
@@ -128,40 +150,25 @@ export const execSubcommand = createCommand({
 				}
 			}
 
-			// Give stream time to flush before aborting
+			// Give streams time to flush before aborting
 			await sleep(100);
-			streamAbortController?.abort();
+			streamAbortController.abort();
 
-			// If we didn't receive data from streaming, try one final fetch
-			if (streamUrl && !streamReceivedData) {
-				try {
-					logger.debug('fetching final stream content from: %s', streamUrl);
-					const response = await fetch(streamUrl);
-					if (response.ok && response.body) {
-						const text = await response.text();
-						if (text) {
-							if (options.json) {
-								outputChunks.push(text);
-							} else {
-								process.stdout.write(text);
-							}
-						}
-					}
-				} catch (err) {
-					logger.debug('final stream fetch error: %s', err);
-				}
-			}
+			// Wait for all stream promises to settle
+			await Promise.allSettled(streamPromises);
 
 			const duration = Date.now() - started;
 			const output = outputChunks.join('');
 
 			if (!options.json) {
 				if (finalExecution.exitCode === 0) {
-					tui.success(`completed in ${duration}ms with exit code ${finalExecution.exitCode}`);
+					// no op
 				} else if (finalExecution.exitCode !== undefined) {
 					tui.error(`failed with exit code ${finalExecution.exitCode} in ${duration}ms`);
 				} else {
-					tui.info(`Execution ${tui.bold(finalExecution.executionId)} - Status: ${finalExecution.status}`);
+					tui.info(
+						`Execution ${tui.bold(finalExecution.executionId)} - Status: ${finalExecution.status}`
+					);
 				}
 			}
 
@@ -179,9 +186,9 @@ export const execSubcommand = createCommand({
 	},
 });
 
-async function streamOutput(
+async function streamUrlToWritable(
 	url: string,
-	onOutput: (chunk: string) => void,
+	writable: NodeJS.WritableStream,
 	signal: AbortSignal,
 	logger: Logger
 ): Promise<void> {
@@ -205,7 +212,6 @@ async function streamOutput(
 			}
 
 			const reader = response.body.getReader();
-			const decoder = new TextDecoder();
 			let receivedData = false;
 
 			while (!signal.aborted) {
@@ -218,11 +224,10 @@ async function streamOutput(
 					break;
 				}
 
-				const text = decoder.decode(value, { stream: true });
-				if (text) {
+				if (value) {
 					receivedData = true;
-					logger.debug('stream chunk: %d bytes', text.length);
-					onOutput(text);
+					logger.debug('stream chunk: %d bytes', value.length);
+					writable.write(value);
 				}
 			}
 		} catch (err) {
@@ -233,6 +238,20 @@ async function streamOutput(
 			logger.debug('stream caught error: %s', err);
 		}
 	}
+}
+
+function createCaptureStream(onChunk: (chunk: string) => void): NodeJS.WritableStream {
+	return new Writable({
+		write(
+			chunk: Buffer | string,
+			_encoding: string,
+			callback: (error?: Error | null) => void
+		): void {
+			const text = typeof chunk === 'string' ? chunk : chunk.toString('utf-8');
+			onChunk(text);
+			callback();
+		},
+	});
 }
 
 function sleep(ms: number): Promise<void> {
