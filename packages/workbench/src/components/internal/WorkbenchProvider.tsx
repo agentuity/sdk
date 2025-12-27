@@ -51,14 +51,15 @@ export function WorkbenchProvider({
 
 	// localStorage utilities scoped by project
 	const getStorageKey = useCallback(
-		(key: string) => `agentuity_workbench_${config.projectId}_${key}`,
+		(key: string) =>
+			`agentuity-workbench-${config.projectId ? `${config.projectId}-` : ""}${key}`,
 		[config.projectId],
 	);
 
 	const saveSelectedAgent = useCallback(
 		(agentId: string) => {
 			try {
-				localStorage.setItem(getStorageKey("selected_agent"), agentId);
+				localStorage.setItem(getStorageKey("selected-agent"), agentId);
 			} catch (error) {
 				console.warn("Failed to save selected agent to localStorage:", error);
 			}
@@ -68,7 +69,7 @@ export function WorkbenchProvider({
 
 	const loadSelectedAgent = useCallback((): string | null => {
 		try {
-			return localStorage.getItem(getStorageKey("selected_agent"));
+			return localStorage.getItem(getStorageKey("selected-agent"));
 		} catch (error) {
 			console.warn("Failed to load selected agent from localStorage:", error);
 			return null;
@@ -78,7 +79,7 @@ export function WorkbenchProvider({
 	const saveThreadId = useCallback(
 		(threadId: string) => {
 			try {
-				localStorage.setItem(getStorageKey("thread_id"), threadId);
+				localStorage.setItem(getStorageKey("thread-id"), threadId);
 			} catch (error) {
 				console.warn("Failed to save thread id to localStorage:", error);
 			}
@@ -88,7 +89,7 @@ export function WorkbenchProvider({
 
 	const loadThreadId = useCallback((): string | null => {
 		try {
-			return localStorage.getItem(getStorageKey("thread_id"));
+			return localStorage.getItem(getStorageKey("thread-id"));
 		} catch (error) {
 			console.warn("Failed to load thread id from localStorage:", error);
 			return null;
@@ -700,6 +701,7 @@ export function WorkbenchProvider({
 
 				if (response.ok) {
 					setMessages([]);
+
 					logger.debug("✅ Cleared state for agent:", agentId);
 				} else {
 					logger.debug("⚠️ Failed to clear state");

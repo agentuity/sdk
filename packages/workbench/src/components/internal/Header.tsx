@@ -15,7 +15,7 @@ export interface HeaderProps {
 export function Header({
 	className,
 	title = "Workbench",
-	showSettings = true,
+	showSettings = false,
 }: HeaderProps) {
 	const { connectionStatus } = useWorkbench();
 	const LogoComponent = Logo;

@@ -12,9 +12,11 @@ interface Logger {
 const getLogLevel = (): LogLevel | null => {
 	try {
 		const level = localStorage.getItem("AGENTUITY_LOG_LEVEL");
+
 		if (level && ["debug", "info", "warn", "error"].includes(level)) {
 			return level as LogLevel;
 		}
+
 		return null;
 	} catch {
 		return null;
@@ -23,6 +25,7 @@ const getLogLevel = (): LogLevel | null => {
 
 const shouldLog = (messageLevel: LogLevel): boolean => {
 	const currentLevel = getLogLevel();
+
 	if (!currentLevel) return false;
 
 	const levels: Record<LogLevel, number> = {
@@ -39,10 +42,13 @@ export function useLogger(component?: string): Logger {
 	const createLogFunction = useCallback(
 		(level: LogLevel) =>
 			(...args: unknown[]) => {
-				if (!shouldLog(level)) return;
+				if (!shouldLog(level)) {
+					return;
+				}
 
 				const prefix = component ? `[${component}]` : "[Workbench]";
 				const consoleFn = console[level] || console.log;
+
 				consoleFn(prefix, ...args);
 			},
 		[component],

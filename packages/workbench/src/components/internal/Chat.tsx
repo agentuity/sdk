@@ -109,7 +109,7 @@ export function Chat({
 										<div
 											className={cn(
 												"w-fit flex items-center mb-2 text-muted-foreground text-sm transition-colors",
-												!isStreaming && "hover:text-foreground cursor-pointer",
+												// !isStreaming && "hover:text-foreground cursor-pointer",
 											)}
 										>
 											<Loader

@@ -19,8 +19,10 @@ export function parseTokensHeader(header: string): Record<string, number> {
 
 	for (const entry of entries) {
 		const [model, countStr] = entry.split(":").map((s) => s.trim());
+
 		if (model && countStr) {
 			const count = Number.parseInt(countStr, 10);
+
 			if (!Number.isNaN(count)) {
 				result[model] = count;
 			}
@@ -44,9 +46,11 @@ export const getProcessEnv = (key: string): string | undefined => {
 	if (typeof import.meta.env !== "undefined") {
 		return import.meta.env[key];
 	}
+
 	if (typeof process !== "undefined" && process.env) {
 		return process.env[key];
 	}
+
 	return undefined;
 };
 
@@ -57,14 +61,19 @@ export const buildUrl = (
 	query?: URLSearchParams,
 ): string => {
 	path = path.startsWith("/") ? path : `/${path}`;
+
 	let url = base.replace(/\/$/, "") + path;
+
 	if (subpath) {
 		subpath = subpath.startsWith("/") ? subpath : `/${subpath}`;
+
 		url += subpath;
 	}
+
 	if (query) {
 		url += `?${query.toString()}`;
 	}
+
 	return url;
 };
 

@@ -247,8 +247,10 @@ export function InputSection({
 										.map((agent) => {
 											const isSelected =
 												selectedAgent === agent.metadata.agentId;
+
 											// Use name for search but include agentId to ensure uniqueness
 											const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
+
 											return (
 												<CommandItem
 													key={agent.metadata.agentId}
@@ -259,6 +261,7 @@ export function InputSection({
 														const selectedAgentData = Object.values(
 															agents,
 														).find((a) => a.metadata.agentId === agentId);
+
 														if (selectedAgentData) {
 															logger.debug(
 																"🎯 Agent selected by name:",
@@ -266,8 +269,10 @@ export function InputSection({
 																"agentId:",
 																agentId,
 															);
+
 															setSelectedAgent(agentId);
 														}
+
 														setAgentSelectOpen(false);
 													}}
 												>
@@ -353,7 +358,7 @@ export function InputSection({
 								</span>
 							</TooltipTrigger>
 							<TooltipContent>
-								<p>Login to generate a mock input using AI</p>
+								Login to generate a mock input using AI
 							</TooltipContent>
 						</Tooltip>
 					))}
@@ -435,7 +440,7 @@ export function InputSection({
 										<div className="flex flex-col items-center justify-center py-8 px-4 text-center ">
 											<p className="text-sm text-muted-foreground">
 												<span className="font-medium">
-													This agent has no input schema.{" "}
+													This agent has no input schema.
 												</span>
 											</p>
 
