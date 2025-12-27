@@ -23,12 +23,41 @@ import type {
 // Types
 // =============================================================================
 
+/**
+ * Configuration for OpenTelemetry span attributes.
+ * All attributes are included by default. Set to `false` to opt-out of specific PII.
+ */
+export interface OtelSpansConfig {
+	/**
+	 * Include user email in spans (`auth.user.email`).
+	 * @default true
+	 */
+	email?: boolean;
+
+	/**
+	 * Include organization name in spans (`auth.org.name`).
+	 * @default true
+	 */
+	orgName?: boolean;
+}
+
 export interface AgentuityMiddlewareOptions {
 	/**
 	 * If true, don't return 401 on missing auth - just continue without auth context.
 	 * Useful for routes that work for both authenticated and anonymous users.
 	 */
 	optional?: boolean;
+
+	/**
+	 * Configure which attributes are included in OpenTelemetry spans.
+	 * All PII attributes are included by default. Use this to opt-out of specific fields.
+	 *
+	 * @example Disable email in spans
+	 * ```typescript
+	 * createSessionMiddleware(auth, { otelSpans: { email: false } })
+	 * ```
+	 */
+	otelSpans?: OtelSpansConfig;
 }
 
 export interface AgentuityApiKeyMiddlewareOptions {
@@ -36,6 +65,17 @@ export interface AgentuityApiKeyMiddlewareOptions {
 	 * If true, don't return 401 on missing/invalid API key - just continue without auth context.
 	 */
 	optional?: boolean;
+
+	/**
+	 * Configure which attributes are included in OpenTelemetry spans.
+	 * All PII attributes are included by default. Use this to opt-out of specific fields.
+	 *
+	 * @example Disable email in spans
+	 * ```typescript
+	 * createApiKeyMiddleware(auth, { otelSpans: { email: false } })
+	 * ```
+	 */
+	otelSpans?: OtelSpansConfig;
 }
 
 /**
@@ -56,7 +96,7 @@ export type AgentuityAuthEnv = {
 
 /**
  * Derive minimal org context from session.
- * Full org data is fetched lazily via getOrg().
+ * Full org data is fetched lazily via getOrg(). Later we might add more to org context so keeping this here.
  */
 function deriveOrgContext(session: Session): AgentuityOrgContext | null {
 	const s = session as Record<string, unknown>;
@@ -159,7 +199,11 @@ function buildAgentuityAuth(
 				}
 
 				// Find the current user's role in the org
-				const members = (fullOrg.members ?? []) as Array<{ userId: string; role: string; id: string }>;
+				const members = (fullOrg.members ?? []) as Array<{
+					userId: string;
+					role: string;
+					id: string;
+				}>;
 				const currentMember = members.find((m) => m.userId === user.id);
 
 				cachedFullOrg = {
@@ -200,7 +244,9 @@ function buildAgentuityAuth(
 				return resourcePerms.length > 0;
 			}
 
-			return actions.every((action) => resourcePerms.includes(action) || resourcePerms.includes('*'));
+			return actions.every(
+				(action) => resourcePerms.includes(action) || resourcePerms.includes('*')
+			);
 		},
 	};
 }
@@ -258,11 +304,12 @@ function buildAnonymousAuth(): AgentuityBetterAuthAuth {
  * the Agentuity `auth` wrapper for consistency with other providers.
  *
  * OpenTelemetry spans are automatically enriched with auth attributes:
- * - `auth.user.id` - User ID
- * - `auth.user.email` - User email
- * - `auth.method` - 'session' or 'bearer'
- * - `auth.provider` - 'BetterAuth'
- * - `auth.org.id` - Active organization ID (if set)
+ * - `auth.user.id` - User ID (always included)
+ * - `auth.user.email` - User email (included by default, opt-out via `otelSpans.email: false`)
+ * - `auth.method` - 'session' or 'bearer' (always included)
+ * - `auth.provider` - 'BetterAuth' (always included)
+ * - `auth.org.id` - Active organization ID (always included if set)
+ * - `auth.org.name` - Organization name (included by default, opt-out via `otelSpans.orgName: false`)
  *
  * @example Basic usage
  * ```typescript
@@ -293,7 +340,9 @@ export function createSessionMiddleware(
 	auth: AgentuityAuthInstance,
 	options: AgentuityMiddlewareOptions = {}
 ): MiddlewareHandler<AgentuityAuthEnv> {
-	const { optional = false } = options;
+	const { optional = false, otelSpans = {} } = options;
+	const includeEmail = otelSpans.email !== false;
+	const includeOrgName = otelSpans.orgName !== false;
 
 	return async (c, next) => {
 		const span = trace.getSpan(context.active());
@@ -330,13 +379,19 @@ export function createSessionMiddleware(
 			if (span) {
 				span.setAttributes({
 					'auth.user.id': user.id ?? '',
-					'auth.user.email': user.email ?? '',
 					'auth.method': authMethod,
 					'auth.provider': 'BetterAuth',
 				});
 
+				if (includeEmail && user.email) {
+					span.setAttribute('auth.user.email', user.email);
+				}
+
 				if (org) {
 					span.setAttribute('auth.org.id', org.id);
+					if (includeOrgName && org.name) {
+						span.setAttribute('auth.org.name', org.name);
+					}
 				}
 			}
 
@@ -410,7 +465,8 @@ export function createApiKeyMiddleware(
 	auth: AgentuityAuthInstance,
 	options: AgentuityApiKeyMiddlewareOptions = {}
 ): MiddlewareHandler<AgentuityAuthEnv> {
-	const { optional = false } = options;
+	const { optional = false, otelSpans = {} } = options;
+	const includeEmail = otelSpans.email !== false;
 
 	return async (c, next) => {
 		const span = trace.getSpan(context.active());
@@ -473,24 +529,38 @@ export function createApiKeyMiddleware(
 
 			if (span) {
 				span.setAttributes({
-					'auth.user.id': user?.id ?? '',
-					'auth.user.email': user?.email ?? '',
 					'auth.method': 'api-key',
 					'auth.provider': 'BetterAuth',
 					'auth.api_key.id': apiKeyContext.id,
 				});
+
+				if (user?.id) {
+					span.setAttribute('auth.user.id', user.id);
+				}
+
+				if (includeEmail && user?.email) {
+					span.setAttribute('auth.user.email', user.email);
+				}
 			}
 
 			if (user) {
 				c.set(
 					'auth',
-					buildAgentuityAuth(c, auth, user, null as unknown as Session, null, 'api-key', apiKeyContext)
+					buildAgentuityAuth(
+						c,
+						auth,
+						user,
+						null as unknown as Session,
+						null,
+						'api-key',
+						apiKeyContext
+					)
 				);
 			} else {
 				const anonAuth = buildAnonymousAuth();
 				c.set('auth', {
 					...anonAuth,
-					authMethod: 'api-key' as const,
+					authMethod: 'api-key',
 					apiKey: apiKeyContext,
 					hasPermission(resource: string, ...actions: string[]) {
 						const perms = apiKeyContext.permissions[resource] ?? [];
@@ -521,16 +591,46 @@ export function createApiKeyMiddleware(
 // =============================================================================
 
 /**
- * Mount BetterAuth routes with proper cookie handling.
+ * Default headers to forward from BetterAuth responses.
+ * This prevents unintended headers from leaking through while preserving auth-essential ones.
+ */
+const DEFAULT_FORWARDED_HEADERS = [
+	'set-cookie',
+	'content-type',
+	'location',
+	'cache-control',
+	'pragma',
+	'expires',
+	'vary',
+	'etag',
+	'last-modified',
+];
+
+/**
+ * Configuration options for mounting BetterAuth routes.
+ */
+export interface MountBetterAuthRoutesOptions {
+	/**
+	 * Headers to forward from BetterAuth responses to the client.
+	 * Only headers in this list will be forwarded (case-insensitive).
+	 * `set-cookie` is always forwarded with append behavior regardless of this setting.
+	 *
+	 * @default ['set-cookie', 'content-type', 'location', 'cache-control', 'pragma', 'expires', 'vary', 'etag', 'last-modified']
+	 */
+	allowList?: string[];
+}
+
+/**
+ * Mount BetterAuth routes with proper cookie handling and header filtering.
  *
  * This wrapper is required because of how Hono handles raw `Response` objects
  * returned from route handlers. When BetterAuth's `auth.handler()` returns a
  * `Response` with `Set-Cookie` headers, those headers are not automatically
  * merged with headers set by Agentuity's middleware (like the `atid` thread cookie).
  *
- * This function explicitly copies all headers from BetterAuth's response into
+ * This function copies only allowed headers from BetterAuth's response into
  * Hono's context, ensuring both BetterAuth's session cookies AND Agentuity's
- * cookies are preserved in the final response.
+ * cookies are preserved while preventing unintended headers from leaking through.
  *
  * @example Basic usage
  * ```typescript
@@ -540,18 +640,40 @@ export function createApiKeyMiddleware(
  * const api = createRouter();
  *
  * // Mount all BetterAuth routes (sign-in, sign-up, sign-out, session, etc.)
- * api.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(auth));
+ * api.on(['GET', 'POST'], '/api/auth/*', mountBetterAuthRoutes(auth));
+ * ```
+ *
+ * @example With custom header allowlist
+ * ```typescript
+ * api.on(['GET', 'POST'], '/api/auth/*', mountBetterAuthRoutes(auth, {
+ *   allowList: ['set-cookie', 'content-type', 'location', 'x-custom-header']
+ * }));
  * ```
  */
 export function mountBetterAuthRoutes(
-	auth: AgentuityAuthInstance
+	auth: AgentuityAuthInstance,
+	options: MountBetterAuthRoutesOptions = {}
 ): (c: Context) => Promise<Response> {
+	const allowList = new Set(
+		(options.allowList ?? DEFAULT_FORWARDED_HEADERS).map((h) => h.toLowerCase())
+	);
+	// Always ensure set-cookie is in the allowlist
+	allowList.add('set-cookie');
+
 	return async (c: Context): Promise<Response> => {
 		const response = await auth.handler(c.req.raw);
 
 		response.headers.forEach((value, key) => {
-			if (key.toLowerCase() === 'set-cookie') {
-				c.header(key, value, { append: true });
+			const lower = key.toLowerCase();
+
+			// Only forward headers in the allowlist
+			if (!allowList.has(lower)) {
+				return;
+			}
+
+			if (lower === 'set-cookie') {
+				// Preserve existing cookies (e.g., Agentuity thread cookies)
+				c.header('set-cookie', value, { append: true });
 			} else {
 				c.header(key, value);
 			}

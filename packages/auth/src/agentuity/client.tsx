@@ -13,7 +13,7 @@ export interface AgentuityBetterAuthProps {
 
 	/**
 	 * Endpoint to fetch auth token from.
-	 * Defaults to '/auth/token'.
+	 * Defaults to '/api/auth/token' (matches CLI scaffold basePath: '/api/auth').
 	 * Should return JSON with { token: string | null }.
 	 */
 	tokenEndpoint?: string;
@@ -59,7 +59,7 @@ export interface AgentuityBetterAuthProps {
  *
  * @example With custom token endpoint
  * ```tsx
- * <AgentuityBetterAuth tokenEndpoint="/api/auth/token">
+ * <AgentuityBetterAuth tokenEndpoint="/custom/auth/token">
  *   <App />
  * </AgentuityBetterAuth>
  * ```
@@ -78,7 +78,7 @@ export interface AgentuityBetterAuthProps {
  */
 export function AgentuityBetterAuth({
 	children,
-	tokenEndpoint = '/auth/token',
+	tokenEndpoint = '/api/auth/token',
 	getToken,
 	refreshInterval = 60000,
 	isLoading: externalIsLoading,

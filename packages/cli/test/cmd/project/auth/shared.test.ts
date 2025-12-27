@@ -75,13 +75,14 @@ describe('project auth shared', () => {
 		});
 
 		test('should include apiKey table creation', () => {
-			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS "apiKey"');
+			// Note: BetterAuth expects lowercase table name "apikey" (not "apiKey")
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE TABLE IF NOT EXISTS apikey');
 		});
 
 		test('should include indexes', () => {
 			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('CREATE INDEX IF NOT EXISTS');
-			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('"session_userId_idx"');
-			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('"apiKey_key_idx"');
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('session_userId_idx');
+			expect(AGENTUITY_AUTH_BASELINE_SQL).toContain('apikey_key_idx');
 		});
 
 		test('should be idempotent (uses IF NOT EXISTS)', () => {

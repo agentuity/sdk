@@ -464,7 +464,66 @@ describe('mountBetterAuthRoutes', () => {
 		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
-		expect(res.headers.get('X-Auth-Header')).toBe('from-auth');
+		// X-Auth-Header is NOT forwarded because it's not in the default allowlist
+		expect(res.headers.get('X-Auth-Header')).toBeNull();
+		// Content-Type IS forwarded because it's in the allowlist
+		expect(res.headers.get('Content-Type')).toBe('application/json');
+		// Middleware headers are preserved
 		expect(res.headers.get('X-Middleware-Header')).toBe('from-middleware');
+	});
+
+	test('filters out non-allowlisted headers', async () => {
+		const mockHandler = mock(async () => {
+			return new Response('{"ok": true}', {
+				status: 200,
+				headers: {
+					'Content-Type': 'application/json',
+					'Set-Cookie': 'session=abc123',
+					Location: '/redirect',
+					'X-Internal-Debug': 'should-not-forward',
+					Server: 'should-not-forward',
+				},
+			});
+		});
+		const mockAuth = { handler: mockHandler };
+		const app = new Hono();
+		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+
+		const res = await app.request('/auth/session');
+
+		// Allowlisted headers are forwarded
+		expect(res.headers.get('Content-Type')).toBe('application/json');
+		expect(res.headers.get('Set-Cookie')).toBe('session=abc123');
+		expect(res.headers.get('Location')).toBe('/redirect');
+
+		// Non-allowlisted headers are filtered out
+		expect(res.headers.get('X-Internal-Debug')).toBeNull();
+		expect(res.headers.get('Server')).toBeNull();
+	});
+
+	test('allows custom header allowlist', async () => {
+		const mockHandler = mock(async () => {
+			return new Response('{"ok": true}', {
+				status: 200,
+				headers: {
+					'Content-Type': 'application/json',
+					'X-Custom-Header': 'custom-value',
+				},
+			});
+		});
+		const mockAuth = { handler: mockHandler };
+		const app = new Hono();
+		app.on(
+			['GET', 'POST'],
+			'/auth/*',
+			mountBetterAuthRoutes(mockAuth as any, {
+				allowList: ['content-type', 'x-custom-header'],
+			})
+		);
+
+		const res = await app.request('/auth/session');
+
+		expect(res.headers.get('Content-Type')).toBe('application/json');
+		expect(res.headers.get('X-Custom-Header')).toBe('custom-value');
 	});
 });

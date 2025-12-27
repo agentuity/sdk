@@ -91,6 +91,8 @@ export type {
 	AgentuityMiddlewareOptions,
 	AgentuityApiKeyMiddlewareOptions,
 	AgentuityAuthEnv,
+	OtelSpansConfig,
+	MountBetterAuthRoutesOptions,
 } from './server';
 
 // =============================================================================

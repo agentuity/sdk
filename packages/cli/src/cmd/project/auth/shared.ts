@@ -277,6 +277,9 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
 export const auth = createAgentuityAuth({
 	database: pool,
 	basePath: '/api/auth',
+	// Secret used by BetterAuth for signing/verifying tokens and cookies.
+	// Generate with: openssl rand -hex 32
+	secret: process.env.BETTER_AUTH_SECRET!,
 });
 
 // Required auth middleware - returns 401 if not authenticated
@@ -313,7 +316,8 @@ import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
 import { auth } from '../auth';
 
 // Mount all BetterAuth routes (sign-in, sign-up, sign-out, session, etc.)
-api.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(auth));
+// Must match the basePath configured in createAgentuityAuth (default: /api/auth)
+api.on(['GET', 'POST'], '/api/auth/*', mountBetterAuthRoutes(auth));
 `);
 
 	console.log(tui.muted('━'.repeat(60)));
@@ -355,10 +359,11 @@ export default createAgent('my-agent', {
 	console.log(tui.muted('━'.repeat(60)));
 	tui.info('Checklist:');
 	console.log(`  ${tui.tuiColors.success('✓')} DATABASE_URL configured`);
+	console.log(`  ${tui.muted('○')} BETTER_AUTH_SECRET configured (openssl rand -hex 32)`);
 	console.log(`  ${tui.tuiColors.success('✓')} Auth tables migrated`);
 	console.log(`  ${tui.tuiColors.success('✓')} Dependencies installed`);
 	console.log(`  ${tui.muted('○')} Wire Hono middleware`);
-	console.log(`  ${tui.muted('○')} Add auth routes`);
-	console.log(`  ${tui.muted('○')} Wrap app with AuthProvider`);
+	console.log(`  ${tui.muted('○')} Add auth routes (mountBetterAuthRoutes at /api/auth/*)`);
+	console.log(`  ${tui.muted('○')} Wrap app with AgentuityBetterAuth`);
 	tui.newline();
 }

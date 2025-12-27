@@ -136,6 +136,12 @@ export const initSubcommand = createSubcommand({
 				fs.writeFileSync(authFilePath, generateAuthFileContent());
 				tui.success('Created src/auth.ts');
 				authFileCreated = true;
+
+				tui.newline();
+				tui.warning(
+					`Set ${tui.bold('BETTER_AUTH_SECRET')} in your .env before starting the server.`
+				);
+				tui.info(`Generate one with: ${tui.muted('openssl rand -hex 32')}`);
 			}
 		}
 

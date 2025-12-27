@@ -45,6 +45,11 @@ CREATE TABLE IF NOT EXISTS "session" (
   "activeOrganizationId" text
 );
 
+-- SECURITY: The "account" table stores OAuth provider tokens and optional passwords.
+-- - accessToken, refreshToken, idToken: OAuth tokens from identity providers. Treat as sensitive.
+-- - password: Hashed user password (when using email/password auth).
+-- - Restrict direct database access to this table; never expose these fields via APIs or logs.
+-- - Consider at-rest encryption for production deployments with sensitive OAuth integrations.
 CREATE TABLE IF NOT EXISTS "account" (
   "id" text NOT NULL PRIMARY KEY,
   "accountId" text NOT NULL,
@@ -105,6 +110,11 @@ CREATE TABLE IF NOT EXISTS "invitation" (
 -- =============================================================================
 -- JWT Plugin Table
 -- =============================================================================
+-- SECURITY: The "jwks" table stores JWT signing keys.
+-- - privateKey: Contains the private key used for signing JWTs. BetterAuth encrypts this
+--   by default using the BETTER_AUTH_SECRET. Never disable encryption in production.
+-- - Restrict database access to this table; never expose private keys in logs or APIs.
+-- - Rotate keys periodically by allowing old keys to expire (via expiresAt) and creating new ones.
 
 CREATE TABLE IF NOT EXISTS "jwks" (
   "id" text NOT NULL PRIMARY KEY,
@@ -118,6 +128,11 @@ CREATE TABLE IF NOT EXISTS "jwks" (
 -- API Key Plugin Table
 -- Note: BetterAuth expects lowercase table name "apikey" (not "apiKey")
 -- =============================================================================
+-- SECURITY: The "apikey" table stores API keys for programmatic access.
+-- - key: Stores a HASHED version of the API key (not plaintext). BetterAuth hashes keys
+--   before storage. The original key is only shown once at creation time.
+-- - Restrict database access; never expose this table in admin UIs or logs.
+-- - Use the permissions column to implement least-privilege access patterns.
 
 CREATE TABLE IF NOT EXISTS apikey (
   id text NOT NULL PRIMARY KEY,
