@@ -3,19 +3,25 @@ import { APIClient, APIResponseSchema } from '../api';
 import { SandboxResponseError, API_VERSION } from './util';
 import type { ListSandboxesParams, ListSandboxesResponse, SandboxStatus } from '@agentuity/core';
 
-const SandboxInfoSchema = z.object({
-	sandboxId: z.string(),
-	status: z.enum(['creating', 'idle', 'running', 'terminated', 'failed']),
-	createdAt: z.string(),
-	executions: z.number(),
-	stdoutStreamUrl: z.string().optional(),
-	stderrStreamUrl: z.string().optional(),
-});
+const SandboxInfoSchema = z
+	.object({
+		sandboxId: z.string().describe('Unique identifier for the sandbox'),
+		status: z
+			.enum(['creating', 'idle', 'running', 'terminated', 'failed'])
+			.describe('Current status of the sandbox'),
+		createdAt: z.string().describe('ISO timestamp when the sandbox was created'),
+		executions: z.number().describe('Total number of executions in this sandbox'),
+		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
+		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+	})
+	.describe('Summary information about a sandbox');
 
-const ListSandboxesDataSchema = z.object({
-	sandboxes: z.array(SandboxInfoSchema),
-	total: z.number(),
-});
+const ListSandboxesDataSchema = z
+	.object({
+		sandboxes: z.array(SandboxInfoSchema).describe('List of sandbox entries'),
+		total: z.number().describe('Total number of sandboxes matching the query'),
+	})
+	.describe('Paginated list of sandboxes');
 
 const ListSandboxesResponseSchema = APIResponseSchema(ListSandboxesDataSchema);
 
@@ -23,6 +29,14 @@ export interface SandboxListParams extends ListSandboxesParams {
 	orgId?: string;
 }
 
+/**
+ * Lists sandboxes with optional filtering and pagination.
+ *
+ * @param client - The API client to use for the request
+ * @param params - Optional parameters for filtering by project, status, and pagination
+ * @returns Paginated list of sandboxes with total count
+ * @throws {SandboxResponseError} If the request fails
+ */
 export async function sandboxList(
 	client: APIClient,
 	params?: SandboxListParams

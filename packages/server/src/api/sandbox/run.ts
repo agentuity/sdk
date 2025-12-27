@@ -23,6 +23,17 @@ export interface SandboxRunParams {
 	logger?: Logger;
 }
 
+/**
+ * Creates a sandbox, executes a command, and waits for completion.
+ *
+ * This is a high-level convenience function that handles the full lifecycle:
+ * creating a sandbox, streaming I/O, polling for completion, and cleanup.
+ *
+ * @param client - The API client to use for the request
+ * @param params - Parameters including command options, I/O streams, and timeout settings
+ * @returns The run result including exit code and duration
+ * @throws {SandboxResponseError} If sandbox creation fails, execution times out, or is cancelled
+ */
 export async function sandboxRun(
 	client: APIClient,
 	params: SandboxRunParams
