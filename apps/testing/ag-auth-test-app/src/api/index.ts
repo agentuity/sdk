@@ -15,7 +15,7 @@ api.get('/health', (c) => {
 	return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Hello route with optional auth (to test withSession)
+// Hello route with optional auth (to test withSession inside the agent)
 api.post('/hello', optionalAuthMiddleware, hello.validator(), async (c) => {
 	const data = c.req.valid('json');
 	const result = await hello.run(data);
@@ -92,10 +92,7 @@ api.post('/projects', apiKeyMiddleware, async (c) => {
 	const canWriteProject = c.var.auth.hasPermission('project', 'write');
 
 	if (!canWriteProject) {
-		return c.json(
-			{ error: 'Forbidden', missingPermissions: { project: ['write'] } },
-			403
-		);
+		return c.json({ error: 'Forbidden', missingPermissions: { project: ['write'] } }, 403);
 	}
 
 	const user = c.var.user;

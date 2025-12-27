@@ -299,29 +299,32 @@ export function printIntegrationExamples(): void {
 	tui.newline();
 
 	console.log(tui.muted('━'.repeat(60)));
-	console.log(tui.bold(' 1. Add auth middleware to your Hono app:'));
+	console.log(tui.bold(' 1. Set up your API routes (e.g., src/api/index.ts):'));
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
-import { authMiddleware } from './auth';
-
-app.use('/api/*', authMiddleware);
-`);
-
-	console.log(tui.muted('━'.repeat(60)));
-	console.log(tui.bold(' 2. Add BetterAuth routes:'));
-	console.log(tui.muted('━'.repeat(60)));
-	console.log(`
-// In your API routes (e.g., src/api/index.ts)
+import { createRouter } from '@agentuity/runtime';
 import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
-import { auth } from '../auth';
+import { auth, authMiddleware } from '../auth';
 
-// Mount all BetterAuth routes (sign-in, sign-up, sign-out, session, etc.)
+const api = createRouter();
+
+// Mount BetterAuth routes (sign-in, sign-up, sign-out, session, etc.)
 // Must match the basePath configured in createAgentuityAuth (default: /api/auth)
 api.on(['GET', 'POST'], '/api/auth/*', mountBetterAuthRoutes(auth));
+
+// Protect your API routes with auth middleware
+api.use('/api/*', authMiddleware);
+
+api.get('/api/me', async (c) => {
+  const user = await c.var.auth.getUser();
+  return c.json({ id: user.id, email: user.email });
+});
+
+export default api;
 `);
 
 	console.log(tui.muted('━'.repeat(60)));
-	console.log(tui.bold(' 3. Wrap your React app with AuthProvider:'));
+	console.log(tui.bold(' 2. Wrap your React app with AuthProvider:'));
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
 import { AgentuityBetterAuth } from '@agentuity/auth/agentuity/client';
@@ -336,7 +339,7 @@ function App() {
 `);
 
 	console.log(tui.muted('━'.repeat(60)));
-	console.log(tui.bold(' 4. Protect agents with withSession:'));
+	console.log(tui.bold(' 3. Protect agents with withSession:'));
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
 import { createAgent } from '@agentuity/runtime';
