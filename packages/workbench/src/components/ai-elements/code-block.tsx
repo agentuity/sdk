@@ -148,22 +148,14 @@ export const CodeBlock = ({
 				<div className="relative">
 					{/* Light Mode */}
 					<div
-						className={cn(
-							baseClass,
-							"group-[.is-user]:hidden dark:hidden dark:group-[.is-user]:block",
-							"not-[.is-user]:block dark:not-[.is-user]:hidden",
-						)}
+						className={cn(baseClass, "dark:hidden")}
 						// biome-ignore lint/security/noDangerouslySetInnerHtml: must be added via this method as per the library
 						dangerouslySetInnerHTML={{ __html: lightHtml }}
 					/>
 
 					{/* Dark Mode */}
 					<div
-						className={cn(
-							baseClass,
-							"hidden group-[.is-user]:block dark:block dark:group-[.is-user]:hidden",
-							"not-[.is-user]:hidden dark:not-[.is-user]:block",
-						)}
+						className={cn(baseClass, "hidden dark:block")}
 						// biome-ignore lint/security/noDangerouslySetInnerHtml: must be added via this method as per the library
 						dangerouslySetInnerHTML={{ __html: darkHtml }}
 					/>

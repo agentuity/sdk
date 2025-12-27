@@ -78,20 +78,21 @@ export const ConversationScrollButton = ({
 	}, [scrollToBottom]);
 
 	return (
-		!isAtBottom && (
-			<Button
-				className={cn(
-					"absolute bottom-4 left-[50%] translate-x-[-50%] rounded-full",
-					className,
-				)}
-				onClick={handleScrollToBottom}
-				size="icon"
-				type="button"
-				variant="outline"
-				{...props}
-			>
-				<ArrowDownIcon className="size-4" />
-			</Button>
-		)
+		<Button
+			className={cn(
+				"absolute bottom-0 left-[50%] translate-x-[-50%] rounded-full transition-all duration-300",
+				isAtBottom
+					? "opacity-0 pointer-events-none -translate-y-1/2"
+					: "opacity-100 translate-y-0",
+				className,
+			)}
+			onClick={handleScrollToBottom}
+			size="icon"
+			type="button"
+			variant="outline"
+			{...props}
+		>
+			<ArrowDownIcon className="size-4" />
+		</Button>
 	);
 };
