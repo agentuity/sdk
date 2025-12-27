@@ -13,6 +13,7 @@ const SandboxInfoDataSchema = z
 		executions: z.number().describe('Total number of executions in this sandbox'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		dependencies: z.array(z.string()).optional().describe('Apt packages installed in the sandbox'),
 	})
 	.describe('Detailed information about a sandbox');
 
@@ -56,6 +57,7 @@ export async function sandboxGet(
 			executions: resp.data.executions,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
+			dependencies: resp.data.dependencies,
 		};
 	}
 

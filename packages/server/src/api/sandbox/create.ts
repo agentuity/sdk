@@ -54,6 +54,10 @@ const SandboxCreateRequestSchema = z
 			.optional()
 			.describe('Initial command to run in the sandbox'),
 		snapshot: z.string().optional().describe('Snapshot ID to restore the sandbox from'),
+		dependencies: z
+			.array(z.string())
+			.optional()
+			.describe('Apt packages to install when creating the sandbox'),
 	})
 	.describe('Request body for creating a new sandbox');
 
@@ -121,6 +125,9 @@ export async function sandboxCreate(
 	}
 	if (options.snapshot) {
 		body.snapshot = options.snapshot;
+	}
+	if (options.dependencies && options.dependencies.length > 0) {
+		body.dependencies = options.dependencies;
 	}
 
 	const queryParams = new URLSearchParams();

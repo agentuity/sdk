@@ -51,6 +51,10 @@ export const createSubcommand = createCommand({
 				.optional()
 				.describe('Files to create in sandbox (sandbox-path:local-path)'),
 			snapshot: z.string().optional().describe('Snapshot ID or tag to restore from'),
+			dependency: z
+				.array(z.string())
+				.optional()
+				.describe('Apt packages to install (can be specified multiple times)'),
 		}),
 		response: SandboxCreateResponseSchema,
 	},
@@ -88,6 +92,7 @@ export const createSubcommand = createCommand({
 				env: Object.keys(envMap).length > 0 ? envMap : undefined,
 				command: hasFiles ? { exec: [], files: filesMap } : undefined,
 				snapshot: opts.snapshot,
+				dependencies: opts.dependency,
 			},
 			orgId,
 		});

@@ -172,6 +172,12 @@ export interface SandboxCreateOptions {
 	 * The sandbox will start with the filesystem state from the snapshot.
 	 */
 	snapshot?: string;
+
+	/**
+	 * Apt packages to install when creating the sandbox.
+	 * These are installed via `apt install` before executing any commands.
+	 */
+	dependencies?: string[];
 }
 
 /**
@@ -257,6 +263,11 @@ export interface SandboxInfo {
 	 * URL to the stderr output stream
 	 */
 	stderrStreamUrl?: string;
+
+	/**
+	 * Apt packages installed in the sandbox
+	 */
+	dependencies?: string[];
 }
 
 /**
