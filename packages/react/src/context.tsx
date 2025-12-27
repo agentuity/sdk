@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { createContext, useContext, type Context } from 'react';
 import { defaultBaseUrl } from '@agentuity/frontend';
 import { setGlobalBaseUrl, setGlobalAuthHeader } from './client';
@@ -25,9 +25,18 @@ export const AgentuityProvider = ({
 	authHeader: authHeaderProp,
 	children,
 }: ContextProviderArgs): React.JSX.Element => {
-	const [authHeader, setAuthHeader] = useState<string | null>(authHeaderProp ?? null);
-	const [authLoading, setAuthLoading] = useState<boolean>(false);
+	const [authHeader, setAuthHeaderState] = useState<string | null>(authHeaderProp ?? null);
+	const [authLoading, setAuthLoadingState] = useState<boolean>(false);
 	const resolvedBaseUrl = baseUrl || defaultBaseUrl;
+
+	// Memoize setter functions to prevent unnecessary re-renders
+	const setAuthHeader = useCallback((token: string | null) => {
+		setAuthHeaderState(token);
+	}, []);
+
+	const setAuthLoading = useCallback((loading: boolean) => {
+		setAuthLoadingState(loading);
+	}, []);
 
 	// Set global baseUrl for RPC clients
 	useEffect(() => {
@@ -42,23 +51,23 @@ export const AgentuityProvider = ({
 	// Sync authHeader prop changes to state
 	useEffect(() => {
 		if (authHeaderProp !== undefined) {
-			setAuthHeader(authHeaderProp);
+			setAuthHeaderState(authHeaderProp);
 		}
 	}, [authHeaderProp]);
 
-	return (
-		<AgentuityContext.Provider
-			value={{
-				baseUrl: resolvedBaseUrl,
-				authHeader,
-				setAuthHeader,
-				authLoading,
-				setAuthLoading,
-			}}
-		>
-			{children}
-		</AgentuityContext.Provider>
+	// Memoize context value to prevent unnecessary re-renders
+	const contextValue = useMemo(
+		() => ({
+			baseUrl: resolvedBaseUrl,
+			authHeader,
+			setAuthHeader,
+			authLoading,
+			setAuthLoading,
+		}),
+		[resolvedBaseUrl, authHeader, setAuthHeader, authLoading, setAuthLoading]
 	);
+
+	return <AgentuityContext.Provider value={contextValue}>{children}</AgentuityContext.Provider>;
 };
 
 export interface AgentuityHookValue {

@@ -44,31 +44,11 @@ describe('AGENTUITY_AUTH_BASELINE_SQL', () => {
 });
 
 describe('ensureAuthSchema', () => {
-	test('returns created: false when table already exists', async () => {
-		const mockDb = {
-			query: async (text: string, _params?: unknown[]) => {
-				if (text.includes('to_regclass')) {
-					// Simulate table exists
-					return { rows: [{ table_name: 'user' }] };
-				}
-				return { rows: [] };
-			},
-		};
-
-		const result = await ensureAuthSchema({ db: mockDb });
-		expect(result).toEqual({ created: false });
-	});
-
-	test('returns created: true and runs SQL when table does not exist', async () => {
+	test('always returns created: true (idempotent SQL)', async () => {
 		let sqlExecuted = false;
 
 		const mockDb = {
-			query: async (text: string, _params?: unknown[]) => {
-				if (text.includes('to_regclass')) {
-					// Simulate table does not exist
-					return { rows: [{ table_name: null }] };
-				}
-				// This is the baseline SQL being executed
+			query: async (text: string) => {
 				if (text.includes('CREATE TABLE')) {
 					sqlExecuted = true;
 				}
@@ -81,23 +61,21 @@ describe('ensureAuthSchema', () => {
 		expect(sqlExecuted).toBe(true);
 	});
 
-	test('uses custom schema when provided', async () => {
-		const schemasUsed: string[] = [];
+	test('executes baseline SQL with all required tables', async () => {
+		const executedSql: string[] = [];
 
 		const mockDb = {
-			query: async (text: string, params?: unknown[]) => {
-				if (text.includes('to_regclass') && params) {
-					schemasUsed.push(params[0] as string);
-					// Simulate tables exist to avoid running migrations
-					return { rows: [{ table_name: 'exists' }] };
-				}
+			query: async (text: string) => {
+				executedSql.push(text);
 				return { rows: [] };
 			},
 		};
 
-		await ensureAuthSchema({ db: mockDb, schema: 'custom_schema' });
-		// Checks both user and apikey tables with custom schema
-		expect(schemasUsed).toContain('custom_schema.user');
-		expect(schemasUsed).toContain('custom_schema.apikey');
+		await ensureAuthSchema({ db: mockDb });
+
+		// Should have executed the baseline SQL
+		expect(executedSql.length).toBe(1);
+		expect(executedSql[0]).toContain('CREATE TABLE IF NOT EXISTS "user"');
+		expect(executedSql[0]).toContain('CREATE TABLE IF NOT EXISTS apikey');
 	});
 });
