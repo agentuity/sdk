@@ -141,10 +141,17 @@ async function executeOrValidate(
 /**
  * Format a user-friendly message for a validation issue
  */
-function formatValidationIssueMessage(field: string, message: string): string {
+function formatValidationIssueMessage(
+	field: string,
+	message: string,
+	isArg: boolean = false
+): string {
 	// Detect "expected X, received undefined" pattern (missing required value)
 	if (message.includes('received undefined')) {
 		if (field && field !== 'unknown') {
+			if (isArg) {
+				return `Missing required argument: <${field}>`;
+			}
 			return `Missing required option: --${field}`;
 		}
 		return 'Missing required value';
@@ -155,6 +162,9 @@ function formatValidationIssueMessage(field: string, message: string): string {
 	if (typeMatch) {
 		const [, expected, received] = typeMatch;
 		if (field && field !== 'unknown') {
+			if (isArg) {
+				return `Invalid value for <${field}>: expected ${expected}, got ${received}`;
+			}
 			return `Invalid value for --${field}: expected ${expected}, got ${received}`;
 		}
 		return `Invalid value: expected ${expected}, got ${received}`;
@@ -162,9 +172,45 @@ function formatValidationIssueMessage(field: string, message: string): string {
 
 	// Default: include the field name if we have it
 	if (field && field !== 'unknown') {
+		if (isArg) {
+			return `<${field}>: ${message}`;
+		}
 		return `--${field}: ${message}`;
 	}
 	return message;
+}
+
+/**
+ * Custom error class to wrap ZodErrors with context about whether they are for args or options
+ */
+class SchemaValidationError extends Error {
+	constructor(
+		public readonly originalError: unknown,
+		public readonly isArg: boolean
+	) {
+		super('Schema validation error');
+	}
+}
+
+/**
+ * Parse args schema and wrap any ZodError with context
+ */
+function parseArgs<T>(schema: { parse: (input: unknown) => T }, input: unknown): T {
+	try {
+		return schema.parse(input);
+	} catch (error) {
+		if (error && typeof error === 'object' && 'issues' in error) {
+			throw new SchemaValidationError(error, true);
+		}
+		throw error;
+	}
+}
+
+/**
+ * Parse options schema (no wrapping needed, isArg defaults to false)
+ */
+function parseOptions<T>(schema: { parse: (input: unknown) => T }, input: unknown): T {
+	return schema.parse(input);
 }
 
 function handleValidationError(
@@ -172,15 +218,23 @@ function handleValidationError(
 	commandName: string,
 	baseCtx: { options: GlobalOptions; logger: Logger }
 ): never {
-	if (error && typeof error === 'object' && 'issues' in error) {
-		const issues = (error as { issues: Array<{ path: string[]; message: string }> }).issues;
+	// Unwrap SchemaValidationError to get context about whether it's an arg or option
+	let actualError = error;
+	let isArg = false;
+	if (error instanceof SchemaValidationError) {
+		actualError = error.originalError;
+		isArg = error.isArg;
+	}
+
+	if (actualError && typeof actualError === 'object' && 'issues' in actualError) {
+		const issues = (actualError as { issues: Array<{ path: string[]; message: string }> }).issues;
 
 		const formattedIssues = issues.map((issue) => {
 			const field = issue.path?.length ? issue.path.join('.') : 'unknown';
 			return {
 				field,
 				message: issue.message,
-				formatted: formatValidationIssueMessage(field, issue.message),
+				formatted: formatValidationIssueMessage(field, issue.message, isArg),
 			};
 		});
 
@@ -802,6 +856,7 @@ async function registerSubcommand(
 
 	if (subcommand.schema?.options) {
 		const parsed = parseOptionsSchema(subcommand.schema.options);
+		const aliases = subcommand.schema.aliases ?? {};
 		for (const opt of parsed) {
 			const flag = opt.name
 				.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -814,8 +869,15 @@ async function registerSubcommand(
 			}
 
 			const desc = opt.description || '';
-			// Add short flag alias for verbose
-			const flagSpec = flag === 'verbose' ? `-v, --${flag}` : `--${flag}`;
+			// Build flag spec with aliases (check both camelCase and kebab-case names)
+			const optAliases = aliases[opt.name] ?? aliases[flag] ?? [];
+			let flagSpec = `--${flag}`;
+			if (flag === 'verbose') {
+				flagSpec = `-v, --${flag}`;
+			} else if (optAliases.length > 0) {
+				const shortFlags = optAliases.map((a) => `-${a}`).join(', ');
+				flagSpec = `${shortFlags}, --${flag}`;
+			}
 			if (opt.type === 'boolean') {
 				if (opt.hasDefault) {
 					const defaultValue =
@@ -1019,10 +1081,10 @@ async function registerSubcommand(
 						ctx.projectDir = projectDir;
 					}
 					if (subcommand.schema.args) {
-						ctx.args = subcommand.schema.args.parse(input.args);
+						ctx.args = parseArgs(subcommand.schema.args, input.args);
 					}
 					if (subcommand.schema.options) {
-						ctx.opts = subcommand.schema.options.parse(input.options);
+						ctx.opts = parseOptions(subcommand.schema.options, input.options);
 					}
 					if (normalized.requiresAPIClient) {
 						// Recreate apiClient with auth credentials
@@ -1192,10 +1254,10 @@ async function registerSubcommand(
 						ctx.projectDir = projectDir;
 					}
 					if (subcommand.schema.args) {
-						ctx.args = subcommand.schema.args.parse(input.args);
+						ctx.args = parseArgs(subcommand.schema.args, input.args);
 					}
 					if (subcommand.schema.options) {
-						ctx.opts = subcommand.schema.options.parse(input.options);
+						ctx.opts = parseOptions(subcommand.schema.options, input.options);
 					}
 					if (normalized.requiresAPIClient) {
 						// Recreate apiClient with auth credentials
@@ -1343,10 +1405,10 @@ async function registerSubcommand(
 						ctx.projectDir = projectDir;
 					}
 					if (subcommand.schema.args) {
-						ctx.args = subcommand.schema.args.parse(input.args);
+						ctx.args = parseArgs(subcommand.schema.args, input.args);
 					}
 					if (subcommand.schema.options) {
-						ctx.opts = subcommand.schema.options.parse(input.options);
+						ctx.opts = parseOptions(subcommand.schema.options, input.options);
 					}
 					if (normalized.requiresAPIClient && !ctx.apiClient) {
 						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);

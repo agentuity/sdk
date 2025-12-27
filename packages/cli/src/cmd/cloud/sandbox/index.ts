@@ -6,6 +6,7 @@ import { listSubcommand } from './list';
 import { getSubcommand } from './get';
 import { deleteSubcommand } from './delete';
 import { snapshotCommand } from './snapshot';
+import { cpSubcommand } from './cp';
 import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
@@ -35,6 +36,7 @@ export const command = createCommand({
 		getSubcommand,
 		deleteSubcommand,
 		snapshotCommand,
+		cpSubcommand,
 	],
 	requires: { auth: true, region: true, org: true },
 });

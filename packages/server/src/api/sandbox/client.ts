@@ -2,15 +2,83 @@ import type {
 	Logger,
 	SandboxCreateOptions,
 	SandboxInfo,
-	ExecuteOptions,
+	ExecuteOptions as CoreExecuteOptions,
 	Execution,
 } from '@agentuity/core';
+import type { Writable } from 'node:stream';
 import { APIClient } from '../api';
 import { sandboxCreate, type SandboxCreateResponse } from './create';
 import { sandboxDestroy } from './destroy';
 import { sandboxGet } from './get';
 import { sandboxExecute } from './execute';
+import { executionGet, type ExecutionInfo } from './execution';
 import { ConsoleLogger } from '../../logger';
+import { getServiceUrls } from '../../config';
+
+const POLL_INTERVAL_MS = 100;
+const MAX_POLL_TIME_MS = 300000; // 5 minutes
+
+/**
+ * Poll for execution completion
+ */
+async function waitForExecution(
+	client: APIClient,
+	executionId: string,
+	orgId?: string
+): Promise<ExecutionInfo> {
+	const startTime = Date.now();
+
+	while (Date.now() - startTime < MAX_POLL_TIME_MS) {
+		const info = await executionGet(client, { executionId, orgId });
+
+		if (info.status === 'completed' || info.status === 'failed' || info.status === 'timeout' || info.status === 'cancelled') {
+			return info;
+		}
+
+		await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+	}
+
+	throw new Error(`Execution ${executionId} timed out waiting for completion`);
+}
+
+/**
+ * Pipes a remote stream URL to a local writable stream
+ */
+async function pipeStreamToWritable(streamUrl: string, writable: Writable): Promise<void> {
+	const response = await fetch(streamUrl);
+	if (!response.ok) {
+		throw new Error(`Failed to fetch stream: ${response.status} ${response.statusText}`);
+	}
+	if (!response.body) {
+		return;
+	}
+
+	const reader = response.body.getReader();
+	try {
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			if (value) {
+				writable.write(value);
+			}
+		}
+	} finally {
+		reader.releaseLock();
+	}
+}
+
+/**
+ * Extended execute options that support piping output to writable streams
+ */
+export interface ExecuteOptions extends CoreExecuteOptions {
+	/**
+	 * Pipe stdout/stderr to writable streams (e.g., process.stdout)
+	 */
+	pipe?: {
+		stdout?: Writable;
+		stderr?: Writable;
+	};
+}
 
 export interface SandboxClientOptions {
 	/**
@@ -21,9 +89,10 @@ export interface SandboxClientOptions {
 
 	/**
 	 * Base URL for the sandbox API.
-	 * Defaults to process.env.AGENTUITY_STREAM_URL ||
+	 * Defaults to process.env.AGENTUITY_SANDBOX_URL ||
 	 *   process.env.AGENTUITY_CATALYST_URL ||
-	 *   process.env.AGENTUITY_TRANSPORT_URL
+	 *   process.env.AGENTUITY_TRANSPORT_URL ||
+	 *   regional catalyst URL
 	 */
 	url?: string;
 
@@ -97,17 +166,15 @@ export class SandboxClient {
 		const apiKey =
 			options.apiKey || process.env.AGENTUITY_SDK_KEY || process.env.AGENTUITY_CLI_KEY;
 
+		const region = process.env.AGENTUITY_REGION ?? 'usc';
+		const serviceUrls = getServiceUrls(region);
+
 		const url =
 			options.url ||
-			process.env.AGENTUITY_STREAM_URL ||
+			process.env.AGENTUITY_SANDBOX_URL ||
 			process.env.AGENTUITY_CATALYST_URL ||
-			process.env.AGENTUITY_TRANSPORT_URL;
-
-		if (!url) {
-			throw new Error(
-				'Sandbox API URL is required. Set AGENTUITY_STREAM_URL, AGENTUITY_CATALYST_URL, or AGENTUITY_TRANSPORT_URL environment variable, or pass url option.'
-			);
-		}
+			process.env.AGENTUITY_TRANSPORT_URL ||
+			serviceUrls.sandbox;
 
 		const logger = options.logger ?? new ConsoleLogger('warn');
 
@@ -138,11 +205,42 @@ export class SandboxClient {
 			stderrStreamUrl: response.stderrStreamUrl,
 
 			async execute(executeOptions: ExecuteOptions): Promise<Execution> {
-				return sandboxExecute(client, {
+				const { pipe, ...coreOptions } = executeOptions;
+
+				const initialResult = await sandboxExecute(client, {
 					sandboxId,
-					options: executeOptions,
+					options: coreOptions,
 					orgId,
 				});
+
+				// If pipe options provided, stream the output to the writable streams
+				if (pipe) {
+					const streamPromises: Promise<void>[] = [];
+
+					if (pipe.stdout && initialResult.stdoutStreamUrl) {
+						streamPromises.push(pipeStreamToWritable(initialResult.stdoutStreamUrl, pipe.stdout));
+					}
+					if (pipe.stderr && initialResult.stderrStreamUrl) {
+						streamPromises.push(pipeStreamToWritable(initialResult.stderrStreamUrl, pipe.stderr));
+					}
+
+					// Wait for all streams to complete
+					if (streamPromises.length > 0) {
+						await Promise.all(streamPromises);
+					}
+				}
+
+				// Wait for execution to complete and get final result with exit code
+				const finalResult = await waitForExecution(client, initialResult.executionId, orgId);
+
+				return {
+					executionId: finalResult.executionId,
+					status: finalResult.status,
+					exitCode: finalResult.exitCode,
+					durationMs: finalResult.durationMs,
+					stdoutStreamUrl: initialResult.stdoutStreamUrl,
+					stderrStreamUrl: initialResult.stderrStreamUrl,
+				};
 			},
 
 			async get(): Promise<SandboxInfo> {

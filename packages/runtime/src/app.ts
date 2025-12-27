@@ -10,6 +10,7 @@ import type {
 	EvalRunEventProvider,
 	StreamStorage,
 	VectorStorage,
+	SandboxService,
 	SessionStartEvent,
 } from '@agentuity/core';
 import type { Email } from './io/email';
@@ -153,6 +154,7 @@ export interface Variables<TAppState = Record<string, never>> {
 	kv: KeyValueStorage;
 	stream: StreamStorage;
 	vector: VectorStorage;
+	sandbox: SandboxService;
 	app: TAppState;
 }
 

@@ -14,7 +14,7 @@ export { executionGet } from './execution';
 export type { ExecutionInfo, ExecutionGetParams } from './execution';
 export { SandboxResponseError } from './util';
 export { SandboxClient } from './client';
-export type { SandboxClientOptions, SandboxInstance } from './client';
+export type { SandboxClientOptions, SandboxInstance, ExecuteOptions } from './client';
 export { snapshotCreate, snapshotGet, snapshotList, snapshotDelete, snapshotTag } from './snapshot';
 export type {
 	SnapshotInfo,
