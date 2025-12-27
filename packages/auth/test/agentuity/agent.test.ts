@@ -123,17 +123,15 @@ describe('withSession', () => {
 			[
 				'@agentuity/auth',
 				{
-					user: {
-						id: 'user-123',
-						activeOrganization: {
-							id: 'org-789',
-							slug: 'test-org',
-							name: 'Test Organization',
-						},
-						activeOrganizationRole: 'admin',
-						activeOrganizationMemberId: 'member-456',
+					user: { id: 'user-123' },
+					session: { id: 'sess-456' },
+					org: {
+						id: 'org-789',
+						slug: 'test-org',
+						name: 'Test Organization',
+						role: 'admin',
+						memberId: 'member-456',
 					},
-					session: { id: 'sess-456', activeOrganizationId: 'org-789' },
 				},
 			],
 		]);

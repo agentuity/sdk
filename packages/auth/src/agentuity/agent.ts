@@ -46,63 +46,25 @@ function extractAuthFromHttp(): AgentuityAuthContext | null {
 	try {
 		const c = getHTTPContext();
 
-		// Check for Agentuity auth wrapper (set by createHonoMiddleware)
+		// Check for Agentuity auth wrapper (set by createSessionMiddleware or createApiKeyMiddleware)
 		const rawAuth = c.var.auth;
 		if (rawAuth?.raw) {
 			return {
 				user: rawAuth.raw.user,
 				session: rawAuth.raw.session,
+				org: rawAuth.raw.org ?? null,
 			};
 		}
 
-		// Fallback to raw BetterAuth user/session vars
+		// Fallback to raw BetterAuth user/session/org vars
 		const user = c.var.user;
 		const session = c.var.session;
+		const org = c.var.org;
 		if (user && session) {
-			return { user, session } as AgentuityAuthContext;
+			return { user, session, org: org ?? null } as AgentuityAuthContext;
 		}
 
 		return null;
-	} catch {
-		return null;
-	}
-}
-
-/**
- * Extract organization context from auth context.
- * Uses BetterAuth's organization plugin data from session.
- */
-function extractOrgFromAuth(auth: AgentuityAuthContext | null): AgentuityOrgContext | null {
-	if (!auth) return null;
-
-	try {
-		// BetterAuth org plugin stores active org on session
-		const session = auth.session as Record<string, unknown>;
-		const user = auth.user as Record<string, unknown>;
-
-		const activeOrgId =
-			(session.activeOrganizationId as string) ??
-			(user.activeOrganizationId as string) ??
-			((user.activeOrganization as Record<string, unknown>)?.id as string);
-
-		if (!activeOrgId) return null;
-
-		const activeOrg = user.activeOrganization as Record<string, unknown> | undefined;
-
-		return {
-			id: activeOrgId,
-			slug: (activeOrg?.slug as string) ?? null,
-			name: (activeOrg?.name as string) ?? null,
-			role:
-				(session.activeOrganizationRole as string) ??
-				(user.activeOrganizationRole as string) ??
-				null,
-			memberId:
-				(session.activeOrganizationMemberId as string) ??
-				(user.activeOrganizationMemberId as string) ??
-				null,
-			metadata: activeOrg?.metadata,
-		};
 	} catch {
 		return null;
 	}
@@ -148,6 +110,7 @@ function resolveAuth(): AgentuityAuthContext | null {
 
 /**
  * Resolve org context, with caching.
+ * Returns minimal org from auth context (just ID for now).
  */
 function resolveOrg(auth: AgentuityAuthContext | null): AgentuityOrgContext | null {
 	if (!inAgentContext()) return null;
@@ -160,7 +123,7 @@ function resolveOrg(auth: AgentuityAuthContext | null): AgentuityOrgContext | nu
 			return agentCtx.state.get(ORG_STATE_KEY) as AgentuityOrgContext | null;
 		}
 
-		const org = extractOrgFromAuth(auth);
+		const org = auth?.org ?? null;
 		agentCtx.state.set(ORG_STATE_KEY, org);
 		return org;
 	} catch {

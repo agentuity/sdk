@@ -2,7 +2,7 @@ import { createRouter } from '@agentuity/runtime';
 import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
 import { APIError } from 'better-auth/api';
 import hello from '@agent/hello';
-import { auth, authMiddleware, optionalAuthMiddleware } from '../auth';
+import { auth, authMiddleware, optionalAuthMiddleware, apiKeyMiddleware } from '../auth';
 
 const api = createRouter();
 
@@ -63,24 +63,21 @@ api.get('/token', authMiddleware, async (c) => {
 // =============================================================================
 
 // Admin route - requires owner or admin role in the active organization
+// Uses the new ergonomic org helpers
 api.get('/admin', authMiddleware, async (c) => {
-	const user = await c.var.auth.getUser();
-	const activeOrg = await auth.api
-		.getFullOrganization({
-			headers: c.req.raw.headers,
-		})
-		.catch(() => null);
+	const hasAdminRole = await c.var.auth.hasOrgRole('owner', 'admin');
 
-	const role = activeOrg?.members?.find((m: { userId: string }) => m.userId === user.id)?.role;
-
-	if (role !== 'owner' && role !== 'admin') {
+	if (!hasAdminRole) {
 		return c.json({ error: 'Forbidden: admin role required' }, 403);
 	}
+
+	const user = await c.var.auth.getUser();
+	const org = await c.var.auth.getOrg();
 
 	return c.json({
 		message: 'Welcome to the admin area!',
 		userId: user.id,
-		role,
+		role: org?.role,
 	});
 });
 
@@ -89,72 +86,35 @@ api.get('/admin', authMiddleware, async (c) => {
 // =============================================================================
 
 // Example: Protected route requiring API key permission
-// Uses BetterAuth's native permissions: Record<string, string[]> format
-api.post('/projects', authMiddleware, async (c) => {
-	const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
+// Uses the new ergonomic API key helpers
+api.post('/projects', apiKeyMiddleware, async (c) => {
+	// Check for project:write permission using the new helper
+	const canWriteProject = c.var.auth.hasPermission('project', 'write');
 
-	if (!apiKeyHeader) {
-		return c.json({ error: 'API key required for this endpoint' }, 401);
+	if (!canWriteProject) {
+		return c.json(
+			{ error: 'Forbidden', missingPermissions: { project: ['write'] } },
+			403
+		);
 	}
 
-	// Verify API key and check permissions using BetterAuth's native API
-	try {
-		const result = await auth.api.verifyApiKey({
-			body: { key: apiKeyHeader },
-		});
-
-		if (!result.valid || !result.key?.permissions) {
-			return c.json({ error: 'Invalid API key' }, 401);
-		}
-
-		const permissions = result.key.permissions as Record<string, string[]>;
-		const projectPerms = permissions.project ?? [];
-		const canWriteProject = projectPerms.includes('write') || projectPerms.includes('*');
-
-		if (!canWriteProject) {
-			return c.json(
-				{ error: 'Forbidden', missingPermissions: { project: ['write'] } },
-				403
-			);
-		}
-
-		const user = await c.var.auth.getUser();
-		return c.json({
-			message: 'Project creation authorized',
-			userId: user.id,
-			usedPermissions: permissions,
-		});
-	} catch (err) {
-		return c.json({ error: 'API key verification failed', detail: String(err) }, 500);
-	}
+	const user = c.var.user;
+	return c.json({
+		message: 'Project creation authorized',
+		userId: user?.id ?? 'unknown',
+		usedPermissions: c.var.auth.apiKey?.permissions ?? {},
+	});
 });
 
-// Debug route to see current API key permissions (useful for testing)
+// Debug route to see current auth state (useful for testing)
+// Uses the new ergonomic helpers
 api.get('/debug/permissions', authMiddleware, async (c) => {
-	const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
-
-	let permissions: Record<string, string[]> | null = null;
-
-	if (apiKeyHeader) {
-		try {
-			const result = await auth.api.verifyApiKey({
-				body: { key: apiKeyHeader },
-			});
-			if (result.valid && result.key?.permissions) {
-				permissions = result.key.permissions as Record<string, string[]>;
-			}
-		} catch {
-			// Verification failed, keep permissions as null
-		}
-	}
-
-	const authContext = c.var.auth.raw as { user: unknown; session: unknown };
-	const user = authContext.user as Record<string, unknown>;
+	const org = await c.var.auth.getOrg();
 
 	return c.json({
-		permissions,
-		activeOrgRole: user.activeOrganizationRole ?? null,
-		authMethod: apiKeyHeader ? 'api-key' : 'session',
+		permissions: c.var.auth.apiKey?.permissions ?? null,
+		activeOrgRole: org?.role ?? null,
+		authMethod: c.var.auth.authMethod,
 	});
 });
 
@@ -360,17 +320,10 @@ api.get('/organizations/:id/members', authMiddleware, async (c) => {
 });
 
 // Get current user with organization context
+// Uses the new ergonomic helpers
 api.get('/whoami', authMiddleware, async (c) => {
 	const user = await c.var.auth.getUser();
-
-	let activeOrg = null;
-	try {
-		activeOrg = await auth.api.getFullOrganization({
-			headers: c.req.raw.headers,
-		});
-	} catch {
-		// No active org
-	}
+	const org = await c.var.auth.getOrg();
 
 	return c.json({
 		user: {
@@ -378,12 +331,12 @@ api.get('/whoami', authMiddleware, async (c) => {
 			name: user.name,
 			email: user.email,
 		},
-		organization: activeOrg
+		organization: org
 			? {
-					id: activeOrg.id,
-					name: activeOrg.name,
-					slug: activeOrg.slug,
-					role: activeOrg.members?.find((m: { userId: string }) => m.userId === user.id)?.role,
+					id: org.id,
+					name: org.name,
+					slug: org.slug,
+					role: org.role,
 				}
 			: null,
 	});

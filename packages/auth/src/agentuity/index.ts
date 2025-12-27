@@ -81,8 +81,17 @@ export type { DatabaseClient, EnsureAuthSchemaOptions, EnsureAuthSchemaResult } 
 // Server (Hono middleware and handlers)
 // =============================================================================
 
-export { createMiddleware, mountBetterAuthRoutes } from './server';
-export type { AgentuityMiddlewareOptions, AgentuityAuthEnv } from './server';
+export {
+	createSessionMiddleware,
+	createApiKeyMiddleware,
+	createMiddleware,
+	mountBetterAuthRoutes,
+} from './server';
+export type {
+	AgentuityMiddlewareOptions,
+	AgentuityApiKeyMiddlewareOptions,
+	AgentuityAuthEnv,
+} from './server';
 
 // =============================================================================
 // Client (React)
@@ -104,6 +113,12 @@ export { withSession } from './agent';
 export type {
 	AgentuityAuthContext,
 	AgentuityOrgContext,
+	AgentuityApiKeyContext,
+	AgentuityApiKeyPermissions,
+	AgentuityAuthMethod,
+	AgentuityBetterAuthAuth,
+	AgentuityOrgHelpers,
+	AgentuityApiKeyHelpers,
 	WithSessionOptions,
 	WithSessionContext,
 } from './types';

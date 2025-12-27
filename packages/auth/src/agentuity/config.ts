@@ -120,7 +120,12 @@ export interface ApiKeyApiMethods {
 
 	verifyApiKey: (params: { body: { key: string }; headers?: Headers }) => Promise<{
 		valid: boolean;
-		apiKey?: { id: string; name: string; userId: string };
+		apiKey?: {
+			id: string;
+			name: string;
+			userId: string;
+			permissions?: Record<string, string[]>;
+		};
 	}>;
 }
 

@@ -256,55 +256,62 @@ describe('Agentuity BetterAuth server middleware', () => {
 	});
 
 	describe('organization enrichment', () => {
-		test('fetches and enriches user with organization data', async () => {
+		test('provides minimal org from session and fetches full org lazily', async () => {
 			const mockSession = {
 				user: { id: 'user_123', name: 'Test' },
-				session: { id: 'session_456', activeOrganizationId: 'org_789' },
+				session: {
+					id: 'session_456',
+					activeOrganizationId: 'org_789',
+				},
 			};
-			const mockOrg = {
+			const mockFullOrg = {
 				id: 'org_789',
 				name: 'Test Org',
 				slug: 'test-org',
-				members: [{ userId: 'user_123', role: 'admin' }],
+				metadata: null,
+				members: [{ userId: 'user_123', role: 'admin', id: 'member_123' }],
 			};
 			const mockAuth = {
 				api: {
 					getSession: mock(() => Promise.resolve(mockSession)),
-					getFullOrganization: mock(() => Promise.resolve(mockOrg)),
+					getFullOrganization: mock(() => Promise.resolve(mockFullOrg)),
 				},
 			};
 			const app = new Hono();
 
 			app.use('/api', createMiddleware(mockAuth as any));
-			app.get('/api', (c) => {
+			app.get('/api', async (c) => {
 				const user = c.var.user as any;
+				const minimalOrg = c.var.org;
+				const fullOrg = await c.var.auth.getOrg();
 				return c.json({
 					userId: user?.id,
-					orgId: user?.activeOrganization?.id,
-					orgName: user?.activeOrganization?.name,
-					role: user?.activeOrganizationRole,
+					minimalOrgId: minimalOrg?.id,
+					minimalOrgName: minimalOrg?.name,
+					fullOrgId: fullOrg?.id,
+					fullOrgName: fullOrg?.name,
+					fullOrgSlug: fullOrg?.slug,
+					fullOrgRole: fullOrg?.role,
 				});
 			});
 
 			const res = await app.request('/api');
 			const body = await res.json();
 			expect(body.userId).toBe('user_123');
-			expect(body.orgId).toBe('org_789');
-			expect(body.orgName).toBe('Test Org');
-			expect(body.role).toBe('admin');
+			expect(body.minimalOrgId).toBe('org_789');
+			expect(body.minimalOrgName).toBeUndefined();
+			expect(body.fullOrgId).toBe('org_789');
+			expect(body.fullOrgName).toBe('Test Org');
+			expect(body.fullOrgSlug).toBe('test-org');
+			expect(body.fullOrgRole).toBe('admin');
 		});
 
-		test('continues without org data when fetch fails', async () => {
+		test('returns null org when no activeOrganizationId in session', async () => {
 			const mockSession = {
 				user: { id: 'user_123' },
-				session: { id: 'session_456', activeOrganizationId: 'org_789' },
+				session: { id: 'session_456' },
 			};
-			const mockAuth = {
-				api: {
-					getSession: mock(() => Promise.resolve(mockSession)),
-					getFullOrganization: mock(() => Promise.reject(new Error('Org fetch failed'))),
-				},
-			};
+			const mockAuth = createMockAuth(mockSession);
 			const app = new Hono();
 
 			app.use('/api', createMiddleware(mockAuth as any));
@@ -312,7 +319,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 				const user = c.var.user as any;
 				return c.json({
 					userId: user?.id,
-					hasOrg: !!user?.activeOrganization,
+					hasOrg: c.var.org !== null,
 				});
 			});
 

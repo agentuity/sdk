@@ -6,7 +6,11 @@
  */
 
 import { Pool } from 'pg';
-import { createAgentuityAuth, createMiddleware } from '@agentuity/auth/agentuity';
+import {
+	createAgentuityAuth,
+	createSessionMiddleware,
+	createApiKeyMiddleware,
+} from '@agentuity/auth/agentuity';
 
 /**
  * Database URL for authentication.
@@ -64,8 +68,8 @@ export const auth = createAgentuityAuth({
 });
 
 /**
- * Hono middleware for protected routes.
- * Works with both session cookies and API keys (enableSessionForAPIKeys).
+ * Hono middleware for session-protected routes.
+ * Validates BetterAuth sessions (cookies/bearer tokens).
  *
  * Usage:
  * ```typescript
@@ -74,12 +78,30 @@ export const auth = createAgentuityAuth({
  * app.use('/api/*', authMiddleware);
  * ```
  */
-export const authMiddleware = createMiddleware(auth);
+export const authMiddleware = createSessionMiddleware(auth);
 
 /**
  * Optional auth middleware - allows both authenticated and anonymous requests.
  */
-export const optionalAuthMiddleware = createMiddleware(auth, { optional: true });
+export const optionalAuthMiddleware = createSessionMiddleware(auth, { optional: true });
+
+/**
+ * API key middleware for programmatic access routes.
+ * Only accepts x-agentuity-auth-api-key header or Authorization: ApiKey header.
+ *
+ * Usage:
+ * ```typescript
+ * import { apiKeyMiddleware } from './auth';
+ *
+ * app.use('/webhooks/*', apiKeyMiddleware);
+ * ```
+ */
+export const apiKeyMiddleware = createApiKeyMiddleware(auth);
+
+/**
+ * Optional API key middleware - continues without auth if no API key present.
+ */
+export const optionalApiKeyMiddleware = createApiKeyMiddleware(auth, { optional: true });
 
 /**
  * Type exports for end-to-end type safety.
