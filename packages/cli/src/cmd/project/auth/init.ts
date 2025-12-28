@@ -87,25 +87,55 @@ export const initSubcommand = createSubcommand({
 
 		const databaseName = dbInfo.name;
 
-		// Update .env if database changed
-		if (dbInfo.url !== databaseUrl) {
-			const envPath = path.join(projectDir, '.env');
-			let envContent = '';
+		// Update .env with database URL
+		const envPath = path.join(projectDir, '.env');
+		let envContent = '';
 
-			if (fs.existsSync(envPath)) {
-				envContent = fs.readFileSync(envPath, 'utf-8');
-				// Remove existing DATABASE_URL if present
-				envContent = envContent.replace(/^DATABASE_URL=.*\n?/m, '');
-				if (!envContent.endsWith('\n') && envContent.length > 0) {
-					envContent += '\n';
-				}
+		if (fs.existsSync(envPath)) {
+			envContent = fs.readFileSync(envPath, 'utf-8');
+			if (!envContent.endsWith('\n') && envContent.length > 0) {
+				envContent += '\n';
 			}
+		}
 
-			envContent += `DATABASE_URL="${dbInfo.url}"\n`;
-			fs.writeFileSync(envPath, envContent);
-			tui.success('DATABASE_URL updated in .env');
+		// Check if DATABASE_URL already exists
+		const hasDatabaseUrl = envContent.match(/^DATABASE_URL=/m);
+
+		if (dbInfo.url !== databaseUrl || !hasDatabaseUrl) {
+			if (hasDatabaseUrl) {
+				// DATABASE_URL exists, use AUTH_DATABASE_URL instead
+				envContent += `AUTH_DATABASE_URL="${dbInfo.url}"\n`;
+				fs.writeFileSync(envPath, envContent);
+				tui.success('AUTH_DATABASE_URL added to .env');
+				tui.warning(
+					`DATABASE_URL already exists. Update your ${tui.bold('src/auth.ts')} to use AUTH_DATABASE_URL.`
+				);
+			} else {
+				envContent += `DATABASE_URL="${dbInfo.url}"\n`;
+				fs.writeFileSync(envPath, envContent);
+				tui.success('DATABASE_URL added to .env');
+			}
 		} else {
 			tui.success(`Using database: ${databaseName}`);
+		}
+
+		// Add BETTER_AUTH_SECRET if not present
+		// Re-read envContent to get latest state
+		envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
+		if (!envContent.endsWith('\n') && envContent.length > 0) {
+			envContent += '\n';
+		}
+
+		const hasBetterAuthSecret = envContent.match(/^BETTER_AUTH_SECRET=/m);
+		if (!hasBetterAuthSecret) {
+			const devSecret = `dev-${crypto.randomUUID()}-CHANGE-ME`;
+			envContent += `BETTER_AUTH_SECRET="${devSecret}"\n`;
+			fs.writeFileSync(envPath, envContent);
+			tui.success('BETTER_AUTH_SECRET added to .env (development default)');
+			tui.warning(
+				`Replace ${tui.bold('BETTER_AUTH_SECRET')} with a secure value before deploying.`
+			);
+			tui.info(`Generate one with: ${tui.muted('openssl rand -hex 32')}`);
 		}
 
 		// Step 2: Install dependencies
@@ -136,12 +166,6 @@ export const initSubcommand = createSubcommand({
 				fs.writeFileSync(authFilePath, generateAuthFileContent());
 				tui.success('Created src/auth.ts');
 				authFileCreated = true;
-
-				tui.newline();
-				tui.warning(
-					`Set ${tui.bold('BETTER_AUTH_SECRET')} in your .env before starting the server.`
-				);
-				tui.info(`Generate one with: ${tui.muted('openssl rand -hex 32')}`);
 			}
 		}
 

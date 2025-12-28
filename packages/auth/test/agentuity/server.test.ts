@@ -371,7 +371,6 @@ describe('Agentuity BetterAuth server middleware', () => {
 });
 
 describe('mountBetterAuthRoutes', () => {
-
 	test('forwards requests to auth handler', async () => {
 		const mockHandler = mock(async (req: Request) => {
 			return new Response(JSON.stringify({ path: new URL(req.url).pathname }), {

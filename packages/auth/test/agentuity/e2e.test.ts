@@ -124,8 +124,6 @@ describe('Agentuity BetterAuth E2E flow', () => {
 		});
 	});
 
-
-
 	describe('Auth method detection', () => {
 		test('detects session-based auth', async () => {
 			const mockAuth = createMockAuth({ user: mockUser, session: mockSession });
@@ -224,8 +222,6 @@ describe('Agentuity BetterAuth E2E flow', () => {
 			});
 		});
 	});
-
-
 
 	describe('Full app simulation', () => {
 		test('simulates complete app with multiple route types', async () => {

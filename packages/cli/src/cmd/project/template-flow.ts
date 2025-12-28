@@ -487,7 +487,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			},
 		});
 
-		// Write DATABASE_URL to .env after createProjectConfig (which overwrites .env)
+		// Write DATABASE_URL and BETTER_AUTH_SECRET to .env after createProjectConfig (which overwrites .env)
 		if (authDatabaseUrl) {
 			const envPath = resolve(dest, '.env');
 			let envContent = '';
@@ -499,9 +499,41 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				}
 			}
 
-			envContent += `DATABASE_URL="${authDatabaseUrl}"\n`;
-			await Bun.write(envPath, envContent);
-			tui.success('DATABASE_URL added to .env');
+			// Check if DATABASE_URL already exists
+			const hasDatabaseUrl = envContent.match(/^DATABASE_URL=/m);
+
+			if (hasDatabaseUrl) {
+				// DATABASE_URL exists, use AUTH_DATABASE_URL instead
+				envContent += `AUTH_DATABASE_URL="${authDatabaseUrl}"\n`;
+				await Bun.write(envPath, envContent);
+				tui.success('AUTH_DATABASE_URL added to .env');
+				tui.warning(
+					`DATABASE_URL already exists. Update your ${tui.bold('src/auth.ts')} to use AUTH_DATABASE_URL.`
+				);
+			} else {
+				envContent += `DATABASE_URL="${authDatabaseUrl}"\n`;
+				await Bun.write(envPath, envContent);
+				tui.success('DATABASE_URL added to .env');
+			}
+
+			// Add BETTER_AUTH_SECRET if not present
+			// Re-read envContent to get latest state
+			envContent = existsSync(envPath) ? await Bun.file(envPath).text() : '';
+			if (!envContent.endsWith('\n') && envContent.length > 0) {
+				envContent += '\n';
+			}
+
+			const hasBetterAuthSecret = envContent.match(/^BETTER_AUTH_SECRET=/m);
+			if (!hasBetterAuthSecret) {
+				const devSecret = `dev-${crypto.randomUUID()}-CHANGE-ME`;
+				envContent += `BETTER_AUTH_SECRET="${devSecret}"\n`;
+				await Bun.write(envPath, envContent);
+				tui.success('BETTER_AUTH_SECRET added to .env (development default)');
+				tui.warning(
+					`Replace ${tui.bold('BETTER_AUTH_SECRET')} with a secure value before deploying.`
+				);
+				tui.info(`Generate one with: ${tui.muted('openssl rand -hex 32')}`);
+			}
 		}
 
 		// After registration, push any existing env/secrets from .env.production

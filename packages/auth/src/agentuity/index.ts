@@ -81,11 +81,7 @@ export type { DatabaseClient, EnsureAuthSchemaOptions, EnsureAuthSchemaResult } 
 // Server (Hono middleware and handlers)
 // =============================================================================
 
-export {
-	createSessionMiddleware,
-	createApiKeyMiddleware,
-	mountBetterAuthRoutes,
-} from './server';
+export { createSessionMiddleware, createApiKeyMiddleware, mountBetterAuthRoutes } from './server';
 export type {
 	AgentuityMiddlewareOptions,
 	AgentuityApiKeyMiddlewareOptions,
