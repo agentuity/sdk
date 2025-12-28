@@ -45,7 +45,6 @@ export interface InputSectionProps {
 	onSubmit: () => void | Promise<void>;
 	selectedAgent: string;
 	setSelectedAgent: (agentId: string) => void;
-	suggestions: string[];
 	value: string;
 }
 
@@ -73,14 +72,12 @@ export function InputSection({
 	onSubmit,
 	selectedAgent,
 	setSelectedAgent,
-	suggestions,
 	value,
 }: InputSectionProps) {
 	const logger = useLogger("InputSection");
 	const { generateSample, isGeneratingSample, isAuthenticated } =
 		useWorkbench();
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
-	const [suggestionsOpen, setSuggestionsOpen] = useState(false);
 	const [isValidInput, setIsValidInput] = useState(true);
 	const [monacoHasErrors, setMonacoHasErrors] = useState<boolean | null>(null);
 
@@ -362,46 +359,6 @@ export function InputSection({
 							</TooltipContent>
 						</Tooltip>
 					))}
-
-				{suggestions.length > 0 && (
-					<Popover open={suggestionsOpen} onOpenChange={setSuggestionsOpen}>
-						<PopoverTrigger asChild>
-							<Button
-								aria-expanded={suggestionsOpen}
-								variant="outline"
-								size="sm"
-								className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
-							>
-								Input Suggestions
-								<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
-							</Button>
-						</PopoverTrigger>
-						<PopoverContent
-							side="top"
-							align="start"
-							className="w-fit p-0 z-101"
-						>
-							<Command>
-								<CommandList>
-									<CommandGroup>
-										{suggestions.map((suggestion) => (
-											<CommandItem
-												key={suggestion}
-												value={suggestion}
-												onSelect={() => {
-													onChange(suggestion);
-													setSuggestionsOpen(false);
-												}}
-											>
-												{suggestion}
-											</CommandItem>
-										))}
-									</CommandGroup>
-								</CommandList>
-							</Command>
-						</PopoverContent>
-					</Popover>
-				)}
 			</div>
 
 			<PromptInput onSubmit={onSubmit}>

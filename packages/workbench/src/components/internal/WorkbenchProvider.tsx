@@ -216,8 +216,6 @@ export function WorkbenchProvider({
 		}
 	}, [schemasError]);
 
-	const [suggestions, _setSuggestions] = useState<string[]>([]);
-
 	// Fetch state for an agent
 	const fetchAgentState = useCallback(
 		async (agentId: string) => {
@@ -374,15 +372,6 @@ export function WorkbenchProvider({
 		logger,
 		fetchAgentState,
 	]);
-
-	// Fetch suggestions from API if endpoint is provided
-	useEffect(() => {
-		// No API endpoints hardcoded for now
-	}, []);
-
-	const _fetchSuggestions = async () => {
-		// No API endpoints for now
-	};
 
 	const submitMessage = async (
 		value: string,
@@ -733,7 +722,6 @@ export function WorkbenchProvider({
 		setMessages,
 		setSelectedAgent: handleAgentSelect,
 		submitMessage,
-		suggestions,
 	};
 
 	return (

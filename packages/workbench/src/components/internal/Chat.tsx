@@ -36,7 +36,6 @@ export function Chat({
 		selectedAgent,
 		setSelectedAgent,
 		submitMessage,
-		suggestions,
 	} = useWorkbench();
 	const logger = useLogger("Chat");
 	const [value, setValue] = useState("");
@@ -253,7 +252,6 @@ export function Chat({
 				onSubmit={handleSubmit}
 				selectedAgent={selectedAgent}
 				setSelectedAgent={setSelectedAgent}
-				suggestions={suggestions}
 				value={value}
 			/>
 		</div>

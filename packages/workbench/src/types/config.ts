@@ -37,5 +37,4 @@ export interface WorkbenchContextType {
 	) => void;
 	setSelectedAgent: (agentId: string) => void;
 	submitMessage: (value: string, mode?: "text" | "form") => Promise<void>;
-	suggestions: string[];
 }
