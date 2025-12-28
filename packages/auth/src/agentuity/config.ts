@@ -10,6 +10,78 @@ import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
 
 /**
+ * Type for BetterAuth trustedOrigins option.
+ * Matches the signature expected by BetterAuthOptions.trustedOrigins.
+ */
+type TrustedOrigins = string[] | ((request?: Request) => string[] | Promise<string[]>);
+
+/**
+ * Safely parse a URL and return its origin, or undefined if invalid.
+ */
+function safeOrigin(url: string | undefined): string | undefined {
+	if (!url) return undefined;
+	try {
+		return new URL(url).origin;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Resolve the base URL for the auth instance.
+ *
+ * Priority:
+ * 1. Explicit `baseURL` option
+ * 2. `BETTER_AUTH_URL` env var (Better Auth standard)
+ * 3. `AGENTUITY_DEPLOYMENT_URL` env var (Agentuity platform-injected)
+ */
+function resolveBaseURL(explicitBaseURL?: string): string | undefined {
+	return explicitBaseURL ?? process.env.BETTER_AUTH_URL ?? process.env.AGENTUITY_DEPLOYMENT_URL;
+}
+
+/**
+ * Create the default trustedOrigins function for Agentuity deployments.
+ *
+ * This provides zero-config CORS/origin handling:
+ * - Trusts the resolved baseURL origin
+ * - Trusts the AGENTUITY_DEPLOYMENT_URL origin
+ * - Trusts the same-origin of incoming requests (request.url.origin)
+ * - Supports additional origins via AGENTUITY_AUTH_TRUSTED_ORIGINS env (comma-separated)
+ *
+ * @param baseURL - The resolved base URL for the auth instance
+ */
+function createDefaultTrustedOrigins(baseURL?: string): (request?: Request) => Promise<string[]> {
+	const agentuityURL = process.env.AGENTUITY_DEPLOYMENT_URL;
+	const extraFromEnv = process.env.AGENTUITY_AUTH_TRUSTED_ORIGINS;
+
+	const staticOrigins = new Set<string>();
+
+	const baseOrigin = safeOrigin(baseURL);
+	if (baseOrigin) staticOrigins.add(baseOrigin);
+
+	const agentuityOrigin = safeOrigin(agentuityURL);
+	if (agentuityOrigin) staticOrigins.add(agentuityOrigin);
+
+	if (extraFromEnv) {
+		for (const raw of extraFromEnv.split(',')) {
+			const v = raw.trim();
+			if (v) staticOrigins.add(v);
+		}
+	}
+
+	return async (request?: Request): Promise<string[]> => {
+		const origins = new Set(staticOrigins);
+
+		if (request) {
+			const requestOrigin = safeOrigin(request.url);
+			if (requestOrigin) origins.add(requestOrigin);
+		}
+
+		return [...origins];
+	};
+}
+
+/**
  * API extensions added by the organization plugin.
  */
 export interface OrganizationApiMethods {
@@ -264,10 +336,18 @@ export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
 export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) {
 	const { skipDefaultPlugins, plugins = [], apiKey: apiKeyOptions, ...restOptions } = options;
 
+	const resolvedBaseURL = resolveBaseURL(restOptions.baseURL);
+
+	// Explicitly type to avoid union type inference issues with downstream consumers
+	const trustedOrigins: TrustedOrigins =
+		restOptions.trustedOrigins ?? createDefaultTrustedOrigins(resolvedBaseURL);
+
 	const defaultPlugins = skipDefaultPlugins ? [] : getDefaultPlugins(apiKeyOptions);
 
 	const authInstance = betterAuth({
 		...restOptions,
+		...(resolvedBaseURL ? { baseURL: resolvedBaseURL } : {}),
+		trustedOrigins,
 		plugins: [...defaultPlugins, ...plugins],
 	});
 
