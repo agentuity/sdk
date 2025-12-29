@@ -4,7 +4,7 @@ import { APIClient } from '../api';
 import { sandboxCreate } from './create';
 import { sandboxDestroy } from './destroy';
 import { sandboxGet } from './get';
-import { SandboxResponseError } from './util';
+import { SandboxResponseError, writeAndDrain } from './util';
 import type { SandboxRunOptions, SandboxRunResult } from '@agentuity/core';
 import { getServiceUrls } from '../../config';
 
@@ -169,10 +169,12 @@ export async function sandboxRun(
 			}
 		}
 
-		// Sandbox completed, give streams a moment to flush then abort
-		await sleep(100);
-		abortController.abort();
+		// Sandbox completed - wait for streams to complete naturally (EOF)
+		// Pulse closes streams when the sandbox terminates, so streams should EOF
+		// We must wait for streams to fully drain before returning
+		logger?.debug('waiting for streams to complete...');
 		await Promise.allSettled(streamPromises);
+		logger?.debug('streams completed');
 
 		if (finalStatus === 'terminated') {
 			return {
@@ -341,7 +343,7 @@ async function streamUrlToWritable(
 
 			if (value) {
 				logger?.debug('stream chunk: %d bytes', value.length);
-				writable.write(value);
+				await writeAndDrain(writable, value);
 			}
 		}
 	} catch (err) {

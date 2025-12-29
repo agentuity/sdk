@@ -17,7 +17,7 @@ export type {
 	ExecutionListParams,
 	ExecutionListResponse,
 } from './execution';
-export { SandboxResponseError } from './util';
+export { SandboxResponseError, writeAndDrain } from './util';
 export { SandboxClient } from './client';
 export type { SandboxClientOptions, SandboxInstance, ExecuteOptions } from './client';
 export { sandboxWriteFiles, sandboxReadFile } from './files';

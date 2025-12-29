@@ -4,7 +4,7 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxExecute, executionGet } from '@agentuity/server';
+import { sandboxExecute, executionGet, writeAndDrain } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
 
 const POLL_INTERVAL_MS = 500;
@@ -231,36 +231,6 @@ async function streamUrlToWritable(
 		}
 		logger.debug('stream error: %s', err);
 	}
-}
-
-function writeAndDrain(writable: NodeJS.WritableStream, chunk: Uint8Array): Promise<void> {
-	return new Promise((resolve, reject) => {
-		let needsDrain: boolean;
-		try {
-			needsDrain = !writable.write(chunk);
-		} catch (err) {
-			reject(err);
-			return;
-		}
-		if (needsDrain) {
-			const cleanup = () => {
-				writable.removeListener('drain', onDrain);
-				writable.removeListener('error', onError);
-			};
-			const onDrain = () => {
-				cleanup();
-				resolve();
-			};
-			const onError = (err: Error) => {
-				cleanup();
-				reject(err);
-			};
-			writable.once('drain', onDrain);
-			writable.once('error', onError);
-		} else {
-			resolve();
-		}
-	});
 }
 
 function createCaptureStream(onChunk: (chunk: string) => void): NodeJS.WritableStream {
