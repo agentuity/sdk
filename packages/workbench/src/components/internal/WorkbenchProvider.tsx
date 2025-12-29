@@ -527,10 +527,10 @@ export function WorkbenchProvider({
 					throw new Error(errorMessage);
 				}
 
-				let result: unknown;
+				let responseBody: unknown;
 
 				try {
-					result = await response.json();
+					responseBody = await response.json();
 				} catch (jsonError) {
 					throw new Error(`Invalid JSON response from server: ${jsonError}`);
 				}
@@ -550,6 +550,43 @@ export function WorkbenchProvider({
 				const totalTokens = tokensRecord
 					? getTotalTokens(tokensRecord)
 					: undefined;
+
+				// Handle wrapped response shape: { success, data?, error? }
+				const envelope =
+					typeof responseBody === "object" && responseBody !== null
+						? (responseBody as {
+							success?: boolean;
+							data?: unknown;
+							error?: { message?: string; stack?: string; code?: string; cause?: unknown };
+						})
+						: null;
+
+				if (envelope && "success" in envelope && envelope.success === false && envelope.error) {
+					// Agent execution error - encode as special JSON format for ErrorBubble
+					const errorPayload = JSON.stringify({
+						__agentError: true,
+						message: envelope.error.message || "Unknown error",
+						stack: envelope.error.stack,
+						code: envelope.error.code,
+						cause: envelope.error.cause,
+					});
+
+					const errorMessage: UIMessage = {
+						id: assistantMessageId,
+						role: "assistant",
+						parts: [{ type: "text", text: errorPayload }],
+					};
+
+					setMessages((prev) =>
+						prev.map((m) => (m.id === assistantMessageId ? errorMessage : m)),
+					);
+					return;
+				}
+
+				// Success - extract data from envelope (or use raw response if not wrapped)
+				const result = envelope && "success" in envelope && envelope.success === true
+					? envelope.data
+					: responseBody;
 
 				// Format result as JSON string for display
 				const resultText =

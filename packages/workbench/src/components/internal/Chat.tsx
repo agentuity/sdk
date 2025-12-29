@@ -4,6 +4,7 @@ import { useLogger } from "../../hooks/useLogger";
 import { cn } from "../../lib/utils";
 import { Action, Actions } from "../ai-elements/actions";
 import { CodeBlock } from "../ai-elements/code-block";
+import { ErrorBubble } from "../ai-elements/error-bubble";
 import {
 	Conversation,
 	ConversationContent,
@@ -102,6 +103,34 @@ export function Chat({
 									? (message as { duration?: string }).duration
 									: undefined;
 
+							// Check for agent error in text content
+							let errorInfo: { message: string; stack?: string; code?: string; cause?: unknown } | undefined;
+
+							if (parts.length === 1 && parts[0].type === "text") {
+								const text = parts[0].text;
+								if (text.startsWith("{") && text.includes('"__agentError"')) {
+									try {
+										const parsed = JSON.parse(text) as {
+											__agentError?: boolean;
+											message?: string;
+											stack?: string;
+											code?: string;
+											cause?: unknown;
+										};
+										if (parsed.__agentError) {
+											errorInfo = {
+												message: parsed.message || "Unknown error",
+												stack: parsed.stack,
+												code: parsed.code,
+												cause: parsed.cause,
+											};
+										}
+									} catch {
+										// Not valid JSON, ignore
+									}
+								}
+							}
+
 							return (
 								<div key={id} className="mb-2">
 									{role === "assistant" && (
@@ -142,54 +171,58 @@ export function Chat({
 
 									{(role === "user" || !isStreaming) && (
 										<>
-											<Message
-												key={id}
-												from={role as "user" | "system" | "assistant"}
-												className="p-0"
-											>
-												<MessageContent>
-													{parts.map((part, index) => {
-														switch (part.type) {
-															case "text":
-																// json?
-																if (
-																	part.text.startsWith("{") &&
-																	part.text.endsWith("}")
-																) {
-																	try {
-																		const json = JSON.parse(part.text);
+											{errorInfo ? (
+												<ErrorBubble error={errorInfo} />
+											) : (
+												<Message
+													key={id}
+													from={role as "user" | "system" | "assistant"}
+													className="p-0"
+												>
+													<MessageContent>
+														{parts.map((part, index) => {
+															switch (part.type) {
+																case "text":
+																	// json?
+																	if (
+																		part.text.startsWith("{") &&
+																		part.text.endsWith("}")
+																	) {
+																		try {
+																			const json = JSON.parse(part.text);
 
-																		// json!
-																		return (
-																			<CodeBlock
-																				key={`${id}-${part.text}-${index}`}
-																				code={JSON.stringify(json, null, 2)}
-																				language="json"
-																				className="bg-transparent border-0 [&>div>div>pre]:bg-transparent! [&_pre]:p-0!"
-																			/>
-																		);
-																	} catch (_error) {
-																		// not json :(
-																		return (
-																			<div key={`${id}-${part.text}-${index}`}>
-																				{part.text || ""}
-																			</div>
-																		);
+																			// json!
+																			return (
+																				<CodeBlock
+																					key={`${id}-${part.text}-${index}`}
+																					code={JSON.stringify(json, null, 2)}
+																					language="json"
+																					className="bg-transparent border-0 [&>div>div>pre]:bg-transparent! [&_pre]:p-0!"
+																				/>
+																			);
+																		} catch (_error) {
+																			// not json :(
+																			return (
+																				<div key={`${id}-${part.text}-${index}`}>
+																					{part.text || ""}
+																				</div>
+																			);
+																		}
 																	}
-																}
 
-																// text/markdown
-																return (
-																	<div key={`${id}-${part.text}-${index}`}>
-																		{part.text || ""}
-																	</div>
-																);
-															default:
-																return null;
-														}
-													})}
-												</MessageContent>
-											</Message>
+																	// text/markdown
+																	return (
+																		<div key={`${id}-${part.text}-${index}`}>
+																			{part.text || ""}
+																		</div>
+																	);
+																default:
+																	return null;
+															}
+														})}
+													</MessageContent>
+												</Message>
+											)}
 
 											<Actions
 												className={cn(
