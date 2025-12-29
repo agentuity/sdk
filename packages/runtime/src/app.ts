@@ -10,9 +10,10 @@ import type {
 	EvalRunEventProvider,
 	StreamStorage,
 	VectorStorage,
+	SandboxService,
 	SessionStartEvent,
 } from '@agentuity/core';
-import type { Email } from './io/email';
+
 import type { ThreadProvider, SessionProvider, Session, Thread } from './session';
 import type WaitUntilHandler from './_waituntil';
 import type { Context } from 'hono';
@@ -134,19 +135,25 @@ export interface AppConfig<TAppState = Record<string, never>> {
 	 * Receives the app state returned from setup
 	 */
 	shutdown?: (state: TAppState) => Promise<void> | void;
+
+	/**
+	 * Optional request timeout in seconds. If not provided, will default
+	 * to zero which will cause the request to wait indefinitely.
+	 */
+	requestTimeout?: number;
 }
 
 export interface Variables<TAppState = Record<string, never>> {
 	logger: Logger;
 	meter: Meter;
 	tracer: Tracer;
-	email?: Email;
 	sessionId: string;
 	thread: Thread;
 	session: Session;
 	kv: KeyValueStorage;
 	stream: StreamStorage;
 	vector: VectorStorage;
+	sandbox: SandboxService;
 	app: TAppState;
 }
 

@@ -1,4 +1,4 @@
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, websocket, sse, type WebSocketConnection } from '@agentuity/runtime';
 import { testSuite } from '../test/suite';
 import statePersistenceAgent from '@agents/state/agent';
 import stateReaderAgent from '@agents/state/reader-agent';
@@ -147,50 +147,57 @@ router.post('/agent/state-writer', stateWriterAgent.validator(), async (c) => {
 });
 
 // WebSocket routes for testing
-router.websocket('/ws/echo', (c) => (ws) => {
-	// Echo back any message received
-	ws.onMessage((event) => {
-		ws.send(event.data);
-	});
-});
+router.get(
+	'/ws/echo',
+	websocket((c, ws) => {
+		// Echo back any message received
+		ws.onMessage((event) => {
+			ws.send((event as MessageEvent).data);
+		});
+	})
+);
 
 // Shared broadcast clients list
 // Note: This is intentionally module-level for broadcast functionality
 // Tests close connections which removes them from the list
-const broadcastClients: any[] = [];
+const broadcastClients: WebSocketConnection[] = [];
 
-router.websocket('/ws/broadcast', (c) => (ws) => {
-	broadcastClients.push(ws);
+router.get(
+	'/ws/broadcast',
+	websocket((c, ws) => {
+		broadcastClients.push(ws);
 
-	ws.onMessage((event) => {
-		for (const client of broadcastClients) {
-			try {
-				client.send(event.data);
-			} catch (error) {
-				// Ignore errors sending to closed connections
+		ws.onMessage((event) => {
+			for (const client of broadcastClients) {
+				try {
+					client.send((event as MessageEvent).data);
+				} catch (error) {
+					// Ignore errors sending to closed connections
+				}
 			}
-		}
-	});
+		});
 
-	ws.onClose(() => {
-		const index = broadcastClients.indexOf(ws);
-		if (index > -1) {
-			broadcastClients.splice(index, 1);
-		}
-	});
-});
+		ws.onClose(() => {
+			const index = broadcastClients.indexOf(ws);
+			if (index > -1) {
+				broadcastClients.splice(index, 1);
+			}
+		});
+	})
+);
 
-router.websocket('/ws/counter', (c) => {
-	let count = 0;
+router.get(
+	'/ws/counter',
+	websocket((c, ws) => {
+		let count = 0;
 
-	return (ws) => {
 		ws.onOpen(() => {
 			ws.send(JSON.stringify({ type: 'count', value: count }));
 		});
 
 		ws.onMessage((event) => {
 			try {
-				const data = JSON.parse(event.data as string);
+				const data = JSON.parse((event as MessageEvent).data as string);
 
 				if (data.action === 'increment') {
 					count++;
@@ -204,92 +211,107 @@ router.websocket('/ws/counter', (c) => {
 				}
 			} catch (error) {
 				// Ignore malformed JSON messages
-				console.error('Invalid JSON in WebSocket message:', error);
+				c.var.logger?.error('Invalid JSON in WebSocket message:', error);
 			}
 		});
-	};
-});
+	})
+);
 
 // SSE (Server-Sent Events) routes for testing
-router.sse('/sse/simple', (c) => async (stream) => {
-	// Send a few simple messages
-	stream.writeSSE({ data: 'Message 1' });
-	await new Promise((resolve) => setTimeout(resolve, 10));
-	stream.writeSSE({ data: 'Message 2' });
-	await new Promise((resolve) => setTimeout(resolve, 10));
-	stream.writeSSE({ data: 'Message 3' });
-});
+router.get(
+	'/sse/simple',
+	sse(async (c, stream) => {
+		// Send a few simple messages
+		stream.writeSSE({ data: 'Message 1' });
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		stream.writeSSE({ data: 'Message 2' });
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		stream.writeSSE({ data: 'Message 3' });
+	})
+);
 
-router.sse('/sse/events', (c) => async (stream) => {
-	// Send events with event types
-	stream.writeSSE({ event: 'start', data: JSON.stringify({ timestamp: Date.now() }) });
-	await new Promise((resolve) => setTimeout(resolve, 10));
-	stream.writeSSE({ event: 'update', data: JSON.stringify({ progress: 50 }) });
-	await new Promise((resolve) => setTimeout(resolve, 10));
-	stream.writeSSE({ event: 'complete', data: JSON.stringify({ status: 'done' }) });
-});
+router.get(
+	'/sse/events',
+	sse(async (c, stream) => {
+		// Send events with event types
+		stream.writeSSE({ event: 'start', data: JSON.stringify({ timestamp: Date.now() }) });
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		stream.writeSSE({ event: 'update', data: JSON.stringify({ progress: 50 }) });
+		await new Promise((resolve) => setTimeout(resolve, 10));
+		stream.writeSSE({ event: 'complete', data: JSON.stringify({ status: 'done' }) });
+	})
+);
 
-router.sse('/sse/counter', (c) => async (stream) => {
-	let count = parseInt(c.req.query('count') || '5', 10);
-	let delay = parseInt(c.req.query('delay') || '50', 10);
+router.get(
+	'/sse/counter',
+	sse(async (c, stream) => {
+		let count = parseInt(c.req.query('count') || '5', 10);
+		let delay = parseInt(c.req.query('delay') || '50', 10);
 
-	// Validate and sanitize count
-	if (!Number.isFinite(count) || !Number.isInteger(count) || count < 0) {
-		count = 5; // Default
-	}
-	if (count > 1000) count = 1000; // Cap at 1000
-
-	// Validate and sanitize delay
-	if (!Number.isFinite(delay) || !Number.isInteger(delay) || delay < 0) {
-		delay = 50; // Default
-	}
-	if (delay > 5000) delay = 5000; // Cap at 5 seconds
-
-	for (let i = 0; i < count; i++) {
-		stream.writeSSE({ data: JSON.stringify({ count: i, timestamp: Date.now() }) });
-		await new Promise((resolve) => setTimeout(resolve, delay));
-	}
-});
-
-router.sse('/sse/long-lived', (c) => async (stream) => {
-	let duration = parseInt(c.req.query('duration') || '2000', 10);
-
-	// Validate and sanitize duration
-	if (Number.isNaN(duration) || !Number.isFinite(duration) || duration < 0) {
-		duration = 2000; // Default to 2 seconds
-	}
-	if (duration > 30000) duration = 30000; // Cap at 30 seconds
-
-	const interval = 100;
-	const startTime = Date.now();
-
-	while (Date.now() - startTime < duration) {
-		stream.writeSSE({
-			data: JSON.stringify({
-				elapsed: Date.now() - startTime,
-				message: 'Still alive',
-			}),
-		});
-		await new Promise((resolve) => setTimeout(resolve, interval));
-	}
-
-	stream.writeSSE({ event: 'done', data: 'Completed' });
-});
-
-router.sse('/sse/abort-test', (c) => async (stream) => {
-	let aborted = false;
-
-	stream.onAbort(() => {
-		aborted = true;
-	});
-
-	for (let i = 0; i < 100; i++) {
-		if (aborted) {
-			break;
+		// Validate and sanitize count
+		if (!Number.isFinite(count) || !Number.isInteger(count) || count < 0) {
+			count = 5; // Default
 		}
-		stream.writeSSE({ data: `Message ${i}` });
-		await new Promise((resolve) => setTimeout(resolve, 50));
-	}
-});
+		if (count > 1000) count = 1000; // Cap at 1000
+
+		// Validate and sanitize delay
+		if (!Number.isFinite(delay) || !Number.isInteger(delay) || delay < 0) {
+			delay = 50; // Default
+		}
+		if (delay > 5000) delay = 5000; // Cap at 5 seconds
+
+		for (let i = 0; i < count; i++) {
+			stream.writeSSE({ data: JSON.stringify({ count: i, timestamp: Date.now() }) });
+			await new Promise((resolve) => setTimeout(resolve, delay));
+		}
+	})
+);
+
+router.get(
+	'/sse/long-lived',
+	sse(async (c, stream) => {
+		let duration = parseInt(c.req.query('duration') || '2000', 10);
+
+		// Validate and sanitize duration
+		if (Number.isNaN(duration) || !Number.isFinite(duration) || duration < 0) {
+			duration = 2000; // Default to 2 seconds
+		}
+		if (duration > 30000) duration = 30000; // Cap at 30 seconds
+
+		const interval = 100;
+		const startTime = Date.now();
+
+		while (Date.now() - startTime < duration) {
+			stream.writeSSE({
+				data: JSON.stringify({
+					elapsed: Date.now() - startTime,
+					message: 'Still alive',
+				}),
+			});
+			await new Promise((resolve) => setTimeout(resolve, interval));
+		}
+
+		stream.writeSSE({ event: 'done', data: 'Completed' });
+	})
+);
+
+router.get(
+	'/sse/abort-test',
+	sse(async (c, stream) => {
+		let aborted = false;
+
+		stream.onAbort(() => {
+			aborted = true;
+		});
+
+		for (let i = 0; i < 100; i++) {
+			if (aborted) {
+				break;
+			}
+			stream.writeSSE({ data: `Message ${i}` });
+			await new Promise((resolve) => setTimeout(resolve, 50));
+		}
+	})
+);
 
 export default router;

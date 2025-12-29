@@ -12,10 +12,11 @@ import { APIClient, getAPIBaseURL, getAppBaseURL, getGravityDevModeURL } from '.
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
-import { getDefaultConfigDir, saveConfig } from '../../config';
+import { getDefaultConfigDir, saveConfig, loadProjectSDKKey } from '../../config';
 import type { Config } from '../../types';
 import { createFileWatcher } from './file-watcher';
 import { regenerateSkillsAsync } from './skills';
+import { prepareDevLock, releaseLockSync } from './dev-lock';
 
 const DEFAULT_PORT = 3500;
 const MIN_PORT = 1024;
@@ -72,7 +73,7 @@ async function killLingeringGravityProcesses(logger: {
 
 /**
  * Stop the existing Bun server if one is running.
- * Waits for the port to become available before returning.
+ * Waits for the port to become available before returning (with timeout).
  */
 async function stopBunServer(
 	port: number,
@@ -81,26 +82,32 @@ async function stopBunServer(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const globalAny = globalThis as any;
 	const server = globalAny.__AGENTUITY_SERVER__ as BunServer | undefined;
-	if (!server) return;
-
-	try {
-		logger.debug('Stopping previous Bun server...');
-		server.stop(true); // Close active connections immediately
-	} catch (err) {
-		logger.debug('Error stopping previous Bun server: %s', err);
+	if (!server) {
+		logger.debug('No Bun server to stop');
+		return;
 	}
 
-	// Wait for socket to close to avoid EADDRINUSE races
-	for (let i = 0; i < 20; i++) {
+	try {
+		logger.debug('Stopping Bun server...');
+		server.stop(true); // Close active connections immediately
+		logger.debug('Bun server stop() called');
+	} catch (err) {
+		logger.debug('Error stopping Bun server: %s', err);
+	}
+
+	// Wait for socket to close (max 2 seconds to avoid hanging on shutdown)
+	const MAX_WAIT_ITERATIONS = 10;
+	for (let i = 0; i < MAX_WAIT_ITERATIONS; i++) {
 		try {
 			await fetch(`http://127.0.0.1:${port}/`, {
 				method: 'HEAD',
-				signal: AbortSignal.timeout(200),
+				signal: AbortSignal.timeout(150),
 			});
 			// Still responding, wait a bit more
 			await new Promise((r) => setTimeout(r, 50));
 		} catch {
 			// Connection refused or timeout => server is down
+			logger.debug('Bun server stopped');
 			break;
 		}
 	}
@@ -196,8 +203,12 @@ export const command = createCommand({
 			originalExit(1);
 		}
 
+		// Prepare dev lock: cleans up stale processes from previous sessions
+		// and creates a new lockfile for this session
+		const devLock = await prepareDevLock(rootDir, opts.port, logger);
+
 		// Kill any lingering gravity processes from previous dev sessions
-		// This prevents "zombie" gravity clients from blocking the public URL
+		// This is a fallback for cases where the lockfile was corrupted
 		await killLingeringGravityProcesses(logger);
 
 		// Setup devmode and gravity (if using public URL)
@@ -336,11 +347,16 @@ export const command = createCommand({
 			});
 			viteServer = viteResult.server;
 			vitePort = viteResult.port;
+
+			// Update dev lock with actual Vite port
+			await devLock.updatePorts({ vite: vitePort });
+
 			logger.debug(
 				`Vite asset server running on port ${vitePort} (stays running across backend restarts)`
 			);
 		} catch (error) {
 			tui.error(`Failed to start Vite asset server: ${error}`);
+			await devLock.release();
 			originalExit(1);
 			return;
 		}
@@ -405,6 +421,7 @@ export const command = createCommand({
 
 			// Kill gravity client with SIGTERM first, then SIGKILL as fallback
 			if (gravityProcess) {
+				logger.debug('Killing gravity process...');
 				try {
 					gravityProcess.kill('SIGTERM');
 					// Give it a moment to gracefully shutdown
@@ -412,6 +429,7 @@ export const command = createCommand({
 					if (gravityProcess.exitCode === null) {
 						gravityProcess.kill('SIGKILL');
 					}
+					logger.debug('Gravity process killed');
 				} catch (err) {
 					logger.debug('Error killing gravity process: %s', err);
 				} finally {
@@ -419,10 +437,20 @@ export const command = createCommand({
 				}
 			}
 
-			// Close Vite asset server last (it handles frontend, should stay up longest)
+			// Close Vite asset server with timeout to prevent hanging
 			if (viteServer) {
+				logger.debug('Closing Vite server...');
 				try {
-					await viteServer.close();
+					// Use Promise.race with timeout to prevent hanging
+					const closePromise = viteServer.close();
+					const timeoutPromise = new Promise<void>((resolve) => {
+						setTimeout(() => {
+							logger.debug('Vite server close timed out, continuing...');
+							resolve();
+						}, 2000);
+					});
+					await Promise.race([closePromise, timeoutPromise]);
+					logger.debug('Vite server closed');
 				} catch (err) {
 					logger.debug('Error closing Vite server: %s', err);
 				} finally {
@@ -430,10 +458,20 @@ export const command = createCommand({
 				}
 			}
 
+			// Release the dev lockfile
+			logger.debug('Releasing dev lock...');
+			try {
+				await devLock.release();
+				logger.debug('Dev lock released');
+			} catch (err) {
+				logger.debug('Error releasing dev lock: %s', err);
+			}
+
 			// Reset cleanup flag if not exiting (allows restart)
 			if (!exitAfter) {
 				cleaningUp = false;
 			} else {
+				logger.debug('Exiting with code %d', exitCode);
 				originalExit(exitCode);
 			}
 		};
@@ -535,6 +573,9 @@ export const command = createCommand({
 					// Ignore errors during exit cleanup
 				}
 			}
+
+			// Release the dev lockfile synchronously
+			releaseLockSync(rootDir);
 		});
 
 		while (!shutdownRequested) {
@@ -668,6 +709,22 @@ export const command = createCommand({
 				// These must be set so the bundled patches can route LLM calls through AI Gateway
 				const serviceUrls = getServiceUrls(project?.region);
 
+				// Load SDK key from project .env files for AI Gateway routing
+				// This must be set so the bundled AI SDK patches can inject the API key
+				if (!process.env.AGENTUITY_SDK_KEY) {
+					const sdkKey = await loadProjectSDKKey(logger, rootDir);
+					if (sdkKey) {
+						process.env.AGENTUITY_SDK_KEY = sdkKey;
+					} else if (project) {
+						tui.warn(
+							'AGENTUITY_SDK_KEY not found in .env file. Numerous features will be unavailable.'
+						);
+						tui.bullet(
+							`Run "${getCommand('cloud env pull')}" to sync your SDK key, or add AGENTUITY_SDK_KEY to your .env file.`
+						);
+					}
+				}
+
 				process.env.AGENTUITY_SDK_DEV_MODE = 'true';
 				process.env.AGENTUITY_ENV = 'development';
 				process.env.NODE_ENV = 'development';
@@ -682,6 +739,7 @@ export const command = createCommand({
 					process.env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
 					process.env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
 					process.env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
+					process.env.AGENTUITY_SANDBOX_URL = serviceUrls.sandbox;
 					process.env.AGENTUITY_STREAM_URL = serviceUrls.stream;
 					process.env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
 					process.env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;
@@ -758,6 +816,16 @@ export const command = createCommand({
 							detached: false, // Ensure gravity dies with parent process
 						}
 					);
+
+					// Register gravity process in dev lock for cleanup tracking
+					const gravityPid = (gravityProcess as { pid?: number }).pid;
+					if (gravityPid) {
+						await devLock.registerChild({
+							pid: gravityPid,
+							type: 'gravity',
+							description: 'Gravity public URL tunnel',
+						});
+					}
 
 					// Log gravity output
 					(async () => {

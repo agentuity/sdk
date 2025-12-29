@@ -4,6 +4,7 @@ export interface ServiceUrls {
 	vector: string;
 	catalyst: string;
 	otel: string;
+	sandbox: string;
 }
 
 /**
@@ -18,6 +19,7 @@ export function getServiceUrls(region?: string): ServiceUrls {
 		vector: process.env.AGENTUITY_VECTOR_URL || transportUrl,
 		catalyst: process.env.AGENTUITY_CATALYST_URL || transportUrl,
 		otel: process.env.AGENTUITY_OTLP_URL || buildRegionalURL(region, 'otel'),
+		sandbox: process.env.AGENTUITY_SANDBOX_URL || transportUrl,
 	};
 }
 

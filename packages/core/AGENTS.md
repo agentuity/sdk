@@ -12,7 +12,7 @@ Core utilities and shared types for the Agentuity framework. This package provid
 
 ## Architecture
 
-- **Runtime**: Node/Bun compatible, no runtime-specific code
+- **Runtime**: Browser and Node/Bun compatible, no runtime-specific code. Must work in all JavaScript environments
 - **Build target**: ESNext with TypeScript declaration files
 - **Exports**: All public APIs exported from `src/index.ts`
 - **No dependencies**: This is a foundational package with zero runtime dependencies
