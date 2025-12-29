@@ -4,6 +4,7 @@ export * from './db';
 export * from './org';
 export * from './project';
 export * from './region';
+export * from './sandbox';
 export * from './session';
 export * from './thread';
 export * from './user';

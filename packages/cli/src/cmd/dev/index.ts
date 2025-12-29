@@ -739,6 +739,7 @@ export const command = createCommand({
 					process.env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
 					process.env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
 					process.env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
+					process.env.AGENTUITY_SANDBOX_URL = serviceUrls.sandbox;
 					process.env.AGENTUITY_STREAM_URL = serviceUrls.stream;
 					process.env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
 					process.env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;
