@@ -166,6 +166,7 @@ jobs:
       env:
          AGENTUITY_API_URL: https://api-v1.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_REGION: usc
       steps:
          - uses: actions/checkout@v4
 
