@@ -38,17 +38,24 @@ interface WorkbenchProviderProps {
 		baseUrl?: string | null;
 		projectId?: string;
 	};
-	isAuthenticated: boolean;
+	env: {
+		agentuity: boolean;
+		authenticated: boolean;
+		cloud: boolean;
+	}
 	children: React.ReactNode;
 }
 
 export function WorkbenchProvider({
 	config,
-	isAuthenticated,
+	env = {
+		agentuity: false,
+		authenticated: false,
+		cloud: false,
+	},
 	children,
 }: WorkbenchProviderProps) {
 	const logger = useLogger("WorkbenchProvider");
-
 	// localStorage utilities scoped by project
 	const getStorageKey = useCallback(
 		(key: string) =>
@@ -331,8 +338,8 @@ export function WorkbenchProvider({
 
 				const savedAgent = savedAgentId
 					? Object.values(agents).find(
-							(agent) => agent.metadata.agentId === savedAgentId,
-						)
+						(agent) => agent.metadata.agentId === savedAgentId,
+					)
 					: null;
 
 				if (savedAgent && savedAgentId) {
@@ -383,8 +390,8 @@ export function WorkbenchProvider({
 
 		const selectedAgentData = agents
 			? Object.values(agents).find(
-					(agent) => agent.metadata.agentId === selectedAgent,
-				)
+				(agent) => agent.metadata.agentId === selectedAgent,
+			)
 			: undefined;
 
 		logger.debug("📊 Found selectedAgentData:", selectedAgentData);
@@ -707,9 +714,9 @@ export function WorkbenchProvider({
 		clearAgentState,
 		config,
 		connectionStatus,
+		env,
 		generateSample,
 		inputMode,
-		isAuthenticated,
 		isGeneratingSample,
 		isLoading: isLoading || !!schemasLoading,
 		messages,

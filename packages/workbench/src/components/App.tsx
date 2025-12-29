@@ -70,11 +70,14 @@ function AppContent() {
 
 export function App({ configBase64 }: AppProps) {
 	const decodedConfig = decodeWorkbenchConfig(configBase64);
-	const isAuthenticated =
-		import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY === "true";
+	const env = {
+		agentuity: true,
+		authenticated: import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY === "true",
+		cloud: false,
+	};
 
 	return (
-		<WorkbenchProvider config={decodedConfig} isAuthenticated={isAuthenticated}>
+		<WorkbenchProvider config={decodedConfig} env={env}>
 			<ThemeProvider>
 				<TooltipProvider>
 					<ResizableProvider>
