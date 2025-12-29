@@ -31,6 +31,7 @@ import './src/test/web-rendering';
 import './src/test/env-loading';
 import './src/test/middleware-patterns';
 import './src/test/evals';
+import './src/test/ai-sdk-gateway';
 
 const threadProvider = new InMemoryThreadProvider();
 
