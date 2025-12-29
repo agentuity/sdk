@@ -6,6 +6,7 @@ import {
 	ChevronDownIcon,
 	ChevronsUpDownIcon,
 	FileJson,
+	ListPlus,
 	Loader2Icon,
 	SendIcon,
 	Sparkles,
@@ -317,6 +318,7 @@ export function InputSection({
 								variant="outline"
 								className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
 							>
+								<ListPlus className="size-4" />
 								Pre-fill
 								<ChevronDownIcon className="size-4 shrink-0 opacity-50" />
 							</Button>
