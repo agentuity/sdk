@@ -9,6 +9,8 @@ describe('getServiceUrls', () => {
 		delete process.env.AGENTUITY_OBJECTSTORE_URL;
 		delete process.env.AGENTUITY_STREAM_URL;
 		delete process.env.AGENTUITY_VECTOR_URL;
+		delete process.env.AGENTUITY_CATALYST_URL;
+		delete process.env.AGENTUITY_OTLP_URL;
 	});
 
 	test('should build URLs for us-east region', () => {
