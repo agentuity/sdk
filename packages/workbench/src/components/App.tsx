@@ -1,10 +1,10 @@
 import { decodeWorkbenchConfig } from "@agentuity/core/workbench";
 import { useState } from "react";
-import { Chat } from "./internal/Chat";
-import { Header } from "./internal/Header";
+import { Chat } from "./internal/chat";
+import { Header } from "./internal/header";
 import { ResizableProvider, useResizable } from "./internal/resizable-provider";
-import { Schema } from "./internal/Schema";
-import { WorkbenchProvider } from "./internal/WorkbenchProvider";
+import { Schema } from "./internal/schema";
+import { WorkbenchProvider } from "./internal/workbench-provider";
 import {
 	ResizableHandle,
 	ResizablePanel,

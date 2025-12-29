@@ -34,8 +34,8 @@ import {
 } from "../ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
-import { MonacoJsonEditor } from "./MonacoJsonEditor";
-import { useWorkbench } from "./WorkbenchProvider";
+import { JsonEditor } from "./json-editor";
+import { useWorkbench } from "./workbench-provider";
 
 export interface InputSectionProps {
 	agents: Record<string, AgentSchemaData>;
@@ -446,7 +446,7 @@ export function InputSection({
 							switch (inputType) {
 								case "object":
 									return (
-										<MonacoJsonEditor
+										<JsonEditor
 											aria-invalid={!isValidInput}
 											onChange={onChange}
 											onSubmit={onSubmit}

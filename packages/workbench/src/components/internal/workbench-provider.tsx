@@ -42,7 +42,7 @@ interface WorkbenchProviderProps {
 		agentuity: boolean;
 		authenticated: boolean;
 		cloud: boolean;
-	}
+	};
 	children: React.ReactNode;
 }
 
@@ -338,8 +338,8 @@ export function WorkbenchProvider({
 
 				const savedAgent = savedAgentId
 					? Object.values(agents).find(
-						(agent) => agent.metadata.agentId === savedAgentId,
-					)
+							(agent) => agent.metadata.agentId === savedAgentId,
+						)
 					: null;
 
 				if (savedAgent && savedAgentId) {
@@ -390,8 +390,8 @@ export function WorkbenchProvider({
 
 		const selectedAgentData = agents
 			? Object.values(agents).find(
-				(agent) => agent.metadata.agentId === selectedAgent,
-			)
+					(agent) => agent.metadata.agentId === selectedAgent,
+				)
 			: undefined;
 
 		logger.debug("📊 Found selectedAgentData:", selectedAgentData);
@@ -555,13 +555,23 @@ export function WorkbenchProvider({
 				const envelope =
 					typeof responseBody === "object" && responseBody !== null
 						? (responseBody as {
-							success?: boolean;
-							data?: unknown;
-							error?: { message?: string; stack?: string; code?: string; cause?: unknown };
-						})
+								success?: boolean;
+								data?: unknown;
+								error?: {
+									message?: string;
+									stack?: string;
+									code?: string;
+									cause?: unknown;
+								};
+							})
 						: null;
 
-				if (envelope && "success" in envelope && envelope.success === false && envelope.error) {
+				if (
+					envelope &&
+					"success" in envelope &&
+					envelope.success === false &&
+					envelope.error
+				) {
 					// Agent execution error - encode as special JSON format for ErrorBubble
 					const errorPayload = JSON.stringify({
 						__agentError: true,
@@ -584,9 +594,10 @@ export function WorkbenchProvider({
 				}
 
 				// Success - extract data from envelope (or use raw response if not wrapped)
-				const result = envelope && "success" in envelope && envelope.success === true
-					? envelope.data
-					: responseBody;
+				const result =
+					envelope && "success" in envelope && envelope.success === true
+						? envelope.data
+						: responseBody;
 
 				// Format result as JSON string for display
 				const resultText =

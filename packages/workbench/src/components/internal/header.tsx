@@ -4,7 +4,7 @@ import type { ConnectionStatus } from "../../types/config";
 import { Button } from "../ui/button";
 import { ThemeToggle } from "../ui/theme-toggle";
 import Logo from "./logo";
-import { useWorkbench } from "./WorkbenchProvider";
+import { useWorkbench } from "./workbench-provider";
 
 export interface HeaderProps {
 	className?: string;

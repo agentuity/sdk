@@ -11,8 +11,8 @@ import {
 } from "../ai-elements/conversation";
 import { Message, MessageContent } from "../ai-elements/message";
 import { Shimmer } from "../ai-elements/shimmer";
-import { InputSection } from "./InputSection";
-import { useWorkbench } from "./WorkbenchProvider";
+import { InputSection } from "./input-section";
+import { useWorkbench } from "./workbench-provider";
 
 export interface ChatProps {
 	className?: string;

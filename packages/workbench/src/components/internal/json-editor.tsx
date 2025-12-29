@@ -7,7 +7,7 @@ import React, { useEffect, useRef, useState } from "react";
 import type { ThemeRegistration } from "shiki";
 import { useTheme } from "../ui/theme-provider";
 
-interface MonacoJsonEditorProps {
+interface JsonEditorProps {
 	"aria-invalid"?: boolean;
 	className?: string;
 	onChange: (value: string) => void;
@@ -118,7 +118,7 @@ function convertShikiToMonaco(
 	};
 }
 
-export function MonacoJsonEditor({
+export function JsonEditor({
 	"aria-invalid": ariaInvalid,
 	className = "",
 	onChange,
@@ -127,7 +127,7 @@ export function MonacoJsonEditor({
 	schema,
 	schemaUri = "agentuity://schema/default",
 	value,
-}: MonacoJsonEditorProps) {
+}: JsonEditorProps) {
 	const { theme } = useTheme();
 	const [editorInstance, setEditorInstance] = useState<
 		Parameters<OnMount>[0] | null
