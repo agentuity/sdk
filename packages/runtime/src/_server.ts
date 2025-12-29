@@ -27,6 +27,7 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'kv',
 	'stream',
 	'vector',
+	'sandbox',
 	'state',
 	'thread',
 	'session',

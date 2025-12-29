@@ -12,7 +12,7 @@ import { APIClient, getAPIBaseURL, getAppBaseURL, getGravityDevModeURL } from '.
 import { download } from './download';
 import { createDevmodeSyncService } from './sync';
 import { getDevmodeDeploymentId } from '../build/ast';
-import { getDefaultConfigDir, saveConfig } from '../../config';
+import { getDefaultConfigDir, saveConfig, loadProjectSDKKey } from '../../config';
 import type { Config } from '../../types';
 import { createFileWatcher } from './file-watcher';
 import { regenerateSkillsAsync } from './skills';
@@ -709,6 +709,22 @@ export const command = createCommand({
 				// These must be set so the bundled patches can route LLM calls through AI Gateway
 				const serviceUrls = getServiceUrls(project?.region);
 
+				// Load SDK key from project .env files for AI Gateway routing
+				// This must be set so the bundled AI SDK patches can inject the API key
+				if (!process.env.AGENTUITY_SDK_KEY) {
+					const sdkKey = await loadProjectSDKKey(logger, rootDir);
+					if (sdkKey) {
+						process.env.AGENTUITY_SDK_KEY = sdkKey;
+					} else if (project) {
+						tui.warn(
+							'AGENTUITY_SDK_KEY not found in .env file. Numerous features will be unavailable.'
+						);
+						tui.bullet(
+							`Run "${getCommand('cloud env pull')}" to sync your SDK key, or add AGENTUITY_SDK_KEY to your .env file.`
+						);
+					}
+				}
+
 				process.env.AGENTUITY_SDK_DEV_MODE = 'true';
 				process.env.AGENTUITY_ENV = 'development';
 				process.env.NODE_ENV = 'development';
@@ -723,6 +739,7 @@ export const command = createCommand({
 					process.env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
 					process.env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
 					process.env.AGENTUITY_KEYVALUE_URL = serviceUrls.keyvalue;
+					process.env.AGENTUITY_SANDBOX_URL = serviceUrls.sandbox;
 					process.env.AGENTUITY_STREAM_URL = serviceUrls.stream;
 					process.env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
 					process.env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;

@@ -6,6 +6,7 @@ import {
 	type KeyValueStorage,
 	type StreamStorage,
 	type VectorStorage,
+	type SandboxService,
 } from '@agentuity/core';
 import type { AgentContext, AgentRegistry, AgentRunner, AgentRuntimeState } from './agent';
 import { AGENT_RUNTIME, CURRENT_AGENT } from './_config';
@@ -44,6 +45,7 @@ export class RequestAgentContext<
 	kv!: KeyValueStorage;
 	stream!: StreamStorage;
 	vector!: VectorStorage;
+	sandbox!: SandboxService;
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;

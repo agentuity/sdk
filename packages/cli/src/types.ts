@@ -34,6 +34,7 @@ export const ConfigSchema = zod.object({
 			transport_url: zod.url().optional().describe('Override transport URL'),
 			stream_url: zod.url().optional().describe('Override stream URL'),
 			kv_url: zod.url().optional().describe('Override keyvalue URL'),
+			sandbox_url: zod.url().optional().describe('Override sandbox URL'),
 			vector_url: zod.url().optional().describe('Override vector store URL'),
 			catalyst_url: zod.url().optional().describe('Override catalyst URL'),
 			ion_url: zod.url().optional().describe('Override ion URL'),
@@ -228,6 +229,7 @@ export interface CommandSchemas {
 	args?: z.ZodType;
 	options?: z.ZodType;
 	response?: z.ZodType;
+	aliases?: Record<string, string[]>;
 }
 
 export type ProjectConfig = zod.infer<typeof ProjectSchema>;
@@ -377,18 +379,18 @@ export function createSubcommand<
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
-				? { args: A; options: Op; response: Res }
-				: { args: A; options: Op; response?: z.ZodType }
+				? { args: A; options: Op; response: Res; aliases?: Record<string, string[]> }
+				: { args: A; options: Op; response?: z.ZodType; aliases?: Record<string, string[]> }
 			: Res extends z.ZodType
-				? { args: A; response: Res }
-				: { args: A; response?: z.ZodType }
+				? { args: A; response: Res; aliases?: Record<string, string[]> }
+				: { args: A; response?: z.ZodType; aliases?: Record<string, string[]> }
 		: Op extends z.ZodType
 			? Res extends z.ZodType
-				? { options: Op; response: Res }
-				: { options: Op; response?: z.ZodType }
+				? { options: Op; response: Res; aliases?: Record<string, string[]> }
+				: { options: Op; response?: z.ZodType; aliases?: Record<string, string[]> }
 			: Res extends z.ZodType
-				? { response: Res }
-				: { response?: z.ZodType };
+				? { response: Res; aliases?: Record<string, string[]> }
+				: { response?: z.ZodType; aliases?: Record<string, string[]> };
 	handler(
 		ctx: CommandContext<R, O, A, Op>
 	): Res extends z.ZodType ? z.infer<Res> | Promise<z.infer<Res>> : unknown | Promise<unknown>;
@@ -422,18 +424,18 @@ export function createCommand<
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
-				? { args: A; options: Op; response: Res }
-				: { args: A; options: Op; response?: z.ZodType }
+				? { args: A; options: Op; response: Res; aliases?: Record<string, string[]> }
+				: { args: A; options: Op; response?: z.ZodType; aliases?: Record<string, string[]> }
 			: Res extends z.ZodType
-				? { args: A; response: Res }
-				: { args: A; response?: z.ZodType }
+				? { args: A; response: Res; aliases?: Record<string, string[]> }
+				: { args: A; response?: z.ZodType; aliases?: Record<string, string[]> }
 		: Op extends z.ZodType
 			? Res extends z.ZodType
-				? { options: Op; response: Res }
-				: { options: Op; response?: z.ZodType }
+				? { options: Op; response: Res; aliases?: Record<string, string[]> }
+				: { options: Op; response?: z.ZodType; aliases?: Record<string, string[]> }
 			: Res extends z.ZodType
-				? { response: Res }
-				: { response?: z.ZodType };
+				? { response: Res; aliases?: Record<string, string[]> }
+				: { response?: z.ZodType; aliases?: Record<string, string[]> };
 	handler?(
 		ctx: CommandContext<R, O, A, Op>
 	): Res extends z.ZodType ? z.infer<Res> | Promise<z.infer<Res>> : unknown | Promise<unknown>;

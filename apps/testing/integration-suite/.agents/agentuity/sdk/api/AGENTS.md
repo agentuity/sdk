@@ -311,40 +311,45 @@ return c.json({ data: 'value' }, 200, {
 ## Streaming Routes
 
 ```typescript
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, stream, sse, websocket } from '@agentuity/runtime';
 
 const router = createRouter();
 
-// Stream response
-router.stream('/events', (c) => {
-	return new ReadableStream({
-		start(controller) {
-			controller.enqueue('event 1\n');
-			controller.enqueue('event 2\n');
-			controller.close();
-		},
-	});
-});
+// Stream response (use with POST)
+router.post(
+	'/events',
+	stream((c) => {
+		return new ReadableStream({
+			start(controller) {
+				controller.enqueue('event 1\n');
+				controller.enqueue('event 2\n');
+				controller.close();
+			},
+		});
+	})
+);
 
-// Server-Sent Events
-router.sse('/notifications', (c) => {
-	return (stream) => {
+// Server-Sent Events (use with GET)
+router.get(
+	'/notifications',
+	sse((c, stream) => {
 		stream.writeSSE({ data: 'Hello', event: 'message' });
 		stream.writeSSE({ data: 'World', event: 'message' });
-	};
-});
+	})
+);
 
-// WebSocket
-router.websocket('/ws', (c) => {
-	return (ws) => {
+// WebSocket (use with GET)
+router.get(
+	'/ws',
+	websocket((c, ws) => {
 		ws.onOpen(() => {
 			ws.send('Connected!');
 		});
 		ws.onMessage((event) => {
 			ws.send(`Echo: ${event.data}`);
 		});
-	};
-});
+	})
+);
 
 export default router;
 ```
@@ -359,4 +364,4 @@ export default router;
 - Return appropriate HTTP status codes
 - APIs run at `/api/{folderName}` by default
 
-<!-- prompt_hash: 23d5af163bb84225723dfcbf497192bb28d748ebca80e48e680d2fb265e8288a -->
+<!-- prompt_hash: a79b3f50bbc54be2f21c3fd4a20f1683c4c51b0713844e2efc1d4b40a7e70c5d -->

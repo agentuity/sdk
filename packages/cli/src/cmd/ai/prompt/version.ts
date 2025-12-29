@@ -8,7 +8,7 @@
  * This allows detecting if the source template has changed.
  */
 
-const HASH_REGEX = /\n?<!-- prompt_hash: ([a-f0-9]+) -->$/;
+const HASH_REGEX = /\n?<!-- prompt_hash: ([a-f0-9]+) -->\n?$/;
 
 /**
  * Compute SHA256 hash of content using Bun's built-in hasher.
@@ -37,10 +37,11 @@ export function extractHash(content: string): string | null {
 
 /**
  * Generate content with hash comment appended.
+ * Ensures the output ends with a newline for POSIX compliance and Prettier compatibility.
  */
 export function appendHashComment(content: string): string {
 	const hash = computeHash(content);
-	return `${content}\n<!-- prompt_hash: ${hash} -->`;
+	return `${content}\n<!-- prompt_hash: ${hash} -->\n`;
 }
 
 /**

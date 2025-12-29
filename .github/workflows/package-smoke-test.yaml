@@ -80,6 +80,7 @@ jobs:
          AGENTUITY_CATALYST_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_STREAM_URL: https://streams-usc.agentuity.cloud
          AGENTUITY_KEYVALUE_URL: https://catalyst-usc.agentuity.cloud
+         AGENTUITY_SANDBOX_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_OBJECTSTORE_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_VECTOR_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_LOG_LEVEL: error
@@ -125,6 +126,7 @@ jobs:
               AGENTUITY_CATALYST_URL=$AGENTUITY_CATALYST_URL
               AGENTUITY_STREAM_URL=$AGENTUITY_STREAM_URL
               AGENTUITY_KEYVALUE_URL=$AGENTUITY_KEYVALUE_URL
+              AGENTUITY_SANDBOX_URL=$AGENTUITY_SANDBOX_URL
               AGENTUITY_OBJECTSTORE_URL=$AGENTUITY_OBJECTSTORE_URL
               AGENTUITY_VECTOR_URL=$AGENTUITY_VECTOR_URL
               AGENTUITY_LOG_LEVEL=$AGENTUITY_LOG_LEVEL

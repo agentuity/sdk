@@ -2,12 +2,17 @@
  * CLI Helper
  *
  * Utilities for executing Agentuity CLI commands via subprocess.
- * Uses Bun.$ for subprocess execution with JSON output parsing.
+ * Uses Bun.spawn for subprocess execution with JSON output parsing.
  */
 
-import { $ } from 'bun';
 import { resolve, join } from 'path';
 import { existsSync, readFileSync } from 'fs';
+
+// Debug logging - only enabled in CI
+const DEBUG = process.env.CI === 'true';
+const debug = (msg: string) => {
+	if (DEBUG) console.log(`[CLI] ${msg}`);
+};
 
 // Find monorepo root by walking up until we find package.json with workspaces
 function findMonorepoRoot(startDir: string): string | null {
@@ -46,9 +51,19 @@ function findProjectDir(startDir: string): string | null {
 	return null;
 }
 
-// Resolve CLI binary path - works in both dev and built (.agentuity) environments
+// Resolve CLI binary path - prioritizes installed CLI from node_modules
 function resolveCliPath(): string {
-	// Try from import.meta.dir first (dev environment)
+	// First check for CLI installed in node_modules (tarball install in CI)
+	// This is the correct path when SDK is installed from tarballs
+	const projectDir = findProjectDir(process.cwd()) || findProjectDir(import.meta.dir);
+	if (projectDir) {
+		const installedCliPath = join(projectDir, 'node_modules/@agentuity/cli/bin/cli.ts');
+		if (existsSync(installedCliPath)) {
+			return installedCliPath;
+		}
+	}
+
+	// Fall back to monorepo source (local development with workspace links)
 	const rootFromFile = findMonorepoRoot(import.meta.dir);
 	if (rootFromFile) {
 		const cliPath = join(rootFromFile, 'packages/cli/bin/cli.ts');
@@ -67,7 +82,7 @@ function resolveCliPath(): string {
 	}
 
 	throw new Error(
-		`CLI not found. Searched from ${import.meta.dir} (root: ${rootFromFile}) and ${process.cwd()} (root: ${rootFromCwd})`
+		`CLI not found. Searched in node_modules, from ${import.meta.dir} (root: ${rootFromFile}) and ${process.cwd()} (root: ${rootFromCwd})`
 	);
 }
 
@@ -77,6 +92,10 @@ const CLI_PATH = resolveCliPath();
 // This is needed because the test server runs from .agentuity/ but CLI needs the parent
 const PROJECT_DIR =
 	findProjectDir(process.cwd()) || findProjectDir(import.meta.dir) || process.cwd();
+
+// Log CLI path once at startup (only in CI)
+debug(`CLI_PATH: ${CLI_PATH}`);
+debug(`PROJECT_DIR: ${PROJECT_DIR}`);
 
 export interface CLIResult {
 	stdout: string;
@@ -89,21 +108,77 @@ export interface CLIResult {
  * Execute CLI command and return result
  * Commands are run from the project directory (containing agentuity.json)
  * Uses the profile from AGENTUITY_PROFILE env var if set, otherwise CLI defaults
+ *
+ * Note: We set environment variables to skip startup checks:
+ * - AGENTUITY_SKIP_LEGACY_CHECK=1 - Skip legacy CLI detection that could exit(1)
+ * - AGENTUITY_SKIP_VERSION_CHECK=1 - Skip version check network requests
  */
 export async function runCLI(args: string[]): Promise<CLIResult> {
-	try {
-		const result = await $`bun ${CLI_PATH} ${args}`.cwd(PROJECT_DIR).env(process.env).quiet();
+	// Create environment with skip flags (using env vars instead of CLI flags
+	// because Commander.js would fail on unknown options)
+	const env = {
+		...process.env,
+		AGENTUITY_SKIP_LEGACY_CHECK: '1',
+		AGENTUITY_SKIP_VERSION_CHECK: '1',
+	};
 
-		return {
-			stdout: result.stdout.toString(),
-			stderr: result.stderr.toString(),
-			exitCode: result.exitCode,
-		};
+	try {
+		// Use Bun.spawn instead of Bun.$ for more reliable subprocess execution
+		// Bun.$ has issues with array argument expansion in some environments
+		const cmd = ['bun', CLI_PATH, ...args];
+
+		const proc = Bun.spawn(cmd, {
+			cwd: PROJECT_DIR,
+			env,
+			stdout: 'pipe',
+			stderr: 'pipe',
+		});
+
+		// Read stdout and stderr
+		const stdoutChunks: Uint8Array[] = [];
+		const stderrChunks: Uint8Array[] = [];
+
+		if (proc.stdout) {
+			const reader = proc.stdout.getReader();
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				stdoutChunks.push(value);
+			}
+		}
+
+		if (proc.stderr) {
+			const reader = proc.stderr.getReader();
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				stderrChunks.push(value);
+			}
+		}
+
+		const exitCode = await proc.exited;
+
+		// Combine chunks into strings
+		const stdout = new TextDecoder().decode(
+			new Uint8Array(stdoutChunks.reduce((acc, chunk) => [...acc, ...chunk], [] as number[]))
+		);
+		const stderr = new TextDecoder().decode(
+			new Uint8Array(stderrChunks.reduce((acc, chunk) => [...acc, ...chunk], [] as number[]))
+		);
+
+		// Log failures in CI for debugging
+		if (exitCode !== 0) {
+			debug(`Command failed: ${args.join(' ')} (exit ${exitCode})`);
+			if (stderr) debug(`stderr: ${stderr.slice(0, 200)}`);
+		}
+
+		return { stdout, stderr, exitCode };
 	} catch (error: any) {
+		debug(`Error: ${error.message}`);
 		return {
-			stdout: error.stdout?.toString() || '',
-			stderr: error.stderr?.toString() || error.message,
-			exitCode: error.exitCode || 1,
+			stdout: '',
+			stderr: error.message || 'Unknown error',
+			exitCode: 1,
 		};
 	}
 }

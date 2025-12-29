@@ -73,6 +73,27 @@ export {
 	type EvalRunStartEvent,
 	type EvalRunCompleteEvent,
 } from './services/evalrun';
+export {
+	type SandboxResources,
+	type SandboxStatus,
+	type ExecutionStatus,
+	type StreamReader,
+	type SandboxStreamConfig,
+	type SandboxCommand,
+	type SandboxNetworkConfig,
+	type SandboxTimeoutConfig,
+	type SandboxCreateOptions,
+	type Sandbox,
+	type SandboxInfo,
+	type ListSandboxesParams,
+	type ListSandboxesResponse,
+	type ExecuteOptions,
+	type Execution,
+	type SandboxRunOptions,
+	type SandboxRunResult,
+	type SandboxService,
+	SandboxError,
+} from './services/sandbox';
 export { buildUrl, toServiceException, toPayload, fromResponse } from './services/_util';
 
 // standard_schema.ts exports

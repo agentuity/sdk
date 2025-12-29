@@ -15,6 +15,7 @@ import secretCommand from './secret';
 import apikeyCommand from './apikey';
 import streamCommand from './stream';
 import vectorCommand from './vector';
+import sandboxCommand from './sandbox';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -31,6 +32,7 @@ export const command = createCommand({
 		agentCommand,
 		streamCommand,
 		vectorCommand,
+		sandboxCommand,
 		envCommand,
 		secretCommand,
 		deploySubcommand,

@@ -468,7 +468,7 @@ export default router;
 
 	test('websocket with exported schemas - should extract inputSchema and outputSchema', async () => {
 		const content = `
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, websocket } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 export const inputSchema = s.object({
@@ -480,11 +480,11 @@ export const outputSchema = s.object({
 });
 
 const router = createRouter();
-router.websocket('/echo', (c) => (ws) => {
+router.get('/echo', websocket((c, ws) => {
 	ws.onMessage((event) => {
 		ws.send(event.data);
 	});
-});
+}));
 
 export default router;
 		`;
@@ -505,14 +505,14 @@ export default router;
 
 	test('websocket without schemas - should have no schema variables', async () => {
 		const content = `
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, websocket } from '@agentuity/runtime';
 
 const router = createRouter();
-router.websocket('/untyped', (c) => (ws) => {
+router.get('/untyped', websocket((c, ws) => {
 	ws.onMessage((event) => {
 		ws.send(event.data);
 	});
-});
+}));
 
 export default router;
 		`;
@@ -533,7 +533,7 @@ export default router;
 
 	test('sse with exported outputSchema - should extract schema', async () => {
 		const content = `
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, sse } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 export const outputSchema = s.object({
@@ -542,9 +542,9 @@ export const outputSchema = s.object({
 });
 
 const router = createRouter();
-router.sse('/events', (c) => async (stream) => {
+router.get('/events', sse((c, stream) => {
 	stream.writeSSE({ data: 'test' });
-});
+}));
 
 export default router;
 		`;
@@ -565,12 +565,12 @@ export default router;
 
 	test('sse without schemas - should have no schema variables', async () => {
 		const content = `
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, sse } from '@agentuity/runtime';
 
 const router = createRouter();
-router.sse('/stream', (c) => async (stream) => {
+router.get('/stream', sse((c, stream) => {
 	stream.writeSSE({ data: 'test' });
-});
+}));
 
 export default router;
 		`;
@@ -591,7 +591,7 @@ export default router;
 
 	test('websocket with only outputSchema - should extract just output', async () => {
 		const content = `
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, websocket } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 export const outputSchema = s.object({
@@ -599,9 +599,9 @@ export const outputSchema = s.object({
 });
 
 const router = createRouter();
-router.websocket('/one-way', (c) => (ws) => {
+router.get('/one-way', websocket((c, ws) => {
 	ws.send('hello');
-});
+}));
 
 export default router;
 		`;
@@ -613,6 +613,172 @@ export default router;
 			expect(routes[0].type).toBe('websocket');
 			expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
 			expect(routes[0].config?.outputSchemaVariable).toBe('outputSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('stream middleware - should detect stream type', async () => {
+		const content = `
+import { createRouter, stream } from '@agentuity/runtime';
+
+const router = createRouter();
+router.post('/data', stream((c) => {
+	return new ReadableStream({
+		start(controller) {
+			controller.enqueue(new TextEncoder().encode('chunk1'));
+			controller.close();
+		}
+	});
+}));
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].type).toBe('stream');
+			expect(routes[0].path).toBe('/api/data');
+			expect(routes[0].method).toBe('post');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('stream with exported outputSchema - should extract schema', async () => {
+		const content = `
+import { createRouter, stream } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export const outputSchema = s.object({
+	chunk: s.string(),
+});
+
+const router = createRouter();
+router.post('/data', stream((c) => {
+	return new ReadableStream({});
+}));
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].type).toBe('stream');
+			expect(routes[0].config?.outputSchemaVariable).toBe('outputSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('cron middleware - should detect cron type and extract expression', async () => {
+		const content = `
+import { createRouter, cron } from '@agentuity/runtime';
+
+const router = createRouter();
+router.post('/job', cron('0 0 * * *', async (c) => {
+	return c.json({ status: 'completed' });
+}));
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].type).toBe('cron');
+			expect(routes[0].path).toBe('/api/job');
+			expect(routes[0].method).toBe('post');
+			expect(routes[0].config?.expression).toBe('0 0 * * *');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('cron with different schedule - should extract correct expression', async () => {
+		const content = `
+import { createRouter, cron } from '@agentuity/runtime';
+
+const router = createRouter();
+router.post('/hourly', cron('0 * * * *', async (c) => {
+	return c.json({ status: 'hourly' });
+}));
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].type).toBe('cron');
+			expect(routes[0].config?.expression).toBe('0 * * * *');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('cron with invalid expression - should throw error', async () => {
+		const content = `
+import { createRouter, cron } from '@agentuity/runtime';
+
+const router = createRouter();
+router.post('/bad', cron('invalid-cron', async (c) => {
+	return c.json({ status: 'bad' });
+}));
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			await expect(parseRoute(tempDir, path, projectId, deploymentId)).rejects.toThrow(
+				/invalid cron expression/
+			);
+		} finally {
+			cleanup();
+		}
+	});
+
+	test('multiple middleware types in same file', async () => {
+		const content = `
+import { createRouter, websocket, sse, stream, cron } from '@agentuity/runtime';
+
+const router = createRouter();
+router.get('/ws', websocket((c, ws) => {}));
+router.get('/events', sse((c, stream) => {}));
+router.post('/data', stream((c) => new ReadableStream({})));
+router.post('/job', cron('0 0 * * *', (c) => c.json({})));
+router.get('/health', (c) => c.json({ ok: true }));
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(5);
+
+			expect(routes[0].type).toBe('websocket');
+			expect(routes[0].path).toBe('/api/ws');
+
+			expect(routes[1].type).toBe('sse');
+			expect(routes[1].path).toBe('/api/events');
+
+			expect(routes[2].type).toBe('stream');
+			expect(routes[2].path).toBe('/api/data');
+
+			expect(routes[3].type).toBe('cron');
+			expect(routes[3].path).toBe('/api/job');
+			expect(routes[3].config?.expression).toBe('0 0 * * *');
+
+			expect(routes[4].type).toBe('api');
+			expect(routes[4].path).toBe('/api/health');
 		} finally {
 			cleanup();
 		}

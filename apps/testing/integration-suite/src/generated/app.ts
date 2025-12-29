@@ -47,16 +47,6 @@ if (isDevelopment()) {
 const serverUrl = `http://127.0.0.1:${process.env.PORT || '3500'}`;
 const otel = register({ processors: [], logLevel: (process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel });
 
-// Get app state and config for use below
-const appState = getAppState();
-const appConfig = getAppConfig();
-
-createServices(otel.logger, appConfig, serverUrl);
-
-// Make logger and tracer globally available for user's app.ts
-setGlobalLogger(otel.logger);
-setGlobalTracer(otel.tracer);
-
 // Step 2: Create router and set as global
 const app = createRouter();
 setGlobalRouter(app);
@@ -85,6 +75,15 @@ app.use('/api/*', createAgentMiddleware(''));
 await import('../../app.js');
 
 // Step 5: Initialize providers
+const appState = getAppState();
+const appConfig = getAppConfig();
+
+createServices(otel.logger, appConfig, serverUrl);
+
+// Make logger and tracer globally available for user's app.ts
+setGlobalLogger(otel.logger);
+setGlobalTracer(otel.tracer);
+
 const threadProvider = getThreadProvider();
 const sessionProvider = getSessionProvider();
 
@@ -305,13 +304,18 @@ await runAgentSetups(appState);
 if (typeof Bun !== 'undefined') {
 	// Enable process exit protection now that we're starting the server
 	enableProcessExitProtection();
-	
+
 	const port = parseInt(process.env.PORT || '3500', 10);
 	const server = Bun.serve({
-		fetch: app.fetch,
+		fetch: (req, server) => {
+			// Get timeout from config on each request (0 = no timeout)
+			server.timeout(req, getAppConfig()?.requestTimeout ?? 0);
+			return app.fetch(req, server);
+		},
 		websocket,
 		port,
 		hostname: '127.0.0.1',
+		development: isDevelopment(),
 	});
 	
 	// Make server available globally for health checks
