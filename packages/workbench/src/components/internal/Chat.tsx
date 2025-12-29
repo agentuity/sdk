@@ -149,12 +149,7 @@ export function Chat({
 							return (
 								<div key={id} className="mb-2">
 									{role === "assistant" && (
-										<div
-											className={cn(
-												"w-fit flex items-center mb-2 text-muted-foreground text-sm transition-colors",
-												// !isStreaming && "hover:text-foreground cursor-pointer",
-											)}
-										>
+										<div className="w-fit flex items-center mb-2 text-muted-foreground text-sm transition-colors">
 											<Loader
 												className={cn(
 													"size-4 transition-all",
@@ -181,11 +176,13 @@ export function Chat({
 													disabled={!sessionId}
 													style={{ background: "none" }}
 												>
-													{duration && (
+													{duration ? (
 														<>
 															Ran for
 															<span className="mx-1">{duration}</span>
 														</>
+													) : (
+														<>Finished</>
 													)}
 
 													{duration && tokens && (

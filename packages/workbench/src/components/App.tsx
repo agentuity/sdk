@@ -2,6 +2,7 @@ import { decodeWorkbenchConfig } from "@agentuity/core/workbench";
 import { useState } from "react";
 import { Chat } from "./internal/Chat";
 import { Header } from "./internal/Header";
+import { ResizableProvider, useResizable } from "./internal/resizable-provider";
 import { Schema } from "./internal/Schema";
 import { WorkbenchProvider } from "./internal/WorkbenchProvider";
 import {
@@ -9,7 +10,6 @@ import {
 	ResizablePanel,
 	ResizablePanelGroup,
 } from "./ui/resizable";
-import { ResizableProvider, useResizable } from "./ui/resizable-provider";
 import { ThemeProvider } from "./ui/theme-provider";
 import { TooltipProvider } from "./ui/tooltip";
 
