@@ -3,18 +3,20 @@ import {
 	ArrowUp,
 	Braces,
 	CheckIcon,
+	ChevronDownIcon,
 	ChevronsUpDownIcon,
 	FileJson,
 	Loader2Icon,
 	SendIcon,
 	Sparkles,
+	SquareCode,
 	Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { convertJsonSchemaToZod } from "zod-from-json-schema";
 import type { AgentSchemaData } from "../../hooks/useAgentSchemas";
 import { useLogger } from "../../hooks/useLogger";
-import { cn } from "../../lib/utils";
+import { cn, generateTemplateFromSchema } from "../../lib/utils";
 import {
 	PromptInput,
 	PromptInputBody,
@@ -79,7 +81,7 @@ export function InputSection({
 	const { generateSample, isGeneratingSample, env } = useWorkbench();
 	const isAuthenticated = env.authenticated;
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
-	const [examplesOpen, setExamplesOpen] = useState(false);
+	const [prefillOpen, setPrefillOpen] = useState(false);
 	const [isValidInput, setIsValidInput] = useState(true);
 	const [monacoHasErrors, setMonacoHasErrors] = useState<boolean | null>(null);
 
@@ -218,181 +220,171 @@ export function InputSection({
 
 	return (
 		<div className={cn("flex flex-col gap-4 p-4 z-100", className)}>
-			<div className="flex items-center gap-2 justify-between">
-				<div className="flex items-center gap-2">
-					<Popover open={agentSelectOpen} onOpenChange={setAgentSelectOpen}>
+			<div className="flex items-center gap-2">
+				<Popover open={agentSelectOpen} onOpenChange={setAgentSelectOpen}>
+					<PopoverTrigger asChild>
+						<Button
+							aria-expanded={agentSelectOpen}
+							variant="outline"
+							size="sm"
+							className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
+						>
+							{Object.values(agents).find(
+								(agent) => agent.metadata.agentId === selectedAgent,
+							)?.metadata.name || "Select agent"}
+							<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
+						</Button>
+					</PopoverTrigger>
+					<PopoverContent side="top" align="start" className="w-fit p-0 z-101">
+						<Command>
+							<CommandInput placeholder="Search agents..." />
+							<CommandList>
+								<CommandEmpty>No agents found.</CommandEmpty>
+								<CommandGroup>
+									{Object.values(agents)
+										.sort((a, b) =>
+											a.metadata.name.localeCompare(b.metadata.name),
+										)
+										.map((agent) => {
+											const isSelected =
+												selectedAgent === agent.metadata.agentId;
+
+											// Use name for search but include agentId to ensure uniqueness
+											const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
+
+											return (
+												<CommandItem
+													key={agent.metadata.agentId}
+													value={searchValue}
+													onSelect={(currentValue) => {
+														// Extract agentId from the compound value
+														const agentId = currentValue.split("|")[1];
+														const selectedAgentData = Object.values(
+															agents,
+														).find((a) => a.metadata.agentId === agentId);
+
+														if (selectedAgentData) {
+															logger.debug(
+																"🎯 Agent selected by name:",
+																agent.metadata.name,
+																"agentId:",
+																agentId,
+															);
+
+															setSelectedAgent(agentId);
+														}
+
+														setAgentSelectOpen(false);
+													}}
+												>
+													<CheckIcon
+														className={cn(
+															"size-4 text-green-500",
+															isSelected ? "opacity-100" : "opacity-0",
+														)}
+													/>
+													{agent.metadata.name}
+												</CommandItem>
+											);
+										})}
+								</CommandGroup>
+							</CommandList>
+						</Command>
+					</PopoverContent>
+				</Popover>
+
+				<Button
+					aria-label={isSchemaOpen ? "Hide Schema" : "View Schema"}
+					size="sm"
+					variant="outline"
+					className={cn(
+						"font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50",
+						isSchemaOpen && "bg-secondary!",
+					)}
+					onClick={onSchemaToggle}
+				>
+					<Braces className="size-4" />
+					Schema
+				</Button>
+
+				{isObjectSchema && (
+					<Popover open={prefillOpen} onOpenChange={setPrefillOpen}>
 						<PopoverTrigger asChild>
 							<Button
-								aria-expanded={agentSelectOpen}
-								variant="outline"
+								aria-expanded={prefillOpen}
+								aria-label="Prefill input"
 								size="sm"
+								variant="outline"
 								className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
 							>
-								{Object.values(agents).find(
-									(agent) => agent.metadata.agentId === selectedAgent,
-								)?.metadata.name || "Select agent"}
-								<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
+								Prefill
+								<ChevronDownIcon className="size-4 shrink-0 opacity-50" />
 							</Button>
 						</PopoverTrigger>
 						<PopoverContent
 							side="top"
 							align="start"
-							className="w-fit p-0 z-101"
+							className="w-fit max-w-xl p-0 z-101"
 						>
 							<Command>
-								<CommandInput placeholder="Search agents..." />
 								<CommandList>
-									<CommandEmpty>No agents found.</CommandEmpty>
 									<CommandGroup>
-										{Object.values(agents)
-											.sort((a, b) =>
-												a.metadata.name.localeCompare(b.metadata.name),
-											)
-											.map((agent) => {
-												const isSelected =
-													selectedAgent === agent.metadata.agentId;
-
-												// Use name for search but include agentId to ensure uniqueness
-												const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
-
-												return (
-													<CommandItem
-														key={agent.metadata.agentId}
-														value={searchValue}
-														onSelect={(currentValue) => {
-															// Extract agentId from the compound value
-															const agentId = currentValue.split("|")[1];
-															const selectedAgentData = Object.values(
-																agents,
-															).find((a) => a.metadata.agentId === agentId);
-
-															if (selectedAgentData) {
-																logger.debug(
-																	"🎯 Agent selected by name:",
-																	agent.metadata.name,
-																	"agentId:",
-																	agentId,
-																);
-
-																setSelectedAgent(agentId);
-															}
-
-															setAgentSelectOpen(false);
-														}}
-													>
-														<CheckIcon
-															className={cn(
-																"size-4 text-green-500",
-																isSelected ? "opacity-100" : "opacity-0",
-															)}
-														/>
-														{agent.metadata.name}
-													</CommandItem>
+										<CommandItem
+											onSelect={() => {
+												const template = generateTemplateFromSchema(
+													selectedAgentData?.schema?.input?.json,
 												);
-											})}
-									</CommandGroup>
-								</CommandList>
-							</Command>
-						</PopoverContent>
-					</Popover>
 
-					<Button
-						aria-label={isSchemaOpen ? "Hide Schema" : "View Schema"}
-						size="sm"
-						variant="outline"
-						className={cn(
-							"font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50",
-							isSchemaOpen && "bg-secondary!",
-						)}
-						onClick={onSchemaToggle}
-					>
-						<Braces className="size-4" />
-						Schema
-					</Button>
-
-					{clearAgentState && selectedAgent && (
-						<Button
-							aria-label="Clear conversation history"
-							size="sm"
-							variant="outline"
-							className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50 text-foreground hover:text-destructive"
-							onClick={() => clearAgentState(selectedAgent)}
-						>
-							<Trash2 className="size-4" />
-							Clear Thread
-						</Button>
-					)}
-				</div>
-
-				<div className="flex items-center gap-2">
-					{isObjectSchema &&
-						(isAuthenticated ? (
-							<Button
-								aria-label="Generate Sample JSON"
-								size="sm"
-								variant="outline"
-								className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
-								onClick={handleGenerateSample}
-								disabled={isGeneratingSample || !isAuthenticated}
-							>
-								{isGeneratingSample ? (
-									<Loader2Icon className="size-4 animate-spin" />
-								) : (
-									<Sparkles className="size-4" />
-								)}
-								Mock Input
-							</Button>
-						) : (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<span className="inline-flex">
-										<Button
-											aria-label="Generate Sample JSON"
-											size="sm"
-											variant="outline"
-											className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50"
-											onClick={handleGenerateSample}
-											disabled
+												onChange(template);
+												setPrefillOpen(false);
+											}}
 										>
-											{isGeneratingSample ? (
-												<Loader2Icon className="size-4 animate-spin" />
-											) : (
-												<Sparkles className="size-4" />
-											)}
-											Mock Input
-										</Button>
-									</span>
-								</TooltipTrigger>
-								<TooltipContent>
-									Login to generate a mock input using AI
-								</TooltipContent>
-							</Tooltip>
-						))}
+											<SquareCode className="size-4" />
+											<span>Template</span>
+											<span className="ml-auto text-xs text-muted-foreground">
+												Empty schema structure
+											</span>
+										</CommandItem>
 
-					{selectedAgentData?.examples &&
-						selectedAgentData.examples.length > 0 && (
-							<Popover open={examplesOpen} onOpenChange={setExamplesOpen}>
-								<PopoverTrigger asChild>
-									<Button
-										aria-expanded={examplesOpen}
-										aria-label="Load example input"
-										size="sm"
-										variant="outline"
-										className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
-									>
-										<FileJson className="size-4" />
-										Examples
-										<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
-									</Button>
-								</PopoverTrigger>
-								<PopoverContent
-									side="top"
-									align="end"
-									className="w-fit max-w-xl p-0 z-101"
-								>
-									<Command>
-										<CommandList>
-											<CommandGroup>
+										{isAuthenticated ? (
+											<CommandItem
+												disabled={isGeneratingSample}
+												onSelect={() => {
+													handleGenerateSample();
+													setPrefillOpen(false);
+												}}
+											>
+												{isGeneratingSample ? (
+													<Loader2Icon className="size-4 animate-spin" />
+												) : (
+													<Sparkles className="size-4" />
+												)}
+												<span>Mock Input</span>
+												<span className="ml-auto text-xs text-muted-foreground">
+													AI-generated data
+												</span>
+											</CommandItem>
+										) : (
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<CommandItem disabled className="opacity-50">
+														<Sparkles className="size-4" />
+														<span>Mock Input</span>
+														<span className="ml-auto text-xs text-muted-foreground">
+															Login required
+														</span>
+													</CommandItem>
+												</TooltipTrigger>
+												<TooltipContent>
+													Login to generate a mock input using AI
+												</TooltipContent>
+											</Tooltip>
+										)}
+									</CommandGroup>
+
+									{selectedAgentData?.examples &&
+										selectedAgentData.examples.length > 0 && (
+											<CommandGroup heading="Examples">
 												{selectedAgentData.examples.map((example) => {
 													const label =
 														typeof example === "object" && example !== null
@@ -409,9 +401,10 @@ export function InputSection({
 																		: String(example);
 
 																onChange(formatted);
-																setExamplesOpen(false);
+																setPrefillOpen(false);
 															}}
 														>
+															<FileJson className="size-4" />
 															<span className="truncate font-mono">
 																{label}
 															</span>
@@ -419,12 +412,25 @@ export function InputSection({
 													);
 												})}
 											</CommandGroup>
-										</CommandList>
-									</Command>
-								</PopoverContent>
-							</Popover>
-						)}
-				</div>
+										)}
+								</CommandList>
+							</Command>
+						</PopoverContent>
+					</Popover>
+				)}
+
+				{clearAgentState && selectedAgent && (
+					<Button
+						aria-label="Clear conversation history"
+						size="sm"
+						variant="outline"
+						className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50 text-foreground hover:text-destructive"
+						onClick={() => clearAgentState(selectedAgent)}
+					>
+						<Trash2 className="size-4" />
+						Clear Thread
+					</Button>
+				)}
 			</div>
 
 			<PromptInput onSubmit={onSubmit}>
