@@ -312,12 +312,12 @@ export function InputSection({
 						<PopoverTrigger asChild>
 							<Button
 								aria-expanded={prefillOpen}
-								aria-label="Prefill input"
+								aria-label="Pre-fill input"
 								size="sm"
 								variant="outline"
 								className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
 							>
-								Prefill
+								Pre-fill
 								<ChevronDownIcon className="size-4 shrink-0 opacity-50" />
 							</Button>
 						</PopoverTrigger>

@@ -1,7 +1,7 @@
 import { ChevronRight, Copy, Loader, RefreshCcw } from "lucide-react";
 import { useState } from "react";
 import { useLogger } from "../../hooks/useLogger";
-import { cn } from "../../lib/utils";
+import { cn, formatErrorForCopy } from "../../lib/utils";
 import { Action, Actions } from "../ai-elements/actions";
 import { CodeBlock } from "../ai-elements/code-block";
 import {
@@ -11,7 +11,6 @@ import {
 } from "../ai-elements/conversation";
 import { Message, MessageContent } from "../ai-elements/message";
 import { Shimmer } from "../ai-elements/shimmer";
-import { ErrorBubble } from "../ui/error-bubble";
 import { InputSection } from "./InputSection";
 import { useWorkbench } from "./WorkbenchProvider";
 
@@ -206,16 +205,26 @@ export function Chat({
 
 									{(role === "user" || !isStreaming) && (
 										<>
-											{errorInfo ? (
-												<ErrorBubble error={errorInfo} />
-											) : (
-												<Message
-													key={id}
-													from={role as "user" | "system" | "assistant"}
-													className="p-0"
+											<Message
+												key={id}
+												from={role as "user" | "system" | "assistant"}
+												className="p-0"
+											>
+												<MessageContent
+													className={cn(errorInfo && "bg-destructive/10")}
 												>
-													<MessageContent>
-														{parts.map((part, index) => {
+													{errorInfo ? (
+														errorInfo.stack ? (
+															<pre className="font-mono whitespace-pre-wrap overflow-x-auto text-destructive">
+																{errorInfo.stack}
+															</pre>
+														) : (
+															<p className="font-mono whitespace-pre-wrap overflow-x-auto text-destructive">
+																{errorInfo.message || "Unknown error"}
+															</p>
+														)
+													) : (
+														parts.map((part, index) => {
 															switch (part.type) {
 																case "text":
 																	// json?
@@ -256,10 +265,10 @@ export function Chat({
 																default:
 																	return null;
 															}
-														})}
-													</MessageContent>
-												</Message>
-											)}
+														})
+													)}
+												</MessageContent>
+											</Message>
 
 											<Actions
 												className={cn(
@@ -289,14 +298,16 @@ export function Chat({
 													tooltip="Copy to clipboard"
 													label="Copy to clipboard"
 													className="size-8 hover:bg-transparent!"
-													onClick={() =>
-														navigator.clipboard.writeText(
-															parts
-																.filter((part) => part.type === "text")
-																.map((part) => part.text)
-																.join(""),
-														)
-													}
+													onClick={() => {
+														const text = errorInfo
+															? formatErrorForCopy(errorInfo)
+															: parts
+																	.filter((part) => part.type === "text")
+																	.map((part) => part.text)
+																	.join("");
+
+														navigator.clipboard.writeText(text);
+													}}
 												>
 													<Copy className="size-4" />
 												</Action>

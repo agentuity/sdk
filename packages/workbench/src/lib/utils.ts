@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { ErrorInfo } from "@/types/config";
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -156,4 +157,14 @@ export function generateTemplateFromSchema(schema?: unknown): string {
 	const template = generateEmptyValueForSchema(schema);
 
 	return JSON.stringify(template, null, 2);
+}
+
+export function formatErrorForCopy(error: ErrorInfo): string {
+	return [
+		error.code ? `[${error.code}] ${error.message}` : error.message,
+		error.stack,
+		error.cause ? `Cause: ${JSON.stringify(error.cause, null, 2)}` : null,
+	]
+		.filter(Boolean)
+		.join("\n\n");
 }
