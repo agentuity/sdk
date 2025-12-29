@@ -138,11 +138,14 @@ export async function executionList(
 				executionId: exec.executionId,
 				sandboxId: exec.sandboxId,
 				status: exec.status as ExecutionStatus,
+				command: exec.command,
 				exitCode: exec.exitCode,
 				durationMs: exec.durationMs,
 				startedAt: exec.startedAt,
 				completedAt: exec.completedAt,
 				error: exec.error,
+				stdoutStreamUrl: exec.stdoutStreamUrl,
+				stderrStreamUrl: exec.stderrStreamUrl,
 			})),
 		};
 	}

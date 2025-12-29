@@ -235,10 +235,28 @@ async function streamUrlToWritable(
 
 function writeAndDrain(writable: NodeJS.WritableStream, chunk: Uint8Array): Promise<void> {
 	return new Promise((resolve, reject) => {
-		const needsDrain = !writable.write(chunk);
+		let needsDrain: boolean;
+		try {
+			needsDrain = !writable.write(chunk);
+		} catch (err) {
+			reject(err);
+			return;
+		}
 		if (needsDrain) {
-			writable.once('drain', resolve);
-			writable.once('error', reject);
+			const cleanup = () => {
+				writable.removeListener('drain', onDrain);
+				writable.removeListener('error', onError);
+			};
+			const onDrain = () => {
+				cleanup();
+				resolve();
+			};
+			const onError = (err: Error) => {
+				cleanup();
+				reject(err);
+			};
+			writable.once('drain', onDrain);
+			writable.once('error', onError);
 		} else {
 			resolve();
 		}
