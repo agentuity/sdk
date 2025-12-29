@@ -12,6 +12,7 @@ import {
   getAppState,
   getAppConfig,
   register,
+  getSpanProcessors,
   createServices,
   runAgentSetups,
   getThreadProvider,
@@ -43,7 +44,7 @@ if (isDevelopment()) {
 
 // Step 1: Initialize telemetry and services
 const serverUrl = `http://127.0.0.1:${process.env.PORT || '3500'}`;
-const otel = register({ processors: [], logLevel: (process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel });
+const otel = register({ processors: getSpanProcessors(), logLevel: (process.env.AGENTUITY_LOG_LEVEL || 'info') as LogLevel });
 
 // Get app state and config for use below
 const appState = getAppState();
