@@ -31,7 +31,12 @@ async function waitForExecution(
 	while (Date.now() - startTime < MAX_POLL_TIME_MS) {
 		const info = await executionGet(client, { executionId, orgId });
 
-		if (info.status === 'completed' || info.status === 'failed' || info.status === 'timeout' || info.status === 'cancelled') {
+		if (
+			info.status === 'completed' ||
+			info.status === 'failed' ||
+			info.status === 'timeout' ||
+			info.status === 'cancelled'
+		) {
 			return info;
 		}
 
@@ -218,10 +223,14 @@ export class SandboxClient {
 					const streamPromises: Promise<void>[] = [];
 
 					if (pipe.stdout && initialResult.stdoutStreamUrl) {
-						streamPromises.push(pipeStreamToWritable(initialResult.stdoutStreamUrl, pipe.stdout));
+						streamPromises.push(
+							pipeStreamToWritable(initialResult.stdoutStreamUrl, pipe.stdout)
+						);
 					}
 					if (pipe.stderr && initialResult.stderrStreamUrl) {
-						streamPromises.push(pipeStreamToWritable(initialResult.stderrStreamUrl, pipe.stderr));
+						streamPromises.push(
+							pipeStreamToWritable(initialResult.stderrStreamUrl, pipe.stderr)
+						);
 					}
 
 					// Wait for all streams to complete

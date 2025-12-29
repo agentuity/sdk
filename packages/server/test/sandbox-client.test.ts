@@ -28,12 +28,14 @@ describe('SandboxClient', () => {
 		expect(client).toBeDefined();
 	});
 
-	test('should throw if no URL is available', () => {
+	test('should use regional fallback when no URL env vars are set', () => {
 		delete process.env.AGENTUITY_STREAM_URL;
 		delete process.env.AGENTUITY_CATALYST_URL;
 		delete process.env.AGENTUITY_TRANSPORT_URL;
+		delete process.env.AGENTUITY_SANDBOX_URL;
 
-		expect(() => new SandboxClient()).toThrow('Sandbox API URL is required');
+		const client = new SandboxClient();
+		expect(client).toBeDefined();
 	});
 
 	test('should fallback to AGENTUITY_CLI_KEY', () => {
@@ -139,6 +141,20 @@ describe('SandboxClient', () => {
 							success: true,
 							data: {
 								executionId: 'exec-789',
+								status: 'queued',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('/executions/exec-789')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-789',
+								sandboxId: 'sandbox-123',
 								status: 'completed',
 								exitCode: 0,
 								durationMs: 150,

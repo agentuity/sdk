@@ -76,9 +76,9 @@ Environment:
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `AGENTUITY_SDK_KEY` | API key for authentication | Required |
-| `AGENTUITY_REGION` | Region for API endpoints | `usc` |
-| `AGENTUITY_SANDBOX_URL` | Override sandbox API URL | Auto-detected |
-| `AGENTUITY_CATALYST_URL` | Override catalyst API URL | Auto-detected |
+| Variable                 | Description                | Default       |
+| ------------------------ | -------------------------- | ------------- |
+| `AGENTUITY_SDK_KEY`      | API key for authentication | Required      |
+| `AGENTUITY_REGION`       | Region for API endpoints   | `usc`         |
+| `AGENTUITY_SANDBOX_URL`  | Override sandbox API URL   | Auto-detected |
+| `AGENTUITY_CATALYST_URL` | Override catalyst API URL  | Auto-detected |
