@@ -594,15 +594,19 @@ export function WorkbenchProvider({
 						? JSON.stringify(result, null, 2)
 						: String(result);
 
+				const sessionId = response.headers.get("x-session-id") || undefined;
+
 				const assistantMessage: UIMessage & {
 					tokens?: string;
 					duration?: string;
+					sessionId?: string;
 				} = {
 					id: assistantMessageId,
 					role: "assistant",
 					parts: [{ type: "text", text: resultText }],
 					tokens: totalTokens?.toString(),
 					duration,
+					sessionId,
 				};
 
 				setMessages((prev) =>

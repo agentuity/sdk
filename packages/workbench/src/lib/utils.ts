@@ -89,3 +89,71 @@ export const defaultBaseUrl: string =
 	getProcessEnv("AGENTUITY_URL") ||
 	tryOrigin() ||
 	"http://localhost:3500";
+
+type SchemaLike = {
+	type?: string | string[];
+	properties?: Record<string, unknown>;
+	[key: string]: unknown;
+};
+
+function generateEmptyValueForSchema(schema: unknown): unknown {
+	if (typeof schema === "boolean") {
+		return schema ? {} : undefined;
+	}
+
+	if (typeof schema !== "object" || schema === null) {
+		return "";
+	}
+
+	const s = schema as SchemaLike;
+	const type = s.type;
+
+	if (Array.isArray(type)) {
+		return generateEmptyValueForSchema({ ...s, type: type[0] });
+	}
+
+	switch (type) {
+		case "string":
+			return "";
+		case "number":
+		case "integer":
+			return 0;
+		case "boolean":
+			return false;
+		case "null":
+			return null;
+		case "array":
+			return [];
+		case "object": {
+			const result: Record<string, unknown> = {};
+
+			if (s.properties) {
+				for (const [key, propSchema] of Object.entries(s.properties)) {
+					result[key] = generateEmptyValueForSchema(propSchema);
+				}
+			}
+
+			return result;
+		}
+		default:
+			if (s.properties) {
+				const result: Record<string, unknown> = {};
+
+				for (const [key, propSchema] of Object.entries(s.properties)) {
+					result[key] = generateEmptyValueForSchema(propSchema);
+				}
+
+				return result;
+			}
+
+			return "";
+	}
+}
+
+export function generateTemplateFromSchema(schema?: unknown): string {
+	if (!schema) return "{}";
+
+	const template = generateEmptyValueForSchema(schema);
+
+	return JSON.stringify(template, null, 2);
+}

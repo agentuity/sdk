@@ -3,18 +3,20 @@ import {
 	ArrowUp,
 	Braces,
 	CheckIcon,
+	ChevronDownIcon,
 	ChevronsUpDownIcon,
 	FileJson,
 	Loader2Icon,
 	SendIcon,
 	Sparkles,
+	SquareCode,
 	Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { convertJsonSchemaToZod } from "zod-from-json-schema";
 import type { AgentSchemaData } from "../../hooks/useAgentSchemas";
 import { useLogger } from "../../hooks/useLogger";
-import { cn } from "../../lib/utils";
+import { cn, generateTemplateFromSchema } from "../../lib/utils";
 import {
 	PromptInput,
 	PromptInputBody,
@@ -79,7 +81,7 @@ export function InputSection({
 	const { generateSample, isGeneratingSample, env } = useWorkbench();
 	const isAuthenticated = env.authenticated;
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
-	const [examplesOpen, setExamplesOpen] = useState(false);
+	const [prefillOpen, setPrefillOpen] = useState(false);
 	const [isValidInput, setIsValidInput] = useState(true);
 	const [monacoHasErrors, setMonacoHasErrors] = useState<boolean | null>(null);
 
@@ -305,112 +307,130 @@ export function InputSection({
 					Schema
 				</Button>
 
-				{clearAgentState && selectedAgent && (
-					<Button
-						aria-label="Clear conversation history"
-						size="sm"
-						variant="outline"
-						className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50 text-foreground hover:text-destructive"
-						onClick={() => clearAgentState(selectedAgent)}
-					>
-						<Trash2 className="size-4" />
-						Clear
-					</Button>
-				)}
-
-				{selectedAgentData?.examples && selectedAgentData.examples.length > 0 && (
-					<Popover open={examplesOpen} onOpenChange={setExamplesOpen}>
+				{isObjectSchema && (
+					<Popover open={prefillOpen} onOpenChange={setPrefillOpen}>
 						<PopoverTrigger asChild>
 							<Button
-								aria-expanded={examplesOpen}
-								aria-label="Load example input"
+								aria-expanded={prefillOpen}
+								aria-label="Prefill input"
 								size="sm"
 								variant="outline"
 								className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
 							>
-								<FileJson className="size-4" />
-								Examples
-								<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
+								Prefill
+								<ChevronDownIcon className="size-4 shrink-0 opacity-50" />
 							</Button>
 						</PopoverTrigger>
-						<PopoverContent side="top" align="start" className="w-fit p-0 z-101">
+						<PopoverContent
+							side="top"
+							align="start"
+							className="w-fit max-w-xl p-0 z-101"
+						>
 							<Command>
 								<CommandList>
-									<CommandGroup heading="Load example">
-										{selectedAgentData.examples.map((example, index) => {
-											const label =
-												typeof example === "object" && example !== null
-													? JSON.stringify(example).substring(0, 40) +
-													(JSON.stringify(example).length > 40 ? "..." : "")
-													: String(example).substring(0, 40);
+									<CommandGroup>
+										<CommandItem
+											onSelect={() => {
+												const template = generateTemplateFromSchema(
+													selectedAgentData?.schema?.input?.json,
+												);
 
-											return (
-												<CommandItem
-													key={index}
-													onSelect={() => {
-														const formatted =
-															typeof example === "object"
-																? JSON.stringify(example, null, 2)
-																: String(example);
+												onChange(template);
+												setPrefillOpen(false);
+											}}
+										>
+											<SquareCode className="size-4" />
+											<span>Template</span>
+											<span className="ml-auto text-xs text-muted-foreground">
+												Empty schema structure
+											</span>
+										</CommandItem>
 
-														onChange(formatted);
-														setExamplesOpen(false);
-													}}
-												>
-													<span className="font-mono text-xs">{label}</span>
-												</CommandItem>
-											);
-										})}
+										{isAuthenticated ? (
+											<CommandItem
+												disabled={isGeneratingSample}
+												onSelect={() => {
+													handleGenerateSample();
+													setPrefillOpen(false);
+												}}
+											>
+												{isGeneratingSample ? (
+													<Loader2Icon className="size-4 animate-spin" />
+												) : (
+													<Sparkles className="size-4" />
+												)}
+												<span>Mock Input</span>
+												<span className="ml-auto text-xs text-muted-foreground">
+													AI-generated data
+												</span>
+											</CommandItem>
+										) : (
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<CommandItem disabled className="opacity-50">
+														<Sparkles className="size-4" />
+														<span>Mock Input</span>
+														<span className="ml-auto text-xs text-muted-foreground">
+															Login required
+														</span>
+													</CommandItem>
+												</TooltipTrigger>
+												<TooltipContent>
+													Login to generate a mock input using AI
+												</TooltipContent>
+											</Tooltip>
+										)}
 									</CommandGroup>
+
+									{selectedAgentData?.examples &&
+										selectedAgentData.examples.length > 0 && (
+											<CommandGroup heading="Examples">
+												{selectedAgentData.examples.map((example) => {
+													const label =
+														typeof example === "object" && example !== null
+															? JSON.stringify(example).substring(0, 60)
+															: String(example).substring(0, 60);
+
+													return (
+														<CommandItem
+															key={label}
+															onSelect={() => {
+																const formatted =
+																	typeof example === "object"
+																		? JSON.stringify(example, null, 2)
+																		: String(example);
+
+																onChange(formatted);
+																setPrefillOpen(false);
+															}}
+														>
+															<FileJson className="size-4" />
+															<span className="truncate font-mono">
+																{label}
+															</span>
+														</CommandItem>
+													);
+												})}
+											</CommandGroup>
+										)}
 								</CommandList>
 							</Command>
 						</PopoverContent>
 					</Popover>
 				)}
 
-				{isObjectSchema &&
-					(isAuthenticated ? (
-						<Button
-							aria-label="Generate Sample JSON"
-							size="sm"
-							variant="outline"
-							className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
-							onClick={handleGenerateSample}
-							disabled={isGeneratingSample || !isAuthenticated}
-						>
-							{isGeneratingSample ? (
-								<Loader2Icon className="size-4 animate-spin" />
-							) : (
-								<Sparkles className="size-4" />
-							)}
-							Mock Input
-						</Button>
-					) : (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<span className="inline-flex">
-									<Button
-										aria-label="Generate Sample JSON"
-										size="sm"
-										variant="outline"
-										className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50"
-										onClick={handleGenerateSample}
-										disabled={isGeneratingSample || !isAuthenticated}
-									>
-										{isGeneratingSample ? (
-											<Loader2Icon className="size-4 animate-spin" />
-										) : (
-											<Sparkles className="size-4" />
-										)}
-										Mock Input
-									</Button>
-								</span>
-							</TooltipTrigger>
-							<TooltipContent>
-								Login to generate a mock input using AI
-							</TooltipContent>
-						</Tooltip>
-					))}
+				{clearAgentState && selectedAgent && (
+					<Button
+						aria-label="Clear conversation history"
+						size="sm"
+						variant="outline"
+						className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50 text-foreground hover:text-destructive"
+						onClick={() => clearAgentState(selectedAgent)}
+					>
+						<Trash2 className="size-4" />
+						Clear Thread
+					</Button>
+				)}
 			</div>
 
 			<PromptInput onSubmit={onSubmit}>
