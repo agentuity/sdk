@@ -18,7 +18,6 @@ export function Header({
 	showSettings = false,
 }: HeaderProps) {
 	const { connectionStatus } = useWorkbench();
-	const LogoComponent = Logo;
 
 	return (
 		<nav
@@ -28,7 +27,7 @@ export function Header({
 			)}
 		>
 			<div className="flex items-center gap-2.5">
-				<LogoComponent />
+				<Logo />
 
 				<h1 className="text-sm">{title}</h1>
 			</div>
