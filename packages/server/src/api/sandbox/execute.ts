@@ -1,15 +1,16 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { SandboxResponseError, API_VERSION } from './util';
+import { FileToWriteSchema } from './files';
 import type { ExecuteOptions, Execution, ExecutionStatus } from '@agentuity/core';
 
 const ExecuteRequestSchema = z
 	.object({
 		command: z.array(z.string()).describe('Command and arguments to execute'),
 		files: z
-			.record(z.string(), z.string())
+			.array(FileToWriteSchema)
 			.optional()
-			.describe('Files to write before execution (path -> content)'),
+			.describe('Files to write before execution'),
 		timeout: z.string().optional().describe('Execution timeout (e.g., "30s", "5m")'),
 		stream: z
 			.object({
@@ -41,6 +42,7 @@ export interface SandboxExecuteParams {
 	sandboxId: string;
 	options: ExecuteOptions;
 	orgId?: string;
+	signal?: AbortSignal;
 }
 
 /**
@@ -55,13 +57,16 @@ export async function sandboxExecute(
 	client: APIClient,
 	params: SandboxExecuteParams
 ): Promise<Execution> {
-	const { sandboxId, options, orgId } = params;
+	const { sandboxId, options, orgId, signal } = params;
 	const body: z.infer<typeof ExecuteRequestSchema> = {
 		command: options.command,
 	};
 
 	if (options.files) {
-		body.files = options.files;
+		body.files = options.files.map((f) => ({
+			path: f.path,
+			content: f.content.toString('base64'),
+		}));
 	}
 	if (options.timeout) {
 		body.timeout = options.timeout;
@@ -81,7 +86,8 @@ export async function sandboxExecute(
 		url,
 		body,
 		ExecuteResponseSchema,
-		ExecuteRequestSchema
+		ExecuteRequestSchema,
+		signal ?? options.signal
 	);
 
 	if (resp.success) {

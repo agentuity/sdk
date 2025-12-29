@@ -135,9 +135,13 @@ export async function sandboxRun(
 			}
 		}
 
+		// Poll for sandbox completion in parallel with streaming
 		let attempts = 0;
+		let finalStatus: 'terminated' | 'failed' | null = null;
+
 		while (attempts < MAX_POLL_ATTEMPTS) {
 			if (signal?.aborted) {
+				abortController.abort();
 				throw new SandboxResponseError({
 					message: 'Sandbox execution cancelled',
 					sandboxId,
@@ -151,23 +155,39 @@ export async function sandboxRun(
 				const sandboxInfo = await sandboxGet(client, { sandboxId, orgId });
 
 				if (sandboxInfo.status === 'terminated') {
-					return {
-						sandboxId,
-						exitCode: 0,
-						durationMs: Date.now() - started,
-					};
+					finalStatus = 'terminated';
+					break;
 				}
 
 				if (sandboxInfo.status === 'failed') {
-					return {
-						sandboxId,
-						exitCode: 1,
-						durationMs: Date.now() - started,
-					};
+					finalStatus = 'failed';
+					break;
 				}
 			} catch {
+				// Ignore polling errors, continue
 				continue;
 			}
+		}
+
+		// Sandbox completed, give streams a moment to flush then abort
+		await sleep(100);
+		abortController.abort();
+		await Promise.allSettled(streamPromises);
+
+		if (finalStatus === 'terminated') {
+			return {
+				sandboxId,
+				exitCode: 0,
+				durationMs: Date.now() - started,
+			};
+		}
+
+		if (finalStatus === 'failed') {
+			return {
+				sandboxId,
+				exitCode: 1,
+				durationMs: Date.now() - started,
+			};
 		}
 
 		throw new SandboxResponseError({
@@ -175,18 +195,13 @@ export async function sandboxRun(
 			sandboxId,
 		});
 	} catch (error) {
+		abortController.abort();
 		try {
 			await sandboxDestroy(client, { sandboxId, orgId });
 		} catch {
 			// Ignore cleanup errors
 		}
 		throw error;
-	} finally {
-		// Give streams time to flush before aborting
-		await sleep(100);
-		abortController.abort();
-		// Wait for all stream promises to settle
-		await Promise.allSettled(streamPromises);
 	}
 }
 
@@ -316,10 +331,11 @@ async function streamUrlToWritable(
 
 		const reader = response.body.getReader();
 
-		while (!signal.aborted) {
+		// Read until EOF - Pulse will block until data is available
+		while (true) {
 			const { done, value } = await reader.read();
 			if (done) {
-				logger?.debug('stream done');
+				logger?.debug('stream EOF');
 				break;
 			}
 
@@ -330,10 +346,10 @@ async function streamUrlToWritable(
 		}
 	} catch (err) {
 		if (err instanceof Error && err.name === 'AbortError') {
-			logger?.debug('stream aborted (expected on completion)');
-		} else {
-			logger?.debug('stream caught error: %s', err);
+			logger?.debug('stream aborted');
+			return;
 		}
+		logger?.debug('stream error: %s', err);
 	}
 }
 

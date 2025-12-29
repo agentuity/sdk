@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema } from '../api';
+import { APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
 import { SandboxResponseError } from './util';
 
 const SNAPSHOT_API_VERSION = '2025-06-26';
@@ -38,7 +38,7 @@ const SnapshotListDataSchema = z
 	})
 	.describe('Paginated list of snapshots');
 const SnapshotListResponseSchema = APIResponseSchema(SnapshotListDataSchema);
-const SnapshotDeleteResponseSchema = APIResponseSchema(z.object({}).describe('Empty response'));
+const SnapshotDeleteResponseSchema = APIResponseSchemaNoData();
 
 export interface SnapshotFileInfo {
 	path: string;

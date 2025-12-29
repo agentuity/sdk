@@ -150,12 +150,19 @@ export const execSubcommand = createCommand({
 				}
 			}
 
-			// Give streams time to flush before aborting
-			await sleep(100);
-			streamAbortController.abort();
+			// Wait for all streams to reach EOF (Pulse blocks until true EOF)
+			await Promise.all(streamPromises);
 
-			// Wait for all stream promises to settle
-			await Promise.allSettled(streamPromises);
+			// Ensure stdout is fully flushed before continuing
+			if (!options.json && process.stdout.writable) {
+				await new Promise<void>((resolve) => {
+					if (process.stdout.writableNeedDrain) {
+						process.stdout.once('drain', () => resolve());
+					} else {
+						resolve();
+					}
+				});
+			}
 
 			const duration = Date.now() - started;
 			const output = outputChunks.join('');
@@ -192,52 +199,50 @@ async function streamUrlToWritable(
 	signal: AbortSignal,
 	logger: Logger
 ): Promise<void> {
-	const maxRetries = 10;
-	const retryDelay = 200;
+	try {
+		logger.debug('fetching stream: %s', url);
+		const response = await fetch(url, { signal });
+		logger.debug('stream response status: %d', response.status);
 
-	for (let attempt = 0; attempt < maxRetries && !signal.aborted; attempt++) {
-		try {
-			if (attempt > 0) {
-				logger.debug('stream retry attempt %d', attempt + 1);
-				await sleep(retryDelay);
-			}
-
-			logger.debug('fetching stream: %s', url);
-			const response = await fetch(url, { signal });
-			logger.debug('stream response status: %d', response.status);
-
-			if (!response.ok || !response.body) {
-				logger.debug('stream response not ok or no body');
-				return;
-			}
-
-			const reader = response.body.getReader();
-			let receivedData = false;
-
-			while (!signal.aborted) {
-				const { done, value } = await reader.read();
-				if (done) {
-					logger.debug('stream done, received data: %s', receivedData);
-					if (receivedData) {
-						return;
-					}
-					break;
-				}
-
-				if (value) {
-					receivedData = true;
-					logger.debug('stream chunk: %d bytes', value.length);
-					writable.write(value);
-				}
-			}
-		} catch (err) {
-			if (err instanceof Error && err.name === 'AbortError') {
-				logger.debug('stream aborted (expected on completion)');
-				return;
-			}
-			logger.debug('stream caught error: %s', err);
+		if (!response.ok || !response.body) {
+			logger.debug('stream response not ok or no body');
+			return;
 		}
+
+		const reader = response.body.getReader();
+
+		// Read until EOF - Pulse will block until data is available
+		while (true) {
+			const { done, value } = await reader.read();
+			if (done) {
+				logger.debug('stream EOF');
+				break;
+			}
+
+			if (value) {
+				logger.debug('stream chunk: %d bytes', value.length);
+				await writeAndDrain(writable, value);
+			}
+		}
+	} catch (err) {
+		if (err instanceof Error && err.name === 'AbortError') {
+			logger.debug('stream aborted');
+			return;
+		}
+		logger.debug('stream error: %s', err);
 	}
+}
+
+function writeAndDrain(writable: NodeJS.WritableStream, chunk: Uint8Array): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const needsDrain = !writable.write(chunk);
+		if (needsDrain) {
+			writable.once('drain', resolve);
+			writable.once('error', reject);
+		} else {
+			resolve();
+		}
+	});
 }
 
 function createCaptureStream(onChunk: (chunk: string) => void): NodeJS.WritableStream {

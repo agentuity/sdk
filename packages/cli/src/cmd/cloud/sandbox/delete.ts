@@ -9,6 +9,7 @@ const SandboxDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	sandboxId: z.string().describe('Sandbox ID'),
 	durationMs: z.number().describe('Operation duration in milliseconds'),
+	message: z.string().optional().describe('Status message'),
 });
 
 export const deleteSubcommand = createCommand({
@@ -27,16 +28,41 @@ export const deleteSubcommand = createCommand({
 			command: getCommand('cloud sandbox rm abc123'),
 			description: 'Delete using alias',
 		},
+		{
+			command: getCommand('cloud sandbox rm abc123 --confirm'),
+			description: 'Delete without confirmation prompt',
+		},
 	],
 	schema: {
 		args: z.object({
 			sandboxId: z.string().describe('Sandbox ID'),
 		}),
+		options: z.object({
+			confirm: z
+				.boolean()
+				.optional()
+				.default(false)
+				.describe('Skip confirmation prompt'),
+		}),
 		response: SandboxDeleteResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, options, auth, region, logger, orgId } = ctx;
+		const { args, options, opts, auth, region, logger, orgId } = ctx;
+
+		if (!opts.confirm) {
+			const confirmed = await tui.confirm(`Delete sandbox "${args.sandboxId}"?`, false);
+			if (!confirmed) {
+				logger.info('Cancelled');
+				return {
+					success: false,
+					sandboxId: args.sandboxId,
+					durationMs: 0,
+					message: 'Cancelled',
+				};
+			}
+		}
+
 		const started = Date.now();
 		const client = createSandboxClient(logger, auth, region);
 

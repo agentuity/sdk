@@ -10,11 +10,18 @@ export { sandboxDestroy } from './destroy';
 export type { SandboxDestroyParams } from './destroy';
 export { sandboxRun } from './run';
 export type { SandboxRunParams } from './run';
-export { executionGet } from './execution';
-export type { ExecutionInfo, ExecutionGetParams } from './execution';
+export { executionGet, executionList } from './execution';
+export type {
+	ExecutionInfo,
+	ExecutionGetParams,
+	ExecutionListParams,
+	ExecutionListResponse,
+} from './execution';
 export { SandboxResponseError } from './util';
 export { SandboxClient } from './client';
 export type { SandboxClientOptions, SandboxInstance, ExecuteOptions } from './client';
+export { sandboxWriteFiles, sandboxReadFile } from './files';
+export type { WriteFilesParams, WriteFilesResult, ReadFileParams } from './files';
 export { snapshotCreate, snapshotGet, snapshotList, snapshotDelete, snapshotTag } from './snapshot';
 export type {
 	SnapshotInfo,
