@@ -1,6 +1,6 @@
 import Editor, { type Monaco, type OnMount } from "@monaco-editor/react";
-import oneDarkProModule from "@shikijs/themes/one-dark-pro";
-import oneLightModule from "@shikijs/themes/one-light";
+import oneDarkProModule from "@shikijs/themes/dark-plus";
+import oneLightModule from "@shikijs/themes/light-plus";
 import type { JSONSchema7 } from "ai";
 import type * as monaco from "monaco-editor";
 import React, { useEffect, useRef, useState } from "react";

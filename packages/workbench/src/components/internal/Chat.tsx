@@ -1,10 +1,9 @@
-import { Copy, Loader, RefreshCcw } from "lucide-react";
+import { ChevronRight, Copy, Loader, RefreshCcw } from "lucide-react";
 import { useState } from "react";
 import { useLogger } from "../../hooks/useLogger";
 import { cn } from "../../lib/utils";
 import { Action, Actions } from "../ai-elements/actions";
 import { CodeBlock } from "../ai-elements/code-block";
-import { ErrorBubble } from "../ai-elements/error-bubble";
 import {
 	Conversation,
 	ConversationContent,
@@ -12,6 +11,7 @@ import {
 } from "../ai-elements/conversation";
 import { Message, MessageContent } from "../ai-elements/message";
 import { Shimmer } from "../ai-elements/shimmer";
+import { ErrorBubble } from "../ui/error-bubble";
 import { InputSection } from "./InputSection";
 import { useWorkbench } from "./WorkbenchProvider";
 
@@ -19,6 +19,7 @@ export interface ChatProps {
 	className?: string;
 	emptyState?: React.ReactNode;
 	onSchemaToggle: () => void;
+	onSessionOpen?: (sessionId: string) => void;
 	schemaOpen: boolean;
 }
 
@@ -26,6 +27,7 @@ export function Chat({
 	className: _className,
 	emptyState,
 	onSchemaToggle,
+	onSessionOpen,
 	schemaOpen,
 }: ChatProps) {
 	const {
@@ -103,11 +105,24 @@ export function Chat({
 									? (message as { duration?: string }).duration
 									: undefined;
 
+							const sessionId =
+								"sessionId" in message
+									? (message as { sessionId?: string }).sessionId
+									: undefined;
+
 							// Check for agent error in text content
-							let errorInfo: { message: string; stack?: string; code?: string; cause?: unknown } | undefined;
+							let errorInfo:
+								| {
+										message: string;
+										stack?: string;
+										code?: string;
+										cause?: unknown;
+								  }
+								| undefined;
 
 							if (parts.length === 1 && parts[0].type === "text") {
 								const text = parts[0].text;
+
 								if (text.startsWith("{") && text.includes('"__agentError"')) {
 									try {
 										const parsed = JSON.parse(text) as {
@@ -117,6 +132,7 @@ export function Chat({
 											code?: string;
 											cause?: unknown;
 										};
+
 										if (parsed.__agentError) {
 											errorInfo = {
 												message: parsed.message || "Unknown error",
@@ -150,21 +166,40 @@ export function Chat({
 											{isStreaming ? (
 												<Shimmer duration={1}>Running...</Shimmer>
 											) : (
-												<>
+												<button
+													type="button"
+													className={cn(
+														"flex items-center bg-transparent border-none p-0 text-inherit",
+														sessionId &&
+															onSessionOpen &&
+															"hover:text-foreground transition-colors cursor-pointer",
+													)}
+													onClick={() =>
+														sessionId && onSessionOpen?.(sessionId)
+													}
+													tabIndex={0}
+													aria-label="Open session"
+													disabled={!sessionId}
+													style={{ background: "none" }}
+												>
 													{duration && (
 														<>
 															Ran for
 															<span className="mx-1">{duration}</span>
 														</>
 													)}
-													{duration &&
-														tokens &&
-														`and consumed ${tokens} tokens`}
 
-													{/* {(duration || tokens) && (
+													{duration && tokens && (
+														<>
+															and consumed
+															<span className="mx-1">{tokens}</span> tokens
+														</>
+													)}
+
+													{sessionId && onSessionOpen && (
 														<ChevronRight className="size-4" />
-													)} */}
-												</>
+													)}
+												</button>
 											)}
 										</div>
 									)}
@@ -203,7 +238,9 @@ export function Chat({
 																		} catch (_error) {
 																			// not json :(
 																			return (
-																				<div key={`${id}-${part.text}-${index}`}>
+																				<div
+																					key={`${id}-${part.text}-${index}`}
+																				>
 																					{part.text || ""}
 																				</div>
 																			);

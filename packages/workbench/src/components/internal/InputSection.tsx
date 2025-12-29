@@ -218,199 +218,213 @@ export function InputSection({
 
 	return (
 		<div className={cn("flex flex-col gap-4 p-4 z-100", className)}>
-			<div className="flex items-center gap-2">
-				<Popover open={agentSelectOpen} onOpenChange={setAgentSelectOpen}>
-					<PopoverTrigger asChild>
-						<Button
-							aria-expanded={agentSelectOpen}
-							variant="outline"
-							size="sm"
-							className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
-						>
-							{Object.values(agents).find(
-								(agent) => agent.metadata.agentId === selectedAgent,
-							)?.metadata.name || "Select agent"}
-							<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
-						</Button>
-					</PopoverTrigger>
-					<PopoverContent side="top" align="start" className="w-fit p-0 z-101">
-						<Command>
-							<CommandInput placeholder="Search agents..." />
-							<CommandList>
-								<CommandEmpty>No agents found.</CommandEmpty>
-								<CommandGroup>
-									{Object.values(agents)
-										.sort((a, b) =>
-											a.metadata.name.localeCompare(b.metadata.name),
-										)
-										.map((agent) => {
-											const isSelected =
-												selectedAgent === agent.metadata.agentId;
-
-											// Use name for search but include agentId to ensure uniqueness
-											const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
-
-											return (
-												<CommandItem
-													key={agent.metadata.agentId}
-													value={searchValue}
-													onSelect={(currentValue) => {
-														// Extract agentId from the compound value
-														const agentId = currentValue.split("|")[1];
-														const selectedAgentData = Object.values(
-															agents,
-														).find((a) => a.metadata.agentId === agentId);
-
-														if (selectedAgentData) {
-															logger.debug(
-																"🎯 Agent selected by name:",
-																agent.metadata.name,
-																"agentId:",
-																agentId,
-															);
-
-															setSelectedAgent(agentId);
-														}
-
-														setAgentSelectOpen(false);
-													}}
-												>
-													<CheckIcon
-														className={cn(
-															"size-4 text-green-500",
-															isSelected ? "opacity-100" : "opacity-0",
-														)}
-													/>
-													{agent.metadata.name}
-												</CommandItem>
-											);
-										})}
-								</CommandGroup>
-							</CommandList>
-						</Command>
-					</PopoverContent>
-				</Popover>
-
-				<Button
-					aria-label={isSchemaOpen ? "Hide Schema" : "View Schema"}
-					size="sm"
-					variant="outline"
-					className={cn(
-						"font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50",
-						isSchemaOpen && "bg-secondary!",
-					)}
-					onClick={onSchemaToggle}
-				>
-					<Braces className="size-4" />
-					Schema
-				</Button>
-
-				{clearAgentState && selectedAgent && (
-					<Button
-						aria-label="Clear conversation history"
-						size="sm"
-						variant="outline"
-						className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50 text-foreground hover:text-destructive"
-						onClick={() => clearAgentState(selectedAgent)}
-					>
-						<Trash2 className="size-4" />
-						Clear
-					</Button>
-				)}
-
-				{selectedAgentData?.examples && selectedAgentData.examples.length > 0 && (
-					<Popover open={examplesOpen} onOpenChange={setExamplesOpen}>
+			<div className="flex items-center gap-2 justify-between">
+				<div className="flex items-center gap-2">
+					<Popover open={agentSelectOpen} onOpenChange={setAgentSelectOpen}>
 						<PopoverTrigger asChild>
 							<Button
-								aria-expanded={examplesOpen}
-								aria-label="Load example input"
-								size="sm"
+								aria-expanded={agentSelectOpen}
 								variant="outline"
+								size="sm"
 								className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
 							>
-								<FileJson className="size-4" />
-								Examples
+								{Object.values(agents).find(
+									(agent) => agent.metadata.agentId === selectedAgent,
+								)?.metadata.name || "Select agent"}
 								<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
 							</Button>
 						</PopoverTrigger>
-						<PopoverContent side="top" align="start" className="w-fit p-0 z-101">
+						<PopoverContent
+							side="top"
+							align="start"
+							className="w-fit p-0 z-101"
+						>
 							<Command>
+								<CommandInput placeholder="Search agents..." />
 								<CommandList>
-									<CommandGroup heading="Load example">
-										{selectedAgentData.examples.map((example, index) => {
-											const label =
-												typeof example === "object" && example !== null
-													? JSON.stringify(example).substring(0, 40) +
-													(JSON.stringify(example).length > 40 ? "..." : "")
-													: String(example).substring(0, 40);
+									<CommandEmpty>No agents found.</CommandEmpty>
+									<CommandGroup>
+										{Object.values(agents)
+											.sort((a, b) =>
+												a.metadata.name.localeCompare(b.metadata.name),
+											)
+											.map((agent) => {
+												const isSelected =
+													selectedAgent === agent.metadata.agentId;
 
-											return (
-												<CommandItem
-													key={index}
-													onSelect={() => {
-														const formatted =
-															typeof example === "object"
-																? JSON.stringify(example, null, 2)
-																: String(example);
+												// Use name for search but include agentId to ensure uniqueness
+												const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
 
-														onChange(formatted);
-														setExamplesOpen(false);
-													}}
-												>
-													<span className="font-mono text-xs">{label}</span>
-												</CommandItem>
-											);
-										})}
+												return (
+													<CommandItem
+														key={agent.metadata.agentId}
+														value={searchValue}
+														onSelect={(currentValue) => {
+															// Extract agentId from the compound value
+															const agentId = currentValue.split("|")[1];
+															const selectedAgentData = Object.values(
+																agents,
+															).find((a) => a.metadata.agentId === agentId);
+
+															if (selectedAgentData) {
+																logger.debug(
+																	"🎯 Agent selected by name:",
+																	agent.metadata.name,
+																	"agentId:",
+																	agentId,
+																);
+
+																setSelectedAgent(agentId);
+															}
+
+															setAgentSelectOpen(false);
+														}}
+													>
+														<CheckIcon
+															className={cn(
+																"size-4 text-green-500",
+																isSelected ? "opacity-100" : "opacity-0",
+															)}
+														/>
+														{agent.metadata.name}
+													</CommandItem>
+												);
+											})}
 									</CommandGroup>
 								</CommandList>
 							</Command>
 						</PopoverContent>
 					</Popover>
-				)}
 
-				{isObjectSchema &&
-					(isAuthenticated ? (
+					<Button
+						aria-label={isSchemaOpen ? "Hide Schema" : "View Schema"}
+						size="sm"
+						variant="outline"
+						className={cn(
+							"font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50",
+							isSchemaOpen && "bg-secondary!",
+						)}
+						onClick={onSchemaToggle}
+					>
+						<Braces className="size-4" />
+						Schema
+					</Button>
+
+					{clearAgentState && selectedAgent && (
 						<Button
-							aria-label="Generate Sample JSON"
+							aria-label="Clear conversation history"
 							size="sm"
 							variant="outline"
-							className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
-							onClick={handleGenerateSample}
-							disabled={isGeneratingSample || !isAuthenticated}
+							className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50 text-foreground hover:text-destructive"
+							onClick={() => clearAgentState(selectedAgent)}
 						>
-							{isGeneratingSample ? (
-								<Loader2Icon className="size-4 animate-spin" />
-							) : (
-								<Sparkles className="size-4" />
-							)}
-							Mock Input
+							<Trash2 className="size-4" />
+							Clear Thread
 						</Button>
-					) : (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<span className="inline-flex">
+					)}
+				</div>
+
+				<div className="flex items-center gap-2">
+					{isObjectSchema &&
+						(isAuthenticated ? (
+							<Button
+								aria-label="Generate Sample JSON"
+								size="sm"
+								variant="outline"
+								className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
+								onClick={handleGenerateSample}
+								disabled={isGeneratingSample || !isAuthenticated}
+							>
+								{isGeneratingSample ? (
+									<Loader2Icon className="size-4 animate-spin" />
+								) : (
+									<Sparkles className="size-4" />
+								)}
+								Mock Input
+							</Button>
+						) : (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span className="inline-flex">
+										<Button
+											aria-label="Generate Sample JSON"
+											size="sm"
+											variant="outline"
+											className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50"
+											onClick={handleGenerateSample}
+											disabled
+										>
+											{isGeneratingSample ? (
+												<Loader2Icon className="size-4 animate-spin" />
+											) : (
+												<Sparkles className="size-4" />
+											)}
+											Mock Input
+										</Button>
+									</span>
+								</TooltipTrigger>
+								<TooltipContent>
+									Login to generate a mock input using AI
+								</TooltipContent>
+							</Tooltip>
+						))}
+
+					{selectedAgentData?.examples &&
+						selectedAgentData.examples.length > 0 && (
+							<Popover open={examplesOpen} onOpenChange={setExamplesOpen}>
+								<PopoverTrigger asChild>
 									<Button
-										aria-label="Generate Sample JSON"
+										aria-expanded={examplesOpen}
+										aria-label="Load example input"
 										size="sm"
 										variant="outline"
-										className="ml-auto font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50"
-										onClick={handleGenerateSample}
-										disabled={isGeneratingSample || !isAuthenticated}
+										className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
 									>
-										{isGeneratingSample ? (
-											<Loader2Icon className="size-4 animate-spin" />
-										) : (
-											<Sparkles className="size-4" />
-										)}
-										Mock Input
+										<FileJson className="size-4" />
+										Examples
+										<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
 									</Button>
-								</span>
-							</TooltipTrigger>
-							<TooltipContent>
-								Login to generate a mock input using AI
-							</TooltipContent>
-						</Tooltip>
-					))}
+								</PopoverTrigger>
+								<PopoverContent
+									side="top"
+									align="end"
+									className="w-fit max-w-xl p-0 z-101"
+								>
+									<Command>
+										<CommandList>
+											<CommandGroup>
+												{selectedAgentData.examples.map((example) => {
+													const label =
+														typeof example === "object" && example !== null
+															? JSON.stringify(example).substring(0, 60)
+															: String(example).substring(0, 60);
+
+													return (
+														<CommandItem
+															key={label}
+															onSelect={() => {
+																const formatted =
+																	typeof example === "object"
+																		? JSON.stringify(example, null, 2)
+																		: String(example);
+
+																onChange(formatted);
+																setExamplesOpen(false);
+															}}
+														>
+															<span className="truncate font-mono">
+																{label}
+															</span>
+														</CommandItem>
+													);
+												})}
+											</CommandGroup>
+										</CommandList>
+									</Command>
+								</PopoverContent>
+							</Popover>
+						)}
+				</div>
 			</div>
 
 			<PromptInput onSubmit={onSubmit}>
