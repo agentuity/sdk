@@ -19,6 +19,7 @@ export interface BuildMetadataAgent {
 		input?: string;
 		output?: string;
 	};
+	examples?: unknown[];
 	evals?: Array<{
 		filename: string;
 		id: string;

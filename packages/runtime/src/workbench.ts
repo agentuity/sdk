@@ -479,6 +479,7 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 								}
 							: undefined,
 					},
+					examples: agent.examples,
 					metadata: {
 						id: agent.id,
 						agentId: agent.agentId,

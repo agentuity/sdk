@@ -4,6 +4,7 @@ import {
 	Braces,
 	CheckIcon,
 	ChevronsUpDownIcon,
+	FileJson,
 	Loader2Icon,
 	SendIcon,
 	Sparkles,
@@ -75,9 +76,10 @@ export function InputSection({
 	value,
 }: InputSectionProps) {
 	const logger = useLogger("InputSection");
-	const { generateSample, isGeneratingSample, isAuthenticated } =
-		useWorkbench();
+	const { generateSample, isGeneratingSample, env } = useWorkbench();
+	const isAuthenticated = env.authenticated;
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
+	const [examplesOpen, setExamplesOpen] = useState(false);
 	const [isValidInput, setIsValidInput] = useState(true);
 	const [monacoHasErrors, setMonacoHasErrors] = useState<boolean | null>(null);
 
@@ -314,6 +316,56 @@ export function InputSection({
 						<Trash2 className="size-4" />
 						Clear
 					</Button>
+				)}
+
+				{selectedAgentData?.examples && selectedAgentData.examples.length > 0 && (
+					<Popover open={examplesOpen} onOpenChange={setExamplesOpen}>
+						<PopoverTrigger asChild>
+							<Button
+								aria-expanded={examplesOpen}
+								aria-label="Load example input"
+								size="sm"
+								variant="outline"
+								className="font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/70"
+							>
+								<FileJson className="size-4" />
+								Examples
+								<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent side="top" align="start" className="w-fit p-0 z-101">
+							<Command>
+								<CommandList>
+									<CommandGroup heading="Load example">
+										{selectedAgentData.examples.map((example, index) => {
+											const label =
+												typeof example === "object" && example !== null
+													? JSON.stringify(example).substring(0, 40) +
+													(JSON.stringify(example).length > 40 ? "..." : "")
+													: String(example).substring(0, 40);
+
+											return (
+												<CommandItem
+													key={index}
+													onSelect={() => {
+														const formatted =
+															typeof example === "object"
+																? JSON.stringify(example, null, 2)
+																: String(example);
+
+														onChange(formatted);
+														setExamplesOpen(false);
+													}}
+												>
+													<span className="font-mono text-xs">{label}</span>
+												</CommandItem>
+											);
+										})}
+									</CommandGroup>
+								</CommandList>
+							</Command>
+						</PopoverContent>
+					</Popover>
 				)}
 
 				{isObjectSchema &&

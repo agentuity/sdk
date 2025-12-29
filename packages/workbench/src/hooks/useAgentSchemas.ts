@@ -23,6 +23,7 @@ export interface AgentMetadata {
 }
 
 export interface AgentSchemaData {
+	examples?: unknown[];
 	metadata: AgentMetadata;
 	schema: AgentSchema;
 }

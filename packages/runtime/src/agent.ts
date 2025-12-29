@@ -870,6 +870,7 @@ export interface CreateAgentConfig<
 				input?: StandardSchemaV1;
 				output?: StandardSchemaV1;
 				stream?: boolean;
+				examples?: unknown[];
 		  }
 		| undefined = undefined,
 	TConfig extends (app: AppState) => any = any,
@@ -1054,6 +1055,9 @@ export interface AgentRunner<
 
 	/** Whether agent returns a stream */
 	stream?: TStream;
+
+	/** Example inputs matching the input schema shape */
+	examples?: unknown[];
 
 	/**
 	 * Create an evaluation for this agent.
@@ -1288,7 +1292,8 @@ export interface CreateAgentConfigExplicit<
 	 * schema: {
 	 *   input: z.object({ name: z.string() }),
 	 *   output: z.string(),
-	 *   stream: false
+	 *   stream: false,
+	 *   examples: [{ name: 'Alice' }]
 	 * }
 	 * ```
 	 */
@@ -1299,6 +1304,8 @@ export interface CreateAgentConfigExplicit<
 		output?: TOutput;
 		/** Whether the agent returns a ReadableStream */
 		stream?: TStream;
+		/** Example inputs matching the input schema shape */
+		examples?: unknown[];
 	};
 
 	/**
@@ -2097,6 +2104,10 @@ export function createAgent<
 
 	if (config.schema?.stream) {
 		agent.stream = config.schema.stream;
+	}
+
+	if (config.schema?.examples) {
+		agent.examples = config.schema.examples;
 	}
 
 	// Add validator method with overloads
