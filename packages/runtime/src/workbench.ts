@@ -3,7 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { toJSONSchema } from '@agentuity/server';
 import { getAgents, createAgentMiddleware } from './agent';
 import { createRouter } from './router';
-import type { WebSocketConnection } from './router';
+import { websocket, type WebSocketConnection } from './handlers/websocket';
 import { privateContext } from './_server';
 import { getThreadProvider } from './_services';
 import { loadBuildMetadata, getAgentMetadataByAgentId, hasMetadata } from './_metadata';
@@ -255,7 +255,7 @@ export const createWorkbenchRouter = () => {
 	router.use('/_agentuity/workbench/*', createAgentMiddleware(''));
 
 	// Add workbench routes
-	router.websocket('/_agentuity/workbench/ws', createWorkbenchWebsocketRoute());
+	router.get('/_agentuity/workbench/ws', websocket(createWorkbenchWebsocketHandler()));
 	router.get('/_agentuity/workbench/metadata.json', createWorkbenchMetadataRoute());
 	router.get('/_agentuity/workbench/sample', createWorkbenchSampleRoute());
 	router.get('/_agentuity/workbench/state', createWorkbenchStateRoute());
@@ -506,35 +506,38 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 // Store WebSocket connections to notify them on app restart
 const workbenchWebSockets = new Set<WebSocketConnection>();
 
-export const createWorkbenchWebsocketRoute = () => {
-	return (_ctx: Context) => {
-		return (ws: WebSocketConnection) => {
-			ws.onOpen(() => {
-				workbenchWebSockets.add(ws);
-				ws.send('alive');
-			});
+export const createWorkbenchWebsocketHandler = () => {
+	return (_c: Context, ws: WebSocketConnection) => {
+		ws.onOpen(() => {
+			workbenchWebSockets.add(ws);
+			ws.send('alive');
+		});
 
-			ws.onMessage((event) => {
-				const message = event.data;
+		ws.onMessage((event) => {
+			const message = (event as MessageEvent).data;
 
-				// If a client sends a message (CLI), broadcast to all other clients
-				if (message === 'restarting' || message === 'alive') {
-					// Broadcast the message to all other clients (excluding this CLI connection)
-					for (const clientWs of workbenchWebSockets) {
-						if (clientWs !== ws) {
-							try {
-								clientWs.send(message);
-							} catch (_error) {
-								workbenchWebSockets.delete(clientWs);
-							}
+			// If a client sends a message (CLI), broadcast to all other clients
+			if (message === 'restarting' || message === 'alive') {
+				// Broadcast the message to all other clients (excluding this CLI connection)
+				for (const clientWs of workbenchWebSockets) {
+					if (clientWs !== ws) {
+						try {
+							clientWs.send(message);
+						} catch (_error) {
+							workbenchWebSockets.delete(clientWs);
 						}
 					}
 				}
-			});
+			}
+		});
 
-			ws.onClose(() => {
-				workbenchWebSockets.delete(ws);
-			});
-		};
+		ws.onClose(() => {
+			workbenchWebSockets.delete(ws);
+		});
 	};
 };
+
+/**
+ * @deprecated Use createWorkbenchWebsocketHandler instead
+ */
+export const createWorkbenchWebsocketRoute = createWorkbenchWebsocketHandler;

@@ -65,6 +65,21 @@ export { registerDevModeRoutes } from './devmode';
 // router.ts exports
 export { type HonoEnv, type WebSocketConnection, createRouter } from './router';
 
+// protocol handler exports (websocket, sse, stream, cron)
+export {
+	websocket,
+	type WebSocketHandler,
+	sse,
+	type SSEMessage,
+	type SSEStream,
+	type SSEHandler,
+	stream,
+	type StreamHandler,
+	cron,
+	type CronHandler,
+	type CronMetadata,
+} from './handlers';
+
 // eval.ts exports
 export {
 	EvalHandlerResultSchema,
@@ -142,9 +157,6 @@ export {
 	type StandaloneContextOptions,
 	type InvokeOptions,
 } from './_standalone';
-
-// io/email exports
-export { Email, parseEmail } from './io/email';
 
 // services/evalrun exports
 export {
