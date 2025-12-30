@@ -1,14 +1,14 @@
-import { forwardRef } from "react";
-import { cn } from "../../lib/utils";
+import { forwardRef } from 'react';
+import { cn } from '../../lib/utils';
 
 const Logo = forwardRef<SVGSVGElement, { className?: string; alt?: string }>(
-	({ className = "" }, ref) => {
+	({ className = '' }, ref) => {
 		return (
 			<svg
 				ref={ref}
 				role="img"
 				aria-label="Agentuity"
-				className={cn("fill-cyan-600 dark:fill-cyan-500", className)}
+				className={cn('fill-cyan-600 dark:fill-cyan-500', className)}
 				width="24"
 				height="22"
 				viewBox="0 0 24 22"
@@ -27,9 +27,9 @@ const Logo = forwardRef<SVGSVGElement, { className?: string; alt?: string }>(
 				/>
 			</svg>
 		);
-	},
+	}
 );
 
-Logo.displayName = "Logo";
+Logo.displayName = 'Logo';
 
 export default Logo;

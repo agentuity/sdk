@@ -1,6 +1,6 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-import type { ErrorInfo } from "@/types/config";
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import type { ErrorInfo } from '@/types/config';
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -16,10 +16,10 @@ export function parseTokensHeader(header: string): Record<string, number> {
 	const result: Record<string, number> = {};
 
 	// Split by comma and trim each entry
-	const entries = header.split(",").map((entry) => entry.trim());
+	const entries = header.split(',').map((entry) => entry.trim());
 
 	for (const entry of entries) {
-		const [model, countStr] = entry.split(":").map((s) => s.trim());
+		const [model, countStr] = entry.split(':').map((s) => s.trim());
 
 		if (model && countStr) {
 			const count = Number.parseInt(countStr, 10);
@@ -44,11 +44,11 @@ export function getTotalTokens(tokens: Record<string, number>): number {
 
 export const getProcessEnv = (key: string): string | undefined => {
 	// Prioritize import.meta.env for browser/Vite environments
-	if (typeof import.meta.env !== "undefined") {
+	if (typeof import.meta.env !== 'undefined') {
 		return import.meta.env[key];
 	}
 
-	if (typeof process !== "undefined" && process.env) {
+	if (typeof process !== 'undefined' && process.env) {
 		return process.env[key];
 	}
 
@@ -59,14 +59,14 @@ export const buildUrl = (
 	base: string,
 	path: string,
 	subpath?: string,
-	query?: URLSearchParams,
+	query?: URLSearchParams
 ): string => {
-	path = path.startsWith("/") ? path : `/${path}`;
+	path = path.startsWith('/') ? path : `/${path}`;
 
-	let url = base.replace(/\/$/, "") + path;
+	let url = base.replace(/\/$/, '') + path;
 
 	if (subpath) {
-		subpath = subpath.startsWith("/") ? subpath : `/${subpath}`;
+		subpath = subpath.startsWith('/') ? subpath : `/${subpath}`;
 
 		url += subpath;
 	}
@@ -79,17 +79,17 @@ export const buildUrl = (
 };
 
 const tryOrigin = () => {
-	if (typeof window !== "undefined") {
+	if (typeof window !== 'undefined') {
 		return window.location.origin;
 	}
 };
 
 export const defaultBaseUrl: string =
-	getProcessEnv("NEXT_PUBLIC_AGENTUITY_URL") ||
-	getProcessEnv("VITE_AGENTUITY_URL") ||
-	getProcessEnv("AGENTUITY_URL") ||
+	getProcessEnv('NEXT_PUBLIC_AGENTUITY_URL') ||
+	getProcessEnv('VITE_AGENTUITY_URL') ||
+	getProcessEnv('AGENTUITY_URL') ||
 	tryOrigin() ||
-	"http://localhost:3500";
+	'http://localhost:3500';
 
 type SchemaLike = {
 	type?: string | string[];
@@ -98,12 +98,12 @@ type SchemaLike = {
 };
 
 function generateEmptyValueForSchema(schema: unknown): unknown {
-	if (typeof schema === "boolean") {
+	if (typeof schema === 'boolean') {
 		return schema ? {} : undefined;
 	}
 
-	if (typeof schema !== "object" || schema === null) {
-		return "";
+	if (typeof schema !== 'object' || schema === null) {
+		return '';
 	}
 
 	const s = schema as SchemaLike;
@@ -114,18 +114,18 @@ function generateEmptyValueForSchema(schema: unknown): unknown {
 	}
 
 	switch (type) {
-		case "string":
-			return "";
-		case "number":
-		case "integer":
+		case 'string':
+			return '';
+		case 'number':
+		case 'integer':
 			return 0;
-		case "boolean":
+		case 'boolean':
 			return false;
-		case "null":
+		case 'null':
 			return null;
-		case "array":
+		case 'array':
 			return [];
-		case "object": {
+		case 'object': {
 			const result: Record<string, unknown> = {};
 
 			if (s.properties) {
@@ -147,12 +147,12 @@ function generateEmptyValueForSchema(schema: unknown): unknown {
 				return result;
 			}
 
-			return "";
+			return '';
 	}
 }
 
 export function generateTemplateFromSchema(schema?: unknown): string {
-	if (!schema) return "{}";
+	if (!schema) return '{}';
 
 	const template = generateEmptyValueForSchema(schema);
 
@@ -166,5 +166,5 @@ export function formatErrorForCopy(error: ErrorInfo): string {
 		error.cause ? `Cause: ${JSON.stringify(error.cause, null, 2)}` : null,
 	]
 		.filter(Boolean)
-		.join("\n\n");
+		.join('\n\n');
 }

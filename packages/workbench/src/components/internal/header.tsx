@@ -1,10 +1,10 @@
-import { Settings } from "lucide-react";
-import { cn } from "../../lib/utils";
-import type { ConnectionStatus } from "../../types/config";
-import { Button } from "../ui/button";
-import { ThemeToggle } from "../ui/theme-toggle";
-import Logo from "./logo";
-import { useWorkbench } from "./workbench-provider";
+import { Settings } from 'lucide-react';
+import { cn } from '../../lib/utils';
+import type { ConnectionStatus } from '../../types/config';
+import { Button } from '../ui/button';
+import { ThemeToggle } from '../ui/theme-toggle';
+import Logo from './logo';
+import { useWorkbench } from './workbench-provider';
 
 export interface HeaderProps {
 	className?: string;
@@ -12,20 +12,11 @@ export interface HeaderProps {
 	showSettings?: boolean;
 }
 
-export function Header({
-	className,
-	title = "Workbench",
-	showSettings = false,
-}: HeaderProps) {
+export function Header({ className, title = 'Workbench', showSettings = false }: HeaderProps) {
 	const { connectionStatus } = useWorkbench();
 
 	return (
-		<nav
-			className={cn(
-				"flex items-center justify-between gap-6 py-2 px-4 border-b",
-				className,
-			)}
-		>
+		<nav className={cn('flex items-center justify-between gap-6 py-2 px-4 border-b', className)}>
 			<div className="flex items-center gap-2.5">
 				<Logo />
 
@@ -50,7 +41,7 @@ export function Header({
 }
 
 export function StatusIndicator({ status }: { status: ConnectionStatus }) {
-	if (status === "connected") {
+	if (status === 'connected') {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
 				<div className="size-2 rounded-full bg-green-500 animate-pulse"></div>
@@ -59,7 +50,7 @@ export function StatusIndicator({ status }: { status: ConnectionStatus }) {
 		);
 	}
 
-	if (status === "restarting") {
+	if (status === 'restarting') {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
 				<div className="size-2 rounded-full bg-amber-500 animate-pulse"></div>
@@ -68,7 +59,7 @@ export function StatusIndicator({ status }: { status: ConnectionStatus }) {
 		);
 	}
 
-	if (status === "disconnected") {
+	if (status === 'disconnected') {
 		return (
 			<div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400">
 				<div className="size-2 rounded-full bg-red-500"></div>

@@ -1,21 +1,18 @@
-import { Braces, X } from "lucide-react";
-import { CodeBlock, CodeBlockCopyButton } from "../ai-elements/code-block";
-import { Button } from "../ui/button";
-import { ScrollArea } from "../ui/scroll-area";
-import { useWorkbench } from "./workbench-provider";
+import { Braces, X } from 'lucide-react';
+import { CodeBlock, CodeBlockCopyButton } from '../ai-elements/code-block';
+import { Button } from '../ui/button';
+import { ScrollArea } from '../ui/scroll-area';
+import { useWorkbench } from './workbench-provider';
 
 export interface SchemaProps {
 	onOpenChange: (open: boolean) => void;
 }
 
 export function Schema({ onOpenChange }: SchemaProps) {
-	const { agents, selectedAgent, schemasLoading, schemasError } =
-		useWorkbench();
+	const { agents, selectedAgent, schemasLoading, schemasError } = useWorkbench();
 
 	const selectedAgentData =
-		Object.values(agents).find(
-			(agent) => agent.metadata.agentId === selectedAgent,
-		) || null;
+		Object.values(agents).find((agent) => agent.metadata.agentId === selectedAgent) || null;
 
 	return (
 		<div className="h-full flex flex-col">
@@ -39,10 +36,7 @@ export function Schema({ onOpenChange }: SchemaProps) {
 			<ScrollArea className="flex-1 text-sm overflow-hidden">
 				<div className="flex flex-col gap-6 p-4">
 					{schemasLoading && (
-						<div
-							className="text-center text-muted-foreground/70 py-8"
-							data-loading
-						>
+						<div className="text-center text-muted-foreground/70 py-8" data-loading>
 							Loading schema
 						</div>
 					)}
@@ -64,9 +58,7 @@ export function Schema({ onOpenChange }: SchemaProps) {
 						<>
 							{selectedAgentData.schema.input?.code ? (
 								<div className="flex flex-col gap-2">
-									<h3 className="text-sm text-muted-foreground">
-										Input Schema
-									</h3>
+									<h3 className="text-sm text-muted-foreground">Input Schema</h3>
 
 									<CodeBlock
 										code={selectedAgentData.schema.input?.code}
@@ -80,9 +72,7 @@ export function Schema({ onOpenChange }: SchemaProps) {
 
 							{selectedAgentData.schema.output?.code ? (
 								<div className="flex flex-col gap-2">
-									<h3 className="text-sm text-muted-foreground">
-										Output Schema
-									</h3>
+									<h3 className="text-sm text-muted-foreground">Output Schema</h3>
 
 									<CodeBlock
 										code={selectedAgentData.schema.output?.code}

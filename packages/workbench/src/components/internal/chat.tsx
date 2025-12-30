@@ -1,18 +1,18 @@
-import { ChevronRight, Copy, Loader, RefreshCcw } from "lucide-react";
-import { useState } from "react";
-import { useLogger } from "../../hooks/useLogger";
-import { cn, formatErrorForCopy } from "../../lib/utils";
-import { Action, Actions } from "../ai-elements/actions";
-import { CodeBlock } from "../ai-elements/code-block";
+import { ChevronRight, Copy, Loader, RefreshCcw } from 'lucide-react';
+import { useState } from 'react';
+import { useLogger } from '../../hooks/useLogger';
+import { cn, formatErrorForCopy } from '../../lib/utils';
+import { Action, Actions } from '../ai-elements/actions';
+import { CodeBlock } from '../ai-elements/code-block';
 import {
 	Conversation,
 	ConversationContent,
 	ConversationScrollButton,
-} from "../ai-elements/conversation";
-import { Message, MessageContent } from "../ai-elements/message";
-import { Shimmer } from "../ai-elements/shimmer";
-import { InputSection } from "./input-section";
-import { useWorkbench } from "./workbench-provider";
+} from '../ai-elements/conversation';
+import { Message, MessageContent } from '../ai-elements/message';
+import { Shimmer } from '../ai-elements/shimmer';
+import { InputSection } from './input-section';
+import { useWorkbench } from './workbench-provider';
 
 export interface ChatProps {
 	className?: string;
@@ -39,33 +39,25 @@ export function Chat({
 		setSelectedAgent,
 		submitMessage,
 	} = useWorkbench();
-	const logger = useLogger("Chat");
-	const [value, setValue] = useState("");
+	const logger = useLogger('Chat');
+	const [value, setValue] = useState('');
 
 	const handleSubmit = async () => {
-		logger.debug(
-			"🎯 Chat handleSubmit - selectedAgent:",
-			selectedAgent,
-			"value:",
-			value,
-		);
+		logger.debug('🎯 Chat handleSubmit - selectedAgent:', selectedAgent, 'value:', value);
 
 		const selectedAgentData = Object.values(agents).find(
-			(agent) => agent.metadata.agentId === selectedAgent,
+			(agent) => agent.metadata.agentId === selectedAgent
 		);
 
-		logger.debug(
-			"📊 Chat handleSubmit - selectedAgentData:",
-			selectedAgentData,
-		);
+		logger.debug('📊 Chat handleSubmit - selectedAgentData:', selectedAgentData);
 
 		const hasInputSchema = selectedAgentData?.schema?.input?.json;
 
-		logger.debug("📝 Chat handleSubmit - hasInputSchema:", hasInputSchema);
+		logger.debug('📝 Chat handleSubmit - hasInputSchema:', hasInputSchema);
 
 		// If agent has no input schema, submit without requiring input
 		if (!hasInputSchema) {
-			await submitMessage("");
+			await submitMessage('');
 
 			return;
 		}
@@ -77,13 +69,13 @@ export function Chat({
 
 		await submitMessage(value);
 
-		setValue("");
+		setValue('');
 	};
 
 	return (
 		<div className="relative flex flex-col h-full w-full overflow-hidden">
 			<Conversation className="flex-1 overflow-y-auto" id="chat-conversation">
-				{connectionStatus === "disconnected" && emptyState ? (
+				{connectionStatus === 'disconnected' && emptyState ? (
 					<div className="flex flex-col h-full">{emptyState}</div>
 				) : (
 					<ConversationContent>
@@ -91,21 +83,19 @@ export function Chat({
 							const { role, parts, id } = message;
 
 							const isStreaming = parts.some(
-								(part) => part.type === "text" && part.state === "streaming",
+								(part) => part.type === 'text' && part.state === 'streaming'
 							);
 
 							const tokens =
-								"tokens" in message
-									? (message as { tokens?: string }).tokens
-									: undefined;
+								'tokens' in message ? (message as { tokens?: string }).tokens : undefined;
 
 							const duration =
-								"duration" in message
+								'duration' in message
 									? (message as { duration?: string }).duration
 									: undefined;
 
 							const sessionId =
-								"sessionId" in message
+								'sessionId' in message
 									? (message as { sessionId?: string }).sessionId
 									: undefined;
 
@@ -119,10 +109,10 @@ export function Chat({
 								  }
 								| undefined;
 
-							if (parts.length === 1 && parts[0].type === "text") {
+							if (parts.length === 1 && parts[0].type === 'text') {
 								const text = parts[0].text;
 
-								if (text.startsWith("{") && text.includes('"__agentError"')) {
+								if (text.startsWith('{') && text.includes('"__agentError"')) {
 									try {
 										const parsed = JSON.parse(text) as {
 											__agentError?: boolean;
@@ -134,7 +124,7 @@ export function Chat({
 
 										if (parsed.__agentError) {
 											errorInfo = {
-												message: parsed.message || "Unknown error",
+												message: parsed.message || 'Unknown error',
 												stack: parsed.stack,
 												code: parsed.code,
 												cause: parsed.cause,
@@ -148,12 +138,12 @@ export function Chat({
 
 							return (
 								<div key={id} className="mb-2">
-									{role === "assistant" && (
+									{role === 'assistant' && (
 										<div className="w-fit flex items-center mb-2 text-muted-foreground text-sm transition-colors">
 											<Loader
 												className={cn(
-													"size-4 transition-all",
-													isStreaming ? "animate-spin mr-2" : "w-0 mr-2.5",
+													'size-4 transition-all',
+													isStreaming ? 'animate-spin mr-2' : 'w-0 mr-2.5'
 												)}
 											/>
 
@@ -163,18 +153,16 @@ export function Chat({
 												<button
 													type="button"
 													className={cn(
-														"flex items-center bg-transparent border-none p-0 text-inherit",
+														'flex items-center bg-transparent border-none p-0 text-inherit',
 														sessionId &&
 															onSessionOpen &&
-															"hover:text-foreground transition-colors cursor-pointer",
+															'hover:text-foreground transition-colors cursor-pointer'
 													)}
-													onClick={() =>
-														sessionId && onSessionOpen?.(sessionId)
-													}
+													onClick={() => sessionId && onSessionOpen?.(sessionId)}
 													tabIndex={0}
 													aria-label="Open session"
 													disabled={!sessionId}
-													style={{ background: "none" }}
+													style={{ background: 'none' }}
 												>
 													{duration ? (
 														<>
@@ -200,15 +188,15 @@ export function Chat({
 										</div>
 									)}
 
-									{(role === "user" || !isStreaming) && (
+									{(role === 'user' || !isStreaming) && (
 										<>
 											<Message
 												key={id}
-												from={role as "user" | "system" | "assistant"}
+												from={role as 'user' | 'system' | 'assistant'}
 												className="p-0"
 											>
 												<MessageContent
-													className={cn(errorInfo && "bg-destructive/10")}
+													className={cn(errorInfo && 'bg-destructive/10')}
 												>
 													{errorInfo ? (
 														errorInfo.stack ? (
@@ -217,17 +205,17 @@ export function Chat({
 															</pre>
 														) : (
 															<p className="font-mono whitespace-pre-wrap overflow-x-auto text-destructive">
-																{errorInfo.message || "Unknown error"}
+																{errorInfo.message || 'Unknown error'}
 															</p>
 														)
 													) : (
 														parts.map((part, index) => {
 															switch (part.type) {
-																case "text":
+																case 'text':
 																	// json?
 																	if (
-																		part.text.startsWith("{") &&
-																		part.text.endsWith("}")
+																		part.text.startsWith('{') &&
+																		part.text.endsWith('}')
 																	) {
 																		try {
 																			const json = JSON.parse(part.text);
@@ -247,7 +235,7 @@ export function Chat({
 																				<div
 																					key={`${id}-${part.text}-${index}`}
 																				>
-																					{part.text || ""}
+																					{part.text || ''}
 																				</div>
 																			);
 																		}
@@ -256,7 +244,7 @@ export function Chat({
 																	// text/markdown
 																	return (
 																		<div key={`${id}-${part.text}-${index}`}>
-																			{part.text || ""}
+																			{part.text || ''}
 																		</div>
 																	);
 																default:
@@ -268,12 +256,9 @@ export function Chat({
 											</Message>
 
 											<Actions
-												className={cn(
-													"mt-1 gap-0",
-													role === "user" && "justify-end",
-												)}
+												className={cn('mt-1 gap-0', role === 'user' && 'justify-end')}
 											>
-												{role === "user" && (
+												{role === 'user' && (
 													<Action
 														tooltip="Re-run"
 														label="Re-run"
@@ -281,9 +266,9 @@ export function Chat({
 														onClick={() =>
 															setValue(
 																parts
-																	.filter((part) => part.type === "text")
+																	.filter((part) => part.type === 'text')
 																	.map((part) => part.text)
-																	.join(""),
+																	.join('')
 															)
 														}
 													>
@@ -299,9 +284,9 @@ export function Chat({
 														const text = errorInfo
 															? formatErrorForCopy(errorInfo)
 															: parts
-																	.filter((part) => part.type === "text")
+																	.filter((part) => part.type === 'text')
 																	.map((part) => part.text)
-																	.join("");
+																	.join('');
 
 														navigator.clipboard.writeText(text);
 													}}
