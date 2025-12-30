@@ -289,12 +289,11 @@ function generateRPCRegistryType(
 			.replace(/_+/g, '_');
 		const pascalName = toPascalCase(safeName);
 
-		// Only reference type names if route has schemas, otherwise use 'never'
+		// Only reference type names if route has actual schemas extracted, otherwise use 'never'
+		// Note: hasValidator may be true (e.g., zValidator('query', ...)) but no schemas extracted
+		// because only 'json' validators extract input schemas
 		const hasSchemas =
-			route.hasValidator ||
-			route.inputSchemaVariable ||
-			route.outputSchemaVariable ||
-			route.agentVariable;
+			route.inputSchemaVariable || route.outputSchemaVariable || route.agentVariable;
 
 		current[terminalMethod] = {
 			input: hasSchemas ? `${pascalName}Input` : 'never',
@@ -725,12 +724,10 @@ export function generateRouteRegistry(
 			.replace(/_+/g, '_');
 		const pascalName = toPascalCase(safeName);
 
-		if (
-			!route.hasValidator &&
-			!route.inputSchemaVariable &&
-			!route.outputSchemaVariable &&
-			!route.agentVariable
-		) {
+		// Use 'never' types if no schemas were actually extracted
+		// Note: hasValidator may be true (e.g., zValidator('query', ...)) but no schemas extracted
+		// because only 'json' validators extract input schemas
+		if (!route.inputSchemaVariable && !route.outputSchemaVariable && !route.agentVariable) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `\t'${routeKey}': {
 \t\tinputSchema: never;

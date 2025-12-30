@@ -1,12 +1,8 @@
-// Export types
+export { default as App } from './components/App';
+export { Chat } from './components/internal/chat';
+export { StatusIndicator } from './components/internal/header';
+export { Schema } from './components/internal/schema';
+export { useWorkbench, WorkbenchProvider } from './components/internal/workbench-provider';
 export type { WorkbenchInstance } from './types';
 export type { ConnectionStatus } from './types/config';
-
-// Export components
-export { default as App } from './components/App';
-export { Chat } from './components/internal/Chat';
-export { Schema } from './components/internal/Schema';
-export { StatusIndicator } from './components/internal/Header';
-export { WorkbenchProvider, useWorkbench } from './components/internal/WorkbenchProvider';
-// Export workbench functions
 export { createWorkbench } from './workbench';

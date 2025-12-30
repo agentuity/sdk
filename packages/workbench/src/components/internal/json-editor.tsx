@@ -1,20 +1,21 @@
-import React, { useEffect, useState } from 'react';
 import Editor, { type Monaco, type OnMount } from '@monaco-editor/react';
-import { useTheme } from '../ui/theme-provider';
+import oneDarkProModule from '@shikijs/themes/dark-plus';
+import oneLightModule from '@shikijs/themes/light-plus';
 import type { JSONSchema7 } from 'ai';
 import type * as monaco from 'monaco-editor';
+import React, { useEffect, useRef, useState } from 'react';
 import type { ThemeRegistration } from 'shiki';
-import oneLightModule from '@shikijs/themes/one-light';
-import oneDarkProModule from '@shikijs/themes/one-dark-pro';
+import { useTheme } from '../ui/theme-provider';
 
-interface MonacoJsonEditorProps {
-	value: string;
+interface JsonEditorProps {
+	'aria-invalid'?: boolean;
+	className?: string;
 	onChange: (value: string) => void;
+	onSubmit: () => void;
+	onValidationChange?: (hasErrors: boolean) => void;
 	schema?: JSONSchema7;
 	schemaUri?: string;
-	className?: string;
-	'aria-invalid'?: boolean;
-	onValidationChange?: (hasErrors: boolean) => void;
+	value: string;
 }
 
 // Convert color value to valid hex for Monaco
@@ -64,7 +65,11 @@ function convertShikiToMonaco(
 	const isDark = themeName.includes('dark');
 
 	// Convert token colors to Monaco rules
-	const rules: Array<{ token: string; foreground: string; fontStyle?: string }> = [];
+	const rules: Array<{
+		token: string;
+		foreground: string;
+		fontStyle?: string;
+	}> = [];
 	tokenColors.forEach((tokenColor) => {
 		if (tokenColor.scope && tokenColor.settings?.foreground) {
 			const scopes = Array.isArray(tokenColor.scope) ? tokenColor.scope : [tokenColor.scope];
@@ -103,19 +108,25 @@ function convertShikiToMonaco(
 	};
 }
 
-export function MonacoJsonEditor({
-	value,
+export function JsonEditor({
+	'aria-invalid': ariaInvalid,
+	className = '',
 	onChange,
+	onSubmit,
+	onValidationChange,
 	schema,
 	schemaUri = 'agentuity://schema/default',
-	className = '',
-	'aria-invalid': ariaInvalid,
-	onValidationChange,
-}: MonacoJsonEditorProps) {
+	value,
+}: JsonEditorProps) {
 	const { theme } = useTheme();
 	const [editorInstance, setEditorInstance] = useState<Parameters<OnMount>[0] | null>(null);
 	const [monacoInstance, setMonacoInstance] = useState<Monaco | null>(null);
 	const [editorHeight, setEditorHeight] = useState(120);
+	const handleSubmit = useRef(onSubmit);
+
+	useEffect(() => {
+		handleSubmit.current = onSubmit;
+	}, [onSubmit]);
 
 	// Get resolved theme (similar to useTheme's resolvedTheme from next-themes)
 	const resolvedTheme = React.useMemo(() => {
@@ -163,8 +174,12 @@ export function MonacoJsonEditor({
 		<div
 			data-slot="input-group-control"
 			aria-invalid={ariaInvalid}
-			className={`w-full pl-3 pb-3 [&_.monaco-editor]:!bg-transparent [&_.monaco-editor-background]:!bg-transparent [&_.view-lines]:!bg-transparent [&_.monaco-editor]:!shadow-none [&_.monaco-scrollable-element]:!shadow-none [&_.overflow-guard]:!shadow-none [&_.monaco-scrollable-element>.shadow.top]:!hidden [&_.monaco-editor_.scroll-decoration]:!hidden [&_.shadow.top]:!hidden [&_.scroll-decoration]:!hidden ${className}`}
-			style={{ minHeight: '64px', maxHeight: '192px', height: `${editorHeight}px` }}
+			className={`w-full pl-3 pb-3 [&_.monaco-editor]:bg-transparent! [&_.monaco-editor-background]:bg-transparent! [&_.view-lines]:bg-transparent! [&_.monaco-editor]:shadow-none! [&_.monaco-scrollable-element]:shadow-none! [&_.overflow-guard]:shadow-none! [&_.monaco-scrollable-element>.shadow.top]:hidden! [&_.monaco-editor_.scroll-decoration]:hidden! [&_.shadow.top]:hidden! [&_.scroll-decoration]:hidden! [&_.native-edit-context]:outline-gray-200! [&_.native-edit-context]:dark:outline-gray-800! ${className}`}
+			style={{
+				minHeight: '64px',
+				maxHeight: '192px',
+				height: `${editorHeight}px`,
+			}}
 		>
 			<Editor
 				// Allow the editor to be truly empty. We intentionally do NOT coerce to `{}`.
@@ -174,55 +189,52 @@ export function MonacoJsonEditor({
 				theme={resolvedTheme === 'light' ? 'custom-light' : 'custom-dark'}
 				height="100%"
 				options={{
-					minimap: { enabled: false },
-					lineNumbers: 'off',
-					folding: false,
-					scrollBeyondLastLine: false,
-					wordWrap: 'on',
-					renderLineHighlight: 'none',
-					overviewRulerBorder: false,
-					overviewRulerLanes: 0,
-					hideCursorInOverviewRuler: true,
+					autoIndent: 'full',
+					automaticLayout: true,
 					fixedOverflowWidgets: true,
-					roundedSelection: false,
-					occurrencesHighlight: 'off',
-					selectionHighlight: false,
-					renderWhitespace: 'none',
+					folding: false,
 					fontSize: 14,
 					fontWeight: '400',
 					formatOnPaste: true,
 					formatOnType: true,
-					autoIndent: 'full',
 					glyphMargin: false,
+					guides: { highlightActiveIndentation: false, indentation: false },
+					hideCursorInOverviewRuler: true,
 					lineDecorationsWidth: 0,
+					lineNumbers: 'off',
 					lineNumbersMinChars: 0,
-					automaticLayout: true,
-					scrollbar: {
-						vertical: 'auto',
-						horizontal: 'auto',
-						verticalScrollbarSize: 10,
-						horizontalScrollbarSize: 10,
-						// Disable scroll shadows
-						verticalHasArrows: false,
-						horizontalHasArrows: false,
-					},
+					minimap: { enabled: false },
+					occurrencesHighlight: 'off',
+					overviewRulerBorder: false,
+					overviewRulerLanes: 0,
 					padding: { top: 12, bottom: 12 },
-					// Additional background transparency options
+					renderLineHighlight: 'none',
 					renderValidationDecorations: 'on',
-					guides: {
-						indentation: false,
-						highlightActiveIndentation: false,
+					renderWhitespace: 'none',
+					roundedSelection: false,
+					scrollbar: {
+						horizontal: 'auto',
+						horizontalHasArrows: false,
+						horizontalScrollbarSize: 10,
+						vertical: 'auto',
+						verticalHasArrows: false,
+						verticalScrollbarSize: 10,
 					},
-					// Disable sticky scroll feature
-					stickyScroll: { enabled: false },
-					// Disable scroll decorations/shadows
 					scrollBeyondLastColumn: 0,
-					renderLineHighlightOnlyWhenFocus: true,
+					scrollBeyondLastLine: false,
+					selectionHighlight: false,
+					stickyScroll: { enabled: false },
+					wordWrap: 'on',
 				}}
 				onMount={(editor, monaco) => {
 					setEditorInstance(editor);
 					setMonacoInstance(monaco);
+
 					editor.focus();
+
+					editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () =>
+						handleSubmit.current()
+					);
 
 					// Auto-resize based on content
 					const updateHeight = () => {
@@ -230,6 +242,7 @@ export function MonacoJsonEditor({
 						const maxHeight = 192; // max-h-48 = 12rem = 192px
 						const minHeight = 64; // min-h-16 = 4rem = 64px
 						const newHeight = Math.min(Math.max(contentHeight + 24, minHeight), maxHeight);
+
 						setEditorHeight(newHeight);
 
 						// Layout after height change
@@ -243,18 +256,24 @@ export function MonacoJsonEditor({
 					if (onValidationChange) {
 						const checkValidationErrors = () => {
 							const model = editor.getModel();
+
 							if (model) {
 								// Treat an empty editor as a valid "empty state" (avoid Monaco's JSON parse error).
 								if (!model.getValue().trim()) {
 									onValidationChange(false);
+
 									return;
 								}
 
-								const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+								const markers = monaco.editor.getModelMarkers({
+									resource: model.uri,
+								});
+
 								const hasErrors = markers.some(
 									(marker: monaco.editor.IMarker) =>
 										marker.severity === monaco.MarkerSeverity.Error
 								);
+
 								onValidationChange(hasErrors);
 							}
 						};
@@ -265,6 +284,7 @@ export function MonacoJsonEditor({
 						// Check when markers change
 						monaco.editor.onDidChangeMarkers((uris: readonly monaco.Uri[]) => {
 							const model = editor.getModel();
+
 							if (model && uris.includes(model.uri)) {
 								checkValidationErrors();
 							}
@@ -280,6 +300,7 @@ export function MonacoJsonEditor({
 					// Ensure background transparency and remove shadows
 					setTimeout(() => {
 						const editorElement = editor.getDomNode();
+
 						if (editorElement) {
 							// Set transparent backgrounds on all relevant elements
 							const elementsToMakeTransparent = [
@@ -295,6 +316,7 @@ export function MonacoJsonEditor({
 
 							elementsToMakeTransparent.forEach((selector) => {
 								const element = editorElement.querySelector(selector);
+
 								if (element) {
 									(element as HTMLElement).style.backgroundColor = 'transparent';
 									(element as HTMLElement).style.boxShadow = 'none';
@@ -305,6 +327,7 @@ export function MonacoJsonEditor({
 							const shadowTop = editorElement.querySelector(
 								'.monaco-scrollable-element > .shadow.top'
 							);
+
 							if (shadowTop) {
 								(shadowTop as HTMLElement).style.display = 'none';
 							}
@@ -312,6 +335,7 @@ export function MonacoJsonEditor({
 							const scrollDecorations = editorElement.querySelectorAll(
 								'.monaco-editor .scroll-decoration, .scroll-decoration'
 							);
+
 							scrollDecorations.forEach((decoration) => {
 								(decoration as HTMLElement).style.display = 'none';
 							});
@@ -319,6 +343,7 @@ export function MonacoJsonEditor({
 							const scrollableElement = editorElement.querySelector(
 								'.monaco-scrollable-element'
 							);
+
 							if (scrollableElement) {
 								(scrollableElement as HTMLElement).style.setProperty(
 									'--scroll-shadow',
@@ -344,17 +369,20 @@ export function MonacoJsonEditor({
 					const oneLight = (
 						'default' in oneLightModule ? oneLightModule.default : oneLightModule
 					) as ThemeRegistration;
+
 					const oneDarkPro = (
 						'default' in oneDarkProModule ? oneDarkProModule.default : oneDarkProModule
 					) as ThemeRegistration;
 
 					const lightMonacoTheme = convertShikiToMonaco(oneLight, 'one-light');
+
 					monaco.editor.defineTheme(
 						'custom-light',
 						lightMonacoTheme as monaco.editor.IStandaloneThemeData
 					);
 
 					const darkMonacoTheme = convertShikiToMonaco(oneDarkPro, 'one-dark-pro');
+
 					monaco.editor.defineTheme(
 						'custom-dark',
 						darkMonacoTheme as monaco.editor.IStandaloneThemeData

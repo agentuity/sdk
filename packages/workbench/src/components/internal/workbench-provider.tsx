@@ -1,19 +1,22 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import type { UIMessage } from 'ai';
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
-import type { WorkbenchContextType, ConnectionStatus } from '../../types/config';
+import type { UIMessage } from 'ai';
+import type React from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useAgentSchemas } from '../../hooks/useAgentSchemas';
-import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
 import { useLogger } from '../../hooks/useLogger';
-import { getTotalTokens, parseTokensHeader, defaultBaseUrl } from '../../lib/utils';
+import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
+import { defaultBaseUrl, getTotalTokens, parseTokensHeader } from '../../lib/utils';
+import type { ConnectionStatus, WorkbenchContextType } from '../../types/config';
 
 const WorkbenchContext = createContext<WorkbenchContextType | null>(null);
 
 export function useWorkbench() {
 	const context = useContext(WorkbenchContext);
+
 	if (!context) {
 		throw new Error('useWorkbench must be used within a WorkbenchProvider');
 	}
+
 	return context;
 }
 
@@ -22,23 +25,35 @@ interface WorkbenchProviderProps {
 		baseUrl?: string | null;
 		projectId?: string;
 	};
-	isAuthenticated: boolean;
+	env: {
+		agentuity: boolean;
+		authenticated: boolean;
+		cloud: boolean;
+	};
 	children: React.ReactNode;
 }
 
-export function WorkbenchProvider({ config, isAuthenticated, children }: WorkbenchProviderProps) {
+export function WorkbenchProvider({
+	config,
+	env = {
+		agentuity: false,
+		authenticated: false,
+		cloud: false,
+	},
+	children,
+}: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
-
 	// localStorage utilities scoped by project
 	const getStorageKey = useCallback(
-		(key: string) => `agentuity_workbench_${config.projectId}_${key}`,
+		(key: string) =>
+			`agentuity-workbench-${config.projectId ? `${config.projectId}-` : ''}${key}`,
 		[config.projectId]
 	);
 
 	const saveSelectedAgent = useCallback(
 		(agentId: string) => {
 			try {
-				localStorage.setItem(getStorageKey('selected_agent'), agentId);
+				localStorage.setItem(getStorageKey('selected-agent'), agentId);
 			} catch (error) {
 				console.warn('Failed to save selected agent to localStorage:', error);
 			}
@@ -48,7 +63,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 	const loadSelectedAgent = useCallback((): string | null => {
 		try {
-			return localStorage.getItem(getStorageKey('selected_agent'));
+			return localStorage.getItem(getStorageKey('selected-agent'));
 		} catch (error) {
 			console.warn('Failed to load selected agent from localStorage:', error);
 			return null;
@@ -58,7 +73,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 	const saveThreadId = useCallback(
 		(threadId: string) => {
 			try {
-				localStorage.setItem(getStorageKey('thread_id'), threadId);
+				localStorage.setItem(getStorageKey('thread-id'), threadId);
 			} catch (error) {
 				console.warn('Failed to save thread id to localStorage:', error);
 			}
@@ -68,7 +83,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 	const loadThreadId = useCallback((): string | null => {
 		try {
-			return localStorage.getItem(getStorageKey('thread_id'));
+			return localStorage.getItem(getStorageKey('thread-id'));
 		} catch (error) {
 			console.warn('Failed to load thread id from localStorage:', error);
 			return null;
@@ -120,6 +135,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 	useEffect(() => {
 		if (isBaseUrlNull) {
 			logger.debug('🔌 Setting connection status to disconnected (baseUrl is null)');
+
 			setConnectionStatus('disconnected');
 		}
 	}, [isBaseUrlNull, logger]);
@@ -143,6 +159,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 	// WebSocket connection for dev server restart detection
 	const wsBaseUrl = isBaseUrlNull ? undefined : baseUrl;
+
 	useEffect(() => {
 		if (isBaseUrlNull) {
 			logger.debug('🔌 WebSocket connection disabled (baseUrl is null)');
@@ -178,6 +195,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 	// Convert schema data to Agent format, no fallback
 	const agents = schemaData?.agents;
+
 	// Log schema fetch errors for debugging
 	useEffect(() => {
 		if (schemasError) {
@@ -187,8 +205,6 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			);
 		}
 	}, [schemasError]);
-
-	const [suggestions, _setSuggestions] = useState<string[]>([]);
 
 	// Fetch state for an agent
 	const fetchAgentState = useCallback(
@@ -205,18 +221,23 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 			try {
 				const headers: Record<string, string> = {};
+
 				if (apiKey) {
 					headers.Authorization = `Bearer ${apiKey}`;
 				}
+
 				applyThreadIdHeader(headers);
 
 				const url = `${baseUrl}/_agentuity/workbench/state?agentId=${encodeURIComponent(agentId)}`;
+
 				logger.debug('📡 Fetching state for agent:', agentId);
+
 				const response = await fetch(url, {
 					method: 'GET',
 					headers,
 					credentials: 'include',
 				});
+
 				persistThreadIdFromResponse(response);
 
 				if (response.ok) {
@@ -233,8 +254,10 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 							typeof msg.data === 'object'
 								? JSON.stringify(msg.data, null, 2)
 								: String(msg.data);
+
 						// Use stable ID based on index and a hash of content to maintain identity
 						const contentHash = text.substring(0, 20).replace(/[^a-zA-Z0-9]/g, '');
+
 						return {
 							id: `state_${agentId}_${index}_${contentHash}`,
 							role: msg.type === 'input' ? 'user' : 'assistant',
@@ -243,13 +266,16 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					});
 
 					setMessages(uiMessages);
+
 					logger.debug('✅ Loaded state messages:', uiMessages.length);
 				} else {
 					logger.debug('⚠️ Failed to fetch state, starting with empty messages');
+
 					setMessages([]);
 				}
 			} catch (error) {
 				logger.debug('⚠️ Error fetching state:', error);
+
 				setMessages([]);
 			}
 		},
@@ -264,16 +290,20 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			// First, check for agent query parameter in URL
 			const urlParams = new URLSearchParams(window.location.search);
 			const agentFromUrl = urlParams.get('agent');
+
 			logger.debug('🔗 Agent from URL query param:', agentFromUrl);
 
 			// Try to find agent by URL param (matches agentId only)
 			let agentToSelect: string | null = null;
+
 			if (agentFromUrl) {
 				const matchedAgent = Object.values(agents).find(
 					(agent) => agent.metadata.agentId === agentFromUrl
 				);
+
 				if (matchedAgent) {
 					logger.debug('✅ Found agent from URL param:', matchedAgent.metadata.name);
+
 					agentToSelect = matchedAgent.metadata.agentId;
 				}
 			}
@@ -281,6 +311,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			// If no URL param match, try localStorage
 			if (!agentToSelect) {
 				const savedAgentId = loadSelectedAgent();
+
 				logger.debug('💾 Saved agent from localStorage:', savedAgentId);
 
 				const savedAgent = savedAgentId
@@ -289,6 +320,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 				if (savedAgent && savedAgentId) {
 					logger.debug('✅ Restoring saved agent:', savedAgent.metadata.name);
+
 					agentToSelect = savedAgentId;
 				}
 			}
@@ -298,44 +330,44 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				const sortedAgents = Object.values(agents).sort((a, b) =>
 					a.metadata.name.localeCompare(b.metadata.name)
 				);
+
 				const firstAgent = sortedAgents[0];
+
 				logger.debug(
 					'🎯 No saved agent found, using first agent (alphabetically):',
 					firstAgent
 				);
+
 				agentToSelect = firstAgent.metadata.agentId;
 			}
 
 			logger.debug('🆔 Setting selectedAgent to:', agentToSelect);
+
 			setSelectedAgent(agentToSelect);
 			saveSelectedAgent(agentToSelect);
 			fetchAgentState(agentToSelect);
 		}
 	}, [agents, selectedAgent, loadSelectedAgent, saveSelectedAgent, logger, fetchAgentState]);
 
-	// Fetch suggestions from API if endpoint is provided
-	useEffect(() => {
-		// No API endpoints hardcoded for now
-	}, []);
-
-	const _fetchSuggestions = async () => {
-		// No API endpoints for now
-	};
-
 	const submitMessage = async (value: string, _mode: 'text' | 'form' = 'text') => {
 		if (!selectedAgent) return;
 
 		logger.debug('🚀 Submitting message with selectedAgent:', selectedAgent);
+
 		const selectedAgentData = agents
 			? Object.values(agents).find((agent) => agent.metadata.agentId === selectedAgent)
 			: undefined;
+
 		logger.debug('📊 Found selectedAgentData:', selectedAgentData);
+
 		const hasInputSchema = selectedAgentData?.schema?.input?.json;
+
 		logger.debug('📝 hasInputSchema:', hasInputSchema, 'value:', value);
 
 		// Only require value for agents with input schemas
 		if (hasInputSchema && !value.trim()) {
 			logger.debug('❌ Returning early - hasInputSchema but no value');
+
 			return;
 		}
 
@@ -353,7 +385,6 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			role: 'user',
 			parts: [{ type: 'text', text: displayText }],
 		};
-
 		const assistantMessageId = (now + 1).toString();
 		const placeholderAssistantMessage: UIMessage = {
 			id: assistantMessageId,
@@ -365,8 +396,10 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 		setIsLoading(true);
 
 		logger.debug('🔗 baseUrl:', baseUrl, 'isBaseUrlNull:', isBaseUrlNull);
+
 		if (!baseUrl || isBaseUrlNull) {
 			logger.debug('❌ Message submission blocked - baseUrl is null or missing');
+
 			const errorMessage: UIMessage = {
 				id: assistantMessageId,
 				role: 'assistant',
@@ -377,8 +410,11 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					},
 				],
 			};
+
 			setMessages((prev) => prev.map((m) => (m.id === assistantMessageId ? errorMessage : m)));
+
 			setIsLoading(false);
+
 			return;
 		}
 
@@ -386,6 +422,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			// Parse input - if it's JSON, parse it, otherwise use as string
 			// For agents without input schema, send undefined
 			let parsedInput: unknown;
+
 			if (!hasInputSchema) {
 				parsedInput = undefined;
 			} else {
@@ -397,18 +434,20 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			}
 
 			logger.debug('🌐 About to make API call...');
+
 			// Call execution endpoint with timeout
 			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
 			};
+
 			if (apiKey) {
 				headers.Authorization = `Bearer ${apiKey}`;
 			}
+
 			applyThreadIdHeader(headers);
 
 			const controller = new AbortController();
 			const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
 			const startTime = performance.now();
 
 			try {
@@ -416,7 +455,9 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					agentId: selectedAgent,
 					input: parsedInput,
 				};
+
 				logger.debug('📤 API Request payload:', requestPayload);
+
 				const response = await fetch(`${baseUrl}/_agentuity/workbench/execute`, {
 					method: 'POST',
 					headers,
@@ -424,24 +465,29 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					signal: controller.signal,
 					credentials: 'include',
 				});
+
 				persistThreadIdFromResponse(response);
 				clearTimeout(timeoutId);
 
 				if (!response.ok) {
 					let errorMessage = `Request failed with status ${response.status}`;
+
 					try {
 						const errorData = await response.json();
+
 						errorMessage = errorData.error || errorData.message || errorMessage;
 					} catch {
 						// If JSON parsing fails, use status text
 						errorMessage = response.statusText || errorMessage;
 					}
+
 					throw new Error(errorMessage);
 				}
 
-				let result;
+				let responseBody: unknown;
+
 				try {
-					result = await response.json();
+					responseBody = await response.json();
 				} catch (jsonError) {
 					throw new Error(`Invalid JSON response from server: ${jsonError}`);
 				}
@@ -458,16 +504,66 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				const tokensRecord = tokensHeader ? parseTokensHeader(tokensHeader) : undefined;
 				const totalTokens = tokensRecord ? getTotalTokens(tokensRecord) : undefined;
 
+				// Handle wrapped response shape: { success, data?, error? }
+				const envelope =
+					typeof responseBody === 'object' && responseBody !== null
+						? (responseBody as {
+								success?: boolean;
+								data?: unknown;
+								error?: {
+									message?: string;
+									stack?: string;
+									code?: string;
+									cause?: unknown;
+								};
+							})
+						: null;
+
+				if (envelope && 'success' in envelope && envelope.success === false && envelope.error) {
+					// Agent execution error - encode as special JSON format for ErrorBubble
+					const errorPayload = JSON.stringify({
+						__agentError: true,
+						message: envelope.error.message || 'Unknown error',
+						stack: envelope.error.stack,
+						code: envelope.error.code,
+						cause: envelope.error.cause,
+					});
+
+					const errorMessage: UIMessage = {
+						id: assistantMessageId,
+						role: 'assistant',
+						parts: [{ type: 'text', text: errorPayload }],
+					};
+
+					setMessages((prev) =>
+						prev.map((m) => (m.id === assistantMessageId ? errorMessage : m))
+					);
+					return;
+				}
+
+				// Success - extract data from envelope (or use raw response if not wrapped)
+				const result =
+					envelope && 'success' in envelope && envelope.success === true
+						? envelope.data
+						: responseBody;
+
 				// Format result as JSON string for display
 				const resultText =
 					typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result);
 
-				const assistantMessage: UIMessage & { tokens?: string; duration?: string } = {
+				const sessionId = response.headers.get('x-session-id') || undefined;
+
+				const assistantMessage: UIMessage & {
+					tokens?: string;
+					duration?: string;
+					sessionId?: string;
+				} = {
 					id: assistantMessageId,
 					role: 'assistant',
 					parts: [{ type: 'text', text: resultText }],
 					tokens: totalTokens?.toString(),
 					duration,
+					sessionId,
 				};
 
 				setMessages((prev) =>
@@ -475,10 +571,12 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				);
 			} catch (fetchError) {
 				clearTimeout(timeoutId);
+
 				throw fetchError;
 			}
 		} catch (error) {
 			console.error('Failed to submit message:', error);
+
 			const errorText =
 				error instanceof Error
 					? error.name === 'AbortError'
@@ -496,6 +594,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					},
 				],
 			};
+
 			setMessages((prev) => prev.map((m) => (m.id === assistantMessageId ? errorMessage : m)));
 		} finally {
 			setIsLoading(false);
@@ -508,6 +607,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 		}
 
 		setIsGeneratingSample(true);
+
 		try {
 			const url = `${baseUrl}/_agentuity/workbench/sample?agentId=${encodeURIComponent(agentId)}`;
 			const headers: HeadersInit = {
@@ -515,8 +615,9 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 			};
 
 			if (apiKey) {
-				headers['Authorization'] = `Bearer ${apiKey}`;
+				headers.Authorization = `Bearer ${apiKey}`;
 			}
+
 			// Keep thread id stable across workbench endpoints.
 			if (typeof headers === 'object' && headers && !Array.isArray(headers)) {
 				applyThreadIdHeader(headers as Record<string, string>);
@@ -527,23 +628,29 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 				headers,
 				credentials: 'include',
 			});
+
 			persistThreadIdFromResponse(response);
 
 			if (!response.ok) {
 				let errorMessage = `Request failed with status ${response.status}`;
+
 				try {
 					const errorData = await response.json();
+
 					errorMessage = errorData.error || errorData.message || errorMessage;
 				} catch {
 					errorMessage = response.statusText || errorMessage;
 				}
+
 				throw new Error(errorMessage);
 			}
 
 			const sample = await response.json();
+
 			return JSON.stringify(sample, null, 2);
 		} catch (error) {
 			logger.error('Failed to generate sample JSON:', error);
+
 			throw error;
 		} finally {
 			setIsGeneratingSample(false);
@@ -552,6 +659,7 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 	const handleAgentSelect = async (agentId: string) => {
 		logger.debug('🔄 handleAgentSelect called with:', agentId);
+
 		setSelectedAgent(agentId);
 		// Save selection to localStorage for persistence across sessions
 		saveSelectedAgent(agentId);
@@ -567,9 +675,11 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 
 			try {
 				const headers: Record<string, string> = {};
+
 				if (apiKey) {
 					headers.Authorization = `Bearer ${apiKey}`;
 				}
+
 				applyThreadIdHeader(headers);
 
 				const url = `${baseUrl}/_agentuity/workbench/state?agentId=${encodeURIComponent(agentId)}`;
@@ -578,10 +688,12 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 					headers,
 					credentials: 'include',
 				});
+
 				persistThreadIdFromResponse(response);
 
 				if (response.ok) {
 					setMessages([]);
+
 					logger.debug('✅ Cleared state for agent:', agentId);
 				} else {
 					logger.debug('⚠️ Failed to clear state');
@@ -594,29 +706,25 @@ export function WorkbenchProvider({ config, isAuthenticated, children }: Workben
 	);
 
 	const contextValue: WorkbenchContextType = {
-		config,
 		agents: agents || {},
-		suggestions,
-		messages,
-		setMessages,
-		selectedAgent,
-		setSelectedAgent: handleAgentSelect,
-		inputMode,
-		setInputMode,
-		isLoading: isLoading || !!schemasLoading,
-		submitMessage,
-		generateSample,
-		isGeneratingSample,
-		isAuthenticated,
-		// Schema data from API
-		schemas: schemaData,
-		schemasLoading: !!schemasLoading,
-		schemasError,
-		refetchSchemas,
-		// Connection status
-		connectionStatus,
-		// Clear agent state
 		clearAgentState,
+		config,
+		connectionStatus,
+		env,
+		generateSample,
+		inputMode,
+		isGeneratingSample,
+		isLoading: isLoading || !!schemasLoading,
+		messages,
+		refetchSchemas,
+		schemas: schemaData,
+		schemasError,
+		schemasLoading: !!schemasLoading,
+		selectedAgent,
+		setInputMode,
+		setMessages,
+		setSelectedAgent: handleAgentSelect,
+		submitMessage,
 	};
 
 	return <WorkbenchContext.Provider value={contextValue}>{children}</WorkbenchContext.Provider>;

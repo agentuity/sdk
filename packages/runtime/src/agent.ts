@@ -1345,7 +1345,7 @@ export interface CreateAgentConfigExplicit<
 	 * schema: {
 	 *   input: z.object({ name: z.string() }),
 	 *   output: z.string(),
-	 *   stream: false
+	 *   stream: false,
 	 * }
 	 * ```
 	 */
