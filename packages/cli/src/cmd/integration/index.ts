@@ -14,4 +14,3 @@ export const command = createCommand({
 	],
 	subcommands: [githubCommand],
 });
-
