@@ -1,5 +1,5 @@
-import { JSONSchema7 } from 'ai';
-import { useState, useEffect, useCallback } from 'react';
+import type { JSONSchema7 } from 'ai';
+import { useCallback, useEffect, useState } from 'react';
 
 export interface AgentSchema {
 	input?: {
@@ -13,18 +13,18 @@ export interface AgentSchema {
 }
 
 export interface AgentMetadata {
-	id: string;
-	name: string;
-	description?: string;
-	version?: string;
-	filename?: string;
-	identifier?: string;
 	agentId: string;
+	description?: string;
+	filename?: string;
+	id: string;
+	identifier?: string;
+	name: string;
+	version?: string;
 }
 
 export interface AgentSchemaData {
-	schema: AgentSchema;
 	metadata: AgentMetadata;
+	schema: AgentSchema;
 }
 
 export interface AgentSchemasResponse {
@@ -32,15 +32,15 @@ export interface AgentSchemasResponse {
 }
 
 export interface UseAgentSchemasOptions {
-	baseUrl?: string;
 	apiKey?: string;
+	baseUrl?: string;
 	enabled?: boolean;
 }
 
 export interface UseAgentSchemasResult {
 	data: AgentSchemasResponse | null;
-	isLoading: boolean;
 	error: Error | null;
+	isLoading: boolean;
 	refetch: () => void;
 }
 
@@ -84,7 +84,7 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 			};
 
 			if (apiKey) {
-				headers['Authorization'] = `Bearer ${apiKey}`;
+				headers.Authorization = `Bearer ${apiKey}`;
 			}
 
 			const response = await fetch(url, {
@@ -96,26 +96,35 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 				// Handle 404/500 gracefully without throwing
 				if (response.status === 401) {
 					setError(new Error('Unauthorized: Invalid or missing API key'));
+
 					return;
 				}
+
 				if (response.status === 404 || response.status >= 500) {
 					setError(new Error(`Server error: ${response.status} ${response.statusText}`));
+
 					return;
 				}
+
 				setError(new Error(`HTTP ${response.status}: ${response.statusText}`));
+
 				return;
 			}
 
 			try {
 				const result = (await response.json()) as AgentSchemasResponse;
+
 				setData(result);
 			} catch (jsonError) {
 				setError(new Error('Invalid JSON response from server'));
+
 				console.error('Failed to parse JSON response:', jsonError);
 			}
 		} catch (err) {
 			const error = err instanceof Error ? err : new Error('Unknown error occurred');
+
 			setError(error);
+
 			console.error('Failed to fetch agent schemas:', error);
 		} finally {
 			setIsLoading(false);
@@ -132,8 +141,8 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 
 	return {
 		data,
-		isLoading,
 		error,
+		isLoading,
 		refetch,
 	};
 }
@@ -148,10 +157,10 @@ export function useAgentSchema(agentName: string, options: UseAgentSchemasOption
 
 	return {
 		data: agentData,
-		isLoading,
 		error,
+		isLoading,
+		metadata: agentData?.metadata || null,
 		refetch,
 		schema: agentData?.schema || null,
-		metadata: agentData?.metadata || null,
 	};
 }

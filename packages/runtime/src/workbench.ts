@@ -112,20 +112,19 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				ctx.var.logger?.warn('Thread not available in workbench execution route');
 			}
 
-			// Handle cases where result might be undefined/null
-			if (result === undefined || result === null) {
-				return ctx.json({ success: true, result: null });
-			}
-
-			return ctx.json(result);
+			return ctx.json({ success: true, data: result ?? null });
 		} catch (error) {
-			return ctx.json(
-				{
-					error: 'Internal server error',
-					message: error instanceof Error ? error.message : String(error),
+			const err = error instanceof Error ? error : new Error(String(error));
+			// Return 200 with wrapped error so UI can display it properly
+			return ctx.json({
+				success: false,
+				error: {
+					message: err.message,
+					stack: err.stack,
+					code: 'code' in err && typeof err.code === 'string' ? err.code : 'EXECUTION_ERROR',
+					cause: err.cause,
 				},
-				{ status: 500 }
-			);
+			});
 		}
 	};
 };
