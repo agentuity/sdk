@@ -7,10 +7,7 @@ import type { ExecuteOptions, Execution, ExecutionStatus } from '@agentuity/core
 const ExecuteRequestSchema = z
 	.object({
 		command: z.array(z.string()).describe('Command and arguments to execute'),
-		files: z
-			.array(FileToWriteSchema)
-			.optional()
-			.describe('Files to write before execution'),
+		files: z.array(FileToWriteSchema).optional().describe('Files to write before execution'),
 		timeout: z.string().optional().describe('Execution timeout (e.g., "30s", "5m")'),
 		stream: z
 			.object({

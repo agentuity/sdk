@@ -1779,6 +1779,19 @@ export function createAgent<
 		}
 	}
 
+	// Error if agent has no metadata IDs in production - this causes agent_ids to be empty in sessions
+	// which affects analytics, billing attribution, and session filtering
+	// Only enforce in production (when AGENTUITY_CLOUD_PROJECT_ID is set) to allow dev/test without metadata
+	if (!metadata.id && !metadata.agentId && runtimeConfig.getProjectId()) {
+		throw new Error(
+			`Agent "${name}" has no metadata IDs (id and agentId are empty). ` +
+				`This will result in empty agent_ids in session events. ` +
+				`Ensure agentuity.metadata.json exists in the runtime directory ` +
+				`(checked: ${process.cwd()}/agentuity.metadata.json and ${process.cwd()}/.agentuity/agentuity.metadata.json). ` +
+				`Run 'agentuity build' to generate the metadata file.`
+		);
+	}
+
 	const agent: any = {
 		handler,
 		metadata,

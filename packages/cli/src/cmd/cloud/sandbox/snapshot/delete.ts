@@ -33,11 +33,7 @@ export const deleteSubcommand = createCommand({
 			snapshotId: z.string().describe('Snapshot ID to delete'),
 		}),
 		options: z.object({
-			confirm: z
-				.boolean()
-				.optional()
-				.default(false)
-				.describe('Skip confirmation prompt'),
+			confirm: z.boolean().optional().default(false).describe('Skip confirmation prompt'),
 		}),
 		response: SnapshotDeleteResponseSchema,
 	},

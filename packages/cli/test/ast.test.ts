@@ -169,7 +169,13 @@ export default router;
 		}, {});
 
 		expect(routesByPath['/api/test']).toEqual(['get']);
-		expect(routesByPath['/api/catch-all']?.sort()).toEqual(['delete', 'get', 'patch', 'post', 'put']);
+		expect(routesByPath['/api/catch-all']?.sort()).toEqual([
+			'delete',
+			'get',
+			'patch',
+			'post',
+			'put',
+		]);
 		expect(routesByPath['/api/users']?.sort()).toEqual(['get', 'post']);
 
 		cleanup();

@@ -38,11 +38,7 @@ export const deleteSubcommand = createCommand({
 			sandboxId: z.string().describe('Sandbox ID'),
 		}),
 		options: z.object({
-			confirm: z
-				.boolean()
-				.optional()
-				.default(false)
-				.describe('Skip confirmation prompt'),
+			confirm: z.boolean().optional().default(false).describe('Skip confirmation prompt'),
 		}),
 		response: SandboxDeleteResponseSchema,
 	},
