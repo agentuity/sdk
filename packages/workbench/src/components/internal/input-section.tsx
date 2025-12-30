@@ -371,7 +371,7 @@ export function InputSection({
 									{selectedAgentData?.examples &&
 										selectedAgentData.examples.length > 0 && (
 											<CommandGroup heading="Examples">
-												{selectedAgentData.examples.map((example) => {
+												{selectedAgentData.examples.map((example, index) => {
 													const label =
 														typeof example === 'object' && example !== null
 															? JSON.stringify(example).substring(0, 60)
@@ -379,7 +379,7 @@ export function InputSection({
 
 													return (
 														<CommandItem
-															key={label}
+															key={`${index}-${label}`}
 															onSelect={() => {
 																const formatted =
 																	typeof example === 'object'

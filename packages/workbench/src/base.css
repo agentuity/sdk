@@ -52,7 +52,7 @@
 	--muted-foreground: 240 5% 64.9%;
 	--accent: 240 3.7% 15.9%;
 	--accent-foreground: 0 0% 98%;
-	--destructive: 345, 83%, 41%;
+	--destructive: 345 83% 41%;
 	--destructive-foreground: 0 0% 98%;
 	--border: 240 3.7% 15.9%;
 	--input: 240 3.7% 15.9%;
@@ -225,7 +225,7 @@
 }
 
 body {
-	scrollbar-width: 12px;
+	scrollbar-width: thin;
 	scrollbar-color: var(--color-gray-200) transparent;
 }
 
