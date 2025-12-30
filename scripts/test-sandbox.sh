@@ -91,7 +91,7 @@ section "RUN Command Tests"
 
 # Test: Run one-shot command
 info "Test: sandbox run - basic command"
-RUN_OUTPUT=$($CLI cloud sandbox run -- echo "hello from run" 2>&1)
+RUN_OUTPUT=$($CLI cloud sandbox run -- echo "hello from run" 2>&1) || true
 if echo "$RUN_OUTPUT" | grep -q "hello from run"; then
 	pass "sandbox run executes command and returns output"
 else
@@ -100,7 +100,7 @@ fi
 
 # Test: Run with file injection
 info "Test: sandbox run --file"
-RUN_FILE_OUTPUT=$($CLI cloud sandbox run --file "script.sh:$TEST_DIR/script.sh" -- bash script.sh testarg 2>&1)
+RUN_FILE_OUTPUT=$($CLI cloud sandbox run --file "script.sh:$TEST_DIR/script.sh" -- bash script.sh testarg 2>&1) || true
 if echo "$RUN_FILE_OUTPUT" | grep -q "Script executed with arg: testarg"; then
 	pass "sandbox run --file injects file and executes correctly"
 else
@@ -109,7 +109,7 @@ fi
 
 # Test: Run with environment variable
 info "Test: sandbox run --env"
-RUN_ENV_OUTPUT=$($CLI cloud sandbox run --env "MY_VAR=hello_env" -- sh -c 'echo $MY_VAR' 2>&1)
+RUN_ENV_OUTPUT=$($CLI cloud sandbox run --env "MY_VAR=hello_env" -- sh -c 'echo $MY_VAR' 2>&1) || true
 if echo "$RUN_ENV_OUTPUT" | grep -q "hello_env"; then
 	pass "sandbox run --env sets environment variable"
 else
@@ -118,7 +118,7 @@ fi
 
 # Test: Run with network enabled (test DNS resolution)
 info "Test: sandbox run --network"
-RUN_NET_OUTPUT=$($CLI cloud sandbox run --network -- sh -c 'getent hosts example.com && echo "DNS_OK"' 2>&1)
+RUN_NET_OUTPUT=$($CLI cloud sandbox run --network -- sh -c 'getent hosts example.com && echo "DNS_OK"' 2>&1) || true
 if echo "$RUN_NET_OUTPUT" | grep -q "DNS_OK"; then
 	pass "sandbox run --network enables network access"
 else
@@ -131,7 +131,7 @@ section "CREATE & GET & LIST Command Tests"
 
 # Test: Create sandbox with JSON output
 info "Test: sandbox create --json"
-CREATE_OUTPUT=$($CLI cloud sandbox create --json 2>&1)
+CREATE_OUTPUT=$($CLI cloud sandbox create --json 2>&1) || true
 SANDBOX_ID=$(echo "$CREATE_OUTPUT" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SANDBOX_ID" ] && [[ "$SANDBOX_ID" == sbx_* ]]; then
 	pass "sandbox create returns valid sandboxId: $SANDBOX_ID"
@@ -149,7 +149,7 @@ fi
 
 # Test: Get sandbox info
 info "Test: sandbox get --json"
-GET_OUTPUT=$($CLI cloud sandbox get "$SANDBOX_ID" --json 2>&1)
+GET_OUTPUT=$($CLI cloud sandbox get "$SANDBOX_ID" --json 2>&1) || true
 GET_SANDBOX_ID=$(echo "$GET_OUTPUT" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ "$GET_SANDBOX_ID" = "$SANDBOX_ID" ]; then
 	pass "sandbox get returns correct sandboxId"
@@ -167,7 +167,7 @@ fi
 
 # Test: List sandboxes includes our sandbox
 info "Test: sandbox list --json"
-LIST_OUTPUT=$($CLI cloud sandbox list --json 2>&1)
+LIST_OUTPUT=$($CLI cloud sandbox list --json 2>&1) || true
 if echo "$LIST_OUTPUT" | grep -q "$SANDBOX_ID"; then
 	pass "sandbox list includes created sandbox"
 else
@@ -186,7 +186,7 @@ info "Waiting for sandbox to become ready..."
 MAX_WAIT=30
 WAIT_COUNT=0
 while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
-	STATUS_OUTPUT=$($CLI cloud sandbox get "$SANDBOX_ID" --json 2>&1)
+	STATUS_OUTPUT=$($CLI cloud sandbox get "$SANDBOX_ID" --json 2>&1) || true
 	CURRENT_STATUS=$(echo "$STATUS_OUTPUT" | grep -o '"status"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 	if [ "$CURRENT_STATUS" = "idle" ]; then
 		pass "sandbox is ready (status: idle)"
@@ -205,7 +205,7 @@ section "EXEC Command Tests"
 
 # Test: Execute simple command
 info "Test: sandbox exec - echo command"
-EXEC_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- echo "exec test" 2>&1)
+EXEC_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- echo "exec test" 2>&1) || true
 if echo "$EXEC_OUTPUT" | grep -q "exec test"; then
 	pass "sandbox exec returns command output"
 else
@@ -214,7 +214,7 @@ fi
 
 # Test: Execute command with exit code
 info "Test: sandbox exec - exit code handling"
-EXEC_EXIT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'exit 0' 2>&1)
+EXEC_EXIT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'exit 0' 2>&1) || true
 # Should not contain "failed"
 if ! echo "$EXEC_EXIT" | grep -qi "failed\|error"; then
 	pass "sandbox exec handles successful exit"
@@ -224,8 +224,8 @@ fi
 
 # Test: File persistence between execs (only home folder persists)
 info "Test: sandbox exec - state persistence"
-$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo persistent > /home/agentuity/state.txt' >/dev/null 2>&1
-PERSIST_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- cat /home/agentuity/state.txt 2>&1)
+$CLI cloud sandbox exec "$SANDBOX_ID" -- sh -c 'echo persistent > /home/agentuity/state.txt' >/dev/null 2>&1 || true
+PERSIST_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- cat /home/agentuity/state.txt 2>&1) || true
 if echo "$PERSIST_OUTPUT" | grep -q "persistent"; then
 	pass "sandbox exec maintains state between calls"
 else
@@ -238,7 +238,7 @@ section "CP Command Tests"
 
 # Test: Upload single file
 info "Test: sandbox cp - upload file"
-UPLOAD_OUTPUT=$($CLI cloud sandbox cp "$TEST_DIR/test.txt" "$SANDBOX_ID:test.txt" 2>&1)
+UPLOAD_OUTPUT=$($CLI cloud sandbox cp "$TEST_DIR/test.txt" "$SANDBOX_ID:test.txt" 2>&1) || true
 if echo "$UPLOAD_OUTPUT" | grep -q "Copied" && echo "$UPLOAD_OUTPUT" | grep -q "21 bytes"; then
 	pass "sandbox cp uploads file with correct byte count"
 else
@@ -247,7 +247,7 @@ fi
 
 # Verify file content in sandbox
 info "Test: sandbox cp - verify uploaded content"
-VERIFY_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- cat /home/agentuity/app/test.txt 2>&1)
+VERIFY_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- cat /home/agentuity/app/test.txt 2>&1) || true
 if echo "$VERIFY_OUTPUT" | grep -q "Hello from test file"; then
 	pass "uploaded file has correct content"
 else
@@ -257,7 +257,7 @@ fi
 # Test: Download file (using relative path)
 info "Test: sandbox cp - download file"
 rm -f "$TEST_DIR/downloaded.txt"
-DOWNLOAD_OUTPUT=$($CLI cloud sandbox cp "$SANDBOX_ID:test.txt" "$TEST_DIR/downloaded.txt" 2>&1)
+DOWNLOAD_OUTPUT=$($CLI cloud sandbox cp "$SANDBOX_ID:test.txt" "$TEST_DIR/downloaded.txt" 2>&1) || true
 if [ -f "$TEST_DIR/downloaded.txt" ]; then
 	DOWNLOADED_CONTENT=$(cat "$TEST_DIR/downloaded.txt")
 	if [ "$DOWNLOADED_CONTENT" = "Hello from test file" ]; then
@@ -271,8 +271,8 @@ fi
 
 # Test: Binary file integrity
 info "Test: sandbox cp - binary file integrity"
-$CLI cloud sandbox cp "$TEST_DIR/binary.bin" "$SANDBOX_ID:binary.bin" 2>&1
-$CLI cloud sandbox cp "$SANDBOX_ID:binary.bin" "$TEST_DIR/downloaded.bin" 2>&1
+$CLI cloud sandbox cp "$TEST_DIR/binary.bin" "$SANDBOX_ID:binary.bin" 2>&1 || true
+$CLI cloud sandbox cp "$SANDBOX_ID:binary.bin" "$TEST_DIR/downloaded.bin" 2>&1 || true
 if cmp -s "$TEST_DIR/binary.bin" "$TEST_DIR/downloaded.bin"; then
 	pass "binary file maintains integrity through upload/download"
 else
@@ -281,7 +281,7 @@ fi
 
 # Test: Directory upload with -r
 info "Test: sandbox cp -r - upload directory"
-DIR_UPLOAD=$($CLI cloud sandbox cp -r "$TEST_DIR/testdir" "$SANDBOX_ID:testdir" 2>&1)
+DIR_UPLOAD=$($CLI cloud sandbox cp -r "$TEST_DIR/testdir" "$SANDBOX_ID:testdir" 2>&1) || true
 if echo "$DIR_UPLOAD" | grep -q "3 files"; then
 	pass "sandbox cp -r uploads directory with correct file count"
 else
@@ -290,7 +290,7 @@ fi
 
 # Verify directory structure
 info "Test: sandbox cp -r - verify structure"
-STRUCT_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- find /home/agentuity/app/testdir -name "*.txt" 2>&1)
+STRUCT_OUTPUT=$($CLI cloud sandbox exec "$SANDBOX_ID" -- find /home/agentuity/app/testdir -name "*.txt" 2>&1) || true
 if echo "$STRUCT_OUTPUT" | grep -q "a.txt" && echo "$STRUCT_OUTPUT" | grep -q "b.txt" && echo "$STRUCT_OUTPUT" | grep -q "c.txt"; then
 	pass "directory structure preserved"
 else
@@ -300,7 +300,7 @@ fi
 # Test: Directory download with -r (using relative path)
 info "Test: sandbox cp -r - download directory"
 rm -rf "$TEST_DIR/downloaded-dir"
-DIR_DOWNLOAD=$($CLI cloud sandbox cp -r "$SANDBOX_ID:testdir" "$TEST_DIR/downloaded-dir" 2>&1)
+DIR_DOWNLOAD=$($CLI cloud sandbox cp -r "$SANDBOX_ID:testdir" "$TEST_DIR/downloaded-dir" 2>&1) || true
 if [ -f "$TEST_DIR/downloaded-dir/a.txt" ] && [ -f "$TEST_DIR/downloaded-dir/subdir/b.txt" ] && [ -f "$TEST_DIR/downloaded-dir/subdir/c.txt" ]; then
 	pass "sandbox cp -r downloads directory with correct structure"
 else
@@ -319,7 +319,7 @@ section "SNAPSHOT Command Tests"
 
 # Test: Create snapshot
 info "Test: snapshot create --json"
-SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --json 2>&1)
+SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --json 2>&1) || true
 SNAPSHOT_ID=$(echo "$SNAP_CREATE" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SNAPSHOT_ID" ] && [[ "$SNAPSHOT_ID" == snp_* ]]; then
 	pass "snapshot create returns valid snapshotId: $SNAPSHOT_ID"
@@ -336,7 +336,7 @@ fi
 
 # Test: Get snapshot
 info "Test: snapshot get --json"
-SNAP_GET=$($CLI cloud sandbox snapshot get "$SNAPSHOT_ID" --json 2>&1)
+SNAP_GET=$($CLI cloud sandbox snapshot get "$SNAPSHOT_ID" --json 2>&1) || true
 GET_SNAP_ID=$(echo "$SNAP_GET" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ "$GET_SNAP_ID" = "$SNAPSHOT_ID" ]; then
 	pass "snapshot get returns correct snapshotId"
@@ -346,7 +346,7 @@ fi
 
 # Test: List snapshots
 info "Test: snapshot list --json"
-SNAP_LIST=$($CLI cloud sandbox snapshot list --json 2>&1)
+SNAP_LIST=$($CLI cloud sandbox snapshot list --json 2>&1) || true
 if echo "$SNAP_LIST" | grep -q "$SNAPSHOT_ID"; then
 	pass "snapshot list includes created snapshot"
 else
@@ -356,12 +356,12 @@ fi
 # Test: Tag snapshot
 info "Test: snapshot tag"
 TEST_TAG="test-$(date +%s)"
-TAG_OUTPUT=$($CLI cloud sandbox snapshot tag "$SNAPSHOT_ID" "$TEST_TAG" 2>&1)
+TAG_OUTPUT=$($CLI cloud sandbox snapshot tag "$SNAPSHOT_ID" "$TEST_TAG" 2>&1) || true
 if echo "$TAG_OUTPUT" | grep -qi "tagged\|$TEST_TAG"; then
 	pass "snapshot tag succeeds"
 else
 	# Verify by getting snapshot
-	TAGGED_SNAP=$($CLI cloud sandbox snapshot get "$SNAPSHOT_ID" --json 2>&1)
+	TAGGED_SNAP=$($CLI cloud sandbox snapshot get "$SNAPSHOT_ID" --json 2>&1) || true
 	if echo "$TAGGED_SNAP" | grep -q "$TEST_TAG"; then
 		pass "snapshot tag applied (verified via get)"
 	else
@@ -371,12 +371,12 @@ fi
 
 # Test: Create sandbox from snapshot
 info "Test: sandbox create --snapshot"
-SNAP_SANDBOX=$($CLI cloud sandbox create --snapshot "$SNAPSHOT_ID" --json 2>&1)
+SNAP_SANDBOX=$($CLI cloud sandbox create --snapshot "$SNAPSHOT_ID" --json 2>&1) || true
 SNAP_SANDBOX_ID=$(echo "$SNAP_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SNAP_SANDBOX_ID" ]; then
 	# Wait for snapshot restore and verify file exists
 	sleep 3
-	RESTORE_VERIFY=$($CLI cloud sandbox exec "$SNAP_SANDBOX_ID" -- cat /home/agentuity/app/test.txt 2>&1)
+	RESTORE_VERIFY=$($CLI cloud sandbox exec "$SNAP_SANDBOX_ID" -- cat /home/agentuity/app/test.txt 2>&1) || true
 	if echo "$RESTORE_VERIFY" | grep -q "Hello from test file"; then
 		pass "sandbox from snapshot contains restored files"
 	else
@@ -390,7 +390,7 @@ fi
 
 # Test: Delete snapshot
 info "Test: snapshot delete"
-SNAP_DELETE_OUTPUT=$($CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>&1)
+SNAP_DELETE_OUTPUT=$($CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>&1) || true
 if echo "$SNAP_DELETE_OUTPUT" | grep -qi "deleted"; then
 	pass "snapshot delete succeeds"
 	SNAPSHOT_ID=""
@@ -404,7 +404,7 @@ section "DELETE Command Tests"
 
 # Test: Delete sandbox
 info "Test: sandbox delete"
-DELETE_OUTPUT=$($CLI cloud sandbox delete "$SANDBOX_ID" --confirm 2>&1)
+DELETE_OUTPUT=$($CLI cloud sandbox delete "$SANDBOX_ID" --confirm 2>&1) || true
 if echo "$DELETE_OUTPUT" | grep -qi "deleted"; then
 	pass "sandbox delete succeeds"
 	SANDBOX_ID=""
