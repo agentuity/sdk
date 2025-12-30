@@ -10,7 +10,7 @@
 
 import { createRouter } from '@agentuity/runtime';
 import agentIdTestAgent from '@agents/session/agent-id-test';
-import { testSessionEventProvider } from '../../test/helpers/session-event-provider';
+import { testSessionEventProvider } from '@test/helpers/session-event-provider';
 
 const router = createRouter();
 
