@@ -5,7 +5,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { useWorkbench } from './workbench-provider';
 
 export interface SchemaProps {
-	onOpenChange: (open: boolean) => void;
+	onOpenChange?: (open: boolean) => void;
 }
 
 export function Schema({ onOpenChange }: SchemaProps) {
@@ -16,22 +16,24 @@ export function Schema({ onOpenChange }: SchemaProps) {
 
 	return (
 		<div className="h-full flex flex-col">
-			<div className="flex items-center justify-between py-2.5 px-4.5 border-b border-border">
-				<div className="flex items-center gap-2">
-					<Braces className="size-5 text-muted-foreground" />
+			{onOpenChange && (
+				<div className="flex items-center justify-between py-2.5 px-4.5 border-b border-border">
+					<div className="flex items-center gap-2">
+						<Braces className="size-5 text-muted-foreground" />
 
-					<h2 className="font-medium mt-0.5">Schema</h2>
+						<h2 className="font-medium mt-0.5">Schema</h2>
+					</div>
+
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => onOpenChange(false)}
+						className="size-8"
+					>
+						<X className="size-4" />
+					</Button>
 				</div>
-
-				<Button
-					variant="ghost"
-					size="icon"
-					onClick={() => onOpenChange(false)}
-					className="size-8"
-				>
-					<X className="size-4" />
-				</Button>
-			</div>
+			)}
 
 			<ScrollArea className="flex-1 text-sm overflow-hidden">
 				<div className="flex flex-col gap-6 p-4">

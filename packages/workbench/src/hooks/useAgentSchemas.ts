@@ -1,5 +1,6 @@
 import type { JSONSchema7 } from 'ai';
 import { useCallback, useEffect, useState } from 'react';
+import { useLogger } from './useLogger';
 
 export interface AgentSchema {
 	input?: {
@@ -67,6 +68,7 @@ export interface UseAgentSchemasResult {
 export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentSchemasResult {
 	const { baseUrl = '', apiKey, enabled = true } = options;
 
+	const logger = useLogger('useAgentSchemas');
 	const [data, setData] = useState<AgentSchemasResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
@@ -118,14 +120,14 @@ export function useAgentSchemas(options: UseAgentSchemasOptions = {}): UseAgentS
 			} catch (jsonError) {
 				setError(new Error('Invalid JSON response from server'));
 
-				console.error('Failed to parse JSON response:', jsonError);
+				logger.error('Failed to parse JSON response:', jsonError);
 			}
 		} catch (err) {
 			const error = err instanceof Error ? err : new Error('Unknown error occurred');
 
 			setError(error);
 
-			console.error('Failed to fetch agent schemas:', error);
+			logger.error('Failed to fetch agent schemas:', error);
 		} finally {
 			setIsLoading(false);
 		}
