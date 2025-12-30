@@ -5,7 +5,6 @@ import {
 	CheckIcon,
 	ChevronDownIcon,
 	ChevronsUpDownIcon,
-	FileJson,
 	ListPlus,
 	Loader2Icon,
 	SendIcon,
