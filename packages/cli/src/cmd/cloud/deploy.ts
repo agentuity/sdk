@@ -51,15 +51,6 @@ const DeploymentCancelledError = StructuredError(
 	'Deployment cancelled by user'
 );
 
-const DeploymentFailedError = StructuredError('DeploymentFailed')<{
-	deploymentId: string;
-	error?: string;
-	reason?: string;
-	message?: string;
-	code?: string;
-	traceId?: string;
-}>();
-
 const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
 	deploymentId: z.string().describe('Deployment ID'),
@@ -578,14 +569,7 @@ export const deploySubcommand = createSubcommand({
 										}
 
 										if (statusResult.state === 'failed') {
-											throw new DeploymentFailedError({
-												deploymentId: deployment?.id ?? '',
-												error: statusResult.error,
-												reason: statusResult.reason,
-												message: statusResult.message,
-												code: statusResult.code,
-												traceId: statusResult.traceId,
-											});
+											throw new Error('Deployment failed');
 										}
 
 										await Bun.sleep(pollInterval);
@@ -613,32 +597,12 @@ export const deploySubcommand = createSubcommand({
 								process.exit(130); // Standard exit code for SIGINT
 							}
 
-							// Build error message from DeploymentFailedError details
-							let errorMsg = '';
-							if (ex instanceof DeploymentFailedError) {
-								const details: string[] = [];
-								if (ex.error) details.push(ex.error);
-								if (ex.reason) details.push(ex.reason);
-								if (ex.message) details.push(ex.message);
-								if (details.length > 0) {
-									errorMsg = details.join(' - ');
-								}
-								if (ex.code) {
-									errorMsg = errorMsg
-										? `${errorMsg} (code: ${ex.code})`
-										: `code: ${ex.code}`;
-								}
-							} else {
-								const exwithmessage = ex as { message: string };
-								if (
-									exwithmessage.message &&
-									exwithmessage.message !== 'Deployment failed'
-								) {
-									errorMsg = exwithmessage.toString();
-								}
-							}
-
-							tui.error(`Your deployment failed to start${errorMsg ? `: ${errorMsg}` : ''}`);
+							const exwithmessage = ex as { message: string };
+							const msg =
+								exwithmessage.message === 'Deployment failed'
+									? ''
+									: exwithmessage.toString();
+							tui.error(`Your deployment failed to start${msg ? `: ${msg}` : ''}`);
 
 							// Always show deployment ID and dashboard URL for debugging
 							const appUrl = getAppBaseURL(config?.name, config?.overrides);
@@ -650,11 +614,6 @@ export const deploySubcommand = createSubcommand({
 							}
 							if (dashboardUrl) {
 								tui.info(`Dashboard: ${tui.link(dashboardUrl)}`);
-							}
-
-							// Show trace ID if available for debugging
-							if (ex instanceof DeploymentFailedError && ex.traceId) {
-								tui.info(`Trace ID: ${ex.traceId}`);
 							}
 
 							if (logs.length) {
@@ -709,14 +668,7 @@ export const deploySubcommand = createSubcommand({
 								}
 
 								if (statusResult.state === 'failed') {
-									throw new DeploymentFailedError({
-										deploymentId: deployment?.id ?? '',
-										error: statusResult.error,
-										reason: statusResult.reason,
-										message: statusResult.message,
-										code: statusResult.code,
-										traceId: statusResult.traceId,
-									});
+									throw new Error('Deployment failed');
 								}
 
 								await Bun.sleep(pollInterval);

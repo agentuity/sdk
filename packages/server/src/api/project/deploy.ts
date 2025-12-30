@@ -269,11 +269,6 @@ const DeploymentStatusObject = z
 	.object({
 		state: DeploymentStateValue.describe('the current deployment state'),
 		active: z.boolean().describe('whether this deployment is the active one for the project'),
-		error: z.string().optional().describe('error message if deployment failed'),
-		reason: z.string().optional().describe('reason for failure'),
-		message: z.string().optional().describe('additional message about the deployment status'),
-		code: z.string().optional().describe('error code if deployment failed'),
-		traceId: z.string().optional().describe('trace ID for debugging'),
 	})
 	.passthrough();
 
