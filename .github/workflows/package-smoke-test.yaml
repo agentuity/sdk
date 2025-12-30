@@ -168,7 +168,6 @@ jobs:
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
          AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
-         AGENTUITY_LOG_LEVEL: trace
       steps:
          - uses: actions/checkout@v4
 
