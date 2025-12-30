@@ -49,9 +49,17 @@ describe('patchBunS3ForStorageDev', () => {
 	const originalAwsEndpoint = process.env.AWS_ENDPOINT;
 	const PATCHED_SYMBOL = Symbol.for('agentuity.s3.patched');
 
+	// Store the truly original file method before any tests run
+	const trulyOriginalFile = Bun.S3Client.prototype.file;
+
 	beforeEach(() => {
 		delete process.env.S3_ENDPOINT;
 		delete process.env.AWS_ENDPOINT;
+		// Reset the prototype to the truly original method before each test
+		Bun.S3Client.prototype.file = trulyOriginalFile;
+		// Clear the patched marker
+		const proto = Bun.S3Client.prototype as Record<symbol, unknown>;
+		delete proto[PATCHED_SYMBOL];
 	});
 
 	afterEach(() => {
@@ -65,6 +73,11 @@ describe('patchBunS3ForStorageDev', () => {
 		} else {
 			delete process.env.AWS_ENDPOINT;
 		}
+		// Restore the original file method after each test
+		Bun.S3Client.prototype.file = trulyOriginalFile;
+		// Clear the patched marker
+		const proto = Bun.S3Client.prototype as Record<symbol, unknown>;
+		delete proto[PATCHED_SYMBOL];
 	});
 
 	test('does not throw when Bun.s3 is not available', () => {
@@ -149,5 +162,98 @@ describe('patchBunS3ForStorageDev', () => {
 
 		// But it should still use the patched file method from the prototype
 		expect(manualClient.file).toBe(Bun.s3.file);
+	});
+
+	test('patched file method injects virtualHostedStyle: true when no options passed', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalFile = Bun.S3Client.prototype.file;
+
+		// Wrap the ORIGINAL method BEFORE patching to capture what the patch passes
+		Bun.S3Client.prototype.file = function spyFile(
+			this: unknown,
+			path: string,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalFile.call(this, path, options);
+		};
+
+		// Now apply the patch - it will wrap our spy
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.file('test.txt');
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(true);
+	});
+
+	test('patched file method does not override explicit virtualHostedStyle: false', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalFile = Bun.S3Client.prototype.file;
+
+		// Wrap the ORIGINAL method BEFORE patching to capture what the patch passes
+		Bun.S3Client.prototype.file = function spyFile(
+			this: unknown,
+			path: string,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalFile.call(this, path, options);
+		};
+
+		// Now apply the patch - it will wrap our spy
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.file('test.txt', { virtualHostedStyle: false });
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(false);
+	});
+
+	test('patched file method preserves explicit virtualHostedStyle: true', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalFile = Bun.S3Client.prototype.file;
+
+		// Wrap the ORIGINAL method BEFORE patching to capture what the patch passes
+		Bun.S3Client.prototype.file = function spyFile(
+			this: unknown,
+			path: string,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalFile.call(this, path, options);
+		};
+
+		// Now apply the patch - it will wrap our spy
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.file('test.txt', { virtualHostedStyle: true });
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(true);
 	});
 });
