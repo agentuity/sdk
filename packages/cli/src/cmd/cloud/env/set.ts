@@ -3,7 +3,7 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
 import {
-	findEnvFile,
+	findExistingEnvFile,
 	readEnvFile,
 	writeEnvFile,
 	filterAgentuitySdkKeys,
@@ -75,8 +75,8 @@ export const setSubcommand = createSubcommand({
 			});
 		});
 
-		// Update local .env.production file
-		const envFilePath = await findEnvFile(projectDir);
+		// Update local .env file
+		const envFilePath = await findExistingEnvFile(projectDir);
 		const currentEnv = await readEnvFile(envFilePath);
 		currentEnv[args.key] = args.value;
 

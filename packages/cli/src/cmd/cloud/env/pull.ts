@@ -3,13 +3,7 @@ import { join } from 'node:path';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectGet } from '@agentuity/server';
-import {
-	findEnvFile,
-	findExistingEnvFile,
-	readEnvFile,
-	writeEnvFile,
-	mergeEnvVars,
-} from '../../../env-util';
+import { findExistingEnvFile, readEnvFile, writeEnvFile, mergeEnvVars } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
 const EnvPullResponseSchema = z.object({
@@ -21,7 +15,7 @@ const EnvPullResponseSchema = z.object({
 
 export const pullSubcommand = createSubcommand({
 	name: 'pull',
-	description: 'Pull environment variables from cloud to local .env.production file',
+	description: 'Pull environment variables from cloud to local .env file',
 	tags: ['slow', 'requires-auth', 'requires-project'],
 	idempotent: true,
 	examples: [
@@ -45,14 +39,14 @@ export const pullSubcommand = createSubcommand({
 			return projectGet(apiClient, { id: project.projectId, mask: false });
 		});
 
-		const cloudEnv = projectData.env || {};
+		const cloudEnv = { ...projectData.env, ...projectData.secrets }; // env pull with actually do both secrets and env since thats likely what the user would want
 
-		// Read current local env from existing file (.env.production or .env)
+		// Read current local env from existing file
 		const existingEnvPath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(existingEnvPath);
 
-		// Target file is always .env.production
-		const targetEnvPath = await findEnvFile(projectDir);
+		// Target file is always .env
+		const targetEnvPath = await findExistingEnvFile(projectDir);
 
 		// Merge: cloud values override local if force=true, otherwise keep local
 		let mergedEnv: Record<string, string>;
@@ -64,10 +58,13 @@ export const pullSubcommand = createSubcommand({
 			mergedEnv = mergeEnvVars(cloudEnv, localEnv);
 		}
 
-		// Write to .env.production (skip AGENTUITY_ keys)
+		// Write to .env (skip AGENTUITY_ keys)
 		await writeEnvFile(targetEnvPath, mergedEnv, {
 			skipKeys: Object.keys(mergedEnv).filter((k) => k.startsWith('AGENTUITY_')),
 		});
+
+		console.log(projectData);
+		console.log(mergedEnv);
 
 		// Write AGENTUITY_SDK_KEY to .env if present and missing locally
 		if (projectData.api_key) {

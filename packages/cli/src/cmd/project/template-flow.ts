@@ -22,7 +22,7 @@ import { ErrorCode } from '../../errors';
 import type { APIClient } from '../../api';
 import { createProjectConfig } from '../../config';
 import {
-	findEnvFile,
+	findExistingEnvFile,
 	readEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
@@ -404,14 +404,14 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			await addResourceEnvVars(dest, resourceEnvVars);
 		}
 
-		// After registration, push any existing env/secrets from .env.production
+		// After registration, push any existing env/secrets from .env
 		if (projectId) {
 			await tui.spinner({
 				message: 'Syncing environment variables',
 				clearOnSuccess: true,
 				callback: async () => {
 					try {
-						const envFilePath = await findEnvFile(dest);
+						const envFilePath = await findExistingEnvFile(dest);
 						const localEnv = await readEnvFile(envFilePath);
 						const filteredEnv = filterAgentuitySdkKeys(localEnv);
 
