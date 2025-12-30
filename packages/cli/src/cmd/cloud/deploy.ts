@@ -51,6 +51,15 @@ const DeploymentCancelledError = StructuredError(
 	'Deployment cancelled by user'
 );
 
+const DeploymentFailedError = StructuredError('DeploymentFailed')<{
+	deploymentId: string;
+	error?: string;
+	reason?: string;
+	message?: string;
+	code?: string;
+	traceId?: string;
+}>();
+
 const DeployResponseSchema = z.object({
 	success: z.boolean().describe('Whether deployment succeeded'),
 	deploymentId: z.string().describe('Deployment ID'),
@@ -512,8 +521,8 @@ export const deploySubcommand = createSubcommand({
 											},
 										});
 										if (!resp.ok || !resp.body) {
-											ctx.logger.trace(
-												`Failed to connect to warmup log stream: ${resp.status}`
+											ctx.logger.debug(
+												`Failed to connect to warmup log stream (HTTP ${resp.status}). Logs may not be available.`
 											);
 											return;
 										}
@@ -542,7 +551,7 @@ export const deploySubcommand = createSubcommand({
 										if (err instanceof Error && err.name === 'AbortError') {
 											return;
 										}
-										ctx.logger.trace(`Warmup log stream error: ${err}`);
+										ctx.logger.debug(`Warmup log stream error: ${err}`);
 									}
 								})();
 
@@ -569,7 +578,14 @@ export const deploySubcommand = createSubcommand({
 										}
 
 										if (statusResult.state === 'failed') {
-											throw new Error('Deployment failed');
+											throw new DeploymentFailedError({
+												deploymentId: deployment?.id ?? '',
+												error: statusResult.error,
+												reason: statusResult.reason,
+												message: statusResult.message,
+												code: statusResult.code,
+												traceId: statusResult.traceId,
+											});
 										}
 
 										await Bun.sleep(pollInterval);
@@ -596,12 +612,51 @@ export const deploySubcommand = createSubcommand({
 								tui.warning('Deployment cancelled');
 								process.exit(130); // Standard exit code for SIGINT
 							}
-							const exwithmessage = ex as { message: string };
-							const msg =
-								exwithmessage.message === 'Deployment failed'
-									? ''
-									: exwithmessage.toString();
-							tui.error(`Your deployment failed to start${msg ? `: ${msg}` : ''}`);
+
+							// Build error message from DeploymentFailedError details
+							let errorMsg = '';
+							if (ex instanceof DeploymentFailedError) {
+								const details: string[] = [];
+								if (ex.error) details.push(ex.error);
+								if (ex.reason) details.push(ex.reason);
+								if (ex.message) details.push(ex.message);
+								if (details.length > 0) {
+									errorMsg = details.join(' - ');
+								}
+								if (ex.code) {
+									errorMsg = errorMsg
+										? `${errorMsg} (code: ${ex.code})`
+										: `code: ${ex.code}`;
+								}
+							} else {
+								const exwithmessage = ex as { message: string };
+								if (
+									exwithmessage.message &&
+									exwithmessage.message !== 'Deployment failed'
+								) {
+									errorMsg = exwithmessage.toString();
+								}
+							}
+
+							tui.error(`Your deployment failed to start${errorMsg ? `: ${errorMsg}` : ''}`);
+
+							// Always show deployment ID and dashboard URL for debugging
+							const appUrl = getAppBaseURL(config?.name, config?.overrides);
+							const dashboardUrl = deployment?.id ? `${appUrl}/r/${deployment.id}` : null;
+
+							tui.newline();
+							if (deployment?.id) {
+								tui.info(`Deployment ID: ${deployment.id}`);
+							}
+							if (dashboardUrl) {
+								tui.info(`Dashboard: ${tui.link(dashboardUrl)}`);
+							}
+
+							// Show trace ID if available for debugging
+							if (ex instanceof DeploymentFailedError && ex.traceId) {
+								tui.info(`Trace ID: ${ex.traceId}`);
+							}
+
 							if (logs.length) {
 								const logsDir = join(getDefaultConfigDir(), 'logs');
 								if (!existsSync(logsDir)) {
@@ -621,6 +676,12 @@ export const deploySubcommand = createSubcommand({
 								}
 								tui.newline();
 								tui.fatal(`The logs were written to ${errorFile}`, ErrorCode.BUILD_FAILED);
+							} else {
+								// No logs received - provide guidance
+								tui.newline();
+								tui.warning(
+									'No warmup logs were received. Try re-running with --log-level=trace or check the dashboard for runtime errors.'
+								);
 							}
 							tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 						});
@@ -648,7 +709,14 @@ export const deploySubcommand = createSubcommand({
 								}
 
 								if (statusResult.state === 'failed') {
-									throw new Error('Deployment failed');
+									throw new DeploymentFailedError({
+										deploymentId: deployment?.id ?? '',
+										error: statusResult.error,
+										reason: statusResult.reason,
+										message: statusResult.message,
+										code: statusResult.code,
+										traceId: statusResult.traceId,
+									});
 								}
 
 								await Bun.sleep(pollInterval);
