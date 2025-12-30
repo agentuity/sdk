@@ -14,6 +14,7 @@ const CreateResourcesRequest = z.object({
 const CreatedResource = z.object({
 	type: z.string().describe('the resource type'),
 	name: z.string().describe('the resource name'),
+	env: z.record(z.string(), z.string()).describe('environment variables for the resource'),
 });
 
 const CreateResourcesResponse = z.object({

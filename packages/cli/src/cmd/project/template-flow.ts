@@ -1,5 +1,4 @@
 import { basename, resolve } from 'node:path';
-import { z } from 'zod';
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { cwd } from 'node:process';
 import { homedir } from 'node:os';
@@ -10,7 +9,6 @@ import {
 	projectEnvUpdate,
 	getServiceUrls,
 	APIClient as ServerAPIClient,
-	Resources,
 	createResources,
 } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
@@ -28,10 +26,10 @@ import {
 	readEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
+	addResourceEnvVars,
+	type EnvVars,
 } from '../../env-util';
 import { promptForDNS } from '../../domain';
-
-type ResourcesTypes = z.infer<typeof Resources>;
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -252,8 +250,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 	}
 
-	const resourceConfig: ResourcesTypes = Resources.parse({});
 	let _domains = domains;
+	const resourceEnvVars: EnvVars = {};
 
 	if (auth && apiClient && catalystClient && orgId && region && !skipPrompts) {
 		// Fetch resources for selected org and region using Catalyst API
@@ -317,14 +315,19 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 						return createResources(catalystClient, orgId, region!, [{ type: 's3' }]);
 					},
 				});
-				resourceConfig.storage = created[0].name;
+				// Collect env vars from newly created resource
+				Object.assign(resourceEnvVars, created[0].env);
 				break;
 			}
 			case 'Skip': {
 				break;
 			}
 			default: {
-				resourceConfig.storage = choices.s3_action;
+				// User selected an existing bucket - get env vars from the resources list
+				const selectedBucket = resources.s3.find((b) => b.bucket_name === choices.s3_action);
+				if (selectedBucket?.env) {
+					Object.assign(resourceEnvVars, selectedBucket.env);
+				}
 				break;
 			}
 		}
@@ -337,14 +340,19 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 						return createResources(catalystClient, orgId, region!, [{ type: 'db' }]);
 					},
 				});
-				resourceConfig.db = created[0].name;
+				// Collect env vars from newly created resource
+				Object.assign(resourceEnvVars, created[0].env);
 				break;
 			}
 			case 'Skip': {
 				break;
 			}
 			default: {
-				resourceConfig.db = choices.db_action;
+				// User selected an existing database - get env vars from the resources list
+				const selectedDb = resources.db.find((d) => d.name === choices.db_action);
+				if (selectedDb?.env) {
+					Object.assign(resourceEnvVars, selectedDb.env);
+				}
 				break;
 			}
 		}
@@ -384,13 +392,17 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					orgId,
 					sdkKey: project.sdkKey,
 					deployment: {
-						resources: resourceConfig,
 						domains: _domains,
 					},
 					region: cloudRegion,
 				});
 			},
 		});
+
+		// Write resource environment variables to .env
+		if (Object.keys(resourceEnvVars).length > 0) {
+			await addResourceEnvVars(dest, resourceEnvVars);
+		}
 
 		// After registration, push any existing env/secrets from .env.production
 		if (projectId) {
