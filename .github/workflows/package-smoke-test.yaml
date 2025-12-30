@@ -166,6 +166,7 @@ jobs:
       env:
          AGENTUITY_API_URL: https://api-v1.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
          AGENTUITY_LOG_LEVEL: trace
       steps:
