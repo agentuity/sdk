@@ -214,7 +214,7 @@ export interface AgentContext<
 	 * const result = await ctx.sandbox.run({
 	 *   command: {
 	 *     exec: ['bun', 'run', 'index.ts'],
-	 *     files: { 'index.ts': 'console.log("hello")' }
+	 *     files: [{ path: 'index.ts', content: Buffer.from('console.log("hello")') }]
 	 *   }
 	 * });
 	 * console.log('Exit:', result.exitCode);

@@ -148,7 +148,7 @@ describe('SandboxClient', () => {
 					);
 				}
 
-				if (opts?.method === 'GET' && url.includes('/executions/exec-789')) {
+				if (opts?.method === 'GET' && url.includes('/execution/exec-789')) {
 					return new Response(
 						JSON.stringify({
 							success: true,

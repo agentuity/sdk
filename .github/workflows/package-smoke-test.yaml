@@ -159,6 +159,37 @@ jobs:
          - name: Run template integration tests
            run: bun scripts/test-templates.ts --skip-outdated
 
+   sandbox-cli-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 10
+      name: Sandbox CLI Tests
+      env:
+         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
+         AGENTUITY_REGION: usc
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Setup test credentials
+           run: |
+              # Generate CLI API key for authentication
+              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "::add-mask::${APIKEY}"
+              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+
+         - name: Run sandbox CLI tests
+           run: bash scripts/test-sandbox.sh
+
    playwright-e2e-test:
       runs-on: blacksmith-4vcpu-ubuntu-2204
       timeout-minutes: 10

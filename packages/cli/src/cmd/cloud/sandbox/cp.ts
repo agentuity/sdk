@@ -5,8 +5,8 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxExecute, executionGet, type APIClient } from '@agentuity/server';
-import type { Logger } from '@agentuity/core';
+import { sandboxWriteFiles, sandboxReadFile, sandboxExecute, executionGet, type APIClient } from '@agentuity/server';
+import type { Logger, FileToWrite } from '@agentuity/core';
 
 const POLL_INTERVAL_MS = 500;
 const MAX_POLL_ATTEMPTS = 600;
@@ -201,32 +201,20 @@ async function uploadSingleFile(
 	resolvedPath: string,
 	displayPath: string,
 	remotePath: string,
-	timeout: string | undefined,
+	_timeout: string | undefined,
 	jsonOutput: boolean
 ): Promise<z.infer<typeof SandboxCpResponseSchema>> {
 	const buffer = readFileSync(resolvedPath);
-	const base64Content = buffer.toString('base64');
 
 	let targetPath = remotePath;
-	if (remotePath.endsWith('/')) {
-		targetPath = remotePath + basename(resolvedPath);
+	if (!remotePath || remotePath === '' || remotePath.endsWith('/')) {
+		const baseDir = remotePath || '';
+		targetPath = baseDir ? baseDir + basename(resolvedPath) : basename(resolvedPath);
 	}
 
-	const files: Record<string, string> = {
-		[targetPath]: base64Content,
-	};
+	const files: FileToWrite[] = [{ path: targetPath, content: buffer }];
 
-	const execution = await sandboxExecute(client, {
-		sandboxId,
-		options: {
-			command: ['true'],
-			files,
-			timeout,
-		},
-		orgId,
-	});
-
-	await waitForExecution(client, orgId, execution.executionId, logger);
+	await sandboxWriteFiles(client, { sandboxId, files, orgId });
 
 	if (!jsonOutput) {
 		tui.success(`Copied ${displayPath} → ${sandboxId}:${targetPath} (${buffer.length} bytes)`);
@@ -247,7 +235,7 @@ async function uploadDirectory(
 	sandboxId: string,
 	localDir: string,
 	remotePath: string,
-	timeout: string | undefined,
+	_timeout: string | undefined,
 	jsonOutput: boolean
 ): Promise<z.infer<typeof SandboxCpResponseSchema>> {
 	const allFiles = getAllFiles(localDir);
@@ -256,29 +244,20 @@ async function uploadDirectory(
 		logger.fatal(`Directory is empty: ${localDir}`);
 	}
 
-	const files: Record<string, string> = {};
+	const files: FileToWrite[] = [];
 	let totalBytes = 0;
-	const baseRemotePath = remotePath.endsWith('/') ? remotePath.slice(0, -1) : remotePath;
+	const effectiveRemotePath = remotePath || basename(localDir);
+	const baseRemotePath = effectiveRemotePath.endsWith('/') ? effectiveRemotePath.slice(0, -1) : effectiveRemotePath;
 
 	for (const filePath of allFiles) {
 		const relativePath = relative(localDir, filePath);
 		const targetPath = `${baseRemotePath}/${relativePath}`;
 		const buffer = readFileSync(filePath);
-		files[targetPath] = buffer.toString('base64');
+		files.push({ path: targetPath, content: buffer });
 		totalBytes += buffer.length;
 	}
 
-	const execution = await sandboxExecute(client, {
-		sandboxId,
-		options: {
-			command: ['true'],
-			files,
-			timeout,
-		},
-		orgId,
-	});
-
-	await waitForExecution(client, orgId, execution.executionId, logger);
+	await sandboxWriteFiles(client, { sandboxId, files, orgId });
 
 	if (!jsonOutput) {
 		tui.success(
@@ -337,33 +316,19 @@ async function downloadSingleFile(
 	sandboxId: string,
 	remotePath: string,
 	localPath: string,
-	timeout: string | undefined,
+	_timeout: string | undefined,
 	jsonOutput: boolean
 ): Promise<z.infer<typeof SandboxCpResponseSchema>> {
-	const execution = await sandboxExecute(client, {
-		sandboxId,
-		options: {
-			command: ['base64', '-w', '0', remotePath],
-			timeout,
-		},
-		orgId,
-	});
+	const stream = await sandboxReadFile(client, { sandboxId, path: remotePath, orgId });
 
-	const outputChunks: Buffer[] = [];
-
-	if (execution.stdoutStreamUrl) {
-		await streamToBuffer(execution.stdoutStreamUrl, outputChunks, logger);
+	const chunks: Uint8Array[] = [];
+	const reader = stream.getReader();
+	while (true) {
+		const { done, value } = await reader.read();
+		if (done) break;
+		if (value) chunks.push(value);
 	}
-
-	await waitForExecution(client, orgId, execution.executionId, logger);
-
-	const base64Output = Buffer.concat(outputChunks).toString('utf-8').trim();
-
-	if (!base64Output) {
-		logger.fatal(`Failed to read file from sandbox: ${remotePath}`);
-	}
-
-	const buffer = Buffer.from(base64Output, 'base64');
+	const buffer = Buffer.concat(chunks);
 
 	let targetPath = localPath;
 	if (localPath.endsWith('/') || localPath === '.') {
@@ -436,37 +401,28 @@ async function downloadDirectory(
 
 		const localFilePath = join(baseLocalPath, relativePath);
 
-		const execution = await sandboxExecute(client, {
-			sandboxId,
-			options: {
-				command: ['base64', '-w', '0', remoteFile],
-				timeout,
-			},
-			orgId,
-		});
+		try {
+			const stream = await sandboxReadFile(client, { sandboxId, path: remoteFile, orgId });
+			const chunks: Uint8Array[] = [];
+			const reader = stream.getReader();
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				if (value) chunks.push(value);
+			}
+			const buffer = Buffer.concat(chunks);
+			totalBytes += buffer.length;
 
-		const outputChunks: Buffer[] = [];
-		if (execution.stdoutStreamUrl) {
-			await streamToBuffer(execution.stdoutStreamUrl, outputChunks, logger);
-		}
+			const dir = dirname(localFilePath);
+			mkdirSync(dir, { recursive: true });
+			writeFileSync(localFilePath, buffer);
 
-		await waitForExecution(client, orgId, execution.executionId, logger);
-
-		const base64Output = Buffer.concat(outputChunks).toString('utf-8').trim();
-		if (!base64Output) {
-			logger.warn(`Failed to read file: ${remoteFile}, skipping`);
+			if (!jsonOutput) {
+				logger.info(`Downloaded ${remoteFile} (${buffer.length} bytes)`);
+			}
+		} catch (err) {
+			logger.warn(`Failed to read file: ${remoteFile}, skipping: ${err}`);
 			continue;
-		}
-
-		const buffer = Buffer.from(base64Output, 'base64');
-		totalBytes += buffer.length;
-
-		const dir = dirname(localFilePath);
-		mkdirSync(dir, { recursive: true });
-		writeFileSync(localFilePath, buffer);
-
-		if (!jsonOutput) {
-			logger.info(`Downloaded ${remoteFile} (${buffer.length} bytes)`);
 		}
 	}
 
@@ -510,7 +466,11 @@ async function waitForExecution(
 				}
 				return;
 			}
-		} catch {
+		} catch (err) {
+			if (err instanceof Error && err.name === 'AbortError') {
+				throw err;
+			}
+			logger.debug('poll error: %s', err);
 			continue;
 		}
 	}
@@ -548,6 +508,9 @@ async function streamToBuffer(url: string, chunks: Buffer[], logger: Logger): Pr
 				}
 			}
 		} catch (err) {
+			if (err instanceof Error && err.name === 'AbortError') {
+				throw err;
+			}
 			logger.debug('stream error: %s', err);
 		}
 	}

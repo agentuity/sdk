@@ -10,6 +10,9 @@ const SandboxInfoSchema = z
 			.enum(['creating', 'idle', 'running', 'terminated', 'failed'])
 			.describe('Current status of the sandbox'),
 		createdAt: z.string().describe('ISO timestamp when the sandbox was created'),
+		region: z.string().optional().describe('Region where the sandbox is running'),
+		snapshotId: z.string().optional().describe('Snapshot ID this sandbox was created from'),
+		snapshotTag: z.string().optional().describe('Snapshot tag this sandbox was created from'),
 		executions: z.number().describe('Total number of executions in this sandbox'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
@@ -49,6 +52,9 @@ export async function sandboxList(
 	if (params?.projectId) {
 		queryParams.set('projectId', params.projectId);
 	}
+	if (params?.snapshotId) {
+		queryParams.set('snapshotId', params.snapshotId);
+	}
 	if (params?.status) {
 		queryParams.set('status', params.status);
 	}
@@ -73,6 +79,9 @@ export async function sandboxList(
 				sandboxId: s.sandboxId,
 				status: s.status as SandboxStatus,
 				createdAt: s.createdAt,
+				region: s.region,
+				snapshotId: s.snapshotId,
+				snapshotTag: s.snapshotTag,
 				executions: s.executions,
 				stdoutStreamUrl: s.stdoutStreamUrl,
 				stderrStreamUrl: s.stderrStreamUrl,
