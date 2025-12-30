@@ -48,10 +48,7 @@ test('ai-sdk-gateway', 'create-provider-no-apikey', async () => {
 			result.success,
 			`createOpenAI should succeed with gateway injection: ${result.error || result.message}`
 		);
-		assert(
-			!result.error,
-			`Should not have error when gateway is configured: ${result.error}`
-		);
+		assert(!result.error, `Should not have error when gateway is configured: ${result.error}`);
 	} else {
 		// Without gateway config, we expect it to fail with API key error
 		// This is expected behavior when not connected to cloud

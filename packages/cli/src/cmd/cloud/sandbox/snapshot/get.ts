@@ -29,7 +29,10 @@ const SnapshotGetResponseSchema = z.object({
 	createdAt: z.string().describe('Creation timestamp'),
 	downloadUrl: z.string().optional().describe('Presigned download URL'),
 	files: z.array(SnapshotFileSchema).optional().describe('Files in snapshot'),
-	sandboxes: z.array(SandboxInfoSchema).optional().describe('Attached sandboxes (idle or running)'),
+	sandboxes: z
+		.array(SandboxInfoSchema)
+		.optional()
+		.describe('Attached sandboxes (idle or running)'),
 });
 
 export const getSubcommand = createCommand({
