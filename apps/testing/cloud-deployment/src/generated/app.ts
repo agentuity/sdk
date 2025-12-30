@@ -25,7 +25,7 @@ import {
 import type { Context } from 'hono';
 import { websocket } from 'hono/bun';
 import { type LogLevel } from '@agentuity/core';
-import { bootstrapRuntimeEnv } from '@agentuity/runtime';
+import { bootstrapRuntimeEnv, patchBunS3ForStorageDev } from '@agentuity/runtime';
 
 // Runtime mode detection helper
 // Dynamic string concatenation prevents Bun.build from inlining NODE_ENV at build time
@@ -40,6 +40,11 @@ if (isDevelopment()) {
 	// Pass project directory (two levels up from src/generated/) so .env files are loaded correctly
 	await bootstrapRuntimeEnv({ projectDir: import.meta.dir + '/../..' });
 }
+
+// Step 0.5: Patch Bun's S3 client for Agentuity storage endpoints
+// Agentuity storage uses virtual-hosted-style URLs (*.storage.dev)
+// This patches s3.file() to automatically set virtualHostedStyle: true
+patchBunS3ForStorageDev();
 
 // Step 1: Initialize telemetry and services
 const serverUrl = `http://127.0.0.1:${process.env.PORT || '3500'}`;

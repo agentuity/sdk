@@ -216,3 +216,6 @@ export interface AppState {}
 // This allows generated code to import from @agentuity/runtime instead of having
 // a direct dependency on @agentuity/server
 export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions } from '@agentuity/server';
+
+// bun-s3-patch.ts exports
+export { patchBunS3ForStorageDev, isAgentuityStorageEndpoint } from './bun-s3-patch';
