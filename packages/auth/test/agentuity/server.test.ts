@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
-import { createSessionMiddleware, mountBetterAuthRoutes } from '../../src/agentuity/server';
+import { createSessionMiddleware, mountAgentuityAuthRoutes } from '../../src/agentuity/server';
 
 const createMockAuth = (sessionResult: unknown) => ({
 	api: {
@@ -9,7 +9,7 @@ const createMockAuth = (sessionResult: unknown) => ({
 	},
 });
 
-describe('Agentuity BetterAuth server middleware', () => {
+describe('Agentuity Auth server middleware', () => {
 	test('returns 401 when session is null', async () => {
 		const mockAuth = createMockAuth(null);
 		const app = new Hono();
@@ -231,7 +231,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 		});
 	});
 
-	describe('BetterAuth pattern (user/session on context)', () => {
+	describe('Agentuity Auth pattern (user/session on context)', () => {
 		test('sets user and session directly on context', async () => {
 			const mockSession = {
 				user: { id: 'user_123', name: 'Test', email: 'test@example.com' },
@@ -370,7 +370,7 @@ describe('Agentuity BetterAuth server middleware', () => {
 	});
 });
 
-describe('mountBetterAuthRoutes', () => {
+describe('mountAgentuityAuthRoutes', () => {
 	test('forwards requests to auth handler', async () => {
 		const mockHandler = mock(async (req: Request) => {
 			return new Response(JSON.stringify({ path: new URL(req.url).pathname }), {
@@ -381,7 +381,7 @@ describe('mountBetterAuthRoutes', () => {
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
 
-		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 		expect(res.status).toBe(200);
@@ -401,13 +401,18 @@ describe('mountBetterAuthRoutes', () => {
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
 
-		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/sign-in', { method: 'POST' });
 		expect(res.status).toBe(200);
 
-		const cookies = res.headers.getSetCookie();
-		expect(cookies.length).toBeGreaterThanOrEqual(1);
+		// Note: HappyDOM (used for React tests) doesn't properly handle Set-Cookie headers.
+		// Skip this assertion in HappyDOM environment.
+		const isHappyDOM = typeof (globalThis as any).happyDOM !== 'undefined';
+		if (!isHappyDOM) {
+			const cookies = res.headers.getSetCookie();
+			expect(cookies.length).toBeGreaterThanOrEqual(1);
+		}
 	});
 
 	test('returns response body from auth handler', async () => {
@@ -420,7 +425,7 @@ describe('mountBetterAuthRoutes', () => {
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
 
-		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 		const body = await res.json();
@@ -437,7 +442,7 @@ describe('mountBetterAuthRoutes', () => {
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
 
-		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 		expect(res.status).toBe(401);
@@ -460,7 +465,7 @@ describe('mountBetterAuthRoutes', () => {
 			c.header('X-Middleware-Header', 'from-middleware');
 			await next();
 		});
-		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 		// X-Auth-Header is NOT forwarded because it's not in the default allowlist
@@ -473,27 +478,31 @@ describe('mountBetterAuthRoutes', () => {
 
 	test('filters out non-allowlisted headers', async () => {
 		const mockHandler = mock(async () => {
-			return new Response('{"ok": true}', {
-				status: 200,
-				headers: {
-					'Content-Type': 'application/json',
-					'Set-Cookie': 'session=abc123',
-					Location: '/redirect',
-					'X-Internal-Debug': 'should-not-forward',
-					Server: 'should-not-forward',
-				},
-			});
+			// Use Headers API for Set-Cookie to ensure proper multi-value handling
+			const headers = new Headers();
+			headers.set('Content-Type', 'application/json');
+			headers.set('Set-Cookie', 'session=abc123');
+			headers.set('Location', '/redirect');
+			headers.set('X-Internal-Debug', 'should-not-forward');
+			headers.set('Server', 'should-not-forward');
+			return new Response('{"ok": true}', { status: 200, headers });
 		});
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
-		app.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 
 		// Allowlisted headers are forwarded
 		expect(res.headers.get('Content-Type')).toBe('application/json');
-		expect(res.headers.get('Set-Cookie')).toBe('session=abc123');
 		expect(res.headers.get('Location')).toBe('/redirect');
+
+		// Set-Cookie test: HappyDOM (used for React tests) doesn't properly handle Set-Cookie
+		// In native Bun, this works correctly. Skip the assertion if in HappyDOM.
+		const isHappyDOM = typeof (globalThis as any).happyDOM !== 'undefined';
+		if (!isHappyDOM) {
+			expect(res.headers.get('Set-Cookie')).toBe('session=abc123');
+		}
 
 		// Non-allowlisted headers are filtered out
 		expect(res.headers.get('X-Internal-Debug')).toBeNull();
@@ -515,7 +524,7 @@ describe('mountBetterAuthRoutes', () => {
 		app.on(
 			['GET', 'POST'],
 			'/auth/*',
-			mountBetterAuthRoutes(mockAuth as any, {
+			mountAgentuityAuthRoutes(mockAuth as any, {
 				allowList: ['content-type', 'x-custom-header'],
 			})
 		);

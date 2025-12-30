@@ -1,6 +1,6 @@
 # {{PROJECT_NAME}}
 
-An Agentuity project with built-in authentication using BetterAuth.
+An Agentuity project with built-in authentication using Agentuity Auth.
 
 ## What You Get
 
@@ -11,7 +11,7 @@ A fully configured Agentuity project with:
 - ✅ **Hot reload** - Development server with auto-rebuild
 - ✅ **Example agent** - Sample "hello" agent to get started
 - ✅ **React frontend** - Pre-configured web interface with Tailwind CSS
-- ✅ **BetterAuth** - Full-featured authentication with email/password, organizations, and API keys
+- ✅ **Agentuity Auth** - Full-featured authentication with email/password, organizations, and API keys
 - ✅ **Beautiful Auth UI** - Pre-built sign-in, sign-up, account settings, and more
 
 ## Setup
@@ -45,7 +45,7 @@ Set these required variables:
 DATABASE_URL=postgresql://...
 
 # Generate a secret: openssl rand -hex 32
-BETTER_AUTH_SECRET=your-32-character-secret-here
+AGENTUITY_AUTH_SECRET=your-32-character-secret-here
 ```
 
 ### 3. Run Auth Migrations
@@ -53,10 +53,14 @@ BETTER_AUTH_SECRET=your-32-character-secret-here
 Set up the auth tables in your database:
 
 ```bash
-agentuity auth setup
+agentuity project auth setup
 ```
 
-Or run the included SQL directly against your database.
+Or generate Drizzle migrations:
+
+```bash
+agentuity project auth generate
+```
 
 ### 4. Start Development
 
@@ -88,10 +92,10 @@ my-app/
 │   ├── web/              # React web application
 │   │   ├── App.tsx       # Main component with auth UI
 │   │   ├── AuthPages.tsx # Auth views (sign-in, settings, etc.)
-│   │   ├── auth-client.ts# BetterAuth client
+│   │   ├── auth-client.ts# Agentuity Auth client
 │   │   ├── frontend.tsx  # Entry point with providers
 │   │   └── index.css     # Tailwind + theme variables
-│   └── auth.ts           # BetterAuth server configuration
+│   └── auth.ts           # Agentuity Auth server configuration
 ├── .env.example          # Environment variable template
 ├── agentuity.config.ts   # Build config (Tailwind plugin)
 └── package.json
@@ -151,7 +155,7 @@ The template includes these pre-built pages:
 ## Learn More
 
 - [Agentuity Documentation](https://agentuity.dev)
-- [BetterAuth Documentation](https://better-auth.com)
+- [BetterAuth Documentation](https://better-auth.com) (powers Agentuity Auth)
 - [Bun Documentation](https://bun.sh/docs)
 - [Tailwind CSS Documentation](https://tailwindcss.com/docs)
 - [Hono Documentation](https://hono.dev/)

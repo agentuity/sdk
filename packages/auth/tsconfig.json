@@ -9,5 +9,5 @@
 	},
 	"include": ["src/**/*"],
 	"exclude": ["test/**/*"],
-	"references": [{ "path": "../react" }, { "path": "../runtime" }]
+	"references": [{ "path": "../react" }]
 }

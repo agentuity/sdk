@@ -8,16 +8,17 @@
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AgentuityProvider } from '@agentuity/react';
-import { AgentuityBetterAuth } from '@agentuity/auth/agentuity/client';
+import { AgentuityAuthProvider } from '@agentuity/auth/react';
 import { App } from './App';
+import { authClient } from './auth-client';
 
 const elem = document.getElementById('root')!;
 const app = (
 	<StrictMode>
 		<AgentuityProvider>
-			<AgentuityBetterAuth tokenEndpoint="/api/auth/token">
+			<AgentuityAuthProvider authClient={authClient}>
 				<App />
-			</AgentuityBetterAuth>
+			</AgentuityAuthProvider>
 		</AgentuityProvider>
 	</StrictMode>
 );

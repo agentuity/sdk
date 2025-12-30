@@ -1,24 +1,44 @@
 /**
- * Agentuity BetterAuth integration types.
+ * Agentuity Auth types.
  *
  * @module agentuity/types
  */
 
-import type { Session, User } from 'better-auth';
+import type { Session as BetterAuthSession, User as BetterAuthUser } from 'better-auth';
 import type { AgentuityAuth } from '../types';
 
+// =============================================================================
+// Canonical User/Session Types
+// =============================================================================
+
 /**
- * BetterAuth context containing user, session, and org data.
- * This is the raw auth context from BetterAuth's session validation.
+ * Agentuity user type.
+ * Alias for BetterAuth's User type, exposed under Agentuity naming.
  */
-export interface AgentuityAuthContext<TUser = User, TSession = Session> {
+export type AgentuityUser = BetterAuthUser;
+
+/**
+ * Agentuity session type.
+ * Extends BetterAuth's Session with organization plugin fields.
+ */
+export type AgentuitySession = BetterAuthSession & {
+	/** Active organization ID from the organization plugin */
+	activeOrganizationId?: string;
+};
+
+/**
+ * Auth context containing user, session, and org data.
+ * This is the full auth context available on AgentContext.auth and c.var.auth.
+ * Session may be null for API key authentication.
+ */
+export interface AgentuityAuthContext<TUser = AgentuityUser, TSession = AgentuitySession | null> {
 	user: TUser;
 	session: TSession;
 	org: AgentuityOrgContext | null;
 }
 
 /**
- * Organization context derived from BetterAuth's organization plugin.
+ * Organization context from the organization plugin.
  */
 export interface AgentuityOrgContext {
 	/** Organization ID */
@@ -40,7 +60,7 @@ export interface AgentuityOrgContext {
 // =============================================================================
 
 /**
- * API key permissions in BetterAuth's native format.
+ * API key permissions format.
  * Maps resource names to arrays of allowed actions.
  *
  * @example
@@ -58,7 +78,7 @@ export type AgentuityApiKeyPermissions = Record<string, string[]>;
  * API key context when request is authenticated via API key.
  */
 export interface AgentuityApiKeyContext {
-	/** API key ID from BetterAuth */
+	/** API key ID */
 	id: string;
 	/** Display name of the API key */
 	name?: string | null;
@@ -74,7 +94,7 @@ export interface AgentuityApiKeyContext {
 export type AgentuityAuthMethod = 'session' | 'api-key' | 'bearer';
 
 // =============================================================================
-// Extended Auth Interface (Agentuity-specific)
+// Extended Auth Interface
 // =============================================================================
 
 /**
@@ -126,50 +146,9 @@ export interface AgentuityApiKeyHelpers {
 }
 
 /**
- * Agentuity BetterAuth auth interface.
+ * Full Agentuity Auth interface available on Hono context (c.var.auth).
  * Extends the generic AgentuityAuth with org and API key helpers.
  */
-export type AgentuityBetterAuthAuth<TUser = unknown> = AgentuityAuth<TUser, AgentuityAuthContext> &
+export type AgentuityAuthInterface<TUser = unknown> = AgentuityAuth<TUser, AgentuityAuthContext> &
 	AgentuityOrgHelpers &
 	AgentuityApiKeyHelpers;
-
-// =============================================================================
-// withSession Types (Unified wrapper for agents)
-// =============================================================================
-
-/**
- * Options for withSession wrapper.
- */
-export interface WithSessionOptions {
-	/**
-	 * If true, allow unauthenticated execution (auth will be null).
-	 * If false (default), throws error when no auth is present.
-	 */
-	optional?: boolean;
-}
-
-/**
- * Context passed to withSession handlers.
- *
- * This unified context works across all execution environments:
- * - HTTP requests (session or API key auth)
- * - Agent-to-agent calls (inherits parent auth)
- * - Cron jobs (auth is null)
- * - Standalone invocations (auth is null unless manually set)
- */
-export interface WithSessionContext<TUser = unknown, TSession = unknown> {
-	/**
-	 * BetterAuth auth context if authenticated, null otherwise.
-	 *
-	 * Contains the user and session data from BetterAuth.
-	 * For API key auth with enableSessionForAPIKeys, this contains
-	 * a mock session representing the API key's user.
-	 */
-	auth: AgentuityAuthContext<TUser, TSession> | null;
-
-	/**
-	 * Active organization context if the user has one set.
-	 * Populated from BetterAuth's organization plugin.
-	 */
-	org: AgentuityOrgContext | null;
-}

@@ -2,7 +2,7 @@
 
 ## Package Overview
 
-Authentication helpers for identity providers (Clerk, WorkOS, etc.). Provides React components and Hono middleware.
+First-class authentication for Agentuity projects, powered by BetterAuth. Provides server middleware, React components, and Drizzle schema.
 
 ## Commands
 
@@ -14,50 +14,104 @@ Authentication helpers for identity providers (Clerk, WorkOS, etc.). Provides Re
 ## Architecture
 
 - **Runtime**: Dual-target (browser for client, Bun/Node for server)
-- **Dependencies**: `@agentuity/react` (client), `@agentuity/runtime` (server)
-- **Peer deps**: Provider SDKs are optional peers
+- **Server**: Hono middleware with OpenTelemetry integration
+- **Client**: React hooks via `@agentuity/react` context
+- **Database**: Drizzle ORM schema with BetterAuth adapters
+- **Engine**: BetterAuth (internal implementation detail)
 
 ## Structure
 
 ```
 src/
-├── index.ts        # Core type exports
-├── types.ts        # AgentuityAuth, AgentuityAuthUser interfaces
-└── clerk/          # (or other provider)
-    ├── index.ts    # Re-exports
-    ├── client.tsx  # React component
-    └── server.ts   # Hono middleware
+├── index.ts           # Root package exports (server + client)
+├── types.ts           # Generic AgentuityAuth, AgentuityAuthUser interfaces
+├── schema.ts          # Drizzle table definitions and relations
+└── agentuity/
+    ├── index.tsx      # Main exports (re-exports from submodules)
+    ├── config.ts      # createAgentuityAuth factory
+    ├── server.ts      # Hono middleware (session, API key)
+    ├── client.tsx     # AgentuityAuthProvider React component
+    ├── react.ts       # createAgentuityAuthClient factory
+    └── types.ts       # Agentuity-specific types (org, API key context)
 ```
 
 ## Code Conventions
 
-- **Naming**: `Agentuity<Provider>` for components, `createMiddleware()` for server
-- **Type safety**: Use generics `AgentuityAuth<TUser, TRaw>`
-- **Tree shaking**: Import paths like `@agentuity/auth/clerk`
-- **Env vars**: Support `AGENTUITY_PUBLIC_<PROVIDER>_*` and standard provider names
+- **Naming**: All public APIs use "AgentuityAuth" prefix, not "BetterAuth"
+- **Env vars**: Prefer `AGENTUITY_AUTH_SECRET` over `BETTER_AUTH_SECRET`
+- **Defaults**: basePath `/api/auth`, emailAndPassword enabled
+- **React imports**: All React code from `@agentuity/auth/react` (AgentuityAuthProvider, createAgentuityAuthClient, useAgentuityAuth)
 
 ## Key Patterns
 
-```typescript
-// Hono module augmentation (required per provider)
-declare module 'hono' {
-	interface ContextVariableMap {
-		auth: AgentuityAuth<User, ClerkJWTPayload>;
-	}
-}
+### Server Setup
 
-// Error handling - include setup instructions
-if (!secretKey) {
-	console.error('[Provider] SECRET_KEY not set. Add to .env');
-	throw new Error('Provider secret key required');
-}
+```typescript
+import { createAgentuityAuth, createSessionMiddleware, mountAgentuityAuthRoutes } from '@agentuity/auth';
+
+const auth = createAgentuityAuth({
+  connectionString: process.env.DATABASE_URL,
+});
+
+api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
+api.use('/api/*', createSessionMiddleware(auth));
 ```
 
-## Adding New Providers
+### Agent Handler (ctx.auth is native)
 
-See [docs/adding-providers.md](docs/adding-providers.md) for full implementation guide.
+```typescript
+export default createAgent('my-agent', {
+  handler: async (ctx, input) => {
+    if (!ctx.auth) return { error: 'Unauthorized' };
+    return { userId: ctx.auth.user.id };
+  },
+});
+```
+
+### React Client
+
+```tsx
+import { createAgentuityAuthClient, AgentuityAuthProvider } from '@agentuity/auth/react';
+
+const authClient = createAgentuityAuthClient();
+
+<AgentuityAuthProvider authClient={authClient}>
+  <App />
+</AgentuityAuthProvider>
+```
+
+## Important Types
+
+- `AgentuityAuthInterface` - Full auth on `c.var.auth` (user + org + API key helpers)
+- `AgentuityAuthContext` - Auth context with user, session, org
+- `AgentuityOrgContext` - Organization with role and membership
+- `AgentuityApiKeyContext` - API key with permissions
+- `AgentuityAuthMethod` - 'session' | 'api-key' | 'bearer'
+
+## Database Options
+
+1. **connectionString** - Simplest: we create pg pool + drizzle internally
+2. **database** - Bring your own drizzle adapter or other BetterAuth adapter
+3. **@agentuity/auth/schema** - Export for merging with app schema
+
+## Default Plugins
+
+- `organization` - Multi-tenancy
+- `jwt` - Token generation
+- `bearer` - Bearer token auth
+- `apiKey` - API key management
+
+Use `skipDefaultPlugins: true` to disable.
+
+## Testing
+
+- Use `bun test` for all tests
+- Mock auth context in route tests
+- Test both session and API key middleware
+- When running tests, prefer using a subagent (Task tool) to avoid context bloat
 
 ## Publishing
 
 1. Run build, typecheck, test
-2. Publish **after** `@agentuity/react` and `@agentuity/runtime`
+2. Publish **after** `@agentuity/core` and `@agentuity/react`
+3. `@agentuity/runtime` depends on this package for types

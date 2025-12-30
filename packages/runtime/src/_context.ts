@@ -8,6 +8,7 @@ import {
 	type VectorStorage,
 	type SandboxService,
 } from '@agentuity/core';
+import type { AgentuityAuthInterface } from '@agentuity/auth/types';
 import type { AgentContext, AgentRegistry, AgentRunner, AgentRuntimeState } from './agent';
 import { AGENT_RUNTIME, CURRENT_AGENT } from './_config';
 import type { Logger } from './logger';
@@ -30,6 +31,7 @@ export interface RequestAgentContextArgs<
 	config: TConfig;
 	app: TAppState;
 	runtime: AgentRuntimeState;
+	auth?: AgentuityAuthInterface | null;
 }
 
 export class RequestAgentContext<
@@ -51,6 +53,7 @@ export class RequestAgentContext<
 	thread: Thread;
 	config: TConfig;
 	app: TAppState;
+	auth: AgentuityAuthInterface | null;
 	[AGENT_RUNTIME]: AgentRuntimeState;
 	private handler: WaitUntilHandler;
 
@@ -63,6 +66,7 @@ export class RequestAgentContext<
 		this.session = args.session;
 		this.config = args.config;
 		this.app = args.app;
+		this.auth = args.auth ?? null;
 		this[AGENT_RUNTIME] = args.runtime;
 		this.state = new Map<string, unknown>();
 		this.handler = args.handler;

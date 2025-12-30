@@ -1,15 +1,14 @@
 /**
- * Core authentication types shared across all providers.
+ * Core authentication types for Agentuity Auth.
  *
  * @module types
  */
 
 /**
- * Generic authenticated user interface.
- * All auth providers return this structure with provider-specific data in `raw`.
+ * Authenticated user from Agentuity Auth.
  */
 export interface AgentuityAuthUser<T = unknown> {
-	/** Unique user identifier from the auth provider */
+	/** Unique user identifier */
 	id: string;
 
 	/** User's full name */
@@ -18,13 +17,19 @@ export interface AgentuityAuthUser<T = unknown> {
 	/** Primary email address */
 	email?: string;
 
+	/** Whether email is verified */
+	emailVerified?: boolean;
+
+	/** User's profile image URL */
+	image?: string;
+
 	/** Raw provider-specific user object for advanced use cases */
 	raw: T;
 }
 
 /**
  * Generic authentication interface exposed on Hono context.
- * All auth middleware implementations provide this interface.
+ * Use the more specific AgentuityAuthContext for full functionality.
  */
 export interface AgentuityAuth<TUser = unknown, TRaw = unknown> {
 	/** Get the authenticated user, throws if not authenticated */

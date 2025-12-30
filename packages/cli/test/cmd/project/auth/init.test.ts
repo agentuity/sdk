@@ -89,15 +89,17 @@ describe('project auth init', () => {
 			expect(authCommand.tags).toContain('requires-auth');
 		});
 
-		test('should have init subcommand', () => {
+		test('should have subcommands', () => {
 			expect(authCommand.subcommands).toBeDefined();
-			expect(authCommand.subcommands).toHaveLength(1);
-			expect(authCommand.subcommands?.[0].name).toBe('init');
+			expect(authCommand.subcommands).toHaveLength(2);
+			const names = authCommand.subcommands?.map((s) => s.name);
+			expect(names).toContain('init');
+			expect(names).toContain('generate');
 		});
 
 		test('should have examples', () => {
 			expect(authCommand.examples).toBeDefined();
-			expect(authCommand.examples).toHaveLength(1);
+			expect(authCommand.examples).toHaveLength(2);
 		});
 	});
 

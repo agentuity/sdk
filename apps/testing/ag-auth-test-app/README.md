@@ -118,11 +118,10 @@ Auth tables are stored in your Postgres database. Create them using either:
 agentuity project auth init
 ```
 
-**Option B: Runtime (auto-migration)**
+**Option B: BetterAuth CLI (for custom Drizzle setup)**
 
-```typescript
-import { ensureAuthSchema } from '@agentuity/auth/agentuity';
-await ensureAuthSchema({ db: pool });
+```bash
+npx @better-auth/cli generate
 ```
 
 ### 2. Environment Variables
@@ -132,7 +131,7 @@ await ensureAuthSchema({ db: pool });
 DATABASE_URL="postgresql://..."
 
 # Optional (defaults to dev secret)
-BETTER_AUTH_SECRET="your-32-char-secret"
+AGENTUITY_AUTH_SECRET="your-32-char-secret"
 ```
 
 ### 3. Install Dependencies

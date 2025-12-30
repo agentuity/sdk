@@ -1,14 +1,15 @@
 import { createRouter } from '@agentuity/runtime';
-import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
+import { mountAgentuityAuthRoutes } from '@agentuity/auth';
 import { APIError } from 'better-auth/api';
+import { validator } from 'hono/validator';
 import hello from '@agent/hello';
 import { auth, authMiddleware, optionalAuthMiddleware, apiKeyMiddleware } from '../auth';
+import * as schemas from './schemas';
 
 const api = createRouter();
 
-// Mount BetterAuth routes (sign-in, sign-up, sign-out, session, token, etc.)
-// See mountBetterAuthRoutes docs for why this wrapper is required
-api.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(auth));
+// Mount auth routes (sign-in, sign-up, sign-out, session, token, etc.)
+api.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(auth));
 
 // Public route - no auth required
 api.get('/health', (c) => {
@@ -122,34 +123,45 @@ api.get('/debug/permissions', authMiddleware, async (c) => {
 // Create an API key for the authenticated user
 // Supports optional permissions: { permissions: { project: ['read', 'write'] } }
 // Note: BetterAuth requires permissions to be set server-side with userId, not via headers
-api.post('/api-keys', authMiddleware, async (c) => {
-	const body = await c.req.json().catch(() => ({}));
-	const name = body.name ?? 'default-key';
-	const permissions = body.permissions as Record<string, string[]> | undefined;
+api.post(
+	'/api-keys',
+	authMiddleware,
+	validator('json', (value, c) => {
+		const result = schemas.createApiKeyInput['~standard'].validate(value);
+		if (result.issues) {
+			return c.json({ error: 'Validation failed', issues: result.issues }, 400);
+		}
+		return result.value;
+	}),
+	async (c) => {
+		const body = c.req.valid('json');
+		const name = body.name ?? 'default-key';
+		const permissions = body.permissions;
 
-	// Get the current user to pass userId for server-side API key creation
-	const user = await c.var.auth.getUser();
+		// Get the current user to pass userId for server-side API key creation
+		const user = await c.var.auth.getUser();
 
-	// Use BetterAuth's API to create an API key
-	// When setting permissions, we must use server-side mode (with userId, not headers)
-	const result = await auth.api.createApiKey({
-		body: {
-			name,
-			userId: user.id, // Server-side mode: use userId instead of headers
-			expiresIn: 60 * 60 * 24 * 30, // 30 days
-			...(permissions && { permissions }),
-		},
-	});
+		// Use BetterAuth's API to create an API key
+		// When setting permissions, we must use server-side mode (with userId, not headers)
+		const result = await auth.api.createApiKey({
+			body: {
+				name,
+				userId: user.id, // Server-side mode: use userId instead of headers
+				expiresIn: 60 * 60 * 24 * 30, // 30 days
+				...(permissions && { permissions }),
+			},
+		});
 
-	return c.json({
-		id: result.id,
-		name: result.name,
-		key: result.key, // Only shown once - user must save this
-		keyPreview: result.key?.slice(0, 10) + '...',
-		expiresAt: result.expiresAt,
-		permissions: permissions ?? null,
-	});
-});
+		return c.json({
+			id: result.id,
+			name: result.name,
+			key: result.key, // Only shown once - user must save this
+			keyPreview: result.key?.slice(0, 10) + '...',
+			expiresAt: result.expiresAt,
+			permissions: permissions ?? null,
+		});
+	}
+);
 
 // List API keys for the authenticated user
 api.get('/api-keys', authMiddleware, async (c) => {
@@ -214,38 +226,45 @@ api.get('/bearer-info', (c) => {
 // =============================================================================
 
 // Create a new organization
-api.post('/organizations', authMiddleware, async (c) => {
-	const body = await c.req.json();
-	const { name, slug } = body;
-
-	if (!name || !slug) {
-		return c.json({ error: 'name and slug are required' }, 400);
-	}
-
-	try {
-		const result = await auth.api.createOrganization({
-			body: { name, slug },
-			headers: c.req.raw.headers,
-		});
-
-		return c.json(result);
-	} catch (err) {
-		console.error('[Org] createOrganization failed', err);
-
-		if (err instanceof APIError) {
-			return c.json(
-				{
-					error: err.message,
-					status: err.status,
-					code: (err as APIError & { code?: string }).code,
-				},
-				err.status as 400 | 401 | 403 | 404 | 409 | 500
-			);
+api.post(
+	'/organizations',
+	authMiddleware,
+	validator('json', (value, c) => {
+		const result = schemas.createOrgInput['~standard'].validate(value);
+		if (result.issues) {
+			return c.json({ error: 'Validation failed', issues: result.issues }, 400);
 		}
+		return result.value;
+	}),
+	async (c) => {
+		const body = c.req.valid('json');
+		const { name, slug } = body;
 
-		return c.json({ error: 'Internal server error', detail: String(err) }, 500);
+		try {
+			const result = await auth.api.createOrganization({
+				body: { name, slug },
+				headers: c.req.raw.headers,
+			});
+
+			return c.json(result);
+		} catch (err) {
+			console.error('[Org] createOrganization failed', err);
+
+			if (err instanceof APIError) {
+				return c.json(
+					{
+						error: err.message,
+						status: err.status,
+						code: (err as APIError & { code?: string }).code,
+					},
+					err.status as 400 | 401 | 403 | 404 | 409 | 500
+				);
+			}
+
+			return c.json({ error: 'Internal server error', detail: String(err) }, 500);
+		}
 	}
-});
+);
 
 // List organizations for the authenticated user
 api.get('/organizations', authMiddleware, async (c) => {

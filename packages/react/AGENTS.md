@@ -48,6 +48,16 @@ src/
 
 ## Hooks API
 
+### useAuth
+
+```typescript
+const { isAuthenticated, authLoading, authHeader } = useAuth();
+```
+
+- Provides auth state for conditional rendering
+- `authHeader` is automatically injected into agent/API calls
+- Works with `@agentuity/auth`'s `AgentuityAuthProvider`
+
 ### useAgent
 
 ```typescript
@@ -57,6 +67,7 @@ const { data, run } = useAgent('agentName');
 - Returns last response in `data`
 - `run()` function for calling the agent
 - Supports custom headers, query params, subpaths
+- **Auth tokens auto-injected** when `AgentuityAuthProvider` is in tree
 
 ### useWebsocket
 
@@ -67,6 +78,7 @@ const { connected, send, setHandler, close } = useWebsocket('/path');
 - Auto-reconnection on connection loss
 - Message queuing when disconnected
 - Type-safe message handlers
+- **Auth tokens auto-injected** when `AgentuityAuthProvider` is in tree
 
 ## Generated Types
 

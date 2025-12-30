@@ -1,5 +1,5 @@
 /**
- * Agentuity BetterAuth configuration wrapper.
+ * Agentuity Auth configuration.
  *
  * Provides sensible defaults and wraps BetterAuth with Agentuity-specific helpers.
  *
@@ -7,13 +7,62 @@
  */
 
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import * as authSchema from '../schema';
 
 /**
  * Type for BetterAuth trustedOrigins option.
  * Matches the signature expected by BetterAuthOptions.trustedOrigins.
  */
 type TrustedOrigins = string[] | ((request?: Request) => string[] | Promise<string[]>);
+
+// =============================================================================
+// Base Interface for Middleware
+// =============================================================================
+
+/**
+ * Minimal auth interface required by middleware and route mounting.
+ *
+ * This is a stable, non-generic interface that middleware functions accept.
+ * It decouples middleware from the full BetterAuth generic types, avoiding
+ * type inference issues while preserving rich types for end users.
+ */
+export interface AgentuityAuthBase {
+	/** Handler for auth routes (sign-in, sign-up, session, etc.) */
+	handler: (request: Request) => Promise<Response>;
+
+	/** API methods used by middleware */
+	api: {
+		/** Get session from request headers */
+		getSession: (params: { headers: Headers }) => Promise<{
+			user: { id: string; name?: string | null; email: string };
+			session: { id: string; userId: string; activeOrganizationId?: string };
+		} | null>;
+
+		/** Get full organization details */
+		getFullOrganization: (params: { headers: Headers }) => Promise<{
+			id: string;
+			name?: string;
+			slug?: string;
+			members?: Array<{ userId: string; role: string; id?: string }>;
+		} | null>;
+
+		/** Verify an API key */
+		verifyApiKey: (params: { body: { key: string } }) => Promise<{
+			valid: boolean;
+			error?: { message: string; code: string } | null;
+			key?: {
+				id: string;
+				name?: string;
+				userId?: string;
+				permissions?: Record<string, string[]> | null;
+			} | null;
+		}>;
+	} & DefaultPluginApiMethods;
+}
 
 /**
  * Safely parse a URL and return its origin, or undefined if invalid.
@@ -32,11 +81,23 @@ function safeOrigin(url: string | undefined): string | undefined {
  *
  * Priority:
  * 1. Explicit `baseURL` option
- * 2. `BETTER_AUTH_URL` env var (Better Auth standard)
- * 3. `AGENTUITY_DEPLOYMENT_URL` env var (Agentuity platform-injected)
+ * 2. `AGENTUITY_DEPLOYMENT_URL` env var (Agentuity platform-injected)
+ * 3. `BETTER_AUTH_URL` env var (BetterAuth standard, for backward compatibility)
  */
 function resolveBaseURL(explicitBaseURL?: string): string | undefined {
-	return explicitBaseURL ?? process.env.BETTER_AUTH_URL ?? process.env.AGENTUITY_DEPLOYMENT_URL;
+	return explicitBaseURL ?? process.env.AGENTUITY_DEPLOYMENT_URL ?? process.env.BETTER_AUTH_URL;
+}
+
+/**
+ * Resolve the auth secret.
+ *
+ * Priority:
+ * 1. Explicit `secret` option
+ * 2. `AGENTUITY_AUTH_SECRET` env var (Agentuity convention)
+ * 3. `BETTER_AUTH_SECRET` env var (BetterAuth standard, for backward compatibility)
+ */
+function resolveSecret(explicitSecret?: string): string | undefined {
+	return explicitSecret ?? process.env.AGENTUITY_AUTH_SECRET ?? process.env.BETTER_AUTH_SECRET;
 }
 
 /**
@@ -192,12 +253,13 @@ export interface ApiKeyApiMethods {
 
 	verifyApiKey: (params: { body: { key: string }; headers?: Headers }) => Promise<{
 		valid: boolean;
-		apiKey?: {
+		error?: { message: string; code: string } | null;
+		key?: {
 			id: string;
 			name: string;
 			userId: string;
-			permissions?: Record<string, string[]>;
-		};
+			permissions?: Record<string, string[]> | null;
+		} | null;
 	}>;
 }
 
@@ -225,7 +287,7 @@ export interface ApiKeyPluginOptions {
 
 	/**
 	 * Header names to check for API key.
-	 * Defaults to ['x-api-key', 'X-API-KEY'].
+	 * Defaults to ['x-agentuity-auth-api-key', 'X-Agentuity-Auth-Api-Key'].
 	 */
 	apiKeyHeaders?: string[];
 
@@ -261,6 +323,20 @@ export interface ApiKeyPluginOptions {
  */
 export interface AgentuityAuthOptions extends BetterAuthOptions {
 	/**
+	 * PostgreSQL connection string.
+	 * When provided, we create a pg Pool and Drizzle instance internally.
+	 * This is the simplest path - just provide the connection string.
+	 *
+	 * @example
+	 * ```typescript
+	 * createAgentuityAuth({
+	 *   connectionString: process.env.DATABASE_URL,
+	 * });
+	 * ```
+	 */
+	connectionString?: string;
+
+	/**
 	 * Skip default plugins (organization, jwt, bearer, apiKey).
 	 * Use this if you want full control over plugins.
 	 */
@@ -278,7 +354,7 @@ export interface AgentuityAuthOptions extends BetterAuthOptions {
  */
 export const DEFAULT_API_KEY_OPTIONS: Required<ApiKeyPluginOptions> = {
 	enabled: true,
-	apiKeyHeaders: ['x-api-key', 'X-API-KEY'],
+	apiKeyHeaders: ['x-agentuity-auth-api-key', 'X-Agentuity-Auth-Api-Key'],
 	enableSessionForAPIKeys: true,
 	defaultPrefix: 'ag_',
 	defaultKeyLength: 64,
@@ -315,28 +391,63 @@ export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
 }
 
 /**
- * Create an Agentuity-configured BetterAuth instance.
+ * Create an Agentuity Auth instance.
  *
  * This wraps BetterAuth with sensible defaults for Agentuity projects:
+ * - Default basePath: '/api/auth'
+ * - Email/password authentication enabled by default
  * - Organization plugin for multi-tenancy
  * - JWT plugin for token-based auth
  * - Bearer plugin for API auth
- * - API Key plugin for programmatic access (with enableSessionForAPIKeys)
+ * - API Key plugin for programmatic access
+ * - Experimental joins enabled by default for better performance
  *
- * @example Basic usage
+ * @example Option A: Connection string (simplest)
  * ```typescript
- * import { createAgentuityAuth } from '@agentuity/auth/agentuity';
+ * import { createAgentuityAuth } from '@agentuity/auth';
  *
  * export const auth = createAgentuityAuth({
- *   database: pool,
- *   basePath: '/api/auth',
+ *   connectionString: process.env.DATABASE_URL,
+ * });
+ * ```
+ *
+ * @example Option B: Bring your own Drizzle
+ * ```typescript
+ * import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+ * import * as authSchema from '@agentuity/auth/schema';
+ *
+ * const schema = { ...authSchema, ...myAppSchema };
+ * const db = drizzle(pool, { schema });
+ *
+ * export const auth = createAgentuityAuth({
+ *   database: drizzleAdapter(db, { schema }),
+ * });
+ * ```
+ *
+ * @example Option C: Other adapters (Prisma, MongoDB, etc.)
+ * ```typescript
+ * import { prismaAdapter } from 'better-auth/adapters/prisma';
+ *
+ * export const auth = createAgentuityAuth({
+ *   database: prismaAdapter(new PrismaClient()),
  * });
  * ```
  */
 export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) {
-	const { skipDefaultPlugins, plugins = [], apiKey: apiKeyOptions, ...restOptions } = options;
+	const {
+		skipDefaultPlugins,
+		plugins = [],
+		apiKey: apiKeyOptions,
+		connectionString,
+		...restOptions
+	} = options;
 
 	const resolvedBaseURL = resolveBaseURL(restOptions.baseURL);
+	const resolvedSecret = resolveSecret(restOptions.secret);
+
+	// Apply Agentuity defaults
+	const basePath = restOptions.basePath ?? '/api/auth';
+	const emailAndPassword = restOptions.emailAndPassword ?? { enabled: true };
 
 	// Explicitly type to avoid union type inference issues with downstream consumers
 	const trustedOrigins: TrustedOrigins =
@@ -344,20 +455,46 @@ export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) 
 
 	const defaultPlugins = skipDefaultPlugins ? [] : getDefaultPlugins(apiKeyOptions);
 
+	// Handle database configuration
+	let database = restOptions.database;
+
+	// Option A: connectionString provided - create pg pool + drizzle internally
+	if (connectionString && !database) {
+		const pool = new Pool({ connectionString });
+		const db = drizzle(pool, { schema: authSchema });
+		database = drizzleAdapter(db, {
+			provider: 'pg',
+			schema: authSchema,
+		});
+	}
+
+	// Default experimental.joins to true for better performance
+	const experimental = {
+		joins: true,
+		...restOptions.experimental,
+	};
+
 	const authInstance = betterAuth({
 		...restOptions,
+		database,
+		basePath,
+		emailAndPassword,
+		experimental,
 		...(resolvedBaseURL ? { baseURL: resolvedBaseURL } : {}),
+		...(resolvedSecret ? { secret: resolvedSecret } : {}),
 		trustedOrigins,
 		plugins: [...defaultPlugins, ...plugins],
 	});
 
-	return authInstance as typeof authInstance & {
-		api: typeof authInstance.api & DefaultPluginApiMethods;
-	};
+	return authInstance as AgentuityAuthBase &
+		typeof authInstance & {
+			api: typeof authInstance.api & DefaultPluginApiMethods;
+		};
 }
 
 /**
  * Type helper for the auth instance with default plugin methods.
+ * Inferred from createAgentuityAuth to stay in sync with BetterAuth.
  */
 export type AgentuityAuthInstance = ReturnType<typeof createAgentuityAuth>;
 

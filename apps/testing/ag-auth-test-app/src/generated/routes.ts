@@ -84,9 +84,14 @@ declare module '@agentuity/react' {
 		outputSchema: never;
 		stream: false;
 	};
-	'POST /api/api-keys': {
+	'GET /api/debug/permissions': {
 		inputSchema: never;
 		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/api-keys': {
+		inputSchema: POSTApiApiKeysInputSchema;
+		outputSchema: POSTApiApiKeysOutputSchema;
 		stream: false;
 	};
 	'GET /api/api-keys': {
@@ -110,8 +115,8 @@ declare module '@agentuity/react' {
 		stream: false;
 	};
 	'POST /api/organizations': {
-		inputSchema: never;
-		outputSchema: never;
+		inputSchema: POSTApiOrganizationsInputSchema;
+		outputSchema: POSTApiOrganizationsOutputSchema;
 		stream: false;
 	};
 	'GET /api/organizations': {
@@ -213,11 +218,19 @@ declare module '@agentuity/react' {
 			 */
 			post: { input: never; output: never; type: 'api' };
 		};
+		debug: {
+			permissions: {
+				/**
+				 * Route: GET /api/debug/permissions
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+		};
 		apiKeys: {
 			/**
 			 * Route: POST /api/api-keys
 			 */
-			post: { input: never; output: never; type: 'api' };
+			post: { input: POSTApiApiKeysInput; output: POSTApiApiKeysOutput; type: 'api' };
 			/**
 			 * Route: GET /api/api-keys
 			 */
@@ -245,7 +258,7 @@ declare module '@agentuity/react' {
 			/**
 			 * Route: POST /api/organizations
 			 */
-			post: { input: never; output: never; type: 'api' };
+			post: { input: POSTApiOrganizationsInput; output: POSTApiOrganizationsOutput; type: 'api' };
 			/**
 			 * Route: GET /api/organizations
 			 */
@@ -325,6 +338,13 @@ const _rpcRouteMetadata = {
 		"projects": {
 				"post": {
 						"type": "api"
+				}
+		},
+		"debug": {
+				"permissions": {
+						"get": {
+								"type": "api"
+						}
 				}
 		},
 		"apiKeys": {

@@ -1,5 +1,6 @@
 import { createCommand } from '../../../types';
 import { initSubcommand } from './init';
+import { generateSubcommand } from './generate';
 import { getCommand } from '../../../command-prefix';
 
 export const authCommand = createCommand({
@@ -11,6 +12,10 @@ export const authCommand = createCommand({
 			command: getCommand('project auth init'),
 			description: 'Set up Agentuity Auth for an existing project',
 		},
+		{
+			command: getCommand('project auth generate'),
+			description: 'Generate Drizzle schema for auth tables',
+		},
 	],
-	subcommands: [initSubcommand],
+	subcommands: [initSubcommand, generateSubcommand],
 });

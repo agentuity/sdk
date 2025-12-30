@@ -66,10 +66,10 @@ export function LoginForm() {
 				mode === 'signin'
 					? await authClient.signIn.email({ email, password })
 					: await authClient.signUp.email({
-							email,
-							password,
-							name: email.split('@')[0] ?? 'User',
-						});
+						email,
+						password,
+						name: email.split('@')[0] ?? 'User',
+					});
 
 			if (result.error) {
 				setError(result.error.message || `Sign ${mode === 'signin' ? 'in' : 'up'} failed`);
@@ -296,7 +296,8 @@ export function ApiKeyManager() {
 		setCreatedKey(null);
 
 		try {
-			const result = (await createKey({ name: newKeyName || 'default-key' })) as ApiKey;
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const result = (await (createKey as any)({ name: newKeyName || 'default-key' })) as ApiKey;
 			if (result?.key) {
 				setCreatedKey(result.key);
 				setNewKeyName('');
@@ -308,6 +309,8 @@ export function ApiKeyManager() {
 	};
 
 	const handleDeleteKey = async (keyId: string) => {
+		setError(null);
+
 		try {
 			await fetch(`/api/api-keys/${keyId}`, { method: 'DELETE', credentials: 'include' });
 			refetchKeys();
@@ -316,7 +319,7 @@ export function ApiKeyManager() {
 		}
 	};
 
-	const keys = (apiKeys as ApiKey[]) || [];
+	const keys = (apiKeys as unknown as ApiKey[]) || [];
 
 	return (
 		<div className="api-keys">
@@ -495,9 +498,9 @@ export function OrganizationManager() {
 	const { invoke: createOrg, isLoading: creating } = useAPI('POST /api/organizations');
 	const { data: whoami, refetch: refetchWhoami } = useAPI('GET /api/whoami');
 
-	const organizations = (orgs as Organization[]) || [];
-	const activeOrgData = activeOrg as Organization | { message?: string } | undefined;
-	const whoamiData = whoami as {
+	const organizations = (orgs as unknown as Organization[]) || [];
+	const activeOrgData = activeOrg as unknown as Organization | { message?: string } | undefined;
+	const whoamiData = whoami as unknown as {
 		user?: { id: string; name: string; email: string };
 		organization?: { id: string; name: string; slug: string; role?: string } | null;
 	};
@@ -512,7 +515,8 @@ export function OrganizationManager() {
 		}
 
 		try {
-			await createOrg({ name: newOrgName, slug: newOrgSlug });
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			await (createOrg as any)({ name: newOrgName, slug: newOrgSlug });
 			setSuccess(`Organization "${newOrgName}" created!`);
 			setNewOrgName('');
 			setNewOrgSlug('');
@@ -523,6 +527,9 @@ export function OrganizationManager() {
 	};
 
 	const handleActivateOrg = async (orgId: string) => {
+		setError(null);
+		setSuccess(null);
+
 		try {
 			await fetch(`/api/organizations/${orgId}/activate`, {
 				method: 'POST',

@@ -1,5 +1,5 @@
 import { createRouter } from '@agentuity/runtime';
-import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
+import { mountAgentuityAuthRoutes } from '@agentuity/auth';
 import { auth, authMiddleware, optionalAuthMiddleware } from '../auth';
 
 import hello from '@agent/hello';
@@ -7,10 +7,10 @@ import hello from '@agent/hello';
 const api = createRouter();
 
 /**
- * Mount BetterAuth routes for authentication.
+ * Mount auth routes for authentication.
  * Handles: sign-in, sign-up, sign-out, session, password reset, etc.
  */
-api.on(['GET', 'POST'], '/auth/*', mountBetterAuthRoutes(auth));
+api.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(auth));
 
 /**
  * Public endpoint - available to everyone.

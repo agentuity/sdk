@@ -8,6 +8,8 @@ import {
 	runAuthMigrations,
 	generateAuthFileContent,
 	printIntegrationExamples,
+	detectOrmSetup,
+	generateAuthSchemaSql,
 } from './shared';
 import enquirer from 'enquirer';
 import * as fs from 'fs';
@@ -30,7 +32,7 @@ export const initSubcommand = createSubcommand({
 			skipMigrations: z
 				.boolean()
 				.optional()
-				.describe('Skip running database migrations (run ensureAuthSchema at runtime instead)'),
+				.describe('Skip running database migrations (run `agentuity project auth generate` later)'),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether setup succeeded'),
@@ -119,21 +121,22 @@ export const initSubcommand = createSubcommand({
 			tui.success(`Using database: ${databaseName}`);
 		}
 
-		// Add BETTER_AUTH_SECRET if not present
+		// Add AGENTUITY_AUTH_SECRET if not present
 		// Re-read envContent to get latest state
 		envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf-8') : '';
 		if (!envContent.endsWith('\n') && envContent.length > 0) {
 			envContent += '\n';
 		}
 
-		const hasBetterAuthSecret = envContent.match(/^BETTER_AUTH_SECRET=/m);
-		if (!hasBetterAuthSecret) {
+		const hasAuthSecret =
+			envContent.match(/^AGENTUITY_AUTH_SECRET=/m) || envContent.match(/^BETTER_AUTH_SECRET=/m);
+		if (!hasAuthSecret) {
 			const devSecret = `dev-${crypto.randomUUID()}-CHANGE-ME`;
-			envContent += `BETTER_AUTH_SECRET="${devSecret}"\n`;
+			envContent += `AGENTUITY_AUTH_SECRET="${devSecret}"\n`;
 			fs.writeFileSync(envPath, envContent);
-			tui.success('BETTER_AUTH_SECRET added to .env (development default)');
+			tui.success('AGENTUITY_AUTH_SECRET added to .env (development default)');
 			tui.warning(
-				`Replace ${tui.bold('BETTER_AUTH_SECRET')} with a secure value before deploying.`
+				`Replace ${tui.bold('AGENTUITY_AUTH_SECRET')} with a secure value before deploying.`
 			);
 			tui.info(`Generate one with: ${tui.muted('openssl rand -hex 32')}`);
 		}
@@ -169,33 +172,72 @@ export const initSubcommand = createSubcommand({
 			}
 		}
 
-		// Step 4: Run migrations
+		// Step 4: Run migrations (ORM-aware)
 		let migrationsRun = false;
 
 		if (opts.skipMigrations) {
-			tui.info('Skipping migrations (use ensureAuthSchema() at runtime)');
+			tui.info('Skipping migrations (run `agentuity project auth generate` later)');
 		} else if (databaseName) {
 			tui.newline();
-			const { runMigrations } = await enquirer.prompt<{ runMigrations: boolean }>({
-				type: 'confirm',
-				name: 'runMigrations',
-				message: 'Run database migrations now? (idempotent, safe to re-run)',
-				initial: true,
-			});
 
-			if (runMigrations) {
-				await runAuthMigrations({
-					logger,
-					auth,
-					orgId,
-					region,
-					databaseName,
+			const ormSetup = await detectOrmSetup(projectDir);
+
+			if (ormSetup === 'drizzle') {
+				tui.info(tui.bold('Drizzle detected in your project.'));
+				tui.newline();
+				console.log('  Since you manage your own Drizzle schema, add authSchema to your schema:');
+				tui.newline();
+				console.log(tui.muted('    import * as authSchema from \'@agentuity/auth/schema\';'));
+				console.log(tui.muted('    export const schema = { ...authSchema, ...yourSchema };'));
+				tui.newline();
+				console.log('  Then run migrations:');
+				console.log(tui.muted('    bunx drizzle-kit push'));
+				tui.newline();
+			} else if (ormSetup === 'prisma') {
+				tui.info(tui.bold('Prisma detected in your project.'));
+				tui.newline();
+
+				const sql = await tui.spinner({
+					message: 'Generating auth schema SQL',
+					clearOnSuccess: true,
+					callback: () => generateAuthSchemaSql(projectDir),
 				});
-				migrationsRun = true;
+
+				const sqlFilePath = path.join(projectDir, 'agentuity-auth-schema.sql');
+				fs.writeFileSync(sqlFilePath, sql);
+				tui.success(`Auth schema SQL saved to ${tui.bold('agentuity-auth-schema.sql')}`);
+				tui.newline();
+				console.log('  Run this SQL against your database to create auth tables.');
+				tui.newline();
+			} else {
+				const { runMigrations } = await enquirer.prompt<{ runMigrations: boolean }>({
+					type: 'confirm',
+					name: 'runMigrations',
+					message: 'Run database migrations now? (idempotent, safe to re-run)',
+					initial: true,
+				});
+
+				if (runMigrations) {
+					const sql = await tui.spinner({
+						message: 'Generating auth schema SQL',
+						clearOnSuccess: true,
+						callback: () => generateAuthSchemaSql(projectDir),
+					});
+
+					await runAuthMigrations({
+						logger,
+						auth,
+						orgId,
+						region,
+						databaseName,
+						sql,
+					});
+					migrationsRun = true;
+				}
 			}
 		} else {
 			tui.warning(
-				'Could not determine database name. Run migrations manually or call ensureAuthSchema() at runtime.'
+				'Could not determine database name. Run `agentuity project auth generate` manually.'
 			);
 		}
 

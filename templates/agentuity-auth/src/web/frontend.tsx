@@ -8,7 +8,7 @@
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AgentuityProvider } from '@agentuity/react';
-import { AgentuityBetterAuth } from '@agentuity/auth/agentuity/client';
+import { AgentuityAuthProvider } from '@agentuity/auth/react';
 import { AuthUIProvider } from '@daveyplate/better-auth-ui';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
@@ -24,7 +24,7 @@ const app = (
 	<StrictMode>
 		<QueryClientProvider client={queryClient}>
 			<AgentuityProvider>
-				<AgentuityBetterAuth tokenEndpoint="/api/auth/token">
+				<AgentuityAuthProvider authClient={authClient}>
 					<AuthUIProvider
 						authClient={authClient}
 						basePath="/auth"
@@ -39,7 +39,7 @@ const app = (
 						<App />
 						<Toaster richColors theme="dark" position="top-right" />
 					</AuthUIProvider>
-				</AgentuityBetterAuth>
+				</AgentuityAuthProvider>
 			</AgentuityProvider>
 		</QueryClientProvider>
 	</StrictMode>

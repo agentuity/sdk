@@ -1,15 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * End-to-end tests for Agentuity BetterAuth integration.
+ * End-to-end tests for Agentuity Auth integration.
  *
- * These tests verify the complete auth flow using mocked BetterAuth responses.
+ * These tests verify the complete auth flow using mocked auth responses.
  */
 
 import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
 import { createSessionMiddleware } from '../../src/agentuity/server';
 
-describe('Agentuity BetterAuth E2E flow', () => {
+describe('Agentuity Auth E2E flow', () => {
 	const mockUser = {
 		id: 'user_e2e_123',
 		name: 'E2E Test User',

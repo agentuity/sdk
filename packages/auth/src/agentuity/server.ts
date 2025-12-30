@@ -1,27 +1,23 @@
 /**
- * Agentuity BetterAuth Hono middleware and handlers.
+ * Agentuity Auth Hono middleware and handlers.
  *
- * Follows BetterAuth's recommended Hono integration patterns:
- * @see https://www.better-auth.com/docs/integrations/hono
+ * Provides session and API key authentication middleware for Hono applications.
  *
  * @module agentuity/server
  */
 
 import type { Context, MiddlewareHandler } from 'hono';
 import { context, trace, SpanStatusCode } from '@opentelemetry/api';
-import type { Session, User } from 'better-auth';
 import type { AgentuityAuthUser } from '../types';
-import type { AgentuityAuthInstance } from './config';
+import type { AgentuityAuthBase } from './config';
 import type {
+	AgentuityUser,
+	AgentuitySession,
 	AgentuityOrgContext,
 	AgentuityApiKeyContext,
 	AgentuityAuthMethod,
-	AgentuityBetterAuthAuth,
+	AgentuityAuthInterface,
 } from './types';
-
-// =============================================================================
-// Types
-// =============================================================================
 
 /**
  * Configuration for OpenTelemetry span attributes.
@@ -83,9 +79,9 @@ export interface AgentuityApiKeyMiddlewareOptions {
  */
 export type AgentuityAuthEnv = {
 	Variables: {
-		auth: AgentuityBetterAuthAuth;
-		user: User | null;
-		session: Session | null;
+		auth: AgentuityAuthInterface<AgentuityUser>;
+		user: AgentuityUser | null;
+		session: AgentuitySession | null;
 		org: AgentuityOrgContext | null;
 	};
 };
@@ -96,13 +92,11 @@ export type AgentuityAuthEnv = {
 
 /**
  * Derive minimal org context from session.
- * Full org data is fetched lazily via getOrg(). Later we might add more to org context so keeping this here.
+ * Full org data is fetched lazily via getOrg().
  */
-function deriveOrgContext(session: Session): AgentuityOrgContext | null {
-	const s = session as Record<string, unknown>;
-	const id = s.activeOrganizationId as string | undefined;
-	if (!id) return null;
-	return { id } as AgentuityOrgContext;
+function deriveOrgContext(session: AgentuitySession | null): AgentuityOrgContext | null {
+	if (!session?.activeOrganizationId) return null;
+	return { id: session.activeOrganizationId };
 }
 
 /**
@@ -140,14 +134,14 @@ function getAuthMethod(c: Context): AgentuityAuthMethod {
 
 function buildAgentuityAuth(
 	c: Context,
-	auth: AgentuityAuthInstance,
-	user: User,
-	session: Session,
+	auth: AgentuityAuthBase,
+	user: AgentuityUser,
+	session: AgentuitySession | null,
 	org: AgentuityOrgContext | null,
 	authMethod: AgentuityAuthMethod,
 	apiKeyContext: AgentuityApiKeyContext | null
-): AgentuityBetterAuthAuth {
-	let cachedUser: AgentuityAuthUser<User> | null = null;
+): AgentuityAuthInterface<AgentuityUser> {
+	let cachedUser: AgentuityAuthUser<AgentuityUser> | null = null;
 	let cachedFullOrg: AgentuityOrgContext | null | undefined = undefined;
 	const permissions = apiKeyContext?.permissions ?? null;
 
@@ -254,7 +248,7 @@ function buildAgentuityAuth(
 /**
  * Build a null/anonymous auth wrapper for optional middleware.
  */
-function buildAnonymousAuth(): AgentuityBetterAuthAuth {
+function buildAnonymousAuth(): AgentuityAuthInterface<AgentuityUser> {
 	return {
 		async getUser() {
 			throw new Error('Not authenticated');
@@ -265,8 +259,8 @@ function buildAnonymousAuth(): AgentuityBetterAuthAuth {
 		},
 
 		raw: {
-			user: null as unknown as User,
-			session: null as unknown as Session,
+			user: null as unknown as AgentuityUser,
+			session: null as unknown as AgentuitySession,
 			org: null,
 		},
 
@@ -337,7 +331,7 @@ function buildAnonymousAuth(): AgentuityBetterAuthAuth {
  * ```
  */
 export function createSessionMiddleware(
-	auth: AgentuityAuthInstance,
+	auth: AgentuityAuthBase,
 	options: AgentuityMiddlewareOptions = {}
 ): MiddlewareHandler<AgentuityAuthEnv> {
 	const { optional = false, otelSpans = {} } = options;
@@ -368,7 +362,9 @@ export function createSessionMiddleware(
 				return c.json({ error: 'Unauthorized' }, 401);
 			}
 
-			const { user, session } = result;
+			// Cast to full types - BetterAuth returns complete objects at runtime
+			const user = result.user as AgentuityUser;
+			const session = result.session as AgentuitySession;
 			const org = deriveOrgContext(session);
 			const authMethod = getAuthMethod(c);
 
@@ -456,7 +452,7 @@ export function createSessionMiddleware(
  * ```
  */
 export function createApiKeyMiddleware(
-	auth: AgentuityAuthInstance,
+	auth: AgentuityAuthBase,
 	options: AgentuityApiKeyMiddlewareOptions = {}
 ): MiddlewareHandler<AgentuityAuthEnv> {
 	const { optional = false, otelSpans = {} } = options;
@@ -482,7 +478,7 @@ export function createApiKeyMiddleware(
 				body: { key: apiKeyToken },
 			});
 
-			if (!result.valid || !result.apiKey) {
+			if (!result.valid || !result.key) {
 				if (optional) {
 					await next();
 					return;
@@ -493,7 +489,7 @@ export function createApiKeyMiddleware(
 				return c.json({ error: 'Unauthorized: Invalid API key' }, 401);
 			}
 
-			const keyData = result.apiKey;
+			const keyData = result.key;
 			const userId = keyData.userId;
 
 			const apiKeyContext: AgentuityApiKeyContext = {
@@ -503,14 +499,15 @@ export function createApiKeyMiddleware(
 				userId: userId ?? null,
 			};
 
-			let user: User | null = null;
+			let user: AgentuityUser | null = null;
 			if (userId) {
 				try {
-					const session = await auth.api.getSession({
+					const sessionResult = await auth.api.getSession({
 						headers: new Headers({ 'x-user-id': userId }),
 					});
-					if (session?.user) {
-						user = session.user;
+					if (sessionResult?.user) {
+						// Cast to full type - BetterAuth returns complete objects at runtime
+						user = sessionResult.user as AgentuityUser;
 					}
 				} catch {
 					// User fetch failed, continue with null user
@@ -538,18 +535,7 @@ export function createApiKeyMiddleware(
 			}
 
 			if (user) {
-				c.set(
-					'auth',
-					buildAgentuityAuth(
-						c,
-						auth,
-						user,
-						null as unknown as Session,
-						null,
-						'api-key',
-						apiKeyContext
-					)
-				);
+				c.set('auth', buildAgentuityAuth(c, auth, user, null, null, 'api-key', apiKeyContext));
 			} else {
 				const anonAuth = buildAnonymousAuth();
 				c.set('auth', {
@@ -601,9 +587,9 @@ const DEFAULT_FORWARDED_HEADERS = [
 ];
 
 /**
- * Configuration options for mounting BetterAuth routes.
+ * Configuration options for mounting Agentuity Auth routes.
  */
-export interface MountBetterAuthRoutesOptions {
+export interface MountAgentuityAuthRoutesOptions {
 	/**
 	 * Headers to forward from BetterAuth responses to the client.
 	 * Only headers in this list will be forwarded (case-insensitive).
@@ -615,38 +601,33 @@ export interface MountBetterAuthRoutesOptions {
 }
 
 /**
- * Mount BetterAuth routes with proper cookie handling and header filtering.
+ * Mount Agentuity Auth routes with proper cookie handling and header filtering.
  *
- * This wrapper is required because of how Hono handles raw `Response` objects
- * returned from route handlers. When BetterAuth's `auth.handler()` returns a
- * `Response` with `Set-Cookie` headers, those headers are not automatically
- * merged with headers set by Agentuity's middleware (like the `atid` thread cookie).
- *
- * This function copies only allowed headers from BetterAuth's response into
- * Hono's context, ensuring both BetterAuth's session cookies AND Agentuity's
- * cookies are preserved while preventing unintended headers from leaking through.
+ * This wrapper handles cookie merging between auth responses and Agentuity middleware.
+ * It ensures both session cookies AND Agentuity's cookies (like thread cookies)
+ * are preserved while preventing unintended headers from leaking through.
  *
  * @example Basic usage
  * ```typescript
- * import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
+ * import { mountAgentuityAuthRoutes } from '@agentuity/auth';
  * import { auth } from './auth';
  *
  * const api = createRouter();
  *
- * // Mount all BetterAuth routes (sign-in, sign-up, sign-out, session, etc.)
- * api.on(['GET', 'POST'], '/api/auth/*', mountBetterAuthRoutes(auth));
+ * // Mount all auth routes (sign-in, sign-up, sign-out, session, etc.)
+ * api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
  * ```
  *
  * @example With custom header allowlist
  * ```typescript
- * api.on(['GET', 'POST'], '/api/auth/*', mountBetterAuthRoutes(auth, {
+ * api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth, {
  *   allowList: ['set-cookie', 'content-type', 'location', 'x-custom-header']
  * }));
  * ```
  */
-export function mountBetterAuthRoutes(
-	auth: AgentuityAuthInstance,
-	options: MountBetterAuthRoutesOptions = {}
+export function mountAgentuityAuthRoutes(
+	auth: AgentuityAuthBase,
+	options: MountAgentuityAuthRoutesOptions = {}
 ): (c: Context) => Promise<Response> {
 	const allowList = new Set(
 		(options.allowList ?? DEFAULT_FORWARDED_HEADERS).map((h) => h.toLowerCase())
@@ -657,7 +638,7 @@ export function mountBetterAuthRoutes(
 	return async (c: Context): Promise<Response> => {
 		const response = await auth.handler(c.req.raw);
 
-		response.headers.forEach((value, key) => {
+		response.headers.forEach((value: string, key: string) => {
 			const lower = key.toLowerCase();
 
 			// Only forward headers in the allowlist
@@ -687,9 +668,9 @@ export function mountBetterAuthRoutes(
 
 declare module 'hono' {
 	interface ContextVariableMap {
-		auth: AgentuityBetterAuthAuth;
-		user: User | null;
-		session: Session | null;
+		auth: AgentuityAuthInterface<AgentuityUser>;
+		user: AgentuityUser | null;
+		session: AgentuitySession | null;
 		org: AgentuityOrgContext | null;
 	}
 }

@@ -2,6 +2,8 @@
  * Shared helpers for Agentuity Auth setup
  */
 
+import { spawn } from 'node:child_process';
+import * as path from 'node:path';
 import { listResources, createResources, dbQuery } from '@agentuity/server';
 import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
@@ -121,7 +123,8 @@ export async function selectOrCreateDatabase(options: {
 export const AUTH_DEPENDENCIES = {
 	'@agentuity/auth': 'latest',
 	'better-auth': '^1.4.9',
-	pg: '^8.13.0',
+	'drizzle-orm': '^0.44.0',
+	pg: '^8.16.0',
 } as const;
 
 /**
@@ -182,14 +185,169 @@ export async function ensureAuthDependencies(options: {
 }
 
 /**
- * Import the baseline SQL from @agentuity/auth to ensure single source of truth.
- * This SQL is used by both the CLI (for initial setup) and ensureAuthSchema() at runtime.
- *
- * Note: We import directly from the migrations module to avoid pulling in client-side
- * JSX code that would cause TypeScript errors in the CLI build.
+ * ORM setup type detected in a project.
  */
-import { AGENTUITY_AUTH_BASELINE_SQL } from '@agentuity/auth/agentuity/migrations';
-export { AGENTUITY_AUTH_BASELINE_SQL };
+export type OrmSetup = 'drizzle' | 'prisma' | 'none';
+
+/**
+ * Detect existing ORM setup in project.
+ * TODO: This is probably not 100% accurate. Drizzle config could be in all sorts of places in a repo.
+ */
+export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
+	const drizzleConfigTs = path.join(projectDir, 'drizzle.config.ts');
+	const drizzleConfigJs = path.join(projectDir, 'drizzle.config.js');
+	const prismaSchema = path.join(projectDir, 'prisma', 'schema.prisma');
+
+	if ((await Bun.file(drizzleConfigTs).exists()) || (await Bun.file(drizzleConfigJs).exists())) {
+		return 'drizzle';
+	}
+
+	if (await Bun.file(prismaSchema).exists()) {
+		return 'prisma';
+	}
+
+	return 'none';
+}
+
+/**
+ * Detect if the CLI is running from the SDK source (local dev mode).
+ *
+ * Returns the SDK root path if running from source, undefined otherwise.
+ */
+function getSdkRootIfLocalDev(): string | undefined {
+	const cliPath = import.meta.url;
+	if (!cliPath.startsWith('file://')) {
+		return undefined;
+	}
+
+	const cliFilePath = new URL(cliPath).pathname;
+	const expectedSuffix = '/packages/cli/src/cmd/project/auth/shared.ts';
+
+	if (cliFilePath.endsWith(expectedSuffix)) {
+		return cliFilePath.slice(0, -expectedSuffix.length);
+	}
+
+	const distSuffix = '/packages/cli/dist/cmd/project/auth/shared.js';
+	if (cliFilePath.endsWith(distSuffix)) {
+		const potentialRoot = cliFilePath.slice(0, -distSuffix.length);
+		const schemaPath = path.join(potentialRoot, 'packages/auth/src/schema.ts');
+		if (Bun.file(schemaPath).size > 0) {
+			return potentialRoot;
+		}
+	}
+
+	return undefined;
+}
+
+/**
+ * Generate auth schema SQL using drizzle-kit export.
+ *
+ * This generates SQL DDL statements from the @agentuity/auth Drizzle schema
+ * without needing a database connection.
+ *
+ * When running in local dev mode (CLI executed from SDK source), uses the
+ * SDK's packages/auth/src/schema.ts directly instead of looking in node_modules.
+ *
+ * @param projectDir - Project directory (must have @agentuity/auth installed)
+ * @returns SQL DDL statements for auth tables
+ */
+export async function generateAuthSchemaSql(projectDir: string): Promise<string> {
+	const sdkRoot = getSdkRootIfLocalDev();
+	let schemaPath: string;
+	let cwd: string;
+
+	if (sdkRoot) {
+		schemaPath = path.join(sdkRoot, 'packages/auth/src/schema.ts');
+		cwd = path.join(sdkRoot, 'packages/auth');
+
+		if (!(await Bun.file(schemaPath).exists())) {
+			throw new Error(
+				`SDK schema not found at ${schemaPath}. This should not happen in local dev mode.`
+			);
+		}
+	} else {
+		schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/src/schema.ts');
+		cwd = projectDir;
+
+		if (!(await Bun.file(schemaPath).exists())) {
+			throw new Error(
+				`@agentuity/auth schema not found at ${schemaPath}. Ensure @agentuity/auth is installed.`
+			);
+		}
+	}
+
+	return new Promise((resolve, reject) => {
+		const chunks: string[] = [];
+		const errorChunks: string[] = [];
+
+		const child = spawn(
+			'bunx',
+			['drizzle-kit', 'export', '--dialect=postgresql', `--schema=${schemaPath}`],
+			{
+				cwd,
+				shell: true,
+			}
+		);
+
+		child.stdout.on('data', (data: Buffer) => chunks.push(data.toString()));
+		child.stderr.on('data', (data: Buffer) => {
+			const msg = data.toString();
+			if (!msg.includes('Please install')) {
+				errorChunks.push(msg);
+			}
+		});
+
+		child.on('close', (code) => {
+			if (code === 0) {
+				const sql = chunks.join('');
+				const idempotentSql = makeIdempotent(sql);
+				resolve(idempotentSql);
+			} else {
+				const errorMsg = errorChunks.join('').trim();
+				reject(new Error(`drizzle-kit export failed with code ${code}: ${errorMsg}`));
+			}
+		});
+
+		child.on('error', (err) => {
+			reject(new Error(`Failed to spawn drizzle-kit: ${err.message}`));
+		});
+	});
+}
+
+/**
+ * Transform drizzle-kit SQL output to be idempotent.
+ *
+ * - Converts CREATE TABLE to CREATE TABLE IF NOT EXISTS
+ * - Converts CREATE INDEX to CREATE INDEX IF NOT EXISTS
+ * - Wraps ALTER TABLE ADD CONSTRAINT in DO blocks to handle existing constraints
+ */
+function makeIdempotent(sql: string): string {
+	const lines = sql.split('\n');
+	const result: string[] = [];
+
+	for (const line of lines) {
+		const trimmed = line.trim();
+
+		if (trimmed.startsWith('CREATE TABLE ') && !trimmed.includes('IF NOT EXISTS')) {
+			result.push(line.replace('CREATE TABLE ', 'CREATE TABLE IF NOT EXISTS '));
+		} else if (trimmed.startsWith('CREATE INDEX ') && !trimmed.includes('IF NOT EXISTS')) {
+			result.push(line.replace('CREATE INDEX ', 'CREATE INDEX IF NOT EXISTS '));
+		} else if (trimmed.startsWith('ALTER TABLE ') && trimmed.includes('ADD CONSTRAINT')) {
+			const constraintMatch = trimmed.match(/ADD CONSTRAINT "([^"]+)"/);
+			if (constraintMatch) {
+				result.push(
+					`DO $$ BEGIN ${trimmed} EXCEPTION WHEN duplicate_object THEN NULL; END $$;`
+				);
+			} else {
+				result.push(line);
+			}
+		} else {
+			result.push(line);
+		}
+	}
+
+	return result.join('\n');
+}
 
 /**
  * Split SQL into individual statements for sequential execution
@@ -229,7 +387,9 @@ export function splitSqlStatements(sql: string): string[] {
 }
 
 /**
- * Run auth migrations against a database
+ * Run auth migrations against a database.
+ *
+ * @param options.sql - SQL to execute (from generateAuthSchemaSql or custom)
  */
 export async function runAuthMigrations(options: {
 	logger: Logger;
@@ -237,12 +397,12 @@ export async function runAuthMigrations(options: {
 	orgId: string;
 	region: string;
 	databaseName: string;
+	sql: string;
 }): Promise<void> {
-	const { logger, auth, orgId, region, databaseName } = options;
+	const { logger, auth, orgId, region, databaseName, sql } = options;
 	const catalystClient = getCatalystAPIClient(logger, auth, region);
 
-	// Split into individual statements since dbQuery only supports single statements
-	const statements = splitSqlStatements(AGENTUITY_AUTH_BASELINE_SQL);
+	const statements = splitSqlStatements(sql);
 
 	await tui.spinner({
 		message: `Running auth migrations on ${databaseName} (${statements.length} statements)`,
@@ -266,27 +426,82 @@ export async function runAuthMigrations(options: {
  * Generate the auth.ts file content
  */
 export function generateAuthFileContent(): string {
-	return `import { Pool } from 'pg';
+	return `/**
+ * Agentuity Auth configuration.
+ *
+ * This is the single source of truth for authentication in this project.
+ * All auth tables are stored in your Postgres database.
+ */
+
 import {
 	createAgentuityAuth,
 	createSessionMiddleware,
-} from '@agentuity/auth/agentuity';
+	createApiKeyMiddleware,
+} from '@agentuity/auth';
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+/**
+ * Database URL for authentication.
+ *
+ * Set via DATABASE_URL environment variable.
+ * Get yours from: \`agentuity cloud database list --region use --json\`
+ */
+const DATABASE_URL = process.env.DATABASE_URL;
 
+if (!DATABASE_URL) {
+	throw new Error('DATABASE_URL environment variable is required for authentication');
+}
+
+/**
+ * Agentuity Auth instance with sensible defaults.
+ *
+ * Defaults:
+ * - basePath: '/api/auth'
+ * - emailAndPassword: { enabled: true }
+ * - Uses AGENTUITY_AUTH_SECRET env var for signing
+ *
+ * Default plugins included:
+ * - organization (multi-tenancy)
+ * - jwt (token signing)
+ * - bearer (API auth)
+ * - apiKey (programmatic access)
+ */
 export const auth = createAgentuityAuth({
-	database: pool,
-	basePath: '/api/auth',
-	// Secret used by BetterAuth for signing/verifying tokens and cookies.
-	// Generate with: openssl rand -hex 32
-	secret: process.env.BETTER_AUTH_SECRET!,
+	// Simplest setup: just provide the connection string
+	// We create pg pool + Drizzle internally with joins enabled
+	connectionString: DATABASE_URL,
+	// All options below have sensible defaults and can be omitted:
+	// secret: process.env.AGENTUITY_AUTH_SECRET, // auto-resolved from env
+	// basePath: '/api/auth', // default
+	// emailAndPassword: { enabled: true }, // default
 });
 
-// Required auth middleware - returns 401 if not authenticated
+/**
+ * Session middleware - validates cookies/bearer tokens.
+ * Use for routes that require authentication.
+ */
 export const authMiddleware = createSessionMiddleware(auth);
 
-// Optional auth middleware - allows anonymous access, sets null auth
+/**
+ * Optional auth middleware - allows anonymous access.
+ * Sets ctx.auth = null for unauthenticated requests.
+ */
 export const optionalAuthMiddleware = createSessionMiddleware(auth, { optional: true });
+
+/**
+ * API key middleware for programmatic access.
+ * Use for webhook endpoints or external integrations.
+ */
+export const apiKeyMiddleware = createApiKeyMiddleware(auth);
+
+/**
+ * Optional API key middleware - continues without auth if no API key present.
+ */
+export const optionalApiKeyMiddleware = createApiKeyMiddleware(auth, { optional: true });
+
+/**
+ * Type export for end-to-end type safety.
+ */
+export type Auth = typeof auth;
 `;
 }
 
@@ -303,14 +518,14 @@ export function printIntegrationExamples(): void {
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
 import { createRouter } from '@agentuity/runtime';
-import { mountBetterAuthRoutes } from '@agentuity/auth/agentuity';
+import { mountAgentuityAuthRoutes } from '@agentuity/auth';
 import { auth, authMiddleware } from '../auth';
 
 const api = createRouter();
 
-// Mount BetterAuth routes (sign-in, sign-up, sign-out, session, etc.)
+// Mount auth routes (sign-in, sign-up, sign-out, session, etc.)
 // Must match the basePath configured in createAgentuityAuth (default: /api/auth)
-api.on(['GET', 'POST'], '/api/auth/*', mountBetterAuthRoutes(auth));
+api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
 
 // Protect your API routes with auth middleware
 api.use('/api/*', authMiddleware);
@@ -327,34 +542,39 @@ export default api;
 	console.log(tui.bold(' 2. Wrap your React app with AuthProvider:'));
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
-import { AgentuityBetterAuth } from '@agentuity/auth/agentuity/client';
+import { AgentuityProvider } from '@agentuity/react';
+import { createAgentuityAuthClient } from '@agentuity/auth/react';
+import { AgentuityAuthProvider } from '@agentuity/auth';
+
+const authClient = createAgentuityAuthClient();
 
 function App() {
   return (
-    <AgentuityBetterAuth>
-      {/* your app */}
-    </AgentuityBetterAuth>
+    <AgentuityProvider>
+      <AgentuityAuthProvider authClient={authClient}>
+        {/* your app */}
+      </AgentuityAuthProvider>
+    </AgentuityProvider>
   );
 }
 `);
 
 	console.log(tui.muted('━'.repeat(60)));
-	console.log(tui.bold(' 3. Protect agents with withSession:'));
+	console.log(tui.bold(' 3. Access auth in agents via ctx.auth:'));
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
 import { createAgent } from '@agentuity/runtime';
-import { withSession } from '@agentuity/auth/agentuity';
 
 export default createAgent('my-agent', {
   schema: { input: s.object({ name: s.string() }), output: s.string() },
-  handler: withSession(async (ctx, { auth, org }, input) => {
-    // ctx = AgentContext, auth = { user, session } | null, org = org context
-    if (auth) {
-      const email = (auth.user as { email?: string }).email;
-      return \`Hello, \${email}!\`;
+  handler: async (ctx, input) => {
+    // ctx.auth is available when using auth middleware
+    if (ctx.auth) {
+      const user = await ctx.auth.getUser();
+      return \`Hello, \${user.email}!\`;
     }
     return 'Hello, anonymous!';
-  }, { optional: true }), // optional: true allows unauthenticated access
+  },
 });
 `);
 
@@ -362,11 +582,11 @@ export default createAgent('my-agent', {
 	console.log(tui.muted('━'.repeat(60)));
 	tui.info('Checklist:');
 	console.log(`  ${tui.tuiColors.success('✓')} DATABASE_URL configured`);
-	console.log(`  ${tui.muted('○')} BETTER_AUTH_SECRET configured (openssl rand -hex 32)`);
+	console.log(`  ${tui.tuiColors.success('✓')} AGENTUITY_AUTH_SECRET configured`);
 	console.log(`  ${tui.tuiColors.success('✓')} Auth tables migrated`);
 	console.log(`  ${tui.tuiColors.success('✓')} Dependencies installed`);
 	console.log(`  ${tui.muted('○')} Wire Hono middleware`);
-	console.log(`  ${tui.muted('○')} Add auth routes (mountBetterAuthRoutes at /api/auth/*)`);
-	console.log(`  ${tui.muted('○')} Wrap app with AgentuityBetterAuth`);
+	console.log(`  ${tui.muted('○')} Add auth routes (mountAgentuityAuthRoutes at /api/auth/*)`);
+	console.log(`  ${tui.muted('○')} Wrap app with AgentuityAuthProvider`);
 	tui.newline();
 }

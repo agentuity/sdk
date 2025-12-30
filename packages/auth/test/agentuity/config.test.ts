@@ -31,9 +31,24 @@ describe('Agentuity Auth Config', () => {
 			expect(auth.options.baseURL).toBe('https://explicit-url.com');
 		});
 
-		it('falls back to BETTER_AUTH_URL when no explicit baseURL', () => {
+		it('prefers AGENTUITY_DEPLOYMENT_URL over BETTER_AUTH_URL', () => {
 			process.env.BETTER_AUTH_URL = 'https://better-auth-url.com';
 			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://agentuity-url.com';
+
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				basePath: '/api/auth',
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			// AGENTUITY_DEPLOYMENT_URL takes priority over BETTER_AUTH_URL
+			expect(auth.options.baseURL).toBe('https://agentuity-url.com');
+		});
+
+		it('falls back to BETTER_AUTH_URL when no AGENTUITY_DEPLOYMENT_URL', () => {
+			process.env.BETTER_AUTH_URL = 'https://better-auth-url.com';
+			// Note: AGENTUITY_DEPLOYMENT_URL not set
 
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
@@ -185,6 +200,122 @@ describe('Agentuity Auth Config', () => {
 			expect(origins).toContain('https://valid.example.com');
 			// The malformed URL should be silently skipped (not included)
 			expect(origins).not.toContain('not-a-valid-url');
+		});
+	});
+
+	describe('resolveSecret', () => {
+		it('returns explicit secret when provided', () => {
+			process.env.AGENTUITY_AUTH_SECRET = 'env-secret-minimum-32-characters-long';
+			process.env.BETTER_AUTH_SECRET = 'better-auth-secret-minimum-32-chars';
+
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				basePath: '/api/auth',
+				secret: 'explicit-secret-minimum-32-characters',
+			});
+
+			expect(auth.options.secret).toBe('explicit-secret-minimum-32-characters');
+		});
+
+		it('prefers AGENTUITY_AUTH_SECRET over BETTER_AUTH_SECRET', () => {
+			process.env.AGENTUITY_AUTH_SECRET = 'agentuity-secret-minimum-32-chars-';
+			process.env.BETTER_AUTH_SECRET = 'better-auth-secret-minimum-32-chars';
+
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				basePath: '/api/auth',
+			});
+
+			expect(auth.options.secret).toBe('agentuity-secret-minimum-32-chars-');
+		});
+
+		it('falls back to BETTER_AUTH_SECRET when no AGENTUITY_AUTH_SECRET', () => {
+			delete process.env.AGENTUITY_AUTH_SECRET;
+			process.env.BETTER_AUTH_SECRET = 'better-auth-secret-minimum-32-chars';
+
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				basePath: '/api/auth',
+			});
+
+			expect(auth.options.secret).toBe('better-auth-secret-minimum-32-chars');
+		});
+	});
+
+	describe('default options', () => {
+		it('defaults basePath to /api/auth', () => {
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			expect(auth.options.basePath).toBe('/api/auth');
+		});
+
+		it('defaults emailAndPassword to enabled', () => {
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			expect(auth.options.emailAndPassword?.enabled).toBe(true);
+		});
+
+		it('defaults experimental.joins to true', () => {
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			// BetterAuth stores this in the options
+			expect((auth.options as { experimental?: { joins?: boolean } }).experimental?.joins).toBe(
+				true
+			);
+		});
+	});
+
+	describe('default plugins', () => {
+		it('includes organization, jwt, bearer, and apiKey plugins by default', () => {
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			// Check that plugins array has items (exact count depends on BetterAuth internals)
+			expect(auth.options.plugins).toBeDefined();
+			expect(auth.options.plugins!.length).toBeGreaterThanOrEqual(4);
+		});
+
+		it('skips default plugins when skipDefaultPlugins is true', () => {
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				secret: 'test-secret-minimum-32-characters-long',
+				skipDefaultPlugins: true,
+			});
+
+			// With skipDefaultPlugins, should have empty or no plugins
+			expect(auth.options.plugins?.length ?? 0).toBe(0);
+		});
+
+		it('allows disabling apiKey plugin', () => {
+			const db = new Database(':memory:');
+			const auth = createAgentuityAuth({
+				database: db,
+				secret: 'test-secret-minimum-32-characters-long',
+				apiKey: false,
+			});
+
+			// Should have 3 plugins (org, jwt, bearer) instead of 4
+			expect(auth.options.plugins).toBeDefined();
+			expect(auth.options.plugins!.length).toBe(3);
 		});
 	});
 });
