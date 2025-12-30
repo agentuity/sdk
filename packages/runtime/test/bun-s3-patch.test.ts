@@ -47,6 +47,7 @@ describe('isAgentuityStorageEndpoint', () => {
 describe('patchBunS3ForStorageDev', () => {
 	const originalS3Endpoint = process.env.S3_ENDPOINT;
 	const originalAwsEndpoint = process.env.AWS_ENDPOINT;
+	const PATCHED_SYMBOL = Symbol.for('agentuity.s3.patched');
 
 	beforeEach(() => {
 		delete process.env.S3_ENDPOINT;
@@ -91,5 +92,25 @@ describe('patchBunS3ForStorageDev', () => {
 	test('uses AWS_ENDPOINT as fallback when S3_ENDPOINT is not set', () => {
 		process.env.AWS_ENDPOINT = 'https://ag-123.t3.storage.dev';
 		expect(() => patchBunS3ForStorageDev()).not.toThrow();
+	});
+
+	test('patches Bun.S3Client.prototype when S3_ENDPOINT is storage.dev', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+		patchBunS3ForStorageDev();
+
+		// Verify we're running in Bun and the patch was applied
+		expect(Bun).toBeDefined();
+		expect(Bun.S3Client).toBeDefined();
+
+		// Check the Symbol marker was set on the prototype
+		const proto = Bun.S3Client.prototype as Record<symbol, unknown>;
+		expect(proto[PATCHED_SYMBOL]).toBe(true);
+	});
+
+	test('patched file method exists and is a function', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+		patchBunS3ForStorageDev();
+
+		expect(typeof Bun.S3Client.prototype.file).toBe('function');
 	});
 });
