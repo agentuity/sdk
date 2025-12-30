@@ -432,5 +432,54 @@ describe('registry-generator', () => {
 			expect(routesContent).toContain('export type POSTApiSubmitInput');
 			expect(routesContent).toContain('export type POSTApiSubmitOutput');
 		});
+
+		test('should use never for routes with hasValidator but no schema variables (issue #291 - zValidator query)', async () => {
+			// This reproduces the bug where zValidator('query', schema) routes have
+			// hasValidator: true but no inputSchemaVariable/outputSchemaVariable/agentVariable
+			// The generated code was referencing types like GETApiTracesInputSchema that don't exist
+			const routes: RouteInfo[] = [
+				{
+					method: 'get',
+					path: '/api/traces',
+					filename: './api/traces/route.ts',
+					routeType: 'api',
+					hasValidator: true, // zValidator detected
+					// But no schema variables because zValidator('query', ...) doesn't extract schemas
+					inputSchemaVariable: undefined,
+					outputSchemaVariable: undefined,
+					agentVariable: undefined,
+				},
+				{
+					method: 'get',
+					path: '/api/traces/:traceId',
+					filename: './api/traces/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					inputSchemaVariable: undefined,
+					outputSchemaVariable: undefined,
+					agentVariable: undefined,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should use 'never' types since no schemas were extracted
+			expect(routesContent).toContain('traces: {');
+			expect(routesContent).toContain('input: never');
+			expect(routesContent).toContain('output: never');
+
+			// Should NOT reference non-existent types
+			expect(routesContent).not.toContain('GETApiTracesInputSchema');
+			expect(routesContent).not.toContain('GETApiTracesOutputSchema');
+			expect(routesContent).not.toContain('GETApiTracesTraceIdInputSchema');
+			expect(routesContent).not.toContain('GETApiTracesTraceIdOutputSchema');
+
+			// Should NOT generate export type statements for these routes
+			expect(routesContent).not.toContain('export type GETApiTracesInput');
+			expect(routesContent).not.toContain('export type GETApiTracesOutput');
+		});
 	});
 });
