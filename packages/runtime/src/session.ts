@@ -8,6 +8,39 @@ import { getServiceUrls } from '@agentuity/server';
 import { internal } from './logger/internal';
 import { timingSafeEqual } from 'node:crypto';
 
+/**
+ * Result of parsing serialized thread data.
+ * @internal
+ */
+export interface ParsedThreadData {
+	flatStateJson?: string;
+	metadata?: Record<string, unknown>;
+}
+
+/**
+ * Parse serialized thread data, handling both old (flat state) and new ({ state, metadata }) formats.
+ * @internal
+ */
+export function parseThreadData(raw: string | undefined): ParsedThreadData {
+	if (!raw) {
+		return {};
+	}
+
+	try {
+		const parsed = JSON.parse(raw);
+		if (parsed && typeof parsed === 'object' && ('state' in parsed || 'metadata' in parsed)) {
+			return {
+				flatStateJson: parsed.state ? JSON.stringify(parsed.state) : undefined,
+				metadata:
+					parsed.metadata && typeof parsed.metadata === 'object' ? parsed.metadata : undefined,
+			};
+		}
+		return { flatStateJson: raw };
+	} catch {
+		return { flatStateJson: raw };
+	}
+}
+
 export type ThreadEventName = 'destroyed';
 export type SessionEventName = 'completed';
 
@@ -271,6 +304,10 @@ export interface ThreadIDProvider {
  * The default implementation (DefaultThreadProvider) stores threads in-memory
  * with cookie-based identification and 1-hour expiration.
  *
+ * Thread state is serialized using `getSerializedState()` which returns a JSON
+ * envelope: `{ "state": {...}, "metadata": {...} }`. Use `parseThreadData()` to
+ * correctly parse both old (flat) and new (envelope) formats on restore.
+ *
  * @example
  * ```typescript
  * class RedisThreadProvider implements ThreadProvider {
@@ -283,19 +320,29 @@ export interface ThreadIDProvider {
  *   async restore(ctx: Context<Env>): Promise<Thread> {
  *     const threadId = ctx.req.header('x-thread-id') || getCookie(ctx, 'atid') || generateId('thrd');
  *     const data = await this.redis.get(`thread:${threadId}`);
- *     const thread = new DefaultThread(this, threadId);
- *     if (data) {
- *       thread.state = new Map(JSON.parse(data));
+ *
+ *     // Parse stored data, handling both old and new formats
+ *     const { flatStateJson, metadata } = parseThreadData(data);
+ *     const thread = new DefaultThread(this, threadId, flatStateJson, metadata);
+ *
+ *     // Populate state from parsed data
+ *     if (flatStateJson) {
+ *       const stateObj = JSON.parse(flatStateJson);
+ *       for (const [key, value] of Object.entries(stateObj)) {
+ *         thread.state.set(key, value);
+ *       }
  *     }
  *     return thread;
  *   }
  *
  *   async save(thread: Thread): Promise<void> {
- *     await this.redis.setex(
- *       `thread:${thread.id}`,
- *       3600,
- *       JSON.stringify([...thread.state])
- *     );
+ *     if (thread instanceof DefaultThread && thread.isDirty()) {
+ *       await this.redis.setex(
+ *         `thread:${thread.id}`,
+ *         3600,
+ *         thread.getSerializedState()
+ *       );
+ *     }
  *   }
  *
  *   async destroy(thread: Thread): Promise<void> {
@@ -1256,31 +1303,10 @@ export class DefaultThreadProvider implements ThreadProvider {
 				internal.info('[thread] restoring state from WebSocket');
 				const restoredData = await this.wsClient.restore(threadId);
 				if (restoredData) {
-					initialStateJson = restoredData;
 					internal.info('[thread] restored state: %d bytes', restoredData.length);
-					// Parse to check if it includes metadata
-					try {
-						const parsed = JSON.parse(restoredData);
-						// New format: { state?: {...}, metadata?: {...} }
-						if (
-							parsed &&
-							typeof parsed === 'object' &&
-							('state' in parsed || 'metadata' in parsed)
-						) {
-							if (parsed.metadata) {
-								restoredMetadata = parsed.metadata;
-							}
-							// Update initialStateJson to be just the state part for backwards compatibility
-							if (parsed.state) {
-								initialStateJson = JSON.stringify(parsed.state);
-							} else {
-								initialStateJson = undefined;
-							}
-						}
-						// else: Old format (just state object), keep as-is
-					} catch {
-						// Keep original if parse fails
-					}
+					const { flatStateJson, metadata } = parseThreadData(restoredData);
+					initialStateJson = flatStateJson;
+					restoredMetadata = metadata;
 				} else {
 					internal.info('[thread] no existing state found');
 				}
