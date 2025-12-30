@@ -1,5 +1,4 @@
 import { basename, resolve } from 'node:path';
-import { z } from 'zod';
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { cwd } from 'node:process';
 import { homedir } from 'node:os';
@@ -10,7 +9,6 @@ import {
 	projectEnvUpdate,
 	getServiceUrls,
 	APIClient as ServerAPIClient,
-	Resources,
 	createResources,
 } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
@@ -24,10 +22,12 @@ import { ErrorCode } from '../../errors';
 import type { APIClient } from '../../api';
 import { createProjectConfig } from '../../config';
 import {
-	findEnvFile,
+	findExistingEnvFile,
 	readEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
+	addResourceEnvVars,
+	type EnvVars,
 } from '../../env-util';
 import { promptForDNS } from '../../domain';
 import {
@@ -37,8 +37,6 @@ import {
 	printIntegrationExamples,
 	generateAuthSchemaSql,
 } from './auth/shared';
-
-type ResourcesTypes = z.infer<typeof Resources>;
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -259,8 +257,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 	}
 
-	const resourceConfig: ResourcesTypes = Resources.parse({});
 	let _domains = domains;
+	const resourceEnvVars: EnvVars = {};
 
 	if (auth && apiClient && catalystClient && orgId && region && !skipPrompts) {
 		// Fetch resources for selected org and region using Catalyst API
@@ -324,14 +322,21 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 						return createResources(catalystClient, orgId, region!, [{ type: 's3' }]);
 					},
 				});
-				resourceConfig.storage = created[0].name;
+				// Collect env vars from newly created resource
+				if (created[0]?.env) {
+					Object.assign(resourceEnvVars, created[0].env);
+				}
 				break;
 			}
 			case 'Skip': {
 				break;
 			}
 			default: {
-				resourceConfig.storage = choices.s3_action;
+				// User selected an existing bucket - get env vars from the resources list
+				const selectedBucket = resources.s3.find((b) => b.bucket_name === choices.s3_action);
+				if (selectedBucket?.env) {
+					Object.assign(resourceEnvVars, selectedBucket.env);
+				}
 				break;
 			}
 		}
@@ -344,14 +349,21 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 						return createResources(catalystClient, orgId, region!, [{ type: 'db' }]);
 					},
 				});
-				resourceConfig.db = created[0].name;
+				// Collect env vars from newly created resource
+				if (created[0]?.env) {
+					Object.assign(resourceEnvVars, created[0].env);
+				}
 				break;
 			}
 			case 'Skip': {
 				break;
 			}
 			default: {
-				resourceConfig.db = choices.db_action;
+				// User selected an existing database - get env vars from the resources list
+				const selectedDb = resources.db.find((d) => d.name === choices.db_action);
+				if (selectedDb?.env) {
+					Object.assign(resourceEnvVars, selectedDb.env);
+				}
 				break;
 			}
 		}
@@ -381,20 +393,19 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 	// Set up database and secret for any auth-enabled project
 	if (authEnabled && auth && catalystClient && orgId && region && !skipPrompts) {
-		// If a database was already selected/created above, offer to use it
-		if (resourceConfig.db) {
+		// If a database was already selected/created above (DATABASE_URL in resourceEnvVars), offer to use it
+		if (resourceEnvVars.DATABASE_URL) {
 			const useExisting = await prompt.confirm({
-				message: `Use the database "${resourceConfig.db}" for auth?`,
+				message: `Use the selected database for auth?`,
 				initial: true,
 			});
 
 			if (useExisting) {
-				authDatabaseName = resourceConfig.db;
-				// Fetch the URL for this database
-				const resources = await listResources(catalystClient, orgId, region);
-				const dbInfo = resources.db.find((d) => d.name === resourceConfig.db);
-				if (dbInfo?.url) {
-					authDatabaseUrl = dbInfo.url;
+				authDatabaseUrl = resourceEnvVars.DATABASE_URL;
+				// Extract database name from URL (last path segment before query string)
+				const urlMatch = authDatabaseUrl.match(/\/([^/?]+)(\?|$)/);
+				if (urlMatch) {
+					authDatabaseName = urlMatch[1];
 				}
 			}
 		}
@@ -410,16 +421,13 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			});
 			authDatabaseName = created[0].name;
 
-			// Fetch the URL
-			const resources = await listResources(catalystClient, orgId, region);
-			const dbInfo = resources.db.find((d) => d.name === authDatabaseName);
-			if (dbInfo?.url) {
-				authDatabaseUrl = dbInfo.url;
-			}
-
-			// Also set it as the project's database if not already set
-			if (!resourceConfig.db) {
-				resourceConfig.db = authDatabaseName;
+			// Get env vars from created resource
+			if (created[0]?.env) {
+				authDatabaseUrl = created[0].env.DATABASE_URL;
+				// Also add to resourceEnvVars if not already set
+				if (!resourceEnvVars.DATABASE_URL) {
+					Object.assign(resourceEnvVars, created[0].env);
+				}
 			}
 		}
 
@@ -492,7 +500,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					orgId,
 					sdkKey: project.sdkKey,
 					deployment: {
-						resources: resourceConfig,
 						domains: _domains,
 					},
 					region: cloudRegion,
@@ -500,67 +507,41 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			},
 		});
 
-		// Write DATABASE_URL and AGENTUITY_AUTH_SECRET to .env after createProjectConfig (which overwrites .env)
-		if (authDatabaseUrl) {
-			const envPath = resolve(dest, '.env');
-			let envContent = '';
+		// Add auth secret to resourceEnvVars if auth is enabled
+		if (authEnabled && !resourceEnvVars.AGENTUITY_AUTH_SECRET) {
+			const devSecret = `dev-${crypto.randomUUID()}-CHANGE-ME`;
+			resourceEnvVars.AGENTUITY_AUTH_SECRET = devSecret;
+		}
 
-			if (existsSync(envPath)) {
-				envContent = await Bun.file(envPath).text();
-				if (!envContent.endsWith('\n') && envContent.length > 0) {
-					envContent += '\n';
+		// Write resource environment variables to .env
+		if (Object.keys(resourceEnvVars).length > 0) {
+			await addResourceEnvVars(dest, resourceEnvVars);
+
+			// Show user feedback for auth-related env vars
+			if (authEnabled) {
+				if (resourceEnvVars.DATABASE_URL) {
+					tui.success('DATABASE_URL added to .env');
 				}
-			}
-
-			// Check if DATABASE_URL already exists
-			const hasDatabaseUrl = envContent.match(/^DATABASE_URL=/m);
-
-			if (hasDatabaseUrl) {
-				// DATABASE_URL exists, use AUTH_DATABASE_URL instead
-				envContent += `AUTH_DATABASE_URL="${authDatabaseUrl}"\n`;
-				await Bun.write(envPath, envContent);
-				tui.success('AUTH_DATABASE_URL added to .env');
-				tui.warning(
-					`DATABASE_URL already exists. Update your ${tui.bold('src/auth.ts')} to use AUTH_DATABASE_URL.`
-				);
-			} else {
-				envContent += `DATABASE_URL="${authDatabaseUrl}"\n`;
-				await Bun.write(envPath, envContent);
-				tui.success('DATABASE_URL added to .env');
-			}
-
-			// Add AGENTUITY_AUTH_SECRET if not present
-			// Re-read envContent to get latest state
-			envContent = existsSync(envPath) ? await Bun.file(envPath).text() : '';
-			if (!envContent.endsWith('\n') && envContent.length > 0) {
-				envContent += '\n';
-			}
-
-			const hasAuthSecret =
-				envContent.match(/^AGENTUITY_AUTH_SECRET=/m) ||
-				envContent.match(/^BETTER_AUTH_SECRET=/m);
-			if (!hasAuthSecret) {
-				const devSecret = `dev-${crypto.randomUUID()}-CHANGE-ME`;
-				envContent += `AGENTUITY_AUTH_SECRET="${devSecret}"\n`;
-				await Bun.write(envPath, envContent);
-				tui.success('AGENTUITY_AUTH_SECRET added to .env (development default)');
-				tui.warning(
-					`Replace ${tui.bold('AGENTUITY_AUTH_SECRET')} with a secure value before deploying.`
-				);
-				tui.info(
-					`Generate one with: ${tui.muted('npx @better-auth/cli secret')} or ${tui.muted('openssl rand -hex 32')}`
-				);
+				if (resourceEnvVars.AGENTUITY_AUTH_SECRET) {
+					tui.success('AGENTUITY_AUTH_SECRET added to .env (development default)');
+					tui.warning(
+						`Replace ${tui.bold('AGENTUITY_AUTH_SECRET')} with a secure value before deploying.`
+					);
+					tui.info(
+						`Generate one with: ${tui.muted('npx @better-auth/cli secret')} or ${tui.muted('openssl rand -hex 32')}`
+					);
+				}
 			}
 		}
 
-		// After registration, push any existing env/secrets from .env.production
+		// After registration, push any existing env/secrets from .env
 		if (projectId) {
 			await tui.spinner({
 				message: 'Syncing environment variables',
 				clearOnSuccess: true,
 				callback: async () => {
 					try {
-						const envFilePath = await findEnvFile(dest);
+						const envFilePath = await findExistingEnvFile(dest);
 						const localEnv = await readEnvFile(envFilePath);
 						const filteredEnv = filterAgentuitySdkKeys(localEnv);
 
