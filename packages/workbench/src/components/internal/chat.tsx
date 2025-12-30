@@ -42,10 +42,8 @@ export function Chat({
 	const logger = useLogger('Chat');
 	const [value, setValue] = useState('');
 
-	const handleSubmit = async () => {
+	const handleSubmit = () => {
 		logger.debug('🎯 Chat handleSubmit - selectedAgent:', selectedAgent, 'value:', value);
-
-		setValue('');
 
 		const selectedAgentData = Object.values(agents).find(
 			(agent) => agent.metadata.agentId === selectedAgent
@@ -59,7 +57,7 @@ export function Chat({
 
 		// If agent has no input schema, submit without requiring input
 		if (!hasInputSchema) {
-			await submitMessage('');
+			submitMessage('');
 
 			return;
 		}
@@ -69,7 +67,8 @@ export function Chat({
 			return;
 		}
 
-		await submitMessage(value);
+		submitMessage(value);
+		setValue('');
 	};
 
 	return (
