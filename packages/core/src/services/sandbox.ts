@@ -98,9 +98,9 @@ export interface SandboxCommand {
 	exec: string[];
 
 	/**
-	 * Files to create before execution (filename -> content)
+	 * Files to create before execution
 	 */
-	files?: Record<string, string>;
+	files?: FileToWrite[];
 
 	/**
 	 * Execution mode: "oneshot" auto-destroys sandbox on exit
@@ -220,14 +220,40 @@ export interface Sandbox {
 	execute(options: ExecuteOptions): Promise<Execution>;
 
 	/**
-	 * Write files to the sandbox workspace
+	 * Write files to the sandbox workspace.
+	 *
+	 * @param files - Array of FileToWrite objects with path and Buffer content
 	 */
-	writeFiles(files: Record<string, string>): Promise<void>;
+	writeFiles(files: FileToWrite[]): Promise<void>;
+
+	/**
+	 * Read a file from the sandbox workspace.
+	 * Returns a ReadableStream for efficient streaming of large files.
+	 *
+	 * @param path - Path to the file relative to the sandbox workspace
+	 * @returns ReadableStream of the file contents
+	 */
+	readFile(path: string): Promise<ReadableStream<Uint8Array>>;
 
 	/**
 	 * Destroy the sandbox
 	 */
 	destroy(): Promise<void>;
+}
+
+/**
+ * Represents a file to write to the sandbox
+ */
+export interface FileToWrite {
+	/**
+	 * Path to the file relative to the sandbox workspace
+	 */
+	path: string;
+
+	/**
+	 * File content as a Buffer
+	 */
+	content: Buffer;
 }
 
 /**
@@ -248,6 +274,21 @@ export interface SandboxInfo {
 	 * Creation timestamp (ISO 8601)
 	 */
 	createdAt: string;
+
+	/**
+	 * Region where the sandbox is running
+	 */
+	region?: string;
+
+	/**
+	 * Snapshot ID this sandbox was created from
+	 */
+	snapshotId?: string;
+
+	/**
+	 * Snapshot tag this sandbox was created from (if the snapshot had a tag)
+	 */
+	snapshotTag?: string;
 
 	/**
 	 * Number of executions run in this sandbox
@@ -278,6 +319,11 @@ export interface ListSandboxesParams {
 	 * Filter by project ID
 	 */
 	projectId?: string;
+
+	/**
+	 * Filter by snapshot ID
+	 */
+	snapshotId?: string;
 
 	/**
 	 * Filter by status
@@ -322,7 +368,7 @@ export interface ExecuteOptions {
 	/**
 	 * Files to create/update before execution
 	 */
-	files?: Record<string, string>;
+	files?: FileToWrite[];
 
 	/**
 	 * Execution timeout (e.g., "5m")
@@ -337,6 +383,11 @@ export interface ExecuteOptions {
 		stderr?: string;
 		timestamps?: boolean;
 	};
+
+	/**
+	 * AbortSignal to cancel the operation
+	 */
+	signal?: AbortSignal;
 }
 
 /**
@@ -383,7 +434,7 @@ export interface SandboxRunOptions extends Omit<SandboxCreateOptions, 'command'>
 	 */
 	command: {
 		exec: string[];
-		files?: Record<string, string>;
+		files?: FileToWrite[];
 	};
 }
 
@@ -432,7 +483,7 @@ export interface SandboxService {
 	 * const result = await ctx.sandbox.run({
 	 *   command: {
 	 *     exec: ['bun', 'run', 'index.ts'],
-	 *     files: { 'index.ts': 'console.log("hello")' }
+	 *     files: [{ path: 'index.ts', content: Buffer.from('console.log("hello")') }]
 	 *   }
 	 * });
 	 * console.log('Exit:', result.exitCode);

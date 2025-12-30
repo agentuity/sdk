@@ -10,6 +10,9 @@ const SandboxInfoSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
 	status: z.string().describe('Current status'),
 	createdAt: z.string().describe('Creation timestamp'),
+	region: z.string().optional().describe('Region where sandbox is running'),
+	snapshotId: z.string().optional().describe('Snapshot ID sandbox was created from'),
+	snapshotTag: z.string().optional().describe('Snapshot tag sandbox was created from'),
 	executions: z.number().describe('Number of executions'),
 });
 
@@ -85,10 +88,14 @@ export const listSubcommand = createCommand({
 				tui.info('No sandboxes found');
 			} else {
 				const tableData = result.sandboxes.map((sandbox) => {
+					const snapshotDisplay = sandbox.snapshotTag
+						? `${sandbox.snapshotTag} (${sandbox.snapshotId})`
+						: sandbox.snapshotId || '-';
 					return {
 						ID: sandbox.sandboxId,
 						Status: sandbox.status,
 						'Created At': sandbox.createdAt,
+						Snapshot: snapshotDisplay,
 						Executions: sandbox.executions,
 					};
 				});
@@ -96,6 +103,7 @@ export const listSubcommand = createCommand({
 					{ name: 'ID', alignment: 'left' },
 					{ name: 'Status', alignment: 'left' },
 					{ name: 'Created At', alignment: 'left' },
+					{ name: 'Snapshot', alignment: 'left' },
 					{ name: 'Executions', alignment: 'right' },
 				]);
 
@@ -108,6 +116,9 @@ export const listSubcommand = createCommand({
 				sandboxId: s.sandboxId,
 				status: s.status,
 				createdAt: s.createdAt,
+				region: s.region,
+				snapshotId: s.snapshotId,
+				snapshotTag: s.snapshotTag,
 				executions: s.executions,
 			})),
 			total: result.total,

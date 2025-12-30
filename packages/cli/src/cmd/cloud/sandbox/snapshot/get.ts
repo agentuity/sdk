@@ -3,12 +3,20 @@ import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
 import { createSandboxClient } from '../util';
 import { getCommand } from '../../../../command-prefix';
-import { snapshotGet } from '@agentuity/server';
+import { snapshotGet, sandboxList } from '@agentuity/server';
 import type { SnapshotFileInfo } from '@agentuity/server';
+import type { SandboxInfo } from '@agentuity/core';
 
 const SnapshotFileSchema = z.object({
 	path: z.string(),
 	size: z.number(),
+});
+
+const SandboxInfoSchema = z.object({
+	sandboxId: z.string().describe('Sandbox ID'),
+	status: z.string().describe('Current status'),
+	createdAt: z.string().describe('Creation timestamp'),
+	executions: z.number().describe('Number of executions'),
 });
 
 const SnapshotGetResponseSchema = z.object({
@@ -21,6 +29,7 @@ const SnapshotGetResponseSchema = z.object({
 	createdAt: z.string().describe('Creation timestamp'),
 	downloadUrl: z.string().optional().describe('Presigned download URL'),
 	files: z.array(SnapshotFileSchema).optional().describe('Files in snapshot'),
+	sandboxes: z.array(SandboxInfoSchema).optional().describe('Attached sandboxes (idle or running)'),
 });
 
 export const getSubcommand = createCommand({
@@ -51,6 +60,15 @@ export const getSubcommand = createCommand({
 			orgId,
 		});
 
+		const sandboxesResult = await sandboxList(client, {
+			orgId,
+			snapshotId: args.snapshotId,
+		});
+
+		const activeSandboxes = sandboxesResult.sandboxes.filter(
+			(s) => s.status === 'idle' || s.status === 'running'
+		);
+
 		if (!options.json) {
 			tui.info(`Snapshot: ${tui.bold(snapshot.snapshotId)}`);
 			console.log(`  ${tui.muted('Sandbox:')} ${snapshot.sandboxId}`);
@@ -69,9 +87,23 @@ export const getSubcommand = createCommand({
 				tui.info('Files:');
 				printFileTree(snapshot.files);
 			}
+
+			if (activeSandboxes.length > 0) {
+				console.log('');
+				tui.info(`Attached Sandboxes (${activeSandboxes.length}):`);
+				printSandboxTree(activeSandboxes);
+			}
 		}
 
-		return snapshot;
+		return {
+			...snapshot,
+			sandboxes: activeSandboxes.map((s) => ({
+				sandboxId: s.sandboxId,
+				status: s.status,
+				createdAt: s.createdAt,
+				executions: s.executions,
+			})),
+		};
 	},
 });
 
@@ -136,6 +168,17 @@ function printTreeNode(node: TreeNode, prefix: string): void {
 			const newPrefix = prefix + (isLast ? '    ' : tui.muted('│   '));
 			printTreeNode(child, newPrefix);
 		}
+	}
+}
+
+function printSandboxTree(sandboxes: SandboxInfo[]): void {
+	const sorted = [...sandboxes].sort((a, b) => a.sandboxId.localeCompare(b.sandboxId));
+	for (let i = 0; i < sorted.length; i++) {
+		const sandbox = sorted[i];
+		const isLast = i === sorted.length - 1;
+		const connector = tui.muted(isLast ? '└── ' : '├── ');
+		const statusColor = sandbox.status === 'running' ? tui.success : tui.muted;
+		console.log(`  ${connector}${sandbox.sandboxId} ${statusColor(`(${sandbox.status})`)}`);
 	}
 }
 

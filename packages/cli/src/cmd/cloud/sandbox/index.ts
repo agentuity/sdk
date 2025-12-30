@@ -7,6 +7,7 @@ import { getSubcommand } from './get';
 import { deleteSubcommand } from './delete';
 import { snapshotCommand } from './snapshot';
 import { cpSubcommand } from './cp';
+import { command as executionCommand } from './execution';
 import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
@@ -37,6 +38,7 @@ export const command = createCommand({
 		deleteSubcommand,
 		snapshotCommand,
 		cpSubcommand,
+		executionCommand,
 	],
 	requires: { auth: true, region: true, org: true },
 });
