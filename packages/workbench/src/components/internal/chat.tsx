@@ -115,7 +115,7 @@ export function Chat({
 							if (parts.length === 1 && parts[0].type === 'text') {
 								const text = parts[0].text;
 
-								console.debug('📝 Chat handleSubmit - text:', text);
+								logger.debug('📝 Chat handleSubmit - text:', text);
 
 								if (text.startsWith('{') && text.includes('"__agentError"')) {
 									try {

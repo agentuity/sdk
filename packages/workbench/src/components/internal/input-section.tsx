@@ -187,8 +187,6 @@ export function InputSection({
 			onChange(sampleJson);
 		} catch (error) {
 			logger.error('Failed to generate sample JSON:', error);
-
-			console.error('Failed to generate sample JSON:', error);
 		}
 	};
 
