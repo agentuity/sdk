@@ -17,9 +17,9 @@ import { useWorkbench } from './workbench-provider';
 export interface ChatProps {
 	className?: string;
 	emptyState?: React.ReactNode;
-	onSchemaToggle: () => void;
+	onSchemaToggle?: () => void;
 	onSessionOpen?: (sessionId: string) => void;
-	schemaOpen: boolean;
+	schemaOpen?: boolean;
 }
 
 export function Chat({
@@ -45,6 +45,8 @@ export function Chat({
 	const handleSubmit = async () => {
 		logger.debug('🎯 Chat handleSubmit - selectedAgent:', selectedAgent, 'value:', value);
 
+		setValue('');
+
 		const selectedAgentData = Object.values(agents).find(
 			(agent) => agent.metadata.agentId === selectedAgent
 		);
@@ -68,8 +70,6 @@ export function Chat({
 		}
 
 		await submitMessage(value);
-
-		setValue('');
 	};
 
 	return (
@@ -111,6 +111,8 @@ export function Chat({
 
 							if (parts.length === 1 && parts[0].type === 'text') {
 								const text = parts[0].text;
+
+								console.debug('📝 Chat handleSubmit - text:', text);
 
 								if (text.startsWith('{') && text.includes('"__agentError"')) {
 									try {
@@ -154,9 +156,9 @@ export function Chat({
 													type="button"
 													className={cn(
 														'flex items-center bg-transparent border-none p-0 text-inherit',
-														sessionId &&
-															onSessionOpen &&
-															'hover:text-foreground transition-colors cursor-pointer'
+														sessionId && onSessionOpen
+															? 'hover:text-foreground transition-colors cursor-pointer'
+															: 'cursor-default'
 													)}
 													onClick={() => sessionId && onSessionOpen?.(sessionId)}
 													tabIndex={0}

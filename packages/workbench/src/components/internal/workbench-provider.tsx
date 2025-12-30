@@ -43,6 +43,7 @@ export function WorkbenchProvider({
 	children,
 }: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
+
 	// localStorage utilities scoped by project
 	const getStorageKey = useCallback(
 		(key: string) =>
@@ -55,7 +56,7 @@ export function WorkbenchProvider({
 			try {
 				localStorage.setItem(getStorageKey('selected-agent'), agentId);
 			} catch (error) {
-				console.warn('Failed to save selected agent to localStorage:', error);
+				logger.warn('Failed to save selected agent to localStorage:', error);
 			}
 		},
 		[getStorageKey]
@@ -65,7 +66,7 @@ export function WorkbenchProvider({
 		try {
 			return localStorage.getItem(getStorageKey('selected-agent'));
 		} catch (error) {
-			console.warn('Failed to load selected agent from localStorage:', error);
+			logger.warn('Failed to load selected agent from localStorage:', error);
 			return null;
 		}
 	}, [getStorageKey]);
@@ -75,7 +76,7 @@ export function WorkbenchProvider({
 			try {
 				localStorage.setItem(getStorageKey('thread-id'), threadId);
 			} catch (error) {
-				console.warn('Failed to save thread id to localStorage:', error);
+				logger.warn('Failed to save thread id to localStorage:', error);
 			}
 		},
 		[getStorageKey]
@@ -85,7 +86,8 @@ export function WorkbenchProvider({
 		try {
 			return localStorage.getItem(getStorageKey('thread-id'));
 		} catch (error) {
-			console.warn('Failed to load thread id from localStorage:', error);
+			logger.warn('Failed to load thread id from localStorage:', error);
+
 			return null;
 		}
 	}, [getStorageKey]);
@@ -199,7 +201,7 @@ export function WorkbenchProvider({
 	// Log schema fetch errors for debugging
 	useEffect(() => {
 		if (schemasError) {
-			console.warn(
+			logger.warn(
 				'Failed to fetch agent schemas from API, using static configuration:',
 				schemasError.message
 			);
@@ -446,8 +448,6 @@ export function WorkbenchProvider({
 
 			applyThreadIdHeader(headers);
 
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 			const startTime = performance.now();
 
 			try {
@@ -462,26 +462,42 @@ export function WorkbenchProvider({
 					method: 'POST',
 					headers,
 					body: JSON.stringify(requestPayload),
-					signal: controller.signal,
 					credentials: 'include',
 				});
 
 				persistThreadIdFromResponse(response);
-				clearTimeout(timeoutId);
 
 				if (!response.ok) {
-					let errorMessage = `Request failed with status ${response.status}`;
+					let errorText = `Request failed with status ${response.status}`;
 
 					try {
 						const errorData = await response.json();
 
-						errorMessage = errorData.error || errorData.message || errorMessage;
+						errorText = errorData.error || errorData.message || errorText;
 					} catch {
 						// If JSON parsing fails, use status text
-						errorMessage = response.statusText || errorMessage;
+						errorText = response.statusText || errorText;
 					}
 
-					throw new Error(errorMessage);
+					const errorPayload = JSON.stringify({
+						__agentError: true,
+						message: errorText,
+						code: `HTTP_${response.status}`,
+					});
+
+					const errorMessage: UIMessage = {
+						id: assistantMessageId,
+						role: 'assistant',
+						parts: [{ type: 'text', text: errorPayload }],
+					};
+
+					setMessages((prev) =>
+						prev.map((m) => (m.id === assistantMessageId ? errorMessage : m))
+					);
+
+					setIsLoading(false);
+
+					return;
 				}
 
 				let responseBody: unknown;
@@ -570,12 +586,12 @@ export function WorkbenchProvider({
 					prev.map((m) => (m.id === assistantMessageId ? assistantMessage : m))
 				);
 			} catch (fetchError) {
-				clearTimeout(timeoutId);
+				logger.error('❌ Failed to submit message:', fetchError);
 
 				throw fetchError;
 			}
 		} catch (error) {
-			console.error('Failed to submit message:', error);
+			logger.error('❌ Failed to submit message:', error);
 
 			const errorText =
 				error instanceof Error
@@ -584,15 +600,17 @@ export function WorkbenchProvider({
 						: error.message
 					: 'Sorry, I encountered an error processing your message.';
 
+			const errorPayload = JSON.stringify({
+				__agentError: true,
+				message: errorText,
+				code:
+					error instanceof Error && error.name === 'AbortError' ? 'TIMEOUT' : 'REQUEST_ERROR',
+			});
+
 			const errorMessage: UIMessage = {
 				id: assistantMessageId,
 				role: 'assistant',
-				parts: [
-					{
-						type: 'text',
-						text: errorText,
-					},
-				],
+				parts: [{ type: 'text', text: errorPayload }],
 			};
 
 			setMessages((prev) => prev.map((m) => (m.id === assistantMessageId ? errorMessage : m)));
