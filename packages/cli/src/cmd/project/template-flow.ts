@@ -316,7 +316,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					},
 				});
 				// Collect env vars from newly created resource
-				Object.assign(resourceEnvVars, created[0].env);
+				if (created[0]?.env) {
+					Object.assign(resourceEnvVars, created[0].env);
+				}
 				break;
 			}
 			case 'Skip': {
@@ -341,7 +343,9 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					},
 				});
 				// Collect env vars from newly created resource
-				Object.assign(resourceEnvVars, created[0].env);
+				if (created[0]?.env) {
+					Object.assign(resourceEnvVars, created[0].env);
+				}
 				break;
 			}
 			case 'Skip': {

@@ -63,9 +63,6 @@ export const pullSubcommand = createSubcommand({
 			skipKeys: Object.keys(mergedEnv).filter((k) => k.startsWith('AGENTUITY_')),
 		});
 
-		console.log(projectData);
-		console.log(mergedEnv);
-
 		// Write AGENTUITY_SDK_KEY to .env if present and missing locally
 		if (projectData.api_key) {
 			const dotEnvPath = join(projectDir, '.env');

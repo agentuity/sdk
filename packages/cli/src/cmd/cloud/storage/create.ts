@@ -66,7 +66,7 @@ export const createSubcommand = defineSubcommand({
 			const resource = created[0];
 
 			// Write environment variables to .env if running inside a project
-			if (ctx.projectDir && Object.keys(resource.env).length > 0) {
+			if (ctx.projectDir && resource.env && Object.keys(resource.env).length > 0) {
 				await addResourceEnvVars(ctx.projectDir, resource.env);
 				if (!options.json) {
 					tui.info('Environment variables written to .env');

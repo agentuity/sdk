@@ -33,13 +33,12 @@ export async function projectGet(client: APIClient, request: ProjectGetRequest):
 		`/cli/project/${request.id}?mask=${request.mask ?? true}&includeProjectKeys=${keys}`,
 		ProjectGetResponseSchema
 	);
-	console.log(resp);
 
 	if (resp.success) {
-		if (keys) {
+		if (keys && resp.data.secrets?.AGENTUITY_SDK_KEY) {
 			return {
 				...resp.data,
-				api_key: resp.data.secrets?.AGENTUITY_SDK_KEY,
+				api_key: resp.data.secrets.AGENTUITY_SDK_KEY,
 			};
 		}
 		return resp.data;
