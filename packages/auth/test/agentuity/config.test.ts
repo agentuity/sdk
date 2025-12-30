@@ -93,6 +93,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
 				secret: 'test-secret-minimum-32-characters-long',
 				trustedOrigins: customOrigins,
@@ -140,6 +141,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
 				secret: 'test-secret-minimum-32-characters-long',
 			});
@@ -160,6 +162,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
 				secret: 'test-secret-minimum-32-characters-long',
 			});
@@ -211,6 +214,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
 				secret: 'explicit-secret-minimum-32-characters',
 			});
@@ -225,6 +229,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
 			});
 
@@ -238,6 +243,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
 			});
 
@@ -250,6 +256,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
 			});
 
@@ -260,6 +267,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
 			});
 
@@ -270,6 +278,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
 			});
 
@@ -285,6 +294,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
 			});
 
@@ -297,6 +307,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
 				skipDefaultPlugins: true,
 			});
@@ -309,6 +320,7 @@ describe('Agentuity Auth Config', () => {
 			const db = new Database(':memory:');
 			const auth = createAgentuityAuth({
 				database: db,
+				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
 				apiKey: false,
 			});
