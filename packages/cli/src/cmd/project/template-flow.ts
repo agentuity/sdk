@@ -393,25 +393,16 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 	// Set up database and secret for any auth-enabled project
 	if (authEnabled && auth && catalystClient && orgId && region && !skipPrompts) {
-		// If a database was already selected/created above (DATABASE_URL in resourceEnvVars), offer to use it
+		// If a database was already selected/created above, use it for auth
 		if (resourceEnvVars.DATABASE_URL) {
-			const useExisting = await prompt.confirm({
-				message: `Use the selected database for auth?`,
-				initial: true,
-			});
-
-			if (useExisting) {
-				authDatabaseUrl = resourceEnvVars.DATABASE_URL;
-				// Extract database name from URL (last path segment before query string)
-				const urlMatch = authDatabaseUrl.match(/\/([^/?]+)(\?|$)/);
-				if (urlMatch) {
-					authDatabaseName = urlMatch[1];
-				}
+			authDatabaseUrl = resourceEnvVars.DATABASE_URL;
+			// Extract database name from URL (last path segment before query string)
+			const urlMatch = authDatabaseUrl.match(/\/([^/?]+)(\?|$)/);
+			if (urlMatch) {
+				authDatabaseName = urlMatch[1];
 			}
-		}
-
-		// If no database selected yet, create one for auth
-		if (!authDatabaseName) {
+		} else {
+			// No database selected yet, create one for auth
 			const created = await tui.spinner({
 				message: 'Provisioning database for auth',
 				clearOnSuccess: true,
