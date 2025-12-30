@@ -113,4 +113,38 @@ describe('patchBunS3ForStorageDev', () => {
 
 		expect(typeof Bun.S3Client.prototype.file).toBe('function');
 	});
+
+	test('manual S3Client instantiation still works after patch', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+		patchBunS3ForStorageDev();
+
+		// Verify that manually creating an S3Client still works
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+			endpoint: 'https://s3.us-east-1.amazonaws.com',
+		});
+
+		expect(client).toBeDefined();
+		expect(typeof client.file).toBe('function');
+
+		// The file method should work (returns an S3File reference)
+		const file = client.file('test.txt');
+		expect(file).toBeDefined();
+	});
+
+	test('patch only affects global s3 singleton, not manual instances', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+		patchBunS3ForStorageDev();
+
+		// Manual S3Client should not be the same as Bun.s3
+		const manualClient = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		expect(manualClient).not.toBe(Bun.s3);
+	});
 });
