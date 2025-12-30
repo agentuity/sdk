@@ -9,27 +9,10 @@ export interface EnvVars {
 }
 
 /**
- * Find the appropriate .env file to use for user environment variables.
- * Always returns .env.production path (will be created if needed).
- * .env should only contain AGENTUITY_SDK_KEY.
- */
-export async function findEnvFile(dir: string): Promise<string> {
-	return join(dir, '.env.production');
-}
-
-/**
- * Find an existing env file for reading.
- * Preference: .env.production > .env
+ * Find an existing .env file for reading.
  */
 export async function findExistingEnvFile(dir: string): Promise<string> {
-	const productionEnv = join(dir, '.env.production');
-	const defaultEnv = join(dir, '.env');
-
-	if (await Bun.file(productionEnv).exists()) {
-		return productionEnv;
-	}
-
-	return defaultEnv;
+	return join(dir, '.env');
 }
 
 /**
@@ -195,8 +178,14 @@ export function filterAgentuitySdkKeys(vars: EnvVars): EnvVars {
 }
 
 /**
+ * Keys that should always be treated as secrets (exact match)
+ */
+const secretExactKeys = ['DATABASE_URL'];
+
+/**
  * Split env vars into env and secrets based on key names
  * Convention: Keys ending with _SECRET, _KEY, _TOKEN, _PASSWORD are secrets
+ * Also treats DATABASE_URL as a secret since it contains credentials
  */
 export function splitEnvAndSecrets(vars: EnvVars): {
 	env: EnvVars;
@@ -213,9 +202,10 @@ export function splitEnvAndSecrets(vars: EnvVars): {
 			continue;
 		}
 
-		const isSecret = secretSuffixes.some((suffix) => key.endsWith(suffix));
+		const isSecretByExactMatch = secretExactKeys.includes(key);
+		const isSecretBySuffix = secretSuffixes.some((suffix) => key.endsWith(suffix));
 
-		if (isSecret) {
+		if (isSecretByExactMatch || isSecretBySuffix) {
 			secrets[key] = value;
 		} else {
 			env[key] = value;
@@ -352,4 +342,45 @@ export function looksLikeSecret(key: string, value: string): boolean {
 	}
 
 	return false;
+}
+
+/**
+ * Add resource environment variables to the .env file.
+ * Merges with existing variables, overwriting any that already exist.
+ */
+export async function addResourceEnvVars(dir: string, envVars: EnvVars): Promise<void> {
+	const envPath = join(dir, '.env');
+	const existing = await readEnvFile(envPath);
+	const merged = { ...existing, ...envVars };
+	await writeEnvFile(envPath, merged);
+}
+
+/**
+ * Remove resource environment variables from the .env file.
+ * Only removes the specified keys if they exist.
+ */
+export async function removeResourceEnvVars(dir: string, keys: string[]): Promise<void> {
+	const envPath = join(dir, '.env');
+	const existing = await readEnvFile(envPath);
+
+	let changed = false;
+	for (const key of keys) {
+		if (key in existing) {
+			delete existing[key];
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		await writeEnvFile(envPath, existing);
+	}
+}
+
+/**
+ * Get the value of a specific key from the .env file
+ */
+export async function getEnvVar(dir: string, key: string): Promise<string | undefined> {
+	const envPath = join(dir, '.env');
+	const existing = await readEnvFile(envPath);
+	return existing[key];
 }

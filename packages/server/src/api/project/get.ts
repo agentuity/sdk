@@ -4,7 +4,8 @@ import { ProjectResponseError } from './util';
 
 const _ProjectGetRequestSchema = z.object({
 	id: z.string().describe('the project id'),
-	mask: z.boolean().default(true).describe('if the secrets should be returned masked'),
+	mask: z.boolean().default(true).optional().describe('if the secrets should be returned masked'),
+	keys: z.boolean().default(true).optional().describe('if the project keys should be returned'),
 });
 
 const ProjectSchema = z.object({
@@ -27,12 +28,19 @@ type ProjectGetResponse = z.infer<typeof ProjectGetResponseSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
 
 export async function projectGet(client: APIClient, request: ProjectGetRequest): Promise<Project> {
+	const keys = request.keys ?? true;
 	const resp = await client.get<ProjectGetResponse>(
-		`/cli/project/${request.id}?mask=${request.mask ?? true}`,
+		`/cli/project/${request.id}?mask=${request.mask ?? true}&includeProjectKeys=${keys}`,
 		ProjectGetResponseSchema
 	);
 
 	if (resp.success) {
+		if (keys && resp.data.secrets?.AGENTUITY_SDK_KEY) {
+			return {
+				...resp.data,
+				api_key: resp.data.secrets.AGENTUITY_SDK_KEY,
+			};
+		}
 		return resp.data;
 	}
 

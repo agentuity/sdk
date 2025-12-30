@@ -7,6 +7,7 @@ import { getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import { ErrorCode } from '../../../errors';
+import { removeResourceEnvVars } from '../../../env-util';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
@@ -109,10 +110,22 @@ export const deleteSubcommand = createSubcommand({
 			});
 
 			if (deleted.length > 0) {
-				tui.success(`Deleted database: ${tui.bold(deleted[0])}`);
+				const resource = deleted[0];
+
+				// Remove env vars from .env if running inside a project
+				if (ctx.projectDir && resource.env_keys.length > 0) {
+					await removeResourceEnvVars(ctx.projectDir, resource.env_keys);
+					if (!options.json) {
+						tui.info(`Removed ${resource.env_keys.join(', ')} from .env`);
+					}
+				}
+
+				if (!options.json) {
+					tui.success(`Deleted database: ${tui.bold(resource.name)}`);
+				}
 				return {
 					success: true,
-					name: deleted[0],
+					name: resource.name,
 				};
 			} else {
 				tui.error('Failed to delete database');

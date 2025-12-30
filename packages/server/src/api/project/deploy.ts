@@ -6,8 +6,6 @@ export const Resources = z.object({
 	memory: z.string().default('500Mi').describe('The memory requirements'),
 	cpu: z.string().default('500m').describe('The CPU requirements'),
 	disk: z.string().default('500Mi').describe('The disk requirements'),
-	db: z.string().optional().describe('the name of the database to use'),
-	storage: z.string().optional().describe('the name of the storage bucket to use'),
 });
 
 export const Mode = z.object({

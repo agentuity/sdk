@@ -34,7 +34,7 @@ import {
 	getAppBaseURL,
 } from '@agentuity/server';
 import {
-	findEnvFile,
+	findExistingEnvFile,
 	readEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
@@ -176,8 +176,8 @@ export const deploySubcommand = createSubcommand({
 						label: 'Sync Env & Secrets',
 						run: async () => {
 							try {
-								// Read local env file (.env.production or .env)
-								const envFilePath = await findEnvFile(projectDir);
+								// Read env file
+								const envFilePath = await findExistingEnvFile(projectDir);
 								const localEnv = await readEnvFile(envFilePath);
 
 								// Filter out AGENTUITY_ keys

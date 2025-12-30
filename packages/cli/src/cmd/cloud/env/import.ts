@@ -3,7 +3,7 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
 import {
-	findEnvFile,
+	findExistingEnvFile,
 	readEnvFile,
 	writeEnvFile,
 	filterAgentuitySdkKeys,
@@ -23,7 +23,7 @@ const EnvImportResponseSchema = z.object({
 
 export const importSubcommand = createSubcommand({
 	name: 'import',
-	description: 'Import environment variables from a file to cloud and local .env.production',
+	description: 'Import environment variables from a file to cloud and local .env',
 	tags: [
 		'mutating',
 		'creates-resource',
@@ -131,8 +131,8 @@ export const importSubcommand = createSubcommand({
 			});
 		});
 
-		// Merge with local .env.production file
-		const localEnvPath = await findEnvFile(projectDir);
+		// Merge environment
+		const localEnvPath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(localEnvPath);
 		const mergedEnv = mergeEnvVars(localEnv, filteredEnv);
 
