@@ -304,7 +304,7 @@ DIR_DOWNLOAD=$($CLI cloud sandbox cp -r "$SANDBOX_ID:testdir" "$TEST_DIR/downloa
 if [ -f "$TEST_DIR/downloaded-dir/a.txt" ] && [ -f "$TEST_DIR/downloaded-dir/subdir/b.txt" ] && [ -f "$TEST_DIR/downloaded-dir/subdir/c.txt" ]; then
 	pass "sandbox cp -r downloads directory with correct structure"
 else
-	fail "downloaded directory structure incorrect" "$(ls -laR "$TEST_DIR/downloaded-dir" 2>&1)"
+	fail "downloaded directory structure incorrect" "Command output: $DIR_DOWNLOAD\nDirectory listing: $(ls -laR "$TEST_DIR/downloaded-dir" 2>&1)"
 fi
 
 # Test: Absolute path upload (inside /home/agentuity/app)
