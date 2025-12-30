@@ -5,6 +5,7 @@ import type { Env } from '../../app';
 import {
 	DefaultThread,
 	DefaultThreadIDProvider,
+	parseThreadData,
 	validateThreadIdOrThrow,
 	type Thread,
 	type ThreadIDProvider,
@@ -54,15 +55,17 @@ export class LocalThreadProvider implements ThreadProvider {
 		const row = this.db
 			.query<{ state: string }, [string]>('SELECT state FROM threads WHERE id = ?')
 			.get(threadId);
-		const initialStateJson = row?.state;
 
-		// Create thread with restored state
-		const thread = new DefaultThread(this, threadId, initialStateJson);
+		// Parse the stored data, handling both old (flat) and new ({ state, metadata }) formats
+		const { flatStateJson, metadata } = parseThreadData(row?.state);
+
+		// Create thread with restored state and metadata
+		const thread = new DefaultThread(this, threadId, flatStateJson, metadata);
 
 		// Populate thread state from restored data
-		if (initialStateJson) {
+		if (flatStateJson) {
 			try {
-				const data = JSON.parse(initialStateJson);
+				const data = JSON.parse(flatStateJson);
 				for (const [key, value] of Object.entries(data)) {
 					thread.state.set(key, value);
 				}
