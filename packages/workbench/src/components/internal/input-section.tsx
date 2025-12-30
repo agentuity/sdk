@@ -367,36 +367,6 @@ export function InputSection({
 											</Tooltip>
 										)}
 									</CommandGroup>
-
-									{selectedAgentData?.examples &&
-										selectedAgentData.examples.length > 0 && (
-											<CommandGroup heading="Examples">
-												{selectedAgentData.examples.map((example, index) => {
-													const label =
-														typeof example === 'object' && example !== null
-															? JSON.stringify(example).substring(0, 60)
-															: String(example).substring(0, 60);
-
-													return (
-														<CommandItem
-															key={`${index}-${label}`}
-															onSelect={() => {
-																const formatted =
-																	typeof example === 'object'
-																		? JSON.stringify(example, null, 2)
-																		: String(example);
-
-																onChange(formatted);
-																setPrefillOpen(false);
-															}}
-														>
-															<FileJson className="size-4" />
-															<span className="truncate font-mono">{label}</span>
-														</CommandItem>
-													);
-												})}
-											</CommandGroup>
-										)}
 								</CommandList>
 							</Command>
 						</PopoverContent>

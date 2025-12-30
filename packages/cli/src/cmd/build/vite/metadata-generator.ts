@@ -439,7 +439,6 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 							output: agent.outputSchemaCode,
 						}
 					: undefined,
-			examples: agent.examples,
 			evals: agent.evals?.map((evalItem) => ({
 				filename: evalItem.filename,
 				id: evalItem.id,

@@ -12,16 +12,6 @@ const asyncAgent = createAgent('async', {
 			result: s.string(),
 			elapsed: s.number(),
 		}),
-		examples: [
-			{
-				delay: 1000,
-				message: 'Hello, world!',
-			},
-			{
-				delay: 2000,
-				message: 'Hello, world!',
-			},
-		],
 	},
 	handler: async (ctx, input) => {
 		const start = Date.now();

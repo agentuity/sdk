@@ -60,7 +60,6 @@ export interface AgentMetadata {
 	description?: string;
 	inputSchemaCode?: string;
 	outputSchemaCode?: string;
-	examples?: unknown[];
 	evals?: EvalMetadata[];
 }
 
@@ -115,44 +114,6 @@ function getEvalId(
 
 function generateStableEvalId(projectId: string, agentId: string, name: string): string {
 	return `eval_${hashSHA1(projectId, agentId, name)}`.substring(0, 64);
-}
-
-/**
- * Extract examples array from createAgent call arguments (inside schema object)
- */
-function extractExamples(callargexp: ASTObjectExpression): unknown[] | undefined {
-	// First find the schema property
-	let schemaObj: ASTObjectExpression | undefined;
-	for (const prop of callargexp.properties) {
-		if (prop.key.type === 'Identifier' && prop.key.name === 'schema') {
-			if (prop.value.type === 'ObjectExpression') {
-				schemaObj = prop.value as ASTObjectExpression;
-				break;
-			}
-		}
-	}
-
-	if (!schemaObj) {
-		return undefined;
-	}
-
-	// Then find examples inside schema
-	for (const prop of schemaObj.properties) {
-		if (prop.key.type === 'Identifier' && prop.key.name === 'examples') {
-			if (prop.value.type === 'ArrayExpression') {
-				// Generate source code from AST and parse as JSON
-				const code = generate(prop.value);
-				try {
-					// The generated code is valid JS, so we can eval it
-					return new Function(`return ${code}`)();
-				} catch {
-					// If eval fails, return undefined
-					return undefined;
-				}
-			}
-		}
-	}
-	return undefined;
 }
 
 /**
@@ -246,9 +207,6 @@ function extractAgentMetadata(
 					// Extract schemas
 					const { inputSchemaCode, outputSchemaCode } = extractSchemaCode(callargexp);
 
-					// Extract examples
-					const examples = extractExamples(callargexp);
-
 					// Extract description from either direct property or metadata object
 					let description: string | undefined;
 					for (const prop of callargexp.properties) {
@@ -282,7 +240,6 @@ function extractAgentMetadata(
 						description,
 						inputSchemaCode,
 						outputSchemaCode,
-						examples,
 					};
 				}
 			}
@@ -306,7 +263,6 @@ function extractAgentMetadata(
 
 						const callargexp = callExpr.arguments[1] as ASTObjectExpression;
 						const { inputSchemaCode, outputSchemaCode } = extractSchemaCode(callargexp);
-						const examples = extractExamples(callargexp);
 
 						let description: string | undefined;
 						for (const prop of callargexp.properties) {
@@ -339,7 +295,6 @@ function extractAgentMetadata(
 							description,
 							inputSchemaCode,
 							outputSchemaCode,
-							examples,
 						};
 					}
 				}
