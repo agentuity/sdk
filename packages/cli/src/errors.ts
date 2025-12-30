@@ -72,6 +72,9 @@ export enum ErrorCode {
 
 	// Build failed error
 	BUILD_FAILED = 'BUILD_FAILED',
+
+	// Integration errors
+	INTEGRATION_FAILED = 'INTEGRATION_FAILED',
 }
 
 /**
