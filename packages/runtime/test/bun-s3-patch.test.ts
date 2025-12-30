@@ -134,7 +134,7 @@ describe('patchBunS3ForStorageDev', () => {
 		expect(file).toBeDefined();
 	});
 
-	test('patch only affects global s3 singleton, not manual instances', () => {
+	test('patch applies to all S3Client instances, not just global singleton', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 		patchBunS3ForStorageDev();
 
@@ -146,5 +146,8 @@ describe('patchBunS3ForStorageDev', () => {
 		});
 
 		expect(manualClient).not.toBe(Bun.s3);
+
+		// But it should still use the patched file method from the prototype
+		expect(manualClient.file).toBe(Bun.s3.file);
 	});
 });

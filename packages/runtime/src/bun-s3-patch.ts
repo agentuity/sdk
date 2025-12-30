@@ -79,10 +79,9 @@ export function patchBunS3ForStorageDev(): void {
 	): unknown {
 		let nextOptions = options;
 
-		if (this === bun.s3) {
-			if (!nextOptions || typeof nextOptions.virtualHostedStyle === 'undefined') {
-				nextOptions = { ...nextOptions, virtualHostedStyle: true };
-			}
+		// Apply virtualHostedStyle to all S3Client instances when endpoint is storage.dev
+		if (!nextOptions || typeof nextOptions.virtualHostedStyle === 'undefined') {
+			nextOptions = { ...nextOptions, virtualHostedStyle: true };
 		}
 
 		return originalFile.call(this, path, nextOptions);
