@@ -41,12 +41,9 @@ export const pullSubcommand = createSubcommand({
 
 		const cloudEnv = { ...projectData.env, ...projectData.secrets }; // env pull with actually do both secrets and env since thats likely what the user would want
 
-		// Read current local env from existing file
-		const existingEnvPath = await findExistingEnvFile(projectDir);
-		const localEnv = await readEnvFile(existingEnvPath);
-
 		// Target file is always .env
 		const targetEnvPath = await findExistingEnvFile(projectDir);
+		const localEnv = await readEnvFile(targetEnvPath);
 
 		// Merge: cloud values override local if force=true, otherwise keep local
 		let mergedEnv: Record<string, string>;
