@@ -45,7 +45,9 @@ const SandboxCreateRequestSchema = z
 				files: z
 					.array(
 						z.object({
-							path: z.string().describe('Path to the file relative to the sandbox workspace'),
+							path: z
+								.string()
+								.describe('Path to the file relative to the sandbox workspace'),
 							content: z.string().describe('Base64-encoded file content'),
 						})
 					)

@@ -1341,7 +1341,11 @@ export async function parseRoute(
 								}
 
 								// Skip if no supported methods or path is not a literal
-								if (methods.length === 0 || !pathArg || (pathArg as ASTLiteral).type !== 'Literal') {
+								if (
+									methods.length === 0 ||
+									!pathArg ||
+									(pathArg as ASTLiteral).type !== 'Literal'
+								) {
 									continue;
 								}
 
@@ -1375,10 +1379,12 @@ export async function parseRoute(
 											}
 										}
 										if (validatorInfo.inputSchemaVariable) {
-											routeConfig.inputSchemaVariable = validatorInfo.inputSchemaVariable;
+											routeConfig.inputSchemaVariable =
+												validatorInfo.inputSchemaVariable;
 										}
 										if (validatorInfo.outputSchemaVariable) {
-											routeConfig.outputSchemaVariable = validatorInfo.outputSchemaVariable;
+											routeConfig.outputSchemaVariable =
+												validatorInfo.outputSchemaVariable;
 										}
 										if (validatorInfo.stream !== undefined) {
 											routeConfig.stream = validatorInfo.stream;
@@ -1434,10 +1440,12 @@ export async function parseRoute(
 											}
 										}
 										if (validatorInfo.inputSchemaVariable) {
-											routeConfig.inputSchemaVariable = validatorInfo.inputSchemaVariable;
+											routeConfig.inputSchemaVariable =
+												validatorInfo.inputSchemaVariable;
 										}
 										if (validatorInfo.outputSchemaVariable) {
-											routeConfig.outputSchemaVariable = validatorInfo.outputSchemaVariable;
+											routeConfig.outputSchemaVariable =
+												validatorInfo.outputSchemaVariable;
 										}
 										if (validatorInfo.stream !== undefined) {
 											routeConfig.stream = validatorInfo.stream;
@@ -1604,7 +1612,10 @@ export async function parseRoute(
 						}
 
 						// For WebSocket/SSE/stream routes that don't use validator(), fall back to exported schemas
-						if (!routeConfig.hasValidator && (type === 'websocket' || type === 'sse' || type === 'stream')) {
+						if (
+							!routeConfig.hasValidator &&
+							(type === 'websocket' || type === 'sse' || type === 'stream')
+						) {
 							if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
 								routeConfig.inputSchemaVariable = exportedInputSchemaName;
 							}

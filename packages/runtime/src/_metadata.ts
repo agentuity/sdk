@@ -83,9 +83,26 @@ let _metadataCache: BuildMetadata | null | undefined = null;
 
 /**
  * Get the path to agentuity.metadata.json
+ *
+ * Checks multiple locations to support both dev and production:
+ * - Production: cwd is .agentuity/, file is at cwd/agentuity.metadata.json
+ * - Dev: cwd is project root, file is at cwd/.agentuity/agentuity.metadata.json
  */
 export function getMetadataPath(): string {
-	return join(process.cwd(), '.agentuity', 'agentuity.metadata.json');
+	// Production path: running from .agentuity/ directory
+	const productionPath = join(process.cwd(), 'agentuity.metadata.json');
+	if (existsSync(productionPath)) {
+		return productionPath;
+	}
+
+	// Dev path: running from project root
+	const devPath = join(process.cwd(), '.agentuity', 'agentuity.metadata.json');
+	if (existsSync(devPath)) {
+		return devPath;
+	}
+
+	// Default to production path (will fail gracefully in loadBuildMetadata)
+	return productionPath;
 }
 
 /**
@@ -158,6 +175,9 @@ let _evalsByAgentId: Map<string, Map<string, BuildMetadataEval>> | null = null;
 // Track if we've already attempted a reload for empty eval map
 let _evalReloadAttempted = false;
 
+// Track if we've already attempted a reload for empty agent map
+let _agentReloadAttempted = false;
+
 /**
  * Build agent lookup maps from metadata
  */
@@ -219,6 +239,22 @@ function ensureAgentMaps(): void {
  */
 export function getAgentMetadataByName(agentName: string): BuildMetadataAgent | undefined {
 	ensureAgentMaps();
+
+	// If agent map is empty, the cache may have been built before metadata was ready
+	// Try clearing and reloading once (only attempt once to avoid repeated reloads)
+	// This mirrors the reload logic in getEvalMetadata
+	if (_agentsByName?.size === 0 && !_agentReloadAttempted) {
+		_agentReloadAttempted = true;
+		internal.info(
+			`[metadata] getAgentMetadataByName: agent map is empty, attempting cache clear and reload`
+		);
+		clearMetadataCache();
+		ensureAgentMaps();
+		internal.info(
+			`[metadata] getAgentMetadataByName: after reload, agent map size: ${_agentsByName?.size ?? 0}`
+		);
+	}
+
 	return _agentsByName?.get(agentName);
 }
 

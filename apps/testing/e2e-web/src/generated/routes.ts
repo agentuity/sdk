@@ -30,44 +30,44 @@ export type POSTApiHelloInputSchema = typeof hello extends { inputSchema?: infer
 export type POSTApiHelloOutputSchema = typeof hello extends { outputSchema?: infer O } ? O : never;
 
 /**
- * Input type for route: POST /api/echo
+ * Input type for route: GET /api/echo
  */
-export type POSTApiEchoInput = InferInput<typeof inputSchema_0>;
+export type GETApiEchoInput = InferInput<typeof inputSchema_0>;
 
 /**
- * Output type for route: POST /api/echo
+ * Output type for route: GET /api/echo
  */
-export type POSTApiEchoOutput = InferOutput<typeof outputSchema_1>;
+export type GETApiEchoOutput = InferOutput<typeof outputSchema_1>;
 
 /**
- * Input schema type for route: POST /api/echo
+ * Input schema type for route: GET /api/echo
  */
-export type POSTApiEchoInputSchema = typeof inputSchema_0;
+export type GETApiEchoInputSchema = typeof inputSchema_0;
 
 /**
- * Output schema type for route: POST /api/echo
+ * Output schema type for route: GET /api/echo
  */
-export type POSTApiEchoOutputSchema = typeof outputSchema_1;
+export type GETApiEchoOutputSchema = typeof outputSchema_1;
 
 /**
- * Input type for route: POST /api/events
+ * Input type for route: GET /api/events
  */
-export type POSTApiEventsInput = never;
+export type GETApiEventsInput = never;
 
 /**
- * Output type for route: POST /api/events
+ * Output type for route: GET /api/events
  */
-export type POSTApiEventsOutput = InferOutput<typeof outputSchema_2>;
+export type GETApiEventsOutput = InferOutput<typeof outputSchema_2>;
 
 /**
- * Input schema type for route: POST /api/events
+ * Input schema type for route: GET /api/events
  */
-export type POSTApiEventsInputSchema = never;
+export type GETApiEventsInputSchema = never;
 
 /**
- * Output schema type for route: POST /api/events
+ * Output schema type for route: GET /api/events
  */
-export type POSTApiEventsOutputSchema = typeof outputSchema_2;
+export type GETApiEventsOutputSchema = typeof outputSchema_2;
 
 // ============================================================================
 // Route Definitions
@@ -105,8 +105,8 @@ declare module '@agentuity/react' {
 	 */
 	export interface WebSocketRouteRegistry {
 	'/api/echo': {
-		inputSchema: POSTApiEchoInputSchema;
-		outputSchema: POSTApiEchoOutputSchema;
+		inputSchema: GETApiEchoInputSchema;
+		outputSchema: GETApiEchoOutputSchema;
 		stream: false;
 	};
 	}
@@ -118,8 +118,8 @@ declare module '@agentuity/react' {
 	 */
 	export interface SSERouteRegistry {
 	'/api/events': {
-		inputSchema: POSTApiEventsInputSchema;
-		outputSchema: POSTApiEventsOutputSchema;
+		inputSchema: GETApiEventsInputSchema;
+		outputSchema: GETApiEventsOutputSchema;
 		stream: false;
 	};
 	}
@@ -139,15 +139,15 @@ declare module '@agentuity/react' {
 		};
 		echo: {
 			/**
-			 * Route: POST /api/echo
+			 * Route: GET /api/echo
 			 */
-			websocket: { input: POSTApiEchoInput; output: POSTApiEchoOutput; type: 'websocket' };
+			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket' };
 		};
 		events: {
 			/**
-			 * Route: POST /api/events
+			 * Route: GET /api/events
 			 */
-			eventstream: { input: POSTApiEventsInput; output: POSTApiEventsOutput; type: 'sse' };
+			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse' };
 		};
 	}
 }

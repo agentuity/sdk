@@ -1,5 +1,6 @@
 import { createApp } from '@agentuity/runtime';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider';
+import { testSessionEventProvider } from './src/test/helpers/session-event-provider';
 import {
 	mockDatabaseMiddleware,
 	mockAuthMiddleware,
@@ -32,6 +33,7 @@ import './src/test/env-loading';
 import './src/test/middleware-patterns';
 import './src/test/evals';
 import './src/test/ai-sdk-gateway';
+import './src/test/session-agent-ids';
 
 const threadProvider = new InMemoryThreadProvider();
 
@@ -41,6 +43,7 @@ const app = await createApp({
 	},
 	services: {
 		thread: threadProvider,
+		sessionEvent: testSessionEventProvider,
 	},
 });
 

@@ -280,17 +280,17 @@ export function createOtelMiddleware() {
 					(c as any).set('trigger', 'api');
 
 					// Send session start event (so evalruns can reference this session)
+					// The provider decides whether to send based on available data (orgId, projectId, etc.)
 					const sessionEventProvider = getSessionEventProvider();
-					const shouldSendSession = !!(orgId && projectId);
-					if (shouldSendSession && sessionEventProvider) {
+					if (sessionEventProvider) {
 						try {
 							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							const routeId = (c as any).var?.routeId || '';
 							await sessionEventProvider.start({
 								id: sessionId,
 								threadId: thread.id,
-								orgId,
-								projectId,
+								orgId: orgId || '',
+								projectId: projectId || '',
 								deploymentId: deploymentId || undefined,
 								devmode: isDevMode,
 								trigger: 'api',
@@ -324,12 +324,8 @@ export function createOtelMiddleware() {
 						throw ex;
 					} finally {
 						// Send session complete event
-						internal.info(
-							'[session] shouldSendSession: %s, hasSessionEventProvider: %s',
-							shouldSendSession,
-							!!sessionEventProvider
-						);
-						if (shouldSendSession && sessionEventProvider) {
+						// The provider decides whether to actually send based on its requirements
+						if (sessionEventProvider) {
 							try {
 								const userData = session.serializeUserData();
 								internal.info(

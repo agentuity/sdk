@@ -151,6 +151,46 @@ declare module '@agentuity/react' {
 		outputSchema: never;
 		stream: false;
 	};
+	'POST /api/auth/login': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/auth/logout': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/auth/verify': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/agent-ids/run': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/agent-ids/verify/:sessionId': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/agent-ids/last': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/agent-ids/all': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'DELETE /api/agent-ids/clear': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
 	'GET /api/middleware-test/check-all': {
 		inputSchema: never;
 		outputSchema: never;
@@ -337,6 +377,60 @@ declare module '@agentuity/react' {
 				get: { input: never; output: never; type: 'api' };
 			};
 		};
+		auth: {
+			login: {
+				/**
+				 * Route: POST /api/auth/login
+				 */
+				post: { input: never; output: never; type: 'api' };
+			};
+			logout: {
+				/**
+				 * Route: POST /api/auth/logout
+				 */
+				post: { input: never; output: never; type: 'api' };
+			};
+			verify: {
+				/**
+				 * Route: GET /api/auth/verify
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+		};
+		agentIds: {
+			run: {
+				/**
+				 * Route: POST /api/agent-ids/run
+				 */
+				post: { input: never; output: never; type: 'api' };
+			};
+			verify: {
+				sessionId: {
+					/**
+					 * Route: GET /api/agent-ids/verify/:sessionId
+					 */
+					get: { input: never; output: never; type: 'api' };
+				};
+			};
+			last: {
+				/**
+				 * Route: GET /api/agent-ids/last
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+			all: {
+				/**
+				 * Route: GET /api/agent-ids/all
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+			clear: {
+				/**
+				 * Route: DELETE /api/agent-ids/clear
+				 */
+				delete: { input: never; output: never; type: 'api' };
+			};
+		};
 		middlewareTest: {
 			checkAll: {
 				/**
@@ -518,6 +612,52 @@ const _rpcRouteMetadata = {
 				},
 				"info": {
 						"get": {
+								"type": "api"
+						}
+				}
+		},
+		"auth": {
+				"login": {
+						"post": {
+								"type": "api"
+						}
+				},
+				"logout": {
+						"post": {
+								"type": "api"
+						}
+				},
+				"verify": {
+						"get": {
+								"type": "api"
+						}
+				}
+		},
+		"agentIds": {
+				"run": {
+						"post": {
+								"type": "api"
+						}
+				},
+				"verify": {
+						"sessionId": {
+								"get": {
+										"type": "api"
+								}
+						}
+				},
+				"last": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"all": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"clear": {
+						"delete": {
 								"type": "api"
 						}
 				}
