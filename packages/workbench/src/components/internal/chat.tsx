@@ -74,7 +74,10 @@ export function Chat({
 
 	return (
 		<div className="relative flex flex-col h-full w-full overflow-hidden">
-			<Conversation className="flex-1 overflow-y-auto" id="chat-conversation">
+			<Conversation
+				className="flex-1 overflow-y-auto [&>div]:overflow-y-auto"
+				id="chat-conversation"
+			>
 				{connectionStatus === 'disconnected' && emptyState ? (
 					<div className="flex flex-col h-full">{emptyState}</div>
 				) : (
