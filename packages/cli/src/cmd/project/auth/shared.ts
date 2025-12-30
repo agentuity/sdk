@@ -405,7 +405,7 @@ export async function runAuthMigrations(options: {
 	const statements = splitSqlStatements(sql);
 
 	await tui.spinner({
-		message: `Running auth migrations on ${databaseName} (${statements.length} statements)`,
+		message: `Creating auth tables in database "${databaseName}" (${statements.length} SQL statements)`,
 		clearOnSuccess: true,
 		callback: async () => {
 			for (const statement of statements) {

@@ -441,7 +441,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		// Run migrations
 		if (authDatabaseName) {
 			const sql = await tui.spinner({
-				message: 'Generating auth schema SQL',
+				message: 'Preparing auth database schema...',
 				clearOnSuccess: true,
 				callback: () => generateAuthSchemaSql(dest),
 			});

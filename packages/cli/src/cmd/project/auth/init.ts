@@ -198,7 +198,7 @@ export const initSubcommand = createSubcommand({
 				tui.newline();
 
 				const sql = await tui.spinner({
-					message: 'Generating auth schema SQL',
+					message: 'Preparing auth database schema...',
 					clearOnSuccess: true,
 					callback: () => generateAuthSchemaSql(projectDir),
 				});
@@ -219,7 +219,7 @@ export const initSubcommand = createSubcommand({
 
 				if (runMigrations) {
 					const sql = await tui.spinner({
-						message: 'Generating auth schema SQL',
+						message: 'Preparing auth database schema...',
 						clearOnSuccess: true,
 						callback: () => generateAuthSchemaSql(projectDir),
 					});
