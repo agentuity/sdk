@@ -5,7 +5,13 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
-import { sandboxWriteFiles, sandboxReadFile, sandboxExecute, executionGet, type APIClient } from '@agentuity/server';
+import {
+	sandboxWriteFiles,
+	sandboxReadFile,
+	sandboxExecute,
+	executionGet,
+	type APIClient,
+} from '@agentuity/server';
 import type { Logger, FileToWrite } from '@agentuity/core';
 
 const POLL_INTERVAL_MS = 500;
@@ -247,7 +253,9 @@ async function uploadDirectory(
 	const files: FileToWrite[] = [];
 	let totalBytes = 0;
 	const effectiveRemotePath = remotePath || basename(localDir);
-	const baseRemotePath = effectiveRemotePath.endsWith('/') ? effectiveRemotePath.slice(0, -1) : effectiveRemotePath;
+	const baseRemotePath = effectiveRemotePath.endsWith('/')
+		? effectiveRemotePath.slice(0, -1)
+		: effectiveRemotePath;
 
 	for (const filePath of allFiles) {
 		const relativePath = relative(localDir, filePath);
