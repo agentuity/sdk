@@ -256,4 +256,34 @@ describe('patchBunS3ForStorageDev', () => {
 		expect(capturedOptions).toBeDefined();
 		expect(capturedOptions!.virtualHostedStyle).toBe(true);
 	});
+
+	test('patched file method injects virtualHostedStyle: true into existing options object', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalFile = Bun.S3Client.prototype.file;
+
+		Bun.S3Client.prototype.file = function spyFile(
+			this: unknown,
+			path: string,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalFile.call(this, path, options);
+		};
+
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.file('test.txt', { cacheControl: 'max-age=3600' });
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(true);
+		expect(capturedOptions!.cacheControl).toBe('max-age=3600');
+	});
 });
