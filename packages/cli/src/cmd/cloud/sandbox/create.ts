@@ -74,8 +74,8 @@ export const createSubcommand = createCommand({
 			}
 		}
 
-		const filesMap = parseFileArgs(opts.file);
-		const hasFiles = Object.keys(filesMap).length > 0;
+		const files = parseFileArgs(opts.file);
+		const hasFiles = files.length > 0;
 
 		const result = await sandboxCreate(client, {
 			options: {
@@ -90,7 +90,7 @@ export const createSubcommand = createCommand({
 				network: opts.network ? { enabled: true } : undefined,
 				timeout: opts.idleTimeout ? { idle: opts.idleTimeout } : undefined,
 				env: Object.keys(envMap).length > 0 ? envMap : undefined,
-				command: hasFiles ? { exec: [], files: filesMap } : undefined,
+				command: hasFiles ? { exec: [], files } : undefined,
 				snapshot: opts.snapshot,
 				dependencies: opts.dependency,
 			},

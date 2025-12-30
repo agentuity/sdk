@@ -122,9 +122,10 @@ export class APIClient {
 	 */
 	async get<TResponse = void>(
 		endpoint: string,
-		responseSchema?: z.ZodType<TResponse>
+		responseSchema?: z.ZodType<TResponse>,
+		signal?: AbortSignal
 	): Promise<TResponse> {
-		return this.request('GET', endpoint, responseSchema);
+		return this.request('GET', endpoint, responseSchema, undefined, undefined, signal);
 	}
 
 	/**
@@ -134,9 +135,10 @@ export class APIClient {
 		endpoint: string,
 		body?: TBody,
 		responseSchema?: z.ZodType<TResponse>,
-		bodySchema?: z.ZodType<TBody>
+		bodySchema?: z.ZodType<TBody>,
+		signal?: AbortSignal
 	): Promise<TResponse> {
-		return this.request('POST', endpoint, responseSchema, body, bodySchema);
+		return this.request('POST', endpoint, responseSchema, body, bodySchema, signal);
 	}
 
 	/**
@@ -146,9 +148,10 @@ export class APIClient {
 		endpoint: string,
 		body?: TBody,
 		responseSchema?: z.ZodType<TResponse>,
-		bodySchema?: z.ZodType<TBody>
+		bodySchema?: z.ZodType<TBody>,
+		signal?: AbortSignal
 	): Promise<TResponse> {
-		return this.request('PUT', endpoint, responseSchema, body, bodySchema);
+		return this.request('PUT', endpoint, responseSchema, body, bodySchema, signal);
 	}
 
 	/**
@@ -156,9 +159,10 @@ export class APIClient {
 	 */
 	async delete<TResponse = void>(
 		endpoint: string,
-		responseSchema?: z.ZodType<TResponse>
+		responseSchema?: z.ZodType<TResponse>,
+		signal?: AbortSignal
 	): Promise<TResponse> {
-		return this.request('DELETE', endpoint, responseSchema);
+		return this.request('DELETE', endpoint, responseSchema, undefined, undefined, signal);
 	}
 
 	/**
@@ -168,9 +172,18 @@ export class APIClient {
 		endpoint: string,
 		body?: TBody,
 		responseSchema?: z.ZodType<TResponse>,
-		bodySchema?: z.ZodType<TBody>
+		bodySchema?: z.ZodType<TBody>,
+		signal?: AbortSignal
 	): Promise<TResponse> {
-		return this.request('PATCH', endpoint, responseSchema, body, bodySchema);
+		return this.request('PATCH', endpoint, responseSchema, body, bodySchema, signal);
+	}
+
+	/**
+	 * Raw GET request that returns the Response object directly.
+	 * Useful for streaming responses where you need access to the body stream.
+	 */
+	async rawGet(endpoint: string, signal?: AbortSignal): Promise<Response> {
+		return this.#makeRequest('GET', endpoint, undefined, signal);
 	}
 
 	/**
@@ -181,7 +194,8 @@ export class APIClient {
 		endpoint: string,
 		responseSchema?: z.ZodType<TResponse>,
 		body?: TBody,
-		bodySchema?: z.ZodType<TBody>
+		bodySchema?: z.ZodType<TBody>,
+		signal?: AbortSignal
 	): Promise<TResponse> {
 		// Validate request body if schema provided
 		if (body !== undefined && bodySchema) {
@@ -194,7 +208,7 @@ export class APIClient {
 			}
 		}
 
-		const response = await this.#makeRequest(method, endpoint, body);
+		const response = await this.#makeRequest(method, endpoint, body, signal);
 
 		// Handle empty responses (204 or zero-length body)
 		let data: unknown;
@@ -231,7 +245,12 @@ export class APIClient {
 		return undefined as TResponse;
 	}
 
-	async #makeRequest(method: string, endpoint: string, body?: unknown): Promise<Response> {
+	async #makeRequest(
+		method: string,
+		endpoint: string,
+		body?: unknown,
+		signal?: AbortSignal
+	): Promise<Response> {
 		this.#logger.trace('sending %s to %s%s', method, this.#baseUrl, endpoint);
 
 		const maxRetries = this.#config?.maxRetries ?? 3;
@@ -266,6 +285,7 @@ export class APIClient {
 						method,
 						headers,
 						body: body !== undefined ? JSON.stringify(body) : undefined,
+						signal,
 					});
 				} catch (ex) {
 					const _ex = ex as { code?: string; name: string };
