@@ -17,9 +17,9 @@ import { useWorkbench } from './workbench-provider';
 export interface ChatProps {
 	className?: string;
 	emptyState?: React.ReactNode;
-	onSchemaToggle: () => void;
+	onSchemaToggle?: () => void;
 	onSessionOpen?: (sessionId: string) => void;
-	schemaOpen: boolean;
+	schemaOpen?: boolean;
 }
 
 export function Chat({
@@ -42,7 +42,7 @@ export function Chat({
 	const logger = useLogger('Chat');
 	const [value, setValue] = useState('');
 
-	const handleSubmit = async () => {
+	const handleSubmit = () => {
 		logger.debug('🎯 Chat handleSubmit - selectedAgent:', selectedAgent, 'value:', value);
 
 		const selectedAgentData = Object.values(agents).find(
@@ -57,7 +57,7 @@ export function Chat({
 
 		// If agent has no input schema, submit without requiring input
 		if (!hasInputSchema) {
-			await submitMessage('');
+			submitMessage('');
 
 			return;
 		}
@@ -67,14 +67,16 @@ export function Chat({
 			return;
 		}
 
-		await submitMessage(value);
-
+		submitMessage(value);
 		setValue('');
 	};
 
 	return (
 		<div className="relative flex flex-col h-full w-full overflow-hidden">
-			<Conversation className="flex-1 overflow-y-auto" id="chat-conversation">
+			<Conversation
+				className="flex-1 overflow-y-auto [&>div]:overflow-y-auto"
+				id="chat-conversation"
+			>
 				{connectionStatus === 'disconnected' && emptyState ? (
 					<div className="flex flex-col h-full">{emptyState}</div>
 				) : (
@@ -154,9 +156,9 @@ export function Chat({
 													type="button"
 													className={cn(
 														'flex items-center bg-transparent border-none p-0 text-inherit',
-														sessionId &&
-															onSessionOpen &&
-															'hover:text-foreground transition-colors cursor-pointer'
+														sessionId && onSessionOpen
+															? 'hover:text-foreground transition-colors cursor-pointer'
+															: 'cursor-default'
 													)}
 													onClick={() => sessionId && onSessionOpen?.(sessionId)}
 													tabIndex={0}

@@ -42,9 +42,9 @@ export interface InputSectionProps {
 	className?: string;
 	clearAgentState?: (agentId: string) => Promise<void>;
 	isLoading: boolean;
-	isSchemaOpen: boolean;
+	isSchemaOpen?: boolean;
 	onChange: (value: string) => void;
-	onSchemaToggle: () => void;
+	onSchemaToggle?: () => void;
 	onSubmit: () => void | Promise<void>;
 	selectedAgent: string;
 	setSelectedAgent: (agentId: string) => void;
@@ -187,8 +187,6 @@ export function InputSection({
 			onChange(sampleJson);
 		} catch (error) {
 			logger.error('Failed to generate sample JSON:', error);
-
-			console.error('Failed to generate sample JSON:', error);
 		}
 	};
 
@@ -281,19 +279,21 @@ export function InputSection({
 					</PopoverContent>
 				</Popover>
 
-				<Button
-					aria-label={isSchemaOpen ? 'Hide Schema' : 'View Schema'}
-					size="sm"
-					variant="outline"
-					className={cn(
-						'font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50',
-						isSchemaOpen && 'bg-secondary!'
-					)}
-					onClick={onSchemaToggle}
-				>
-					<Braces className="size-4" />
-					Schema
-				</Button>
+				{onSchemaToggle && (
+					<Button
+						aria-label={isSchemaOpen ? 'Hide Schema' : 'View Schema'}
+						size="sm"
+						variant="outline"
+						className={cn(
+							'font-normal bg-background dark:bg-background hover:bg-background dark:hover:bg-background dark:hover:border-border/50',
+							isSchemaOpen && 'bg-secondary!'
+						)}
+						onClick={onSchemaToggle}
+					>
+						<Braces className="size-4" />
+						Schema
+					</Button>
+				)}
 
 				{isObjectSchema && (
 					<Popover open={prefillOpen} onOpenChange={setPrefillOpen}>
@@ -449,7 +449,7 @@ export function InputSection({
 					)}
 				</PromptInputBody>
 
-				<PromptInputFooter className="pt-0">
+				<PromptInputFooter className={cn('pt-0', !selectedAgent && 'pb-0')}>
 					{selectedAgent && inputType !== 'none' && (
 						<Button
 							aria-label="Submit"
