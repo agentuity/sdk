@@ -472,6 +472,8 @@ export const deploySubcommand = createSubcommand({
 			}
 
 			const streamId = complete?.streamId;
+			const appUrl = getAppBaseURL(config?.name, config?.overrides);
+			const dashboard = `${appUrl}/r/${deployment.id}`;
 
 			// Poll for deployment status with optional log streaming
 			const pollInterval = 500;
@@ -660,14 +662,23 @@ export const deploySubcommand = createSubcommand({
 
 					tui.success('Your project was deployed!');
 				}
+			} catch (ex) {
+				const lines = [`${ex}`, ''];
+				lines.push(
+					`${tui.ICONS.arrow} ${
+						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
+					}`
+				);
+				tui.banner(tui.colorError(`Deployment: ${deployment.id} Failed`), lines.join('\n'), {
+					centerTitle: false,
+					topSpacer: false,
+					bottomSpacer: false,
+				});
+				tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 			} finally {
 				// Clean up signal handler
 				process.off('SIGINT', sigintHandler);
 			}
-
-			const appUrl = getAppBaseURL(config?.name, config?.overrides);
-
-			const dashboard = `${appUrl}/r/${deployment.id}`;
 
 			// Show deployment URLs
 			if (complete?.publicUrls) {
