@@ -9,7 +9,7 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, readdirSy
 import type { BuildMetadata } from '@agentuity/server';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteMetadata } from './route-discovery';
-import type { Logger } from '../../../types';
+import type { Logger, DeployOptions } from '../../../types';
 import { getVersion } from '../../../version';
 
 interface ViteManifestEntry {
@@ -162,6 +162,7 @@ export interface MetadataGeneratorOptions {
 	routes: RouteMetadata[];
 	dev?: boolean;
 	logger: Logger;
+	deploymentOptions: DeployOptions;
 }
 
 /**
@@ -471,6 +472,11 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 			git: await getGitInfo(rootDir, logger),
 		},
 	};
+
+	if (options.deploymentOptions) {
+		const git = { ...(metadata.deployment.git ?? {}), ...options.deploymentOptions };
+		metadata.deployment.git = git;
+	}
 
 	return metadata;
 }
