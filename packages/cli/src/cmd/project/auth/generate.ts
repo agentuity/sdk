@@ -8,7 +8,7 @@ import * as path from 'node:path';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
-import { generateAuthSchemaSql } from './shared';
+import { generateAuthSchemaSql, getGeneratedSqlDir } from './shared';
 
 export const generateSubcommand = createSubcommand({
 	name: 'generate',
@@ -40,7 +40,7 @@ export const generateSubcommand = createSubcommand({
 
 	async handler(ctx) {
 		const { logger, opts } = ctx;
-		const output = (opts?.output as string | undefined) ?? 'agentuity-auth-schema.sql';
+		const explicitOutput = opts?.output as string | undefined;
 		const toStdout = opts?.stdout as boolean | undefined;
 		const projectDir = process.cwd();
 
@@ -62,10 +62,23 @@ export const generateSubcommand = createSubcommand({
 				return { success: true };
 			}
 
-			const outputPath = path.resolve(projectDir, output);
+			let outputPath: string;
+			let displayPath: string;
+
+			if (explicitOutput) {
+				outputPath = path.resolve(projectDir, explicitOutput);
+				displayPath = explicitOutput;
+			} else {
+				const sqlOutputDir = await getGeneratedSqlDir(projectDir);
+				const sqlFileName = 'agentuity-auth-schema.sql';
+				outputPath = path.join(sqlOutputDir, sqlFileName);
+				displayPath =
+					sqlOutputDir === projectDir ? sqlFileName : path.relative(projectDir, outputPath);
+			}
+
 			fs.writeFileSync(outputPath, sql);
 
-			tui.success(`Auth schema SQL saved to ${tui.bold(output)}`);
+			tui.success(`Auth schema SQL saved to ${tui.bold(displayPath)}`);
 			tui.newline();
 			tui.info('Next steps:');
 			console.log('  1. Review the generated SQL file');

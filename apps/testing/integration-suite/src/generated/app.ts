@@ -22,7 +22,6 @@ import {
   setGlobalRouter,
   enableProcessExitProtection,
   hasWaitUntilPending,
-  createWorkbenchRouter,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { websocket } from 'hono/bun';
@@ -214,49 +213,18 @@ if (isDevelopment() && process.env.VITE_PORT) {
 // Mount API routes
 const { default: router_0 } = await import('../api/index.js');
 app.route('/api', router_0);
-const { default: router_1 } = await import('../api/custom-name/foobar.js');
-app.route('/api/custom-name/foobar', router_1);
-const { default: router_2 } = await import('../api/users/profile/route.js');
-app.route('/api/users/profile', router_2);
-const { default: router_3 } = await import('../api/my-service/index.js');
-app.route('/api/my-service', router_3);
-const { default: router_4 } = await import('../api/auth/route.js');
-app.route('/api/auth', router_4);
-const { default: router_5 } = await import('../api/agent-ids/route.js');
-app.route('/api/agent-ids', router_5);
-const { default: router_6 } = await import('../api/middleware-test/route.js');
-app.route('/api/middleware-test', router_6);
-
-// Mount workbench API routes (/_agentuity/workbench/*)
-const workbenchRouter = createWorkbenchRouter();
-app.route('/', workbenchRouter);
-
-// Workbench routes - Runtime mode detection
-// Both dev and prod run from .agentuity/app.js (dev bundles before running)
-// So workbench-src is always in the same directory
-const workbenchSrcDir = import.meta.dir + '/workbench-src';
-const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
-const workbenchIndex = existsSync(workbenchIndexPath) 
-	? readFileSync(workbenchIndexPath, 'utf-8')
-	: '';
-
-if (isDevelopment()) {
-	// Development mode: Let Vite serve source files with HMR
-	app.get('/workbench', async (c: Context) => {
-		const html = await Bun.file(workbenchSrcDir + '/index.html').text();
-		// Rewrite script/css paths to use Vite's @fs protocol
-		const withVite = html
-			.replace('src="./main.tsx"', `src="/@fs${workbenchSrcDir}/main.tsx"`)
-			.replace('href="./styles.css"', `href="/@fs${workbenchSrcDir}/styles.css"`);
-		return c.html(withVite);
-	});
-} else {
-	// Production mode: Serve pre-built assets
-	if (workbenchIndex) {
-		app.get('/workbench', (c: Context) => c.html(workbenchIndex));
-		app.get('/workbench/*', serveStatic({ root: import.meta.dir + '/workbench' }));
-	}
-}
+const { default: router_1 } = await import('../api/users/profile/route.js');
+app.route('/api/users/profile', router_1);
+const { default: router_2 } = await import('../api/my-service/index.js');
+app.route('/api/my-service', router_2);
+const { default: router_3 } = await import('../api/middleware-test/route.js');
+app.route('/api/middleware-test', router_3);
+const { default: router_4 } = await import('../api/custom-name/foobar.js');
+app.route('/api/custom-name/foobar', router_4);
+const { default: router_5 } = await import('../api/auth/route.js');
+app.route('/api/auth', router_5);
+const { default: router_6 } = await import('../api/agent-ids/route.js');
+app.route('/api/agent-ids', router_6);
 
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
 if (isDevelopment()) {
@@ -291,7 +259,7 @@ if (isDevelopment()) {
 	// 404 for unmatched API/system routes
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	
+	app.all('/workbench/*', (c: Context) => c.notFound());
 	
 	// SPA fallback - serve index.html for client-side routing
 	app.get('*', (c: Context) => {
@@ -324,7 +292,7 @@ if (isDevelopment()) {
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	
+	app.all('/workbench/*', (c: Context) => c.notFound());
 
 	// SPA fallback with asset protection
 	app.get('*', (c: Context) => {

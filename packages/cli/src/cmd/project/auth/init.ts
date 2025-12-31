@@ -10,6 +10,7 @@ import {
 	printIntegrationExamples,
 	detectOrmSetup,
 	generateAuthSchemaSql,
+	getGeneratedSqlDir,
 } from './shared';
 import enquirer from 'enquirer';
 import * as fs from 'fs';
@@ -203,9 +204,13 @@ export const initSubcommand = createSubcommand({
 					callback: () => generateAuthSchemaSql(projectDir),
 				});
 
-				const sqlFilePath = path.join(projectDir, 'agentuity-auth-schema.sql');
+				const sqlOutputDir = await getGeneratedSqlDir(projectDir);
+				const sqlFileName = 'agentuity-auth-schema.sql';
+				const sqlFilePath = path.join(sqlOutputDir, sqlFileName);
+				const relativePath =
+					sqlOutputDir === projectDir ? sqlFileName : path.relative(projectDir, sqlFilePath);
 				fs.writeFileSync(sqlFilePath, sql);
-				tui.success(`Auth schema SQL saved to ${tui.bold('agentuity-auth-schema.sql')}`);
+				tui.success(`Auth schema SQL saved to ${tui.bold(relativePath)}`);
 				tui.newline();
 				console.log('  Run this SQL against your database to create auth tables.');
 				tui.newline();
