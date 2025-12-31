@@ -632,6 +632,180 @@ describe('patchBunS3ForStorageDev', () => {
 		expect(capturedOptions!.virtualHostedStyle).toBe(true);
 	});
 
+	test('patched delete method does not override explicit virtualHostedStyle: false', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalDelete = Bun.S3Client.prototype.delete;
+
+		Bun.S3Client.prototype.delete = function spyDelete(
+			this: unknown,
+			path: string,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalDelete.call(this, path, options);
+		};
+
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.delete('test.txt', { virtualHostedStyle: false });
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(false);
+	});
+
+	test('patched exists method does not override explicit virtualHostedStyle: false', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalExists = Bun.S3Client.prototype.exists;
+
+		Bun.S3Client.prototype.exists = function spyExists(
+			this: unknown,
+			path: string,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalExists.call(this, path, options);
+		};
+
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.exists('test.txt', { virtualHostedStyle: false });
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(false);
+	});
+
+	test('patched stat method does not override explicit virtualHostedStyle: false', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalStat = Bun.S3Client.prototype.stat;
+
+		Bun.S3Client.prototype.stat = function spyStat(
+			this: unknown,
+			path: string,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalStat.call(this, path, options);
+		};
+
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.stat('test.txt', { virtualHostedStyle: false });
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(false);
+	});
+
+	test('patched size method does not override explicit virtualHostedStyle: false', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalSize = Bun.S3Client.prototype.size;
+
+		Bun.S3Client.prototype.size = function spySize(
+			this: unknown,
+			path: string,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalSize.call(this, path, options);
+		};
+
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.size('test.txt', { virtualHostedStyle: false });
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(false);
+	});
+
+	test('patched unlink method does not override explicit virtualHostedStyle: false', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalUnlink = Bun.S3Client.prototype.unlink;
+
+		Bun.S3Client.prototype.unlink = function spyUnlink(
+			this: unknown,
+			path: string,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalUnlink.call(this, path, options);
+		};
+
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.unlink('test.txt', { virtualHostedStyle: false });
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(false);
+	});
+
+	test('patched list method does not override explicit virtualHostedStyle: false', () => {
+		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
+
+		let capturedOptions: Record<string, unknown> | undefined;
+		const originalList = Bun.S3Client.prototype.list;
+
+		Bun.S3Client.prototype.list = function spyList(
+			this: unknown,
+			input?: Record<string, unknown> | null,
+			options?: Record<string, unknown>
+		) {
+			capturedOptions = options;
+			return originalList.call(this, input, options);
+		};
+
+		patchBunS3ForStorageDev();
+
+		const client = new Bun.S3Client({
+			accessKeyId: 'test-access-key',
+			secretAccessKey: 'test-secret-key',
+			bucket: 'my-bucket',
+		});
+
+		client.list({ prefix: 'test/' }, { virtualHostedStyle: false });
+
+		expect(capturedOptions).toBeDefined();
+		expect(capturedOptions!.virtualHostedStyle).toBe(false);
+	});
+
 	test('all patched methods exist and are functions after patching', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 		patchBunS3ForStorageDev();
