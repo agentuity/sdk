@@ -356,7 +356,11 @@ export function sourceLink(
 	}
 
 	// Cmd/Ctrl-click fallback
-	return color + label + getColor('reset');
+	if (color) {
+		return color + label + getColor('reset');
+	}
+
+	return label;
 }
 
 /**

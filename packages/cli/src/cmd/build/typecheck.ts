@@ -25,7 +25,10 @@ type TypeResult = TypeError | TypeSuccess | TypeUnknownError;
  * @returns
  */
 export async function typecheck(dir: string): Promise<TypeResult> {
-	const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`.cwd(dir).quiet().nothrow();
+	const result = await Bun.$`bunx tsc --noEmit --skipLibCheck --pretty false`
+		.cwd(dir)
+		.quiet()
+		.nothrow();
 
 	const output = await result.text();
 	const errors = parse(output) as GrammarItem[];
