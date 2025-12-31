@@ -8,7 +8,10 @@ describe('Agentuity Auth Config', () => {
 	beforeEach(() => {
 		delete process.env.BETTER_AUTH_URL;
 		delete process.env.AGENTUITY_BASE_URL;
-		delete process.env.AGENTUITY_AUTH_TRUSTED_ORIGINS;
+		delete process.env.AGENTUITY_CLOUD_DOMAINS;
+		delete process.env.AUTH_TRUSTED_DOMAINS;
+		delete process.env.AGENTUITY_AUTH_SECRET;
+		delete process.env.BETTER_AUTH_SECRET;
 	});
 
 	afterEach(() => {
@@ -42,13 +45,11 @@ describe('Agentuity Auth Config', () => {
 				secret: 'test-secret-minimum-32-characters-long',
 			});
 
-			// AGENTUITY_BASE_URL takes priority over BETTER_AUTH_URL
 			expect(auth.options.baseURL).toBe('https://agentuity-url.com');
 		});
 
 		it('falls back to BETTER_AUTH_URL when no AGENTUITY_BASE_URL', () => {
 			process.env.BETTER_AUTH_URL = 'https://better-auth-url.com';
-			// Note: AGENTUITY_BASE_URL not set
 
 			const db = new Database(':memory:');
 			const auth = createAuth({
@@ -72,6 +73,17 @@ describe('Agentuity Auth Config', () => {
 
 			expect(auth.options.baseURL).toBe('https://p1234.agentuity.run');
 		});
+
+		it('returns undefined when no baseURL is available', () => {
+			const db = new Database(':memory:');
+			const auth = createAuth({
+				database: db,
+				basePath: '/api/auth',
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			expect(auth.options.baseURL).toBeUndefined();
+		});
 	});
 
 	describe('trustedOrigins', () => {
@@ -88,7 +100,7 @@ describe('Agentuity Auth Config', () => {
 			expect(typeof auth.options.trustedOrigins).toBe('function');
 		});
 
-		it('respects user-provided trustedOrigins', () => {
+		it('respects user-provided trustedOrigins array', () => {
 			const customOrigins = ['https://custom.example.com'];
 			const db = new Database(':memory:');
 			const auth = createAuth({
@@ -102,7 +114,7 @@ describe('Agentuity Auth Config', () => {
 			expect(auth.options.trustedOrigins).toEqual(customOrigins);
 		});
 
-		it('default trustedOrigins includes baseURL origin', async () => {
+		it('includes explicit baseURL origin', async () => {
 			const db = new Database(':memory:');
 			const auth = createAuth({
 				database: db,
@@ -119,7 +131,7 @@ describe('Agentuity Auth Config', () => {
 			expect(origins).toContain('https://myapp.example.com');
 		});
 
-		it('default trustedOrigins includes AGENTUITY_BASE_URL origin', async () => {
+		it('includes AGENTUITY_BASE_URL origin', async () => {
 			process.env.AGENTUITY_BASE_URL = 'https://p5678.agentuity.run';
 
 			const db = new Database(':memory:');
@@ -137,7 +149,7 @@ describe('Agentuity Auth Config', () => {
 			expect(origins).toContain('https://p5678.agentuity.run');
 		});
 
-		it('default trustedOrigins includes request origin (same-origin)', async () => {
+		it('includes request origin dynamically', async () => {
 			const db = new Database(':memory:');
 			const auth = createAuth({
 				database: db,
@@ -153,56 +165,289 @@ describe('Agentuity Auth Config', () => {
 			const origins = await trustedOrigins(mockRequest);
 
 			expect(origins).toContain('https://deployed-app.agentuity.run');
+			expect(origins).toContain('https://test.example.com');
 		});
 
-		it('default trustedOrigins includes extra origins from AUTH_TRUSTED_DOMAINS', async () => {
-			process.env.AUTH_TRUSTED_DOMAINS =
-				'https://extra1.example.com,https://extra2.example.com';
+		describe('AGENTUITY_CLOUD_DOMAINS (platform-set)', () => {
+			it('parses comma-separated full URLs', async () => {
+				process.env.AGENTUITY_CLOUD_DOMAINS =
+					'https://d1234.agent.run,https://p5678.agent.run,https://pr9999.agent.run';
 
-			const db = new Database(':memory:');
-			const auth = createAuth({
-				database: db,
-				baseURL: 'https://test.example.com',
-				basePath: '/api/auth',
-				secret: 'test-secret-minimum-32-characters-long',
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://d1234.agent.run');
+				expect(origins).toContain('https://p5678.agent.run');
+				expect(origins).toContain('https://pr9999.agent.run');
 			});
 
-			const trustedOrigins = auth.options.trustedOrigins as (
-				request?: Request
-			) => Promise<string[]>;
-			const origins = await trustedOrigins();
+			it('parses comma-separated bare domains (adds https://)', async () => {
+				process.env.AGENTUITY_CLOUD_DOMAINS =
+					'd1234.agent.run,p5678.agent.run,custom.example.com';
 
-			expect(origins).toContain('https://extra1.example.com');
-			expect(origins).toContain('https://extra2.example.com');
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://d1234.agent.run');
+				expect(origins).toContain('https://p5678.agent.run');
+				expect(origins).toContain('https://custom.example.com');
+			});
+
+			it('handles mixed full URLs and bare domains', async () => {
+				process.env.AGENTUITY_CLOUD_DOMAINS =
+					'https://d1234.agent.run,p5678.agent.run,http://localhost:3500';
+
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://d1234.agent.run');
+				expect(origins).toContain('https://p5678.agent.run');
+				expect(origins).toContain('http://localhost:3500');
+			});
+
+			it('handles domains with ports', async () => {
+				process.env.AGENTUITY_CLOUD_DOMAINS = 'localhost:3500,127.0.0.1:3500';
+
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://localhost:3500');
+				expect(origins).toContain('https://127.0.0.1:3500');
+			});
+
+			it('trims whitespace around domains', async () => {
+				process.env.AGENTUITY_CLOUD_DOMAINS =
+					'  https://d1234.agent.run , p5678.agent.run  ,  custom.example.com  ';
+
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://d1234.agent.run');
+				expect(origins).toContain('https://p5678.agent.run');
+				expect(origins).toContain('https://custom.example.com');
+			});
+
+			it('skips empty entries in comma-separated list', async () => {
+				process.env.AGENTUITY_CLOUD_DOMAINS = 'https://d1234.agent.run,,https://p5678.agent.run,';
+
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://d1234.agent.run');
+				expect(origins).toContain('https://p5678.agent.run');
+				expect(origins.length).toBe(3); // baseURL + 2 cloud domains
+			});
+
+			it('deduplicates origins', async () => {
+				process.env.AGENTUITY_CLOUD_DOMAINS =
+					'https://d1234.agent.run,d1234.agent.run,https://d1234.agent.run';
+
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://d1234.agent.run', // same as cloud domain
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				const d1234Count = origins.filter((o) => o === 'https://d1234.agent.run').length;
+				expect(d1234Count).toBe(1);
+			});
 		});
 
-		it('handles malformed URLs gracefully in trustedOrigins', async () => {
-			// Test the trustedOrigins function directly without creating a full auth instance
-			// to avoid BetterAuth's async URL validation errors
-			process.env.AGENTUITY_BASE_URL = 'not-a-valid-url';
-			process.env.AUTH_TRUSTED_DOMAINS = 'https://valid.example.com';
+		describe('AUTH_TRUSTED_DOMAINS (developer-set)', () => {
+			it('parses comma-separated domains', async () => {
+				process.env.AUTH_TRUSTED_DOMAINS =
+					'https://extra1.example.com,https://extra2.example.com';
 
-			// Create auth with a VALID baseURL to avoid BetterAuth URL validation errors
-			// The malformed AGENTUITY_BASE_URL will be handled gracefully by safeOrigin()
-			const db = new Database(':memory:');
-			const auth = createAuth({
-				database: db,
-				baseURL: 'https://valid-base.example.com',
-				basePath: '/api/auth',
-				secret: 'test-secret-minimum-32-characters-long',
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://extra1.example.com');
+				expect(origins).toContain('https://extra2.example.com');
 			});
 
-			const trustedOrigins = auth.options.trustedOrigins as (
-				request?: Request
-			) => Promise<string[]>;
-			const origins = await trustedOrigins();
+			it('parses bare domains (adds https://)', async () => {
+				process.env.AUTH_TRUSTED_DOMAINS = 'my-dev-domain.com,staging.myapp.io';
 
-			// Should contain the valid origins but gracefully skip the malformed one
-			expect(Array.isArray(origins)).toBe(true);
-			expect(origins).toContain('https://valid-base.example.com');
-			expect(origins).toContain('https://valid.example.com');
-			// The malformed URL should be silently skipped (not included)
-			expect(origins).not.toContain('not-a-valid-url');
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://my-dev-domain.com');
+				expect(origins).toContain('https://staging.myapp.io');
+			});
+
+			it('combines with AGENTUITY_CLOUD_DOMAINS', async () => {
+				process.env.AGENTUITY_CLOUD_DOMAINS = 'https://d1234.agent.run,https://p5678.agent.run';
+				process.env.AUTH_TRUSTED_DOMAINS = 'https://dev.myapp.com';
+
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://test.example.com'); // baseURL
+				expect(origins).toContain('https://d1234.agent.run'); // cloud domain
+				expect(origins).toContain('https://p5678.agent.run'); // cloud domain
+				expect(origins).toContain('https://dev.myapp.com'); // dev trusted domain
+			});
+		});
+
+		describe('malformed URL handling', () => {
+			it('skips malformed AGENTUITY_BASE_URL gracefully', async () => {
+				process.env.AGENTUITY_BASE_URL = 'not-a-valid-url';
+
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://valid-base.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://valid-base.example.com');
+				expect(origins).not.toContain('not-a-valid-url');
+			});
+
+			it('skips malformed entries in AGENTUITY_CLOUD_DOMAINS', async () => {
+				process.env.AGENTUITY_CLOUD_DOMAINS =
+					'https://valid1.example.com,://invalid,https://valid2.example.com';
+
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://valid1.example.com');
+				expect(origins).toContain('https://valid2.example.com');
+				expect(origins).not.toContain('://invalid');
+			});
+
+			it('skips malformed entries in AUTH_TRUSTED_DOMAINS', async () => {
+				process.env.AUTH_TRUSTED_DOMAINS = 'https://valid.example.com,://broken';
+
+				const db = new Database(':memory:');
+				const auth = createAuth({
+					database: db,
+					baseURL: 'https://test.example.com',
+					basePath: '/api/auth',
+					secret: 'test-secret-minimum-32-characters-long',
+				});
+
+				const trustedOrigins = auth.options.trustedOrigins as (
+					request?: Request
+				) => Promise<string[]>;
+				const origins = await trustedOrigins();
+
+				expect(origins).toContain('https://valid.example.com');
+				expect(origins).not.toContain('://broken');
+			});
 		});
 	});
 
@@ -237,7 +482,6 @@ describe('Agentuity Auth Config', () => {
 		});
 
 		it('falls back to BETTER_AUTH_SECRET when no AGENTUITY_AUTH_SECRET', () => {
-			delete process.env.AGENTUITY_AUTH_SECRET;
 			process.env.BETTER_AUTH_SECRET = 'better-auth-secret-minimum-32-chars';
 
 			const db = new Database(':memory:');
@@ -248,6 +492,17 @@ describe('Agentuity Auth Config', () => {
 			});
 
 			expect(auth.options.secret).toBe('better-auth-secret-minimum-32-chars');
+		});
+
+		it('returns undefined when no secret is available', () => {
+			const db = new Database(':memory:');
+			const auth = createAuth({
+				database: db,
+				baseURL: 'https://test.example.com',
+				basePath: '/api/auth',
+			});
+
+			expect(auth.options.secret).toBeUndefined();
 		});
 	});
 
@@ -261,6 +516,18 @@ describe('Agentuity Auth Config', () => {
 			});
 
 			expect(auth.options.basePath).toBe('/api/auth');
+		});
+
+		it('allows overriding basePath', () => {
+			const db = new Database(':memory:');
+			const auth = createAuth({
+				database: db,
+				baseURL: 'https://test.example.com',
+				basePath: '/auth',
+				secret: 'test-secret-minimum-32-characters-long',
+			});
+
+			expect(auth.options.basePath).toBe('/auth');
 		});
 
 		it('defaults emailAndPassword to enabled', () => {
@@ -282,7 +549,6 @@ describe('Agentuity Auth Config', () => {
 				secret: 'test-secret-minimum-32-characters-long',
 			});
 
-			// BetterAuth stores this in the options
 			expect((auth.options as { experimental?: { joins?: boolean } }).experimental?.joins).toBe(
 				true
 			);
@@ -298,7 +564,6 @@ describe('Agentuity Auth Config', () => {
 				secret: 'test-secret-minimum-32-characters-long',
 			});
 
-			// Check that plugins array has items (exact count depends on BetterAuth internals)
 			expect(auth.options.plugins).toBeDefined();
 			expect(auth.options.plugins!.length).toBeGreaterThanOrEqual(4);
 		});
@@ -312,7 +577,6 @@ describe('Agentuity Auth Config', () => {
 				skipDefaultPlugins: true,
 			});
 
-			// With skipDefaultPlugins, should have empty or no plugins
 			expect(auth.options.plugins?.length ?? 0).toBe(0);
 		});
 
@@ -325,7 +589,6 @@ describe('Agentuity Auth Config', () => {
 				apiKey: false,
 			});
 
-			// Should have 3 plugins (org, jwt, bearer) instead of 4
 			expect(auth.options.plugins).toBeDefined();
 			expect(auth.options.plugins!.length).toBe(3);
 		});
