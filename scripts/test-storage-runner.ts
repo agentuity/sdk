@@ -6,11 +6,11 @@
  * to be set at process init time (not via process.env at runtime).
  *
  * Expected environment variables (set by parent process):
- *   - S3_ENDPOINT or AWS_ENDPOINT
- *   - S3_ACCESS_KEY_ID or AWS_ACCESS_KEY_ID
- *   - S3_SECRET_ACCESS_KEY or AWS_SECRET_ACCESS_KEY
- *   - S3_REGION or AWS_REGION (optional)
- *   - S3_BUCKET or AWS_BUCKET (optional)
+ *   - AWS_ENDPOINT
+ *   - AWS_ACCESS_KEY_ID
+ *   - AWS_SECRET_ACCESS_KEY
+ *   - AWS_REGION (optional)
+ *   - AWS_BUCKET (optional)
  *
  * This script is spawned by test-storage.ts with credentials in the environment.
  */

@@ -315,15 +315,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalPresign = Bun.S3Client.prototype.presign;
 
 		Bun.S3Client.prototype.presign = function spyPresign(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalPresign.call(this, path, options);
+			return 'https://mock-presigned-url.example.com';
 		};
 
 		patchBunS3ForStorageDev();
@@ -344,15 +343,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalPresign = Bun.S3Client.prototype.presign;
 
 		Bun.S3Client.prototype.presign = function spyPresign(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalPresign.call(this, path, options);
+			return 'https://mock-presigned-url.example.com';
 		};
 
 		patchBunS3ForStorageDev();
@@ -373,16 +371,15 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalWrite = Bun.S3Client.prototype.write;
 
 		Bun.S3Client.prototype.write = function spyWrite(
 			this: unknown,
-			path: string,
-			data: unknown,
+			_path: string,
+			_data: unknown,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalWrite.call(this, path, data, options);
+			return Promise.resolve(11);
 		};
 
 		patchBunS3ForStorageDev();
@@ -403,16 +400,15 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalWrite = Bun.S3Client.prototype.write;
 
 		Bun.S3Client.prototype.write = function spyWrite(
 			this: unknown,
-			path: string,
-			data: unknown,
+			_path: string,
+			_data: unknown,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalWrite.call(this, path, data, options);
+			return Promise.resolve(11);
 		};
 
 		patchBunS3ForStorageDev();
@@ -433,15 +429,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalList = Bun.S3Client.prototype.list;
 
 		Bun.S3Client.prototype.list = function spyList(
 			this: unknown,
-			input?: Record<string, unknown> | null,
+			_input?: Record<string, unknown> | null,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalList.call(this, input, options);
+			return Promise.resolve({ contents: [], isTruncated: false });
 		};
 
 		patchBunS3ForStorageDev();
@@ -462,15 +457,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalList = Bun.S3Client.prototype.list;
 
 		Bun.S3Client.prototype.list = function spyList(
 			this: unknown,
-			input?: Record<string, unknown> | null,
+			_input?: Record<string, unknown> | null,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalList.call(this, input, options);
+			return Promise.resolve({ contents: [], isTruncated: false });
 		};
 
 		patchBunS3ForStorageDev();
@@ -491,15 +485,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalDelete = Bun.S3Client.prototype.delete;
 
 		Bun.S3Client.prototype.delete = function spyDelete(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalDelete.call(this, path, options);
+			return Promise.resolve();
 		};
 
 		patchBunS3ForStorageDev();
@@ -520,15 +513,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalExists = Bun.S3Client.prototype.exists;
 
 		Bun.S3Client.prototype.exists = function spyExists(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalExists.call(this, path, options);
+			return Promise.resolve(true);
 		};
 
 		patchBunS3ForStorageDev();
@@ -549,15 +541,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalStat = Bun.S3Client.prototype.stat;
 
 		Bun.S3Client.prototype.stat = function spyStat(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalStat.call(this, path, options);
+			return Promise.resolve({ size: 0, etag: '', lastModified: new Date(), type: 'text/plain' });
 		};
 
 		patchBunS3ForStorageDev();
@@ -578,15 +569,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalSize = Bun.S3Client.prototype.size;
 
 		Bun.S3Client.prototype.size = function spySize(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalSize.call(this, path, options);
+			return Promise.resolve(0);
 		};
 
 		patchBunS3ForStorageDev();
@@ -607,15 +597,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalUnlink = Bun.S3Client.prototype.unlink;
 
 		Bun.S3Client.prototype.unlink = function spyUnlink(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalUnlink.call(this, path, options);
+			return Promise.resolve();
 		};
 
 		patchBunS3ForStorageDev();
@@ -636,15 +625,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalDelete = Bun.S3Client.prototype.delete;
 
 		Bun.S3Client.prototype.delete = function spyDelete(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalDelete.call(this, path, options);
+			return Promise.resolve();
 		};
 
 		patchBunS3ForStorageDev();
@@ -665,15 +653,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalExists = Bun.S3Client.prototype.exists;
 
 		Bun.S3Client.prototype.exists = function spyExists(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalExists.call(this, path, options);
+			return Promise.resolve(true);
 		};
 
 		patchBunS3ForStorageDev();
@@ -694,15 +681,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalStat = Bun.S3Client.prototype.stat;
 
 		Bun.S3Client.prototype.stat = function spyStat(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalStat.call(this, path, options);
+			return Promise.resolve({ size: 0, etag: '', lastModified: new Date(), type: 'text/plain' });
 		};
 
 		patchBunS3ForStorageDev();
@@ -723,15 +709,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalSize = Bun.S3Client.prototype.size;
 
 		Bun.S3Client.prototype.size = function spySize(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalSize.call(this, path, options);
+			return Promise.resolve(0);
 		};
 
 		patchBunS3ForStorageDev();
@@ -752,15 +737,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalUnlink = Bun.S3Client.prototype.unlink;
 
 		Bun.S3Client.prototype.unlink = function spyUnlink(
 			this: unknown,
-			path: string,
+			_path: string,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalUnlink.call(this, path, options);
+			return Promise.resolve();
 		};
 
 		patchBunS3ForStorageDev();
@@ -781,15 +765,14 @@ describe('patchBunS3ForStorageDev', () => {
 		process.env.S3_ENDPOINT = 'https://ag-123.t3.storage.dev';
 
 		let capturedOptions: Record<string, unknown> | undefined;
-		const originalList = Bun.S3Client.prototype.list;
 
 		Bun.S3Client.prototype.list = function spyList(
 			this: unknown,
-			input?: Record<string, unknown> | null,
+			_input?: Record<string, unknown> | null,
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return originalList.call(this, input, options);
+			return Promise.resolve({ contents: [], isTruncated: false });
 		};
 
 		patchBunS3ForStorageDev();
