@@ -85,4 +85,4 @@ export type {
 	AgentuityAuthInterface,
 } from './agentuity/types';
 
-export type { AgentuityAuth, AgentuityAuthUser } from './types';
+export type { AgentuityAuth } from './types';

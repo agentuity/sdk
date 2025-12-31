@@ -39,7 +39,7 @@ if (!DATABASE_URL) {
  */
 export const auth = createAgentuityAuth({
 	// Simplest setup: just provide the connection string
-	// We create pg pool + Drizzle internally with joins enabled
+	// We create Bun.sql + Drizzle internally with joins enabled
 	connectionString: DATABASE_URL,
 	// All options below have sensible defaults and can be omitted:
 	// secret: process.env.AGENTUITY_AUTH_SECRET, // auto-resolved from env

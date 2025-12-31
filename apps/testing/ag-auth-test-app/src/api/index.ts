@@ -27,16 +27,10 @@ api.post('/hello', optionalAuthMiddleware, hello.validator(), async (c) => {
 api.get('/me', authMiddleware, async (c) => {
 	const user = await c.var.auth.getUser();
 
-	// Detect auth method for demo purposes
-	const apiKeyHeader = c.req.header('x-api-key') ?? c.req.header('X-API-KEY');
-	const bearerHeader = c.req.header('authorization')?.toLowerCase().startsWith('bearer ');
-	const authMethod = apiKeyHeader ? 'api-key' : bearerHeader ? 'bearer' : 'session';
-
 	return c.json({
 		id: user.id,
 		name: user.name,
 		email: user.email,
-		authMethod,
 	});
 });
 

@@ -8,7 +8,7 @@
 
 import type { Context, MiddlewareHandler } from 'hono';
 import { context, trace, SpanStatusCode } from '@opentelemetry/api';
-import type { AgentuityAuthUser } from '../types';
+
 import type { AgentuityAuthBase } from './config';
 import type {
 	AgentuityUser,
@@ -141,20 +141,12 @@ function buildAgentuityAuth(
 	authMethod: AgentuityAuthMethod,
 	apiKeyContext: AgentuityApiKeyContext | null
 ): AgentuityAuthInterface<AgentuityUser> {
-	let cachedUser: AgentuityAuthUser<AgentuityUser> | null = null;
 	let cachedFullOrg: AgentuityOrgContext | null | undefined = undefined;
 	const permissions = apiKeyContext?.permissions ?? null;
 
 	return {
 		async getUser() {
-			if (cachedUser) return cachedUser;
-			cachedUser = {
-				id: user.id,
-				name: user.name ?? undefined,
-				email: user.email ?? undefined,
-				raw: user,
-			};
-			return cachedUser;
+			return user;
 		},
 
 		async getToken() {
@@ -376,7 +368,7 @@ export function createSessionMiddleware(
 				span.setAttributes({
 					'auth.user.id': user.id ?? '',
 					'auth.method': authMethod,
-					'auth.provider': 'BetterAuth',
+					'auth.provider': 'AgentuityAuth',
 				});
 
 				if (includeEmail && user.email) {
@@ -521,7 +513,7 @@ export function createApiKeyMiddleware(
 			if (span) {
 				span.setAttributes({
 					'auth.method': 'api-key',
-					'auth.provider': 'BetterAuth',
+					'auth.provider': 'AgentuityAuth',
 					'auth.api_key.id': apiKeyContext.id,
 				});
 

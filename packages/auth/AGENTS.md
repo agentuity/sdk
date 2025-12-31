@@ -24,7 +24,7 @@ First-class authentication for Agentuity projects, powered by BetterAuth. Provid
 ```
 src/
 ├── index.ts           # Root package exports (server + client)
-├── types.ts           # Generic AgentuityAuth, AgentuityAuthUser interfaces
+├── types.ts           # Generic AgentuityAuth interface
 ├── schema.ts          # Drizzle table definitions and relations
 └── agentuity/
     ├── index.tsx      # Main exports (re-exports from submodules)
