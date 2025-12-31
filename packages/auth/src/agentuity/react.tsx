@@ -1,25 +1,27 @@
 /**
- * Agentuity Auth React integration.
+ * Auth React integration for @agentuity/auth.
  *
- * All React-specific code for Agentuity Auth.
+ * All React-specific code for auth.
  * Import from '@agentuity/auth/react' for React components and hooks.
  *
  * @module agentuity/react
  */
 
 import React, { useEffect, createContext, useContext, useState, useMemo } from 'react';
-import { createAuthClient } from 'better-auth/react';
+import { createAuthClient as createBetterAuthClient } from 'better-auth/react';
 import { organizationClient, apiKeyClient } from 'better-auth/client/plugins';
-import { useAuth } from '@agentuity/react';
+import { useAuth as useAgentuityReactAuth } from '@agentuity/react';
+
+import type { AuthSession } from './types';
 
 // =============================================================================
 // Auth Client Factory
 // =============================================================================
 
 /**
- * Options for creating the Agentuity auth client.
+ * Options for creating the auth client.
  */
-export interface AgentuityAuthClientOptions {
+export interface AuthClientOptions {
 	/**
 	 * Base URL for auth API requests.
 	 * Defaults to `window.location.origin` in browser environments.
@@ -46,7 +48,7 @@ export interface AgentuityAuthClientOptions {
 }
 
 /**
- * Get the default client plugins for Agentuity auth.
+ * Get the default client plugins for auth.
  *
  * These mirror the server-side plugins:
  * - organizationClient: Multi-tenancy support
@@ -59,7 +61,7 @@ export function getDefaultClientPlugins() {
 }
 
 /**
- * Create a pre-configured Agentuity Auth client.
+ * Create a pre-configured Auth client.
  *
  * This factory provides sensible defaults for Agentuity projects:
  * - Uses `/api/auth` as the default base path
@@ -68,15 +70,15 @@ export function getDefaultClientPlugins() {
  *
  * @example Basic usage (zero config)
  * ```typescript
- * import { createAgentuityAuthClient } from '@agentuity/auth/react';
+ * import { createAuthClient } from '@agentuity/auth/react';
  *
- * export const authClient = createAgentuityAuthClient();
+ * export const authClient = createAuthClient();
  * export const { signIn, signUp, signOut, useSession, getSession } = authClient;
  * ```
  *
  * @example With custom base path
  * ```typescript
- * export const authClient = createAgentuityAuthClient({
+ * export const authClient = createAuthClient({
  *   basePath: '/auth', // If mounted at /auth instead of /api/auth
  * });
  * ```
@@ -85,7 +87,7 @@ export function getDefaultClientPlugins() {
  * ```typescript
  * import { twoFactorClient } from 'better-auth/client/plugins';
  *
- * export const authClient = createAgentuityAuthClient({
+ * export const authClient = createAuthClient({
  *   plugins: [twoFactorClient()],
  * });
  * ```
@@ -94,13 +96,13 @@ export function getDefaultClientPlugins() {
  * ```typescript
  * import { organizationClient } from 'better-auth/client/plugins';
  *
- * export const authClient = createAgentuityAuthClient({
+ * export const authClient = createAuthClient({
  *   skipDefaultPlugins: true,
  *   plugins: [organizationClient()],
  * });
  * ```
  */
-export function createAgentuityAuthClient(options: AgentuityAuthClientOptions = {}) {
+export function createAuthClient(options: AuthClientOptions = {}) {
 	const baseURL = options.baseURL ?? (typeof window !== 'undefined' ? window.location.origin : '');
 	const basePath = options.basePath ?? '/api/auth';
 
@@ -108,7 +110,7 @@ export function createAgentuityAuthClient(options: AgentuityAuthClientOptions = 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const plugins = [...defaultPlugins, ...(options.plugins ?? [])] as any[];
 
-	return createAuthClient({
+	return createBetterAuthClient({
 		baseURL,
 		basePath,
 		plugins,
@@ -118,7 +120,7 @@ export function createAgentuityAuthClient(options: AgentuityAuthClientOptions = 
 /**
  * Type helper for the auth client return type.
  */
-export type AgentuityAuthClient = ReturnType<typeof createAgentuityAuthClient>;
+export type AuthClient = ReturnType<typeof createAuthClient>;
 
 // =============================================================================
 // React Provider and Hooks
@@ -127,7 +129,7 @@ export type AgentuityAuthClient = ReturnType<typeof createAgentuityAuthClient>;
 /**
  * User data from the auth client.
  */
-export interface AgentuityAuthUser {
+export interface AuthUser {
 	id: string;
 	name?: string;
 	email?: string;
@@ -138,13 +140,15 @@ export interface AgentuityAuthUser {
 }
 
 /**
- * Context value for Agentuity Auth.
+ * Context value for Auth.
  */
-export interface AgentuityAuthContextValue {
+export interface AuthContextValue {
 	/** The auth client instance */
-	authClient: AgentuityAuthClient;
+	authClient: AuthClient;
 	/** Current authenticated user, or null if not signed in */
-	user: AgentuityAuthUser | null;
+	user: AuthUser | null;
+	/** Current session object (if available) */
+	session: AuthSession | null;
 	/** Whether the auth state is still loading */
 	isPending: boolean;
 	/** Any error that occurred while fetching auth state */
@@ -153,17 +157,17 @@ export interface AgentuityAuthContextValue {
 	isAuthenticated: boolean;
 }
 
-const AgentuityAuthContext = createContext<AgentuityAuthContextValue | null>(null);
+const AuthContext = createContext<AuthContextValue | null>(null);
 
-export interface AgentuityAuthProviderProps {
+export interface AuthProviderProps {
 	/** React children to render */
 	children: React.ReactNode;
 
 	/**
-	 * The auth client instance created with createAgentuityAuthClient().
+	 * The auth client instance created with createAuthClient().
 	 * Required for session management.
 	 */
-	authClient: AgentuityAuthClient;
+	authClient: AuthClient;
 
 	/**
 	 * Token refresh interval in milliseconds.
@@ -178,21 +182,21 @@ export interface AgentuityAuthProviderProps {
 	 *
 	 * @example Custom token endpoint
 	 * ```tsx
-	 * <AgentuityAuthProvider authClient={authClient} tokenEndpoint="/api/custom/jwt">
+	 * <AuthProvider authClient={authClient} tokenEndpoint="/api/custom/jwt">
 	 * ```
 	 *
 	 * @example Disable token fetching
 	 * ```tsx
-	 * <AgentuityAuthProvider authClient={authClient} tokenEndpoint={false}>
+	 * <AuthProvider authClient={authClient} tokenEndpoint={false}>
 	 * ```
 	 */
 	tokenEndpoint?: string | false;
 }
 
 /**
- * Agentuity Auth provider component.
+ * Auth provider component.
  *
- * This component integrates Agentuity Auth with Agentuity's React context,
+ * This component integrates Auth with Agentuity's React context,
  * automatically injecting auth tokens into API calls via useAgent and useWebsocket.
  *
  * Must be a child of AgentuityProvider.
@@ -200,25 +204,26 @@ export interface AgentuityAuthProviderProps {
  * @example
  * ```tsx
  * import { AgentuityProvider } from '@agentuity/react';
- * import { createAgentuityAuthClient, AgentuityAuthProvider } from '@agentuity/auth/react';
+ * import { createAuthClient, AuthProvider } from '@agentuity/auth/react';
  *
- * const authClient = createAgentuityAuthClient();
+ * const authClient = createAuthClient();
  *
  * <AgentuityProvider>
- *   <AgentuityAuthProvider authClient={authClient}>
+ *   <AuthProvider authClient={authClient}>
  *     <App />
- *   </AgentuityAuthProvider>
+ *   </AuthProvider>
  * </AgentuityProvider>
  * ```
  */
-export function AgentuityAuthProvider({
+export function AuthProvider({
 	children,
 	authClient,
 	refreshInterval = 60000,
 	tokenEndpoint = '/token',
-}: AgentuityAuthProviderProps) {
-	const { setAuthHeader, setAuthLoading } = useAuth();
-	const [user, setUser] = useState<AgentuityAuthUser | null>(null);
+}: AuthProviderProps) {
+	const { setAuthHeader, setAuthLoading } = useAgentuityReactAuth();
+	const [user, setUser] = useState<AuthUser | null>(null);
+	const [session, setSession] = useState<AuthSession | null>(null);
 	const [isPending, setIsPending] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
 
@@ -235,7 +240,8 @@ export function AgentuityAuthProvider({
 				const result = await authClient.getSession();
 
 				if (result.data?.user) {
-					setUser(result.data.user as AgentuityAuthUser);
+					setUser(result.data.user as AuthUser);
+					setSession((result.data.session as AuthSession) ?? null);
 
 					// Get the JWT token for API calls (unless disabled)
 					if (tokenEndpoint !== false) {
@@ -256,12 +262,14 @@ export function AgentuityAuthProvider({
 					}
 				} else {
 					setUser(null);
+					setSession(null);
 					setAuthHeader(null);
 				}
 			} catch (err) {
-				console.error('[AgentuityAuthProvider] Failed to get auth state:', err);
+				console.error('[AuthProvider] Failed to get auth state:', err);
 				setError(err instanceof Error ? err : new Error('Failed to get auth state'));
 				setUser(null);
+				setSession(null);
 				setAuthHeader(null);
 			} finally {
 				setAuthLoading(false);
@@ -279,30 +287,29 @@ export function AgentuityAuthProvider({
 		() => ({
 			authClient,
 			user,
+			session,
 			isPending,
 			error,
 			isAuthenticated: !isPending && user !== null,
 		}),
-		[authClient, user, isPending, error]
+		[authClient, user, session, isPending, error]
 	);
 
-	return (
-		<AgentuityAuthContext.Provider value={contextValue}>{children}</AgentuityAuthContext.Provider>
-	);
+	return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 }
 
 /**
- * Hook to access Agentuity Auth state.
+ * Hook to access Auth state.
  *
- * This hook provides access to the current user from Agentuity Auth.
- * Must be used within an AgentuityAuthProvider.
+ * This hook provides access to the current user and session.
+ * Must be used within an AuthProvider.
  *
  * @example
  * ```tsx
- * import { useAgentuityAuth } from '@agentuity/auth/react';
+ * import { useAuth } from '@agentuity/auth/react';
  *
  * function Profile() {
- *   const { user, isPending, isAuthenticated } = useAgentuityAuth();
+ *   const { user, session, isPending, isAuthenticated } = useAuth();
  *
  *   if (isPending) return <div>Loading...</div>;
  *   if (!isAuthenticated) return <div>Not signed in</div>;
@@ -311,10 +318,10 @@ export function AgentuityAuthProvider({
  * }
  * ```
  */
-export function useAgentuityAuth(): AgentuityAuthContextValue {
-	const context = useContext(AgentuityAuthContext);
+export function useAuth(): AuthContextValue {
+	const context = useContext(AuthContext);
 	if (!context) {
-		throw new Error('useAgentuityAuth must be used within an AgentuityAuthProvider');
+		throw new Error('useAuth must be used within an AuthProvider');
 	}
 	return context;
 }

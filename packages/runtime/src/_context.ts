@@ -8,7 +8,7 @@ import {
 	type VectorStorage,
 	type SandboxService,
 } from '@agentuity/core';
-import type { AgentuityAuthInterface } from '@agentuity/auth/types';
+import type { AuthInterface } from '@agentuity/auth/types';
 import type { AgentContext, AgentRegistry, AgentRunner, AgentRuntimeState } from './agent';
 import { AGENT_RUNTIME, CURRENT_AGENT } from './_config';
 import type { Logger } from './logger';
@@ -31,7 +31,7 @@ export interface RequestAgentContextArgs<
 	config: TConfig;
 	app: TAppState;
 	runtime: AgentRuntimeState;
-	auth?: AgentuityAuthInterface | null;
+	auth?: AuthInterface | null;
 }
 
 export class RequestAgentContext<
@@ -60,7 +60,7 @@ export class RequestAgentContext<
 	 * Fallback auth value for non-HTTP contexts (standalone, tests, etc.)
 	 * @internal
 	 */
-	private _initialAuth: AgentuityAuthInterface | null;
+	private _initialAuth: AuthInterface | null;
 
 	/**
 	 * Authentication context - lazily reads from HTTP context if available.
@@ -69,7 +69,7 @@ export class RequestAgentContext<
 	 * allowing auth middleware that runs after the agent middleware to still
 	 * propagate auth to agents.
 	 */
-	get auth(): AgentuityAuthInterface | null {
+	get auth(): AuthInterface | null {
 		// Prefer HTTP context var.auth if available (allows late-binding from route middleware)
 		if (inHTTPContext()) {
 			try {
@@ -86,7 +86,7 @@ export class RequestAgentContext<
 		return this._initialAuth;
 	}
 
-	set auth(value: AgentuityAuthInterface | null) {
+	set auth(value: AuthInterface | null) {
 		this._initialAuth = value;
 	}
 

@@ -1,6 +1,6 @@
 import { createRouter } from '@agentuity/runtime';
-import { mountAgentuityAuthRoutes } from '@agentuity/auth';
-import { auth, authMiddleware, optionalAuthMiddleware } from '../auth';
+import { mountAuthRoutes, createSessionMiddleware } from '@agentuity/auth';
+import { auth } from '../auth';
 
 import hello from '@agent/hello';
 
@@ -10,7 +10,7 @@ const api = createRouter();
  * Mount auth routes for authentication.
  * Handles: sign-in, sign-up, sign-out, session, password reset, etc.
  */
-api.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(auth));
+api.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
 
 /**
  * Public endpoint - available to everyone.
@@ -23,9 +23,9 @@ api.post('/hello', hello.validator(), async (c) => {
 
 /**
  * Protected endpoint - requires authentication.
- * Add authMiddleware to protect routes.
+ * Add createSessionMiddleware to protect routes.
  */
-api.get('/me', authMiddleware, async (c) => {
+api.get('/me', createSessionMiddleware(auth), async (c) => {
 	const user = await c.var.auth.getUser();
 	return c.json({
 		id: user.id,
@@ -37,7 +37,7 @@ api.get('/me', authMiddleware, async (c) => {
 /**
  * Optional auth endpoint - works for both anonymous and authenticated users.
  */
-api.get('/greeting', optionalAuthMiddleware, async (c) => {
+api.get('/greeting', createSessionMiddleware(auth, { optional: true }), async (c) => {
 	const user = c.var.user;
 	if (user) {
 		return c.json({ message: `Hello, ${user.name || user.email}!` });

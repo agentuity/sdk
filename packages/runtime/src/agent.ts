@@ -317,7 +317,7 @@ export interface AgentContext<
 	 * }
 	 * ```
 	 */
-	auth: import('@agentuity/auth/types').AgentuityAuthInterface | null;
+	auth: import('@agentuity/auth/types').AuthInterface | null;
 }
 
 type InternalAgentMetadata = {

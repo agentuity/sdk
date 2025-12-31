@@ -1,32 +1,32 @@
 /**
  * @agentuity/auth - Authentication for Agentuity projects
  *
- * Provides first-class authentication using Agentuity Auth (powered by BetterAuth).
+ * Provides first-class authentication powered by BetterAuth.
  *
  * This is the server-only entry point. For React components, import from '@agentuity/auth/react'.
  *
  * @example Server-side setup
  * ```typescript
- * import { createAgentuityAuth, createSessionMiddleware, mountAgentuityAuthRoutes } from '@agentuity/auth';
+ * import { createAuth, createSessionMiddleware, mountAuthRoutes } from '@agentuity/auth';
  *
- * const auth = createAgentuityAuth({
+ * const auth = createAuth({
  *   connectionString: process.env.DATABASE_URL,
  * });
  *
- * api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
+ * api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
  * api.use('/api/*', createSessionMiddleware(auth));
  * ```
  *
  * @example Client-side setup
  * ```tsx
- * import { createAgentuityAuthClient, AgentuityAuthProvider } from '@agentuity/auth/react';
+ * import { createAuthClient, AuthProvider } from '@agentuity/auth/react';
  *
- * const authClient = createAgentuityAuthClient();
+ * const authClient = createAuthClient();
  *
  * <AgentuityProvider>
- *   <AgentuityAuthProvider authClient={authClient}>
+ *   <AuthProvider authClient={authClient}>
  *     <App />
- *   </AgentuityAuthProvider>
+ *   </AuthProvider>
  * </AgentuityProvider>
  * ```
  *
@@ -37,15 +37,11 @@
 // Config
 // =============================================================================
 
-export {
-	createAgentuityAuth,
-	withAgentuityAuth,
-	getDefaultPlugins,
-	DEFAULT_API_KEY_OPTIONS,
-} from './agentuity/config';
+export { createAuth, getDefaultPlugins, DEFAULT_API_KEY_OPTIONS } from './agentuity/config';
 export type {
-	AgentuityAuthOptions,
-	AgentuityAuthInstance,
+	AuthOptions,
+	AuthInstance,
+	AuthBase,
 	ApiKeyPluginOptions,
 	OrganizationApiMethods,
 	ApiKeyApiMethods,
@@ -60,14 +56,14 @@ export type {
 export {
 	createSessionMiddleware,
 	createApiKeyMiddleware,
-	mountAgentuityAuthRoutes,
+	mountAuthRoutes,
 } from './agentuity/server';
 export type {
-	AgentuityMiddlewareOptions,
-	AgentuityApiKeyMiddlewareOptions,
-	AgentuityAuthEnv,
+	AuthMiddlewareOptions,
+	ApiKeyMiddlewareOptions,
+	AuthEnv,
 	OtelSpansConfig,
-	MountAgentuityAuthRoutesOptions,
+	MountAuthRoutesOptions,
 } from './agentuity/server';
 
 // =============================================================================
@@ -75,14 +71,16 @@ export type {
 // =============================================================================
 
 export type {
-	AgentuityAuthContext,
-	AgentuityOrgContext,
-	AgentuityApiKeyContext,
-	AgentuityApiKeyPermissions,
-	AgentuityAuthMethod,
-	AgentuityOrgHelpers,
-	AgentuityApiKeyHelpers,
-	AgentuityAuthInterface,
+	AuthContext,
+	AuthOrgContext,
+	AuthApiKeyContext,
+	AuthApiKeyPermissions,
+	AuthMethod,
+	AuthOrgHelpers,
+	AuthApiKeyHelpers,
+	AuthInterface,
+	AuthUser,
+	AuthSession,
 } from './agentuity/types';
 
 export type { AgentuityAuth } from './types';

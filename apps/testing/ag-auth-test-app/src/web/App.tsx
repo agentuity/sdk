@@ -85,16 +85,16 @@ export function App() {
 							<span>Generate a poem about me (uses AI)</span>
 						</label>
 						<p className="poem-note">
-							This triggers an agent-to-agent handoff to the Poem Agent,
-							demonstrating auth propagation via withSession.
+							This triggers an agent-to-agent handoff to the Poem Agent, demonstrating auth
+							propagation via withSession.
 						</p>
 					</div>
 
 					<div className="output" data-loading={!greeting}>
 						{greeting
-							? (greeting as string).split('\n').map((line, i) => (
-									<div key={i}>{line || '\u00A0'}</div>
-								))
+							? (greeting as string)
+									.split('\n')
+									.map((line, i) => <div key={i}>{line || '\u00A0'}</div>)
 							: 'Waiting for request'}
 					</div>
 				</div>

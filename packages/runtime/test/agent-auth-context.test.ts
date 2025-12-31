@@ -14,7 +14,7 @@ import {
 	getAgentAsyncLocalStorage,
 	type RequestAgentContextArgs,
 } from '../src/_context';
-import type { AgentuityAuthInterface } from '@agentuity/auth/types';
+import type { AuthInterface } from '@agentuity/auth/types';
 import { trace } from '@opentelemetry/api';
 
 // Create a proper mock tracer
@@ -32,7 +32,7 @@ const createMockLogger = () => ({
 });
 
 // Helper to create mock auth
-const createMockAuth = (userId: string): AgentuityAuthInterface => ({
+const createMockAuth = (userId: string): AuthInterface => ({
 	user: { id: userId, email: `${userId}@example.com`, name: 'Test User' },
 	session: { id: 'session-123', userId },
 	authMethod: 'session',
@@ -54,7 +54,7 @@ describe('Agent Auth Context Lazy Binding', () => {
 		// 3. Agent handler reads ctx.auth (should get the auth set in step 2)
 
 		const app = new Hono();
-		let capturedAuth: AgentuityAuthInterface | null = null;
+		let capturedAuth: AuthInterface | null = null;
 
 		app.use('*', async (c, next) => {
 			// Wrap in HTTP context (like createBaseMiddleware does)
@@ -73,7 +73,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 				handler: { waitUntil: () => {} } as any,
 				config: {},
 				app: {},
-				runtime: { agents: new Map(), agentConfigs: new Map(), agentEventListeners: new WeakMap() },
+				runtime: {
+					agents: new Map(),
+					agentConfigs: new Map(),
+					agentEventListeners: new WeakMap(),
+				},
 				auth: c.var.auth ?? null, // This is null at this point!
 			};
 
@@ -131,7 +135,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 			handler: { waitUntil: () => {} } as any,
 			config: {},
 			app: {},
-			runtime: { agents: new Map(), agentConfigs: new Map(), agentEventListeners: new WeakMap() },
+			runtime: {
+				agents: new Map(),
+				agentConfigs: new Map(),
+				agentEventListeners: new WeakMap(),
+			},
 			auth: mockAuth,
 		});
 
@@ -151,7 +159,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 			handler: { waitUntil: () => {} } as any,
 			config: {},
 			app: {},
-			runtime: { agents: new Map(), agentConfigs: new Map(), agentEventListeners: new WeakMap() },
+			runtime: {
+				agents: new Map(),
+				agentConfigs: new Map(),
+				agentEventListeners: new WeakMap(),
+			},
 			// No auth passed
 		});
 
@@ -169,7 +181,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 			handler: { waitUntil: () => {} } as any,
 			config: {},
 			app: {},
-			runtime: { agents: new Map(), agentConfigs: new Map(), agentEventListeners: new WeakMap() },
+			runtime: {
+				agents: new Map(),
+				agentConfigs: new Map(),
+				agentEventListeners: new WeakMap(),
+			},
 		});
 
 		expect(ctx.auth).toBeNull();
@@ -185,7 +201,7 @@ describe('Agent Auth Context Lazy Binding', () => {
 
 	test('HTTP context auth takes precedence over initial auth', async () => {
 		const app = new Hono();
-		let capturedAuth: AgentuityAuthInterface | null = null;
+		let capturedAuth: AuthInterface | null = null;
 
 		app.use('*', async (c, next) => {
 			await runInHTTPContext(c, next);
@@ -203,7 +219,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 				handler: { waitUntil: () => {} } as any,
 				config: {},
 				app: {},
-				runtime: { agents: new Map(), agentConfigs: new Map(), agentEventListeners: new WeakMap() },
+				runtime: {
+					agents: new Map(),
+					agentConfigs: new Map(),
+					agentEventListeners: new WeakMap(),
+				},
 				auth: createMockAuth('initial-auth'), // Initial auth
 			};
 

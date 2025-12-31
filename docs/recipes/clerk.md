@@ -34,15 +34,15 @@ import { ClerkAuthBridge } from './ClerkAuthBridge';
 const CLERK_PUBLISHABLE_KEY = import.meta.env.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-      <AgentuityProvider>
-        <ClerkAuthBridge>
-          <App />
-        </ClerkAuthBridge>
-      </AgentuityProvider>
-    </ClerkProvider>
-  </React.StrictMode>
+	<React.StrictMode>
+		<ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+			<AgentuityProvider>
+				<ClerkAuthBridge>
+					<App />
+				</ClerkAuthBridge>
+			</AgentuityProvider>
+		</ClerkProvider>
+	</React.StrictMode>
 );
 ```
 
@@ -57,44 +57,41 @@ import { useAuth as useClerkAuth } from '@clerk/clerk-react';
 import { useAuth } from '@agentuity/react';
 
 interface ClerkAuthBridgeProps {
-  children: ReactNode;
-  refreshInterval?: number;
+	children: ReactNode;
+	refreshInterval?: number;
 }
 
-export function ClerkAuthBridge({ 
-  children, 
-  refreshInterval = 60000 
-}: ClerkAuthBridgeProps) {
-  const { getToken, isLoaded, isSignedIn } = useClerkAuth();
-  const { setAuthHeader, setAuthLoading } = useAuth();
+export function ClerkAuthBridge({ children, refreshInterval = 60000 }: ClerkAuthBridgeProps) {
+	const { getToken, isLoaded, isSignedIn } = useClerkAuth();
+	const { setAuthHeader, setAuthLoading } = useAuth();
 
-  useEffect(() => {
-    if (!setAuthHeader || !setAuthLoading) return;
+	useEffect(() => {
+		if (!setAuthHeader || !setAuthLoading) return;
 
-    const fetchToken = async () => {
-      setAuthLoading(true);
-      try {
-        if (isLoaded && isSignedIn) {
-          const token = await getToken();
-          setAuthHeader(token ? `Bearer ${token}` : null);
-        } else {
-          setAuthHeader(null);
-        }
-      } catch (error) {
-        console.error('Failed to get Clerk token:', error);
-        setAuthHeader(null);
-      } finally {
-        setAuthLoading(false);
-      }
-    };
+		const fetchToken = async () => {
+			setAuthLoading(true);
+			try {
+				if (isLoaded && isSignedIn) {
+					const token = await getToken();
+					setAuthHeader(token ? `Bearer ${token}` : null);
+				} else {
+					setAuthHeader(null);
+				}
+			} catch (error) {
+				console.error('Failed to get Clerk token:', error);
+				setAuthHeader(null);
+			} finally {
+				setAuthLoading(false);
+			}
+		};
 
-    fetchToken();
+		fetchToken();
 
-    const interval = setInterval(fetchToken, refreshInterval);
-    return () => clearInterval(interval);
-  }, [getToken, isLoaded, isSignedIn, refreshInterval, setAuthHeader, setAuthLoading]);
+		const interval = setInterval(fetchToken, refreshInterval);
+		return () => clearInterval(interval);
+	}, [getToken, isLoaded, isSignedIn, refreshInterval, setAuthHeader, setAuthLoading]);
 
-  return <>{children}</>;
+	return <>{children}</>;
 }
 ```
 
@@ -105,23 +102,23 @@ import { useAuth } from '@agentuity/react';
 import { useUser, SignInButton, UserButton } from '@clerk/clerk-react';
 
 function Header() {
-  const { isAuthenticated, authLoading } = useAuth();
-  const { user } = useUser();
+	const { isAuthenticated, authLoading } = useAuth();
+	const { user } = useUser();
 
-  if (authLoading) return <div>Loading...</div>;
+	if (authLoading) return <div>Loading...</div>;
 
-  return (
-    <header>
-      {isAuthenticated ? (
-        <>
-          <span>Welcome, {user?.firstName}!</span>
-          <UserButton />
-        </>
-      ) : (
-        <SignInButton />
-      )}
-    </header>
-  );
+	return (
+		<header>
+			{isAuthenticated ? (
+				<>
+					<span>Welcome, {user?.firstName}!</span>
+					<UserButton />
+				</>
+			) : (
+				<SignInButton />
+			)}
+		</header>
+	);
 }
 ```
 
@@ -137,70 +134,65 @@ import type { MiddlewareHandler, Context } from 'hono';
 import { createClerkClient, type User } from '@clerk/backend';
 
 interface ClerkAuthContext {
-  user: User;
-  userId: string;
+	user: User;
+	userId: string;
 }
 
 declare module 'hono' {
-  interface ContextVariableMap {
-    clerkAuth: ClerkAuthContext | null;
-  }
+	interface ContextVariableMap {
+		clerkAuth: ClerkAuthContext | null;
+	}
 }
 
 interface ClerkMiddlewareOptions {
-  secretKey?: string;
-  optional?: boolean;
+	secretKey?: string;
+	optional?: boolean;
 }
 
-export function createClerkMiddleware(
-  options: ClerkMiddlewareOptions = {}
-): MiddlewareHandler {
-  const { 
-    secretKey = process.env.CLERK_SECRET_KEY,
-    optional = false 
-  } = options;
+export function createClerkMiddleware(options: ClerkMiddlewareOptions = {}): MiddlewareHandler {
+	const { secretKey = process.env.CLERK_SECRET_KEY, optional = false } = options;
 
-  if (!secretKey) {
-    throw new Error('CLERK_SECRET_KEY is required');
-  }
+	if (!secretKey) {
+		throw new Error('CLERK_SECRET_KEY is required');
+	}
 
-  const clerk = createClerkClient({ secretKey });
+	const clerk = createClerkClient({ secretKey });
 
-  return async (c: Context, next) => {
-    const authHeader = c.req.header('Authorization');
-    
-    if (!authHeader?.startsWith('Bearer ')) {
-      if (optional) {
-        c.set('clerkAuth', null);
-        await next();
-        return;
-      }
-      return c.json({ error: 'Unauthorized' }, 401);
-    }
+	return async (c: Context, next) => {
+		const authHeader = c.req.header('Authorization');
 
-    const token = authHeader.slice(7);
+		if (!authHeader?.startsWith('Bearer ')) {
+			if (optional) {
+				c.set('clerkAuth', null);
+				await next();
+				return;
+			}
+			return c.json({ error: 'Unauthorized' }, 401);
+		}
 
-    try {
-      const payload = await clerk.verifyToken(token);
-      const user = await clerk.users.getUser(payload.sub);
+		const token = authHeader.slice(7);
 
-      c.set('clerkAuth', {
-        user,
-        userId: user.id,
-      });
+		try {
+			const payload = await clerk.verifyToken(token);
+			const user = await clerk.users.getUser(payload.sub);
 
-      await next();
-    } catch (error) {
-      console.error('Clerk verification failed:', error);
-      
-      if (optional) {
-        c.set('clerkAuth', null);
-        await next();
-        return;
-      }
-      return c.json({ error: 'Unauthorized' }, 401);
-    }
-  };
+			c.set('clerkAuth', {
+				user,
+				userId: user.id,
+			});
+
+			await next();
+		} catch (error) {
+			console.error('Clerk verification failed:', error);
+
+			if (optional) {
+				c.set('clerkAuth', null);
+				await next();
+				return;
+			}
+			return c.json({ error: 'Unauthorized' }, 401);
+		}
+	};
 }
 ```
 
@@ -217,12 +209,12 @@ const api = createRouter();
 api.use('/api/*', createClerkMiddleware());
 
 api.get('/api/profile', async (c) => {
-  const auth = c.var.clerkAuth!;
-  return c.json({
-    id: auth.userId,
-    email: auth.user.emailAddresses[0]?.emailAddress,
-    name: `${auth.user.firstName} ${auth.user.lastName}`,
-  });
+	const auth = c.var.clerkAuth!;
+	return c.json({
+		id: auth.userId,
+		email: auth.user.emailAddresses[0]?.emailAddress,
+		name: `${auth.user.firstName} ${auth.user.lastName}`,
+	});
 });
 
 export default api;
@@ -237,16 +229,16 @@ For agents, pass auth info through context or headers:
 import { createAgent } from '@agentuity/runtime';
 
 export default createAgent('my-agent', {
-  handler: async (ctx, input) => {
-    // Access Clerk user ID from headers if passed
-    const userId = ctx.headers.get('x-clerk-user-id');
-    
-    if (!userId) {
-      return { error: 'Unauthorized' };
-    }
+	handler: async (ctx, input) => {
+		// Access Clerk user ID from headers if passed
+		const userId = ctx.headers.get('x-clerk-user-id');
 
-    return { userId, message: 'Hello from agent!' };
-  },
+		if (!userId) {
+			return { error: 'Unauthorized' };
+		}
+
+		return { userId, message: 'Hello from agent!' };
+	},
 });
 ```
 
@@ -264,14 +256,14 @@ Get your keys from the [Clerk Dashboard](https://dashboard.clerk.com).
 
 ## Differences from Agentuity Auth
 
-| Feature | Agentuity Auth | Clerk |
-|---------|---------------|-------|
-| `ctx.auth` on AgentContext | ✅ Native | ❌ Manual |
-| Database-backed sessions | ✅ Built-in | ❌ External |
-| Organizations | ✅ Built-in | ✅ With Clerk Orgs |
-| API Keys | ✅ Built-in | ❌ Not available |
-| Self-hosted | ✅ Yes | ❌ Cloud only |
-| Pricing | ✅ Free | 💰 Per MAU |
+| Feature                    | Agentuity Auth | Clerk              |
+| -------------------------- | -------------- | ------------------ |
+| `ctx.auth` on AgentContext | ✅ Native      | ❌ Manual          |
+| Database-backed sessions   | ✅ Built-in    | ❌ External        |
+| Organizations              | ✅ Built-in    | ✅ With Clerk Orgs |
+| API Keys                   | ✅ Built-in    | ❌ Not available   |
+| Self-hosted                | ✅ Yes         | ❌ Cloud only      |
+| Pricing                    | ✅ Free        | 💰 Per MAU         |
 
 ## Migration to Agentuity Auth
 
@@ -298,11 +290,11 @@ Ensure `ClerkAuthBridge` is inside both `ClerkProvider` and `AgentuityProvider`:
 
 ```tsx
 <ClerkProvider>
-  <AgentuityProvider>
-    <ClerkAuthBridge>
-      <App />
-    </ClerkAuthBridge>
-  </AgentuityProvider>
+	<AgentuityProvider>
+		<ClerkAuthBridge>
+			<App />
+		</ClerkAuthBridge>
+	</AgentuityProvider>
 </ClerkProvider>
 ```
 

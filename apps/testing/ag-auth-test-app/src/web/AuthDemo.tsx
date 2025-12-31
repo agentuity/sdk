@@ -1,16 +1,17 @@
 /**
  * Auth Demo Components
  *
- * Visual UI for testing BetterAuth integration including:
- * - Login/Signup
+ * Visual UI for testing auth integration including:
+ * - Login/Signup (programmatic and hook-based)
  * - User Profile
  * - API Key Management
  * - Organization Management
  */
 
 import { useState, type FormEvent } from 'react';
-import { authClient, useSession } from './auth-client';
-import { useAPI, useAuth } from '@agentuity/react';
+import { authClient } from './auth-client';
+import { useAPI } from '@agentuity/react';
+import { useAuth } from '@agentuity/auth/react';
 import React from 'react';
 
 // =============================================================================
@@ -66,10 +67,10 @@ export function LoginForm() {
 				mode === 'signin'
 					? await authClient.signIn.email({ email, password })
 					: await authClient.signUp.email({
-						email,
-						password,
-						name: email.split('@')[0] ?? 'User',
-					});
+							email,
+							password,
+							name: email.split('@')[0] ?? 'User',
+						});
 
 			if (result.error) {
 				setError(result.error.message || `Sign ${mode === 'signin' ? 'in' : 'up'} failed`);
@@ -179,8 +180,7 @@ export function LoginForm() {
 // =============================================================================
 
 export function UserProfile() {
-	const { data: session, isPending } = useSession();
-	const { isAuthenticated } = useAuth();
+	const { user, isPending, isAuthenticated } = useAuth();
 	const { data: meData, refetch } = useAPI('GET /api/me');
 
 	const userData = meData as
@@ -196,7 +196,7 @@ export function UserProfile() {
 		return <div className="profile">Loading session...</div>;
 	}
 
-	if (!session?.user && !isAuthenticated) {
+	if (!user && !isAuthenticated) {
 		return null;
 	}
 
@@ -206,13 +206,13 @@ export function UserProfile() {
 
 			<div className="profile-info">
 				<p>
-					<strong>Email:</strong> {session?.user?.email || userData?.email || 'Unknown'}
+					<strong>Email:</strong> {user?.email || userData?.email || 'Unknown'}
 				</p>
 				<p>
-					<strong>Name:</strong> {session?.user?.name || userData?.name || 'Unknown'}
+					<strong>Name:</strong> {user?.name || userData?.name || 'Unknown'}
 				</p>
 				<p>
-					<strong>ID:</strong> {session?.user?.id || userData?.id || 'Unknown'}
+					<strong>ID:</strong> {user?.id || userData?.id || 'Unknown'}
 				</p>
 				{userData?.authMethod && (
 					<p>
@@ -822,21 +822,18 @@ export function JwtTokenDisplay() {
 // =============================================================================
 
 export function AuthDemo() {
-	const { data: session, isPending } = useSession();
-	const { isAuthenticated, authLoading } = useAuth();
+	const { user, isPending, isAuthenticated } = useAuth();
 
-	if (isPending || authLoading) {
+	if (isPending) {
 		return <div>Loading auth state...</div>;
 	}
 
-	const hasSession = !!session?.user || isAuthenticated;
+	const hasSession = !!user || isAuthenticated;
 
 	return (
 		<div className="auth-demo">
 			<h2>🔐 Auth Demo</h2>
-			<p className="subtitle">
-				Test BetterAuth integration with API Keys, JWT, and Organizations
-			</p>
+			<p className="subtitle">Test auth integration with API Keys, JWT, and Organizations</p>
 
 			{hasSession ? (
 				<div className="auth-sections">

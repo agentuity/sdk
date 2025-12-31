@@ -1,5 +1,5 @@
 /**
- * Agentuity Auth configuration.
+ * Auth configuration for @agentuity/auth.
  *
  * Provides sensible defaults and wraps BetterAuth with Agentuity-specific helpers.
  *
@@ -29,7 +29,7 @@ type TrustedOrigins = string[] | ((request?: Request) => string[] | Promise<stri
  * It decouples middleware from the full BetterAuth generic types, avoiding
  * type inference issues while preserving rich types for end users.
  */
-export interface AgentuityAuthBase {
+export interface AuthBase {
 	/** Handler for auth routes (sign-in, sign-up, session, etc.) */
 	handler: (request: Request) => Promise<Response>;
 
@@ -317,10 +317,10 @@ export interface ApiKeyPluginOptions {
 }
 
 /**
- * Configuration options for Agentuity auth.
+ * Configuration options for auth.
  * Extends BetterAuth options with Agentuity-specific settings.
  */
-export interface AgentuityAuthOptions extends BetterAuthOptions {
+export interface AuthOptions extends BetterAuthOptions {
 	/**
 	 * PostgreSQL connection string.
 	 * When provided, we create a Bun SQL connection and Drizzle instance internally.
@@ -390,7 +390,7 @@ export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
 }
 
 /**
- * Create an Agentuity Auth instance.
+ * Create an Auth instance.
  *
  * This wraps BetterAuth with sensible defaults for Agentuity projects:
  * - Default basePath: '/api/auth'
@@ -403,9 +403,9 @@ export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
  *
  * @example Option A: Connection string (simplest)
  * ```typescript
- * import { createAgentuityAuth } from '@agentuity/auth';
+ * import { createAuth } from '@agentuity/auth';
  *
- * export const auth = createAgentuityAuth({
+ * export const auth = createAuth({
  *   connectionString: process.env.DATABASE_URL,
  * });
  * ```
@@ -419,7 +419,7 @@ export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
  * const schema = { ...authSchema, ...myAppSchema };
  * const db = drizzle(connectionString, { schema });
  *
- * export const auth = createAgentuityAuth({
+ * export const auth = createAuth({
  *   database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
  * });
  * ```
@@ -428,12 +428,12 @@ export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
  * ```typescript
  * import { prismaAdapter } from 'better-auth/adapters/prisma';
  *
- * export const auth = createAgentuityAuth({
+ * export const auth = createAuth({
  *   database: prismaAdapter(new PrismaClient()),
  * });
  * ```
  */
-export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) {
+export function createAuth<T extends AuthOptions>(options: T) {
 	const {
 		skipDefaultPlugins,
 		plugins = [],
@@ -485,7 +485,7 @@ export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) 
 		plugins: [...defaultPlugins, ...plugins],
 	});
 
-	return authInstance as AgentuityAuthBase &
+	return authInstance as AuthBase &
 		typeof authInstance & {
 			api: typeof authInstance.api & DefaultPluginApiMethods;
 		};
@@ -493,20 +493,6 @@ export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) 
 
 /**
  * Type helper for the auth instance with default plugin methods.
- * Inferred from createAgentuityAuth to stay in sync with BetterAuth.
+ * Inferred from createAuth to stay in sync with BetterAuth.
  */
-export type AgentuityAuthInstance = ReturnType<typeof createAgentuityAuth>;
-
-/**
- * Alias for createAgentuityAuth.
- *
- * @example
- * ```typescript
- * import { withAgentuityAuth } from '@agentuity/auth/agentuity';
- *
- * export const auth = withAgentuityAuth({
- *   connectionString: process.env.DATABASE_URL,
- * });
- * ```
- */
-export const withAgentuityAuth = createAgentuityAuth;
+export type AuthInstance = ReturnType<typeof createAuth>;

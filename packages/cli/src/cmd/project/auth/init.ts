@@ -33,7 +33,9 @@ export const initSubcommand = createSubcommand({
 			skipMigrations: z
 				.boolean()
 				.optional()
-				.describe('Skip running database migrations (run `agentuity project auth generate` later)'),
+				.describe(
+					'Skip running database migrations (run `agentuity project auth generate` later)'
+				),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether setup succeeded'),
@@ -51,7 +53,7 @@ export const initSubcommand = createSubcommand({
 		tui.newline();
 		tui.info('This will:');
 		console.log('  • Ensure you have a Postgres database configured');
-		console.log('  • Install @agentuity/auth and better-auth');
+		console.log('  • Install @agentuity/auth');
 		console.log('  • Run database migrations to create auth tables');
 		console.log('  • Show you how to wire auth into your API and UI');
 		tui.newline();
@@ -186,9 +188,11 @@ export const initSubcommand = createSubcommand({
 			if (ormSetup === 'drizzle') {
 				tui.info(tui.bold('Drizzle detected in your project.'));
 				tui.newline();
-				console.log('  Since you manage your own Drizzle schema, add authSchema to your schema:');
+				console.log(
+					'  Since you manage your own Drizzle schema, add authSchema to your schema:'
+				);
 				tui.newline();
-				console.log(tui.muted('    import * as authSchema from \'@agentuity/auth/schema\';'));
+				console.log(tui.muted("    import * as authSchema from '@agentuity/auth/schema';"));
 				console.log(tui.muted('    export const schema = { ...authSchema, ...yourSchema };'));
 				tui.newline();
 				console.log('  Then run migrations:');

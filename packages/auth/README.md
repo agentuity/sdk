@@ -27,6 +27,7 @@ agentuity project auth init
 ```
 
 This will:
+
 - Install required dependencies
 - Generate `src/auth.ts` with default configuration
 - Set up environment variables
@@ -45,11 +46,15 @@ agentuity project auth setup
 
 ```typescript
 // src/auth.ts
-import { createAgentuityAuth, createSessionMiddleware, mountAgentuityAuthRoutes } from '@agentuity/auth';
+import {
+	createAgentuityAuth,
+	createSessionMiddleware,
+	mountAgentuityAuthRoutes,
+} from '@agentuity/auth';
 
 export const auth = createAgentuityAuth({
-  connectionString: process.env.DATABASE_URL,
-  // Uses AGENTUITY_AUTH_SECRET env var by default
+	connectionString: process.env.DATABASE_URL,
+	// Uses AGENTUITY_AUTH_SECRET env var by default
 });
 
 export const authMiddleware = createSessionMiddleware(auth);
@@ -71,8 +76,8 @@ api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
 api.use('/api/*', authMiddleware);
 
 api.get('/api/me', async (c) => {
-  const user = await c.var.auth.getUser();
-  return c.json({ id: user.id, email: user.email });
+	const user = await c.var.auth.getUser();
+	return c.json({ id: user.id, email: user.email });
 });
 
 export default api;
@@ -97,10 +102,10 @@ import { App } from './App';
 const authClient = createAgentuityAuthClient();
 
 <AgentuityProvider>
-  <AgentuityAuthProvider authClient={authClient}>
-    <App />
-  </AgentuityAuthProvider>
-</AgentuityProvider>
+	<AgentuityAuthProvider authClient={authClient}>
+		<App />
+	</AgentuityAuthProvider>
+</AgentuityProvider>;
 ```
 
 ### 5. Environment Variables
@@ -123,22 +128,22 @@ Auth is native on AgentContext - no wrappers needed:
 import { createAgent } from '@agentuity/runtime';
 
 export default createAgent('my-agent', {
-  handler: async (ctx, input) => {
-    // ctx.auth is available when using auth middleware
-    if (!ctx.auth) {
-      return { error: 'Please sign in' };
-    }
+	handler: async (ctx, input) => {
+		// ctx.auth is available when using auth middleware
+		if (!ctx.auth) {
+			return { error: 'Please sign in' };
+		}
 
-    const user = await ctx.auth.getUser();
-    const org = await ctx.auth.getOrg();
-    
-    // Check organization roles
-    if (org && await ctx.auth.hasOrgRole('admin')) {
-      // Admin-only logic
-    }
+		const user = await ctx.auth.getUser();
+		const org = await ctx.auth.getOrg();
 
-    return { userId: user.id, orgId: org?.id };
-  },
+		// Check organization roles
+		if (org && (await ctx.auth.hasOrgRole('admin'))) {
+			// Admin-only logic
+		}
+
+		return { userId: user.id, orgId: org?.id };
+	},
 });
 ```
 
@@ -149,19 +154,19 @@ import { createSessionMiddleware, createApiKeyMiddleware } from '@agentuity/auth
 
 // Session-based auth
 api.get('/api/profile', authMiddleware, async (c) => {
-  const user = await c.var.auth.getUser();
-  return c.json({ email: user.email });
+	const user = await c.var.auth.getUser();
+	return c.json({ email: user.email });
 });
 
 // API key auth
 api.use('/api/v1/*', createApiKeyMiddleware(auth));
 
 api.get('/api/v1/data', async (c) => {
-  // Check API key permissions
-  if (!c.var.auth.hasPermission('data', 'read')) {
-    return c.json({ error: 'Forbidden' }, 403);
-  }
-  return c.json({ data: '...' });
+	// Check API key permissions
+	if (!c.var.auth.hasPermission('data', 'read')) {
+		return c.json({ error: 'Forbidden' }, 403);
+	}
+	return c.json({ data: '...' });
 });
 ```
 
@@ -172,16 +177,16 @@ import { useAuth } from '@agentuity/react';
 import { useAgentuityAuth } from '@agentuity/auth/react';
 
 function Profile() {
-  // Basic auth state from @agentuity/react
-  const { isAuthenticated, authLoading } = useAuth();
-  
-  // Full auth context from @agentuity/auth
-  const { user, isPending } = useAgentuityAuth();
+	// Basic auth state from @agentuity/react
+	const { isAuthenticated, authLoading } = useAuth();
 
-  if (authLoading || isPending) return <div>Loading...</div>;
-  if (!isAuthenticated) return <div>Please sign in</div>;
+	// Full auth context from @agentuity/auth
+	const { user, isPending } = useAgentuityAuth();
 
-  return <div>Welcome, {user?.name}!</div>;
+	if (authLoading || isPending) return <div>Loading...</div>;
+	if (!isAuthenticated) return <div>Please sign in</div>;
+
+	return <div>Welcome, {user?.name}!</div>;
 }
 ```
 
@@ -193,7 +198,7 @@ function Profile() {
 import { createAgentuityAuth } from '@agentuity/auth';
 
 export const auth = createAgentuityAuth({
-  connectionString: process.env.DATABASE_URL,
+	connectionString: process.env.DATABASE_URL,
 });
 ```
 
@@ -211,7 +216,7 @@ const schema = { ...authSchema, ...myAppSchema };
 const db = drizzle(process.env.DATABASE_URL!, { schema });
 
 export const auth = createAgentuityAuth({
-  database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
+	database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
 });
 ```
 
@@ -223,7 +228,7 @@ Use any BetterAuth-compatible adapter:
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 
 export const auth = createAgentuityAuth({
-  database: prismaAdapter(new PrismaClient()),
+	database: prismaAdapter(new PrismaClient()),
 });
 ```
 
@@ -236,6 +241,7 @@ export const auth = createAgentuityAuth({
 Creates an auth instance with Agentuity defaults.
 
 **Options:**
+
 - `connectionString?: string` - PostgreSQL connection URL (simplest path)
 - `database?: Adapter` - BetterAuth database adapter (for advanced use)
 - `secret?: string` - Auth secret (defaults to `AGENTUITY_AUTH_SECRET` env var)
@@ -250,6 +256,7 @@ Creates an auth instance with Agentuity defaults.
 Hono middleware for session-based auth.
 
 **Options:**
+
 - `optional?: boolean` - If true, don't 401 on missing auth
 - `otelSpans?: { email?: boolean, orgName?: boolean }` - Control PII in spans
 
@@ -258,6 +265,7 @@ Hono middleware for session-based auth.
 Hono middleware for API key auth.
 
 **Options:**
+
 - `optional?: boolean` - If true, don't 401 on missing API key
 - `otelSpans?: { email?: boolean }` - Control PII in spans
 
@@ -266,6 +274,7 @@ Hono middleware for API key auth.
 Handler for BetterAuth routes with cookie merging.
 
 **Options:**
+
 - `allowList?: string[]` - Headers to forward from auth responses
 
 ### Client
@@ -275,6 +284,7 @@ Handler for BetterAuth routes with cookie merging.
 Import from `@agentuity/auth/react`.
 
 **Options:**
+
 - `baseURL?: string` - API base URL (default: `window.location.origin`)
 - `basePath?: string` - Auth path prefix (default: `/api/auth`)
 - `skipDefaultPlugins?: boolean` - Skip organization and API key plugins
@@ -289,12 +299,9 @@ React provider that bridges auth state to Agentuity context.
 ```tsx
 import { AgentuityAuthProvider } from '@agentuity/auth/react';
 
-<AgentuityAuthProvider 
-  authClient={authClient}
-  refreshInterval={60000}
->
-  {children}
-</AgentuityAuthProvider>
+<AgentuityAuthProvider authClient={authClient} refreshInterval={60000}>
+	{children}
+</AgentuityAuthProvider>;
 ```
 
 #### `useAgentuityAuth()`
@@ -302,6 +309,7 @@ import { AgentuityAuthProvider } from '@agentuity/auth/react';
 Hook for full auth context. Import from `@agentuity/auth/react`.
 
 **Returns:**
+
 - `user: AgentuityAuthUser | null`
 - `isPending: boolean`
 - `error: Error | null`
@@ -317,6 +325,7 @@ import { user, session, organization, apikey, authSchema } from '@agentuity/auth
 ```
 
 **Tables:**
+
 - `user` - User accounts
 - `session` - Active sessions
 - `account` - OAuth/credential accounts
@@ -328,17 +337,18 @@ import { user, session, organization, apikey, authSchema } from '@agentuity/auth
 - `apikey` - API keys
 
 **Combined:**
+
 - `authSchema` - All tables and relations for easy spreading
 
 ### Types
 
 ```typescript
 import type {
-  AgentuityAuthContext,
-  AgentuityOrgContext,
-  AgentuityApiKeyContext,
-  AgentuityAuthMethod,
-  AgentuityAuthInterface,
+	AgentuityAuthContext,
+	AgentuityOrgContext,
+	AgentuityApiKeyContext,
+	AgentuityAuthMethod,
+	AgentuityAuthInterface,
 } from '@agentuity/auth';
 ```
 
@@ -377,6 +387,7 @@ bunx agentuity create my-app --template agentuity-auth
 ## Third-Party Providers
 
 Agentuity Auth is the recommended solution. For Clerk, Auth0, or other providers, see:
+
 - [Clerk Integration Guide](../../docs/recipes/clerk.md)
 - [Auth0 Integration Guide](../../docs/recipes/auth0.md)
 

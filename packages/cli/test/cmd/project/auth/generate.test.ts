@@ -8,7 +8,9 @@ describe('project auth generate', () => {
 		});
 
 		test('should have description', () => {
-			expect(generateSubcommand.description).toBe('Generate SQL schema for Agentuity Auth tables');
+			expect(generateSubcommand.description).toBe(
+				'Generate SQL schema for Agentuity Auth tables'
+			);
 		});
 
 		test('should have slow tag', () => {

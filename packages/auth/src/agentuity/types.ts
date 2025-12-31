@@ -1,5 +1,5 @@
 /**
- * Agentuity Auth types.
+ * Auth types for @agentuity/auth.
  *
  * @module agentuity/types
  */
@@ -12,16 +12,16 @@ import type { AgentuityAuth } from '../types';
 // =============================================================================
 
 /**
- * Agentuity user type.
- * Alias for BetterAuth's User type, exposed under Agentuity naming.
+ * Auth user type.
+ * Alias for BetterAuth's User type.
  */
-export type AgentuityUser = BetterAuthUser;
+export type AuthUser = BetterAuthUser;
 
 /**
- * Agentuity session type.
+ * Auth session type.
  * Extends BetterAuth's Session with organization plugin fields.
  */
-export type AgentuitySession = BetterAuthSession & {
+export type AuthSession = BetterAuthSession & {
 	/** Active organization ID from the organization plugin */
 	activeOrganizationId?: string;
 };
@@ -31,16 +31,16 @@ export type AgentuitySession = BetterAuthSession & {
  * This is the full auth context available on AgentContext.auth and c.var.auth.
  * Session may be null for API key authentication.
  */
-export interface AgentuityAuthContext<TUser = AgentuityUser, TSession = AgentuitySession | null> {
+export interface AuthContext<TUser = AuthUser, TSession = AuthSession | null> {
 	user: TUser;
 	session: TSession;
-	org: AgentuityOrgContext | null;
+	org: AuthOrgContext | null;
 }
 
 /**
  * Organization context from the organization plugin.
  */
-export interface AgentuityOrgContext {
+export interface AuthOrgContext {
 	/** Organization ID */
 	id: string;
 	/** Organization slug (URL-friendly identifier) */
@@ -65,25 +65,25 @@ export interface AgentuityOrgContext {
  *
  * @example
  * ```typescript
- * const permissions: AgentuityApiKeyPermissions = {
+ * const permissions: AuthApiKeyPermissions = {
  *   project: ['read', 'write'],
  *   user: ['read'],
  *   admin: ['*'], // wildcard - all actions
  * };
  * ```
  */
-export type AgentuityApiKeyPermissions = Record<string, string[]>;
+export type AuthApiKeyPermissions = Record<string, string[]>;
 
 /**
  * API key context when request is authenticated via API key.
  */
-export interface AgentuityApiKeyContext {
+export interface AuthApiKeyContext {
 	/** API key ID */
 	id: string;
 	/** Display name of the API key */
 	name?: string | null;
 	/** Permissions associated with this API key */
-	permissions: AgentuityApiKeyPermissions;
+	permissions: AuthApiKeyPermissions;
 	/** User ID the API key belongs to */
 	userId?: string | null;
 }
@@ -91,7 +91,7 @@ export interface AgentuityApiKeyContext {
 /**
  * Authentication method used for the current request.
  */
-export type AgentuityAuthMethod = 'session' | 'api-key' | 'bearer';
+export type AuthMethod = 'session' | 'api-key' | 'bearer';
 
 // =============================================================================
 // Extended Auth Interface
@@ -100,12 +100,12 @@ export type AgentuityAuthMethod = 'session' | 'api-key' | 'bearer';
 /**
  * Organization helpers available on the auth context.
  */
-export interface AgentuityOrgHelpers {
+export interface AuthOrgHelpers {
 	/** Active organization context if available, null otherwise */
-	org: AgentuityOrgContext | null;
+	org: AuthOrgContext | null;
 
 	/** Returns active org or null (never throws) */
-	getOrg(): Promise<AgentuityOrgContext | null>;
+	getOrg(): Promise<AuthOrgContext | null>;
 
 	/** Convenience accessor for the member's role on the active org */
 	getOrgRole(): Promise<string | null>;
@@ -117,12 +117,12 @@ export interface AgentuityOrgHelpers {
 /**
  * API key helpers available on the auth context.
  */
-export interface AgentuityApiKeyHelpers {
+export interface AuthApiKeyHelpers {
 	/** How this request was authenticated */
-	authMethod: AgentuityAuthMethod;
+	authMethod: AuthMethod;
 
 	/** API key context when request is authenticated via API key, null otherwise */
-	apiKey: AgentuityApiKeyContext | null;
+	apiKey: AuthApiKeyContext | null;
 
 	/**
 	 * Check if the API key has the required permissions.
@@ -146,9 +146,9 @@ export interface AgentuityApiKeyHelpers {
 }
 
 /**
- * Full Agentuity Auth interface available on Hono context (c.var.auth).
+ * Full Auth interface available on Hono context (c.var.auth).
  * Extends the generic AgentuityAuth with org and API key helpers.
  */
-export type AgentuityAuthInterface<TUser = unknown> = AgentuityAuth<TUser, AgentuityAuthContext> &
-	AgentuityOrgHelpers &
-	AgentuityApiKeyHelpers;
+export type AuthInterface<TUser = unknown> = AgentuityAuth<TUser, AuthContext> &
+	AuthOrgHelpers &
+	AuthApiKeyHelpers;

@@ -1,5 +1,5 @@
 /**
- * Agentuity Auth Hono middleware and handlers.
+ * Auth Hono middleware and handlers for @agentuity/auth.
  *
  * Provides session and API key authentication middleware for Hono applications.
  *
@@ -9,14 +9,14 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { context, trace, SpanStatusCode } from '@opentelemetry/api';
 
-import type { AgentuityAuthBase } from './config';
+import type { AuthBase } from './config';
 import type {
-	AgentuityUser,
-	AgentuitySession,
-	AgentuityOrgContext,
-	AgentuityApiKeyContext,
-	AgentuityAuthMethod,
-	AgentuityAuthInterface,
+	AuthUser,
+	AuthSession,
+	AuthOrgContext,
+	AuthApiKeyContext,
+	AuthMethod,
+	AuthInterface,
 } from './types';
 
 /**
@@ -37,7 +37,7 @@ export interface OtelSpansConfig {
 	orgName?: boolean;
 }
 
-export interface AgentuityMiddlewareOptions {
+export interface AuthMiddlewareOptions {
 	/**
 	 * If true, don't return 401 on missing auth - just continue without auth context.
 	 * Useful for routes that work for both authenticated and anonymous users.
@@ -54,9 +54,21 @@ export interface AgentuityMiddlewareOptions {
 	 * ```
 	 */
 	otelSpans?: OtelSpansConfig;
+
+	/**
+	 * Require that the authenticated user has one of the given org roles.
+	 * If the user is authenticated but lacks the required role, a 403 is returned.
+	 * Only applies when authentication succeeds (ignored for optional + anonymous).
+	 *
+	 * @example Require admin or owner role
+	 * ```typescript
+	 * createSessionMiddleware(auth, { hasOrgRole: ['admin', 'owner'] })
+	 * ```
+	 */
+	hasOrgRole?: string | string[];
 }
 
-export interface AgentuityApiKeyMiddlewareOptions {
+export interface ApiKeyMiddlewareOptions {
 	/**
 	 * If true, don't return 401 on missing/invalid API key - just continue without auth context.
 	 */
@@ -72,17 +84,35 @@ export interface AgentuityApiKeyMiddlewareOptions {
 	 * ```
 	 */
 	otelSpans?: OtelSpansConfig;
+
+	/**
+	 * Require that the API key has specific permissions.
+	 * If the API key lacks any required permission, a 403 is returned.
+	 *
+	 * @example Require project write permission
+	 * ```typescript
+	 * createApiKeyMiddleware(auth, { hasPermission: { project: 'write' } })
+	 * ```
+	 *
+	 * @example Require multiple permissions
+	 * ```typescript
+	 * createApiKeyMiddleware(auth, {
+	 *   hasPermission: { project: ['read', 'write'], admin: '*' }
+	 * })
+	 * ```
+	 */
+	hasPermission?: Record<string, string | string[]>;
 }
 
 /**
  * Hono context variables set by the middleware.
  */
-export type AgentuityAuthEnv = {
+export type AuthEnv = {
 	Variables: {
-		auth: AgentuityAuthInterface<AgentuityUser>;
-		user: AgentuityUser | null;
-		session: AgentuitySession | null;
-		org: AgentuityOrgContext | null;
+		auth: AuthInterface<AuthUser>;
+		user: AuthUser | null;
+		session: AuthSession | null;
+		org: AuthOrgContext | null;
 	};
 };
 
@@ -94,7 +124,7 @@ export type AgentuityAuthEnv = {
  * Derive minimal org context from session.
  * Full org data is fetched lazily via getOrg().
  */
-function deriveOrgContext(session: AgentuitySession | null): AgentuityOrgContext | null {
+function deriveOrgContext(session: AuthSession | null): AuthOrgContext | null {
 	if (!session?.activeOrganizationId) return null;
 	return { id: session.activeOrganizationId };
 }
@@ -122,7 +152,7 @@ function getApiKeyFromRequest(c: Context): string | null {
 /**
  * Determine auth method from request headers.
  */
-function getAuthMethod(c: Context): AgentuityAuthMethod {
+function getAuthMethod(c: Context): AuthMethod {
 	const apiKey = getApiKeyFromRequest(c);
 	if (apiKey) return 'api-key';
 
@@ -132,16 +162,16 @@ function getAuthMethod(c: Context): AgentuityAuthMethod {
 	return 'session';
 }
 
-function buildAgentuityAuth(
+function buildAuthInterface(
 	c: Context,
-	auth: AgentuityAuthBase,
-	user: AgentuityUser,
-	session: AgentuitySession | null,
-	org: AgentuityOrgContext | null,
-	authMethod: AgentuityAuthMethod,
-	apiKeyContext: AgentuityApiKeyContext | null
-): AgentuityAuthInterface<AgentuityUser> {
-	let cachedFullOrg: AgentuityOrgContext | null | undefined = undefined;
+	auth: AuthBase,
+	user: AuthUser,
+	session: AuthSession | null,
+	org: AuthOrgContext | null,
+	authMethod: AuthMethod,
+	apiKeyContext: AuthApiKeyContext | null
+): AuthInterface<AuthUser> {
+	let cachedFullOrg: AuthOrgContext | null | undefined = undefined;
 	const permissions = apiKeyContext?.permissions ?? null;
 
 	return {
@@ -240,7 +270,7 @@ function buildAgentuityAuth(
 /**
  * Build a null/anonymous auth wrapper for optional middleware.
  */
-function buildAnonymousAuth(): AgentuityAuthInterface<AgentuityUser> {
+function buildAnonymousAuth(): AuthInterface<AuthUser> {
 	return {
 		async getUser() {
 			throw new Error('Not authenticated');
@@ -251,8 +281,8 @@ function buildAnonymousAuth(): AgentuityAuthInterface<AgentuityUser> {
 		},
 
 		raw: {
-			user: null as unknown as AgentuityUser,
-			session: null as unknown as AgentuitySession,
+			user: null as unknown as AuthUser,
+			session: null as unknown as AuthSession,
 			org: null,
 		},
 
@@ -284,22 +314,21 @@ function buildAnonymousAuth(): AgentuityAuthInterface<AgentuityUser> {
 // =============================================================================
 
 /**
- * Create Hono middleware that validates BetterAuth sessions.
+ * Create Hono middleware that validates sessions.
  *
- * Sets both BetterAuth standard context variables (`user`, `session`, `org`) and
- * the Agentuity `auth` wrapper for consistency with other providers.
+ * Sets context variables (`user`, `session`, `org`, `auth`) for authenticated requests.
  *
  * OpenTelemetry spans are automatically enriched with auth attributes:
  * - `auth.user.id` - User ID (always included)
  * - `auth.user.email` - User email (included by default, opt-out via `otelSpans.email: false`)
  * - `auth.method` - 'session' or 'bearer' (always included)
- * - `auth.provider` - 'BetterAuth' (always included)
+ * - `auth.provider` - 'Auth' (always included)
  * - `auth.org.id` - Active organization ID (always included if set)
  * - `auth.org.name` - Organization name (included by default, opt-out via `otelSpans.orgName: false`)
  *
  * @example Basic usage
  * ```typescript
- * import { createSessionMiddleware } from '@agentuity/auth/agentuity';
+ * import { createSessionMiddleware } from '@agentuity/auth';
  * import { auth } from './auth';
  *
  * const app = new Hono();
@@ -312,21 +341,19 @@ function buildAnonymousAuth(): AgentuityAuthInterface<AgentuityUser> {
  * });
  * ```
  *
- * @example Using Agentuity auth wrapper
+ * @example Using auth wrapper with org role check
  * ```typescript
- * app.get('/api/me', async (c) => {
+ * app.get('/api/admin', createSessionMiddleware(auth, { hasOrgRole: ['admin', 'owner'] }), async (c) => {
  *   const user = await c.var.auth.getUser();
- *   const org = await c.var.auth.getOrg();
- *   const isAdmin = await c.var.auth.hasOrgRole('admin', 'owner');
- *   return c.json({ id: user.id, org, isAdmin });
+ *   return c.json({ id: user.id, message: 'Welcome admin!' });
  * });
  * ```
  */
 export function createSessionMiddleware(
-	auth: AgentuityAuthBase,
-	options: AgentuityMiddlewareOptions = {}
-): MiddlewareHandler<AgentuityAuthEnv> {
-	const { optional = false, otelSpans = {} } = options;
+	auth: AuthBase,
+	options: AuthMiddlewareOptions = {}
+): MiddlewareHandler<AuthEnv> {
+	const { optional = false, otelSpans = {}, hasOrgRole } = options;
 	const includeEmail = otelSpans.email !== false;
 	const includeOrgName = otelSpans.orgName !== false;
 
@@ -355,8 +382,8 @@ export function createSessionMiddleware(
 			}
 
 			// Cast to full types - BetterAuth returns complete objects at runtime
-			const user = result.user as AgentuityUser;
-			const session = result.session as AgentuitySession;
+			const user = result.user as AuthUser;
+			const session = result.session as AuthSession;
 			const org = deriveOrgContext(session);
 			const authMethod = getAuthMethod(c);
 
@@ -383,7 +410,23 @@ export function createSessionMiddleware(
 				}
 			}
 
-			c.set('auth', buildAgentuityAuth(c, auth, user, session, org, authMethod, null));
+			c.set('auth', buildAuthInterface(c, auth, user, session, org, authMethod, null));
+
+			// Enforce org role if requested
+			if (hasOrgRole) {
+				const requiredRoles = Array.isArray(hasOrgRole) ? hasOrgRole : [hasOrgRole];
+				const hasRole = await c.var.auth.hasOrgRole(...requiredRoles);
+
+				if (!hasRole) {
+					span?.addEvent('auth.forbidden', {
+						reason: 'missing_org_role',
+						required_roles: requiredRoles,
+					});
+					span?.setStatus({ code: SpanStatusCode.ERROR, message: 'Forbidden' });
+					return c.json({ error: 'Forbidden: insufficient organization role' }, 403);
+				}
+			}
+
 			await next();
 		} catch (error) {
 			console.error('[Agentuity Auth] Session validation failed:', error);
@@ -418,16 +461,17 @@ export function createSessionMiddleware(
  * It does NOT use sessions. For routes that accept both session and API key,
  * compose with createSessionMiddleware using `{ optional: true }`.
  *
- * @example API key only route
+ * @example API key only route with permission check
  * ```typescript
- * import { createApiKeyMiddleware } from '@agentuity/auth/agentuity';
+ * import { createApiKeyMiddleware } from '@agentuity/auth';
  *
- * app.post('/webhooks/*', createApiKeyMiddleware(auth));
+ * app.post('/webhooks/*', createApiKeyMiddleware(auth, {
+ *   hasPermission: { webhook: 'write' }
+ * }));
  *
  * app.post('/webhooks/github', async (c) => {
- *   const hasWrite = c.var.auth.hasPermission('webhook', 'write');
- *   if (!hasWrite) return c.json({ error: 'Forbidden' }, 403);
- *   // ...
+ *   // Permission already verified by middleware
+ *   return c.json({ success: true });
  * });
  * ```
  *
@@ -444,10 +488,10 @@ export function createSessionMiddleware(
  * ```
  */
 export function createApiKeyMiddleware(
-	auth: AgentuityAuthBase,
-	options: AgentuityApiKeyMiddlewareOptions = {}
-): MiddlewareHandler<AgentuityAuthEnv> {
-	const { optional = false, otelSpans = {} } = options;
+	auth: AuthBase,
+	options: ApiKeyMiddlewareOptions = {}
+): MiddlewareHandler<AuthEnv> {
+	const { optional = false, otelSpans = {}, hasPermission } = options;
 	const includeEmail = otelSpans.email !== false;
 
 	return async (c, next) => {
@@ -484,14 +528,14 @@ export function createApiKeyMiddleware(
 			const keyData = result.key;
 			const userId = keyData.userId;
 
-			const apiKeyContext: AgentuityApiKeyContext = {
+			const apiKeyContext: AuthApiKeyContext = {
 				id: keyData.id,
 				name: keyData.name ?? null,
 				permissions: keyData.permissions ?? {},
 				userId: userId ?? null,
 			};
 
-			let user: AgentuityUser | null = null;
+			let user: AuthUser | null = null;
 			if (userId) {
 				try {
 					const sessionResult = await auth.api.getSession({
@@ -499,7 +543,7 @@ export function createApiKeyMiddleware(
 					});
 					if (sessionResult?.user) {
 						// Cast to full type - BetterAuth returns complete objects at runtime
-						user = sessionResult.user as AgentuityUser;
+						user = sessionResult.user as AuthUser;
 					}
 				} catch {
 					// User fetch failed, continue with null user
@@ -527,7 +571,7 @@ export function createApiKeyMiddleware(
 			}
 
 			if (user) {
-				c.set('auth', buildAgentuityAuth(c, auth, user, null, null, 'api-key', apiKeyContext));
+				c.set('auth', buildAuthInterface(c, auth, user, null, null, 'api-key', apiKeyContext));
 			} else {
 				const anonAuth = buildAnonymousAuth();
 				c.set('auth', {
@@ -540,6 +584,24 @@ export function createApiKeyMiddleware(
 						return actions.every((a) => perms.includes(a) || perms.includes('*'));
 					},
 				});
+			}
+
+			// Enforce permissions if requested
+			if (hasPermission) {
+				for (const [resource, actions] of Object.entries(hasPermission)) {
+					const actionList = Array.isArray(actions) ? actions : [actions];
+					const hasPerm = c.var.auth.hasPermission(resource, ...actionList);
+
+					if (!hasPerm) {
+						span?.addEvent('auth.forbidden', {
+							reason: 'missing_permission',
+							resource,
+							actions: actionList,
+						});
+						span?.setStatus({ code: SpanStatusCode.ERROR, message: 'Forbidden' });
+						return c.json({ error: 'Forbidden: insufficient API key permissions' }, 403);
+					}
+				}
 			}
 
 			await next();
@@ -579,11 +641,11 @@ const DEFAULT_FORWARDED_HEADERS = [
 ];
 
 /**
- * Configuration options for mounting Agentuity Auth routes.
+ * Configuration options for mounting auth routes.
  */
-export interface MountAgentuityAuthRoutesOptions {
+export interface MountAuthRoutesOptions {
 	/**
-	 * Headers to forward from BetterAuth responses to the client.
+	 * Headers to forward from auth responses to the client.
 	 * Only headers in this list will be forwarded (case-insensitive).
 	 * `set-cookie` is always forwarded with append behavior regardless of this setting.
 	 *
@@ -593,33 +655,33 @@ export interface MountAgentuityAuthRoutesOptions {
 }
 
 /**
- * Mount Agentuity Auth routes with proper cookie handling and header filtering.
+ * Mount auth routes with proper cookie handling and header filtering.
  *
- * This wrapper handles cookie merging between auth responses and Agentuity middleware.
- * It ensures both session cookies AND Agentuity's cookies (like thread cookies)
+ * This wrapper handles cookie merging between auth responses and other middleware.
+ * It ensures both session cookies AND other cookies (like thread cookies)
  * are preserved while preventing unintended headers from leaking through.
  *
  * @example Basic usage
  * ```typescript
- * import { mountAgentuityAuthRoutes } from '@agentuity/auth';
+ * import { mountAuthRoutes } from '@agentuity/auth';
  * import { auth } from './auth';
  *
  * const api = createRouter();
  *
  * // Mount all auth routes (sign-in, sign-up, sign-out, session, etc.)
- * api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
+ * api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
  * ```
  *
  * @example With custom header allowlist
  * ```typescript
- * api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth, {
+ * api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth, {
  *   allowList: ['set-cookie', 'content-type', 'location', 'x-custom-header']
  * }));
  * ```
  */
-export function mountAgentuityAuthRoutes(
-	auth: AgentuityAuthBase,
-	options: MountAgentuityAuthRoutesOptions = {}
+export function mountAuthRoutes(
+	auth: AuthBase,
+	options: MountAuthRoutesOptions = {}
 ): (c: Context) => Promise<Response> {
 	const allowList = new Set(
 		(options.allowList ?? DEFAULT_FORWARDED_HEADERS).map((h) => h.toLowerCase())
@@ -660,9 +722,9 @@ export function mountAgentuityAuthRoutes(
 
 declare module 'hono' {
 	interface ContextVariableMap {
-		auth: AgentuityAuthInterface<AgentuityUser>;
-		user: AgentuityUser | null;
-		session: AgentuitySession | null;
-		org: AgentuityOrgContext | null;
+		auth: AuthInterface<AuthUser>;
+		user: AuthUser | null;
+		session: AuthSession | null;
+		org: AuthOrgContext | null;
 	}
 }

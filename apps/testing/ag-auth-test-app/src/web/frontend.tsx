@@ -8,7 +8,7 @@
 import React, { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AgentuityProvider } from '@agentuity/react';
-import { AgentuityAuthProvider } from '@agentuity/auth/react';
+import { AuthProvider } from '@agentuity/auth/react';
 import { App } from './App';
 import { authClient } from './auth-client';
 
@@ -16,9 +16,9 @@ const elem = document.getElementById('root')!;
 const app = (
 	<StrictMode>
 		<AgentuityProvider>
-			<AgentuityAuthProvider authClient={authClient}>
+			<AuthProvider authClient={authClient}>
 				<App />
-			</AgentuityAuthProvider>
+			</AuthProvider>
 		</AgentuityProvider>
 	</StrictMode>
 );

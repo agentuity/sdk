@@ -113,7 +113,7 @@ export class StandaloneAgentContext<
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;
-	auth: import('@agentuity/auth/types').AgentuityAuthInterface | null;
+	auth: import('@agentuity/auth/types').AuthInterface | null;
 	[AGENT_IDS]?: Set<string>;
 
 	// Immutable options stored from constructor

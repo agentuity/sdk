@@ -1,15 +1,11 @@
 /**
- * Agentuity Auth configuration.
+ * Auth configuration.
  *
  * This is the single source of truth for authentication in this project.
  * All auth tables are stored in your Postgres database.
  */
 
-import {
-	createAgentuityAuth,
-	createSessionMiddleware,
-	createApiKeyMiddleware,
-} from '@agentuity/auth';
+import { createAuth } from '@agentuity/auth';
 
 /**
  * Database URL for authentication.
@@ -24,7 +20,7 @@ if (!DATABASE_URL) {
 }
 
 /**
- * Agentuity Auth instance with sensible defaults.
+ * Auth instance with sensible defaults.
  *
  * Defaults:
  * - basePath: '/api/auth'
@@ -37,7 +33,7 @@ if (!DATABASE_URL) {
  * - bearer (API auth)
  * - apiKey (programmatic access)
  */
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	// Simplest setup: just provide the connection string
 	// We create Bun.sql + Drizzle internally with joins enabled
 	connectionString: DATABASE_URL,
@@ -46,29 +42,6 @@ export const auth = createAgentuityAuth({
 	// basePath: '/api/auth', // default
 	// emailAndPassword: { enabled: true }, // default
 });
-
-/**
- * Session middleware - validates cookies/bearer tokens.
- * Use for routes that require authentication.
- */
-export const authMiddleware = createSessionMiddleware(auth);
-
-/**
- * Optional auth middleware - allows anonymous access.
- * Sets c.var.auth = null for unauthenticated requests.
- */
-export const optionalAuthMiddleware = createSessionMiddleware(auth, { optional: true });
-
-/**
- * API key middleware for programmatic access.
- * Use for webhook endpoints or external integrations.
- */
-export const apiKeyMiddleware = createApiKeyMiddleware(auth);
-
-/**
- * Optional API key middleware - continues without auth if no API key present.
- */
-export const optionalApiKeyMiddleware = createApiKeyMiddleware(auth, { optional: true });
 
 /**
  * Type export for end-to-end type safety.

@@ -1,15 +1,15 @@
 import { createRouter } from '@agentuity/runtime';
-import { mountAgentuityAuthRoutes } from '@agentuity/auth';
+import { mountAuthRoutes, createSessionMiddleware, createApiKeyMiddleware } from '@agentuity/auth';
 import { APIError } from 'better-auth/api';
 import { validator } from 'hono/validator';
 import hello from '@agent/hello';
-import { auth, authMiddleware, optionalAuthMiddleware, apiKeyMiddleware } from '../auth';
+import { auth } from '../auth';
 import * as schemas from './schemas';
 
 const api = createRouter();
 
 // Mount auth routes (sign-in, sign-up, sign-out, session, token, etc.)
-api.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(auth));
+api.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(auth));
 
 // Public route - no auth required
 api.get('/health', (c) => {
@@ -17,14 +17,19 @@ api.get('/health', (c) => {
 });
 
 // Hello route with optional auth (to test withSession inside the agent)
-api.post('/hello', optionalAuthMiddleware, hello.validator(), async (c) => {
-	const data = c.req.valid('json');
-	const result = await hello.run(data);
-	return c.json(result);
-});
+api.post(
+	'/hello',
+	createSessionMiddleware(auth, { optional: true }),
+	hello.validator(),
+	async (c) => {
+		const data = c.req.valid('json');
+		const result = await hello.run(data);
+		return c.json(result);
+	}
+);
 
 // Protected route - requires authentication (session or API key)
-api.get('/me', authMiddleware, async (c) => {
+api.get('/me', createSessionMiddleware(auth), async (c) => {
 	const user = await c.var.auth.getUser();
 
 	return c.json({
@@ -35,7 +40,7 @@ api.get('/me', authMiddleware, async (c) => {
 });
 
 // Optional auth route - works for both authenticated and anonymous users
-api.get('/greeting', optionalAuthMiddleware, async (c) => {
+api.get('/greeting', createSessionMiddleware(auth, { optional: true }), async (c) => {
 	try {
 		const user = await c.var.auth.getUser();
 		return c.json({ message: `Hello, ${user.name || user.email}!` });
@@ -45,7 +50,7 @@ api.get('/greeting', optionalAuthMiddleware, async (c) => {
 });
 
 // Protected route with token
-api.get('/token', authMiddleware, async (c) => {
+api.get('/token', createSessionMiddleware(auth), async (c) => {
 	const token = await c.var.auth.getToken();
 	return c.json({
 		hasToken: token !== null,
@@ -58,14 +63,8 @@ api.get('/token', authMiddleware, async (c) => {
 // =============================================================================
 
 // Admin route - requires owner or admin role in the active organization
-// Uses the new ergonomic org helpers
-api.get('/admin', authMiddleware, async (c) => {
-	const hasAdminRole = await c.var.auth.hasOrgRole('owner', 'admin');
-
-	if (!hasAdminRole) {
-		return c.json({ error: 'Forbidden: admin role required' }, 403);
-	}
-
+// Uses the middleware hasOrgRole option for automatic enforcement
+api.get('/admin', createSessionMiddleware(auth, { hasOrgRole: ['owner', 'admin'] }), async (c) => {
 	const user = await c.var.auth.getUser();
 	const org = await c.var.auth.getOrg();
 
@@ -77,30 +76,26 @@ api.get('/admin', authMiddleware, async (c) => {
 });
 
 // =============================================================================
-// API Key Permission Examples (BetterAuth Native)
+// API Key Permission Examples
 // =============================================================================
 
 // Example: Protected route requiring API key permission
-// Uses the new ergonomic API key helpers
-api.post('/projects', apiKeyMiddleware, async (c) => {
-	// Check for project:write permission using the new helper
-	const canWriteProject = c.var.auth.hasPermission('project', 'write');
-
-	if (!canWriteProject) {
-		return c.json({ error: 'Forbidden', missingPermissions: { project: ['write'] } }, 403);
+// Uses the middleware hasPermission option for automatic enforcement
+api.post(
+	'/projects',
+	createApiKeyMiddleware(auth, { hasPermission: { project: 'write' } }),
+	async (c) => {
+		const user = c.var.user;
+		return c.json({
+			message: 'Project creation authorized',
+			userId: user?.id ?? 'unknown',
+			usedPermissions: c.var.auth.apiKey?.permissions ?? {},
+		});
 	}
-
-	const user = c.var.user;
-	return c.json({
-		message: 'Project creation authorized',
-		userId: user?.id ?? 'unknown',
-		usedPermissions: c.var.auth.apiKey?.permissions ?? {},
-	});
-});
+);
 
 // Debug route to see current auth state (useful for testing)
-// Uses the new ergonomic helpers
-api.get('/debug/permissions', authMiddleware, async (c) => {
+api.get('/debug/permissions', createSessionMiddleware(auth), async (c) => {
 	const org = await c.var.auth.getOrg();
 
 	return c.json({
@@ -119,7 +114,7 @@ api.get('/debug/permissions', authMiddleware, async (c) => {
 // Note: BetterAuth requires permissions to be set server-side with userId, not via headers
 api.post(
 	'/api-keys',
-	authMiddleware,
+	createSessionMiddleware(auth),
 	validator('json', (value, c) => {
 		const result = schemas.createApiKeyInput['~standard'].validate(value);
 		if (result.issues) {
@@ -158,7 +153,7 @@ api.post(
 );
 
 // List API keys for the authenticated user
-api.get('/api-keys', authMiddleware, async (c) => {
+api.get('/api-keys', createSessionMiddleware(auth), async (c) => {
 	const result = await auth.api.listApiKeys({
 		headers: c.req.raw.headers,
 	});
@@ -167,7 +162,7 @@ api.get('/api-keys', authMiddleware, async (c) => {
 });
 
 // Revoke an API key
-api.delete('/api-keys/:id', authMiddleware, async (c) => {
+api.delete('/api-keys/:id', createSessionMiddleware(auth), async (c) => {
 	const id = c.req.param('id');
 
 	await auth.api.deleteApiKey({
@@ -183,7 +178,7 @@ api.delete('/api-keys/:id', authMiddleware, async (c) => {
 // =============================================================================
 
 // Get a JWT token for the authenticated user
-api.get('/jwt', authMiddleware, async (c) => {
+api.get('/jwt', createSessionMiddleware(auth), async (c) => {
 	const token = await c.var.auth.getToken();
 	const url = new URL(c.req.url);
 
@@ -222,7 +217,7 @@ api.get('/bearer-info', (c) => {
 // Create a new organization
 api.post(
 	'/organizations',
-	authMiddleware,
+	createSessionMiddleware(auth),
 	validator('json', (value, c) => {
 		const result = schemas.createOrgInput['~standard'].validate(value);
 		if (result.issues) {
@@ -261,7 +256,7 @@ api.post(
 );
 
 // List organizations for the authenticated user
-api.get('/organizations', authMiddleware, async (c) => {
+api.get('/organizations', createSessionMiddleware(auth), async (c) => {
 	const result = await auth.api.listOrganizations({
 		headers: c.req.raw.headers,
 	});
@@ -270,7 +265,7 @@ api.get('/organizations', authMiddleware, async (c) => {
 });
 
 // Get the currently active organization
-api.get('/organizations/active', authMiddleware, async (c) => {
+api.get('/organizations/active', createSessionMiddleware(auth), async (c) => {
 	const result = await auth.api.getFullOrganization({
 		headers: c.req.raw.headers,
 	});
@@ -279,7 +274,7 @@ api.get('/organizations/active', authMiddleware, async (c) => {
 });
 
 // Set the active organization
-api.post('/organizations/:id/activate', authMiddleware, async (c) => {
+api.post('/organizations/:id/activate', createSessionMiddleware(auth), async (c) => {
 	const organizationId = c.req.param('id');
 
 	const result = await auth.api.setActiveOrganization({
@@ -291,7 +286,7 @@ api.post('/organizations/:id/activate', authMiddleware, async (c) => {
 });
 
 // Invite a member to an organization
-api.post('/organizations/:id/invitations', authMiddleware, async (c) => {
+api.post('/organizations/:id/invitations', createSessionMiddleware(auth), async (c) => {
 	const organizationId = c.req.param('id');
 	const body = await c.req.json();
 	const { email, role } = body;
@@ -313,7 +308,7 @@ api.post('/organizations/:id/invitations', authMiddleware, async (c) => {
 });
 
 // List members of an organization
-api.get('/organizations/:id/members', authMiddleware, async (c) => {
+api.get('/organizations/:id/members', createSessionMiddleware(auth), async (c) => {
 	const organizationId = c.req.param('id');
 
 	// First activate the org to access its members
@@ -330,8 +325,7 @@ api.get('/organizations/:id/members', authMiddleware, async (c) => {
 });
 
 // Get current user with organization context
-// Uses the new ergonomic helpers
-api.get('/whoami', authMiddleware, async (c) => {
+api.get('/whoami', createSessionMiddleware(auth), async (c) => {
 	const user = await c.var.auth.getUser();
 	const org = await c.var.auth.getOrg();
 

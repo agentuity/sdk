@@ -47,10 +47,14 @@ src/
 ### Server Setup
 
 ```typescript
-import { createAgentuityAuth, createSessionMiddleware, mountAgentuityAuthRoutes } from '@agentuity/auth';
+import {
+	createAgentuityAuth,
+	createSessionMiddleware,
+	mountAgentuityAuthRoutes,
+} from '@agentuity/auth';
 
 const auth = createAgentuityAuth({
-  connectionString: process.env.DATABASE_URL,
+	connectionString: process.env.DATABASE_URL,
 });
 
 api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
@@ -61,10 +65,10 @@ api.use('/api/*', createSessionMiddleware(auth));
 
 ```typescript
 export default createAgent('my-agent', {
-  handler: async (ctx, input) => {
-    if (!ctx.auth) return { error: 'Unauthorized' };
-    return { userId: ctx.auth.user.id };
-  },
+	handler: async (ctx, input) => {
+		if (!ctx.auth) return { error: 'Unauthorized' };
+		return { userId: ctx.auth.user.id };
+	},
 });
 ```
 
@@ -76,8 +80,8 @@ import { createAgentuityAuthClient, AgentuityAuthProvider } from '@agentuity/aut
 const authClient = createAgentuityAuthClient();
 
 <AgentuityAuthProvider authClient={authClient}>
-  <App />
-</AgentuityAuthProvider>
+	<App />
+</AgentuityAuthProvider>;
 ```
 
 ## Important Types

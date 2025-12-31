@@ -58,7 +58,7 @@ export default createAgent('protected-agent', {
 
 		// Access user data
 		const user = await ctx.auth.getUser();
-		
+
 		// Check organization roles
 		if (await ctx.auth.hasOrgRole('admin')) {
 			// Admin logic
@@ -77,6 +77,7 @@ export default createAgent('protected-agent', {
 ```
 
 **Key properties:**
+
 - `ctx.auth.getUser()` - Get authenticated user
 - `ctx.auth.org` - Active organization context (if any)
 - `ctx.auth.getOrgRole()` - Get user's role in active org

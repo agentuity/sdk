@@ -36,22 +36,22 @@ const AUTH0_CLIENT_ID = import.meta.env.AGENTUITY_PUBLIC_AUTH0_CLIENT_ID;
 const AUTH0_AUDIENCE = import.meta.env.AGENTUITY_PUBLIC_AUTH0_AUDIENCE;
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <Auth0Provider
-      domain={AUTH0_DOMAIN}
-      clientId={AUTH0_CLIENT_ID}
-      authorizationParams={{
-        redirect_uri: window.location.origin,
-        audience: AUTH0_AUDIENCE,
-      }}
-    >
-      <AgentuityProvider>
-        <Auth0Bridge>
-          <App />
-        </Auth0Bridge>
-      </AgentuityProvider>
-    </Auth0Provider>
-  </React.StrictMode>
+	<React.StrictMode>
+		<Auth0Provider
+			domain={AUTH0_DOMAIN}
+			clientId={AUTH0_CLIENT_ID}
+			authorizationParams={{
+				redirect_uri: window.location.origin,
+				audience: AUTH0_AUDIENCE,
+			}}
+		>
+			<AgentuityProvider>
+				<Auth0Bridge>
+					<App />
+				</Auth0Bridge>
+			</AgentuityProvider>
+		</Auth0Provider>
+	</React.StrictMode>
 );
 ```
 
@@ -66,44 +66,48 @@ import { useAuth0 } from '@auth0/auth0-react';
 import { useAuth } from '@agentuity/react';
 
 interface Auth0BridgeProps {
-  children: ReactNode;
-  refreshInterval?: number;
+	children: ReactNode;
+	refreshInterval?: number;
 }
 
-export function Auth0Bridge({ 
-  children, 
-  refreshInterval = 60000 
-}: Auth0BridgeProps) {
-  const { getAccessTokenSilently, isAuthenticated, isLoading } = useAuth0();
-  const { setAuthHeader, setAuthLoading } = useAuth();
+export function Auth0Bridge({ children, refreshInterval = 60000 }: Auth0BridgeProps) {
+	const { getAccessTokenSilently, isAuthenticated, isLoading } = useAuth0();
+	const { setAuthHeader, setAuthLoading } = useAuth();
 
-  useEffect(() => {
-    if (!setAuthHeader || !setAuthLoading) return;
+	useEffect(() => {
+		if (!setAuthHeader || !setAuthLoading) return;
 
-    const fetchToken = async () => {
-      setAuthLoading(true);
-      try {
-        if (!isLoading && isAuthenticated) {
-          const token = await getAccessTokenSilently();
-          setAuthHeader(token ? `Bearer ${token}` : null);
-        } else {
-          setAuthHeader(null);
-        }
-      } catch (error) {
-        console.error('Failed to get Auth0 token:', error);
-        setAuthHeader(null);
-      } finally {
-        setAuthLoading(false);
-      }
-    };
+		const fetchToken = async () => {
+			setAuthLoading(true);
+			try {
+				if (!isLoading && isAuthenticated) {
+					const token = await getAccessTokenSilently();
+					setAuthHeader(token ? `Bearer ${token}` : null);
+				} else {
+					setAuthHeader(null);
+				}
+			} catch (error) {
+				console.error('Failed to get Auth0 token:', error);
+				setAuthHeader(null);
+			} finally {
+				setAuthLoading(false);
+			}
+		};
 
-    fetchToken();
+		fetchToken();
 
-    const interval = setInterval(fetchToken, refreshInterval);
-    return () => clearInterval(interval);
-  }, [getAccessTokenSilently, isAuthenticated, isLoading, refreshInterval, setAuthHeader, setAuthLoading]);
+		const interval = setInterval(fetchToken, refreshInterval);
+		return () => clearInterval(interval);
+	}, [
+		getAccessTokenSilently,
+		isAuthenticated,
+		isLoading,
+		refreshInterval,
+		setAuthHeader,
+		setAuthLoading,
+	]);
 
-  return <>{children}</>;
+	return <>{children}</>;
 }
 ```
 
@@ -114,26 +118,28 @@ import { useAuth } from '@agentuity/react';
 import { useAuth0 } from '@auth0/auth0-react';
 
 function Header() {
-  const { isAuthenticated, authLoading } = useAuth();
-  const { user, loginWithRedirect, logout } = useAuth0();
+	const { isAuthenticated, authLoading } = useAuth();
+	const { user, loginWithRedirect, logout } = useAuth0();
 
-  if (authLoading) return <div>Loading...</div>;
+	if (authLoading) return <div>Loading...</div>;
 
-  return (
-    <header>
-      {isAuthenticated ? (
-        <>
-          <span>Welcome, {user?.name}!</span>
-          <img src={user?.picture} alt={user?.name} />
-          <button onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}>
-            Sign Out
-          </button>
-        </>
-      ) : (
-        <button onClick={() => loginWithRedirect()}>Sign In</button>
-      )}
-    </header>
-  );
+	return (
+		<header>
+			{isAuthenticated ? (
+				<>
+					<span>Welcome, {user?.name}!</span>
+					<img src={user?.picture} alt={user?.name} />
+					<button
+						onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
+					>
+						Sign Out
+					</button>
+				</>
+			) : (
+				<button onClick={() => loginWithRedirect()}>Sign In</button>
+			)}
+		</header>
+	);
 }
 ```
 
@@ -149,101 +155,97 @@ import type { MiddlewareHandler, Context } from 'hono';
 import * as jose from 'jose';
 
 interface Auth0User {
-  sub: string;
-  email?: string;
-  name?: string;
-  picture?: string;
-  [key: string]: unknown;
+	sub: string;
+	email?: string;
+	name?: string;
+	picture?: string;
+	[key: string]: unknown;
 }
 
 interface Auth0AuthContext {
-  user: Auth0User;
-  userId: string;
+	user: Auth0User;
+	userId: string;
 }
 
 declare module 'hono' {
-  interface ContextVariableMap {
-    auth0: Auth0AuthContext | null;
-  }
+	interface ContextVariableMap {
+		auth0: Auth0AuthContext | null;
+	}
 }
 
 interface Auth0MiddlewareOptions {
-  domain?: string;
-  audience?: string;
-  optional?: boolean;
+	domain?: string;
+	audience?: string;
+	optional?: boolean;
 }
 
 let jwks: jose.JWTVerifyGetKey | null = null;
 
 async function getJwks(domain: string): Promise<jose.JWTVerifyGetKey> {
-  if (!jwks) {
-    jwks = jose.createRemoteJWKSet(
-      new URL(`https://${domain}/.well-known/jwks.json`)
-    );
-  }
-  return jwks;
+	if (!jwks) {
+		jwks = jose.createRemoteJWKSet(new URL(`https://${domain}/.well-known/jwks.json`));
+	}
+	return jwks;
 }
 
-export function createAuth0Middleware(
-  options: Auth0MiddlewareOptions = {}
-): MiddlewareHandler {
-  const { 
-    domain = process.env.AUTH0_DOMAIN,
-    audience = process.env.AUTH0_AUDIENCE,
-    optional = false 
-  } = options;
+export function createAuth0Middleware(options: Auth0MiddlewareOptions = {}): MiddlewareHandler {
+	const {
+		domain = process.env.AUTH0_DOMAIN,
+		audience = process.env.AUTH0_AUDIENCE,
+		optional = false,
+	} = options;
 
-  if (!domain) {
-    throw new Error('AUTH0_DOMAIN is required');
-  }
+	if (!domain) {
+		throw new Error('AUTH0_DOMAIN is required');
+	}
 
-  return async (c: Context, next) => {
-    const authHeader = c.req.header('Authorization');
-    
-    if (!authHeader?.startsWith('Bearer ')) {
-      if (optional) {
-        c.set('auth0', null);
-        await next();
-        return;
-      }
-      return c.json({ error: 'Unauthorized' }, 401);
-    }
+	return async (c: Context, next) => {
+		const authHeader = c.req.header('Authorization');
 
-    const token = authHeader.slice(7);
+		if (!authHeader?.startsWith('Bearer ')) {
+			if (optional) {
+				c.set('auth0', null);
+				await next();
+				return;
+			}
+			return c.json({ error: 'Unauthorized' }, 401);
+		}
 
-    try {
-      const verifier = await getJwks(domain);
-      
-      const { payload } = await jose.jwtVerify(token, verifier, {
-        issuer: `https://${domain}/`,
-        audience,
-      });
+		const token = authHeader.slice(7);
 
-      const user: Auth0User = {
-        sub: payload.sub!,
-        email: payload.email as string | undefined,
-        name: payload.name as string | undefined,
-        picture: payload.picture as string | undefined,
-        ...payload,
-      };
+		try {
+			const verifier = await getJwks(domain);
 
-      c.set('auth0', {
-        user,
-        userId: payload.sub!,
-      });
+			const { payload } = await jose.jwtVerify(token, verifier, {
+				issuer: `https://${domain}/`,
+				audience,
+			});
 
-      await next();
-    } catch (error) {
-      console.error('Auth0 verification failed:', error);
-      
-      if (optional) {
-        c.set('auth0', null);
-        await next();
-        return;
-      }
-      return c.json({ error: 'Unauthorized' }, 401);
-    }
-  };
+			const user: Auth0User = {
+				sub: payload.sub!,
+				email: payload.email as string | undefined,
+				name: payload.name as string | undefined,
+				picture: payload.picture as string | undefined,
+				...payload,
+			};
+
+			c.set('auth0', {
+				user,
+				userId: payload.sub!,
+			});
+
+			await next();
+		} catch (error) {
+			console.error('Auth0 verification failed:', error);
+
+			if (optional) {
+				c.set('auth0', null);
+				await next();
+				return;
+			}
+			return c.json({ error: 'Unauthorized' }, 401);
+		}
+	};
 }
 ```
 
@@ -260,13 +262,13 @@ const api = createRouter();
 api.use('/api/*', createAuth0Middleware());
 
 api.get('/api/profile', async (c) => {
-  const auth = c.var.auth0!;
-  return c.json({
-    id: auth.userId,
-    email: auth.user.email,
-    name: auth.user.name,
-    picture: auth.user.picture,
-  });
+	const auth = c.var.auth0!;
+	return c.json({
+		id: auth.userId,
+		email: auth.user.email,
+		name: auth.user.name,
+		picture: auth.user.picture,
+	});
 });
 
 export default api;
@@ -281,16 +283,16 @@ For agents, pass auth info through context or headers:
 import { createAgent } from '@agentuity/runtime';
 
 export default createAgent('my-agent', {
-  handler: async (ctx, input) => {
-    // Access Auth0 user ID from headers if passed
-    const userId = ctx.headers.get('x-auth0-user-id');
-    
-    if (!userId) {
-      return { error: 'Unauthorized' };
-    }
+	handler: async (ctx, input) => {
+		// Access Auth0 user ID from headers if passed
+		const userId = ctx.headers.get('x-auth0-user-id');
 
-    return { userId, message: 'Hello from agent!' };
-  },
+		if (!userId) {
+			return { error: 'Unauthorized' };
+		}
+
+		return { userId, message: 'Hello from agent!' };
+	},
 });
 ```
 
@@ -316,15 +318,15 @@ AUTH0_AUDIENCE=https://your-api-identifier
 
 ## Differences from Agentuity Auth
 
-| Feature | Agentuity Auth | Auth0 |
-|---------|---------------|-------|
-| `ctx.auth` on AgentContext | ✅ Native | ❌ Manual |
-| Database-backed sessions | ✅ Built-in | ❌ External |
-| Organizations | ✅ Built-in | ✅ With Auth0 Orgs |
-| API Keys | ✅ Built-in | ❌ Not available |
-| Self-hosted | ✅ Yes | ❌ Cloud only |
-| Pricing | ✅ Free | 💰 Per MAU |
-| Social logins | ✅ Via plugins | ✅ Built-in |
+| Feature                    | Agentuity Auth | Auth0              |
+| -------------------------- | -------------- | ------------------ |
+| `ctx.auth` on AgentContext | ✅ Native      | ❌ Manual          |
+| Database-backed sessions   | ✅ Built-in    | ❌ External        |
+| Organizations              | ✅ Built-in    | ✅ With Auth0 Orgs |
+| API Keys                   | ✅ Built-in    | ❌ Not available   |
+| Self-hosted                | ✅ Yes         | ❌ Cloud only      |
+| Pricing                    | ✅ Free        | 💰 Per MAU         |
+| Social logins              | ✅ Via plugins | ✅ Built-in        |
 
 ## Migration to Agentuity Auth
 
@@ -351,11 +353,11 @@ Ensure `Auth0Bridge` is inside both `Auth0Provider` and `AgentuityProvider`:
 
 ```tsx
 <Auth0Provider>
-  <AgentuityProvider>
-    <Auth0Bridge>
-      <App />
-    </Auth0Bridge>
-  </AgentuityProvider>
+	<AgentuityProvider>
+		<Auth0Bridge>
+			<App />
+		</Auth0Bridge>
+	</AgentuityProvider>
 </Auth0Provider>
 ```
 
