@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/frontend",
-	"version": "0.0.106",
+	"version": "0.0.107",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
