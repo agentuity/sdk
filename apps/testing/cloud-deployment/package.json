@@ -18,6 +18,8 @@
 		"hono": "^4.7.13"
 	},
 	"devDependencies": {
-		"@types/bun": "latest"
+		"@types/bun": "latest",
+		"@vitejs/plugin-react": "^4.5.2",
+		"vite": "^6.3.5"
 	}
 }
