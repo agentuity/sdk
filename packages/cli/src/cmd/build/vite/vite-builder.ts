@@ -54,7 +54,7 @@ export interface ViteBuildOptions {
 	workbenchRoute?: string;
 	workbenchEnabled?: boolean;
 	logger: Logger;
-	deploymentOptions: DeployOptions;
+	deploymentOptions?: DeployOptions;
 }
 
 /**

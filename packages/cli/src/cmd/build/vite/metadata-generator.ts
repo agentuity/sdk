@@ -162,7 +162,7 @@ export interface MetadataGeneratorOptions {
 	routes: RouteMetadata[];
 	dev?: boolean;
 	logger: Logger;
-	deploymentOptions: DeployOptions;
+	deploymentOptions?: DeployOptions;
 }
 
 /**
@@ -475,6 +475,16 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 
 	if (options.deploymentOptions) {
 		const git = { ...(metadata.deployment.git ?? {}), ...options.deploymentOptions };
+		if (options.deploymentOptions.pullRequestNumber) {
+			git.pull_request = {
+				number: options.deploymentOptions.pullRequestNumber,
+				commentId: options.deploymentOptions.pullRequestCommentId,
+				url: options.deploymentOptions.pullRequestURL,
+			};
+			delete git.pullRequestCommentId;
+			delete git.pullRequestNumber;
+			delete git.pullRequestURL;
+		}
 		metadata.deployment.git = git;
 	}
 

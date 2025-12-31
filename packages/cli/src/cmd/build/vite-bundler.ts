@@ -25,7 +25,7 @@ export interface ViteBundleOptions {
 	deploymentId?: string;
 	port?: number;
 	logger: Logger;
-	deploymentOptions: DeployOptions;
+	deploymentOptions?: DeployOptions;
 }
 
 /**
