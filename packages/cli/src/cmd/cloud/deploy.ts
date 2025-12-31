@@ -108,8 +108,36 @@ export const deploySubcommand = createSubcommand({
 		// Ensure SDK key is present before proceeding
 		if (!sdkKey) {
 			ctx.logger.fatal(
-				'SDK key not found. Run "agentuity auth login" to authenticate or set AGENTUITY_SDK_KEY environment variable.'
+				'The AGENTUITY_SDK_KEY value not found in the .env file in this folder. Ensure you are inside a valid Agentuity project folder and run "%s" to pull your environment from the cloud.',
+				getCommand('cloud env pull')
 			);
+		}
+
+		// Check for pre-created deployment from CI build environment
+		const deploymentEnv = process.env.AGENTUITY_DEPLOYMENT;
+		let useExistingDeployment = false;
+		if (deploymentEnv) {
+			const ExistingDeploymentSchema = z.object({
+				id: z.string(),
+				orgId: z.string(),
+				publicKey: z.string(),
+			});
+			try {
+				const parsed = JSON.parse(deploymentEnv);
+				const result = ExistingDeploymentSchema.safeParse(parsed);
+				if (result.success) {
+					deployment = result.data;
+					useExistingDeployment = true;
+					logger.debug('Using existing deployment: %s', result.data.id);
+				} else {
+					const errors = result.error.issues
+						.map((i) => `${i.path.join('.')}: ${i.message}`)
+						.join(', ');
+					logger.fatal(`Invalid AGENTUITY_DEPLOYMENT schema: ${errors}`);
+				}
+			} catch (err) {
+				logger.fatal(`Failed to parse AGENTUITY_DEPLOYMENT: ${err}`);
+			}
 		}
 
 		try {
@@ -142,6 +170,9 @@ export const deploySubcommand = createSubcommand({
 						label: 'Sync Env & Secrets',
 						run: async () => {
 							try {
+								if (useExistingDeployment) {
+									return stepSkipped('skipped in CI build');
+								}
 								// Read env file
 								const envFilePath = await findExistingEnvFile(projectDir);
 								const localEnv = await readEnvFile(envFilePath);
@@ -178,6 +209,9 @@ export const deploySubcommand = createSubcommand({
 					{
 						label: 'Create Deployment',
 						run: async () => {
+							if (useExistingDeployment) {
+								return stepSkipped('skipped in CI build');
+							}
 							try {
 								deployment = await projectDeploymentCreate(
 									apiClient,
