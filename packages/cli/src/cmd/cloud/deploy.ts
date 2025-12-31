@@ -472,7 +472,10 @@ export const deploySubcommand = createSubcommand({
 			}
 
 			const streamId = complete?.streamId;
-			const appUrl = getAppBaseURL(config?.name, config?.overrides);
+			const appUrl = getAppBaseURL(
+				process.env.AGENTUITY_REGION ?? config?.name,
+				config?.overrides
+			);
 			const dashboard = `${appUrl}/r/${deployment.id}`;
 
 			// Poll for deployment status with optional log streaming
