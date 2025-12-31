@@ -40,6 +40,7 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@aivenio/tsc-output-parser": "^2.1.1",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@datasert/cronjs-parser": "^1.4.0",

@@ -86,7 +86,8 @@ export const command = createCommand({
 						console.error('');
 						console.error(typeResult.output);
 						console.error('');
-						const msg = 'errors' in typeResult ? 'Fix type errors before building' : 'Build error';
+						const msg =
+							'errors' in typeResult ? 'Fix type errors before building' : 'Build error';
 						tui.fatal(msg, ErrorCode.BUILD_FAILED);
 					}
 				} catch (error: unknown) {

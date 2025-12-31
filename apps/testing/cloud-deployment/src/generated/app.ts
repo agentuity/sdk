@@ -162,20 +162,16 @@ if (isDevelopment() && process.env.VITE_PORT) {
 
 	const proxyToVite = async (c: Context) => {
 		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${c.req.path}`;
-		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
 		try {
 			otel.logger.debug(`[Proxy] ${c.req.method} ${c.req.path} -> Vite:${VITE_ASSET_PORT}`);
-			const res = await fetch(viteUrl, { signal: controller.signal });
-			clearTimeout(timeout);
+			const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
 			otel.logger.debug(`[Proxy] ${c.req.path} -> ${res.status} (${res.headers.get('content-type')})`);
 			return new Response(res.body, {
 				status: res.status,
 				headers: res.headers,
 			});
 		} catch (err) {
-			clearTimeout(timeout);
-			if (err instanceof Error && err.name === 'AbortError') {
+			if (err instanceof Error && err.name === 'TimeoutError') {
 				otel.logger.error(`Vite proxy timeout: ${c.req.path}`);
 				return c.text('Vite asset server timeout', 504);
 			}
@@ -226,7 +222,7 @@ if (hasWorkbench) {
 	// Development mode: Let Vite serve source files with HMR
 	if (isDevelopment()) {
 		const workbenchSrcDir = import.meta.dir + '/workbench-src';
-		const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
+		const workbenchIndexPath = import.meta.dir + '/workbench-src/index.html';
 		app.get('/workbench', async (c: Context) => {
 			const html = await Bun.file(workbenchIndexPath).text();
 			// Rewrite script/css paths to use Vite's @fs protocol

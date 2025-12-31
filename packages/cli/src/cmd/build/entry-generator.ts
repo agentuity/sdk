@@ -296,7 +296,7 @@ if (hasWorkbench) {
 	// Development mode: Let Vite serve source files with HMR
 	if (isDevelopment()) {
 		const workbenchSrcDir = import.meta.dir + '/workbench-src';
-		const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
+		const workbenchIndexPath = import.meta.dir + '/workbench-src/index.html';
 		app.get('${workbenchRoute}', async (c: Context) => {
 			const html = await Bun.file(workbenchIndexPath).text();
 			// Rewrite script/css paths to use Vite's @fs protocol

@@ -22,6 +22,8 @@
 		"react-dom": "^19.2.3"
 	},
 	"devDependencies": {
-		"@types/bun": "latest"
+		"@types/bun": "latest",
+		"@vitejs/plugin-react": "^4.6.0",
+		"vite": "^6.3.5"
 	}
 }
