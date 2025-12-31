@@ -36,10 +36,10 @@ async function main() {
 	console.log('');
 
 	// Get required environment variables
-	const apiKey = process.env.AGENTUITY_API_KEY || process.env.AGENTUITY_SDK_KEY;
+	const apiKey = process.env.AGENTUITY_CLI_API_KEY || process.env.AGENTUITY_SDK_KEY;
 	if (!apiKey) {
 		console.error(
-			'Error: AGENTUITY_API_KEY or AGENTUITY_SDK_KEY environment variable is required'
+			'Error: AGENTUITY_CLI_API_KEY or AGENTUITY_SDK_KEY environment variable is required'
 		);
 		console.error('Run `agentuity auth login` to authenticate');
 		process.exit(1);
