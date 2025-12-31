@@ -53,9 +53,42 @@ export class RequestAgentContext<
 	thread: Thread;
 	config: TConfig;
 	app: TAppState;
-	auth: AgentuityAuthInterface | null;
 	[AGENT_RUNTIME]: AgentRuntimeState;
 	private handler: WaitUntilHandler;
+
+	/**
+	 * Fallback auth value for non-HTTP contexts (standalone, tests, etc.)
+	 * @internal
+	 */
+	private _initialAuth: AgentuityAuthInterface | null;
+
+	/**
+	 * Authentication context - lazily reads from HTTP context if available.
+	 *
+	 * This is a getter that prefers the current HTTP context's `c.var.auth`,
+	 * allowing auth middleware that runs after the agent middleware to still
+	 * propagate auth to agents.
+	 */
+	get auth(): AgentuityAuthInterface | null {
+		// Prefer HTTP context var.auth if available (allows late-binding from route middleware)
+		if (inHTTPContext()) {
+			try {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const httpCtx = httpAsyncLocalStorage.getStore() as any;
+				if (httpCtx?.var && 'auth' in httpCtx.var) {
+					return httpCtx.var.auth ?? null;
+				}
+			} catch {
+				// If HTTP context not available, fall through
+			}
+		}
+		// Fallback: whatever was passed in at creation time (for standalone/test contexts)
+		return this._initialAuth;
+	}
+
+	set auth(value: AgentuityAuthInterface | null) {
+		this._initialAuth = value;
+	}
 
 	constructor(args: RequestAgentContextArgs<TAgentMap, TConfig, TAppState>) {
 		this.agent = args.agent;
@@ -66,7 +99,7 @@ export class RequestAgentContext<
 		this.session = args.session;
 		this.config = args.config;
 		this.app = args.app;
-		this.auth = args.auth ?? null;
+		this._initialAuth = args.auth ?? null;
 		this[AGENT_RUNTIME] = args.runtime;
 		this.state = new Map<string, unknown>();
 		this.handler = args.handler;
