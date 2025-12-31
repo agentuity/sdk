@@ -548,7 +548,12 @@ describe('patchBunS3ForStorageDev', () => {
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return Promise.resolve({ size: 0, etag: '', lastModified: new Date(), type: 'text/plain' });
+			return Promise.resolve({
+				size: 0,
+				etag: '',
+				lastModified: new Date(),
+				type: 'text/plain',
+			});
 		};
 
 		patchBunS3ForStorageDev();
@@ -688,7 +693,12 @@ describe('patchBunS3ForStorageDev', () => {
 			options?: Record<string, unknown>
 		) {
 			capturedOptions = options;
-			return Promise.resolve({ size: 0, etag: '', lastModified: new Date(), type: 'text/plain' });
+			return Promise.resolve({
+				size: 0,
+				etag: '',
+				lastModified: new Date(),
+				type: 'text/plain',
+			});
 		};
 
 		patchBunS3ForStorageDev();

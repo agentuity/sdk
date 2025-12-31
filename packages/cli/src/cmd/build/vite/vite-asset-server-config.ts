@@ -6,6 +6,7 @@
  */
 
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import type { InlineConfig } from 'vite';
 import type { Logger } from '../../../types';
 
@@ -116,14 +117,20 @@ export async function generateAssetServerConfig(
 		},
 
 		// Plugins: User plugins first (e.g., Tailwind), then React and browser env
-		plugins: [
-			// User-defined plugins from agentuity.config.ts (e.g., Tailwind CSS)
-			...userPlugins,
-			// React plugin for JSX/TSX transformation and Fast Refresh
-			(await import('@vitejs/plugin-react')).default(),
-			// Browser env plugin to map process.env to import.meta.env
-			(await import('./browser-env-plugin')).browserEnvPlugin(),
-		],
+		// Resolve @vitejs/plugin-react from the project's node_modules
+		plugins: await (async () => {
+			const projectRequire = createRequire(join(rootDir, 'package.json'));
+			const reactPlugin = (await import(projectRequire.resolve('@vitejs/plugin-react'))).default();
+			const { browserEnvPlugin } = await import('./browser-env-plugin');
+			return [
+				// User-defined plugins from agentuity.config.ts (e.g., Tailwind CSS)
+				...userPlugins,
+				// React plugin for JSX/TSX transformation and Fast Refresh
+				reactPlugin,
+				// Browser env plugin to map process.env to import.meta.env
+				browserEnvPlugin(),
+			];
+		})(),
 
 		// Suppress build-related options (this is dev-only)
 		build: {

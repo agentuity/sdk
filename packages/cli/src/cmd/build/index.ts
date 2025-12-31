@@ -5,6 +5,7 @@ import { viteBundle } from './vite-bundler';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
+import { typecheck } from './typecheck';
 
 const BuildResponseSchema = z.object({
 	success: z.boolean().describe('Whether the build succeeded'),
@@ -78,22 +79,23 @@ export const command = createCommand({
 			if (!opts.dev && !opts.skipTypeCheck) {
 				try {
 					tui.info('Running type check...');
-					const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`
-						.cwd(absoluteProjectDir)
-						.nothrow();
-
-					if (result.exitCode === 0) {
+					const typeResult = await typecheck(absoluteProjectDir);
+					if (typeResult.success) {
 						tui.success('Type check passed');
 					} else {
-						tui.error('Type check failed:\n');
-						console.error(result.stderr.toString());
-						tui.fatal('Fix type errors before building');
+						console.error('');
+						console.error(typeResult.output);
+						console.error('');
+						const msg = 'errors' in typeResult ? 'Fix type errors before building' : 'Build error';
+						tui.fatal(msg, ErrorCode.BUILD_FAILED);
 					}
 				} catch (error: unknown) {
-					// If tsc fails to run, show error and fail
 					const errorMsg = error instanceof Error ? error.message : String(error);
 					tui.error(`Type check failed to run: ${errorMsg}`);
-					tui.fatal('Unable to run TypeScript type checking. Ensure TypeScript is installed.');
+					tui.fatal(
+						'Unable to run TypeScript type checking. Ensure TypeScript is installed.',
+						ErrorCode.BUILD_FAILED
+					);
 				}
 			}
 

@@ -166,6 +166,9 @@ export {
 	CompositeEvalRunEventProvider,
 } from './services/evalrun';
 
+// for loading metadata
+export { loadBuildMetadata } from './_metadata';
+
 // _services.ts exports
 export { getEvalRunEventProvider, getThreadProvider, getSessionProvider } from './_services';
 

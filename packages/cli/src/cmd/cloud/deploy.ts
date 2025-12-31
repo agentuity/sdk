@@ -44,6 +44,7 @@ import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { getCommand } from '../../command-prefix';
 import * as domain from '../../domain';
 import { ErrorCode } from '../../errors';
+import { typecheck } from '../build/typecheck';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -89,7 +90,12 @@ export const deploySubcommand = createSubcommand({
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['auth login'],
 	schema: {
-		options: DeployOptionsSchema,
+		options: z.intersection(
+			DeployOptionsSchema,
+			z.object({
+				saveTypeErrors: z.string().optional().describe('file path to save typecheck errors'),
+			})
+		),
 		response: DeployResponseSchema,
 	},
 
@@ -232,9 +238,25 @@ export const deploySubcommand = createSubcommand({
 								return stepError('deployment was null');
 							}
 							let capturedOutput: string[] = [];
+							const rootDir = resolve(projectDir);
+							const started = Date.now();
+							const typeResult = await typecheck(rootDir);
+							if (typeResult.success) {
+								capturedOutput.push(
+									tui.muted(
+										`✓ Typechecked in ${Math.floor(Date.now() - started).toFixed(0)}ms`
+									)
+								);
+							} else {
+								if ('errors' in typeResult && opts.saveTypeErrors) {
+									const f = Bun.file(opts.saveTypeErrors);
+									await f.write(JSON.stringify(typeResult.errors));
+								}
+								return stepError('Typecheck failed\n\n' + typeResult.output);
+							}
 							try {
 								const bundleResult = await viteBundle({
-									rootDir: resolve(projectDir),
+									rootDir,
 									dev: false,
 									deploymentId: deployment.id,
 									orgId: deployment.orgId,
@@ -243,7 +265,7 @@ export const deploySubcommand = createSubcommand({
 									logger: ctx.logger,
 									deploymentOptions: opts,
 								});
-								capturedOutput = bundleResult.output;
+								capturedOutput = [...capturedOutput, ...bundleResult.output];
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
 								instructions = await projectDeploymentUpdate(
 									apiClient,
@@ -470,6 +492,8 @@ export const deploySubcommand = createSubcommand({
 					projectId: project.projectId,
 				};
 			}
+
+			// TODO: send the deployment failure to the backend otherwise we staying in a deploying state
 
 			const streamId = complete?.streamId;
 			const appUrl = getAppBaseURL(

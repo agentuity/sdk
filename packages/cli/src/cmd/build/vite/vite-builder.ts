@@ -6,6 +6,7 @@
 
 import { join } from 'node:path';
 import { existsSync, renameSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
@@ -105,9 +106,11 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		return;
 	}
 
-	// Dynamically import vite and react plugin
-	const { build: viteBuild } = await import('vite');
-	const reactModule = await import('@vitejs/plugin-react');
+	// Dynamically import vite and react plugin from the project's node_modules
+	// This ensures we resolve from the target project directory, not the CWD
+	const projectRequire = createRequire(join(rootDir, 'package.json'));
+	const { build: viteBuild } = await import(projectRequire.resolve('vite'));
+	const reactModule = await import(projectRequire.resolve('@vitejs/plugin-react'));
 	const react = reactModule.default;
 
 	// For client/workbench, use inline config (no agentuity plugin needed)

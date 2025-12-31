@@ -22,11 +22,14 @@ import {
   setGlobalRouter,
   enableProcessExitProtection,
   hasWaitUntilPending,
+  loadBuildMetadata,
+  createWorkbenchRouter,
+  bootstrapRuntimeEnv,
+ patchBunS3ForStorageDev,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { websocket } from 'hono/bun';
 import { type LogLevel } from '@agentuity/core';
-import { bootstrapRuntimeEnv, patchBunS3ForStorageDev } from '@agentuity/runtime';
 
 // Runtime mode detection helper
 // Dynamic string concatenation prevents Bun.build from inlining NODE_ENV at build time
@@ -41,6 +44,9 @@ if (isDevelopment()) {
 	// Pass project directory (two levels up from src/generated/) so .env files are loaded correctly
 	await bootstrapRuntimeEnv({ projectDir: import.meta.dir + '/../..' });
 }
+
+// Step 0.25: load our runtime metadata and cache it
+loadBuildMetadata();
 
 // Step 0.5: Patch Bun's S3 client for Agentuity storage endpoints
 // Agentuity storage uses virtual-hosted-style URLs (*.storage.dev)
@@ -103,6 +109,7 @@ if (!isDevelopment()) {
 	};
 	const idleHandler = (c: Context) => {
 		// Check if server is idle (no pending requests/connections)
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const server = (globalThis as any).__AGENTUITY_SERVER__;
 		if (!server) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
@@ -208,6 +215,31 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	app.get('/*.css', proxyToVite);
 }
 
+const hasWorkbench = false;
+if (hasWorkbench) {
+	// Mount workbench API routes (/_agentuity/workbench/*)
+	const workbenchRouter = createWorkbenchRouter();
+	app.route('/', workbenchRouter);
+}
+
+if (hasWorkbench) {
+	// Development mode: Let Vite serve source files with HMR
+	if (isDevelopment()) {
+		const workbenchSrcDir = import.meta.dir + '/workbench-src';
+		const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
+		app.get('/workbench', async (c: Context) => {
+			const html = await Bun.file(workbenchIndexPath).text();
+			// Rewrite script/css paths to use Vite's @fs protocol
+			const withVite = html
+				.replace('src="./main.tsx"', `src="/@fs${workbenchSrcDir}/main.tsx"`)
+				.replace('href="./styles.css"', `href="/@fs${workbenchSrcDir}/styles.css"`);
+			return c.html(withVite);
+		});
+	} else {
+		// Production mode disables the workbench assets
+	}
+}
+
 // Step 7: Run agent setup to signal completion
 await runAgentSetups(appState);
 
@@ -230,6 +262,7 @@ if (typeof Bun !== 'undefined') {
 	});
 	
 	// Make server available globally for health checks
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).__AGENTUITY_SERVER__ = server;
 	
 	otel.logger.info(`Server listening on http://127.0.0.1:${port}`);

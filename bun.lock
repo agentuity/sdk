@@ -8,6 +8,7 @@
         "ai": "^6.0.0",
       },
       "devDependencies": {
+        "@aivenio/tsc-output-parser": "^2.1.1",
         "@eslint/js": "^9.38.0",
         "@eslint/json": "^0.13.2",
         "@happy-dom/global-registrator": "^20.0.11",
@@ -448,6 +449,8 @@
     "@ai-sdk/provider-utils": ["@ai-sdk/provider-utils@4.0.1", "", { "dependencies": { "@ai-sdk/provider": "3.0.0", "@standard-schema/spec": "^1.1.0", "eventsource-parser": "^3.0.6" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-de2v8gH9zj47tRI38oSxhQIewmNc+OZjYIOOaMoVWKL65ERSav2PYYZHPSPCrfOeLMkv+Dyh8Y0QGwkO29wMWQ=="],
 
     "@ai-sdk/react": ["@ai-sdk/react@3.0.3", "", { "dependencies": { "@ai-sdk/provider-utils": "4.0.1", "ai": "6.0.3", "swr": "^2.2.5", "throttleit": "2.1.0" }, "peerDependencies": { "react": "^18 || ~19.0.1 || ~19.1.2 || ^19.2.1" } }, "sha512-mLIgQuBdIX9gxCYQN3Pv/J8ARoFreIKYr/TVQtI+FwEzejuGFimTyhDln7UIBfrnm3Mpn1xENIWZfDfCRF7wkw=="],
+
+    "@aivenio/tsc-output-parser": ["@aivenio/tsc-output-parser@2.1.1", "", { "bin": { "tsc-output-parser": "dist/cli.js" } }, "sha512-aCLAjh8lRc3I+giJSiqe38wrtMOZZFaDdAjqbiPSu8xnH2FBvZMJmVBdk8nNP8OMw4qJJ3OS8/D9DXWoMCAe0g=="],
 
     "@antfu/install-pkg": ["@antfu/install-pkg@1.1.0", "", { "dependencies": { "package-manager-detector": "^1.3.0", "tinyexec": "^1.0.1" } }, "sha512-MGQsmw10ZyI+EJo45CdSER4zEb+p31LpDAFp2Z3gkSd1yqVZGi0Ebx++YTEMonJy4oChEMLsxZ64j8FH6sSqtQ=="],
 
