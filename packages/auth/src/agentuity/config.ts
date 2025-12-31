@@ -9,8 +9,7 @@
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/bun-sql';
 import * as authSchema from '../schema';
 
 /**
@@ -324,7 +323,7 @@ export interface ApiKeyPluginOptions {
 export interface AgentuityAuthOptions extends BetterAuthOptions {
 	/**
 	 * PostgreSQL connection string.
-	 * When provided, we create a pg Pool and Drizzle instance internally.
+	 * When provided, we create a Bun SQL connection and Drizzle instance internally.
 	 * This is the simplest path - just provide the connection string.
 	 *
 	 * @example
@@ -413,14 +412,15 @@ export function getDefaultPlugins(apiKeyOptions?: ApiKeyPluginOptions | false) {
  *
  * @example Option B: Bring your own Drizzle
  * ```typescript
+ * import { drizzle } from 'drizzle-orm/bun-sql';
  * import { drizzleAdapter } from 'better-auth/adapters/drizzle';
  * import * as authSchema from '@agentuity/auth/schema';
  *
  * const schema = { ...authSchema, ...myAppSchema };
- * const db = drizzle(pool, { schema });
+ * const db = drizzle(connectionString, { schema });
  *
  * export const auth = createAgentuityAuth({
- *   database: drizzleAdapter(db, { schema }),
+ *   database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
  * });
  * ```
  *
@@ -458,10 +458,9 @@ export function createAgentuityAuth<T extends AgentuityAuthOptions>(options: T) 
 	// Handle database configuration
 	let database = restOptions.database;
 
-	// Option A: connectionString provided - create pg pool + drizzle internally
+	// ConnectionString provided - create Bun SQL connection + drizzle internally
 	if (connectionString && !database) {
-		const pool = new Pool({ connectionString });
-		const db = drizzle(pool, { schema: authSchema });
+		const db = drizzle(connectionString, { schema: authSchema });
 		database = drizzleAdapter(db, {
 			provider: 'pg',
 			schema: authSchema,
@@ -506,8 +505,7 @@ export type AgentuityAuthInstance = ReturnType<typeof createAgentuityAuth>;
  * import { withAgentuityAuth } from '@agentuity/auth/agentuity';
  *
  * export const auth = withAgentuityAuth({
- *   database: pool,
- *   basePath: '/api/auth',
+ *   connectionString: process.env.DATABASE_URL,
  * });
  * ```
  */

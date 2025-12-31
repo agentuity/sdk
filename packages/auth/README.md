@@ -202,13 +202,13 @@ export const auth = createAgentuityAuth({
 Merge auth schema with your app schema:
 
 ```typescript
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle } from 'drizzle-orm/bun-sql';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import * as authSchema from '@agentuity/auth/schema';
 import * as myAppSchema from './schema';
 
 const schema = { ...authSchema, ...myAppSchema };
-const db = drizzle(pool, { schema });
+const db = drizzle(process.env.DATABASE_URL!, { schema });
 
 export const auth = createAgentuityAuth({
   database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),

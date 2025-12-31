@@ -90,7 +90,7 @@ const authClient = createAgentuityAuthClient();
 
 ## Database Options
 
-1. **connectionString** - Simplest: we create pg pool + drizzle internally
+1. **connectionString** - Simplest: we create Bun SQL connection + drizzle internally
 2. **database** - Bring your own drizzle adapter or other BetterAuth adapter
 3. **@agentuity/auth/schema** - Export for merging with app schema
 

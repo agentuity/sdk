@@ -9,10 +9,10 @@
  * @example Merge with your app schema
  * ```typescript
  * import * as authSchema from '@agentuity/auth/schema';
- * import { drizzle } from 'drizzle-orm/node-postgres';
+ * import { drizzle } from 'drizzle-orm/bun-sql';
  *
  * const schema = { ...authSchema, ...myAppSchema };
- * const db = drizzle(pool, { schema });
+ * const db = drizzle(connectionString, { schema });
  * ```
  */
 
