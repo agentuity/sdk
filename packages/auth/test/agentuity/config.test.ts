@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { Database } from 'bun:sqlite';
-import { createAgentuityAuth } from '../../src/agentuity/config';
+import { createAuth } from '../../src/agentuity/config';
 
 describe('Agentuity Auth Config', () => {
 	const originalEnv = { ...process.env };
@@ -21,7 +21,7 @@ describe('Agentuity Auth Config', () => {
 			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://agentuity-url.com';
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://explicit-url.com',
 				basePath: '/api/auth',
@@ -36,7 +36,7 @@ describe('Agentuity Auth Config', () => {
 			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://agentuity-url.com';
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				basePath: '/api/auth',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -51,7 +51,7 @@ describe('Agentuity Auth Config', () => {
 			// Note: AGENTUITY_DEPLOYMENT_URL not set
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				basePath: '/api/auth',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -64,7 +64,7 @@ describe('Agentuity Auth Config', () => {
 			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://p1234.agentuity.run';
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				basePath: '/api/auth',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -79,7 +79,7 @@ describe('Agentuity Auth Config', () => {
 			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://p1234.agentuity.run';
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				basePath: '/api/auth',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -91,7 +91,7 @@ describe('Agentuity Auth Config', () => {
 		it('respects user-provided trustedOrigins', () => {
 			const customOrigins = ['https://custom.example.com'];
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
@@ -104,7 +104,7 @@ describe('Agentuity Auth Config', () => {
 
 		it('default trustedOrigins includes baseURL origin', async () => {
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://myapp.example.com',
 				basePath: '/api/auth',
@@ -123,7 +123,7 @@ describe('Agentuity Auth Config', () => {
 			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://p5678.agentuity.run';
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				basePath: '/api/auth',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -139,7 +139,7 @@ describe('Agentuity Auth Config', () => {
 
 		it('default trustedOrigins includes request origin (same-origin)', async () => {
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
@@ -160,7 +160,7 @@ describe('Agentuity Auth Config', () => {
 				'https://extra1.example.com,https://extra2.example.com';
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
@@ -185,7 +185,7 @@ describe('Agentuity Auth Config', () => {
 			// Create auth with a VALID baseURL to avoid BetterAuth URL validation errors
 			// The malformed AGENTUITY_DEPLOYMENT_URL will be handled gracefully by safeOrigin()
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://valid-base.example.com',
 				basePath: '/api/auth',
@@ -212,7 +212,7 @@ describe('Agentuity Auth Config', () => {
 			process.env.BETTER_AUTH_SECRET = 'better-auth-secret-minimum-32-chars';
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
@@ -227,7 +227,7 @@ describe('Agentuity Auth Config', () => {
 			process.env.BETTER_AUTH_SECRET = 'better-auth-secret-minimum-32-chars';
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
@@ -241,7 +241,7 @@ describe('Agentuity Auth Config', () => {
 			process.env.BETTER_AUTH_SECRET = 'better-auth-secret-minimum-32-chars';
 
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				basePath: '/api/auth',
@@ -254,7 +254,7 @@ describe('Agentuity Auth Config', () => {
 	describe('default options', () => {
 		it('defaults basePath to /api/auth', () => {
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -265,7 +265,7 @@ describe('Agentuity Auth Config', () => {
 
 		it('defaults emailAndPassword to enabled', () => {
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -276,7 +276,7 @@ describe('Agentuity Auth Config', () => {
 
 		it('defaults experimental.joins to true', () => {
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -292,7 +292,7 @@ describe('Agentuity Auth Config', () => {
 	describe('default plugins', () => {
 		it('includes organization, jwt, bearer, and apiKey plugins by default', () => {
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -305,7 +305,7 @@ describe('Agentuity Auth Config', () => {
 
 		it('skips default plugins when skipDefaultPlugins is true', () => {
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',
@@ -318,7 +318,7 @@ describe('Agentuity Auth Config', () => {
 
 		it('allows disabling apiKey plugin', () => {
 			const db = new Database(':memory:');
-			const auth = createAgentuityAuth({
+			const auth = createAuth({
 				database: db,
 				baseURL: 'https://test.example.com',
 				secret: 'test-secret-minimum-32-characters-long',

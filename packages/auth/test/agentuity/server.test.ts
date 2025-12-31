@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, test, expect, mock } from 'bun:test';
 import { Hono } from 'hono';
-import { createSessionMiddleware, mountAgentuityAuthRoutes } from '../../src/agentuity/server';
+import { createSessionMiddleware, mountAuthRoutes } from '../../src/agentuity/server';
 
 const createMockAuth = (sessionResult: unknown) => ({
 	api: {
@@ -370,7 +370,7 @@ describe('Agentuity Auth server middleware', () => {
 	});
 });
 
-describe('mountAgentuityAuthRoutes', () => {
+describe('mountAuthRoutes', () => {
 	test('forwards requests to auth handler', async () => {
 		const mockHandler = mock(async (req: Request) => {
 			return new Response(JSON.stringify({ path: new URL(req.url).pathname }), {
@@ -381,7 +381,7 @@ describe('mountAgentuityAuthRoutes', () => {
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
 
-		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 		expect(res.status).toBe(200);
@@ -401,7 +401,7 @@ describe('mountAgentuityAuthRoutes', () => {
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
 
-		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/sign-in', { method: 'POST' });
 		expect(res.status).toBe(200);
@@ -425,7 +425,7 @@ describe('mountAgentuityAuthRoutes', () => {
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
 
-		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 		const body = await res.json();
@@ -442,7 +442,7 @@ describe('mountAgentuityAuthRoutes', () => {
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
 
-		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 		expect(res.status).toBe(401);
@@ -465,7 +465,7 @@ describe('mountAgentuityAuthRoutes', () => {
 			c.header('X-Middleware-Header', 'from-middleware');
 			await next();
 		});
-		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 		// X-Auth-Header is NOT forwarded because it's not in the default allowlist
@@ -489,7 +489,7 @@ describe('mountAgentuityAuthRoutes', () => {
 		});
 		const mockAuth = { handler: mockHandler };
 		const app = new Hono();
-		app.on(['GET', 'POST'], '/auth/*', mountAgentuityAuthRoutes(mockAuth as any));
+		app.on(['GET', 'POST'], '/auth/*', mountAuthRoutes(mockAuth as any));
 
 		const res = await app.request('/auth/session');
 
@@ -524,7 +524,7 @@ describe('mountAgentuityAuthRoutes', () => {
 		app.on(
 			['GET', 'POST'],
 			'/auth/*',
-			mountAgentuityAuthRoutes(mockAuth as any, {
+			mountAuthRoutes(mockAuth as any, {
 				allowList: ['content-type', 'x-custom-header'],
 			})
 		);
