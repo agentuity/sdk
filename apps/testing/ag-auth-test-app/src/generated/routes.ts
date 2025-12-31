@@ -49,6 +49,16 @@ declare module '@agentuity/react' {
 	 * Maps route keys (METHOD /path) to their input/output schemas
 	 */
 	export interface RouteRegistry {
+	'GET /api/auth/*': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/auth/*': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
 	'GET /api/health': {
 		inputSchema: never;
 		outputSchema: never;
@@ -90,8 +100,8 @@ declare module '@agentuity/react' {
 		stream: false;
 	};
 	'POST /api/api-keys': {
-		inputSchema: POSTApiApiKeysInputSchema;
-		outputSchema: POSTApiApiKeysOutputSchema;
+		inputSchema: never;
+		outputSchema: never;
 		stream: false;
 	};
 	'GET /api/api-keys': {
@@ -115,8 +125,8 @@ declare module '@agentuity/react' {
 		stream: false;
 	};
 	'POST /api/organizations': {
-		inputSchema: POSTApiOrganizationsInputSchema;
-		outputSchema: POSTApiOrganizationsOutputSchema;
+		inputSchema: never;
+		outputSchema: never;
 		stream: false;
 	};
 	'GET /api/organizations': {
@@ -176,6 +186,18 @@ declare module '@agentuity/react' {
 	 * Used by createClient() from @agentuity/core for type-safe RPC calls.
 	 */
 	export interface RPCRouteRegistry {
+		auth: {
+			: {
+				/**
+				 * Route: GET /api/auth/*
+				 */
+				get: { input: never; output: never; type: 'api' };
+				/**
+				 * Route: POST /api/auth/*
+				 */
+				post: { input: never; output: never; type: 'api' };
+			};
+		};
 		health: {
 			/**
 			 * Route: GET /api/health
@@ -230,7 +252,7 @@ declare module '@agentuity/react' {
 			/**
 			 * Route: POST /api/api-keys
 			 */
-			post: { input: POSTApiApiKeysInput; output: POSTApiApiKeysOutput; type: 'api' };
+			post: { input: never; output: never; type: 'api' };
 			/**
 			 * Route: GET /api/api-keys
 			 */
@@ -258,7 +280,7 @@ declare module '@agentuity/react' {
 			/**
 			 * Route: POST /api/organizations
 			 */
-			post: { input: POSTApiOrganizationsInput; output: POSTApiOrganizationsOutput; type: 'api' };
+			post: { input: never; output: never; type: 'api' };
 			/**
 			 * Route: GET /api/organizations
 			 */
@@ -305,6 +327,16 @@ declare module '@agentuity/react' {
  * @internal
  */
 const _rpcRouteMetadata = {
+		"auth": {
+				"": {
+						"get": {
+								"type": "api"
+						},
+						"post": {
+								"type": "api"
+						}
+				}
+		},
 		"health": {
 				"get": {
 						"type": "api"

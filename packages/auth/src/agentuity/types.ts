@@ -149,6 +149,6 @@ export interface AuthApiKeyHelpers {
  * Full Auth interface available on Hono context (c.var.auth).
  * Extends the generic AgentuityAuth with org and API key helpers.
  */
-export type AuthInterface<TUser = unknown> = AgentuityAuth<TUser, AuthContext> &
+export type AuthInterface<TUser = AuthUser> = AgentuityAuth<TUser, AuthContext> &
 	AuthOrgHelpers &
 	AuthApiKeyHelpers;
