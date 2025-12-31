@@ -42,14 +42,14 @@ async function runTest(name: string, fn: () => Promise<void>): Promise<void> {
 
 async function main() {
 	// Verify environment variables are set
-	const endpoint = process.env.S3_ENDPOINT || process.env.AWS_ENDPOINT;
-	const accessKeyId = process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
-	const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+	const endpoint = process.env.AWS_ENDPOINT;
+	const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+	const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 
 	console.log('Environment check:');
-	console.log(`  S3_ENDPOINT: ${endpoint ? '✓ set' : '✗ not set'}`);
-	console.log(`  S3_ACCESS_KEY_ID: ${accessKeyId ? '✓ set' : '✗ not set'}`);
-	console.log(`  S3_SECRET_ACCESS_KEY: ${secretAccessKey ? '✓ set' : '✗ not set'}`);
+	console.log(`  AWS_ENDPOINT:          ${endpoint ? '✓ set' : '✗ not set'}`);
+	console.log(`  AWS_ACCESS_KEY_ID:     ${accessKeyId ? '✓ set' : '✗ not set'}`);
+	console.log(`  AWS_SECRET_ACCESS_KEY: ${secretAccessKey ? '✓ set' : '✗ not set'}`);
 	console.log('');
 
 	if (!endpoint || !accessKeyId || !secretAccessKey) {
@@ -66,7 +66,7 @@ async function main() {
 	// Create S3 client WITHOUT explicit credentials
 	// Bun should auto-load from environment variables
 	console.log('Creating S3Client (credentials from environment)...');
-	const s3Client = new S3Client({});
+	const s3Client = new S3Client();
 	console.log('  S3Client created');
 	console.log('');
 

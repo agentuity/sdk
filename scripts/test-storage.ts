@@ -45,9 +45,9 @@ async function main() {
 		process.exit(1);
 	}
 
-	const orgId = process.env.AGENTUITY_ORG_ID;
+	const orgId = process.env.AGENTUITY_CLOUD_ORG_ID;
 	if (!orgId) {
-		console.error('Error: AGENTUITY_ORG_ID environment variable is required');
+		console.error('Error: AGENTUITY_CLOUD_ORG_ID environment variable is required');
 		process.exit(1);
 	}
 
