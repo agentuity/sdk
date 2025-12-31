@@ -76,15 +76,33 @@ function safeOrigin(url: string | undefined): string | undefined {
 }
 
 /**
+ * Parse a domain or URL into an origin.
+ * Handles both full URLs (https://example.com) and bare domains (example.com).
+ * Bare domains default to https:// scheme.
+ */
+function parseOriginLike(value: string): string | undefined {
+	const trimmed = value.trim();
+	if (!trimmed) return undefined;
+
+	// If it looks like a URL with scheme, parse as-is
+	if (/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(trimmed)) {
+		return safeOrigin(trimmed);
+	}
+
+	// Otherwise, treat as host[:port] and assume https
+	return safeOrigin(`https://${trimmed}`);
+}
+
+/**
  * Resolve the base URL for the auth instance.
  *
  * Priority:
  * 1. Explicit `baseURL` option
- * 2. `AGENTUITY_DEPLOYMENT_URL` env var (Agentuity platform-injected)
+ * 2. `AGENTUITY_BASE_URL` env var (Agentuity platform-injected)
  * 3. `BETTER_AUTH_URL` env var (BetterAuth standard, for backward compatibility)
  */
 function resolveBaseURL(explicitBaseURL?: string): string | undefined {
-	return explicitBaseURL ?? process.env.AGENTUITY_DEPLOYMENT_URL ?? process.env.BETTER_AUTH_URL;
+	return explicitBaseURL ?? process.env.AGENTUITY_BASE_URL ?? process.env.BETTER_AUTH_URL;
 }
 
 /**
@@ -104,15 +122,17 @@ function resolveSecret(explicitSecret?: string): string | undefined {
  *
  * This provides zero-config CORS/origin handling:
  * - Trusts the resolved baseURL origin
- * - Trusts the AGENTUITY_DEPLOYMENT_URL origin
+ * - Trusts the AGENTUITY_BASE_URL origin
+ * - Trusts all domains from AGENTUITY_CLOUD_DOMAINS (platform-set, comma-separated)
+ * - Trusts additional domains from AUTH_TRUSTED_DOMAINS (developer-set, comma-separated)
  * - Trusts the same-origin of incoming requests (request.url.origin)
- * - Supports additional origins via AGENTUITY_AUTH_TRUSTED_ORIGINS env (comma-separated)
  *
  * @param baseURL - The resolved base URL for the auth instance
  */
 function createDefaultTrustedOrigins(baseURL?: string): (request?: Request) => Promise<string[]> {
-	const agentuityURL = process.env.AGENTUITY_DEPLOYMENT_URL;
-	const extraFromEnv = process.env.AGENTUITY_AUTH_TRUSTED_ORIGINS;
+	const agentuityURL = process.env.AGENTUITY_BASE_URL;
+	const cloudDomains = process.env.AGENTUITY_CLOUD_DOMAINS;
+	const devTrustedDomains = process.env.AUTH_TRUSTED_DOMAINS;
 
 	const staticOrigins = new Set<string>();
 
@@ -122,10 +142,19 @@ function createDefaultTrustedOrigins(baseURL?: string): (request?: Request) => P
 	const agentuityOrigin = safeOrigin(agentuityURL);
 	if (agentuityOrigin) staticOrigins.add(agentuityOrigin);
 
-	if (extraFromEnv) {
-		for (const raw of extraFromEnv.split(',')) {
-			const v = raw.trim();
-			if (v) staticOrigins.add(v);
+	// Platform-set cloud domains (deployment, project, PR, custom domains, tunnels)
+	if (cloudDomains) {
+		for (const raw of cloudDomains.split(',')) {
+			const origin = parseOriginLike(raw);
+			if (origin) staticOrigins.add(origin);
+		}
+	}
+
+	// Developer-set additional trusted domains
+	if (devTrustedDomains) {
+		for (const raw of devTrustedDomains.split(',')) {
+			const origin = parseOriginLike(raw);
+			if (origin) staticOrigins.add(origin);
 		}
 	}
 

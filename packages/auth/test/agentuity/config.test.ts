@@ -7,7 +7,7 @@ describe('Agentuity Auth Config', () => {
 
 	beforeEach(() => {
 		delete process.env.BETTER_AUTH_URL;
-		delete process.env.AGENTUITY_DEPLOYMENT_URL;
+		delete process.env.AGENTUITY_BASE_URL;
 		delete process.env.AGENTUITY_AUTH_TRUSTED_ORIGINS;
 	});
 
@@ -18,7 +18,7 @@ describe('Agentuity Auth Config', () => {
 	describe('resolveBaseURL', () => {
 		it('returns explicit baseURL when provided', () => {
 			process.env.BETTER_AUTH_URL = 'https://env-url.com';
-			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://agentuity-url.com';
+			process.env.AGENTUITY_BASE_URL = 'https://agentuity-url.com';
 
 			const db = new Database(':memory:');
 			const auth = createAuth({
@@ -31,9 +31,9 @@ describe('Agentuity Auth Config', () => {
 			expect(auth.options.baseURL).toBe('https://explicit-url.com');
 		});
 
-		it('prefers AGENTUITY_DEPLOYMENT_URL over BETTER_AUTH_URL', () => {
+		it('prefers AGENTUITY_BASE_URL over BETTER_AUTH_URL', () => {
 			process.env.BETTER_AUTH_URL = 'https://better-auth-url.com';
-			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://agentuity-url.com';
+			process.env.AGENTUITY_BASE_URL = 'https://agentuity-url.com';
 
 			const db = new Database(':memory:');
 			const auth = createAuth({
@@ -42,13 +42,13 @@ describe('Agentuity Auth Config', () => {
 				secret: 'test-secret-minimum-32-characters-long',
 			});
 
-			// AGENTUITY_DEPLOYMENT_URL takes priority over BETTER_AUTH_URL
+			// AGENTUITY_BASE_URL takes priority over BETTER_AUTH_URL
 			expect(auth.options.baseURL).toBe('https://agentuity-url.com');
 		});
 
-		it('falls back to BETTER_AUTH_URL when no AGENTUITY_DEPLOYMENT_URL', () => {
+		it('falls back to BETTER_AUTH_URL when no AGENTUITY_BASE_URL', () => {
 			process.env.BETTER_AUTH_URL = 'https://better-auth-url.com';
-			// Note: AGENTUITY_DEPLOYMENT_URL not set
+			// Note: AGENTUITY_BASE_URL not set
 
 			const db = new Database(':memory:');
 			const auth = createAuth({
@@ -60,8 +60,8 @@ describe('Agentuity Auth Config', () => {
 			expect(auth.options.baseURL).toBe('https://better-auth-url.com');
 		});
 
-		it('falls back to AGENTUITY_DEPLOYMENT_URL when no BETTER_AUTH_URL', () => {
-			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://p1234.agentuity.run';
+		it('falls back to AGENTUITY_BASE_URL when no BETTER_AUTH_URL', () => {
+			process.env.AGENTUITY_BASE_URL = 'https://p1234.agentuity.run';
 
 			const db = new Database(':memory:');
 			const auth = createAuth({
@@ -76,7 +76,7 @@ describe('Agentuity Auth Config', () => {
 
 	describe('trustedOrigins', () => {
 		it('uses default trustedOrigins function when not provided', () => {
-			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://p1234.agentuity.run';
+			process.env.AGENTUITY_BASE_URL = 'https://p1234.agentuity.run';
 
 			const db = new Database(':memory:');
 			const auth = createAuth({
@@ -119,8 +119,8 @@ describe('Agentuity Auth Config', () => {
 			expect(origins).toContain('https://myapp.example.com');
 		});
 
-		it('default trustedOrigins includes AGENTUITY_DEPLOYMENT_URL origin', async () => {
-			process.env.AGENTUITY_DEPLOYMENT_URL = 'https://p5678.agentuity.run';
+		it('default trustedOrigins includes AGENTUITY_BASE_URL origin', async () => {
+			process.env.AGENTUITY_BASE_URL = 'https://p5678.agentuity.run';
 
 			const db = new Database(':memory:');
 			const auth = createAuth({
@@ -155,8 +155,8 @@ describe('Agentuity Auth Config', () => {
 			expect(origins).toContain('https://deployed-app.agentuity.run');
 		});
 
-		it('default trustedOrigins includes extra origins from AGENTUITY_AUTH_TRUSTED_ORIGINS', async () => {
-			process.env.AGENTUITY_AUTH_TRUSTED_ORIGINS =
+		it('default trustedOrigins includes extra origins from AUTH_TRUSTED_DOMAINS', async () => {
+			process.env.AUTH_TRUSTED_DOMAINS =
 				'https://extra1.example.com,https://extra2.example.com';
 
 			const db = new Database(':memory:');
@@ -179,11 +179,11 @@ describe('Agentuity Auth Config', () => {
 		it('handles malformed URLs gracefully in trustedOrigins', async () => {
 			// Test the trustedOrigins function directly without creating a full auth instance
 			// to avoid BetterAuth's async URL validation errors
-			process.env.AGENTUITY_DEPLOYMENT_URL = 'not-a-valid-url';
-			process.env.AGENTUITY_AUTH_TRUSTED_ORIGINS = 'https://valid.example.com';
+			process.env.AGENTUITY_BASE_URL = 'not-a-valid-url';
+			process.env.AUTH_TRUSTED_DOMAINS = 'https://valid.example.com';
 
 			// Create auth with a VALID baseURL to avoid BetterAuth URL validation errors
-			// The malformed AGENTUITY_DEPLOYMENT_URL will be handled gracefully by safeOrigin()
+			// The malformed AGENTUITY_BASE_URL will be handled gracefully by safeOrigin()
 			const db = new Database(':memory:');
 			const auth = createAuth({
 				database: db,
