@@ -7,7 +7,7 @@
 import { join } from 'node:path';
 import { existsSync, renameSync, rmSync } from 'node:fs';
 import type { InlineConfig, Plugin } from 'vite';
-import type { Logger } from '../../../types';
+import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
 
 /**
@@ -54,6 +54,7 @@ export interface ViteBuildOptions {
 	workbenchRoute?: string;
 	workbenchEnabled?: boolean;
 	logger: Logger;
+	deploymentOptions?: DeployOptions;
 }
 
 /**
@@ -341,6 +342,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		routes,
 		logger,
 		dev,
+		deploymentOptions: options.deploymentOptions,
 	});
 
 	writeMetadataFile(rootDir, metadata, dev, logger);

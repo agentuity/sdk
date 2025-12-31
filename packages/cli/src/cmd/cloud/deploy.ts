@@ -5,7 +5,7 @@ import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { StructuredError } from '@agentuity/core';
 import { isRunningFromExecutable } from '../upgrade';
-import { createSubcommand } from '../../types';
+import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
 import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey } from '../../config';
@@ -43,7 +43,6 @@ import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { getCommand } from '../../command-prefix';
 import * as domain from '../../domain';
-import { DeployOptionsSchema } from '../../schemas/deploy';
 import { ErrorCode } from '../../errors';
 
 const DeploymentCancelledError = StructuredError(
@@ -84,10 +83,6 @@ export const deploySubcommand = createSubcommand({
 			command: getCommand('cloud deploy --log-level=debug'),
 			description: 'Deploy with verbose output',
 		},
-		{
-			command: getCommand('cloud deploy --tag a --tag b'),
-			description: 'Deploy with specific tags',
-		},
 	],
 	toplevel: true,
 	idempotent: false,
@@ -99,7 +94,7 @@ export const deploySubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { project, apiClient, projectDir, config, options, logger } = ctx;
+		const { project, apiClient, projectDir, config, options, logger, opts } = ctx;
 
 		let deployment: Deployment | undefined;
 		let build: BuildMetadata | undefined;
@@ -107,35 +102,6 @@ export const deploySubcommand = createSubcommand({
 		let complete: DeploymentComplete | undefined;
 		let statusResult: DeploymentStatusResult | undefined;
 		const logs: string[] = [];
-
-		// Check for pre-created deployment from CI/Nova
-		const deploymentEnv = process.env.AGENTUITY_DEPLOYMENT;
-		let useExistingDeployment = false;
-		if (deploymentEnv) {
-			const ExistingDeploymentSchema = z.object({
-				id: z.string(),
-				orgId: z.string(),
-				publicKey: z.string(),
-			});
-			try {
-				const parsed = JSON.parse(deploymentEnv);
-				const result = ExistingDeploymentSchema.safeParse(parsed);
-				if (result.success) {
-					deployment = result.data;
-					useExistingDeployment = true;
-					logger.info(`Using existing deployment: ${result.data.id}`);
-				} else {
-					const errors = result.error.issues
-						.map((i) => `${i.path.join('.')}: ${i.message}`)
-						.join(', ');
-					logger.warn(`Invalid AGENTUITY_DEPLOYMENT schema: ${errors}`);
-				}
-			} catch (err) {
-				logger.warn(
-					`Failed to parse AGENTUITY_DEPLOYMENT: ${err instanceof Error ? err.message : String(err)}`
-				);
-			}
-		}
 
 		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
 
@@ -212,9 +178,6 @@ export const deploySubcommand = createSubcommand({
 					{
 						label: 'Create Deployment',
 						run: async () => {
-							if (useExistingDeployment && deployment) {
-								return stepSkipped('using existing deployment');
-							}
 							try {
 								deployment = await projectDeploymentCreate(
 									apiClient,
@@ -244,6 +207,7 @@ export const deploySubcommand = createSubcommand({
 									projectId: project.projectId,
 									region: project.region,
 									logger: ctx.logger,
+									deploymentOptions: opts,
 								});
 								capturedOutput = bundleResult.output;
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
@@ -462,7 +426,7 @@ export const deploySubcommand = createSubcommand({
 						},
 					},
 				].filter(Boolean) as Step[],
-				useExistingDeployment ? 'debug' : options.logLevel
+				options.logLevel
 			);
 
 			if (!deployment) {
