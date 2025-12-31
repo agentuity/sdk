@@ -106,11 +106,19 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		return;
 	}
 
-	// Dynamically import vite and react plugin from the project's node_modules
-	// This ensures we resolve from the target project directory, not the CWD
+	// Dynamically import vite and react plugin
+	// Try project's node_modules first (for custom vite configs), fall back to CLI's
 	const projectRequire = createRequire(join(rootDir, 'package.json'));
-	const { build: viteBuild } = await import(projectRequire.resolve('vite'));
-	const reactModule = await import(projectRequire.resolve('@vitejs/plugin-react'));
+	let vitePath = 'vite';
+	let reactPluginPath = '@vitejs/plugin-react';
+	try {
+		vitePath = projectRequire.resolve('vite');
+		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+	} catch {
+		// Project doesn't have vite, use CLI's bundled version
+	}
+	const { build: viteBuild } = await import(vitePath);
+	const reactModule = await import(reactPluginPath);
 	const react = reactModule.default;
 
 	// For client/workbench, use inline config (no agentuity plugin needed)
