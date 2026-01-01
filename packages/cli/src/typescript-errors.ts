@@ -6,7 +6,7 @@
  */
 
 import { join } from 'node:path';
-import type { GrammarItem } from '@aivenio/tsc-output-parser';
+import type { GrammarItem } from './tsc-output-parser';
 import {
 	colorError,
 	colorPrimary,

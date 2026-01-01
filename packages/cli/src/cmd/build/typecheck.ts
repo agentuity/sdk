@@ -1,4 +1,4 @@
-import { parse, type GrammarItem } from '@aivenio/tsc-output-parser';
+import { parse, type GrammarItem } from '../../tsc-output-parser';
 import { formatTypeScriptErrors, hasErrors } from '../../typescript-errors';
 
 interface TypeError {
