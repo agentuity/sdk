@@ -5,6 +5,8 @@
  * Does NOT handle API routes or WebSocket - the Bun server proxies to this.
  */
 
+import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import type { ViteDevServer } from 'vite';
 import type { Logger } from '../../../types';
 import { generateAssetServerConfig } from './vite-asset-server-config';
@@ -43,8 +45,10 @@ export async function startViteAssetServer(
 		port: preferredPort,
 	});
 
-	// Dynamically import vite
-	const { createServer } = await import('vite');
+	// Dynamically import vite from the project's node_modules
+	// This ensures we resolve from the target project directory, not the CWD
+	const projectRequire = createRequire(join(rootDir, 'package.json'));
+	const { createServer } = await import(projectRequire.resolve('vite'));
 
 	// Create Vite server with config
 	const server = await createServer(config);

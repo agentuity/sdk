@@ -66,6 +66,14 @@ function getShape(schema: ZodType): Record<string, unknown> {
 		return typeof shape === 'function' ? shape() : (shape as Record<string, unknown>) || {};
 	}
 
+	if (typeId === 'ZodIntersection' || typeId === 'intersection') {
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const def = (unwrapped as any)._def;
+		const leftShape = def.left ? getShape(def.left as ZodType) : {};
+		const rightShape = def.right ? getShape(def.right as ZodType) : {};
+		return { ...leftShape, ...rightShape };
+	}
+
 	return {};
 }
 
@@ -164,9 +172,15 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 		const defaultInfo = extractDefaultInfo(value);
 
 		// Evaluate function defaults at parse-time for actual default value
-		const defaultValue = defaultInfo.defaultIsFunction
-			? (defaultInfo.defaultValue as () => unknown)()
-			: defaultInfo.defaultValue;
+		// Wrapped in try/catch to handle non-pure default functions gracefully
+		let defaultValue = defaultInfo.defaultValue;
+		if (defaultInfo.defaultIsFunction) {
+			try {
+				defaultValue = (defaultInfo.defaultValue as () => unknown)();
+			} catch {
+				defaultValue = '<function>';
+			}
+		}
 
 		let type: 'string' | 'number' | 'boolean' | 'array' = 'string';
 		let enumValues: string[] | undefined;
