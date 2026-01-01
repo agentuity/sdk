@@ -51,10 +51,15 @@ test.describe('Workbench Dev Mode', () => {
 
 		await agentSelector.click();
 
+		// Wait for the dropdown to be fully opened and stable
 		const helloAgentOption = page.locator('[role="option"]:has-text("hello")');
 		await expect(helloAgentOption).toBeVisible({ timeout: 5000 });
 
-		await helloAgentOption.click();
+		// Use keyboard navigation to select the option (more reliable than clicking in animated dropdowns)
+		// Type "hello" to filter to the right option
+		await page.keyboard.type('hello', { delay: 50 });
+		await page.waitForTimeout(200);
+		await page.keyboard.press('Enter');
 
 		await expect(page.locator('button:has-text("hello")')).toBeVisible();
 	});
