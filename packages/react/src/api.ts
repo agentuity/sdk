@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
-import { deserializeData, buildUrl, type RouteRegistry } from '@agentuity/frontend';
+import { deserializeData, buildUrl } from '@agentuity/frontend';
+import type { RouteRegistry } from './types';
 import { AgentuityContext } from './context';
 
 /**

@@ -231,7 +231,7 @@ function generateRPCRegistryType(
 	apiRoutes: RouteInfo[],
 	websocketRoutes: RouteInfo[],
 	sseRoutes: RouteInfo[],
-	_agentImports: Map<string, string>,
+	agentImports: Map<string, string>,
 	_schemaImportAliases: Map<string, Map<string, string>>,
 	agentMetadataMap: Map<string, AgentMetadata>
 ): string {
@@ -296,8 +296,12 @@ function generateRPCRegistryType(
 		// Only reference type names if route has actual schemas extracted, otherwise use 'never'
 		// Note: hasValidator may be true (e.g., zValidator('query', ...)) but no schemas extracted
 		// because only 'json' validators extract input schemas
+		// Also check if agentVariable exists but import wasn't added (missing agentImportPath)
+		const hasValidAgentImport = route.agentVariable
+			? !!agentImports.get(route.agentVariable)
+			: false;
 		const hasSchemas =
-			route.inputSchemaVariable || route.outputSchemaVariable || route.agentVariable;
+			route.inputSchemaVariable || route.outputSchemaVariable || hasValidAgentImport;
 
 		current[terminalMethod] = {
 			input: hasSchemas ? `${pascalName}Input` : 'never',
@@ -645,8 +649,10 @@ export function generateRouteRegistry(
 				agentMeta = agentMetadataMap.get(route.agentVariable);
 			}
 
-			if (route.agentVariable) {
-				const importName = agentImports.get(route.agentVariable)!;
+			// Only generate agent-based types if the import was successfully added
+			// (import is only added when hasValidator && agentVariable && agentImportPath are all present)
+			const importName = route.agentVariable ? agentImports.get(route.agentVariable) : undefined;
+			if (importName) {
 				inputType = `InferInput<typeof ${importName}['inputSchema']>`;
 				outputType = `InferOutput<typeof ${importName}['outputSchema']>`;
 				inputSchemaType = `typeof ${importName} extends { inputSchema?: infer I } ? I : never`;
@@ -732,10 +738,16 @@ export function generateRouteRegistry(
 			.replace(/_+/g, '_');
 		const pascalName = toPascalCase(safeName);
 
+		// Use the exported schema types we generated above
+		// Note: agentImports.get() may return undefined if import wasn't added
+		const importName = route.agentVariable ? agentImports.get(route.agentVariable) : null;
+
 		// Use 'never' types if no schemas were actually extracted
 		// Note: hasValidator may be true (e.g., zValidator('query', ...)) but no schemas extracted
 		// because only 'json' validators extract input schemas
-		if (!route.inputSchemaVariable && !route.outputSchemaVariable && !route.agentVariable) {
+		// Also check if agentVariable exists but import wasn't added (missing agentImportPath)
+		const hasValidAgentImport = route.agentVariable ? !!importName : false;
+		if (!route.inputSchemaVariable && !route.outputSchemaVariable && !hasValidAgentImport) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `\t'${routeKey}': {
 \t\tinputSchema: never;
@@ -743,9 +755,6 @@ export function generateRouteRegistry(
 \t\tstream: ${streamValue};
 \t};`;
 		}
-
-		// Use the exported schema types we generated above
-		const importName = route.agentVariable ? agentImports.get(route.agentVariable)! : null;
 		const streamValue = importName
 			? `typeof ${importName} extends { stream?: infer S } ? S : false`
 			: route.stream === true

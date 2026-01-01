@@ -3,23 +3,10 @@ import {
 	type Client,
 	type ClientOptions,
 } from '@agentuity/frontend';
+import type { RPCRouteRegistry } from './types';
 
-/**
- * RPC Route Registry interface that gets augmented by generated code.
- * Applications should not define this directly - it's populated by the build system.
- *
- * @example
- * ```typescript
- * // Generated code augments this interface:
- * declare module '@agentuity/react' {
- *   export interface RPCRouteRegistry {
- *     hello: { post: { input: HelloInput; output: HelloOutput; type: 'api' } };
- *   }
- * }
- * ```
- */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface RPCRouteRegistry {}
+// Re-export RPCRouteRegistry so it can be augmented via `declare module '@agentuity/react'`
+export type { RPCRouteRegistry };
 
 let globalBaseUrl: string | undefined;
 let globalAuthHeader: string | null | undefined;

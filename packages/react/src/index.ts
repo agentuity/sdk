@@ -42,7 +42,11 @@ export {
 } from './api';
 export { useJsonMemo } from './memo';
 
-// Re-export web utilities for convenience
+// Re-export route registry types from local types file
+// These are augmented by generated code via `declare module '@agentuity/react'`
+export type { RouteRegistry, WebSocketRouteRegistry, SSERouteRegistry } from './types';
+
+// Re-export web utilities for convenience (excluding registry types which come from ./types)
 export {
 	buildUrl,
 	defaultBaseUrl,
@@ -52,9 +56,6 @@ export {
 	getProcessEnv,
 	WebSocketManager,
 	EventStreamManager,
-	type RouteRegistry,
-	type WebSocketRouteRegistry,
-	type SSERouteRegistry,
 	type ReconnectOptions,
 	type ReconnectManager,
 	type WebSocketMessageHandler,

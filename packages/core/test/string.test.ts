@@ -111,9 +111,17 @@ describe('toCamelCase', () => {
 			expect(toCamelCase('WORD')).toBe('wORD'); // Only lowercases first char
 		});
 
-		test('should handle numbers', () => {
+		test('should handle numbers in middle of string', () => {
 			expect(toCamelCase('my-agent-2')).toBe('myAgent2');
 			expect(toCamelCase('user_123_data')).toBe('user123Data');
+		});
+
+		test('should prefix with underscore when result starts with digit (invalid identifier)', () => {
+			expect(toCamelCase('123-agent')).toBe('_123Agent');
+			expect(toCamelCase('123')).toBe('_123');
+			expect(toCamelCase('0-test')).toBe('_0Test');
+			expect(toCamelCase('9agent')).toBe('_9agent');
+			expect(toCamelCase('1_2_3')).toBe('_123');
 		});
 
 		test('should handle only separators', () => {
@@ -193,9 +201,16 @@ describe('toPascalCase', () => {
 			expect(toPascalCase('WORD')).toBe('WORD'); // Only uppercases first char
 		});
 
-		test('should handle numbers', () => {
+		test('should handle numbers in middle of string', () => {
 			expect(toPascalCase('my-agent-2')).toBe('MyAgent2');
 			expect(toPascalCase('user_123_data')).toBe('User123Data');
+		});
+
+		test('should prefix with underscore when result starts with digit (invalid identifier)', () => {
+			expect(toPascalCase('123-agent')).toBe('_123Agent');
+			expect(toPascalCase('123')).toBe('_123');
+			expect(toPascalCase('0-test')).toBe('_0Test');
+			expect(toPascalCase('9agent')).toBe('_9agent');
 		});
 
 		test('should handle only separators', () => {
