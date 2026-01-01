@@ -6,4 +6,4 @@ production = false
 "@agentuity" = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
 
 [test]
-preload = ["./packages/auth/test/setup.ts", "./packages/react/test/happydom.ts", "./packages/react/test/testing-library.ts"]
+preload = ["./packages/react/test/happydom.ts", "./packages/react/test/testing-library.ts"]

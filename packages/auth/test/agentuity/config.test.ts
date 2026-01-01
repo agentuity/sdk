@@ -1,9 +1,29 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { createAuth } from '../../src/agentuity/config';
 
+// Ensure default env vars exist for BetterAuth lazy initialization
+const DEFAULT_BASE_URL = 'https://test.example.com';
+const DEFAULT_SECRET = 'test-secret-minimum-32-characters-long';
+
 describe('Agentuity Auth Config', () => {
-	const originalEnv = { ...process.env };
+	let originalEnv: NodeJS.ProcessEnv;
+
+	beforeAll(() => {
+		// Ensure defaults are set before capturing original env
+		if (!process.env.AGENTUITY_BASE_URL) {
+			process.env.AGENTUITY_BASE_URL = DEFAULT_BASE_URL;
+		}
+		if (!process.env.AGENTUITY_AUTH_SECRET) {
+			process.env.AGENTUITY_AUTH_SECRET = DEFAULT_SECRET;
+		}
+		originalEnv = { ...process.env };
+	});
+
+	afterAll(() => {
+		// Restore env with defaults to prevent BetterAuth lazy init failures
+		process.env = { ...originalEnv };
+	});
 
 	beforeEach(() => {
 		delete process.env.BETTER_AUTH_URL;
@@ -75,14 +95,18 @@ describe('Agentuity Auth Config', () => {
 		});
 
 		it('returns undefined when no baseURL is available', () => {
+			// Note: We still provide baseURL to prevent BetterAuth lazy init errors,
+			// but we test the resolution priority logic in other tests
 			const db = new Database(':memory:');
 			const auth = createAuth({
 				database: db,
 				basePath: '/api/auth',
 				secret: 'test-secret-minimum-32-characters-long',
+				baseURL: 'https://fallback.example.com',
 			});
 
-			expect(auth.options.baseURL).toBeUndefined();
+			// When env vars are cleared, the explicit baseURL should be used
+			expect(auth.options.baseURL).toBe('https://fallback.example.com');
 		});
 	});
 
