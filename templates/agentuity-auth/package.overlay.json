@@ -26,8 +26,7 @@
 		"pg": "^8.13.0",
 		"react-hook-form": "^7.55.0",
 		"sonner": "^2.0.3",
-		"tailwind-merge": "^3.3.0",
-		"zod": "^3.0.0"
+		"tailwind-merge": "^3.3.0"
 	},
 	"devDependencies": {
 		"tailwindcss": "^4.1.18",
