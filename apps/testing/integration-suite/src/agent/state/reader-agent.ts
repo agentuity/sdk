@@ -25,13 +25,10 @@ const stateReaderAgent = createAgent('state-reader', {
 		const { key } = input;
 
 		// Get value for the requested key
-		const value = ctx.thread.state.get(key);
+		const value = await ctx.thread.state.get(key);
 
 		// Get all keys in thread state
-		const allKeys: string[] = [];
-		for (const [k] of ctx.thread.state.entries()) {
-			allKeys.push(k);
-		}
+		const allKeys = await ctx.thread.state.keys();
 
 		return {
 			success: true,
