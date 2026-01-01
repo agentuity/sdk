@@ -461,6 +461,11 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 				agentsByName.set(name, agent);
 			}
 
+			// Debug: Log registered agents
+			console.log(
+				`[workbench] Registered agents: [${Array.from(agents.keys()).join(', ')}], metadata agents: [${(metadata.agents || []).map((a) => a.name).join(', ')}]`
+			);
+
 			// Transform metadata structure to workbench format
 			const schemas: { agents: Record<string, unknown> } = { agents: {} };
 
