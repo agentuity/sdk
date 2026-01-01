@@ -6,6 +6,7 @@
  */
 
 import { createAuth } from '@agentuity/auth';
+import { lastLoginMethod } from 'better-auth/plugins';
 
 /**
  * Database URL for authentication.
@@ -41,6 +42,7 @@ export const auth = createAuth({
 	// secret: process.env.AGENTUITY_AUTH_SECRET, // auto-resolved from env
 	// basePath: '/api/auth', // default
 	// emailAndPassword: { enabled: true }, // default
+	plugins: [lastLoginMethod()],
 });
 
 /**

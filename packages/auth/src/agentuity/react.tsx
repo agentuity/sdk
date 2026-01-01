@@ -11,6 +11,7 @@ import React, { useEffect, createContext, useContext, useState, useMemo } from '
 import { createAuthClient as createBetterAuthClient } from 'better-auth/react';
 import { organizationClient, apiKeyClient } from 'better-auth/client/plugins';
 import { useAuth as useAgentuityReactAuth } from '@agentuity/react';
+import type { BetterAuthClientPlugin } from 'better-auth/client';
 
 import type { AuthSession } from './types';
 
@@ -20,8 +21,12 @@ import type { AuthSession } from './types';
 
 /**
  * Options for creating the auth client.
+ *
+ * @typeParam TPlugins - Array of BetterAuth client plugins for type inference
  */
-export interface AuthClientOptions {
+export interface AuthClientOptions<
+	TPlugins extends BetterAuthClientPlugin[] = BetterAuthClientPlugin[],
+> {
 	/**
 	 * Base URL for auth API requests.
 	 * Defaults to `window.location.origin` in browser environments.
@@ -43,8 +48,10 @@ export interface AuthClientOptions {
 	/**
 	 * Additional plugins to include.
 	 * These are added after the default plugins (unless skipDefaultPlugins is true).
+	 *
+	 * Plugin types are inferred for full type safety.
 	 */
-	plugins?: ReturnType<typeof organizationClient>[];
+	plugins?: TPlugins;
 }
 
 /**
@@ -102,19 +109,26 @@ export function getDefaultClientPlugins() {
  * });
  * ```
  */
-export function createAuthClient(options: AuthClientOptions = {}) {
-	const baseURL = options.baseURL ?? (typeof window !== 'undefined' ? window.location.origin : '');
-	const basePath = options.basePath ?? '/api/auth';
+export function createAuthClient<TPlugins extends BetterAuthClientPlugin[] = []>(
+	options?: AuthClientOptions<TPlugins>
+): ReturnType<typeof createBetterAuthClient<{ plugins: TPlugins }>> {
+	const baseURL =
+		options?.baseURL ?? (typeof window !== 'undefined' ? window.location.origin : '');
+	const basePath = options?.basePath ?? '/api/auth';
 
-	const defaultPlugins = options.skipDefaultPlugins ? [] : getDefaultClientPlugins();
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const plugins = [...defaultPlugins, ...(options.plugins ?? [])] as any[];
+	const defaultPlugins = options?.skipDefaultPlugins ? [] : getDefaultClientPlugins();
+	const userPlugins = options?.plugins ?? [];
 
+	// Merge default plugins with user plugins
+	// We pass through the full options to preserve type inference
+	// The return type preserves plugin type inference via the generic parameter
 	return createBetterAuthClient({
+		...options,
 		baseURL,
 		basePath,
-		plugins,
-	});
+		plugins: [...defaultPlugins, ...userPlugins],
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	}) as any;
 }
 
 /**

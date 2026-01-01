@@ -56,6 +56,7 @@ export function LoginForm() {
 	const [mode, setMode] = useState<'signin' | 'signup'>('signin');
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
+	const lastMethod = authClient.getLastUsedLoginMethod()
 
 	const onSubmit = async (e: FormEvent) => {
 		e.preventDefault();
@@ -67,13 +68,15 @@ export function LoginForm() {
 				mode === 'signin'
 					? await authClient.signIn.email({ email, password })
 					: await authClient.signUp.email({
-							email,
-							password,
-							name: email.split('@')[0] ?? 'User',
-						});
+						email,
+						password,
+						name: email.split('@')[0] ?? 'User',
+					});
 
 			if (result.error) {
 				setError(result.error.message || `Sign ${mode === 'signin' ? 'in' : 'up'} failed`);
+			} else {
+				window.location.reload();
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Unknown error');
@@ -118,6 +121,8 @@ export function LoginForm() {
 			>
 				{mode === 'signin' ? 'Need an account? Sign up' : 'Have an account? Sign in'}
 			</button>
+
+			{lastMethod && <p>Last used method: {lastMethod}</p>}
 
 			<style>{`
 				.auth-form {

@@ -63,6 +63,12 @@ export const createOrgInput = s.object({
 	slug: s.string(),
 });
 
+export const updateOrgInput = s.object({
+	name: s.optional(s.string()),
+	slug: s.optional(s.string()),
+	metadata: s.optional(s.record(s.string(), s.unknown())),
+});
+
 export const orgOutput = s.object({
 	id: s.string(),
 	name: s.optional(s.string()),
@@ -87,6 +93,19 @@ export const whoamiOutput = s.object({
 			role: s.optional(s.string()),
 		})
 	),
+});
+
+// =============================================================================
+// Member/Invitation Schemas
+// =============================================================================
+
+export const updateMemberRoleInput = s.object({
+	role: s.string(),
+});
+
+export const createInvitationInput = s.object({
+	email: s.string(),
+	role: s.optional(s.string()),
 });
 
 // =============================================================================
