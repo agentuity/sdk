@@ -368,7 +368,7 @@ export function createSessionMiddleware(
 			if (!result) {
 				if (optional) {
 					c.set('user', null);
-					c.set('session', null);
+					c.set('authSession', null);
 					c.set('org', null);
 					c.set('auth', buildAnonymousAuth());
 					span?.addEvent('auth.anonymous');
@@ -388,7 +388,7 @@ export function createSessionMiddleware(
 			const authMethod = getAuthMethod(c);
 
 			c.set('user', user);
-			c.set('session', session);
+			c.set('authSession', session);
 			c.set('org', org);
 
 			if (span) {
@@ -436,7 +436,7 @@ export function createSessionMiddleware(
 
 			if (optional) {
 				c.set('user', null);
-				c.set('session', null);
+				c.set('authSession', null);
 				c.set('org', null);
 				c.set('auth', buildAnonymousAuth());
 				await next();
@@ -551,7 +551,7 @@ export function createApiKeyMiddleware(
 			}
 
 			c.set('user', user);
-			c.set('session', null);
+			c.set('authSession', null);
 			c.set('org', null);
 
 			if (span) {
@@ -724,7 +724,7 @@ declare module 'hono' {
 	interface ContextVariableMap {
 		auth: AuthInterface<AuthUser>;
 		user: AuthUser | null;
-		session: AuthSession | null;
+		authSession: AuthSession | null;
 		org: AuthOrgContext | null;
 	}
 }

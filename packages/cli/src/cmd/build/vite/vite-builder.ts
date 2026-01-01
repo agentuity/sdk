@@ -6,8 +6,9 @@
 
 import { join } from 'node:path';
 import { existsSync, renameSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import type { InlineConfig, Plugin } from 'vite';
-import type { Logger } from '../../../types';
+import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
 
 /**
@@ -54,6 +55,7 @@ export interface ViteBuildOptions {
 	workbenchRoute?: string;
 	workbenchEnabled?: boolean;
 	logger: Logger;
+	deploymentOptions?: DeployOptions;
 }
 
 /**
@@ -84,6 +86,11 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const { generateLifecycleTypes } = await import('./lifecycle-generator');
 		await generateLifecycleTypes(rootDir, srcDir, logger);
 
+		// Load workbench config for entry file generation
+		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
+		const config = await loadAgentuityConfig(rootDir, logger);
+		const workbenchConfig = getWorkbenchConfig(config, dev);
+
 		// Then, generate the entry file
 		const { generateEntryFile } = await import('../entry-generator');
 		await generateEntryFile({
@@ -92,6 +99,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			deploymentId: deploymentId || '',
 			logger,
 			mode: dev ? 'dev' : 'prod',
+			workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
 		});
 
 		// Finally, build with Bun.build
@@ -105,8 +113,18 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	}
 
 	// Dynamically import vite and react plugin
-	const { build: viteBuild } = await import('vite');
-	const reactModule = await import('@vitejs/plugin-react');
+	// Try project's node_modules first (for custom vite configs), fall back to CLI's
+	const projectRequire = createRequire(join(rootDir, 'package.json'));
+	let vitePath = 'vite';
+	let reactPluginPath = '@vitejs/plugin-react';
+	try {
+		vitePath = projectRequire.resolve('vite');
+		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+	} catch {
+		// Project doesn't have vite, use CLI's bundled version
+	}
+	const { build: viteBuild } = await import(vitePath);
+	const reactModule = await import(reactPluginPath);
 	const react = reactModule.default;
 
 	// For client/workbench, use inline config (no agentuity plugin needed)
@@ -341,6 +359,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		routes,
 		logger,
 		dev,
+		deploymentOptions: options.deploymentOptions,
 	});
 
 	writeMetadataFile(rootDir, metadata, dev, logger);

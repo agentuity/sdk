@@ -8,8 +8,14 @@ import {
 	type VectorStorage,
 	type SandboxService,
 } from '@agentuity/core';
-import type { AuthInterface } from '@agentuity/auth/types';
-import type { AgentContext, AgentRegistry, AgentRunner, AgentRuntimeState } from './agent';
+import type { AgentuityAuth as AuthInterface } from '@agentuity/auth';
+import type {
+	AgentContext,
+	AgentRegistry,
+	AgentRunner,
+	AgentRuntimeState,
+	AgentMetadata,
+} from './agent';
 import { AGENT_RUNTIME, CURRENT_AGENT } from './_config';
 import type { Logger } from './logger';
 import type WaitUntilHandler from './_waituntil';
@@ -53,6 +59,7 @@ export class RequestAgentContext<
 	thread: Thread;
 	config: TConfig;
 	app: TAppState;
+	current!: AgentMetadata;
 	[AGENT_RUNTIME]: AgentRuntimeState;
 	private handler: WaitUntilHandler;
 

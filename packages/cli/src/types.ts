@@ -559,3 +559,28 @@ export const ProjectSchema = zod.object({
 export const BuildMetadataSchema = ServerBuildMetadataSchema;
 export type BuildMetadata = zod.infer<typeof BuildMetadataSchema>;
 export type Project = zod.infer<typeof ProjectSchema>;
+
+export const DeployOptionsSchema = zod.object({
+	logsUrl: zod.url().optional().describe('The url to the CI build logs'),
+	trigger: zod
+		.enum(['cli', 'workflow', 'webhook'])
+		.default('cli')
+		.optional()
+		.describe('The trigger that caused the build'),
+	commitUrl: zod.url().optional().describe('The url to the CI commit'),
+	message: zod.string().optional().describe('The message to associate with this deployment'),
+	commit: zod.string().optional().describe('The commit SHA for this deployment'),
+	branch: zod.string().optional().describe('The git branch for this deployment'),
+	provider: zod.string().optional().describe('The CI provider name (attempts to autodetect)'),
+	repo: zod.string().optional().describe('The repo url'),
+	event: zod
+		.enum(['pull_request', 'push', 'manual', 'workflow'])
+		.default('manual')
+		.optional()
+		.describe('The event that triggered the deployment'),
+	pullRequestNumber: zod.number().optional().describe('the pull request number'),
+	pullRequestCommentId: zod.string().optional().describe('the pull request comment id'),
+	pullRequestURL: zod.url().optional().describe('the pull request url'),
+});
+
+export type DeployOptions = z.infer<typeof DeployOptionsSchema>;

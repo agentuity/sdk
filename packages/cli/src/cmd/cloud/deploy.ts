@@ -5,7 +5,7 @@ import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { StructuredError } from '@agentuity/core';
 import { isRunningFromExecutable } from '../upgrade';
-import { createSubcommand } from '../../types';
+import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
 import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey } from '../../config';
@@ -43,8 +43,8 @@ import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { getCommand } from '../../command-prefix';
 import * as domain from '../../domain';
-import { DeployOptionsSchema } from '../../schemas/deploy';
 import { ErrorCode } from '../../errors';
+import { typecheck } from '../build/typecheck';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -84,22 +84,23 @@ export const deploySubcommand = createSubcommand({
 			command: getCommand('cloud deploy --log-level=debug'),
 			description: 'Deploy with verbose output',
 		},
-		{
-			command: getCommand('cloud deploy --tag a --tag b'),
-			description: 'Deploy with specific tags',
-		},
 	],
 	toplevel: true,
 	idempotent: false,
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['auth login'],
 	schema: {
-		options: DeployOptionsSchema,
+		options: z.intersection(
+			DeployOptionsSchema,
+			z.object({
+				saveTypeErrors: z.string().optional().describe('file path to save typecheck errors'),
+			})
+		),
 		response: DeployResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { project, apiClient, projectDir, config, options, logger } = ctx;
+		const { project, apiClient, projectDir, config, options, logger, opts } = ctx;
 
 		let deployment: Deployment | undefined;
 		let build: BuildMetadata | undefined;
@@ -108,7 +109,17 @@ export const deploySubcommand = createSubcommand({
 		let statusResult: DeploymentStatusResult | undefined;
 		const logs: string[] = [];
 
-		// Check for pre-created deployment from CI/Nova
+		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
+
+		// Ensure SDK key is present before proceeding
+		if (!sdkKey) {
+			ctx.logger.fatal(
+				'The AGENTUITY_SDK_KEY value not found in the .env file in this folder. Ensure you are inside a valid Agentuity project folder and run "%s" to pull your environment from the cloud.',
+				getCommand('cloud env pull')
+			);
+		}
+
+		// Check for pre-created deployment from CI build environment
 		const deploymentEnv = process.env.AGENTUITY_DEPLOYMENT;
 		let useExistingDeployment = false;
 		if (deploymentEnv) {
@@ -123,27 +134,16 @@ export const deploySubcommand = createSubcommand({
 				if (result.success) {
 					deployment = result.data;
 					useExistingDeployment = true;
-					logger.info(`Using existing deployment: ${result.data.id}`);
+					logger.debug('Using existing deployment: %s', result.data.id);
 				} else {
 					const errors = result.error.issues
 						.map((i) => `${i.path.join('.')}: ${i.message}`)
 						.join(', ');
-					logger.warn(`Invalid AGENTUITY_DEPLOYMENT schema: ${errors}`);
+					logger.fatal(`Invalid AGENTUITY_DEPLOYMENT schema: ${errors}`);
 				}
 			} catch (err) {
-				logger.warn(
-					`Failed to parse AGENTUITY_DEPLOYMENT: ${err instanceof Error ? err.message : String(err)}`
-				);
+				logger.fatal(`Failed to parse AGENTUITY_DEPLOYMENT: ${err}`);
 			}
-		}
-
-		const sdkKey = await loadProjectSDKKey(ctx.logger, ctx.projectDir);
-
-		// Ensure SDK key is present before proceeding
-		if (!sdkKey) {
-			ctx.logger.fatal(
-				'SDK key not found. Run "agentuity auth login" to authenticate or set AGENTUITY_SDK_KEY environment variable.'
-			);
 		}
 
 		try {
@@ -176,6 +176,9 @@ export const deploySubcommand = createSubcommand({
 						label: 'Sync Env & Secrets',
 						run: async () => {
 							try {
+								if (useExistingDeployment) {
+									return stepSkipped('skipped in CI build');
+								}
 								// Read env file
 								const envFilePath = await findExistingEnvFile(projectDir);
 								const localEnv = await readEnvFile(envFilePath);
@@ -212,8 +215,8 @@ export const deploySubcommand = createSubcommand({
 					{
 						label: 'Create Deployment',
 						run: async () => {
-							if (useExistingDeployment && deployment) {
-								return stepSkipped('using existing deployment');
+							if (useExistingDeployment) {
+								return stepSkipped('skipped in CI build');
 							}
 							try {
 								deployment = await projectDeploymentCreate(
@@ -235,17 +238,34 @@ export const deploySubcommand = createSubcommand({
 								return stepError('deployment was null');
 							}
 							let capturedOutput: string[] = [];
+							const rootDir = resolve(projectDir);
+							const started = Date.now();
+							const typeResult = await typecheck(rootDir);
+							if (typeResult.success) {
+								capturedOutput.push(
+									tui.muted(
+										`✓ Typechecked in ${Math.floor(Date.now() - started).toFixed(0)}ms`
+									)
+								);
+							} else {
+								if ('errors' in typeResult && opts.saveTypeErrors) {
+									const f = Bun.file(opts.saveTypeErrors);
+									await f.write(JSON.stringify(typeResult.errors));
+								}
+								return stepError('Typecheck failed\n\n' + typeResult.output);
+							}
 							try {
 								const bundleResult = await viteBundle({
-									rootDir: resolve(projectDir),
+									rootDir,
 									dev: false,
 									deploymentId: deployment.id,
 									orgId: deployment.orgId,
 									projectId: project.projectId,
 									region: project.region,
 									logger: ctx.logger,
+									deploymentOptions: opts,
 								});
-								capturedOutput = bundleResult.output;
+								capturedOutput = [...capturedOutput, ...bundleResult.output];
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
 								instructions = await projectDeploymentUpdate(
 									apiClient,
@@ -462,7 +482,7 @@ export const deploySubcommand = createSubcommand({
 						},
 					},
 				].filter(Boolean) as Step[],
-				useExistingDeployment ? 'debug' : options.logLevel
+				options.logLevel
 			);
 
 			if (!deployment) {
@@ -473,7 +493,14 @@ export const deploySubcommand = createSubcommand({
 				};
 			}
 
+			// TODO: send the deployment failure to the backend otherwise we staying in a deploying state
+
 			const streamId = complete?.streamId;
+			const appUrl = getAppBaseURL(
+				process.env.AGENTUITY_REGION ?? config?.name,
+				config?.overrides
+			);
+			const dashboard = `${appUrl}/r/${deployment.id}`;
 
 			// Poll for deployment status with optional log streaming
 			const pollInterval = 500;
@@ -662,14 +689,23 @@ export const deploySubcommand = createSubcommand({
 
 					tui.success('Your project was deployed!');
 				}
+			} catch (ex) {
+				const lines = [`${ex}`, ''];
+				lines.push(
+					`${tui.ICONS.arrow} ${
+						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
+					}`
+				);
+				tui.banner(tui.colorError(`Deployment: ${deployment.id} Failed`), lines.join('\n'), {
+					centerTitle: false,
+					topSpacer: false,
+					bottomSpacer: false,
+				});
+				tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 			} finally {
 				// Clean up signal handler
 				process.off('SIGINT', sigintHandler);
 			}
-
-			const appUrl = getAppBaseURL(config?.name, config?.overrides);
-
-			const dashboard = `${appUrl}/r/${deployment.id}`;
 
 			// Show deployment URLs
 			if (complete?.publicUrls) {

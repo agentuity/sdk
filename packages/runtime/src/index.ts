@@ -101,6 +101,8 @@ export {
 export {
 	type ThreadEventName,
 	type SessionEventName,
+	type ThreadState,
+	type MergeOperation,
 	type Thread,
 	type Session,
 	type ThreadIDProvider,
@@ -109,6 +111,7 @@ export {
 	generateId,
 	DefaultThreadIDProvider,
 	DefaultThread,
+	LazyThreadState,
 } from './session';
 
 // services/thread/local exports
@@ -169,6 +172,9 @@ export {
 	JSONEvalRunEventProvider,
 	CompositeEvalRunEventProvider,
 } from './services/evalrun';
+
+// for loading metadata
+export { loadBuildMetadata } from './_metadata';
 
 // _services.ts exports
 export { getEvalRunEventProvider, getThreadProvider, getSessionProvider } from './_services';

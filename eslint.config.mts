@@ -17,6 +17,7 @@ export default [
 			'!**/package.json',
 			'**/ai-elements/**',
 			'**/ui/**',
+			'**/tsc-output-parser.ts', // Generated PEG parser
 		],
 	},
 	{

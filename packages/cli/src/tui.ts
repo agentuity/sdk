@@ -5,6 +5,7 @@
  * Uses Bun's built-in color support and ANSI escape codes.
  */
 import { stringWidth } from 'bun';
+import { resolve } from 'node:path';
 import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
@@ -135,7 +136,7 @@ export function isDarkMode(): boolean {
 	return currentColorScheme === 'dark';
 }
 
-function getColor(colorKey: keyof ReturnType<typeof getColors>): string {
+export function getColor(colorKey: keyof ReturnType<typeof getColors>): string {
 	const COLORS = getColors();
 	const color = COLORS[colorKey];
 	if (typeof color === 'string') {
@@ -325,6 +326,43 @@ export function supportsHyperlinks(): boolean {
 	);
 }
 
+export function fileUrl(file: string, line?: number, col?: number): string {
+	const abs = resolve(file);
+
+	// VS Code understands both file:// and vscode://,
+	// but vscode:// allows line + column everywhere
+	let url = `vscode://file/${abs}`;
+
+	if (line != null) {
+		url += `:${line}`;
+		if (col != null) url += `:${col}`;
+	}
+
+	return url;
+}
+
+export function sourceLink(
+	file: string,
+	line: number,
+	col: number,
+	display?: string,
+	color?: string
+): string {
+	const label = `${file}:${line}:${col}`;
+	const url = fileUrl(file, line, col);
+
+	if (supportsHyperlinks()) {
+		return link(url, display ?? label, color);
+	}
+
+	// Cmd/Ctrl-click fallback
+	if (color) {
+		return color + label + getColor('reset');
+	}
+
+	return label;
+}
+
 /**
  * Print a bulleted list item
  */
@@ -380,7 +418,7 @@ export function stripAnsi(str: string): string {
  * Truncate a string to a maximum display width, handling ANSI codes and Unicode correctly
  * Preserves ANSI escape sequences and doesn't break multi-byte characters or grapheme clusters
  */
-function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): string {
+export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): string {
 	const totalWidth = getDisplayWidth(str);
 	if (totalWidth <= maxWidth) {
 		return str;

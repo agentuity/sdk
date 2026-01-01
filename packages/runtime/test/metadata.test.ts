@@ -7,69 +7,76 @@ import { test, expect, describe } from 'bun:test';
 import { DefaultThread, DefaultSession } from '../src/session';
 import type { ThreadProvider } from '../src/session';
 
+// Helper to create a thread with restoreFn
+function createThread(
+	provider: ThreadProvider,
+	id: string,
+	initialState?: Record<string, unknown>,
+	initialMetadata?: Record<string, unknown>
+) {
+	const restoreFn = async () => ({
+		state: new Map(Object.entries(initialState || {})),
+		metadata: initialMetadata || {},
+	});
+	return new DefaultThread(provider, id, restoreFn, initialMetadata);
+}
+
 describe('Thread Metadata', () => {
-	test('initializes with empty metadata object', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	const mockProvider = {} as ThreadProvider;
 
-		expect(thread.metadata).toBeDefined();
-		expect(thread.metadata).toEqual({});
-		expect(Object.keys(thread.metadata)).toHaveLength(0);
+	test('initializes with empty metadata object', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
+		const metadata = await thread.getMetadata();
+
+		expect(metadata).toBeDefined();
+		expect(metadata).toEqual({});
+		expect(Object.keys(metadata)).toHaveLength(0);
 	});
 
-	test('allows setting metadata properties directly', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('allows setting metadata via setMetadata', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
 
-		thread.metadata.userId = 'user123';
-		thread.metadata.department = 'sales';
+		await thread.setMetadata({ userId: 'user123', department: 'sales' });
 
-		expect(thread.metadata.userId).toBe('user123');
-		expect(thread.metadata.department).toBe('sales');
-		expect(Object.keys(thread.metadata)).toHaveLength(2);
+		const metadata = await thread.getMetadata();
+		expect(metadata.userId).toBe('user123');
+		expect(metadata.department).toBe('sales');
+		expect(Object.keys(metadata)).toHaveLength(2);
 	});
 
-	test('preserves existing metadata from constructor', () => {
-		const mockProvider = {} as ThreadProvider;
+	test('preserves existing metadata from constructor', async () => {
 		const existingMetadata = { userId: 'user456', team: 'engineering' };
-		const thread = new DefaultThread(mockProvider, 'thrd_test123', undefined, existingMetadata);
+		const thread = createThread(mockProvider, 'thrd_test123', undefined, existingMetadata);
 
-		expect(thread.metadata).toEqual(existingMetadata);
-		expect(thread.metadata.userId).toBe('user456');
-		expect(thread.metadata.team).toBe('engineering');
+		const metadata = await thread.getMetadata();
+		expect(metadata).toEqual(existingMetadata);
+		expect(metadata.userId).toBe('user456');
+		expect(metadata.team).toBe('engineering');
 	});
 
-	test('can replace entire metadata object', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('supports complex metadata values', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
 
-		thread.metadata = { userId: 'user789', role: 'admin' };
+		await thread.setMetadata({
+			config: { theme: 'dark', language: 'en' },
+			tags: ['important', 'urgent'],
+			count: 42,
+			active: true,
+		});
 
-		expect(thread.metadata.userId).toBe('user789');
-		expect(thread.metadata.role).toBe('admin');
-		expect(Object.keys(thread.metadata)).toHaveLength(2);
-	});
-
-	test('supports complex metadata values', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
-
-		thread.metadata.config = { theme: 'dark', language: 'en' };
-		thread.metadata.tags = ['important', 'urgent'];
-		thread.metadata.count = 42;
-		thread.metadata.active = true;
-
-		expect(thread.metadata.config).toEqual({ theme: 'dark', language: 'en' });
-		expect(thread.metadata.tags).toEqual(['important', 'urgent']);
-		expect(thread.metadata.count).toBe(42);
-		expect(thread.metadata.active).toBe(true);
+		const metadata = await thread.getMetadata();
+		expect(metadata.config).toEqual({ theme: 'dark', language: 'en' });
+		expect(metadata.tags).toEqual(['important', 'urgent']);
+		expect(metadata.count).toBe(42);
+		expect(metadata.active).toBe(true);
 	});
 });
 
 describe('Session Metadata', () => {
+	const mockProvider = {} as ThreadProvider;
+
 	test('initializes with empty metadata object', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+		const thread = createThread(mockProvider, 'thrd_test123');
 		const session = new DefaultSession(thread, 'sess_test456');
 
 		expect(session.metadata).toBeDefined();
@@ -78,8 +85,7 @@ describe('Session Metadata', () => {
 	});
 
 	test('allows setting metadata properties directly', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+		const thread = createThread(mockProvider, 'thrd_test123');
 		const session = new DefaultSession(thread, 'sess_test456');
 
 		session.metadata.userId = 'user123';
@@ -93,8 +99,7 @@ describe('Session Metadata', () => {
 	});
 
 	test('preserves existing metadata from constructor', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+		const thread = createThread(mockProvider, 'thrd_test123');
 		const existingMetadata = { userId: 'user456', source: 'api' };
 		const session = new DefaultSession(thread, 'sess_test456', existingMetadata);
 
@@ -103,23 +108,22 @@ describe('Session Metadata', () => {
 		expect(session.metadata.source).toBe('api');
 	});
 
-	test('session and thread metadata are independent', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('session and thread metadata are independent', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
 		const session = new DefaultSession(thread, 'sess_test456');
 
-		thread.metadata.threadProp = 'thread-value';
+		await thread.setMetadata({ threadProp: 'thread-value' });
 		session.metadata.sessionProp = 'session-value';
 
-		expect(thread.metadata.threadProp).toBe('thread-value');
-		expect(thread.metadata.sessionProp).toBeUndefined();
+		const threadMeta = await thread.getMetadata();
+		expect(threadMeta.threadProp).toBe('thread-value');
+		expect(threadMeta.sessionProp).toBeUndefined();
 		expect(session.metadata.sessionProp).toBe('session-value');
 		expect(session.metadata.threadProp).toBeUndefined();
 	});
 
 	test('supports overwriting metadata values', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+		const thread = createThread(mockProvider, 'thrd_test123');
 		const session = new DefaultSession(thread, 'sess_test456');
 
 		session.metadata.status = 'pending';
@@ -130,8 +134,7 @@ describe('Session Metadata', () => {
 	});
 
 	test('supports deleting metadata keys', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+		const thread = createThread(mockProvider, 'thrd_test123');
 		const session = new DefaultSession(thread, 'sess_test456');
 
 		session.metadata.tempKey = 'temporary';
@@ -169,75 +172,77 @@ describe('Metadata Persistence Logic', () => {
 });
 
 describe('Metadata Type Safety', () => {
-	test('metadata accepts string values', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	const mockProvider = {} as ThreadProvider;
 
-		thread.metadata.stringValue = 'hello';
-		expect(typeof thread.metadata.stringValue).toBe('string');
+	test('metadata accepts string values', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
+		await thread.setMetadata({ stringValue: 'hello' });
+
+		const metadata = await thread.getMetadata();
+		expect(typeof metadata.stringValue).toBe('string');
 	});
 
-	test('metadata accepts number values', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('metadata accepts number values', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
+		await thread.setMetadata({ numberValue: 42 });
 
-		thread.metadata.numberValue = 42;
-		expect(typeof thread.metadata.numberValue).toBe('number');
+		const metadata = await thread.getMetadata();
+		expect(typeof metadata.numberValue).toBe('number');
 	});
 
-	test('metadata accepts boolean values', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('metadata accepts boolean values', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
+		await thread.setMetadata({ booleanValue: true });
 
-		thread.metadata.booleanValue = true;
-		expect(typeof thread.metadata.booleanValue).toBe('boolean');
+		const metadata = await thread.getMetadata();
+		expect(typeof metadata.booleanValue).toBe('boolean');
 	});
 
-	test('metadata accepts array values', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('metadata accepts array values', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
+		await thread.setMetadata({ arrayValue: ['a', 'b', 'c'] });
 
-		thread.metadata.arrayValue = ['a', 'b', 'c'];
-		expect(Array.isArray(thread.metadata.arrayValue)).toBe(true);
-		expect(thread.metadata.arrayValue).toHaveLength(3);
+		const metadata = await thread.getMetadata();
+		expect(Array.isArray(metadata.arrayValue)).toBe(true);
+		expect(metadata.arrayValue).toHaveLength(3);
 	});
 
-	test('metadata accepts object values', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('metadata accepts object values', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
+		await thread.setMetadata({ objectValue: { nested: { deep: 'value' } } });
 
-		thread.metadata.objectValue = { nested: { deep: 'value' } };
-		expect(typeof thread.metadata.objectValue).toBe('object');
+		const metadata = await thread.getMetadata();
+		expect(typeof metadata.objectValue).toBe('object');
 		expect(
-			(thread.metadata.objectValue as Record<string, Record<string, string>>).nested.deep
+			(metadata.objectValue as Record<string, Record<string, string>>).nested.deep
 		).toBe('value');
 	});
 
-	test('metadata accepts null values', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('metadata accepts null values', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
+		await thread.setMetadata({ nullValue: null });
 
-		thread.metadata.nullValue = null;
-		expect(thread.metadata.nullValue).toBeNull();
+		const metadata = await thread.getMetadata();
+		expect(metadata.nullValue).toBeNull();
 	});
 });
 
 describe('Thread Serialization and Persistence', () => {
-	test('getSerializedState returns empty string when no state or metadata', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	const mockProvider = {} as ThreadProvider;
 
-		const serialized = thread.getSerializedState();
+	test('getSerializedState returns empty string when no state or metadata', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
+
+		const serialized = await thread.getSerializedState();
 		expect(serialized).toBe('');
 	});
 
-	test('getSerializedState includes only state when metadata is empty', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('getSerializedState includes only state when metadata is empty', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
 
-		thread.state.set('key1', 'value1');
+		await thread.state.set('key1', 'value1');
 
-		const serialized = thread.getSerializedState();
+		const serialized = await thread.getSerializedState();
 		const parsed = JSON.parse(serialized);
 
 		expect(parsed.state).toBeDefined();
@@ -245,13 +250,12 @@ describe('Thread Serialization and Persistence', () => {
 		expect(parsed.metadata).toBeUndefined();
 	});
 
-	test('getSerializedState includes only metadata when state is empty', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('getSerializedState includes only metadata when state is empty', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
 
-		thread.metadata.userId = 'user123';
+		await thread.setMetadata({ userId: 'user123' });
 
-		const serialized = thread.getSerializedState();
+		const serialized = await thread.getSerializedState();
 		const parsed = JSON.parse(serialized);
 
 		expect(parsed.metadata).toBeDefined();
@@ -259,14 +263,13 @@ describe('Thread Serialization and Persistence', () => {
 		expect(parsed.state).toBeUndefined();
 	});
 
-	test('getSerializedState includes both state and metadata when both exist', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('getSerializedState includes both state and metadata when both exist', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
 
-		thread.state.set('counter', 5);
-		thread.metadata.userId = 'user123';
+		await thread.state.set('counter', 5);
+		await thread.setMetadata({ userId: 'user123' });
 
-		const serialized = thread.getSerializedState();
+		const serialized = await thread.getSerializedState();
 		const parsed = JSON.parse(serialized);
 
 		expect(parsed.state).toBeDefined();
@@ -275,38 +278,38 @@ describe('Thread Serialization and Persistence', () => {
 		expect(parsed.metadata.userId).toBe('user123');
 	});
 
-	test('empty() returns true when both state and metadata are empty', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('empty() returns true when both state and metadata are empty', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123');
 
-		expect(thread.empty()).toBe(true);
+		expect(await thread.empty()).toBe(true);
 	});
 
-	test('empty() returns false when state has data', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('empty() returns false when state has data', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123', { key: 'value' });
 
-		thread.state.set('key', 'value');
+		// Trigger load
+		await thread.state.get('key');
 
-		expect(thread.empty()).toBe(false);
+		expect(await thread.empty()).toBe(false);
 	});
 
-	test('empty() returns false when metadata has data', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('empty() returns false when metadata has data', async () => {
+		const thread = createThread(mockProvider, 'thrd_test123', undefined, { userId: 'user123' });
 
-		thread.metadata.userId = 'user123';
-
-		expect(thread.empty()).toBe(false);
+		expect(await thread.empty()).toBe(false);
 	});
 
-	test('empty() returns false when both state and metadata have data', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('empty() returns false when both state and metadata have data', async () => {
+		const thread = createThread(
+			mockProvider,
+			'thrd_test123',
+			{ key: 'value' },
+			{ userId: 'user123' }
+		);
 
-		thread.state.set('key', 'value');
-		thread.metadata.userId = 'user123';
+		// Trigger load
+		await thread.state.get('key');
 
-		expect(thread.empty()).toBe(false);
+		expect(await thread.empty()).toBe(false);
 	});
 });

@@ -90,16 +90,17 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 			// This allows multiple agents to have separate message histories in the same thread
 			if (ctx.var.thread) {
 				const agentMessagesKey = `messages_${agentId}`;
-				const existingMessages = ctx.var.thread.state.get(agentMessagesKey);
-				const messages = (existingMessages as unknown[] | undefined) || [];
+				const maxMessages = 50;
 
-				messages.push({ type: 'input', data: input });
+				await ctx.var.thread.state.push(agentMessagesKey, { type: 'input', data: input }, maxMessages);
 
 				if (result !== undefined && result !== null) {
-					messages.push({ type: 'output', data: result });
+					await ctx.var.thread.state.push(
+						agentMessagesKey,
+						{ type: 'output', data: result },
+						maxMessages
+					);
 				}
-
-				ctx.var.thread.state.set(agentMessagesKey, messages);
 
 				// Manually save the thread to ensure state persists
 				try {
@@ -161,10 +162,18 @@ export const createWorkbenchClearStateRoute = (): Handler => {
 			return ctx.json({ error: 'Thread not available' }, { status: 404 });
 		}
 
-		const agentMessagesKey = `messages_${agentId}`;
+		// Clear state associated with this specific agent:
+		// 1. messages_${agentId} - workbench message history
+		// 2. Any keys starting with ${agentId}_ - agent-specific state
+		const allKeys = await ctx.var.thread.state.keys();
+		const agentPrefix = `${agentId}_`;
+		const messagesKey = `messages_${agentId}`;
 
-		// Remove the messages for this agent
-		ctx.var.thread.state.delete(agentMessagesKey);
+		for (const key of allKeys) {
+			if (key === messagesKey || key.startsWith(agentPrefix)) {
+				await ctx.var.thread.state.delete(key);
+			}
+		}
 
 		// Save the thread to persist the cleared state
 		try {
@@ -210,7 +219,7 @@ export const createWorkbenchStateRoute = (): Handler => {
 		}
 
 		const agentMessagesKey = `messages_${agentId}`;
-		const messages = ctx.var.thread.state.get(agentMessagesKey);
+		const messages = await ctx.var.thread.state.get(agentMessagesKey);
 
 		return ctx.json({
 			threadId: ctx.var.thread.id,

@@ -89,6 +89,17 @@ let _metadataCache: BuildMetadata | null | undefined = null;
  * - Dev: cwd is project root, file is at cwd/.agentuity/agentuity.metadata.json
  */
 export function getMetadataPath(): string {
+	if (process.env.AGENTUITY_PROJECT_DIR) {
+		// Dev path: running from project root with env flag to a different path using --dir
+		const devPath = join(
+			process.env.AGENTUITY_PROJECT_DIR,
+			'.agentuity',
+			'agentuity.metadata.json'
+		);
+		if (existsSync(devPath)) {
+			return devPath;
+		}
+	}
 	// Production path: running from .agentuity/ directory
 	const productionPath = join(process.cwd(), 'agentuity.metadata.json');
 	if (existsSync(productionPath)) {

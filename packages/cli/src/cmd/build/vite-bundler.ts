@@ -7,7 +7,7 @@
 import { join } from 'node:path';
 import { stat } from 'node:fs/promises';
 import { StructuredError } from '@agentuity/core';
-import type { Logger } from '../../types';
+import type { Logger, DeployOptions } from '../../types';
 import { runAllBuilds } from './vite/vite-builder';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
 import { checkBunVersion } from '../../utils/bun-version-checker';
@@ -25,6 +25,7 @@ export interface ViteBundleOptions {
 	deploymentId?: string;
 	port?: number;
 	logger: Logger;
+	deploymentOptions?: DeployOptions;
 }
 
 /**
@@ -39,6 +40,7 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		deploymentId = '',
 		port = 3500,
 		logger,
+		deploymentOptions,
 	} = options;
 
 	const output: string[] = [];
@@ -87,6 +89,7 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 			region,
 			deploymentId,
 			logger,
+			deploymentOptions,
 		});
 
 		if (result.client.included) {
