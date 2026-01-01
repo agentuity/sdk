@@ -35,6 +35,7 @@
 		"cli": "./packages/cli/bin/cli.ts"
 	},
 	"overrides": {
+		"detect-libc": "2.1.2",
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3"
 	},
