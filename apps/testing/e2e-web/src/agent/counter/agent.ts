@@ -17,7 +17,13 @@ const agent = createAgent('counter', {
 		}),
 	},
 	handler: async (ctx, { action }) => {
-		const currentCount = await ctx.thread.state.get<number | undefined>('count');
+		// Use agentId-prefixed key so workbench "Clear Thread" can reset this agent's state
+		// Convention: ${agentId}_${key} for agent-specific state
+		// Use agentId (stable across deployments) not id (per-deployment) to match workbench clear
+		const agentId = ctx.current.agentId;
+		const countKey = `${agentId}_count`;
+
+		const currentCount = await ctx.thread.state.get<number | undefined>(countKey);
 		let count = currentCount ?? 0;
 
 		switch (action) {
@@ -35,7 +41,7 @@ const agent = createAgent('counter', {
 				break;
 		}
 
-		await ctx.thread.state.set('count', count);
+		await ctx.thread.state.set(countKey, count);
 
 		return { count, action };
 	},

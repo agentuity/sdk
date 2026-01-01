@@ -162,10 +162,18 @@ export const createWorkbenchClearStateRoute = (): Handler => {
 			return ctx.json({ error: 'Thread not available' }, { status: 404 });
 		}
 
-		const agentMessagesKey = `messages_${agentId}`;
+		// Clear state associated with this specific agent:
+		// 1. messages_${agentId} - workbench message history
+		// 2. Any keys starting with ${agentId}_ - agent-specific state
+		const allKeys = await ctx.var.thread.state.keys();
+		const agentPrefix = `${agentId}_`;
+		const messagesKey = `messages_${agentId}`;
 
-		// Remove the messages for this agent
-		await ctx.var.thread.state.delete(agentMessagesKey);
+		for (const key of allKeys) {
+			if (key === messagesKey || key.startsWith(agentPrefix)) {
+				await ctx.var.thread.state.delete(key);
+			}
+		}
 
 		// Save the thread to persist the cleared state
 		try {

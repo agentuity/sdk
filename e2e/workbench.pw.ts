@@ -151,5 +151,22 @@ test.describe('Workbench Dev Mode', () => {
 
 		// Should now be count: 3
 		await expect(page.getByText('"count": 3').first()).toBeVisible({ timeout: 15000 });
+
+		// Now test the Clear Thread functionality
+		// Click the Clear Thread button to reset the agent's thread state
+		await expect(clearButton).toBeVisible({ timeout: 5000 });
+		await clearButton.click();
+
+		// Wait for the clear to complete and UI to update
+		await page.waitForTimeout(1000);
+
+		// Increment again - should start fresh at count: 1
+		await typeInMonaco('{"action": "increment"}');
+		await expect(submitButton).toBeEnabled({ timeout: 5000 });
+		await submitButton.click();
+
+		// After clearing, the count should reset to 1
+		// Wait for any visible element with "count": 1
+		await page.waitForSelector('text="count": 1', { state: 'visible', timeout: 15000 });
 	});
 });
