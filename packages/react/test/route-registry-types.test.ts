@@ -59,36 +59,3 @@ describe('Route Registry Type Exports (issue #384)', () => {
 		expect(_check).toBe(true);
 	});
 });
-
-describe('Route Registry Module Augmentation', () => {
-	test('RouteRegistry can be augmented via declare module', () => {
-		// This is a compile-time test - if the module augmentation doesn't work,
-		// TypeScript will error. The test itself just verifies the augmented
-		// interface is accessible.
-
-		// Simulate what generated code does:
-		// declare module '@agentuity/react' {
-		//   export interface RouteRegistry {
-		//     'POST /api/test': { inputSchema: never; outputSchema: never; stream: false };
-		//   }
-		// }
-
-		// If augmentation works, this should compile without errors
-		// (the actual augmentation happens in src/generated/routes.ts at build time)
-		expect(true).toBe(true);
-	});
-
-	test('types are exported from the correct module path', () => {
-		// Verify that imports from @agentuity/react work
-		// This catches issues where types might be in a different module
-		const registryCheck = {} as RouteRegistry;
-		const wsCheck = {} as WebSocketRouteRegistry;
-		const sseCheck = {} as SSERouteRegistry;
-		const rpcCheck = {} as RPCRouteRegistry;
-
-		expect(registryCheck).toBeDefined();
-		expect(wsCheck).toBeDefined();
-		expect(sseCheck).toBeDefined();
-		expect(rpcCheck).toBeDefined();
-	});
-});

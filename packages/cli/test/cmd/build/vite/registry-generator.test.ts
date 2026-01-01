@@ -803,5 +803,687 @@ describe('registry-generator', () => {
 			expect(routesContent).toContain('items: {');
 			expect(routesContent).toContain('id: {');
 		});
+
+		test('should handle empty routes array (boundary condition)', async () => {
+			const routes: RouteInfo[] = [];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			// Empty routes should not create a file
+			expect(existsSync(routesPath)).toBe(false);
+		});
+
+		test('should handle trailing slashes in routes', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/hello',
+					filename: './api/hello.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+				{
+					method: 'GET',
+					path: '/api/hello/',
+					filename: './api/hello-slash.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// Both keys should exist
+			expect(content).toContain("'GET /api/hello'");
+			expect(content).toContain("'GET /api/hello/'");
+			// RPC tree should have hello segment and no empty property names
+			expect(content).toContain('hello: {');
+			expect(content).not.toMatch(/''\s*:/);
+		});
+
+		test('should handle wildcard path segments like *path', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/files/*path',
+					filename: './api/files/route.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// RouteRegistry key exists
+			expect(content).toContain("'GET /api/files/*path'");
+
+			// RPC tree path: files.path.get
+			expect(content).toContain('files: {');
+			expect(content).toContain('path: {');
+			expect(content).toContain('get: { input:');
+		});
+
+		test('should handle catch-all routes (/*)', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/*',
+					filename: './api/catch-all.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// Key exists in RouteRegistry
+			expect(content).toContain("'GET /api/*'");
+		});
+
+		test('should strip parameter modifiers (?, +, *) in RPC registry segments', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/users/:userId?',
+					filename: './api/users.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+				{
+					method: 'GET',
+					path: '/api/items/:itemId+',
+					filename: './api/items.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+				{
+					method: 'GET',
+					path: '/api/files/:fileId*',
+					filename: './api/files.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain('users: {');
+			expect(content).toContain('userId: {');
+			expect(content).toContain('items: {');
+			expect(content).toContain('itemId: {');
+			expect(content).toContain('files: {');
+			expect(content).toContain('fileId: {');
+		});
+
+		test('should support deeply nested routes', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/a/b/c/d/e/f/g',
+					filename: './api/deep/route.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			['a', 'b', 'c', 'd', 'e', 'f', 'g'].forEach((seg) => {
+				expect(content).toContain(`${seg}: {`);
+			});
+		});
+
+		test('should group multiple methods under the same path in RPC registry', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/resources',
+					filename: './api/resources.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+				{
+					method: 'POST',
+					path: '/api/resources',
+					filename: './api/resources.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+				{
+					method: 'PUT',
+					path: '/api/resources',
+					filename: './api/resources.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+				{
+					method: 'DELETE',
+					path: '/api/resources',
+					filename: './api/resources.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain('resources: {');
+			expect(content).toContain('get: { input:');
+			expect(content).toContain('post: { input:');
+			expect(content).toContain('put: { input:');
+			expect(content).toContain('delete: { input:');
+		});
+
+		test('should handle routes with only inputSchemaVariable', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/input-only',
+					filename: './api/input-only.ts',
+					routeType: 'api',
+					hasValidator: true,
+					inputSchemaVariable: 'inputOnlySchema',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain('export type POSTApiInputOnlyInput');
+			expect(content).toContain('export type POSTApiInputOnlyInputSchema');
+			// Output should use never since no output schema
+			expect(content).toContain('export type POSTApiInputOnlyOutput = never');
+		});
+
+		test('should handle routes with only outputSchemaVariable', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/output-only',
+					filename: './api/output-only.ts',
+					routeType: 'api',
+					hasValidator: true,
+					outputSchemaVariable: 'outputOnlySchema',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain('export type GETApiOutputOnlyOutput');
+			expect(content).toContain('export type GETApiOutputOnlyOutputSchema');
+			// Input should use never since no input schema
+			expect(content).toContain('export type GETApiOutputOnlyInput = never');
+		});
+
+		test('should encode routeType for websocket and sse routes in RPC registry', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'get',
+					path: '/api/ws/chat',
+					filename: './api/ws/chat.ts',
+					routeType: 'websocket',
+					hasValidator: false,
+				},
+				{
+					method: 'get',
+					path: '/api/sse/stream',
+					filename: './api/sse/stream.ts',
+					routeType: 'sse',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain('ws: {');
+			expect(content).toContain('chat: {');
+			expect(content).toMatch(/type:\s*'websocket'/);
+			expect(content).toContain('sse: {');
+			expect(content).toContain('stream: {');
+			expect(content).toMatch(/type:\s*'sse'/);
+		});
+
+		test('should handle stream routeType', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/stream/data',
+					filename: './api/stream/data.ts',
+					routeType: 'stream',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain('data: {');
+			expect(content).toMatch(/type:\s*'stream'/);
+		});
+
+		test('should handle routes with Unicode path segments', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/emoji/fire',
+					filename: './api/emoji.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain("'GET /api/emoji/fire'");
+			expect(content).toContain('emoji: {');
+			expect(content).toContain('fire: {');
+		});
+
+		test('should normalize Windows-style route filenames', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/items',
+					filename: 'src\\api\\items\\index.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'itemsAgent',
+					agentImportPath: '@agent/items',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain("import type itemsAgent from '../agent/items/index.js'");
+			// Should not contain backslashes in import paths
+			expect(content).not.toMatch(/from '.*\\.*'/);
+		});
+
+		test('should handle relative agentImportPath correctly', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/relative',
+					filename: 'src/api/relative/index.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'relativeAgent',
+					agentImportPath: '../custom/relative-agent',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// Relative paths should be resolved and converted
+			expect(content).toContain("import type relativeAgent from");
+		});
+
+		test('should handle nested @agent alias with file path', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'POST',
+					path: '/api/nested/deep',
+					filename: 'src/api/nested/deep/index.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'deepAgent',
+					agentImportPath: '@agent/nested/deep',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain("import type deepAgent from '../agent/nested/deep.js'");
+		});
+
+		test('should handle route at /api root path', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api',
+					filename: './api/index.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain("'GET /api'");
+		});
+
+		test('should handle routes with hyphenated path segments', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/my-feature/sub-route',
+					filename: './api/my-feature/sub-route.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// Should convert to camelCase in RPC registry
+			expect(content).toContain('myFeature: {');
+			expect(content).toContain('subRoute: {');
+		});
+
+		test('should handle routes with underscore path segments', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/my_feature/sub_route',
+					filename: './api/my_feature/sub_route.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// Should convert to camelCase in RPC registry
+			expect(content).toContain('myFeature: {');
+			expect(content).toContain('subRoute: {');
+		});
+
+		test('should handle mixed websocket, sse, and api routes together', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/data',
+					filename: './api/data.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+				{
+					method: 'GET',
+					path: '/api/live',
+					filename: './api/live.ts',
+					routeType: 'websocket',
+					hasValidator: false,
+				},
+				{
+					method: 'GET',
+					path: '/api/feed',
+					filename: './api/feed.ts',
+					routeType: 'sse',
+					hasValidator: false,
+				},
+				{
+					method: 'POST',
+					path: '/api/stream',
+					filename: './api/stream.ts',
+					routeType: 'stream',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// All registries should be populated
+			expect(content).toContain("'GET /api/data'");
+			expect(content).toContain("'/api/live'");
+			expect(content).toContain("'/api/feed'");
+			expect(content).toContain("'POST /api/stream'");
+
+			// RPC registry should have all types
+			expect(content).toMatch(/type:\s*'api'/);
+			expect(content).toMatch(/type:\s*'websocket'/);
+			expect(content).toMatch(/type:\s*'sse'/);
+			expect(content).toMatch(/type:\s*'stream'/);
+		});
+
+		test('should handle duplicate agent variables across routes without collision', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/items',
+					filename: './api/items/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'itemsAgent',
+					agentImportPath: '@agent/items',
+				},
+				{
+					method: 'POST',
+					path: '/api/items',
+					filename: './api/items/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'itemsAgent',
+					agentImportPath: '@agent/items',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// Should only import once
+			const importMatches = content.match(
+				/import type itemsAgent from '\.\.\/agent\/items\/index\.js'/g
+			);
+			expect(importMatches?.length).toBe(1);
+
+			// Both routes should exist
+			expect(content).toContain("'GET /api/items'");
+			expect(content).toContain("'POST /api/items'");
+		});
+	});
+
+	describe('generateAgentRegistry edge cases', () => {
+		test('should handle empty agents list (boundary condition)', async () => {
+			const agents: AgentMetadata[] = [];
+
+			generateAgentRegistry(srcDir, agents);
+
+			const registryPath = join(generatedDir, 'registry.ts');
+			expect(existsSync(registryPath)).toBe(true);
+
+			const content = await Bun.file(registryPath).text();
+
+			// Still has module augmentation and AgentDefinitions
+			expect(content).toContain('export const AgentDefinitions = {');
+			expect(content).toContain('declare module "@agentuity/runtime"');
+		});
+
+		test('should rewrite src/agent and .tsx imports correctly', async () => {
+			const agents: AgentMetadata[] = [
+				{
+					filename: 'src/agent/foo.tsx',
+					name: 'foo-agent',
+					id: 'id1',
+					agentId: 'agent1',
+					version: 'v1',
+				},
+			];
+
+			generateAgentRegistry(srcDir, agents);
+
+			const content = await Bun.file(join(generatedDir, 'registry.ts')).text();
+
+			expect(content).toContain("import fooAgent from '../agent/foo.js';");
+		});
+
+		test('should detect collisions after stripping punctuation and whitespace', () => {
+			const agents: AgentMetadata[] = [
+				{
+					filename: './agent/my-agent.ts',
+					name: 'my-agent',
+					id: '1',
+					agentId: 'a1',
+					version: 'v1',
+				},
+				{
+					filename: './agent/my_agent.ts',
+					name: 'my_agent',
+					id: '2',
+					agentId: 'a2',
+					version: 'v1',
+				},
+			];
+
+			expect(() => generateAgentRegistry(srcDir, agents)).toThrow();
+		});
+
+		test('should include agent description in JSDoc', async () => {
+			const agents: AgentMetadata[] = [
+				{
+					filename: './agent/documented.ts',
+					name: 'documented-agent',
+					id: 'id1',
+					agentId: 'agent1',
+					version: 'v1',
+					description: 'This agent does something important',
+				},
+			];
+
+			generateAgentRegistry(srcDir, agents);
+
+			const content = await Bun.file(join(generatedDir, 'registry.ts')).text();
+
+			expect(content).toContain('This agent does something important');
+		});
+
+		test('should generate InferInput and InferOutput types', async () => {
+			const agents: AgentMetadata[] = [
+				{
+					filename: './agent/typed.ts',
+					name: 'typed-agent',
+					id: 'id1',
+					agentId: 'agent1',
+					version: 'v1',
+					inputSchemaCode: 'z.object({ name: z.string() })',
+					outputSchemaCode: 'z.object({ result: z.boolean() })',
+				},
+			];
+
+			generateAgentRegistry(srcDir, agents);
+
+			const content = await Bun.file(join(generatedDir, 'registry.ts')).text();
+
+			expect(content).toContain('export type TypedAgentInput = InferInput<');
+			expect(content).toContain('export type TypedAgentOutput = InferOutput<');
+			expect(content).toContain('export type TypedAgentInputSchema = typeof typedAgent');
+			expect(content).toContain('export type TypedAgentOutputSchema = typeof typedAgent');
+		});
+
+		test('should handle agent names with multiple consecutive hyphens', async () => {
+			const agents: AgentMetadata[] = [
+				{
+					filename: './agent/multi-hyphen.ts',
+					name: 'multi--hyphen---agent',
+					id: 'id1',
+					agentId: 'agent1',
+					version: 'v1',
+				},
+			];
+
+			generateAgentRegistry(srcDir, agents);
+
+			const content = await Bun.file(join(generatedDir, 'registry.ts')).text();
+
+			// Should handle multiple hyphens gracefully
+			expect(content).toContain('multiHyphenAgent');
+		});
+
+		test('should handle agent names with leading/trailing hyphens', async () => {
+			const agents: AgentMetadata[] = [
+				{
+					filename: './agent/edge-case.ts',
+					name: '-leading-agent',
+					id: 'id1',
+					agentId: 'agent1',
+					version: 'v1',
+				},
+			];
+
+			generateAgentRegistry(srcDir, agents);
+
+			const content = await Bun.file(join(generatedDir, 'registry.ts')).text();
+
+			// Should handle leading hyphen gracefully
+			expect(content).toContain('leadingAgent');
+		});
+
+		test('should handle deeply nested agent paths', async () => {
+			const agents: AgentMetadata[] = [
+				{
+					filename: './agent/deep/nested/path/agent.ts',
+					name: 'deep-agent',
+					id: 'id1',
+					agentId: 'agent1',
+					version: 'v1',
+				},
+			];
+
+			generateAgentRegistry(srcDir, agents);
+
+			const content = await Bun.file(join(generatedDir, 'registry.ts')).text();
+
+			expect(content).toContain("import deepAgent from '../agent/deep/nested/path/agent.js';");
+		});
+
+		test('should handle agent names starting with digits (produces valid identifier)', async () => {
+			const agents: AgentMetadata[] = [
+				{
+					filename: './agent/123-agent.ts',
+					name: '123-agent',
+					id: 'id1',
+					agentId: 'agent1',
+					version: 'v1',
+				},
+			];
+
+			generateAgentRegistry(srcDir, agents);
+
+			const content = await Bun.file(join(generatedDir, 'registry.ts')).text();
+
+			// Identifier should NOT start with a digit (invalid in JS/TS)
+			// toCamelCase prefixes with underscore: '123-agent' -> '_123Agent'
+			expect(content).not.toMatch(/import\s+\d+\w*\s+from/);
+			expect(content).toContain('import _123Agent from');
+			expect(content).toContain('export type _123AgentAgent');
+		});
+
+		test('should handle numeric-only agent names', async () => {
+			const agents: AgentMetadata[] = [
+				{
+					filename: './agent/123.ts',
+					name: '123',
+					id: 'id1',
+					agentId: 'agent1',
+					version: 'v1',
+				},
+			];
+
+			generateAgentRegistry(srcDir, agents);
+
+			const content = await Bun.file(join(generatedDir, 'registry.ts')).text();
+
+			// Pure numeric names should also produce valid identifiers
+			// toCamelCase prefixes with underscore: '123' -> '_123'
+			expect(content).not.toMatch(/import\s+\d+\s+from/);
+			expect(content).toContain('import _123 from');
+			expect(content).toContain('export type _123Agent');
+		});
 	});
 });
