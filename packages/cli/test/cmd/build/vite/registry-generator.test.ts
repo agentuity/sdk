@@ -207,21 +207,23 @@ describe('registry-generator', () => {
 			expect(routesContent).toContain('get: { input:');
 		});
 
-		test.skip('should generate route registry', () => {
+		test('should generate route registry with multiple routes', async () => {
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
-					path: '/users',
+					path: '/api/users',
 					filename: './api/users.ts',
 					hasValidator: false,
 					routeType: 'api',
 				},
 				{
 					method: 'POST',
-					path: '/users',
+					path: '/api/users',
 					filename: './api/users.ts',
 					hasValidator: true,
 					routeType: 'api',
+					agentVariable: 'usersAgent',
+					agentImportPath: '@agent/users',
 				},
 			];
 
@@ -230,53 +232,68 @@ describe('registry-generator', () => {
 			const registryPath = join(generatedDir, 'routes.ts');
 			expect(existsSync(registryPath)).toBe(true);
 
-			const registryContent = Bun.file(registryPath).text();
-			expect(registryContent).resolves.toContain('"GET /users"');
-			expect(registryContent).resolves.toContain('"POST /users"');
-			expect(registryContent).resolves.toContain('hasValidator: false');
-			expect(registryContent).resolves.toContain('hasValidator: true');
+			const registryContent = await Bun.file(registryPath).text();
+			// Route keys use single quotes in the generated output
+			expect(registryContent).toContain("'GET /api/users'");
+			expect(registryContent).toContain("'POST /api/users'");
+			// Routes without validator should have never types
+			expect(registryContent).toContain('inputSchema: never');
+			// Routes with validator should have schema types
+			expect(registryContent).toContain('POSTApiUsersInputSchema');
 		});
 
-		test.skip('should include different route types', () => {
+		test('should handle different route types (api, websocket, sse)', async () => {
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
-					path: '/api',
-					filename: './api/main.ts',
+					path: '/api/data',
+					filename: './api/data.ts',
 					hasValidator: false,
 					routeType: 'api',
 				},
 				{
-					method: 'POST',
-					path: '/sms',
-					filename: './api/sms.ts',
-					hasValidator: false,
-					routeType: 'sms',
+					method: 'GET',
+					path: '/api/stream',
+					filename: './api/stream.ts',
+					hasValidator: true,
+					routeType: 'websocket',
+					agentVariable: 'streamAgent',
+					agentImportPath: '@agent/stream',
 				},
 				{
-					method: 'POST',
-					path: '/cron',
-					filename: './api/cron.ts',
-					hasValidator: false,
-					routeType: 'cron',
+					method: 'GET',
+					path: '/api/events',
+					filename: './api/events.ts',
+					hasValidator: true,
+					routeType: 'sse',
+					outputSchemaVariable: 'eventsSchema',
 				},
 			];
 
 			generateRouteRegistry(srcDir, routes);
 
 			const registryPath = join(generatedDir, 'routes.ts');
-			const registryContent = Bun.file(registryPath).text();
+			const registryContent = await Bun.file(registryPath).text();
 
-			expect(registryContent).resolves.toContain("routeType: 'api'");
-			expect(registryContent).resolves.toContain("routeType: 'sms'");
-			expect(registryContent).resolves.toContain("routeType: 'cron'");
+			// API routes go in RouteRegistry
+			expect(registryContent).toContain("'GET /api/data'");
+			// WebSocket routes go in WebSocketRouteRegistry
+			expect(registryContent).toContain("'/api/stream'");
+			expect(registryContent).toContain('export interface WebSocketRouteRegistry');
+			// SSE routes go in SSERouteRegistry
+			expect(registryContent).toContain("'/api/events'");
+			expect(registryContent).toContain('export interface SSERouteRegistry');
+			// RPC registry includes type info
+			expect(registryContent).toContain("type: 'api'");
+			expect(registryContent).toContain("type: 'websocket'");
+			expect(registryContent).toContain("type: 'sse'");
 		});
 
-		test.skip('should export RouteKey type', () => {
+		test('should generate RouteRegistry interface for module augmentation', async () => {
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
-					path: '/test',
+					path: '/api/test',
 					filename: './api/test.ts',
 					hasValidator: false,
 					routeType: 'api',
@@ -286,9 +303,13 @@ describe('registry-generator', () => {
 			generateRouteRegistry(srcDir, routes);
 
 			const registryPath = join(generatedDir, 'routes.ts');
-			const registryContent = Bun.file(registryPath).text();
+			const registryContent = await Bun.file(registryPath).text();
 
-			expect(registryContent).resolves.toContain('export type RouteKey');
+			// Should augment @agentuity/react with RouteRegistry
+			expect(registryContent).toContain("declare module '@agentuity/react'");
+			expect(registryContent).toContain('export interface RouteRegistry');
+			// Route key should be in the registry
+			expect(registryContent).toContain("'GET /api/test'");
 		});
 
 		test('should generate types for routes with agentVariable (issue #291)', async () => {
@@ -480,6 +501,307 @@ describe('registry-generator', () => {
 			// Should NOT generate export type statements for these routes
 			expect(routesContent).not.toContain('export type GETApiTracesInput');
 			expect(routesContent).not.toContain('export type GETApiTracesOutput');
+		});
+
+		test('should augment @agentuity/react module for all route registries (issue #384)', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Must augment @agentuity/react - this is where the hooks import types from
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+
+			// Should NOT augment @agentuity/frontend - types are re-exported from @agentuity/react
+			// which has its own augmentable interfaces
+			expect(routesContent).not.toContain("declare module '@agentuity/frontend'");
+
+			// Should contain all four registries in the augmentation
+			expect(routesContent).toContain('export interface RouteRegistry');
+			expect(routesContent).toContain('export interface WebSocketRouteRegistry');
+			expect(routesContent).toContain('export interface SSERouteRegistry');
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+		});
+
+		test('should generate route entries inside RouteRegistry (issue #384)', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+				{
+					method: 'get',
+					path: '/api/users',
+					filename: './api/users/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					inputSchemaVariable: 'usersInputSchema',
+					outputSchemaVariable: 'usersOutputSchema',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Route keys should be in METHOD /path format
+			expect(routesContent).toContain("'POST /api/hello'");
+			expect(routesContent).toContain("'GET /api/users'");
+
+			// Should have inputSchema and outputSchema for each route
+			expect(routesContent).toContain('inputSchema:');
+			expect(routesContent).toContain('outputSchema:');
+		});
+
+		test('should generate WebSocket and SSE route entries (issue #384)', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'get',
+					path: '/api/ws',
+					filename: './api/ws/route.ts',
+					routeType: 'websocket',
+					hasValidator: true,
+					inputSchemaVariable: 'wsInputSchema',
+					outputSchemaVariable: 'wsOutputSchema',
+				},
+				{
+					method: 'get',
+					path: '/api/events',
+					filename: './api/events/route.ts',
+					routeType: 'sse',
+					hasValidator: true,
+					outputSchemaVariable: 'eventsOutputSchema',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// WebSocket routes should be in WebSocketRouteRegistry
+			expect(routesContent).toContain('export interface WebSocketRouteRegistry');
+			expect(routesContent).toContain("'/api/ws'");
+
+			// SSE routes should be in SSERouteRegistry
+			expect(routesContent).toContain('export interface SSERouteRegistry');
+			expect(routesContent).toContain("'/api/events'");
+		});
+
+		test('should generate routes file with only one route type (issue #384)', async () => {
+			// Test that even with just one API route, all registries are included
+			const routes: RouteInfo[] = [
+				{
+					method: 'get',
+					path: '/api/health',
+					filename: './api/health/route.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should still augment @agentuity/react
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+
+			// All registries should exist (even if some are empty)
+			expect(routesContent).toContain('export interface RouteRegistry');
+			expect(routesContent).toContain('export interface WebSocketRouteRegistry');
+			expect(routesContent).toContain('export interface SSERouteRegistry');
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+
+			// API route should be in RouteRegistry
+			expect(routesContent).toContain("'GET /api/health'");
+		});
+
+		test('should generate types for nested subdirectory routes (e.g., /api/knowledge/categorize)', async () => {
+			// Simulates the real-world case from src/api/knowledge/index.ts
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/knowledge',
+					filename: 'src/api/knowledge/index.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+				{
+					method: 'POST',
+					path: '/api/knowledge/categorize',
+					filename: 'src/api/knowledge/index.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'knowledgeCategorizer',
+					agentImportPath: '@agent/knowledge-categorizer',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Both routes should be in RouteRegistry
+			expect(routesContent).toContain("'GET /api/knowledge'");
+			expect(routesContent).toContain("'POST /api/knowledge/categorize'");
+
+			// Types should be generated for the route with validator
+			expect(routesContent).toContain('export type POSTApiKnowledgeCategorizeInput');
+			expect(routesContent).toContain('export type POSTApiKnowledgeCategorizeOutput');
+			expect(routesContent).toContain('export type POSTApiKnowledgeCategorizeInputSchema');
+			expect(routesContent).toContain('export type POSTApiKnowledgeCategorizeOutputSchema');
+
+			// Import should be generated for the agent
+			expect(routesContent).toContain(
+				"import type knowledgeCategorizer from '../agent/knowledge-categorizer/index.js'"
+			);
+
+			// RPC registry should have nested structure
+			expect(routesContent).toContain('knowledge: {');
+			expect(routesContent).toContain('categorize: {');
+			expect(routesContent).toContain('post: { input: POSTApiKnowledgeCategorizeInput');
+		});
+
+		test('should handle agentVariable without hasValidator (edge case - use never types)', async () => {
+			// Edge case: agentVariable is set but hasValidator is false
+			// This shouldn't normally happen, but the code should handle it gracefully
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/edge-case',
+					filename: './api/edge-case/route.ts',
+					routeType: 'api',
+					hasValidator: false, // No validator
+					agentVariable: 'myAgent', // But has agent variable
+					agentImportPath: '@agent/my-agent',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Route should be in registry with never types since import wasn't added
+			// (imports are only added when hasValidator is true)
+			expect(routesContent).toContain("'POST /api/edge-case'");
+			// Should NOT have generated the import since hasValidator is false
+			expect(routesContent).not.toContain("import type myAgent from");
+		});
+
+		test('should handle agentVariable without agentImportPath (edge case - should not crash)', async () => {
+			// Edge case: agentVariable is set but agentImportPath is missing
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/no-import-path',
+					filename: './api/no-import-path/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'orphanAgent',
+					// agentImportPath is undefined
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Should not crash - route should still be in registry with never types
+			expect(routesContent).toContain("'POST /api/no-import-path'");
+			// Should use never types since import couldn't be generated
+			expect(routesContent).toContain('inputSchema: never');
+			expect(routesContent).toContain('outputSchema: never');
+			// Should NOT have generated an import since agentImportPath is missing
+			expect(routesContent).not.toContain("import type orphanAgent from");
+			// Should NOT generate broken types like "typeof undefined"
+			expect(routesContent).not.toContain('typeof undefined');
+			expect(routesContent).not.toContain("typeof orphanAgent['inputSchema']");
+		});
+
+		test('should handle multiple routes from same subdirectory file', async () => {
+			// Multiple routes defined in the same file (common pattern)
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/items',
+					filename: 'src/api/items/index.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'listItemsAgent',
+					agentImportPath: '@agent/list-items',
+				},
+				{
+					method: 'POST',
+					path: '/api/items',
+					filename: 'src/api/items/index.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'createItemAgent',
+					agentImportPath: '@agent/create-item',
+				},
+				{
+					method: 'GET',
+					path: '/api/items/:id',
+					filename: 'src/api/items/index.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'getItemAgent',
+					agentImportPath: '@agent/get-item',
+				},
+				{
+					method: 'DELETE',
+					path: '/api/items/:id',
+					filename: 'src/api/items/index.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// All routes should be in RouteRegistry
+			expect(routesContent).toContain("'GET /api/items'");
+			expect(routesContent).toContain("'POST /api/items'");
+			expect(routesContent).toContain("'GET /api/items/:id'");
+			expect(routesContent).toContain("'DELETE /api/items/:id'");
+
+			// Types should be generated for routes with validators
+			expect(routesContent).toContain('export type GETApiItemsInput');
+			expect(routesContent).toContain('export type POSTApiItemsInput');
+			expect(routesContent).toContain('export type GETApiItemsIdInput');
+
+			// No types for DELETE route without validator
+			expect(routesContent).not.toContain('export type DELETEApiItemsIdInput');
+
+			// RPC registry should handle path params correctly
+			expect(routesContent).toContain('items: {');
+			expect(routesContent).toContain('id: {');
 		});
 	});
 });
