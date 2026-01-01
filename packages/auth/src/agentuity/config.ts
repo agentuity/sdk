@@ -12,6 +12,24 @@ import { organization, jwt, bearer, apiKey } from 'better-auth/plugins';
 import { drizzle } from 'drizzle-orm/bun-sql';
 import * as authSchema from '../schema';
 
+// Re-export plugin types for convenience
+export type {
+	Organization,
+	OrganizationMember,
+	OrganizationInvitation,
+	OrganizationApiMethods,
+	ApiKey,
+	ApiKeyPluginOptions,
+	ApiKeyApiMethods,
+	JwtApiMethods,
+	DefaultPluginApiMethods,
+} from './plugins';
+
+export { DEFAULT_API_KEY_OPTIONS } from './plugins';
+
+import type { ApiKeyPluginOptions, DefaultPluginApiMethods } from './plugins';
+import { DEFAULT_API_KEY_OPTIONS } from './plugins';
+
 /**
  * Type for BetterAuth trustedOrigins option.
  * Matches the signature expected by BetterAuthOptions.trustedOrigins.
@@ -73,7 +91,14 @@ export interface AuthBase {
 		 * @param params - Object containing the request headers
 		 * @returns Full organization details, or null if no active org
 		 */
-		getFullOrganization: (params: { headers: Headers }) => Promise<{
+		getFullOrganization: (params: {
+			query?: {
+				organizationId?: string;
+				organizationSlug?: string;
+				membersLimit?: number;
+			};
+			headers?: Headers;
+		}) => Promise<{
 			id: string;
 			name?: string;
 			slug?: string;
@@ -207,207 +232,6 @@ function createDefaultTrustedOrigins(baseURL?: string): (request?: Request) => P
 }
 
 /**
- * Server-side API methods for organization management.
- *
- * These methods are added by the BetterAuth organization plugin and provide
- * multi-tenancy support including creating organizations, managing members,
- * and handling invitations.
- *
- * @see https://better-auth.com/docs/plugins/organization
- */
-export interface OrganizationApiMethods {
-	/** Create a new organization. */
-	createOrganization: (params: {
-		body: { name: string; slug: string; logo?: string; metadata?: Record<string, unknown> };
-		headers?: Headers;
-	}) => Promise<{ id: string; name: string; slug: string; logo?: string; createdAt: Date }>;
-
-	/** List all organizations the user is a member of. */
-	listOrganizations: (params: { headers?: Headers }) => Promise<
-		Array<{
-			id: string;
-			name: string;
-			slug: string;
-			logo?: string;
-		}>
-	>;
-
-	/** Get the full organization details including members. */
-	getFullOrganization: (params: { headers?: Headers }) => Promise<{
-		id: string;
-		name: string;
-		slug: string;
-		logo?: string;
-		members?: Array<{ userId: string; role: string }>;
-	} | null>;
-
-	/** Set the active organization for the current session. */
-	setActiveOrganization: (params: {
-		body: { organizationId: string };
-		headers?: Headers;
-	}) => Promise<{ id: string; name: string; slug: string }>;
-
-	/** Create an invitation to join an organization. */
-	createInvitation: (params: {
-		body: { organizationId: string; email: string; role?: string };
-		headers?: Headers;
-	}) => Promise<{ id: string; email: string; role: string; organizationId: string }>;
-
-	/** Cancel a pending invitation. */
-	cancelInvitation: (params: {
-		body: { invitationId: string };
-		headers?: Headers;
-	}) => Promise<{ success: boolean }>;
-
-	/** Reject an invitation to join an organization. */
-	rejectInvitation: (params: {
-		body: { invitationId: string };
-		headers?: Headers;
-	}) => Promise<{ success: boolean }>;
-
-	/** Accept an invitation to join an organization. */
-	acceptInvitation: (params: {
-		body: { invitationId: string };
-		headers?: Headers;
-	}) => Promise<{ success: boolean }>;
-
-	/** Remove a member from an organization. */
-	removeMember: (params: {
-		body: { memberIdOrEmail: string; organizationId?: string };
-		headers?: Headers;
-	}) => Promise<{ success: boolean }>;
-
-	/** Update a member's role in an organization. */
-	updateMemberRole: (params: {
-		body: { memberId: string; role: string; organizationId?: string };
-		headers?: Headers;
-	}) => Promise<{ success: boolean }>;
-
-	/** Check if an organization slug is available. */
-	checkSlug: (params: {
-		body: { slug: string };
-		headers?: Headers;
-	}) => Promise<{ exists: boolean }>;
-}
-
-/**
- * Server-side API methods for API key management.
- *
- * These methods are added by the BetterAuth API Key plugin and provide
- * programmatic access to your application via API keys.
- *
- * @see https://better-auth.com/docs/plugins/api-key
- */
-export interface ApiKeyApiMethods {
-	/** Create a new API key for the authenticated user. */
-	createApiKey: (params: {
-		body: {
-			name?: string;
-			expiresIn?: number;
-			prefix?: string;
-			userId?: string;
-			remaining?: number;
-			metadata?: Record<string, unknown>;
-			refillAmount?: number;
-			refillInterval?: number;
-			rateLimitTimeWindow?: number;
-			rateLimitMax?: number;
-			rateLimitEnabled?: boolean;
-		};
-		headers?: Headers;
-	}) => Promise<{
-		id: string;
-		name: string;
-		key: string;
-		expiresAt?: Date;
-		createdAt: Date;
-	}>;
-
-	/** List all API keys for the authenticated user. */
-	listApiKeys: (params: { headers?: Headers }) => Promise<
-		Array<{
-			id: string;
-			name: string;
-			start: string;
-			expiresAt?: Date;
-			createdAt: Date;
-		}>
-	>;
-
-	/** Delete an API key. */
-	deleteApiKey: (params: {
-		body: { keyId: string };
-		headers?: Headers;
-	}) => Promise<{ success: boolean }>;
-
-	/** Verify an API key and get its metadata. */
-	verifyApiKey: (params: { body: { key: string }; headers?: Headers }) => Promise<{
-		valid: boolean;
-		error?: { message: string; code: string } | null;
-		key?: {
-			id: string;
-			name: string;
-			userId: string;
-			permissions?: Record<string, string[]> | null;
-		} | null;
-	}>;
-}
-
-/**
- * API extensions added by the JWT plugin.
- */
-export interface JwtApiMethods {
-	getToken: (params: { headers?: Headers }) => Promise<{ token: string }>;
-}
-
-/**
- * Combined API extensions from all default plugins.
- */
-export type DefaultPluginApiMethods = OrganizationApiMethods & ApiKeyApiMethods & JwtApiMethods;
-
-/**
- * API Key plugin configuration options.
- */
-export interface ApiKeyPluginOptions {
-	/**
-	 * Whether to enable API key authentication.
-	 * Defaults to true.
-	 */
-	enabled?: boolean;
-
-	/**
-	 * Header names to check for API key.
-	 * Defaults to ['x-agentuity-auth-api-key', 'X-Agentuity-Auth-Api-Key'].
-	 */
-	apiKeyHeaders?: string[];
-
-	/**
-	 * Whether API keys should create mock sessions for the user.
-	 * This allows API key auth to work seamlessly with session-based middleware.
-	 * Defaults to true.
-	 */
-	enableSessionForAPIKeys?: boolean;
-
-	/**
-	 * Default prefix for generated API keys.
-	 * Defaults to 'ag_'.
-	 */
-	defaultPrefix?: string;
-
-	/**
-	 * Default length for generated API keys (excluding prefix).
-	 * Defaults to 64.
-	 */
-	defaultKeyLength?: number;
-
-	/**
-	 * Whether to enable metadata storage on API keys.
-	 * Defaults to true.
-	 */
-	enableMetadata?: boolean;
-}
-
-/**
  * Configuration options for auth.
  * Extends BetterAuth options with Agentuity-specific settings.
  */
@@ -438,18 +262,6 @@ export interface AuthOptions extends BetterAuthOptions {
 	 */
 	apiKey?: ApiKeyPluginOptions | false;
 }
-
-/**
- * Default API key plugin options.
- */
-export const DEFAULT_API_KEY_OPTIONS: Required<ApiKeyPluginOptions> = {
-	enabled: true,
-	apiKeyHeaders: ['x-agentuity-auth-api-key', 'X-Agentuity-Auth-Api-Key'],
-	enableSessionForAPIKeys: true,
-	defaultPrefix: 'ag_',
-	defaultKeyLength: 64,
-	enableMetadata: true,
-};
 
 /**
  * Default plugins included with Agentuity auth.

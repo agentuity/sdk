@@ -22,14 +22,15 @@ import {
   setGlobalRouter,
   enableProcessExitProtection,
   hasWaitUntilPending,
+  loadBuildMetadata,
   createWorkbenchRouter,
+  bootstrapRuntimeEnv,
+ patchBunS3ForStorageDev,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
-import { websocket } from 'hono/bun';
-import { serveStatic } from 'hono/bun';
+import { websocket, serveStatic } from 'hono/bun';
 import { readFileSync, existsSync } from 'node:fs';
 import { type LogLevel } from '@agentuity/core';
-import { bootstrapRuntimeEnv, patchBunS3ForStorageDev } from '@agentuity/runtime';
 
 // Runtime mode detection helper
 // Dynamic string concatenation prevents Bun.build from inlining NODE_ENV at build time
@@ -44,6 +45,9 @@ if (isDevelopment()) {
 	// Pass project directory (two levels up from src/generated/) so .env files are loaded correctly
 	await bootstrapRuntimeEnv({ projectDir: import.meta.dir + '/../..' });
 }
+
+// Step 0.25: load our runtime metadata and cache it
+loadBuildMetadata();
 
 // Step 0.5: Patch Bun's S3 client for Agentuity storage endpoints
 // Agentuity storage uses virtual-hosted-style URLs (*.storage.dev)
@@ -81,6 +85,10 @@ app.use('/api/*', createAgentMiddleware(''));
 // Step 4: Import user's app.ts (runs createApp, gets state/config)
 await import('../../app.js');
 
+// Step 4.5: Import agent registry to ensure all agents are registered
+// This is needed for workbench metadata to return JSON schemas
+await import('./registry.js');
+
 // Step 5: Initialize providers
 const appState = getAppState();
 const appConfig = getAppConfig();
@@ -106,6 +114,7 @@ if (!isDevelopment()) {
 	};
 	const idleHandler = (c: Context) => {
 		// Check if server is idle (no pending requests/connections)
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const server = (globalThis as any).__AGENTUITY_SERVER__;
 		if (!server) return c.text('NO', 200, { 'Content-Type': 'text/plain; charset=utf-8' });
 		
@@ -158,20 +167,16 @@ if (isDevelopment() && process.env.VITE_PORT) {
 
 	const proxyToVite = async (c: Context) => {
 		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}${c.req.path}`;
-		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
 		try {
 			otel.logger.debug(`[Proxy] ${c.req.method} ${c.req.path} -> Vite:${VITE_ASSET_PORT}`);
-			const res = await fetch(viteUrl, { signal: controller.signal });
-			clearTimeout(timeout);
+			const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
 			otel.logger.debug(`[Proxy] ${c.req.path} -> ${res.status} (${res.headers.get('content-type')})`);
 			return new Response(res.body, {
 				status: res.status,
 				headers: res.headers,
 			});
 		} catch (err) {
-			clearTimeout(timeout);
-			if (err instanceof Error && err.name === 'AbortError') {
+			if (err instanceof Error && err.name === 'TimeoutError') {
 				otel.logger.error(`Vite proxy timeout: ${c.req.path}`);
 				return c.text('Vite asset server timeout', 504);
 			}
@@ -215,34 +220,28 @@ if (isDevelopment() && process.env.VITE_PORT) {
 const { default: router_0 } = await import('../api/index.js');
 app.route('/api', router_0);
 
-// Mount workbench API routes (/_agentuity/workbench/*)
-const workbenchRouter = createWorkbenchRouter();
-app.route('/', workbenchRouter);
+const hasWorkbench = true;
+if (hasWorkbench) {
+	// Mount workbench API routes (/_agentuity/workbench/*)
+	const workbenchRouter = createWorkbenchRouter();
+	app.route('/', workbenchRouter);
+}
 
-// Workbench routes - Runtime mode detection
-// Both dev and prod run from .agentuity/app.js (dev bundles before running)
-// So workbench-src is always in the same directory
-const workbenchSrcDir = import.meta.dir + '/workbench-src';
-const workbenchIndexPath = import.meta.dir + '/workbench/index.html';
-const workbenchIndex = existsSync(workbenchIndexPath) 
-	? readFileSync(workbenchIndexPath, 'utf-8')
-	: '';
-
-if (isDevelopment()) {
+if (hasWorkbench) {
 	// Development mode: Let Vite serve source files with HMR
-	app.get('/workbench', async (c: Context) => {
-		const html = await Bun.file(workbenchSrcDir + '/index.html').text();
-		// Rewrite script/css paths to use Vite's @fs protocol
-		const withVite = html
-			.replace('src="./main.tsx"', `src="/@fs${workbenchSrcDir}/main.tsx"`)
-			.replace('href="./styles.css"', `href="/@fs${workbenchSrcDir}/styles.css"`);
-		return c.html(withVite);
-	});
-} else {
-	// Production mode: Serve pre-built assets
-	if (workbenchIndex) {
-		app.get('/workbench', (c: Context) => c.html(workbenchIndex));
-		app.get('/workbench/*', serveStatic({ root: import.meta.dir + '/workbench' }));
+	if (isDevelopment()) {
+		const workbenchSrcDir = import.meta.dir + '/workbench-src';
+		const workbenchIndexPath = import.meta.dir + '/workbench-src/index.html';
+		app.get('/workbench', async (c: Context) => {
+			const html = await Bun.file(workbenchIndexPath).text();
+			// Rewrite script/css paths to use Vite's @fs protocol
+			const withVite = html
+				.replace('src="./main.tsx"', `src="/@fs${workbenchSrcDir}/main.tsx"`)
+				.replace('href="./styles.css"', `href="/@fs${workbenchSrcDir}/styles.css"`);
+			return c.html(withVite);
+		});
+	} else {
+		// Production mode disables the workbench assets
 	}
 }
 
@@ -279,7 +278,9 @@ if (isDevelopment()) {
 	// 404 for unmatched API/system routes
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	
+	if (!hasWorkbench) {
+		app.all('/workbench/*', (c: Context) => c.notFound());
+	}
 	
 	// SPA fallback - serve index.html for client-side routing
 	app.get('*', (c: Context) => {
@@ -312,7 +313,9 @@ if (isDevelopment()) {
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	
+	if (!hasWorkbench) {
+		app.all('/workbench/*', (c: Context) => c.notFound());
+	}
 
 	// SPA fallback with asset protection
 	app.get('*', (c: Context) => {
@@ -347,6 +350,7 @@ if (typeof Bun !== 'undefined') {
 	});
 	
 	// Make server available globally for health checks
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(globalThis as any).__AGENTUITY_SERVER__ = server;
 	
 	otel.logger.info(`Server listening on http://127.0.0.1:${port}`);

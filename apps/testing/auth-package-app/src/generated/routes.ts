@@ -139,7 +139,62 @@ declare module '@agentuity/react' {
 		outputSchema: never;
 		stream: false;
 	};
+	'GET /api/organizations/check-slug': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/organizations/:id': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
 	'POST /api/organizations/:id/activate': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'PATCH /api/organizations/:id': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'DELETE /api/organizations/:id': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/organizations/:id/leave': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/organizations/:id/members': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/organizations/:id/members': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'DELETE /api/organizations/:orgId/members/:memberId': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'PATCH /api/organizations/:orgId/members/:memberId/role': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/organizations/active/member': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/organizations/active/role': {
 		inputSchema: never;
 		outputSchema: never;
 		stream: false;
@@ -149,7 +204,37 @@ declare module '@agentuity/react' {
 		outputSchema: never;
 		stream: false;
 	};
-	'GET /api/organizations/:id/members': {
+	'GET /api/organizations/:id/invitations': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/invitations/:id': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/me/invitations': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/invitations/:id/accept': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/invitations/:id/reject': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/invitations/:id/cancel': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/debug/check-permission': {
 		inputSchema: never;
 		outputSchema: never;
 		stream: false;
@@ -187,16 +272,14 @@ declare module '@agentuity/react' {
 	 */
 	export interface RPCRouteRegistry {
 		auth: {
-			: {
-				/**
-				 * Route: GET /api/auth/*
-				 */
-				get: { input: never; output: never; type: 'api' };
-				/**
-				 * Route: POST /api/auth/*
-				 */
-				post: { input: never; output: never; type: 'api' };
-			};
+			/**
+			 * Route: GET /api/auth/*
+			 */
+			get: { input: never; output: never; type: 'api' };
+			/**
+			 * Route: POST /api/auth/*
+			 */
+			post: { input: never; output: never; type: 'api' };
 		};
 		health: {
 			/**
@@ -215,6 +298,12 @@ declare module '@agentuity/react' {
 			 * Route: GET /api/me
 			 */
 			get: { input: never; output: never; type: 'api' };
+			invitations: {
+				/**
+				 * Route: GET /api/me/invitations
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
 		};
 		greeting: {
 			/**
@@ -246,6 +335,12 @@ declare module '@agentuity/react' {
 				 * Route: GET /api/debug/permissions
 				 */
 				get: { input: never; output: never; type: 'api' };
+			};
+			checkPermission: {
+				/**
+				 * Route: POST /api/debug/check-permission
+				 */
+				post: { input: never; output: never; type: 'api' };
 			};
 		};
 		apiKeys: {
@@ -290,17 +385,47 @@ declare module '@agentuity/react' {
 				 * Route: GET /api/organizations/active
 				 */
 				get: { input: never; output: never; type: 'api' };
+				member: {
+					/**
+					 * Route: GET /api/organizations/active/member
+					 */
+					get: { input: never; output: never; type: 'api' };
+				};
+				role: {
+					/**
+					 * Route: GET /api/organizations/active/role
+					 */
+					get: { input: never; output: never; type: 'api' };
+				};
+			};
+			checkSlug: {
+				/**
+				 * Route: GET /api/organizations/check-slug
+				 */
+				get: { input: never; output: never; type: 'api' };
 			};
 			id: {
+				/**
+				 * Route: GET /api/organizations/:id
+				 */
+				get: { input: never; output: never; type: 'api' };
 				activate: {
 					/**
 					 * Route: POST /api/organizations/:id/activate
 					 */
 					post: { input: never; output: never; type: 'api' };
 				};
-				invitations: {
+				/**
+				 * Route: PATCH /api/organizations/:id
+				 */
+				patch: { input: never; output: never; type: 'api' };
+				/**
+				 * Route: DELETE /api/organizations/:id
+				 */
+				delete: { input: never; output: never; type: 'api' };
+				leave: {
 					/**
-					 * Route: POST /api/organizations/:id/invitations
+					 * Route: POST /api/organizations/:id/leave
 					 */
 					post: { input: never; output: never; type: 'api' };
 				};
@@ -309,6 +434,62 @@ declare module '@agentuity/react' {
 					 * Route: GET /api/organizations/:id/members
 					 */
 					get: { input: never; output: never; type: 'api' };
+					/**
+					 * Route: POST /api/organizations/:id/members
+					 */
+					post: { input: never; output: never; type: 'api' };
+				};
+				invitations: {
+					/**
+					 * Route: POST /api/organizations/:id/invitations
+					 */
+					post: { input: never; output: never; type: 'api' };
+					/**
+					 * Route: GET /api/organizations/:id/invitations
+					 */
+					get: { input: never; output: never; type: 'api' };
+				};
+			};
+			orgId: {
+				members: {
+					memberId: {
+						/**
+						 * Route: DELETE /api/organizations/:orgId/members/:memberId
+						 */
+						delete: { input: never; output: never; type: 'api' };
+						role: {
+							/**
+							 * Route: PATCH /api/organizations/:orgId/members/:memberId/role
+							 */
+							patch: { input: never; output: never; type: 'api' };
+						};
+					};
+				};
+			};
+		};
+		invitations: {
+			id: {
+				/**
+				 * Route: GET /api/invitations/:id
+				 */
+				get: { input: never; output: never; type: 'api' };
+				accept: {
+					/**
+					 * Route: POST /api/invitations/:id/accept
+					 */
+					post: { input: never; output: never; type: 'api' };
+				};
+				reject: {
+					/**
+					 * Route: POST /api/invitations/:id/reject
+					 */
+					post: { input: never; output: never; type: 'api' };
+				};
+				cancel: {
+					/**
+					 * Route: POST /api/invitations/:id/cancel
+					 */
+					post: { input: never; output: never; type: 'api' };
 				};
 			};
 		};
@@ -328,13 +509,11 @@ declare module '@agentuity/react' {
  */
 const _rpcRouteMetadata = {
 		"auth": {
-				"": {
-						"get": {
-								"type": "api"
-						},
-						"post": {
-								"type": "api"
-						}
+				"get": {
+						"type": "api"
+				},
+				"post": {
+						"type": "api"
 				}
 		},
 		"health": {
@@ -350,6 +529,11 @@ const _rpcRouteMetadata = {
 		"me": {
 				"get": {
 						"type": "api"
+				},
+				"invitations": {
+						"get": {
+								"type": "api"
+						}
 				}
 		},
 		"greeting": {
@@ -375,6 +559,11 @@ const _rpcRouteMetadata = {
 		"debug": {
 				"permissions": {
 						"get": {
+								"type": "api"
+						}
+				},
+				"checkPermission": {
+						"post": {
 								"type": "api"
 						}
 				}
@@ -412,10 +601,47 @@ const _rpcRouteMetadata = {
 				"active": {
 						"get": {
 								"type": "api"
+						},
+						"member": {
+								"get": {
+										"type": "api"
+								}
+						},
+						"role": {
+								"get": {
+										"type": "api"
+								}
+						}
+				},
+				"checkSlug": {
+						"get": {
+								"type": "api"
 						}
 				},
 				"id": {
+						"get": {
+								"type": "api"
+						},
 						"activate": {
+								"post": {
+										"type": "api"
+								}
+						},
+						"patch": {
+								"type": "api"
+						},
+						"delete": {
+								"type": "api"
+						},
+						"leave": {
+								"post": {
+										"type": "api"
+								}
+						},
+						"members": {
+								"get": {
+										"type": "api"
+								},
 								"post": {
 										"type": "api"
 								}
@@ -423,10 +649,44 @@ const _rpcRouteMetadata = {
 						"invitations": {
 								"post": {
 										"type": "api"
+								},
+								"get": {
+										"type": "api"
+								}
+						}
+				},
+				"orgId": {
+						"members": {
+								"memberId": {
+										"delete": {
+												"type": "api"
+										},
+										"role": {
+												"patch": {
+														"type": "api"
+												}
+										}
+								}
+						}
+				}
+		},
+		"invitations": {
+				"id": {
+						"get": {
+								"type": "api"
+						},
+						"accept": {
+								"post": {
+										"type": "api"
 								}
 						},
-						"members": {
-								"get": {
+						"reject": {
+								"post": {
+										"type": "api"
+								}
+						},
+						"cancel": {
+								"post": {
 										"type": "api"
 								}
 						}

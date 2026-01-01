@@ -8,7 +8,7 @@ import {
 	type VectorStorage,
 	type SandboxService,
 } from '@agentuity/core';
-import type { AgentuityAuth as AuthInterface } from '@agentuity/auth';
+import type { AuthInterface } from '@agentuity/auth';
 import type {
 	AgentContext,
 	AgentRegistry,
