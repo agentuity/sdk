@@ -161,8 +161,6 @@ export async function ensureAuthDependencies(options: {
 
 	tui.info(`Installing auth dependencies: ${missingDeps.join(', ')}`);
 
-	const { spawn } = await import('child_process');
-
 	await new Promise<void>((resolve, reject) => {
 		const proc = spawn('bun', ['install', ...missingDeps], {
 			cwd: projectDir,
