@@ -106,6 +106,13 @@ test.describe('Workbench Dev Mode', () => {
 		// Monaco editor needs schema data to render, which may take time in CI
 		await page.waitForTimeout(2000);
 
+		// Debug: Fetch metadata endpoint directly to see what's returned
+		const metadataResponse = await page.evaluate(async () => {
+			const res = await fetch('/_agentuity/workbench/metadata.json');
+			return res.json();
+		});
+		console.log('DEBUG: Metadata response:', JSON.stringify(metadataResponse, null, 2));
+
 		// Debug: Log what input UI is shown
 		const hasMonaco = await page.locator('.monaco-editor').count();
 		const hasNoInputSchema = await page.locator('text=This agent has no input schema').count();
