@@ -117,8 +117,8 @@ test.describe('Workbench Dev Mode', () => {
 		const typeInMonaco = async (json: string) => {
 			// Click into the Monaco editor to focus it
 			await monacoEditor.click();
-			// Select all and delete existing content
-			await page.keyboard.press('Meta+a');
+			// Select all and delete existing content (use ControlOrMeta for cross-platform)
+			await page.keyboard.press('ControlOrMeta+A');
 			await page.keyboard.press('Backspace');
 			// Type the new content
 			await page.keyboard.type(json);
