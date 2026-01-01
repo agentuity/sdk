@@ -226,7 +226,7 @@ export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
  *
  * Returns the SDK root path if running from source, undefined otherwise.
  */
-function getSdkRootIfLocalDev(): string | undefined {
+async function getSdkRootIfLocalDev(): Promise<string | undefined> {
 	const cliPath = import.meta.url;
 	if (!cliPath.startsWith('file://')) {
 		return undefined;
@@ -243,7 +243,7 @@ function getSdkRootIfLocalDev(): string | undefined {
 	if (cliFilePath.endsWith(distSuffix)) {
 		const potentialRoot = cliFilePath.slice(0, -distSuffix.length);
 		const schemaPath = path.join(potentialRoot, 'packages/auth/src/schema.ts');
-		if (Bun.file(schemaPath).size > 0) {
+		if (await Bun.file(schemaPath).exists()) {
 			return potentialRoot;
 		}
 	}
@@ -264,7 +264,7 @@ function getSdkRootIfLocalDev(): string | undefined {
  * @returns SQL DDL statements for auth tables
  */
 export async function generateAuthSchemaSql(projectDir: string): Promise<string> {
-	const sdkRoot = getSdkRootIfLocalDev();
+	const sdkRoot = await getSdkRootIfLocalDev();
 	let schemaPath: string;
 	let cwd: string;
 

@@ -86,11 +86,11 @@ const authClient = createAgentuityAuthClient();
 
 ## Important Types
 
-- `AgentuityAuthInterface` - Full auth on `c.var.auth` (user + org + API key helpers)
-- `AgentuityAuthContext` - Auth context with user, session, org
-- `AgentuityOrgContext` - Organization with role and membership
-- `AgentuityApiKeyContext` - API key with permissions
-- `AgentuityAuthMethod` - 'session' | 'api-key' | 'bearer'
+- `AuthInterface` - Full auth on `c.var.auth` (user + org + API key helpers)
+- `AuthContext` - Auth context with user, session, org
+- `AuthOrgContext` - Organization with role and membership
+- `AuthApiKeyContext` - API key with permissions
+- `AuthMethod` - 'session' | 'api-key' | 'bearer'
 
 ## Database Options
 

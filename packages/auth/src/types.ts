@@ -6,7 +6,7 @@
 
 /**
  * Generic authentication interface exposed on Hono context.
- * Use the more specific AgentuityAuthContext for full functionality.
+ * See AuthInterface in ./agentuity/types.ts for the full interface with org and API key helpers.
  */
 export interface AgentuityAuth<TUser = unknown, TRaw = unknown> {
 	/** Get the authenticated user, throws if not authenticated */

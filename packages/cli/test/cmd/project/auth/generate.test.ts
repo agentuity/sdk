@@ -18,11 +18,11 @@ describe('project auth generate', () => {
 		});
 
 		test('should have output option in schema', () => {
-			expect(generateSubcommand.schema?.options).toBeDefined();
+			expect(generateSubcommand.schema?.options?.shape?.output).toBeDefined();
 		});
 
 		test('should have stdout option in schema', () => {
-			expect(generateSubcommand.schema?.options).toBeDefined();
+			expect(generateSubcommand.schema?.options?.shape?.stdout).toBeDefined();
 		});
 
 		test('should have response schema with success', () => {

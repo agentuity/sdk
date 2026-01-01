@@ -344,11 +344,11 @@ import { user, session, organization, apikey, authSchema } from '@agentuity/auth
 
 ```typescript
 import type {
-	AgentuityAuthContext,
-	AgentuityOrgContext,
-	AgentuityApiKeyContext,
-	AgentuityAuthMethod,
-	AgentuityAuthInterface,
+	AuthContext,
+	AuthOrgContext,
+	AuthApiKeyContext,
+	AuthMethod,
+	AuthInterface,
 } from '@agentuity/auth';
 ```
 

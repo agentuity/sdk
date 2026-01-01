@@ -396,10 +396,16 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		// If a database was already selected/created above, use it for auth
 		if (resourceEnvVars.DATABASE_URL) {
 			authDatabaseUrl = resourceEnvVars.DATABASE_URL;
-			// Extract database name from URL (last path segment before query string)
-			const urlMatch = authDatabaseUrl.match(/\/([^/?]+)(\?|$)/);
-			if (urlMatch) {
-				authDatabaseName = urlMatch[1];
+			// Extract database name from URL using proper URL parsing
+			try {
+				const dbUrl = new URL(authDatabaseUrl);
+				const dbName = dbUrl.pathname.replace(/^\/+/, ''); // Remove leading slashes
+				// Validate: non-empty and contains only safe characters
+				if (dbName && /^[A-Za-z0-9_-]+$/.test(dbName)) {
+					authDatabaseName = dbName;
+				}
+			} catch {
+				// Invalid URL format, authDatabaseName stays undefined
 			}
 		} else {
 			// No database selected yet, create one for auth

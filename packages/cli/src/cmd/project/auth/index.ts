@@ -14,7 +14,7 @@ export const authCommand = createCommand({
 		},
 		{
 			command: getCommand('project auth generate'),
-			description: 'Generate Drizzle schema for auth tables',
+			description: 'Generate SQL schema for auth tables',
 		},
 	],
 	subcommands: [initSubcommand, generateSubcommand],
