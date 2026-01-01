@@ -148,12 +148,26 @@ export class StandaloneAgentContext<
 			options?.thread ??
 			({
 				id: 'pending',
-				state: new Map(),
-				metadata: {},
+				state: {
+					loaded: false,
+					dirty: false,
+					get: async () => undefined,
+					set: async () => {},
+					has: async () => false,
+					delete: async () => {},
+					clear: async () => {},
+					entries: async () => [],
+					keys: async () => [],
+					values: async () => [],
+					size: async () => 0,
+					push: async () => {},
+				},
+				getMetadata: async () => ({}),
+				setMetadata: async () => {},
 				addEventListener: () => {},
 				removeEventListener: () => {},
 				destroy: async () => {},
-				empty: () => true,
+				empty: async () => true,
 			} as Thread);
 
 		this.session =
@@ -298,7 +312,9 @@ export class StandaloneAgentContext<
 					// For standalone contexts without HTTP, we just create a new thread
 					const { DefaultThread, generateId: genId } = await import('./session');
 					const threadId = genId('thrd');
-					invocationThread = new DefaultThread(threadProvider, threadId);
+					// Create a no-op restore function for standalone contexts
+					const restoreFn = async () => ({ state: new Map(), metadata: {} });
+					invocationThread = new DefaultThread(threadProvider, threadId, restoreFn);
 					callContext.thread = invocationThread;
 
 					invocationSession = await sessionProvider.restore(
@@ -360,7 +376,7 @@ export class StandaloneAgentContext<
 										sessionEventProvider
 											.complete({
 												id: invocationSessionId,
-												threadId: invocationThread.empty() ? null : invocationThread.id,
+												threadId: (await invocationThread.empty()) ? null : invocationThread.id,
 												statusCode: 200, // Success
 												agentIds: Array.from(agentIds),
 												userData,
@@ -373,7 +389,7 @@ export class StandaloneAgentContext<
 											.catch((ex) => this.logger.error(ex));
 									}
 								})
-								.catch((ex) => {
+								.catch(async (ex) => {
 									this.logger.error(
 										'wait until errored for session %s. %s',
 										invocationSessionId,
@@ -393,7 +409,7 @@ export class StandaloneAgentContext<
 										sessionEventProvider
 											.complete({
 												id: invocationSessionId,
-												threadId: invocationThread.empty() ? null : invocationThread.id,
+												threadId: (await invocationThread.empty()) ? null : invocationThread.id,
 												statusCode: 500, // Error
 												error: message,
 												agentIds: Array.from(agentIds),
@@ -417,7 +433,7 @@ export class StandaloneAgentContext<
 								sessionEventProvider
 									.complete({
 										id: invocationSessionId,
-										threadId: invocationThread.empty() ? null : invocationThread.id,
+										threadId: (await invocationThread.empty()) ? null : invocationThread.id,
 										statusCode: 200,
 										agentIds: Array.from(agentIds),
 										userData,
@@ -447,7 +463,7 @@ export class StandaloneAgentContext<
 							sessionEventProvider
 								.complete({
 									id: invocationSessionId,
-									threadId: invocationThread.empty() ? null : invocationThread.id,
+									threadId: (await invocationThread.empty()) ? null : invocationThread.id,
 									statusCode: 500,
 									error: message,
 									agentIds: Array.from(agentIds),

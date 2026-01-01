@@ -32,11 +32,11 @@ const statePersistenceAgent = createAgent('state', {
 			case 'save': {
 				// Save to thread state (persists across requests)
 				if (threadData) {
-					ctx.thread.state.set('testData', threadData);
+					await ctx.thread.state.set('testData', threadData);
 
 					// Increment request counter in thread state
-					const requestCount = (ctx.thread.state.get('requestCount') as number) || 0;
-					ctx.thread.state.set('requestCount', requestCount + 1);
+					const requestCount = ((await ctx.thread.state.get<number>('requestCount')) ?? 0) + 1;
+					await ctx.thread.state.set('requestCount', requestCount);
 				}
 
 				// Save to session state (request-scoped)
@@ -50,8 +50,8 @@ const statePersistenceAgent = createAgent('state', {
 					sessionId: ctx.session.id,
 					threadId: ctx.thread.id,
 					threadState: {
-						testData: ctx.thread.state.get('testData'),
-						requestCount: ctx.thread.state.get('requestCount'),
+						testData: await ctx.thread.state.get('testData'),
+						requestCount: await ctx.thread.state.get('requestCount'),
 					},
 					sessionState: {
 						sessionData: ctx.session.state.get('sessionData'),
@@ -61,8 +61,8 @@ const statePersistenceAgent = createAgent('state', {
 
 			case 'read': {
 				// Read from thread state
-				const testData = ctx.thread.state.get('testData');
-				const requestCount = ctx.thread.state.get('requestCount');
+				const testData = await ctx.thread.state.get('testData');
+				const requestCount = await ctx.thread.state.get('requestCount');
 
 				// Read from session state (should be empty in new request)
 				const sessionData = ctx.session.state.get('sessionData');

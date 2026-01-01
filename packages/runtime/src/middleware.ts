@@ -336,9 +336,10 @@ export function createOtelMiddleware() {
 								const agentIdsSet = (c as any).get('agentIds') as Set<string> | undefined;
 								const agentIds = agentIdsSet ? [...agentIdsSet].filter(Boolean) : undefined;
 								internal.info('[session] agentIds: %o', agentIds);
+								const isEmpty = await thread.empty();
 								await sessionEventProvider.complete({
 									id: sessionId,
-									threadId: thread.empty() ? null : thread.id,
+									threadId: isEmpty ? null : thread.id,
 									statusCode: c.res?.status ?? 200,
 									agentIds: agentIds?.length ? agentIds : undefined,
 									userData,
