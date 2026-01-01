@@ -102,6 +102,10 @@ test.describe('Workbench Dev Mode', () => {
 
 		await expect(page.locator('button:has-text("counter")')).toBeVisible();
 
+		// Wait for the workbench to fetch agent metadata and render the input UI
+		// Monaco editor needs schema data to render, which may take time in CI
+		await page.waitForTimeout(2000);
+
 		// Clear any existing thread state first
 		const clearButton = page.locator('button:has-text("Clear Thread")');
 		if (await clearButton.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -110,8 +114,9 @@ test.describe('Workbench Dev Mode', () => {
 		}
 
 		// Wait for Monaco editor to load (has a specific class structure)
+		// Increase timeout for CI environments where Monaco may be slower to initialize
 		const monacoEditor = page.locator('.monaco-editor');
-		await expect(monacoEditor).toBeVisible({ timeout: 10000 });
+		await expect(monacoEditor).toBeVisible({ timeout: 20000 });
 
 		// Helper function to type JSON into Monaco editor
 		const typeInMonaco = async (json: string) => {
