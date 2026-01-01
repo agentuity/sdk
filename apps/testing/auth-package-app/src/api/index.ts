@@ -14,10 +14,9 @@
  * 3. Use -b cookies.txt with subsequent requests to authenticate
  */
 
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, validator } from '@agentuity/runtime';
 import { mountAuthRoutes, createSessionMiddleware, createApiKeyMiddleware } from '@agentuity/auth';
 import { APIError } from 'better-auth/api';
-import { validator } from 'hono/validator';
 import hello from '@agent/hello';
 import { auth } from '../auth';
 import * as schemas from './schemas';
@@ -205,13 +204,7 @@ api.post('/debug/check-permission', createSessionMiddleware(auth), async (c) => 
 api.post(
 	'/api-keys',
 	createSessionMiddleware(auth),
-	validator('json', (value, c) => {
-		const result = schemas.createApiKeyInput['~standard'].validate(value);
-		if (result.issues) {
-			return c.json({ error: 'Validation failed', issues: result.issues }, 400);
-		}
-		return result.value;
-	}),
+	validator({ input: schemas.createApiKeyInput }),
 	async (c) => {
 		const body = c.req.valid('json');
 		const name = body.name ?? 'default-key';
@@ -331,13 +324,7 @@ api.get('/bearer-info', (c) => {
 api.post(
 	'/organizations',
 	createSessionMiddleware(auth),
-	validator('json', (value, c) => {
-		const result = schemas.createOrgInput['~standard'].validate(value);
-		if (result.issues) {
-			return c.json({ error: 'Validation failed', issues: result.issues }, 400);
-		}
-		return result.value;
-	}),
+	validator({ input: schemas.createOrgInput }),
 	async (c) => {
 		const body = c.req.valid('json');
 		const { name, slug } = body;
@@ -460,13 +447,7 @@ api.post('/organizations/:id/activate', createSessionMiddleware(auth), async (c)
 api.patch(
 	'/organizations/:id',
 	createSessionMiddleware(auth, { hasOrgRole: ['owner', 'admin'] }),
-	validator('json', (value, c) => {
-		const result = schemas.updateOrgInput['~standard'].validate(value);
-		if (result.issues) {
-			return c.json({ error: 'Validation failed', issues: result.issues }, 400);
-		}
-		return result.value;
-	}),
+	validator({ input: schemas.updateOrgInput }),
 	async (c) => {
 		const organizationId = c.req.param('id');
 		const data = c.req.valid('json');
@@ -636,13 +617,7 @@ api.delete(
 api.patch(
 	'/organizations/:orgId/members/:memberId/role',
 	createSessionMiddleware(auth, { hasOrgRole: ['owner', 'admin'] }),
-	validator('json', (value, c) => {
-		const result = schemas.updateMemberRoleInput['~standard'].validate(value);
-		if (result.issues) {
-			return c.json({ error: 'Validation failed', issues: result.issues }, 400);
-		}
-		return result.value;
-	}),
+	validator({ input: schemas.updateMemberRoleInput }),
 	async (c) => {
 		const organizationId = c.req.param('orgId');
 		const memberId = c.req.param('memberId');
@@ -680,13 +655,7 @@ api.patch(
 api.post(
 	'/organizations/:id/invitations',
 	createSessionMiddleware(auth, { hasOrgRole: ['owner', 'admin'] }),
-	validator('json', (value, c) => {
-		const result = schemas.createInvitationInput['~standard'].validate(value);
-		if (result.issues) {
-			return c.json({ error: 'Validation failed', issues: result.issues }, 400);
-		}
-		return result.value;
-	}),
+	validator({ input: schemas.createInvitationInput }),
 	async (c) => {
 		const organizationId = c.req.param('id');
 		const { email, role } = c.req.valid('json');
