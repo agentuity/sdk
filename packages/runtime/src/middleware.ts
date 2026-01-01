@@ -115,6 +115,12 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 			c.header(DURATION_HEADER, `${duration}s`);
 		}
 
+		// Set deployment header for all routes
+		const deploymentId = runtimeConfig.getDeploymentId();
+		if (deploymentId) {
+			c.header(DEPLOYMENT_HEADER, deploymentId);
+		}
+
 		if (!skipLogging && !isWebSocket) {
 			config.logger.debug(
 				'%s %s completed (%d) in %sms',
@@ -358,9 +364,6 @@ export function createOtelMiddleware() {
 						}
 						const traceId = sctx?.traceId || sessionId.replace(/^sess_/, '');
 						c.header(SESSION_HEADER, `sess_${traceId}`);
-						if (deploymentId) {
-							c.header(DEPLOYMENT_HEADER, deploymentId);
-						}
 						span.end();
 					}
 				}
