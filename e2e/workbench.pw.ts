@@ -107,28 +107,6 @@ test.describe('Workbench Dev Mode', () => {
 
 		await expect(page.locator('button:has-text("counter")')).toBeVisible();
 
-		// Wait for the workbench to fetch agent metadata and render the input UI
-		// Monaco editor needs schema data to render, which may take time in CI
-		await page.waitForTimeout(2000);
-
-		// Debug: Fetch metadata endpoint directly to see what's returned
-		const metadataResponse = await page.evaluate(async () => {
-			const res = await fetch('/_agentuity/workbench/metadata.json');
-			return res.json();
-		});
-		console.log('DEBUG: Metadata response:', JSON.stringify(metadataResponse, null, 2));
-
-		// Debug: Log what input UI is shown
-		const hasMonaco = await page.locator('.monaco-editor').count();
-		const hasNoInputSchema = await page.locator('text=This agent has no input schema').count();
-		const hasTextarea = await page.locator('textarea').count();
-		console.log(
-			`DEBUG: Monaco count=${hasMonaco}, NoInputSchema count=${hasNoInputSchema}, Textarea count=${hasTextarea}`
-		);
-
-		// Take a screenshot for debugging
-		await page.screenshot({ path: 'test-results/debug-before-monaco.png' });
-
 		// Clear any existing thread state first
 		const clearButton = page.locator('button:has-text("Clear Thread")');
 		if (await clearButton.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -194,7 +172,6 @@ test.describe('Workbench Dev Mode', () => {
 		await submitButton.click();
 
 		// After clearing, the count should reset to 1
-		// Wait for any visible element with "count": 1
-		await page.waitForSelector('text="count": 1', { state: 'visible', timeout: 15000 });
+		await expect(page.getByText('"count": 1').first()).toBeVisible({ timeout: 15000 });
 	});
 });
