@@ -207,14 +207,22 @@ function createDefaultTrustedOrigins(baseURL?: string): (request?: Request) => P
 }
 
 /**
- * API extensions added by the organization plugin.
+ * Server-side API methods for organization management.
+ *
+ * These methods are added by the BetterAuth organization plugin and provide
+ * multi-tenancy support including creating organizations, managing members,
+ * and handling invitations.
+ *
+ * @see https://better-auth.com/docs/plugins/organization
  */
 export interface OrganizationApiMethods {
+	/** Create a new organization. */
 	createOrganization: (params: {
 		body: { name: string; slug: string; logo?: string; metadata?: Record<string, unknown> };
 		headers?: Headers;
 	}) => Promise<{ id: string; name: string; slug: string; logo?: string; createdAt: Date }>;
 
+	/** List all organizations the user is a member of. */
 	listOrganizations: (params: { headers?: Headers }) => Promise<
 		Array<{
 			id: string;
@@ -224,6 +232,7 @@ export interface OrganizationApiMethods {
 		}>
 	>;
 
+	/** Get the full organization details including members. */
 	getFullOrganization: (params: { headers?: Headers }) => Promise<{
 		id: string;
 		name: string;
@@ -232,41 +241,49 @@ export interface OrganizationApiMethods {
 		members?: Array<{ userId: string; role: string }>;
 	} | null>;
 
+	/** Set the active organization for the current session. */
 	setActiveOrganization: (params: {
 		body: { organizationId: string };
 		headers?: Headers;
 	}) => Promise<{ id: string; name: string; slug: string }>;
 
+	/** Create an invitation to join an organization. */
 	createInvitation: (params: {
 		body: { organizationId: string; email: string; role?: string };
 		headers?: Headers;
 	}) => Promise<{ id: string; email: string; role: string; organizationId: string }>;
 
+	/** Cancel a pending invitation. */
 	cancelInvitation: (params: {
 		body: { invitationId: string };
 		headers?: Headers;
 	}) => Promise<{ success: boolean }>;
 
+	/** Reject an invitation to join an organization. */
 	rejectInvitation: (params: {
 		body: { invitationId: string };
 		headers?: Headers;
 	}) => Promise<{ success: boolean }>;
 
+	/** Accept an invitation to join an organization. */
 	acceptInvitation: (params: {
 		body: { invitationId: string };
 		headers?: Headers;
 	}) => Promise<{ success: boolean }>;
 
+	/** Remove a member from an organization. */
 	removeMember: (params: {
 		body: { memberIdOrEmail: string; organizationId?: string };
 		headers?: Headers;
 	}) => Promise<{ success: boolean }>;
 
+	/** Update a member's role in an organization. */
 	updateMemberRole: (params: {
 		body: { memberId: string; role: string; organizationId?: string };
 		headers?: Headers;
 	}) => Promise<{ success: boolean }>;
 
+	/** Check if an organization slug is available. */
 	checkSlug: (params: {
 		body: { slug: string };
 		headers?: Headers;
@@ -274,9 +291,15 @@ export interface OrganizationApiMethods {
 }
 
 /**
- * API extensions added by the API Key plugin.
+ * Server-side API methods for API key management.
+ *
+ * These methods are added by the BetterAuth API Key plugin and provide
+ * programmatic access to your application via API keys.
+ *
+ * @see https://better-auth.com/docs/plugins/api-key
  */
 export interface ApiKeyApiMethods {
+	/** Create a new API key for the authenticated user. */
 	createApiKey: (params: {
 		body: {
 			name?: string;
@@ -300,6 +323,7 @@ export interface ApiKeyApiMethods {
 		createdAt: Date;
 	}>;
 
+	/** List all API keys for the authenticated user. */
 	listApiKeys: (params: { headers?: Headers }) => Promise<
 		Array<{
 			id: string;
@@ -310,11 +334,13 @@ export interface ApiKeyApiMethods {
 		}>
 	>;
 
+	/** Delete an API key. */
 	deleteApiKey: (params: {
 		body: { keyId: string };
 		headers?: Headers;
 	}) => Promise<{ success: boolean }>;
 
+	/** Verify an API key and get its metadata. */
 	verifyApiKey: (params: { body: { key: string }; headers?: Headers }) => Promise<{
 		valid: boolean;
 		error?: { message: string; code: string } | null;
