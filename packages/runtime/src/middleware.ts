@@ -113,12 +113,12 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 			const endTime = performance.now();
 			const duration = ((endTime - started) / 1000).toFixed(1);
 			c.header(DURATION_HEADER, `${duration}s`);
-		}
 
-		// Set deployment header for all routes
-		const deploymentId = runtimeConfig.getDeploymentId();
-		if (deploymentId) {
-			c.header(DEPLOYMENT_HEADER, deploymentId);
+			// Set deployment header for all routes
+			const deploymentId = runtimeConfig.getDeploymentId();
+			if (deploymentId) {
+				c.header(DEPLOYMENT_HEADER, deploymentId);
+			}
 		}
 
 		if (!skipLogging && !isWebSocket) {
