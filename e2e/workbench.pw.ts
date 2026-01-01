@@ -51,15 +51,15 @@ test.describe('Workbench Dev Mode', () => {
 
 		await agentSelector.click();
 
-		// Wait for the dropdown to be fully opened and stable
+		// Wait for the dropdown to be fully opened - cmdk uses data-state attribute
+		await page.waitForSelector('[cmdk-list]', { timeout: 5000 });
+		// Give animation time to settle
+		await page.waitForTimeout(300);
+
+		// Click with force to bypass animation stability checks
 		const helloAgentOption = page.locator('[role="option"]:has-text("hello")');
 		await expect(helloAgentOption).toBeVisible({ timeout: 5000 });
-
-		// Use keyboard navigation to select the option (more reliable than clicking in animated dropdowns)
-		// Type "hello" to filter to the right option
-		await page.keyboard.type('hello', { delay: 50 });
-		await page.waitForTimeout(200);
-		await page.keyboard.press('Enter');
+		await helloAgentOption.click({ force: true });
 
 		await expect(page.locator('button:has-text("hello")')).toBeVisible();
 	});
