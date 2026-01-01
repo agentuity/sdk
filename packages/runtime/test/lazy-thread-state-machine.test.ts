@@ -16,7 +16,7 @@
  * These tests validate all state transitions and save behavior.
  */
 
-import { test, expect, describe, mock, spyOn } from 'bun:test';
+import { test, expect, describe, mock } from 'bun:test';
 import { DefaultThread, LazyThreadState, type ThreadProvider } from '../src/session';
 
 describe('LazyThreadState State Machine', () => {

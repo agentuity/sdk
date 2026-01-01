@@ -85,6 +85,29 @@ interface ThreadState {
    * Triggers lazy load if state hasn't been fetched yet.
    */
   size(): Promise<number>;
+
+  /**
+   * Push a value to an array stored at the given key.
+   * Creates a new array if the key doesn't exist.
+   *
+   * Behavior by state:
+   * - **idle/pending-writes**: Queues the operation for merge without loading state.
+   * - **loaded**: Modifies the local cache directly; throws if existing value is not an array.
+   *
+   * @param key - The key where the array is stored
+   * @param value - The value to append to the array
+   * @param maxRecords - Optional limit; if set, trims oldest items to keep array at this size
+   *
+   * @example
+   * ```typescript
+   * // Append a message to conversation history
+   * await ctx.thread.state.push('messages', { role: 'user', content: 'Hello' });
+   *
+   * // Keep only the last 100 messages (sliding window)
+   * await ctx.thread.state.push('messages', newMessage, 100);
+   * ```
+   */
+  push<T = unknown>(key: string, value: T, maxRecords?: number): Promise<void>;
 }
 ```
 
@@ -214,6 +237,7 @@ Operations are applied in order:
 - **`set`**: Set key to value (JSON-serializable)
 - **`delete`**: Remove key if exists
 - **`clear`**: Remove all keys (applied before any subsequent sets)
+- **`push`**: Append a JSON-serializable value to an array at the key. If the key doesn't exist, creates a new array. If the existing value is not an array, silently skips the operation (in merge mode). When `maxRecords` is specified, trims oldest items to maintain the array at the specified size (sliding window behavior).
 
 ### Implementation
 
