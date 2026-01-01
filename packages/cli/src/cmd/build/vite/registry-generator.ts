@@ -404,6 +404,10 @@ function generateRPCRuntimeMetadata(
 		// Sanitize path segments for valid property names (must match type generation)
 		for (const part of pathParts) {
 			const sanitized = sanitizePathSegment(part);
+			// Skip empty segments (e.g., wildcards like '*' that sanitize to '')
+			if (!sanitized) {
+				continue;
+			}
 			if (!current[sanitized]) current[sanitized] = {};
 			current = current[sanitized];
 		}
