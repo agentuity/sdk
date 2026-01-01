@@ -1,7 +1,7 @@
 import type { Plugin } from 'vite';
 import { join } from 'node:path';
 import { createLogger } from '@agentuity/server';
-import type { LogLevel } from '../../../types';
+import type { LogLevel, DeployOptions } from '../../../types';
 import { discoverAgents, type AgentMetadata } from './agent-discovery';
 import { discoverRoutes, type RouteMetadata, type RouteInfo } from './route-discovery';
 import { generateAgentRegistry, generateRouteRegistry } from './registry-generator';
@@ -20,6 +20,7 @@ export interface AgentuityPluginOptions {
 	orgId?: string;
 	deploymentId?: string;
 	logLevel?: LogLevel;
+	deploymentOptions?: DeployOptions;
 }
 
 /**
@@ -42,6 +43,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 		orgId = '',
 		deploymentId = '',
 		logLevel = 'info',
+		deploymentOptions,
 	} = options;
 	const logger = createLogger(logLevel);
 	const srcDir = join(rootDir, 'src');
@@ -153,6 +155,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 				routes,
 				dev,
 				logger,
+				deploymentOptions,
 			});
 
 			// Write metadata file

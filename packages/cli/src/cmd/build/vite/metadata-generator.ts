@@ -478,12 +478,10 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 		if (options.deploymentOptions.pullRequestNumber) {
 			git.pull_request = {
 				number: options.deploymentOptions.pullRequestNumber,
-				commentId: options.deploymentOptions.pullRequestCommentId,
-				url: options.deploymentOptions.pullRequestURL,
+				url: options.deploymentOptions.pullRequestUrl,
 			};
-			delete git.pullRequestCommentId;
 			delete git.pullRequestNumber;
-			delete git.pullRequestURL;
+			delete git.pullRequestUrl;
 		}
 		metadata.deployment.git = git;
 	}
@@ -706,10 +704,10 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 	lines.push('.agentuity/');
 	lines.push('├── app.js                     # Bundled server application');
 	lines.push('├── agentuity.metadata.json    # Build metadata and schemas');
-	if (metadata.assets?.some((a) => a.filename.startsWith('client/'))) {
+	if (metadata.assets?.some((a: { filename: string }) => a.filename.startsWith('client/'))) {
 		lines.push('├── client/                # Frontend assets (fallback, CDN by default)');
 	}
-	if (metadata.assets?.some((a) => a.filename.startsWith('public/'))) {
+	if (metadata.assets?.some((a: { filename: string }) => a.filename.startsWith('public/'))) {
 		lines.push('├── public/                # Static assets');
 	}
 	lines.push('└── AGENTS.md                  # This file');

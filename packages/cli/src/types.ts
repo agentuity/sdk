@@ -579,8 +579,7 @@ export const DeployOptionsSchema = zod.object({
 		.optional()
 		.describe('The event that triggered the deployment'),
 	pullRequestNumber: zod.number().optional().describe('the pull request number'),
-	pullRequestCommentId: zod.string().optional().describe('the pull request comment id'),
-	pullRequestURL: zod.url().optional().describe('the pull request url'),
+	pullRequestUrl: zod.url().optional().describe('the pull request url'),
 });
 
 export type DeployOptions = z.infer<typeof DeployOptionsSchema>;
