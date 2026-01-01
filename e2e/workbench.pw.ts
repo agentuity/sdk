@@ -106,6 +106,17 @@ test.describe('Workbench Dev Mode', () => {
 		// Monaco editor needs schema data to render, which may take time in CI
 		await page.waitForTimeout(2000);
 
+		// Debug: Log what input UI is shown
+		const hasMonaco = await page.locator('.monaco-editor').count();
+		const hasNoInputSchema = await page.locator('text=This agent has no input schema').count();
+		const hasTextarea = await page.locator('textarea').count();
+		console.log(
+			`DEBUG: Monaco count=${hasMonaco}, NoInputSchema count=${hasNoInputSchema}, Textarea count=${hasTextarea}`
+		);
+
+		// Take a screenshot for debugging
+		await page.screenshot({ path: 'test-results/debug-before-monaco.png' });
+
 		// Clear any existing thread state first
 		const clearButton = page.locator('button:has-text("Clear Thread")');
 		if (await clearButton.isVisible({ timeout: 2000 }).catch(() => false)) {
