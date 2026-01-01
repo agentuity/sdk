@@ -23,25 +23,56 @@ type TrustedOrigins = string[] | ((request?: Request) => string[] | Promise<stri
 // =============================================================================
 
 /**
- * Minimal auth interface required by middleware and route mounting.
+ * Base interface for the auth instance used by middleware and route handlers.
  *
- * This is a stable, non-generic interface that middleware functions accept.
- * It decouples middleware from the full BetterAuth generic types, avoiding
- * type inference issues while preserving rich types for end users.
+ * This interface defines the core authentication APIs that Agentuity middleware
+ * relies on. It's designed to be stable and middleware-friendly while the full
+ * auth instance provides additional type-safe APIs for your application code.
+ *
+ * @remarks
+ * You typically don't interact with this interface directly. Instead, use
+ * `createAuth()` to create an auth instance which implements this interface.
+ *
+ * @see {@link createAuth} - Create an auth instance
+ * @see {@link createSessionMiddleware} - Session-based authentication middleware
+ * @see {@link createApiKeyMiddleware} - API key authentication middleware
  */
 export interface AuthBase {
-	/** Handler for auth routes (sign-in, sign-up, session, etc.) */
+	/**
+	 * HTTP request handler for auth routes.
+	 *
+	 * Handles all auth-related endpoints like sign-in, sign-up, sign-out,
+	 * password reset, OAuth callbacks, and session management.
+	 *
+	 * @param request - The incoming HTTP request
+	 * @returns Response for the auth endpoint
+	 */
 	handler: (request: Request) => Promise<Response>;
 
-	/** API methods used by middleware */
+	/**
+	 * Server-side API methods for authentication operations.
+	 *
+	 * These methods are used internally by middleware and can also be called
+	 * directly in your route handlers for custom authentication logic.
+	 */
 	api: {
-		/** Get session from request headers */
+		/**
+		 * Get the current session from request headers.
+		 *
+		 * @param params - Object containing the request headers
+		 * @returns The session with user info, or null if not authenticated
+		 */
 		getSession: (params: { headers: Headers }) => Promise<{
 			user: { id: string; name?: string | null; email: string };
 			session: { id: string; userId: string; activeOrganizationId?: string };
 		} | null>;
 
-		/** Get full organization details */
+		/**
+		 * Get full organization details including members.
+		 *
+		 * @param params - Object containing the request headers
+		 * @returns Full organization details, or null if no active org
+		 */
 		getFullOrganization: (params: { headers: Headers }) => Promise<{
 			id: string;
 			name?: string;
@@ -49,7 +80,12 @@ export interface AuthBase {
 			members?: Array<{ userId: string; role: string; id?: string }>;
 		} | null>;
 
-		/** Verify an API key */
+		/**
+		 * Verify an API key and get its metadata.
+		 *
+		 * @param params - Object containing the API key to verify
+		 * @returns Validation result with key details if valid
+		 */
 		verifyApiKey: (params: { body: { key: string } }) => Promise<{
 			valid: boolean;
 			error?: { message: string; code: string } | null;
@@ -99,7 +135,7 @@ function parseOriginLike(value: string): string | undefined {
  * Priority:
  * 1. Explicit `baseURL` option
  * 2. `AGENTUITY_BASE_URL` env var (Agentuity platform-injected)
- * 3. `BETTER_AUTH_URL` env var (BetterAuth standard, for backward compatibility)
+ * 3. `BETTER_AUTH_URL` env var (BetterAuth standard, for 3rd party SDK compatibility)
  */
 function resolveBaseURL(explicitBaseURL?: string): string | undefined {
 	return explicitBaseURL ?? process.env.AGENTUITY_BASE_URL ?? process.env.BETTER_AUTH_URL;
@@ -357,7 +393,7 @@ export interface AuthOptions extends BetterAuthOptions {
 	 *
 	 * @example
 	 * ```typescript
-	 * createAgentuityAuth({
+	 * createAuth({
 	 *   connectionString: process.env.DATABASE_URL,
 	 * });
 	 * ```

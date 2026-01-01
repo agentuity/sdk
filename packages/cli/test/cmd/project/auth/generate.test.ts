@@ -21,8 +21,8 @@ describe('project auth generate', () => {
 			expect(generateSubcommand.schema?.options?.shape?.output).toBeDefined();
 		});
 
-		test('should have stdout option in schema', () => {
-			expect(generateSubcommand.schema?.options?.shape?.stdout).toBeDefined();
+		test('should require project', () => {
+			expect(generateSubcommand.requires?.project).toBe(true);
 		});
 
 		test('should have response schema with success', () => {

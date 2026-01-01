@@ -146,8 +146,35 @@ export interface AuthApiKeyHelpers {
 }
 
 /**
- * Full Auth interface available on Hono context (c.var.auth).
- * Extends the generic AgentuityAuth with org and API key helpers.
+ * Full authentication interface available on `c.var.auth` and `ctx.auth`.
+ *
+ * This is the primary interface you'll use to access authentication data
+ * in your route handlers and agents. It provides:
+ *
+ * - User data via `getUser()`
+ * - Organization helpers via `getOrg()`, `getOrgRole()`, `hasOrgRole()`
+ * - API key helpers via `apiKey`, `hasPermission()`
+ * - Token access via `getToken()`
+ *
+ * @example Route handler
+ * ```typescript
+ * app.get('/api/profile', async (c) => {
+ *   const user = await c.var.auth.getUser();
+ *   const org = await c.var.auth.getOrg();
+ *   return c.json({ user, org });
+ * });
+ * ```
+ *
+ * @example Agent handler
+ * ```typescript
+ * handler: async (ctx, input) => {
+ *   if (!ctx.auth) return { error: 'Unauthorized' };
+ *   const user = await ctx.auth.getUser();
+ *   return { message: `Hello, ${user.email}!` };
+ * }
+ * ```
+ *
+ * @typeParam TUser - User type (defaults to AuthUser)
  */
 export type AuthInterface<TUser = AuthUser> = AgentuityAuth<TUser, AuthContext> &
 	AuthOrgHelpers &

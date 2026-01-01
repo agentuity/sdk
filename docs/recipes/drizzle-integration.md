@@ -11,9 +11,9 @@ Agentuity Auth uses [Drizzle ORM](https://orm.drizzle.team/) for type-safe datab
 The simplest path is to use a connection string:
 
 ```typescript
-import { createAgentuityAuth } from '@agentuity/auth';
+import { createAuth } from '@agentuity/auth';
 
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	connectionString: process.env.DATABASE_URL,
 });
 ```
@@ -106,16 +106,12 @@ export { schema };
 
 ```typescript
 // src/auth.ts
-import {
-	createAgentuityAuth,
-	createSessionMiddleware,
-	mountAgentuityAuthRoutes,
-} from '@agentuity/auth';
+import { createAuth, createSessionMiddleware, mountAuthRoutes } from '@agentuity/auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db, schema } from './db';
 import * as authSchema from '@agentuity/auth/schema';
 
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	database: drizzleAdapter(db, {
 		provider: 'pg',
 		schema: authSchema, // Use just auth tables for adapter
@@ -313,7 +309,7 @@ export const userProfileRelations = relations(userProfile, ({ one }) => ({
 Agentuity Auth enables experimental joins by default for better query performance:
 
 ```typescript
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	connectionString: process.env.DATABASE_URL,
 	experimental: {
 		joins: true, // Default

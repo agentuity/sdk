@@ -15,21 +15,58 @@ import {
 	type RequestAgentContextArgs,
 } from '../src/_context';
 import type { AuthInterface } from '@agentuity/auth/types';
+import type { Logger } from '../src/logger';
+import type { Thread, Session } from '../src/session';
+import type WaitUntilHandler from '../src/_waituntil';
 import { trace } from '@opentelemetry/api';
 
 // Create a proper mock tracer
 const mockTracer = trace.getTracer('test-tracer');
 
 // Helper to create a minimal mock logger
-const createMockLogger = () => ({
-	trace: () => {},
-	debug: () => {},
-	info: () => {},
-	warn: () => {},
-	error: () => {},
-	fatal: () => {},
-	child: () => createMockLogger(),
-});
+function createMockLogger(): Logger {
+	const noop = () => {};
+	const logger: Logger = {
+		trace: noop,
+		debug: noop,
+		info: noop,
+		warn: noop,
+		error: noop,
+		fatal: noop as Logger['fatal'],
+		child: () => createMockLogger(),
+	};
+	return logger;
+}
+
+// Helper to create a minimal mock thread
+function createMockThread(): Thread {
+	const thread: Thread = {
+		id: 'test-thread',
+		state: new Map(),
+		addEventListener: () => {},
+		removeEventListener: () => {},
+		destroy: async () => {},
+		empty: () => thread.state.size === 0,
+	};
+	return thread;
+}
+
+// Helper to create a minimal mock session
+function createMockSession(): Session {
+	return {
+		id: 'test-session',
+		state: new Map(),
+		thread: createMockThread(),
+		addEventListener: () => {},
+		removeEventListener: () => {},
+		serializeUserData: () => undefined,
+	};
+}
+
+// Helper to create a minimal mock handler
+function createMockHandler(): WaitUntilHandler {
+	return { waitUntil: () => {} } as WaitUntilHandler;
+}
 
 // Helper to create mock auth
 const createMockAuth = (userId: string): AuthInterface => ({
@@ -66,11 +103,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 			const args: RequestAgentContextArgs = {
 				sessionId: 'test-session',
 				agent: {},
-				logger: createMockLogger() as any,
+				logger: createMockLogger(),
 				tracer: mockTracer,
-				session: { id: 'test-session', state: new Map(), thread: {} as any } as any,
-				thread: { id: 'test-thread', state: new Map() } as any,
-				handler: { waitUntil: () => {} } as any,
+				session: createMockSession(),
+				thread: createMockThread(),
+				handler: createMockHandler(),
 				config: {},
 				app: {},
 				runtime: {
@@ -81,7 +118,7 @@ describe('Agent Auth Context Lazy Binding', () => {
 				auth: c.var.auth ?? null, // This is null at this point!
 			};
 
-			return setupRequestAgentContext(c as any, args, next);
+			return setupRequestAgentContext(c, args, next);
 		});
 
 		app.use('/api/*', async (c, next) => {
@@ -128,11 +165,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 		const ctx = new RequestAgentContext({
 			sessionId: 'test-session',
 			agent: {},
-			logger: createMockLogger() as any,
+			logger: createMockLogger(),
 			tracer: mockTracer,
-			session: { id: 'test-session', state: new Map(), thread: {} as any } as any,
-			thread: { id: 'test-thread', state: new Map() } as any,
-			handler: { waitUntil: () => {} } as any,
+			session: createMockSession(),
+			thread: createMockThread(),
+			handler: createMockHandler(),
 			config: {},
 			app: {},
 			runtime: {
@@ -152,11 +189,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 		const ctx = new RequestAgentContext({
 			sessionId: 'test-session',
 			agent: {},
-			logger: createMockLogger() as any,
+			logger: createMockLogger(),
 			tracer: mockTracer,
-			session: { id: 'test-session', state: new Map(), thread: {} as any } as any,
-			thread: { id: 'test-thread', state: new Map() } as any,
-			handler: { waitUntil: () => {} } as any,
+			session: createMockSession(),
+			thread: createMockThread(),
+			handler: createMockHandler(),
 			config: {},
 			app: {},
 			runtime: {
@@ -174,11 +211,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 		const ctx = new RequestAgentContext({
 			sessionId: 'test-session',
 			agent: {},
-			logger: createMockLogger() as any,
+			logger: createMockLogger(),
 			tracer: mockTracer,
-			session: { id: 'test-session', state: new Map(), thread: {} as any } as any,
-			thread: { id: 'test-thread', state: new Map() } as any,
-			handler: { waitUntil: () => {} } as any,
+			session: createMockSession(),
+			thread: createMockThread(),
+			handler: createMockHandler(),
 			config: {},
 			app: {},
 			runtime: {
@@ -212,11 +249,11 @@ describe('Agent Auth Context Lazy Binding', () => {
 			const args: RequestAgentContextArgs = {
 				sessionId: 'test-session',
 				agent: {},
-				logger: createMockLogger() as any,
+				logger: createMockLogger(),
 				tracer: mockTracer,
-				session: { id: 'test-session', state: new Map(), thread: {} as any } as any,
-				thread: { id: 'test-thread', state: new Map() } as any,
-				handler: { waitUntil: () => {} } as any,
+				session: createMockSession(),
+				thread: createMockThread(),
+				handler: createMockHandler(),
 				config: {},
 				app: {},
 				runtime: {
@@ -227,7 +264,7 @@ describe('Agent Auth Context Lazy Binding', () => {
 				auth: createMockAuth('initial-auth'), // Initial auth
 			};
 
-			return setupRequestAgentContext(c as any, args, next);
+			return setupRequestAgentContext(c, args, next);
 		});
 
 		app.use('/api/*', async (c, next) => {

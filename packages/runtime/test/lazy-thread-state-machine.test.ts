@@ -193,7 +193,10 @@ describe('LazyThreadState State Machine', () => {
 		});
 
 		test('pending-writes → loaded on get()', async () => {
-			const restoreFn = mock(async () => ({ state: new Map([['existing', 'data']]), metadata: {} }));
+			const restoreFn = mock(async () => ({
+				state: new Map([['existing', 'data']]),
+				metadata: {},
+			}));
 			const state = new LazyThreadState(restoreFn);
 
 			await state.set('new', 'value');
@@ -315,7 +318,10 @@ describe('LazyThreadState State Machine', () => {
 
 	describe('loaded state', () => {
 		test('loaded stays loaded on all operations', async () => {
-			const restoreFn = mock(async () => ({ state: new Map([['initial', 'data']]), metadata: {} }));
+			const restoreFn = mock(async () => ({
+				state: new Map([['initial', 'data']]),
+				metadata: {},
+			}));
 			const state = new LazyThreadState(restoreFn);
 
 			await state.get('initial');
@@ -385,7 +391,10 @@ describe('LazyThreadState State Machine', () => {
 		});
 
 		test('push() modifies local cache when loaded', async () => {
-			const restoreFn = mock(async () => ({ state: new Map([['arr', ['a', 'b']]]), metadata: {} }));
+			const restoreFn = mock(async () => ({
+				state: new Map([['arr', ['a', 'b']]]),
+				metadata: {},
+			}));
 			const state = new LazyThreadState(restoreFn);
 
 			await state.size();
@@ -619,7 +628,9 @@ describe('LazyThreadState Error Handling', () => {
 
 		await state.size();
 
-		expect(() => state.push('count', 'item')).toThrow('Cannot push to non-array value at key "count"');
+		expect(() => state.push('count', 'item')).toThrow(
+			'Cannot push to non-array value at key "count"'
+		);
 	});
 });
 
@@ -721,7 +732,10 @@ describe('DefaultThread Save Modes', () => {
 		});
 
 		test('returns "full" when metadata changed after load', async () => {
-			const restoreFn = async () => ({ state: new Map([['key', 'value']]), metadata: { old: 'meta' } });
+			const restoreFn = async () => ({
+				state: new Map([['key', 'value']]),
+				metadata: { old: 'meta' },
+			});
 			const thread = new DefaultThread(mockProvider, 'thrd_test', restoreFn, { old: 'meta' });
 
 			await thread.state.get('key');
@@ -746,7 +760,9 @@ describe('DefaultThread Save Modes', () => {
 				state: new Map([['key', 'value']]),
 				metadata: { existing: 'meta' },
 			});
-			const thread = new DefaultThread(mockProvider, 'thrd_test', restoreFn, { existing: 'meta' });
+			const thread = new DefaultThread(mockProvider, 'thrd_test', restoreFn, {
+				existing: 'meta',
+			});
 
 			await thread.state.get('key');
 			await thread.getMetadata();
@@ -986,7 +1002,9 @@ describe('DefaultThread Double Restore Behavior', () => {
 			callCount++;
 			return { state: new Map([['key', 'value']]), metadata: { fromRestore: true } };
 		});
-		const thread = new DefaultThread(mockProvider, 'thrd_test', restoreFn, { initial: 'metadata' });
+		const thread = new DefaultThread(mockProvider, 'thrd_test', restoreFn, {
+			initial: 'metadata',
+		});
 
 		const metadata = await thread.getMetadata();
 		expect(metadata.initial).toBe('metadata');

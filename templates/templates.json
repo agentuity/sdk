@@ -8,7 +8,7 @@
 		},
 		{
 			"id": "agentuity-auth",
-			"name": "Agentuity Auth (BetterAuth)",
+			"name": "Agentuity Auth",
 			"description": "First class Agentuity auth using BetterAuth, includes email/password, organizations, and API keys",
 			"directory": "agentuity-auth"
 		},

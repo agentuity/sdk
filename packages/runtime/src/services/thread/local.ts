@@ -165,7 +165,8 @@ export class LocalThreadProvider implements ThreadProvider {
 
 			let stateJson = '';
 			if (hasState || hasMetadata) {
-				const data: { state?: Record<string, unknown>; metadata?: Record<string, unknown> } = {};
+				const data: { state?: Record<string, unknown>; metadata?: Record<string, unknown> } =
+					{};
 				if (hasState) data.state = state;
 				if (hasMetadata) data.metadata = finalMetadata;
 				stateJson = JSON.stringify(data);

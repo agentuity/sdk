@@ -28,10 +28,10 @@ src/
 ├── schema.ts          # Drizzle table definitions and relations
 └── agentuity/
     ├── index.tsx      # Main exports (re-exports from submodules)
-    ├── config.ts      # createAgentuityAuth factory
+    ├── config.ts      # createAuth factory
     ├── server.ts      # Hono middleware (session, API key)
-    ├── client.tsx     # AgentuityAuthProvider React component
-    ├── react.ts       # createAgentuityAuthClient factory
+    ├── client.tsx     # AuthProvider React component
+    ├── react.ts       # createAuthClient factory
     └── types.ts       # Agentuity-specific types (org, API key context)
 ```
 
@@ -40,24 +40,20 @@ src/
 - **Naming**: All public APIs use "AgentuityAuth" prefix, not "BetterAuth"
 - **Env vars**: Prefer `AGENTUITY_AUTH_SECRET` over `BETTER_AUTH_SECRET`
 - **Defaults**: basePath `/api/auth`, emailAndPassword enabled
-- **React imports**: All React code from `@agentuity/auth/react` (AgentuityAuthProvider, createAgentuityAuthClient, useAgentuityAuth)
+- **React imports**: All React code from `@agentuity/auth/react` (AuthProvider, createAuthClient, useAuth)
 
 ## Key Patterns
 
 ### Server Setup
 
 ```typescript
-import {
-	createAgentuityAuth,
-	createSessionMiddleware,
-	mountAgentuityAuthRoutes,
-} from '@agentuity/auth';
+import { createAuth, createSessionMiddleware, mountAuthRoutes } from '@agentuity/auth';
 
-const auth = createAgentuityAuth({
+const auth = createAuth({
 	connectionString: process.env.DATABASE_URL,
 });
 
-api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
+api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
 api.use('/api/*', createSessionMiddleware(auth));
 ```
 
@@ -75,13 +71,13 @@ export default createAgent('my-agent', {
 ### React Client
 
 ```tsx
-import { createAgentuityAuthClient, AgentuityAuthProvider } from '@agentuity/auth/react';
+import { createAuthClient, AuthProvider } from '@agentuity/auth/react';
 
-const authClient = createAgentuityAuthClient();
+const authClient = createAuthClient();
 
-<AgentuityAuthProvider authClient={authClient}>
+<AuthProvider authClient={authClient}>
 	<App />
-</AgentuityAuthProvider>;
+</AuthProvider>;
 ```
 
 ## Important Types

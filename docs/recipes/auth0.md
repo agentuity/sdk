@@ -334,7 +334,7 @@ If you want to migrate from Auth0 to Agentuity Auth:
 
 1. Set up Agentuity Auth per the [main docs](../../packages/auth/README.md)
 2. Create migration routes for existing users
-3. Update frontend to use `AgentuityAuthProvider`
+3. Update frontend to use `AuthProvider`
 4. Remove Auth0 dependencies
 
 ```bash

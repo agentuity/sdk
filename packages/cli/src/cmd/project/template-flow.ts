@@ -382,7 +382,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			message: 'Enable Agentuity Authentication?',
 			options: [
 				{ value: 'no', label: "No, I'll add auth later" },
-				{ value: 'yes', label: 'Yes, set up Agentuity Auth (BetterAuth)' },
+				{ value: 'yes', label: 'Yes, set up Agentuity Auth' },
 			],
 		});
 
@@ -506,7 +506,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 		// Add auth secret to resourceEnvVars if auth is enabled
 		if (authEnabled && !resourceEnvVars.AGENTUITY_AUTH_SECRET) {
-			const devSecret = `dev-${crypto.randomUUID()}-CHANGE-ME`;
+			const devSecret = `dev-${crypto.randomUUID()}`;
 			resourceEnvVars.AGENTUITY_AUTH_SECRET = devSecret;
 		}
 
@@ -520,10 +520,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					tui.success('DATABASE_URL added to .env');
 				}
 				if (resourceEnvVars.AGENTUITY_AUTH_SECRET) {
-					tui.success('AGENTUITY_AUTH_SECRET added to .env (development default)');
-					tui.warning(
-						`Replace ${tui.bold('AGENTUITY_AUTH_SECRET')} with a secure value before deploying.`
-					);
+					tui.success('AGENTUITY_AUTH_SECRET added to .env');
 					tui.info(
 						`Generate one with: ${tui.muted('npx @better-auth/cli secret')} or ${tui.muted('openssl rand -hex 32')}`
 					);

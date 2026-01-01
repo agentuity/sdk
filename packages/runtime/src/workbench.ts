@@ -92,7 +92,11 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				const agentMessagesKey = `messages_${agentId}`;
 				const maxMessages = 50;
 
-				await ctx.var.thread.state.push(agentMessagesKey, { type: 'input', data: input }, maxMessages);
+				await ctx.var.thread.state.push(
+					agentMessagesKey,
+					{ type: 'input', data: input },
+					maxMessages
+				);
 
 				if (result !== undefined && result !== null) {
 					await ctx.var.thread.state.push(

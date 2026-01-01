@@ -38,11 +38,11 @@ The single source of truth for authentication:
 
 ```typescript
 import { Pool } from 'pg';
-import { createAgentuityAuth, createMiddleware } from '@agentuity/auth/agentuity';
+import { createAuth, createMiddleware } from '@agentuity/auth/agentuity';
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
 
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	database: pool,
 	secret: process.env.BETTER_AUTH_SECRET,
 	basePath: '/api/auth',

@@ -2,7 +2,6 @@
  * Shared helpers for Agentuity Auth setup
  */
 
-import { spawn } from 'node:child_process';
 import * as path from 'node:path';
 import { listResources, createResources, dbQuery } from '@agentuity/server';
 import * as tui from '../../../tui';
@@ -124,7 +123,6 @@ export const AUTH_DEPENDENCIES = {
 	'@agentuity/auth': 'latest',
 	'better-auth': '^1.4.9',
 	'drizzle-orm': '^0.44.0',
-	pg: '^8.16.0',
 } as const;
 
 /**
@@ -161,22 +159,16 @@ export async function ensureAuthDependencies(options: {
 
 	tui.info(`Installing auth dependencies: ${missingDeps.join(', ')}`);
 
-	await new Promise<void>((resolve, reject) => {
-		const proc = spawn('bun', ['install', ...missingDeps], {
-			cwd: projectDir,
-			stdio: 'inherit',
-		});
-
-		proc.on('close', (code) => {
-			if (code === 0) {
-				resolve();
-			} else {
-				reject(new Error(`bun install failed with code ${code}`));
-			}
-		});
-
-		proc.on('error', reject);
+	const proc = Bun.spawn(['bun', 'install', ...missingDeps], {
+		cwd: projectDir,
+		stdout: 'inherit',
+		stderr: 'inherit',
 	});
+
+	const exitCode = await proc.exited;
+	if (exitCode !== 0) {
+		throw new Error(`bun install failed with code ${exitCode}`);
+	}
 
 	tui.success('Dependencies installed');
 	return true;
@@ -220,108 +212,48 @@ export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
 }
 
 /**
- * Detect if the CLI is running from the SDK source (local dev mode).
- *
- * Returns the SDK root path if running from source, undefined otherwise.
- */
-async function getSdkRootIfLocalDev(): Promise<string | undefined> {
-	const cliPath = import.meta.url;
-	if (!cliPath.startsWith('file://')) {
-		return undefined;
-	}
-
-	const cliFilePath = new URL(cliPath).pathname;
-	const expectedSuffix = '/packages/cli/src/cmd/project/auth/shared.ts';
-
-	if (cliFilePath.endsWith(expectedSuffix)) {
-		return cliFilePath.slice(0, -expectedSuffix.length);
-	}
-
-	const distSuffix = '/packages/cli/dist/cmd/project/auth/shared.js';
-	if (cliFilePath.endsWith(distSuffix)) {
-		const potentialRoot = cliFilePath.slice(0, -distSuffix.length);
-		const schemaPath = path.join(potentialRoot, 'packages/auth/src/schema.ts');
-		if (await Bun.file(schemaPath).exists()) {
-			return potentialRoot;
-		}
-	}
-
-	return undefined;
-}
-
-/**
  * Generate auth schema SQL using drizzle-kit export.
  *
  * This generates SQL DDL statements from the @agentuity/auth Drizzle schema
  * without needing a database connection.
  *
- * When running in local dev mode (CLI executed from SDK source), uses the
- * SDK's packages/auth/src/schema.ts directly instead of looking in node_modules.
- *
  * @param projectDir - Project directory (must have @agentuity/auth installed)
  * @returns SQL DDL statements for auth tables
  */
 export async function generateAuthSchemaSql(projectDir: string): Promise<string> {
-	const sdkRoot = await getSdkRootIfLocalDev();
-	let schemaPath: string;
-	let cwd: string;
+	const schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/src/schema.ts');
 
-	if (sdkRoot) {
-		schemaPath = path.join(sdkRoot, 'packages/auth/src/schema.ts');
-		cwd = path.join(sdkRoot, 'packages/auth');
-
-		if (!(await Bun.file(schemaPath).exists())) {
-			throw new Error(
-				`SDK schema not found at ${schemaPath}. This should not happen in local dev mode.`
-			);
-		}
-	} else {
-		schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/src/schema.ts');
-		cwd = projectDir;
-
-		if (!(await Bun.file(schemaPath).exists())) {
-			throw new Error(
-				`@agentuity/auth schema not found at ${schemaPath}. Ensure @agentuity/auth is installed.`
-			);
-		}
+	if (!(await Bun.file(schemaPath).exists())) {
+		throw new Error(
+			`@agentuity/auth schema not found at ${schemaPath}. Ensure @agentuity/auth is installed.`
+		);
 	}
 
-	return new Promise((resolve, reject) => {
-		const chunks: string[] = [];
-		const errorChunks: string[] = [];
+	const proc = Bun.spawn(
+		['bunx', 'drizzle-kit', 'export', '--dialect=postgresql', `--schema=${schemaPath}`],
+		{
+			cwd: projectDir,
+			stdout: 'pipe',
+			stderr: 'pipe',
+		}
+	);
 
-		const child = spawn(
-			'bunx',
-			['drizzle-kit', 'export', '--dialect=postgresql', `--schema=${schemaPath}`],
-			{
-				cwd,
-				shell: true,
-			}
-		);
+	const [stdout, stderr, exitCode] = await Promise.all([
+		new Response(proc.stdout).text(),
+		new Response(proc.stderr).text(),
+		proc.exited,
+	]);
 
-		child.stdout.on('data', (data: Buffer) => chunks.push(data.toString()));
-		child.stderr.on('data', (data: Buffer) => {
-			const msg = data.toString();
-			if (!msg.includes('Please install')) {
-				errorChunks.push(msg);
-			}
-		});
+	if (exitCode !== 0) {
+		const errorMsg = stderr
+			.split('\n')
+			.filter((line) => !line.includes('Please install'))
+			.join('\n')
+			.trim();
+		throw new Error(`drizzle-kit export failed with code ${exitCode}: ${errorMsg}`);
+	}
 
-		child.on('close', (code) => {
-			if (code === 0) {
-				const sql = chunks.join('');
-				const idempotentSql = makeIdempotent(sql);
-				resolve(idempotentSql);
-			} else {
-				const errorMsg = errorChunks.join('').trim();
-				reject(new Error(`drizzle-kit export failed with code ${code}: ${errorMsg}`));
-			}
-		});
-
-		child.on('error', (err) => {
-			reject(new Error(`Failed to spawn drizzle-kit: ${err.message}`));
-		});
-	});
+	return makeIdempotent(stdout);
 }
 
 /**
@@ -444,7 +376,7 @@ export function generateAuthFileContent(): string {
  */
 
 import {
-	createAgentuityAuth,
+	createAuth,
 	createSessionMiddleware,
 	createApiKeyMiddleware,
 } from '@agentuity/auth';
@@ -475,7 +407,7 @@ if (!DATABASE_URL) {
  * - bearer (API auth)
  * - apiKey (programmatic access)
  */
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	// Simplest setup: just provide the connection string
 	// We create pg pool + Drizzle internally with joins enabled
 	connectionString: DATABASE_URL,
@@ -528,14 +460,14 @@ export function printIntegrationExamples(): void {
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
 import { createRouter } from '@agentuity/runtime';
-import { mountAgentuityAuthRoutes } from '@agentuity/auth';
+import { mountAuthRoutes } from '@agentuity/auth';
 import { auth, authMiddleware } from '../auth';
 
 const api = createRouter();
 
 // Mount auth routes (sign-in, sign-up, sign-out, session, etc.)
-// Must match the basePath configured in createAgentuityAuth (default: /api/auth)
-api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
+// Must match the basePath configured in createAuth (default: /api/auth)
+api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
 
 // Protect your API routes with auth middleware
 api.use('/api/*', authMiddleware);
@@ -553,17 +485,17 @@ export default api;
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
 import { AgentuityProvider } from '@agentuity/react';
-import { createAgentuityAuthClient } from '@agentuity/auth/react';
-import { AgentuityAuthProvider } from '@agentuity/auth';
+import { createAuthClient } from '@agentuity/auth/react';
+import { AuthProvider } from '@agentuity/auth';
 
-const authClient = createAgentuityAuthClient();
+const authClient = createAuthClient();
 
 function App() {
   return (
     <AgentuityProvider>
-      <AgentuityAuthProvider authClient={authClient}>
+      <AuthProvider authClient={authClient}>
         {/* your app */}
-      </AgentuityAuthProvider>
+      </AuthProvider>
     </AgentuityProvider>
   );
 }
@@ -596,7 +528,7 @@ export default createAgent('my-agent', {
 	console.log(`  ${tui.tuiColors.success('✓')} Auth tables migrated`);
 	console.log(`  ${tui.tuiColors.success('✓')} Dependencies installed`);
 	console.log(`  ${tui.muted('○')} Wire Hono middleware`);
-	console.log(`  ${tui.muted('○')} Add auth routes (mountAgentuityAuthRoutes at /api/auth/*)`);
-	console.log(`  ${tui.muted('○')} Wrap app with AgentuityAuthProvider`);
+	console.log(`  ${tui.muted('○')} Add auth routes (mountAuthRoutes at /api/auth/*)`);
+	console.log(`  ${tui.muted('○')} Wrap app with AuthProvider`);
 	tui.newline();
 }

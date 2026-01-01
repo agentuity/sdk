@@ -145,10 +145,6 @@ describe('AUTH_DEPENDENCIES', () => {
 	test('should include drizzle-orm', () => {
 		expect(AUTH_DEPENDENCIES['drizzle-orm']).toBeDefined();
 	});
-
-	test('should include pg', () => {
-		expect(AUTH_DEPENDENCIES['pg']).toBeDefined();
-	});
 });
 
 describe('generateAuthSchemaSql', () => {

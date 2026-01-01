@@ -93,6 +93,10 @@ export class RequestAgentContext<
 		return this._initialAuth;
 	}
 
+	/**
+	 * Set auth for non-HTTP contexts (standalone, tests).
+	 * @internal
+	 */
 	set auth(value: AuthInterface | null) {
 		this._initialAuth = value;
 	}

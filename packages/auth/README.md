@@ -46,13 +46,9 @@ agentuity project auth setup
 
 ```typescript
 // src/auth.ts
-import {
-	createAgentuityAuth,
-	createSessionMiddleware,
-	mountAgentuityAuthRoutes,
-} from '@agentuity/auth';
+import { createAuth, createSessionMiddleware, mountAuthRoutes } from '@agentuity/auth';
 
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	connectionString: process.env.DATABASE_URL,
 	// Uses AGENTUITY_AUTH_SECRET env var by default
 });
@@ -65,12 +61,12 @@ export const optionalAuthMiddleware = createSessionMiddleware(auth, { optional: 
 // src/api/index.ts
 import { createRouter } from '@agentuity/runtime';
 import { auth, authMiddleware } from '../auth';
-import { mountAgentuityAuthRoutes } from '@agentuity/auth';
+import { mountAuthRoutes } from '@agentuity/auth';
 
 const api = createRouter();
 
 // Mount auth routes (sign-in, sign-up, sign-out, session, etc.)
-api.on(['GET', 'POST'], '/api/auth/*', mountAgentuityAuthRoutes(auth));
+api.on(['GET', 'POST'], '/api/auth/*', mountAuthRoutes(auth));
 
 // Protect API routes
 api.use('/api/*', authMiddleware);
@@ -87,24 +83,24 @@ export default api;
 
 ```tsx
 // src/web/auth-client.ts
-import { createAgentuityAuthClient } from '@agentuity/auth/react';
+import { createAuthClient } from '@agentuity/auth/react';
 
-export const authClient = createAgentuityAuthClient();
+export const authClient = createAuthClient();
 export const { signIn, signUp, signOut, useSession } = authClient;
 ```
 
 ```tsx
 // src/web/frontend.tsx
 import { AgentuityProvider } from '@agentuity/react';
-import { createAgentuityAuthClient, AgentuityAuthProvider } from '@agentuity/auth/react';
+import { createAuthClient, AuthProvider } from '@agentuity/auth/react';
 import { App } from './App';
 
-const authClient = createAgentuityAuthClient();
+const authClient = createAuthClient();
 
 <AgentuityProvider>
-	<AgentuityAuthProvider authClient={authClient}>
+	<AuthProvider authClient={authClient}>
 		<App />
-	</AgentuityAuthProvider>
+	</AuthProvider>
 </AgentuityProvider>;
 ```
 
@@ -174,14 +170,14 @@ api.get('/api/v1/data', async (c) => {
 
 ```tsx
 import { useAuth } from '@agentuity/react';
-import { useAgentuityAuth } from '@agentuity/auth/react';
+import { useAuth } from '@agentuity/auth/react';
 
 function Profile() {
 	// Basic auth state from @agentuity/react
 	const { isAuthenticated, authLoading } = useAuth();
 
 	// Full auth context from @agentuity/auth
-	const { user, isPending } = useAgentuityAuth();
+	const { user, isPending } = useAuth();
 
 	if (authLoading || isPending) return <div>Loading...</div>;
 	if (!isAuthenticated) return <div>Please sign in</div>;
@@ -195,9 +191,9 @@ function Profile() {
 ### Option A: Connection String (Simplest)
 
 ```typescript
-import { createAgentuityAuth } from '@agentuity/auth';
+import { createAuth } from '@agentuity/auth';
 
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	connectionString: process.env.DATABASE_URL,
 });
 ```
@@ -215,7 +211,7 @@ import * as myAppSchema from './schema';
 const schema = { ...authSchema, ...myAppSchema };
 const db = drizzle(process.env.DATABASE_URL!, { schema });
 
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	database: drizzleAdapter(db, { provider: 'pg', schema: authSchema }),
 });
 ```
@@ -227,7 +223,7 @@ Use any BetterAuth-compatible adapter:
 ```typescript
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 
-export const auth = createAgentuityAuth({
+export const auth = createAuth({
 	database: prismaAdapter(new PrismaClient()),
 });
 ```
@@ -236,7 +232,7 @@ export const auth = createAgentuityAuth({
 
 ### Server
 
-#### `createAgentuityAuth(options)`
+#### `createAuth(options)`
 
 Creates an auth instance with Agentuity defaults.
 
@@ -269,7 +265,7 @@ Hono middleware for API key auth.
 - `optional?: boolean` - If true, don't 401 on missing API key
 - `otelSpans?: { email?: boolean }` - Control PII in spans
 
-#### `mountAgentuityAuthRoutes(auth, options?)`
+#### `mountAuthRoutes(auth, options?)`
 
 Handler for BetterAuth routes with cookie merging.
 
@@ -279,7 +275,7 @@ Handler for BetterAuth routes with cookie merging.
 
 ### Client
 
-#### `createAgentuityAuthClient(options?)`
+#### `createAuthClient(options?)`
 
 Import from `@agentuity/auth/react`.
 
@@ -292,19 +288,19 @@ Import from `@agentuity/auth/react`.
 
 **Returns:** BetterAuth client with `signIn`, `signUp`, `signOut`, `useSession`, etc.
 
-#### `AgentuityAuthProvider`
+#### `AuthProvider`
 
 React provider that bridges auth state to Agentuity context.
 
 ```tsx
-import { AgentuityAuthProvider } from '@agentuity/auth/react';
+import { AuthProvider } from '@agentuity/auth/react';
 
-<AgentuityAuthProvider authClient={authClient} refreshInterval={60000}>
+<AuthProvider authClient={authClient} refreshInterval={60000}>
 	{children}
-</AgentuityAuthProvider>;
+</AuthProvider>;
 ```
 
-#### `useAgentuityAuth()`
+#### `useAuth()`
 
 Hook for full auth context. Import from `@agentuity/auth/react`.
 
