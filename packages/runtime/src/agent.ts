@@ -287,6 +287,24 @@ export interface AgentContext<
 	 * ```
 	 */
 	app: TAppState;
+
+	/**
+	 * Metadata about the currently executing agent.
+	 * Provides access to the agent's id, name, and other properties.
+	 *
+	 * @example
+	 * ```typescript
+	 * handler: async (ctx, input) => {
+	 *   // Use agent ID for namespaced state keys
+	 *   const stateKey = `${ctx.current.id}_counter`;
+	 *   await ctx.thread.state.set(stateKey, value);
+	 *
+	 *   // Log agent info
+	 *   ctx.logger.info('Running agent', { name: ctx.current.name });
+	 * }
+	 * ```
+	 */
+	current: AgentMetadata;
 }
 
 type InternalAgentMetadata = {
@@ -329,7 +347,7 @@ type ExternalAgentMetadata = {
 	description?: string;
 };
 
-type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
+export type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
 
 /**
  * Configuration object for creating an agent evaluation function.
@@ -1555,6 +1573,9 @@ export function createAgent<
 
 		// Store current agent for telemetry (using Symbol to keep it internal)
 		(agentCtx as any)[CURRENT_AGENT] = agent;
+
+		// Expose current agent metadata on the context
+		(agentCtx as any).current = agent.metadata;
 
 		const attrs = {
 			'@agentuity/agentId': agent.metadata.id,

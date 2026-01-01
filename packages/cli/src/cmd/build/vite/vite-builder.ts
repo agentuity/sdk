@@ -86,6 +86,11 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const { generateLifecycleTypes } = await import('./lifecycle-generator');
 		await generateLifecycleTypes(rootDir, srcDir, logger);
 
+		// Load workbench config for entry file generation
+		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
+		const config = await loadAgentuityConfig(rootDir, logger);
+		const workbenchConfig = getWorkbenchConfig(config, dev);
+
 		// Then, generate the entry file
 		const { generateEntryFile } = await import('../entry-generator');
 		await generateEntryFile({
@@ -94,6 +99,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			deploymentId: deploymentId || '',
 			logger,
 			mode: dev ? 'dev' : 'prod',
+			workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
 		});
 
 		// Finally, build with Bun.build

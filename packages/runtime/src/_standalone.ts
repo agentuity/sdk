@@ -6,7 +6,7 @@ import type {
 	VectorStorage,
 	SandboxService,
 } from '@agentuity/core';
-import type { AgentContext, AgentRegistry, AgentRuntimeState } from './agent';
+import type { AgentContext, AgentRegistry, AgentRuntimeState, AgentMetadata } from './agent';
 import { AGENT_RUNTIME, AGENT_IDS } from './_config';
 import type { Logger } from './logger';
 import type { Thread, Session } from './session';
@@ -105,6 +105,7 @@ export class StandaloneAgentContext<
 	sandbox!: SandboxService;
 	config: TConfig;
 	app: TAppState;
+	current!: AgentMetadata;
 	[AGENT_RUNTIME]: AgentRuntimeState;
 
 	// Note: The following are mutable and will be set per-invocation via AsyncLocalStorage

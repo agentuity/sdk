@@ -237,7 +237,7 @@ if (isDevelopment()) {
 	// 404 for unmatched API/system routes
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	if (hasWorkbench) {
+	if (!hasWorkbench) {
 		app.all('/workbench/*', (c: Context) => c.notFound());
 	}
 	
@@ -272,7 +272,7 @@ if (isDevelopment()) {
 	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
 	app.all('/_agentuity/*', (c: Context) => c.notFound());
 	app.all('/api/*', (c: Context) => c.notFound());
-	if (hasWorkbench) {
+	if (!hasWorkbench) {
 		app.all('/workbench/*', (c: Context) => c.notFound());
 	}
 
@@ -456,6 +456,10 @@ app.use('/api/*', createAgentMiddleware(''));
 
 // Step 4: Import user's app.ts (runs createApp, gets state/config)
 await import('../../app.js');
+
+// Step 4.5: Import agent registry to ensure all agents are registered
+// This is needed for workbench metadata to return JSON schemas
+await import('./registry.js');
 
 // Step 5: Initialize providers
 const appState = getAppState();

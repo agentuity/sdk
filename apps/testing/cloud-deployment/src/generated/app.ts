@@ -84,6 +84,10 @@ app.use('/api/*', createAgentMiddleware(''));
 // Step 4: Import user's app.ts (runs createApp, gets state/config)
 await import('../../app.js');
 
+// Step 4.5: Import agent registry to ensure all agents are registered
+// This is needed for workbench metadata to return JSON schemas
+await import('./registry.js');
+
 // Step 5: Initialize providers
 const appState = getAppState();
 const appConfig = getAppConfig();
