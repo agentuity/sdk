@@ -7,11 +7,12 @@
 			"directory": "default"
 		},
 		{
-			"id": "clerk",
-			"name": "Clerk Authentication",
-			"description": "Project with Clerk authentication integrated into React UI and API routes",
-			"directory": "clerk"
+			"id": "agentuity-auth",
+			"name": "Agentuity Auth",
+			"description": "First class Agentuity auth using BetterAuth, includes email/password, organizations, and API keys",
+			"directory": "agentuity-auth"
 		},
+
 		{
 			"id": "tailwind",
 			"name": "Tailwind CSS Template",

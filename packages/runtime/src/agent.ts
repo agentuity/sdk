@@ -305,6 +305,37 @@ export interface AgentContext<
 	 * ```
 	 */
 	current: AgentMetadata;
+
+	/**
+	 * Authentication context when request is authenticated.
+	 * Available when auth middleware is configured on the Hono app.
+	 *
+	 * Will be `null` for:
+	 * - Unauthenticated requests
+	 * - Cron jobs
+	 * - Agent-to-agent calls without auth propagation
+	 *
+	 * @example
+	 * ```typescript
+	 * handler: async (ctx, input) => {
+	 *   if (!ctx.auth) {
+	 *     return { error: 'Please sign in' };
+	 *   }
+	 *
+	 *   // Access user info
+	 *   const user = await ctx.auth.getUser();
+	 *   ctx.logger.info(`Request from ${user.email}`);
+	 *
+	 *   // Check organization role
+	 *   if (await ctx.auth.hasOrgRole('admin')) {
+	 *     // Admin-only logic
+	 *   }
+	 *
+	 *   return { userId: user.id };
+	 * }
+	 * ```
+	 */
+	auth: import('@agentuity/auth').AuthInterface | null;
 }
 
 type InternalAgentMetadata = {
@@ -2439,6 +2470,7 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 			config: config || {},
 			app: app || {},
 			runtime: getGlobalRuntimeState(),
+			auth: ctx.var.auth ?? null,
 		};
 
 		return setupRequestAgentContext(ctx as unknown as Record<string, unknown>, args, next);

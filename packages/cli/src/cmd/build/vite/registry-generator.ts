@@ -263,6 +263,10 @@ function generateRPCRegistryType(
 		// Add path segments - sanitize for valid TypeScript property names
 		for (let i = 0; i < pathParts.length; i++) {
 			const part = sanitizePathSegment(pathParts[i]);
+			// Skip empty segments (e.g., wildcards like '*' that sanitize to '')
+			if (!part) {
+				continue;
+			}
 			if (!current[part]) {
 				current[part] = {};
 			}
@@ -404,6 +408,10 @@ function generateRPCRuntimeMetadata(
 		// Sanitize path segments for valid property names (must match type generation)
 		for (const part of pathParts) {
 			const sanitized = sanitizePathSegment(part);
+			// Skip empty segments (e.g., wildcards like '*' that sanitize to '')
+			if (!sanitized) {
+				continue;
+			}
 			if (!current[sanitized]) current[sanitized] = {};
 			current = current[sanitized];
 		}

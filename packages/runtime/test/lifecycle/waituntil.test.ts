@@ -21,7 +21,7 @@ describe('waitUntil Background Tasks', () => {
 		const agent = createAgent('basic-waituntil', {
 			handler: async (ctx) => {
 				ctx.waitUntil(async () => {
-					await new Promise((resolve) => setTimeout(resolve, 10));
+					await new Promise((resolve) => setTimeout(resolve, 50));
 					taskExecuted = true;
 				});
 			},
@@ -45,7 +45,7 @@ describe('waitUntil Background Tasks', () => {
 				// Schedule 5 background tasks
 				for (let i = 0; i < 5; i++) {
 					ctx.waitUntil(async () => {
-						await new Promise((resolve) => setTimeout(resolve, 10));
+						await new Promise((resolve) => setTimeout(resolve, 50));
 						executionOrder.push(i);
 					});
 				}
@@ -93,7 +93,7 @@ describe('waitUntil Background Tasks', () => {
 						setTimeout(() => {
 							promiseTaskExecuted = true;
 							resolve();
-						}, 10);
+						}, 50);
 					})
 				);
 			},

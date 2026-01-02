@@ -2,7 +2,7 @@
 	"name": "@agentuity/auth",
 	"version": "0.0.109",
 	"type": "module",
-	"description": "Authentication helpers for popular identity providers",
+	"description": "Authentication for Agentuity projects using Agentuity Auth",
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/agentuity/sdk.git",
@@ -11,56 +11,32 @@
 	"license": "Apache-2.0",
 	"exports": {
 		".": "./src/index.ts",
-		"./clerk": "./src/clerk/index.ts",
-		"./auth0": "./src/auth0/index.ts",
-		"./auth0/client": "./src/auth0/client.tsx",
-		"./auth0/server": "./src/auth0/server.ts"
+		"./react": "./src/agentuity/react.tsx",
+		"./types": "./src/agentuity/types.ts",
+		"./schema": "./src/schema.ts"
 	},
 	"scripts": {
 		"build": "tsc --build",
 		"clean": "rm -rf dist .tsbuildinfo",
 		"typecheck": "tsc --noEmit"
 	},
+	"dependencies": {
+		"better-auth": "^1.4.9",
+		"drizzle-orm": "^0.45.0"
+	},
 	"peerDependencies": {
 		"react": "^18.0.0 || ^19.0.0",
-		"@clerk/clerk-react": "^5.0.0",
-		"@clerk/backend": "^1.0.0",
-		"@auth0/auth0-react": "^2.11.0",
-		"jwks-rsa": "^3.2.0",
-		"jsonwebtoken": "^9.0.3",
 		"@agentuity/react": "workspace:*",
-		"@agentuity/runtime": "workspace:*",
+		"@opentelemetry/api": "^1.9.0",
 		"hono": "^4.0.0"
-	},
-	"peerDependenciesMeta": {
-		"@clerk/clerk-react": {
-			"optional": true
-		},
-		"@clerk/backend": {
-			"optional": true
-		},
-		"@auth0/auth0-react": {
-			"optional": true
-		},
-		"jwks-rsa": {
-			"optional": true
-		},
-		"jsonwebtoken": {
-			"optional": true
-		}
 	},
 	"devDependencies": {
 		"@agentuity/react": "workspace:*",
-		"@agentuity/runtime": "workspace:*",
 		"@agentuity/test-utils": "workspace:*",
-		"@auth0/auth0-react": "^2.2.4",
-		"@clerk/backend": "^2.27.1",
-		"@clerk/clerk-react": "^5.46.1",
-		"@types/jsonwebtoken": "^9.0.10",
+		"@opentelemetry/api": "^1.9.0",
 		"@types/react": "^18.3.18",
+		"drizzle-kit": "^0.31.8",
 		"hono": "^4.6.14",
-		"jsonwebtoken": "^9.0.3",
-		"jwks-rsa": "^3.2.0",
 		"react": "^18.3.1",
 		"typescript": "^5.8.3"
 	}

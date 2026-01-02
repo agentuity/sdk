@@ -1,0 +1,42 @@
+# Agentuity build files
+.agentuity/
+
+# Dependencies
+node_modules/
+
+# Environment files
+.env
+.env.local
+.env.*
+
+# Auto-generated AGENTS.md files in source directories
+src/web/AGENTS.md
+src/api/AGENTS.md
+src/agent/AGENTS.md
+
+# Output
+out
+dist
+*.tgz
+
+# Code coverage
+coverage
+*.lcov
+
+# Logs
+/logs
+*.log
+
+# Caches
+.eslintcache
+.cache
+*.tsbuildinfo
+
+# IDE
+.idea
+.DS_Store
+
+# Auth test artifacts
+cookies.txt
+dev.db
+*.db

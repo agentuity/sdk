@@ -1,5 +1,6 @@
 // agent.ts exports
 export {
+	type AgentContext,
 	type AgentEventName,
 	type AgentEventCallback,
 	type AgentRuntimeState,
@@ -152,6 +153,9 @@ export {
 
 // _waituntil.ts exports
 export { hasWaitUntilPending } from './_waituntil';
+
+// _context.ts exports (for auth integration)
+export { inAgentContext, inHTTPContext, getAgentContext, getHTTPContext } from './_context';
 
 // _standalone.ts exports
 export {

@@ -114,6 +114,7 @@ export class StandaloneAgentContext<
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;
+	auth: import('@agentuity/auth/types').AuthInterface | null;
 	[AGENT_IDS]?: Set<string>;
 
 	// Immutable options stored from constructor
@@ -182,6 +183,8 @@ export class StandaloneAgentContext<
 				removeEventListener: () => {},
 				serializeUserData: () => undefined,
 			} as Session);
+
+		this.auth = null;
 
 		// Create isolated runtime state
 		this[AGENT_RUNTIME] = {
