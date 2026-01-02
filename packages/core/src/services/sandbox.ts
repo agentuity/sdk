@@ -178,6 +178,12 @@ export interface SandboxCreateOptions {
 	 * These are installed via `apt install` before executing any commands.
 	 */
 	dependencies?: string[];
+
+	/**
+	 * Optional user-defined metadata to associate with the sandbox.
+	 * This can be used to store arbitrary key-value data for tracking or identification.
+	 */
+	metadata?: Record<string, unknown>;
 }
 
 /**
@@ -309,6 +315,11 @@ export interface SandboxInfo {
 	 * Apt packages installed in the sandbox
 	 */
 	dependencies?: string[];
+
+	/**
+	 * User-defined metadata associated with the sandbox
+	 */
+	metadata?: Record<string, unknown>;
 }
 
 /**
