@@ -302,7 +302,7 @@ export function WorkbenchProvider({
 
 			logger.debug('🔗 Agent from URL query param:', agentFromUrl);
 
-			// Try to find agent by URL param (matches agentId only)
+			// Try to find agent by URL param (matches agentId)
 			let agentToSelect: string | null = null;
 
 			if (agentFromUrl) {
@@ -609,7 +609,7 @@ export function WorkbenchProvider({
 					error instanceof Error && error.name === 'AbortError' ? 'TIMEOUT' : 'REQUEST_ERROR',
 			});
 
-			const errorMessage: UIMessage = {
+			const errorMessage: WorkbenchMessage = {
 				id: assistantMessageId,
 				role: 'assistant',
 				parts: [{ type: 'text', text: errorPayload }],
@@ -683,6 +683,14 @@ export function WorkbenchProvider({
 		setSelectedAgent(agentId);
 		// Save selection to localStorage for persistence across sessions
 		saveSelectedAgent(agentId);
+
+		// Update URL query param without page reload
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.set('agent', agentId);
+			window.history.replaceState({}, '', url.toString());
+		}
+
 		// Fetch state for the selected agent
 		await fetchAgentState(agentId);
 	};
