@@ -1872,7 +1872,10 @@ export class DefaultThreadProvider implements ThreadProvider {
 					internal.info('[thread] WebSocket merge completed');
 				} else if (saveMode === 'full') {
 					const serialized = await thread.getSerializedState();
-					internal.info('[thread] saving to WebSocket, serialized length: %d', serialized.length);
+					internal.info(
+						'[thread] saving to WebSocket, serialized length: %d',
+						serialized.length
+					);
 					const metadata = thread.getMetadataForSave();
 					await this.wsClient.save(thread.id, serialized, metadata);
 					internal.info('[thread] WebSocket save completed');

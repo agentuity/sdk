@@ -17,150 +17,150 @@ Make thread state lazy-loaded with async methods. State is only fetched when fir
 
 ### ThreadState
 
-```typescript
+````typescript
 interface ThreadState {
-  /**
-   * Whether state has been loaded from storage.
-   * True when state has been fetched via a read operation.
-   */
-  readonly loaded: boolean;
+	/**
+	 * Whether state has been loaded from storage.
+	 * True when state has been fetched via a read operation.
+	 */
+	readonly loaded: boolean;
 
-  /**
-   * Whether state has pending changes.
-   * True when there are queued writes (pending-writes state) or
-   * modifications after loading (loaded state with changes).
-   */
-  readonly dirty: boolean;
+	/**
+	 * Whether state has pending changes.
+	 * True when there are queued writes (pending-writes state) or
+	 * modifications after loading (loaded state with changes).
+	 */
+	readonly dirty: boolean;
 
-  /**
-   * Get a value from thread state.
-   * Triggers lazy load if state hasn't been fetched yet.
-   */
-  get<T = unknown>(key: string): Promise<T | undefined>;
+	/**
+	 * Get a value from thread state.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	get<T = unknown>(key: string): Promise<T | undefined>;
 
-  /**
-   * Set a value in thread state.
-   * If state hasn't been loaded, queues the operation for merge.
-   */
-  set<T = unknown>(key: string, value: T): Promise<void>;
+	/**
+	 * Set a value in thread state.
+	 * If state hasn't been loaded, queues the operation for merge.
+	 */
+	set<T = unknown>(key: string, value: T): Promise<void>;
 
-  /**
-   * Check if a key exists in thread state.
-   * Triggers lazy load if state hasn't been fetched yet.
-   */
-  has(key: string): Promise<boolean>;
+	/**
+	 * Check if a key exists in thread state.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	has(key: string): Promise<boolean>;
 
-  /**
-   * Delete a key from thread state.
-   * If state hasn't been loaded, queues the operation for merge.
-   */
-  delete(key: string): Promise<void>;
+	/**
+	 * Delete a key from thread state.
+	 * If state hasn't been loaded, queues the operation for merge.
+	 */
+	delete(key: string): Promise<void>;
 
-  /**
-   * Clear all thread state.
-   * If state hasn't been loaded, queues a clear operation for merge.
-   */
-  clear(): Promise<void>;
+	/**
+	 * Clear all thread state.
+	 * If state hasn't been loaded, queues a clear operation for merge.
+	 */
+	clear(): Promise<void>;
 
-  /**
-   * Get all entries as key-value pairs.
-   * Triggers lazy load if state hasn't been fetched yet.
-   */
-  entries<T = unknown>(): Promise<[string, T][]>;
+	/**
+	 * Get all entries as key-value pairs.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	entries<T = unknown>(): Promise<[string, T][]>;
 
-  /**
-   * Get all keys.
-   * Triggers lazy load if state hasn't been fetched yet.
-   */
-  keys(): Promise<string[]>;
+	/**
+	 * Get all keys.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	keys(): Promise<string[]>;
 
-  /**
-   * Get all values.
-   * Triggers lazy load if state hasn't been fetched yet.
-   */
-  values<T = unknown>(): Promise<T[]>;
+	/**
+	 * Get all values.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	values<T = unknown>(): Promise<T[]>;
 
-  /**
-   * Get the number of entries in state.
-   * Triggers lazy load if state hasn't been fetched yet.
-   */
-  size(): Promise<number>;
+	/**
+	 * Get the number of entries in state.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	size(): Promise<number>;
 
-  /**
-   * Push a value to an array stored at the given key.
-   * Creates a new array if the key doesn't exist.
-   *
-   * Behavior by state:
-   * - **idle/pending-writes**: Queues the operation for merge without loading state.
-   * - **loaded**: Modifies the local cache directly; throws if existing value is not an array.
-   *
-   * @param key - The key where the array is stored
-   * @param value - The value to append to the array
-   * @param maxRecords - Optional limit; if set, trims oldest items to keep array at this size
-   *
-   * @example
-   * ```typescript
-   * // Append a message to conversation history
-   * await ctx.thread.state.push('messages', { role: 'user', content: 'Hello' });
-   *
-   * // Keep only the last 100 messages (sliding window)
-   * await ctx.thread.state.push('messages', newMessage, 100);
-   * ```
-   */
-  push<T = unknown>(key: string, value: T, maxRecords?: number): Promise<void>;
+	/**
+	 * Push a value to an array stored at the given key.
+	 * Creates a new array if the key doesn't exist.
+	 *
+	 * Behavior by state:
+	 * - **idle/pending-writes**: Queues the operation for merge without loading state.
+	 * - **loaded**: Modifies the local cache directly; throws if existing value is not an array.
+	 *
+	 * @param key - The key where the array is stored
+	 * @param value - The value to append to the array
+	 * @param maxRecords - Optional limit; if set, trims oldest items to keep array at this size
+	 *
+	 * @example
+	 * ```typescript
+	 * // Append a message to conversation history
+	 * await ctx.thread.state.push('messages', { role: 'user', content: 'Hello' });
+	 *
+	 * // Keep only the last 100 messages (sliding window)
+	 * await ctx.thread.state.push('messages', newMessage, 100);
+	 * ```
+	 */
+	push<T = unknown>(key: string, value: T, maxRecords?: number): Promise<void>;
 }
-```
+````
 
 ### Thread (Updated)
 
 ```typescript
 interface Thread {
-  /**
-   * Unique thread identifier (e.g., "thrd_a1b2c3d4...").
-   */
-  id: string;
+	/**
+	 * Unique thread identifier (e.g., "thrd_a1b2c3d4...").
+	 */
+	id: string;
 
-  /**
-   * Thread-scoped state storage with async lazy-loading.
-   */
-  state: ThreadState;
+	/**
+	 * Thread-scoped state storage with async lazy-loading.
+	 */
+	state: ThreadState;
 
-  /**
-   * Get thread metadata (lazy-loaded).
-   * Returns the full metadata object.
-   */
-  getMetadata(): Promise<Record<string, unknown>>;
+	/**
+	 * Get thread metadata (lazy-loaded).
+	 * Returns the full metadata object.
+	 */
+	getMetadata(): Promise<Record<string, unknown>>;
 
-  /**
-   * Set thread metadata (full replace).
-   */
-  setMetadata(metadata: Record<string, unknown>): Promise<void>;
+	/**
+	 * Set thread metadata (full replace).
+	 */
+	setMetadata(metadata: Record<string, unknown>): Promise<void>;
 
-  /**
-   * Register event listener for thread destruction.
-   */
-  addEventListener(
-    eventName: 'destroyed',
-    callback: (eventName: 'destroyed', thread: Thread) => Promise<void> | void
-  ): void;
+	/**
+	 * Register event listener for thread destruction.
+	 */
+	addEventListener(
+		eventName: 'destroyed',
+		callback: (eventName: 'destroyed', thread: Thread) => Promise<void> | void
+	): void;
 
-  /**
-   * Remove event listener.
-   */
-  removeEventListener(
-    eventName: 'destroyed',
-    callback: (eventName: 'destroyed', thread: Thread) => Promise<void> | void
-  ): void;
+	/**
+	 * Remove event listener.
+	 */
+	removeEventListener(
+		eventName: 'destroyed',
+		callback: (eventName: 'destroyed', thread: Thread) => Promise<void> | void
+	): void;
 
-  /**
-   * Destroy the thread and clean up resources.
-   */
-  destroy(): Promise<void>;
+	/**
+	 * Destroy the thread and clean up resources.
+	 */
+	destroy(): Promise<void>;
 
-  /**
-   * Check if thread has any data.
-   */
-  empty(): Promise<boolean>;
+	/**
+	 * Check if thread has any data.
+	 */
+	empty(): Promise<boolean>;
 }
 ```
 
@@ -182,32 +182,32 @@ The `LazyThreadState` implementation uses a state machine to track loading statu
 
 ### States
 
-| State | Description |
-|-------|-------------|
-| `idle` | Initial state. No operations performed yet. |
-| `pending-writes` | Write operations queued but state never loaded. |
-| `loaded` | State has been fetched from Catalyst and is cached locally. |
+| State            | Description                                                 |
+| ---------------- | ----------------------------------------------------------- |
+| `idle`           | Initial state. No operations performed yet.                 |
+| `pending-writes` | Write operations queued but state never loaded.             |
+| `loaded`         | State has been fetched from Catalyst and is cached locally. |
 
 ### Transitions
 
-| From | Trigger | To | Action |
-|------|---------|-----|--------|
-| `idle` | `get`, `has`, `entries`, `keys`, `values`, `size` | `loaded` | Fetch state via WebSocket |
-| `idle` | `set`, `delete`, `clear` | `pending-writes` | Queue operation |
-| `pending-writes` | `get`, `has`, `entries`, `keys`, `values`, `size` | `loaded` | Fetch state, apply queued ops |
-| `pending-writes` | `set`, `delete`, `clear` | `pending-writes` | Queue operation |
-| `loaded` | any | `loaded` | Operate on local cache |
+| From             | Trigger                                           | To               | Action                        |
+| ---------------- | ------------------------------------------------- | ---------------- | ----------------------------- |
+| `idle`           | `get`, `has`, `entries`, `keys`, `values`, `size` | `loaded`         | Fetch state via WebSocket     |
+| `idle`           | `set`, `delete`, `clear`                          | `pending-writes` | Queue operation               |
+| `pending-writes` | `get`, `has`, `entries`, `keys`, `values`, `size` | `loaded`         | Fetch state, apply queued ops |
+| `pending-writes` | `set`, `delete`, `clear`                          | `pending-writes` | Queue operation               |
+| `loaded`         | any                                               | `loaded`         | Operate on local cache        |
 
 ## Save Behavior
 
 At the end of a request, the `ThreadProvider.save()` method inspects the state:
 
-| State | Dirty? | Action |
-|-------|--------|--------|
-| `idle` | n/a | No-op (nothing touched) |
-| `pending-writes` | n/a | Send `merge` command with queued operations |
-| `loaded` | no | No-op (no changes) |
-| `loaded` | yes | Send full `save` command (existing behavior) |
+| State            | Dirty? | Action                                       |
+| ---------------- | ------ | -------------------------------------------- |
+| `idle`           | n/a    | No-op (nothing touched)                      |
+| `pending-writes` | n/a    | Send `merge` command with queued operations  |
+| `loaded`         | no     | No-op (no changes)                           |
+| `loaded`         | yes    | Send full `save` command (existing behavior) |
 
 ## Catalyst Changes
 
@@ -215,18 +215,18 @@ At the end of a request, the `ThreadProvider.save()` method inspects the state:
 
 ```json
 {
-  "id": "request-uuid",
-  "action": "merge",
-  "data": {
-    "thread_id": "thrd_abc123...",
-    "operations": [
-      {"op": "set", "key": "count", "value": 42},
-      {"op": "set", "key": "user", "value": {"name": "Alice"}},
-      {"op": "delete", "key": "temp"},
-      {"op": "clear"}
-    ],
-    "metadata": {"userId": "user_123", "department": "sales"}
-  }
+	"id": "request-uuid",
+	"action": "merge",
+	"data": {
+		"thread_id": "thrd_abc123...",
+		"operations": [
+			{ "op": "set", "key": "count", "value": 42 },
+			{ "op": "set", "key": "user", "value": { "name": "Alice" } },
+			{ "op": "delete", "key": "temp" },
+			{ "op": "clear" }
+		],
+		"metadata": { "userId": "user_123", "department": "sales" }
+	}
 }
 ```
 
@@ -298,15 +298,15 @@ This is a breaking change. The `Thread` interface changes from:
 
 ```typescript
 // Before
-ctx.thread.state.get('key')        // sync
-ctx.thread.state.set('key', value) // sync
-ctx.thread.metadata.userId = '123' // sync property access
+ctx.thread.state.get('key'); // sync
+ctx.thread.state.set('key', value); // sync
+ctx.thread.metadata.userId = '123'; // sync property access
 
 // After
-await ctx.thread.state.get('key')        // async
-await ctx.thread.state.set('key', value) // async
-const meta = await ctx.thread.getMetadata()
-await ctx.thread.setMetadata({ ...meta, userId: '123' })
+await ctx.thread.state.get('key'); // async
+await ctx.thread.state.set('key', value); // async
+const meta = await ctx.thread.getMetadata();
+await ctx.thread.setMetadata({ ...meta, userId: '123' });
 ```
 
 No automatic migration path is provided. Users must update their code.
@@ -322,4 +322,4 @@ No automatic migration path is provided. Users must update their code.
 7. **SDK:** Update `ThreadProvider.save()` for merge support
 8. **SDK:** Update middleware (remove eager restore)
 9. **SDK:** Update `ThreadWebSocketClient` with merge method
-10. **SDK:** Update all tests
+10.   **SDK:** Update all tests

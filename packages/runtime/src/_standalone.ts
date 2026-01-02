@@ -377,7 +377,9 @@ export class StandaloneAgentContext<
 										sessionEventProvider
 											.complete({
 												id: invocationSessionId,
-												threadId: (await invocationThread.empty()) ? null : invocationThread.id,
+												threadId: (await invocationThread.empty())
+													? null
+													: invocationThread.id,
 												statusCode: 200, // Success
 												agentIds: Array.from(agentIds),
 												userData,
@@ -410,7 +412,9 @@ export class StandaloneAgentContext<
 										sessionEventProvider
 											.complete({
 												id: invocationSessionId,
-												threadId: (await invocationThread.empty()) ? null : invocationThread.id,
+												threadId: (await invocationThread.empty())
+													? null
+													: invocationThread.id,
 												statusCode: 500, // Error
 												error: message,
 												agentIds: Array.from(agentIds),
@@ -434,7 +438,9 @@ export class StandaloneAgentContext<
 								sessionEventProvider
 									.complete({
 										id: invocationSessionId,
-										threadId: (await invocationThread.empty()) ? null : invocationThread.id,
+										threadId: (await invocationThread.empty())
+											? null
+											: invocationThread.id,
 										statusCode: 200,
 										agentIds: Array.from(agentIds),
 										userData,

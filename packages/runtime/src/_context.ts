@@ -8,7 +8,13 @@ import {
 	type VectorStorage,
 	type SandboxService,
 } from '@agentuity/core';
-import type { AgentContext, AgentRegistry, AgentRunner, AgentRuntimeState, AgentMetadata } from './agent';
+import type {
+	AgentContext,
+	AgentRegistry,
+	AgentRunner,
+	AgentRuntimeState,
+	AgentMetadata,
+} from './agent';
 import { AGENT_RUNTIME, CURRENT_AGENT } from './_config';
 import type { Logger } from './logger';
 import type WaitUntilHandler from './_waituntil';
