@@ -11,18 +11,18 @@ import {
 	getGithubIntegrationStatus,
 	getExistingGithubIntegrations,
 	copyGithubIntegration,
-} from '../api';
+} from '../../integration/api';
 
-export const connectSubcommand = createSubcommand({
-	name: 'connect',
-	description: 'Connect your GitHub account to enable automatic deployments',
+export const addSubcommand = createSubcommand({
+	name: 'add',
+	description: 'Add a GitHub account to your organization',
 	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive'],
 	idempotent: false,
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('integration github connect'),
-			description: 'Connect GitHub to your organization',
+			command: getCommand('git account add'),
+			description: 'Add a GitHub account to your organization',
 		},
 	],
 
@@ -79,7 +79,7 @@ export const connectSubcommand = createSubcommand({
 			const response = await enquirer.prompt<{ orgName: string }>({
 				type: 'select',
 				name: 'orgName',
-				message: 'Select an organization to connect',
+				message: 'Select an organization',
 				choices,
 				result(name: string) {
 					// @ts-expect-error - this.map exists at runtime
@@ -116,13 +116,13 @@ export const connectSubcommand = createSubcommand({
 					message: `${i.githubAccountName} ${tui.muted(`(from ${i.orgName})`)}`,
 				}));
 
-				console.log(tui.muted('Press enter with none selected to connect a new account'));
+				console.log(tui.muted('Press enter with none selected to add a new account'));
 				tui.newline();
 
 				const selectResponse = await enquirer.prompt<{ integrationIds: string[] }>({
 					type: 'multiselect',
 					name: 'integrationIds',
-					message: 'Select GitHub accounts to connect',
+					message: 'Select GitHub accounts to add',
 					choices: integrationChoices,
 				});
 
@@ -137,13 +137,13 @@ export const connectSubcommand = createSubcommand({
 					const confirmResponse = await enquirer.prompt<{ confirm: boolean }>({
 						type: 'confirm',
 						name: 'confirm',
-						message: `Connect ${tui.bold(accountNames)} to ${tui.bold(orgDisplay)}?`,
+						message: `Add ${tui.bold(accountNames)} to ${tui.bold(orgDisplay)}?`,
 						initial: true,
 					});
 
 					if (confirmResponse.confirm) {
 						await tui.spinner({
-							message: `Copying ${selectedIntegrations.length} GitHub connection${selectedIntegrations.length > 1 ? 's' : ''}...`,
+							message: `Adding ${selectedIntegrations.length} GitHub account${selectedIntegrations.length > 1 ? 's' : ''}...`,
 							clearOnSuccess: true,
 							callback: async () => {
 								for (const integration of selectedIntegrations) {
@@ -153,10 +153,8 @@ export const connectSubcommand = createSubcommand({
 						});
 
 						tui.newline();
-						tui.success(`GitHub connected to ${tui.bold(orgDisplay)}`);
-						tui.newline();
-						console.log(
-							'You can now link repositories to your projects for automatic deployments.'
+						tui.success(
+							`Added GitHub account${selectedIntegrations.length > 1 ? 's' : ''} to ${tui.bold(orgDisplay)}`
 						);
 						return;
 					}
@@ -215,14 +213,10 @@ export const connectSubcommand = createSubcommand({
 
 			tui.newline();
 			if (result.connected) {
-				tui.success(`GitHub connected to ${tui.bold(orgDisplay)}`);
-				tui.newline();
-				console.log(
-					'You can now link repositories to your projects for automatic deployments.'
-				);
+				tui.success(`GitHub account added to ${tui.bold(orgDisplay)}`);
 			}
 		} catch (error) {
-			// Handle user cancellation (Ctrl+C) - enquirer throws empty string or Error with empty message
+			// Handle user cancellation (Ctrl+C)
 			const isCancel =
 				error === '' ||
 				(error instanceof Error &&
@@ -235,7 +229,7 @@ export const connectSubcommand = createSubcommand({
 			}
 
 			logger.trace(error);
-			logger.fatal('GitHub integration failed: %s', error, ErrorCode.INTEGRATION_FAILED);
+			logger.fatal('Failed to add GitHub account: %s', error, ErrorCode.INTEGRATION_FAILED);
 		}
 	},
 });

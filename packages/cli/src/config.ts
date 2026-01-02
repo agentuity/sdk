@@ -596,6 +596,32 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	await Bun.write(join(vscodeDir, 'settings.json'), JSON.stringify(settings, null, 2));
 }
 
+export async function updateProjectConfig(
+	dir: string,
+	updates: Partial<z.infer<typeof ProjectSchema>>,
+	config?: Config | null
+): Promise<void> {
+	let configPath = join(dir, 'agentuity.json');
+
+	if (config?.name) {
+		const profileConfigPath = join(dir, `agentuity.${config.name}.json`);
+		if (await Bun.file(profileConfigPath).exists()) {
+			configPath = profileConfigPath;
+		}
+	}
+
+	const file = Bun.file(configPath);
+	if (!(await file.exists())) {
+		throw new Error(`Project config not found at ${configPath}`);
+	}
+
+	const text = await file.text();
+	const existing = JSON5.parse(text);
+	const updated = { ...existing, ...updates };
+
+	await Bun.write(configPath, JSON.stringify(updated, null, 2) + '\n');
+}
+
 const BuildMetadataNotFoundError = StructuredError('BuildMetadataNotFoundError');
 
 export async function loadBuildMetadata(dir: string): Promise<BuildMetadata> {

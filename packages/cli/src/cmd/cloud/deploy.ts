@@ -8,7 +8,9 @@ import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
-import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey } from '../../config';
+import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey, updateProjectConfig } from '../../config';
+import { getProjectGithubStatus } from '../integration/api';
+import { runGitLink } from '../git/link';
 import {
 	runSteps,
 	stepSuccess,
@@ -162,6 +164,45 @@ export const deploySubcommand = createSubcommand({
 
 		try {
 			await saveProjectDir(projectDir);
+
+			// Prompt for GitHub setup if not linked and not skipped
+			if (!useExistingDeployment && !project.skipGitSetup) {
+				try {
+					const githubStatus = await getProjectGithubStatus(apiClient, project.projectId);
+
+					if (!githubStatus.linked) {
+						tui.newline();
+						const wantSetup = await tui.confirm(
+							'Would you like to set up automatic deployments from GitHub?'
+						);
+
+						if (wantSetup) {
+							const result = await runGitLink({
+								apiClient,
+								projectId: project.projectId,
+								orgId: project.orgId,
+								logger,
+								skipAlreadyLinkedCheck: true,
+							});
+
+							if (result.linked) {
+								tui.newline();
+								tui.info('Continuing with deployment...');
+								tui.newline();
+							}
+						} else {
+							await updateProjectConfig(projectDir, { skipGitSetup: true }, config);
+							tui.newline();
+							tui.info(
+								`Skipping GitHub setup. Run ${tui.bold(getCommand('git link'))} later to enable it.`
+							);
+							tui.newline();
+						}
+					}
+				} catch (err) {
+					logger.trace('Failed to check GitHub status: %s', err);
+				}
+			}
 
 			await runSteps(
 				[

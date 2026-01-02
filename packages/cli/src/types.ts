@@ -554,6 +554,10 @@ export const ProjectSchema = zod.object({
 	orgId: zod.string().describe('the organization id'),
 	region: zod.string().describe('the region identifier that the project is deployed into'),
 	deployment: DeploymentConfig.optional().describe('the deployment configuration'),
+	skipGitSetup: zod
+		.boolean()
+		.optional()
+		.describe('whether to skip the git integration setup prompt during deploy'),
 });
 
 export const BuildMetadataSchema = ServerBuildMetadataSchema;

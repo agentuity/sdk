@@ -8,18 +8,18 @@ import {
 	getGithubIntegrationStatus,
 	disconnectGithubIntegration,
 	type GithubIntegration,
-} from '../api';
+} from '../../integration/api';
 
-export const disconnectSubcommand = createSubcommand({
-	name: 'disconnect',
-	description: 'Disconnect a GitHub account from your organization',
+export const removeSubcommand = createSubcommand({
+	name: 'remove',
+	description: 'Remove a GitHub account from your organization',
 	tags: ['mutating', 'destructive', 'slow'],
 	idempotent: false,
 	requires: { auth: true, apiClient: true },
 	examples: [
 		{
-			command: getCommand('integration github disconnect'),
-			description: 'Disconnect a GitHub account from your organization',
+			command: getCommand('git account remove'),
+			description: 'Remove a GitHub account from your organization',
 		},
 	],
 
@@ -90,7 +90,7 @@ export const disconnectSubcommand = createSubcommand({
 			const response = await enquirer.prompt<{ selection: string }>({
 				type: 'select',
 				name: 'selection',
-				message: 'Select a GitHub account to disconnect',
+				message: 'Select a GitHub account to remove',
 				choices,
 			});
 
@@ -103,7 +103,7 @@ export const disconnectSubcommand = createSubcommand({
 				: response.selection;
 
 			// Confirm
-			const confirmed = await tui.confirm(`Are you sure you want to disconnect ${displayName}?`);
+			const confirmed = await tui.confirm(`Are you sure you want to remove ${displayName}?`);
 
 			if (!confirmed) {
 				tui.newline();
@@ -112,13 +112,13 @@ export const disconnectSubcommand = createSubcommand({
 			}
 
 			await tui.spinner({
-				message: 'Disconnecting GitHub...',
+				message: 'Removing GitHub account...',
 				clearOnSuccess: true,
 				callback: () => disconnectGithubIntegration(apiClient, orgId, integrationId),
 			});
 
 			tui.newline();
-			tui.success(`Disconnected ${tui.bold(displayName)}`);
+			tui.success(`Removed ${tui.bold(displayName)}`);
 		} catch (error) {
 			// Handle user cancellation (Ctrl+C)
 			const isCancel =
@@ -133,7 +133,7 @@ export const disconnectSubcommand = createSubcommand({
 			}
 
 			logger.trace(error);
-			logger.fatal('GitHub disconnect failed: %s', error, ErrorCode.INTEGRATION_FAILED);
+			logger.fatal('Failed to remove GitHub account: %s', error, ErrorCode.INTEGRATION_FAILED);
 		}
 	},
 });

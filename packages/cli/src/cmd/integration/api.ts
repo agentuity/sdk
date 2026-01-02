@@ -4,21 +4,37 @@ import type { APIClient } from '../../api';
 import { StructuredError } from '@agentuity/core';
 
 const GithubStartDataSchema = z.object({
-	url: z.string(),
+	shortId: z.string(),
+});
+
+const GithubIntegrationSchema = z.object({
+	id: z.string(),
+	githubAccountName: z.string(),
+	githubAccountType: z.enum(['user', 'org']),
+	connectedBy: z.string(),
+	connectedAt: z.string(),
 });
 
 const GithubStatusDataSchema = z.object({
 	connected: z.boolean(),
-	integrationId: z.string().optional(),
+	integrations: z.array(GithubIntegrationSchema).optional(),
 });
 
+export interface GithubIntegration {
+	id: string;
+	githubAccountName: string;
+	githubAccountType: 'user' | 'org';
+	connectedBy: string;
+	connectedAt: string;
+}
+
 export interface GithubIntegrationStartResult {
-	url: string;
+	shortId: string;
 }
 
 export interface GithubIntegrationStatusResult {
 	connected: boolean;
-	integrationId?: string;
+	integrations: GithubIntegration[];
 }
 
 const GithubIntegrationStartError = StructuredError(
@@ -43,7 +59,7 @@ export async function startGithubIntegration(
 		throw new GithubIntegrationStartError();
 	}
 
-	return { url: resp.data.url };
+	return { shortId: resp.data.shortId };
 }
 
 const GithubIntegrationStatusError = StructuredError(
@@ -70,7 +86,7 @@ export async function getGithubIntegrationStatus(
 
 	return {
 		connected: resp.data.connected,
-		integrationId: resp.data.integrationId,
+		integrations: resp.data.integrations ?? [],
 	};
 }
 
@@ -89,10 +105,11 @@ const GithubDisconnectError = StructuredError(
 
 export async function disconnectGithubIntegration(
 	apiClient: APIClient,
-	orgId: string
+	orgId: string,
+	integrationId: string
 ): Promise<GithubDisconnectResult> {
 	const resp = await apiClient.delete(
-		`/cli/github/disconnect?orgId=${encodeURIComponent(orgId)}`,
+		`/cli/github/disconnect?orgId=${encodeURIComponent(orgId)}&integrationId=${encodeURIComponent(integrationId)}`,
 		APIResponseSchema(GithubDisconnectDataSchema)
 	);
 
@@ -114,6 +131,7 @@ const GithubExistingIntegrationSchema = z.object({
 	integrationId: z.string().nullable(),
 	orgId: z.string(),
 	orgName: z.string(),
+	githubAccountName: z.string(),
 });
 
 const GithubExistingDataSchema = z.object({
@@ -125,6 +143,7 @@ export interface ExistingGithubIntegration {
 	integrationId: string | null;
 	orgId: string;
 	orgName: string;
+	githubAccountName: string;
 }
 
 const GithubExistingError = StructuredError(
@@ -186,6 +205,7 @@ const PollForGithubIntegrationTimeout = StructuredError(
 export async function pollForGithubIntegration(
 	apiClient: APIClient,
 	orgId: string,
+	initialCount: number,
 	timeoutMs = 600000 // 10 minutes
 ): Promise<GithubIntegrationStatusResult> {
 	const started = Date.now();
@@ -200,10 +220,11 @@ export async function pollForGithubIntegration(
 			throw new PollForGithubIntegrationError();
 		}
 
-		if (resp.data?.connected) {
+		const currentCount = resp.data?.integrations?.length ?? 0;
+		if (currentCount > initialCount) {
 			return {
 				connected: true,
-				integrationId: resp.data.integrationId,
+				integrations: resp.data?.integrations ?? [],
 			};
 		}
 
@@ -211,4 +232,142 @@ export async function pollForGithubIntegration(
 	}
 
 	throw new PollForGithubIntegrationTimeout();
+}
+
+// Project linking
+
+const GithubRepoSchema = z.object({
+	id: z.number(),
+	name: z.string(),
+	fullName: z.string(),
+	private: z.boolean(),
+	defaultBranch: z.string(),
+});
+
+const GithubReposDataSchema = z.object({
+	repos: z.array(GithubRepoSchema),
+});
+
+export interface GithubRepo {
+	id: number;
+	name: string;
+	fullName: string;
+	private: boolean;
+	defaultBranch: string;
+}
+
+const GithubReposError = StructuredError('GithubReposError', 'Error fetching GitHub repositories');
+
+export async function listGithubRepos(
+	apiClient: APIClient,
+	orgId: string,
+	integrationId?: string
+): Promise<GithubRepo[]> {
+	let url = `/cli/github/repos?orgId=${encodeURIComponent(orgId)}`;
+	if (integrationId) {
+		url += `&integrationId=${encodeURIComponent(integrationId)}`;
+	}
+	const resp = await apiClient.get(url, APIResponseSchema(GithubReposDataSchema));
+
+	if (!resp.success || !resp.data) {
+		throw new GithubReposError();
+	}
+
+	return resp.data.repos;
+}
+
+const ProjectLinkDataSchema = z.object({
+	linked: z.boolean(),
+});
+
+export interface LinkProjectOptions {
+	projectId: string;
+	repoFullName: string;
+	branch: string;
+	autoDeploy: boolean;
+	previewDeploy: boolean;
+	directory?: string;
+}
+
+const ProjectLinkError = StructuredError('ProjectLinkError', 'Error linking project to repository');
+
+export async function linkProjectToRepo(
+	apiClient: APIClient,
+	options: LinkProjectOptions
+): Promise<boolean> {
+	const resp = await apiClient.post(
+		'/cli/github/link',
+		options,
+		APIResponseSchema(ProjectLinkDataSchema)
+	);
+
+	if (!resp.success || !resp.data) {
+		throw new ProjectLinkError();
+	}
+
+	return resp.data.linked;
+}
+
+const ProjectUnlinkDataSchema = z.object({
+	unlinked: z.boolean(),
+});
+
+const ProjectUnlinkError = StructuredError(
+	'ProjectUnlinkError',
+	'Error unlinking project from repository'
+);
+
+export async function unlinkProjectFromRepo(
+	apiClient: APIClient,
+	projectId: string
+): Promise<boolean> {
+	const resp = await apiClient.delete(
+		`/cli/github/unlink?projectId=${encodeURIComponent(projectId)}`,
+		APIResponseSchema(ProjectUnlinkDataSchema)
+	);
+
+	if (!resp.success || !resp.data) {
+		throw new ProjectUnlinkError();
+	}
+
+	return resp.data.unlinked;
+}
+
+const ProjectGithubStatusSchema = z.object({
+	linked: z.boolean(),
+	repoFullName: z.string().optional(),
+	branch: z.string().optional(),
+	autoDeploy: z.boolean().optional(),
+	previewDeploy: z.boolean().optional(),
+	directory: z.string().optional(),
+});
+
+export interface ProjectGithubStatus {
+	linked: boolean;
+	repoFullName?: string;
+	branch?: string;
+	autoDeploy?: boolean;
+	previewDeploy?: boolean;
+	directory?: string;
+}
+
+const ProjectGithubStatusError = StructuredError(
+	'ProjectGithubStatusError',
+	'Error fetching project GitHub status'
+);
+
+export async function getProjectGithubStatus(
+	apiClient: APIClient,
+	projectId: string
+): Promise<ProjectGithubStatus> {
+	const resp = await apiClient.get(
+		`/cli/github/project-status?projectId=${encodeURIComponent(projectId)}`,
+		APIResponseSchema(ProjectGithubStatusSchema)
+	);
+
+	if (!resp.success || !resp.data) {
+		throw new ProjectGithubStatusError();
+	}
+
+	return resp.data;
 }
