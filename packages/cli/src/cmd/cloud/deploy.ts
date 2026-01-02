@@ -45,6 +45,7 @@ import { getCommand } from '../../command-prefix';
 import * as domain from '../../domain';
 import { ErrorCode } from '../../errors';
 import { typecheck } from '../build/typecheck';
+import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -93,7 +94,12 @@ export const deploySubcommand = createSubcommand({
 		options: z.intersection(
 			DeployOptionsSchema,
 			z.object({
-				saveTypeErrors: z.string().optional().describe('file path to save typecheck errors'),
+				reportFile: z
+					.string()
+					.optional()
+					.describe(
+						'file path to save build report JSON with errors, warnings, and diagnostics'
+					),
 			})
 		),
 		response: DeployResponseSchema,
@@ -101,6 +107,14 @@ export const deploySubcommand = createSubcommand({
 
 	async handler(ctx) {
 		const { project, apiClient, projectDir, config, options, logger, opts } = ctx;
+
+		// Initialize build report collector if reportFile is specified
+		const collector = new BuildReportCollector();
+		if (opts.reportFile) {
+			collector.setOutputPath(opts.reportFile);
+			collector.enableAutoWrite();
+			setGlobalCollector(collector);
+		}
 
 		let deployment: Deployment | undefined;
 		let build: BuildMetadata | undefined;
@@ -239,8 +253,13 @@ export const deploySubcommand = createSubcommand({
 							}
 							let capturedOutput: string[] = [];
 							const rootDir = resolve(projectDir);
+
+							// Run typecheck with collector for error reporting
+							const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
 							const started = Date.now();
-							const typeResult = await typecheck(rootDir);
+							const typeResult = await typecheck(rootDir, { collector });
+							endTypecheckDiagnostic();
+
 							if (typeResult.success) {
 								capturedOutput.push(
 									tui.muted(
@@ -248,9 +267,10 @@ export const deploySubcommand = createSubcommand({
 									)
 								);
 							} else {
-								if ('errors' in typeResult && opts.saveTypeErrors) {
-									const f = Bun.file(opts.saveTypeErrors);
-									await f.write(JSON.stringify(typeResult.errors));
+								// Errors already added to collector by typecheck()
+								// Write report before returning error
+								if (opts.reportFile) {
+									await collector.forceWrite();
 								}
 								return stepError('Typecheck failed\n\n' + typeResult.output);
 							}
@@ -264,6 +284,7 @@ export const deploySubcommand = createSubcommand({
 									region: project.region,
 									logger: ctx.logger,
 									deploymentOptions: opts,
+									collector,
 								});
 								capturedOutput = [...capturedOutput, ...bundleResult.output];
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
@@ -275,6 +296,10 @@ export const deploySubcommand = createSubcommand({
 								return stepSuccess(capturedOutput.length > 0 ? capturedOutput : undefined);
 							} catch (ex) {
 								const _ex = ex as Error;
+								// Write report before returning error
+								if (opts.reportFile) {
+									await collector.forceWrite();
+								}
 								return stepError(
 									_ex.message ?? 'Error building your project',
 									_ex,
@@ -294,6 +319,8 @@ export const deploySubcommand = createSubcommand({
 								return stepError('deployment instructions were null');
 							}
 
+							// Start diagnostic for zip/encrypt phase
+							const endZipDiagnostic = collector.startDiagnostic('zip-package');
 							progress(5);
 							ctx.logger.trace('Starting deployment zip creation');
 							// zip up the assets folder
@@ -319,8 +346,11 @@ export const deploySubcommand = createSubcommand({
 							});
 							ctx.logger.trace(`Deployment zip created: ${deploymentZip}`);
 
+							endZipDiagnostic();
+
 							progress(20);
 							// Encrypt the deployment zip using the public key from deployment
+							const endEncryptDiagnostic = collector.startDiagnostic('encrypt');
 							const encryptedZip = join(tmpdir(), `${deployment.id}.enc.zip`);
 							try {
 								ctx.logger.trace('Creating public key');
@@ -348,8 +378,11 @@ export const deploySubcommand = createSubcommand({
 									dst.end();
 								});
 								ctx.logger.trace('Stream finished');
+								endEncryptDiagnostic();
 
 								progress(50);
+								// Start code upload diagnostic
+								const endCodeUploadDiagnostic = collector.startDiagnostic('code-upload');
 								ctx.logger.trace(`Uploading deployment to ${instructions.deployment}`);
 								const zipfile = Bun.file(encryptedZip);
 								const fileSize = await zipfile.size;
@@ -364,8 +397,15 @@ export const deploySubcommand = createSubcommand({
 								});
 								ctx.logger.trace(`Upload response: ${resp.status}`);
 								if (!resp.ok) {
-									return stepError(`Error uploading deployment: ${await resp.text()}`);
+									endCodeUploadDiagnostic();
+									const errorMsg = `Error uploading deployment: ${await resp.text()}`;
+									collector.addGeneralError('deploy', errorMsg, 'DEPLOY002');
+									if (opts.reportFile) {
+										await collector.forceWrite();
+									}
+									return stepError(errorMsg);
 								}
+								endCodeUploadDiagnostic();
 
 								progress(70);
 								ctx.logger.trace('Consuming response body');
@@ -385,11 +425,17 @@ export const deploySubcommand = createSubcommand({
 							progress(80);
 							let bytes = 0;
 							if (build?.assets) {
+								// Start CDN upload diagnostic
+								const endCdnUploadDiagnostic = collector.startDiagnostic('cdn-upload');
 								ctx.logger.trace(`Uploading ${build.assets.length} assets`);
 								if (!instructions.assets) {
-									return stepError(
-										'server did not provide asset upload URLs; upload aborted'
-									);
+									const errorMsg =
+										'server did not provide asset upload URLs; upload aborted';
+									collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
+									if (opts.reportFile) {
+										await collector.forceWrite();
+									}
+									return stepError(errorMsg);
 								}
 
 								// Workaround for Bun crash in compiled executables (https://github.com/agentuity/sdk/issues/191)
@@ -452,11 +498,17 @@ export const deploySubcommand = createSubcommand({
 									const resps = await Promise.all(promises);
 									for (const r of resps) {
 										if (!r.ok) {
-											return stepError(`error uploading asset: ${await r.text()}`);
+											const errorMsg = `error uploading asset: ${await r.text()}`;
+											collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
+											if (opts.reportFile) {
+												await collector.forceWrite();
+											}
+											return stepError(errorMsg);
 										}
 									}
 								}
 								ctx.logger.trace('Asset uploads complete');
+								endCdnUploadDiagnostic();
 								progress(95);
 							}
 
@@ -503,6 +555,7 @@ export const deploySubcommand = createSubcommand({
 			const dashboard = `${appUrl}/r/${deployment.id}`;
 
 			// Poll for deployment status with optional log streaming
+			const endDeploymentWaitDiagnostic = collector.startDiagnostic('deployment-wait');
 			const pollInterval = 500;
 			const maxAttempts = 600;
 			let attempts = 0;
@@ -615,11 +668,16 @@ export const deploySubcommand = createSubcommand({
 							},
 						})
 						.then(() => {
+							endDeploymentWaitDiagnostic();
 							tui.success('Your project was deployed!');
 						})
-						.catch((ex) => {
+						.catch(async (ex) => {
+							endDeploymentWaitDiagnostic();
 							// Handle cancellation
 							if (ex instanceof DeploymentCancelledError) {
+								if (opts.reportFile) {
+									await collector.forceWrite();
+								}
 								tui.warning('Deployment cancelled');
 								process.exit(130); // Standard exit code for SIGINT
 							}
@@ -628,6 +686,18 @@ export const deploySubcommand = createSubcommand({
 								exwithmessage.message === 'Deployment failed'
 									? ''
 									: exwithmessage.toString();
+
+							// Add error to collector
+							const isTimeout = exwithmessage.message === 'Deployment timed out';
+							collector.addGeneralError(
+								'deploy',
+								msg || 'Deployment failed',
+								isTimeout ? 'DEPLOY003' : 'DEPLOY004'
+							);
+							if (opts.reportFile) {
+								await collector.forceWrite();
+							}
+
 							tui.error(`Your deployment failed to start${msg ? `: ${msg}` : ''}`);
 							if (logs.length) {
 								const logsDir = join(getDefaultConfigDir(), 'logs');
@@ -687,9 +757,22 @@ export const deploySubcommand = createSubcommand({
 						},
 					});
 
+					endDeploymentWaitDiagnostic();
 					tui.success('Your project was deployed!');
 				}
 			} catch (ex) {
+				endDeploymentWaitDiagnostic();
+				const exwithmessage = ex as { message: string };
+				const isTimeout = exwithmessage?.message === 'Deployment timed out';
+				collector.addGeneralError(
+					'deploy',
+					exwithmessage?.message || String(ex),
+					isTimeout ? 'DEPLOY003' : 'DEPLOY004'
+				);
+				if (opts.reportFile) {
+					await collector.forceWrite();
+				}
+
 				const lines = [`${ex}`, ''];
 				lines.push(
 					`${tui.ICONS.arrow} ${
@@ -741,6 +824,12 @@ export const deploySubcommand = createSubcommand({
 				});
 			}
 
+			// Write final report on success
+			if (opts.reportFile) {
+				await collector.forceWrite();
+			}
+			clearGlobalCollector();
+
 			return {
 				success: true,
 				deploymentId: deployment.id,
@@ -756,6 +845,11 @@ export const deploySubcommand = createSubcommand({
 					: undefined,
 			};
 		} catch (ex) {
+			collector.addGeneralError('deploy', String(ex), 'DEPLOY004');
+			if (opts.reportFile) {
+				await collector.forceWrite();
+			}
+			clearGlobalCollector();
 			tui.fatal(`unexpected error trying to deploy project. ${ex}`);
 		}
 	},

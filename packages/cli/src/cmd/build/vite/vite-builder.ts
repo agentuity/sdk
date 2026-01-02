@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
+import type { BuildReportCollector } from '../../../build-report';
 
 /**
  * Vite plugin to flatten the output structure for index.html
@@ -56,6 +57,8 @@ export interface ViteBuildOptions {
 	workbenchEnabled?: boolean;
 	logger: Logger;
 	deploymentOptions?: DeployOptions;
+	/** Optional collector for structured error reporting */
+	collector?: BuildReportCollector;
 }
 
 /**
@@ -256,7 +259,7 @@ interface BuildResult {
  * Run all builds in sequence: client -> workbench (if enabled) -> server
  */
 export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Promise<BuildResult> {
-	const { rootDir, projectId = '', dev = false, logger } = options;
+	const { rootDir, projectId = '', dev = false, logger, collector } = options;
 
 	if (!dev) {
 		rmSync(join(rootDir, '.agentuity'), { force: true, recursive: true });
@@ -311,6 +314,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 2. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
 		logger.debug('Building client assets...');
+		const endClientDiagnostic = collector?.startDiagnostic('client-build');
 		const started = Date.now();
 		await runViteBuild({
 			...options,
@@ -320,6 +324,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		});
 		result.client.included = true;
 		result.client.duration = Date.now() - started;
+		endClientDiagnostic?.();
 	} else {
 		logger.debug('Skipping client build - no src/web/index.html found');
 	}
@@ -327,6 +332,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 3. Build workbench (if enabled in config)
 	if (workbenchConfig.enabled) {
 		logger.debug('Building workbench assets...');
+		const endWorkbenchDiagnostic = collector?.startDiagnostic('workbench-build');
 		const started = Date.now();
 		await runViteBuild({
 			...options,
@@ -336,17 +342,21 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		});
 		result.workbench.included = true;
 		result.workbench.duration = Date.now() - started;
+		endWorkbenchDiagnostic?.();
 	}
 
 	// 4. Build server
 	logger.debug('Building server...');
+	const endServerDiagnostic = collector?.startDiagnostic('server-build');
 	const serverStarted = Date.now();
 	await runViteBuild({ ...options, mode: 'server' });
 	result.server.included = true;
 	result.server.duration = Date.now() - serverStarted;
+	endServerDiagnostic?.();
 
 	// 5. Generate metadata (after all builds complete)
 	logger.debug('Generating metadata...');
+	const endMetadataDiagnostic = collector?.startDiagnostic('metadata-generation');
 	const { generateMetadata, writeMetadataFile } = await import('./metadata-generator');
 
 	// Generate metadata
@@ -363,6 +373,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	});
 
 	writeMetadataFile(rootDir, metadata, dev, logger);
+	endMetadataDiagnostic?.();
 	logger.debug('Registry and metadata generation complete');
 
 	logger.debug('All builds complete');
