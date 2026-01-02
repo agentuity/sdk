@@ -12,8 +12,6 @@ const simpleAgent = createAgent('llm-call', {
 		output: s.string(),
 	},
 	handler: async (ctx, { question }) => {
-		// Intentional delay for testing loading/streaming states in workbench UI
-		await new Promise((resolve) => setTimeout(resolve, 3000));
 		const { text } = await generateText({
 			model: openai('gpt-4o'),
 			prompt: question,
