@@ -371,6 +371,7 @@ export const command = createCommand({
 			// Vite stays running and handles frontend changes via HMR
 			let shouldRestart = false;
 			let gravityProcess: ProcessLike | null = null;
+			let gravityHeartbeatInterval: ReturnType<typeof setInterval> | null = null;
 			let stdinListenerRegistered = false; // Track if stdin listener is already registered
 
 			const restartServer = () => {
@@ -395,6 +396,8 @@ export const command = createCommand({
 			let cleaningUp = false;
 			// Track if shutdown was requested (SIGINT/SIGTERM) to break the main loop
 			let shutdownRequested = false;
+			// Store stdin data handler reference for cleanup
+			let stdinDataHandler: ((data: Buffer | string) => void) | null = null;
 
 			/**
 			 * Centralized cleanup function for all resources.
@@ -423,6 +426,12 @@ export const command = createCommand({
 					await stopBunServer(opts.port, logger);
 				} catch (err) {
 					logger.debug('Error stopping Bun server during cleanup: %s', err);
+				}
+
+				// Stop gravity heartbeat interval
+				if (gravityHeartbeatInterval) {
+					clearInterval(gravityHeartbeatInterval);
+					gravityHeartbeatInterval = null;
 				}
 
 				// Kill gravity client with SIGTERM first, then SIGKILL as fallback
@@ -479,6 +488,21 @@ export const command = createCommand({
 				if (!exitAfter) {
 					cleaningUp = false;
 				} else {
+					// Clean up stdin keyboard handler right before exiting
+					// This must happen AFTER all async cleanup to keep event loop alive
+					if (stdinListenerRegistered && process.stdin.isTTY) {
+						try {
+							if (stdinDataHandler) {
+								process.stdin.removeListener('data', stdinDataHandler);
+								stdinDataHandler = null;
+							}
+							process.stdin.setRawMode(false);
+							process.stdin.pause();
+							process.stdin.unref();
+						} catch {
+							// Ignore errors during final cleanup
+						}
+					}
 					logger.debug('Exiting with code %d', exitCode);
 					originalExit(exitCode);
 				}
@@ -495,6 +519,12 @@ export const command = createCommand({
 					await stopBunServer(opts.port, logger);
 				} catch (err) {
 					logger.debug('Error stopping Bun server for restart: %s', err);
+				}
+
+				// Stop gravity heartbeat interval
+				if (gravityHeartbeatInterval) {
+					clearInterval(gravityHeartbeatInterval);
+					gravityHeartbeatInterval = null;
 				}
 
 				// Kill gravity client
@@ -515,23 +545,37 @@ export const command = createCommand({
 
 			// SIGINT/SIGTERM: coordinate shutdown between bundle and dev resources
 			let signalHandlersRegistered = false;
+			let exitingFromSignal = false;
 			if (!signalHandlersRegistered) {
 				signalHandlersRegistered = true;
 
-				const safeExit = async (code: number, reason?: string) => {
+				const safeExit = (code: number, reason?: string) => {
+					// Prevent multiple signal handlers from racing
+					if (exitingFromSignal) return;
+					exitingFromSignal = true;
+
 					if (reason) {
 						logger.debug('DevMode terminating (%d) due to: %s', code, reason);
 					}
 					shutdownRequested = true;
-					await cleanup(true, code);
+					// Run cleanup and ensure we wait for it to complete before exiting
+					cleanup(true, code).catch((err) => {
+						logger.debug('Cleanup error: %s', err);
+						originalExit(1);
+					});
 				};
 
 				process.on('SIGINT', () => {
-					void safeExit(0, 'SIGINT');
+					safeExit(0, 'SIGINT');
 				});
 
 				process.on('SIGTERM', () => {
-					void safeExit(0, 'SIGTERM');
+					safeExit(0, 'SIGTERM');
+				});
+
+				// Handle SIGHUP (terminal closed) - same as SIGINT
+				process.on('SIGHUP', () => {
+					safeExit(0, 'SIGHUP');
 				});
 
 				// Handle uncaught exceptions - clean up and exit rather than limping on
@@ -553,6 +597,20 @@ export const command = createCommand({
 
 			// Ensure resources are always cleaned up on exit (synchronous fallback)
 			process.on('exit', () => {
+				// Clean up stdin keyboard handler
+				if (stdinListenerRegistered && process.stdin.isTTY) {
+					try {
+						if (stdinDataHandler) {
+							process.stdin.removeListener('data', stdinDataHandler);
+						}
+						process.stdin.setRawMode(false);
+						process.stdin.pause();
+						process.stdin.unref();
+					} catch {
+						// Ignore errors during exit cleanup
+					}
+				}
+
 				// Kill gravity client with SIGKILL for immediate termination
 				if (gravityProcess && gravityProcess.exitCode === null) {
 					try {
@@ -862,6 +920,7 @@ export const command = createCommand({
 								project.projectId,
 								'--token',
 								process.env.AGENTUITY_SDK_KEY!, // set above
+								'--health-check',
 							],
 							{
 								cwd: rootDir,
@@ -881,13 +940,52 @@ export const command = createCommand({
 							});
 						}
 
-						// Log gravity output
+						// Log gravity output and detect heartbeat port
 						(async () => {
 							try {
 								if (gravityProcess?.stdout) {
 									for await (const chunk of gravityProcess.stdout) {
 										const text = new TextDecoder().decode(chunk);
-										logger.debug('[gravity] %s', text.trim());
+										const trimmed = text.trim();
+
+										// Check for heartbeat port announcement
+										const match = trimmed.match(/^HEARTBEAT_PORT=(\d+)$/m);
+										if (match) {
+											const heartbeatPort = parseInt(match[1], 10);
+											logger.debug(
+												'Gravity heartbeat port detected: %d',
+												heartbeatPort
+											);
+
+											// Start sending heartbeats every 5 seconds
+											if (!gravityHeartbeatInterval) {
+												const sendHeartbeat = async () => {
+													try {
+														await fetch(
+															`http://127.0.0.1:${heartbeatPort}/heartbeat`,
+															{
+																method: 'POST',
+																signal: AbortSignal.timeout(2000),
+															}
+														);
+														logger.trace('Gravity heartbeat sent');
+													} catch (err) {
+														logger.trace('Gravity heartbeat failed: %s', err);
+													}
+												};
+
+												// Send initial heartbeat immediately
+												sendHeartbeat();
+
+												// Then send every 5 seconds
+												gravityHeartbeatInterval = setInterval(
+													sendHeartbeat,
+													5000
+												);
+											}
+										} else if (trimmed) {
+											logger.debug('[gravity] %s', trimmed);
+										}
 									}
 								}
 							} catch (err) {
@@ -930,12 +1028,23 @@ export const command = createCommand({
 							console.log(tui.muted('  q') + ' - quit\n');
 						};
 
-						process.stdin.on('data', (data) => {
+						// Store handler reference for cleanup
+						stdinDataHandler = (data) => {
 							const key = data.toString();
 
-							// Handle Ctrl+C - send SIGINT to trigger graceful shutdown
-							if (key === '\u0003') {
-								process.kill(process.pid, 'SIGINT');
+							// Handle Ctrl+C or q - trigger graceful shutdown
+							if (key === '\u0003' || key === 'q') {
+								// Remove stdin listener immediately to prevent re-entrancy
+								if (stdinDataHandler) {
+									process.stdin.removeListener('data', stdinDataHandler);
+									stdinDataHandler = null;
+								}
+								// Set shutdown flag and trigger cleanup directly
+								shutdownRequested = true;
+								cleanup(true, 0).catch((err) => {
+									logger.debug('Cleanup error: %s', err);
+									originalExit(1);
+								});
 								return;
 							}
 
@@ -952,14 +1061,12 @@ export const command = createCommand({
 										centerTitle: false,
 									});
 									break;
-								case 'q':
-									void cleanup(true, 0);
-									break;
 								default:
 									process.stdout.write(data);
 									break;
 							}
-						});
+						};
+						process.stdin.on('data', stdinDataHandler);
 					}
 
 					showWelcome();
