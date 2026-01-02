@@ -111,7 +111,7 @@ export type AuthEnv = {
 	Variables: {
 		auth: AuthInterface<AuthUser>;
 		user: AuthUser | null;
-		session: AuthSession | null;
+		authSession: AuthSession | null;
 		org: AuthOrgContext | null;
 	};
 };
