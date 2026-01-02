@@ -338,7 +338,11 @@ api.post(
 		} catch (err) {
 			if (err instanceof APIError) {
 				return c.json(
-					{ error: err.message, status: err.status, code: (err as APIError & { code?: string }).code },
+					{
+						error: err.message,
+						status: err.status,
+						code: (err as APIError & { code?: string }).code,
+					},
 					err.status as 400 | 401 | 403 | 404 | 409 | 500
 				);
 			}

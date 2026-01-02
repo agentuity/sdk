@@ -302,7 +302,8 @@ describe('Agentuity Auth Config', () => {
 			});
 
 			it('skips empty entries in comma-separated list', async () => {
-				process.env.AGENTUITY_CLOUD_DOMAINS = 'https://d1234.agent.run,,https://p5678.agent.run,';
+				process.env.AGENTUITY_CLOUD_DOMAINS =
+					'https://d1234.agent.run,,https://p5678.agent.run,';
 
 				const db = new Database(':memory:');
 				const auth = createAuth({

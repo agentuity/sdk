@@ -166,13 +166,15 @@ export function Chat({
 														<>Finished</>
 													)}
 
-													{duration && totalTokens !== undefined && totalTokens > 0 && (
-														<>
-															and consumed
-															<span className="mx-1">{totalTokens}</span>
-															tokens
-														</>
-													)}
+													{duration &&
+														totalTokens !== undefined &&
+														totalTokens > 0 && (
+															<>
+																and consumed
+																<span className="mx-1">{totalTokens}</span>
+																tokens
+															</>
+														)}
 
 													{sessionId && onSessionOpen && (
 														<ChevronRight className="size-4" />

@@ -45,7 +45,9 @@ const createWorkbenchExecutionMetadataMiddleware = (): MiddlewareHandler => {
 
 		// Read tokens and duration from response headers
 		const tokens = ctx.res.headers.get(TOKENS_HEADER) ?? undefined;
-		const duration = ctx.res.headers.get(DURATION_HEADER) ?? `${((performance.now() - started) / 1000).toFixed(1)}s`;
+		const duration =
+			ctx.res.headers.get(DURATION_HEADER) ??
+			`${((performance.now() - started) / 1000).toFixed(1)}s`;
 		const sessionId = ctx.var.sessionId;
 
 		// Store input with metadata
