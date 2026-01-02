@@ -12,8 +12,28 @@ import type { AgentuityAuth } from '../types';
 // =============================================================================
 
 /**
- * Auth user type.
- * Alias for BetterAuth's User type.
+ * Canonical authenticated user type for Agentuity Auth.
+ *
+ * This is an alias for BetterAuth's `User` type and represents the shape of
+ * the `user` object you receive from:
+ *
+ * - `AuthInterface#getUser()` / `c.var.auth.getUser()` on the server
+ * - `c.var.user` in Hono route handlers
+ * - React hooks and context (`useAuth().user`) in `@agentuity/auth/react`
+ *
+ * Common fields include:
+ * - `id` – Stable user identifier
+ * - `email` – Primary email address
+ * - `name` – Display name
+ * - `image` – Avatar URL (if configured)
+ * - `createdAt` / `updatedAt` – Timestamps
+ *
+ * The exact fields are defined by BetterAuth and may be extended by plugins.
+ *
+ * @remarks
+ * Prefer using this `AuthUser` alias instead of referring to BetterAuth's
+ * `User` type directly so your code stays aligned with Agentuity's auth
+ * abstractions.
  */
 export type AuthUser = BetterAuthUser;
 

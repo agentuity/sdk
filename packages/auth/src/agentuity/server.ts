@@ -538,6 +538,10 @@ export function createApiKeyMiddleware(
 			let user: AuthUser | null = null;
 			if (userId) {
 				try {
+					// NOTE: BetterAuth's API key plugin supports resolving a user by ID via
+					// `auth.api.getSession({ headers: { 'x-user-id': ... } })` without cookies.
+					// The API key itself is the primary authenticator; this call is only
+					// used to hydrate the user object for convenience (and is allowed to fail).
 					const sessionResult = await auth.api.getSession({
 						headers: new Headers({ 'x-user-id': userId }),
 					});

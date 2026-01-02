@@ -306,11 +306,11 @@ Hook for full auth context. Import from `@agentuity/auth/react`.
 
 **Returns:**
 
-- `user: AgentuityAuthUser | null`
+- `user: AuthUser | null`
 - `isPending: boolean`
 - `error: Error | null`
 - `isAuthenticated: boolean`
-- `authClient: AgentuityAuthClient`
+- `authClient: AuthClient`
 
 ### Schema
 
@@ -340,6 +340,8 @@ import { user, session, organization, apikey, authSchema } from '@agentuity/auth
 
 ```typescript
 import type {
+	AuthUser,
+	AuthSession,
 	AuthContext,
 	AuthOrgContext,
 	AuthApiKeyContext,

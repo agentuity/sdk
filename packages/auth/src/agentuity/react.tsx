@@ -13,7 +13,7 @@ import { organizationClient, apiKeyClient } from 'better-auth/client/plugins';
 import { useAuth as useAgentuityReactAuth } from '@agentuity/react';
 import type { BetterAuthClientPlugin } from 'better-auth/client';
 
-import type { AuthSession } from './types';
+import type { AuthSession, AuthUser } from './types';
 
 // =============================================================================
 // Auth Client Factory
@@ -139,19 +139,6 @@ export type AuthClient = ReturnType<typeof createAuthClient>;
 // =============================================================================
 // React Provider and Hooks
 // =============================================================================
-
-/**
- * User data from the auth client.
- */
-export interface AuthUser {
-	id: string;
-	name?: string;
-	email?: string;
-	emailVerified?: boolean;
-	image?: string;
-	createdAt?: Date;
-	updatedAt?: Date;
-}
 
 /**
  * Context value for Auth.
