@@ -85,10 +85,12 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 	imports.push(`import { type LogLevel } from '@agentuity/core';`);
 
 	// Generate route mounting code for all discovered routes
+	// Sort route files for deterministic output
+	const sortedRouteFiles = [...routeFiles].sort();
 	const routeImportsAndMounts: string[] = [];
 	let routeIndex = 0;
 
-	for (const routeFile of routeFiles) {
+	for (const routeFile of sortedRouteFiles) {
 		// Convert src/api/auth/route.ts -> auth/route
 		const relativePath = routeFile.replace(/^src\/api\//, '').replace(/\.tsx?$/, '');
 

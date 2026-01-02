@@ -217,12 +217,12 @@ if (isDevelopment() && process.env.VITE_PORT) {
 }
 
 // Mount API routes
-const { default: router_0 } = await import('../api/index.js');
-app.route('/api', router_0);
+const { default: router_0 } = await import('../api/echo/route.js');
+app.route('/api/echo', router_0);
 const { default: router_1 } = await import('../api/events/route.js');
 app.route('/api/events', router_1);
-const { default: router_2 } = await import('../api/echo/route.js');
-app.route('/api/echo', router_2);
+const { default: router_2 } = await import('../api/index.js');
+app.route('/api', router_2);
 
 const hasWorkbench = false;
 if (hasWorkbench) {

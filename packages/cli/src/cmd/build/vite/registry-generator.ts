@@ -36,11 +36,14 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 	const generatedDir = join(srcDir, 'generated');
 	const registryPath = join(generatedDir, 'registry.ts');
 
+	// Sort agents by name for deterministic output
+	const sortedAgents = [...agents].sort((a, b) => a.name.localeCompare(b.name));
+
 	// Detect naming collisions in generated identifiers
 	const generatedNames = new Set<string>();
 	const collisions: string[] = [];
 
-	for (const agent of agents) {
+	for (const agent of sortedAgents) {
 		const camelName = toCamelCase(agent.name);
 
 		if (generatedNames.has(camelName)) {
@@ -59,7 +62,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 	}
 
 	// Generate imports for all agents
-	const imports = agents
+	const imports = sortedAgents
 		.map(({ name, filename }) => {
 			const camelName = toCamelCase(name);
 			// Handle both './agent/...' and 'src/agent/...' formats
@@ -80,7 +83,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 		.join('\n');
 
 	// Generate schema type exports for all agents
-	const schemaTypeExports = agents
+	const schemaTypeExports = sortedAgents
 		.map(({ name, description }) => {
 			const camelName = toCamelCase(name);
 			const pascalName = toPascalCase(name);
@@ -122,7 +125,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 		.join('\n');
 
 	// Generate flat registry structure with JSDoc
-	const registry = agents
+	const registry = sortedAgents
 		.map(({ name, description }) => {
 			const camelName = toCamelCase(name);
 			const pascalName = toPascalCase(name);
@@ -138,7 +141,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 
 	// Generate flat agent type definitions for AgentRegistry interface augmentation
 	// Uses the exported Agent types defined above
-	const runtimeAgentTypes = agents
+	const runtimeAgentTypes = sortedAgents
 		.map(({ name }) => {
 			const camelName = toCamelCase(name);
 			const pascalName = toPascalCase(name);
@@ -323,7 +326,9 @@ function generateRPCRegistryType(
 	function treeToTypeString(node: NestedNode, indent: string = '\t\t'): string {
 		const lines: string[] = [];
 
-		for (const [key, value] of Object.entries(node)) {
+		// Sort entries alphabetically for deterministic output
+		const sortedEntries = Object.entries(node).sort(([a], [b]) => a.localeCompare(b));
+		for (const [key, value] of sortedEntries) {
 			if (
 				value &&
 				typeof value === 'object' &&
@@ -433,7 +438,21 @@ function generateRPCRuntimeMetadata(
 	websocketRoutes.forEach((r) => addRoute(r, 'websocket'));
 	sseRoutes.forEach((r) => addRoute(r, 'sse'));
 
-	return JSON.stringify(tree, null, '\t\t');
+	// Sort object keys recursively for deterministic output
+	const sortObject = (obj: MetadataNode): MetadataNode => {
+		const sorted: MetadataNode = {};
+		for (const key of Object.keys(obj).sort()) {
+			const value = obj[key];
+			if (value && typeof value === 'object' && !('type' in value)) {
+				sorted[key] = sortObject(value as MetadataNode);
+			} else {
+				sorted[key] = value;
+			}
+		}
+		return sorted;
+	};
+
+	return JSON.stringify(sortObject(tree), null, '\t\t');
 }
 
 /**
@@ -462,10 +481,13 @@ export function generateRouteRegistry(
 		// If we can't read package.json, assume no React dependency
 	}
 
-	// Filter routes by type
-	const apiRoutes = routes.filter((r) => r.routeType === 'api' || r.routeType === 'stream');
-	const websocketRoutes = routes.filter((r) => r.routeType === 'websocket');
-	const sseRoutes = routes.filter((r) => r.routeType === 'sse');
+	// Filter routes by type and sort by path for deterministic output
+	const sortByPath = (a: RouteInfo, b: RouteInfo) => a.path.localeCompare(b.path);
+	const apiRoutes = routes
+		.filter((r) => r.routeType === 'api' || r.routeType === 'stream')
+		.sort(sortByPath);
+	const websocketRoutes = routes.filter((r) => r.routeType === 'websocket').sort(sortByPath);
+	const sseRoutes = routes.filter((r) => r.routeType === 'sse').sort(sortByPath);
 
 	const allRoutes = [...apiRoutes, ...websocketRoutes, ...sseRoutes];
 

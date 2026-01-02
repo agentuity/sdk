@@ -131,12 +131,6 @@ declare module '@agentuity/react' {
 	 * Used by createClient() from @agentuity/core for type-safe RPC calls.
 	 */
 	export interface RPCRouteRegistry {
-		hello: {
-			/**
-			 * Route: POST /api/hello
-			 */
-			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api' };
-		};
 		echo: {
 			/**
 			 * Route: GET /api/echo
@@ -149,6 +143,12 @@ declare module '@agentuity/react' {
 			 */
 			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse' };
 		};
+		hello: {
+			/**
+			 * Route: POST /api/hello
+			 */
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api' };
+		};
 	}
 }
 
@@ -158,11 +158,6 @@ declare module '@agentuity/react' {
  * @internal
  */
 const _rpcRouteMetadata = {
-		"hello": {
-				"post": {
-						"type": "api"
-				}
-		},
 		"echo": {
 				"websocket": {
 						"type": "websocket"
@@ -171,6 +166,11 @@ const _rpcRouteMetadata = {
 		"events": {
 				"eventstream": {
 						"type": "sse"
+				}
+		},
+		"hello": {
+				"post": {
+						"type": "api"
 				}
 		}
 } as const;
