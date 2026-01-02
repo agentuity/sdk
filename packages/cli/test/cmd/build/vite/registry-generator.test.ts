@@ -707,7 +707,7 @@ describe('registry-generator', () => {
 			// (imports are only added when hasValidator is true)
 			expect(routesContent).toContain("'POST /api/edge-case'");
 			// Should NOT have generated the import since hasValidator is false
-			expect(routesContent).not.toContain("import type myAgent from");
+			expect(routesContent).not.toContain('import type myAgent from');
 		});
 
 		test('should handle agentVariable without agentImportPath (edge case - should not crash)', async () => {
@@ -735,7 +735,7 @@ describe('registry-generator', () => {
 			expect(routesContent).toContain('inputSchema: never');
 			expect(routesContent).toContain('outputSchema: never');
 			// Should NOT have generated an import since agentImportPath is missing
-			expect(routesContent).not.toContain("import type orphanAgent from");
+			expect(routesContent).not.toContain('import type orphanAgent from');
 			// Should NOT generate broken types like "typeof undefined"
 			expect(routesContent).not.toContain('typeof undefined');
 			expect(routesContent).not.toContain("typeof orphanAgent['inputSchema']");
@@ -1127,7 +1127,7 @@ describe('registry-generator', () => {
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Relative paths should be resolved and converted
-			expect(content).toContain("import type relativeAgent from");
+			expect(content).toContain('import type relativeAgent from');
 		});
 
 		test('should handle nested @agent alias with file path', async () => {
