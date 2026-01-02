@@ -3,7 +3,7 @@ import { s } from '@agentuity/schema';
 import { openai } from '@ai-sdk/openai';
 import { generateText } from 'ai';
 
-const simpleAgent = createAgent('llm-call', {
+const llmCallAgent = createAgent('llm-call', {
 	description: 'Basic agent with input/output validation',
 	schema: {
 		input: s.object({
@@ -21,4 +21,4 @@ const simpleAgent = createAgent('llm-call', {
 	},
 });
 
-export default simpleAgent;
+export default llmCallAgent;
