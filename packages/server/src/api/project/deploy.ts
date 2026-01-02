@@ -264,7 +264,6 @@ export type DeploymentState = z.infer<typeof DeploymentStateValue>;
 
 const DeploymentStatusObject = z.object({
 	state: DeploymentStateValue.describe('the current deployment state'),
-	active: z.boolean().describe('whether this deployment is the active one for the project'),
 });
 
 const DeploymentStatusObjectSchema = APIResponseSchema(DeploymentStatusObject);
