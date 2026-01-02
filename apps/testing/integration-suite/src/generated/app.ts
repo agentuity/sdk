@@ -217,20 +217,20 @@ if (isDevelopment() && process.env.VITE_PORT) {
 }
 
 // Mount API routes
-const { default: router_0 } = await import('../api/index.js');
-app.route('/api', router_0);
-const { default: router_1 } = await import('../api/custom-name/foobar.js');
-app.route('/api/custom-name/foobar', router_1);
-const { default: router_2 } = await import('../api/users/profile/route.js');
-app.route('/api/users/profile', router_2);
-const { default: router_3 } = await import('../api/my-service/index.js');
-app.route('/api/my-service', router_3);
-const { default: router_4 } = await import('../api/auth/route.js');
-app.route('/api/auth', router_4);
-const { default: router_5 } = await import('../api/agent-ids/route.js');
-app.route('/api/agent-ids', router_5);
-const { default: router_6 } = await import('../api/middleware-test/route.js');
-app.route('/api/middleware-test', router_6);
+const { default: router_0 } = await import('../api/agent-ids/route.js');
+app.route('/api/agent-ids', router_0);
+const { default: router_1 } = await import('../api/auth/route.js');
+app.route('/api/auth', router_1);
+const { default: router_2 } = await import('../api/custom-name/foobar.js');
+app.route('/api/custom-name/foobar', router_2);
+const { default: router_3 } = await import('../api/index.js');
+app.route('/api', router_3);
+const { default: router_4 } = await import('../api/middleware-test/route.js');
+app.route('/api/middleware-test', router_4);
+const { default: router_5 } = await import('../api/my-service/index.js');
+app.route('/api/my-service', router_5);
+const { default: router_6 } = await import('../api/users/profile/route.js');
+app.route('/api/users/profile', router_6);
 
 const hasWorkbench = true;
 if (hasWorkbench) {
