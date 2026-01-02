@@ -36,11 +36,14 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 	const generatedDir = join(srcDir, 'generated');
 	const registryPath = join(generatedDir, 'registry.ts');
 
+	// Sort agents by name for deterministic output
+	const sortedAgents = [...agents].sort((a, b) => a.name.localeCompare(b.name));
+
 	// Detect naming collisions in generated identifiers
 	const generatedNames = new Set<string>();
 	const collisions: string[] = [];
 
-	for (const agent of agents) {
+	for (const agent of sortedAgents) {
 		const camelName = toCamelCase(agent.name);
 
 		if (generatedNames.has(camelName)) {
@@ -59,7 +62,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 	}
 
 	// Generate imports for all agents
-	const imports = agents
+	const imports = sortedAgents
 		.map(({ name, filename }) => {
 			const camelName = toCamelCase(name);
 			// Handle both './agent/...' and 'src/agent/...' formats
@@ -80,7 +83,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 		.join('\n');
 
 	// Generate schema type exports for all agents
-	const schemaTypeExports = agents
+	const schemaTypeExports = sortedAgents
 		.map(({ name, description }) => {
 			const camelName = toCamelCase(name);
 			const pascalName = toPascalCase(name);
@@ -122,7 +125,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 		.join('\n');
 
 	// Generate flat registry structure with JSDoc
-	const registry = agents
+	const registry = sortedAgents
 		.map(({ name, description }) => {
 			const camelName = toCamelCase(name);
 			const pascalName = toPascalCase(name);
@@ -138,7 +141,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 
 	// Generate flat agent type definitions for AgentRegistry interface augmentation
 	// Uses the exported Agent types defined above
-	const runtimeAgentTypes = agents
+	const runtimeAgentTypes = sortedAgents
 		.map(({ name }) => {
 			const camelName = toCamelCase(name);
 			const pascalName = toPascalCase(name);
@@ -231,7 +234,7 @@ function generateRPCRegistryType(
 	apiRoutes: RouteInfo[],
 	websocketRoutes: RouteInfo[],
 	sseRoutes: RouteInfo[],
-	_agentImports: Map<string, string>,
+	agentImports: Map<string, string>,
 	_schemaImportAliases: Map<string, Map<string, string>>,
 	agentMetadataMap: Map<string, AgentMetadata>
 ): string {
@@ -263,6 +266,10 @@ function generateRPCRegistryType(
 		// Add path segments - sanitize for valid TypeScript property names
 		for (let i = 0; i < pathParts.length; i++) {
 			const part = sanitizePathSegment(pathParts[i]);
+			// Skip empty segments (e.g., wildcards like '*' that sanitize to '')
+			if (!part) {
+				continue;
+			}
 			if (!current[part]) {
 				current[part] = {};
 			}
@@ -289,12 +296,15 @@ function generateRPCRegistryType(
 			.replace(/_+/g, '_');
 		const pascalName = toPascalCase(safeName);
 
-		// Only reference type names if route has schemas, otherwise use 'never'
+		// Only reference type names if route has actual schemas extracted, otherwise use 'never'
+		// Note: hasValidator may be true (e.g., zValidator('query', ...)) but no schemas extracted
+		// because only 'json' validators extract input schemas
+		// Also check if agentVariable exists but import wasn't added (missing agentImportPath)
+		const hasValidAgentImport = route.agentVariable
+			? !!agentImports.get(route.agentVariable)
+			: false;
 		const hasSchemas =
-			route.hasValidator ||
-			route.inputSchemaVariable ||
-			route.outputSchemaVariable ||
-			route.agentVariable;
+			route.inputSchemaVariable || route.outputSchemaVariable || hasValidAgentImport;
 
 		current[terminalMethod] = {
 			input: hasSchemas ? `${pascalName}Input` : 'never',
@@ -316,7 +326,9 @@ function generateRPCRegistryType(
 	function treeToTypeString(node: NestedNode, indent: string = '\t\t'): string {
 		const lines: string[] = [];
 
-		for (const [key, value] of Object.entries(node)) {
+		// Sort entries alphabetically for deterministic output
+		const sortedEntries = Object.entries(node).sort(([a], [b]) => a.localeCompare(b));
+		for (const [key, value] of sortedEntries) {
 			if (
 				value &&
 				typeof value === 'object' &&
@@ -401,6 +413,10 @@ function generateRPCRuntimeMetadata(
 		// Sanitize path segments for valid property names (must match type generation)
 		for (const part of pathParts) {
 			const sanitized = sanitizePathSegment(part);
+			// Skip empty segments (e.g., wildcards like '*' that sanitize to '')
+			if (!sanitized) {
+				continue;
+			}
 			if (!current[sanitized]) current[sanitized] = {};
 			current = current[sanitized];
 		}
@@ -422,7 +438,21 @@ function generateRPCRuntimeMetadata(
 	websocketRoutes.forEach((r) => addRoute(r, 'websocket'));
 	sseRoutes.forEach((r) => addRoute(r, 'sse'));
 
-	return JSON.stringify(tree, null, '\t\t');
+	// Sort object keys recursively for deterministic output
+	const sortObject = (obj: MetadataNode): MetadataNode => {
+		const sorted: MetadataNode = {};
+		for (const key of Object.keys(obj).sort()) {
+			const value = obj[key];
+			if (value && typeof value === 'object' && !('type' in value)) {
+				sorted[key] = sortObject(value as MetadataNode);
+			} else {
+				sorted[key] = value;
+			}
+		}
+		return sorted;
+	};
+
+	return JSON.stringify(sortObject(tree), null, '\t\t');
 }
 
 /**
@@ -451,10 +481,13 @@ export function generateRouteRegistry(
 		// If we can't read package.json, assume no React dependency
 	}
 
-	// Filter routes by type
-	const apiRoutes = routes.filter((r) => r.routeType === 'api' || r.routeType === 'stream');
-	const websocketRoutes = routes.filter((r) => r.routeType === 'websocket');
-	const sseRoutes = routes.filter((r) => r.routeType === 'sse');
+	// Filter routes by type and sort by path for deterministic output
+	const sortByPath = (a: RouteInfo, b: RouteInfo) => a.path.localeCompare(b.path);
+	const apiRoutes = routes
+		.filter((r) => r.routeType === 'api' || r.routeType === 'stream')
+		.sort(sortByPath);
+	const websocketRoutes = routes.filter((r) => r.routeType === 'websocket').sort(sortByPath);
+	const sseRoutes = routes.filter((r) => r.routeType === 'sse').sort(sortByPath);
 
 	const allRoutes = [...apiRoutes, ...websocketRoutes, ...sseRoutes];
 
@@ -638,8 +671,10 @@ export function generateRouteRegistry(
 				agentMeta = agentMetadataMap.get(route.agentVariable);
 			}
 
-			if (route.agentVariable) {
-				const importName = agentImports.get(route.agentVariable)!;
+			// Only generate agent-based types if the import was successfully added
+			// (import is only added when hasValidator && agentVariable && agentImportPath are all present)
+			const importName = route.agentVariable ? agentImports.get(route.agentVariable) : undefined;
+			if (importName) {
 				inputType = `InferInput<typeof ${importName}['inputSchema']>`;
 				outputType = `InferOutput<typeof ${importName}['outputSchema']>`;
 				inputSchemaType = `typeof ${importName} extends { inputSchema?: infer I } ? I : never`;
@@ -725,12 +760,16 @@ export function generateRouteRegistry(
 			.replace(/_+/g, '_');
 		const pascalName = toPascalCase(safeName);
 
-		if (
-			!route.hasValidator &&
-			!route.inputSchemaVariable &&
-			!route.outputSchemaVariable &&
-			!route.agentVariable
-		) {
+		// Use the exported schema types we generated above
+		// Note: agentImports.get() may return undefined if import wasn't added
+		const importName = route.agentVariable ? agentImports.get(route.agentVariable) : null;
+
+		// Use 'never' types if no schemas were actually extracted
+		// Note: hasValidator may be true (e.g., zValidator('query', ...)) but no schemas extracted
+		// because only 'json' validators extract input schemas
+		// Also check if agentVariable exists but import wasn't added (missing agentImportPath)
+		const hasValidAgentImport = route.agentVariable ? !!importName : false;
+		if (!route.inputSchemaVariable && !route.outputSchemaVariable && !hasValidAgentImport) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `\t'${routeKey}': {
 \t\tinputSchema: never;
@@ -738,9 +777,6 @@ export function generateRouteRegistry(
 \t\tstream: ${streamValue};
 \t};`;
 		}
-
-		// Use the exported schema types we generated above
-		const importName = route.agentVariable ? agentImports.get(route.agentVariable)! : null;
 		const streamValue = importName
 			? `typeof ${importName} extends { stream?: infer S } ? S : false`
 			: route.stream === true

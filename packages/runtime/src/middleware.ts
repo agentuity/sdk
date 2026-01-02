@@ -113,6 +113,12 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 			const endTime = performance.now();
 			const duration = ((endTime - started) / 1000).toFixed(1);
 			c.header(DURATION_HEADER, `${duration}s`);
+
+			// Set deployment header for all routes
+			const deploymentId = runtimeConfig.getDeploymentId();
+			if (deploymentId) {
+				c.header(DEPLOYMENT_HEADER, deploymentId);
+			}
 		}
 
 		if (!skipLogging && !isWebSocket) {
@@ -280,17 +286,17 @@ export function createOtelMiddleware() {
 					(c as any).set('trigger', 'api');
 
 					// Send session start event (so evalruns can reference this session)
+					// The provider decides whether to send based on available data (orgId, projectId, etc.)
 					const sessionEventProvider = getSessionEventProvider();
-					const shouldSendSession = !!(orgId && projectId);
-					if (shouldSendSession && sessionEventProvider) {
+					if (sessionEventProvider) {
 						try {
 							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							const routeId = (c as any).var?.routeId || '';
 							await sessionEventProvider.start({
 								id: sessionId,
 								threadId: thread.id,
-								orgId,
-								projectId,
+								orgId: orgId || '',
+								projectId: projectId || '',
 								deploymentId: deploymentId || undefined,
 								devmode: isDevMode,
 								trigger: 'api',
@@ -324,12 +330,8 @@ export function createOtelMiddleware() {
 						throw ex;
 					} finally {
 						// Send session complete event
-						internal.info(
-							'[session] shouldSendSession: %s, hasSessionEventProvider: %s',
-							shouldSendSession,
-							!!sessionEventProvider
-						);
-						if (shouldSendSession && sessionEventProvider) {
+						// The provider decides whether to actually send based on its requirements
+						if (sessionEventProvider) {
 							try {
 								const userData = session.serializeUserData();
 								internal.info(
@@ -340,9 +342,10 @@ export function createOtelMiddleware() {
 								const agentIdsSet = (c as any).get('agentIds') as Set<string> | undefined;
 								const agentIds = agentIdsSet ? [...agentIdsSet].filter(Boolean) : undefined;
 								internal.info('[session] agentIds: %o', agentIds);
+								const isEmpty = await thread.empty();
 								await sessionEventProvider.complete({
 									id: sessionId,
-									threadId: thread.empty() ? null : thread.id,
+									threadId: isEmpty ? null : thread.id,
 									statusCode: c.res?.status ?? 200,
 									agentIds: agentIds?.length ? agentIds : undefined,
 									userData,
@@ -361,9 +364,6 @@ export function createOtelMiddleware() {
 						}
 						const traceId = sctx?.traceId || sessionId.replace(/^sess_/, '');
 						c.header(SESSION_HEADER, `sess_${traceId}`);
-						if (deploymentId) {
-							c.header(DEPLOYMENT_HEADER, deploymentId);
-						}
 						span.end();
 					}
 				}

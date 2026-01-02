@@ -45,6 +45,10 @@ cd "$TARGET_DIR"
 echo "Removing existing @agentuity packages..."
 rm -rf node_modules/@agentuity
 
+# Remove lock file to avoid stale resolutions
+echo "Removing lock files..."
+rm -f bun.lock bun.lockb
+
 # Clear Bun cache for clean install
 echo "Clearing Bun cache..."
 rm -rf "$HOME/.bun/install/cache"
@@ -75,6 +79,16 @@ fs.writeFileSync('package.json', JSON.stringify(pkg, null, 3) + '\n');
 # Install from modified package.json
 echo "Installing SDK packages from tarballs..."
 bun install
+
+# Remove any nested node_modules inside @agentuity packages
+# These can cause version conflicts when Bun hoists incorrectly
+echo "Removing nested node_modules in @agentuity packages..."
+for pkg in node_modules/@agentuity/*/node_modules; do
+	if [ -d "$pkg" ]; then
+		echo "  Removing: $pkg"
+		rm -rf "$pkg"
+	fi
+done
 
 # Update package.json scripts to use local CLI for development
 echo ""

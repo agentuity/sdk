@@ -43,9 +43,16 @@ const SandboxCreateRequestSchema = z
 			.object({
 				exec: z.array(z.string()).describe('Command and arguments to execute'),
 				files: z
-					.record(z.string(), z.string())
+					.array(
+						z.object({
+							path: z
+								.string()
+								.describe('Path to the file relative to the sandbox workspace'),
+							content: z.string().describe('Base64-encoded file content'),
+						})
+					)
 					.optional()
-					.describe('Files to write before execution (path -> content)'),
+					.describe('Files to write before execution'),
 				mode: z
 					.enum(['oneshot', 'interactive'])
 					.optional()
@@ -121,7 +128,14 @@ export async function sandboxCreate(
 		body.timeout = options.timeout;
 	}
 	if (options.command) {
-		body.command = options.command;
+		body.command = {
+			exec: options.command.exec,
+			mode: options.command.mode,
+			files: options.command.files?.map((f) => ({
+				path: f.path,
+				content: f.content.toString('base64'),
+			})),
+		};
 	}
 	if (options.snapshot) {
 		body.snapshot = options.snapshot;

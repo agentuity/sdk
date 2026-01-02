@@ -1,6 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
-import { buildUrl, WebSocketManager, type WebSocketRouteRegistry } from '@agentuity/frontend';
+import { buildUrl, WebSocketManager } from '@agentuity/frontend';
+import type { WebSocketRouteRegistry } from './types';
 import { AgentuityContext } from './context';
 
 /**

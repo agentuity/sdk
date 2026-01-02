@@ -5,17 +5,22 @@
 /**
  * Convert a string to camelCase
  * @param str - The string to convert (can contain dashes, underscores, or spaces)
- * @returns The camelCase version of the string
+ * @returns The camelCase version of the string (always a valid JS/TS identifier)
  * @example
  * toCamelCase('my-agent') // 'myAgent'
  * toCamelCase('my_agent') // 'myAgent'
  * toCamelCase('my agent') // 'myAgent'
  * toCamelCase('my--multiple--dashes') // 'myMultipleDashes'
+ * toCamelCase('123-agent') // '_123Agent' (prefixed to make valid identifier)
+ * toCamelCase('123') // '_123' (prefixed to make valid identifier)
  */
 export function toCamelCase(str: string): string {
-	return str
+	const result = str
 		.replace(/[-_\s]+(.)?/g, (_, char) => (char ? char.toUpperCase() : ''))
 		.replace(/^(.)/, (char) => char.toLowerCase());
+
+	// Prefix with underscore if result starts with a digit (invalid JS/TS identifier)
+	return /^\d/.test(result) ? `_${result}` : result;
 }
 
 /**

@@ -76,8 +76,8 @@ export const runSubcommand = createCommand({
 			}
 		}
 
-		const filesMap = parseFileArgs(opts.file);
-		const hasFiles = Object.keys(filesMap).length > 0;
+		const files = parseFileArgs(opts.file);
+		const hasFiles = files.length > 0;
 
 		const abortController = new AbortController();
 		const handleSignal = () => {
@@ -104,7 +104,7 @@ export const runSubcommand = createCommand({
 				options: {
 					command: {
 						exec: args.command,
-						files: hasFiles ? filesMap : undefined,
+						files: hasFiles ? files : undefined,
 					},
 					resources:
 						opts.memory || opts.cpu || opts.disk

@@ -1,5 +1,6 @@
 // agent.ts exports
 export {
+	type AgentContext,
 	type AgentEventName,
 	type AgentEventCallback,
 	type AgentRuntimeState,
@@ -100,6 +101,8 @@ export {
 export {
 	type ThreadEventName,
 	type SessionEventName,
+	type ThreadState,
+	type MergeOperation,
 	type Thread,
 	type Session,
 	type ThreadIDProvider,
@@ -108,6 +111,7 @@ export {
 	generateId,
 	DefaultThreadIDProvider,
 	DefaultThread,
+	LazyThreadState,
 } from './session';
 
 // services/thread/local exports
@@ -150,6 +154,9 @@ export {
 // _waituntil.ts exports
 export { hasWaitUntilPending } from './_waituntil';
 
+// _context.ts exports (for auth integration)
+export { inAgentContext, inHTTPContext, getAgentContext, getHTTPContext } from './_context';
+
 // _standalone.ts exports
 export {
 	createAgentContext,
@@ -165,6 +172,9 @@ export {
 	JSONEvalRunEventProvider,
 	CompositeEvalRunEventProvider,
 } from './services/evalrun';
+
+// for loading metadata
+export { loadBuildMetadata } from './_metadata';
 
 // _services.ts exports
 export { getEvalRunEventProvider, getThreadProvider, getSessionProvider } from './_services';
@@ -216,3 +226,6 @@ export interface AppState {}
 // This allows generated code to import from @agentuity/runtime instead of having
 // a direct dependency on @agentuity/server
 export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions } from '@agentuity/server';
+
+// bun-s3-patch.ts exports
+export { patchBunS3ForStorageDev, isAgentuityStorageEndpoint } from './bun-s3-patch';

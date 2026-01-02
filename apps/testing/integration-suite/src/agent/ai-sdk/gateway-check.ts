@@ -43,9 +43,10 @@ const aiSdkGatewayCheckAgent = createAgent('ai-sdk-gateway-check', {
 					operation,
 					hasSDKKey,
 					hasTransportUrl,
-					message: hasSDKKey && hasTransportUrl
-						? 'AI Gateway environment variables are configured'
-						: 'Missing required environment variables for AI Gateway',
+					message:
+						hasSDKKey && hasTransportUrl
+							? 'AI Gateway environment variables are configured'
+							: 'Missing required environment variables for AI Gateway',
 				};
 			}
 
@@ -63,13 +64,15 @@ const aiSdkGatewayCheckAgent = createAgent('ai-sdk-gateway-check', {
 						operation,
 						hasSDKKey,
 						hasTransportUrl,
-						message: 'createOpenAI() succeeded without explicit apiKey - gateway injection working',
+						message:
+							'createOpenAI() succeeded without explicit apiKey - gateway injection working',
 					};
 				} catch (error) {
 					const errorMessage = error instanceof Error ? error.message : String(error);
 
 					// Check if this is the specific API key missing error from issue #348
-					const isApiKeyError = errorMessage.includes('API key is missing') ||
+					const isApiKeyError =
+						errorMessage.includes('API key is missing') ||
 						errorMessage.includes('OPENAI_API_KEY');
 
 					return {

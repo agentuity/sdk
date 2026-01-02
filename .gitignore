@@ -57,3 +57,9 @@ playwright-report/
 
 # Generated CLI skills
 **/.agents/skills/
+apps/testing/ag-auth-test-app/cookies.txt
+apps/testing/ag-auth-test-app/agentuity.json
+
+# FUSE temporary files (from filesystem access by tools/processes)
+.fuse_hidden*
+apps/testing/auth-package-app/agentuity.json

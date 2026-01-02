@@ -1300,12 +1300,168 @@ export async function parseRoute(
 						const action = statement.expression.arguments[0];
 						let suffix = '';
 						let config: Record<string, unknown> | undefined;
+						// Supported HTTP methods that can be represented in BuildMetadata
+						const SUPPORTED_HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch'] as const;
+						type SupportedHttpMethod = (typeof SUPPORTED_HTTP_METHODS)[number];
+
+						const isSupportedHttpMethod = (m: string): m is SupportedHttpMethod =>
+							SUPPORTED_HTTP_METHODS.includes(m.toLowerCase() as SupportedHttpMethod);
+
 						switch (method) {
 							case 'use':
-							case 'on':
-							case 'all':
 							case 'route': {
-								// Skip Hono middleware/routing methods - they don't represent API routes
+								// Skip Hono middleware and sub-router mounting - they don't represent API routes
+								continue;
+							}
+							case 'on': {
+								// router.on(method | method[], path, handler)
+								// First arg is method(s), second arg is path
+								const methodArg = statement.expression.arguments[0];
+								const pathArg = statement.expression.arguments[1];
+
+								// Extract methods from first argument
+								const methods: SupportedHttpMethod[] = [];
+
+								if (methodArg && (methodArg as ASTLiteral).type === 'Literal') {
+									// Single method: router.on('GET', '/path', handler)
+									const raw = String((methodArg as ASTLiteral).value || '').toLowerCase();
+									if (isSupportedHttpMethod(raw)) {
+										methods.push(raw as SupportedHttpMethod);
+									}
+								} else if (methodArg && (methodArg as ASTNode).type === 'ArrayExpression') {
+									// Array of methods: router.on(['GET', 'POST'], '/path', handler)
+									const arr = methodArg as { elements: ASTNode[] };
+									for (const el of arr.elements) {
+										if (!el || (el as ASTLiteral).type !== 'Literal') continue;
+										const raw = String((el as ASTLiteral).value || '').toLowerCase();
+										if (isSupportedHttpMethod(raw)) {
+											methods.push(raw as SupportedHttpMethod);
+										}
+									}
+								}
+
+								// Skip if no supported methods or path is not a literal
+								if (
+									methods.length === 0 ||
+									!pathArg ||
+									(pathArg as ASTLiteral).type !== 'Literal'
+								) {
+									continue;
+								}
+
+								const pathSuffix = String((pathArg as ASTLiteral).value);
+
+								// Create a route entry for each method
+								for (const httpMethod of methods) {
+									const thepath = `${routePrefix}/${routeName}/${pathSuffix}`
+										.replaceAll(/\/{2,}/g, '/')
+										.replaceAll(/\/$/g, '');
+									const id = generateRouteId(
+										projectId,
+										deploymentId,
+										'api',
+										httpMethod,
+										rel,
+										thepath,
+										version
+									);
+
+									// Check if this route uses validator middleware
+									const validatorInfo = hasValidatorCall(statement.expression.arguments);
+									const routeConfig: Record<string, unknown> = {};
+									if (validatorInfo.hasValidator) {
+										routeConfig.hasValidator = true;
+										if (validatorInfo.agentVariable) {
+											routeConfig.agentVariable = validatorInfo.agentVariable;
+											const agentImportPath = importMap.get(validatorInfo.agentVariable);
+											if (agentImportPath) {
+												routeConfig.agentImportPath = agentImportPath;
+											}
+										}
+										if (validatorInfo.inputSchemaVariable) {
+											routeConfig.inputSchemaVariable =
+												validatorInfo.inputSchemaVariable;
+										}
+										if (validatorInfo.outputSchemaVariable) {
+											routeConfig.outputSchemaVariable =
+												validatorInfo.outputSchemaVariable;
+										}
+										if (validatorInfo.stream !== undefined) {
+											routeConfig.stream = validatorInfo.stream;
+										}
+									}
+
+									routes.push({
+										id,
+										method: httpMethod,
+										type: 'api',
+										filename: rel,
+										path: thepath,
+										version,
+										config: Object.keys(routeConfig).length > 0 ? routeConfig : undefined,
+									});
+								}
+								continue;
+							}
+							case 'all': {
+								// router.all(path, handler) - matches all HTTP methods
+								// First arg is path (same as get/post/etc.)
+								if (!action || (action as ASTLiteral).type !== 'Literal') {
+									continue;
+								}
+
+								const pathSuffix = String((action as ASTLiteral).value);
+
+								// Create a route entry for each supported method
+								for (const httpMethod of SUPPORTED_HTTP_METHODS) {
+									const thepath = `${routePrefix}/${routeName}/${pathSuffix}`
+										.replaceAll(/\/{2,}/g, '/')
+										.replaceAll(/\/$/g, '');
+									const id = generateRouteId(
+										projectId,
+										deploymentId,
+										'api',
+										httpMethod,
+										rel,
+										thepath,
+										version
+									);
+
+									// Check if this route uses validator middleware
+									const validatorInfo = hasValidatorCall(statement.expression.arguments);
+									const routeConfig: Record<string, unknown> = {};
+									if (validatorInfo.hasValidator) {
+										routeConfig.hasValidator = true;
+										if (validatorInfo.agentVariable) {
+											routeConfig.agentVariable = validatorInfo.agentVariable;
+											const agentImportPath = importMap.get(validatorInfo.agentVariable);
+											if (agentImportPath) {
+												routeConfig.agentImportPath = agentImportPath;
+											}
+										}
+										if (validatorInfo.inputSchemaVariable) {
+											routeConfig.inputSchemaVariable =
+												validatorInfo.inputSchemaVariable;
+										}
+										if (validatorInfo.outputSchemaVariable) {
+											routeConfig.outputSchemaVariable =
+												validatorInfo.outputSchemaVariable;
+										}
+										if (validatorInfo.stream !== undefined) {
+											routeConfig.stream = validatorInfo.stream;
+										}
+									}
+
+									routes.push({
+										id,
+										method: httpMethod,
+										type: 'api',
+										filename: rel,
+										path: thepath,
+										version,
+										config: Object.keys(routeConfig).length > 0 ? routeConfig : undefined,
+									});
+								}
 								continue;
 							}
 							case 'get':
@@ -1456,7 +1612,10 @@ export async function parseRoute(
 						}
 
 						// For WebSocket/SSE/stream routes that don't use validator(), fall back to exported schemas
-						if (!routeConfig.hasValidator && (type === 'websocket' || type === 'sse' || type === 'stream')) {
+						if (
+							!routeConfig.hasValidator &&
+							(type === 'websocket' || type === 'sse' || type === 'stream')
+						) {
 							if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
 								routeConfig.inputSchemaVariable = exportedInputSchemaName;
 							}

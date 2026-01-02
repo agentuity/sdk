@@ -8,7 +8,14 @@ import {
 	type VectorStorage,
 	type SandboxService,
 } from '@agentuity/core';
-import type { AgentContext, AgentRegistry, AgentRunner, AgentRuntimeState } from './agent';
+import type { AuthInterface } from '@agentuity/auth';
+import type {
+	AgentContext,
+	AgentRegistry,
+	AgentRunner,
+	AgentRuntimeState,
+	AgentMetadata,
+} from './agent';
 import { AGENT_RUNTIME, CURRENT_AGENT } from './_config';
 import type { Logger } from './logger';
 import type WaitUntilHandler from './_waituntil';
@@ -30,6 +37,7 @@ export interface RequestAgentContextArgs<
 	config: TConfig;
 	app: TAppState;
 	runtime: AgentRuntimeState;
+	auth?: AuthInterface | null;
 }
 
 export class RequestAgentContext<
@@ -51,8 +59,47 @@ export class RequestAgentContext<
 	thread: Thread;
 	config: TConfig;
 	app: TAppState;
+	current!: AgentMetadata;
 	[AGENT_RUNTIME]: AgentRuntimeState;
 	private handler: WaitUntilHandler;
+
+	/**
+	 * Fallback auth value for non-HTTP contexts (standalone, tests, etc.)
+	 * @internal
+	 */
+	private _initialAuth: AuthInterface | null;
+
+	/**
+	 * Authentication context - lazily reads from HTTP context if available.
+	 *
+	 * This is a getter that prefers the current HTTP context's `c.var.auth`,
+	 * allowing auth middleware that runs after the agent middleware to still
+	 * propagate auth to agents.
+	 */
+	get auth(): AuthInterface | null {
+		// Prefer HTTP context var.auth if available (allows late-binding from route middleware)
+		if (inHTTPContext()) {
+			try {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const httpCtx = httpAsyncLocalStorage.getStore() as any;
+				if (httpCtx?.var && 'auth' in httpCtx.var) {
+					return httpCtx.var.auth ?? null;
+				}
+			} catch {
+				// If HTTP context not available, fall through
+			}
+		}
+		// Fallback: whatever was passed in at creation time (for standalone/test contexts)
+		return this._initialAuth;
+	}
+
+	/**
+	 * Set auth for non-HTTP contexts (standalone, tests).
+	 * @internal
+	 */
+	set auth(value: AuthInterface | null) {
+		this._initialAuth = value;
+	}
 
 	constructor(args: RequestAgentContextArgs<TAgentMap, TConfig, TAppState>) {
 		this.agent = args.agent;
@@ -63,6 +110,7 @@ export class RequestAgentContext<
 		this.session = args.session;
 		this.config = args.config;
 		this.app = args.app;
+		this._initialAuth = args.auth ?? null;
 		this[AGENT_RUNTIME] = args.runtime;
 		this.state = new Map<string, unknown>();
 		this.handler = args.handler;

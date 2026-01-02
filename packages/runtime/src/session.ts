@@ -8,8 +8,162 @@ import { getServiceUrls } from '@agentuity/server';
 import { internal } from './logger/internal';
 import { timingSafeEqual } from 'node:crypto';
 
+/**
+ * Result of parsing serialized thread data.
+ * @internal
+ */
+export interface ParsedThreadData {
+	flatStateJson?: string;
+	metadata?: Record<string, unknown>;
+}
+
+/**
+ * Parse serialized thread data, handling both old (flat state) and new ({ state, metadata }) formats.
+ * @internal
+ */
+export function parseThreadData(raw: string | undefined): ParsedThreadData {
+	if (!raw) {
+		return {};
+	}
+
+	try {
+		const parsed = JSON.parse(raw);
+		if (parsed && typeof parsed === 'object' && ('state' in parsed || 'metadata' in parsed)) {
+			return {
+				flatStateJson: parsed.state ? JSON.stringify(parsed.state) : undefined,
+				metadata:
+					parsed.metadata && typeof parsed.metadata === 'object' ? parsed.metadata : undefined,
+			};
+		}
+		return { flatStateJson: raw };
+	} catch {
+		return { flatStateJson: raw };
+	}
+}
+
 export type ThreadEventName = 'destroyed';
 export type SessionEventName = 'completed';
+
+/**
+ * Represents a merge operation for thread state.
+ * Used when state is modified without being loaded first.
+ */
+export interface MergeOperation {
+	op: 'set' | 'delete' | 'clear' | 'push';
+	key?: string;
+	value?: unknown;
+	maxRecords?: number;
+}
+
+/**
+ * Async thread state storage with lazy loading.
+ *
+ * State is only fetched from storage when first accessed via a read operation.
+ * Write operations can be batched and sent as a merge command without loading.
+ *
+ * @example
+ * ```typescript
+ * // Read triggers lazy load
+ * const count = await ctx.thread.state.get<number>('messageCount');
+ *
+ * // Write queues operation (may not trigger load)
+ * await ctx.thread.state.set('messageCount', (count ?? 0) + 1);
+ *
+ * // Check state status
+ * if (ctx.thread.state.dirty) {
+ *   console.log('State has pending changes');
+ * }
+ * ```
+ */
+export interface ThreadState {
+	/**
+	 * Whether state has been loaded from storage.
+	 * True when state has been fetched via a read operation.
+	 */
+	readonly loaded: boolean;
+
+	/**
+	 * Whether state has pending changes.
+	 * True when there are queued writes (pending-writes state) or
+	 * modifications after loading (loaded state with changes).
+	 */
+	readonly dirty: boolean;
+
+	/**
+	 * Get a value from thread state.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	get<T = unknown>(key: string): Promise<T | undefined>;
+
+	/**
+	 * Set a value in thread state.
+	 * If state hasn't been loaded, queues the operation for merge.
+	 */
+	set<T = unknown>(key: string, value: T): Promise<void>;
+
+	/**
+	 * Check if a key exists in thread state.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	has(key: string): Promise<boolean>;
+
+	/**
+	 * Delete a key from thread state.
+	 * If state hasn't been loaded, queues the operation for merge.
+	 */
+	delete(key: string): Promise<void>;
+
+	/**
+	 * Clear all thread state.
+	 * If state hasn't been loaded, queues a clear operation for merge.
+	 */
+	clear(): Promise<void>;
+
+	/**
+	 * Get all entries as key-value pairs.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	entries<T = unknown>(): Promise<[string, T][]>;
+
+	/**
+	 * Get all keys.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	keys(): Promise<string[]>;
+
+	/**
+	 * Get all values.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	values<T = unknown>(): Promise<T[]>;
+
+	/**
+	 * Get the number of entries in state.
+	 * Triggers lazy load if state hasn't been fetched yet.
+	 */
+	size(): Promise<number>;
+
+	/**
+	 * Push a value to an array in thread state.
+	 * If the key doesn't exist, creates a new array with the value.
+	 * If state hasn't been loaded, queues the operation for efficient merge.
+	 *
+	 * @param key - The key of the array to push to
+	 * @param value - The value to push
+	 * @param maxRecords - Optional maximum number of records to keep (sliding window)
+	 *
+	 * @example
+	 * ```typescript
+	 * // Efficiently append messages without loading entire array
+	 * await ctx.thread.state.push('messages', { role: 'user', content: 'Hello' });
+	 * await ctx.thread.state.push('messages', { role: 'assistant', content: 'Hi!' });
+	 *
+	 * // Keep only the last 100 messages
+	 * await ctx.thread.state.push('messages', newMessage, 100);
+	 * ```
+	 */
+	push<T = unknown>(key: string, value: T, maxRecords?: number): Promise<void>;
+}
 
 type ThreadEventCallback<T extends Thread> = (
 	eventName: 'destroyed',
@@ -37,9 +191,12 @@ type SessionEventCallback<T extends Session> = (
  *     ctx.logger.info('Thread: %s', ctx.thread.id);
  *
  *     // Store data in thread state (persists across sessions)
- *     ctx.thread.state.set('conversationCount',
- *       (ctx.thread.state.get('conversationCount') as number || 0) + 1
- *     );
+ *     const count = await ctx.thread.state.get<number>('conversationCount') ?? 0;
+ *     await ctx.thread.state.set('conversationCount', count + 1);
+ *
+ *     // Access metadata
+ *     const meta = await ctx.thread.getMetadata();
+ *     await ctx.thread.setMetadata({ ...meta, lastAccess: Date.now() });
  *
  *     // Listen for thread destruction
  *     ctx.thread.addEventListener('destroyed', (eventName, thread) => {
@@ -59,31 +216,40 @@ export interface Thread {
 	id: string;
 
 	/**
-	 * Thread-scoped state storage that persists across multiple sessions.
-	 * Use this to maintain conversation history or user preferences.
+	 * Thread-scoped state storage with async lazy-loading.
+	 * State is only fetched from storage when first accessed via a read operation.
 	 *
 	 * @example
 	 * ```typescript
-	 * // Store conversation count
-	 * ctx.thread.state.set('messageCount',
-	 *   (ctx.thread.state.get('messageCount') as number || 0) + 1
-	 * );
+	 * // Read triggers lazy load
+	 * const count = await ctx.thread.state.get<number>('messageCount');
+	 * // Write may queue operation without loading
+	 * await ctx.thread.state.set('messageCount', (count ?? 0) + 1);
 	 * ```
 	 */
-	state: Map<string, unknown>;
+	state: ThreadState;
 
 	/**
-	 * Unencrypted metadata for filtering and querying threads.
-	 * Unlike state, metadata is stored as-is in the database with GIN indexes
-	 * for efficient filtering. Initialized to empty object, only persisted if non-empty.
+	 * Get thread metadata (lazy-loaded).
+	 * Unlike state, metadata is stored unencrypted for efficient filtering.
 	 *
 	 * @example
 	 * ```typescript
-	 * ctx.thread.metadata.userId = 'user123';
-	 * ctx.thread.metadata.department = 'sales';
+	 * const meta = await ctx.thread.getMetadata();
+	 * console.log(meta.userId);
 	 * ```
 	 */
-	metadata: Record<string, unknown>;
+	getMetadata(): Promise<Record<string, unknown>>;
+
+	/**
+	 * Set thread metadata (full replace).
+	 *
+	 * @example
+	 * ```typescript
+	 * await ctx.thread.setMetadata({ userId: 'user123', department: 'sales' });
+	 * ```
+	 */
+	setMetadata(metadata: Record<string, unknown>): Promise<void>;
 
 	/**
 	 * Register an event listener for when the thread is destroyed.
@@ -130,15 +296,16 @@ export interface Thread {
 	/**
 	 * Check if the thread has any data.
 	 * Returns true if thread state is empty (no data to save).
+	 * This is async because it may need to check lazy-loaded state.
 	 *
 	 * @example
 	 * ```typescript
-	 * if (ctx.thread.empty()) {
+	 * if (await ctx.thread.empty()) {
 	 *   // Thread has no data, won't be persisted
 	 * }
 	 * ```
 	 */
-	empty(): boolean;
+	empty(): Promise<boolean>;
 }
 
 /**
@@ -271,6 +438,10 @@ export interface ThreadIDProvider {
  * The default implementation (DefaultThreadProvider) stores threads in-memory
  * with cookie-based identification and 1-hour expiration.
  *
+ * Thread state is serialized using `getSerializedState()` which returns a JSON
+ * envelope: `{ "state": {...}, "metadata": {...} }`. Use `parseThreadData()` to
+ * correctly parse both old (flat) and new (envelope) formats on restore.
+ *
  * @example
  * ```typescript
  * class RedisThreadProvider implements ThreadProvider {
@@ -283,19 +454,29 @@ export interface ThreadIDProvider {
  *   async restore(ctx: Context<Env>): Promise<Thread> {
  *     const threadId = ctx.req.header('x-thread-id') || getCookie(ctx, 'atid') || generateId('thrd');
  *     const data = await this.redis.get(`thread:${threadId}`);
- *     const thread = new DefaultThread(this, threadId);
- *     if (data) {
- *       thread.state = new Map(JSON.parse(data));
+ *
+ *     // Parse stored data, handling both old and new formats
+ *     const { flatStateJson, metadata } = parseThreadData(data);
+ *     const thread = new DefaultThread(this, threadId, flatStateJson, metadata);
+ *
+ *     // Populate state from parsed data
+ *     if (flatStateJson) {
+ *       const stateObj = JSON.parse(flatStateJson);
+ *       for (const [key, value] of Object.entries(stateObj)) {
+ *         thread.state.set(key, value);
+ *       }
  *     }
  *     return thread;
  *   }
  *
  *   async save(thread: Thread): Promise<void> {
- *     await this.redis.setex(
- *       `thread:${thread.id}`,
- *       3600,
- *       JSON.stringify([...thread.state])
- *     );
+ *     if (thread instanceof DefaultThread && thread.isDirty()) {
+ *       await this.redis.setex(
+ *         `thread:${thread.id}`,
+ *         3600,
+ *         thread.getSerializedState()
+ *       );
+ *     }
  *   }
  *
  *   async destroy(thread: Thread): Promise<void> {
@@ -675,24 +856,285 @@ export class DefaultThreadIDProvider implements ThreadIDProvider {
 	}
 }
 
-export class DefaultThread implements Thread {
+type LazyStateStatus = 'idle' | 'pending-writes' | 'loaded';
+
+type RestoreFn = () => Promise<{ state: Map<string, unknown>; metadata: Record<string, unknown> }>;
+
+export class LazyThreadState implements ThreadState {
+	#status: LazyStateStatus = 'idle';
+	#state: Map<string, unknown> = new Map();
+	#pendingOperations: MergeOperation[] = [];
 	#initialStateJson: string | undefined;
+	#restoreFn: RestoreFn;
+	#loadingPromise: Promise<void> | null = null;
+
+	constructor(restoreFn: RestoreFn) {
+		this.#restoreFn = restoreFn;
+	}
+
+	get loaded(): boolean {
+		return this.#status === 'loaded';
+	}
+
+	get dirty(): boolean {
+		if (this.#status === 'pending-writes') {
+			return this.#pendingOperations.length > 0;
+		}
+		if (this.#status === 'loaded') {
+			const currentJson = JSON.stringify(Object.fromEntries(this.#state));
+			return currentJson !== this.#initialStateJson;
+		}
+		return false;
+	}
+
+	private async ensureLoaded(): Promise<void> {
+		if (this.#status === 'loaded') {
+			return;
+		}
+
+		if (this.#loadingPromise) {
+			await this.#loadingPromise;
+			return;
+		}
+
+		this.#loadingPromise = (async () => {
+			try {
+				await this.doLoad();
+			} finally {
+				this.#loadingPromise = null;
+			}
+		})();
+
+		await this.#loadingPromise;
+	}
+
+	private async doLoad(): Promise<void> {
+		const { state } = await this.#restoreFn();
+
+		// Initialize state from restored data
+		this.#state = new Map(state);
+		this.#initialStateJson = JSON.stringify(Object.fromEntries(this.#state));
+
+		// Apply any pending operations
+		for (const op of this.#pendingOperations) {
+			switch (op.op) {
+				case 'clear':
+					this.#state.clear();
+					break;
+				case 'set':
+					if (op.key !== undefined) {
+						this.#state.set(op.key, op.value);
+					}
+					break;
+				case 'delete':
+					if (op.key !== undefined) {
+						this.#state.delete(op.key);
+					}
+					break;
+				case 'push':
+					if (op.key !== undefined) {
+						const existing = this.#state.get(op.key);
+						if (Array.isArray(existing)) {
+							existing.push(op.value);
+							// Apply maxRecords limit
+							if (op.maxRecords !== undefined && existing.length > op.maxRecords) {
+								existing.splice(0, existing.length - op.maxRecords);
+							}
+						} else if (existing === undefined) {
+							this.#state.set(op.key, [op.value]);
+						}
+						// If existing is non-array, silently skip (error would have been thrown if loaded)
+					}
+					break;
+			}
+		}
+
+		this.#pendingOperations = [];
+		this.#status = 'loaded';
+	}
+
+	async get<T = unknown>(key: string): Promise<T | undefined> {
+		await this.ensureLoaded();
+		return this.#state.get(key) as T | undefined;
+	}
+
+	async set<T = unknown>(key: string, value: T): Promise<void> {
+		if (this.#status === 'loaded') {
+			this.#state.set(key, value);
+		} else {
+			this.#pendingOperations.push({ op: 'set', key, value });
+			if (this.#status === 'idle') {
+				this.#status = 'pending-writes';
+			}
+		}
+	}
+
+	async has(key: string): Promise<boolean> {
+		await this.ensureLoaded();
+		return this.#state.has(key);
+	}
+
+	async delete(key: string): Promise<void> {
+		if (this.#status === 'loaded') {
+			this.#state.delete(key);
+		} else {
+			this.#pendingOperations.push({ op: 'delete', key });
+			if (this.#status === 'idle') {
+				this.#status = 'pending-writes';
+			}
+		}
+	}
+
+	async clear(): Promise<void> {
+		if (this.#status === 'loaded') {
+			this.#state.clear();
+		} else {
+			// Clear replaces all previous pending operations
+			this.#pendingOperations = [{ op: 'clear' }];
+			if (this.#status === 'idle') {
+				this.#status = 'pending-writes';
+			}
+		}
+	}
+
+	async entries<T = unknown>(): Promise<[string, T][]> {
+		await this.ensureLoaded();
+		return Array.from(this.#state.entries()) as [string, T][];
+	}
+
+	async keys(): Promise<string[]> {
+		await this.ensureLoaded();
+		return Array.from(this.#state.keys());
+	}
+
+	async values<T = unknown>(): Promise<T[]> {
+		await this.ensureLoaded();
+		return Array.from(this.#state.values()) as T[];
+	}
+
+	async size(): Promise<number> {
+		await this.ensureLoaded();
+		return this.#state.size;
+	}
+
+	async push<T = unknown>(key: string, value: T, maxRecords?: number): Promise<void> {
+		if (this.#status === 'loaded') {
+			// When loaded, push to local array
+			const existing = this.#state.get(key);
+			if (Array.isArray(existing)) {
+				existing.push(value);
+				// Apply maxRecords limit
+				if (maxRecords !== undefined && existing.length > maxRecords) {
+					existing.splice(0, existing.length - maxRecords);
+				}
+			} else if (existing === undefined) {
+				this.#state.set(key, [value]);
+			} else {
+				throw new Error(`Cannot push to non-array value at key "${key}"`);
+			}
+		} else {
+			// Queue push operation for merge
+			const op: MergeOperation = { op: 'push', key, value };
+			if (maxRecords !== undefined) {
+				op.maxRecords = maxRecords;
+			}
+			this.#pendingOperations.push(op);
+			if (this.#status === 'idle') {
+				this.#status = 'pending-writes';
+			}
+		}
+	}
+
+	/**
+	 * Get the current status for save logic
+	 * @internal
+	 */
+	getStatus(): LazyStateStatus {
+		return this.#status;
+	}
+
+	/**
+	 * Get pending operations for merge command
+	 * @internal
+	 */
+	getPendingOperations(): MergeOperation[] {
+		return [...this.#pendingOperations];
+	}
+
+	/**
+	 * Get serialized state for full save.
+	 * Ensures state is loaded before serializing.
+	 * @internal
+	 */
+	async getSerializedState(): Promise<Record<string, unknown>> {
+		await this.ensureLoaded();
+		return Object.fromEntries(this.#state);
+	}
+}
+
+export class DefaultThread implements Thread {
 	readonly id: string;
-	readonly state: Map<string, unknown>;
-	metadata: Record<string, unknown>;
+	readonly state: LazyThreadState;
+	#metadata: Record<string, unknown> | null = null;
+	#metadataDirty = false;
+	#metadataLoadPromise: Promise<void> | null = null;
 	private provider: ThreadProvider;
+	#restoreFn: RestoreFn;
+	#restoredMetadata: Record<string, unknown> | undefined;
 
 	constructor(
 		provider: ThreadProvider,
 		id: string,
-		initialStateJson?: string,
-		metadata?: Record<string, unknown>
+		restoreFn: RestoreFn,
+		initialMetadata?: Record<string, unknown>
 	) {
 		this.provider = provider;
 		this.id = id;
-		this.state = new Map();
-		this.#initialStateJson = initialStateJson;
-		this.metadata = metadata || {};
+		this.#restoreFn = restoreFn;
+		this.#restoredMetadata = initialMetadata;
+		this.state = new LazyThreadState(restoreFn);
+	}
+
+	private async ensureMetadataLoaded(): Promise<void> {
+		if (this.#metadata !== null) {
+			return;
+		}
+
+		// If we have initial metadata from thread creation, use it
+		if (this.#restoredMetadata !== undefined) {
+			this.#metadata = this.#restoredMetadata;
+			return;
+		}
+
+		if (this.#metadataLoadPromise) {
+			await this.#metadataLoadPromise;
+			return;
+		}
+
+		this.#metadataLoadPromise = (async () => {
+			try {
+				await this.doLoadMetadata();
+			} finally {
+				this.#metadataLoadPromise = null;
+			}
+		})();
+
+		await this.#metadataLoadPromise;
+	}
+
+	private async doLoadMetadata(): Promise<void> {
+		const { metadata } = await this.#restoreFn();
+		this.#metadata = metadata;
+	}
+
+	async getMetadata(): Promise<Record<string, unknown>> {
+		await this.ensureMetadataLoaded();
+		return { ...this.#metadata! };
+	}
+
+	async setMetadata(metadata: Record<string, unknown>): Promise<void> {
+		this.#metadata = metadata;
+		this.#metadataDirty = true;
 	}
 
 	addEventListener(eventName: ThreadEventName, callback: ThreadEventCallback<any>): void {
@@ -726,33 +1168,80 @@ export class DefaultThread implements Thread {
 	}
 
 	/**
-	 * Check if thread state has been modified since restore
-	 * @internal
-	 */
-	isDirty(): boolean {
-		if (this.state.size === 0 && !this.#initialStateJson) {
-			return false;
-		}
-
-		const currentJson = JSON.stringify(Object.fromEntries(this.state));
-
-		return currentJson !== this.#initialStateJson;
-	}
-
-	/**
 	 * Check if thread has any data (state or metadata)
 	 */
-	empty(): boolean {
-		return this.state.size === 0 && Object.keys(this.metadata).length === 0;
+	async empty(): Promise<boolean> {
+		const stateSize = await this.state.size();
+		// Check both loaded metadata and initial metadata from constructor
+		const meta = this.#metadata ?? this.#restoredMetadata ?? {};
+		return stateSize === 0 && Object.keys(meta).length === 0;
 	}
 
 	/**
-	 * Get serialized state for saving
+	 * Check if thread needs saving
 	 * @internal
 	 */
-	getSerializedState(): string {
-		const hasState = this.state.size > 0;
-		const hasMetadata = Object.keys(this.metadata).length > 0;
+	needsSave(): boolean {
+		return this.state.dirty || this.#metadataDirty;
+	}
+
+	/**
+	 * Get the save mode for this thread
+	 * @internal
+	 */
+	getSaveMode(): 'none' | 'merge' | 'full' {
+		const stateStatus = this.state.getStatus();
+
+		if (stateStatus === 'idle' && !this.#metadataDirty) {
+			return 'none';
+		}
+
+		if (stateStatus === 'pending-writes') {
+			return 'merge';
+		}
+
+		if (stateStatus === 'loaded' && (this.state.dirty || this.#metadataDirty)) {
+			return 'full';
+		}
+
+		// Only metadata was changed without loading state
+		if (this.#metadataDirty) {
+			return 'merge';
+		}
+
+		return 'none';
+	}
+
+	/**
+	 * Get pending operations for merge command
+	 * @internal
+	 */
+	getPendingOperations(): MergeOperation[] {
+		return this.state.getPendingOperations();
+	}
+
+	/**
+	 * Get metadata for saving (returns null if not loaded/modified)
+	 * @internal
+	 */
+	getMetadataForSave(): Record<string, unknown> | undefined {
+		if (this.#metadataDirty && this.#metadata) {
+			return this.#metadata;
+		}
+		return undefined;
+	}
+
+	/**
+	 * Get serialized state for full save.
+	 * Ensures state is loaded before serializing.
+	 * @internal
+	 */
+	async getSerializedState(): Promise<string> {
+		const state = await this.state.getSerializedState();
+		// Also ensure metadata is loaded
+		const meta = this.#metadata ?? this.#restoredMetadata ?? {};
+		const hasState = Object.keys(state).length > 0;
+		const hasMetadata = Object.keys(meta).length > 0;
 
 		if (!hasState && !hasMetadata) {
 			return '';
@@ -761,11 +1250,11 @@ export class DefaultThread implements Thread {
 		const data: { state?: Record<string, unknown>; metadata?: Record<string, unknown> } = {};
 
 		if (hasState) {
-			data.state = Object.fromEntries(this.state);
+			data.state = state;
 		}
 
 		if (hasMetadata) {
-			data.metadata = this.metadata;
+			data.metadata = meta;
 		}
 
 		return JSON.stringify(data);
@@ -1177,6 +1666,58 @@ export class ThreadWebSocketClient {
 		});
 	}
 
+	async merge(
+		threadId: string,
+		operations: MergeOperation[],
+		metadata?: Record<string, unknown>
+	): Promise<void> {
+		// Wait for connection/reconnection if in progress
+		if (this.wsConnecting) {
+			await this.wsConnecting;
+		}
+
+		if (!this.authenticated || !this.ws) {
+			throw new Error('WebSocket not connected or authenticated');
+		}
+
+		return new Promise((resolve, reject) => {
+			const requestId = crypto.randomUUID();
+			this.pendingRequests.set(requestId, {
+				resolve: () => resolve(),
+				reject,
+			});
+
+			const data: {
+				thread_id: string;
+				operations: MergeOperation[];
+				metadata?: Record<string, unknown>;
+			} = {
+				thread_id: threadId,
+				operations,
+			};
+
+			if (metadata && Object.keys(metadata).length > 0) {
+				data.metadata = metadata;
+			}
+
+			const message = {
+				id: requestId,
+				action: 'merge',
+				data,
+			};
+
+			this.ws!.send(JSON.stringify(message));
+
+			// Timeout after configured duration
+			setTimeout(() => {
+				if (this.pendingRequests.has(requestId)) {
+					this.pendingRequests.delete(requestId);
+					reject(new Error('Request timeout'));
+				}
+			}, this.requestTimeoutMs);
+		});
+	}
+
 	cleanup(): void {
 		// Mark as disposed to prevent new reconnection attempts
 		this.isDisposed = true;
@@ -1240,86 +1781,14 @@ export class DefaultThreadProvider implements ThreadProvider {
 	async restore(ctx: Context<Env>): Promise<Thread> {
 		const threadId = await this.threadIDProvider!.getThreadId(this.appState!, ctx);
 		validateThreadIdOrThrow(threadId);
-		internal.info('[thread] restoring thread %s', threadId);
+		internal.info('[thread] creating lazy thread %s (no eager restore)', threadId);
 
-		// Wait for WebSocket connection if still connecting
-		if (this.wsConnecting) {
-			internal.info('[thread] waiting for WebSocket connection');
-			await this.wsConnecting;
-		}
-
-		// Restore thread state and metadata from WebSocket if available
-		let initialStateJson: string | undefined;
-		let restoredMetadata: Record<string, unknown> | undefined;
-		if (this.wsClient) {
-			try {
-				internal.info('[thread] restoring state from WebSocket');
-				const restoredData = await this.wsClient.restore(threadId);
-				if (restoredData) {
-					initialStateJson = restoredData;
-					internal.info('[thread] restored state: %d bytes', restoredData.length);
-					// Parse to check if it includes metadata
-					try {
-						const parsed = JSON.parse(restoredData);
-						// New format: { state?: {...}, metadata?: {...} }
-						if (
-							parsed &&
-							typeof parsed === 'object' &&
-							('state' in parsed || 'metadata' in parsed)
-						) {
-							if (parsed.metadata) {
-								restoredMetadata = parsed.metadata;
-							}
-							// Update initialStateJson to be just the state part for backwards compatibility
-							if (parsed.state) {
-								initialStateJson = JSON.stringify(parsed.state);
-							} else {
-								initialStateJson = undefined;
-							}
-						}
-						// else: Old format (just state object), keep as-is
-					} catch {
-						// Keep original if parse fails
-					}
-				} else {
-					internal.info('[thread] no existing state found');
-				}
-			} catch (err) {
-				internal.info('[thread] WebSocket restore failed: %s', err);
-				// Continue with empty state rather than failing
-			}
-		} else {
-			internal.info('[thread] no WebSocket client available');
-		}
-
-		const thread = new DefaultThread(this, threadId, initialStateJson, restoredMetadata);
-
-		// Populate thread state from restored data
-		if (initialStateJson) {
-			try {
-				const data = JSON.parse(initialStateJson);
-				for (const [key, value] of Object.entries(data)) {
-					thread.state.set(key, value);
-				}
-				internal.info('[thread] populated state with %d keys', thread.state.size);
-			} catch (err) {
-				internal.info('[thread] failed to parse state JSON: %s', err);
-				// Continue with empty state if parsing fails
-			}
-		}
-
-		await fireEvent('thread.created', thread);
-		return thread;
-	}
-
-	async save(thread: Thread): Promise<void> {
-		if (thread instanceof DefaultThread) {
-			internal.info(
-				'[thread] DefaultThreadProvider.save() - thread %s, isDirty: %s, hasWsClient: %s',
-				thread.id,
-				thread.isDirty(),
-				!!this.wsClient
-			);
+		// Create a restore function that will be called lazily when state/metadata is accessed
+		const restoreFn = async (): Promise<{
+			state: Map<string, unknown>;
+			metadata: Record<string, unknown>;
+		}> => {
+			internal.info('[thread] lazy loading state for thread %s', threadId);
 
 			// Wait for WebSocket connection if still connecting
 			if (this.wsConnecting) {
@@ -1327,24 +1796,93 @@ export class DefaultThreadProvider implements ThreadProvider {
 				await this.wsConnecting;
 			}
 
-			// Only save to WebSocket if state has changed
-			if (this.wsClient && thread.isDirty()) {
-				try {
-					const serialized = thread.getSerializedState();
+			if (!this.wsClient) {
+				internal.info('[thread] no WebSocket client available, returning empty state');
+				return { state: new Map(), metadata: {} };
+			}
+
+			try {
+				const restoredData = await this.wsClient.restore(threadId);
+				if (restoredData) {
+					internal.info('[thread] restored state: %d bytes', restoredData.length);
+					const { flatStateJson, metadata } = parseThreadData(restoredData);
+
+					const state = new Map<string, unknown>();
+					if (flatStateJson) {
+						try {
+							const data = JSON.parse(flatStateJson);
+							for (const [key, value] of Object.entries(data)) {
+								state.set(key, value);
+							}
+						} catch {
+							internal.info('[thread] failed to parse state JSON');
+						}
+					}
+
+					return { state, metadata: metadata || {} };
+				}
+				internal.info('[thread] no existing state found');
+				return { state: new Map(), metadata: {} };
+			} catch (err) {
+				internal.info('[thread] WebSocket restore failed: %s', err);
+				return { state: new Map(), metadata: {} };
+			}
+		};
+
+		const thread = new DefaultThread(this, threadId, restoreFn);
+		await fireEvent('thread.created', thread);
+		return thread;
+	}
+
+	async save(thread: Thread): Promise<void> {
+		if (thread instanceof DefaultThread) {
+			const saveMode = thread.getSaveMode();
+			internal.info(
+				'[thread] DefaultThreadProvider.save() - thread %s, saveMode: %s, hasWsClient: %s',
+				thread.id,
+				saveMode,
+				!!this.wsClient
+			);
+
+			if (saveMode === 'none') {
+				internal.info('[thread] skipping save - no changes');
+				return;
+			}
+
+			// Wait for WebSocket connection if still connecting
+			if (this.wsConnecting) {
+				internal.info('[thread] waiting for WebSocket connection');
+				await this.wsConnecting;
+			}
+
+			if (!this.wsClient) {
+				internal.info('[thread] no WebSocket client available, skipping save');
+				return;
+			}
+
+			try {
+				if (saveMode === 'merge') {
+					const operations = thread.getPendingOperations();
+					const metadata = thread.getMetadataForSave();
+					internal.info(
+						'[thread] sending merge command with %d operations',
+						operations.length
+					);
+					await this.wsClient.merge(thread.id, operations, metadata);
+					internal.info('[thread] WebSocket merge completed');
+				} else if (saveMode === 'full') {
+					const serialized = await thread.getSerializedState();
 					internal.info(
 						'[thread] saving to WebSocket, serialized length: %d',
 						serialized.length
 					);
-					const metadata =
-						Object.keys(thread.metadata).length > 0 ? thread.metadata : undefined;
+					const metadata = thread.getMetadataForSave();
 					await this.wsClient.save(thread.id, serialized, metadata);
 					internal.info('[thread] WebSocket save completed');
-				} catch (err) {
-					internal.info('[thread] WebSocket save failed: %s', err);
-					// Don't throw - allow request to complete even if save fails
 				}
-			} else {
-				internal.info('[thread] skipping save - no wsClient or thread not dirty');
+			} catch (err) {
+				internal.info('[thread] WebSocket save/merge failed: %s', err);
+				// Don't throw - allow request to complete even if save fails
 			}
 		}
 	}

@@ -281,6 +281,22 @@ type Normalized = {
 	optionalRegion: boolean;
 };
 
+/**
+ * Get the full command path for a command (e.g., "cloud sandbox snapshot delete")
+ * Uses Commander's _getCommandAndAncestors to traverse the command hierarchy.
+ */
+function getFullCommandPath(cmd: Command): string {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const ancestors = (cmd as any)._getCommandAndAncestors() as Command[];
+	// ancestors is [current, parent, grandparent, ...root] - reverse and skip root program name
+	const names = ancestors.map((c) => c.name()).reverse();
+	// Skip the first entry if it's the root program (usually empty or 'agentuity')
+	if (names.length > 1 && (names[0] === '' || names[0] === 'agentuity')) {
+		return names.slice(1).join(' ');
+	}
+	return names.join(' ');
+}
+
 function normalizeReqs(def: CommandDefinition | SubcommandDefinition): Normalized {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const d: any = def as any;
@@ -1121,14 +1137,14 @@ async function registerSubcommand(
 					}
 					await executeOrValidate(
 						ctx as CommandContext,
-						`${parent.name()} ${subcommand.name}`,
+						getFullCommandPath(cmd),
 						subcommand.handler,
 						!!subcommand.schema?.response,
 						subcommand.webUrl
 					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
-						handleValidationError(error, `${parent.name()} ${subcommand.name}`, baseCtx);
+						handleValidationError(error, getFullCommandPath(cmd), baseCtx);
 					}
 					handleProjectConfigError(
 						error,
@@ -1201,7 +1217,7 @@ async function registerSubcommand(
 							exitWithError(
 								createError(
 									ErrorCode.INTERNAL_ERROR,
-									`Command '${parent.name()} ${subcommand.name}' declares a response schema but returned no data. This is a bug in the command implementation.`
+									`Command '${getFullCommandPath(cmd)}' declares a response schema but returned no data. This is a bug in the command implementation.`
 								),
 								baseCtx.logger,
 								baseCtx.options.errorFormat
@@ -1300,14 +1316,14 @@ async function registerSubcommand(
 					}
 					await executeOrValidate(
 						ctx as CommandContext,
-						`${parent.name()} ${subcommand.name}`,
+						getFullCommandPath(cmd),
 						subcommand.handler,
 						!!subcommand.schema?.response,
 						subcommand.webUrl
 					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
-						handleValidationError(error, `${parent.name()} ${subcommand.name}`, baseCtx);
+						handleValidationError(error, getFullCommandPath(cmd), baseCtx);
 					}
 					handleProjectConfigError(
 						error,
@@ -1376,7 +1392,7 @@ async function registerSubcommand(
 							exitWithError(
 								createError(
 									ErrorCode.INTERNAL_ERROR,
-									`Command '${parent.name()} ${subcommand.name}' declares a response schema but returned no data. This is a bug in the command implementation.`
+									`Command '${getFullCommandPath(cmd)}' declares a response schema but returned no data. This is a bug in the command implementation.`
 								),
 								baseCtx.logger,
 								baseCtx.options.errorFormat
@@ -1425,14 +1441,14 @@ async function registerSubcommand(
 					}
 					await executeOrValidate(
 						ctx as CommandContext,
-						`${parent.name()} ${subcommand.name}`,
+						getFullCommandPath(cmd),
 						subcommand.handler,
 						!!subcommand.schema?.response,
 						subcommand.webUrl
 					);
 				} catch (error) {
 					if (error && typeof error === 'object' && 'issues' in error) {
-						handleValidationError(error, `${parent.name()} ${subcommand.name}`, baseCtx);
+						handleValidationError(error, getFullCommandPath(cmd), baseCtx);
 					}
 					handleProjectConfigError(
 						error,
@@ -1488,7 +1504,7 @@ async function registerSubcommand(
 							exitWithError(
 								createError(
 									ErrorCode.INTERNAL_ERROR,
-									`Command '${parent.name()} ${subcommand.name}' declares a response schema but returned no data. This is a bug in the command implementation.`
+									`Command '${getFullCommandPath(cmd)}' declares a response schema but returned no data. This is a bug in the command implementation.`
 								),
 								baseCtx.logger,
 								baseCtx.options.errorFormat

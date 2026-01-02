@@ -4,6 +4,7 @@ import type {
 	SandboxInfo,
 	ExecuteOptions as CoreExecuteOptions,
 	Execution,
+	FileToWrite,
 } from '@agentuity/core';
 import type { Writable } from 'node:stream';
 import { APIClient } from '../api';
@@ -11,6 +12,7 @@ import { sandboxCreate, type SandboxCreateResponse } from './create';
 import { sandboxDestroy } from './destroy';
 import { sandboxGet } from './get';
 import { sandboxExecute } from './execute';
+import { sandboxWriteFiles, sandboxReadFile } from './files';
 import { executionGet, type ExecutionInfo } from './execution';
 import { ConsoleLogger } from '../../logger';
 import { getServiceUrls } from '../../config';
@@ -24,11 +26,16 @@ const MAX_POLL_TIME_MS = 300000; // 5 minutes
 async function waitForExecution(
 	client: APIClient,
 	executionId: string,
-	orgId?: string
+	orgId?: string,
+	signal?: AbortSignal
 ): Promise<ExecutionInfo> {
 	const startTime = Date.now();
 
 	while (Date.now() - startTime < MAX_POLL_TIME_MS) {
+		if (signal?.aborted) {
+			throw new DOMException('The operation was aborted.', 'AbortError');
+		}
+
 		const info = await executionGet(client, { executionId, orgId });
 
 		if (
@@ -40,7 +47,17 @@ async function waitForExecution(
 			return info;
 		}
 
-		await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+		await new Promise((resolve, reject) => {
+			const timeoutId = setTimeout(resolve, POLL_INTERVAL_MS);
+			signal?.addEventListener(
+				'abort',
+				() => {
+					clearTimeout(timeoutId);
+					reject(new DOMException('The operation was aborted.', 'AbortError'));
+				},
+				{ once: true }
+			);
+		});
 	}
 
 	throw new Error(`Execution ${executionId} timed out waiting for completion`);
@@ -216,6 +233,7 @@ export class SandboxClient {
 					sandboxId,
 					options: coreOptions,
 					orgId,
+					signal: coreOptions.signal,
 				});
 
 				// If pipe options provided, stream the output to the writable streams
@@ -240,7 +258,12 @@ export class SandboxClient {
 				}
 
 				// Wait for execution to complete and get final result with exit code
-				const finalResult = await waitForExecution(client, initialResult.executionId, orgId);
+				const finalResult = await waitForExecution(
+					client,
+					initialResult.executionId,
+					orgId,
+					coreOptions.signal
+				);
 
 				return {
 					executionId: finalResult.executionId,
@@ -279,5 +302,48 @@ export class SandboxClient {
 	 */
 	async destroy(sandboxId: string): Promise<void> {
 		return sandboxDestroy(this.#client, { sandboxId, orgId: this.#orgId });
+	}
+
+	/**
+	 * Write files to a sandbox workspace
+	 *
+	 * @param sandboxId - The sandbox ID
+	 * @param files - Array of files to write with path and content
+	 * @param signal - Optional AbortSignal to cancel the operation
+	 * @returns The number of files written
+	 */
+	async writeFiles(
+		sandboxId: string,
+		files: FileToWrite[],
+		signal?: AbortSignal
+	): Promise<number> {
+		const result = await sandboxWriteFiles(this.#client, {
+			sandboxId,
+			files,
+			orgId: this.#orgId,
+			signal,
+		});
+		return result.filesWritten;
+	}
+
+	/**
+	 * Read a file from a sandbox workspace
+	 *
+	 * @param sandboxId - The sandbox ID
+	 * @param path - Path to the file relative to the sandbox workspace
+	 * @param signal - Optional AbortSignal to cancel the operation
+	 * @returns A ReadableStream of the file contents
+	 */
+	async readFile(
+		sandboxId: string,
+		path: string,
+		signal?: AbortSignal
+	): Promise<ReadableStream<Uint8Array>> {
+		return sandboxReadFile(this.#client, {
+			sandboxId,
+			path,
+			orgId: this.#orgId,
+			signal,
+		});
 	}
 }

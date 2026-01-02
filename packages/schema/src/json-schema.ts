@@ -1,16 +1,23 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Schema } from './base';
-import { StringSchema, string } from './primitives/string';
-import { NumberSchema, number } from './primitives/number';
-import { BooleanSchema, boolean } from './primitives/boolean';
-import { NullSchema, null_ } from './primitives/null';
-import { UndefinedSchema } from './primitives/undefined';
-import { ObjectSchema, object } from './complex/object';
-import { ArraySchema, array } from './complex/array';
-import { LiteralSchema, literal } from './utils/literal';
-import { OptionalSchema, optional } from './utils/optional';
-import { NullableSchema, nullable } from './utils/nullable';
-import { UnionSchema, union } from './utils/union';
+import { string } from './primitives/string';
+import { number } from './primitives/number';
+import { boolean } from './primitives/boolean';
+import { null_ } from './primitives/null';
+import { object } from './complex/object';
+import { array } from './complex/array';
+import { literal } from './utils/literal';
+import { optional } from './utils/optional';
+import { nullable } from './utils/nullable';
+import { union } from './utils/union';
+
+/**
+ * Check schema type by constructor name (works across bundled modules).
+ * Using instanceof fails when code is bundled or multiple copies of the package exist.
+ */
+function isSchemaType(schema: any, typeName: string): boolean {
+	return schema?.constructor?.name === typeName;
+}
 
 /**
  * JSON Schema object representation.
@@ -55,35 +62,35 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 		result.description = schema.description;
 	}
 
-	// Primitive types
-	if (schema instanceof StringSchema) {
+	// Primitive types - use constructor name checks (works across bundled modules)
+	if (isSchemaType(schema, 'StringSchema') || isSchemaType(schema, 'CoerceStringSchema')) {
 		result.type = 'string';
 		return result;
 	}
 
-	if (schema instanceof NumberSchema) {
+	if (isSchemaType(schema, 'NumberSchema') || isSchemaType(schema, 'CoerceNumberSchema')) {
 		result.type = 'number';
 		return result;
 	}
 
-	if (schema instanceof BooleanSchema) {
+	if (isSchemaType(schema, 'BooleanSchema') || isSchemaType(schema, 'CoerceBooleanSchema')) {
 		result.type = 'boolean';
 		return result;
 	}
 
-	if (schema instanceof NullSchema) {
+	if (isSchemaType(schema, 'NullSchema')) {
 		result.type = 'null';
 		return result;
 	}
 
-	if (schema instanceof UndefinedSchema) {
+	if (isSchemaType(schema, 'UndefinedSchema')) {
 		// JSON Schema doesn't have a direct "undefined" type
 		// We can represent it as an empty schema or omit the field
 		return {};
 	}
 
 	// Literal types
-	if (schema instanceof LiteralSchema) {
+	if (isSchemaType(schema, 'LiteralSchema')) {
 		const value = (schema as any).value;
 		result.const = value;
 		if (typeof value === 'string') {
@@ -97,7 +104,7 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 	}
 
 	// Object types
-	if (schema instanceof ObjectSchema) {
+	if (isSchemaType(schema, 'ObjectSchema')) {
 		result.type = 'object';
 		const shape = (schema as any).shape;
 		result.properties = {};
@@ -107,7 +114,7 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 			result.properties[key] = toJSONSchema(fieldSchema);
 
 			// If the field is not optional, add it to required
-			if (!(fieldSchema instanceof OptionalSchema)) {
+			if (!isSchemaType(fieldSchema, 'OptionalSchema')) {
 				result.required.push(key);
 			}
 		}
@@ -121,7 +128,7 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 	}
 
 	// Array types
-	if (schema instanceof ArraySchema) {
+	if (isSchemaType(schema, 'ArraySchema')) {
 		result.type = 'array';
 		const itemSchema = (schema as any).itemSchema;
 		result.items = toJSONSchema(itemSchema);
@@ -129,7 +136,7 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 	}
 
 	// Optional types
-	if (schema instanceof OptionalSchema) {
+	if (isSchemaType(schema, 'OptionalSchema')) {
 		const innerSchema = (schema as any).schema;
 		const innerJSON = toJSONSchema(innerSchema);
 		// Optional is typically handled at the object level via required array
@@ -137,7 +144,7 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 	}
 
 	// Nullable types
-	if (schema instanceof NullableSchema) {
+	if (isSchemaType(schema, 'NullableSchema')) {
 		const innerSchema = (schema as any).schema;
 		const innerJSON = toJSONSchema(innerSchema);
 		// Nullable can be represented as anyOf with null
@@ -148,9 +155,33 @@ export function toJSONSchema(schema: Schema<any, any>): JSONSchema {
 	}
 
 	// Union types
-	if (schema instanceof UnionSchema) {
+	if (isSchemaType(schema, 'UnionSchema')) {
 		const schemas = (schema as any).schemas as Schema<any, any>[];
 		result.anyOf = schemas.map((schema) => toJSONSchema(schema));
+		return result;
+	}
+
+	// Record types (object with string keys and typed values)
+	if (isSchemaType(schema, 'RecordSchema')) {
+		result.type = 'object';
+		// Record schemas have additionalProperties
+		const valueSchema = (schema as any).valueSchema;
+		if (valueSchema) {
+			(result as any).additionalProperties = toJSONSchema(valueSchema);
+		}
+		return result;
+	}
+
+	// Unknown/Any types - accept anything
+	if (isSchemaType(schema, 'UnknownSchema') || isSchemaType(schema, 'AnySchema')) {
+		// Return empty schema (accepts any value in JSON Schema)
+		return result;
+	}
+
+	// Coerce date - represented as string in JSON Schema
+	if (isSchemaType(schema, 'CoerceDateSchema')) {
+		result.type = 'string';
+		(result as any).format = 'date-time';
 		return result;
 	}
 

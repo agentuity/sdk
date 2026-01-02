@@ -671,6 +671,10 @@ async function testTemplate(
 		} else if (template.id === 'clerk') {
 			envVars.CLERK_SECRET_KEY = 'sk_test_dummy';
 			envVars.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
+		} else if (template.id === 'agentuity-auth') {
+			// Auth template requires DATABASE_URL to be set (throws at import time otherwise)
+			envVars.DATABASE_URL = 'postgres://user:pass@localhost:5432/testdb';
+			envVars.AGENTUITY_AUTH_SECRET = 'test-secret-for-auth-template';
 		}
 
 		// Step 4: Typecheck

@@ -9,6 +9,9 @@ const SandboxGetResponseSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
 	status: z.string().describe('Current status'),
 	createdAt: z.string().describe('Creation timestamp'),
+	region: z.string().optional().describe('Region where sandbox is running'),
+	snapshotId: z.string().optional().describe('Snapshot ID sandbox was created from'),
+	snapshotTag: z.string().optional().describe('Snapshot tag sandbox was created from'),
 	executions: z.number().describe('Number of executions'),
 	stdoutStreamUrl: z.string().optional().describe('URL to stdout output stream'),
 	stderrStreamUrl: z.string().optional().describe('URL to stderr output stream'),
@@ -54,6 +57,15 @@ export const getSubcommand = createCommand({
 			console.log(`${tui.muted('Sandbox:')}         ${tui.bold(result.sandboxId)}`);
 			console.log(`${tui.muted('Status:')}          ${statusColor(result.status)}`);
 			console.log(`${tui.muted('Created:')}         ${result.createdAt}`);
+			if (result.region) {
+				console.log(`${tui.muted('Region:')}          ${result.region}`);
+			}
+			if (result.snapshotId || result.snapshotTag) {
+				const snapshotDisplay = result.snapshotTag
+					? `${result.snapshotTag} ${tui.muted('(' + result.snapshotId + ')')}`
+					: result.snapshotId;
+				console.log(`${tui.muted('Snapshot:')}        ${snapshotDisplay}`);
+			}
 			console.log(`${tui.muted('Executions:')}      ${result.executions}`);
 			if (
 				result.stdoutStreamUrl &&
@@ -78,6 +90,9 @@ export const getSubcommand = createCommand({
 			sandboxId: result.sandboxId,
 			status: result.status,
 			createdAt: result.createdAt,
+			region: result.region,
+			snapshotId: result.snapshotId,
+			snapshotTag: result.snapshotTag,
 			executions: result.executions,
 			stdoutStreamUrl: result.stdoutStreamUrl,
 			stderrStreamUrl: result.stderrStreamUrl,

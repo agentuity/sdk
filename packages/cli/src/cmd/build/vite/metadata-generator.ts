@@ -9,7 +9,7 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, readdirSy
 import type { BuildMetadata } from '@agentuity/server';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteMetadata } from './route-discovery';
-import type { Logger } from '../../../types';
+import type { Logger, DeployOptions } from '../../../types';
 import { getVersion } from '../../../version';
 
 interface ViteManifestEntry {
@@ -162,6 +162,7 @@ export interface MetadataGeneratorOptions {
 	routes: RouteMetadata[];
 	dev?: boolean;
 	logger: Logger;
+	deploymentOptions?: DeployOptions;
 }
 
 /**
@@ -472,6 +473,19 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 		},
 	};
 
+	if (options.deploymentOptions) {
+		const git = { ...(metadata.deployment.git ?? {}), ...options.deploymentOptions };
+		if (options.deploymentOptions.pullRequestNumber) {
+			git.pull_request = {
+				number: options.deploymentOptions.pullRequestNumber,
+				url: options.deploymentOptions.pullRequestUrl,
+			};
+			delete git.pullRequestNumber;
+			delete git.pullRequestUrl;
+		}
+		metadata.deployment.git = git;
+	}
+
 	return metadata;
 }
 
@@ -690,10 +704,10 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 	lines.push('.agentuity/');
 	lines.push('├── app.js                     # Bundled server application');
 	lines.push('├── agentuity.metadata.json    # Build metadata and schemas');
-	if (metadata.assets?.some((a) => a.filename.startsWith('client/'))) {
+	if (metadata.assets?.some((a: { filename: string }) => a.filename.startsWith('client/'))) {
 		lines.push('├── client/                # Frontend assets (fallback, CDN by default)');
 	}
-	if (metadata.assets?.some((a) => a.filename.startsWith('public/'))) {
+	if (metadata.assets?.some((a: { filename: string }) => a.filename.startsWith('public/'))) {
 		lines.push('├── public/                # Static assets');
 	}
 	lines.push('└── AGENTS.md                  # This file');

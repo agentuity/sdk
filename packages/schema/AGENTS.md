@@ -77,6 +77,7 @@ src/
 - **Coverage**: Primitives, complex types, utilities, coercion, type inference, JSON Schema, error handling
 - **CI**: Tests run automatically on PR builds
 - All tests must pass before merging
+- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
 
 ## Publishing Checklist
 

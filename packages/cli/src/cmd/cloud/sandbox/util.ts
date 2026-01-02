@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { Logger } from '@agentuity/core';
+import type { Logger, FileToWrite } from '@agentuity/core';
 import { APIClient, getServiceUrls } from '@agentuity/server';
 import type { AuthData } from '../../../types';
 
@@ -16,16 +16,14 @@ export function createSandboxClient(logger: Logger, auth: AuthData, region: stri
  * - <sandbox-path>:<local-path>  - explicit mapping (e.g., script.js:./local/script.js)
  * - <filename>                   - shorthand, uses same name for both (e.g., script.js -> script.js:./script.js)
  *
- * File contents are always base64 encoded for safe binary transmission.
- *
- * @returns Record of sandbox paths to base64-encoded file contents
+ * @returns Array of FileToWrite objects
  */
-export function parseFileArgs(fileArgs: string[] | undefined): Record<string, string> {
+export function parseFileArgs(fileArgs: string[] | undefined): FileToWrite[] {
 	if (!fileArgs || fileArgs.length === 0) {
-		return {};
+		return [];
 	}
 
-	const files: Record<string, string> = {};
+	const files: FileToWrite[] = [];
 
 	for (const arg of fileArgs) {
 		let sandboxPath: string;
@@ -53,9 +51,8 @@ export function parseFileArgs(fileArgs: string[] | undefined): Record<string, st
 			throw new Error(`File not found: ${localPath} (resolved to ${resolvedPath})`);
 		}
 
-		const buffer = readFileSync(resolvedPath);
-		const base64Content = buffer.toString('base64');
-		files[sandboxPath] = base64Content;
+		const content = readFileSync(resolvedPath);
+		files.push({ path: sandboxPath, content });
 	}
 
 	return files;

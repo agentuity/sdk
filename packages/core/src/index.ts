@@ -92,6 +92,7 @@ export {
 	type SandboxRunOptions,
 	type SandboxRunResult,
 	type SandboxService,
+	type FileToWrite,
 	SandboxError,
 } from './services/sandbox';
 export { buildUrl, toServiceException, toPayload, fromResponse } from './services/_util';
