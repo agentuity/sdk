@@ -216,18 +216,18 @@ describe('Agentuity Auth server middleware', () => {
 			const mockAuth = createMockAuth(null);
 			const app = new Hono();
 
-		app.use('/public', createSessionMiddleware(mockAuth as any, { optional: true }));
-		app.get('/public', (c) => {
-			return c.json({
-				user: c.var.user,
-				authSession: c.var.authSession,
+			app.use('/public', createSessionMiddleware(mockAuth as any, { optional: true }));
+			app.get('/public', (c) => {
+				return c.json({
+					user: c.var.user,
+					authSession: c.var.authSession,
+				});
 			});
-		});
 
-		const res = await app.request('/public');
-		const body = await res.json();
-		expect(body.user).toBe(null);
-		expect(body.authSession).toBe(null);
+			const res = await app.request('/public');
+			const body = await res.json();
+			expect(body.user).toBe(null);
+			expect(body.authSession).toBe(null);
 		});
 	});
 
@@ -240,13 +240,13 @@ describe('Agentuity Auth server middleware', () => {
 			const mockAuth = createMockAuth(mockSession);
 			const app = new Hono();
 
-		app.use('/api', createSessionMiddleware(mockAuth as any));
-		app.get('/api', (c) => {
-			return c.json({
-				userId: (c.var.user as any)?.id,
-				sessionId: (c.var.authSession as any)?.id,
+			app.use('/api', createSessionMiddleware(mockAuth as any));
+			app.get('/api', (c) => {
+				return c.json({
+					userId: (c.var.user as any)?.id,
+					sessionId: (c.var.authSession as any)?.id,
+				});
 			});
-		});
 
 			const res = await app.request('/api');
 			const body = await res.json();

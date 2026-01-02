@@ -1,7 +1,7 @@
 import { ChevronRight, Copy, Loader, RefreshCcw } from 'lucide-react';
 import { useState } from 'react';
 import { useLogger } from '../../hooks/useLogger';
-import { cn, formatErrorForCopy } from '../../lib/utils';
+import { cn, formatErrorForCopy, parseTokensHeader, getTotalTokens } from '../../lib/utils';
 import { Action, Actions } from '../ai-elements/actions';
 import { CodeBlock } from '../ai-elements/code-block';
 import {
@@ -82,24 +82,15 @@ export function Chat({
 				) : (
 					<ConversationContent>
 						{messages.map((message) => {
-							const { role, parts, id } = message;
+							const { role, parts, id, tokens, duration, sessionId } = message;
 
 							const isStreaming = parts.some(
 								(part) => part.type === 'text' && part.state === 'streaming'
 							);
 
-							const tokens =
-								'tokens' in message ? (message as { tokens?: string }).tokens : undefined;
-
-							const duration =
-								'duration' in message
-									? (message as { duration?: string }).duration
-									: undefined;
-
-							const sessionId =
-								'sessionId' in message
-									? (message as { sessionId?: string }).sessionId
-									: undefined;
+							const totalTokens = tokens
+								? getTotalTokens(parseTokensHeader(tokens))
+								: undefined;
 
 							// Check for agent error in text content
 							let errorInfo:
@@ -175,12 +166,15 @@ export function Chat({
 														<>Finished</>
 													)}
 
-													{duration && tokens && (
-														<>
-															and consumed
-															<span className="mx-1">{tokens}</span> tokens
-														</>
-													)}
+													{duration &&
+														totalTokens !== undefined &&
+														totalTokens > 0 && (
+															<>
+																and consumed
+																<span className="mx-1">{totalTokens}</span>
+																tokens
+															</>
+														)}
 
 													{sessionId && onSessionOpen && (
 														<ChevronRight className="size-4" />

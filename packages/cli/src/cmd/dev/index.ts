@@ -952,10 +952,7 @@ export const command = createCommand({
 										const match = trimmed.match(/^HEARTBEAT_PORT=(\d+)$/m);
 										if (match) {
 											const heartbeatPort = parseInt(match[1], 10);
-											logger.debug(
-												'Gravity heartbeat port detected: %d',
-												heartbeatPort
-											);
+											logger.debug('Gravity heartbeat port detected: %d', heartbeatPort);
 
 											// Start sending heartbeats every 5 seconds
 											if (!gravityHeartbeatInterval) {
@@ -978,10 +975,7 @@ export const command = createCommand({
 												sendHeartbeat();
 
 												// Then send every 5 seconds
-												gravityHeartbeatInterval = setInterval(
-													sendHeartbeat,
-													5000
-												);
+												gravityHeartbeatInterval = setInterval(sendHeartbeat, 5000);
 											}
 										} else if (trimmed) {
 											logger.debug('[gravity] %s', trimmed);

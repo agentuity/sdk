@@ -1,12 +1,11 @@
 import type { WorkbenchConfig } from '@agentuity/core/workbench';
-import type { UIMessage } from 'ai';
 import type React from 'react';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { useAgentSchemas } from '../../hooks/useAgentSchemas';
 import { useLogger } from '../../hooks/useLogger';
 import { useWorkbenchWebsocket } from '../../hooks/useWorkbenchWebsocket';
-import { defaultBaseUrl, getTotalTokens, parseTokensHeader } from '../../lib/utils';
-import type { ConnectionStatus, WorkbenchContextType } from '../../types/config';
+import { defaultBaseUrl } from '../../lib/utils';
+import type { ConnectionStatus, WorkbenchContextType, WorkbenchMessage } from '../../types/config';
 
 const WorkbenchContext = createContext<WorkbenchContextType | null>(null);
 
@@ -112,7 +111,7 @@ export function WorkbenchProvider({
 		[saveThreadId]
 	);
 
-	const [messages, setMessages] = useState<UIMessage[]>([]);
+	const [messages, setMessages] = useState<WorkbenchMessage[]>([]);
 	const [selectedAgent, setSelectedAgent] = useState<string>('');
 	const [inputMode, setInputMode] = useState<'text' | 'form'>('text');
 	const [isLoading, setIsLoading] = useState(false);
@@ -247,11 +246,15 @@ export function WorkbenchProvider({
 					const stateMessages = (data.messages || []) as Array<{
 						type: 'input' | 'output';
 						data: unknown;
+						sessionId?: string;
+						tokens?: string;
+						duration?: string;
+						timestamp?: number;
 					}>;
 
-					// Convert state messages to UIMessage format
+					// Convert state messages to WorkbenchMessage format
 					// Use stable IDs based on message index to prevent unnecessary re-renders
-					const uiMessages: UIMessage[] = stateMessages.map((msg, index) => {
+					const workbenchMessages: WorkbenchMessage[] = stateMessages.map((msg, index) => {
 						const text =
 							typeof msg.data === 'object'
 								? JSON.stringify(msg.data, null, 2)
@@ -264,12 +267,16 @@ export function WorkbenchProvider({
 							id: `state_${agentId}_${index}_${contentHash}`,
 							role: msg.type === 'input' ? 'user' : 'assistant',
 							parts: [{ type: 'text', text }],
+							sessionId: msg.sessionId,
+							tokens: msg.tokens,
+							duration: msg.duration,
+							timestamp: msg.timestamp,
 						};
 					});
 
-					setMessages(uiMessages);
+					setMessages(workbenchMessages);
 
-					logger.debug('✅ Loaded state messages:', uiMessages.length);
+					logger.debug('✅ Loaded state messages:', workbenchMessages.length);
 				} else {
 					logger.debug('⚠️ Failed to fetch state, starting with empty messages');
 
@@ -295,7 +302,7 @@ export function WorkbenchProvider({
 
 			logger.debug('🔗 Agent from URL query param:', agentFromUrl);
 
-			// Try to find agent by URL param (matches agentId only)
+			// Try to find agent by URL param (matches agentId)
 			let agentToSelect: string | null = null;
 
 			if (agentFromUrl) {
@@ -382,13 +389,14 @@ export function WorkbenchProvider({
 		const displayText = hasInputSchema
 			? value
 			: `Running ${selectedAgentData?.metadata.name || 'agent'}...`;
-		const userMessage: UIMessage = {
+		const userMessage: WorkbenchMessage = {
 			id: now.toString(),
 			role: 'user',
 			parts: [{ type: 'text', text: displayText }],
+			timestamp: now,
 		};
 		const assistantMessageId = (now + 1).toString();
-		const placeholderAssistantMessage: UIMessage = {
+		const placeholderAssistantMessage: WorkbenchMessage = {
 			id: assistantMessageId,
 			role: 'assistant',
 			parts: [{ type: 'text', text: '', state: 'streaming' }],
@@ -402,7 +410,7 @@ export function WorkbenchProvider({
 		if (!baseUrl || isBaseUrlNull) {
 			logger.debug('❌ Message submission blocked - baseUrl is null or missing');
 
-			const errorMessage: UIMessage = {
+			const errorMessage: WorkbenchMessage = {
 				id: assistantMessageId,
 				role: 'assistant',
 				parts: [
@@ -437,7 +445,6 @@ export function WorkbenchProvider({
 
 			logger.debug('🌐 About to make API call...');
 
-			// Call execution endpoint with timeout
 			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
 			};
@@ -485,7 +492,7 @@ export function WorkbenchProvider({
 						code: `HTTP_${response.status}`,
 					});
 
-					const errorMessage: UIMessage = {
+					const errorMessage: WorkbenchMessage = {
 						id: assistantMessageId,
 						role: 'assistant',
 						parts: [{ type: 'text', text: errorPayload }],
@@ -515,10 +522,8 @@ export function WorkbenchProvider({
 				const durationHeader = response.headers.get('x-agentuity-duration');
 				const duration = durationHeader || `${clientDuration}s`;
 
-				// Extract token count from response header
-				const tokensHeader = response.headers.get('x-agentuity-tokens');
-				const tokensRecord = tokensHeader ? parseTokensHeader(tokensHeader) : undefined;
-				const totalTokens = tokensRecord ? getTotalTokens(tokensRecord) : undefined;
+				// Extract token count from response header (keep raw format for consistency with thread state)
+				const tokens = response.headers.get('x-agentuity-tokens') || undefined;
 
 				// Handle wrapped response shape: { success, data?, error? }
 				const envelope =
@@ -545,7 +550,7 @@ export function WorkbenchProvider({
 						cause: envelope.error.cause,
 					});
 
-					const errorMessage: UIMessage = {
+					const errorMessage: WorkbenchMessage = {
 						id: assistantMessageId,
 						role: 'assistant',
 						parts: [{ type: 'text', text: errorPayload }],
@@ -569,17 +574,14 @@ export function WorkbenchProvider({
 
 				const sessionId = response.headers.get('x-session-id') || undefined;
 
-				const assistantMessage: UIMessage & {
-					tokens?: string;
-					duration?: string;
-					sessionId?: string;
-				} = {
+				const assistantMessage: WorkbenchMessage = {
 					id: assistantMessageId,
 					role: 'assistant',
 					parts: [{ type: 'text', text: resultText }],
-					tokens: totalTokens?.toString(),
+					tokens,
 					duration,
 					sessionId,
+					timestamp: Date.now(),
 				};
 
 				setMessages((prev) =>
@@ -607,7 +609,7 @@ export function WorkbenchProvider({
 					error instanceof Error && error.name === 'AbortError' ? 'TIMEOUT' : 'REQUEST_ERROR',
 			});
 
-			const errorMessage: UIMessage = {
+			const errorMessage: WorkbenchMessage = {
 				id: assistantMessageId,
 				role: 'assistant',
 				parts: [{ type: 'text', text: errorPayload }],
@@ -681,6 +683,14 @@ export function WorkbenchProvider({
 		setSelectedAgent(agentId);
 		// Save selection to localStorage for persistence across sessions
 		saveSelectedAgent(agentId);
+
+		// Update URL query param without page reload
+		if (typeof window !== 'undefined') {
+			const url = new URL(window.location.href);
+			url.searchParams.set('agent', agentId);
+			window.history.replaceState({}, '', url.toString());
+		}
+
 		// Fetch state for the selected agent
 		await fetchAgentState(agentId);
 	};

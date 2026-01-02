@@ -15,6 +15,7 @@ import eventsRemoval from '../agent/events/listener-removal.js';
 import eventsSession from '../agent/events/session-events.js';
 import eventsThread from '../agent/events/thread-events.js';
 import lifecycleWaituntil from '../agent/lifecycle/waituntil.js';
+import llmCall from '../agent/basic/basic-llm-call.js';
 import noInput from '../agent/basic/basic-no-input.js';
 import noOutput from '../agent/basic/basic-no-output.js';
 import resilienceCrashAttempts from '../agent/resilience/crash-attempts.js';
@@ -559,6 +560,40 @@ export type LifecycleWaituntilAgent = AgentRunner<
 	LifecycleWaituntilInputSchema,
 	LifecycleWaituntilOutputSchema,
 	typeof lifecycleWaituntil['stream'] extends true ? true : false
+>;
+
+/**
+ * Input type for llm-call agent
+ * Basic agent with input/output validation
+ */
+export type LlmCallInput = InferInput<typeof llmCall['inputSchema']>;
+
+/**
+ * Output type for llm-call agent
+ * Basic agent with input/output validation
+ */
+export type LlmCallOutput = InferOutput<typeof llmCall['outputSchema']>;
+
+/**
+ * Input schema type for llm-call agent
+ * Basic agent with input/output validation
+ */
+export type LlmCallInputSchema = typeof llmCall['inputSchema'];
+
+/**
+ * Output schema type for llm-call agent
+ * Basic agent with input/output validation
+ */
+export type LlmCallOutputSchema = typeof llmCall['outputSchema'];
+
+/**
+ * Agent type for llm-call
+ * Basic agent with input/output validation
+ */
+export type LlmCallAgent = AgentRunner<
+	LlmCallInputSchema,
+	LlmCallOutputSchema,
+	typeof llmCall['stream'] extends true ? true : false
 >;
 
 /**
@@ -1655,6 +1690,12 @@ export const AgentDefinitions = {
 	 */
 	lifecycleWaituntil,
 	/**
+	 * llm-call
+	 * Basic agent with input/output validation
+	 * @type {LlmCallAgent}
+	 */
+	llmCall,
+	/**
 	 * no-input
 	 * Agent with no input schema (void input)
 	 * @type {NoInputAgent}
@@ -1851,6 +1892,7 @@ declare module "@agentuity/runtime" {
 		eventsSession: EventsSessionAgent;
 		eventsThread: EventsThreadAgent;
 		lifecycleWaituntil: LifecycleWaituntilAgent;
+		llmCall: LlmCallAgent;
 		noInput: NoInputAgent;
 		noOutput: NoOutputAgent;
 		resilienceCrashAttempts: ResilienceCrashAttemptsAgent;
