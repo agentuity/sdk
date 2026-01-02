@@ -126,6 +126,16 @@ declare module '@agentuity/react' {
 		outputSchema: POSTApiAgentStateWriterOutputSchema;
 		stream: typeof stateWriterAgent extends { stream?: infer S } ? S : false;
 	};
+	'GET /api/custom-name/custom': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'POST /api/custom-name/test': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
 	'GET /api/users/profile': {
 		inputSchema: never;
 		outputSchema: never;
@@ -147,36 +157,6 @@ declare module '@agentuity/react' {
 		stream: false;
 	};
 	'GET /api/my-service/info': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/middleware-test/check-all': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/middleware-test/query-database': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/middleware-test/check-auth': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/middleware-test/analytics-info': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/custom-name/custom': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/custom-name/test': {
 		inputSchema: never;
 		outputSchema: never;
 		stream: false;
@@ -217,6 +197,26 @@ declare module '@agentuity/react' {
 		stream: false;
 	};
 	'DELETE /api/agent-ids/clear': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/middleware-test/check-all': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/middleware-test/query-database': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/middleware-test/check-auth': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+	};
+	'GET /api/middleware-test/analytics-info': {
 		inputSchema: never;
 		outputSchema: never;
 		stream: false;
@@ -332,6 +332,20 @@ declare module '@agentuity/react' {
 				post: { input: POSTApiAgentStateWriterInput; output: POSTApiAgentStateWriterOutput; type: 'api' };
 			};
 		};
+		customName: {
+			custom: {
+				/**
+				 * Route: GET /api/custom-name/custom
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+			test: {
+				/**
+				 * Route: POST /api/custom-name/test
+				 */
+				post: { input: never; output: never; type: 'api' };
+			};
+		};
 		users: {
 			profile: {
 				/**
@@ -360,46 +374,6 @@ declare module '@agentuity/react' {
 				 * Route: GET /api/my-service/info
 				 */
 				get: { input: never; output: never; type: 'api' };
-			};
-		};
-		middlewareTest: {
-			checkAll: {
-				/**
-				 * Route: GET /api/middleware-test/check-all
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-			queryDatabase: {
-				/**
-				 * Route: GET /api/middleware-test/query-database
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-			checkAuth: {
-				/**
-				 * Route: GET /api/middleware-test/check-auth
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-			analyticsInfo: {
-				/**
-				 * Route: GET /api/middleware-test/analytics-info
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-		};
-		customName: {
-			custom: {
-				/**
-				 * Route: GET /api/custom-name/custom
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-			test: {
-				/**
-				 * Route: POST /api/custom-name/test
-				 */
-				post: { input: never; output: never; type: 'api' };
 			};
 		};
 		auth: {
@@ -454,6 +428,32 @@ declare module '@agentuity/react' {
 				 * Route: DELETE /api/agent-ids/clear
 				 */
 				delete: { input: never; output: never; type: 'api' };
+			};
+		};
+		middlewareTest: {
+			checkAll: {
+				/**
+				 * Route: GET /api/middleware-test/check-all
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+			queryDatabase: {
+				/**
+				 * Route: GET /api/middleware-test/query-database
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+			checkAuth: {
+				/**
+				 * Route: GET /api/middleware-test/check-auth
+				 */
+				get: { input: never; output: never; type: 'api' };
+			};
+			analyticsInfo: {
+				/**
+				 * Route: GET /api/middleware-test/analytics-info
+				 */
+				get: { input: never; output: never; type: 'api' };
 			};
 		};
 		ws: {
@@ -556,6 +556,18 @@ const _rpcRouteMetadata = {
 						}
 				}
 		},
+		"customName": {
+				"custom": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"test": {
+						"post": {
+								"type": "api"
+						}
+				}
+		},
 		"users": {
 				"profile": {
 						"get": {
@@ -577,40 +589,6 @@ const _rpcRouteMetadata = {
 				},
 				"info": {
 						"get": {
-								"type": "api"
-						}
-				}
-		},
-		"middlewareTest": {
-				"checkAll": {
-						"get": {
-								"type": "api"
-						}
-				},
-				"queryDatabase": {
-						"get": {
-								"type": "api"
-						}
-				},
-				"checkAuth": {
-						"get": {
-								"type": "api"
-						}
-				},
-				"analyticsInfo": {
-						"get": {
-								"type": "api"
-						}
-				}
-		},
-		"customName": {
-				"custom": {
-						"get": {
-								"type": "api"
-						}
-				},
-				"test": {
-						"post": {
 								"type": "api"
 						}
 				}
@@ -657,6 +635,28 @@ const _rpcRouteMetadata = {
 				},
 				"clear": {
 						"delete": {
+								"type": "api"
+						}
+				}
+		},
+		"middlewareTest": {
+				"checkAll": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"queryDatabase": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"checkAuth": {
+						"get": {
+								"type": "api"
+						}
+				},
+				"analyticsInfo": {
+						"get": {
 								"type": "api"
 						}
 				}

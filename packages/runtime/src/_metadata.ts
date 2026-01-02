@@ -339,6 +339,45 @@ export function hasMetadata(): boolean {
 	return loadBuildMetadata() !== undefined;
 }
 
+// Track if agents have been imported
+let _agentsImported = false;
+
+/**
+ * Import all agents from metadata filenames to ensure they're registered.
+ * This is needed so that runtime schemas are available for JSON schema generation.
+ * Safe to call multiple times - will only import once.
+ */
+export async function ensureAgentsImported(): Promise<void> {
+	if (_agentsImported) {
+		return;
+	}
+
+	const metadata = loadBuildMetadata();
+	if (!metadata?.agents?.length) {
+		_agentsImported = true;
+		return;
+	}
+
+	internal.info('[metadata] ensureAgentsImported: importing %d agents', metadata.agents.length);
+
+	for (const agent of metadata.agents) {
+		if (!agent.filename) {
+			continue;
+		}
+
+		try {
+			// Convert relative filename to absolute path from cwd
+			const absolutePath = join(process.cwd(), agent.filename);
+			internal.info('[metadata] importing agent: %s from %s', agent.name, absolutePath);
+			await import(absolutePath);
+		} catch (err) {
+			internal.info('[metadata] failed to import agent %s: %s', agent.name, err);
+		}
+	}
+
+	_agentsImported = true;
+}
+
 /**
  * Clear the metadata cache (useful for testing or hot reload)
  */
