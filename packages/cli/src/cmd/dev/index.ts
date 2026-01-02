@@ -920,6 +920,7 @@ export const command = createCommand({
 								project.projectId,
 								'--token',
 								process.env.AGENTUITY_SDK_KEY!, // set above
+								'--health-check',
 							],
 							{
 								cwd: rootDir,
