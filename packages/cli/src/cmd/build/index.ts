@@ -115,7 +115,7 @@ export const command = createCommand({
 					}
 				} catch (error: unknown) {
 					const errorMsg = error instanceof Error ? error.message : String(error);
-					collector.addGeneralError('typescript', errorMsg, 'BUILD004');
+					collector.addGeneralError('typescript', errorMsg, 'BUILD008');
 
 					// Write report before fatal exit
 					if (opts.reportFile) {

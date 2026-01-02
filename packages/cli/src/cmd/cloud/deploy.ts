@@ -397,6 +397,7 @@ export const deploySubcommand = createSubcommand({
 								});
 								ctx.logger.trace(`Upload response: ${resp.status}`);
 								if (!resp.ok) {
+									endCodeUploadDiagnostic();
 									const errorMsg = `Error uploading deployment: ${await resp.text()}`;
 									collector.addGeneralError('deploy', errorMsg, 'DEPLOY002');
 									if (opts.reportFile) {

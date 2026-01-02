@@ -28,6 +28,7 @@ export const BuildErrorCodes = {
 	BUILD005: 'EntryPointNotFound',
 	BUILD006: 'ViteBuildFailed',
 	BUILD007: 'RuntimePackageNotFound',
+	BUILD008: 'TypecheckToolFailed',
 
 	// Validation errors (VAL0xx)
 	VAL001: 'AgentIdentifierCollision',
@@ -144,8 +145,11 @@ export class BuildReportCollector {
 	private activeDiagnostics: Map<string, ActiveDiagnostic> = new Map();
 	private outputPath: string | null = null;
 	private autoWriteEnabled = false;
-	private exitHandlerRegistered = false;
 	private written = false;
+
+	private beforeExitHandler: (() => void) | null = null;
+	private sigintHandler: (() => void) | null = null;
+	private sigtermHandler: (() => void) | null = null;
 
 	/**
 	 * Set the output path for the report file
@@ -163,21 +167,45 @@ export class BuildReportCollector {
 
 		this.autoWriteEnabled = true;
 
-		if (!this.exitHandlerRegistered) {
-			this.exitHandlerRegistered = true;
+		// Use beforeExit for graceful exits
+		this.beforeExitHandler = () => {
+			this.writeSync();
+		};
+		process.once('beforeExit', this.beforeExitHandler);
 
-			// Use beforeExit for graceful exits
-			process.on('beforeExit', () => {
-				this.writeSync();
-			});
+		// Handle SIGINT/SIGTERM with process.once to avoid stacking handlers
+		this.sigintHandler = () => {
+			this.writeSync();
+			process.exit(130);
+		};
+		this.sigtermHandler = () => {
+			this.writeSync();
+			process.exit(143);
+		};
+		process.once('SIGINT', this.sigintHandler);
+		process.once('SIGTERM', this.sigtermHandler);
+	}
 
-			// Handle SIGINT/SIGTERM
-			const signalHandler = () => {
-				this.writeSync();
-				process.exit(130);
-			};
-			process.on('SIGINT', signalHandler);
-			process.on('SIGTERM', signalHandler);
+	/**
+	 * Disable automatic writing and remove signal handlers.
+	 * Call this when done with the collector to prevent handler conflicts.
+	 */
+	disableAutoWrite(): void {
+		if (!this.autoWriteEnabled) return;
+
+		this.autoWriteEnabled = false;
+
+		if (this.beforeExitHandler) {
+			process.removeListener('beforeExit', this.beforeExitHandler);
+			this.beforeExitHandler = null;
+		}
+		if (this.sigintHandler) {
+			process.removeListener('SIGINT', this.sigintHandler);
+			this.sigintHandler = null;
+		}
+		if (this.sigtermHandler) {
+			process.removeListener('SIGTERM', this.sigtermHandler);
+			this.sigtermHandler = null;
 		}
 	}
 
@@ -345,8 +373,10 @@ export class BuildReportCollector {
 	 * Generate the complete build report
 	 */
 	toReport(): BuildReport {
-		// Complete any active diagnostics
-		for (const name of this.activeDiagnostics.keys()) {
+		// Complete any active diagnostics - collect keys first to avoid
+		// iterating while modifying the map
+		const activeKeys = [...this.activeDiagnostics.keys()];
+		for (const name of activeKeys) {
 			this.endDiagnostic(name);
 		}
 
@@ -417,8 +447,11 @@ export function getGlobalCollector(): BuildReportCollector | null {
 }
 
 /**
- * Clear the global collector instance
+ * Clear the global collector instance and clean up its signal handlers
  */
 export function clearGlobalCollector(): void {
+	if (globalCollector) {
+		globalCollector.disableAutoWrite();
+	}
 	globalCollector = null;
 }
