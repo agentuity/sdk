@@ -213,9 +213,9 @@ describe('Metadata Type Safety', () => {
 
 		const metadata = await thread.getMetadata();
 		expect(typeof metadata.objectValue).toBe('object');
-		expect(
-			(metadata.objectValue as Record<string, Record<string, string>>).nested.deep
-		).toBe('value');
+		expect((metadata.objectValue as Record<string, Record<string, string>>).nested.deep).toBe(
+			'value'
+		);
 	});
 
 	test('metadata accepts null values', async () => {

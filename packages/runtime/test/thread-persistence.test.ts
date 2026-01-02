@@ -4,7 +4,12 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { DefaultThread, LazyThreadState, parseThreadData, type ThreadProvider } from '../src/session';
+import {
+	DefaultThread,
+	LazyThreadState,
+	parseThreadData,
+	type ThreadProvider,
+} from '../src/session';
 
 describe('parseThreadData', () => {
 	test('returns empty object for undefined input', () => {
@@ -149,7 +154,13 @@ describe('LazyThreadState', () => {
 	});
 
 	test('size() returns correct count', async () => {
-		const restoreFn = async () => ({ state: new Map([['a', 1], ['b', 2]]), metadata: {} });
+		const restoreFn = async () => ({
+			state: new Map([
+				['a', 1],
+				['b', 2],
+			]),
+			metadata: {},
+		});
 		const state = new LazyThreadState(restoreFn);
 
 		const size = await state.size();
@@ -157,15 +168,30 @@ describe('LazyThreadState', () => {
 	});
 
 	test('entries() returns all entries', async () => {
-		const restoreFn = async () => ({ state: new Map([['a', 1], ['b', 2]]), metadata: {} });
+		const restoreFn = async () => ({
+			state: new Map([
+				['a', 1],
+				['b', 2],
+			]),
+			metadata: {},
+		});
 		const state = new LazyThreadState(restoreFn);
 
 		const entries = await state.entries<number>();
-		expect(entries).toEqual([['a', 1], ['b', 2]]);
+		expect(entries).toEqual([
+			['a', 1],
+			['b', 2],
+		]);
 	});
 
 	test('values() returns all values', async () => {
-		const restoreFn = async () => ({ state: new Map([['a', 1], ['b', 2]]), metadata: {} });
+		const restoreFn = async () => ({
+			state: new Map([
+				['a', 1],
+				['b', 2],
+			]),
+			metadata: {},
+		});
 		const state = new LazyThreadState(restoreFn);
 
 		const values = await state.values<number>();
@@ -210,7 +236,10 @@ describe('LazyThreadState', () => {
 	});
 
 	test('push() appends to existing array (loaded)', async () => {
-		const restoreFn = async () => ({ state: new Map([['messages', ['existing']]]), metadata: {} });
+		const restoreFn = async () => ({
+			state: new Map([['messages', ['existing']]]),
+			metadata: {},
+		});
 		const state = new LazyThreadState(restoreFn);
 
 		// Trigger load first
@@ -229,7 +258,9 @@ describe('LazyThreadState', () => {
 		// Trigger load first
 		await state.size();
 
-		expect(() => state.push('count', 'value')).toThrow('Cannot push to non-array value at key "count"');
+		expect(() => state.push('count', 'value')).toThrow(
+			'Cannot push to non-array value at key "count"'
+		);
 	});
 
 	test('push() operations applied correctly on load', async () => {
@@ -249,7 +280,10 @@ describe('LazyThreadState', () => {
 	});
 
 	test('push() with maxRecords limits array size (loaded)', async () => {
-		const restoreFn = async () => ({ state: new Map([['messages', ['a', 'b', 'c']]]), metadata: {} });
+		const restoreFn = async () => ({
+			state: new Map([['messages', ['a', 'b', 'c']]]),
+			metadata: {},
+		});
 		const state = new LazyThreadState(restoreFn);
 
 		// Trigger load
@@ -337,7 +371,9 @@ describe('DefaultThread', () => {
 
 	test('getMetadata returns metadata', async () => {
 		const restoreFn = async () => ({ state: new Map(), metadata: { userId: 'user123' } });
-		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn, { userId: 'user123' });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn, {
+			userId: 'user123',
+		});
 
 		const metadata = await thread.getMetadata();
 		expect(metadata.userId).toBe('user123');

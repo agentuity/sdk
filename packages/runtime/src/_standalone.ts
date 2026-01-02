@@ -114,6 +114,7 @@ export class StandaloneAgentContext<
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;
+	auth: import('@agentuity/auth/types').AuthInterface | null;
 	[AGENT_IDS]?: Set<string>;
 
 	// Immutable options stored from constructor
@@ -182,6 +183,8 @@ export class StandaloneAgentContext<
 				removeEventListener: () => {},
 				serializeUserData: () => undefined,
 			} as Session);
+
+		this.auth = null;
 
 		// Create isolated runtime state
 		this[AGENT_RUNTIME] = {
@@ -377,7 +380,9 @@ export class StandaloneAgentContext<
 										sessionEventProvider
 											.complete({
 												id: invocationSessionId,
-												threadId: (await invocationThread.empty()) ? null : invocationThread.id,
+												threadId: (await invocationThread.empty())
+													? null
+													: invocationThread.id,
 												statusCode: 200, // Success
 												agentIds: Array.from(agentIds),
 												userData,
@@ -410,7 +415,9 @@ export class StandaloneAgentContext<
 										sessionEventProvider
 											.complete({
 												id: invocationSessionId,
-												threadId: (await invocationThread.empty()) ? null : invocationThread.id,
+												threadId: (await invocationThread.empty())
+													? null
+													: invocationThread.id,
 												statusCode: 500, // Error
 												error: message,
 												agentIds: Array.from(agentIds),
@@ -434,7 +441,9 @@ export class StandaloneAgentContext<
 								sessionEventProvider
 									.complete({
 										id: invocationSessionId,
-										threadId: (await invocationThread.empty()) ? null : invocationThread.id,
+										threadId: (await invocationThread.empty())
+											? null
+											: invocationThread.id,
 										statusCode: 200,
 										agentIds: Array.from(agentIds),
 										userData,
