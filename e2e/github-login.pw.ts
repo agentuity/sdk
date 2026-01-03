@@ -1,25 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
+import { rmSync } from 'fs';
+import { config } from 'dotenv';
 
-function loadEnv(): Record<string, string> {
-	const env: Record<string, string> = {};
-	const envPath = resolve(__dirname, '..', '.env');
-	if (existsSync(envPath)) {
-		const content = readFileSync(envPath, 'utf-8');
-		for (const line of content.split('\n')) {
-			const trimmed = line.trim();
-			if (!trimmed || trimmed.startsWith('#')) continue;
-			const eqIndex = trimmed.indexOf('=');
-			if (eqIndex === -1) continue;
-			const key = trimmed.slice(0, eqIndex);
-			const value = trimmed.slice(eqIndex + 1).replace(/^["']|["']$/g, '');
-			env[key] = value;
-		}
-	}
-	return env;
-}
+config({ path: resolve(__dirname, '..', '.env') });
 
 function runCli(args: string, env: Record<string, string>): string {
 	const cliPath = resolve(__dirname, '..', 'packages', 'cli', 'bin', 'cli.ts');
@@ -89,13 +74,50 @@ test.describe.configure({ mode: 'serial' });
 
 // Target org ID from apps/testing/github-app-test-project/agentuity.json
 const TARGET_ORG_ID = 'org_2u8RgDTwcZWrZrZ3sZh24T5FCtz';
+const TEST_PROJECT_DIR = resolve(__dirname, '..', 'apps', 'testing', 'github-app-test-project');
+const GITHUB_REMOTE_URL = 'https://github.com/agentuity-gh-app-tester/github-app-test-project.git';
+
+function initGitRepo() {
+	console.log('Initializing git repo in:', TEST_PROJECT_DIR);
+	try {
+		execSync('git init', { cwd: TEST_PROJECT_DIR, encoding: 'utf-8' });
+		execSync(`git remote add origin ${GITHUB_REMOTE_URL}`, {
+			cwd: TEST_PROJECT_DIR,
+			encoding: 'utf-8',
+		});
+		console.log('Git repo initialized with origin:', GITHUB_REMOTE_URL);
+	} catch (error: unknown) {
+		const execError = error as { message?: string };
+		// Ignore if already initialized
+		if (!execError.message?.includes('already exists')) {
+			console.error('Failed to init git repo:', execError.message);
+		}
+	}
+}
+
+function cleanupGitRepo() {
+	console.log('Cleaning up git repo in:', TEST_PROJECT_DIR);
+	try {
+		rmSync(resolve(TEST_PROJECT_DIR, '.git'), { recursive: true, force: true });
+		console.log('Git repo cleaned up');
+	} catch (error: unknown) {
+		const execError = error as { message?: string };
+		console.error('Failed to cleanup git repo:', execError.message);
+	}
+}
 
 test.describe('GitHub OAuth Flow', () => {
-	test('connect GitHub account via OAuth', async ({ page }) => {
-		const env = loadEnv();
+	test.beforeAll(() => {
+		initGitRepo();
+	});
 
-		const GITHUB_USERNAME = env.GITHUB_USERNAME || process.env.GITHUB_USERNAME;
-		const GITHUB_PASSWORD = env.GITHUB_PASSWORD || process.env.GITHUB_PASSWORD;
+	test.afterAll(() => {
+		cleanupGitRepo();
+	});
+
+	test('connect GitHub account via OAuth', async ({ page }) => {
+		const GITHUB_USERNAME = process.env.GITHUB_USERNAME;
+		const GITHUB_PASSWORD = process.env.GITHUB_PASSWORD;
 
 		if (!GITHUB_USERNAME || !GITHUB_PASSWORD) {
 			console.warn('⚠️  Skipping: GITHUB_USERNAME and/or GITHUB_PASSWORD not set');
@@ -188,8 +210,7 @@ test.describe('GitHub OAuth Flow', () => {
 	});
 
 	test('disconnect GitHub account', async () => {
-		const env = loadEnv();
-		const GITHUB_USERNAME = env.GITHUB_USERNAME || process.env.GITHUB_USERNAME;
+		const GITHUB_USERNAME = process.env.GITHUB_USERNAME;
 
 		if (!GITHUB_USERNAME) {
 			console.warn('⚠️  Skipping: GITHUB_USERNAME not set');
