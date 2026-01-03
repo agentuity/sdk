@@ -458,11 +458,6 @@ class StreamImpl implements Stream {
 	}
 }
 
-const StreamWriterInitializationError = StructuredError(
-	'StreamWriterInitializationError',
-	'Stream writer is not initialized'
-);
-
 const StreamAPIError = StructuredError('StreamAPIError')<{ status: number }>();
 
 /**
@@ -477,19 +472,19 @@ function isCompressionAvailable(): boolean {
 	return typeof NativeCompressionStream !== 'undefined' && NativeCompressionStream !== null;
 }
 
-// State object that handles the actual streaming to the backend
-// This is used by StreamImpl to manage write operations
+/**
+ * State object that handles streaming to the backend using the append API.
+ * Each write() call sends data immediately via a separate HTTP POST request,
+ * enabling real-time streaming without buffering issues.
+ */
 class UnderlyingSinkState {
 	adapter: FetchAdapter;
-	abortController: AbortController | null = null;
-	writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
-	writable: WritableStream<Uint8Array> | null = null;
-	putRequestPromise: Promise<FetchResponse<unknown>> | null = null;
 	total = 0;
 	closed = false;
 	url: string;
 	props?: CreateStreamProps;
 	compressionEnabled = false;
+	writable: WritableStream<Uint8Array> | null = null;
 
 	constructor(url: string, adapter: FetchAdapter, props?: CreateStreamProps) {
 		this.url = url;
@@ -498,69 +493,54 @@ class UnderlyingSinkState {
 	}
 
 	async start(): Promise<WritableStream<Uint8Array>> {
-		// Create AbortController for the fetch request
-		this.abortController = new AbortController();
-
-		// Create a pass-through WritableStream that writes to a ReadableStream
-		// Use native streams captured at module load to avoid polyfill interference
-		let readableController: ReadableStreamDefaultController<Uint8Array>;
-		const readable = new NativeReadableStream<Uint8Array>({
-			start: (controller) => {
-				readableController = controller;
-			},
-		});
-
-		// Create a WritableStream that pushes chunks to the ReadableStream
-		this.writable = new NativeWritableStream<Uint8Array>({
-			write: (chunk) => {
-				readableController.enqueue(chunk);
-				this.total += chunk.length;
-			},
-			close: () => {
-				readableController.close();
-			},
-			abort: (reason) => {
-				readableController.error(reason);
-			},
-		});
-
-		// If compression is enabled and available, pipe through gzip
-		// Gracefully skip compression if CompressionStream is not available
-		let bodyStream: ReadableStream<Uint8Array> = readable;
+		// Check if compression is enabled and available
 		this.compressionEnabled = !!(this.props?.compress && isCompressionAvailable());
-		if (this.compressionEnabled) {
-			const compressionStream = new NativeCompressionStream('gzip');
-			bodyStream = readable.pipeThrough(compressionStream);
-		}
 
-		// Start the PUT request with the readable stream as body
-		const headers: Record<string, string> = {
-			'Content-Type': this.props?.contentType || 'application/octet-stream',
-		};
-
-		if (this.compressionEnabled) {
-			headers['Content-Encoding'] = 'gzip';
-		}
-
-		this.putRequestPromise = this.adapter.invoke(this.url, {
-			method: 'PUT',
-			headers,
-			body: bodyStream,
-			signal: this.abortController.signal,
-			duplex: 'half',
+		// Create a WritableStream that wraps our append-based write
+		this.writable = new NativeWritableStream<Uint8Array>({
+			write: async (chunk) => {
+				await this.write(chunk);
+			},
+			close: async () => {
+				await this.close();
+			},
+			abort: async (reason) => {
+				await this.abort(reason);
+			},
 		});
-
-		// Acquire writer immediately to prevent race conditions in concurrent write() calls
-		this.writer = this.writable.getWriter();
 
 		return this.writable;
 	}
 
 	async write(chunk: Uint8Array) {
-		if (!this.writer) {
-			throw new StreamWriterInitializationError();
+		if (this.closed) {
+			return;
 		}
-		await this.writer.write(chunk);
+
+		// Note: For append-based streaming, we don't compress individual chunks
+		// because each would become a separate gzip stream that can't be concatenated.
+		// Instead, compression is handled server-side during the complete phase.
+		this.total += chunk.length;
+
+		// Send the chunk immediately via POST to /append endpoint
+		const appendUrl = `${this.url}/append`;
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.adapter.invoke(appendUrl, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/octet-stream',
+			},
+			body: chunk,
+			signal,
+		});
+
+		if (!res.ok) {
+			throw new StreamAPIError({
+				status: res.response.status,
+				message: `Append request failed: ${res.response.status} ${res.response.statusText}`,
+			});
+		}
 	}
 
 	async close() {
@@ -569,41 +549,34 @@ class UnderlyingSinkState {
 		}
 		this.closed = true;
 
-		if (this.writer) {
-			await this.writer.close();
-			this.writer = null;
+		// Call the complete endpoint to finalize the stream
+		// Pass compress flag to request server-side compression
+		const completeUrl = `${this.url}/complete`;
+		const signal = AbortSignal.timeout(60_000); // Longer timeout for compression
+
+		const headers: Record<string, string> = {};
+		if (this.compressionEnabled) {
+			headers['X-Compress'] = 'gzip';
 		}
 
-		// Wait for the PUT request to complete
-		if (this.putRequestPromise) {
-			try {
-				const res = await this.putRequestPromise;
-				if (!res.ok) {
-					throw new StreamAPIError({
-						status: res.response.status,
-						message: `PUT request failed: ${res.response.status} ${res.response.statusText}`,
-					});
-				}
-			} catch (error) {
-				if (error instanceof Error && error.name !== 'AbortError') {
-					throw error;
-				}
-			}
-			this.putRequestPromise = null;
+		const res = await this.adapter.invoke(completeUrl, {
+			method: 'POST',
+			headers,
+			signal,
+		});
+
+		if (!res.ok) {
+			throw new StreamAPIError({
+				status: res.response.status,
+				message: `Complete request failed: ${res.response.status} ${res.response.statusText}`,
+			});
 		}
-		this.abortController = null;
 	}
-	async abort(reason?: unknown) {
-		if (this.writer) {
-			await this.writer.abort(reason);
-			this.writer = null;
-		}
-		// Abort the fetch request
-		if (this.abortController) {
-			this.abortController.abort(reason);
-			this.abortController = null;
-		}
-		this.putRequestPromise = null;
+
+	async abort(_reason?: unknown) {
+		this.closed = true;
+		// For append-based streaming, abort is a no-op since each request is independent
+		// The stream will simply be incomplete if not all chunks were sent
 	}
 }
 
