@@ -3,7 +3,7 @@
 		{
 			"id": "default",
 			"name": "Default Template",
-			"description": "A basic project with React UI and example agent",
+			"description": "Showcases core Agentuity features using OpenAI SDK",
 			"directory": "default"
 		},
 		{
