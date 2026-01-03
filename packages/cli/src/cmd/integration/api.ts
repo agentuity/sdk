@@ -218,15 +218,15 @@ export async function pollForGithubIntegration(
 			APIResponseSchema(GithubStatusDataSchema)
 		);
 
-		if (!resp.success) {
+		if (!resp.success || !resp.data) {
 			throw new PollForGithubIntegrationError();
 		}
 
-		const currentCount = resp.data?.integrations?.length ?? 0;
+		const currentCount = resp.data.integrations?.length ?? 0;
 		if (currentCount > initialCount) {
 			return {
 				connected: true,
-				integrations: resp.data?.integrations ?? [],
+				integrations: resp.data.integrations ?? [],
 			};
 		}
 

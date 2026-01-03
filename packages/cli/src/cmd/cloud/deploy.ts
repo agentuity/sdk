@@ -224,6 +224,11 @@ export const deploySubcommand = createSubcommand({
 						}
 					}
 				} catch (err) {
+					// Re-throw intentional cancellations
+					if (err instanceof DeploymentCancelledError) {
+						throw err;
+					}
+					// Log other errors as non-fatal and continue
 					logger.trace('Failed to check GitHub status: %s', err);
 				}
 			}

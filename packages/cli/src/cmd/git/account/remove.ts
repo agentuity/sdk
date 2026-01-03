@@ -153,6 +153,9 @@ export const removeSubcommand = createSubcommand({
 			});
 
 			const colonIdx = response.selection.indexOf(':');
+			if (colonIdx === -1) {
+				logger.fatal('Invalid selection format');
+			}
 			const orgId = response.selection.slice(0, colonIdx);
 			const integrationId = response.selection.slice(colonIdx + 1);
 			const selected = allIntegrations.find(
