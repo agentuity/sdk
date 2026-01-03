@@ -305,7 +305,7 @@ export async function linkProjectToRepo(
 	);
 
 	if (!resp.success || !resp.data) {
-		throw new ProjectLinkError({ message: resp.message });
+		throw new ProjectLinkError();
 	}
 
 	return resp.data.linked;

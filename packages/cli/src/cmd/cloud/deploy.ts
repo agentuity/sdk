@@ -8,7 +8,12 @@ import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
-import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey, updateProjectConfig } from '../../config';
+import {
+	saveProjectDir,
+	getDefaultConfigDir,
+	loadProjectSDKKey,
+	updateProjectConfig,
+} from '../../config';
 import { getProjectGithubStatus } from '../integration/api';
 import { runGitLink } from '../git/link';
 import {
@@ -174,14 +179,14 @@ export const deploySubcommand = createSubcommand({
 						// GitHub is already set up with auto-deploy, tell user to push instead
 						tui.newline();
 						tui.info(
-							`This project is linked to ${tui.bold(githubStatus.repoFullName)} with automatic deployments enabled.`
+							`This project is linked to ${tui.bold(githubStatus.repoFullName ?? 'GitHub')} with automatic deployments enabled.`
 						);
 						tui.newline();
-						console.log(
-							`Push a commit to the ${tui.bold(githubStatus.branch)} branch to trigger a deployment.`
+						tui.info(
+							`Push a commit to the ${tui.bold(githubStatus.branch ?? 'main')} branch to trigger a deployment.`
 						);
 						tui.newline();
-						return;
+						throw new DeploymentCancelledError();
 					}
 
 					if (!githubStatus.linked) {
@@ -207,7 +212,7 @@ export const deploySubcommand = createSubcommand({
 								tui.newline();
 								console.log('Push a commit to trigger your first deployment.');
 								tui.newline();
-								return;
+								throw new DeploymentCancelledError();
 							}
 						} else {
 							await updateProjectConfig(projectDir, { skipGitSetup: true }, config);

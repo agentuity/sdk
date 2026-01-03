@@ -8,7 +8,13 @@ import { statusSubcommand } from './status';
 export const gitCommand = createCommand({
 	name: 'git',
 	description: 'Manage GitHub integration and repository connections',
-	subcommands: [accountCommand, linkSubcommand, listSubcommand, unlinkSubcommand, statusSubcommand],
+	subcommands: [
+		accountCommand,
+		linkSubcommand,
+		listSubcommand,
+		unlinkSubcommand,
+		statusSubcommand,
+	],
 });
 
 export default gitCommand;
