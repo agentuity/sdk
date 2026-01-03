@@ -1,5 +1,5 @@
 import { safeStringify } from '../json';
-import { FetchAdapter, FetchResponse } from './adapter';
+import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { StructuredError } from '../error';
 
@@ -484,7 +484,6 @@ class UnderlyingSinkState {
 	url: string;
 	props?: CreateStreamProps;
 	compressionEnabled = false;
-	writable: WritableStream<Uint8Array> | null = null;
 
 	constructor(url: string, adapter: FetchAdapter, props?: CreateStreamProps) {
 		this.url = url;
@@ -497,7 +496,7 @@ class UnderlyingSinkState {
 		this.compressionEnabled = !!(this.props?.compress && isCompressionAvailable());
 
 		// Create a WritableStream that wraps our append-based write
-		this.writable = new NativeWritableStream<Uint8Array>({
+		const writable = new NativeWritableStream<Uint8Array>({
 			write: async (chunk) => {
 				await this.write(chunk);
 			},
@@ -509,18 +508,20 @@ class UnderlyingSinkState {
 			},
 		});
 
-		return this.writable;
+		return writable;
 	}
 
 	async write(chunk: Uint8Array) {
 		if (this.closed) {
-			return;
+			throw new StreamAPIError({
+				status: 400,
+				message: 'Cannot write to a closed stream',
+			});
 		}
 
 		// Note: For append-based streaming, we don't compress individual chunks
 		// because each would become a separate gzip stream that can't be concatenated.
 		// Instead, compression is handled server-side during the complete phase.
-		this.total += chunk.length;
 
 		// Send the chunk immediately via POST to /append endpoint
 		const appendUrl = `${this.url}/append`;
@@ -541,6 +542,9 @@ class UnderlyingSinkState {
 				message: `Append request failed: ${res.response.status} ${res.response.statusText}`,
 			});
 		}
+
+		// Only increment total after successful POST
+		this.total += chunk.length;
 	}
 
 	async close() {
