@@ -210,7 +210,7 @@ export const deploySubcommand = createSubcommand({
 								tui.newline();
 								tui.info('GitHub integration set up successfully!');
 								tui.newline();
-								console.log('Push a commit to trigger your first deployment.');
+								tui.info('Push a commit to trigger your first deployment.');
 								tui.newline();
 								throw new DeploymentCancelledError();
 							}

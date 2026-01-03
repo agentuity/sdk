@@ -152,7 +152,9 @@ export const removeSubcommand = createSubcommand({
 				},
 			});
 
-			const [orgId, integrationId] = response.selection.split(':');
+			const colonIdx = response.selection.indexOf(':');
+			const orgId = response.selection.slice(0, colonIdx);
+			const integrationId = response.selection.slice(colonIdx + 1);
 			const selected = allIntegrations.find(
 				(i) => i.orgId === orgId && i.integration.id === integrationId
 			);

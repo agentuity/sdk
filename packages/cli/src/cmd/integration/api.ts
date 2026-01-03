@@ -209,6 +209,8 @@ export async function pollForGithubIntegration(
 	timeoutMs = 600000 // 10 minutes
 ): Promise<GithubIntegrationStatusResult> {
 	const started = Date.now();
+	let delay = 2000; // Start with 2 seconds
+	const maxDelay = 10000; // Cap at 10 seconds
 
 	while (Date.now() - started < timeoutMs) {
 		const resp = await apiClient.get(
@@ -228,7 +230,8 @@ export async function pollForGithubIntegration(
 			};
 		}
 
-		await Bun.sleep(2000);
+		await Bun.sleep(delay);
+		delay = Math.min(delay * 1.5, maxDelay);
 	}
 
 	throw new PollForGithubIntegrationTimeout();
