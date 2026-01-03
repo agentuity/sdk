@@ -74,6 +74,7 @@ export interface RunGitLinkResult {
 	linked: boolean;
 	repoFullName?: string;
 	branch?: string;
+	autoDeploy?: boolean;
 	cancelled?: boolean;
 	noGithubConnected?: boolean;
 	noReposFound?: boolean;
@@ -323,7 +324,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 			console.log('Pull requests will create preview deployments.');
 		}
 
-		return { linked: true, repoFullName: selectedRepo.fullName, branch };
+		return { linked: true, repoFullName: selectedRepo.fullName, branch, autoDeploy: finalAutoDeploy };
 	} catch (error) {
 		const isCancel =
 			error === '' ||

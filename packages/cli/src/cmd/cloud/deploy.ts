@@ -207,14 +207,19 @@ export const deploySubcommand = createSubcommand({
 								config,
 							});
 
-							if (result.linked) {
-								// GitHub linked with auto-deploy, tell user to push
+							if (result.linked && result.autoDeploy) {
+								// GitHub linked with auto-deploy, tell user to push instead
 								tui.newline();
 								tui.info('GitHub integration set up successfully!');
 								tui.newline();
 								tui.info('Push a commit to trigger your first deployment.');
 								tui.newline();
 								throw new DeploymentCancelledError();
+							} else if (result.linked) {
+								// Linked but auto-deploy disabled, continue with manual deploy
+								tui.newline();
+								tui.info('GitHub repository linked. Continuing with deployment...');
+								tui.newline();
 							}
 						} else {
 							await updateProjectConfig(projectDir, { skipGitSetup: true }, config);
