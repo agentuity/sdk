@@ -112,7 +112,7 @@ export const statusSubcommand = createSubcommand({
 			console.log(`${tui.bold('Project:')} ${project.projectId}`);
 			if (projectStatus.linked) {
 				console.log(
-					`  ${tui.colorSuccess('✓')} Linked to ${tui.bold(projectStatus.repoFullName!)}`
+					`  ${tui.colorSuccess('✓')} Linked to ${tui.bold(projectStatus.repoFullName ?? '<unknown repository>')}`
 				);
 				console.log(`    Branch: ${projectStatus.branch}`);
 				if (projectStatus.directory) {

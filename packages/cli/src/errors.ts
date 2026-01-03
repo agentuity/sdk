@@ -132,6 +132,10 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 		case ErrorCode.BUILD_FAILED:
 			return ExitCode.BUILD_FAILED;
 
+		// Integration errors
+		case ErrorCode.INTEGRATION_FAILED:
+			return ExitCode.NETWORK_ERROR;
+
 		// Resource conflicts and other errors
 		case ErrorCode.RESOURCE_ALREADY_EXISTS:
 		case ErrorCode.RESOURCE_CONFLICT:

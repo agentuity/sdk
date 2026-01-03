@@ -170,6 +170,7 @@ export const connectSubcommand = createSubcommand({
 			});
 
 			if (!startResult) {
+				tui.error('Failed to get GitHub authorization URL');
 				return;
 			}
 

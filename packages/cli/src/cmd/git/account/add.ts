@@ -112,6 +112,7 @@ export async function runGitAccountConnect(
 		});
 
 		if (!startResult) {
+			tui.error('Failed to start GitHub authorization');
 			return { connected: false };
 		}
 

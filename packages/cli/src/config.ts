@@ -619,6 +619,14 @@ export async function updateProjectConfig(
 	const existing = JSON5.parse(text);
 	const updated = { ...existing, ...updates };
 
+	const result = ProjectSchema.safeParse(updated);
+	if (!result.success) {
+		const issues = result.error.issues
+			.map((i) => `${i.path.join('.') || 'root'}: ${i.message}`)
+			.join(', ');
+		throw new Error(`Invalid project config after update: ${issues}`);
+	}
+
 	await Bun.write(configPath, JSON.stringify(updated, null, 2) + '\n');
 }
 

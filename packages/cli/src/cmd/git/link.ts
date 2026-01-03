@@ -1,6 +1,7 @@
 import { createSubcommand, type Config } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
+import { ErrorCode } from '../../errors';
 import enquirer from 'enquirer';
 import { z } from 'zod';
 import {
@@ -407,6 +408,9 @@ export const linkSubcommand = createSubcommand({
 
 		try {
 			// Non-interactive mode when repo is provided
+			// Note: integrationId is not passed in non-interactive mode. The API will
+			// attempt to find a matching integration based on the repo owner. This may
+			// fail if the org has multiple GitHub integrations with access to the same repo.
 			if (opts.repo && opts.confirm) {
 				const branch = opts.branch ?? 'main';
 				const directory = opts.root === '.' ? undefined : opts.root;
@@ -450,9 +454,9 @@ export const linkSubcommand = createSubcommand({
 				repoFullName: result.repoFullName,
 				branch: result.branch,
 			};
-		} catch {
-			// Error already displayed by spinner, just exit
-			process.exit(1);
+		} catch (error) {
+			logger.trace(error);
+			return logger.fatal('Failed to link repository: %s', error, ErrorCode.INTEGRATION_FAILED);
 		}
 	},
 });
