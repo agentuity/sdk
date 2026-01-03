@@ -171,7 +171,9 @@ export const deploySubcommand = createSubcommand({
 			await saveProjectDir(projectDir);
 
 			// Check GitHub status and prompt for setup if not linked
-			if (!useExistingDeployment && !project.skipGitSetup) {
+			// Skip in non-TTY environments (CI, automated runs) to prevent hanging
+			const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+			if (!useExistingDeployment && !project.skipGitSetup && hasTTY) {
 				try {
 					const githubStatus = await getProjectGithubStatus(apiClient, project.projectId);
 
