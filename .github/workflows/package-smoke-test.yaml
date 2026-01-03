@@ -136,6 +136,14 @@ jobs:
          - name: Run cloud deployment tests
            run: bash scripts/test-cloud-deployment.sh
 
+         - name: Upload deployment logs
+           if: failure()
+           uses: actions/upload-artifact@v4
+           with:
+              name: deployment-logs
+              path: ~/.config/agentuity/logs/
+              if-no-files-found: ignore
+
          - name: Cleanup
            if: always()
            run: rm -rf apps/testing/cloud-deployment/.env
