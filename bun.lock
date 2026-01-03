@@ -108,6 +108,25 @@
         "vite": "^7.2.7",
       },
     },
+    "apps/testing/github-app-test-project": {
+      "name": "github-app-test-project",
+      "version": "0.0.1",
+      "dependencies": {
+        "@agentuity/react": "latest",
+        "@agentuity/runtime": "latest",
+        "@agentuity/schema": "latest",
+        "@agentuity/workbench": "latest",
+        "react": "^19.2.0",
+        "react-dom": "^19.2.0",
+      },
+      "devDependencies": {
+        "@agentuity/cli": "latest",
+        "@types/bun": "latest",
+        "@types/react": "^19.2.0",
+        "@types/react-dom": "^19.2.0",
+        "typescript": "^5",
+      },
+    },
     "apps/testing/integration-suite": {
       "name": "integration-suite",
       "version": "0.0.1",
@@ -1944,6 +1963,8 @@
 
     "git-url-parse": ["git-url-parse@16.1.0", "", { "dependencies": { "git-up": "^8.1.0" } }, "sha512-cPLz4HuK86wClEW7iDdeAKcCVlWXmrLpb2L+G9goW0Z1dtpNS6BXXSOckUTlJT/LDQViE1QZKstNORzHsLnobw=="],
 
+    "github-app-test-project": ["github-app-test-project@workspace:apps/testing/github-app-test-project"],
+
     "github-from-package": ["github-from-package@0.0.0", "", {}, "sha512-SyHy3T1v2NUXn29OsWdxmK6RwHD+vkj3v8en8AOBZ1wBQ/hCAQ5bAQTD02kW4W9tUp/3Qh6J8r9EvntiyCmOOw=="],
 
     "glob": ["glob@11.1.0", "", { "dependencies": { "foreground-child": "^3.3.1", "jackspeak": "^4.1.1", "minimatch": "^10.1.1", "minipass": "^7.1.2", "package-json-from-dist": "^1.0.0", "path-scurry": "^2.0.0" }, "bin": { "glob": "dist/esm/bin.mjs" } }, "sha512-vuNwKSaKiqm7g0THUBu2x7ckSs3XJLXE+2ssL7/MfTGPLLcrJQ/4Uq1CjPTtO5cCIiRxqvN6Twy1qOwhL0Xjcw=="],
@@ -3260,6 +3281,16 @@
 
     "gaxios/uuid": ["uuid@9.0.1", "", { "bin": { "uuid": "dist/bin/uuid" } }, "sha512-b+1eJOlsR9K8HJpow9Ok3fiWOWSIcIzXodvv0rQjVoOVNpWMpxf1wZNpt4y9h10odCNrqnYp1OBzRktckBe3sA=="],
 
+    "github-app-test-project/@agentuity/cli": ["@agentuity/cli@0.0.110", "", { "dependencies": { "@agentuity/auth": "0.0.110", "@agentuity/core": "0.0.110", "@agentuity/server": "0.0.110", "@datasert/cronjs-parser": "^1.4.0", "@terascope/fetch-github-release": "^2.2.1", "@vitejs/plugin-react": "^5.1.2", "acorn-loose": "^8.5.2", "adm-zip": "^0.5.16", "astring": "^1.9.0", "cli-table3": "^0.6.5", "commander": "^14.0.2", "enquirer": "^2.4.1", "git-url-parse": "^16.1.0", "json-colorizer": "^3.0.1", "json5": "^2.2.3", "tar": "^7.5.2", "tar-fs": "^3.1.1", "typescript": "^5.9.0", "vite": "^7.2.7", "zod": "^4.1.12" }, "bin": { "agentuity": "bin/cli.ts" } }, "sha512-IEGQZK/WGyvBDbJlgY04NTazjlCpm6vmzX3MC3YTdy9wFlWHz2jiK391s3S+8Tfi2JBO6amgrbbPHh71xiQ9jA=="],
+
+    "github-app-test-project/@agentuity/react": ["@agentuity/react@0.0.110", "", { "dependencies": { "@agentuity/core": "0.0.110", "@agentuity/frontend": "0.0.110" }, "peerDependencies": { "@types/react": "^19.0.0", "react": "^19.0.0" } }, "sha512-ECI3Z07B1/s4MoqqeGC/dQxuaDY49Lfc6uQwcZADvlX3FWgRYisxP6DurbJxyo5RC6TfTtH41TmTDKyPbKShsg=="],
+
+    "github-app-test-project/@agentuity/runtime": ["@agentuity/runtime@0.0.110", "", { "dependencies": { "@agentuity/auth": "0.0.110", "@agentuity/core": "0.0.110", "@agentuity/schema": "0.0.110", "@agentuity/server": "0.0.110", "@opentelemetry/api": "^1.9.0", "@opentelemetry/api-logs": "^0.207.0", "@opentelemetry/auto-instrumentations-node": "^0.66.0", "@opentelemetry/core": "^2.2.0", "@opentelemetry/exporter-logs-otlp-http": "^0.207.0", "@opentelemetry/exporter-metrics-otlp-http": "^0.207.0", "@opentelemetry/exporter-trace-otlp-http": "^0.207.0", "@opentelemetry/host-metrics": "^0.36.2", "@opentelemetry/otlp-exporter-base": "^0.207.0", "@opentelemetry/resources": "^2.2.0", "@opentelemetry/sdk-logs": "^0.207.0", "@opentelemetry/sdk-metrics": "^2.2.0", "@opentelemetry/sdk-node": "^0.207.0", "@opentelemetry/sdk-trace-base": "^2.2.0", "@opentelemetry/semantic-conventions": "^1.37.0", "@traceloop/ai-semantic-conventions": "0.21.0", "@traceloop/node-server-sdk": "0.21.1", "hono": "^4.7.13", "zod": "^4.1.12" } }, "sha512-d1vviAsWtLnFwEYzEAHfnJLbeFxGuyG0EejoOrokxKcFuTuLvxF2Mtz1gc2yC2HXIs0H5Rd8tgY7vI8YblYVcw=="],
+
+    "github-app-test-project/@agentuity/schema": ["@agentuity/schema@0.0.110", "", { "dependencies": { "@agentuity/core": "0.0.110" } }, "sha512-S6/8vQuXs0LEfPAWzk8MzHqx8i4bcIrKHhzbAe+LFdL2K4k3y4HexN+QufkDfVk1UCJplAXJc2MCPZAUPUczHg=="],
+
+    "github-app-test-project/@agentuity/workbench": ["@agentuity/workbench@0.0.110", "", { "dependencies": { "@agentuity/core": "0.0.110", "@agentuity/react": "0.0.110", "@ai-sdk/react": "^3.0.1", "@hookform/resolvers": "^5.2.2", "@monaco-editor/react": "^4.6.0", "@shikijs/langs": "^3.19.0", "@shikijs/themes": "^3.19.0", "@xyflow/react": "^12.9.1", "ai": "^6.0.1", "bun-plugin-tailwind": "^0.0.14", "class-variance-authority": "^0.7.1", "clsx": "^2.1.1", "cmdk": "^1.1.1", "embla-carousel-react": "^8.6.0", "lucide-react": "^0.548.0", "motion": "^12.23.24", "nanoid": "^5.1.6", "non.geist": "^1.0.4", "react-hook-form": "^7.65.0", "react-resizable-panels": "^3.0.6", "shiki": "^3.14.0", "streamdown": "^1.4.0", "tailwind-merge": "^3.3.1", "tailwindcss-animate": "^1.0.7", "tokenlens": "^1.3.1", "use-stick-to-bottom": "^1.1.1", "zod": "^4.1.12", "zod-from-json-schema": "^0.5.2" }, "peerDependencies": { "@radix-ui/react-avatar": "^1.1.8", "@radix-ui/react-dialog": "^1.1.12", "@radix-ui/react-dropdown-menu": "^2.1.13", "@radix-ui/react-hover-card": "^1.1.12", "@radix-ui/react-popover": "^1.1.12", "@radix-ui/react-scroll-area": "^1.2.7", "@radix-ui/react-select": "^2.2.3", "@radix-ui/react-slot": "^1.1.2", "@radix-ui/react-tooltip": "^1.2.5", "@radix-ui/react-use-controllable-state": "^1.2.2", "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0", "react": "^19.0.0", "react-dom": "^19.0.0" } }, "sha512-11g8hD5Gou+nD/8AYJnRpY1RA5nNQU4dfxV8ntCre1dspKBHpTsDFSV3krVvd2qob5zCS7zW0A5d6JsJHrLGRA=="],
+
     "glob/minimatch": ["minimatch@10.1.1", "", { "dependencies": { "@isaacs/brace-expansion": "^5.0.0" } }, "sha512-enIvLvRAFZYXJzkCYG5RKmPfrFArdLv+R+lbQ53BmIMLIry74bjKzX6iHAm8WYamJkhSSEabrWN5D97XnKObjQ=="],
 
     "globby/ignore": ["ignore@7.0.5", "", {}, "sha512-Hs59xBNfUIunMFgWAbGX5cq6893IbWg4KnrjbYwX3tx0ztorVgTDA6B2sxf8ejHJ4wz8BqGUMYlnzNBer5NvGg=="],
@@ -3560,6 +3591,12 @@
 
     "e2e-web-tests/@vitejs/plugin-react/react-refresh": ["react-refresh@0.17.0", "", {}, "sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ=="],
 
+    "github-app-test-project/@agentuity/runtime/@agentuity/schema": ["@agentuity/schema@workspace:packages/schema"],
+
+    "github-app-test-project/@agentuity/workbench/@agentuity/react": ["@agentuity/react@workspace:packages/react"],
+
+    "github-app-test-project/@agentuity/workbench/bun-plugin-tailwind": ["bun-plugin-tailwind@0.0.14", "", { "dependencies": { "tailwindcss": "4.0.0-beta.9" }, "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-Ge8M8DQsRDErCzH/uI8pYjx5vZWXxQvnwM/xMQMElxQqHieGbAopfYo/q/kllkPkRbFHiwhnHwTpRMAMJZCjug=="],
+
     "integration-suite/@vitejs/plugin-react/@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.0-beta.27", "", {}, "sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA=="],
 
     "integration-suite/@vitejs/plugin-react/react-refresh": ["react-refresh@0.17.0", "", {}, "sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ=="],
@@ -3699,5 +3736,9 @@
     "@traceloop/node-server-sdk/@opentelemetry/sdk-node/@opentelemetry/exporter-trace-otlp-http/@opentelemetry/otlp-transformer": ["@opentelemetry/otlp-transformer@0.203.0", "", { "dependencies": { "@opentelemetry/api-logs": "0.203.0", "@opentelemetry/core": "2.0.1", "@opentelemetry/resources": "2.0.1", "@opentelemetry/sdk-logs": "0.203.0", "@opentelemetry/sdk-metrics": "2.0.1", "@opentelemetry/sdk-trace-base": "2.0.1", "protobufjs": "^7.3.0" }, "peerDependencies": { "@opentelemetry/api": "^1.3.0" } }, "sha512-Y8I6GgoCna0qDQ2W6GCRtaF24SnvqvA8OfeTi7fqigD23u8Jpb4R5KFv/pRvrlGagcCLICMIyh9wiejp4TXu/A=="],
 
     "@traceloop/node-server-sdk/@opentelemetry/sdk-node/@opentelemetry/sdk-trace-node/@opentelemetry/context-async-hooks": ["@opentelemetry/context-async-hooks@2.0.1", "", { "peerDependencies": { "@opentelemetry/api": ">=1.0.0 <1.10.0" } }, "sha512-XuY23lSI3d4PEqKA+7SLtAgwqIfc6E/E9eAQWLN1vlpC53ybO3o6jW4BsXo1xvz9lYyyWItfQDDLzezER01mCw=="],
+
+    "github-app-test-project/@agentuity/workbench/@agentuity/react/@agentuity/schema": ["@agentuity/schema@workspace:packages/schema"],
+
+    "github-app-test-project/@agentuity/workbench/bun-plugin-tailwind/tailwindcss": ["tailwindcss@4.0.0-beta.9", "", {}, "sha512-96KpsfQi+/sFIOfyFnGzyy5pobuzf1iMBD9NVtelerPM/lPI2XUS4Kikw9yuKRniXXw77ov1sl7gCSKLsn6CJA=="],
   }
 }

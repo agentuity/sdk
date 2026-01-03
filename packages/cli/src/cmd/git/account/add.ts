@@ -23,17 +23,20 @@ export interface RunGitAccountConnectOptions {
 	orgName?: string;
 	logger: Logger;
 	config?: Config | null;
+	noWait?: boolean;
+	json?: boolean;
 }
 
 export interface RunGitAccountConnectResult {
 	connected: boolean;
 	cancelled?: boolean;
+	url?: string;
 }
 
 export async function runGitAccountConnect(
 	options: RunGitAccountConnectOptions
 ): Promise<RunGitAccountConnectResult> {
-	const { apiClient, orgId, orgName, logger, config } = options;
+	const { apiClient, orgId, orgName, logger, config, noWait, json } = options;
 	const orgDisplay = orgName ?? orgId;
 
 	try {
@@ -53,7 +56,8 @@ export async function runGitAccountConnect(
 			(i) => !alreadyConnectedNames.has(i.githubAccountName)
 		);
 
-		if (availableIntegrations.length > 0) {
+		// Skip interactive prompts in --no-wait mode
+		if (availableIntegrations.length > 0 && !noWait) {
 			tui.newline();
 
 			const integrationChoices = availableIntegrations.map((i) => ({
@@ -120,6 +124,18 @@ export async function runGitAccountConnect(
 		const apiBaseUrl = getAPIBaseURL(config);
 		const url = `${apiBaseUrl}/github/connect/${shortId}`;
 
+		// If --no-wait, just return the URL without waiting
+		if (noWait) {
+			if (!json) {
+				tui.newline();
+				console.log('GitHub authorization URL:');
+				tui.newline();
+				console.log(`  ${tui.link(url)}`);
+				tui.newline();
+			}
+			return { connected: false, url };
+		}
+
 		const copied = await tui.copyToClipboard(url);
 
 		tui.newline();
@@ -181,11 +197,16 @@ export async function runGitAccountConnect(
 
 const AddOptionsSchema = z.object({
 	org: z.string().optional().describe('Organization ID to add the account to'),
+	'url-only': z
+		.boolean()
+		.optional()
+		.describe('Output URL and exit without waiting for authorization'),
 });
 
 const AddResponseSchema = z.object({
 	connected: z.boolean().describe('Whether the account was connected'),
 	orgId: z.string().optional().describe('Organization ID'),
+	url: z.string().optional().describe('GitHub authorization URL (only with --url-only)'),
 });
 
 export const addSubcommand = createSubcommand({
@@ -210,7 +231,7 @@ export const addSubcommand = createSubcommand({
 	],
 
 	async handler(ctx) {
-		const { logger, apiClient, config, opts } = ctx;
+		const { logger, apiClient, config, opts, options } = ctx;
 
 		try {
 			const orgs = await tui.spinner({
@@ -255,6 +276,10 @@ export const addSubcommand = createSubcommand({
 				if (orgs.length === 1) {
 					orgId = orgs[0].id;
 					selectedOrg = orgs[0];
+				} else if (opts['url-only']) {
+					// In --url-only mode, use first org if --org not specified
+					orgId = sortedOrgs[0].id;
+					selectedOrg = sortedOrgs[0];
 				} else {
 					const choices = sortedOrgs.map((org) => {
 						const count = org.integrations.length;
@@ -291,9 +316,11 @@ export const addSubcommand = createSubcommand({
 				orgName: selectedOrg?.name,
 				logger,
 				config,
+				noWait: opts['url-only'],
+				json: options.json,
 			});
 
-			return { connected: result.connected, orgId };
+			return { connected: result.connected, orgId, url: result.url };
 		} catch (error) {
 			const isCancel =
 				error === '' ||
