@@ -4,7 +4,7 @@ import { useAPI } from '@agentuity/react';
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 
 const DEFAULT_TEXT =
-	'Welcome to Agentuity! This translation agent shows what you can build with the platform. It connects to AI models through our gateway, tracks usage with thread state, and runs quality checks automatically. Try translating this text into different languages to see the agent in action.';
+	'Welcome to Agentuity! This translation agent shows what you can build with the platform. It connects to AI models through our gateway, tracks usage with thread state, and runs quality checks automatically. Try translating this text into different languages to see the agent in action, and check the terminal for more details.';
 
 const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
@@ -16,15 +16,14 @@ export function App() {
 	const [text, setText] = useState(DEFAULT_TEXT);
 	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
 	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5-nano');
-	const [isTranslating, setIsTranslating] = useState(false);
+	const [hoveredHistoryIndex, setHoveredHistoryIndex] = useState<number | null>(null);
+	const [hoveredBadge, setHoveredBadge] = useState<'thread' | 'session' | null>(null);
 
 	// useAPI hook handles loading state and response typing automatically
 	const { data: result, invoke, isLoading } = useAPI('POST /api/translate');
 
 	const handleTranslate = useCallback(async () => {
-		setIsTranslating(true);
 		await invoke({ text, toLanguage, model });
-		setIsTranslating(false);
 	}, [text, toLanguage, model, invoke]);
 
 	const handleClearHistory = useCallback(async () => {
@@ -77,7 +76,7 @@ export function App() {
 							Translate to{' '}
 							<select
 								className="inline-select"
-								disabled={isTranslating}
+								disabled={isLoading}
 								onChange={(e: ChangeEvent<HTMLSelectElement>) =>
 									setToLanguage(e.currentTarget.value as (typeof LANGUAGES)[number])
 								}
@@ -95,7 +94,7 @@ export function App() {
 							using{' '}
 							<select
 								className="inline-select"
-								disabled={isTranslating}
+								disabled={isLoading}
 								onChange={(e: ChangeEvent<HTMLSelectElement>) =>
 									setModel(e.currentTarget.value as (typeof MODELS)[number])
 								}
@@ -111,26 +110,26 @@ export function App() {
 							<div className="glow-bg" />
 							<div className="glow-effect" />
 							<button
-								className={`button ${isTranslating ? 'disabled' : ''}`}
-								disabled={isTranslating}
+								className={`button ${isLoading ? 'disabled' : ''}`}
+								disabled={isLoading}
 								onClick={handleTranslate}
 								type="button"
 							>
-								{isTranslating ? 'Translating...' : 'Translate'}
+								{isLoading ? 'Translating...' : 'Translate'}
 							</button>
 						</div>
 					</div>
 
 					<textarea
 						className="textarea"
-						disabled={isTranslating}
+						disabled={isLoading}
 						onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.currentTarget.value)}
 						placeholder="Enter text to translate..."
 						rows={4}
 						value={text}
 					/>
 
-					{isTranslating ? (
+					{isLoading ? (
 						<div className="output">
 							<span className="loading-text">
 								Translating to {toLanguage}
@@ -154,14 +153,54 @@ export function App() {
 									</>
 								)}
 								{result.threadId && (
-									<span className="id-badge" data-tooltip={`Your conversation context that persists across requests. All translations share this thread, letting the agent remember history. Each request gets a unique session ID, but the thread stays the same.\n\nID: ${result.threadId}`}>
+									<span
+										className="id-badge"
+										onMouseEnter={() => setHoveredBadge('thread')}
+										onMouseLeave={() => setHoveredBadge(null)}
+									>
+										{hoveredBadge === 'thread' && (
+											<div className="id-badge-tooltip">
+												<div className="badge-tooltip-title">Thread ID</div>
+												<p className="badge-tooltip-desc">
+													Your <strong>conversation context</strong> that persists across requests.
+													All translations share this thread, letting the agent remember history.
+												</p>
+												<p className="badge-tooltip-desc">
+													Each request gets a unique session ID, but the <em>thread stays the same</em>.
+												</p>
+												<div className="badge-tooltip-id">
+													<span className="badge-tooltip-id-label">ID</span>
+													<code className="badge-tooltip-id-value">{result.threadId}</code>
+												</div>
+											</div>
+										)}
 										Thread: <strong>{result.threadId.slice(0, 12)}...</strong>
 									</span>
 								)}
 								{result.sessionId && (
 									<>
 										<span className="separator">|</span>
-										<span className="id-badge" data-tooltip={`A unique identifier for this specific request. Useful for debugging and tracing individual operations in your agent logs.\n\nID: ${result.sessionId}`}>
+										<span
+											className="id-badge"
+											onMouseEnter={() => setHoveredBadge('session')}
+											onMouseLeave={() => setHoveredBadge(null)}
+										>
+											{hoveredBadge === 'session' && (
+												<div className="id-badge-tooltip">
+													<div className="badge-tooltip-title">Session ID</div>
+													<p className="badge-tooltip-desc">
+														A <strong>unique identifier</strong> for this specific request.
+														Useful for debugging and tracing individual operations in your agent logs.
+													</p>
+													<p className="badge-tooltip-desc">
+														Unlike threads, sessions are <em>unique per request</em>.
+													</p>
+													<div className="badge-tooltip-id">
+														<span className="badge-tooltip-id-label">ID</span>
+														<code className="badge-tooltip-id-value">{result.sessionId}</code>
+													</div>
+												</div>
+											)}
 											Session: <strong>{result.sessionId.slice(0, 12)}...</strong>
 										</span>
 									</>
@@ -189,8 +228,40 @@ export function App() {
 									<div
 										key={`${entry.timestamp}-${index}`}
 										className="history-item"
-										data-tooltip={`Model: ${entry.model}\nTokens: ${entry.tokens}\nLatency: ${formatLatency(entry.latencyMs)}`}
+										onMouseEnter={() => setHoveredHistoryIndex(index)}
+										onMouseLeave={() => setHoveredHistoryIndex(null)}
 									>
+										{hoveredHistoryIndex === index && (
+											<div className="history-tooltip">
+												<div className="tooltip-section">
+													<div className="tooltip-row">
+														<span className="tooltip-label">Model</span>
+														<span className="tooltip-value">{entry.model}</span>
+													</div>
+													<div className="tooltip-row">
+														<span className="tooltip-label">Tokens</span>
+														<span className="tooltip-value">{entry.tokens}</span>
+													</div>
+													<div className="tooltip-row">
+														<span className="tooltip-label">Latency</span>
+														<span className="tooltip-value">{formatLatency(entry.latencyMs)}</span>
+													</div>
+												</div>
+												<div className="tooltip-divider" />
+												<div className="tooltip-section">
+													<div className="tooltip-row">
+														<span className="tooltip-label">Thread</span>
+														<span className="tooltip-value tooltip-id">{result.threadId.slice(0, 12)}...</span>
+														<span className="tooltip-hint">(same for all)</span>
+													</div>
+													<div className="tooltip-row">
+														<span className="tooltip-label">Session</span>
+														<span className="tooltip-value tooltip-id">{entry.sessionId.slice(0, 12)}...</span>
+														<span className="tooltip-hint">(unique)</span>
+													</div>
+												</div>
+											</div>
+										)}
 										<span className="history-text">{entry.text}</span>
 										<span className="history-arrow">→</span>
 										<span className="history-lang">{entry.toLanguage}</span>
@@ -560,8 +631,7 @@ export function App() {
 						border-bottom-color: #22d3ee;
 					}
 
-					.id-badge:hover::after {
-						content: attr(data-tooltip);
+					.id-badge-tooltip {
 						position: absolute;
 						bottom: 100%;
 						left: 50%;
@@ -569,27 +639,78 @@ export function App() {
 						background: #18181b;
 						border: 1px solid #27272a;
 						border-radius: 0.5rem;
-						padding: 0.875rem 1rem;
+						padding: 1rem;
 						font-size: 0.8rem;
 						line-height: 1.5;
-						color: #d4d4d8;
-						white-space: pre-wrap;
-						max-width: 280px;
+						width: 320px;
 						z-index: 10;
 						margin-bottom: 0.5rem;
 						box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+						text-align: left;
 					}
 
-					.id-badge:hover::before {
+					.id-badge-tooltip::after {
 						content: '';
 						position: absolute;
-						bottom: 100%;
+						top: 100%;
 						left: 50%;
 						transform: translateX(-50%);
 						border: 6px solid transparent;
 						border-top-color: #27272a;
-						margin-bottom: -6px;
-						z-index: 11;
+					}
+
+					.badge-tooltip-title {
+						color: #fff;
+						font-weight: 600;
+						font-size: 0.9rem;
+						margin-bottom: 0.5rem;
+					}
+
+					.badge-tooltip-desc {
+						color: #a1a1aa;
+						margin: 0 0 0.5rem 0;
+						font-size: 0.8rem;
+					}
+
+					.badge-tooltip-desc:last-of-type {
+						margin-bottom: 0.75rem;
+					}
+
+					.badge-tooltip-desc strong {
+						color: #e4e4e7;
+						font-weight: 500;
+					}
+
+					.badge-tooltip-desc em {
+						color: #e4e4e7;
+						font-style: normal;
+						font-weight: 600;
+					}
+
+					.badge-tooltip-id {
+						display: flex;
+						flex-direction: column;
+						gap: 0.375rem;
+						padding-top: 0.75rem;
+						border-top: 1px solid #27272a;
+					}
+
+					.badge-tooltip-id-label {
+						color: #71717a;
+						font-size: 0.65rem;
+						text-transform: uppercase;
+						letter-spacing: 0.05em;
+					}
+
+					.badge-tooltip-id-value {
+						color: #22d3ee;
+						font-family: ui-monospace, monospace;
+						font-size: 0.7rem;
+						word-break: break-all;
+						line-height: 1.4;
+						background: #27272a;
+						padding: 0.375rem 0.5rem;
+						border-radius: 0.25rem;
 					}
 
 					.separator {
@@ -601,7 +722,7 @@ export function App() {
 						border: 1px solid #2b2b30;
 						border-radius: 0.375rem;
 						color: #52525b;
-						font-size: 0.95rem;
+						font-size: 0.9rem;
 						line-height: 1.6;
 						min-height: 3rem;
 						padding: 0.75rem 1rem;
@@ -692,23 +813,63 @@ export function App() {
 						background: #18181b;
 					}
 
-					.history-item:hover::after {
-						content: attr(data-tooltip);
+					.history-tooltip {
 						position: absolute;
 						bottom: 100%;
 						left: 50%;
 						transform: translateX(-50%);
 						background: #18181b;
 						border: 1px solid #27272a;
-						border-radius: 0.375rem;
-						padding: 0.5rem 0.75rem;
+						border-radius: 0.5rem;
+						padding: 0.75rem;
 						font-size: 0.75rem;
-						line-height: 1.5;
-						color: #d4d4d8;
-						white-space: pre;
 						z-index: 10;
-						margin-bottom: 0.25rem;
-						box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+						margin-bottom: 0.5rem;
+						box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+						min-width: 200px;
+					}
+
+					.tooltip-section {
+						display: flex;
+						flex-direction: column;
+						gap: 0.375rem;
+					}
+
+					.tooltip-row {
+						display: flex;
+						align-items: center;
+						gap: 0.5rem;
+					}
+
+					.tooltip-label {
+						color: #71717a;
+						min-width: 3.5rem;
+					}
+
+					.tooltip-value {
+						color: #e4e4e7;
+						font-weight: 500;
+					}
+
+					.tooltip-id {
+						font-family: ui-monospace, monospace;
+						color: #22d3ee;
+						font-weight: 400;
+						background: #27272a;
+						padding: 0.125rem 0.375rem;
+						border-radius: 0.25rem;
+					}
+
+					.tooltip-hint {
+						color: #52525b;
+						font-size: 0.65rem;
+						font-style: italic;
+					}
+
+					.tooltip-divider {
+						height: 1px;
+						background: #27272a;
+						margin: 0.5rem 0;
 					}
 
 					.history-text {
@@ -748,7 +909,7 @@ export function App() {
 
 					.history-empty-text {
 						color: #52525b;
-						font-size: 0.875rem;
+						font-size: 0.85rem;
 					}
 
 					.steps-list {

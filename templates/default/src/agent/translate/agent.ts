@@ -87,7 +87,10 @@ const agent = createAgent('translate', {
 			};
 		}
 
-		ctx.logger.info('Translation requested', { toLanguage, model, textLength: text.length });
+		ctx.logger.info('─── Translation Request ───');
+		ctx.logger.info(`Thread:  ${ctx.thread.id}`);
+		ctx.logger.info(`Session: ${ctx.sessionId}`);
+		ctx.logger.info('Input', { toLanguage, model, textLength: text.length });
 
 		const prompt = `Translate to ${toLanguage}:\n\n${text}`;
 
@@ -103,7 +106,7 @@ const agent = createAgent('translate', {
 		const tokens = completion.usage?.total_tokens ?? 0;
 
 		// Store translation in history using thread state (persists across sessions)
-		const truncate = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
+		const truncate = (s: string, len: number) => (s.length > len ? `${s.slice(0, len)}...` : s);
 		const newEntry: HistoryEntry = {
 			text: truncate(text, 50),
 			toLanguage,
@@ -119,7 +122,7 @@ const agent = createAgent('translate', {
 		await ctx.thread.state.push('history', newEntry, 5);
 		const history = (await ctx.thread.state.get<HistoryEntry[]>('history')) ?? [];
 
-		ctx.logger.info('Translation completed', { tokens, recentTranslations: history.length });
+		ctx.logger.info('Output', { tokens, latencyMs, totalCount: history.length });
 
 		return {
 			translation,
