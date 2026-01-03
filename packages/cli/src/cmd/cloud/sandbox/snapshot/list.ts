@@ -7,7 +7,7 @@ import { snapshotList } from '@agentuity/server';
 
 const SnapshotInfoSchema = z.object({
 	snapshotId: z.string(),
-	sandboxId: z.string(),
+	sandboxId: z.string().optional(),
 	tag: z.string().nullable().optional(),
 	sizeBytes: z.number(),
 	fileCount: z.number(),
@@ -64,7 +64,7 @@ export const listSubcommand = createCommand({
 					return {
 						ID: snap.snapshotId,
 						Tag: snap.tag ?? '-',
-						Sandbox: snap.sandboxId,
+						Sandbox: snap.sandboxId ?? '(deleted)',
 						Size: tui.formatBytes(snap.sizeBytes),
 						Files: snap.fileCount,
 						'Created At': snap.createdAt,

@@ -14,7 +14,12 @@ const SnapshotFileInfoSchema = z
 const SnapshotInfoSchema = z
 	.object({
 		snapshotId: z.string().describe('Unique identifier for the snapshot'),
-		sandboxId: z.string().describe('ID of the sandbox this snapshot was created from'),
+		sandboxId: z
+			.string()
+			.optional()
+			.describe(
+				'ID of the sandbox this snapshot was created from (may be absent if sandbox was deleted)'
+			),
 		tag: z.string().nullable().optional().describe('User-defined tag for the snapshot'),
 		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
 		fileCount: z.number().describe('Number of files in the snapshot'),
@@ -47,7 +52,7 @@ export interface SnapshotFileInfo {
 
 export interface SnapshotInfo {
 	snapshotId: string;
-	sandboxId: string;
+	sandboxId?: string;
 	tag?: string | null;
 	sizeBytes: number;
 	fileCount: number;

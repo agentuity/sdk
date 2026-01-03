@@ -7,7 +7,10 @@ import { snapshotCreate } from '@agentuity/server';
 
 const SnapshotCreateResponseSchema = z.object({
 	snapshotId: z.string().describe('Snapshot ID'),
-	sandboxId: z.string().describe('Source sandbox ID'),
+	sandboxId: z
+		.string()
+		.optional()
+		.describe('Source sandbox ID (may be absent if sandbox was deleted)'),
 	tag: z.string().optional().nullable().describe('Snapshot tag'),
 	sizeBytes: z.number().describe('Snapshot size in bytes'),
 	fileCount: z.number().describe('Number of files in snapshot'),
