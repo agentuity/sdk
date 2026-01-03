@@ -3,6 +3,28 @@ import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
 import { getProjectGithubStatus, getGithubIntegrationStatus } from '../integration/api';
+import { z } from 'zod';
+
+const StatusResponseSchema = z.object({
+	orgId: z.string().describe('Organization ID'),
+	connected: z.boolean().describe('Whether GitHub is connected to the org'),
+	integrations: z
+		.array(
+			z.object({
+				id: z.string(),
+				githubAccountName: z.string(),
+				githubAccountType: z.enum(['user', 'org']),
+			})
+		)
+		.describe('Connected GitHub accounts'),
+	projectId: z.string().describe('Project ID'),
+	linked: z.boolean().describe('Whether the project is linked to a repo'),
+	repoFullName: z.string().optional().describe('Full repository name'),
+	branch: z.string().optional().describe('Branch'),
+	directory: z.string().optional().describe('Directory'),
+	autoDeploy: z.boolean().optional().describe('Auto-deploy enabled'),
+	previewDeploy: z.boolean().optional().describe('Preview deploys enabled'),
+});
 
 export const statusSubcommand = createSubcommand({
 	name: 'status',
@@ -10,15 +32,22 @@ export const statusSubcommand = createSubcommand({
 	tags: ['read-only'],
 	idempotent: true,
 	requires: { auth: true, apiClient: true, project: true },
+	schema: {
+		response: StatusResponseSchema,
+	},
 	examples: [
 		{
 			command: getCommand('git status'),
 			description: 'Show GitHub status for current project',
 		},
+		{
+			command: getCommand('--json git status'),
+			description: 'Get status in JSON format',
+		},
 	],
 
 	async handler(ctx) {
-		const { logger, apiClient, project } = ctx;
+		const { logger, apiClient, project, options } = ctx;
 
 		try {
 			// Get org-level GitHub status
@@ -34,6 +63,27 @@ export const statusSubcommand = createSubcommand({
 				clearOnSuccess: true,
 				callback: () => getProjectGithubStatus(apiClient, project.projectId),
 			});
+
+			const result = {
+				orgId: project.orgId,
+				connected: orgStatus.connected,
+				integrations: orgStatus.integrations.map((i) => ({
+					id: i.id,
+					githubAccountName: i.githubAccountName,
+					githubAccountType: i.githubAccountType,
+				})),
+				projectId: project.projectId,
+				linked: projectStatus.linked,
+				repoFullName: projectStatus.repoFullName,
+				branch: projectStatus.branch,
+				directory: projectStatus.directory,
+				autoDeploy: projectStatus.autoDeploy,
+				previewDeploy: projectStatus.previewDeploy,
+			};
+
+			if (options.json) {
+				return result;
+			}
 
 			tui.newline();
 			console.log(tui.bold('GitHub Status'));
@@ -80,9 +130,15 @@ export const statusSubcommand = createSubcommand({
 			}
 
 			tui.newline();
+
+			return result;
 		} catch (error) {
 			logger.trace(error);
-			logger.fatal('Failed to get GitHub status: %s', error, ErrorCode.INTEGRATION_FAILED);
+			return logger.fatal(
+				'Failed to get GitHub status: %s',
+				error,
+				ErrorCode.INTEGRATION_FAILED
+			);
 		}
 	},
 });

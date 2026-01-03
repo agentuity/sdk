@@ -165,10 +165,24 @@ export const deploySubcommand = createSubcommand({
 		try {
 			await saveProjectDir(projectDir);
 
-			// Prompt for GitHub setup if not linked and not skipped
+			// Check GitHub status and prompt for setup if not linked
 			if (!useExistingDeployment && !project.skipGitSetup) {
 				try {
 					const githubStatus = await getProjectGithubStatus(apiClient, project.projectId);
+
+					if (githubStatus.linked && githubStatus.autoDeploy) {
+						// GitHub is already set up with auto-deploy, tell user to push instead
+						tui.newline();
+						tui.info(
+							`This project is linked to ${tui.bold(githubStatus.repoFullName)} with automatic deployments enabled.`
+						);
+						tui.newline();
+						console.log(
+							`Push a commit to the ${tui.bold(githubStatus.branch)} branch to trigger a deployment.`
+						);
+						tui.newline();
+						return;
+					}
 
 					if (!githubStatus.linked) {
 						tui.newline();
@@ -183,12 +197,17 @@ export const deploySubcommand = createSubcommand({
 								orgId: project.orgId,
 								logger,
 								skipAlreadyLinkedCheck: true,
+								config,
 							});
 
 							if (result.linked) {
+								// GitHub linked with auto-deploy, tell user to push
 								tui.newline();
-								tui.info('Continuing with deployment...');
+								tui.info('GitHub integration set up successfully!');
 								tui.newline();
+								console.log('Push a commit to trigger your first deployment.');
+								tui.newline();
+								return;
 							}
 						} else {
 							await updateProjectConfig(projectDir, { skipGitSetup: true }, config);

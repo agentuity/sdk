@@ -1,7 +1,6 @@
-import { createSubcommand } from '../../types';
+import { createSubcommand, type Config } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
-import { ErrorCode } from '../../errors';
 import enquirer from 'enquirer';
 import { z } from 'zod';
 import {
@@ -10,10 +9,10 @@ import {
 	linkProjectToRepo,
 	getProjectGithubStatus,
 	type GithubRepo,
-	type GithubIntegrationStatusResult,
 } from '../integration/api';
 import type { APIClient } from '../../api';
 import type { Logger } from '@agentuity/core';
+import { runGitAccountConnect } from './account/add';
 
 export interface DetectedGitInfo {
 	repo: string | null;
@@ -64,9 +63,10 @@ export interface RunGitLinkOptions {
 	logger: Logger;
 	branchOption?: string;
 	rootOption?: string;
-	autoDeploy?: boolean;
-	previewDeploy?: boolean;
+	noAuto?: boolean;
+	noPreview?: boolean;
 	skipAlreadyLinkedCheck?: boolean;
+	config?: Config | null;
 }
 
 export interface RunGitLinkResult {
@@ -86,9 +86,10 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 		logger,
 		branchOption,
 		rootOption,
-		autoDeploy = true,
-		previewDeploy = true,
+		noAuto = false,
+		noPreview = false,
 		skipAlreadyLinkedCheck = false,
+		config,
 	} = options;
 
 	try {
@@ -114,7 +115,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 			}
 		}
 
-		const githubStatus = await tui.spinner({
+		let githubStatus = await tui.spinner({
 			message: 'Checking GitHub connection...',
 			clearOnSuccess: true,
 			callback: () => getGithubIntegrationStatus(apiClient, orgId),
@@ -122,12 +123,39 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 
 		if (!githubStatus.connected || githubStatus.integrations.length === 0) {
 			tui.newline();
-			tui.error('No GitHub accounts connected to this organization.');
+			tui.warning('No GitHub accounts connected to this organization.');
 			tui.newline();
-			console.log(
-				`Run ${tui.bold('agentuity git account add')} to connect a GitHub account first.`
-			);
-			return { linked: false, noGithubConnected: true };
+
+			const wantConnect = await tui.confirm('Would you like to connect a GitHub account now?');
+			if (!wantConnect) {
+				tui.info('Cancelled');
+				return { linked: false, cancelled: true };
+			}
+
+			const connectResult = await runGitAccountConnect({
+				apiClient,
+				orgId,
+				logger,
+				config,
+			});
+
+			if (!connectResult.connected) {
+				if (connectResult.cancelled) {
+					return { linked: false, cancelled: true };
+				}
+				return { linked: false, noGithubConnected: true };
+			}
+
+			githubStatus = await getGithubIntegrationStatus(apiClient, orgId);
+
+			if (!githubStatus.connected || githubStatus.integrations.length === 0) {
+				tui.error('GitHub connection failed. Please try again.');
+				return { linked: false, noGithubConnected: true };
+			}
+
+			tui.newline();
+			tui.info('Now continuing with repository linking...');
+			tui.newline();
 		}
 
 		const gitInfo = detectGitInfo();
@@ -172,7 +200,8 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 				tui.newline();
 
 				const accountChoices = githubStatus.integrations.map((integration) => ({
-					name: integration.id,
+					name: integration.githubAccountName,
+					value: integration.id,
 					message: `${integration.githubAccountName} ${tui.muted(`(${integration.githubAccountType})`)}`,
 				}));
 
@@ -181,6 +210,11 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 					name: 'integrationId',
 					message: 'Select a GitHub account',
 					choices: accountChoices,
+					result(name: string) {
+						// Return the value (id) instead of the name
+						const choice = accountChoices.find((c) => c.name === name);
+						return choice?.value ?? name;
+					},
 				});
 
 				repos = await tui.spinner({
@@ -237,13 +271,10 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 			initial: defaultBranch,
 		});
 
-		const finalAutoDeploy = await tui.confirm(
-			'Enable automatic deployments on push?',
-			autoDeploy
-		);
+		const finalAutoDeploy = await tui.confirm('Enable automatic deployments on push?', !noAuto);
 		const finalPreviewDeploy = await tui.confirm(
 			'Enable preview deployments on PRs?',
-			previewDeploy
+			!noPreview
 		);
 
 		tui.newline();
@@ -276,6 +307,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 					autoDeploy: finalAutoDeploy,
 					previewDeploy: finalPreviewDeploy,
 					directory: directory === '.' ? undefined : directory,
+					integrationId: selectedRepo.integrationId,
 				}),
 		});
 
@@ -308,6 +340,7 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 }
 
 const LinkOptionsSchema = z.object({
+	repo: z.string().optional().describe('Repository full name (owner/repo) to link'),
 	deploy: z.boolean().optional().describe('Enable automatic deployments on push (default: true)'),
 	preview: z
 		.boolean()
@@ -315,6 +348,13 @@ const LinkOptionsSchema = z.object({
 		.describe('Enable preview deployments on pull requests (default: true)'),
 	branch: z.string().optional().describe('Branch to deploy from (default: repo default branch)'),
 	root: z.string().optional().describe('Root directory containing agentuity.json (default: .)'),
+	confirm: z.boolean().optional().describe('Skip confirmation prompts'),
+});
+
+const LinkResponseSchema = z.object({
+	linked: z.boolean().describe('Whether the project was linked'),
+	repoFullName: z.string().optional().describe('Repository that was linked'),
+	branch: z.string().optional().describe('Branch configured'),
 });
 
 export const linkSubcommand = createSubcommand({
@@ -325,11 +365,16 @@ export const linkSubcommand = createSubcommand({
 	requires: { auth: true, apiClient: true, project: true },
 	schema: {
 		options: LinkOptionsSchema,
+		response: LinkResponseSchema,
 	},
 	examples: [
 		{
 			command: getCommand('git link'),
 			description: 'Link current project to a GitHub repository',
+		},
+		{
+			command: getCommand('git link --repo owner/repo --branch main --confirm'),
+			description: 'Link to a specific repo non-interactively',
 		},
 		{
 			command: getCommand('git link --root .'),
@@ -351,24 +396,63 @@ export const linkSubcommand = createSubcommand({
 			command: getCommand('git link --root packages/my-agent'),
 			description: 'Link a subdirectory in a monorepo',
 		},
+		{
+			command: getCommand('--json git link --repo owner/repo --branch main --confirm'),
+			description: 'Link and return JSON result',
+		},
 	],
 
 	async handler(ctx) {
-		const { logger, apiClient, project, opts } = ctx;
+		const { apiClient, project, opts, config, logger, options } = ctx;
 
 		try {
-			await runGitLink({
+			// Non-interactive mode when repo is provided
+			if (opts.repo && opts.confirm) {
+				const branch = opts.branch ?? 'main';
+				const directory = opts.root === '.' ? undefined : opts.root;
+
+				await tui.spinner({
+					message: 'Linking repository...',
+					clearOnSuccess: true,
+					callback: () =>
+						linkProjectToRepo(apiClient, {
+							projectId: project.projectId,
+							repoFullName: opts.repo!,
+							branch,
+							autoDeploy: opts.deploy !== false,
+							previewDeploy: opts.preview !== false,
+							directory,
+						}),
+				});
+
+				if (!options.json) {
+					tui.newline();
+					tui.success(`Linked project to ${tui.bold(opts.repo)}`);
+				}
+
+				return { linked: true, repoFullName: opts.repo, branch };
+			}
+
+			const result = await runGitLink({
 				apiClient,
 				projectId: project.projectId,
 				orgId: project.orgId,
 				logger,
 				branchOption: opts.branch,
-				rootOption: opts.root ?? '.',
-				autoDeploy: opts.deploy ?? true,
-				previewDeploy: opts.preview ?? true,
+				rootOption: opts.root,
+				noAuto: opts.deploy === false,
+				noPreview: opts.preview === false,
+				config,
 			});
-		} catch (error) {
-			logger.fatal('Failed to link repository: %s', error, ErrorCode.INTEGRATION_FAILED);
+
+			return {
+				linked: result.linked,
+				repoFullName: result.repoFullName,
+				branch: result.branch,
+			};
+		} catch {
+			// Error already displayed by spinner, just exit
+			process.exit(1);
 		}
 	},
 });

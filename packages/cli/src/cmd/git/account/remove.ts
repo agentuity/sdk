@@ -4,11 +4,24 @@ import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { listOrganizations } from '@agentuity/server';
 import enquirer from 'enquirer';
+import { z } from 'zod';
 import {
 	getGithubIntegrationStatus,
 	disconnectGithubIntegration,
 	type GithubIntegration,
 } from '../../integration/api';
+
+const RemoveOptionsSchema = z.object({
+	org: z.string().optional().describe('Organization ID'),
+	account: z.string().optional().describe('GitHub integration ID to remove'),
+	confirm: z.boolean().optional().describe('Skip confirmation prompt'),
+});
+
+const RemoveResponseSchema = z.object({
+	removed: z.boolean().describe('Whether the account was removed'),
+	orgId: z.string().optional().describe('Organization ID'),
+	integrationId: z.string().optional().describe('Integration ID that was removed'),
+});
 
 export const removeSubcommand = createSubcommand({
 	name: 'remove',
@@ -16,17 +29,55 @@ export const removeSubcommand = createSubcommand({
 	tags: ['mutating', 'destructive', 'slow'],
 	idempotent: false,
 	requires: { auth: true, apiClient: true },
+	schema: {
+		options: RemoveOptionsSchema,
+		response: RemoveResponseSchema,
+	},
 	examples: [
 		{
 			command: getCommand('git account remove'),
 			description: 'Remove a GitHub account from your organization',
 		},
+		{
+			command: getCommand('git account remove --org org_abc --account int_xyz --confirm'),
+			description: 'Remove a specific account without prompts',
+		},
+		{
+			command: getCommand('--json git account remove --org org_abc --account int_xyz --confirm'),
+			description: 'Remove and return JSON result',
+		},
 	],
 
 	async handler(ctx) {
-		const { logger, apiClient } = ctx;
+		const { logger, apiClient, opts, options } = ctx;
 
 		try {
+			// If both org and account provided, skip interactive flow
+			if (opts.org && opts.account) {
+				if (!opts.confirm) {
+					const confirmed = await tui.confirm(
+						`Are you sure you want to remove this GitHub account?`
+					);
+					if (!confirmed) {
+						tui.info('Cancelled');
+						return { removed: false };
+					}
+				}
+
+				await tui.spinner({
+					message: 'Removing GitHub account...',
+					clearOnSuccess: true,
+					callback: () => disconnectGithubIntegration(apiClient, opts.org!, opts.account!),
+				});
+
+				if (!options.json) {
+					tui.newline();
+					tui.success('Removed GitHub account');
+				}
+
+				return { removed: true, orgId: opts.org, integrationId: opts.account };
+			}
+
 			// Fetch organizations
 			const orgs = await tui.spinner({
 				message: 'Fetching organizations...',
@@ -75,15 +126,17 @@ export const removeSubcommand = createSubcommand({
 			}
 
 			if (allIntegrations.length === 0) {
-				tui.newline();
-				tui.info('No GitHub accounts are connected.');
-				return;
+				if (!options.json) {
+					tui.newline();
+					tui.info('No GitHub accounts are connected.');
+				}
+				return { removed: false };
 			}
 
 			// Build choices showing GitHub account and org
 			const choices = allIntegrations.map((item) => ({
-				name: `${item.orgId}:${item.integration.id}`,
-				message: `${item.integration.githubAccountName} ${tui.muted(`(${item.integration.githubAccountType})`)} → ${item.orgName}`,
+				name: `${tui.bold(item.integration.githubAccountName)} ${tui.muted(`(${item.integration.githubAccountType})`)} → ${tui.bold(item.orgName)}`,
+				value: `${item.orgId}:${item.integration.id}`,
 			}));
 
 			// Show picker
@@ -92,6 +145,11 @@ export const removeSubcommand = createSubcommand({
 				name: 'selection',
 				message: 'Select a GitHub account to remove',
 				choices,
+				result(name: string) {
+					// Return the value (IDs) instead of the display name
+					const choice = choices.find((c) => c.name === name);
+					return choice?.value ?? name;
+				},
 			});
 
 			const [orgId, integrationId] = response.selection.split(':');
@@ -99,16 +157,18 @@ export const removeSubcommand = createSubcommand({
 				(i) => i.orgId === orgId && i.integration.id === integrationId
 			);
 			const displayName = selected
-				? `${selected.integration.githubAccountName} from ${selected.orgName}`
+				? `${tui.bold(selected.integration.githubAccountName)} from ${tui.bold(selected.orgName)}`
 				: response.selection;
 
 			// Confirm
-			const confirmed = await tui.confirm(`Are you sure you want to remove ${displayName}?`);
+			if (!opts.confirm) {
+				const confirmed = await tui.confirm(`Are you sure you want to remove ${displayName}?`);
 
-			if (!confirmed) {
-				tui.newline();
-				tui.info('Cancelled');
-				return;
+				if (!confirmed) {
+					tui.newline();
+					tui.info('Cancelled');
+					return { removed: false };
+				}
 			}
 
 			await tui.spinner({
@@ -117,8 +177,12 @@ export const removeSubcommand = createSubcommand({
 				callback: () => disconnectGithubIntegration(apiClient, orgId, integrationId),
 			});
 
-			tui.newline();
-			tui.success(`Removed ${tui.bold(displayName)}`);
+			if (!options.json) {
+				tui.newline();
+				tui.success(`Removed ${displayName}`);
+			}
+
+			return { removed: true, orgId, integrationId };
 		} catch (error) {
 			// Handle user cancellation (Ctrl+C)
 			const isCancel =
@@ -129,11 +193,15 @@ export const removeSubcommand = createSubcommand({
 			if (isCancel) {
 				tui.newline();
 				tui.info('Cancelled');
-				return;
+				return { removed: false };
 			}
 
 			logger.trace(error);
-			logger.fatal('Failed to remove GitHub account: %s', error, ErrorCode.INTEGRATION_FAILED);
+			return logger.fatal(
+				'Failed to remove GitHub account: %s',
+				error,
+				ErrorCode.INTEGRATION_FAILED
+			);
 		}
 	},
 });

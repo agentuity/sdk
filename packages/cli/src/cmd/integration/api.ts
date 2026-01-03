@@ -242,6 +242,7 @@ const GithubRepoSchema = z.object({
 	fullName: z.string(),
 	private: z.boolean(),
 	defaultBranch: z.string(),
+	integrationId: z.string(),
 });
 
 const GithubReposDataSchema = z.object({
@@ -254,6 +255,7 @@ export interface GithubRepo {
 	fullName: string;
 	private: boolean;
 	defaultBranch: string;
+	integrationId: string;
 }
 
 const GithubReposError = StructuredError('GithubReposError', 'Error fetching GitHub repositories');
@@ -287,6 +289,7 @@ export interface LinkProjectOptions {
 	autoDeploy: boolean;
 	previewDeploy: boolean;
 	directory?: string;
+	integrationId?: string;
 }
 
 const ProjectLinkError = StructuredError('ProjectLinkError', 'Error linking project to repository');
@@ -302,7 +305,7 @@ export async function linkProjectToRepo(
 	);
 
 	if (!resp.success || !resp.data) {
-		throw new ProjectLinkError();
+		throw new ProjectLinkError({ message: resp.message });
 	}
 
 	return resp.data.linked;

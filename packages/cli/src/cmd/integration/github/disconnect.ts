@@ -82,8 +82,8 @@ export const disconnectSubcommand = createSubcommand({
 
 			// Build choices showing GitHub account and org
 			const choices = allIntegrations.map((item) => ({
-				name: `${item.orgId}:${item.integration.id}`,
-				message: `${item.integration.githubAccountName} ${tui.muted(`(${item.integration.githubAccountType})`)} → ${item.orgName}`,
+				name: `${tui.bold(item.integration.githubAccountName)} ${tui.muted(`(${item.integration.githubAccountType})`)} → ${tui.bold(item.orgName)}`,
+				value: `${item.orgId}:${item.integration.id}`,
 			}));
 
 			// Show picker
@@ -92,6 +92,11 @@ export const disconnectSubcommand = createSubcommand({
 				name: 'selection',
 				message: 'Select a GitHub account to disconnect',
 				choices,
+				result(name: string) {
+					// Return the value (IDs) instead of the display name
+					const choice = choices.find((c) => c.name === name);
+					return choice?.value ?? name;
+				},
 			});
 
 			const [orgId, integrationId] = response.selection.split(':');
@@ -99,7 +104,7 @@ export const disconnectSubcommand = createSubcommand({
 				(i) => i.orgId === orgId && i.integration.id === integrationId
 			);
 			const displayName = selected
-				? `${selected.integration.githubAccountName} from ${selected.orgName}`
+				? `${tui.bold(selected.integration.githubAccountName)} from ${tui.bold(selected.orgName)}`
 				: response.selection;
 
 			// Confirm
@@ -118,7 +123,7 @@ export const disconnectSubcommand = createSubcommand({
 			});
 
 			tui.newline();
-			tui.success(`Disconnected ${tui.bold(displayName)}`);
+			tui.success(`Disconnected ${displayName}`);
 		} catch (error) {
 			// Handle user cancellation (Ctrl+C)
 			const isCancel =

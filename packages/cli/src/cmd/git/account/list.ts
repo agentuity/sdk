@@ -4,22 +4,45 @@ import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { listOrganizations } from '@agentuity/server';
 import { getGithubIntegrationStatus } from '../../integration/api';
+import { z } from 'zod';
+
+const ListResponseSchema = z.array(
+	z.object({
+		orgId: z.string().describe('Organization ID'),
+		orgName: z.string().describe('Organization name'),
+		integrations: z.array(
+			z.object({
+				id: z.string().describe('Integration ID'),
+				githubAccountName: z.string().describe('GitHub account name'),
+				githubAccountType: z.enum(['user', 'org']).describe('Account type'),
+			})
+		),
+	})
+);
 
 export const listSubcommand = createSubcommand({
 	name: 'list',
 	description: 'List GitHub accounts connected to your organizations',
+	aliases: ['ls'],
 	tags: ['read-only'],
 	idempotent: true,
 	requires: { auth: true, apiClient: true },
+	schema: {
+		response: ListResponseSchema,
+	},
 	examples: [
 		{
 			command: getCommand('git account list'),
 			description: 'List all connected GitHub accounts',
 		},
+		{
+			command: getCommand('--json git account list'),
+			description: 'List accounts in JSON format',
+		},
 	],
 
 	async handler(ctx) {
-		const { logger, apiClient } = ctx;
+		const { logger, apiClient, options } = ctx;
 
 		try {
 			// Fetch organizations
@@ -55,6 +78,20 @@ export const listSubcommand = createSubcommand({
 			// Sort orgs alphabetically
 			const sortedOrgs = [...orgStatuses].sort((a, b) => a.name.localeCompare(b.name));
 
+			const result = sortedOrgs.map((org) => ({
+				orgId: org.id,
+				orgName: org.name,
+				integrations: org.integrations.map((i) => ({
+					id: i.id,
+					githubAccountName: i.githubAccountName,
+					githubAccountType: i.githubAccountType,
+				})),
+			}));
+
+			if (options.json) {
+				return result;
+			}
+
 			tui.newline();
 			console.log(tui.bold('GitHub Accounts'));
 			tui.newline();
@@ -88,9 +125,15 @@ export const listSubcommand = createSubcommand({
 					tui.muted(`${totalCount} GitHub account${totalCount > 1 ? 's' : ''} connected`)
 				);
 			}
+
+			return result;
 		} catch (error) {
 			logger.trace(error);
-			logger.fatal('Failed to list GitHub accounts: %s', error, ErrorCode.INTEGRATION_FAILED);
+			return logger.fatal(
+				'Failed to list GitHub accounts: %s',
+				error,
+				ErrorCode.INTEGRATION_FAILED
+			);
 		}
 	},
 });
