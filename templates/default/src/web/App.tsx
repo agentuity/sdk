@@ -956,21 +956,6 @@ export function App() {
 					.step-text code {
 						color: #fff;
 					}
-
-					@keyframes ellipsis {
-						0% { content: ""; }
-						25% { content: "."; }
-						50% { content: ".."; }
-						75% { content: "..."; }
-						100% { content: ""; }
-					}
-
-					[data-loading="true"]::after {
-						animation: ellipsis 1.2s steps(1, end) infinite;
-						content: ".";
-						display: inline-block;
-						width: 1em;
-					}
 				`}
 			</style>
 		</div>
