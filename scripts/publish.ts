@@ -557,18 +557,34 @@ async function createOrUpdateGitHubRelease(
 	// Add executable assets (only .gz compressed files)
 	const binDir = join(rootDir, 'packages', 'cli', 'dist', 'bin');
 	const executables = await readdir(binDir);
+	const assetFiles: string[] = [];
 	for (const exe of executables) {
 		if (exe.endsWith('.gz')) {
-			args.push(join(binDir, exe));
+			assetFiles.push(join(binDir, exe));
 		}
 	}
 
+	// First create the release without assets
 	try {
+		console.log('   Creating release...');
 		await $`gh ${args}`.cwd(rootDir);
 		console.log(`✓ Created GitHub release ${tag}`);
 	} catch (err) {
 		console.error(`✗ Failed to create GitHub release:`, err);
 		throw err;
+	}
+
+	// Then upload assets one by one with progress
+	for (const assetPath of assetFiles) {
+		const assetName = assetPath.split('/').pop();
+		console.log(`   Uploading ${assetName}...`);
+		try {
+			await $`gh release upload ${tag} ${assetPath} --clobber`.cwd(rootDir);
+			console.log(`   ✓ Uploaded ${assetName}`);
+		} catch (err) {
+			console.error(`✗ Failed to upload ${assetName}:`, err);
+			throw err;
+		}
 	}
 }
 

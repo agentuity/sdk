@@ -21,7 +21,6 @@ const SandboxInfoSchema = z.object({
 
 const SnapshotGetResponseSchema = z.object({
 	snapshotId: z.string().describe('Snapshot ID'),
-	sandboxId: z.string().describe('Source sandbox ID'),
 	tag: z.string().nullable().optional().describe('Snapshot tag'),
 	sizeBytes: z.number().describe('Snapshot size in bytes'),
 	fileCount: z.number().describe('Number of files'),
@@ -74,7 +73,6 @@ export const getSubcommand = createCommand({
 
 		if (!options.json) {
 			tui.info(`Snapshot: ${tui.bold(snapshot.snapshotId)}`);
-			console.log(`  ${tui.muted('Sandbox:')} ${snapshot.sandboxId}`);
 			if (snapshot.tag) {
 				console.log(`  ${tui.muted('Tag:')}     ${snapshot.tag}`);
 			}

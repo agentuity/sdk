@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/cli",
-	"version": "0.0.109",
+	"version": "0.0.110",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",

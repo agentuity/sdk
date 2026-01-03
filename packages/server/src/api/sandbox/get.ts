@@ -20,6 +20,10 @@ const SandboxInfoDataSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Apt packages installed in the sandbox'),
+		metadata: z
+			.record(z.string(), z.unknown())
+			.optional()
+			.describe('User-defined metadata associated with the sandbox'),
 	})
 	.describe('Detailed information about a sandbox');
 
@@ -67,6 +71,7 @@ export async function sandboxGet(
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
 			dependencies: resp.data.dependencies,
+			metadata: resp.data.metadata as Record<string, unknown> | undefined,
 		};
 	}
 
