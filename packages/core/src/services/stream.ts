@@ -1,5 +1,5 @@
 import { safeStringify } from '../json';
-import { FetchAdapter, FetchResponse } from './adapter';
+import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { StructuredError } from '../error';
 
