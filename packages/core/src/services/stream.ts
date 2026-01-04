@@ -1,5 +1,5 @@
 import { safeStringify } from '../json';
-import { FetchAdapter } from './adapter';
+import { FetchAdapter, FetchResponse } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { StructuredError } from '../error';
 
@@ -145,7 +145,13 @@ export interface Stream extends WritableStream {
 	 */
 	readonly compressed: boolean;
 	/**
-	 * write data to the stream
+	 * Write data to the stream.
+	 *
+	 * Each write call can send up to 5MB of data. For larger payloads, split the data
+	 * across multiple write calls.
+	 *
+	 * @param chunk - The data to write (string, binary, or object that will be JSON-serialized)
+	 * @throws ServiceException with status 413 if chunk exceeds 5MB
 	 */
 	write(chunk: string | Uint8Array | ArrayBuffer | object): Promise<void>;
 	/**
@@ -484,6 +490,7 @@ class UnderlyingSinkState {
 	url: string;
 	props?: CreateStreamProps;
 	compressionEnabled = false;
+	writable: WritableStream<Uint8Array> | null = null;
 
 	constructor(url: string, adapter: FetchAdapter, props?: CreateStreamProps) {
 		this.url = url;
@@ -496,7 +503,7 @@ class UnderlyingSinkState {
 		this.compressionEnabled = !!(this.props?.compress && isCompressionAvailable());
 
 		// Create a WritableStream that wraps our append-based write
-		const writable = new NativeWritableStream<Uint8Array>({
+		this.writable = new NativeWritableStream<Uint8Array>({
 			write: async (chunk) => {
 				await this.write(chunk);
 			},
@@ -508,20 +515,18 @@ class UnderlyingSinkState {
 			},
 		});
 
-		return writable;
+		return this.writable;
 	}
 
 	async write(chunk: Uint8Array) {
 		if (this.closed) {
-			throw new StreamAPIError({
-				status: 400,
-				message: 'Cannot write to a closed stream',
-			});
+			return;
 		}
 
 		// Note: For append-based streaming, we don't compress individual chunks
 		// because each would become a separate gzip stream that can't be concatenated.
 		// Instead, compression is handled server-side during the complete phase.
+		this.total += chunk.length;
 
 		// Send the chunk immediately via POST to /append endpoint
 		const appendUrl = `${this.url}/append`;
@@ -542,9 +547,6 @@ class UnderlyingSinkState {
 				message: `Append request failed: ${res.response.status} ${res.response.statusText}`,
 			});
 		}
-
-		// Only increment total after successful POST
-		this.total += chunk.length;
 	}
 
 	async close() {
