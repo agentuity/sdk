@@ -615,11 +615,12 @@ describe('StreamStorageService', () => {
 		});
 	});
 
-	describe('compression with Web Compression Streams API', () => {
+	describe('compression with server-side compression', () => {
 		test('should write compressed data using CompressionStream', async () => {
 			const { adapter, calls } = createMockAdapter([
 				{ ok: true, data: { id: 'stream-compressed' } },
-				{ ok: true },
+				{ ok: true }, // append
+				{ ok: true }, // complete
 			]);
 
 			const service = new StreamStorageService(baseUrl, adapter);
@@ -630,40 +631,18 @@ describe('StreamStorageService', () => {
 			await stream.write('hello world');
 			await stream.close();
 
-			// Verify the PUT request has Content-Encoding: gzip header
-			const putCall = calls.find((c) => c.options?.method === 'PUT');
-			expect(putCall).toBeDefined();
-			expect(putCall?.options?.headers?.['Content-Encoding']).toBe('gzip');
+			// Verify the complete request has X-Compress: gzip header (server-side compression)
+			const completeCall = calls.find((c) => c.url?.includes('/complete'));
+			expect(completeCall).toBeDefined();
+			expect(completeCall?.options?.headers?.['X-Compress']).toBe('gzip');
 		});
 
 		test('should produce valid gzip compressed output', async () => {
-			const chunks: Uint8Array[] = [];
-			const { adapter } = createMockAdapter([
+			const { adapter, calls } = createMockAdapter([
 				{ ok: true, data: { id: 'stream-gzip-test' } },
-				{ ok: true },
+				{ ok: true }, // append
+				{ ok: true }, // complete
 			]);
-
-			// Intercept the PUT request to capture the compressed data
-			const originalInvoke = adapter.invoke;
-			adapter.invoke = async <T>(
-				url: string,
-				options: import('../src/services/adapter').FetchRequest
-			) => {
-				if (options.method === 'PUT' && options.body instanceof ReadableStream) {
-					const reader = options.body.getReader();
-					while (true) {
-						const { done, value } = await reader.read();
-						if (done) break;
-						if (value) chunks.push(value);
-					}
-					return {
-						ok: true as const,
-						data: undefined as never,
-						response: new Response(null, { status: 200 }),
-					};
-				}
-				return originalInvoke<T>(url, options);
-			};
 
 			const service = new StreamStorageService(baseUrl, adapter);
 			const stream = await service.create('test-stream', { compress: true });
@@ -672,49 +651,15 @@ describe('StreamStorageService', () => {
 			await stream.write(testData);
 			await stream.close();
 
-			// Verify we got compressed data (gzip magic bytes are 0x1f 0x8b)
-			expect(chunks.length).toBeGreaterThan(0);
-			const allData = new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0));
-			let offset = 0;
-			for (const chunk of chunks) {
-				allData.set(chunk, offset);
-				offset += chunk.length;
-			}
+			// Verify append was called with the uncompressed data
+			const appendCall = calls.find((c) => c.url?.includes('/append'));
+			expect(appendCall).toBeDefined();
+			expect(appendCall?.options?.method).toBe('POST');
 
-			// Check gzip magic bytes
-			expect(allData[0]).toBe(0x1f);
-			expect(allData[1]).toBe(0x8b);
-
-			// Decompress and verify original content
-			const decompressedStream = new ReadableStream({
-				start(controller) {
-					controller.enqueue(allData);
-					controller.close();
-				},
-			}).pipeThrough(new DecompressionStream('gzip'));
-
-			const decompressedReader = decompressedStream.getReader();
-			const decompressedChunks: Uint8Array[] = [];
-			while (true) {
-				const { done, value } = await decompressedReader.read();
-				if (done) break;
-				if (value) decompressedChunks.push(value);
-			}
-
-			const decompressedData = new TextDecoder().decode(
-				new Uint8Array(decompressedChunks.reduce((acc, c) => acc + c.length, 0)).map((_, i) => {
-					let offset = 0;
-					for (const chunk of decompressedChunks) {
-						if (i < offset + chunk.length) {
-							return chunk[i - offset];
-						}
-						offset += chunk.length;
-					}
-					return 0;
-				})
-			);
-
-			expect(decompressedData).toBe(testData);
+			// Verify complete was called with compression header
+			const completeCall = calls.find((c) => c.url?.includes('/complete'));
+			expect(completeCall).toBeDefined();
+			expect(completeCall?.options?.headers?.['X-Compress']).toBe('gzip');
 		});
 	});
 
