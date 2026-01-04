@@ -895,13 +895,21 @@ async function registerSubcommand(
 				flagSpec = `${shortFlags}, --${flag}`;
 			}
 			if (opt.type === 'boolean') {
+				// Parse boolean values: true/false strings or presence of flag
+				const parseBool = (value: string | boolean): boolean => {
+					if (typeof value === 'boolean') return value;
+					if (value === 'true' || value === '1') return true;
+					if (value === 'false' || value === '0') return false;
+					return true; // Flag present without value means true
+				};
+
 				if (opt.hasDefault) {
 					const defaultValue =
 						typeof opt.defaultValue === 'function' ? opt.defaultValue() : opt.defaultValue;
 					cmd.option(`--no-${flag}`, desc);
-					cmd.option(flagSpec, desc, defaultValue);
+					cmd.option(`${flagSpec} [value]`, desc, parseBool, defaultValue);
 				} else {
-					cmd.option(flagSpec, desc);
+					cmd.option(`${flagSpec} [value]`, desc, parseBool);
 				}
 			} else if (opt.type === 'number') {
 				const numDefault = opt.hasDefault

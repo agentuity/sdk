@@ -16,10 +16,7 @@ const SandboxGetResponseSchema = z.object({
 	stdoutStreamUrl: z.string().optional().describe('URL to stdout output stream'),
 	stderrStreamUrl: z.string().optional().describe('URL to stderr output stream'),
 	dependencies: z.array(z.string()).optional().describe('Apt packages installed'),
-	metadata: z
-		.record(z.string(), z.unknown())
-		.optional()
-		.describe('User-defined metadata'),
+	metadata: z.record(z.string(), z.unknown()).optional().describe('User-defined metadata'),
 });
 
 export const getSubcommand = createCommand({
