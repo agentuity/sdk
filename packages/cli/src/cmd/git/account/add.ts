@@ -228,6 +228,10 @@ export const addSubcommand = createSubcommand({
 			command: getCommand('git account add --org org_abc123'),
 			description: 'Add to a specific organization',
 		},
+		{
+			command: getCommand('git account add --url-only'),
+			description: 'Get the GitHub authorization URL without waiting',
+		},
 	],
 
 	async handler(ctx) {
