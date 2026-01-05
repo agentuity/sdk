@@ -41,7 +41,8 @@ export interface ForkDeployResult {
 async function streamToPulse(
 	streamURL: string,
 	sdkKey: string,
-	data: string
+	data: string,
+	logger: Logger
 ): Promise<void> {
 	try {
 		const response = await fetch(streamURL, {
@@ -55,10 +56,10 @@ async function streamToPulse(
 		});
 
 		if (!response.ok) {
-			console.error(`Failed to stream to Pulse: ${response.status}`);
+			logger.error('Failed to stream to Pulse: %s', response.status);
 		}
 	} catch (err) {
-		console.error(`Error streaming to Pulse: ${err}`);
+		logger.error('Error streaming to Pulse: %s', err);
 	}
 }
 
@@ -162,7 +163,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 		}
 
 		if (buildLogsStreamURL && outputBuffer) {
-			await streamToPulse(buildLogsStreamURL, sdkKey, outputBuffer);
+			await streamToPulse(buildLogsStreamURL, sdkKey, outputBuffer, logger);
 		}
 
 		if (exitCode !== 0) {
@@ -206,7 +207,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 
 		if (buildLogsStreamURL && outputBuffer) {
 			outputBuffer += `\n\n--- FORK ERROR ---\n${errorMessage}\n`;
-			await streamToPulse(buildLogsStreamURL, sdkKey, outputBuffer);
+			await streamToPulse(buildLogsStreamURL, sdkKey, outputBuffer, logger);
 		}
 
 		try {

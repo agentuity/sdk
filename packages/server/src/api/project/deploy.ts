@@ -349,6 +349,36 @@ export interface DeploymentFailPayload {
 	diagnostics?: ClientDiagnostics;
 }
 
+const ClientDiagnosticsErrorSchema = z.object({
+	type: z.enum(['file', 'general']),
+	scope: z.enum(['typescript', 'ast', 'build', 'bundler', 'validation', 'deploy']),
+	path: z.string().optional(),
+	line: z.number().optional(),
+	column: z.number().optional(),
+	message: z.string(),
+	code: z.string().optional(),
+});
+
+const ClientDiagnosticsTimingSchema = z.object({
+	name: z.string(),
+	startedAt: z.string(),
+	completedAt: z.string(),
+	durationMs: z.number(),
+});
+
+const ClientDiagnosticsSchema = z.object({
+	success: z.boolean(),
+	errors: z.array(ClientDiagnosticsErrorSchema),
+	warnings: z.array(ClientDiagnosticsErrorSchema),
+	diagnostics: z.array(ClientDiagnosticsTimingSchema),
+	error: z.string().optional(),
+});
+
+const DeploymentFailPayloadSchema = z.object({
+	error: z.string().optional(),
+	diagnostics: ClientDiagnosticsSchema.optional(),
+});
+
 const DeploymentFailResponseObject = z.object({
 	state: z.literal('failed'),
 });
@@ -369,11 +399,12 @@ export async function projectDeploymentFail(
 	deploymentId: string,
 	payload: DeploymentFailPayload
 ): Promise<void> {
-	const resp = await client.request<DeploymentFailResponse>(
+	const resp = await client.request<DeploymentFailResponse, DeploymentFailPayload>(
 		'POST',
 		`/cli/deploy/1/fail/${deploymentId}`,
 		DeploymentFailResponseSchema,
-		payload
+		payload,
+		DeploymentFailPayloadSchema
 	);
 	if (!resp.success) {
 		throw new ProjectResponseError({ message: resp.message });
