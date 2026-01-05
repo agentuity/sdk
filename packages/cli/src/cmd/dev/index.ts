@@ -695,7 +695,7 @@ export const command = createCommand({
 								deploymentId,
 								logger
 							);
-							const { routeInfoList } = await discoverRoutes(
+							const { routes, routeInfoList } = await discoverRoutes(
 								srcDir,
 								project?.projectId ?? '',
 								deploymentId,
@@ -732,15 +732,9 @@ export const command = createCommand({
 							});
 
 							// Generate metadata file (needed for eval ID lookup at runtime)
-							// Reuse agents from Step 2, but need routes (not routeInfoList) for metadata
+							// Reuse agentMetadata and routes from Step 2
 							const { generateMetadata, writeMetadataFile } = await import(
 								'../build/vite/metadata-generator'
-							);
-							const { routes } = await discoverRoutes(
-								srcDir,
-								project?.projectId ?? '',
-								deploymentId,
-								logger
 							);
 
 							const promises: Promise<void>[] = [];
