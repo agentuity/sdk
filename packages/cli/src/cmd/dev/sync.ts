@@ -133,13 +133,13 @@ class DevmodeSyncService implements IDevmodeSyncService {
 		projectId: string,
 		deploymentId: string
 	): Promise<void> {
-		this.logger.info('[CLI SYNC] sync() called with projectId=%s, deploymentId=%s', projectId, deploymentId);
-		this.logger.info('[CLI SYNC] currentMetadata has %d agents', currentMetadata.agents?.length ?? 0);
+		this.logger.debug('[CLI SYNC] sync() called with projectId=%s, deploymentId=%s', projectId, deploymentId);
+		this.logger.debug('[CLI SYNC] currentMetadata has %d agents', currentMetadata.agents?.length ?? 0);
 
 		// Build previous agent IDs set
 		const previousAgentIds = new Set<string>();
 		if (previousMetadata) {
-			this.logger.info(
+			this.logger.debug(
 				'[CLI SYNC] Previous metadata found with %d agent(s)',
 				previousMetadata.agents?.length ?? 0
 			);
@@ -147,7 +147,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 				previousAgentIds.add(agent.id);
 			}
 		} else {
-			this.logger.info('[CLI SYNC] No previous metadata, all agents will be treated as new');
+			this.logger.debug('[CLI SYNC] No previous metadata, all agents will be treated as new');
 		}
 
 		// Build previous eval IDs set
@@ -174,13 +174,13 @@ class DevmodeSyncService implements IDevmodeSyncService {
 		for (const agent of currentMetadata.agents || []) {
 			if (agent.evals) {
 				currentEvalCount += agent.evals.length;
-				this.logger.info(
+				this.logger.debug(
 					'[CLI EVAL SYNC] Agent "%s" has %d eval(s)',
 					agent.name,
 					agent.evals.length
 				);
 				for (const evalItem of agent.evals) {
-					this.logger.info(
+					this.logger.debug(
 						'[CLI EVAL SYNC]   - %s (id: %s, identifier: %s)',
 						evalItem.name,
 						evalItem.id,
@@ -189,7 +189,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 				}
 			}
 		}
-		this.logger.info('[CLI EVAL SYNC] Total current eval(s): %d', currentEvalCount);
+		this.logger.debug('[CLI EVAL SYNC] Total current eval(s): %d', currentEvalCount);
 
 		// Get agents and evals to sync using shared diff logic
 		const { create: agentsToCreate, delete: agentsToDelete } = getAgentsToSync(
@@ -212,7 +212,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 				agentsToDelete.length
 			);
 		}
-		this.logger.info(
+		this.logger.debug(
 			'[CLI EVAL SYNC] Evals to sync: %d to create, %d to delete',
 			evalsToCreate.length,
 			evalsToDelete.length
@@ -275,14 +275,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 		evalsToDelete: string[],
 		deploymentId: string
 	): Promise<void> {
-		this.logger.info(
-			'[CLI EVAL SYNC] syncEvals called: %d to create, %d to delete',
-			evals.length,
-			evalsToDelete.length
-		);
-
 		if (evals.length === 0 && evalsToDelete.length === 0) {
-			this.logger.info('[CLI EVAL SYNC] No evals to sync, skipping');
 			return;
 		}
 
@@ -292,24 +285,17 @@ class DevmodeSyncService implements IDevmodeSyncService {
 			delete: evalsToDelete,
 		};
 
-		this.logger.info('[CLI EVAL SYNC] Sending payload to POST /cli/devmode/eval:');
-		this.logger.info('[CLI EVAL SYNC] Payload: %s', JSON.stringify(payload, null, 2));
-		for (const evalItem of evals) {
-			this.logger.info(
-				'[CLI EVAL SYNC]   - %s (id: %s, identifier: %s)',
-				evalItem.name,
-				evalItem.id,
-				evalItem.identifier
-			);
-		}
+		this.logger.debug(
+			'[CLI EVAL SYNC] Sending payload to POST /cli/devmode/eval: %s',
+			JSON.stringify(payload, null, 2)
+		);
 
 		try {
-			const response = await this.apiClient.post(
+			await this.apiClient.post(
 				'/cli/devmode/eval',
 				payload,
 				z.object({ success: z.boolean() })
 			);
-			this.logger.info('[CLI EVAL SYNC] Sync response: %s', JSON.stringify(response));
 		} catch (error) {
 			this.logger.error('[CLI EVAL SYNC] Sync failed: %s', error);
 			throw error;

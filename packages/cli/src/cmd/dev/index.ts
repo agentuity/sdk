@@ -762,9 +762,7 @@ export const command = createCommand({
 							writeMetadataFile(rootDir, metadata, true, logger);
 
 							// Sync metadata with backend (creates agents and evals in the database)
-							logger.info('[DEV] Checking sync conditions: syncService=%s, projectId=%s', !!syncService, project?.projectId);
 							if (syncService && project?.projectId) {
-								logger.info('[DEV] Starting sync with backend...');
 								promises.push(
 									syncService.sync(
 										metadata,
@@ -774,8 +772,6 @@ export const command = createCommand({
 									)
 								);
 								previousMetadata = metadata;
-							} else {
-								logger.info('[DEV] Skipping sync: syncService=%s, projectId=%s', !!syncService, project?.projectId);
 							}
 							await Promise.all(promises);
 						},
