@@ -87,7 +87,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			}
 
 			if (routeInfoList.length > 0) {
-				generateRouteRegistry(srcDir, routeInfoList, agents);
+				await generateRouteRegistry(srcDir, routeInfoList, agents);
 				logger.trace('Generated route registry with %d route(s)', routeInfoList.length);
 			}
 
