@@ -25,6 +25,13 @@ function resolveHeaders(
 }
 
 /**
+ * Escape special regex characters in a string.
+ */
+function escapeRegExp(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
  * Substitute path parameters in a URL path template.
  * E.g., '/api/users/:id' with { id: '123' } becomes '/api/users/123'
  */
@@ -33,8 +40,9 @@ function substitutePathParams(pathTemplate: string, pathParams?: Record<string, 
 
 	let result = pathTemplate;
 	for (const [key, value] of Object.entries(pathParams)) {
-		result = result.replace(new RegExp(`:${key}\\??`, 'g'), encodeURIComponent(value));
-		result = result.replace(new RegExp(`\\*${key}`, 'g'), encodeURIComponent(value));
+		const escapedKey = escapeRegExp(key);
+		result = result.replace(new RegExp(`:${escapedKey}\\??`, 'g'), encodeURIComponent(value));
+		result = result.replace(new RegExp(`\\*${escapedKey}`, 'g'), encodeURIComponent(value));
 	}
 	return result;
 }

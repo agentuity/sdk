@@ -31,6 +31,17 @@ function sanitizePathSegment(segment: string): string {
 }
 
 /**
+ * Generate TypeScript type for path parameters.
+ * Returns 'never' if no path params, or '{ param1: string; param2: string }' format.
+ */
+function generatePathParamsType(pathParams?: string[]): string {
+	if (!pathParams || pathParams.length === 0) {
+		return 'never';
+	}
+	return `{ ${pathParams.map((p) => `${p}: string`).join('; ')} }`;
+}
+
+/**
  * Generate src/generated/registry.ts with agent registry and types
  */
 export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): void {
@@ -363,10 +374,7 @@ function generateRPCRegistryType(
 				jsdoc.push(`${indent} */`);
 				lines.push(...jsdoc);
 
-				const pathParamsType =
-					routeInfo.pathParams && routeInfo.pathParams.length > 0
-						? `{ ${routeInfo.pathParams.map((p) => `${p}: string`).join('; ')} }`
-						: 'never';
+				const pathParamsType = generatePathParamsType(routeInfo.pathParams);
 				lines.push(
 					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType} };`
 				);
@@ -798,10 +806,7 @@ export async function generateRouteRegistry(
 		const hasValidAgentImport = route.agentVariable ? !!importName : false;
 
 		// Generate pathParams type
-		const pathParamsType =
-			route.pathParams && route.pathParams.length > 0
-				? `{ ${route.pathParams.map((p) => `${p}: string`).join('; ')} }`
-				: 'never';
+		const pathParamsType = generatePathParamsType(route.pathParams);
 
 		if (!route.inputSchemaVariable && !route.outputSchemaVariable && !hasValidAgentImport) {
 			const streamValue = route.stream === true ? 'true' : 'false';
