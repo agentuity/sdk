@@ -164,6 +164,10 @@ const CreateProjectDeployment = z.object({
 	id: z.string().describe('the unique id for the deployment'),
 	orgId: z.string().describe('the organization id'),
 	publicKey: z.string().describe('the public key to use for encrypting the deployment'),
+	buildLogsStreamURL: z
+		.string()
+		.optional()
+		.describe('the URL for streaming build logs (PUT to write, GET to read)'),
 });
 
 const CreateProjectDeploymentSchema = APIResponseSchema(CreateProjectDeployment);
@@ -313,4 +317,65 @@ export async function projectDeploymentStatus(
 		return resp.data;
 	}
 	throw new ProjectResponseError({ message: resp.message });
+}
+
+export interface ClientDiagnosticsError {
+	type: 'file' | 'general';
+	scope: 'typescript' | 'ast' | 'build' | 'bundler' | 'validation' | 'deploy';
+	path?: string;
+	line?: number;
+	column?: number;
+	message: string;
+	code?: string;
+}
+
+export interface ClientDiagnosticsTiming {
+	name: string;
+	startedAt: string;
+	completedAt: string;
+	durationMs: number;
+}
+
+export interface ClientDiagnostics {
+	success: boolean;
+	errors: ClientDiagnosticsError[];
+	warnings: ClientDiagnosticsError[];
+	diagnostics: ClientDiagnosticsTiming[];
+	error?: string;
+}
+
+export interface DeploymentFailPayload {
+	error?: string;
+	diagnostics?: ClientDiagnostics;
+}
+
+const DeploymentFailResponseObject = z.object({
+	state: z.literal('failed'),
+});
+
+const DeploymentFailResponseSchema = APIResponseSchema(DeploymentFailResponseObject);
+type DeploymentFailResponse = z.infer<typeof DeploymentFailResponseSchema>;
+
+/**
+ * Report a deployment failure from the client
+ *
+ * @param client
+ * @param deploymentId
+ * @param payload - Error message and/or structured diagnostics
+ * @returns
+ */
+export async function projectDeploymentFail(
+	client: APIClient,
+	deploymentId: string,
+	payload: DeploymentFailPayload
+): Promise<void> {
+	const resp = await client.request<DeploymentFailResponse>(
+		'POST',
+		`/cli/deploy/1/fail/${deploymentId}`,
+		DeploymentFailResponseSchema,
+		payload
+	);
+	if (!resp.success) {
+		throw new ProjectResponseError({ message: resp.message });
+	}
 }

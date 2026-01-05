@@ -8,7 +8,7 @@
 import type { ColorScheme } from './terminal';
 import type { LogLevel } from './types';
 import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server';
-import { clearLastLines } from './tui';
+import { clearLastLines, isTTYLike } from './tui';
 
 // Spinner frames
 const FRAMES = ['◐', '◓', '◑', '◒'];
@@ -212,7 +212,7 @@ function enablePauseResume(
  * Returns resume function
  */
 export function pauseStepUI(clear = false): () => void {
-	if (!process.stdout.isTTY || !getTotalLinesFn) {
+	if (!isTTYLike() || !getTotalLinesFn) {
 		return () => {}; // No-op if not TTY or not in step context
 	}
 
@@ -580,7 +580,7 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
  */
 export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void> {
 	const useTUI =
-		process.stdout.isTTY && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
+		isTTYLike() && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
 
 	if (useTUI) {
 		await runStepsTUI(steps);
