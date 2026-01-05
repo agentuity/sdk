@@ -152,6 +152,8 @@ describe('agent.validator() regression tests', () => {
 		});
 
 		test('can override input schema', async () => {
+			// Regression test: input-only override should not apply agent's output schema
+			// Agent expects string output, but we return object - should succeed (200, not 500)
 			const router = createRouter();
 			const customInput = s.object({
 				email: s.string().email(),

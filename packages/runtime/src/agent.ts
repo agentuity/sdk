@@ -667,7 +667,7 @@ export type Agent<
 	 * **Method overloads:**
 	 * - `agent.validator()` - Validates using agent's input/output schemas
 	 * - `agent.validator({ output: schema })` - Output-only validation (no input validation)
-	 * - `agent.validator({ input: schema })` - Custom input schema override
+	 * - `agent.validator({ input: schema })` - Custom input schema override (skips agent's output validation)
 	 * - `agent.validator({ input: schema, output: schema })` - Both input and output validated
 	 *
 	 * @returns Hono middleware handler with proper type inference
