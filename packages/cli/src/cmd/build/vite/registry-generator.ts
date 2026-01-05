@@ -6,6 +6,7 @@
 
 import { join } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { StructuredError } from '@agentuity/core';
 import { toCamelCase, toPascalCase } from '../../../utils/string';
 import type { AgentMetadata } from './agent-discovery';
@@ -461,11 +462,11 @@ function generateRPCRuntimeMetadata(
  * Creates a module augmentation for @agentuity/react that provides
  * strongly-typed route keys with input/output schema information.
  */
-export function generateRouteRegistry(
+export async function generateRouteRegistry(
 	srcDir: string,
 	routes: RouteInfo[],
 	agents: AgentMetadata[] = []
-): void {
+): Promise<void> {
 	const projectRoot = join(srcDir, '..');
 	const packageJsonPath = join(projectRoot, 'package.json');
 	let hasReactDependency = false;
@@ -486,7 +487,13 @@ export function generateRouteRegistry(
 	}
 
 	const webDir = join(srcDir, 'web');
-	const hasWebDirectory = existsSync(webDir);
+	let hasWebDirectory = false;
+	try {
+		const webDirStat = await stat(webDir);
+		hasWebDirectory = webDirStat.isDirectory();
+	} catch {
+		// Directory doesn't exist
+	}
 
 	const shouldEmitFrontendClient = hasFrontendDependency && !hasReactDependency && hasWebDirectory;
 

@@ -305,7 +305,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// Generate agent and route registries for type augmentation BEFORE builds
 	// (TypeScript needs these files to exist during type checking)
 	generateAgentRegistry(srcDir, agentMetadata);
-	generateRouteRegistry(srcDir, routeInfoList);
+	await generateRouteRegistry(srcDir, routeInfoList);
 	logger.debug('Agent and route registries generated');
 
 	// Check if web frontend exists

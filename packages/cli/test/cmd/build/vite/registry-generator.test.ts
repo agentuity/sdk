@@ -194,7 +194,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -227,7 +227,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const registryPath = join(generatedDir, 'routes.ts');
 			expect(existsSync(registryPath)).toBe(true);
@@ -270,7 +270,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const registryPath = join(generatedDir, 'routes.ts');
 			const registryContent = await Bun.file(registryPath).text();
@@ -310,7 +310,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const registryPath = join(generatedDir, 'routes.ts');
 			const registryContent = await Bun.file(registryPath).text();
@@ -353,7 +353,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -383,7 +383,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -408,7 +408,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -432,7 +432,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -455,7 +455,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -492,7 +492,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -536,7 +536,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -577,7 +577,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -612,7 +612,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -648,7 +648,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -687,7 +687,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -728,7 +728,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -754,7 +754,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -810,7 +810,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -837,7 +837,7 @@ describe('registry-generator', () => {
 		test('should handle empty routes array (boundary condition)', async () => {
 			const routes: RouteInfo[] = [];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			// Empty routes should not create a file
@@ -862,7 +862,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Both keys should exist
@@ -884,7 +884,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// RouteRegistry key exists
@@ -907,7 +907,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Key exists in RouteRegistry
@@ -939,7 +939,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('users: {');
@@ -961,7 +961,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			['a', 'b', 'c', 'd', 'e', 'f', 'g'].forEach((seg) => {
@@ -1001,7 +1001,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('resources: {');
@@ -1023,7 +1023,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('export type POSTApiInputOnlyInput');
@@ -1044,7 +1044,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('export type GETApiOutputOnlyOutput');
@@ -1071,7 +1071,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('ws: {');
@@ -1093,7 +1093,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('data: {');
@@ -1111,7 +1111,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain("'GET /api/emoji/fire'");
@@ -1132,7 +1132,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain("import type itemsAgent from '../agent/items/index.js'");
@@ -1153,7 +1153,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Relative paths should be resolved and converted
@@ -1173,7 +1173,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain("import type deepAgent from '../agent/nested/deep.js'");
@@ -1190,7 +1190,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain("'GET /api'");
@@ -1207,7 +1207,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Should convert to camelCase in RPC registry
@@ -1226,7 +1226,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Should convert to camelCase in RPC registry
@@ -1266,7 +1266,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// All registries should be populated
@@ -1304,7 +1304,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Should only import once
@@ -1331,7 +1331,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -1366,7 +1366,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -1400,7 +1400,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -1437,7 +1437,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -1472,7 +1472,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
