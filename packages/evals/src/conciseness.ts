@@ -54,9 +54,7 @@ export const concisenessPrompt = `You are evaluating whether an LLM response is 
 {
   "score": <number between 0.0 and 1.0>,
   "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence describing verbosity issues found or confirming appropriate length>"
-  }
+  "reason": "<single concise sentence describing verbosity issues found or confirming appropriate length>"
 }`;
 
 type ConcisenessEvalOptions = BaseEvalOptions & {

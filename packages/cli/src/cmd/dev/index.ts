@@ -857,6 +857,7 @@ export const command = createCommand({
 						process.env.AGENTUITY_STREAM_URL = serviceUrls.stream;
 						process.env.AGENTUITY_CLOUD_ORG_ID = project.orgId;
 						process.env.AGENTUITY_CLOUD_PROJECT_ID = project.projectId;
+						process.env.AGENTUITY_CLOUD_DEPLOYMENT_ID = deploymentId;
 					}
 
 					// Set Vite port for asset proxying in bundled app

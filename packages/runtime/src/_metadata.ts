@@ -22,7 +22,7 @@ export interface BuildMetadataAgent {
 	evals?: Array<{
 		filename: string;
 		id: string;
-		evalId: string;
+		identifier: string;
 		name: string;
 		version: string;
 		description?: string;
@@ -228,7 +228,7 @@ function ensureAgentMaps(): void {
 				if (evalMeta.name) {
 					evalsByName.set(evalMeta.name, evalMeta);
 					internal.info(
-						`[metadata] Indexed eval: agent='${agent.name}' eval='${evalMeta.name}' evalId='${evalMeta.evalId}'`
+						`[metadata] Indexed eval: agent='${agent.name}' eval='${evalMeta.name}' identifier='${evalMeta.identifier}'`
 					);
 				}
 			}
@@ -316,7 +316,7 @@ export function getEvalMetadata(
 	}
 	const result = agentEvals?.get(evalName);
 	internal.info(
-		`[metadata] getEvalMetadata result: ${result ? `found evalId=${result.evalId}` : 'not found'}`
+		`[metadata] getEvalMetadata result: ${result ? `found identifier=${result.identifier}` : 'not found'}`
 	);
 	return result;
 }

@@ -42,9 +42,7 @@ export const selfReferencePrompt = `You are evaluating whether an LLM response i
 
 {
   "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence quoting self-referential language found or confirming none detected>"
-  }
+  "reason": "<single concise sentence quoting self-referential language found or confirming none detected>"
 }`;
 
 export const selfReference = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEvalOptions>(

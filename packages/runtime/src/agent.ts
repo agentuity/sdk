@@ -1706,7 +1706,7 @@ export function createAgent<
 			handler: EvalFunction<AgentInput, AgentOutput>;
 			metadata?: {
 				id?: string;
-				evalId?: string;
+				identifier?: string;
 				version?: string;
 				filename?: string;
 			};
@@ -1768,10 +1768,9 @@ export function createAgent<
 			metadata: {
 				// Use build-time injected metadata if available, otherwise fallback to empty/undefined
 				id: evalMetadata.id || undefined,
-				evalId: evalMetadata.evalId || undefined,
+				identifier: evalMetadata.identifier || undefined,
 				version: evalMetadata.version || undefined,
 				filename: evalMetadata.filename || '',
-				identifier: evalName,
 				name: evalName,
 				description: evalConfig.description || '',
 			},
@@ -1914,14 +1913,14 @@ export function createAgent<
 						const evalMeta = getEvalMetadata(agentName, evalName);
 						internal.info(`[EVALRUN] Eval metadata lookup result:`, {
 							found: !!evalMeta,
-							evalId: evalMeta?.evalId,
+							identifier: evalMeta?.identifier,
 							id: evalMeta?.id,
 							filename: evalMeta?.filename,
 						});
 
 						// evalId = deployment-specific ID (evalid_...), evalIdentifier = stable (eval_...)
 						const evalId = evalMeta?.id || '';
-						const evalIdentifier = evalMeta?.evalId || '';
+						const evalIdentifier = evalMeta?.identifier || '';
 						internal.info(
 							`[EVALRUN] Resolved evalId='${evalId}', evalIdentifier='${evalIdentifier}'`
 						);

@@ -53,9 +53,7 @@ export const ambiguityPrompt = `You are evaluating whether an LLM response conta
 {
   "score": <number between 0.0 and 1.0>,
   "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing ambiguous elements found or confirming clarity>"
-  }
+  "reason": "<single concise sentence listing ambiguous elements found or confirming clarity>"
 }`;
 
 type AmbiguityEvalOptions = BaseEvalOptions & {
