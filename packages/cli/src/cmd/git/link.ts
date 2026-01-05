@@ -324,7 +324,12 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 			console.log('Pull requests will create preview deployments.');
 		}
 
-		return { linked: true, repoFullName: selectedRepo.fullName, branch, autoDeploy: finalAutoDeploy };
+		return {
+			linked: true,
+			repoFullName: selectedRepo.fullName,
+			branch,
+			autoDeploy: finalAutoDeploy,
+		};
 	} catch (error) {
 		const isCancel =
 			error === '' ||

@@ -31,6 +31,17 @@ function sanitizePathSegment(segment: string): string {
 }
 
 /**
+ * Generate TypeScript type for path parameters.
+ * Returns 'never' if no path params, or '{ param1: string; param2: string }' format.
+ */
+function generatePathParamsType(pathParams?: string[]): string {
+	if (!pathParams || pathParams.length === 0) {
+		return 'never';
+	}
+	return `{ ${pathParams.map((p) => `${p}: string`).join('; ')} }`;
+}
+
+/**
  * Generate src/generated/registry.ts with agent registry and types
  */
 export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): void {
@@ -363,8 +374,9 @@ function generateRPCRegistryType(
 				jsdoc.push(`${indent} */`);
 				lines.push(...jsdoc);
 
+				const pathParamsType = generatePathParamsType(routeInfo.pathParams);
 				lines.push(
-					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type} };`
+					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType} };`
 				);
 			} else {
 				// Nested node
@@ -394,7 +406,7 @@ function generateRPCRuntimeMetadata(
 	sseRoutes: RouteInfo[]
 ): string {
 	interface MetadataNode {
-		[key: string]: MetadataNode | { type: string };
+		[key: string]: MetadataNode | { type: string; path: string; pathParams?: string[] };
 	}
 
 	const tree: MetadataNode = {};
@@ -432,7 +444,14 @@ function generateRPCRuntimeMetadata(
 						? 'stream'
 						: route.method.toLowerCase();
 
-		current[terminalMethod] = { type: routeType };
+		const metadata: { type: string; path: string; pathParams?: string[] } = {
+			type: routeType,
+			path: route.path,
+		};
+		if (route.pathParams && route.pathParams.length > 0) {
+			metadata.pathParams = route.pathParams;
+		}
+		current[terminalMethod] = metadata;
 	};
 
 	apiRoutes.forEach((r) => addRoute(r, r.routeType === 'stream' ? 'stream' : 'api'));
@@ -785,13 +804,18 @@ export async function generateRouteRegistry(
 		// because only 'json' validators extract input schemas
 		// Also check if agentVariable exists but import wasn't added (missing agentImportPath)
 		const hasValidAgentImport = route.agentVariable ? !!importName : false;
+
+		// Generate pathParams type
+		const pathParamsType = generatePathParamsType(route.pathParams);
+
 		if (!route.inputSchemaVariable && !route.outputSchemaVariable && !hasValidAgentImport) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `\t'${routeKey}': {
-\t\tinputSchema: never;
-\t\toutputSchema: never;
-\t\tstream: ${streamValue};
-\t};`;
+		\t\tinputSchema: never;
+		\t\toutputSchema: never;
+		\t\tstream: ${streamValue};
+		\t\tparams: ${pathParamsType};
+		\t};`;
 		}
 		const streamValue = importName
 			? `typeof ${importName} extends { stream?: infer S } ? S : false`
@@ -800,10 +824,11 @@ export async function generateRouteRegistry(
 				: 'false';
 
 		return `\t'${routeKey}': {
-\t\tinputSchema: ${pascalName}InputSchema;
-\t\toutputSchema: ${pascalName}OutputSchema;
-\t\tstream: ${streamValue};
-\t};`;
+		\t\tinputSchema: ${pascalName}InputSchema;
+		\t\toutputSchema: ${pascalName}OutputSchema;
+		\t\tstream: ${streamValue};
+		\t\tparams: ${pathParamsType};
+		\t};`;
 	};
 
 	// Generate route entries with METHOD prefix for API routes
@@ -974,9 +999,7 @@ export function createAPIClient(options?: Parameters<typeof createClient>[0]): i
 	const generatedDir = join(srcDir, 'generated');
 	const registryPath = join(generatedDir, 'routes.ts');
 
-	if (!existsSync(generatedDir)) {
-		mkdirSync(generatedDir, { recursive: true });
-	}
+	mkdirSync(generatedDir, { recursive: true });
 
 	// Collapse 2+ consecutive empty lines into 1 empty line (3+ \n becomes 2 \n)
 	const cleanedContent = generatedContent.replace(/\n{3,}/g, '\n\n');

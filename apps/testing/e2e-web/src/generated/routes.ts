@@ -92,10 +92,29 @@ declare module '@agentuity/react' {
 	 */
 	export interface RouteRegistry {
 	'POST /api/hello': {
-		inputSchema: POSTApiHelloInputSchema;
-		outputSchema: POSTApiHelloOutputSchema;
-		stream: typeof hello extends { stream?: infer S } ? S : false;
-	};
+				inputSchema: POSTApiHelloInputSchema;
+				outputSchema: POSTApiHelloOutputSchema;
+				stream: typeof hello extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'GET /api/organizations/:orgId/members/:memberId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { orgId: string; memberId: string };
+			};
+	'GET /api/search': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/users/:userId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { userId: string };
+			};
 	}
 	
 	/**
@@ -105,10 +124,11 @@ declare module '@agentuity/react' {
 	 */
 	export interface WebSocketRouteRegistry {
 	'/api/echo': {
-		inputSchema: GETApiEchoInputSchema;
-		outputSchema: GETApiEchoOutputSchema;
-		stream: false;
-	};
+				inputSchema: GETApiEchoInputSchema;
+				outputSchema: GETApiEchoOutputSchema;
+				stream: false;
+				params: never;
+			};
 	}
 	
 	/**
@@ -118,10 +138,11 @@ declare module '@agentuity/react' {
 	 */
 	export interface SSERouteRegistry {
 	'/api/events': {
-		inputSchema: GETApiEventsInputSchema;
-		outputSchema: GETApiEventsOutputSchema;
-		stream: false;
-	};
+				inputSchema: GETApiEventsInputSchema;
+				outputSchema: GETApiEventsOutputSchema;
+				stream: false;
+				params: never;
+			};
 	}
 
 	/**
@@ -135,19 +156,45 @@ declare module '@agentuity/react' {
 			/**
 			 * Route: GET /api/echo
 			 */
-			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket' };
+			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket'; params: never };
 		};
 		events: {
 			/**
 			 * Route: GET /api/events
 			 */
-			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse' };
+			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse'; params: never };
 		};
 		hello: {
 			/**
 			 * Route: POST /api/hello
 			 */
-			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api' };
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; params: never };
+		};
+		organizations: {
+			orgId: {
+				members: {
+					memberId: {
+						/**
+						 * Route: GET /api/organizations/:orgId/members/:memberId
+						 */
+						get: { input: never; output: never; type: 'api'; params: { orgId: string; memberId: string } };
+					};
+				};
+			};
+		};
+		search: {
+			/**
+			 * Route: GET /api/search
+			 */
+			get: { input: never; output: never; type: 'api'; params: never };
+		};
+		users: {
+			userId: {
+				/**
+				 * Route: GET /api/users/:userId
+				 */
+				get: { input: never; output: never; type: 'api'; params: { userId: string } };
+			};
 		};
 	}
 }
@@ -160,17 +207,53 @@ declare module '@agentuity/react' {
 const _rpcRouteMetadata = {
 		"echo": {
 				"websocket": {
-						"type": "websocket"
+						"type": "websocket",
+						"path": "/api/echo"
 				}
 		},
 		"events": {
 				"eventstream": {
-						"type": "sse"
+						"type": "sse",
+						"path": "/api/events"
 				}
 		},
 		"hello": {
 				"post": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/hello"
+				}
+		},
+		"organizations": {
+				"orgId": {
+						"members": {
+								"memberId": {
+										"get": {
+												"type": "api",
+												"path": "/api/organizations/:orgId/members/:memberId",
+												"pathParams": [
+														"orgId",
+														"memberId"
+												]
+										}
+								}
+						}
+				}
+		},
+		"search": {
+				"get": {
+						"type": "api",
+						"path": "/api/search"
+				}
+		},
+		"users": {
+				"userId": {
+						"get": {
+								"type": "api",
+								"path": "/api/users/:userId",
+								"pathParams": [
+										"userId"
+								]
+						}
 				}
 		}
 } as const;
