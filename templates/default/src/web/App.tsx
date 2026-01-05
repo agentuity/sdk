@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useEffect, useState } from 'react';
+import { type ChangeEvent, useCallback, useState } from 'react';
 import { useAPI } from '@agentuity/react';
 import './App.css'; // Styles for this component
 
@@ -17,24 +17,23 @@ export function App() {
 	const [hoveredHistoryIndex, setHoveredHistoryIndex] = useState<number | null>(null);
 	const [hoveredBadge, setHoveredBadge] = useState<'thread' | 'session' | null>(null);
 
-	// useAPI hook handles loading state and response typing automatically
-	const { data: result, invoke, isLoading } = useAPI('POST /api/translate');
+	// RESTful API hooks for translation operations
+	const { data: historyData, refetch: refetchHistory } = useAPI('GET /api/translate/history');
+	const { data: translateResult, invoke: translate, isLoading } = useAPI('POST /api/translate');
+	const { invoke: clearHistory } = useAPI('DELETE /api/translate/history');
 
-	// Fetch existing history on mount (empty request returns current state)
-	useEffect(() => {
-		invoke({});
-	}, [invoke]);
-
-	const history = result?.history ?? [];
-	const threadId = result?.threadId;
+	// Prefer fresh data from translation, fall back to initial fetch
+	const history = translateResult?.history ?? historyData?.history ?? [];
+	const threadId = translateResult?.threadId ?? historyData?.threadId;
 
 	const handleTranslate = useCallback(async () => {
-		await invoke({ text, toLanguage, model });
-	}, [text, toLanguage, model, invoke]);
+		await translate({ text, toLanguage, model });
+	}, [text, toLanguage, model, translate]);
 
 	const handleClearHistory = useCallback(async () => {
-		await invoke({ command: 'clear' });
-	}, [invoke]);
+		await clearHistory();
+		await refetchHistory();
+	}, [clearHistory, refetchHistory]);
 
 	return (
 		<div className="app-container">
@@ -141,19 +140,19 @@ export function App() {
 								</span>
 							</span>
 						</div>
-					) : result?.translation ? (
+					) : translateResult?.translation ? (
 						<div className="result">
-							<div className="translation-output">{result.translation}</div>
+							<div className="translation-output">{translateResult.translation}</div>
 							<div className="result-meta">
-								{result.tokens > 0 && (
+								{translateResult.tokens > 0 && (
 									<>
 										<span>
-											Tokens: <strong>{result.tokens}</strong>
+											Tokens: <strong>{translateResult.tokens}</strong>
 										</span>
 										<span className="separator">|</span>
 									</>
 								)}
-								{result.threadId && (
+								{translateResult.threadId && (
 									<span
 										className="id-badge"
 										onMouseEnter={() => setHoveredBadge('thread')}
@@ -171,14 +170,14 @@ export function App() {
 												</p>
 												<div className="badge-tooltip-id">
 													<span className="badge-tooltip-id-label">ID</span>
-													<code className="badge-tooltip-id-value">{result.threadId}</code>
+													<code className="badge-tooltip-id-value">{translateResult.threadId}</code>
 												</div>
 											</div>
 										)}
-										Thread: <strong>{result.threadId.slice(0, 12)}...</strong>
+										Thread: <strong>{translateResult.threadId.slice(0, 12)}...</strong>
 									</span>
 								)}
-								{result.sessionId && (
+								{translateResult.sessionId && (
 									<>
 										<span className="separator">|</span>
 										<span
@@ -198,11 +197,11 @@ export function App() {
 													</p>
 													<div className="badge-tooltip-id">
 														<span className="badge-tooltip-id-label">ID</span>
-														<code className="badge-tooltip-id-value">{result.sessionId}</code>
+														<code className="badge-tooltip-id-value">{translateResult.sessionId}</code>
 													</div>
 												</div>
 											)}
-											Session: <strong>{result.sessionId.slice(0, 12)}...</strong>
+											Session: <strong>{translateResult.sessionId.slice(0, 12)}...</strong>
 										</span>
 									</>
 								)}
@@ -285,8 +284,8 @@ export function App() {
 								title: 'Typed Schemas',
 								text: (
 									<>
-										Input uses <code>s.string()</code> and <code>s.enum()</code> for type-safe
-										validation.
+										Uses <code>@agentuity/schema</code> for type-safe validation with{' '}
+										<code>s.string()</code> and <code>s.object()</code>.
 									</>
 								),
 							},

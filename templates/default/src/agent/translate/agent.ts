@@ -1,7 +1,7 @@
 /**
  * Translation Agent: translates text using AI models via the Agentuity AI Gateway.
- * Demonstrates thread state, sessions, structured logging, and end-to-end type safety.
- * Uses @agentuity/schema (built-in, zero dependencies) for input/output validation.
+ * Stores translation history in thread state for persistence across requests.
+ * Uses @agentuity/schema - a lightweight, built-in schema library.
  */
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
@@ -17,77 +17,42 @@ const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
 const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
 
 // History entry stored in thread state
-interface HistoryEntry {
-	text: string;
-	toLanguage: string;
-	translation: string;
-	sessionId: string;
-	timestamp: string;
-	model: string;
-	tokens: number;
-}
+export const HistoryEntrySchema = s.object({
+	text: s.string().describe('Original text that was translated (truncated)'),
+	toLanguage: s.string().describe('Target language for the translation'),
+	translation: s.string().describe('Translated text result (truncated)'),
+	sessionId: s.string().describe('Session ID when the translation was made'),
+	timestamp: s.string().describe('ISO timestamp when the translation occurred'),
+	model: s.string().describe('AI model used for the translation'),
+	tokens: s.number().describe('Number of tokens used for this translation'),
+});
+export type HistoryEntry = s.infer<typeof HistoryEntrySchema>;
 
 export const AgentInput = s.object({
-	text: s.optional(s.string()),
-	toLanguage: s.optional(s.enum(LANGUAGES)),
-	model: s.optional(s.enum(MODELS)),
-	command: s.optional(s.enum(['translate', 'clear'])),
+	text: s.string().describe('The text to translate'),
+	toLanguage: s.enum(LANGUAGES).optional().describe('Target language for translation'),
+	model: s.enum(MODELS).optional().describe('AI model to use for translation'),
 });
+export type AgentInputType = s.infer<typeof AgentInput>;
 
 export const AgentOutput = s.object({
-	translation: s.string(),
-	threadId: s.string(),
-	sessionId: s.string(),
-	translationCount: s.number(),
-	tokens: s.number(),
-	history: s.array(
-		s.object({
-			text: s.string(),
-			toLanguage: s.string(),
-			translation: s.string(),
-			sessionId: s.string(),
-			timestamp: s.string(),
-			model: s.string(),
-			tokens: s.number(),
-		})
-	),
+	translation: s.string().describe('The translated text'),
+	threadId: s.string().describe('Thread ID for conversation continuity'),
+	sessionId: s.string().describe('Current session identifier'),
+	translationCount: s.number().describe('Total translations in this thread'),
+	tokens: s.number().describe('Tokens used for this translation'),
+	history: s.array(HistoryEntrySchema).describe('Recent translation history'),
 });
+export type AgentOutputType = s.infer<typeof AgentOutput>;
 
+// Agent definition with automatic schema validation
 const agent = createAgent('translate', {
 	description: 'Translates text to different languages',
 	schema: {
 		input: AgentInput,
 		output: AgentOutput,
 	},
-	handler: async (ctx, { text, toLanguage = 'Spanish', model = 'gpt-5-nano', command = 'translate' }) => {
-		// Handle clear command
-		if (command === 'clear') {
-			// Thread state: persists across requests in this conversation (up to 1 hour)
-			await ctx.thread.state.delete('history');
-			ctx.logger.info('History cleared');
-			return {
-				translation: '',
-				threadId: ctx.thread.id,
-				sessionId: ctx.sessionId,
-				translationCount: 0,
-				tokens: 0,
-				history: [],
-			};
-		}
-
-		// No text provided: return current state (history)
-		if (!text) {
-			const history = (await ctx.thread.state.get<HistoryEntry[]>('history')) ?? [];
-			return {
-				translation: '',
-				threadId: ctx.thread.id,
-				sessionId: ctx.sessionId,
-				translationCount: history.length,
-				tokens: 0,
-				history,
-			};
-		}
-
+	handler: async (ctx, { text, toLanguage = 'Spanish', model = 'gpt-5-nano' }) => {
 		// Agentuity logger: structured logs visible in terminal and Agentuity console
 		ctx.logger.info('──── Translation ────');
 		ctx.logger.info({ toLanguage, model, textLength: text.length });
