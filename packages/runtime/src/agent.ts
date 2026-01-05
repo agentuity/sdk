@@ -2193,7 +2193,10 @@ export function createAgent<
 	// Add validator method with overloads
 	agent.validator = ((override?: any) => {
 		const effectiveInputSchema = override?.input ?? inputSchema;
-		const effectiveOutputSchema = override?.output ?? outputSchema;
+		// Only use agent's output schema if no override was provided at all.
+		// If override is provided (even with just input), don't auto-apply agent's output schema
+		// unless the override explicitly includes output.
+		const effectiveOutputSchema = override ? override.output : outputSchema;
 
 		// Helper to build the standard Hono input validator so types flow
 		const buildInputValidator = (schema?: StandardSchemaV1) =>
