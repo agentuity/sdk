@@ -138,7 +138,7 @@ describe('object utility methods', () => {
 			expect(result).toEqual({ name: 'John', email: 'john@example.com' });
 		});
 
-		test('should reject extra fields that were not picked', () => {
+		test('should strip extra fields that were not picked', () => {
 			const picked = userSchema.pick(['name']);
 			const result = picked.parse({ name: 'John', age: 30 });
 			expect(result).toEqual({ name: 'John' });
