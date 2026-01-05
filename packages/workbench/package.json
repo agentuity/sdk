@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/workbench",
-	"version": "0.0.110",
+	"version": "0.0.111",
 	"license": "Apache-2.0",
 	"author": "Agentuity",
 	"type": "module",
