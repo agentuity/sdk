@@ -410,8 +410,12 @@ export function getDisplayWidth(str: string): number {
  * Strip all ANSI escape sequences from a string
  */
 export function stripAnsi(str: string): string {
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\u001b\[[0-9;]*m/g, '').replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
+	/* eslint-disable no-control-regex */
+	return str
+		.replace(/\u001b\[[0-9;]*m/g, '') // SGR sequences (colors, bold, etc.)
+		.replace(/\u001b\[\?[0-9;]*[a-zA-Z]/g, '') // DEC private mode (cursor show/hide, etc.)
+		.replace(/\u001b\]8;;[^\u0007]*\u0007/g, ''); // OSC 8 hyperlinks
+	/* eslint-enable no-control-regex */
 }
 
 /**
@@ -457,8 +461,8 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 	while (i < str.length && visibleIndex < cutIndex) {
 		// Check for ANSI escape sequence
 		if (str[i] === '\u001b') {
-			// Copy entire ANSI sequence
-			// eslint-disable-next-line no-control-regex
+			/* eslint-disable no-control-regex */
+			// Copy entire SGR sequence (colors, bold, etc.)
 			const match = str.slice(i).match(/^\u001b\[[0-9;]*m/);
 			if (match) {
 				result += match[0];
@@ -466,14 +470,22 @@ export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...')
 				continue;
 			}
 
+			// Check for DEC private mode (cursor show/hide, etc.)
+			const decMatch = str.slice(i).match(/^\u001b\[\?[0-9;]*[a-zA-Z]/);
+			if (decMatch) {
+				result += decMatch[0];
+				i += decMatch[0].length;
+				continue;
+			}
+
 			// Check for OSC 8 hyperlink
-			// eslint-disable-next-line no-control-regex
 			const oscMatch = str.slice(i).match(/^\u001b\]8;;[^\u0007]*\u0007/);
 			if (oscMatch) {
 				result += oscMatch[0];
 				i += oscMatch[0].length;
 				continue;
 			}
+			/* eslint-enable no-control-regex */
 		}
 
 		// Copy visible character
@@ -853,8 +865,11 @@ function extractLeadingAnsiCodes(str: string): string {
  */
 function stripAnsiCodes(str: string): string {
 	// Remove all ANSI escape sequences
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\x1b\[[0-9;]*m/g, '');
+	/* eslint-disable no-control-regex */
+	return str
+		.replace(/\x1b\[[0-9;]*m/g, '') // SGR sequences
+		.replace(/\x1b\[\?[0-9;]*[a-zA-Z]/g, ''); // DEC private mode
+	/* eslint-enable no-control-regex */
 }
 
 /**
