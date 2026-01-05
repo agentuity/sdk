@@ -237,7 +237,9 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			exitCode: 1,
 			diagnostics: {
 				success: false,
-				errors: [{ type: 'general', scope: 'deploy', message: errorMessage }],
+				errors: [
+					{ type: 'general', scope: 'deploy', message: errorMessage, code: 'DEPLOY_FORK_ERROR' },
+				],
 				warnings: [],
 				diagnostics: [],
 				error: errorMessage,
