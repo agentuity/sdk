@@ -1489,6 +1489,10 @@ describe('registry-generator', () => {
 
 	describe('params type generation', () => {
 		test('should generate typed params for routes with path parameters', async () => {
+			// Log test state
+			console.log('[TEST] testDir:', testDir, 'srcDir:', srcDir, 'generatedDir:', generatedDir);
+			console.log('[TEST] srcDir exists:', existsSync(srcDir));
+
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -1508,9 +1512,13 @@ describe('registry-generator', () => {
 				},
 			];
 
+			console.log('[TEST] Calling generateRouteRegistry with', routes.length, 'routes');
 			generateRouteRegistry(srcDir, routes);
+			console.log('[TEST] After generateRouteRegistry');
 
 			const routesPath = join(generatedDir, 'routes.ts');
+			console.log('[TEST] routesPath:', routesPath, 'exists:', existsSync(routesPath));
+			console.log('[TEST] generatedDir exists:', existsSync(generatedDir));
 			expect(existsSync(routesPath)).toBe(true);
 			const content = await Bun.file(routesPath).text();
 
