@@ -14,7 +14,7 @@ const SandboxDeleteResponseSchema = z.object({
 
 export const deleteSubcommand = createCommand({
 	name: 'delete',
-	aliases: ['del', 'rm', 'remove', 'destroy'],
+	aliases: ['del', 'remove', 'destroy'],
 	description: 'Delete a sandbox',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	requires: { auth: true, region: true, org: true },
@@ -25,11 +25,7 @@ export const deleteSubcommand = createCommand({
 			description: 'Delete a sandbox',
 		},
 		{
-			command: getCommand('cloud sandbox rm abc123'),
-			description: 'Delete using alias',
-		},
-		{
-			command: getCommand('cloud sandbox rm abc123 --confirm'),
+			command: getCommand('cloud sandbox delete abc123 --confirm'),
 			description: 'Delete without confirmation prompt',
 		},
 	],

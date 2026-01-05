@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
-import { SandboxResponseError } from './util';
-
-const SNAPSHOT_API_VERSION = '2025-06-26';
+import { SandboxResponseError, API_VERSION } from './util';
 
 const SnapshotFileInfoSchema = z
 	.object({
@@ -114,7 +112,7 @@ export async function snapshotCreate(
 ): Promise<SnapshotInfo> {
 	const { sandboxId, tag, orgId } = params;
 	const queryString = buildQueryString({ orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/${sandboxId}/snapshot${queryString}`;
+	const url = `/sandbox/${API_VERSION}/${sandboxId}/snapshot${queryString}`;
 
 	const body: Record<string, string> = {};
 	if (tag) {
@@ -148,7 +146,7 @@ export async function snapshotGet(
 ): Promise<SnapshotInfo> {
 	const { snapshotId, orgId } = params;
 	const queryString = buildQueryString({ orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/snapshots/${snapshotId}${queryString}`;
+	const url = `/sandbox/${API_VERSION}/snapshots/${snapshotId}${queryString}`;
 
 	const resp = await client.get<z.infer<typeof SnapshotGetResponseSchema>>(
 		url,
@@ -176,7 +174,7 @@ export async function snapshotList(
 ): Promise<SnapshotListResponse> {
 	const { sandboxId, limit, offset, orgId } = params;
 	const queryString = buildQueryString({ sandboxId, limit, offset, orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/snapshots${queryString}`;
+	const url = `/sandbox/${API_VERSION}/snapshots${queryString}`;
 
 	const resp = await client.get<z.infer<typeof SnapshotListResponseSchema>>(
 		url,
@@ -203,7 +201,7 @@ export async function snapshotDelete(
 ): Promise<void> {
 	const { snapshotId, orgId } = params;
 	const queryString = buildQueryString({ orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/snapshots/${snapshotId}${queryString}`;
+	const url = `/sandbox/${API_VERSION}/snapshots/${snapshotId}${queryString}`;
 
 	const resp = await client.delete<z.infer<typeof SnapshotDeleteResponseSchema>>(
 		url,
@@ -229,7 +227,7 @@ export async function snapshotTag(
 ): Promise<SnapshotInfo> {
 	const { snapshotId, tag, orgId } = params;
 	const queryString = buildQueryString({ orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/snapshots/${snapshotId}${queryString}`;
+	const url = `/sandbox/${API_VERSION}/snapshots/${snapshotId}${queryString}`;
 
 	const resp = await client.patch<z.infer<typeof SnapshotGetResponseSchema>>(
 		url,
