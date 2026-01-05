@@ -96,7 +96,7 @@ export default router;
 
 		// Generate registries (this is what was missing in dev mode)
 		generateAgentRegistry(srcDir, agentMetadata);
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		// Verify both registry files exist
 		const generatedDir = join(srcDir, 'generated');
@@ -172,7 +172,7 @@ export default router;
 		expect(postRoute?.path).toContain('/api/users');
 
 		// Generate route registry
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const generatedDir = join(srcDir, 'generated');
 		const routesContent = await Bun.file(join(generatedDir, 'routes.ts')).text();
@@ -207,7 +207,7 @@ export default router;
 
 		// Generate registries - agent registry always creates file, route registry skips if empty
 		generateAgentRegistry(srcDir, agentMetadata);
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const generatedDir = join(srcDir, 'generated');
 		// Agent registry is always generated (even if empty)
@@ -305,7 +305,7 @@ export default router;
 		};
 
 		const { routeInfoList } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesContent = await Bun.file(join(srcDir, 'generated', 'routes.ts')).text();
 
@@ -342,7 +342,7 @@ export default router;
 		};
 
 		const { routeInfoList } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesContent = await Bun.file(join(srcDir, 'generated', 'routes.ts')).text();
 
@@ -380,7 +380,7 @@ export default router;
 		};
 
 		const { routeInfoList } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesContent = await Bun.file(join(srcDir, 'generated', 'routes.ts')).text();
 

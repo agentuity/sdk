@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync, existsSync } from 'node:fs';
+import { mkdirSync, rmSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -194,7 +194,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -227,7 +227,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const registryPath = join(generatedDir, 'routes.ts');
 			expect(existsSync(registryPath)).toBe(true);
@@ -270,7 +270,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const registryPath = join(generatedDir, 'routes.ts');
 			const registryContent = await Bun.file(registryPath).text();
@@ -290,6 +290,16 @@ describe('registry-generator', () => {
 		});
 
 		test('should generate RouteRegistry interface for module augmentation', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+					},
+				})
+			);
+
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -300,7 +310,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const registryPath = join(generatedDir, 'routes.ts');
 			const registryContent = await Bun.file(registryPath).text();
@@ -343,7 +353,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -373,7 +383,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -398,7 +408,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -422,7 +432,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -445,7 +455,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -482,7 +492,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -504,6 +514,16 @@ describe('registry-generator', () => {
 		});
 
 		test('should augment @agentuity/react module for all route registries (issue #384)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+					},
+				})
+			);
+
 			const routes: RouteInfo[] = [
 				{
 					method: 'post',
@@ -516,7 +536,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -557,7 +577,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -592,7 +612,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -607,6 +627,16 @@ describe('registry-generator', () => {
 		});
 
 		test('should generate routes file with only one route type (issue #384)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+					},
+				})
+			);
+
 			// Test that even with just one API route, all registries are included
 			const routes: RouteInfo[] = [
 				{
@@ -618,7 +648,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -657,7 +687,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -698,7 +728,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -724,7 +754,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -780,7 +810,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
@@ -807,7 +837,7 @@ describe('registry-generator', () => {
 		test('should handle empty routes array (boundary condition)', async () => {
 			const routes: RouteInfo[] = [];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			// Empty routes should not create a file
@@ -832,7 +862,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Both keys should exist
@@ -854,7 +884,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// RouteRegistry key exists
@@ -877,7 +907,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Key exists in RouteRegistry
@@ -909,7 +939,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('users: {');
@@ -931,7 +961,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			['a', 'b', 'c', 'd', 'e', 'f', 'g'].forEach((seg) => {
@@ -971,7 +1001,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('resources: {');
@@ -993,7 +1023,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('export type POSTApiInputOnlyInput');
@@ -1014,7 +1044,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('export type GETApiOutputOnlyOutput');
@@ -1041,7 +1071,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('ws: {');
@@ -1063,7 +1093,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain('data: {');
@@ -1081,7 +1111,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain("'GET /api/emoji/fire'");
@@ -1102,7 +1132,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain("import type itemsAgent from '../agent/items/index.js'");
@@ -1123,7 +1153,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Relative paths should be resolved and converted
@@ -1143,7 +1173,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain("import type deepAgent from '../agent/nested/deep.js'");
@@ -1160,7 +1190,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain("'GET /api'");
@@ -1177,7 +1207,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Should convert to camelCase in RPC registry
@@ -1196,7 +1226,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Should convert to camelCase in RPC registry
@@ -1236,7 +1266,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// All registries should be populated
@@ -1274,7 +1304,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			// Should only import once
@@ -1286,6 +1316,170 @@ describe('registry-generator', () => {
 			// Both routes should exist
 			expect(content).toContain("'GET /api/items'");
 			expect(content).toContain("'POST /api/items'");
+		});
+
+		test('should NOT generate frontend client code when neither @agentuity/react nor @agentuity/frontend is installed (issue #404)', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).not.toContain('export function createAPIClient');
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+		});
+
+		test('should generate frontend client code when @agentuity/frontend is installed but not @agentuity/react (issue #404)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/frontend': '^1.0.0',
+					},
+				})
+			);
+
+			mkdirSync(join(srcDir, 'web'), { recursive: true });
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).toContain('export function createAPIClient');
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+		});
+
+		test('should generate module augmentation when @agentuity/react is installed (issue #404)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+					},
+				})
+			);
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+			expect(routesContent).toContain('export interface RouteRegistry');
+			expect(routesContent).toContain('export interface WebSocketRouteRegistry');
+			expect(routesContent).toContain('export interface SSERouteRegistry');
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).not.toContain('export function createAPIClient');
+		});
+
+		test('should NOT generate frontend client when @agentuity/frontend is installed but no src/web directory (issue #404)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/frontend': '^1.0.0',
+					},
+				})
+			);
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).not.toContain('export function createAPIClient');
+		});
+
+		test('should prefer @agentuity/react over @agentuity/frontend when both are installed (issue #404)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+						'@agentuity/frontend': '^1.0.0',
+					},
+				})
+			);
+
+			mkdirSync(join(srcDir, 'web'), { recursive: true });
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).not.toContain('export function createAPIClient');
 		});
 	});
 
@@ -1489,10 +1683,6 @@ describe('registry-generator', () => {
 
 	describe('params type generation', () => {
 		test('should generate typed params for routes with path parameters', async () => {
-			// Log test state
-			console.log('[TEST] testDir:', testDir, 'srcDir:', srcDir, 'generatedDir:', generatedDir);
-			console.log('[TEST] srcDir exists:', existsSync(srcDir));
-
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -1512,13 +1702,9 @@ describe('registry-generator', () => {
 				},
 			];
 
-			console.log('[TEST] Calling generateRouteRegistry with', routes.length, 'routes');
-			generateRouteRegistry(srcDir, routes);
-			console.log('[TEST] After generateRouteRegistry');
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
-			console.log('[TEST] routesPath:', routesPath, 'exists:', existsSync(routesPath));
-			console.log('[TEST] generatedDir exists:', existsSync(generatedDir));
 			expect(existsSync(routesPath)).toBe(true);
 			const content = await Bun.file(routesPath).text();
 
@@ -1541,7 +1727,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			expect(existsSync(routesPath)).toBe(true);
@@ -1563,7 +1749,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			expect(existsSync(routesPath)).toBe(true);
@@ -1588,7 +1774,7 @@ describe('registry-generator', () => {
 				},
 			];
 
-			generateRouteRegistry(srcDir, routes);
+			await generateRouteRegistry(srcDir, routes);
 
 			const routesPath = join(generatedDir, 'routes.ts');
 			expect(existsSync(routesPath)).toBe(true);
