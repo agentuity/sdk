@@ -1486,4 +1486,98 @@ describe('registry-generator', () => {
 			expect(content).toContain('export type _123Agent');
 		});
 	});
+
+	describe('pathParams type generation', () => {
+		test('should generate typed pathParams for routes with path parameters', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/users/:id',
+					filename: './api/users.ts',
+					routeType: 'api',
+					hasValidator: false,
+					pathParams: ['id'],
+				},
+				{
+					method: 'DELETE',
+					path: '/api/organizations/:orgId/members/:memberId',
+					filename: './api/orgs.ts',
+					routeType: 'api',
+					hasValidator: false,
+					pathParams: ['orgId', 'memberId'],
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// RouteRegistry should include pathParams types
+			expect(content).toContain("'GET /api/users/:id'");
+			expect(content).toContain('pathParams: { id: string }');
+
+			expect(content).toContain("'DELETE /api/organizations/:orgId/members/:memberId'");
+			expect(content).toContain('pathParams: { orgId: string; memberId: string }');
+		});
+
+		test('should generate never for routes without path parameters', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/users',
+					filename: './api/users.ts',
+					routeType: 'api',
+					hasValidator: false,
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			expect(content).toContain("'GET /api/users'");
+			expect(content).toContain('pathParams: never');
+		});
+
+		test('should include pathParams in RPC registry types', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/items/:itemId',
+					filename: './api/items.ts',
+					routeType: 'api',
+					hasValidator: false,
+					pathParams: ['itemId'],
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// RPC registry should have pathParams
+			expect(content).toContain('items: {');
+			expect(content).toContain('itemId: {');
+			expect(content).toContain('get: { input: never; output: never; type:');
+			expect(content).toContain('pathParams: { itemId: string }');
+		});
+
+		test('should include path and pathParams in runtime metadata', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'GET',
+					path: '/api/users/:userId',
+					filename: './api/users.ts',
+					routeType: 'api',
+					hasValidator: false,
+					pathParams: ['userId'],
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			// Runtime metadata should include path and pathParams
+			expect(content).toContain('"path": "/api/users/:userId"');
+			expect(content).toContain('"pathParams": [');
+			expect(content).toContain('"userId"');
+		});
+	});
 });

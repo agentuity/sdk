@@ -362,8 +362,12 @@ function generateRPCRegistryType(
 				jsdoc.push(`${indent} */`);
 				lines.push(...jsdoc);
 
+				const pathParamsType =
+					routeInfo.pathParams && routeInfo.pathParams.length > 0
+						? `{ ${routeInfo.pathParams.map((p) => `${p}: string`).join('; ')} }`
+						: 'never';
 				lines.push(
-					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type} };`
+					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; pathParams: ${pathParamsType} };`
 				);
 			} else {
 				// Nested node
@@ -393,7 +397,7 @@ function generateRPCRuntimeMetadata(
 	sseRoutes: RouteInfo[]
 ): string {
 	interface MetadataNode {
-		[key: string]: MetadataNode | { type: string };
+		[key: string]: MetadataNode | { type: string; path: string; pathParams?: string[] };
 	}
 
 	const tree: MetadataNode = {};
@@ -431,7 +435,14 @@ function generateRPCRuntimeMetadata(
 						? 'stream'
 						: route.method.toLowerCase();
 
-		current[terminalMethod] = { type: routeType };
+		const metadata: { type: string; path: string; pathParams?: string[] } = {
+			type: routeType,
+			path: route.path,
+		};
+		if (route.pathParams && route.pathParams.length > 0) {
+			metadata.pathParams = route.pathParams;
+		}
+		current[terminalMethod] = metadata;
 	};
 
 	apiRoutes.forEach((r) => addRoute(r, r.routeType === 'stream' ? 'stream' : 'api'));
@@ -769,12 +780,20 @@ export function generateRouteRegistry(
 		// because only 'json' validators extract input schemas
 		// Also check if agentVariable exists but import wasn't added (missing agentImportPath)
 		const hasValidAgentImport = route.agentVariable ? !!importName : false;
+
+		// Generate pathParams type
+		const pathParamsType =
+			route.pathParams && route.pathParams.length > 0
+				? `{ ${route.pathParams.map((p) => `${p}: string`).join('; ')} }`
+				: 'never';
+
 		if (!route.inputSchemaVariable && !route.outputSchemaVariable && !hasValidAgentImport) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `\t'${routeKey}': {
 \t\tinputSchema: never;
 \t\toutputSchema: never;
 \t\tstream: ${streamValue};
+\t\tpathParams: ${pathParamsType};
 \t};`;
 		}
 		const streamValue = importName
@@ -787,6 +806,7 @@ export function generateRouteRegistry(
 \t\tinputSchema: ${pascalName}InputSchema;
 \t\toutputSchema: ${pascalName}OutputSchema;
 \t\tstream: ${streamValue};
+\t\tpathParams: ${pathParamsType};
 \t};`;
 	};
 

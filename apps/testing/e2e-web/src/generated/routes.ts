@@ -95,6 +95,25 @@ declare module '@agentuity/react' {
 		inputSchema: POSTApiHelloInputSchema;
 		outputSchema: POSTApiHelloOutputSchema;
 		stream: typeof hello extends { stream?: infer S } ? S : false;
+		pathParams: never;
+	};
+	'GET /api/organizations/:orgId/members/:memberId': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+		pathParams: { orgId: string; memberId: string };
+	};
+	'GET /api/search': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+		pathParams: never;
+	};
+	'GET /api/users/:userId': {
+		inputSchema: never;
+		outputSchema: never;
+		stream: false;
+		pathParams: { userId: string };
 	};
 	}
 	
@@ -108,6 +127,7 @@ declare module '@agentuity/react' {
 		inputSchema: GETApiEchoInputSchema;
 		outputSchema: GETApiEchoOutputSchema;
 		stream: false;
+		pathParams: never;
 	};
 	}
 	
@@ -121,6 +141,7 @@ declare module '@agentuity/react' {
 		inputSchema: GETApiEventsInputSchema;
 		outputSchema: GETApiEventsOutputSchema;
 		stream: false;
+		pathParams: never;
 	};
 	}
 
@@ -135,19 +156,45 @@ declare module '@agentuity/react' {
 			/**
 			 * Route: GET /api/echo
 			 */
-			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket' };
+			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket'; pathParams: never };
 		};
 		events: {
 			/**
 			 * Route: GET /api/events
 			 */
-			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse' };
+			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse'; pathParams: never };
 		};
 		hello: {
 			/**
 			 * Route: POST /api/hello
 			 */
-			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api' };
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; pathParams: never };
+		};
+		organizations: {
+			orgId: {
+				members: {
+					memberId: {
+						/**
+						 * Route: GET /api/organizations/:orgId/members/:memberId
+						 */
+						get: { input: never; output: never; type: 'api'; pathParams: { orgId: string; memberId: string } };
+					};
+				};
+			};
+		};
+		search: {
+			/**
+			 * Route: GET /api/search
+			 */
+			get: { input: never; output: never; type: 'api'; pathParams: never };
+		};
+		users: {
+			userId: {
+				/**
+				 * Route: GET /api/users/:userId
+				 */
+				get: { input: never; output: never; type: 'api'; pathParams: { userId: string } };
+			};
 		};
 	}
 }
@@ -160,17 +207,53 @@ declare module '@agentuity/react' {
 const _rpcRouteMetadata = {
 		"echo": {
 				"websocket": {
-						"type": "websocket"
+						"type": "websocket",
+						"path": "/api/echo"
 				}
 		},
 		"events": {
 				"eventstream": {
-						"type": "sse"
+						"type": "sse",
+						"path": "/api/events"
 				}
 		},
 		"hello": {
 				"post": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/hello"
+				}
+		},
+		"organizations": {
+				"orgId": {
+						"members": {
+								"memberId": {
+										"get": {
+												"type": "api",
+												"path": "/api/organizations/:orgId/members/:memberId",
+												"pathParams": [
+														"orgId",
+														"memberId"
+												]
+										}
+								}
+						}
+				}
+		},
+		"search": {
+				"get": {
+						"type": "api",
+						"path": "/api/search"
+				}
+		},
+		"users": {
+				"userId": {
+						"get": {
+								"type": "api",
+								"path": "/api/users/:userId",
+								"pathParams": [
+										"userId"
+								]
+						}
 				}
 		}
 } as const;
