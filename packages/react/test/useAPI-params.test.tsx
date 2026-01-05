@@ -135,6 +135,38 @@ describe('useAPI - Path Params', () => {
 	});
 });
 
+describe('useAPI - Routes Without Path Params', () => {
+	test('should not require params property for routes without path parameters', async () => {
+		const { result } = renderHook(
+			() =>
+				useAPI({
+					route: 'GET /search',
+					// Note: no 'params' property needed - this is the regression test
+					// Previously, the type included 'params?: never' which showed up confusingly in IDE
+				}),
+			{ wrapper }
+		);
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(capturedUrl).toBe('http://localhost:3000/search');
+	});
+
+	test('should work with only query params and no path params', async () => {
+		const { result } = renderHook(
+			() =>
+				useAPI({
+					route: 'GET /search',
+					query: { q: 'hello' },
+				}),
+			{ wrapper }
+		);
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(capturedUrl).toContain('/search?');
+		expect(capturedUrl).toContain('q=hello');
+	});
+});
+
 describe('useAPI - Query Params', () => {
 	test('should append query parameters to URL', async () => {
 		const { result } = renderHook(

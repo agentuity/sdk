@@ -112,10 +112,8 @@ type UseAPICommonOptions<TRoute extends RouteKey> = {
 				input?: RouteInput<TRoute>;
 			}) &
 	(RoutePathParams<TRoute> extends never
-		? {
-				/** No path parameters for this route */
-				params?: never;
-			}
+		? // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+			{} // No params property - omit entirely for routes without path parameters
 		: {
 				/** Path parameters for routes with dynamic segments (e.g., { id: '123' } for /users/:id) */
 				params: RoutePathParams<TRoute>;
