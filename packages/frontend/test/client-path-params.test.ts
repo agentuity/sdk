@@ -431,5 +431,59 @@ describe('Client path params', () => {
 			expect(capturedUrl).toBe('http://localhost:3000/api/hello?debug=true');
 			expect(capturedBody).toBe('{"name":"World"}');
 		});
+
+		test('should work with GET routes without any params', async () => {
+			interface TestRegistry {
+				health: {
+					get: {
+						input: never;
+						output: { status: string };
+						type: 'api';
+						params: never;
+						paramsTuple: [];
+					};
+				};
+			}
+
+			const metadata = {
+				health: {
+					get: { type: 'api', path: '/api/health' },
+				},
+			};
+
+			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
+
+			// Should work without any arguments - no params needed
+			await client.health.get();
+
+			expect(capturedUrl).toBe('http://localhost:3000/api/health');
+		});
+
+		test('should work with GET routes that only have query params', async () => {
+			interface TestRegistry {
+				search: {
+					get: {
+						input: never;
+						output: { results: string[] };
+						type: 'api';
+						params: never;
+						paramsTuple: [];
+					};
+				};
+			}
+
+			const metadata = {
+				search: {
+					get: { type: 'api', path: '/api/search' },
+				},
+			};
+
+			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
+
+			// Should work with query params only - no path params
+			await client.search.get({ query: { q: 'test', limit: '10' } });
+
+			expect(capturedUrl).toBe('http://localhost:3000/api/search?q=test&limit=10');
+		});
 	});
 });
