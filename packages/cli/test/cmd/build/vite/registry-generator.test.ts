@@ -1489,11 +1489,6 @@ describe('registry-generator', () => {
 
 	describe('params type generation', () => {
 		test('should generate typed params for routes with path parameters', async () => {
-			// Ensure srcDir exists (defensive for CI environments)
-			if (!existsSync(srcDir)) {
-				mkdirSync(srcDir, { recursive: true });
-			}
-
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -1528,11 +1523,6 @@ describe('registry-generator', () => {
 		});
 
 		test('should generate never for routes without path parameters', async () => {
-			// Ensure srcDir exists (defensive for CI environments)
-			if (!existsSync(srcDir)) {
-				mkdirSync(srcDir, { recursive: true });
-			}
-
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -1544,18 +1534,16 @@ describe('registry-generator', () => {
 			];
 
 			generateRouteRegistry(srcDir, routes);
-			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			expect(existsSync(routesPath)).toBe(true);
+			const content = await Bun.file(routesPath).text();
 
 			expect(content).toContain("'GET /api/users'");
 			expect(content).toContain('params: never');
 		});
 
 		test('should include params in RPC registry types', async () => {
-			// Ensure srcDir exists (defensive for CI environments)
-			if (!existsSync(srcDir)) {
-				mkdirSync(srcDir, { recursive: true });
-			}
-
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -1568,7 +1556,10 @@ describe('registry-generator', () => {
 			];
 
 			generateRouteRegistry(srcDir, routes);
-			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			expect(existsSync(routesPath)).toBe(true);
+			const content = await Bun.file(routesPath).text();
 
 			// RPC registry should have params
 			expect(content).toContain('items: {');
@@ -1578,11 +1569,6 @@ describe('registry-generator', () => {
 		});
 
 		test('should include path and pathParams in runtime metadata', async () => {
-			// Ensure srcDir exists (defensive for CI environments)
-			if (!existsSync(srcDir)) {
-				mkdirSync(srcDir, { recursive: true });
-			}
-
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -1595,7 +1581,10 @@ describe('registry-generator', () => {
 			];
 
 			generateRouteRegistry(srcDir, routes);
-			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			expect(existsSync(routesPath)).toBe(true);
+			const content = await Bun.file(routesPath).text();
 
 			// Runtime metadata should include path and pathParams
 			expect(content).toContain('"path": "/api/users/:userId"');

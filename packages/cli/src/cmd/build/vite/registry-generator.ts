@@ -975,9 +975,7 @@ export function createAPIClient(options?: Parameters<typeof createClient>[0]): i
 	const generatedDir = join(srcDir, 'generated');
 	const registryPath = join(generatedDir, 'routes.ts');
 
-	if (!existsSync(generatedDir)) {
-		mkdirSync(generatedDir, { recursive: true });
-	}
+	mkdirSync(generatedDir, { recursive: true });
 
 	// Collapse 2+ consecutive empty lines into 1 empty line (3+ \n becomes 2 \n)
 	const cleanedContent = generatedContent.replace(/\n{3,}/g, '\n\n');
