@@ -140,16 +140,16 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 					const resolvedHeaders = resolveHeaders(defaultHeaders);
 
 					// Determine if options is an options object or direct input
-					// Options object has pathParams, input, or query properties
+					// Options object has params, input, or query properties
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
 					const opts = options as any;
 					const isOptionsObject =
 						opts &&
 						typeof opts === 'object' &&
-						('pathParams' in opts || 'input' in opts || 'query' in opts);
+						('params' in opts || 'input' in opts || 'query' in opts);
 
 					const pathParams = isOptionsObject
-						? (opts.pathParams as Record<string, string> | undefined)
+						? (opts.params as Record<string, string> | undefined)
 						: undefined;
 					const input = isOptionsObject ? opts.input : options;
 					const query = isOptionsObject

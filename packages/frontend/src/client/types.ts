@@ -103,12 +103,12 @@ export interface StreamClient {
  * Options object for endpoints with path params.
  * Used when the route has path parameters that need to be substituted.
  */
-export interface EndpointOptionsWithPathParams<
+export interface EndpointOptionsWithParams<
 	Input = unknown,
 	PathParams = Record<string, string>,
 	Query = Record<string, string>,
 > {
-	pathParams: PathParams;
+	params: PathParams;
 	input?: Input;
 	query?: Query;
 }
@@ -124,12 +124,12 @@ export interface EndpointOptionsWithQuery<Input = unknown, Query = Record<string
 /**
  * API endpoint - callable function for regular HTTP calls.
  * - Without path params: accepts input directly OR options object with query
- * - With path params: requires options object with pathParams
+ * - With path params: requires options object with params
  */
 export type APIEndpoint<Input = unknown, Output = unknown, PathParams = never> =
 	[PathParams] extends [never]
 		? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => Promise<Output>
-		: (options: EndpointOptionsWithPathParams<Input, PathParams>) => Promise<Output>;
+		: (options: EndpointOptionsWithParams<Input, PathParams>) => Promise<Output>;
 
 /**
  * WebSocket endpoint - callable function that returns WebSocket client.
@@ -137,7 +137,7 @@ export type APIEndpoint<Input = unknown, Output = unknown, PathParams = never> =
 export type WebSocketEndpoint<Input = unknown, _Output = unknown, PathParams = never> =
 	[PathParams] extends [never]
 		? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => WebSocketClient
-		: (options: EndpointOptionsWithPathParams<Input, PathParams>) => WebSocketClient;
+		: (options: EndpointOptionsWithParams<Input, PathParams>) => WebSocketClient;
 
 /**
  * Server-Sent Events endpoint - callable function that returns EventStream client.
@@ -145,7 +145,7 @@ export type WebSocketEndpoint<Input = unknown, _Output = unknown, PathParams = n
 export type SSEEndpoint<Input = unknown, _Output = unknown, PathParams = never> =
 	[PathParams] extends [never]
 		? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => EventStreamClient
-		: (options: EndpointOptionsWithPathParams<Input, PathParams>) => EventStreamClient;
+		: (options: EndpointOptionsWithParams<Input, PathParams>) => EventStreamClient;
 
 /**
  * Streaming endpoint - callable function that returns Stream client.
@@ -153,7 +153,7 @@ export type SSEEndpoint<Input = unknown, _Output = unknown, PathParams = never> 
 export type StreamEndpoint<Input = unknown, _Output = unknown, PathParams = never> =
 	[PathParams] extends [never]
 		? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => StreamClient
-		: (options: EndpointOptionsWithPathParams<Input, PathParams>) => StreamClient;
+		: (options: EndpointOptionsWithParams<Input, PathParams>) => StreamClient;
 
 /**
  * Route endpoint - discriminated union based on route type.
@@ -179,7 +179,7 @@ export type Client<R> = {
 		input: infer I;
 		output: infer O;
 		type: infer T;
-		pathParams: infer P;
+		params: infer P;
 	}
 		? RouteEndpoint<I, O, T extends string ? T : 'api', P>
 		: R[K] extends { input: infer I; output: infer O; type: infer T }

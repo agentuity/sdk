@@ -20,17 +20,17 @@ declare module '../src/types' {
 		'GET /users/:userId': {
 			inputSchema: never;
 			outputSchema: typeof userOutput;
-			pathParams: { userId: string };
+			params: { userId: string };
 		};
 		'GET /organizations/:orgId/members/:memberId': {
 			inputSchema: never;
 			outputSchema: typeof memberOutput;
-			pathParams: { orgId: string; memberId: string };
+			params: { orgId: string; memberId: string };
 		};
 		'GET /search': {
 			inputSchema: never;
 			outputSchema: typeof searchOutput;
-			pathParams: never;
+			params: never;
 		};
 	}
 }
@@ -92,7 +92,7 @@ describe('useAPI - Path Params', () => {
 			() =>
 				useAPI({
 					route: 'GET /users/:userId',
-					pathParams: { userId: '123' },
+					params: { userId: '123' },
 				}),
 			{ wrapper }
 		);
@@ -108,7 +108,7 @@ describe('useAPI - Path Params', () => {
 			() =>
 				useAPI({
 					route: 'GET /organizations/:orgId/members/:memberId',
-					pathParams: { orgId: 'org-456', memberId: 'user-789' },
+					params: { orgId: 'org-456', memberId: 'user-789' },
 				}),
 			{ wrapper }
 		);
@@ -129,7 +129,7 @@ describe('useAPI - Path Params', () => {
 			() =>
 				useAPI({
 					route: 'GET /users/:userId',
-					pathParams: { userId: 'user/with/slashes' },
+					params: { userId: 'user/with/slashes' },
 				}),
 			{ wrapper }
 		);

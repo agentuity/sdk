@@ -65,10 +65,10 @@ type RouteChunkType<TRoute extends RouteKey> = TRoute extends keyof RouteRegistr
 
 /**
  * Extract path params type for a specific route.
- * Returns the typed pathParams object if the route has path parameters, otherwise never.
+ * Returns the typed params object if the route has path parameters, otherwise never.
  */
 export type RoutePathParams<TRoute extends RouteKey> = TRoute extends keyof RouteRegistry
-	? RouteRegistry[TRoute] extends { pathParams: infer P }
+	? RouteRegistry[TRoute] extends { params: infer P }
 		? P
 		: never
 	: never;
@@ -114,11 +114,11 @@ type UseAPICommonOptions<TRoute extends RouteKey> = {
 	(RoutePathParams<TRoute> extends never
 		? {
 				/** No path parameters for this route */
-				pathParams?: never;
+				params?: never;
 			}
 		: {
 				/** Path parameters for routes with dynamic segments (e.g., { id: '123' } for /users/:id) */
-				pathParams: RoutePathParams<TRoute>;
+				params: RoutePathParams<TRoute>;
 			});
 
 /**
@@ -450,8 +450,8 @@ export function useAPI<TRoute extends RouteKey>(
 		onError,
 	} = options;
 
-	// Extract pathParams safely
-	const pathParams = 'pathParams' in options ? options.pathParams : undefined;
+	// Extract params safely
+	const pathParams = 'params' in options ? options.params : undefined;
 
 	const delimiter = 'delimiter' in options ? (options.delimiter ?? '\n') : '\n';
 	const onChunk = 'onChunk' in options ? options.onChunk : undefined;

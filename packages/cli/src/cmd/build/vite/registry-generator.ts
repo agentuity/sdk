@@ -367,7 +367,7 @@ function generateRPCRegistryType(
 						? `{ ${routeInfo.pathParams.map((p) => `${p}: string`).join('; ')} }`
 						: 'never';
 				lines.push(
-					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; pathParams: ${pathParamsType} };`
+					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType} };`
 				);
 			} else {
 				// Nested node
@@ -790,11 +790,11 @@ export function generateRouteRegistry(
 		if (!route.inputSchemaVariable && !route.outputSchemaVariable && !hasValidAgentImport) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `\t'${routeKey}': {
-\t\tinputSchema: never;
-\t\toutputSchema: never;
-\t\tstream: ${streamValue};
-\t\tpathParams: ${pathParamsType};
-\t};`;
+		\t\tinputSchema: never;
+		\t\toutputSchema: never;
+		\t\tstream: ${streamValue};
+		\t\tparams: ${pathParamsType};
+		\t};`;
 		}
 		const streamValue = importName
 			? `typeof ${importName} extends { stream?: infer S } ? S : false`
@@ -803,11 +803,11 @@ export function generateRouteRegistry(
 				: 'false';
 
 		return `\t'${routeKey}': {
-\t\tinputSchema: ${pascalName}InputSchema;
-\t\toutputSchema: ${pascalName}OutputSchema;
-\t\tstream: ${streamValue};
-\t\tpathParams: ${pathParamsType};
-\t};`;
+		\t\tinputSchema: ${pascalName}InputSchema;
+		\t\toutputSchema: ${pascalName}OutputSchema;
+		\t\tstream: ${streamValue};
+		\t\tparams: ${pathParamsType};
+		\t};`;
 	};
 
 	// Generate route entries with METHOD prefix for API routes

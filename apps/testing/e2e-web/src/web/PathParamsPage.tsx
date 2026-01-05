@@ -18,7 +18,7 @@ export function PathParamsPage() {
 	const testUserPathParam = async () => {
 		try {
 			setError(null);
-			const result = await api.users.userId.get({ pathParams: { userId } });
+			const result = await api.users.userId.get({ params: { userId } });
 			setUserResult(JSON.stringify(result, null, 2));
 		} catch (err) {
 			setError(`User API Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -29,7 +29,7 @@ export function PathParamsPage() {
 		try {
 			setError(null);
 			const result = await api.organizations.orgId.members.memberId.get({
-				pathParams: { orgId, memberId },
+				params: { orgId, memberId },
 			});
 			setMemberResult(JSON.stringify(result, null, 2));
 		} catch (err) {

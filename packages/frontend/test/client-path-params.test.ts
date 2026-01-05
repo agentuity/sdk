@@ -29,7 +29,7 @@ describe('Client path params', () => {
 							input: never;
 							output: { id: string; name: string };
 							type: 'api';
-							pathParams: { id: string };
+							params: { id: string };
 						};
 					};
 				};
@@ -45,7 +45,7 @@ describe('Client path params', () => {
 
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
-			await client.users.id.get({ pathParams: { id: '123' } });
+			await client.users.id.get({ params: { id: '123' } });
 
 			expect(capturedUrl).toBe('http://localhost:3000/api/users/123');
 		});
@@ -60,7 +60,7 @@ describe('Client path params', () => {
 									input: never;
 									output: void;
 									type: 'api';
-									pathParams: { orgId: string; memberId: string };
+									params: { orgId: string; memberId: string };
 								};
 							};
 						};
@@ -87,7 +87,7 @@ describe('Client path params', () => {
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
 			await client.organizations.orgId.members.memberId.delete({
-				pathParams: { orgId: 'org-456', memberId: 'user-789' },
+				params: { orgId: 'org-456', memberId: 'user-789' },
 			});
 
 			expect(capturedUrl).toBe(
@@ -103,7 +103,7 @@ describe('Client path params', () => {
 							input: never;
 							output: { content: string };
 							type: 'api';
-							pathParams: { path: string };
+							params: { path: string };
 						};
 					};
 				};
@@ -119,7 +119,7 @@ describe('Client path params', () => {
 
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
-			await client.files.path.get({ pathParams: { path: 'folder/file name.txt' } });
+			await client.files.path.get({ params: { path: 'folder/file name.txt' } });
 
 			expect(capturedUrl).toBe('http://localhost:3000/api/files/folder%2Ffile%20name.txt');
 		});
@@ -133,7 +133,7 @@ describe('Client path params', () => {
 						input: never;
 						output: { users: unknown[] };
 						type: 'api';
-						pathParams: never;
+						params: never;
 					};
 				};
 			}
@@ -160,7 +160,7 @@ describe('Client path params', () => {
 								input: never;
 								output: { members: unknown[] };
 								type: 'api';
-								pathParams: { orgId: string };
+								params: { orgId: string };
 							};
 						};
 					};
@@ -184,7 +184,7 @@ describe('Client path params', () => {
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
 			await client.organizations.orgId.members.get({
-				pathParams: { orgId: 'org-123' },
+				params: { orgId: 'org-123' },
 				query: { role: 'admin' },
 			});
 
@@ -215,7 +215,7 @@ describe('Client path params', () => {
 								input: { title: string; content: string };
 								output: { postId: string };
 								type: 'api';
-								pathParams: { id: string };
+								params: { id: string };
 							};
 						};
 					};
@@ -239,7 +239,7 @@ describe('Client path params', () => {
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
 			await client.users.id.posts.post({
-				pathParams: { id: 'user-123' },
+				params: { id: 'user-123' },
 				input: { title: 'Hello', content: 'World' },
 			});
 
@@ -267,7 +267,7 @@ describe('Client path params', () => {
 						input: { name: string };
 						output: { greeting: string };
 						type: 'api';
-						pathParams: never;
+						params: never;
 					};
 				};
 			}
@@ -304,7 +304,7 @@ describe('Client path params', () => {
 						input: { name: string };
 						output: { greeting: string };
 						type: 'api';
-						pathParams: never;
+						params: never;
 					};
 				};
 			}

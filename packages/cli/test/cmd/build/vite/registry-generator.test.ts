@@ -1487,8 +1487,8 @@ describe('registry-generator', () => {
 		});
 	});
 
-	describe('pathParams type generation', () => {
-		test('should generate typed pathParams for routes with path parameters', async () => {
+	describe('params type generation', () => {
+		test('should generate typed params for routes with path parameters', async () => {
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -1511,12 +1511,12 @@ describe('registry-generator', () => {
 			generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
-			// RouteRegistry should include pathParams types
+			// RouteRegistry should include params types
 			expect(content).toContain("'GET /api/users/:id'");
-			expect(content).toContain('pathParams: { id: string }');
+			expect(content).toContain('params: { id: string }');
 
 			expect(content).toContain("'DELETE /api/organizations/:orgId/members/:memberId'");
-			expect(content).toContain('pathParams: { orgId: string; memberId: string }');
+			expect(content).toContain('params: { orgId: string; memberId: string }');
 		});
 
 		test('should generate never for routes without path parameters', async () => {
@@ -1534,10 +1534,10 @@ describe('registry-generator', () => {
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
 			expect(content).toContain("'GET /api/users'");
-			expect(content).toContain('pathParams: never');
+			expect(content).toContain('params: never');
 		});
 
-		test('should include pathParams in RPC registry types', async () => {
+		test('should include params in RPC registry types', async () => {
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -1552,11 +1552,11 @@ describe('registry-generator', () => {
 			generateRouteRegistry(srcDir, routes);
 			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
 
-			// RPC registry should have pathParams
+			// RPC registry should have params
 			expect(content).toContain('items: {');
 			expect(content).toContain('itemId: {');
 			expect(content).toContain('get: { input: never; output: never; type:');
-			expect(content).toContain('pathParams: { itemId: string }');
+			expect(content).toContain('params: { itemId: string }');
 		});
 
 		test('should include path and pathParams in runtime metadata', async () => {
