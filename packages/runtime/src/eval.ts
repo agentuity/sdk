@@ -14,7 +14,8 @@ export type EvalRunResultMetadata = {
 export const EvalHandlerResultSchema = z.object({
 	passed: z.boolean(),
 	score: z.number().min(0).max(1).optional(),
-	metadata: z.record(z.string(), z.any()),
+	reason: z.string().optional(),
+	metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export type EvalHandlerResult = z.infer<typeof EvalHandlerResultSchema>;
@@ -24,7 +25,8 @@ export const EvalRunResultSuccessSchema = z.object({
 	success: z.literal(true),
 	passed: z.boolean(),
 	score: z.number().min(0).max(1).optional(),
-	metadata: z.record(z.string(), z.any()),
+	reason: z.string().optional(),
+	metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export type EvalRunResultSuccess = z.infer<typeof EvalRunResultSuccessSchema>;
@@ -33,7 +35,8 @@ export type EvalRunResultError = {
 	success: false;
 	passed: false;
 	error: string;
-	metadata: EvalRunResultMetadata;
+	reason?: string;
+	metadata?: EvalRunResultMetadata;
 };
 
 export type EvalRunResult = EvalRunResultSuccess | EvalRunResultError;

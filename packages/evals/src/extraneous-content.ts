@@ -56,9 +56,7 @@ export const extraneousContentPrompt = `You are evaluating whether an LLM respon
 {
   "score": <number between 0.0 and 1.0>,
   "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing extraneous content found or confirming all content was relevant>"
-  }
+  "reason": "<single concise sentence listing extraneous content found or confirming all content was relevant>"
 }`;
 
 type ExtraneousContentEvalOptions = BaseEvalOptions & {

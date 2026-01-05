@@ -59,9 +59,7 @@ export const knowledgeRetentionPrompt = `You are evaluating whether an LLM respo
 {
   "score": <number between 0.0 and 1.0>,
   "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing retention failures found or confirming context was correctly maintained>"
-  }
+  "reason": "<single concise sentence listing retention failures found or confirming context was correctly maintained>"
 }`;
 
 type KnowledgeRetentionEvalOptions = BaseEvalOptions & {
