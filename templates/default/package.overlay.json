@@ -1,6 +1,7 @@
 {
 	"dependencies": {
 		"openai": "latest",
-		"@ai-sdk/openai": "^3.0.2"
+		"@ai-sdk/openai": "^3.0.2",
+		"@agentuity/evals": "latest"
 	}
 }
