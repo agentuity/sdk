@@ -65,6 +65,10 @@ const SandboxCreateRequestSchema = z
 			.array(z.string())
 			.optional()
 			.describe('Apt packages to install when creating the sandbox'),
+		metadata: z
+			.record(z.string(), z.unknown())
+			.optional()
+			.describe('Optional user-defined metadata to associate with the sandbox'),
 	})
 	.describe('Request body for creating a new sandbox');
 
@@ -142,6 +146,9 @@ export async function sandboxCreate(
 	}
 	if (options.dependencies && options.dependencies.length > 0) {
 		body.dependencies = options.dependencies;
+	}
+	if (options.metadata) {
+		body.metadata = options.metadata;
 	}
 
 	const queryParams = new URLSearchParams();

@@ -8,7 +8,14 @@ import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
-import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey } from '../../config';
+import {
+	saveProjectDir,
+	getDefaultConfigDir,
+	loadProjectSDKKey,
+	updateProjectConfig,
+} from '../../config';
+import { getProjectGithubStatus } from '../integration/api';
+import { runGitLink } from '../git/link';
 import {
 	runSteps,
 	stepSuccess,
@@ -162,6 +169,76 @@ export const deploySubcommand = createSubcommand({
 
 		try {
 			await saveProjectDir(projectDir);
+
+			// Check GitHub status and prompt for setup if not linked
+			// Skip in non-TTY environments (CI, automated runs) to prevent hanging
+			const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+			if (!useExistingDeployment && !project.skipGitSetup && hasTTY) {
+				try {
+					const githubStatus = await getProjectGithubStatus(apiClient, project.projectId);
+
+					if (githubStatus.linked && githubStatus.autoDeploy) {
+						// GitHub is already set up with auto-deploy, tell user to push instead
+						tui.newline();
+						tui.info(
+							`This project is linked to ${tui.bold(githubStatus.repoFullName ?? 'GitHub')} with automatic deployments enabled.`
+						);
+						tui.newline();
+						tui.info(
+							`Push a commit to the ${tui.bold(githubStatus.branch ?? 'main')} branch to trigger a deployment.`
+						);
+						tui.newline();
+						throw new DeploymentCancelledError();
+					}
+
+					if (!githubStatus.linked) {
+						tui.newline();
+						const wantSetup = await tui.confirm(
+							'Would you like to set up automatic deployments from GitHub?'
+						);
+
+						if (wantSetup) {
+							const result = await runGitLink({
+								apiClient,
+								projectId: project.projectId,
+								orgId: project.orgId,
+								logger,
+								skipAlreadyLinkedCheck: true,
+								config,
+							});
+
+							if (result.linked && result.autoDeploy) {
+								// GitHub linked with auto-deploy, tell user to push instead
+								tui.newline();
+								tui.info('GitHub integration set up successfully!');
+								tui.newline();
+								tui.info('Push a commit to trigger your first deployment.');
+								tui.newline();
+								throw new DeploymentCancelledError();
+							} else if (result.linked) {
+								// Linked but auto-deploy disabled, continue with manual deploy
+								tui.newline();
+								tui.info('GitHub repository linked. Continuing with deployment...');
+								tui.newline();
+							}
+						} else {
+							await updateProjectConfig(projectDir, { skipGitSetup: true }, config);
+							tui.newline();
+							tui.info(
+								`Skipping GitHub setup. Run ${tui.bold(getCommand('git link'))} later to enable it.`
+							);
+							tui.newline();
+						}
+					}
+				} catch (err) {
+					// Re-throw intentional cancellations
+					if (err instanceof DeploymentCancelledError) {
+						throw err;
+					}
+					// Log other errors as non-fatal and continue
+					logger.trace('Failed to check GitHub status: %s', err);
+				}
+			}
 
 			await runSteps(
 				[
