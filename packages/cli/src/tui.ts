@@ -410,8 +410,12 @@ export function getDisplayWidth(str: string): number {
  * Strip all ANSI escape sequences from a string
  */
 export function stripAnsi(str: string): string {
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\u001b\[[0-9;]*m/g, '').replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
+	/* eslint-disable no-control-regex */
+	return str
+		.replace(/\u001b\[[0-9;]*m/g, '') // SGR sequences (colors, bold, etc.)
+		.replace(/\u001b\[\?[0-9;]*[a-zA-Z]/g, '') // DEC private mode (cursor show/hide, etc.)
+		.replace(/\u001b\]8;;[^\u0007]*\u0007/g, ''); // OSC 8 hyperlinks
+	/* eslint-enable no-control-regex */
 }
 
 /**
@@ -853,8 +857,11 @@ function extractLeadingAnsiCodes(str: string): string {
  */
 function stripAnsiCodes(str: string): string {
 	// Remove all ANSI escape sequences
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\x1b\[[0-9;]*m/g, '');
+	/* eslint-disable no-control-regex */
+	return str
+		.replace(/\x1b\[[0-9;]*m/g, '') // SGR sequences
+		.replace(/\x1b\[\?[0-9;]*[a-zA-Z]/g, ''); // DEC private mode
+	/* eslint-enable no-control-regex */
 }
 
 /**
