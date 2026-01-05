@@ -65,7 +65,7 @@ export interface AgentMetadata {
 
 export interface EvalMetadata {
 	id: string;
-	evalId: string;
+	identifier: string;
 	name: string;
 	filename: string;
 	version: string;
@@ -459,13 +459,13 @@ function extractEvalsFromSource(
 
 				if (evalName) {
 					const id = getEvalId(projectId, deploymentId, filename, evalName, version);
-					const evalId = generateStableEvalId(projectId, agentId, evalName);
+					const identifier = generateStableEvalId(projectId, agentId, evalName);
 
-					logger.trace(`Found eval '${evalName}' in ${filename} (evalId: ${evalId})`);
+					logger.trace(`Found eval '${evalName}' in ${filename} (identifier: ${identifier})`);
 
 					evals.push({
 						id,
-						evalId,
+						identifier,
 						name: evalName,
 						filename,
 						version,

@@ -49,17 +49,17 @@ export type CreateEvalRunRequest = {
 
 type InternalEvalMetadata = {
 	/**
-	 * the unique identifier for this eval and project
+	 * the unique deployment-specific id for this eval (evalid_...)
 	 */
 	id: string;
 	/**
-	 * the unique identifier for this project and eval across multiple deployments.
-	 */
-	evalId: string;
-	/**
-	 * the folder name for the eval
+	 * the stable identifier for this project and eval across multiple deployments (eval_...)
 	 */
 	identifier: string;
+	/**
+	 * the human readable name for the eval
+	 */
+	name: string;
 	/**
 	 * the relative path to the eval from the root project directory
 	 */
