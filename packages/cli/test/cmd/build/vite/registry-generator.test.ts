@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync, existsSync } from 'node:fs';
+import { mkdirSync, rmSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
@@ -290,6 +290,16 @@ describe('registry-generator', () => {
 		});
 
 		test('should generate RouteRegistry interface for module augmentation', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+					},
+				})
+			);
+
 			const routes: RouteInfo[] = [
 				{
 					method: 'GET',
@@ -504,6 +514,16 @@ describe('registry-generator', () => {
 		});
 
 		test('should augment @agentuity/react module for all route registries (issue #384)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+					},
+				})
+			);
+
 			const routes: RouteInfo[] = [
 				{
 					method: 'post',
@@ -607,6 +627,16 @@ describe('registry-generator', () => {
 		});
 
 		test('should generate routes file with only one route type (issue #384)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+					},
+				})
+			);
+
 			// Test that even with just one API route, all registries are included
 			const routes: RouteInfo[] = [
 				{
@@ -1286,6 +1316,170 @@ describe('registry-generator', () => {
 			// Both routes should exist
 			expect(content).toContain("'GET /api/items'");
 			expect(content).toContain("'POST /api/items'");
+		});
+
+		test('should NOT generate frontend client code when neither @agentuity/react nor @agentuity/frontend is installed (issue #404)', async () => {
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).not.toContain('export function createAPIClient');
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+		});
+
+		test('should generate frontend client code when @agentuity/frontend is installed but not @agentuity/react (issue #404)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/frontend': '^1.0.0',
+					},
+				})
+			);
+
+			mkdirSync(join(srcDir, 'web'), { recursive: true });
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).toContain('export function createAPIClient');
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+		});
+
+		test('should generate module augmentation when @agentuity/react is installed (issue #404)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+					},
+				})
+			);
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+			expect(routesContent).toContain('export interface RouteRegistry');
+			expect(routesContent).toContain('export interface WebSocketRouteRegistry');
+			expect(routesContent).toContain('export interface SSERouteRegistry');
+			expect(routesContent).toContain('export interface RPCRouteRegistry');
+			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).not.toContain('export function createAPIClient');
+		});
+
+		test('should NOT generate frontend client when @agentuity/frontend is installed but no src/web directory (issue #404)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/frontend': '^1.0.0',
+					},
+				})
+			);
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).not.toContain('export function createAPIClient');
+		});
+
+		test('should prefer @agentuity/react over @agentuity/frontend when both are installed (issue #404)', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/react': '^1.0.0',
+						'@agentuity/frontend': '^1.0.0',
+					},
+				})
+			);
+
+			mkdirSync(join(srcDir, 'web'), { recursive: true });
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			expect(routesContent).toContain("declare module '@agentuity/react'");
+			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
+			expect(routesContent).not.toContain('export function createAPIClient');
 		});
 	});
 
