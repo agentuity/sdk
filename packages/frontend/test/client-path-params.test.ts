@@ -158,6 +158,80 @@ describe('Client path params', () => {
 
 			expect(capturedUrl).toBe('http://localhost:3000/api/files/folder%2Ffile%20name.txt');
 		});
+
+		test('should throw error when path parameter is missing', () => {
+			interface TestRegistry {
+				users: {
+					id: {
+						get: {
+							input: never;
+							output: { id: string; name: string };
+							type: 'api';
+							params: { id: string };
+							paramsTuple: [string];
+						};
+					};
+				};
+			}
+
+			const metadata = {
+				users: {
+					id: {
+						get: { type: 'api', path: '/api/users/:id', pathParams: ['id'] },
+					},
+				},
+			};
+
+			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
+
+			// @ts-expect-error - intentionally calling without required param
+			expect(() => client.users.id.get()).toThrow(
+				"Missing required path parameter 'id' at position 1"
+			);
+		});
+
+		test('should throw error when one of multiple path parameters is missing', () => {
+			interface TestRegistry {
+				organizations: {
+					orgId: {
+						members: {
+							memberId: {
+								get: {
+									input: never;
+									output: void;
+									type: 'api';
+									params: { orgId: string; memberId: string };
+									paramsTuple: [string, string];
+								};
+							};
+						};
+					};
+				};
+			}
+
+			const metadata = {
+				organizations: {
+					orgId: {
+						members: {
+							memberId: {
+								get: {
+									type: 'api',
+									path: '/api/organizations/:orgId/members/:memberId',
+									pathParams: ['orgId', 'memberId'],
+								},
+							},
+						},
+					},
+				},
+			};
+
+			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
+
+			// @ts-expect-error - intentionally calling with only one param
+			expect(() => client.organizations.orgId.members.memberId.get('org-123')).toThrow(
+				"Missing required path parameter 'memberId' at position 2"
+			);
+		});
 	});
 
 	describe('query parameters', () => {

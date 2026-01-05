@@ -164,9 +164,13 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 
 						for (let i = 0; i < pathParamNames.length; i++) {
 							const arg = args[i];
-							if (arg !== undefined) {
-								pathParams[pathParamNames[i]] = String(arg);
+							if (arg === undefined || arg === null) {
+								throw new Error(
+									`Missing required path parameter '${pathParamNames[i]}' at position ${i + 1}. ` +
+										`Expected ${pathParamNames.length} path parameter(s): ${pathParamNames.join(', ')}`
+								);
 							}
+							pathParams[pathParamNames[i]] = String(arg);
 						}
 
 						// Check if there's an options object after the path params
