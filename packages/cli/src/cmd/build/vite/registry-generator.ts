@@ -477,6 +477,7 @@ export function generateRouteRegistry(
 	routes: RouteInfo[],
 	agents: AgentMetadata[] = []
 ): void {
+	console.log('[generateRouteRegistry v2] ENTRY - srcDir:', srcDir, 'routes:', routes.length);
 	// Check if project uses @agentuity/react
 	const projectRoot = join(srcDir, '..');
 	const packageJsonPath = join(projectRoot, 'package.json');
