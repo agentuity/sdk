@@ -527,6 +527,8 @@ export function generateRouteRegistry(
 	});
 
 	if (apiRoutes.length === 0 && websocketRoutes.length === 0 && sseRoutes.length === 0) {
+		console.log('[generateRouteRegistry] Early return - apiRoutes:', apiRoutes.length, 'ws:', websocketRoutes.length, 'sse:', sseRoutes.length);
+		console.log('[generateRouteRegistry] Input routes:', routes.length, 'routeTypes:', routes.map((r) => r.routeType));
 		return;
 	}
 
@@ -975,10 +977,14 @@ export function createAPIClient(options?: Parameters<typeof createClient>[0]): i
 	const generatedDir = join(srcDir, 'generated');
 	const registryPath = join(generatedDir, 'routes.ts');
 
+	console.log('[generateRouteRegistry] About to create dir:', generatedDir);
 	mkdirSync(generatedDir, { recursive: true });
+	console.log('[generateRouteRegistry] Dir created, exists:', existsSync(generatedDir));
 
 	// Collapse 2+ consecutive empty lines into 1 empty line (3+ \n becomes 2 \n)
 	const cleanedContent = generatedContent.replace(/\n{3,}/g, '\n\n');
 
+	console.log('[generateRouteRegistry] Writing file:', registryPath, 'content length:', cleanedContent.length);
 	writeFileSync(registryPath, cleanedContent, 'utf-8');
+	console.log('[generateRouteRegistry] File written, exists:', existsSync(registryPath));
 }
