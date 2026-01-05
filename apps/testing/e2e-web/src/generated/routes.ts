@@ -156,19 +156,19 @@ declare module '@agentuity/react' {
 			/**
 			 * Route: GET /api/echo
 			 */
-			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket'; params: never };
+			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket'; params: never; paramsTuple: [] };
 		};
 		events: {
 			/**
 			 * Route: GET /api/events
 			 */
-			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse'; params: never };
+			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse'; params: never; paramsTuple: [] };
 		};
 		hello: {
 			/**
 			 * Route: POST /api/hello
 			 */
-			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; params: never };
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; params: never; paramsTuple: [] };
 		};
 		organizations: {
 			orgId: {
@@ -177,7 +177,7 @@ declare module '@agentuity/react' {
 						/**
 						 * Route: GET /api/organizations/:orgId/members/:memberId
 						 */
-						get: { input: never; output: never; type: 'api'; params: { orgId: string; memberId: string } };
+						get: { input: never; output: never; type: 'api'; params: { orgId: string; memberId: string }; paramsTuple: [string, string] };
 					};
 				};
 			};
@@ -186,14 +186,14 @@ declare module '@agentuity/react' {
 			/**
 			 * Route: GET /api/search
 			 */
-			get: { input: never; output: never; type: 'api'; params: never };
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
 		users: {
 			userId: {
 				/**
 				 * Route: GET /api/users/:userId
 				 */
-				get: { input: never; output: never; type: 'api'; params: { userId: string } };
+				get: { input: never; output: never; type: 'api'; params: { userId: string }; paramsTuple: [string] };
 			};
 		};
 	}

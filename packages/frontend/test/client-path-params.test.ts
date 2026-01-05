@@ -21,7 +21,7 @@ describe('Client path params', () => {
 	});
 
 	describe('path parameter substitution', () => {
-		test('should substitute single path parameter', async () => {
+		test('should substitute single path parameter as positional arg', async () => {
 			interface TestRegistry {
 				users: {
 					id: {
@@ -30,6 +30,7 @@ describe('Client path params', () => {
 							output: { id: string; name: string };
 							type: 'api';
 							params: { id: string };
+							paramsTuple: [string];
 						};
 					};
 				};
@@ -45,12 +46,44 @@ describe('Client path params', () => {
 
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
-			await client.users.id.get({ params: { id: '123' } });
+			// Positional argument API
+			await client.users.id.get('123');
 
 			expect(capturedUrl).toBe('http://localhost:3000/api/users/123');
 		});
 
-		test('should substitute multiple path parameters', async () => {
+		test('should substitute single path parameter with primitive number', async () => {
+			interface TestRegistry {
+				posts: {
+					postId: {
+						get: {
+							input: never;
+							output: { id: number; title: string };
+							type: 'api';
+							params: { postId: string };
+							paramsTuple: [string];
+						};
+					};
+				};
+			}
+
+			const metadata = {
+				posts: {
+					postId: {
+						get: { type: 'api', path: '/api/posts/:postId', pathParams: ['postId'] },
+					},
+				},
+			};
+
+			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
+
+			// Positional argument API with number (converted to string)
+			await client.posts.postId.get(42);
+
+			expect(capturedUrl).toBe('http://localhost:3000/api/posts/42');
+		});
+
+		test('should substitute multiple path parameters as positional args', async () => {
 			interface TestRegistry {
 				organizations: {
 					orgId: {
@@ -61,6 +94,7 @@ describe('Client path params', () => {
 									output: void;
 									type: 'api';
 									params: { orgId: string; memberId: string };
+									paramsTuple: [string, string];
 								};
 							};
 						};
@@ -86,16 +120,15 @@ describe('Client path params', () => {
 
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
-			await client.organizations.orgId.members.memberId.delete({
-				params: { orgId: 'org-456', memberId: 'user-789' },
-			});
+			// Positional arguments in order
+			await client.organizations.orgId.members.memberId.delete('org-456', 'user-789');
 
 			expect(capturedUrl).toBe(
 				'http://localhost:3000/api/organizations/org-456/members/user-789'
 			);
 		});
 
-		test('should URL-encode path parameter values', async () => {
+		test('should URL-encode positional path parameter values', async () => {
 			interface TestRegistry {
 				files: {
 					path: {
@@ -104,6 +137,7 @@ describe('Client path params', () => {
 							output: { content: string };
 							type: 'api';
 							params: { path: string };
+							paramsTuple: [string];
 						};
 					};
 				};
@@ -119,9 +153,84 @@ describe('Client path params', () => {
 
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
-			await client.files.path.get({ params: { path: 'folder/file name.txt' } });
+			// Positional argument with special characters
+			await client.files.path.get('folder/file name.txt');
 
 			expect(capturedUrl).toBe('http://localhost:3000/api/files/folder%2Ffile%20name.txt');
+		});
+
+		test('should throw error when path parameter is missing', () => {
+			interface TestRegistry {
+				users: {
+					id: {
+						get: {
+							input: never;
+							output: { id: string; name: string };
+							type: 'api';
+							params: { id: string };
+							paramsTuple: [string];
+						};
+					};
+				};
+			}
+
+			const metadata = {
+				users: {
+					id: {
+						get: { type: 'api', path: '/api/users/:id', pathParams: ['id'] },
+					},
+				},
+			};
+
+			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
+
+			// @ts-expect-error - intentionally calling without required param
+			expect(() => client.users.id.get()).toThrow(
+				"Missing required path parameter 'id' at position 1"
+			);
+		});
+
+		test('should throw error when one of multiple path parameters is missing', () => {
+			interface TestRegistry {
+				organizations: {
+					orgId: {
+						members: {
+							memberId: {
+								get: {
+									input: never;
+									output: void;
+									type: 'api';
+									params: { orgId: string; memberId: string };
+									paramsTuple: [string, string];
+								};
+							};
+						};
+					};
+				};
+			}
+
+			const metadata = {
+				organizations: {
+					orgId: {
+						members: {
+							memberId: {
+								get: {
+									type: 'api',
+									path: '/api/organizations/:orgId/members/:memberId',
+									pathParams: ['orgId', 'memberId'],
+								},
+							},
+						},
+					},
+				},
+			};
+
+			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
+
+			// @ts-expect-error - intentionally calling with only one param
+			expect(() => client.organizations.orgId.members.memberId.get('org-123')).toThrow(
+				"Missing required path parameter 'memberId' at position 2"
+			);
 		});
 	});
 
@@ -161,6 +270,7 @@ describe('Client path params', () => {
 								output: { members: unknown[] };
 								type: 'api';
 								params: { orgId: string };
+								paramsTuple: [string];
 							};
 						};
 					};
@@ -183,10 +293,8 @@ describe('Client path params', () => {
 
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
-			await client.organizations.orgId.members.get({
-				params: { orgId: 'org-123' },
-				query: { role: 'admin' },
-			});
+			// Positional path param + options object with query
+			await client.organizations.orgId.members.get('org-123', { query: { role: 'admin' } });
 
 			expect(capturedUrl).toBe(
 				'http://localhost:3000/api/organizations/org-123/members?role=admin'
@@ -216,6 +324,7 @@ describe('Client path params', () => {
 								output: { postId: string };
 								type: 'api';
 								params: { id: string };
+								paramsTuple: [string];
 							};
 						};
 					};
@@ -238,8 +347,8 @@ describe('Client path params', () => {
 
 			const client = createClient<TestRegistry>({ baseUrl: 'http://localhost:3000' }, metadata);
 
-			await client.users.id.posts.post({
-				params: { id: 'user-123' },
+			// Positional path param + options object with input
+			await client.users.id.posts.post('user-123', {
 				input: { title: 'Hello', content: 'World' },
 			});
 

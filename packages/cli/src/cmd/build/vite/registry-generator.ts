@@ -42,6 +42,17 @@ function generatePathParamsType(pathParams?: string[]): string {
 }
 
 /**
+ * Generate TypeScript tuple type for path parameters (for positional args).
+ * Returns '[]' if no path params, or '[string, string]' format.
+ */
+function generatePathParamsTupleType(pathParams?: string[]): string {
+	if (!pathParams || pathParams.length === 0) {
+		return '[]';
+	}
+	return `[${pathParams.map(() => 'string').join(', ')}]`;
+}
+
+/**
  * Generate src/generated/registry.ts with agent registry and types
  */
 export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): void {
@@ -375,8 +386,9 @@ function generateRPCRegistryType(
 				lines.push(...jsdoc);
 
 				const pathParamsType = generatePathParamsType(routeInfo.pathParams);
+				const pathParamsTupleType = generatePathParamsTupleType(routeInfo.pathParams);
 				lines.push(
-					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType} };`
+					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType}; paramsTuple: ${pathParamsTupleType} };`
 				);
 			} else {
 				// Nested node

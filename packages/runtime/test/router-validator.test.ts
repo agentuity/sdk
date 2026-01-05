@@ -12,17 +12,13 @@ describe('createRouter with validator', () => {
 			age: s.number(),
 		});
 
-		router.post(
-			'/',
-			validator({ input: createUserSchema }),
-			async (c) => {
-				const data = c.req.valid('json');
-				return c.json({
-					success: true,
-					user: data,
-				});
-			}
-		);
+		router.post('/', validator({ input: createUserSchema }), async (c) => {
+			const data = c.req.valid('json');
+			return c.json({
+				success: true,
+				user: data,
+			});
+		});
 
 		// Valid request
 		const validRes = await router.request('/', {

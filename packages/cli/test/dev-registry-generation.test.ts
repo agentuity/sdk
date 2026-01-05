@@ -40,10 +40,9 @@ describe('Dev Mode Registry Generation', () => {
 
 		const { discoverAgents } = await import('../src/cmd/build/vite/agent-discovery');
 		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery');
-		const {
-			generateAgentRegistry,
-			generateRouteRegistry,
-		} = await import('../src/cmd/build/vite/registry-generator');
+		const { generateAgentRegistry, generateRouteRegistry } = await import(
+			'../src/cmd/build/vite/registry-generator'
+		);
 
 		// Create a simple agent file
 		const agentCode = `
@@ -92,7 +91,12 @@ export default router;
 
 		// Discover agents and routes
 		const agentMetadata = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
-		const { routeInfoList } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+		const { routeInfoList } = await discoverRoutes(
+			srcDir,
+			'test-project',
+			'test-deployment',
+			logger
+		);
 
 		// Generate registries (this is what was missing in dev mode)
 		generateAgentRegistry(srcDir, agentMetadata);
@@ -163,7 +167,12 @@ export default router;
 			error: () => {},
 		};
 
-		const { routeInfoList } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+		const { routeInfoList } = await discoverRoutes(
+			srcDir,
+			'test-project',
+			'test-deployment',
+			logger
+		);
 
 		// Should discover the POST /api/users route
 		expect(routeInfoList.length).toBeGreaterThan(0);
@@ -185,10 +194,9 @@ export default router;
 	test('should handle empty agents and routes appropriately', async () => {
 		const { discoverAgents } = await import('../src/cmd/build/vite/agent-discovery');
 		const { discoverRoutes } = await import('../src/cmd/build/vite/route-discovery');
-		const {
-			generateAgentRegistry,
-			generateRouteRegistry,
-		} = await import('../src/cmd/build/vite/registry-generator');
+		const { generateAgentRegistry, generateRouteRegistry } = await import(
+			'../src/cmd/build/vite/registry-generator'
+		);
 
 		const logger = {
 			debug: () => {},
@@ -199,7 +207,12 @@ export default router;
 		};
 
 		const agentMetadata = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
-		const { routeInfoList } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+		const { routeInfoList } = await discoverRoutes(
+			srcDir,
+			'test-project',
+			'test-deployment',
+			logger
+		);
 
 		// No agents or routes found
 		expect(agentMetadata).toHaveLength(0);
@@ -304,7 +317,12 @@ export default router;
 			error: () => {},
 		};
 
-		const { routeInfoList } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+		const { routeInfoList } = await discoverRoutes(
+			srcDir,
+			'test-project',
+			'test-deployment',
+			logger
+		);
 		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesContent = await Bun.file(join(srcDir, 'generated', 'routes.ts')).text();
@@ -341,7 +359,12 @@ export default router;
 			error: () => {},
 		};
 
-		const { routeInfoList } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+		const { routeInfoList } = await discoverRoutes(
+			srcDir,
+			'test-project',
+			'test-deployment',
+			logger
+		);
 		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesContent = await Bun.file(join(srcDir, 'generated', 'routes.ts')).text();
@@ -379,7 +402,12 @@ export default router;
 			error: () => {},
 		};
 
-		const { routeInfoList } = await discoverRoutes(srcDir, 'test-project', 'test-deployment', logger);
+		const { routeInfoList } = await discoverRoutes(
+			srcDir,
+			'test-project',
+			'test-deployment',
+			logger
+		);
 		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesContent = await Bun.file(join(srcDir, 'generated', 'routes.ts')).text();

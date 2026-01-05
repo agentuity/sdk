@@ -224,7 +224,7 @@ app.route('/api/events', router_1);
 const { default: router_2 } = await import('../api/index.js');
 app.route('/api', router_2);
 
-const hasWorkbench = false;
+const hasWorkbench = true;
 if (hasWorkbench) {
 	// Mount workbench API routes (/_agentuity/workbench/*)
 	const workbenchRouter = createWorkbenchRouter();

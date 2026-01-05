@@ -143,26 +143,55 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 				// Fallback URL path if no metadata
 				const fallbackPath = '/api/' + pathSegments.join('/');
 
-				return (options?: unknown) => {
+				return (...args: unknown[]) => {
 					const resolvedBaseUrl = resolveBaseUrl(baseUrl);
 					const resolvedHeaders = resolveHeaders(defaultHeaders);
 
-					// Determine if options is an options object or direct input
-					// Options object has params, input, or query properties
+					// Get path param names from metadata if available
 					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const opts = options as any;
-					const isOptionsObject =
-						opts &&
-						typeof opts === 'object' &&
-						('params' in opts || 'input' in opts || 'query' in opts);
+					const pathParamNames: string[] | undefined = (metaNode as any)?.[method]?.pathParams;
+					const hasPathParams = pathParamNames && pathParamNames.length > 0;
 
-					const pathParams = isOptionsObject
-						? (opts.params as Record<string, string> | undefined)
-						: undefined;
-					const input = isOptionsObject ? opts.input : options;
-					const query = isOptionsObject
-						? (opts.query as Record<string, string> | undefined)
-						: undefined;
+					let pathParams: Record<string, string> | undefined;
+					let input: unknown;
+					let query: Record<string, string> | undefined;
+
+					if (hasPathParams) {
+						// Route has path params - positional arguments API
+						// Args are: param1, param2, ..., [options?]
+						// Example: client.user.get('123', 12) or client.user.get('123', 12, { query: {...} })
+						pathParams = {};
+
+						for (let i = 0; i < pathParamNames.length; i++) {
+							const arg = args[i];
+							if (arg === undefined || arg === null) {
+								throw new Error(
+									`Missing required path parameter '${pathParamNames[i]}' at position ${i + 1}. ` +
+										`Expected ${pathParamNames.length} path parameter(s): ${pathParamNames.join(', ')}`
+								);
+							}
+							pathParams[pathParamNames[i]] = String(arg);
+						}
+
+						// Check if there's an options object after the path params
+						const optionsArg = args[pathParamNames.length];
+						if (optionsArg && typeof optionsArg === 'object') {
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							const opts = optionsArg as any;
+							input = opts.input;
+							query = opts.query;
+						}
+					} else {
+						// No path params - use existing behavior
+						const options = args[0];
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const opts = options as any;
+						const isOptionsObject =
+							opts && typeof opts === 'object' && ('input' in opts || 'query' in opts);
+
+						input = isOptionsObject ? opts.input : options;
+						query = isOptionsObject ? opts.query : undefined;
+					}
 
 					// Substitute path params in the route path
 					const basePath = routePath || fallbackPath;

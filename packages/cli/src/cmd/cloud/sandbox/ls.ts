@@ -48,7 +48,11 @@ export const lsSubcommand = createCommand({
 			path: z.string().optional().describe('Path to list (defaults to root)'),
 		}),
 		options: z.object({
-			long: z.boolean().default(false).optional().describe('Use long listing format with permissions and timestamps'),
+			long: z
+				.boolean()
+				.default(false)
+				.optional()
+				.describe('Use long listing format with permissions and timestamps'),
 		}),
 		aliases: {
 			long: ['l'],

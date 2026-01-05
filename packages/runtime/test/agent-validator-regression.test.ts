@@ -23,7 +23,7 @@ describe('agent.validator() regression tests', () => {
 
 		test('agent.validator() with createRouter validates input', async () => {
 			const router = createRouter();
-			
+
 			router.post('/', agentInputOnly.validator(), async (c) => {
 				const data = c.req.valid('json');
 				return c.json({ success: true, user: data });
@@ -55,7 +55,7 @@ describe('agent.validator() regression tests', () => {
 
 		test('agent.validator() with plain Hono validates input', async () => {
 			const app = new Hono();
-			
+
 			app.post('/', agentInputOnly.validator(), async (c) => {
 				const data = c.req.valid('json');
 				return c.json({ success: true, user: data });
@@ -101,7 +101,7 @@ describe('agent.validator() regression tests', () => {
 
 		test('agent.validator() validates both input and output', async () => {
 			const router = createRouter();
-			
+
 			router.post('/', agentWithOutput.validator(), async (c) => {
 				const data = c.req.valid('json');
 				return c.json({ success: true, user: data });
@@ -126,7 +126,7 @@ describe('agent.validator() regression tests', () => {
 
 		test('output validation fails with wrong response', async () => {
 			const router = createRouter();
-			
+
 			router.post('/', agentWithOutput.validator(), async (c) => {
 				const _data = c.req.valid('json');
 				// Return wrong shape - should fail output validation
@@ -159,7 +159,7 @@ describe('agent.validator() regression tests', () => {
 				email: s.string().email(),
 				count: s.number(),
 			});
-			
+
 			router.post('/', baseAgent.validator({ input: customInput }), async (c) => {
 				const data = c.req.valid('json');
 				return c.json({ email: data.email, count: data.count });
@@ -191,7 +191,7 @@ describe('agent.validator() regression tests', () => {
 				email: s.string(),
 				age: s.number(),
 			});
-			
+
 			router.post('/', validator({ input: schema }), async (c) => {
 				const data = c.req.valid('json');
 				return c.json({ success: true, user: data });

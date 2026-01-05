@@ -18,7 +18,8 @@ export function PathParamsPage() {
 	const testUserPathParam = async () => {
 		try {
 			setError(null);
-			const result = await api.users.userId.get({ params: { userId } });
+			// Positional argument API: single path param
+			const result = await api.users.userId.get(userId);
 			setUserResult(JSON.stringify(result, null, 2));
 		} catch (err) {
 			setError(`User API Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -28,9 +29,8 @@ export function PathParamsPage() {
 	const testMultiplePathParams = async () => {
 		try {
 			setError(null);
-			const result = await api.organizations.orgId.members.memberId.get({
-				params: { orgId, memberId },
-			});
+			// Positional arguments API: multiple path params in order
+			const result = await api.organizations.orgId.members.memberId.get(orgId, memberId);
 			setMemberResult(JSON.stringify(result, null, 2));
 		} catch (err) {
 			setError(`Member API Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -95,7 +95,10 @@ export function PathParamsPage() {
 				>
 					Test User API
 				</button>
-				<pre data-testid="user-result" style={{ marginTop: '1rem', background: '#f5f5f5', padding: '1rem' }}>
+				<pre
+					data-testid="user-result"
+					style={{ marginTop: '1rem', background: '#f5f5f5', padding: '1rem' }}
+				>
 					{userResult || 'No result yet'}
 				</pre>
 			</div>
@@ -139,7 +142,10 @@ export function PathParamsPage() {
 				>
 					Test Member API
 				</button>
-				<pre data-testid="member-result" style={{ marginTop: '1rem', background: '#f5f5f5', padding: '1rem' }}>
+				<pre
+					data-testid="member-result"
+					style={{ marginTop: '1rem', background: '#f5f5f5', padding: '1rem' }}
+				>
 					{memberResult || 'No result yet'}
 				</pre>
 			</div>
@@ -183,7 +189,10 @@ export function PathParamsPage() {
 				>
 					Test Search API
 				</button>
-				<pre data-testid="search-result" style={{ marginTop: '1rem', background: '#f5f5f5', padding: '1rem' }}>
+				<pre
+					data-testid="search-result"
+					style={{ marginTop: '1rem', background: '#f5f5f5', padding: '1rem' }}
+				>
 					{searchResult || 'No result yet'}
 				</pre>
 			</div>
