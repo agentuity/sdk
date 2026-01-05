@@ -133,8 +133,15 @@ class DevmodeSyncService implements IDevmodeSyncService {
 		projectId: string,
 		deploymentId: string
 	): Promise<void> {
-		this.logger.debug('[CLI SYNC] sync() called with projectId=%s, deploymentId=%s', projectId, deploymentId);
-		this.logger.debug('[CLI SYNC] currentMetadata has %d agents', currentMetadata.agents?.length ?? 0);
+		this.logger.debug(
+			'[CLI SYNC] sync() called with projectId=%s, deploymentId=%s',
+			projectId,
+			deploymentId
+		);
+		this.logger.debug(
+			'[CLI SYNC] currentMetadata has %d agents',
+			currentMetadata.agents?.length ?? 0
+		);
 
 		// Build previous agent IDs set
 		const previousAgentIds = new Set<string>();

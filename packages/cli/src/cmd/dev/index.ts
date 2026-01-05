@@ -684,10 +684,9 @@ export const command = createCommand({
 							const srcDir = join(rootDir, 'src');
 							const { discoverAgents } = await import('../build/vite/agent-discovery');
 							const { discoverRoutes } = await import('../build/vite/route-discovery');
-							const {
-								generateAgentRegistry,
-								generateRouteRegistry,
-							} = await import('../build/vite/registry-generator');
+							const { generateAgentRegistry, generateRouteRegistry } = await import(
+								'../build/vite/registry-generator'
+							);
 
 							const agentMetadata = await discoverAgents(
 								srcDir,

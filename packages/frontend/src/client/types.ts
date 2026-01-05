@@ -100,20 +100,6 @@ export interface StreamClient {
 }
 
 /**
- * Options object for endpoints with path params.
- * Used when the route has path parameters that need to be substituted.
- */
-export interface EndpointOptionsWithParams<
-	Input = unknown,
-	PathParams = Record<string, string>,
-	Query = Record<string, string>,
-> {
-	params: PathParams;
-	input?: Input;
-	query?: Query;
-}
-
-/**
  * Options object for endpoints without path params (optional query support).
  */
 export interface EndpointOptionsWithQuery<Input = unknown, Query = Record<string, string>> {
@@ -122,38 +108,86 @@ export interface EndpointOptionsWithQuery<Input = unknown, Query = Record<string
 }
 
 /**
+ * Additional options that can be passed after positional path params.
+ */
+export interface EndpointExtraOptions<Input = unknown, Query = Record<string, string>> {
+	input?: Input;
+	query?: Query;
+}
+
+/**
+ * Convert a path params object to a tuple of its value types.
+ * Used for positional argument typing.
+ * Note: For proper ordering, we rely on the generated PathParamsTuple type.
+ */
+export type PathParamsToTuple<P> = P extends readonly [infer First, ...infer Rest]
+	? [First, ...PathParamsToTuple<Rest>]
+	: P extends readonly []
+		? []
+		: string[];
+
+/**
  * API endpoint - callable function for regular HTTP calls.
  * - Without path params: accepts input directly OR options object with query
- * - With path params: requires options object with params
+ * - With path params: accepts positional arguments followed by optional options object
+ *
+ * @example
+ * // No path params
+ * client.hello.post({ name: 'World' })
+ *
+ * // Single path param
+ * client.users.userId.get('123')
+ *
+ * // Multiple path params
+ * client.orgs.orgId.members.memberId.get('org-1', 'user-2')
+ *
+ * // With additional options
+ * client.users.userId.get('123', { query: { include: 'posts' } })
  */
-export type APIEndpoint<Input = unknown, Output = unknown, PathParams = never> =
-	[PathParams] extends [never]
-		? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => Promise<Output>
-		: (options: EndpointOptionsWithParams<Input, PathParams>) => Promise<Output>;
+export type APIEndpoint<
+	Input = unknown,
+	Output = unknown,
+	PathParams = never,
+	PathParamsTuple extends unknown[] = string[],
+> = [PathParams] extends [never]
+	? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => Promise<Output>
+	: (...args: [...PathParamsTuple, options?: EndpointExtraOptions<Input>]) => Promise<Output>;
 
 /**
  * WebSocket endpoint - callable function that returns WebSocket client.
  */
-export type WebSocketEndpoint<Input = unknown, _Output = unknown, PathParams = never> =
-	[PathParams] extends [never]
-		? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => WebSocketClient
-		: (options: EndpointOptionsWithParams<Input, PathParams>) => WebSocketClient;
+export type WebSocketEndpoint<
+	Input = unknown,
+	_Output = unknown,
+	PathParams = never,
+	PathParamsTuple extends unknown[] = string[],
+> = [PathParams] extends [never]
+	? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => WebSocketClient
+	: (...args: [...PathParamsTuple, options?: EndpointExtraOptions<Input>]) => WebSocketClient;
 
 /**
  * Server-Sent Events endpoint - callable function that returns EventStream client.
  */
-export type SSEEndpoint<Input = unknown, _Output = unknown, PathParams = never> =
-	[PathParams] extends [never]
-		? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => EventStreamClient
-		: (options: EndpointOptionsWithParams<Input, PathParams>) => EventStreamClient;
+export type SSEEndpoint<
+	Input = unknown,
+	_Output = unknown,
+	PathParams = never,
+	PathParamsTuple extends unknown[] = string[],
+> = [PathParams] extends [never]
+	? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => EventStreamClient
+	: (...args: [...PathParamsTuple, options?: EndpointExtraOptions<Input>]) => EventStreamClient;
 
 /**
  * Streaming endpoint - callable function that returns Stream client.
  */
-export type StreamEndpoint<Input = unknown, _Output = unknown, PathParams = never> =
-	[PathParams] extends [never]
-		? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => StreamClient
-		: (options: EndpointOptionsWithParams<Input, PathParams>) => StreamClient;
+export type StreamEndpoint<
+	Input = unknown,
+	_Output = unknown,
+	PathParams = never,
+	PathParamsTuple extends unknown[] = string[],
+> = [PathParams] extends [never]
+	? (inputOrOptions?: Input | EndpointOptionsWithQuery<Input>) => StreamClient
+	: (...args: [...PathParamsTuple, options?: EndpointExtraOptions<Input>]) => StreamClient;
 
 /**
  * Route endpoint - discriminated union based on route type.
@@ -163,13 +197,14 @@ export type RouteEndpoint<
 	Output = unknown,
 	Type extends string = 'api',
 	PathParams = never,
+	PathParamsTuple extends unknown[] = [],
 > = Type extends 'websocket'
-	? WebSocketEndpoint<Input, Output, PathParams>
+	? WebSocketEndpoint<Input, Output, PathParams, PathParamsTuple>
 	: Type extends 'sse'
-		? SSEEndpoint<Input, Output, PathParams>
+		? SSEEndpoint<Input, Output, PathParams, PathParamsTuple>
 		: Type extends 'stream'
-			? StreamEndpoint<Input, Output, PathParams>
-			: APIEndpoint<Input, Output, PathParams>;
+			? StreamEndpoint<Input, Output, PathParams, PathParamsTuple>
+			: APIEndpoint<Input, Output, PathParams, PathParamsTuple>;
 
 /**
  * Recursively build the client proxy type from a RouteRegistry.
@@ -180,13 +215,23 @@ export type Client<R> = {
 		output: infer O;
 		type: infer T;
 		params: infer P;
+		paramsTuple: infer PT;
 	}
-		? RouteEndpoint<I, O, T extends string ? T : 'api', P>
-		: R[K] extends { input: infer I; output: infer O; type: infer T }
-			? RouteEndpoint<I, O, T extends string ? T : 'api'>
-			: R[K] extends { input: infer I; output: infer O }
-				? RouteEndpoint<I, O, 'api'>
-				: R[K] extends object
-					? Client<R[K]>
-					: never;
+		? PT extends unknown[]
+			? RouteEndpoint<I, O, T extends string ? T : 'api', P, PT>
+			: RouteEndpoint<I, O, T extends string ? T : 'api', P>
+		: R[K] extends {
+					input: infer I;
+					output: infer O;
+					type: infer T;
+					params: infer P;
+			  }
+			? RouteEndpoint<I, O, T extends string ? T : 'api', P>
+			: R[K] extends { input: infer I; output: infer O; type: infer T }
+				? RouteEndpoint<I, O, T extends string ? T : 'api'>
+				: R[K] extends { input: infer I; output: infer O }
+					? RouteEndpoint<I, O, 'api'>
+					: R[K] extends object
+						? Client<R[K]>
+						: never;
 };

@@ -55,13 +55,10 @@ beforeAll(() => {
 
 		if (url.includes('/organizations/') && url.includes('/members/')) {
 			const parts = url.match(/\/organizations\/([^/]+)\/members\/([^/?]+)/);
-			return new Response(
-				JSON.stringify({ orgId: parts?.[1], memberId: parts?.[2] }),
-				{
-					status: 200,
-					headers: { 'Content-Type': 'application/json' },
-				}
-			);
+			return new Response(JSON.stringify({ orgId: parts?.[1], memberId: parts?.[2] }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
 		}
 
 		if (url.includes('/search')) {
@@ -115,9 +112,7 @@ describe('useAPI - Path Params', () => {
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-		expect(capturedUrl).toBe(
-			'http://localhost:3000/organizations/org-456/members/user-789'
-		);
+		expect(capturedUrl).toBe('http://localhost:3000/organizations/org-456/members/user-789');
 		expect(result.current.data).toEqual({
 			orgId: 'org-456',
 			memberId: 'user-789',
@@ -136,9 +131,7 @@ describe('useAPI - Path Params', () => {
 
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-		expect(capturedUrl).toBe(
-			'http://localhost:3000/users/user%2Fwith%2Fslashes'
-		);
+		expect(capturedUrl).toBe('http://localhost:3000/users/user%2Fwith%2Fslashes');
 	});
 });
 
