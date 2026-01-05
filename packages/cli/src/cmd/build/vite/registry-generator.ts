@@ -527,6 +527,7 @@ export function generateRouteRegistry(
 	});
 
 	if (apiRoutes.length === 0 && websocketRoutes.length === 0 && sseRoutes.length === 0) {
+		console.log('[DEBUG generateRouteRegistry] Early return - no routes. Input routes:', routes.length, 'routeTypes:', routes.map(r => r.routeType));
 		return;
 	}
 

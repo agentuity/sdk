@@ -1490,10 +1490,7 @@ describe('registry-generator', () => {
 	describe('params type generation', () => {
 		test('should generate typed params for routes with path parameters', async () => {
 			// Ensure srcDir exists (defensive for CI environments)
-			console.log('[DEBUG] srcDir:', srcDir, 'exists:', existsSync(srcDir));
-			console.log('[DEBUG] generatedDir:', generatedDir);
 			if (!existsSync(srcDir)) {
-				console.log('[DEBUG] Creating srcDir...');
 				mkdirSync(srcDir, { recursive: true });
 			}
 
@@ -1517,7 +1514,10 @@ describe('registry-generator', () => {
 			];
 
 			generateRouteRegistry(srcDir, routes);
-			const content = await Bun.file(join(generatedDir, 'routes.ts')).text();
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			expect(existsSync(routesPath)).toBe(true);
+			const content = await Bun.file(routesPath).text();
 
 			// RouteRegistry should include params types
 			expect(content).toContain("'GET /api/users/:id'");
