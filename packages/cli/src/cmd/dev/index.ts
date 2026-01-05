@@ -680,7 +680,35 @@ export const command = createCommand({
 								);
 							}
 
-							// Step 2: Generate entry file with workbench config
+							// Step 2: Discover agents and routes for registry generation
+							const srcDir = join(rootDir, 'src');
+							const { discoverAgents } = await import('../build/vite/agent-discovery');
+							const { discoverRoutes } = await import('../build/vite/route-discovery');
+							const {
+								generateAgentRegistry,
+								generateRouteRegistry,
+							} = await import('../build/vite/registry-generator');
+
+							const agentMetadata = await discoverAgents(
+								srcDir,
+								project?.projectId ?? '',
+								deploymentId,
+								logger
+							);
+							const { routes, routeInfoList } = await discoverRoutes(
+								srcDir,
+								project?.projectId ?? '',
+								deploymentId,
+								logger
+							);
+
+							// Generate agent and route registries for type augmentation
+							// (TypeScript needs these files to exist for proper type inference)
+							generateAgentRegistry(srcDir, agentMetadata);
+							generateRouteRegistry(srcDir, routeInfoList);
+							logger.debug('Agent and route registries generated for dev mode');
+
+							// Step 3: Generate entry file with workbench config
 							// Note: vitePort is NOT passed here - the app reads process.env.VITE_PORT at runtime
 							const { generateEntryFile } = await import('../build/entry-generator');
 							await generateEntryFile({
@@ -692,7 +720,7 @@ export const command = createCommand({
 								workbench: workbenchConfigData.enabled ? workbenchConfigData : undefined,
 							});
 
-							// Step 3: Bundle the app with LLM patches (dev mode = no minification)
+							// Step 4: Bundle the app with LLM patches (dev mode = no minification)
 							// This produces .agentuity/app.js with AI Gateway routing patches applied
 							const { installExternalsAndBuild } = await import(
 								'../build/vite/server-bundler'
@@ -704,13 +732,10 @@ export const command = createCommand({
 							});
 
 							// Generate metadata file (needed for eval ID lookup at runtime)
-							const { discoverAgents } = await import('../build/vite/agent-discovery');
-							const { discoverRoutes } = await import('../build/vite/route-discovery');
+							// Reuse agentMetadata and routes from Step 2
 							const { generateMetadata, writeMetadataFile } = await import(
 								'../build/vite/metadata-generator'
 							);
-
-							const srcDir = join(rootDir, 'src');
 
 							const promises: Promise<void>[] = [];
 
@@ -722,25 +747,13 @@ export const command = createCommand({
 										logger.warn('Failed to generate prompt files: %s', err.message)
 									)
 							);
-							const agents = await discoverAgents(
-								srcDir,
-								project?.projectId ?? '',
-								deploymentId,
-								logger
-							);
-							const { routes } = await discoverRoutes(
-								srcDir,
-								project?.projectId ?? '',
-								deploymentId,
-								logger
-							);
 
 							const metadata = await generateMetadata({
 								rootDir,
 								projectId: project?.projectId ?? '',
 								orgId: project?.orgId ?? '',
 								deploymentId,
-								agents,
+								agents: agentMetadata,
 								routes,
 								dev: true,
 								logger,
