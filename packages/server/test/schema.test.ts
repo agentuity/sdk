@@ -162,5 +162,12 @@ describe('toJSONSchema', () => {
 			const result = toJSONSchema(42);
 			expect(result).toEqual({});
 		});
+
+		test('returns empty object when z.toJSONSchema throws', () => {
+			// Object that passes the Zod detection but fails conversion
+			const invalidZodLike = { _def: { type: 'invalid' } };
+			const result = toJSONSchema(invalidZodLike);
+			expect(result).toEqual({});
+		});
 	});
 });
