@@ -7,15 +7,33 @@ import { config } from 'dotenv';
 config({ path: resolve(__dirname, '..', '.env') });
 
 // Test configuration
-const TARGET_ORG_ID = 'org_2u8RgDTwcZWrZrZ3sZh24T5FCtz';
-const TEST_PROJECT_DIR = resolve(__dirname, '..', 'apps', 'testing', 'github-app-test-project');
-const GITHUB_REMOTE_URL = 'https://github.com/agentuity-gh-app-tester/github-app-test-project.git';
-const GITHUB_REPO_FULL_NAME = 'agentuity-gh-app-tester/github-app-test-project';
+
+const GH_TEST_ACC_REPO = process.env.GH_TEST_ACC_REPO;
+if (!GH_TEST_ACC_REPO) {
+	throw new Error('GH_TEST_ACC_REPO is not set');
+}
+const TEST_PROJECT_DIR = resolve(__dirname, '..', 'apps', 'testing', GH_TEST_ACC_REPO);
+if (!TEST_PROJECT_DIR) {
+	throw new Error('TEST_PROJECT_DIR is not set');
+}
+
+const TARGET_ORG_ID = process.env.GH_TEST_TARGET_ORG_ID;
+if (!TARGET_ORG_ID) {
+	throw new Error('GH_TEST_TARGET_ORG_ID is not set');
+}
 
 // Environment variables
-const GITHUB_USERNAME = process.env.GITHUB_TEST_ACC_USERNAME;
-const GITHUB_PASSWORD = process.env.GITHUB_TEST_ACC_PASSWORD;
-const GITHUB_TOKEN = process.env.GITHUB_TEST_ACC_TOKEN;
+const GH_TEST_ACC_USERNAME = process.env.GH_TEST_ACC_USERNAME;
+const GH_TEST_ACC_PASSWORD = process.env.GH_TEST_ACC_PASSWORD;
+const GH_TEST_ACC_TOKEN = process.env.GH_TEST_ACC_TOKEN;
+
+// Derived values
+const GITHUB_REPO_FULL_NAME = GH_TEST_ACC_USERNAME
+	? `${GH_TEST_ACC_USERNAME}/${GH_TEST_ACC_REPO}`
+	: undefined;
+const GITHUB_REMOTE_URL = GITHUB_REPO_FULL_NAME
+	? `https://github.com/${GITHUB_REPO_FULL_NAME}.git`
+	: undefined;
 
 interface Integration {
 	id: string;
@@ -139,14 +157,14 @@ function cleanupGitRepo() {
 }
 
 function findTestAccountIntegration(accounts: OrgAccount[]): Integration | null {
-	if (!GITHUB_USERNAME) return null;
+	if (!GH_TEST_ACC_USERNAME) return null;
 
 	const targetOrg = accounts.find((org) => org.orgId === TARGET_ORG_ID);
 	if (!targetOrg) return null;
 
 	return (
 		targetOrg.integrations.find(
-			(i) => i.githubAccountName.toLowerCase() === GITHUB_USERNAME.toLowerCase()
+			(i) => i.githubAccountName.toLowerCase() === GH_TEST_ACC_USERNAME.toLowerCase()
 		) ?? null
 	);
 }
@@ -162,12 +180,12 @@ async function githubApi(
 	endpoint: string,
 	body?: Record<string, unknown>
 ): Promise<unknown> {
-	if (!GITHUB_TOKEN) throw new Error('GITHUB_TEST_ACC_TOKEN not set');
+	if (!GH_TEST_ACC_TOKEN) throw new Error('GITHUB_TEST_ACC_TOKEN not set');
 
 	const response = await fetch(`https://api.github.com${endpoint}`, {
 		method,
 		headers: {
-			Authorization: `Bearer ${GITHUB_TOKEN}`,
+			Authorization: `Bearer ${GH_TEST_ACC_TOKEN}`,
 			Accept: 'application/vnd.github.v3+json',
 			'Content-Type': 'application/json',
 		},
@@ -225,7 +243,7 @@ test.describe('GitHub App Integration', () => {
 	// --------------------------------------------------------------------------
 
 	test('1.1 connect GitHub account via OAuth', async ({ page }) => {
-		if (!GITHUB_USERNAME || !GITHUB_PASSWORD) {
+		if (!GH_TEST_ACC_USERNAME || !GH_TEST_ACC_PASSWORD) {
 			console.warn('⚠️  Skipping: GITHUB_TEST_ACC_USERNAME/PASSWORD not set');
 			test.skip();
 			return;
@@ -244,7 +262,7 @@ test.describe('GitHub App Integration', () => {
 		}
 
 		console.log('Logging into GitHub...');
-		await loginToGithub(page, GITHUB_USERNAME, GITHUB_PASSWORD);
+		await loginToGithub(page, GH_TEST_ACC_USERNAME, GH_TEST_ACC_PASSWORD);
 
 		console.log('Navigating to OAuth URL...');
 		await page.goto(addResult.url, { waitUntil: 'domcontentloaded' });
@@ -273,7 +291,7 @@ test.describe('GitHub App Integration', () => {
 	});
 
 	test('1.2 list connected accounts', async () => {
-		if (!GITHUB_USERNAME) {
+		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}
@@ -285,7 +303,7 @@ test.describe('GitHub App Integration', () => {
 
 		const integration = findTestAccountIntegration(accounts);
 		expect(integration).not.toBeNull();
-		expect(integration!.githubAccountName.toLowerCase()).toBe(GITHUB_USERNAME.toLowerCase());
+		expect(integration!.githubAccountName.toLowerCase()).toBe(GH_TEST_ACC_USERNAME.toLowerCase());
 		expect(['user', 'org']).toContain(integration!.githubAccountType);
 
 		console.log('✓ Listed connected accounts');
@@ -296,7 +314,7 @@ test.describe('GitHub App Integration', () => {
 	// --------------------------------------------------------------------------
 
 	test('2.1 list accessible repositories', async () => {
-		if (!GITHUB_USERNAME) {
+		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}
@@ -328,7 +346,7 @@ test.describe('GitHub App Integration', () => {
 	});
 
 	test('2.2 link project to repository with --detect', async () => {
-		if (!GITHUB_USERNAME) {
+		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}
@@ -348,7 +366,7 @@ test.describe('GitHub App Integration', () => {
 	});
 
 	test('2.3 git status shows linked repository', async () => {
-		if (!GITHUB_USERNAME) {
+		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}
@@ -378,7 +396,7 @@ test.describe('GitHub App Integration', () => {
 	});
 
 	test('2.4 unlink project from repository', async () => {
-		if (!GITHUB_USERNAME) {
+		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}
@@ -401,7 +419,7 @@ test.describe('GitHub App Integration', () => {
 	});
 
 	test('2.5 link with explicit repo and custom settings', async () => {
-		if (!GITHUB_USERNAME) {
+		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}
@@ -430,7 +448,7 @@ test.describe('GitHub App Integration', () => {
 	});
 
 	test('2.6 re-link with different settings', async () => {
-		if (!GITHUB_USERNAME) {
+		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}
@@ -457,7 +475,7 @@ test.describe('GitHub App Integration', () => {
 	});
 
 	test('2.7 push commit via GitHub API and revert', async () => {
-		if (!GITHUB_USERNAME || !GITHUB_TOKEN) {
+		if (!GH_TEST_ACC_USERNAME || !GH_TEST_ACC_TOKEN) {
 			console.warn('⚠️  Skipping: GITHUB_TEST_ACC_TOKEN not set');
 			test.skip();
 			return;
@@ -510,7 +528,7 @@ test.describe('GitHub App Integration', () => {
 	// --------------------------------------------------------------------------
 
 	test('3.1 unlink before disconnect', async () => {
-		if (!GITHUB_USERNAME) {
+		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}
@@ -525,7 +543,7 @@ test.describe('GitHub App Integration', () => {
 	});
 
 	test('3.2 disconnect GitHub account', async () => {
-		if (!GITHUB_USERNAME) {
+		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}

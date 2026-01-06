@@ -6,22 +6,24 @@
 	"module": ".agentuity/app.js",
 	"type": "module",
 	"scripts": {
-		"build": "agentuity build",
-		"dev": "agentuity dev",
+		"build": "bun ../../../packages/cli/bin/cli.ts build --dir . --dev",
+		"dev": "bun ../../../packages/cli/bin/cli.ts dev --dir .",
 		"start": "bun .agentuity/app.js",
 		"deploy": "agentuity deploy",
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
-		"@agentuity/react": "latest",
-		"@agentuity/runtime": "latest",
-		"@agentuity/schema": "latest",
-		"@agentuity/workbench": "latest",
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/react": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"@agentuity/workbench": "workspace:*",
+		"hono": "^4.7.13",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0"
 	},
 	"devDependencies": {
-		"@agentuity/cli": "latest",
 		"@types/bun": "latest",
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
