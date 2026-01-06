@@ -72,6 +72,7 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 	const deploymentId = deployment.id;
 	const buildLogsStreamURL = deployment.buildLogsStreamURL;
 	const reportFile = join(tmpdir(), `agentuity-deploy-${deploymentId}.json`);
+	const cleanLogsFile = join(tmpdir(), `agentuity-deploy-${deploymentId}-logs.txt`);
 	let outputBuffer = '';
 	let proc: Subprocess | null = null;
 
@@ -111,6 +112,8 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 				// Pass terminal dimensions
 				COLUMNS: String(columns),
 				LINES: String(rows),
+				// Enable clean log collection for Pulse streaming
+				AGENTUITY_CLEAN_LOGS_FILE: cleanLogsFile,
 			},
 			stdin: 'inherit',
 			stdout: 'pipe',
@@ -162,8 +165,24 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			}
 		}
 
-		if (buildLogsStreamURL && outputBuffer) {
-			await streamToPulse(buildLogsStreamURL, sdkKey, outputBuffer, logger);
+		// Stream clean logs to Pulse (prefer clean logs over raw output)
+		if (buildLogsStreamURL) {
+			let logsContent = '';
+			if (existsSync(cleanLogsFile)) {
+				try {
+					logsContent = readFileSync(cleanLogsFile, 'utf-8');
+					unlinkSync(cleanLogsFile);
+				} catch (err) {
+					logger.debug('Failed to read clean logs file: %s', err);
+				}
+			}
+			// Fall back to raw output if no clean logs
+			if (!logsContent && outputBuffer) {
+				logsContent = outputBuffer;
+			}
+			if (logsContent) {
+				await streamToPulse(buildLogsStreamURL, sdkKey, logsContent, logger);
+			}
 		}
 
 		if (exitCode !== 0) {
@@ -205,9 +224,21 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Fork deploy error: %s', errorMessage);
 
-		if (buildLogsStreamURL && outputBuffer) {
-			outputBuffer += `\n\n--- FORK ERROR ---\n${errorMessage}\n`;
-			await streamToPulse(buildLogsStreamURL, sdkKey, outputBuffer, logger);
+		if (buildLogsStreamURL) {
+			let logsContent = '';
+			if (existsSync(cleanLogsFile)) {
+				try {
+					logsContent = readFileSync(cleanLogsFile, 'utf-8');
+					unlinkSync(cleanLogsFile);
+				} catch {
+					// ignore
+				}
+			}
+			if (!logsContent) {
+				logsContent = outputBuffer;
+			}
+			logsContent += `\n\n--- FORK ERROR ---\n${errorMessage}\n`;
+			await streamToPulse(buildLogsStreamURL, sdkKey, logsContent, logger);
 		}
 
 		try {
@@ -246,11 +277,14 @@ export async function runForkedDeploy(options: ForkDeployOptions): Promise<ForkD
 			},
 		};
 	} finally {
-		if (existsSync(reportFile)) {
-			try {
-				unlinkSync(reportFile);
-			} catch {
-				// ignore
+		// Clean up temp files
+		for (const file of [reportFile, cleanLogsFile]) {
+			if (existsSync(file)) {
+				try {
+					unlinkSync(file);
+				} catch {
+					// ignore
+				}
 			}
 		}
 	}
