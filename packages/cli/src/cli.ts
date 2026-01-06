@@ -914,8 +914,18 @@ async function registerSubcommand(
 				if (opt.hasDefault) {
 					const defaultValue =
 						typeof opt.defaultValue === 'function' ? opt.defaultValue() : opt.defaultValue;
-					cmd.option(`--no-${flag}`, desc);
-					cmd.option(flagSpec, desc, defaultValue);
+					// For boolean flags with default true, only show the --no-* flag in help
+					// since that's the only actionable flag users need to know about.
+					// The positive flag is hidden but still functional.
+					const baseDesc = desc.replace(/\s*\(use\s+--no-\S+\s+to\s+skip\)/i, '').trim();
+					const negatedDesc = baseDesc.toLowerCase().startsWith('run ')
+						? `Skip ${baseDesc.slice(4)}`
+						: `Do not ${baseDesc.charAt(0).toLowerCase()}${baseDesc.slice(1)}`;
+					cmd.option(`--no-${flag}`, negatedDesc);
+					const positiveOption = cmd.createOption(flagSpec, baseDesc);
+					positiveOption.default(defaultValue);
+					positiveOption.hideHelp();
+					cmd.addOption(positiveOption);
 				} else {
 					cmd.option(flagSpec, desc);
 				}
