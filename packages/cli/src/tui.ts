@@ -5,6 +5,7 @@
  * Uses Bun's built-in color support and ANSI escape codes.
  */
 import { stringWidth } from 'bun';
+import { resolve } from 'node:path';
 import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
@@ -23,6 +24,10 @@ function ensureCursorRestoration(): void {
 	exitHandlerInstalled = true;
 
 	const restoreCursor = () => {
+		// Skip cursor restoration in CI - terminals don't support these sequences
+		if (process.env.CI) {
+			return;
+		}
 		// Restore cursor visibility
 		process.stderr.write('\x1B[?25h');
 	};
@@ -61,7 +66,38 @@ export const ICONS = {
 	bullet: '•',
 } as const;
 
+/**
+ * Check if we should treat stdout as a TTY (real TTY or FORCE_COLOR set by fork wrapper)
+ * Returns false in CI environments since CI terminals don't support cursor control sequences
+ */
+export function isTTYLike(): boolean {
+	if (process.env.CI) {
+		return false;
+	}
+	return process.stdout.isTTY || process.env.FORCE_COLOR === '1';
+}
+
+/**
+ * Get terminal width, respecting COLUMNS env var for piped processes
+ */
+export function getTerminalWidth(defaultWidth = 80): number {
+	if (process.stdout.columns) {
+		return process.stdout.columns;
+	}
+	if (process.env.COLUMNS) {
+		const cols = parseInt(process.env.COLUMNS, 10);
+		if (!isNaN(cols) && cols > 0) {
+			return cols;
+		}
+	}
+	return defaultWidth;
+}
+
 export function shouldUseColors(): boolean {
+	// FORCE_COLOR overrides TTY detection (used by fork wrapper)
+	if (process.env.FORCE_COLOR === '1') {
+		return true;
+	}
 	return (
 		!process.env.NO_COLOR &&
 		!process.env.CI &&
@@ -70,7 +106,9 @@ export function shouldUseColors(): boolean {
 	);
 }
 
-// Color definitions (light/dark adaptive) using Bun.color
+// Color definitions (light/dark adaptive)
+// Note: We use direct ANSI codes instead of Bun.color() because Bun.color()
+// returns corrupted sequences when stdout is not a TTY (even with FORCE_COLOR=1)
 function getColors() {
 	const USE_COLORS = shouldUseColors();
 	if (!USE_COLORS) {
@@ -89,36 +127,36 @@ function getColors() {
 
 	return {
 		success: {
-			light: Bun.color('#008000', 'ansi') || '\x1b[32m', // green
-			dark: Bun.color('#00FF00', 'ansi') || '\x1b[92m', // bright green
+			light: '\x1b[32m', // green
+			dark: '\x1b[92m', // bright green
 		},
 		error: {
-			light: Bun.color('#CC0000', 'ansi') || '\x1b[31m', // red
-			dark: Bun.color('#FF5555', 'ansi') || '\x1b[91m', // bright red
+			light: '\x1b[31m', // red
+			dark: '\x1b[91m', // bright red
 		},
 		warning: {
-			light: Bun.color('#B58900', 'ansi') || '\x1b[33m', // yellow
-			dark: Bun.color('#FFFF55', 'ansi') || '\x1b[93m', // bright yellow
+			light: '\x1b[33m', // yellow
+			dark: '\x1b[93m', // bright yellow
 		},
 		info: {
-			light: Bun.color('#008B8B', 'ansi') || '\x1b[36m', // dark cyan
-			dark: Bun.color('#55FFFF', 'ansi') || '\x1b[96m', // bright cyan
+			light: '\x1b[36m', // dark cyan
+			dark: '\x1b[96m', // bright cyan
 		},
 		muted: {
-			light: Bun.color('#808080', 'ansi') || '\x1b[90m', // gray
-			dark: Bun.color('#888888', 'ansi') || '\x1b[90m', // darker gray
+			light: '\x1b[90m', // gray
+			dark: '\x1b[90m', // gray
 		},
 		bold: {
 			light: '\x1b[1m',
 			dark: '\x1b[1m',
 		},
 		link: {
-			light: '\x1b[34;4m', // blue underline (need ANSI for underline)
+			light: '\x1b[34;4m', // blue underline
 			dark: '\x1b[94;4m', // bright blue underline
 		},
 		primary: {
-			light: Bun.color('#000000', 'ansi') || '\x1b[30m', // black
-			dark: Bun.color('#FFFFFF', 'ansi') || '\x1b[97m', // white
+			light: '\x1b[30m', // black
+			dark: '\x1b[97m', // white
 		},
 		reset: '\x1b[0m',
 	} as const;
@@ -135,7 +173,7 @@ export function isDarkMode(): boolean {
 	return currentColorScheme === 'dark';
 }
 
-function getColor(colorKey: keyof ReturnType<typeof getColors>): string {
+export function getColor(colorKey: keyof ReturnType<typeof getColors>): string {
 	const COLORS = getColors();
 	const color = COLORS[colorKey];
 	if (typeof color === 'string') {
@@ -325,6 +363,43 @@ export function supportsHyperlinks(): boolean {
 	);
 }
 
+export function fileUrl(file: string, line?: number, col?: number): string {
+	const abs = resolve(file);
+
+	// VS Code understands both file:// and vscode://,
+	// but vscode:// allows line + column everywhere
+	let url = `vscode://file/${abs}`;
+
+	if (line != null) {
+		url += `:${line}`;
+		if (col != null) url += `:${col}`;
+	}
+
+	return url;
+}
+
+export function sourceLink(
+	file: string,
+	line: number,
+	col: number,
+	display?: string,
+	color?: string
+): string {
+	const label = `${file}:${line}:${col}`;
+	const url = fileUrl(file, line, col);
+
+	if (supportsHyperlinks()) {
+		return link(url, display ?? label, color);
+	}
+
+	// Cmd/Ctrl-click fallback
+	if (color) {
+		return color + label + getColor('reset');
+	}
+
+	return label;
+}
+
 /**
  * Print a bulleted list item
  */
@@ -372,15 +447,19 @@ export function getDisplayWidth(str: string): number {
  * Strip all ANSI escape sequences from a string
  */
 export function stripAnsi(str: string): string {
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\u001b\[[0-9;]*m/g, '').replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
+	/* eslint-disable no-control-regex */
+	return str
+		.replace(/\u001b\[[0-9;]*m/g, '') // SGR sequences (colors, bold, etc.)
+		.replace(/\u001b\[\?[0-9;]*[a-zA-Z]/g, '') // DEC private mode (cursor show/hide, etc.)
+		.replace(/\u001b\]8;;[^\u0007]*\u0007/g, ''); // OSC 8 hyperlinks
+	/* eslint-enable no-control-regex */
 }
 
 /**
  * Truncate a string to a maximum display width, handling ANSI codes and Unicode correctly
  * Preserves ANSI escape sequences and doesn't break multi-byte characters or grapheme clusters
  */
-function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): string {
+export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): string {
 	const totalWidth = getDisplayWidth(str);
 	if (totalWidth <= maxWidth) {
 		return str;
@@ -419,8 +498,8 @@ function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): strin
 	while (i < str.length && visibleIndex < cutIndex) {
 		// Check for ANSI escape sequence
 		if (str[i] === '\u001b') {
-			// Copy entire ANSI sequence
-			// eslint-disable-next-line no-control-regex
+			/* eslint-disable no-control-regex */
+			// Copy entire SGR sequence (colors, bold, etc.)
 			const match = str.slice(i).match(/^\u001b\[[0-9;]*m/);
 			if (match) {
 				result += match[0];
@@ -428,14 +507,22 @@ function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): strin
 				continue;
 			}
 
+			// Check for DEC private mode (cursor show/hide, etc.)
+			const decMatch = str.slice(i).match(/^\u001b\[\?[0-9;]*[a-zA-Z]/);
+			if (decMatch) {
+				result += decMatch[0];
+				i += decMatch[0].length;
+				continue;
+			}
+
 			// Check for OSC 8 hyperlink
-			// eslint-disable-next-line no-control-regex
 			const oscMatch = str.slice(i).match(/^\u001b\]8;;[^\u0007]*\u0007/);
 			if (oscMatch) {
 				result += oscMatch[0];
 				i += oscMatch[0].length;
 				continue;
 			}
+			/* eslint-enable no-control-regex */
 		}
 
 		// Copy visible character
@@ -487,7 +574,7 @@ interface BannerOptions {
  */
 export function banner(title: string, body: string, options?: BannerOptions): void {
 	// Get terminal width, default to 120 if not available
-	const termWidth = process.stdout.columns || 120;
+	const termWidth = getTerminalWidth(120);
 
 	const border = {
 		topLeft: '╭',
@@ -815,8 +902,11 @@ function extractLeadingAnsiCodes(str: string): string {
  */
 function stripAnsiCodes(str: string): string {
 	// Remove all ANSI escape sequences
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\x1b\[[0-9;]*m/g, '');
+	/* eslint-disable no-control-regex */
+	return str
+		.replace(/\x1b\[[0-9;]*m/g, '') // SGR sequences
+		.replace(/\x1b\[\?[0-9;]*[a-zA-Z]/g, ''); // DEC private mode
+	/* eslint-enable no-control-regex */
 }
 
 /**
@@ -1082,7 +1172,7 @@ export async function spinner<T>(
 	let linesRendered = 0;
 
 	// Get terminal width for truncation
-	const termWidth = process.stderr.columns || 80;
+	const termWidth = getTerminalWidth(80);
 	const maxLineWidth = Math.min(80, termWidth);
 
 	// Function to render spinner with optional log lines
@@ -1361,7 +1451,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 	const reset = getColor('reset');
 
 	// Get terminal width
-	const termWidth = process.stdout.columns || 80;
+	const termWidth = getTerminalWidth(80);
 	const maxCmdWidth = Math.min(40, termWidth);
 	const maxLineWidth = Math.min(80, termWidth);
 
@@ -1848,7 +1938,7 @@ export function table<T extends Record<string, unknown>>(
 
 	// Determine layout mode
 	const layout = options?.layout ?? 'auto';
-	const termWidth = process.stdout.columns || 80;
+	const termWidth = getTerminalWidth(80);
 	const tableWidth = calculateTableWidth(data, columnNames);
 	const useVertical = layout === 'vertical' || (layout === 'auto' && tableWidth > termWidth);
 

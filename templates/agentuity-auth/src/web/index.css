@@ -1,0 +1,130 @@
+@import "tailwindcss";
+@import "@daveyplate/better-auth-ui/css";
+
+/* shadcn/ui theme variables - neutral dark theme */
+@theme inline {
+	--radius: 0.625rem;
+	--color-background: oklch(14.5% 0 0);
+	--color-foreground: oklch(98.5% 0 0);
+	--color-card: oklch(20.5% 0 0);
+	--color-card-foreground: oklch(98.5% 0 0);
+	--color-popover: oklch(20.5% 0 0);
+	--color-popover-foreground: oklch(98.5% 0 0);
+	--color-primary: oklch(92.2% 0 0);
+	--color-primary-foreground: oklch(20.5% 0 0);
+	--color-secondary: oklch(26.9% 0 0);
+	--color-secondary-foreground: oklch(98.5% 0 0);
+	--color-muted: oklch(26.9% 0 0);
+	--color-muted-foreground: oklch(70.8% 0 0);
+	--color-accent: oklch(26.9% 0 0);
+	--color-accent-foreground: oklch(98.5% 0 0);
+	--color-destructive: oklch(70.4% 0.191 22.216);
+	--color-border: oklch(100% 0 0 / 0.1);
+	--color-input: oklch(100% 0 0 / 0.15);
+	--color-ring: oklch(55.6% 0 0);
+	--color-chart-1: oklch(48.8% 0.243 264.376);
+	--color-chart-2: oklch(69.6% 0.17 162.48);
+	--color-chart-3: oklch(76.9% 0.188 70.08);
+	--color-chart-4: oklch(62.7% 0.265 303.9);
+	--color-chart-5: oklch(64.5% 0.246 16.439);
+	--color-sidebar: oklch(20.5% 0 0);
+	--color-sidebar-foreground: oklch(98.5% 0 0);
+	--color-sidebar-primary: oklch(48.8% 0.243 264.376);
+	--color-sidebar-primary-foreground: oklch(98.5% 0 0);
+	--color-sidebar-accent: oklch(26.9% 0 0);
+	--color-sidebar-accent-foreground: oklch(98.5% 0 0);
+	--color-sidebar-border: oklch(100% 0 0 / 0.1);
+	--color-sidebar-ring: oklch(55.6% 0 0);
+}
+
+:root {
+	--radius: 0.625rem;
+	--background: oklch(14.5% 0 0);
+	--foreground: oklch(98.5% 0 0);
+	--card: oklch(20.5% 0 0);
+	--card-foreground: oklch(98.5% 0 0);
+	--popover: oklch(20.5% 0 0);
+	--popover-foreground: oklch(98.5% 0 0);
+	--primary: oklch(92.2% 0 0);
+	--primary-foreground: oklch(20.5% 0 0);
+	--secondary: oklch(26.9% 0 0);
+	--secondary-foreground: oklch(98.5% 0 0);
+	--muted: oklch(26.9% 0 0);
+	--muted-foreground: oklch(70.8% 0 0);
+	--accent: oklch(26.9% 0 0);
+	--accent-foreground: oklch(98.5% 0 0);
+	--destructive: oklch(70.4% 0.191 22.216);
+	--border: oklch(100% 0 0 / 0.1);
+	--input: oklch(100% 0 0 / 0.15);
+	--ring: oklch(55.6% 0 0);
+	--chart-1: oklch(48.8% 0.243 264.376);
+	--chart-2: oklch(69.6% 0.17 162.48);
+	--chart-3: oklch(76.9% 0.188 70.08);
+	--chart-4: oklch(62.7% 0.265 303.9);
+	--chart-5: oklch(64.5% 0.246 16.439);
+	--sidebar: oklch(20.5% 0 0);
+	--sidebar-foreground: oklch(98.5% 0 0);
+	--sidebar-primary: oklch(48.8% 0.243 264.376);
+	--sidebar-primary-foreground: oklch(98.5% 0 0);
+	--sidebar-accent: oklch(26.9% 0 0);
+	--sidebar-accent-foreground: oklch(98.5% 0 0);
+	--sidebar-border: oklch(100% 0 0 / 0.1);
+	--sidebar-ring: oklch(55.6% 0 0);
+}
+
+@layer base {
+	* {
+		border-color: var(--border);
+	}
+
+	body {
+		background-color: var(--background);
+		color: var(--foreground);
+		font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	}
+}
+
+/* Animation for gradient shift used in Agentuity branding */
+@keyframes gradient-shift {
+	0% {
+		background-position: 0% 50%;
+	}
+	100% {
+		background-position: 100% 50%;
+	}
+}
+
+.animate-gradient-shift {
+	animation: gradient-shift 2s ease-in-out infinite alternate;
+}
+
+/* shadcn animation keyframes */
+@keyframes accordion-down {
+	from {
+		height: 0;
+	}
+	to {
+		height: var(--radix-accordion-content-height);
+	}
+}
+
+@keyframes accordion-up {
+	from {
+		height: var(--radix-accordion-content-height);
+	}
+	to {
+		height: 0;
+	}
+}
+
+@keyframes caret-blink {
+	0%,
+	70%,
+	100% {
+		opacity: 1;
+	}
+	20%,
+	50% {
+		opacity: 0;
+	}
+}

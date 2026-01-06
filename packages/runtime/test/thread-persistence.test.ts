@@ -4,7 +4,12 @@
  */
 
 import { test, expect, describe } from 'bun:test';
-import { DefaultThread, parseThreadData, type ThreadProvider } from '../src/session';
+import {
+	DefaultThread,
+	LazyThreadState,
+	parseThreadData,
+	type ThreadProvider,
+} from '../src/session';
 
 describe('parseThreadData', () => {
 	test('returns empty object for undefined input', () => {
@@ -81,271 +86,428 @@ describe('parseThreadData', () => {
 	});
 });
 
-describe('DefaultThread isDirty', () => {
-	test('returns false for empty new thread', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+describe('LazyThreadState', () => {
+	test('starts in idle state', () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
 
-		expect(thread.isDirty()).toBe(false);
+		expect(state.loaded).toBe(false);
+		expect(state.dirty).toBe(false);
 	});
 
-	test('returns true after setting state on new thread', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('loaded becomes true after get()', async () => {
+		const restoreFn = async () => ({ state: new Map([['key', 'value']]), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
 
-		thread.state.set('messages', ['hello']);
+		await state.get('key');
 
-		expect(thread.isDirty()).toBe(true);
+		expect(state.loaded).toBe(true);
 	});
 
-	test('returns false when state matches initialStateJson', () => {
-		const mockProvider = {} as ThreadProvider;
-		const initialState = { messages: ['hello'] };
-		const thread = new DefaultThread(mockProvider, 'thrd_test123', JSON.stringify(initialState));
+	test('dirty becomes true after set() without load', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
 
-		thread.state.set('messages', ['hello']);
+		await state.set('key', 'value');
 
-		expect(thread.isDirty()).toBe(false);
+		expect(state.loaded).toBe(false);
+		expect(state.dirty).toBe(true);
 	});
 
-	test('returns true when state differs from initialStateJson', () => {
-		const mockProvider = {} as ThreadProvider;
-		const initialState = { messages: ['hello'] };
-		const thread = new DefaultThread(mockProvider, 'thrd_test123', JSON.stringify(initialState));
+	test('get() returns value after set()', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
 
-		thread.state.set('messages', ['hello']);
-		thread.state.set('messages', ['hello', 'world']);
+		await state.set('key', 'value');
+		const result = await state.get('key');
 
-		expect(thread.isDirty()).toBe(true);
+		expect(result).toBe('value');
+		expect(state.loaded).toBe(true);
 	});
 
-	test('returns true when adding new key to existing state', () => {
-		const mockProvider = {} as ThreadProvider;
-		const initialState = { messages: ['hello'] };
-		const thread = new DefaultThread(mockProvider, 'thrd_test123', JSON.stringify(initialState));
+	test('pending operations are applied on load', async () => {
+		const initialState = new Map([['existing', 'data']]);
+		const restoreFn = async () => ({ state: initialState, metadata: {} });
+		const state = new LazyThreadState(restoreFn);
 
-		thread.state.set('messages', ['hello']);
-		thread.state.set('counter', 1);
+		await state.set('new', 'value');
+		await state.delete('existing');
 
-		expect(thread.isDirty()).toBe(true);
+		const newVal = await state.get('new');
+		const existingVal = await state.get('existing');
+
+		expect(newVal).toBe('value');
+		expect(existingVal).toBeUndefined();
 	});
 
-	test('returns true when removing key from existing state', () => {
-		const mockProvider = {} as ThreadProvider;
-		const initialState = { messages: ['hello'], counter: 1 };
-		const thread = new DefaultThread(mockProvider, 'thrd_test123', JSON.stringify(initialState));
+	test('clear() replaces all pending operations', async () => {
+		const restoreFn = async () => ({ state: new Map([['old', 'data']]), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
 
-		thread.state.set('messages', ['hello']);
-		thread.state.set('counter', 1);
-		thread.state.delete('counter');
+		await state.set('key1', 'value1');
+		await state.clear();
+		await state.set('key2', 'value2');
 
-		expect(thread.isDirty()).toBe(true);
-	});
-});
+		const keys = await state.keys();
 
-describe('DefaultThread getSerializedState', () => {
-	test('returns empty string for empty thread', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
-
-		expect(thread.getSerializedState()).toBe('');
+		expect(keys).toEqual(['key2']);
 	});
 
-	test('returns envelope with state only when no metadata', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('size() returns correct count', async () => {
+		const restoreFn = async () => ({
+			state: new Map([
+				['a', 1],
+				['b', 2],
+			]),
+			metadata: {},
+		});
+		const state = new LazyThreadState(restoreFn);
 
-		thread.state.set('messages', ['hello']);
-
-		const serialized = thread.getSerializedState();
-		const parsed = JSON.parse(serialized);
-
-		expect(parsed.state).toEqual({ messages: ['hello'] });
-		expect(parsed.metadata).toBeUndefined();
+		const size = await state.size();
+		expect(size).toBe(2);
 	});
 
-	test('returns envelope with metadata only when no state', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('entries() returns all entries', async () => {
+		const restoreFn = async () => ({
+			state: new Map([
+				['a', 1],
+				['b', 2],
+			]),
+			metadata: {},
+		});
+		const state = new LazyThreadState(restoreFn);
 
-		thread.metadata.userId = 'user123';
-
-		const serialized = thread.getSerializedState();
-		const parsed = JSON.parse(serialized);
-
-		expect(parsed.state).toBeUndefined();
-		expect(parsed.metadata).toEqual({ userId: 'user123' });
-	});
-
-	test('returns envelope with both state and metadata', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
-
-		thread.state.set('messages', ['hello']);
-		thread.metadata.userId = 'user123';
-
-		const serialized = thread.getSerializedState();
-		const parsed = JSON.parse(serialized);
-
-		expect(parsed.state).toEqual({ messages: ['hello'] });
-		expect(parsed.metadata).toEqual({ userId: 'user123' });
-	});
-
-	test('handles complex nested state', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
-
-		thread.state.set('messages', [
-			{ id: '1', content: 'hello', timestamp: '2024-01-01' },
-			{ id: '2', content: 'world', timestamp: '2024-01-02' },
+		const entries = await state.entries<number>();
+		expect(entries).toEqual([
+			['a', 1],
+			['b', 2],
 		]);
-		thread.state.set('config', { nested: { deeply: { value: 42 } } });
+	});
 
-		const serialized = thread.getSerializedState();
-		const parsed = JSON.parse(serialized);
+	test('values() returns all values', async () => {
+		const restoreFn = async () => ({
+			state: new Map([
+				['a', 1],
+				['b', 2],
+			]),
+			metadata: {},
+		});
+		const state = new LazyThreadState(restoreFn);
 
-		expect(parsed.state.messages).toHaveLength(2);
-		expect(parsed.state.messages[0].content).toBe('hello');
-		expect(parsed.state.config.nested.deeply.value).toBe(42);
+		const values = await state.values<number>();
+		expect(values).toEqual([1, 2]);
+	});
+
+	test('has() returns correct result', async () => {
+		const restoreFn = async () => ({ state: new Map([['key', 'value']]), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
+
+		expect(await state.has('key')).toBe(true);
+		expect(await state.has('nonexistent')).toBe(false);
+	});
+
+	test('push() queues operation when not loaded', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
+
+		await state.push('messages', { id: 1 });
+		await state.push('messages', { id: 2 });
+
+		expect(state.loaded).toBe(false);
+		expect(state.dirty).toBe(true);
+
+		const ops = state.getPendingOperations();
+		expect(ops).toHaveLength(2);
+		expect(ops[0]).toEqual({ op: 'push', key: 'messages', value: { id: 1 } });
+		expect(ops[1]).toEqual({ op: 'push', key: 'messages', value: { id: 2 } });
+	});
+
+	test('push() creates array when key does not exist (loaded)', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
+
+		// Trigger load first
+		await state.size();
+
+		await state.push('messages', 'first');
+
+		const result = await state.get<string[]>('messages');
+		expect(result).toEqual(['first']);
+	});
+
+	test('push() appends to existing array (loaded)', async () => {
+		const restoreFn = async () => ({
+			state: new Map([['messages', ['existing']]]),
+			metadata: {},
+		});
+		const state = new LazyThreadState(restoreFn);
+
+		// Trigger load first
+		await state.size();
+
+		await state.push('messages', 'new');
+
+		const result = await state.get<string[]>('messages');
+		expect(result).toEqual(['existing', 'new']);
+	});
+
+	test('push() throws error for non-array value (loaded)', async () => {
+		const restoreFn = async () => ({ state: new Map([['count', 42]]), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
+
+		// Trigger load first
+		await state.size();
+
+		expect(() => state.push('count', 'value')).toThrow(
+			'Cannot push to non-array value at key "count"'
+		);
+	});
+
+	test('push() operations applied correctly on load', async () => {
+		const restoreFn = async () => ({ state: new Map([['messages', ['msg1']]]), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
+
+		await state.push('messages', 'msg2');
+		await state.push('messages', 'msg3');
+		await state.push('newArray', 'first');
+
+		// Now trigger load - operations should be applied
+		const messages = await state.get<string[]>('messages');
+		const newArray = await state.get<string[]>('newArray');
+
+		expect(messages).toEqual(['msg1', 'msg2', 'msg3']);
+		expect(newArray).toEqual(['first']);
+	});
+
+	test('push() with maxRecords limits array size (loaded)', async () => {
+		const restoreFn = async () => ({
+			state: new Map([['messages', ['a', 'b', 'c']]]),
+			metadata: {},
+		});
+		const state = new LazyThreadState(restoreFn);
+
+		// Trigger load
+		await state.size();
+
+		await state.push('messages', 'd', 3);
+
+		const result = await state.get<string[]>('messages');
+		expect(result).toEqual(['b', 'c', 'd']);
+	});
+
+	test('push() with maxRecords queued correctly', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
+
+		await state.push('items', 'a', 2);
+		await state.push('items', 'b', 2);
+		await state.push('items', 'c', 2);
+
+		const ops = state.getPendingOperations();
+		expect(ops).toHaveLength(3);
+		expect(ops[0]).toEqual({ op: 'push', key: 'items', value: 'a', maxRecords: 2 });
+		expect(ops[1]).toEqual({ op: 'push', key: 'items', value: 'b', maxRecords: 2 });
+		expect(ops[2]).toEqual({ op: 'push', key: 'items', value: 'c', maxRecords: 2 });
+	});
+
+	test('push() with maxRecords applied on load', async () => {
+		const restoreFn = async () => ({ state: new Map([['items', ['existing']]]), metadata: {} });
+		const state = new LazyThreadState(restoreFn);
+
+		await state.push('items', 'a', 2);
+		await state.push('items', 'b', 2);
+		await state.push('items', 'c', 2);
+
+		// Trigger load - should apply operations with maxRecords
+		const result = await state.get<string[]>('items');
+		expect(result).toEqual(['b', 'c']);
 	});
 });
 
-describe('Thread state round-trip', () => {
-	test('serialize then parse preserves state', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+describe('DefaultThread', () => {
+	const mockProvider = {} as ThreadProvider;
 
-		thread.state.set('messages', ['hello', 'world']);
-		thread.state.set('counter', 42);
+	test('getSaveMode returns none for untouched thread', () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
 
-		const serialized = thread.getSerializedState();
-		const { flatStateJson } = parseThreadData(serialized);
-
-		expect(flatStateJson).toBeDefined();
-		const restored = JSON.parse(flatStateJson!);
-
-		expect(restored.messages).toEqual(['hello', 'world']);
-		expect(restored.counter).toBe(42);
+		expect(thread.getSaveMode()).toBe('none');
 	});
 
-	test('serialize then parse preserves metadata', () => {
-		const mockProvider = {} as ThreadProvider;
-		const thread = new DefaultThread(mockProvider, 'thrd_test123');
+	test('getSaveMode returns merge for write-only operations', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
 
-		thread.metadata.userId = 'user123';
-		thread.metadata.tags = ['important', 'urgent'];
+		await thread.state.set('key', 'value');
 
-		const serialized = thread.getSerializedState();
-		const { metadata } = parseThreadData(serialized);
-
-		expect(metadata).toBeDefined();
-		expect(metadata!.userId).toBe('user123');
-		expect(metadata!.tags).toEqual(['important', 'urgent']);
+		expect(thread.getSaveMode()).toBe('merge');
 	});
 
-	test('full round-trip: create -> modify -> serialize -> parse -> restore', () => {
-		const mockProvider = {} as ThreadProvider;
+	test('getSaveMode returns full after read and modification', async () => {
+		const restoreFn = async () => ({ state: new Map([['existing', 'data']]), metadata: {} });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
 
-		const thread1 = new DefaultThread(mockProvider, 'thrd_test123');
-		thread1.state.set('messages', [{ id: '1', content: 'hello' }]);
-		thread1.state.set('counter', 1);
-		thread1.metadata.userId = 'user123';
+		await thread.state.get('existing');
+		await thread.state.set('new', 'value');
 
-		const serialized = thread1.getSerializedState();
+		expect(thread.getSaveMode()).toBe('full');
+	});
+
+	test('getPendingOperations returns queued operations', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
+
+		await thread.state.set('key1', 'value1');
+		await thread.state.set('key2', 'value2');
+		await thread.state.delete('key1');
+
+		const ops = thread.getPendingOperations();
+
+		expect(ops).toHaveLength(3);
+		expect(ops[0]).toEqual({ op: 'set', key: 'key1', value: 'value1' });
+		expect(ops[1]).toEqual({ op: 'set', key: 'key2', value: 'value2' });
+		expect(ops[2]).toEqual({ op: 'delete', key: 'key1' });
+	});
+
+	test('getMetadata returns metadata', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: { userId: 'user123' } });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn, {
+			userId: 'user123',
+		});
+
+		const metadata = await thread.getMetadata();
+		expect(metadata.userId).toBe('user123');
+	});
+
+	test('setMetadata updates metadata', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
+
+		await thread.setMetadata({ userId: 'user456', role: 'admin' });
+
+		const metadata = await thread.getMetadata();
+		expect(metadata.userId).toBe('user456');
+		expect(metadata.role).toBe('admin');
+	});
+
+	test('empty() returns true for empty thread', async () => {
+		const restoreFn = async () => ({ state: new Map(), metadata: {} });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
+
+		const isEmpty = await thread.empty();
+		expect(isEmpty).toBe(true);
+	});
+
+	test('empty() returns false when state has data', async () => {
+		const restoreFn = async () => ({ state: new Map([['key', 'value']]), metadata: {} });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
+
+		// Trigger load
+		await thread.state.get('key');
+
+		const isEmpty = await thread.empty();
+		expect(isEmpty).toBe(false);
+	});
+
+	test('getSerializedState returns correct format', async () => {
+		const restoreFn = async () => ({ state: new Map([['key', 'value']]), metadata: {} });
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
+
+		await thread.setMetadata({ userId: 'user123' });
+
+		const serialized = await thread.getSerializedState();
+		const parsed = JSON.parse(serialized);
+
+		expect(parsed.state).toEqual({ key: 'value' });
+		expect(parsed.metadata).toEqual({ userId: 'user123' });
+	});
+});
+
+describe('Thread round-trip with lazy loading', () => {
+	const mockProvider = {} as ThreadProvider;
+
+	test('state persists through serialize/parse cycle', async () => {
+		// Create thread and set state
+		const restoreFn1 = async () => ({ state: new Map(), metadata: {} });
+		const thread1 = new DefaultThread(mockProvider, 'thrd_test123', restoreFn1);
+
+		await thread1.state.set('messages', ['hello', 'world']);
+		await thread1.state.set('counter', 42);
+
+		// Serialize (auto-loads state if needed)
+		const serialized = await thread1.getSerializedState();
 		const { flatStateJson, metadata } = parseThreadData(serialized);
 
-		const thread2 = new DefaultThread(mockProvider, 'thrd_test456', flatStateJson, metadata);
-		if (flatStateJson) {
-			const data = JSON.parse(flatStateJson);
-			for (const [key, value] of Object.entries(data)) {
-				thread2.state.set(key, value);
-			}
-		}
+		// Create new thread with restored data
+		const restoredState = flatStateJson ? JSON.parse(flatStateJson) : {};
+		const restoreFn2 = async () => ({
+			state: new Map(Object.entries(restoredState)),
+			metadata: metadata || {},
+		});
+		const thread2 = new DefaultThread(mockProvider, 'thrd_test456', restoreFn2);
 
-		expect(thread2.state.get('messages')).toEqual([{ id: '1', content: 'hello' }]);
-		expect(thread2.state.get('counter')).toBe(1);
-		expect(thread2.metadata.userId).toBe('user123');
+		// Verify restored state
+		const messages = await thread2.state.get('messages');
+		const counter = await thread2.state.get<number>('counter');
+
+		expect(messages).toEqual(['hello', 'world']);
+		expect(counter).toBe(42);
 	});
 
-	test('round-trip: restored thread is not dirty if unchanged', () => {
-		const mockProvider = {} as ThreadProvider;
+	test('metadata persists through serialize/parse cycle', async () => {
+		const restoreFn1 = async () => ({ state: new Map(), metadata: {} });
+		const thread1 = new DefaultThread(mockProvider, 'thrd_test123', restoreFn1);
 
-		const thread1 = new DefaultThread(mockProvider, 'thrd_test123');
-		thread1.state.set('messages', ['hello']);
+		await thread1.setMetadata({ userId: 'user123', tags: ['important'] });
 
-		const serialized = thread1.getSerializedState();
+		const serialized = await thread1.getSerializedState();
 		const { flatStateJson, metadata } = parseThreadData(serialized);
 
-		const thread2 = new DefaultThread(mockProvider, 'thrd_test456', flatStateJson, metadata);
-		if (flatStateJson) {
-			const data = JSON.parse(flatStateJson);
-			for (const [key, value] of Object.entries(data)) {
-				thread2.state.set(key, value);
-			}
-		}
+		const restoredState = flatStateJson ? JSON.parse(flatStateJson) : {};
+		const restoreFn2 = async () => ({
+			state: new Map(Object.entries(restoredState)),
+			metadata: metadata || {},
+		});
+		const thread2 = new DefaultThread(mockProvider, 'thrd_test456', restoreFn2, metadata);
 
-		expect(thread2.isDirty()).toBe(false);
-	});
-
-	test('round-trip: restored thread is dirty if modified', () => {
-		const mockProvider = {} as ThreadProvider;
-
-		const thread1 = new DefaultThread(mockProvider, 'thrd_test123');
-		thread1.state.set('messages', ['hello']);
-
-		const serialized = thread1.getSerializedState();
-		const { flatStateJson, metadata } = parseThreadData(serialized);
-
-		const thread2 = new DefaultThread(mockProvider, 'thrd_test456', flatStateJson, metadata);
-		if (flatStateJson) {
-			const data = JSON.parse(flatStateJson);
-			for (const [key, value] of Object.entries(data)) {
-				thread2.state.set(key, value);
-			}
-		}
-
-		thread2.state.set('messages', ['hello', 'world']);
-
-		expect(thread2.isDirty()).toBe(true);
+		const restoredMetadata = await thread2.getMetadata();
+		expect(restoredMetadata.userId).toBe('user123');
+		expect(restoredMetadata.tags).toEqual(['important']);
 	});
 });
 
 describe('Backwards compatibility', () => {
-	test('old format state is correctly restored', () => {
-		const mockProvider = {} as ThreadProvider;
-		const oldFormatJson = JSON.stringify({ messages: ['old', 'format'], counter: 10 });
+	const mockProvider = {} as ThreadProvider;
 
+	test('old format state is correctly restored', async () => {
+		const oldFormatJson = JSON.stringify({ messages: ['old', 'format'], counter: 10 });
 		const { flatStateJson } = parseThreadData(oldFormatJson);
 
-		const thread = new DefaultThread(mockProvider, 'thrd_test123', flatStateJson);
-		if (flatStateJson) {
-			const data = JSON.parse(flatStateJson);
-			for (const [key, value] of Object.entries(data)) {
-				thread.state.set(key, value);
-			}
-		}
+		const restoredState = flatStateJson ? JSON.parse(flatStateJson) : {};
+		const restoreFn = async () => ({
+			state: new Map(Object.entries(restoredState)),
+			metadata: {},
+		});
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
 
-		expect(thread.state.get('messages')).toEqual(['old', 'format']);
-		expect(thread.state.get('counter')).toBe(10);
+		expect(await thread.state.get('messages')).toEqual(['old', 'format']);
+		expect(await thread.state.get('counter')).toBe(10);
 	});
 
-	test('old format does not mistakenly populate "state" or "metadata" keys', () => {
-		const mockProvider = {} as ThreadProvider;
+	test('old format does not mistakenly populate "state" or "metadata" keys', async () => {
 		const oldFormatJson = JSON.stringify({ messages: ['test'], userId: 'user123' });
-
 		const { flatStateJson } = parseThreadData(oldFormatJson);
 
-		const thread = new DefaultThread(mockProvider, 'thrd_test123', flatStateJson);
-		if (flatStateJson) {
-			const data = JSON.parse(flatStateJson);
-			for (const [key, value] of Object.entries(data)) {
-				thread.state.set(key, value);
-			}
-		}
+		const restoredState = flatStateJson ? JSON.parse(flatStateJson) : {};
+		const restoreFn = async () => ({
+			state: new Map(Object.entries(restoredState)),
+			metadata: {},
+		});
+		const thread = new DefaultThread(mockProvider, 'thrd_test123', restoreFn);
 
-		expect(thread.state.has('state')).toBe(false);
-		expect(thread.state.has('metadata')).toBe(false);
-		expect(thread.state.get('messages')).toEqual(['test']);
-		expect(thread.state.get('userId')).toBe('user123');
+		expect(await thread.state.has('state')).toBe(false);
+		expect(await thread.state.has('metadata')).toBe(false);
+		expect(await thread.state.get('messages')).toEqual(['test']);
+		expect(await thread.state.get('userId')).toBe('user123');
 	});
 });

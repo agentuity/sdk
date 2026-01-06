@@ -8,13 +8,15 @@ import type { Hono, Context as HonoContext } from 'hono';
 import type { Env, PrivateVariables } from './app';
 import type { Tracer } from '@opentelemetry/api';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
+import { TokenSpanProcessor } from './_tokens';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let globalRouterInstance: Hono<Env<any>> | null = null;
 let globalLogger: Logger | null = null;
 let globalTracer: Tracer | null = null;
 
-const spanProcessors: SpanProcessor[] = [];
+// Initialize with built-in span processors
+const spanProcessors: SpanProcessor[] = [new TokenSpanProcessor()];
 
 /**
  * List of AgentContext properties that should trigger helpful error messages

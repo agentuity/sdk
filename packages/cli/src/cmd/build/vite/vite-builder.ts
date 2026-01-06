@@ -6,9 +6,11 @@
 
 import { join } from 'node:path';
 import { existsSync, renameSync, rmSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import type { InlineConfig, Plugin } from 'vite';
-import type { Logger } from '../../../types';
+import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
+import type { BuildReportCollector } from '../../../build-report';
 
 /**
  * Vite plugin to flatten the output structure for index.html
@@ -54,6 +56,9 @@ export interface ViteBuildOptions {
 	workbenchRoute?: string;
 	workbenchEnabled?: boolean;
 	logger: Logger;
+	deploymentOptions?: DeployOptions;
+	/** Optional collector for structured error reporting */
+	collector?: BuildReportCollector;
 }
 
 /**
@@ -84,6 +89,11 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const { generateLifecycleTypes } = await import('./lifecycle-generator');
 		await generateLifecycleTypes(rootDir, srcDir, logger);
 
+		// Load workbench config for entry file generation
+		const { loadAgentuityConfig, getWorkbenchConfig } = await import('./config-loader');
+		const config = await loadAgentuityConfig(rootDir, logger);
+		const workbenchConfig = getWorkbenchConfig(config, dev);
+
 		// Then, generate the entry file
 		const { generateEntryFile } = await import('../entry-generator');
 		await generateEntryFile({
@@ -92,6 +102,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			deploymentId: deploymentId || '',
 			logger,
 			mode: dev ? 'dev' : 'prod',
+			workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
 		});
 
 		// Finally, build with Bun.build
@@ -105,8 +116,18 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 	}
 
 	// Dynamically import vite and react plugin
-	const { build: viteBuild } = await import('vite');
-	const reactModule = await import('@vitejs/plugin-react');
+	// Try project's node_modules first (for custom vite configs), fall back to CLI's
+	const projectRequire = createRequire(join(rootDir, 'package.json'));
+	let vitePath = 'vite';
+	let reactPluginPath = '@vitejs/plugin-react';
+	try {
+		vitePath = projectRequire.resolve('vite');
+		reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+	} catch {
+		// Project doesn't have vite, use CLI's bundled version
+	}
+	const { build: viteBuild } = await import(vitePath);
+	const reactModule = await import(reactPluginPath);
 	const react = reactModule.default;
 
 	// For client/workbench, use inline config (no agentuity plugin needed)
@@ -238,7 +259,7 @@ interface BuildResult {
  * Run all builds in sequence: client -> workbench (if enabled) -> server
  */
 export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Promise<BuildResult> {
-	const { rootDir, projectId = '', dev = false, logger } = options;
+	const { rootDir, projectId = '', dev = false, logger, collector } = options;
 
 	if (!dev) {
 		rmSync(join(rootDir, '.agentuity'), { force: true, recursive: true });
@@ -284,7 +305,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// Generate agent and route registries for type augmentation BEFORE builds
 	// (TypeScript needs these files to exist during type checking)
 	generateAgentRegistry(srcDir, agentMetadata);
-	generateRouteRegistry(srcDir, routeInfoList);
+	await generateRouteRegistry(srcDir, routeInfoList);
 	logger.debug('Agent and route registries generated');
 
 	// Check if web frontend exists
@@ -293,6 +314,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 2. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
 		logger.debug('Building client assets...');
+		const endClientDiagnostic = collector?.startDiagnostic('client-build');
 		const started = Date.now();
 		await runViteBuild({
 			...options,
@@ -302,6 +324,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		});
 		result.client.included = true;
 		result.client.duration = Date.now() - started;
+		endClientDiagnostic?.();
 	} else {
 		logger.debug('Skipping client build - no src/web/index.html found');
 	}
@@ -309,6 +332,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// 3. Build workbench (if enabled in config)
 	if (workbenchConfig.enabled) {
 		logger.debug('Building workbench assets...');
+		const endWorkbenchDiagnostic = collector?.startDiagnostic('workbench-build');
 		const started = Date.now();
 		await runViteBuild({
 			...options,
@@ -318,17 +342,21 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		});
 		result.workbench.included = true;
 		result.workbench.duration = Date.now() - started;
+		endWorkbenchDiagnostic?.();
 	}
 
 	// 4. Build server
 	logger.debug('Building server...');
+	const endServerDiagnostic = collector?.startDiagnostic('server-build');
 	const serverStarted = Date.now();
 	await runViteBuild({ ...options, mode: 'server' });
 	result.server.included = true;
 	result.server.duration = Date.now() - serverStarted;
+	endServerDiagnostic?.();
 
 	// 5. Generate metadata (after all builds complete)
 	logger.debug('Generating metadata...');
+	const endMetadataDiagnostic = collector?.startDiagnostic('metadata-generation');
 	const { generateMetadata, writeMetadataFile } = await import('./metadata-generator');
 
 	// Generate metadata
@@ -341,9 +369,11 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 		routes,
 		logger,
 		dev,
+		deploymentOptions: options.deploymentOptions,
 	});
 
 	writeMetadataFile(rootDir, metadata, dev, logger);
+	endMetadataDiagnostic?.();
 	logger.debug('Registry and metadata generation complete');
 
 	logger.debug('All builds complete');

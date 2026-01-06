@@ -45,7 +45,7 @@ export const deleteSubcommand = createSubcommand({
 			});
 		});
 
-		// Update local .env file (prefer .env.production, fallback to .env)
+		// Update local .env file (prefer .env)
 		const envFilePath = await findExistingEnvFile(projectDir);
 		const currentEnv = await readEnvFile(envFilePath);
 		delete currentEnv[args.key];

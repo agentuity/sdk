@@ -13,7 +13,7 @@ const EnvPushResponseSchema = z.object({
 
 export const pushSubcommand = createSubcommand({
 	name: 'push',
-	description: 'Push environment variables from local .env.production file to cloud',
+	description: 'Push environment variables from local .env file to cloud',
 	tags: [
 		'mutating',
 		'updates-resource',
@@ -33,7 +33,7 @@ export const pushSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { apiClient, project, projectDir } = ctx;
 
-		// Read local env file (prefer .env.production, fallback to .env)
+		// Read local env file (prefer .env)
 		const envFilePath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(envFilePath);
 

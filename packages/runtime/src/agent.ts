@@ -287,6 +287,55 @@ export interface AgentContext<
 	 * ```
 	 */
 	app: TAppState;
+
+	/**
+	 * Metadata about the currently executing agent.
+	 * Provides access to the agent's id, name, and other properties.
+	 *
+	 * @example
+	 * ```typescript
+	 * handler: async (ctx, input) => {
+	 *   // Use agent ID for namespaced state keys
+	 *   const stateKey = `${ctx.current.id}_counter`;
+	 *   await ctx.thread.state.set(stateKey, value);
+	 *
+	 *   // Log agent info
+	 *   ctx.logger.info('Running agent', { name: ctx.current.name });
+	 * }
+	 * ```
+	 */
+	current: AgentMetadata;
+
+	/**
+	 * Authentication context when request is authenticated.
+	 * Available when auth middleware is configured on the Hono app.
+	 *
+	 * Will be `null` for:
+	 * - Unauthenticated requests
+	 * - Cron jobs
+	 * - Agent-to-agent calls without auth propagation
+	 *
+	 * @example
+	 * ```typescript
+	 * handler: async (ctx, input) => {
+	 *   if (!ctx.auth) {
+	 *     return { error: 'Please sign in' };
+	 *   }
+	 *
+	 *   // Access user info
+	 *   const user = await ctx.auth.getUser();
+	 *   ctx.logger.info(`Request from ${user.email}`);
+	 *
+	 *   // Check organization role
+	 *   if (await ctx.auth.hasOrgRole('admin')) {
+	 *     // Admin-only logic
+	 *   }
+	 *
+	 *   return { userId: user.id };
+	 * }
+	 * ```
+	 */
+	auth: import('@agentuity/auth').AuthInterface | null;
 }
 
 type InternalAgentMetadata = {
@@ -329,7 +378,7 @@ type ExternalAgentMetadata = {
 	description?: string;
 };
 
-type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
+export type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
 
 /**
  * Configuration object for creating an agent evaluation function.
@@ -618,7 +667,7 @@ export type Agent<
 	 * **Method overloads:**
 	 * - `agent.validator()` - Validates using agent's input/output schemas
 	 * - `agent.validator({ output: schema })` - Output-only validation (no input validation)
-	 * - `agent.validator({ input: schema })` - Custom input schema override
+	 * - `agent.validator({ input: schema })` - Custom input schema override (skips agent's output validation)
 	 * - `agent.validator({ input: schema, output: schema })` - Both input and output validated
 	 *
 	 * @returns Hono middleware handler with proper type inference
@@ -1314,7 +1363,7 @@ export interface CreateAgentConfigExplicit<
 	 * schema: {
 	 *   input: z.object({ name: z.string() }),
 	 *   output: z.string(),
-	 *   stream: false
+	 *   stream: false,
 	 * }
 	 * ```
 	 */
@@ -1556,6 +1605,9 @@ export function createAgent<
 		// Store current agent for telemetry (using Symbol to keep it internal)
 		(agentCtx as any)[CURRENT_AGENT] = agent;
 
+		// Expose current agent metadata on the context
+		(agentCtx as any).current = agent.metadata;
+
 		const attrs = {
 			'@agentuity/agentId': agent.metadata.id,
 			'@agentuity/agentInstanceId': agent.metadata.agentId,
@@ -1654,7 +1706,7 @@ export function createAgent<
 			handler: EvalFunction<AgentInput, AgentOutput>;
 			metadata?: {
 				id?: string;
-				evalId?: string;
+				identifier?: string;
 				version?: string;
 				filename?: string;
 			};
@@ -1716,10 +1768,9 @@ export function createAgent<
 			metadata: {
 				// Use build-time injected metadata if available, otherwise fallback to empty/undefined
 				id: evalMetadata.id || undefined,
-				evalId: evalMetadata.evalId || undefined,
+				identifier: evalMetadata.identifier || undefined,
 				version: evalMetadata.version || undefined,
 				filename: evalMetadata.filename || '',
-				identifier: evalName,
 				name: evalName,
 				description: evalConfig.description || '',
 			},
@@ -1862,14 +1913,14 @@ export function createAgent<
 						const evalMeta = getEvalMetadata(agentName, evalName);
 						internal.info(`[EVALRUN] Eval metadata lookup result:`, {
 							found: !!evalMeta,
-							evalId: evalMeta?.evalId,
+							identifier: evalMeta?.identifier,
 							id: evalMeta?.id,
 							filename: evalMeta?.filename,
 						});
 
 						// evalId = deployment-specific ID (evalid_...), evalIdentifier = stable (eval_...)
 						const evalId = evalMeta?.id || '';
-						const evalIdentifier = evalMeta?.evalId || '';
+						const evalIdentifier = evalMeta?.identifier || '';
 						internal.info(
 							`[EVALRUN] Resolved evalId='${evalId}', evalIdentifier='${evalIdentifier}'`
 						);
@@ -2141,7 +2192,10 @@ export function createAgent<
 	// Add validator method with overloads
 	agent.validator = ((override?: any) => {
 		const effectiveInputSchema = override?.input ?? inputSchema;
-		const effectiveOutputSchema = override?.output ?? outputSchema;
+		// Only use agent's output schema if no override was provided at all.
+		// If override is provided (even with just input), don't auto-apply agent's output schema
+		// unless the override explicitly includes output.
+		const effectiveOutputSchema = override ? override.output : outputSchema;
 
 		// Helper to build the standard Hono input validator so types flow
 		const buildInputValidator = (schema?: StandardSchemaV1) =>
@@ -2418,6 +2472,7 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 			config: config || {},
 			app: app || {},
 			runtime: getGlobalRuntimeState(),
+			auth: ctx.var.auth ?? null,
 		};
 
 		return setupRequestAgentContext(ctx as unknown as Record<string, unknown>, args, next);

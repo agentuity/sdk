@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
-import { deserializeData, buildUrl, type RouteRegistry } from '@agentuity/frontend';
+import { deserializeData, buildUrl } from '@agentuity/frontend';
+import type { RouteRegistry } from './types';
 import { AgentuityContext } from './context';
 
 /**
@@ -63,6 +64,16 @@ type RouteChunkType<TRoute extends RouteKey> = TRoute extends keyof RouteRegistr
 	: unknown;
 
 /**
+ * Extract path params type for a specific route.
+ * Returns the typed params object if the route has path parameters, otherwise never.
+ */
+export type RoutePathParams<TRoute extends RouteKey> = TRoute extends keyof RouteRegistry
+	? RouteRegistry[TRoute] extends { params: infer P }
+		? P
+		: never
+	: never;
+
+/**
  * Common options shared by all UseAPI configurations
  */
 type UseAPICommonOptions<TRoute extends RouteKey> = {
@@ -99,6 +110,13 @@ type UseAPICommonOptions<TRoute extends RouteKey> = {
 		: {
 				/** Input data for the request (required for POST/PUT/PATCH/DELETE) */
 				input?: RouteInput<TRoute>;
+			}) &
+	(RoutePathParams<TRoute> extends never
+		? // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+			{} // No params property - omit entirely for routes without path parameters
+		: {
+				/** Path parameters for routes with dynamic segments (e.g., { id: '123' } for /users/:id) */
+				params: RoutePathParams<TRoute>;
 			});
 
 /**
@@ -219,6 +237,21 @@ function toSearchParams(
 	if (!query) return undefined;
 	if (query instanceof URLSearchParams) return query;
 	return new URLSearchParams(query);
+}
+
+/**
+ * Substitute path parameters in a URL path template.
+ * E.g., '/users/:id' with { id: '123' } becomes '/users/123'
+ */
+function substitutePathParams(pathTemplate: string, pathParams?: Record<string, string>): string {
+	if (!pathParams) return pathTemplate;
+
+	let result = pathTemplate;
+	for (const [key, value] of Object.entries(pathParams)) {
+		result = result.replace(new RegExp(`:${key}\\??`, 'g'), encodeURIComponent(value));
+		result = result.replace(new RegExp(`\\*${key}`, 'g'), encodeURIComponent(value));
+	}
+	return result;
 }
 
 /**
@@ -415,6 +448,9 @@ export function useAPI<TRoute extends RouteKey>(
 		onError,
 	} = options;
 
+	// Extract params safely
+	const pathParams = 'params' in options ? options.params : undefined;
+
 	const delimiter = 'delimiter' in options ? (options.delimiter ?? '\n') : '\n';
 	const onChunk = 'onChunk' in options ? options.onChunk : undefined;
 
@@ -424,18 +460,21 @@ export function useAPI<TRoute extends RouteKey>(
 
 	// Extract method and path from either route OR {method, path}
 	let method: string;
-	let path: string;
+	let basePath: string;
 
 	if ('route' in options && options.route) {
 		const parsed = parseRouteKey(options.route as string);
 		method = parsed.method;
-		path = parsed.path;
+		basePath = parsed.path;
 	} else if ('method' in options && 'path' in options && options.method && options.path) {
 		method = options.method;
-		path = options.path;
+		basePath = options.path;
 	} else {
 		throw new Error('useAPI requires either route OR {method, path}');
 	}
+
+	// Substitute path parameters
+	const path = substitutePathParams(basePath, pathParams as Record<string, string> | undefined);
 
 	const [data, setData] = useState<RouteOutput<TRoute> | undefined>(undefined);
 	const [error, setError] = useState<Error | null>(null);

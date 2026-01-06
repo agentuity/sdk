@@ -4,6 +4,12 @@ import * as tui from '../../../tui';
 import { createSandboxClient, parseFileArgs } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxCreate } from '@agentuity/server';
+import { StructuredError } from '@agentuity/core';
+
+const InvalidMetadataError = StructuredError(
+	'InvalidMetadataError',
+	'Metadata must be a valid JSON object'
+);
 
 const SandboxCreateResponseSchema = z.object({
 	sandboxId: z.string().describe('Unique sandbox identifier'),
@@ -55,6 +61,7 @@ export const createSubcommand = createCommand({
 				.array(z.string())
 				.optional()
 				.describe('Apt packages to install (can be specified multiple times)'),
+			metadata: z.string().optional().describe('JSON object of user-defined metadata'),
 		}),
 		response: SandboxCreateResponseSchema,
 	},
@@ -77,6 +84,20 @@ export const createSubcommand = createCommand({
 		const files = parseFileArgs(opts.file);
 		const hasFiles = files.length > 0;
 
+		let metadata: Record<string, unknown> | undefined;
+		if (opts.metadata) {
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(opts.metadata);
+			} catch {
+				throw new InvalidMetadataError();
+			}
+			if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+				throw new InvalidMetadataError();
+			}
+			metadata = parsed as Record<string, unknown>;
+		}
+
 		const result = await sandboxCreate(client, {
 			options: {
 				resources:
@@ -93,6 +114,7 @@ export const createSubcommand = createCommand({
 				command: hasFiles ? { exec: [], files } : undefined,
 				snapshot: opts.snapshot,
 				dependencies: opts.dependency,
+				metadata,
 			},
 			orgId,
 		});

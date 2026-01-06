@@ -1,5 +1,4 @@
 import { basename, resolve } from 'node:path';
-import { z } from 'zod';
 import { existsSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { cwd } from 'node:process';
 import { homedir } from 'node:os';
@@ -10,7 +9,6 @@ import {
 	projectEnvUpdate,
 	getServiceUrls,
 	APIClient as ServerAPIClient,
-	Resources,
 	createResources,
 } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
@@ -24,14 +22,21 @@ import { ErrorCode } from '../../errors';
 import type { APIClient } from '../../api';
 import { createProjectConfig } from '../../config';
 import {
-	findEnvFile,
+	findExistingEnvFile,
 	readEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
+	addResourceEnvVars,
+	type EnvVars,
 } from '../../env-util';
 import { promptForDNS } from '../../domain';
-
-type ResourcesTypes = z.infer<typeof Resources>;
+import {
+	ensureAuthDependencies,
+	runAuthMigrations,
+	generateAuthFileContent,
+	printIntegrationExamples,
+	generateAuthSchemaSql,
+} from './auth/shared';
 
 interface CreateFlowOptions {
 	projectName?: string;
@@ -252,8 +257,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 	}
 
-	const resourceConfig: ResourcesTypes = Resources.parse({});
 	let _domains = domains;
+	const resourceEnvVars: EnvVars = {};
 
 	if (auth && apiClient && catalystClient && orgId && region && !skipPrompts) {
 		// Fetch resources for selected org and region using Catalyst API
@@ -317,14 +322,21 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 						return createResources(catalystClient, orgId, region!, [{ type: 's3' }]);
 					},
 				});
-				resourceConfig.storage = created[0].name;
+				// Collect env vars from newly created resource
+				if (created[0]?.env) {
+					Object.assign(resourceEnvVars, created[0].env);
+				}
 				break;
 			}
 			case 'Skip': {
 				break;
 			}
 			default: {
-				resourceConfig.storage = choices.s3_action;
+				// User selected an existing bucket - get env vars from the resources list
+				const selectedBucket = resources.s3.find((b) => b.bucket_name === choices.s3_action);
+				if (selectedBucket?.env) {
+					Object.assign(resourceEnvVars, selectedBucket.env);
+				}
 				break;
 			}
 		}
@@ -337,16 +349,117 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 						return createResources(catalystClient, orgId, region!, [{ type: 'db' }]);
 					},
 				});
-				resourceConfig.db = created[0].name;
+				// Collect env vars from newly created resource
+				if (created[0]?.env) {
+					Object.assign(resourceEnvVars, created[0].env);
+				}
 				break;
 			}
 			case 'Skip': {
 				break;
 			}
 			default: {
-				resourceConfig.db = choices.db_action;
+				// User selected an existing database - get env vars from the resources list
+				const selectedDb = resources.db.find((d) => d.name === choices.db_action);
+				if (selectedDb?.env) {
+					Object.assign(resourceEnvVars, selectedDb.env);
+				}
 				break;
 			}
+		}
+	}
+
+	// Auth setup - either from template or user choice
+	const templateHasAuth = selectedTemplate.id === 'agentuity-auth';
+
+	let authEnabled = templateHasAuth; // Auth templates have auth enabled by default
+	let authDatabaseName: string | undefined;
+	let authDatabaseUrl: string | undefined;
+
+	// For non-auth templates, ask if they want to enable auth
+	if (auth && catalystClient && orgId && region && !skipPrompts && !templateHasAuth) {
+		const enableAuth = await prompt.select({
+			message: 'Enable Agentuity Authentication?',
+			options: [
+				{ value: 'no', label: "No, I'll add auth later" },
+				{ value: 'yes', label: 'Yes, set up Agentuity Auth' },
+			],
+		});
+
+		if (enableAuth === 'yes') {
+			authEnabled = true;
+		}
+	}
+
+	// Set up database and secret for any auth-enabled project
+	if (authEnabled && auth && catalystClient && orgId && region && !skipPrompts) {
+		// If a database was already selected/created above, use it for auth
+		if (resourceEnvVars.DATABASE_URL) {
+			authDatabaseUrl = resourceEnvVars.DATABASE_URL;
+			// Extract database name from URL using proper URL parsing
+			try {
+				const dbUrl = new URL(authDatabaseUrl);
+				const dbName = dbUrl.pathname.replace(/^\/+/, ''); // Remove leading slashes
+				// Validate: non-empty and contains only safe characters
+				if (dbName && /^[A-Za-z0-9_-]+$/.test(dbName)) {
+					authDatabaseName = dbName;
+				}
+			} catch {
+				// Invalid URL format, authDatabaseName stays undefined
+			}
+		} else {
+			// No database selected yet, create one for auth
+			const created = await tui.spinner({
+				message: 'Provisioning database for auth',
+				clearOnSuccess: true,
+				callback: async () => {
+					return createResources(catalystClient, orgId, region!, [{ type: 'db' }]);
+				},
+			});
+			authDatabaseName = created[0].name;
+
+			// Get env vars from created resource
+			if (created[0]?.env) {
+				authDatabaseUrl = created[0].env.DATABASE_URL;
+				// Also add to resourceEnvVars if not already set
+				if (!resourceEnvVars.DATABASE_URL) {
+					Object.assign(resourceEnvVars, created[0].env);
+				}
+			}
+		}
+
+		// Install auth dependencies (skip for agentuity-auth template which has them)
+		if (!templateHasAuth) {
+			await ensureAuthDependencies({ projectDir: dest, logger });
+
+			// Generate auth.ts
+			const authFilePath = resolve(dest, 'src', 'auth.ts');
+			if (!existsSync(authFilePath)) {
+				const srcDir = resolve(dest, 'src');
+				if (!existsSync(srcDir)) {
+					await Bun.write(resolve(srcDir, '.gitkeep'), '');
+				}
+				await Bun.write(authFilePath, generateAuthFileContent());
+				tui.success('Created src/auth.ts');
+			}
+		}
+
+		// Run migrations
+		if (authDatabaseName) {
+			const sql = await tui.spinner({
+				message: 'Preparing auth database schema...',
+				clearOnSuccess: true,
+				callback: () => generateAuthSchemaSql(dest),
+			});
+
+			await runAuthMigrations({
+				logger,
+				auth,
+				orgId,
+				region,
+				databaseName: authDatabaseName,
+				sql,
+			});
 		}
 	}
 
@@ -384,7 +497,6 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					orgId,
 					sdkKey: project.sdkKey,
 					deployment: {
-						resources: resourceConfig,
 						domains: _domains,
 					},
 					region: cloudRegion,
@@ -392,14 +504,38 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			},
 		});
 
-		// After registration, push any existing env/secrets from .env.production
+		// Add auth secret to resourceEnvVars if auth is enabled
+		if (authEnabled && !resourceEnvVars.AGENTUITY_AUTH_SECRET) {
+			const devSecret = `dev-${crypto.randomUUID()}`;
+			resourceEnvVars.AGENTUITY_AUTH_SECRET = devSecret;
+		}
+
+		// Write resource environment variables to .env
+		if (Object.keys(resourceEnvVars).length > 0) {
+			await addResourceEnvVars(dest, resourceEnvVars);
+
+			// Show user feedback for auth-related env vars
+			if (authEnabled) {
+				if (resourceEnvVars.DATABASE_URL) {
+					tui.success('DATABASE_URL added to .env');
+				}
+				if (resourceEnvVars.AGENTUITY_AUTH_SECRET) {
+					tui.success('AGENTUITY_AUTH_SECRET added to .env');
+					tui.info(
+						`Generate one with: ${tui.muted('npx @better-auth/cli secret')} or ${tui.muted('openssl rand -hex 32')}`
+					);
+				}
+			}
+		}
+
+		// After registration, push any existing env/secrets from .env
 		if (projectId) {
 			await tui.spinner({
 				message: 'Syncing environment variables',
 				clearOnSuccess: true,
 				callback: async () => {
 					try {
-						const envFilePath = await findEnvFile(dest);
+						const envFilePath = await findExistingEnvFile(dest);
 						const localEnv = await readEnvFile(envFilePath);
 						const filteredEnv = filterAgentuitySdkKeys(localEnv);
 
@@ -460,6 +596,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			tui.newline();
 			await promptForDNS(projectId, _domains, config);
 		}
+	}
+
+	// Print auth integration examples if auth was enabled (skip for auth template - already set up)
+	if (authEnabled && !templateHasAuth) {
+		printIntegrationExamples();
 	}
 }
 

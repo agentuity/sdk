@@ -6,6 +6,7 @@ import { getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import { ErrorCode } from '../../../errors';
+import { addResourceEnvVars } from '../../../env-util';
 
 export const createSubcommand = defineSubcommand({
 	name: 'create',
@@ -62,12 +63,22 @@ export const createSubcommand = defineSubcommand({
 				},
 			});
 			if (created.length > 0) {
+				const resource = created[0];
+
+				// Write environment variables to .env if running inside a project
+				if (ctx.projectDir && resource.env && Object.keys(resource.env).length > 0) {
+					await addResourceEnvVars(ctx.projectDir, resource.env);
+					if (!options.json) {
+						tui.info('Environment variables written to .env');
+					}
+				}
+
 				if (!options.json) {
-					tui.success(`Created database: ${tui.bold(created[0].name)}`);
+					tui.success(`Created database: ${tui.bold(resource.name)}`);
 				}
 				return {
 					success: true,
-					name: created[0].name,
+					name: resource.name,
 				};
 			} else {
 				tui.fatal('Failed to create database');

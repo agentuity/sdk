@@ -187,6 +187,19 @@ export class APIClient {
 	}
 
 	/**
+	 * Raw POST request that returns the Response object directly.
+	 * Useful for binary uploads where you need to pass raw body data.
+	 */
+	async rawPost(
+		endpoint: string,
+		body: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array> | string,
+		contentType: string,
+		signal?: AbortSignal
+	): Promise<Response> {
+		return this.#makeRequest('POST', endpoint, body, signal, contentType);
+	}
+
+	/**
 	 * Generic request method (prefer HTTP verb methods: get, post, put, delete, patch)
 	 */
 	async request<TResponse = void, TBody = unknown>(
@@ -249,7 +262,8 @@ export class APIClient {
 		method: string,
 		endpoint: string,
 		body?: unknown,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		contentType?: string
 	): Promise<Response> {
 		this.#logger.trace('sending %s to %s%s', method, this.#baseUrl, endpoint);
 
@@ -260,9 +274,13 @@ export class APIClient {
 			try {
 				const url = `${this.#baseUrl}${endpoint}`;
 				const headers: Record<string, string> = {
-					'Content-Type': 'application/json',
-					Accept: 'application/json',
+					'Content-Type': contentType ?? 'application/json',
 				};
+
+				// Only set Accept header for JSON requests (not binary uploads)
+				if (!contentType || contentType === 'application/json') {
+					headers['Accept'] = 'application/json';
+				}
 
 				if (this.#config?.userAgent) {
 					headers['User-Agent'] = this.#config.userAgent;
@@ -281,10 +299,28 @@ export class APIClient {
 				let response: Response;
 
 				try {
+					let requestBody:
+						| Uint8Array
+						| ArrayBuffer
+						| ReadableStream<Uint8Array>
+						| string
+						| undefined;
+					if (body !== undefined) {
+						if (contentType && contentType !== 'application/json') {
+							requestBody = body as
+								| Uint8Array
+								| ArrayBuffer
+								| ReadableStream<Uint8Array>
+								| string;
+						} else {
+							requestBody = JSON.stringify(body);
+						}
+					}
+
 					response = await fetch(url, {
 						method,
 						headers,
-						body: body !== undefined ? JSON.stringify(body) : undefined,
+						body: requestBody,
 						signal,
 					});
 				} catch (ex) {

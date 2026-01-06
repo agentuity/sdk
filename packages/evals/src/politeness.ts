@@ -45,9 +45,7 @@ export const politenessPrompt = `You are evaluating the politeness of an LLM res
 {
   "score": <number between 0.0 and 1.0>,
   "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence explaining the score>"
-  }
+  "reason": "<single concise sentence explaining the score>"
 }`;
 
 type PolitenessEvalOptions = BaseEvalOptions & {

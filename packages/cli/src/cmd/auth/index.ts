@@ -1,4 +1,5 @@
 import { createCommand } from '../../types';
+import { apikeyCommand } from './apikey';
 import { loginCommand } from './login';
 import { logoutCommand } from './logout';
 import { signupCommand } from './signup';
@@ -14,5 +15,5 @@ export const command = createCommand({
 		{ command: getCommand('auth login'), description: 'Login to your account' },
 		{ command: getCommand('auth whoami'), description: 'Show current user info' },
 	],
-	subcommands: [loginCommand, logoutCommand, signupCommand, whoamiCommand, sshSubcommand],
+	subcommands: [apikeyCommand, loginCommand, logoutCommand, signupCommand, whoamiCommand, sshSubcommand],
 });

@@ -5,6 +5,12 @@ import { createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxGet } from '@agentuity/server';
 
+const SandboxResourcesSchema = z.object({
+	memory: z.string().optional().describe('Memory limit (e.g., "512Mi", "1Gi")'),
+	cpu: z.string().optional().describe('CPU limit (e.g., "500m", "1000m")'),
+	disk: z.string().optional().describe('Disk limit (e.g., "1Gi", "10Gi")'),
+});
+
 const SandboxGetResponseSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
 	status: z.string().describe('Current status'),
@@ -16,6 +22,8 @@ const SandboxGetResponseSchema = z.object({
 	stdoutStreamUrl: z.string().optional().describe('URL to stdout output stream'),
 	stderrStreamUrl: z.string().optional().describe('URL to stderr output stream'),
 	dependencies: z.array(z.string()).optional().describe('Apt packages installed'),
+	metadata: z.record(z.string(), z.unknown()).optional().describe('User-defined metadata'),
+	resources: SandboxResourcesSchema.optional().describe('Resource limits'),
 });
 
 export const getSubcommand = createCommand({
@@ -84,6 +92,18 @@ export const getSubcommand = createCommand({
 			if (result.dependencies && result.dependencies.length > 0) {
 				console.log(`${tui.muted('Dependencies:')}    ${result.dependencies.join(', ')}`);
 			}
+			if (result.resources) {
+				const resourceParts: string[] = [];
+				if (result.resources.memory) resourceParts.push(`memory=${result.resources.memory}`);
+				if (result.resources.cpu) resourceParts.push(`cpu=${result.resources.cpu}`);
+				if (result.resources.disk) resourceParts.push(`disk=${result.resources.disk}`);
+				if (resourceParts.length > 0) {
+					console.log(`${tui.muted('Resources:')}       ${resourceParts.join(', ')}`);
+				}
+			}
+			if (result.metadata && Object.keys(result.metadata).length > 0) {
+				console.log(`${tui.muted('Metadata:')}        ${JSON.stringify(result.metadata)}`);
+			}
 		}
 
 		return {
@@ -97,6 +117,8 @@ export const getSubcommand = createCommand({
 			stdoutStreamUrl: result.stdoutStreamUrl,
 			stderrStreamUrl: result.stderrStreamUrl,
 			dependencies: result.dependencies,
+			metadata: result.metadata,
+			resources: result.resources,
 		};
 	},
 });

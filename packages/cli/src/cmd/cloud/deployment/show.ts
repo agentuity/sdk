@@ -36,7 +36,6 @@ const DeploymentShowResponseSchema = z.object({
 						.object({
 							number: z.number(),
 							url: z.string().optional(),
-							commentId: z.string().optional(),
 						})
 						.optional(),
 				})

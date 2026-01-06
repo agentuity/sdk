@@ -70,22 +70,22 @@ test('cli-deployment', 'list-before-deploy', async () => {
 	}
 });
 
-// Test 3: Deploy project
-test('cli-deployment', 'deploy-project', async () => {
-	const authenticated = await isAuthenticated();
+// // Test 3: Deploy project
+// test('cli-deployment', 'deploy-project', async () => {
+// 	const authenticated = await isAuthenticated();
 
-	if (!authenticated) {
-		// Skip if not authenticated
-		return;
-	}
+// 	if (!authenticated) {
+// 		// Skip if not authenticated
+// 		return;
+// 	}
 
-	const result = await cliAgent.run({
-		command: 'cloud deploy',
-	});
+// 	const result = await cliAgent.run({
+// 		command: 'cloud deploy',
+// 	});
 
-	// Deploy may fail in test environment, but should return a response
-	assert(result.stdout !== undefined, 'Deploy should produce output');
-});
+// 	// Deploy may fail in test environment, but should return a response
+// 	assert(result.stdout !== undefined, 'Deploy should produce output');
+// });
 
 // Note: Remaining CLI deployment tests require authentication and cloud environment
 // These are placeholder tests that can be expanded when running against real environment

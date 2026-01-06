@@ -22,7 +22,7 @@ export interface BuildMetadataAgent {
 	evals?: Array<{
 		filename: string;
 		id: string;
-		evalId: string;
+		identifier: string;
 		name: string;
 		version: string;
 		description?: string;
@@ -89,6 +89,17 @@ let _metadataCache: BuildMetadata | null | undefined = null;
  * - Dev: cwd is project root, file is at cwd/.agentuity/agentuity.metadata.json
  */
 export function getMetadataPath(): string {
+	if (process.env.AGENTUITY_PROJECT_DIR) {
+		// Dev path: running from project root with env flag to a different path using --dir
+		const devPath = join(
+			process.env.AGENTUITY_PROJECT_DIR,
+			'.agentuity',
+			'agentuity.metadata.json'
+		);
+		if (existsSync(devPath)) {
+			return devPath;
+		}
+	}
 	// Production path: running from .agentuity/ directory
 	const productionPath = join(process.cwd(), 'agentuity.metadata.json');
 	if (existsSync(productionPath)) {
@@ -217,7 +228,7 @@ function ensureAgentMaps(): void {
 				if (evalMeta.name) {
 					evalsByName.set(evalMeta.name, evalMeta);
 					internal.info(
-						`[metadata] Indexed eval: agent='${agent.name}' eval='${evalMeta.name}' evalId='${evalMeta.evalId}'`
+						`[metadata] Indexed eval: agent='${agent.name}' eval='${evalMeta.name}' identifier='${evalMeta.identifier}'`
 					);
 				}
 			}
@@ -305,7 +316,7 @@ export function getEvalMetadata(
 	}
 	const result = agentEvals?.get(evalName);
 	internal.info(
-		`[metadata] getEvalMetadata result: ${result ? `found evalId=${result.evalId}` : 'not found'}`
+		`[metadata] getEvalMetadata result: ${result ? `found identifier=${result.identifier}` : 'not found'}`
 	);
 	return result;
 }
@@ -326,6 +337,45 @@ export function getEvalMetadataByAgentId(
  */
 export function hasMetadata(): boolean {
 	return loadBuildMetadata() !== undefined;
+}
+
+// Track if agents have been imported
+let _agentsImported = false;
+
+/**
+ * Import all agents from metadata filenames to ensure they're registered.
+ * This is needed so that runtime schemas are available for JSON schema generation.
+ * Safe to call multiple times - will only import once.
+ */
+export async function ensureAgentsImported(): Promise<void> {
+	if (_agentsImported) {
+		return;
+	}
+
+	const metadata = loadBuildMetadata();
+	if (!metadata?.agents?.length) {
+		_agentsImported = true;
+		return;
+	}
+
+	internal.info('[metadata] ensureAgentsImported: importing %d agents', metadata.agents.length);
+
+	for (const agent of metadata.agents) {
+		if (!agent.filename) {
+			continue;
+		}
+
+		try {
+			// Convert relative filename to absolute path from cwd
+			const absolutePath = join(process.cwd(), agent.filename);
+			internal.info('[metadata] importing agent: %s from %s', agent.name, absolutePath);
+			await import(absolutePath);
+		} catch (err) {
+			internal.info('[metadata] failed to import agent %s: %s', agent.name, err);
+		}
+	}
+
+	_agentsImported = true;
 }
 
 /**

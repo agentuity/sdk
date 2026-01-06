@@ -51,30 +51,37 @@ export class LocalThreadProvider implements ThreadProvider {
 		const threadId = await this.threadIDProvider.getThreadId(this.appState, ctx);
 		validateThreadIdOrThrow(threadId);
 
-		// Try to restore state from DB
-		const row = this.db
-			.query<{ state: string }, [string]>('SELECT state FROM threads WHERE id = ?')
-			.get(threadId);
-
-		// Parse the stored data, handling both old (flat) and new ({ state, metadata }) formats
-		const { flatStateJson, metadata } = parseThreadData(row?.state);
-
-		// Create thread with restored state and metadata
-		const thread = new DefaultThread(this, threadId, flatStateJson, metadata);
-
-		// Populate thread state from restored data
-		if (flatStateJson) {
-			try {
-				const data = JSON.parse(flatStateJson);
-				for (const [key, value] of Object.entries(data)) {
-					thread.state.set(key, value);
-				}
-			} catch {
-				// Continue with empty state if parsing fails
+		// Create a restore function for lazy loading
+		const restoreFn = async (): Promise<{
+			state: Map<string, unknown>;
+			metadata: Record<string, unknown>;
+		}> => {
+			if (!this.db) {
+				return { state: new Map(), metadata: {} };
 			}
-		}
 
-		return thread;
+			const row = this.db
+				.query<{ state: string }, [string]>('SELECT state FROM threads WHERE id = ?')
+				.get(threadId);
+
+			const { flatStateJson, metadata } = parseThreadData(row?.state);
+
+			const state = new Map<string, unknown>();
+			if (flatStateJson) {
+				try {
+					const data = JSON.parse(flatStateJson);
+					for (const [key, value] of Object.entries(data)) {
+						state.set(key, value);
+					}
+				} catch {
+					// Continue with empty state if parsing fails
+				}
+			}
+
+			return { state, metadata: metadata || {} };
+		};
+
+		return new DefaultThread(this, threadId, restoreFn);
 	}
 
 	async save(thread: Thread): Promise<void> {
@@ -82,20 +89,103 @@ export class LocalThreadProvider implements ThreadProvider {
 			return;
 		}
 
-		// Only save if state was modified
-		if (!thread.isDirty()) {
+		const saveMode = thread.getSaveMode();
+		if (saveMode === 'none') {
 			return;
 		}
 
-		const stateJson = thread.getSerializedState();
 		const now = Date.now();
 
-		// Upsert thread state
-		this.db.run(
-			`INSERT INTO threads (id, state, updated_at) VALUES (?, ?, ?)
-			 ON CONFLICT(id) DO UPDATE SET state = ?, updated_at = ?`,
-			[thread.id, stateJson, now, stateJson, now]
-		);
+		if (saveMode === 'merge') {
+			// For merge, we need to load existing state, apply operations, then save
+			const operations = thread.getPendingOperations();
+			const metadata = thread.getMetadataForSave();
+
+			// Load existing state
+			const row = this.db
+				.query<{ state: string }, [string]>('SELECT state FROM threads WHERE id = ?')
+				.get(thread.id);
+
+			const { flatStateJson, metadata: existingMetadata } = parseThreadData(row?.state);
+
+			const state: Record<string, unknown> = {};
+			if (flatStateJson) {
+				try {
+					Object.assign(state, JSON.parse(flatStateJson));
+				} catch {
+					// Continue with empty state if parsing fails
+				}
+			}
+
+			// Apply operations
+			for (const op of operations) {
+				switch (op.op) {
+					case 'clear':
+						for (const key of Object.keys(state)) {
+							delete state[key];
+						}
+						break;
+					case 'set':
+						if (op.key !== undefined) {
+							state[op.key] = op.value;
+						}
+						break;
+					case 'delete':
+						if (op.key !== undefined) {
+							delete state[op.key];
+						}
+						break;
+					case 'push':
+						if (op.key !== undefined) {
+							const existing = state[op.key];
+							let arr: unknown[];
+							if (Array.isArray(existing)) {
+								existing.push(op.value);
+								arr = existing;
+							} else if (existing === undefined) {
+								arr = [op.value];
+								state[op.key] = arr;
+							} else {
+								// If non-array, silently skip
+								continue;
+							}
+							// Apply maxRecords limit
+							if (op.maxRecords !== undefined && arr.length > op.maxRecords) {
+								state[op.key] = arr.slice(arr.length - op.maxRecords);
+							}
+						}
+						break;
+				}
+			}
+
+			// Build final data
+			const finalMetadata = metadata || existingMetadata || {};
+			const hasState = Object.keys(state).length > 0;
+			const hasMetadata = Object.keys(finalMetadata).length > 0;
+
+			let stateJson = '';
+			if (hasState || hasMetadata) {
+				const data: { state?: Record<string, unknown>; metadata?: Record<string, unknown> } =
+					{};
+				if (hasState) data.state = state;
+				if (hasMetadata) data.metadata = finalMetadata;
+				stateJson = JSON.stringify(data);
+			}
+
+			this.db.run(
+				`INSERT INTO threads (id, state, updated_at) VALUES (?, ?, ?)
+				 ON CONFLICT(id) DO UPDATE SET state = ?, updated_at = ?`,
+				[thread.id, stateJson, now, stateJson, now]
+			);
+		} else {
+			// Full save
+			const stateJson = await thread.getSerializedState();
+			this.db.run(
+				`INSERT INTO threads (id, state, updated_at) VALUES (?, ?, ?)
+				 ON CONFLICT(id) DO UPDATE SET state = ?, updated_at = ?`,
+				[thread.id, stateJson, now, stateJson, now]
+			);
+		}
 	}
 
 	async destroy(thread: Thread): Promise<void> {

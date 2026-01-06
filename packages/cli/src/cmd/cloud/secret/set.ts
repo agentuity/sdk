@@ -2,7 +2,12 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
-import { findEnvFile, readEnvFile, writeEnvFile, filterAgentuitySdkKeys } from '../../../env-util';
+import {
+	findExistingEnvFile,
+	readEnvFile,
+	writeEnvFile,
+	filterAgentuitySdkKeys,
+} from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
 const SecretSetResponseSchema = z.object({
@@ -51,8 +56,8 @@ export const setSubcommand = createSubcommand({
 			});
 		});
 
-		// Update local .env.production file
-		const envFilePath = await findEnvFile(projectDir);
+		// Update local .env file
+		const envFilePath = await findExistingEnvFile(projectDir);
 		const currentEnv = await readEnvFile(envFilePath);
 		currentEnv[args.key] = args.value;
 

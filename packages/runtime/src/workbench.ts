@@ -1,4 +1,4 @@
-import type { Context, Handler } from 'hono';
+import type { Context, Handler, MiddlewareHandler } from 'hono';
 import { timingSafeEqual } from 'node:crypto';
 import { toJSONSchema } from '@agentuity/server';
 import { getAgents, createAgentMiddleware } from './agent';
@@ -6,7 +6,87 @@ import { createRouter } from './router';
 import { websocket, type WebSocketConnection } from './handlers/websocket';
 import { privateContext } from './_server';
 import { getThreadProvider } from './_services';
-import { loadBuildMetadata, getAgentMetadataByAgentId, hasMetadata } from './_metadata';
+import {
+	loadBuildMetadata,
+	getAgentMetadataByAgentId,
+	hasMetadata,
+	ensureAgentsImported,
+} from './_metadata';
+import { TOKENS_HEADER, DURATION_HEADER } from './_tokens';
+
+/**
+ * Middleware that captures execution metadata (tokens, duration, sessionId) after the handler completes
+ * and saves it to thread state. Applied only to the /execute route.
+ */
+const createWorkbenchExecutionMetadataMiddleware = (): MiddlewareHandler => {
+	return async (ctx, next) => {
+		const started = performance.now();
+
+		await next();
+
+		// After handler completes, tokens and duration headers are available
+		const thread = ctx.var.thread;
+		if (!thread) {
+			return;
+		}
+
+		// Get execution context set by the handler
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		const executionCtx = (ctx as any).var.workbenchExecution as
+			| { agentId: string; input: unknown; result: unknown }
+			| undefined;
+		if (!executionCtx) {
+			return;
+		}
+
+		const { agentId, input, result } = executionCtx;
+		const agentMessagesKey = `messages_${agentId}`;
+		const maxMessages = 50;
+
+		// Read tokens and duration from response headers
+		const tokens = ctx.res.headers.get(TOKENS_HEADER) ?? undefined;
+		const duration =
+			ctx.res.headers.get(DURATION_HEADER) ??
+			`${((performance.now() - started) / 1000).toFixed(1)}s`;
+		const sessionId = ctx.var.sessionId;
+
+		// Store input with metadata
+		await thread.state.push(
+			agentMessagesKey,
+			{
+				type: 'input',
+				data: input,
+				sessionId,
+				timestamp: Date.now(),
+			},
+			maxMessages
+		);
+
+		// Store output with metadata (tokens, duration)
+		if (result !== undefined && result !== null) {
+			await thread.state.push(
+				agentMessagesKey,
+				{
+					type: 'output',
+					data: result,
+					sessionId,
+					tokens,
+					duration,
+					timestamp: Date.now(),
+				},
+				maxMessages
+			);
+		}
+
+		// Save thread state
+		try {
+			const threadProvider = getThreadProvider();
+			await threadProvider.save(thread);
+		} catch {
+			ctx.var.logger?.warn('Failed to save thread state');
+		}
+	};
+};
 
 export const createWorkbenchExecutionRoute = (): Handler => {
 	const authHeader = process.env.AGENTUITY_WORKBENCH_APIKEY
@@ -86,46 +166,23 @@ export const createWorkbenchExecutionRoute = (): Handler => {
 				result = await (agentObj as any).handler();
 			}
 
-			// Store input and output in thread state, keyed by agentId
-			// This allows multiple agents to have separate message histories in the same thread
-			if (ctx.var.thread) {
-				const agentMessagesKey = `messages_${agentId}`;
-				const existingMessages = ctx.var.thread.state.get(agentMessagesKey);
-				const messages = (existingMessages as unknown[] | undefined) || [];
+			// Store execution context for the metadata middleware to save with tokens/duration
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			(ctx as any).set('workbenchExecution', { agentId, input, result });
 
-				messages.push({ type: 'input', data: input });
-
-				if (result !== undefined && result !== null) {
-					messages.push({ type: 'output', data: result });
-				}
-
-				ctx.var.thread.state.set(agentMessagesKey, messages);
-
-				// Manually save the thread to ensure state persists
-				try {
-					const threadProvider = getThreadProvider();
-					await threadProvider.save(ctx.var.thread);
-				} catch {
-					ctx.var.logger?.warn('Failed to save thread state');
-				}
-			} else {
-				ctx.var.logger?.warn('Thread not available in workbench execution route');
-			}
-
-			// Handle cases where result might be undefined/null
-			if (result === undefined || result === null) {
-				return ctx.json({ success: true, result: null });
-			}
-
-			return ctx.json(result);
+			return ctx.json({ success: true, data: result ?? null });
 		} catch (error) {
-			return ctx.json(
-				{
-					error: 'Internal server error',
-					message: error instanceof Error ? error.message : String(error),
+			const err = error instanceof Error ? error : new Error(String(error));
+			// Return 200 with wrapped error so UI can display it properly
+			return ctx.json({
+				success: false,
+				error: {
+					message: err.message,
+					stack: err.stack,
+					code: 'code' in err && typeof err.code === 'string' ? err.code : 'EXECUTION_ERROR',
+					cause: err.cause,
 				},
-				{ status: 500 }
-			);
+			});
 		}
 	};
 };
@@ -162,10 +219,18 @@ export const createWorkbenchClearStateRoute = (): Handler => {
 			return ctx.json({ error: 'Thread not available' }, { status: 404 });
 		}
 
-		const agentMessagesKey = `messages_${agentId}`;
+		// Clear state associated with this specific agent:
+		// 1. messages_${agentId} - workbench message history
+		// 2. Any keys starting with ${agentId}_ - agent-specific state
+		const allKeys = await ctx.var.thread.state.keys();
+		const agentPrefix = `${agentId}_`;
+		const messagesKey = `messages_${agentId}`;
 
-		// Remove the messages for this agent
-		ctx.var.thread.state.delete(agentMessagesKey);
+		for (const key of allKeys) {
+			if (key === messagesKey || key.startsWith(agentPrefix)) {
+				await ctx.var.thread.state.delete(key);
+			}
+		}
 
 		// Save the thread to persist the cleared state
 		try {
@@ -211,7 +276,7 @@ export const createWorkbenchStateRoute = (): Handler => {
 		}
 
 		const agentMessagesKey = `messages_${agentId}`;
-		const messages = ctx.var.thread.state.get(agentMessagesKey);
+		const messages = await ctx.var.thread.state.get(agentMessagesKey);
 
 		return ctx.json({
 			threadId: ctx.var.thread.id,
@@ -260,7 +325,11 @@ export const createWorkbenchRouter = () => {
 	router.get('/_agentuity/workbench/sample', createWorkbenchSampleRoute());
 	router.get('/_agentuity/workbench/state', createWorkbenchStateRoute());
 	router.delete('/_agentuity/workbench/state', createWorkbenchClearStateRoute());
-	router.post('/_agentuity/workbench/execute', createWorkbenchExecutionRoute());
+	router.post(
+		'/_agentuity/workbench/execute',
+		createWorkbenchExecutionMetadataMiddleware(),
+		createWorkbenchExecutionRoute()
+	);
 	return router;
 };
 
@@ -446,6 +515,9 @@ export const createWorkbenchMetadataRoute = (): Handler => {
 		}
 
 		try {
+			// Ensure all agents are imported so their schemas are available
+			await ensureAgentsImported();
+
 			// Get runtime agents for JSON schema generation
 			const agents = getAgents();
 			const agentsByName = new Map();
