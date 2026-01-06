@@ -69,20 +69,30 @@ export async function storeOfflineEvent(event: AnalyticsEvent): Promise<void> {
 		const transaction = database.transaction(STORE_NAME, 'readwrite');
 		const store = transaction.objectStore(STORE_NAME);
 
-		// Check current count and evict old events if needed
-		const countRequest = store.count();
-		countRequest.onsuccess = () => {
-			if (countRequest.result >= MAX_QUEUE_SIZE) {
-				// Get oldest event and delete it (FIFO)
+		// Check current count and evict old events if needed before adding
+		const count = await new Promise<number>((resolve) => {
+			const countRequest = store.count();
+			countRequest.onsuccess = () => resolve(countRequest.result);
+			countRequest.onerror = () => resolve(0);
+		});
+
+		if (count >= MAX_QUEUE_SIZE) {
+			// Evict oldest event (FIFO) before adding new one
+			await new Promise<void>((resolve) => {
 				const cursorRequest = store.openCursor();
 				cursorRequest.onsuccess = () => {
 					const cursor = cursorRequest.result;
 					if (cursor) {
-						cursor.delete();
+						const deleteRequest = cursor.delete();
+						deleteRequest.onsuccess = () => resolve();
+						deleteRequest.onerror = () => resolve();
+					} else {
+						resolve();
 					}
 				};
-			}
-		};
+				cursorRequest.onerror = () => resolve();
+			});
+		}
 
 		store.add(event);
 	} catch {

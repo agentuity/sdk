@@ -1,5 +1,15 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getAnalytics, type AnalyticsClient } from '@agentuity/frontend';
+
+const noopClient: AnalyticsClient = {
+	track: () => {},
+	identify: () => {},
+	pageview: () => {},
+	flush: async () => {},
+	optOut: () => {},
+	optIn: () => {},
+	isEnabled: () => false,
+};
 
 /**
  * Result of the useAnalytics hook
@@ -61,13 +71,18 @@ export interface UseAnalyticsResult {
  */
 export function useAnalytics(): UseAnalyticsResult {
 	const clientRef = useRef<AnalyticsClient | null>(null);
+	const [isClient, setIsClient] = useState(false);
 
-	// Get client on first render
-	if (!clientRef.current) {
-		clientRef.current = getAnalytics();
-	}
+	// SSR guard - only initialize on client
+	useEffect(() => {
+		setIsClient(true);
+		if (!clientRef.current) {
+			clientRef.current = getAnalytics();
+		}
+	}, []);
 
-	const client = clientRef.current;
+	// Use no-op client during SSR, real client after hydration
+	const client = isClient && clientRef.current ? clientRef.current : noopClient;
 
 	const track = useCallback(
 		(eventName: string, properties?: Record<string, unknown>) => {
