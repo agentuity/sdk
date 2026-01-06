@@ -783,18 +783,23 @@ export const command = createCommand({
 						console.log('');
 						fileWatcher.resume();
 						// wait for a file change or shutdown to trigger a recompile
-						while (true) {
-							if (shutdownRequested) {
-								return;
-							}
-							if (shouldRestart) {
-								break;
-							}
+						while (!shutdownRequested && !shouldRestart) {
 							await tui.spinner({
 								message: 'Waiting for changes...',
 								clearOnSuccess: true,
-								callback: () => Bun.sleep(1000),
+								callback: async () => {
+									// Check more frequently so CTRL+C is responsive
+									for (let i = 0; i < 10; i++) {
+										if (shutdownRequested || shouldRestart) {
+											return;
+										}
+										await Bun.sleep(100);
+									}
+								},
 							});
+						}
+						if (shutdownRequested) {
+							return;
 						}
 					}
 				} catch (error) {
