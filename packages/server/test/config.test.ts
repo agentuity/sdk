@@ -1,8 +1,35 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { getServiceUrls } from '../src/config';
+import { getServiceUrls, resolveRegion } from '../src/config';
+
+describe('resolveRegion', () => {
+	beforeEach(() => {
+		delete process.env.AGENTUITY_REGION;
+	});
+
+	test('should return provided region', () => {
+		expect(resolveRegion('us-east')).toBe('us-east');
+	});
+
+	test('should fall back to AGENTUITY_REGION env var', () => {
+		process.env.AGENTUITY_REGION = 'eu-west';
+		expect(resolveRegion()).toBe('eu-west');
+	});
+
+	test('should prefer provided region over env var', () => {
+		process.env.AGENTUITY_REGION = 'eu-west';
+		expect(resolveRegion('us-east')).toBe('us-east');
+	});
+
+	test('should throw error if no region available', () => {
+		expect(() => resolveRegion()).toThrow(
+			'Region is required but not provided. Set the AGENTUITY_REGION environment variable or pass region as a parameter.'
+		);
+	});
+});
 
 describe('getServiceUrls', () => {
 	beforeEach(() => {
+		delete process.env.AGENTUITY_REGION;
 		delete process.env.AGENTUITY_TRANSPORT_URL;
 		delete process.env.AGENTUITY_KEYVALUE_URL;
 		delete process.env.AGENTUITY_SANDBOX_URL;
@@ -11,6 +38,19 @@ describe('getServiceUrls', () => {
 		delete process.env.AGENTUITY_VECTOR_URL;
 		delete process.env.AGENTUITY_CATALYST_URL;
 		delete process.env.AGENTUITY_OTLP_URL;
+	});
+
+	test('should throw error if no region provided and AGENTUITY_REGION not set', () => {
+		expect(() => getServiceUrls()).toThrow(
+			'Region is required but not provided. Set the AGENTUITY_REGION environment variable or pass region as a parameter.'
+		);
+	});
+
+	test('should use AGENTUITY_REGION env var when region not passed', () => {
+		process.env.AGENTUITY_REGION = 'us-west';
+		const urls = getServiceUrls();
+		expect(urls.catalyst).toBe('https://catalyst-us-west.agentuity.cloud');
+		expect(urls.stream).toBe('https://streams-us-west.agentuity.cloud');
 	});
 
 	test('should build URLs for us-east region', () => {

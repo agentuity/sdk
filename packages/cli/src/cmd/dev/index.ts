@@ -823,10 +823,6 @@ export const command = createCommand({
 				}
 
 				try {
-					// Set environment variables for LLM provider patches BEFORE starting server
-					// These must be set so the bundled patches can route LLM calls through AI Gateway
-					const serviceUrls = getServiceUrls(project?.region);
-
 					// Load SDK key from project .env files for AI Gateway routing
 					// This must be set so the bundled AI SDK patches can inject the API key
 					if (!process.env.AGENTUITY_SDK_KEY) {
@@ -854,6 +850,9 @@ export const command = createCommand({
 					process.env.AGENTUITY_PORT = process.env.PORT;
 
 					if (project) {
+						// Set environment variables for LLM provider patches
+						// These must be set so the bundled patches can route LLM calls through AI Gateway
+						const serviceUrls = getServiceUrls(project.region);
 						process.env.AGENTUITY_TRANSPORT_URL = serviceUrls.catalyst;
 						process.env.AGENTUITY_CATALYST_URL = serviceUrls.catalyst;
 						process.env.AGENTUITY_VECTOR_URL = serviceUrls.vector;
