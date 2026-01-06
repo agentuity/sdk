@@ -103,6 +103,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			logger,
 			mode: dev ? 'dev' : 'prod',
 			workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
+			analytics: config?.analytics,
 		});
 
 		// Finally, build with Bun.build

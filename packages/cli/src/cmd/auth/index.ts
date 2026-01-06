@@ -15,5 +15,12 @@ export const command = createCommand({
 		{ command: getCommand('auth login'), description: 'Login to your account' },
 		{ command: getCommand('auth whoami'), description: 'Show current user info' },
 	],
-	subcommands: [apikeyCommand, loginCommand, logoutCommand, signupCommand, whoamiCommand, sshSubcommand],
+	subcommands: [
+		apikeyCommand,
+		loginCommand,
+		logoutCommand,
+		signupCommand,
+		whoamiCommand,
+		sshSubcommand,
+	],
 });

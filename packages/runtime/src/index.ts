@@ -50,6 +50,8 @@ export {
 	createCorsMiddleware,
 	createOtelMiddleware,
 	createCompressionMiddleware,
+	createWebSessionMiddleware,
+	getSessionSecret,
 } from './middleware';
 
 // Internal exports needed by generated entry files
@@ -175,6 +177,15 @@ export {
 
 // for loading metadata
 export { loadBuildMetadata } from './_metadata';
+
+// config exports (for analytics and other runtime config access)
+export {
+	getOrganizationId,
+	getProjectId,
+	getDeploymentId,
+	isDevMode,
+	isProduction,
+} from './_config';
 
 // _services.ts exports
 export { getEvalRunEventProvider, getThreadProvider, getSessionProvider } from './_services';

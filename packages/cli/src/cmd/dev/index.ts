@@ -707,7 +707,7 @@ export const command = createCommand({
 							generateRouteRegistry(srcDir, routeInfoList);
 							logger.debug('Agent and route registries generated for dev mode');
 
-							// Step 3: Generate entry file with workbench config
+							// Step 3: Generate entry file with workbench and analytics config
 							// Note: vitePort is NOT passed here - the app reads process.env.VITE_PORT at runtime
 							const { generateEntryFile } = await import('../build/entry-generator');
 							await generateEntryFile({
@@ -717,6 +717,7 @@ export const command = createCommand({
 								logger,
 								mode: 'dev',
 								workbench: workbenchConfigData.enabled ? workbenchConfigData : undefined,
+								analytics: agentuityConfig?.analytics,
 							});
 
 							// Step 4: Bundle the app with LLM patches (dev mode = no minification)

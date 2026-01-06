@@ -30,3 +30,21 @@ export type {
 	StreamClient,
 	EventHandler,
 } from './client/types';
+
+// Export analytics
+export {
+	getAnalytics,
+	track,
+	initBeacon,
+	trackPageview,
+	createBaseEvent,
+	getVisitorId,
+	isOptedOut,
+	setOptOut,
+	getUTMParams,
+	type AnalyticsClient,
+	type AnalyticsEvent,
+	type AnalyticsEventType,
+	type AnalyticsBatchPayload,
+	type AnalyticsPageConfig,
+} from './analytics';
