@@ -25,6 +25,40 @@ function resolveHeaders(
 }
 
 /**
+ * Escape special regex characters in a string.
+ */
+function escapeRegExp(str: string): string {
+	return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Substitute path parameters in a URL path template.
+ * E.g., '/api/users/:id' with { id: '123' } becomes '/api/users/123'
+ */
+function substitutePathParams(pathTemplate: string, pathParams?: Record<string, string>): string {
+	if (!pathParams) return pathTemplate;
+
+	let result = pathTemplate;
+	for (const [key, value] of Object.entries(pathParams)) {
+		const escapedKey = escapeRegExp(key);
+		result = result.replace(new RegExp(`:${escapedKey}\\??`, 'g'), encodeURIComponent(value));
+		result = result.replace(new RegExp(`\\*${escapedKey}`, 'g'), encodeURIComponent(value));
+	}
+	return result;
+}
+
+/**
+ * Build URL with query params.
+ */
+function buildUrlWithQuery(baseUrl: string, path: string, query?: Record<string, string>): string {
+	const url = `${baseUrl}${path}`;
+	if (!query || Object.keys(query).length === 0) return url;
+
+	const params = new URLSearchParams(query);
+	return `${url}?${params.toString()}`;
+}
+
+/**
  * Create a type-safe API client from a RouteRegistry.
  *
  * Uses a Proxy to build up the path as you navigate the object,
@@ -76,37 +110,97 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 			if (isTerminalMethod && currentPath.length >= 1) {
 				const method = prop;
 				const pathSegments = currentPath;
-				const urlPath = '/api/' + pathSegments.join('/');
 
-				// Determine route type
+				// Look up route metadata
 				let routeType = 'api';
+				let routePath: string | undefined;
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				let metaNode: any = metadata;
+
 				if (isStreamMethod) {
 					// Stream methods directly specify the route type
 					if (method === 'websocket') routeType = 'websocket';
 					else if (method === 'eventstream') routeType = 'sse';
 					else if (method === 'stream') routeType = 'stream';
-				} else if (metadata) {
-					// Look up route type from metadata for HTTP methods
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					let metaNode: any = metadata;
+				}
+
+				if (metadata) {
 					for (const segment of pathSegments) {
 						if (metaNode && typeof metaNode === 'object') {
 							metaNode = metaNode[segment];
 						}
 					}
-					if (metaNode && typeof metaNode === 'object' && metaNode[method]?.type) {
-						routeType = metaNode[method].type;
+					if (metaNode && typeof metaNode === 'object' && metaNode[method]) {
+						if (metaNode[method].type) {
+							routeType = metaNode[method].type;
+						}
+						if (metaNode[method].path) {
+							routePath = metaNode[method].path;
+						}
 					}
 				}
 
-				return (input?: unknown) => {
+				// Fallback URL path if no metadata
+				const fallbackPath = '/api/' + pathSegments.join('/');
+
+				return (...args: unknown[]) => {
 					const resolvedBaseUrl = resolveBaseUrl(baseUrl);
 					const resolvedHeaders = resolveHeaders(defaultHeaders);
+
+					// Get path param names from metadata if available
+					// eslint-disable-next-line @typescript-eslint/no-explicit-any
+					const pathParamNames: string[] | undefined = (metaNode as any)?.[method]?.pathParams;
+					const hasPathParams = pathParamNames && pathParamNames.length > 0;
+
+					let pathParams: Record<string, string> | undefined;
+					let input: unknown;
+					let query: Record<string, string> | undefined;
+
+					if (hasPathParams) {
+						// Route has path params - positional arguments API
+						// Args are: param1, param2, ..., [options?]
+						// Example: client.user.get('123', 12) or client.user.get('123', 12, { query: {...} })
+						pathParams = {};
+
+						for (let i = 0; i < pathParamNames.length; i++) {
+							const arg = args[i];
+							if (arg === undefined || arg === null) {
+								throw new Error(
+									`Missing required path parameter '${pathParamNames[i]}' at position ${i + 1}. ` +
+										`Expected ${pathParamNames.length} path parameter(s): ${pathParamNames.join(', ')}`
+								);
+							}
+							pathParams[pathParamNames[i]] = String(arg);
+						}
+
+						// Check if there's an options object after the path params
+						const optionsArg = args[pathParamNames.length];
+						if (optionsArg && typeof optionsArg === 'object') {
+							// eslint-disable-next-line @typescript-eslint/no-explicit-any
+							const opts = optionsArg as any;
+							input = opts.input;
+							query = opts.query;
+						}
+					} else {
+						// No path params - use existing behavior
+						const options = args[0];
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const opts = options as any;
+						const isOptionsObject =
+							opts && typeof opts === 'object' && ('input' in opts || 'query' in opts);
+
+						input = isOptionsObject ? opts.input : options;
+						query = isOptionsObject ? opts.query : undefined;
+					}
+
+					// Substitute path params in the route path
+					const basePath = routePath || fallbackPath;
+					const urlPath = substitutePathParams(basePath, pathParams);
 
 					// WebSocket endpoint
 					if (routeType === 'websocket') {
 						const wsBaseUrl = resolvedBaseUrl.replace(/^http/, 'ws');
-						const wsUrl = `${wsBaseUrl}${urlPath}`;
+						const wsUrl = buildUrlWithQuery(wsBaseUrl, urlPath, query);
 						const ws = createWebSocketClient(wsUrl);
 						if (input) {
 							ws.on('open', () => ws.send(input));
@@ -116,9 +210,7 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 
 					// SSE endpoint
 					if (routeType === 'sse') {
-						const sseUrl = `${resolvedBaseUrl}${urlPath}`;
-						// Note: Native EventSource doesn't support custom headers
-						// For auth, use withCredentials or consider fetch-based alternatives like @microsoft/fetch-event-source
+						const sseUrl = buildUrlWithQuery(resolvedBaseUrl, urlPath, query);
 						return createEventStreamClient(sseUrl, {
 							withCredentials: Object.keys(resolvedHeaders).length > 0,
 						});
@@ -126,7 +218,8 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 
 					// Stream endpoint
 					if (routeType === 'stream') {
-						return fetch(`${resolvedBaseUrl}${urlPath}`, {
+						const streamUrl = buildUrlWithQuery(resolvedBaseUrl, urlPath, query);
+						return fetch(streamUrl, {
 							method: method.toUpperCase(),
 							headers: { 'Content-Type': contentType, ...resolvedHeaders },
 							body: input ? JSON.stringify(input) : undefined,
@@ -138,7 +231,8 @@ export function createClient<R>(options: ClientOptions = {}, metadata?: unknown)
 					}
 
 					// Regular API endpoint
-					return fetch(`${resolvedBaseUrl}${urlPath}`, {
+					const apiUrl = buildUrlWithQuery(resolvedBaseUrl, urlPath, query);
+					return fetch(apiUrl, {
 						method: method.toUpperCase(),
 						headers: { 'Content-Type': contentType, ...resolvedHeaders },
 						body: method.toUpperCase() !== 'GET' && input ? JSON.stringify(input) : undefined,

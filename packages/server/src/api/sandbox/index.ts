@@ -20,8 +20,33 @@ export type {
 export { SandboxResponseError, writeAndDrain } from './util';
 export { SandboxClient } from './client';
 export type { SandboxClientOptions, SandboxInstance, ExecuteOptions } from './client';
-export { sandboxWriteFiles, sandboxReadFile } from './files';
-export type { WriteFilesParams, WriteFilesResult, ReadFileParams } from './files';
+export {
+	sandboxWriteFiles,
+	sandboxReadFile,
+	sandboxMkDir,
+	sandboxRmDir,
+	sandboxRmFile,
+	sandboxListFiles,
+	sandboxDownloadArchive,
+	sandboxUploadArchive,
+	sandboxSetEnv,
+} from './files';
+export type {
+	WriteFilesParams,
+	WriteFilesResult,
+	ReadFileParams,
+	MkDirParams,
+	RmDirParams,
+	RmFileParams,
+	ListFilesParams,
+	ListFilesResult,
+	FileInfo,
+	ArchiveFormat,
+	DownloadArchiveParams,
+	UploadArchiveParams,
+	SetEnvParams,
+	SetEnvResult,
+} from './files';
 export { snapshotCreate, snapshotGet, snapshotList, snapshotDelete, snapshotTag } from './snapshot';
 export type {
 	SnapshotInfo,

@@ -37,6 +37,7 @@ export {
 	type RouteIsStream,
 	type RouteInput,
 	type RouteOutput,
+	type RoutePathParams,
 	type UseAPIOptions,
 	type UseAPIResult,
 } from './api';

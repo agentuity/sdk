@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
-import { SandboxResponseError } from './util';
-
-const SNAPSHOT_API_VERSION = '2025-06-26';
+import { SandboxResponseError, API_VERSION } from './util';
 
 const SnapshotFileInfoSchema = z
 	.object({
@@ -14,7 +12,6 @@ const SnapshotFileInfoSchema = z
 const SnapshotInfoSchema = z
 	.object({
 		snapshotId: z.string().describe('Unique identifier for the snapshot'),
-		sandboxId: z.string().describe('ID of the sandbox this snapshot was created from'),
 		tag: z.string().nullable().optional().describe('User-defined tag for the snapshot'),
 		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
 		fileCount: z.number().describe('Number of files in the snapshot'),
@@ -47,7 +44,6 @@ export interface SnapshotFileInfo {
 
 export interface SnapshotInfo {
 	snapshotId: string;
-	sandboxId: string;
 	tag?: string | null;
 	sizeBytes: number;
 	fileCount: number;
@@ -116,7 +112,7 @@ export async function snapshotCreate(
 ): Promise<SnapshotInfo> {
 	const { sandboxId, tag, orgId } = params;
 	const queryString = buildQueryString({ orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/${sandboxId}/snapshot${queryString}`;
+	const url = `/sandbox/${API_VERSION}/${sandboxId}/snapshot${queryString}`;
 
 	const body: Record<string, string> = {};
 	if (tag) {
@@ -150,7 +146,7 @@ export async function snapshotGet(
 ): Promise<SnapshotInfo> {
 	const { snapshotId, orgId } = params;
 	const queryString = buildQueryString({ orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/snapshots/${snapshotId}${queryString}`;
+	const url = `/sandbox/${API_VERSION}/snapshots/${snapshotId}${queryString}`;
 
 	const resp = await client.get<z.infer<typeof SnapshotGetResponseSchema>>(
 		url,
@@ -178,7 +174,7 @@ export async function snapshotList(
 ): Promise<SnapshotListResponse> {
 	const { sandboxId, limit, offset, orgId } = params;
 	const queryString = buildQueryString({ sandboxId, limit, offset, orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/snapshots${queryString}`;
+	const url = `/sandbox/${API_VERSION}/snapshots${queryString}`;
 
 	const resp = await client.get<z.infer<typeof SnapshotListResponseSchema>>(
 		url,
@@ -205,7 +201,7 @@ export async function snapshotDelete(
 ): Promise<void> {
 	const { snapshotId, orgId } = params;
 	const queryString = buildQueryString({ orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/snapshots/${snapshotId}${queryString}`;
+	const url = `/sandbox/${API_VERSION}/snapshots/${snapshotId}${queryString}`;
 
 	const resp = await client.delete<z.infer<typeof SnapshotDeleteResponseSchema>>(
 		url,
@@ -231,7 +227,7 @@ export async function snapshotTag(
 ): Promise<SnapshotInfo> {
 	const { snapshotId, tag, orgId } = params;
 	const queryString = buildQueryString({ orgId });
-	const url = `/sandbox/${SNAPSHOT_API_VERSION}/snapshots/${snapshotId}${queryString}`;
+	const url = `/sandbox/${API_VERSION}/snapshots/${snapshotId}${queryString}`;
 
 	const resp = await client.patch<z.infer<typeof SnapshotGetResponseSchema>>(
 		url,

@@ -667,7 +667,7 @@ export type Agent<
 	 * **Method overloads:**
 	 * - `agent.validator()` - Validates using agent's input/output schemas
 	 * - `agent.validator({ output: schema })` - Output-only validation (no input validation)
-	 * - `agent.validator({ input: schema })` - Custom input schema override
+	 * - `agent.validator({ input: schema })` - Custom input schema override (skips agent's output validation)
 	 * - `agent.validator({ input: schema, output: schema })` - Both input and output validated
 	 *
 	 * @returns Hono middleware handler with proper type inference
@@ -1706,7 +1706,7 @@ export function createAgent<
 			handler: EvalFunction<AgentInput, AgentOutput>;
 			metadata?: {
 				id?: string;
-				evalId?: string;
+				identifier?: string;
 				version?: string;
 				filename?: string;
 			};
@@ -1768,10 +1768,9 @@ export function createAgent<
 			metadata: {
 				// Use build-time injected metadata if available, otherwise fallback to empty/undefined
 				id: evalMetadata.id || undefined,
-				evalId: evalMetadata.evalId || undefined,
+				identifier: evalMetadata.identifier || undefined,
 				version: evalMetadata.version || undefined,
 				filename: evalMetadata.filename || '',
-				identifier: evalName,
 				name: evalName,
 				description: evalConfig.description || '',
 			},
@@ -1914,14 +1913,14 @@ export function createAgent<
 						const evalMeta = getEvalMetadata(agentName, evalName);
 						internal.info(`[EVALRUN] Eval metadata lookup result:`, {
 							found: !!evalMeta,
-							evalId: evalMeta?.evalId,
+							identifier: evalMeta?.identifier,
 							id: evalMeta?.id,
 							filename: evalMeta?.filename,
 						});
 
 						// evalId = deployment-specific ID (evalid_...), evalIdentifier = stable (eval_...)
 						const evalId = evalMeta?.id || '';
-						const evalIdentifier = evalMeta?.evalId || '';
+						const evalIdentifier = evalMeta?.identifier || '';
 						internal.info(
 							`[EVALRUN] Resolved evalId='${evalId}', evalIdentifier='${evalIdentifier}'`
 						);
@@ -2193,7 +2192,10 @@ export function createAgent<
 	// Add validator method with overloads
 	agent.validator = ((override?: any) => {
 		const effectiveInputSchema = override?.input ?? inputSchema;
-		const effectiveOutputSchema = override?.output ?? outputSchema;
+		// Only use agent's output schema if no override was provided at all.
+		// If override is provided (even with just input), don't auto-apply agent's output schema
+		// unless the override explicitly includes output.
+		const effectiveOutputSchema = override ? override.output : outputSchema;
 
 		// Helper to build the standard Hono input validator so types flow
 		const buildInputValidator = (schema?: StandardSchemaV1) =>

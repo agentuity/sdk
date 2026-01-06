@@ -15,7 +15,7 @@ interface AgentSyncPayload {
 interface EvalSyncPayload {
 	id: string;
 	name: string;
-	evalId: string;
+	identifier: string;
 	description?: string;
 	version: string;
 	filename: string;
@@ -100,7 +100,7 @@ function getEvalsToSync(
 
 					evalsToCreate.push({
 						...evalItem,
-						evalId: evalItem.evalId,
+						identifier: evalItem.identifier,
 						projectId,
 						agentIdentifier: agent.agentId,
 					});
@@ -133,18 +133,28 @@ class DevmodeSyncService implements IDevmodeSyncService {
 		projectId: string,
 		deploymentId: string
 	): Promise<void> {
+		this.logger.debug(
+			'[CLI SYNC] sync() called with projectId=%s, deploymentId=%s',
+			projectId,
+			deploymentId
+		);
+		this.logger.debug(
+			'[CLI SYNC] currentMetadata has %d agents',
+			currentMetadata.agents?.length ?? 0
+		);
+
 		// Build previous agent IDs set
 		const previousAgentIds = new Set<string>();
 		if (previousMetadata) {
 			this.logger.debug(
-				'Previous metadata found with %d agent(s)',
+				'[CLI SYNC] Previous metadata found with %d agent(s)',
 				previousMetadata.agents?.length ?? 0
 			);
 			for (const agent of previousMetadata.agents || []) {
 				previousAgentIds.add(agent.id);
 			}
 		} else {
-			this.logger.debug('No previous metadata, all agents will be treated as new');
+			this.logger.debug('[CLI SYNC] No previous metadata, all agents will be treated as new');
 		}
 
 		// Build previous eval IDs set
@@ -178,9 +188,10 @@ class DevmodeSyncService implements IDevmodeSyncService {
 				);
 				for (const evalItem of agent.evals) {
 					this.logger.debug(
-						'[CLI EVAL SYNC]   - %s (evalId: %s)',
+						'[CLI EVAL SYNC]   - %s (id: %s, identifier: %s)',
 						evalItem.name,
-						evalItem.evalId
+						evalItem.id,
+						evalItem.identifier
 					);
 				}
 			}
@@ -208,13 +219,11 @@ class DevmodeSyncService implements IDevmodeSyncService {
 				agentsToDelete.length
 			);
 		}
-		if (evalsToCreate.length > 0 || evalsToDelete.length > 0) {
-			this.logger.debug(
-				'Bulk syncing %d eval(s) to create, %d eval(s) to delete',
-				evalsToCreate.length,
-				evalsToDelete.length
-			);
-		}
+		this.logger.debug(
+			'[CLI EVAL SYNC] Evals to sync: %d to create, %d to delete',
+			evalsToCreate.length,
+			evalsToDelete.length
+		);
 
 		// Sync both in parallel
 		try {
@@ -273,14 +282,7 @@ class DevmodeSyncService implements IDevmodeSyncService {
 		evalsToDelete: string[],
 		deploymentId: string
 	): Promise<void> {
-		this.logger.debug(
-			'[CLI EVAL SYNC] syncEvals called: %d to create, %d to delete',
-			evals.length,
-			evalsToDelete.length
-		);
-
 		if (evals.length === 0 && evalsToDelete.length === 0) {
-			this.logger.debug('[CLI EVAL SYNC] No evals to sync, skipping');
 			return;
 		}
 
@@ -290,15 +292,10 @@ class DevmodeSyncService implements IDevmodeSyncService {
 			delete: evalsToDelete,
 		};
 
-		this.logger.debug('[CLI EVAL SYNC] Sending payload to POST /cli/devmode/eval:');
-		for (const evalItem of evals) {
-			this.logger.debug(
-				'[CLI EVAL SYNC]   - %s (id: %s, evalId: %s)',
-				evalItem.name,
-				evalItem.id,
-				evalItem.evalId
-			);
-		}
+		this.logger.debug(
+			'[CLI EVAL SYNC] Sending payload to POST /cli/devmode/eval: %s',
+			JSON.stringify(payload, null, 2)
+		);
 
 		try {
 			await this.apiClient.post(
@@ -306,7 +303,6 @@ class DevmodeSyncService implements IDevmodeSyncService {
 				payload,
 				z.object({ success: z.boolean() })
 			);
-			this.logger.debug('[CLI EVAL SYNC] Sync successful');
 		} catch (error) {
 			this.logger.error('[CLI EVAL SYNC] Sync failed: %s', error);
 			throw error;

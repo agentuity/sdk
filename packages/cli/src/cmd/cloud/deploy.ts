@@ -8,7 +8,14 @@ import { isRunningFromExecutable } from '../upgrade';
 import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
-import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey } from '../../config';
+import {
+	saveProjectDir,
+	getDefaultConfigDir,
+	loadProjectSDKKey,
+	updateProjectConfig,
+} from '../../config';
+import { getProjectGithubStatus } from '../integration/api';
+import { runGitLink } from '../git/link';
 import {
 	runSteps,
 	stepSuccess,
@@ -46,6 +53,7 @@ import * as domain from '../../domain';
 import { ErrorCode } from '../../errors';
 import { typecheck } from '../build/typecheck';
 import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
+import { runForkedDeploy } from './deploy-fork';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -100,6 +108,11 @@ export const deploySubcommand = createSubcommand({
 					.describe(
 						'file path to save build report JSON with errors, warnings, and diagnostics'
 					),
+				childMode: z
+					.boolean()
+					.optional()
+					.default(false)
+					.describe('Internal: run as forked child process'),
 			})
 		),
 		response: DeployResponseSchema,
@@ -133,8 +146,67 @@ export const deploySubcommand = createSubcommand({
 			);
 		}
 
-		// Check for pre-created deployment from CI build environment
+		// Check if we're running as a forked child process
+		const isChildProcess = opts.childMode || process.env.AGENTUITY_FORK_PARENT === '1';
 		const deploymentEnv = process.env.AGENTUITY_DEPLOYMENT;
+
+		// If not in child mode and no pre-created deployment, run as fork wrapper to capture crashes
+		// (CI builds set AGENTUITY_DEPLOYMENT, fork wrapper also sets it for the child)
+		if (!isChildProcess && !deploymentEnv) {
+			logger.debug('Running deploy as fork wrapper');
+
+			// First, create the deployment to get the ID, publicKey, and stream URL
+			const deploymentConfig = project.deployment ?? {};
+			const initialDeployment = await projectDeploymentCreate(
+				apiClient,
+				project.projectId,
+				deploymentConfig
+			);
+
+			logger.debug('Created deployment: %s', initialDeployment.id);
+
+			// Build args to pass to child, excluding child-mode specific ones
+			const childArgs: string[] = [];
+			if (opts.logsUrl) childArgs.push(`--logs-url=${opts.logsUrl}`);
+			if (opts.trigger) childArgs.push(`--trigger=${opts.trigger}`);
+			if (opts.commitUrl) childArgs.push(`--commit-url=${opts.commitUrl}`);
+			if (opts.message) childArgs.push(`--message=${opts.message}`);
+			if (opts.commit) childArgs.push(`--commit=${opts.commit}`);
+			if (opts.branch) childArgs.push(`--branch=${opts.branch}`);
+			if (opts.provider) childArgs.push(`--provider=${opts.provider}`);
+			if (opts.repo) childArgs.push(`--repo=${opts.repo}`);
+			if (opts.event) childArgs.push(`--event=${opts.event}`);
+			if (opts.pullRequestNumber)
+				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
+			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
+
+			const result = await runForkedDeploy({
+				projectDir,
+				apiClient,
+				logger,
+				sdkKey: sdkKey!,
+				deployment: initialDeployment,
+				args: childArgs,
+			});
+
+			if (!result.success) {
+				const appUrl = getAppBaseURL(
+					process.env.AGENTUITY_REGION ?? config?.name,
+					config?.overrides
+				);
+				const deploymentLink = `${appUrl}/projects/${project.projectId}/deployments/${initialDeployment.id}`;
+				tui.fatal(
+					`Deployment failed: ${tui.link(deploymentLink, 'Deployment Page')}`,
+					ErrorCode.BUILD_FAILED
+				);
+			}
+
+			return {
+				success: true,
+				deploymentId: initialDeployment.id,
+				projectId: project.projectId,
+			};
+		}
 		let useExistingDeployment = false;
 		if (deploymentEnv) {
 			const ExistingDeploymentSchema = z.object({
@@ -162,6 +234,76 @@ export const deploySubcommand = createSubcommand({
 
 		try {
 			await saveProjectDir(projectDir);
+
+			// Check GitHub status and prompt for setup if not linked
+			// Skip in non-TTY environments (CI, automated runs) to prevent hanging
+			const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+			if (!useExistingDeployment && !project.skipGitSetup && hasTTY) {
+				try {
+					const githubStatus = await getProjectGithubStatus(apiClient, project.projectId);
+
+					if (githubStatus.linked && githubStatus.autoDeploy) {
+						// GitHub is already set up with auto-deploy, tell user to push instead
+						tui.newline();
+						tui.info(
+							`This project is linked to ${tui.bold(githubStatus.repoFullName ?? 'GitHub')} with automatic deployments enabled.`
+						);
+						tui.newline();
+						tui.info(
+							`Push a commit to the ${tui.bold(githubStatus.branch ?? 'main')} branch to trigger a deployment.`
+						);
+						tui.newline();
+						throw new DeploymentCancelledError();
+					}
+
+					if (!githubStatus.linked) {
+						tui.newline();
+						const wantSetup = await tui.confirm(
+							'Would you like to set up automatic deployments from GitHub?'
+						);
+
+						if (wantSetup) {
+							const result = await runGitLink({
+								apiClient,
+								projectId: project.projectId,
+								orgId: project.orgId,
+								logger,
+								skipAlreadyLinkedCheck: true,
+								config,
+							});
+
+							if (result.linked && result.autoDeploy) {
+								// GitHub linked with auto-deploy, tell user to push instead
+								tui.newline();
+								tui.info('GitHub integration set up successfully!');
+								tui.newline();
+								tui.info('Push a commit to trigger your first deployment.');
+								tui.newline();
+								throw new DeploymentCancelledError();
+							} else if (result.linked) {
+								// Linked but auto-deploy disabled, continue with manual deploy
+								tui.newline();
+								tui.info('GitHub repository linked. Continuing with deployment...');
+								tui.newline();
+							}
+						} else {
+							await updateProjectConfig(projectDir, { skipGitSetup: true }, config);
+							tui.newline();
+							tui.info(
+								`Skipping GitHub setup. Run ${tui.bold(getCommand('git link'))} later to enable it.`
+							);
+							tui.newline();
+						}
+					}
+				} catch (err) {
+					// Re-throw intentional cancellations
+					if (err instanceof DeploymentCancelledError) {
+						throw err;
+					}
+					// Log other errors as non-fatal and continue
+					logger.trace('Failed to check GitHub status: %s', err);
+				}
+			}
 
 			await runSteps(
 				[
@@ -230,7 +372,7 @@ export const deploySubcommand = createSubcommand({
 						label: 'Create Deployment',
 						run: async () => {
 							if (useExistingDeployment) {
-								return stepSkipped('skipped in CI build');
+								return stepSkipped('using pre-created deployment');
 							}
 							try {
 								deployment = await projectDeploymentCreate(

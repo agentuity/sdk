@@ -309,7 +309,7 @@ describe('Eval Metadata', () => {
 		expect(evalFn.metadata.name).toBe('my eval');
 	});
 
-	test('eval metadata includes identifier', () => {
+	test('eval metadata includes identifier when provided via build metadata', () => {
 		const agent = createAgent('id-agent', {
 			schema: {
 				output: z.string(),
@@ -317,16 +317,20 @@ describe('Eval Metadata', () => {
 			handler: async (_ctx) => 'result',
 		});
 
+		// Identifier is populated at build time from agentuity.metadata.json
+		// In unit tests without build metadata, identifier is undefined
 		const evalFn = agent.createEval('test-eval', {
 			description: 'Identifier test',
 			handler: async (_ctx) => ({
-				success: true,
 				passed: true,
-				metadata: { reason: 'test' },
+				reason: 'test',
 			}),
+			metadata: {
+				identifier: 'eval_test123',
+			},
 		});
 
-		expect(evalFn.metadata.identifier).toBeDefined();
+		expect(evalFn.metadata.identifier).toBe('eval_test123');
 	});
 });
 

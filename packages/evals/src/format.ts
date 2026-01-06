@@ -50,9 +50,7 @@ export const formatPrompt = `You are evaluating whether an LLM response matches 
 
 {
   "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence stating format requirement and whether it was met, or confirming no format was requested>"
-  }
+  "reason": "<single concise sentence stating format requirement and whether it was met, or confirming no format was requested>"
 }`;
 
 export const format = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEvalOptions>({

@@ -16,6 +16,7 @@ const SandboxGetResponseSchema = z.object({
 	stdoutStreamUrl: z.string().optional().describe('URL to stdout output stream'),
 	stderrStreamUrl: z.string().optional().describe('URL to stderr output stream'),
 	dependencies: z.array(z.string()).optional().describe('Apt packages installed'),
+	metadata: z.record(z.string(), z.unknown()).optional().describe('User-defined metadata'),
 });
 
 export const getSubcommand = createCommand({
@@ -84,6 +85,9 @@ export const getSubcommand = createCommand({
 			if (result.dependencies && result.dependencies.length > 0) {
 				console.log(`${tui.muted('Dependencies:')}    ${result.dependencies.join(', ')}`);
 			}
+			if (result.metadata && Object.keys(result.metadata).length > 0) {
+				console.log(`${tui.muted('Metadata:')}        ${JSON.stringify(result.metadata)}`);
+			}
 		}
 
 		return {
@@ -97,6 +101,7 @@ export const getSubcommand = createCommand({
 			stdoutStreamUrl: result.stdoutStreamUrl,
 			stderrStreamUrl: result.stderrStreamUrl,
 			dependencies: result.dependencies,
+			metadata: result.metadata,
 		};
 	},
 });
