@@ -24,7 +24,7 @@ export const apikeyCommand = createSubcommand({
 		const { auth, options } = ctx;
 
 		const result = {
-			apiKey: auth?.apiKey || '',
+			apiKey: auth.apiKey,
 		};
 
 		if (!options.json) {
