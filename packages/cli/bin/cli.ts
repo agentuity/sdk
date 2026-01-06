@@ -18,6 +18,10 @@ import { checkForUpdates } from '../src/version-check';
 
 // Cleanup TTY state before exit
 function cleanupTTY() {
+	// Skip in CI - terminals don't support cursor control sequences
+	if (process.env.CI) {
+		return;
+	}
 	if (process.stdin.isTTY) {
 		try {
 			process.stdin.setRawMode(false);
