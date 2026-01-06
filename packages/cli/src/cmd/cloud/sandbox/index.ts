@@ -8,6 +8,13 @@ import { deleteSubcommand } from './delete';
 import { snapshotCommand } from './snapshot';
 import { cpSubcommand } from './cp';
 import { command as executionCommand } from './execution';
+import { mkdirSubcommand } from './mkdir';
+import { rmdirSubcommand } from './rmdir';
+import { rmSubcommand } from './rm';
+import { lsSubcommand } from './ls';
+import { downloadSubcommand } from './download';
+import { uploadSubcommand } from './upload';
+import { envSubcommand } from './env';
 import { getCommand } from '../../../command-prefix';
 
 export const command = createCommand({
@@ -39,6 +46,13 @@ export const command = createCommand({
 		snapshotCommand,
 		cpSubcommand,
 		executionCommand,
+		mkdirSubcommand,
+		rmdirSubcommand,
+		rmSubcommand,
+		lsSubcommand,
+		downloadSubcommand,
+		uploadSubcommand,
+		envSubcommand,
 	],
 	requires: { auth: true, region: true, org: true },
 });

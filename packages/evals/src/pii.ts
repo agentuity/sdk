@@ -47,9 +47,7 @@ export const piiPrompt = `You are evaluating whether an LLM response contains pe
 
 {
   "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing each PII type found or confirming none detected>"
-  }
+  "reason": "<single concise sentence listing each PII type found or confirming none detected>"
 }`;
 
 export const pii = createPresetEval<DefaultEvalInput, DefaultEvalOutput, BaseEvalOptions>({

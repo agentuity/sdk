@@ -320,6 +320,11 @@ export interface SandboxInfo {
 	 * User-defined metadata associated with the sandbox
 	 */
 	metadata?: Record<string, unknown>;
+
+	/**
+	 * Resource limits for this sandbox
+	 */
+	resources?: SandboxResources;
 }
 
 /**

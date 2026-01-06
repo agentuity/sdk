@@ -466,6 +466,112 @@ export default router;
 		}
 	});
 
+	test("hono validator('json', callback) with schema['~standard'].validate() - should extract schema", async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+import { validator } from 'hono/validator';
+
+const router = createRouter();
+const createUserSchema = s.object({
+	name: s.string(),
+	email: s.string(),
+	age: s.number(),
+});
+
+router.post(
+	'/',
+	validator('json', (value, c) => {
+		const result = createUserSchema['~standard'].validate(value);
+		if (result.issues) {
+			return c.json({ error: 'Validation failed', issues: result.issues }, 400);
+		}
+		return result.value;
+	}),
+	async (c) => {
+		const data = c.req.valid('json');
+		return c.json({
+			success: true,
+			user: data,
+		});
+	}
+);
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('createUserSchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("hono validator('json', callback) with schema.validate() - should extract schema", async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { validator } from 'hono/validator';
+
+const mySchema = { validate: (v) => v };
+
+const router = createRouter();
+
+router.post('/', validator('json', (value, c) => {
+	const result = mySchema.validate(value);
+	return result;
+}), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBe('mySchema');
+		} finally {
+			cleanup();
+		}
+	});
+
+	test("hono validator('query', callback) - should NOT extract schema", async () => {
+		const content = `
+import { createRouter } from '@agentuity/runtime';
+import { validator } from 'hono/validator';
+
+const querySchema = { validate: (v) => v };
+
+const router = createRouter();
+
+router.get('/search', validator('query', (value, c) => {
+	const result = querySchema.validate(value);
+	return result;
+}), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+		`;
+
+		const { tempDir, path, cleanup } = createTempFile(content);
+		try {
+			const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+			expect(routes).toHaveLength(1);
+			// Should detect validator but NOT extract schema since it's 'query' not 'json'
+			expect(routes[0].config?.hasValidator).toBe(true);
+			expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
+		} finally {
+			cleanup();
+		}
+	});
+
 	test('websocket with exported schemas - should extract inputSchema and outputSchema', async () => {
 		const content = `
 import { createRouter, websocket } from '@agentuity/runtime';

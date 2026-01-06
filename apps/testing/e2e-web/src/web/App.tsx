@@ -3,6 +3,8 @@ import { type ChangeEvent, useState } from 'react';
 import { StreamsPage } from './StreamsPage';
 import { RpcPage } from './RpcPage';
 import { RpcTestPage } from './RpcTestPage';
+import { PathParamsPage } from './PathParamsPage';
+import { AnalyticsTestPage } from './AnalyticsTestPage';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
 
@@ -20,6 +22,14 @@ export function App() {
 
 	if (path === '/rpc-test') {
 		return <RpcTestPage />;
+	}
+
+	if (path === '/path-params') {
+		return <PathParamsPage />;
+	}
+
+	if (path === '/analytics') {
+		return <AnalyticsTestPage />;
 	}
 
 	const [name, setName] = useState('World');
@@ -150,6 +160,30 @@ export function App() {
 									</>
 								),
 								text: <>Test all RPC client methods (run, websocket, eventstream).</>,
+							},
+							{
+								key: 'try-path-params',
+								title: (
+									<>
+										Try{' '}
+										<a href="/path-params" className="workbench-link">
+											Path & Query Params
+										</a>
+									</>
+								),
+								text: <>Test type-safe path and query parameters.</>,
+							},
+							{
+								key: 'try-analytics',
+								title: (
+									<>
+										Try{' '}
+										<a href="/analytics" className="workbench-link">
+											Analytics Tests
+										</a>
+									</>
+								),
+								text: <>Test analytics beacon loading and event firing.</>,
 							},
 							WORKBENCH_PATH
 								? {

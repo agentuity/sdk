@@ -443,7 +443,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 			evals: agent.evals?.map((evalItem) => ({
 				filename: evalItem.filename,
 				id: evalItem.id,
-				evalId: evalItem.evalId,
+				identifier: evalItem.identifier,
 				name: evalItem.name,
 				version: evalItem.version,
 				description: evalItem.description,

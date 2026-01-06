@@ -3,6 +3,14 @@ import { APIClient, APIResponseSchema } from '../api';
 import { SandboxResponseError, API_VERSION } from './util';
 import type { SandboxInfo, SandboxStatus } from '@agentuity/core';
 
+const SandboxResourcesSchema = z
+	.object({
+		memory: z.string().optional().describe('Memory limit (e.g., "512Mi", "1Gi")'),
+		cpu: z.string().optional().describe('CPU limit in millicores (e.g., "500m", "1000m")'),
+		disk: z.string().optional().describe('Disk limit (e.g., "1Gi", "10Gi")'),
+	})
+	.describe('Resource limits for the sandbox');
+
 const SandboxInfoDataSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
@@ -24,6 +32,7 @@ const SandboxInfoDataSchema = z
 			.record(z.string(), z.unknown())
 			.optional()
 			.describe('User-defined metadata associated with the sandbox'),
+		resources: SandboxResourcesSchema.optional().describe('Resource limits for this sandbox'),
 	})
 	.describe('Detailed information about a sandbox');
 
@@ -72,6 +81,7 @@ export async function sandboxGet(
 			stderrStreamUrl: resp.data.stderrStreamUrl,
 			dependencies: resp.data.dependencies,
 			metadata: resp.data.metadata as Record<string, unknown> | undefined,
+			resources: resp.data.resources,
 		};
 	}
 

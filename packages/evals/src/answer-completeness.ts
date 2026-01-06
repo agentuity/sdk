@@ -55,9 +55,7 @@ export const answerCompletenessPrompt = `You are evaluating whether an LLM respo
 {
   "score": <number between 0.0 and 1.0>,
   "passed": <true|false>,
-  "metadata": {
-    "reason": "<single concise sentence listing which parts of the request were or were not addressed>"
-  }
+  "reason": "<single concise sentence listing which parts of the request were or were not addressed>"
 }`;
 
 type AnswerCompletenessEvalOptions = BaseEvalOptions & {

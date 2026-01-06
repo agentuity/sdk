@@ -53,6 +53,7 @@ import * as domain from '../../domain';
 import { ErrorCode } from '../../errors';
 import { typecheck } from '../build/typecheck';
 import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
+import { runForkedDeploy } from './deploy-fork';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -107,6 +108,11 @@ export const deploySubcommand = createSubcommand({
 					.describe(
 						'file path to save build report JSON with errors, warnings, and diagnostics'
 					),
+				childMode: z
+					.boolean()
+					.optional()
+					.default(false)
+					.describe('Internal: run as forked child process'),
 			})
 		),
 		response: DeployResponseSchema,
@@ -140,8 +146,67 @@ export const deploySubcommand = createSubcommand({
 			);
 		}
 
-		// Check for pre-created deployment from CI build environment
+		// Check if we're running as a forked child process
+		const isChildProcess = opts.childMode || process.env.AGENTUITY_FORK_PARENT === '1';
 		const deploymentEnv = process.env.AGENTUITY_DEPLOYMENT;
+
+		// If not in child mode and no pre-created deployment, run as fork wrapper to capture crashes
+		// (CI builds set AGENTUITY_DEPLOYMENT, fork wrapper also sets it for the child)
+		if (!isChildProcess && !deploymentEnv) {
+			logger.debug('Running deploy as fork wrapper');
+
+			// First, create the deployment to get the ID, publicKey, and stream URL
+			const deploymentConfig = project.deployment ?? {};
+			const initialDeployment = await projectDeploymentCreate(
+				apiClient,
+				project.projectId,
+				deploymentConfig
+			);
+
+			logger.debug('Created deployment: %s', initialDeployment.id);
+
+			// Build args to pass to child, excluding child-mode specific ones
+			const childArgs: string[] = [];
+			if (opts.logsUrl) childArgs.push(`--logs-url=${opts.logsUrl}`);
+			if (opts.trigger) childArgs.push(`--trigger=${opts.trigger}`);
+			if (opts.commitUrl) childArgs.push(`--commit-url=${opts.commitUrl}`);
+			if (opts.message) childArgs.push(`--message=${opts.message}`);
+			if (opts.commit) childArgs.push(`--commit=${opts.commit}`);
+			if (opts.branch) childArgs.push(`--branch=${opts.branch}`);
+			if (opts.provider) childArgs.push(`--provider=${opts.provider}`);
+			if (opts.repo) childArgs.push(`--repo=${opts.repo}`);
+			if (opts.event) childArgs.push(`--event=${opts.event}`);
+			if (opts.pullRequestNumber)
+				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
+			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
+
+			const result = await runForkedDeploy({
+				projectDir,
+				apiClient,
+				logger,
+				sdkKey: sdkKey!,
+				deployment: initialDeployment,
+				args: childArgs,
+			});
+
+			if (!result.success) {
+				const appUrl = getAppBaseURL(
+					process.env.AGENTUITY_REGION ?? config?.name,
+					config?.overrides
+				);
+				const deploymentLink = `${appUrl}/projects/${project.projectId}/deployments/${initialDeployment.id}`;
+				tui.fatal(
+					`Deployment failed: ${tui.link(deploymentLink, 'Deployment Page')}`,
+					ErrorCode.BUILD_FAILED
+				);
+			}
+
+			return {
+				success: true,
+				deploymentId: initialDeployment.id,
+				projectId: project.projectId,
+			};
+		}
 		let useExistingDeployment = false;
 		if (deploymentEnv) {
 			const ExistingDeploymentSchema = z.object({
@@ -267,7 +332,9 @@ export const deploySubcommand = createSubcommand({
 						label: 'Sync Env & Secrets',
 						run: async () => {
 							try {
-								if (useExistingDeployment) {
+								const isCIBuild =
+									useExistingDeployment && process.env.AGENTUITY_FORK_PARENT !== '1';
+								if (isCIBuild) {
 									return stepSkipped('skipped in CI build');
 								}
 								// Read env file
@@ -307,7 +374,7 @@ export const deploySubcommand = createSubcommand({
 						label: 'Create Deployment',
 						run: async () => {
 							if (useExistingDeployment) {
-								return stepSkipped('skipped in CI build');
+								return stepSkipped('using pre-created deployment');
 							}
 							try {
 								deployment = await projectDeploymentCreate(

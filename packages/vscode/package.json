@@ -2,7 +2,7 @@
 	"name": "agentuity-vscode",
 	"displayName": "Agentuity VSCode Extension",
 	"description": "Build, deploy, and manage AI agents with Agentuity",
-	"version": "0.0.110",
+	"version": "0.0.111",
 	"publisher": "agentuity",
 	"license": "Apache-2.0",
 	"repository": {

@@ -62,7 +62,7 @@ describe('RPC Registry Type Generation', () => {
 			},
 		];
 
-		generateRouteRegistry(srcDir, routes);
+		await generateRouteRegistry(srcDir, routes);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();
@@ -105,7 +105,7 @@ describe('RPC Registry Type Generation', () => {
 			},
 		];
 
-		generateRouteRegistry(srcDir, routes);
+		await generateRouteRegistry(srcDir, routes);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();
@@ -138,7 +138,7 @@ describe('RPC Registry Type Generation', () => {
 			},
 		];
 
-		generateRouteRegistry(srcDir, routes);
+		await generateRouteRegistry(srcDir, routes);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();
@@ -154,7 +154,7 @@ describe('RPC Registry Type Generation', () => {
 	test('should handle empty routes gracefully', async () => {
 		const routes: RouteInfo[] = [];
 
-		generateRouteRegistry(srcDir, routes);
+		await generateRouteRegistry(srcDir, routes);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const exists = await Bun.file(routesPath).exists();
@@ -203,7 +203,7 @@ describe('RPC Registry Type Generation', () => {
 			},
 		];
 
-		generateRouteRegistry(srcDir, routes);
+		await generateRouteRegistry(srcDir, routes);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();
@@ -233,7 +233,7 @@ describe('RPC Registry Type Generation', () => {
 			},
 		];
 
-		generateRouteRegistry(srcDir, routes);
+		await generateRouteRegistry(srcDir, routes);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();

@@ -22,7 +22,7 @@ export const myEval = createPresetEval<TInput, TOutput, TOptions>({
 	},
 	handler: async (ctx, input, output, options) => {
 		// Evaluation logic - throw on error, runtime wraps with success
-		return { passed: true, metadata: { reason: '...' } };
+		return { passed: true, reason: '...' };
 	},
 });
 
@@ -156,14 +156,14 @@ Eval handlers return `EvalHandlerResult` (no `success` field - just throw on err
 // Binary pass/fail
 return {
 	passed: true, // or false
-	metadata: { reason: 'Why it passed/failed' },
+	reason: 'Why it passed/failed',
 };
 
 // Scored result (0.0-1.0)
 return {
 	passed: true,
 	score: 0.85,
-	metadata: { reason: 'Accuracy score explanation' },
+	reason: 'Accuracy score explanation',
 };
 
 // On error, just throw - runtime handles it
@@ -204,12 +204,9 @@ export const toneEval = createPresetEval<typeof inputSchema, typeof outputSchema
 
 		return {
 			passed,
-			metadata: {
-				reason: passed
-					? `Response matches ${options.expectedTone} tone`
-					: `Response does not match ${options.expectedTone} tone`,
-				llmResponse: result.text,
-			},
+			reason: passed
+				? `Response matches ${options.expectedTone} tone`
+				: `Response does not match ${options.expectedTone} tone`,
 		};
 	},
 });
@@ -239,6 +236,6 @@ packages/evals/
 1. **Schema types required** - Use `s.object({...})` for typed input/output, or `undefined` for generic evals
 2. **Flattened options** - Override options directly in the call, not nested under `options`
 3. **Extend BaseEvalOptions** - Custom options must extend `BaseEvalOptions` for the `model` field
-4. **Return format** - Return `{ passed, score?, metadata }` - throw on error, no `success` field needed
+4. **Return format** - Return `{ passed, score?, reason? }` - throw on error, no `success` field needed
 5. **Reusable** - Preset evals are designed to be shared across agents with different configurations
 6. **Middleware** - Use `middleware` to transform agent input/output to eval's expected types when schemas differ

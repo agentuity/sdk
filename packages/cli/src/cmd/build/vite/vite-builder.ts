@@ -103,6 +103,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			logger,
 			mode: dev ? 'dev' : 'prod',
 			workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
+			analytics: config?.analytics,
 		});
 
 		// Finally, build with Bun.build
@@ -305,7 +306,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// Generate agent and route registries for type augmentation BEFORE builds
 	// (TypeScript needs these files to exist during type checking)
 	generateAgentRegistry(srcDir, agentMetadata);
-	generateRouteRegistry(srcDir, routeInfoList);
+	await generateRouteRegistry(srcDir, routeInfoList);
 	logger.debug('Agent and route registries generated');
 
 	// Check if web frontend exists

@@ -6,6 +6,7 @@ import { createMockLogger } from '@agentuity/test-utils';
 import {
 	discoverRoutes,
 	detectRouteConflicts,
+	extractPathParams,
 } from '../../../../src/cmd/build/vite/route-discovery';
 
 describe('route-discovery', () => {
@@ -442,5 +443,43 @@ export { adminRouter };
 
 		// Note: Named export discovery depends on implementation
 		// At minimum, default export should work
+	});
+
+	describe('extractPathParams', () => {
+		test('should extract single path parameter', () => {
+			expect(extractPathParams('/users/:id')).toEqual(['id']);
+		});
+
+		test('should extract multiple path parameters', () => {
+			expect(extractPathParams('/organizations/:orgId/members/:memberId')).toEqual([
+				'orgId',
+				'memberId',
+			]);
+		});
+
+		test('should handle optional path parameters', () => {
+			expect(extractPathParams('/users/:userId?')).toEqual(['userId']);
+		});
+
+		test('should handle wildcard path parameters', () => {
+			expect(extractPathParams('/files/*path')).toEqual(['path']);
+		});
+
+		test('should handle one-or-more path parameters', () => {
+			expect(extractPathParams('/items/:itemId+')).toEqual(['itemId']);
+		});
+
+		test('should handle mixed path and static segments', () => {
+			expect(extractPathParams('/api/v1/users/:id/posts/:postId')).toEqual(['id', 'postId']);
+		});
+
+		test('should return empty array for paths without parameters', () => {
+			expect(extractPathParams('/users')).toEqual([]);
+			expect(extractPathParams('/api/health')).toEqual([]);
+		});
+
+		test('should handle path with only wildcard', () => {
+			expect(extractPathParams('/api/*')).toEqual([]);
+		});
 	});
 });

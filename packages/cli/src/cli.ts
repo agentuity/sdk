@@ -15,7 +15,7 @@ import type {
 } from './types';
 import { showBanner, generateBanner } from './banner';
 import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
-import { listRegions, type RegionList } from '@agentuity/server';
+import { listRegions, type RegionList, ValidationOutputError } from '@agentuity/server';
 import enquirer from 'enquirer';
 import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
@@ -25,6 +25,22 @@ import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
 import { getCommand } from './command-prefix';
 import { isValidateMode, outputValidation, type ValidationResult } from './output';
 import { StructuredError } from '@agentuity/core';
+
+/**
+ * Check if an error is a CLI input validation error (Zod error from schema parsing),
+ * and not an API response validation error (ValidationOutputError).
+ */
+function isCLIValidationError(error: unknown): boolean {
+	if (!error || typeof error !== 'object' || !('issues' in error)) {
+		return false;
+	}
+	// ValidationOutputError from API responses should NOT be treated as CLI validation errors
+	if (error instanceof ValidationOutputError) {
+		return false;
+	}
+	// Check for Zod error structure (has name 'ZodError' or is from SchemaValidationError)
+	return true;
+}
 
 const APIClientConfigError = StructuredError('APIClientConfigError');
 
@@ -1151,7 +1167,7 @@ async function registerSubcommand(
 						subcommand.webUrl
 					);
 				} catch (error) {
-					if (error && typeof error === 'object' && 'issues' in error) {
+					if (isCLIValidationError(error)) {
 						handleValidationError(error, getFullCommandPath(cmd), baseCtx);
 					}
 					handleProjectConfigError(
@@ -1330,7 +1346,7 @@ async function registerSubcommand(
 						subcommand.webUrl
 					);
 				} catch (error) {
-					if (error && typeof error === 'object' && 'issues' in error) {
+					if (isCLIValidationError(error)) {
 						handleValidationError(error, getFullCommandPath(cmd), baseCtx);
 					}
 					handleProjectConfigError(
@@ -1455,7 +1471,7 @@ async function registerSubcommand(
 						subcommand.webUrl
 					);
 				} catch (error) {
-					if (error && typeof error === 'object' && 'issues' in error) {
+					if (isCLIValidationError(error)) {
 						handleValidationError(error, getFullCommandPath(cmd), baseCtx);
 					}
 					handleProjectConfigError(

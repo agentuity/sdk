@@ -25,7 +25,11 @@ import {
   loadBuildMetadata,
   createWorkbenchRouter,
   bootstrapRuntimeEnv,
- patchBunS3ForStorageDev,
+  patchBunS3ForStorageDev,
+  getOrganizationId,
+  getProjectId,
+  isDevMode as runtimeIsDevMode,
+  createWebSessionMiddleware,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { websocket } from 'hono/bun';
@@ -36,6 +40,112 @@ import { type LogLevel } from '@agentuity/core';
 // See: https://github.com/oven-sh/bun/issues/20183
 const getEnv = (key: string) => process.env[key];
 const isDevelopment = () => getEnv('NODE' + '_' + 'ENV') !== 'production';
+
+// Analytics configuration - edit agentuity.config.ts to configure
+const analyticsConfig = {
+	enabled: true,
+	requireConsent: false,
+	trackClicks: true,
+	trackScroll: true,
+	trackOutboundLinks: true,
+	trackForms: false,
+	trackWebVitals: true,
+	trackErrors: true,
+	trackSPANavigation: true,
+	sampleRate: 1,
+	excludePatterns: [],
+	globalProperties: {},
+};
+
+// Inject analytics config and script into HTML
+// Note: Only static config is injected (org, project, devmode, tracking options)
+// Session and thread IDs are read from cookies by the beacon script
+function injectAnalytics(html: string): string {
+	if (!analyticsConfig.enabled) return html;
+	
+	const orgId = getOrganizationId() || '';
+	const projectId = getProjectId() || '';
+	const isDevmode = runtimeIsDevMode();
+	
+	// Only include static config - session/thread come from cookies
+	const pageConfig = {
+		...analyticsConfig,
+		orgId,
+		projectId,
+		isDevmode,
+	};
+	
+	const configScript = `<script>window.__AGENTUITY_ANALYTICS__=${JSON.stringify(pageConfig)};</script>`;
+	// Session script sets cookies and window.__AGENTUITY_SESSION__ (dynamic, not cached)
+	const sessionScript = '<script src="/_agentuity/webanalytics/session.js" async></script>';
+	// Beacon script reads from __AGENTUITY_SESSION__ and sends events (static, cached)
+	const beaconScript = '<script src="/_agentuity/webanalytics/analytics.js" async></script>';
+	const injection = configScript + sessionScript + beaconScript;
+	
+	// Inject before </head> or at start of <body>
+	if (html.includes('</head>')) {
+		return html.replace('</head>', injection + '</head>');
+	}
+	if (html.includes('<body')) {
+		return html.replace(/<body([^>]*)>/, `<body$1>${injection}`);
+	}
+	return injection + html;
+}
+
+// Serve analytics routes
+function registerAnalyticsRoutes(app: ReturnType<typeof createRouter>): void {
+	// Dynamic session config script - sets cookies and returns session/thread IDs
+	// This endpoint is NOT cached - it generates unique session data per request
+	app.get('/_agentuity/webanalytics/session.js', createWebSessionMiddleware(), async (c: Context) => {
+		const sessionId = c.get('sessionId') || '';
+		const thread = c.get('thread');
+		const threadId = thread?.id || '';
+		
+		const sessionScript = `window.__AGENTUITY_SESSION__={sessionId:"${sessionId}",threadId:"${threadId}"};`;
+		
+		return new Response(sessionScript, {
+			headers: {
+				'Content-Type': 'application/javascript; charset=utf-8',
+				'Cache-Control': 'no-store, no-cache, must-revalidate',
+			},
+		});
+	});
+
+	// Static beacon script - can be cached
+	app.get('/_agentuity/webanalytics/analytics.js', async (c: Context) => {
+		// Beacon waits for window.__AGENTUITY_SESSION__ before sending events
+		const beaconScript = `(function(){
+var w=window,d=document,c=w.__AGENTUITY_ANALYTICS__;
+if(!c||!c.enabled)return;
+var q=[],t=null,sr=false,E='/_agentuity/webanalytics/collect',geo=null;
+function id(){return crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).substr(2,9)}
+function base(type){var e={id:id(),timestamp:Date.now(),timezone_offset:new Date().getTimezoneOffset(),event_type:type,url:location.href,path:location.pathname,referrer:d.referrer||'',title:d.title||'',screen_width:screen.width||0,screen_height:screen.height||0,viewport_width:innerWidth||0,viewport_height:innerHeight||0,device_pixel_ratio:devicePixelRatio||1,user_agent:navigator.userAgent||'',language:navigator.language||''};if(geo){e.country=geo.country||'';e.region=geo.region||'';e.city=geo.city||'';e.timezone=geo.timezone||''}return e}
+fetch('https://agentuity.sh/location').then(function(r){return r.json()}).then(function(g){geo=g;try{sessionStorage.setItem('agentuity_geo',JSON.stringify(g))}catch(e){}}).catch(function(){try{var cached=sessionStorage.getItem('agentuity_geo');if(cached)geo=JSON.parse(cached)}catch(e){}});try{var cached=sessionStorage.getItem('agentuity_geo');if(cached)geo=JSON.parse(cached)}catch(e){}
+function getSession(){return w.__AGENTUITY_SESSION__}
+function waitForSession(cb){var s=getSession();if(s){cb(s);return}var attempts=0,maxAttempts=50;var iv=setInterval(function(){s=getSession();if(s||++attempts>=maxAttempts){clearInterval(iv);cb(s)}},100)}
+function doFlush(s){if(!q.length)return;var events=q.splice(0);if(c.isDevmode){console.debug('[Agentuity Analytics]',events);return}var sid=s?s.sessionId:'',tid=s?s.threadId:'';var p={org_id:c.orgId,project_id:c.projectId,session_id:sid,thread_id:tid,visitor_id:localStorage.getItem('agentuity_vid')||'vid_'+id(),events:events};try{localStorage.setItem('agentuity_vid',p.visitor_id)}catch(e){}navigator.sendBeacon?navigator.sendBeacon(E,JSON.stringify(p)):fetch(E,{method:'POST',body:JSON.stringify(p),keepalive:true}).catch(function(){})}
+function flush(){if(sr){doFlush(getSession())}else{waitForSession(function(s){sr=true;doFlush(s)})}}
+function queue(e){if(c.sampleRate<1&&Math.random()>c.sampleRate)return;q.push(e);q.length>=10?flush():t||(t=setTimeout(function(){t=null;flush()},5000))}
+function pv(){var e=base('pageview');if(performance.getEntriesByType){var n=performance.getEntriesByType('navigation')[0];if(n){e.load_time=Math.round(n.loadEventEnd-n.startTime);e.dom_ready=Math.round(n.domContentLoadedEventEnd-n.startTime);e.ttfb=Math.round(n.responseStart-n.requestStart)}}queue(e)}
+w.addEventListener('visibilitychange',function(){d.visibilityState==='hidden'&&flush()});
+w.addEventListener('pagehide',flush);
+if(c.trackSPANavigation){var op=history.pushState,or=history.replaceState,cp=location.pathname;function ch(){var np=location.pathname;np!==cp&&(cp=np,pv())}history.pushState=function(){op.apply(this,arguments);ch()};history.replaceState=function(){or.apply(this,arguments);ch()};w.addEventListener('popstate',ch)}
+if(c.trackErrors){w.addEventListener('error',function(e){var ev=base('error');ev.event_name='js_error';ev.event_data={message:e.message||'Unknown',filename:e.filename||'',lineno:e.lineno||0};queue(ev)});w.addEventListener('unhandledrejection',function(e){var ev=base('error');ev.event_name='unhandled_rejection';ev.event_data={message:e.reason instanceof Error?e.reason.message:String(e.reason)};queue(ev)})}
+if(c.trackClicks){d.addEventListener('click',function(e){var t=e.target;if(!t)return;var a=t.closest('[data-analytics]');if(!a)return;var ev=base('click');ev.event_name=a.getAttribute('data-analytics');queue(ev)},true)}
+if(c.trackScroll){var ms=new Set(),mx=0;function gs(){var st=w.scrollY||d.documentElement.scrollTop,sh=d.documentElement.scrollHeight-d.documentElement.clientHeight;return sh<=0?100:Math.min(100,Math.round(st/sh*100))}w.addEventListener('scroll',function(){var dp=gs();if(dp>mx)mx=dp;[25,50,75,100].forEach(function(m){if(dp>=m&&!ms.has(m)){ms.add(m);var ev=base('scroll');ev.event_name='scroll_'+m;ev.scroll_depth=m;queue(ev)}})},{passive:true})}
+if(c.trackWebVitals!==false&&typeof PerformanceObserver!=='undefined'){var wvLcp=0,wvCls=0,wvInp=0,wvPath=location.pathname,wvSent={};function wvReset(){wvLcp=0;wvCls=0;wvInp=0;wvSent={}}function wvSend(){var p=wvPath;if(wvLcp>0&&!wvSent.lcp){wvSent.lcp=1;var ev=base('web_vital');ev.event_name='lcp';ev.lcp=Math.round(wvLcp);ev.path=p;queue(ev)}if(!wvSent.cls){wvSent.cls=1;var ev=base('web_vital');ev.event_name='cls';ev.cls=Math.round(wvCls*1000)/1000;ev.path=p;queue(ev)}if(wvInp>0&&!wvSent.inp){wvSent.inp=1;var ev=base('web_vital');ev.event_name='inp';ev.inp=Math.round(wvInp);ev.path=p;queue(ev)}flush()}try{var fcpObs=new PerformanceObserver(function(l){l.getEntries().forEach(function(e){if(e.name==='first-contentful-paint'){var ev=base('web_vital');ev.event_name='fcp';ev.fcp=Math.round(e.startTime);queue(ev);flush();fcpObs.disconnect()}})});fcpObs.observe({type:'paint',buffered:true})}catch(e){}try{new PerformanceObserver(function(l){var entries=l.getEntries();if(entries.length)wvLcp=entries[entries.length-1].startTime}).observe({type:'largest-contentful-paint',buffered:true})}catch(e){}try{new PerformanceObserver(function(l){l.getEntries().forEach(function(e){if(!e.hadRecentInput&&e.value)wvCls+=e.value})}).observe({type:'layout-shift',buffered:true})}catch(e){}try{new PerformanceObserver(function(l){l.getEntries().forEach(function(e){if(e.duration&&e.duration>wvInp)wvInp=e.duration})}).observe({type:'event',buffered:true})}catch(e){}d.addEventListener('visibilitychange',function(){if(d.visibilityState==='hidden')wvSend()});w.addEventListener('pagehide',wvSend);if(c.trackSPANavigation){var wvOp=history.pushState,wvOr=history.replaceState;function wvNav(){var np=location.pathname;if(np!==wvPath){wvSend();wvPath=np;wvReset()}}history.pushState=function(){wvOp.apply(this,arguments);wvNav()};history.replaceState=function(){wvOr.apply(this,arguments);wvNav()};w.addEventListener('popstate',wvNav)}}
+d.readyState==='complete'?pv():w.addEventListener('load',pv);
+w.agentuityAnalytics={track:function(n,p){var e=base('custom');e.event_name=n;if(p)e.event_data=p;queue(e)},flush:flush};
+})();`;
+		
+		return new Response(beaconScript, {
+			headers: {
+				'Content-Type': 'application/javascript; charset=utf-8',
+				'Cache-Control': 'public, max-age=3600',
+			},
+		});
+	});
+}
 
 // Step 0: Bootstrap runtime environment (load profile-specific .env files)
 // Only in development - production env vars are injected by platform
@@ -159,6 +269,9 @@ if (isDevelopment()) {
 		}
 	});
 }
+
+// Register analytics routes (if enabled)
+registerAnalyticsRoutes(app);
 
 // Asset proxy routes - Development mode only (proxies to Vite asset server)
 if (isDevelopment() && process.env.VITE_PORT) {

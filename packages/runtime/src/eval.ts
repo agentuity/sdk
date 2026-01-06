@@ -14,7 +14,8 @@ export type EvalRunResultMetadata = {
 export const EvalHandlerResultSchema = z.object({
 	passed: z.boolean(),
 	score: z.number().min(0).max(1).optional(),
-	metadata: z.record(z.string(), z.any()),
+	reason: z.string().optional(),
+	metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export type EvalHandlerResult = z.infer<typeof EvalHandlerResultSchema>;
@@ -24,7 +25,8 @@ export const EvalRunResultSuccessSchema = z.object({
 	success: z.literal(true),
 	passed: z.boolean(),
 	score: z.number().min(0).max(1).optional(),
-	metadata: z.record(z.string(), z.any()),
+	reason: z.string().optional(),
+	metadata: z.record(z.string(), z.any()).optional(),
 });
 
 export type EvalRunResultSuccess = z.infer<typeof EvalRunResultSuccessSchema>;
@@ -33,7 +35,8 @@ export type EvalRunResultError = {
 	success: false;
 	passed: false;
 	error: string;
-	metadata: EvalRunResultMetadata;
+	reason?: string;
+	metadata?: EvalRunResultMetadata;
 };
 
 export type EvalRunResult = EvalRunResultSuccess | EvalRunResultError;
@@ -49,17 +52,17 @@ export type CreateEvalRunRequest = {
 
 type InternalEvalMetadata = {
 	/**
-	 * the unique identifier for this eval and project
+	 * the unique deployment-specific id for this eval (evalid_...)
 	 */
 	id: string;
 	/**
-	 * the unique identifier for this project and eval across multiple deployments.
-	 */
-	evalId: string;
-	/**
-	 * the folder name for the eval
+	 * the stable identifier for this project and eval across multiple deployments (eval_...)
 	 */
 	identifier: string;
+	/**
+	 * the human readable name for the eval
+	 */
+	name: string;
 	/**
 	 * the relative path to the eval from the root project directory
 	 */

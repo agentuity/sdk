@@ -6,6 +6,7 @@
 
 import { join } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, unlinkSync, readFileSync } from 'node:fs';
+import { stat } from 'node:fs/promises';
 import { StructuredError } from '@agentuity/core';
 import { toCamelCase, toPascalCase } from '../../../utils/string';
 import type { AgentMetadata } from './agent-discovery';
@@ -27,6 +28,28 @@ const ROUTE_PARAM_CHARS = /^[:*]|[?+*]$/g;
  */
 function sanitizePathSegment(segment: string): string {
 	return toCamelCase(segment.replace(ROUTE_PARAM_CHARS, ''));
+}
+
+/**
+ * Generate TypeScript type for path parameters.
+ * Returns 'never' if no path params, or '{ param1: string; param2: string }' format.
+ */
+function generatePathParamsType(pathParams?: string[]): string {
+	if (!pathParams || pathParams.length === 0) {
+		return 'never';
+	}
+	return `{ ${pathParams.map((p) => `${p}: string`).join('; ')} }`;
+}
+
+/**
+ * Generate TypeScript tuple type for path parameters (for positional args).
+ * Returns '[]' if no path params, or '[string, string]' format.
+ */
+function generatePathParamsTupleType(pathParams?: string[]): string {
+	if (!pathParams || pathParams.length === 0) {
+		return '[]';
+	}
+	return `[${pathParams.map(() => 'string').join(', ')}]`;
 }
 
 /**
@@ -362,8 +385,10 @@ function generateRPCRegistryType(
 				jsdoc.push(`${indent} */`);
 				lines.push(...jsdoc);
 
+				const pathParamsType = generatePathParamsType(routeInfo.pathParams);
+				const pathParamsTupleType = generatePathParamsTupleType(routeInfo.pathParams);
 				lines.push(
-					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type} };`
+					`${indent}${key}: { input: ${value.input}; output: ${value.output}; type: ${value.type}; params: ${pathParamsType}; paramsTuple: ${pathParamsTupleType} };`
 				);
 			} else {
 				// Nested node
@@ -393,7 +418,7 @@ function generateRPCRuntimeMetadata(
 	sseRoutes: RouteInfo[]
 ): string {
 	interface MetadataNode {
-		[key: string]: MetadataNode | { type: string };
+		[key: string]: MetadataNode | { type: string; path: string; pathParams?: string[] };
 	}
 
 	const tree: MetadataNode = {};
@@ -431,7 +456,14 @@ function generateRPCRuntimeMetadata(
 						? 'stream'
 						: route.method.toLowerCase();
 
-		current[terminalMethod] = { type: routeType };
+		const metadata: { type: string; path: string; pathParams?: string[] } = {
+			type: routeType,
+			path: route.path,
+		};
+		if (route.pathParams && route.pathParams.length > 0) {
+			metadata.pathParams = route.pathParams;
+		}
+		current[terminalMethod] = metadata;
 	};
 
 	apiRoutes.forEach((r) => addRoute(r, r.routeType === 'stream' ? 'stream' : 'api'));
@@ -461,15 +493,15 @@ function generateRPCRuntimeMetadata(
  * Creates a module augmentation for @agentuity/react that provides
  * strongly-typed route keys with input/output schema information.
  */
-export function generateRouteRegistry(
+export async function generateRouteRegistry(
 	srcDir: string,
 	routes: RouteInfo[],
 	agents: AgentMetadata[] = []
-): void {
-	// Check if project uses @agentuity/react
+): Promise<void> {
 	const projectRoot = join(srcDir, '..');
 	const packageJsonPath = join(projectRoot, 'package.json');
 	let hasReactDependency = false;
+	let hasFrontendDependency = false;
 
 	try {
 		const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
@@ -477,9 +509,24 @@ export function generateRouteRegistry(
 			packageJson.dependencies?.['@agentuity/react'] ||
 			packageJson.devDependencies?.['@agentuity/react']
 		);
+		hasFrontendDependency = !!(
+			packageJson.dependencies?.['@agentuity/frontend'] ||
+			packageJson.devDependencies?.['@agentuity/frontend']
+		);
 	} catch {
-		// If we can't read package.json, assume no React dependency
+		// If we can't read package.json, assume no frontend dependencies
 	}
+
+	const webDir = join(srcDir, 'web');
+	let hasWebDirectory = false;
+	try {
+		const webDirStat = await stat(webDir);
+		hasWebDirectory = webDirStat.isDirectory();
+	} catch {
+		// Directory doesn't exist
+	}
+
+	const shouldEmitFrontendClient = hasFrontendDependency && !hasReactDependency && hasWebDirectory;
 
 	// Filter routes by type and sort by path for deterministic output
 	const sortByPath = (a: RouteInfo, b: RouteInfo) => a.path.localeCompare(b.path);
@@ -769,13 +816,18 @@ export function generateRouteRegistry(
 		// because only 'json' validators extract input schemas
 		// Also check if agentVariable exists but import wasn't added (missing agentImportPath)
 		const hasValidAgentImport = route.agentVariable ? !!importName : false;
+
+		// Generate pathParams type
+		const pathParamsType = generatePathParamsType(route.pathParams);
+
 		if (!route.inputSchemaVariable && !route.outputSchemaVariable && !hasValidAgentImport) {
 			const streamValue = route.stream === true ? 'true' : 'false';
 			return `\t'${routeKey}': {
-\t\tinputSchema: never;
-\t\toutputSchema: never;
-\t\tstream: ${streamValue};
-\t};`;
+		\t\tinputSchema: never;
+		\t\toutputSchema: never;
+		\t\tstream: ${streamValue};
+		\t\tparams: ${pathParamsType};
+		\t};`;
 		}
 		const streamValue = importName
 			? `typeof ${importName} extends { stream?: infer S } ? S : false`
@@ -784,10 +836,11 @@ export function generateRouteRegistry(
 				: 'false';
 
 		return `\t'${routeKey}': {
-\t\tinputSchema: ${pascalName}InputSchema;
-\t\toutputSchema: ${pascalName}OutputSchema;
-\t\tstream: ${streamValue};
-\t};`;
+		\t\tinputSchema: ${pascalName}InputSchema;
+		\t\toutputSchema: ${pascalName}OutputSchema;
+		\t\tstream: ${streamValue};
+		\t\tparams: ${pathParamsType};
+		\t};`;
 	};
 
 	// Generate route entries with METHOD prefix for API routes
@@ -817,7 +870,7 @@ export function generateRouteRegistry(
 	const generatedContent = `// @generated
 // Auto-generated by Agentuity - DO NOT EDIT
 ${importsStr}${typeImports}${
-		!hasReactDependency
+		shouldEmitFrontendClient
 			? `
 import { createClient } from '@agentuity/frontend';`
 			: ''
@@ -842,7 +895,7 @@ ${routeSchemaTypes}
  * Individual route Input/Output types are exported above for direct usage.
  */
 ${
-	!hasReactDependency
+	shouldEmitFrontendClient
 		? `
 /**
  * RPC Route Registry
@@ -907,13 +960,14 @@ if (typeof globalThis !== 'undefined') {
 	(globalThis as Record<string, unknown>).__rpcRouteMetadata = _rpcRouteMetadata;
 }
 ${
-	!hasReactDependency
+	shouldEmitFrontendClient
 		? `
 /**
  * Create a type-safe API client with optional configuration.
  *
- * This function is only generated when @agentuity/react is not installed.
- * If using React, import createAPIClient from '@agentuity/react' instead.
+ * This function is only generated when @agentuity/frontend is installed
+ * but @agentuity/react is not. For React apps, import createAPIClient
+ * from '@agentuity/react' instead.
  *
  * @example
  * \`\`\`typescript
@@ -932,7 +986,8 @@ export function createAPIClient(options?: Parameters<typeof createClient>[0]): i
 	return createClient(options || {}, _rpcRouteMetadata) as import('@agentuity/frontend').Client<RPCRouteRegistry>;
 }
 `
-		: `
+		: hasReactDependency
+			? `
 /**
  * Type-safe API client is available from @agentuity/react
  *
@@ -945,6 +1000,7 @@ export function createAPIClient(options?: Parameters<typeof createClient>[0]): i
  * \`\`\`
  */
 `
+			: ''
 }
 
 // FOUND AN ERROR IN THIS FILE?
@@ -955,9 +1011,7 @@ export function createAPIClient(options?: Parameters<typeof createClient>[0]): i
 	const generatedDir = join(srcDir, 'generated');
 	const registryPath = join(generatedDir, 'routes.ts');
 
-	if (!existsSync(generatedDir)) {
-		mkdirSync(generatedDir, { recursive: true });
-	}
+	mkdirSync(generatedDir, { recursive: true });
 
 	// Collapse 2+ consecutive empty lines into 1 empty line (3+ \n becomes 2 \n)
 	const cleanedContent = generatedContent.replace(/\n{3,}/g, '\n\n');

@@ -967,9 +967,19 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 			if (callExpr.callee.type === 'Identifier') {
 				const identifier = callExpr.callee as ASTNodeIdentifier;
 				if (identifier.name === 'validator') {
-					// Try to extract schema variables from validator({ input, output })
+					// Try to extract schema variables from validator({ input, output, stream })
 					const schemas = extractValidatorSchemas(callExpr);
-					return { hasValidator: true, ...schemas };
+					// Return if we found any schema variables OR a stream flag
+					if (
+						schemas.inputSchemaVariable ||
+						schemas.outputSchemaVariable ||
+						schemas.stream !== undefined
+					) {
+						return { hasValidator: true, ...schemas };
+					}
+					// Try Hono validator('json', callback) pattern
+					const honoSchemas = extractHonoValidatorSchema(callExpr);
+					return { hasValidator: true, ...honoSchemas };
 				}
 				// Check for zValidator('json', schema)
 				if (identifier.name === 'zValidator') {
@@ -1127,6 +1137,114 @@ function extractZValidatorSchema(callExpr: ASTCallExpression): {
 	// TODO: Extract inline schema code
 
 	return result;
+}
+
+/**
+ * Extract schema from Hono validator('json', callback) pattern
+ * Example: validator('json', (value, c) => { const result = mySchema['~standard'].validate(value); ... })
+ * Searches the callback function body for schema.validate() or schema['~standard'].validate() calls
+ */
+function extractHonoValidatorSchema(callExpr: ASTCallExpression): {
+	inputSchemaVariable?: string;
+} {
+	const result: { inputSchemaVariable?: string } = {};
+
+	// Hono validator requires at least 2 arguments: validator(target, callback)
+	if (!callExpr.arguments || callExpr.arguments.length < 2) {
+		return result;
+	}
+
+	// First argument should be 'json' literal (only extract for JSON validation)
+	const targetArg = callExpr.arguments[0] as ASTNode;
+	if (targetArg.type === 'Literal') {
+		const targetValue = (targetArg as ASTLiteral).value;
+		if (typeof targetValue === 'string' && targetValue !== 'json') {
+			return result;
+		}
+	} else {
+		return result;
+	}
+
+	// Second argument should be a function (arrow or regular)
+	const callbackArg = callExpr.arguments[1] as ASTNode;
+	if (
+		callbackArg.type !== 'ArrowFunctionExpression' &&
+		callbackArg.type !== 'FunctionExpression'
+	) {
+		return result;
+	}
+
+	// Get the function body
+	const funcExpr = callbackArg as {
+		body?: ASTNode;
+	};
+
+	if (!funcExpr.body) {
+		return result;
+	}
+
+	// Search the function body for schema.validate() or schema['~standard'].validate() calls
+	const schemaVar = findSchemaValidateCall(funcExpr.body);
+	if (schemaVar) {
+		result.inputSchemaVariable = schemaVar;
+	}
+
+	return result;
+}
+
+/**
+ * Recursively search AST for schema.validate() or schema['~standard'].validate() calls
+ * Returns the schema variable name if found
+ */
+function findSchemaValidateCall(node: ASTNode): string | undefined {
+	if (!node || typeof node !== 'object') return undefined;
+
+	// Check if this is a CallExpression with .validate()
+	if (node.type === 'CallExpression') {
+		const callExpr = node as ASTCallExpression;
+
+		// Check for schema['~standard'].validate(value) pattern
+		// AST: CallExpression -> MemberExpression(validate) -> MemberExpression(['~standard']) -> Identifier(schema)
+		if (callExpr.callee.type === 'MemberExpression') {
+			const member = callExpr.callee as ASTMemberExpression;
+			const propName =
+				member.property.type === 'Identifier'
+					? (member.property as ASTNodeIdentifier).name
+					: undefined;
+
+			if (propName === 'validate') {
+				// Check if the object is schema['~standard'] or just schema
+				if (member.object.type === 'MemberExpression') {
+					// schema['~standard'].validate() pattern
+					const innerMember = member.object as ASTMemberExpression;
+					if (innerMember.object.type === 'Identifier') {
+						return (innerMember.object as ASTNodeIdentifier).name;
+					}
+				} else if (member.object.type === 'Identifier') {
+					// schema.validate() pattern
+					return (member.object as ASTNodeIdentifier).name;
+				}
+			}
+		}
+	}
+
+	// Recursively search child nodes
+	for (const key of Object.keys(node)) {
+		const value = (node as unknown as Record<string, unknown>)[key];
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				if (item && typeof item === 'object') {
+					const found = findSchemaValidateCall(item as ASTNode);
+					if (found) return found;
+				}
+			}
+		} else if (value && typeof value === 'object') {
+			const found = findSchemaValidateCall(value as ASTNode);
+			if (found) return found;
+		}
+	}
+
+	return undefined;
 }
 
 export async function parseRoute(

@@ -87,7 +87,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			}
 
 			if (routeInfoList.length > 0) {
-				generateRouteRegistry(srcDir, routeInfoList, agents);
+				await generateRouteRegistry(srcDir, routeInfoList, agents);
 				logger.trace('Generated route registry with %d route(s)', routeInfoList.length);
 			}
 
@@ -96,7 +96,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			const lifecycleResult = await generateLifecycleTypes(rootDir, srcDir, logger);
 			logger.debug(`[vite-plugin] generateLifecycleTypes returned: ${lifecycleResult}`);
 
-			// Generate entry file (pass workbench config for route mounting)
+			// Generate entry file (pass workbench and analytics config)
 			await generateEntryFile({
 				rootDir,
 				projectId,
@@ -104,6 +104,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 				logger,
 				mode: dev ? 'dev' : 'prod',
 				workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
+				analytics: config?.analytics,
 			});
 
 			logger.trace('buildStart: Discovery complete');

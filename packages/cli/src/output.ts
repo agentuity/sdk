@@ -1,4 +1,5 @@
 import type { GlobalOptions } from './types';
+import { isTTYLike } from './tui';
 
 /**
  * Output formatting utilities for agent-friendly CLI
@@ -59,7 +60,7 @@ export function shouldDisableColors(options: GlobalOptions): boolean {
 		return false;
 	}
 	// auto mode - disable in JSON/quiet mode or non-TTY
-	return options.json === true || options.quiet === true || !process.stdout.isTTY;
+	return options.json === true || options.quiet === true || !isTTYLike();
 }
 
 /**
