@@ -18,6 +18,7 @@ import {
 	getColor,
 	plural,
 	sourceLink,
+	getTerminalWidth,
 	truncateToWidth,
 } from './tui';
 import { symbols } from './tui/symbols';
@@ -318,7 +319,7 @@ export async function formatTypeScriptErrors(
 	}
 
 	// Calculate terminal constraints
-	const terminalWidth = process.stdout.columns || 80;
+	const terminalWidth = getTerminalWidth(80);
 	const boxChrome = 6;
 	const maxAvailableWidth = terminalWidth - boxChrome;
 

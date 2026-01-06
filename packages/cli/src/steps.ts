@@ -8,7 +8,8 @@
 import type { ColorScheme } from './terminal';
 import type { LogLevel } from './types';
 import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server';
-import { clearLastLines } from './tui';
+import { clearLastLines, isTTYLike } from './tui';
+import { appendLog, isLogCollectionEnabled } from './log-collector';
 
 // Spinner frames
 const FRAMES = ['◐', '◓', '◑', '◒'];
@@ -130,6 +131,38 @@ function renderStepLine(step: StepState, spinner?: string): string {
 }
 
 /**
+ * Generate a clean log line for a completed step (no ANSI, no animation)
+ */
+function getCleanStepLog(step: StepState): string {
+	if (step.status === 'success') {
+		return `${ICONS.success} ${step.label}`;
+	} else if (step.status === 'skipped') {
+		const reason = step.skipReason ? ` (${step.skipReason})` : '';
+		return `${ICONS.skipped} ${step.label}${reason}`;
+	} else if (step.status === 'error') {
+		const error = step.errorMessage ? `: ${step.errorMessage}` : '';
+		return `${ICONS.error} ${step.label}${error}`;
+	}
+	return `${ICONS.pending} ${step.label}`;
+}
+
+/**
+ * Emit clean log for a completed step if log collection is enabled
+ */
+function emitCleanStepLog(step: StepState): void {
+	if (!isLogCollectionEnabled()) return;
+
+	appendLog(getCleanStepLog(step));
+
+	// Also emit any output lines
+	if (step.output && step.output.length > 0) {
+		for (const line of step.output) {
+			appendLog(`  ${line}`);
+		}
+	}
+}
+
+/**
  * Render all steps from state, including output boxes
  * Returns the rendered output and total line count
  */
@@ -212,7 +245,7 @@ function enablePauseResume(
  * Returns resume function
  */
 export function pauseStepUI(clear = false): () => void {
-	if (!process.stdout.isTTY || !getTotalLinesFn) {
+	if (!isTTYLike() || !getTotalLinesFn) {
 		return () => {}; // No-op if not TTY or not in step context
 	}
 
@@ -466,6 +499,9 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 				activeInterval = null;
 			}
 
+			// Emit clean log for this step (for external log collection)
+			emitCleanStepLog(stepState);
+
 			// Final render with outcome
 			stepState.progress = undefined;
 			const finalRender = renderAllSteps(state, -1);
@@ -529,6 +565,19 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
 			};
 		}
 
+		// Build step state for clean log emission
+		const stepState: StepState = {
+			label: step.label,
+			status: outcome.status,
+			output: outcome.output,
+			skipReason: outcome.status === 'skipped' ? outcome.reason : undefined,
+			errorMessage: outcome.status === 'error' ? outcome.message : undefined,
+			errorCause: outcome.status === 'error' ? outcome.cause : undefined,
+		};
+
+		// Emit clean log for this step
+		emitCleanStepLog(stepState);
+
 		// Print final state
 		if (outcome.status === 'success') {
 			console.log(`${greenColor}${ICONS.success}${COLORS.reset} ${step.label}`);
@@ -579,8 +628,7 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
  * Run a series of steps with animated progress
  */
 export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void> {
-	const useTUI =
-		process.stdout.isTTY && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
+	const useTUI = isTTYLike() && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
 
 	if (useTUI) {
 		await runStepsTUI(steps);

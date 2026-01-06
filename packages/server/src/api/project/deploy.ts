@@ -164,6 +164,10 @@ const CreateProjectDeployment = z.object({
 	id: z.string().describe('the unique id for the deployment'),
 	orgId: z.string().describe('the organization id'),
 	publicKey: z.string().describe('the public key to use for encrypting the deployment'),
+	buildLogsStreamURL: z
+		.string()
+		.optional()
+		.describe('the URL for streaming build logs (PUT to write, GET to read)'),
 });
 
 const CreateProjectDeploymentSchema = APIResponseSchema(CreateProjectDeployment);
@@ -313,4 +317,96 @@ export async function projectDeploymentStatus(
 		return resp.data;
 	}
 	throw new ProjectResponseError({ message: resp.message });
+}
+
+export interface ClientDiagnosticsError {
+	type: 'file' | 'general';
+	scope: 'typescript' | 'ast' | 'build' | 'bundler' | 'validation' | 'deploy';
+	path?: string;
+	line?: number;
+	column?: number;
+	message: string;
+	code?: string;
+}
+
+export interface ClientDiagnosticsTiming {
+	name: string;
+	startedAt: string;
+	completedAt: string;
+	durationMs: number;
+}
+
+export interface ClientDiagnostics {
+	success: boolean;
+	errors: ClientDiagnosticsError[];
+	warnings: ClientDiagnosticsError[];
+	diagnostics: ClientDiagnosticsTiming[];
+	error?: string;
+}
+
+export interface DeploymentFailPayload {
+	error?: string;
+	diagnostics?: ClientDiagnostics;
+}
+
+const ClientDiagnosticsErrorSchema = z.object({
+	type: z.enum(['file', 'general']),
+	scope: z.enum(['typescript', 'ast', 'build', 'bundler', 'validation', 'deploy']),
+	path: z.string().optional(),
+	line: z.number().optional(),
+	column: z.number().optional(),
+	message: z.string(),
+	code: z.string().optional(),
+});
+
+const ClientDiagnosticsTimingSchema = z.object({
+	name: z.string(),
+	startedAt: z.string(),
+	completedAt: z.string(),
+	durationMs: z.number(),
+});
+
+const ClientDiagnosticsSchema = z.object({
+	success: z.boolean(),
+	errors: z.array(ClientDiagnosticsErrorSchema),
+	warnings: z.array(ClientDiagnosticsErrorSchema),
+	diagnostics: z.array(ClientDiagnosticsTimingSchema),
+	error: z.string().optional(),
+});
+
+const DeploymentFailPayloadSchema = z.object({
+	error: z.string().optional(),
+	diagnostics: ClientDiagnosticsSchema.optional(),
+});
+
+const DeploymentFailResponseObject = z.object({
+	state: z.literal('failed'),
+});
+
+const DeploymentFailResponseSchema = APIResponseSchema(DeploymentFailResponseObject);
+type DeploymentFailResponse = z.infer<typeof DeploymentFailResponseSchema>;
+
+/**
+ * Report a deployment failure from the client
+ *
+ * @param client
+ * @param deploymentId
+ * @param payload - Error message and/or structured diagnostics
+ * @returns
+ */
+export async function projectDeploymentFail(
+	client: APIClient,
+	deploymentId: string,
+	payload: DeploymentFailPayload
+): Promise<void> {
+	const resp = await client.request<DeploymentFailResponse, DeploymentFailPayload>(
+		'POST',
+		`/cli/deploy/1/fail/${deploymentId}`,
+		DeploymentFailResponseSchema,
+		payload,
+		DeploymentFailPayloadSchema
+	);
+	if (!resp.success) {
+		throw new ProjectResponseError({ message: resp.message });
+	}
 }
