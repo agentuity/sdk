@@ -967,9 +967,14 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 			if (callExpr.callee.type === 'Identifier') {
 				const identifier = callExpr.callee as ASTNodeIdentifier;
 				if (identifier.name === 'validator') {
-					// Try to extract schema variables from validator({ input, output })
+					// Try to extract schema variables from validator({ input, output, stream })
 					const schemas = extractValidatorSchemas(callExpr);
-					if (schemas.inputSchemaVariable || schemas.outputSchemaVariable) {
+					// Return if we found any schema variables OR a stream flag
+					if (
+						schemas.inputSchemaVariable ||
+						schemas.outputSchemaVariable ||
+						schemas.stream !== undefined
+					) {
 						return { hasValidator: true, ...schemas };
 					}
 					// Try Hono validator('json', callback) pattern

@@ -84,7 +84,9 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 	].filter(Boolean);
 
 	imports.push(`import { type LogLevel } from '@agentuity/core';`);
-	imports.push(`import { bootstrapRuntimeEnv, patchBunS3ForStorageDev } from '@agentuity/runtime';`);
+	imports.push(
+		`import { bootstrapRuntimeEnv, patchBunS3ForStorageDev } from '@agentuity/runtime';`
+	);
 
 	// Generate route mounting code for all discovered routes
 	const routeImportsAndMounts: string[] = [];

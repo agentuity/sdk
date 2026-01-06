@@ -87,7 +87,9 @@ export default router;
 
 		const routesContent = await Bun.file(routesPath).text();
 
-		expect(routesContent).toContain("import type { createUserSchema as createUserSchema_0 } from '../api/users'");
+		expect(routesContent).toContain(
+			"import type { createUserSchema as createUserSchema_0 } from '../api/users'"
+		);
 		expect(routesContent).toContain('InferInput<typeof createUserSchema_0>');
 		expect(routesContent).toContain('export type POSTApiUsersInput');
 	});
