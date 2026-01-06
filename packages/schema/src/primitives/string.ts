@@ -1,5 +1,5 @@
 import type { Schema } from '../base';
-import { createIssue, failure, success, createParseMethods } from '../base';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -16,6 +16,7 @@ const parseMethods = createParseMethods<string>();
  * ```
  */
 export class StringSchema implements Schema<string, string> {
+	readonly [SCHEMA_KIND] = 'StringSchema';
 	description?: string;
 	private _min?: number;
 	private _max?: number;

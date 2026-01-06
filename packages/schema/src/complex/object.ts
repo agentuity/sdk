@@ -1,5 +1,5 @@
 import type { Schema, Infer } from '../base';
-import { createIssue, failure, success, createParseMethods } from '../base';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional, OptionalSchema } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -64,6 +64,7 @@ type ExtendShape<T extends ObjectShape, U extends ObjectShape> = Omit<T, keyof U
 export class ObjectSchema<T extends ObjectShape>
 	implements Schema<InferObjectShape<T>, InferObjectShape<T>>
 {
+	readonly [SCHEMA_KIND] = 'ObjectSchema';
 	description?: string;
 	private parseMethods = createParseMethods<InferObjectShape<T>>();
 

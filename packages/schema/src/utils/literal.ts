@@ -1,5 +1,5 @@
 import type { Schema } from '../base';
-import { createIssue, failure, success, createParseMethods } from '../base';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -16,6 +16,7 @@ import { nullable } from '../utils/nullable';
  * ```
  */
 export class LiteralSchema<T extends string | number | boolean> implements Schema<T, T> {
+	readonly [SCHEMA_KIND] = 'LiteralSchema';
 	description?: string;
 	private parseMethods = createParseMethods<T>();
 

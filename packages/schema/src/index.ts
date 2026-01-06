@@ -9,7 +9,7 @@ export type {
 	SafeParseSuccess,
 	SafeParseError,
 } from './base';
-export { createIssue, success, failure, ValidationError } from './base';
+export { createIssue, success, failure, ValidationError, SCHEMA_KIND } from './base';
 
 export { StringSchema, string } from './primitives/string';
 export { NumberSchema, number } from './primitives/number';
