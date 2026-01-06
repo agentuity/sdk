@@ -77,9 +77,37 @@ interface SourceContext {
 	before: string | null;
 	beforeLineNum: number;
 	current: string;
+	currentOriginal: string;
 	after: string | null;
 	afterLineNum: number;
 	total: number;
+}
+
+const TAB_WIDTH = 4;
+
+/**
+ * Convert tabs to spaces for consistent width calculation and display.
+ * Terminals render tabs with variable width (typically 8 spaces), but
+ * Bun.stringWidth() returns 0 for tabs, causing alignment issues.
+ */
+function expandTabs(str: string, tabWidth = TAB_WIDTH): string {
+	return str.replace(/\t/g, ' '.repeat(tabWidth));
+}
+
+/**
+ * Convert a column position from the original source (with tabs) to the
+ * expanded position (with tabs converted to spaces).
+ */
+function expandColumn(originalLine: string, col: number, tabWidth = TAB_WIDTH): number {
+	let expandedCol = 0;
+	for (let i = 0; i < col && i < originalLine.length; i++) {
+		if (originalLine[i] === '\t') {
+			expandedCol += tabWidth;
+		} else {
+			expandedCol += 1;
+		}
+	}
+	return expandedCol;
 }
 
 /**
@@ -100,15 +128,19 @@ async function getSourceContext(
 			return null;
 		}
 
-		const current = lines[lineNumber - 1];
-		const before = lineNumber > 1 ? lines[lineNumber - 2] : null;
-		const after = lineNumber < lines.length ? lines[lineNumber] : null;
+		const currentOriginal = lines[lineNumber - 1];
+		const current = expandTabs(currentOriginal);
+		const beforeRaw = lineNumber > 1 ? lines[lineNumber - 2] : null;
+		const afterRaw = lineNumber < lines.length ? lines[lineNumber] : null;
+		const before = beforeRaw !== null && beforeRaw.trim() !== '' ? expandTabs(beforeRaw) : null;
+		const after = afterRaw !== null && afterRaw.trim() !== '' ? expandTabs(afterRaw) : null;
 
 		return {
-			before: before !== null && before.trim() !== '' ? before : null,
+			before,
 			beforeLineNum: lineNumber - 1,
 			current,
-			after: after !== null && after.trim() !== '' ? after : null,
+			currentOriginal,
+			after,
 			afterLineNum: lineNumber + 1,
 			total: lines.length,
 		};
@@ -196,9 +228,13 @@ async function prepareError(
 		codeLines.push({ content: errorLineContent, rawWidth: getDisplayWidth(errorLineContent) });
 
 		// Error pointer line with carets
-		const col = Math.max(0, error.col - 1);
+		// Convert the original column (which may include tabs) to the expanded column position
+		const originalCol = Math.max(0, error.col - 1);
+		const expandedCol = expandColumn(context.currentOriginal, originalCol);
+
+		// Find identifier length in the expanded (displayed) content
 		let underlineLength = 1;
-		const restOfLine = context.current.slice(col);
+		const restOfLine = context.current.slice(expandedCol);
 		const identifierMatch = restOfLine.match(/^[a-zA-Z_$][a-zA-Z0-9_$]*/);
 		if (identifierMatch) {
 			underlineLength = identifierMatch[0].length;
@@ -210,7 +246,7 @@ async function prepareError(
 		}
 
 		const maxCaretWidth = maxAvailableWidth - linePrefix;
-		const caretStart = Math.min(col, maxCaretWidth - 1);
+		const caretStart = Math.min(expandedCol, maxCaretWidth - 1);
 		const caretLen = Math.min(underlineLength, maxCaretWidth - caretStart);
 		const carets = caretLen > 0 ? '^'.repeat(caretLen) : '^';
 		const caretPadding = ' '.repeat(caretStart);
