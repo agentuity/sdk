@@ -1,26 +1,31 @@
-import { type ChangeEvent, useCallback, useState } from 'react';
-import { useAPI } from '@agentuity/react';
-import './App.css'; // Styles for this component
+import { useAPI } from "@agentuity/react";
+import { type ChangeEvent, Fragment, useCallback, useState } from "react";
+import "./App.css";
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
-
+const LANGUAGES = ["Spanish", "French", "German", "Chinese"] as const;
+const MODELS = ["gpt-5-nano", "gpt-5-mini", "gpt-5"] as const;
 const DEFAULT_TEXT =
-	'Welcome to Agentuity! This translation agent shows what you can build with the platform. It connects to AI models through our gateway, tracks usage with thread state, and runs quality checks automatically. Try translating this text into different languages to see the agent in action, and check the terminal for more details.';
-
-const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
-const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
+	"Welcome to Agentuity! This translation agent shows what you can build with the platform. It connects to AI models through our gateway, tracks usage with thread state, and runs quality checks automatically. Try translating this text into different languages to see the agent in action, and check the terminal for more details.";
 
 export function App() {
 	const [text, setText] = useState(DEFAULT_TEXT);
-	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
-	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5-nano');
-	const [hoveredHistoryIndex, setHoveredHistoryIndex] = useState<number | null>(null);
-	const [hoveredBadge, setHoveredBadge] = useState<'thread' | 'session' | null>(null);
+	const [toLanguage, setToLanguage] =
+		useState<(typeof LANGUAGES)[number]>("Spanish");
+	const [model, setModel] = useState<(typeof MODELS)[number]>("gpt-5-nano");
 
 	// RESTful API hooks for translation operations
-	const { data: historyData, refetch: refetchHistory } = useAPI('GET /api/translate/history');
-	const { data: translateResult, invoke: translate, isLoading } = useAPI('POST /api/translate');
-	const { invoke: clearHistory } = useAPI('DELETE /api/translate/history');
+	const { data: historyData, refetch: refetchHistory } = useAPI(
+		"GET /api/translate/history",
+	);
+
+	const {
+		data: translateResult,
+		invoke: translate,
+		isLoading,
+	} = useAPI("POST /api/translate");
+
+	const { invoke: clearHistory } = useAPI("DELETE /api/translate/history");
 
 	// Prefer fresh data from translation, fall back to initial fetch
 	const history = translateResult?.history ?? historyData?.history ?? [];
@@ -36,13 +41,14 @@ export function App() {
 	}, [clearHistory, refetchHistory]);
 
 	return (
-		<div className="app-container">
-			<div className="content-wrapper">
-				<div className="header">
+		<div className="text-white flex font-sans justify-center min-h-screen">
+			<div className="flex flex-col gap-4 max-w-3xl p-16 w-full">
+				{/* Header */}
+				<div className="items-center flex flex-col gap-2 justify-center mb-8 relative text-center">
 					<svg
 						aria-hidden="true"
 						aria-label="Agentuity Logo"
-						className="logo"
+						className="h-auto mb-4 w-12"
 						fill="none"
 						height="191"
 						viewBox="0 0 220 191"
@@ -52,270 +58,318 @@ export function App() {
 						<path
 							clipRule="evenodd"
 							d="M220 191H0L31.427 136.5H0L8 122.5H180.5L220 191ZM47.5879 136.5L24.2339 177H195.766L172.412 136.5H47.5879Z"
-							fill="#00FFFF"
+							fill="var(--color-cyan-500)"
 							fillRule="evenodd"
 						/>
 						<path
 							clipRule="evenodd"
 							d="M110 0L157.448 82.5H189L197 96.5H54.5L110 0ZM78.7021 82.5L110 28.0811L141.298 82.5H78.7021Z"
-							fill="#00FFFF"
+							fill="var(--color-cyan-500)"
 							fillRule="evenodd"
 						/>
 					</svg>
 
-					<h1 className="title">Translation Agent</h1>
+					<h1 className="text-5xl font-thin">Welcome to Agentuity</h1>
 
-					<p className="subtitle">
-						Powered by <span className="italic">Agentuity</span>
-					</p>
+					<p className="text-gray-400 text-lg">The <span className="italic font-serif">Full-Stack</span> Platform for AI Agents</p>
 				</div>
 
-				<div className="card card-interactive">
-					<div className="controls-row">
-						<span className="control-label">
-							Translate to{' '}
-							<select
-								className="inline-select"
-								disabled={isLoading}
-								onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-									setToLanguage(e.currentTarget.value as (typeof LANGUAGES)[number])
-								}
-								value={toLanguage}
-							>
-								{LANGUAGES.map((lang) => (
-									<option key={lang} value={lang}>
-										{lang}
-									</option>
-								))}
-							</select>
-						</span>
+				{/* Translate Form */}
+				<div className="bg-black border border-gray-900 text-gray-400 rounded-lg p-8 shadow-2xl flex flex-col gap-6 ">
+					<div className="items-center flex flex-wrap gap-1.5">
+						Translate to
+						<select
+							className="appearance-none bg-transparent border-0 border-b border-dashed border-gray-700 text-white cursor-pointer font-normal outline-none hover:border-b-cyan-400 focus:border-b-cyan-400 -mb-0.5"
+							disabled={isLoading}
+							onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+								setToLanguage(
+									e.currentTarget.value as (typeof LANGUAGES)[number],
+								)
+							}
+							value={toLanguage}
+						>
+							{LANGUAGES.map((lang) => (
+								<option key={lang} value={lang}>
+									{lang}
+								</option>
+							))}
+						</select>
+						using
+						<select
+							className="appearance-none bg-transparent border-0 border-b border-dashed border-gray-700 text-white cursor-pointer font-normal outline-none hover:border-b-cyan-400 focus:border-b-cyan-400 -mb-0.5"
+							disabled={isLoading}
+							onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+								setModel(e.currentTarget.value as (typeof MODELS)[number])
+							}
+							value={model}
+						>
+							<option value="gpt-5-nano">GPT-5 Nano</option>
+							<option value="gpt-5-mini">GPT-5 Mini</option>
+							<option value="gpt-5">GPT-5</option>
+						</select>
+						<div className="relative group ml-auto z-0">
+							<div className="absolute inset-0 bg-linear-to-r from-cyan-700 via-blue-500 to-purple-600 rounded-lg blur-xl opacity-75 group-hover:blur-2xl group-hover:opacity-100 transition-all duration-700" />
 
-						<span className="control-label">
-							using{' '}
-							<select
-								className="inline-select"
-								disabled={isLoading}
-								onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-									setModel(e.currentTarget.value as (typeof MODELS)[number])
-								}
-								value={model}
-							>
-								<option value="gpt-5-nano">GPT-5 Nano</option>
-								<option value="gpt-5-mini">GPT-5 Mini</option>
-								<option value="gpt-5">GPT-5</option>
-							</select>
-						</span>
+							<div className="absolute inset-0 bg-cyan-500/50 rounded-lg blur-3xl opacity-50" />
 
-						<div className="glow-btn">
-							<div className="glow-bg" />
-							<div className="glow-effect" />
 							<button
-								className={`button ${isLoading ? 'disabled' : ''}`}
+								className="relative font-semibold text-white px-4 py-2 bg-gray-950 rounded-lg shadow-2xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
 								disabled={isLoading}
 								onClick={handleTranslate}
 								type="button"
+								data-loading={isLoading}
 							>
-								{isLoading ? 'Translating...' : 'Translate'}
+								{isLoading ? "Translating" : "Translate"}
 							</button>
 						</div>
 					</div>
 
 					<textarea
-						className="textarea"
+						className="text-sm bg-gray-950 border border-gray-800 rounded-md text-white resize-y py-3 px-4 min-h-28 focus:outline-cyan-500 focus:outline-2 focus:outline-offset-2 z-10"
 						disabled={isLoading}
-						onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.currentTarget.value)}
+						onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+							setText(e.currentTarget.value)
+						}
 						placeholder="Enter text to translate..."
 						rows={4}
 						value={text}
 					/>
 
+					{/* Translation Result */}
 					{isLoading ? (
-						<div className="output">
-							<span className="loading-text">
-								Translating to {toLanguage}
-								<span className="loading-dots">
-									<span>.</span>
-									<span>.</span>
-									<span>.</span>
-								</span>
-							</span>
+						<div
+							className="text-sm bg-gray-950 border border-gray-800 rounded-md text-gray-600 py-3 px-4"
+							data-loading
+						/>
+					) : !translateResult?.translation ? (
+						<div className="text-sm bg-gray-950 border border-gray-800 rounded-md text-gray-600 py-3 px-4">
+							Translation will appear here
 						</div>
-					) : translateResult?.translation ? (
-						<div className="result">
-							<div className="translation-output">{translateResult.translation}</div>
-							<div className="result-meta">
+					) : (
+						<div className="flex flex-col gap-3">
+							<div className="text-sm bg-gray-950 border border-gray-800 rounded-md text-cyan-500 py-3 px-4">
+								{translateResult.translation}
+							</div>
+
+							<div className="text-gray-500 flex text-xs gap-4">
 								{translateResult.tokens > 0 && (
-									<>
-										<span>
-											Tokens: <strong>{translateResult.tokens}</strong>
-										</span>
-										<span className="separator">|</span>
-									</>
-								)}
-								{translateResult.threadId && (
-									<span
-										className="id-badge"
-										onMouseEnter={() => setHoveredBadge('thread')}
-										onMouseLeave={() => setHoveredBadge(null)}
-									>
-										{hoveredBadge === 'thread' && (
-											<div className="id-badge-tooltip">
-												<div className="badge-tooltip-title">Thread ID</div>
-												<p className="badge-tooltip-desc">
-													Your <strong>conversation context</strong> that persists across requests.
-													All translations share this thread, letting the agent remember history.
-												</p>
-												<p className="badge-tooltip-desc">
-													Each request gets a unique session ID, but the <em>thread stays the same</em>.
-												</p>
-												<div className="badge-tooltip-id">
-													<span className="badge-tooltip-id-label">ID</span>
-													<code className="badge-tooltip-id-value">{translateResult.threadId}</code>
-												</div>
-											</div>
-										)}
-										Thread: <strong>{translateResult.threadId.slice(0, 12)}...</strong>
+									<span>
+										Tokens{" "}
+										<strong className="text-gray-400">
+											{translateResult.tokens}
+										</strong>
 									</span>
 								)}
-								{translateResult.sessionId && (
-									<>
-										<span className="separator">|</span>
-										<span
-											className="id-badge"
-											onMouseEnter={() => setHoveredBadge('session')}
-											onMouseLeave={() => setHoveredBadge(null)}
-										>
-											{hoveredBadge === 'session' && (
-												<div className="id-badge-tooltip">
-													<div className="badge-tooltip-title">Session ID</div>
-													<p className="badge-tooltip-desc">
-														A <strong>unique identifier</strong> for this specific request.
-														Useful for debugging and tracing individual operations in your agent logs.
-													</p>
-													<p className="badge-tooltip-desc">
-														Unlike threads, sessions are <em>unique per request</em>.
-													</p>
-													<div className="badge-tooltip-id">
-														<span className="badge-tooltip-id-label">ID</span>
-														<code className="badge-tooltip-id-value">{translateResult.sessionId}</code>
-													</div>
-												</div>
-											)}
-											Session: <strong>{translateResult.sessionId.slice(0, 12)}...</strong>
+
+								{translateResult.threadId && (
+									<span className="group border-b border-dashed border-gray-700 cursor-help relative transition-colors duration-200 hover:border-b-cyan-400">
+										<span>
+											Thread{" "}
+											<strong className="text-gray-400">
+												{translateResult.threadId.slice(0, 12)}...
+											</strong>
 										</span>
-									</>
+
+										{/* Pop-up */}
+										<div className="group-hover:flex hidden absolute left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-800 rounded-lg p-4 leading-normal z-10 mb-2 shadow-2xl text-left w-72 bottom-full flex-col gap-2">
+											<div className="text-base text-white font-semibold">
+												Thread ID
+											</div>
+
+											<p className="text-gray-400">
+												Your{" "}
+												<strong className="text-gray-200">
+													conversation context
+												</strong>{" "}
+												that persists across requests. All translations share
+												this thread, letting the agent remember history.
+											</p>
+
+											<p className="text-gray-400">
+												Each request gets a unique session ID, but the{" "}
+												<strong className="text-gray-200">
+													thread stays the same
+												</strong>
+												.
+											</p>
+										</div>
+									</span>
+								)}
+
+								{translateResult.sessionId && (
+									<span className="group border-b border-dashed border-gray-700 cursor-help relative transition-colors duration-200 hover:border-b-cyan-400">
+										<span>
+											Session{" "}
+											<strong className="text-gray-400">
+												{translateResult.sessionId.slice(0, 12)}...
+											</strong>
+										</span>
+
+										{/* Pop-up */}
+										<div className="group-hover:flex hidden absolute left-1/2 -translate-x-1/2 -translate-y-2 bg-gray-900 border border-gray-800 rounded-lg p-4 leading-normal z-10 shadow-2xl text-left w-72 bottom-full flex-col gap-2">
+											<div className="text-base text-white font-semibold">
+												Session ID
+											</div>
+
+											<p className="text-gray-400">
+												A{" "}
+												<strong className="text-gray-200">
+													unique identifier
+												</strong>{" "}
+												for this specific request. Useful for debugging and
+												tracing individual operations in your agent logs.
+											</p>
+
+											<p className="text-gray-400">
+												Unlike threads, sessions are{" "}
+												<strong className="text-gray-200">
+													unique per request
+												</strong>
+												.
+											</p>
+										</div>
+									</span>
 								)}
 							</div>
 						</div>
-					) : (
-						<div className="output">Translation will appear here</div>
 					)}
 				</div>
 
-				<div className="card">
-					<div className="section-header">
-						<h3 className="section-title">Recent Translations</h3>
+				<div className="bg-black border border-gray-900 rounded-lg p-8 flex flex-col gap-6">
+					<div className="items-center flex justify-between">
+						<h3 className="text-white text-xl font-normal">
+							Recent Translations
+						</h3>
+
 						{history.length > 0 && (
-							<button className="clear-btn" onClick={handleClearHistory} type="button">
+							<button
+								className="bg-transparent border border-gray-900 rounded text-gray-500 cursor-pointer text-xs transition-all duration-200 py-1.5 px-3 hover:bg-gray-900 hover:border-gray-700 hover:text-white"
+								onClick={handleClearHistory}
+								type="button"
+							>
 								Clear
 							</button>
 						)}
 					</div>
-					<div className="history-container">
+
+					<div className="bg-gray-950 rounded-md">
 						{history.length > 0 ? (
-							<div className="history-list">
-								{[...history].reverse().map((entry, index) => (
-									<div
-										key={`${entry.timestamp}-${index}`}
-										className="history-item"
-										onMouseEnter={() => setHoveredHistoryIndex(index)}
-										onMouseLeave={() => setHoveredHistoryIndex(null)}
-									>
-										{hoveredHistoryIndex === index && (
-											<div className="history-tooltip">
-												<div className="tooltip-section">
-													<div className="tooltip-row">
-														<span className="tooltip-label">Model</span>
-														<span className="tooltip-value">{entry.model}</span>
-													</div>
-													<div className="tooltip-row">
-														<span className="tooltip-label">Tokens</span>
-														<span className="tooltip-value">{entry.tokens}</span>
-													</div>
-												</div>
-												<div className="tooltip-divider" />
-												<div className="tooltip-section">
-													<div className="tooltip-row">
-														<span className="tooltip-label">Thread</span>
-														<span className="tooltip-value tooltip-id">{threadId?.slice(0, 12)}...</span>
-														<span className="tooltip-hint">(same for all)</span>
-													</div>
-													<div className="tooltip-row">
-														<span className="tooltip-label">Session</span>
-														<span className="tooltip-value tooltip-id">{entry.sessionId.slice(0, 12)}...</span>
-														<span className="tooltip-hint">(unique)</span>
-													</div>
-												</div>
-											</div>
-										)}
-										<span className="history-text">{entry.text}</span>
-										<span className="history-arrow">→</span>
-										<span className="history-lang">{entry.toLanguage}</span>
-										<span className="history-translation">{entry.translation}</span>
-										<span className="history-session">
-											{entry.sessionId.slice(0, 8)}...
+							[...history].reverse().map((entry, index) => (
+								<button
+									key={`${entry.timestamp}-${index}`}
+									type="button"
+									tabIndex={0}
+									className="group items-center grid w-full text-xs gap-3 py-2 px-3 rounded cursor-help relative transition-colors duration-150 hover:bg-gray-900 focus:outline-none grid-cols-[minmax(0,min-content)_auto_1fr_auto] text-left"
+									aria-label={`Translation from ${entry.text} to ${entry.toLanguage}: ${entry.translation}`}
+								>
+									<span className="text-gray-400 truncate">{entry.text}</span>
+
+									<span className="text-gray-700 flex items-center gap-1">
+										→
+										<span className="bg-gray-900 border border-gray-800 rounded text-gray-400 text-center py-0.5 px-1">
+											{entry.toLanguage}
 										</span>
+									</span>
+
+									<span className="text-gray-400 truncate">
+										{entry.translation}
+									</span>
+
+									<span className="text-gray-600">
+										{entry.sessionId.slice(0, 12)}...
+									</span>
+
+									{/* Pop-up */}
+									<div className="group-hover:grid hidden absolute left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-800 rounded-lg p-4 leading-normal z-10 mb-2 shadow-2xl text-left bottom-full gap-2 grid-cols-[auto_1fr_auto]">
+										{[
+											{
+												label: "Model",
+												value: entry.model,
+												description: null,
+											},
+											{
+												label: "Tokens",
+												value: entry.tokens,
+												description: null,
+											},
+											{
+												label: "Thread",
+												value: `${threadId?.slice(0, 12)}...`,
+												description: "(Same for all)",
+											},
+											{
+												label: "Session",
+												value: `${entry.sessionId.slice(0, 12)}...`,
+												description: "(Unique)",
+											},
+										].map((item) => (
+											<Fragment key={item.label}>
+												<span className="text-gray-500">{item.label}</span>
+												<span className="text-gray-200 font-medium">
+													{item.value}
+												</span>
+												<span className="text-gray-500 text-xs">
+													{item.description}
+												</span>
+											</Fragment>
+										))}
 									</div>
-								))}
-							</div>
+								</button>
+							))
 						) : (
-							<div className="history-empty-text">History will appear here</div>
+							<div className="text-gray-600 text-sm py-2 px-3">
+								History will appear here
+							</div>
 						)}
 					</div>
 				</div>
 
-				<div className="card">
-					<h3 className="section-title section-title-standalone">Features Demonstrated</h3>
+				<div className="bg-black border border-gray-900 rounded-lg p-8">
+					<h3 className="text-white text-xl font-normal leading-none m-0 mb-6">
+						Next Steps
+					</h3>
 
-					<div className="steps-list">
+					<div className="flex flex-col gap-6">
 						{[
 							{
-								key: 'schemas',
-								title: 'Typed Schemas',
+								key: "customize-agent",
+								title: "Customize your agent",
 								text: (
 									<>
-										Uses <code>@agentuity/schema</code> for type-safe validation with{' '}
-										<code>s.string()</code> and <code>s.object()</code>.
+										Edit{" "}
+										<code className="text-white">src/agent/translate/agent.ts</code>{" "}
+										to change how your agent responds.
 									</>
 								),
 							},
 							{
-								key: 'useapi',
-								title: 'useAPI Hook',
+								key: "add-routes",
+								title: "Add new API routes",
 								text: (
 									<>
-										Frontend uses <code>useAPI()</code> for typed API calls with automatic loading
-										state.
+										Create new files in{" "}
+										<code className="text-white">src/api/</code> to expose more
+										endpoints.
 									</>
 								),
 							},
 							{
-								key: 'threads',
-								title: 'Thread & Session State',
+								key: "update-frontend",
+								title: "Update the frontend",
 								text: (
 									<>
-										Translation history persists in thread state. Thread ID stays the same across
-										requests; session ID changes each time.
+										Modify <code className="text-white">src/web/App.tsx</code>{" "}
+										to build your custom UI with Tailwind CSS.
 									</>
 								),
 							},
 							WORKBENCH_PATH
 								? {
-										key: 'workbench',
+										key: "workbench",
 										title: (
 											<>
-												Try{' '}
-												<a href={WORKBENCH_PATH} className="workbench-link">
+												Try{" "}
+												<a href={WORKBENCH_PATH} className="underline relative">
 													Workbench
 												</a>
 											</>
@@ -324,16 +378,16 @@ export function App() {
 									}
 								: null,
 						]
-							.filter(Boolean)
+							.filter((step): step is NonNullable<typeof step> => Boolean(step))
 							.map((step) => (
-								<div key={step!.key} className="step">
-									<div className="step-icon">
+								<div key={step.key} className="items-start flex gap-3">
+									<div className="items-center bg-green-950 border border-green-500 rounded flex size-4 shrink-0 justify-center">
 										<svg
 											aria-hidden="true"
-											className="checkmark"
+											className="size-2.5"
 											fill="none"
 											height="24"
-											stroke="#00c951"
+											stroke="var(--color-green-500)"
 											strokeLinecap="round"
 											strokeLinejoin="round"
 											strokeWidth="2"
@@ -346,8 +400,11 @@ export function App() {
 									</div>
 
 									<div>
-										<h4 className="step-title">{step!.title}</h4>
-										<p className="step-text">{step!.text}</p>
+										<h4 className="text-white text-sm font-normal -mt-0.5 mb-0.5">
+											{step.title}
+										</h4>
+
+										<p className="text-gray-400 text-xs">{step.text}</p>
 									</div>
 								</div>
 							))}

@@ -1,7 +1,10 @@
 {
 	"dependencies": {
-		"openai": "latest",
-		"@ai-sdk/openai": "^3.0.2",
-		"@agentuity/evals": "latest"
+		"@agentuity/evals": "latest",
+		"openai": "latest"
+	},
+	"devDependencies": {
+		"@tailwindcss/vite": "^4.1.18",
+		"tailwindcss": "^4.1.18"
 	}
 }
