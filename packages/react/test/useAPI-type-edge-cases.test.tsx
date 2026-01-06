@@ -147,7 +147,7 @@ beforeAll(() => {
 			return new Response(null, { status: 204 });
 		}
 
-		// GET /api/events (streaming)
+		// GET /api/events (streaming) - use text/event-stream which is recognized by useAPI
 		if (capturedUrl.includes('/api/events')) {
 			const stream = new ReadableStream({
 				start(controller) {
@@ -157,11 +157,11 @@ beforeAll(() => {
 			});
 			return new Response(stream, {
 				status: 200,
-				headers: { 'Content-Type': 'application/x-ndjson' },
+				headers: { 'Content-Type': 'text/event-stream' },
 			});
 		}
 
-		// GET /api/raw-stream
+		// GET /api/raw-stream - use application/octet-stream which is recognized by useAPI
 		if (capturedUrl.includes('/api/raw-stream')) {
 			const stream = new ReadableStream({
 				start(controller) {
@@ -169,7 +169,10 @@ beforeAll(() => {
 					controller.close();
 				},
 			});
-			return new Response(stream, { status: 200 });
+			return new Response(stream, {
+				status: 200,
+				headers: { 'Content-Type': 'application/octet-stream' },
+			});
 		}
 
 		// GET /api/filtered-items/:category
