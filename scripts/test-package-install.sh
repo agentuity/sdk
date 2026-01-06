@@ -60,6 +60,7 @@ SCHEMA_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-schema-*.tgz)
 FRONTEND_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-frontend-*.tgz)
 REACT_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-react-*.tgz)
 AUTH_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-auth-*.tgz)
+EVALS_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-evals-*.tgz)
 RUNTIME_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-runtime-*.tgz)
 SERVER_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-server-*.tgz)
 CLI_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-cli-*.tgz)
@@ -67,7 +68,7 @@ WORKBENCH_PKG=$(basename "$SDK_ROOT/dist/packages"/agentuity-workbench-*.tgz)
 
 echo ""
 log_info "Using tarballs:"
-for pkg in $CORE_PKG $SCHEMA_PKG $FRONTEND_PKG $REACT_PKG $AUTH_PKG $RUNTIME_PKG $SERVER_PKG $CLI_PKG $WORKBENCH_PKG; do
+for pkg in $CORE_PKG $SCHEMA_PKG $FRONTEND_PKG $REACT_PKG $AUTH_PKG $EVALS_PKG $RUNTIME_PKG $SERVER_PKG $CLI_PKG $WORKBENCH_PKG; do
     log_success "  $pkg"
 done
 
@@ -99,6 +100,7 @@ bun add --no-save \
   "$PACKAGES_DIR/$FRONTEND_PKG" \
   "$PACKAGES_DIR/$REACT_PKG" \
   "$PACKAGES_DIR/$AUTH_PKG" \
+  "$PACKAGES_DIR/$EVALS_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
   "$PACKAGES_DIR/$SERVER_PKG" \
   "$PACKAGES_DIR/$CLI_PKG" \
@@ -155,7 +157,7 @@ log_info "Step 5: Installing packed packages..."
 
 # Remove ALL Agentuity dependencies from package.json before installing from tarballs
 cat package.json | \
-  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/frontend"], .dependencies["@agentuity/react"], .dependencies["@agentuity/auth"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"], .devDependencies["@agentuity/cli"], .devDependencies["@agentuity/core"], .devDependencies["@agentuity/schema"], .devDependencies["@agentuity/frontend"], .devDependencies["@agentuity/react"], .devDependencies["@agentuity/auth"], .devDependencies["@agentuity/runtime"], .devDependencies["@agentuity/server"], .devDependencies["@agentuity/workbench"])' \
+  jq 'del(.dependencies["@agentuity/cli"], .dependencies["@agentuity/core"], .dependencies["@agentuity/schema"], .dependencies["@agentuity/frontend"], .dependencies["@agentuity/react"], .dependencies["@agentuity/auth"], .dependencies["@agentuity/evals"], .dependencies["@agentuity/runtime"], .dependencies["@agentuity/server"], .dependencies["@agentuity/workbench"], .devDependencies["@agentuity/cli"], .devDependencies["@agentuity/core"], .devDependencies["@agentuity/schema"], .devDependencies["@agentuity/frontend"], .devDependencies["@agentuity/react"], .devDependencies["@agentuity/auth"], .devDependencies["@agentuity/evals"], .devDependencies["@agentuity/runtime"], .devDependencies["@agentuity/server"], .devDependencies["@agentuity/workbench"])' \
   > package.json.tmp && mv package.json.tmp package.json
 
 # Install Agentuity packages from tarballs FIRST (all at once so interdependencies resolve)
@@ -166,6 +168,7 @@ bun add --no-save \
   "$PACKAGES_DIR/$FRONTEND_PKG" \
   "$PACKAGES_DIR/$REACT_PKG" \
   "$PACKAGES_DIR/$AUTH_PKG" \
+  "$PACKAGES_DIR/$EVALS_PKG" \
   "$PACKAGES_DIR/$RUNTIME_PKG" \
   "$PACKAGES_DIR/$SERVER_PKG" \
   "$PACKAGES_DIR/$CLI_PKG" \
