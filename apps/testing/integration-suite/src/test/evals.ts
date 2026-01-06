@@ -8,6 +8,7 @@ import { test } from './suite';
 import { assertEqual, assertDefined } from './helpers';
 
 import evalsBasicAgent from '@agents/evals/basic';
+import evalsSeparateAgent from '@agents/evals/separate/agent';
 
 // Test: Basic agent execution with evals attached
 test('evals', 'agent-execution', async () => {
@@ -32,4 +33,19 @@ test('evals', 'zero-input', async () => {
 
 	assertEqual(result.result, 0, 'Zero doubled is zero');
 	assertEqual(result.doubled, true);
+});
+
+// Test: Agent with evals defined in separate eval.ts file
+test('evals', 'separate-eval-file', async () => {
+	const result = await evalsSeparateAgent.run({ value: 7 });
+
+	assertDefined(result, 'Result should be defined');
+	assertEqual(result.doubled, 14, 'Result should be double the input');
+});
+
+// Test: Separate eval file - negative input
+test('evals', 'separate-eval-file-negative', async () => {
+	const result = await evalsSeparateAgent.run({ value: -5 });
+
+	assertEqual(result.doubled, -10, 'Negative values should also double');
 });

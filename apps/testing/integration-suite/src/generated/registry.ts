@@ -51,6 +51,7 @@ import type { InferInput, InferOutput } from '@agentuity/core';
 
 // Eval file imports (side-effect imports to register evals via createEval)
 import '../agent/evals/eval.js';
+import '../agent/evals/separate/eval.js';
 
 // ============================================================================
 // Schema Type Exports

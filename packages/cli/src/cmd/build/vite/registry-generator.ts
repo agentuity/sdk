@@ -98,7 +98,6 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 
 				// Build the relative path for the eval file
 				let evalRelativePath = evalMeta.filename;
-				console.log('INLINE DEBUG evalMeta.filename:', evalMeta.filename);
 				if (evalRelativePath.startsWith('./agent/')) {
 					evalRelativePath = evalRelativePath
 						.replace(/^\.\/agent\//, '../agent/')
@@ -113,12 +112,10 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 						.replace(/^.*\/src\/agent\//, '../agent/')
 						.replace(/\.tsx?$/, '.js');
 				}
-			console.log('INLINE DEBUG evalRelativePath:', evalRelativePath);
-				// Avoid duplicate imports
+			// Avoid duplicate imports
 				if (!seenEvalPaths.has(evalRelativePath)) {
 					seenEvalPaths.add(evalRelativePath);
 					evalImports.push(`import '${evalRelativePath}';`);
-					console.log('INLINE DEBUG pushed import:', `import '${evalRelativePath}';`);
 				}
 			}
 		}
