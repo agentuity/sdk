@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Schema } from './base';
+import { SCHEMA_KIND } from './base';
 import { string } from './primitives/string';
 import { number } from './primitives/number';
 import { boolean } from './primitives/boolean';
@@ -12,11 +13,12 @@ import { nullable } from './utils/nullable';
 import { union } from './utils/union';
 
 /**
- * Check schema type by constructor name (works across bundled modules).
- * Using instanceof fails when code is bundled or multiple copies of the package exist.
+ * Check schema type using a minification-safe SCHEMA_KIND tag.
+ * This works across bundled modules and after minification because it uses
+ * a Symbol.for() based tag rather than constructor.name which gets mangled.
  */
 function isSchemaType(schema: any, typeName: string): boolean {
-	return schema?.constructor?.name === typeName;
+	return schema?.[SCHEMA_KIND] === typeName;
 }
 
 /**
