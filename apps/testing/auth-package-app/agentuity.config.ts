@@ -1,7 +1,6 @@
 /**
  * Agentuity Configuration
  *
- * @see https://agentuity.com/docs/configuration
  */
 
 import type { AgentuityConfig } from '@agentuity/cli';
