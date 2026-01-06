@@ -628,8 +628,7 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
  * Run a series of steps with animated progress
  */
 export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void> {
-	const useTUI =
-		isTTYLike() && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
+	const useTUI = isTTYLike() && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
 
 	if (useTUI) {
 		await runStepsTUI(steps);

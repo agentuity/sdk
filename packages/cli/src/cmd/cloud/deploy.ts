@@ -176,7 +176,8 @@ export const deploySubcommand = createSubcommand({
 			if (opts.provider) childArgs.push(`--provider=${opts.provider}`);
 			if (opts.repo) childArgs.push(`--repo=${opts.repo}`);
 			if (opts.event) childArgs.push(`--event=${opts.event}`);
-			if (opts.pullRequestNumber) childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
+			if (opts.pullRequestNumber)
+				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
 			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
 
 			const result = await runForkedDeploy({
@@ -189,7 +190,15 @@ export const deploySubcommand = createSubcommand({
 			});
 
 			if (!result.success) {
-				tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
+				const appUrl = getAppBaseURL(
+					process.env.AGENTUITY_REGION ?? config?.name,
+					config?.overrides
+				);
+				const deploymentLink = `${appUrl}/projects/${project.projectId}/deployments/${initialDeployment.id}`;
+				tui.fatal(
+					`Deployment failed: ${tui.link(deploymentLink, 'Deployment Page')}`,
+					ErrorCode.BUILD_FAILED
+				);
 			}
 
 			return {
