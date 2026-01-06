@@ -80,7 +80,7 @@ export default router;
 		expect(usersRoute!.hasValidator).toBe(true);
 		expect(usersRoute!.inputSchemaVariable).toBe('createUserSchema');
 
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		expect(existsSync(routesPath)).toBe(true);
@@ -126,7 +126,7 @@ export default router;
 		expect(dataRoute!.hasValidator).toBe(true);
 		expect(dataRoute!.inputSchemaVariable).toBe('mySchema');
 
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();
@@ -178,7 +178,7 @@ export default router;
 		expect(ordersRoute).toBeDefined();
 		expect(ordersRoute!.inputSchemaVariable).toBe('orderSchema');
 
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();
@@ -221,7 +221,7 @@ export default router;
 		expect(searchRoute!.hasValidator).toBe(true);
 		expect(searchRoute!.inputSchemaVariable).toBeUndefined();
 
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();
@@ -336,7 +336,7 @@ export default router;
 		expect(healthRoute!.inputSchemaVariable).toBeUndefined();
 		expect(healthRoute!.agentVariable).toBeUndefined();
 
-		generateRouteRegistry(srcDir, routeInfoList);
+		await generateRouteRegistry(srcDir, routeInfoList);
 
 		const routesPath = join(generatedDir, 'routes.ts');
 		const routesContent = await Bun.file(routesPath).text();
