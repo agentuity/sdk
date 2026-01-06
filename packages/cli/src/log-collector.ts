@@ -21,6 +21,14 @@ function getCleanLogsFile(): string | undefined {
 }
 
 /**
+ * Disable log collection (called on write errors to prevent repeated failures)
+ */
+function disableLogCollection(error: unknown): void {
+	console.debug('Log collection disabled due to write error: %s', error);
+	delete process.env.AGENTUITY_CLEAN_LOGS_FILE;
+}
+
+/**
  * Check if log collection is enabled (via environment variable)
  */
 export function isLogCollectionEnabled(): boolean {
@@ -31,8 +39,12 @@ export function isLogCollectionEnabled(): boolean {
  * Initialize the clean logs file (clears any existing content)
  */
 export function initCleanLogsFile(filePath: string): void {
-	process.env.AGENTUITY_CLEAN_LOGS_FILE = filePath;
-	writeFileSync(filePath, '');
+	try {
+		writeFileSync(filePath, '');
+		process.env.AGENTUITY_CLEAN_LOGS_FILE = filePath;
+	} catch (err) {
+		console.debug('Failed to initialize clean logs file: %s', err);
+	}
 }
 
 /**
@@ -42,7 +54,11 @@ export function initCleanLogsFile(filePath: string): void {
 export function appendLog(message: string): void {
 	const file = getCleanLogsFile();
 	if (file) {
-		appendFileSync(file, message + '\n');
+		try {
+			appendFileSync(file, message + '\n');
+		} catch (err) {
+			disableLogCollection(err);
+		}
 	}
 }
 
@@ -52,6 +68,10 @@ export function appendLog(message: string): void {
 export function appendLogs(messages: string[]): void {
 	const file = getCleanLogsFile();
 	if (file) {
-		appendFileSync(file, messages.join('\n') + '\n');
+		try {
+			appendFileSync(file, messages.join('\n') + '\n');
+		} catch (err) {
+			disableLogCollection(err);
+		}
 	}
 }
