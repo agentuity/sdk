@@ -129,9 +129,9 @@ fi
 section "CREATE & GET & LIST Command Tests"
 # ============================================
 
-# Test: Create sandbox with JSON output
-info "Test: sandbox create --json"
-CREATE_OUTPUT=$($CLI cloud sandbox create --json 2>&1) || true
+# Test: Create sandbox with custom resources
+info "Test: sandbox create --memory --cpu --disk"
+CREATE_OUTPUT=$($CLI cloud sandbox create --memory 1Gi --cpu 1000m --disk 2Gi --json 2>&1) || true
 SANDBOX_ID=$(echo "$CREATE_OUTPUT" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SANDBOX_ID" ] && [[ "$SANDBOX_ID" == sbx_* ]]; then
 	pass "sandbox create returns valid sandboxId: $SANDBOX_ID"
@@ -163,6 +163,36 @@ if [ -n "$GET_STATUS" ]; then
 	pass "sandbox get returns status: $GET_STATUS"
 else
 	fail "sandbox get missing status" "$GET_OUTPUT"
+fi
+
+# Test: Verify resources are returned in get response
+info "Test: sandbox get returns resources"
+if echo "$GET_OUTPUT" | grep -q '"resources"'; then
+	pass "sandbox get returns resources field"
+else
+	fail "sandbox get missing resources field" "$GET_OUTPUT"
+fi
+
+# Verify specific resource values
+GET_MEMORY=$(echo "$GET_OUTPUT" | grep -o '"memory"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ "$GET_MEMORY" = "1Gi" ]; then
+	pass "sandbox get returns correct memory: $GET_MEMORY"
+else
+	fail "sandbox get returned wrong memory (expected 1Gi)" "$GET_MEMORY"
+fi
+
+GET_CPU=$(echo "$GET_OUTPUT" | grep -o '"cpu"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ "$GET_CPU" = "1000m" ]; then
+	pass "sandbox get returns correct cpu: $GET_CPU"
+else
+	fail "sandbox get returned wrong cpu (expected 1000m)" "$GET_CPU"
+fi
+
+GET_DISK=$(echo "$GET_OUTPUT" | grep -o '"disk"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ "$GET_DISK" = "2Gi" ]; then
+	pass "sandbox get returns correct disk: $GET_DISK"
+else
+	fail "sandbox get returned wrong disk (expected 2Gi)" "$GET_DISK"
 fi
 
 # Test: List sandboxes includes our sandbox
