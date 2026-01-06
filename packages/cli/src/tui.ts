@@ -24,6 +24,10 @@ function ensureCursorRestoration(): void {
 	exitHandlerInstalled = true;
 
 	const restoreCursor = () => {
+		// Skip cursor restoration in CI - terminals don't support these sequences
+		if (process.env.CI) {
+			return;
+		}
 		// Restore cursor visibility
 		process.stderr.write('\x1B[?25h');
 	};
@@ -64,8 +68,12 @@ export const ICONS = {
 
 /**
  * Check if we should treat stdout as a TTY (real TTY or FORCE_COLOR set by fork wrapper)
+ * Returns false in CI environments since CI terminals don't support cursor control sequences
  */
 export function isTTYLike(): boolean {
+	if (process.env.CI) {
+		return false;
+	}
 	return process.stdout.isTTY || process.env.FORCE_COLOR === '1';
 }
 
