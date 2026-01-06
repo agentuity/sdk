@@ -1,31 +1,24 @@
-import { useAPI } from "@agentuity/react";
-import { type ChangeEvent, Fragment, useCallback, useState } from "react";
-import "./App.css";
+import { useAPI } from '@agentuity/react';
+import { type ChangeEvent, Fragment, useCallback, useState } from 'react';
+import './App.css';
 
 const WORKBENCH_PATH = process.env.AGENTUITY_PUBLIC_WORKBENCH_PATH;
-const LANGUAGES = ["Spanish", "French", "German", "Chinese"] as const;
-const MODELS = ["gpt-5-nano", "gpt-5-mini", "gpt-5"] as const;
+const LANGUAGES = ['Spanish', 'French', 'German', 'Chinese'] as const;
+const MODELS = ['gpt-5-nano', 'gpt-5-mini', 'gpt-5'] as const;
 const DEFAULT_TEXT =
-	"Welcome to Agentuity! This translation agent shows what you can build with the platform. It connects to AI models through our gateway, tracks usage with thread state, and runs quality checks automatically. Try translating this text into different languages to see the agent in action, and check the terminal for more details.";
+	'Welcome to Agentuity! This translation agent shows what you can build with the platform. It connects to AI models through our gateway, tracks usage with thread state, and runs quality checks automatically. Try translating this text into different languages to see the agent in action, and check the terminal for more details.';
 
 export function App() {
 	const [text, setText] = useState(DEFAULT_TEXT);
-	const [toLanguage, setToLanguage] =
-		useState<(typeof LANGUAGES)[number]>("Spanish");
-	const [model, setModel] = useState<(typeof MODELS)[number]>("gpt-5-nano");
+	const [toLanguage, setToLanguage] = useState<(typeof LANGUAGES)[number]>('Spanish');
+	const [model, setModel] = useState<(typeof MODELS)[number]>('gpt-5-nano');
 
 	// RESTful API hooks for translation operations
-	const { data: historyData, refetch: refetchHistory } = useAPI(
-		"GET /api/translate/history",
-	);
+	const { data: historyData, refetch: refetchHistory } = useAPI('GET /api/translate/history');
 
-	const {
-		data: translateResult,
-		invoke: translate,
-		isLoading,
-	} = useAPI("POST /api/translate");
+	const { data: translateResult, invoke: translate, isLoading } = useAPI('POST /api/translate');
 
-	const { invoke: clearHistory } = useAPI("DELETE /api/translate/history");
+	const { invoke: clearHistory } = useAPI('DELETE /api/translate/history');
 
 	// Prefer fresh data from translation, fall back to initial fetch
 	const history = translateResult?.history ?? historyData?.history ?? [];
@@ -70,7 +63,9 @@ export function App() {
 
 					<h1 className="text-5xl font-thin">Welcome to Agentuity</h1>
 
-					<p className="text-gray-400 text-lg">The <span className="italic font-serif">Full-Stack</span> Platform for AI Agents</p>
+					<p className="text-gray-400 text-lg">
+						The <span className="italic font-serif">Full-Stack</span> Platform for AI Agents
+					</p>
 				</div>
 
 				{/* Translate Form */}
@@ -81,9 +76,7 @@ export function App() {
 							className="appearance-none bg-transparent border-0 border-b border-dashed border-gray-700 text-white cursor-pointer font-normal outline-none hover:border-b-cyan-400 focus:border-b-cyan-400 -mb-0.5"
 							disabled={isLoading}
 							onChange={(e: ChangeEvent<HTMLSelectElement>) =>
-								setToLanguage(
-									e.currentTarget.value as (typeof LANGUAGES)[number],
-								)
+								setToLanguage(e.currentTarget.value as (typeof LANGUAGES)[number])
 							}
 							value={toLanguage}
 						>
@@ -118,7 +111,7 @@ export function App() {
 								type="button"
 								data-loading={isLoading}
 							>
-								{isLoading ? "Translating" : "Translate"}
+								{isLoading ? 'Translating' : 'Translate'}
 							</button>
 						</div>
 					</div>
@@ -126,9 +119,7 @@ export function App() {
 					<textarea
 						className="text-sm bg-gray-950 border border-gray-800 rounded-md text-white resize-y py-3 px-4 min-h-28 focus:outline-cyan-500 focus:outline-2 focus:outline-offset-2 z-10"
 						disabled={isLoading}
-						onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
-							setText(e.currentTarget.value)
-						}
+						onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setText(e.currentTarget.value)}
 						placeholder="Enter text to translate..."
 						rows={4}
 						value={text}
@@ -153,17 +144,15 @@ export function App() {
 							<div className="text-gray-500 flex text-xs gap-4">
 								{translateResult.tokens > 0 && (
 									<span>
-										Tokens{" "}
-										<strong className="text-gray-400">
-											{translateResult.tokens}
-										</strong>
+										Tokens{' '}
+										<strong className="text-gray-400">{translateResult.tokens}</strong>
 									</span>
 								)}
 
 								{translateResult.threadId && (
 									<span className="group border-b border-dashed border-gray-700 cursor-help relative transition-colors duration-200 hover:border-b-cyan-400">
 										<span>
-											Thread{" "}
+											Thread{' '}
 											<strong className="text-gray-400">
 												{translateResult.threadId.slice(0, 12)}...
 											</strong>
@@ -171,24 +160,18 @@ export function App() {
 
 										{/* Pop-up */}
 										<div className="group-hover:flex hidden absolute left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-800 rounded-lg p-4 leading-normal z-10 mb-2 shadow-2xl text-left w-72 bottom-full flex-col gap-2">
-											<div className="text-base text-white font-semibold">
-												Thread ID
-											</div>
+											<div className="text-base text-white font-semibold">Thread ID</div>
 
 											<p className="text-gray-400">
-												Your{" "}
-												<strong className="text-gray-200">
-													conversation context
-												</strong>{" "}
-												that persists across requests. All translations share
-												this thread, letting the agent remember history.
+												Your{' '}
+												<strong className="text-gray-200">conversation context</strong>{' '}
+												that persists across requests. All translations share this
+												thread, letting the agent remember history.
 											</p>
 
 											<p className="text-gray-400">
-												Each request gets a unique session ID, but the{" "}
-												<strong className="text-gray-200">
-													thread stays the same
-												</strong>
+												Each request gets a unique session ID, but the{' '}
+												<strong className="text-gray-200">thread stays the same</strong>
 												.
 											</p>
 										</div>
@@ -198,7 +181,7 @@ export function App() {
 								{translateResult.sessionId && (
 									<span className="group border-b border-dashed border-gray-700 cursor-help relative transition-colors duration-200 hover:border-b-cyan-400">
 										<span>
-											Session{" "}
+											Session{' '}
 											<strong className="text-gray-400">
 												{translateResult.sessionId.slice(0, 12)}...
 											</strong>
@@ -211,20 +194,14 @@ export function App() {
 											</div>
 
 											<p className="text-gray-400">
-												A{" "}
-												<strong className="text-gray-200">
-													unique identifier
-												</strong>{" "}
-												for this specific request. Useful for debugging and
-												tracing individual operations in your agent logs.
+												A <strong className="text-gray-200">unique identifier</strong>{' '}
+												for this specific request. Useful for debugging and tracing
+												individual operations in your agent logs.
 											</p>
 
 											<p className="text-gray-400">
-												Unlike threads, sessions are{" "}
-												<strong className="text-gray-200">
-													unique per request
-												</strong>
-												.
+												Unlike threads, sessions are{' '}
+												<strong className="text-gray-200">unique per request</strong>.
 											</p>
 										</div>
 									</span>
@@ -236,9 +213,7 @@ export function App() {
 
 				<div className="bg-black border border-gray-900 rounded-lg p-8 flex flex-col gap-6">
 					<div className="items-center flex justify-between">
-						<h3 className="text-white text-xl font-normal">
-							Recent Translations
-						</h3>
+						<h3 className="text-white text-xl font-normal">Recent Translations</h3>
 
 						{history.length > 0 && (
 							<button
@@ -270,43 +245,37 @@ export function App() {
 										</span>
 									</span>
 
-									<span className="text-gray-400 truncate">
-										{entry.translation}
-									</span>
+									<span className="text-gray-400 truncate">{entry.translation}</span>
 
-									<span className="text-gray-600">
-										{entry.sessionId.slice(0, 12)}...
-									</span>
+									<span className="text-gray-600">{entry.sessionId.slice(0, 12)}...</span>
 
 									{/* Pop-up */}
 									<div className="group-hover:grid hidden absolute left-1/2 -translate-x-1/2 bg-gray-900 border border-gray-800 rounded-lg p-4 leading-normal z-10 mb-2 shadow-2xl text-left bottom-full gap-2 grid-cols-[auto_1fr_auto]">
 										{[
 											{
-												label: "Model",
+												label: 'Model',
 												value: entry.model,
 												description: null,
 											},
 											{
-												label: "Tokens",
+												label: 'Tokens',
 												value: entry.tokens,
 												description: null,
 											},
 											{
-												label: "Thread",
+												label: 'Thread',
 												value: `${threadId?.slice(0, 12)}...`,
-												description: "(Same for all)",
+												description: '(Same for all)',
 											},
 											{
-												label: "Session",
+												label: 'Session',
 												value: `${entry.sessionId.slice(0, 12)}...`,
-												description: "(Unique)",
+												description: '(Unique)',
 											},
 										].map((item) => (
 											<Fragment key={item.label}>
 												<span className="text-gray-500">{item.label}</span>
-												<span className="text-gray-200 font-medium">
-													{item.value}
-												</span>
+												<span className="text-gray-200 font-medium">{item.value}</span>
 												<span className="text-gray-500 text-xs">
 													{item.description}
 												</span>
@@ -316,58 +285,52 @@ export function App() {
 								</button>
 							))
 						) : (
-							<div className="text-gray-600 text-sm py-2 px-3">
-								History will appear here
-							</div>
+							<div className="text-gray-600 text-sm py-2 px-3">History will appear here</div>
 						)}
 					</div>
 				</div>
 
 				<div className="bg-black border border-gray-900 rounded-lg p-8">
-					<h3 className="text-white text-xl font-normal leading-none m-0 mb-6">
-						Next Steps
-					</h3>
+					<h3 className="text-white text-xl font-normal leading-none m-0 mb-6">Next Steps</h3>
 
 					<div className="flex flex-col gap-6">
 						{[
 							{
-								key: "customize-agent",
-								title: "Customize your agent",
+								key: 'customize-agent',
+								title: 'Customize your agent',
 								text: (
 									<>
-										Edit{" "}
-										<code className="text-white">src/agent/translate/agent.ts</code>{" "}
+										Edit <code className="text-white">src/agent/translate/agent.ts</code>{' '}
 										to change how your agent responds.
 									</>
 								),
 							},
 							{
-								key: "add-routes",
-								title: "Add new API routes",
+								key: 'add-routes',
+								title: 'Add new API routes',
 								text: (
 									<>
-										Create new files in{" "}
-										<code className="text-white">src/api/</code> to expose more
-										endpoints.
+										Create new files in <code className="text-white">src/api/</code> to
+										expose more endpoints.
 									</>
 								),
 							},
 							{
-								key: "update-frontend",
-								title: "Update the frontend",
+								key: 'update-frontend',
+								title: 'Update the frontend',
 								text: (
 									<>
-										Modify <code className="text-white">src/web/App.tsx</code>{" "}
-										to build your custom UI with Tailwind CSS.
+										Modify <code className="text-white">src/web/App.tsx</code> to build
+										your custom UI with Tailwind CSS.
 									</>
 								),
 							},
 							WORKBENCH_PATH
 								? {
-										key: "workbench",
+										key: 'workbench',
 										title: (
 											<>
-												Try{" "}
+												Try{' '}
 												<a href={WORKBENCH_PATH} className="underline relative">
 													Workbench
 												</a>

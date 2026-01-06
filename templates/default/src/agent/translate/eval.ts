@@ -4,10 +4,10 @@
  * - language-match (binary, pass/fail): Did it translate to the requested language?
  */
 
-import { adversarial } from "@agentuity/evals";
-import { s } from "@agentuity/schema";
-import OpenAI from "openai";
-import agent, { type AgentInput, type AgentOutput } from "./agent";
+import { adversarial } from '@agentuity/evals';
+import { s } from '@agentuity/schema';
+import OpenAI from 'openai';
+import agent, { type AgentInput, type AgentOutput } from './agent';
 
 const client = new OpenAI();
 
@@ -20,13 +20,13 @@ export const adversarialEval = agent.createEval(
 	adversarial<typeof AgentInput, typeof AgentOutput>({
 		middleware: {
 			transformInput: (input) => ({
-				request: `Translate to ${input.toLanguage ?? "Spanish"}:\n\n${input.text}`,
+				request: `Translate to ${input.toLanguage ?? 'Spanish'}:\n\n${input.text}`,
 			}),
 			transformOutput: (output) => ({
 				response: output.translation,
 			}),
 		},
-	}),
+	})
 );
 
 /**
@@ -35,52 +35,47 @@ export const adversarialEval = agent.createEval(
  * Uses generateText with Output.object for structured output.
  */
 const LanguageCheckSchema = s.object({
-	detectedLanguage: s.string().describe("The detected language of the text"),
-	isCorrectLanguage: s
-		.boolean()
-		.describe("Whether the text is in the target language"),
-	reason: s.string().describe("Brief explanation"),
+	detectedLanguage: s.string().describe('The detected language of the text'),
+	isCorrectLanguage: s.boolean().describe('Whether the text is in the target language'),
+	reason: s.string().describe('Brief explanation'),
 });
 
 type LanguageCheck = s.infer<typeof LanguageCheckSchema>;
 
-export const languageMatchEval = agent.createEval("language-match", {
-	description: "Verifies the translation is in the requested target language",
+export const languageMatchEval = agent.createEval('language-match', {
+	description: 'Verifies the translation is in the requested target language',
 	handler: async (ctx, input, output) => {
-		ctx.logger.info("[EVAL] language-match: Starting", {
+		ctx.logger.info('[EVAL] language-match: Starting', {
 			targetLanguage: input.toLanguage,
 			translationLength: output.translation.length,
 		});
 
 		// Skip if no translation produced
-		if (!output.translation || output.translation.trim() === "") {
-			ctx.logger.info("[EVAL] language-match: No translation to evaluate");
+		if (!output.translation || output.translation.trim() === '') {
+			ctx.logger.info('[EVAL] language-match: No translation to evaluate');
 
 			return {
 				passed: false,
-				reason: "No translation produced",
+				reason: 'No translation produced',
 			};
 		}
 
-		const targetLanguage = input.toLanguage ?? "Spanish";
+		const targetLanguage = input.toLanguage ?? 'Spanish';
 
 		// Generate structured output using OpenAI's response_format
 		const completion = await client.chat.completions.create({
-			model: "gpt-4o-mini",
+			model: 'gpt-4o-mini',
 			response_format: {
-				type: "json_schema",
+				type: 'json_schema',
 				json_schema: {
-					name: "language_check",
-					schema: s.toJSONSchema(LanguageCheckSchema) as Record<
-						string,
-						unknown
-					>,
+					name: 'language_check',
+					schema: s.toJSONSchema(LanguageCheckSchema) as Record<string, unknown>,
 					strict: true,
 				},
 			},
 			messages: [
 				{
-					role: "user",
+					role: 'user',
 					content: `Determine if the following text is written in ${targetLanguage}.
 
 Text to analyze:
@@ -92,11 +87,9 @@ Is this text written in ${targetLanguage}?`,
 			],
 		});
 
-		const result = JSON.parse(
-			completion.choices[0]?.message?.content ?? "{}",
-		) as LanguageCheck;
+		const result = JSON.parse(completion.choices[0]?.message?.content ?? '{}') as LanguageCheck;
 
-		ctx.logger.info("[EVAL] language-match: Completed", {
+		ctx.logger.info('[EVAL] language-match: Completed', {
 			passed: result.isCorrectLanguage,
 			detectedLanguage: result.detectedLanguage,
 		});
