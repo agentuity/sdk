@@ -63,13 +63,19 @@ export const languageMatchEval = agent.createEval('language-match', {
 		const targetLanguage = input.toLanguage ?? 'Spanish';
 
 		// Generate structured output using OpenAI's response_format
+		// Note: OpenAI strict mode requires additionalProperties: false on all objects
+		const jsonSchema = {
+			...s.toJSONSchema(LanguageCheckSchema),
+			additionalProperties: false,
+		};
+
 		const completion = await client.chat.completions.create({
 			model: 'gpt-4o-mini',
 			response_format: {
 				type: 'json_schema',
 				json_schema: {
 					name: 'language_check',
-					schema: s.toJSONSchema(LanguageCheckSchema) as Record<string, unknown>,
+					schema: jsonSchema as Record<string, unknown>,
 					strict: true,
 				},
 			},
