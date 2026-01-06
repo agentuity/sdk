@@ -2,7 +2,7 @@
 export * from './api';
 
 // config.ts exports
-export { type ServiceUrls, getServiceUrls } from './config';
+export { type ServiceUrls, getServiceUrls, resolveRegion } from './config';
 
 // logger.ts exports
 export { type ColorScheme, ConsoleLogger, createLogger } from './logger';

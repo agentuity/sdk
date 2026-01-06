@@ -166,7 +166,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const isLocalRegion = options.region === 'local';
 		const cdnDomain = isLocalRegion
 			? 'localstack-static-assets.t3.storage.dev'
-			: 'static.agentuity.com';
+			: 'cdn.agentuity.com';
 		const cdnBaseUrl =
 			!dev && deploymentId ? `https://${cdnDomain}/${deploymentId}/client/` : undefined;
 

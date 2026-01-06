@@ -9,6 +9,7 @@ import errorsPropagation from '../agent/errors/propagation.js';
 import errorsStructured from '../agent/errors/structured.js';
 import errorsValidation from '../agent/errors/validation.js';
 import evalsBasic from '../agent/evals/basic.js';
+import evalsSeparate from '../agent/evals/separate/agent.js';
 import eventsAgent from '../agent/events/agent-events.js';
 import eventsMultiple from '../agent/events/multiple-listeners.js';
 import eventsRemoval from '../agent/events/listener-removal.js';
@@ -47,6 +48,10 @@ import v1DataProcessor from '../agent/v1/data/agent.js';
 import websocketEcho from '../agent/websocket/echo-agent.js';
 import type { AgentRunner } from '@agentuity/runtime';
 import type { InferInput, InferOutput } from '@agentuity/core';
+
+// Eval file imports (side-effect imports to register evals via createEval)
+import '../agent/evals/eval.js';
+import '../agent/evals/separate/eval.js';
 
 // ============================================================================
 // Schema Type Exports
@@ -356,6 +361,40 @@ export type EvalsBasicAgent = AgentRunner<
 	EvalsBasicInputSchema,
 	EvalsBasicOutputSchema,
 	typeof evalsBasic['stream'] extends true ? true : false
+>;
+
+/**
+ * Input type for evals-separate agent
+ * Agent with evals in a separate file
+ */
+export type EvalsSeparateInput = InferInput<typeof evalsSeparate['inputSchema']>;
+
+/**
+ * Output type for evals-separate agent
+ * Agent with evals in a separate file
+ */
+export type EvalsSeparateOutput = InferOutput<typeof evalsSeparate['outputSchema']>;
+
+/**
+ * Input schema type for evals-separate agent
+ * Agent with evals in a separate file
+ */
+export type EvalsSeparateInputSchema = typeof evalsSeparate['inputSchema'];
+
+/**
+ * Output schema type for evals-separate agent
+ * Agent with evals in a separate file
+ */
+export type EvalsSeparateOutputSchema = typeof evalsSeparate['outputSchema'];
+
+/**
+ * Agent type for evals-separate
+ * Agent with evals in a separate file
+ */
+export type EvalsSeparateAgent = AgentRunner<
+	EvalsSeparateInputSchema,
+	EvalsSeparateOutputSchema,
+	typeof evalsSeparate['stream'] extends true ? true : false
 >;
 
 /**
@@ -1654,6 +1693,12 @@ export const AgentDefinitions = {
 	 */
 	evalsBasic,
 	/**
+	 * evals-separate
+	 * Agent with evals in a separate file
+	 * @type {EvalsSeparateAgent}
+	 */
+	evalsSeparate,
+	/**
 	 * events-agent
 	 * Tests agent event listeners (started, completed, errored)
 	 * @type {EventsAgentAgent}
@@ -1886,6 +1931,7 @@ declare module "@agentuity/runtime" {
 		errorsStructured: ErrorsStructuredAgent;
 		errorsValidation: ErrorsValidationAgent;
 		evalsBasic: EvalsBasicAgent;
+		evalsSeparate: EvalsSeparateAgent;
 		eventsAgent: EventsAgentAgent;
 		eventsMultiple: EventsMultipleAgent;
 		eventsRemoval: EventsRemovalAgent;
