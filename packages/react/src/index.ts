@@ -43,6 +43,15 @@ export {
 } from './api';
 export { useJsonMemo } from './memo';
 
+// Analytics
+export {
+	useAnalytics,
+	useTrackOnMount,
+	withPageTracking,
+	type UseAnalyticsResult,
+	type TrackOnMountOptions,
+} from './analytics.js';
+
 // Re-export route registry types from local types file
 // These are augmented by generated code via `declare module '@agentuity/react'`
 export type { RouteRegistry, WebSocketRouteRegistry, SSERouteRegistry } from './types';

@@ -556,7 +556,7 @@ export const InitialProjectConfigSchema = z.intersection(
 type InitialProjectConfig = z.infer<typeof InitialProjectConfigSchema>;
 
 export async function createProjectConfig(dir: string, config: InitialProjectConfig) {
-	const { sdkKey, ...sanitizedConfig } = config;
+	const { sdkKey, skipGitSetup: _skipGitSetup, ...sanitizedConfig } = config;
 
 	// generate the project config
 	const configPath = join(dir, 'agentuity.json');

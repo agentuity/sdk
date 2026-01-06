@@ -129,6 +129,83 @@ export interface WorkbenchConfig {
 }
 
 /**
+ * Web analytics configuration for SDK-created applications
+ */
+export interface AnalyticsConfig {
+	/**
+	 * Enable/disable analytics
+	 * @default true
+	 */
+	enabled?: boolean;
+
+	/**
+	 * Require explicit user consent before tracking
+	 * When true, analytics is no-op until optIn() is called
+	 * @default false
+	 */
+	requireConsent?: boolean;
+
+	/**
+	 * Track click events on elements with data-analytics attribute
+	 * @default true
+	 */
+	trackClicks?: boolean;
+
+	/**
+	 * Track scroll depth (25%, 50%, 75%, 100%)
+	 * @default true
+	 */
+	trackScroll?: boolean;
+
+	/**
+	 * Track outbound link clicks
+	 * @default true
+	 */
+	trackOutboundLinks?: boolean;
+
+	/**
+	 * Track form submissions
+	 * @default false
+	 */
+	trackForms?: boolean;
+
+	/**
+	 * Track Core Web Vitals
+	 * @default true
+	 */
+	trackWebVitals?: boolean;
+
+	/**
+	 * Track JavaScript errors
+	 * @default true
+	 */
+	trackErrors?: boolean;
+
+	/**
+	 * Track SPA navigation (popstate, pushState)
+	 * Automatically tracks virtual pageviews on client-side route changes
+	 * @default true
+	 */
+	trackSPANavigation?: boolean;
+
+	/**
+	 * Sample rate (0-1). 1 = 100% of events
+	 * @default 1
+	 */
+	sampleRate?: number;
+
+	/**
+	 * URL patterns to exclude from tracking (regex strings)
+	 */
+	excludePatterns?: string[];
+
+	/**
+	 * Custom data to include with every event
+	 */
+	globalProperties?: Record<string, unknown>;
+}
+
+/**
  * Agentuity project configuration (declarative)
  */
 export interface AgentuityConfig {
@@ -136,6 +213,14 @@ export interface AgentuityConfig {
 	 * Workbench configuration
 	 */
 	workbench?: WorkbenchConfig;
+
+	/**
+	 * Web analytics configuration
+	 * Set to false to disable, or provide options object
+	 * @default true (enabled with defaults)
+	 */
+	analytics?: boolean | AnalyticsConfig;
+
 	/**
 	 * Vite plugins to add to the client build
 	 * These are added AFTER Agentuity's built-in plugins
