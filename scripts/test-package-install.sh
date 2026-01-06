@@ -226,7 +226,7 @@ echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━
 echo -e "${GREEN}🎉 All tests passed!${NC}"
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
-log_success "Built and packed all 8 packages"
+log_success "Built and packed all 10 packages"
 log_success "CLI runs from packed tarball without missing TypeScript"
 log_success "Created new project using CLI with --template-dir"
 log_success "Installed packed packages as if from npm registry"
