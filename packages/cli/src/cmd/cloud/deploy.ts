@@ -332,7 +332,9 @@ export const deploySubcommand = createSubcommand({
 						label: 'Sync Env & Secrets',
 						run: async () => {
 							try {
-								if (useExistingDeployment) {
+								const isCIBuild =
+									useExistingDeployment && process.env.AGENTUITY_FORK_PARENT !== '1';
+								if (isCIBuild) {
 									return stepSkipped('skipped in CI build');
 								}
 								// Read env file
