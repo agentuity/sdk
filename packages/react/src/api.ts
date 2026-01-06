@@ -74,9 +74,10 @@ export type RoutePathParams<TRoute extends RouteKey> = TRoute extends keyof Rout
 	: never;
 
 /**
- * Common options shared by all UseAPI configurations
+ * Base options shared by all UseAPI configurations (without params handling).
+ * This is used as a foundation for both route-form and method/path-form options.
  */
-type UseAPICommonOptions<TRoute extends RouteKey> = {
+type UseAPIBaseOptions<TRoute extends RouteKey> = {
 	/** Additional query parameters */
 	query?: URLSearchParams | Record<string, string>;
 	/** Additional request headers */
@@ -110,7 +111,14 @@ type UseAPICommonOptions<TRoute extends RouteKey> = {
 		: {
 				/** Input data for the request (required for POST/PUT/PATCH/DELETE) */
 				input?: RouteInput<TRoute>;
-			}) &
+			});
+
+/**
+ * Options for the route form with strict params handling.
+ * When TRoute is a single route key (not a union), this correctly requires
+ * params only for routes that have path parameters.
+ */
+type UseAPIRouteFormOptions<TRoute extends RouteKey> = UseAPIBaseOptions<TRoute> &
 	(RoutePathParams<TRoute> extends never
 		? // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 			{} // No params property - omit entirely for routes without path parameters
@@ -120,9 +128,29 @@ type UseAPICommonOptions<TRoute extends RouteKey> = {
 			});
 
 /**
- * Options with route property (e.g., { route: 'GET /users' })
+ * Options for the method/path form with optional params.
+ *
+ * When using {method, path}, TRoute is inferred as a union of all matching routes,
+ * which causes RoutePathParams<TRoute> to be a union of all params types.
+ * This makes params incorrectly required even for routes without path parameters.
+ *
+ * To fix this (GitHub Issue #417), we make params optional in the method/path form.
+ * Users who want strict params enforcement should use the route form instead.
  */
-type UseAPIOptionsWithRoute<TRoute extends RouteKey> = UseAPICommonOptions<TRoute> & {
+type UseAPIMethodPathFormOptions<TRoute extends RouteKey> = UseAPIBaseOptions<TRoute> & {
+	/**
+	 * Optional path parameters for dynamic segments when using method+path.
+	 * These are optional because TRoute may be inferred as a union of routes.
+	 * For strict params typing, use the route form: useAPI({ route: 'GET /users/:id', params: {...} })
+	 */
+	params?: RoutePathParams<TRoute> extends never ? never : RoutePathParams<TRoute>;
+};
+
+/**
+ * Options with route property (e.g., { route: 'GET /users' })
+ * Uses strict params handling - params required only for routes with path parameters.
+ */
+type UseAPIOptionsWithRoute<TRoute extends RouteKey> = UseAPIRouteFormOptions<TRoute> & {
 	/** Route key (e.g., 'GET /users', 'POST /users') */
 	route: TRoute;
 	/** Method cannot be specified when using route */
@@ -133,8 +161,12 @@ type UseAPIOptionsWithRoute<TRoute extends RouteKey> = UseAPICommonOptions<TRout
 
 /**
  * Options with method and path properties (e.g., { method: 'GET', path: '/users' })
+ * Uses optional params handling to avoid false positives when TRoute is a union.
+ *
+ * Note: For full type safety with params, prefer using the route form:
+ * useAPI({ route: 'GET /users/:id', params: { id: '123' } })
  */
-type UseAPIOptionsWithMethodPath<TRoute extends RouteKey> = UseAPICommonOptions<TRoute> & {
+type UseAPIOptionsWithMethodPath<TRoute extends RouteKey> = UseAPIMethodPathFormOptions<TRoute> & {
 	/** HTTP method (e.g., 'GET', 'POST') */
 	method: ExtractMethod<TRoute>;
 	/** Request path (e.g., '/users') */
