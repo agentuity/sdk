@@ -47,7 +47,6 @@ export function App() {
 				<div className="items-center flex flex-col gap-2 justify-center mb-8 relative text-center">
 					<svg
 						aria-hidden="true"
-						aria-label="Agentuity Logo"
 						className="h-auto mb-4 w-12"
 						fill="none"
 						height="191"
