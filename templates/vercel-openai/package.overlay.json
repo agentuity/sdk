@@ -1,6 +1,0 @@
-{
-	"dependencies": {
-		"ai": "latest",
-		"@ai-sdk/openai": "latest"
-	}
-}

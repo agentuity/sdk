@@ -3,51 +3,8 @@
 		{
 			"id": "default",
 			"name": "Default Template",
-			"description": "A basic project with React UI and example agent",
+			"description": "Showcases core Agentuity features using OpenAI SDK",
 			"directory": "default"
-		},
-		{
-			"id": "agentuity-auth",
-			"name": "Agentuity Auth",
-			"description": "First class Agentuity auth using BetterAuth, includes email/password, organizations, and API keys",
-			"directory": "agentuity-auth"
-		},
-
-		{
-			"id": "tailwind",
-			"name": "Tailwind CSS Template",
-			"description": "Project with React UI, Tailwind CSS v4, and example agent",
-			"directory": "tailwind"
-		},
-		{
-			"id": "tanstack-router",
-			"name": "TanStack Router",
-			"description": "Project with TanStack Router for type-safe file-based client routing",
-			"directory": "tanstack-router"
-		},
-		{
-			"id": "vercel-openai",
-			"name": "Vercel AI + OpenAI",
-			"description": "Project using Vercel AI SDK with OpenAI GPT-5-mini",
-			"directory": "vercel-openai"
-		},
-		{
-			"id": "openai",
-			"name": "OpenAI SDK",
-			"description": "Project using OpenAI SDK",
-			"directory": "openai"
-		},
-		{
-			"id": "groq",
-			"name": "Groq (GPT OSS)",
-			"description": "Project using Groq SDK with GPT OSS open-source model",
-			"directory": "groq"
-		},
-		{
-			"id": "xai",
-			"name": "xAI Grok",
-			"description": "Project using Vercel AI SDK with xAI Grok",
-			"directory": "xai"
 		}
 	]
 }
