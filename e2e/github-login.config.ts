@@ -11,7 +11,7 @@ export default defineConfig({
 	reporter: 'list',
 	timeout: 120000,
 	use: {
-		headless: process.env.CI ? true : false,
+		headless: true,
 		trace: 'on-first-retry',
 		viewport: { width: 1280, height: 720 },
 	},
