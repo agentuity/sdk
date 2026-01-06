@@ -311,6 +311,7 @@ function extractAgentMetadata(
  */
 async function extractEvalMetadata(
 	evalsPath: string,
+	relativeEvalsPath: string,
 	agentId: string,
 	projectId: string,
 	deploymentId: string,
@@ -325,7 +326,7 @@ async function extractEvalMetadata(
 		const evalsSource = await evalsFile.text();
 		return extractEvalsFromSource(
 			evalsSource,
-			evalsPath,
+			relativeEvalsPath,
 			agentId,
 			projectId,
 			deploymentId,
@@ -569,8 +570,10 @@ export async function discoverAgents(
 				// 2. Check for evals in separate eval.ts file in same directory
 				const agentDir = dirname(filePath);
 				const evalsPath = join(agentDir, 'eval.ts');
+				const relativeEvalsPath = relative(rootDir, evalsPath);
 				const evalsInSeparateFile = await extractEvalMetadata(
 					evalsPath,
+					relativeEvalsPath,
 					agentMetadata.agentId,
 					projectId,
 					deploymentId,
