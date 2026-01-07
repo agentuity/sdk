@@ -478,11 +478,18 @@ export function createOtelMiddleware() {
  * });
  * ```
  */
-export function createCompressionMiddleware(staticConfig?: CompressionConfig) {
+export function createCompressionMiddleware(
+	staticConfig?: CompressionConfig,
+	/**
+	 * Optional config resolver for testing. When provided, this is used instead of getAppConfig().
+	 * @internal
+	 */
+	configResolver?: () => { compression?: CompressionConfig | false } | undefined
+) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Lazy resolve: merge app config with static config
-		const appConfig = getAppConfig();
+		const appConfig = configResolver ? configResolver() : getAppConfig();
 		const appCompressionConfig = appConfig?.compression;
 
 		// Check if compression is explicitly disabled
