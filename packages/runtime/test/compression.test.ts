@@ -5,33 +5,28 @@
  * Note: Hono's compress middleware uses CompressionStream which may not be
  * available in all test environments. These tests focus on the middleware
  * logic (config resolution, bypasses) rather than actual compression.
+ *
+ * Tests that need to test global app config behavior use a direct globalThis
+ * modification since this is an isolated test file with beforeEach/afterEach cleanup.
  */
 
-import { expect, describe, beforeEach, afterEach, test as baseTest } from 'bun:test';
-
-// Use serial tests to avoid race conditions with global app config state
-const test = baseTest.serial;
+import { expect, describe, test, beforeEach, afterEach } from 'bun:test';
 import { Hono } from 'hono';
 import { createCompressionMiddleware } from '../src/middleware';
+import { setAppConfig } from '../src/app';
 
 // Generate a large string that will exceed the default threshold
 function generateLargePayload(size = 2048): string {
 	return 'x'.repeat(size);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setAppConfig(config: any) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
-}
-
+// Helper to clear app config
 function clearAppConfig() {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
+	setAppConfig(undefined);
 }
 
-// Tests use global app config state, so beforeEach/afterEach ensure isolation
 describe('Compression Middleware', () => {
+	// Clear config before and after EVERY test to ensure isolation
 	beforeEach(() => {
 		clearAppConfig();
 	});

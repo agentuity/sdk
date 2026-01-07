@@ -1,6 +1,12 @@
 import type { StandardSchemaV1 } from '@agentuity/core';
 
 /**
+ * Symbol used to identify schema types in a minification-safe way.
+ * Uses Symbol.for() to ensure the same symbol is used across bundled modules.
+ */
+export const SCHEMA_KIND = Symbol.for('@agentuity/schema-kind');
+
+/**
  * A validation issue from a failed schema validation.
  */
 export type ValidationIssue = StandardSchemaV1.Issue;

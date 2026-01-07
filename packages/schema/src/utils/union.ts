@@ -1,5 +1,5 @@
 import type { Schema, Infer } from '../base';
-import { createIssue, failure, createParseMethods } from '../base';
+import { createIssue, failure, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -29,6 +29,7 @@ type InferUnion<T extends Schema<any, any>[]> = Infer<T[number]>;
 export class UnionSchema<T extends Schema<any, any>[]>
 	implements Schema<InferUnion<T>, InferUnion<T>>
 {
+	readonly [SCHEMA_KIND] = 'UnionSchema';
 	description?: string;
 	private parseMethods = createParseMethods<InferUnion<T>>();
 

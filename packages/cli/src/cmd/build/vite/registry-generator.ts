@@ -112,7 +112,7 @@ export function generateAgentRegistry(srcDir: string, agents: AgentMetadata[]): 
 						.replace(/^.*\/src\/agent\//, '../agent/')
 						.replace(/\.tsx?$/, '.js');
 				}
-			// Avoid duplicate imports
+				// Avoid duplicate imports
 				if (!seenEvalPaths.has(evalRelativePath)) {
 					seenEvalPaths.add(evalRelativePath);
 					evalImports.push(`import '${evalRelativePath}';`);

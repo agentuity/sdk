@@ -1,5 +1,5 @@
 import type { Schema } from '../base';
-import { createIssue, failure, success, createParseMethods } from '../base';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -9,6 +9,7 @@ const parseMethods = createParseMethods<undefined>();
  * Schema for validating undefined values.
  */
 export class UndefinedSchema implements Schema<undefined, undefined> {
+	readonly [SCHEMA_KIND] = 'UndefinedSchema';
 	description?: string;
 
 	readonly '~standard' = {

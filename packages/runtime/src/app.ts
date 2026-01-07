@@ -18,8 +18,62 @@ import type { ThreadProvider, SessionProvider, Session, Thread } from './session
 import type WaitUntilHandler from './_waituntil';
 import type { Context } from 'hono';
 
-type CorsOptions = Parameters<typeof cors>[0];
+type HonoCorsOptions = NonNullable<Parameters<typeof cors>[0]>;
 type HonoCompressOptions = Parameters<typeof compress>[0];
+
+/**
+ * Agentuity-specific CORS options for same-origin restriction.
+ */
+export interface AgentuityCorsSameOriginOptions {
+	/**
+	 * Enable same-origin restriction for CORS.
+	 *
+	 * When true, only allows origins from:
+	 * - AGENTUITY_BASE_URL environment variable
+	 * - AGENTUITY_CLOUD_DOMAINS environment variable (comma-separated)
+	 * - AUTH_TRUSTED_DOMAINS environment variable (comma-separated)
+	 * - The same-origin of the incoming request URL
+	 * - Any additional origins specified in `allowedOrigins`
+	 *
+	 * When false or omitted, the default behavior is to reflect any origin
+	 * (backwards compatible).
+	 *
+	 * @default false
+	 */
+	sameOrigin?: boolean;
+
+	/**
+	 * Additional origins to allow when `sameOrigin` is true.
+	 * Can be full URLs (https://example.com) or bare domains (example.com).
+	 *
+	 * These are merged with the origins derived from environment variables.
+	 */
+	allowedOrigins?: string[];
+}
+
+/**
+ * Extended CORS configuration options.
+ *
+ * Combines Hono's CORS options with Agentuity-specific settings for
+ * easy same-origin restriction.
+ *
+ * @example
+ * ```typescript
+ * // Simple opt-in to trusted origins only
+ * const app = await createApp({
+ *   cors: { sameOrigin: true }
+ * });
+ *
+ * // With additional allowed origins
+ * const app = await createApp({
+ *   cors: {
+ *     sameOrigin: true,
+ *     allowedOrigins: ['https://admin.myapp.com'],
+ *   }
+ * });
+ * ```
+ */
+export type CorsConfig = HonoCorsOptions & AgentuityCorsSameOriginOptions;
 
 /**
  * Configuration options for response compression middleware.
@@ -68,9 +122,28 @@ export interface CompressionConfig {
 
 export interface AppConfig<TAppState = Record<string, never>> {
 	/**
-	 * Override the default cors settings
+	 * Configure CORS (Cross-Origin Resource Sharing) settings.
+	 *
+	 * By default, CORS reflects any origin (backwards compatible).
+	 * Use `sameOrigin: true` to restrict to trusted origins only.
+	 *
+	 * @example
+	 * ```typescript
+	 * // Restrict to trusted origins (recommended for production)
+	 * const app = await createApp({
+	 *   cors: { sameOrigin: true }
+	 * });
+	 *
+	 * // Add additional allowed origins
+	 * const app = await createApp({
+	 *   cors: {
+	 *     sameOrigin: true,
+	 *     allowedOrigins: ['https://admin.myapp.com'],
+	 *   }
+	 * });
+	 * ```
 	 */
-	cors?: CorsOptions;
+	cors?: CorsConfig;
 	/**
 	 * Configure response compression.
 	 * Set to `false` to disable compression entirely.
@@ -155,6 +228,8 @@ export interface Variables<TAppState = Record<string, never>> {
 	vector: VectorStorage;
 	sandbox: SandboxService;
 	app: TAppState;
+	// Web analytics context (set by createWebSessionMiddleware, thread-only tracking)
+	_webThreadId?: string;
 }
 
 export type TriggerType = SessionStartEvent['trigger'];
@@ -371,6 +446,18 @@ export function getAppState<TAppState = any>(): TAppState {
  */
 export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefined {
 	return (globalThis as any).__AGENTUITY_APP_CONFIG__;
+}
+
+/**
+ * Set the global app config (for testing purposes)
+ * @internal
+ */
+export function setAppConfig<TAppState = any>(config: AppConfig<TAppState> | undefined): void {
+	if (config === undefined) {
+		delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
+	} else {
+		(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
+	}
 }
 
 /**

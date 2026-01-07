@@ -59,10 +59,9 @@ export function isRunningFromExecutable(): boolean {
 	const scriptPath = process.argv[1] || '';
 
 	// Check if running from compiled binary (uses Bun's virtual filesystem)
-	// When compiled with `bun build --compile`, the path is in the virtual /$bunfs/root/ directory
-	const isCompiledBinary = process.argv[0] === 'bun' && scriptPath.startsWith('/$bunfs/root/');
-
-	if (isCompiledBinary) {
+	// When compiled with `bun build --compile`, the script path is in the virtual /$bunfs/root/ directory
+	// Note: process.argv[0] is the executable path (e.g., /usr/local/bin/agentuity), not 'bun'
+	if (scriptPath.startsWith('/$bunfs/root/')) {
 		return true;
 	}
 

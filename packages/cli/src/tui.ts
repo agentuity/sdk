@@ -67,14 +67,16 @@ export const ICONS = {
 } as const;
 
 /**
- * Check if we should treat stdout as a TTY (real TTY or FORCE_COLOR set by fork wrapper)
- * Returns false in CI environments since CI terminals don't support cursor control sequences
+ * Check if we should treat the terminal as TTY-like for interactive output
+ * (real TTY on stdout or stderr, or FORCE_COLOR set by fork wrapper).
+ * Returns false in CI environments since CI terminals often don't support
+ * cursor control sequences reliably.
  */
 export function isTTYLike(): boolean {
 	if (process.env.CI) {
 		return false;
 	}
-	return process.stdout.isTTY || process.env.FORCE_COLOR === '1';
+	return !!process.stdout.isTTY || !!process.stderr.isTTY || process.env.FORCE_COLOR === '1';
 }
 
 /**
@@ -1120,8 +1122,9 @@ export async function spinner<T>(
 	const outputOptions = getOutputOptions();
 	const noProgress = outputOptions ? shouldDisableProgress(outputOptions) : false;
 
-	// If no TTY or progress disabled, just execute the callback without animation
-	if (!process.stderr.isTTY || noProgress) {
+	// If no interactive TTY-like environment or progress disabled, just execute
+	// the callback without animation
+	if (!isTTYLike() || noProgress) {
 		try {
 			const result =
 				options.type === 'progress'

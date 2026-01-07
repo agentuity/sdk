@@ -2,6 +2,7 @@ import type { Context, Handler } from 'hono';
 import { stream as honoStream } from 'hono/streaming';
 import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
+import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './sse';
 
 /**
  * Handler function for streaming responses.
@@ -59,6 +60,33 @@ export function stream<E extends Env = Env>(handler: StreamHandler<E>): Handler<
 		const asyncLocalStorage = getAgentAsyncLocalStorage();
 		const capturedContext = asyncLocalStorage.getStore();
 
+		// Track stream completion for deferred session/thread saving
+		// This promise resolves when the stream completes (pipe finishes or errors)
+		let resolveDone: (() => void) | undefined;
+		let rejectDone: ((reason?: unknown) => void) | undefined;
+		const donePromise = new Promise<void>((resolve, reject) => {
+			resolveDone = resolve;
+			rejectDone = reject;
+		});
+
+		// Idempotent function to mark stream as completed
+		let isDone = false;
+		const markDone = (error?: unknown) => {
+			if (isDone) return;
+			isDone = true;
+			if (error && rejectDone) {
+				rejectDone(error);
+			} else if (resolveDone) {
+				resolveDone();
+			}
+		};
+
+		// Expose completion tracking to middleware
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(c as any).set(STREAM_DONE_PROMISE_KEY, donePromise);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(c as any).set(IS_STREAMING_RESPONSE_KEY, true);
+
 		c.header('Content-Type', 'application/octet-stream');
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,8 +98,11 @@ export function stream<E extends Env = Env>(handler: StreamHandler<E>): Handler<
 						streamResult = await streamResult;
 					}
 					await s.pipe(streamResult);
+					// Stream completed successfully
+					markDone();
 				} catch (err) {
 					c.var.logger?.error('Stream error:', err);
+					markDone(err);
 					throw err;
 				}
 			};

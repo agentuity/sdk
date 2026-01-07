@@ -4,6 +4,19 @@ import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 
 /**
+ * Context variable key for stream completion promise.
+ * Used by middleware to defer session/thread saving until stream completes.
+ * @internal
+ */
+export const STREAM_DONE_PROMISE_KEY = '_streamDonePromise';
+
+/**
+ * Context variable key to indicate this is a streaming response.
+ * @internal
+ */
+export const IS_STREAMING_RESPONSE_KEY = '_isStreamingResponse';
+
+/**
  * SSE message format for Server-Sent Events.
  */
 export interface SSEMessage {
@@ -84,8 +97,38 @@ export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 		const asyncLocalStorage = getAgentAsyncLocalStorage();
 		const capturedContext = asyncLocalStorage.getStore();
 
+		// Track stream completion for deferred session/thread saving
+		// This promise resolves when the stream closes (normally or via abort)
+		let resolveDone: (() => void) | undefined;
+		let rejectDone: ((reason?: unknown) => void) | undefined;
+		const donePromise = new Promise<void>((resolve, reject) => {
+			resolveDone = resolve;
+			rejectDone = reject;
+		});
+
+		// Idempotent function to mark stream as completed
+		let isDone = false;
+		const markDone = (error?: unknown) => {
+			if (isDone) return;
+			isDone = true;
+			if (error && rejectDone) {
+				rejectDone(error);
+			} else if (resolveDone) {
+				resolveDone();
+			}
+		};
+
+		// Expose completion tracking to middleware
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(c as any).set(STREAM_DONE_PROMISE_KEY, donePromise);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		(c as any).set(IS_STREAMING_RESPONSE_KEY, true);
+
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		return honoStreamSSE(c, async (stream: any) => {
+			// Track if user registered an onAbort callback
+			let userAbortCallback: (() => void) | undefined;
+
 			const wrappedStream: SSEStream = {
 				write: async (data) => {
 					if (
@@ -100,12 +143,44 @@ export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 					return stream.writeSSE({ data: String(data) });
 				},
 				writeSSE: stream.writeSSE.bind(stream),
-				onAbort: stream.onAbort.bind(stream),
-				close: stream.close?.bind(stream) ?? (() => {}),
+				onAbort: (callback: () => void) => {
+					userAbortCallback = callback;
+					stream.onAbort(() => {
+						try {
+							callback();
+						} finally {
+							// Mark stream as done on abort
+							markDone();
+						}
+					});
+				},
+				close: () => {
+					try {
+						stream.close?.();
+					} finally {
+						// Mark stream as done on close
+						markDone();
+					}
+				},
 			};
 
+			// Always register internal abort handler if user doesn't register one
+			// This ensures we track completion even if user doesn't call onAbort
+			stream.onAbort(() => {
+				if (!userAbortCallback) {
+					// Only mark done if user didn't register their own handler
+					// (their handler wrapper already calls markDone)
+					markDone();
+				}
+			});
+
 			const runInContext = async () => {
-				await handler(c, wrappedStream);
+				try {
+					await handler(c, wrappedStream);
+				} catch (err) {
+					markDone(err);
+					throw err;
+				}
 			};
 
 			if (capturedContext) {

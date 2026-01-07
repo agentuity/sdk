@@ -1,5 +1,5 @@
 import type { Schema } from '../base';
-import { success, createParseMethods } from '../base';
+import { success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -24,6 +24,7 @@ const parseMethods = createParseMethods<unknown>();
  * ```
  */
 export class UnknownSchema implements Schema<unknown, unknown> {
+	readonly [SCHEMA_KIND] = 'UnknownSchema';
 	description?: string;
 
 	readonly '~standard' = {

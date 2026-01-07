@@ -58,12 +58,14 @@ export function queueEvent(event: AnalyticsEvent): void {
 		}
 	}
 
-	// Add global properties to event data
-	if (config.globalProperties && Object.keys(config.globalProperties).length > 0) {
-		event.event_data = {
-			...config.globalProperties,
-			...event.event_data,
-		};
+	// Merge global properties with event data and serialize to JSON string for Catalyst
+	const mergedData =
+		config.globalProperties && Object.keys(config.globalProperties).length > 0
+			? { ...config.globalProperties, ...event.event_data }
+			: event.event_data;
+
+	if (mergedData) {
+		(event as unknown as { event_data: string }).event_data = JSON.stringify(mergedData);
 	}
 
 	eventQueue.push(event);
