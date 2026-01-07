@@ -23,7 +23,7 @@ export interface ChatProps {
 }
 
 export function Chat({
-	className: _className,
+	className,
 	emptyState,
 	onSchemaToggle,
 	onSessionOpen,
@@ -72,7 +72,7 @@ export function Chat({
 	};
 
 	return (
-		<div className="relative flex flex-col h-full w-full overflow-hidden">
+		<div className={cn('relative flex flex-col h-full w-full overflow-hidden', className)}>
 			<Conversation
 				className="flex-1 overflow-y-auto [&>div]:overflow-y-auto"
 				id="chat-conversation"
