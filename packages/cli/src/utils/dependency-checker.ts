@@ -57,12 +57,6 @@ export async function checkAndUpgradeDependencies(
 		failed: [],
 	};
 
-	// Skip in CI/non-interactive environments
-	if (!process.stdin.isTTY) {
-		logger.debug('Skipping dependency check in non-interactive environment');
-		return result;
-	}
-
 	const packageJsonPath = join(projectDir, 'package.json');
 	const cliVersion = getVersion();
 
