@@ -11,7 +11,7 @@
 		"build": "bunx tsc --build && bun run --filter='./packages/core' build && bun run --filter='./packages/schema' build && bun run --filter='./packages/frontend' build && bun run --filter='./packages/server' build && bun run --filter='./packages/react' build && bun run --filter='./packages/auth' build && bun run --filter='./packages/evals' build && bun run --filter='./packages/workbench' build && bun run --filter='./packages/runtime' build && bun run --filter='./packages/cli' build && bun run --filter='./apps/testing/integration-suite' build && bun run --filter='./apps/testing/cloud-deployment' build && bun run --filter='./apps/testing/e2e-web' build",
 		"dev:workbench": "concurrently \"cd packages/workbench && bun run dev:app\" \"cd apps/testing/integration-suite && bun run dev\" --names \"workbench,integration-suite\" --prefix-colors \"blue,green\"",
 		"test": "bun test:packages && cd packages/cli && bun run test && cd ../.. && bun test:templates && bun test:pkginstall && bun test:create",
-		"test:packages": "cd packages/core && bun test && cd ../schema && bun test && cd ../frontend && bun test && cd ../server && bun test && cd ../react && bun test && cd ../auth && bun test && cd ../runtime && bun test",
+		"test:packages": "cd packages/core && bun test && cd ../schema && bun test && cd ../frontend && bun test && cd ../server && bun test && cd ../react && bun test && cd ../auth && bun test && cd ../runtime && bun test --max-concurrency=1",
 		"test:unit": "bun run test:packages && cd packages/cli && bun run test",
 		"test:ci:prepare": "bash scripts/prepare-sdk-for-testing.sh",
 		"test:ci": "bash scripts/prepare-sdk-for-testing.sh && bash scripts/run-integration-tests.sh && bash scripts/run-e2e-tests.sh",
