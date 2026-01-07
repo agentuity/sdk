@@ -219,6 +219,7 @@ export const command = createCommand({
 		// Check and upgrade @agentuity/* dependencies if needed
 		const upgradeResult = await checkAndUpgradeDependencies(rootDir, logger);
 		if (upgradeResult.failed.length > 0) {
+			devLock.release();
 			tui.fatal(
 				`Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`,
 				ErrorCode.BUILD_FAILED
