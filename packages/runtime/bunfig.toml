@@ -1,0 +1,2 @@
+[test]
+# No preload needed - runtime tests use native Request/Response, not happy-dom
