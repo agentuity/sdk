@@ -27,6 +27,7 @@ import { TraceState } from '@opentelemetry/core';
 import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
 import { internal } from './logger/internal';
+import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './handlers/sse';
 
 const SESSION_HEADER = 'x-session-id';
 const THREAD_HEADER = 'x-thread-id';
@@ -311,27 +312,15 @@ export function createOtelMiddleware() {
 						}
 					}
 
-					try {
-						await next();
-						// Save session/thread and send events
+					// Factor out finalization logic so it can run synchronously or deferred
+					const finalizeSession = async (statusCode?: number) => {
 						internal.info('[session] saving session %s (thread: %s)', sessionId, thread.id);
 						await sessionProvider.save(session);
 						internal.info('[session] session saved, now saving thread');
 						await threadProvider.save(thread);
 						internal.info('[session] thread saved');
-						span.setStatus({ code: SpanStatusCode.OK });
-					} catch (ex) {
-						if (ex instanceof Error) {
-							span.recordException(ex);
-						}
-						span.setStatus({
-							code: SpanStatusCode.ERROR,
-							message: (ex as Error).message ?? String(ex),
-						});
-						throw ex;
-					} finally {
+
 						// Send session complete event
-						// The provider decides whether to actually send based on its requirements
 						if (sessionEventProvider) {
 							try {
 								const userData = session.serializeUserData();
@@ -347,7 +336,7 @@ export function createOtelMiddleware() {
 								await sessionEventProvider.complete({
 									id: sessionId,
 									threadId: isEmpty ? null : thread.id,
-									statusCode: c.res?.status ?? 200,
+									statusCode: statusCode ?? c.res?.status ?? 200,
 									agentIds: agentIds?.length ? agentIds : undefined,
 									userData,
 								});
@@ -357,7 +346,60 @@ export function createOtelMiddleware() {
 								// Silently ignore session complete errors - don't block response
 							}
 						}
+					};
 
+					try {
+						await next();
+
+						// Check if this is a streaming response that needs deferred finalization
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const streamDone = (c as any).get(STREAM_DONE_PROMISE_KEY) as
+							| Promise<void>
+							| undefined;
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const isStreaming = Boolean((c as any).get(IS_STREAMING_RESPONSE_KEY));
+
+						if (isStreaming && streamDone) {
+							// Defer session/thread saving until stream completes
+							// This ensures thread state changes made during streaming are persisted
+							internal.info(
+								'[session] deferring session/thread save until streaming completes (session %s)',
+								sessionId
+							);
+
+							handler.waitUntil(async () => {
+								try {
+									await streamDone;
+									internal.info(
+										'[session] stream completed, now saving session/thread (session %s)',
+										sessionId
+									);
+								} catch (ex) {
+									// Stream ended with an error/abort; still try to persist the latest state
+									internal.info(
+										'[session] stream ended with error, still saving state: %s',
+										ex
+									);
+								}
+								await finalizeSession();
+							});
+
+							span.setStatus({ code: SpanStatusCode.OK });
+						} else {
+							// Non-streaming: save session/thread synchronously (existing behavior)
+							await finalizeSession();
+							span.setStatus({ code: SpanStatusCode.OK });
+						}
+					} catch (ex) {
+						if (ex instanceof Error) {
+							span.recordException(ex);
+						}
+						span.setStatus({
+							code: SpanStatusCode.ERROR,
+							message: (ex as Error).message ?? String(ex),
+						});
+						throw ex;
+					} finally {
 						const headers: Record<string, string> = {};
 						propagation.inject(context.active(), headers);
 						for (const key of Object.keys(headers)) {
