@@ -42,6 +42,12 @@ export interface WorkbenchContextType {
 	isGeneratingSample: boolean;
 	isLoading: boolean;
 	messages: WorkbenchMessage[];
+	portals?: {
+		actionBar?: {
+			pre?: React.ReactNode;
+			post?: React.ReactNode;
+		};
+	};
 	refetchSchemas: () => void;
 	schemas: AgentSchemasResponse | null;
 	schemasError: Error | null;
