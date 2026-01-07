@@ -155,6 +155,9 @@ export interface Variables<TAppState = Record<string, never>> {
 	vector: VectorStorage;
 	sandbox: SandboxService;
 	app: TAppState;
+	// Web analytics context (set by createWebSessionMiddleware, not full session tracking)
+	_webSessionId?: string;
+	_webThreadId?: string;
 }
 
 export type TriggerType = SessionStartEvent['trigger'];

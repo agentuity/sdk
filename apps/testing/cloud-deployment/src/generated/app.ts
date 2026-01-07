@@ -30,10 +30,8 @@ import {
   getProjectId,
   isDevMode as runtimeIsDevMode,
   createWebSessionMiddleware,
-  getSessionSecret,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
-import { getSignedCookie } from 'hono/cookie';
 import { websocket } from 'hono/bun';
 import { type LogLevel } from '@agentuity/core';
 
@@ -97,13 +95,12 @@ function injectAnalytics(html: string): string {
 // Serve analytics routes
 function registerAnalyticsRoutes(app: ReturnType<typeof createRouter>): void {
 	// Dynamic session config script - sets cookies and returns session/thread IDs
-	// The middleware sets signed cookies; we read them back to return to client
+	// The middleware sets cookies and stores values in context for same-request access
 	// This endpoint is NOT cached - it generates unique session data per request
 	app.get('/_agentuity/webanalytics/session.js', createWebSessionMiddleware(), async (c: Context) => {
-		// Read the signed cookies that were just set by the middleware
-		const secret = getSessionSecret();
-		const sessionId = await getSignedCookie(c, secret, 'asid') || '';
-		const threadId = await getSignedCookie(c, secret, 'atid_a') || '';
+		// Read from context (cookies aren't readable until the next request)
+		const sessionId = c.get('_webSessionId') || '';
+		const threadId = c.get('_webThreadId') || '';
 		
 		const sessionScript = `window.__AGENTUITY_SESSION__={sessionId:"${sessionId}",threadId:"${threadId}"};`;
 		

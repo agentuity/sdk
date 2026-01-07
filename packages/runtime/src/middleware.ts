@@ -499,6 +499,12 @@ export function createWebSessionMiddleware() {
 			path: '/',
 			maxAge: 604800, // 1 week (same as thread)
 		});
+
+		// Store in context for handler to access in same request
+		// (cookies aren't readable until the next request)
+		c.set('_webSessionId', sessionId);
+		c.set('_webThreadId', thread.id);
+
 		await next();
 	});
 }
