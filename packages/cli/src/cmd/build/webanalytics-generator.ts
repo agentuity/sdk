@@ -177,8 +177,9 @@ export function registerAnalyticsRoutes(app: ReturnType<typeof createRouter>): v
 		// Read from context (cookies aren't readable until the next request)
 		const threadId = c.get('_webThreadId') || '';
 
-		// Note: sessionId is empty - web analytics doesn't create sessions
-		const sessionScript = \`window.__AGENTUITY_SESSION__={sessionId:"",threadId:"\${threadId}"};\`;
+		// Use JSON.stringify to safely escape threadId and prevent XSS/injection
+		const sessionData = JSON.stringify({ threadId });
+		const sessionScript = \`window.__AGENTUITY_SESSION__=\${sessionData};\`;
 
 		return new Response(sessionScript, {
 			headers: {
