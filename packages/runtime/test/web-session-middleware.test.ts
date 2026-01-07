@@ -2,13 +2,13 @@
  * Tests for web session middleware behavior.
  *
  * Verifies that createWebSessionMiddleware:
- * - Does NOT set sessionId/thread in Hono context
+ * - Does NOT set sessionId in context (only _webThreadId)
  * - Does NOT set x-session-id or x-thread-id response headers
- *   (preventing sessions from being associated with Catalyst)
+ * - Only tracks thread ID for web analytics (no session tracking)
  *
  * Note: Cookie setting tests require proper thread provider initialization
  * which is tested in integration tests. This unit test focuses on the
- * "no context, no headers" behavior.
+ * "no session, no headers" behavior.
  */
 
 import { test, expect, describe } from 'bun:test';
@@ -27,7 +27,7 @@ describe('Web Session Middleware', () => {
 			method: 'GET',
 		});
 
-		// Should NOT have session header - this is the key behavioral difference
+		// Should NOT have session header - web analytics doesn't track sessions
 		expect(res.headers.get('x-session-id')).toBeNull();
 	});
 
@@ -43,7 +43,7 @@ describe('Web Session Middleware', () => {
 			method: 'GET',
 		});
 
-		// Should NOT have thread header
+		// Should NOT have thread header in response
 		expect(res.headers.get('x-thread-id')).toBeNull();
 	});
 
@@ -64,11 +64,11 @@ describe('Web Session Middleware', () => {
 			method: 'GET',
 		});
 
-		// Context should NOT have sessionId - web analytics doesn't need it
+		// Context should NOT have sessionId - web analytics doesn't create sessions
 		expect(capturedSessionId).toBeUndefined();
 	});
 
-	test('does not set thread in context', async () => {
+	test('does not set thread in context (uses _webThreadId instead)', async () => {
 		const { Hono } = await import('hono');
 		const { createWebSessionMiddleware } = await import('../src/middleware');
 
@@ -85,7 +85,28 @@ describe('Web Session Middleware', () => {
 			method: 'GET',
 		});
 
-		// Context should NOT have thread - web analytics doesn't need it
+		// Context should NOT have thread object - only _webThreadId string
 		expect(capturedThread).toBeUndefined();
+	});
+
+	test('does not set _webSessionId in context (removed)', async () => {
+		const { Hono } = await import('hono');
+		const { createWebSessionMiddleware } = await import('../src/middleware');
+
+		const app = new Hono();
+		app.use('*', createWebSessionMiddleware());
+
+		let capturedWebSessionId: string | undefined;
+		app.get('/test', (c) => {
+			capturedWebSessionId = c.get('_webSessionId');
+			return c.json({ ok: true });
+		});
+
+		await app.request('/test', {
+			method: 'GET',
+		});
+
+		// _webSessionId should NOT be set - web analytics only tracks thread
+		expect(capturedWebSessionId).toBeUndefined();
 	});
 });

@@ -155,8 +155,7 @@ export interface Variables<TAppState = Record<string, never>> {
 	vector: VectorStorage;
 	sandbox: SandboxService;
 	app: TAppState;
-	// Web analytics context (set by createWebSessionMiddleware, not full session tracking)
-	_webSessionId?: string;
+	// Web analytics context (set by createWebSessionMiddleware, thread-only tracking)
 	_webThreadId?: string;
 }
 

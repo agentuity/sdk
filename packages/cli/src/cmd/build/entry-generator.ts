@@ -267,15 +267,15 @@ function injectAnalytics(html: string): string {
 
 // Serve analytics routes
 function registerAnalyticsRoutes(app: ReturnType<typeof createRouter>): void {
-	// Dynamic session config script - sets cookies and returns session/thread IDs
-	// The middleware sets cookies and stores values in context for same-request access
-	// This endpoint is NOT cached - it generates unique session data per request
+	// Dynamic thread config script - sets cookie and returns thread ID
+	// Web analytics only tracks thread ID, not session ID (to avoid polluting sessions table)
+	// This endpoint is NOT cached - it generates unique data per request
 	app.get('/_agentuity/webanalytics/session.js', createWebSessionMiddleware(), async (c: Context) => {
 		// Read from context (cookies aren't readable until the next request)
-		const sessionId = c.get('_webSessionId') || '';
 		const threadId = c.get('_webThreadId') || '';
 		
-		const sessionScript = \`window.__AGENTUITY_SESSION__={sessionId:"\${sessionId}",threadId:"\${threadId}"};\`;
+		// Note: sessionId is empty - web analytics doesn't create sessions
+		const sessionScript = \`window.__AGENTUITY_SESSION__={sessionId:"",threadId:"\${threadId}"};\`;
 		
 		return new Response(sessionScript, {
 			headers: {
