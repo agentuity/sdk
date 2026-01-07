@@ -15,7 +15,9 @@ interface GenerateWebAnalyticsOptions {
 /**
  * Generate the web analytics files (webanalytics.ts and analytics-config.ts)
  */
-export async function generateWebAnalyticsFile(options: GenerateWebAnalyticsOptions): Promise<void> {
+export async function generateWebAnalyticsFile(
+	options: GenerateWebAnalyticsOptions
+): Promise<void> {
 	const { rootDir, logger, analytics } = options;
 
 	const srcDir = join(rootDir, 'src');

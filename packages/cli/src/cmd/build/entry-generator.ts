@@ -242,8 +242,12 @@ if (isDevelopment()) {
 				.replace(/src="\\.\\//g, 'src="/src/web/')
 				.replace(/href="\\.\\//g, 'href="/src/web/');
 
-${analyticsEnabled ? `			// Inject analytics config and script (session/thread read from cookies by beacon)
-			html = injectAnalytics(html, analyticsConfig);` : ''}
+${
+	analyticsEnabled
+		? `			// Inject analytics config and script (session/thread read from cookies by beacon)
+			html = injectAnalytics(html, analyticsConfig);`
+		: ''
+}
 
 			return new Response(html, {
 				status: res.status,
@@ -288,9 +292,13 @@ ${analyticsEnabled ? `			// Inject analytics config and script (session/thread r
 		if (!baseIndexHtml) {
 			return c.text('Production build incomplete', 500);
 		}
-${analyticsEnabled ? `		// Inject analytics config and script (session/thread loaded via session.js)
+${
+	analyticsEnabled
+		? `		// Inject analytics config and script (session/thread loaded via session.js)
 		const html = injectAnalytics(baseIndexHtml, analyticsConfig);
-		return c.html(html);` : `		return c.html(baseIndexHtml);`}
+		return c.html(html);`
+		: `		return c.html(baseIndexHtml);`
+}
 	};
 	
 	app.get('/', prodHtmlHandler);
@@ -519,8 +527,12 @@ await sessionProvider.initialize(appState);
 
 ${healthRoutes}
 
-${analyticsEnabled ? `// Register analytics routes
-registerAnalyticsRoutes(app);` : ''}
+${
+	analyticsEnabled
+		? `// Register analytics routes
+registerAnalyticsRoutes(app);`
+		: ''
+}
 
 ${assetProxyRoutes}
 ${apiMount}

@@ -196,10 +196,6 @@ describe('Deferred Save Pattern', () => {
 
 		await Promise.all(waitUntilTasks);
 
-		expect(executionOrder).toEqual([
-			'middleware-returned',
-			'stream-error-caught',
-			'finalize',
-		]);
+		expect(executionOrder).toEqual(['middleware-returned', 'stream-error-caught', 'finalize']);
 	});
 });

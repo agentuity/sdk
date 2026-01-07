@@ -7,7 +7,8 @@ import { createMiddleware } from 'hono/factory';
 import { cors } from 'hono/cors';
 import { compress } from 'hono/compress';
 import { setSignedCookie } from 'hono/cookie';
-import type { Env, CompressionConfig } from './app';
+import type { Env, CompressionConfig, CorsConfig } from './app';
+import { createTrustedCorsOrigin } from './cors';
 import type { Logger } from './logger';
 import { getAppConfig } from './app';
 import { generateId } from './session';
@@ -172,38 +173,79 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
  * }));
  * ```
  */
-export function createCorsMiddleware(staticOptions?: Parameters<typeof cors>[0]) {
+export function createCorsMiddleware(staticOptions?: CorsConfig) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Lazy resolve: merge app config with static options
 		const appConfig = getAppConfig();
+		const appCors = appConfig?.cors;
 		const corsOptions = {
-			...appConfig?.cors,
+			...appCors,
 			...staticOptions,
 		};
 
+		// Extract Agentuity-specific options
+		const { sameOrigin, allowedOrigins, ...honoCorsOptions } = corsOptions;
+
+		// Determine origin handler based on sameOrigin setting
+		let originHandler: NonNullable<Parameters<typeof cors>[0]>['origin'];
+		if (sameOrigin) {
+			// Use trusted origins (env vars + allowedOrigins + same-origin)
+			originHandler = createTrustedCorsOrigin({ allowedOrigins });
+		} else if (honoCorsOptions.origin !== undefined) {
+			// Use explicitly provided origin
+			originHandler = honoCorsOptions.origin;
+		} else {
+			// Default: reflect any origin (backwards compatible)
+			originHandler = (origin: string) => origin;
+		}
+
+		// Required headers that must always be allowed/exposed for runtime functionality
+		const requiredAllowHeaders = [THREAD_HEADER];
+		const requiredExposeHeaders = [
+			TOKENS_HEADER,
+			DURATION_HEADER,
+			THREAD_HEADER,
+			SESSION_HEADER,
+			DEPLOYMENT_HEADER,
+		];
+
+		// Default headers to allow (used if none specified)
+		const defaultAllowHeaders = [
+			'Content-Type',
+			'Authorization',
+			'Accept',
+			'Origin',
+			'X-Requested-With',
+		];
+
+		// Default headers to expose (used if none specified)
+		const defaultExposeHeaders = ['Content-Length'];
+
 		const corsMiddleware = cors({
-			origin: corsOptions?.origin ?? ((origin: string) => origin),
-			allowHeaders: corsOptions?.allowHeaders ?? [
-				'Content-Type',
-				'Authorization',
-				'Accept',
-				'Origin',
-				'X-Requested-With',
-				THREAD_HEADER,
+			...honoCorsOptions,
+			origin: originHandler,
+			// Always include required headers, merge with user-provided or defaults
+			allowHeaders: [
+				...(honoCorsOptions.allowHeaders ?? defaultAllowHeaders),
+				...requiredAllowHeaders,
 			],
-			allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
+			allowMethods: honoCorsOptions.allowMethods ?? [
+				'POST',
+				'GET',
+				'OPTIONS',
+				'HEAD',
+				'PUT',
+				'DELETE',
+				'PATCH',
+			],
+			// Always include required headers, merge with user-provided or defaults
 			exposeHeaders: [
-				'Content-Length',
-				TOKENS_HEADER,
-				DURATION_HEADER,
-				THREAD_HEADER,
-				SESSION_HEADER,
-				DEPLOYMENT_HEADER,
+				...(honoCorsOptions.exposeHeaders ?? defaultExposeHeaders),
+				...requiredExposeHeaders,
 			],
-			maxAge: 600,
-			credentials: true,
-			...(corsOptions ?? {}),
+			maxAge: honoCorsOptions.maxAge ?? 600,
+			credentials: honoCorsOptions.credentials ?? true,
 		});
 
 		return corsMiddleware(c, next);
