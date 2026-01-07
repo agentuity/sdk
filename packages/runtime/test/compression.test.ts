@@ -7,7 +7,15 @@
  * logic (config resolution, bypasses) rather than actual compression.
  */
 
-import { expect, describe, beforeEach, afterEach, test as baseTest } from 'bun:test';
+import {
+	expect,
+	describe,
+	beforeAll,
+	beforeEach,
+	afterEach,
+	afterAll,
+	test as baseTest,
+} from 'bun:test';
 
 // Use serial tests to avoid race conditions with global app config state
 const test = baseTest.serial;
@@ -30,8 +38,18 @@ function clearAppConfig() {
 	delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
 }
 
-// Tests use global app config state, so beforeEach/afterEach ensure isolation
+// Tests use global app config state, so beforeAll/afterAll ensure file-level isolation
+// and beforeEach/afterEach ensure test-level isolation
 describe('Compression Middleware', () => {
+	// Clear at file level to ensure isolation from other test files
+	beforeAll(() => {
+		clearAppConfig();
+	});
+
+	afterAll(() => {
+		clearAppConfig();
+	});
+
 	beforeEach(() => {
 		clearAppConfig();
 	});
