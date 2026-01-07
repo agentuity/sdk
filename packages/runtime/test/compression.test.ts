@@ -13,24 +13,16 @@
 import { expect, describe, test, beforeEach, afterEach } from 'bun:test';
 import { Hono } from 'hono';
 import { createCompressionMiddleware } from '../src/middleware';
-
-const APP_CONFIG_KEY = '__AGENTUITY_APP_CONFIG__';
+import { setAppConfig } from '../src/app';
 
 // Generate a large string that will exceed the default threshold
 function generateLargePayload(size = 2048): string {
 	return 'x'.repeat(size);
 }
 
-// Helper to set app config for a test - directly on globalThis
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setAppConfig(config: any) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any)[APP_CONFIG_KEY] = config;
-}
-
+// Helper to clear app config
 function clearAppConfig() {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	delete (globalThis as any)[APP_CONFIG_KEY];
+	setAppConfig(undefined);
 }
 
 describe('Compression Middleware', () => {

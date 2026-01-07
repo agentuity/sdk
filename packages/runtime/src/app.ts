@@ -449,6 +449,18 @@ export function getAppConfig<TAppState = any>(): AppConfig<TAppState> | undefine
 }
 
 /**
+ * Set the global app config (for testing purposes)
+ * @internal
+ */
+export function setAppConfig<TAppState = any>(config: AppConfig<TAppState> | undefined): void {
+	if (config === undefined) {
+		delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
+	} else {
+		(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
+	}
+}
+
+/**
  * Run the global shutdown function
  * Called by generated entry file on cleanup
  */
