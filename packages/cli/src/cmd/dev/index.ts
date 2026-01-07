@@ -18,6 +18,8 @@ import { typecheck } from '../build/typecheck';
 import { createFileWatcher } from './file-watcher';
 import { regenerateSkillsAsync } from './skills';
 import { prepareDevLock, releaseLockSync } from './dev-lock';
+import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
+import { ErrorCode } from '../../errors';
 
 const DEFAULT_PORT = 3500;
 const MIN_PORT = 1024;
@@ -213,6 +215,15 @@ export const command = createCommand({
 		// Kill any lingering gravity processes from previous dev sessions
 		// This is a fallback for cases where the lockfile was corrupted
 		await killLingeringGravityProcesses(logger);
+
+		// Check and upgrade @agentuity/* dependencies if needed
+		const upgradeResult = await checkAndUpgradeDependencies(rootDir, logger);
+		if (upgradeResult.failed.length > 0) {
+			tui.fatal(
+				`Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`,
+				ErrorCode.BUILD_FAILED
+			);
+		}
 
 		try {
 			// Setup devmode and gravity (if using public URL)
