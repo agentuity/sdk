@@ -370,25 +370,7 @@ export const deploySubcommand = createSubcommand({
 							}
 						},
 					},
-					{
-						label: 'Create Deployment',
-						run: async () => {
-							if (useExistingDeployment) {
-								return stepSkipped('using pre-created deployment');
-							}
-							try {
-								deployment = await projectDeploymentCreate(
-									apiClient,
-									project.projectId,
-									project.deployment
-								);
-								return stepSuccess();
-							} catch (ex) {
-								const _ex = ex as { message?: string };
-								return stepError(_ex.message ?? String(_ex), ex as Error);
-							}
-						},
-					},
+
 					{
 						label: 'Build, Verify and Package',
 						run: async () => {
