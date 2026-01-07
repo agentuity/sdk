@@ -449,15 +449,17 @@ export function createCompressionMiddleware(staticConfig?: CompressionConfig) {
 /**
  * Create lightweight session middleware for web routes (analytics).
  *
- * Sets session and thread cookies that persist across page views.
- * This is a lighter-weight alternative to createOtelMiddleware for
- * routes that don't need full tracing but need session/thread tracking.
+ * Sets session and thread cookies that persist across page views for
+ * client-side analytics. This middleware does NOT:
+ * - Set session/thread IDs in Hono context
+ * - Set session/thread response headers
+ * - Create sessions in Catalyst or the sessions table
  *
- * Uses the existing ThreadIDProvider for thread ID generation to ensure
- * consistency with the OTel middleware.
+ * This is intentionally separate from createOtelMiddleware to avoid
+ * polluting the sessions table with web browsing activity.
  *
  * - Session cookie (asid): Per browser session, 30-minute sliding expiry
- * - Thread cookie (atid): Managed by ThreadIDProvider, 1-week expiry
+ * - Thread cookie (atid_a): Analytics-readable copy, 1-week expiry
  */
 export function createWebSessionMiddleware() {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -497,15 +499,6 @@ export function createWebSessionMiddleware() {
 			path: '/',
 			maxAge: 604800, // 1 week (same as thread)
 		});
-
-		// Set in context for access by handlers (use existing Variables types)
-		c.set('sessionId', sessionId);
-		c.set('thread', thread);
-
-		// Set response headers for debugging/tracing
-		c.header(SESSION_HEADER, sessionId);
-		c.header(THREAD_HEADER, thread.id);
-
 		await next();
 	});
 }
