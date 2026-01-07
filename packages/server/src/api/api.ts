@@ -294,6 +294,8 @@ export class APIClient {
 			);
 		}
 
+		const canRetry = !(body instanceof ReadableStream); // we cannot safely retry a ReadableStream as body
+
 		for (let attempt = 0; attempt <= maxRetries; attempt++) {
 			try {
 				let response: Response;
@@ -306,7 +308,6 @@ export class APIClient {
 						| string
 						| undefined;
 					if (body !== undefined) {
-						//FIXME: this could be a failure on retry and reablestream
 						if (contentType && contentType !== 'application/json') {
 							requestBody = body as
 								| Uint8Array
@@ -350,7 +351,7 @@ export class APIClient {
 
 				// Check if we should retry on specific status codes (409, 501, 503)
 				const retryableStatuses = [409, 501, 503];
-				if (retryableStatuses.includes(response.status) && attempt < maxRetries) {
+				if (canRetry && retryableStatuses.includes(response.status) && attempt < maxRetries) {
 					let delayMs = this.#getRetryDelay(attempt, baseDelayMs);
 
 					// For 409, check for rate limit headers
