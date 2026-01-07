@@ -217,8 +217,6 @@ const getEnv = (key: string) => process.env[key];
 const isDevelopment = () => getEnv('NODE' + '_' + 'ENV') !== 'production';
 `;
 
-
-
 	// Web routes (runtime mode detection)
 	let webRoutes = '';
 	if (hasWebFrontend) {
