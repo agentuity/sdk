@@ -179,8 +179,14 @@ describe('JSON Schema Conversion', () => {
 
 			// Simulate minification by overriding constructor.name
 			// This would break the old implementation that relied on constructor.name
-			Object.defineProperty(stringSchema.constructor, 'name', { value: 'a', configurable: true });
-			Object.defineProperty(objectSchema.constructor, 'name', { value: 'b', configurable: true });
+			Object.defineProperty(stringSchema.constructor, 'name', {
+				value: 'a',
+				configurable: true,
+			});
+			Object.defineProperty(objectSchema.constructor, 'name', {
+				value: 'b',
+				configurable: true,
+			});
 			Object.defineProperty(arraySchema.constructor, 'name', { value: 'c', configurable: true });
 			Object.defineProperty(unionSchema.constructor, 'name', { value: 'd', configurable: true });
 

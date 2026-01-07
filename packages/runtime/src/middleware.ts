@@ -6,7 +6,7 @@
 import { createMiddleware } from 'hono/factory';
 import { cors } from 'hono/cors';
 import { compress } from 'hono/compress';
-import { getSignedCookie, setSignedCookie } from 'hono/cookie';
+import { setSignedCookie } from 'hono/cookie';
 import type { Env, CompressionConfig } from './app';
 import type { Logger } from './logger';
 import { getAppConfig } from './app';
@@ -447,17 +447,18 @@ export function createCompressionMiddleware(staticConfig?: CompressionConfig) {
 }
 
 /**
- * Create lightweight session middleware for web routes (analytics).
+ * Create lightweight thread middleware for web routes (analytics).
  *
- * Sets session and thread cookies that persist across page views.
- * This is a lighter-weight alternative to createOtelMiddleware for
- * routes that don't need full tracing but need session/thread tracking.
+ * Sets thread cookie that persists across page views for client-side analytics.
+ * This middleware does NOT:
+ * - Create or track sessions (no session ID)
+ * - Set session/thread response headers
+ * - Send events to Catalyst sessions table
  *
- * Uses the existing ThreadIDProvider for thread ID generation to ensure
- * consistency with the OTel middleware.
+ * This is intentionally separate from createOtelMiddleware to avoid
+ * polluting the sessions table with web browsing activity.
  *
- * - Session cookie (asid): Per browser session, 30-minute sliding expiry
- * - Thread cookie (atid): Managed by ThreadIDProvider, 1-week expiry
+ * - Thread cookie (atid_a): Analytics-readable copy, 1-week expiry
  */
 export function createWebSessionMiddleware() {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -467,44 +468,24 @@ export function createWebSessionMiddleware() {
 
 		const secret = getSessionSecret();
 
-		// Check for existing session cookie
-		let sessionId = await getSignedCookie(c, secret, 'asid');
-		if (!sessionId || typeof sessionId !== 'string') {
-			sessionId = generateId('sess');
-		}
-
 		// Use ThreadProvider.restore() to get/create thread (handles header, cookie, generation)
 		const threadProvider = getThreadProvider();
 		const thread = await threadProvider.restore(c);
 
-		// Set session cookie with sliding expiry
-		// httpOnly: false so beacon script can read it for analytics
+		// Set thread cookie for analytics
+		// httpOnly: false so beacon script can read it
 		const isSecure = c.req.url.startsWith('https://');
-		await setSignedCookie(c, 'asid', sessionId, secret, {
-			httpOnly: false, // Readable by JavaScript for analytics
-			secure: isSecure,
-			sameSite: 'Lax',
-			path: '/',
-			maxAge: 30 * 60, // 30 minutes
-		});
-
-		// Note: Thread cookie is set by ThreadProvider with httpOnly: true
-		// We need a readable copy for analytics
 		await setSignedCookie(c, 'atid_a', thread.id, secret, {
 			httpOnly: false, // Readable by JavaScript for analytics
 			secure: isSecure,
 			sameSite: 'Lax',
 			path: '/',
-			maxAge: 604800, // 1 week (same as thread)
+			maxAge: 604800, // 1 week
 		});
 
-		// Set in context for access by handlers (use existing Variables types)
-		c.set('sessionId', sessionId);
-		c.set('thread', thread);
-
-		// Set response headers for debugging/tracing
-		c.header(SESSION_HEADER, sessionId);
-		c.header(THREAD_HEADER, thread.id);
+		// Store in context for handler to access in same request
+		// (cookies aren't readable until the next request)
+		c.set('_webThreadId', thread.id);
 
 		await next();
 	});

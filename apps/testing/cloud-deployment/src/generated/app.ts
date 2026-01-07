@@ -94,14 +94,15 @@ function injectAnalytics(html: string): string {
 
 // Serve analytics routes
 function registerAnalyticsRoutes(app: ReturnType<typeof createRouter>): void {
-	// Dynamic session config script - sets cookies and returns session/thread IDs
-	// This endpoint is NOT cached - it generates unique session data per request
+	// Dynamic thread config script - sets cookie and returns thread ID
+	// Web analytics only tracks thread ID, not session ID (to avoid polluting sessions table)
+	// This endpoint is NOT cached - it generates unique data per request
 	app.get('/_agentuity/webanalytics/session.js', createWebSessionMiddleware(), async (c: Context) => {
-		const sessionId = c.get('sessionId') || '';
-		const thread = c.get('thread');
-		const threadId = thread?.id || '';
+		// Read from context (cookies aren't readable until the next request)
+		const threadId = c.get('_webThreadId') || '';
 		
-		const sessionScript = `window.__AGENTUITY_SESSION__={sessionId:"${sessionId}",threadId:"${threadId}"};`;
+		// Note: sessionId is empty - web analytics doesn't create sessions
+		const sessionScript = `window.__AGENTUITY_SESSION__={sessionId:"",threadId:"${threadId}"};`;
 		
 		return new Response(sessionScript, {
 			headers: {
@@ -181,11 +182,17 @@ app.use('*', createBaseMiddleware({
 	meter: otel.meter,
 }));
 
-app.use('/_agentuity/*', createCorsMiddleware());
+app.use('/_agentuity/workbench/*', createCorsMiddleware());
 app.use('/api/*', createCorsMiddleware());
 
 // Critical: otelMiddleware creates session/thread/waitUntilHandler
-app.use('/_agentuity/*', createOtelMiddleware());
+// Only apply to routes that need full session tracking:
+// - /api/* routes (agent/API invocations)
+// - /_agentuity/workbench/* routes (workbench API)
+// Explicitly excluded (no session tracking, no Catalyst events):
+// - /_agentuity/webanalytics/* (web analytics - uses lightweight cookie-only middleware)
+// - /_agentuity/health, /_agentuity/ready, /_agentuity/idle (health checks)
+app.use('/_agentuity/workbench/*', createOtelMiddleware());
 app.use('/api/*', createOtelMiddleware());
 
 // Critical: agentMiddleware sets up agent context
