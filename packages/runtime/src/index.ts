@@ -30,6 +30,7 @@ export {
 export {
 	type AppConfig,
 	type CompressionConfig,
+	type CorsConfig,
 	type Variables,
 	type TriggerType,
 	type PrivateVariables,
@@ -42,6 +43,9 @@ export {
 	runShutdown,
 	fireEvent,
 } from './app';
+
+// cors.ts exports (trusted origin helpers)
+export { createTrustedCorsOrigin, type TrustedCorsOriginOptions } from './cors';
 export { addEventListener, removeEventListener } from './_events';
 
 // middleware.ts exports (Vite-native)
