@@ -270,32 +270,32 @@ export class APIClient {
 		const maxRetries = this.#config?.maxRetries ?? 3;
 		const baseDelayMs = this.#config?.retryDelayMs ?? 100;
 
+		const url = `${this.#baseUrl}${endpoint}`;
+		const headers: Record<string, string> = {
+			'Content-Type': contentType ?? 'application/json',
+		};
+
+		// Only set Accept header for JSON requests (not binary uploads)
+		if (!contentType || contentType === 'application/json') {
+			headers['Accept'] = 'application/json';
+		}
+
+		if (this.#config?.userAgent) {
+			headers['User-Agent'] = this.#config.userAgent;
+		}
+
+		if (this.#apiKey) {
+			headers['Authorization'] = `Bearer ${this.#apiKey}`;
+		}
+
+		if (this.#config?.headers) {
+			Object.keys(this.#config.headers).forEach(
+				(key) => (headers[key] = this.#config!.headers![key])
+			);
+		}
+
 		for (let attempt = 0; attempt <= maxRetries; attempt++) {
 			try {
-				const url = `${this.#baseUrl}${endpoint}`;
-				const headers: Record<string, string> = {
-					'Content-Type': contentType ?? 'application/json',
-				};
-
-				// Only set Accept header for JSON requests (not binary uploads)
-				if (!contentType || contentType === 'application/json') {
-					headers['Accept'] = 'application/json';
-				}
-
-				if (this.#config?.userAgent) {
-					headers['User-Agent'] = this.#config.userAgent;
-				}
-
-				if (this.#apiKey) {
-					headers['Authorization'] = `Bearer ${this.#apiKey}`;
-				}
-
-				if (this.#config?.headers) {
-					Object.keys(this.#config.headers).forEach(
-						(key) => (headers[key] = this.#config!.headers![key])
-					);
-				}
-
 				let response: Response;
 
 				try {
@@ -306,6 +306,7 @@ export class APIClient {
 						| string
 						| undefined;
 					if (body !== undefined) {
+						//FIXME: this could be a failure on retry and reablestream
 						if (contentType && contentType !== 'application/json') {
 							requestBody = body as
 								| Uint8Array
@@ -324,6 +325,7 @@ export class APIClient {
 						signal,
 					});
 				} catch (ex) {
+					this.#logger.debug('fetch returned an error trying to access: %s. %s', url, ex);
 					const _ex = ex as { code?: string; name: string };
 					let retryable = false;
 					// Check for retryable network errors
@@ -344,6 +346,8 @@ export class APIClient {
 					}
 				}
 
+				const sessionId = response.headers.get('x-session-id');
+
 				// Check if we should retry on specific status codes (409, 501, 503)
 				const retryableStatuses = [409, 501, 503];
 				if (retryableStatuses.includes(response.status) && attempt < maxRetries) {
@@ -355,24 +359,25 @@ export class APIClient {
 						if (rateLimitDelay !== null) {
 							delayMs = rateLimitDelay;
 							this.#logger.debug(
-								`Got 409 with rate limit headers, waiting ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`
+								`Got 409 sending to ${url} with rate limit headers, waiting ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1}, will delay ${delayMs}ms), sessionId: ${sessionId ?? null}`
 							);
 						} else {
 							this.#logger.debug(
-								`Got 409, retrying with backoff ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`
+								`Got 409 sending to ${url}, retrying with backoff ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1}, will delay ${delayMs}ms), sessionId: ${sessionId ?? null}`
 							);
 						}
 					} else {
 						this.#logger.debug(
-							`Got ${response.status}, retrying (attempt ${attempt + 1}/${maxRetries + 1})`
+							`Got ${response.status} sending to ${url}, retrying (attempt ${attempt + 1}/${maxRetries + 1}, will delay ${delayMs}ms), sessionId: ${sessionId ?? null}`
 						);
 					}
 
 					await this.#sleep(delayMs);
+
+					this.#logger.debug(`after sleep for ${url}, sessionId: ${sessionId ?? null}`);
+
 					continue;
 				}
-
-				const sessionId = response.headers.get('x-session-id');
 
 				// Handle error responses
 				if (!response.ok) {
@@ -391,22 +396,33 @@ export class APIClient {
 						} catch (parseEx) {
 							// Log at debug level since this is a contract violation from the server
 							this.#logger.debug(
-								'Failed to parse JSON error response from API: %s',
-								parseEx
+								'Failed to parse JSON error response from API: %s (url: %s, sessionId: %s)',
+								parseEx,
+								url,
+								sessionId
 							);
 						}
 					} else {
 						// Non-JSON response (e.g., HTML error page), skip structured error parsing
 						this.#logger.debug(
-							'Received non-JSON error response (content-type: %s), skipping structured error parsing',
-							contentType ?? 'unknown'
+							'Received non-JSON error response (content-type: %s), skipping structured error parsing (url: %s, sessionId: %s)',
+							contentType ?? 'unknown',
+							url,
+							sessionId
 						);
 					}
 
 					// Sanitize headers to avoid leaking API keys
 					const sanitizedHeaders = { ...headers };
 					for (const key in sanitizedHeaders) {
-						if (key.toLowerCase() === 'authorization') {
+						const lk = key.toLowerCase();
+						if (
+							lk === 'authorization' ||
+							lk === 'x-api-key' ||
+							lk.includes('secret') ||
+							lk.includes('key') ||
+							lk.includes('token')
+						) {
 							sanitizedHeaders[key] = 'REDACTED';
 						}
 					}
@@ -470,6 +486,8 @@ export class APIClient {
 					});
 				}
 
+				this.#logger.debug('%s succeeded with status: %d', url, response.status);
+
 				// Successful response; handle empty bodies (e.g., 204 No Content)
 				if (response.status === 204 || response.headers.get('content-length') === '0') {
 					return new Response(null, { status: 204 });
@@ -477,6 +495,8 @@ export class APIClient {
 
 				return response;
 			} catch (error) {
+				this.#logger.debug('error sending to %s: %s', url, error);
+
 				// Check if it's a retryable connection error
 				const isRetryable = this.#isRetryableError(error);
 
@@ -492,6 +512,8 @@ export class APIClient {
 				throw error;
 			}
 		}
+
+		this.#logger.debug('max retries trying: %s', url);
 
 		throw new MaxRetriesError();
 	}
