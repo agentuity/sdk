@@ -1,20 +1,19 @@
 /**
  * Tests for CORS sameOrigin configuration and createTrustedCorsOrigin helper.
+ *
+ * Note: These tests use static config passed to createCorsMiddleware(), so they
+ * don't need to modify the global app config. We avoid touching the global
+ * __AGENTUITY_APP_CONFIG__ to prevent race conditions with other test files
+ * (like compression.test.ts) that do use the global config.
+ *
+ * Tests DO modify process.env variables, so we use beforeEach/afterEach to
+ * clean those up (env var changes are isolated to this file's tests).
  */
 
-import { expect, describe, beforeAll, beforeEach, afterEach, afterAll, test as baseTest } from 'bun:test';
-
-const test = baseTest.serial;
+import { expect, describe, beforeEach, afterEach, test } from 'bun:test';
 import { Hono } from 'hono';
 import { createCorsMiddleware } from '../src/middleware';
 import { createTrustedCorsOrigin } from '../src/cors';
-
-const APP_CONFIG_KEY = '__AGENTUITY_APP_CONFIG__';
-
-function clearAppConfig() {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	delete (globalThis as any)[APP_CONFIG_KEY];
-}
 
 function clearEnvVars() {
 	delete process.env.AGENTUITY_BASE_URL;
@@ -22,27 +21,13 @@ function clearEnvVars() {
 	delete process.env.AUTH_TRUSTED_DOMAINS;
 }
 
-function clearAll() {
-	clearAppConfig();
-	clearEnvVars();
-}
-
 describe('CORS sameOrigin Configuration', () => {
-	// Clear at file level to ensure isolation from other test files
-	beforeAll(() => {
-		clearAll();
-	});
-
-	afterAll(() => {
-		clearAll();
-	});
-
 	beforeEach(() => {
-		clearAll();
+		clearEnvVars();
 	});
 
 	afterEach(() => {
-		clearAll();
+		clearEnvVars();
 	});
 
 	describe('sameOrigin: true option', () => {
@@ -291,21 +276,7 @@ describe('CORS sameOrigin Configuration', () => {
 });
 
 describe('Required headers always included', () => {
-	beforeAll(() => {
-		clearAll();
-	});
-
-	afterAll(() => {
-		clearAll();
-	});
-
-	beforeEach(() => {
-		clearAll();
-	});
-
-	afterEach(() => {
-		clearAll();
-	});
+	// These tests don't use env vars or global config - no cleanup needed
 
 	test('custom allowHeaders still includes x-thread-id', async () => {
 		const app = new Hono();
@@ -346,20 +317,13 @@ describe('Required headers always included', () => {
 });
 
 describe('createTrustedCorsOrigin helper', () => {
-	beforeAll(() => {
-		clearAll();
-	});
-
-	afterAll(() => {
-		clearAll();
-	});
-
+	// This test uses env vars, so clean them up
 	beforeEach(() => {
-		clearAll();
+		clearEnvVars();
 	});
 
 	afterEach(() => {
-		clearAll();
+		clearEnvVars();
 	});
 
 	test('can be used directly with Hono cors middleware', async () => {

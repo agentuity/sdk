@@ -1,32 +1,18 @@
 /**
  * Tests for CORS middleware with lazy config resolution.
  * Tests that createCorsMiddleware correctly uses config from createApp().
+ *
+ * Note: These tests use static config passed to createCorsMiddleware(), so they
+ * don't need to modify the global app config. We avoid touching the global
+ * __AGENTUITY_APP_CONFIG__ to prevent race conditions with other test files
+ * (like compression.test.ts) that do use the global config.
  */
 
-import { expect, describe, beforeEach, afterEach, test as baseTest } from 'bun:test';
-
-// Use serial tests to avoid race conditions with global app config state
-const test = baseTest.serial;
+import { expect, describe, test } from 'bun:test';
 import { Hono } from 'hono';
 import { createCorsMiddleware } from '../src/middleware';
 
-// Use the same global key that getAppConfig uses
-const APP_CONFIG_KEY = '__AGENTUITY_APP_CONFIG__';
-
-function clearAppConfig() {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	delete (globalThis as any)[APP_CONFIG_KEY];
-}
-
-// Tests use global app config state, so beforeEach/afterEach ensure isolation
 describe('CORS Middleware', () => {
-	beforeEach(() => {
-		clearAppConfig();
-	});
-
-	afterEach(() => {
-		clearAppConfig();
-	});
 
 	describe('Basic CORS behavior', () => {
 		test('middleware processes requests successfully', async () => {
