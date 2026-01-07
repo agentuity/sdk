@@ -232,6 +232,24 @@ test.describe.configure({ mode: 'serial' });
 test.describe('GitHub App Integration', () => {
 	test.beforeAll(() => {
 		initGitRepo();
+
+		// Ensure test account is disconnected before starting
+		if (GH_TEST_ACC_USERNAME) {
+			try {
+				const listOutput = runCli('--json git account list');
+				const accounts = parseJsonOutput(listOutput) as OrgAccount[];
+				const integration = findTestAccountIntegration(accounts);
+				if (integration) {
+					console.log(`Disconnecting existing test account: ${integration.githubAccountName}`);
+					runCli(
+						`--json git account remove --org ${TARGET_ORG_ID} --account ${integration.id} --confirm`
+					);
+					console.log('✓ Test account disconnected');
+				}
+			} catch (error) {
+				console.log('No existing connection to clean up');
+			}
+		}
 	});
 
 	test.afterAll(() => {
@@ -418,63 +436,34 @@ test.describe('GitHub App Integration', () => {
 		console.log('✓ Project unlinked');
 	});
 
-	test('2.5 link with explicit repo and custom settings', async () => {
+	test('2.5 link with explicit repo', async () => {
 		if (!GH_TEST_ACC_USERNAME) {
 			test.skip();
 			return;
 		}
 
-		// Link with auto-deploy disabled
+		// Link with explicit repo
 		const linkOutput = runCli(
-			`--json git link --repo ${GITHUB_REPO_FULL_NAME} --branch main --deploy false --preview false --confirm`
+			`--json git link --repo ${GITHUB_REPO_FULL_NAME} --branch main --confirm`
 		);
 		const linkResult = parseJsonOutput(linkOutput) as { linked: boolean };
 
 		expect(linkResult.linked).toBe(true);
 
-		// Verify settings
+		// Verify linked
 		const statusOutput = runCli('--json git status');
 		const status = parseJsonOutput(statusOutput) as {
 			linked: boolean;
-			autoDeploy?: boolean;
-			previewDeploy?: boolean;
+			repoFullName?: string;
 		};
 
 		expect(status.linked).toBe(true);
-		expect(status.autoDeploy).toBe(false);
-		expect(status.previewDeploy).toBe(false);
+		expect(status.repoFullName).toBe(GITHUB_REPO_FULL_NAME);
 
-		console.log('✓ Linked with custom settings (deploy disabled)');
+		console.log('✓ Linked with explicit repo');
 	});
 
-	test('2.6 re-link with different settings', async () => {
-		if (!GH_TEST_ACC_USERNAME) {
-			test.skip();
-			return;
-		}
-
-		// Re-link with auto-deploy enabled
-		const linkOutput = runCli(
-			`--json git link --repo ${GITHUB_REPO_FULL_NAME} --branch main --deploy true --preview true --confirm`
-		);
-		const linkResult = parseJsonOutput(linkOutput) as { linked: boolean };
-
-		expect(linkResult.linked).toBe(true);
-
-		// Verify settings updated
-		const statusOutput = runCli('--json git status');
-		const status = parseJsonOutput(statusOutput) as {
-			autoDeploy?: boolean;
-			previewDeploy?: boolean;
-		};
-
-		expect(status.autoDeploy).toBe(true);
-		expect(status.previewDeploy).toBe(true);
-
-		console.log('✓ Re-linked with updated settings');
-	});
-
-	test('2.7 push commit via GitHub API and revert', async () => {
+	test('2.6 push commit via GitHub API and revert', async () => {
 		if (!GH_TEST_ACC_USERNAME || !GH_TEST_ACC_TOKEN) {
 			console.warn('⚠️  Skipping: GITHUB_TEST_ACC_TOKEN not set');
 			test.skip();

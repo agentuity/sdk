@@ -3,7 +3,7 @@ import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import enquirer from 'enquirer';
 import { z } from 'zod';
-import { getGithubIntegrationStatus, listGithubRepos } from '../integration/api';
+import { getGithubIntegrationStatus, listGithubRepos } from './api';
 import { ErrorCode } from '../../errors';
 import { listOrganizations } from '@agentuity/server';
 

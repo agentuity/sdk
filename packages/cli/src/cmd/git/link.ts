@@ -10,7 +10,7 @@ import {
 	linkProjectToRepo,
 	getProjectGithubStatus,
 	type GithubRepo,
-} from '../integration/api';
+} from './api';
 import type { APIClient } from '../../api';
 import type { Logger } from '@agentuity/core';
 import { runGitAccountConnect } from './account/add';
@@ -348,10 +348,6 @@ export async function runGitLink(options: RunGitLinkOptions): Promise<RunGitLink
 
 const LinkOptionsSchema = z.object({
 	repo: z.string().optional().describe('Repository full name (owner/repo) to link'),
-	detect: z
-		.boolean()
-		.optional()
-		.describe('Auto-detect repository and branch from git origin (for non-interactive mode)'),
 	deploy: z.boolean().optional().describe('Enable automatic deployments on push (default: true)'),
 	preview: z
 		.boolean()
@@ -360,6 +356,7 @@ const LinkOptionsSchema = z.object({
 	branch: z.string().optional().describe('Branch to deploy from (default: repo default branch)'),
 	root: z.string().optional().describe('Root directory containing agentuity.json (default: .)'),
 	confirm: z.boolean().optional().describe('Skip confirmation prompts'),
+	detect: z.boolean().optional().describe('Auto-detect repo and branch from git origin'),
 });
 
 const LinkResponseSchema = z.object({
@@ -386,10 +383,6 @@ export const linkSubcommand = createSubcommand({
 		{
 			command: getCommand('git link --repo owner/repo --branch main --confirm'),
 			description: 'Link to a specific repo non-interactively',
-		},
-		{
-			command: getCommand('git link --detect --confirm'),
-			description: 'Auto-detect repo from git origin and link non-interactively',
 		},
 		{
 			command: getCommand('git link --root .'),
@@ -421,33 +414,26 @@ export const linkSubcommand = createSubcommand({
 		const { apiClient, project, opts, config, logger, options } = ctx;
 
 		try {
-			// Non-interactive mode when repo is provided or --detect is used
-			// Note: integrationId is not passed in non-interactive mode. The API will
-			// attempt to find a matching integration based on the repo owner. This may
-			// fail if the org has multiple GitHub integrations with access to the same repo.
-			let repoFullName = opts.repo;
-			let branch = opts.branch;
+			// Auto-detect repo and branch from git origin when --detect is used
+			let repoToLink = opts.repo;
+			let branchToLink = opts.branch;
 
-			// Auto-detect from git origin if --detect flag is used
-			if (opts.detect && opts.confirm && !repoFullName) {
-				const gitInfo = detectGitInfo();
-				if (!gitInfo.repo) {
-					return logger.fatal(
-						'Could not detect repository from git origin. Make sure you are in a git repository with a GitHub remote.',
-						ErrorCode.INTEGRATION_FAILED
-					);
+			if (opts.detect) {
+				const detected = detectGitInfo();
+				if (detected.repo) {
+					repoToLink = repoToLink ?? detected.repo;
 				}
-				repoFullName = gitInfo.repo;
-				branch = branch ?? gitInfo.branch ?? 'main';
-
-				if (!options.json) {
-					tui.info(`Detected repository: ${tui.bold(repoFullName)}`);
-					tui.info(`Detected branch: ${tui.bold(branch)}`);
+				if (detected.branch) {
+					branchToLink = branchToLink ?? detected.branch;
 				}
 			}
 
-			if (repoFullName && opts.confirm) {
-				const finalBranch = branch ?? 'main';
+			// Non-interactive mode when repo is provided (or detected)
+			// Note: integrationId is not passed in non-interactive mode. The API will
+			// attempt to find a matching integration based on the repo owner. This may
+			// fail if the org has multiple GitHub integrations with access to the same repo.
+			if (repoToLink && opts.confirm) {
+				const branch = branchToLink ?? 'main';
 				const directory = opts.root === '.' ? undefined : opts.root;
 
 				await tui.spinner({
@@ -456,8 +442,8 @@ export const linkSubcommand = createSubcommand({
 					callback: () =>
 						linkProjectToRepo(apiClient, {
 							projectId: project.projectId,
-							repoFullName: repoFullName!,
-							branch: finalBranch,
+							repoFullName: repoToLink!,
+							branch,
 							autoDeploy: opts.deploy !== false,
 							previewDeploy: opts.preview !== false,
 							directory,
@@ -466,10 +452,10 @@ export const linkSubcommand = createSubcommand({
 
 				if (!options.json) {
 					tui.newline();
-					tui.success(`Linked project to ${tui.bold(repoFullName)}`);
+					tui.success(`Linked project to ${tui.bold(repoToLink)}`);
 				}
 
-				return { linked: true, repoFullName, branch: finalBranch };
+				return { linked: true, repoFullName: repoToLink, branch };
 			}
 
 			const result = await runGitLink({

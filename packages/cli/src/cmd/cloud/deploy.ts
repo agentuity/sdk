@@ -14,7 +14,7 @@ import {
 	loadProjectSDKKey,
 	updateProjectConfig,
 } from '../../config';
-import { getProjectGithubStatus } from '../integration/api';
+import { getProjectGithubStatus } from '../git/api';
 import { runGitLink } from '../git/link';
 import {
 	runSteps,
