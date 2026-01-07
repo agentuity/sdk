@@ -1,5 +1,2 @@
 [test]
-# No preload needed - runtime tests use native Request/Response, not happy-dom
-# Run test files serially to avoid race conditions on globalThis.__AGENTUITY_APP_CONFIG__
-# Multiple test files (compression.test.ts, cors.test.ts, cors-trusted.test.ts) modify this global
-concurrency = 1
+# Runtime tests use native Request/Response, not happy-dom

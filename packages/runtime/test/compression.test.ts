@@ -7,56 +7,24 @@
  * logic (config resolution, bypasses) rather than actual compression.
  */
 
-import {
-	expect,
-	describe,
-	beforeAll,
-	beforeEach,
-	afterEach,
-	afterAll,
-	test as baseTest,
-} from 'bun:test';
-
-// Use serial tests to avoid race conditions with global app config state
-const test = baseTest.serial;
+import { expect, describe, test } from 'bun:test';
 import { Hono } from 'hono';
 import { createCompressionMiddleware } from '../src/middleware';
+import {
+	withAppConfig,
+	setTestAppConfig,
+	clearTestAppConfig,
+	getTestAppConfig,
+} from './helpers/app-config';
 
 // Generate a large string that will exceed the default threshold
 function generateLargePayload(size = 2048): string {
 	return 'x'.repeat(size);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function setAppConfig(config: any) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	(globalThis as any).__AGENTUITY_APP_CONFIG__ = config;
-}
-
-function clearAppConfig() {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	delete (globalThis as any).__AGENTUITY_APP_CONFIG__;
-}
-
-// Tests use global app config state, so beforeAll/afterAll ensure file-level isolation
-// and beforeEach/afterEach ensure test-level isolation
+// Tests that need global app config use withAppConfig() for save/restore isolation.
+// This prevents race conditions when multiple test files run in the same process.
 describe('Compression Middleware', () => {
-	// Clear at file level to ensure isolation from other test files
-	beforeAll(() => {
-		clearAppConfig();
-	});
-
-	afterAll(() => {
-		clearAppConfig();
-	});
-
-	beforeEach(() => {
-		clearAppConfig();
-	});
-
-	afterEach(() => {
-		clearAppConfig();
-	});
 
 	describe('Basic behavior', () => {
 		test('middleware processes request and returns response', async () => {
@@ -113,39 +81,39 @@ describe('Compression Middleware', () => {
 		});
 
 		test('compression: false in app config disables compression', async () => {
-			setAppConfig({ compression: false });
+			await withAppConfig({ compression: false }, async () => {
+				const app = new Hono();
+				app.use('*', createCompressionMiddleware());
+				app.get('/test', (c) => {
+					return c.json({ data: generateLargePayload(2048) });
+				});
 
-			const app = new Hono();
-			app.use('*', createCompressionMiddleware());
-			app.get('/test', (c) => {
-				return c.json({ data: generateLargePayload(2048) });
+				const res = await app.request('/test', {
+					method: 'GET',
+					headers: { 'Accept-Encoding': 'gzip' },
+				});
+
+				expect(res.status).toBe(200);
+				expect(res.headers.get('Content-Encoding')).toBeNull();
 			});
-
-			const res = await app.request('/test', {
-				method: 'GET',
-				headers: { 'Accept-Encoding': 'gzip' },
-			});
-
-			expect(res.status).toBe(200);
-			expect(res.headers.get('Content-Encoding')).toBeNull();
 		});
 
 		test('static config enabled:false overrides app config', async () => {
-			setAppConfig({ compression: { threshold: 100 } });
+			await withAppConfig({ compression: { threshold: 100 } }, async () => {
+				const app = new Hono();
+				app.use('*', createCompressionMiddleware({ enabled: false }));
+				app.get('/test', (c) => {
+					return c.json({ data: generateLargePayload(2048) });
+				});
 
-			const app = new Hono();
-			app.use('*', createCompressionMiddleware({ enabled: false }));
-			app.get('/test', (c) => {
-				return c.json({ data: generateLargePayload(2048) });
+				const res = await app.request('/test', {
+					method: 'GET',
+					headers: { 'Accept-Encoding': 'gzip' },
+				});
+
+				expect(res.status).toBe(200);
+				expect(res.headers.get('Content-Encoding')).toBeNull();
 			});
-
-			const res = await app.request('/test', {
-				method: 'GET',
-				headers: { 'Accept-Encoding': 'gzip' },
-			});
-
-			expect(res.status).toBe(200);
-			expect(res.headers.get('Content-Encoding')).toBeNull();
 		});
 
 		test('custom filter function disables compression for filtered paths', async () => {
@@ -223,24 +191,35 @@ describe('Compression Middleware', () => {
 
 	describe('Lazy config resolution', () => {
 		test('reads config from app state at request time', async () => {
-			const app = new Hono();
-			// Register middleware BEFORE setting config (simulating real startup order)
-			app.use('*', createCompressionMiddleware());
-			app.get('/test', (c) => {
-				return c.json({ data: generateLargePayload(2048) });
-			});
+			// Save previous config for restore
+			const prevConfig = getTestAppConfig();
+			try {
+				const app = new Hono();
+				// Register middleware BEFORE setting config (simulating real startup order)
+				app.use('*', createCompressionMiddleware());
+				app.get('/test', (c) => {
+					return c.json({ data: generateLargePayload(2048) });
+				});
 
-			// Now set config (simulating createApp running after middleware registration)
-			setAppConfig({ compression: false });
+				// Now set config (simulating createApp running after middleware registration)
+				setTestAppConfig({ compression: false });
 
-			const res = await app.request('/test', {
-				method: 'GET',
-				headers: { 'Accept-Encoding': 'gzip' },
-			});
+				const res = await app.request('/test', {
+					method: 'GET',
+					headers: { 'Accept-Encoding': 'gzip' },
+				});
 
-			expect(res.status).toBe(200);
-			// Config was resolved lazily, compression should be disabled
-			expect(res.headers.get('Content-Encoding')).toBeNull();
+				expect(res.status).toBe(200);
+				// Config was resolved lazily, compression should be disabled
+				expect(res.headers.get('Content-Encoding')).toBeNull();
+			} finally {
+				// Restore previous config
+				if (prevConfig === undefined) {
+					clearTestAppConfig();
+				} else {
+					setTestAppConfig(prevConfig);
+				}
+			}
 		});
 
 		test('works without any config (uses defaults)', async () => {
