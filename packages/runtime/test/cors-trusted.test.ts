@@ -2,7 +2,7 @@
  * Tests for CORS sameOrigin configuration and createTrustedCorsOrigin helper.
  */
 
-import { expect, describe, beforeEach, afterEach, test as baseTest } from 'bun:test';
+import { expect, describe, beforeAll, beforeEach, afterEach, afterAll, test as baseTest } from 'bun:test';
 
 const test = baseTest.serial;
 import { Hono } from 'hono';
@@ -22,15 +22,27 @@ function clearEnvVars() {
 	delete process.env.AUTH_TRUSTED_DOMAINS;
 }
 
+function clearAll() {
+	clearAppConfig();
+	clearEnvVars();
+}
+
 describe('CORS sameOrigin Configuration', () => {
+	// Clear at file level to ensure isolation from other test files
+	beforeAll(() => {
+		clearAll();
+	});
+
+	afterAll(() => {
+		clearAll();
+	});
+
 	beforeEach(() => {
-		clearAppConfig();
-		clearEnvVars();
+		clearAll();
 	});
 
 	afterEach(() => {
-		clearAppConfig();
-		clearEnvVars();
+		clearAll();
 	});
 
 	describe('sameOrigin: true option', () => {
@@ -279,6 +291,22 @@ describe('CORS sameOrigin Configuration', () => {
 });
 
 describe('Required headers always included', () => {
+	beforeAll(() => {
+		clearAll();
+	});
+
+	afterAll(() => {
+		clearAll();
+	});
+
+	beforeEach(() => {
+		clearAll();
+	});
+
+	afterEach(() => {
+		clearAll();
+	});
+
 	test('custom allowHeaders still includes x-thread-id', async () => {
 		const app = new Hono();
 		app.use('*', createCorsMiddleware({ allowHeaders: ['X-Custom-Header'] }));
@@ -318,12 +346,20 @@ describe('Required headers always included', () => {
 });
 
 describe('createTrustedCorsOrigin helper', () => {
+	beforeAll(() => {
+		clearAll();
+	});
+
+	afterAll(() => {
+		clearAll();
+	});
+
 	beforeEach(() => {
-		clearEnvVars();
+		clearAll();
 	});
 
 	afterEach(() => {
-		clearEnvVars();
+		clearAll();
 	});
 
 	test('can be used directly with Hono cors middleware', async () => {
