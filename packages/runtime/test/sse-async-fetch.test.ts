@@ -252,3 +252,74 @@ describe('SSE Handler - Error Handling', () => {
 		expect(messages).toContain('started');
 	});
 });
+
+describe('SSE Handler - Auto-close Behavior', () => {
+	test('stream is auto-closed when handler completes without calling close()', async () => {
+		const app = new Hono();
+		let handlerCompleted = false;
+
+		app.get(
+			'/sse-no-close',
+			sse(async (_c, stream) => {
+				await stream.writeSSE({ data: 'message 1' });
+				await stream.writeSSE({ data: 'message 2' });
+				handlerCompleted = true;
+				// Note: NOT calling stream.close() - should auto-close
+			})
+		);
+
+		const response = await app.request('/sse-no-close');
+		expect(response.status).toBe(200);
+
+		// Stream should complete and return all messages even without explicit close()
+		const messages = await collectSSEMessages(response);
+		expect(messages).toContain('message 1');
+		expect(messages).toContain('message 2');
+		expect(handlerCompleted).toBe(true);
+	});
+
+	test('stream closes immediately when close() is called explicitly', async () => {
+		const app = new Hono();
+		const executionOrder: string[] = [];
+
+		app.get(
+			'/sse-explicit-close',
+			sse(async (_c, stream) => {
+				executionOrder.push('before-write');
+				await stream.writeSSE({ data: 'message' });
+				executionOrder.push('after-write');
+				stream.close();
+				executionOrder.push('after-close');
+			})
+		);
+
+		const response = await app.request('/sse-explicit-close');
+		expect(response.status).toBe(200);
+
+		const messages = await collectSSEMessages(response);
+		expect(messages).toContain('message');
+		expect(executionOrder).toEqual(['before-write', 'after-write', 'after-close']);
+	});
+
+	test('messages written before handler returns are all received', async () => {
+		const app = new Hono();
+
+		app.get(
+			'/sse-multiple-messages',
+			sse(async (_c, stream) => {
+				// Write multiple messages without explicit close
+				for (let i = 1; i <= 5; i++) {
+					await stream.writeSSE({ data: `message ${i}` });
+				}
+				// No close() call - rely on auto-close
+			})
+		);
+
+		const response = await app.request('/sse-multiple-messages');
+		expect(response.status).toBe(200);
+
+		const messages = await collectSSEMessages(response);
+		expect(messages.length).toBe(5);
+		expect(messages).toEqual(['message 1', 'message 2', 'message 3', 'message 4', 'message 5']);
+	});
+});
