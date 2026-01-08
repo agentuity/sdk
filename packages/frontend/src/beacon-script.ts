@@ -8,3 +8,17 @@
  */
 
 export const BEACON_SCRIPT: string = '';
+
+/**
+ * Validates that the beacon script has been properly injected at build time.
+ * Call this early in the runtime to fail fast if the build step was missed.
+ * @throws Error if BEACON_SCRIPT is empty (build step not run)
+ */
+export function validateBeaconScript(): void {
+	if (!BEACON_SCRIPT || BEACON_SCRIPT.length === 0) {
+		throw new Error(
+			'BEACON_SCRIPT is empty. The frontend package was not built correctly. ' +
+				'Run "bun run build" in @agentuity/frontend to generate the beacon script.'
+		);
+	}
+}

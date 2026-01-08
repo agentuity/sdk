@@ -64,7 +64,7 @@ export { createServices } from './_services';
 export { enableProcessExitProtection } from './_process-protection';
 
 // Re-export beacon script for generated webanalytics.ts
-export { BEACON_SCRIPT } from '@agentuity/frontend';
+export { BEACON_SCRIPT, validateBeaconScript } from '@agentuity/frontend';
 
 // Internal exports (not in main index, imported by CLI only)
 export { internalExit } from './_process-protection';

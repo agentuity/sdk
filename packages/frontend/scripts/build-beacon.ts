@@ -35,6 +35,12 @@ async function buildBeacon() {
 
 	const beaconCode = await output.text();
 
+	// Validate beacon content is non-empty
+	if (!beaconCode || beaconCode.length === 0) {
+		console.error('ERROR: Generated beacon code is empty');
+		process.exit(1);
+	}
+
 	// Write the minified beacon as a JS file
 	await Bun.write(beaconOutputPath, beaconCode);
 
@@ -52,6 +58,21 @@ export const BEACON_SCRIPT = ${JSON.stringify(beaconCode)};
 	console.log(`Built beacon: ${beaconCode.length} bytes`);
 	console.log(`Output: ${beaconOutputPath}`);
 	console.log(`Module: ${beaconModulePath}`);
+
+	// Verify the written file exists and has content
+	const writtenFile = Bun.file(beaconModulePath);
+	if (!(await writtenFile.exists())) {
+		console.error(`ERROR: Failed to write ${beaconModulePath}`);
+		process.exit(1);
+	}
+
+	const writtenContent = await writtenFile.text();
+	if (!writtenContent.includes('BEACON_SCRIPT') || writtenContent.includes('BEACON_SCRIPT = ""')) {
+		console.error('ERROR: dist/beacon-script.js does not contain valid BEACON_SCRIPT');
+		process.exit(1);
+	}
+
+	console.log('✓ Beacon script verified');
 }
 
 buildBeacon();
