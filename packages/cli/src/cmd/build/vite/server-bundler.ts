@@ -66,7 +66,9 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 
 	// Build tool externals: packages that should be external but NOT installed
 	// These are devDependencies that may exist in node_modules but aren't needed at runtime
-	const buildToolExternals = ['@babel/*', 'lightningcss', '@vitejs/*', 'vite', 'esbuild'];
+	// NOTE: @babel/* is NOT externalized because some runtime deps (e.g., puppeteer → cosmiconfig → parse-json)
+	// require @babel/code-frame at runtime. Babel packages are pure JS and bundle fine.
+	const buildToolExternals = ['lightningcss', '@vitejs/*', 'vite', 'esbuild'];
 
 	// Load custom externals and define from agentuity.config.ts if it exists
 	const customExternals: string[] = [];

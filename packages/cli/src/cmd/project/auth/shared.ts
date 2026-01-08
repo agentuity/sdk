@@ -48,7 +48,7 @@ export async function selectOrCreateDatabase(options: {
 		}
 	}
 
-	type Choice = { name: string; message: string; };
+	type Choice = { name: string; message: string };
 	const choices: Choice[] = [];
 
 	// Add "use existing" option first if we have an existing URL
@@ -72,7 +72,7 @@ export async function selectOrCreateDatabase(options: {
 			}))
 	);
 
-	const response = await enquirer.prompt<{ database: string; }>({
+	const response = await enquirer.prompt<{ database: string }>({
 		type: 'select',
 		name: 'database',
 		message: 'Select a database for auth:',
@@ -494,8 +494,7 @@ export default api;
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
 import { AgentuityProvider } from '@agentuity/react';
-import { createAuthClient } from '@agentuity/auth/react';
-import { AuthProvider } from '@agentuity/auth';
+import { createAuthClient, AuthProvider } from '@agentuity/auth/react';
 
 const authClient = createAuthClient();
 
