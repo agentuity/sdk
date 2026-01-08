@@ -222,9 +222,7 @@ export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
  * @returns SQL DDL statements for auth tables
  */
 export async function generateAuthSchemaSql(projectDir: string): Promise<string> {
-	// The @agentuity/auth package contains both the schema and drizzle dependencies
-	const authPackageDir = path.join(projectDir, 'node_modules/@agentuity/auth');
-	const schemaPath = path.join(authPackageDir, 'src/schema.ts');
+	const schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/src/schema.ts');
 
 	if (!(await Bun.file(schemaPath).exists())) {
 		throw new Error(
@@ -232,12 +230,21 @@ export async function generateAuthSchemaSql(projectDir: string): Promise<string>
 		);
 	}
 
-	// Run drizzle-kit from the @agentuity/auth package directory where drizzle-orm is installed
-	// This ensures drizzle-kit can find the drizzle-orm dependency it needs
+	// Run drizzle-kit from the project's node_modules/.bin/ directory
+	// This ensures we use the locally installed drizzle-kit (from AUTH_DEPENDENCIES)
+	// which can find the locally installed drizzle-orm
+	const drizzleKitBin = path.join(projectDir, 'node_modules/.bin/drizzle-kit');
+
+	if (!(await Bun.file(drizzleKitBin).exists())) {
+		throw new Error(
+			`drizzle-kit not found at ${drizzleKitBin}. Ensure drizzle-kit is installed.`
+		);
+	}
+
 	const proc = Bun.spawn(
-		['bunx', 'drizzle-kit', 'export', '--dialect=postgresql', '--schema=src/schema.ts'],
+		[drizzleKitBin, 'export', '--dialect=postgresql', `--schema=${schemaPath}`],
 		{
-			cwd: authPackageDir,
+			cwd: projectDir,
 			stdout: 'pipe',
 			stderr: 'pipe',
 		}
@@ -261,7 +268,7 @@ export async function generateAuthSchemaSql(projectDir: string): Promise<string>
 	// Check if drizzle-kit output a warning instead of SQL (happens when drizzle-orm not found)
 	if (stdout.includes('Please install') && !stdout.includes('CREATE TABLE')) {
 		throw new Error(
-			'drizzle-kit could not generate SQL. Ensure drizzle-orm is installed in @agentuity/auth.'
+			'drizzle-kit could not generate SQL. Ensure drizzle-orm is installed.'
 		);
 	}
 
