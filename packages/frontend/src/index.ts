@@ -47,3 +47,7 @@ export {
 	type CustomEvent,
 	type GeoLocation,
 } from './analytics';
+
+// Re-export beacon script for server-side use
+// The actual value is replaced at build time by scripts/build-beacon.ts
+export { BEACON_SCRIPT } from './beacon-script';

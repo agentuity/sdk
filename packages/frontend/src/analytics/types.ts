@@ -163,5 +163,6 @@ declare global {
 		__AGENTUITY_SESSION__?: {
 			threadId?: string;
 		};
+		agentuityAnalytics?: AnalyticsClient;
 	}
 }
