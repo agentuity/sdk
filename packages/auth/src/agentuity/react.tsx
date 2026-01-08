@@ -172,7 +172,37 @@ export interface AuthProviderProps {
 
 	/**
 	 * Token refresh interval in milliseconds.
-	 * Defaults to 60000 (1 minute).
+	 *
+	 * **Default:** `3600000` (1 hour)
+	 *
+	 * Controls how frequently the auth state is refreshed by polling the session endpoint.
+	 * A longer interval reduces server load and API calls, but means auth state changes
+	 * (like session expiration or revocation) may not be detected for up to the interval duration.
+	 *
+	 * **Security Implications:**
+	 * - Longer intervals mean staler auth state: revoked sessions or permission changes
+	 *   may not be detected until the next refresh cycle (up to the interval duration)
+	 * - Shorter intervals provide fresher state but increase server load and API calls
+	 * - Consider your security requirements when choosing an interval
+	 *
+	 * **Recommended Intervals:**
+	 * - `30000` - `60000` (30s - 1m): High-security applications requiring near-real-time
+	 *   detection of session revocation or permission changes
+	 * - `300000` - `900000` (5m - 15m): Sensitive features (admin panels, financial operations)
+	 *   where timely detection of auth changes is important
+	 * - `3600000` (1h): Typical applications where occasional staleness is acceptable
+	 *
+	 * **Override Example:**
+	 * ```tsx
+	 * // High-security: refresh every 30 seconds
+	 * <AuthProvider authClient={authClient} refreshInterval={30000}>
+	 *
+	 * // Sensitive features: refresh every 5 minutes
+	 * <AuthProvider authClient={authClient} refreshInterval={300000}>
+	 *
+	 * // Default: refresh every hour
+	 * <AuthProvider authClient={authClient}>
+	 * ```
 	 */
 	refreshInterval?: number;
 
@@ -219,7 +249,7 @@ export interface AuthProviderProps {
 export function AuthProvider({
 	children,
 	authClient,
-	refreshInterval = 60000,
+	refreshInterval = 3600000,
 	tokenEndpoint = '/token',
 }: AuthProviderProps) {
 	const { setAuthHeader, setAuthLoading } = useAgentuityReactAuth();
