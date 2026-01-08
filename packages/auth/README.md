@@ -295,7 +295,7 @@ React provider that bridges auth state to Agentuity context.
 ```tsx
 import { AuthProvider } from '@agentuity/auth/react';
 
-<AuthProvider authClient={authClient} refreshInterval={60000}>
+<AuthProvider authClient={authClient} refreshInterval={3600000}>
 	{children}
 </AuthProvider>;
 ```

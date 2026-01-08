@@ -172,7 +172,7 @@ export interface AuthProviderProps {
 
 	/**
 	 * Token refresh interval in milliseconds.
-	 * Defaults to 60000 (1 minute).
+	 * Defaults to 3600000 (1 hour).
 	 */
 	refreshInterval?: number;
 
@@ -219,7 +219,7 @@ export interface AuthProviderProps {
 export function AuthProvider({
 	children,
 	authClient,
-	refreshInterval = 60000,
+	refreshInterval = 3600000,
 	tokenEndpoint = '/token',
 }: AuthProviderProps) {
 	const { setAuthHeader, setAuthLoading } = useAgentuityReactAuth();
