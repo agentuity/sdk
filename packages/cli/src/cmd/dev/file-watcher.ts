@@ -184,7 +184,7 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 				}
 			} catch (error) {
 				// File might have been deleted or doesn't exist yet - this is normal
-				logger.trace('Unable to check directory for template creation: %s', error);
+				logger.trace('Unable to check directory for template creation (%s): %s', changedFile, error);
 			}
 		}
 
