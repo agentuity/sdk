@@ -7,12 +7,19 @@ import { $ } from 'bun';
 const rootDir = join(import.meta.dir, '..');
 const packagesDir = join(rootDir, 'packages');
 const distDir = join(rootDir, 'dist', 'packs');
+const cliDir = join(rootDir, 'packages', 'cli');
+const binDir = join(cliDir, 'dist', 'bin');
 
 interface PackageInfo {
 	name: string;
 	dir: string;
 	path: string;
 	tarball?: string;
+}
+
+interface ExecutableInfo {
+	platform: string;
+	filename: string;
 }
 
 async function readJSON(path: string) {
@@ -137,13 +144,32 @@ async function createManifest(version: string, packages: PackageInfo[]) {
 	console.log(`\n✓ Created manifest.json`);
 }
 
-async function uploadToS3(version: string, dryRun: boolean) {
+async function buildExecutables(version: string): Promise<ExecutableInfo[]> {
+	console.log(`\n🔨 Building CLI executables...\n`);
+
+	await $`bun scripts/build-executables.ts --version=${version} --skip-sign`.cwd(cliDir);
+
+	const executables: ExecutableInfo[] = [];
+	const files = await readdir(binDir);
+
+	for (const file of files) {
+		if (file.endsWith('.gz')) {
+			const platform = file.replace('agentuity-', '').replace('.gz', '');
+			executables.push({ platform, filename: file });
+			console.log(`  ✓ Built ${file}`);
+		}
+	}
+
+	return executables;
+}
+
+async function uploadPackagesToS3(version: string, dryRun: boolean) {
 	const s3Path = `s3://agentuity-sdk-objects/npm/${version}`;
 
 	const expiresDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 	const expires = expiresDate.toISOString();
 
-	console.log(`\n☁️  Uploading to ${s3Path}...\n`);
+	console.log(`\n☁️  Uploading packages to ${s3Path}...\n`);
 	console.log(`   Objects will expire: ${expires}\n`);
 
 	if (dryRun) {
@@ -164,15 +190,53 @@ async function uploadToS3(version: string, dryRun: boolean) {
 	}
 }
 
-function printTable(version: string, packages: PackageInfo[]) {
-	const baseUrl = `https://agentuity-sdk-objects.t3.storage.dev/npm/${version}`;
+async function uploadExecutablesToS3(
+	version: string,
+	executables: ExecutableInfo[],
+	dryRun: boolean
+) {
+	const s3Path = `s3://agentuity-sdk-objects/binary/${version}`;
+
+	const expiresDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+	const expires = expiresDate.toISOString();
+
+	console.log(`\n☁️  Uploading executables to ${s3Path}...\n`);
+	console.log(`   Objects will expire: ${expires}\n`);
+
+	if (dryRun) {
+		console.log('  [DRY RUN] Would upload:');
+		for (const exe of executables) {
+			console.log(`    ${exe.filename} → ${s3Path}/${exe.filename}`);
+		}
+		return;
+	}
+
+	for (const exe of executables) {
+		const filePath = join(binDir, exe.filename);
+		console.log(`  Uploading ${exe.filename}...`);
+		await $`aws s3 cp ${filePath} ${s3Path}/${exe.filename} --expires ${expires} --acl public-read`;
+		console.log(`  ✓ Uploaded ${exe.filename}`);
+	}
+}
+
+function printTable(version: string, packages: PackageInfo[], executables: ExecutableInfo[]) {
+	const npmBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/npm/${version}`;
+	const binaryBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/binary/${version}`;
 
 	console.log('\n📋 Package Summary:\n');
 	console.log('| Package | Version | URL |');
 	console.log('| --- | --- | --- |');
 	for (const pkg of packages) {
-		const url = `${baseUrl}/${pkg.tarball}`;
+		const url = `${npmBaseUrl}/${pkg.tarball}`;
 		console.log(`| \`${pkg.name}\` | \`${version}\` | ${url} |`);
+	}
+
+	console.log('\n📋 Executable Summary:\n');
+	console.log('| Platform | Version | URL |');
+	console.log('| --- | --- | --- |');
+	for (const exe of executables) {
+		const url = `${binaryBaseUrl}/${exe.filename}`;
+		console.log(`| \`${exe.platform}\` | \`${version}\` | ${url} |`);
 	}
 	console.log('');
 }
@@ -197,7 +261,7 @@ async function revertChanges() {
 
 function showHelp() {
 	console.log(`
-Usage: bun scripts/npm-pack-upload.ts [options]
+Usage: bun scripts/canary.ts [options]
 
 Options:
   --dry-run       Skip actual S3 upload (default for local testing)
@@ -219,17 +283,20 @@ Description:
   3. Updates all package.json files with the new version
   4. Builds packages (unless --no-build)
   5. Runs npm pack for each publishable package
-  6. Uploads to S3 with 7-day expiration
-  7. Reverts package.json changes (unless --no-revert or CI)
+  6. Builds CLI executables for all platforms
+  7. Uploads packages to S3 npm/{version}/ with 7-day expiration
+  8. Uploads executables to S3 binary/{version}/ with 7-day expiration
+  9. Reverts package.json changes (unless --no-revert or CI)
 
   In CI mode (GITHUB_OUTPUT set), outputs:
   - prerelease_version: The version string
   - packages_json: JSON array of {name, tarball} objects
+  - executables_json: JSON array of {platform, filename} objects
 
 Examples:
-  bun scripts/npm-pack-upload.ts              # Test locally (dry run)
-  bun scripts/npm-pack-upload.ts --upload     # Actually upload to S3
-  bun scripts/npm-pack-upload.ts --no-revert  # Keep version changes
+  bun scripts/canary.ts              # Test locally (dry run)
+  bun scripts/canary.ts --upload     # Actually upload to S3
+  bun scripts/canary.ts --no-revert  # Keep version changes
 `);
 	process.exit(0);
 }
@@ -276,15 +343,24 @@ async function main() {
 
 		await createManifest(prereleaseVersion, packed);
 
-		await uploadToS3(prereleaseVersion, dryRun);
+		// Build CLI executables
+		const executables = await buildExecutables(prereleaseVersion);
 
-		printTable(prereleaseVersion, packed);
+		// Upload packages and executables to S3
+		await uploadPackagesToS3(prereleaseVersion, dryRun);
+		await uploadExecutablesToS3(prereleaseVersion, executables, dryRun);
+
+		printTable(prereleaseVersion, packed, executables);
 
 		// Write GitHub Actions outputs
 		await writeGitHubOutput('prerelease_version', prereleaseVersion);
 		await writeGitHubOutput(
 			'packages_json',
 			JSON.stringify(packed.map((p) => ({ name: p.name, tarball: p.tarball })))
+		);
+		await writeGitHubOutput(
+			'executables_json',
+			JSON.stringify(executables.map((e) => ({ platform: e.platform, filename: e.filename })))
 		);
 
 		console.log('✅ Workflow completed successfully!\n');
