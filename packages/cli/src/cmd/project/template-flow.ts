@@ -259,6 +259,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 
 	let _domains = domains;
 	const resourceEnvVars: EnvVars = {};
+	let selectedDatabaseName: string | undefined; // Track database name for auth migrations
 
 	if (auth && apiClient && catalystClient && orgId && region && !skipPrompts) {
 		// Fetch resources for selected org and region using Catalyst API
@@ -353,6 +354,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				if (created[0]?.env) {
 					Object.assign(resourceEnvVars, created[0].env);
 				}
+				// Store database name for auth migrations
+				if (created[0]?.name) {
+					selectedDatabaseName = created[0].name;
+				}
 				break;
 			}
 			case 'Skip': {
@@ -364,6 +369,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				if (selectedDb?.env) {
 					Object.assign(resourceEnvVars, selectedDb.env);
 				}
+				// Store database name directly for auth migrations (more reliable than URL extraction)
+				selectedDatabaseName = choices.db_action;
 				break;
 			}
 		}
@@ -394,9 +401,13 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	// Set up database and secret for any auth-enabled project
 	if (authEnabled && auth && catalystClient && orgId && region && !skipPrompts) {
 		// If a database was already selected/created above, use it for auth
-		if (resourceEnvVars.DATABASE_URL) {
+		if (selectedDatabaseName) {
+			// Use the database name stored during selection (more reliable than URL extraction)
+			authDatabaseName = selectedDatabaseName;
 			authDatabaseUrl = resourceEnvVars.DATABASE_URL;
-			// Extract database name from URL using proper URL parsing
+		} else if (resourceEnvVars.DATABASE_URL) {
+			// Fallback: try to extract database name from URL
+			authDatabaseUrl = resourceEnvVars.DATABASE_URL;
 			try {
 				const dbUrl = new URL(authDatabaseUrl);
 				const dbName = dbUrl.pathname.replace(/^\/+/, ''); // Remove leading slashes
@@ -407,7 +418,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			} catch {
 				// Invalid URL format, authDatabaseName stays undefined
 			}
-		} else {
+		}
+
+		// If no database available yet, create one for auth
+		if (!authDatabaseName) {
 			// No database selected yet, create one for auth
 			const created = await tui.spinner({
 				message: 'Provisioning database for auth',
