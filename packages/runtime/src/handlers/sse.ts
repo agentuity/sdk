@@ -177,6 +177,7 @@ export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 			const runInContext = async () => {
 				try {
 					await handler(c, wrappedStream);
+					markDone();
 				} catch (err) {
 					markDone(err);
 					throw err;
