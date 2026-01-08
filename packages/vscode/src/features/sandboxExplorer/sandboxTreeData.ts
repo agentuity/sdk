@@ -352,6 +352,7 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 
 	private sandboxes: SandboxInfo[] = [];
 	private loading = false;
+	private sandboxesLoaded = false;
 	private error: string | undefined;
 
 	// Cache for lazy-loaded data
@@ -440,7 +441,7 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		}
 
 		// Load sandboxes if not loaded
-		if (this.sandboxes.length === 0 && !this.loading) {
+		if (!this.sandboxesLoaded && !this.loading) {
 			await this.loadSandboxes();
 		}
 
@@ -766,11 +767,13 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 			this.sandboxes = [];
 		} finally {
 			this.loading = false;
+			this.sandboxesLoaded = true;
 		}
 	}
 
 	async forceRefresh(): Promise<void> {
 		this.sandboxes = [];
+		this.sandboxesLoaded = false;
 		this.error = undefined;
 		this.clearCaches();
 		await this.loadSandboxes();

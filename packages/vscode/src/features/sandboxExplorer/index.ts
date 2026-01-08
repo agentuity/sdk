@@ -7,7 +7,6 @@ import { onAuthStatusChanged } from '../../core/auth';
 import {
 	getCliClient,
 	type SandboxCreateOptions,
-	type SandboxInfo,
 	type SnapshotInfo,
 	CliClient,
 } from '../../core/cliClient';
@@ -23,13 +22,12 @@ import {
 	createSandboxStatusBar,
 	updateStatusBar,
 	showSyncProgress,
-	hideSyncProgress,
 	showSyncSuccess,
 	showSyncError,
 	disposeSandboxStatusBar,
 } from './statusBar';
 
-let sandboxTerminals: Map<string, vscode.Terminal> = new Map();
+const sandboxTerminals: Map<string, vscode.Terminal> = new Map();
 
 // Track sandbox files opened for editing: localPath -> { sandboxId, remotePath }
 interface SandboxFileMapping {
@@ -132,8 +130,6 @@ function registerCommands(
 	context: vscode.ExtensionContext,
 	provider: SandboxTreeDataProvider
 ): void {
-	const cli = getCliClient();
-
 	// Create sandbox
 	context.subscriptions.push(
 		vscode.commands.registerCommand('agentuity.sandbox.create', async () => {
@@ -776,7 +772,7 @@ async function uploadSavedFile(
 async function createSandboxFile(
 	sandboxId: string,
 	parentDir: string,
-	provider: SandboxTreeDataProvider
+	_provider: SandboxTreeDataProvider
 ): Promise<void> {
 	const fileName = await vscode.window.showInputBox({
 		prompt: 'Enter new file name',
@@ -1235,8 +1231,8 @@ async function viewSnapshotFile(snapshot: SnapshotInfo, filePath: string): Promi
 
 					// Extract using tar module
 					fs.mkdirSync(extractDir, { recursive: true });
-					const tar = await import('tar');
-					await tar.x({
+					const { extract } = await import('tar');
+					await extract({
 						file: archivePath,
 						cwd: extractDir,
 					});
@@ -1305,14 +1301,14 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
 
 		request.on('error', (err) => {
 			file.close();
-			try { fs.unlinkSync(destPath); } catch {}
+			try { fs.unlinkSync(destPath); } catch { /* ignore cleanup errors */ }
 			reject(err);
 		});
 
 		request.setTimeout(60000, () => {
 			request.destroy();
 			file.close();
-			try { fs.unlinkSync(destPath); } catch {}
+			try { fs.unlinkSync(destPath); } catch { /* ignore cleanup errors */ }
 			reject(new Error('Download timeout'));
 		});
 	});

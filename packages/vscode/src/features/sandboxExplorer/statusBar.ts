@@ -3,6 +3,7 @@ import { getSandboxManager, formatBytes } from '../../core/sandboxManager';
 
 let statusBarItem: vscode.StatusBarItem | undefined;
 let syncStatusItem: vscode.StatusBarItem | undefined;
+let hideTimeoutId: ReturnType<typeof setTimeout> | undefined;
 
 export function createSandboxStatusBar(context: vscode.ExtensionContext): void {
 	// Main sandbox status bar item
@@ -80,7 +81,8 @@ export function showSyncSuccess(filesUploaded: number, bytesTransferred: number)
 	syncStatusItem.show();
 
 	// Hide after 3 seconds
-	setTimeout(() => {
+	clearHideTimeout();
+	hideTimeoutId = setTimeout(() => {
 		hideSyncProgress();
 	}, 3000);
 }
@@ -96,7 +98,8 @@ export function showSyncError(error: string): void {
 	syncStatusItem.show();
 
 	// Hide after 5 seconds
-	setTimeout(() => {
+	clearHideTimeout();
+	hideTimeoutId = setTimeout(() => {
 		hideSyncProgress();
 	}, 5000);
 }
@@ -360,7 +363,15 @@ async function promptAndExecForSandbox(sandboxId: string): Promise<void> {
 	await vscode.commands.executeCommand('agentuity.sandbox.exec', { sandboxId, command });
 }
 
+function clearHideTimeout(): void {
+	if (hideTimeoutId) {
+		clearTimeout(hideTimeoutId);
+		hideTimeoutId = undefined;
+	}
+}
+
 export function disposeSandboxStatusBar(): void {
+	clearHideTimeout();
 	if (statusBarItem) {
 		statusBarItem.dispose();
 		statusBarItem = undefined;
