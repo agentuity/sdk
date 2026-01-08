@@ -28,6 +28,7 @@
 	"dependencies": {
 		"@agentuity/auth": "workspace:*",
 		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@opentelemetry/api": "^1.9.0",

@@ -63,6 +63,9 @@ export { register } from './otel/config';
 export { createServices } from './_services';
 export { enableProcessExitProtection } from './_process-protection';
 
+// Re-export beacon script for generated webanalytics.ts
+export { BEACON_SCRIPT } from '@agentuity/frontend/beacon';
+
 // Internal exports (not in main index, imported by CLI only)
 export { internalExit } from './_process-protection';
 
