@@ -35,7 +35,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -45,7 +45,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "0.1.1",
+      "version": "0.1.2",
     },
     "apps/testing/auth-package-app": {
       "name": "auth-package-app",
@@ -92,12 +92,12 @@
       "name": "e2e-web-tests",
       "version": "0.0.1",
       "dependencies": {
-        "@agentuity/cli": "file:/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-cli-0.1.1.tgz",
-        "@agentuity/core": "file:/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-core-0.1.1.tgz",
-        "@agentuity/react": "file:/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-react-0.1.1.tgz",
-        "@agentuity/runtime": "file:/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-runtime-0.1.1.tgz",
-        "@agentuity/schema": "file:/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-schema-0.1.1.tgz",
-        "@agentuity/workbench": "file:/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-workbench-0.1.1.tgz",
+        "@agentuity/cli": "workspace:*",
+        "@agentuity/core": "workspace:*",
+        "@agentuity/react": "workspace:*",
+        "@agentuity/runtime": "workspace:*",
+        "@agentuity/schema": "workspace:*",
+        "@agentuity/workbench": "workspace:*",
         "hono": "^4.7.13",
         "react": "^19.2.3",
         "react-dom": "^19.2.3",
@@ -146,7 +146,7 @@
     },
     "packages/auth": {
       "name": "@agentuity/auth",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "better-auth": "^1.4.9",
         "drizzle-orm": "^0.45.0",
@@ -170,7 +170,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -210,7 +210,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "zod": "^4.3.5",
       },
@@ -223,7 +223,7 @@
     },
     "packages/evals": {
       "name": "@agentuity/evals",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/runtime": "workspace:*",
@@ -240,7 +240,7 @@
     },
     "packages/frontend": {
       "name": "@agentuity/frontend",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -253,7 +253,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/frontend": "workspace:*",
@@ -272,7 +272,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@agentuity/auth": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -314,7 +314,7 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -327,7 +327,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
@@ -343,7 +343,7 @@
     },
     "packages/test-utils": {
       "name": "@agentuity/test-utils",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -353,7 +353,7 @@
     },
     "packages/vscode": {
       "name": "agentuity-vscode",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
       },
@@ -366,7 +366,7 @@
     },
     "packages/workbench": {
       "name": "@agentuity/workbench",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",
@@ -3258,18 +3258,6 @@
 
     "decompress-response/mimic-response": ["mimic-response@3.1.0", "", {}, "sha512-z0yWI+4FDrrweS8Zmt4Ej5HdJmky15+L2e6Wgn3+iK5fWzb6T3fhNFq2+MeTRb064c6Wr4N/wv0DzQTjNzHNGQ=="],
 
-    "e2e-web-tests/@agentuity/cli": ["@agentuity/cli@/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-cli-0.1.1.tgz", { "dependencies": { "@agentuity/auth": "0.1.1", "@agentuity/core": "0.1.1", "@agentuity/frontend": "0.1.1", "@agentuity/server": "0.1.1", "@datasert/cronjs-parser": "^1.4.0", "@terascope/fetch-github-release": "^2.2.1", "@vitejs/plugin-react": "^5.1.2", "acorn-loose": "^8.5.2", "adm-zip": "^0.5.16", "astring": "^1.9.0", "cli-table3": "^0.6.5", "commander": "^14.0.2", "enquirer": "^2.4.1", "git-url-parse": "^16.1.0", "json-colorizer": "^3.0.1", "json5": "^2.2.3", "tar": "^7.5.2", "tar-fs": "^3.1.1", "typescript": "^5.9.0", "vite": "^7.2.7", "zod": "^4.3.5" }, "bin": { "agentuity": "./bin/cli.ts" } }],
-
-    "e2e-web-tests/@agentuity/core": ["@agentuity/core@/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-core-0.1.1.tgz", { "dependencies": { "zod": "^4.3.5" } }],
-
-    "e2e-web-tests/@agentuity/react": ["@agentuity/react@/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-react-0.1.1.tgz", { "dependencies": { "@agentuity/core": "0.1.1", "@agentuity/frontend": "0.1.1" }, "peerDependencies": { "@types/react": "^19.0.0", "react": "^19.0.0" } }],
-
-    "e2e-web-tests/@agentuity/runtime": ["@agentuity/runtime@/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-runtime-0.1.1.tgz", { "dependencies": { "@agentuity/auth": "0.1.1", "@agentuity/core": "0.1.1", "@agentuity/schema": "0.1.1", "@agentuity/server": "0.1.1", "@opentelemetry/api": "^1.9.0", "@opentelemetry/api-logs": "^0.207.0", "@opentelemetry/auto-instrumentations-node": "^0.66.0", "@opentelemetry/core": "^2.2.0", "@opentelemetry/exporter-logs-otlp-http": "^0.207.0", "@opentelemetry/exporter-metrics-otlp-http": "^0.207.0", "@opentelemetry/exporter-trace-otlp-http": "^0.207.0", "@opentelemetry/host-metrics": "^0.36.2", "@opentelemetry/otlp-exporter-base": "^0.207.0", "@opentelemetry/resources": "^2.2.0", "@opentelemetry/sdk-logs": "^0.207.0", "@opentelemetry/sdk-metrics": "^2.2.0", "@opentelemetry/sdk-node": "^0.207.0", "@opentelemetry/sdk-trace-base": "^2.2.0", "@opentelemetry/semantic-conventions": "^1.37.0", "@traceloop/ai-semantic-conventions": "0.21.0", "@traceloop/node-server-sdk": "0.21.1", "hono": "^4.7.13", "zod": "^4.3.5" } }],
-
-    "e2e-web-tests/@agentuity/schema": ["@agentuity/schema@/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-schema-0.1.1.tgz", { "dependencies": { "@agentuity/core": "0.1.1" } }],
-
-    "e2e-web-tests/@agentuity/workbench": ["@agentuity/workbench@/Users/jhaynie/code/agentuity/worktree/rework-analytics-beacon-466/sdk/dist/packages/agentuity-workbench-0.1.1.tgz", { "dependencies": { "@agentuity/core": "0.1.1", "@agentuity/react": "0.1.1", "@ai-sdk/react": "^3.0.1", "@hookform/resolvers": "^5.2.2", "@monaco-editor/react": "^4.6.0", "@shikijs/langs": "^3.19.0", "@shikijs/themes": "^3.19.0", "@xyflow/react": "^12.9.1", "ai": "^6.0.1", "bun-plugin-tailwind": "^0.0.14", "class-variance-authority": "^0.7.1", "clsx": "^2.1.1", "cmdk": "^1.1.1", "embla-carousel-react": "^8.6.0", "lucide-react": "^0.548.0", "motion": "^12.23.24", "nanoid": "^5.1.6", "non.geist": "^1.0.4", "react-hook-form": "^7.65.0", "react-resizable-panels": "^3.0.6", "shiki": "^3.14.0", "streamdown": "^1.4.0", "tailwind-merge": "^3.3.1", "tailwindcss-animate": "^1.0.7", "tokenlens": "^1.3.1", "use-stick-to-bottom": "^1.1.1", "zod": "^4.3.5", "zod-from-json-schema": "^0.5.2" }, "peerDependencies": { "@radix-ui/react-avatar": "^1.1.8", "@radix-ui/react-dialog": "^1.1.12", "@radix-ui/react-dropdown-menu": "^2.1.13", "@radix-ui/react-hover-card": "^1.1.12", "@radix-ui/react-popover": "^1.1.12", "@radix-ui/react-scroll-area": "^1.2.7", "@radix-ui/react-select": "^2.2.3", "@radix-ui/react-slot": "^1.1.2", "@radix-ui/react-tooltip": "^1.2.5", "@radix-ui/react-use-controllable-state": "^1.2.2", "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0", "react": "^19.0.0", "react-dom": "^19.0.0" } }],
-
     "e2e-web-tests/@vitejs/plugin-react": ["@vitejs/plugin-react@4.7.0", "", { "dependencies": { "@babel/core": "^7.28.0", "@babel/plugin-transform-react-jsx-self": "^7.27.1", "@babel/plugin-transform-react-jsx-source": "^7.27.1", "@rolldown/pluginutils": "1.0.0-beta.27", "@types/babel__core": "^7.20.5", "react-refresh": "^0.17.0" }, "peerDependencies": { "vite": "^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, "sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA=="],
 
     "eslint/@eslint/core": ["@eslint/core@0.17.0", "", { "dependencies": { "@types/json-schema": "^7.0.15" } }, "sha512-yL/sLrpmtDaFEiUj1osRP4TI2MDz1AddJL+jZ7KSqvBuliN4xqYY54IfdN8qD8Toa6g1iloph1fxQNkjOxrrpQ=="],
@@ -3578,24 +3566,6 @@
 
     "d3-sankey/d3-shape/d3-path": ["d3-path@1.0.9", "", {}, "sha512-VLaYcn81dtHVTjEHd8B+pbe9yHWpXKZUC87PzoFmsFrJqgFwDe/qxfp5MlfsfM1V5E/iVt0MmEbWQ7FVIXh/bg=="],
 
-    "e2e-web-tests/@agentuity/cli/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
-
-    "e2e-web-tests/@agentuity/cli/@vitejs/plugin-react": ["@vitejs/plugin-react@5.1.2", "", { "dependencies": { "@babel/core": "^7.28.5", "@babel/plugin-transform-react-jsx-self": "^7.27.1", "@babel/plugin-transform-react-jsx-source": "^7.27.1", "@rolldown/pluginutils": "1.0.0-beta.53", "@types/babel__core": "^7.20.5", "react-refresh": "^0.18.0" }, "peerDependencies": { "vite": "^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0" } }, "sha512-EcA07pHJouywpzsoTUqNh5NwGayl2PPVEJKUSinGGSxFGYn+shYbqMGBg6FXDqgXum9Ou/ecb+411ssw8HImJQ=="],
-
-    "e2e-web-tests/@agentuity/react/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
-
-    "e2e-web-tests/@agentuity/runtime/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
-
-    "e2e-web-tests/@agentuity/runtime/@agentuity/schema": ["@agentuity/schema@workspace:packages/schema"],
-
-    "e2e-web-tests/@agentuity/schema/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
-
-    "e2e-web-tests/@agentuity/workbench/@agentuity/core": ["@agentuity/core@workspace:packages/core"],
-
-    "e2e-web-tests/@agentuity/workbench/@agentuity/react": ["@agentuity/react@workspace:packages/react"],
-
-    "e2e-web-tests/@agentuity/workbench/bun-plugin-tailwind": ["bun-plugin-tailwind@0.0.14", "", { "dependencies": { "tailwindcss": "4.0.0-beta.9" }, "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-Ge8M8DQsRDErCzH/uI8pYjx5vZWXxQvnwM/xMQMElxQqHieGbAopfYo/q/kllkPkRbFHiwhnHwTpRMAMJZCjug=="],
-
     "e2e-web-tests/@vitejs/plugin-react/@rolldown/pluginutils": ["@rolldown/pluginutils@1.0.0-beta.27", "", {}, "sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA=="],
 
     "e2e-web-tests/@vitejs/plugin-react/react-refresh": ["react-refresh@0.17.0", "", {}, "sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ=="],
@@ -3741,9 +3711,5 @@
     "@traceloop/node-server-sdk/@opentelemetry/sdk-node/@opentelemetry/sdk-trace-node/@opentelemetry/context-async-hooks": ["@opentelemetry/context-async-hooks@2.0.1", "", { "peerDependencies": { "@opentelemetry/api": ">=1.0.0 <1.10.0" } }, "sha512-XuY23lSI3d4PEqKA+7SLtAgwqIfc6E/E9eAQWLN1vlpC53ybO3o6jW4BsXo1xvz9lYyyWItfQDDLzezER01mCw=="],
 
     "create-agentuity/@agentuity/cli/@agentuity/server/@agentuity/schema": ["@agentuity/schema@0.0.112", "", { "dependencies": { "@agentuity/core": "0.0.112" } }, "sha512-OcyQiqmwQ4Vc5DrhpJUp7sN+ZjvgNt6WRKMr2ERmB7KGVl7VmKOmRLzZpElYVvoS8hExCfkSDIaoc36F0KW5Bg=="],
-
-    "e2e-web-tests/@agentuity/workbench/@agentuity/react/@agentuity/schema": ["@agentuity/schema@workspace:packages/schema"],
-
-    "e2e-web-tests/@agentuity/workbench/bun-plugin-tailwind/tailwindcss": ["tailwindcss@4.0.0-beta.9", "", {}, "sha512-96KpsfQi+/sFIOfyFnGzyy5pobuzf1iMBD9NVtelerPM/lPI2XUS4Kikw9yuKRniXXw77ov1sl7gCSKLsn6CJA=="],
   }
 }

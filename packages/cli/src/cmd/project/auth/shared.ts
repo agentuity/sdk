@@ -122,7 +122,8 @@ export async function selectOrCreateDatabase(options: {
 export const AUTH_DEPENDENCIES = {
 	'@agentuity/auth': 'latest',
 	'better-auth': '^1.4.9',
-	'drizzle-orm': '^0.44.0',
+	'drizzle-orm': '^0.45.0',
+	'drizzle-kit': '^0.31.0',
 } as const;
 
 /**

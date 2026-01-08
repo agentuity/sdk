@@ -78,7 +78,7 @@ export function InputSection({
 	value,
 }: InputSectionProps) {
 	const logger = useLogger('InputSection');
-	const { generateSample, isGeneratingSample, env } = useWorkbench();
+	const { generateSample, isGeneratingSample, env, portals } = useWorkbench();
 	const isAuthenticated = env.authenticated;
 	const [agentSelectOpen, setAgentSelectOpen] = useState(false);
 	const [prefillOpen, setPrefillOpen] = useState(false);
@@ -210,6 +210,8 @@ export function InputSection({
 	return (
 		<div className={cn('flex flex-col gap-4 p-4 z-100', className)}>
 			<div className="flex items-center gap-2">
+				{portals?.actionBar?.pre}
+
 				<Popover open={agentSelectOpen} onOpenChange={setAgentSelectOpen}>
 					<PopoverTrigger asChild>
 						<Button
@@ -220,7 +222,7 @@ export function InputSection({
 						>
 							{Object.values(agents).find(
 								(agent) => agent.metadata.agentId === selectedAgent
-							)?.metadata.name || 'Select agent'}
+							)?.metadata.name || 'Select Agent'}
 							<ChevronsUpDownIcon className="size-4 shrink-0 opacity-50" />
 						</Button>
 					</PopoverTrigger>
@@ -229,51 +231,53 @@ export function InputSection({
 							<CommandInput placeholder="Search agents..." />
 							<CommandList>
 								<CommandEmpty>No agents found.</CommandEmpty>
-								<CommandGroup>
-									{Object.values(agents)
-										.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name))
-										.map((agent) => {
-											const isSelected = selectedAgent === agent.metadata.agentId;
+								{Object.values(agents).length > 0 && (
+									<CommandGroup>
+										{Object.values(agents)
+											.sort((a, b) => a.metadata.name.localeCompare(b.metadata.name))
+											.map((agent) => {
+												const isSelected = selectedAgent === agent.metadata.agentId;
 
-											// Use name for search but include agentId to ensure uniqueness
-											const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
+												// Use name for search but include agentId to ensure uniqueness
+												const searchValue = `${agent.metadata.name}|${agent.metadata.agentId}`;
 
-											return (
-												<CommandItem
-													key={agent.metadata.agentId}
-													value={searchValue}
-													onSelect={(currentValue) => {
-														// Extract agentId from the compound value
-														const agentId = currentValue.split('|')[1];
-														const selectedAgentData = Object.values(agents).find(
-															(a) => a.metadata.agentId === agentId
-														);
-
-														if (selectedAgentData) {
-															logger.debug(
-																'🎯 Agent selected by name:',
-																agent.metadata.name,
-																'agentId:',
-																agentId
+												return (
+													<CommandItem
+														key={agent.metadata.agentId}
+														value={searchValue}
+														onSelect={(currentValue) => {
+															// Extract agentId from the compound value
+															const agentId = currentValue.split('|')[1];
+															const selectedAgentData = Object.values(agents).find(
+																(a) => a.metadata.agentId === agentId
 															);
 
-															setSelectedAgent(agentId);
-														}
+															if (selectedAgentData) {
+																logger.debug(
+																	'🎯 Agent selected by name:',
+																	agent.metadata.name,
+																	'agentId:',
+																	agentId
+																);
 
-														setAgentSelectOpen(false);
-													}}
-												>
-													<CheckIcon
-														className={cn(
-															'size-4 text-green-500',
-															isSelected ? 'opacity-100' : 'opacity-0'
-														)}
-													/>
-													{agent.metadata.name}
-												</CommandItem>
-											);
-										})}
-								</CommandGroup>
+																setSelectedAgent(agentId);
+															}
+
+															setAgentSelectOpen(false);
+														}}
+													>
+														<CheckIcon
+															className={cn(
+																'size-4 text-green-500',
+																isSelected ? 'opacity-100' : 'opacity-0'
+															)}
+														/>
+														{agent.metadata.name}
+													</CommandItem>
+												);
+											})}
+									</CommandGroup>
+								)}
 							</CommandList>
 						</Command>
 					</PopoverContent>
@@ -371,6 +375,8 @@ export function InputSection({
 						</PopoverContent>
 					</Popover>
 				)}
+
+				{portals?.actionBar?.post}
 
 				{clearAgentState && selectedAgent && (
 					<Button

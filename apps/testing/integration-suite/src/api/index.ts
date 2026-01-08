@@ -314,4 +314,74 @@ router.get(
 	})
 );
 
+// Test: SSE with async operations that consume ReadableStreams internally
+// This tests the fix for https://github.com/agentuity/sdk/issues/471
+// AI SDK's generateText/generateObject use fetch() internally which returns
+// a Response with a ReadableStream body. This test simulates that pattern.
+router.get(
+	'/sse/async-fetch',
+	sse(async (c, stream) => {
+		// Simulate what AI SDK's generateText does:
+		// 1. Make a fetch request (simulated with ReadableStream)
+		// 2. Consume the stream to get the result
+		// 3. Write result to SSE stream
+		const simulateFetch = async (): Promise<string> => {
+			// Create a ReadableStream (simulating fetch response body)
+			const responseStream = new ReadableStream({
+				start(controller) {
+					controller.enqueue(new TextEncoder().encode('simulated-ai-response'));
+					controller.close();
+				},
+			});
+
+			// Consume the stream (simulating .text() on fetch response)
+			const reader = responseStream.getReader();
+			const chunks: Uint8Array[] = [];
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				chunks.push(value);
+			}
+
+			// Decode and return
+			const combined = new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0));
+			let offset = 0;
+			for (const chunk of chunks) {
+				combined.set(chunk, offset);
+				offset += chunk.length;
+			}
+			return new TextDecoder().decode(combined);
+		};
+
+		// This should NOT throw "ReadableStream has already been used"
+		const result1 = await simulateFetch();
+		stream.writeSSE({ event: 'fetch-result', data: result1 });
+
+		// Do it again to verify multiple async stream operations work
+		const result2 = await simulateFetch();
+		stream.writeSSE({ event: 'fetch-result', data: result2 });
+
+		stream.writeSSE({ event: 'complete', data: 'done' });
+	})
+);
+
+// Test: SSE with error handling
+// Verifies that errors in async handlers don't crash the server
+router.get(
+	'/sse/error-handling',
+	sse(async (c, stream) => {
+		// Write initial message before error
+		stream.writeSSE({ event: 'start', data: 'starting' });
+		await new Promise((resolve) => setTimeout(resolve, 10));
+
+		// Simulate an error that should be handled gracefully
+		const shouldError = c.req.query('error') === 'true';
+		if (shouldError) {
+			throw new Error('Intentional test error');
+		}
+
+		stream.writeSSE({ event: 'complete', data: 'done' });
+	})
+);
+
 export default router;

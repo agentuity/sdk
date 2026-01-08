@@ -145,6 +145,10 @@ describe('AUTH_DEPENDENCIES', () => {
 	test('should include drizzle-orm', () => {
 		expect(AUTH_DEPENDENCIES['drizzle-orm']).toBeDefined();
 	});
+
+	test('should include drizzle-kit for schema export', () => {
+		expect(AUTH_DEPENDENCIES['drizzle-kit']).toBeDefined();
+	});
 });
 
 describe('generateAuthSchemaSql', () => {
