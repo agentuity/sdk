@@ -497,6 +497,7 @@ export function createCommand<
 	hidden?: boolean;
 	executable?: boolean;
 	skipUpgradeCheck?: boolean;
+	passThroughArgs?: boolean;
 	requires?: R;
 	optional?: O;
 	examples?: CommandExample[];
@@ -537,6 +538,7 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			passThroughArgs?: boolean;
 			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
@@ -555,6 +557,7 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			passThroughArgs?: boolean;
 			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;

@@ -7,6 +7,7 @@ export async function discoverCommands(): Promise<CommandDefinition[]> {
 		import('./ai').then((m) => m.command),
 		import('./auth').then((m) => m.command),
 		import('./build').then((m) => m.command),
+		import('./canary').then((m) => m.command),
 		import('./cloud').then((m) => m.command),
 		import('./dev').then((m) => m.command),
 		import('./git').then((m) => m.gitCommand),
