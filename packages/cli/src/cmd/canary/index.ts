@@ -102,6 +102,7 @@ export const command = createCommand({
 	description: 'Run a canary version of the CLI',
 	hidden: true,
 	skipUpgradeCheck: true,
+	passThroughArgs: true,
 	schema: {
 		args: CanaryArgsSchema,
 		response: CanaryResponseSchema,
@@ -109,6 +110,11 @@ export const command = createCommand({
 
 	async handler(ctx) {
 		const { args } = ctx;
+
+		// Get raw args from process.argv to capture ALL args after 'canary <version>'
+		// This ensures we forward everything including flags like --json, --force, etc.
+		const argv = process.argv;
+		const canaryIndex = argv.indexOf('canary');
 
 		if (args.args.length === 0) {
 			tui.error('Usage: agentuity canary <version|url> [commands...]');
@@ -126,7 +132,11 @@ export const command = createCommand({
 			};
 		}
 
-		const [target, ...forwardArgs] = args.args;
+		// Get target from parsed args, but get forward args from raw argv
+		// This captures ALL args after the version including any flags
+		const target = args.args[0];
+		const targetIndex = canaryIndex >= 0 ? argv.indexOf(target, canaryIndex) : -1;
+		const forwardArgs = targetIndex >= 0 ? argv.slice(targetIndex + 1) : args.args.slice(1);
 
 		// Clean up old canaries in background
 		cleanupOldCanaries().catch(() => {});

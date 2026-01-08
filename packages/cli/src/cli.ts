@@ -798,6 +798,13 @@ async function registerSubcommand(
 
 	cmd.helpOption('-h, --help [json]', 'Display help (with optional JSON output)');
 
+	// Allow pass-through args for commands that need to forward unknown options
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if ((subcommand as any).passThroughArgs) {
+		cmd.allowUnknownOption();
+		cmd.allowExcessArguments();
+	}
+
 	if (subcommand.aliases) {
 		cmd.aliases(subcommand.aliases);
 	}
