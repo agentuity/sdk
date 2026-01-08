@@ -9,7 +9,7 @@ export interface ScrollEvent {
 /**
  * Custom event tracked during the page session
  */
-export interface CustomEvent {
+export interface AnalyticsCustomEvent {
 	timestamp: number; // ms since epoch
 	name: string;
 	data?: string; // JSON string
@@ -90,7 +90,7 @@ export interface PageViewPayload {
 	scroll_events: ScrollEvent[];
 
 	// Custom events (max 1000)
-	custom_events: CustomEvent[];
+	custom_events: AnalyticsCustomEvent[];
 
 	// UTM parameters
 	utm_source?: string;

@@ -15,7 +15,7 @@ export type {
 	AnalyticsPageConfig,
 	PageViewPayload,
 	ScrollEvent,
-	CustomEvent,
+	AnalyticsCustomEvent,
 	GeoLocation,
 } from './types';
 

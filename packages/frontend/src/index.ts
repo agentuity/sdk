@@ -44,7 +44,7 @@ export {
 	type AnalyticsPageConfig,
 	type PageViewPayload,
 	type ScrollEvent,
-	type CustomEvent,
+	type AnalyticsCustomEvent,
 	type GeoLocation,
 } from './analytics';
 
