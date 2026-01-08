@@ -79,7 +79,7 @@ jobs:
                  Or install directly:
 
                  \`\`\`bash
-                 npm install ${baseUrl}/<package-tarball>.tgz
+                 bun add ${packagesJson.map(pkg => `${baseUrl}/${pkg.tarball}`).join(' ')}
                  \`\`\`
                  `;
 
