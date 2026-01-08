@@ -50,6 +50,11 @@ async function getPackages(): Promise<PackageInfo[]> {
 				continue;
 			}
 
+			if (dir === 'vscode') {
+				console.log(`  ⊘ Skipping vscode extension: ${dir}`);
+				continue;
+			}
+
 			packages.push({
 				name: pkgJson.name,
 				dir,
