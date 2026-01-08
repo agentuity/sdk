@@ -10,7 +10,7 @@
 import React, { useEffect, createContext, useContext, useState, useMemo } from 'react';
 import { createAuthClient as createBetterAuthClient } from 'better-auth/react';
 import { organizationClient, apiKeyClient } from 'better-auth/client/plugins';
-import { useAuth as useAgentuityReactAuth } from '@agentuity/react';
+import { useAuth as useAgentuityReactAuth, useAnalytics } from '@agentuity/react';
 import type { BetterAuthClientPlugin } from 'better-auth/client';
 
 import type { AuthSession, AuthUser } from './types';
@@ -223,6 +223,7 @@ export function AuthProvider({
 	tokenEndpoint = '/token',
 }: AuthProviderProps) {
 	const { setAuthHeader, setAuthLoading } = useAgentuityReactAuth();
+	const { identify } = useAnalytics();
 	const [user, setUser] = useState<AuthUser | null>(null);
 	const [session, setSession] = useState<AuthSession | null>(null);
 	const [isPending, setIsPending] = useState(true);
@@ -241,8 +242,15 @@ export function AuthProvider({
 				const result = await authClient.getSession();
 
 				if (result.data?.user) {
-					setUser(result.data.user as AuthUser);
+					const authUser = result.data.user as AuthUser;
+					setUser(authUser);
 					setSession((result.data.session as AuthSession) ?? null);
+
+					// Identify user for analytics
+					identify(authUser.id, {
+						email: authUser.email || '',
+						name: authUser.name || '',
+					});
 
 					// Get the JWT token for API calls (unless disabled)
 					if (tokenEndpoint !== false) {

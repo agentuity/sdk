@@ -6,10 +6,22 @@
  * Vite has finished compiling the frontend assets AND the React app has rendered.
  */
 
+import { execSync } from 'node:child_process';
+import { join } from 'node:path';
+
 const MAX_RETRIES = 60;
 const RETRY_DELAY = 1000;
 
 async function globalSetup(): Promise<void> {
+	// First, restore any files that might have been left in a modified state from previous runs
+	const appTsxPath = join(process.cwd(), 'apps/testing/e2e-web/src/web/App.tsx');
+	try {
+		execSync(`git checkout "${appTsxPath}"`, { cwd: process.cwd(), stdio: 'pipe' });
+		console.log('[Global Setup] ✓ App.tsx restored to clean state');
+	} catch {
+		// File might already be clean
+	}
+
 	console.log('[Global Setup] Waiting for dev server to be fully ready...');
 
 	const baseURL = process.env.BASE_URL || 'http://localhost:3500';

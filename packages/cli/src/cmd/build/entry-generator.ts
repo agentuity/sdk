@@ -47,7 +47,8 @@ export async function generateEntryFile(options: GenerateEntryOptions): Promise<
 	const hasWebFrontend =
 		(await Bun.file(join(srcDir, 'web', 'index.html')).exists()) ||
 		(await Bun.file(join(srcDir, 'web', 'frontend.tsx')).exists());
-	const hasWorkbench = !!workbench;
+	// Workbench is configured at build time, but only enabled at runtime in dev mode
+	const hasWorkbenchConfig = !!workbench;
 
 	// Get unique route files that need to be imported (relative to src/)
 	const routeFiles = new Set<string>();
@@ -137,9 +138,12 @@ ${routeImportsAndMounts.join('\n')}
 `
 			: '';
 
-	// Workbench API routes mounting (if enabled)
+	// Workbench API routes mounting (if configured)
+	// hasWorkbenchConfig is build-time (from agentuity.config.ts)
+	// hasWorkbench combines config + runtime dev mode check
 	const workbenchApiMount = `
-const hasWorkbench = ${hasWorkbench};
+const hasWorkbenchConfig = ${hasWorkbenchConfig};
+const hasWorkbench = isDevelopment() && hasWorkbenchConfig;
 if (hasWorkbench) {
 	// Mount workbench API routes (/_agentuity/workbench/*)
 	const workbenchRouter = createWorkbenchRouter();

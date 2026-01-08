@@ -226,7 +226,8 @@ if (isDevelopment() && process.env.VITE_PORT) {
 	app.get('/*.css', proxyToVite);
 }
 
-const hasWorkbench = false;
+const hasWorkbenchConfig = false;
+const hasWorkbench = isDevelopment() && hasWorkbenchConfig;
 if (hasWorkbench) {
 	// Mount workbench API routes (/_agentuity/workbench/*)
 	const workbenchRouter = createWorkbenchRouter();

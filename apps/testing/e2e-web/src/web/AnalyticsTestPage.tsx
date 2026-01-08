@@ -1,24 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-
-declare global {
-	interface Window {
-		__AGENTUITY_ANALYTICS__?: {
-			enabled: boolean;
-			orgId: string;
-			projectId: string;
-			isDevmode: boolean;
-			trackClicks?: boolean;
-			trackScroll?: boolean;
-			trackErrors?: boolean;
-			trackWebVitals?: boolean;
-			trackSPANavigation?: boolean;
-		};
-		agentuityAnalytics?: {
-			track: (name: string, properties?: Record<string, unknown>) => void;
-			flush: () => void;
-		};
-	}
-}
+// Window.__AGENTUITY_ANALYTICS__ type is declared in @agentuity/frontend/analytics/types
 
 interface TestResult {
 	name: string;

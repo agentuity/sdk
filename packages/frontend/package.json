@@ -20,7 +20,7 @@
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bunx tsc --build --force",
+		"build": "bunx tsc --build --force && bun scripts/build-beacon.ts",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test",
 		"prepublishOnly": "bun run clean && bun run build"
