@@ -13,7 +13,6 @@
 import { describe, test, expect } from 'bun:test';
 import { s } from '@agentuity/schema';
 import type {
-	RouteKey,
 	RouteInput,
 	RouteOutput,
 	RouteFromMethodPath,
@@ -181,7 +180,7 @@ describe('Issue #468: Type Safety for RouteFromMethodPath', () => {
 	});
 
 	test('string form and method/path form produce identical route types', () => {
-		const stringForm: 'GET /test/users' = 'GET /test/users';
+		const stringForm = 'GET /test/users' as const;
 		const methodPathForm: RouteFromMethodPath<'GET', '/test/users'> = 'GET /test/users';
 
 		// Both should be assignable to each other (same type)
