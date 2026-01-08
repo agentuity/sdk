@@ -796,7 +796,16 @@ async function registerSubcommand(
 ): Promise<void> {
 	const cmd = parent.command(subcommand.name, { hidden }).description(subcommand.description);
 
-	cmd.helpOption('-h, --help [json]', 'Display help (with optional JSON output)');
+	// Allow pass-through args for commands that need to forward unknown options
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if ((subcommand as any).passThroughArgs) {
+		cmd.allowUnknownOption();
+		cmd.allowExcessArguments();
+		// Disable help option so --help passes through to the target command
+		cmd.helpOption(false);
+	} else {
+		cmd.helpOption('-h, --help [json]', 'Display help (with optional JSON output)');
+	}
 
 	if (subcommand.aliases) {
 		cmd.aliases(subcommand.aliases);
