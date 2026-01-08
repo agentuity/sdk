@@ -195,10 +195,15 @@ export const command = createCommand({
 		tui.newline();
 
 		// Execute the canary binary with forwarded args
+		// Skip version check in the canary binary to avoid upgrade prompts
 		const proc = Bun.spawn([cachePath, ...forwardArgs], {
 			stdin: 'inherit',
 			stdout: 'inherit',
 			stderr: 'inherit',
+			env: {
+				...process.env,
+				AGENTUITY_SKIP_VERSION_CHECK: '1',
+			},
 		});
 
 		const exitCode = await proc.exited;
