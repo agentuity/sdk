@@ -100,7 +100,7 @@ jobs:
                 ### Run Canary CLI
 
                 \`\`\`bash
-                agentuity canary ${version}
+                agentuity canary ${version} [command] [...args]
                 \`\`\`
                 `;
 
