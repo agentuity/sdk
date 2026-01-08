@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/frontend",
-	"version": "0.1.1",
+	"version": "0.1.6",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -20,7 +20,7 @@
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bunx tsc --build --force",
+		"build": "bunx tsc --build --force && bun scripts/build-beacon.ts",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test",
 		"prepublishOnly": "bun run clean && bun run build"

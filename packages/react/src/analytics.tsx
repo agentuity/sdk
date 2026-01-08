@@ -4,11 +4,7 @@ import { getAnalytics, type AnalyticsClient } from '@agentuity/frontend';
 const noopClient: AnalyticsClient = {
 	track: () => {},
 	identify: () => {},
-	pageview: () => {},
-	flush: async () => {},
-	optOut: () => {},
-	optIn: () => {},
-	isEnabled: () => false,
+	flush: () => {},
 };
 
 /**
@@ -29,24 +25,19 @@ export interface UseAnalyticsResult {
 	) => (event: React.MouseEvent) => void;
 
 	/**
-	 * Whether analytics is enabled
+	 * Identify the current user
 	 */
-	enabled: boolean;
+	identify: (userId: string, traits?: Record<string, unknown>) => void;
 
 	/**
 	 * Flush pending events
 	 */
-	flush: () => Promise<void>;
+	flush: () => void;
 
 	/**
-	 * Opt out of analytics
+	 * Whether the analytics client is available
 	 */
-	optOut: () => void;
-
-	/**
-	 * Opt in to analytics
-	 */
-	optIn: () => void;
+	ready: boolean;
 }
 
 /**
@@ -100,25 +91,23 @@ export function useAnalytics(): UseAnalyticsResult {
 		[client]
 	);
 
+	const identify = useCallback(
+		(userId: string, traits?: Record<string, unknown>) => {
+			client.identify(userId, traits);
+		},
+		[client]
+	);
+
 	const flush = useCallback(() => {
-		return client.flush();
-	}, [client]);
-
-	const optOut = useCallback(() => {
-		client.optOut();
-	}, [client]);
-
-	const optIn = useCallback(() => {
-		client.optIn();
+		client.flush();
 	}, [client]);
 
 	return {
 		track,
 		trackClick,
-		enabled: client.isEnabled(),
+		identify,
 		flush,
-		optOut,
-		optIn,
+		ready: isClient && clientRef.current !== null,
 	};
 }
 

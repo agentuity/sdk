@@ -1,0 +1,132 @@
+name: NPM Pack & Upload
+
+on:
+   push:
+      branches:
+         - main
+   pull_request:
+
+permissions:
+   contents: read
+   pull-requests: write
+
+concurrency:
+   group: ${{ github.workflow }}-${{ github.ref }}
+   cancel-in-progress: true
+
+env:
+   CI: true
+   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+   AWS_ENDPOINT_URL_S3: ${{ vars.AWS_ENDPOINT_URL_S3 }}
+   AWS_ENDPOINT_URL_IAM: ${{ vars.AWS_ENDPOINT_URL_IAM }}
+   AWS_REGION: ${{ vars.AWS_REGION }}
+
+jobs:
+   pack-and-upload:
+      runs-on: blacksmith-4vcpu-ubuntu-2204
+      timeout-minutes: 15
+      name: Pack & Upload
+      steps:
+         - uses: actions/checkout@v4
+           with:
+              ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Pack and Upload
+           id: pack
+           run: bun scripts/canary.ts
+
+         - name: Comment on PR
+           if: github.event_name == 'pull_request'
+           uses: actions/github-script@v7
+           with:
+              script: |
+                const version = '${{ steps.pack.outputs.prerelease_version }}';
+                const packagesJson = ${{ steps.pack.outputs.packages_json }};
+                const executablesJson = ${{ steps.pack.outputs.executables_json }};
+                const npmBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/npm/${version}`;
+                const binaryBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/binary/${version}`;
+
+                // Build packages table
+                let packagesTable = '| Package | Version | URL |\n| --- | --- | --- |\n';
+                for (const pkg of packagesJson) {
+                  const url = `${npmBaseUrl}/${pkg.tarball}`;
+                  packagesTable += `| \`${pkg.name}\` | \`${version}\` | ${url} |\n`;
+                }
+
+                // Build executables table
+                let executablesTable = '| Platform | Version | URL |\n| --- | --- | --- |\n';
+                for (const exe of executablesJson) {
+                  const url = `${binaryBaseUrl}/${exe.filename}`;
+                  executablesTable += `| \`${exe.platform}\` | \`${version}\` | ${url} |\n`;
+                }
+
+                // Build dependencies object with all packages
+                const deps = {};
+                for (const pkg of packagesJson) {
+                  deps[pkg.name] = `${npmBaseUrl}/${pkg.tarball}`;
+                }
+                const depsJson = JSON.stringify({ dependencies: deps }, null, 2);
+
+                const body = `<!-- agentuity-canary-bot -->
+                ## 📦 Canary Packages Published
+
+                ${packagesTable}
+
+                ### Installation
+
+                Add to your \`package.json\`:
+
+                \`\`\`json
+                ${depsJson}
+                \`\`\`
+
+                Or install directly:
+
+                \`\`\`bash
+                ${packagesJson.map(pkg => `bun add ${npmBaseUrl}/${pkg.tarball}`).join('\n')}
+                \`\`\`
+
+                ## 🖥️ Canary CLI Executables
+
+                ${executablesTable}
+
+                ### Run Canary CLI
+
+                \`\`\`bash
+                agentuity canary ${version} [command] [...args]
+                \`\`\`
+                `;
+
+                 // Find existing comment
+                 const { data: comments } = await github.rest.issues.listComments({
+                   owner: context.repo.owner,
+                   repo: context.repo.repo,
+                   issue_number: context.issue.number,
+                 });
+
+                 const botComment = comments.find(c =>
+                   c.body && c.body.includes('<!-- agentuity-canary-bot -->')
+                 );
+
+                 if (botComment) {
+                   await github.rest.issues.updateComment({
+                     owner: context.repo.owner,
+                     repo: context.repo.repo,
+                     comment_id: botComment.id,
+                     body: body,
+                   });
+                 } else {
+                   await github.rest.issues.createComment({
+                     owner: context.repo.owner,
+                     repo: context.repo.repo,
+                     issue_number: context.issue.number,
+                     body: body,
+                   });
+                 }

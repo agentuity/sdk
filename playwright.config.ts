@@ -19,6 +19,7 @@ if (existsSync(envPath)) {
 
 export default defineConfig({
 	globalSetup: './e2e/global-setup.ts',
+	globalTeardown: './e2e/global-teardown.ts',
 	testDir: './e2e',
 	testMatch: '**/*.pw.ts',
 	fullyParallel: true,

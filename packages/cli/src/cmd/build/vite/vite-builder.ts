@@ -102,7 +102,7 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 			deploymentId: deploymentId || '',
 			logger,
 			mode: dev ? 'dev' : 'prod',
-			workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
+			workbench: workbenchConfig.configured ? workbenchConfig : undefined,
 			analytics: config?.analytics,
 		});
 

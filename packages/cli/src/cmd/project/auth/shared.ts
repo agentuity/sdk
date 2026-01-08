@@ -122,7 +122,8 @@ export async function selectOrCreateDatabase(options: {
 export const AUTH_DEPENDENCIES = {
 	'@agentuity/auth': 'latest',
 	'better-auth': '^1.4.9',
-	'drizzle-orm': '^0.44.0',
+	'drizzle-orm': '^0.45.0',
+	'drizzle-kit': '^0.31.0',
 } as const;
 
 /**
@@ -217,10 +218,11 @@ export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
  * This generates SQL DDL statements from the @agentuity/auth Drizzle schema
  * without needing a database connection.
  *
+ * @param logger - Logger instance
  * @param projectDir - Project directory (must have @agentuity/auth installed)
  * @returns SQL DDL statements for auth tables
  */
-export async function generateAuthSchemaSql(projectDir: string): Promise<string> {
+export async function generateAuthSchemaSql(logger: Logger, projectDir: string): Promise<string> {
 	const schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/src/schema.ts');
 
 	if (!(await Bun.file(schemaPath).exists())) {
@@ -230,7 +232,7 @@ export async function generateAuthSchemaSql(projectDir: string): Promise<string>
 	}
 
 	const proc = Bun.spawn(
-		['bunx', 'drizzle-kit', 'export', '--dialect=postgresql', `--schema=${schemaPath}`],
+		['bunx', '--bun', 'drizzle-kit', 'export', '--dialect=postgresql', `--schema=${schemaPath}`],
 		{
 			cwd: projectDir,
 			stdout: 'pipe',
@@ -244,7 +246,14 @@ export async function generateAuthSchemaSql(projectDir: string): Promise<string>
 		proc.exited,
 	]);
 
-	if (exitCode !== 0) {
+	if (stderr !== '') {
+		logger.error('drizzle-kit export failed', { stderr });
+	}
+	if (stdout !== '') {
+		logger.trace('drizzle-kit export stdout', { stdout });
+	}
+
+	if (exitCode !== 0 || stderr !== '') {
 		const errorMsg = stderr
 			.split('\n')
 			.filter((line) => !line.includes('Please install'))
@@ -485,8 +494,7 @@ export default api;
 	console.log(tui.muted('━'.repeat(60)));
 	console.log(`
 import { AgentuityProvider } from '@agentuity/react';
-import { createAuthClient } from '@agentuity/auth/react';
-import { AuthProvider } from '@agentuity/auth';
+import { createAuthClient, AuthProvider } from '@agentuity/auth/react';
 
 const authClient = createAuthClient();
 

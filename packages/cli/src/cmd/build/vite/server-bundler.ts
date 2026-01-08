@@ -66,7 +66,9 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 
 	// Build tool externals: packages that should be external but NOT installed
 	// These are devDependencies that may exist in node_modules but aren't needed at runtime
-	const buildToolExternals = ['@babel/*', 'lightningcss', '@vitejs/*', 'vite', 'esbuild'];
+	// NOTE: @babel/* is NOT externalized because some runtime deps (e.g., puppeteer → cosmiconfig → parse-json)
+	// require @babel/code-frame at runtime. Babel packages are pure JS and bundle fine.
+	const buildToolExternals = ['lightningcss', '@vitejs/*', 'vite', 'esbuild'];
 
 	// Load custom externals and define from agentuity.config.ts if it exists
 	const customExternals: string[] = [];
@@ -159,15 +161,56 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 				externalInstalls.join(', ')
 			);
 
-			// Install with Bun (production mode, no scripts, linux target for deployment)
+			// Collect platform-specific optional dependencies for native modules
+			// Bun's --target flag doesn't correctly install cross-platform optional deps,
+			// so we need to explicitly install them (e.g., @img/sharp-linux-x64 for sharp)
+			const platformOptionalDeps: string[] = [];
+			for (const pkg of externalInstalls) {
+				const pkgJsonPath = join(rootDir, 'node_modules', pkg, 'package.json');
+				if (await Bun.file(pkgJsonPath).exists()) {
+					try {
+						const pkgJson = await Bun.file(pkgJsonPath).json();
+						if (pkgJson.optionalDependencies) {
+							// Find linux-x64 specific optional dependencies (glibc, not musl)
+							// Match patterns like: @img/sharp-linux-x64, @img/sharp-libvips-linux-x64
+							for (const optDep of Object.keys(pkgJson.optionalDependencies)) {
+								if (optDep.includes('linux-x64') && !optDep.includes('musl')) {
+									platformOptionalDeps.push(optDep);
+								}
+							}
+						}
+					} catch {
+						// Ignore parse errors
+					}
+				}
+			}
+
+			if (platformOptionalDeps.length > 0) {
+				logger.debug(
+					'Found %d platform-specific optional deps: %s',
+					platformOptionalDeps.length,
+					platformOptionalDeps.join(', ')
+				);
+			}
+
+			// Use npm with --force for cross-platform installs since Bun's --target flag
+			// doesn't correctly handle optional dependencies for other platforms
+			const allPackagesToInstall = [...externalInstalls, ...platformOptionalDeps];
+			logger.debug(
+				'Installing with npm (cross-platform): %s',
+				allPackagesToInstall.join(', ')
+			);
+
 			const proc = Bun.spawn(
 				[
-					'bun',
+					'npm',
 					'install',
 					'--no-save',
 					'--ignore-scripts',
-					'--target=bun-linux-x64',
-					...externalInstalls,
+					'--os=linux',
+					'--cpu=x64',
+					'--force',
+					...allPackagesToInstall,
 				],
 				{
 					cwd: outDir,

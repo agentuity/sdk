@@ -1729,17 +1729,15 @@ export async function parseRoute(
 							}
 						}
 
-						// For WebSocket/SSE/stream routes that don't use validator(), fall back to exported schemas
-						if (
-							!routeConfig.hasValidator &&
-							(type === 'websocket' || type === 'sse' || type === 'stream')
-						) {
-							if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
-								routeConfig.inputSchemaVariable = exportedInputSchemaName;
-							}
-							if (!routeConfig.outputSchemaVariable && exportedOutputSchemaName) {
-								routeConfig.outputSchemaVariable = exportedOutputSchemaName;
-							}
+						// Fall back to exported schemas when validator doesn't provide them
+						// This works for all route types (API, WebSocket, SSE, stream)
+						// For API routes, this enables `export const outputSchema` pattern
+						// which is useful when using zValidator (input-only) but needing typed outputs
+						if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
+							routeConfig.inputSchemaVariable = exportedInputSchemaName;
+						}
+						if (!routeConfig.outputSchemaVariable && exportedOutputSchemaName) {
+							routeConfig.outputSchemaVariable = exportedOutputSchemaName;
 						}
 
 						routes.push({

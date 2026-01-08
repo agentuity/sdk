@@ -1,5 +1,5 @@
 import type { Context, Handler } from 'hono';
-import { streamSSE as honoStreamSSE } from 'hono/streaming';
+import { stream as honoStream } from 'hono/streaming';
 import { getAgentAsyncLocalStorage } from '../_context';
 import type { Env } from '../app';
 
@@ -60,7 +60,37 @@ export type SSEHandler<E extends Env = Env> = (
 ) => void | Promise<void>;
 
 /**
+ * Format an SSE message according to the SSE specification.
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
+ */
+function formatSSEMessage(message: SSEMessage): string {
+	let text = '';
+	if (message.event) {
+		text += `event: ${message.event}\n`;
+	}
+	if (message.id) {
+		text += `id: ${message.id}\n`;
+	}
+	if (typeof message.retry === 'number') {
+		text += `retry: ${message.retry}\n`;
+	}
+	// Data can be multiline - each line needs its own "data:" prefix
+	const dataLines = message.data.split(/\r?\n/);
+	for (const line of dataLines) {
+		text += `data: ${line}\n`;
+	}
+	// SSE messages are terminated by a blank line
+	text += '\n';
+	return text;
+}
+
+/**
  * Creates an SSE (Server-Sent Events) middleware for streaming updates to clients.
+ *
+ * This implementation uses Hono's stream() helper instead of streamSSE() to ensure
+ * compatibility with async operations that consume ReadableStreams internally
+ * (like AI SDK's generateText/generateObject). The stream() helper uses a fire-and-forget
+ * pattern that avoids "ReadableStream has already been used" errors.
  *
  * Use with router.get() to create an SSE endpoint:
  *
@@ -91,6 +121,7 @@ export type SSEHandler<E extends Env = Env> = (
  *
  * @param handler - Handler function receiving context and SSE stream
  * @returns Hono handler for SSE streaming
+ * @see https://github.com/agentuity/sdk/issues/471
  */
 export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 	return (c: Context<E>) => {
@@ -104,6 +135,12 @@ export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 		const donePromise = new Promise<void>((resolve, reject) => {
 			resolveDone = resolve;
 			rejectDone = reject;
+		});
+
+		// Prevent unhandled rejection warnings if no middleware consumes donePromise.
+		// The error is still propagated via the rejection for middleware that awaits it.
+		donePromise.catch(() => {
+			// Intentionally empty - error is logged in runInContext catch block
 		});
 
 		// Idempotent function to mark stream as completed
@@ -124,10 +161,32 @@ export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		(c as any).set(IS_STREAMING_RESPONSE_KEY, true);
 
+		// Set SSE-specific headers
+		c.header('Content-Type', 'text/event-stream');
+		c.header('Cache-Control', 'no-cache');
+		c.header('Connection', 'keep-alive');
+
+		// Use honoStream instead of honoStreamSSE.
+		// honoStream uses a fire-and-forget async IIFE pattern that returns the Response
+		// immediately while the handler runs in the background. This is critical for
+		// compatibility with AI SDK's generateText/generateObject which use fetch()
+		// internally. With honoStreamSSE, the callback is awaited before returning,
+		// which causes "ReadableStream has already been used" errors when fetch
+		// response streams are consumed in the same async chain.
+		// See: https://github.com/agentuity/sdk/issues/471
+
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		return honoStreamSSE(c, async (stream: any) => {
+		return honoStream(c, async (s: any) => {
+			const encoder = new TextEncoder();
+
 			// Track if user registered an onAbort callback
 			let userAbortCallback: (() => void) | undefined;
+
+			// Internal function to write an SSE message
+			const writeSSEInternal = async (message: SSEMessage): Promise<void> => {
+				const formatted = formatSSEMessage(message);
+				await s.write(encoder.encode(formatted));
+			};
 
 			const wrappedStream: SSEStream = {
 				write: async (data) => {
@@ -136,16 +195,16 @@ export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 						typeof data === 'number' ||
 						typeof data === 'boolean'
 					) {
-						return stream.writeSSE({ data: String(data) });
+						return writeSSEInternal({ data: String(data) });
 					} else if (typeof data === 'object' && data !== null) {
-						return stream.writeSSE(data);
+						return writeSSEInternal(data as SSEMessage);
 					}
-					return stream.writeSSE({ data: String(data) });
+					return writeSSEInternal({ data: String(data) });
 				},
-				writeSSE: stream.writeSSE.bind(stream),
+				writeSSE: writeSSEInternal,
 				onAbort: (callback: () => void) => {
 					userAbortCallback = callback;
-					stream.onAbort(() => {
+					s.onAbort(() => {
 						try {
 							callback();
 						} finally {
@@ -156,7 +215,7 @@ export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 				},
 				close: () => {
 					try {
-						stream.close?.();
+						s.close?.();
 					} finally {
 						// Mark stream as done on close
 						markDone();
@@ -166,7 +225,7 @@ export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 
 			// Always register internal abort handler if user doesn't register one
 			// This ensures we track completion even if user doesn't call onAbort
-			stream.onAbort(() => {
+			s.onAbort(() => {
 				if (!userAbortCallback) {
 					// Only mark done if user didn't register their own handler
 					// (their handler wrapper already calls markDone)
@@ -177,12 +236,17 @@ export function sse<E extends Env = Env>(handler: SSEHandler<E>): Handler<E> {
 			const runInContext = async () => {
 				try {
 					await handler(c, wrappedStream);
+					markDone();
 				} catch (err) {
+					// Log error but don't rethrow - would be unhandled rejection
+					c.var.logger?.error?.('SSE handler error:', err);
 					markDone(err);
-					throw err;
 				}
 			};
 
+			// Run handler with AsyncLocalStorage context propagation.
+			// honoStream already uses a fire-and-forget pattern internally,
+			// so we can safely await here - the response is already being sent.
 			if (capturedContext) {
 				await asyncLocalStorage.run(capturedContext, runInContext);
 			} else {
