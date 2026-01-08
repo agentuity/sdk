@@ -79,8 +79,7 @@ jobs:
                  Or install directly:
 
                  \`\`\`bash
-                 bun add \\
-                   ${packagesJson.map(pkg => `${baseUrl}/${pkg.tarball}`).join(' \\\n                   ')}
+                 ${packagesJson.map(pkg => `bun add ${baseUrl}/${pkg.tarball}`).join('\n')}
                  \`\`\`
                  `;
 
