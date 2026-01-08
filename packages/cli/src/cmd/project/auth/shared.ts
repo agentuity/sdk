@@ -48,7 +48,7 @@ export async function selectOrCreateDatabase(options: {
 		}
 	}
 
-	type Choice = { name: string; message: string };
+	type Choice = { name: string; message: string; };
 	const choices: Choice[] = [];
 
 	// Add "use existing" option first if we have an existing URL
@@ -72,7 +72,7 @@ export async function selectOrCreateDatabase(options: {
 			}))
 	);
 
-	const response = await enquirer.prompt<{ database: string }>({
+	const response = await enquirer.prompt<{ database: string; }>({
 		type: 'select',
 		name: 'database',
 		message: 'Select a database for auth:',
@@ -219,9 +219,13 @@ export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
  * without needing a database connection.
  *
  * @param projectDir - Project directory (must have @agentuity/auth installed)
+ * @param logger - Optional logger for trace output
  * @returns SQL DDL statements for auth tables
  */
-export async function generateAuthSchemaSql(projectDir: string): Promise<string> {
+export async function generateAuthSchemaSql(
+	projectDir: string,
+	logger: Logger
+): Promise<string> {
 	const schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/src/schema.ts');
 
 	if (!(await Bun.file(schemaPath).exists())) {
@@ -230,31 +234,56 @@ export async function generateAuthSchemaSql(projectDir: string): Promise<string>
 		);
 	}
 
-	const proc = Bun.spawn(
-		['bunx', 'drizzle-kit', 'export', '--dialect=postgresql', `--schema=${schemaPath}`],
-		{
-			cwd: projectDir,
-			stdout: 'pipe',
-			stderr: 'pipe',
+	// Copy schema file to a temporary location outside node_modules
+	// Node.js cannot strip TypeScript types from files in node_modules
+	const tempSchemaPath = path.join(projectDir, '.agentuity-auth-schema.tmp.ts');
+	const schemaContent = await Bun.file(schemaPath).text();
+	await Bun.write(tempSchemaPath, schemaContent);
+
+	try {
+		const proc = Bun.spawn(
+			['bunx', 'drizzle-kit', 'export', '--dialect=postgresql', `--schema=${tempSchemaPath}`],
+			{
+				cwd: projectDir,
+				stdout: 'pipe',
+				stderr: 'pipe',
+			}
+		);
+
+		const [stdout, stderr, exitCode] = await Promise.all([
+			new Response(proc.stdout).text(),
+			new Response(proc.stderr).text(),
+			proc.exited,
+		]);
+
+		if (stdout !== '') {
+			logger.trace('drizzle-kit stdout', stdout);
 		}
-	);
+		if (stderr !== '') {
+			logger.trace('drizzle-kit stderr', stderr);
+		}
+		if (exitCode !== 0) {
+			logger.trace('drizzle-kit exitCode', exitCode);
+		}
 
-	const [stdout, stderr, exitCode] = await Promise.all([
-		new Response(proc.stdout).text(),
-		new Response(proc.stderr).text(),
-		proc.exited,
-	]);
+		if (stderr !== '' || exitCode !== 0) {
+			const errorMsg = stderr
+				.split('\n')
+				.filter((line) => !line.includes('Please install'))
+				.join('\n')
+				.trim();
+			throw new Error(`drizzle-kit export failed with code ${exitCode}: ${errorMsg}`);
+		}
 
-	if (exitCode !== 0) {
-		const errorMsg = stderr
-			.split('\n')
-			.filter((line) => !line.includes('Please install'))
-			.join('\n')
-			.trim();
-		throw new Error(`drizzle-kit export failed with code ${exitCode}: ${errorMsg}`);
+		return makeIdempotent(stdout);
+	} finally {
+		// Clean up temporary file
+		try {
+			await Bun.file(tempSchemaPath).unlink();
+		} catch {
+			// Ignore cleanup errors
+		}
 	}
-
-	return makeIdempotent(stdout);
 }
 
 /**

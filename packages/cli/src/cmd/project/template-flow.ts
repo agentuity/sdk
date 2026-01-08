@@ -304,8 +304,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					val === ''
 						? true
 						: /^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,63}$/.test(
-								val
-							),
+							val
+						),
 			});
 			if (customDns) {
 				_domains = [customDns];
@@ -449,7 +449,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			const sql = await tui.spinner({
 				message: 'Preparing auth database schema...',
 				clearOnSuccess: true,
-				callback: () => generateAuthSchemaSql(dest),
+				callback: () => generateAuthSchemaSql(dest, logger),
 			});
 
 			await runAuthMigrations({
@@ -469,7 +469,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		const cloudRegion = region ?? process.env.AGENTUITY_REGION ?? 'usc';
 
 		const pkgJsonPath = resolve(dest, 'package.json');
-		let pkgJson: { description?: string; keywords?: string[] } = {};
+		let pkgJson: { description?: string; keywords?: string[]; } = {};
 		if (existsSync(pkgJsonPath)) {
 			pkgJson = await Bun.file(pkgJsonPath).json();
 		}

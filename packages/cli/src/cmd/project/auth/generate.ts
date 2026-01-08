@@ -58,11 +58,11 @@ export const generateSubcommand = createSubcommand({
 
 		try {
 			const sql = isJson
-				? await generateAuthSchemaSql(projectDir)
+				? await generateAuthSchemaSql(projectDir, logger)
 				: await tui.spinner({
 						message: 'Generating auth schema SQL from Drizzle schema',
 						clearOnSuccess: true,
-						callback: () => generateAuthSchemaSql(projectDir),
+						callback: () => generateAuthSchemaSql(projectDir, logger),
 					});
 
 			if (toStdout) {
