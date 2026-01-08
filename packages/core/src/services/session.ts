@@ -46,12 +46,12 @@ export type SessionCompleteEvent = z.infer<typeof SessionCompleteEventSchema>;
 
 export const SessionStartEventDelayedSchema = z.intersection(
 	SessionStartEventSchema,
-	z.object({ timestamp: z.int().describe('the event timestamp in epoch') })
+	z.object({ timestamp: z.number().int().describe('the event timestamp in epoch') })
 );
 
 export const SessionCompleteEventDelayedSchema = z.intersection(
 	SessionCompleteEventSchema,
-	z.object({ timestamp: z.int().describe('the event timestamp in epoch') })
+	z.object({ timestamp: z.number().int().describe('the event timestamp in epoch') })
 );
 
 /**

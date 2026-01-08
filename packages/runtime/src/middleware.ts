@@ -34,6 +34,12 @@ const SESSION_HEADER = 'x-session-id';
 const THREAD_HEADER = 'x-thread-id';
 const DEPLOYMENT_HEADER = 'x-deployment';
 
+/**
+ * Paths that should skip OTEL session tracking.
+ * These routes are still accessible but won't create session events.
+ */
+const OTEL_SESSION_SKIP_PATHS = new Set(['/_agentuity/workbench/metadata.json']);
+
 export const AGENT_CONTEXT_PROPERTIES = [
 	'logger',
 	'tracer',
@@ -259,6 +265,11 @@ export function createCorsMiddleware(staticOptions?: CorsConfig) {
 export function createOtelMiddleware() {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
+		// Skip session tracking for paths in the skip list
+		if (OTEL_SESSION_SKIP_PATHS.has(c.req.path)) {
+			return next();
+		}
+
 		// Import providers dynamically to avoid circular deps
 		const { getThreadProvider, getSessionProvider } = await import('./_services');
 		const WaitUntilHandler = (await import('./_waituntil')).default;
@@ -478,11 +489,18 @@ export function createOtelMiddleware() {
  * });
  * ```
  */
-export function createCompressionMiddleware(staticConfig?: CompressionConfig) {
+export function createCompressionMiddleware(
+	staticConfig?: CompressionConfig,
+	/**
+	 * Optional config resolver for testing. When provided, this is used instead of getAppConfig().
+	 * @internal
+	 */
+	configResolver?: () => { compression?: CompressionConfig | false } | undefined
+) {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
 		// Lazy resolve: merge app config with static config
-		const appConfig = getAppConfig();
+		const appConfig = configResolver ? configResolver() : getAppConfig();
 		const appCompressionConfig = appConfig?.compression;
 
 		// Check if compression is explicitly disabled

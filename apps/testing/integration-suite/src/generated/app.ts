@@ -243,7 +243,8 @@ app.route('/api/my-service', router_5);
 const { default: router_6 } = await import('../api/users/profile/route.js');
 app.route('/api/users/profile', router_6);
 
-const hasWorkbench = true;
+const hasWorkbenchConfig = true;
+const hasWorkbench = isDevelopment() && hasWorkbenchConfig;
 if (hasWorkbench) {
 	// Mount workbench API routes (/_agentuity/workbench/*)
 	const workbenchRouter = createWorkbenchRouter();

@@ -196,7 +196,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			return;
 		}
 		selectedTemplate = found;
-	} else if (skipPrompts) {
+	} else if (skipPrompts || templates.length === 1) {
 		selectedTemplate = templates[0];
 	} else {
 		let maxLength = 15;
@@ -246,8 +246,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		logger,
 	});
 
-	// Re-display template selection after spinners clear it
-	if (!skipPrompts) {
+	// Re-display template selection after spinners clear it (only if user actually selected)
+	if (!skipPrompts && templates.length > 1) {
 		const { symbols, tuiColors } = tui;
 		console.log(`${tuiColors.completed(symbols.completed)}  Select a template:`);
 		console.log(`${tuiColors.secondary(symbols.bar)}  ${tuiColors.muted(selectedTemplate.name)}`);
@@ -304,8 +304,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 					val === ''
 						? true
 						: /^(?=.{1,253}$)(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[A-Za-z]{2,63}$/.test(
-								val
-							),
+							val
+						),
 			});
 			if (customDns) {
 				_domains = [customDns];
@@ -449,7 +449,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			const sql = await tui.spinner({
 				message: 'Preparing auth database schema...',
 				clearOnSuccess: true,
-				callback: () => generateAuthSchemaSql(dest),
+				callback: () => generateAuthSchemaSql(logger, dest),
 			});
 
 			await runAuthMigrations({
@@ -469,7 +469,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		const cloudRegion = region ?? process.env.AGENTUITY_REGION ?? 'usc';
 
 		const pkgJsonPath = resolve(dest, 'package.json');
-		let pkgJson: { description?: string; keywords?: string[] } = {};
+		let pkgJson: { description?: string; keywords?: string[]; } = {};
 		if (existsSync(pkgJsonPath)) {
 			pkgJson = await Bun.file(pkgJsonPath).json();
 		}

@@ -30,6 +30,12 @@ interface WorkbenchProviderProps {
 		cloud: boolean;
 	};
 	children: React.ReactNode;
+	portals?: {
+		actionBar?: {
+			pre?: React.ReactNode;
+			post?: React.ReactNode;
+		};
+	};
 }
 
 export function WorkbenchProvider({
@@ -40,6 +46,7 @@ export function WorkbenchProvider({
 		cloud: false,
 	},
 	children,
+	portals,
 }: WorkbenchProviderProps) {
 	const logger = useLogger('WorkbenchProvider');
 
@@ -744,6 +751,7 @@ export function WorkbenchProvider({
 		isGeneratingSample,
 		isLoading: isLoading || !!schemasLoading,
 		messages,
+		portals,
 		refetchSchemas,
 		schemas: schemaData,
 		schemasError,

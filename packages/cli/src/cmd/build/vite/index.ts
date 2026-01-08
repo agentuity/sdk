@@ -103,7 +103,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 				deploymentId,
 				logger,
 				mode: dev ? 'dev' : 'prod',
-				workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
+				workbench: workbenchConfig.configured ? workbenchConfig : undefined,
 				analytics: config?.analytics,
 			});
 

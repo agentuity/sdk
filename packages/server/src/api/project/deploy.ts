@@ -127,8 +127,16 @@ export const BuildMetadataSchema = z.object({
 						.default('cli')
 						.optional()
 						.describe('the trigger that caused the build'),
-					url: z.url().optional().describe('the url to the commit for the CI provider'),
-					buildUrl: z.url().optional().describe('the url to the build for the CI provider'),
+					url: z
+						.string()
+						.url()
+						.optional()
+						.describe('the url to the commit for the CI provider'),
+					buildUrl: z
+						.string()
+						.url()
+						.optional()
+						.describe('the url to the build for the CI provider'),
 					event: z
 						.enum(['pull_request', 'push', 'manual', 'workflow'])
 						.default('manual')
@@ -244,8 +252,8 @@ const DeploymentCompleteObject = z.object({
 	streamId: z.string().optional().describe('the stream id for warmup logs'),
 	publicUrls: z
 		.object({
-			latest: z.url().describe('the public url for the latest deployment'),
-			deployment: z.url().describe('the public url for this deployment'),
+			latest: z.string().url().describe('the public url for the latest deployment'),
+			deployment: z.string().url().describe('the public url for this deployment'),
 			custom: z.array(z.string().describe('the custom domain')),
 		})
 		.describe('the map of public urls'),

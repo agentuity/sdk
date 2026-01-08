@@ -13,7 +13,6 @@ import { Hono } from 'hono';
 import { createCorsMiddleware } from '../src/middleware';
 
 describe('CORS Middleware', () => {
-
 	describe('Basic CORS behavior', () => {
 		test('middleware processes requests successfully', async () => {
 			const app = new Hono();

@@ -6,34 +6,26 @@
  * available in all test environments. These tests focus on the middleware
  * logic (config resolution, bypasses) rather than actual compression.
  *
- * Tests that need to test global app config behavior use a direct globalThis
- * modification since this is an isolated test file with beforeEach/afterEach cleanup.
+ * These tests use a local config resolver instead of the global __AGENTUITY_APP_CONFIG__
+ * to avoid race conditions with other test files running in parallel.
  */
 
-import { expect, describe, test, beforeEach, afterEach } from 'bun:test';
+import { expect, describe, test } from 'bun:test';
 import { Hono } from 'hono';
 import { createCompressionMiddleware } from '../src/middleware';
-import { setAppConfig } from '../src/app';
+import type { CompressionConfig } from '../src/app';
 
 // Generate a large string that will exceed the default threshold
 function generateLargePayload(size = 2048): string {
 	return 'x'.repeat(size);
 }
 
-// Helper to clear app config
-function clearAppConfig() {
-	setAppConfig(undefined);
+// Helper to create a config resolver for test isolation
+function createConfigResolver(config?: { compression?: CompressionConfig | false }) {
+	return () => config;
 }
 
 describe('Compression Middleware', () => {
-	// Clear config before and after EVERY test to ensure isolation
-	beforeEach(() => {
-		clearAppConfig();
-	});
-
-	afterEach(() => {
-		clearAppConfig();
-	});
 
 	describe('Basic behavior', () => {
 		test('middleware processes request and returns response', async () => {
@@ -90,10 +82,10 @@ describe('Compression Middleware', () => {
 		});
 
 		test('compression: false in app config disables compression', async () => {
-			setAppConfig({ compression: false });
+			const configResolver = createConfigResolver({ compression: false });
 
 			const app = new Hono();
-			app.use('*', createCompressionMiddleware());
+			app.use('*', createCompressionMiddleware(undefined, configResolver));
 			app.get('/test', (c) => {
 				return c.json({ data: generateLargePayload(2048) });
 			});
@@ -108,10 +100,10 @@ describe('Compression Middleware', () => {
 		});
 
 		test('static config enabled:false overrides app config', async () => {
-			setAppConfig({ compression: { threshold: 100 } });
+			const configResolver = createConfigResolver({ compression: { threshold: 100 } });
 
 			const app = new Hono();
-			app.use('*', createCompressionMiddleware({ enabled: false }));
+			app.use('*', createCompressionMiddleware({ enabled: false }, configResolver));
 			app.get('/test', (c) => {
 				return c.json({ data: generateLargePayload(2048) });
 			});
@@ -200,15 +192,19 @@ describe('Compression Middleware', () => {
 
 	describe('Lazy config resolution', () => {
 		test('reads config from app state at request time', async () => {
+			// Use a mutable config object to simulate lazy resolution
+			let currentConfig: { compression?: CompressionConfig | false } | undefined = undefined;
+			const configResolver = () => currentConfig;
+
 			const app = new Hono();
 			// Register middleware BEFORE setting config (simulating real startup order)
-			app.use('*', createCompressionMiddleware());
+			app.use('*', createCompressionMiddleware(undefined, configResolver));
 			app.get('/test', (c) => {
 				return c.json({ data: generateLargePayload(2048) });
 			});
 
 			// Now set config (simulating createApp running after middleware registration)
-			setAppConfig({ compression: false });
+			currentConfig = { compression: false };
 
 			const res = await app.request('/test', {
 				method: 'GET',
