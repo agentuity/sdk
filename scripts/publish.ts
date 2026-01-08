@@ -595,9 +595,17 @@ async function main() {
 
 	const isDryRun = process.argv.includes('--dry-run');
 
-	// Parse --version flag
-	const versionArg = process.argv.find((arg) => arg.startsWith('--version='));
-	const forcedVersion = versionArg ? versionArg.split('=')[1] : null;
+	// Parse --version flag (supports both --version=X.Y.Z and --version X.Y.Z)
+	let forcedVersion: string | null = null;
+	const versionEqArg = process.argv.find((arg) => arg.startsWith('--version='));
+	if (versionEqArg) {
+		forcedVersion = versionEqArg.split('=')[1];
+	} else {
+		const versionIndex = process.argv.indexOf('--version');
+		if (versionIndex !== -1 && process.argv[versionIndex + 1]) {
+			forcedVersion = process.argv[versionIndex + 1];
+		}
+	}
 
 	console.log(`🚀 Publishing packages to npm${isDryRun ? ' (DRY RUN)' : ''}\n`);
 
