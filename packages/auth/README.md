@@ -300,6 +300,25 @@ import { AuthProvider } from '@agentuity/auth/react';
 </AuthProvider>;
 ```
 
+**Props:**
+
+- `authClient` - Auth client instance (required)
+- `refreshInterval` - Token refresh interval in milliseconds (default: `3600000` / 1 hour)
+- `tokenEndpoint` - Token endpoint path or `false` to disable (default: `'/token'`)
+
+```tsx
+// High-security: refresh every 30 seconds
+<AuthProvider authClient={authClient} refreshInterval={30000}>
+
+// Sensitive features: refresh every 5 minutes
+<AuthProvider authClient={authClient} refreshInterval={300000}>
+
+// Default: refresh every hour
+<AuthProvider authClient={authClient}>
+```
+
+See the `refreshInterval` JSDoc for detailed security recommendations.
+
 #### `useAuth()`
 
 Hook for full auth context. Import from `@agentuity/auth/react`.
