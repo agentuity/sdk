@@ -287,7 +287,19 @@ declare module '@agentuity/react' {
 				stream: false;
 				params: never;
 			};
+	'/api/sse/async-fetch': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'/api/sse/counter': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/error-handling': {
 				inputSchema: never;
 				outputSchema: never;
 				stream: false;
@@ -461,9 +473,21 @@ declare module '@agentuity/react' {
 				 */
 				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
 			};
+			asyncFetch: {
+				/**
+				 * Route: GET /api/sse/async-fetch
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
 			counter: {
 				/**
 				 * Route: GET /api/sse/counter
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			errorHandling: {
+				/**
+				 * Route: GET /api/sse/error-handling
 				 */
 				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
 			};
@@ -695,10 +719,22 @@ const _rpcRouteMetadata = {
 								"path": "/api/sse/abort-test"
 						}
 				},
+				"asyncFetch": {
+						"eventstream": {
+								"type": "sse",
+								"path": "/api/sse/async-fetch"
+						}
+				},
 				"counter": {
 						"eventstream": {
 								"type": "sse",
 								"path": "/api/sse/counter"
+						}
+				},
+				"errorHandling": {
+						"eventstream": {
+								"type": "sse",
+								"path": "/api/sse/error-handling"
 						}
 				},
 				"events": {
