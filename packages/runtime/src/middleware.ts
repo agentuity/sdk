@@ -38,7 +38,14 @@ const DEPLOYMENT_HEADER = 'x-deployment';
  * Paths that should skip OTEL session tracking.
  * These routes are still accessible but won't create session events.
  */
-const OTEL_SESSION_SKIP_PATHS = new Set(['/_agentuity/workbench/metadata.json']);
+const OTEL_SESSION_SKIP_PATHS = new Set([
+	'/_agentuity/workbench/ws',
+	'/_agentuity/workbench/sample',
+	'/_agentuity/workbench/state',
+	'/_agentuity/workbench/metadata.json',
+	'/_agentuity/webanalytics/analytics.js',
+	'/_agentuity/webanalytics/session.js',
+]);
 
 export const AGENT_CONTEXT_PROPERTIES = [
 	'logger',
