@@ -107,6 +107,32 @@ interface AgentuityWindow {
 const COLLECT_ENDPOINT = '/_agentuity/webanalytics/collect';
 const MAX_CUSTOM_EVENTS = 1000;
 
+/**
+ * Safely stringify an object, handling circular references and other errors.
+ * Returns the JSON string on success, or a fallback string on failure.
+ */
+function safeStringify(obj: unknown): string {
+	if (obj === undefined || obj === null) {
+		return '';
+	}
+	try {
+		const seen = new WeakSet();
+		return JSON.stringify(obj, (_key, value) => {
+			if (typeof value === 'object' && value !== null) {
+				if (seen.has(value)) {
+					return '[Circular]';
+				}
+				seen.add(value);
+			}
+			return value;
+		});
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		console.warn('[Agentuity Analytics] Failed to stringify properties:', message);
+		return `[unserializable: ${message}]`;
+	}
+}
+
 (function () {
 	const w = window as Window & AgentuityWindow;
 	const d = document;
@@ -674,7 +700,7 @@ const MAX_CUSTOM_EVENTS = 1000;
 				pv.custom_events.push({
 					timestamp: Date.now(),
 					name,
-					data: properties ? JSON.stringify(properties) : '',
+					data: safeStringify(properties),
 				});
 			}
 		},
