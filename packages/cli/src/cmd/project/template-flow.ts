@@ -466,14 +466,25 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				callback: () => generateAuthSchemaSql(dest),
 			});
 
-			await runAuthMigrations({
-				logger,
-				auth,
-				orgId,
-				region,
-				databaseName: authDatabaseName,
-				sql,
-			});
+			if (!sql || sql.trim().length === 0) {
+				tui.warn(
+					'Auth schema SQL is empty. Tables may not be created. Try running: agentuity project auth init'
+				);
+			} else {
+				await runAuthMigrations({
+					logger,
+					auth,
+					orgId,
+					region,
+					databaseName: authDatabaseName,
+					sql,
+				});
+			}
+		} else if (resourceEnvVars.DATABASE_URL) {
+			// Database URL exists but we couldn't determine the database name
+			tui.warn(
+				'Could not determine database name for auth migrations. Run: agentuity project auth init'
+			);
 		}
 	}
 

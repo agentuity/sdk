@@ -347,6 +347,14 @@ export async function runAuthMigrations(options: {
 
 	const statements = splitSqlStatements(sql);
 
+	if (statements.length === 0) {
+		tui.warn(`No SQL statements to execute for auth tables in "${databaseName}"`);
+		logger.debug('Auth SQL was empty or contained no valid statements');
+		return;
+	}
+
+	logger.debug(`Executing ${statements.length} SQL statements for auth tables`);
+
 	await tui.spinner({
 		message: `Creating auth tables in database "${databaseName}" (${statements.length} SQL statements)`,
 		clearOnSuccess: true,
