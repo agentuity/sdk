@@ -219,7 +219,7 @@ export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
  * without needing a database connection.
  *
  * @param projectDir - Project directory (must have @agentuity/auth installed)
- * @param logger - Optional logger for trace output
+ * @param logger - Logger for trace output
  * @returns SQL DDL statements for auth tables
  */
 export async function generateAuthSchemaSql(
