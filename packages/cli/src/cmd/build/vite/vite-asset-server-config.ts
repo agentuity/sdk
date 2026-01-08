@@ -117,12 +117,16 @@ export async function generateAssetServerConfig(
 		},
 
 		// Plugins: User plugins first (e.g., Tailwind), then React and browser env
-		// Resolve @vitejs/plugin-react from the project's node_modules
+		// Try project's node_modules first, fall back to CLI's bundled version
 		plugins: await (async () => {
 			const projectRequire = createRequire(join(rootDir, 'package.json'));
-			const reactPlugin = (
-				await import(projectRequire.resolve('@vitejs/plugin-react'))
-			).default();
+			let reactPluginPath = '@vitejs/plugin-react';
+			try {
+				reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+			} catch {
+				// Project doesn't have @vitejs/plugin-react, use CLI's bundled version
+			}
+			const reactPlugin = (await import(reactPluginPath)).default();
 			const { browserEnvPlugin } = await import('./browser-env-plugin');
 			return [
 				// User-defined plugins from agentuity.config.ts (e.g., Tailwind CSS)
