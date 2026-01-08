@@ -6,6 +6,7 @@ import { $ } from 'bun';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { readdir, rm, mkdir, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import * as tui from '../../tui';
 
 const CANARY_CACHE_DIR = join(homedir(), '.agentuity', 'canary');
@@ -34,6 +35,10 @@ function getBinaryFilename(platform: { os: string; arch: string }): string {
 
 function getCachePath(version: string): string {
 	return join(CANARY_CACHE_DIR, version, 'agentuity');
+}
+
+function hashUrl(url: string): string {
+	return createHash('sha256').update(url).digest('hex').slice(0, 12);
 }
 
 async function cleanupOldCanaries(): Promise<void> {
@@ -147,9 +152,9 @@ export const command = createCommand({
 		let cachePath: string;
 
 		if (isUrl(target)) {
-			// Extract version from URL
+			// Extract version from URL, or create a unique hash for custom URLs
 			const match = target.match(/\/binary\/([^/]+)\//);
-			version = match ? match[1] : 'custom';
+			version = match ? match[1] : `custom-${hashUrl(target)}`;
 			downloadUrl = target;
 			cachePath = getCachePath(version);
 		} else {
