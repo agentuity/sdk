@@ -44,10 +44,18 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		'.opencode',
 		'node_modules',
 		'.git',
+		'.github',
 		'dist',
 		'build',
 		'.next',
 		'.turbo',
+		'.npm',
+		'.dist',
+		'.vscode',
+		'.idea',
+		'.DS_Store',
+		'.playwright',
+		'src/generated',
 	]);
 
 	// Paths to ignore for file change events (but may still be traversed)
@@ -59,11 +67,19 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		'.opencode',
 		'node_modules',
 		'.git',
+		'.github',
 		'dist',
 		'build',
 		'.next',
 		'.turbo',
+		'.npm',
+		'.dist',
+		'.vscode',
+		'.idea',
+		'.DS_Store',
+		'.playwright',
 		'src/web', // Vite handles frontend with HMR - no backend restart needed
+		'src/generated', // Generated files shouldn't trigger rebuilds
 	];
 
 	/**
@@ -184,7 +200,11 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 				}
 			} catch (error) {
 				// File might have been deleted or doesn't exist yet - this is normal
-				logger.trace('Unable to check directory for template creation (%s): %s', changedFile, error);
+				logger.trace(
+					'Unable to check directory for template creation (%s): %s',
+					changedFile,
+					error
+				);
 			}
 		}
 
