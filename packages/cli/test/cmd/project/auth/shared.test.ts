@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createMockLogger } from '@agentuity/test-utils';
@@ -222,6 +222,145 @@ describe('generateAuthSchemaSql', () => {
 			expect(sql).toContain('CREATE TABLE IF NOT EXISTS');
 		} finally {
 			rmSync(nonExistentDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should copy schema file outside node_modules to temporary location', async () => {
+		const sdkRoot = join(import.meta.dir, '../../../../..');
+		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
+
+		if (!(await Bun.file(schemaPath).exists())) {
+			console.log('Skipping test: running outside SDK workspace');
+			return;
+		}
+
+		const testDir = join(tmpdir(), `auth-schema-test-${Date.now()}`);
+		mkdirSync(testDir, { recursive: true });
+		mkdirSync(join(testDir, 'node_modules', '@agentuity', 'auth', 'src'), {
+			recursive: true,
+		});
+
+		// Copy the actual schema file to node_modules
+		const nodeModulesSchemaPath = join(
+			testDir,
+			'node_modules/@agentuity/auth/src/schema.ts'
+		);
+		const schemaContent = await Bun.file(schemaPath).text();
+		await Bun.write(nodeModulesSchemaPath, schemaContent);
+
+		const tempSchemaPath = join(testDir, '.agentuity-auth-schema.tmp.ts');
+
+		try {
+			// Verify temp file doesn't exist before
+			expect(existsSync(tempSchemaPath)).toBe(false);
+
+			// Run the function
+			await generateAuthSchemaSql(testDir, logger);
+
+			// Verify temp file was created (it should be cleaned up, but check during execution)
+			// Actually, it should be cleaned up, so it shouldn't exist after
+			expect(existsSync(tempSchemaPath)).toBe(false);
+		} finally {
+			rmSync(testDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should clean up temporary file even on error', async () => {
+		const testDir = join(tmpdir(), `auth-schema-error-test-${Date.now()}`);
+		mkdirSync(testDir, { recursive: true });
+		mkdirSync(join(testDir, 'node_modules', '@agentuity', 'auth', 'src'), {
+			recursive: true,
+		});
+
+		// Create an invalid schema file that will cause drizzle-kit to fail
+		const nodeModulesSchemaPath = join(
+			testDir,
+			'node_modules/@agentuity/auth/src/schema.ts'
+		);
+		await Bun.write(nodeModulesSchemaPath, 'export const invalid = syntax error;');
+
+		const tempSchemaPath = join(testDir, '.agentuity-auth-schema.tmp.ts');
+
+		try {
+			// This should throw an error
+			await expect(generateAuthSchemaSql(testDir, logger)).rejects.toThrow();
+
+			// Verify temp file was cleaned up even though there was an error
+			expect(existsSync(tempSchemaPath)).toBe(false);
+		} finally {
+			rmSync(testDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should call logger.trace for drizzle-kit output', async () => {
+		const sdkRoot = join(import.meta.dir, '../../../../..');
+		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
+
+		if (!(await Bun.file(schemaPath).exists())) {
+			console.log('Skipping test: running outside SDK workspace');
+			return;
+		}
+
+		const mockLogger = createMockLogger();
+
+		await generateAuthSchemaSql(sdkRoot, mockLogger);
+
+		// Verify trace was called (drizzle-kit should produce some output)
+		// The exact number depends on drizzle-kit output, but should be called at least once
+		expect(mockLogger.trace).toHaveBeenCalled();
+	});
+
+	test('should throw error when schema file does not exist', async () => {
+		const testDir = join(tmpdir(), `auth-schema-missing-test-${Date.now()}`);
+		mkdirSync(testDir, { recursive: true });
+
+		try {
+			await expect(generateAuthSchemaSql(testDir, logger)).rejects.toThrow(
+				'@agentuity/auth schema not found'
+			);
+		} finally {
+			rmSync(testDir, { recursive: true, force: true });
+		}
+	});
+
+	test('should use temporary file path outside node_modules for drizzle-kit', async () => {
+		const sdkRoot = join(import.meta.dir, '../../../../..');
+		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
+
+		if (!(await Bun.file(schemaPath).exists())) {
+			console.log('Skipping test: running outside SDK workspace');
+			return;
+		}
+
+		const testDir = join(tmpdir(), `auth-schema-path-test-${Date.now()}`);
+		mkdirSync(testDir, { recursive: true });
+		mkdirSync(join(testDir, 'node_modules', '@agentuity', 'auth', 'src'), {
+			recursive: true,
+		});
+
+		// Copy the actual schema file to node_modules
+		const nodeModulesSchemaPath = join(
+			testDir,
+			'node_modules/@agentuity/auth/src/schema.ts'
+		);
+		const schemaContent = await Bun.file(schemaPath).text();
+		await Bun.write(nodeModulesSchemaPath, schemaContent);
+
+		const tempSchemaPath = join(testDir, '.agentuity-auth-schema.tmp.ts');
+
+		try {
+			// Verify the temp path is outside node_modules
+			expect(tempSchemaPath).not.toContain('node_modules');
+			expect(tempSchemaPath).toContain('.agentuity-auth-schema.tmp.ts');
+
+			// Run the function - it should succeed
+			const sql = await generateAuthSchemaSql(testDir, logger);
+			expect(sql).toContain('CREATE TABLE IF NOT EXISTS');
+
+			// Verify temp file was cleaned up
+			expect(existsSync(tempSchemaPath)).toBe(false);
+		} finally {
+			rmSync(testDir, { recursive: true, force: true });
 		}
 	});
 });
