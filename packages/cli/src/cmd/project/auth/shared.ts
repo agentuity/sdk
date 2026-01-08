@@ -222,7 +222,9 @@ export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
  * @returns SQL DDL statements for auth tables
  */
 export async function generateAuthSchemaSql(projectDir: string): Promise<string> {
-	const schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/src/schema.ts');
+	// The @agentuity/auth package contains both the schema and drizzle dependencies
+	const authPackageDir = path.join(projectDir, 'node_modules/@agentuity/auth');
+	const schemaPath = path.join(authPackageDir, 'src/schema.ts');
 
 	if (!(await Bun.file(schemaPath).exists())) {
 		throw new Error(
@@ -230,10 +232,12 @@ export async function generateAuthSchemaSql(projectDir: string): Promise<string>
 		);
 	}
 
+	// Run drizzle-kit from the @agentuity/auth package directory where drizzle-orm is installed
+	// This ensures drizzle-kit can find the drizzle-orm dependency it needs
 	const proc = Bun.spawn(
-		['bunx', 'drizzle-kit', 'export', '--dialect=postgresql', `--schema=${schemaPath}`],
+		['bunx', 'drizzle-kit', 'export', '--dialect=postgresql', '--schema=src/schema.ts'],
 		{
-			cwd: projectDir,
+			cwd: authPackageDir,
 			stdout: 'pipe',
 			stderr: 'pipe',
 		}
@@ -252,6 +256,13 @@ export async function generateAuthSchemaSql(projectDir: string): Promise<string>
 			.join('\n')
 			.trim();
 		throw new Error(`drizzle-kit export failed with code ${exitCode}: ${errorMsg}`);
+	}
+
+	// Check if drizzle-kit output a warning instead of SQL (happens when drizzle-orm not found)
+	if (stdout.includes('Please install') && !stdout.includes('CREATE TABLE')) {
+		throw new Error(
+			'drizzle-kit could not generate SQL. Ensure drizzle-orm is installed in @agentuity/auth.'
+		);
 	}
 
 	return makeIdempotent(stdout);
