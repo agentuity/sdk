@@ -8,6 +8,7 @@ import {
 	generateAuthSchemaSql,
 	AUTH_DEPENDENCIES,
 } from '../../../../src/cmd/project/auth/shared';
+import { createMockLogger } from '@agentuity/test-utils';
 
 describe('splitSqlStatements', () => {
 	test('should split simple statements', () => {
@@ -153,6 +154,7 @@ describe('AUTH_DEPENDENCIES', () => {
 
 describe('generateAuthSchemaSql', () => {
 	test('should generate SQL with CREATE TABLE statements', async () => {
+		const logger = createMockLogger();
 		const sdkRoot = join(import.meta.dir, '../../../../..');
 		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
 
@@ -161,7 +163,7 @@ describe('generateAuthSchemaSql', () => {
 			return;
 		}
 
-		const sql = await generateAuthSchemaSql(sdkRoot);
+		const sql = await generateAuthSchemaSql(logger, sdkRoot);
 
 		expect(sql).toContain('CREATE TABLE IF NOT EXISTS');
 		expect(sql).toContain('"user"');
@@ -172,6 +174,7 @@ describe('generateAuthSchemaSql', () => {
 	});
 
 	test('should generate idempotent CREATE INDEX statements', async () => {
+		const logger = createMockLogger();
 		const sdkRoot = join(import.meta.dir, '../../../../..');
 		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
 
@@ -180,12 +183,13 @@ describe('generateAuthSchemaSql', () => {
 			return;
 		}
 
-		const sql = await generateAuthSchemaSql(sdkRoot);
+		const sql = await generateAuthSchemaSql(logger, sdkRoot);
 
 		expect(sql).toContain('CREATE INDEX IF NOT EXISTS');
 	});
 
 	test('should wrap ALTER TABLE ADD CONSTRAINT in DO blocks', async () => {
+		const logger = createMockLogger();
 		const sdkRoot = join(import.meta.dir, '../../../../..');
 		const schemaPath = join(sdkRoot, 'packages/auth/src/schema.ts');
 
@@ -194,7 +198,7 @@ describe('generateAuthSchemaSql', () => {
 			return;
 		}
 
-		const sql = await generateAuthSchemaSql(sdkRoot);
+		const sql = await generateAuthSchemaSql(logger, sdkRoot);
 
 		if (sql.includes('ADD CONSTRAINT')) {
 			expect(sql).toContain('DO $$ BEGIN');
@@ -211,11 +215,12 @@ describe('generateAuthSchemaSql', () => {
 			return;
 		}
 
+		const logger = createMockLogger();
 		const nonExistentDir = join(tmpdir(), `non-existent-${Date.now()}`);
 		mkdirSync(nonExistentDir, { recursive: true });
 
 		try {
-			const sql = await generateAuthSchemaSql(nonExistentDir);
+			const sql = await generateAuthSchemaSql(logger, nonExistentDir);
 			expect(sql).toContain('CREATE TABLE IF NOT EXISTS');
 		} finally {
 			rmSync(nonExistentDir, { recursive: true, force: true });
