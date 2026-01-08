@@ -57,20 +57,23 @@ jobs:
                    table += `| \`${pkg.name}\` | \`${version}\` | ${url} |\n`;
                  }
 
+                 // Build dependencies object with all packages
+                 const deps = {};
+                 for (const pkg of packagesJson) {
+                   deps[pkg.name] = `${baseUrl}/${pkg.tarball}`;
+                 }
+                 const depsJson = JSON.stringify({ dependencies: deps }, null, 2);
+
                  const body = `## 📦 Canary Packages Published
 
                  ${table}
 
                  ### Installation
 
-                 Copy the URL from the table above and add it to your \`package.json\`:
+                 Add to your \`package.json\`:
 
                  \`\`\`json
-                 {
-                   "dependencies": {
-                     "@agentuity/core": "${baseUrl}/agentuity-core-${version}.tgz"
-                   }
-                 }
+                 ${depsJson}
                  \`\`\`
 
                  Or install directly:
