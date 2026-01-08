@@ -1,21 +1,42 @@
 /**
  * Web Analytics for Agentuity SDK applications
  *
- * This module provides client-side analytics tracking for web applications
- * built with the Agentuity SDK.
+ * The analytics beacon is bundled separately via beacon-standalone.ts
+ * and injected as a script tag by the SDK runtime.
+ *
+ * This module re-exports types and utilities for programmatic access.
  */
 
-export { getAnalytics, track, initBeacon } from './beacon';
+import type { AnalyticsClient } from './types';
 
 export type {
 	AnalyticsClient,
-	AnalyticsEvent,
-	AnalyticsEventType,
-	AnalyticsBatchPayload,
+	AnalyticsPayload,
 	AnalyticsPageConfig,
+	PageViewPayload,
+	ScrollEvent,
+	CustomEvent,
+	GeoLocation,
 } from './types';
 
-// Re-export utilities for advanced usage
-export { trackPageview, createBaseEvent } from './collectors/pageview';
 export { getVisitorId, isOptedOut, setOptOut } from './utils/storage';
 export { getUTMParams } from './utils/utm';
+
+/**
+ * Get the analytics client from the global window object.
+ * Returns null if the beacon hasn't been initialized.
+ */
+export function getAnalytics(): AnalyticsClient | null {
+	if (typeof window !== 'undefined') {
+		const client = (window as { agentuityAnalytics?: AnalyticsClient }).agentuityAnalytics;
+		return client ?? null;
+	}
+	return null;
+}
+
+/**
+ * Track a custom event. No-op if analytics isn't initialized.
+ */
+export function track(eventName: string, properties?: Record<string, unknown>): void {
+	getAnalytics()?.track(eventName, properties);
+}

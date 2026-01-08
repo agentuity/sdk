@@ -31,20 +31,19 @@ export type {
 	EventHandler,
 } from './client/types';
 
-// Export analytics
+// Export analytics (beacon is bundled separately via beacon-standalone.ts)
 export {
 	getAnalytics,
 	track,
-	initBeacon,
-	trackPageview,
-	createBaseEvent,
 	getVisitorId,
 	isOptedOut,
 	setOptOut,
 	getUTMParams,
 	type AnalyticsClient,
-	type AnalyticsEvent,
-	type AnalyticsEventType,
-	type AnalyticsBatchPayload,
+	type AnalyticsPayload,
 	type AnalyticsPageConfig,
+	type PageViewPayload,
+	type ScrollEvent,
+	type CustomEvent,
+	type GeoLocation,
 } from './analytics';
