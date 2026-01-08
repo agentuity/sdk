@@ -18,6 +18,21 @@ export type ExtractMethod<TRoute extends RouteKey> = TRoute extends `${infer Met
 	: never;
 
 /**
+ * Extract path from route key given a method
+ * E.g., ExtractPath<'GET /users', 'GET'> = '/users'
+ */
+export type ExtractPath<TRoute extends RouteKey, M extends string> = TRoute extends `${M} ${infer Path}`
+	? Path
+	: never;
+
+/**
+ * Reconstruct the route key from method and path
+ * This ensures proper type inference when using {method, path} form
+ * E.g., RouteFromMethodPath<'GET', '/users'> = 'GET /users'
+ */
+export type RouteFromMethodPath<M extends string, P extends string> = Extract<RouteKey, `${M} ${P}`>;
+
+/**
  * Check if a route is a streaming route
  */
 export type RouteIsStream<TRoute extends RouteKey> = TRoute extends keyof RouteRegistry
@@ -460,14 +475,26 @@ async function processStream<T>(
  * }
  * ```
  */
+// Overload 1: String route form - direct route key
+export function useAPI<TRoute extends RouteKey>(route: TRoute): UseAPIResult<TRoute>;
+
+// Overload 2: Object with route property - uses route key directly
 export function useAPI<TRoute extends RouteKey>(
-	routeOrOptions: TRoute | UseAPIOptions<TRoute>
-): UseAPIResult<TRoute> {
-	// Normalize to options object
-	const options: UseAPIOptions<TRoute> =
+	options: UseAPIOptionsWithRoute<TRoute>
+): UseAPIResult<TRoute>;
+
+// Overload 3: Object with method and path - reconstructs route key from method+path
+export function useAPI<M extends string, P extends string>(
+	options: { method: M; path: P } & Omit<UseAPIMethodPathFormOptions<RouteFromMethodPath<M, P>>, 'method' | 'path'>
+): UseAPIResult<RouteFromMethodPath<M, P>>;
+
+// Implementation signature
+export function useAPI(routeOrOptions: unknown): any {
+	// Normalize to options object - use plain object type since we're in the implementation
+	const options: Record<string, any> =
 		typeof routeOrOptions === 'string'
-			? ({ route: routeOrOptions } as UseAPIOptions<TRoute>)
-			: routeOrOptions;
+			? { route: routeOrOptions }
+			: (routeOrOptions as Record<string, any>);
 	const context = useContext(AgentuityContext);
 	const {
 		input,
@@ -508,7 +535,7 @@ export function useAPI<TRoute extends RouteKey>(
 	// Substitute path parameters
 	const path = substitutePathParams(basePath, pathParams as Record<string, string> | undefined);
 
-	const [data, setData] = useState<RouteOutput<TRoute> | undefined>(undefined);
+	const [data, setData] = useState<any>(undefined);
 	const [error, setError] = useState<Error | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isFetching, setIsFetching] = useState(false);
@@ -595,19 +622,19 @@ export function useAPI<TRoute extends RouteKey>(
 						throw new Error('Response body is null for streaming response');
 					}
 
-					setData([] as unknown as RouteOutput<TRoute>);
+					setData([] as any);
 
 					// Track accumulated chunks locally to avoid stale closure
-					const accumulatedChunks: RouteChunkType<TRoute>[] = [];
+					const accumulatedChunks: any[] = [];
 
-					const success = await processStream<RouteChunkType<TRoute>>(response.body, {
+					const success = await processStream<any>(response.body, {
 						delimiter: delimiterRef.current,
 						onChunk: onChunkRef.current as any,
 						onData: (chunk) => {
 							if (!mountedRef.current) return;
 
 							accumulatedChunks.push(chunk);
-							setData([...accumulatedChunks] as unknown as RouteOutput<TRoute>);
+							setData([...accumulatedChunks] as any);
 						},
 						onError: (err) => {
 							if (!mountedRef.current) return;
@@ -624,7 +651,7 @@ export function useAPI<TRoute extends RouteKey>(
 						setIsSuccess(true);
 						lastFetchTimeRef.current = Date.now();
 
-						const finalData = accumulatedChunks as unknown as RouteOutput<TRoute>;
+						const finalData = accumulatedChunks as any;
 						onSuccess?.(finalData);
 					}
 					return;
@@ -632,15 +659,15 @@ export function useAPI<TRoute extends RouteKey>(
 					responseData = await response.json();
 				} else {
 					const text = await response.text();
-					responseData = deserializeData<RouteOutput<TRoute>>(text);
+					responseData = deserializeData<any>(text);
 				}
 			}
 
 			if (!mountedRef.current) return;
 
 			// Use JSON memoization to prevent re-renders when data hasn't changed
-			setData((prev) => {
-				const newData = responseData as RouteOutput<TRoute>;
+			setData((prev: any) => {
+				const newData = responseData as any;
 				if (prev !== undefined && JSON.stringify(prev) === JSON.stringify(newData)) {
 					return prev;
 				}
@@ -649,7 +676,7 @@ export function useAPI<TRoute extends RouteKey>(
 			setIsSuccess(true);
 			lastFetchTimeRef.current = Date.now();
 
-			onSuccess?.(responseData as RouteOutput<TRoute>);
+			onSuccess?.(responseData as any);
 		} catch (err) {
 			if (!mountedRef.current) return;
 
@@ -720,12 +747,12 @@ export function useAPI<TRoute extends RouteKey>(
 			isFetching,
 			refetch,
 			reset,
-		} as unknown as UseAPIResult<TRoute>;
+		} as any;
 	}
 
 	// For POST/PUT/PATCH/DELETE: provide invoke method (manual invocation)
 	const invoke = useCallback(
-		async (invokeInput?: RouteInput<TRoute>) => {
+		async (invokeInput?: any) => {
 			// Use invokeInput parameter if provided
 			const effectiveInput = invokeInput !== undefined ? invokeInput : input;
 
@@ -770,20 +797,20 @@ export function useAPI<TRoute extends RouteKey>(
 							throw new Error('Response body is null for streaming response');
 						}
 
-						setData([] as unknown as RouteOutput<TRoute>);
+						setData([] as any);
 
 						// Track accumulated chunks locally to avoid stale closure
-						const accumulatedChunks: RouteChunkType<TRoute>[] = [];
+						const accumulatedChunks: any[] = [];
 						let streamError: any = undefined;
 
-						const success = await processStream<RouteChunkType<TRoute>>(response.body, {
+						const success = await processStream<any>(response.body, {
 							delimiter: delimiterRef.current,
 							onChunk: onChunkRef.current as any,
 							onData: (chunk) => {
 								if (!mountedRef.current) return;
 
 								accumulatedChunks.push(chunk);
-								setData([...accumulatedChunks] as unknown as RouteOutput<TRoute>);
+								setData([...accumulatedChunks] as any);
 							},
 							onError: (err) => {
 								if (!mountedRef.current) return;
@@ -796,7 +823,7 @@ export function useAPI<TRoute extends RouteKey>(
 						});
 
 						if (!mountedRef.current)
-							return accumulatedChunks as unknown as RouteOutput<TRoute>;
+							return accumulatedChunks as any;
 
 						if (!success && streamError) {
 							throw streamError;
@@ -806,29 +833,29 @@ export function useAPI<TRoute extends RouteKey>(
 							setIsSuccess(true);
 							lastFetchTimeRef.current = Date.now();
 
-							const finalData = accumulatedChunks as unknown as RouteOutput<TRoute>;
+							const finalData = accumulatedChunks as any;
 							onSuccess?.(finalData);
 							return finalData;
 						}
 
-						return accumulatedChunks as unknown as RouteOutput<TRoute>;
+						return accumulatedChunks as any;
 					} else if (contentType.includes('application/json')) {
 						responseData = await response.json();
 					} else {
 						const text = await response.text();
-						responseData = deserializeData<RouteOutput<TRoute>>(text);
+						responseData = deserializeData<any>(text);
 					}
 				}
 
 				if (!mountedRef.current) return responseData;
 
-				setData(responseData as RouteOutput<TRoute>);
+				setData(responseData as any);
 				setIsSuccess(true);
 				lastFetchTimeRef.current = Date.now();
 
-				onSuccess?.(responseData as RouteOutput<TRoute>);
+				onSuccess?.(responseData as any);
 
-				return responseData as RouteOutput<TRoute>;
+				return responseData as any;
 			} catch (err) {
 				if (!mountedRef.current) throw err;
 
@@ -856,5 +883,5 @@ export function useAPI<TRoute extends RouteKey>(
 		isFetching,
 		invoke,
 		reset,
-	} as unknown as UseAPIResult<TRoute>;
+	} as any;
 }
