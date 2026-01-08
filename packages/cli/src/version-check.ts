@@ -150,7 +150,7 @@ async function performUpgrade(logger: Logger): Promise<void> {
 		const newBinaryPath = process.execPath;
 
 		logger.info('Upgrade successful! Restarting with new version...');
-		tui.info('');
+		console.log('');
 
 		// Spawn new process with same arguments
 		const proc = Bun.spawn([newBinaryPath, ...args], {
