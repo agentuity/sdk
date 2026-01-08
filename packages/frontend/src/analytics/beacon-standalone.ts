@@ -241,10 +241,6 @@ function safeStringify(obj: unknown): string {
 		pv.scroll_events = [];
 		pv.custom_events = [];
 		pv.scroll_depth = 0;
-		pv.fcp = 0;
-		pv.lcp = 0;
-		pv.cls = 0;
-		pv.inp = 0;
 		sent = false;
 		pageStart = Date.now();
 
@@ -253,9 +249,21 @@ function safeStringify(obj: unknown): string {
 				| PerformanceNavigationTiming
 				| undefined;
 			if (nav) {
-				pv.load_time = Math.round(nav.loadEventEnd - nav.startTime);
 				pv.dom_ready = Math.round(nav.domContentLoadedEventEnd - nav.startTime);
 				pv.ttfb = Math.round(nav.responseStart - nav.requestStart);
+				// loadEventEnd is 0 during the load event, so defer reading it
+				if (nav.loadEventEnd > 0) {
+					pv.load_time = Math.round(nav.loadEventEnd - nav.startTime);
+				} else {
+					setTimeout(() => {
+						const navAfter = performance.getEntriesByType('navigation')[0] as
+							| PerformanceNavigationTiming
+							| undefined;
+						if (navAfter && navAfter.loadEventEnd > 0) {
+							pv.load_time = Math.round(navAfter.loadEventEnd - navAfter.startTime);
+						}
+					}, 0);
+				}
 			}
 		}
 
