@@ -144,39 +144,55 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 			return;
 		}
 
+		// Get absolute path for checking
+		const absPath = changedFile ? resolve(watchDir, changedFile) : watchDir;
+
+		// Check if this is a directory
+		let isDirectory = false;
+		try {
+			const stats = statSync(absPath);
+			isDirectory = stats.isDirectory();
+		} catch {
+			// File doesn't exist (was deleted) - not a directory
+			isDirectory = false;
+		}
+
 		// Check if an empty directory was created in src/agent/ or src/api/
 		// This helps with developer experience by auto-scaffolding template files
-		if (changedFile && eventType === 'rename') {
+		if (changedFile && eventType === 'rename' && isDirectory) {
 			try {
-				const absPath = resolve(watchDir, changedFile);
 				// Normalize the path for comparison (use forward slashes)
 				const normalizedPath = changedFile.replace(/\\/g, '/');
 
-				// Check if it's a directory and empty
-				const stats = statSync(absPath);
-				if (stats.isDirectory()) {
-					const contents = readdirSync(absPath);
-					if (contents.length === 0) {
-						// Check if this is an agent or API directory
-						if (
-							normalizedPath.startsWith('src/agent/') ||
-							normalizedPath.includes('/src/agent/')
-						) {
-							logger.debug('Agent directory created: %s', changedFile);
-							createAgentTemplates(absPath);
-						} else if (
-							normalizedPath.startsWith('src/api/') ||
-							normalizedPath.includes('/src/api/')
-						) {
-							logger.debug('API directory created: %s', changedFile);
-							createAPITemplates(absPath);
-						}
+				// Check if it's empty
+				const contents = readdirSync(absPath);
+				if (contents.length === 0) {
+					// Check if this is an agent or API directory
+					if (
+						normalizedPath.startsWith('src/agent/') ||
+						normalizedPath.includes('/src/agent/')
+					) {
+						logger.debug('Agent directory created: %s', changedFile);
+						createAgentTemplates(absPath);
+					} else if (
+						normalizedPath.startsWith('src/api/') ||
+						normalizedPath.includes('/src/api/')
+					) {
+						logger.debug('API directory created: %s', changedFile);
+						createAPITemplates(absPath);
 					}
 				}
 			} catch (error) {
 				// File might have been deleted or doesn't exist yet - this is normal
 				logger.trace('Unable to check directory for template creation: %s', error);
 			}
+		}
+
+		// Ignore directory-only change events (mtime updates when files inside change)
+		// We only care about actual file changes - the watcher will report those directly
+		if (isDirectory && eventType === 'change') {
+			logger.trace('File change ignored (directory mtime update): %s', changedFile);
+			return;
 		}
 
 		logger.debug('File changed (%s): %s', eventType, changedFile || watchDir);
