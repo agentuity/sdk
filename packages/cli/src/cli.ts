@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { Command } from 'commander';
@@ -720,7 +721,9 @@ async function getCachedRegions(logger: Logger): Promise<RegionList | null> {
 
 async function saveRegionsCache(regions: RegionList, logger: Logger): Promise<void> {
 	try {
-		const cachePath = join(getDefaultConfigDir(), REGIONS_CACHE_FILE);
+		const cacheDir = getDefaultConfigDir();
+		await mkdir(cacheDir, { recursive: true });
+		const cachePath = join(cacheDir, REGIONS_CACHE_FILE);
 		const data: RegionsCacheData = {
 			timestamp: Date.now(),
 			regions,
