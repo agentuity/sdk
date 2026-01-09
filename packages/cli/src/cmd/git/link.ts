@@ -356,6 +356,7 @@ const LinkOptionsSchema = z.object({
 	branch: z.string().optional().describe('Branch to deploy from (default: repo default branch)'),
 	root: z.string().optional().describe('Root directory containing agentuity.json (default: .)'),
 	confirm: z.boolean().optional().describe('Skip confirmation prompts'),
+	detect: z.boolean().optional().describe('Auto-detect repo and branch from git origin'),
 });
 
 const LinkResponseSchema = z.object({
@@ -413,12 +414,26 @@ export const linkSubcommand = createSubcommand({
 		const { apiClient, project, opts, config, logger, options } = ctx;
 
 		try {
-			// Non-interactive mode when repo is provided
+			// Auto-detect repo and branch from git origin when --detect is used
+			let repoToLink = opts.repo;
+			let branchToLink = opts.branch;
+
+			if (opts.detect) {
+				const detected = detectGitInfo();
+				if (detected.repo) {
+					repoToLink = repoToLink ?? detected.repo;
+				}
+				if (detected.branch) {
+					branchToLink = branchToLink ?? detected.branch;
+				}
+			}
+
+			// Non-interactive mode when repo is provided (or detected)
 			// Note: integrationId is not passed in non-interactive mode. The API will
 			// attempt to find a matching integration based on the repo owner. This may
 			// fail if the org has multiple GitHub integrations with access to the same repo.
-			if (opts.repo && opts.confirm) {
-				const branch = opts.branch ?? 'main';
+			if (repoToLink && opts.confirm) {
+				const branch = branchToLink ?? 'main';
 				const directory = opts.root === '.' ? undefined : opts.root;
 
 				await tui.spinner({
@@ -427,7 +442,7 @@ export const linkSubcommand = createSubcommand({
 					callback: () =>
 						linkProjectToRepo(apiClient, {
 							projectId: project.projectId,
-							repoFullName: opts.repo!,
+							repoFullName: repoToLink!,
 							branch,
 							autoDeploy: opts.deploy !== false,
 							previewDeploy: opts.preview !== false,
@@ -437,10 +452,10 @@ export const linkSubcommand = createSubcommand({
 
 				if (!options.json) {
 					tui.newline();
-					tui.success(`Linked project to ${tui.bold(opts.repo)}`);
+					tui.success(`Linked project to ${tui.bold(repoToLink)}`);
 				}
 
-				return { linked: true, repoFullName: opts.repo, branch };
+				return { linked: true, repoFullName: repoToLink, branch };
 			}
 
 			const result = await runGitLink({
