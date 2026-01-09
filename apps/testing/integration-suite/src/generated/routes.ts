@@ -77,14 +77,18 @@ export type POSTApiAgentStateWriterOutputSchema = typeof stateWriterAgent extend
  * Route Definitions
  * 
  * Type-safe route registry for all API routes, WebSocket connections, and SSE endpoints.
- * Used by @agentuity/react for client-side type-safe routing.
+ * Used by @agentuity/react and @agentuity/frontend for client-side type-safe routing.
  * 
  * @remarks
  * This module augmentation is auto-generated from your route files during build.
  * Individual route Input/Output types are exported above for direct usage.
+ * 
+ * The augmentation targets @agentuity/frontend (the canonical source of registry types).
+ * Since @agentuity/react re-exports these types, the augmentation is visible when
+ * importing from either package.
  */
 
-declare module '@agentuity/react' {
+declare module '@agentuity/frontend' {
 	/**
 	 * API Route Registry
 	 * 
@@ -329,7 +333,7 @@ declare module '@agentuity/react' {
 	 * RPC Route Registry
 	 * 
 	 * Nested structure for RPC-style client access (e.g., client.hello.post())
-	 * Used by createClient() from @agentuity/core for type-safe RPC calls.
+	 * Used by createClient() from @agentuity/frontend for type-safe RPC calls.
 	 */
 	export interface RPCRouteRegistry {
 		agent: {

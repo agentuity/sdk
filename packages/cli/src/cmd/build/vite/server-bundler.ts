@@ -196,10 +196,7 @@ export async function installExternalsAndBuild(options: ServerBundleOptions): Pr
 			// Use npm with --force for cross-platform installs since Bun's --target flag
 			// doesn't correctly handle optional dependencies for other platforms
 			const allPackagesToInstall = [...externalInstalls, ...platformOptionalDeps];
-			logger.debug(
-				'Installing with npm (cross-platform): %s',
-				allPackagesToInstall.join(', ')
-			);
+			logger.debug('Installing with npm (cross-platform): %s', allPackagesToInstall.join(', '));
 
 			const proc = Bun.spawn(
 				[

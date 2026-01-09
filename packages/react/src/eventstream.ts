@@ -1,7 +1,11 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { InferOutput } from '@agentuity/core';
-import { buildUrl, EventStreamManager, jsonEqual } from '@agentuity/frontend';
-import type { SSERouteRegistry } from './types';
+import {
+	buildUrl,
+	EventStreamManager,
+	jsonEqual,
+	type SSERouteRegistry,
+} from '@agentuity/frontend';
 import { AgentuityContext } from './context';
 
 /**

@@ -26,7 +26,6 @@ function createConfigResolver(config?: { compression?: CompressionConfig | false
 }
 
 describe('Compression Middleware', () => {
-
 	describe('Basic behavior', () => {
 		test('middleware processes request and returns response', async () => {
 			const app = new Hono();

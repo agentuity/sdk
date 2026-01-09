@@ -176,7 +176,11 @@ export class SandboxManager {
 			const bytesTransferred = stats.size;
 
 			// Upload and extract
-			const uploadResult = await this.cliClient.sandboxUpload(sandboxId, archivePath, remotePath);
+			const uploadResult = await this.cliClient.sandboxUpload(
+				sandboxId,
+				archivePath,
+				remotePath
+			);
 			if (!uploadResult.success) {
 				throw new Error(`Failed to upload files: ${uploadResult.error}`);
 			}
@@ -207,7 +211,12 @@ export class SandboxManager {
 		remotePath: string,
 		localPath: string
 	): Promise<void> {
-		const result = await this.cliClient.sandboxCpFromSandbox(sandboxId, remotePath, localPath, true);
+		const result = await this.cliClient.sandboxCpFromSandbox(
+			sandboxId,
+			remotePath,
+			localPath,
+			true
+		);
 		if (!result.success) {
 			throw new Error(`Failed to download files: ${result.error}`);
 		}

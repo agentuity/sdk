@@ -35,215 +35,258 @@ export type POSTApiHelloOutputSchema = typeof hello extends { outputSchema?: inf
  * Route Definitions
  * 
  * Type-safe route registry for all API routes, WebSocket connections, and SSE endpoints.
- * Used by @agentuity/react for client-side type-safe routing.
+ * Used by @agentuity/react and @agentuity/frontend for client-side type-safe routing.
  * 
  * @remarks
  * This module augmentation is auto-generated from your route files during build.
  * Individual route Input/Output types are exported above for direct usage.
+ * 
+ * The augmentation targets @agentuity/frontend (the canonical source of registry types).
+ * Since @agentuity/react re-exports these types, the augmentation is visible when
+ * importing from either package.
  */
 
-declare module '@agentuity/react' {
+declare module '@agentuity/frontend' {
 	/**
 	 * API Route Registry
 	 * 
 	 * Maps route keys (METHOD /path) to their input/output schemas
 	 */
 	export interface RouteRegistry {
-	'GET /api/auth/*': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/auth/*': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/health': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/hello': {
-		inputSchema: POSTApiHelloInputSchema;
-		outputSchema: POSTApiHelloOutputSchema;
-		stream: typeof hello extends { stream?: infer S } ? S : false;
-	};
-	'GET /api/me': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/greeting': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/token': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
 	'GET /api/admin': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/projects': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/debug/permissions': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'POST /api/api-keys': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'GET /api/api-keys': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'DELETE /api/api-keys/:id': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/jwt': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'GET /api/auth/*': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/auth/*': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'GET /api/bearer-info': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/organizations': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/organizations': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/organizations/active': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/organizations/check-slug': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/organizations/:id': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/organizations/:id/activate': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'PATCH /api/organizations/:id': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'DELETE /api/organizations/:id': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/organizations/:id/leave': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/organizations/:id/members': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/organizations/:id/members': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'DELETE /api/organizations/:orgId/members/:memberId': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'PATCH /api/organizations/:orgId/members/:memberId/role': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/organizations/active/member': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/organizations/active/role': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/organizations/:id/invitations': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/organizations/:id/invitations': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/invitations/:id': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/me/invitations': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/invitations/:id/accept': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/invitations/:id/reject': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/invitations/:id/cancel': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'POST /api/debug/check-permission': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/debug/permissions': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/greeting': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/health': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/hello': {
+				inputSchema: POSTApiHelloInputSchema;
+				outputSchema: POSTApiHelloOutputSchema;
+				stream: typeof hello extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'GET /api/invitations/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/invitations/:id/accept': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/invitations/:id/cancel': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/invitations/:id/reject': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'GET /api/jwt': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/me': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/me/invitations': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/organizations': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/organizations': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/organizations/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'PATCH /api/organizations/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'DELETE /api/organizations/:id': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/organizations/:id/activate': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/organizations/:id/invitations': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'GET /api/organizations/:id/invitations': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/organizations/:id/leave': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'GET /api/organizations/:id/members': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'POST /api/organizations/:id/members': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { id: string };
+			};
+	'DELETE /api/organizations/:orgId/members/:memberId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { orgId: string; memberId: string };
+			};
+	'PATCH /api/organizations/:orgId/members/:memberId/role': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { orgId: string; memberId: string };
+			};
+	'GET /api/organizations/active': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/organizations/active/member': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/organizations/active/role': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/organizations/check-slug': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/projects': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/token': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'GET /api/whoami': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	}
 	
 	/**
@@ -268,187 +311,197 @@ declare module '@agentuity/react' {
 	 * RPC Route Registry
 	 * 
 	 * Nested structure for RPC-style client access (e.g., client.hello.post())
-	 * Used by createClient() from @agentuity/core for type-safe RPC calls.
+	 * Used by createClient() from @agentuity/frontend for type-safe RPC calls.
 	 */
 	export interface RPCRouteRegistry {
+		admin: {
+			/**
+			 * Route: GET /api/admin
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
+		apiKeys: {
+			/**
+			 * Route: GET /api/api-keys
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			id: {
+				/**
+				 * Route: DELETE /api/api-keys/:id
+				 */
+				delete: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+			};
+			/**
+			 * Route: POST /api/api-keys
+			 */
+			post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
 		auth: {
 			/**
 			 * Route: GET /api/auth/*
 			 */
-			get: { input: never; output: never; type: 'api' };
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			/**
 			 * Route: POST /api/auth/*
 			 */
-			post: { input: never; output: never; type: 'api' };
+			post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
-		health: {
+		bearerInfo: {
 			/**
-			 * Route: GET /api/health
+			 * Route: GET /api/bearer-info
 			 */
-			get: { input: never; output: never; type: 'api' };
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
-		hello: {
-			/**
-			 * Route: POST /api/hello
-			 */
-			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api' };
-		};
-		me: {
-			/**
-			 * Route: GET /api/me
-			 */
-			get: { input: never; output: never; type: 'api' };
-			invitations: {
+		debug: {
+			checkPermission: {
 				/**
-				 * Route: GET /api/me/invitations
+				 * Route: POST /api/debug/check-permission
 				 */
-				get: { input: never; output: never; type: 'api' };
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			permissions: {
+				/**
+				 * Route: GET /api/debug/permissions
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
 		};
 		greeting: {
 			/**
 			 * Route: GET /api/greeting
 			 */
-			get: { input: never; output: never; type: 'api' };
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
-		token: {
+		health: {
 			/**
-			 * Route: GET /api/token
+			 * Route: GET /api/health
 			 */
-			get: { input: never; output: never; type: 'api' };
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
-		admin: {
+		hello: {
 			/**
-			 * Route: GET /api/admin
+			 * Route: POST /api/hello
 			 */
-			get: { input: never; output: never; type: 'api' };
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; params: never; paramsTuple: [] };
 		};
-		projects: {
-			/**
-			 * Route: POST /api/projects
-			 */
-			post: { input: never; output: never; type: 'api' };
-		};
-		debug: {
-			permissions: {
-				/**
-				 * Route: GET /api/debug/permissions
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-			checkPermission: {
-				/**
-				 * Route: POST /api/debug/check-permission
-				 */
-				post: { input: never; output: never; type: 'api' };
-			};
-		};
-		apiKeys: {
-			/**
-			 * Route: POST /api/api-keys
-			 */
-			post: { input: never; output: never; type: 'api' };
-			/**
-			 * Route: GET /api/api-keys
-			 */
-			get: { input: never; output: never; type: 'api' };
+		invitations: {
 			id: {
+				accept: {
+					/**
+					 * Route: POST /api/invitations/:id/accept
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
+				cancel: {
+					/**
+					 * Route: POST /api/invitations/:id/cancel
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
 				/**
-				 * Route: DELETE /api/api-keys/:id
+				 * Route: GET /api/invitations/:id
 				 */
-				delete: { input: never; output: never; type: 'api' };
+				get: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				reject: {
+					/**
+					 * Route: POST /api/invitations/:id/reject
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
 			};
 		};
 		jwt: {
 			/**
 			 * Route: GET /api/jwt
 			 */
-			get: { input: never; output: never; type: 'api' };
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
-		bearerInfo: {
+		me: {
 			/**
-			 * Route: GET /api/bearer-info
+			 * Route: GET /api/me
 			 */
-			get: { input: never; output: never; type: 'api' };
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			invitations: {
+				/**
+				 * Route: GET /api/me/invitations
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
 		};
 		organizations: {
-			/**
-			 * Route: POST /api/organizations
-			 */
-			post: { input: never; output: never; type: 'api' };
-			/**
-			 * Route: GET /api/organizations
-			 */
-			get: { input: never; output: never; type: 'api' };
 			active: {
 				/**
 				 * Route: GET /api/organizations/active
 				 */
-				get: { input: never; output: never; type: 'api' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 				member: {
 					/**
 					 * Route: GET /api/organizations/active/member
 					 */
-					get: { input: never; output: never; type: 'api' };
+					get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 				};
 				role: {
 					/**
 					 * Route: GET /api/organizations/active/role
 					 */
-					get: { input: never; output: never; type: 'api' };
+					get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 				};
 			};
 			checkSlug: {
 				/**
 				 * Route: GET /api/organizations/check-slug
 				 */
-				get: { input: never; output: never; type: 'api' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
+			/**
+			 * Route: GET /api/organizations
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			id: {
-				/**
-				 * Route: GET /api/organizations/:id
-				 */
-				get: { input: never; output: never; type: 'api' };
 				activate: {
 					/**
 					 * Route: POST /api/organizations/:id/activate
 					 */
-					post: { input: never; output: never; type: 'api' };
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
 				};
-				/**
-				 * Route: PATCH /api/organizations/:id
-				 */
-				patch: { input: never; output: never; type: 'api' };
 				/**
 				 * Route: DELETE /api/organizations/:id
 				 */
-				delete: { input: never; output: never; type: 'api' };
+				delete: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				/**
+				 * Route: GET /api/organizations/:id
+				 */
+				get: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				invitations: {
+					/**
+					 * Route: GET /api/organizations/:id/invitations
+					 */
+					get: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+					/**
+					 * Route: POST /api/organizations/:id/invitations
+					 */
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
+				};
 				leave: {
 					/**
 					 * Route: POST /api/organizations/:id/leave
 					 */
-					post: { input: never; output: never; type: 'api' };
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
 				};
 				members: {
 					/**
 					 * Route: GET /api/organizations/:id/members
 					 */
-					get: { input: never; output: never; type: 'api' };
+					get: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
 					/**
 					 * Route: POST /api/organizations/:id/members
 					 */
-					post: { input: never; output: never; type: 'api' };
+					post: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
 				};
-				invitations: {
-					/**
-					 * Route: POST /api/organizations/:id/invitations
-					 */
-					post: { input: never; output: never; type: 'api' };
-					/**
-					 * Route: GET /api/organizations/:id/invitations
-					 */
-					get: { input: never; output: never; type: 'api' };
-				};
+				/**
+				 * Route: PATCH /api/organizations/:id
+				 */
+				patch: { input: never; output: never; type: 'api'; params: { id: string }; paramsTuple: [string] };
 			};
 			orgId: {
 				members: {
@@ -456,48 +509,38 @@ declare module '@agentuity/react' {
 						/**
 						 * Route: DELETE /api/organizations/:orgId/members/:memberId
 						 */
-						delete: { input: never; output: never; type: 'api' };
+						delete: { input: never; output: never; type: 'api'; params: { orgId: string; memberId: string }; paramsTuple: [string, string] };
 						role: {
 							/**
 							 * Route: PATCH /api/organizations/:orgId/members/:memberId/role
 							 */
-							patch: { input: never; output: never; type: 'api' };
+							patch: { input: never; output: never; type: 'api'; params: { orgId: string; memberId: string }; paramsTuple: [string, string] };
 						};
 					};
 				};
 			};
+			/**
+			 * Route: POST /api/organizations
+			 */
+			post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
-		invitations: {
-			id: {
-				/**
-				 * Route: GET /api/invitations/:id
-				 */
-				get: { input: never; output: never; type: 'api' };
-				accept: {
-					/**
-					 * Route: POST /api/invitations/:id/accept
-					 */
-					post: { input: never; output: never; type: 'api' };
-				};
-				reject: {
-					/**
-					 * Route: POST /api/invitations/:id/reject
-					 */
-					post: { input: never; output: never; type: 'api' };
-				};
-				cancel: {
-					/**
-					 * Route: POST /api/invitations/:id/cancel
-					 */
-					post: { input: never; output: never; type: 'api' };
-				};
-			};
+		projects: {
+			/**
+			 * Route: POST /api/projects
+			 */
+			post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
+		token: {
+			/**
+			 * Route: GET /api/token
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
 		whoami: {
 			/**
 			 * Route: GET /api/whoami
 			 */
-			get: { input: never; output: never; type: 'api' };
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 		};
 	}
 }
@@ -508,193 +551,282 @@ declare module '@agentuity/react' {
  * @internal
  */
 const _rpcRouteMetadata = {
+		"admin": {
+				"get": {
+						"type": "api",
+						"path": "/api/admin"
+				}
+		},
+		"apiKeys": {
+				"get": {
+						"type": "api",
+						"path": "/api/api-keys"
+				},
+				"id": {
+						"delete": {
+								"type": "api",
+								"path": "/api/api-keys/:id",
+								"pathParams": [
+										"id"
+								]
+						}
+				},
+				"post": {
+						"type": "api",
+						"path": "/api/api-keys"
+				}
+		},
 		"auth": {
 				"get": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/auth/*"
 				},
 				"post": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/auth/*"
 				}
 		},
-		"health": {
+		"bearerInfo": {
 				"get": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/bearer-info"
 				}
 		},
-		"hello": {
-				"post": {
-						"type": "api"
-				}
-		},
-		"me": {
-				"get": {
-						"type": "api"
+		"debug": {
+				"checkPermission": {
+						"post": {
+								"type": "api",
+								"path": "/api/debug/check-permission"
+						}
 				},
-				"invitations": {
+				"permissions": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/debug/permissions"
 						}
 				}
 		},
 		"greeting": {
 				"get": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/greeting"
 				}
 		},
-		"token": {
+		"health": {
 				"get": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/health"
 				}
 		},
-		"admin": {
-				"get": {
-						"type": "api"
-				}
-		},
-		"projects": {
+		"hello": {
 				"post": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/hello"
 				}
 		},
-		"debug": {
-				"permissions": {
-						"get": {
-								"type": "api"
-						}
-				},
-				"checkPermission": {
-						"post": {
-								"type": "api"
-						}
-				}
-		},
-		"apiKeys": {
-				"post": {
-						"type": "api"
-				},
-				"get": {
-						"type": "api"
-				},
+		"invitations": {
 				"id": {
-						"delete": {
-								"type": "api"
+						"accept": {
+								"post": {
+										"type": "api",
+										"path": "/api/invitations/:id/accept",
+										"pathParams": [
+												"id"
+										]
+								}
+						},
+						"cancel": {
+								"post": {
+										"type": "api",
+										"path": "/api/invitations/:id/cancel",
+										"pathParams": [
+												"id"
+										]
+								}
+						},
+						"get": {
+								"type": "api",
+								"path": "/api/invitations/:id",
+								"pathParams": [
+										"id"
+								]
+						},
+						"reject": {
+								"post": {
+										"type": "api",
+										"path": "/api/invitations/:id/reject",
+										"pathParams": [
+												"id"
+										]
+								}
 						}
 				}
 		},
 		"jwt": {
 				"get": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/jwt"
 				}
 		},
-		"bearerInfo": {
+		"me": {
 				"get": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/me"
+				},
+				"invitations": {
+						"get": {
+								"type": "api",
+								"path": "/api/me/invitations"
+						}
 				}
 		},
 		"organizations": {
-				"post": {
-						"type": "api"
-				},
-				"get": {
-						"type": "api"
-				},
 				"active": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/organizations/active"
 						},
 						"member": {
 								"get": {
-										"type": "api"
+										"type": "api",
+										"path": "/api/organizations/active/member"
 								}
 						},
 						"role": {
 								"get": {
-										"type": "api"
+										"type": "api",
+										"path": "/api/organizations/active/role"
 								}
 						}
 				},
 				"checkSlug": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/organizations/check-slug"
 						}
 				},
+				"get": {
+						"type": "api",
+						"path": "/api/organizations"
+				},
 				"id": {
-						"get": {
-								"type": "api"
-						},
 						"activate": {
 								"post": {
-										"type": "api"
+										"type": "api",
+										"path": "/api/organizations/:id/activate",
+										"pathParams": [
+												"id"
+										]
 								}
 						},
-						"patch": {
-								"type": "api"
-						},
 						"delete": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/organizations/:id",
+								"pathParams": [
+										"id"
+								]
+						},
+						"get": {
+								"type": "api",
+								"path": "/api/organizations/:id",
+								"pathParams": [
+										"id"
+								]
+						},
+						"invitations": {
+								"get": {
+										"type": "api",
+										"path": "/api/organizations/:id/invitations",
+										"pathParams": [
+												"id"
+										]
+								},
+								"post": {
+										"type": "api",
+										"path": "/api/organizations/:id/invitations",
+										"pathParams": [
+												"id"
+										]
+								}
 						},
 						"leave": {
 								"post": {
-										"type": "api"
+										"type": "api",
+										"path": "/api/organizations/:id/leave",
+										"pathParams": [
+												"id"
+										]
 								}
 						},
 						"members": {
 								"get": {
-										"type": "api"
+										"type": "api",
+										"path": "/api/organizations/:id/members",
+										"pathParams": [
+												"id"
+										]
 								},
 								"post": {
-										"type": "api"
+										"type": "api",
+										"path": "/api/organizations/:id/members",
+										"pathParams": [
+												"id"
+										]
 								}
 						},
-						"invitations": {
-								"post": {
-										"type": "api"
-								},
-								"get": {
-										"type": "api"
-								}
+						"patch": {
+								"type": "api",
+								"path": "/api/organizations/:id",
+								"pathParams": [
+										"id"
+								]
 						}
 				},
 				"orgId": {
 						"members": {
 								"memberId": {
 										"delete": {
-												"type": "api"
+												"type": "api",
+												"path": "/api/organizations/:orgId/members/:memberId",
+												"pathParams": [
+														"orgId",
+														"memberId"
+												]
 										},
 										"role": {
 												"patch": {
-														"type": "api"
+														"type": "api",
+														"path": "/api/organizations/:orgId/members/:memberId/role",
+														"pathParams": [
+																"orgId",
+																"memberId"
+														]
 												}
 										}
 								}
 						}
+				},
+				"post": {
+						"type": "api",
+						"path": "/api/organizations"
 				}
 		},
-		"invitations": {
-				"id": {
-						"get": {
-								"type": "api"
-						},
-						"accept": {
-								"post": {
-										"type": "api"
-								}
-						},
-						"reject": {
-								"post": {
-										"type": "api"
-								}
-						},
-						"cancel": {
-								"post": {
-										"type": "api"
-								}
-						}
+		"projects": {
+				"post": {
+						"type": "api",
+						"path": "/api/projects"
+				}
+		},
+		"token": {
+				"get": {
+						"type": "api",
+						"path": "/api/token"
 				}
 		},
 		"whoami": {
 				"get": {
-						"type": "api"
+						"type": "api",
+						"path": "/api/whoami"
 				}
 		}
 } as const;
