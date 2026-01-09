@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Agentuity SDK Explorer</title>
+		<!-- Prevent flash of wrong theme -->
+		<script>
+			(function() {
+				const stored = localStorage.getItem('theme-preference');
+				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+				const isDark = stored === 'dark' || (stored !== 'light' && prefersDark);
+				if (isDark) document.documentElement.classList.add('dark');
+			})();
+		</script>
+		<!-- Tailwind CSS v4 Play CDN - compiles in browser -->
+		<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+		<!-- Enable class-based dark mode for Tailwind v4 -->
+		<style type="text/tailwindcss">
+			@custom-variant dark (&:where(.dark, .dark *));
+
+			@theme {
+				--animate-ellipsis: ellipsis 1.5s steps(4, end) infinite;
+
+				@keyframes ellipsis {
+					0% { content: '.'; }
+					25% { content: '..'; }
+					50% { content: '...'; }
+					75% { content: ''; }
+				}
+			}
+
+			[data-loading="true"]::after {
+				content: '.';
+				display: inline-block;
+				width: 1rem;
+				text-align: left;
+				animation: var(--animate-ellipsis);
+			}
+		</style>
+		<script type="module" src="./frontend.tsx" async></script>
+	</head>
+	<body>
+		<div id="root"></div>
+	</body>
+</html>
