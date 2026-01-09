@@ -5,7 +5,12 @@
 	"private": true,
 	"scripts": {
 		"typecheck": "cd integration-suite && bun run typecheck",
+		"typecheck:tanstack": "cd tanstack-start && bun run typecheck",
+		"typecheck:nextjs": "cd nextjs-app && bun run typecheck",
+		"typecheck:all": "bun run typecheck && bun run typecheck:tanstack && bun run typecheck:nextjs",
 		"build": "cd integration-suite && bun run build",
+		"build:tanstack": "cd tanstack-start && bun run build:agent",
+		"build:nextjs": "cd nextjs-app && bun run build:agent",
 		"test": "cd integration-suite && bun run test"
 	}
 }

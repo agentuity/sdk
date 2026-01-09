@@ -1,0 +1,30 @@
+{
+	"name": "nextjs-app",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "concurrently -n web,agent -c blue,cyan \"bun run dev:web\" \"bun run dev:agent\"",
+		"dev:web": "next dev --port 3001",
+		"dev:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts dev --dir .",
+		"build": "concurrently \"bun run build:web\" \"bun run build:agent\"",
+		"build:web": "next build",
+		"build:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts build --dir . --dev",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/react": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
+		"next": "^15.3.0",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.2",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"concurrently": "^9.2.1",
+		"typescript": "^5.7.2"
+	}
+}

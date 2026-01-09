@@ -1,0 +1,45 @@
+{
+	"name": "tanstack-start",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "concurrently -n web,agent -c blue,cyan \"bun run dev:web\" \"bun run dev:agent\"",
+		"dev:web": "vite --port 3000",
+		"dev:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts dev --dir .",
+		"build": "concurrently \"bun run build:web\" \"bun run build:agent\"",
+		"build:web": "vite build && tsc",
+		"build:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts build --dir . --dev",
+		"preview": "vite preview",
+		"test": "vitest run",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
+		"@agentuity/react": "workspace:*",
+		"@tailwindcss/vite": "^4.0.6",
+		"@tanstack/react-devtools": "^0.7.0",
+		"@tanstack/react-router": "^1.132.0",
+		"@tanstack/react-router-devtools": "^1.132.0",
+		"lucide-react": "^0.545.0",
+		"nitro": "latest",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0",
+		"tailwindcss": "^4.0.6"
+	},
+	"devDependencies": {
+		"@tanstack/devtools-vite": "^0.3.11",
+		"@testing-library/dom": "^10.4.0",
+		"@testing-library/react": "^16.2.0",
+		"@types/node": "^22.10.2",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"@vitejs/plugin-react": "^5.0.4",
+		"concurrently": "^8.2.2",
+		"jsdom": "^27.0.0",
+		"typescript": "^5.7.2",
+		"vite": "^7.1.7",
+		"vitest": "^3.0.5",
+		"web-vitals": "^5.1.0"
+	}
+}

@@ -1,0 +1,22 @@
+{
+	"name": "nextjs-app-agentuity",
+	"version": "0.0.1",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "bun ../../../../packages/cli/bin/cli.ts dev --dir .",
+		"build": "bun ../../../../packages/cli/bin/cli.ts build --dir . --dev",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"hono": "^4.7.13"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	}
+}
