@@ -15,7 +15,7 @@ import {
 	getGithubIntegrationStatus,
 	getExistingGithubIntegrations,
 	copyGithubIntegration,
-} from '../../integration/api';
+} from '../api';
 
 export interface RunGitAccountConnectOptions {
 	apiClient: APIClient;
