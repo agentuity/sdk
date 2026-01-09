@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface EvalResultData {
 	passed: boolean;
@@ -21,20 +21,19 @@ interface SessionResponse {
 	evalResults: EvalRun[];
 }
 
-type Status = "idle" | "generating" | "polling" | "done" | "error";
+type Status = 'idle' | 'generating' | 'polling' | 'done' | 'error';
 
-const EVAL_CONFIG: Record<string, { name: string; type: "score" | "binary" }> =
-	{
-		"answer-completeness": { name: "Answer Completeness", type: "score" },
-		"factual-claims": { name: "Factual Claims", type: "binary" },
-	};
+const EVAL_CONFIG: Record<string, { name: string; type: 'score' | 'binary' }> = {
+	'answer-completeness': { name: 'Answer Completeness', type: 'score' },
+	'factual-claims': { name: 'Factual Claims', type: 'binary' },
+};
 
 export function EvalsDemo() {
-	const [status, setStatus] = useState<Status>("idle");
-	const [generatedContent, setGeneratedContent] = useState("");
-	const [sessionId, setSessionId] = useState("");
+	const [status, setStatus] = useState<Status>('idle');
+	const [generatedContent, setGeneratedContent] = useState('');
+	const [sessionId, setSessionId] = useState('');
 	const [evalResults, setEvalResults] = useState<EvalRun[]>([]);
-	const [error, setError] = useState("");
+	const [error, setError] = useState('');
 	const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
@@ -53,43 +52,43 @@ export function EvalsDemo() {
 
 			const allDone = data.evalResults.every((r) => !r.pending);
 			if (allDone && data.evalResults.length > 0) {
-				setStatus("done");
+				setStatus('done');
 			} else {
 				pollingRef.current = setTimeout(() => pollSession(sid), 1000);
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Polling failed");
-			setStatus("error");
+			setError(err instanceof Error ? err.message : 'Polling failed');
+			setStatus('error');
 		}
 	}, []);
 
 	const generate = useCallback(async () => {
-		setStatus("generating");
-		setError("");
-		setGeneratedContent("");
+		setStatus('generating');
+		setError('');
+		setGeneratedContent('');
 		setEvalResults([]);
-		setSessionId("");
+		setSessionId('');
 
 		try {
-			const response = await fetch("/api/evals", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
+			const response = await fetch('/api/evals', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 			});
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
 			const data = await response.json();
 			setGeneratedContent(data.content);
 			setSessionId(data.sessionId);
-			setStatus("polling");
+			setStatus('polling');
 			pollSession(data.sessionId);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Generation failed");
-			setStatus("error");
+			setError(err instanceof Error ? err.message : 'Generation failed');
+			setStatus('error');
 		}
 	}, [pollSession]);
 
 	const getEvalConfig = (evalId: string) =>
-		EVAL_CONFIG[evalId] ?? { name: evalId, type: "binary" };
+		EVAL_CONFIG[evalId] ?? { name: evalId, type: 'binary' };
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -104,7 +103,9 @@ export function EvalsDemo() {
 							<span className="px-3 py-2 rounded-md text-xs bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800">
 								<span className="text-green-600 dark:text-green-400">OpenAI</span>
 								<span className="text-zinc-500 mx-1">/</span>
-								<span className="font-mono text-zinc-700 dark:text-zinc-300">gpt-5-nano</span>
+								<span className="font-mono text-zinc-700 dark:text-zinc-300">
+									gpt-5-nano
+								</span>
 							</span>
 						</div>
 					</div>
@@ -116,7 +117,9 @@ export function EvalsDemo() {
 							<span className="px-3 py-2 rounded-md text-xs bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800">
 								<span className="text-purple-600 dark:text-purple-400">Groq</span>
 								<span className="text-zinc-500 mx-1">/</span>
-								<span className="font-mono text-zinc-700 dark:text-zinc-300">gpt-oss-120b</span>
+								<span className="font-mono text-zinc-700 dark:text-zinc-300">
+									gpt-oss-120b
+								</span>
 							</span>
 						</div>
 					</div>
@@ -130,20 +133,20 @@ export function EvalsDemo() {
 					</div>
 					<button
 						onClick={generate}
-						disabled={status === "generating" || status === "polling"}
+						disabled={status === 'generating' || status === 'polling'}
 						type="button"
 						className={`rounded-md text-sm font-medium px-6 py-3 self-start ${
-							status === "generating" || status === "polling"
-								? "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed"
-								: "bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300"
+							status === 'generating' || status === 'polling'
+								? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed'
+								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
 						}`}
 					>
-						{status === "generating" ? (
+						{status === 'generating' ? (
 							<span data-loading="true">Generating</span>
-						) : status === "polling" ? (
+						) : status === 'polling' ? (
 							<span data-loading="true">Running Evals</span>
 						) : (
-							"Generate Explanation"
+							'Generate Explanation'
 						)}
 					</button>
 				</div>
@@ -155,7 +158,7 @@ export function EvalsDemo() {
 				</div>
 			)}
 
-			{status === "generating" && (
+			{status === 'generating' && (
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg overflow-hidden animate-pulse">
 					<div className="border-b border-zinc-200 dark:border-zinc-900 px-4 py-3">
 						<div className="h-5 w-40 bg-zinc-200 dark:bg-zinc-800 rounded" />
@@ -188,20 +191,18 @@ export function EvalsDemo() {
 				</div>
 			)}
 
-			{(status === "polling" || status === "done") && (
+			{(status === 'polling' || status === 'done') && (
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg overflow-hidden">
 					<div className="border-b border-zinc-200 dark:border-zinc-900 px-4 py-3 flex justify-between items-center">
 						<span className="text-zinc-900 dark:text-white font-medium">
 							Evaluation Results
 						</span>
-							{status === "done" && (
-							<span className="text-green-600 dark:text-green-400 text-xs">
-								Complete
-							</span>
+						{status === 'done' && (
+							<span className="text-green-600 dark:text-green-400 text-xs">Complete</span>
 						)}
 					</div>
 					<div className="p-4 space-y-4">
-						{evalResults.length === 0 && status === "polling" && (
+						{evalResults.length === 0 && status === 'polling' && (
 							<>
 								{[1, 2].map((i) => (
 									<div
@@ -237,9 +238,7 @@ export function EvalsDemo() {
 											<span className="text-zinc-900 dark:text-white font-medium">
 												{config.name}
 											</span>
-											<span className="text-zinc-500 text-xs ml-2">
-												({config.type})
-											</span>
+											<span className="text-zinc-500 text-xs ml-2">({config.type})</span>
 										</div>
 										{evalRun.pending && (
 											<span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs animate-pulse">
@@ -255,36 +254,35 @@ export function EvalsDemo() {
 											<span
 												className={`px-2 py-0.5 rounded-full text-xs ${
 													result.passed
-														? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-														: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
+														? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+														: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
 												}`}
 											>
-												{result.passed ? "Passed" : "Failed"}
+												{result.passed ? 'Passed' : 'Failed'}
 											</span>
 										)}
 									</div>
 
-									{config.type === "score" &&
-										result?.score !== undefined && (
-											<div className="mb-2">
-												<div className="flex justify-between text-xs text-zinc-500 mb-1">
-													<span>Score</span>
-													<span>{(result.score * 100).toFixed(0)}%</span>
-												</div>
-												<div className="h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-													<div
-														className={`h-full transition-all duration-500 ${
-															result.score >= 0.7
-																? "bg-green-500"
-																: result.score >= 0.4
-																	? "bg-amber-500"
-																	: "bg-red-500"
-														}`}
-														style={{ width: `${result.score * 100}%` }}
-													/>
-												</div>
+									{config.type === 'score' && result?.score !== undefined && (
+										<div className="mb-2">
+											<div className="flex justify-between text-xs text-zinc-500 mb-1">
+												<span>Score</span>
+												<span>{(result.score * 100).toFixed(0)}%</span>
 											</div>
-										)}
+											<div className="h-2 bg-zinc-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+												<div
+													className={`h-full transition-all duration-500 ${
+														result.score >= 0.7
+															? 'bg-green-500'
+															: result.score >= 0.4
+																? 'bg-amber-500'
+																: 'bg-red-500'
+													}`}
+													style={{ width: `${result.score * 100}%` }}
+												/>
+											</div>
+										</div>
+									)}
 
 									{result?.reason && (
 										<p className="text-zinc-600 dark:text-zinc-400 text-sm">

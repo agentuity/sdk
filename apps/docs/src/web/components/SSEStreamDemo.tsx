@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import Markdown from "react-markdown";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Markdown from 'react-markdown';
 
 interface StreamState {
-	status: "idle" | "connecting" | "streaming" | "done" | "error";
+	status: 'idle' | 'connecting' | 'streaming' | 'done' | 'error';
 	content: string;
 	tokenCount: number;
 	isEstimate: boolean;
@@ -11,21 +11,21 @@ interface StreamState {
 
 // Note: Google/Gemini excluded due to streaming issues (see issue #248)
 const MODELS = [
-	{ value: "gpt-5-nano", label: "GPT-5 Nano (OpenAI)" },
-	{ value: "gpt-5-mini", label: "GPT-5 Mini (OpenAI)" },
-	{ value: "claude-haiku-4-5", label: "Claude Haiku (Anthropic)" },
-	{ value: "claude-sonnet-4-5", label: "Claude Sonnet (Anthropic)" },
-	{ value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Groq)" },
+	{ value: 'gpt-5-nano', label: 'GPT-5 Nano (OpenAI)' },
+	{ value: 'gpt-5-mini', label: 'GPT-5 Mini (OpenAI)' },
+	{ value: 'claude-haiku-4-5', label: 'Claude Haiku (Anthropic)' },
+	{ value: 'claude-sonnet-4-5', label: 'Claude Sonnet (Anthropic)' },
+	{ value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (Groq)' },
 ];
 
 // Fixed prompt used by the backend
-const FIXED_PROMPT = "What are AI agents and how do they work?";
+const FIXED_PROMPT = 'What are AI agents and how do they work?';
 
 export function SSEStreamDemo() {
-	const [model, setModel] = useState("gpt-5-nano");
+	const [model, setModel] = useState('gpt-5-nano');
 	const [state, setState] = useState<StreamState>({
-		status: "idle",
-		content: "",
+		status: 'idle',
+		content: '',
 		tokenCount: 0,
 		isEstimate: true,
 		error: null,
@@ -45,8 +45,8 @@ export function SSEStreamDemo() {
 		eventSourceRef.current?.close();
 
 		setState({
-			status: "connecting",
-			content: "",
+			status: 'connecting',
+			content: '',
 			tokenCount: 0,
 			isEstimate: true,
 			error: null,
@@ -57,11 +57,11 @@ export function SSEStreamDemo() {
 		eventSourceRef.current = eventSource;
 
 		eventSource.onopen = () => {
-			setState((prev) => ({ ...prev, status: "streaming" }));
+			setState((prev) => ({ ...prev, status: 'streaming' }));
 		};
 
 		// Handle token events
-		eventSource.addEventListener("token", (event) => {
+		eventSource.addEventListener('token', (event) => {
 			setState((prev) => ({
 				...prev,
 				content: prev.content + event.data,
@@ -70,12 +70,12 @@ export function SSEStreamDemo() {
 		});
 
 		// Handle completion
-		eventSource.addEventListener("done", (event) => {
+		eventSource.addEventListener('done', (event) => {
 			const data = JSON.parse(event.data);
 			const actualTokens = data.totalTokens || 0;
 			setState((prev) => ({
 				...prev,
-				status: "done",
+				status: 'done',
 				tokenCount: actualTokens || prev.tokenCount,
 				isEstimate: !actualTokens,
 			}));
@@ -83,12 +83,12 @@ export function SSEStreamDemo() {
 		});
 
 		// Handle errors from server
-		eventSource.addEventListener("error", (event: Event) => {
+		eventSource.addEventListener('error', (event: Event) => {
 			const messageEvent = event as MessageEvent;
 			if (messageEvent.data) {
 				setState((prev) => ({
 					...prev,
-					status: "error",
+					status: 'error',
 					error: messageEvent.data,
 				}));
 			}
@@ -103,11 +103,11 @@ export function SSEStreamDemo() {
 			}
 			setState((prev) => {
 				// Only set error if we're not already done
-				if (prev.status === "done") return prev;
+				if (prev.status === 'done') return prev;
 				return {
 					...prev,
-					status: "error",
-					error: "Connection lost",
+					status: 'error',
+					error: 'Connection lost',
 				};
 			});
 			eventSource.close();
@@ -118,34 +118,33 @@ export function SSEStreamDemo() {
 		eventSourceRef.current?.close();
 		setState((prev) => ({
 			...prev,
-			status: prev.content ? "done" : "idle",
+			status: prev.content ? 'done' : 'idle',
 		}));
 	}, []);
 
 	const reset = useCallback(() => {
 		eventSourceRef.current?.close();
 		setState({
-			status: "idle",
-			content: "",
+			status: 'idle',
+			content: '',
 			tokenCount: 0,
 			isEstimate: true,
 			error: null,
 		});
 	}, []);
 
-	const isStreaming =
-		state.status === "streaming" || state.status === "connecting";
+	const isStreaming = state.status === 'streaming' || state.status === 'connecting';
 
 	const statusDotClass =
-		state.status === "streaming"
-			? "bg-cyan-400"
-			: state.status === "connecting"
-				? "bg-yellow-500"
-				: state.status === "done"
-					? "bg-green-500"
-					: state.status === "error"
-						? "bg-red-500"
-						: "bg-zinc-600";
+		state.status === 'streaming'
+			? 'bg-cyan-400'
+			: state.status === 'connecting'
+				? 'bg-yellow-500'
+				: state.status === 'done'
+					? 'bg-green-500'
+					: state.status === 'error'
+						? 'bg-red-500'
+						: 'bg-zinc-600';
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -211,8 +210,8 @@ export function SSEStreamDemo() {
 									type="button"
 									className={`bg-zinc-200 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-600 dark:text-zinc-400 text-sm px-4 py-3 ${
 										isStreaming
-											? "cursor-not-allowed"
-											: "cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600"
+											? 'cursor-not-allowed'
+											: 'cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600'
 									}`}
 								>
 									Clear
@@ -226,9 +225,9 @@ export function SSEStreamDemo() {
 			{/* Output Section */}
 			<div
 				className={`bg-white dark:bg-black rounded-lg min-h-[200px] overflow-hidden ${
-					state.status === "error"
-						? "border border-red-300 dark:border-red-900"
-						: "border border-zinc-200 dark:border-zinc-900"
+					state.status === 'error'
+						? 'border border-red-300 dark:border-red-900'
+						: 'border border-zinc-200 dark:border-zinc-900'
 				}`}
 			>
 				{/* Status bar */}
@@ -236,16 +235,16 @@ export function SSEStreamDemo() {
 					<div className="flex items-center gap-2">
 						<div className={`w-2 h-2 rounded-full ${statusDotClass}`} />
 						<span className="text-zinc-500 dark:text-zinc-400 text-xs uppercase">
-							{state.status === "idle" && "Ready"}
-							{state.status === "connecting" && "Connecting..."}
-							{state.status === "streaming" && "Streaming"}
-							{state.status === "done" && "Complete"}
-							{state.status === "error" && "Error"}
+							{state.status === 'idle' && 'Ready'}
+							{state.status === 'connecting' && 'Connecting...'}
+							{state.status === 'streaming' && 'Streaming'}
+							{state.status === 'done' && 'Complete'}
+							{state.status === 'error' && 'Error'}
 						</span>
 					</div>
 					{state.tokenCount > 0 && (
 						<span className="text-zinc-500 dark:text-zinc-600 text-xs">
-							{state.tokenCount} tokens{state.isEstimate ? " (est.)" : ""}
+							{state.tokenCount} tokens{state.isEstimate ? ' (est.)' : ''}
 						</span>
 					)}
 				</div>
@@ -253,15 +252,17 @@ export function SSEStreamDemo() {
 				{/* Content area */}
 				<div
 					className={`text-sm leading-relaxed min-h-[150px] p-4 ${
-						state.status === "error" ? "text-red-600 dark:text-red-300" : "text-zinc-700 dark:text-zinc-300"
+						state.status === 'error'
+							? 'text-red-600 dark:text-red-300'
+							: 'text-zinc-700 dark:text-zinc-300'
 					}`}
 				>
-					{state.status === "idle" && !state.content && (
+					{state.status === 'idle' && !state.content && (
 						<span className="text-zinc-500 dark:text-zinc-600">
 							Output will appear here as tokens stream in...
 						</span>
 					)}
-					{state.status === "error" && state.error}
+					{state.status === 'error' && state.error}
 					{state.content && (
 						<Markdown
 							components={{
@@ -281,9 +282,7 @@ export function SSEStreamDemo() {
 										{children}
 									</h3>
 								),
-								ul: ({ children }) => (
-									<ul className="list-disc pl-5 my-2">{children}</ul>
-								),
+								ul: ({ children }) => <ul className="list-disc pl-5 my-2">{children}</ul>,
 								ol: ({ children }) => (
 									<ol className="list-decimal pl-5 my-2">{children}</ol>
 								),
@@ -304,12 +303,11 @@ export function SSEStreamDemo() {
 							{state.content}
 						</Markdown>
 					)}
-					{state.status === "streaming" && (
+					{state.status === 'streaming' && (
 						<span className="inline-block w-0.5 h-4 bg-cyan-500 dark:bg-cyan-400 ml-0.5 animate-pulse" />
 					)}
 				</div>
 			</div>
-
 		</div>
 	);
 }

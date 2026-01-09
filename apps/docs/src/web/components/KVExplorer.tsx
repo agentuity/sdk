@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
 export function KVExplorer() {
 	const [keys, setKeys] = useState<string[]>([]);
@@ -12,7 +12,7 @@ export function KVExplorer() {
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await fetch("/api/key-value/keys");
+			const response = await fetch('/api/key-value/keys');
 			const data = await response.json();
 			if (data.success) {
 				const keysList = data.keys || [];
@@ -22,10 +22,10 @@ export function KVExplorer() {
 					setSeeded(true);
 				}
 			} else {
-				setError("Failed to fetch keys");
+				setError('Failed to fetch keys');
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Unknown error");
+			setError(err instanceof Error ? err.message : 'Unknown error');
 		} finally {
 			setLoading(false);
 		}
@@ -45,10 +45,10 @@ export function KVExplorer() {
 				setSelectedKey(key);
 				setSelectedValue(data.value);
 			} else {
-				setError(data.error || "Failed to fetch value");
+				setError(data.error || 'Failed to fetch value');
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Unknown error");
+			setError(err instanceof Error ? err.message : 'Unknown error');
 		} finally {
 			setLoading(false);
 		}
@@ -58,8 +58,8 @@ export function KVExplorer() {
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await fetch("/api/key-value/seed", {
-				method: "POST",
+			const response = await fetch('/api/key-value/seed', {
+				method: 'POST',
 			});
 
 			const data = await response.json();
@@ -68,15 +68,15 @@ export function KVExplorer() {
 				await fetchKeys();
 			} else {
 				// If already seeded, still mark as seeded
-				if (data.message?.includes("already")) {
+				if (data.message?.includes('already')) {
 					setSeeded(true);
 					await fetchKeys();
 				} else {
-					setError(data.message || "Failed to seed data");
+					setError(data.message || 'Failed to seed data');
 				}
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to seed data");
+			setError(err instanceof Error ? err.message : 'Failed to seed data');
 		} finally {
 			setLoading(false);
 		}
@@ -94,13 +94,15 @@ export function KVExplorer() {
 							disabled={loading}
 							type="button"
 							className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-xs px-3 py-1.5 cursor-pointer ${
-								loading ? "opacity-50" : "hover:bg-cyan-400 dark:hover:bg-cyan-300"
+								loading ? 'opacity-50' : 'hover:bg-cyan-400 dark:hover:bg-cyan-300'
 							}`}
 						>
-							{loading ? "Loading..." : "Load Sample Data"}
+							{loading ? 'Loading...' : 'Load Sample Data'}
 						</button>
 					)}
-					{seeded && <span className="text-green-600 dark:text-green-400 text-xs">Loaded</span>}
+					{seeded && (
+						<span className="text-green-600 dark:text-green-400 text-xs">Loaded</span>
+					)}
 				</div>
 			</div>
 
@@ -131,8 +133,8 @@ export function KVExplorer() {
 									onClick={() => fetchValue(key)}
 									className={`flex items-center w-full text-left text-sm px-4 py-3 truncate bg-transparent border-none border-b border-zinc-200 dark:border-zinc-900 cursor-pointer ${
 										selectedKey === key
-											? "bg-zinc-100 dark:bg-zinc-900 text-cyan-700 dark:text-cyan-400"
-											: "text-zinc-900 dark:text-white"
+											? 'bg-zinc-100 dark:bg-zinc-900 text-cyan-700 dark:text-cyan-400'
+											: 'text-zinc-900 dark:text-white'
 									}`}
 								>
 									{key}
@@ -150,9 +152,11 @@ export function KVExplorer() {
 					<div className="flex-1 overflow-y-auto p-4">
 						{selectedKey ? (
 							<div>
-								<div className="text-cyan-700 dark:text-cyan-400 text-xs mb-2">{selectedKey}</div>
+								<div className="text-cyan-700 dark:text-cyan-400 text-xs mb-2">
+									{selectedKey}
+								</div>
 								<pre className="bg-zinc-100 dark:bg-zinc-950 rounded-md text-zinc-600 dark:text-zinc-400 text-[13px] m-0 overflow-auto p-3 whitespace-pre-wrap break-words">
-									{typeof selectedValue === "string"
+									{typeof selectedValue === 'string'
 										? selectedValue
 										: JSON.stringify(selectedValue, null, 2)}
 								</pre>
@@ -165,7 +169,6 @@ export function KVExplorer() {
 					</div>
 				</div>
 			</div>
-
 		</div>
 	);
 }

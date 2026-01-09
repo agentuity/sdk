@@ -1,21 +1,19 @@
-import githubDarkModule from "@shikijs/themes/github-dark";
-import githubLightModule from "@shikijs/themes/github-light";
-import typescriptLang from "@shikijs/langs/typescript";
-import { useEffect, useRef, useState } from "react";
-import type { ThemeRegistration } from "shiki";
-import { createHighlighterCore } from "shiki/core";
-import { createOnigurumaEngine } from "shiki/engine/oniguruma";
-import { useTheme } from "./ThemeContext";
+import githubDarkModule from '@shikijs/themes/github-dark';
+import githubLightModule from '@shikijs/themes/github-light';
+import typescriptLang from '@shikijs/langs/typescript';
+import { useEffect, useRef, useState } from 'react';
+import type { ThemeRegistration } from 'shiki';
+import { createHighlighterCore } from 'shiki/core';
+import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
+import { useTheme } from './ThemeContext';
 
 // Extract theme objects from default exports
 const githubDark = (
-	"default" in githubDarkModule ? githubDarkModule.default : githubDarkModule
+	'default' in githubDarkModule ? githubDarkModule.default : githubDarkModule
 ) as ThemeRegistration;
 
 const githubLight = (
-	"default" in githubLightModule
-		? githubLightModule.default
-		: githubLightModule
+	'default' in githubLightModule ? githubLightModule.default : githubLightModule
 ) as ThemeRegistration;
 
 // Initialize highlighter with both themes
@@ -26,23 +24,18 @@ function getHighlighter() {
 		highlighterPromise = createHighlighterCore({
 			themes: [githubDark, githubLight],
 			langs: [typescriptLang],
-			engine: createOnigurumaEngine(import("shiki/wasm")),
+			engine: createOnigurumaEngine(import('shiki/wasm')),
 		});
 	}
 	return highlighterPromise;
 }
 
-async function highlightCode(
-	code: string,
-	theme: "light" | "dark"
-): Promise<string> {
+async function highlightCode(code: string, theme: 'light' | 'dark'): Promise<string> {
 	const highlighter = await getHighlighter();
 	const themeName =
-		theme === "dark"
-			? (githubDark.name ?? "github-dark")
-			: (githubLight.name ?? "github-light");
+		theme === 'dark' ? (githubDark.name ?? 'github-dark') : (githubLight.name ?? 'github-light');
 	return highlighter.codeToHtml(code, {
-		lang: "typescript",
+		lang: 'typescript',
 		theme: themeName,
 	});
 }
@@ -55,7 +48,7 @@ interface CodeBlockProps {
 export function CodeBlock({ code, title }: CodeBlockProps) {
 	const { resolvedTheme } = useTheme();
 	const [copied, setCopied] = useState(false);
-	const [html, setHtml] = useState<string>("");
+	const [html, setHtml] = useState<string>('');
 	const mounted = useRef(false);
 
 	useEffect(() => {
@@ -82,7 +75,7 @@ export function CodeBlock({ code, title }: CodeBlockProps) {
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 h-12 border-b border-zinc-300 dark:border-zinc-700 bg-zinc-200/50 dark:bg-zinc-900/50">
 				<span className="text-sm text-zinc-500 dark:text-zinc-400">
-					{title || "Example Code"}
+					{title || 'Example Code'}
 				</span>
 				<button
 					type="button"
@@ -105,9 +98,7 @@ export function CodeBlock({ code, title }: CodeBlockProps) {
 									d="M5 13l4 4L19 7"
 								/>
 							</svg>
-							<span className="text-green-700 dark:text-green-400">
-								Copied!
-							</span>
+							<span className="text-green-700 dark:text-green-400">Copied!</span>
 						</>
 					) : (
 						<>

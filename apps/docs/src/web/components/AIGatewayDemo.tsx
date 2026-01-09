@@ -1,5 +1,5 @@
-import { useCallback, useState } from "react";
-import Markdown from "react-markdown";
+import { useCallback, useState } from 'react';
+import Markdown from 'react-markdown';
 
 interface ModelResponse {
 	model: string;
@@ -7,7 +7,7 @@ interface ModelResponse {
 	duration: number;
 	tokens: number;
 	isEstimate: boolean;
-	status: "pending" | "streaming" | "done" | "error";
+	status: 'pending' | 'streaming' | 'done' | 'error';
 	error?: string;
 }
 
@@ -20,8 +20,8 @@ function estimateTokens(text: string): number {
 // Parse x-agentuity-tokens header: "model1:count1 model2:count2"
 function parseTokensHeader(header: string): number {
 	let total = 0;
-	for (const entry of header.split(" ")) {
-		const [, count] = entry.split(":");
+	for (const entry of header.split(' ')) {
+		const [, count] = entry.split(':');
 		if (count) total += Number.parseInt(count, 10) || 0;
 	}
 	return total;
@@ -29,29 +29,27 @@ function parseTokensHeader(header: string): number {
 
 // Note: Google/Gemini excluded due to streaming issues (see issue #248)
 const AVAILABLE_MODELS = [
-	{ id: "gpt-5-nano", label: "GPT-5 Nano", provider: "OpenAI" },
-	{ id: "gpt-5-mini", label: "GPT-5 Mini", provider: "OpenAI" },
-	{ id: "claude-haiku-4-5", label: "Claude Haiku", provider: "Anthropic" },
-	{ id: "claude-sonnet-4-5", label: "Claude Sonnet", provider: "Anthropic" },
-	{ id: "llama-3.3-70b-versatile", label: "Llama 3.3 70B", provider: "Groq" },
+	{ id: 'gpt-5-nano', label: 'GPT-5 Nano', provider: 'OpenAI' },
+	{ id: 'gpt-5-mini', label: 'GPT-5 Mini', provider: 'OpenAI' },
+	{ id: 'claude-haiku-4-5', label: 'Claude Haiku', provider: 'Anthropic' },
+	{ id: 'claude-sonnet-4-5', label: 'Claude Sonnet', provider: 'Anthropic' },
+	{ id: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B', provider: 'Groq' },
 ];
 
 // Fixed prompt used by the backend
-const FIXED_PROMPT = "What is backpropagation and why does it matter for AI?";
+const FIXED_PROMPT = 'What is backpropagation and why does it matter for AI?';
 
 export function AIGatewayDemo() {
 	const [selectedModels, setSelectedModels] = useState<string[]>([
-		"gpt-5-nano",
-		"claude-haiku-4-5",
+		'gpt-5-nano',
+		'claude-haiku-4-5',
 	]);
 	const [responses, setResponses] = useState<ModelResponse[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
 
 	const toggleModel = (modelId: string) => {
 		setSelectedModels((prev) =>
-			prev.includes(modelId)
-				? prev.filter((id) => id !== modelId)
-				: [...prev, modelId],
+			prev.includes(modelId) ? prev.filter((id) => id !== modelId) : [...prev, modelId]
 		);
 	};
 
@@ -62,12 +60,12 @@ export function AIGatewayDemo() {
 		setResponses(
 			selectedModels.map((model) => ({
 				model,
-				content: "",
+				content: '',
 				duration: 0,
 				tokens: 0,
 				isEstimate: true,
-				status: "pending",
-			})),
+				status: 'pending',
+			}))
 		);
 
 		// Run all models in parallel
@@ -77,15 +75,13 @@ export function AIGatewayDemo() {
 
 				// Update to streaming status
 				setResponses((prev) =>
-					prev.map((r, i) =>
-						i === index ? { ...r, status: "streaming" as const } : r,
-					),
+					prev.map((r, i) => (i === index ? { ...r, status: 'streaming' as const } : r))
 				);
 
 				try {
-					const response = await fetch("/api/ai-gateway/compare", {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
+					const response = await fetch('/api/ai-gateway/compare', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ model }),
 					});
 
@@ -94,12 +90,12 @@ export function AIGatewayDemo() {
 					}
 
 					if (!response.body) {
-						throw new Error("No response body");
+						throw new Error('No response body');
 					}
 
 					const reader = response.body.getReader();
 					const decoder = new TextDecoder();
-					let content = "";
+					let content = '';
 
 					while (true) {
 						const { done, value } = await reader.read();
@@ -116,8 +112,8 @@ export function AIGatewayDemo() {
 											tokens: estimateTokens(content),
 											isEstimate: true,
 										}
-									: r,
-							),
+									: r
+							)
 						);
 					}
 
@@ -125,10 +121,8 @@ export function AIGatewayDemo() {
 					// not capture tokens for streaming responses. SSEStreamDemo gets tokens from
 					// the "done" event data instead. If this doesn't work, consider always
 					// showing "(est.)" for raw streaming responses.
-					const tokensHeader = response.headers.get("x-agentuity-tokens");
-					const actualTokens = tokensHeader
-						? parseTokensHeader(tokensHeader)
-						: 0;
+					const tokensHeader = response.headers.get('x-agentuity-tokens');
+					const actualTokens = tokensHeader ? parseTokensHeader(tokensHeader) : 0;
 
 					setResponses((prev) =>
 						prev.map((r, i) =>
@@ -139,10 +133,10 @@ export function AIGatewayDemo() {
 										duration: Date.now() - startTime,
 										tokens: actualTokens || estimateTokens(content),
 										isEstimate: !actualTokens,
-										status: "done" as const,
+										status: 'done' as const,
 									}
-								: r,
-						),
+								: r
+						)
 					);
 				} catch (error) {
 					setResponses((prev) =>
@@ -150,16 +144,15 @@ export function AIGatewayDemo() {
 							i === index
 								? {
 										...r,
-										status: "error" as const,
-										error:
-											error instanceof Error ? error.message : "Unknown error",
+										status: 'error' as const,
+										error: error instanceof Error ? error.message : 'Unknown error',
 										duration: Date.now() - startTime,
 									}
-								: r,
-						),
+								: r
+						)
 					);
 				}
-			}),
+			})
 		);
 
 		setIsRunning(false);
@@ -172,16 +165,16 @@ export function AIGatewayDemo() {
 	const getProviderColor = (modelId: string) => {
 		const provider = AVAILABLE_MODELS.find((m) => m.id === modelId)?.provider;
 		switch (provider) {
-			case "OpenAI":
-				return "text-green-600 dark:text-green-400";
-			case "Anthropic":
-				return "text-orange-600 dark:text-orange-400";
-			case "Google":
-				return "text-blue-600 dark:text-blue-400";
-			case "Groq":
-				return "text-purple-600 dark:text-purple-400";
+			case 'OpenAI':
+				return 'text-green-600 dark:text-green-400';
+			case 'Anthropic':
+				return 'text-orange-600 dark:text-orange-400';
+			case 'Google':
+				return 'text-blue-600 dark:text-blue-400';
+			case 'Groq':
+				return 'text-purple-600 dark:text-purple-400';
 			default:
-				return "text-zinc-500 dark:text-zinc-400";
+				return 'text-zinc-500 dark:text-zinc-400';
 		}
 	};
 
@@ -204,13 +197,11 @@ export function AIGatewayDemo() {
 									type="button"
 									className={`rounded-md text-xs px-3 py-2 transition-colors ${
 										selectedModels.includes(model.id)
-											? "bg-zinc-300 dark:bg-zinc-700 border-2 border-zinc-400 dark:border-zinc-500 text-zinc-900 dark:text-white"
-											: "bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600"
-									} ${isRunning ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+											? 'bg-zinc-300 dark:bg-zinc-700 border-2 border-zinc-400 dark:border-zinc-500 text-zinc-900 dark:text-white'
+											: 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600'
+									} ${isRunning ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
 								>
-									<span className={getProviderColor(model.id)}>
-										{model.provider}
-									</span>
+									<span className={getProviderColor(model.id)}>{model.provider}</span>
 									<span className="text-zinc-500 mx-1">/</span>
 									<span className="font-mono">{model.id}</span>
 								</button>
@@ -240,11 +231,11 @@ export function AIGatewayDemo() {
 						type="button"
 						className={`rounded-md text-sm font-medium px-6 py-3 self-start ${
 							isRunning || selectedModels.length < 2
-								? "bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed"
-								: "bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300"
+								? 'bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed'
+								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
 						}`}
 					>
-						{isRunning ? "Running..." : "Compare Models"}
+						{isRunning ? 'Running...' : 'Compare Models'}
 					</button>
 				</div>
 			</div>
@@ -257,21 +248,18 @@ export function AIGatewayDemo() {
 							<div
 								key={response.model}
 								className={`bg-white dark:bg-black border rounded-lg overflow-hidden ${
-									response.status === "error"
-										? "border-red-300 dark:border-red-900"
-										: response.status === "done"
-											? "border-zinc-300 dark:border-zinc-800"
-											: "border-zinc-200 dark:border-zinc-900"
+									response.status === 'error'
+										? 'border-red-300 dark:border-red-900'
+										: response.status === 'done'
+											? 'border-zinc-300 dark:border-zinc-800'
+											: 'border-zinc-200 dark:border-zinc-900'
 								}`}
 							>
 								{/* Model Header */}
 								<div className="border-b border-zinc-200 dark:border-zinc-900 px-4 py-3 flex justify-between items-center">
 									<div>
 										<span className={getProviderColor(response.model)}>
-											{
-												AVAILABLE_MODELS.find((m) => m.id === response.model)
-													?.provider
-											}
+											{AVAILABLE_MODELS.find((m) => m.id === response.model)?.provider}
 										</span>
 										<span className="text-zinc-500 mx-2">/</span>
 										<span className="text-zinc-900 dark:text-white">
@@ -279,7 +267,7 @@ export function AIGatewayDemo() {
 										</span>
 									</div>
 									<div className="flex items-center gap-2">
-										{response.status === "streaming" && (
+										{response.status === 'streaming' && (
 											<>
 												<span className="text-zinc-500 dark:text-zinc-600 text-xs">
 													{response.tokens} tokens (est.)
@@ -287,35 +275,37 @@ export function AIGatewayDemo() {
 												<div className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse" />
 											</>
 										)}
-										{response.status === "done" && (
+										{response.status === 'done' && (
 											<span className="text-zinc-500 text-xs">
 												{response.tokens} tokens
-												{response.isEstimate ? " (est.)" : ""} ·{" "}
-												{response.duration}ms
+												{response.isEstimate ? ' (est.)' : ''} · {response.duration}ms
 											</span>
 										)}
-										{response.status === "error" && (
-											<span className="text-red-600 dark:text-red-400 text-xs">Error</span>
+										{response.status === 'error' && (
+											<span className="text-red-600 dark:text-red-400 text-xs">
+												Error
+											</span>
 										)}
 									</div>
 								</div>
 
 								{/* Response Content */}
 								<div className="p-4 h-[350px] overflow-y-auto">
-									{response.status === "pending" && (
-										<div className="text-zinc-500 dark:text-zinc-600 text-sm">Waiting...</div>
+									{response.status === 'pending' && (
+										<div className="text-zinc-500 dark:text-zinc-600 text-sm">
+											Waiting...
+										</div>
 									)}
-									{response.status === "error" && (
-										<div className="text-red-600 dark:text-red-400 text-sm">{response.error}</div>
+									{response.status === 'error' && (
+										<div className="text-red-600 dark:text-red-400 text-sm">
+											{response.error}
+										</div>
 									)}
-									{(response.status === "streaming" ||
-										response.status === "done") && (
+									{(response.status === 'streaming' || response.status === 'done') && (
 										<div className="text-zinc-700 dark:text-zinc-300 text-sm">
 											<Markdown
 												components={{
-													p: ({ children }) => (
-														<p className="my-2">{children}</p>
-													),
+													p: ({ children }) => <p className="my-2">{children}</p>,
 													h1: ({ children }) => (
 														<h1 className="text-lg font-semibold my-3 text-zinc-900 dark:text-white">
 															{children}
@@ -335,21 +325,15 @@ export function AIGatewayDemo() {
 														<ul className="list-disc pl-5 my-2">{children}</ul>
 													),
 													ol: ({ children }) => (
-														<ol className="list-decimal pl-5 my-2">
-															{children}
-														</ol>
+														<ol className="list-decimal pl-5 my-2">{children}</ol>
 													),
-													li: ({ children }) => (
-														<li className="my-0.5">{children}</li>
-													),
+													li: ({ children }) => <li className="my-0.5">{children}</li>,
 													strong: ({ children }) => (
 														<strong className="font-semibold text-zinc-900 dark:text-white">
 															{children}
 														</strong>
 													),
-													em: ({ children }) => (
-														<em className="italic">{children}</em>
-													),
+													em: ({ children }) => <em className="italic">{children}</em>,
 													code: ({ children }) => (
 														<code className="bg-zinc-200 dark:bg-zinc-800 px-1 py-0.5 rounded text-cyan-700 dark:text-cyan-400 text-xs">
 															{children}
@@ -359,7 +343,7 @@ export function AIGatewayDemo() {
 											>
 												{response.content}
 											</Markdown>
-											{response.status === "streaming" && (
+											{response.status === 'streaming' && (
 												<span className="inline-block w-0.5 h-4 bg-cyan-500 dark:bg-cyan-400 ml-0.5 animate-pulse" />
 											)}
 										</div>
@@ -370,7 +354,6 @@ export function AIGatewayDemo() {
 					</div>
 				</div>
 			)}
-
 		</div>
 	);
 }

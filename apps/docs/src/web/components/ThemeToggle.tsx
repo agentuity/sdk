@@ -1,17 +1,13 @@
-import {
-	ComputerDesktopIcon,
-	MoonIcon,
-	SunIcon,
-} from "@heroicons/react/24/outline";
-import { useEffect, useRef, useState } from "react";
-import { useTheme } from "./ThemeContext";
+import { ComputerDesktopIcon, MoonIcon, SunIcon } from '@heroicons/react/24/outline';
+import { useEffect, useRef, useState } from 'react';
+import { useTheme } from './ThemeContext';
 
-type Theme = "light" | "dark" | "system";
+type Theme = 'light' | 'dark' | 'system';
 
 const THEME_OPTIONS: { value: Theme; label: string; Icon: typeof SunIcon }[] = [
-	{ value: "light", label: "Light", Icon: SunIcon },
-	{ value: "dark", label: "Dark", Icon: MoonIcon },
-	{ value: "system", label: "System", Icon: ComputerDesktopIcon },
+	{ value: 'light', label: 'Light', Icon: SunIcon },
+	{ value: 'dark', label: 'Dark', Icon: MoonIcon },
+	{ value: 'system', label: 'System', Icon: ComputerDesktopIcon },
 ];
 
 export function ThemeToggle() {
@@ -22,24 +18,21 @@ export function ThemeToggle() {
 	// Close dropdown when clicking outside
 	useEffect(() => {
 		function handleClickOutside(event: MouseEvent) {
-			if (
-				dropdownRef.current &&
-				!dropdownRef.current.contains(event.target as Node)
-			) {
+			if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
 				setIsOpen(false);
 			}
 		}
-		document.addEventListener("mousedown", handleClickOutside);
-		return () => document.removeEventListener("mousedown", handleClickOutside);
+		document.addEventListener('mousedown', handleClickOutside);
+		return () => document.removeEventListener('mousedown', handleClickOutside);
 	}, []);
 
 	// Close dropdown on Escape key
 	useEffect(() => {
 		function handleEscape(event: KeyboardEvent) {
-			if (event.key === "Escape") setIsOpen(false);
+			if (event.key === 'Escape') setIsOpen(false);
 		}
-		document.addEventListener("keydown", handleEscape);
-		return () => document.removeEventListener("keydown", handleEscape);
+		document.addEventListener('keydown', handleEscape);
+		return () => document.removeEventListener('keydown', handleEscape);
 	}, []);
 
 	const currentOption = THEME_OPTIONS.find((opt) => opt.value === theme);
@@ -80,8 +73,8 @@ export function ThemeToggle() {
 									first:rounded-t-md last:rounded-b-md
 									${
 										isSelected
-											? "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white"
-											: "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white"
+											? 'bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white'
+											: 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 hover:text-zinc-900 dark:hover:text-white'
 									}`}
 							>
 								<option.Icon className="w-4 h-4" />

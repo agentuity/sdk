@@ -1,12 +1,12 @@
-import { createRouter } from "@agentuity/runtime";
+import { createRouter } from '@agentuity/runtime';
 
 const router = createRouter();
 
-router.get("/", (c) => {
+router.get('/', (c) => {
 	return c.json({
-		status: "ok",
+		status: 'ok',
 		timestamp: new Date().toISOString(),
-		version: "1.0.0",
+		version: '1.0.0',
 	});
 });
 

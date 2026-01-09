@@ -1,23 +1,21 @@
-import { useEffect, useRef, useState } from "react";
-import { useTheme } from "./ThemeContext";
-import githubDarkModule from "@shikijs/themes/github-dark";
-import githubLightModule from "@shikijs/themes/github-light";
-import typescriptLang from "@shikijs/langs/typescript";
-import javascriptLang from "@shikijs/langs/javascript";
-import bashLang from "@shikijs/langs/bash";
-import jsonLang from "@shikijs/langs/json";
-import type { ThemeRegistration } from "shiki";
-import { createHighlighterCore } from "shiki/core";
-import { createOnigurumaEngine } from "shiki/engine/oniguruma";
+import { useEffect, useRef, useState } from 'react';
+import { useTheme } from './ThemeContext';
+import githubDarkModule from '@shikijs/themes/github-dark';
+import githubLightModule from '@shikijs/themes/github-light';
+import typescriptLang from '@shikijs/langs/typescript';
+import javascriptLang from '@shikijs/langs/javascript';
+import bashLang from '@shikijs/langs/bash';
+import jsonLang from '@shikijs/langs/json';
+import type { ThemeRegistration } from 'shiki';
+import { createHighlighterCore } from 'shiki/core';
+import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
 
 const githubDark = (
-	"default" in githubDarkModule ? githubDarkModule.default : githubDarkModule
+	'default' in githubDarkModule ? githubDarkModule.default : githubDarkModule
 ) as ThemeRegistration;
 
 const githubLight = (
-	"default" in githubLightModule
-		? githubLightModule.default
-		: githubLightModule
+	'default' in githubLightModule ? githubLightModule.default : githubLightModule
 ) as ThemeRegistration;
 
 // Shared highlighter with multiple languages
@@ -28,7 +26,7 @@ function getHighlighter() {
 		highlighterPromise = createHighlighterCore({
 			themes: [githubDark, githubLight],
 			langs: [typescriptLang, javascriptLang, bashLang, jsonLang],
-			engine: createOnigurumaEngine(import("shiki/wasm")),
+			engine: createOnigurumaEngine(import('shiki/wasm')),
 		});
 	}
 	return highlighterPromise;
@@ -37,31 +35,25 @@ function getHighlighter() {
 // Map common language aliases
 function normalizeLanguage(lang: string): string {
 	const aliases: Record<string, string> = {
-		ts: "typescript",
-		js: "javascript",
-		sh: "bash",
-		shell: "bash",
-		zsh: "bash",
+		ts: 'typescript',
+		js: 'javascript',
+		sh: 'bash',
+		shell: 'bash',
+		zsh: 'bash',
 	};
 	return aliases[lang.toLowerCase()] || lang.toLowerCase();
 }
 
-async function highlightCode(
-	code: string,
-	lang: string,
-	theme: "light" | "dark",
-): Promise<string> {
+async function highlightCode(code: string, lang: string, theme: 'light' | 'dark'): Promise<string> {
 	const highlighter = await getHighlighter();
 	const themeName =
-		theme === "dark"
-			? (githubDark.name ?? "github-dark")
-			: (githubLight.name ?? "github-light");
+		theme === 'dark' ? (githubDark.name ?? 'github-dark') : (githubLight.name ?? 'github-light');
 
 	const normalizedLang = normalizeLanguage(lang);
-	const supportedLangs = ["typescript", "javascript", "bash", "json"];
+	const supportedLangs = ['typescript', 'javascript', 'bash', 'json'];
 
 	return highlighter.codeToHtml(code, {
-		lang: supportedLangs.includes(normalizedLang) ? normalizedLang : "typescript",
+		lang: supportedLangs.includes(normalizedLang) ? normalizedLang : 'typescript',
 		theme: themeName,
 	});
 }
@@ -71,10 +63,10 @@ interface ChatCodeBlockProps {
 	language?: string;
 }
 
-export function ChatCodeBlock({ code, language = "typescript" }: ChatCodeBlockProps) {
+export function ChatCodeBlock({ code, language = 'typescript' }: ChatCodeBlockProps) {
 	const { resolvedTheme } = useTheme();
 	const [copied, setCopied] = useState(false);
-	const [html, setHtml] = useState<string>("");
+	const [html, setHtml] = useState<string>('');
 	const [isHovered, setIsHovered] = useState(false);
 	const mounted = useRef(false);
 
@@ -108,7 +100,7 @@ export function ChatCodeBlock({ code, language = "typescript" }: ChatCodeBlockPr
 				type="button"
 				onClick={handleCopy}
 				className={`absolute top-1.5 right-1.5 p-1 rounded transition-opacity ${
-					isHovered || copied ? "opacity-100" : "opacity-0"
+					isHovered || copied ? 'opacity-100' : 'opacity-0'
 				} hover:bg-zinc-200 dark:hover:bg-zinc-700`}
 			>
 				{copied ? (

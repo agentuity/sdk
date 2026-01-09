@@ -1,17 +1,17 @@
-import { useAPI } from "@agentuity/react";
-import { useEffect, useRef, useState } from "react";
-import Markdown from "react-markdown";
-import { ChatCodeBlock } from "./ChatCodeBlock";
+import { useAPI } from '@agentuity/react';
+import { useEffect, useRef, useState } from 'react';
+import Markdown from 'react-markdown';
+import { ChatCodeBlock } from './ChatCodeBlock';
 
 interface Message {
 	id: string;
-	role: "user" | "assistant";
+	role: 'user' | 'assistant';
 	content: string;
 }
 
 export function ChatDemo() {
 	const [messages, setMessages] = useState<Message[]>([]);
-	const [input, setInput] = useState("");
+	const [input, setInput] = useState('');
 	const [threadInfo, setThreadInfo] = useState<{
 		threadId: string;
 		turnCount: number;
@@ -21,13 +21,13 @@ export function ChatDemo() {
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 	const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-	const { invoke, isLoading: running } = useAPI("POST /api/chat");
+	const { invoke, isLoading: running } = useAPI('POST /api/chat');
 
 	// Load conversation history on mount
 	useEffect(() => {
 		const loadHistory = async () => {
 			try {
-				const result = await invoke({ message: "", command: "history" });
+				const result = await invoke({ message: '', command: 'history' });
 				if (result) {
 					setThreadInfo({
 						threadId: result.threadId,
@@ -35,20 +35,20 @@ export function ChatDemo() {
 					});
 
 					// Parse history if it exists
-					if (result.response && result.response !== "No conversation history yet.") {
+					if (result.response && result.response !== 'No conversation history yet.') {
 						const parsed: Message[] = [];
-						const lines = result.response.split("\n\n");
+						const lines = result.response.split('\n\n');
 						for (const line of lines) {
-							if (line.startsWith("user: ")) {
+							if (line.startsWith('user: ')) {
 								parsed.push({
 									id: `hist-user-${parsed.length}`,
-									role: "user",
+									role: 'user',
 									content: line.slice(6),
 								});
-							} else if (line.startsWith("assistant: ")) {
+							} else if (line.startsWith('assistant: ')) {
 								parsed.push({
 									id: `hist-asst-${parsed.length}`,
-									role: "assistant",
+									role: 'assistant',
 									content: line.slice(11),
 								});
 							}
@@ -58,13 +58,13 @@ export function ChatDemo() {
 				}
 			} catch (err) {
 				// Silent fail on history load - not critical
-				console.error("Failed to load history:", err);
+				console.error('Failed to load history:', err);
 			} finally {
 				setLoading(false);
 			}
 		};
 		loadHistory();
-	// eslint-disable-next-line react-hooks/exhaustive-deps
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when messages change
@@ -80,15 +80,12 @@ export function ChatDemo() {
 		if (!input.trim() || running) return;
 
 		const userMessage = input.trim();
-		setInput("");
+		setInput('');
 		setError(null);
 
 		// Add user message immediately for responsive UI
 		const userMsgId = `user-${Date.now()}`;
-		setMessages((prev) => [
-			...prev,
-			{ id: userMsgId, role: "user", content: userMessage },
-		]);
+		setMessages((prev) => [...prev, { id: userMsgId, role: 'user', content: userMessage }]);
 
 		try {
 			const result = await invoke({ message: userMessage });
@@ -97,19 +94,19 @@ export function ChatDemo() {
 					...prev,
 					{
 						id: `asst-${Date.now()}`,
-						role: "assistant",
+						role: 'assistant',
 						content: result.response,
 					},
 				]);
 				setThreadInfo({ threadId: result.threadId, turnCount: result.turnCount });
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err : new Error("Unknown error"));
+			setError(err instanceof Error ? err : new Error('Unknown error'));
 		}
 	};
 
 	const handleKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter" && !e.shiftKey) {
+		if (e.key === 'Enter' && !e.shiftKey) {
 			e.preventDefault();
 			sendMessage();
 		}
@@ -118,11 +115,11 @@ export function ChatDemo() {
 	const resetConversation = async () => {
 		setError(null);
 		try {
-			await invoke({ message: "", command: "reset" });
+			await invoke({ message: '', command: 'reset' });
 			setMessages([]);
 			setThreadInfo(null);
 		} catch (err) {
-			setError(err instanceof Error ? err : new Error("Unknown error"));
+			setError(err instanceof Error ? err : new Error('Unknown error'));
 		}
 	};
 
@@ -130,7 +127,10 @@ export function ChatDemo() {
 		<div className="flex flex-col gap-4">
 			{/* Messages */}
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg flex flex-col h-[400px] overflow-hidden">
-				<div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
+				<div
+					ref={messagesContainerRef}
+					className="flex-1 overflow-y-auto p-4 flex flex-col gap-3"
+				>
 					{loading ? (
 						<div className="text-zinc-500 dark:text-zinc-600 text-center p-8 text-sm">
 							Loading conversation...
@@ -143,24 +143,22 @@ export function ChatDemo() {
 						messages.map((msg) => (
 							<div
 								key={msg.id}
-								className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+								className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
 							>
 								<div
 									className={`rounded-xl text-sm leading-relaxed max-w-[80%] px-4 py-3 ${
-										msg.role === "user"
-											? "bg-blue-100 dark:bg-blue-900/50 border border-blue-300 dark:border-blue-500 text-zinc-900 dark:text-white whitespace-pre-wrap"
-											: "bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white"
+										msg.role === 'user'
+											? 'bg-blue-100 dark:bg-blue-900/50 border border-blue-300 dark:border-blue-500 text-zinc-900 dark:text-white whitespace-pre-wrap'
+											: 'bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white'
 									}`}
 								>
-									{msg.role === "user" ? (
+									{msg.role === 'user' ? (
 										msg.content
 									) : (
 										<Markdown
 											components={{
 												p: ({ children }) => (
-													<p className="my-2 first:mt-0 last:mb-0">
-														{children}
-													</p>
+													<p className="my-2 first:mt-0 last:mb-0">{children}</p>
 												),
 												strong: ({ children }) => (
 													<strong className="font-semibold">{children}</strong>
@@ -168,12 +166,12 @@ export function ChatDemo() {
 												// Handle both inline code and fenced code blocks
 												code: ({ className, children }) => {
 													// Fenced code blocks have className like "language-typescript"
-													const match = /language-(\w+)/.exec(className || "");
+													const match = /language-(\w+)/.exec(className || '');
 													const isCodeBlock = Boolean(match);
 
 													if (isCodeBlock) {
-														const language = match?.[1] || "typescript";
-														const code = String(children).replace(/\n$/, "");
+														const language = match?.[1] || 'typescript';
+														const code = String(children).replace(/\n$/, '');
 														return <ChatCodeBlock code={code} language={language} />;
 													}
 
@@ -192,9 +190,7 @@ export function ChatDemo() {
 												ol: ({ children }) => (
 													<ol className="list-decimal pl-5 my-2">{children}</ol>
 												),
-												li: ({ children }) => (
-													<li className="my-1">{children}</li>
-												),
+												li: ({ children }) => <li className="my-1">{children}</li>,
 											}}
 										>
 											{msg.content}
@@ -216,7 +212,9 @@ export function ChatDemo() {
 
 				{/* Input */}
 				<div className="border-t border-zinc-200 dark:border-zinc-900 flex gap-2 p-4">
-					<label htmlFor="chat-input" className="sr-only">Message</label>
+					<label htmlFor="chat-input" className="sr-only">
+						Message
+					</label>
 					<input
 						id="chat-input"
 						type="text"
@@ -233,8 +231,8 @@ export function ChatDemo() {
 						type="button"
 						className={`rounded-md text-sm font-medium px-6 py-3 ${
 							running || !input.trim()
-								? "bg-zinc-200 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed"
-								: "bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300"
+								? 'bg-zinc-200 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed'
+								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
 						}`}
 					>
 						Send
@@ -245,8 +243,8 @@ export function ChatDemo() {
 						type="button"
 						className={`bg-zinc-200 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-600 dark:text-zinc-400 text-xs px-3 py-2 ${
 							running
-								? "opacity-50 cursor-not-allowed"
-								: "cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600"
+								? 'opacity-50 cursor-not-allowed'
+								: 'cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600'
 						}`}
 					>
 						Reset
@@ -255,8 +253,7 @@ export function ChatDemo() {
 			</div>
 			{threadInfo && (
 				<div className="text-zinc-500 dark:text-zinc-600 text-xs">
-					Thread: {threadInfo.threadId.slice(0, 20)}... | Turns:{" "}
-					{threadInfo.turnCount}
+					Thread: {threadInfo.threadId.slice(0, 20)}... | Turns: {threadInfo.turnCount}
 				</div>
 			)}
 
@@ -266,7 +263,6 @@ export function ChatDemo() {
 					Error: {error.message}
 				</div>
 			)}
-
 		</div>
 	);
 }

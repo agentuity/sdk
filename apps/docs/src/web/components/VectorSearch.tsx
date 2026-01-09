@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
 interface SearchMatch {
 	sku: string;
@@ -15,12 +15,10 @@ interface SearchResult {
 }
 
 // Sample documents that come pre-seeded
-const SAMPLE_DOCS = [
-	{ name: "products.json", description: "Office furniture catalog" },
-] as const;
+const SAMPLE_DOCS = [{ name: 'products.json', description: 'Office furniture catalog' }] as const;
 
 export function VectorSearch() {
-	const [query, setQuery] = useState("");
+	const [query, setQuery] = useState('');
 	const [result, setResult] = useState<SearchResult | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
@@ -29,14 +27,14 @@ export function VectorSearch() {
 	// Check if data exists on mount
 	const checkStatus = useCallback(async () => {
 		try {
-			const response = await fetch("/api/vector-storage/status");
+			const response = await fetch('/api/vector-storage/status');
 			const data = await response.json();
 			if (data.success && data.hasData) {
 				setSeeded(true);
 			}
 		} catch (err) {
 			// Status check is non-critical - log but don't block UI
-			console.warn("Vector status check failed:", err);
+			console.warn('Vector status check failed:', err);
 		}
 	}, []);
 
@@ -48,15 +46,15 @@ export function VectorSearch() {
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await fetch("/api/vector-storage/seed", { method: "POST" });
+			const response = await fetch('/api/vector-storage/seed', { method: 'POST' });
 			const data = await response.json();
 			if (data.success) {
 				setSeeded(true);
 			} else {
-				setError(data.error || "Failed to seed data");
+				setError(data.error || 'Failed to seed data');
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Unknown error");
+			setError(err instanceof Error ? err.message : 'Unknown error');
 		} finally {
 			setLoading(false);
 		}
@@ -70,23 +68,29 @@ export function VectorSearch() {
 		try {
 			// Auto-seed on first search if not already seeded
 			if (!seeded) {
-				await fetch("/api/vector-storage/seed", { method: "POST" });
+				const seedResponse = await fetch('/api/vector-storage/seed', { method: 'POST' });
+				if (!seedResponse.ok) {
+					throw new Error('Failed to auto-seed data');
+				}
 				setSeeded(true);
 			}
 
-			const response = await fetch("/api/vector-storage/search", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
+			const response = await fetch('/api/vector-storage/search', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ query }),
 			});
+			if (!response.ok) {
+				throw new Error(`Search failed: HTTP ${response.status}`);
+			}
 			const data = await response.json();
 			if (data.matches) {
 				setResult(data);
 			} else {
-				setError(data.error || "Search failed");
+				setError(data.error || 'Search failed');
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Unknown error");
+			setError(err instanceof Error ? err.message : 'Unknown error');
 		} finally {
 			setLoading(false);
 		}
@@ -94,7 +98,7 @@ export function VectorSearch() {
 
 	const clearResults = () => {
 		setResult(null);
-		setQuery("");
+		setQuery('');
 		setError(null);
 	};
 
@@ -122,13 +126,15 @@ export function VectorSearch() {
 								disabled={loading}
 								type="button"
 								className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-xs px-3 py-1.5 cursor-pointer ${
-									loading ? "opacity-50" : "hover:bg-cyan-400 dark:hover:bg-cyan-300"
+									loading ? 'opacity-50' : 'hover:bg-cyan-400 dark:hover:bg-cyan-300'
 								}`}
 							>
-								{loading ? "Loading..." : "Load Sample Data"}
+								{loading ? 'Loading...' : 'Load Sample Data'}
 							</button>
 						)}
-						{seeded && <span className="text-green-600 dark:text-green-400 text-xs">Loaded</span>}
+						{seeded && (
+							<span className="text-green-600 dark:text-green-400 text-xs">Loaded</span>
+						)}
 					</div>
 					{result && (
 						<button
@@ -152,14 +158,16 @@ export function VectorSearch() {
 			{/* Search box */}
 			<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-6">
 				<div className="flex gap-2">
-					<label htmlFor="vector-search" className="sr-only">Search products</label>
+					<label htmlFor="vector-search" className="sr-only">
+						Search products
+					</label>
 					<input
 						id="vector-search"
 						type="text"
 						placeholder="Search for products... (e.g., 'comfortable office chair', 'budget option', 'gaming')"
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
-						onKeyDown={(e) => e.key === "Enter" && search()}
+						onKeyDown={(e) => e.key === 'Enter' && search()}
 						className="flex-1 bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-900 dark:text-white text-sm px-4 py-3 outline-none focus:border-cyan-500 dark:focus:border-cyan-400"
 					/>
 					<button
@@ -168,11 +176,11 @@ export function VectorSearch() {
 						type="button"
 						className={`rounded-md text-sm font-medium px-6 py-3 ${
 							loading || !query.trim()
-								? "bg-zinc-200 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed"
-								: "bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300"
+								? 'bg-zinc-200 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-600 cursor-not-allowed'
+								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
 						}`}
 					>
-						{loading ? "..." : "Search"}
+						{loading ? '...' : 'Search'}
 					</button>
 				</div>
 			</div>
@@ -259,8 +267,8 @@ export function VectorSearch() {
 											<div
 												className={`text-[15px] font-medium ${
 													match.sku === result.recommendedSKU
-														? "text-cyan-700 dark:text-cyan-400"
-														: "text-zinc-900 dark:text-white"
+														? 'text-cyan-700 dark:text-cyan-400'
+														: 'text-zinc-900 dark:text-white'
 												}`}
 											>
 												{match.name}
@@ -270,17 +278,15 @@ export function VectorSearch() {
 													</span>
 												)}
 											</div>
-											<div className="text-zinc-500 text-xs mt-1">
-												{match.sku}
-											</div>
+											<div className="text-zinc-500 text-xs mt-1">{match.sku}</div>
 										</div>
 										<div className="text-right">
 											<div className="text-zinc-900 dark:text-white text-[15px]">
 												${match.price}
 											</div>
 											<div className="text-zinc-500 dark:text-zinc-400 text-xs mt-1">
-												{match.rating} stars |{" "}
-												{(match.similarity * 100).toFixed(0)}% match
+												{match.rating} stars | {(match.similarity * 100).toFixed(0)}%
+												match
 											</div>
 										</div>
 									</div>
@@ -289,7 +295,6 @@ export function VectorSearch() {
 					</div>
 				</>
 			)}
-
 		</div>
 	);
 }

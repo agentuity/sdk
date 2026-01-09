@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import Markdown from "react-markdown";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Markdown from 'react-markdown';
 
 interface StreamState {
-	status: "idle" | "connecting" | "streaming" | "done" | "error";
+	status: 'idle' | 'connecting' | 'streaming' | 'done' | 'error';
 	content: string;
 	tokenCount: number;
 	isEstimate: boolean;
@@ -16,22 +16,22 @@ function estimateTokens(text: string): number {
 }
 
 const MODELS = [
-	{ value: "gpt-5-nano", label: "GPT-5 Nano (OpenAI)" },
-	{ value: "gpt-5-mini", label: "GPT-5 Mini (OpenAI)" },
-	{ value: "claude-haiku-4-5", label: "Claude Haiku (Anthropic)" },
-	{ value: "claude-sonnet-4-5", label: "Claude Sonnet (Anthropic)" },
-	{ value: "gemini-2.5-flash-lite", label: "Gemini Flash Lite (Google)" },
-	{ value: "llama-3.3-70b-versatile", label: "Llama 3.3 70B (Groq)" },
+	{ value: 'gpt-5-nano', label: 'GPT-5 Nano (OpenAI)' },
+	{ value: 'gpt-5-mini', label: 'GPT-5 Mini (OpenAI)' },
+	{ value: 'claude-haiku-4-5', label: 'Claude Haiku (Anthropic)' },
+	{ value: 'claude-sonnet-4-5', label: 'Claude Sonnet (Anthropic)' },
+	{ value: 'gemini-2.5-flash-lite', label: 'Gemini Flash Lite (Google)' },
+	{ value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B (Groq)' },
 ];
 
 // Fixed prompt used by the backend
-const FIXED_PROMPT = "What are AI agents and how do they work?";
+const FIXED_PROMPT = 'What are AI agents and how do they work?';
 
 export function StreamingDemo() {
-	const [model, setModel] = useState("gpt-5-nano");
+	const [model, setModel] = useState('gpt-5-nano');
 	const [state, setState] = useState<StreamState>({
-		status: "idle",
-		content: "",
+		status: 'idle',
+		content: '',
 		tokenCount: 0,
 		isEstimate: true,
 		error: null,
@@ -52,17 +52,17 @@ export function StreamingDemo() {
 		abortControllerRef.current = new AbortController();
 
 		setState({
-			status: "connecting",
-			content: "",
+			status: 'connecting',
+			content: '',
 			tokenCount: 0,
 			isEstimate: true,
 			error: null,
 		});
 
 		try {
-			const response = await fetch("/api/streaming/stream", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
+			const response = await fetch('/api/streaming/stream', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ model }),
 				signal: abortControllerRef.current.signal,
 			});
@@ -72,10 +72,10 @@ export function StreamingDemo() {
 			}
 
 			if (!response.body) {
-				throw new Error("No response body");
+				throw new Error('No response body');
 			}
 
-			setState((prev) => ({ ...prev, status: "streaming" }));
+			setState((prev) => ({ ...prev, status: 'streaming' }));
 
 			const reader = response.body.getReader();
 			const decoder = new TextDecoder();
@@ -100,19 +100,19 @@ export function StreamingDemo() {
 			// Always show estimate for raw streams
 			setState((prev) => ({
 				...prev,
-				status: "done",
+				status: 'done',
 				isEstimate: true,
 			}));
 		} catch (error) {
-			if (error instanceof Error && error.name === "AbortError") {
+			if (error instanceof Error && error.name === 'AbortError') {
 				// User cancelled, don't show error
 				return;
 			}
 
 			setState((prev) => ({
 				...prev,
-				status: "error",
-				error: error instanceof Error ? error.message : "Unknown error",
+				status: 'error',
+				error: error instanceof Error ? error.message : 'Unknown error',
 			}));
 		}
 	}, [model]);
@@ -121,34 +121,33 @@ export function StreamingDemo() {
 		abortControllerRef.current?.abort();
 		setState((prev) => ({
 			...prev,
-			status: prev.content ? "done" : "idle",
+			status: prev.content ? 'done' : 'idle',
 		}));
 	}, []);
 
 	const reset = useCallback(() => {
 		abortControllerRef.current?.abort();
 		setState({
-			status: "idle",
-			content: "",
+			status: 'idle',
+			content: '',
 			tokenCount: 0,
 			isEstimate: true,
 			error: null,
 		});
 	}, []);
 
-	const isStreaming =
-		state.status === "streaming" || state.status === "connecting";
+	const isStreaming = state.status === 'streaming' || state.status === 'connecting';
 
 	const statusDotClass =
-		state.status === "streaming"
-			? "bg-cyan-400"
-			: state.status === "connecting"
-				? "bg-yellow-500"
-				: state.status === "done"
-					? "bg-green-500"
-					: state.status === "error"
-						? "bg-red-500"
-						: "bg-zinc-600";
+		state.status === 'streaming'
+			? 'bg-cyan-400'
+			: state.status === 'connecting'
+				? 'bg-yellow-500'
+				: state.status === 'done'
+					? 'bg-green-500'
+					: state.status === 'error'
+						? 'bg-red-500'
+						: 'bg-zinc-600';
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -214,8 +213,8 @@ export function StreamingDemo() {
 									type="button"
 									className={`bg-zinc-200 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-800 rounded-md text-zinc-600 dark:text-zinc-400 text-sm px-4 py-3 ${
 										isStreaming
-											? "cursor-not-allowed"
-											: "cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600"
+											? 'cursor-not-allowed'
+											: 'cursor-pointer hover:border-zinc-400 dark:hover:border-zinc-600'
 									}`}
 								>
 									Clear
@@ -229,9 +228,9 @@ export function StreamingDemo() {
 			{/* Output Section */}
 			<div
 				className={`bg-white dark:bg-black rounded-lg min-h-[200px] overflow-hidden ${
-					state.status === "error"
-						? "border border-red-300 dark:border-red-900"
-						: "border border-zinc-200 dark:border-zinc-900"
+					state.status === 'error'
+						? 'border border-red-300 dark:border-red-900'
+						: 'border border-zinc-200 dark:border-zinc-900'
 				}`}
 			>
 				{/* Status bar */}
@@ -239,16 +238,16 @@ export function StreamingDemo() {
 					<div className="flex items-center gap-2">
 						<div className={`w-2 h-2 rounded-full ${statusDotClass}`} />
 						<span className="text-zinc-500 dark:text-zinc-400 text-xs uppercase">
-							{state.status === "idle" && "Ready"}
-							{state.status === "connecting" && "Connecting..."}
-							{state.status === "streaming" && "Streaming"}
-							{state.status === "done" && "Complete"}
-							{state.status === "error" && "Error"}
+							{state.status === 'idle' && 'Ready'}
+							{state.status === 'connecting' && 'Connecting...'}
+							{state.status === 'streaming' && 'Streaming'}
+							{state.status === 'done' && 'Complete'}
+							{state.status === 'error' && 'Error'}
 						</span>
 					</div>
 					{state.tokenCount > 0 && (
 						<span className="text-zinc-500 dark:text-zinc-600 text-xs">
-							{state.tokenCount} tokens{state.isEstimate ? " (est.)" : ""}
+							{state.tokenCount} tokens{state.isEstimate ? ' (est.)' : ''}
 						</span>
 					)}
 				</div>
@@ -256,15 +255,17 @@ export function StreamingDemo() {
 				{/* Content area */}
 				<div
 					className={`text-sm leading-relaxed min-h-[150px] p-4 ${
-						state.status === "error" ? "text-red-600 dark:text-red-300" : "text-zinc-700 dark:text-zinc-300"
+						state.status === 'error'
+							? 'text-red-600 dark:text-red-300'
+							: 'text-zinc-700 dark:text-zinc-300'
 					}`}
 				>
-					{state.status === "idle" && !state.content && (
+					{state.status === 'idle' && !state.content && (
 						<span className="text-zinc-500 dark:text-zinc-600">
 							Output will appear here as text streams in...
 						</span>
 					)}
-					{state.status === "error" && state.error}
+					{state.status === 'error' && state.error}
 					{state.content && (
 						<Markdown
 							components={{
@@ -284,9 +285,7 @@ export function StreamingDemo() {
 										{children}
 									</h3>
 								),
-								ul: ({ children }) => (
-									<ul className="list-disc pl-5 my-2">{children}</ul>
-								),
+								ul: ({ children }) => <ul className="list-disc pl-5 my-2">{children}</ul>,
 								ol: ({ children }) => (
 									<ol className="list-decimal pl-5 my-2">{children}</ol>
 								),
@@ -307,12 +306,11 @@ export function StreamingDemo() {
 							{state.content}
 						</Markdown>
 					)}
-					{state.status === "streaming" && (
+					{state.status === 'streaming' && (
 						<span className="inline-block w-0.5 h-4 bg-cyan-500 dark:bg-cyan-400 ml-0.5 animate-pulse" />
 					)}
 				</div>
 			</div>
-
 		</div>
 	);
 }

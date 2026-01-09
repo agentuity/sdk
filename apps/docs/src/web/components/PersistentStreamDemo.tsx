@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface StreamInfo {
 	id: string;
@@ -16,7 +16,7 @@ export function PersistentStreamDemo() {
 
 	const fetchStreams = useCallback(async () => {
 		try {
-			const response = await fetch("/api/durable-stream/list");
+			const response = await fetch('/api/durable-stream/list');
 			const result = await response.json();
 			if (!result.error) {
 				setStreams(result.streams || []);
@@ -40,8 +40,8 @@ export function PersistentStreamDemo() {
 		setError(null);
 
 		try {
-			const response = await fetch("/api/durable-stream/create", {
-				method: "POST",
+			const response = await fetch('/api/durable-stream/create', {
+				method: 'POST',
 			});
 			const result = await response.json();
 
@@ -57,9 +57,7 @@ export function PersistentStreamDemo() {
 			if (pollRef.current) clearInterval(pollRef.current);
 			pollRef.current = setInterval(async () => {
 				const currentStreams = await fetchStreams();
-				const newStream = currentStreams.find(
-					(s: StreamInfo) => s.id === newStreamId,
-				);
+				const newStream = currentStreams.find((s: StreamInfo) => s.id === newStreamId);
 
 				if (newStream && newStream.sizeBytes > 0) {
 					if (pollRef.current) clearInterval(pollRef.current);
@@ -76,7 +74,7 @@ export function PersistentStreamDemo() {
 				}
 			}, 60000);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to create stream");
+			setError(err instanceof Error ? err.message : 'Failed to create stream');
 			setIsGenerating(false);
 		}
 	};
@@ -87,9 +85,9 @@ export function PersistentStreamDemo() {
 	};
 
 	const formatTitle = (startTime?: string) => {
-		if (!startTime) return "AI Summary";
+		if (!startTime) return 'AI Summary';
 		const date = new Date(startTime);
-		return `Summary - ${date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`;
+		return `Summary - ${date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 	};
 
 	// Only show streams with content
@@ -116,14 +114,14 @@ export function PersistentStreamDemo() {
 						type="button"
 						className={`rounded-md text-sm px-4 py-2 flex items-center gap-2 ${
 							isGenerating
-								? "bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-400 cursor-not-allowed"
-								: "bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300"
+								? 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-400 cursor-not-allowed'
+								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
 						}`}
 					>
 						{isGenerating && (
 							<span className="w-2 h-2 rounded-full bg-cyan-500 dark:bg-cyan-400 animate-pulse" />
 						)}
-						{isGenerating ? "Generating..." : "Generate Summary"}
+						{isGenerating ? 'Generating...' : 'Generate Summary'}
 					</button>
 				</div>
 				{readyStreams.length > 0 ? (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from 'react';
 
 interface FileInfo {
 	key: string;
@@ -29,7 +29,7 @@ interface PresignInfo {
 }
 
 // Sample document that comes pre-seeded
-const SAMPLE_DOC = { name: "hello.txt", description: "Sample text file" };
+const SAMPLE_DOC = { name: 'hello.txt', description: 'Sample text file' };
 
 export function ObjectStoreDemo() {
 	const [files, setFiles] = useState<FileInfo[]>([]);
@@ -43,19 +43,19 @@ export function ObjectStoreDemo() {
 	const fetchFiles = useCallback(async () => {
 		setLoading(true);
 		try {
-			const response = await fetch("/api/object-storage/list");
+			const response = await fetch('/api/object-storage/list');
 			const result: ListResult = await response.json();
 			if (result.success) {
 				setFiles(result.files);
 				// Check if sample file exists
-				if (result.files.some((f) => f.filename === "hello.txt")) {
+				if (result.files.some((f) => f.filename === 'hello.txt')) {
 					setSeeded(true);
 				}
 			} else {
-				setError(result.error || "Failed to list files");
+				setError(result.error || 'Failed to list files');
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to list files");
+			setError(err instanceof Error ? err.message : 'Failed to list files');
 		} finally {
 			setLoading(false);
 		}
@@ -70,8 +70,8 @@ export function ObjectStoreDemo() {
 		setLoading(true);
 		setError(null);
 		try {
-			const response = await fetch("/api/object-storage/seed", {
-				method: "POST",
+			const response = await fetch('/api/object-storage/seed', {
+				method: 'POST',
 			});
 
 			const result = await response.json();
@@ -80,15 +80,15 @@ export function ObjectStoreDemo() {
 				await fetchFiles();
 			} else {
 				// If already seeded, still mark as seeded
-				if (result.message?.includes("already")) {
+				if (result.message?.includes('already')) {
 					setSeeded(true);
 					await fetchFiles();
 				} else {
-					setError(result.message || "Failed to seed data");
+					setError(result.message || 'Failed to seed data');
 				}
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Failed to seed data");
+			setError(err instanceof Error ? err.message : 'Failed to seed data');
 		} finally {
 			setLoading(false);
 		}
@@ -100,7 +100,7 @@ export function ObjectStoreDemo() {
 		try {
 			const response = await fetch(
 				`/api/object-storage/presign/${encodeURIComponent(fileToPresign)}`,
-				{ method: "POST" },
+				{ method: 'POST' }
 			);
 			const result: PresignResult = await response.json();
 
@@ -111,10 +111,10 @@ export function ObjectStoreDemo() {
 					filename: result.filename,
 				});
 			} else {
-				setError(result.error || "Presign failed");
+				setError(result.error || 'Presign failed');
 			}
 		} catch (err) {
-			setError(err instanceof Error ? err.message : "Presign failed");
+			setError(err instanceof Error ? err.message : 'Presign failed');
 		}
 	};
 
@@ -150,13 +150,15 @@ export function ObjectStoreDemo() {
 							disabled={loading}
 							type="button"
 							className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-xs px-3 py-1.5 cursor-pointer ${
-								loading ? "opacity-50" : "hover:bg-cyan-400 dark:hover:bg-cyan-300"
+								loading ? 'opacity-50' : 'hover:bg-cyan-400 dark:hover:bg-cyan-300'
 							}`}
 						>
-							{loading ? "Loading..." : "Load Sample Data"}
+							{loading ? 'Loading...' : 'Load Sample Data'}
 						</button>
 					)}
-					{seeded && <span className="text-green-600 dark:text-green-400 text-xs">Loaded</span>}
+					{seeded && (
+						<span className="text-green-600 dark:text-green-400 text-xs">Loaded</span>
+					)}
 				</div>
 			</div>
 
@@ -179,10 +181,7 @@ export function ObjectStoreDemo() {
 				) : (
 					<div className="divide-y divide-zinc-200 dark:divide-zinc-900 max-h-64 overflow-auto">
 						{files.map((file) => (
-							<div
-								key={file.key}
-								className="px-4 py-3 flex items-center justify-between"
-							>
+							<div key={file.key} className="px-4 py-3 flex items-center justify-between">
 								<div className="flex flex-col">
 									<span className="text-zinc-900 dark:text-white text-sm font-mono">
 										{file.filename}
@@ -220,9 +219,7 @@ export function ObjectStoreDemo() {
 				<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg p-4">
 					<div className="flex items-center justify-between mb-2">
 						<div className="flex items-center gap-2">
-							<span className="text-zinc-500 text-xs uppercase">
-								Presigned URL
-							</span>
+							<span className="text-zinc-500 text-xs uppercase">Presigned URL</span>
 							<span className="text-zinc-500 dark:text-zinc-600 text-xs">
 								({presignInfo.filename} · expires in {presignInfo.expiresIn})
 							</span>
@@ -232,11 +229,11 @@ export function ObjectStoreDemo() {
 							onClick={copyToClipboard}
 							className={`text-xs px-2 py-1 rounded cursor-pointer transition-colors ${
 								copied
-									? "bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400"
-									: "bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-300"
+									? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-400'
+									: 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-300 dark:hover:bg-zinc-700 hover:text-zinc-800 dark:hover:text-zinc-300'
 							}`}
 						>
-							{copied ? "Copied!" : "Copy URL"}
+							{copied ? 'Copied!' : 'Copy URL'}
 						</button>
 					</div>
 					<div className="text-zinc-600 dark:text-zinc-400 text-sm font-mono break-all bg-zinc-100 dark:bg-zinc-950 rounded p-3 border border-zinc-300 dark:border-zinc-800">

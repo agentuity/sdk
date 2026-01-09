@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface Message {
 	id: number;
-	type: "system" | "echo" | "heartbeat" | "error" | "sent" | "reconnect";
+	type: 'system' | 'echo' | 'heartbeat' | 'error' | 'sent' | 'reconnect';
 	message: string;
 	timestamp: string;
 	original?: string;
@@ -10,7 +10,7 @@ interface Message {
 
 export function WebSocketDemo() {
 	const [messages, setMessages] = useState<Message[]>([]);
-	const [inputValue, setInputValue] = useState("");
+	const [inputValue, setInputValue] = useState('');
 	const [isConnected, setIsConnected] = useState(false);
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [isReconnecting, setIsReconnecting] = useState(false);
@@ -23,7 +23,7 @@ export function WebSocketDemo() {
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: scroll when messages change
 	useEffect(() => {
-		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+		messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
 	}, [messages.length]);
 
 	const connect = useCallback((isReconnect = false) => {
@@ -36,10 +36,8 @@ export function WebSocketDemo() {
 			manualDisconnectRef.current = false;
 		}
 
-		const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-		const ws = new WebSocket(
-			`${protocol}//${window.location.host}/api/websocket/connect`,
-		);
+		const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+		const ws = new WebSocket(`${protocol}//${window.location.host}/api/websocket/connect`);
 
 		ws.onopen = () => {
 			const wasReconnect = isReconnect;
@@ -54,8 +52,8 @@ export function WebSocketDemo() {
 					...prev,
 					{
 						id: messageIdRef.current++,
-						type: "reconnect",
-						message: "Reconnected successfully",
+						type: 'reconnect',
+						message: 'Reconnected successfully',
 						timestamp: new Date().toISOString(),
 					},
 				]);
@@ -80,7 +78,7 @@ export function WebSocketDemo() {
 					...prev,
 					{
 						id: messageIdRef.current++,
-						type: "system",
+						type: 'system',
 						message: event.data,
 						timestamp: new Date().toISOString(),
 					},
@@ -100,8 +98,8 @@ export function WebSocketDemo() {
 					...prev,
 					{
 						id: messageIdRef.current++,
-						type: "reconnect",
-						message: "Connection lost. Reconnecting...",
+						type: 'reconnect',
+						message: 'Connection lost. Reconnecting...',
 						timestamp: new Date().toISOString(),
 					},
 				]);
@@ -145,13 +143,13 @@ export function WebSocketDemo() {
 			...prev,
 			{
 				id: messageIdRef.current++,
-				type: "sent",
+				type: 'sent',
 				message: message,
 				timestamp: new Date().toISOString(),
 			},
 		]);
 
-		setInputValue("");
+		setInputValue('');
 	}, [inputValue]);
 
 	const clearMessages = useCallback(() => {
@@ -167,39 +165,39 @@ export function WebSocketDemo() {
 		};
 	}, []);
 
-	const getMessageStyle = (type: Message["type"]) => {
+	const getMessageStyle = (type: Message['type']) => {
 		switch (type) {
-			case "sent":
-				return "bg-cyan-900/30 border-cyan-700/50 ml-8";
-			case "echo":
-				return "bg-zinc-800/50 border-zinc-700/50 mr-8";
-			case "heartbeat":
-				return "bg-zinc-900/50 border-zinc-800/50 text-zinc-500 text-xs";
-			case "system":
-				return "bg-emerald-900/30 border-emerald-700/50";
-			case "error":
-				return "bg-red-900/30 border-red-700/50";
-			case "reconnect":
-				return "bg-yellow-900/30 border-yellow-700/50";
+			case 'sent':
+				return 'bg-cyan-900/30 border-cyan-700/50 ml-8';
+			case 'echo':
+				return 'bg-zinc-800/50 border-zinc-700/50 mr-8';
+			case 'heartbeat':
+				return 'bg-zinc-900/50 border-zinc-800/50 text-zinc-500 text-xs';
+			case 'system':
+				return 'bg-emerald-900/30 border-emerald-700/50';
+			case 'error':
+				return 'bg-red-900/30 border-red-700/50';
+			case 'reconnect':
+				return 'bg-yellow-900/30 border-yellow-700/50';
 			default:
-				return "bg-zinc-800/50 border-zinc-700/50";
+				return 'bg-zinc-800/50 border-zinc-700/50';
 		}
 	};
 
-	const getMessageLabel = (type: Message["type"]) => {
+	const getMessageLabel = (type: Message['type']) => {
 		switch (type) {
-			case "sent":
-				return "You";
-			case "echo":
-				return "Server";
-			case "heartbeat":
-				return "Heartbeat";
-			case "system":
-				return "System";
-			case "error":
-				return "Error";
-			case "reconnect":
-				return "Connection";
+			case 'sent':
+				return 'You';
+			case 'echo':
+				return 'Server';
+			case 'heartbeat':
+				return 'Heartbeat';
+			case 'system':
+				return 'System';
+			case 'error':
+				return 'Error';
+			case 'reconnect':
+				return 'Connection';
 			default:
 				return type;
 		}
@@ -221,35 +219,31 @@ export function WebSocketDemo() {
 						disabled={isConnecting}
 						className={`px-4 py-2 rounded text-sm font-medium transition-colors ${
 							isConnected
-								? "bg-red-600 hover:bg-red-700 text-white"
+								? 'bg-red-600 hover:bg-red-700 text-white'
 								: isConnecting
-									? "bg-zinc-700 text-zinc-400 cursor-not-allowed"
-									: "bg-cyan-400 hover:bg-cyan-300 text-black"
+									? 'bg-zinc-700 text-zinc-400 cursor-not-allowed'
+									: 'bg-cyan-400 hover:bg-cyan-300 text-black'
 						}`}
 					>
-						{isConnecting
-							? "Connecting..."
-							: isConnected
-								? "Disconnect"
-								: "Connect"}
+						{isConnecting ? 'Connecting...' : isConnected ? 'Disconnect' : 'Connect'}
 					</button>
 
 					<div className="flex items-center gap-2">
 						<div
 							className={`w-2 h-2 rounded-full ${
 								isConnected
-									? "bg-emerald-500"
+									? 'bg-emerald-500'
 									: isReconnecting
-										? "bg-yellow-500 animate-pulse"
-										: "bg-zinc-600"
+										? 'bg-yellow-500 animate-pulse'
+										: 'bg-zinc-600'
 							}`}
 						/>
 						<span className="text-sm text-zinc-400">
 							{isConnected
-								? "Connected"
+								? 'Connected'
 								: isReconnecting
-									? "Reconnecting..."
-									: "Disconnected"}
+									? 'Reconnecting...'
+									: 'Disconnected'}
 						</span>
 					</div>
 
@@ -270,8 +264,8 @@ export function WebSocketDemo() {
 						type="text"
 						value={inputValue}
 						onChange={(e) => setInputValue(e.target.value)}
-						onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-						placeholder={isConnected ? "Type a message..." : "Connect first..."}
+						onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+						placeholder={isConnected ? 'Type a message...' : 'Connect first...'}
 						disabled={!isConnected}
 						className="flex-1 bg-black border border-zinc-800 rounded px-3 py-2 text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-600 disabled:opacity-50"
 					/>
@@ -289,9 +283,7 @@ export function WebSocketDemo() {
 				<div className="bg-black border border-zinc-800 rounded-lg h-64 overflow-y-auto p-3 space-y-2">
 					{messages.length === 0 ? (
 						<div className="text-zinc-600 text-sm text-center py-8">
-							{isConnected
-								? "Send a message to start..."
-								: "Click Connect to start"}
+							{isConnected ? 'Send a message to start...' : 'Click Connect to start'}
 						</div>
 					) : (
 						messages.map((msg) => (
@@ -302,11 +294,11 @@ export function WebSocketDemo() {
 								<div className="flex items-center justify-between mb-1">
 									<span
 										className={`text-xs font-medium ${
-											msg.type === "sent"
-												? "text-cyan-400"
-												: msg.type === "heartbeat"
-													? "text-zinc-500"
-													: "text-zinc-400"
+											msg.type === 'sent'
+												? 'text-cyan-400'
+												: msg.type === 'heartbeat'
+													? 'text-zinc-500'
+													: 'text-zinc-400'
 										}`}
 									>
 										{getMessageLabel(msg.type)}
@@ -316,7 +308,7 @@ export function WebSocketDemo() {
 									</span>
 								</div>
 								<div
-									className={`${msg.type === "heartbeat" ? "text-zinc-500" : "text-white"}`}
+									className={`${msg.type === 'heartbeat' ? 'text-zinc-500' : 'text-white'}`}
 								>
 									{msg.message}
 								</div>
@@ -329,9 +321,7 @@ export function WebSocketDemo() {
 
 			{/* Features */}
 			<div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-6">
-				<h2 className="text-lg font-normal text-white mb-4">
-					WebSocket vs SSE
-				</h2>
+				<h2 className="text-lg font-normal text-white mb-4">WebSocket vs SSE</h2>
 
 				<div className="grid grid-cols-2 gap-4">
 					<div className="space-y-2">
@@ -345,9 +335,7 @@ export function WebSocketDemo() {
 						</ul>
 					</div>
 					<div className="space-y-2">
-						<h3 className="text-zinc-400 font-medium">
-							SSE (Server-Sent Events)
-						</h3>
+						<h3 className="text-zinc-400 font-medium">SSE (Server-Sent Events)</h3>
 						<ul className="text-sm text-zinc-500 space-y-1">
 							<li>Server to client only</li>
 							<li>Auto-reconnect (browser built-in)</li>

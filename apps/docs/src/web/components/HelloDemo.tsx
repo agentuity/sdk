@@ -1,9 +1,9 @@
-import { useAPI } from "@agentuity/react";
-import { type ChangeEvent, useState } from "react";
+import { useAPI } from '@agentuity/react';
+import { type ChangeEvent, useState } from 'react';
 
 export function HelloDemo() {
-	const [name, setName] = useState("World");
-	const { invoke, isLoading, data: greeting } = useAPI("POST /api/hello");
+	const [name, setName] = useState('World');
+	const { invoke, isLoading, data: greeting } = useAPI('POST /api/hello');
 
 	return (
 		<div className="flex flex-col gap-8">
@@ -11,9 +11,7 @@ export function HelloDemo() {
 				<div className="flex gap-4">
 					<input
 						disabled={isLoading}
-						onChange={(e: ChangeEvent<HTMLInputElement>) =>
-							setName(e.currentTarget.value)
-						}
+						onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.currentTarget.value)}
 						placeholder="Enter your name"
 						type="text"
 						value={name}
@@ -26,20 +24,20 @@ export function HelloDemo() {
 						type="button"
 						className={`bg-gradient-to-r from-cyan-600 to-blue-500 dark:from-cyan-800 dark:to-blue-500 border-none rounded-md text-white px-6 py-3 whitespace-nowrap ${
 							isLoading
-								? "opacity-50 cursor-not-allowed"
-								: "cursor-pointer hover:from-cyan-500 hover:to-blue-400 dark:hover:from-cyan-700 dark:hover:to-blue-400"
+								? 'opacity-50 cursor-not-allowed'
+								: 'cursor-pointer hover:from-cyan-500 hover:to-blue-400 dark:hover:from-cyan-700 dark:hover:to-blue-400'
 						}`}
 					>
-						{isLoading ? "Running..." : "Say Hello"}
+						{isLoading ? 'Running...' : 'Say Hello'}
 					</button>
 				</div>
 
 				<div
 					className={`bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md font-mono leading-relaxed px-4 py-3 ${
-						greeting ? "text-cyan-700 dark:text-cyan-400" : "text-zinc-500 dark:text-zinc-400"
+						greeting ? 'text-cyan-700 dark:text-cyan-400' : 'text-zinc-500 dark:text-zinc-400'
 					}`}
 				>
-					{greeting ?? "Waiting for request"}
+					{greeting ?? 'Waiting for request'}
 				</div>
 			</div>
 		</div>

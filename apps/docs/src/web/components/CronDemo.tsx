@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from 'react';
 
 interface LogEntry {
 	time: string;
@@ -9,10 +9,20 @@ export function CronDemo() {
 	const [isRunning, setIsRunning] = useState(false);
 	const [logs, setLogs] = useState<LogEntry[]>([]);
 	const [runCount, setRunCount] = useState(0);
+	const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const formatTime = () => {
 		return new Date().toLocaleTimeString();
 	};
+
+	// Cleanup timeout on unmount
+	useEffect(() => {
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		};
+	}, []);
 
 	const startSimulation = () => {
 		if (isRunning) return;
@@ -38,7 +48,7 @@ export function CronDemo() {
 			]);
 
 			if (runNumber < 3) {
-				setTimeout(() => runSimulation(runNumber + 1), 10000);
+				timeoutRef.current = setTimeout(() => runSimulation(runNumber + 1), 10000);
 			} else {
 				setIsRunning(false);
 			}
@@ -49,6 +59,10 @@ export function CronDemo() {
 	};
 
 	const reset = () => {
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+			timeoutRef.current = null;
+		}
 		setIsRunning(false);
 		setLogs([]);
 		setRunCount(0);
@@ -76,15 +90,11 @@ export function CronDemo() {
 							type="button"
 							className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-sm px-4 py-2 ${
 								isRunning
-									? "opacity-50 cursor-not-allowed"
-									: "cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300"
+									? 'opacity-50 cursor-not-allowed'
+									: 'cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
 							}`}
 						>
-							{isRunning
-							? "Running..."
-							: logs.length > 0
-								? "Run Again"
-								: "Start Simulation"}
+							{isRunning ? 'Running...' : logs.length > 0 ? 'Run Again' : 'Start Simulation'}
 						</button>
 						{logs.length > 0 && !isRunning && (
 							<button
@@ -115,9 +125,7 @@ export function CronDemo() {
 							<div className="w-2 h-2 rounded-full bg-yellow-500/70" />
 							<div className="w-2 h-2 rounded-full bg-green-500/70" />
 						</div>
-						<span className="text-green-600 text-[10px]">
-							Simulated Cron Output
-						</span>
+						<span className="text-green-600 text-[10px]">Simulated Cron Output</span>
 					</div>
 					<div className="space-y-1">
 						{logs.map((log, i) => (

@@ -9,23 +9,23 @@ export function JsonDisplay({
 	data,
 	loading = false,
 	error = null,
-	placeholder = "Waiting for request",
+	placeholder = 'Waiting for request',
 }: JsonDisplayProps) {
 	let content: string;
 	let colorClass: string;
 
 	if (loading) {
-		content = "Loading...";
-		colorClass = "text-zinc-500 dark:text-zinc-400";
+		content = 'Loading...';
+		colorClass = 'text-zinc-500 dark:text-zinc-400';
 	} else if (error) {
 		content = `Error: ${error}`;
-		colorClass = "text-red-500 dark:text-red-400";
+		colorClass = 'text-red-500 dark:text-red-400';
 	} else if (data !== null && data !== undefined) {
-		content = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-		colorClass = "text-cyan-700 dark:text-cyan-400";
+		content = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+		colorClass = 'text-cyan-700 dark:text-cyan-400';
 	} else {
 		content = placeholder;
-		colorClass = "text-zinc-500 dark:text-zinc-400";
+		colorClass = 'text-zinc-500 dark:text-zinc-400';
 	}
 
 	return (

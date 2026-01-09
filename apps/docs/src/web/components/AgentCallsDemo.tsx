@@ -1,11 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState } from 'react';
 
 // Fixed sample text for Agent Calls demo
-const SAMPLE_TEXT = "Hello!!!   from the ***SDK Explorer***...  #demo @test";
+const SAMPLE_TEXT = 'Hello!!!   from the ***SDK Explorer***...  #demo @test';
 
 // Mock terminal log entry
 interface LogEntry {
-	level: "info" | "debug";
+	level: 'info' | 'debug';
 	message: string;
 	delay: number;
 }
@@ -30,12 +30,12 @@ function MockTerminal({ logs, taskId }: { logs: LogEntry[]; taskId: string }) {
 		};
 	}, [logs]);
 
-	const getLevelColor = (level: LogEntry["level"]) => {
+	const getLevelColor = (level: LogEntry['level']) => {
 		switch (level) {
-			case "info":
-				return "text-green-400";
-			case "debug":
-				return "text-zinc-500";
+			case 'info':
+				return 'text-green-400';
+			case 'debug':
+				return 'text-zinc-500';
 		}
 	};
 
@@ -47,16 +47,12 @@ function MockTerminal({ logs, taskId }: { logs: LogEntry[]; taskId: string }) {
 					<div className="w-2 h-2 rounded-full bg-yellow-500/70" />
 					<div className="w-2 h-2 rounded-full bg-green-500/70" />
 				</div>
-				<span className="text-green-600 text-[10px]">
-					Example Terminal Output
-				</span>
+				<span className="text-green-600 text-[10px]">Example Terminal Output</span>
 			</div>
 			<div className="space-y-0.5">
 				{visibleLogs.map((log) => (
 					<div key={`${log.level}-${log.message}`} className="flex gap-2">
-						<span className={`uppercase ${getLevelColor(log.level)}`}>
-							[{log.level}]
-						</span>
+						<span className={`uppercase ${getLevelColor(log.level)}`}>[{log.level}]</span>
 						<span className="text-green-300">{log.message}</span>
 					</div>
 				))}
@@ -71,7 +67,7 @@ function MockTerminal({ logs, taskId }: { logs: LogEntry[]; taskId: string }) {
 	);
 }
 
-type Pattern = "sync" | "background" | "chain";
+type Pattern = 'sync' | 'background' | 'chain';
 
 interface SyncResult {
 	pattern: string;
@@ -107,22 +103,22 @@ type Result = SyncResult | BackgroundResult | ChainResult;
 function generateBackgroundLogs(taskId: string, operation: string): LogEntry[] {
 	return [
 		{
-			level: "info",
+			level: 'info',
 			message: `Background task queued {taskId: "${taskId}"}`,
 			delay: 0,
 		},
 		{
-			level: "info",
-			message: "Response sent to client immediately",
+			level: 'info',
+			message: 'Response sent to client immediately',
 			delay: 100,
 		},
 		{
-			level: "debug",
+			level: 'debug',
 			message: `Starting ${operation} operation in background...`,
 			delay: 500,
 		},
 		{
-			level: "info",
+			level: 'info',
 			message: `Background task completed {taskId: "${taskId}"}`,
 			delay: 3000,
 		},
@@ -131,8 +127,8 @@ function generateBackgroundLogs(taskId: string, operation: string): LogEntry[] {
 
 async function fetchAPI<T>(url: string, body?: object): Promise<T> {
 	const response = await fetch(url, {
-		method: "POST",
-		headers: { "Content-Type": "application/json" },
+		method: 'POST',
+		headers: { 'Content-Type': 'application/json' },
 		body: body ? JSON.stringify(body) : undefined,
 	});
 	if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -140,8 +136,8 @@ async function fetchAPI<T>(url: string, body?: object): Promise<T> {
 }
 
 export function AgentCallsDemo() {
-	const [pattern, setPattern] = useState<Pattern>("sync");
-	const [operation, setOperation] = useState("clean");
+	const [pattern, setPattern] = useState<Pattern>('sync');
+	const [operation, setOperation] = useState('clean');
 	const [result, setResult] = useState<Result | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [backgroundLogs, setBackgroundLogs] = useState<LogEntry[]>([]);
@@ -154,17 +150,17 @@ export function AgentCallsDemo() {
 		try {
 			let res: Result;
 			switch (pattern) {
-				case "sync":
-					res = await fetchAPI<SyncResult>("/api/agent-calls/sync", { operation });
+				case 'sync':
+					res = await fetchAPI<SyncResult>('/api/agent-calls/sync', { operation });
 					break;
-				case "background":
-					res = await fetchAPI<BackgroundResult>("/api/agent-calls/background", { operation });
-					if ("taskId" in res) {
+				case 'background':
+					res = await fetchAPI<BackgroundResult>('/api/agent-calls/background', { operation });
+					if ('taskId' in res) {
 						setBackgroundLogs(generateBackgroundLogs(res.taskId, operation));
 					}
 					break;
-				case "chain":
-					res = await fetchAPI<ChainResult>("/api/agent-calls/chain");
+				case 'chain':
+					res = await fetchAPI<ChainResult>('/api/agent-calls/chain');
 					break;
 			}
 			setResult(res);
@@ -188,9 +184,9 @@ export function AgentCallsDemo() {
 					<div className="flex gap-2">
 						{(
 							[
-								{ id: "sync", label: "Direct" },
-								{ id: "background", label: "Background" },
-								{ id: "chain", label: "Chain" },
+								{ id: 'sync', label: 'Direct' },
+								{ id: 'background', label: 'Background' },
+								{ id: 'chain', label: 'Chain' },
 							] as const
 						).map((p) => (
 							<button
@@ -200,9 +196,9 @@ export function AgentCallsDemo() {
 								onClick={() => setPattern(p.id)}
 								className={`px-4 py-2 rounded-md text-sm border transition-colors ${
 									pattern === p.id
-										? "bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 dark:border-cyan-700 text-cyan-700 dark:text-cyan-400"
-										: "bg-zinc-100 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600"
-								} ${isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+										? 'bg-cyan-100 dark:bg-cyan-900/30 border-cyan-500 dark:border-cyan-700 text-cyan-700 dark:text-cyan-400'
+										: 'bg-zinc-100 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-400 dark:hover:border-zinc-600'
+								} ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
 							>
 								{p.label}
 							</button>
@@ -211,11 +207,11 @@ export function AgentCallsDemo() {
 				</div>
 
 				{/* Operation selector (only for sync/background) */}
-				{pattern !== "chain" && (
+				{pattern !== 'chain' && (
 					<div className="flex flex-col gap-2">
 						<span className="text-zinc-500 text-sm">Operation</span>
 						<div className="flex gap-2">
-							{(["clean", "analyze"] as const).map((op) => (
+							{(['clean', 'analyze'] as const).map((op) => (
 								<button
 									key={op}
 									type="button"
@@ -223,9 +219,9 @@ export function AgentCallsDemo() {
 									onClick={() => setOperation(op)}
 									className={`px-3 py-1.5 rounded text-xs border transition-colors ${
 										operation === op
-											? "bg-blue-100 dark:bg-blue-900/30 border-blue-500 dark:border-blue-700 text-blue-700 dark:text-blue-400"
-											: "bg-zinc-100 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600"
-									} ${isLoading ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+											? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500 dark:border-blue-700 text-blue-700 dark:text-blue-400'
+											: 'bg-zinc-100 dark:bg-zinc-950 border-zinc-300 dark:border-zinc-800 text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-600'
+									} ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
 								>
 									{op}
 								</button>
@@ -247,11 +243,11 @@ export function AgentCallsDemo() {
 							type="button"
 							className={`bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black rounded-md text-sm px-6 py-3 whitespace-nowrap ${
 								isLoading
-									? "opacity-50 cursor-not-allowed"
-									: "cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300"
+									? 'opacity-50 cursor-not-allowed'
+									: 'cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
 							}`}
 						>
-							{isLoading ? "Running..." : "Run"}
+							{isLoading ? 'Running...' : 'Run'}
 						</button>
 					</div>
 				</div>
@@ -261,33 +257,32 @@ export function AgentCallsDemo() {
 					<div className="flex flex-col gap-4">
 						<div className="bg-zinc-100 dark:bg-zinc-950 border border-zinc-300 dark:border-zinc-800 rounded-md p-4">
 							{/* Direct (sync) result */}
-							{"result" in result && "original" in result.result && (
+							{'result' in result && 'original' in result.result && (
 								<div className="text-cyan-700 dark:text-cyan-400 font-mono">
 									{result.result.result}
 								</div>
 							)}
 
 							{/* Background result */}
-							{"taskId" in result && (
+							{'taskId' in result && (
 								<div className="space-y-2">
 									<div className="text-zinc-700 dark:text-zinc-300">
 										Response returned immediately, agent runs in background
 									</div>
 									<div className="text-zinc-500 text-sm">
-										Task ID:{" "}
-										<code className="text-cyan-700 dark:text-cyan-400">{result.taskId}</code>
+										Task ID:{' '}
+										<code className="text-cyan-700 dark:text-cyan-400">
+											{result.taskId}
+										</code>
 									</div>
 								</div>
 							)}
 
 							{/* Chain result */}
-							{"steps" in result && (
+							{'steps' in result && (
 								<div className="space-y-2">
 									{result.steps.map((step) => (
-										<div
-											key={step.step}
-											className="flex items-center gap-2 text-sm"
-										>
+										<div key={step.step} className="flex items-center gap-2 text-sm">
 											<span className="text-zinc-500 w-28 shrink-0">
 												Agent {step.step} ({step.operation}):
 											</span>
@@ -301,12 +296,11 @@ export function AgentCallsDemo() {
 						</div>
 
 						{/* Mock terminal for background tasks */}
-						{"taskId" in result && backgroundLogs.length > 0 && (
+						{'taskId' in result && backgroundLogs.length > 0 && (
 							<MockTerminal logs={backgroundLogs} taskId={result.taskId} />
 						)}
 					</div>
 				)}
-
 			</div>
 		</div>
 	);
