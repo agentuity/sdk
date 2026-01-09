@@ -41,13 +41,8 @@ router.post('/search', async (c) => {
 });
 
 router.get('/status', async (c) => {
-	try {
-		const hasData = await c.var.vector?.exists('sdk-explorer');
-		return c.json({ success: true, hasData: hasData ?? false });
-	} catch (error) {
-		c.var.logger?.error('Vector status check failed', { error });
-		return c.json({ success: false, error: 'Vector service unavailable' }, 503);
-	}
+	// Always show "Load Sample Data" button - seeding is idempotent so it's safe to re-run
+	return c.json({ success: true, hasData: false });
 });
 
 export default router;

@@ -7,7 +7,7 @@
 		<title>Agentuity SDK Explorer</title>
 		<!-- Prevent flash of wrong theme -->
 		<script>
-			(function() {
+			(function () {
 				const stored = localStorage.getItem('theme-preference');
 				const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 				const isDark = stored === 'dark' || (stored !== 'light' && prefersDark);
@@ -24,14 +24,22 @@
 				--animate-ellipsis: ellipsis 1.5s steps(4, end) infinite;
 
 				@keyframes ellipsis {
-					0% { content: '.'; }
-					25% { content: '..'; }
-					50% { content: '...'; }
-					75% { content: ''; }
+					0% {
+						content: '.';
+					}
+					25% {
+						content: '..';
+					}
+					50% {
+						content: '...';
+					}
+					75% {
+						content: '';
+					}
 				}
 			}
 
-			[data-loading="true"]::after {
+			[data-loading='true']::after {
 				content: '.';
 				display: inline-block;
 				width: 1rem;
