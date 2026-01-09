@@ -19,6 +19,8 @@
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
-		"typescript": "^5"
+		"@vitejs/plugin-react": "^4.5.2",
+		"typescript": "^5",
+		"vite": "^7.2.7"
 	}
 }

@@ -261,3 +261,42 @@ jobs:
               name: playwright-report
               path: playwright-report/
               retention-days: 7
+
+   framework-demo-test:
+      runs-on: blacksmith-4vcpu-ubuntu-2204
+      timeout-minutes: 15
+      name: Framework Integration Tests (TanStack & Next.js)
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Install Playwright browsers
+           run: bunx playwright install --with-deps chromium
+
+         - name: Prepare SDK for testing
+           run: bash scripts/prepare-sdk-for-testing.sh
+
+         - name: Install SDK in framework demo apps
+           run: |
+              # Install in main app (frontend packages)
+              bash scripts/install-sdk-tarballs.sh apps/testing/tanstack-start
+              bash scripts/install-sdk-tarballs.sh apps/testing/nextjs-app
+              # Install in agentuity subfolders (runtime packages)
+              bash scripts/install-sdk-tarballs.sh apps/testing/tanstack-start/agentuity
+              bash scripts/install-sdk-tarballs.sh apps/testing/nextjs-app/agentuity
+
+         - name: Run Framework Demo tests
+           run: bash scripts/test-framework-demos.sh --skip-build
+
+         - name: Upload Playwright report
+           uses: actions/upload-artifact@v4
+           if: always()
+           with:
+              name: framework-demo-playwright-report
+              path: playwright-report/
+              retention-days: 7

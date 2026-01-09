@@ -6,7 +6,7 @@
 	"scripts": {
 		"dev": "concurrently -n web,agent -c blue,cyan \"bun run dev:web\" \"bun run dev:agent\"",
 		"dev:web": "next dev --port 3001",
-		"dev:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts dev --dir .",
+		"dev:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts dev --dir . --port 3501",
 		"build": "concurrently \"bun run build:web\" \"bun run build:agent\"",
 		"build:web": "next build",
 		"build:agent": "cd agentuity && bun ../../../../packages/cli/bin/cli.ts build --dir . --dev",
