@@ -12,7 +12,7 @@
 
 import { describe, test, expect } from 'bun:test';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import * as esbuild from 'esbuild';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -59,7 +59,8 @@ describe('@agentuity/core subpath exports', () => {
 		expect(exists).toBe(true);
 
 		// Verify it exports the expected functions
-		const workbenchModule = await import(workbenchJsPath);
+		// Use pathToFileURL for portable dynamic import across runtimes
+		const workbenchModule = await import(pathToFileURL(workbenchJsPath).href);
 		expect(typeof workbenchModule.decodeWorkbenchConfig).toBe('function');
 		expect(typeof workbenchModule.encodeWorkbenchConfig).toBe('function');
 	});
@@ -93,15 +94,19 @@ describe('@agentuity/core subpath exports', () => {
 		// "./workbench": { "types": "...", "import": "..." }
 		// The fix uses simple string exports + typesVersions instead
 
+		// Cache package.json to avoid repeated I/O in the resolver
+		const pkgJson = await Bun.file(join(corePackageDir, 'package.json')).json();
+
 		// Use an esbuild plugin to resolve @agentuity/core to this package directory,
 		// simulating how npm consumers would have the package in node_modules
 		const coreResolverPlugin: esbuild.Plugin = {
 			name: 'core-resolver',
 			setup(build) {
 				// Resolve @agentuity/core subpath exports using this package's exports
-				build.onResolve({ filter: /^@agentuity\/core/ }, async (args) => {
-					const subpath = args.path.replace('@agentuity/core', '');
-					const pkgJson = await Bun.file(join(corePackageDir, 'package.json')).json();
+				// Tighter regex: match @agentuity/core exactly or with subpath
+				build.onResolve({ filter: /^@agentuity\/core(?:\/|$)/ }, (args) => {
+					if (!args.path.startsWith('@agentuity/core')) return undefined;
+					const subpath = args.path.slice('@agentuity/core'.length); // '' | '/workbench' | ...
 
 					// For subpath exports, look up the export in package.json
 					const exportKey = subpath === '' ? '.' : `.${subpath}`;
