@@ -20,10 +20,10 @@
 			]
 		}
 	},
-	"files": [".agentuity/.agentuity_types.ts"],
 	"include": [
 		"src/**/*",
-		"app.ts"
+		"app.ts",
+		".agentuity/.agentuity_types.ts"
 	],
 	"exclude": [
 		"node_modules",
