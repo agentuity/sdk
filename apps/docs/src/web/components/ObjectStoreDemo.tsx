@@ -77,6 +77,10 @@ export function ObjectStoreDemo() {
 				method: 'POST',
 			});
 
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+
 			const result = await response.json();
 			if (result.success) {
 				setSeeded(true);
@@ -105,6 +109,11 @@ export function ObjectStoreDemo() {
 				`/api/object-storage/presign/${encodeURIComponent(fileToPresign)}`,
 				{ method: 'POST' }
 			);
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+
 			const result: PresignResult = await response.json();
 
 			if (result.success) {
@@ -123,9 +132,13 @@ export function ObjectStoreDemo() {
 
 	const copyToClipboard = async () => {
 		if (presignInfo?.url) {
-			await navigator.clipboard.writeText(presignInfo.url);
-			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
+			try {
+				await navigator.clipboard.writeText(presignInfo.url);
+				setCopied(true);
+				setTimeout(() => setCopied(false), 2000);
+			} catch {
+				setError('Failed to copy to clipboard');
+			}
 		}
 	};
 

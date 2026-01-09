@@ -65,32 +65,43 @@ const CompletenessSchema = z.object({
 export const completenessEval = agent.createEval('answer-completeness', {
 	description: 'Evaluates whether the response fully addresses the prompt',
 	handler: async (ctx, _input, output) => {
-		const { object: result } = await generateObject({
-			model: openai('gpt-5-nano'),
-			schema: CompletenessSchema,
-			prompt: `Evaluate how completely this response addresses the given prompt.
+		try {
+			const { object: result } = await generateObject({
+				model: openai('gpt-5-nano'),
+				schema: CompletenessSchema,
+				prompt: `Evaluate how completely this response addresses the given prompt.
 
 Prompt: "${PROMPT}"
 
 Response: "${output.content}"
 
 Score from 0 (completely misses the point) to 1 (fully addresses all aspects).`,
-		});
+			});
 
-		const passed = (result?.score ?? 0) >= 0.7;
-		const evalResult = {
-			passed,
-			score: result?.score ?? 0,
-			reason: result?.reason ?? 'Failed to evaluate',
-		};
+			const passed = (result?.score ?? 0) >= 0.7;
+			const evalResult = {
+				passed,
+				score: result?.score ?? 0,
+				reason: result?.reason ?? 'Failed to evaluate',
+			};
 
-		ctx.logger.info('[EVAL] answer-completeness', {
-			passed: evalResult.passed,
-			score: evalResult.score,
-		});
+			ctx.logger.info('[EVAL] answer-completeness', {
+				passed: evalResult.passed,
+				score: evalResult.score,
+			});
 
-		await storeEvalResult(ctx, 'answer-completeness', evalResult);
-		return evalResult;
+			await storeEvalResult(ctx, 'answer-completeness', evalResult);
+			return evalResult;
+		} catch (error) {
+			const evalResult = {
+				passed: false,
+				score: 0,
+				reason: `Evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+			};
+			ctx.logger.error('[EVAL] answer-completeness failed', { error });
+			await storeEvalResult(ctx, 'answer-completeness', evalResult);
+			return evalResult;
+		}
 	},
 });
 
@@ -119,26 +130,36 @@ export const factualClaimsEval = agent.createEval('factual-claims', {
 			return evalResult;
 		}
 
-		const { object: result } = await generateObject({
-			model: openai('gpt-5-nano'),
-			schema: FactualCheckSchema,
-			prompt: `Analyze whether the following text contains factual claims about technology (real facts, statistics, actual capabilities, or verifiable information - not just fiction).
+		try {
+			const { object: result } = await generateObject({
+				model: openai('gpt-5-nano'),
+				schema: FactualCheckSchema,
+				prompt: `Analyze whether the following text contains factual claims about technology (real facts, statistics, actual capabilities, or verifiable information - not just fiction).
 
 Text to analyze:
 
 "${output.content}"
 
 Does this text contain factual claims about technology?`,
-		});
+			});
 
-		const evalResult = {
-			passed: result?.containsFactualClaims ?? false,
-			reason: result?.reason ?? 'Failed to evaluate',
-		};
+			const evalResult = {
+				passed: result?.containsFactualClaims ?? false,
+				reason: result?.reason ?? 'Failed to evaluate',
+			};
 
-		ctx.logger.info('[EVAL] factual-claims', { passed: evalResult.passed });
+			ctx.logger.info('[EVAL] factual-claims', { passed: evalResult.passed });
 
-		await storeEvalResult(ctx, 'factual-claims', evalResult);
-		return evalResult;
+			await storeEvalResult(ctx, 'factual-claims', evalResult);
+			return evalResult;
+		} catch (error) {
+			const evalResult = {
+				passed: false,
+				reason: `Evaluation failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+			};
+			ctx.logger.error('[EVAL] factual-claims failed', { error });
+			await storeEvalResult(ctx, 'factual-claims', evalResult);
+			return evalResult;
+		}
 	},
 });

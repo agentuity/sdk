@@ -27,7 +27,13 @@ export function WebSocketDemo() {
 	}, [messages.length]);
 
 	const connect = useCallback((isReconnect = false) => {
-		if (wsRef.current?.readyState === WebSocket.OPEN) return;
+		// Prevent multiple connection attempts if already connected or connecting
+		if (
+			wsRef.current?.readyState === WebSocket.OPEN ||
+			wsRef.current?.readyState === WebSocket.CONNECTING
+		) {
+			return;
+		}
 
 		if (isReconnect) {
 			setIsReconnecting(true);
@@ -137,7 +143,20 @@ export function WebSocketDemo() {
 		if (!inputValue.trim() || !wsRef.current) return;
 
 		const message = inputValue.trim();
-		wsRef.current.send(message);
+		try {
+			wsRef.current.send(message);
+		} catch {
+			setMessages((prev) => [
+				...prev,
+				{
+					id: messageIdRef.current++,
+					type: 'error',
+					message: 'Failed to send message. Connection may have been lost.',
+					timestamp: new Date().toISOString(),
+				},
+			]);
+			return;
+		}
 
 		setMessages((prev) => [
 			...prev,

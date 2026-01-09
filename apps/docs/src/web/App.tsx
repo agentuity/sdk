@@ -1011,7 +1011,6 @@ function AgentuityLogo({ className }: { className?: string }) {
 	return (
 		<svg
 			aria-hidden="true"
-			aria-label="Agentuity Logo"
 			className={className}
 			fill="none"
 			height="191"
