@@ -1,0 +1,51 @@
+{
+	"name": "docs",
+	"version": "0.1.6",
+	"license": "Apache-2.0",
+	"private": true,
+	"module": ".agentuity/app.js",
+	"type": "module",
+	"scripts": {
+		"build": "bun ../../packages/cli/bin/cli.ts build --dir . --dev",
+		"dev": "bun ../../packages/cli/bin/cli.ts dev --dir .",
+		"start": "bun .agentuity/app.js",
+		"deploy": "bun ../../packages/cli/bin/cli.ts deploy --dir .",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
+		"@agentuity/react": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"@agentuity/workbench": "workspace:*",
+		"@agentuity/evals": "workspace:*",
+		"@ai-sdk/anthropic": "^2.0.56",
+		"@ai-sdk/google": "^2.0.51",
+		"@ai-sdk/groq": "^2.0.33",
+		"@ai-sdk/openai": "^2.0.88",
+		"@heroicons/react": "^2.2.0",
+		"@shikijs/langs": "^3.20.0",
+		"@shikijs/themes": "^3.20.0",
+		"@tailwindcss/typography": "^0.5.19",
+		"ai": "^5.0.116",
+		"hono": "^4.11.3",
+		"openai": "latest",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0",
+		"react-markdown": "^10.1.0",
+		"shiki": "^3.20.0",
+		"zod": "^3.25.76"
+	},
+	"devDependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@types/bun": "latest",
+		"@types/react": "^19.2.0",
+		"@types/react-dom": "^19.2.0",
+		"@vitejs/plugin-react": "^4.5.2",
+		"typescript": "^5",
+		"vite": "^7.2.7",
+		"@tailwindcss/vite": "^4.1.18",
+		"tailwindcss": "^4.1.18"
+	}
+}
