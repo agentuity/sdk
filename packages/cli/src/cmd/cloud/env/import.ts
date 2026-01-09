@@ -68,11 +68,11 @@ export const importSubcommand = createSubcommand({
 			};
 		}
 
-		// Filter out AGENTUITY_ prefixed keys
+		// Filter out reserved AGENTUITY_ prefixed keys (except AGENTUITY_PUBLIC_)
 		const filteredEnv = filterAgentuitySdkKeys(importedEnv);
 
 		if (Object.keys(filteredEnv).length === 0) {
-			tui.warning('No valid environment variables to import (all were AGENTUITY_ prefixed)');
+			tui.warning('No valid environment variables to import (all were reserved AGENTUITY_ prefixed)');
 			return {
 				success: false,
 				imported: 0,
@@ -137,7 +137,9 @@ export const importSubcommand = createSubcommand({
 		const mergedEnv = mergeEnvVars(localEnv, filteredEnv);
 
 		await writeEnvFile(localEnvPath, mergedEnv, {
-			skipKeys: Object.keys(mergedEnv).filter((k) => k.startsWith('AGENTUITY_')),
+			skipKeys: Object.keys(mergedEnv).filter(
+				(k) => k.startsWith('AGENTUITY_') && !k.startsWith('AGENTUITY_PUBLIC_')
+			),
 		});
 
 		const count = Object.keys(filteredEnv).length;

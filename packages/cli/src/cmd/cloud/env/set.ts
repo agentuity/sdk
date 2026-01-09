@@ -8,6 +8,7 @@ import {
 	writeEnvFile,
 	filterAgentuitySdkKeys,
 	looksLikeSecret,
+	isReservedAgentuityKey,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
@@ -39,8 +40,8 @@ export const setSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, apiClient, project, projectDir } = ctx;
 
-		// Validate key doesn't start with AGENTUITY_
-		if (args.key.startsWith('AGENTUITY_')) {
+		// Validate key doesn't start with reserved AGENTUITY_ prefix (except AGENTUITY_PUBLIC_)
+		if (isReservedAgentuityKey(args.key)) {
 			tui.fatal('Cannot set AGENTUITY_ prefixed variables. These are reserved for system use.');
 		}
 

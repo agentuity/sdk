@@ -55,9 +55,11 @@ export const pullSubcommand = createSubcommand({
 			mergedEnv = mergeEnvVars(cloudSecrets, localEnv);
 		}
 
-		// Write to .env (skip AGENTUITY_ keys)
+		// Write to .env (skip reserved AGENTUITY_ keys, except AGENTUITY_PUBLIC_)
 		await writeEnvFile(targetEnvPath, mergedEnv, {
-			skipKeys: Object.keys(mergedEnv).filter((k) => k.startsWith('AGENTUITY_')),
+			skipKeys: Object.keys(mergedEnv).filter(
+				(k) => k.startsWith('AGENTUITY_') && !k.startsWith('AGENTUITY_PUBLIC_')
+			),
 		});
 
 		// Write AGENTUITY_SDK_KEY to .env if present and missing locally

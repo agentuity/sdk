@@ -7,6 +7,9 @@ import {
 	readEnvFile,
 	writeEnvFile,
 	filterAgentuitySdkKeys,
+	isPublicVarKey,
+	isReservedAgentuityKey,
+	PUBLIC_VAR_PREFIXES,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
@@ -43,9 +46,16 @@ export const setSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, apiClient, project, projectDir } = ctx;
 
-		// Validate key doesn't start with AGENTUITY_
-		if (args.key.startsWith('AGENTUITY_')) {
+		// Validate key doesn't start with reserved AGENTUITY_ prefix
+		if (isReservedAgentuityKey(args.key)) {
 			tui.fatal('Cannot set AGENTUITY_ prefixed variables. These are reserved for system use.');
+		}
+
+		// Validate key is not a public variable (these cannot be secrets)
+		if (isPublicVarKey(args.key)) {
+			tui.fatal(
+				`Cannot set public variables as secrets. Keys with prefixes (${PUBLIC_VAR_PREFIXES.join(', ')}) are exposed to the frontend. Use 'agentuity env set' instead.`
+			);
 		}
 
 		// Set in cloud (using secrets field)

@@ -9,6 +9,42 @@ export interface EnvVars {
 }
 
 /**
+ * Prefixes for public/frontend-exposed environment variables
+ */
+export const PUBLIC_VAR_PREFIXES = ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'] as const;
+
+/**
+ * Check if a key is a public variable (exposed to frontend)
+ */
+export function isPublicVarKey(key: string): boolean {
+	const upperKey = key.toUpperCase();
+	return PUBLIC_VAR_PREFIXES.some((prefix) => upperKey.startsWith(prefix));
+}
+
+/**
+ * Check if a key is a reserved AGENTUITY key (except AGENTUITY_PUBLIC_)
+ */
+export function isReservedAgentuityKey(key: string): boolean {
+	const upperKey = key.toUpperCase();
+	return upperKey.startsWith('AGENTUITY_') && !upperKey.startsWith('AGENTUITY_PUBLIC_');
+}
+
+/**
+ * Get public variable keys from secrets that should not be secrets
+ */
+export function getPublicSecretKeys(secrets: EnvVars): string[] {
+	return Object.keys(secrets).filter(isPublicVarKey);
+}
+
+/**
+ * Validate that no public variables are being added as secrets
+ * Returns the list of invalid keys, or empty array if valid
+ */
+export function validateNoPublicSecrets(secrets: EnvVars): string[] {
+	return getPublicSecretKeys(secrets);
+}
+
+/**
  * Find an existing .env file for reading.
  */
 export async function findExistingEnvFile(dir: string): Promise<string> {
@@ -162,14 +198,16 @@ export function mergeEnvVars(
 }
 
 /**
- * Filter out AGENTUITY_ prefixed keys from env vars
+ * Filter out reserved AGENTUITY_ prefixed keys from env vars
  * This is used when pushing to the cloud to avoid sending SDK keys
+ * Note: AGENTUITY_PUBLIC_* keys are allowed (they are public env vars)
  */
-export function filterAgentuitySdkKeys(vars: EnvVars): EnvVars {
+export function filterAgentuitySdkKeys(vars?: EnvVars): EnvVars {
+	if (!vars) return {};
 	const filtered: EnvVars = {};
 
 	for (const [key, value] of Object.entries(vars)) {
-		if (!key.startsWith('AGENTUITY_')) {
+		if (!isReservedAgentuityKey(key)) {
 			filtered[key] = value;
 		}
 	}
@@ -186,6 +224,7 @@ const secretExactKeys = ['DATABASE_URL'];
  * Split env vars into env and secrets based on key names
  * Convention: Keys ending with _SECRET, _KEY, _TOKEN, _PASSWORD are secrets
  * Also treats DATABASE_URL as a secret since it contains credentials
+ * Note: Public vars (VITE_, AGENTUITY_PUBLIC_, PUBLIC_) always go to env, never secrets
  */
 export function splitEnvAndSecrets(vars: EnvVars): {
 	env: EnvVars;
@@ -197,8 +236,14 @@ export function splitEnvAndSecrets(vars: EnvVars): {
 	const secretSuffixes = ['_SECRET', '_KEY', '_TOKEN', '_PASSWORD', '_PRIVATE'];
 
 	for (const [key, value] of Object.entries(vars)) {
-		// Skip AGENTUITY_ prefixed keys
-		if (key.startsWith('AGENTUITY_')) {
+		// Skip reserved AGENTUITY_ prefixed keys (except AGENTUITY_PUBLIC_)
+		if (isReservedAgentuityKey(key)) {
+			continue;
+		}
+
+		// Public vars always go to env, never secrets
+		if (isPublicVarKey(key)) {
+			env[key] = value;
 			continue;
 		}
 

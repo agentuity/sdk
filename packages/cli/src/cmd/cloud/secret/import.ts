@@ -8,6 +8,8 @@ import {
 	writeEnvFile,
 	filterAgentuitySdkKeys,
 	mergeEnvVars,
+	validateNoPublicSecrets,
+	splitEnvAndSecrets,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
@@ -63,11 +65,11 @@ export const importSubcommand = createSubcommand({
 			};
 		}
 
-		// Filter out AGENTUITY_ prefixed keys
-		const filteredSecrets = filterAgentuitySdkKeys(importedSecrets);
+		// Filter out reserved AGENTUITY_ prefixed keys
+		const filteredVars = filterAgentuitySdkKeys(importedSecrets);
 
-		if (Object.keys(filteredSecrets).length === 0) {
-			tui.warning('No valid secrets to import (all were AGENTUITY_ prefixed)');
+		if (Object.keys(filteredVars).length === 0) {
+			tui.warning('No valid secrets to import (all were reserved AGENTUITY_ prefixed)');
 			return {
 				success: false,
 				imported: 0,
@@ -77,32 +79,52 @@ export const importSubcommand = createSubcommand({
 			};
 		}
 
-		// Push to cloud (using secrets field)
+		// Split into env and secrets (public vars will be in env, not secrets)
+		const { env, secrets } = splitEnvAndSecrets(filteredVars);
+
+		// Check for any public vars that would have been treated as secrets
+		const publicSecretKeys = validateNoPublicSecrets(secrets);
+		if (publicSecretKeys.length > 0) {
+			tui.warning(
+				`Moving public variables to env: ${publicSecretKeys.join(', ')} (these are exposed to the frontend)`
+			);
+			for (const key of publicSecretKeys) {
+				delete secrets[key];
+				env[key] = filteredVars[key];
+			}
+		}
+
+		// Push to cloud
 		await tui.spinner('Importing secrets to cloud', () => {
 			return projectEnvUpdate(apiClient, {
 				id: project.projectId,
-				secrets: filteredSecrets,
+				env,
+				secrets,
 			});
 		});
 
 		// Merge with local .env file
 		const localEnvPath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(localEnvPath);
-		const mergedEnv = mergeEnvVars(localEnv, filteredSecrets);
+		const mergedEnv = mergeEnvVars(localEnv, filteredVars);
 
 		await writeEnvFile(localEnvPath, mergedEnv, {
-			skipKeys: Object.keys(mergedEnv).filter((k) => k.startsWith('AGENTUITY_')),
+			skipKeys: Object.keys(mergedEnv).filter((k) =>
+				k.startsWith('AGENTUITY_') && !k.startsWith('AGENTUITY_PUBLIC_')
+			),
 		});
 
-		const count = Object.keys(filteredSecrets).length;
+		const envCount = Object.keys(env).length;
+		const secretCount = Object.keys(secrets).length;
+		const totalCount = envCount + secretCount;
 		tui.success(
-			`Imported ${count} secret${count !== 1 ? 's' : ''} from ${args.file} to cloud and ${localEnvPath}`
+			`Imported ${totalCount} variable${totalCount !== 1 ? 's' : ''} from ${args.file} (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
 		);
 
 		return {
 			success: true,
-			imported: count,
-			skipped: Object.keys(importedSecrets).length - count,
+			imported: totalCount,
+			skipped: Object.keys(importedSecrets).length - totalCount,
 			path: localEnvPath,
 			file: args.file,
 		};

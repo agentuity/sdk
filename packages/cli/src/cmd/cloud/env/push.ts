@@ -37,7 +37,7 @@ export const pushSubcommand = createSubcommand({
 		const envFilePath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(envFilePath);
 
-		// Filter out AGENTUITY_ prefixed keys (don't push SDK keys)
+		// Filter out reserved AGENTUITY_ prefixed keys (except AGENTUITY_PUBLIC_)
 		const filteredEnv = filterAgentuitySdkKeys(localEnv);
 
 		if (Object.keys(filteredEnv).length === 0) {

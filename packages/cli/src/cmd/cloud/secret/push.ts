@@ -2,7 +2,13 @@ import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectEnvUpdate } from '@agentuity/server';
-import { findExistingEnvFile, readEnvFile, filterAgentuitySdkKeys } from '../../../env-util';
+import {
+	findExistingEnvFile,
+	readEnvFile,
+	filterAgentuitySdkKeys,
+	validateNoPublicSecrets,
+	splitEnvAndSecrets,
+} from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
 const SecretPushResponseSchema = z.object({
@@ -37,10 +43,25 @@ export const pushSubcommand = createSubcommand({
 		const envFilePath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(envFilePath);
 
-		// Filter out AGENTUITY_ prefixed keys (don't push SDK keys)
-		const filteredSecrets = filterAgentuitySdkKeys(localEnv);
+		// Filter out reserved AGENTUITY_ prefixed keys (don't push SDK keys)
+		const filteredEnv = filterAgentuitySdkKeys(localEnv);
 
-		if (Object.keys(filteredSecrets).length === 0) {
+		// Split into env and secrets (public vars will be in env, not secrets)
+		const { env, secrets } = splitEnvAndSecrets(filteredEnv);
+
+		// Check for any public vars that would have been treated as secrets
+		const publicSecretKeys = validateNoPublicSecrets(secrets);
+		if (publicSecretKeys.length > 0) {
+			tui.warning(
+				`Skipping public variables: ${publicSecretKeys.join(', ')} (these are exposed to the frontend)`
+			);
+			for (const key of publicSecretKeys) {
+				delete secrets[key];
+				env[key] = filteredEnv[key];
+			}
+		}
+
+		if (Object.keys(env).length === 0 && Object.keys(secrets).length === 0) {
 			tui.warning('No secrets to push');
 			return {
 				success: false,
@@ -49,20 +70,25 @@ export const pushSubcommand = createSubcommand({
 			};
 		}
 
-		// Push to cloud (using secrets field)
+		// Push to cloud
 		await tui.spinner('Pushing secrets to cloud', () => {
 			return projectEnvUpdate(apiClient, {
 				id: project.projectId,
-				secrets: filteredSecrets,
+				env,
+				secrets,
 			});
 		});
 
-		const count = Object.keys(filteredSecrets).length;
-		tui.success(`Pushed ${count} secret${count !== 1 ? 's' : ''} to cloud`);
+		const envCount = Object.keys(env).length;
+		const secretCount = Object.keys(secrets).length;
+		const totalCount = envCount + secretCount;
+		tui.success(
+			`Pushed ${totalCount} variable${totalCount !== 1 ? 's' : ''} to cloud (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
+		);
 
 		return {
 			success: true,
-			pushed: count,
+			pushed: totalCount,
 			source: envFilePath,
 		};
 	},
