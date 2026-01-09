@@ -191,7 +191,7 @@ ${getCommand('project create')}
 ${getCommand('auth signup')}
 ${getCommand('auth login')}
 ${getCommand('project create')}
-${getCommand('secret set API_KEY <value>')}
+${getCommand('env set API_KEY <value> --secret')}
 \`\`\`
 
 ### 2. Deploy Application
@@ -211,12 +211,12 @@ ${getCommand('cloud deploy')}
 ${getCommand('--json cloud deployment show')}
 \`\`\`
 
-### 3. Manage Secrets
+### 3. Manage Environment Variables & Secrets
 
 \`\`\`bash
-${getCommand('--json secret list')}
-${getCommand('secret set DATABASE_URL <value>')}
-${getCommand('secret get DATABASE_URL')}
+${getCommand('--json env list')}
+${getCommand('env set DATABASE_URL <value> --secret')}
+${getCommand('env get DATABASE_URL')}
 \`\`\`
 
 ### 4. List Resources

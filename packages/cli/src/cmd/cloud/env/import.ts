@@ -9,13 +9,15 @@ import {
 	filterAgentuitySdkKeys,
 	mergeEnvVars,
 	splitEnvAndSecrets,
-	looksLikeSecret,
+	validateNoPublicSecrets,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
 const EnvImportResponseSchema = z.object({
 	success: z.boolean().describe('Whether import succeeded'),
 	imported: z.number().describe('Number of items imported'),
+	envCount: z.number().describe('Number of env vars imported'),
+	secretCount: z.number().describe('Number of secrets imported'),
 	skipped: z.number().describe('Number of items skipped'),
 	path: z.string().describe('Local file path where variables were saved'),
 	file: z.string().describe('Source file path'),
@@ -23,7 +25,7 @@ const EnvImportResponseSchema = z.object({
 
 export const importSubcommand = createSubcommand({
 	name: 'import',
-	description: 'Import environment variables from a file to cloud and local .env',
+	description: 'Import environment variables and secrets from a file to cloud and local .env',
 	tags: [
 		'mutating',
 		'creates-resource',
@@ -34,8 +36,8 @@ export const importSubcommand = createSubcommand({
 	],
 	examples: [
 		{
-			command: getCommand('cloud env import .env'),
-			description: 'Import environment variables from .env file',
+			command: getCommand('cloud env import .env.backup'),
+			description: 'Import variables from backup file',
 		},
 		{
 			command: getCommand('cloud env import .env.local'),
@@ -55,86 +57,65 @@ export const importSubcommand = createSubcommand({
 		const { args, apiClient, project, projectDir } = ctx;
 
 		// Read the import file
-		const importedEnv = await readEnvFile(args.file);
+		const importedVars = await readEnvFile(args.file);
 
-		if (Object.keys(importedEnv).length === 0) {
-			tui.warning(`No environment variables found in ${args.file}`);
+		if (Object.keys(importedVars).length === 0) {
+			tui.warning(`No variables found in ${args.file}`);
 			return {
 				success: false,
 				imported: 0,
+				envCount: 0,
+				secretCount: 0,
 				skipped: 0,
 				path: '',
 				file: args.file,
 			};
 		}
 
-		// Filter out reserved AGENTUITY_ prefixed keys (except AGENTUITY_PUBLIC_)
-		const filteredEnv = filterAgentuitySdkKeys(importedEnv);
+		// Filter out reserved AGENTUITY_ prefixed keys
+		const filteredVars = filterAgentuitySdkKeys(importedVars);
 
-		if (Object.keys(filteredEnv).length === 0) {
-			tui.warning('No valid environment variables to import (all were reserved AGENTUITY_ prefixed)');
+		if (Object.keys(filteredVars).length === 0) {
+			tui.warning('No valid variables to import (all were reserved AGENTUITY_ prefixed)');
 			return {
 				success: false,
 				imported: 0,
-				skipped: Object.keys(importedEnv).length,
+				envCount: 0,
+				secretCount: 0,
+				skipped: Object.keys(importedVars).length,
 				path: '',
 				file: args.file,
 			};
 		}
 
-		// Check for potential secrets in the imported variables
-		const potentialSecrets: string[] = [];
-		for (const [key, value] of Object.entries(filteredEnv)) {
-			if (looksLikeSecret(key, value)) {
-				potentialSecrets.push(key);
-			}
-		}
-
-		if (potentialSecrets.length > 0) {
-			tui.warning(
-				`Found ${potentialSecrets.length} variable(s) that look like they should be secrets:`
-			);
-			for (const key of potentialSecrets) {
-				tui.info(`  • ${key}`);
-			}
-			tui.info(`\nSecrets should be stored using: ${getCommand('secret import <file>')}`);
-			tui.info('This keeps them more secure and properly masked in the cloud.');
-
-			const response = await tui.confirm(
-				'Do you still want to import these as regular environment variables?',
-				false
-			);
-
-			if (!response) {
-				tui.info(
-					`Cancelled. Use "${getCommand('secret import')}" to store these as secrets instead.`
-				);
-				return {
-					success: false,
-					imported: 0,
-					skipped: Object.keys(filteredEnv).length,
-					path: '',
-					file: args.file,
-				};
-			}
-		}
-
 		// Split into env and secrets based on key naming conventions
-		const { env: normalEnv, secrets } = splitEnvAndSecrets(filteredEnv);
+		const { env, secrets } = splitEnvAndSecrets(filteredVars);
+
+		// Check for any public vars that would have been treated as secrets
+		const publicSecretKeys = validateNoPublicSecrets(secrets);
+		if (publicSecretKeys.length > 0) {
+			tui.warning(
+				`Moving public variables to env: ${publicSecretKeys.join(', ')} (these are exposed to the frontend)`
+			);
+			for (const key of publicSecretKeys) {
+				delete secrets[key];
+				env[key] = filteredVars[key];
+			}
+		}
 
 		// Push to cloud
-		await tui.spinner('Importing environment variables to cloud', () => {
+		await tui.spinner('Importing variables to cloud', () => {
 			return projectEnvUpdate(apiClient, {
 				id: project.projectId,
-				env: normalEnv,
-				secrets: secrets,
+				env,
+				secrets,
 			});
 		});
 
-		// Merge environment
+		// Merge with local .env file
 		const localEnvPath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(localEnvPath);
-		const mergedEnv = mergeEnvVars(localEnv, filteredEnv);
+		const mergedEnv = mergeEnvVars(localEnv, filteredVars);
 
 		await writeEnvFile(localEnvPath, mergedEnv, {
 			skipKeys: Object.keys(mergedEnv).filter(
@@ -142,15 +123,20 @@ export const importSubcommand = createSubcommand({
 			),
 		});
 
-		const count = Object.keys(filteredEnv).length;
+		const envCount = Object.keys(env).length;
+		const secretCount = Object.keys(secrets).length;
+		const totalCount = envCount + secretCount;
+
 		tui.success(
-			`Imported ${count} environment variable${count !== 1 ? 's' : ''} from ${args.file} to cloud and ${localEnvPath}`
+			`Imported ${totalCount} variable${totalCount !== 1 ? 's' : ''} from ${args.file} (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
 		);
 
 		return {
 			success: true,
-			imported: count,
-			skipped: Object.keys(importedEnv).length - count,
+			imported: totalCount,
+			envCount,
+			secretCount,
+			skipped: Object.keys(importedVars).length - totalCount,
 			path: localEnvPath,
 			file: args.file,
 		};
