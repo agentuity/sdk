@@ -14,5 +14,5 @@
 		}
 	},
 	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],
-	"exclude": ["node_modules", ".agentuity"]
+	"exclude": ["node_modules", ".agentuity", "src/generated/routes.ts"]
 }
