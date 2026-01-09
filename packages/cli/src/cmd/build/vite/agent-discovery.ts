@@ -46,9 +46,144 @@ interface ASTCallExpression extends ASTNode {
 	callee: ASTNode;
 }
 
+interface ASTMemberExpression extends ASTNode {
+	object: ASTNode;
+	property: ASTNode;
+	computed?: boolean;
+}
+
 interface ASTVariableDeclarator extends ASTNode {
 	id: ASTNode;
 	init?: ASTNode;
+}
+
+interface ASTVariableDeclaration extends ASTNode {
+	declarations: ASTVariableDeclarator[];
+}
+
+interface ASTExportNamedDeclaration extends ASTNode {
+	declaration?: ASTNode;
+}
+
+interface ASTProgram {
+	type: string;
+	body: ASTNode[];
+}
+
+/**
+ * Type for identifier resolver function
+ */
+type IdentifierResolver = (name: string) => ASTNode | undefined;
+
+/**
+ * Build a file-local identifier resolver that maps top-level variable names
+ * to their initializer AST nodes. This allows resolving schema variable references.
+ */
+function buildIdentifierResolver(program: ASTProgram): IdentifierResolver {
+	const initMap = new Map<string, ASTNode>();
+
+	for (const node of program.body) {
+		// const x = ... or let x = ... or var x = ...
+		if (node.type === 'VariableDeclaration') {
+			const decl = node as unknown as ASTVariableDeclaration;
+			for (const d of decl.declarations) {
+				if (d.id.type === 'Identifier' && d.init) {
+					const id = d.id as ASTNodeIdentifier;
+					initMap.set(id.name, d.init);
+				}
+			}
+		}
+
+		// export const x = ...
+		if (node.type === 'ExportNamedDeclaration') {
+			const exp = node as unknown as ASTExportNamedDeclaration;
+			if (exp.declaration && exp.declaration.type === 'VariableDeclaration') {
+				const decl = exp.declaration as unknown as ASTVariableDeclaration;
+				for (const d of decl.declarations) {
+					if (d.id.type === 'Identifier' && d.init) {
+						const id = d.id as ASTNodeIdentifier;
+						initMap.set(id.name, d.init);
+					}
+				}
+			}
+		}
+	}
+
+	return (name: string) => initMap.get(name);
+}
+
+/**
+ * Get the property name from an AST node (Identifier or Literal).
+ */
+function getPropertyName(node: ASTNode): string | undefined {
+	if (node.type === 'Identifier') {
+		return (node as ASTNodeIdentifier).name;
+	}
+	if (node.type === 'Literal') {
+		const lit = node as ASTLiteral;
+		return typeof lit.value === 'string' ? lit.value : undefined;
+	}
+	return undefined;
+}
+
+/**
+ * Resolve an expression by following identifier references and member access chains.
+ * Applies a recursion limit to prevent infinite loops from cyclic references.
+ *
+ * Supported patterns:
+ * - Identifiers: `AgentInput` -> resolves to variable definition
+ * - Member access: `configs.agent1.schema` -> traverses object literals
+ */
+function resolveExpression(
+	node: ASTNode,
+	resolveIdentifier: IdentifierResolver,
+	depth = 0
+): ASTNode {
+	if (!node) return node;
+	if (depth > 8) return node; // Prevent cycles / deep alias chains
+
+	// Follow identifiers to their definitions
+	if (node.type === 'Identifier') {
+		const id = node as ASTNodeIdentifier;
+		const resolved = resolveIdentifier(id.name);
+		if (resolved) {
+			return resolveExpression(resolved, resolveIdentifier, depth + 1);
+		}
+	}
+
+	// Follow member expressions: configs.agent1.schema, baseSchemas.shared
+	if (node.type === 'MemberExpression') {
+		const memberExpr = node as unknown as ASTMemberExpression;
+
+		// Skip computed properties like configs[agentName]
+		if (memberExpr.computed) return node;
+
+		const propName = getPropertyName(memberExpr.property);
+		if (!propName) return node;
+
+		// First resolve the object side (e.g., configs -> { agent1: {...} })
+		const resolvedObj = resolveExpression(memberExpr.object, resolveIdentifier, depth + 1);
+
+		// If we got an object literal, look up the property
+		if (resolvedObj.type === 'ObjectExpression') {
+			const obj = resolvedObj as ASTObjectExpression;
+			for (const prop of obj.properties) {
+				// Skip spread elements
+				if (!prop || !('key' in prop) || !prop.key) continue;
+
+				const keyName = getPropertyName(prop.key);
+				if (keyName === propName && prop.value) {
+					// Recurse into the property value
+					return resolveExpression(prop.value as ASTNode, resolveIdentifier, depth + 1);
+				}
+			}
+		}
+
+		// Couldn't resolve - return original node
+		return node;
+	}
+
+	return node;
 }
 
 export interface AgentMetadata {
@@ -117,9 +252,43 @@ function generateStableEvalId(projectId: string, agentId: string, name: string):
 }
 
 /**
- * Extract schema code from createAgent call arguments
+ * Check if a property key matches a given name.
+ * Handles both Identifier keys (schema) and Literal keys ('schema').
  */
-function extractSchemaCode(callargexp: ASTObjectExpression): {
+function isKeyNamed(prop: ASTPropertyNode, name: 'schema' | 'input' | 'output'): boolean {
+	if (!prop || !prop.key) return false;
+
+	if (prop.key.type === 'Identifier') {
+		return (prop.key as ASTNodeIdentifier).name === name;
+	}
+	if (prop.key.type === 'Literal') {
+		const lit = prop.key as unknown as ASTLiteral;
+		return typeof lit.value === 'string' && lit.value === name;
+	}
+	return false;
+}
+
+/**
+ * Extract schema code from createAgent call arguments.
+ * Resolves variable references to their actual definitions when possible.
+ *
+ * Supported patterns:
+ * - Inline schema: `schema: { input: s.object({...}), output: s.object({...}) }`
+ * - Variable reference: `schema: { input: AgentInput, output: AgentOutput }`
+ * - Schema object variable: `schema: schemaVar` where schemaVar is a top-level const
+ * - Shorthand: `schema: { input, output }` where input/output are top-level consts
+ *
+ * Unsupported patterns (returns empty or partial result):
+ * - Config alias: `createAgent('x', configVar)` - config must be inline object
+ * - Schema from member access: `schema: configs.agent1.schema`
+ * - Schema from function call: `schema: getSchema()`
+ * - Destructured variables: `const { schema } = config`
+ * - Cross-file imports (falls back to identifier name)
+ */
+function extractSchemaCode(
+	callargexp: ASTObjectExpression,
+	resolveIdentifier: IdentifierResolver
+): {
 	inputSchemaCode?: string;
 	outputSchemaCode?: string;
 } {
@@ -127,9 +296,16 @@ function extractSchemaCode(callargexp: ASTObjectExpression): {
 
 	// Find the schema property
 	for (const prop of callargexp.properties) {
-		if (prop.key.type === 'Identifier' && prop.key.name === 'schema') {
-			if (prop.value.type === 'ObjectExpression') {
-				schemaObj = prop.value as ASTObjectExpression;
+		// Skip spread elements or any non-Property nodes
+		if (!prop || !('key' in prop) || !prop.key) continue;
+
+		if (isKeyNamed(prop, 'schema')) {
+			// Resolve the schema value if it's an identifier (e.g., schema: schemaVar)
+			let valueNode = prop.value as ASTNode;
+			valueNode = resolveExpression(valueNode, resolveIdentifier);
+
+			if (valueNode.type === 'ObjectExpression') {
+				schemaObj = valueNode as ASTObjectExpression;
 				break;
 			}
 		}
@@ -144,12 +320,17 @@ function extractSchemaCode(callargexp: ASTObjectExpression): {
 
 	// Extract input and output schema code
 	for (const prop of schemaObj.properties) {
-		if (prop.key.type === 'Identifier') {
-			if (prop.key.name === 'input' && prop.value) {
-				inputSchemaCode = formatSchemaCode(generate(prop.value));
-			} else if (prop.key.name === 'output' && prop.value) {
-				outputSchemaCode = formatSchemaCode(generate(prop.value));
-			}
+		// Skip spread elements or any non-Property nodes
+		if (!prop || !('key' in prop) || !prop.key) continue;
+
+		if (isKeyNamed(prop, 'input') && prop.value) {
+			// Resolve variable reference if the value is an identifier
+			const resolvedValue = resolveExpression(prop.value as ASTNode, resolveIdentifier);
+			inputSchemaCode = formatSchemaCode(generate(resolvedValue));
+		} else if (isKeyNamed(prop, 'output') && prop.value) {
+			// Resolve variable reference if the value is an identifier
+			const resolvedValue = resolveExpression(prop.value as ASTNode, resolveIdentifier);
+			outputSchemaCode = formatSchemaCode(generate(resolvedValue));
 		}
 	}
 
@@ -179,13 +360,19 @@ function extractAgentMetadata(
 	projectId: string,
 	deploymentId: string
 ): AgentMetadata | null {
-	const ast = acornLoose.parse(code, { ecmaVersion: 'latest', sourceType: 'module' });
+	const ast = acornLoose.parse(code, {
+		ecmaVersion: 'latest',
+		sourceType: 'module',
+	}) as ASTProgram;
+
+	// Build identifier resolver for resolving schema variable references
+	const resolveIdentifier = buildIdentifierResolver(ast);
 
 	// Calculate file version (hash of contents)
 	const version = hash(code);
 
 	// Find createAgent calls
-	for (const node of (ast as { body: ASTNode[] }).body) {
+	for (const node of ast.body) {
 		if (node.type === 'ExportDefaultDeclaration') {
 			const declaration = (node as unknown as { declaration: ASTNode }).declaration;
 
@@ -204,8 +391,11 @@ function extractAgentMetadata(
 					// Second arg is config object
 					const callargexp = callExpr.arguments[1] as ASTObjectExpression;
 
-					// Extract schemas
-					const { inputSchemaCode, outputSchemaCode } = extractSchemaCode(callargexp);
+					// Extract schemas (with variable resolution)
+					const { inputSchemaCode, outputSchemaCode } = extractSchemaCode(
+						callargexp,
+						resolveIdentifier
+					);
 
 					// Extract description from either direct property or metadata object
 					let description: string | undefined;
@@ -262,7 +452,10 @@ function extractAgentMetadata(
 						const name = String(nameArg.value);
 
 						const callargexp = callExpr.arguments[1] as ASTObjectExpression;
-						const { inputSchemaCode, outputSchemaCode } = extractSchemaCode(callargexp);
+						const { inputSchemaCode, outputSchemaCode } = extractSchemaCode(
+							callargexp,
+							resolveIdentifier
+						);
 
 						let description: string | undefined;
 						for (const prop of callargexp.properties) {
