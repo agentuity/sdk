@@ -589,7 +589,9 @@ export class CliClient {
 		}
 
 		// CLI returns { sandboxes: [...], total: N }, extract the array
-		const result = await this.exec<{ sandboxes: SandboxInfo[]; total: number }>(args, { format: 'json' });
+		const result = await this.exec<{ sandboxes: SandboxInfo[]; total: number }>(args, {
+			format: 'json',
+		});
 		if (result.success && result.data) {
 			return { success: true, data: result.data.sandboxes || [], exitCode: result.exitCode };
 		}
@@ -611,7 +613,15 @@ export class CliClient {
 	 */
 	async sandboxDelete(sandboxId: string): Promise<CliResult<void>> {
 		return this.exec<void>(
-			['cloud', 'sandbox', 'delete', sandboxId, '--confirm', '--region', this.getSandboxRegion()],
+			[
+				'cloud',
+				'sandbox',
+				'delete',
+				sandboxId,
+				'--confirm',
+				'--region',
+				this.getSandboxRegion(),
+			],
 			{ format: 'json' }
 		);
 	}
@@ -652,9 +662,12 @@ export class CliClient {
 		args.push('-l', '--region', this.getSandboxRegion());
 
 		// CLI returns { files: [...], total: N }, extract the array and add name from path
-		const result = await this.exec<{ files: Array<Omit<SandboxFileInfo, 'name'>>; total: number }>(args, { format: 'json' });
+		const result = await this.exec<{
+			files: Array<Omit<SandboxFileInfo, 'name'>>;
+			total: number;
+		}>(args, { format: 'json' });
 		if (result.success && result.data) {
-			const files = (result.data.files || []).map(f => ({
+			const files = (result.data.files || []).map((f) => ({
 				...f,
 				name: f.path.split('/').pop() || f.path, // Extract filename from path
 			}));
@@ -705,7 +718,15 @@ export class CliClient {
 		archivePath: string,
 		destPath?: string
 	): Promise<CliResult<void>> {
-		const args = ['cloud', 'sandbox', 'upload', sandboxId, archivePath, '--region', this.getSandboxRegion()];
+		const args = [
+			'cloud',
+			'sandbox',
+			'upload',
+			sandboxId,
+			archivePath,
+			'--region',
+			this.getSandboxRegion(),
+		];
 		if (destPath) {
 			args.push('--path', destPath);
 		}
@@ -720,7 +741,15 @@ export class CliClient {
 		outputPath: string,
 		sourcePath?: string
 	): Promise<CliResult<void>> {
-		const args = ['cloud', 'sandbox', 'download', sandboxId, outputPath, '--region', this.getSandboxRegion()];
+		const args = [
+			'cloud',
+			'sandbox',
+			'download',
+			sandboxId,
+			outputPath,
+			'--region',
+			this.getSandboxRegion(),
+		];
 		if (sourcePath) {
 			args.push('--path', sourcePath);
 		}
@@ -735,7 +764,15 @@ export class CliClient {
 		remotePath: string,
 		recursive = false
 	): Promise<CliResult<void>> {
-		const args = ['cloud', 'sandbox', 'mkdir', sandboxId, remotePath, '--region', this.getSandboxRegion()];
+		const args = [
+			'cloud',
+			'sandbox',
+			'mkdir',
+			sandboxId,
+			remotePath,
+			'--region',
+			this.getSandboxRegion(),
+		];
 		if (recursive) {
 			args.push('-p');
 		}
@@ -760,7 +797,15 @@ export class CliClient {
 		remotePath: string,
 		recursive = false
 	): Promise<CliResult<void>> {
-		const args = ['cloud', 'sandbox', 'rmdir', sandboxId, remotePath, '--region', this.getSandboxRegion()];
+		const args = [
+			'cloud',
+			'sandbox',
+			'rmdir',
+			sandboxId,
+			remotePath,
+			'--region',
+			this.getSandboxRegion(),
+		];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -811,7 +856,15 @@ export class CliClient {
 	 * Create a snapshot of a sandbox.
 	 */
 	async snapshotCreate(sandboxId: string, tag?: string): Promise<CliResult<SnapshotInfo>> {
-		const args = ['cloud', 'sandbox', 'snapshot', 'create', sandboxId, '--region', this.getSandboxRegion()];
+		const args = [
+			'cloud',
+			'sandbox',
+			'snapshot',
+			'create',
+			sandboxId,
+			'--region',
+			this.getSandboxRegion(),
+		];
 		if (tag) {
 			args.push('--tag', tag);
 		}
@@ -827,7 +880,9 @@ export class CliClient {
 			args.push('--sandbox', sandboxId);
 		}
 		// CLI returns { snapshots: [], total: N }
-		const result = await this.exec<{ snapshots: SnapshotInfo[]; total: number }>(args, { format: 'json' });
+		const result = await this.exec<{ snapshots: SnapshotInfo[]; total: number }>(args, {
+			format: 'json',
+		});
 		if (result.success && result.data) {
 			return { success: true, data: result.data.snapshots || [], exitCode: result.exitCode };
 		}
@@ -849,7 +904,16 @@ export class CliClient {
 	 */
 	async snapshotDelete(snapshotId: string): Promise<CliResult<void>> {
 		return this.exec<void>(
-			['cloud', 'sandbox', 'snapshot', 'delete', snapshotId, '--confirm', '--region', this.getSandboxRegion()],
+			[
+				'cloud',
+				'sandbox',
+				'snapshot',
+				'delete',
+				snapshotId,
+				'--confirm',
+				'--region',
+				this.getSandboxRegion(),
+			],
 			{ format: 'json' }
 		);
 	}
@@ -858,7 +922,15 @@ export class CliClient {
 	 * Tag or untag a snapshot.
 	 */
 	async snapshotTag(snapshotId: string, tag: string | null): Promise<CliResult<void>> {
-		const args = ['cloud', 'sandbox', 'snapshot', 'tag', snapshotId, '--region', this.getSandboxRegion()];
+		const args = [
+			'cloud',
+			'sandbox',
+			'snapshot',
+			'tag',
+			snapshotId,
+			'--region',
+			this.getSandboxRegion(),
+		];
 		if (tag === null) {
 			args.push('--clear');
 		} else {
@@ -1175,7 +1247,13 @@ export interface SessionLog {
 
 // Sandbox types
 export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'failed';
-export type ExecutionStatus = 'queued' | 'running' | 'completed' | 'failed' | 'timeout' | 'cancelled';
+export type ExecutionStatus =
+	| 'queued'
+	| 'running'
+	| 'completed'
+	| 'failed'
+	| 'timeout'
+	| 'cancelled';
 
 export interface SandboxResources {
 	memory?: string;

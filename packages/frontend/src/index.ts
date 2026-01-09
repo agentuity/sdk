@@ -2,7 +2,12 @@ export { getProcessEnv } from './env';
 export { buildUrl, defaultBaseUrl } from './url';
 export { deserializeData } from './serialization';
 export { createReconnectManager, type ReconnectOptions, type ReconnectManager } from './reconnect';
-export { type RouteRegistry, type WebSocketRouteRegistry, type SSERouteRegistry } from './types';
+export {
+	type RouteRegistry,
+	type WebSocketRouteRegistry,
+	type SSERouteRegistry,
+	type RPCRouteRegistry,
+} from './types';
 export { jsonEqual } from './memo';
 export {
 	WebSocketManager,

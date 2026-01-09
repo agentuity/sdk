@@ -41,9 +41,7 @@ let saveListener: vscode.Disposable | undefined;
 const uploadDebounceTimers: Map<string, NodeJS.Timeout> = new Map();
 const UPLOAD_DEBOUNCE_MS = 1000; // 1 second debounce
 
-export function registerSandboxExplorer(
-	context: vscode.ExtensionContext
-): SandboxTreeDataProvider {
+export function registerSandboxExplorer(context: vscode.ExtensionContext): SandboxTreeDataProvider {
 	// Initialize sandbox manager
 	initSandboxManager(context);
 
@@ -171,13 +169,10 @@ function registerCommands(
 
 	// Link sandbox
 	context.subscriptions.push(
-		vscode.commands.registerCommand(
-			'agentuity.sandbox.link',
-			async (item?: SandboxTreeItem) => {
-				if (!item?.sandboxData) return;
-				await linkSandbox(item.sandboxData.sandboxId, provider);
-			}
-		)
+		vscode.commands.registerCommand('agentuity.sandbox.link', async (item?: SandboxTreeItem) => {
+			if (!item?.sandboxData) return;
+			await linkSandbox(item.sandboxData.sandboxId, provider);
+		})
 	);
 
 	// Unlink sandbox
@@ -193,45 +188,42 @@ function registerCommands(
 
 	// Sync project to sandbox
 	context.subscriptions.push(
-		vscode.commands.registerCommand(
-			'agentuity.sandbox.sync',
-			async (item?: SandboxTreeItem) => {
-				let sandboxId: string | undefined;
+		vscode.commands.registerCommand('agentuity.sandbox.sync', async (item?: SandboxTreeItem) => {
+			let sandboxId: string | undefined;
 
-				if (item?.sandboxData) {
-					sandboxId = item.sandboxData.sandboxId;
-				} else {
-					// Try to get from linked sandboxes
-					const linked = getSandboxManager().getLinkedSandboxes();
-					if (linked.length === 0) {
-						vscode.window.showWarningMessage(
-							'No sandbox linked to this workspace. Link a sandbox first.'
-						);
-						return;
-					}
-					if (linked.length === 1) {
-						sandboxId = linked[0].sandboxId;
-					} else {
-						// Pick one
-						const picked = await vscode.window.showQuickPick(
-							linked.map((l) => ({
-								label: l.name || l.sandboxId,
-								description: l.sandboxId,
-								sandboxId: l.sandboxId,
-							})),
-							{ placeHolder: 'Select sandbox to sync to' }
-						);
-						if (picked) {
-							sandboxId = picked.sandboxId;
-						}
-					}
+			if (item?.sandboxData) {
+				sandboxId = item.sandboxData.sandboxId;
+			} else {
+				// Try to get from linked sandboxes
+				const linked = getSandboxManager().getLinkedSandboxes();
+				if (linked.length === 0) {
+					vscode.window.showWarningMessage(
+						'No sandbox linked to this workspace. Link a sandbox first.'
+					);
+					return;
 				}
-
-				if (sandboxId) {
-					await syncToSandbox(sandboxId, provider);
+				if (linked.length === 1) {
+					sandboxId = linked[0].sandboxId;
+				} else {
+					// Pick one
+					const picked = await vscode.window.showQuickPick(
+						linked.map((l) => ({
+							label: l.name || l.sandboxId,
+							description: l.sandboxId,
+							sandboxId: l.sandboxId,
+						})),
+						{ placeHolder: 'Select sandbox to sync to' }
+					);
+					if (picked) {
+						sandboxId = picked.sandboxId;
+					}
 				}
 			}
-		)
+
+			if (sandboxId) {
+				await syncToSandbox(sandboxId, provider);
+			}
+		})
 	);
 
 	// Execute command in sandbox
@@ -272,7 +264,11 @@ function registerCommands(
 			'agentuity.sandbox.download',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.parentSandboxId || !item?.filePath) return;
-				await downloadFromSandbox(item.parentSandboxId, item.filePath, item.itemType === 'directory');
+				await downloadFromSandbox(
+					item.parentSandboxId,
+					item.filePath,
+					item.itemType === 'directory'
+				);
 			}
 		)
 	);
@@ -283,7 +279,12 @@ function registerCommands(
 			'agentuity.sandbox.deleteFile',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.parentSandboxId || !item?.filePath) return;
-				await deleteFile(item.parentSandboxId, item.filePath, item.itemType === 'directory', provider);
+				await deleteFile(
+					item.parentSandboxId,
+					item.filePath,
+					item.itemType === 'directory',
+					provider
+				);
 			}
 		)
 	);
@@ -445,13 +446,10 @@ function registerCommands(
 
 	// Upload from explorer (context menu)
 	context.subscriptions.push(
-		vscode.commands.registerCommand(
-			'agentuity.sandbox.upload',
-			async (uri?: vscode.Uri) => {
-				if (!uri) return;
-				await uploadToSandbox(uri);
-			}
-		)
+		vscode.commands.registerCommand('agentuity.sandbox.upload', async (uri?: vscode.Uri) => {
+			if (!uri) return;
+			await uploadToSandbox(uri);
+		})
 	);
 }
 
@@ -677,10 +675,12 @@ async function syncToSandbox(sandboxId: string, provider: SandboxTreeDataProvide
 }
 
 async function execInSandbox(sandboxId: string, prefilledCommand?: string): Promise<void> {
-	const command = prefilledCommand ?? await vscode.window.showInputBox({
-		prompt: 'Enter command to execute',
-		placeHolder: 'npm test',
-	});
+	const command =
+		prefilledCommand ??
+		(await vscode.window.showInputBox({
+			prompt: 'Enter command to execute',
+			placeHolder: 'npm test',
+		}));
 
 	if (!command) return;
 
@@ -702,7 +702,9 @@ function executeInTerminal(sandboxId: string, command: string): void {
 	}
 
 	terminal.show();
-	terminal.sendText(`${cliPath} cloud sandbox exec ${sandboxId} --region ${cli.getSandboxRegion()} -- ${command}`);
+	terminal.sendText(
+		`${cliPath} cloud sandbox exec ${sandboxId} --region ${cli.getSandboxRegion()} -- ${command}`
+	);
 }
 
 function disposeTerminals(): void {
@@ -813,9 +815,7 @@ async function createSandboxFile(
 	const doc = await vscode.workspace.openTextDocument(localPath);
 	await vscode.window.showTextDocument(doc, { preview: false });
 
-	vscode.window.showInformationMessage(
-		`New file will be created at ${remotePath} when you save`
-	);
+	vscode.window.showInformationMessage(`New file will be created at ${remotePath} when you save`);
 }
 
 async function createSandboxFolder(
@@ -960,7 +960,9 @@ async function viewExecution(executionId: string): Promise<void> {
 						const stdoutContent = await fetchStreamContent(exec.stdoutStreamUrl);
 						lines.push(stdoutContent || '(empty)');
 					} catch (err) {
-						lines.push(`(failed to fetch: ${err instanceof Error ? err.message : 'unknown error'})`);
+						lines.push(
+							`(failed to fetch: ${err instanceof Error ? err.message : 'unknown error'})`
+						);
 					}
 				}
 
@@ -971,11 +973,17 @@ async function viewExecution(executionId: string): Promise<void> {
 						const stderrContent = await fetchStreamContent(exec.stderrStreamUrl);
 						lines.push(stderrContent || '(empty)');
 					} catch (err) {
-						lines.push(`(failed to fetch: ${err instanceof Error ? err.message : 'unknown error'})`);
+						lines.push(
+							`(failed to fetch: ${err instanceof Error ? err.message : 'unknown error'})`
+						);
 					}
 				}
 
-				await openReadonlyDocument(lines.join('\n'), 'log', `execution-${executionId.slice(0, 8)}`);
+				await openReadonlyDocument(
+					lines.join('\n'),
+					'log',
+					`execution-${executionId.slice(0, 8)}`
+				);
 			} else {
 				vscode.window.showErrorMessage(`Failed to get execution: ${result.error}`);
 			}
@@ -1108,10 +1116,7 @@ async function syncEnvFile(sandboxId: string): Promise<void> {
 	}
 }
 
-async function createSnapshot(
-	sandboxId: string,
-	provider: SandboxTreeDataProvider
-): Promise<void> {
+async function createSnapshot(sandboxId: string, provider: SandboxTreeDataProvider): Promise<void> {
 	const tag = await vscode.window.showInputBox({
 		prompt: 'Enter a tag for this snapshot (optional)',
 		placeHolder: 'v1.0 or latest',
@@ -1218,7 +1223,11 @@ async function viewSnapshotFile(snapshot: SnapshotInfo, filePath: string): Promi
 		async () => {
 			try {
 				// Create temp directory for snapshot files
-				const snapshotTmpDir = path.join(os.tmpdir(), 'agentuity-snapshots', snapshot.snapshotId.slice(0, 12));
+				const snapshotTmpDir = path.join(
+					os.tmpdir(),
+					'agentuity-snapshots',
+					snapshot.snapshotId.slice(0, 12)
+				);
 				fs.mkdirSync(snapshotTmpDir, { recursive: true });
 
 				const archivePath = path.join(snapshotTmpDir, 'snapshot.tar.gz');
@@ -1301,14 +1310,22 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
 
 		request.on('error', (err) => {
 			file.close();
-			try { fs.unlinkSync(destPath); } catch { /* ignore cleanup errors */ }
+			try {
+				fs.unlinkSync(destPath);
+			} catch {
+				/* ignore cleanup errors */
+			}
 			reject(err);
 		});
 
 		request.setTimeout(60000, () => {
 			request.destroy();
 			file.close();
-			try { fs.unlinkSync(destPath); } catch { /* ignore cleanup errors */ }
+			try {
+				fs.unlinkSync(destPath);
+			} catch {
+				/* ignore cleanup errors */
+			}
 			reject(new Error('Download timeout'));
 		});
 	});
@@ -1356,12 +1373,7 @@ async function uploadToSandbox(uri: vscode.Uri): Promise<void> {
 			const stats = await vscode.workspace.fs.stat(uri);
 			const isDir = stats.type === vscode.FileType.Directory;
 
-			const result = await cli.sandboxCpToSandbox(
-				sandboxId,
-				uri.fsPath,
-				remotePath,
-				isDir
-			);
+			const result = await cli.sandboxCpToSandbox(sandboxId, uri.fsPath, remotePath, isDir);
 
 			if (result.success) {
 				vscode.window.showInformationMessage(`Uploaded to ${remotePath}`);

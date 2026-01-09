@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useCallback, useContext, useEffect, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
-import { deserializeData, buildUrl } from '@agentuity/frontend';
-import type { RouteRegistry } from './types';
+import { deserializeData, buildUrl, type RouteRegistry } from '@agentuity/frontend';
 import { AgentuityContext } from './context';
 
 /**
@@ -21,16 +20,20 @@ export type ExtractMethod<TRoute extends RouteKey> = TRoute extends `${infer Met
  * Extract path from route key given a method
  * E.g., ExtractPath<'GET /users', 'GET'> = '/users'
  */
-export type ExtractPath<TRoute extends RouteKey, M extends string> = TRoute extends `${M} ${infer Path}`
-	? Path
-	: never;
+export type ExtractPath<
+	TRoute extends RouteKey,
+	M extends string,
+> = TRoute extends `${M} ${infer Path}` ? Path : never;
 
 /**
  * Reconstruct the route key from method and path
  * This ensures proper type inference when using {method, path} form
  * E.g., RouteFromMethodPath<'GET', '/users'> = 'GET /users'
  */
-export type RouteFromMethodPath<M extends string, P extends string> = Extract<RouteKey, `${M} ${P}`>;
+export type RouteFromMethodPath<M extends string, P extends string> = Extract<
+	RouteKey,
+	`${M} ${P}`
+>;
 
 /**
  * Check if a route is a streaming route
@@ -485,7 +488,10 @@ export function useAPI<TRoute extends RouteKey>(
 
 // Overload 3: Object with method and path - reconstructs route key from method+path
 export function useAPI<M extends string, P extends string>(
-	options: { method: M; path: P } & Omit<UseAPIMethodPathFormOptions<RouteFromMethodPath<M, P>>, 'method' | 'path'>
+	options: { method: M; path: P } & Omit<
+		UseAPIMethodPathFormOptions<RouteFromMethodPath<M, P>>,
+		'method' | 'path'
+	>
 ): UseAPIResult<RouteFromMethodPath<M, P>>;
 
 // Implementation signature
@@ -822,8 +828,7 @@ export function useAPI(routeOrOptions: unknown): any {
 							mountedRef,
 						});
 
-						if (!mountedRef.current)
-							return accumulatedChunks as any;
+						if (!mountedRef.current) return accumulatedChunks as any;
 
 						if (!success && streamError) {
 							throw streamError;
