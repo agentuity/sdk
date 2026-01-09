@@ -916,7 +916,13 @@
 					"properties": {
 						"status": {
 							"type": "string",
-							"enum": ["creating", "idle", "running", "terminated", "failed"],
+							"enum": [
+								"creating",
+								"idle",
+								"running",
+								"terminated",
+								"failed"
+							],
 							"description": "Filter sandboxes by status"
 						}
 					}
@@ -981,7 +987,9 @@
 							"default": true
 						}
 					},
-					"required": ["sandboxId"]
+					"required": [
+						"sandboxId"
+					]
 				}
 			},
 			{
@@ -1013,7 +1021,10 @@
 							"description": "Environment variables to set"
 						}
 					},
-					"required": ["sandboxId", "command"]
+					"required": [
+						"sandboxId",
+						"command"
+					]
 				}
 			},
 			{
@@ -1037,7 +1048,9 @@
 							"description": "Optional tag for the snapshot"
 						}
 					},
-					"required": ["sandboxId"]
+					"required": [
+						"sandboxId"
+					]
 				}
 			}
 		],

@@ -83,10 +83,7 @@ export class SandboxTreeItem extends vscode.TreeItem {
 		const isLinked = this.linkedData !== undefined;
 
 		// Set icon based on status
-		this.iconPath = new vscode.ThemeIcon(
-			this.getStatusIcon(status),
-			this.getStatusColor(status)
-		);
+		this.iconPath = new vscode.ThemeIcon(this.getStatusIcon(status), this.getStatusColor(status));
 
 		// Set context value for menu targeting
 		let contextValue = `sandbox.${status}`;
@@ -282,7 +279,9 @@ export class SandboxTreeItem extends vscode.TreeItem {
 		this.tooltip = [
 			`ID: ${this.executionData.executionId}`,
 			`Status: ${status}`,
-			this.executionData.exitCode !== undefined ? `Exit Code: ${this.executionData.exitCode}` : '',
+			this.executionData.exitCode !== undefined
+				? `Exit Code: ${this.executionData.exitCode}`
+				: '',
 			this.executionData.durationMs !== undefined
 				? `Duration: ${(this.executionData.durationMs / 1000).toFixed(2)}s`
 				: '',
@@ -347,7 +346,9 @@ export class SandboxTreeItem extends vscode.TreeItem {
  * Tree data provider for the sandbox explorer.
  */
 export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxTreeItem> {
-	private _onDidChangeTreeData = new vscode.EventEmitter<SandboxTreeItem | undefined | null | void>();
+	private _onDidChangeTreeData = new vscode.EventEmitter<
+		SandboxTreeItem | undefined | null | void
+	>();
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
 	private sandboxes: SandboxInfo[] = [];
@@ -410,13 +411,21 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 
 		if (authStatus.state === 'unknown') {
 			return [
-				new SandboxTreeItem('Checking auth...', vscode.TreeItemCollapsibleState.None, 'message'),
+				new SandboxTreeItem(
+					'Checking auth...',
+					vscode.TreeItemCollapsibleState.None,
+					'message'
+				),
 			];
 		}
 
 		if (authStatus.state === 'cli-missing') {
 			return [
-				new SandboxTreeItem('CLI not installed', vscode.TreeItemCollapsibleState.None, 'message'),
+				new SandboxTreeItem(
+					'CLI not installed',
+					vscode.TreeItemCollapsibleState.None,
+					'message'
+				),
 			];
 		}
 
@@ -427,7 +436,9 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		}
 
 		if (this.loading) {
-			return [new SandboxTreeItem('Loading...', vscode.TreeItemCollapsibleState.None, 'message')];
+			return [
+				new SandboxTreeItem('Loading...', vscode.TreeItemCollapsibleState.None, 'message'),
+			];
 		}
 
 		if (this.error) {
@@ -500,10 +511,7 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		return items;
 	}
 
-	private getSandboxCategories(
-		sandbox: SandboxInfo,
-		linked?: LinkedSandbox
-	): SandboxTreeItem[] {
+	private getSandboxCategories(sandbox: SandboxInfo, linked?: LinkedSandbox): SandboxTreeItem[] {
 		return [
 			new SandboxTreeItem(
 				'Files',
@@ -589,9 +597,7 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		});
 
 		if (directChildren.length === 0) {
-			return [
-				new SandboxTreeItem('(empty)', vscode.TreeItemCollapsibleState.None, 'message'),
-			];
+			return [new SandboxTreeItem('(empty)', vscode.TreeItemCollapsibleState.None, 'message')];
 		}
 
 		// Sort: directories first, then files, alphabetically
@@ -696,7 +702,14 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 				vscode.TreeItemCollapsibleState.None,
 				'snapshotFile',
 				undefined,
-				{ path: file.path, name: fileName, size: file.size, isDir: false, mode: '', modTime: '' },
+				{
+					path: file.path,
+					name: fileName,
+					size: file.size,
+					isDir: false,
+					mode: '',
+					modTime: '',
+				},
 				snapshotData, // Pass snapshot data so we have access to downloadUrl
 				undefined,
 				undefined,

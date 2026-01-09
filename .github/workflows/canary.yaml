@@ -47,86 +47,86 @@ jobs:
            uses: actions/github-script@v7
            with:
               script: |
-                const version = '${{ steps.pack.outputs.prerelease_version }}';
-                const packagesJson = ${{ steps.pack.outputs.packages_json }};
-                const executablesJson = ${{ steps.pack.outputs.executables_json }};
-                const npmBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/npm/${version}`;
-                const binaryBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/binary/${version}`;
+                 const version = '${{ steps.pack.outputs.prerelease_version }}';
+                 const packagesJson = ${{ steps.pack.outputs.packages_json }};
+                 const executablesJson = ${{ steps.pack.outputs.executables_json }};
+                 const npmBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/npm/${version}`;
+                 const binaryBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/binary/${version}`;
 
-                // Build packages table
-                let packagesTable = '| Package | Version | URL |\n| --- | --- | --- |\n';
-                for (const pkg of packagesJson) {
-                  const url = `${npmBaseUrl}/${pkg.tarball}`;
-                  packagesTable += `| \`${pkg.name}\` | \`${version}\` | ${url} |\n`;
-                }
-
-                // Build executables table
-                let executablesTable = '| Platform | Version | URL |\n| --- | --- | --- |\n';
-                for (const exe of executablesJson) {
-                  const url = `${binaryBaseUrl}/${exe.filename}`;
-                  executablesTable += `| \`${exe.platform}\` | \`${version}\` | ${url} |\n`;
-                }
-
-                // Build dependencies object with all packages
-                const deps = {};
-                for (const pkg of packagesJson) {
-                  deps[pkg.name] = `${npmBaseUrl}/${pkg.tarball}`;
-                }
-                const depsJson = JSON.stringify({ dependencies: deps }, null, 2);
-
-                const body = `<!-- agentuity-canary-bot -->
-                ## 📦 Canary Packages Published
-
-                ${packagesTable}
-
-                ### Installation
-
-                Add to your \`package.json\`:
-
-                \`\`\`json
-                ${depsJson}
-                \`\`\`
-
-                Or install directly:
-
-                \`\`\`bash
-                ${packagesJson.map(pkg => `bun add ${npmBaseUrl}/${pkg.tarball}`).join('\n')}
-                \`\`\`
-
-                ## 🖥️ Canary CLI Executables
-
-                ${executablesTable}
-
-                ### Run Canary CLI
-
-                \`\`\`bash
-                agentuity canary ${version} [command] [...args]
-                \`\`\`
-                `;
-
-                 // Find existing comment
-                 const { data: comments } = await github.rest.issues.listComments({
-                   owner: context.repo.owner,
-                   repo: context.repo.repo,
-                   issue_number: context.issue.number,
-                 });
-
-                 const botComment = comments.find(c =>
-                   c.body && c.body.includes('<!-- agentuity-canary-bot -->')
-                 );
-
-                 if (botComment) {
-                   await github.rest.issues.updateComment({
-                     owner: context.repo.owner,
-                     repo: context.repo.repo,
-                     comment_id: botComment.id,
-                     body: body,
-                   });
-                 } else {
-                   await github.rest.issues.createComment({
-                     owner: context.repo.owner,
-                     repo: context.repo.repo,
-                     issue_number: context.issue.number,
-                     body: body,
-                   });
+                 // Build packages table
+                 let packagesTable = '| Package | Version | URL |\n| --- | --- | --- |\n';
+                 for (const pkg of packagesJson) {
+                   const url = `${npmBaseUrl}/${pkg.tarball}`;
+                   packagesTable += `| \`${pkg.name}\` | \`${version}\` | ${url} |\n`;
                  }
+
+                 // Build executables table
+                 let executablesTable = '| Platform | Version | URL |\n| --- | --- | --- |\n';
+                 for (const exe of executablesJson) {
+                   const url = `${binaryBaseUrl}/${exe.filename}`;
+                   executablesTable += `| \`${exe.platform}\` | \`${version}\` | ${url} |\n`;
+                 }
+
+                 // Build dependencies object with all packages
+                 const deps = {};
+                 for (const pkg of packagesJson) {
+                   deps[pkg.name] = `${npmBaseUrl}/${pkg.tarball}`;
+                 }
+                 const depsJson = JSON.stringify({ dependencies: deps }, null, 2);
+
+                 const body = `<!-- agentuity-canary-bot -->
+                 ## 📦 Canary Packages Published
+
+                 ${packagesTable}
+
+                 ### Installation
+
+                 Add to your \`package.json\`:
+
+                 \`\`\`json
+                 ${depsJson}
+                 \`\`\`
+
+                 Or install directly:
+
+                 \`\`\`bash
+                 ${packagesJson.map(pkg => `bun add ${npmBaseUrl}/${pkg.tarball}`).join('\n')}
+                 \`\`\`
+
+                 ## 🖥️ Canary CLI Executables
+
+                 ${executablesTable}
+
+                 ### Run Canary CLI
+
+                 \`\`\`bash
+                 agentuity canary ${version} [command] [...args]
+                 \`\`\`
+                 `;
+
+                  // Find existing comment
+                  const { data: comments } = await github.rest.issues.listComments({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: context.issue.number,
+                  });
+
+                  const botComment = comments.find(c =>
+                    c.body && c.body.includes('<!-- agentuity-canary-bot -->')
+                  );
+
+                  if (botComment) {
+                    await github.rest.issues.updateComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      comment_id: botComment.id,
+                      body: body,
+                    });
+                  } else {
+                    await github.rest.issues.createComment({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: context.issue.number,
+                      body: body,
+                    });
+                  }
