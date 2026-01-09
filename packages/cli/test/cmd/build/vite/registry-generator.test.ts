@@ -316,7 +316,7 @@ describe('registry-generator', () => {
 			const registryContent = await Bun.file(registryPath).text();
 
 			// Should augment @agentuity/react with RouteRegistry
-			expect(registryContent).toContain("declare module '@agentuity/react'");
+			expect(registryContent).toContain("declare module '@agentuity/frontend'");
 			expect(registryContent).toContain('export interface RouteRegistry');
 			// Route key should be in the registry
 			expect(registryContent).toContain("'GET /api/test'");
@@ -541,12 +541,12 @@ describe('registry-generator', () => {
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
 
-			// Must augment @agentuity/react - this is where the hooks import types from
-			expect(routesContent).toContain("declare module '@agentuity/react'");
+			// Must augment @agentuity/frontend - this is the canonical source of registry types
+			// @agentuity/react re-exports these types so augmentation is visible from both packages
+			expect(routesContent).toContain("declare module '@agentuity/frontend'");
 
-			// Should NOT augment @agentuity/frontend - types are re-exported from @agentuity/react
-			// which has its own augmentable interfaces
-			expect(routesContent).not.toContain("declare module '@agentuity/frontend'");
+			// Should NOT augment @agentuity/react - types are now sourced from @agentuity/frontend
+			expect(routesContent).not.toContain("declare module '@agentuity/react'");
 
 			// Should contain all four registries in the augmentation
 			expect(routesContent).toContain('export interface RouteRegistry');
@@ -653,8 +653,8 @@ describe('registry-generator', () => {
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
 
-			// Should still augment @agentuity/react
-			expect(routesContent).toContain("declare module '@agentuity/react'");
+			// Should augment @agentuity/frontend (canonical source of registry types)
+			expect(routesContent).toContain("declare module '@agentuity/frontend'");
 
 			// All registries should exist (even if some are empty)
 			expect(routesContent).toContain('export interface RouteRegistry');
@@ -1338,7 +1338,7 @@ describe('registry-generator', () => {
 
 			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
 			expect(routesContent).not.toContain('export function createAPIClient');
-			expect(routesContent).toContain("declare module '@agentuity/react'");
+			expect(routesContent).toContain("declare module '@agentuity/frontend'");
 		});
 
 		test('should generate frontend client code when @agentuity/frontend is installed but not @agentuity/react (issue #404)', async () => {
@@ -1374,7 +1374,7 @@ describe('registry-generator', () => {
 			expect(routesContent).toContain("import { createClient } from '@agentuity/frontend'");
 			expect(routesContent).toContain('export function createAPIClient');
 			expect(routesContent).toContain('export interface RPCRouteRegistry');
-			expect(routesContent).toContain("declare module '@agentuity/react'");
+			expect(routesContent).toContain("declare module '@agentuity/frontend'");
 		});
 
 		test('should generate module augmentation when @agentuity/react is installed (issue #404)', async () => {
@@ -1405,7 +1405,7 @@ describe('registry-generator', () => {
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
 
-			expect(routesContent).toContain("declare module '@agentuity/react'");
+			expect(routesContent).toContain("declare module '@agentuity/frontend'");
 			expect(routesContent).toContain('export interface RouteRegistry');
 			expect(routesContent).toContain('export interface WebSocketRouteRegistry');
 			expect(routesContent).toContain('export interface SSERouteRegistry');
@@ -1477,7 +1477,7 @@ describe('registry-generator', () => {
 			const routesPath = join(generatedDir, 'routes.ts');
 			const routesContent = await Bun.file(routesPath).text();
 
-			expect(routesContent).toContain("declare module '@agentuity/react'");
+			expect(routesContent).toContain("declare module '@agentuity/frontend'");
 			expect(routesContent).not.toContain("import { createClient } from '@agentuity/frontend'");
 			expect(routesContent).not.toContain('export function createAPIClient');
 		});
