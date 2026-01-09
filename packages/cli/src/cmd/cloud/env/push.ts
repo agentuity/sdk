@@ -66,7 +66,7 @@ export const pushSubcommand = createSubcommand({
 		const publicSecretKeys = validateNoPublicSecrets(secrets);
 		if (publicSecretKeys.length > 0) {
 			tui.warning(
-				`Skipping public variables: ${publicSecretKeys.join(', ')} (these are exposed to the frontend)`
+				`Moving public variables to env: ${publicSecretKeys.join(', ')} (these are exposed to the frontend)`
 			);
 			for (const key of publicSecretKeys) {
 				delete secrets[key];

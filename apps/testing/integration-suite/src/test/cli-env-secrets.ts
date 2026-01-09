@@ -8,7 +8,7 @@
  */
 
 import { test } from '@test/suite';
-import { assert, assertEqual } from '@test/helpers';
+import { assert, assertEqual, uniqueId } from '@test/helpers';
 import cliAgent from '@agents/cli/agent';
 import { isAuthenticated } from '@test/helpers/cli';
 
@@ -107,7 +107,7 @@ test('cli-env-secrets', 'env-list-masks-secrets-by-default', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `MASK_TEST_${Date.now()}`;
+	const testKey = uniqueId('MASK_TEST');
 	const testValue = 'super_secret_value_12345';
 
 	// Set a secret (--secret flag must be in command string)
@@ -142,7 +142,7 @@ test('cli-env-secrets', 'env-list-no-mask-shows-secrets', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `NOMASK_TEST_${Date.now()}`;
+	const testKey = uniqueId('NOMASK_TEST');
 	const testValue = 'visible_secret_value_67890';
 
 	// Set a secret (--secret flag must be in command string)
@@ -176,7 +176,7 @@ test('cli-env-secrets', 'env-set-allows-agentuity-public-prefix', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `AGENTUITY_PUBLIC_TEST_${Date.now()}`;
+	const testKey = `AGENTUITY_PUBLIC_${uniqueId('TEST')}`;
 	const testValue = 'test_public_value';
 
 	// 1. Set the AGENTUITY_PUBLIC_ prefixed var
@@ -221,7 +221,7 @@ test('cli-env-secrets', 'env-set-allows-vite-prefix', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `VITE_TEST_${Date.now()}`;
+	const testKey = `VITE_${uniqueId('TEST')}`;
 	const testValue = 'vite_test_value';
 
 	const result = await cliAgent.run({
@@ -257,7 +257,7 @@ test('cli-env-secrets', 'env-set-allows-public-prefix', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `PUBLIC_TEST_${Date.now()}`;
+	const testKey = `PUBLIC_${uniqueId('TEST')}`;
 	const testValue = 'public_test_value';
 
 	const result = await cliAgent.run({
@@ -293,7 +293,7 @@ test('cli-env-secrets', 'env-set-secret-allows-valid-key', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `SECRET_KEY_${Date.now()}`;
+	const testKey = uniqueId('SECRET_KEY');
 	const testValue = 'secret_test_value';
 
 	const result = await cliAgent.run({
@@ -338,8 +338,10 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-key-name', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `MY_API_KEY_${Date.now()}`;
-	const testValue = 'some_value';
+	// Key must end with _KEY to trigger auto-detection (pattern: /_KEY$/i)
+	// Use uniqueId in the value to avoid collisions, but keep key ending with _KEY
+	const testKey = `TEST_${uniqueId('').toUpperCase()}_KEY`;
+	const testValue = `test_value_${Date.now()}`;
 
 	// Key name pattern (_KEY suffix) should trigger auto-detection
 	const result = await cliAgent.run({
@@ -376,9 +378,9 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-value', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `CONFIG_VAL_${Date.now()}`;
+	const testKey = uniqueId('CONFIG_VAL');
 	// Long alphanumeric value (32+ chars) should trigger auto-detection
-	const longValue = 'sk_test_1234567890abcdefghijklmnopqrstuvwxyz';
+	const longValue = 'test_secret_abcdefghij1234567890xyz';
 
 	const result = await cliAgent.run({
 		command: 'cloud env set',
@@ -417,7 +419,7 @@ test('cli-env-secrets', 'env-set-no-warning-for-normal-vars', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `NORMAL_VAR_${Date.now()}`;
+	const testKey = uniqueId('NORMAL_VAR');
 	const testValue = 'normal_value';
 
 	// Normal key and value should not trigger auto-detection
@@ -435,9 +437,11 @@ test('cli-env-secrets', 'env-set-no-warning-for-normal-vars', async () => {
 
 	// Should proceed to setting the variable
 	assert(
-		result.stdout?.includes('Setting') ||
-			result.stdout?.includes('set successfully') ||
-			result.success,
+		Boolean(
+			result.stdout?.includes('Setting') ||
+				result.stdout?.includes('set successfully') ||
+				result.success
+		),
 		'Should attempt to set the variable'
 	);
 
@@ -489,7 +493,7 @@ test('cli-env-secrets', 'env-crud-cycle', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `CRUD_TEST_${Date.now()}`;
+	const testKey = uniqueId('CRUD_TEST');
 	const testValue = 'crud_test_value';
 
 	// 1. Set
@@ -497,7 +501,7 @@ test('cli-env-secrets', 'env-crud-cycle', async () => {
 		command: 'cloud env set',
 		args: [testKey, testValue],
 	});
-	assert(setResult.success, `Set should succeed: ${setResult.stderr}`);
+	assert(Boolean(setResult.success), `Set should succeed: ${setResult.stderr}`);
 
 	// 2. Get - verify value
 	const getResult = await cliAgent.run({
@@ -518,7 +522,7 @@ test('cli-env-secrets', 'env-crud-cycle', async () => {
 		command: 'cloud env delete',
 		args: [testKey],
 	});
-	assert(deleteResult.success, `Delete should succeed: ${deleteResult.stderr}`);
+	assert(Boolean(deleteResult.success), `Delete should succeed: ${deleteResult.stderr}`);
 
 	// 5. Verify deleted - get should fail
 	const verifyResult = await cliAgent.run({
@@ -533,7 +537,7 @@ test('cli-env-secrets', 'env-set-overwrite', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `OVERWRITE_TEST_${Date.now()}`;
+	const testKey = uniqueId('OVERWRITE_TEST');
 	const value1 = 'first_value';
 	const value2 = 'second_value';
 
@@ -548,7 +552,7 @@ test('cli-env-secrets', 'env-set-overwrite', async () => {
 		command: 'cloud env set',
 		args: [testKey, value2],
 	});
-	assert(setResult.success, `Overwrite should succeed: ${setResult.stderr}`);
+	assert(Boolean(setResult.success), `Overwrite should succeed: ${setResult.stderr}`);
 
 	// Get and verify new value
 	const getResult = await cliAgent.run({
@@ -570,7 +574,7 @@ test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `CONVERT_TEST_${Date.now()}`;
+	const testKey = uniqueId('CONVERT_TEST');
 	const value = 'convert_test_value';
 
 	// Set as secret (flag must be in command string)

@@ -26,10 +26,7 @@ export const getSubcommand = createSubcommand({
 			key: z.string().describe('the environment variable or secret key'),
 		}),
 		options: z.object({
-			mask: z
-				.boolean()
-				.default(!!process.stdout.isTTY)
-				.describe('mask the value in output (default: true in TTY for secrets)'),
+			maskSecret: z.boolean().optional().describe('mask the secret value in output'),
 		}),
 		response: EnvGetResponseSchema,
 	},
@@ -59,8 +56,9 @@ export const getSubcommand = createSubcommand({
 			tui.fatal(`Variable '${args.key}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
 		}
 
-		// For secrets, mask by default; for env vars, don't mask by default
-		const shouldMask = isSecret ? opts?.mask !== false : opts?.mask === true;
+		// For secrets, mask by default even in non-TTY; for env vars, mask only in TTY by default
+		const maskDefault = isSecret ? true : !!process.stdout.isTTY;
+		const shouldMask = opts?.mask !== undefined ? opts.mask : maskDefault;
 
 		if (!options.json) {
 			const displayValue = shouldMask ? tui.maskSecret(value) : value;
