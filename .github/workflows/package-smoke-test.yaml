@@ -291,6 +291,7 @@ jobs:
               bash scripts/install-sdk-tarballs.sh apps/testing/nextjs-app/agentuity
 
          - name: Run Framework Demo tests
+           timeout-minutes: 8
            run: bash scripts/test-framework-demos.sh --skip-build
 
          - name: Upload Playwright report
