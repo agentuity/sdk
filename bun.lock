@@ -35,7 +35,7 @@
     },
     "apps/create-agentuity": {
       "name": "create-agentuity",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "bin": {
         "create-agentuity": "./bin.js",
       },
@@ -45,7 +45,7 @@
     },
     "apps/testing": {
       "name": "testing",
-      "version": "0.1.6",
+      "version": "0.1.7",
     },
     "apps/testing/auth-package-app": {
       "name": "auth-package-app",
@@ -234,7 +234,7 @@
     },
     "packages/auth": {
       "name": "@agentuity/auth",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "better-auth": "^1.4.9",
         "drizzle-orm": "^0.45.0",
@@ -258,7 +258,7 @@
     },
     "packages/cli": {
       "name": "@agentuity/cli",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "bin": {
         "agentuity": "./bin/cli.ts",
       },
@@ -298,7 +298,7 @@
     },
     "packages/core": {
       "name": "@agentuity/core",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "zod": "^4.3.5",
       },
@@ -312,7 +312,7 @@
     },
     "packages/evals": {
       "name": "@agentuity/evals",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/runtime": "workspace:*",
@@ -329,7 +329,7 @@
     },
     "packages/frontend": {
       "name": "@agentuity/frontend",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -342,7 +342,7 @@
     },
     "packages/react": {
       "name": "@agentuity/react",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/frontend": "workspace:*",
@@ -361,7 +361,7 @@
     },
     "packages/runtime": {
       "name": "@agentuity/runtime",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@agentuity/auth": "workspace:*",
         "@agentuity/core": "workspace:*",
@@ -404,7 +404,7 @@
     },
     "packages/schema": {
       "name": "@agentuity/schema",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -417,7 +417,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
@@ -433,7 +433,7 @@
     },
     "packages/test-utils": {
       "name": "@agentuity/test-utils",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@agentuity/core": "workspace:*",
       },
@@ -443,7 +443,7 @@
     },
     "packages/vscode": {
       "name": "agentuity-vscode",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "jsonc-parser": "^3.3.1",
         "tar": "^7.4.3",
@@ -457,7 +457,7 @@
     },
     "packages/workbench": {
       "name": "@agentuity/workbench",
-      "version": "0.1.6",
+      "version": "0.1.7",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/react": "workspace:*",

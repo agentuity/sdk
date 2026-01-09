@@ -76,10 +76,16 @@ jobs:
 
                  const body = `<!-- agentuity-canary-bot -->
                  ## 📦 Canary Packages Published
+                 **version:** \`${version}\`
+
+                 <details>
+                 <summary>Packages</summary>
 
                  ${packagesTable}
+                 </details>
 
-                 ### Installation
+                 <details>
+                 <summary>Install</summary>
 
                  Add to your \`package.json\`:
 
@@ -92,16 +98,21 @@ jobs:
                  \`\`\`bash
                  ${packagesJson.map(pkg => `bun add ${npmBaseUrl}/${pkg.tarball}`).join('\n')}
                  \`\`\`
+                 </details>
 
-                 ## 🖥️ Canary CLI Executables
+                 <details>
+                 <summary>CLI Executables</summary>
 
                  ${executablesTable}
+                 </details>
 
-                 ### Run Canary CLI
+                 <details>
+                 <summary>Run Canary CLI</summary>
 
                  \`\`\`bash
                  agentuity canary ${version} [command] [...args]
                  \`\`\`
+                 </details>
                  `;
 
                   // Find existing comment
