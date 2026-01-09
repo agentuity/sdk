@@ -507,3 +507,5 @@ async function fetchData() {
 - Static files in `public/` are served at `/public/*`
 - Module script tag: `<script type="module" src="/web/frontend.tsx"></script>`
 - **Never use raw `fetch()` calls** - always use `useAPI` or `createClient`
+
+<!-- prompt_hash: 8b53bca757470f12c19fbe0fbeeccb603e3950e3e207ca9c047219bab637d0ff -->

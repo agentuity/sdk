@@ -68,7 +68,13 @@ test.describe('Hot Module Replacement (HMR)', () => {
 			let content = originalAppTsx;
 
 			console.log('Step 1: Changing title to "HMR Test v1"');
-			content = await makeHMRChange(page, content, 'Welcome to Agentuity', 'HMR Test v1', heading);
+			content = await makeHMRChange(
+				page,
+				content,
+				'Welcome to Agentuity',
+				'HMR Test v1',
+				heading
+			);
 			console.log('✓ Title changed to v1');
 
 			console.log('Step 2: Changing title to "HMR Test v2"');

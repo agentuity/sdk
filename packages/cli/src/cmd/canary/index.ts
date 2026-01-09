@@ -174,7 +174,9 @@ export const command = createCommand({
 				await downloadCanary(downloadUrl, cachePath);
 				tui.success(`Downloaded canary ${version}`);
 			} catch (error) {
-				tui.error(`Failed to download canary: ${error instanceof Error ? error.message : 'Unknown error'}`);
+				tui.error(
+					`Failed to download canary: ${error instanceof Error ? error.message : 'Unknown error'}`
+				);
 				return {
 					executed: false,
 					version,

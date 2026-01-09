@@ -20,7 +20,8 @@
 		"noPropertyAccessFromIndexSignature": false,
 		"paths": {
 			"@agent/*": ["./src/agent/*"],
-			"@api/*": ["./src/api/*"]
+			"@api/*": ["./src/api/*"],
+			"@agentuity/frontend": ["./node_modules/@agentuity/frontend"]
 		}
 	},
 	"include": ["src/**/*", "app.ts"]
