@@ -15,6 +15,8 @@ import { registerReadonlyDocumentProvider } from './core/readonlyDocument';
 import { registerAgentExplorer } from './features/agentExplorer';
 import { registerDataExplorer } from './features/dataExplorer';
 import { registerDeploymentExplorer } from './features/deploymentExplorer';
+import { registerSandboxExplorer } from './features/sandboxExplorer';
+import { disposeSandboxManager } from './core/sandboxManager';
 import { registerDevServerCommands } from './features/devServer';
 import { registerWorkbenchCommands } from './features/workbench';
 import {
@@ -62,11 +64,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const agentProvider = registerAgentExplorer(context);
 	const dataProvider = registerDataExplorer(context);
 	const deploymentProvider = registerDeploymentExplorer(context);
+	const sandboxProvider = registerSandboxExplorer(context);
 
 	registerRefreshCommands(context, {
 		agents: agentProvider,
 		data: dataProvider,
 		deployments: deploymentProvider,
+		sandboxes: sandboxProvider,
 	});
 
 	context.subscriptions.push({
@@ -74,6 +78,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 			agentProvider.dispose();
 			dataProvider.dispose();
 			deploymentProvider.dispose();
+			sandboxProvider.dispose();
 		},
 	});
 
@@ -252,6 +257,7 @@ function registerRefreshCommands(
 		agents: ReturnType<typeof registerAgentExplorer>;
 		data: ReturnType<typeof registerDataExplorer>;
 		deployments: ReturnType<typeof registerDeploymentExplorer>;
+		sandboxes: ReturnType<typeof registerSandboxExplorer>;
 	}
 ): void {
 	context.subscriptions.push(
@@ -261,6 +267,7 @@ function registerRefreshCommands(
 			providers.agents.forceRefresh();
 			providers.data.refresh();
 			providers.deployments.forceRefresh();
+			providers.sandboxes.forceRefresh();
 			vscode.window.showInformationMessage('Agentuity refreshed');
 		})
 	);
@@ -282,11 +289,18 @@ function registerRefreshCommands(
 			providers.data.refresh();
 		})
 	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.sandbox.refresh', () => {
+			void providers.sandboxes.forceRefresh();
+		})
+	);
 }
 
 export function deactivate(): void {
 	disposeCliClient();
 	disposeAuth();
 	disposeProject();
+	disposeSandboxManager();
 	disposeLogger();
 }

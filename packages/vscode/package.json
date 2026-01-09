@@ -2,7 +2,7 @@
 	"name": "agentuity-vscode",
 	"displayName": "Agentuity VSCode Extension",
 	"description": "Build, deploy, and manage AI agents with Agentuity",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"publisher": "agentuity",
 	"license": "Apache-2.0",
 	"repository": {
@@ -201,6 +201,152 @@
 				"command": "agentuity.generateSkills",
 				"title": "Generate AI Skills",
 				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.sandbox.refresh",
+				"title": "Refresh Sandboxes",
+				"category": "Agentuity",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "agentuity.sandbox.showQuickPick",
+				"title": "Sandbox Quick Actions",
+				"category": "Agentuity",
+				"icon": "$(vm)"
+			},
+			{
+				"command": "agentuity.sandbox.create",
+				"title": "Create Sandbox",
+				"category": "Agentuity",
+				"icon": "$(add)"
+			},
+			{
+				"command": "agentuity.sandbox.createFromSnapshot",
+				"title": "Create Sandbox from Snapshot",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.sandbox.delete",
+				"title": "Delete Sandbox",
+				"category": "Agentuity",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "agentuity.sandbox.link",
+				"title": "Link Sandbox to Workspace",
+				"category": "Agentuity",
+				"icon": "$(link)"
+			},
+			{
+				"command": "agentuity.sandbox.unlink",
+				"title": "Unlink Sandbox",
+				"category": "Agentuity",
+				"icon": "$(debug-disconnect)"
+			},
+			{
+				"command": "agentuity.sandbox.sync",
+				"title": "Sync Project to Sandbox",
+				"category": "Agentuity",
+				"icon": "$(sync)"
+			},
+			{
+				"command": "agentuity.sandbox.exec",
+				"title": "Execute Command in Sandbox",
+				"category": "Agentuity",
+				"icon": "$(terminal)"
+			},
+			{
+				"command": "agentuity.sandbox.viewFile",
+				"title": "View File",
+				"category": "Agentuity",
+				"icon": "$(go-to-file)"
+			},
+			{
+				"command": "agentuity.sandbox.download",
+				"title": "Download",
+				"category": "Agentuity",
+				"icon": "$(cloud-download)"
+			},
+			{
+				"command": "agentuity.sandbox.upload",
+				"title": "Upload to Sandbox",
+				"category": "Agentuity",
+				"icon": "$(cloud-upload)"
+			},
+			{
+				"command": "agentuity.sandbox.deleteFile",
+				"title": "Delete File",
+				"category": "Agentuity",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "agentuity.sandbox.createFile",
+				"title": "New File",
+				"category": "Agentuity",
+				"icon": "$(new-file)"
+			},
+			{
+				"command": "agentuity.sandbox.createFolder",
+				"title": "New Folder",
+				"category": "Agentuity",
+				"icon": "$(new-folder)"
+			},
+			{
+				"command": "agentuity.sandbox.copyPath",
+				"title": "Copy Path",
+				"category": "Agentuity",
+				"icon": "$(copy)"
+			},
+			{
+				"command": "agentuity.sandbox.viewExecution",
+				"title": "View Execution",
+				"category": "Agentuity",
+				"icon": "$(output)"
+			},
+			{
+				"command": "agentuity.sandbox.setEnv",
+				"title": "Set Environment Variable",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.sandbox.viewEnv",
+				"title": "View Environment",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.sandbox.syncEnvFile",
+				"title": "Sync .env to Sandbox",
+				"category": "Agentuity"
+			},
+			{
+				"command": "agentuity.sandbox.snapshot.create",
+				"title": "Create Snapshot",
+				"category": "Agentuity",
+				"icon": "$(device-camera)"
+			},
+			{
+				"command": "agentuity.sandbox.snapshot.delete",
+				"title": "Delete Snapshot",
+				"category": "Agentuity",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "agentuity.sandbox.snapshot.tag",
+				"title": "Tag Snapshot",
+				"category": "Agentuity",
+				"icon": "$(tag)"
+			},
+			{
+				"command": "agentuity.sandbox.snapshot.viewDetails",
+				"title": "View Snapshot Details",
+				"category": "Agentuity",
+				"icon": "$(json)"
+			},
+			{
+				"command": "agentuity.sandbox.snapshot.viewFile",
+				"title": "View Snapshot File",
+				"category": "Agentuity",
+				"icon": "$(go-to-file)"
 			}
 		],
 		"viewsContainers": {
@@ -218,6 +364,11 @@
 					"id": "agentuity.agents",
 					"name": "Agents",
 					"contextualTitle": "Agentuity Agents"
+				},
+				{
+					"id": "agentuity.sandboxes",
+					"name": "Sandboxes",
+					"contextualTitle": "Agentuity Sandboxes"
 				},
 				{
 					"id": "agentuity.deployments",
@@ -266,6 +417,16 @@
 				{
 					"command": "agentuity.data.refresh",
 					"when": "view == agentuity.data",
+					"group": "navigation"
+				},
+				{
+					"command": "agentuity.sandbox.refresh",
+					"when": "view == agentuity.sandboxes",
+					"group": "navigation"
+				},
+				{
+					"command": "agentuity.sandbox.create",
+					"when": "view == agentuity.sandboxes",
 					"group": "navigation"
 				}
 			],
@@ -319,6 +480,132 @@
 					"command": "agentuity.agent.viewSessions",
 					"when": "view == agentuity.agents && viewItem == agent",
 					"group": "2_actions"
+				},
+				{
+					"command": "agentuity.sandbox.exec",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandbox\\.(idle|running)/",
+					"group": "inline"
+				},
+				{
+					"command": "agentuity.sandbox.sync",
+					"when": "view == agentuity.sandboxes && viewItem =~ /\\.linked/",
+					"group": "inline"
+				},
+				{
+					"command": "agentuity.sandbox.exec",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandbox\\.(idle|running)/",
+					"group": "1_execute@1"
+				},
+				{
+					"command": "agentuity.sandbox.sync",
+					"when": "view == agentuity.sandboxes && viewItem =~ /\\.linked/",
+					"group": "2_sync@1"
+				},
+				{
+					"command": "agentuity.sandbox.link",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandbox\\.idle/ && viewItem !~ /linked/",
+					"group": "3_link@1"
+				},
+				{
+					"command": "agentuity.sandbox.unlink",
+					"when": "view == agentuity.sandboxes && viewItem =~ /\\.linked/",
+					"group": "3_link@2"
+				},
+				{
+					"command": "agentuity.sandbox.snapshot.create",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandbox\\.(idle|running)/",
+					"group": "4_snapshot@1"
+				},
+				{
+					"command": "agentuity.sandbox.setEnv",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandbox\\.(idle|running)/",
+					"group": "5_env@1"
+				},
+				{
+					"command": "agentuity.sandbox.viewEnv",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandbox\\.(idle|running)/",
+					"group": "5_env@2"
+				},
+				{
+					"command": "agentuity.sandbox.syncEnvFile",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandbox\\.(idle|running)/",
+					"group": "5_env@3"
+				},
+				{
+					"command": "agentuity.sandbox.delete",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandbox\\./",
+					"group": "9_delete@1"
+				},
+				{
+					"command": "agentuity.sandbox.viewFile",
+					"when": "view == agentuity.sandboxes && viewItem == sandboxFile",
+					"group": "1_view@1"
+				},
+				{
+					"command": "agentuity.sandbox.download",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandboxFile/",
+					"group": "2_transfer@1"
+				},
+				{
+					"command": "agentuity.sandbox.copyPath",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandboxFile/",
+					"group": "inline"
+				},
+				{
+					"command": "agentuity.sandbox.createFile",
+					"when": "view == agentuity.sandboxes && viewItem == sandboxCategory.files",
+					"group": "1_create@1"
+				},
+				{
+					"command": "agentuity.sandbox.createFolder",
+					"when": "view == agentuity.sandboxes && viewItem == sandboxCategory.files",
+					"group": "1_create@2"
+				},
+				{
+					"command": "agentuity.sandbox.createFile",
+					"when": "view == agentuity.sandboxes && viewItem == sandboxFile.directory",
+					"group": "1_create@1"
+				},
+				{
+					"command": "agentuity.sandbox.createFolder",
+					"when": "view == agentuity.sandboxes && viewItem == sandboxFile.directory",
+					"group": "1_create@2"
+				},
+				{
+					"command": "agentuity.sandbox.deleteFile",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^sandboxFile/",
+					"group": "9_delete@1"
+				},
+				{
+					"command": "agentuity.sandbox.createFromSnapshot",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^snapshot/",
+					"group": "1_create@1"
+				},
+				{
+					"command": "agentuity.sandbox.snapshot.tag",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^snapshot/",
+					"group": "2_manage@1"
+				},
+				{
+					"command": "agentuity.sandbox.snapshot.viewDetails",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^snapshot/",
+					"group": "2_manage@2"
+				},
+				{
+					"command": "agentuity.sandbox.snapshot.delete",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^snapshot/",
+					"group": "9_delete@1"
+				},
+				{
+					"command": "agentuity.sandbox.viewExecution",
+					"when": "view == agentuity.sandboxes && viewItem =~ /^execution/",
+					"group": "1_view@1"
+				}
+			],
+			"explorer/context": [
+				{
+					"command": "agentuity.sandbox.upload",
+					"group": "agentuity@1"
 				}
 			]
 		},
@@ -334,6 +621,40 @@
 					"type": "number",
 					"default": 3500,
 					"description": "Default port for the dev server."
+				},
+				"agentuity.sandbox.defaultMemory": {
+					"type": "string",
+					"default": "512Mi",
+					"description": "Default memory limit for new sandboxes (e.g., 512Mi, 1Gi, 2Gi)"
+				},
+				"agentuity.sandbox.defaultCpu": {
+					"type": "string",
+					"default": "500m",
+					"description": "Default CPU limit for new sandboxes in millicores (e.g., 500m, 1000m)"
+				},
+				"agentuity.sandbox.defaultNetwork": {
+					"type": "boolean",
+					"default": false,
+					"description": "Enable network access by default for new sandboxes"
+				},
+				"agentuity.sandbox.syncExclusions": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [
+						".git",
+						"node_modules",
+						".agentuity",
+						"dist",
+						"build"
+					],
+					"description": "Additional patterns to exclude when syncing (in addition to .gitignore)"
+				},
+				"agentuity.sandbox.defaultRemotePath": {
+					"type": "string",
+					"default": "/home/agentuity/app",
+					"description": "Default path in sandbox for synced files"
 				}
 			}
 		},
@@ -580,6 +901,157 @@
 						}
 					}
 				}
+			},
+			{
+				"name": "agentuity_list_sandboxes",
+				"displayName": "List Sandboxes",
+				"toolReferenceName": "agentuity-sandboxes",
+				"icon": "$(vm)",
+				"userDescription": "List all sandboxes in the Agentuity cloud",
+				"modelDescription": "List all sandboxes available in the Agentuity cloud. Returns sandbox IDs, status (creating, idle, running, terminated, failed), creation time, and resource configuration. Use this to discover available sandboxes before executing commands or syncing files.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.authenticated",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"status": {
+							"type": "string",
+							"enum": [
+								"creating",
+								"idle",
+								"running",
+								"terminated",
+								"failed"
+							],
+							"description": "Filter sandboxes by status"
+						}
+					}
+				}
+			},
+			{
+				"name": "agentuity_create_sandbox",
+				"displayName": "Create Sandbox",
+				"toolReferenceName": "agentuity-create-sandbox",
+				"icon": "$(add)",
+				"userDescription": "Create a new sandbox in the Agentuity cloud",
+				"modelDescription": "Create a new sandbox environment in the Agentuity cloud. Sandboxes are isolated execution environments for running code. You can specify memory, CPU, disk, network access, and other configuration options. Returns the new sandbox ID and status.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.authenticated",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"memory": {
+							"type": "string",
+							"description": "Memory allocation (e.g., '512Mi', '1Gi')"
+						},
+						"cpu": {
+							"type": "string",
+							"description": "CPU allocation (e.g., '0.5', '1', '2')"
+						},
+						"network": {
+							"type": "boolean",
+							"description": "Whether to enable network access (default: true)",
+							"default": true
+						},
+						"snapshot": {
+							"type": "string",
+							"description": "Snapshot ID to restore from"
+						}
+					}
+				}
+			},
+			{
+				"name": "agentuity_sync_to_sandbox",
+				"displayName": "Sync to Sandbox",
+				"toolReferenceName": "agentuity-sync",
+				"icon": "$(sync)",
+				"userDescription": "Sync local project files to a sandbox",
+				"modelDescription": "Sync the current workspace files to a sandbox. Respects .gitignore by default. Use this to upload your code to a sandbox before executing it. Returns the number of files synced and bytes transferred.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.authenticated",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sandboxId": {
+							"type": "string",
+							"description": "The sandbox ID to sync to"
+						},
+						"remotePath": {
+							"type": "string",
+							"description": "Remote path in sandbox (default: /home/agentuity/app)",
+							"default": "/home/agentuity/app"
+						},
+						"respectGitignore": {
+							"type": "boolean",
+							"description": "Whether to respect .gitignore rules (default: true)",
+							"default": true
+						}
+					},
+					"required": [
+						"sandboxId"
+					]
+				}
+			},
+			{
+				"name": "agentuity_execute_in_sandbox",
+				"displayName": "Execute in Sandbox",
+				"toolReferenceName": "agentuity-exec",
+				"icon": "$(play)",
+				"userDescription": "Execute a command in a sandbox",
+				"modelDescription": "Execute a shell command in a sandbox environment. The command runs in the sandbox's isolated environment. Returns the exit code and output. Use agentuity_sync_to_sandbox first to upload code, then execute it.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.authenticated",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sandboxId": {
+							"type": "string",
+							"description": "The sandbox ID to execute in"
+						},
+						"command": {
+							"type": "string",
+							"description": "The command to execute"
+						},
+						"workdir": {
+							"type": "string",
+							"description": "Working directory for the command"
+						},
+						"env": {
+							"type": "object",
+							"description": "Environment variables to set"
+						}
+					},
+					"required": [
+						"sandboxId",
+						"command"
+					]
+				}
+			},
+			{
+				"name": "agentuity_create_snapshot",
+				"displayName": "Create Snapshot",
+				"toolReferenceName": "agentuity-snapshot",
+				"icon": "$(save)",
+				"userDescription": "Create a snapshot of a sandbox",
+				"modelDescription": "Create a snapshot of a sandbox's current state. Snapshots capture the filesystem and can be used to restore or clone sandboxes. Use this to save work or create reproducible environments.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.authenticated",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sandboxId": {
+							"type": "string",
+							"description": "The sandbox ID to snapshot"
+						},
+						"tag": {
+							"type": "string",
+							"description": "Optional tag for the snapshot"
+						}
+					},
+					"required": [
+						"sandboxId"
+					]
+				}
 			}
 		],
 		"walkthroughs": [
@@ -648,6 +1120,7 @@
 		"typescript": "^5.9.0"
 	},
 	"dependencies": {
-		"jsonc-parser": "^3.3.1"
+		"jsonc-parser": "^3.3.1",
+		"tar": "^7.4.3"
 	}
 }

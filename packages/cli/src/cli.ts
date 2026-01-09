@@ -1,6 +1,8 @@
+import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
 import { Command } from 'commander';
+import { getDefaultConfigDir } from './config';
 import type {
 	CommandDefinition,
 	SubcommandDefinition,
@@ -688,11 +690,69 @@ interface ResolveRegionOptions {
 	region?: string;
 }
 
+const REGIONS_CACHE_FILE = 'regions.json';
+const REGIONS_CACHE_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
+
+interface RegionsCacheData {
+	timestamp: number;
+	regions: RegionList;
+}
+
+async function getCachedRegions(logger: Logger): Promise<RegionList | null> {
+	try {
+		const cachePath = join(getDefaultConfigDir(), REGIONS_CACHE_FILE);
+		const file = Bun.file(cachePath);
+		if (!(await file.exists())) {
+			return null;
+		}
+		const data: RegionsCacheData = await file.json();
+		const age = Date.now() - data.timestamp;
+		if (age > REGIONS_CACHE_MAX_AGE_MS) {
+			logger.trace('regions cache expired (age: %dms)', age);
+			return null;
+		}
+		logger.trace('using cached regions (age: %dms)', age);
+		return data.regions;
+	} catch (error) {
+		logger.trace('failed to read regions cache: %s', error);
+		return null;
+	}
+}
+
+async function saveRegionsCache(regions: RegionList, logger: Logger): Promise<void> {
+	try {
+		const cacheDir = getDefaultConfigDir();
+		await mkdir(cacheDir, { recursive: true });
+		const cachePath = join(cacheDir, REGIONS_CACHE_FILE);
+		const data: RegionsCacheData = {
+			timestamp: Date.now(),
+			regions,
+		};
+		await Bun.write(cachePath, JSON.stringify(data));
+		logger.trace('saved regions cache');
+	} catch (error) {
+		logger.trace('failed to save regions cache: %s', error);
+	}
+}
+
+async function fetchRegionsWithCache(
+	apiClient: APIClientType,
+	logger: Logger
+): Promise<RegionList> {
+	const cached = await getCachedRegions(logger);
+	if (cached) {
+		return cached;
+	}
+	const regions = await listRegions(apiClient);
+	await saveRegionsCache(regions, logger);
+	return regions;
+}
+
 async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
 	const { options, apiClient, logger, required } = opts;
 
-	// Fetch regions
-	const regions = await listRegions(apiClient);
+	// Fetch regions (with caching)
+	const regions = await fetchRegionsWithCache(apiClient, logger);
 
 	// No regions available
 	if (regions.length === 0) {

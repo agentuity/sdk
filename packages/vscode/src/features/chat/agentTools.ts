@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
-import { getCliClient } from '../../core/cliClient';
+import { getCliClient, type SandboxCreateOptions } from '../../core/cliClient';
 import { getAuthStatus } from '../../core/auth';
 import { hasProject, getCurrentProject } from '../../core/project';
 import { getDevServerManager } from '../devServer';
+import { getSandboxManager, formatBytes } from '../../core/sandboxManager';
 
 export interface GetAgentsInput {
 	includeDetails?: boolean;
@@ -486,6 +487,237 @@ export class GetHealthSummaryTool implements vscode.LanguageModelTool<GetHealthS
 	}
 }
 
+// ==================== Sandbox Tools ====================
+
+export interface ListSandboxesInput {
+	status?: 'creating' | 'idle' | 'running' | 'terminated' | 'failed';
+}
+
+export class ListSandboxesTool implements vscode.LanguageModelTool<ListSandboxesInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<ListSandboxesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		const cli = getCliClient();
+		const result = await cli.sandboxList({ status: options.input.status });
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to list sandboxes: ${result.error || 'Unknown error'}`);
+		}
+
+		const sandboxes = result.data.map((s) => ({
+			id: s.sandboxId,
+			status: s.status,
+			region: s.region,
+			createdAt: s.createdAt,
+			resources: s.resources,
+			executions: s.executions,
+		}));
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(JSON.stringify(sandboxes, null, 2)),
+		]);
+	}
+
+	async prepareInvocation(
+		_options: vscode.LanguageModelToolInvocationPrepareOptions<ListSandboxesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: 'Listing sandboxes...',
+		};
+	}
+}
+
+export interface CreateSandboxInput {
+	memory?: string;
+	cpu?: string;
+	network?: boolean;
+	snapshot?: string;
+	dependencies?: string[];
+}
+
+export class CreateSandboxTool implements vscode.LanguageModelTool<CreateSandboxInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<CreateSandboxInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		const cli = getCliClient();
+		const createOptions: SandboxCreateOptions = {
+			memory: options.input.memory,
+			cpu: options.input.cpu,
+			network: options.input.network,
+			snapshot: options.input.snapshot,
+			dependencies: options.input.dependencies,
+		};
+
+		const result = await cli.sandboxCreate(createOptions);
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to create sandbox: ${result.error || 'Unknown error'}`);
+		}
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(
+				`Sandbox created successfully!\n\nID: ${result.data.sandboxId}\nStatus: ${result.data.status}\nRegion: ${result.data.region}`
+			),
+		]);
+	}
+
+	async prepareInvocation(
+		_options: vscode.LanguageModelToolInvocationPrepareOptions<CreateSandboxInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: 'Creating sandbox...',
+			confirmationMessages: {
+				title: 'Create Sandbox',
+				message: new vscode.MarkdownString(
+					'This will create a new sandbox environment in the cloud.\n\nDo you want to continue?'
+				),
+			},
+		};
+	}
+}
+
+export interface SyncToSandboxInput {
+	sandboxId: string;
+}
+
+export class SyncToSandboxTool implements vscode.LanguageModelTool<SyncToSandboxInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<SyncToSandboxInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		const { sandboxId } = options.input;
+		if (!sandboxId) {
+			throw new Error('Sandbox ID is required.');
+		}
+
+		if (!vscode.workspace.workspaceFolders?.length) {
+			throw new Error('No workspace folder open to sync.');
+		}
+
+		try {
+			const manager = getSandboxManager();
+			const result = await manager.syncToSandbox(sandboxId);
+
+			return new vscode.LanguageModelToolResult([
+				new vscode.LanguageModelTextPart(
+					`Synced ${result.filesUploaded} files (${formatBytes(result.bytesTransferred)}) in ${(result.duration / 1000).toFixed(1)}s`
+				),
+			]);
+		} catch (err) {
+			throw new Error(
+				`Failed to sync: ${err instanceof Error ? err.message : 'Unknown error'}`
+			);
+		}
+	}
+
+	async prepareInvocation(
+		options: vscode.LanguageModelToolInvocationPrepareOptions<SyncToSandboxInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: `Syncing workspace to sandbox ${options.input.sandboxId?.substring(0, 8)}...`,
+			confirmationMessages: {
+				title: 'Sync to Sandbox',
+				message: new vscode.MarkdownString(
+					'This will upload your workspace files to the sandbox.\n\nDo you want to continue?'
+				),
+			},
+		};
+	}
+}
+
+export interface ExecuteInSandboxInput {
+	sandboxId: string;
+	command: string;
+}
+
+export class ExecuteInSandboxTool implements vscode.LanguageModelTool<ExecuteInSandboxInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<ExecuteInSandboxInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		const { sandboxId, command } = options.input;
+		if (!sandboxId || !command) {
+			throw new Error('Sandbox ID and command are required.');
+		}
+
+		const cli = getCliClient();
+		const cliPath = cli.getCliPath();
+
+		// Execute in terminal for streaming output
+		const terminal = vscode.window.createTerminal({
+			name: `Sandbox: ${sandboxId.slice(0, 8)}`,
+			iconPath: new vscode.ThemeIcon('vm'),
+		});
+		terminal.show();
+		terminal.sendText(`${cliPath} cloud sandbox exec ${sandboxId} -- ${command}`);
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(
+				`Executing "${command}" in sandbox ${sandboxId}. Check the terminal for output.`
+			),
+		]);
+	}
+
+	async prepareInvocation(
+		options: vscode.LanguageModelToolInvocationPrepareOptions<ExecuteInSandboxInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: `Executing command in sandbox ${options.input.sandboxId?.substring(0, 8)}...`,
+			confirmationMessages: {
+				title: 'Execute in Sandbox',
+				message: new vscode.MarkdownString(
+					`This will execute the following command in the sandbox:\n\n\`\`\`\n${options.input.command}\n\`\`\`\n\nDo you want to continue?`
+				),
+			},
+		};
+	}
+}
+
+export interface CreateSnapshotInput {
+	sandboxId: string;
+	tag?: string;
+}
+
+export class CreateSnapshotTool implements vscode.LanguageModelTool<CreateSnapshotInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<CreateSnapshotInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		const { sandboxId, tag } = options.input;
+		if (!sandboxId) {
+			throw new Error('Sandbox ID is required.');
+		}
+
+		const cli = getCliClient();
+		const result = await cli.snapshotCreate(sandboxId, tag);
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to create snapshot: ${result.error || 'Unknown error'}`);
+		}
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(
+				`Snapshot created!\n\nID: ${result.data.snapshotId}\nSize: ${formatBytes(result.data.sizeBytes)}\nFiles: ${result.data.fileCount}${tag ? `\nTag: ${tag}` : ''}`
+			),
+		]);
+	}
+
+	async prepareInvocation(
+		options: vscode.LanguageModelToolInvocationPrepareOptions<CreateSnapshotInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: `Creating snapshot of sandbox ${options.input.sandboxId?.substring(0, 8)}...`,
+		};
+	}
+}
+
 export function registerAgentTools(context: vscode.ExtensionContext): void {
 	if (!vscode.lm?.registerTool) {
 		return;
@@ -522,6 +754,27 @@ export function registerAgentTools(context: vscode.ExtensionContext): void {
 
 		context.subscriptions.push(
 			vscode.lm.registerTool('agentuity_get_health_summary', new GetHealthSummaryTool())
+		);
+
+		// Sandbox tools
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_list_sandboxes', new ListSandboxesTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_create_sandbox', new CreateSandboxTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_sync_to_sandbox', new SyncToSandboxTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_execute_in_sandbox', new ExecuteInSandboxTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_create_snapshot', new CreateSnapshotTool())
 		);
 	} catch {
 		// LM API not available

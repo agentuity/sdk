@@ -1,10 +1,11 @@
 {
 	"name": "@agentuity/core",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
 	"main": "./dist/index.js",
+	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"files": [
 		"AGENTS.md",
@@ -13,13 +14,17 @@
 		"dist"
 	],
 	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
-		},
-		"./workbench": {
-			"types": "./dist/workbench.d.ts",
-			"import": "./dist/workbench.js"
+		".": "./dist/index.js",
+		"./workbench": "./dist/workbench.js"
+	},
+	"typesVersions": {
+		"*": {
+			".": [
+				"./dist/index.d.ts"
+			],
+			"workbench": [
+				"./dist/workbench.d.ts"
+			]
 		}
 	},
 	"scripts": {
@@ -35,6 +40,7 @@
 		"@agentuity/test-utils": "workspace:*",
 		"@types/bun": "latest",
 		"bun-types": "latest",
+		"esbuild": "^0.25.0",
 		"typescript": "^5.9.0"
 	},
 	"publishConfig": {
