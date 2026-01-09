@@ -88,11 +88,36 @@ describe('@agentuity/core subpath exports', () => {
 		// "./workbench": { "types": "...", "import": "..." }
 		// The fix uses simple string exports + typesVersions instead
 
-		// Use the dist/workbench.js file directly to test that the exports are correctly structured
-		const workbenchPath = join(corePackageDir, 'dist/workbench.js');
+		// Use an esbuild plugin to resolve @agentuity/core to this package directory,
+		// simulating how npm consumers would have the package in node_modules
+		const coreResolverPlugin: esbuild.Plugin = {
+			name: 'core-resolver',
+			setup(build) {
+				// Resolve @agentuity/core subpath exports using this package's exports
+				build.onResolve({ filter: /^@agentuity\/core/ }, async (args) => {
+					const subpath = args.path.replace('@agentuity/core', '');
+					const pkgJson = await Bun.file(join(corePackageDir, 'package.json')).json();
+
+					// For subpath exports, look up the export in package.json
+					const exportKey = subpath === '' ? '.' : `.${subpath}`;
+					const exportPath = pkgJson.exports?.[exportKey];
+
+					if (typeof exportPath === 'string') {
+						return { path: join(corePackageDir, exportPath) };
+					}
+
+					// Fallback for conditional exports (should not happen with fix)
+					if (exportPath?.import) {
+						return { path: join(corePackageDir, exportPath.import) };
+					}
+
+					return undefined;
+				});
+			},
+		};
 
 		const virtualEntry = `
-import { decodeWorkbenchConfig } from '${workbenchPath}';
+import { decodeWorkbenchConfig } from '@agentuity/core/workbench';
 console.log(decodeWorkbenchConfig);
 `;
 
@@ -106,6 +131,7 @@ console.log(decodeWorkbenchConfig);
 			write: false,
 			format: 'esm',
 			platform: 'browser',
+			plugins: [coreResolverPlugin],
 			conditions: ['import', 'browser', 'default'],
 			logLevel: 'silent',
 		});
