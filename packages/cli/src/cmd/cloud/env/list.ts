@@ -28,8 +28,8 @@ export const listSubcommand = createSubcommand({
 		options: z.object({
 			mask: z
 				.boolean()
-				.default(!!process.stdout.isTTY)
-				.describe('mask secret values in output (default: true in TTY)'),
+				.default(true)
+				.describe('mask secret values in output (use --no-mask to show values)'),
 			secrets: z.boolean().default(false).describe('list only secrets'),
 			'env-only': z.boolean().default(false).describe('list only environment variables'),
 		}),
