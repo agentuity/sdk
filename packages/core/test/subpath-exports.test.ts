@@ -39,12 +39,17 @@ describe('@agentuity/core subpath exports', () => {
 		const pkgJsonPath = join(corePackageDir, 'package.json');
 		const pkgJson = await Bun.file(pkgJsonPath).json();
 
-		// Verify typesVersions exists
+		// Verify typesVersions exists with proper guards
 		expect(pkgJson.typesVersions).toBeDefined();
+		if (!pkgJson.typesVersions) return;
+
 		expect(pkgJson.typesVersions['*']).toBeDefined();
+		if (!pkgJson.typesVersions['*']) return;
 
 		// Verify workbench types are mapped
 		expect(pkgJson.typesVersions['*']['workbench']).toBeDefined();
+		if (!pkgJson.typesVersions['*']['workbench']) return;
+
 		expect(pkgJson.typesVersions['*']['workbench']).toContain('./dist/workbench.d.ts');
 	});
 
@@ -152,6 +157,10 @@ console.log(decodeWorkbenchConfig);
 
 		const pkgJsonPath = join(corePackageDir, 'package.json');
 		const pkgJson = await Bun.file(pkgJsonPath).json();
+
+		// Verify exports exists with proper guard
+		expect(pkgJson.exports).toBeDefined();
+		if (!pkgJson.exports) return;
 
 		// esbuild requires simple string exports for subpaths
 		// Conditional exports objects like { "types": "...", "import": "..." } are NOT supported
