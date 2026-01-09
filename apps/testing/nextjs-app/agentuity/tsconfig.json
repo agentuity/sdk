@@ -13,6 +13,7 @@
 			"@agents/*": ["./src/agent/*"]
 		}
 	},
-	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],
+	"files": [".agentuity/.agentuity_types.ts"],
+	"include": ["src/**/*", "app.ts"],
 	"exclude": ["node_modules", ".agentuity", "src/generated/routes.ts"]
 }
