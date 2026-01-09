@@ -6,28 +6,13 @@
 		"allowImportingTsExtensions": true,
 		"noEmit": true,
 		"jsx": "react-jsx",
-		"lib": [
-			"ESNext",
-			"DOM"
-		],
-		"types": [
-			"bun-types"
-		],
+		"lib": ["ESNext", "DOM"],
+		"types": ["bun-types"],
 		"skipLibCheck": true,
 		"paths": {
-			"@agents/*": [
-				"./src/agent/*"
-			]
+			"@agents/*": ["./src/agent/*"]
 		}
 	},
-	"include": [
-		"src/**/*",
-		"app.ts",
-		".agentuity/.agentuity_types.ts"
-	],
-	"exclude": [
-		"node_modules",
-		".agentuity",
-		"src/generated/routes.ts"
-	]
+	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],
+	"exclude": ["node_modules", ".agentuity", "src/generated/routes.ts"]
 }

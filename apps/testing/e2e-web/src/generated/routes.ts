@@ -203,6 +203,99 @@ declare module '@agentuity/frontend' {
 	}
 }
 
+// Backward compatibility: also augment @agentuity/react for older versions
+// that define RouteRegistry locally instead of re-exporting from @agentuity/frontend
+declare module '@agentuity/react' {
+	export interface RouteRegistry {
+	'POST /api/hello': {
+				inputSchema: POSTApiHelloInputSchema;
+				outputSchema: POSTApiHelloOutputSchema;
+				stream: typeof hello extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'GET /api/organizations/:orgId/members/:memberId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { orgId: string; memberId: string };
+			};
+	'GET /api/search': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/users/:userId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { userId: string };
+			};
+	}
+	export interface WebSocketRouteRegistry {
+	'/api/echo': {
+				inputSchema: GETApiEchoInputSchema;
+				outputSchema: GETApiEchoOutputSchema;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface SSERouteRegistry {
+	'/api/events': {
+				inputSchema: GETApiEventsInputSchema;
+				outputSchema: GETApiEventsOutputSchema;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface RPCRouteRegistry {
+		echo: {
+			/**
+			 * Route: GET /api/echo
+			 */
+			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket'; params: never; paramsTuple: [] };
+		};
+		events: {
+			/**
+			 * Route: GET /api/events
+			 */
+			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse'; params: never; paramsTuple: [] };
+		};
+		hello: {
+			/**
+			 * Route: POST /api/hello
+			 */
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; params: never; paramsTuple: [] };
+		};
+		organizations: {
+			orgId: {
+				members: {
+					memberId: {
+						/**
+						 * Route: GET /api/organizations/:orgId/members/:memberId
+						 */
+						get: { input: never; output: never; type: 'api'; params: { orgId: string; memberId: string }; paramsTuple: [string, string] };
+					};
+				};
+			};
+		};
+		search: {
+			/**
+			 * Route: GET /api/search
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
+		users: {
+			userId: {
+				/**
+				 * Route: GET /api/users/:userId
+				 */
+				get: { input: never; output: never; type: 'api'; params: { userId: string }; paramsTuple: [string] };
+			};
+		};
+	}
+}
+
 /**
  * Runtime metadata for RPC routes.
  * Contains route type information for client routing decisions.

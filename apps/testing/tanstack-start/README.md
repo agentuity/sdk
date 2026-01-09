@@ -44,9 +44,9 @@ Path aliases enable importing generated route types:
 
 ```json
 {
-  "paths": {
-    "@agentuity/routes": ["./agentuity/src/generated/routes.ts"]
-  }
+	"paths": {
+		"@agentuity/routes": ["./agentuity/src/generated/routes.ts"]
+	}
 }
 ```
 
@@ -59,14 +59,10 @@ import { useAPI, AgentuityProvider } from '@agentuity/react';
 import '@agentuity/routes'; // Side-effect import for type augmentation
 
 function EchoDemoInner() {
-  // TypeScript knows: input = { message: string }, output = { echo: string, timestamp: string }
-  const { data, invoke, isLoading, error } = useAPI('POST /api/echo');
+	// TypeScript knows: input = { message: string }, output = { echo: string, timestamp: string }
+	const { data, invoke, isLoading, error } = useAPI('POST /api/echo');
 
-  return (
-    <button onClick={() => invoke({ message: 'Hello!' })}>
-      Send Echo
-    </button>
-  );
+	return <button onClick={() => invoke({ message: 'Hello!' })}>Send Echo</button>;
 }
 ```
 
@@ -79,20 +75,20 @@ import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
 export const EchoInput = s.object({
-  message: s.string(),
+	message: s.string(),
 });
 
 export const EchoOutput = s.object({
-  echo: s.string(),
-  timestamp: s.string(),
+	echo: s.string(),
+	timestamp: s.string(),
 });
 
 const agent = createAgent('echo', {
-  schema: { input: EchoInput, output: EchoOutput },
-  handler: async (ctx, { message }) => ({
-    echo: message,
-    timestamp: new Date().toISOString(),
-  }),
+	schema: { input: EchoInput, output: EchoOutput },
+	handler: async (ctx, { message }) => ({
+		echo: message,
+		timestamp: new Date().toISOString(),
+	}),
 });
 ```
 
