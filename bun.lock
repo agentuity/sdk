@@ -218,6 +218,7 @@
         "@agentuity/test-utils": "workspace:*",
         "@types/bun": "latest",
         "bun-types": "latest",
+        "esbuild": "^0.25.0",
         "typescript": "^5.9.0",
       },
     },
