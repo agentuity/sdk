@@ -1,4 +1,4 @@
-import { useAPI } from '@agentuity/react';
+import { useAnalytics, useAPI } from '@agentuity/react';
 import { type ChangeEvent, Fragment, useCallback, useState } from 'react';
 import './App.css';
 
@@ -20,18 +20,26 @@ export function App() {
 
 	const { invoke: clearHistory } = useAPI('DELETE /api/translate/history');
 
+	const { track } = useAnalytics();
+
 	// Prefer fresh data from translation, fall back to initial fetch
 	const history = translateResult?.history ?? historyData?.history ?? [];
 	const threadId = translateResult?.threadId ?? historyData?.threadId;
 
 	const handleTranslate = useCallback(async () => {
+		track('translate', {
+			text,
+			toLanguage,
+			model,
+		});
 		await translate({ text, toLanguage, model });
-	}, [text, toLanguage, model, translate]);
+	}, [text, toLanguage, model, translate, track]);
 
 	const handleClearHistory = useCallback(async () => {
+		track('clear_history');
 		await clearHistory();
 		await refetchHistory();
-	}, [clearHistory, refetchHistory]);
+	}, [clearHistory, refetchHistory, track]);
 
 	return (
 		<div className="text-white flex font-sans justify-center min-h-screen">
