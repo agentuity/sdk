@@ -72,6 +72,10 @@ export function VectorSearch() {
 				if (!seedResponse.ok) {
 					throw new Error('Failed to auto-seed data');
 				}
+				const seedData = await seedResponse.json();
+				if (!seedData.success) {
+					throw new Error(seedData.error || 'Failed to auto-seed data');
+				}
 				setSeeded(true);
 			}
 

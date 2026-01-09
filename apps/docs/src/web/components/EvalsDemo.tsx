@@ -28,6 +28,9 @@ const EVAL_CONFIG: Record<string, { name: string; type: 'score' | 'binary' }> = 
 	'factual-claims': { name: 'Factual Claims', type: 'binary' },
 };
 
+// Max polling attempts (30 seconds at 2 second intervals)
+const MAX_POLL_ATTEMPTS = 15;
+
 export function EvalsDemo() {
 	const [status, setStatus] = useState<Status>('idle');
 	const [generatedContent, setGeneratedContent] = useState('');
@@ -35,16 +38,29 @@ export function EvalsDemo() {
 	const [evalResults, setEvalResults] = useState<EvalRun[]>([]);
 	const [error, setError] = useState('');
 	const pollingRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const pollCountRef = useRef(0);
+	const abortControllerRef = useRef<AbortController | null>(null);
 
 	useEffect(() => {
 		return () => {
 			if (pollingRef.current) clearTimeout(pollingRef.current);
+			abortControllerRef.current?.abort();
 		};
 	}, []);
 
 	const pollSession = useCallback(async (sid: string) => {
+		// Check max polling attempts
+		pollCountRef.current++;
+		if (pollCountRef.current > MAX_POLL_ATTEMPTS) {
+			setError('Evaluation timed out after 30 seconds');
+			setStatus('error');
+			return;
+		}
+
 		try {
-			const response = await fetch(`/api/evals/session/${sid}`);
+			const response = await fetch(`/api/evals/session/${sid}`, {
+				signal: abortControllerRef.current?.signal,
+			});
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
 			const data: SessionResponse = await response.json();
@@ -54,15 +70,22 @@ export function EvalsDemo() {
 			if (allDone && data.evalResults.length > 0) {
 				setStatus('done');
 			} else {
-				pollingRef.current = setTimeout(() => pollSession(sid), 1000);
+				pollingRef.current = setTimeout(() => pollSession(sid), 2000);
 			}
 		} catch (err) {
+			// Ignore abort errors (component unmounted)
+			if (err instanceof Error && err.name === 'AbortError') return;
 			setError(err instanceof Error ? err.message : 'Polling failed');
 			setStatus('error');
 		}
 	}, []);
 
 	const generate = useCallback(async () => {
+		// Abort any previous request and reset state
+		abortControllerRef.current?.abort();
+		abortControllerRef.current = new AbortController();
+		pollCountRef.current = 0;
+
 		setStatus('generating');
 		setError('');
 		setGeneratedContent('');
@@ -73,6 +96,7 @@ export function EvalsDemo() {
 			const response = await fetch('/api/evals', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
+				signal: abortControllerRef.current.signal,
 			});
 			if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -82,6 +106,8 @@ export function EvalsDemo() {
 			setStatus('polling');
 			pollSession(data.sessionId);
 		} catch (err) {
+			// Ignore abort errors (component unmounted or new request started)
+			if (err instanceof Error && err.name === 'AbortError') return;
 			setError(err instanceof Error ? err.message : 'Generation failed');
 			setStatus('error');
 		}

@@ -73,13 +73,17 @@ router.get(
 				);
 			} catch (error) {
 				c.var.logger?.error('WebSocket message error', { error });
-				ws.send(
-					JSON.stringify({
-						type: 'error',
-						message: 'Failed to process message',
-						timestamp: new Date().toISOString(),
-					})
-				);
+				try {
+					ws.send(
+						JSON.stringify({
+							type: 'error',
+							message: 'Failed to process message',
+							timestamp: new Date().toISOString(),
+						})
+					);
+				} catch {
+					// WebSocket already closed, can't send error response
+				}
 			}
 		});
 

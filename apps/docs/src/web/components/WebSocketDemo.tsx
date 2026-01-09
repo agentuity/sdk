@@ -158,6 +158,8 @@ export function WebSocketDemo() {
 
 	useEffect(() => {
 		return () => {
+			// Prevent reconnection attempts after unmount
+			manualDisconnectRef.current = true;
 			if (reconnectTimeoutRef.current) {
 				clearTimeout(reconnectTimeoutRef.current);
 			}

@@ -1,6 +1,6 @@
 import { AgentuityProvider } from '@agentuity/react';
 import { BookOpenIcon, ChevronLeftIcon } from '@heroicons/react/24/outline';
-import { useCallback, useEffect, useState } from 'react';
+import { Component, type ReactNode, useCallback, useEffect, useState } from 'react';
 import { AgentCallsDemo } from './components/AgentCallsDemo';
 import { AIGatewayDemo } from './components/AIGatewayDemo';
 import { ChatDemo } from './components/ChatDemo';
@@ -18,6 +18,57 @@ import { StreamingDemo } from './components/StreamingDemo';
 import { ThemeProvider } from './components/ThemeContext';
 import { ThemeToggle } from './components/ThemeToggle';
 import { VectorSearch } from './components/VectorSearch';
+
+// Error boundary to catch demo component crashes
+interface ErrorBoundaryProps {
+	children: React.ReactNode;
+	fallback?: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+	hasError: boolean;
+	error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+	constructor(props: ErrorBoundaryProps) {
+		super(props);
+		this.state = { hasError: false, error: null };
+	}
+
+	static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+		return { hasError: true, error };
+	}
+
+	handleReset = () => {
+		this.setState({ hasError: false, error: null });
+	};
+
+	override render(): ReactNode {
+		if (this.state.hasError) {
+			return (
+				this.props.fallback || (
+					<div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
+						<h3 className="text-red-700 dark:text-red-400 font-medium mb-2">
+							Something went wrong
+						</h3>
+						<p className="text-red-600 dark:text-red-300 text-sm mb-4">
+							{this.state.error?.message || 'An error occurred while rendering this demo.'}
+						</p>
+						<button
+							type="button"
+							onClick={this.handleReset}
+							className="bg-red-600 hover:bg-red-500 text-white text-sm px-4 py-2 rounded cursor-pointer"
+						>
+							Try Again
+						</button>
+					</div>
+				)
+			);
+		}
+		return this.props.children;
+	}
+}
 
 // Demo IDs for navigation
 type DemoId =
@@ -1116,7 +1167,9 @@ function DemoView({ demo, onBack }: { demo: DemoConfig; onBack: () => void }) {
 					</div>
 
 					{/* Interactive demo component */}
-					<DemoComponent />
+					<ErrorBoundary>
+						<DemoComponent />
+					</ErrorBoundary>
 				</div>
 
 				{/* Bottom (mobile) / Right (desktop): Code example */}

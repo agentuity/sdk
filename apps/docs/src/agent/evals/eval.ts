@@ -81,7 +81,7 @@ Score from 0 (completely misses the point) to 1 (fully addresses all aspects).`,
 		const evalResult = {
 			passed,
 			score: result?.score ?? 0,
-			metadata: { reason: result?.reason ?? 'Failed to evaluate' },
+			reason: result?.reason ?? 'Failed to evaluate',
 		};
 
 		ctx.logger.info('[EVAL] answer-completeness', {
@@ -112,7 +112,7 @@ export const factualClaimsEval = agent.createEval('factual-claims', {
 		if (!output.content || output.content.trim() === '') {
 			const evalResult = {
 				passed: false,
-				metadata: { reason: 'No content produced' },
+				reason: 'No content produced',
 			};
 			ctx.logger.info('[EVAL] factual-claims', { passed: false });
 			await storeEvalResult(ctx, 'factual-claims', evalResult);
@@ -133,7 +133,7 @@ Does this text contain factual claims about technology?`,
 
 		const evalResult = {
 			passed: result?.containsFactualClaims ?? false,
-			metadata: { reason: result?.reason ?? 'Failed to evaluate' },
+			reason: result?.reason ?? 'Failed to evaluate',
 		};
 
 		ctx.logger.info('[EVAL] factual-claims', { passed: evalResult.passed });

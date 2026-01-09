@@ -37,6 +37,7 @@ export function SSEStreamDemo() {
 	useEffect(() => {
 		return () => {
 			eventSourceRef.current?.close();
+			eventSourceRef.current = null;
 		};
 	}, []);
 
@@ -82,7 +83,7 @@ export function SSEStreamDemo() {
 			eventSource.close();
 		});
 
-		// Handle errors from server
+		// Handle errors from server (custom error events with data)
 		eventSource.addEventListener('error', (event: Event) => {
 			const messageEvent = event as MessageEvent;
 			if (messageEvent.data) {
@@ -93,16 +94,14 @@ export function SSEStreamDemo() {
 				}));
 			}
 			eventSource.close();
+			eventSourceRef.current = null;
 		});
 
-		// Handle connection errors
+		// Handle connection errors (network issues, etc.)
 		eventSource.onerror = () => {
-			if (eventSource.readyState === EventSource.CLOSED) {
-				// Normal close after done event, ignore
-				return;
-			}
+			// Always set error state unless we're already done
+			// This prevents the UI from getting stuck in 'streaming' or 'connecting' state
 			setState((prev) => {
-				// Only set error if we're not already done
 				if (prev.status === 'done') return prev;
 				return {
 					...prev,
@@ -111,6 +110,7 @@ export function SSEStreamDemo() {
 				};
 			});
 			eventSource.close();
+			eventSourceRef.current = null;
 		};
 	}, [model]);
 

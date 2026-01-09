@@ -44,6 +44,9 @@ export function ObjectStoreDemo() {
 		setLoading(true);
 		try {
 			const response = await fetch('/api/object-storage/list');
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
 			const result: ListResult = await response.json();
 			if (result.success) {
 				setFiles(result.files);
