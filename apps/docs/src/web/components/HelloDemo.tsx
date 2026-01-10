@@ -28,7 +28,9 @@ export function HelloDemo() {
 								: 'cursor-pointer hover:from-cyan-500 hover:to-blue-400 dark:hover:from-cyan-700 dark:hover:to-blue-400'
 						}`}
 					>
-						{isLoading ? 'Running...' : 'Say Hello'}
+						<span data-loading={isLoading ? 'true' : undefined}>
+							{isLoading ? 'Running' : 'Say Hello'}
+						</span>
 					</button>
 				</div>
 

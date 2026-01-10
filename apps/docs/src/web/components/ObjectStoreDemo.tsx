@@ -37,6 +37,7 @@ export function ObjectStoreDemo() {
 	const [copied, setCopied] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
+	const [seeding, setSeeding] = useState(false);
 	const [seeded, setSeeded] = useState(false);
 
 	// Stable fetch function
@@ -71,6 +72,7 @@ export function ObjectStoreDemo() {
 
 	const seedData = async () => {
 		setLoading(true);
+		setSeeding(true);
 		setError(null);
 		try {
 			const response = await fetch('/api/object-storage/seed', {
@@ -98,6 +100,7 @@ export function ObjectStoreDemo() {
 			setError(err instanceof Error ? err.message : 'Failed to seed data');
 		} finally {
 			setLoading(false);
+			setSeeding(false);
 		}
 	};
 
@@ -169,7 +172,9 @@ export function ObjectStoreDemo() {
 								loading ? 'opacity-50' : 'hover:bg-cyan-400 dark:hover:bg-cyan-300'
 							}`}
 						>
-							{loading ? 'Loading...' : 'Load Sample Data'}
+							<span data-loading={seeding ? 'true' : undefined}>
+								{seeding ? 'Loading' : 'Load Sample Data'}
+							</span>
 						</button>
 					)}
 					{seeded && (

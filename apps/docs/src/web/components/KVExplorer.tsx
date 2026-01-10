@@ -5,6 +5,7 @@ export function KVExplorer() {
 	const [selectedKey, setSelectedKey] = useState<string | null>(null);
 	const [selectedValue, setSelectedValue] = useState<unknown>(null);
 	const [loading, setLoading] = useState(false);
+	const [seeding, setSeeding] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [seeded, setSeeded] = useState(false);
 
@@ -56,6 +57,7 @@ export function KVExplorer() {
 
 	const seedData = async () => {
 		setLoading(true);
+		setSeeding(true);
 		setError(null);
 		try {
 			const response = await fetch('/api/key-value/seed', {
@@ -79,6 +81,7 @@ export function KVExplorer() {
 			setError(err instanceof Error ? err.message : 'Failed to seed data');
 		} finally {
 			setLoading(false);
+			setSeeding(false);
 		}
 	};
 
@@ -97,7 +100,9 @@ export function KVExplorer() {
 								loading ? 'opacity-50' : 'hover:bg-cyan-400 dark:hover:bg-cyan-300'
 							}`}
 						>
-							{loading ? 'Loading...' : 'Load Sample Data'}
+							<span data-loading={seeding ? 'true' : undefined}>
+								{seeding ? 'Loading' : 'Load Sample Data'}
+							</span>
 						</button>
 					)}
 					{seeded && (

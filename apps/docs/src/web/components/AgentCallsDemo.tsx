@@ -247,7 +247,9 @@ export function AgentCallsDemo() {
 									: 'cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
 							}`}
 						>
-							{isLoading ? 'Running...' : 'Run'}
+							<span data-loading={isLoading ? 'true' : undefined}>
+								{isLoading ? 'Running' : 'Run'}
+							</span>
 						</button>
 					</div>
 				</div>

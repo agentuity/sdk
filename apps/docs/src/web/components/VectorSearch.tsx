@@ -21,6 +21,7 @@ export function VectorSearch() {
 	const [query, setQuery] = useState('');
 	const [result, setResult] = useState<SearchResult | null>(null);
 	const [loading, setLoading] = useState(false);
+	const [searching, setSearching] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [seeded, setSeeded] = useState(false);
 
@@ -64,6 +65,7 @@ export function VectorSearch() {
 		if (!query.trim()) return;
 
 		setLoading(true);
+		setSearching(true);
 		setError(null);
 		try {
 			// Auto-seed on first search if not already seeded
@@ -97,6 +99,7 @@ export function VectorSearch() {
 			setError(err instanceof Error ? err.message : 'Unknown error');
 		} finally {
 			setLoading(false);
+			setSearching(false);
 		}
 	};
 
@@ -133,7 +136,9 @@ export function VectorSearch() {
 									loading ? 'opacity-50' : 'hover:bg-cyan-400 dark:hover:bg-cyan-300'
 								}`}
 							>
-								{loading ? 'Loading...' : 'Load Sample Data'}
+								<span data-loading={loading ? 'true' : undefined}>
+									{loading ? 'Loading' : 'Load Sample Data'}
+								</span>
 							</button>
 						)}
 						{seeded && (
@@ -184,13 +189,15 @@ export function VectorSearch() {
 								: 'bg-cyan-500 dark:bg-cyan-400 text-white dark:text-black cursor-pointer hover:bg-cyan-400 dark:hover:bg-cyan-300'
 						}`}
 					>
-						{loading ? '...' : 'Search'}
+						<span data-loading={searching ? 'true' : undefined}>
+							{searching ? 'Searching' : 'Search'}
+						</span>
 					</button>
 				</div>
 			</div>
 
-			{/* Loading state */}
-			{loading && query.trim() && (
+			{/* Loading state - only show skeleton when actively searching */}
+			{searching && (
 				<>
 					{/* AI Recommendation skeleton */}
 					<div className="bg-blue-100/50 dark:bg-blue-950/50 border border-blue-300 dark:border-blue-900 rounded-lg p-6 animate-pulse">
@@ -204,7 +211,7 @@ export function VectorSearch() {
 					{/* Matches skeleton */}
 					<div className="bg-white dark:bg-black border border-zinc-200 dark:border-zinc-900 rounded-lg">
 						<div className="border-b border-zinc-200 dark:border-zinc-900 text-zinc-500 text-xs font-medium px-4 py-3 uppercase">
-							Searching...
+							Matches
 						</div>
 						{[1, 2, 3].map((i) => (
 							<div
@@ -226,7 +233,7 @@ export function VectorSearch() {
 			)}
 
 			{/* Results */}
-			{!loading && result && (
+			{!searching && result && (
 				<>
 					{/* AI Recommendation */}
 					{result.recommendation && (

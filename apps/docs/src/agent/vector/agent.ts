@@ -9,8 +9,7 @@
  * Similar concepts end up close together in vector space, enabling similarity search.
  *
  * Operations shown:
- * - ctx.vector.exists(namespace) - Check if namespace has data
- * - ctx.vector.upsert(namespace, { key, document, metadata }) - Store with auto-embedding
+ * - ctx.vector.upsert(namespace, { key, document, metadata }) - Store with auto-embedding (idempotent)
  * - ctx.vector.search(namespace, { query, limit, similarity }) - Semantic search
  *
  * Also available: get(), getMany(), delete() for direct key access.
@@ -62,23 +61,17 @@ const agent = createAgent('vector', {
 	handler: async (ctx, input) => {
 		const { query, seedData } = input;
 
-		// Optionally seed sample products (one-time only)
+		// Seed sample products when requested (upsert is idempotent - safe to run multiple times)
 		if (seedData) {
-			// Check if namespace already has data
-			const exists = await ctx.vector.exists(namespace);
-			if (!exists) {
-				ctx.logger.info('Seeding sample products into vector store');
-				for (const product of sampleProducts) {
-					// Upsert with document text - embeddings are auto-generated
-					await ctx.vector.upsert(namespace, {
-						key: product.sku,
-						document: `${product.name}: ${product.description} ${product.customer_feedback}`,
-						metadata: product,
-					});
-				}
-			} else {
-				ctx.logger.info('Sample products already seeded, skipping');
+			for (const product of sampleProducts) {
+				// Upsert with document text - embeddings are auto-generated
+				await ctx.vector.upsert(namespace, {
+					key: product.sku,
+					document: `${product.name}: ${product.description} ${product.customer_feedback}`,
+					metadata: product,
+				});
 			}
+			ctx.logger.info('Sample products seeded into vector store');
 		}
 
 		// Semantic search - returns results sorted by similarity

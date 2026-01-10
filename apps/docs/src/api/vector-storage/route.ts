@@ -42,8 +42,14 @@ router.post('/search', async (c) => {
 
 router.get('/status', async (c) => {
 	try {
-		const hasData = await c.var.vector?.exists('sdk-explorer');
-		return c.json({ success: true, hasData: hasData ?? false });
+		// Quick search to verify data actually exists in the namespace
+		const results = await c.var.vector?.search('sdk-explorer', {
+			query: 'chair',
+			limit: 1,
+			similarity: 0.1,
+		});
+		const hasData = (results?.length ?? 0) > 0;
+		return c.json({ success: true, hasData });
 	} catch (error) {
 		c.var.logger?.error('Vector status check failed', { error });
 		return c.json({ success: false, error: 'Vector service unavailable' }, 503);
