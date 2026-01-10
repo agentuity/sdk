@@ -32,7 +32,7 @@ agentuity dev
 agentuity cloud keyvalue set mykey myvalue
 agentuity cloud agents
 agentuity cloud env list
-agentuity cloud secret set MY_SECRET value
+agentuity cloud env set MY_SECRET value --secret
 
 # AI commands
 agentuity ai capabilities show
@@ -82,7 +82,7 @@ agentuity --log-level=error example list
 Commands are organized into groups:
 
 - **Top-level**: `auth`, `project`, `version`, `build` (alias: `bundle`), `dev`
-- **Cloud** (`cloud`): `keyvalue`, `agents`, `env`, `secret`, and deployment-related commands
+- **Cloud** (`cloud`): `keyvalue`, `agents`, `env`, and deployment-related commands
 - **AI** (`ai`): `capabilities`, `prompt`, `schema`
 - **Hidden**: `profile` (internal use only)
 

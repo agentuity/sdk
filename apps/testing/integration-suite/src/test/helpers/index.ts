@@ -13,7 +13,8 @@ export function uniqueId(prefix = 'test'): string {
 	const timestamp = Date.now();
 	const random = Math.random().toString(36).substring(2, 15);
 	const counter = (idCounter++).toString(36);
-	return `${prefix}-${runId}-${timestamp}-${counter}-${random}`;
+	// Use underscores instead of hyphens for valid env var names
+	return `${prefix}_${runId}_${timestamp}_${counter}_${random}`;
 }
 
 /**

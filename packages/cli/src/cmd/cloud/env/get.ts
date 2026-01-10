@@ -8,26 +8,25 @@ import { ErrorCode } from '../../../errors';
 const EnvGetResponseSchema = z.object({
 	key: z.string().describe('Environment variable key name'),
 	value: z.string().describe('Environment variable value'),
+	secret: z.boolean().describe('Whether the value is stored as a secret'),
 });
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
-	description: 'Get an environment variable value',
+	description: 'Get an environment variable or secret value',
 	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
 	examples: [
-		{ command: getCommand('env get NODE_ENV'), description: 'Get item details' },
-		{ command: getCommand('env get LOG_LEVEL'), description: 'Get item details' },
+		{ command: getCommand('env get NODE_ENV'), description: 'Get environment variable' },
+		{ command: getCommand('env get API_KEY'), description: 'Get a secret value' },
+		{ command: getCommand('env get API_KEY --no-mask'), description: 'Show unmasked value' },
 	],
 	requires: { auth: true, project: true, apiClient: true },
 	schema: {
 		args: z.object({
-			key: z.string().describe('the environment variable key'),
+			key: z.string().describe('the environment variable or secret key'),
 		}),
 		options: z.object({
-			mask: z
-				.boolean()
-				.default(false)
-				.describe('mask the value in output (default: true in TTY, false otherwise)'),
+			maskSecret: z.boolean().optional().describe('mask the secret value in output'),
 		}),
 		response: EnvGetResponseSchema,
 	},
@@ -36,38 +35,46 @@ export const getSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, opts, apiClient, project, options } = ctx;
 
-		// Fetch project with unmasked secrets
-		const projectData = await tui.spinner('Fetching environment variables', () => {
+		// Fetch project with unmasked values
+		const projectData = await tui.spinner('Fetching variable', () => {
 			return projectGet(apiClient, { id: project.projectId, mask: false });
 		});
 
-		// Look for the key in env
-		const value = projectData.env?.[args.key];
+		// Look for the key in both env and secrets
+		let value: string | undefined;
+		let isSecret = false;
 
-		if (value === undefined) {
-			tui.fatal(`Environment variable '${args.key}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
+		if (projectData.secrets?.[args.key] !== undefined) {
+			value = projectData.secrets[args.key];
+			isSecret = true;
+		} else if (projectData.env?.[args.key] !== undefined) {
+			value = projectData.env[args.key];
+			isSecret = false;
 		}
 
+		if (value === undefined) {
+			tui.fatal(`Variable '${args.key}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
+		}
+
+		// For secrets, mask by default even in non-TTY; for env vars, mask only in TTY by default
+		const maskDefault = isSecret ? true : !!process.stdout.isTTY;
+		const shouldMask = opts?.mask !== undefined ? opts.mask : maskDefault;
+
 		if (!options.json) {
-			// Display the value, masked if requested
+			const displayValue = shouldMask ? tui.maskSecret(value) : value;
+			const typeLabel = isSecret ? ' (secret)' : '';
+
 			if (process.stdout.isTTY) {
-				if (opts?.mask) {
-					tui.success(`${args.key}=${tui.maskSecret(value)}`);
-				} else {
-					tui.success(`${args.key}=${value}`);
-				}
+				tui.success(`${args.key}=${displayValue}${typeLabel}`);
 			} else {
-				if (opts?.mask) {
-					console.log(`${args.key}=${tui.maskSecret(value)}`);
-				} else {
-					console.log(`${args.key}=${value}`);
-				}
+				console.log(`${args.key}=${displayValue}`);
 			}
 		}
 
 		return {
 			key: args.key,
 			value,
+			secret: isSecret,
 		};
 	},
 });

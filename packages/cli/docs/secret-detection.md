@@ -2,7 +2,7 @@
 
 ## Overview
 
-The CLI now automatically detects when users attempt to store sensitive data (passwords, API keys, tokens, certificates, etc.) as regular environment variables and prompts them to use the secure `secret` commands instead.
+The CLI now automatically detects when users attempt to store sensitive data (passwords, API keys, tokens, certificates, etc.) as regular environment variables and prompts them to use the `--secret` flag instead.
 
 ## How It Works
 
@@ -41,37 +41,15 @@ When a potential secret is detected:
 $ agentuity env set API_KEY sk_live_1234567890abcdef
 
 ⚠ The variable 'API_KEY' looks like it should be a secret.
-ℹ Secrets should be stored using: agentuity secret set <key> <value>
-ℹ This keeps them more secure and properly masked in the cloud.
-
-? Do you still want to store this as a regular environment variable? (y/N)
+? Store as a secret instead? [Y/n]
 ```
 
-If the user selects **No**:
-
-```
-ℹ Cancelled. Use "agentuity secret set" to store this as a secret instead.
-```
-
-If the user selects **Yes**, the variable is stored normally.
+- **Y (default)** → stores as a secret (encrypted and masked)
+- **N** → stores as a regular environment variable
 
 ### `env import` Command
 
-When importing from a file with potential secrets:
-
-```bash
-$ agentuity env import .env.production
-
-⚠ Found 3 variable(s) that look like they should be secrets:
-ℹ   • DATABASE_PASSWORD
-ℹ   • STRIPE_API_KEY
-ℹ   • JWT_SECRET
-
-ℹ Secrets should be stored using: agentuity secret import <file>
-ℹ This keeps them more secure and properly masked in the cloud.
-
-? Do you still want to import these as regular environment variables? (y/N)
-```
+When importing from a file, variables are automatically classified as env vars or secrets based on key naming conventions (keys ending with `_SECRET`, `_KEY`, `_TOKEN`, etc. are stored as secrets).
 
 ## Implementation
 
@@ -83,8 +61,8 @@ Located in: [`src/env-util.ts`](../src/env-util.ts)
 
 ### Integration Points
 
-1. **[`src/cmd/env/set.ts`](../src/cmd/env/set.ts)**: Checks single key-value pairs before storing
-2. **[`src/cmd/env/import.ts`](../src/cmd/env/import.ts)**: Scans all variables in imported file
+1. **[`src/cmd/cloud/env/set.ts`](../src/cmd/cloud/env/set.ts)**: Checks single key-value pairs before storing
+2. **[`src/cmd/cloud/env/import.ts`](../src/cmd/cloud/env/import.ts)**: Uses `splitEnvAndSecrets()` to automatically classify variables
 
 ### Tests
 

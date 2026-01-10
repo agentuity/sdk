@@ -223,6 +223,13 @@ test('cli-deployment', 'deployment-workflow-placeholder-3', async () => {
 	assert(true, 'Placeholder for undeploy workflow');
 });
 
+// Test: Deploy syncs env vars from local .env to cloud
+test('cli-deployment', 'deploy-syncs-env-vars', async () => {
+	// TODO: Run cloud deploy and verify "Sync Env & Secrets" step runs
+	// Should sync local .env variables to cloud before deployment
+	assert(true, 'Placeholder for deploy env sync test');
+});
+
 test('cli-deployment', 'deployment-workflow-placeholder-4', async () => {
 	// Agent operations
 	assert(true, 'Placeholder for agent operations');

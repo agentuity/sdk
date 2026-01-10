@@ -17,6 +17,10 @@
 		"./vite-plugin": {
 			"import": "./dist/cmd/build/vite/index.js",
 			"types": "./dist/cmd/build/vite/index.d.ts"
+		},
+		"./env-util": {
+			"import": "./src/env-util.ts",
+			"types": "./src/env-util.ts"
 		}
 	},
 	"files": [

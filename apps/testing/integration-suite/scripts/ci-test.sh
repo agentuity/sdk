@@ -136,88 +136,103 @@ if [ $ATTEMPTS -eq $TIMEOUT ]; then
 	exit 1
 fi
 
-# Run tests via SSE endpoint
-echo ""
-echo "Running all tests (concurrency=10)..."
-echo ""
-
-# Save SSE output to temp file for parsing
-# This avoids subshell issues with pipes that would lose exit codes
-RESULT_FILE="/tmp/integration-suite-results.txt"
-curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" > "$RESULT_FILE"
-
-# Track results
+# Track aggregate results
 TOTAL=0
 PASSED=0
 FAILED=0
 DURATION=0
 
-# Parse results from file
-while IFS= read -r line; do
-	# Skip empty lines
-	[ -z "$line" ] && continue
+# Function to run tests and parse results
+# Usage: run_tests <url_params> <description>
+run_tests() {
+	local URL_PARAMS="$1"
+	local DESCRIPTION="$2"
+	local RESULT_FILE="/tmp/integration-suite-results.txt"
 	
-	# Parse event type
-	if [[ "$line" =~ ^event:\ (.*)$ ]]; then
-		EVENT="${BASH_REMATCH[1]}"
-		continue
-	fi
+	echo ""
+	echo "$DESCRIPTION"
+	echo ""
 	
-	# Parse data
-	if [[ "$line" =~ ^data:\ (.*)$ ]]; then
-		DATA="${BASH_REMATCH[1]}"
+	curl -s "http://127.0.0.1:$PORT/api/test/run?$URL_PARAMS" > "$RESULT_FILE"
+	
+	local RUN_TOTAL=0
+	local RUN_PASSED=0
+	local RUN_FAILED=0
+	local RUN_DURATION=0
+	
+	while IFS= read -r line; do
+		[ -z "$line" ] && continue
 		
-		# Extract test result
-		if echo "$DATA" | grep -q '"type":"progress"'; then
-			TEST_NAME=$(echo "$DATA" | grep -o '"test":"[^"]*"' | cut -d'"' -f4)
-			PASSED_FLAG=$(echo "$DATA" | grep -o '"passed":[^,}]*' | cut -d':' -f2)
+		if [[ "$line" =~ ^event:\ (.*)$ ]]; then
+			EVENT="${BASH_REMATCH[1]}"
+			continue
+		fi
+		
+		if [[ "$line" =~ ^data:\ (.*)$ ]]; then
+			DATA="${BASH_REMATCH[1]}"
 			
-			if [ "$PASSED_FLAG" = "true" ]; then
-				echo -e "${GREEN}✓${NC} $TEST_NAME"
-			else
-				echo -e "${RED}✗${NC} $TEST_NAME"
-				ERROR=$(echo "$DATA" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 | head -c 200)
-				if [ -n "$ERROR" ]; then
-					echo "    Error: $ERROR"
-				fi
+			if echo "$DATA" | grep -q '"type":"progress"'; then
+				TEST_NAME=$(echo "$DATA" | grep -o '"test":"[^"]*"' | cut -d'"' -f4)
+				PASSED_FLAG=$(echo "$DATA" | grep -o '"passed":[^,}]*' | cut -d':' -f2)
 				
-				# Extract diagnostics for debugging (sessionId, statusCode, method, url)
-				if echo "$DATA" | grep -q '"diagnostics"'; then
-					SESSION_ID=$(echo "$DATA" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
-					STATUS_CODE=$(echo "$DATA" | grep -o '"statusCode":[0-9]*' | cut -d':' -f2)
-					METHOD=$(echo "$DATA" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
-					URL=$(echo "$DATA" | grep -o '"url":"[^"]*"' | cut -d'"' -f4 | head -c 100)
-					ERROR_TYPE=$(echo "$DATA" | grep -o '"errorType":"[^"]*"' | cut -d'"' -f4)
+				if [ "$PASSED_FLAG" = "true" ]; then
+					echo -e "${GREEN}✓${NC} $TEST_NAME"
+				else
+					echo -e "${RED}✗${NC} $TEST_NAME"
+					ERROR=$(echo "$DATA" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 | head -c 200)
+					if [ -n "$ERROR" ]; then
+						echo "    Error: $ERROR"
+					fi
 					
-					echo -e "    ${YELLOW}Diagnostics:${NC}"
-					if [ -n "$ERROR_TYPE" ]; then
-						echo "      Type: $ERROR_TYPE"
-					fi
-					if [ -n "$STATUS_CODE" ]; then
-						echo "      Status: $STATUS_CODE"
-					fi
-					if [ -n "$METHOD" ] && [ -n "$URL" ]; then
-						echo "      Request: $METHOD $URL"
-					fi
-					if [ -n "$SESSION_ID" ]; then
-						echo -e "      ${YELLOW}Session ID: $SESSION_ID${NC} (use this to find in backend logs)"
+					if echo "$DATA" | grep -q '"diagnostics"'; then
+						SESSION_ID=$(echo "$DATA" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
+						STATUS_CODE=$(echo "$DATA" | grep -o '"statusCode":[0-9]*' | cut -d':' -f2)
+						METHOD=$(echo "$DATA" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
+						URL=$(echo "$DATA" | grep -o '"url":"[^"]*"' | cut -d'"' -f4 | head -c 100)
+						ERROR_TYPE=$(echo "$DATA" | grep -o '"errorType":"[^"]*"' | cut -d'"' -f4)
+						
+						echo -e "    ${YELLOW}Diagnostics:${NC}"
+						if [ -n "$ERROR_TYPE" ]; then
+							echo "      Type: $ERROR_TYPE"
+						fi
+						if [ -n "$STATUS_CODE" ]; then
+							echo "      Status: $STATUS_CODE"
+						fi
+						if [ -n "$METHOD" ] && [ -n "$URL" ]; then
+							echo "      Request: $METHOD $URL"
+						fi
+						if [ -n "$SESSION_ID" ]; then
+							echo -e "      ${YELLOW}Session ID: $SESSION_ID${NC} (use this to find in backend logs)"
+						fi
 					fi
 				fi
 			fi
+			
+			if echo "$DATA" | grep -q '"type":"complete"'; then
+				RUN_TOTAL=$(echo "$DATA" | grep -o '"total":[0-9]*' | cut -d':' -f2)
+				RUN_PASSED=$(echo "$DATA" | grep -o '"passed":[0-9]*' | cut -d':' -f2)
+				RUN_FAILED=$(echo "$DATA" | grep -o '"failed":[0-9]*' | cut -d':' -f2)
+				RUN_DURATION=$(echo "$DATA" | grep -o '"duration":[0-9.]*' | cut -d':' -f2)
+			fi
 		fi
-		
-		# Extract summary
-		if echo "$DATA" | grep -q '"type":"complete"'; then
-			TOTAL=$(echo "$DATA" | grep -o '"total":[0-9]*' | cut -d':' -f2)
-			PASSED=$(echo "$DATA" | grep -o '"passed":[0-9]*' | cut -d':' -f2)
-			FAILED=$(echo "$DATA" | grep -o '"failed":[0-9]*' | cut -d':' -f2)
-			DURATION=$(echo "$DATA" | grep -o '"duration":[0-9.]*' | cut -d':' -f2)
-		fi
-	fi
-done < "$RESULT_FILE"
+	done < "$RESULT_FILE"
+	
+	rm -f "$RESULT_FILE"
+	
+	# Accumulate into global totals
+	TOTAL=$((TOTAL + RUN_TOTAL))
+	PASSED=$((PASSED + RUN_PASSED))
+	FAILED=$((FAILED + RUN_FAILED))
+	DURATION=$(echo "$DURATION + $RUN_DURATION" | bc)
+}
 
-# Cleanup temp file
-rm -f "$RESULT_FILE"
+# Phase 1: Run all tests EXCEPT cli-env-secrets at concurrency=10
+# The exclude parameter filters out suites by name
+run_tests "concurrency=10&exclude=cli-env-secrets" "Running tests (concurrency=10, excluding cli-env-secrets)..."
+
+# Phase 2: Run cli-env-secrets tests at concurrency=1
+# These tests interact with cloud APIs that can't handle high concurrency
+run_tests "suite=cli-env-secrets&concurrency=1" "Running cli-env-secrets tests (concurrency=1)..."
 
 # Kill server
 kill $SERVER_PID 2>/dev/null || true
