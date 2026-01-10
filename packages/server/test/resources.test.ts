@@ -47,6 +47,21 @@ describe('validateCPUSpec', () => {
 		}
 	});
 
+	test('should reject tiny fractional cores that round to 0 millicores', () => {
+		const result = validateCPUSpec('0.0004');
+		expect(result.valid).toBe(false);
+		if (!result.valid) {
+			expect(result.error).toContain('must be at least 1m');
+		}
+
+		// 0.0005 should round to 1m and be valid
+		const result2 = validateCPUSpec('0.0005');
+		expect(result2.valid).toBe(true);
+		if (result2.valid) {
+			expect(result2.value).toBe(1);
+		}
+	});
+
 	test('should handle whitespace', () => {
 		expect(validateCPUSpec('  500m  ')).toEqual({ valid: true, value: 500 });
 		expect(validateCPUSpec('  1  ')).toEqual({ valid: true, value: 1000 });

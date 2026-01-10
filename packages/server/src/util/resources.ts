@@ -33,7 +33,11 @@ export function validateCPUSpec(input: string): ResourceValidationResult {
 		if (isNaN(cores) || cores <= 0) {
 			return { valid: false, error: `Invalid CPU value "${input}": must be a positive number` };
 		}
-		return { valid: true, value: Math.round(cores * 1000) };
+		const millicores = Math.round(cores * 1000);
+		if (millicores <= 0) {
+			return { valid: false, error: `Invalid CPU value "${input}": must be at least 1m (0.001 cores)` };
+		}
+		return { valid: true, value: millicores };
 	}
 
 	return {
