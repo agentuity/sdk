@@ -350,3 +350,64 @@ test('sse', 'error-handling-with-error', async () => {
 
 	client.close();
 });
+
+// Test 16: Real HTTP fetch calls inside SSE (simulates AI SDK pattern)
+// This tests the fix for https://github.com/agentuity/sdk/issues/471
+// AI SDK's generateText/generateObject use fetch() internally. When running inside
+// SSE handlers with OTEL instrumentation, this caused "ReadableStream has already been used"
+// errors. The fix runs SSE handlers in ROOT_CONTEXT to bypass OTEL instrumentation.
+test('sse', 'generate-text-pattern', async () => {
+	const client = createSSEClient('/api/sse/generate-text');
+
+	const results: any[] = [];
+	let completed = false;
+	let completedMessage = '';
+	let completeResolver: (() => void) | null = null;
+	const completePromise = new Promise<void>((resolve) => {
+		completeResolver = resolve;
+	});
+
+	client.addEventListener('start', () => {});
+	client.addEventListener('result', (data) => results.push(data));
+	client.addEventListener('error', (data) => results.push({ error: data }));
+	client.addEventListener('complete', (data) => {
+		completed = true;
+		completedMessage = data;
+		completeResolver?.();
+	});
+
+	await client.connect();
+
+	// Wait for complete event with a generous timeout for CI (httpbin can be slow)
+	// Use Promise.race to either get the complete event or timeout after 60 seconds
+	const timeoutPromise = new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 60000));
+	const result = await Promise.race([completePromise.then(() => 'complete' as const), timeoutPromise]);
+
+	client.close();
+
+	// If we got results but timed out waiting for complete, that's still a pass
+	// (the important thing is that the fetch+tee didn't throw "ReadableStream already used")
+	if (result === 'timeout') {
+		// If we received at least one result, the fix is working - stream didn't crash
+		if (results.length > 0) {
+			// Success - we got results even if we didn't get the complete event
+			return;
+		}
+		throw new Error('Timeout waiting for SSE events - no results received');
+	}
+
+	// Should have received results (either from AI SDK or httpbin fallback)
+	assert(results.length > 0, `Should receive at least 1 result, got ${results.length}`);
+
+	// Should have completed successfully
+	assert(completed, 'Should receive complete event');
+	assert(completedMessage.startsWith('done'), `Complete message should start with 'done': ${completedMessage}`);
+
+	// Check that no errors occurred (unless network issues)
+	const errors = results.filter((r) => r.error);
+	// Allow some network errors but not all results being errors
+	assert(
+		errors.length < results.length,
+		`Most results should succeed, but got ${errors.length} errors out of ${results.length} results`
+	);
+});

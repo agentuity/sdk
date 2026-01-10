@@ -315,6 +315,12 @@ declare module '@agentuity/frontend' {
 				stream: false;
 				params: never;
 			};
+	'/api/sse/generate-text': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'/api/sse/long-lived': {
 				inputSchema: never;
 				outputSchema: never;
@@ -498,6 +504,12 @@ declare module '@agentuity/frontend' {
 			events: {
 				/**
 				 * Route: GET /api/sse/events
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			generateText: {
+				/**
+				 * Route: GET /api/sse/generate-text
 				 */
 				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
 			};
@@ -785,6 +797,12 @@ declare module '@agentuity/react' {
 				stream: false;
 				params: never;
 			};
+	'/api/sse/generate-text': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'/api/sse/long-lived': {
 				inputSchema: never;
 				outputSchema: never;
@@ -961,6 +979,12 @@ declare module '@agentuity/react' {
 			events: {
 				/**
 				 * Route: GET /api/sse/events
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			generateText: {
+				/**
+				 * Route: GET /api/sse/generate-text
 				 */
 				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
 			};
@@ -1208,6 +1232,12 @@ const _rpcRouteMetadata = {
 						"eventstream": {
 								"type": "sse",
 								"path": "/api/sse/events"
+						}
+				},
+				"generateText": {
+						"eventstream": {
+								"type": "sse",
+								"path": "/api/sse/generate-text"
 						}
 				},
 				"longLived": {
