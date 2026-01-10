@@ -20,8 +20,10 @@ This directory contains auto-generated TypeScript files created by the Agentuity
 - \`registry.ts\` - Agent registry from \`src/agent/**\`
 - \`routes.ts\` - Route registry from \`src/api/**\`
 - \`app.ts\` - Application entry point
-- \`state.ts\` - App state types (when setup() exists)
-- \`router.ts\` - Runtime wrapper (when setup() exists)
+- \`analytics-config.ts\` - Web analytics configuration from \`agentuity.json\`
+- \`webanalytics.ts\` - Web analytics injection and route registration
+- \`state.ts\` - App state type (only generated when \`setup()\` returns state in \`app.ts\`)
+- \`router.ts\` - Runtime wrapper with type augmentation (only generated when \`setup()\` returns state in \`app.ts\`)
 
 ## For Developers
 
@@ -50,8 +52,10 @@ const AGENTS_MD_CONTENT = `# AI Agent Instructions
 - \`registry.ts\` - Built from agent discovery in \`src/agent/\`
 - \`routes.ts\` - Built from route discovery in \`src/api/\`
 - \`app.ts\` - Entry point assembled from project configuration
-- \`state.ts\` - App state type from \`setup()\` return value
-- \`router.ts\` - Runtime wrapper with type augmentation
+- \`analytics-config.ts\` - Web analytics configuration from \`agentuity.json\`
+- \`webanalytics.ts\` - Web analytics injection and route registration
+- \`state.ts\` - App state type (only generated when \`setup()\` returns state in \`app.ts\`)
+- \`router.ts\` - Runtime wrapper with type augmentation (only generated when \`setup()\` returns state)
 
 These files are regenerated on every \`bun run build\` or \`bun run dev\`.
 `;
