@@ -54,6 +54,17 @@ describe('validateCPUSpec', () => {
 			expect(result.error).toContain('must be at least 1m');
 		}
 
+		// 0.0001 should also fail
+		const result3 = validateCPUSpec('0.0001');
+		expect(result3.valid).toBe(false);
+
+		// 0 cores should fail
+		const result4 = validateCPUSpec('0');
+		expect(result4.valid).toBe(false);
+		if (!result4.valid) {
+			expect(result4.error).toContain('must be at least 1m');
+		}
+
 		// 0.0005 should round to 1m and be valid
 		const result2 = validateCPUSpec('0.0005');
 		expect(result2.valid).toBe(true);
@@ -90,6 +101,28 @@ describe('validateMemorySpec', () => {
 	test('should validate plain numbers as bytes', () => {
 		expect(validateMemorySpec('1000')).toEqual({ valid: true, value: 1000 });
 		expect(validateMemorySpec('5000000')).toEqual({ valid: true, value: 5000000 });
+	});
+
+	test('should validate decimal fractions with units (Kubernetes-style)', () => {
+		expect(validateMemorySpec('1.5Gi')).toEqual({ valid: true, value: 1610612736 });
+		expect(validateMemorySpec('0.5G')).toEqual({ valid: true, value: 500000000 });
+		expect(validateMemorySpec('2.5Mi')).toEqual({ valid: true, value: 2621440 });
+	});
+
+	test('should reject values that exceed MAX_SAFE_INTEGER', () => {
+		// 8Ei would be ~9.22e18, which exceeds Number.MAX_SAFE_INTEGER (~9.007e15)
+		const result = validateMemorySpec('8Ei');
+		expect(result.valid).toBe(false);
+		if (!result.valid) {
+			expect(result.error).toContain('exceeds maximum safe integer');
+		}
+
+		// Very large raw bytes should also fail
+		const result2 = validateMemorySpec('9999999999999999999');
+		expect(result2.valid).toBe(false);
+		if (!result2.valid) {
+			expect(result2.error).toContain('exceeds maximum safe integer');
+		}
 	});
 
 	test('should reject invalid memory formats', () => {
@@ -154,11 +187,26 @@ describe('validateResources', () => {
 		}
 	});
 
-	test('should validate empty resources', () => {
+	test('should validate empty resources object', () => {
 		const result = validateResources({});
 		expect(result.valid).toBe(true);
 		if (result.valid) {
 			expect(result.values).toEqual({});
+		}
+	});
+
+	test('should reject empty string values instead of treating them as absent', () => {
+		const result = validateResources({
+			cpu: '',
+			memory: '',
+			disk: '',
+		});
+		expect(result.valid).toBe(false);
+		if (!result.valid) {
+			expect(result.errors).toHaveLength(3);
+			expect(result.errors.some((e) => e.includes('CPU'))).toBe(true);
+			expect(result.errors.some((e) => e.includes('memory'))).toBe(true);
+			expect(result.errors.some((e) => e.includes('disk'))).toBe(true);
 		}
 	});
 

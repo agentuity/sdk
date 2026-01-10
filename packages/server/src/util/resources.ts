@@ -1,6 +1,14 @@
-export type ResourceValidationResult =
-	| { valid: true; value: number }
-	| { valid: false; error: string };
+export interface ResourceValidationSuccess {
+	valid: true;
+	value: number;
+}
+
+export interface ResourceValidationFailure {
+	valid: false;
+	error: string;
+}
+
+export type ResourceValidationResult = ResourceValidationSuccess | ResourceValidationFailure;
 
 /**
  * Validates and parses a CPU spec string.
@@ -30,12 +38,12 @@ export function validateCPUSpec(input: string): ResourceValidationResult {
 	const coreMatch = trimmed.match(/^([0-9]*\.?[0-9]+)$/);
 	if (coreMatch) {
 		const cores = parseFloat(coreMatch[1]);
-		if (isNaN(cores) || cores <= 0) {
-			return { valid: false, error: `Invalid CPU value "${input}": must be a positive number` };
-		}
 		const millicores = Math.round(cores * 1000);
-		if (millicores <= 0) {
-			return { valid: false, error: `Invalid CPU value "${input}": must be at least 1m (0.001 cores)` };
+		if (isNaN(millicores) || millicores <= 0) {
+			return {
+				valid: false,
+				error: `Invalid CPU value "${input}": must be at least 1m (0.001 cores)`,
+			};
 		}
 		return { valid: true, value: millicores };
 	}
@@ -68,6 +76,7 @@ const validMemoryUnits = Object.keys(memoryMultipliers).join(', ');
  * Valid formats:
  * - "500Mi", "1Gi", "2Ti" (binary units)
  * - "500M", "1G", "2T" (decimal units)
+ * - "1.5Gi", "0.5G" (decimal fractions with units)
  * - "1073741824" (raw bytes)
  */
 export function validateMemorySpec(
@@ -80,13 +89,13 @@ export function validateMemorySpec(
 
 	const trimmed = input.trim();
 
-	// Match unit format: "500Mi", "1Gi", "2G"
-	const unitMatch = trimmed.match(/^([0-9]+)([A-Za-z]{1,2})$/);
+	// Match unit format: "500Mi", "1Gi", "2G", "1.5Gi", "0.5G"
+	const unitMatch = trimmed.match(/^([0-9]*\.?[0-9]+)([A-Za-z]{1,2})$/);
 	if (unitMatch) {
-		const amount = parseInt(unitMatch[1], 10);
+		const amount = parseFloat(unitMatch[1]);
 		const unit = unitMatch[2];
 
-		if (amount <= 0) {
+		if (isNaN(amount) || amount <= 0) {
 			return {
 				valid: false,
 				error: `Invalid ${fieldName} value "${input}": must be greater than 0`,
@@ -101,7 +110,14 @@ export function validateMemorySpec(
 			};
 		}
 
-		return { valid: true, value: amount * multiplier };
+		const value = Math.round(amount * multiplier);
+		if (!Number.isSafeInteger(value)) {
+			return {
+				valid: false,
+				error: `Invalid ${fieldName} value "${input}": exceeds maximum safe integer (value too large)`,
+			};
+		}
+		return { valid: true, value };
 	}
 
 	// Match raw bytes: "1073741824"
@@ -114,12 +130,18 @@ export function validateMemorySpec(
 				error: `Invalid ${fieldName} value "${input}": must be greater than 0`,
 			};
 		}
+		if (!Number.isSafeInteger(value)) {
+			return {
+				valid: false,
+				error: `Invalid ${fieldName} value "${input}": exceeds maximum safe integer (value too large)`,
+			};
+		}
 		return { valid: true, value };
 	}
 
 	return {
 		valid: false,
-		error: `Invalid ${fieldName} format "${input}". Use units (e.g., "500Mi", "1Gi", "2G") or bytes (e.g., "1073741824")`,
+		error: `Invalid ${fieldName} format "${input}". Use units (e.g., "500Mi", "1Gi", "1.5Gi") or bytes (e.g., "1073741824")`,
 	};
 }
 
@@ -144,7 +166,7 @@ export function validateResources(
 	const errors: string[] = [];
 	const values: ValidatedResources = {};
 
-	if (resources.cpu) {
+	if (resources.cpu !== undefined && resources.cpu !== null) {
 		const result = validateCPUSpec(resources.cpu);
 		if (result.valid) {
 			if (!Number.isFinite(result.value)) {
@@ -157,7 +179,7 @@ export function validateResources(
 		}
 	}
 
-	if (resources.memory) {
+	if (resources.memory !== undefined && resources.memory !== null) {
 		const result = validateMemorySpec(resources.memory, 'memory');
 		if (result.valid) {
 			if (!Number.isFinite(result.value)) {
@@ -170,7 +192,7 @@ export function validateResources(
 		}
 	}
 
-	if (resources.disk) {
+	if (resources.disk !== undefined && resources.disk !== null) {
 		const result = validateMemorySpec(resources.disk, 'disk');
 		if (result.valid) {
 			if (!Number.isFinite(result.value)) {
