@@ -892,18 +892,8 @@ export class VectorStorageService implements VectorStorage {
 			throw new VectorStorageNameRequiredError();
 		}
 
-		try {
-			await this.search(name, { query: '_exists_check_', limit: 1 });
-			return true;
-		} catch (error) {
-			if (error instanceof Error) {
-				const statusMatch = error.message.match(/(\d{3})/);
-				if (statusMatch && statusMatch[1] === '404') {
-					return false;
-				}
-			}
-			throw error;
-		}
+		const stats = await this.getStats(name);
+		return stats.count > 0;
 	}
 
 	async getStats(name: string): Promise<VectorNamespaceStatsWithSamples> {
