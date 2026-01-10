@@ -143,7 +143,11 @@ export function validateResources(
 	if (resources.cpu) {
 		const result = validateCPUSpec(resources.cpu);
 		if (result.valid) {
-			values.cpuUnits = result.value;
+			if (!Number.isFinite(result.value)) {
+				errors.push(`Invalid CPU value "${resources.cpu}": parsed to non-finite number`);
+			} else {
+				values.cpuUnits = result.value;
+			}
 		} else {
 			errors.push(result.error);
 		}
@@ -152,7 +156,11 @@ export function validateResources(
 	if (resources.memory) {
 		const result = validateMemorySpec(resources.memory, 'memory');
 		if (result.valid) {
-			values.memoryUnits = result.value;
+			if (!Number.isFinite(result.value)) {
+				errors.push(`Invalid memory value "${resources.memory}": parsed to non-finite number`);
+			} else {
+				values.memoryUnits = result.value;
+			}
 		} else {
 			errors.push(result.error);
 		}
@@ -161,7 +169,11 @@ export function validateResources(
 	if (resources.disk) {
 		const result = validateMemorySpec(resources.disk, 'disk');
 		if (result.valid) {
-			values.diskUnits = result.value;
+			if (!Number.isFinite(result.value)) {
+				errors.push(`Invalid disk value "${resources.disk}": parsed to non-finite number`);
+			} else {
+				values.diskUnits = result.value;
+			}
 		} else {
 			errors.push(result.error);
 		}

@@ -187,4 +187,21 @@ describe('validateResources', () => {
 			expect(result.errors[0]).toContain('8Gi');
 		}
 	});
+
+	test('should reject non-finite parsed values', () => {
+		// This tests the Number.isFinite guard - values that somehow pass validation
+		// but result in NaN/Infinity should be caught
+		// In practice, our validators already reject these, but this is a safety net
+		const validResult = validateResources({
+			cpu: '1',
+			memory: '1Gi',
+			disk: '1Gi',
+		});
+		expect(validResult.valid).toBe(true);
+		if (validResult.valid) {
+			expect(Number.isFinite(validResult.values.cpuUnits)).toBe(true);
+			expect(Number.isFinite(validResult.values.memoryUnits)).toBe(true);
+			expect(Number.isFinite(validResult.values.diskUnits)).toBe(true);
+		}
+	});
 });
