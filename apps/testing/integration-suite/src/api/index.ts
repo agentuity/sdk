@@ -400,7 +400,8 @@ router.get(
 
 		if (!hasApiKey) {
 			// Fallback: make real HTTP fetch calls to simulate what AI SDK does internally
-			// This still tests the core fix (OTEL-instrumented fetch in streaming context)
+			// AI SDK uses ReadableStream.tee() internally, which triggers the Bun bug
+			// This tests the core fix (OTEL-instrumented fetch + tee() in streaming context)
 			for (let i = 0; i < 3; i++) {
 				try {
 					const response = await fetch('https://httpbin.org/post', {
@@ -408,11 +409,45 @@ router.get(
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ index: i, test: 'sse-generate-text' }),
 					});
-					const data = await response.json();
-					stream.writeSSE({
-						event: 'result',
-						data: JSON.stringify({ index: i, success: true, origin: data.origin }),
-					});
+
+					// Simulate what AI SDK does: tee() the response body stream
+					// This is the key operation that triggers the Bun bug with OTEL instrumentation
+					if (response.body) {
+						const [stream1, stream2] = response.body.tee();
+
+						// Consume the first stream (simulating AI SDK's internal processing)
+						const reader1 = stream1.getReader();
+						const chunks: Uint8Array[] = [];
+						while (true) {
+							const { done, value } = await reader1.read();
+							if (done) break;
+							chunks.push(value);
+						}
+
+						// Cancel the second stream (AI SDK might use it for retries/logging)
+						await stream2.cancel();
+
+						// Decode the response
+						const combined = new Uint8Array(chunks.reduce((acc, c) => acc + c.length, 0));
+						let offset = 0;
+						for (const chunk of chunks) {
+							combined.set(chunk, offset);
+							offset += chunk.length;
+						}
+						const data = JSON.parse(new TextDecoder().decode(combined));
+
+						stream.writeSSE({
+							event: 'result',
+							data: JSON.stringify({ index: i, success: true, origin: data.origin }),
+						});
+					} else {
+						// Fallback if no body (shouldn't happen with httpbin)
+						const data = await response.json();
+						stream.writeSSE({
+							event: 'result',
+							data: JSON.stringify({ index: i, success: true, origin: data.origin }),
+						});
+					}
 				} catch (error) {
 					stream.writeSSE({
 						event: 'error',
