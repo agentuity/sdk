@@ -13,7 +13,15 @@ interface SkillInfo {
 	fullCommandPath: string[];
 }
 
-const EXCLUDED_COMMANDS = new Set(['ai', 'help', 'version']);
+const EXCLUDED_COMMANDS = new Set([
+	'ai',
+	'help',
+	'version',
+	'canary',
+	'setup',
+	'profile',
+	'upgrade',
+]);
 
 function isValidSkillName(name: string): boolean {
 	if (name.length < 1 || name.length > 64) return false;
