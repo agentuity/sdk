@@ -1,4 +1,6 @@
 import { createRouter, websocket, sse, type WebSocketConnection } from '@agentuity/runtime';
+import { generateText } from 'ai';
+import { createOpenAI } from '@ai-sdk/openai';
 import { testSuite } from '../test/suite';
 import statePersistenceAgent from '@agents/state/agent';
 import stateReaderAgent from '@agents/state/reader-agent';
@@ -381,6 +383,77 @@ router.get(
 		}
 
 		stream.writeSSE({ event: 'complete', data: 'done' });
+	})
+);
+
+// Test: SSE with real AI SDK generateText calls
+// This tests the fix for https://github.com/agentuity/sdk/issues/471
+// Previously, generateText/generateObject failed with "ReadableStream has already been used"
+// when called inside SSE handlers due to a Bun bug with OTEL-instrumented fetch.
+router.get(
+	'/sse/generate-text',
+	sse(async (c, stream) => {
+		stream.writeSSE({ event: 'start', data: 'starting AI SDK test' });
+
+		// Check if we have an API key - if not, skip the actual AI call
+		const hasApiKey = !!process.env.OPENAI_API_KEY;
+
+		if (!hasApiKey) {
+			// Fallback: make real HTTP fetch calls to simulate what AI SDK does internally
+			// This still tests the core fix (OTEL-instrumented fetch in streaming context)
+			for (let i = 0; i < 3; i++) {
+				try {
+					const response = await fetch('https://httpbin.org/post', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ index: i, test: 'sse-generate-text' }),
+					});
+					const data = await response.json();
+					stream.writeSSE({
+						event: 'result',
+						data: JSON.stringify({ index: i, success: true, origin: data.origin }),
+					});
+				} catch (error) {
+					stream.writeSSE({
+						event: 'error',
+						data: JSON.stringify({
+							index: i,
+							error: error instanceof Error ? error.message : 'Unknown error',
+						}),
+					});
+				}
+			}
+			stream.writeSSE({ event: 'complete', data: 'done (simulated - no API key)' });
+			return;
+		}
+
+		// If we have an API key, use actual generateText
+		const openai = createOpenAI({
+			apiKey: process.env.OPENAI_API_KEY,
+		});
+
+		try {
+			// First generateText call
+			const result1 = await generateText({
+				model: openai('gpt-4o-mini'),
+				prompt: 'Say "test1" and nothing else',
+				maxOutputTokens: 10,
+			});
+			stream.writeSSE({ event: 'result', data: JSON.stringify({ call: 1, text: result1.text }) });
+
+			// Second generateText call (sequential - also failed before the fix)
+			const result2 = await generateText({
+				model: openai('gpt-4o-mini'),
+				prompt: 'Say "test2" and nothing else',
+				maxOutputTokens: 10,
+			});
+			stream.writeSSE({ event: 'result', data: JSON.stringify({ call: 2, text: result2.text }) });
+
+			stream.writeSSE({ event: 'complete', data: 'done' });
+		} catch (error) {
+			const message = error instanceof Error ? error.message : 'Unknown error';
+			stream.writeSSE({ event: 'error', data: JSON.stringify({ error: message }) });
+		}
 	})
 );
 

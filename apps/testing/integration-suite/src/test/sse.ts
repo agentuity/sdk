@@ -350,3 +350,46 @@ test('sse', 'error-handling-with-error', async () => {
 
 	client.close();
 });
+
+// Test 16: Real HTTP fetch calls inside SSE (simulates AI SDK pattern)
+// This tests the fix for https://github.com/agentuity/sdk/issues/471
+// AI SDK's generateText/generateObject use fetch() internally. When running inside
+// SSE handlers with OTEL instrumentation, this caused "ReadableStream has already been used"
+// errors. The fix runs SSE handlers in ROOT_CONTEXT to bypass OTEL instrumentation.
+test('sse', 'generate-text-pattern', async () => {
+	const client = createSSEClient('/api/sse/generate-text');
+
+	const results: any[] = [];
+	let completed = false;
+	let completedMessage = '';
+
+	client.addEventListener('start', () => {});
+	client.addEventListener('result', (data) => results.push(data));
+	client.addEventListener('error', (data) => results.push({ error: data }));
+	client.addEventListener('complete', (data) => {
+		completed = true;
+		completedMessage = data;
+	});
+
+	await client.connect();
+
+	// Wait for events - this may take a few seconds for real HTTP calls
+	await new Promise((resolve) => setTimeout(resolve, 10000));
+
+	// Should have received results (either from AI SDK or httpbin fallback)
+	assert(results.length > 0, `Should receive at least 1 result, got ${results.length}`);
+
+	// Should have completed successfully
+	assert(completed, 'Should receive complete event');
+	assert(completedMessage.startsWith('done'), `Complete message should start with 'done': ${completedMessage}`);
+
+	// Check that no errors occurred (unless network issues)
+	const errors = results.filter((r) => r.error);
+	// Allow some network errors but not all results being errors
+	assert(
+		errors.length < results.length,
+		`Most results should succeed, but got ${errors.length} errors out of ${results.length} results`
+	);
+
+	client.close();
+});
