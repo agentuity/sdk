@@ -133,7 +133,7 @@ export function ChatDemo() {
 				>
 					{loading ? (
 						<div className="text-zinc-500 dark:text-zinc-600 text-center p-8 text-sm">
-							Loading conversation...
+							<span data-loading="true">Loading conversation</span>
 						</div>
 					) : messages.length === 0 ? (
 						<div className="text-zinc-500 dark:text-zinc-600 text-center p-8 text-sm">

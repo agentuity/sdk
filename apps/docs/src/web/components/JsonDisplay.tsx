@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 interface JsonDisplayProps {
 	data: unknown;
 	loading?: boolean;
@@ -11,11 +13,11 @@ export function JsonDisplay({
 	error = null,
 	placeholder = 'Waiting for request',
 }: JsonDisplayProps) {
-	let content: string;
+	let content: ReactNode;
 	let colorClass: string;
 
 	if (loading) {
-		content = 'Loading...';
+		content = <span data-loading="true">Loading</span>;
 		colorClass = 'text-zinc-500 dark:text-zinc-400';
 	} else if (error) {
 		content = `Error: ${error}`;

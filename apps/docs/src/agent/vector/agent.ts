@@ -63,7 +63,6 @@ const agent = createAgent('vector', {
 
 		// Seed sample products when requested (upsert is idempotent - safe to run multiple times)
 		if (seedData) {
-			ctx.logger.info('Seeding sample products into vector store');
 			for (const product of sampleProducts) {
 				// Upsert with document text - embeddings are auto-generated
 				await ctx.vector.upsert(namespace, {
@@ -72,6 +71,7 @@ const agent = createAgent('vector', {
 					metadata: product,
 				});
 			}
+			ctx.logger.info('Sample products seeded into vector store');
 		}
 
 		// Semantic search - returns results sorted by similarity
