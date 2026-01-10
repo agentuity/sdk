@@ -998,7 +998,28 @@ ${sseRouteEntries}
 ${rpcRegistryType}
 \t}
 }
-
+${
+	hasReactDependency
+		? `
+// Backward compatibility: also augment @agentuity/react for older versions
+// that define RouteRegistry locally instead of re-exporting from @agentuity/frontend
+declare module '@agentuity/react' {
+\texport interface RouteRegistry {
+${apiRouteEntries}
+\t}
+\texport interface WebSocketRouteRegistry {
+${websocketRouteEntries}
+\t}
+\texport interface SSERouteRegistry {
+${sseRouteEntries}
+\t}
+\texport interface RPCRouteRegistry {
+${rpcRegistryType}
+\t}
+}
+`
+		: ''
+}
 /**
  * Runtime metadata for RPC routes.
  * Contains route type information for client routing decisions.
