@@ -188,28 +188,29 @@ test('cli-env-secrets', 'env-set-allows-agentuity-public-prefix', async () => {
 	});
 
 	// Should succeed and not be blocked as reserved
+	const setOutput = (setResult.stdout || '') + (setResult.stderr || '');
 	assert(
 		Boolean(
 			setResult.success ||
-				setResult.stdout?.includes('Setting') ||
-				setResult.stdout?.includes('set successfully')
+				setOutput.includes('Setting') ||
+				setOutput.includes('set successfully')
 		),
-		`Should allow AGENTUITY_PUBLIC_ as env var: ${setResult.stdout} ${setResult.stderr}`
+		`Should allow AGENTUITY_PUBLIC_ as env var: ${setOutput}`
 	);
 	assert(
-		!setResult.stderr?.includes('reserved for system use') &&
-			!setResult.stdout?.includes('reserved for system use'),
+		!setOutput.includes('reserved for system use'),
 		'Should not reject AGENTUITY_PUBLIC_ as reserved'
 	);
 
-	// 2. List to verify it was actually added to cloud
-	const listResult = await cliAgent.run({
-		command: 'cloud env list',
+	// 2. Get to verify it was actually added (more reliable than list)
+	const getResult = await cliAgent.run({
+		command: 'cloud env get',
+		args: [testKey],
 	});
-	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const getOutput = (getResult.stdout || '') + (getResult.stderr || '');
 	assert(
-		Boolean(listOutput.includes(testKey)),
-		`List should include ${testKey}: ${listOutput}`
+		Boolean(getResult.success || getOutput.includes(testValue)),
+		`Get should find ${testKey}: ${getOutput}`
 	);
 
 	// 3. Clean up - delete the test var
