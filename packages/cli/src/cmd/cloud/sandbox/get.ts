@@ -13,9 +13,13 @@ const SandboxResourcesSchema = z.object({
 
 const SandboxGetResponseSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
+	name: z.string().optional().describe('Sandbox name'),
+	description: z.string().optional().describe('Sandbox description'),
 	status: z.string().describe('Current status'),
 	createdAt: z.string().describe('Creation timestamp'),
 	region: z.string().optional().describe('Region where sandbox is running'),
+	runtimeId: z.string().optional().describe('Runtime ID'),
+	runtimeName: z.string().optional().describe('Runtime name'),
 	snapshotId: z.string().optional().describe('Snapshot ID sandbox was created from'),
 	snapshotTag: z.string().optional().describe('Snapshot tag sandbox was created from'),
 	executions: z.number().describe('Number of executions'),
@@ -63,8 +67,17 @@ export const getSubcommand = createCommand({
 							: tui.colorMuted;
 
 			console.log(`${tui.muted('Sandbox:')}         ${tui.bold(result.sandboxId)}`);
+			if (result.name) {
+				console.log(`${tui.muted('Name:')}            ${result.name}`);
+			}
+			if (result.description) {
+				console.log(`${tui.muted('Description:')}     ${result.description}`);
+			}
 			console.log(`${tui.muted('Status:')}          ${statusColor(result.status)}`);
 			console.log(`${tui.muted('Created:')}         ${result.createdAt}`);
+			if (result.runtimeName) {
+				console.log(`${tui.muted('Runtime:')}         ${result.runtimeName}`);
+			}
 			if (result.region) {
 				console.log(`${tui.muted('Region:')}          ${result.region}`);
 			}
@@ -108,9 +121,13 @@ export const getSubcommand = createCommand({
 
 		return {
 			sandboxId: result.sandboxId,
+			name: result.name,
+			description: result.description,
 			status: result.status,
 			createdAt: result.createdAt,
 			region: result.region,
+			runtimeId: result.runtimeId,
+			runtimeName: result.runtimeName,
 			snapshotId: result.snapshotId,
 			snapshotTag: result.snapshotTag,
 			executions: result.executions,

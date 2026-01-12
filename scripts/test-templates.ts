@@ -331,10 +331,15 @@ async function installDependencies(
 		} else if (
 			pkgName === '@agentuity/frontend' ||
 			pkgName === '@agentuity/server' ||
-			pkgName === '@agentuity/auth'
+			pkgName === '@agentuity/auth' ||
+			pkgName === '@agentuity/core'
 		) {
-			// Frontend is a transitive dep of react, server is a transitive dep of runtime,
-			// auth is a peer dep of runtime - add them explicitly to prevent bun from pulling from npm
+			// These are transitive deps of other packages:
+			// - frontend is a transitive dep of react
+			// - server is a transitive dep of runtime
+			// - auth is a transitive dep of runtime
+			// - core is a transitive dep of many packages
+			// Add them explicitly to prevent bun from pulling from npm
 			if (!packageJson.dependencies) packageJson.dependencies = {};
 			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
 		}

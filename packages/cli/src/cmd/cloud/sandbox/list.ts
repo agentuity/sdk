@@ -8,9 +8,13 @@ import type { SandboxStatus } from '@agentuity/core';
 
 const SandboxInfoSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
+	name: z.string().optional().describe('Sandbox name'),
+	description: z.string().optional().describe('Sandbox description'),
 	status: z.string().describe('Current status'),
 	createdAt: z.string().describe('Creation timestamp'),
 	region: z.string().optional().describe('Region where sandbox is running'),
+	runtimeId: z.string().optional().describe('Runtime ID'),
+	runtimeName: z.string().optional().describe('Runtime name'),
 	snapshotId: z.string().optional().describe('Snapshot ID sandbox was created from'),
 	snapshotTag: z.string().optional().describe('Snapshot tag sandbox was created from'),
 	executions: z.number().describe('Number of executions'),
@@ -88,22 +92,21 @@ export const listSubcommand = createCommand({
 				tui.info('No sandboxes found');
 			} else {
 				const tableData = result.sandboxes.map((sandbox) => {
-					const snapshotDisplay = sandbox.snapshotTag
-						? `${sandbox.snapshotTag} (${sandbox.snapshotId})`
-						: sandbox.snapshotId || '-';
 					return {
 						ID: sandbox.sandboxId,
+						Name: sandbox.name || '-',
+						Runtime: sandbox.runtimeName || '-',
 						Status: sandbox.status,
 						'Created At': sandbox.createdAt,
-						Snapshot: snapshotDisplay,
 						Executions: sandbox.executions,
 					};
 				});
 				tui.table(tableData, [
 					{ name: 'ID', alignment: 'left' },
+					{ name: 'Name', alignment: 'left' },
+					{ name: 'Runtime', alignment: 'left' },
 					{ name: 'Status', alignment: 'left' },
 					{ name: 'Created At', alignment: 'left' },
-					{ name: 'Snapshot', alignment: 'left' },
 					{ name: 'Executions', alignment: 'right' },
 				]);
 
@@ -114,9 +117,13 @@ export const listSubcommand = createCommand({
 		return {
 			sandboxes: result.sandboxes.map((s) => ({
 				sandboxId: s.sandboxId,
+				name: s.name,
+				description: s.description,
 				status: s.status,
 				createdAt: s.createdAt,
 				region: s.region,
+				runtimeId: s.runtimeId,
+				runtimeName: s.runtimeName,
 				snapshotId: s.snapshotId,
 				snapshotTag: s.snapshotTag,
 				executions: s.executions,
