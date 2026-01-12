@@ -324,7 +324,10 @@ test('cli-env-secrets', 'env-set-secret-allows-valid-key', async () => {
 	});
 	const lines = listResult.stdout?.split('\n') || [];
 	const keyLine = lines.find((l) => l.includes(testKey));
-	assert(Boolean(keyLine && keyLine.includes('[secret]')), `${testKey} should be listed as secret`);
+	assert(
+		Boolean(keyLine && keyLine.includes('[secret]')),
+		`${testKey} should be listed as secret`
+	);
 
 	// Cleanup
 	await cliAgent.run({
@@ -364,7 +367,10 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-key-name', async () => {
 	});
 	const lines = listResult.stdout?.split('\n') || [];
 	const keyLine = lines.find((l) => l.includes(testKey));
-	assert(Boolean(keyLine && keyLine.includes('[secret]')), `${testKey} should be listed as secret`);
+	assert(
+		Boolean(keyLine && keyLine.includes('[secret]')),
+		`${testKey} should be listed as secret`
+	);
 
 	// Cleanup
 	await cliAgent.run({
@@ -405,7 +411,10 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-value', async () => {
 	});
 	const lines = listResult.stdout?.split('\n') || [];
 	const keyLine = lines.find((l) => l.includes(testKey));
-	assert(Boolean(keyLine && keyLine.includes('[secret]')), `${testKey} should be listed as secret`);
+	assert(
+		Boolean(keyLine && keyLine.includes('[secret]')),
+		`${testKey} should be listed as secret`
+	);
 
 	// Cleanup
 	await cliAgent.run({
@@ -508,8 +517,16 @@ test('cli-env-secrets', 'env-crud-cycle', async () => {
 		command: 'cloud env get',
 		args: [testKey],
 	});
-	assert(Boolean(getResult.success), `Get should succeed: ${getResult.stderr}`);
-	assert(Boolean(getResult.stdout?.includes(testValue)), 'Get should return the value');
+	// Debug: Check all output
+	const getOutput = (getResult.stdout || '') + (getResult.stderr || '');
+	assert(
+		Boolean(getResult.success),
+		`Get should succeed: stdout=${getResult.stdout}, stderr=${getResult.stderr}, exitCode=${getResult.exitCode}`
+	);
+	assert(
+		Boolean(getOutput.includes(testValue)),
+		`Get should return the value. output=[${getOutput}], testValue=[${testValue}]`
+	);
 
 	// 3. List - verify key appears
 	const listResult = await cliAgent.run({
@@ -559,8 +576,12 @@ test('cli-env-secrets', 'env-set-overwrite', async () => {
 		command: 'cloud env get',
 		args: [testKey],
 	});
-	assert(Boolean(getResult.stdout?.includes(value2)), 'Should return updated value');
-	assert(!getResult.stdout?.includes(value1), 'Should not contain old value');
+	const getOutput = (getResult.stdout || '') + (getResult.stderr || '');
+	assert(
+		Boolean(getOutput.includes(value2)),
+		`Should return updated value. output: ${getOutput}, value2: ${value2}`
+	);
+	assert(!getOutput.includes(value1), 'Should not contain old value');
 
 	// Cleanup
 	await cliAgent.run({

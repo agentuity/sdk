@@ -22,10 +22,17 @@ router.use('*', async (c, next) => {
 router.get('/test/run', async (c) => {
 	const suite = c.req.query('suite');
 	const test = c.req.query('test');
+	const exclude = c.req.query('exclude');
 	const concurrencyStr = c.req.query('concurrency');
 	const concurrency = concurrencyStr ? parseInt(concurrencyStr, 10) : 10;
 
-	const tests = testSuite.getTests(suite, test);
+	let tests = testSuite.getTests(suite, test);
+
+	// Filter out excluded suites
+	if (exclude) {
+		const excludeSuites = exclude.split(',').map((s) => s.trim());
+		tests = tests.filter((t) => !excludeSuites.includes(t.suite));
+	}
 
 	if (tests.length === 0) {
 		return c.json({ error: 'No tests found', suite, test }, 404);
@@ -474,7 +481,10 @@ router.get(
 				prompt: 'Say "test1" and nothing else',
 				maxOutputTokens: 10,
 			});
-			stream.writeSSE({ event: 'result', data: JSON.stringify({ call: 1, text: result1.text }) });
+			stream.writeSSE({
+				event: 'result',
+				data: JSON.stringify({ call: 1, text: result1.text }),
+			});
 
 			// Second generateText call (sequential - also failed before the fix)
 			const result2 = await generateText({
@@ -482,7 +492,10 @@ router.get(
 				prompt: 'Say "test2" and nothing else',
 				maxOutputTokens: 10,
 			});
-			stream.writeSSE({ event: 'result', data: JSON.stringify({ call: 2, text: result2.text }) });
+			stream.writeSSE({
+				event: 'result',
+				data: JSON.stringify({ call: 2, text: result2.text }),
+			});
 
 			stream.writeSSE({ event: 'complete', data: 'done' });
 		} catch (error) {
