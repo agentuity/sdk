@@ -5,7 +5,7 @@ import { createSandboxClient } from '../util';
 import { getCommand } from '../../../../command-prefix';
 import { snapshotTag } from '@agentuity/server';
 
-const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
+const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9_][a-zA-Z0-9._-]*$/;
 const MAX_SNAPSHOT_TAG_LENGTH = 128;
 
 const SnapshotTagResponseSchema = z.object({

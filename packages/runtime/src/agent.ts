@@ -1660,13 +1660,18 @@ export function createAgent<
 								? await (config.handler as any)(agentCtx, validatedInput)
 								: await (config.handler as any)(agentCtx)
 					);
-				} else {
+				} else if (agent.metadata.id) {
 					// For standalone contexts, wrap with agent context to set aid in trace state
-					return runWithAgentContext(agent.metadata.id, async () =>
+					return runWithAgentContext(agent.metadata.id, () =>
 						inputSchema
-							? await (config.handler as any)(agentCtx, validatedInput)
-							: await (config.handler as any)(agentCtx)
+							? (config.handler as any)(agentCtx, validatedInput)
+							: (config.handler as any)(agentCtx)
 					);
+				} else {
+					// No agent ID, invoke handler directly
+					return inputSchema
+						? (config.handler as any)(agentCtx, validatedInput)
+						: (config.handler as any)(agentCtx);
 				}
 			})();
 
