@@ -13,6 +13,16 @@ export { createServerFetchAdapter } from './server';
 // schema.ts exports
 export { toJSONSchema } from './schema';
 
+// util/resources.ts exports
+export {
+	validateCPUSpec,
+	validateMemorySpec,
+	validateResources,
+	type ResourceValidationResult,
+	type ResourcesConfig,
+	type ValidatedResources,
+} from './util/resources';
+
 // runtime-bootstrap.ts exports
 export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions } from './runtime-bootstrap';
 

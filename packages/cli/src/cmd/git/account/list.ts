@@ -3,7 +3,7 @@ import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { listOrganizations } from '@agentuity/server';
-import { getGithubIntegrationStatus } from '../../integration/api';
+import { getGithubIntegrationStatus } from '../api';
 import { z } from 'zod';
 
 const ListResponseSchema = z.array(

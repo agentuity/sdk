@@ -2,7 +2,7 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
-import { getProjectGithubStatus, getGithubIntegrationStatus } from '../integration/api';
+import { getProjectGithubStatus, getGithubIntegrationStatus } from './api';
 import { z } from 'zod';
 
 const StatusResponseSchema = z.object({

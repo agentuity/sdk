@@ -2,10 +2,11 @@ import {
 	createClient as coreCreateClient,
 	type Client,
 	type ClientOptions,
+	type RPCRouteRegistry,
 } from '@agentuity/frontend';
-import type { RPCRouteRegistry } from './types';
 
-// Re-export RPCRouteRegistry so it can be augmented via `declare module '@agentuity/react'`
+// Re-export RPCRouteRegistry for backwards compatibility
+// The canonical definition is in @agentuity/frontend
 export type { RPCRouteRegistry };
 
 let globalBaseUrl: string | undefined;

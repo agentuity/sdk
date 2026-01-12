@@ -608,9 +608,7 @@ export class SyncToSandboxTool implements vscode.LanguageModelTool<SyncToSandbox
 				),
 			]);
 		} catch (err) {
-			throw new Error(
-				`Failed to sync: ${err instanceof Error ? err.message : 'Unknown error'}`
-			);
+			throw new Error(`Failed to sync: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		}
 	}
 

@@ -10,7 +10,7 @@ import {
 	linkProjectToRepo,
 	getProjectGithubStatus,
 	type GithubRepo,
-} from '../integration/api';
+} from './api';
 import type { APIClient } from '../../api';
 import type { Logger } from '@agentuity/core';
 import { runGitAccountConnect } from './account/add';

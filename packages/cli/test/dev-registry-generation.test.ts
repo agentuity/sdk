@@ -115,7 +115,7 @@ export default router;
 
 		// Verify routes registry content
 		const routesContent = await Bun.file(join(generatedDir, 'routes.ts')).text();
-		expect(routesContent).toContain("declare module '@agentuity/react'");
+		expect(routesContent).toContain("declare module '@agentuity/frontend'");
 		expect(routesContent).toContain('export interface RouteRegistry');
 	});
 

@@ -1,6 +1,8 @@
+import { mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { resolve } from 'node:path';
+import { resolve, join } from 'node:path';
 import { Command } from 'commander';
+import { getDefaultConfigDir } from './config';
 import type {
 	CommandDefinition,
 	SubcommandDefinition,
@@ -683,16 +685,91 @@ async function getRegion(regions: RegionList): Promise<string> {
 interface ResolveRegionOptions {
 	options: Record<string, unknown>;
 	apiClient: APIClientType;
+	apiUrl: string;
 	logger: Logger;
 	required: boolean;
 	region?: string;
 }
 
-async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
-	const { options, apiClient, logger, required } = opts;
+const REGIONS_CACHE_FILE = 'regions.json';
+const REGIONS_CACHE_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 
-	// Fetch regions
+interface RegionsCacheData {
+	timestamp: number;
+	regions: RegionList;
+	apiUrl?: string; // Added to make cache profile-aware
+}
+
+async function getCachedRegions(apiUrl: string, logger: Logger): Promise<RegionList | null> {
+	try {
+		const cachePath = join(getDefaultConfigDir(), REGIONS_CACHE_FILE);
+		const file = Bun.file(cachePath);
+		if (!(await file.exists())) {
+			return null;
+		}
+		const data: RegionsCacheData = await file.json();
+		// Check if cache is for the same API URL (profile-aware)
+		if (data.apiUrl && data.apiUrl !== apiUrl) {
+			logger.trace(
+				'regions cache is for different API URL (cached: %s, current: %s)',
+				data.apiUrl,
+				apiUrl
+			);
+			return null;
+		}
+		const age = Date.now() - data.timestamp;
+		if (age > REGIONS_CACHE_MAX_AGE_MS) {
+			logger.trace('regions cache expired (age: %dms)', age);
+			return null;
+		}
+		logger.trace('using cached regions (age: %dms)', age);
+		return data.regions;
+	} catch (error) {
+		logger.trace('failed to read regions cache: %s', error);
+		return null;
+	}
+}
+
+async function saveRegionsCache(
+	apiUrl: string,
+	regions: RegionList,
+	logger: Logger
+): Promise<void> {
+	try {
+		const cacheDir = getDefaultConfigDir();
+		await mkdir(cacheDir, { recursive: true });
+		const cachePath = join(cacheDir, REGIONS_CACHE_FILE);
+		const data: RegionsCacheData = {
+			timestamp: Date.now(),
+			regions,
+			apiUrl,
+		};
+		await Bun.write(cachePath, JSON.stringify(data));
+		logger.trace('saved regions cache for %s', apiUrl);
+	} catch (error) {
+		logger.trace('failed to save regions cache: %s', error);
+	}
+}
+
+async function fetchRegionsWithCache(
+	apiUrl: string,
+	apiClient: APIClientType,
+	logger: Logger
+): Promise<RegionList> {
+	const cached = await getCachedRegions(apiUrl, logger);
+	if (cached) {
+		return cached;
+	}
 	const regions = await listRegions(apiClient);
+	await saveRegionsCache(apiUrl, regions, logger);
+	return regions;
+}
+
+async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
+	const { options, apiClient, apiUrl, logger, required } = opts;
+
+	// Fetch regions (with caching)
+	const regions = await fetchRegionsWithCache(apiUrl, apiClient, logger);
 
 	// No regions available
 	if (regions.length === 0) {
@@ -1160,6 +1237,7 @@ async function registerSubcommand(
 								return resolveRegion({
 									options: options as Record<string, unknown>,
 									apiClient,
+									apiUrl: getAPIBaseURL(baseCtx.config),
 									logger: baseCtx.logger,
 									required: !!normalized.requiresRegion,
 									region: project?.region,
@@ -1228,6 +1306,7 @@ async function registerSubcommand(
 						return resolveRegion({
 							options: options as Record<string, unknown>,
 							apiClient,
+							apiUrl: getAPIBaseURL(baseCtx.config),
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
 							region: project?.region,
@@ -1341,6 +1420,7 @@ async function registerSubcommand(
 						const region = await resolveRegion({
 							options: options as Record<string, unknown>,
 							apiClient,
+							apiUrl: getAPIBaseURL(baseCtx.config),
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
 							region: project?.region,
@@ -1405,6 +1485,7 @@ async function registerSubcommand(
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
 						apiClient,
+						apiUrl: getAPIBaseURL(baseCtx.config),
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
 					});
@@ -1516,6 +1597,7 @@ async function registerSubcommand(
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
 						apiClient,
+						apiUrl: getAPIBaseURL(baseCtx.config),
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
 						region: project?.region,
@@ -1644,6 +1726,7 @@ export async function registerCommands(
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
 								apiClient,
+								apiUrl: getAPIBaseURL(baseCtx.config),
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});
@@ -1701,6 +1784,7 @@ export async function registerCommands(
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
 								apiClient,
+								apiUrl: getAPIBaseURL(baseCtx.config),
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});
@@ -1721,6 +1805,7 @@ export async function registerCommands(
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
 								apiClient,
+								apiUrl: getAPIBaseURL(baseCtx.config),
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});

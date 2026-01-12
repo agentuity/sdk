@@ -9,7 +9,7 @@ import {
 	getGithubIntegrationStatus,
 	disconnectGithubIntegration,
 	type GithubIntegration,
-} from '../../integration/api';
+} from '../api';
 
 const RemoveOptionsSchema = z.object({
 	org: z.string().optional().describe('Organization ID'),

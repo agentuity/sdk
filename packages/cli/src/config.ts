@@ -563,6 +563,16 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	const configData = {
 		$schema: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
 		...sanitizedConfig,
+		deployment: {
+			...sanitizedConfig.deployment,
+			resources: {
+				memory: '500Mi',
+				cpu: '500m',
+				disk: '500Mi',
+				...sanitizedConfig.deployment?.resources,
+			},
+			domains: sanitizedConfig.deployment?.domains ?? [],
+		},
 	};
 	await Bun.write(configPath, JSON.stringify(configData, null, 2) + '\n');
 

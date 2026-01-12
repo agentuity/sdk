@@ -12,7 +12,8 @@
 		"paths": {
 			"@agents/*": ["./src/agent/*"],
 			"@test/*": ["./src/test/*"],
-			"@agentuity/runtime": ["./src/generated/router.ts"]
+			"@agentuity/runtime": ["./src/generated/router.ts"],
+			"@agentuity/frontend": ["./node_modules/@agentuity/frontend"]
 		}
 	},
 	"include": ["src/**/*", "app.ts", ".agentuity/.agentuity_types.ts"],

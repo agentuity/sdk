@@ -13,6 +13,7 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
+		"@agentuity/frontend": "latest",
 		"@agentuity/react": "latest",
 		"@agentuity/runtime": "latest",
 		"@agentuity/schema": "latest",

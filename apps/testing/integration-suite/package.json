@@ -13,6 +13,7 @@
 	"dependencies": {
 		"@agentuity/cli": "workspace:*",
 		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/react": "workspace:*",
 		"@agentuity/schema": "workspace:*",

@@ -1,8 +1,12 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { InferInput, InferOutput } from '@agentuity/core';
-import { buildUrl, WebSocketManager } from '@agentuity/frontend';
-import type { WebSocketRouteRegistry } from './types';
+import { buildUrl, WebSocketManager, type WebSocketRouteRegistry } from '@agentuity/frontend';
 import { AgentuityContext } from './context';
+
+// WebSocket ready state constants for SSR compatibility
+// (WebSocket global may not exist during SSR)
+const WS_OPEN = 1;
+const WS_CLOSED = 3;
 
 /**
  * Extract WebSocket route keys (e.g., '/ws', '/chat')
@@ -122,7 +126,7 @@ export function useWebsocket<TRoute extends WebSocketRouteKey>(
 	const [error, setError] = useState<Error | null>(null);
 	const [isError, setIsError] = useState(false);
 	const [isConnected, setIsConnected] = useState(false);
-	const [readyState, setReadyState] = useState<WebSocket['readyState']>(WebSocket.CLOSED);
+	const [readyState, setReadyState] = useState<number>(WS_CLOSED);
 
 	// Build WebSocket URL
 	const wsUrl = useMemo(() => {
@@ -157,11 +161,11 @@ export function useWebsocket<TRoute extends WebSocketRouteKey>(
 					setIsConnected(true);
 					setError(null);
 					setIsError(false);
-					setReadyState(WebSocket.OPEN);
+					setReadyState(WS_OPEN);
 				},
 				onDisconnect: () => {
 					setIsConnected(false);
-					setReadyState(WebSocket.CLOSED);
+					setReadyState(WS_CLOSED);
 				},
 				onError: (err) => {
 					setError(err);

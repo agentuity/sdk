@@ -1,0 +1,26 @@
+{
+	"name": "tanstack-start-agentuity",
+	"version": "0.0.1",
+	"license": "Apache-2.0",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"build": "bun ../../../../packages/cli/bin/cli.ts build --dir . --dev",
+		"dev": "bun ../../../../packages/cli/bin/cli.ts dev --dir .",
+		"typecheck": "bunx tsc --noEmit"
+	},
+	"dependencies": {
+		"@agentuity/cli": "workspace:*",
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
+		"@agentuity/runtime": "workspace:*",
+		"@agentuity/schema": "workspace:*",
+		"hono": "^4.7.13"
+	},
+	"devDependencies": {
+		"@types/bun": "latest",
+		"@vitejs/plugin-react": "^4.5.2",
+		"typescript": "^5",
+		"vite": "^7.2.7"
+	}
+}
