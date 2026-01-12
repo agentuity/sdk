@@ -1,4 +1,4 @@
-import { mkdir } from 'node:fs/promises';
+import { mkdir, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { resolve, join } from 'node:path';
 import { Command } from 'commander';
@@ -685,91 +685,100 @@ async function getRegion(regions: RegionList): Promise<string> {
 interface ResolveRegionOptions {
 	options: Record<string, unknown>;
 	apiClient: APIClientType;
-	apiUrl: string;
+	profileName: string;
 	logger: Logger;
 	required: boolean;
 	region?: string;
 }
 
-const REGIONS_CACHE_FILE = 'regions.json';
 const REGIONS_CACHE_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
+const LEGACY_REGIONS_CACHE_FILE = 'regions.json';
+
+function getRegionsCacheFile(profileName: string): string {
+	return `regions-${profileName}.json`;
+}
+
+async function removeLegacyRegionsCache(logger: Logger): Promise<void> {
+	try {
+		const legacyPath = join(getDefaultConfigDir(), LEGACY_REGIONS_CACHE_FILE);
+		const file = Bun.file(legacyPath);
+		if (await file.exists()) {
+			await unlink(legacyPath);
+			logger.trace('removed legacy regions cache file');
+		}
+	} catch {
+		// Ignore errors when removing legacy file
+	}
+}
 
 interface RegionsCacheData {
 	timestamp: number;
 	regions: RegionList;
-	apiUrl?: string; // Added to make cache profile-aware
 }
 
-async function getCachedRegions(apiUrl: string, logger: Logger): Promise<RegionList | null> {
+async function getCachedRegions(profileName: string, logger: Logger): Promise<RegionList | null> {
 	try {
-		const cachePath = join(getDefaultConfigDir(), REGIONS_CACHE_FILE);
+		// Clean up legacy single-file cache from older versions
+		await removeLegacyRegionsCache(logger);
+
+		const cachePath = join(getDefaultConfigDir(), getRegionsCacheFile(profileName));
 		const file = Bun.file(cachePath);
 		if (!(await file.exists())) {
 			return null;
 		}
 		const data: RegionsCacheData = await file.json();
-		// Check if cache is for the same API URL (profile-aware)
-		if (data.apiUrl && data.apiUrl !== apiUrl) {
-			logger.trace(
-				'regions cache is for different API URL (cached: %s, current: %s)',
-				data.apiUrl,
-				apiUrl
-			);
-			return null;
-		}
 		const age = Date.now() - data.timestamp;
 		if (age > REGIONS_CACHE_MAX_AGE_MS) {
-			logger.trace('regions cache expired (age: %dms)', age);
+			logger.trace('regions cache expired for profile %s (age: %dms)', profileName, age);
 			return null;
 		}
-		logger.trace('using cached regions (age: %dms)', age);
+		logger.trace('using cached regions for profile %s (age: %dms)', profileName, age);
 		return data.regions;
 	} catch (error) {
-		logger.trace('failed to read regions cache: %s', error);
+		logger.trace('failed to read regions cache for profile %s: %s', profileName, error);
 		return null;
 	}
 }
 
 async function saveRegionsCache(
-	apiUrl: string,
+	profileName: string,
 	regions: RegionList,
 	logger: Logger
 ): Promise<void> {
 	try {
 		const cacheDir = getDefaultConfigDir();
 		await mkdir(cacheDir, { recursive: true });
-		const cachePath = join(cacheDir, REGIONS_CACHE_FILE);
+		const cachePath = join(cacheDir, getRegionsCacheFile(profileName));
 		const data: RegionsCacheData = {
 			timestamp: Date.now(),
 			regions,
-			apiUrl,
 		};
 		await Bun.write(cachePath, JSON.stringify(data));
-		logger.trace('saved regions cache for %s', apiUrl);
+		logger.trace('saved regions cache for profile %s', profileName);
 	} catch (error) {
-		logger.trace('failed to save regions cache: %s', error);
+		logger.trace('failed to save regions cache for profile %s: %s', profileName, error);
 	}
 }
 
 async function fetchRegionsWithCache(
-	apiUrl: string,
+	profileName: string,
 	apiClient: APIClientType,
 	logger: Logger
 ): Promise<RegionList> {
-	const cached = await getCachedRegions(apiUrl, logger);
+	const cached = await getCachedRegions(profileName, logger);
 	if (cached) {
 		return cached;
 	}
 	const regions = await listRegions(apiClient);
-	await saveRegionsCache(apiUrl, regions, logger);
+	await saveRegionsCache(profileName, regions, logger);
 	return regions;
 }
 
 async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
-	const { options, apiClient, apiUrl, logger, required } = opts;
+	const { options, apiClient, profileName, logger, required } = opts;
 
 	// Fetch regions (with caching)
-	const regions = await fetchRegionsWithCache(apiUrl, apiClient, logger);
+	const regions = await fetchRegionsWithCache(profileName, apiClient, logger);
 
 	// No regions available
 	if (regions.length === 0) {
@@ -1237,7 +1246,7 @@ async function registerSubcommand(
 								return resolveRegion({
 									options: options as Record<string, unknown>,
 									apiClient,
-									apiUrl: getAPIBaseURL(baseCtx.config),
+									profileName: baseCtx.config?.name ?? defaultProfileName,
 									logger: baseCtx.logger,
 									required: !!normalized.requiresRegion,
 									region: project?.region,
@@ -1306,7 +1315,7 @@ async function registerSubcommand(
 						return resolveRegion({
 							options: options as Record<string, unknown>,
 							apiClient,
-							apiUrl: getAPIBaseURL(baseCtx.config),
+							profileName: baseCtx.config?.name ?? defaultProfileName,
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
 							region: project?.region,
@@ -1420,7 +1429,7 @@ async function registerSubcommand(
 						const region = await resolveRegion({
 							options: options as Record<string, unknown>,
 							apiClient,
-							apiUrl: getAPIBaseURL(baseCtx.config),
+							profileName: baseCtx.config?.name ?? defaultProfileName,
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
 							region: project?.region,
@@ -1485,7 +1494,7 @@ async function registerSubcommand(
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
 						apiClient,
-						apiUrl: getAPIBaseURL(baseCtx.config),
+						profileName: baseCtx.config?.name ?? defaultProfileName,
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
 					});
@@ -1597,7 +1606,7 @@ async function registerSubcommand(
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
 						apiClient,
-						apiUrl: getAPIBaseURL(baseCtx.config),
+						profileName: baseCtx.config?.name ?? defaultProfileName,
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
 						region: project?.region,
@@ -1726,7 +1735,7 @@ export async function registerCommands(
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
 								apiClient,
-								apiUrl: getAPIBaseURL(baseCtx.config),
+								profileName: baseCtx.config?.name ?? defaultProfileName,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});
@@ -1784,7 +1793,7 @@ export async function registerCommands(
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
 								apiClient,
-								apiUrl: getAPIBaseURL(baseCtx.config),
+								profileName: baseCtx.config?.name ?? defaultProfileName,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});
@@ -1805,7 +1814,7 @@ export async function registerCommands(
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
 								apiClient,
-								apiUrl: getAPIBaseURL(baseCtx.config),
+								profileName: baseCtx.config?.name ?? defaultProfileName,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});
