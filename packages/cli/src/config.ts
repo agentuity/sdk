@@ -385,6 +385,7 @@ export async function getAuth(): Promise<AuthData | null> {
 				if (config?.auth) {
 					const configCopy = { ...config };
 					delete configCopy.auth;
+					cachedConfig = null; // Force cache refresh
 					await saveConfig(configCopy);
 				}
 				return {
