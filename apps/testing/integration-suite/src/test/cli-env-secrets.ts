@@ -12,6 +12,15 @@ import { assert, assertEqual, uniqueId } from '@test/helpers';
 import cliAgent from '@agents/cli/agent';
 import { isAuthenticated } from '@test/helpers/cli';
 
+// Track all env vars created during tests for cleanup
+const createdEnvVars: string[] = [];
+
+// Helper to create and track env var keys
+function trackKey(key: string): string {
+	createdEnvVars.push(key);
+	return key;
+}
+
 // Test: Reserved AGENTUITY_ key blocked for env set --secret
 test('cli-env-secrets', 'env-set-secret-blocks-reserved-agentuity-key', async () => {
 	const authenticated = await isAuthenticated();
@@ -107,7 +116,7 @@ test('cli-env-secrets', 'env-list-masks-secrets-by-default', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = uniqueId('MASK_TEST');
+	const testKey = trackKey(uniqueId('MASK_TEST'));
 	const testValue = 'super_secret_value_12345';
 
 	// Set a secret (--secret flag must be in command string)
@@ -143,7 +152,7 @@ test('cli-env-secrets', 'env-list-no-mask-shows-secrets', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = uniqueId('NOMASK_TEST');
+	const testKey = trackKey(uniqueId('NOMASK_TEST'));
 	const testValue = 'visible_secret_value_67890';
 
 	// Set a secret (--secret flag must be in command string)
@@ -178,7 +187,7 @@ test('cli-env-secrets', 'env-set-allows-agentuity-public-prefix', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `AGENTUITY_PUBLIC_${uniqueId('TEST')}`;
+	const testKey = trackKey(`AGENTUITY_PUBLIC_${uniqueId('TEST')}`);
 	const testValue = 'test_public_value';
 
 	// 1. Set the AGENTUITY_PUBLIC_ prefixed var
@@ -225,7 +234,7 @@ test('cli-env-secrets', 'env-set-allows-vite-prefix', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `VITE_${uniqueId('TEST')}`;
+	const testKey = trackKey(`VITE_${uniqueId('TEST')}`);
 	const testValue = 'vite_test_value';
 
 	const result = await cliAgent.run({
@@ -262,7 +271,7 @@ test('cli-env-secrets', 'env-set-allows-public-prefix', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = `PUBLIC_${uniqueId('TEST')}`;
+	const testKey = trackKey(`PUBLIC_${uniqueId('TEST')}`);
 	const testValue = 'public_test_value';
 
 	const result = await cliAgent.run({
@@ -299,7 +308,7 @@ test('cli-env-secrets', 'env-set-secret-allows-valid-key', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = uniqueId('SECRET_KEY');
+	const testKey = trackKey(uniqueId('SECRET_KEY'));
 	const testValue = 'secret_test_value';
 
 	const result = await cliAgent.run({
@@ -350,7 +359,7 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-key-name', async () => {
 
 	// Key must end with _KEY to trigger auto-detection (pattern: /_KEY$/i)
 	// Use uniqueId in the value to avoid collisions, but keep key ending with _KEY
-	const testKey = `TEST_${uniqueId('').toUpperCase()}_KEY`;
+	const testKey = trackKey(`TEST_${uniqueId('').toUpperCase()}_KEY`);
 	const testValue = `test_value_${Date.now()}`;
 
 	// Key name pattern (_KEY suffix) should trigger auto-detection
@@ -392,7 +401,7 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-value', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = uniqueId('CONFIG_VAL');
+	const testKey = trackKey(uniqueId('CONFIG_VAL'));
 	// Long alphanumeric value (32+ chars) should trigger auto-detection
 	const longValue = 'test_secret_abcdefghij1234567890xyz';
 
@@ -437,7 +446,7 @@ test('cli-env-secrets', 'env-set-no-warning-for-normal-vars', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = uniqueId('NORMAL_VAR');
+	const testKey = trackKey(uniqueId('NORMAL_VAR'));
 	const testValue = 'normal_value';
 
 	// Normal key and value should not trigger auto-detection
@@ -512,7 +521,7 @@ test('cli-env-secrets', 'env-crud-cycle', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = uniqueId('CRUD_TEST');
+	const testKey = trackKey(uniqueId('CRUD_TEST'));
 	const testValue = 'crud_test_value';
 
 	// 1. Set
@@ -565,7 +574,7 @@ test('cli-env-secrets', 'env-set-overwrite', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = uniqueId('OVERWRITE_TEST');
+	const testKey = trackKey(uniqueId('OVERWRITE_TEST'));
 	const value1 = 'first_value';
 	const value2 = 'second_value';
 
@@ -606,7 +615,7 @@ test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
 	const authenticated = await isAuthenticated();
 	if (!authenticated) return;
 
-	const testKey = uniqueId('CONVERT_TEST');
+	const testKey = trackKey(uniqueId('CONVERT_TEST'));
 	const value = 'convert_test_value';
 
 	// Set as secret (flag must be in command string)
@@ -652,4 +661,63 @@ test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
 		command: 'cloud env delete',
 		args: [testKey],
 	});
+});
+
+// Final cleanup test - runs last to clean up any leftover env vars
+test('cli-env-secrets', 'zzz-cleanup-all-env-vars', async () => {
+	const authenticated = await isAuthenticated();
+	if (!authenticated) return;
+
+	// Get all env vars and delete any that match our test patterns
+	const listResult = await cliAgent.run({
+		command: 'cloud env list',
+	});
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const lines = listOutput.split('\n');
+
+	// Patterns that indicate test-created env vars
+	const testPatterns = [
+		/^MASK_TEST_/,
+		/^NOMASK_TEST_/,
+		/^AGENTUITY_PUBLIC_TEST_/,
+		/^VITE_TEST_/,
+		/^PUBLIC_TEST_/,
+		/^SECRET_KEY_/,
+		/^TEST_.*_KEY$/,
+		/^CONFIG_VAL_/,
+		/^NORMAL_VAR_/,
+		/^CRUD_TEST_/,
+		/^OVERWRITE_TEST_/,
+		/^CONVERT_TEST_/,
+	];
+
+	const keysToDelete: string[] = [];
+	for (const line of lines) {
+		// Extract key name from line (format: "KEY_NAME    value    [secret]")
+		const match = line.match(/^([A-Z][A-Z0-9_]*)/);
+		if (match) {
+			const key = match[1];
+			if (testPatterns.some((pattern) => pattern.test(key))) {
+				keysToDelete.push(key);
+			}
+		}
+	}
+
+	// Also add any tracked keys that might have been missed
+	for (const key of createdEnvVars) {
+		if (!keysToDelete.includes(key)) {
+			keysToDelete.push(key);
+		}
+	}
+
+	// Delete all test env vars
+	for (const key of keysToDelete) {
+		await cliAgent.run({
+			command: 'cloud env delete',
+			args: [key],
+		});
+	}
+
+	// Clear the tracking array
+	createdEnvVars.length = 0;
 });
