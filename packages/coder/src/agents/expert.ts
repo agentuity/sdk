@@ -498,12 +498,21 @@ agentuity cloud vector get coder-{projectId}-code file:src/main.ts
 
 ### Sandbox — Ephemeral by Default
 Sandboxes are ephemeral. No need to persist metadata unless output matters.
+
+**Default working directory:** \`/home/agentuity\`
+
 \`\`\`bash
-# One-shot (most common)
-agentuity cloud sandbox run -- bun test
+# List available runtimes (e.g., bun:1, python:3.14)
+agentuity cloud sandbox runtime list --json
+
+# One-shot with runtime and optional metadata
+agentuity cloud sandbox run --runtime bun:1 \\
+  --name pr-123-tests --description "Unit tests for PR 123" \\
+  -- bun test
 
 # Persistent for iterative work
-agentuity cloud sandbox create --memory 1Gi
+agentuity cloud sandbox create --memory 1Gi --runtime bun:1 \\
+  --name debug-sbx --description "Debug failing tests"
 agentuity cloud sandbox exec {sandboxId} -- bun test
 \`\`\`
 
@@ -567,17 +576,26 @@ agentuity cloud vector delete <namespace> <key> --no-confirm --json
 
 ### Sandbox
 \`\`\`bash
+# Runtimes
+agentuity cloud sandbox runtime list --json                # List available runtimes (bun:1, python:3.14, etc.)
+
 # Lifecycle
-agentuity cloud sandbox run [--memory 1Gi] [--cpu 1000m] -- <command>
-agentuity cloud sandbox create --json [--memory 1Gi] [--cpu 1000m] [--network]
+agentuity cloud sandbox run [--memory 1Gi] [--cpu 1000m] \\
+  [--runtime <name>] [--runtimeId <id>] \\
+  [--name <name>] [--description <text>] \\
+  -- <command>                                             # One-shot execution
+agentuity cloud sandbox create --json [--memory 1Gi] [--cpu 1000m] [--network] \\
+  [--runtime <name>] [--runtimeId <id>] \\
+  [--name <name>] [--description <text>]                   # Create persistent sandbox
 agentuity cloud sandbox exec <sandboxId> -- <command>
-agentuity cloud sandbox list --json
+agentuity cloud sandbox list --json                        # List sandboxes (includes telemetry)
+agentuity cloud sandbox get <sandboxId> --json             # Inspect sandbox info and telemetry
 agentuity cloud sandbox delete <sandboxId> --json
 
-# File operations
+# File operations (default working dir: /home/agentuity)
 agentuity cloud sandbox files <sandboxId> [path] --json    # List files
-agentuity cloud sandbox cp ./local sbx_abc123:/remote      # Copy to sandbox
-agentuity cloud sandbox cp sbx_abc123:/remote ./local      # Copy from sandbox
+agentuity cloud sandbox cp ./local sbx_abc123:/home/agentuity  # Copy to sandbox
+agentuity cloud sandbox cp sbx_abc123:/home/agentuity ./local  # Copy from sandbox
 agentuity cloud sandbox mkdir <sandboxId> /path/to/dir     # Create directory
 agentuity cloud sandbox rm <sandboxId> /path/to/file       # Remove file
 agentuity cloud sandbox rmdir <sandboxId> /path/to/dir     # Remove directory
@@ -587,9 +605,14 @@ agentuity cloud sandbox env <sandboxId> VAR1=value1 VAR2=value2  # Set env vars
 agentuity cloud sandbox env <sandboxId> --delete VAR1            # Delete env var
 
 # Snapshots (save sandbox state for reuse)
-agentuity cloud sandbox snapshot create <sandboxId>
+agentuity cloud sandbox snapshot create <sandboxId> \\
+  [--name <name>] [--description <text>] [--tag <tag>]
 agentuity cloud sandbox snapshot list --json
 \`\`\`
+
+**Snapshot tags:** Default to \`latest\` if omitted. Max 128 chars, must match \`^[a-zA-Z0-9][a-zA-Z0-9._-]*$\`.
+
+**Telemetry fields** (from \`list\`/\`get\`): \`cpuTimeMs\`, \`memoryByteSec\`, \`networkEgressBytes\`, \`networkEnabled\`, \`mode\`. Use these to monitor resource usage.
 
 ### SSH (Remote Access)
 \`\`\`bash

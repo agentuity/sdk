@@ -209,20 +209,32 @@ Use the \`agentuity cloud sandbox\` CLI commands to help the user.
 
 ## Common Commands
 \`\`\`bash
-agentuity cloud sandbox run -- <command>         # One-shot execution
-agentuity cloud sandbox create --json            # Create persistent sandbox
-agentuity cloud sandbox list --json              # List sandboxes
-agentuity cloud sandbox exec <id> -- <command>   # Run in existing sandbox
-agentuity cloud sandbox files <id> [path] --json # List files
-agentuity cloud sandbox cp ./local <id>:/remote  # Copy files
-agentuity cloud sandbox delete <id> --json       # Delete sandbox
-agentuity cloud sandbox snapshot create <id>     # Save sandbox state
+agentuity cloud sandbox runtime list --json                            # List available runtimes (bun:1, python:3.14, etc.)
+agentuity cloud sandbox run [--memory 1Gi] [--cpu 1000m] \\
+  [--runtime <name>] [--runtimeId <id>] \\
+  [--name <name>] [--description <text>] \\
+  -- <command>                                                         # One-shot execution
+agentuity cloud sandbox create --json [--memory 1Gi] [--cpu 1000m] \\
+  [--network] [--runtime <name>] [--runtimeId <id>] \\
+  [--name <name>] [--description <text>]                              # Create persistent sandbox
+agentuity cloud sandbox list --json                                   # List sandboxes (includes telemetry)
+agentuity cloud sandbox exec <id> -- <command>                        # Run in existing sandbox
+agentuity cloud sandbox files <id> [path] --json                      # List files
+agentuity cloud sandbox cp ./local <id>:/home/agentuity               # Copy files to sandbox
+agentuity cloud sandbox delete <id> --json                            # Delete sandbox
+agentuity cloud sandbox snapshot create <id> \\
+  [--name <name>] [--description <text>] [--tag <tag>]                # Save sandbox state
 \`\`\`
 
 ## Guidelines
 1. First check auth: \`agentuity auth whoami\`
 2. Use \`--json\` for programmatic output
 3. Explain what commands you're running
+4. Default working directory inside sandboxes: \`/home/agentuity\`
+5. Use \`runtime list\` to find runtimes, then pass \`--runtime\` or \`--runtimeId\` on \`run\`/\`create\`
+6. Use \`--name\` and \`--description\` for better tracking
+7. Snapshot \`--tag\` defaults to \`latest\`, max 128 chars, must match \`^[a-zA-Z0-9][a-zA-Z0-9._-]*$\`
+8. Telemetry fields from \`list\`/\`get\`: \`cpuTimeMs\`, \`memoryByteSec\`, \`networkEgressBytes\`, \`networkEnabled\`, \`mode\`
 
 ## User Request
 $ARGUMENTS`,

@@ -337,6 +337,20 @@
         "tailwindcss": "^4.1.18",
       },
     },
+    "packages/coder": {
+      "name": "@agentuity/coder",
+      "version": "0.1.0",
+      "dependencies": {
+        "@agentuity/core": "workspace:*",
+        "zod": "^4.3.5",
+      },
+      "devDependencies": {
+        "@agentuity/test-utils": "workspace:*",
+        "@types/bun": "latest",
+        "bun-types": "latest",
+        "typescript": "^5.9.0",
+      },
+    },
     "packages/core": {
       "name": "@agentuity/core",
       "version": "0.1.8",
@@ -575,6 +589,8 @@
     "@agentuity/auth": ["@agentuity/auth@workspace:packages/auth"],
 
     "@agentuity/cli": ["@agentuity/cli@workspace:packages/cli"],
+
+    "@agentuity/coder": ["@agentuity/coder@workspace:packages/coder"],
 
     "@agentuity/core": ["@agentuity/core@workspace:packages/core"],
 

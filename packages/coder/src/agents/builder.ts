@@ -97,16 +97,24 @@ Before completing any task, verify:
 
 ## Sandbox Workflows
 
+**Default working directory:** \`/home/agentuity\`
+
+Use \`agentuity cloud sandbox runtime list --json\` to see available runtimes (e.g., \`bun:1\`, \`python:3.14\`). Specify runtime with \`--runtime\` (by name) or \`--runtimeId\` (by ID). Add \`--name\` and \`--description\` for better tracking.
+
 ### One-Shot Execution (simple tests/builds)
 \`\`\`bash
-agentuity cloud sandbox run -- bun test
-agentuity cloud sandbox run --memory 2Gi -- bun run build
+agentuity cloud sandbox runtime list --json                    # List available runtimes
+agentuity cloud sandbox run --runtime bun:1 -- bun test        # Run with explicit runtime
+agentuity cloud sandbox run --memory 2Gi --runtime bun:1 \\
+  --name pr-123-tests --description "Unit tests for PR 123" \\
+  -- bun run build                                             # With metadata
 \`\`\`
 
 ### Persistent Sandbox (iterative development)
 \`\`\`bash
-# Create sandbox
-agentuity cloud sandbox create --memory 2Gi
+# Create sandbox with runtime and metadata
+agentuity cloud sandbox create --memory 2Gi --runtime bun:1 \\
+  --name debug-sbx --description "Debug failing tests"
 
 # Option 1: SSH in for interactive work
 agentuity cloud ssh sbx_abc123
@@ -114,24 +122,27 @@ agentuity cloud ssh sbx_abc123
 
 # Option 2: Execute scripted commands
 agentuity cloud sandbox exec sbx_abc123 -- bun test
-agentuity cloud sandbox exec sbx_abc123 -- cat /app/logs/error.log
+agentuity cloud sandbox exec sbx_abc123 -- cat /home/agentuity/logs/error.log
 \`\`\`
 
 ### File Operations
 \`\`\`bash
-agentuity cloud sandbox files sbx_abc123 /app           # List files
-agentuity cloud sandbox cp ./src sbx_abc123:/app/src    # Upload code
-agentuity cloud sandbox cp sbx_abc123:/app/dist ./dist  # Download artifacts
-agentuity cloud sandbox mkdir sbx_abc123 /app/tmp       # Create directory
-agentuity cloud sandbox rm sbx_abc123 /app/old.log      # Remove file
+agentuity cloud sandbox files sbx_abc123 /home/agentuity               # List files
+agentuity cloud sandbox cp ./src sbx_abc123:/home/agentuity/src        # Upload code
+agentuity cloud sandbox cp sbx_abc123:/home/agentuity/dist ./dist      # Download artifacts
+agentuity cloud sandbox mkdir sbx_abc123 /home/agentuity/tmp           # Create directory
+agentuity cloud sandbox rm sbx_abc123 /home/agentuity/old.log          # Remove file
 \`\`\`
 
 ### Environment and Snapshots
 \`\`\`bash
-agentuity cloud sandbox env sbx_abc123 DEBUG=true NODE_ENV=test  # Set env vars
-agentuity cloud sandbox env sbx_abc123 --delete DEBUG            # Remove env var
-agentuity cloud sandbox snapshot create sbx_abc123               # Save state for reuse
+agentuity cloud sandbox env sbx_abc123 DEBUG=true NODE_ENV=test        # Set env vars
+agentuity cloud sandbox env sbx_abc123 --delete DEBUG                  # Remove env var
+agentuity cloud sandbox snapshot create sbx_abc123 \\
+  --name feature-x-snapshot --description "After fixing bug Y" --tag v1  # Save state
 \`\`\`
+
+**Snapshot tags:** Default to \`latest\` if omitted. Max 128 chars, must match \`^[a-zA-Z0-9][a-zA-Z0-9._-]*$\`.
 
 **When to use SSH vs exec:**
 - **SSH**: Interactive debugging, exploring file system, long-running sessions
