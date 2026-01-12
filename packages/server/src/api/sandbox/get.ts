@@ -14,11 +14,17 @@ const SandboxResourcesSchema = z
 const SandboxInfoDataSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
+		name: z.string().optional().describe('Sandbox name'),
+		description: z.string().optional().describe('Sandbox description'),
 		status: z
-			.enum(['creating', 'idle', 'running', 'terminated', 'failed'])
+			.enum(['creating', 'idle', 'running', 'terminated', 'failed', 'deleted'])
 			.describe('Current status of the sandbox'),
+		mode: z.string().optional().describe('Sandbox mode (interactive or oneshot)'),
 		createdAt: z.string().describe('ISO timestamp when the sandbox was created'),
 		region: z.string().optional().describe('Region where the sandbox is running'),
+		runtimeId: z.string().optional().describe('Runtime ID'),
+		runtimeName: z.string().optional().describe('Runtime name (e.g., "bun:1")'),
+		runtimeIconUrl: z.string().optional().describe('URL for runtime icon'),
 		snapshotId: z.string().optional().describe('Snapshot ID this sandbox was created from'),
 		snapshotTag: z.string().optional().describe('Snapshot tag this sandbox was created from'),
 		executions: z.number().describe('Total number of executions in this sandbox'),
@@ -33,6 +39,10 @@ const SandboxInfoDataSchema = z
 			.optional()
 			.describe('User-defined metadata associated with the sandbox'),
 		resources: SandboxResourcesSchema.optional().describe('Resource limits for this sandbox'),
+		cpuTimeMs: z.number().optional().describe('Total CPU time consumed in milliseconds'),
+		memoryByteSec: z.number().optional().describe('Total memory usage in byte-seconds'),
+		networkEgressBytes: z.number().optional().describe('Total network egress in bytes'),
+		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
 	})
 	.describe('Detailed information about a sandbox');
 
@@ -41,6 +51,7 @@ const SandboxGetResponseSchema = APIResponseSchema(SandboxInfoDataSchema);
 export interface SandboxGetParams {
 	sandboxId: string;
 	orgId?: string;
+	includeDeleted?: boolean;
 }
 
 /**
@@ -55,10 +66,13 @@ export async function sandboxGet(
 	client: APIClient,
 	params: SandboxGetParams
 ): Promise<SandboxInfo> {
-	const { sandboxId, orgId } = params;
+	const { sandboxId, orgId, includeDeleted } = params;
 	const queryParams = new URLSearchParams();
 	if (orgId) {
 		queryParams.set('orgId', orgId);
+	}
+	if (includeDeleted) {
+		queryParams.set('includeDeleted', 'true');
 	}
 	const queryString = queryParams.toString();
 	const url = `/sandbox/${API_VERSION}/${sandboxId}${queryString ? `?${queryString}` : ''}`;
@@ -71,9 +85,15 @@ export async function sandboxGet(
 	if (resp.success) {
 		return {
 			sandboxId: resp.data.sandboxId,
+			name: resp.data.name,
+			description: resp.data.description,
 			status: resp.data.status as SandboxStatus,
+			mode: resp.data.mode,
 			createdAt: resp.data.createdAt,
 			region: resp.data.region,
+			runtimeId: resp.data.runtimeId,
+			runtimeName: resp.data.runtimeName,
+			runtimeIconUrl: resp.data.runtimeIconUrl,
 			snapshotId: resp.data.snapshotId,
 			snapshotTag: resp.data.snapshotTag,
 			executions: resp.data.executions,
@@ -82,6 +102,10 @@ export async function sandboxGet(
 			dependencies: resp.data.dependencies,
 			metadata: resp.data.metadata as Record<string, unknown> | undefined,
 			resources: resp.data.resources,
+			cpuTimeMs: resp.data.cpuTimeMs,
+			memoryByteSec: resp.data.memoryByteSec,
+			networkEgressBytes: resp.data.networkEgressBytes,
+			networkEnabled: resp.data.networkEnabled,
 		};
 	}
 

@@ -27,7 +27,7 @@ const SnapshotGetResponseSchema = z.object({
 	parentSnapshotId: z.string().nullable().optional().describe('Parent snapshot ID'),
 	createdAt: z.string().describe('Creation timestamp'),
 	downloadUrl: z.string().optional().describe('Presigned download URL'),
-	files: z.array(SnapshotFileSchema).optional().describe('Files in snapshot'),
+	files: z.array(SnapshotFileSchema).nullable().optional().describe('Files in snapshot'),
 	sandboxes: z
 		.array(SandboxInfoSchema)
 		.optional()

@@ -7,6 +7,8 @@ import { snapshotList } from '@agentuity/server';
 
 const SnapshotInfoSchema = z.object({
 	snapshotId: z.string(),
+	name: z.string().nullable().optional(),
+	description: z.string().nullable().optional(),
 	tag: z.string().nullable().optional(),
 	sizeBytes: z.number(),
 	fileCount: z.number(),
@@ -62,6 +64,7 @@ export const listSubcommand = createCommand({
 				const tableData = result.snapshots.map((snap) => {
 					return {
 						ID: snap.snapshotId,
+						Name: snap.name ?? '-',
 						Tag: snap.tag ?? '-',
 						Size: tui.formatBytes(snap.sizeBytes),
 						Files: snap.fileCount,
@@ -70,6 +73,7 @@ export const listSubcommand = createCommand({
 				});
 				tui.table(tableData, [
 					{ name: 'ID', alignment: 'left' },
+					{ name: 'Name', alignment: 'left' },
 					{ name: 'Tag', alignment: 'left' },
 					{ name: 'Size', alignment: 'right' },
 					{ name: 'Files', alignment: 'right' },

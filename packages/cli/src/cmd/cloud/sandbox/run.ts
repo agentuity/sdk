@@ -37,6 +37,13 @@ export const runSubcommand = createCommand({
 			command: z.array(z.string()).describe('Command and arguments to execute'),
 		}),
 		options: z.object({
+			runtime: z
+				.string()
+				.optional()
+				.describe('Runtime name (e.g., "bun:1", "python:3.14")'),
+			runtimeId: z.string().optional().describe('Runtime ID (e.g., "srt_xxx")'),
+			name: z.string().optional().describe('Sandbox name'),
+			description: z.string().optional().describe('Sandbox description'),
 			memory: z.string().optional().describe('Memory limit (e.g., "500Mi", "1Gi")'),
 			cpu: z.string().optional().describe('CPU limit in millicores (e.g., "500m", "1000m")'),
 			disk: z.string().optional().describe('Disk limit (e.g., "500Mi", "1Gi")'),
@@ -102,6 +109,10 @@ export const runSubcommand = createCommand({
 		try {
 			const result = await sandboxRun(client, {
 				options: {
+					runtime: opts.runtime,
+					runtimeId: opts.runtimeId,
+					name: opts.name,
+					description: opts.description,
 					command: {
 						exec: args.command,
 						files: hasFiles ? files : undefined,

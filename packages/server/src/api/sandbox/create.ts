@@ -5,6 +5,13 @@ import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
 
 const SandboxCreateRequestSchema = z
 	.object({
+		runtime: z
+			.string()
+			.optional()
+			.describe('Runtime name (e.g., "bun:1", "python:3.14")'),
+		runtimeId: z.string().optional().describe('Runtime ID (e.g., "srt_xxx")'),
+		name: z.string().optional().describe('Optional sandbox name'),
+		description: z.string().optional().describe('Optional sandbox description'),
 		resources: z
 			.object({
 				memory: z.string().optional().describe('Memory limit (e.g., "512Mi", "1Gi")'),
@@ -116,6 +123,18 @@ export async function sandboxCreate(
 	const { options = {}, orgId } = params;
 	const body: z.infer<typeof SandboxCreateRequestSchema> = {};
 
+	if (options.runtime) {
+		body.runtime = options.runtime;
+	}
+	if (options.runtimeId) {
+		body.runtimeId = options.runtimeId;
+	}
+	if (options.name) {
+		body.name = options.name;
+	}
+	if (options.description) {
+		body.description = options.description;
+	}
 	if (options.resources) {
 		body.resources = options.resources;
 	}

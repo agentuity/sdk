@@ -12,7 +12,10 @@ const SnapshotFileInfoSchema = z
 const SnapshotInfoSchema = z
 	.object({
 		snapshotId: z.string().describe('Unique identifier for the snapshot'),
-		tag: z.string().nullable().optional().describe('User-defined tag for the snapshot'),
+		runtimeId: z.string().nullable().optional().describe('Runtime ID associated with this snapshot'),
+		name: z.string().describe('Display name for the snapshot (URL-safe: letters, numbers, underscores, dashes)'),
+		description: z.string().nullable().optional().describe('Description of the snapshot'),
+		tag: z.string().nullable().optional().describe('Tag for the snapshot (defaults to "latest")'),
 		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
 		fileCount: z.number().describe('Number of files in the snapshot'),
 		parentSnapshotId: z
@@ -22,7 +25,7 @@ const SnapshotInfoSchema = z
 			.describe('ID of the parent snapshot (for incremental snapshots)'),
 		createdAt: z.string().describe('ISO timestamp when the snapshot was created'),
 		downloadUrl: z.string().optional().describe('URL to download the snapshot archive'),
-		files: z.array(SnapshotFileInfoSchema).optional().describe('List of files in the snapshot'),
+		files: z.array(SnapshotFileInfoSchema).nullable().optional().describe('List of files in the snapshot'),
 	})
 	.describe('Detailed information about a snapshot');
 
@@ -44,17 +47,22 @@ export interface SnapshotFileInfo {
 
 export interface SnapshotInfo {
 	snapshotId: string;
+	runtimeId?: string | null;
+	name: string;
+	description?: string | null;
 	tag?: string | null;
 	sizeBytes: number;
 	fileCount: number;
 	parentSnapshotId?: string | null;
 	createdAt: string;
 	downloadUrl?: string;
-	files?: SnapshotFileInfo[];
+	files?: SnapshotFileInfo[] | null;
 }
 
 export interface SnapshotCreateParams {
 	sandboxId: string;
+	name?: string;
+	description?: string;
 	tag?: string;
 	orgId?: string;
 }
@@ -110,11 +118,17 @@ export async function snapshotCreate(
 	client: APIClient,
 	params: SnapshotCreateParams
 ): Promise<SnapshotInfo> {
-	const { sandboxId, tag, orgId } = params;
+	const { sandboxId, name, description, tag, orgId } = params;
 	const queryString = buildQueryString({ orgId });
 	const url = `/sandbox/${API_VERSION}/${sandboxId}/snapshot${queryString}`;
 
 	const body: Record<string, string> = {};
+	if (name) {
+		body.name = name;
+	}
+	if (description) {
+		body.description = description;
+	}
 	if (tag) {
 		body.tag = tag;
 	}

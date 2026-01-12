@@ -76,6 +76,7 @@ export {
 export {
 	type SandboxResources,
 	type SandboxStatus,
+	type SandboxRuntime,
 	type ExecutionStatus,
 	type StreamReader,
 	type SandboxStreamConfig,
@@ -87,6 +88,8 @@ export {
 	type SandboxInfo,
 	type ListSandboxesParams,
 	type ListSandboxesResponse,
+	type ListRuntimesParams,
+	type ListRuntimesResponse,
 	type ExecuteOptions,
 	type Execution,
 	type SandboxRunOptions,
