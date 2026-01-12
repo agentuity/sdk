@@ -234,19 +234,8 @@ function createDefaultTrustedOrigins(baseURL?: string): (request?: Request) => P
 /**
  * Configuration options for auth.
  * Extends BetterAuth options with Agentuity-specific settings.
- *
- * Note: `trustedOrigins` is narrowed to require strict `string[]` (no null/undefined).
- * This ensures type safety for consumers of @agentuity/auth.
  */
-export interface AuthOptions extends Omit<BetterAuthOptions, 'trustedOrigins'> {
-	/**
-	 * List of trusted origins for CORS and callback validation.
-	 * Can be a static array of origin strings, or a function that returns origins.
-	 *
-	 * Unlike BetterAuth's type, this requires strict `string[]` with no null/undefined.
-	 */
-	trustedOrigins?: TrustedOrigins;
-
+export interface AuthOptions extends BetterAuthOptions {
 	/**
 	 * PostgreSQL connection string.
 	 * When provided, we create a Bun SQL connection and Drizzle instance internally.
@@ -363,7 +352,7 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	const basePath = restOptions.basePath ?? '/api/auth';
 	const emailAndPassword = restOptions.emailAndPassword ?? { enabled: true };
 
-	// trustedOrigins is now properly typed as TrustedOrigins | undefined via AuthOptions
+	// Explicitly type to avoid union type inference issues with downstream consumers
 	const trustedOrigins: TrustedOrigins =
 		restOptions.trustedOrigins ?? createDefaultTrustedOrigins(resolvedBaseURL);
 
