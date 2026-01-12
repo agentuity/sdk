@@ -328,9 +328,13 @@ async function installDependencies(
 	for (const [pkgName, tarballPath] of packedPackages.entries()) {
 		if (packageJson.dependencies?.[pkgName]) {
 			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
-		} else if (pkgName === '@agentuity/frontend' || pkgName === '@agentuity/server') {
-			// Frontend is a transitive dep of react, server is a transitive dep of runtime
-			// Add them explicitly to prevent bun from pulling from npm
+		} else if (
+			pkgName === '@agentuity/frontend' ||
+			pkgName === '@agentuity/server' ||
+			pkgName === '@agentuity/auth'
+		) {
+			// Frontend is a transitive dep of react, server is a transitive dep of runtime,
+			// auth is a peer dep of runtime - add them explicitly to prevent bun from pulling from npm
 			if (!packageJson.dependencies) packageJson.dependencies = {};
 			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
 		}

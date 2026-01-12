@@ -352,9 +352,21 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	const basePath = restOptions.basePath ?? '/api/auth';
 	const emailAndPassword = restOptions.emailAndPassword ?? { enabled: true };
 
-	// Explicitly type to avoid union type inference issues with downstream consumers
-	const trustedOrigins: TrustedOrigins =
-		restOptions.trustedOrigins ?? createDefaultTrustedOrigins(resolvedBaseURL);
+	// Wrap user-provided trustedOrigins to filter nullish values and match TrustedOrigins type
+	let trustedOrigins: TrustedOrigins;
+	const userOrigins = restOptions.trustedOrigins;
+	if (userOrigins) {
+		if (Array.isArray(userOrigins)) {
+			trustedOrigins = userOrigins.filter((x): x is string => x != null);
+		} else {
+			trustedOrigins = async (request?: Request): Promise<string[]> => {
+				const result = await userOrigins(request);
+				return result.filter((x: string | null | undefined): x is string => x != null);
+			};
+		}
+	} else {
+		trustedOrigins = createDefaultTrustedOrigins(resolvedBaseURL);
+	}
 
 	const defaultPlugins = skipDefaultPlugins ? [] : getDefaultPlugins(apiKeyOptions);
 
