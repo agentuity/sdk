@@ -124,9 +124,10 @@ test('cli-env-secrets', 'env-list-masks-secrets-by-default', async () => {
 		command: 'cloud env list',
 	});
 
-	const lines = listResult.stdout?.split('\n') || [];
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes(testKey));
-	assert(Boolean(keyLine), `Key ${testKey} should be in list: ${listResult.stdout}`);
+	assert(Boolean(keyLine), `Key ${testKey} should be in list: ${listOutput}`);
 	assert(!keyLine!.includes(testValue), 'Full secret value should NOT appear (should be masked)');
 	assert(keyLine!.includes('[secret]'), 'Should be marked as [secret]');
 
@@ -159,9 +160,10 @@ test('cli-env-secrets', 'env-list-no-mask-shows-secrets', async () => {
 		command: 'cloud env list --no-mask',
 	});
 
-	const lines = listResult.stdout?.split('\n') || [];
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes(testKey));
-	assert(Boolean(keyLine), `Key ${testKey} should be in list: ${listResult.stdout}`);
+	assert(Boolean(keyLine), `Key ${testKey} should be in list: ${listOutput}`);
 	assert(keyLine!.includes(testValue), 'Full secret value should appear with --no-mask');
 
 	// Cleanup
@@ -204,9 +206,10 @@ test('cli-env-secrets', 'env-set-allows-agentuity-public-prefix', async () => {
 	const listResult = await cliAgent.run({
 		command: 'cloud env list',
 	});
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
 	assert(
-		Boolean(listResult.stdout?.includes(testKey)),
-		`List should include ${testKey}: ${listResult.stdout}`
+		Boolean(listOutput.includes(testKey)),
+		`List should include ${testKey}: ${listOutput}`
 	);
 
 	// 3. Clean up - delete the test var
@@ -243,7 +246,8 @@ test('cli-env-secrets', 'env-set-allows-vite-prefix', async () => {
 	const listResult = await cliAgent.run({
 		command: 'cloud env list',
 	});
-	assert(Boolean(listResult.stdout?.includes(testKey)), `List should include ${testKey}`);
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	assert(Boolean(listOutput.includes(testKey)), `List should include ${testKey}`);
 
 	// Cleanup
 	await cliAgent.run({
@@ -279,7 +283,8 @@ test('cli-env-secrets', 'env-set-allows-public-prefix', async () => {
 	const listResult = await cliAgent.run({
 		command: 'cloud env list',
 	});
-	assert(Boolean(listResult.stdout?.includes(testKey)), `List should include ${testKey}`);
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	assert(Boolean(listOutput.includes(testKey)), `List should include ${testKey}`);
 
 	// Cleanup
 	await cliAgent.run({
@@ -322,7 +327,8 @@ test('cli-env-secrets', 'env-set-secret-allows-valid-key', async () => {
 	const listResult = await cliAgent.run({
 		command: 'cloud env list',
 	});
-	const lines = listResult.stdout?.split('\n') || [];
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes(testKey));
 	assert(
 		Boolean(keyLine && keyLine.includes('[secret]')),
@@ -365,7 +371,8 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-key-name', async () => {
 	const listResult = await cliAgent.run({
 		command: 'cloud env list',
 	});
-	const lines = listResult.stdout?.split('\n') || [];
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes(testKey));
 	assert(
 		Boolean(keyLine && keyLine.includes('[secret]')),
@@ -409,7 +416,8 @@ test('cli-env-secrets', 'env-set-auto-detects-secret-by-value', async () => {
 	const listResult = await cliAgent.run({
 		command: 'cloud env list',
 	});
-	const lines = listResult.stdout?.split('\n') || [];
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes(testKey));
 	assert(
 		Boolean(keyLine && keyLine.includes('[secret]')),
@@ -458,7 +466,8 @@ test('cli-env-secrets', 'env-set-no-warning-for-normal-vars', async () => {
 	const listResult = await cliAgent.run({
 		command: 'cloud env list',
 	});
-	const lines = listResult.stdout?.split('\n') || [];
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	const lines = listOutput.split('\n');
 	const keyLine = lines.find((l) => l.includes(testKey));
 	assert(Boolean(keyLine && !keyLine.includes('[secret]')), `${testKey} should NOT be a secret`);
 
@@ -532,7 +541,8 @@ test('cli-env-secrets', 'env-crud-cycle', async () => {
 	const listResult = await cliAgent.run({
 		command: 'cloud env list',
 	});
-	assert(Boolean(listResult.stdout?.includes(testKey)), 'List should include the key');
+	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
+	assert(Boolean(listOutput.includes(testKey)), 'List should include the key');
 
 	// 4. Delete
 	const deleteResult = await cliAgent.run({
@@ -611,7 +621,8 @@ test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
 	const listBefore = await cliAgent.run({
 		command: 'cloud env list',
 	});
-	const linesBefore = listBefore.stdout?.split('\n') || [];
+	const listBeforeOutput = (listBefore.stdout || '') + (listBefore.stderr || '');
+	const linesBefore = listBeforeOutput.split('\n');
 	const keyLineBefore = linesBefore.find((l) => l.includes(testKey));
 	assert(
 		Boolean(keyLineBefore && keyLineBefore.includes('[secret]')),
@@ -627,7 +638,8 @@ test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
 	const listAfter = await cliAgent.run({
 		command: 'cloud env list',
 	});
-	const linesAfter = listAfter.stdout?.split('\n') || [];
+	const listAfterOutput = (listAfter.stdout || '') + (listAfter.stderr || '');
+	const linesAfter = listAfterOutput.split('\n');
 	const keyLineAfter = linesAfter.find((l) => l.includes(testKey));
 	assert(
 		Boolean(keyLineAfter && !keyLineAfter.includes('[secret]')),
