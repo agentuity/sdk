@@ -354,7 +354,8 @@ export function createAuth<T extends AuthOptions>(options: T) {
 
 	// Normalize trustedOrigins to ensure we always have string[] (filtering out null/undefined)
 	// BetterAuth's type allows (string | null | undefined)[] but we need strict string[]
-	const trustedOrigins: TrustedOrigins = (() => {
+	// Type assertion needed because BetterAuth's type is more permissive than our TrustedOrigins
+	const trustedOrigins = ((): TrustedOrigins => {
 		const userOrigins = restOptions.trustedOrigins;
 		if (!userOrigins) {
 			return createDefaultTrustedOrigins(resolvedBaseURL);
