@@ -5,6 +5,9 @@ import { createSandboxClient } from '../util';
 import { getCommand } from '../../../../command-prefix';
 import { snapshotTag } from '@agentuity/server';
 
+const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9_][a-zA-Z0-9._-]*$/;
+const MAX_SNAPSHOT_TAG_LENGTH = 128;
+
 const SnapshotTagResponseSchema = z.object({
 	snapshotId: z.string().describe('Snapshot ID'),
 	tag: z.string().nullable().optional().describe('New tag'),
@@ -42,6 +45,17 @@ export const tagSubcommand = createCommand({
 
 		if (!args.tag && !opts.clear) {
 			throw new Error('Either provide a tag name or use --clear to remove the tag');
+		}
+
+		if (args.tag) {
+			if (args.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
+				logger.fatal(`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`);
+			}
+			if (!SNAPSHOT_TAG_REGEX.test(args.tag)) {
+				logger.fatal(
+					'Invalid snapshot tag: must only contain letters, numbers, dashes, underscores, and dots, and cannot start with a period or dash'
+				);
+			}
 		}
 
 		const tag = opts.clear ? null : (args.tag ?? null);

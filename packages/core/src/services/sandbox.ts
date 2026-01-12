@@ -23,7 +23,42 @@ export interface SandboxResources {
 /**
  * Sandbox status
  */
-export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'failed';
+export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'failed' | 'deleted';
+
+/**
+ * Runtime information for a sandbox
+ */
+export interface SandboxRuntime {
+	/**
+	 * Unique runtime identifier
+	 */
+	id: string;
+
+	/**
+	 * Runtime name (e.g., "bun:1", "python:3.14")
+	 */
+	name: string;
+
+	/**
+	 * Optional description
+	 */
+	description?: string;
+
+	/**
+	 * URL for runtime icon
+	 */
+	iconUrl?: string;
+
+	/**
+	 * URL for runtime documentation or homepage
+	 */
+	url?: string;
+
+	/**
+	 * Optional tags for categorization
+	 */
+	tags?: string[];
+}
 
 /**
  * Execution status
@@ -138,6 +173,29 @@ export interface SandboxTimeoutConfig {
  */
 export interface SandboxCreateOptions {
 	/**
+	 * Runtime name (e.g., "bun:1", "python:3.14").
+	 * If not specified, defaults to "bun:1".
+	 */
+	runtime?: string;
+
+	/**
+	 * Runtime ID (e.g., "srt_xxx").
+	 * Alternative to specifying runtime by name.
+	 */
+	runtimeId?: string;
+
+	/**
+	 * Optional sandbox name.
+	 * If not provided, a unique name will be auto-generated.
+	 */
+	name?: string;
+
+	/**
+	 * Optional description for the sandbox.
+	 */
+	description?: string;
+
+	/**
 	 * Resource limits
 	 */
 	resources?: SandboxResources;
@@ -199,6 +257,21 @@ export interface Sandbox {
 	 * Current status
 	 */
 	status: SandboxStatus;
+
+	/**
+	 * Runtime information for this sandbox
+	 */
+	runtime?: SandboxRuntime;
+
+	/**
+	 * Sandbox name
+	 */
+	name?: string;
+
+	/**
+	 * Sandbox description
+	 */
+	description?: string;
 
 	/**
 	 * Read-only stream for stdout.
@@ -272,9 +345,24 @@ export interface SandboxInfo {
 	sandboxId: string;
 
 	/**
+	 * Sandbox name
+	 */
+	name?: string;
+
+	/**
+	 * Sandbox description
+	 */
+	description?: string;
+
+	/**
 	 * Current status
 	 */
 	status: SandboxStatus;
+
+	/**
+	 * Sandbox mode (interactive or oneshot)
+	 */
+	mode?: string;
 
 	/**
 	 * Creation timestamp (ISO 8601)
@@ -285,6 +373,21 @@ export interface SandboxInfo {
 	 * Region where the sandbox is running
 	 */
 	region?: string;
+
+	/**
+	 * Runtime ID
+	 */
+	runtimeId?: string;
+
+	/**
+	 * Runtime name (e.g., "bun:1")
+	 */
+	runtimeName?: string;
+
+	/**
+	 * Runtime icon URL
+	 */
+	runtimeIconUrl?: string;
 
 	/**
 	 * Snapshot ID this sandbox was created from
@@ -325,6 +428,26 @@ export interface SandboxInfo {
 	 * Resource limits for this sandbox
 	 */
 	resources?: SandboxResources;
+
+	/**
+	 * Total CPU time consumed in milliseconds (available when terminated)
+	 */
+	cpuTimeMs?: number;
+
+	/**
+	 * Total memory usage in byte-seconds (available when terminated)
+	 */
+	memoryByteSec?: number;
+
+	/**
+	 * Total network egress in bytes (available when terminated)
+	 */
+	networkEgressBytes?: number;
+
+	/**
+	 * Whether network access is enabled for this sandbox
+	 */
+	networkEnabled?: boolean;
 }
 
 /**
@@ -368,6 +491,36 @@ export interface ListSandboxesResponse {
 
 	/**
 	 * Total count of sandboxes matching the filter
+	 */
+	total: number;
+}
+
+/**
+ * Parameters for listing sandbox runtimes
+ */
+export interface ListRuntimesParams {
+	/**
+	 * Maximum number of results (default: 50, max: 100)
+	 */
+	limit?: number;
+
+	/**
+	 * Pagination offset
+	 */
+	offset?: number;
+}
+
+/**
+ * Response from listing sandbox runtimes
+ */
+export interface ListRuntimesResponse {
+	/**
+	 * Array of runtime information
+	 */
+	runtimes: SandboxRuntime[];
+
+	/**
+	 * Total count of runtimes
 	 */
 	total: number;
 }

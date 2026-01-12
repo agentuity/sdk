@@ -7,6 +7,7 @@ const ExecutionInfoSchema = z
 	.object({
 		executionId: z.string().describe('Unique identifier for the execution'),
 		sandboxId: z.string().describe('ID of the sandbox where the execution ran'),
+		type: z.string().optional().describe('Type of execution (e.g., exec, write_files, read_file)'),
 		status: z
 			.enum(['queued', 'running', 'completed', 'failed', 'timeout', 'cancelled'])
 			.describe('Current status of the execution'),
@@ -34,6 +35,7 @@ const ExecutionListResponseSchema = APIResponseSchema(ExecutionListDataSchema);
 export interface ExecutionInfo {
 	executionId: string;
 	sandboxId: string;
+	type?: string;
 	status: ExecutionStatus;
 	command?: string[];
 	exitCode?: number;
@@ -79,6 +81,7 @@ export async function executionGet(
 		return {
 			executionId: resp.data.executionId,
 			sandboxId: resp.data.sandboxId,
+			type: resp.data.type,
 			status: resp.data.status as ExecutionStatus,
 			command: resp.data.command,
 			exitCode: resp.data.exitCode,
@@ -137,6 +140,7 @@ export async function executionList(
 			executions: resp.data.executions.map((exec) => ({
 				executionId: exec.executionId,
 				sandboxId: exec.sandboxId,
+				type: exec.type,
 				status: exec.status as ExecutionStatus,
 				command: exec.command,
 				exitCode: exec.exitCode,
