@@ -6,7 +6,9 @@ export interface ParamsHooks {
 
 /**
  * Dynamic mode triggers based on user message content.
- * Users can use advertised keywords or natural variations.
+ *
+ * Trigger phrases are intentionally specific to avoid false positives.
+ * Single common words are avoided; multi-word phrases are preferred.
  */
 const DYNAMIC_MODES = {
 	/**
@@ -18,10 +20,10 @@ const DYNAMIC_MODES = {
 			'brainstorm',
 			'be creative',
 			'get creative',
-			'ideas',
+			'give me ideas',
 			'explore options',
-			'alternatives',
-			'think outside',
+			'explore alternatives',
+			'think outside the box',
 		],
 		settings: {
 			temperature: 0.8,
@@ -36,10 +38,10 @@ const DYNAMIC_MODES = {
 		triggers: [
 			'think hard',
 			'think deeply',
-			'reason through',
+			'reason through this',
 			'analyze carefully',
 			'think this through',
-			'extra thought',
+			'give this extra thought',
 		],
 		settings: {
 			// For Anthropic models, this enables max thinking budget
@@ -60,10 +62,9 @@ const DYNAMIC_MODES = {
 			'dig deep',
 			'go deep',
 			'deep dive',
-			'take time',
-			'no rush',
-			'careful',
-			'meticulous',
+			'take your time',
+			'be thorough',
+			'be meticulous',
 		],
 		settings: {
 			maxSteps: 50,
@@ -178,8 +179,10 @@ export function createParamsHooks(ctx: PluginContext, _config: CoderConfig): Par
  * - "think hard" - Activates deep thinking mode (max reasoning budget)
  * - "dig deep" / "go deep" - Activates thorough mode (maxSteps → 50)
  *
- * These can also be triggered by natural variations like:
- * - "be creative", "ideas", "explore options", "alternatives"
+ * These can also be triggered by specific phrases like:
+ * - "be creative", "give me ideas", "explore options", "explore alternatives"
  * - "think deeply", "analyze carefully", "reason through this"
- * - "deep dive", "take time", "no rush", "careful", "meticulous"
+ * - "deep dive", "take your time", "be thorough", "be meticulous"
+ *
+ * Note: Triggers use multi-word phrases to avoid false positives from common words.
  */

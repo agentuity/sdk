@@ -17,7 +17,7 @@ export interface AgentDefinition {
 	};
 	/** Model variant for thinking/reasoning (e.g., 'high', 'max' for Anthropic) */
 	variant?: string;
-	/** Temperature for response creativity (0.0-1.0) */
+	/** Temperature for response creativity (0.0-2.0) */
 	temperature?: number;
 	/** Maximum agentic steps before forcing text response */
 	maxSteps?: number;

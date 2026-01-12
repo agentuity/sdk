@@ -33,8 +33,19 @@ async function getProfilePath(): Promise<string> {
 	return join(CONFIG_DIR, DEFAULT_PROFILE);
 }
 
-export function getConfigPath(): string {
+/**
+ * Returns the default config path without resolving the active profile.
+ * Use loadCoderConfig() for actual config loading which resolves via getProfilePath().
+ */
+export function getDefaultConfigPath(): string {
 	return join(CONFIG_DIR, DEFAULT_PROFILE);
+}
+
+/**
+ * Returns the actual config path that will be used, resolving the active profile.
+ */
+export async function getConfigPath(): Promise<string> {
+	return getProfilePath();
 }
 
 export async function loadCoderConfig(): Promise<CoderConfig> {
@@ -91,12 +102,25 @@ export function getDefaultConfig(): CoderConfig {
 }
 
 export function mergeConfig(base: CoderConfig, override: CoderConfig): CoderConfig {
+	// Deep merge agents: for each agent, merge base and override properties
+	const mergedAgents: CoderConfig['agents'] = {};
+	const allAgentKeys = new Set([
+		...Object.keys(base.agents ?? {}),
+		...Object.keys(override.agents ?? {}),
+	]);
+
+	for (const key of allAgentKeys) {
+		const baseAgent = base.agents?.[key as keyof typeof base.agents];
+		const overrideAgent = override.agents?.[key as keyof typeof override.agents];
+		mergedAgents[key as keyof typeof mergedAgents] = {
+			...baseAgent,
+			...overrideAgent,
+		};
+	}
+
 	return {
 		org: override.org ?? base.org,
-		agents: {
-			...base.agents,
-			...override.agents,
-		},
+		agents: mergedAgents,
 		disabledMcps: override.disabledMcps ?? base.disabledMcps,
 		blockedCommands: override.blockedCommands ?? base.blockedCommands,
 	};

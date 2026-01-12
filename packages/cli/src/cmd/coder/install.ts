@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createSubcommand, type CommandContext } from '../../types';
@@ -9,6 +9,10 @@ import { saveOrgId, saveConfig } from '../../config';
 
 const OPENCODE_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 const OPENCODE_CONFIG_FILE = join(OPENCODE_CONFIG_DIR, 'opencode.json');
+
+async function fileExists(path: string): Promise<boolean> {
+	return Bun.file(path).exists();
+}
 
 export const installSubcommand = createSubcommand({
 	name: 'install',
@@ -72,12 +76,12 @@ export const installSubcommand = createSubcommand({
 
 		// Step 3: Update Open Code config if needed
 		let openCodeUpdated = false;
-		if (!existsSync(OPENCODE_CONFIG_DIR)) {
+		if (!(await fileExists(OPENCODE_CONFIG_DIR))) {
 			mkdirSync(OPENCODE_CONFIG_DIR, { recursive: true });
 		}
 
 		let openCodeConfig: { plugin?: string[]; $schema?: string } = {};
-		if (existsSync(OPENCODE_CONFIG_FILE)) {
+		if (await fileExists(OPENCODE_CONFIG_FILE)) {
 			try {
 				const content = readFileSync(OPENCODE_CONFIG_FILE, 'utf-8');
 				openCodeConfig = JSON.parse(content);
