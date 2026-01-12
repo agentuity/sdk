@@ -353,6 +353,7 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	const emailAndPassword = restOptions.emailAndPassword ?? { enabled: true };
 
 	// Normalize trustedOrigins to ensure we always have string[] (filtering out null/undefined)
+	// BetterAuth's type allows (string | null | undefined)[] but we need strict string[]
 	const trustedOrigins: TrustedOrigins = (() => {
 		const userOrigins = restOptions.trustedOrigins;
 		if (!userOrigins) {
@@ -362,9 +363,11 @@ export function createAuth<T extends AuthOptions>(options: T) {
 			return userOrigins.filter((o): o is string => typeof o === 'string');
 		}
 		// Wrap user function to filter out null/undefined values
-		return async (request?: Request) => {
+		return async (request?: Request): Promise<string[]> => {
 			const origins = await userOrigins(request);
-			return origins.filter((o): o is string => typeof o === 'string');
+			return (origins as (string | null | undefined)[]).filter(
+				(o): o is string => typeof o === 'string'
+			);
 		};
 	})();
 
