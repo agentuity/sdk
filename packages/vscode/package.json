@@ -653,7 +653,7 @@
 				},
 				"agentuity.sandbox.defaultRemotePath": {
 					"type": "string",
-					"default": "/home/agentuity/app",
+					"default": "/home/agentuity",
 					"description": "Default path in sandbox for synced files"
 				}
 			}
@@ -978,8 +978,8 @@
 						},
 						"remotePath": {
 							"type": "string",
-							"description": "Remote path in sandbox (default: /home/agentuity/app)",
-							"default": "/home/agentuity/app"
+							"description": "Remote path in sandbox (default: /home/agentuity)",
+							"default": "/home/agentuity"
 						},
 						"respectGitignore": {
 							"type": "boolean",

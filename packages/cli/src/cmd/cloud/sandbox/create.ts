@@ -29,6 +29,10 @@ export const createSubcommand = createCommand({
 			description: 'Create a sandbox with default settings',
 		},
 		{
+			command: getCommand('cloud sandbox create --runtime python:3.14'),
+			description: 'Create a sandbox with Python runtime',
+		},
+		{
 			command: getCommand('cloud sandbox create --memory 1Gi --cpu 1000m'),
 			description: 'Create a sandbox with resource limits',
 		},
@@ -43,6 +47,13 @@ export const createSubcommand = createCommand({
 	],
 	schema: {
 		options: z.object({
+			runtime: z
+				.string()
+				.optional()
+				.describe('Runtime name (e.g., "bun:1", "python:3.14")'),
+			runtimeId: z.string().optional().describe('Runtime ID (e.g., "srt_xxx")'),
+			name: z.string().optional().describe('Sandbox name'),
+			description: z.string().optional().describe('Sandbox description'),
 			memory: z.string().optional().describe('Memory limit (e.g., "500Mi", "1Gi")'),
 			cpu: z.string().optional().describe('CPU limit in millicores (e.g., "500m", "1000m")'),
 			disk: z.string().optional().describe('Disk limit (e.g., "500Mi", "1Gi")'),
@@ -100,6 +111,10 @@ export const createSubcommand = createCommand({
 
 		const result = await sandboxCreate(client, {
 			options: {
+				runtime: opts.runtime,
+				runtimeId: opts.runtimeId,
+				name: opts.name,
+				description: opts.description,
 				resources:
 					opts.memory || opts.cpu || opts.disk
 						? {
