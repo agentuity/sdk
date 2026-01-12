@@ -11,7 +11,6 @@ import { deploymentCommand } from './deployment';
 import keyvalueCommand from './keyvalue';
 import { agentCommand } from './agent';
 import envCommand from './env';
-import secretCommand from './secret';
 import apikeyCommand from './apikey';
 import streamCommand from './stream';
 import vectorCommand from './vector';
@@ -34,7 +33,6 @@ export const command = createCommand({
 		vectorCommand,
 		sandboxCommand,
 		envCommand,
-		secretCommand,
 		deploySubcommand,
 		dbCommand,
 		redisCommand,

@@ -1,7 +1,7 @@
 /**
  * Test execution API route with SSE streaming
  *
- * GET /api/test/run?suite=<name>&test=<name>&concurrency=<number>
+ * GET /api/test/run?suite=<name>&test=<name>&exclude=<name>&concurrency=<number>
  *
  * Streams test results as Server-Sent Events:
  * - event: start - Test execution started
@@ -42,11 +42,16 @@ function formatSSE(event: string, data: SSEEvent): string {
 router.get('/api/test/run', async (c) => {
 	const suite = c.req.query('suite');
 	const test = c.req.query('test');
+	const exclude = c.req.query('exclude');
 	const concurrencyStr = c.req.query('concurrency');
 	const concurrency = concurrencyStr ? parseInt(concurrencyStr, 10) : 10;
 
-	// Get matching tests
-	const tests = testSuite.getTests(suite, test);
+	// Get matching tests, optionally excluding certain suites
+	let tests = testSuite.getTests(suite, test);
+	if (exclude) {
+		const excludeSuites = exclude.split(',').map((s) => s.trim());
+		tests = tests.filter((t) => !excludeSuites.includes(t.suite));
+	}
 
 	if (tests.length === 0) {
 		return c.json(

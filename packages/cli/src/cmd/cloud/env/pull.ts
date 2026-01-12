@@ -3,7 +3,13 @@ import { join } from 'node:path';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { projectGet } from '@agentuity/server';
-import { findExistingEnvFile, readEnvFile, writeEnvFile, mergeEnvVars } from '../../../env-util';
+import {
+	findExistingEnvFile,
+	readEnvFile,
+	writeEnvFile,
+	mergeEnvVars,
+	isReservedAgentuityKey,
+} from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
 const EnvPullResponseSchema = z.object({
@@ -55,9 +61,9 @@ export const pullSubcommand = createSubcommand({
 			mergedEnv = mergeEnvVars(cloudEnv, localEnv);
 		}
 
-		// Write to .env (skip AGENTUITY_ keys)
+		// Write to .env (skip reserved AGENTUITY_ keys, except AGENTUITY_PUBLIC_)
 		await writeEnvFile(targetEnvPath, mergedEnv, {
-			skipKeys: Object.keys(mergedEnv).filter((k) => k.startsWith('AGENTUITY_')),
+			skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
 		});
 
 		// Write AGENTUITY_SDK_KEY to .env if present and missing locally
