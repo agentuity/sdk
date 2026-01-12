@@ -352,9 +352,10 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	const basePath = restOptions.basePath ?? '/api/auth';
 	const emailAndPassword = restOptions.emailAndPassword ?? { enabled: true };
 
-	// Explicitly type to avoid union type inference issues with downstream consumers
-	const trustedOrigins: TrustedOrigins =
-		restOptions.trustedOrigins ?? createDefaultTrustedOrigins(resolvedBaseURL);
+	// Cast to TrustedOrigins to handle BetterAuth's looser type that allows null/undefined in arrays
+	const trustedOrigins =
+		(restOptions.trustedOrigins as TrustedOrigins | undefined) ??
+		createDefaultTrustedOrigins(resolvedBaseURL);
 
 	const defaultPlugins = skipDefaultPlugins ? [] : getDefaultPlugins(apiKeyOptions);
 
