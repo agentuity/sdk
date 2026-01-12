@@ -352,25 +352,10 @@ export function createAuth<T extends AuthOptions>(options: T) {
 	const basePath = restOptions.basePath ?? '/api/auth';
 	const emailAndPassword = restOptions.emailAndPassword ?? { enabled: true };
 
-	// Normalize trustedOrigins to ensure we always have string[] (filtering out null/undefined)
-	// BetterAuth's type allows (string | null | undefined)[] but we need strict string[]
-	// Type assertion needed because BetterAuth's type is more permissive than our TrustedOrigins
-	const trustedOrigins = ((): TrustedOrigins => {
-		const userOrigins = restOptions.trustedOrigins;
-		if (!userOrigins) {
-			return createDefaultTrustedOrigins(resolvedBaseURL);
-		}
-		if (Array.isArray(userOrigins)) {
-			return userOrigins.filter((o): o is string => typeof o === 'string');
-		}
-		// Wrap user function to filter out null/undefined values
-		return async (request?: Request): Promise<string[]> => {
-			const origins = await userOrigins(request);
-			return (origins as (string | null | undefined)[]).filter(
-				(o): o is string => typeof o === 'string'
-			);
-		};
-	})();
+	// Normalize trustedOrigins - use type assertion to avoid inference issues with BetterAuth's type
+	const trustedOrigins: TrustedOrigins =
+		(restOptions.trustedOrigins as TrustedOrigins | undefined) ??
+		createDefaultTrustedOrigins(resolvedBaseURL);
 
 	const defaultPlugins = skipDefaultPlugins ? [] : getDefaultPlugins(apiKeyOptions);
 
