@@ -155,7 +155,7 @@ export const initSubcommand = createSubcommand({
 		if (fs.existsSync(authFilePath)) {
 			tui.info('src/auth.ts already exists, skipping generation');
 		} else {
-			const { createFile } = await enquirer.prompt<{ createFile: boolean; }>({
+			const { createFile } = await enquirer.prompt<{ createFile: boolean }>({
 				type: 'confirm',
 				name: 'createFile',
 				message: 'Create src/auth.ts with default configuration?',
@@ -219,7 +219,7 @@ export const initSubcommand = createSubcommand({
 				console.log('  Run this SQL against your database to create auth tables.');
 				tui.newline();
 			} else {
-				const { runMigrations } = await enquirer.prompt<{ runMigrations: boolean; }>({
+				const { runMigrations } = await enquirer.prompt<{ runMigrations: boolean }>({
 					type: 'confirm',
 					name: 'runMigrations',
 					message: 'Run database migrations now? (idempotent, safe to re-run)',

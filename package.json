@@ -1,6 +1,6 @@
 {
 	"name": "sdk-mono",
-	"version": "0.1.6",
+	"version": "0.1.8",
 	"license": "Apache-2.0",
 	"private": true,
 	"workspaces": [
@@ -22,6 +22,7 @@
 		"test:e2e": "bunx playwright test",
 		"test:e2e:ui": "bunx playwright test --ui",
 		"test:e2e:headed": "bunx playwright test --headed",
+		"test:frameworks": "bash scripts/test-framework-demos.sh",
 		"test:templates": "bun ./scripts/test-templates.ts",
 		"test:cloud": "cd apps/testing/cloud-deployment && bun run test",
 		"test:create": "bun ./packages/cli/scripts/test-create-flow.ts",

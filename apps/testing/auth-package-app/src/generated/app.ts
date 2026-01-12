@@ -25,12 +25,14 @@ import {
   loadBuildMetadata,
   createWorkbenchRouter,
   bootstrapRuntimeEnv,
- patchBunS3ForStorageDev,
+  patchBunS3ForStorageDev,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { websocket, serveStatic } from 'hono/bun';
 import { readFileSync, existsSync } from 'node:fs';
 import { type LogLevel } from '@agentuity/core';
+import { injectAnalytics, registerAnalyticsRoutes } from './webanalytics.js';
+import { analyticsConfig } from './analytics-config.js';
 
 // Runtime mode detection helper
 // Dynamic string concatenation prevents Bun.build from inlining NODE_ENV at build time
@@ -72,11 +74,17 @@ app.use('*', createBaseMiddleware({
 	meter: otel.meter,
 }));
 
-app.use('/_agentuity/*', createCorsMiddleware());
+app.use('/_agentuity/workbench/*', createCorsMiddleware());
 app.use('/api/*', createCorsMiddleware());
 
 // Critical: otelMiddleware creates session/thread/waitUntilHandler
-app.use('/_agentuity/*', createOtelMiddleware());
+// Only apply to routes that need full session tracking:
+// - /api/* routes (agent/API invocations)
+// - /_agentuity/workbench/* routes (workbench API)
+// Explicitly excluded (no session tracking, no Catalyst events):
+// - /_agentuity/webanalytics/* (web analytics - uses lightweight cookie-only middleware)
+// - /_agentuity/health, /_agentuity/ready, /_agentuity/idle (health checks)
+app.use('/_agentuity/workbench/*', createOtelMiddleware());
 app.use('/api/*', createOtelMiddleware());
 
 // Critical: agentMiddleware sets up agent context
@@ -161,6 +169,9 @@ if (isDevelopment()) {
 	});
 }
 
+// Register analytics routes
+registerAnalyticsRoutes(app);
+
 // Asset proxy routes - Development mode only (proxies to Vite asset server)
 if (isDevelopment() && process.env.VITE_PORT) {
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT, 10);
@@ -220,7 +231,8 @@ if (isDevelopment() && process.env.VITE_PORT) {
 const { default: router_0 } = await import('../api/index.js');
 app.route('/api', router_0);
 
-const hasWorkbench = true;
+const hasWorkbenchConfig = true;
+const hasWorkbench = isDevelopment() && hasWorkbenchConfig;
 if (hasWorkbench) {
 	// Mount workbench API routes (/_agentuity/workbench/*)
 	const workbenchRouter = createWorkbenchRouter();
@@ -246,6 +258,9 @@ if (hasWorkbench) {
 }
 
 // Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
+// Note: Session/thread cookies are set by /_agentuity/webanalytics/session.js (loaded via script tag)
+// This keeps the HTML response static and cacheable
+
 if (isDevelopment()) {
 	// Development mode: Proxy HTML from Vite to enable React Fast Refresh
 	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '5173', 10);
@@ -258,12 +273,15 @@ if (isDevelopment()) {
 			const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
 
 			// Get HTML text and transform relative paths to absolute
-			const html = await res.text();
-			const transformedHtml = html
+			let html = await res.text();
+			html = html
 				.replace(/src="\.\//g, 'src="/src/web/')
 				.replace(/href="\.\//g, 'href="/src/web/');
 
-			return new Response(transformedHtml, {
+			// Inject analytics config and script (session/thread read from cookies by beacon)
+			html = injectAnalytics(html, analyticsConfig);
+
+			return new Response(html, {
 				status: res.status,
 				headers: res.headers,
 			});
@@ -294,15 +312,24 @@ if (isDevelopment()) {
 } else {
 	// Production mode: Serve static files from bundled output
 	const indexHtmlPath = import.meta.dir + '/client/index.html';
-	const indexHtml = existsSync(indexHtmlPath)
+	const baseIndexHtml = existsSync(indexHtmlPath)
 		? readFileSync(indexHtmlPath, 'utf-8')
 		: '';
 	
-	if (!indexHtml) {
+	if (!baseIndexHtml) {
 		otel.logger.warn('Production HTML not found at %s', indexHtmlPath);
 	}
+
+	const prodHtmlHandler = (c: Context) => {
+		if (!baseIndexHtml) {
+			return c.text('Production build incomplete', 500);
+		}
+		// Inject analytics config and script (session/thread loaded via session.js)
+		const html = injectAnalytics(baseIndexHtml, analyticsConfig);
+		return c.html(html);
+	};
 	
-	app.get('/', (c: Context) => indexHtml ? c.html(indexHtml) : c.text('Production build incomplete', 500));
+	app.get('/', prodHtmlHandler);
 
 	// Serve static assets from /assets/* (Vite bundled output)
 	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client' }));
@@ -324,7 +351,7 @@ if (isDevelopment()) {
 		if (/\.[a-zA-Z0-9]+$/.test(path)) {
 			return c.notFound();
 		}
-		return c.html(indexHtml);
+		return prodHtmlHandler(c);
 	});
 }
 

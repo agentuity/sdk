@@ -21,6 +21,15 @@ export function registerReadonlyDocumentProvider(context: vscode.ExtensionContex
 	context.subscriptions.push(
 		vscode.workspace.registerTextDocumentContentProvider(SCHEME, new ReadonlyDocumentProvider())
 	);
+
+	// Clean up content when documents are closed
+	context.subscriptions.push(
+		vscode.workspace.onDidCloseTextDocument((doc) => {
+			if (doc.uri.scheme === SCHEME) {
+				contentMap.delete(doc.uri.path);
+			}
+		})
+	);
 }
 
 export async function openReadonlyDocument(
@@ -52,6 +61,8 @@ function getExtension(language: string): string {
 		markdown: 'md',
 		log: 'log',
 		plaintext: 'txt',
+		properties: 'env',
+		ini: 'ini',
 	};
 	return extensions[language] || 'txt';
 }

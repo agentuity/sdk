@@ -575,8 +575,8 @@ describe('VectorStorageService', () => {
 	});
 
 	describe('Exists Operation', () => {
-		test('returns true when storage exists', async () => {
-			const { adapter } = createMockAdapter([{ ok: true, data: { success: true, data: [] } }]);
+		test('returns true when namespace has data (count > 0)', async () => {
+			const { adapter } = createMockAdapter([{ ok: true, data: { sum: 100, count: 5 } }]);
 
 			const service = new VectorStorageService(baseUrl, adapter);
 			const result = await service.exists('my-vectors');
@@ -584,17 +584,31 @@ describe('VectorStorageService', () => {
 			expect(result).toBe(true);
 		});
 
-		test('returns false when storage does not exist', async () => {
-			const { adapter } = createMockAdapter([], {
-				onBefore: async () => {
-					throw new Error('Not Found 404');
-				},
-			});
+		test('returns false when namespace has no data (count = 0)', async () => {
+			const { adapter } = createMockAdapter([{ ok: true, data: { sum: 0, count: 0 } }]);
+
+			const service = new VectorStorageService(baseUrl, adapter);
+			const result = await service.exists('empty-namespace');
+
+			expect(result).toBe(false);
+		});
+
+		test('returns false when namespace does not exist (404 returns empty stats)', async () => {
+			const { adapter } = createMockAdapter([{ ok: true, status: 404, data: { sum: 0, count: 0 } }]);
 
 			const service = new VectorStorageService(baseUrl, adapter);
 			const result = await service.exists('non-existent');
 
 			expect(result).toBe(false);
+		});
+
+		test('rejects empty storage name', async () => {
+			const { adapter } = createMockAdapter([]);
+			const service = new VectorStorageService(baseUrl, adapter);
+
+			await expect(service.exists('')).rejects.toThrow(
+				'Vector storage name is required and must be a non-empty string'
+			);
 		});
 	});
 
@@ -717,8 +731,8 @@ describe('VectorStorageService', () => {
 	describe('Integration Workflow', () => {
 		test('complete vector workflow: upsert -> search -> get -> getMany -> delete -> exists', async () => {
 			const { adapter } = createMockAdapter([
-				// exists (search)
-				{ ok: true, data: { success: true, data: [] } },
+				// exists (getStats) - namespace has data
+				{ ok: true, data: { sum: 100, count: 2 } },
 				// upsert
 				{
 					ok: true,
@@ -780,7 +794,7 @@ describe('VectorStorageService', () => {
 
 			const service = new VectorStorageService(baseUrl, adapter);
 
-			// Check if exists (should exist after creation)
+			// Check if exists (should return true because namespace has data)
 			const existsBefore = await service.exists('test-vectors');
 			expect(existsBefore).toBe(true);
 

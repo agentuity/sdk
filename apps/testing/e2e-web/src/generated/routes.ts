@@ -77,14 +77,18 @@ export type GETApiEventsOutputSchema = typeof outputSchema_2;
  * Route Definitions
  * 
  * Type-safe route registry for all API routes, WebSocket connections, and SSE endpoints.
- * Used by @agentuity/react for client-side type-safe routing.
+ * Used by @agentuity/react and @agentuity/frontend for client-side type-safe routing.
  * 
  * @remarks
  * This module augmentation is auto-generated from your route files during build.
  * Individual route Input/Output types are exported above for direct usage.
+ * 
+ * The augmentation targets @agentuity/frontend (the canonical source of registry types).
+ * Since @agentuity/react re-exports these types, the augmentation is visible when
+ * importing from either package.
  */
 
-declare module '@agentuity/react' {
+declare module '@agentuity/frontend' {
 	/**
 	 * API Route Registry
 	 * 
@@ -149,8 +153,101 @@ declare module '@agentuity/react' {
 	 * RPC Route Registry
 	 * 
 	 * Nested structure for RPC-style client access (e.g., client.hello.post())
-	 * Used by createClient() from @agentuity/core for type-safe RPC calls.
+	 * Used by createClient() from @agentuity/frontend for type-safe RPC calls.
 	 */
+	export interface RPCRouteRegistry {
+		echo: {
+			/**
+			 * Route: GET /api/echo
+			 */
+			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket'; params: never; paramsTuple: [] };
+		};
+		events: {
+			/**
+			 * Route: GET /api/events
+			 */
+			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse'; params: never; paramsTuple: [] };
+		};
+		hello: {
+			/**
+			 * Route: POST /api/hello
+			 */
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; params: never; paramsTuple: [] };
+		};
+		organizations: {
+			orgId: {
+				members: {
+					memberId: {
+						/**
+						 * Route: GET /api/organizations/:orgId/members/:memberId
+						 */
+						get: { input: never; output: never; type: 'api'; params: { orgId: string; memberId: string }; paramsTuple: [string, string] };
+					};
+				};
+			};
+		};
+		search: {
+			/**
+			 * Route: GET /api/search
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
+		users: {
+			userId: {
+				/**
+				 * Route: GET /api/users/:userId
+				 */
+				get: { input: never; output: never; type: 'api'; params: { userId: string }; paramsTuple: [string] };
+			};
+		};
+	}
+}
+
+// Backward compatibility: also augment @agentuity/react for older versions
+// that define RouteRegistry locally instead of re-exporting from @agentuity/frontend
+declare module '@agentuity/react' {
+	export interface RouteRegistry {
+	'POST /api/hello': {
+				inputSchema: POSTApiHelloInputSchema;
+				outputSchema: POSTApiHelloOutputSchema;
+				stream: typeof hello extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'GET /api/organizations/:orgId/members/:memberId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { orgId: string; memberId: string };
+			};
+	'GET /api/search': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/users/:userId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { userId: string };
+			};
+	}
+	export interface WebSocketRouteRegistry {
+	'/api/echo': {
+				inputSchema: GETApiEchoInputSchema;
+				outputSchema: GETApiEchoOutputSchema;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface SSERouteRegistry {
+	'/api/events': {
+				inputSchema: GETApiEventsInputSchema;
+				outputSchema: GETApiEventsOutputSchema;
+				stream: false;
+				params: never;
+			};
+	}
 	export interface RPCRouteRegistry {
 		echo: {
 			/**

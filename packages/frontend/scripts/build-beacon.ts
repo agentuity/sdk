@@ -5,14 +5,19 @@
 
 import { join, dirname } from 'node:path';
 
-const srcDir = join(dirname(import.meta.dir), 'src');
-const distDir = join(dirname(import.meta.dir), 'dist');
+const rootDir = dirname(import.meta.dir);
+const srcDir = join(rootDir, 'src');
+const distDir = join(rootDir, 'dist');
 
 const beaconEntryPath = join(srcDir, 'analytics', 'beacon-standalone.ts');
 const beaconOutputPath = join(distDir, 'beacon.js');
 
 async function buildBeacon() {
 	console.log('Building analytics beacon...');
+
+	// Read package.json to get version
+	const pkgJson = await Bun.file(join(rootDir, 'package.json')).json();
+	const version = pkgJson.version || 'unknown';
 
 	const result = await Bun.build({
 		entrypoints: [beaconEntryPath],
@@ -33,13 +38,16 @@ async function buildBeacon() {
 		process.exit(1);
 	}
 
-	const beaconCode = await output.text();
+	const rawBeaconCode = await output.text();
 
 	// Validate beacon content is non-empty
-	if (!beaconCode || beaconCode.length === 0) {
+	if (!rawBeaconCode || rawBeaconCode.length === 0) {
 		console.error('ERROR: Generated beacon code is empty');
 		process.exit(1);
 	}
+
+	// Prepend version comment for debugging
+	const beaconCode = `/* @agentuity/frontend v${version} */\n${rawBeaconCode}`;
 
 	// Write the minified beacon as a JS file
 	await Bun.write(beaconOutputPath, beaconCode);

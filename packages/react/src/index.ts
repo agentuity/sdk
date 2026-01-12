@@ -15,7 +15,6 @@ export {
 	getGlobalBaseUrl,
 	setGlobalAuthHeader,
 	getGlobalAuthHeader,
-	type RPCRouteRegistry,
 } from './client';
 export {
 	useWebsocket,
@@ -52,9 +51,15 @@ export {
 	type TrackOnMountOptions,
 } from './analytics.js';
 
-// Re-export route registry types from local types file
-// These are augmented by generated code via `declare module '@agentuity/react'`
-export type { RouteRegistry, WebSocketRouteRegistry, SSERouteRegistry } from './types';
+// Re-export route registry types from @agentuity/frontend
+// These are augmented by generated code via `declare module '@agentuity/frontend'`
+// Re-exporting ensures backwards compatibility for existing imports
+export type {
+	RouteRegistry,
+	WebSocketRouteRegistry,
+	SSERouteRegistry,
+	RPCRouteRegistry,
+} from '@agentuity/frontend';
 
 // Re-export web utilities for convenience (excluding registry types which come from ./types)
 export {

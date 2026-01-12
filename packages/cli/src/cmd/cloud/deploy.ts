@@ -33,6 +33,7 @@ import {
 	projectDeploymentUpdate,
 	projectDeploymentComplete,
 	projectDeploymentStatus,
+	validateResources,
 	type Deployment,
 	type BuildMetadata,
 	type DeploymentInstructions,
@@ -157,6 +158,19 @@ export const deploySubcommand = createSubcommand({
 
 			// First, create the deployment to get the ID, publicKey, and stream URL
 			const deploymentConfig = project.deployment ?? {};
+
+			// Validate resource configuration before creating deployment
+			if (deploymentConfig.resources) {
+				const validation = validateResources(deploymentConfig.resources);
+				if (!validation.valid) {
+					tui.error('Invalid resource configuration in agentuity.json:');
+					for (const error of validation.errors) {
+						tui.error(`  ${error}`);
+					}
+					tui.fatal('Fix the resource configuration and try again.', ErrorCode.CONFIG_INVALID);
+				}
+			}
+
 			const initialDeployment = await projectDeploymentCreate(
 				apiClient,
 				project.projectId,
