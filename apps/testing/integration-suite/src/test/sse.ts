@@ -380,8 +380,13 @@ test('sse', 'generate-text-pattern', async () => {
 
 	// Wait for complete event with a generous timeout for CI (httpbin can be slow)
 	// Use Promise.race to either get the complete event or timeout after 60 seconds
-	const timeoutPromise = new Promise<'timeout'>((resolve) => setTimeout(() => resolve('timeout'), 60000));
-	const result = await Promise.race([completePromise.then(() => 'complete' as const), timeoutPromise]);
+	const timeoutPromise = new Promise<'timeout'>((resolve) =>
+		setTimeout(() => resolve('timeout'), 60000)
+	);
+	const result = await Promise.race([
+		completePromise.then(() => 'complete' as const),
+		timeoutPromise,
+	]);
 
 	client.close();
 
@@ -401,7 +406,10 @@ test('sse', 'generate-text-pattern', async () => {
 
 	// Should have completed successfully
 	assert(completed, 'Should receive complete event');
-	assert(completedMessage.startsWith('done'), `Complete message should start with 'done': ${completedMessage}`);
+	assert(
+		completedMessage.startsWith('done'),
+		`Complete message should start with 'done': ${completedMessage}`
+	);
 
 	// Check that no errors occurred (unless network issues)
 	const errors = results.filter((r) => r.error);
