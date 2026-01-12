@@ -348,6 +348,13 @@ async function installDependencies(
 		}
 	}
 
+	// Add overrides to force all @agentuity packages to use local tarballs
+	// This prevents nested dependencies from pulling from npm
+	if (!packageJson.overrides) packageJson.overrides = {};
+	for (const [pkgName, tarballPath] of packedPackages.entries()) {
+		packageJson.overrides[pkgName] = `file:${tarballPath}`;
+	}
+
 	// Write updated package.json
 	writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
 

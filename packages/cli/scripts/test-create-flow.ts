@@ -206,6 +206,15 @@ async function linkLocalPackages(): Promise<boolean> {
 	delete packageJson.dependencies['@agentuity/workbench'];
 	// Remove CLI from devDependencies to install from local tarball
 	delete packageJson.devDependencies['@agentuity/cli'];
+
+	// Add overrides to force all @agentuity packages to use local tarballs
+	// This prevents nested dependencies from pulling from npm
+	if (!packageJson.overrides) packageJson.overrides = {};
+	for (let i = 0; i < packagesToInstall.length; i++) {
+		const pkgName = `@agentuity/${packagesToInstall[i]}`;
+		packageJson.overrides[pkgName] = `file:${packagePaths[i]}`;
+	}
+
 	await Bun.write(packageJsonPath, JSON.stringify(packageJson, null, '\t') + '\n');
 
 	// Install other dependencies first
