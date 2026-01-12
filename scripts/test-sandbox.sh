@@ -11,6 +11,10 @@ SDK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLI="bun $SDK_ROOT/packages/cli/bin/cli.ts"
 TEST_DIR=$(mktemp -d)
 SANDBOX_ID=""
+
+# Get commit SHA for sandbox descriptions
+COMMIT_SHA=$(git -C "$SDK_ROOT" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+SANDBOX_DESC="Automated test-sandbox.sh for commit $COMMIT_SHA"
 SNAPSHOT_ID=""
 TESTS_PASSED=0
 TESTS_FAILED=0
@@ -91,7 +95,7 @@ section "RUN Command Tests"
 
 # Test: Run one-shot command
 info "Test: sandbox run - basic command"
-RUN_OUTPUT=$($CLI cloud sandbox run -- echo "hello from run" 2>&1) || true
+RUN_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" -- echo "hello from run" 2>&1) || true
 if echo "$RUN_OUTPUT" | grep -q "hello from run"; then
 	pass "sandbox run executes command and returns output"
 else
@@ -100,7 +104,7 @@ fi
 
 # Test: Run with file injection
 info "Test: sandbox run --file"
-RUN_FILE_OUTPUT=$($CLI cloud sandbox run --file "script.sh:$TEST_DIR/script.sh" -- bash script.sh testarg 2>&1) || true
+RUN_FILE_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" --file "script.sh:$TEST_DIR/script.sh" -- bash script.sh testarg 2>&1) || true
 if echo "$RUN_FILE_OUTPUT" | grep -q "Script executed with arg: testarg"; then
 	pass "sandbox run --file injects file and executes correctly"
 else
@@ -109,7 +113,7 @@ fi
 
 # Test: Run with environment variable
 info "Test: sandbox run --env"
-RUN_ENV_OUTPUT=$($CLI cloud sandbox run --env "MY_VAR=hello_env" -- sh -c 'echo $MY_VAR' 2>&1) || true
+RUN_ENV_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" --env "MY_VAR=hello_env" -- sh -c 'echo $MY_VAR' 2>&1) || true
 if echo "$RUN_ENV_OUTPUT" | grep -q "hello_env"; then
 	pass "sandbox run --env sets environment variable"
 else
@@ -118,7 +122,7 @@ fi
 
 # Test: Run with network enabled (test DNS resolution)
 info "Test: sandbox run --network"
-RUN_NET_OUTPUT=$($CLI cloud sandbox run --network -- sh -c 'getent hosts example.com && echo "DNS_OK"' 2>&1) || true
+RUN_NET_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" --network -- sh -c 'getent hosts example.com && echo "DNS_OK"' 2>&1) || true
 if echo "$RUN_NET_OUTPUT" | grep -q "DNS_OK"; then
 	pass "sandbox run --network enables network access"
 else
@@ -131,7 +135,7 @@ section "CREATE & GET & LIST Command Tests"
 
 # Test: Create sandbox with custom resources
 info "Test: sandbox create --memory --cpu --disk"
-CREATE_OUTPUT=$($CLI cloud sandbox create --memory 1Gi --cpu 1000m --disk 2Gi --json 2>&1) || true
+CREATE_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --memory 1Gi --cpu 1000m --disk 2Gi --json 2>&1) || true
 SANDBOX_ID=$(echo "$CREATE_OUTPUT" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SANDBOX_ID" ] && [[ "$SANDBOX_ID" == sbx_* ]]; then
 	pass "sandbox create returns valid sandboxId: $SANDBOX_ID"
@@ -643,7 +647,7 @@ fi
 
 # Create a fresh sandbox to test upload
 info "Test: Creating fresh sandbox for upload test"
-UPLOAD_SANDBOX=$($CLI cloud sandbox create --json 2>&1) || true
+UPLOAD_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --json 2>&1) || true
 UPLOAD_SANDBOX_ID=$(echo "$UPLOAD_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 
 if [ -n "$UPLOAD_SANDBOX_ID" ]; then
@@ -731,7 +735,7 @@ fi
 
 # Test: Create sandbox from snapshot
 info "Test: sandbox create --snapshot"
-SNAP_SANDBOX=$($CLI cloud sandbox create --snapshot "$SNAPSHOT_ID" --json 2>&1) || true
+SNAP_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$SNAPSHOT_ID" --json 2>&1) || true
 SNAP_SANDBOX_ID=$(echo "$SNAP_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SNAP_SANDBOX_ID" ]; then
 	# Wait for snapshot restore and verify file exists
