@@ -53,6 +53,15 @@ if [ ! -d "$APP_DIR/node_modules/@agentuity/core" ] || \
 fi
 echo -e "${GREEN}✓${NC} SDK packages installed"
 
+# Clean up .env file before build to remove any test-generated keys from previous runs
+# These keys can pollute the Vite build (Vite's define feature can't handle some key patterns)
+if [ -f "$APP_DIR/.env" ]; then
+	echo "Cleaning .env file (removing test-generated keys)..."
+	# Keep only essential keys, remove everything else
+	grep -E '^(AGENTUITY_SDK_KEY|AGENTUITY_REGION|OPENAI_API_KEY)=' "$APP_DIR/.env" > "$APP_DIR/.env.clean" 2>/dev/null || true
+	mv "$APP_DIR/.env.clean" "$APP_DIR/.env"
+fi
+
 # Build the app
 echo ""
 echo "Building integration suite..."

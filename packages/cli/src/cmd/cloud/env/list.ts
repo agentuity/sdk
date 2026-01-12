@@ -72,19 +72,16 @@ export const listSubcommand = createSubcommand({
 			if (Object.keys(result).length === 0) {
 				tui.info('No variables found');
 			} else {
-				if (process.stdout.isTTY) {
-					tui.newline();
+				tui.newline();
 
-					const envCount = showEnv ? Object.keys(env).length : 0;
-					const secretCount = showSecrets ? Object.keys(secrets).length : 0;
-					const parts: string[] = [];
-					if (envCount > 0) parts.push(`${envCount} env`);
-					if (secretCount > 0)
-						parts.push(`${secretCount} secret${secretCount !== 1 ? 's' : ''}`);
+				const envCount = showEnv ? Object.keys(env).length : 0;
+				const secretCount = showSecrets ? Object.keys(secrets).length : 0;
+				const parts: string[] = [];
+				if (envCount > 0) parts.push(`${envCount} env`);
+				if (secretCount > 0) parts.push(`${secretCount} secret${secretCount !== 1 ? 's' : ''}`);
 
-					tui.info(`Variables (${parts.join(', ')}):`);
-					tui.newline();
-				}
+				tui.info(`Variables (${parts.join(', ')}):`);
+				tui.newline();
 
 				const sortedKeys = Object.keys(result).sort();
 				const shouldMask = opts?.mask !== false;
@@ -93,12 +90,7 @@ export const listSubcommand = createSubcommand({
 					const { value, secret } = result[key];
 					const displayValue = shouldMask && secret ? tui.maskSecret(value) : value;
 					const typeIndicator = secret ? ' [secret]' : '';
-
-					if (process.stdout.isTTY) {
-						console.log(`${tui.bold(key)}=${displayValue}${tui.muted(typeIndicator)}`);
-					} else {
-						console.log(`${key}=${displayValue}${typeIndicator}`);
-					}
+					console.log(`${tui.bold(key)}=${displayValue}${tui.muted(typeIndicator)}`);
 				}
 			}
 		}

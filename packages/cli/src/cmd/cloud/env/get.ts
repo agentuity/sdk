@@ -56,19 +56,13 @@ export const getSubcommand = createSubcommand({
 			tui.fatal(`Variable '${args.key}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
 		}
 
-		// For secrets, mask by default even in non-TTY; for env vars, mask only in TTY by default
-		const maskDefault = isSecret ? true : !!process.stdout.isTTY;
-		const shouldMask = opts?.mask !== undefined ? opts.mask : maskDefault;
+		// Mask secrets by default, env vars are never masked
+		const shouldMask = isSecret && (opts?.maskSecret ?? true);
 
 		if (!options.json) {
 			const displayValue = shouldMask ? tui.maskSecret(value) : value;
 			const typeLabel = isSecret ? ' (secret)' : '';
-
-			if (process.stdout.isTTY) {
-				tui.success(`${args.key}=${displayValue}${typeLabel}`);
-			} else {
-				console.log(`${args.key}=${displayValue}`);
-			}
+			tui.success(`${args.key}=${displayValue}${typeLabel}`);
 		}
 
 		return {
