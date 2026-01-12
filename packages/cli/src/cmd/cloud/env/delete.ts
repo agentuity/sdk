@@ -7,6 +7,7 @@ import {
 	readEnvFile,
 	writeEnvFile,
 	filterAgentuitySdkKeys,
+	isReservedAgentuityKey,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
@@ -38,6 +39,11 @@ export const deleteSubcommand = createSubcommand({
 
 	async handler(ctx) {
 		const { args, project, projectDir, apiClient } = ctx;
+
+		// Validate key doesn't start with reserved AGENTUITY_ prefix (except AGENTUITY_PUBLIC_)
+		if (isReservedAgentuityKey(args.key)) {
+			tui.fatal('Cannot delete AGENTUITY_ prefixed variables. These are reserved for system use.');
+		}
 
 		// First, determine if this key exists in env or secrets
 		const projectData = await tui.spinner('Checking variable', () => {

@@ -663,6 +663,94 @@ test('cli-env-secrets', 'env-secret-to-env-conversion', async () => {
 	});
 });
 
+// Test: Reserved AGENTUITY_ key blocked for env delete
+test('cli-env-secrets', 'env-delete-blocks-reserved-agentuity-key', async () => {
+	const authenticated = await isAuthenticated();
+	if (!authenticated) return;
+
+	const result = await cliAgent.run({
+		command: 'cloud env delete AGENTUITY_SDK_KEY',
+	});
+
+	assertEqual(result.success, false, 'Should reject deleting reserved AGENTUITY_ key');
+	assert(
+		result.stderr?.includes('reserved for system use') ||
+			result.stdout?.includes('reserved for system use') ||
+			false,
+		'Should mention reserved for system use'
+	);
+});
+
+// Test: Public vars with secret-like values are stored as env (not promoted to secret)
+// This tests that VITE_* vars don't trigger the auto-detect secret prompt
+test('cli-env-secrets', 'env-set-public-var-with-secret-value-stays-env', async () => {
+	const authenticated = await isAuthenticated();
+	if (!authenticated) return;
+
+	const testKey = trackKey(`VITE_TEST_${uniqueId('KEY')}`);
+	const secretLikeValue = 'sk_live_1234567890abcdef'; // Looks like a secret
+
+	// Set a VITE_ var with a secret-like value (should NOT prompt, should stay as env)
+	const setResult = await cliAgent.run({
+		command: `cloud env set ${testKey} "${secretLikeValue}"`,
+	});
+
+	// Should succeed (public vars skip auto-detect)
+	assert(
+		Boolean(setResult.success || setResult.stdout?.includes('set successfully')),
+		`Set should succeed: ${setResult.stdout} ${setResult.stderr}`
+	);
+
+	// Verify it's stored as env var, NOT as secret
+	const getResult = await cliAgent.run({
+		command: `cloud env get ${testKey}`,
+	});
+
+	const getOutput = (getResult.stdout || '') + (getResult.stderr || '');
+	// Should NOT be marked as [secret]
+	assert(!getOutput.includes('[secret]'), 'Public var should NOT be marked as secret');
+	// Value should be visible (not masked)
+	assert(getOutput.includes(secretLikeValue), 'Value should be visible (not masked)');
+
+	// Cleanup
+	await cliAgent.run({
+		command: 'cloud env delete',
+		args: [testKey],
+	});
+});
+
+// Test: PUBLIC_ prefix with secret-like value stays as env
+test('cli-env-secrets', 'env-set-public-prefix-with-secret-value-stays-env', async () => {
+	const authenticated = await isAuthenticated();
+	if (!authenticated) return;
+
+	const testKey = trackKey(`PUBLIC_TEST_${uniqueId('TOKEN')}`);
+	const secretLikeValue = 'ghp_abcdef1234567890'; // Looks like a GitHub token
+
+	const setResult = await cliAgent.run({
+		command: `cloud env set ${testKey} "${secretLikeValue}"`,
+	});
+
+	assert(
+		Boolean(setResult.success || setResult.stdout?.includes('set successfully')),
+		`Set should succeed: ${setResult.stdout} ${setResult.stderr}`
+	);
+
+	// Verify it's stored as env var, NOT as secret
+	const getResult = await cliAgent.run({
+		command: `cloud env get ${testKey}`,
+	});
+
+	const getOutput = (getResult.stdout || '') + (getResult.stderr || '');
+	assert(!getOutput.includes('[secret]'), 'PUBLIC_ var should NOT be marked as secret');
+
+	// Cleanup
+	await cliAgent.run({
+		command: 'cloud env delete',
+		args: [testKey],
+	});
+});
+
 // Final cleanup test - runs last to clean up any leftover env vars
 test('cli-env-secrets', 'zzz-cleanup-all-env-vars', async () => {
 	const authenticated = await isAuthenticated();

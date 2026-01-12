@@ -10,6 +10,7 @@ import {
 	mergeEnvVars,
 	splitEnvAndSecrets,
 	validateNoPublicSecrets,
+	isReservedAgentuityKey,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
 
@@ -118,9 +119,7 @@ export const importSubcommand = createSubcommand({
 		const mergedEnv = mergeEnvVars(localEnv, filteredVars);
 
 		await writeEnvFile(localEnvPath, mergedEnv, {
-			skipKeys: Object.keys(mergedEnv).filter(
-				(k) => k.startsWith('AGENTUITY_') && !k.startsWith('AGENTUITY_PUBLIC_')
-			),
+			skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
 		});
 
 		const envCount = Object.keys(env).length;

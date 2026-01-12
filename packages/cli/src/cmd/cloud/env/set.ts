@@ -55,6 +55,7 @@ export const setSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, opts, apiClient, project, projectDir } = ctx;
 		let isSecret = opts?.secret ?? false;
+		const isPublic = isPublicVarKey(args.key);
 
 		// Validate key doesn't start with reserved AGENTUITY_ prefix (except AGENTUITY_PUBLIC_)
 		if (isReservedAgentuityKey(args.key)) {
@@ -62,14 +63,15 @@ export const setSubcommand = createSubcommand({
 		}
 
 		// Validate public vars cannot be secrets
-		if (isSecret && isPublicVarKey(args.key)) {
+		if (isSecret && isPublic) {
 			tui.fatal(
 				`Cannot set public variables as secrets. Keys with prefixes (${PUBLIC_VAR_PREFIXES.join(', ')}) are exposed to the frontend.`
 			);
 		}
 
 		// Auto-detect if this looks like a secret and offer to store as secret
-		if (!isSecret && looksLikeSecret(args.key, args.value)) {
+		// Skip auto-detect for public vars since they can never be secrets
+		if (!isSecret && !isPublic && looksLikeSecret(args.key, args.value)) {
 			tui.warning(`The variable '${args.key}' looks like it should be a secret.`);
 
 			const storeAsSecret = await tui.confirm('Store as a secret instead?', true);
