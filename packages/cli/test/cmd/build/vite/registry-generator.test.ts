@@ -513,7 +513,7 @@ describe('registry-generator', () => {
 			expect(routesContent).not.toContain('export type GETApiTracesOutput');
 		});
 
-		test('should augment @agentuity/react module for all route registries (issue #384)', async () => {
+		test('should augment both @agentuity/frontend and @agentuity/react for backward compatibility (issue #384)', async () => {
 			writeFileSync(
 				join(testDir, 'package.json'),
 				JSON.stringify({
@@ -542,17 +542,52 @@ describe('registry-generator', () => {
 			const routesContent = await Bun.file(routesPath).text();
 
 			// Must augment @agentuity/frontend - this is the canonical source of registry types
-			// @agentuity/react re-exports these types so augmentation is visible from both packages
 			expect(routesContent).toContain("declare module '@agentuity/frontend'");
 
-			// Should NOT augment @agentuity/react - types are now sourced from @agentuity/frontend
-			expect(routesContent).not.toContain("declare module '@agentuity/react'");
+			// Must ALSO augment @agentuity/react for backward compatibility with older versions
+			// that define RouteRegistry locally instead of re-exporting from @agentuity/frontend
+			expect(routesContent).toContain("declare module '@agentuity/react'");
 
 			// Should contain all four registries in the augmentation
 			expect(routesContent).toContain('export interface RouteRegistry');
 			expect(routesContent).toContain('export interface WebSocketRouteRegistry');
 			expect(routesContent).toContain('export interface SSERouteRegistry');
 			expect(routesContent).toContain('export interface RPCRouteRegistry');
+		});
+
+		test('should NOT augment @agentuity/react when it is not a dependency', async () => {
+			writeFileSync(
+				join(testDir, 'package.json'),
+				JSON.stringify({
+					name: 'test-project',
+					dependencies: {
+						'@agentuity/frontend': '^1.0.0',
+					},
+				})
+			);
+
+			const routes: RouteInfo[] = [
+				{
+					method: 'post',
+					path: '/api/hello',
+					filename: './api/hello/route.ts',
+					routeType: 'api',
+					hasValidator: true,
+					agentVariable: 'helloAgent',
+					agentImportPath: '@agent/hello',
+				},
+			];
+
+			await generateRouteRegistry(srcDir, routes);
+
+			const routesPath = join(generatedDir, 'routes.ts');
+			const routesContent = await Bun.file(routesPath).text();
+
+			// Must augment @agentuity/frontend
+			expect(routesContent).toContain("declare module '@agentuity/frontend'");
+
+			// Should NOT augment @agentuity/react when it's not installed
+			expect(routesContent).not.toContain("declare module '@agentuity/react'");
 		});
 
 		test('should generate route entries inside RouteRegistry (issue #384)', async () => {
