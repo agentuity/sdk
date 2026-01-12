@@ -13,9 +13,6 @@ if (!GH_TEST_ACC_REPO) {
 	throw new Error('GH_TEST_ACC_REPO is not set');
 }
 const TEST_PROJECT_DIR = resolve(__dirname, '..', 'apps', 'testing', GH_TEST_ACC_REPO);
-if (!TEST_PROJECT_DIR) {
-	throw new Error('TEST_PROJECT_DIR is not set');
-}
 
 const TARGET_ORG_ID = process.env.GH_TEST_TARGET_ORG_ID;
 if (!TARGET_ORG_ID) {
@@ -28,11 +25,11 @@ const GH_TEST_ACC_PASSWORD = process.env.GH_TEST_ACC_PASSWORD;
 const GH_TEST_ACC_TOKEN = process.env.GH_TEST_ACC_TOKEN;
 
 // Derived values
-const GITHUB_REPO_FULL_NAME = GH_TEST_ACC_USERNAME
+const GH_TEST_REPO_FULL_NAME = GH_TEST_ACC_USERNAME
 	? `${GH_TEST_ACC_USERNAME}/${GH_TEST_ACC_REPO}`
 	: undefined;
-const GITHUB_REMOTE_URL = GITHUB_REPO_FULL_NAME
-	? `https://github.com/${GITHUB_REPO_FULL_NAME}.git`
+const GH_TEST_REMOTE_URL = GH_TEST_REPO_FULL_NAME
+	? `https://github.com/${GH_TEST_REPO_FULL_NAME}.git`
 	: undefined;
 
 interface Integration {
@@ -129,14 +126,18 @@ async function loginToGithub(
 }
 
 function initGitRepo() {
+	if (!GH_TEST_REMOTE_URL) {
+		console.log('Skipping git repo initialization - GH_TEST_REMOTE_URL not available');
+		return;
+	}
 	console.log('Initializing git repo in:', TEST_PROJECT_DIR);
 	try {
 		execSync('git init', { cwd: TEST_PROJECT_DIR, encoding: 'utf-8' });
-		execSync(`git remote add origin ${GITHUB_REMOTE_URL}`, {
+		execSync(`git remote add origin ${GH_TEST_REMOTE_URL}`, {
 			cwd: TEST_PROJECT_DIR,
 			encoding: 'utf-8',
 		});
-		console.log('Git repo initialized with origin:', GITHUB_REMOTE_URL);
+		console.log('Git repo initialized with origin:', GH_TEST_REMOTE_URL);
 	} catch (error: unknown) {
 		const execError = error as { message?: string };
 		if (!execError.message?.includes('already exists')) {
@@ -201,9 +202,10 @@ async function githubApi(
 }
 
 async function getFileContent(path: string): Promise<GitHubFileContent> {
+	if (!GH_TEST_REPO_FULL_NAME) throw new Error('GH_TEST_REPO_FULL_NAME not set');
 	const result = (await githubApi(
 		'GET',
-		`/repos/${GITHUB_REPO_FULL_NAME}/contents/${path}`
+		`/repos/${GH_TEST_REPO_FULL_NAME}/contents/${path}`
 	)) as GitHubFileContent;
 	return result;
 }
@@ -214,7 +216,8 @@ async function updateFile(
 	message: string,
 	sha: string
 ): Promise<{ commit: { sha: string } }> {
-	const result = (await githubApi('PUT', `/repos/${GITHUB_REPO_FULL_NAME}/contents/${path}`, {
+	if (!GH_TEST_REPO_FULL_NAME) throw new Error('GH_TEST_REPO_FULL_NAME not set');
+	const result = (await githubApi('PUT', `/repos/${GH_TEST_REPO_FULL_NAME}/contents/${path}`, {
 		message,
 		content: Buffer.from(content).toString('base64'),
 		sha,
@@ -284,7 +287,6 @@ test.describe('GitHub App Integration', () => {
 
 		console.log('Navigating to OAuth URL...');
 		await page.goto(addResult.url, { waitUntil: 'domcontentloaded' });
-		await page.waitForTimeout(2000);
 
 		// Authorize if needed
 		const authorizeButton = page.locator(
@@ -294,7 +296,11 @@ test.describe('GitHub App Integration', () => {
 		try {
 			await authorizeButton.first().waitFor({ state: 'visible', timeout: 10000 });
 			await authorizeButton.first().click();
-			await page.waitForTimeout(3000);
+			// Wait for navigation away from GitHub or for button to disappear
+			await Promise.race([
+				page.waitForURL((url) => !url.hostname.includes('github.com'), { timeout: 15000 }),
+				authorizeButton.first().waitFor({ state: 'hidden', timeout: 15000 }),
+			]).catch(() => {});
 		} catch {
 			console.log('No authorize button found or already authorized');
 		}
@@ -356,7 +362,7 @@ test.describe('GitHub App Integration', () => {
 		expect(repos.length).toBeGreaterThan(0);
 
 		// Verify test repo is accessible
-		const testRepo = repos.find((r) => r.fullName === GITHUB_REPO_FULL_NAME);
+		const testRepo = repos.find((r) => r.fullName === GH_TEST_REPO_FULL_NAME);
 		expect(testRepo).toBeDefined();
 		expect(testRepo!.defaultBranch).toBeDefined();
 
@@ -378,7 +384,7 @@ test.describe('GitHub App Integration', () => {
 		};
 
 		expect(linkResult.linked).toBe(true);
-		expect(linkResult.repoFullName).toBe(GITHUB_REPO_FULL_NAME);
+		expect(linkResult.repoFullName).toBe(GH_TEST_REPO_FULL_NAME);
 
 		console.log(`✓ Linked to ${linkResult.repoFullName} (branch: ${linkResult.branch})`);
 	});
@@ -405,7 +411,7 @@ test.describe('GitHub App Integration', () => {
 		expect(status.connected).toBe(true);
 		expect(status.integrations.length).toBeGreaterThan(0);
 		expect(status.linked).toBe(true);
-		expect(status.repoFullName).toBe(GITHUB_REPO_FULL_NAME);
+		expect(status.repoFullName).toBe(GH_TEST_REPO_FULL_NAME);
 		expect(status.branch).toBeDefined();
 		expect(status.autoDeploy).toBe(true);
 		expect(status.previewDeploy).toBe(true);
@@ -444,7 +450,7 @@ test.describe('GitHub App Integration', () => {
 
 		// Link with explicit repo
 		const linkOutput = runCli(
-			`--json git link --repo ${GITHUB_REPO_FULL_NAME} --branch main --confirm`
+			`--json git link --repo ${GH_TEST_REPO_FULL_NAME} --branch main --confirm`
 		);
 		const linkResult = parseJsonOutput(linkOutput) as { linked: boolean };
 
@@ -458,7 +464,7 @@ test.describe('GitHub App Integration', () => {
 		};
 
 		expect(status.linked).toBe(true);
-		expect(status.repoFullName).toBe(GITHUB_REPO_FULL_NAME);
+		expect(status.repoFullName).toBe(GH_TEST_REPO_FULL_NAME);
 
 		console.log('✓ Linked with explicit repo');
 	});

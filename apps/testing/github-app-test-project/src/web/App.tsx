@@ -96,7 +96,7 @@ export function App() {
 								title: 'Add new API routes',
 								text: (
 									<>
-										Create new files in <code>src/web/</code> to expose more endpoints.
+										Create new files in <code>src/api/</code> to expose more endpoints.
 									</>
 								),
 							},

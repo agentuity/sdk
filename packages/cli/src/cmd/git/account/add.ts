@@ -200,7 +200,9 @@ const AddOptionsSchema = z.object({
 	'url-only': z
 		.boolean()
 		.optional()
-		.describe('Output URL and exit without waiting for authorization'),
+		.describe(
+			'Output URL and exit without waiting for authorization. Uses first org if --org not specified.'
+		),
 });
 
 const AddResponseSchema = z.object({
