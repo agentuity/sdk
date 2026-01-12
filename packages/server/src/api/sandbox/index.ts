@@ -6,6 +6,8 @@ export { sandboxGet } from './get';
 export type { SandboxGetParams } from './get';
 export { sandboxList } from './list';
 export type { SandboxListParams } from './list';
+export { runtimeList } from './runtime';
+export type { RuntimeListParams } from './runtime';
 export { sandboxDestroy } from './destroy';
 export type { SandboxDestroyParams } from './destroy';
 export { sandboxRun } from './run';

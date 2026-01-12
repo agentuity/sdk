@@ -6,16 +6,23 @@ import type { ListSandboxesParams, ListSandboxesResponse, SandboxStatus } from '
 const SandboxInfoSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
+		name: z.string().optional().describe('Sandbox name'),
+		description: z.string().optional().describe('Sandbox description'),
 		status: z
-			.enum(['creating', 'idle', 'running', 'terminated', 'failed'])
+			.enum(['creating', 'idle', 'running', 'terminated', 'failed', 'deleted'])
 			.describe('Current status of the sandbox'),
+		mode: z.string().optional().describe('Sandbox mode (interactive or oneshot)'),
 		createdAt: z.string().describe('ISO timestamp when the sandbox was created'),
 		region: z.string().optional().describe('Region where the sandbox is running'),
+		runtimeId: z.string().optional().describe('Runtime ID'),
+		runtimeName: z.string().optional().describe('Runtime name (e.g., "bun:1")'),
+		runtimeIconUrl: z.string().optional().describe('URL for runtime icon'),
 		snapshotId: z.string().optional().describe('Snapshot ID this sandbox was created from'),
 		snapshotTag: z.string().optional().describe('Snapshot tag this sandbox was created from'),
 		executions: z.number().describe('Total number of executions in this sandbox'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
+		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
 	})
 	.describe('Summary information about a sandbox');
 
@@ -30,6 +37,7 @@ const ListSandboxesResponseSchema = APIResponseSchema(ListSandboxesDataSchema);
 
 export interface SandboxListParams extends ListSandboxesParams {
 	orgId?: string;
+	deletedOnly?: boolean;
 }
 
 /**
@@ -64,6 +72,9 @@ export async function sandboxList(
 	if (params?.offset !== undefined) {
 		queryParams.set('offset', params.offset.toString());
 	}
+	if (params?.deletedOnly) {
+		queryParams.set('deletedOnly', 'true');
+	}
 
 	const queryString = queryParams.toString();
 	const url = `/sandbox/${API_VERSION}${queryString ? `?${queryString}` : ''}`;
@@ -77,14 +88,21 @@ export async function sandboxList(
 		return {
 			sandboxes: resp.data.sandboxes.map((s) => ({
 				sandboxId: s.sandboxId,
+				name: s.name,
+				description: s.description,
 				status: s.status as SandboxStatus,
+				mode: s.mode,
 				createdAt: s.createdAt,
 				region: s.region,
+				runtimeId: s.runtimeId,
+				runtimeName: s.runtimeName,
+				runtimeIconUrl: s.runtimeIconUrl,
 				snapshotId: s.snapshotId,
 				snapshotTag: s.snapshotTag,
 				executions: s.executions,
 				stdoutStreamUrl: s.stdoutStreamUrl,
 				stderrStreamUrl: s.stderrStreamUrl,
+				networkEnabled: s.networkEnabled,
 			})),
 			total: resp.data.total,
 		};

@@ -6,6 +6,7 @@ import { listSubcommand } from './list';
 import { getSubcommand } from './get';
 import { deleteSubcommand } from './delete';
 import { snapshotCommand } from './snapshot';
+import { runtimeCommand } from './runtime';
 import { cpSubcommand } from './cp';
 import { command as executionCommand } from './execution';
 import { mkdirSubcommand } from './mkdir';
@@ -44,6 +45,7 @@ export const command = createCommand({
 		getSubcommand,
 		deleteSubcommand,
 		snapshotCommand,
+		runtimeCommand,
 		cpSubcommand,
 		executionCommand,
 		mkdirSubcommand,

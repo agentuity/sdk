@@ -12,6 +12,7 @@ import {
 	type EvalRunStartEvent,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
+import { TraceState } from '@opentelemetry/core';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Handler } from 'hono/types';
 import { validator } from 'hono/validator';
@@ -1660,9 +1661,12 @@ export function createAgent<
 								: await (config.handler as any)(agentCtx)
 					);
 				} else {
-					return inputSchema
-						? await (config.handler as any)(agentCtx, validatedInput)
-						: await (config.handler as any)(agentCtx);
+					// For standalone contexts, wrap with agent context to set aid in trace state
+					return runWithAgentContext(agent.metadata.id, async () =>
+						inputSchema
+							? await (config.handler as any)(agentCtx, validatedInput)
+							: await (config.handler as any)(agentCtx)
+					);
 				}
 			})();
 
@@ -2321,6 +2325,32 @@ export function createAgent<
 	return runner as AgentRunner<TInput, TOutput, TStream>;
 }
 
+/**
+ * Run a handler with the agent identifier set in trace state.
+ * Used for non-HTTP contexts (standalone) where we still want to propagate
+ * the agent ID to downstream API calls.
+ */
+const runWithAgentContext = async <T>(agentId: string, handler: () => Promise<T>): Promise<T> => {
+	const currentContext = context.active();
+	const activeSpan = trace.getSpan(currentContext);
+
+	if (!activeSpan) {
+		// No active span, just run the handler
+		return handler();
+	}
+
+	const currentSpanContext = activeSpan.spanContext();
+	const existingTraceState = currentSpanContext.traceState ?? new TraceState();
+	const updatedTraceState = existingTraceState.set('aid', agentId);
+
+	const contextWithAgentId = trace.setSpanContext(currentContext, {
+		...currentSpanContext,
+		traceState: updatedTraceState,
+	});
+
+	return context.with(contextWithAgentId, handler);
+};
+
 const runWithSpan = async <
 	T,
 	TInput extends StandardSchemaV1 | undefined = any,
@@ -2351,8 +2381,23 @@ const runWithSpan = async <
 	_ctx.set('agentRunSpanId', spanId);
 
 	try {
+		// Create a new context with the span and updated trace state including agent id
 		const spanContext = trace.setSpan(currentContext, span);
-		return await context.with(spanContext, handler);
+
+		// Update trace state with agent identifier (aid) so downstream API calls (e.g., sandbox)
+		// can associate operations with this agent. The trace state is scoped to this execution,
+		// so when the agent finishes, the parent context's trace state is automatically restored.
+		const currentSpanContext = span.spanContext();
+		const existingTraceState = currentSpanContext.traceState ?? new TraceState();
+		const updatedTraceState = existingTraceState.set('aid', agent.metadata.id);
+
+		// Create context with both the span and the updated trace state
+		const contextWithAgentId = trace.setSpanContext(spanContext, {
+			...currentSpanContext,
+			traceState: updatedTraceState,
+		});
+
+		return await context.with(contextWithAgentId, handler);
 	} catch (error) {
 		span.recordException(error as Error);
 		span.setStatus({ code: SpanStatusCode.ERROR });
