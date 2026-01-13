@@ -12,8 +12,16 @@ const SnapshotFileInfoSchema = z
 const SnapshotInfoSchema = z
 	.object({
 		snapshotId: z.string().describe('Unique identifier for the snapshot'),
-		runtimeId: z.string().nullable().optional().describe('Runtime ID associated with this snapshot'),
-		name: z.string().describe('Display name for the snapshot (URL-safe: letters, numbers, underscores, dashes)'),
+		runtimeId: z
+			.string()
+			.nullable()
+			.optional()
+			.describe('Runtime ID associated with this snapshot'),
+		name: z
+			.string()
+			.describe(
+				'Display name for the snapshot (URL-safe: letters, numbers, underscores, dashes)'
+			),
 		description: z.string().nullable().optional().describe('Description of the snapshot'),
 		tag: z.string().nullable().optional().describe('Tag for the snapshot (defaults to "latest")'),
 		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
@@ -25,7 +33,11 @@ const SnapshotInfoSchema = z
 			.describe('ID of the parent snapshot (for incremental snapshots)'),
 		createdAt: z.string().describe('ISO timestamp when the snapshot was created'),
 		downloadUrl: z.string().optional().describe('URL to download the snapshot archive'),
-		files: z.array(SnapshotFileInfoSchema).nullable().optional().describe('List of files in the snapshot'),
+		files: z
+			.array(SnapshotFileInfoSchema)
+			.nullable()
+			.optional()
+			.describe('List of files in the snapshot'),
 	})
 	.describe('Detailed information about a snapshot');
 

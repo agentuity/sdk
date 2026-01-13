@@ -5,6 +5,8 @@ import * as tui from '../../../tui';
 import { createSandboxClient, parseFileArgs } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxRun } from '@agentuity/server';
+import { validateAptDependencies } from '../../../utils/apt-validator';
+import { ErrorCode } from '../../../errors';
 
 const SandboxRunResponseSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
@@ -37,10 +39,7 @@ export const runSubcommand = createCommand({
 			command: z.array(z.string()).describe('Command and arguments to execute'),
 		}),
 		options: z.object({
-			runtime: z
-				.string()
-				.optional()
-				.describe('Runtime name (e.g., "bun:1", "python:3.14")'),
+			runtime: z.string().optional().describe('Runtime name (e.g., "bun:1", "python:3.14")'),
 			runtimeId: z.string().optional().describe('Runtime ID (e.g., "srt_xxx")'),
 			name: z.string().optional().describe('Sandbox name'),
 			description: z.string().optional().describe('Sandbox description'),
@@ -69,9 +68,52 @@ export const runSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, region, config, logger, orgId } = ctx;
 		const client = createSandboxClient(logger, auth, region);
 		const started = Date.now();
+
+		// Validate apt dependencies before running sandbox
+		if (opts.dependency && opts.dependency.length > 0) {
+			const aptValidation = await tui.spinner({
+				message: 'Validating apt dependencies...',
+				type: 'simple',
+				callback: async () => {
+					return await validateAptDependencies(opts.dependency!, region, config, logger);
+				},
+			});
+
+			if (aptValidation.invalid.length > 0) {
+				if (options.json) {
+					return {
+						sandboxId: '',
+						exitCode: 1,
+						durationMs: 0,
+						errors: aptValidation.invalid.map((pkg) => ({
+							type: 'invalid-apt-dependency',
+							package: pkg.package,
+							error: pkg.error,
+							searchUrl: pkg.searchUrl,
+							availableVersions: pkg.availableVersions,
+						})),
+					} as never;
+				}
+
+				tui.error('Invalid apt dependencies:');
+				tui.newline();
+				for (const pkg of aptValidation.invalid) {
+					tui.bullet(`${tui.bold(pkg.package)}: ${pkg.error}`);
+					if (pkg.availableVersions && pkg.availableVersions.length > 0) {
+						tui.muted(`    Available versions: ${pkg.availableVersions.join(', ')}`);
+					}
+					tui.muted(`    Search: ${tui.link(pkg.searchUrl)}`);
+				}
+				tui.newline();
+				tui.fatal(
+					'Fix the apt dependencies and try again. Search for valid packages at: https://packages.debian.org/stable/',
+					ErrorCode.CONFIG_INVALID
+				);
+			}
+		}
 
 		const envMap: Record<string, string> = {};
 		if (opts.env) {

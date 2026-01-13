@@ -7,7 +7,10 @@ const ExecutionInfoSchema = z
 	.object({
 		executionId: z.string().describe('Unique identifier for the execution'),
 		sandboxId: z.string().describe('ID of the sandbox where the execution ran'),
-		type: z.string().optional().describe('Type of execution (e.g., exec, write_files, read_file)'),
+		type: z
+			.string()
+			.optional()
+			.describe('Type of execution (e.g., exec, write_files, read_file)'),
 		status: z
 			.enum(['queued', 'running', 'completed', 'failed', 'timeout', 'cancelled'])
 			.describe('Current status of the execution'),
