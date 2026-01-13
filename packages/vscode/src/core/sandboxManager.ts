@@ -17,6 +17,11 @@ export interface LinkedSandbox {
 	linkedAt: string;
 	lastSyncedAt?: string;
 	remotePath: string;
+	// New fields from sandbox improvements
+	description?: string;
+	runtimeId?: string;
+	runtimeName?: string;
+	region?: string;
 }
 
 /**
@@ -80,11 +85,12 @@ export class SandboxManager {
 			throw new Error('No workspace folder open');
 		}
 
-		// Verify sandbox exists
+		// Verify sandbox exists and get its info
 		const result = await this.cliClient.sandboxGet(sandboxId);
-		if (!result.success) {
+		if (!result.success || !result.data) {
 			throw new Error(`Failed to verify sandbox: ${result.error}`);
 		}
+		const sandboxInfo = result.data;
 
 		const allLinked = this.context.workspaceState.get<Record<string, LinkedSandbox[]>>(
 			LINKED_SANDBOXES_KEY,
@@ -100,6 +106,7 @@ export class SandboxManager {
 				...workspaceLinks[existingIndex],
 				name: options.name ?? workspaceLinks[existingIndex].name,
 				remotePath: options.remotePath ?? workspaceLinks[existingIndex].remotePath,
+				region: sandboxInfo.region ?? workspaceLinks[existingIndex].region,
 			};
 		} else {
 			// Add new link
@@ -108,6 +115,7 @@ export class SandboxManager {
 				name: options.name,
 				linkedAt: new Date().toISOString(),
 				remotePath: options.remotePath ?? DEFAULT_SANDBOX_PATH,
+				region: sandboxInfo.region,
 			});
 		}
 
@@ -158,6 +166,10 @@ export class SandboxManager {
 			throw new Error('No workspace folder open');
 		}
 
+		// Get linked sandbox info for region
+		const linkedSandbox = this.getLinkedSandbox(sandboxId);
+		const region = linkedSandbox?.region;
+
 		const remotePath = options.remotePath ?? DEFAULT_SANDBOX_PATH;
 		const startTime = Date.now();
 
@@ -179,7 +191,8 @@ export class SandboxManager {
 			const uploadResult = await this.cliClient.sandboxUpload(
 				sandboxId,
 				archivePath,
-				remotePath
+				remotePath,
+				region
 			);
 			if (!uploadResult.success) {
 				throw new Error(`Failed to upload files: ${uploadResult.error}`);
@@ -211,11 +224,16 @@ export class SandboxManager {
 		remotePath: string,
 		localPath: string
 	): Promise<void> {
+		// Get linked sandbox info for region
+		const linkedSandbox = this.getLinkedSandbox(sandboxId);
+		const region = linkedSandbox?.region;
+
 		const result = await this.cliClient.sandboxCpFromSandbox(
 			sandboxId,
 			remotePath,
 			localPath,
-			true
+			true,
+			region
 		);
 		if (!result.success) {
 			throw new Error(`Failed to download files: ${result.error}`);
@@ -428,18 +446,51 @@ export class SandboxManager {
 	/**
 	 * Refresh sandbox info for all linked sandboxes.
 	 * Returns info about which sandboxes are still valid.
+	 * Also updates linked sandbox metadata with new fields from the API.
 	 */
 	async refreshLinkedSandboxes(): Promise<Map<string, SandboxInfo | null>> {
-		const linked = this.getLinkedSandboxes();
-		const results = new Map<string, SandboxInfo | null>();
+		const workspaceKey = this.getWorkspaceKey();
+		if (!workspaceKey) {
+			return new Map();
+		}
 
-		for (const link of linked) {
+		const allLinked = this.context.workspaceState.get<Record<string, LinkedSandbox[]>>(
+			LINKED_SANDBOXES_KEY,
+			{}
+		);
+		const workspaceLinks = allLinked[workspaceKey] || [];
+		const results = new Map<string, SandboxInfo | null>();
+		let needsUpdate = false;
+
+		for (const link of workspaceLinks) {
 			const result = await this.cliClient.sandboxGet(link.sandboxId);
 			if (result.success && result.data) {
-				results.set(link.sandboxId, result.data);
+				const info = result.data;
+				results.set(link.sandboxId, info);
+
+				// Update linked sandbox with new fields from API
+				if (
+					info.name !== link.name ||
+					info.description !== link.description ||
+					info.runtimeId !== link.runtimeId ||
+					info.runtimeName !== link.runtimeName
+				) {
+					link.name = info.name ?? link.name;
+					link.description = info.description;
+					link.runtimeId = info.runtimeId;
+					link.runtimeName = info.runtimeName;
+					needsUpdate = true;
+				}
 			} else {
 				results.set(link.sandboxId, null);
 			}
+		}
+
+		// Persist updated metadata if changed
+		if (needsUpdate) {
+			allLinked[workspaceKey] = workspaceLinks;
+			await this.context.workspaceState.update(LINKED_SANDBOXES_KEY, allLinked);
+			_onLinkedSandboxesChanged.fire(workspaceLinks);
 		}
 
 		return results;

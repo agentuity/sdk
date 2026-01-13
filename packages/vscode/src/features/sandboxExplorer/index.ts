@@ -33,6 +33,7 @@ const sandboxTerminals: Map<string, vscode.Terminal> = new Map();
 interface SandboxFileMapping {
 	sandboxId: string;
 	remotePath: string;
+	region?: string;
 }
 const sandboxFileMap: Map<string, SandboxFileMapping> = new Map();
 let saveListener: vscode.Disposable | undefined;
@@ -83,7 +84,7 @@ export function registerSandboxExplorer(context: vscode.ExtensionContext): Sandb
 			// Set new debounced upload
 			const timer = setTimeout(async () => {
 				uploadDebounceTimers.delete(doc.uri.fsPath);
-				await uploadSavedFile(mapping.sandboxId, doc.uri.fsPath, mapping.remotePath, provider);
+				await uploadSavedFile(mapping.sandboxId, doc.uri.fsPath, mapping.remotePath, provider, mapping.region);
 			}, UPLOAD_DEBOUNCE_MS);
 
 			uploadDebounceTimers.set(doc.uri.fsPath, timer);
@@ -162,7 +163,7 @@ function registerCommands(
 			'agentuity.sandbox.delete',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.sandboxData) return;
-				await deleteSandbox(item.sandboxData.sandboxId, provider);
+				await deleteSandbox(item.sandboxData.sandboxId, provider, item.sandboxData.region);
 			}
 		)
 	);
@@ -230,19 +231,22 @@ function registerCommands(
 	context.subscriptions.push(
 		vscode.commands.registerCommand(
 			'agentuity.sandbox.exec',
-			async (itemOrOptions?: SandboxTreeItem | { sandboxId: string; command?: string }) => {
+			async (itemOrOptions?: SandboxTreeItem | { sandboxId: string; command?: string; region?: string }) => {
 				let sandboxId: string | undefined;
 				let command: string | undefined;
+				let region: string | undefined;
 
 				if (itemOrOptions instanceof SandboxTreeItem) {
 					sandboxId = itemOrOptions.sandboxData?.sandboxId;
+					region = itemOrOptions.sandboxData?.region;
 				} else if (itemOrOptions && 'sandboxId' in itemOrOptions) {
 					sandboxId = itemOrOptions.sandboxId;
 					command = itemOrOptions.command;
+					region = itemOrOptions.region;
 				}
 
 				if (!sandboxId) return;
-				await execInSandbox(sandboxId, command);
+				await execInSandbox(sandboxId, command, region);
 			}
 		)
 	);
@@ -253,7 +257,7 @@ function registerCommands(
 			'agentuity.sandbox.viewFile',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.parentSandboxId || !item?.filePath) return;
-				await viewSandboxFile(item.parentSandboxId, item.filePath);
+				await viewSandboxFile(item.parentSandboxId, item.filePath, item.region);
 			}
 		)
 	);
@@ -267,7 +271,8 @@ function registerCommands(
 				await downloadFromSandbox(
 					item.parentSandboxId,
 					item.filePath,
-					item.itemType === 'directory'
+					item.itemType === 'directory',
+					item.region
 				);
 			}
 		)
@@ -283,7 +288,8 @@ function registerCommands(
 					item.parentSandboxId,
 					item.filePath,
 					item.itemType === 'directory',
-					provider
+					provider,
+					item.region
 				);
 			}
 		)
@@ -328,7 +334,9 @@ function registerCommands(
 					parentDir = path.dirname(item.filePath);
 				}
 
-				await createSandboxFolder(sandboxId, parentDir, provider);
+				// Get region from sandboxData or tree item region
+				const region = item?.sandboxData?.region ?? item?.region;
+				await createSandboxFolder(sandboxId, parentDir, provider, region);
 			}
 		)
 	);
@@ -351,7 +359,7 @@ function registerCommands(
 			'agentuity.sandbox.viewExecution',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.executionData) return;
-				await viewExecution(item.executionData.executionId);
+				await viewExecution(item.executionData.executionId, item.region);
 			}
 		)
 	);
@@ -362,7 +370,7 @@ function registerCommands(
 			'agentuity.sandbox.setEnv',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.sandboxData) return;
-				await setEnvVar(item.sandboxData.sandboxId);
+				await setEnvVar(item.sandboxData.sandboxId, item.sandboxData.region);
 			}
 		)
 	);
@@ -373,7 +381,7 @@ function registerCommands(
 			'agentuity.sandbox.viewEnv',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.sandboxData) return;
-				await viewEnv(item.sandboxData.sandboxId);
+				await viewEnv(item.sandboxData.sandboxId, item.sandboxData.region);
 			}
 		)
 	);
@@ -384,7 +392,7 @@ function registerCommands(
 			'agentuity.sandbox.syncEnvFile',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.sandboxData) return;
-				await syncEnvFile(item.sandboxData.sandboxId);
+				await syncEnvFile(item.sandboxData.sandboxId, item.sandboxData.region);
 			}
 		)
 	);
@@ -395,7 +403,7 @@ function registerCommands(
 			'agentuity.sandbox.snapshot.create',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.sandboxData) return;
-				await createSnapshot(item.sandboxData.sandboxId, provider);
+				await createSnapshot(item.sandboxData.sandboxId, provider, item.sandboxData.region);
 			}
 		)
 	);
@@ -406,7 +414,7 @@ function registerCommands(
 			'agentuity.sandbox.snapshot.delete',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.snapshotData) return;
-				await deleteSnapshot(item.snapshotData.snapshotId, provider);
+				await deleteSnapshot(item.snapshotData.snapshotId, provider, item.region);
 			}
 		)
 	);
@@ -417,7 +425,7 @@ function registerCommands(
 			'agentuity.sandbox.snapshot.tag',
 			async (item?: SandboxTreeItem) => {
 				if (!item?.snapshotData) return;
-				await tagSnapshot(item.snapshotData.snapshotId, provider);
+				await tagSnapshot(item.snapshotData.snapshotId, provider, item.region);
 			}
 		)
 	);
@@ -455,6 +463,59 @@ function registerCommands(
 
 // ==================== Command Implementations ====================
 
+interface RuntimePickItem extends vscode.QuickPickItem {
+	runtime?: string;
+	runtimeId?: string;
+}
+
+/**
+ * Show a quick pick to select a sandbox runtime.
+ * Returns undefined if cancelled, or the selected runtime info.
+ */
+async function pickSandboxRuntime(): Promise<{ runtime?: string; runtimeId?: string } | undefined> {
+	const cli = getCliClient();
+
+	// Show progress while loading runtimes
+	const result = await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: 'Loading runtimes...',
+			cancellable: false,
+		},
+		async () => cli.sandboxRuntimeList({ limit: 50 })
+	);
+
+	if (!result.success || !result.data || !result.data.runtimes.length) {
+		// Fall back to default runtime if listing fails
+		const choice = await vscode.window.showQuickPick<RuntimePickItem>(
+			[
+				{ label: 'Use default runtime (base:latest)', runtime: undefined },
+				{ label: 'Cancel', runtime: '__cancel__' },
+			],
+			{ placeHolder: 'Runtime selection (runtime list unavailable)' }
+		);
+		if (!choice || choice.runtime === '__cancel__') {
+			return undefined;
+		}
+		return {}; // no runtime specified => CLI default
+	}
+
+	const items: RuntimePickItem[] = result.data.runtimes.map((rt) => ({
+		label: rt.name,
+		description: rt.description,
+		detail: rt.tags?.length ? rt.tags.join(', ') : undefined,
+		runtime: rt.name,
+		runtimeId: rt.id,
+	}));
+
+	const picked = await vscode.window.showQuickPick(items, {
+		placeHolder: 'Select a sandbox runtime',
+	});
+
+	if (!picked) return undefined;
+	return { runtime: picked.runtime, runtimeId: picked.runtimeId };
+}
+
 async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 	const config = vscode.workspace.getConfiguration('agentuity');
 	const defaultMemory = config.get<string>('sandbox.defaultMemory', '512Mi');
@@ -464,8 +525,8 @@ async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 	// Quick pick for basic vs advanced
 	const mode = await vscode.window.showQuickPick(
 		[
-			{ label: 'Quick Create', description: 'Use default settings' },
-			{ label: 'Custom', description: 'Configure resources and options' },
+			{ label: 'Quick Create', description: 'bun:1 runtime with default settings' },
+			{ label: 'Custom', description: 'Configure runtime, resources and options' },
 		],
 		{ placeHolder: 'How do you want to create the sandbox?' }
 	);
@@ -475,6 +536,28 @@ async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 	let options: SandboxCreateOptions = {};
 
 	if (mode.label === 'Custom') {
+		// Name (optional)
+		const name = await vscode.window.showInputBox({
+			prompt: 'Sandbox name (optional)',
+			placeHolder: 'e.g., my-feature-env',
+		});
+		if (name === undefined) return;
+		options.name = name || undefined;
+
+		// Description (optional)
+		const description = await vscode.window.showInputBox({
+			prompt: 'Sandbox description (optional)',
+			placeHolder: 'e.g., Sandbox for feature-xyz integration tests',
+		});
+		if (description === undefined) return;
+		options.description = description || undefined;
+
+		// Runtime selection
+		const runtimeSelection = await pickSandboxRuntime();
+		if (runtimeSelection === undefined) return;
+		options.runtime = runtimeSelection.runtime;
+		options.runtimeId = runtimeSelection.runtimeId;
+
 		// Memory
 		const memory = await vscode.window.showInputBox({
 			prompt: 'Memory limit',
@@ -513,7 +596,9 @@ async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 			options.dependencies = deps.split(/\s+/).filter(Boolean);
 		}
 	} else {
+		// Quick create uses bun:1 runtime
 		options = {
+			runtime: 'bun:1',
 			memory: defaultMemory,
 			cpu: defaultCpu,
 			network: defaultNetwork,
@@ -531,7 +616,12 @@ async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 			const result = await cli.sandboxCreate(options);
 
 			if (result.success && result.data) {
-				vscode.window.showInformationMessage(`Sandbox created: ${result.data.sandboxId}`);
+				const info = result.data;
+				const displayName = info.name || info.sandboxId.slice(0, 12);
+				const runtimeDisplay = info.runtimeName ?? info.runtimeId ?? 'bun:1';
+				vscode.window.showInformationMessage(
+					`Sandbox "${displayName}" created with runtime ${runtimeDisplay}`
+				);
 				await provider.forceRefresh();
 			} else {
 				vscode.window.showErrorMessage(`Failed to create sandbox: ${result.error}`);
@@ -544,6 +634,23 @@ async function createSandboxFromSnapshot(
 	snapshotId: string,
 	provider: SandboxTreeDataProvider
 ): Promise<void> {
+	// Optional: prompt for name/description when creating from snapshot
+	const name = await vscode.window.showInputBox({
+		prompt: 'Sandbox name (optional)',
+		placeHolder: 'e.g., my-feature-env',
+	});
+	if (name === undefined) return;
+
+	const description = await vscode.window.showInputBox({
+		prompt: 'Sandbox description (optional)',
+		placeHolder: 'e.g., Restored from snapshot for testing',
+	});
+	if (description === undefined) return;
+
+	// Runtime selection
+	const runtimeSelection = await pickSandboxRuntime();
+	if (runtimeSelection === undefined) return;
+
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
@@ -552,10 +659,21 @@ async function createSandboxFromSnapshot(
 		},
 		async () => {
 			const cli = getCliClient();
-			const result = await cli.sandboxCreate({ snapshot: snapshotId });
+			const result = await cli.sandboxCreate({
+				snapshot: snapshotId,
+				name: name || undefined,
+				description: description || undefined,
+				runtime: runtimeSelection.runtime,
+				runtimeId: runtimeSelection.runtimeId,
+			});
 
 			if (result.success && result.data) {
-				vscode.window.showInformationMessage(`Sandbox created: ${result.data.sandboxId}`);
+				const info = result.data;
+				const displayName = info.name || info.sandboxId.slice(0, 12);
+				const runtimeDisplay = info.runtimeName ?? info.runtimeId ?? 'bun:1';
+				vscode.window.showInformationMessage(
+					`Sandbox "${displayName}" created from snapshot with runtime ${runtimeDisplay}`
+				);
 				await provider.forceRefresh();
 			} else {
 				vscode.window.showErrorMessage(`Failed to create sandbox: ${result.error}`);
@@ -564,7 +682,7 @@ async function createSandboxFromSnapshot(
 	);
 }
 
-async function deleteSandbox(sandboxId: string, provider: SandboxTreeDataProvider): Promise<void> {
+async function deleteSandbox(sandboxId: string, provider: SandboxTreeDataProvider, region?: string): Promise<void> {
 	const confirm = await vscode.window.showWarningMessage(
 		`Are you sure you want to delete sandbox ${sandboxId}?`,
 		{ modal: true },
@@ -581,7 +699,7 @@ async function deleteSandbox(sandboxId: string, provider: SandboxTreeDataProvide
 		},
 		async () => {
 			const cli = getCliClient();
-			const result = await cli.sandboxDelete(sandboxId);
+			const result = await cli.sandboxDelete(sandboxId, region);
 
 			if (result.success) {
 				// Also unlink if linked
@@ -674,7 +792,7 @@ async function syncToSandbox(sandboxId: string, provider: SandboxTreeDataProvide
 	);
 }
 
-async function execInSandbox(sandboxId: string, prefilledCommand?: string): Promise<void> {
+async function execInSandbox(sandboxId: string, prefilledCommand?: string, region?: string): Promise<void> {
 	const command =
 		prefilledCommand ??
 		(await vscode.window.showInputBox({
@@ -684,10 +802,10 @@ async function execInSandbox(sandboxId: string, prefilledCommand?: string): Prom
 
 	if (!command) return;
 
-	executeInTerminal(sandboxId, command);
+	executeInTerminal(sandboxId, command, region);
 }
 
-function executeInTerminal(sandboxId: string, command: string): void {
+function executeInTerminal(sandboxId: string, command: string, region?: string): void {
 	const cli = getCliClient();
 	const cliPath = cli.getCliPath();
 
@@ -701,9 +819,12 @@ function executeInTerminal(sandboxId: string, command: string): void {
 		sandboxTerminals.set(sandboxId, terminal);
 	}
 
+	// Use provided region or fall back to project region
+	const effectiveRegion = region ?? cli.getSandboxRegion();
+
 	terminal.show();
 	terminal.sendText(
-		`${cliPath} cloud sandbox exec ${sandboxId} --region ${cli.getSandboxRegion()} -- ${command}`
+		`${cliPath} cloud sandbox exec ${sandboxId} --region ${effectiveRegion} -- ${command}`
 	);
 }
 
@@ -714,7 +835,7 @@ function disposeTerminals(): void {
 	sandboxTerminals.clear();
 }
 
-async function viewSandboxFile(sandboxId: string, filePath: string): Promise<void> {
+async function viewSandboxFile(sandboxId: string, filePath: string, region?: string): Promise<void> {
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
@@ -735,13 +856,14 @@ async function viewSandboxFile(sandboxId: string, filePath: string): Promise<voi
 				? filePath
 				: `${CliClient.SANDBOX_HOME}/${filePath}`;
 
-			const result = await cli.sandboxCpFromSandbox(sandboxId, fullRemotePath, localPath);
+			const result = await cli.sandboxCpFromSandbox(sandboxId, fullRemotePath, localPath, false, region);
 
 			if (result.success) {
 				// Track this file for save-back
 				sandboxFileMap.set(localPath, {
 					sandboxId,
 					remotePath: fullRemotePath,
+					region,
 				});
 
 				const doc = await vscode.workspace.openTextDocument(localPath);
@@ -757,10 +879,11 @@ async function uploadSavedFile(
 	sandboxId: string,
 	localPath: string,
 	remotePath: string,
-	provider: SandboxTreeDataProvider
+	provider: SandboxTreeDataProvider,
+	region?: string
 ): Promise<void> {
 	const cli = getCliClient();
-	const result = await cli.sandboxCpToSandbox(sandboxId, localPath, remotePath);
+	const result = await cli.sandboxCpToSandbox(sandboxId, localPath, remotePath, false, region);
 
 	if (result.success) {
 		vscode.window.showInformationMessage(`Saved to sandbox: ${path.basename(remotePath)}`);
@@ -821,7 +944,8 @@ async function createSandboxFile(
 async function createSandboxFolder(
 	sandboxId: string,
 	parentDir: string,
-	provider: SandboxTreeDataProvider
+	provider: SandboxTreeDataProvider,
+	region?: string
 ): Promise<void> {
 	const folderName = await vscode.window.showInputBox({
 		prompt: 'Enter new folder name',
@@ -844,7 +968,7 @@ async function createSandboxFolder(
 		: `${CliClient.SANDBOX_HOME}/${folderName}`;
 
 	const cli = getCliClient();
-	const result = await cli.sandboxMkdir(sandboxId, remotePath, true);
+	const result = await cli.sandboxMkdir(sandboxId, remotePath, true, region);
 
 	if (result.success) {
 		vscode.window.showInformationMessage(`Created folder: ${folderName}`);
@@ -858,7 +982,8 @@ async function createSandboxFolder(
 async function downloadFromSandbox(
 	sandboxId: string,
 	remotePath: string,
-	isDirectory: boolean
+	isDirectory: boolean,
+	region?: string
 ): Promise<void> {
 	const defaultUri = vscode.workspace.workspaceFolders?.[0]?.uri;
 
@@ -884,7 +1009,8 @@ async function downloadFromSandbox(
 				sandboxId,
 				remotePath,
 				saveUri.fsPath,
-				isDirectory
+				isDirectory,
+				region
 			);
 
 			if (result.success) {
@@ -900,7 +1026,8 @@ async function deleteFile(
 	sandboxId: string,
 	filePath: string,
 	isDirectory: boolean,
-	provider: SandboxTreeDataProvider
+	provider: SandboxTreeDataProvider,
+	region?: string
 ): Promise<void> {
 	const confirm = await vscode.window.showWarningMessage(
 		`Delete ${isDirectory ? 'directory' : 'file'} ${filePath}?`,
@@ -912,8 +1039,8 @@ async function deleteFile(
 
 	const cli = getCliClient();
 	const result = isDirectory
-		? await cli.sandboxRmdir(sandboxId, filePath, true)
-		: await cli.sandboxRm(sandboxId, filePath);
+		? await cli.sandboxRmdir(sandboxId, filePath, true, region)
+		: await cli.sandboxRm(sandboxId, filePath, region);
 
 	if (result.success) {
 		vscode.window.showInformationMessage(`Deleted ${filePath}`);
@@ -924,7 +1051,7 @@ async function deleteFile(
 	}
 }
 
-async function viewExecution(executionId: string): Promise<void> {
+async function viewExecution(executionId: string, region?: string): Promise<void> {
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
@@ -933,7 +1060,7 @@ async function viewExecution(executionId: string): Promise<void> {
 		},
 		async () => {
 			const cli = getCliClient();
-			const result = await cli.executionGet(executionId);
+			const result = await cli.executionGet(executionId, region);
 
 			if (result.success && result.data) {
 				const exec = result.data;
@@ -1022,7 +1149,7 @@ async function fetchStreamContent(url: string): Promise<string> {
 	});
 }
 
-async function setEnvVar(sandboxId: string): Promise<void> {
+async function setEnvVar(sandboxId: string, region?: string): Promise<void> {
 	const input = await vscode.window.showInputBox({
 		prompt: 'Enter environment variable (KEY=value)',
 		placeHolder: 'MY_VAR=my_value',
@@ -1039,7 +1166,7 @@ async function setEnvVar(sandboxId: string): Promise<void> {
 	}
 
 	const cli = getCliClient();
-	const result = await cli.sandboxEnvSet(sandboxId, { [key]: value });
+	const result = await cli.sandboxEnvSet(sandboxId, { [key]: value }, region);
 
 	if (result.success) {
 		vscode.window.showInformationMessage(`Set ${key}=${value}`);
@@ -1048,7 +1175,7 @@ async function setEnvVar(sandboxId: string): Promise<void> {
 	}
 }
 
-async function viewEnv(sandboxId: string): Promise<void> {
+async function viewEnv(sandboxId: string, region?: string): Promise<void> {
 	await vscode.window.withProgress(
 		{
 			location: vscode.ProgressLocation.Notification,
@@ -1058,7 +1185,7 @@ async function viewEnv(sandboxId: string): Promise<void> {
 		async () => {
 			const cli = getCliClient();
 			// Use exec to run 'env' command to get actual runtime environment
-			const result = await cli.sandboxExec(sandboxId, ['env']);
+			const result = await cli.sandboxExec(sandboxId, ['env'], {}, region);
 
 			if (result.success && result.data) {
 				const content = result.data.output || '(no environment variables)';
@@ -1074,7 +1201,7 @@ async function viewEnv(sandboxId: string): Promise<void> {
 	);
 }
 
-async function syncEnvFile(sandboxId: string): Promise<void> {
+async function syncEnvFile(sandboxId: string, region?: string): Promise<void> {
 	const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
 	if (!workspaceFolder) {
 		vscode.window.showWarningMessage('No workspace folder open');
@@ -1102,7 +1229,7 @@ async function syncEnvFile(sandboxId: string): Promise<void> {
 		}
 
 		const cli = getCliClient();
-		const result = await cli.sandboxEnvSet(sandboxId, vars);
+		const result = await cli.sandboxEnvSet(sandboxId, vars, region);
 
 		if (result.success) {
 			vscode.window.showInformationMessage(
@@ -1116,7 +1243,7 @@ async function syncEnvFile(sandboxId: string): Promise<void> {
 	}
 }
 
-async function createSnapshot(sandboxId: string, provider: SandboxTreeDataProvider): Promise<void> {
+async function createSnapshot(sandboxId: string, provider: SandboxTreeDataProvider, region?: string): Promise<void> {
 	const tag = await vscode.window.showInputBox({
 		prompt: 'Enter a tag for this snapshot (optional)',
 		placeHolder: 'v1.0 or latest',
@@ -1130,7 +1257,7 @@ async function createSnapshot(sandboxId: string, provider: SandboxTreeDataProvid
 		},
 		async () => {
 			const cli = getCliClient();
-			const result = await cli.snapshotCreate(sandboxId, tag || undefined);
+			const result = await cli.snapshotCreate(sandboxId, tag || undefined, region);
 
 			if (result.success && result.data) {
 				vscode.window.showInformationMessage(
@@ -1147,7 +1274,8 @@ async function createSnapshot(sandboxId: string, provider: SandboxTreeDataProvid
 
 async function deleteSnapshot(
 	snapshotId: string,
-	provider: SandboxTreeDataProvider
+	provider: SandboxTreeDataProvider,
+	region?: string
 ): Promise<void> {
 	const confirm = await vscode.window.showWarningMessage(
 		`Are you sure you want to delete snapshot ${snapshotId}?`,
@@ -1158,7 +1286,7 @@ async function deleteSnapshot(
 	if (confirm !== 'Delete') return;
 
 	const cli = getCliClient();
-	const result = await cli.snapshotDelete(snapshotId);
+	const result = await cli.snapshotDelete(snapshotId, region);
 
 	if (result.success) {
 		vscode.window.showInformationMessage('Snapshot deleted');
@@ -1168,7 +1296,7 @@ async function deleteSnapshot(
 	}
 }
 
-async function tagSnapshot(snapshotId: string, provider: SandboxTreeDataProvider): Promise<void> {
+async function tagSnapshot(snapshotId: string, provider: SandboxTreeDataProvider, region?: string): Promise<void> {
 	const tag = await vscode.window.showInputBox({
 		prompt: 'Enter new tag (leave empty to remove tag)',
 		placeHolder: 'v1.0 or latest',
@@ -1177,7 +1305,7 @@ async function tagSnapshot(snapshotId: string, provider: SandboxTreeDataProvider
 	if (tag === undefined) return;
 
 	const cli = getCliClient();
-	const result = await cli.snapshotTag(snapshotId, tag || null);
+	const result = await cli.snapshotTag(snapshotId, tag || null, region);
 
 	if (result.success) {
 		vscode.window.showInformationMessage(tag ? `Tagged as: ${tag}` : 'Tag removed');
@@ -1332,32 +1460,42 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
 }
 
 async function uploadToSandbox(uri: vscode.Uri): Promise<void> {
-	const linked = getSandboxManager().getLinkedSandboxes();
+	const cli = getCliClient();
 
-	if (linked.length === 0) {
-		vscode.window.showWarningMessage('No sandbox linked. Link a sandbox first.');
+	// Fetch all sandboxes
+	const listResult = await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: 'Loading sandboxes...',
+			cancellable: false,
+		},
+		async () => cli.sandboxList()
+	);
+
+	if (!listResult.success || !listResult.data || listResult.data.length === 0) {
+		vscode.window.showWarningMessage('No sandboxes available. Create a sandbox first.');
 		return;
 	}
 
-	let sandboxId: string;
-	if (linked.length === 1) {
-		sandboxId = linked[0].sandboxId;
-	} else {
-		const picked = await vscode.window.showQuickPick(
-			linked.map((l) => ({
-				label: l.name || l.sandboxId,
-				description: l.sandboxId,
-				sandboxId: l.sandboxId,
-			})),
-			{ placeHolder: 'Select sandbox to upload to' }
-		);
-		if (!picked) return;
-		sandboxId = picked.sandboxId;
-	}
+	const sandboxes = listResult.data;
+
+	// Pick a sandbox
+	const picked = await vscode.window.showQuickPick(
+		sandboxes.map((s) => ({
+			label: s.name || s.sandboxId.slice(0, 12),
+			description: `${s.status} · ${s.runtimeName ?? s.runtimeId ?? 'base'}`,
+			detail: s.sandboxId,
+			sandbox: s,
+		})),
+		{ placeHolder: 'Select sandbox to upload to' }
+	);
+
+	if (!picked) return;
+	const selectedSandbox = picked.sandbox;
 
 	const remotePath = await vscode.window.showInputBox({
 		prompt: 'Remote path',
-		value: linked.find((l) => l.sandboxId === sandboxId)?.remotePath || DEFAULT_SANDBOX_PATH,
+		value: DEFAULT_SANDBOX_PATH,
 	});
 
 	if (!remotePath) return;
@@ -1369,11 +1507,22 @@ async function uploadToSandbox(uri: vscode.Uri): Promise<void> {
 			cancellable: false,
 		},
 		async () => {
-			const cli = getCliClient();
 			const stats = await vscode.workspace.fs.stat(uri);
 			const isDir = stats.type === vscode.FileType.Directory;
 
-			const result = await cli.sandboxCpToSandbox(sandboxId, uri.fsPath, remotePath, isDir);
+			// Build full remote path including filename
+			const fileName = path.basename(uri.fsPath);
+			const fullRemotePath = remotePath.endsWith('/')
+				? `${remotePath}${fileName}`
+				: `${remotePath}/${fileName}`;
+
+			const result = await cli.sandboxCpToSandbox(
+				selectedSandbox.sandboxId,
+				uri.fsPath,
+				fullRemotePath,
+				isDir,
+				selectedSandbox.region
+			);
 
 			if (result.success) {
 				vscode.window.showInformationMessage(`Uploaded to ${remotePath}`);
