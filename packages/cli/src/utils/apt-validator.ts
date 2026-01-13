@@ -167,7 +167,16 @@ export async function validateAptDependencies(
 		});
 	}
 
-	const json = await response.json();
+	let json: unknown;
+	try {
+		json = await response.json();
+	} catch (err) {
+		throw new AptValidationResponseError({
+			message: 'Invalid JSON in API response',
+			parseError: err instanceof Error ? err.message : String(err),
+		});
+	}
+
 	const parsed = ValidateAptDependenciesResponseSchema.safeParse(json);
 
 	if (!parsed.success) {
