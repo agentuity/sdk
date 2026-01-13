@@ -182,11 +182,14 @@ jobs:
               # Set user ID for CLI auth
               echo "AGENTUITY_USER_ID=${{ vars.AGENTUITY_USER_ID }}" >> $GITHUB_ENV
               
-              # Write .env file for test project
+              # Write .env file to SDK root (where test's dotenv loads from)
+              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" > .env
+              echo "AGENTUITY_USER_ID=${{ vars.AGENTUITY_USER_ID }}" >> .env
+              echo "AGENTUITY_API_URL=${{ vars.AGENTUITY_API_URL }}" >> .env
+              
+              # Also write to test project dir
               TEST_PROJECT_DIR="apps/testing/${{ vars.GH_TEST_ACC_REPO }}"
-              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" > ${TEST_PROJECT_DIR}/.env
-              echo "AGENTUITY_USER_ID=${{ vars.AGENTUITY_USER_ID }}" >> ${TEST_PROJECT_DIR}/.env
-              echo "AGENTUITY_API_URL=${{ vars.AGENTUITY_API_URL }}" >> ${TEST_PROJECT_DIR}/.env
+              cp .env ${TEST_PROJECT_DIR}/.env
 
          - name: Run GitHub App E2E tests
            run: bunx playwright test --config=e2e/github-login.config.ts

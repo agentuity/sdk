@@ -25,6 +25,14 @@ console.log('apps/testing dir exists:', existsSync(appsTestingDir));
 if (existsSync(appsTestingDir)) {
 	console.log('apps/testing contents:', readdirSync(appsTestingDir));
 }
+console.log('=== AUTH ENV VARS ===');
+console.log('AGENTUITY_CLI_API_KEY set:', !!process.env.AGENTUITY_CLI_API_KEY);
+console.log('AGENTUITY_USER_ID:', process.env.AGENTUITY_USER_ID);
+console.log('AGENTUITY_API_URL:', process.env.AGENTUITY_API_URL);
+const rootEnvPath = resolve(__dirname, '..', '.env');
+console.log('Root .env exists:', existsSync(rootEnvPath));
+const testEnvPath = resolve(TEST_PROJECT_DIR, '.env');
+console.log('Test project .env exists:', existsSync(testEnvPath));
 console.log('==================');
 
 const TARGET_ORG_ID = process.env.GH_TEST_TARGET_ORG_ID;
