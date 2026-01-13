@@ -179,9 +179,13 @@ jobs:
               echo "::add-mask::${APIKEY}"
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
               
+              # Set user ID for CLI auth
+              echo "AGENTUITY_USER_ID=${{ vars.AGENTUITY_USER_ID }}" >> $GITHUB_ENV
+              
               # Write .env file for test project
               TEST_PROJECT_DIR="apps/testing/${{ vars.GH_TEST_ACC_REPO }}"
               echo "AGENTUITY_CLI_API_KEY=${APIKEY}" > ${TEST_PROJECT_DIR}/.env
+              echo "AGENTUITY_USER_ID=${{ vars.AGENTUITY_USER_ID }}" >> ${TEST_PROJECT_DIR}/.env
               echo "AGENTUITY_API_URL=${{ vars.AGENTUITY_API_URL }}" >> ${TEST_PROJECT_DIR}/.env
 
          - name: Run GitHub App E2E tests
