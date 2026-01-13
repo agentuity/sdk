@@ -336,6 +336,71 @@ export interface FileToWrite {
 }
 
 /**
+ * Information about a user who created the sandbox
+ */
+export interface SandboxUserInfo {
+	/**
+	 * User ID
+	 */
+	id: string;
+
+	/**
+	 * User's first name
+	 */
+	firstName?: string;
+
+	/**
+	 * User's last name
+	 */
+	lastName?: string;
+}
+
+/**
+ * Information about an agent associated with the sandbox
+ */
+export interface SandboxAgentInfo {
+	/**
+	 * Agent ID
+	 */
+	id: string;
+
+	/**
+	 * Agent name
+	 */
+	name: string;
+}
+
+/**
+ * Information about a project associated with the sandbox
+ */
+export interface SandboxProjectInfo {
+	/**
+	 * Project ID
+	 */
+	id: string;
+
+	/**
+	 * Project name
+	 */
+	name: string;
+}
+
+/**
+ * Information about an organization associated with the sandbox
+ */
+export interface SandboxOrgInfo {
+	/**
+	 * Organization ID
+	 */
+	id: string;
+
+	/**
+	 * Organization name
+	 */
+	name: string;
+}
+
+/**
  * Information about a sandbox
  */
 export interface SandboxInfo {
@@ -448,6 +513,26 @@ export interface SandboxInfo {
 	 * Whether network access is enabled for this sandbox
 	 */
 	networkEnabled?: boolean;
+
+	/**
+	 * User who created the sandbox (if available)
+	 */
+	user?: SandboxUserInfo;
+
+	/**
+	 * Agent associated with the sandbox (if available)
+	 */
+	agent?: SandboxAgentInfo;
+
+	/**
+	 * Project associated with the sandbox (if available)
+	 */
+	project?: SandboxProjectInfo;
+
+	/**
+	 * Organization associated with the sandbox
+	 */
+	org: SandboxOrgInfo;
 }
 
 /**
