@@ -203,7 +203,7 @@ export const deleteSubcommand = createSubcommand({
 
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
-			outputDryRun(`Would delete storage bucket: ${bucketName}`, options);
+			outputDryRun(`Would delete storage bucket: ${bucketName} (region: ${region})`, options);
 			if (!options.json) {
 				tui.newline();
 				tui.info('[DRY RUN] Storage bucket deletion skipped');

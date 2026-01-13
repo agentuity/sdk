@@ -110,7 +110,7 @@ export const deleteSubcommand = createSubcommand({
 
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
-			outputDryRun(`Would delete database: ${dbName}`, options);
+			outputDryRun(`Would delete database: ${dbName} (region: ${region})`, options);
 			if (!options.json) {
 				tui.newline();
 				tui.info('[DRY RUN] Database deletion skipped');

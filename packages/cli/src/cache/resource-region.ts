@@ -65,8 +65,6 @@ export async function getResourceInfo(
 ): Promise<ResourceInfo | null> {
 	const database = await getDatabase();
 
-	pruneOldEntries(database);
-
 	const row = database
 		.query<
 			{ region: string; org_id: string | null },
@@ -110,6 +108,8 @@ export async function setResourceInfo(
 	orgId?: string
 ): Promise<void> {
 	const database = await getDatabase();
+
+	pruneOldEntries(database);
 
 	database.run(
 		`INSERT OR REPLACE INTO resource_region_cache 
