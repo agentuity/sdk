@@ -55,7 +55,7 @@ function runCli(args: string): string {
 			cwd: TEST_PROJECT_DIR,
 			timeout: 60000,
 			stdio: ['pipe', 'pipe', 'pipe'],
-			shell: '/bin/bash',
+			shell: true,
 		});
 		console.log('Output:', result);
 		return result;
