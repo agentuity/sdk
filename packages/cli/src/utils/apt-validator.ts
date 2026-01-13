@@ -3,7 +3,8 @@ import type { Config } from '../types';
 import { getAppBaseURL } from '@agentuity/server';
 import { getUserAgent } from '../api';
 import { getDefaultConfigDir } from '../config';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { mkdir } from 'node:fs/promises';
 import { z } from 'zod';
 
 export interface InvalidPackage {
@@ -76,6 +77,7 @@ async function loadCache(logger: Logger): Promise<ValidationCache> {
 async function saveCache(cache: ValidationCache, logger: Logger): Promise<void> {
 	const cachePath = getCachePath();
 	try {
+		await mkdir(dirname(cachePath), { recursive: true });
 		await Bun.write(cachePath, JSON.stringify(cache, null, 2));
 	} catch (err) {
 		logger.debug('Failed to save validation cache: %s', err);
