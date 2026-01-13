@@ -104,19 +104,6 @@ export class CliClient {
 	}
 
 	/**
-	 * Append --region flag to args using region from agentuity.json.
-	 * Used for commands that require region but don't accept --dir.
-	 * The --region flag is a subcommand option, so it must come after the command.
-	 */
-	private withRegion(args: string[]): string[] {
-		const region = this.getProjectRegion();
-		if (region) {
-			return [...args, '--region', region];
-		}
-		return args;
-	}
-
-	/**
 	 * Get the environment variables for CLI execution.
 	 * Sets TERM_PROGRAM=vscode to ensure CLI disables interactive mode.
 	 */
@@ -329,15 +316,14 @@ export class CliClient {
 		return this.exec<string>(['ai', 'prompt', 'llm'], { format: 'text' });
 	}
 
-	// Database methods (require region - pass --region from agentuity.json)
 	async listDatabases(): Promise<CliResult<DbListResponse>> {
-		return this.exec<DbListResponse>(this.withRegion(['cloud', 'db', 'list']), {
+		return this.exec<DbListResponse>(['cloud', 'db', 'list'], {
 			format: 'json',
 		});
 	}
 
 	async getDatabase(name: string): Promise<CliResult<DbInfo>> {
-		return this.exec<DbInfo>(this.withRegion(['cloud', 'db', 'get', name]), {
+		return this.exec<DbInfo>(['cloud', 'db', 'get', name], {
 			format: 'json',
 		});
 	}
@@ -356,12 +342,11 @@ export class CliClient {
 		if (opts?.sessionId) {
 			args.push('--session-id', opts.sessionId);
 		}
-		return this.exec<DbQueryLog[]>(this.withRegion(args), { format: 'json', timeout: 60000 });
+		return this.exec<DbQueryLog[]>(args, { format: 'json', timeout: 60000 });
 	}
 
-	// Storage methods (require region - pass --region from agentuity.json)
 	async listStorageBuckets(): Promise<CliResult<StorageListResponse>> {
-		return this.exec<StorageListResponse>(this.withRegion(['cloud', 'storage', 'list']), {
+		return this.exec<StorageListResponse>(['cloud', 'storage', 'list'], {
 			format: 'json',
 		});
 	}
@@ -374,7 +359,7 @@ export class CliClient {
 		if (prefix) {
 			args.push(prefix);
 		}
-		return this.exec<StorageListResponse>(this.withRegion(args), { format: 'json' });
+		return this.exec<StorageListResponse>(args, { format: 'json' });
 	}
 
 	async getStorageFileMetadata(
@@ -382,7 +367,7 @@ export class CliClient {
 		filename: string
 	): Promise<CliResult<StorageFileMetadataResponse>> {
 		return this.exec<StorageFileMetadataResponse>(
-			this.withRegion(['cloud', 'storage', 'download', bucket, filename, '--metadata']),
+			['cloud', 'storage', 'download', bucket, filename, '--metadata'],
 			{ format: 'json' }
 		);
 	}
@@ -509,17 +494,6 @@ export class CliClient {
 
 	// ==================== Sandbox Methods ====================
 
-	/** Default region for sandbox operations when no agentuity.json is present */
-	private readonly defaultSandboxRegion = 'usc';
-
-	/**
-	 * Get the region for sandbox operations.
-	 * Uses region from agentuity.json if present, otherwise falls back to default.
-	 */
-	getSandboxRegion(): string {
-		return this.getProjectRegion() ?? this.defaultSandboxRegion;
-	}
-
 	/** Default home path in sandboxes */
 	static readonly SANDBOX_HOME = '/home/agentuity';
 
@@ -527,7 +501,8 @@ export class CliClient {
 	 * Create a new sandbox.
 	 */
 	async sandboxCreate(options: SandboxCreateOptions = {}): Promise<CliResult<SandboxInfo>> {
-		const args = ['cloud', 'sandbox', 'create', '--region', this.getSandboxRegion()];
+		const region = this.getProjectRegion() ?? 'usc';
+		const args = ['cloud', 'sandbox', 'create', '--region', region];
 
 		// New runtime/name/description options
 		if (options.runtime) {
@@ -589,7 +564,7 @@ export class CliClient {
 	async sandboxRuntimeList(
 		params: SandboxRuntimeListParams = {}
 	): Promise<CliResult<SandboxRuntimeListResponse>> {
-		const args = ['cloud', 'sandbox', 'runtime', 'list', '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'runtime', 'list'];
 
 		if (params.limit !== undefined) {
 			args.push('--limit', String(params.limit));
@@ -601,49 +576,13 @@ export class CliClient {
 		return this.exec<SandboxRuntimeListResponse>(args, { format: 'json' });
 	}
 
-	/** Available regions for sandbox operations */
-	private readonly sandboxRegions = ['use', 'usc'];
-
 	/**
 	 * List sandboxes with optional filtering.
-	 * Fetches from all regions and combines results.
+	 * Runs from home directory to list all sandboxes since sandbox create
+	 * doesn't currently support project association.
 	 */
 	async sandboxList(filter: SandboxListFilter = {}): Promise<CliResult<SandboxInfo[]>> {
-		// Fetch from all regions in parallel
-		const regionResults = await Promise.all(
-			this.sandboxRegions.map((region) => this.sandboxListForRegion(region, filter))
-		);
-
-		// Combine results from all regions
-		const allSandboxes: SandboxInfo[] = [];
-		let lastError: string | undefined;
-
-		for (const result of regionResults) {
-			if (result.success && result.data) {
-				allSandboxes.push(...result.data);
-			} else if (result.error) {
-				lastError = result.error;
-			}
-		}
-
-		// Return combined results, or error if all regions failed
-		if (allSandboxes.length > 0) {
-			return { success: true, data: allSandboxes, exitCode: 0 };
-		}
-		if (lastError) {
-			return { success: false, error: lastError, data: [], exitCode: 1 };
-		}
-		return { success: true, data: [], exitCode: 0 };
-	}
-
-	/**
-	 * List sandboxes from a specific region.
-	 */
-	private async sandboxListForRegion(
-		region: string,
-		filter: SandboxListFilter = {}
-	): Promise<CliResult<SandboxInfo[]>> {
-		const args = ['cloud', 'sandbox', 'list', '--region', region];
+		const args = ['cloud', 'sandbox', 'list'];
 
 		if (filter.status) {
 			args.push('--status', filter.status);
@@ -658,9 +597,12 @@ export class CliClient {
 			args.push('--offset', String(filter.offset));
 		}
 
-		// CLI returns { sandboxes: [...], total: N }, extract the array
+		// Run from home directory to list all sandboxes
+		// CLI filters by project when run from project dir, but sandbox create
+		// doesn't support project association yet
 		const result = await this.exec<{ sandboxes: SandboxInfo[]; total: number }>(args, {
 			format: 'json',
+			cwd: os.homedir(),
 		});
 		if (result.success && result.data) {
 			return { success: true, data: result.data.sandboxes || [], exitCode: result.exitCode };
@@ -670,46 +612,30 @@ export class CliClient {
 
 	/**
 	 * Get detailed information about a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async sandboxGet(sandboxId: string, region?: string): Promise<CliResult<SandboxInfo>> {
-		return this.exec<SandboxInfo>(
-			['cloud', 'sandbox', 'get', sandboxId, '--region', region ?? this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+	async sandboxGet(sandboxId: string): Promise<CliResult<SandboxInfo>> {
+		return this.exec<SandboxInfo>(['cloud', 'sandbox', 'get', sandboxId], { format: 'json' });
 	}
 
 	/**
 	 * Delete a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async sandboxDelete(sandboxId: string, region?: string): Promise<CliResult<void>> {
-		return this.exec<void>(
-			[
-				'cloud',
-				'sandbox',
-				'delete',
-				sandboxId,
-				'--confirm',
-				'--region',
-				region ?? this.getSandboxRegion(),
-			],
-			{ format: 'json' }
-		);
+	async sandboxDelete(sandboxId: string): Promise<CliResult<void>> {
+		return this.exec<void>(['cloud', 'sandbox', 'delete', sandboxId, '--confirm'], {
+			format: 'json',
+		});
 	}
 
 	/**
 	 * Execute a command in a sandbox.
 	 * Note: For streaming output, use sandboxExecInTerminal instead.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
 	async sandboxExec(
 		sandboxId: string,
 		command: string[],
-		options: SandboxExecOptions = {},
-		region?: string
+		options: SandboxExecOptions = {}
 	): Promise<CliResult<ExecutionInfo>> {
-		const args = ['cloud', 'sandbox', 'exec', sandboxId, '--region', region ?? this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'exec', sandboxId];
 
 		if (options.timeout) {
 			args.push('--timeout', String(options.timeout));
@@ -726,21 +652,14 @@ export class CliClient {
 
 	/**
 	 * List files in a sandbox directory.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async sandboxLs(
-		sandboxId: string,
-		remotePath?: string,
-		region?: string
-	): Promise<CliResult<SandboxFileInfo[]>> {
+	async sandboxLs(sandboxId: string, remotePath?: string): Promise<CliResult<SandboxFileInfo[]>> {
 		const args = ['cloud', 'sandbox', 'files', sandboxId];
-		// Only add path if specified (omit for root listing)
 		if (remotePath) {
 			args.push(remotePath);
 		}
-		args.push('-l', '--region', region ?? this.getSandboxRegion());
+		args.push('-l');
 
-		// CLI returns { files: [...], total: N }, extract the array and add name from path
 		const result = await this.exec<{
 			files: Array<Omit<SandboxFileInfo, 'name'>>;
 			total: number;
@@ -748,7 +667,7 @@ export class CliClient {
 		if (result.success && result.data) {
 			const files = (result.data.files || []).map((f) => ({
 				...f,
-				name: f.path.split('/').pop() || f.path, // Extract filename from path
+				name: f.path.split('/').pop() || f.path,
 			}));
 			return { success: true, data: files, exitCode: result.exitCode };
 		}
@@ -757,16 +676,14 @@ export class CliClient {
 
 	/**
 	 * Upload a file or directory to a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
 	async sandboxCpToSandbox(
 		sandboxId: string,
 		localPath: string,
 		remotePath: string,
-		recursive = false,
-		region?: string
+		recursive = false
 	): Promise<CliResult<SandboxCpResult>> {
-		const args = ['cloud', 'sandbox', 'cp', '--region', region ?? this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'cp'];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -776,16 +693,14 @@ export class CliClient {
 
 	/**
 	 * Download a file or directory from a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
 	async sandboxCpFromSandbox(
 		sandboxId: string,
 		remotePath: string,
 		localPath: string,
-		recursive = false,
-		region?: string
+		recursive = false
 	): Promise<CliResult<SandboxCpResult>> {
-		const args = ['cloud', 'sandbox', 'cp', '--region', region ?? this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'cp'];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -795,23 +710,13 @@ export class CliClient {
 
 	/**
 	 * Upload an archive (tar.gz or zip) to a sandbox and extract it.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
 	async sandboxUpload(
 		sandboxId: string,
 		archivePath: string,
-		destPath?: string,
-		region?: string
+		destPath?: string
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'upload',
-			sandboxId,
-			archivePath,
-			'--region',
-			region ?? this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'upload', sandboxId, archivePath];
 		if (destPath) {
 			args.push('--path', destPath);
 		}
@@ -820,23 +725,13 @@ export class CliClient {
 
 	/**
 	 * Download sandbox files as an archive.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
 	async sandboxDownload(
 		sandboxId: string,
 		outputPath: string,
-		sourcePath?: string,
-		region?: string
+		sourcePath?: string
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'download',
-			sandboxId,
-			outputPath,
-			'--region',
-			region ?? this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'download', sandboxId, outputPath];
 		if (sourcePath) {
 			args.push('--path', sourcePath);
 		}
@@ -845,23 +740,13 @@ export class CliClient {
 
 	/**
 	 * Create a directory in a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
 	async sandboxMkdir(
 		sandboxId: string,
 		remotePath: string,
-		recursive = false,
-		region?: string
+		recursive = false
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'mkdir',
-			sandboxId,
-			remotePath,
-			'--region',
-			region ?? this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'mkdir', sandboxId, remotePath];
 		if (recursive) {
 			args.push('-p');
 		}
@@ -870,34 +755,20 @@ export class CliClient {
 
 	/**
 	 * Remove a file from a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async sandboxRm(sandboxId: string, remotePath: string, region?: string): Promise<CliResult<void>> {
-		return this.exec<void>(
-			['cloud', 'sandbox', 'rm', sandboxId, remotePath, '--region', region ?? this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+	async sandboxRm(sandboxId: string, remotePath: string): Promise<CliResult<void>> {
+		return this.exec<void>(['cloud', 'sandbox', 'rm', sandboxId, remotePath], { format: 'json' });
 	}
 
 	/**
 	 * Remove a directory from a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
 	async sandboxRmdir(
 		sandboxId: string,
 		remotePath: string,
-		recursive = false,
-		region?: string
+		recursive = false
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'rmdir',
-			sandboxId,
-			remotePath,
-			'--region',
-			region ?? this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'rmdir', sandboxId, remotePath];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -906,14 +777,12 @@ export class CliClient {
 
 	/**
 	 * Set environment variables in a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
 	async sandboxEnvSet(
 		sandboxId: string,
-		vars: Record<string, string>,
-		region?: string
+		vars: Record<string, string>
 	): Promise<CliResult<SandboxEnvResult>> {
-		const args = ['cloud', 'sandbox', 'env', sandboxId, '--region', region ?? this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'env', sandboxId];
 		for (const [key, value] of Object.entries(vars)) {
 			args.push(`${key}=${value}`);
 		}
@@ -922,14 +791,12 @@ export class CliClient {
 
 	/**
 	 * Delete environment variables from a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
 	async sandboxEnvDelete(
 		sandboxId: string,
-		varNames: string[],
-		region?: string
+		varNames: string[]
 	): Promise<CliResult<SandboxEnvResult>> {
-		const args = ['cloud', 'sandbox', 'env', sandboxId, '--region', region ?? this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'env', sandboxId];
 		for (const name of varNames) {
 			args.push('--delete', name);
 		}
@@ -938,31 +805,20 @@ export class CliClient {
 
 	/**
 	 * Get environment variables from a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async sandboxEnvGet(sandboxId: string, region?: string): Promise<CliResult<SandboxEnvResult>> {
-		return this.exec<SandboxEnvResult>(
-			['cloud', 'sandbox', 'env', sandboxId, '--region', region ?? this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+	async sandboxEnvGet(sandboxId: string): Promise<CliResult<SandboxEnvResult>> {
+		return this.exec<SandboxEnvResult>(['cloud', 'sandbox', 'env', sandboxId], {
+			format: 'json',
+		});
 	}
 
 	// ==================== Snapshot Methods ====================
 
 	/**
 	 * Create a snapshot of a sandbox.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async snapshotCreate(sandboxId: string, tag?: string, region?: string): Promise<CliResult<SnapshotInfo>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'snapshot',
-			'create',
-			sandboxId,
-			'--region',
-			region ?? this.getSandboxRegion(),
-		];
+	async snapshotCreate(sandboxId: string, tag?: string): Promise<CliResult<SnapshotInfo>> {
+		const args = ['cloud', 'sandbox', 'snapshot', 'create', sandboxId];
 		if (tag) {
 			args.push('--tag', tag);
 		}
@@ -972,12 +828,11 @@ export class CliClient {
 	/**
 	 * List snapshots with optional sandbox filter.
 	 */
-	async snapshotList(sandboxId?: string, region?: string): Promise<CliResult<SnapshotInfo[]>> {
-		const args = ['cloud', 'sandbox', 'snapshot', 'list', '--region', region ?? this.getSandboxRegion()];
+	async snapshotList(sandboxId?: string): Promise<CliResult<SnapshotInfo[]>> {
+		const args = ['cloud', 'sandbox', 'snapshot', 'list'];
 		if (sandboxId) {
 			args.push('--sandbox', sandboxId);
 		}
-		// CLI returns { snapshots: [], total: N }
 		const result = await this.exec<{ snapshots: SnapshotInfo[]; total: number }>(args, {
 			format: 'json',
 		});
@@ -989,49 +844,27 @@ export class CliClient {
 
 	/**
 	 * Get detailed information about a snapshot.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async snapshotGet(snapshotId: string, region?: string): Promise<CliResult<SnapshotInfo>> {
-		return this.exec<SnapshotInfo>(
-			['cloud', 'sandbox', 'snapshot', 'get', snapshotId, '--region', region ?? this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+	async snapshotGet(snapshotId: string): Promise<CliResult<SnapshotInfo>> {
+		return this.exec<SnapshotInfo>(['cloud', 'sandbox', 'snapshot', 'get', snapshotId], {
+			format: 'json',
+		});
 	}
 
 	/**
 	 * Delete a snapshot.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async snapshotDelete(snapshotId: string, region?: string): Promise<CliResult<void>> {
-		return this.exec<void>(
-			[
-				'cloud',
-				'sandbox',
-				'snapshot',
-				'delete',
-				snapshotId,
-				'--confirm',
-				'--region',
-				region ?? this.getSandboxRegion(),
-			],
-			{ format: 'json' }
-		);
+	async snapshotDelete(snapshotId: string): Promise<CliResult<void>> {
+		return this.exec<void>(['cloud', 'sandbox', 'snapshot', 'delete', snapshotId, '--confirm'], {
+			format: 'json',
+		});
 	}
 
 	/**
 	 * Tag or untag a snapshot.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async snapshotTag(snapshotId: string, tag: string | null, region?: string): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'snapshot',
-			'tag',
-			snapshotId,
-			'--region',
-			region ?? this.getSandboxRegion(),
-		];
+	async snapshotTag(snapshotId: string, tag: string | null): Promise<CliResult<void>> {
+		const args = ['cloud', 'sandbox', 'snapshot', 'tag', snapshotId];
 		if (tag === null) {
 			args.push('--clear');
 		} else {
@@ -1045,10 +878,9 @@ export class CliClient {
 	/**
 	 * List executions for a sandbox.
 	 */
-	async executionList(sandboxId: string, region?: string): Promise<CliResult<ExecutionInfo[]>> {
-		// CLI returns { executions: [] }
+	async executionList(sandboxId: string): Promise<CliResult<ExecutionInfo[]>> {
 		const result = await this.exec<{ executions: ExecutionInfo[] }>(
-			['cloud', 'sandbox', 'execution', 'list', sandboxId, '--region', region ?? this.getSandboxRegion()],
+			['cloud', 'sandbox', 'execution', 'list', sandboxId],
 			{ format: 'json' }
 		);
 		if (result.success && result.data) {
@@ -1059,13 +891,11 @@ export class CliClient {
 
 	/**
 	 * Get detailed information about an execution.
-	 * @param region - Optional region override (uses sandbox's region if known)
 	 */
-	async executionGet(executionId: string, region?: string): Promise<CliResult<ExecutionInfo>> {
-		return this.exec<ExecutionInfo>(
-			['cloud', 'sandbox', 'execution', 'get', executionId, '--region', region ?? this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+	async executionGet(executionId: string): Promise<CliResult<ExecutionInfo>> {
+		return this.exec<ExecutionInfo>(['cloud', 'sandbox', 'execution', 'get', executionId], {
+			format: 'json',
+		});
 	}
 
 	dispose(): void {

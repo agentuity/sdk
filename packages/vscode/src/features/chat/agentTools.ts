@@ -751,13 +751,13 @@ export class CreateSnapshotTool implements vscode.LanguageModelTool<CreateSnapsh
 		options: vscode.LanguageModelToolInvocationOptions<CreateSnapshotInput>,
 		_token: vscode.CancellationToken
 	): Promise<vscode.LanguageModelToolResult> {
-		const { sandboxId, tag, region } = options.input;
+		const { sandboxId, tag } = options.input;
 		if (!sandboxId) {
 			throw new Error('Sandbox ID is required.');
 		}
 
 		const cli = getCliClient();
-		const result = await cli.snapshotCreate(sandboxId, tag, region);
+		const result = await cli.snapshotCreate(sandboxId, tag);
 
 		if (!result.success || !result.data) {
 			throw new Error(`Failed to create snapshot: ${result.error || 'Unknown error'}`);

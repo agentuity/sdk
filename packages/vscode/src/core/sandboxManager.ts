@@ -166,10 +166,6 @@ export class SandboxManager {
 			throw new Error('No workspace folder open');
 		}
 
-		// Get linked sandbox info for region
-		const linkedSandbox = this.getLinkedSandbox(sandboxId);
-		const region = linkedSandbox?.region;
-
 		const remotePath = options.remotePath ?? DEFAULT_SANDBOX_PATH;
 		const startTime = Date.now();
 
@@ -191,8 +187,7 @@ export class SandboxManager {
 			const uploadResult = await this.cliClient.sandboxUpload(
 				sandboxId,
 				archivePath,
-				remotePath,
-				region
+				remotePath
 			);
 			if (!uploadResult.success) {
 				throw new Error(`Failed to upload files: ${uploadResult.error}`);
@@ -224,16 +219,11 @@ export class SandboxManager {
 		remotePath: string,
 		localPath: string
 	): Promise<void> {
-		// Get linked sandbox info for region
-		const linkedSandbox = this.getLinkedSandbox(sandboxId);
-		const region = linkedSandbox?.region;
-
 		const result = await this.cliClient.sandboxCpFromSandbox(
 			sandboxId,
 			remotePath,
 			localPath,
-			true,
-			region
+			true
 		);
 		if (!result.success) {
 			throw new Error(`Failed to download files: ${result.error}`);

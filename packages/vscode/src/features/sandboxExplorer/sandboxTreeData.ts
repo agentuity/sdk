@@ -589,9 +589,7 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		// Check cache first - always cache from root
 		if (!this.filesCache.has(cacheKey)) {
 			const cli = getCliClient();
-			// Always fetch from root (no path) to get complete file list
-			// Pass region to use the sandbox's actual region
-			const result = await cli.sandboxLs(sandboxId, undefined, region);
+			const result = await cli.sandboxLs(sandboxId, undefined);
 
 			if (result.success && result.data) {
 				this.filesCache.set(cacheKey, result.data);
@@ -658,10 +656,13 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		});
 	}
 
-	private async getSnapshotsChildren(sandboxId: string, region?: string): Promise<SandboxTreeItem[]> {
+	private async getSnapshotsChildren(
+		sandboxId: string,
+		region?: string
+	): Promise<SandboxTreeItem[]> {
 		if (!this.snapshotsCache.has(sandboxId)) {
 			const cli = getCliClient();
-			const result = await cli.snapshotList(sandboxId, region);
+			const result = await cli.snapshotList(sandboxId);
 
 			if (result.success && result.data) {
 				this.snapshotsCache.set(sandboxId, result.data);
@@ -756,10 +757,13 @@ export class SandboxTreeDataProvider implements vscode.TreeDataProvider<SandboxT
 		});
 	}
 
-	private async getExecutionsChildren(sandboxId: string, region?: string): Promise<SandboxTreeItem[]> {
+	private async getExecutionsChildren(
+		sandboxId: string,
+		region?: string
+	): Promise<SandboxTreeItem[]> {
 		if (!this.executionsCache.has(sandboxId)) {
 			const cli = getCliClient();
-			const result = await cli.executionList(sandboxId, region);
+			const result = await cli.executionList(sandboxId);
 
 			if (result.success && result.data) {
 				this.executionsCache.set(sandboxId, result.data);
