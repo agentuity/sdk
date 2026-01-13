@@ -154,7 +154,7 @@ jobs:
          GH_TEST_ACC_REPO: ${{ secrets.GH_TEST_ACC_REPO }}
          GH_TEST_TARGET_ORG_ID: ${{ secrets.GH_TEST_TARGET_ORG_ID }}
          AGENTUITY_API_KEY: ${{ secrets.AGENTUITY_API_KEY }}
-         AGENTUITY_API_URL: ${{ vars.AGENTUITY_API_URL }}
+         AGENTUITY_API_URL: ${{ secrets.AGENTUITY_API_URL }}
       steps:
          - uses: actions/checkout@v4
            with:
