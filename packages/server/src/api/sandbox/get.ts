@@ -11,6 +11,35 @@ const SandboxResourcesSchema = z
 	})
 	.describe('Resource limits for the sandbox');
 
+const SandboxUserInfoSchema = z
+	.object({
+		id: z.string().describe('User ID'),
+		firstName: z.string().optional().describe("User's first name"),
+		lastName: z.string().optional().describe("User's last name"),
+	})
+	.describe('User who created the sandbox');
+
+const SandboxAgentInfoSchema = z
+	.object({
+		id: z.string().describe('Agent ID'),
+		name: z.string().describe('Agent name'),
+	})
+	.describe('Agent associated with the sandbox');
+
+const SandboxProjectInfoSchema = z
+	.object({
+		id: z.string().describe('Project ID'),
+		name: z.string().describe('Project name'),
+	})
+	.describe('Project associated with the sandbox');
+
+const SandboxOrgInfoSchema = z
+	.object({
+		id: z.string().describe('Organization ID'),
+		name: z.string().describe('Organization name'),
+	})
+	.describe('Organization associated with the sandbox');
+
 const SandboxInfoDataSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
@@ -43,6 +72,10 @@ const SandboxInfoDataSchema = z
 		memoryByteSec: z.number().optional().describe('Total memory usage in byte-seconds'),
 		networkEgressBytes: z.number().optional().describe('Total network egress in bytes'),
 		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
+		user: SandboxUserInfoSchema.optional().describe('User who created the sandbox'),
+		agent: SandboxAgentInfoSchema.optional().describe('Agent associated with the sandbox'),
+		project: SandboxProjectInfoSchema.optional().describe('Project associated with the sandbox'),
+		org: SandboxOrgInfoSchema.describe('Organization associated with the sandbox'),
 	})
 	.describe('Detailed information about a sandbox');
 
@@ -106,6 +139,10 @@ export async function sandboxGet(
 			memoryByteSec: resp.data.memoryByteSec,
 			networkEgressBytes: resp.data.networkEgressBytes,
 			networkEnabled: resp.data.networkEnabled,
+			user: resp.data.user,
+			agent: resp.data.agent,
+			project: resp.data.project,
+			org: resp.data.org,
 		};
 	}
 
