@@ -155,7 +155,6 @@ jobs:
          GH_TEST_TARGET_ORG_ID: ${{ secrets.GH_TEST_TARGET_ORG_ID }}
          AGENTUITY_API_KEY: ${{ secrets.AGENTUITY_API_KEY }}
          AGENTUITY_API_URL: ${{ vars.AGENTUITY_API_URL }}
-         CANARY_VERSION: ${{ needs.pack-and-upload.outputs.prerelease_version }}
       steps:
          - uses: actions/checkout@v4
            with:
@@ -170,59 +169,8 @@ jobs:
          - name: Install Playwright
            run: bunx playwright install chromium
 
-         - name: Download canary manifest
-           uses: actions/download-artifact@v4
-           with:
-              name: canary-manifest
-
-         - name: Push canary package.json to test repo
-           run: |
-              git config --global user.email "ci@agentuity.com"
-              git config --global user.name "Agentuity CI"
-              
-              TEST_REPO_DIR=$(mktemp -d)
-              git clone https://x-access-token:${{ secrets.GH_TEST_ACC_TOKEN }}@github.com/${{ secrets.GH_TEST_ACC_USERNAME }}/${{ secrets.GH_TEST_ACC_REPO }}.git $TEST_REPO_DIR
-              
-              cd $TEST_REPO_DIR
-              
-              NPM_BASE_URL="https://agentuity-sdk-objects.t3.storage.dev/npm/${{ env.CANARY_VERSION }}"
-              
-              node -e "
-                const fs = require('fs');
-                const manifest = JSON.parse(fs.readFileSync('$GITHUB_WORKSPACE/manifest.json', 'utf-8'));
-                const pkg = JSON.parse(fs.readFileSync('package.json', 'utf-8'));
-                const npmBaseUrl = '${NPM_BASE_URL}';
-                
-                for (const tarball of manifest.packages) {
-                  const name = '@agentuity/' + tarball.split('-')[1];
-                  if (pkg.dependencies[name]) {
-                    pkg.dependencies[name] = npmBaseUrl + '/' + tarball;
-                  }
-                }
-                
-                fs.writeFileSync('package.json', JSON.stringify(pkg, null, '\t') + '\n');
-                console.log('Updated package.json with canary versions');
-              "
-              
-              cat package.json
-              
-              git add package.json
-              git commit -m "ci: update to canary ${{ env.CANARY_VERSION }}" || echo "No changes to commit"
-              git push origin main
-              
-              echo "TEST_REPO_DIR=$TEST_REPO_DIR" >> $GITHUB_ENV
-
          - name: Run GitHub App E2E tests
            run: bunx playwright test --config=e2e/github-login.config.ts
-
-         - name: Revert canary package.json in test repo
-           if: always()
-           run: |
-              if [ -n "$TEST_REPO_DIR" ] && [ -d "$TEST_REPO_DIR" ]; then
-                cd $TEST_REPO_DIR
-                git revert HEAD --no-edit || true
-                git push origin main || true
-              fi
 
          - name: Upload test results
            if: always()
