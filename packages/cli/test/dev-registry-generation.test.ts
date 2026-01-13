@@ -130,7 +130,7 @@ import { validator } from 'hono/validator';
 import { s } from '@agentuity/schema';
 
 const router = createRouter();
-const createUserSchema = s.object({
+export const createUserSchema = s.object({
 	name: s.string(),
 	email: s.string(),
 	age: s.number(),

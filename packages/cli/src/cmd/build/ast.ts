@@ -941,6 +941,102 @@ const InvalidRouterConfigError = StructuredError('InvalidRouterConfigError')<{
 	line?: number;
 }>();
 
+const SchemaNotExportedError = StructuredError('SchemaNotExportedError')<{
+	filename: string;
+	schemaName: string;
+	kind: 'input' | 'output';
+	method?: string;
+	path?: string;
+}>();
+
+/**
+ * Build a set of exported identifiers from the top-level program.
+ * Handles both `export const X = ...` and `export { X }` patterns.
+ */
+function buildExportedIdentifierSet(program: ASTProgram): Set<string> {
+	const exported = new Set<string>();
+
+	for (const node of program.body) {
+		if (node.type === 'ExportNamedDeclaration') {
+			const exp = node as unknown as {
+				declaration?: ASTNode;
+				specifiers?: Array<{ local?: ASTNodeIdentifier; exported?: ASTNodeIdentifier }>;
+			};
+
+			// Handle `export const X = ...` or `export function X() { ... }` or `export class X { ... }`
+			if (exp.declaration) {
+				if (exp.declaration.type === 'VariableDeclaration') {
+					const decl = exp.declaration as unknown as { declarations: ASTVariableDeclarator[] };
+					for (const d of decl.declarations) {
+						if (d.id.type === 'Identifier') {
+							const id = d.id as ASTNodeIdentifier;
+							exported.add(id.name);
+						}
+					}
+				} else if (exp.declaration.type === 'FunctionDeclaration') {
+					const funcDecl = exp.declaration as unknown as { id?: ASTNodeIdentifier };
+					if (funcDecl.id?.name) {
+						exported.add(funcDecl.id.name);
+					}
+				} else if (exp.declaration.type === 'ClassDeclaration') {
+					const classDecl = exp.declaration as unknown as { id?: ASTNodeIdentifier };
+					if (classDecl.id?.name) {
+						exported.add(classDecl.id.name);
+					}
+				}
+			}
+
+			// Handle `export { X }` or `export { X as Y }`
+			if (exp.specifiers && Array.isArray(exp.specifiers)) {
+				for (const spec of exp.specifiers) {
+					// For `export { X }`, local.name is the variable name in this file
+					if (spec.local?.name) {
+						exported.add(spec.local.name);
+					}
+				}
+			}
+		}
+	}
+
+	return exported;
+}
+
+/**
+ * Validate that schema variables used in validators are either imported or exported.
+ * Throws SchemaNotExportedError if a locally-defined schema is not exported.
+ */
+function validateSchemaExports(
+	schemaVariable: string | undefined,
+	kind: 'input' | 'output',
+	importedNames: Set<string>,
+	exportedNames: Set<string>,
+	filename: string,
+	method?: string,
+	path?: string
+): void {
+	if (!schemaVariable) return;
+
+	// If the schema is imported from another file, it's already exported from its source
+	if (importedNames.has(schemaVariable)) return;
+
+	// If the schema is defined locally, it must be exported
+	if (!exportedNames.has(schemaVariable)) {
+		const routeDesc = method && path ? ` for route "${method.toUpperCase()} ${path}"` : '';
+		throw new SchemaNotExportedError({
+			filename,
+			schemaName: schemaVariable,
+			kind,
+			method,
+			path,
+			message:
+				`Schema "${schemaVariable}" used as the ${kind} validator${routeDesc} in ${filename} is not exported.\n\n` +
+				`Agentuity generates a route registry that imports schema types by name, so the schema must be exported.\n\n` +
+				`To fix this, add "export" to the schema declaration:\n\n` +
+				`  export const ${schemaVariable} = s.object({ ... });\n`,
+		});
+	}
+}
+
 /**
  * Check if an AST node contains a validator() call
  */
@@ -1292,6 +1388,12 @@ export async function parseRoute(
 		}
 	}
 
+	// Build set of imported names for schema export validation
+	const importedNames = new Set(importMap.keys());
+
+	// Build set of exported identifiers for schema export validation
+	const exportedNames = buildExportedIdentifierSet(ast as ASTProgram);
+
 	// Scan for exported schemas (for WebSocket/SSE routes)
 	let exportedInputSchemaName: string | undefined;
 	let exportedOutputSchemaName: string | undefined;
@@ -1496,6 +1598,25 @@ export async function parseRoute(
 												routeConfig.agentImportPath = agentImportPath;
 											}
 										}
+										// Validate that schema variables are exported (if defined locally)
+										validateSchemaExports(
+											validatorInfo.inputSchemaVariable,
+											'input',
+											importedNames,
+											exportedNames,
+											rel,
+											httpMethod,
+											thepath
+										);
+										validateSchemaExports(
+											validatorInfo.outputSchemaVariable,
+											'output',
+											importedNames,
+											exportedNames,
+											rel,
+											httpMethod,
+											thepath
+										);
 										if (validatorInfo.inputSchemaVariable) {
 											routeConfig.inputSchemaVariable =
 												validatorInfo.inputSchemaVariable;
@@ -1557,6 +1678,25 @@ export async function parseRoute(
 												routeConfig.agentImportPath = agentImportPath;
 											}
 										}
+										// Validate that schema variables are exported (if defined locally)
+										validateSchemaExports(
+											validatorInfo.inputSchemaVariable,
+											'input',
+											importedNames,
+											exportedNames,
+											rel,
+											httpMethod,
+											thepath
+										);
+										validateSchemaExports(
+											validatorInfo.outputSchemaVariable,
+											'output',
+											importedNames,
+											exportedNames,
+											rel,
+											httpMethod,
+											thepath
+										);
 										if (validatorInfo.inputSchemaVariable) {
 											routeConfig.inputSchemaVariable =
 												validatorInfo.inputSchemaVariable;
@@ -1718,6 +1858,25 @@ export async function parseRoute(
 									routeConfig.agentImportPath = agentImportPath;
 								}
 							}
+							// Validate that schema variables are exported (if defined locally)
+							validateSchemaExports(
+								validatorInfo.inputSchemaVariable,
+								'input',
+								importedNames,
+								exportedNames,
+								rel,
+								method,
+								thepath
+							);
+							validateSchemaExports(
+								validatorInfo.outputSchemaVariable,
+								'output',
+								importedNames,
+								exportedNames,
+								rel,
+								method,
+								thepath
+							);
 							if (validatorInfo.inputSchemaVariable) {
 								routeConfig.inputSchemaVariable = validatorInfo.inputSchemaVariable;
 							}
@@ -1754,7 +1913,7 @@ export async function parseRoute(
 			}
 		}
 	} catch (error) {
-		if (error instanceof InvalidRouterConfigError) {
+		if (error instanceof InvalidRouterConfigError || error instanceof SchemaNotExportedError) {
 			throw error;
 		}
 		throw new InvalidRouterConfigError({
