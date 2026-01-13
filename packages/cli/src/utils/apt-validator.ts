@@ -3,6 +3,7 @@ import type { Config } from '../types';
 import { getAppBaseURL } from '@agentuity/server';
 import { getDefaultConfigDir } from '../config';
 import { join } from 'node:path';
+import { z } from 'zod';
 
 export interface InvalidPackage {
 	package: string;
@@ -17,11 +18,26 @@ export interface AptValidationResult {
 	invalid: InvalidPackage[];
 }
 
-interface ValidateAptDependenciesResponse {
-	success: boolean;
-	data?: AptValidationResult;
-	message?: string;
-}
+const InvalidPackageSchema = z.object({
+	package: z.string(),
+	error: z.string(),
+	requestedVersion: z.string().optional(),
+	availableVersions: z.array(z.string()).optional(),
+	searchUrl: z.string(),
+});
+
+const ValidateAptDependenciesResponseSchema = z.object({
+	success: z.boolean(),
+	data: z
+		.object({
+			valid: z.array(z.string()),
+			invalid: z.array(InvalidPackageSchema),
+		})
+		.optional(),
+	message: z.string().optional(),
+});
+
+const REQUEST_TIMEOUT_MS = 30000; // 30 seconds client-side timeout
 
 interface CacheEntry {
 	timestamp: number;
@@ -123,6 +139,7 @@ export async function validateAptDependencies(
 			'Content-Type': 'application/json',
 		},
 		body: JSON.stringify({ packages: uncachedPackages }),
+		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
 	});
 
 	if (!response.ok) {
@@ -130,7 +147,14 @@ export async function validateAptDependencies(
 		throw new Error(`Failed to validate apt dependencies: HTTP ${response.status} - ${text}`);
 	}
 
-	const result = (await response.json()) as ValidateAptDependenciesResponse;
+	const json = await response.json();
+	const parsed = ValidateAptDependenciesResponseSchema.safeParse(json);
+
+	if (!parsed.success) {
+		throw new Error(`Invalid API response: ${parsed.error.message}`);
+	}
+
+	const result = parsed.data;
 
 	if (!result.success || !result.data) {
 		throw new Error(result.message ?? 'Failed to validate apt dependencies');

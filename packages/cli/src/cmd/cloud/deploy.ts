@@ -198,6 +198,7 @@ export const deploySubcommand = createSubcommand({
 								package: pkg.package,
 								error: pkg.error,
 								searchUrl: pkg.searchUrl,
+								availableVersions: pkg.availableVersions,
 							})),
 						} as never;
 					}
