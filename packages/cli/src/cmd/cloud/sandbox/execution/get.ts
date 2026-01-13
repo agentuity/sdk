@@ -55,36 +55,39 @@ export const getSubcommand = createCommand({
 							? tui.colorError
 							: tui.colorMuted;
 
-			console.log(`${tui.muted('Execution:')}       ${tui.bold(result.executionId)}`);
-			console.log(`${tui.muted('Sandbox:')}         ${result.sandboxId}`);
-			console.log(`${tui.muted('Status:')}          ${statusColor(result.status)}`);
+			const tableData: Record<string, string | number> = {
+				Execution: tui.bold(result.executionId),
+				Sandbox: result.sandboxId,
+				Status: statusColor(result.status),
+			};
+
 			if (result.exitCode !== undefined) {
 				const exitCodeColor = result.exitCode === 0 ? tui.colorSuccess : tui.colorError;
-				console.log(
-					`${tui.muted('Exit Code:')}       ${exitCodeColor(String(result.exitCode))}`
-				);
+				tableData['Exit Code'] = exitCodeColor(String(result.exitCode));
 			}
 			if (result.durationMs !== undefined) {
-				console.log(`${tui.muted('Duration:')}        ${result.durationMs}ms`);
+				tableData['Duration'] = `${result.durationMs}ms`;
 			}
 			if (result.startedAt) {
-				console.log(`${tui.muted('Started:')}         ${result.startedAt}`);
+				tableData['Started'] = result.startedAt;
 			}
 			if (result.completedAt) {
-				console.log(`${tui.muted('Completed:')}       ${result.completedAt}`);
+				tableData['Completed'] = result.completedAt;
 			}
 			if (result.error) {
-				console.log(`${tui.muted('Error:')}           ${tui.colorError(result.error)}`);
+				tableData['Error'] = tui.colorError(result.error);
 			}
 			if (result.stdoutStreamUrl) {
-				console.log(`${tui.muted('Stdout:')}          ${result.stdoutStreamUrl}`);
+				tableData['Stdout'] = result.stdoutStreamUrl;
 			}
 			if (result.stderrStreamUrl) {
-				console.log(`${tui.muted('Stderr:')}          ${result.stderrStreamUrl}`);
+				tableData['Stderr'] = result.stderrStreamUrl;
 			}
 			if (result.command && result.command.length > 0) {
-				console.log(`${tui.muted('Command:')}         ${result.command.join(' ')}`);
+				tableData['Command'] = result.command.join(' ');
 			}
+
+			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 		}
 
 		return {

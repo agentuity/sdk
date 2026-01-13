@@ -190,7 +190,18 @@ async function resolveFileGlobs(
 		}
 	}
 
-	for (const pattern of exclusions) {
+	for (let pattern of exclusions) {
+		// If the pattern refers to a directory, auto-append /** to exclude all contents
+		const patternPath = join(directory, pattern);
+		try {
+			const stat = statSync(patternPath);
+			if (stat.isDirectory()) {
+				pattern = pattern.endsWith('/') ? `${pattern}**` : `${pattern}/**`;
+			}
+		} catch {
+			// Path doesn't exist or can't be stat'd, use pattern as-is
+		}
+
 		const glob = new Bun.Glob(pattern);
 		for await (const file of glob.scan({ cwd: directory, dot: true })) {
 			files.delete(file);
@@ -473,16 +484,20 @@ export const buildSubcommand = createCommand({
 			if (!options.json) {
 				tui.info(`${tui.bold('Dry Run')} - No upload will be performed`);
 				console.log('');
-				if (finalName) {
-					console.log(`  ${tui.muted('Name:'.padEnd(13))}         ${finalName}`);
-				}
-				console.log(`  ${tui.muted('Runtime:'.padEnd(13))}      ${buildConfig.runtime}`);
-				console.log(`  ${tui.muted('Tag:'.padEnd(13))}          ${opts.tag ?? 'latest'}`);
-				if (finalDescription) {
-					console.log(`  ${tui.muted('Description:'.padEnd(13))} ${finalDescription}`);
-				}
-				console.log(`  ${tui.muted('Size:'.padEnd(13))}         ${tui.formatBytes(totalSize)}`);
-				console.log(`  ${tui.muted('Files:'.padEnd(13))}        ${fileList.length}`);
+				tui.table(
+					[
+						{
+							Name: finalName,
+							Description: finalDescription ?? '-',
+							Runtime: buildConfig.runtime,
+							Tag: opts.tag ?? 'latest',
+							Size: tui.formatBytes(totalSize),
+							Files: fileList.length.toFixed(),
+						},
+					],
+					['Name', 'Description', 'Runtime', 'Tag', 'Size', 'Files'],
+					{ layout: 'vertical', padStart: '  ' }
+				);
 
 				if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
 					console.log('');
@@ -569,9 +584,16 @@ export const buildSubcommand = createCommand({
 				if (!options.json) {
 					tui.success(`Snapshot unchanged ${tui.bold(initResult.existingId!)}`);
 					console.log('');
-					console.log(`  ${tui.muted('Name:'.padEnd(13))}    ${initResult.existingName}`);
-					console.log(`  ${tui.muted('Tag:'.padEnd(13))}     ${initResult.existingTag ?? 'latest'}`);
-					console.log(`  ${tui.muted('Runtime:'.padEnd(13))} ${buildConfig.runtime}`);
+					tui.table(
+						[
+							{
+								Name: finalName,
+								Tag: opts.tag ?? 'latest',
+							},
+						],
+						['Name', 'Tag'],
+						{ layout: 'vertical', padStart: '  ' }
+					);
 				}
 
 				return {
@@ -630,17 +652,22 @@ export const buildSubcommand = createCommand({
 			if (!options.json) {
 				tui.success(`Created snapshot ${tui.bold(snapshot.snapshotId)}`);
 				console.log('');
-				console.log(`  ${tui.muted('Name:'.padEnd(13))}    ${snapshot.name}`);
-				console.log(`  ${tui.muted('Tag:'.padEnd(13))}     ${snapshot.tag ?? 'latest'}`);
-				console.log(`  ${tui.muted('Runtime:'.padEnd(13))} ${buildConfig.runtime}`);
-				if (snapshot.description) {
-					console.log(`  ${tui.muted('Description:'.padEnd(13))} ${snapshot.description}`);
-				}
-				console.log(
-					`  ${tui.muted('Size:'.padEnd(13))}    ${tui.formatBytes(snapshot.sizeBytes)}`
+
+				tui.table(
+					[
+						{
+							Name: snapshot.name,
+							Description: snapshot.description ?? '-',
+							Runtime: buildConfig.runtime,
+							Tag: snapshot.tag ?? 'latest',
+							Size: tui.formatBytes(snapshot.sizeBytes),
+							Files: snapshot.fileCount.toFixed(),
+							Created: snapshot.createdAt,
+						},
+					],
+					['Name', 'Description', 'Runtime', 'Tag', 'Size', 'Files', 'Created'],
+					{ layout: 'vertical', padStart: '  ' }
 				);
-				console.log(`  ${tui.muted('Files:'.padEnd(13))}   ${snapshot.fileCount}`);
-				console.log(`  ${tui.muted('Created:'.padEnd(13))} ${snapshot.createdAt}`);
 
 				if (buildConfig.dependencies && buildConfig.dependencies.length > 0) {
 					console.log('');

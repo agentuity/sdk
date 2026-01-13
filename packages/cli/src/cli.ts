@@ -684,8 +684,7 @@ async function getRegion(regions: RegionList): Promise<string> {
 
 interface ResolveRegionOptions {
 	options: Record<string, unknown>;
-	apiClient: APIClientType;
-	profileName: string;
+	regions: RegionList;
 	logger: Logger;
 	required: boolean;
 	region?: string;
@@ -775,10 +774,7 @@ async function fetchRegionsWithCache(
 }
 
 async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
-	const { options, apiClient, profileName, logger, required } = opts;
-
-	// Fetch regions (with caching)
-	const regions = await fetchRegionsWithCache(profileName, apiClient, logger);
+	const { options, regions, logger, required } = opts;
 
 	// No regions available
 	if (regions.length === 0) {
@@ -1009,18 +1005,27 @@ async function registerSubcommand(
 				if (opt.hasDefault) {
 					const defaultValue =
 						typeof opt.defaultValue === 'function' ? opt.defaultValue() : opt.defaultValue;
-					// For boolean flags with default true, only show the --no-* flag in help
-					// since that's the only actionable flag users need to know about.
-					// The positive flag is hidden but still functional.
+					// Register both positive and negative forms so both work,
+					// but only show one in help based on the default value
 					const baseDesc = desc.replace(/\s*\(use\s+--no-\S+\s+to\s+skip\)/i, '').trim();
 					const negatedDesc = baseDesc.toLowerCase().startsWith('run ')
 						? `Skip ${baseDesc.slice(4)}`
 						: `Do not ${baseDesc.charAt(0).toLowerCase()}${baseDesc.slice(1)}`;
-					cmd.option(`--no-${flag}`, negatedDesc);
-					const positiveOption = cmd.createOption(flagSpec, baseDesc);
-					positiveOption.default(defaultValue);
-					positiveOption.hideHelp();
-					cmd.addOption(positiveOption);
+
+					if (defaultValue === true) {
+						// Show --no-* in help, hide positive flag
+						cmd.option(`--no-${flag}`, negatedDesc);
+						const positiveOption = cmd.createOption(flagSpec, baseDesc);
+						positiveOption.default(defaultValue);
+						positiveOption.hideHelp();
+						cmd.addOption(positiveOption);
+					} else {
+						// Show positive flag in help, but also register --no-* hidden
+						cmd.option(flagSpec, desc);
+						const negativeOption = cmd.createOption(`--no-${flag}`, negatedDesc);
+						negativeOption.hideHelp();
+						cmd.addOption(negativeOption);
+					}
 				} else {
 					cmd.option(flagSpec, desc);
 				}
@@ -1239,19 +1244,23 @@ async function registerSubcommand(
 					}
 					if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 						const apiClient: APIClientType = ctx.apiClient as APIClientType;
-						const region = await tui.spinner({
+						const regions = await tui.spinner({
 							message: 'Fetching cloud regions',
 							clearOnSuccess: true,
 							callback: async () => {
-								return resolveRegion({
-									options: options as Record<string, unknown>,
+								return fetchRegionsWithCache(
+									baseCtx.config?.name ?? defaultProfileName,
 									apiClient,
-									profileName: baseCtx.config?.name ?? defaultProfileName,
-									logger: baseCtx.logger,
-									required: !!normalized.requiresRegion,
-									region: project?.region,
-								});
+									baseCtx.logger
+								);
 							},
+						});
+						const region = await resolveRegion({
+							options: options as Record<string, unknown>,
+							regions,
+							logger: baseCtx.logger,
+							required: !!normalized.requiresRegion,
+							region: project?.region,
 						});
 						if (region) {
 							ctx.region = region;
@@ -1311,15 +1320,23 @@ async function registerSubcommand(
 				}
 				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
-					const region = await tui.spinner('Fetching cloud regions', async () => {
-						return resolveRegion({
-							options: options as Record<string, unknown>,
-							apiClient,
-							profileName: baseCtx.config?.name ?? defaultProfileName,
-							logger: baseCtx.logger,
-							required: !!normalized.requiresRegion,
-							region: project?.region,
-						});
+					const regions = await tui.spinner({
+						message: 'Fetching cloud regions',
+						clearOnSuccess: true,
+						callback: async () => {
+							return fetchRegionsWithCache(
+								baseCtx.config?.name ?? defaultProfileName,
+								apiClient,
+								baseCtx.logger
+							);
+						},
+					});
+					const region = await resolveRegion({
+						options: options as Record<string, unknown>,
+						regions,
+						logger: baseCtx.logger,
+						required: !!normalized.requiresRegion,
+						region: project?.region,
 					});
 					if (region) {
 						ctx.region = region;
@@ -1426,10 +1443,20 @@ async function registerSubcommand(
 						auth
 					) {
 						const apiClient: APIClientType = ctx.apiClient as APIClientType;
+						const regions = await tui.spinner({
+							message: 'Fetching cloud regions',
+							clearOnSuccess: true,
+							callback: async () => {
+								return fetchRegionsWithCache(
+									baseCtx.config?.name ?? defaultProfileName,
+									apiClient,
+									baseCtx.logger
+								);
+							},
+						});
 						const region = await resolveRegion({
 							options: options as Record<string, unknown>,
-							apiClient,
-							profileName: baseCtx.config?.name ?? defaultProfileName,
+							regions,
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
 							region: project?.region,
@@ -1491,12 +1518,23 @@ async function registerSubcommand(
 				}
 				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
+					const regions = await tui.spinner({
+						message: 'Fetching cloud regions',
+						clearOnSuccess: true,
+						callback: async () => {
+							return fetchRegionsWithCache(
+								baseCtx.config?.name ?? defaultProfileName,
+								apiClient,
+								baseCtx.logger
+							);
+						},
+					});
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
-						apiClient,
-						profileName: baseCtx.config?.name ?? defaultProfileName,
+						regions,
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
+						region: project?.region,
 					});
 					if (region) {
 						ctx.region = region;
@@ -1603,10 +1641,20 @@ async function registerSubcommand(
 				}
 				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
+					const regions = await tui.spinner({
+						message: 'Fetching cloud regions',
+						clearOnSuccess: true,
+						callback: async () => {
+							return fetchRegionsWithCache(
+								baseCtx.config?.name ?? defaultProfileName,
+								apiClient,
+								baseCtx.logger
+							);
+						},
+					});
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
-						apiClient,
-						profileName: baseCtx.config?.name ?? defaultProfileName,
+						regions,
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
 						region: project?.region,
@@ -1732,10 +1780,20 @@ export async function registerCommands(
 						}
 						if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 							const apiClient: APIClientType = ctx.apiClient as APIClientType;
+							const regions = await tui.spinner({
+								message: 'Fetching cloud regions',
+								clearOnSuccess: true,
+								callback: async () => {
+									return fetchRegionsWithCache(
+										baseCtx.config?.name ?? defaultProfileName,
+										apiClient,
+										baseCtx.logger
+									);
+								},
+							});
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
-								apiClient,
-								profileName: baseCtx.config?.name ?? defaultProfileName,
+								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});
@@ -1790,10 +1848,20 @@ export async function registerCommands(
 						}
 						if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 							const apiClient: APIClientType = ctx.apiClient as APIClientType;
+							const regions = await tui.spinner({
+								message: 'Fetching cloud regions',
+								clearOnSuccess: true,
+								callback: async () => {
+									return fetchRegionsWithCache(
+										baseCtx.config?.name ?? defaultProfileName,
+										apiClient,
+										baseCtx.logger
+									);
+								},
+							});
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
-								apiClient,
-								profileName: baseCtx.config?.name ?? defaultProfileName,
+								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});
@@ -1811,10 +1879,20 @@ export async function registerCommands(
 						}
 						if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 							const apiClient = ctx.apiClient as APIClientType;
+							const regions = await tui.spinner({
+								message: 'Fetching cloud regions',
+								clearOnSuccess: true,
+								callback: async () => {
+									return fetchRegionsWithCache(
+										baseCtx.config?.name ?? defaultProfileName,
+										apiClient,
+										baseCtx.logger
+									);
+								},
+							});
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
-								apiClient,
-								profileName: baseCtx.config?.name ?? defaultProfileName,
+								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});

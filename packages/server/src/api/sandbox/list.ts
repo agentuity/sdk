@@ -13,6 +13,7 @@ const SandboxOrgInfoSchema = z
 const SandboxInfoSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
+		identifier: z.string().optional().describe('Short identifier for DNS hostname'),
 		name: z.string().optional().describe('Sandbox name'),
 		description: z.string().optional().describe('Sandbox description'),
 		status: z
@@ -30,6 +31,8 @@ const SandboxInfoSchema = z
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
 		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
+		networkPort: z.number().optional().describe('Network port exposed from the sandbox'),
+		url: z.string().optional().describe('Public URL for the sandbox (only set if networkPort is configured)'),
 		org: SandboxOrgInfoSchema.describe('Organization associated with the sandbox'),
 	})
 	.describe('Summary information about a sandbox');
@@ -73,6 +76,9 @@ export async function sandboxList(
 	}
 	if (params?.status) {
 		queryParams.set('status', params.status);
+	}
+	if (params?.live !== undefined) {
+		queryParams.set('live', params.live.toString());
 	}
 	if (params?.limit !== undefined) {
 		queryParams.set('limit', params.limit.toString());

@@ -72,6 +72,13 @@ export const createSubcommand = createCommand({
 				.optional()
 				.describe('Apt packages to install (can be specified multiple times)'),
 			metadata: z.string().optional().describe('JSON object of user-defined metadata'),
+			port: z
+				.number()
+				.int()
+				.min(1024)
+				.max(65535)
+				.optional()
+				.describe('Port to expose from the sandbox to the outside Internet (1024-65535)'),
 		}),
 		response: SandboxCreateResponseSchema,
 	},
@@ -164,7 +171,10 @@ export const createSubcommand = createCommand({
 								disk: opts.disk,
 							}
 						: undefined,
-				network: opts.network ? { enabled: true } : undefined,
+				network:
+					opts.network || opts.port
+						? { enabled: opts.network || opts.port !== undefined, port: opts.port }
+						: undefined,
 				timeout: opts.idleTimeout ? { idle: opts.idleTimeout } : undefined,
 				env: Object.keys(envMap).length > 0 ? envMap : undefined,
 				command: hasFiles ? { exec: [], files } : undefined,
