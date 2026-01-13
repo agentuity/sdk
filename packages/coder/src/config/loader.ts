@@ -61,7 +61,7 @@ export async function loadCoderConfig(): Promise<CoderConfig> {
 		const cliConfig = YAML.parse(content) as CLIConfig;
 
 		const coderConfig: CoderConfig = {
-			org: cliConfig.coder?.org ?? cliConfig.preferences?.orgId,
+			org: cliConfig.preferences?.orgId,
 		};
 
 		const result = CoderConfigSchema.safeParse(coderConfig);

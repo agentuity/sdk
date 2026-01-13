@@ -85,21 +85,9 @@ Add to your `opencode.json` for enhanced Scout/Expert capabilities:
 
 ## Local Development
 
-When developing the coder package locally, configure both Agentuity CLI and OpenCode to use your local build.
+When developing the coder package locally, configure OpenCode to use your local build.
 
-### 1. Configure Agentuity CLI
-
-Edit `~/.config/agentuity/production.yaml` to point to your local package:
-
-```yaml
-coder:
-   source: local
-   path: /path/to/agentuity/sdk/packages/coder
-```
-
-### 2. Configure OpenCode
-
-Edit `~/.config/opencode/opencode.json` to add the local plugin path:
+Edit `~/.config/opencode/opencode.json` to point to your local package:
 
 ```jsonc
 {
@@ -110,36 +98,14 @@ Edit `~/.config/opencode/opencode.json` to add the local plugin path:
 }
 ```
 
-Or in a project-specific `opencode.json`:
-
-```jsonc
-{
-   "$schema": "https://opencode.ai/config.json",
-   "plugin": [
-      "/path/to/agentuity/sdk/packages/coder"
-   ]
-}
-```
-
-### 3. Build and Test
+Then build and restart OpenCode:
 
 ```bash
-# Build the coder package
 cd packages/coder
 bun run build
-
-# Re-run install to update OpenCode config
-agentuity coder install
-
-# Or manually restart OpenCode to pick up changes
 ```
 
-### Switching Back to npm
-
-To revert to the published npm package:
-
-1. Remove the `coder` section from `~/.config/agentuity/production.yaml`
-2. Run `agentuity coder install` again (or manually update `opencode.json`)
+To revert to the published npm package, run `agentuity coder install` to reset the plugin path to `@agentuity/coder`.
 
 ## Resources
 

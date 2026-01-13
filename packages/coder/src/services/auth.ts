@@ -53,7 +53,7 @@ export async function getCloudContext(): Promise<CloudContext> {
 		const config = YAML.parse(content) as ConfigFile;
 
 		const hasAuth = Boolean(config.auth?.api_key);
-		const orgId = config.coder?.org ?? config.preferences?.orgId;
+		const orgId = config.preferences?.orgId;
 
 		return {
 			authenticated: hasAuth,

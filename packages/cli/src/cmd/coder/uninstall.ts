@@ -1,11 +1,9 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
-import { loadConfig, saveConfig } from '../../config';
 
 const OPENCODE_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 const OPENCODE_CONFIG_FILE = join(OPENCODE_CONFIG_DIR, 'opencode.json');
@@ -18,27 +16,14 @@ export const uninstallSubcommand = createSubcommand({
 	name: 'uninstall',
 	description: 'Uninstall Agentuity Coder plugin from Open Code',
 	tags: ['fast'],
-	schema: {
-		options: z.object({
-			keepConfig: z
-				.boolean()
-				.optional()
-				.default(false)
-				.describe('Keep Agentuity CLI coder configuration'),
-		}),
-	},
 	examples: [
 		{
 			command: getCommand('coder uninstall'),
 			description: 'Uninstall Agentuity Coder from Open Code',
 		},
-		{
-			command: getCommand('coder uninstall --keep-config'),
-			description: 'Uninstall but keep CLI configuration',
-		},
 	],
 	async handler(ctx) {
-		const { opts, options } = ctx;
+		const { options } = ctx;
 		const jsonMode = !!options?.json;
 
 		if (!jsonMode) {
@@ -48,9 +33,8 @@ export const uninstallSubcommand = createSubcommand({
 		}
 
 		let removedFromOpenCode = false;
-		let removedFromConfig = false;
 
-		// Step 1: Remove from OpenCode config
+		// Remove from OpenCode config
 		if (!(await fileExists(OPENCODE_CONFIG_FILE))) {
 			if (!jsonMode) {
 				tui.info('Open Code config not found - nothing to uninstall');
@@ -89,38 +73,10 @@ export const uninstallSubcommand = createSubcommand({
 			}
 		}
 
-		// Step 2: Remove coder config from Agentuity CLI config
-		if (!opts.keepConfig) {
-			try {
-				const config = await loadConfig();
-				if (config?.coder) {
-					const updatedConfig = { ...config };
-					delete updatedConfig.coder;
-					await saveConfig(updatedConfig);
-					if (!jsonMode) {
-						tui.success('Removed coder configuration from CLI config');
-					}
-					removedFromConfig = true;
-				} else {
-					if (!jsonMode) {
-						tui.info('No coder configuration found in CLI config');
-					}
-				}
-			} catch (error) {
-				if (!jsonMode) {
-					tui.warn(`Failed to update CLI config: ${error}`);
-				}
-			}
-		} else {
-			if (!jsonMode) {
-				tui.info('Keeping CLI coder configuration (--keep-config)');
-			}
-		}
-
 		if (!jsonMode) {
 			tui.newline();
 
-			if (removedFromOpenCode || removedFromConfig) {
+			if (removedFromOpenCode) {
 				tui.output(tui.bold('Agentuity Coder uninstalled successfully'));
 			} else {
 				tui.output(tui.bold('Agentuity Coder was not installed'));
@@ -131,7 +87,7 @@ export const uninstallSubcommand = createSubcommand({
 			tui.newline();
 		}
 
-		return { success: true, removedFromOpenCode, removedFromConfig };
+		return { success: true, removedFromOpenCode };
 	},
 });
 

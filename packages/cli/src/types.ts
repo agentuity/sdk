@@ -61,14 +61,7 @@ export const ConfigSchema = zod.object({
 		})
 		.optional()
 		.describe('the gravity client information'),
-	coder: zod
-		.object({
-			org: zod.string().optional().describe('Organization ID for coder plugin'),
-			source: zod.enum(['npm', 'local']).optional().describe('Plugin source type'),
-			path: zod.string().optional().describe('Local plugin path (when source is local)'),
-		})
-		.optional()
-		.describe('Agentuity Coder plugin configuration'),
+
 });
 
 export type Config = zod.infer<typeof ConfigSchema>;
