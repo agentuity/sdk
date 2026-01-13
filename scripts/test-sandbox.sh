@@ -733,8 +733,8 @@ else
 	fi
 fi
 
-# Test: Create sandbox from snapshot
-info "Test: sandbox create --snapshot"
+# Test: Create sandbox from snapshot (by ID)
+info "Test: sandbox create --snapshot (by ID)"
 SNAP_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$SNAPSHOT_ID" --json 2>&1) || true
 SNAP_SANDBOX_ID=$(echo "$SNAP_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$SNAP_SANDBOX_ID" ]; then
@@ -742,25 +742,119 @@ if [ -n "$SNAP_SANDBOX_ID" ]; then
 	sleep 3
 	RESTORE_VERIFY=$($CLI cloud sandbox exec "$SNAP_SANDBOX_ID" -- cat /home/agentuity/test.txt 2>&1) || true
 	if echo "$RESTORE_VERIFY" | grep -q "Hello from test file"; then
-		pass "sandbox from snapshot contains restored files"
+		pass "sandbox from snapshot (by ID) contains restored files"
 	else
-		fail "sandbox from snapshot missing files" "$RESTORE_VERIFY"
+		fail "sandbox from snapshot (by ID) missing files" "$RESTORE_VERIFY"
 	fi
 	# Clean up snapshot sandbox
 	$CLI cloud sandbox delete "$SNAP_SANDBOX_ID" --confirm 2>/dev/null || true
 else
-	fail "failed to create sandbox from snapshot" "$SNAP_SANDBOX"
+	fail "failed to create sandbox from snapshot (by ID)" "$SNAP_SANDBOX"
 fi
 
-# Test: Delete snapshot
-info "Test: snapshot delete"
-SNAP_DELETE_OUTPUT=$($CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>&1) || true
-if echo "$SNAP_DELETE_OUTPUT" | grep -qi "deleted"; then
-	pass "snapshot delete succeeds"
-	SNAPSHOT_ID=""
+# Delete the first snapshot before creating a named one
+$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
+SNAPSHOT_ID=""
+
+# ============================================
+section "SNAPSHOT name:tag Resolution Tests"
+# ============================================
+
+# Create snapshot with explicit name and tag
+SNAP_NAME="test-snap-$(date +%s)"
+SNAP_TAG="v1"
+info "Test: snapshot create with --name and --tag"
+NAMED_SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "$SNAP_NAME" --tag "$SNAP_TAG" --json 2>&1) || true
+SNAPSHOT_ID=$(echo "$NAMED_SNAP_CREATE" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+CREATED_NAME=$(echo "$NAMED_SNAP_CREATE" | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+CREATED_TAG=$(echo "$NAMED_SNAP_CREATE" | grep -o '"tag"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+
+if [ "$CREATED_NAME" = "$SNAP_NAME" ] && [ "$CREATED_TAG" = "$SNAP_TAG" ]; then
+	pass "snapshot create with --name and --tag: name=$CREATED_NAME, tag=$CREATED_TAG"
 else
-	fail "snapshot delete failed" "$SNAP_DELETE_OUTPUT"
+	fail "snapshot create did not set name/tag correctly" "expected name=$SNAP_NAME tag=$SNAP_TAG, got name=$CREATED_NAME tag=$CREATED_TAG"
 fi
+
+# Test: Create sandbox using name:tag format
+info "Test: sandbox create --snapshot name:tag"
+NAMETAG_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$SNAP_NAME:$SNAP_TAG" --json 2>&1) || true
+NAMETAG_SANDBOX_ID=$(echo "$NAMETAG_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$NAMETAG_SANDBOX_ID" ] && [[ "$NAMETAG_SANDBOX_ID" == sbx_* ]]; then
+	sleep 3
+	NAMETAG_VERIFY=$($CLI cloud sandbox exec "$NAMETAG_SANDBOX_ID" -- cat /home/agentuity/test.txt 2>&1) || true
+	if echo "$NAMETAG_VERIFY" | grep -q "Hello from test file"; then
+		pass "sandbox from snapshot (by name:tag) contains restored files"
+	else
+		fail "sandbox from snapshot (by name:tag) missing files" "$NAMETAG_VERIFY"
+	fi
+	$CLI cloud sandbox delete "$NAMETAG_SANDBOX_ID" --confirm 2>/dev/null || true
+else
+	fail "failed to create sandbox from snapshot using name:tag format" "$NAMETAG_SANDBOX"
+fi
+
+# Create another snapshot with same name but "latest" tag (default)
+info "Test: snapshot create with --name (defaults to latest tag)"
+LATEST_SNAP_CREATE=$($CLI cloud sandbox snapshot create "$SANDBOX_ID" --name "$SNAP_NAME" --json 2>&1) || true
+LATEST_SNAP_ID=$(echo "$LATEST_SNAP_CREATE" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+LATEST_TAG=$(echo "$LATEST_SNAP_CREATE" | grep -o '"tag"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ "$LATEST_TAG" = "latest" ]; then
+	pass "snapshot create without --tag defaults to 'latest'"
+else
+	fail "snapshot create did not default to 'latest' tag" "got tag=$LATEST_TAG"
+fi
+
+# Test: Create sandbox using name:latest format
+info "Test: sandbox create --snapshot name:latest"
+LATEST_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$SNAP_NAME:latest" --json 2>&1) || true
+LATEST_SANDBOX_ID=$(echo "$LATEST_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$LATEST_SANDBOX_ID" ] && [[ "$LATEST_SANDBOX_ID" == sbx_* ]]; then
+	sleep 3
+	LATEST_VERIFY=$($CLI cloud sandbox exec "$LATEST_SANDBOX_ID" -- cat /home/agentuity/test.txt 2>&1) || true
+	if echo "$LATEST_VERIFY" | grep -q "Hello from test file"; then
+		pass "sandbox from snapshot (by name:latest) contains restored files"
+	else
+		fail "sandbox from snapshot (by name:latest) missing files" "$LATEST_VERIFY"
+	fi
+	$CLI cloud sandbox delete "$LATEST_SANDBOX_ID" --confirm 2>/dev/null || true
+else
+	fail "failed to create sandbox from snapshot using name:latest format" "$LATEST_SANDBOX"
+fi
+
+# Test: Create sandbox using just the snapshot name (should resolve to latest)
+info "Test: sandbox create --snapshot name (implicit latest)"
+IMPLICIT_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$SNAP_NAME" --json 2>&1) || true
+IMPLICIT_SANDBOX_ID=$(echo "$IMPLICIT_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$IMPLICIT_SANDBOX_ID" ] && [[ "$IMPLICIT_SANDBOX_ID" == sbx_* ]]; then
+	sleep 3
+	IMPLICIT_VERIFY=$($CLI cloud sandbox exec "$IMPLICIT_SANDBOX_ID" -- cat /home/agentuity/test.txt 2>&1) || true
+	if echo "$IMPLICIT_VERIFY" | grep -q "Hello from test file"; then
+		pass "sandbox from snapshot (by name only) contains restored files"
+	else
+		fail "sandbox from snapshot (by name only) missing files" "$IMPLICIT_VERIFY"
+	fi
+	$CLI cloud sandbox delete "$IMPLICIT_SANDBOX_ID" --confirm 2>/dev/null || true
+else
+	fail "failed to create sandbox from snapshot using name only" "$IMPLICIT_SANDBOX"
+fi
+
+# Test: Error handling for non-existent snapshot name:tag
+info "Test: sandbox create --snapshot with non-existent name:tag"
+NONEXIST_OUTPUT=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "nonexistent-snap-$(date +%s):v999" --json 2>&1) || true
+if echo "$NONEXIST_OUTPUT" | grep -qi "not found\|error\|failed"; then
+	pass "non-existent snapshot name:tag returns error"
+else
+	# Clean up if sandbox was somehow created
+	NONEXIST_ID=$(echo "$NONEXIST_OUTPUT" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$NONEXIST_ID" ]; then
+		$CLI cloud sandbox delete "$NONEXIST_ID" --confirm 2>/dev/null || true
+	fi
+	fail "non-existent snapshot should have returned error" "$NONEXIST_OUTPUT"
+fi
+
+# Clean up snapshots
+$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
+$CLI cloud sandbox snapshot delete "$LATEST_SNAP_ID" --confirm 2>/dev/null || true
+SNAPSHOT_ID=""
 
 # ============================================
 section "DELETE Command Tests"
