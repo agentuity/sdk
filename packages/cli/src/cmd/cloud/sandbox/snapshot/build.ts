@@ -174,13 +174,18 @@ async function resolveFileGlobs(
 		const glob = new Bun.Glob(pattern);
 		for await (const file of glob.scan({ cwd: directory, dot: true })) {
 			const absolutePath = join(directory, file);
-			const stat = statSync(absolutePath);
-			if (stat.isFile()) {
-				files.set(file, {
-					path: file,
-					absolutePath,
-					size: stat.size,
-				});
+			try {
+				const stat = statSync(absolutePath);
+				if (stat.isFile()) {
+					files.set(file, {
+						path: file,
+						absolutePath,
+						size: stat.size,
+					});
+				}
+			} catch {
+				// Skip files that can't be stat'd (broken symlinks, permission issues, etc.)
+				continue;
 			}
 		}
 	}

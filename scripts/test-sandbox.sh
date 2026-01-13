@@ -1079,7 +1079,7 @@ files:
   - scripts/**
 EOF
 
-DRY_RUN_BUILD=$($CLI --dry-run cloud sandbox snapshot build "$BUILD_DIR" 2>&1) || true
+DRY_RUN_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --dry-run 2>&1) || true
 # Dry run should show info but not create a snapshot
 if echo "$DRY_RUN_BUILD" | grep -qi "dry run"; then
 	pass "snapshot build --dry-run shows dry run message"
