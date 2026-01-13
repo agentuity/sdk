@@ -9,10 +9,7 @@
 		"directory": "packages/auth"
 	},
 	"license": "Apache-2.0",
-	"files": [
-		"dist",
-		"README.md"
-	],
+	"files": ["dist", "README.md"],
 	"exports": {
 		".": "./dist/index.js",
 		"./react": "./dist/agentuity/react.js",
@@ -21,18 +18,10 @@
 	},
 	"typesVersions": {
 		"*": {
-			".": [
-				"./dist/index.d.ts"
-			],
-			"react": [
-				"./dist/agentuity/react.d.ts"
-			],
-			"types": [
-				"./dist/agentuity/types.d.ts"
-			],
-			"schema": [
-				"./dist/schema.d.ts"
-			]
+			".": ["./dist/index.d.ts"],
+			"react": ["./dist/agentuity/react.d.ts"],
+			"types": ["./dist/agentuity/types.d.ts"],
+			"schema": ["./dist/schema.d.ts"]
 		}
 	},
 	"scripts": {
@@ -41,7 +30,7 @@
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {
-		"better-auth": "1.4.11",
+		"better-auth": "^1.4.9",
 		"drizzle-orm": "^0.45.0"
 	},
 	"peerDependencies": {

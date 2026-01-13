@@ -594,7 +594,9 @@ describe('VectorStorageService', () => {
 		});
 
 		test('returns false when namespace does not exist (404 returns empty stats)', async () => {
-			const { adapter } = createMockAdapter([{ ok: true, status: 404, data: { sum: 0, count: 0 } }]);
+			const { adapter } = createMockAdapter([
+				{ ok: true, status: 404, data: { sum: 0, count: 0 } },
+			]);
 
 			const service = new VectorStorageService(baseUrl, adapter);
 			const result = await service.exists('non-existent');

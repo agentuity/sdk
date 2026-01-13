@@ -27,6 +27,9 @@ jobs:
       runs-on: blacksmith-4vcpu-ubuntu-2204
       timeout-minutes: 15
       name: Pack & Upload
+      outputs:
+         prerelease_version: ${{ steps.pack.outputs.prerelease_version }}
+         packages_json: ${{ steps.pack.outputs.packages_json }}
       steps:
          - uses: actions/checkout@v4
            with:
@@ -39,8 +42,15 @@ jobs:
            run: bun install
 
          - name: Pack and Upload
-           id: pack
-           run: bun scripts/canary.ts
+            id: pack
+            run: bun scripts/canary.ts
+
+         - name: Upload manifest artifact
+           uses: actions/upload-artifact@v4
+           with:
+              name: canary-manifest
+              path: dist/packs/manifest.json
+              retention-days: 7
 
          - name: Comment on PR
            if: github.event_name == 'pull_request'
