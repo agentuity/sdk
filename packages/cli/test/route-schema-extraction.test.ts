@@ -187,6 +187,7 @@ export default router;
 import { createRouter } from '@agentuity/runtime';
 import agent1 from '@agent/hello';
 import agent2 from '@agent/goodbye';
+import { CustomSchema } from './schemas';
 
 const router = createRouter();
 router.post('/hello', agent1.validator(), async (c) => c.json({ ok: true }));
@@ -299,7 +300,7 @@ import { createRouter } from '@agentuity/runtime';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 
-const schema = z.object({
+export const schema = z.object({
 	name: z.string(),
 	age: z.number(),
 });
@@ -356,7 +357,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { authMiddleware } from './middleware';
 
-const schema = z.object({ name: z.string() });
+export const schema = z.object({ name: z.string() });
 
 const router = createRouter();
 router.post('/test', authMiddleware, zValidator('json', schema), async (c) => {
@@ -384,7 +385,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import myAgent from '@agent/hello';
 
-const zodSchema = z.object({ email: z.string() });
+export const zodSchema = z.object({ email: z.string() });
 
 const router = createRouter();
 router.post('/zod', zValidator('json', zodSchema), async (c) => c.json({ ok: true }));
@@ -473,7 +474,7 @@ import { s } from '@agentuity/schema';
 import { validator } from 'hono/validator';
 
 const router = createRouter();
-const createUserSchema = s.object({
+export const createUserSchema = s.object({
 	name: s.string(),
 	email: s.string(),
 	age: s.number(),
@@ -516,7 +517,7 @@ export default router;
 import { createRouter } from '@agentuity/runtime';
 import { validator } from 'hono/validator';
 
-const mySchema = { validate: (v) => v };
+export const mySchema = { validate: (v) => v };
 
 const router = createRouter();
 
