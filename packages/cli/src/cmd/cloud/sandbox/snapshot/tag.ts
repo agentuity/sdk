@@ -49,7 +49,9 @@ export const tagSubcommand = createCommand({
 
 		if (args.tag) {
 			if (args.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
-				logger.fatal(`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`);
+				logger.fatal(
+					`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`
+				);
 			}
 			if (!SNAPSHOT_TAG_REGEX.test(args.tag)) {
 				logger.fatal(
