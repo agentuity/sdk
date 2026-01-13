@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { resolve } from 'path';
 import { execSync } from 'child_process';
-import { rmSync } from 'fs';
+import { rmSync, existsSync, readdirSync } from 'fs';
 import { config } from 'dotenv';
 
 config({ path: resolve(__dirname, '..', '.env') });
@@ -13,6 +13,19 @@ if (!GH_TEST_ACC_REPO) {
 	throw new Error('GH_TEST_ACC_REPO is not set');
 }
 const TEST_PROJECT_DIR = resolve(__dirname, '..', 'apps', 'testing', GH_TEST_ACC_REPO);
+
+// Debug logging
+console.log('=== DEBUG INFO ===');
+console.log('__dirname:', __dirname);
+console.log('GH_TEST_ACC_REPO:', GH_TEST_ACC_REPO);
+console.log('TEST_PROJECT_DIR:', TEST_PROJECT_DIR);
+console.log('TEST_PROJECT_DIR exists:', existsSync(TEST_PROJECT_DIR));
+const appsTestingDir = resolve(__dirname, '..', 'apps', 'testing');
+console.log('apps/testing dir exists:', existsSync(appsTestingDir));
+if (existsSync(appsTestingDir)) {
+	console.log('apps/testing contents:', readdirSync(appsTestingDir));
+}
+console.log('==================');
 
 const TARGET_ORG_ID = process.env.GH_TEST_TARGET_ORG_ID;
 if (!TARGET_ORG_ID) {
