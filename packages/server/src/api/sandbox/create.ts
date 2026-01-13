@@ -5,10 +5,7 @@ import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
 
 const SandboxCreateRequestSchema = z
 	.object({
-		runtime: z
-			.string()
-			.optional()
-			.describe('Runtime name (e.g., "bun:1", "python:3.14")'),
+		runtime: z.string().optional().describe('Runtime name (e.g., "bun:1", "python:3.14")'),
 		runtimeId: z.string().optional().describe('Runtime ID (e.g., "srt_xxx")'),
 		name: z.string().optional().describe('Optional sandbox name'),
 		description: z.string().optional().describe('Optional sandbox description'),

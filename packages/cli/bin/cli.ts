@@ -15,6 +15,7 @@ import { setOutputOptions } from '../src/output';
 import type { GlobalOptions } from '../src/types';
 import { ensureBunOnPath } from '../src/bun-path';
 import { checkForUpdates } from '../src/version-check';
+import { closeDatabase } from '../src/cache';
 
 // Cleanup TTY state before exit
 function cleanupTTY() {
@@ -37,10 +38,12 @@ function cleanupTTY() {
 process.on('SIGINT', () => {
 	process.stdout.write('\b \b'); // erase the ctrl+c display
 	cleanupTTY();
+	closeDatabase();
 });
 
 process.on('SIGTERM', () => {
 	cleanupTTY();
+	closeDatabase();
 });
 
 validateRuntime();
@@ -75,6 +78,7 @@ if (
 	console.log(JSON.stringify(cliSchema, null, 2));
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
+	closeDatabase();
 	exit(0);
 }
 
@@ -171,14 +175,17 @@ try {
 			msg.includes('canceled') || // US
 			msg === ''
 		) {
+			closeDatabase();
 			exit(0);
 		}
 		if ('name' in error && error.name === 'AbortError') {
+			closeDatabase();
 			exit(0);
 		}
 	}
 	// Also exit cleanly if error is empty/undefined (user cancellation)
 	if (!error) {
+		closeDatabase();
 		exit(0);
 	}
 	const errorWithMessage = error as { message?: string };
@@ -191,5 +198,6 @@ try {
 			error
 		);
 	}
+	closeDatabase();
 	exit(1);
 }

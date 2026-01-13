@@ -205,6 +205,7 @@ describe('SandboxClient', () => {
 								status: 'running',
 								createdAt: '2025-01-01T00:00:00Z',
 								executions: 5,
+								org: { id: 'org-123', name: 'Test Org' },
 							},
 						}),
 						{ status: 200, headers: { 'content-type': 'application/json' } }
@@ -279,6 +280,7 @@ describe('SandboxClient', () => {
 								status: 'idle',
 								createdAt: '2025-01-01T00:00:00Z',
 								executions: 0,
+								org: { id: 'org-123', name: 'Test Org' },
 							},
 						}),
 						{ status: 200, headers: { 'content-type': 'application/json' } }

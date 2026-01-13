@@ -26,7 +26,7 @@ describe('AST Stream Flag Extraction - Edge Cases', () => {
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: true }), async (c) => {
@@ -50,7 +50,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: false }), async (c) => {
@@ -74,7 +74,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 const streamFlag = true;
 
 const router = createRouter();
@@ -100,7 +100,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: true }), async (c) => {
@@ -124,7 +124,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: !false }), async (c) => {
@@ -147,7 +147,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: !true }), async (c) => {
@@ -170,8 +170,8 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const InputSchema = s.object({ query: s.string() });
-const OutputSchema = s.object({ result: s.string() });
+export const InputSchema = s.object({ query: s.string() });
+export const OutputSchema = s.object({ result: s.string() });
 
 const router = createRouter();
 router.post('/search',
@@ -204,7 +204,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const InputSchema = s.object({ data: s.string() });
+export const InputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/process',
@@ -235,7 +235,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ events: s.array(s.string()) });
+export const OutputSchema = s.object({ events: s.array(s.string()) });
 
 const router = createRouter();
 router.get('/events',
@@ -266,7 +266,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const Schema = s.object({ value: s.string() });
+export const Schema = s.object({ value: s.string() });
 
 const router = createRouter();
 
@@ -294,7 +294,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const Schema = s.object({ value: s.string() });
+export const Schema = s.object({ value: s.string() });
 
 const router = createRouter();
 
@@ -368,7 +368,7 @@ export default router;
 import { createRouter, createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const CustomSchema = s.object({ custom: s.string() });
+export const CustomSchema = s.object({ custom: s.string() });
 
 const myAgent = createAgent({
 	schema: {
@@ -408,7 +408,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ "output": OutputSchema, "stream": true }), async (c) => {
@@ -432,7 +432,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const Schema = s.object({ data: s.string() });
+export const Schema = s.object({ data: s.string() });
 
 const router = createRouter();
 
@@ -496,7 +496,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 const authMiddleware = async (c, next) => {
 	c.set('user', 'test');
 	await next();
@@ -529,7 +529,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 
@@ -558,8 +558,8 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const BaseSchema = s.object({ id: s.string() });
-const ExtendedSchema = s.object({ id: s.string(), data: s.string() });
+export const BaseSchema = s.object({ id: s.string() });
+export const ExtendedSchema = s.object({ id: s.string(), data: s.string() });
 
 const router = createRouter();
 

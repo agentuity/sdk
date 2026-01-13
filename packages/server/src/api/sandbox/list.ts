@@ -3,6 +3,13 @@ import { APIClient, APIResponseSchema } from '../api';
 import { SandboxResponseError, API_VERSION } from './util';
 import type { ListSandboxesParams, ListSandboxesResponse, SandboxStatus } from '@agentuity/core';
 
+const SandboxOrgInfoSchema = z
+	.object({
+		id: z.string().describe('Organization ID'),
+		name: z.string().describe('Organization name'),
+	})
+	.describe('Organization associated with the sandbox');
+
 const SandboxInfoSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
@@ -23,6 +30,7 @@ const SandboxInfoSchema = z
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
 		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
+		org: SandboxOrgInfoSchema.describe('Organization associated with the sandbox'),
 	})
 	.describe('Summary information about a sandbox');
 
@@ -103,6 +111,7 @@ export async function sandboxList(
 				stdoutStreamUrl: s.stdoutStreamUrl,
 				stderrStreamUrl: s.stderrStreamUrl,
 				networkEnabled: s.networkEnabled,
+				org: s.org,
 			})),
 			total: resp.data.total,
 		};

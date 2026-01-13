@@ -56,7 +56,7 @@ export const command = createCommand({
 		uploadSubcommand,
 		envSubcommand,
 	],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 });
 
 export default command;

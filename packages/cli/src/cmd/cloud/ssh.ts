@@ -3,6 +3,7 @@ import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
 import { getIONHost } from '../../config';
 import { getCommand } from '../../command-prefix';
+import { getIdentifierRegion } from './region-lookup';
 const args = z.object({
 	identifier: z.string().optional().describe('The project, deployment, or sandbox id to use'),
 	command: z.string().optional().describe('The command to run'),
@@ -39,13 +40,13 @@ export const sshSubcommand = createSubcommand({
 		},
 	],
 	toplevel: true,
-	requires: { auth: true, apiClient: true, region: true },
+	requires: { auth: true, apiClient: true },
 	optional: { project: true },
 	prerequisites: ['cloud deploy'],
 	schema: { args, options },
 
 	async handler(ctx) {
-		const { apiClient, project, projectDir, args, config, opts, region } = ctx;
+		const { apiClient, project, projectDir, args, config, opts, logger, auth, orgId } = ctx;
 
 		let projectId = project?.projectId;
 		let identifier = args?.identifier;
@@ -65,6 +66,18 @@ export const sshSubcommand = createSubcommand({
 		if (!projectId && !identifier) {
 			projectId = await tui.showProjectList(apiClient, true);
 		}
+
+		// Look up region from identifier (project/deployment/sandbox)
+		const profileName = config?.name;
+		const targetIdentifier = identifier ?? projectId!;
+		const region = await getIdentifierRegion(
+			logger,
+			auth,
+			apiClient,
+			profileName,
+			targetIdentifier,
+			orgId
+		);
 
 		const hostname = getIONHost(config, region);
 

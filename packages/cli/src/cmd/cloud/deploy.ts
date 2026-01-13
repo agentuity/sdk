@@ -55,6 +55,7 @@ import { ErrorCode } from '../../errors';
 import { typecheck } from '../build/typecheck';
 import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
 import { runForkedDeploy } from './deploy-fork';
+import { validateAptDependencies } from '../../utils/apt-validator';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -168,6 +169,54 @@ export const deploySubcommand = createSubcommand({
 						tui.error(`  ${error}`);
 					}
 					tui.fatal('Fix the resource configuration and try again.', ErrorCode.CONFIG_INVALID);
+				}
+			}
+
+			// Validate apt dependencies before creating deployment
+			if (deploymentConfig.dependencies && deploymentConfig.dependencies.length > 0) {
+				const aptValidation = await tui.spinner({
+					message: 'Validating apt dependencies...',
+					type: 'simple',
+					callback: async () => {
+						return await validateAptDependencies(
+							deploymentConfig.dependencies!,
+							project.region,
+							config,
+							logger
+						);
+					},
+				});
+
+				if (aptValidation.invalid.length > 0) {
+					if (options.json) {
+						return {
+							success: false,
+							deploymentId: '',
+							projectId: project.projectId,
+							errors: aptValidation.invalid.map((pkg) => ({
+								type: 'invalid-apt-dependency',
+								package: pkg.package,
+								error: pkg.error,
+								searchUrl: pkg.searchUrl,
+								availableVersions: pkg.availableVersions,
+							})),
+						} as never;
+					}
+
+					tui.error('Invalid apt dependencies in agentuity.json:');
+					tui.newline();
+					for (const pkg of aptValidation.invalid) {
+						tui.bullet(`${tui.bold(pkg.package)}: ${pkg.error}`);
+						if (pkg.availableVersions && pkg.availableVersions.length > 0) {
+							tui.muted(`    Available versions: ${pkg.availableVersions.join(', ')}`);
+						}
+						tui.muted(`    Search: ${tui.link(pkg.searchUrl)}`);
+					}
+					tui.newline();
+					tui.fatal(
+						'Fix the apt dependencies and try again. Search for valid packages at: https://packages.debian.org/stable/',
+						ErrorCode.CONFIG_INVALID
+					);
 				}
 			}
 

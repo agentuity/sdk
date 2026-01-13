@@ -1,10 +1,11 @@
 import { z } from 'zod';
-import { listResources, dbTables, generateCreateTableSQL } from '@agentuity/server';
+import { listOrgResources, dbTables, generateCreateTableSQL } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
+import { getResourceInfo, setResourceInfo } from '../../../cache';
 
 const DBGetResponseSchema = z
 	.object({
@@ -22,7 +23,8 @@ export const getSubcommand = createSubcommand({
 	aliases: ['show'],
 	description: 'Show details about a specific database',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true },
+	optional: { org: true },
 	idempotent: true,
 	examples: [
 		{ command: `${getCommand('cloud db get')} my-database`, description: 'Get database details' },
@@ -66,31 +68,51 @@ export const getSubcommand = createSubcommand({
 	webUrl: (ctx) => `/services/database/${encodeURIComponent(ctx.args.name)}`,
 
 	async handler(ctx) {
-		const { logger, args, opts, options, orgId, region, auth } = ctx;
+		const { logger, args, opts, options, auth, config } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const profileName = config?.name ?? 'production';
+		const globalClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+
+		// Check cache first for orgId
+		const cachedInfo = await getResourceInfo('db', profileName, args.name);
+		const orgId = ctx.orgId ?? cachedInfo?.orgId;
+
+		if (!orgId) {
+			tui.fatal(
+				`Organization not found for database '${args.name}'. Run 'agentuity cloud db list' first or specify --org-id.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
 
 		const resources = await tui.spinner({
 			message: `Fetching database ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listResources(catalystClient, orgId, region);
+				return listOrgResources(globalClient, { type: 'db', orgId });
 			},
 		});
 
 		const db = resources.db.find((d) => d.name === args.name);
+
+		// Cache the database info for future lookups
+		if (db?.cloud_region) {
+			await setResourceInfo('db', profileName, db.name, db.cloud_region, orgId);
+		}
 
 		if (!db) {
 			tui.fatal(`Database '${args.name}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
 		}
 
 		// If --tables flag is provided, fetch table schemas
+		// Need regional Catalyst for database operations
 		if (opts.showTables) {
+			const region = db.cloud_region;
+			const regionalClient = getCatalystAPIClient(logger, auth, region);
 			const tables = await tui.spinner({
 				message: `Fetching table schemas for ${args.name}`,
 				clearOnSuccess: true,
 				callback: async () => {
-					return dbTables(catalystClient, {
+					return dbTables(regionalClient, {
 						database: args.name,
 						orgId,
 						region,
