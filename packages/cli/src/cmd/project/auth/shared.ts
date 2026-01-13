@@ -262,7 +262,7 @@ export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
  * @returns SQL DDL statements for auth tables
  */
 export async function generateAuthSchemaSql(logger: Logger, projectDir: string): Promise<string> {
-	const schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/src/schema.ts');
+	const schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/dist/schema.js');
 
 	if (!(await Bun.file(schemaPath).exists())) {
 		throw new Error(
