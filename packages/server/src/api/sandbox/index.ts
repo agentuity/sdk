@@ -49,7 +49,15 @@ export type {
 	SetEnvParams,
 	SetEnvResult,
 } from './files';
-export { snapshotCreate, snapshotGet, snapshotList, snapshotDelete, snapshotTag } from './snapshot';
+export {
+	snapshotCreate,
+	snapshotGet,
+	snapshotList,
+	snapshotDelete,
+	snapshotTag,
+	snapshotBuildInit,
+	snapshotBuildFinalize,
+} from './snapshot';
 export type {
 	SnapshotInfo,
 	SnapshotFileInfo,
@@ -59,4 +67,9 @@ export type {
 	SnapshotListResponse,
 	SnapshotDeleteParams,
 	SnapshotTagParams,
+	SnapshotBuildInitParams,
+	SnapshotBuildInitResponse,
+	SnapshotBuildFinalizeParams,
 } from './snapshot';
+export { SnapshotBuildFileSchema } from './snapshot-build';
+export type { SnapshotBuildFile } from './snapshot-build';

@@ -507,7 +507,11 @@ export class ListSandboxesTool implements vscode.LanguageModelTool<ListSandboxes
 
 		const sandboxes = result.data.map((s) => ({
 			id: s.sandboxId,
+			name: s.name,
+			description: s.description,
 			status: s.status,
+			runtime: s.runtimeName ?? s.runtimeId,
+			runtimeId: s.runtimeId,
 			region: s.region,
 			createdAt: s.createdAt,
 			resources: s.resources,
@@ -529,12 +533,57 @@ export class ListSandboxesTool implements vscode.LanguageModelTool<ListSandboxes
 	}
 }
 
+export interface ListSandboxRuntimesInput {
+	limit?: number;
+}
+
+export class ListSandboxRuntimesTool implements vscode.LanguageModelTool<ListSandboxRuntimesInput> {
+	async invoke(
+		options: vscode.LanguageModelToolInvocationOptions<ListSandboxRuntimesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.LanguageModelToolResult> {
+		const cli = getCliClient();
+		const limit = options.input.limit ?? 50;
+		const result = await cli.sandboxRuntimeList({ limit });
+
+		if (!result.success || !result.data) {
+			throw new Error(`Failed to list runtimes: ${result.error || 'Unknown error'}`);
+		}
+
+		const output = result.data.runtimes.map((rt) => ({
+			id: rt.id,
+			name: rt.name,
+			description: rt.description,
+			tags: rt.tags,
+			url: rt.url,
+		}));
+
+		return new vscode.LanguageModelToolResult([
+			new vscode.LanguageModelTextPart(JSON.stringify(output, null, 2)),
+		]);
+	}
+
+	async prepareInvocation(
+		_options: vscode.LanguageModelToolInvocationPrepareOptions<ListSandboxRuntimesInput>,
+		_token: vscode.CancellationToken
+	): Promise<vscode.PreparedToolInvocation> {
+		return {
+			invocationMessage: 'Listing sandbox runtimes...',
+		};
+	}
+}
+
 export interface CreateSandboxInput {
 	memory?: string;
 	cpu?: string;
 	network?: boolean;
 	snapshot?: string;
 	dependencies?: string[];
+	// New fields
+	runtime?: string;
+	runtimeId?: string;
+	name?: string;
+	description?: string;
 }
 
 export class CreateSandboxTool implements vscode.LanguageModelTool<CreateSandboxInput> {
@@ -549,6 +598,10 @@ export class CreateSandboxTool implements vscode.LanguageModelTool<CreateSandbox
 			network: options.input.network,
 			snapshot: options.input.snapshot,
 			dependencies: options.input.dependencies,
+			runtime: options.input.runtime,
+			runtimeId: options.input.runtimeId,
+			name: options.input.name,
+			description: options.input.description,
 		};
 
 		const result = await cli.sandboxCreate(createOptions);
@@ -557,10 +610,20 @@ export class CreateSandboxTool implements vscode.LanguageModelTool<CreateSandbox
 			throw new Error(`Failed to create sandbox: ${result.error || 'Unknown error'}`);
 		}
 
+		const info = result.data;
+		const lines = [
+			'Sandbox created successfully!',
+			'',
+			`ID: ${info.sandboxId}`,
+			info.name ? `Name: ${info.name}` : '',
+			info.description ? `Description: ${info.description}` : '',
+			`Runtime: ${info.runtimeName ?? info.runtimeId ?? 'bun:1'}`,
+			`Status: ${info.status}`,
+			`Region: ${info.region}`,
+		].filter(Boolean);
+
 		return new vscode.LanguageModelToolResult([
-			new vscode.LanguageModelTextPart(
-				`Sandbox created successfully!\n\nID: ${result.data.sandboxId}\nStatus: ${result.data.status}\nRegion: ${result.data.region}`
-			),
+			new vscode.LanguageModelTextPart(lines.join('\n')),
 		]);
 	}
 
@@ -680,6 +743,7 @@ export class ExecuteInSandboxTool implements vscode.LanguageModelTool<ExecuteInS
 export interface CreateSnapshotInput {
 	sandboxId: string;
 	tag?: string;
+	region?: string;
 }
 
 export class CreateSnapshotTool implements vscode.LanguageModelTool<CreateSnapshotInput> {
@@ -757,6 +821,10 @@ export function registerAgentTools(context: vscode.ExtensionContext): void {
 		// Sandbox tools
 		context.subscriptions.push(
 			vscode.lm.registerTool('agentuity_list_sandboxes', new ListSandboxesTool())
+		);
+
+		context.subscriptions.push(
+			vscode.lm.registerTool('agentuity_list_sandbox_runtimes', new ListSandboxRuntimesTool())
 		);
 
 		context.subscriptions.push(

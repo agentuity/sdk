@@ -472,7 +472,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",
