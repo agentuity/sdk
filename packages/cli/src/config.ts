@@ -506,13 +506,7 @@ export function generateYAMLTemplate(name: string): string {
 	return lines.join('\n');
 }
 
-class ProjectConfigNotFoundExpection extends Error {
-	public name: string;
-	constructor() {
-		super('project not found');
-		this.name = 'ProjectConfigNotFoundExpection';
-	}
-}
+export const ProjectConfigNotFoundExpection = StructuredError('ProjectConfigNotFoundExpection');
 
 type ProjectConfig = z.infer<typeof ProjectSchema>;
 
@@ -536,7 +530,7 @@ export async function loadProjectConfig(
 		// and then if so:
 		// 1. if authentication, offer to import the project
 		// 2. tell them that they need to login to use the command and import the project
-		throw new ProjectConfigNotFoundExpection();
+		throw new ProjectConfigNotFoundExpection({ message: 'project config not found' });
 	}
 	const text = await file.text();
 	const parsedConfig = JSON5.parse(text);
@@ -712,6 +706,57 @@ export function getCatalystAPIClient(logger: Logger, auth: AuthData, region: str
 	const serviceUrls = getServiceUrls(region);
 	const catalystUrl = serviceUrls.catalyst;
 	return new ServerAPIClient(catalystUrl, logger, auth.apiKey);
+}
+
+interface RegionsCacheData {
+	timestamp: number;
+	regions: Array<{ region: string; description: string }>;
+}
+
+/**
+ * Get the default region using priority ordering:
+ * 1. AGENTUITY_REGION environment variable
+ * 2. First entry in region-{profile}.json (nearest region, sorted by distance)
+ * 3. 'local' for local profile, 'usc' otherwise
+ *
+ * Used for API calls that can hit any Catalyst instance (global database operations).
+ * Note: This is NOT called when --region flag is provided (handled at command level).
+ */
+export async function getDefaultRegion(profileName = 'production'): Promise<string> {
+	// 1. Check environment variable first
+	if (process.env.AGENTUITY_REGION) {
+		return process.env.AGENTUITY_REGION;
+	}
+
+	// 2. Check cached regions file (sorted by distance)
+	try {
+		const cachePath = join(getDefaultConfigDir(), `regions-${profileName}.json`);
+		const file = Bun.file(cachePath);
+		if (await file.exists()) {
+			const data: RegionsCacheData = await file.json();
+			if (data.regions && data.regions.length > 0) {
+				return data.regions[0].region;
+			}
+		}
+	} catch {
+		// Fall through to default
+	}
+
+	// 3. Final fallback - 'local' for local profile, 'usc' otherwise
+	return profileName === 'local' ? 'local' : 'usc';
+}
+
+/**
+ * Get a Catalyst API client for global database operations.
+ * Uses the default region since the admin DB is global.
+ */
+export async function getGlobalCatalystAPIClient(
+	logger: Logger,
+	auth: AuthData,
+	profileName = 'production'
+) {
+	const region = await getDefaultRegion(profileName);
+	return getCatalystAPIClient(logger, auth, region);
 }
 
 export function getIONHost(config: Config | null, region: string) {

@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { dbLogs, DbQueryLogSchema } from '@agentuity/server';
-import { getCatalystAPIClient } from '../../../config';
+import { dbLogs, DbQueryLogSchema, listOrgResources } from '@agentuity/server';
+import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 
@@ -51,7 +51,7 @@ export const logsSubcommand = createSubcommand({
 			description: 'Show full formatted SQL on separate lines',
 		},
 	],
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	schema: {
 		args: z.object({
@@ -78,13 +78,24 @@ export const logsSubcommand = createSubcommand({
 		response: DbLogsResponseSchema,
 	},
 	async handler(ctx) {
-		const { args, options, orgId, region, logger, auth } = ctx;
+		const { args, options, orgId, logger, auth, config } = ctx;
 		const showTimestamps = ctx.opts.timestamps ?? true;
 		const showSessionId = ctx.opts.showSessionId ?? false;
 		const showUsername = ctx.opts.showUsername ?? false;
 		const prettySQL = ctx.opts.pretty ?? false;
 
 		try {
+			const globalClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+
+			// Look up the database to get its region
+			const resources = await listOrgResources(globalClient, { type: 'db' });
+			const database = resources.db.find((db) => db.name === args.database);
+			if (!database) {
+				tui.fatal(`Database '${args.database}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
+			}
+			const region = database.cloud_region;
+
+			// Use regional client for logs (ClickHouse queries are region-specific)
 			const catalystClient = getCatalystAPIClient(logger, auth, region);
 
 			const logs = await dbLogs(catalystClient, {

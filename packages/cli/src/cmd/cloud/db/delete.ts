@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { listResources, deleteResources, APIError } from '@agentuity/server';
+import { listOrgResources, deleteResources, APIError } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import { ErrorCode } from '../../../errors';
@@ -15,7 +15,7 @@ export const deleteSubcommand = createSubcommand({
 	description: 'Delete a database resource',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: false,
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{ command: getCommand('cloud db delete my-database'), description: 'Delete item' },
 		{ command: getCommand('cloud db rm my-database'), description: 'Delete item' },
@@ -36,21 +36,22 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, opts, orgId, region, auth, options } = ctx;
+		const { logger, args, opts, orgId, auth, options, config } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+
+		// Fetch all databases to get region info
+		const resources = await tui.spinner({
+			message: `Fetching databases for ${orgId}`,
+			clearOnSuccess: true,
+			callback: async () => {
+				return listOrgResources(catalystClient, { type: 'db' });
+			},
+		});
 
 		let dbName = args.name;
 
 		if (!dbName) {
-			const resources = await tui.spinner({
-				message: `Fetching databases for ${orgId} in ${region}`,
-				clearOnSuccess: true,
-				callback: async () => {
-					return listResources(catalystClient, orgId, region!);
-				},
-			});
-
 			if (resources.db.length === 0) {
 				tui.info('No databases found to delete');
 				return { success: false, name: '' };
@@ -68,6 +69,13 @@ export const deleteSubcommand = createSubcommand({
 
 			dbName = response.db;
 		}
+
+		// Find the database to get its region
+		const database = resources.db.find((db) => db.name === dbName);
+		if (!database) {
+			tui.fatal(`Database '${dbName}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
+		}
+		const region = database.cloud_region;
 
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
@@ -99,11 +107,13 @@ export const deleteSubcommand = createSubcommand({
 		}
 
 		try {
+			// Use regional client for the delete operation
+			const regionalClient = getCatalystAPIClient(logger, auth, region);
 			const deleted = await tui.spinner({
 				message: `Deleting database ${dbName}`,
 				clearOnSuccess: true,
 				callback: async () => {
-					return deleteResources(catalystClient, orgId, region!, [
+					return deleteResources(regionalClient, orgId, region, [
 						{ type: 'db', name: dbName },
 					]);
 				},

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { getSandboxRegion, createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxSetEnv } from '@agentuity/server';
 
@@ -9,7 +9,7 @@ export const envSubcommand = createCommand({
 	name: 'env',
 	description: 'Set or delete environment variables on a sandbox',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox env sbx_abc123 MY_VAR=value'),
@@ -42,8 +42,15 @@ export const envSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, config, logger, orgId } = ctx;
 
+		const region = await getSandboxRegion(
+			logger,
+			auth,
+			config?.name,
+			args.sandboxId,
+			orgId
+		);
 		const client = createSandboxClient(logger, auth, region);
 
 		const envMap: Record<string, string | null> = {};

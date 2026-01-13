@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { getSandboxRegion, createSandboxClient, clearSandboxRegionCache } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxDestroy } from '@agentuity/server';
 
@@ -17,7 +17,7 @@ export const deleteSubcommand = createCommand({
 	aliases: ['del', 'remove', 'destroy'],
 	description: 'Delete a sandbox',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	examples: [
 		{
@@ -40,7 +40,7 @@ export const deleteSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options, opts, auth, region, logger, orgId } = ctx;
+		const { args, options, opts, auth, config, logger, orgId } = ctx;
 
 		if (!opts.confirm) {
 			const confirmed = await tui.confirm(`Delete sandbox "${args.sandboxId}"?`, false);
@@ -56,10 +56,19 @@ export const deleteSubcommand = createCommand({
 		}
 
 		const started = Date.now();
+		const region = await getSandboxRegion(
+			logger,
+			auth,
+			config?.name,
+			args.sandboxId,
+			orgId
+		);
 		const client = createSandboxClient(logger, auth, region);
 
 		await sandboxDestroy(client, { sandboxId: args.sandboxId, orgId });
 		const durationMs = Date.now() - started;
+
+		await clearSandboxRegionCache(config?.name, args.sandboxId);
 
 		if (!options.json) {
 			tui.success(`deleted sandbox ${tui.bold(args.sandboxId)} in ${durationMs}ms`);

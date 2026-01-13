@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Writable } from 'node:stream';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, parseFileArgs } from './util';
+import { createSandboxClient, parseFileArgs, cacheSandboxRegion } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxRun } from '@agentuity/server';
 
@@ -69,7 +69,7 @@ export const runSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, region, logger, orgId, config } = ctx;
 		const client = createSandboxClient(logger, auth, region);
 		const started = Date.now();
 
@@ -141,6 +141,9 @@ export const runSubcommand = createCommand({
 				stderr,
 				logger,
 			});
+
+			// Cache the region for future lookups (sandbox is destroyed after run but cache helps with lookups during execution)
+			await cacheSandboxRegion(config?.name, result.sandboxId, region);
 
 			const duration = Date.now() - started;
 			const output = outputChunks.join('');

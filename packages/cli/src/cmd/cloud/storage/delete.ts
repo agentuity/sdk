@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { listResources, deleteResources } from '@agentuity/server';
+import { listOrgResources, deleteResources } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import { ErrorCode } from '../../../errors';
@@ -16,7 +16,7 @@ export const deleteSubcommand = createSubcommand({
 	description: 'Delete a storage resource or file',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: false,
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud storage delete my-bucket'),
@@ -50,15 +50,15 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, opts, orgId, region, auth, options } = ctx;
+		const { logger, args, opts, orgId, auth, options, config } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		const resources = await tui.spinner({
-			message: `Fetching storage for ${orgId} in ${region}`,
+			message: `Fetching storage for ${orgId}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listResources(catalystClient, orgId, region!);
+				return listOrgResources(catalystClient, { type: 's3' });
 			},
 		});
 
@@ -155,6 +155,19 @@ export const deleteSubcommand = createSubcommand({
 		}
 
 		// Otherwise, delete the bucket
+		// Find the bucket to get its region
+		const bucketToDelete = resources.s3.find((s3) => s3.bucket_name === bucketName);
+		if (!bucketToDelete) {
+			tui.fatal(`Storage bucket '${bucketName}' not found`, ErrorCode.RESOURCE_NOT_FOUND);
+		}
+		if (!bucketToDelete.cloud_region) {
+			tui.fatal(
+				`Storage bucket '${bucketName}' is missing region information`,
+				ErrorCode.RESOURCE_NOT_FOUND
+			);
+		}
+		const region = bucketToDelete.cloud_region;
+
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
 			outputDryRun(`Would delete storage bucket: ${bucketName}`, options);
@@ -184,11 +197,13 @@ export const deleteSubcommand = createSubcommand({
 			}
 		}
 
+		// Use regional client for the delete operation
+		const regionalClient = getCatalystAPIClient(logger, auth, region);
 		const deleted = await tui.spinner({
 			message: `Deleting storage bucket ${bucketName}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return deleteResources(catalystClient, orgId, region!, [
+				return deleteResources(regionalClient, orgId, region, [
 					{ type: 's3', name: bucketName },
 				]);
 			},

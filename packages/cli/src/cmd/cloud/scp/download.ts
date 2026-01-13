@@ -3,6 +3,7 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getIONHost } from '../../../config';
 import { getCommand } from '../../../command-prefix';
+import { getIdentifierRegion } from '../region-lookup';
 const args = z.object({
 	source: z.string().describe('the source file'),
 	destination: z.string().optional().describe('the destination file'),
@@ -36,7 +37,7 @@ export const downloadCommand = createSubcommand({
 			description: 'Download multiple files',
 		},
 	],
-	requires: { apiClient: true, auth: true, region: true },
+	requires: { apiClient: true, auth: true },
 	optional: { project: true },
 	prerequisites: ['cloud deploy'],
 	schema: {
@@ -51,13 +52,17 @@ export const downloadCommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { apiClient, args, opts, project, projectDir, config, region } = ctx;
+		const { apiClient, args, opts, project, projectDir, config, logger, auth, orgId } = ctx;
 
 		let identifier = opts?.identifier ?? project?.projectId;
 
 		if (!identifier) {
 			identifier = await tui.showProjectList(apiClient, true);
 		}
+
+		// Look up region from identifier (project/deployment)
+		const profileName = config?.name;
+		const region = await getIdentifierRegion(logger, auth, apiClient, profileName, identifier, orgId);
 
 		const hostname = getIONHost(config, region);
 		const destination = args.destination ?? projectDir;

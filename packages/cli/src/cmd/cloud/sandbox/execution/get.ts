@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
 import { getCommand } from '../../../../command-prefix';
 import { executionGet } from '@agentuity/server';
+import { getGlobalCatalystAPIClient } from '../../../../config';
 
 const ExecutionGetResponseSchema = z.object({
 	executionId: z.string().describe('Execution ID'),
@@ -24,7 +24,7 @@ export const getSubcommand = createCommand({
 	aliases: ['info', 'show'],
 	description: 'Get information about a specific execution',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	examples: [
 		{
@@ -40,8 +40,8 @@ export const getSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options, auth, region, logger, orgId } = ctx;
-		const client = createSandboxClient(logger, auth, region);
+		const { args, options, auth, logger, orgId, config } = ctx;
+		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		const result = await executionGet(client, { executionId: args.executionId, orgId });
 

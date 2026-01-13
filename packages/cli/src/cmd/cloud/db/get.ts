@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { listResources, dbTables, generateCreateTableSQL } from '@agentuity/server';
+import { listOrgResources, dbTables, generateCreateTableSQL } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient, getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 
@@ -22,7 +22,7 @@ export const getSubcommand = createSubcommand({
 	aliases: ['show'],
 	description: 'Show details about a specific database',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	examples: [
 		{ command: `${getCommand('cloud db get')} my-database`, description: 'Get database details' },
@@ -66,15 +66,15 @@ export const getSubcommand = createSubcommand({
 	webUrl: (ctx) => `/services/database/${encodeURIComponent(ctx.args.name)}`,
 
 	async handler(ctx) {
-		const { logger, args, opts, options, orgId, region, auth } = ctx;
+		const { logger, args, opts, options, orgId, auth, config } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const globalClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		const resources = await tui.spinner({
 			message: `Fetching database ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listResources(catalystClient, orgId, region);
+				return listOrgResources(globalClient, { type: 'db' });
 			},
 		});
 
@@ -85,12 +85,15 @@ export const getSubcommand = createSubcommand({
 		}
 
 		// If --tables flag is provided, fetch table schemas
+		// Need regional Catalyst for database operations
 		if (opts.showTables) {
+			const region = db.cloud_region;
+			const regionalClient = getCatalystAPIClient(logger, auth, region);
 			const tables = await tui.spinner({
 				message: `Fetching table schemas for ${args.name}`,
 				clearOnSuccess: true,
 				callback: async () => {
-					return dbTables(catalystClient, {
+					return dbTables(regionalClient, {
 						database: args.name,
 						orgId,
 						region,

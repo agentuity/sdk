@@ -20,7 +20,7 @@ export const initSubcommand = createSubcommand({
 	name: 'init',
 	description: 'Set up Agentuity Auth for your project',
 	tags: ['mutating', 'slow', 'requires-auth'],
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true, org: true },
 	idempotent: false,
 	examples: [
 		{
@@ -46,7 +46,7 @@ export const initSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, auth, orgId, region } = ctx;
+		const { logger, opts, auth, orgId, config } = ctx;
 
 		tui.newline();
 		tui.info(tui.bold('Agentuity Auth Setup'));
@@ -86,9 +86,13 @@ export const initSubcommand = createSubcommand({
 			logger,
 			auth,
 			orgId,
-			region,
+			config,
 			existingUrl: databaseUrl,
+			projectDir,
 		});
+		
+		// Get the region from the selected database
+		const region = dbInfo.region;
 
 		const databaseName = dbInfo.name;
 

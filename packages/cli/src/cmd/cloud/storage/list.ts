@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { listResources } from '@agentuity/server';
+import { listOrgResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { createS3Client } from './utils';
@@ -16,6 +16,7 @@ const StorageListResponseSchema = z.object({
 				secret_key: z.string().optional().describe('S3 secret key'),
 				region: z.string().optional().describe('S3 region'),
 				endpoint: z.string().optional().describe('S3 endpoint URL'),
+				cloud_region: z.string().optional().describe('Cloud region where bucket is hosted'),
 			})
 		)
 		.optional()
@@ -37,7 +38,7 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List storage resources or files in a bucket',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud storage list'), description: 'List items' },
@@ -78,15 +79,15 @@ export const listSubcommand = createSubcommand({
 			: '/services/storage',
 
 	async handler(ctx) {
-		const { logger, args, opts, options, orgId, region, auth } = ctx;
+		const { logger, args, opts, options, orgId, auth, config } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		const resources = await tui.spinner({
-			message: `Fetching storage for ${orgId} in ${region}`,
+			message: `Fetching storage for ${orgId}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listResources(catalystClient, orgId, region);
+				return listOrgResources(catalystClient, { type: 's3' });
 			},
 		});
 
@@ -219,6 +220,7 @@ export const listSubcommand = createSubcommand({
 				secret_key: s3.secret_key ?? undefined,
 				region: s3.region ?? undefined,
 				endpoint: s3.endpoint ?? undefined,
+				cloud_region: s3.cloud_region,
 			})),
 		};
 	},

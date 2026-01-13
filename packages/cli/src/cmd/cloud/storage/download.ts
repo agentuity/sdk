@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { listResources } from '@agentuity/server';
+import { listOrgResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { createS3Client } from './utils';
@@ -11,7 +11,7 @@ export const downloadSubcommand = createSubcommand({
 	name: 'download',
 	description: 'Download a file from storage bucket',
 	tags: ['read-only', 'requires-auth'],
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	examples: [
 		{
@@ -51,16 +51,16 @@ export const downloadSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, opts, options, orgId, region, auth } = ctx;
+		const { logger, args, opts, options, auth, config } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		// Fetch bucket credentials
 		const resources = await tui.spinner({
 			message: `Fetching credentials for ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listResources(catalystClient, orgId, region);
+				return listOrgResources(catalystClient, { type: 's3' });
 			},
 		});
 
