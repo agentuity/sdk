@@ -381,10 +381,10 @@ export async function getAuth(): Promise<AuthData | null> {
 		try {
 			const keychainAuth = await getAuthFromKeychain(profileName);
 			if (keychainAuth) {
-				// If there's auth in the config file, remove it since we have it in keychain
-				if (config?.auth) {
-					const configCopy = { ...config };
-					delete configCopy.auth;
+				// If there's auth api_key in the config file, remove it since we have it in keychain
+				if (config?.auth?.api_key) {
+					const { api_key: _, ...authWithoutApiKey } = config.auth;
+					const configCopy = { ...config, auth: authWithoutApiKey };
 					cachedConfig = null; // Force cache refresh
 					await saveConfig(configCopy);
 				}
