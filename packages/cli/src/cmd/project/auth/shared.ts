@@ -3,11 +3,17 @@
  */
 
 import * as path from 'node:path';
-import { listResources, createResources, dbQuery } from '@agentuity/server';
+import { listOrgResources, createResources, dbQuery } from '@agentuity/server';
 import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import {
+	getCatalystAPIClient,
+	getGlobalCatalystAPIClient,
+	loadProjectConfig,
+	ProjectConfigNotFoundException,
+} from '../../../config';
 import type { Logger } from '../../../types';
 import type { AuthData } from '../../../types';
+import type { Config } from '../../../types';
 import enquirer from 'enquirer';
 
 /**
@@ -16,25 +22,29 @@ import enquirer from 'enquirer';
 export interface DatabaseInfo {
 	name: string;
 	url: string;
+	region: string;
 }
 
 /**
- * Select an existing database or create a new one
+ * Select an existing database or create a new one.
+ * When creating a new database, uses the project's region from agentuity.json if available.
  */
 export async function selectOrCreateDatabase(options: {
 	logger: Logger;
 	auth: AuthData;
 	orgId: string;
-	region: string;
+	config: Config | null;
 	existingUrl?: string;
+	projectDir?: string;
 }): Promise<DatabaseInfo> {
-	const { logger, auth, orgId, region, existingUrl } = options;
-	const catalystClient = getCatalystAPIClient(logger, auth, region);
+	const { logger, auth, orgId, config, existingUrl, projectDir } = options;
+	const profileName = config?.name;
+	const globalClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
 
 	const resources = await tui.spinner({
-		message: `Fetching databases for ${orgId} in ${region}`,
+		message: `Fetching databases for ${orgId}`,
 		clearOnSuccess: true,
-		callback: async () => listResources(catalystClient, orgId, region),
+		callback: async () => listOrgResources(globalClient, { type: 'db', orgId }),
 	});
 
 	const databases = resources.db;
@@ -81,14 +91,42 @@ export async function selectOrCreateDatabase(options: {
 
 	// Handle "use existing" selection
 	if (response.database === '__existing__' && existingUrl && existingDbName) {
-		return { name: existingDbName, url: existingUrl };
+		// Find the database to get its region
+		const existingDb = databases.find((d) => d.name === existingDbName);
+		const region = existingDb?.cloud_region ?? 'usc';
+		return { name: existingDbName, url: existingUrl, region };
 	}
 
 	if (response.database === '__create__') {
+		// For creating a new database, determine the region:
+		// 1. Try to get from project's agentuity.json
+		// 2. Fall back to first existing database's region
+		// 3. Fall back to 'usc' as default
+		let region: string | undefined;
+
+		if (projectDir) {
+			try {
+				const projectConfig = await loadProjectConfig(projectDir, config);
+				region = projectConfig.region;
+				logger.trace(`[auth init] Using region from project config: ${region}`);
+			} catch (err) {
+				if (!(err instanceof ProjectConfigNotFoundException)) {
+					logger.trace(`[auth init] Error loading project config: ${err}`);
+				}
+			}
+		}
+
+		if (!region) {
+			region = databases.length > 0 ? databases[0].cloud_region : 'usc';
+			logger.trace(`[auth init] Using fallback region: ${region}`);
+		}
+
+		const regionalClient = getCatalystAPIClient(logger, auth, region);
+
 		const created = await tui.spinner({
 			message: `Creating database in ${region}`,
 			clearOnSuccess: true,
-			callback: async () => createResources(catalystClient, orgId, region, [{ type: 'db' }]),
+			callback: async () => createResources(regionalClient, orgId, region, [{ type: 'db' }]),
 		});
 
 		if (created.length === 0) {
@@ -98,14 +136,15 @@ export async function selectOrCreateDatabase(options: {
 		const newDb = created[0];
 		tui.success(`Created database: ${tui.bold(newDb.name)}`);
 
-		const updatedResources = await listResources(catalystClient, orgId, region);
+		// Fetch updated list to get the URL
+		const updatedResources = await listOrgResources(globalClient, { type: 'db', orgId });
 		const dbInfo = updatedResources.db.find((d) => d.name === newDb.name);
 
 		if (!dbInfo?.url) {
 			tui.fatal('Failed to retrieve database connection URL');
 		}
 
-		return { name: newDb.name, url: dbInfo.url };
+		return { name: newDb.name, url: dbInfo.url, region };
 	}
 
 	const selectedDb = databases.find((d) => d.name === response.database);
@@ -113,7 +152,7 @@ export async function selectOrCreateDatabase(options: {
 		tui.fatal('Failed to retrieve database connection URL');
 	}
 
-	return { name: selectedDb.name, url: selectedDb.url };
+	return { name: selectedDb.name, url: selectedDb.url, region: selectedDb.cloud_region };
 }
 
 /**
@@ -223,7 +262,7 @@ export async function detectOrmSetup(projectDir: string): Promise<OrmSetup> {
  * @returns SQL DDL statements for auth tables
  */
 export async function generateAuthSchemaSql(logger: Logger, projectDir: string): Promise<string> {
-	const schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/src/schema.ts');
+	const schemaPath = path.join(projectDir, 'node_modules/@agentuity/auth/dist/schema.js');
 
 	if (!(await Bun.file(schemaPath).exists())) {
 		throw new Error(

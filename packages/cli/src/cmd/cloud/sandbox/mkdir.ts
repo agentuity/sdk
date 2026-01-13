@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { createSandboxClient, getSandboxRegion } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxMkDir } from '@agentuity/server';
 
@@ -14,7 +14,7 @@ export const mkdirSubcommand = createCommand({
 	name: 'mkdir',
 	description: 'Create a directory in a sandbox',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox mkdir sbx_abc123 /path/to/dir'),
@@ -44,7 +44,8 @@ export const mkdirSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, logger, orgId, config } = ctx;
+		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
 
 		await sandboxMkDir(client, {

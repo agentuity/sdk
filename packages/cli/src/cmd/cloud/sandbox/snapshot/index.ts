@@ -22,7 +22,7 @@ export const snapshotCommand = createCommand({
 		},
 	],
 	subcommands: [createSubcommand, listSubcommand, getSubcommand, deleteSubcommand, tagSubcommand],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 });
 
 export default snapshotCommand;

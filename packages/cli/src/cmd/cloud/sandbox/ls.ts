@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { getSandboxRegion, createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxListFiles } from '@agentuity/server';
 
@@ -23,7 +23,7 @@ export const lsSubcommand = createCommand({
 	aliases: ['lsf'],
 	description: 'List files in a sandbox directory',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox files sbx_abc123'),
@@ -61,7 +61,8 @@ export const lsSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, config, logger, orgId } = ctx;
+		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
 
 		const result = await sandboxListFiles(client, {

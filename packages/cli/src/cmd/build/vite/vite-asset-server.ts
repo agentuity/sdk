@@ -111,9 +111,12 @@ export async function startViteAssetServer(
 		actualPort = getPortFromHttpServer() ?? preferredPort;
 	}
 
-	logger.debug(`✅ Vite asset server started on port ${actualPort}`);
-	if (actualPort !== preferredPort) {
-		logger.debug(`Port ${preferredPort} was taken, using ${actualPort} instead`);
+	if (actualPort === preferredPort) {
+		logger.info(`Vite asset server running on port ${actualPort}`);
+	} else {
+		logger.warn(
+			`Vite asset server running on port ${actualPort} (preferred port ${preferredPort} was in use)`
+		);
 	}
 	logger.debug(`Asset server will handle: HMR, React transformation, source maps`);
 	logger.debug(`HMR WebSocket configured to connect to ws://127.0.0.1:${actualPort}`);

@@ -61,14 +61,16 @@ export async function runtimeList(
 
 	if (resp.success) {
 		return {
-			runtimes: resp.data.runtimes.map((r): SandboxRuntime => ({
-				id: r.id,
-				name: r.name,
-				description: r.description,
-				iconUrl: r.iconUrl,
-				url: r.url,
-				tags: r.tags,
-			})),
+			runtimes: resp.data.runtimes.map(
+				(r): SandboxRuntime => ({
+					id: r.id,
+					name: r.name,
+					description: r.description,
+					iconUrl: r.iconUrl,
+					url: r.url,
+					tags: r.tags,
+				})
+			),
 			total: resp.data.total,
 		};
 	}

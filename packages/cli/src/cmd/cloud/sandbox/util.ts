@@ -1,12 +1,71 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Logger, FileToWrite } from '@agentuity/core';
-import { APIClient, getServiceUrls } from '@agentuity/server';
+import { APIClient, getServiceUrls, sandboxGet } from '@agentuity/server';
 import type { AuthData } from '../../../types';
+import { getGlobalCatalystAPIClient } from '../../../config';
+import { getResourceRegion, setResourceRegion, deleteResourceRegion } from '../../../cache';
+import * as tui from '../../../tui';
+import { ErrorCode } from '../../../errors';
 
 export function createSandboxClient(logger: Logger, auth: AuthData, region: string): APIClient {
 	const urls = getServiceUrls(region);
 	return new APIClient(urls.catalyst, logger, auth.apiKey);
+}
+
+/**
+ * Look up the region for a sandbox, using cache-first strategy.
+ * Falls back to API lookup if not in cache.
+ */
+export async function getSandboxRegion(
+	logger: Logger,
+	auth: AuthData,
+	profileName = 'production',
+	sandboxId: string,
+	orgId: string
+): Promise<string> {
+	// Check cache first
+	const cachedRegion = await getResourceRegion('sandbox', profileName, sandboxId);
+	if (cachedRegion) {
+		logger.trace(`[sandbox] Found cached region for ${sandboxId}: ${cachedRegion}`);
+		return cachedRegion;
+	}
+
+	// Fallback to API lookup using global client
+	logger.trace(`[sandbox] Cache miss for ${sandboxId}, fetching from API`);
+	const globalClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+
+	const sandbox = await sandboxGet(globalClient, { sandboxId, orgId });
+	if (!sandbox.region) {
+		tui.fatal(`Sandbox '${sandboxId}' has no region information`, ErrorCode.RESOURCE_NOT_FOUND);
+	}
+
+	// Cache the result
+	await setResourceRegion('sandbox', profileName, sandboxId, sandbox.region);
+	logger.trace(`[sandbox] Cached region for ${sandboxId}: ${sandbox.region}`);
+
+	return sandbox.region;
+}
+
+/**
+ * Cache the region for a sandbox after create/run operations
+ */
+export async function cacheSandboxRegion(
+	profileName = 'production',
+	sandboxId: string,
+	region: string
+): Promise<void> {
+	await setResourceRegion('sandbox', profileName, sandboxId, region);
+}
+
+/**
+ * Clear cached region for a sandbox after delete
+ */
+export async function clearSandboxRegionCache(
+	profileName = 'production',
+	sandboxId: string
+): Promise<void> {
+	await deleteResourceRegion('sandbox', profileName, sandboxId);
 }
 
 /**

@@ -10,7 +10,7 @@ import {
 } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient } from '../../../config';
 
 const SpanNodeSchema: z.ZodType<SpanNode> = z.lazy(() =>
 	z.object({
@@ -116,7 +116,7 @@ export const getSubcommand = createSubcommand({
 			description: 'Get a session by ID',
 		},
 	],
-	requires: { auth: true, region: true },
+	requires: { auth: true },
 	idempotent: true,
 	schema: {
 		args: z.object({
@@ -125,8 +125,8 @@ export const getSubcommand = createSubcommand({
 		response: SessionGetResponseSchema,
 	},
 	async handler(ctx) {
-		const { logger, auth, args, options, region } = ctx;
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const { logger, auth, args, options, config } = ctx;
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		try {
 			const enriched = await sessionGet(catalystClient, { id: args.session_id });

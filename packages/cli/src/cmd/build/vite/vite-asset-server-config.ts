@@ -94,11 +94,11 @@ export async function generateAssetServerConfig(
 			},
 
 			// HMR configuration - client must connect to Vite asset server directly
+			// Do NOT set port/clientPort - let Vite use the actual server port it binds to
+			// (important when strictPort: false and Vite falls back to an alternate port)
 			hmr: {
 				protocol: 'ws',
 				host: '127.0.0.1',
-				port, // HMR WebSocket on same port as HTTP
-				clientPort: port, // Tell client to connect to this port (not origin 3500)
 			},
 
 			// Don't open browser - Bun server will be the entry point
@@ -151,7 +151,11 @@ export async function generateAssetServerConfig(
 		// Custom logger to integrate with our logger
 		customLogger: {
 			info(msg: string) {
-				if (!msg.includes('[vite]')) {
+				// Show port-related messages at info level (important for debugging port conflicts)
+				// Keep other Vite info messages (like HMR updates) at debug to avoid noise
+				if (msg.includes('Port') || msg.includes('port')) {
+					logger.info(`[Vite Asset] ${msg}`);
+				} else {
 					logger.debug(`[Vite Asset] ${msg}`);
 				}
 			},
