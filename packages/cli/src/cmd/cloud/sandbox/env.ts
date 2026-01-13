@@ -44,13 +44,7 @@ export const envSubcommand = createCommand({
 	async handler(ctx) {
 		const { args, opts, options, auth, config, logger, orgId } = ctx;
 
-		const region = await getSandboxRegion(
-			logger,
-			auth,
-			config?.name,
-			args.sandboxId,
-			orgId
-		);
+		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
 
 		const envMap: Record<string, string | null> = {};

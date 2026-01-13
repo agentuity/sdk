@@ -82,7 +82,13 @@ export const downloadSubcommand = createSubcommand({
 
 		// Cache the bucket info for future lookups
 		if (bucket?.cloud_region) {
-			await setResourceInfo('bucket', profileName, bucket.bucket_name, bucket.cloud_region, orgId);
+			await setResourceInfo(
+				'bucket',
+				profileName,
+				bucket.bucket_name,
+				bucket.cloud_region,
+				orgId
+			);
 		}
 
 		if (!bucket) {

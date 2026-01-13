@@ -70,7 +70,14 @@ export const sshSubcommand = createSubcommand({
 		// Look up region from identifier (project/deployment/sandbox)
 		const profileName = config?.name;
 		const targetIdentifier = identifier ?? projectId!;
-		const region = await getIdentifierRegion(logger, auth, apiClient, profileName, targetIdentifier, orgId);
+		const region = await getIdentifierRegion(
+			logger,
+			auth,
+			apiClient,
+			profileName,
+			targetIdentifier,
+			orgId
+		);
 
 		const hostname = getIONHost(config, region);
 

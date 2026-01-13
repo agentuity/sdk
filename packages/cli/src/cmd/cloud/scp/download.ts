@@ -62,7 +62,14 @@ export const downloadCommand = createSubcommand({
 
 		// Look up region from identifier (project/deployment)
 		const profileName = config?.name;
-		const region = await getIdentifierRegion(logger, auth, apiClient, profileName, identifier, orgId);
+		const region = await getIdentifierRegion(
+			logger,
+			auth,
+			apiClient,
+			profileName,
+			identifier,
+			orgId
+		);
 
 		const hostname = getIONHost(config, region);
 		const destination = args.destination ?? projectDir;

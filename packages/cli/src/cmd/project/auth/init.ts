@@ -90,7 +90,7 @@ export const initSubcommand = createSubcommand({
 			existingUrl: databaseUrl,
 			projectDir,
 		});
-		
+
 		// Get the region from the selected database
 		const region = dbInfo.region;
 

@@ -122,7 +122,7 @@ export async function selectOrCreateDatabase(options: {
 		}
 
 		const regionalClient = getCatalystAPIClient(logger, auth, region);
-		
+
 		const created = await tui.spinner({
 			message: `Creating database in ${region}`,
 			clearOnSuccess: true,

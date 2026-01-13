@@ -222,7 +222,14 @@ export class APIClient {
 			}
 		}
 
-		const response = await this.#makeRequest(method, endpoint, body, signal, undefined, extraHeaders);
+		const response = await this.#makeRequest(
+			method,
+			endpoint,
+			body,
+			signal,
+			undefined,
+			extraHeaders
+		);
 
 		// Handle empty responses (204 or zero-length body)
 		let data: unknown;

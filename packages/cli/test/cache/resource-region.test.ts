@@ -49,9 +49,10 @@ describe('ResourceRegionCache', () => {
 		db.run('DELETE FROM resource_region_cache WHERE last_updated < ?', [cutoff]);
 
 		const row = db
-			.query<{ region: string }, [string, string, string]>(
-				'SELECT region FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?'
-			)
+			.query<
+				{ region: string },
+				[string, string, string]
+			>('SELECT region FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?')
 			.get(type, profile, id);
 
 		return row?.region ?? null;

@@ -64,15 +64,26 @@ export async function getResourceInfo(
 	id: string
 ): Promise<ResourceInfo | null> {
 	const database = await getDatabase();
+	const cutoff = Date.now() - TTL_MS;
 
 	const row = database
 		.query<
-			{ region: string; org_id: string | null },
+			{ region: string; org_id: string | null; last_updated: number },
 			[string, string, string]
-		>('SELECT region, org_id FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?')
+		>('SELECT region, org_id, last_updated FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?')
 		.get(type, profile, id);
 
 	if (!row) {
+		return null;
+	}
+
+	// Check if entry is expired
+	if (row.last_updated < cutoff) {
+		// Remove stale entry
+		database.run(
+			'DELETE FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?',
+			[type, profile, id]
+		);
 		return null;
 	}
 

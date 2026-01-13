@@ -56,13 +56,7 @@ export const deleteSubcommand = createCommand({
 		}
 
 		const started = Date.now();
-		const region = await getSandboxRegion(
-			logger,
-			auth,
-			config?.name,
-			args.sandboxId,
-			orgId
-		);
+		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
 
 		await sandboxDestroy(client, { sandboxId: args.sandboxId, orgId });

@@ -68,8 +68,6 @@ export async function clearSandboxRegionCache(
 	await deleteResourceRegion('sandbox', profileName, sandboxId);
 }
 
-
-
 /**
  * Parse --file arguments and read file contents.
  *

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { listOrgResources, deleteResources, APIError } from '@agentuity/server';
+import { listOrgResources, listOrganizations, deleteResources, APIError } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
@@ -60,26 +60,54 @@ export const deleteSubcommand = createSubcommand({
 			);
 		}
 
-		// If we still don't have orgId and have a db name, error out
-		if (!orgId) {
-			tui.fatal(
-				`Organization not found for database '${dbName}'. Run 'agentuity cloud db list' first or specify --org-id.`,
-				ErrorCode.INVALID_ARGUMENT
-			);
+		// If we have a db name but no orgId, search across all user's orgs
+		let resources: Awaited<ReturnType<typeof listOrgResources>> | undefined;
+		if (dbName && !orgId) {
+			const orgs = await tui.spinner({
+				message: 'Searching for database across organizations...',
+				clearOnSuccess: true,
+				callback: async () => listOrganizations(catalystClient),
+			});
+
+			for (const org of orgs) {
+				const orgResources = await listOrgResources(catalystClient, {
+					type: 'db',
+					orgId: org.id,
+				});
+				// Cache all fetched databases
+				for (const db of orgResources.db) {
+					await setResourceInfo('db', profileName, db.name, db.cloud_region, org.id);
+				}
+				const found = orgResources.db.find((db) => db.name === dbName);
+				if (found) {
+					orgId = org.id;
+					resources = orgResources;
+					break;
+				}
+			}
+
+			if (!orgId) {
+				tui.fatal(
+					`Database '${dbName}' not found in any of your organizations.`,
+					ErrorCode.RESOURCE_NOT_FOUND
+				);
+			}
 		}
 
-		// Fetch all databases to get region info
-		const resources = await tui.spinner({
-			message: `Fetching databases for ${orgId}`,
-			clearOnSuccess: true,
-			callback: async () => {
-				return listOrgResources(catalystClient, { type: 'db', orgId });
-			},
-		});
+		// Fetch databases if we haven't already (when orgId was known upfront)
+		if (!resources) {
+			resources = await tui.spinner({
+				message: `Fetching databases for ${orgId}`,
+				clearOnSuccess: true,
+				callback: async () => {
+					return listOrgResources(catalystClient, { type: 'db', orgId: orgId! });
+				},
+			});
 
-		// Cache all fetched databases
-		for (const db of resources.db) {
-			await setResourceInfo('db', profileName, db.name, db.cloud_region, orgId);
+			// Cache all fetched databases
+			for (const db of resources.db) {
+				await setResourceInfo('db', profileName, db.name, db.cloud_region, orgId!);
+			}
 		}
 
 		if (!dbName) {
@@ -144,7 +172,7 @@ export const deleteSubcommand = createSubcommand({
 				message: `Deleting database ${dbName}`,
 				clearOnSuccess: true,
 				callback: async () => {
-					return deleteResources(regionalClient, orgId, region, [
+					return deleteResources(regionalClient, orgId!, region, [
 						{ type: 'db', name: dbName },
 					]);
 				},
