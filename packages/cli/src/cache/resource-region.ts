@@ -44,7 +44,7 @@ function pruneOldEntries(database: Database): void {
 	database.run('DELETE FROM resource_region_cache WHERE last_updated < ?', [cutoff]);
 }
 
-export type ResourceType = 'sandbox' | 'bucket' | 'db' | 'project';
+export type ResourceType = 'sandbox' | 'bucket' | 'db' | 'project' | 'deployment';
 
 /**
  * Resource info returned from cache lookup

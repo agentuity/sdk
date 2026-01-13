@@ -1,5 +1,5 @@
 import type { Logger } from '@agentuity/core';
-import { projectGet, sandboxGet, type APIClient } from '@agentuity/server';
+import { projectGet, sandboxGet, deploymentGet, type APIClient } from '@agentuity/server';
 import { getResourceRegion, setResourceRegion } from '../../cache';
 import { getGlobalCatalystAPIClient } from '../../config';
 import type { AuthData } from '../../types';
@@ -39,17 +39,7 @@ export async function getIdentifierRegion(
 ): Promise<string> {
 	const identifierType = getIdentifierType(identifier);
 
-	// Handle deployment case early - not yet supported for region lookup
-	if (identifierType === 'deployment') {
-		// Deployments require a project ID to look up, which we don't have here
-		// TODO: Consider adding a deployment lookup endpoint that doesn't require project ID
-		tui.fatal(
-			`Region lookup for deployment '${identifier}' is not yet supported. Use --region flag to specify.`,
-			ErrorCode.RESOURCE_NOT_FOUND
-		);
-	}
-
-	// For project and sandbox, check cache first
+	// For project, deployment, and sandbox, check cache first
 	const cachedRegion = await getResourceRegion(identifierType, profileName, identifier);
 	if (cachedRegion) {
 		logger.trace(`[region-lookup] Found cached region for ${identifier}: ${cachedRegion}`);
@@ -63,6 +53,9 @@ export async function getIdentifierRegion(
 	if (identifierType === 'project') {
 		const project = await projectGet(apiClient, { id: identifier, mask: true, keys: false });
 		region = project.cloudRegion ?? null;
+	} else if (identifierType === 'deployment') {
+		const deployment = await deploymentGet(apiClient, identifier);
+		region = deployment.cloudRegion ?? null;
 	} else {
 		// sandbox
 		const globalClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
