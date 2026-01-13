@@ -963,7 +963,7 @@ function buildExportedIdentifierSet(program: ASTProgram): Set<string> {
 				specifiers?: Array<{ local?: ASTNodeIdentifier; exported?: ASTNodeIdentifier }>;
 			};
 
-			// Handle `export const X = ...` or `export function X() { ... }`
+			// Handle `export const X = ...` or `export function X() { ... }` or `export class X { ... }`
 			if (exp.declaration) {
 				if (exp.declaration.type === 'VariableDeclaration') {
 					const decl = exp.declaration as unknown as { declarations: ASTVariableDeclarator[] };
@@ -977,6 +977,11 @@ function buildExportedIdentifierSet(program: ASTProgram): Set<string> {
 					const funcDecl = exp.declaration as unknown as { id?: ASTNodeIdentifier };
 					if (funcDecl.id?.name) {
 						exported.add(funcDecl.id.name);
+					}
+				} else if (exp.declaration.type === 'ClassDeclaration') {
+					const classDecl = exp.declaration as unknown as { id?: ASTNodeIdentifier };
+					if (classDecl.id?.name) {
+						exported.add(classDecl.id.name);
 					}
 				}
 			}

@@ -372,6 +372,82 @@ export default router;
 				cleanup();
 			}
 		});
+
+		test('export class declaration passes validation', async () => {
+			const content = `
+import { createRouter, validator } from '@agentuity/runtime';
+
+export class MySchema {
+	static validate(data: unknown) { return data; }
+}
+
+const router = createRouter();
+router.post('/test', validator({ input: MySchema }), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+			`;
+
+			const { tempDir, path, cleanup } = createTempFile(content);
+			try {
+				const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+				expect(routes).toHaveLength(1);
+				expect(routes[0].config?.inputSchemaVariable).toBe('MySchema');
+			} finally {
+				cleanup();
+			}
+		});
+
+		test('non-exported class declaration throws error', async () => {
+			const content = `
+import { createRouter, validator } from '@agentuity/runtime';
+
+class MySchema {
+	static validate(data: unknown) { return data; }
+}
+
+const router = createRouter();
+router.post('/test', validator({ input: MySchema }), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+			`;
+
+			const { tempDir, path, cleanup } = createTempFile(content);
+			try {
+				await expect(parseRoute(tempDir, path, projectId, deploymentId)).rejects.toThrow(
+					/Schema "MySchema" used as the input validator/
+				);
+			} finally {
+				cleanup();
+			}
+		});
+
+		test('export function declaration passes validation', async () => {
+			const content = `
+import { createRouter, validator } from '@agentuity/runtime';
+
+export function mySchemaValidator(data: unknown) { return data; }
+
+const router = createRouter();
+router.post('/test', validator({ input: mySchemaValidator }), async (c) => {
+	return c.json({ ok: true });
+});
+
+export default router;
+			`;
+
+			const { tempDir, path, cleanup } = createTempFile(content);
+			try {
+				const routes = await parseRoute(tempDir, path, projectId, deploymentId);
+				expect(routes).toHaveLength(1);
+				expect(routes[0].config?.inputSchemaVariable).toBe('mySchemaValidator');
+			} finally {
+				cleanup();
+			}
+		});
 	});
 
 	describe('Imported schemas should pass validation (no export required)', () => {
