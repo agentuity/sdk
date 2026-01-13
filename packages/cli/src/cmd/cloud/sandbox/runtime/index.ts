@@ -14,7 +14,7 @@ export const runtimeCommand = createCommand({
 		},
 	],
 	subcommands: [listSubcommand],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 });
 
 export default runtimeCommand;

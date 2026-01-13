@@ -3,7 +3,7 @@ import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
 import { sandboxList } from '@agentuity/server';
-import { createSandboxClient } from './util';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import type { SandboxStatus } from '@agentuity/core';
 
 const SandboxInfoSchema = z.object({
@@ -30,7 +30,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List sandboxes with optional filtering',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	optional: { project: true },
 	idempotent: true,
 	pagination: {
@@ -74,8 +74,8 @@ export const listSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { opts, options, auth, project, region, logger, orgId } = ctx;
-		const client = createSandboxClient(logger, auth, region);
+		const { opts, options, auth, project, logger, orgId, config } = ctx;
+		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		const projectId = opts.projectId || project?.projectId;
 

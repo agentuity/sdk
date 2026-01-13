@@ -369,7 +369,7 @@ function handleProjectConfigError(
 		error &&
 		typeof error === 'object' &&
 		'name' in error &&
-		error.name === 'ProjectConfigNotFoundExpection'
+		error.name === 'ProjectConfigNotFoundException'
 	) {
 		exitWithError(
 			createError(ErrorCode.PROJECT_NOT_FOUND, 'Invalid project folder', undefined, [
@@ -1138,7 +1138,7 @@ async function registerSubcommand(
 							error &&
 							typeof error === 'object' &&
 							'name' in error &&
-							error.name === 'ProjectConfigNotFoundExpection'
+							error.name === 'ProjectConfigNotFoundException'
 						) {
 							// If TTY is available, prompt user to select a project
 							const hasTTY = process.stdin.isTTY && process.stdout.isTTY;

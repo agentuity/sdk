@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
 import { getCommand } from '../../../../command-prefix';
 import { snapshotDelete } from '@agentuity/server';
+import { getGlobalCatalystAPIClient } from '../../../../config';
 
 const SnapshotDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
@@ -16,7 +16,7 @@ export const deleteSubcommand = createCommand({
 	aliases: ['del', 'rm', 'remove'],
 	description: 'Delete a snapshot',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	examples: [
 		{
@@ -39,7 +39,7 @@ export const deleteSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options, opts, auth, region, logger, orgId } = ctx;
+		const { args, options, opts, auth, logger, orgId, config } = ctx;
 
 		if (!opts.confirm) {
 			const confirmed = await tui.confirm(`Delete snapshot "${args.snapshotId}"?`, false);
@@ -53,7 +53,7 @@ export const deleteSubcommand = createCommand({
 			}
 		}
 
-		const client = createSandboxClient(logger, auth, region);
+		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		await snapshotDelete(client, {
 			snapshotId: args.snapshotId,

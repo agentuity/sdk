@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
+import { getSandboxRegion, createSandboxClient } from '../util';
 import { getCommand } from '../../../../command-prefix';
 import { snapshotCreate } from '@agentuity/server';
 
@@ -23,7 +23,7 @@ export const createSubcommand = createCommand({
 	name: 'create',
 	description: 'Create a snapshot from a sandbox',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox snapshot create sbx_abc123'),
@@ -56,7 +56,7 @@ export const createSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, logger, orgId, config } = ctx;
 
 		if (opts.name && !SNAPSHOT_NAME_REGEX.test(opts.name)) {
 			logger.fatal(
@@ -77,6 +77,8 @@ export const createSubcommand = createCommand({
 			}
 		}
 
+		const profileName = config?.name;
+		const region = await getSandboxRegion(logger, auth, profileName, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
 
 		const snapshot = await snapshotCreate(client, {
