@@ -365,41 +365,37 @@ When the task includes \`[SANDBOX MODE]\`, you should:
 
 ### CRITICAL: Sandbox Command Reference
 
-All sandbox commands require \`--region\` in non-interactive mode. Available regions: \`use\`, \`usc\`.
-
 **Working directory in sandbox:** \`/home/agentuity/app\` (NOT \`/app\`)
 
 **Option 1: One-off execution with \`sandbox run\`** (preferred for simple tasks)
 \`\`\`bash
 # Run inline code directly
-agentuity cloud sandbox run --region use -- bun -e 'console.log("hello")'
+agentuity cloud sandbox run -- bun -e 'console.log("hello")'
 
 # Run a command
-agentuity cloud sandbox run --region use -- node --version
+agentuity cloud sandbox run -- node --version
 \`\`\`
 
 **Option 2: Interactive sandbox with \`sandbox create\` + \`sandbox exec\`**
 \`\`\`bash
-# Create sandbox (no --wait flag exists)
-agentuity cloud sandbox create --region use
+# Create sandbox
+agentuity cloud sandbox create
 # Returns: sbx_xxxxx
 
 # Copy local file to sandbox (file must exist locally first!)
-agentuity cloud sandbox cp ./myfile.ts sbx_xxx:/home/agentuity/app/myfile.ts --region use
+agentuity cloud sandbox cp ./myfile.ts sbx_xxx:/home/agentuity/app/myfile.ts
 
 # Or copy directory recursively
-agentuity cloud sandbox cp -r ./src sbx_xxx:/home/agentuity/app/src --region use
+agentuity cloud sandbox cp -r ./src sbx_xxx:/home/agentuity/app/src
 
 # Execute a command in the sandbox
-agentuity cloud sandbox exec sbx_xxx --region use -- bun run myfile.ts
+agentuity cloud sandbox exec sbx_xxx -- bun run myfile.ts
 
 # SSH for interactive debugging
-agentuity cloud ssh sbx_xxx --region use
+agentuity cloud ssh sbx_xxx
 \`\`\`
 
 **When delegating to Builder for sandbox work, include in MUST DO:**
-- Use \`--region use\` (or \`usc\`) on ALL sandbox commands
-- Use the SAME region for all commands in the workflow
 - Working directory is \`/home/agentuity/app\`, not \`/app\`
 - Use \`sandbox run\` for simple one-off executions
 - When using \`sandbox cp\`, ensure the local file exists first
