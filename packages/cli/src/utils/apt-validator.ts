@@ -1,6 +1,6 @@
 import { StructuredError, type Logger } from '@agentuity/core';
 import type { Config } from '../types';
-import { getAppBaseURL } from '@agentuity/server';
+import { getAPIBaseURL } from '@agentuity/server';
 import { getUserAgent } from '../api';
 import { getDefaultConfigDir } from '../config';
 import { join, dirname } from 'node:path';
@@ -145,8 +145,8 @@ export async function validateAptDependencies(
 		packages.length - uncachedPackages.length
 	);
 
-	const appBaseUrl = getAppBaseURL(region, config?.overrides);
-	const url = `${appBaseUrl}/api/cli/validate/apt-dependencies`;
+	const apiBaseUrl = getAPIBaseURL(region, config?.overrides ?? undefined);
+	const url = `${apiBaseUrl}/cli/validate/apt-dependencies`;
 
 	const response = await fetch(url, {
 		method: 'POST',

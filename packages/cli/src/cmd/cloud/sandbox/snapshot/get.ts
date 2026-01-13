@@ -21,6 +21,7 @@ const SandboxInfoSchema = z.object({
 
 const SnapshotGetResponseSchema = z.object({
 	snapshotId: z.string().describe('Snapshot ID'),
+	name: z.string().describe('Snapshot name'),
 	tag: z.string().nullable().optional().describe('Snapshot tag'),
 	sizeBytes: z.number().describe('Snapshot size in bytes'),
 	fileCount: z.number().describe('Number of files'),
@@ -28,6 +29,11 @@ const SnapshotGetResponseSchema = z.object({
 	createdAt: z.string().describe('Creation timestamp'),
 	downloadUrl: z.string().optional().describe('Presigned download URL'),
 	files: z.array(SnapshotFileSchema).nullable().optional().describe('Files in snapshot'),
+	userMetadata: z
+		.record(z.string(), z.string())
+		.nullable()
+		.optional()
+		.describe('User-defined metadata'),
 	sandboxes: z
 		.array(SandboxInfoSchema)
 		.optional()
@@ -73,6 +79,7 @@ export const getSubcommand = createCommand({
 
 		if (!options.json) {
 			tui.info(`Snapshot: ${tui.bold(snapshot.snapshotId)}`);
+			console.log(`  ${tui.muted('Name:')}    ${snapshot.name}`);
 			if (snapshot.tag) {
 				console.log(`  ${tui.muted('Tag:')}     ${snapshot.tag}`);
 			}
@@ -81,6 +88,18 @@ export const getSubcommand = createCommand({
 			console.log(`  ${tui.muted('Created:')} ${snapshot.createdAt}`);
 			if (snapshot.parentSnapshotId) {
 				console.log(`  ${tui.muted('Parent:')}  ${snapshot.parentSnapshotId}`);
+			}
+
+			if (
+				snapshot.userMetadata &&
+				typeof snapshot.userMetadata === 'object' &&
+				Object.keys(snapshot.userMetadata).length > 0
+			) {
+				console.log('');
+				tui.info('Metadata:');
+				for (const [key, value] of Object.entries(snapshot.userMetadata)) {
+					console.log(`  ${tui.muted('•')} ${key}=${value}`);
+				}
 			}
 
 			if (snapshot.files && snapshot.files.length > 0) {
