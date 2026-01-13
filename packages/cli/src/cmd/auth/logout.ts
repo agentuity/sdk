@@ -14,8 +14,11 @@ export const logoutCommand = createSubcommand({
 		{ command: getCommand('logout'), description: 'Logout from account' },
 	],
 
-	async handler() {
+	async handler(ctx) {
+		const { options } = ctx;
 		await clearAuth();
-		tui.success('You have been logged out');
+		if (!options.json) {
+			tui.success('You have been logged out');
+		}
 	},
 });

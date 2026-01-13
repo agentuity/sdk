@@ -1,11 +1,11 @@
 import { z } from 'zod';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
-import { createSandboxClient } from '../util';
 import { getCommand } from '../../../../command-prefix';
 import { snapshotGet, sandboxList } from '@agentuity/server';
 import type { SnapshotFileInfo } from '@agentuity/server';
 import type { SandboxInfo } from '@agentuity/core';
+import { getGlobalCatalystAPIClient } from '../../../../config';
 
 const SnapshotFileSchema = z.object({
 	path: z.string(),
@@ -39,7 +39,7 @@ export const getSubcommand = createCommand({
 	aliases: ['info', 'show'],
 	description: 'Get snapshot details',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox snapshot get snp_abc123'),
@@ -54,8 +54,8 @@ export const getSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, options, auth, region, logger, orgId } = ctx;
-		const client = createSandboxClient(logger, auth, region);
+		const { args, options, auth, logger, orgId, config } = ctx;
+		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		const snapshot = await snapshotGet(client, {
 			snapshotId: args.snapshotId,

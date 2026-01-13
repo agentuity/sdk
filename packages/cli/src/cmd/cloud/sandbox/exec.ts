@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { Writable } from 'node:stream';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient } from './util';
+import { getSandboxRegion, createSandboxClient } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxExecute, executionGet, writeAndDrain } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
@@ -23,7 +23,7 @@ export const execSubcommand = createCommand({
 	aliases: ['execute'],
 	description: 'Execute a command in a running sandbox',
 	tags: ['slow', 'requires-auth'],
-	requires: { auth: true, region: true, org: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox exec abc123 -- echo "hello"'),
@@ -51,7 +51,8 @@ export const execSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, logger, orgId } = ctx;
+		const { args, opts, options, auth, config, logger, orgId } = ctx;
+		const region = await getSandboxRegion(logger, auth, config?.name, args.sandboxId, orgId);
 		const client = createSandboxClient(logger, auth, region);
 		const started = Date.now();
 

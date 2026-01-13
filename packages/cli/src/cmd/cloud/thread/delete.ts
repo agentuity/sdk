@@ -4,7 +4,7 @@ import * as tui from '../../../tui';
 import { threadDelete, APIError } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient } from '../../../config';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
@@ -17,15 +17,15 @@ export const deleteSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['rm'],
-	requires: { auth: true, region: true },
+	requires: { auth: true },
 	schema: {
 		args: z.object({
 			thread_id: z.string().describe('Thread ID'),
 		}),
 	},
 	async handler(ctx) {
-		const { logger, auth, args, region } = ctx;
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const { logger, auth, args, config } = ctx;
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
 		try {
 			await threadDelete(catalystClient, { id: args.thread_id });

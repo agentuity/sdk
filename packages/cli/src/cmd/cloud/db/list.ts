@@ -1,9 +1,10 @@
 import { z } from 'zod';
-import { listResources } from '@agentuity/server';
+import { listOrgResources } from '@agentuity/server';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
+import { setResourceInfo } from '../../../cache';
 
 const DBListResponseSchema = z.object({
 	databases: z
@@ -11,6 +12,7 @@ const DBListResponseSchema = z.object({
 			z.object({
 				name: z.string().describe('Database name'),
 				url: z.string().optional().describe('Database connection URL'),
+				cloud_region: z.string().optional().describe('Cloud region where database is hosted'),
 			})
 		)
 		.describe('List of database resources'),
@@ -21,7 +23,7 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List database resources',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true, region: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud db list'), description: 'List items' },
@@ -47,17 +49,23 @@ export const listSubcommand = createSubcommand({
 	webUrl: '/services/database',
 
 	async handler(ctx) {
-		const { logger, opts, options, orgId, region, auth } = ctx;
+		const { logger, opts, options, orgId, auth, config } = ctx;
 
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
+		const profileName = config?.name ?? 'production';
 		const resources = await tui.spinner({
-			message: `Fetching databases for ${orgId} in ${region}`,
+			message: `Fetching databases for ${orgId}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listResources(catalystClient, orgId, region);
+				return listOrgResources(catalystClient, { type: 'db', orgId });
 			},
 		});
+
+		// Cache each database with its region and orgId for future lookups
+		for (const db of resources.db) {
+			await setResourceInfo('db', profileName, db.name, db.cloud_region, orgId);
+		}
 
 		// Mask credentials in terminal output by default, unless --show-credentials is passed
 		const shouldShowCredentials = opts.showCredentials === true;
@@ -90,6 +98,7 @@ export const listSubcommand = createSubcommand({
 			databases: resources.db.map((db) => ({
 				name: db.name,
 				url: db.url ?? undefined,
+				cloud_region: db.cloud_region,
 			})),
 		};
 	},

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createCommand } from '../../../types';
 import * as tui from '../../../tui';
-import { createSandboxClient, parseFileArgs } from './util';
+import { createSandboxClient, parseFileArgs, cacheSandboxRegion } from './util';
 import { getCommand } from '../../../command-prefix';
 import { sandboxCreate } from '@agentuity/server';
 import { StructuredError } from '@agentuity/core';
@@ -174,6 +174,9 @@ export const createSubcommand = createCommand({
 			},
 			orgId,
 		});
+
+		// Cache the region for future lookups
+		await cacheSandboxRegion(config?.name, result.sandboxId, region);
 
 		if (!options.json) {
 			const duration = Date.now() - started;
