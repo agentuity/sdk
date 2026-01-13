@@ -21,6 +21,7 @@ import {
 	getAuthFromKeychain,
 	deleteAuthFromKeychain,
 } from './keychain';
+import { clearProfileCache } from './cache';
 
 export const defaultProfileName = 'production';
 
@@ -329,6 +330,9 @@ export async function clearAuth(): Promise<void> {
 			// Ignore errors - keychain entry may not exist
 		}
 	}
+
+	// Clear resource cache for this profile
+	await clearProfileCache(profileName);
 
 	// Also clear from config file (for backwards compatibility)
 	if (config.auth) {

@@ -6,6 +6,7 @@ import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { createS3Client } from './utils';
+import { setResourceInfo } from '../../../cache';
 
 const StorageListResponseSchema = z.object({
 	buckets: z
@@ -83,13 +84,21 @@ export const listSubcommand = createSubcommand({
 
 		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
+		const profileName = config?.name ?? 'production';
 		const resources = await tui.spinner({
 			message: `Fetching storage for ${orgId}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 's3' });
+				return listOrgResources(catalystClient, { type: 's3', orgId });
 			},
 		});
+
+		// Cache each bucket with its region and orgId for future lookups
+		for (const s3 of resources.s3) {
+			if (s3.cloud_region) {
+				await setResourceInfo('bucket', profileName, s3.bucket_name, s3.cloud_region, orgId);
+			}
+		}
 
 		// If bucket name is provided, list files in the bucket
 		if (args.name) {

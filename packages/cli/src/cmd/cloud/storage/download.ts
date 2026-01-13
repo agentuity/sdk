@@ -6,12 +6,14 @@ import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
 import { createS3Client } from './utils';
+import { getResourceInfo, setResourceInfo } from '../../../cache';
 
 export const downloadSubcommand = createSubcommand({
 	name: 'download',
 	description: 'Download a file from storage bucket',
 	tags: ['read-only', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
+	optional: { org: true },
 	idempotent: true,
 	examples: [
 		{
@@ -53,18 +55,35 @@ export const downloadSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { logger, args, opts, options, auth, config } = ctx;
 
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const profileName = config?.name ?? 'production';
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+
+		// Check cache first for orgId
+		const cachedInfo = await getResourceInfo('bucket', profileName, args.name);
+		const orgId = ctx.orgId ?? cachedInfo?.orgId;
+
+		if (!orgId) {
+			tui.fatal(
+				`Organization not found for bucket '${args.name}'. Run 'agentuity cloud storage list' first or specify --org-id.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
 
 		// Fetch bucket credentials
 		const resources = await tui.spinner({
 			message: `Fetching credentials for ${args.name}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 's3' });
+				return listOrgResources(catalystClient, { type: 's3', orgId });
 			},
 		});
 
 		const bucket = resources.s3.find((s3) => s3.bucket_name === args.name);
+
+		// Cache the bucket info for future lookups
+		if (bucket?.cloud_region) {
+			await setResourceInfo('bucket', profileName, bucket.bucket_name, bucket.cloud_region, orgId);
+		}
 
 		if (!bucket) {
 			tui.fatal(`Storage bucket '${args.name}' not found`, ErrorCode.RESOURCE_NOT_FOUND);

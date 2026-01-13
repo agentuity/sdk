@@ -25,6 +25,7 @@ async function getDatabase(): Promise<Database> {
 			profile TEXT NOT NULL,
 			id TEXT NOT NULL,
 			region TEXT NOT NULL,
+			org_id TEXT,
 			last_updated INTEGER NOT NULL,
 			PRIMARY KEY (resource_type, profile, id)
 		)
@@ -46,30 +47,82 @@ function pruneOldEntries(database: Database): void {
 export type ResourceType = 'sandbox' | 'bucket' | 'db' | 'project';
 
 /**
+ * Resource info returned from cache lookup
+ */
+export interface ResourceInfo {
+	region: string;
+	orgId?: string;
+}
+
+/**
+ * Get the cached info (region and orgId) for a resource.
+ * Returns null if not found or expired.
+ */
+export async function getResourceInfo(
+	type: ResourceType,
+	profile: string,
+	id: string
+): Promise<ResourceInfo | null> {
+	const database = await getDatabase();
+
+	pruneOldEntries(database);
+
+	const row = database
+		.query<
+			{ region: string; org_id: string | null },
+			[string, string, string]
+		>('SELECT region, org_id FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?')
+		.get(type, profile, id);
+
+	if (!row) {
+		return null;
+	}
+
+	return {
+		region: row.region,
+		orgId: row.org_id ?? undefined,
+	};
+}
+
+/**
  * Get the cached region for a resource.
  * Returns null if not found or expired.
+ * @deprecated Use getResourceInfo() to get both region and orgId
  */
 export async function getResourceRegion(
 	type: ResourceType,
 	profile: string,
 	id: string
 ): Promise<string | null> {
+	const info = await getResourceInfo(type, profile, id);
+	return info?.region ?? null;
+}
+
+/**
+ * Set the cached info for a resource.
+ * Uses INSERT OR REPLACE to upsert.
+ */
+export async function setResourceInfo(
+	type: ResourceType,
+	profile: string,
+	id: string,
+	region: string,
+	orgId?: string
+): Promise<void> {
 	const database = await getDatabase();
 
-	pruneOldEntries(database);
-
-	const row = database
-		.query<{ region: string }, [string, string, string]>(
-			'SELECT region FROM resource_region_cache WHERE resource_type = ? AND profile = ? AND id = ?'
-		)
-		.get(type, profile, id);
-
-	return row?.region ?? null;
+	database.run(
+		`INSERT OR REPLACE INTO resource_region_cache 
+		 (resource_type, profile, id, region, org_id, last_updated)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		[type, profile, id, region, orgId ?? null, Date.now()]
+	);
 }
 
 /**
  * Set the cached region for a resource.
  * Uses INSERT OR REPLACE to upsert.
+ * @deprecated Use setResourceInfo() to set both region and orgId
  */
 export async function setResourceRegion(
 	type: ResourceType,
@@ -77,18 +130,11 @@ export async function setResourceRegion(
 	id: string,
 	region: string
 ): Promise<void> {
-	const database = await getDatabase();
-
-	database.run(
-		`INSERT OR REPLACE INTO resource_region_cache 
-		 (resource_type, profile, id, region, last_updated)
-		 VALUES (?, ?, ?, ?, ?)`,
-		[type, profile, id, region, Date.now()]
-	);
+	await setResourceInfo(type, profile, id, region);
 }
 
 /**
- * Delete the cached region for a resource.
+ * Delete the cached info for a resource.
  * Called when a resource is deleted.
  */
 export async function deleteResourceRegion(

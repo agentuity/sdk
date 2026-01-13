@@ -4,6 +4,7 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
+import { setResourceInfo } from '../../../cache';
 
 const DBListResponseSchema = z.object({
 	databases: z
@@ -52,13 +53,19 @@ export const listSubcommand = createSubcommand({
 
 		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
+		const profileName = config?.name ?? 'production';
 		const resources = await tui.spinner({
 			message: `Fetching databases for ${orgId}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 'db' });
+				return listOrgResources(catalystClient, { type: 'db', orgId });
 			},
 		});
+
+		// Cache each database with its region and orgId for future lookups
+		for (const db of resources.db) {
+			await setResourceInfo('db', profileName, db.name, db.cloud_region, orgId);
+		}
 
 		// Mask credentials in terminal output by default, unless --show-credentials is passed
 		const shouldShowCredentials = opts.showCredentials === true;

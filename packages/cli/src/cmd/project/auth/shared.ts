@@ -44,7 +44,7 @@ export async function selectOrCreateDatabase(options: {
 	const resources = await tui.spinner({
 		message: `Fetching databases for ${orgId}`,
 		clearOnSuccess: true,
-		callback: async () => listOrgResources(globalClient, { type: 'db' }),
+		callback: async () => listOrgResources(globalClient, { type: 'db', orgId }),
 	});
 
 	const databases = resources.db;
@@ -137,7 +137,7 @@ export async function selectOrCreateDatabase(options: {
 		tui.success(`Created database: ${tui.bold(newDb.name)}`);
 
 		// Fetch updated list to get the URL
-		const updatedResources = await listOrgResources(globalClient, { type: 'db' });
+		const updatedResources = await listOrgResources(globalClient, { type: 'db', orgId });
 		const dbInfo = updatedResources.db.find((d) => d.name === newDb.name);
 
 		if (!dbInfo?.url) {

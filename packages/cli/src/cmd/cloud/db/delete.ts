@@ -8,6 +8,7 @@ import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import { ErrorCode } from '../../../errors';
 import { removeResourceEnvVars } from '../../../env-util';
+import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
@@ -15,7 +16,8 @@ export const deleteSubcommand = createSubcommand({
 	description: 'Delete a database resource',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: false,
-	requires: { auth: true, org: true },
+	requires: { auth: true },
+	optional: { org: true },
 	examples: [
 		{ command: getCommand('cloud db delete my-database'), description: 'Delete item' },
 		{ command: getCommand('cloud db rm my-database'), description: 'Delete item' },
@@ -36,20 +38,49 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, opts, orgId, auth, options, config } = ctx;
+		const { logger, args, opts, auth, options, config } = ctx;
 
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const profileName = config?.name ?? 'production';
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+
+		let dbName = args.name;
+
+		// If db name provided, try cache first for orgId
+		let orgId = ctx.orgId;
+		if (dbName && !orgId) {
+			const cachedInfo = await getResourceInfo('db', profileName, dbName);
+			orgId = cachedInfo?.orgId;
+		}
+
+		// For interactive selection (no db name), we need orgId
+		if (!dbName && !orgId) {
+			tui.fatal(
+				'Organization required for interactive database selection. Specify --org-id or provide database name.',
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
+
+		// If we still don't have orgId and have a db name, error out
+		if (!orgId) {
+			tui.fatal(
+				`Organization not found for database '${dbName}'. Run 'agentuity cloud db list' first or specify --org-id.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
 
 		// Fetch all databases to get region info
 		const resources = await tui.spinner({
 			message: `Fetching databases for ${orgId}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 'db' });
+				return listOrgResources(catalystClient, { type: 'db', orgId });
 			},
 		});
 
-		let dbName = args.name;
+		// Cache all fetched databases
+		for (const db of resources.db) {
+			await setResourceInfo('db', profileName, db.name, db.cloud_region, orgId);
+		}
 
 		if (!dbName) {
 			if (resources.db.length === 0) {
@@ -121,6 +152,9 @@ export const deleteSubcommand = createSubcommand({
 
 			if (deleted.length > 0) {
 				const resource = deleted[0];
+
+				// Clear cache entry for deleted database
+				await deleteResourceRegion('db', profileName, resource.name);
 
 				// Remove env vars from .env if running inside a project
 				if (ctx.projectDir && resource.env_keys.length > 0) {

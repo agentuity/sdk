@@ -9,6 +9,7 @@ import { isDryRunMode, outputDryRun } from '../../../explain';
 import { ErrorCode } from '../../../errors';
 import { createS3Client } from './utils';
 import { removeResourceEnvVars } from '../../../env-util';
+import { getResourceInfo, setResourceInfo, deleteResourceRegion } from '../../../cache';
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
@@ -16,7 +17,8 @@ export const deleteSubcommand = createSubcommand({
 	description: 'Delete a storage resource or file',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-deployment'],
 	idempotent: false,
-	requires: { auth: true, org: true },
+	requires: { auth: true },
+	optional: { org: true },
 	examples: [
 		{
 			command: getCommand('cloud storage delete my-bucket'),
@@ -50,19 +52,50 @@ export const deleteSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, args, opts, orgId, auth, options, config } = ctx;
+		const { logger, args, opts, auth, options, config } = ctx;
 
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const profileName = config?.name ?? 'production';
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, profileName);
+
+		let bucketName = args.name;
+
+		// If bucket name provided, try cache first for orgId
+		let orgId = ctx.orgId;
+		if (bucketName && !orgId) {
+			const cachedInfo = await getResourceInfo('bucket', profileName, bucketName);
+			orgId = cachedInfo?.orgId;
+		}
+
+		// For interactive selection (no bucket name), we need orgId
+		if (!bucketName && !orgId) {
+			tui.fatal(
+				'Organization required for interactive bucket selection. Specify --org-id or provide bucket name.',
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
+
+		// If we still don't have orgId and have a bucket name, error out
+		if (!orgId) {
+			tui.fatal(
+				`Organization not found for bucket '${bucketName}'. Run 'agentuity cloud storage list' first or specify --org-id.`,
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
 
 		const resources = await tui.spinner({
 			message: `Fetching storage for ${orgId}`,
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 's3' });
+				return listOrgResources(catalystClient, { type: 's3', orgId });
 			},
 		});
 
-		let bucketName = args.name;
+		// Cache all fetched buckets
+		for (const s3 of resources.s3) {
+			if (s3.cloud_region) {
+				await setResourceInfo('bucket', profileName, s3.bucket_name, s3.cloud_region, orgId);
+			}
+		}
 
 		if (!bucketName) {
 			if (resources.s3.length === 0) {
@@ -211,6 +244,9 @@ export const deleteSubcommand = createSubcommand({
 
 		if (deleted.length > 0) {
 			const resource = deleted[0];
+
+			// Clear cache entry for deleted bucket
+			await deleteResourceRegion('bucket', profileName, resource.name);
 
 			// Remove env vars from .env if running inside a project
 			if (ctx.projectDir && resource.env_keys.length > 0) {

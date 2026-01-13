@@ -208,7 +208,8 @@ export class APIClient {
 		responseSchema?: z.ZodType<TResponse>,
 		body?: TBody,
 		bodySchema?: z.ZodType<TBody>,
-		signal?: AbortSignal
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
 	): Promise<TResponse> {
 		// Validate request body if schema provided
 		if (body !== undefined && bodySchema) {
@@ -221,7 +222,7 @@ export class APIClient {
 			}
 		}
 
-		const response = await this.#makeRequest(method, endpoint, body, signal);
+		const response = await this.#makeRequest(method, endpoint, body, signal, undefined, extraHeaders);
 
 		// Handle empty responses (204 or zero-length body)
 		let data: unknown;
@@ -263,7 +264,8 @@ export class APIClient {
 		endpoint: string,
 		body?: unknown,
 		signal?: AbortSignal,
-		contentType?: string
+		contentType?: string,
+		extraHeaders?: Record<string, string>
 	): Promise<Response> {
 		this.#logger.trace('sending %s to %s%s', method, this.#baseUrl, endpoint);
 
@@ -292,6 +294,11 @@ export class APIClient {
 			Object.keys(this.#config.headers).forEach(
 				(key) => (headers[key] = this.#config!.headers![key])
 			);
+		}
+
+		// Apply per-request extra headers (e.g., x-agentuity-orgid for CLI auth)
+		if (extraHeaders) {
+			Object.keys(extraHeaders).forEach((key) => (headers[key] = extraHeaders[key]));
 		}
 
 		const canRetry = !(body instanceof ReadableStream); // we cannot safely retry a ReadableStream as body
