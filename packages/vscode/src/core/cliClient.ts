@@ -104,19 +104,6 @@ export class CliClient {
 	}
 
 	/**
-	 * Append --region flag to args using region from agentuity.json.
-	 * Used for commands that require region but don't accept --dir.
-	 * The --region flag is a subcommand option, so it must come after the command.
-	 */
-	private withRegion(args: string[]): string[] {
-		const region = this.getProjectRegion();
-		if (region) {
-			return [...args, '--region', region];
-		}
-		return args;
-	}
-
-	/**
 	 * Get the environment variables for CLI execution.
 	 * Sets TERM_PROGRAM=vscode to ensure CLI disables interactive mode.
 	 */
@@ -329,15 +316,14 @@ export class CliClient {
 		return this.exec<string>(['ai', 'prompt', 'llm'], { format: 'text' });
 	}
 
-	// Database methods (require region - pass --region from agentuity.json)
 	async listDatabases(): Promise<CliResult<DbListResponse>> {
-		return this.exec<DbListResponse>(this.withRegion(['cloud', 'db', 'list']), {
+		return this.exec<DbListResponse>(['cloud', 'db', 'list'], {
 			format: 'json',
 		});
 	}
 
 	async getDatabase(name: string): Promise<CliResult<DbInfo>> {
-		return this.exec<DbInfo>(this.withRegion(['cloud', 'db', 'get', name]), {
+		return this.exec<DbInfo>(['cloud', 'db', 'get', name], {
 			format: 'json',
 		});
 	}
@@ -356,12 +342,11 @@ export class CliClient {
 		if (opts?.sessionId) {
 			args.push('--session-id', opts.sessionId);
 		}
-		return this.exec<DbQueryLog[]>(this.withRegion(args), { format: 'json', timeout: 60000 });
+		return this.exec<DbQueryLog[]>(args, { format: 'json', timeout: 60000 });
 	}
 
-	// Storage methods (require region - pass --region from agentuity.json)
 	async listStorageBuckets(): Promise<CliResult<StorageListResponse>> {
-		return this.exec<StorageListResponse>(this.withRegion(['cloud', 'storage', 'list']), {
+		return this.exec<StorageListResponse>(['cloud', 'storage', 'list'], {
 			format: 'json',
 		});
 	}
@@ -374,7 +359,7 @@ export class CliClient {
 		if (prefix) {
 			args.push(prefix);
 		}
-		return this.exec<StorageListResponse>(this.withRegion(args), { format: 'json' });
+		return this.exec<StorageListResponse>(args, { format: 'json' });
 	}
 
 	async getStorageFileMetadata(
@@ -382,7 +367,7 @@ export class CliClient {
 		filename: string
 	): Promise<CliResult<StorageFileMetadataResponse>> {
 		return this.exec<StorageFileMetadataResponse>(
-			this.withRegion(['cloud', 'storage', 'download', bucket, filename, '--metadata']),
+			['cloud', 'storage', 'download', bucket, filename, '--metadata'],
 			{ format: 'json' }
 		);
 	}
@@ -509,17 +494,6 @@ export class CliClient {
 
 	// ==================== Sandbox Methods ====================
 
-	/** Default region for sandbox operations when no agentuity.json is present */
-	private readonly defaultSandboxRegion = 'usc';
-
-	/**
-	 * Get the region for sandbox operations.
-	 * Uses region from agentuity.json if present, otherwise falls back to default.
-	 */
-	getSandboxRegion(): string {
-		return this.getProjectRegion() ?? this.defaultSandboxRegion;
-	}
-
 	/** Default home path in sandboxes */
 	static readonly SANDBOX_HOME = '/home/agentuity';
 
@@ -527,8 +501,23 @@ export class CliClient {
 	 * Create a new sandbox.
 	 */
 	async sandboxCreate(options: SandboxCreateOptions = {}): Promise<CliResult<SandboxInfo>> {
-		const args = ['cloud', 'sandbox', 'create', '--region', this.getSandboxRegion()];
+		const region = this.getProjectRegion() ?? 'usc';
+		const args = ['cloud', 'sandbox', 'create', '--region', region];
 
+		// New runtime/name/description options
+		if (options.runtime) {
+			args.push('--runtime', options.runtime);
+		}
+		if (options.runtimeId) {
+			args.push('--runtime-id', options.runtimeId);
+		}
+		if (options.name) {
+			args.push('--name', options.name);
+		}
+		if (options.description) {
+			args.push('--description', options.description);
+		}
+		// Existing options
 		if (options.memory) {
 			args.push('--memory', options.memory);
 		}
@@ -570,10 +559,30 @@ export class CliClient {
 	}
 
 	/**
+	 * List available sandbox runtimes.
+	 */
+	async sandboxRuntimeList(
+		params: SandboxRuntimeListParams = {}
+	): Promise<CliResult<SandboxRuntimeListResponse>> {
+		const args = ['cloud', 'sandbox', 'runtime', 'list'];
+
+		if (params.limit !== undefined) {
+			args.push('--limit', String(params.limit));
+		}
+		if (params.offset !== undefined) {
+			args.push('--offset', String(params.offset));
+		}
+
+		return this.exec<SandboxRuntimeListResponse>(args, { format: 'json' });
+	}
+
+	/**
 	 * List sandboxes with optional filtering.
+	 * Runs from home directory to list all sandboxes since sandbox create
+	 * doesn't currently support project association.
 	 */
 	async sandboxList(filter: SandboxListFilter = {}): Promise<CliResult<SandboxInfo[]>> {
-		const args = ['cloud', 'sandbox', 'list', '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'list'];
 
 		if (filter.status) {
 			args.push('--status', filter.status);
@@ -588,9 +597,12 @@ export class CliClient {
 			args.push('--offset', String(filter.offset));
 		}
 
-		// CLI returns { sandboxes: [...], total: N }, extract the array
+		// Run from home directory to list all sandboxes
+		// CLI filters by project when run from project dir, but sandbox create
+		// doesn't support project association yet
 		const result = await this.exec<{ sandboxes: SandboxInfo[]; total: number }>(args, {
 			format: 'json',
+			cwd: os.homedir(),
 		});
 		if (result.success && result.data) {
 			return { success: true, data: result.data.sandboxes || [], exitCode: result.exitCode };
@@ -602,28 +614,16 @@ export class CliClient {
 	 * Get detailed information about a sandbox.
 	 */
 	async sandboxGet(sandboxId: string): Promise<CliResult<SandboxInfo>> {
-		return this.exec<SandboxInfo>(
-			['cloud', 'sandbox', 'get', sandboxId, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<SandboxInfo>(['cloud', 'sandbox', 'get', sandboxId], { format: 'json' });
 	}
 
 	/**
 	 * Delete a sandbox.
 	 */
 	async sandboxDelete(sandboxId: string): Promise<CliResult<void>> {
-		return this.exec<void>(
-			[
-				'cloud',
-				'sandbox',
-				'delete',
-				sandboxId,
-				'--confirm',
-				'--region',
-				this.getSandboxRegion(),
-			],
-			{ format: 'json' }
-		);
+		return this.exec<void>(['cloud', 'sandbox', 'delete', sandboxId, '--confirm'], {
+			format: 'json',
+		});
 	}
 
 	/**
@@ -635,7 +635,7 @@ export class CliClient {
 		command: string[],
 		options: SandboxExecOptions = {}
 	): Promise<CliResult<ExecutionInfo>> {
-		const args = ['cloud', 'sandbox', 'exec', sandboxId, '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'exec', sandboxId];
 
 		if (options.timeout) {
 			args.push('--timeout', String(options.timeout));
@@ -655,13 +655,11 @@ export class CliClient {
 	 */
 	async sandboxLs(sandboxId: string, remotePath?: string): Promise<CliResult<SandboxFileInfo[]>> {
 		const args = ['cloud', 'sandbox', 'files', sandboxId];
-		// Only add path if specified (omit for root listing)
 		if (remotePath) {
 			args.push(remotePath);
 		}
-		args.push('-l', '--region', this.getSandboxRegion());
+		args.push('-l');
 
-		// CLI returns { files: [...], total: N }, extract the array and add name from path
 		const result = await this.exec<{
 			files: Array<Omit<SandboxFileInfo, 'name'>>;
 			total: number;
@@ -669,7 +667,7 @@ export class CliClient {
 		if (result.success && result.data) {
 			const files = (result.data.files || []).map((f) => ({
 				...f,
-				name: f.path.split('/').pop() || f.path, // Extract filename from path
+				name: f.path.split('/').pop() || f.path,
 			}));
 			return { success: true, data: files, exitCode: result.exitCode };
 		}
@@ -685,7 +683,7 @@ export class CliClient {
 		remotePath: string,
 		recursive = false
 	): Promise<CliResult<SandboxCpResult>> {
-		const args = ['cloud', 'sandbox', 'cp', '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'cp'];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -702,7 +700,7 @@ export class CliClient {
 		localPath: string,
 		recursive = false
 	): Promise<CliResult<SandboxCpResult>> {
-		const args = ['cloud', 'sandbox', 'cp', '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'cp'];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -718,15 +716,7 @@ export class CliClient {
 		archivePath: string,
 		destPath?: string
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'upload',
-			sandboxId,
-			archivePath,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'upload', sandboxId, archivePath];
 		if (destPath) {
 			args.push('--path', destPath);
 		}
@@ -741,15 +731,7 @@ export class CliClient {
 		outputPath: string,
 		sourcePath?: string
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'download',
-			sandboxId,
-			outputPath,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'download', sandboxId, outputPath];
 		if (sourcePath) {
 			args.push('--path', sourcePath);
 		}
@@ -764,15 +746,7 @@ export class CliClient {
 		remotePath: string,
 		recursive = false
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'mkdir',
-			sandboxId,
-			remotePath,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'mkdir', sandboxId, remotePath];
 		if (recursive) {
 			args.push('-p');
 		}
@@ -783,10 +757,7 @@ export class CliClient {
 	 * Remove a file from a sandbox.
 	 */
 	async sandboxRm(sandboxId: string, remotePath: string): Promise<CliResult<void>> {
-		return this.exec<void>(
-			['cloud', 'sandbox', 'rm', sandboxId, remotePath, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<void>(['cloud', 'sandbox', 'rm', sandboxId, remotePath], { format: 'json' });
 	}
 
 	/**
@@ -797,15 +768,7 @@ export class CliClient {
 		remotePath: string,
 		recursive = false
 	): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'rmdir',
-			sandboxId,
-			remotePath,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'rmdir', sandboxId, remotePath];
 		if (recursive) {
 			args.push('-r');
 		}
@@ -819,7 +782,7 @@ export class CliClient {
 		sandboxId: string,
 		vars: Record<string, string>
 	): Promise<CliResult<SandboxEnvResult>> {
-		const args = ['cloud', 'sandbox', 'env', sandboxId, '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'env', sandboxId];
 		for (const [key, value] of Object.entries(vars)) {
 			args.push(`${key}=${value}`);
 		}
@@ -833,7 +796,7 @@ export class CliClient {
 		sandboxId: string,
 		varNames: string[]
 	): Promise<CliResult<SandboxEnvResult>> {
-		const args = ['cloud', 'sandbox', 'env', sandboxId, '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'env', sandboxId];
 		for (const name of varNames) {
 			args.push('--delete', name);
 		}
@@ -844,10 +807,9 @@ export class CliClient {
 	 * Get environment variables from a sandbox.
 	 */
 	async sandboxEnvGet(sandboxId: string): Promise<CliResult<SandboxEnvResult>> {
-		return this.exec<SandboxEnvResult>(
-			['cloud', 'sandbox', 'env', sandboxId, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<SandboxEnvResult>(['cloud', 'sandbox', 'env', sandboxId], {
+			format: 'json',
+		});
 	}
 
 	// ==================== Snapshot Methods ====================
@@ -856,15 +818,7 @@ export class CliClient {
 	 * Create a snapshot of a sandbox.
 	 */
 	async snapshotCreate(sandboxId: string, tag?: string): Promise<CliResult<SnapshotInfo>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'snapshot',
-			'create',
-			sandboxId,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'snapshot', 'create', sandboxId];
 		if (tag) {
 			args.push('--tag', tag);
 		}
@@ -875,11 +829,10 @@ export class CliClient {
 	 * List snapshots with optional sandbox filter.
 	 */
 	async snapshotList(sandboxId?: string): Promise<CliResult<SnapshotInfo[]>> {
-		const args = ['cloud', 'sandbox', 'snapshot', 'list', '--region', this.getSandboxRegion()];
+		const args = ['cloud', 'sandbox', 'snapshot', 'list'];
 		if (sandboxId) {
 			args.push('--sandbox', sandboxId);
 		}
-		// CLI returns { snapshots: [], total: N }
 		const result = await this.exec<{ snapshots: SnapshotInfo[]; total: number }>(args, {
 			format: 'json',
 		});
@@ -893,44 +846,25 @@ export class CliClient {
 	 * Get detailed information about a snapshot.
 	 */
 	async snapshotGet(snapshotId: string): Promise<CliResult<SnapshotInfo>> {
-		return this.exec<SnapshotInfo>(
-			['cloud', 'sandbox', 'snapshot', 'get', snapshotId, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<SnapshotInfo>(['cloud', 'sandbox', 'snapshot', 'get', snapshotId], {
+			format: 'json',
+		});
 	}
 
 	/**
 	 * Delete a snapshot.
 	 */
 	async snapshotDelete(snapshotId: string): Promise<CliResult<void>> {
-		return this.exec<void>(
-			[
-				'cloud',
-				'sandbox',
-				'snapshot',
-				'delete',
-				snapshotId,
-				'--confirm',
-				'--region',
-				this.getSandboxRegion(),
-			],
-			{ format: 'json' }
-		);
+		return this.exec<void>(['cloud', 'sandbox', 'snapshot', 'delete', snapshotId, '--confirm'], {
+			format: 'json',
+		});
 	}
 
 	/**
 	 * Tag or untag a snapshot.
 	 */
 	async snapshotTag(snapshotId: string, tag: string | null): Promise<CliResult<void>> {
-		const args = [
-			'cloud',
-			'sandbox',
-			'snapshot',
-			'tag',
-			snapshotId,
-			'--region',
-			this.getSandboxRegion(),
-		];
+		const args = ['cloud', 'sandbox', 'snapshot', 'tag', snapshotId];
 		if (tag === null) {
 			args.push('--clear');
 		} else {
@@ -945,9 +879,8 @@ export class CliClient {
 	 * List executions for a sandbox.
 	 */
 	async executionList(sandboxId: string): Promise<CliResult<ExecutionInfo[]>> {
-		// CLI returns { executions: [] }
 		const result = await this.exec<{ executions: ExecutionInfo[] }>(
-			['cloud', 'sandbox', 'execution', 'list', sandboxId, '--region', this.getSandboxRegion()],
+			['cloud', 'sandbox', 'execution', 'list', sandboxId],
 			{ format: 'json' }
 		);
 		if (result.success && result.data) {
@@ -960,10 +893,9 @@ export class CliClient {
 	 * Get detailed information about an execution.
 	 */
 	async executionGet(executionId: string): Promise<CliResult<ExecutionInfo>> {
-		return this.exec<ExecutionInfo>(
-			['cloud', 'sandbox', 'execution', 'get', executionId, '--region', this.getSandboxRegion()],
-			{ format: 'json' }
-		);
+		return this.exec<ExecutionInfo>(['cloud', 'sandbox', 'execution', 'get', executionId], {
+			format: 'json',
+		});
 	}
 
 	dispose(): void {
@@ -1270,9 +1202,20 @@ export interface SandboxInfo {
 	resources?: SandboxResources;
 	stdoutStreamUrl?: string;
 	stderrStreamUrl?: string;
+	// New fields from sandbox improvements
+	name?: string;
+	description?: string;
+	runtimeId?: string;
+	runtimeName?: string;
 }
 
 export interface SandboxCreateOptions {
+	// New fields from sandbox improvements
+	runtime?: string;
+	runtimeId?: string;
+	name?: string;
+	description?: string;
+	// Existing fields
 	memory?: string;
 	cpu?: string;
 	disk?: string;
@@ -1339,6 +1282,26 @@ export interface SandboxCpResult {
 
 export interface SandboxEnvResult {
 	env: Record<string, string>;
+}
+
+// Sandbox runtime types
+export interface SandboxRuntime {
+	id: string;
+	name: string;
+	description?: string;
+	iconUrl?: string;
+	url?: string;
+	tags?: string[];
+}
+
+export interface SandboxRuntimeListParams {
+	limit?: number;
+	offset?: number;
+}
+
+export interface SandboxRuntimeListResponse {
+	runtimes: SandboxRuntime[];
+	total: number;
 }
 
 // Singleton
