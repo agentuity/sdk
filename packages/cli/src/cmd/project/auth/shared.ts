@@ -9,7 +9,7 @@ import {
 	getCatalystAPIClient,
 	getGlobalCatalystAPIClient,
 	loadProjectConfig,
-	ProjectConfigNotFoundExpection,
+	ProjectConfigNotFoundException,
 } from '../../../config';
 import type { Logger } from '../../../types';
 import type { AuthData } from '../../../types';
@@ -110,7 +110,7 @@ export async function selectOrCreateDatabase(options: {
 				region = projectConfig.region;
 				logger.trace(`[auth init] Using region from project config: ${region}`);
 			} catch (err) {
-				if (!(err instanceof ProjectConfigNotFoundExpection)) {
+				if (!(err instanceof ProjectConfigNotFoundException)) {
 					logger.trace(`[auth init] Error loading project config: ${err}`);
 				}
 			}

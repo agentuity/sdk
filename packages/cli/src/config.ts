@@ -510,7 +510,7 @@ export function generateYAMLTemplate(name: string): string {
 	return lines.join('\n');
 }
 
-export const ProjectConfigNotFoundExpection = StructuredError('ProjectConfigNotFoundExpection');
+export const ProjectConfigNotFoundException = StructuredError('ProjectConfigNotFoundException');
 
 type ProjectConfig = z.infer<typeof ProjectSchema>;
 
@@ -534,7 +534,7 @@ export async function loadProjectConfig(
 		// and then if so:
 		// 1. if authentication, offer to import the project
 		// 2. tell them that they need to login to use the command and import the project
-		throw new ProjectConfigNotFoundExpection({ message: 'project config not found' });
+		throw new ProjectConfigNotFoundException({ message: 'project config not found' });
 	}
 	const text = await file.text();
 	const parsedConfig = JSON5.parse(text);
