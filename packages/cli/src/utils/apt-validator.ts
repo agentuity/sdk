@@ -1,4 +1,4 @@
-import type { Logger } from '@agentuity/core';
+import { StructuredError, type Logger } from '@agentuity/core';
 import type { Config } from '../types';
 import { getAppBaseURL } from '@agentuity/server';
 import { getUserAgent } from '../api';
@@ -6,6 +6,15 @@ import { getDefaultConfigDir } from '../config';
 import { join, dirname } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { z } from 'zod';
+
+const AptValidationError = StructuredError('AptValidationError');
+const AptValidationAPIError = StructuredError('AptValidationAPIError')<{
+	status?: number;
+	body?: string;
+}>();
+const AptValidationResponseError = StructuredError('AptValidationResponseError')<{
+	parseError?: string;
+}>();
 
 export interface InvalidPackage {
 	package: string;
@@ -41,14 +50,16 @@ const ValidateAptDependenciesResponseSchema = z.object({
 
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds client-side timeout
 
-interface CacheEntry {
-	timestamp: number;
-}
+const CacheEntrySchema = z.object({
+	timestamp: z.number(),
+});
 
-interface ValidationCache {
-	version: number;
-	entries: Record<string, CacheEntry>;
-}
+const ValidationCacheSchema = z.object({
+	version: z.number(),
+	entries: z.record(z.string(), CacheEntrySchema),
+});
+
+type ValidationCache = z.infer<typeof ValidationCacheSchema>;
 
 const CACHE_VERSION = 1;
 const CACHE_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
@@ -63,10 +74,11 @@ async function loadCache(logger: Logger): Promise<ValidationCache> {
 		const file = Bun.file(cachePath);
 		if (await file.exists()) {
 			const content = await file.json();
-			if (content.version === CACHE_VERSION) {
-				return content as ValidationCache;
+			const parsed = ValidationCacheSchema.safeParse(content);
+			if (parsed.success && parsed.data.version === CACHE_VERSION) {
+				return parsed.data;
 			}
-			logger.debug('Cache version mismatch, starting fresh');
+			logger.debug('Cache invalid or version mismatch, starting fresh');
 		}
 	} catch (err) {
 		logger.debug('Failed to load validation cache: %s', err);
@@ -84,7 +96,7 @@ async function saveCache(cache: ValidationCache, logger: Logger): Promise<void> 
 	}
 }
 
-function isCacheEntryValid(entry: CacheEntry): boolean {
+function isCacheEntryValid(entry: z.infer<typeof CacheEntrySchema>): boolean {
 	return Date.now() - entry.timestamp < CACHE_TTL_MS;
 }
 
@@ -148,20 +160,29 @@ export async function validateAptDependencies(
 
 	if (!response.ok) {
 		const text = await response.text();
-		throw new Error(`Failed to validate apt dependencies: HTTP ${response.status} - ${text}`);
+		throw new AptValidationAPIError({
+			message: `Failed to validate apt dependencies: HTTP ${response.status}`,
+			status: response.status,
+			body: text,
+		});
 	}
 
 	const json = await response.json();
 	const parsed = ValidateAptDependenciesResponseSchema.safeParse(json);
 
 	if (!parsed.success) {
-		throw new Error(`Invalid API response: ${parsed.error.message}`);
+		throw new AptValidationResponseError({
+			message: 'Invalid API response structure',
+			parseError: parsed.error.message,
+		});
 	}
 
 	const result = parsed.data;
 
 	if (!result.success || !result.data) {
-		throw new Error(result.message ?? 'Failed to validate apt dependencies');
+		throw new AptValidationError({
+			message: result.message ?? 'Failed to validate apt dependencies',
+		});
 	}
 
 	// Update cache with valid results only (don't cache invalid packages)
