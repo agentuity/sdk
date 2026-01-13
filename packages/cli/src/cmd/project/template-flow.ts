@@ -342,11 +342,25 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 		switch (choices.db_action) {
 			case 'Create New': {
+				const dbName = await prompt.text({
+					message: 'Database name',
+					hint: 'Optional - press Enter to auto-generate',
+				});
+				const dbDescription = await prompt.text({
+					message: 'Database description',
+					hint: 'Optional - press Enter to skip',
+				});
 				const created = await tui.spinner({
 					message: 'Provisioning New SQL Database',
 					clearOnSuccess: true,
 					callback: async () => {
-						return createResources(catalystClient, orgId, region!, [{ type: 'db' }]);
+						return createResources(catalystClient, orgId, region!, [
+							{
+								type: 'db',
+								name: dbName || undefined,
+								description: dbDescription || undefined,
+							},
+						]);
 					},
 				});
 				// Collect env vars from newly created resource

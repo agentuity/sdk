@@ -55,6 +55,7 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		'.idea',
 		'.DS_Store',
 		'.playwright',
+		'.bun',
 		'src/generated',
 	]);
 
@@ -76,6 +77,7 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 		'.dist',
 		'.vscode',
 		'.idea',
+		'.bun',
 		'.DS_Store',
 		'.playwright',
 		'src/web', // Vite handles frontend with HMR - no backend restart needed

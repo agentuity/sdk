@@ -1675,11 +1675,14 @@ export async function selectOrganization(
 		);
 	}
 
+	// Find the index of the initial org to pre-select it in the list
+	const initialIndex = initial ? orgs.findIndex((o) => o.id === initial) : -1;
+
 	const response = await enquirer.prompt<{ action: string }>({
 		type: 'select',
 		name: 'action',
 		message: 'Select an organization',
-		initial: initial || (orgs.length === 1 ? orgs[0].id : undefined),
+		initial: initialIndex >= 0 ? initialIndex : 0,
 		choices: orgs.map((o) => ({ message: o.name, name: o.id })),
 	});
 
@@ -1830,6 +1833,11 @@ export interface TableOptions {
 	 * - 'auto': Automatically choose based on terminal width (default)
 	 */
 	layout?: 'horizontal' | 'vertical' | 'auto';
+
+	/**
+	 * the padding before any label
+	 */
+	padStart?: string;
 }
 
 /**
@@ -1838,10 +1846,11 @@ export interface TableOptions {
  */
 function calculateTableWidth<T extends Record<string, unknown>>(
 	data: T[],
-	columnNames: string[]
+	columnNames: string[],
+	padStart = ''
 ): number {
 	const columnWidths = columnNames.map((colName) => {
-		let maxWidth = getDisplayWidth(colName);
+		let maxWidth = getDisplayWidth(padStart + colName);
 		for (const row of data) {
 			const value = row[colName];
 			const valueStr = value !== undefined && value !== null ? String(value) : '';
@@ -1866,14 +1875,17 @@ function calculateTableWidth<T extends Record<string, unknown>>(
  */
 function renderVerticalTable<T extends Record<string, unknown>>(
 	data: T[],
-	columnNames: string[]
+	columnNames: string[],
+	padStart = ''
 ): string {
 	const lines: string[] = [];
 	const mutedColor = getColor('muted');
 	const reset = getColor('reset');
 
 	// Calculate max column name width for alignment
-	const maxLabelWidth = Math.max(...columnNames.map((name) => 1 + getDisplayWidth(name)));
+	const maxLabelWidth = Math.max(
+		...columnNames.map((name) => 1 + getDisplayWidth(padStart + name))
+	);
 
 	for (let i = 0; i < data.length; i++) {
 		const row = data[i];
@@ -1881,7 +1893,7 @@ function renderVerticalTable<T extends Record<string, unknown>>(
 		for (const colName of columnNames) {
 			const value = row[colName];
 			const valueStr = value !== undefined && value !== null ? String(value) : '';
-			const paddedLabel = `${colName}:`.padEnd(maxLabelWidth);
+			const paddedLabel = `${padStart}${colName}:`.padEnd(maxLabelWidth);
 			lines.push(`${mutedColor}${paddedLabel}${reset}  ${valueStr}`);
 		}
 
@@ -1942,13 +1954,13 @@ export function table<T extends Record<string, unknown>>(
 	// Determine layout mode
 	const layout = options?.layout ?? 'auto';
 	const termWidth = getTerminalWidth(80);
-	const tableWidth = calculateTableWidth(data, columnNames);
+	const tableWidth = calculateTableWidth(data, columnNames, options?.padStart);
 	const useVertical = layout === 'vertical' || (layout === 'auto' && tableWidth > termWidth);
 
 	let output: string;
 
 	if (useVertical) {
-		output = renderVerticalTable(data, columnNames);
+		output = renderVerticalTable(data, columnNames, options?.padStart);
 	} else {
 		// eslint-disable-next-line @typescript-eslint/no-require-imports
 		const Table = require('cli-table3') as new (options?: {

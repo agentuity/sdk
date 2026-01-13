@@ -4,13 +4,13 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getGlobalCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
-import { setResourceInfo } from '../../../cache';
 
 const DBListResponseSchema = z.object({
 	databases: z
 		.array(
 			z.object({
 				name: z.string().describe('Database name'),
+				description: z.string().optional().describe('Database description'),
 				url: z.string().optional().describe('Database connection URL'),
 				cloud_region: z.string().optional().describe('Cloud region where database is hosted'),
 			})
@@ -23,7 +23,7 @@ export const listSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List database resources',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('cloud db list'), description: 'List items' },
@@ -49,23 +49,17 @@ export const listSubcommand = createSubcommand({
 	webUrl: '/services/database',
 
 	async handler(ctx) {
-		const { logger, opts, options, orgId, auth, config } = ctx;
+		const { logger, opts, options, auth, config } = ctx;
 
 		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
-		const profileName = config?.name ?? 'production';
 		const resources = await tui.spinner({
-			message: `Fetching databases for ${orgId}`,
+			message: 'Fetching databases',
 			clearOnSuccess: true,
 			callback: async () => {
-				return listOrgResources(catalystClient, { type: 'db', orgId });
+				return listOrgResources(catalystClient, { type: 'db' });
 			},
 		});
-
-		// Cache each database with its region and orgId for future lookups
-		for (const db of resources.db) {
-			await setResourceInfo('db', profileName, db.name, db.cloud_region, orgId);
-		}
 
 		// Mask credentials in terminal output by default, unless --show-credentials is passed
 		const shouldShowCredentials = opts.showCredentials === true;
@@ -74,29 +68,25 @@ export const listSubcommand = createSubcommand({
 		if (!options.json) {
 			if (resources.db.length === 0) {
 				tui.info('No databases found');
-			} else {
-				if (!opts.nameOnly) {
-					tui.info(tui.bold('Databases'));
-					tui.newline();
-				}
+			} else if (opts.nameOnly) {
 				for (const db of resources.db) {
-					if (opts.nameOnly) {
-						console.log(db.name);
-						continue;
-					}
-					console.log(tui.bold(db.name));
-					if (db.url) {
-						const displayUrl = shouldMask ? tui.maskSecret(db.url) : db.url;
-						console.log(` URL: ${tui.muted(displayUrl)}`);
-					}
-					tui.newline();
+					console.log(db.name);
 				}
+			} else {
+				const tableData = resources.db.map((db) => ({
+					Name: db.name,
+					Description: db.description ?? '',
+					Region: db.cloud_region,
+					URL: db.url ? (shouldMask ? tui.maskSecret(db.url) : db.url) : '',
+				}));
+				tui.table(tableData);
 			}
 		}
 
 		return {
 			databases: resources.db.map((db) => ({
 				name: db.name,
+				description: db.description ?? undefined,
 				url: db.url ?? undefined,
 				cloud_region: db.cloud_region,
 			})),

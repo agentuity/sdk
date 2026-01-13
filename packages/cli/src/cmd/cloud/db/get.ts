@@ -10,6 +10,7 @@ import { getResourceInfo, setResourceInfo } from '../../../cache';
 const DBGetResponseSchema = z
 	.object({
 		name: z.string().describe('Database name'),
+		description: z.string().optional().describe('Database description'),
 		url: z.string().optional().describe('Database connection URL'),
 	})
 	.or(
@@ -171,15 +172,25 @@ export const getSubcommand = createSubcommand({
 		const shouldMask = !options.json && !shouldShowCredentials;
 
 		if (!options.json) {
-			console.log(tui.bold('Name: ') + db.name);
-			if (db.url) {
-				const displayUrl = shouldMask ? tui.maskSecret(db.url) : db.url;
-				console.log(tui.bold('URL:  ') + displayUrl);
+			const tableData: Record<string, string> = {
+				Name: tui.bold(db.name),
+			};
+			if (db.description) {
+				tableData['Description'] = db.description;
 			}
+			if (db.cloud_region) {
+				tableData['Region'] = db.cloud_region;
+			}
+			if (db.url) {
+				tableData['URL'] = shouldMask ? tui.maskSecret(db.url) : db.url;
+			}
+
+			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 		}
 
 		return {
 			name: db.name,
+			description: db.description ?? undefined,
 			url: db.url ?? undefined,
 		};
 	},

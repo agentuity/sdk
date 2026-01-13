@@ -13,6 +13,7 @@ const OrgS3Resource = z.object({
 
 const OrgDBResource = z.object({
 	name: z.string().describe('the database name'),
+	description: z.string().nullable().optional().describe('optional description of the database'),
 	username: z.string().nullable().optional().describe('the database username'),
 	password: z.string().nullable().optional().describe('the database password'),
 	url: z.string().nullable().optional().describe('the full database connection URL'),

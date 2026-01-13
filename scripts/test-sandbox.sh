@@ -55,6 +55,10 @@ pass() {
 fail() {
 	echo -e "${RED}✗ $1${NC}"
 	echo -e "${RED}  Output: $2${NC}"
+	# Log sandbox ID for OTel trace correlation
+	if [ -n "$SANDBOX_ID" ]; then
+		echo -e "${RED}  SandboxId: $SANDBOX_ID${NC}"
+	fi
 	TESTS_FAILED=$((TESTS_FAILED + 1))
 }
 

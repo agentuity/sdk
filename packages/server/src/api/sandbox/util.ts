@@ -15,6 +15,8 @@ export const SandboxResponseError = StructuredError('SandboxResponseError')<{
 	sandboxId?: string;
 	/** The execution ID associated with the error, if applicable */
 	executionId?: string;
+	/** The session ID (trace ID) from the x-session-id response header for OTel correlation */
+	sessionId?: string | null;
 }>();
 
 /** Current sandbox API version */

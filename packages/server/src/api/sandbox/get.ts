@@ -43,6 +43,7 @@ const SandboxOrgInfoSchema = z
 const SandboxInfoDataSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
+		identifier: z.string().optional().describe('Short identifier for DNS hostname'),
 		name: z.string().optional().describe('Sandbox name'),
 		description: z.string().optional().describe('Sandbox description'),
 		status: z
@@ -72,6 +73,8 @@ const SandboxInfoDataSchema = z
 		memoryByteSec: z.number().optional().describe('Total memory usage in byte-seconds'),
 		networkEgressBytes: z.number().optional().describe('Total network egress in bytes'),
 		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
+		networkPort: z.number().optional().describe('Network port exposed from the sandbox'),
+		url: z.string().optional().describe('Public URL for the sandbox (only set if networkPort is configured)'),
 		user: SandboxUserInfoSchema.optional().describe('User who created the sandbox'),
 		agent: SandboxAgentInfoSchema.optional().describe('Agent associated with the sandbox'),
 		project: SandboxProjectInfoSchema.optional().describe('Project associated with the sandbox'),

@@ -223,11 +223,6 @@ export async function requireOrg(
 		return options.orgId;
 	}
 
-	// Check if org is saved in config preferences
-	if (config?.preferences?.orgId) {
-		return config.preferences.orgId;
-	}
-
 	// Fetch organizations
 	const orgs = await tui.spinner({
 		message: 'Fetching organizations',
