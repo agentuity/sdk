@@ -34,7 +34,9 @@ export const createSubcommand = createCommand({
 			description: 'Create a tagged snapshot',
 		},
 		{
-			command: getCommand('cloud sandbox snapshot create sbx_abc123 --name "My Snapshot" --description "Initial setup"'),
+			command: getCommand(
+				'cloud sandbox snapshot create sbx_abc123 --name "My Snapshot" --description "Initial setup"'
+			),
 			description: 'Create a named snapshot with description',
 		},
 	],
@@ -64,7 +66,9 @@ export const createSubcommand = createCommand({
 
 		if (opts.tag) {
 			if (opts.tag.length > MAX_SNAPSHOT_TAG_LENGTH) {
-				logger.fatal(`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`);
+				logger.fatal(
+					`Invalid snapshot tag: must be at most ${MAX_SNAPSHOT_TAG_LENGTH} characters`
+				);
 			}
 			if (!SNAPSHOT_TAG_REGEX.test(opts.tag)) {
 				logger.fatal(

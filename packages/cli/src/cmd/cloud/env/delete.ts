@@ -42,7 +42,9 @@ export const deleteSubcommand = createSubcommand({
 
 		// Validate key doesn't start with reserved AGENTUITY_ prefix (except AGENTUITY_PUBLIC_)
 		if (isReservedAgentuityKey(args.key)) {
-			tui.fatal('Cannot delete AGENTUITY_ prefixed variables. These are reserved for system use.');
+			tui.fatal(
+				'Cannot delete AGENTUITY_ prefixed variables. These are reserved for system use.'
+			);
 		}
 
 		// First, determine if this key exists in env or secrets
