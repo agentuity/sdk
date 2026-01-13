@@ -1,6 +1,7 @@
 import type { Logger } from '@agentuity/core';
 import type { Config } from '../types';
 import { getAppBaseURL } from '@agentuity/server';
+import { getUserAgent } from '../api';
 import { getDefaultConfigDir } from '../config';
 import { join } from 'node:path';
 import { z } from 'zod';
@@ -137,6 +138,7 @@ export async function validateAptDependencies(
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
+			'User-Agent': getUserAgent(config),
 		},
 		body: JSON.stringify({ packages: uncachedPackages }),
 		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
