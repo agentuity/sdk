@@ -53,6 +53,10 @@ export const listSubcommand = createSubcommand({
 			command: getCommand('cloud session list --env=production'),
 			description: 'Only production environment',
 		},
+		{
+			command: getCommand('cloud session list --all'),
+			description: 'List all sessions regardless of project context',
+		},
 	],
 	aliases: ['ls'],
 	requires: { auth: true },
@@ -76,6 +80,7 @@ export const listSubcommand = createSubcommand({
 				.default(10)
 				.describe('Number of sessions to list (1–100)'),
 			projectId: z.string().optional().describe('Filter by project ID'),
+			all: z.boolean().optional().describe('List all sessions regardless of project context'),
 			deploymentId: z.string().optional().describe('Filter by deployment ID'),
 			trigger: z.string().optional().describe('Filter by trigger type (api, cron, webhook)'),
 			env: z.string().optional().describe('Filter by environment'),
@@ -89,14 +94,14 @@ export const listSubcommand = createSubcommand({
 		response: SessionListResponseSchema,
 	},
 	webUrl: (ctx) => {
-		const projectId = ctx.opts?.projectId || ctx.project?.projectId;
+		const projectId = ctx.opts?.all ? undefined : ctx.opts?.projectId || ctx.project?.projectId;
 		return projectId ? `/projects/${encodeURIComponent(projectId)}/sessions` : undefined;
 	},
 	async handler(ctx) {
 		const { logger, auth, project, opts, options, config } = ctx;
 		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
-		const projectId = opts.projectId || project?.projectId;
+		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
 
 		try {
 			const sessions = await sessionList(catalystClient, {

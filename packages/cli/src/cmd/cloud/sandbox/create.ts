@@ -25,6 +25,7 @@ export const createSubcommand = createCommand({
 	description: 'Create an interactive sandbox for multiple executions',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, region: true, org: true },
+	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox create'),
@@ -45,6 +46,10 @@ export const createSubcommand = createCommand({
 		{
 			command: getCommand('cloud sandbox create --env KEY=VAL'),
 			description: 'Create a sandbox with a specific environment variable',
+		},
+		{
+			command: getCommand('cloud sandbox create --project-id proj_123'),
+			description: 'Create a sandbox associated with a specific project',
 		},
 	],
 	schema: {
@@ -79,12 +84,14 @@ export const createSubcommand = createCommand({
 				.max(65535)
 				.optional()
 				.describe('Port to expose from the sandbox to the outside Internet (1024-65535)'),
+			projectId: z.string().optional().describe('Project ID to associate this sandbox with'),
 		}),
 		response: SandboxCreateResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { opts, options, auth, region, config, logger, orgId } = ctx;
+		const { opts, options, auth, region, config, logger, orgId, project } = ctx;
+		const projectId = opts.projectId || project?.projectId;
 		const client = createSandboxClient(logger, auth, region);
 		const started = Date.now();
 
@@ -159,6 +166,7 @@ export const createSubcommand = createCommand({
 
 		const result = await sandboxCreate(client, {
 			options: {
+				projectId,
 				runtime: opts.runtime,
 				runtimeId: opts.runtimeId,
 				name: opts.name,
