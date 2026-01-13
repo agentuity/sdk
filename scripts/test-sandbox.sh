@@ -857,6 +857,300 @@ $CLI cloud sandbox snapshot delete "$LATEST_SNAP_ID" --confirm 2>/dev/null || tr
 SNAPSHOT_ID=""
 
 # ============================================
+section "SNAPSHOT BUILD Command Tests"
+# ============================================
+
+# Setup build test directory
+BUILD_DIR="$TEST_DIR/build-test"
+mkdir -p "$BUILD_DIR/scripts"
+mkdir -p "$BUILD_DIR/config"
+echo "app.js content" > "$BUILD_DIR/app.js"
+echo "helper.js content" > "$BUILD_DIR/scripts/helper.js"
+echo '{"key": "value"}' > "$BUILD_DIR/config/settings.json"
+echo "should be excluded" > "$BUILD_DIR/exclude.png"
+pass "Build test files created"
+
+# Test: Basic build with files
+info "Test: snapshot build - basic with files"
+BUILD_NAME="build-test-$(date +%s)"
+cat > "$BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+description: Test build snapshot
+files:
+  - "*.js"
+  - scripts/**
+  - config/*.json
+  - "!*.png"
+EOF
+
+BUILD_OUTPUT=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --tag "v1" --json 2>&1) || true
+BUILD_SNAP_ID=$(echo "$BUILD_OUTPUT" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$BUILD_SNAP_ID" ] && [[ "$BUILD_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build returns valid snapshotId: $BUILD_SNAP_ID"
+	SNAPSHOT_ID="$BUILD_SNAP_ID"
+else
+	fail "snapshot build did not return valid snapshotId" "$BUILD_OUTPUT"
+fi
+
+# Verify build output includes expected fields
+if echo "$BUILD_OUTPUT" | grep -q '"sizeBytes"'; then
+	pass "snapshot build returns sizeBytes"
+else
+	fail "snapshot build missing sizeBytes" "$BUILD_OUTPUT"
+fi
+
+if echo "$BUILD_OUTPUT" | grep -q '"fileCount"'; then
+	pass "snapshot build returns fileCount"
+else
+	fail "snapshot build missing fileCount" "$BUILD_OUTPUT"
+fi
+
+BUILD_TAG=$(echo "$BUILD_OUTPUT" | grep -o '"tag"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ "$BUILD_TAG" = "v1" ]; then
+	pass "snapshot build respects --tag option"
+else
+	fail "snapshot build did not use correct tag (expected v1)" "$BUILD_TAG"
+fi
+
+# Test: Create sandbox from built snapshot
+info "Test: sandbox create from built snapshot"
+if [ -n "$BUILD_SNAP_ID" ]; then
+	BUILD_SANDBOX=$($CLI cloud sandbox create --description "$SANDBOX_DESC" --snapshot "$BUILD_SNAP_ID" --json 2>&1) || true
+	BUILD_SANDBOX_ID=$(echo "$BUILD_SANDBOX" | grep -o '"sandboxId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$BUILD_SANDBOX_ID" ] && [[ "$BUILD_SANDBOX_ID" == sbx_* ]]; then
+		sleep 3
+		# Verify files from build exist
+		VERIFY_APP=$($CLI cloud sandbox exec "$BUILD_SANDBOX_ID" -- cat /home/agentuity/app.js 2>&1) || true
+		if echo "$VERIFY_APP" | grep -q "app.js content"; then
+			pass "sandbox from built snapshot contains app.js"
+		else
+			fail "sandbox from built snapshot missing app.js" "$VERIFY_APP"
+		fi
+		
+		VERIFY_HELPER=$($CLI cloud sandbox exec "$BUILD_SANDBOX_ID" -- cat /home/agentuity/scripts/helper.js 2>&1) || true
+		if echo "$VERIFY_HELPER" | grep -q "helper.js content"; then
+			pass "sandbox from built snapshot contains scripts/helper.js"
+		else
+			fail "sandbox from built snapshot missing scripts/helper.js" "$VERIFY_HELPER"
+		fi
+		
+		# Verify excluded file is NOT present
+		VERIFY_EXCLUDED=$($CLI cloud sandbox exec "$BUILD_SANDBOX_ID" -- ls /home/agentuity/exclude.png 2>&1) || true
+		if echo "$VERIFY_EXCLUDED" | grep -qi "no such file\|cannot access"; then
+			pass "snapshot build correctly excluded .png files"
+		else
+			fail "snapshot build did not exclude .png files" "$VERIFY_EXCLUDED"
+		fi
+		
+		$CLI cloud sandbox delete "$BUILD_SANDBOX_ID" --confirm 2>/dev/null || true
+	else
+		fail "failed to create sandbox from built snapshot" "$BUILD_SANDBOX"
+	fi
+else
+	fail "skipping sandbox create test - no snapshot ID" ""
+fi
+
+# Clean up first build snapshot
+$CLI cloud sandbox snapshot delete "$SNAPSHOT_ID" --confirm 2>/dev/null || true
+SNAPSHOT_ID=""
+
+# Test: Build with dependencies
+info "Test: snapshot build with dependencies"
+cat > "$BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+dependencies:
+  - curl
+files:
+  - "*.js"
+EOF
+
+DEP_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --json 2>&1) || true
+DEP_SNAP_ID=$(echo "$DEP_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$DEP_SNAP_ID" ] && [[ "$DEP_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build with dependencies succeeds"
+	$CLI cloud sandbox snapshot delete "$DEP_SNAP_ID" --confirm 2>/dev/null || true
+else
+	fail "snapshot build with dependencies failed" "$DEP_BUILD"
+fi
+
+# Test: Build with env variables and substitution
+info "Test: snapshot build with env substitution"
+cat > "$BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+files:
+  - "*.js"
+env:
+  STATIC_VAR: static_value
+  DYNAMIC_VAR: \${MY_SECRET}
+EOF
+
+ENV_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --env "MY_SECRET=secret123" --json 2>&1) || true
+ENV_SNAP_ID=$(echo "$ENV_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$ENV_SNAP_ID" ] && [[ "$ENV_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build with env substitution succeeds"
+	$CLI cloud sandbox snapshot delete "$ENV_SNAP_ID" --confirm 2>/dev/null || true
+else
+	fail "snapshot build with env substitution failed" "$ENV_BUILD"
+fi
+
+# Test: Build with missing env variable (should fail)
+info "Test: snapshot build with missing env variable"
+MISSING_ENV_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --json 2>&1) || true
+if echo "$MISSING_ENV_BUILD" | grep -qi "not defined\|MY_SECRET"; then
+	pass "snapshot build fails with missing env variable"
+else
+	# Check if it somehow succeeded (which would be wrong)
+	MISSING_SNAP_ID=$(echo "$MISSING_ENV_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$MISSING_SNAP_ID" ]; then
+		$CLI cloud sandbox snapshot delete "$MISSING_SNAP_ID" --confirm 2>/dev/null || true
+		fail "snapshot build should have failed with missing env variable" "$MISSING_ENV_BUILD"
+	else
+		fail "snapshot build error message not clear about missing variable" "$MISSING_ENV_BUILD"
+	fi
+fi
+
+# Test: Build with metadata substitution
+info "Test: snapshot build with metadata"
+cat > "$BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+files:
+  - "*.js"
+metadata:
+  version: \${VERSION}
+  author: test-suite
+EOF
+
+META_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --metadata "VERSION=1.0.0" --json 2>&1) || true
+META_SNAP_ID=$(echo "$META_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$META_SNAP_ID" ] && [[ "$META_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build with metadata succeeds"
+	$CLI cloud sandbox snapshot delete "$META_SNAP_ID" --confirm 2>/dev/null || true
+else
+	fail "snapshot build with metadata failed" "$META_BUILD"
+fi
+
+# Test: Build with custom build file path
+info "Test: snapshot build --file"
+cat > "$BUILD_DIR/custom-build.yaml" << EOF
+version: 1
+runtime: bun:1
+files:
+  - config/*.json
+EOF
+
+CUSTOM_FILE_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --file "$BUILD_DIR/custom-build.yaml" --json 2>&1) || true
+CUSTOM_SNAP_ID=$(echo "$CUSTOM_FILE_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$CUSTOM_SNAP_ID" ] && [[ "$CUSTOM_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build with --file option succeeds"
+	$CLI cloud sandbox snapshot delete "$CUSTOM_SNAP_ID" --confirm 2>/dev/null || true
+else
+	fail "snapshot build with --file option failed" "$CUSTOM_FILE_BUILD"
+fi
+
+# Test: Build with --description override
+info "Test: snapshot build --description"
+cat > "$BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+description: Original description
+files:
+  - "*.js"
+EOF
+
+DESC_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --description "Overridden description" --json 2>&1) || true
+DESC_SNAP_ID=$(echo "$DESC_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$DESC_SNAP_ID" ] && [[ "$DESC_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build with --description succeeds"
+	$CLI cloud sandbox snapshot delete "$DESC_SNAP_ID" --confirm 2>/dev/null || true
+else
+	fail "snapshot build with --description failed" "$DESC_BUILD"
+fi
+
+# Test: Build dry-run mode
+info "Test: snapshot build --dry-run"
+cat > "$BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+files:
+  - "*.js"
+  - scripts/**
+EOF
+
+DRY_RUN_BUILD=$($CLI --dry-run cloud sandbox snapshot build "$BUILD_DIR" 2>&1) || true
+# Dry run should show info but not create a snapshot
+if echo "$DRY_RUN_BUILD" | grep -qi "dry run"; then
+	pass "snapshot build --dry-run shows dry run message"
+else
+	fail "snapshot build --dry-run did not indicate dry run mode" "$DRY_RUN_BUILD"
+fi
+
+# Test: Build with invalid build file (missing required field)
+info "Test: snapshot build with invalid build file"
+cat > "$BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+# Missing runtime - should fail validation
+files:
+  - "*.js"
+EOF
+
+INVALID_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --json 2>&1) || true
+if echo "$INVALID_BUILD" | grep -qi "runtime\|required\|invalid"; then
+	pass "snapshot build fails with missing runtime"
+else
+	INVALID_SNAP_ID=$(echo "$INVALID_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$INVALID_SNAP_ID" ]; then
+		$CLI cloud sandbox snapshot delete "$INVALID_SNAP_ID" --confirm 2>/dev/null || true
+		fail "snapshot build should have failed with missing runtime" "$INVALID_BUILD"
+	else
+		fail "snapshot build error message not clear about missing runtime" "$INVALID_BUILD"
+	fi
+fi
+
+# Test: Build with invalid apt dependency
+info "Test: snapshot build with invalid dependency"
+cat > "$BUILD_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+dependencies:
+  - this-package-definitely-does-not-exist-xyz123
+files:
+  - "*.js"
+EOF
+
+INVALID_DEP_BUILD=$($CLI cloud sandbox snapshot build "$BUILD_DIR" --json 2>&1) || true
+if echo "$INVALID_DEP_BUILD" | grep -qi "invalid\|not found\|error"; then
+	pass "snapshot build fails with invalid dependency"
+else
+	INVALID_DEP_SNAP_ID=$(echo "$INVALID_DEP_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+	if [ -n "$INVALID_DEP_SNAP_ID" ]; then
+		$CLI cloud sandbox snapshot delete "$INVALID_DEP_SNAP_ID" --confirm 2>/dev/null || true
+		fail "snapshot build should have failed with invalid dependency" "$INVALID_DEP_BUILD"
+	else
+		fail "snapshot build error message not clear about invalid dependency" "$INVALID_DEP_BUILD"
+	fi
+fi
+
+# Test: Build with no build file present (auto-detect should fail)
+info "Test: snapshot build with missing build file"
+EMPTY_BUILD_DIR="$TEST_DIR/empty-build"
+mkdir -p "$EMPTY_BUILD_DIR"
+echo "some file" > "$EMPTY_BUILD_DIR/file.txt"
+
+MISSING_FILE_BUILD=$($CLI cloud sandbox snapshot build "$EMPTY_BUILD_DIR" --json 2>&1) || true
+if echo "$MISSING_FILE_BUILD" | grep -qi "not found\|no.*file\|agentuity-snapshot"; then
+	pass "snapshot build fails when no build file found"
+else
+	fail "snapshot build should have failed with missing build file" "$MISSING_FILE_BUILD"
+fi
+
+# Clean up build test directory
+rm -rf "$BUILD_DIR" "$EMPTY_BUILD_DIR"
+
+# ============================================
 section "DELETE Command Tests"
 # ============================================
 

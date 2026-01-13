@@ -732,7 +732,12 @@ export async function getDefaultRegion(profileName = 'production'): Promise<stri
 		return process.env.AGENTUITY_REGION;
 	}
 
-	// 2. Check cached regions file (sorted by distance)
+	// 2. Local profile always uses 'local' region
+	if (profileName === 'local') {
+		return 'local';
+	}
+
+	// 3. Check cached regions file (sorted by distance)
 	try {
 		const cachePath = join(getDefaultConfigDir(), `regions-${profileName}.json`);
 		const file = Bun.file(cachePath);
@@ -746,8 +751,8 @@ export async function getDefaultRegion(profileName = 'production'): Promise<stri
 		// Fall through to default
 	}
 
-	// 3. Final fallback - 'local' for local profile, 'usc' otherwise
-	return profileName === 'local' ? 'local' : 'usc';
+	// 4. Final fallback
+	return 'usc';
 }
 
 /**

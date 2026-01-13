@@ -38,6 +38,11 @@ const SnapshotInfoSchema = z
 			.nullable()
 			.optional()
 			.describe('List of files in the snapshot'),
+		userMetadata: z
+			.record(z.string(), z.string())
+			.nullable()
+			.optional()
+			.describe('User-defined metadata key-value pairs'),
 	})
 	.describe('Detailed information about a snapshot');
 
@@ -52,60 +57,56 @@ const SnapshotListDataSchema = z
 const SnapshotListResponseSchema = APIResponseSchema(SnapshotListDataSchema);
 const SnapshotDeleteResponseSchema = APIResponseSchemaNoData();
 
-export interface SnapshotFileInfo {
-	path: string;
-	size: number;
-}
+export type SnapshotFileInfo = z.infer<typeof SnapshotFileInfoSchema>;
+export type SnapshotInfo = z.infer<typeof SnapshotInfoSchema>;
+export type SnapshotListResponse = z.infer<typeof SnapshotListDataSchema>;
 
-export interface SnapshotInfo {
-	snapshotId: string;
-	runtimeId?: string | null;
-	name: string;
-	description?: string | null;
-	tag?: string | null;
-	sizeBytes: number;
-	fileCount: number;
-	parentSnapshotId?: string | null;
-	createdAt: string;
-	downloadUrl?: string;
-	files?: SnapshotFileInfo[] | null;
-}
+const SnapshotCreateParamsSchema = z
+	.object({
+		sandboxId: z.string().describe('ID of the sandbox to snapshot'),
+		name: z.string().optional().describe('Display name for the snapshot'),
+		description: z.string().optional().describe('Description of the snapshot'),
+		tag: z.string().optional().describe('Tag for the snapshot'),
+		orgId: z.string().optional().describe('Organization ID'),
+	})
+	.describe('Parameters for creating a snapshot');
 
-export interface SnapshotCreateParams {
-	sandboxId: string;
-	name?: string;
-	description?: string;
-	tag?: string;
-	orgId?: string;
-}
+const SnapshotGetParamsSchema = z
+	.object({
+		snapshotId: z.string().describe('ID of the snapshot to retrieve'),
+		orgId: z.string().optional().describe('Organization ID'),
+	})
+	.describe('Parameters for getting a snapshot');
 
-export interface SnapshotGetParams {
-	snapshotId: string;
-	orgId?: string;
-}
+const SnapshotListParamsSchema = z
+	.object({
+		sandboxId: z.string().optional().describe('Filter by sandbox ID'),
+		limit: z.number().optional().describe('Maximum number of snapshots to return'),
+		offset: z.number().optional().describe('Number of snapshots to skip'),
+		orgId: z.string().optional().describe('Organization ID'),
+	})
+	.describe('Parameters for listing snapshots');
 
-export interface SnapshotListParams {
-	sandboxId?: string;
-	limit?: number;
-	offset?: number;
-	orgId?: string;
-}
+const SnapshotDeleteParamsSchema = z
+	.object({
+		snapshotId: z.string().describe('ID of the snapshot to delete'),
+		orgId: z.string().optional().describe('Organization ID'),
+	})
+	.describe('Parameters for deleting a snapshot');
 
-export interface SnapshotListResponse {
-	snapshots: SnapshotInfo[];
-	total: number;
-}
+const SnapshotTagParamsSchema = z
+	.object({
+		snapshotId: z.string().describe('ID of the snapshot to tag'),
+		tag: z.string().nullable().describe('New tag (or null to remove)'),
+		orgId: z.string().optional().describe('Organization ID'),
+	})
+	.describe('Parameters for tagging a snapshot');
 
-export interface SnapshotDeleteParams {
-	snapshotId: string;
-	orgId?: string;
-}
-
-export interface SnapshotTagParams {
-	snapshotId: string;
-	tag: string | null;
-	orgId?: string;
-}
+export type SnapshotCreateParams = z.infer<typeof SnapshotCreateParamsSchema>;
+export type SnapshotGetParams = z.infer<typeof SnapshotGetParamsSchema>;
+export type SnapshotListParams = z.infer<typeof SnapshotListParamsSchema>;
+export type SnapshotDeleteParams = z.infer<typeof SnapshotDeleteParamsSchema>;
+export type SnapshotTagParams = z.infer<typeof SnapshotTagParamsSchema>;
 
 function buildQueryString(params: Record<string, string | number | undefined>): string {
 	const query = new URLSearchParams();
@@ -258,6 +259,136 @@ export async function snapshotTag(
 	const resp = await client.patch<z.infer<typeof SnapshotGetResponseSchema>>(
 		url,
 		{ tag },
+		SnapshotGetResponseSchema
+	);
+
+	if (resp.success) {
+		return resp.data;
+	}
+
+	throw new SandboxResponseError({ message: resp.message });
+}
+
+// ===== Snapshot Build API =====
+
+const SnapshotBuildInitParamsSchema = z
+	.object({
+		runtime: z.string().describe('Runtime identifier (name:tag or runtime ID)'),
+		name: z.string().optional().describe('Display name for the snapshot'),
+		tag: z.string().optional().describe('Tag for the snapshot'),
+		description: z.string().optional().describe('Description of the snapshot'),
+		contentHash: z.string().optional().describe('SHA-256 hash of snapshot content for change detection'),
+		force: z.boolean().optional().describe('Force rebuild even if content is unchanged'),
+		orgId: z.string().optional().describe('Organization ID'),
+	})
+	.describe('Parameters for initializing a snapshot build');
+
+const SnapshotBuildInitResponseSchema = z
+	.object({
+		snapshotId: z.string().optional().describe('Unique identifier for the snapshot being built'),
+		uploadUrl: z.string().optional().describe('Pre-signed URL for uploading the snapshot archive'),
+		s3Key: z.string().optional().describe('S3 key where the snapshot will be stored'),
+		unchanged: z.boolean().optional().describe('True if snapshot content is unchanged'),
+		existingId: z.string().optional().describe('ID of existing unchanged snapshot'),
+		existingName: z.string().optional().describe('Name of existing unchanged snapshot'),
+		existingTag: z.string().optional().describe('Tag of existing unchanged snapshot'),
+	})
+	.describe('Response from snapshot build init API');
+
+const SnapshotBuildInitAPIResponseSchema = APIResponseSchema(SnapshotBuildInitResponseSchema);
+
+const SnapshotBuildFinalizeParamsSchema = z
+	.object({
+		snapshotId: z.string().describe('Snapshot ID from init response'),
+		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
+		fileCount: z.number().describe('Number of files in the snapshot'),
+		files: z
+			.array(SnapshotFileInfoSchema)
+			.describe('List of files with path and size'),
+		dependencies: z
+			.array(z.string())
+			.optional()
+			.describe('List of apt packages to install'),
+		env: z
+			.record(z.string(), z.string())
+			.optional()
+			.describe('Environment variables to set'),
+		metadata: z
+			.record(z.string(), z.string())
+			.optional()
+			.describe('User-defined metadata key-value pairs'),
+		orgId: z.string().optional().describe('Organization ID'),
+	})
+	.describe('Parameters for finalizing a snapshot build');
+
+export type SnapshotBuildInitParams = z.infer<typeof SnapshotBuildInitParamsSchema>;
+export type SnapshotBuildInitResponse = z.infer<typeof SnapshotBuildInitResponseSchema>;
+export type SnapshotBuildFinalizeParams = z.infer<typeof SnapshotBuildFinalizeParamsSchema>;
+
+/**
+ * Initialize a snapshot build by getting a presigned upload URL.
+ *
+ * @param client - The API client to use for the request
+ * @param params - Parameters including runtime and optional name/tag/description
+ * @returns Snapshot ID and presigned upload URL
+ * @throws {SandboxResponseError} If the initialization fails
+ */
+export async function snapshotBuildInit(
+	client: APIClient,
+	params: SnapshotBuildInitParams
+): Promise<SnapshotBuildInitResponse> {
+	const { runtime, name, description, tag, contentHash, force, orgId } = params;
+	const queryString = buildQueryString({ orgId });
+	const url = `/sandbox/${API_VERSION}/snapshots/build${queryString}`;
+
+	const body: Record<string, string | boolean> = { runtime };
+	if (name) body.name = name;
+	if (description) body.description = description;
+	if (tag) body.tag = tag;
+	if (contentHash) body.contentHash = contentHash;
+	if (force) body.force = force;
+
+	const resp = await client.post<z.infer<typeof SnapshotBuildInitAPIResponseSchema>>(
+		url,
+		body,
+		SnapshotBuildInitAPIResponseSchema
+	);
+
+	if (resp.success) {
+		return resp.data;
+	}
+
+	throw new SandboxResponseError({ message: resp.message });
+}
+
+/**
+ * Finalize a snapshot build after uploading the archive.
+ *
+ * @param client - The API client to use for the request
+ * @param params - Parameters including snapshot details and file metadata
+ * @returns The created snapshot information
+ * @throws {SandboxResponseError} If the finalization fails
+ */
+export async function snapshotBuildFinalize(
+	client: APIClient,
+	params: SnapshotBuildFinalizeParams
+): Promise<SnapshotInfo> {
+	const { snapshotId, sizeBytes, fileCount, files, dependencies, env, metadata, orgId } = params;
+	const queryString = buildQueryString({ orgId });
+	const url = `/sandbox/${API_VERSION}/snapshots/${snapshotId}/finalize${queryString}`;
+
+	const body: Record<string, unknown> = {
+		sizeBytes,
+		fileCount,
+		files,
+	};
+	if (dependencies) body.dependencies = dependencies;
+	if (env) body.env = env;
+	if (metadata) body.metadata = metadata;
+
+	const resp = await client.post<z.infer<typeof SnapshotGetResponseSchema>>(
+		url,
+		body,
 		SnapshotGetResponseSchema
 	);
 
