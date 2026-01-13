@@ -151,7 +151,7 @@ jobs:
          GH_TEST_ACC_USERNAME: ${{ secrets.GH_TEST_ACC_USERNAME }}
          GH_TEST_ACC_PASSWORD: ${{ secrets.GH_TEST_ACC_PASSWORD }}
          GH_TEST_ACC_TOKEN: ${{ secrets.GH_TEST_ACC_TOKEN }}
-         GH_TEST_ACC_REPO: ${{ secrets.GH_TEST_ACC_REPO }}
+         GH_TEST_ACC_REPO: ${{ vars.GH_TEST_ACC_REPO }}
          GH_TEST_TARGET_ORG_ID: ${{ secrets.GH_TEST_TARGET_ORG_ID }}
          AGENTUITY_API_KEY: ${{ secrets.AGENTUITY_API_KEY }}
          AGENTUITY_API_URL: ${{ vars.AGENTUITY_API_URL }}
