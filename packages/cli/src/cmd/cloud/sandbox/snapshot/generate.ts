@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { YAML } from 'bun';
 import { createCommand } from '../../../../types';
 import { getCommand } from '../../../../command-prefix';
 

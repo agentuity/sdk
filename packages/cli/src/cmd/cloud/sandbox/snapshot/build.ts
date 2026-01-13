@@ -212,13 +212,14 @@ async function createTarGzArchive(
 	);
 }
 
-function generateContentHash(params: {
+async function generateContentHash(params: {
 	runtime: string;
 	description?: string;
 	dependencies?: string[];
 	files: SnapshotFileInfo[];
+	fileHashes: Map<string, string>;
 	env?: Record<string, string>;
-}): string {
+}): Promise<string> {
 	const hash = createHash('sha256');
 
 	hash.update(`runtime:${params.runtime}\n`);
@@ -235,7 +236,8 @@ function generateContentHash(params: {
 	if (params.files.length > 0) {
 		const sortedFiles = [...params.files].sort((a, b) => a.path.localeCompare(b.path));
 		for (const file of sortedFiles) {
-			hash.update(`file:${file.path}:${file.size}\n`);
+			const contentHash = params.fileHashes.get(file.path) ?? '';
+			hash.update(`file:${file.path}:${file.size}:${contentHash}\n`);
 		}
 	}
 
@@ -444,11 +446,21 @@ export const buildSubcommand = createCommand({
 		}));
 		const totalSize = fileList.reduce((sum, f) => sum + f.size, 0);
 
-		const contentHash = generateContentHash({
+		const fileHashes = new Map<string, string>();
+		for (const file of files.values()) {
+			const fullPath = join(directory, file.path);
+			const bunFile = Bun.file(fullPath);
+			const content = await bunFile.arrayBuffer();
+			const hash = createHash('sha256').update(Buffer.from(content)).digest('hex');
+			fileHashes.set(file.path, hash);
+		}
+
+		const contentHash = await generateContentHash({
 			runtime: buildConfig.runtime,
 			description: finalDescription,
 			dependencies: buildConfig.dependencies,
 			files: fileList,
+			fileHashes,
 			env: finalEnv,
 		});
 

@@ -1,6 +1,10 @@
 #!/usr/bin/env bun
 /**
- * Generate JSON Schema from Zod schema for agentuity-snapshot build files.
+ * Generate JSON Schema from the canonical SnapshotBuildFileBaseSchema.
+ *
+ * This script uses the schema defined in @agentuity/server as the single source of truth.
+ * The base schema is used (without the refine constraint) since JSON Schema doesn't
+ * support cross-field validation constraints.
  *
  * Usage:
  *   bun scripts/generate-snapshot-schema.ts > schema/agentuity-snapshot.json
@@ -8,50 +12,20 @@
  */
 
 import { z } from 'zod';
+import { SnapshotBuildFileBaseSchema } from '../packages/server/src/api/sandbox/snapshot-build';
 
-const SnapshotBuildFileSchema = z
-	.object({
-		$schema: z.string().optional().describe('JSON Schema reference URL'),
-		version: z.literal(1).describe('Schema version, must be 1'),
-		runtime: z
-			.string()
-			.describe('Runtime identifier (name:tag format, e.g., bun:1, node:20, python:3.12)'),
-		description: z.string().optional().describe('Human-readable description of the snapshot'),
-		dependencies: z
-			.array(z.string())
-			.optional()
-			.describe(
-				'List of apt packages to install. Supports version pinning: package=version or package=version* for prefix matching'
-			),
-		files: z
-			.array(z.string())
-			.optional()
-			.describe(
-				'Glob patterns for files to include from the build context. Supports negative patterns with ! prefix for exclusions'
-			),
-		env: z
-			.record(z.string(), z.string())
-			.optional()
-			.describe(
-				'Environment variables to set. Use ${VAR} syntax for build-time substitution via --env flag'
-			),
-		metadata: z
-			.record(z.string(), z.string())
-			.optional()
-			.describe(
-				'User-defined metadata key-value pairs. Use ${VAR} syntax for build-time substitution via --metadata flag'
-			),
-	})
-	.describe('Agentuity Snapshot Build File - defines a reproducible sandbox environment');
+const SchemaWith$Schema = SnapshotBuildFileBaseSchema.extend({
+	$schema: z.string().optional().describe('JSON Schema reference URL'),
+});
 
-const jsonSchema = z.toJSONSchema(SnapshotBuildFileSchema) as Record<string, unknown>;
+const jsonSchema = z.toJSONSchema(SchemaWith$Schema) as Record<string, unknown>;
 
 const schema = {
 	$schema: 'https://json-schema.org/draft/2020-12/schema',
 	$id: 'https://agentuity.dev/schema/cli/v1/agentuity-snapshot.json',
 	title: 'Agentuity Snapshot Build File',
 	description:
-		'Schema for agentuity-snapshot.yaml files that define reproducible sandbox environments. Build with: agentuity cloud sandbox snapshot build <directory>',
+		'Schema for agentuity-snapshot.yaml files that define reproducible sandbox environments. Build with: agentuity cloud sandbox snapshot build <directory>. Note: At least one of dependencies, files, or env must be specified.',
 	type: jsonSchema.type,
 	properties: jsonSchema.properties,
 	required: jsonSchema.required,

@@ -61,7 +61,7 @@ export type SnapshotFileInfo = z.infer<typeof SnapshotFileInfoSchema>;
 export type SnapshotInfo = z.infer<typeof SnapshotInfoSchema>;
 export type SnapshotListResponse = z.infer<typeof SnapshotListDataSchema>;
 
-const SnapshotCreateParamsSchema = z
+const _SnapshotCreateParamsSchema = z
 	.object({
 		sandboxId: z.string().describe('ID of the sandbox to snapshot'),
 		name: z.string().optional().describe('Display name for the snapshot'),
@@ -71,14 +71,14 @@ const SnapshotCreateParamsSchema = z
 	})
 	.describe('Parameters for creating a snapshot');
 
-const SnapshotGetParamsSchema = z
+const _SnapshotGetParamsSchema = z
 	.object({
 		snapshotId: z.string().describe('ID of the snapshot to retrieve'),
 		orgId: z.string().optional().describe('Organization ID'),
 	})
 	.describe('Parameters for getting a snapshot');
 
-const SnapshotListParamsSchema = z
+const _SnapshotListParamsSchema = z
 	.object({
 		sandboxId: z.string().optional().describe('Filter by sandbox ID'),
 		limit: z.number().optional().describe('Maximum number of snapshots to return'),
@@ -87,14 +87,14 @@ const SnapshotListParamsSchema = z
 	})
 	.describe('Parameters for listing snapshots');
 
-const SnapshotDeleteParamsSchema = z
+const _SnapshotDeleteParamsSchema = z
 	.object({
 		snapshotId: z.string().describe('ID of the snapshot to delete'),
 		orgId: z.string().optional().describe('Organization ID'),
 	})
 	.describe('Parameters for deleting a snapshot');
 
-const SnapshotTagParamsSchema = z
+const _SnapshotTagParamsSchema = z
 	.object({
 		snapshotId: z.string().describe('ID of the snapshot to tag'),
 		tag: z.string().nullable().describe('New tag (or null to remove)'),
@@ -102,11 +102,11 @@ const SnapshotTagParamsSchema = z
 	})
 	.describe('Parameters for tagging a snapshot');
 
-export type SnapshotCreateParams = z.infer<typeof SnapshotCreateParamsSchema>;
-export type SnapshotGetParams = z.infer<typeof SnapshotGetParamsSchema>;
-export type SnapshotListParams = z.infer<typeof SnapshotListParamsSchema>;
-export type SnapshotDeleteParams = z.infer<typeof SnapshotDeleteParamsSchema>;
-export type SnapshotTagParams = z.infer<typeof SnapshotTagParamsSchema>;
+export type SnapshotCreateParams = z.infer<typeof _SnapshotCreateParamsSchema>;
+export type SnapshotGetParams = z.infer<typeof _SnapshotGetParamsSchema>;
+export type SnapshotListParams = z.infer<typeof _SnapshotListParamsSchema>;
+export type SnapshotDeleteParams = z.infer<typeof _SnapshotDeleteParamsSchema>;
+export type SnapshotTagParams = z.infer<typeof _SnapshotTagParamsSchema>;
 
 function buildQueryString(params: Record<string, string | number | undefined>): string {
 	const query = new URLSearchParams();
@@ -271,7 +271,7 @@ export async function snapshotTag(
 
 // ===== Snapshot Build API =====
 
-const SnapshotBuildInitParamsSchema = z
+const _SnapshotBuildInitParamsSchema = z
 	.object({
 		runtime: z.string().describe('Runtime identifier (name:tag or runtime ID)'),
 		name: z.string().optional().describe('Display name for the snapshot'),
@@ -297,7 +297,7 @@ const SnapshotBuildInitResponseSchema = z
 
 const SnapshotBuildInitAPIResponseSchema = APIResponseSchema(SnapshotBuildInitResponseSchema);
 
-const SnapshotBuildFinalizeParamsSchema = z
+const _SnapshotBuildFinalizeParamsSchema = z
 	.object({
 		snapshotId: z.string().describe('Snapshot ID from init response'),
 		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
@@ -321,9 +321,9 @@ const SnapshotBuildFinalizeParamsSchema = z
 	})
 	.describe('Parameters for finalizing a snapshot build');
 
-export type SnapshotBuildInitParams = z.infer<typeof SnapshotBuildInitParamsSchema>;
+export type SnapshotBuildInitParams = z.infer<typeof _SnapshotBuildInitParamsSchema>;
 export type SnapshotBuildInitResponse = z.infer<typeof SnapshotBuildInitResponseSchema>;
-export type SnapshotBuildFinalizeParams = z.infer<typeof SnapshotBuildFinalizeParamsSchema>;
+export type SnapshotBuildFinalizeParams = z.infer<typeof _SnapshotBuildFinalizeParamsSchema>;
 
 /**
  * Initialize a snapshot build by getting a presigned upload URL.

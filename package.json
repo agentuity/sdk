@@ -66,8 +66,7 @@
 		"react": "^19.2.3",
 		"react-dom": "^19.2.3",
 		"typescript": "^5.9.0",
-		"typescript-eslint": "^8.46.2",
-		"zod-to-json-schema": "^3.25.1"
+		"typescript-eslint": "^8.46.2"
 	},
 	"dependencies": {
 		"ai": "^6.0.0"

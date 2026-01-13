@@ -31,7 +31,6 @@
         "react-dom": "^19.2.3",
         "typescript": "^5.9.0",
         "typescript-eslint": "^8.46.2",
-        "zod-to-json-schema": "^3.25.1",
       },
     },
     "apps/create-agentuity": {
@@ -459,7 +458,7 @@
     },
     "packages/server": {
       "name": "@agentuity/server",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "dependencies": {
         "@agentuity/core": "workspace:*",
         "@agentuity/schema": "workspace:*",

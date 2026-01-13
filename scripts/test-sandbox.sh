@@ -872,7 +872,6 @@ pass "Build test files created"
 
 # Test: Basic build with files
 info "Test: snapshot build - basic with files"
-BUILD_NAME="build-test-$(date +%s)"
 cat > "$BUILD_DIR/agentuity-snapshot.yaml" << EOF
 version: 1
 runtime: bun:1
