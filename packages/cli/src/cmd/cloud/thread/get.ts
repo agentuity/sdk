@@ -59,20 +59,24 @@ export const getSubcommand = createSubcommand({
 				return result;
 			}
 
-			console.log(tui.bold('ID:          ') + thread.id);
-			console.log(tui.bold('Project:     ') + thread.project_id);
-			console.log(tui.bold('Created:     ') + new Date(thread.created_at).toLocaleString());
-			console.log(tui.bold('Updated:     ') + new Date(thread.updated_at).toLocaleString());
-			console.log(tui.bold('Deleted:     ') + (thread.deleted ? 'Yes' : 'No'));
+			const tableData: Record<string, string> = {
+				ID: thread.id,
+				Project: thread.project_id,
+				Created: new Date(thread.created_at).toLocaleString(),
+				Updated: new Date(thread.updated_at).toLocaleString(),
+				Deleted: thread.deleted ? 'Yes' : 'No',
+			};
 			if (thread.deleted_at) {
-				console.log(tui.bold('Deleted At:  ') + new Date(thread.deleted_at).toLocaleString());
+				tableData['Deleted At'] = new Date(thread.deleted_at).toLocaleString();
 			}
 			if (thread.deleted_by) {
-				console.log(tui.bold('Deleted By:  ') + thread.deleted_by);
+				tableData['Deleted By'] = thread.deleted_by;
 			}
 			if (thread.user_data) {
-				console.log(tui.bold('User Data:   ') + thread.user_data);
+				tableData['User Data'] = thread.user_data;
 			}
+
+			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 
 			return result;
 		} catch (ex) {

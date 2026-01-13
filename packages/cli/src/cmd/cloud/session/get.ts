@@ -67,7 +67,7 @@ const SessionGetResponseSchema = z.object({
 				pending: z.boolean(),
 				success: z.boolean(),
 				error: z.string().nullable(),
-				result: z.string().nullable(),
+				result: z.record(z.string(), z.unknown()).nullable(),
 			})
 		)
 		.describe('Eval runs'),
@@ -171,48 +171,44 @@ export const getSubcommand = createSubcommand({
 				return result;
 			}
 
-			console.log(tui.bold('ID:          ') + session.id);
-			console.log(tui.bold('Project:     ') + session.project_id);
-			console.log(tui.bold('Deployment:  ') + (session.deployment_id || '-'));
-			console.log(tui.bold('Start:       ') + new Date(session.start_time).toLocaleString());
+			const tableData: Record<string, string> = {
+				ID: session.id,
+				Project: session.project_id,
+				Deployment: session.deployment_id || '-',
+				Start: new Date(session.start_time).toLocaleString(),
+			};
 			if (session.end_time) {
-				console.log(tui.bold('End:         ') + new Date(session.end_time).toLocaleString());
+				tableData['End'] = new Date(session.end_time).toLocaleString();
 			}
-			if (session.duration && session.end_time) {
-				console.log(
-					tui.bold('Duration:    ') + `${(session.duration / 1_000_000).toFixed(0)}ms`
-				);
+			if (session.duration != null && session.end_time != null) {
+				tableData['Duration'] = `${(session.duration / 1_000_000).toFixed(0)}ms`;
 			}
-			console.log(tui.bold('Method:      ') + session.method);
-			console.log(tui.bold('URL:         ') + tui.link(session.url, session.url));
-			console.log(tui.bold('Trigger:     ') + session.trigger);
+			tableData['Method'] = session.method;
+			tableData['URL'] = tui.link(session.url, session.url);
+			tableData['Trigger'] = session.trigger;
 			if (session.env !== 'production') {
-				console.log(tui.bold('Environment: ') + session.env);
+				tableData['Environment'] = session.env;
 			}
-			console.log(tui.bold('Dev Mode:    ') + (session.devmode ? 'Yes' : 'No'));
-			console.log(
-				tui.bold('Success:     ') +
-					(session.success ? tui.colorSuccess('✓') : tui.colorError('✗'))
-			);
-			console.log(tui.bold('Pending:     ') + (session.pending ? 'Yes' : 'No'));
+			tableData['Dev Mode'] = session.devmode ? 'Yes' : 'No';
+			tableData['Success'] = session.success ? tui.colorSuccess('✓') : tui.colorError('✗');
+			tableData['Pending'] = session.pending ? 'Yes' : 'No';
 			if (session.error) {
-				console.log(tui.bold('Error:       ') + tui.error(session.error));
+				tableData['Error'] = tui.colorError(session.error);
 			}
 			if (enriched.agents.length > 0) {
-				const agentDisplay = enriched.agents
+				tableData['Agents'] = enriched.agents
 					.map((agent: AgentInfo) => `${agent.name} ${tui.muted(`(${agent.identifier})`)}`)
 					.join(', ');
-				console.log(tui.bold('Agents:      ') + agentDisplay);
 			}
 			if (enriched.route) {
-				console.log(
-					tui.bold('Route:       ') +
-						`${enriched.route.method.toUpperCase()} ${enriched.route.path} ${tui.muted(`(${enriched.route.id})`)}`
-				);
+				tableData['Route'] =
+					`${enriched.route.method.toUpperCase()} ${enriched.route.path} ${tui.muted(`(${enriched.route.id})`)}`;
 			} else {
-				console.log(tui.bold('Route ID:    ') + session.route_id);
+				tableData['Route ID'] = session.route_id;
 			}
-			console.log(tui.bold('Thread ID:   ') + session.thread_id);
+			tableData['Thread ID'] = session.thread_id;
+
+			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 
 			if (enriched.evalRuns.length > 0) {
 				console.log('');

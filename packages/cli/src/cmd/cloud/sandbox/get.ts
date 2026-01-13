@@ -29,6 +29,7 @@ const SandboxGetResponseSchema = z.object({
 	dependencies: z.array(z.string()).optional().describe('Apt packages installed'),
 	metadata: z.record(z.string(), z.unknown()).optional().describe('User-defined metadata'),
 	resources: SandboxResourcesSchema.optional().describe('Resource limits'),
+	url: z.string().optional().describe('Public URL for the sandbox (if network port configured)'),
 });
 
 export const getSubcommand = createCommand({
@@ -72,57 +73,63 @@ export const getSubcommand = createCommand({
 							? tui.colorError
 							: tui.colorMuted;
 
-			console.log(`${tui.muted('Sandbox:')}         ${tui.bold(result.sandboxId)}`);
-			if (result.name) {
-				console.log(`${tui.muted('Name:')}            ${result.name}`);
-			}
-			if (result.description) {
-				console.log(`${tui.muted('Description:')}     ${result.description}`);
-			}
-			console.log(`${tui.muted('Status:')}          ${statusColor(result.status)}`);
-			console.log(`${tui.muted('Created:')}         ${result.createdAt}`);
-			if (result.runtimeName) {
-				console.log(`${tui.muted('Runtime:')}         ${result.runtimeName}`);
-			}
-			if (result.region) {
-				console.log(`${tui.muted('Region:')}          ${result.region}`);
-			}
-			if (result.snapshotId || result.snapshotTag) {
-				const snapshotDisplay = result.snapshotTag
-					? `${result.snapshotTag} ${tui.muted('(' + result.snapshotId + ')')}`
-					: result.snapshotId;
-				console.log(`${tui.muted('Snapshot:')}        ${snapshotDisplay}`);
-			}
-			console.log(`${tui.muted('Executions:')}      ${result.executions}`);
+			const snapshotDisplay =
+				result.snapshotId || result.snapshotTag
+					? result.snapshotTag
+						? result.snapshotId
+							? `${result.snapshotTag} ${tui.muted('(' + result.snapshotId + ')')}`
+							: result.snapshotTag
+						: result.snapshotId
+					: undefined;
+
+			let streamDisplay: string | undefined;
 			if (
 				result.stdoutStreamUrl &&
 				result.stderrStreamUrl &&
 				result.stdoutStreamUrl === result.stderrStreamUrl
 			) {
-				console.log(`${tui.muted('Stream:')}          ${tui.link(result.stdoutStreamUrl)}`);
-			} else {
-				if (result.stdoutStreamUrl) {
-					console.log(`${tui.muted('Stream (stdout):')} ${tui.link(result.stdoutStreamUrl)}`);
-				}
-				if (result.stderrStreamUrl) {
-					console.log(`${tui.muted('Stream (stderr):')} ${tui.link(result.stderrStreamUrl)}`);
-				}
+				streamDisplay = tui.link(result.stdoutStreamUrl);
 			}
-			if (result.dependencies && result.dependencies.length > 0) {
-				console.log(`${tui.muted('Dependencies:')}    ${result.dependencies.join(', ')}`);
-			}
+
+			const resourceParts: string[] = [];
 			if (result.resources) {
-				const resourceParts: string[] = [];
 				if (result.resources.memory) resourceParts.push(`memory=${result.resources.memory}`);
 				if (result.resources.cpu) resourceParts.push(`cpu=${result.resources.cpu}`);
 				if (result.resources.disk) resourceParts.push(`disk=${result.resources.disk}`);
-				if (resourceParts.length > 0) {
-					console.log(`${tui.muted('Resources:')}       ${resourceParts.join(', ')}`);
-				}
+			}
+
+			const tableData: Record<string, string | number> = {
+				Sandbox: tui.bold(result.sandboxId),
+			};
+
+			if (result.name) tableData['Name'] = result.name;
+			if (result.description) tableData['Description'] = result.description;
+			tableData['Status'] = statusColor(result.status);
+			tableData['Created'] = result.createdAt;
+			if (result.runtimeName) tableData['Runtime'] = result.runtimeName;
+			if (result.region) tableData['Region'] = result.region;
+			if (snapshotDisplay) tableData['Snapshot'] = snapshotDisplay;
+			tableData['Executions'] = result.executions;
+			if (streamDisplay) {
+				tableData['Stream'] = streamDisplay;
+			} else {
+				if (result.stdoutStreamUrl) tableData['Stream (stdout)'] = tui.link(result.stdoutStreamUrl);
+				if (result.stderrStreamUrl) tableData['Stream (stderr)'] = tui.link(result.stderrStreamUrl);
+			}
+			if (result.dependencies && result.dependencies.length > 0) {
+				tableData['Dependencies'] = result.dependencies.join(', ');
+			}
+			if (resourceParts.length > 0) {
+				tableData['Resources'] = resourceParts.join(', ');
 			}
 			if (result.metadata && Object.keys(result.metadata).length > 0) {
-				console.log(`${tui.muted('Metadata:')}        ${JSON.stringify(result.metadata)}`);
+				tableData['Metadata'] = JSON.stringify(result.metadata);
 			}
+			if (result.url) {
+				tableData['URL'] = tui.link(result.url);
+			}
+
+			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 		}
 
 		return {
@@ -142,6 +149,7 @@ export const getSubcommand = createCommand({
 			dependencies: result.dependencies,
 			metadata: result.metadata,
 			resources: result.resources,
+			url: result.url,
 		};
 	},
 });

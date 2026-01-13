@@ -24,6 +24,13 @@ const SandboxCreateRequestSchema = z
 		network: z
 			.object({
 				enabled: z.boolean().optional().describe('Whether network access is enabled'),
+				port: z
+					.number()
+					.int()
+					.min(1024)
+					.max(65535)
+					.optional()
+					.describe('Port to expose from the sandbox (1024-65535)'),
 			})
 			.optional()
 			.describe('Network configuration for the sandbox'),

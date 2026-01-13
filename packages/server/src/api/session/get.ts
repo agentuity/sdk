@@ -14,7 +14,7 @@ const EvalRunSchema = z.object({
 	pending: z.boolean().describe('pending status'),
 	success: z.boolean().describe('success status'),
 	error: z.string().nullable().describe('error message'),
-	result: z.string().nullable().describe('result JSON'),
+	result: z.record(z.string(), z.unknown()).nullable().describe('result object'),
 });
 
 export interface SpanNode {

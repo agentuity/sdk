@@ -78,17 +78,21 @@ export const getSubcommand = createCommand({
 		);
 
 		if (!options.json) {
-			tui.info(`Snapshot: ${tui.bold(snapshot.snapshotId)}`);
-			console.log(`  ${tui.muted('Name:')}    ${snapshot.name}`);
+			const tableData: Record<string, string | number> = {
+				Snapshot: tui.bold(snapshot.snapshotId),
+				Name: snapshot.name,
+			};
 			if (snapshot.tag) {
-				console.log(`  ${tui.muted('Tag:')}     ${snapshot.tag}`);
+				tableData['Tag'] = snapshot.tag;
 			}
-			console.log(`  ${tui.muted('Size:')}    ${tui.formatBytes(snapshot.sizeBytes)}`);
-			console.log(`  ${tui.muted('Files:')}   ${snapshot.fileCount}`);
-			console.log(`  ${tui.muted('Created:')} ${snapshot.createdAt}`);
+			tableData['Size'] = tui.formatBytes(snapshot.sizeBytes);
+			tableData['Files'] = snapshot.fileCount;
+			tableData['Created'] = snapshot.createdAt;
 			if (snapshot.parentSnapshotId) {
-				console.log(`  ${tui.muted('Parent:')}  ${snapshot.parentSnapshotId}`);
+				tableData['Parent'] = snapshot.parentSnapshotId;
 			}
+
+			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 
 			if (
 				snapshot.userMetadata &&

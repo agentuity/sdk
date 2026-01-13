@@ -151,6 +151,11 @@ export interface SandboxNetworkConfig {
 	 * Whether to enable outbound network access (default: false)
 	 */
 	enabled?: boolean;
+
+	/**
+	 * Port to expose from the sandbox to the outside Internet (1024-65535)
+	 */
+	port?: number;
 }
 
 /**
@@ -410,6 +415,11 @@ export interface SandboxInfo {
 	sandboxId: string;
 
 	/**
+	 * Short identifier used for DNS hostname
+	 */
+	identifier?: string;
+
+	/**
 	 * Sandbox name
 	 */
 	name?: string;
@@ -515,6 +525,16 @@ export interface SandboxInfo {
 	networkEnabled?: boolean;
 
 	/**
+	 * Network port exposed from the sandbox (1024-65535)
+	 */
+	networkPort?: number;
+
+	/**
+	 * Public URL for the sandbox (only set if networkPort is configured)
+	 */
+	url?: string;
+
+	/**
 	 * User who created the sandbox (if available)
 	 */
 	user?: SandboxUserInfo;
@@ -553,6 +573,13 @@ export interface ListSandboxesParams {
 	 * Filter by status
 	 */
 	status?: SandboxStatus;
+
+	/**
+	 * Filter by live status.
+	 * When true, returns sandboxes with status: creating, running, idle, or failed.
+	 * When false or undefined, returns all sandboxes.
+	 */
+	live?: boolean;
 
 	/**
 	 * Maximum number of results (default: 50, max: 100)

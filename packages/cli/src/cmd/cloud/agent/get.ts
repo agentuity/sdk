@@ -43,12 +43,20 @@ export const getSubcommand = createSubcommand({
 		}
 
 		// Display agent details
-		console.log(tui.bold('ID:          ') + agent.identifier);
-		console.log(tui.bold('Name:        ') + agent.name);
-		console.log(tui.bold('Description: ') + (agent.description || 'N/A'));
-		console.log(tui.bold('Dev Mode:    ') + (agent.devmode ? 'Yes' : 'No'));
-		console.log(tui.bold('Created:     ') + new Date(agent.createdAt).toLocaleString());
-		console.log(tui.bold('Updated:     ') + new Date(agent.updatedAt).toLocaleString());
+		tui.table(
+			[
+				{
+					ID: agent.identifier,
+					Name: agent.name,
+					Description: agent.description || 'N/A',
+					'Dev Mode': agent.devmode ? 'Yes' : 'No',
+					Created: new Date(agent.createdAt).toLocaleString(),
+					Updated: new Date(agent.updatedAt).toLocaleString(),
+				},
+			],
+			['ID', 'Name', 'Description', 'Dev Mode', 'Created', 'Updated'],
+			{ layout: 'vertical', padStart: '  ' }
+		);
 
 		// Display metadata if present
 		if (agent.metadata && Object.keys(agent.metadata).length > 0) {
