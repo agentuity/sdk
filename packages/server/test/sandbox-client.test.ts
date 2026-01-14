@@ -124,6 +124,34 @@ describe('SandboxClient', () => {
 
 			expect(sandbox.id).toBe('sandbox-456');
 		});
+
+		test('should create sandbox with projectId', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST') {
+					const body = JSON.parse(opts.body as string);
+					expect(body.projectId).toBe('proj_123');
+
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-789',
+								status: 'creating',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create({
+				projectId: 'proj_123',
+			});
+
+			expect(sandbox.id).toBe('sandbox-789');
+		});
 	});
 
 	describe('sandbox instance methods', () => {

@@ -5,6 +5,7 @@ import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
 
 const SandboxCreateRequestSchema = z
 	.object({
+		projectId: z.string().optional().describe('Project ID to associate the sandbox with'),
 		runtime: z.string().optional().describe('Runtime name (e.g., "bun:1", "python:3.14")'),
 		runtimeId: z.string().optional().describe('Runtime ID (e.g., "srt_xxx")'),
 		name: z.string().optional().describe('Optional sandbox name'),
@@ -127,6 +128,9 @@ export async function sandboxCreate(
 	const { options = {}, orgId } = params;
 	const body: z.infer<typeof SandboxCreateRequestSchema> = {};
 
+	if (options.projectId) {
+		body.projectId = options.projectId;
+	}
 	if (options.runtime) {
 		body.runtime = options.runtime;
 	}
