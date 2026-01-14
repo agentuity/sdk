@@ -807,13 +807,14 @@ download_and_install
 add_to_path() {
   _atp_config_file=$1
   _atp_command=$2
+  _atp_name=${3:-agentuity}
 
   if grep -Fxq "$_atp_command" "$_atp_config_file"; then
     print_message debug "Command already exists in $_atp_config_file, skipping write."
   elif [ -w "$_atp_config_file" ]; then
-    printf "\n# agentuity\n" >>"$_atp_config_file"
+    printf "\n# %s\n" "$_atp_name" >>"$_atp_config_file"
     printf "%s\n" "$_atp_command" >>"$_atp_config_file"
-    print_message info "${MUTED}Successfully added ${NC}agentuity ${MUTED}to \$PATH in ${NC}$_atp_config_file"
+    print_message info "${MUTED}Successfully added ${NC}$_atp_name ${MUTED}to \$PATH in ${NC}$_atp_config_file"
     path_modified=true
   else
     print_message warning "Manually add the directory to $_atp_config_file (or similar):"
@@ -904,10 +905,10 @@ if [ -n "$config_file" ]; then
     *)
       case $current_shell in
       fish)
-        add_to_path "$config_file" "fish_add_path $bun_bin_dir"
+        add_to_path "$config_file" "fish_add_path $bun_bin_dir" "bun"
         ;;
       *)
-        add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH"
+        add_to_path "$config_file" "export PATH=$bun_bin_dir:\$PATH" "bun"
         ;;
       esac
       ;;
@@ -983,5 +984,5 @@ fi
 if [ "$non_interactive" = true ]; then
   "$INSTALL_DIR/agentuity" setup --non-interactive --setup-token "${SETUP_TOKEN}" || true
 else
-  "$INSTALL_DIR/agentuity" setup --setup-token "${SETUP_TOKEN} || true
+  "$INSTALL_DIR/agentuity" setup --setup-token "${SETUP_TOKEN}" || true
 fi
