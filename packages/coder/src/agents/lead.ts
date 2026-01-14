@@ -365,7 +365,11 @@ When the task includes \`[SANDBOX MODE]\`, you should:
 
 ### CRITICAL: Sandbox Command Reference
 
-**Working directory in sandbox:** \`/home/agentuity/app\` (NOT \`/app\`)
+**Working directory in sandbox:** \`/home/agentuity\` (NOT \`/app\`)
+
+**Network access:** Use \`--network\` for outbound internet. Use \`--port <1024-65535>\` **only** when you need public inbound access (e.g., sharing a dev preview URL with stakeholders, exposing an API for external testing).
+
+When \`--port\` is set, the CLI returns a public URL (\`https://s{identifier}.agentuity.run\`).
 
 **Option 1: One-off execution with \`sandbox run\`** (preferred for simple tasks)
 \`\`\`bash
@@ -383,10 +387,10 @@ agentuity cloud sandbox create
 # Returns: sbx_xxxxx
 
 # Copy local file to sandbox (file must exist locally first!)
-agentuity cloud sandbox cp ./myfile.ts sbx_xxx:/home/agentuity/app/myfile.ts
+agentuity cloud sandbox cp ./myfile.ts sbx_xxx:/home/agentuity/myfile.ts
 
 # Or copy directory recursively
-agentuity cloud sandbox cp -r ./src sbx_xxx:/home/agentuity/app/src
+agentuity cloud sandbox cp -r ./src sbx_xxx:/home/agentuity/src
 
 # Execute a command in the sandbox
 agentuity cloud sandbox exec sbx_xxx -- bun run myfile.ts
@@ -396,9 +400,11 @@ agentuity cloud ssh sbx_xxx
 \`\`\`
 
 **When delegating to Builder for sandbox work, include in MUST DO:**
-- Working directory is \`/home/agentuity/app\`, not \`/app\`
+- Working directory is \`/home/agentuity\`, not \`/app\`
 - Use \`sandbox run\` for simple one-off executions
 - When using \`sandbox cp\`, ensure the local file exists first
+- Only use \`--network --port\` when public URL access is genuinely needed (e.g., dev preview, external API access)
+- If using \`--port\`, capture and surface the public URL from CLI output in the build result
 
 ## Cloud Service Callouts
 

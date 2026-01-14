@@ -205,11 +205,33 @@ When developers need deeper docs, point them to these URLs or suggest using cont
 | \`@agentuity/core\` | Shared types, interfaces, \`StructuredError\` |
 | \`@agentuity/schema\` | Lightweight validation (\`s.object\`, \`s.string\`, etc.) |
 | \`@agentuity/runtime\` | Agents, apps, routers, streaming, cron, context |
-| \`@agentuity/server\` | Runtime-agnostic server utilities |
+| \`@agentuity/server\` | Runtime-agnostic server utilities, \`validateDatabaseName\`, \`validateBucketName\` |
 | \`@agentuity/react\` | React hooks (\`useAPI\`, websockets, events, auth) |
 | \`@agentuity/frontend\` | URL building, reconnection utilities |
 | \`@agentuity/auth\` | Auth setup (\`createAuth\`, \`createSessionMiddleware\`) |
 | \`@agentuity/cli\` | Project scaffolding and cloud commands |
+
+### Resource Name Validation
+
+When provisioning databases or storage buckets from user input, use the validation helpers:
+
+\`\`\`typescript
+import { validateDatabaseName, validateBucketName } from '@agentuity/server';
+
+// Returns { valid: boolean, error?: string }
+const dbResult = validateDatabaseName(userInput);
+if (!dbResult.valid) {
+  throw new Error(dbResult.error);
+}
+
+const bucketResult = validateBucketName(userInput);
+if (!bucketResult.valid) {
+  throw new Error(bucketResult.error);
+}
+\`\`\`
+
+**Database names:** lowercase, start with letter or underscore, alphanumeric and underscores only.
+**Bucket names:** AWS S3 naming rules (lowercase, 3-63 chars, no IP addresses).
 
 ### Agents and Schema Definitions
 
@@ -272,6 +294,22 @@ handler: async (ctx, input) => {
   // KV — persists across threads/projects (use CLI naming conventions)
   await ctx.kv.set('coder-memory', 'project:myapp:patterns', patternsData);
 }
+\`\`\`
+
+### SandboxInfo Fields (new)
+
+When a sandbox has a port exposed, \`SandboxInfo\` includes:
+- \`identifier\`: Short stable ID used in the public URL hostname
+- \`networkPort\`: The exposed port (1024-65535)
+- \`url\`: Full public URL (e.g., \`https://s{identifier}.agentuity.run\`)
+
+\`\`\`typescript
+const sandbox = await ctx.sandbox.create({
+  runtime: 'bun:1',
+  network: { enabled: true, port: 3000 },
+});
+
+console.log(sandbox.url); // https://sABC123.agentuity.run
 \`\`\`
 
 ### Agent Composition Patterns
@@ -584,7 +622,8 @@ agentuity cloud sandbox run [--memory 1Gi] [--cpu 1000m] \\
   [--runtime <name>] [--runtimeId <id>] \\
   [--name <name>] [--description <text>] \\
   -- <command>                                             # One-shot execution
-agentuity cloud sandbox create --json [--memory 1Gi] [--cpu 1000m] [--network] \\
+agentuity cloud sandbox create --json [--memory 1Gi] [--cpu 1000m] \\
+  [--network] [--port <1024-65535>] \\
   [--runtime <name>] [--runtimeId <id>] \\
   [--name <name>] [--description <text>]                   # Create persistent sandbox
 agentuity cloud sandbox exec <sandboxId> -- <command>
@@ -614,6 +653,36 @@ agentuity cloud sandbox snapshot list --json
 
 **Telemetry fields** (from \`list\`/\`get\`): \`cpuTimeMs\`, \`memoryByteSec\`, \`networkEgressBytes\`, \`networkEnabled\`, \`mode\`. Use these to monitor resource usage.
 
+### Network & Public URLs
+
+**When to use \`--network\`:** Only when the sandbox needs outbound internet access (e.g., fetching packages, calling APIs).
+
+**When to use \`--port\`:** Only when you need **public internet access TO the sandbox** (e.g., exposing a web server, API endpoint, or dev preview). Port must be 1024-65535.
+
+| Scenario | Use \`--network\`? | Use \`--port\`? |
+|----------|------------------|---------------|
+| Running tests locally | No | No |
+| Installing npm packages | Yes | No |
+| Running a web server for internal testing | Yes | No |
+| Exposing a dev preview to share with others | Yes | Yes |
+| Running an API that external services call | Yes | Yes |
+
+**Public URL format:** When \`--port\` is set, the sandbox gets a public URL:
+- Production: \`https://s{identifier}.agentuity.run\`
+- Development: \`https://s{identifier}.agentuity.io\`
+
+The CLI output includes \`identifier\`, \`networkPort\`, and \`url\` fields.
+
+Example:
+\`\`\`bash
+# Create sandbox with public web server access
+agentuity cloud sandbox create --json \\
+  --runtime bun:1 \\
+  --network --port 3000 \\
+  --name web-preview --description "Dev preview for PR 123"
+# Output includes: identifier, networkPort, url (public URL)
+\`\`\`
+
 ### SSH (Remote Access)
 \`\`\`bash
 # SSH into deployed projects
@@ -638,10 +707,12 @@ agentuity cloud scp download /var/log/app.log --identifier=deploy_abc123
 
 ### Postgres
 \`\`\`bash
-agentuity cloud db create <name> --json
+agentuity cloud db create <name> [--description "<text>"] --json
 agentuity cloud db list --json
 agentuity cloud db sql <name> "<query>" --json
 \`\`\`
+
+**Tip:** Always set \`--description\` when creating databases so their purpose is clear in \`db list\` output.
 
 ## TTL Guidelines
 

@@ -149,7 +149,10 @@ If you cannot run tests, state clearly: "Unable to run tests because: [reason]"
 - [ ] No hardcoded credentials in commands
 - [ ] Sandbox cleanup handled (or ephemeral one-shot used)
 - [ ] Output captured and returned correctly
-- [ ] Network flag only used when necessary
+- [ ] \`--network\` only used when outbound internet access is needed
+- [ ] \`--port\` only used when public inbound access is genuinely required (dev previews, external API access)
+- [ ] Public sandbox URLs not logged or exposed where they could leak access to sensitive services
+- [ ] Services on exposed ports don't expose admin/debug endpoints publicly
 
 ### Postgres
 - [ ] No SQL injection vulnerabilities (use parameterized queries)
@@ -158,6 +161,8 @@ If you cannot run tests, state clearly: "Unable to run tests because: [reason]"
 - [ ] Indexes added for frequently queried columns
 - [ ] Connection handling is correct (no leaks)
 - [ ] Purpose documented in KV for Memory agent
+- [ ] Databases created via CLI use \`--description\` to document purpose
+- [ ] User-supplied database/bucket names validated using \`validateDatabaseName\`/\`validateBucketName\` from \`@agentuity/server\`
 
 ## Review Output Format
 

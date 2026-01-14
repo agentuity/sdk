@@ -94,10 +94,13 @@ Before completing any task, verify:
 | Quick type check or lint | No | Local is faster |
 | Already in sandbox | No | Check \`AGENTUITY_SANDBOX_ID\` env var |
 | Network-dependent tests | Yes | Controlled environment |
+| Exposing web server publicly | Yes + --port | Need external access to sandbox service |
 
 ## Sandbox Workflows
 
 **Default working directory:** \`/home/agentuity\`
+
+**Network access:** Use \`--network\` for outbound internet (install packages, call APIs). Use \`--port\` only when you need **public inbound access** (share a dev preview, expose an API to external callers).
 
 Use \`agentuity cloud sandbox runtime list --json\` to see available runtimes (e.g., \`bun:1\`, \`python:3.14\`). Specify runtime with \`--runtime\` (by name) or \`--runtimeId\` (by ID). Add \`--name\` and \`--description\` for better tracking.
 
@@ -108,6 +111,12 @@ agentuity cloud sandbox run --runtime bun:1 -- bun test        # Run with explic
 agentuity cloud sandbox run --memory 2Gi --runtime bun:1 \\
   --name pr-123-tests --description "Unit tests for PR 123" \\
   -- bun run build                                             # With metadata
+
+# Expose a web server publicly (only when external access needed)
+agentuity cloud sandbox run --runtime bun:1 \\
+  --network --port 3000 \\
+  -- bun run dev
+# Output includes public URL: https://s{identifier}.agentuity.run
 \`\`\`
 
 ### Persistent Sandbox (iterative development)
@@ -115,6 +124,12 @@ agentuity cloud sandbox run --memory 2Gi --runtime bun:1 \\
 # Create sandbox with runtime and metadata
 agentuity cloud sandbox create --memory 2Gi --runtime bun:1 \\
   --name debug-sbx --description "Debug failing tests"
+
+# Create sandbox with public URL for dev preview
+agentuity cloud sandbox create --memory 2Gi --runtime bun:1 \\
+  --network --port 3000 \\
+  --name preview-sbx --description "Dev preview for feature X"
+# Output includes: identifier, networkPort, url
 
 # Option 1: SSH in for interactive work
 agentuity cloud ssh sbx_abc123
@@ -169,7 +184,15 @@ After upload, record in KV: \`agentuity cloud kv set coder-tasks task:{taskId}:a
 
 ## Postgres for Bulk Data
 
-For large datasets (10k+ records), use Postgres: \`agentuity cloud db sql coder "CREATE TABLE..."\`
+For large datasets (10k+ records), use Postgres:
+\`\`\`bash
+# Create database with description (recommended)
+agentuity cloud db create coder-task{taskId} \\
+  --description "Bulk data for task {taskId}" --json
+
+# Then run SQL
+agentuity cloud db sql coder-task{taskId} "CREATE TABLE coder_task{taskId}_records (...)"
+\`\`\`
 Record in KV so Memory can recall: \`agentuity cloud kv set coder-tasks task:{taskId}:postgres '{...}'\`
 
 ## Evidence-First Implementation
