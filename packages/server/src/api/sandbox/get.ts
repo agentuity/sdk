@@ -124,6 +124,7 @@ export async function sandboxGet(
 	if (resp.success) {
 		return {
 			sandboxId: resp.data.sandboxId,
+			identifier: resp.data.identifier,
 			name: resp.data.name,
 			description: resp.data.description,
 			status: resp.data.status as SandboxStatus,
@@ -145,6 +146,8 @@ export async function sandboxGet(
 			memoryByteSec: resp.data.memoryByteSec,
 			networkEgressBytes: resp.data.networkEgressBytes,
 			networkEnabled: resp.data.networkEnabled,
+			networkPort: resp.data.networkPort,
+			url: resp.data.url,
 			user: resp.data.user,
 			agent: resp.data.agent,
 			project: resp.data.project,
