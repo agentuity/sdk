@@ -28,9 +28,10 @@ export const command = createCommand({
 		// validate the one time setup token if provided
 		if (opts?.setupToken && opts.setupToken !== '-' && validateToken.test(opts.setupToken)) {
 			const [hours] = opts.setupToken.split('.');
-			if (hours) {
+			const tokenInterval = Number(hours);
+			if (!Number.isNaN(tokenInterval)) {
 				const now = Math.round(Date.now() / (60_000 * 5));
-				if (now === +hours) {
+				if (tokenInterval === now || tokenInterval === now - 1) {
 					const ok = await tui.spinner({
 						message: 'Validating your identity',
 						clearOnSuccess: true,
