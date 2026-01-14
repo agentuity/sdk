@@ -105,6 +105,7 @@ export async function sandboxList(
 		return {
 			sandboxes: resp.data.sandboxes.map((s) => ({
 				sandboxId: s.sandboxId,
+				identifier: s.identifier,
 				name: s.name,
 				description: s.description,
 				status: s.status as SandboxStatus,
@@ -120,6 +121,8 @@ export async function sandboxList(
 				stdoutStreamUrl: s.stdoutStreamUrl,
 				stderrStreamUrl: s.stderrStreamUrl,
 				networkEnabled: s.networkEnabled,
+				networkPort: s.networkPort,
+				url: s.url,
 				org: s.org,
 			})),
 			total: resp.data.total,
