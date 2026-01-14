@@ -10,6 +10,7 @@ import {
 	getServiceUrls,
 	APIClient as ServerAPIClient,
 	createResources,
+	validateDatabaseName,
 } from '@agentuity/server';
 import type { Logger } from '@agentuity/core';
 import * as tui from '../../tui';
@@ -342,10 +343,17 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		}
 		switch (choices.db_action) {
 			case 'Create New': {
-				const dbName = await prompt.text({
+				const dbNameInput = await prompt.text({
 					message: 'Database name',
-					hint: 'Optional - press Enter to auto-generate',
+					hint: 'Optional - lowercase letters, digits, underscores only',
+					validate: (value: string) => {
+						const trimmed = value.trim();
+						if (trimmed === '') return true;
+						const result = validateDatabaseName(trimmed);
+						return result.valid ? true : result.error!;
+					},
 				});
+				const dbName = dbNameInput.trim() || undefined;
 				const dbDescription = await prompt.text({
 					message: 'Database description',
 					hint: 'Optional - press Enter to skip',
@@ -357,7 +365,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 						return createResources(catalystClient, orgId, region!, [
 							{
 								type: 'db',
-								name: dbName || undefined,
+								name: dbName,
 								description: dbDescription || undefined,
 							},
 						]);
