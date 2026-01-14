@@ -981,7 +981,7 @@ fi
 # Use the full path since PATH may not be updated in the current shell session
 # The || true ensures this doesn't fail on older binaries that don't have the setup command
 if [ "$non_interactive" = true ]; then
-  "$INSTALL_DIR/agentuity" setup --non-interactive --setup-token "${SETUP_TOKEN} || true
+  "$INSTALL_DIR/agentuity" setup --non-interactive --setup-token "${SETUP_TOKEN}" || true
 else
   "$INSTALL_DIR/agentuity" setup --setup-token "${SETUP_TOKEN} || true
 fi
