@@ -45,7 +45,7 @@ export const command = createCommand({
 							try {
 								const res = JSON.parse(await r.stdout.text()) as { success: boolean };
 								return res.success;
-							} catch (ex) {
+							} catch {
 								/* fall through */
 							}
 							return false;
