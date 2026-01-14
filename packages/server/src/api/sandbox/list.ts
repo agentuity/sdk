@@ -32,7 +32,10 @@ const SandboxInfoSchema = z
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
 		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
 		networkPort: z.number().optional().describe('Network port exposed from the sandbox'),
-		url: z.string().optional().describe('Public URL for the sandbox (only set if networkPort is configured)'),
+		url: z
+			.string()
+			.optional()
+			.describe('Public URL for the sandbox (only set if networkPort is configured)'),
 		org: SandboxOrgInfoSchema.describe('Organization associated with the sandbox'),
 	})
 	.describe('Summary information about a sandbox');

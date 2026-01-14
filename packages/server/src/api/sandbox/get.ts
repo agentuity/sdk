@@ -74,7 +74,10 @@ const SandboxInfoDataSchema = z
 		networkEgressBytes: z.number().optional().describe('Total network egress in bytes'),
 		networkEnabled: z.boolean().optional().describe('Whether network access is enabled'),
 		networkPort: z.number().optional().describe('Network port exposed from the sandbox'),
-		url: z.string().optional().describe('Public URL for the sandbox (only set if networkPort is configured)'),
+		url: z
+			.string()
+			.optional()
+			.describe('Public URL for the sandbox (only set if networkPort is configured)'),
 		user: SandboxUserInfoSchema.optional().describe('User who created the sandbox'),
 		agent: SandboxAgentInfoSchema.optional().describe('Agent associated with the sandbox'),
 		project: SandboxProjectInfoSchema.optional().describe('Project associated with the sandbox'),

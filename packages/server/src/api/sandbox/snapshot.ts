@@ -277,7 +277,10 @@ const _SnapshotBuildInitParamsSchema = z
 		name: z.string().optional().describe('Display name for the snapshot'),
 		tag: z.string().optional().describe('Tag for the snapshot'),
 		description: z.string().optional().describe('Description of the snapshot'),
-		contentHash: z.string().optional().describe('SHA-256 hash of snapshot content for change detection'),
+		contentHash: z
+			.string()
+			.optional()
+			.describe('SHA-256 hash of snapshot content for change detection'),
 		force: z.boolean().optional().describe('Force rebuild even if content is unchanged'),
 		orgId: z.string().optional().describe('Organization ID'),
 	})
@@ -286,7 +289,10 @@ const _SnapshotBuildInitParamsSchema = z
 const SnapshotBuildInitResponseSchema = z
 	.object({
 		snapshotId: z.string().optional().describe('Unique identifier for the snapshot being built'),
-		uploadUrl: z.string().optional().describe('Pre-signed URL for uploading the snapshot archive'),
+		uploadUrl: z
+			.string()
+			.optional()
+			.describe('Pre-signed URL for uploading the snapshot archive'),
 		s3Key: z.string().optional().describe('S3 key where the snapshot will be stored'),
 		unchanged: z.boolean().optional().describe('True if snapshot content is unchanged'),
 		existingId: z.string().optional().describe('ID of existing unchanged snapshot'),
@@ -302,17 +308,9 @@ const _SnapshotBuildFinalizeParamsSchema = z
 		snapshotId: z.string().describe('Snapshot ID from init response'),
 		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
 		fileCount: z.number().describe('Number of files in the snapshot'),
-		files: z
-			.array(SnapshotFileInfoSchema)
-			.describe('List of files with path and size'),
-		dependencies: z
-			.array(z.string())
-			.optional()
-			.describe('List of apt packages to install'),
-		env: z
-			.record(z.string(), z.string())
-			.optional()
-			.describe('Environment variables to set'),
+		files: z.array(SnapshotFileInfoSchema).describe('List of files with path and size'),
+		dependencies: z.array(z.string()).optional().describe('List of apt packages to install'),
+		env: z.record(z.string(), z.string()).optional().describe('Environment variables to set'),
 		metadata: z
 			.record(z.string(), z.string())
 			.optional()
