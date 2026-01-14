@@ -64,7 +64,7 @@ export const command = createCommand({
 		showBanner();
 		tui.newline();
 
-		if (!hasLoggedInBefore()) {
+		if (!(await hasLoggedInBefore())) {
 			tui.output(`${tui.muted('To get started, run:')}`);
 			tui.newline();
 			tui.output(
