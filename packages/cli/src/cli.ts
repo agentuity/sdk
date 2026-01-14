@@ -1242,7 +1242,12 @@ async function registerSubcommand(
 							ctx as CommandContext & { apiClient: APIClientType }
 						);
 					}
-					if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+					if (
+						(normalized.requiresRegion ||
+							normalized.optionalRegion ||
+							normalized.requiresRegions) &&
+						ctx.apiClient
+					) {
 						const apiClient: APIClientType = ctx.apiClient as APIClientType;
 						const regions = await tui.spinner({
 							message: 'Fetching cloud regions',
@@ -1255,15 +1260,20 @@ async function registerSubcommand(
 								);
 							},
 						});
-						const region = await resolveRegion({
-							options: options as Record<string, unknown>,
-							regions,
-							logger: baseCtx.logger,
-							required: !!normalized.requiresRegion,
-							region: project?.region,
-						});
-						if (region) {
-							ctx.region = region;
+						if (normalized.requiresRegions) {
+							ctx.regions = regions;
+						}
+						if (normalized.requiresRegion || normalized.optionalRegion) {
+							const region = await resolveRegion({
+								options: options as Record<string, unknown>,
+								regions,
+								logger: baseCtx.logger,
+								required: !!normalized.requiresRegion,
+								region: project?.region,
+							});
+							if (region) {
+								ctx.region = region;
+							}
 						}
 					}
 					await executeOrValidate(
@@ -1318,7 +1328,12 @@ async function registerSubcommand(
 						ctx as CommandContext & { apiClient: APIClientType }
 					);
 				}
-				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+				if (
+					(normalized.requiresRegion ||
+						normalized.optionalRegion ||
+						normalized.requiresRegions) &&
+					ctx.apiClient
+				) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
 					const regions = await tui.spinner({
 						message: 'Fetching cloud regions',
@@ -1331,15 +1346,20 @@ async function registerSubcommand(
 							);
 						},
 					});
-					const region = await resolveRegion({
-						options: options as Record<string, unknown>,
-						regions,
-						logger: baseCtx.logger,
-						required: !!normalized.requiresRegion,
-						region: project?.region,
-					});
-					if (region) {
-						ctx.region = region;
+					if (normalized.requiresRegions) {
+						ctx.regions = regions;
+					}
+					if (normalized.requiresRegion || normalized.optionalRegion) {
+						const region = await resolveRegion({
+							options: options as Record<string, unknown>,
+							regions,
+							logger: baseCtx.logger,
+							required: !!normalized.requiresRegion,
+							region: project?.region,
+						});
+						if (region) {
+							ctx.region = region;
+						}
 					}
 				}
 				if (subcommand.handler) {

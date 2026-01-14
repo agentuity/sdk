@@ -816,9 +816,7 @@ export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): vo
 	const RESET = '\x1b[0m';
 
 	const signupTitle = hasProfile ? 'Login' : 'Sign up / Login';
-	const signupURL = hasProfile
-		? `${appBaseUrl}/sign-in`
-		: `${appBaseUrl}/sign-up`;
+	const signupURL = hasProfile ? `${appBaseUrl}/sign-in` : `${appBaseUrl}/sign-up`;
 	const showInline = supportsHyperlinks();
 	const signupLink = showInline
 		? link(signupURL, signupTitle)
