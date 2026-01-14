@@ -13,6 +13,8 @@ const StorageGetResponseSchema = z.object({
 	secret_key: z.string().optional().describe('S3 secret key'),
 	region: z.string().optional().describe('S3 region'),
 	endpoint: z.string().optional().describe('S3 endpoint URL'),
+	org_id: z.string().optional().describe('Organization ID that owns this bucket'),
+	org_name: z.string().optional().describe('Organization name that owns this bucket'),
 });
 
 export const getSubcommand = createSubcommand({
@@ -100,24 +102,27 @@ export const getSubcommand = createSubcommand({
 		const shouldMask = !options.json && !shouldShowCredentials;
 
 		if (!options.json) {
-			console.log(tui.bold('Bucket Name: ') + bucket.bucket_name);
+			console.log(tui.bold('Bucket Name:  ') + bucket.bucket_name);
+			if (bucket.org_name || bucket.org_id) {
+				console.log(tui.bold('Organization: ') + (bucket.org_name || bucket.org_id));
+			}
 			if (bucket.access_key) {
 				const displayAccessKey = shouldMask
 					? tui.maskSecret(bucket.access_key)
 					: bucket.access_key;
-				console.log(tui.bold('Access Key:  ') + displayAccessKey);
+				console.log(tui.bold('Access Key:   ') + displayAccessKey);
 			}
 			if (bucket.secret_key) {
 				const displaySecretKey = shouldMask
 					? tui.maskSecret(bucket.secret_key)
 					: bucket.secret_key;
-				console.log(tui.bold('Secret Key:  ') + displaySecretKey);
+				console.log(tui.bold('Secret Key:   ') + displaySecretKey);
 			}
 			if (bucket.region) {
-				console.log(tui.bold('Region:      ') + bucket.region);
+				console.log(tui.bold('Region:       ') + bucket.region);
 			}
 			if (bucket.endpoint) {
-				console.log(tui.bold('Endpoint:    ') + bucket.endpoint);
+				console.log(tui.bold('Endpoint:     ') + bucket.endpoint);
 			}
 		}
 
@@ -127,6 +132,8 @@ export const getSubcommand = createSubcommand({
 			secret_key: bucket.secret_key ?? undefined,
 			region: bucket.region ?? undefined,
 			endpoint: bucket.endpoint ?? undefined,
+			org_id: bucket.org_id,
+			org_name: bucket.org_name,
 		};
 	},
 });
