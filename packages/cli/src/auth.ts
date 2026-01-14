@@ -1,19 +1,25 @@
 import enquirer from 'enquirer';
-import { getDefaultConfigDir, getAuth, saveConfig, loadConfig, saveOrgId } from './config';
+import {
+	getDefaultConfigPath,
+	getAuth,
+	saveConfig,
+	loadConfig,
+	saveOrgId,
+} from './config';
 import { getCommand } from './command-prefix';
 import type { CommandContext, AuthData } from './types';
 import * as tui from './tui';
 import { defaultProfileName } from './config';
 import { listOrganizations } from '@agentuity/server';
-import { APIClient, getAPIBaseURL, type APIClient as APIClientType } from './api';
+import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
 
 export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
 }
 
 export async function hasLoggedInBefore(): Promise<boolean> {
-	const configDir = getDefaultConfigDir();
-	return await Bun.file(configDir).exists();
+	const configPath = getDefaultConfigPath();
+	return await Bun.file(configPath).exists();
 }
 
 export async function isAuthenticated(): Promise<boolean> {
@@ -145,7 +151,7 @@ export async function optionalAuth(
 			});
 
 			if (response.action === 'local') {
-				tui.showLoggedOutMessage();
+				tui.showLoggedOutMessage(getAppBaseURL(ctx.config ?? null), hasLoggedIn);
 				return null;
 			}
 
@@ -187,7 +193,7 @@ export async function optionalAuth(
 			});
 
 			if (response.action === 'local') {
-				tui.showLoggedOutMessage();
+				tui.showLoggedOutMessage(getAppBaseURL(ctx.config ?? null), hasLoggedIn);
 				return null;
 			}
 

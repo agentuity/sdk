@@ -17,9 +17,13 @@ export interface PatchModule {
 
 export function generateEnvWarning(envkey: string): string {
 	return `if (process.env.AGENTUITY_ENVIRONMENT === 'development' || process.env.NODE_ENV !== 'production') {
-      console.error('The required environment variable ${envkey} must be set in your project .env file or in your local system environment.');
+      console.error('[ERROR] No credentials found for this AI provider. To fix this, either:');
+      console.error('  1. Login to Agentuity Cloud (agentuity auth login) to use the AI Gateway (recommended)');
+      console.error('  2. Set ${envkey} in your .env file to use the provider directly');
      } else {
-      console.error('The required environment variable ${envkey} is required for this project. Use "agentuity env set ${envkey}" to set it and redeploy your project.');
+      console.error('[ERROR] The environment variable ${envkey} is required. Either:');
+      console.error('  1. Use Agentuity Cloud AI Gateway by ensuring AGENTUITY_SDK_KEY is configured');
+      console.error('  2. Set ${envkey} using "agentuity env set ${envkey}" and redeploy');
      }
 `;
 }
