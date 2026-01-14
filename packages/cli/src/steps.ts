@@ -518,7 +518,8 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 			// Handle errors
 			if (stepState.status === 'error') {
 				const errorColor = getColor('red');
-				console.error(`\n${errorColor}Error: ${stepState.errorMessage}${COLORS.reset}`);
+				const errorMsg = stepState.errorMessage || 'An unknown error occurred';
+				console.error(`\n${errorColor}Error: ${errorMsg}${COLORS.reset}`);
 				if (
 					stepState.errorCause instanceof ValidationInputError ||
 					stepState.errorCause instanceof ValidationOutputError
@@ -611,7 +612,8 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
 				console.log('');
 			}
 			const errorColor = getColor('red');
-			console.error(`\n${errorColor}Error: ${outcome.message}${COLORS.reset}`);
+			const errorMsg = outcome.message || 'An unknown error occurred';
+			console.error(`\n${errorColor}Error: ${errorMsg}${COLORS.reset}`);
 			if (
 				outcome.cause instanceof ValidationInputError ||
 				outcome.cause instanceof ValidationOutputError

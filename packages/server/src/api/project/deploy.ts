@@ -302,7 +302,9 @@ export async function projectDeploymentComplete(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new ProjectResponseError({ message: resp.message });
+	throw new ProjectResponseError({
+		message: resp.message || 'Deployment completion failed with unknown error',
+	});
 }
 
 /**
