@@ -56,6 +56,7 @@ Description:
   GitHub Release:
     - Creates/updates GitHub release with generated release notes
     - Builds and uploads CLI executables for multiple platforms
+    - Builds and uploads VS Code extension (.vsix) for manual installation
     - Marks pre-releases appropriately on GitHub
 
 Required Environment Variables:
@@ -523,10 +524,28 @@ async function buildExecutables(version: string, skipSign: boolean) {
 	}
 }
 
+async function buildVSCodeExtension(version: string): Promise<string> {
+	console.log('\n🧩 Building VS Code extension...\n');
+
+	const vscodeDir = join(rootDir, 'packages', 'vscode');
+	try {
+		await $`bun run build`.cwd(vscodeDir);
+		await $`bun run package`.cwd(vscodeDir);
+
+		const vsixPath = join(vscodeDir, `agentuity-vscode-${version}.vsix`);
+		console.log(`✓ Built VS Code extension: agentuity-vscode-${version}.vsix`);
+		return vsixPath;
+	} catch (err) {
+		console.error('✗ Failed to build VS Code extension:', err);
+		throw err;
+	}
+}
+
 async function createOrUpdateGitHubRelease(
 	version: string,
 	releaseNotes: string,
-	isPrerelease: boolean
+	isPrerelease: boolean,
+	vsixPath?: string
 ) {
 	const tag = `v${version}`;
 	console.log(`\n🏷️  Creating GitHub release ${tag}...\n`);
@@ -562,6 +581,11 @@ async function createOrUpdateGitHubRelease(
 		if (exe.endsWith('.gz')) {
 			assetFiles.push(join(binDir, exe));
 		}
+	}
+
+	// Add VS Code extension if provided
+	if (vsixPath) {
+		assetFiles.push(vsixPath);
 	}
 
 	// First create the release without assets
@@ -685,9 +709,12 @@ async function main() {
 		// Build executables (skip signing in dry-run)
 		await buildExecutables(newVersion, isDryRun);
 
+		// Build VS Code extension
+		const vsixPath = await buildVSCodeExtension(newVersion);
+
 		// Create GitHub release before npm publish (skip in dry-run)
 		if (!isDryRun) {
-			await createOrUpdateGitHubRelease(newVersion, releaseNotes, isPreReleaseVersion);
+			await createOrUpdateGitHubRelease(newVersion, releaseNotes, isPreReleaseVersion, vsixPath);
 		}
 
 		const publishable = await getPublishablePackages();
