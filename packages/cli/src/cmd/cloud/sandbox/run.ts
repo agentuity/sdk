@@ -20,6 +20,7 @@ export const runSubcommand = createCommand({
 	description: 'Run a one-shot command in a sandbox (creates, executes, destroys)',
 	tags: ['slow', 'requires-auth'],
 	requires: { auth: true, region: true, org: true },
+	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('cloud sandbox run -- echo "hello world"'),
@@ -63,12 +64,14 @@ export const runSubcommand = createCommand({
 				.array(z.string())
 				.optional()
 				.describe('Apt packages to install (can be specified multiple times)'),
+			projectId: z.string().optional().describe('Project ID to associate this sandbox with'),
 		}),
 		response: SandboxRunResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, opts, options, auth, region, config, logger, orgId } = ctx;
+		const { args, opts, options, auth, region, config, logger, orgId, project } = ctx;
+		const projectId = opts.projectId || project?.projectId;
 		const client = createSandboxClient(logger, auth, region);
 		const started = Date.now();
 
@@ -151,6 +154,7 @@ export const runSubcommand = createCommand({
 		try {
 			const result = await sandboxRun(client, {
 				options: {
+					projectId,
 					runtime: opts.runtime,
 					runtimeId: opts.runtimeId,
 					name: opts.name,

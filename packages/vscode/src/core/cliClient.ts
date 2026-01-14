@@ -589,11 +589,10 @@ export class CliClient {
 
 	/**
 	 * List sandboxes with optional filtering.
-	 * Runs from home directory to list all sandboxes since sandbox create
-	 * doesn't currently support project association.
+	 * Uses --all flag to list all sandboxes regardless of project context.
 	 */
 	async sandboxList(filter: SandboxListFilter = {}): Promise<CliResult<SandboxInfo[]>> {
-		const args = ['cloud', 'sandbox', 'list'];
+		const args = ['cloud', 'sandbox', 'list', '--all'];
 
 		if (filter.status) {
 			args.push('--status', filter.status);
@@ -608,12 +607,8 @@ export class CliClient {
 			args.push('--offset', String(filter.offset));
 		}
 
-		// Run from home directory to list all sandboxes
-		// CLI filters by project when run from project dir, but sandbox create
-		// doesn't support project association yet
 		const result = await this.exec<{ sandboxes: SandboxInfo[]; total: number }>(args, {
 			format: 'json',
-			cwd: os.homedir(),
 		});
 		if (result.success && result.data) {
 			return { success: true, data: result.data.sandboxes || [], exitCode: result.exitCode };

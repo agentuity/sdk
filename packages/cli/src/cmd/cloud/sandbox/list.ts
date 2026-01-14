@@ -59,6 +59,10 @@ export const listSubcommand = createCommand({
 			command: getCommand('cloud sandbox list --limit 10 --offset 20'),
 			description: 'List with pagination',
 		},
+		{
+			command: getCommand('cloud sandbox list --all'),
+			description: 'List all sandboxes regardless of project context',
+		},
 	],
 	schema: {
 		options: z.object({
@@ -67,6 +71,7 @@ export const listSubcommand = createCommand({
 				.optional()
 				.describe('Filter by status'),
 			projectId: z.string().optional().describe('Filter by project ID'),
+			all: z.boolean().optional().describe('List all sandboxes regardless of project context'),
 			limit: z.number().optional().describe('Maximum number of results (default: 50, max: 100)'),
 			offset: z.number().optional().describe('Pagination offset'),
 		}),
@@ -77,7 +82,7 @@ export const listSubcommand = createCommand({
 		const { opts, options, auth, project, logger, orgId, config } = ctx;
 		const client = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
-		const projectId = opts.projectId || project?.projectId;
+		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
 
 		const result = await sandboxList(client, {
 			orgId,

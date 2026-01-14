@@ -178,6 +178,12 @@ export interface SandboxTimeoutConfig {
  */
 export interface SandboxCreateOptions {
 	/**
+	 * Project ID to associate the sandbox with.
+	 * If not provided, the sandbox will not be tied to a specific project.
+	 */
+	projectId?: string;
+
+	/**
 	 * Runtime name (e.g., "bun:1", "python:3.14").
 	 * If not specified, defaults to "bun:1".
 	 */
