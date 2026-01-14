@@ -261,7 +261,7 @@ export const command = createCommand({
 					} else {
 						// User chose not to login - show warning about disabled features
 						tui.newline();
-						tui.showLoggedOutMessage(hasProfile);
+						tui.showLoggedOutMessage(getAppBaseURL(config), hasProfile);
 					}
 				} else {
 					// Non-TTY: fatal error with instruction

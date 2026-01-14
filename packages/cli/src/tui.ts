@@ -809,7 +809,7 @@ export function showSignupBenefits(): void {
  * Display a message when unauthenticated to let the user know certain capabilities are disabled
  * @param hasProfile - If true, user has logged in before so only show "Login" instead of "Sign up / Login"
  */
-export function showLoggedOutMessage(hasProfile = false): void {
+export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): void {
 	const YELLOW = Bun.color('yellow', 'ansi-16m');
 	const TEXT =
 		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
@@ -817,8 +817,8 @@ export function showLoggedOutMessage(hasProfile = false): void {
 
 	const signupTitle = hasProfile ? 'Login' : 'Sign up / Login';
 	const signupURL = hasProfile
-		? 'https://app-v1.agentuity.com/sign-in'
-		: 'https://app-v1.agentuity.com/sign-up';
+		? `${appBaseUrl}/sign-in`
+		: `${appBaseUrl}/sign-up`;
 	const showInline = supportsHyperlinks();
 	const signupLink = showInline
 		? link(signupURL, signupTitle)

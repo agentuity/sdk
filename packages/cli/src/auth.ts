@@ -11,7 +11,7 @@ import type { CommandContext, AuthData } from './types';
 import * as tui from './tui';
 import { defaultProfileName } from './config';
 import { listOrganizations } from '@agentuity/server';
-import { APIClient, getAPIBaseURL, type APIClient as APIClientType } from './api';
+import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
 
 export function isTTY(): boolean {
 	return process.stdin.isTTY === true && process.stdout.isTTY === true;
@@ -151,7 +151,7 @@ export async function optionalAuth(
 			});
 
 			if (response.action === 'local') {
-				tui.showLoggedOutMessage(hasLoggedIn);
+				tui.showLoggedOutMessage(getAppBaseURL(ctx.config ?? null), hasLoggedIn);
 				return null;
 			}
 
@@ -193,7 +193,7 @@ export async function optionalAuth(
 			});
 
 			if (response.action === 'local') {
-				tui.showLoggedOutMessage(hasLoggedIn);
+				tui.showLoggedOutMessage(getAppBaseURL(ctx.config ?? null), hasLoggedIn);
 				return null;
 			}
 
