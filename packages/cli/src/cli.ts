@@ -1,8 +1,6 @@
-import { mkdir, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { resolve, join } from 'node:path';
+import { resolve } from 'node:path';
 import { Command } from 'commander';
-import { getDefaultConfigDir } from './config';
 import type {
 	CommandDefinition,
 	SubcommandDefinition,
