@@ -9,6 +9,7 @@ CYAN='\033[38;2;0;139;139m'
 NC='\033[0m' # No Color
 
 MIN_BUN_VERSION="1.3.3"
+SETUP_TOKEN="-"
 
 requested_version=${VERSION:-}
 force_install=false
@@ -980,7 +981,7 @@ fi
 # Use the full path since PATH may not be updated in the current shell session
 # The || true ensures this doesn't fail on older binaries that don't have the setup command
 if [ "$non_interactive" = true ]; then
-  "$INSTALL_DIR/agentuity" setup --non-interactive || true
+  "$INSTALL_DIR/agentuity" setup --non-interactive --setup-token "${SETUP_TOKEN} || true
 else
-  "$INSTALL_DIR/agentuity" setup || true
+  "$INSTALL_DIR/agentuity" setup --setup-token "${SETUP_TOKEN} || true
 fi
