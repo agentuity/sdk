@@ -590,26 +590,29 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	await Bun.write(envPath, content);
 	await chmod(envPath, 0o600);
 
-	// generate the vscode settings
+	// generate the vscode settings (only if they don't already exist)
 	const vscodeDir = join(dir, '.vscode');
-	mkdirSync(vscodeDir);
+	const settingsPath = join(vscodeDir, 'settings.json');
+	if (!(await Bun.file(settingsPath).exists())) {
+		mkdirSync(vscodeDir, { recursive: true });
 
-	const settings = {
-		'search.exclude': {
-			'**/.git/**': true,
-			'**/node_modules/**': true,
-			'**/bun.lock': true,
-			'**/.agentuity/**': true,
-		},
-		'json.schemas': [
-			{
-				fileMatch: ['agentuity.json'],
-				url: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
+		const settings = {
+			'search.exclude': {
+				'**/.git/**': true,
+				'**/node_modules/**': true,
+				'**/bun.lock': true,
+				'**/.agentuity/**': true,
 			},
-		],
-	};
+			'json.schemas': [
+				{
+					fileMatch: ['agentuity.json'],
+					url: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
+				},
+			],
+		};
 
-	await Bun.write(join(vscodeDir, 'settings.json'), JSON.stringify(settings, null, 2));
+		await Bun.write(settingsPath, JSON.stringify(settings, null, 2));
+	}
 }
 
 export async function updateProjectConfig(
