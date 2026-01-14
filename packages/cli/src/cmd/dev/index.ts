@@ -175,8 +175,8 @@ export const command = createCommand({
 	optional: { project: true },
 
 	async handler(ctx) {
-		const { opts, logger, project, projectDir } = ctx;
-		let { config } = ctx;
+		const { opts, logger, projectDir } = ctx;
+		let { config, project } = ctx;
 
 		// Get auth state - we handle auth ourselves based on project state
 		let auth = await getAuth();
@@ -272,9 +272,63 @@ export const command = createCommand({
 					);
 				}
 			}
+
+			// After auth is established, verify project access
+			if (auth && config) {
+				const { reconcileProject } = await import('../project/reconcile');
+				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
+
+				const result = await reconcileProject({
+					dir: rootDir,
+					auth,
+					apiClient,
+					config,
+					logger,
+					interactive: isTTY(),
+				});
+
+				if (result.status === 'error') {
+					tui.fatal(result.message!, ErrorCode.PROJECT_NOT_FOUND);
+				} else if (result.status === 'imported' && result.project) {
+					// Project was re-imported to user's org
+					project = result.project;
+					tui.newline();
+				} else if (result.status === 'skipped') {
+					// User declined import - can't continue with cloud features
+					tui.warning('Continuing in local-only mode.');
+					project = undefined;
+				}
+			}
 		} else {
-			// No agentuity.json - local-only mode, ignore auth state
-			tui.showLocalOnlyWarning();
+			// No agentuity.json - check if this is a valid project that needs importing
+			if (auth && config) {
+				const { reconcileProject } = await import('../project/reconcile');
+				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
+
+				const result = await reconcileProject({
+					dir: rootDir,
+					auth,
+					apiClient,
+					config,
+					logger,
+					interactive: isTTY(),
+				});
+
+				if (result.status === 'error') {
+					// Not a valid project - show local-only warning
+					tui.showLocalOnlyWarning();
+				} else if (result.status === 'imported' && result.project) {
+					// Project was imported - reload project config
+					project = result.project;
+					tui.newline();
+				} else if (result.status === 'skipped') {
+					// User declined import - continue in local-only mode
+					tui.showLocalOnlyWarning();
+				}
+			} else {
+				// Not authenticated - local-only mode
+				tui.showLocalOnlyWarning();
+			}
 		}
 
 		// Prepare dev lock: cleans up stale processes from previous sessions
