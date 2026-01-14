@@ -88,6 +88,8 @@ export const generateSubcommand = createCommand({
 	description: 'Generate a template snapshot build file',
 	tags: [],
 	requires: {},
+	skipUpgradeCheck: true,
+	skipSkill: true,
 	examples: [
 		{
 			command: getCommand('cloud sandbox snapshot generate'),
