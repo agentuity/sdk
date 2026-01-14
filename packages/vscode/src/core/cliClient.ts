@@ -328,6 +328,14 @@ export class CliClient {
 		});
 	}
 
+	async createDatabase(options: DbCreateOptions): Promise<CliResult<DbInfo>> {
+		const args = ['cloud', 'db', 'create', '--name', options.name];
+		if (options.description) {
+			args.push('--description', options.description);
+		}
+		return this.exec<DbInfo>(args, { format: 'json', timeout: 60000 });
+	}
+
 	async getDbLogs(
 		name: string,
 		opts?: { limit?: number; hasError?: boolean; sessionId?: string }
@@ -529,6 +537,9 @@ export class CliClient {
 		}
 		if (options.network) {
 			args.push('--network');
+		}
+		if (options.port !== undefined) {
+			args.push('--port', String(options.port));
 		}
 		if (options.idleTimeout) {
 			args.push('--idle-timeout', String(options.idleTimeout));
@@ -953,10 +964,17 @@ export interface KvGetResponse {
 export interface DbInfo {
 	name: string;
 	url: string;
+	description?: string | null;
+	region?: string;
 }
 
 export interface DbListResponse {
 	databases: DbInfo[];
+}
+
+export interface DbCreateOptions {
+	name: string;
+	description?: string;
 }
 
 export interface DbQueryLog {
@@ -1202,6 +1220,10 @@ export interface SandboxInfo {
 	description?: string;
 	runtimeId?: string;
 	runtimeName?: string;
+	// Network/URL fields
+	identifier?: string;
+	networkPort?: number;
+	url?: string;
 }
 
 export interface SandboxCreateOptions {
@@ -1215,6 +1237,7 @@ export interface SandboxCreateOptions {
 	cpu?: string;
 	disk?: string;
 	network?: boolean;
+	port?: number; // 1024-65535, enables network automatically
 	idleTimeout?: number;
 	execTimeout?: number;
 	env?: Record<string, string>;

@@ -230,9 +230,7 @@ function registerCommands(
 	context.subscriptions.push(
 		vscode.commands.registerCommand(
 			'agentuity.sandbox.exec',
-			async (
-				itemOrOptions?: SandboxTreeItem | { sandboxId: string; command?: string }
-			) => {
+			async (itemOrOptions?: SandboxTreeItem | { sandboxId: string; command?: string }) => {
 				let sandboxId: string | undefined;
 				let command: string | undefined;
 

@@ -97,6 +97,9 @@ export class SandboxTreeItem extends vscode.TreeItem {
 		const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
 		const runtimeLabel = this.sandboxData.runtimeName ?? this.sandboxData.runtimeId ?? 'bun:1';
 		let desc = `${statusLabel} · ${runtimeLabel}`;
+		if (this.sandboxData.url) {
+			desc += ' 🌐';
+		}
 		if (isLinked) {
 			desc += ' [linked]';
 		}
@@ -162,6 +165,14 @@ export class SandboxTreeItem extends vscode.TreeItem {
 			lines.push(`Region: ${this.sandboxData.region}`);
 		}
 		lines.push(`Created: ${new Date(this.sandboxData.createdAt).toLocaleString()}`);
+
+		// Network/URL info
+		if (this.sandboxData.url) {
+			lines.push(`URL: ${this.sandboxData.url}`);
+		}
+		if (this.sandboxData.networkPort) {
+			lines.push(`Port: ${this.sandboxData.networkPort}`);
+		}
 
 		if (this.sandboxData.resources) {
 			const r = this.sandboxData.resources;

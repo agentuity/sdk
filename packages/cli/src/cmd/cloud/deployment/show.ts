@@ -148,7 +148,10 @@ export const showSubcommand = createSubcommand({
 					if (Object.keys(gitData).length > 0) {
 						tui.newline();
 						tui.info('Git Information');
-						tui.table([gitData], Object.keys(gitData), { layout: 'vertical', padStart: '  ' });
+						tui.table([gitData], Object.keys(gitData), {
+							layout: 'vertical',
+							padStart: '  ',
+						});
 					}
 				}
 

@@ -37,7 +37,10 @@ export function validateDatabaseName(name: string): { valid: boolean; error?: st
 		return { valid: false, error: 'database name is too short (minimum 1 character)' };
 	}
 	if (name.length > MAX_DATABASE_NAME_LENGTH) {
-		return { valid: false, error: `database name is too long (maximum ${MAX_DATABASE_NAME_LENGTH} characters)` };
+		return {
+			valid: false,
+			error: `database name is too long (maximum ${MAX_DATABASE_NAME_LENGTH} characters)`,
+		};
 	}
 	if (name !== name.toLowerCase()) {
 		return { valid: false, error: 'database name must be lowercase' };
@@ -57,10 +60,16 @@ export function validateDatabaseName(name: string): { valid: boolean; error?: st
  */
 export function validateBucketName(name: string): { valid: boolean; error?: string } {
 	if (name.length < MIN_BUCKET_NAME_LENGTH) {
-		return { valid: false, error: `bucket name is too short (minimum ${MIN_BUCKET_NAME_LENGTH} characters)` };
+		return {
+			valid: false,
+			error: `bucket name is too short (minimum ${MIN_BUCKET_NAME_LENGTH} characters)`,
+		};
 	}
 	if (name.length > MAX_BUCKET_NAME_LENGTH) {
-		return { valid: false, error: `bucket name is too long (maximum ${MAX_BUCKET_NAME_LENGTH} characters)` };
+		return {
+			valid: false,
+			error: `bucket name is too long (maximum ${MAX_BUCKET_NAME_LENGTH} characters)`,
+		};
 	}
 	if (!BUCKET_NAME_REGEX.test(name)) {
 		return {
