@@ -294,6 +294,10 @@ const SnapshotBuildInitResponseSchema = z
 			.optional()
 			.describe('Pre-signed URL for uploading the snapshot archive'),
 		s3Key: z.string().optional().describe('S3 key where the snapshot will be stored'),
+		publicKey: z
+			.string()
+			.optional()
+			.describe('PEM-encoded public key for encrypting the snapshot archive'),
 		unchanged: z.boolean().optional().describe('True if snapshot content is unchanged'),
 		existingId: z.string().optional().describe('ID of existing unchanged snapshot'),
 		existingName: z.string().optional().describe('Name of existing unchanged snapshot'),

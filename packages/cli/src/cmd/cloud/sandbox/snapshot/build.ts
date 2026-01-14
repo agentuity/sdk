@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { resolve, join, extname } from 'node:path';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, statSync, createReadStream, createWriteStream } from 'node:fs';
 import { YAML } from 'bun';
 import * as tar from 'tar';
 import { createCommand } from '../../../../types';
@@ -14,8 +14,9 @@ import {
 import type { SnapshotFileInfo } from '@agentuity/server';
 import { getCatalystAPIClient } from '../../../../config';
 import { validateAptDependencies } from '../../../../utils/apt-validator';
+import { encryptFIPSKEMDEMStream } from '../../../../crypto/box';
 import { tmpdir } from 'node:os';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID, createHash, createPublicKey } from 'node:crypto';
 import { rm } from 'node:fs/promises';
 
 export const SNAPSHOT_TAG_REGEX = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
@@ -609,19 +610,54 @@ export const buildSubcommand = createCommand({
 				};
 			}
 
+			// Encrypt the archive if public key is provided
+			let uploadPath = archivePath;
+			let uploadSize = archiveSize;
+
+			if (initResult.publicKey) {
+				const encryptedPath = join(tempDir, 'snapshot.tar.gz.enc');
+
+				await tui.spinner({
+					message: 'Encrypting snapshot...',
+					type: 'simple',
+					clearOnSuccess: true,
+					callback: async () => {
+						const publicKey = createPublicKey({
+							key: initResult.publicKey!,
+							format: 'pem',
+							type: 'spki',
+						});
+
+						const src = createReadStream(archivePath);
+						const dst = createWriteStream(encryptedPath);
+
+						await encryptFIPSKEMDEMStream(publicKey, src, dst);
+
+						await new Promise<void>((resolve, reject) => {
+							dst.once('finish', resolve);
+							dst.once('error', reject);
+							dst.end();
+						});
+					},
+				});
+
+				uploadPath = encryptedPath;
+				uploadSize = Bun.file(encryptedPath).size;
+			}
+
 			await tui.spinner({
 				message: 'Uploading snapshot...',
 				type: 'progress',
 				clearOnSuccess: true,
 				callback: async (updateProgress) => {
-					const archiveBuffer = await archiveFile.arrayBuffer();
+					const uploadFile = Bun.file(uploadPath);
 					const response = await fetch(initResult.uploadUrl!, {
 						method: 'PUT',
 						headers: {
 							'Content-Type': 'application/gzip',
-							'Content-Length': String(archiveSize),
+							'Content-Length': String(uploadSize),
 						},
-						body: archiveBuffer,
+						body: uploadFile,
 					});
 
 					if (!response.ok) {
