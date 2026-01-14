@@ -113,8 +113,10 @@ export const getSubcommand = createCommand({
 			if (streamDisplay) {
 				tableData['Stream'] = streamDisplay;
 			} else {
-				if (result.stdoutStreamUrl) tableData['Stream (stdout)'] = tui.link(result.stdoutStreamUrl);
-				if (result.stderrStreamUrl) tableData['Stream (stderr)'] = tui.link(result.stderrStreamUrl);
+				if (result.stdoutStreamUrl)
+					tableData['Stream (stdout)'] = tui.link(result.stdoutStreamUrl);
+				if (result.stderrStreamUrl)
+					tableData['Stream (stderr)'] = tui.link(result.stderrStreamUrl);
 			}
 			if (result.dependencies && result.dependencies.length > 0) {
 				tableData['Dependencies'] = result.dependencies.join(', ');
