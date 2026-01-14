@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import type { InlineConfig, Plugin } from 'vite';
 import type { Logger, DeployOptions } from '../../../types';
 import { browserEnvPlugin } from './browser-env-plugin';
+import { beaconPlugin } from './beacon-plugin';
 import type { BuildReportCollector } from '../../../build-report';
 
 /**
@@ -55,6 +56,8 @@ export interface ViteBuildOptions {
 	deploymentId?: string;
 	workbenchRoute?: string;
 	workbenchEnabled?: boolean;
+	/** Whether analytics is enabled (for beacon injection in client build) */
+	analyticsEnabled?: boolean;
 	logger: Logger;
 	deploymentOptions?: DeployOptions;
 	/** Optional collector for structured error reporting */
@@ -139,11 +142,17 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const htmlPath = join(rootDir, 'src', 'web', 'index.html');
 
 		// Use workbench config passed from runAllBuilds
-		const { workbenchEnabled = false, workbenchRoute = '/workbench' } = options;
+		const { workbenchEnabled = false, workbenchRoute = '/workbench', analyticsEnabled = false } = options;
 
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
-		const plugins = [react(), browserEnvPlugin(), flattenHtmlOutputPlugin(clientOutDir)];
+		const plugins = [
+			react(),
+			browserEnvPlugin(),
+			flattenHtmlOutputPlugin(clientOutDir),
+			// Emit analytics beacon as hashed CDN asset (prod builds only)
+			beaconPlugin({ enabled: analyticsEnabled && !dev }),
+		];
 		const { loadAgentuityConfig } = await import('./config-loader');
 		const userConfig = await loadAgentuityConfig(rootDir, logger);
 		const userPlugins = userConfig?.plugins || [];
@@ -312,6 +321,9 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 	// Check if web frontend exists
 	const hasWebFrontend = await Bun.file(join(rootDir, 'src', 'web', 'index.html')).exists();
 
+	// Check if analytics is enabled
+	const analyticsEnabled = config?.analytics !== false;
+
 	// 2. Build client (only if web frontend exists)
 	if (hasWebFrontend) {
 		logger.debug('Building client assets...');
@@ -322,6 +334,7 @@ export async function runAllBuilds(options: Omit<ViteBuildOptions, 'mode'>): Pro
 			mode: 'client',
 			workbenchEnabled: workbenchConfig.enabled,
 			workbenchRoute: workbenchConfig.route,
+			analyticsEnabled,
 		});
 		result.client.included = true;
 		result.client.duration = Date.now() - started;
