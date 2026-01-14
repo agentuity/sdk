@@ -66,7 +66,7 @@ export const importSubcommand = createSubcommand({
 		});
 
 		if (result.status === 'error') {
-			tui.fatal(result.message!, ErrorCode.PROJECT_NOT_FOUND);
+			tui.fatal(result.message ?? 'Failed to import project', ErrorCode.PROJECT_NOT_FOUND);
 		}
 
 		if (result.status === 'skipped') {
