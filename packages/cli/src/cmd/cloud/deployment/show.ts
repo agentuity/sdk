@@ -19,6 +19,7 @@ const DeploymentShowResponseSchema = z.object({
 	resourceStorage: z.string().nullable().optional().describe('the storage name'),
 	deploymentLogsURL: z.string().nullable().optional().describe('the url to the deployment logs'),
 	buildLogsURL: z.string().nullable().optional().describe('the url to the build logs'),
+	dnsRecords: z.array(z.string()).optional().describe('DNS records for custom domains'),
 	metadata: z
 		.object({
 			git: z
@@ -124,6 +125,9 @@ export const showSubcommand = createSubcommand({
 				if (deployment.buildLogsURL) {
 					tableData['Build Logs'] = tui.link(deployment.buildLogsURL);
 				}
+				if (deployment.dnsRecords && deployment.dnsRecords.length > 0) {
+					tableData['DNS Records'] = deployment.dnsRecords.join(', ');
+				}
 
 				tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
 
@@ -190,6 +194,7 @@ export const showSubcommand = createSubcommand({
 				resourceStorage: deployment.resourceStorage ?? undefined,
 				deploymentLogsURL: deployment.deploymentLogsURL ?? undefined,
 				buildLogsURL: deployment.buildLogsURL ?? undefined,
+				dnsRecords: deployment.dnsRecords ?? undefined,
 			};
 		} catch (ex) {
 			tui.fatal(`Failed to show deployment: ${ex}`);
