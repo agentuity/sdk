@@ -807,19 +807,26 @@ export function showSignupBenefits(): void {
 
 /**
  * Display a message when unauthenticated to let the user know certain capabilities are disabled
+ * @param hasProfile - If true, user has logged in before so only show "Login" instead of "Sign up / Login"
  */
-export function showLoggedOutMessage(): void {
+export function showLoggedOutMessage(hasProfile = false): void {
 	const YELLOW = Bun.color('yellow', 'ansi-16m');
 	const TEXT =
 		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
 	const RESET = '\x1b[0m';
 
-	const signupTitle = 'Sign up / Login';
+	const signupTitle = hasProfile ? 'Login' : 'Sign up / Login';
+	const signupURL = hasProfile
+		? 'https://app-v1.agentuity.com/sign-in'
+		: 'https://app-v1.agentuity.com/sign-up';
 	const showInline = supportsHyperlinks();
-	const signupURL = 'https://app-v1.agentuity.com/sign-up';
 	const signupLink = showInline
 		? link(signupURL, signupTitle)
 		: ' '.repeat(stringWidth(signupTitle));
+	// Box inner width is 46 chars, "unauthenticated. " = 17 chars
+	// Padding needed: 46 - 17 - signupTitle.length - 1 (space before link) = 28 - signupTitle.length
+	const paddingLength = 28 - signupTitle.length;
+	const padding = ' '.repeat(paddingLength);
 	const showNewLine = showInline ? '' : `║ ${RESET}${link(signupURL)}${YELLOW}            ║`;
 
 	const lines = [
@@ -828,13 +835,43 @@ export function showLoggedOutMessage(): void {
 		'║                                              ║',
 		`║ ${TEXT}Certain capabilities such as the AI services${YELLOW} ║`,
 		`║ ${TEXT}and devmode remote are unavailable when${YELLOW}      ║`,
-		`║ ${TEXT}unauthenticated.${YELLOW} ${signupLink}${YELLOW}             ║`,
+		`║ ${TEXT}unauthenticated.${YELLOW} ${signupLink}${YELLOW}${padding}║`,
 		showNewLine,
 		'╚══════════════════════════════════════════════╝',
 	];
 
 	console.log('');
 	lines.filter(Boolean).map((line) => console.log(YELLOW + line + RESET));
+}
+
+/**
+ * Display a warning when running in local-only mode (no agentuity.json project config)
+ * This is shown during `agentuity dev` when the project hasn't been registered with Agentuity Cloud
+ */
+export function showLocalOnlyWarning(): void {
+	const YELLOW = Bun.color('yellow', 'ansi-16m');
+	const TEXT =
+		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
+	const RESET = '\x1b[0m';
+
+	const lines = [
+		'╔═══════════════════════════════════════════════════════════════╗',
+		`║ ⨺ Local-only mode                                             ║`,
+		'║                                                               ║',
+		`║ ${TEXT}This project is not registered with Agentuity Cloud.${YELLOW}          ║`,
+		`║ ${TEXT}The following features are disabled:${YELLOW}                          ║`,
+		`║   ${TEXT}• AI Gateway (LLM calls require provider API keys)${YELLOW}          ║`,
+		`║   ${TEXT}• Public URL / Remote access${YELLOW}                                ║`,
+		`║   ${TEXT}• Dashboard / Tracing / Observability${YELLOW}                       ║`,
+		'║                                                               ║',
+		`║ ${TEXT}To enable cloud features, create a project and login.${YELLOW}         ║`,
+		`║ ${TEXT}Or set provider API keys (e.g. OPENAI_API_KEY) in .env${YELLOW}        ║`,
+		'╚═══════════════════════════════════════════════════════════════╝',
+	];
+
+	console.log('');
+	lines.map((line) => console.log(YELLOW + line + RESET));
+	console.log('');
 }
 
 /**

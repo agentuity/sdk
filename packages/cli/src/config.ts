@@ -298,11 +298,12 @@ export async function saveAuth(auth: AuthData): Promise<void> {
 		try {
 			await saveAuthToKeychain(profileName, authData);
 
-			// Successfully stored in keychain, remove from config if present
+			// Successfully stored in keychain, remove auth from config if present
+			// but always save config to ensure profile file exists
 			if (config.auth) {
 				delete config.auth;
-				await saveConfig(config);
 			}
+			await saveConfig(config);
 			return;
 		} catch (error) {
 			// Keychain failed, fall back to config file
