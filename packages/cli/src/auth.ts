@@ -1,11 +1,5 @@
 import enquirer from 'enquirer';
-import {
-	getDefaultConfigPath,
-	getAuth,
-	saveConfig,
-	loadConfig,
-	saveOrgId,
-} from './config';
+import { getDefaultConfigPath, getAuth, saveConfig, loadConfig, saveOrgId } from './config';
 import { getCommand } from './command-prefix';
 import type { CommandContext, AuthData } from './types';
 import * as tui from './tui';

@@ -359,6 +359,29 @@ export async function saveOrgId(orgId: string): Promise<void> {
 	await saveConfig(config);
 }
 
+export async function clearOrgId(): Promise<void> {
+	const config = await getOrInitConfig();
+	if (config.preferences) {
+		delete (config.preferences as Record<string, unknown>).orgId;
+		await saveConfig(config);
+	}
+}
+
+export async function saveRegion(region: string): Promise<void> {
+	const config = await getOrInitConfig();
+	config.preferences = config.preferences || {};
+	(config.preferences as Record<string, unknown>).region = region;
+	await saveConfig(config);
+}
+
+export async function clearRegion(): Promise<void> {
+	const config = await getOrInitConfig();
+	if (config.preferences) {
+		delete (config.preferences as Record<string, unknown>).region;
+		await saveConfig(config);
+	}
+}
+
 export async function getAuth(): Promise<AuthData | null> {
 	const config = await loadConfig();
 	const profileName = config?.name || defaultProfileName;
@@ -724,13 +747,18 @@ interface RegionsCacheData {
 /**
  * Get the default region using priority ordering:
  * 1. AGENTUITY_REGION environment variable
- * 2. First entry in region-{profile}.json (nearest region, sorted by distance)
- * 3. 'local' for local profile, 'usc' otherwise
+ * 2. 'local' for local profile
+ * 3. Saved region preference (config.preferences.region)
+ * 4. First entry in region-{profile}.json (nearest region, sorted by distance)
+ * 5. 'usc' fallback
  *
  * Used for API calls that can hit any Catalyst instance (global database operations).
  * Note: This is NOT called when --region flag is provided (handled at command level).
  */
-export async function getDefaultRegion(profileName = 'production'): Promise<string> {
+export async function getDefaultRegion(
+	profileName = 'production',
+	config?: Config | null
+): Promise<string> {
 	// 1. Check environment variable first
 	if (process.env.AGENTUITY_REGION) {
 		return process.env.AGENTUITY_REGION;
@@ -741,7 +769,12 @@ export async function getDefaultRegion(profileName = 'production'): Promise<stri
 		return 'local';
 	}
 
-	// 3. Check cached regions file (sorted by distance)
+	// 3. Check saved region preference
+	if (config?.preferences?.region) {
+		return config.preferences.region;
+	}
+
+	// 4. Check cached regions file (sorted by distance)
 	try {
 		const cachePath = join(getDefaultConfigDir(), `regions-${profileName}.json`);
 		const file = Bun.file(cachePath);
@@ -755,7 +788,7 @@ export async function getDefaultRegion(profileName = 'production'): Promise<stri
 		// Fall through to default
 	}
 
-	// 4. Final fallback
+	// 5. Final fallback
 	return 'usc';
 }
 

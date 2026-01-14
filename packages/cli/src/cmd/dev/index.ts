@@ -227,7 +227,9 @@ export const command = createCommand({
 					tui.newline();
 
 					const shouldLogin = await tui.confirm(
-						hasProfile ? 'Would you like to login now?' : 'Would you like to login or create an account?',
+						hasProfile
+							? 'Would you like to login now?'
+							: 'Would you like to login or create an account?',
 						true
 					);
 
