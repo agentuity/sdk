@@ -48,6 +48,10 @@ export const importSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { opts, auth, apiClient, config, logger } = ctx;
 
+		if (!config) {
+			tui.fatal('Configuration not loaded. Please try again.', ErrorCode.CONFIG_INVALID);
+		}
+
 		const dir = opts.dir ? resolve(opts.dir) : process.cwd();
 		const validateOnly = opts.validateOnly ?? false;
 
@@ -55,7 +59,7 @@ export const importSubcommand = createSubcommand({
 			dir,
 			auth,
 			apiClient,
-			config: config!,
+			config,
 			logger,
 			interactive: validateOnly ? false : isTTY(),
 			validateOnly,

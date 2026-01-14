@@ -274,7 +274,7 @@ export const command = createCommand({
 			}
 
 			// After auth is established, verify project access
-			if (auth) {
+			if (auth && config) {
 				const { reconcileProject } = await import('../project/reconcile');
 				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
 
@@ -282,7 +282,7 @@ export const command = createCommand({
 					dir: rootDir,
 					auth,
 					apiClient,
-					config: config!,
+					config,
 					logger,
 					interactive: isTTY(),
 				});
@@ -301,7 +301,7 @@ export const command = createCommand({
 			}
 		} else {
 			// No agentuity.json - check if this is a valid project that needs importing
-			if (auth) {
+			if (auth && config) {
 				const { reconcileProject } = await import('../project/reconcile');
 				const apiClient = new APIClient(getAPIBaseURL(config), logger, auth.apiKey, config);
 
@@ -309,7 +309,7 @@ export const command = createCommand({
 					dir: rootDir,
 					auth,
 					apiClient,
-					config: config!,
+					config,
 					logger,
 					interactive: isTTY(),
 				});
