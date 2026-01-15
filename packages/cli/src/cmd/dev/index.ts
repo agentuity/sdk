@@ -980,6 +980,7 @@ export const command = createCommand({
 					}
 
 					process.env.AGENTUITY_SDK_DEV_MODE = 'true';
+					process.env.AGENTUITY_RUNTIME = 'yes';
 					process.env.AGENTUITY_ENV = 'development';
 					process.env.NODE_ENV = 'development';
 					process.env.AGENTUITY_PROJECT_DIR = rootDir;
