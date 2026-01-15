@@ -196,6 +196,51 @@ else
 	else
 		echo "Deployment URL: $DEPLOYMENT_URL"
 		
+		# Test 3b: Fetch HTML page and verify analytics beacon is present
+		echo ""
+		echo "Test 3b: Verify analytics beacon in HTML..."
+		HTML_OUTPUT="$TEMP_DIR/html-page.txt"
+		set +e
+		curl -s "$DEPLOYMENT_URL/" > "$HTML_OUTPUT" 2>&1
+		HTML_EXIT=$?
+		set -e
+		
+		if [ $HTML_EXIT -eq 0 ]; then
+			# Check for analytics config script
+			if grep -q "__AGENTUITY_ANALYTICS__" "$HTML_OUTPUT"; then
+				echo -e "${GREEN}✓${NC} Analytics config found in HTML"
+			else
+				echo -e "${RED}✗${NC} Analytics config (__AGENTUITY_ANALYTICS__) not found in HTML"
+				echo "HTML content (first 1000 chars):"
+				head -c 1000 "$HTML_OUTPUT"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			# Check for beacon script (either dev route or CDN asset)
+			if grep -q "analytics.js" "$HTML_OUTPUT" || grep -q "data-agentuity-beacon" "$HTML_OUTPUT"; then
+				echo -e "${GREEN}✓${NC} Analytics beacon script found in HTML"
+			else
+				echo -e "${RED}✗${NC} Analytics beacon script not found in HTML"
+				echo "HTML content (first 1000 chars):"
+				head -c 1000 "$HTML_OUTPUT"
+				TEST_FAILED=true
+				exit 1
+			fi
+			
+			# Check for session.js script with async attribute
+			if grep -q 'session.js.*async\|async.*session.js' "$HTML_OUTPUT"; then
+				echo -e "${GREEN}✓${NC} Session script found with async attribute"
+			elif grep -q "session.js" "$HTML_OUTPUT"; then
+				echo -e "${YELLOW}⚠${NC} Session script found but async attribute not verified"
+			else
+				echo -e "${YELLOW}⚠${NC} Session script not found (may be expected in some configurations)"
+			fi
+		else
+			echo -e "${YELLOW}⚠${NC} Failed to fetch HTML page (curl exit: $HTML_EXIT)"
+		fi
+		echo ""
+		
 		# Invoke the simple agent endpoint and capture session-id and x-deployment headers (with retries)
 		MAX_RETRIES=3
 		RETRY_DELAY=5
@@ -674,6 +719,7 @@ echo ""
 echo "Tests completed:"
 echo "  ✓ List deployments"
 echo "  ✓ Deploy project (first deployment)"
+echo "  ✓ Verify analytics beacon in HTML"
 echo "  ✓ Invoke deployment and capture session"
 echo "  ✓ Get session details"
 echo "  ✓ List sessions"
