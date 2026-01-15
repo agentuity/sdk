@@ -149,14 +149,24 @@ test('cli-org-env-secrets', 'org-env-delete-removes-variable', async () => {
 	const testValue = 'org_delete_test_value';
 
 	// Set the variable
-	await cliAgent.run({
+	console.log(`[DEBUG] delete-test: Setting ${testKey}`);
+	const setResult = await cliAgent.run({
 		command: `cloud env set ${testKey} ${testValue} --org`,
 	});
+	console.log(`[DEBUG] delete-test: Set result - exitCode: ${setResult.exitCode}, success: ${setResult.success}, stdout: ${setResult.stdout?.slice(0, 200)}`);
 
+	// Verify the variable was set before trying to delete
+	const verifyResult = await cliAgent.run({
+		command: `cloud env get ${testKey} --org`,
+	});
+	console.log(`[DEBUG] delete-test: Verify after set - exitCode: ${verifyResult.exitCode}, success: ${verifyResult.success}`);
+	
 	// Delete the variable
+	console.log(`[DEBUG] delete-test: Deleting ${testKey}`);
 	const deleteResult = await cliAgent.run({
 		command: `cloud env delete ${testKey} --org`,
 	});
+	console.log(`[DEBUG] delete-test: Delete result - exitCode: ${deleteResult.exitCode}, success: ${deleteResult.success}, stdout: ${deleteResult.stdout?.slice(0, 200)}`);
 
 	const deleteOutput = (deleteResult.stdout || '') + (deleteResult.stderr || '');
 	assert(
