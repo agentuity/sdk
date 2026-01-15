@@ -26,7 +26,7 @@ export function App() {
 							var scripts = document.querySelectorAll('script');
 							var hasBeacon = false;
 							scripts.forEach(function(s) {
-								if (s.src && (s.src.includes('analytics.js') || s.hasAttribute('data-agentuity-beacon'))) {
+								if ((s.src && s.src.includes('analytics.js')) || s.hasAttribute('data-agentuity-beacon')) {
 									hasBeacon = true;
 								}
 							});

@@ -196,9 +196,9 @@ else
 	else
 		echo "Deployment URL: $DEPLOYMENT_URL"
 		
-		# Test 3a: Fetch HTML page and verify analytics beacon is present
+		# Test 3b: Fetch HTML page and verify analytics beacon is present
 		echo ""
-		echo "Test 3a: Verify analytics beacon in HTML..."
+		echo "Test 3b: Verify analytics beacon in HTML..."
 		HTML_OUTPUT="$TEMP_DIR/html-page.txt"
 		set +e
 		curl -s "$DEPLOYMENT_URL/" > "$HTML_OUTPUT" 2>&1
