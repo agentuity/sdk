@@ -98,7 +98,7 @@ export const installSubcommand = createSubcommand({
 			tui.newline();
 
 			tui.output(tui.muted('Recommended MCP servers for Scout/Expert agents:'));
-			tui.output(tui.muted('Add to your opencode.json:'));
+			tui.output(tui.muted(`Add to your opencode.json (${OPENCODE_CONFIG_FILE}):`));
 			tui.newline();
 			tui.output(tui.muted('  "mcp": {'));
 			tui.output(
