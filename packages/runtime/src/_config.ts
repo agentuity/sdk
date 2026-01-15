@@ -148,3 +148,16 @@ export const CURRENT_AGENT = Symbol('CURRENT_AGENT');
  * @internal
  */
 export const AGENT_IDS = Symbol('AGENT_IDS');
+
+/**
+ * Returns true if running inside the Agentuity agent runtime (dev server or cloud).
+ *
+ * This is used to determine whether global state (logger, tracer, services) should
+ * already be initialized. When running standalone (scripts, Discord bots, cron jobs),
+ * this returns false and the runtime will auto-initialize minimal defaults.
+ *
+ * @returns boolean - true if AGENTUITY_SDK_DEV_MODE=true or AGENTUITY_RUNTIME=yes
+ */
+export function isInsideAgentRuntime(): boolean {
+	return process.env.AGENTUITY_SDK_DEV_MODE === 'true' || process.env.AGENTUITY_RUNTIME === 'yes';
+}

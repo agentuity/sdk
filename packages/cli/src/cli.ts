@@ -1322,7 +1322,13 @@ async function registerSubcommand(
 				);
 			}
 
-			const auth = await optionalAuth(baseCtx as CommandContext<undefined>, continueText);
+			// Check if --confirm flag is set to skip interactive prompts
+			const skipPrompts = options.confirm === true;
+			const auth = await optionalAuth(
+				baseCtx as CommandContext<undefined>,
+				continueText,
+				skipPrompts
+			);
 
 			if (subcommand.schema) {
 				try {
