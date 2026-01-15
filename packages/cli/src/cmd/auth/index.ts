@@ -5,6 +5,7 @@ import { logoutCommand } from './logout';
 import { signupCommand } from './signup';
 import { whoamiCommand } from './whoami';
 import { sshSubcommand } from './ssh';
+import { orgSubcommand } from './org';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -14,6 +15,7 @@ export const command = createCommand({
 	examples: [
 		{ command: getCommand('auth login'), description: 'Login to your account' },
 		{ command: getCommand('auth whoami'), description: 'Show current user info' },
+		{ command: getCommand('auth org select'), description: 'Set default organization' },
 	],
 	subcommands: [
 		apikeyCommand,
@@ -22,5 +24,6 @@ export const command = createCommand({
 		signupCommand,
 		whoamiCommand,
 		sshSubcommand,
+		orgSubcommand,
 	],
 });

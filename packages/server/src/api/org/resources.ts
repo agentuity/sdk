@@ -9,6 +9,8 @@ const OrgS3Resource = z.object({
 	region: z.string().nullable().optional().describe('the S3 region'),
 	endpoint: z.string().nullable().optional().describe('the S3 endpoint'),
 	cloud_region: z.string().describe('the cloud region where this resource is provisioned'),
+	org_id: z.string().describe('the organization ID that owns this resource'),
+	org_name: z.string().describe('the organization name that owns this resource'),
 });
 
 const OrgDBResource = z.object({
@@ -18,6 +20,8 @@ const OrgDBResource = z.object({
 	password: z.string().nullable().optional().describe('the database password'),
 	url: z.string().nullable().optional().describe('the full database connection URL'),
 	cloud_region: z.string().describe('the cloud region where this resource is provisioned'),
+	org_id: z.string().describe('the organization ID that owns this resource'),
+	org_name: z.string().describe('the organization name that owns this resource'),
 });
 
 const OrgResourceListResponse = z.object({

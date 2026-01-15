@@ -1,8 +1,6 @@
-import { mkdir, unlink } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { resolve, join } from 'node:path';
+import { resolve } from 'node:path';
 import { Command } from 'commander';
-import { getDefaultConfigDir } from './config';
 import type {
 	CommandDefinition,
 	SubcommandDefinition,
@@ -17,7 +15,8 @@ import type {
 } from './types';
 import { showBanner, generateBanner } from './banner';
 import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
-import { listRegions, type RegionList, ValidationOutputError } from '@agentuity/server';
+import { type RegionList, ValidationOutputError } from '@agentuity/server';
+import { fetchRegionsWithCache } from './regions';
 import enquirer from 'enquirer';
 import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
@@ -690,89 +689,6 @@ interface ResolveRegionOptions {
 	region?: string;
 }
 
-const REGIONS_CACHE_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
-const LEGACY_REGIONS_CACHE_FILE = 'regions.json';
-
-function getRegionsCacheFile(profileName: string): string {
-	return `regions-${profileName}.json`;
-}
-
-async function removeLegacyRegionsCache(logger: Logger): Promise<void> {
-	try {
-		const legacyPath = join(getDefaultConfigDir(), LEGACY_REGIONS_CACHE_FILE);
-		const file = Bun.file(legacyPath);
-		if (await file.exists()) {
-			await unlink(legacyPath);
-			logger.trace('removed legacy regions cache file');
-		}
-	} catch {
-		// Ignore errors when removing legacy file
-	}
-}
-
-interface RegionsCacheData {
-	timestamp: number;
-	regions: RegionList;
-}
-
-async function getCachedRegions(profileName: string, logger: Logger): Promise<RegionList | null> {
-	try {
-		// Clean up legacy single-file cache from older versions
-		await removeLegacyRegionsCache(logger);
-
-		const cachePath = join(getDefaultConfigDir(), getRegionsCacheFile(profileName));
-		const file = Bun.file(cachePath);
-		if (!(await file.exists())) {
-			return null;
-		}
-		const data: RegionsCacheData = await file.json();
-		const age = Date.now() - data.timestamp;
-		if (age > REGIONS_CACHE_MAX_AGE_MS) {
-			logger.trace('regions cache expired for profile %s (age: %dms)', profileName, age);
-			return null;
-		}
-		logger.trace('using cached regions for profile %s (age: %dms)', profileName, age);
-		return data.regions;
-	} catch (error) {
-		logger.trace('failed to read regions cache for profile %s: %s', profileName, error);
-		return null;
-	}
-}
-
-async function saveRegionsCache(
-	profileName: string,
-	regions: RegionList,
-	logger: Logger
-): Promise<void> {
-	try {
-		const cacheDir = getDefaultConfigDir();
-		await mkdir(cacheDir, { recursive: true });
-		const cachePath = join(cacheDir, getRegionsCacheFile(profileName));
-		const data: RegionsCacheData = {
-			timestamp: Date.now(),
-			regions,
-		};
-		await Bun.write(cachePath, JSON.stringify(data));
-		logger.trace('saved regions cache for profile %s', profileName);
-	} catch (error) {
-		logger.trace('failed to save regions cache for profile %s: %s', profileName, error);
-	}
-}
-
-async function fetchRegionsWithCache(
-	profileName: string,
-	apiClient: APIClientType,
-	logger: Logger
-): Promise<RegionList> {
-	const cached = await getCachedRegions(profileName, logger);
-	if (cached) {
-		return cached;
-	}
-	const regions = await listRegions(apiClient);
-	await saveRegionsCache(profileName, regions, logger);
-	return regions;
-}
-
 async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
 	const { options, regions, logger, required } = opts;
 
@@ -1242,7 +1158,12 @@ async function registerSubcommand(
 							ctx as CommandContext & { apiClient: APIClientType }
 						);
 					}
-					if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+					if (
+						(normalized.requiresRegion ||
+							normalized.optionalRegion ||
+							normalized.requiresRegions) &&
+						ctx.apiClient
+					) {
 						const apiClient: APIClientType = ctx.apiClient as APIClientType;
 						const regions = await tui.spinner({
 							message: 'Fetching cloud regions',
@@ -1255,15 +1176,20 @@ async function registerSubcommand(
 								);
 							},
 						});
-						const region = await resolveRegion({
-							options: options as Record<string, unknown>,
-							regions,
-							logger: baseCtx.logger,
-							required: !!normalized.requiresRegion,
-							region: project?.region,
-						});
-						if (region) {
-							ctx.region = region;
+						if (normalized.requiresRegions) {
+							ctx.regions = regions;
+						}
+						if (normalized.requiresRegion || normalized.optionalRegion) {
+							const region = await resolveRegion({
+								options: options as Record<string, unknown>,
+								regions,
+								logger: baseCtx.logger,
+								required: !!normalized.requiresRegion,
+								region: project?.region,
+							});
+							if (region) {
+								ctx.region = region;
+							}
 						}
 					}
 					await executeOrValidate(
@@ -1318,7 +1244,12 @@ async function registerSubcommand(
 						ctx as CommandContext & { apiClient: APIClientType }
 					);
 				}
-				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+				if (
+					(normalized.requiresRegion ||
+						normalized.optionalRegion ||
+						normalized.requiresRegions) &&
+					ctx.apiClient
+				) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
 					const regions = await tui.spinner({
 						message: 'Fetching cloud regions',
@@ -1331,15 +1262,20 @@ async function registerSubcommand(
 							);
 						},
 					});
-					const region = await resolveRegion({
-						options: options as Record<string, unknown>,
-						regions,
-						logger: baseCtx.logger,
-						required: !!normalized.requiresRegion,
-						region: project?.region,
-					});
-					if (region) {
-						ctx.region = region;
+					if (normalized.requiresRegions) {
+						ctx.regions = regions;
+					}
+					if (normalized.requiresRegion || normalized.optionalRegion) {
+						const region = await resolveRegion({
+							options: options as Record<string, unknown>,
+							regions,
+							logger: baseCtx.logger,
+							required: !!normalized.requiresRegion,
+							region: project?.region,
+						});
+						if (region) {
+							ctx.region = region;
+						}
 					}
 				}
 				if (subcommand.handler) {

@@ -18,6 +18,8 @@ const StorageListResponseSchema = z.object({
 				region: z.string().optional().describe('S3 region'),
 				endpoint: z.string().optional().describe('S3 endpoint URL'),
 				cloud_region: z.string().optional().describe('Cloud region where bucket is hosted'),
+				org_id: z.string().optional().describe('Organization ID that owns this bucket'),
+				org_name: z.string().optional().describe('Organization name that owns this bucket'),
 			})
 		)
 		.optional()
@@ -189,6 +191,10 @@ export const listSubcommand = createSubcommand({
 		const shouldShowCredentials = opts.showCredentials === true;
 		const shouldMask = !options.json && !shouldShowCredentials;
 
+		// Check if resources span multiple orgs
+		const uniqueOrgIds = new Set(resources.s3.map((s3) => s3.org_id));
+		const showOrgColumn = uniqueOrgIds.size > 1;
+
 		if (!options.json) {
 			if (resources.s3.length === 0) {
 				tui.info('No storage buckets found');
@@ -203,6 +209,9 @@ export const listSubcommand = createSubcommand({
 						continue;
 					}
 					console.log(tui.bold(s3.bucket_name));
+					if (showOrgColumn) {
+						console.log(` Organization: ${tui.muted(s3.org_name || s3.org_id)}`);
+					}
 					if (s3.access_key) {
 						const displayAccessKey = shouldMask
 							? tui.maskSecret(s3.access_key)
@@ -230,6 +239,8 @@ export const listSubcommand = createSubcommand({
 				region: s3.region ?? undefined,
 				endpoint: s3.endpoint ?? undefined,
 				cloud_region: s3.cloud_region,
+				org_id: s3.org_id,
+				org_name: s3.org_name,
 			})),
 		};
 	},

@@ -55,7 +55,7 @@ export const uploadCommand = createSubcommand({
 	prerequisites: ['cloud deploy'],
 
 	async handler(ctx) {
-		const { apiClient, args, opts, project, projectDir, config, logger, auth, orgId } = ctx;
+		const { apiClient, args, opts, project, projectDir, config, logger, auth } = ctx;
 
 		let identifier = opts?.identifier ?? project?.projectId;
 
@@ -63,8 +63,12 @@ export const uploadCommand = createSubcommand({
 			identifier = await tui.showProjectList(apiClient, true);
 		}
 
-		// Look up region from identifier (project/deployment)
+		// Look up region from identifier (project/deployment/sandbox)
 		const profileName = config?.name;
+
+		// For sandbox identifiers, use saved org preference (no prompting)
+		const orgId = identifier.startsWith('sbx_') ? config?.preferences?.orgId : undefined;
+
 		const region = await getIdentifierRegion(
 			logger,
 			auth,

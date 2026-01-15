@@ -50,6 +50,7 @@ export const ConfigSchema = zod.object({
 			last_legacy_warning: zod.number().optional().describe('Last legacy CLI warning timestamp'),
 			signup_banner_shown: zod.boolean().optional().describe('If the signup banner was shown'),
 			orgId: zod.string().optional().describe('Default organization ID'),
+			region: zod.string().optional().describe('Default cloud region'),
 			project_dir: zod.string().optional().describe('Last used project directory'),
 		})
 		.optional()
