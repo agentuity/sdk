@@ -4,6 +4,7 @@ import { hasLoggedInBefore } from '../../auth';
 import { showBanner } from '../../banner';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
+import { getAgentPromptMarkdown } from '../../onboarding/agentPrompt';
 
 const validateToken = /[\d]{7,}\.[\w-_.]{22}/;
 
@@ -53,7 +54,7 @@ export const command = createCommand({
 						},
 					});
 					if (ok) {
-						/* TODO */
+						process.stdout.write(getAgentPromptMarkdown());
 						return;
 					}
 				}
