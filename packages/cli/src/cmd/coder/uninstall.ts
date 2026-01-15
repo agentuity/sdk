@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createSubcommand } from '../../types';
@@ -7,10 +7,6 @@ import { getCommand } from '../../command-prefix';
 
 const OPENCODE_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 const OPENCODE_CONFIG_FILE = join(OPENCODE_CONFIG_DIR, 'opencode.json');
-
-async function fileExists(path: string): Promise<boolean> {
-	return Bun.file(path).exists();
-}
 
 export const uninstallSubcommand = createSubcommand({
 	name: 'uninstall',
@@ -35,14 +31,16 @@ export const uninstallSubcommand = createSubcommand({
 		let removedFromOpenCode = false;
 
 		// Remove from OpenCode config
-		if (!(await fileExists(OPENCODE_CONFIG_FILE))) {
+		if (!existsSync(OPENCODE_CONFIG_FILE)) {
 			if (!jsonMode) {
 				tui.info('Open Code config not found - nothing to uninstall');
 			}
 		} else {
 			try {
 				const content = readFileSync(OPENCODE_CONFIG_FILE, 'utf-8');
-				const openCodeConfig: { plugin?: string[]; $schema?: string } = JSON.parse(content);
+				// Handle trailing commas by removing them before parsing
+				const cleanedContent = content.replace(/,(\s*[}\]])/g, '$1');
+				const openCodeConfig: { plugin?: string[]; $schema?: string } = JSON.parse(cleanedContent);
 
 				if (!openCodeConfig.plugin || openCodeConfig.plugin.length === 0) {
 					if (!jsonMode) {

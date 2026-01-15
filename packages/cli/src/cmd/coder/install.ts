@@ -42,7 +42,9 @@ export const installSubcommand = createSubcommand({
 		if (existsSync(OPENCODE_CONFIG_FILE)) {
 			try {
 				const content = readFileSync(OPENCODE_CONFIG_FILE, 'utf-8');
-				openCodeConfig = JSON.parse(content);
+				// Handle trailing commas by removing them before parsing
+				const cleanedContent = content.replace(/,(\s*[}\]])/g, '$1');
+				openCodeConfig = JSON.parse(cleanedContent);
 			} catch {
 				openCodeConfig = {};
 			}
