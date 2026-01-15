@@ -13,7 +13,7 @@ export interface ParsedArgs {
 export interface ParsedOption {
 	name: string;
 	description?: string;
-	type: 'string' | 'number' | 'boolean' | 'array';
+	type: 'string' | 'number' | 'boolean' | 'array' | 'optionalString';
 	hasDefault?: boolean;
 	defaultValue?: unknown;
 	enumValues?: string[];
@@ -55,6 +55,42 @@ function unwrapSchema(schema: unknown): unknown {
 	}
 
 	return current;
+}
+
+/**
+ * Check if a schema is a union of boolean and string (for optional string flags like --org [value])
+ * This pattern is used when a flag can be used as a boolean (--org) or with a value (--org=myOrgId)
+ */
+function isBooleanStringUnion(schema: unknown): boolean {
+	const unwrapped = unwrapSchema(schema) as ZodTypeInternal;
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const def = unwrapped?._def as any;
+	// Zod 3 uses typeName, Zod 4 uses type
+	const typeId = def?.typeName || def?.type;
+
+	if (typeId !== 'ZodUnion' && typeId !== 'union') {
+		return false;
+	}
+
+	// Zod 3 uses _def.options, Zod 4 uses .options directly on the schema or _def.options
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const options = def?.options || (unwrapped as any)?.options;
+	if (!Array.isArray(options) || options.length !== 2) {
+		return false;
+	}
+
+	const types = new Set<string>();
+	for (const opt of options) {
+		// Zod 4: type is directly on the object as .type
+		// Zod 3: type is _def.typeName
+		const optUnknown = opt as unknown as Record<string, unknown>;
+		const optDef = optUnknown?._def as Record<string, unknown> | undefined;
+		const optType = (optUnknown?.type as string) || (optDef?.typeName as string) || (optDef?.type as string);
+		types.add(optType);
+	}
+
+	return (types.has('boolean') || types.has('ZodBoolean')) && 
+	       (types.has('string') || types.has('ZodString'));
 }
 
 function getShape(schema: ZodType): Record<string, unknown> {
@@ -182,9 +218,12 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 			}
 		}
 
-		let type: 'string' | 'number' | 'boolean' | 'array' = 'string';
+		let type: 'string' | 'number' | 'boolean' | 'array' | 'optionalString' = 'string';
 		let enumValues: string[] | undefined;
-		if (typeId === 'ZodNumber' || typeId === 'number') {
+		if (isBooleanStringUnion(value)) {
+			// z.union([z.boolean(), z.string()]) - flag can be used as --flag or --flag=value
+			type = 'optionalString';
+		} else if (typeId === 'ZodNumber' || typeId === 'number') {
 			type = 'number';
 		} else if (typeId === 'ZodBoolean' || typeId === 'boolean') {
 			type = 'boolean';

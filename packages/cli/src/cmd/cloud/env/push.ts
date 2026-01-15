@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { projectEnvUpdate } from '@agentuity/server';
+import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server';
 import {
 	findExistingEnvFile,
 	readEnvFile,
@@ -10,6 +10,7 @@ import {
 	validateNoPublicSecrets,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
+import { resolveOrgId, isOrgScope } from './org-util';
 
 const EnvPushResponseSchema = z.object({
 	success: z.boolean().describe('Whether push succeeded'),
@@ -17,6 +18,7 @@ const EnvPushResponseSchema = z.object({
 	envCount: z.number().describe('Number of env vars pushed'),
 	secretCount: z.number().describe('Number of secrets pushed'),
 	source: z.string().describe('Source file path'),
+	scope: z.enum(['project', 'org']).describe('The scope where variables were pushed'),
 });
 
 export const pushSubcommand = createSubcommand({
@@ -28,18 +30,33 @@ export const pushSubcommand = createSubcommand({
 		'slow',
 		'api-intensive',
 		'requires-auth',
-		'requires-project',
 	],
 	idempotent: true,
-	examples: [{ command: getCommand('env push'), description: 'Push all variables to cloud' }],
-	requires: { auth: true, project: true, apiClient: true },
+	examples: [
+		{ command: getCommand('env push'), description: 'Push all variables to cloud (project)' },
+		{ command: getCommand('env push --org'), description: 'Push all variables to organization' },
+	],
+	requires: { auth: true, apiClient: true },
+	optional: { project: true },
 	prerequisites: ['env set'],
 	schema: {
+		options: z.object({
+			org: z
+				.union([z.boolean(), z.string()])
+				.optional()
+				.describe('push to organization level (use --org for default org)'),
+		}),
 		response: EnvPushResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { apiClient, project, projectDir } = ctx;
+		const { apiClient, project, projectDir, config, opts } = ctx;
+		const useOrgScope = isOrgScope(opts?.org);
+
+		// Always require projectDir since push reads from local .env file
+		if (!projectDir) {
+			tui.fatal('Project directory required. Run from a project directory.');
+		}
 
 		// Read local env file
 		const envFilePath = await findExistingEnvFile(projectDir);
@@ -56,6 +73,7 @@ export const pushSubcommand = createSubcommand({
 				envCount: 0,
 				secretCount: 0,
 				source: envFilePath,
+				scope: useOrgScope ? 'org' as const : 'project' as const,
 			};
 		}
 
@@ -74,29 +92,64 @@ export const pushSubcommand = createSubcommand({
 			}
 		}
 
-		// Push to cloud
-		await tui.spinner('Pushing variables to cloud', () => {
-			return projectEnvUpdate(apiClient, {
-				id: project.projectId,
-				env,
-				secrets,
+		if (useOrgScope) {
+			// Organization scope
+			const orgId = await resolveOrgId(apiClient, config, opts!.org!);
+
+			await tui.spinner('Pushing variables to organization', () => {
+				return orgEnvUpdate(apiClient, {
+					id: orgId,
+					env,
+					secrets,
+				});
 			});
-		});
 
-		const envCount = Object.keys(env).length;
-		const secretCount = Object.keys(secrets).length;
-		const totalCount = envCount + secretCount;
+			const envCount = Object.keys(env).length;
+			const secretCount = Object.keys(secrets).length;
+			const totalCount = envCount + secretCount;
 
-		tui.success(
-			`Pushed ${totalCount} variable${totalCount !== 1 ? 's' : ''} to cloud (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
-		);
+			tui.success(
+				`Pushed ${totalCount} variable${totalCount !== 1 ? 's' : ''} to organization (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
+			);
 
-		return {
-			success: true,
-			pushed: totalCount,
-			envCount,
-			secretCount,
-			source: envFilePath,
-		};
+			return {
+				success: true,
+				pushed: totalCount,
+				envCount,
+				secretCount,
+				source: envFilePath,
+				scope: 'org' as const,
+			};
+		} else {
+			// Project scope (existing behavior)
+			if (!project) {
+				tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
+			}
+
+			await tui.spinner('Pushing variables to cloud', () => {
+				return projectEnvUpdate(apiClient, {
+					id: project.projectId,
+					env,
+					secrets,
+				});
+			});
+
+			const envCount = Object.keys(env).length;
+			const secretCount = Object.keys(secrets).length;
+			const totalCount = envCount + secretCount;
+
+			tui.success(
+				`Pushed ${totalCount} variable${totalCount !== 1 ? 's' : ''} to cloud (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
+			);
+
+			return {
+				success: true,
+				pushed: totalCount,
+				envCount,
+				secretCount,
+				source: envFilePath,
+				scope: 'project' as const,
+			};
+		}
 	},
 });

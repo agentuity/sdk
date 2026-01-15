@@ -235,13 +235,17 @@ run_tests() {
 	DURATION=$(echo "$DURATION + $RUN_DURATION" | bc)
 }
 
-# Phase 1: Run all tests EXCEPT cli-env-secrets at concurrency=10
-# The exclude parameter filters out suites by name
-run_tests "concurrency=10&exclude=cli-env-secrets" "Running tests (concurrency=10, excluding cli-env-secrets)..."
+# Phase 1: Run all tests EXCEPT cli-env-secrets and cli-org-env-secrets at concurrency=10
+# The exclude parameter filters out suites by name (comma-separated)
+run_tests "concurrency=10&exclude=cli-env-secrets,cli-org-env-secrets" "Running tests (concurrency=10, excluding cli-env-secrets,cli-org-env-secrets)..."
 
 # Phase 2: Run cli-env-secrets tests at concurrency=1
 # These tests interact with cloud APIs that can't handle high concurrency
 run_tests "suite=cli-env-secrets&concurrency=1" "Running cli-env-secrets tests (concurrency=1)..."
+
+# Phase 3: Run cli-org-env-secrets tests at concurrency=1
+# These tests modify shared org-level state and need to run serially
+run_tests "suite=cli-org-env-secrets&concurrency=1" "Running cli-org-env-secrets tests (concurrency=1)..."
 
 # Kill server
 kill $SERVER_PID 2>/dev/null || true

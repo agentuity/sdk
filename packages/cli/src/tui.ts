@@ -1759,23 +1759,33 @@ export async function selectOrganization(
 		return orgs[0].id;
 	}
 
-	if (!process.stdin.isTTY) {
-		if (initial) {
-			return initial;
+	// Use saved preference if available (regardless of TTY mode)
+	// This allows consistent behavior without prompting on every command
+	if (initial) {
+		const initialOrg = orgs.find((o) => o.id === initial);
+		if (initialOrg) {
+			return initialOrg.id;
 		}
-		fatal(
-			'Organization selection required but cannot prompt in non-interactive environment. Set AGENTUITY_CLOUD_ORG_ID or provide a default organization using --org-id'
-		);
 	}
 
-	// Find the index of the initial org to pre-select it in the list
-	const initialIndex = initial ? orgs.findIndex((o) => o.id === initial) : -1;
+	// Check for non-interactive environment (check both stdin and stdout)
+	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
+	if (isNonInteractive) {
+		// In non-interactive mode with multiple orgs, auto-select first org
+		// This allows scripts and CI/CD to work without explicit org selection
+		warning(
+			`Multiple organizations found. Auto-selecting first org: ${orgs[0].name}. ` +
+				`Set AGENTUITY_CLOUD_ORG_ID or use --org-id to specify a different org.`
+		);
+		return orgs[0].id;
+	}
 
+	// Interactive mode with no saved preference - prompt user
 	const response = await enquirer.prompt<{ action: string }>({
 		type: 'select',
 		name: 'action',
 		message: 'Select an organization',
-		initial: initialIndex >= 0 ? initialIndex : 0,
+		initial: 0,
 		choices: orgs.map((o) => ({ message: o.name, name: o.id })),
 	});
 
