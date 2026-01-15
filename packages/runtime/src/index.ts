@@ -192,6 +192,7 @@ export {
 	getDeploymentId,
 	isDevMode,
 	isProduction,
+	isInsideAgentRuntime,
 } from './_config';
 
 // _services.ts exports

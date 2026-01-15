@@ -314,4 +314,46 @@ describe('createAgentContext', () => {
 			});
 		});
 	});
+
+	describe('run() method', () => {
+		test('executes agent with input using ctx.run()', async () => {
+			const ctx = createAgentContext();
+			const result = await ctx.run(simpleAgent, { value: 'test-run' });
+
+			expect(result.result).toBe('processed: test-run');
+		});
+
+		test('executes agent without input using ctx.run()', async () => {
+			const ctx = createAgentContext();
+			const result = await ctx.run(statusAgent);
+
+			expect(result.status).toBe('ok');
+		});
+
+		test('handles multiple ctx.run() calls on same context', async () => {
+			const ctx = createAgentContext();
+
+			const r1 = await ctx.run(simpleAgent, { value: 'first' });
+			const r2 = await ctx.run(simpleAgent, { value: 'second' });
+			const r3 = await ctx.run(statusAgent);
+
+			expect(r1.result).toBe('processed: first');
+			expect(r2.result).toBe('processed: second');
+			expect(r3.status).toBe('ok');
+		});
+
+		test('ctx.run() handles agent errors', async () => {
+			const errorAgent = createAgent('run-error', {
+				schema: {
+					output: s.object({ result: s.string() }),
+				},
+				handler: async () => {
+					throw new Error('Run test error');
+				},
+			});
+
+			const ctx = createAgentContext();
+			await expect(ctx.run(errorAgent)).rejects.toThrow('Run test error');
+		});
+	});
 });

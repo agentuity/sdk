@@ -9,6 +9,7 @@ const ProjectCreateResponseSchema = z.object({
 	name: z.string().describe('Project name'),
 	path: z.string().describe('Project directory path'),
 	projectId: z.string().optional().describe('Project ID if registered'),
+	orgId: z.string().optional().describe('Organization ID if registered'),
 	template: z.string().describe('Template used'),
 	installed: z.boolean().describe('Whether dependencies were installed'),
 	built: z.boolean().describe('Whether the project was built'),
@@ -83,7 +84,7 @@ export const createProjectSubcommand = createSubcommand({
 			);
 		}
 
-		await runCreateFlow({
+		const result = await runCreateFlow({
 			projectName: opts.name,
 			dir: opts.dir,
 			domains: opts.domains,
@@ -101,14 +102,16 @@ export const createProjectSubcommand = createSubcommand({
 			region,
 		});
 
-		// Return best-effort response (runCreateFlow doesn't return values)
 		return {
 			success: true,
-			name: opts.name || 'project',
-			path: opts.dir || process.cwd(),
-			template: opts.template || 'default',
-			installed: opts.install !== false,
-			built: opts.build !== false,
+			name: result.name,
+			path: result.path,
+			projectId: result.projectId,
+			orgId: result.orgId,
+			template: result.template,
+			installed: result.installed,
+			built: result.built,
+			domains: result.domains,
 		};
 	},
 });

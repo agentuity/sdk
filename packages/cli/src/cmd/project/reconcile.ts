@@ -566,8 +566,7 @@ export async function runProjectImport(opts: ReconcileOptions): Promise<Reconcil
 			if (!interactive) {
 				return {
 					status: 'error',
-					message:
-						'Project not found. Run interactively to import it to your organization.',
+					message: 'Project not found. Run interactively to import it to your organization.',
 				};
 			}
 

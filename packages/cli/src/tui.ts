@@ -348,6 +348,11 @@ export function link(url: string, title?: string, color = getColor('link')): str
  * Check if terminal supports OSC 8 hyperlinks
  */
 export function supportsHyperlinks(): boolean {
+	// No hyperlink support without a TTY
+	if (!process.stdout.isTTY) {
+		return false;
+	}
+
 	const term = process.env.TERM || '';
 	const termProgram = process.env.TERM_PROGRAM || '';
 	const wtSession = process.env.WT_SESSION || '';
@@ -360,7 +365,6 @@ export function supportsHyperlinks(): boolean {
 		termProgram.includes('Apple_Terminal') ||
 		termProgram.includes('Hyper') ||
 		term.includes('xterm-kitty') ||
-		term.includes('xterm-256color') ||
 		wtSession !== '' // Windows Terminal
 	);
 }

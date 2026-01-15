@@ -20,7 +20,7 @@
 	],
 	"scripts": {
 		"clean": "rm -rf dist",
-		"build": "bunx tsc --build --force",
+		"build": "bunx tsc --build",
 		"typecheck": "bunx tsc --noEmit",
 		"typecheck:tests": "bunx tsc --noEmit --project tsconfig.test.json",
 		"prepublishOnly": "bun run clean && bun run build"

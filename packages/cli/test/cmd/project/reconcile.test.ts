@@ -2,16 +2,16 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import {
-	isValidProjectStructure,
-	getDefaultProjectName,
-} from '../../../src/cmd/project/reconcile';
+import { isValidProjectStructure, getDefaultProjectName } from '../../../src/cmd/project/reconcile';
 
 describe('project reconcile', () => {
 	let testDir: string;
 
 	beforeEach(() => {
-		testDir = join(tmpdir(), `reconcile-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		testDir = join(
+			tmpdir(),
+			`reconcile-test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+		);
 		mkdirSync(testDir, { recursive: true });
 	});
 

@@ -95,12 +95,18 @@ export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthD
 
 export async function optionalAuth(
 	ctx: CommandContext<undefined>,
-	continueText?: string
+	continueText?: string,
+	skipPrompts?: boolean
 ): Promise<AuthData | null> {
 	const auth = await getAuth();
 
 	if (auth && auth.expires > new Date()) {
 		return auth;
+	}
+
+	// Skip interactive prompts if requested (e.g., --confirm flag in CI/scripts)
+	if (skipPrompts) {
+		return null;
 	}
 
 	// Show signup benefits but don't block - just return null
