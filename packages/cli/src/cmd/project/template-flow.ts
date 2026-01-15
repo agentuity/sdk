@@ -57,7 +57,18 @@ interface CreateFlowOptions {
 	apiClient?: APIClient;
 }
 
-export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
+export interface CreateFlowResult {
+	projectId?: string;
+	orgId?: string;
+	name: string;
+	path: string;
+	template: string;
+	installed: boolean;
+	built: boolean;
+	domains?: string[];
+}
+
+export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateFlowResult> {
 	const {
 		projectName: initialProjectName,
 		dir: targetDir,
@@ -169,7 +180,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 			const home = homedir();
 			if (dest === '/' || dest === home) {
 				logger.fatal(`Refusing to delete protected path: ${dest}`, ErrorCode.VALIDATION_FAILED);
-				return;
+				return undefined as never;
 			}
 			rmSync(dest, { recursive: true, force: true });
 			tui.success(`Deleted ${dest}`);
@@ -194,7 +205,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 				`Template "${initialTemplate}" not found\n\nAvailable templates:\n${availableTemplates}`,
 				ErrorCode.RESOURCE_NOT_FOUND
 			);
-			return;
+			return undefined as never;
 		}
 		selectedTemplate = found;
 	} else if (skipPrompts || templates.length === 1) {
@@ -223,7 +234,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 		const found = templates.find((t) => t.id === templateId);
 		if (!found) {
 			logger.fatal('Template selection failed', ErrorCode.USER_CANCELLED);
-			return;
+			return undefined as never;
 		}
 		selectedTemplate = found;
 	}
@@ -624,6 +635,17 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<void> {
 	if (authEnabled && !templateHasAuth) {
 		printIntegrationExamples();
 	}
+
+	return {
+		projectId,
+		orgId,
+		name: projectName,
+		path: dest,
+		template: selectedTemplate.id,
+		installed: !options.noInstall,
+		built: !options.noBuild,
+		domains: _domains,
+	};
 }
 
 /**
