@@ -26,6 +26,7 @@ import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
 import { getCommand } from './command-prefix';
 import { isValidateMode, outputValidation, type ValidationResult } from './output';
 import { StructuredError } from '@agentuity/core';
+import { setProgram } from './program-ref';
 
 /**
  * Check if an error is a CLI input validation error (Zod error from schema parsing),
@@ -461,6 +462,7 @@ async function promptProjectSelection(baseCtx: CommandContext): Promise<ProjectC
 
 export async function createCLI(version: string): Promise<Command> {
 	const program = new Command();
+	setProgram(program);
 
 	program
 		.name('agentuity')

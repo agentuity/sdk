@@ -23,6 +23,11 @@ export async function checkLegacyCLI(): Promise<void> {
 		join(homeDir, '.local/bin/agentuity'), // XDG user bin
 	];
 
+	// Exclude the currently running executable from the legacy check
+	// This prevents the new CLI from detecting itself as legacy when installed
+	// in standard system locations like /usr/local/bin
+	const currentExecutable = process.execPath;
+
 	const foundInstalls: LegacyInstall[] = [];
 
 	// Check if Homebrew manages the agentuity package
@@ -40,6 +45,11 @@ export async function checkLegacyCLI(): Promise<void> {
 
 	// Check file system locations
 	for (const location of legacyLocations) {
+		// Skip if this is the currently running executable
+		if (location === currentExecutable) {
+			continue;
+		}
+
 		const file = Bun.file(location);
 		if (await file.exists()) {
 			try {
