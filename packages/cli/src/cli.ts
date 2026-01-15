@@ -973,6 +973,10 @@ async function registerSubcommand(
 					arrayDesc,
 					(value: string, previous: string[]) => (previous ?? []).concat([value])
 				);
+			} else if (opt.type === 'optionalString') {
+				// Optional string: --flag uses true, --flag=value uses the string value
+				// In Commander.js, [value] means optional argument
+				cmd.option(`${flagSpec} [${opt.name}]`, desc);
 			} else {
 				const strDefault = opt.hasDefault
 					? typeof opt.defaultValue === 'function'
@@ -1019,7 +1023,16 @@ async function registerSubcommand(
 				try {
 					const auth = await requireAuth(baseCtx);
 					if (auth) {
-						const apiClient = createAPIClient(baseCtx, baseCtx.config);
+						// Create config with auth credentials for API client
+						const configWithAuth = {
+							...baseCtx.config,
+							auth: {
+								api_key: auth.apiKey,
+								user_id: auth.userId,
+								expires: auth.expires.getTime(),
+							},
+						};
+						const apiClient = createAPIClient(baseCtx, configWithAuth as Config);
 						const { projectGet } = await import('@agentuity/server');
 						const projectDetails = await projectGet(apiClient, { id: projectId, mask: true });
 						project = {

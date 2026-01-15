@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { projectGet } from '@agentuity/server';
+import { projectGet, orgEnvGet } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
+import { resolveOrgId, isOrgScope } from './org-util';
 
 const EnvItemSchema = z.object({
 	value: z.string().describe('Variable value'),
 	secret: z.boolean().describe('Whether this is a secret'),
+	scope: z.enum(['project', 'org']).describe('The scope of the variable'),
 });
 
 const EnvListResponseSchema = z.record(z.string(), EnvItemSchema);
@@ -15,14 +17,16 @@ export const listSubcommand = createSubcommand({
 	name: 'list',
 	aliases: ['ls'],
 	description: 'List all environment variables and secrets',
-	tags: ['read-only', 'fast', 'requires-auth', 'requires-project'],
+	tags: ['read-only', 'fast', 'requires-auth'],
 	examples: [
-		{ command: getCommand('env list'), description: 'List all variables' },
+		{ command: getCommand('env list'), description: 'List all variables (project + org merged)' },
 		{ command: getCommand('env list --no-mask'), description: 'Show unmasked values' },
 		{ command: getCommand('env list --secrets'), description: 'List only secrets' },
 		{ command: getCommand('env list --env-only'), description: 'List only env vars' },
+		{ command: getCommand('env list --org'), description: 'List only organization-level variables' },
 	],
-	requires: { auth: true, project: true, apiClient: true },
+	requires: { auth: true, apiClient: true },
+	optional: { project: true },
 	idempotent: true,
 	schema: {
 		options: z.object({
@@ -32,39 +36,97 @@ export const listSubcommand = createSubcommand({
 				.describe('mask secret values in output (use --no-mask to show values)'),
 			secrets: z.boolean().default(false).describe('list only secrets'),
 			'env-only': z.boolean().default(false).describe('list only environment variables'),
+			org: z
+				.union([z.boolean(), z.string()])
+				.optional()
+				.describe('list organization-level variables only (use --org for default org)'),
 		}),
 		response: EnvListResponseSchema,
 	},
-	webUrl: (ctx) => `/projects/${encodeURIComponent(ctx.project.projectId)}/settings`,
+	webUrl: (ctx) => ctx.project ? `/projects/${encodeURIComponent(ctx.project.projectId)}/settings` : undefined,
 
 	async handler(ctx) {
-		const { opts, apiClient, project, options } = ctx;
+		const { opts, apiClient, project, options, config } = ctx;
+		const useOrgScope = isOrgScope(opts?.org);
 
-		// Fetch project with unmasked values
-		const projectData = await tui.spinner('Fetching variables', () => {
-			return projectGet(apiClient, { id: project.projectId, mask: false });
-		});
-
-		const env = projectData.env || {};
-		const secrets = projectData.secrets || {};
-
-		// Build combined result with type info
-		const result: Record<string, { value: string; secret: boolean }> = {};
+		// Build combined result with type info and scope
+		const result: Record<string, { value: string; secret: boolean; scope: 'project' | 'org' }> = {};
 
 		// Filter based on options
 		const showEnv = !opts?.secrets;
 		const showSecrets = !opts?.['env-only'];
 
-		if (showEnv) {
-			for (const [key, value] of Object.entries(env)) {
-				result[key] = { value, secret: false };
-			}
-		}
+		if (useOrgScope) {
+			// Organization scope only
+			const orgId = await resolveOrgId(apiClient, config, opts!.org!);
 
-		if (showSecrets) {
-			for (const [key, value] of Object.entries(secrets)) {
-				result[key] = { value, secret: true };
+			const orgData = await tui.spinner('Fetching organization variables', () => {
+				return orgEnvGet(apiClient, { id: orgId, mask: false });
+			});
+
+			const orgEnv = orgData.env || {};
+			const orgSecrets = orgData.secrets || {};
+
+			if (showEnv) {
+				for (const [key, value] of Object.entries(orgEnv)) {
+					result[key] = { value, secret: false, scope: 'org' };
+				}
 			}
+
+			if (showSecrets) {
+				for (const [key, value] of Object.entries(orgSecrets)) {
+					result[key] = { value, secret: true, scope: 'org' };
+				}
+			}
+		} else if (project) {
+			// Project context: show merged view (org + project, project takes precedence)
+			// First, get project's org ID and fetch org env
+			const projectData = await tui.spinner('Fetching variables', () => {
+				return projectGet(apiClient, { id: project.projectId, mask: false });
+			});
+
+			const projectEnv = projectData.env || {};
+			const projectSecrets = projectData.secrets || {};
+
+			// Try to get org-level env (may fail if no access, that's ok)
+			let orgEnv: Record<string, string> = {};
+			let orgSecrets: Record<string, string> = {};
+
+			if (projectData.orgId) {
+				try {
+					const orgData = await orgEnvGet(apiClient, { id: projectData.orgId, mask: false });
+					orgEnv = orgData.env || {};
+					orgSecrets = orgData.secrets || {};
+				} catch {
+					// Ignore errors - user may not have org env access
+				}
+			}
+
+			// Add org-level first (will be overridden by project-level)
+			if (showEnv) {
+				for (const [key, value] of Object.entries(orgEnv)) {
+					result[key] = { value, secret: false, scope: 'org' };
+				}
+			}
+			if (showSecrets) {
+				for (const [key, value] of Object.entries(orgSecrets)) {
+					result[key] = { value, secret: true, scope: 'org' };
+				}
+			}
+
+			// Add project-level (overrides org-level)
+			if (showEnv) {
+				for (const [key, value] of Object.entries(projectEnv)) {
+					result[key] = { value, secret: false, scope: 'project' };
+				}
+			}
+			if (showSecrets) {
+				for (const [key, value] of Object.entries(projectSecrets)) {
+					result[key] = { value, secret: true, scope: 'project' };
+				}
+			}
+		} else {
+			tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
 		}
 
 		// Skip TUI output in JSON mode
@@ -74,11 +136,17 @@ export const listSubcommand = createSubcommand({
 			} else {
 				tui.newline();
 
-				const envCount = showEnv ? Object.keys(env).length : 0;
-				const secretCount = showSecrets ? Object.keys(secrets).length : 0;
+				const projectCount = Object.values(result).filter(v => v.scope === 'project').length;
+				const orgCount = Object.values(result).filter(v => v.scope === 'org').length;
+				const secretCount = Object.values(result).filter(v => v.secret).length;
+				const envCount = Object.values(result).filter(v => !v.secret).length;
+
 				const parts: string[] = [];
 				if (envCount > 0) parts.push(`${envCount} env`);
 				if (secretCount > 0) parts.push(`${secretCount} secret${secretCount !== 1 ? 's' : ''}`);
+				if (!useOrgScope && projectCount > 0 && orgCount > 0) {
+					parts.push(`${projectCount} project, ${orgCount} org`);
+				}
 
 				tui.info(`Variables (${parts.join(', ')}):`);
 				tui.newline();
@@ -87,10 +155,11 @@ export const listSubcommand = createSubcommand({
 				const shouldMask = opts?.mask !== false;
 
 				for (const key of sortedKeys) {
-					const { value, secret } = result[key];
+					const { value, secret, scope } = result[key];
 					const displayValue = shouldMask && secret ? tui.maskSecret(value) : value;
 					const typeIndicator = secret ? ' [secret]' : '';
-					console.log(`${tui.bold(key)}=${displayValue}${tui.muted(typeIndicator)}`);
+					const scopeIndicator = !useOrgScope ? ` [${scope}]` : '';
+					console.log(`${tui.bold(key)}=${displayValue}${tui.muted(typeIndicator + scopeIndicator)}`);
 				}
 			}
 		}

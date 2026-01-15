@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { projectEnvUpdate } from '@agentuity/server';
+import { projectEnvUpdate, orgEnvUpdate } from '@agentuity/server';
 import {
 	findExistingEnvFile,
 	readEnvFile,
@@ -13,6 +13,7 @@ import {
 	isReservedAgentuityKey,
 } from '../../../env-util';
 import { getCommand } from '../../../command-prefix';
+import { resolveOrgId, isOrgScope } from './org-util';
 
 const EnvImportResponseSchema = z.object({
 	success: z.boolean().describe('Whether import succeeded'),
@@ -20,8 +21,9 @@ const EnvImportResponseSchema = z.object({
 	envCount: z.number().describe('Number of env vars imported'),
 	secretCount: z.number().describe('Number of secrets imported'),
 	skipped: z.number().describe('Number of items skipped'),
-	path: z.string().describe('Local file path where variables were saved'),
+	path: z.string().optional().describe('Local file path where variables were saved (project scope only)'),
 	file: z.string().describe('Source file path'),
+	scope: z.enum(['project', 'org']).describe('The scope where variables were imported'),
 });
 
 export const importSubcommand = createSubcommand({
@@ -33,7 +35,6 @@ export const importSubcommand = createSubcommand({
 		'slow',
 		'api-intensive',
 		'requires-auth',
-		'requires-project',
 	],
 	examples: [
 		{
@@ -44,18 +45,35 @@ export const importSubcommand = createSubcommand({
 			command: getCommand('cloud env import .env.local'),
 			description: 'Import from .env.local file',
 		},
+		{
+			command: getCommand('cloud env import .env.shared --org'),
+			description: 'Import to organization level',
+		},
 	],
 	idempotent: false,
-	requires: { auth: true, project: true, apiClient: true },
+	requires: { auth: true, apiClient: true },
+	optional: { project: true },
 	schema: {
 		args: z.object({
 			file: z.string().describe('path to the .env file to import'),
+		}),
+		options: z.object({
+			org: z
+				.union([z.boolean(), z.string()])
+				.optional()
+				.describe('import to organization level (use --org for default org)'),
 		}),
 		response: EnvImportResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { args, apiClient, project, projectDir } = ctx;
+		const { args, apiClient, project, projectDir, config, opts } = ctx;
+		const useOrgScope = isOrgScope(opts?.org);
+
+		// Require project context if not using org scope
+		if (!useOrgScope && !project) {
+			tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
+		}
 
 		// Read the import file
 		const importedVars = await readEnvFile(args.file);
@@ -68,8 +86,8 @@ export const importSubcommand = createSubcommand({
 				envCount: 0,
 				secretCount: 0,
 				skipped: 0,
-				path: '',
 				file: args.file,
+				scope: useOrgScope ? 'org' as const : 'project' as const,
 			};
 		}
 
@@ -84,8 +102,8 @@ export const importSubcommand = createSubcommand({
 				envCount: 0,
 				secretCount: 0,
 				skipped: Object.keys(importedVars).length,
-				path: '',
 				file: args.file,
+				scope: useOrgScope ? 'org' as const : 'project' as const,
 			};
 		}
 
@@ -104,40 +122,68 @@ export const importSubcommand = createSubcommand({
 			}
 		}
 
-		// Push to cloud
-		await tui.spinner('Importing variables to cloud', () => {
-			return projectEnvUpdate(apiClient, {
-				id: project.projectId,
-				env,
-				secrets,
-			});
-		});
-
-		// Merge with local .env file
-		const localEnvPath = await findExistingEnvFile(projectDir);
-		const localEnv = await readEnvFile(localEnvPath);
-		const mergedEnv = mergeEnvVars(localEnv, filteredVars);
-
-		await writeEnvFile(localEnvPath, mergedEnv, {
-			skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
-		});
-
 		const envCount = Object.keys(env).length;
 		const secretCount = Object.keys(secrets).length;
 		const totalCount = envCount + secretCount;
 
-		tui.success(
-			`Imported ${totalCount} variable${totalCount !== 1 ? 's' : ''} from ${args.file} (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
-		);
+		if (useOrgScope) {
+			// Organization scope
+			const orgId = await resolveOrgId(apiClient, config, opts!.org!);
 
-		return {
-			success: true,
-			imported: totalCount,
-			envCount,
-			secretCount,
-			skipped: Object.keys(importedVars).length - totalCount,
-			path: localEnvPath,
-			file: args.file,
-		};
+			await tui.spinner('Importing variables to organization', () => {
+				return orgEnvUpdate(apiClient, {
+					id: orgId,
+					env,
+					secrets,
+				});
+			});
+
+			tui.success(
+				`Imported ${totalCount} variable${totalCount !== 1 ? 's' : ''} to organization from ${args.file} (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
+			);
+
+			return {
+				success: true,
+				imported: totalCount,
+				envCount,
+				secretCount,
+				skipped: Object.keys(importedVars).length - totalCount,
+				file: args.file,
+				scope: 'org' as const,
+			};
+		} else {
+			// Project scope (existing behavior)
+			await tui.spinner('Importing variables to cloud', () => {
+				return projectEnvUpdate(apiClient, {
+					id: project!.projectId,
+					env,
+					secrets,
+				});
+			});
+
+			// Merge with local .env file
+			const localEnvPath = await findExistingEnvFile(projectDir!);
+			const localEnv = await readEnvFile(localEnvPath);
+			const mergedEnv = mergeEnvVars(localEnv, filteredVars);
+
+			await writeEnvFile(localEnvPath, mergedEnv, {
+				skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
+			});
+
+			tui.success(
+				`Imported ${totalCount} variable${totalCount !== 1 ? 's' : ''} from ${args.file} (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
+			);
+
+			return {
+				success: true,
+				imported: totalCount,
+				envCount,
+				secretCount,
+				skipped: Object.keys(importedVars).length - totalCount,
+				path: localEnvPath,
+				file: args.file,
+				scope: 'project' as const,
+			};
+		}
 	},
 });

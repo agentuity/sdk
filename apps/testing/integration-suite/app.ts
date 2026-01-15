@@ -27,6 +27,7 @@ import './src/test/cli-deployment';
 import './src/test/cli-apikey';
 import './src/test/cli-vector';
 import './src/test/cli-env-secrets';
+import './src/test/cli-org-env-secrets';
 import './src/test/websocket';
 import './src/test/sse';
 import './src/test/web-rendering';

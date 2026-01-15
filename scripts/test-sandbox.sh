@@ -134,6 +134,95 @@ else
 fi
 
 # ============================================
+section "ORG ENV/SECRET INTERPOLATION Tests"
+# ============================================
+# Test org-level env and secret interpolation in sandbox env
+# Syntax: ${env:KEY} for org env vars, ${secret:KEY} for org secrets
+
+# First, get the org ID (needed for non-TTY mode)
+info "Getting organization ID for interpolation tests..."
+# auth org current --json returns the raw org ID as a quoted string, e.g. "org_xxx"
+ORG_RAW=$($CLI auth org current --json 2>&1) || true
+# Strip quotes and whitespace to extract org ID
+ORG_ID=$(echo "$ORG_RAW" | tr -d '"\n\r ' | grep -o 'org_[a-zA-Z0-9]*' || true)
+
+if [ -z "$ORG_ID" ] || [[ "$ORG_ID" != org_* ]]; then
+	info "Skipping org interpolation tests - could not determine org ID"
+else
+	pass "Using org ID: $ORG_ID"
+
+	# Set up org-level env and secret for testing
+	ORG_TEST_KEY="SANDBOX_TEST_ORG_VAR_$(date +%s)"
+	ORG_SECRET_KEY="SANDBOX_TEST_ORG_SECRET_$(date +%s)"
+	ORG_TEST_VALUE="org_env_test_value"
+	ORG_SECRET_VALUE="org_secret_test_value"
+
+	info "Setting up org-level env and secret for interpolation tests..."
+	$CLI cloud env set "$ORG_TEST_KEY" "$ORG_TEST_VALUE" --org "$ORG_ID" 2>/dev/null || true
+	$CLI cloud env set "$ORG_SECRET_KEY" "$ORG_SECRET_VALUE" --secret --org "$ORG_ID" 2>/dev/null || true
+
+	# Test: sandbox run with org env interpolation
+	info "Test: sandbox run --env with \${env:KEY} interpolation"
+	ORG_ENV_RUN_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" --env "MY_VAR=\${env:$ORG_TEST_KEY}" -- sh -c 'echo $MY_VAR' 2>&1) || true
+	if echo "$ORG_ENV_RUN_OUTPUT" | grep -q "$ORG_TEST_VALUE"; then
+		pass "sandbox run --env with \${env:KEY} interpolates org env var"
+	else
+		fail "sandbox run --env with \${env:KEY} did not interpolate org env var" "$ORG_ENV_RUN_OUTPUT"
+	fi
+
+	# Test: sandbox run with org secret interpolation
+	info "Test: sandbox run --env with \${secret:KEY} interpolation"
+	ORG_SECRET_RUN_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" --env "MY_SECRET=\${secret:$ORG_SECRET_KEY}" -- sh -c 'echo $MY_SECRET' 2>&1) || true
+	if echo "$ORG_SECRET_RUN_OUTPUT" | grep -q "$ORG_SECRET_VALUE"; then
+		pass "sandbox run --env with \${secret:KEY} interpolates org secret"
+	else
+		fail "sandbox run --env with \${secret:KEY} did not interpolate org secret" "$ORG_SECRET_RUN_OUTPUT"
+	fi
+
+	# Test: sandbox run with default value when org key doesn't exist
+	info "Test: sandbox run --env with \${env:MISSING:-default} default value"
+	DEFAULT_RUN_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" --env "MY_VAR=\${env:THIS_KEY_DOES_NOT_EXIST:-fallback_value}" -- sh -c 'echo $MY_VAR' 2>&1) || true
+	if echo "$DEFAULT_RUN_OUTPUT" | grep -q "fallback_value"; then
+		pass "sandbox run --env with \${env:KEY:-default} uses default value"
+	else
+		fail "sandbox run --env with \${env:KEY:-default} did not use default value" "$DEFAULT_RUN_OUTPUT"
+	fi
+
+	# Test: sandbox run with default value when org secret doesn't exist
+	info "Test: sandbox run --env with \${secret:MISSING:-default} default value"
+	SECRET_DEFAULT_RUN_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" --env "MY_SECRET=\${secret:THIS_SECRET_DOES_NOT_EXIST:-secret_fallback}" -- sh -c 'echo $MY_SECRET' 2>&1) || true
+	if echo "$SECRET_DEFAULT_RUN_OUTPUT" | grep -q "secret_fallback"; then
+		pass "sandbox run --env with \${secret:KEY:-default} uses default value"
+	else
+		fail "sandbox run --env with \${secret:KEY:-default} did not use default value" "$SECRET_DEFAULT_RUN_OUTPUT"
+	fi
+
+	# Test: sandbox run with mixed static and interpolated values
+	info "Test: sandbox run --env with mixed static and interpolated values"
+	MIXED_RUN_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" --env "MIXED=prefix_\${env:$ORG_TEST_KEY}_suffix" -- sh -c 'echo $MIXED' 2>&1) || true
+	if echo "$MIXED_RUN_OUTPUT" | grep -q "prefix_${ORG_TEST_VALUE}_suffix"; then
+		pass "sandbox run --env with mixed static and interpolated values works"
+	else
+		fail "sandbox run --env with mixed values did not interpolate correctly" "$MIXED_RUN_OUTPUT"
+	fi
+
+	# Test: sandbox run with multiple interpolations in one value
+	info "Test: sandbox run --env with multiple interpolations"
+	MULTI_RUN_OUTPUT=$($CLI cloud sandbox run --description "$SANDBOX_DESC" --env "MULTI=\${env:$ORG_TEST_KEY}_and_\${secret:$ORG_SECRET_KEY}" -- sh -c 'echo $MULTI' 2>&1) || true
+	if echo "$MULTI_RUN_OUTPUT" | grep -q "${ORG_TEST_VALUE}_and_${ORG_SECRET_VALUE}"; then
+		pass "sandbox run --env with multiple interpolations works"
+	else
+		fail "sandbox run --env with multiple interpolations did not work" "$MULTI_RUN_OUTPUT"
+	fi
+
+	# Clean up org-level test vars
+	info "Cleaning up org-level test env/secrets..."
+	$CLI cloud env delete "$ORG_TEST_KEY" --org "$ORG_ID" 2>/dev/null || true
+	$CLI cloud env delete "$ORG_SECRET_KEY" --org "$ORG_ID" 2>/dev/null || true
+	pass "Org-level test vars cleaned up"
+fi
+
+# ============================================
 section "CREATE & GET & LIST Command Tests"
 # ============================================
 
