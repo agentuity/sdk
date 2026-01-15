@@ -131,10 +131,20 @@ export function beaconPlugin(options: BeaconPluginOptions): Plugin {
 
 				if (!beaconFileName) return html;
 
+				// Build the beacon URL using Vite's configured base (respects CDN URL)
+				// resolvedConfig.base is e.g., "https://cdn.agentuity.com/{deploymentId}/client/" or "/"
+				const base = resolvedConfig?.base || '/';
+				// Normalize: ensure base ends with / and beaconFileName doesn't start with /
+				const normalizedBase = base.endsWith('/') ? base : `${base}/`;
+				const normalizedFileName = beaconFileName.startsWith('/')
+					? beaconFileName.slice(1)
+					: beaconFileName;
+				const beaconUrl = `${normalizedBase}${normalizedFileName}`;
+
 				// Inject a marker script tag
 				// The script must be sync (no async/defer) to patch history API before router loads
 				// Use data-agentuity-beacon attribute as a marker for config/session injection
-				const beaconScript = `<script data-agentuity-beacon src="/${beaconFileName}"></script>`;
+				const beaconScript = `<script data-agentuity-beacon src="${beaconUrl}"></script>`;
 
 				// Inject before </head>
 				if (html.includes('</head>')) {
