@@ -282,6 +282,7 @@ const _SnapshotBuildInitParamsSchema = z
 			.optional()
 			.describe('SHA-256 hash of snapshot content for change detection'),
 		force: z.boolean().optional().describe('Force rebuild even if content is unchanged'),
+		encrypt: z.boolean().optional().describe('Request encryption for the snapshot archive'),
 		orgId: z.string().optional().describe('Organization ID'),
 	})
 	.describe('Parameters for initializing a snapshot build');
@@ -339,7 +340,7 @@ export async function snapshotBuildInit(
 	client: APIClient,
 	params: SnapshotBuildInitParams
 ): Promise<SnapshotBuildInitResponse> {
-	const { runtime, name, description, tag, contentHash, force, orgId } = params;
+	const { runtime, name, description, tag, contentHash, force, encrypt, orgId } = params;
 	const queryString = buildQueryString({ orgId });
 	const url = `/sandbox/${API_VERSION}/snapshots/build${queryString}`;
 
@@ -349,6 +350,7 @@ export async function snapshotBuildInit(
 	if (tag) body.tag = tag;
 	if (contentHash) body.contentHash = contentHash;
 	if (force) body.force = force;
+	if (encrypt) body.encrypt = encrypt;
 
 	const resp = await client.post<z.infer<typeof SnapshotBuildInitAPIResponseSchema>>(
 		url,

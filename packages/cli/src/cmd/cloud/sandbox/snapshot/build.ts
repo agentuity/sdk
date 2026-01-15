@@ -576,6 +576,7 @@ export const buildSubcommand = createCommand({
 						description: finalDescription,
 						contentHash,
 						force: opts.force,
+						encrypt: true,
 						orgId,
 					});
 				},
