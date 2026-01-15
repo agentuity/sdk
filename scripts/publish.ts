@@ -754,7 +754,9 @@ async function main() {
 					const isTransient = errStr.includes('404') || errStr.includes('Not Found');
 					if (isTransient && attempt < maxRetries) {
 						const delay = attempt * 5;
-						console.log(`   ⚠ Transient error, retrying in ${delay}s (attempt ${attempt}/${maxRetries})...`);
+						console.log(
+							`   ⚠ Transient error, retrying in ${delay}s (attempt ${attempt}/${maxRetries})...`
+						);
 						await new Promise((r) => setTimeout(r, delay * 1000));
 					} else {
 						break;

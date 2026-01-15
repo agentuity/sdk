@@ -1,11 +1,5 @@
 import enquirer from 'enquirer';
-import {
-	getDefaultConfigPath,
-	getAuth,
-	saveConfig,
-	loadConfig,
-	saveOrgId,
-} from './config';
+import { getDefaultConfigPath, getAuth, saveConfig, loadConfig, saveOrgId } from './config';
 import { getCommand } from './command-prefix';
 import type { CommandContext, AuthData } from './types';
 import * as tui from './tui';
@@ -101,12 +95,18 @@ export async function requireAuth(ctx: CommandContext<undefined>): Promise<AuthD
 
 export async function optionalAuth(
 	ctx: CommandContext<undefined>,
-	continueText?: string
+	continueText?: string,
+	skipPrompts?: boolean
 ): Promise<AuthData | null> {
 	const auth = await getAuth();
 
 	if (auth && auth.expires > new Date()) {
 		return auth;
+	}
+
+	// Skip interactive prompts if requested (e.g., --confirm flag in CI/scripts)
+	if (skipPrompts) {
+		return null;
 	}
 
 	// Show signup benefits but don't block - just return null

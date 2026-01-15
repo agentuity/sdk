@@ -12,6 +12,8 @@ const DBGetResponseSchema = z
 		name: z.string().describe('Database name'),
 		description: z.string().optional().describe('Database description'),
 		url: z.string().optional().describe('Database connection URL'),
+		org_id: z.string().optional().describe('Organization ID that owns this database'),
+		org_name: z.string().optional().describe('Organization name that owns this database'),
 	})
 	.or(
 		z.object({
@@ -175,6 +177,9 @@ export const getSubcommand = createSubcommand({
 			const tableData: Record<string, string> = {
 				Name: tui.bold(db.name),
 			};
+			if (db.org_name || db.org_id) {
+				tableData['Organization'] = db.org_name || db.org_id;
+			}
 			if (db.description) {
 				tableData['Description'] = db.description;
 			}
@@ -192,6 +197,8 @@ export const getSubcommand = createSubcommand({
 			name: db.name,
 			description: db.description ?? undefined,
 			url: db.url ?? undefined,
+			org_id: db.org_id,
+			org_name: db.org_name,
 		};
 	},
 });
