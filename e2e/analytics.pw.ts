@@ -41,13 +41,19 @@ test.describe('Analytics Beacon', () => {
 	test('session script is loaded async', async ({ page }) => {
 		await page.goto('/');
 
-		// Verify session.js script exists
-		const hasSessionScript = await page.evaluate(() => {
+		// Verify session.js script exists and has async attribute
+		const sessionScript = await page.evaluate(() => {
 			const scripts = Array.from(document.querySelectorAll('script'));
-			return scripts.some((s) => s.getAttribute('src')?.includes('session.js'));
+			const script = scripts.find((s) => s.getAttribute('src')?.includes('session.js'));
+			if (!script) return null;
+			return {
+				exists: true,
+				async: script.async === true || script.hasAttribute('async'),
+			};
 		});
 
-		expect(hasSessionScript).toBe(true);
+		expect(sessionScript).not.toBeNull();
+		expect(sessionScript?.async).toBe(true);
 	});
 
 	test('analytics test page loads and runs tests', async ({ page }) => {
