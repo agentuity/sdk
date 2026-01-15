@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/core",
-	"version": "0.1.14",
+	"version": "0.1.15",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
