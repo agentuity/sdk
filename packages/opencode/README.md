@@ -1,11 +1,11 @@
-# @agentuity/coder
+# @agentuity/opencode
 
 An Open Code plugin providing a team of specialized AI agents with access to Agentuity cloud services and SDK expertise.
 
 ## Installation
 
 ```bash
-agentuity coder install
+agentuity ai opencode install
 ```
 
 ## Usage
@@ -85,7 +85,7 @@ Add to your `opencode.json` for enhanced Scout/Expert capabilities:
 
 ## Local Development
 
-When developing the coder package locally, configure OpenCode to use your local build.
+When developing the opencode package locally, configure OpenCode to use your local build.
 
 Edit `~/.config/opencode/opencode.json` to point to your local package:
 
@@ -93,7 +93,7 @@ Edit `~/.config/opencode/opencode.json` to point to your local package:
 {
    "$schema": "https://opencode.ai/config.json",
    "plugin": [
-      "/path/to/agentuity/sdk/packages/coder"
+      "/path/to/agentuity/sdk/packages/opencode"
    ]
 }
 ```
@@ -101,11 +101,11 @@ Edit `~/.config/opencode/opencode.json` to point to your local package:
 Then build and restart OpenCode:
 
 ```bash
-cd packages/coder
+cd packages/opencode
 bun run build
 ```
 
-To revert to the published npm package, run `agentuity coder install` to reset the plugin path to `@agentuity/coder`.
+To revert to the published npm package, run `agentuity ai opencode install` to reset the plugin path to `@agentuity/opencode`.
 
 ## Resources
 

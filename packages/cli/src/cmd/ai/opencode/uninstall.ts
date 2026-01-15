@@ -1,21 +1,21 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { createSubcommand } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
+import { createSubcommand } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
 
 const OPENCODE_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 const OPENCODE_CONFIG_FILE = join(OPENCODE_CONFIG_DIR, 'opencode.json');
 
 export const uninstallSubcommand = createSubcommand({
 	name: 'uninstall',
-	description: 'Uninstall Agentuity Coder plugin from Open Code',
+	description: 'Uninstall Agentuity Open Code plugin',
 	tags: ['fast'],
 	examples: [
 		{
-			command: getCommand('coder uninstall'),
-			description: 'Uninstall Agentuity Coder from Open Code',
+			command: getCommand('ai opencode uninstall'),
+			description: 'Uninstall Agentuity Open Code plugin',
 		},
 	],
 	async handler(ctx) {
@@ -24,7 +24,7 @@ export const uninstallSubcommand = createSubcommand({
 
 		if (!jsonMode) {
 			tui.newline();
-			tui.output(tui.bold('Uninstalling Agentuity Coder'));
+			tui.output(tui.bold('Uninstalling Agentuity Open Code plugin'));
 			tui.newline();
 		}
 
@@ -47,18 +47,18 @@ export const uninstallSubcommand = createSubcommand({
 				} else {
 					const originalLength = openCodeConfig.plugin.length;
 					openCodeConfig.plugin = openCodeConfig.plugin.filter(
-						(p) => p !== '@agentuity/coder'
+						(p) => p !== '@agentuity/opencode'
 					);
 
 					if (openCodeConfig.plugin.length < originalLength) {
 						writeFileSync(OPENCODE_CONFIG_FILE, JSON.stringify(openCodeConfig, null, 2));
 						if (!jsonMode) {
-							tui.success('Removed Agentuity Coder from Open Code plugins');
+							tui.success('Removed Agentuity Open Code plugin');
 						}
 						removedFromOpenCode = true;
 					} else {
 						if (!jsonMode) {
-							tui.info('Agentuity Coder not found in Open Code plugins');
+							tui.info('Agentuity Open Code plugin not found');
 						}
 					}
 				}
@@ -73,13 +73,13 @@ export const uninstallSubcommand = createSubcommand({
 			tui.newline();
 
 			if (removedFromOpenCode) {
-				tui.output(tui.bold('Agentuity Coder uninstalled successfully'));
+				tui.output(tui.bold('Agentuity Open Code plugin uninstalled successfully'));
 			} else {
-				tui.output(tui.bold('Agentuity Coder was not installed'));
+				tui.output(tui.bold('Agentuity Open Code plugin was not installed'));
 			}
 
 			tui.newline();
-			tui.info(`To reinstall, run: ${tui.bold(getCommand('coder install'))}`);
+			tui.info(`To reinstall, run: ${tui.bold(getCommand('ai opencode install'))}`);
 			tui.newline();
 		}
 

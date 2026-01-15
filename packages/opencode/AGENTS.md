@@ -1,4 +1,4 @@
-# Agent Guidelines for @agentuity/coder
+# Agent Guidelines for @agentuity/opencode
 
 ## Package Overview
 

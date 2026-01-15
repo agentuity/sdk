@@ -1,9 +1,9 @@
 {
-	"name": "@agentuity/coder",
+	"name": "@agentuity/opencode",
 	"version": "0.1.0",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
-	"description": "Agentuity Coder - an Open Code plugin with specialized agents",
+	"description": "Agentuity Open Code plugin with specialized AI coding agents",
 	"type": "module",
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",

@@ -1,22 +1,22 @@
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { createSubcommand, type CommandContext } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
+import { createSubcommand, type CommandContext } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
 
 const OPENCODE_CONFIG_DIR = join(homedir(), '.config', 'opencode');
 const OPENCODE_CONFIG_FILE = join(OPENCODE_CONFIG_DIR, 'opencode.json');
 
 export const installSubcommand = createSubcommand({
 	name: 'install',
-	description: 'Install Agentuity Coder plugin into Open Code',
+	description: 'Install Agentuity Open Code plugin',
 	tags: ['fast'],
 	requires: { auth: true, apiClient: true, org: true },
 	examples: [
 		{
-			command: getCommand('coder install'),
-			description: 'Install Agentuity Coder into Open Code',
+			command: getCommand('ai opencode install'),
+			description: 'Install Agentuity Open Code plugin',
 		},
 	],
 	async handler(ctx: CommandContext<{ auth: true; apiClient: true; org: true }>) {
@@ -25,12 +25,12 @@ export const installSubcommand = createSubcommand({
 
 		if (!jsonMode) {
 			tui.newline();
-			tui.output(tui.bold('Installing Agentuity Coder'));
+			tui.output(tui.bold('Installing Agentuity Open Code plugin'));
 			tui.newline();
 			tui.success(`Using organization: ${orgId}`);
 		}
 
-		const pluginEntry = '@agentuity/coder';
+		const pluginEntry = '@agentuity/opencode';
 
 		// Update Open Code config if needed
 		let openCodeUpdated = false;
@@ -55,18 +55,16 @@ export const installSubcommand = createSubcommand({
 		// Check if the exact plugin entry already exists
 		const hasExactEntry = openCodeConfig.plugin.includes(pluginEntry);
 
-		// Check if there's a different coder entry that needs updating
-		const existingCoderIndex = openCodeConfig.plugin.findIndex(
-			(p) => p === '@agentuity/coder'
-		);
+		// Check if there's an existing entry that needs updating
+		const existingIndex = openCodeConfig.plugin.findIndex((p) => p === '@agentuity/opencode');
 
 		if (hasExactEntry) {
 			if (!jsonMode) {
 				tui.info('Open Code plugin already configured');
 			}
-		} else if (existingCoderIndex >= 0) {
+		} else if (existingIndex >= 0) {
 			// Update existing entry to new value
-			openCodeConfig.plugin[existingCoderIndex] = pluginEntry;
+			openCodeConfig.plugin[existingIndex] = pluginEntry;
 			writeFileSync(OPENCODE_CONFIG_FILE, JSON.stringify(openCodeConfig, null, 2));
 			if (!jsonMode) {
 				tui.success(`Updated Open Code plugin to: ${pluginEntry}`);
@@ -86,16 +84,16 @@ export const installSubcommand = createSubcommand({
 		if (!jsonMode) {
 			tui.newline();
 			if (openCodeUpdated) {
-				tui.output(tui.bold('Agentuity Coder installed successfully!'));
+				tui.output(tui.bold('Agentuity Open Code plugin installed successfully!'));
 			} else {
-				tui.output(tui.bold('Agentuity Coder already installed'));
+				tui.output(tui.bold('Agentuity Open Code plugin already installed'));
 			}
 
 			tui.newline();
 			tui.info('Next steps:');
 			tui.output(`  ${tui.ICONS.bullet} Start Open Code to use Agentuity Coder agents`);
 			tui.output(
-				`  ${tui.ICONS.bullet} Run ${tui.bold(getCommand('coder run "<task>"'))} to execute tasks`
+				`  ${tui.ICONS.bullet} Run ${tui.bold(getCommand('ai opencode run "<task>"'))} to execute tasks`
 			);
 			tui.newline();
 

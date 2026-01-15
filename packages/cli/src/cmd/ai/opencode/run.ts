@@ -1,6 +1,6 @@
-import { createSubcommand, type CommandContext } from '../../types';
-import * as tui from '../../tui';
-import { getCommand } from '../../command-prefix';
+import { createSubcommand, type CommandContext } from '../../../types';
+import * as tui from '../../../tui';
+import { getCommand } from '../../../command-prefix';
 import { z } from 'zod';
 
 const RunArgsSchema = z.object({
@@ -23,15 +23,15 @@ export const runSubcommand = createSubcommand({
 	},
 	examples: [
 		{
-			command: getCommand('coder run "implement dark mode toggle"'),
+			command: getCommand('ai opencode run "implement dark mode toggle"'),
 			description: 'Run a coding task',
 		},
 		{
-			command: getCommand('coder run --sandbox "run the test suite"'),
+			command: getCommand('ai opencode run --sandbox "run the test suite"'),
 			description: 'Run in a cloud sandbox',
 		},
 		{
-			command: getCommand('coder run --json "fix the bug"'),
+			command: getCommand('ai opencode run --json "fix the bug"'),
 			description: 'Output raw JSON events',
 		},
 	],

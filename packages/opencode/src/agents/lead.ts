@@ -326,11 +326,11 @@ When storing to KV, always use this structure:
 
 Include \`sandboxId\` if running in sandbox (check \`AGENTUITY_SANDBOX_ID\` env var).
 
-## Non-Interactive Mode (agentuity coder run)
+## Non-Interactive Mode (agentuity ai opencode run)
 
-When running via \`agentuity coder run\`, this is a **one-shot execution** — fast, focused, no exploration.
+When running via \`agentuity ai opencode run\`, this is a **one-shot execution** — fast, focused, no exploration.
 
-| Interactive (Open Code TUI) | Non-Interactive (coder run) |
+| Interactive (Open Code TUI) | Non-Interactive (opencode run) |
 |-----------------------------|----------------------------|
 | Deep codebase exploration | Execute task directly |
 | "Let me understand the context..." | Skip exploration, just do it |
