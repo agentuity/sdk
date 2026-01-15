@@ -42,9 +42,7 @@ export const installSubcommand = createSubcommand({
 		if (existsSync(OPENCODE_CONFIG_FILE)) {
 			try {
 				const content = readFileSync(OPENCODE_CONFIG_FILE, 'utf-8');
-				// Handle trailing commas by removing them before parsing
-				const cleanedContent = content.replace(/,(\s*[}\]])/g, '$1');
-				openCodeConfig = JSON.parse(cleanedContent);
+				openCodeConfig = JSON.parse(content);
 			} catch {
 				openCodeConfig = {};
 			}
@@ -59,7 +57,7 @@ export const installSubcommand = createSubcommand({
 
 		// Check if there's a different coder entry that needs updating
 		const existingCoderIndex = openCodeConfig.plugin.findIndex(
-			(p) => p === '@agentuity/coder' || p.includes('packages/coder')
+			(p) => p === '@agentuity/coder'
 		);
 
 		if (hasExactEntry) {

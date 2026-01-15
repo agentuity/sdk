@@ -38,9 +38,7 @@ export const uninstallSubcommand = createSubcommand({
 		} else {
 			try {
 				const content = readFileSync(OPENCODE_CONFIG_FILE, 'utf-8');
-				// Handle trailing commas by removing them before parsing
-				const cleanedContent = content.replace(/,(\s*[}\]])/g, '$1');
-				const openCodeConfig: { plugin?: string[]; $schema?: string } = JSON.parse(cleanedContent);
+				const openCodeConfig: { plugin?: string[]; $schema?: string } = JSON.parse(content);
 
 				if (!openCodeConfig.plugin || openCodeConfig.plugin.length === 0) {
 					if (!jsonMode) {
@@ -49,7 +47,7 @@ export const uninstallSubcommand = createSubcommand({
 				} else {
 					const originalLength = openCodeConfig.plugin.length;
 					openCodeConfig.plugin = openCodeConfig.plugin.filter(
-						(p) => p !== '@agentuity/coder' && !p.includes('packages/coder')
+						(p) => p !== '@agentuity/coder'
 					);
 
 					if (openCodeConfig.plugin.length < originalLength) {
