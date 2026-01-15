@@ -1111,7 +1111,7 @@
 		"typecheck": "bunx tsc --noEmit",
 		"vscode:prepublish": "bun run build",
 		"package": "bunx @vscode/vsce package --no-dependencies",
-		"clean": "rm -rf dist *.vsix"
+		"clean": "rm -rf dist tsconfig.tsbuildinfo *.vsix"
 	},
 	"devDependencies": {
 		"@types/node": "^22.10.2",

@@ -1,9 +1,24 @@
 export function App() {
 	return (
-		<div style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '600px', margin: '0 auto' }}>
+		<div
+			style={{
+				fontFamily: 'system-ui, sans-serif',
+				padding: '2rem',
+				maxWidth: '600px',
+				margin: '0 auto',
+			}}
+		>
 			<h1>Cloud Deployment Test</h1>
 			<p>This page is used to verify analytics beacon injection in production deployments.</p>
-			<div id="analytics-status" style={{ marginTop: '2rem', padding: '1rem', background: '#f0f0f0', borderRadius: '8px' }}>
+			<div
+				id="analytics-status"
+				style={{
+					marginTop: '2rem',
+					padding: '1rem',
+					background: '#f0f0f0',
+					borderRadius: '8px',
+				}}
+			>
 				<h2>Analytics Status</h2>
 				<p id="config-status">Checking analytics config...</p>
 				<p id="beacon-status">Checking beacon script...</p>

@@ -37,7 +37,7 @@
 	},
 	"scripts": {
 		"build": "tsc --build",
-		"clean": "rm -rf dist .tsbuildinfo",
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

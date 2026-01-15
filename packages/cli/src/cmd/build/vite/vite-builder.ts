@@ -142,7 +142,11 @@ export async function runViteBuild(options: ViteBuildOptions): Promise<void> {
 		const htmlPath = join(rootDir, 'src', 'web', 'index.html');
 
 		// Use workbench config passed from runAllBuilds
-		const { workbenchEnabled = false, workbenchRoute = '/workbench', analyticsEnabled = false } = options;
+		const {
+			workbenchEnabled = false,
+			workbenchRoute = '/workbench',
+			analyticsEnabled = false,
+		} = options;
 
 		// Load custom user plugins from agentuity.config.ts if it exists
 		const clientOutDir = join(rootDir, '.agentuity/client');
