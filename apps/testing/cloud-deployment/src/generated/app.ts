@@ -28,7 +28,8 @@ import {
   patchBunS3ForStorageDev,
 } from '@agentuity/runtime';
 import type { Context } from 'hono';
-import { websocket } from 'hono/bun';
+import { websocket, serveStatic } from 'hono/bun';
+import { readFileSync, existsSync } from 'node:fs';
 import { type LogLevel } from '@agentuity/core';
 import { injectAnalytics, registerAnalyticsRoutes } from './webanalytics.js';
 import { analyticsConfig } from './analytics-config.js';
@@ -250,6 +251,104 @@ if (hasWorkbench) {
 	} else {
 		// Production mode disables the workbench assets
 	}
+}
+
+// Web routes - Runtime mode detection (dev proxies to Vite, prod serves static)
+// Note: Session/thread cookies are set by /_agentuity/webanalytics/session.js (loaded via script tag)
+// This keeps the HTML response static and cacheable
+
+if (isDevelopment()) {
+	// Development mode: Proxy HTML from Vite to enable React Fast Refresh
+	const VITE_ASSET_PORT = parseInt(process.env.VITE_PORT || '5173', 10);
+	
+	const devHtmlHandler = async (c: Context) => {
+		const viteUrl = `http://127.0.0.1:${VITE_ASSET_PORT}/src/web/index.html`;
+
+		try {
+			otel.logger.debug('[Proxy] GET /src/web/index.html -> Vite:%d', VITE_ASSET_PORT);
+			const res = await fetch(viteUrl, { signal: AbortSignal.timeout(10000) });
+
+			// Get HTML text and transform relative paths to absolute
+			let html = await res.text();
+			html = html
+				.replace(/src="\.\//g, 'src="/src/web/')
+				.replace(/href="\.\//g, 'href="/src/web/');
+
+			// Inject analytics config and script (session/thread read from cookies by beacon)
+			html = injectAnalytics(html, analyticsConfig);
+
+			return new Response(html, {
+				status: res.status,
+				headers: res.headers,
+			});
+		} catch (err) {
+			otel.logger.error('Failed to proxy HTML to Vite: %s', err instanceof Error ? err.message : String(err));
+			return c.text('Vite asset server error (HTML)', 500);
+		}
+	};
+	
+	app.get('/', devHtmlHandler);
+	
+	// 404 for unmatched API/system routes
+	app.all('/_agentuity/*', (c: Context) => c.notFound());
+	app.all('/api/*', (c: Context) => c.notFound());
+	if (!hasWorkbench) {
+		app.all('/workbench/*', (c: Context) => c.notFound());
+	}
+	
+	// SPA fallback - serve index.html for client-side routing
+	app.get('*', (c: Context) => {
+		const path = c.req.path;
+		// If path has a file extension, return 404 (prevents serving HTML for missing assets)
+		if (/\.[a-zA-Z0-9]+$/.test(path)) {
+			return c.notFound();
+		}
+		return devHtmlHandler(c);
+	});
+} else {
+	// Production mode: Serve static files from bundled output
+	const indexHtmlPath = import.meta.dir + '/client/index.html';
+	const baseIndexHtml = existsSync(indexHtmlPath)
+		? readFileSync(indexHtmlPath, 'utf-8')
+		: '';
+	
+	if (!baseIndexHtml) {
+		otel.logger.warn('Production HTML not found at %s', indexHtmlPath);
+	}
+
+	const prodHtmlHandler = (c: Context) => {
+		if (!baseIndexHtml) {
+			return c.text('Production build incomplete', 500);
+		}
+		// Inject analytics config and script (session/thread loaded via session.js)
+		const html = injectAnalytics(baseIndexHtml, analyticsConfig);
+		return c.html(html);
+	};
+	
+	app.get('/', prodHtmlHandler);
+
+	// Serve static assets from /assets/* (Vite bundled output)
+	app.use('/assets/*', serveStatic({ root: import.meta.dir + '/client' }));
+
+	// Serve static public assets (favicon.ico, robots.txt, etc.)
+	app.use('/*', serveStatic({ root: import.meta.dir + '/client', rewriteRequestPath: (path) => path }));
+
+	// 404 for unmatched API/system routes (IMPORTANT: comes before SPA fallback)
+	app.all('/_agentuity/*', (c: Context) => c.notFound());
+	app.all('/api/*', (c: Context) => c.notFound());
+	if (!hasWorkbench) {
+		app.all('/workbench/*', (c: Context) => c.notFound());
+	}
+
+	// SPA fallback with asset protection
+	app.get('*', (c: Context) => {
+		const path = c.req.path;
+		// If path has a file extension, it's likely an asset request - return 404
+		if (/\.[a-zA-Z0-9]+$/.test(path)) {
+			return c.notFound();
+		}
+		return prodHtmlHandler(c);
+	});
 }
 
 // Step 7: Run agent setup to signal completion
