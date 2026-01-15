@@ -83,8 +83,9 @@ function isBooleanStringUnion(schema: unknown): boolean {
 	for (const opt of options) {
 		// Zod 4: type is directly on the object as .type
 		// Zod 3: type is _def.typeName
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const optType = (opt as any)?.type || (opt as any)?._def?.typeName || (opt as any)?._def?.type;
+		const optUnknown = opt as unknown as Record<string, unknown>;
+		const optDef = optUnknown?._def as Record<string, unknown> | undefined;
+		const optType = (optUnknown?.type as string) || (optDef?.typeName as string) || (optDef?.type as string);
 		types.add(optType);
 	}
 
