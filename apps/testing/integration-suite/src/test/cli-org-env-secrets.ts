@@ -30,11 +30,14 @@ test('cli-org-env-secrets', 'org-env-set-creates-variable', async () => {
 	const testKey = trackKey(uniqueId('ORG_ENV_TEST'));
 	const testValue = 'org_test_value';
 
+	console.log(`[DEBUG] Setting org env: ${testKey}=${testValue}`);
 	const result = await cliAgent.run({
 		command: `cloud env set ${testKey} ${testValue} --org`,
 	});
 
 	const output = (result.stdout || '') + (result.stderr || '');
+	console.log(`[DEBUG] Set result - exitCode: ${result.exitCode}, stdout: ${result.stdout?.slice(0, 200)}, stderr: ${result.stderr?.slice(0, 200)}`);
+	
 	assert(
 		Boolean(result.success || output.includes('set successfully')),
 		`Org env set should succeed: ${output}`
@@ -115,14 +118,18 @@ test('cli-org-env-secrets', 'org-env-list-shows-variables', async () => {
 	const testValue = 'org_list_test_value';
 
 	// Set the variable
-	await cliAgent.run({
+	console.log(`[DEBUG] Setting org env for list test: ${testKey}=${testValue}`);
+	const setResult = await cliAgent.run({
 		command: `cloud env set ${testKey} ${testValue} --org`,
 	});
+	console.log(`[DEBUG] Set result - exitCode: ${setResult.exitCode}, stdout: ${setResult.stdout?.slice(0, 300)}`);
 
 	// List org variables
+	console.log('[DEBUG] Listing org variables');
 	const listResult = await cliAgent.run({
 		command: 'cloud env list --org',
 	});
+	console.log(`[DEBUG] List result - exitCode: ${listResult.exitCode}, stdout: ${listResult.stdout?.slice(0, 500)}`);
 
 	const listOutput = (listResult.stdout || '') + (listResult.stderr || '');
 	assert(listOutput.includes(testKey), `Should list key: ${listOutput}`);

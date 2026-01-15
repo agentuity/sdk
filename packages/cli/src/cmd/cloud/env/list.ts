@@ -43,7 +43,13 @@ export const listSubcommand = createSubcommand({
 		}),
 		response: EnvListResponseSchema,
 	},
-	webUrl: (ctx) => ctx.project ? `/projects/${encodeURIComponent(ctx.project.projectId)}/settings` : undefined,
+	webUrl: (ctx) => {
+		// If --org flag is used, link to org settings; otherwise link to project settings
+		if (ctx.opts?.org) {
+			return `/settings/organization/env`;
+		}
+		return ctx.project ? `/projects/${encodeURIComponent(ctx.project.projectId)}/settings` : undefined;
+	},
 
 	async handler(ctx) {
 		const { opts, apiClient, project, options, config } = ctx;
