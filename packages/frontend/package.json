@@ -19,7 +19,7 @@
 		"src"
 	],
 	"scripts": {
-		"clean": "rm -rf dist",
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
 		"build": "bunx tsc --build && bun scripts/build-beacon.ts",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun test",

@@ -81,7 +81,9 @@ test.describe('Analytics Beacon', () => {
 		expect(summary.passed).toBeGreaterThanOrEqual(3);
 
 		// Log results for debugging
-		console.log(`Analytics test page results: ${summary.passed} passed, ${summary.failed} failed`);
+		console.log(
+			`Analytics test page results: ${summary.passed} passed, ${summary.failed} failed`
+		);
 	});
 });
 

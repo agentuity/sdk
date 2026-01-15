@@ -19,7 +19,7 @@
 		"dist"
 	],
 	"scripts": {
-		"clean": "rm -rf dist",
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
 		"build": "bunx tsc --build",
 		"typecheck": "bunx tsc --noEmit",
 		"typecheck:tests": "bunx tsc --noEmit --project tsconfig.test.json",

@@ -1155,16 +1155,32 @@ async function registerSubcommand(
 							ctx as CommandContext & { apiClient: APIClientType }
 						);
 					}
-					if (normalized.optionalOrg && ctx.auth) {
+					// Skip org handling if --no-register is set (org only needed for registration)
+					const skipOrg =
+						normalized.optionalOrg &&
+						!normalized.requiresOrg &&
+						ctx.opts &&
+						(ctx.opts as Record<string, unknown>).register === false;
+
+					if (normalized.optionalOrg && ctx.auth && !skipOrg) {
 						ctx.orgId = await selectOptionalOrg(
 							ctx as CommandContext & { apiClient: APIClientType }
 						);
 					}
+					// Skip region handling if --no-register is set (region only needed for registration)
+					const skipRegion =
+						normalized.optionalRegion &&
+						!normalized.requiresRegion &&
+						!normalized.requiresRegions &&
+						ctx.opts &&
+						(ctx.opts as Record<string, unknown>).register === false;
+
 					if (
 						(normalized.requiresRegion ||
 							normalized.optionalRegion ||
 							normalized.requiresRegions) &&
-						ctx.apiClient
+						ctx.apiClient &&
+						!skipRegion
 					) {
 						const apiClient: APIClientType = ctx.apiClient as APIClientType;
 						const regions = await tui.spinner({
@@ -1241,16 +1257,32 @@ async function registerSubcommand(
 				if (normalized.requiresOrg) {
 					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
 				}
-				if (normalized.optionalOrg && ctx.auth) {
+				// Skip org handling if --no-register is set (org only needed for registration)
+				const skipOrg =
+					normalized.optionalOrg &&
+					!normalized.requiresOrg &&
+					ctx.opts &&
+					(ctx.opts as Record<string, unknown>).register === false;
+
+				if (normalized.optionalOrg && ctx.auth && !skipOrg) {
 					ctx.orgId = await selectOptionalOrg(
 						ctx as CommandContext & { apiClient: APIClientType }
 					);
 				}
+				// Skip region handling if --no-register is set (region only needed for registration)
+				const skipRegion =
+					normalized.optionalRegion &&
+					!normalized.requiresRegion &&
+					!normalized.requiresRegions &&
+					ctx.opts &&
+					(ctx.opts as Record<string, unknown>).register === false;
+
 				if (
 					(normalized.requiresRegion ||
 						normalized.optionalRegion ||
 						normalized.requiresRegions) &&
-					ctx.apiClient
+					ctx.apiClient &&
+					!skipRegion
 				) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
 					const regions = await tui.spinner({
@@ -1322,8 +1354,8 @@ async function registerSubcommand(
 				);
 			}
 
-			// Check if --confirm flag is set to skip interactive prompts
-			const skipPrompts = options.confirm === true;
+			// Check if --confirm flag or --no-register flag is set to skip interactive prompts
+			const skipPrompts = options.confirm === true || options.register === false;
 			const auth = await optionalAuth(
 				baseCtx as CommandContext<undefined>,
 				continueText,
@@ -1375,16 +1407,31 @@ async function registerSubcommand(
 							ctx as CommandContext & { apiClient: APIClientType }
 						);
 					}
-					if (normalized.optionalOrg && ctx.apiClient && auth) {
+					// Skip org handling if --no-register is set (org only needed for registration)
+					const skipOrg =
+						normalized.optionalOrg &&
+						!normalized.requiresOrg &&
+						ctx.opts &&
+						(ctx.opts as Record<string, unknown>).register === false;
+
+					if (normalized.optionalOrg && ctx.apiClient && auth && !skipOrg) {
 						ctx.orgId = await selectOptionalOrg(
 							ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
 						);
 						baseCtx.logger.trace('selected orgId: %s', ctx.orgId);
 					}
+					// Skip region handling if --no-register is set (region only needed for registration)
+					const skipRegion =
+						normalized.optionalRegion &&
+						!normalized.requiresRegion &&
+						ctx.opts &&
+						(ctx.opts as Record<string, unknown>).register === false;
+
 					if (
 						(normalized.requiresRegion || normalized.optionalRegion) &&
 						ctx.apiClient &&
-						auth
+						auth &&
+						!skipRegion
 					) {
 						const apiClient: APIClientType = ctx.apiClient as APIClientType;
 						const regions = await tui.spinner({
@@ -1455,12 +1502,25 @@ async function registerSubcommand(
 				if (normalized.requiresOrg && ctx.apiClient) {
 					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
 				}
-				if (normalized.optionalOrg && ctx.apiClient) {
+				// Skip org handling if --no-register is set (org only needed for registration)
+				// For non-schema commands, check options directly (Commander passes all options)
+				const skipOrg =
+					normalized.optionalOrg &&
+					!normalized.requiresOrg &&
+					(options as Record<string, unknown>).register === false;
+
+				if (normalized.optionalOrg && ctx.apiClient && !skipOrg) {
 					ctx.orgId = await selectOptionalOrg(
 						ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
 					);
 				}
-				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+				// Skip region handling if --no-register is set (region only needed for registration)
+				const skipRegion =
+					normalized.optionalRegion &&
+					!normalized.requiresRegion &&
+					(options as Record<string, unknown>).register === false;
+
+				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient && !skipRegion) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
 					const regions = await tui.spinner({
 						message: 'Fetching cloud regions',

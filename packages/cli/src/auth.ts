@@ -104,8 +104,13 @@ export async function optionalAuth(
 		return auth;
 	}
 
-	// Skip interactive prompts if requested (e.g., --confirm flag in CI/scripts)
+	// Skip interactive prompts if requested (e.g., --confirm flag, --no-register in CI/scripts)
+	// Still show the logged out message to inform user about limited capabilities
 	if (skipPrompts) {
+		if (isTTY()) {
+			const hasLoggedIn = await hasLoggedInBefore();
+			tui.showLoggedOutMessage(getAppBaseURL(ctx.config ?? null), hasLoggedIn);
+		}
 		return null;
 	}
 
@@ -269,11 +274,7 @@ export async function optionalOrg(
 		return undefined;
 	}
 
-	// Skip org selection if --no-register is explicitly set (e.g., create command)
-	// Type assertion: register is a command-specific option not in GlobalOptions
-	if ('register' in options && (options as { register?: boolean }).register === false) {
-		return undefined;
-	}
+	// Note: --no-register check is handled in cli.ts before calling this function
 
 	// Check if org is provided via --org-id flag
 	if (options.orgId) {

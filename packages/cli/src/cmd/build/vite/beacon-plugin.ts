@@ -104,7 +104,9 @@ export function beaconPlugin(options: BeaconPluginOptions): Plugin {
 					source: beaconCode,
 				});
 			} catch (error) {
-				this.error(`Failed to read beacon script: ${error instanceof Error ? error.message : String(error)}`);
+				this.error(
+					`Failed to read beacon script: ${error instanceof Error ? error.message : String(error)}`
+				);
 			}
 		},
 

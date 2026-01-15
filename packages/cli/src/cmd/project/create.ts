@@ -6,6 +6,7 @@ import type { APIClient as APIClientType } from '../../api';
 
 const ProjectCreateResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
+	error: z.string().optional().describe('Error message if setup failed'),
 	name: z.string().describe('Project name'),
 	path: z.string().describe('Project directory path'),
 	projectId: z.string().optional().describe('Project ID if registered'),
@@ -73,7 +74,7 @@ export const createProjectSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { logger, opts, auth, config, apiClient, region } = ctx;
+		const { logger, opts, auth, config, apiClient, region, options } = ctx;
 
 		// Only get org if registering
 		let orgId: string | undefined;
@@ -102,8 +103,14 @@ export const createProjectSubcommand = createSubcommand({
 			region,
 		});
 
+		// Exit with error code if setup failed and not in JSON mode
+		if (!result.success && !options.json) {
+			process.exitCode = 1;
+		}
+
 		return {
-			success: true,
+			success: result.success,
+			error: result.error,
 			name: result.name,
 			path: result.path,
 			projectId: result.projectId,

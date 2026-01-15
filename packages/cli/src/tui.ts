@@ -247,7 +247,8 @@ export function getSeverityColor(severity: string): (text: string) => string {
 export function success(message: string): void {
 	const color = getColor('success');
 	const reset = getColor('reset');
-	process.stderr.write(`${color}${ICONS.success} ${message}${reset}\n`);
+	// Clear line first to ensure no leftover content from previous output
+	process.stderr.write(`\r\x1b[2K${color}${ICONS.success} ${message}${reset}\n`);
 }
 
 /**
@@ -829,7 +830,11 @@ export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): vo
 	// Padding needed: 46 - 17 - signupTitle.length - 1 (space before link) = 28 - signupTitle.length
 	const paddingLength = 28 - signupTitle.length;
 	const padding = ' '.repeat(paddingLength);
-	const showNewLine = showInline ? '' : `║ ${RESET}${link(signupURL)}${YELLOW}            ║`;
+	// When not showing inline hyperlink, show URL on separate line with proper padding
+	// Box format: "║ " + content + "║" = 48 chars total
+	// Content area = 46 chars, with leading space = 45 chars for URL + padding
+	const urlPadding = Math.max(0, 45 - signupURL.length);
+	const showNewLine = showInline ? '' : `║ ${RESET}${link(signupURL)}${YELLOW}${' '.repeat(urlPadding)}║`;
 
 	const lines = [
 		'╔══════════════════════════════════════════════╗',
@@ -844,6 +849,8 @@ export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): vo
 
 	console.log('');
 	lines.filter(Boolean).map((line) => console.log(YELLOW + line + RESET));
+	console.log('');
+	console.log('');
 }
 
 /**
@@ -1303,11 +1310,17 @@ export async function spinner<T>(
 		// Stop animation
 		clearInterval(interval);
 
-		// Move cursor to start of output, clear all lines
+		// Move cursor to start of output, clear only our lines (not to end of screen)
 		if (linesRendered > 0) {
 			process.stderr.write(`\x1b[${linesRendered}A`);
+			for (let i = 0; i < linesRendered; i++) {
+				process.stderr.write('\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stderr.write('\x1b[B'); // Move down one line
+				}
+			}
+			process.stderr.write(`\x1b[${linesRendered}A\r`); // Move back up
 		}
-		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		process.exit(130); // Standard exit code for SIGINT
@@ -1363,11 +1376,22 @@ export async function spinner<T>(
 		// Stop animation first
 		clearInterval(interval);
 
-		// Move cursor to start of output, clear all lines
+		// Move cursor to start of output, clear only our lines (not to end of screen)
 		if (linesRendered > 0) {
 			process.stderr.write(`\x1b[${linesRendered}A`);
+			for (let i = 0; i < linesRendered; i++) {
+				process.stderr.write('\r\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stderr.write('\x1b[B'); // Move down one line
+				}
+			}
+			// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+			// Move up (linesRendered - 1) to get back to start position
+			if (linesRendered > 1) {
+				process.stderr.write(`\x1b[${linesRendered - 1}A`);
+			}
+			process.stderr.write('\r');
 		}
-		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		// If clearOnSuccess is false, show success message
@@ -1384,11 +1408,22 @@ export async function spinner<T>(
 		// Stop animation first
 		clearInterval(interval);
 
-		// Move cursor to start of output, clear all lines
+		// Move cursor to start of output, clear only our lines (not to end of screen)
 		if (linesRendered > 0) {
 			process.stderr.write(`\x1b[${linesRendered}A`);
+			for (let i = 0; i < linesRendered; i++) {
+				process.stderr.write('\r\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stderr.write('\x1b[B'); // Move down one line
+				}
+			}
+			// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+			// Move up (linesRendered - 1) to get back to start position
+			if (linesRendered > 1) {
+				process.stderr.write(`\x1b[${linesRendered - 1}A`);
+			}
+			process.stderr.write('\r');
 		}
-		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		// Show error
@@ -1561,7 +1596,8 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 
 					for (const line of lines) {
 						if (line.trim()) {
-							allOutputLines.push(line);
+							// Strip ANSI codes from command output to prevent cursor/display issues
+							allOutputLines.push(stripAnsi(line));
 							renderOutput(maxLinesOutput); // Show last N lines while streaming
 						}
 					}
@@ -1582,25 +1618,44 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 			if (linesRendered > 0) {
 				// Move up to the command line
 				process.stdout.write(`\x1b[${linesRendered}A`);
-				// Clear each line (entire line) and move cursor back up
+				// Clear each line (entire line)
 				for (let i = 0; i < linesRendered; i++) {
-					process.stdout.write('\x1b[2K'); // Clear entire line
+					process.stdout.write('\r\x1b[2K'); // Clear entire line
 					if (i < linesRendered - 1) {
 						process.stdout.write('\x1b[B'); // Move down one line
 					}
 				}
-				// Move cursor back up to original position
-				process.stdout.write(`\x1b[${linesRendered}A\r`);
+				// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+				// Move up (linesRendered - 1) to get back to start position
+				if (linesRendered > 1) {
+					process.stdout.write(`\x1b[${linesRendered - 1}A`);
+				}
+				process.stdout.write('\r');
 			}
 			return exitCode;
 		}
 
-		// Clear all rendered lines completely
+		// Determine how many lines to show in final output
+		const finalLinesToShow = exitCode === 0 ? maxLinesOutput : maxLinesOnFailure;
+		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
+
+		// Clear all rendered lines completely (only our lines, not previous output)
 		if (linesRendered > 0) {
 			// Move up to the command line (first line of our output)
 			process.stdout.write(`\x1b[${linesRendered}A`);
-			// Move to beginning of line and clear from cursor to end of screen
-			process.stdout.write('\r\x1b[J');
+			// Clear the lines we rendered during streaming
+			for (let i = 0; i < linesRendered; i++) {
+				process.stdout.write('\r\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stdout.write('\x1b[B'); // Move down one line
+				}
+			}
+			// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+			// Move up (linesRendered - 1) to get back to start position
+			if (linesRendered > 1) {
+				process.stdout.write(`\x1b[${linesRendered - 1}A`);
+			}
+			process.stdout.write('\r');
 		}
 
 		// Determine icon based on exit code
@@ -1612,18 +1667,17 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 			`\r\x1b[K${statusColor}${icon}${reset} ${cmdColor}${displayCmd}${reset}\n`
 		);
 
-		// Determine how many lines to show in final output
-		const finalLinesToShow = exitCode === 0 ? maxLinesOutput : maxLinesOnFailure;
-
-		// Show final output lines
-		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
+		// Show final output lines (clearing each line first in case we're using more lines than before)
 		for (const line of finalOutputLines) {
 			const displayLine =
 				truncate && getDisplayWidth(line) > maxLineWidth
 					? truncateToWidth(line, maxLineWidth)
 					: line;
-			process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
+			process.stdout.write(`\x1b[2K${mutedColor}${displayLine}${reset}\n`);
 		}
+
+		// If we're showing more lines than we had before, the extra lines may contain old content
+		// We've already written over them, so they're clean now
 
 		return exitCode;
 	} catch (err) {

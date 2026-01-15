@@ -166,9 +166,16 @@ export class PromptFlow {
 				readline.moveCursor(process.stdout, 0, -linesToClear);
 				readline.clearScreenDown(process.stdout);
 
-				process.stdout.write(
-					`${colors.completed(symbols.completed)}  ${message}\n${colors.secondary(symbols.bar)}  ${colors.muted(value)}\n${colors.secondary(symbols.bar)}\n`
-				);
+				// If value is empty, only show message and separator (no value line)
+				if (value === '') {
+					process.stdout.write(
+						`${colors.completed(symbols.completed)}  ${message}\n${colors.secondary(symbols.bar)}\n`
+					);
+				} else {
+					process.stdout.write(
+						`${colors.completed(symbols.completed)}  ${message}\n${colors.secondary(symbols.bar)}  ${colors.muted(value)}\n${colors.secondary(symbols.bar)}\n`
+					);
+				}
 
 				this.states.push({
 					type: 'completed',

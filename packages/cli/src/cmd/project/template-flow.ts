@@ -66,6 +66,8 @@ export interface CreateFlowResult {
 	installed: boolean;
 	built: boolean;
 	domains?: string[];
+	success: boolean;
+	error?: string;
 }
 
 export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateFlowResult> {
@@ -249,7 +251,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	});
 
 	// Setup project (replace placeholders, install deps, build)
-	await setupProject({
+	const setupResult = await setupProject({
 		dest,
 		projectName: projectName === '.' ? basename(dest) : projectName,
 		dirName: dirName === '.' ? basename(dest) : dirName,
@@ -258,15 +260,24 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		logger,
 	});
 
-	// Re-display template selection after spinners clear it (only if user actually selected)
-	if (!skipPrompts && templates.length > 1) {
+	// If setup failed, skip resource prompts and registration - just show error and return
+	if (!setupResult.success) {
+		tui.warning('Project setup failed. Skipping resource configuration.');
+		return {
+			name: projectName,
+			path: dest,
+			template: selectedTemplate.id,
+			installed: !options.noInstall,
+			built: false,
+			success: false,
+			error: 'Project setup completed with errors',
+		};
+	}
+
+	// Add separator bar if we're going to show resource prompts
+	if (!skipPrompts && auth && apiClient && catalystClient && orgId && region) {
 		const { symbols, tuiColors } = tui;
-		console.log(`${tuiColors.completed(symbols.completed)}  Select a template:`);
-		console.log(`${tuiColors.secondary(symbols.bar)}  ${tuiColors.muted(selectedTemplate.name)}`);
-		// Only add bar if we're going to show resource prompts
-		if (auth && apiClient && catalystClient && orgId && region) {
-			console.log(tuiColors.secondary(symbols.bar));
-		}
+		console.log(tuiColors.secondary(symbols.bar));
 	}
 
 	let _domains = domains;
@@ -597,7 +608,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 
 	// Show completion message
 	if (!skipPrompts) {
-		tui.success('✨ Project created successfully!\n');
+		if (setupResult.success) {
+			tui.success('✨ Project created successfully!\n');
+		} else {
+			tui.warning('Project created with errors (see above)\n');
+		}
 
 		// Show next steps in a box with primary color for commands
 		if (dirName !== '.') {
@@ -617,7 +632,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			`${tui.tuiColors.muted('⭐️ Follow us:')} ${tui.link('https://github.com/agentuity/sdk')}`
 		);
 	} else {
-		tui.success('✨ Project created successfully!');
+		if (setupResult.success) {
+			tui.success('✨ Project created successfully!');
+		} else {
+			tui.warning('Project created with errors');
+		}
 	}
 
 	playSound();
@@ -643,8 +662,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		path: dest,
 		template: selectedTemplate.id,
 		installed: !options.noInstall,
-		built: !options.noBuild,
+		built: !options.noBuild && setupResult.success,
 		domains: _domains,
+		success: setupResult.success,
+		error: setupResult.success ? undefined : 'Project setup completed with errors',
 	};
 }
 
