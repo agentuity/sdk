@@ -53,13 +53,13 @@ export const pushSubcommand = createSubcommand({
 		const { apiClient, project, projectDir, config, opts } = ctx;
 		const useOrgScope = isOrgScope(opts?.org);
 
-		// Require project context if not using org scope (we still need projectDir for the .env file)
-		if (!project && !projectDir) {
-			tui.fatal('Project context required. Run from a project directory.');
+		// Always require projectDir since push reads from local .env file
+		if (!projectDir) {
+			tui.fatal('Project directory required. Run from a project directory.');
 		}
 
 		// Read local env file
-		const envFilePath = await findExistingEnvFile(projectDir!);
+		const envFilePath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(envFilePath);
 
 		// Filter out reserved AGENTUITY_ prefixed keys

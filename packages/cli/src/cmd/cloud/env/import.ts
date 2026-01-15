@@ -161,14 +161,17 @@ export const importSubcommand = createSubcommand({
 				});
 			});
 
-			// Merge with local .env file
-			const localEnvPath = await findExistingEnvFile(projectDir!);
-			const localEnv = await readEnvFile(localEnvPath);
-			const mergedEnv = mergeEnvVars(localEnv, filteredVars);
+			// Merge with local .env file only if we have a project directory
+			let localEnvPath: string | undefined;
+			if (projectDir) {
+				localEnvPath = await findExistingEnvFile(projectDir);
+				const localEnv = await readEnvFile(localEnvPath);
+				const mergedEnv = mergeEnvVars(localEnv, filteredVars);
 
-			await writeEnvFile(localEnvPath, mergedEnv, {
-				skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
-			});
+				await writeEnvFile(localEnvPath, mergedEnv, {
+					skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
+				});
+			}
 
 			tui.success(
 				`Imported ${totalCount} variable${totalCount !== 1 ? 's' : ''} from ${args.file} (${envCount} env, ${secretCount} secret${secretCount !== 1 ? 's' : ''})`
