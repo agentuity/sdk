@@ -28,6 +28,28 @@ export type SandboxStatus = 'creating' | 'idle' | 'running' | 'terminated' | 'fa
 /**
  * Runtime information for a sandbox
  */
+export interface SandboxRuntimeRequirements {
+	/**
+	 * Memory requirement (e.g., "1Gi")
+	 */
+	memory?: string;
+
+	/**
+	 * CPU requirement (e.g., "1")
+	 */
+	cpu?: string;
+
+	/**
+	 * Disk requirement (e.g., "500Mi")
+	 */
+	disk?: string;
+
+	/**
+	 * Whether network access is enabled
+	 */
+	networkEnabled: boolean;
+}
+
 export interface SandboxRuntime {
 	/**
 	 * Unique runtime identifier
@@ -50,6 +72,11 @@ export interface SandboxRuntime {
 	iconUrl?: string;
 
 	/**
+	 * Brand color for the runtime (hex color code)
+	 */
+	brandColor?: string;
+
+	/**
 	 * URL for runtime documentation or homepage
 	 */
 	url?: string;
@@ -58,6 +85,16 @@ export interface SandboxRuntime {
 	 * Optional tags for categorization
 	 */
 	tags?: string[];
+
+	/**
+	 * Runtime requirements (memory, cpu, disk, network)
+	 */
+	requirements?: SandboxRuntimeRequirements;
+
+	/**
+	 * Readme content in markdown format
+	 */
+	readme?: string;
 }
 
 /**
