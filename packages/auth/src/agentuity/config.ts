@@ -159,11 +159,17 @@ function parseOriginLike(value: string): string | undefined {
  *
  * Priority:
  * 1. Explicit `baseURL` option
- * 2. `AGENTUITY_BASE_URL` env var (Agentuity platform-injected)
- * 3. `BETTER_AUTH_URL` env var (BetterAuth standard, for 3rd party SDK compatibility)
+ * 2. `AGENTUITY_CLOUD_BASE_URL` env var (Agentuity platform-injected for cloud deployments)
+ * 3. `AGENTUITY_BASE_URL` env var (Agentuity platform-injected, legacy fallback)
+ * 4. `BETTER_AUTH_URL` env var (BetterAuth standard, for 3rd party SDK compatibility)
  */
 function resolveBaseURL(explicitBaseURL?: string): string | undefined {
-	return explicitBaseURL ?? process.env.AGENTUITY_BASE_URL ?? process.env.BETTER_AUTH_URL;
+	return (
+		explicitBaseURL ??
+		process.env.AGENTUITY_CLOUD_BASE_URL ??
+		process.env.AGENTUITY_BASE_URL ??
+		process.env.BETTER_AUTH_URL
+	);
 }
 
 /**
