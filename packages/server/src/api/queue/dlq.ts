@@ -46,8 +46,8 @@ const DeleteDlqResponseSchema = APIResponseSchemaNoData();
  * // List first 10 dead letter messages
  * const result = await listDeadLetterMessages(client, 'order-queue', { limit: 10 });
  * for (const msg of result.messages) {
- *   console.log(`Failed message ${msg.id}: ${msg.error}`);
- *   console.log(`Attempts: ${msg.attempts}, Last attempt: ${msg.last_attempt_at}`);
+ *   console.log(`Failed message ${msg.id}: ${msg.failure_reason}`);
+ *   console.log(`Attempts: ${msg.delivery_attempts}, Moved at: ${msg.moved_at}`);
  * }
  * ```
  */

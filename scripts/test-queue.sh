@@ -204,8 +204,9 @@ fi
 # Test: Acknowledge the message
 if [ -n "$RECEIVED_ID" ]; then
 	info "Test: queue ack"
-	ACK_OUTPUT=$($CLI cloud queue ack "$QUEUE_NAME" "$RECEIVED_ID" 2>&1) || true
-	if echo "$ACK_OUTPUT" | grep -qi "acknowledged\|success" || [ $? -eq 0 ]; then
+	ACK_OUTPUT=$($CLI cloud queue ack "$QUEUE_NAME" "$RECEIVED_ID" 2>&1)
+	ACK_STATUS=$?
+	if echo "$ACK_OUTPUT" | grep -qi "acknowledged\|success" || [ "$ACK_STATUS" -eq 0 ]; then
 		pass "queue ack succeeds"
 	else
 		fail "queue ack failed" "$ACK_OUTPUT"
@@ -230,8 +231,9 @@ fi
 # Test: Negative acknowledge the message
 if [ -n "$RECEIVED_ID2" ]; then
 	info "Test: queue nack"
-	NACK_OUTPUT=$($CLI cloud queue nack "$QUEUE_NAME" "$RECEIVED_ID2" 2>&1) || true
-	if echo "$NACK_OUTPUT" | grep -qi "returned\|success\|nack" || [ $? -eq 0 ]; then
+	NACK_OUTPUT=$($CLI cloud queue nack "$QUEUE_NAME" "$RECEIVED_ID2" 2>&1)
+	NACK_STATUS=$?
+	if echo "$NACK_OUTPUT" | grep -qi "returned\|success\|nack" || [ "$NACK_STATUS" -eq 0 ]; then
 		pass "queue nack succeeds"
 	else
 		fail "queue nack failed" "$NACK_OUTPUT"
@@ -246,7 +248,7 @@ section "DESTINATION Command Tests"
 info "Test: queue destinations create"
 DEST_OUTPUT=$($CLI cloud queue destinations create "$QUEUE_NAME" --url "https://httpbin.org/post" --json 2>&1) || true
 if echo "$DEST_OUTPUT" | grep -q '"id".*"qdest_'; then
-	DEST_ID=$(echo "$DEST_OUTPUT" | grep -o '"id":"qdest_[^"]*"' | sed 's/"id":"//;s/"$//')
+	DEST_ID=$(echo "$DEST_OUTPUT" | tr -d '\n ' | grep -o '"id":"qdest_[^"]*"' | sed 's/"id":"//;s/"$//')
 	pass "queue destinations create returns destination ID: $DEST_ID"
 else
 	fail "queue destinations create failed" "$DEST_OUTPUT"
@@ -265,7 +267,7 @@ fi
 # Test: Update destination
 if [ -n "$DEST_ID" ]; then
 	info "Test: queue destinations update"
-	DEST_UPDATE_OUTPUT=$($CLI cloud queue destinations update "$QUEUE_NAME" "$DEST_ID" --enabled=false --json 2>&1) || true
+	DEST_UPDATE_OUTPUT=$($CLI cloud queue destinations update "$QUEUE_NAME" "$DEST_ID" --disabled --json 2>&1) || true
 	if echo "$DEST_UPDATE_OUTPUT" | grep -q '"enabled".*false'; then
 		pass "queue destinations update succeeds"
 	else
@@ -276,8 +278,9 @@ fi
 # Test: Delete destination
 if [ -n "$DEST_ID" ]; then
 	info "Test: queue destinations delete"
-	DEST_DELETE_OUTPUT=$($CLI cloud queue destinations delete "$QUEUE_NAME" "$DEST_ID" 2>&1) || true
-	if echo "$DEST_DELETE_OUTPUT" | grep -qi "deleted\|success" || [ $? -eq 0 ]; then
+	DEST_DELETE_OUTPUT=$($CLI cloud queue destinations delete "$QUEUE_NAME" "$DEST_ID" 2>&1)
+	DEST_DELETE_STATUS=$?
+	if echo "$DEST_DELETE_OUTPUT" | grep -qi "deleted\|success" || [ "$DEST_DELETE_STATUS" -eq 0 ]; then
 		pass "queue destinations delete succeeds"
 	else
 		fail "queue destinations delete failed" "$DEST_DELETE_OUTPUT"
@@ -378,6 +381,28 @@ if [ -n "$SOURCE_ID" ]; then
 fi
 
 # ============================================
+section "STATS Command Tests"
+# ============================================
+
+# Test: Org-level stats
+info "Test: queue stats (org-level)"
+STATS_ORG_OUTPUT=$($CLI cloud queue stats --json 2>&1) || true
+if echo "$STATS_ORG_OUTPUT" | tr -d '\n ' | grep -q '"type":"org"'; then
+	pass "queue stats returns org-level analytics"
+else
+	fail "queue stats (org-level) failed" "$STATS_ORG_OUTPUT"
+fi
+
+# Test: Queue-specific stats
+info "Test: queue stats (queue-level)"
+STATS_QUEUE_OUTPUT=$($CLI cloud queue stats "$QUEUE_NAME" --json 2>&1) || true
+if echo "$STATS_QUEUE_OUTPUT" | tr -d '\n ' | grep -q '"type":"queue"'; then
+	pass "queue stats returns queue-level analytics"
+else
+	fail "queue stats (queue-level) failed" "$STATS_QUEUE_OUTPUT"
+fi
+
+# ============================================
 section "PAUSE/RESUME Command Tests"
 # ============================================
 
@@ -417,8 +442,9 @@ fi
 
 # Test: Purge DLQ (should succeed even if empty)
 info "Test: queue dlq purge"
-DLQ_PURGE_OUTPUT=$($CLI cloud queue dlq purge "$QUEUE_NAME" --confirm 2>&1) || true
-if echo "$DLQ_PURGE_OUTPUT" | grep -qi "purged\|success\|cleared" || [ $? -eq 0 ]; then
+DLQ_PURGE_OUTPUT=$($CLI cloud queue dlq purge "$QUEUE_NAME" --confirm 2>&1)
+DLQ_PURGE_STATUS=$?
+if echo "$DLQ_PURGE_OUTPUT" | grep -qi "purged\|success\|cleared" || [ "$DLQ_PURGE_STATUS" -eq 0 ]; then
 	pass "queue dlq purge succeeds"
 else
 	fail "queue dlq purge failed" "$DLQ_PURGE_OUTPUT"
@@ -430,8 +456,10 @@ section "DELETE Command Tests"
 
 # Test: Delete queue
 info "Test: queue delete"
-DELETE_OUTPUT=$($CLI cloud queue delete "$QUEUE_NAME" --confirm 2>&1) || true
-if echo "$DELETE_OUTPUT" | grep -qi "deleted\|success" || [ $? -eq 0 ]; then
+DELETED_QUEUE="$QUEUE_NAME"
+DELETE_OUTPUT=$($CLI cloud queue delete "$QUEUE_NAME" --confirm 2>&1)
+DELETE_STATUS=$?
+if echo "$DELETE_OUTPUT" | grep -qi "deleted\|success" || [ "$DELETE_STATUS" -eq 0 ]; then
 	pass "queue delete succeeds"
 	QUEUE_NAME=""
 else
@@ -439,14 +467,13 @@ else
 fi
 
 # Verify queue no longer accessible
-if [ -z "$QUEUE_NAME" ]; then
+if [ -z "$QUEUE_NAME" ] && [ -n "$DELETED_QUEUE" ]; then
 	info "Test: deleted queue not accessible"
-	GONE_OUTPUT=$($CLI cloud queue get "test_queue_$(date +%s)" 2>&1) || true
+	GONE_OUTPUT=$($CLI cloud queue get "$DELETED_QUEUE" 2>&1) || true
 	if echo "$GONE_OUTPUT" | grep -qi "not found\|404\|error"; then
 		pass "deleted queue returns not found"
 	else
-		# This might pass if the queue name doesn't match - that's expected
-		pass "queue get for non-existent queue handled"
+		fail "deleted queue still accessible" "$GONE_OUTPUT"
 	fi
 fi
 

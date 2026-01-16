@@ -1128,7 +1128,7 @@ export type SSEStatsEvent = z.infer<typeof SSEStatsEventSchema>;
 /**
  * Source authentication type schema.
  */
-export const SourceAuthTypeSchema = z.enum(['none', 'basic', 'digest', 'header']);
+export const SourceAuthTypeSchema = z.enum(['none', 'basic', 'header']);
 
 /**
  * Source authentication type.

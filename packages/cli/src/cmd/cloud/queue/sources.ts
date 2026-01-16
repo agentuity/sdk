@@ -13,6 +13,7 @@ import {
 	SourceAlreadyExistsError,
 	type Source,
 } from '@agentuity/server';
+import { ErrorCode } from '../../../errors';
 
 const SourcesListResponseSchema = z.object({
 	sources: z.array(
@@ -102,7 +103,7 @@ const createSourceSubcommand = createSubcommand({
 			name: z.string().min(1).describe('Source name'),
 			description: z.string().optional().describe('Source description'),
 			'auth-type': z
-				.enum(['none', 'basic', 'digest', 'header'])
+				.enum(['none', 'basic', 'header'])
 				.default('none')
 				.optional()
 				.describe('Authentication type'),
@@ -137,11 +138,10 @@ const createSourceSubcommand = createSubcommand({
 			return source;
 		} catch (error) {
 			if (error instanceof SourceAlreadyExistsError) {
-				tui.error(
-					`A source with name "${opts.name}" already exists for queue "${args.queue_name}"`
+				tui.fatal(
+					`A source with name "${opts.name}" already exists for queue "${args.queue_name}". Use a different name or delete the existing source first.`,
+					ErrorCode.RESOURCE_ALREADY_EXISTS
 				);
-				tui.info('Hint: Use a different name or delete the existing source first');
-				process.exit(1);
 			}
 			throw error;
 		}
@@ -171,7 +171,12 @@ const getSourceSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, options } = ctx;
 		const client = await createQueueAPIClient(ctx);
-		const source = await getSource(client, args.queue_name, args.source_id, getQueueApiOptions(ctx));
+		const source = await getSource(
+			client,
+			args.queue_name,
+			args.source_id,
+			getQueueApiOptions(ctx)
+		);
 
 		if (!options.json) {
 			console.log(`ID:          ${source.id}`);
@@ -220,7 +225,7 @@ const updateSourceSubcommand = createSubcommand({
 			name: z.string().optional().describe('New source name'),
 			description: z.string().optional().describe('New description'),
 			'auth-type': z
-				.enum(['none', 'basic', 'digest', 'header'])
+				.enum(['none', 'basic', 'header'])
 				.optional()
 				.describe('Authentication type'),
 			'auth-value': z.string().optional().describe('Authentication value'),
@@ -237,7 +242,7 @@ const updateSourceSubcommand = createSubcommand({
 		const updateParams: {
 			name?: string;
 			description?: string;
-			auth_type?: 'none' | 'basic' | 'digest' | 'header';
+			auth_type?: 'none' | 'basic' | 'header';
 			auth_value?: string;
 			enabled?: boolean;
 		} = {};
@@ -246,6 +251,12 @@ const updateSourceSubcommand = createSubcommand({
 		if (opts.description) updateParams.description = opts.description;
 		if (opts['auth-type']) updateParams.auth_type = opts['auth-type'];
 		if (opts['auth-value']) updateParams.auth_value = opts['auth-value'];
+		if (opts.enabled && opts.disabled) {
+			tui.fatal(
+				'Cannot specify both --enabled and --disabled flags',
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
 		if (opts.enabled) updateParams.enabled = true;
 		if (opts.disabled) updateParams.enabled = false;
 

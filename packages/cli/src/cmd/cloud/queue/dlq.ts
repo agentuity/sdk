@@ -40,6 +40,8 @@ const listDlqSubcommand = createSubcommand({
 	schema: {
 		args: z.object({
 			queue_name: z.string().min(1).describe('Queue name'),
+		}),
+		options: z.object({
 			limit: z.coerce.number().optional().describe('Maximum number of messages to return'),
 			offset: z.coerce.number().optional().describe('Offset for pagination'),
 		}),
@@ -53,8 +55,8 @@ const listDlqSubcommand = createSubcommand({
 			client,
 			args.queue_name,
 			{
-				limit: args.limit,
-				offset: args.offset,
+				limit: options.limit,
+				offset: options.offset,
 			},
 			getQueueApiOptions(ctx)
 		);

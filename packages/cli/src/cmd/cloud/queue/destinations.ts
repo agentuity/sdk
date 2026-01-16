@@ -3,6 +3,7 @@ import { createCommand, createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { createQueueAPIClient, getQueueApiOptions } from './util';
 import { getCommand } from '../../../command-prefix';
+import { ErrorCode } from '../../../errors';
 import {
 	createDestination,
 	listDestinations,
@@ -131,11 +132,10 @@ const createDestinationSubcommand = createSubcommand({
 			return destination;
 		} catch (error) {
 			if (error instanceof DestinationAlreadyExistsError) {
-				tui.error(
-					`A destination with URL "${opts.url}" already exists for queue "${args.queue_name}"`
+				tui.fatal(
+					`A destination with URL "${opts.url}" already exists for queue "${args.queue_name}". Use a different URL or delete the existing destination first.`,
+					ErrorCode.RESOURCE_ALREADY_EXISTS
 				);
-				tui.info('Hint: Use a different URL or delete the existing destination first');
-				process.exit(1);
 			}
 			throw error;
 		}
@@ -149,7 +149,7 @@ const updateDestinationSubcommand = createSubcommand({
 	requires: { auth: true },
 	examples: [
 		{
-			command: getCommand('cloud queue destinations update my-queue dest_abc123 --enabled=false'),
+			command: getCommand('cloud queue destinations update my-queue dest_abc123 --disabled'),
 			description: 'Disable a destination',
 		},
 	],
@@ -162,7 +162,8 @@ const updateDestinationSubcommand = createSubcommand({
 			url: z.string().url().optional().describe('Webhook URL'),
 			method: z.string().optional().describe('HTTP method'),
 			timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
-			enabled: z.boolean().optional().describe('Enable or disable the destination'),
+			enabled: z.boolean().optional().describe('Enable the destination'),
+			disabled: z.boolean().optional().describe('Disable the destination'),
 		}),
 		response: DestinationSchema,
 	},
@@ -182,7 +183,14 @@ const updateDestinationSubcommand = createSubcommand({
 			if (opts.method) updateParams.config.method = opts.method;
 			if (opts.timeout !== undefined) updateParams.config.timeout_ms = opts.timeout;
 		}
-		if (opts.enabled !== undefined) updateParams.enabled = opts.enabled;
+		if (opts.enabled && opts.disabled) {
+			tui.fatal(
+				'Cannot specify both --enabled and --disabled flags',
+				ErrorCode.INVALID_ARGUMENT
+			);
+		}
+		if (opts.enabled) updateParams.enabled = true;
+		if (opts.disabled) updateParams.enabled = false;
 
 		const destination = await updateDestination(
 			client,

@@ -522,7 +522,8 @@ export function validateSourceId(id: string): void {
 		throw new QueueValidationError({
 			field: 'source_id',
 			value: id,
-			message: 'Source ID must start with "qsrc_" prefix and contain only alphanumeric characters',
+			message:
+				'Source ID must start with "qsrc_" prefix and contain only alphanumeric characters',
 		});
 	}
 }

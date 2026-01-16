@@ -250,7 +250,7 @@ export async function* streamQueueAnalytics(
 
 	const url = queueApiPathWithQuery('analytics/stream', queryString, name);
 
-	yield* streamSSE(client, url, options?.orgId);
+	yield* streamSSE(client, url, options?.orgId, name);
 }
 
 /**
@@ -260,11 +260,15 @@ export async function* streamQueueAnalytics(
 async function* streamSSE(
 	client: APIClient,
 	url: string,
-	orgId?: string
+	orgId?: string,
+	queueName?: string
 ): AsyncGenerator<SSEStatsEvent, void, unknown> {
 	const response = await client.rawGet(url, undefined, buildQueueHeaders(orgId));
 
 	if (!response.ok) {
+		if (response.status === 404 && queueName) {
+			throw new QueueNotFoundError({ queueName });
+		}
 		throw new QueueError({
 			message: `SSE connection failed: ${response.status} ${response.statusText}`,
 		});
@@ -303,6 +307,7 @@ async function* streamSSE(
 			}
 		}
 	} finally {
+		await reader.cancel();
 		reader.releaseLock();
 	}
 }

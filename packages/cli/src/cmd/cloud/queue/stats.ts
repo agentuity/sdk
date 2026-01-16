@@ -182,7 +182,7 @@ export const statsSubcommand = createCommand({
 	name: 'stats',
 	description: 'View queue analytics and statistics',
 	tags: ['read-only', 'requires-auth'],
-	requires: { auth: true },
+	requires: { auth: true, org: true },
 	examples: [
 		{
 			command: getCommand('cloud queue stats'),
