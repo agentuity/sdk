@@ -304,6 +304,15 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		);
 	}
 
+	// Validate that --enable-auth requires authentication and registration
+	if (enableAuthOption && !canProvision) {
+		logger.fatal(
+			'Cannot enable Agentuity Auth without being authenticated and registering the project.\n' +
+				'Remove --no-register or omit --enable-auth flag.',
+			ErrorCode.VALIDATION_FAILED
+		);
+	}
+
 	if (canProvision) {
 		// Fetch resources for selected org and region using Catalyst API (needed for both interactive and CLI flags)
 		let resources: Awaited<ReturnType<typeof listResources>> | undefined;
