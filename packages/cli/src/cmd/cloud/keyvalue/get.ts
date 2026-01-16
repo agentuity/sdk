@@ -14,7 +14,7 @@ export const getSubcommand = createCommand({
 	name: 'get',
 	description: 'Get a value from the keyvalue storage',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true },
 	examples: [
 		{ command: getCommand('kv get production user:123'), description: 'Get user data' },
 		{ command: getCommand('kv get cache session:abc'), description: 'Get cached session' },
