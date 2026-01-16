@@ -54,11 +54,11 @@ const VALID_MESSAGE_ID_REGEX = /^qmsg_[a-zA-Z0-9]+$/;
 /** Destination ID pattern: must start with qdest_ prefix. */
 const VALID_DESTINATION_ID_REGEX = /^qdest_[a-zA-Z0-9]+$/;
 
-/** Sink ID pattern: must start with qsnk_ prefix. */
-const VALID_SINK_ID_REGEX = /^qsnk_[a-zA-Z0-9]+$/;
+/** Source ID pattern: must start with qsrc_ prefix. */
+const VALID_SOURCE_ID_REGEX = /^qsrc_[a-zA-Z0-9]+$/;
 
-/** Maximum sink name length. */
-export const MAX_SINK_NAME_LENGTH = 256;
+/** Maximum source name length. */
+export const MAX_SOURCE_NAME_LENGTH = 256;
 
 // ============================================================================
 // Validation Error
@@ -497,63 +497,63 @@ export function validateDestinationConfig(config: Record<string, unknown>): void
 }
 
 /**
- * Validates a sink ID format.
+ * Validates a source ID format.
  *
- * Sink IDs must start with the `qsnk_` prefix.
+ * Source IDs must start with the `qsrc_` prefix.
  *
- * @param id - The sink ID to validate
+ * @param id - The source ID to validate
  * @throws {QueueValidationError} If the ID format is invalid
  *
  * @example
  * ```typescript
- * validateSinkId('qsnk_abc123'); // OK
- * validateSinkId('invalid');     // Throws
+ * validateSourceId('qsrc_abc123'); // OK
+ * validateSourceId('invalid');     // Throws
  * ```
  */
-export function validateSinkId(id: string): void {
+export function validateSourceId(id: string): void {
 	if (!id || typeof id !== 'string') {
 		throw new QueueValidationError({
-			field: 'sink_id',
+			field: 'source_id',
 			value: id,
-			message: 'Sink ID is required',
+			message: 'Source ID is required',
 		});
 	}
-	if (!VALID_SINK_ID_REGEX.test(id)) {
+	if (!VALID_SOURCE_ID_REGEX.test(id)) {
 		throw new QueueValidationError({
-			field: 'sink_id',
+			field: 'source_id',
 			value: id,
-			message: 'Sink ID must start with "qsnk_" prefix and contain only alphanumeric characters',
+			message: 'Source ID must start with "qsrc_" prefix and contain only alphanumeric characters',
 		});
 	}
 }
 
 /**
- * Validates a sink name.
+ * Validates a source name.
  *
- * Sink names must be non-empty and not exceed the maximum length.
+ * Source names must be non-empty and not exceed the maximum length.
  *
- * @param name - The sink name to validate
+ * @param name - The source name to validate
  * @throws {QueueValidationError} If the name is invalid
  *
  * @example
  * ```typescript
- * validateSinkName('my-sink');   // OK
- * validateSinkName('');          // Throws
+ * validateSourceName('my-source');   // OK
+ * validateSourceName('');          // Throws
  * ```
  */
-export function validateSinkName(name: string): void {
+export function validateSourceName(name: string): void {
 	if (!name || typeof name !== 'string') {
 		throw new QueueValidationError({
-			field: 'sink_name',
+			field: 'source_name',
 			value: name,
-			message: 'Sink name is required',
+			message: 'Source name is required',
 		});
 	}
-	if (name.length > MAX_SINK_NAME_LENGTH) {
+	if (name.length > MAX_SOURCE_NAME_LENGTH) {
 		throw new QueueValidationError({
-			field: 'sink_name',
+			field: 'source_name',
 			value: name,
-			message: `Sink name must be at most ${MAX_SINK_NAME_LENGTH} characters`,
+			message: `Source name must be at most ${MAX_SOURCE_NAME_LENGTH} characters`,
 		});
 	}
 }

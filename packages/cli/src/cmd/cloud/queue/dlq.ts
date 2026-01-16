@@ -145,7 +145,7 @@ const purgeDlqSubcommand = createSubcommand({
 	requires: { auth: true },
 	examples: [
 		{
-			command: getCommand('cloud queue dlq purge my-queue --yes'),
+			command: getCommand('cloud queue dlq purge my-queue --confirm'),
 			description: 'Purge all DLQ messages',
 		},
 	],
@@ -154,7 +154,7 @@ const purgeDlqSubcommand = createSubcommand({
 			queue_name: z.string().min(1).describe('Queue name'),
 		}),
 		options: z.object({
-			yes: z.boolean().default(false).describe('Skip confirmation prompt'),
+			confirm: z.boolean().default(false).describe('Skip confirmation prompt'),
 		}),
 		response: PurgeResponseSchema,
 	},
@@ -162,8 +162,8 @@ const purgeDlqSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, opts, options } = ctx;
 
-		if (!opts.yes) {
-			tui.fatal('Use --yes to confirm DLQ purge', ErrorCode.INVALID_ARGUMENT);
+		if (!opts.confirm) {
+			tui.fatal('Use --confirm to confirm DLQ purge', ErrorCode.INVALID_ARGUMENT);
 		}
 
 		const client = await createQueueAPIClient(ctx);

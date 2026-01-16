@@ -6,6 +6,7 @@ import { getCommand } from '../../../command-prefix';
 import {
 	createDestination,
 	listDestinations,
+	updateDestination,
 	deleteDestination,
 	DestinationSchema,
 	DestinationAlreadyExistsError,
@@ -141,6 +142,66 @@ const createDestinationSubcommand = createSubcommand({
 	},
 });
 
+const updateDestinationSubcommand = createSubcommand({
+	name: 'update',
+	description: 'Update a destination',
+	tags: ['mutating', 'requires-auth'],
+	requires: { auth: true },
+	examples: [
+		{
+			command: getCommand('cloud queue destinations update my-queue dest_abc123 --enabled=false'),
+			description: 'Disable a destination',
+		},
+	],
+	schema: {
+		args: z.object({
+			queue_name: z.string().min(1).describe('Queue name'),
+			destination_id: z.string().min(1).describe('Destination ID'),
+		}),
+		options: z.object({
+			url: z.string().url().optional().describe('Webhook URL'),
+			method: z.string().optional().describe('HTTP method'),
+			timeout: z.coerce.number().optional().describe('Request timeout in milliseconds'),
+			enabled: z.boolean().optional().describe('Enable or disable the destination'),
+		}),
+		response: DestinationSchema,
+	},
+
+	async handler(ctx) {
+		const { args, opts, options } = ctx;
+		const client = await createQueueAPIClient(ctx);
+
+		const updateParams: {
+			config?: { url?: string; method?: string; timeout_ms?: number };
+			enabled?: boolean;
+		} = {};
+
+		if (opts.url || opts.method || opts.timeout !== undefined) {
+			updateParams.config = {};
+			if (opts.url) updateParams.config.url = opts.url;
+			if (opts.method) updateParams.config.method = opts.method;
+			if (opts.timeout !== undefined) updateParams.config.timeout_ms = opts.timeout;
+		}
+		if (opts.enabled !== undefined) updateParams.enabled = opts.enabled;
+
+		const destination = await updateDestination(
+			client,
+			args.queue_name,
+			args.destination_id,
+			updateParams,
+			getQueueApiOptions(ctx)
+		);
+
+		if (!options.json) {
+			tui.success(`Updated destination: ${destination.id}`);
+			console.log(`  URL:     ${destination.config.url}`);
+			console.log(`  Enabled: ${destination.enabled ? 'Yes' : 'No'}`);
+		}
+
+		return destination;
+	},
+});
+
 const DeleteDestinationResponseSchema = z.object({
 	success: z.boolean(),
 	queue_name: z.string(),
@@ -210,6 +271,7 @@ export const destinationsSubcommand = createCommand({
 	subcommands: [
 		listDestinationsSubcommand,
 		createDestinationSubcommand,
+		updateDestinationSubcommand,
 		deleteDestinationSubcommand,
 	],
 });

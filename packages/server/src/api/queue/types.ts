@@ -1122,46 +1122,46 @@ export const SSEStatsEventSchema = z.object({
 export type SSEStatsEvent = z.infer<typeof SSEStatsEventSchema>;
 
 // ============================================================================
-// Sink Types
+// Source Types
 // ============================================================================
 
 /**
- * Sink authentication type schema.
+ * Source authentication type schema.
  */
-export const SinkAuthTypeSchema = z.enum(['none', 'basic', 'digest', 'header']);
+export const SourceAuthTypeSchema = z.enum(['none', 'basic', 'digest', 'header']);
 
 /**
- * Sink authentication type.
+ * Source authentication type.
  */
-export type SinkAuthType = z.infer<typeof SinkAuthTypeSchema>;
+export type SourceAuthType = z.infer<typeof SourceAuthTypeSchema>;
 
 /**
- * Queue sink schema representing an HTTP ingestion endpoint.
+ * Queue source schema representing an HTTP ingestion endpoint.
  *
- * Sinks provide public URLs for ingesting data into queues from external sources.
+ * Sources provide public URLs for ingesting data into queues from external sources.
  * They support various authentication methods to secure access.
  *
  * @example
  * ```typescript
- * const sink = await getSink(client, 'my-queue', 'qsnk_abc123');
- * console.log(`Sink URL: ${sink.url}`);
- * console.log(`Success rate: ${sink.success_count}/${sink.request_count}`);
+ * const source = await getSource(client, 'my-queue', 'qsrc_abc123');
+ * console.log(`Source URL: ${source.url}`);
+ * console.log(`Success rate: ${source.success_count}/${source.request_count}`);
  * ```
  */
-export const SinkSchema = z.object({
-	/** Unique identifier for the sink (prefixed with qsnk_). */
+export const SourceSchema = z.object({
+	/** Unique identifier for the source (prefixed with qsrc_). */
 	id: z.string(),
-	/** ID of the queue this sink publishes to. */
+	/** ID of the queue this source publishes to. */
 	queue_id: z.string(),
-	/** Human-readable sink name. */
+	/** Human-readable source name. */
 	name: z.string(),
-	/** Optional description of the sink's purpose. */
+	/** Optional description of the source's purpose. */
 	description: z.string().nullable().optional(),
 	/** Authentication type for the public endpoint. */
-	auth_type: SinkAuthTypeSchema,
-	/** Whether the sink is enabled. */
+	auth_type: SourceAuthTypeSchema,
+	/** Whether the source is enabled. */
 	enabled: z.boolean(),
-	/** Public URL to send data to this sink. */
+	/** Public URL to send data to this source. */
 	url: z.string(),
 	/** Total number of requests received. */
 	request_count: z.number(),
@@ -1177,23 +1177,23 @@ export const SinkSchema = z.object({
 	last_failure_at: z.string().nullable().optional(),
 	/** Error message from last failure. */
 	last_failure_error: z.string().nullable().optional(),
-	/** ISO 8601 timestamp when the sink was created. */
+	/** ISO 8601 timestamp when the source was created. */
 	created_at: z.string(),
-	/** ISO 8601 timestamp when the sink was last updated. */
+	/** ISO 8601 timestamp when the source was last updated. */
 	updated_at: z.string(),
 });
 
 /**
- * Queue sink type.
+ * Queue source type.
  */
-export type Sink = z.infer<typeof SinkSchema>;
+export type Source = z.infer<typeof SourceSchema>;
 
 /**
- * Create sink request schema.
+ * Create source request schema.
  *
  * @example
  * ```typescript
- * const request: CreateSinkRequest = {
+ * const request: CreateSourceRequest = {
  *   name: 'webhook-ingestion',
  *   description: 'Receives webhooks from external service',
  *   auth_type: 'header',
@@ -1201,53 +1201,53 @@ export type Sink = z.infer<typeof SinkSchema>;
  * };
  * ```
  */
-export const CreateSinkRequestSchema = z.object({
-	/** Human-readable name for the sink. */
+export const CreateSourceRequestSchema = z.object({
+	/** Human-readable name for the source. */
 	name: z.string().min(1).max(256),
 	/** Optional description. */
 	description: z.string().max(1024).optional(),
 	/** Authentication type (default: none). */
-	auth_type: SinkAuthTypeSchema.optional().default('none'),
+	auth_type: SourceAuthTypeSchema.optional().default('none'),
 	/** Authentication value (format depends on auth_type). */
 	auth_value: z.string().optional(),
 });
 
 /**
- * Create sink request type.
+ * Create source request type.
  */
-export type CreateSinkRequest = z.infer<typeof CreateSinkRequestSchema>;
+export type CreateSourceRequest = z.infer<typeof CreateSourceRequestSchema>;
 
 /**
- * Update sink request schema.
+ * Update source request schema.
  *
  * All fields are optional - only provided fields will be updated.
  *
  * @example
  * ```typescript
- * // Disable a sink
- * const request: UpdateSinkRequest = { enabled: false };
+ * // Disable a source
+ * const request: UpdateSourceRequest = { enabled: false };
  *
  * // Update authentication
- * const request: UpdateSinkRequest = {
+ * const request: UpdateSourceRequest = {
  *   auth_type: 'basic',
  *   auth_value: 'user:password',
  * };
  * ```
  */
-export const UpdateSinkRequestSchema = z.object({
-	/** New name for the sink. */
+export const UpdateSourceRequestSchema = z.object({
+	/** New name for the source. */
 	name: z.string().min(1).max(256).optional(),
 	/** New description. */
 	description: z.string().max(1024).nullable().optional(),
 	/** New authentication type. */
-	auth_type: SinkAuthTypeSchema.optional(),
+	auth_type: SourceAuthTypeSchema.optional(),
 	/** New authentication value. */
 	auth_value: z.string().optional(),
-	/** Whether the sink is enabled. */
+	/** Whether the source is enabled. */
 	enabled: z.boolean().optional(),
 });
 
 /**
- * Update sink request type.
+ * Update source request type.
  */
-export type UpdateSinkRequest = z.infer<typeof UpdateSinkRequestSchema>;
+export type UpdateSourceRequest = z.infer<typeof UpdateSourceRequestSchema>;

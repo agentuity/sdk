@@ -111,39 +111,39 @@ export const QueueInvalidArgumentError = StructuredError('QueueInvalidArgumentEr
 }>();
 
 /**
- * Error thrown when a sink is not found.
+ * Error thrown when a source is not found.
  *
  * @example
  * ```typescript
  * try {
- *   await getSink(client, 'my-queue', 'qsnk_abc123');
+ *   await getSource(client, 'my-queue', 'qsrc_abc123');
  * } catch (error) {
- *   if (error instanceof SinkNotFoundError) {
- *     console.error(`Sink ${error.sinkId} not found in ${error.queueName}`);
+ *   if (error instanceof SourceNotFoundError) {
+ *     console.error(`Source ${error.sourceId} not found in ${error.queueName}`);
  *   }
  * }
  * ```
  */
-export const SinkNotFoundError = StructuredError('SinkNotFoundError')<{
+export const SourceNotFoundError = StructuredError('SourceNotFoundError')<{
 	queueName: string;
-	sinkId: string;
+	sourceId: string;
 }>();
 
 /**
- * Error thrown when a sink with the same name already exists.
+ * Error thrown when a source with the same name already exists.
  *
  * @example
  * ```typescript
  * try {
- *   await createSink(client, 'my-queue', { name: 'existing-sink' });
+ *   await createSource(client, 'my-queue', { name: 'existing-source' });
  * } catch (error) {
- *   if (error instanceof SinkAlreadyExistsError) {
- *     console.error(`Sink "${error.name}" already exists in ${error.queueName}`);
+ *   if (error instanceof SourceAlreadyExistsError) {
+ *     console.error(`Source "${error.name}" already exists in ${error.queueName}`);
  *   }
  * }
  * ```
  */
-export const SinkAlreadyExistsError = StructuredError('SinkAlreadyExistsError')<{
+export const SourceAlreadyExistsError = StructuredError('SourceAlreadyExistsError')<{
 	queueName: string;
 	name: string;
 }>();

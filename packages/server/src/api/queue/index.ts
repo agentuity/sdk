@@ -121,15 +121,15 @@ export {
 	type TimeSeriesPoint,
 	type TimeSeriesData,
 	type SSEStatsEvent,
-	// Sink types
-	SinkAuthTypeSchema,
-	SinkSchema,
-	CreateSinkRequestSchema,
-	UpdateSinkRequestSchema,
-	type SinkAuthType,
-	type Sink,
-	type CreateSinkRequest,
-	type UpdateSinkRequest,
+	// Source types
+	SourceAuthTypeSchema,
+	SourceSchema,
+	CreateSourceRequestSchema,
+	UpdateSourceRequestSchema,
+	type SourceAuthType,
+	type Source,
+	type CreateSourceRequest,
+	type UpdateSourceRequest,
 } from './types';
 
 // ============================================================================
@@ -143,8 +143,8 @@ export {
 	DestinationNotFoundError,
 	DestinationAlreadyExistsError,
 	QueueInvalidArgumentError,
-	SinkNotFoundError,
-	SinkAlreadyExistsError,
+	SourceNotFoundError,
+	SourceAlreadyExistsError,
 } from './util';
 
 // ============================================================================
@@ -204,10 +204,10 @@ export {
 } from './destinations';
 
 // ============================================================================
-// Sink Operations
+// Source Operations
 // ============================================================================
 
-export { createSink, listSinks, getSink, updateSink, deleteSink } from './sinks';
+export { createSource, listSources, getSource, updateSource, deleteSource } from './sources';
 
 // ============================================================================
 // Analytics Operations
@@ -244,8 +244,8 @@ export {
 	validateBatchSize,
 	validateWebhookUrl,
 	validateDestinationConfig,
-	validateSinkId,
-	validateSinkName,
+	validateSourceId,
+	validateSourceName,
 	MAX_QUEUE_NAME_LENGTH,
 	MIN_QUEUE_NAME_LENGTH,
 	MAX_PAYLOAD_SIZE,
@@ -257,5 +257,5 @@ export {
 	MAX_VISIBILITY_TIMEOUT,
 	MAX_RETRIES,
 	MAX_IN_FLIGHT,
-	MAX_SINK_NAME_LENGTH,
+	MAX_SOURCE_NAME_LENGTH,
 } from './validation';
