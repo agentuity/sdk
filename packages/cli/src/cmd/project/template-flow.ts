@@ -285,7 +285,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 
 	// Add separator bar if we're going to show resource prompts
 	const canProvision = auth && apiClient && catalystClient && orgId && region;
-	const hasResourceFlags = databaseOption !== undefined || storageOption !== undefined;
+	// Only count as resource flags if actually requesting provisioning (not explicit skip)
+	const hasResourceFlags =
+		(databaseOption !== undefined && databaseOption.toLowerCase() !== 'skip') ||
+		(storageOption !== undefined && storageOption.toLowerCase() !== 'skip');
 
 	if (isInteractive && canProvision) {
 		const { symbols, tuiColors } = tui;
@@ -330,7 +333,16 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 					return listResources(catalystClient!, orgId!, region!);
 				},
 			});
-			logger.debug(`Resources for org ${orgId} in region ${region}:`, resources);
+			// Log sanitized summary (avoid exposing DATABASE_URL, tokens, secrets)
+			logger.debug(
+				`Resources for org ${orgId} in region ${region}: ${resources.db.length} databases, ${resources.s3.length} storage buckets`
+			);
+			logger.debug(
+				`Database names: ${resources.db.map((d) => d.name).join(', ') || '(none)'}`
+			);
+			logger.debug(
+				`Storage buckets: ${resources.s3.map((b) => b.bucket_name).join(', ') || '(none)'}`
+			);
 		}
 
 		// Determine database action: CLI flag > interactive prompt > skip (headless)
