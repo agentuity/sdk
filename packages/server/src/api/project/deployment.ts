@@ -21,7 +21,6 @@ const DeploymentMetadataSchema = z.object({
 				.object({
 					number: z.number(),
 					url: z.string().optional(),
-					commentId: z.string().optional(),
 				})
 				.optional(),
 		})
@@ -51,6 +50,7 @@ const DeploymentSchema = z.object({
 	resourceStorage: z.string().nullable().optional(),
 	deploymentLogsURL: z.string().nullable().optional(),
 	buildLogsURL: z.string().nullable().optional(),
+	dnsRecords: z.array(z.string()).optional(),
 });
 
 const DeploymentListResponseSchema = APIResponseSchema(z.array(DeploymentSchema));
@@ -85,6 +85,34 @@ export async function projectDeploymentGet(
 		`/cli/project/${projectId}/deployments/${deploymentId}`,
 		DeploymentGetResponseSchema
 	);
+	if (resp.success) {
+		return resp.data;
+	}
+	throw new ProjectResponseError({ message: resp.message });
+}
+
+const DeploymentLookupSchema = z.object({
+	id: z.string(),
+	projectId: z.string(),
+	orgId: z.string(),
+	cloudRegion: z.string().nullable().optional(),
+	state: z.string().nullable().optional(),
+	active: z.boolean(),
+});
+
+const DeploymentLookupResponseSchema = APIResponseSchema(DeploymentLookupSchema);
+
+export type DeploymentLookup = z.infer<typeof DeploymentLookupSchema>;
+
+/**
+ * Get deployment info by ID only (without requiring project ID).
+ * Useful for looking up region/project info for a deployment.
+ */
+export async function deploymentGet(
+	client: APIClient,
+	deploymentId: string
+): Promise<DeploymentLookup> {
+	const resp = await client.get(`/cli/deployment/${deploymentId}`, DeploymentLookupResponseSchema);
 	if (resp.success) {
 		return resp.data;
 	}

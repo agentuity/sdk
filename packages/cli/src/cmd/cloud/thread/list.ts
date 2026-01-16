@@ -4,7 +4,7 @@ import * as tui from '../../../tui';
 import { threadList, type Thread } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
-import { getCatalystAPIClient } from '../../../config';
+import { getGlobalCatalystAPIClient } from '../../../config';
 
 const ThreadListResponseSchema = z.array(
 	z.object({
@@ -34,9 +34,13 @@ export const listSubcommand = createSubcommand({
 			command: getCommand('cloud thread list --org-id=org_*'),
 			description: 'Filter by organization',
 		},
+		{
+			command: getCommand('cloud thread list --all'),
+			description: 'List all threads regardless of project context',
+		},
 	],
 	aliases: ['ls'],
-	requires: { auth: true, region: true },
+	requires: { auth: true },
 	optional: { project: true },
 	idempotent: true,
 	pagination: {
@@ -58,14 +62,15 @@ export const listSubcommand = createSubcommand({
 				.describe('Number of threads to list (1–100)'),
 			orgId: z.string().optional().describe('Filter by organization ID'),
 			projectId: z.string().optional().describe('Filter by project ID'),
+			all: z.boolean().optional().describe('List all threads regardless of project context'),
 		}),
 		response: ThreadListResponseSchema,
 	},
 	async handler(ctx) {
-		const { logger, auth, project, opts, options, region } = ctx;
-		const catalystClient = getCatalystAPIClient(logger, auth, region);
+		const { logger, auth, project, opts, options, config } = ctx;
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
 
-		const projectId = opts.projectId || project?.projectId;
+		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
 		const orgId = opts.orgId;
 
 		try {

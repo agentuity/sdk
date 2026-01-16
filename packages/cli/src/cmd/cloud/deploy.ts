@@ -5,15 +5,23 @@ import { createReadStream, createWriteStream, existsSync, mkdirSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { StructuredError } from '@agentuity/core';
 import { isRunningFromExecutable } from '../upgrade';
-import { createSubcommand } from '../../types';
+import { createSubcommand, DeployOptionsSchema } from '../../types';
 import { getUserAgent } from '../../api';
 import * as tui from '../../tui';
-import { saveProjectDir, getDefaultConfigDir, loadProjectSDKKey } from '../../config';
+import {
+	saveProjectDir,
+	getDefaultConfigDir,
+	loadProjectSDKKey,
+	updateProjectConfig,
+} from '../../config';
+import { getProjectGithubStatus } from '../git/api';
+import { runGitLink } from '../git/link';
 import {
 	runSteps,
 	stepSuccess,
 	stepSkipped,
 	stepError,
+	pauseStepUI,
 	type Step,
 	type StepContext,
 } from '../../steps';
@@ -25,6 +33,7 @@ import {
 	projectDeploymentUpdate,
 	projectDeploymentComplete,
 	projectDeploymentStatus,
+	validateResources,
 	type Deployment,
 	type BuildMetadata,
 	type DeploymentInstructions,
@@ -33,7 +42,7 @@ import {
 	getAppBaseURL,
 } from '@agentuity/server';
 import {
-	findEnvFile,
+	findExistingEnvFile,
 	readEnvFile,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
@@ -41,9 +50,12 @@ import {
 import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { getCommand } from '../../command-prefix';
-import { checkCustomDomainForDNS } from './domain';
-import { DeployOptionsSchema } from '../../schemas/deploy';
+import * as domain from '../../domain';
 import { ErrorCode } from '../../errors';
+import { typecheck } from '../build/typecheck';
+import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
+import { runForkedDeploy } from './deploy-fork';
+import { validateAptDependencies } from '../../utils/apt-validator';
 
 const DeploymentCancelledError = StructuredError(
 	'DeploymentCancelled',
@@ -83,22 +95,72 @@ export const deploySubcommand = createSubcommand({
 			command: getCommand('cloud deploy --log-level=debug'),
 			description: 'Deploy with verbose output',
 		},
-		{
-			command: getCommand('cloud deploy --tag a --tag b'),
-			description: 'Deploy with specific tags',
-		},
 	],
 	toplevel: true,
 	idempotent: false,
 	requires: { auth: true, project: true, apiClient: true },
 	prerequisites: ['auth login'],
 	schema: {
-		options: DeployOptionsSchema,
+		options: z.intersection(
+			DeployOptionsSchema,
+			z.object({
+				reportFile: z
+					.string()
+					.optional()
+					.describe(
+						'file path to save build report JSON with errors, warnings, and diagnostics'
+					),
+				childMode: z
+					.boolean()
+					.optional()
+					.default(false)
+					.describe('Internal: run as forked child process'),
+			})
+		),
 		response: DeployResponseSchema,
 	},
 
 	async handler(ctx) {
-		const { project, apiClient, projectDir, config, options, logger } = ctx;
+		let { project } = ctx;
+		const { apiClient, projectDir, config, options, logger, opts, auth } = ctx;
+
+		// Verify project access and offer import if needed
+		const { reconcileProject } = await import('../project/reconcile');
+		const { isTTY } = await import('../../auth');
+
+		const reconcileResult = await reconcileProject({
+			dir: projectDir,
+			auth,
+			apiClient,
+			config: config!,
+			logger,
+			interactive: isTTY(),
+		});
+
+		if (reconcileResult.status === 'error') {
+			tui.fatal(reconcileResult.message!, ErrorCode.PROJECT_NOT_FOUND);
+		}
+
+		if (reconcileResult.status === 'skipped') {
+			tui.fatal(
+				'Project must be registered with Agentuity Cloud to deploy.',
+				ErrorCode.PROJECT_NOT_FOUND
+			);
+		}
+
+		if (reconcileResult.status === 'imported' && reconcileResult.project) {
+			// Project was imported - use the new project config
+			project = reconcileResult.project;
+			tui.newline();
+		}
+
+		// Initialize build report collector if reportFile is specified
+		const collector = new BuildReportCollector();
+		if (opts.reportFile) {
+			collector.setOutputPath(opts.reportFile);
+			collector.enableAutoWrite();
+			setGlobalCollector(collector);
+		}
 
 		let deployment: Deployment | undefined;
 		let build: BuildMetadata | undefined;
@@ -112,36 +174,250 @@ export const deploySubcommand = createSubcommand({
 		// Ensure SDK key is present before proceeding
 		if (!sdkKey) {
 			ctx.logger.fatal(
-				'SDK key not found. Run "agentuity auth login" to authenticate or set AGENTUITY_SDK_KEY environment variable.'
+				'The AGENTUITY_SDK_KEY value not found in the .env file in this folder. Ensure you are inside a valid Agentuity project folder and run "%s" to pull your environment from the cloud.',
+				getCommand('cloud env pull')
 			);
+		}
+
+		// Check if we're running as a forked child process
+		const isChildProcess = opts.childMode || process.env.AGENTUITY_FORK_PARENT === '1';
+		const deploymentEnv = process.env.AGENTUITY_DEPLOYMENT;
+
+		// If not in child mode and no pre-created deployment, run as fork wrapper to capture crashes
+		// (CI builds set AGENTUITY_DEPLOYMENT, fork wrapper also sets it for the child)
+		if (!isChildProcess && !deploymentEnv) {
+			logger.debug('Running deploy as fork wrapper');
+
+			// First, create the deployment to get the ID, publicKey, and stream URL
+			const deploymentConfig = project.deployment ?? {};
+
+			// Validate resource configuration before creating deployment
+			if (deploymentConfig.resources) {
+				const validation = validateResources(deploymentConfig.resources);
+				if (!validation.valid) {
+					tui.error('Invalid resource configuration in agentuity.json:');
+					for (const error of validation.errors) {
+						tui.error(`  ${error}`);
+					}
+					tui.fatal('Fix the resource configuration and try again.', ErrorCode.CONFIG_INVALID);
+				}
+			}
+
+			// Validate apt dependencies before creating deployment
+			if (deploymentConfig.dependencies && deploymentConfig.dependencies.length > 0) {
+				const aptValidation = await tui.spinner({
+					message: 'Validating apt dependencies...',
+					type: 'simple',
+					callback: async () => {
+						return await validateAptDependencies(
+							deploymentConfig.dependencies!,
+							project.region,
+							config,
+							logger
+						);
+					},
+				});
+
+				if (aptValidation.invalid.length > 0) {
+					if (options.json) {
+						return {
+							success: false,
+							deploymentId: '',
+							projectId: project.projectId,
+							errors: aptValidation.invalid.map((pkg) => ({
+								type: 'invalid-apt-dependency',
+								package: pkg.package,
+								error: pkg.error,
+								searchUrl: pkg.searchUrl,
+								availableVersions: pkg.availableVersions,
+							})),
+						} as never;
+					}
+
+					tui.error('Invalid apt dependencies in agentuity.json:');
+					tui.newline();
+					for (const pkg of aptValidation.invalid) {
+						tui.bullet(`${tui.bold(pkg.package)}: ${pkg.error}`);
+						if (pkg.availableVersions && pkg.availableVersions.length > 0) {
+							tui.muted(`    Available versions: ${pkg.availableVersions.join(', ')}`);
+						}
+						tui.muted(`    Search: ${tui.link(pkg.searchUrl)}`);
+					}
+					tui.newline();
+					tui.fatal(
+						'Fix the apt dependencies and try again. Search for valid packages at: https://packages.debian.org/stable/',
+						ErrorCode.CONFIG_INVALID
+					);
+				}
+			}
+
+			const initialDeployment = await projectDeploymentCreate(
+				apiClient,
+				project.projectId,
+				deploymentConfig
+			);
+
+			logger.debug('Created deployment: %s', initialDeployment.id);
+
+			// Build args to pass to child, excluding child-mode specific ones
+			const childArgs: string[] = [];
+			if (opts.logsUrl) childArgs.push(`--logs-url=${opts.logsUrl}`);
+			if (opts.trigger) childArgs.push(`--trigger=${opts.trigger}`);
+			if (opts.commitUrl) childArgs.push(`--commit-url=${opts.commitUrl}`);
+			if (opts.message) childArgs.push(`--message=${opts.message}`);
+			if (opts.commit) childArgs.push(`--commit=${opts.commit}`);
+			if (opts.branch) childArgs.push(`--branch=${opts.branch}`);
+			if (opts.provider) childArgs.push(`--provider=${opts.provider}`);
+			if (opts.repo) childArgs.push(`--repo=${opts.repo}`);
+			if (opts.event) childArgs.push(`--event=${opts.event}`);
+			if (opts.pullRequestNumber)
+				childArgs.push(`--pull-request-number=${opts.pullRequestNumber}`);
+			if (opts.pullRequestUrl) childArgs.push(`--pull-request-url=${opts.pullRequestUrl}`);
+
+			const result = await runForkedDeploy({
+				projectDir,
+				apiClient,
+				logger,
+				sdkKey: sdkKey!,
+				deployment: initialDeployment,
+				args: childArgs,
+			});
+
+			if (!result.success) {
+				const appUrl = getAppBaseURL(
+					process.env.AGENTUITY_REGION ?? config?.name,
+					config?.overrides
+				);
+				const deploymentLink = `${appUrl}/projects/${project.projectId}/deployments/${initialDeployment.id}`;
+				tui.fatal(
+					`Deployment failed: ${tui.link(deploymentLink, 'Deployment Page')}`,
+					ErrorCode.BUILD_FAILED
+				);
+			}
+
+			return {
+				success: true,
+				deploymentId: initialDeployment.id,
+				projectId: project.projectId,
+			};
+		}
+		let useExistingDeployment = false;
+		if (deploymentEnv) {
+			const ExistingDeploymentSchema = z.object({
+				id: z.string(),
+				orgId: z.string(),
+				publicKey: z.string(),
+			});
+			try {
+				const parsed = JSON.parse(deploymentEnv);
+				const result = ExistingDeploymentSchema.safeParse(parsed);
+				if (result.success) {
+					deployment = result.data;
+					useExistingDeployment = true;
+					logger.debug('Using existing deployment: %s', result.data.id);
+				} else {
+					const errors = result.error.issues
+						.map((i) => `${i.path.join('.')}: ${i.message}`)
+						.join(', ');
+					logger.fatal(`Invalid AGENTUITY_DEPLOYMENT schema: ${errors}`);
+				}
+			} catch (err) {
+				logger.fatal(`Failed to parse AGENTUITY_DEPLOYMENT: ${err}`);
+			}
 		}
 
 		try {
 			await saveProjectDir(projectDir);
+
+			// Check GitHub status and prompt for setup if not linked
+			// Skip in non-TTY environments (CI, automated runs) to prevent hanging
+			const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
+			if (!useExistingDeployment && !project.skipGitSetup && hasTTY) {
+				try {
+					const githubStatus = await getProjectGithubStatus(apiClient, project.projectId);
+
+					if (githubStatus.linked && githubStatus.autoDeploy) {
+						// GitHub is already set up with auto-deploy, tell user to push instead
+						tui.newline();
+						tui.info(
+							`This project is linked to ${tui.bold(githubStatus.repoFullName ?? 'GitHub')} with automatic deployments enabled.`
+						);
+						tui.newline();
+						tui.info(
+							`Push a commit to the ${tui.bold(githubStatus.branch ?? 'main')} branch to trigger a deployment.`
+						);
+						tui.newline();
+						throw new DeploymentCancelledError();
+					}
+
+					if (!githubStatus.linked) {
+						tui.newline();
+						const wantSetup = await tui.confirm(
+							'Would you like to set up automatic deployments from GitHub?'
+						);
+
+						if (wantSetup) {
+							const result = await runGitLink({
+								apiClient,
+								projectId: project.projectId,
+								orgId: project.orgId,
+								logger,
+								skipAlreadyLinkedCheck: true,
+								config,
+							});
+
+							if (result.linked && result.autoDeploy) {
+								// GitHub linked with auto-deploy, tell user to push instead
+								tui.newline();
+								tui.info('GitHub integration set up successfully!');
+								tui.newline();
+								tui.info('Push a commit to trigger your first deployment.');
+								tui.newline();
+								throw new DeploymentCancelledError();
+							} else if (result.linked) {
+								// Linked but auto-deploy disabled, continue with manual deploy
+								tui.newline();
+								tui.info('GitHub repository linked. Continuing with deployment...');
+								tui.newline();
+							}
+						} else {
+							await updateProjectConfig(projectDir, { skipGitSetup: true }, config);
+							tui.newline();
+							tui.info(
+								`Skipping GitHub setup. Run ${tui.bold(getCommand('git link'))} later to enable it.`
+							);
+							tui.newline();
+						}
+					}
+				} catch (err) {
+					// Re-throw intentional cancellations
+					if (err instanceof DeploymentCancelledError) {
+						throw err;
+					}
+					// Log other errors as non-fatal and continue
+					logger.trace('Failed to check GitHub status: %s', err);
+				}
+			}
 
 			await runSteps(
 				[
 					!project.deployment?.domains?.length
 						? null
 						: {
-								label: `Validate Custom Domain${project.deployment.domains.length > 1 ? `s: ${project.deployment.domains.join(', ')}` : `: ${project.deployment.domains[0]}`}`,
+								label: `Validate Custom ${tui.plural(project.deployment.domains.length, 'Domain', 'Domains')}`,
 								run: async () => {
 									if (project.deployment?.domains?.length) {
-										const result = await checkCustomDomainForDNS(
-											project.projectId,
-											project.deployment.domains,
-											config
-										);
-										for (const r of result) {
-											if (r.success) {
-												continue;
-											}
-											if (r.message) {
-												return stepError(r.message);
-											}
-											return stepError('unknown dns error'); // shouldn't get here
+										try {
+											await domain.promptForDNS(
+												project.projectId,
+												project.deployment.domains,
+												config!,
+												() => pauseStepUI(true)
+											);
+											return stepSuccess();
+										} catch (ex) {
+											return stepError(String(ex), ex as Error);
 										}
-										return stepSuccess();
 									}
 									return stepSkipped();
 								},
@@ -150,8 +426,13 @@ export const deploySubcommand = createSubcommand({
 						label: 'Sync Env & Secrets',
 						run: async () => {
 							try {
-								// Read local env file (.env.production or .env)
-								const envFilePath = await findEnvFile(projectDir);
+								const isCIBuild =
+									useExistingDeployment && process.env.AGENTUITY_FORK_PARENT !== '1';
+								if (isCIBuild) {
+									return stepSkipped('skipped in CI build');
+								}
+								// Read env file
+								const envFilePath = await findExistingEnvFile(projectDir);
 								const localEnv = await readEnvFile(envFilePath);
 
 								// Filter out AGENTUITY_ keys
@@ -183,22 +464,7 @@ export const deploySubcommand = createSubcommand({
 							}
 						},
 					},
-					{
-						label: 'Create Deployment',
-						run: async () => {
-							try {
-								deployment = await projectDeploymentCreate(
-									apiClient,
-									project.projectId,
-									project.deployment
-								);
-								return stepSuccess();
-							} catch (ex) {
-								const _ex = ex as { message?: string };
-								return stepError(_ex.message ?? String(_ex), ex as Error);
-							}
-						},
-					},
+
 					{
 						label: 'Build, Verify and Package',
 						run: async () => {
@@ -206,17 +472,41 @@ export const deploySubcommand = createSubcommand({
 								return stepError('deployment was null');
 							}
 							let capturedOutput: string[] = [];
+							const rootDir = resolve(projectDir);
+
+							// Run typecheck with collector for error reporting
+							const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
+							const started = Date.now();
+							const typeResult = await typecheck(rootDir, { collector });
+							endTypecheckDiagnostic();
+
+							if (typeResult.success) {
+								capturedOutput.push(
+									tui.muted(
+										`✓ Typechecked in ${Math.floor(Date.now() - started).toFixed(0)}ms`
+									)
+								);
+							} else {
+								// Errors already added to collector by typecheck()
+								// Write report before returning error
+								if (opts.reportFile) {
+									await collector.forceWrite();
+								}
+								return stepError('Typecheck failed\n\n' + typeResult.output);
+							}
 							try {
 								const bundleResult = await viteBundle({
-									rootDir: resolve(projectDir),
+									rootDir,
 									dev: false,
 									deploymentId: deployment.id,
 									orgId: deployment.orgId,
 									projectId: project.projectId,
 									region: project.region,
 									logger: ctx.logger,
+									deploymentOptions: opts,
+									collector,
 								});
-								capturedOutput = bundleResult.output;
+								capturedOutput = [...capturedOutput, ...bundleResult.output];
 								build = await loadBuildMetadata(join(projectDir, '.agentuity'));
 								instructions = await projectDeploymentUpdate(
 									apiClient,
@@ -226,6 +516,10 @@ export const deploySubcommand = createSubcommand({
 								return stepSuccess(capturedOutput.length > 0 ? capturedOutput : undefined);
 							} catch (ex) {
 								const _ex = ex as Error;
+								// Write report before returning error
+								if (opts.reportFile) {
+									await collector.forceWrite();
+								}
 								return stepError(
 									_ex.message ?? 'Error building your project',
 									_ex,
@@ -245,6 +539,8 @@ export const deploySubcommand = createSubcommand({
 								return stepError('deployment instructions were null');
 							}
 
+							// Start diagnostic for zip/encrypt phase
+							const endZipDiagnostic = collector.startDiagnostic('zip-package');
 							progress(5);
 							ctx.logger.trace('Starting deployment zip creation');
 							// zip up the assets folder
@@ -270,8 +566,11 @@ export const deploySubcommand = createSubcommand({
 							});
 							ctx.logger.trace(`Deployment zip created: ${deploymentZip}`);
 
+							endZipDiagnostic();
+
 							progress(20);
 							// Encrypt the deployment zip using the public key from deployment
+							const endEncryptDiagnostic = collector.startDiagnostic('encrypt');
 							const encryptedZip = join(tmpdir(), `${deployment.id}.enc.zip`);
 							try {
 								ctx.logger.trace('Creating public key');
@@ -299,8 +598,11 @@ export const deploySubcommand = createSubcommand({
 									dst.end();
 								});
 								ctx.logger.trace('Stream finished');
+								endEncryptDiagnostic();
 
 								progress(50);
+								// Start code upload diagnostic
+								const endCodeUploadDiagnostic = collector.startDiagnostic('code-upload');
 								ctx.logger.trace(`Uploading deployment to ${instructions.deployment}`);
 								const zipfile = Bun.file(encryptedZip);
 								const fileSize = await zipfile.size;
@@ -315,8 +617,15 @@ export const deploySubcommand = createSubcommand({
 								});
 								ctx.logger.trace(`Upload response: ${resp.status}`);
 								if (!resp.ok) {
-									return stepError(`Error uploading deployment: ${await resp.text()}`);
+									endCodeUploadDiagnostic();
+									const errorMsg = `Error uploading deployment: ${await resp.text()}`;
+									collector.addGeneralError('deploy', errorMsg, 'DEPLOY002');
+									if (opts.reportFile) {
+										await collector.forceWrite();
+									}
+									return stepError(errorMsg);
 								}
+								endCodeUploadDiagnostic();
 
 								progress(70);
 								ctx.logger.trace('Consuming response body');
@@ -334,18 +643,25 @@ export const deploySubcommand = createSubcommand({
 							}
 
 							progress(80);
+							let bytes = 0;
 							if (build?.assets) {
+								// Start CDN upload diagnostic
+								const endCdnUploadDiagnostic = collector.startDiagnostic('cdn-upload');
 								ctx.logger.trace(`Uploading ${build.assets.length} assets`);
 								if (!instructions.assets) {
-									return stepError(
-										'server did not provide asset upload URLs; upload aborted'
-									);
+									const errorMsg =
+										'server did not provide asset upload URLs; upload aborted';
+									collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
+									if (opts.reportFile) {
+										await collector.forceWrite();
+									}
+									return stepError(errorMsg);
 								}
 
 								// Workaround for Bun crash in compiled executables (https://github.com/agentuity/sdk/issues/191)
-								// Use limited concurrency (2 at a time) for executables to avoid parallel fetch crash
+								// Use limited concurrency (1 at a time) for executables to avoid parallel fetch crash
 								const isExecutable = isRunningFromExecutable();
-								const concurrency = isExecutable ? 2 : build.assets.length;
+								const concurrency = isExecutable ? 1 : Math.min(4, build.assets.length);
 
 								if (isExecutable) {
 									ctx.logger.trace(
@@ -367,15 +683,34 @@ export const deploySubcommand = createSubcommand({
 										}
 
 										// Asset filename already includes the subdirectory (e.g., "client/assets/main-abc123.js")
-										const file = Bun.file(join(projectDir, '.agentuity', asset.filename));
+										const filePath = join(projectDir, '.agentuity', asset.filename);
+
+										const headers: Record<string, string> = {
+											'Content-Type': asset.contentType,
+										};
+
+										bytes += asset.size;
+
+										let body: Uint8Array | Blob;
+										if (asset.contentEncoding === 'gzip') {
+											const file = Bun.file(filePath);
+											const ab = await file.arrayBuffer();
+											const gzipped = Bun.gzipSync(new Uint8Array(ab));
+											headers['Content-Encoding'] = 'gzip';
+											body = gzipped;
+											ctx.logger.trace(
+												`Compressing ${asset.filename} (${asset.size} -> ${gzipped.byteLength} bytes)`
+											);
+										} else {
+											body = Bun.file(filePath);
+										}
+
 										promises.push(
 											fetch(assetUrl, {
 												method: 'PUT',
 												duplex: 'half',
-												headers: {
-													'Content-Type': asset.contentType,
-												},
-												body: file,
+												headers,
+												body,
 											})
 										);
 									}
@@ -383,16 +718,29 @@ export const deploySubcommand = createSubcommand({
 									const resps = await Promise.all(promises);
 									for (const r of resps) {
 										if (!r.ok) {
-											return stepError(`error uploading asset: ${await r.text()}`);
+											const errorMsg = `error uploading asset: ${await r.text()}`;
+											collector.addGeneralError('deploy', errorMsg, 'DEPLOY006');
+											if (opts.reportFile) {
+												await collector.forceWrite();
+											}
+											return stepError(errorMsg);
 										}
 									}
 								}
 								ctx.logger.trace('Asset uploads complete');
+								endCdnUploadDiagnostic();
 								progress(95);
 							}
 
 							progress(100);
-							return stepSuccess();
+							const output = build?.assets.length
+								? [
+										tui.muted(
+											`✓ Uploaded ${build.assets.length} ${tui.plural(build.assets.length, 'asset', 'assets')} (${tui.formatBytes(bytes)}) to CDN`
+										),
+									]
+								: undefined;
+							return stepSuccess(output);
 						},
 					},
 					{
@@ -417,9 +765,17 @@ export const deploySubcommand = createSubcommand({
 				};
 			}
 
+			// TODO: send the deployment failure to the backend otherwise we staying in a deploying state
+
 			const streamId = complete?.streamId;
+			const appUrl = getAppBaseURL(
+				process.env.AGENTUITY_REGION ?? config?.name,
+				config?.overrides
+			);
+			const dashboard = `${appUrl}/r/${deployment.id}`;
 
 			// Poll for deployment status with optional log streaming
+			const endDeploymentWaitDiagnostic = collector.startDiagnostic('deployment-wait');
 			const pollInterval = 500;
 			const maxAttempts = 600;
 			let attempts = 0;
@@ -532,11 +888,16 @@ export const deploySubcommand = createSubcommand({
 							},
 						})
 						.then(() => {
+							endDeploymentWaitDiagnostic();
 							tui.success('Your project was deployed!');
 						})
-						.catch((ex) => {
+						.catch(async (ex) => {
+							endDeploymentWaitDiagnostic();
 							// Handle cancellation
 							if (ex instanceof DeploymentCancelledError) {
+								if (opts.reportFile) {
+									await collector.forceWrite();
+								}
 								tui.warning('Deployment cancelled');
 								process.exit(130); // Standard exit code for SIGINT
 							}
@@ -545,6 +906,18 @@ export const deploySubcommand = createSubcommand({
 								exwithmessage.message === 'Deployment failed'
 									? ''
 									: exwithmessage.toString();
+
+							// Add error to collector
+							const isTimeout = exwithmessage.message === 'Deployment timed out';
+							collector.addGeneralError(
+								'deploy',
+								msg || 'Deployment failed',
+								isTimeout ? 'DEPLOY003' : 'DEPLOY004'
+							);
+							if (opts.reportFile) {
+								await collector.forceWrite();
+							}
+
 							tui.error(`Your deployment failed to start${msg ? `: ${msg}` : ''}`);
 							if (logs.length) {
 								const logsDir = join(getDefaultConfigDir(), 'logs');
@@ -604,34 +977,78 @@ export const deploySubcommand = createSubcommand({
 						},
 					});
 
+					endDeploymentWaitDiagnostic();
 					tui.success('Your project was deployed!');
 				}
+			} catch (ex) {
+				endDeploymentWaitDiagnostic();
+				const exwithmessage = ex as { message: string };
+				const isTimeout = exwithmessage?.message === 'Deployment timed out';
+				collector.addGeneralError(
+					'deploy',
+					exwithmessage?.message || String(ex),
+					isTimeout ? 'DEPLOY003' : 'DEPLOY004'
+				);
+				if (opts.reportFile) {
+					await collector.forceWrite();
+				}
+
+				const lines = [`${ex}`, ''];
+				lines.push(
+					`${tui.ICONS.arrow} ${
+						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
+					}`
+				);
+				tui.banner(tui.colorError(`Deployment: ${deployment.id} Failed`), lines.join('\n'), {
+					centerTitle: false,
+					topSpacer: false,
+					bottomSpacer: false,
+				});
+				tui.fatal('Deployment failed', ErrorCode.BUILD_FAILED);
 			} finally {
 				// Clean up signal handler
 				process.off('SIGINT', sigintHandler);
 			}
 
-			const appUrl = getAppBaseURL(config?.name, config?.overrides);
-
-			const dashboard = `${appUrl}/r/${deployment.id}`;
-
 			// Show deployment URLs
 			if (complete?.publicUrls) {
+				const lines: string[] = [];
 				if (complete.publicUrls.custom?.length) {
 					for (const url of complete.publicUrls.custom) {
-						tui.arrow(tui.bold(tui.padRight('Deployment URL:', 17)) + tui.link(url));
+						lines.push(
+							`${tui.ICONS.arrow} ${tui.bold(tui.padRight('Deployment:', 12)) + tui.link(url)}`
+						);
 					}
 				} else {
-					tui.arrow(
-						tui.bold(tui.padRight('Deployment URL:', 17)) +
+					lines.push(
+						`${tui.ICONS.arrow} ${
+							tui.bold(tui.padRight('Deployment:', 12)) +
 							tui.link(complete.publicUrls.deployment)
+						}`
 					);
-					tui.arrow(
-						tui.bold(tui.padRight('Project URL:', 17)) + tui.link(complete.publicUrls.latest)
+					lines.push(
+						`${tui.ICONS.arrow} ${
+							tui.bold(tui.padRight('Project:', 12)) + tui.link(complete.publicUrls.latest)
+						}`
 					);
-					tui.arrow(tui.bold(tui.padRight('Dashboard URL:', 17)) + tui.link(dashboard));
 				}
+				lines.push(
+					`${tui.ICONS.arrow} ${
+						tui.bold(tui.padRight('Dashboard:', 12)) + tui.link(dashboard)
+					}`
+				);
+				tui.banner(`Deployment: ${tui.colorPrimary(deployment.id)}`, lines.join('\n'), {
+					centerTitle: false,
+					topSpacer: false,
+					bottomSpacer: false,
+				});
 			}
+
+			// Write final report on success
+			if (opts.reportFile) {
+				await collector.forceWrite();
+			}
+			clearGlobalCollector();
 
 			return {
 				success: true,
@@ -648,6 +1065,11 @@ export const deploySubcommand = createSubcommand({
 					: undefined,
 			};
 		} catch (ex) {
+			collector.addGeneralError('deploy', String(ex), 'DEPLOY004');
+			if (opts.reportFile) {
+				await collector.forceWrite();
+			}
+			clearGlobalCollector();
 			tui.fatal(`unexpected error trying to deploy project. ${ex}`);
 		}
 	},

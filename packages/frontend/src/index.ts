@@ -2,7 +2,12 @@ export { getProcessEnv } from './env';
 export { buildUrl, defaultBaseUrl } from './url';
 export { deserializeData } from './serialization';
 export { createReconnectManager, type ReconnectOptions, type ReconnectManager } from './reconnect';
-export { type RouteRegistry, type WebSocketRouteRegistry, type SSERouteRegistry } from './types';
+export {
+	type RouteRegistry,
+	type WebSocketRouteRegistry,
+	type SSERouteRegistry,
+	type RPCRouteRegistry,
+} from './types';
 export { jsonEqual } from './memo';
 export {
 	WebSocketManager,
@@ -41,3 +46,24 @@ export type {
 	StreamClient,
 	EventHandler,
 } from './client/types';
+
+// Export analytics (beacon is bundled separately via beacon-standalone.ts)
+export {
+	getAnalytics,
+	track,
+	getVisitorId,
+	isOptedOut,
+	setOptOut,
+	getUTMParams,
+	type AnalyticsClient,
+	type AnalyticsPayload,
+	type AnalyticsPageConfig,
+	type PageViewPayload,
+	type ScrollEvent,
+	type AnalyticsCustomEvent,
+	type GeoLocation,
+} from './analytics';
+
+// Re-export beacon script for server-side use
+// The actual value is replaced at build time by scripts/build-beacon.ts
+export { BEACON_SCRIPT, validateBeaconScript } from './beacon-script';

@@ -53,17 +53,18 @@ const sessionBasicAgent = createAgent('session-basic', {
 
 			case 'thread-state-set': {
 				if (!key) throw new Error('Key required');
-				ctx.thread.state.set(key, value);
+				await ctx.thread.state.set(key, value);
+				const stateSize = await ctx.thread.state.size();
 				return {
 					operation,
 					success: true,
-					stateSize: ctx.thread.state.size,
+					stateSize,
 				};
 			}
 
 			case 'thread-state-get': {
 				if (!key) throw new Error('Key required');
-				const retrieved = ctx.thread.state.get(key);
+				const retrieved = await ctx.thread.state.get(key);
 				return {
 					operation,
 					value: retrieved,
@@ -72,7 +73,7 @@ const sessionBasicAgent = createAgent('session-basic', {
 			}
 
 			case 'thread-empty': {
-				const isEmpty = ctx.thread.empty();
+				const isEmpty = await ctx.thread.empty();
 				return {
 					operation,
 					value: isEmpty,

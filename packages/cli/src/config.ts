@@ -21,6 +21,7 @@ import {
 	getAuthFromKeychain,
 	deleteAuthFromKeychain,
 } from './keychain';
+import { clearProfileCache } from './cache';
 
 export const defaultProfileName = 'production';
 
@@ -181,6 +182,9 @@ export async function loadConfig(customPath?: string, skipCache = false): Promis
 			if (process.env.AGENTUITY_KEYVALUE_URL) {
 				overrides.kv_url = process.env.AGENTUITY_KEYVALUE_URL;
 			}
+			if (process.env.AGENTUITY_SANDBOX_URL) {
+				overrides.sandbox_url = process.env.AGENTUITY_SANDBOX_URL;
+			}
 			if (process.env.AGENTUITY_VECTOR_URL) {
 				overrides.vector_url = process.env.AGENTUITY_VECTOR_URL;
 			}
@@ -294,11 +298,12 @@ export async function saveAuth(auth: AuthData): Promise<void> {
 		try {
 			await saveAuthToKeychain(profileName, authData);
 
-			// Successfully stored in keychain, remove from config if present
+			// Successfully stored in keychain, remove auth from config if present
+			// but always save config to ensure profile file exists
 			if (config.auth) {
 				delete config.auth;
-				await saveConfig(config);
 			}
+			await saveConfig(config);
 			return;
 		} catch (error) {
 			// Keychain failed, fall back to config file
@@ -327,6 +332,9 @@ export async function clearAuth(): Promise<void> {
 		}
 	}
 
+	// Clear resource cache for this profile
+	await clearProfileCache(profileName);
+
 	// Also clear from config file (for backwards compatibility)
 	if (config.auth) {
 		delete config.auth;
@@ -349,6 +357,29 @@ export async function saveOrgId(orgId: string): Promise<void> {
 	config.preferences = config.preferences || {};
 	(config.preferences as Record<string, unknown>).orgId = orgId;
 	await saveConfig(config);
+}
+
+export async function clearOrgId(): Promise<void> {
+	const config = await getOrInitConfig();
+	if (config.preferences) {
+		delete (config.preferences as Record<string, unknown>).orgId;
+		await saveConfig(config);
+	}
+}
+
+export async function saveRegion(region: string): Promise<void> {
+	const config = await getOrInitConfig();
+	config.preferences = config.preferences || {};
+	(config.preferences as Record<string, unknown>).region = region;
+	await saveConfig(config);
+}
+
+export async function clearRegion(): Promise<void> {
+	const config = await getOrInitConfig();
+	if (config.preferences) {
+		delete (config.preferences as Record<string, unknown>).region;
+		await saveConfig(config);
+	}
 }
 
 export async function getAuth(): Promise<AuthData | null> {
@@ -378,6 +409,13 @@ export async function getAuth(): Promise<AuthData | null> {
 		try {
 			const keychainAuth = await getAuthFromKeychain(profileName);
 			if (keychainAuth) {
+				// If there's auth api_key in the config file, remove it since we have it in keychain
+				if (config?.auth?.api_key) {
+					const { api_key: _, ...authWithoutApiKey } = config.auth;
+					const configCopy = { ...config, auth: authWithoutApiKey };
+					cachedConfig = null; // Force cache refresh
+					await saveConfig(configCopy);
+				}
 				return {
 					apiKey: keychainAuth.api_key,
 					userId: keychainAuth.user_id,
@@ -496,13 +534,7 @@ export function generateYAMLTemplate(name: string): string {
 	return lines.join('\n');
 }
 
-class ProjectConfigNotFoundExpection extends Error {
-	public name: string;
-	constructor() {
-		super('project not found');
-		this.name = 'ProjectConfigNotFoundExpection';
-	}
-}
+export const ProjectConfigNotFoundException = StructuredError('ProjectConfigNotFoundException');
 
 type ProjectConfig = z.infer<typeof ProjectSchema>;
 
@@ -526,7 +558,7 @@ export async function loadProjectConfig(
 		// and then if so:
 		// 1. if authentication, offer to import the project
 		// 2. tell them that they need to login to use the command and import the project
-		throw new ProjectConfigNotFoundExpection();
+		throw new ProjectConfigNotFoundException({ message: 'project config not found' });
 	}
 	const text = await file.text();
 	const parsedConfig = JSON5.parse(text);
@@ -553,13 +585,23 @@ export const InitialProjectConfigSchema = z.intersection(
 type InitialProjectConfig = z.infer<typeof InitialProjectConfigSchema>;
 
 export async function createProjectConfig(dir: string, config: InitialProjectConfig) {
-	const { sdkKey, ...sanitizedConfig } = config;
+	const { sdkKey, skipGitSetup: _skipGitSetup, ...sanitizedConfig } = config;
 
 	// generate the project config
 	const configPath = join(dir, 'agentuity.json');
 	const configData = {
 		$schema: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
 		...sanitizedConfig,
+		deployment: {
+			...sanitizedConfig.deployment,
+			resources: {
+				memory: '500Mi',
+				cpu: '500m',
+				disk: '500Mi',
+				...sanitizedConfig.deployment?.resources,
+			},
+			domains: sanitizedConfig.deployment?.domains ?? [],
+		},
 	};
 	await Bun.write(configPath, JSON.stringify(configData, null, 2) + '\n');
 
@@ -571,26 +613,63 @@ export async function createProjectConfig(dir: string, config: InitialProjectCon
 	await Bun.write(envPath, content);
 	await chmod(envPath, 0o600);
 
-	// generate the vscode settings
+	// generate the vscode settings (only if they don't already exist)
 	const vscodeDir = join(dir, '.vscode');
-	mkdirSync(vscodeDir);
+	const settingsPath = join(vscodeDir, 'settings.json');
+	if (!(await Bun.file(settingsPath).exists())) {
+		mkdirSync(vscodeDir, { recursive: true });
 
-	const settings = {
-		'search.exclude': {
-			'**/.git/**': true,
-			'**/node_modules/**': true,
-			'**/bun.lock': true,
-			'**/.agentuity/**': true,
-		},
-		'json.schemas': [
-			{
-				fileMatch: ['agentuity.json'],
-				url: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
+		const settings = {
+			'search.exclude': {
+				'**/.git/**': true,
+				'**/node_modules/**': true,
+				'**/bun.lock': true,
+				'**/.agentuity/**': true,
 			},
-		],
-	};
+			'json.schemas': [
+				{
+					fileMatch: ['agentuity.json'],
+					url: 'https://agentuity.dev/schema/cli/v1/agentuity.json',
+				},
+			],
+		};
 
-	await Bun.write(join(vscodeDir, 'settings.json'), JSON.stringify(settings, null, 2));
+		await Bun.write(settingsPath, JSON.stringify(settings, null, 2));
+	}
+}
+
+export async function updateProjectConfig(
+	dir: string,
+	updates: Partial<z.infer<typeof ProjectSchema>>,
+	config?: Config | null
+): Promise<void> {
+	let configPath = join(dir, 'agentuity.json');
+
+	if (config?.name) {
+		const profileConfigPath = join(dir, `agentuity.${config.name}.json`);
+		if (await Bun.file(profileConfigPath).exists()) {
+			configPath = profileConfigPath;
+		}
+	}
+
+	const file = Bun.file(configPath);
+	if (!(await file.exists())) {
+		throw new Error(`Project config not found at ${configPath}`);
+	}
+
+	const text = await file.text();
+	const existing = JSON5.parse(text);
+	const updated = { ...existing, ...updates };
+
+	const result = ProjectSchema.safeParse(updated);
+	if (!result.success) {
+		const issues = result.error.issues
+			.map((i) => `${i.path.join('.') || 'root'}: ${i.message}`)
+			.join(', ');
+		throw new Error(`Invalid project config after update: ${issues}`);
+	}
+
+	await Bun.write(configPath, JSON.stringify(updated, null, 2) + '\n');
 }
 
 const BuildMetadataNotFoundError = StructuredError('BuildMetadataNotFoundError');
@@ -658,6 +737,72 @@ export function getCatalystAPIClient(logger: Logger, auth: AuthData, region: str
 	const serviceUrls = getServiceUrls(region);
 	const catalystUrl = serviceUrls.catalyst;
 	return new ServerAPIClient(catalystUrl, logger, auth.apiKey);
+}
+
+interface RegionsCacheData {
+	timestamp: number;
+	regions: Array<{ region: string; description: string }>;
+}
+
+/**
+ * Get the default region using priority ordering:
+ * 1. AGENTUITY_REGION environment variable
+ * 2. 'local' for local profile
+ * 3. Saved region preference (config.preferences.region)
+ * 4. First entry in region-{profile}.json (nearest region, sorted by distance)
+ * 5. 'usc' fallback
+ *
+ * Used for API calls that can hit any Catalyst instance (global database operations).
+ * Note: This is NOT called when --region flag is provided (handled at command level).
+ */
+export async function getDefaultRegion(
+	profileName = 'production',
+	config?: Config | null
+): Promise<string> {
+	// 1. Check environment variable first
+	if (process.env.AGENTUITY_REGION) {
+		return process.env.AGENTUITY_REGION;
+	}
+
+	// 2. Local profile always uses 'local' region
+	if (profileName === 'local') {
+		return 'local';
+	}
+
+	// 3. Check saved region preference
+	if (config?.preferences?.region) {
+		return config.preferences.region;
+	}
+
+	// 4. Check cached regions file (sorted by distance)
+	try {
+		const cachePath = join(getDefaultConfigDir(), `regions-${profileName}.json`);
+		const file = Bun.file(cachePath);
+		if (await file.exists()) {
+			const data: RegionsCacheData = await file.json();
+			if (data.regions && data.regions.length > 0) {
+				return data.regions[0].region;
+			}
+		}
+	} catch {
+		// Fall through to default
+	}
+
+	// 5. Final fallback
+	return 'usc';
+}
+
+/**
+ * Get a Catalyst API client for global database operations.
+ * Uses the default region since the admin DB is global.
+ */
+export async function getGlobalCatalystAPIClient(
+	logger: Logger,
+	auth: AuthData,
+	profileName = 'production'
+) {
+	const region = await getDefaultRegion(profileName);
+	return getCatalystAPIClient(logger, auth, region);
 }
 
 export function getIONHost(config: Config | null, region: string) {

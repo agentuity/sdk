@@ -1,8 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
+	globalSetup: './e2e/global-setup.ts',
+	globalTeardown: './e2e/global-teardown.ts',
 	testDir: './e2e',
 	testMatch: '**/*.pw.ts',
+	testIgnore: ['**/frameworks/**'],
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 2 : 0,
@@ -23,5 +26,6 @@ export default defineConfig({
 		url: 'http://localhost:3500',
 		reuseExistingServer: !process.env.CI,
 		timeout: 120000,
+		stdout: 'pipe',
 	},
 });

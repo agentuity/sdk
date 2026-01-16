@@ -5,6 +5,8 @@ import { viteBundle } from './vite-bundler';
 import * as tui from '../../tui';
 import { getCommand } from '../../command-prefix';
 import { ErrorCode } from '../../errors';
+import { typecheck } from './typecheck';
+import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
 
 const BuildResponseSchema = z.object({
 	success: z.boolean().describe('Whether the build succeeded'),
@@ -35,12 +37,24 @@ export const command = createCommand({
 				.default(false)
 				.optional()
 				.describe('Skip typecheck after build'),
+			reportFile: z
+				.string()
+				.optional()
+				.describe('file path to save build report JSON with errors, warnings, and diagnostics'),
 		}),
 		response: BuildResponseSchema,
 	},
 
 	async handler(ctx) {
 		const { opts, projectDir, project } = ctx;
+
+		// Initialize build report collector if reportFile is specified
+		const collector = new BuildReportCollector();
+		if (opts.reportFile) {
+			collector.setOutputPath(opts.reportFile);
+			collector.enableAutoWrite();
+			setGlobalCollector(collector);
+		}
 
 		const absoluteProjectDir = resolve(projectDir);
 		const outDir = opts.outdir ? resolve(opts.outdir) : join(absoluteProjectDir, '.agentuity');
@@ -58,6 +72,7 @@ export const command = createCommand({
 				orgId: project?.orgId,
 				region: project?.region ?? 'local',
 				logger: ctx.logger,
+				collector,
 			});
 
 			// Copy profile-specific .env file AFTER bundling (bundler clears outDir first)
@@ -78,26 +93,51 @@ export const command = createCommand({
 			if (!opts.dev && !opts.skipTypeCheck) {
 				try {
 					tui.info('Running type check...');
-					const result = await Bun.$`bunx tsc --noEmit --skipLibCheck`
-						.cwd(absoluteProjectDir)
-						.nothrow();
+					const endTypecheckDiagnostic = collector.startDiagnostic('typecheck');
+					const typeResult = await typecheck(absoluteProjectDir, { collector });
+					endTypecheckDiagnostic();
 
-					if (result.exitCode === 0) {
+					if (typeResult.success) {
 						tui.success('Type check passed');
 					} else {
-						tui.error('Type check failed:\n');
-						console.error(result.stderr.toString());
-						tui.fatal('Fix type errors before building');
+						console.error('');
+						console.error(typeResult.output);
+						console.error('');
+						const msg =
+							'errors' in typeResult ? 'Fix type errors before building' : 'Build error';
+
+						// Write report before fatal exit
+						if (opts.reportFile) {
+							await collector.forceWrite();
+						}
+						clearGlobalCollector();
+						tui.fatal(msg, ErrorCode.BUILD_FAILED);
 					}
 				} catch (error: unknown) {
-					// If tsc fails to run, show error and fail
 					const errorMsg = error instanceof Error ? error.message : String(error);
+					collector.addGeneralError('typescript', errorMsg, 'BUILD008');
+
+					// Write report before fatal exit
+					if (opts.reportFile) {
+						await collector.forceWrite();
+					}
+					clearGlobalCollector();
+
 					tui.error(`Type check failed to run: ${errorMsg}`);
-					tui.fatal('Unable to run TypeScript type checking. Ensure TypeScript is installed.');
+					tui.fatal(
+						'Unable to run TypeScript type checking. Ensure TypeScript is installed.',
+						ErrorCode.BUILD_FAILED
+					);
 				}
 			}
 
 			tui.success('Build complete');
+
+			// Write final report on success
+			if (opts.reportFile) {
+				await collector.forceWrite();
+			}
+			clearGlobalCollector();
 
 			return {
 				success: true,
@@ -106,11 +146,24 @@ export const command = createCommand({
 				dev: opts.dev || false,
 			};
 		} catch (error: unknown) {
+			// Add error to collector
 			if (error instanceof AggregateError) {
 				const ae = error as AggregateError;
 				for (const e of ae.errors) {
+					collector.addGeneralError('build', e.message, 'BUILD004');
 					tui.error(e.message);
 				}
+			} else {
+				collector.addGeneralError('build', String(error), 'BUILD004');
+			}
+
+			// Write report before fatal exit
+			if (opts.reportFile) {
+				await collector.forceWrite();
+			}
+			clearGlobalCollector();
+
+			if (error instanceof AggregateError) {
 				tui.fatal('Build failed', ErrorCode.BUILD_FAILED);
 			} else {
 				tui.fatal(`Build failed: ${error}`, ErrorCode.BUILD_FAILED);

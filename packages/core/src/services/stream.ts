@@ -1,11 +1,19 @@
 import { safeStringify } from '../json';
-import { FetchAdapter, FetchResponse } from './adapter';
+import { FetchAdapter } from './adapter';
 import { buildUrl, toServiceException } from './_util';
 import { StructuredError } from '../error';
-import {
-	WritableStream as WebWritableStream,
-	TransformStream as WebTransformStream,
-} from 'stream/web';
+
+// Use Web API streams - in Node.js/Bun, import from 'stream/web' which provides proper Web API
+// In browsers, use globalThis directly
+// Check for Node.js/Bun by looking for process.versions.node
+const isNode =
+	typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const streamWeb = isNode ? require('stream/web') : globalThis;
+const NativeWritableStream = streamWeb.WritableStream as typeof WritableStream;
+const NativeReadableStream = streamWeb.ReadableStream as typeof ReadableStream;
+const NativeCompressionStream = (streamWeb.CompressionStream ??
+	globalThis.CompressionStream) as typeof CompressionStream;
 
 /**
  * Properties for creating a stream
@@ -137,7 +145,13 @@ export interface Stream extends WritableStream {
 	 */
 	readonly compressed: boolean;
 	/**
-	 * write data to the stream
+	 * Write data to the stream.
+	 *
+	 * Each write call can send up to 5MB of data. For larger payloads, split the data
+	 * across multiple write calls.
+	 *
+	 * @param chunk - The data to write (string, binary, or object that will be JSON-serialized)
+	 * @throws ServiceException with status 413 if chunk exceeds 5MB
 	 */
 	write(chunk: string | Uint8Array | ArrayBuffer | object): Promise<void>;
 	/**
@@ -270,29 +284,32 @@ const encoder = new TextEncoder();
 const ReadStreamFailedError = StructuredError('ReadStreamFailedError')<{ status: number }>();
 
 /**
- * A writable stream implementation that extends WritableStream
+ * A writable stream implementation using composition (browser-compatible)
+ * This approach works across all environments since native WritableStream can't be properly extended
  */
-class StreamImpl extends WebWritableStream implements Stream {
+class StreamImpl implements Stream {
 	public readonly id: string;
 	public readonly url: string;
-	#activeWriter: WritableStreamDefaultWriter<Uint8Array> | null = null;
+	readonly #writable: WritableStream<Uint8Array>;
 	#compressed: boolean;
 	#adapter: FetchAdapter;
-	#sink: UnderlyingSink;
+	#sink: UnderlyingSinkState;
+	#closed = false;
 
 	constructor(
 		id: string,
 		url: string,
 		compressed: boolean,
-		underlyingSink: UnderlyingSink,
+		sink: UnderlyingSinkState,
+		writable: WritableStream<Uint8Array>,
 		adapter: FetchAdapter
 	) {
-		super(underlyingSink);
 		this.id = id;
 		this.url = url;
 		this.#compressed = compressed;
 		this.#adapter = adapter;
-		this.#sink = underlyingSink;
+		this.#sink = sink;
+		this.#writable = writable;
 	}
 
 	get bytesWritten(): number {
@@ -301,6 +318,11 @@ class StreamImpl extends WebWritableStream implements Stream {
 
 	get compressed(): boolean {
 		return this.#compressed;
+	}
+
+	// WritableStream interface properties
+	get locked(): boolean {
+		return this.#writable.locked;
 	}
 
 	/**
@@ -320,29 +342,21 @@ class StreamImpl extends WebWritableStream implements Stream {
 			binaryChunk = encoder.encode(String(chunk));
 		}
 
-		if (!this.#activeWriter) {
-			this.#activeWriter = super.getWriter();
-		}
-		await this.#activeWriter.write(binaryChunk);
+		// Delegate to the underlying sink's write method
+		await this.#sink.write(binaryChunk);
 	}
 
 	/**
-	 * Override close to handle already closed streams gracefully
-	 * This method safely closes the stream, or silently returns if already closed
+	 * Close the stream gracefully, handling already closed streams without error
 	 */
 	async close(): Promise<void> {
-		try {
-			// If we have an active writer from write() calls, use that
-			if (this.#activeWriter) {
-				const writer = this.#activeWriter;
-				this.#activeWriter = null;
-				await writer.close();
-				return;
-			}
+		if (this.#closed) {
+			return;
+		}
+		this.#closed = true;
 
-			// Otherwise, get a writer and close it
-			const writer = super.getWriter();
-			await writer.close();
+		try {
+			await this.#sink.close();
 		} catch (error) {
 			// If we get a TypeError about the stream being closed, locked, or errored,
 			// that means pipeTo() or another operation already closed it or it's in use
@@ -353,16 +367,30 @@ class StreamImpl extends WebWritableStream implements Stream {
 					error.message.includes('Cannot close'))
 			) {
 				// Silently return - this is the desired behavior
-				return Promise.resolve();
+				return;
 			}
 			// If the stream is locked, try to close the underlying writer
 			if (error instanceof TypeError && error.message.includes('locked')) {
 				// Best-effort closure for locked streams
-				return Promise.resolve();
+				return;
 			}
 			// Re-throw any other errors
 			throw error;
 		}
+	}
+
+	/**
+	 * Abort the stream with an optional reason
+	 */
+	abort(reason?: unknown): Promise<void> {
+		return this.#writable.abort(reason);
+	}
+
+	/**
+	 * Get a writer for the underlying stream
+	 */
+	getWriter(): WritableStreamDefaultWriter<Uint8Array> {
+		return this.#writable.getWriter();
 	}
 
 	/**
@@ -377,7 +405,8 @@ class StreamImpl extends WebWritableStream implements Stream {
 		const url = this.url;
 		const adapter = this.#adapter;
 		let ac: AbortController | null = null;
-		return new ReadableStream({
+		// Use native ReadableStream to avoid polyfill interference
+		return new NativeReadableStream({
 			async start(controller) {
 				try {
 					ac = new AbortController();
@@ -435,24 +464,33 @@ class StreamImpl extends WebWritableStream implements Stream {
 	}
 }
 
-const StreamWriterInitializationError = StructuredError(
-	'StreamWriterInitializationError',
-	'Stream writer is not initialized'
-);
-
 const StreamAPIError = StructuredError('StreamAPIError')<{ status: number }>();
 
-// Create a WritableStream that writes to the backend stream
-// Create the underlying sink that will handle the actual streaming
-class UnderlyingSink {
+/**
+ * Check if compression is available in the current environment.
+ * CompressionStream is available in:
+ * - Node.js 18+ (via stream/web)
+ * - Chrome 80+
+ * - Safari 16.4+
+ * - Firefox 113+
+ */
+function isCompressionAvailable(): boolean {
+	return typeof NativeCompressionStream !== 'undefined' && NativeCompressionStream !== null;
+}
+
+/**
+ * State object that handles streaming to the backend using the append API.
+ * Each write() call sends data immediately via a separate HTTP POST request,
+ * enabling real-time streaming without buffering issues.
+ */
+class UnderlyingSinkState {
 	adapter: FetchAdapter;
-	abortController: AbortController | null = null;
-	writer: WritableStreamDefaultWriter<Uint8Array> | null = null;
-	putRequestPromise: Promise<FetchResponse<unknown>> | null = null;
 	total = 0;
 	closed = false;
 	url: string;
 	props?: CreateStreamProps;
+	compressionEnabled = false;
+	writable: WritableStream<Uint8Array> | null = null;
 
 	constructor(url: string, adapter: FetchAdapter, props?: CreateStreamProps) {
 		this.url = url;
@@ -460,124 +498,91 @@ class UnderlyingSink {
 		this.props = props;
 	}
 
-	async start() {
-		// Create AbortController for the fetch request
-		this.abortController = new AbortController();
+	async start(): Promise<WritableStream<Uint8Array>> {
+		// Check if compression is enabled and available
+		this.compressionEnabled = !!(this.props?.compress && isCompressionAvailable());
 
-		// Create a ReadableStream to pipe data to the PUT request
-		// eslint-disable-next-line prefer-const
-		let { readable, writable } = new WebTransformStream<Uint8Array, Uint8Array>();
-
-		// If compression is enabled, add gzip transform
-		if (this.props?.compress) {
-			const { Readable, Writable } = await import('node:stream');
-
-			// Create a new transform for the compressed output
-			const { readable: compressedReadable, writable: compressedWritable } =
-				new WebTransformStream<Uint8Array, Uint8Array>();
-
-			// Set up compression pipeline
-			const { createGzip } = await import('node:zlib');
-			const gzipStream = createGzip();
-			const nodeWritable = Writable.toWeb(gzipStream) as WritableStream<Uint8Array>;
-
-			// Pipe gzip output to the compressed readable
-			const gzipReader = Readable.toWeb(gzipStream) as ReadableStream<Uint8Array>;
-			gzipReader.pipeTo(compressedWritable).catch((error) => {
-				this.abortController?.abort(error);
-				this.writer?.abort(error).catch(() => {});
-			});
-
-			// Chain: writable -> gzip -> compressedReadable
-			readable.pipeTo(nodeWritable).catch((error) => {
-				this.abortController?.abort(error);
-				this.writer?.abort(error).catch(() => {});
-			});
-			readable = compressedReadable;
-		}
-
-		this.writer = writable.getWriter();
-
-		// Start the PUT request with the readable stream as body
-		const headers: Record<string, string> = {
-			'Content-Type': this.props?.contentType || 'application/octet-stream',
-		};
-
-		if (this.props?.compress) {
-			headers['Content-Encoding'] = 'gzip';
-		}
-
-		this.putRequestPromise = this.adapter.invoke(this.url, {
-			method: 'PUT',
-			headers,
-			body: readable,
-			signal: this.abortController.signal,
-			duplex: 'half',
+		// Create a WritableStream that wraps our append-based write
+		this.writable = new NativeWritableStream<Uint8Array>({
+			write: async (chunk) => {
+				await this.write(chunk);
+			},
+			close: async () => {
+				await this.close();
+			},
+			abort: async (reason) => {
+				await this.abort(reason);
+			},
 		});
+
+		return this.writable;
 	}
 
-	async write(chunk: string | Uint8Array | ArrayBuffer | Buffer | object) {
-		if (!this.writer) {
-			throw new StreamWriterInitializationError();
+	async write(chunk: Uint8Array) {
+		if (this.closed) {
+			return;
 		}
-		// Convert input to Uint8Array if needed
-		let binaryChunk: Uint8Array;
-		if (chunk instanceof Uint8Array) {
-			binaryChunk = chunk;
-		} else if (typeof chunk === 'string') {
-			binaryChunk = new TextEncoder().encode(chunk);
-		} else if (chunk instanceof ArrayBuffer) {
-			binaryChunk = new Uint8Array(chunk);
-		} else if (typeof chunk === 'object' && chunk !== null) {
-			// Convert objects to JSON string, then to bytes
-			binaryChunk = new TextEncoder().encode(safeStringify(chunk));
-		} else {
-			// Handle primitive types (number, boolean, etc.)
-			binaryChunk = new TextEncoder().encode(String(chunk));
+
+		// Note: For append-based streaming, we don't compress individual chunks
+		// because each would become a separate gzip stream that can't be concatenated.
+		// Instead, compression is handled server-side during the complete phase.
+		this.total += chunk.length;
+
+		// Send the chunk immediately via POST to /append endpoint
+		const appendUrl = `${this.url}/append`;
+		const signal = AbortSignal.timeout(30_000);
+
+		const res = await this.adapter.invoke(appendUrl, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/octet-stream',
+			},
+			body: chunk,
+			signal,
+		});
+
+		if (!res.ok) {
+			throw new StreamAPIError({
+				status: res.response.status,
+				message: `Append request failed: ${res.response.status} ${res.response.statusText}`,
+			});
 		}
-		// Write the chunk to the transform stream, which pipes to the PUT request
-		await this.writer.write(binaryChunk);
-		this.total += binaryChunk.length;
 	}
+
 	async close() {
 		if (this.closed) {
 			return;
 		}
 		this.closed = true;
-		if (this.writer) {
-			await this.writer.close();
-			this.writer = null;
+
+		// Call the complete endpoint to finalize the stream
+		// Pass compress flag to request server-side compression
+		const completeUrl = `${this.url}/complete`;
+		const signal = AbortSignal.timeout(60_000); // Longer timeout for compression
+
+		const headers: Record<string, string> = {};
+		if (this.compressionEnabled) {
+			headers['X-Compress'] = 'gzip';
 		}
-		// Wait for the PUT request to complete
-		if (this.putRequestPromise) {
-			try {
-				const res = await this.putRequestPromise;
-				if (!res.ok) {
-					throw new StreamAPIError({
-						status: res.response.status,
-						message: `PUT request failed: ${res.response.status} ${res.response.statusText}`,
-					});
-				}
-			} catch (error) {
-				if (error instanceof Error && error.name !== 'AbortError') {
-					throw error;
-				}
-			}
-			this.putRequestPromise = null;
+
+		const res = await this.adapter.invoke(completeUrl, {
+			method: 'POST',
+			headers,
+			signal,
+		});
+
+		if (!res.ok) {
+			throw new StreamAPIError({
+				status: res.response.status,
+				message: `Complete request failed: ${res.response.status} ${res.response.statusText}`,
+			});
 		}
-		this.abortController = null;
 	}
-	async abort(reason?: unknown) {
-		if (this.writer) {
-			await this.writer.abort(reason);
-			this.writer = null;
-		}
-		// Abort the fetch request
-		if (this.abortController) {
-			this.abortController.abort(reason);
-			this.abortController = null;
-		}
-		this.putRequestPromise = null;
+
+	async abort(_reason?: unknown) {
+		this.closed = true;
+		// For append-based streaming, abort is a no-op since each request is independent
+		// The stream will simply be incomplete if not all chunks were sent
 	}
 }
 
@@ -641,13 +646,16 @@ export class StreamStorageService implements StreamStorage {
 		});
 		if (res.ok) {
 			const streamUrl = buildUrl(this.#baseUrl, res.data.id);
-			const underlyingSink = new UnderlyingSink(streamUrl, this.#adapter, props);
+			const sink = new UnderlyingSinkState(streamUrl, this.#adapter, props);
+			// Initialize the sink (start the PUT request) and get the writable stream
+			const writable = await sink.start();
 
 			const stream = new StreamImpl(
 				res.data.id,
 				streamUrl,
-				props?.compress ?? false,
-				underlyingSink,
+				sink.compressionEnabled,
+				sink,
+				writable,
 				this.#adapter
 			);
 

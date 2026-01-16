@@ -1,5 +1,5 @@
 import type { Schema } from '../base';
-import { createIssue, failure, success, createParseMethods } from '../base';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -18,6 +18,7 @@ const parseMethods = createParseMethods<Date>();
  * ```
  */
 export class CoerceDateSchema implements Schema<unknown, Date> {
+	readonly [SCHEMA_KIND] = 'CoerceDateSchema';
 	description?: string;
 
 	readonly '~standard' = {

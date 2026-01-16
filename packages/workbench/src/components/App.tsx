@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
-import { WorkbenchProvider } from './internal/WorkbenchProvider';
-import { Header } from './internal/Header';
-import { Chat } from './internal/Chat';
-import { Schema } from './internal/Schema';
-import { ThemeProvider } from './ui/theme-provider';
-import { ResizableProvider } from './ui/resizable-provider';
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from './ui/resizable';
-import { useResizable } from './ui/resizable-provider';
-import { TooltipProvider } from './ui/tooltip';
 import { decodeWorkbenchConfig } from '@agentuity/core/workbench';
+import { useState } from 'react';
+import { Chat } from './internal/chat';
+import { Header } from './internal/header';
+import { ResizableProvider, useResizable } from './internal/resizable-provider';
+import { Schema } from './internal/schema';
+import { WorkbenchProvider } from './internal/workbench-provider';
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from './ui/resizable';
+import { ThemeProvider } from './ui/theme-provider';
+import { TooltipProvider } from './ui/tooltip';
 
 export interface AppProps {
 	configBase64: string;
@@ -17,13 +16,12 @@ export interface AppProps {
 function AppContent() {
 	const [schemaOpen, setSchemaOpen] = useState(false);
 	const { getPanelSizes, setPanelSizes } = useResizable();
-
-	const defaultSizes = [55, 45];
-	const panelSizes = getPanelSizes('main-layout') || defaultSizes;
+	const panelSizes = getPanelSizes('main-layout') || [70, 30];
 
 	return (
 		<div className="flex flex-col h-full">
 			<Header />
+
 			<ResizablePanelGroup
 				direction="horizontal"
 				className="flex-1"
@@ -34,13 +32,26 @@ function AppContent() {
 					}
 				}}
 			>
-				<ResizablePanel defaultSize={panelSizes[0]} minSize={30} className="flex flex-col">
+				<ResizablePanel
+					defaultSize={schemaOpen ? panelSizes[0] : 100}
+					minSize={50}
+					id="chat-panel"
+					order={0}
+				>
 					<Chat schemaOpen={schemaOpen} onSchemaToggle={() => setSchemaOpen(!schemaOpen)} />
 				</ResizablePanel>
+
 				{schemaOpen && (
 					<>
 						<ResizableHandle withHandle />
-						<ResizablePanel defaultSize={panelSizes[1]} minSize={20} maxSize={50}>
+
+						<ResizablePanel
+							defaultSize={panelSizes[1]}
+							minSize={25}
+							maxSize={50}
+							id="schema-panel"
+							order={1}
+						>
 							<Schema onOpenChange={setSchemaOpen} />
 						</ResizablePanel>
 					</>
@@ -52,10 +63,14 @@ function AppContent() {
 
 export function App({ configBase64 }: AppProps) {
 	const decodedConfig = decodeWorkbenchConfig(configBase64);
-	const isAuthenticated = import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY === 'true';
+	const env = {
+		agentuity: true,
+		authenticated: import.meta.env.AGENTUITY_PUBLIC_HAS_SDK_KEY === 'true',
+		cloud: false,
+	};
 
 	return (
-		<WorkbenchProvider config={decodedConfig} isAuthenticated={isAuthenticated}>
+		<WorkbenchProvider config={decodedConfig} env={env}>
 			<ThemeProvider>
 				<TooltipProvider>
 					<ResizableProvider>

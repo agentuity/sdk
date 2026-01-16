@@ -17,6 +17,25 @@ export type ExtractMethod<TRoute extends RouteKey> = TRoute extends `${infer Met
 	: never;
 
 /**
+ * Extract path from route key given a method
+ * E.g., ExtractPath<'GET /users', 'GET'> = '/users'
+ */
+export type ExtractPath<
+	TRoute extends RouteKey,
+	M extends string,
+> = TRoute extends `${M} ${infer Path}` ? Path : never;
+
+/**
+ * Reconstruct the route key from method and path
+ * This ensures proper type inference when using {method, path} form
+ * E.g., RouteFromMethodPath<'GET', '/users'> = 'GET /users'
+ */
+export type RouteFromMethodPath<M extends string, P extends string> = Extract<
+	RouteKey,
+	`${M} ${P}`
+>;
+
+/**
  * Check if a route is a streaming route
  */
 export type RouteIsStream<TRoute extends RouteKey> = TRoute extends keyof RouteRegistry
@@ -63,9 +82,20 @@ type RouteChunkType<TRoute extends RouteKey> = TRoute extends keyof RouteRegistr
 	: unknown;
 
 /**
- * Common options shared by all UseAPI configurations
+ * Extract path params type for a specific route.
+ * Returns the typed params object if the route has path parameters, otherwise never.
  */
-type UseAPICommonOptions<TRoute extends RouteKey> = {
+export type RoutePathParams<TRoute extends RouteKey> = TRoute extends keyof RouteRegistry
+	? RouteRegistry[TRoute] extends { params: infer P }
+		? P
+		: never
+	: never;
+
+/**
+ * Base options shared by all UseAPI configurations (without params handling).
+ * This is used as a foundation for both route-form and method/path-form options.
+ */
+type UseAPIBaseOptions<TRoute extends RouteKey> = {
 	/** Additional query parameters */
 	query?: URLSearchParams | Record<string, string>;
 	/** Additional request headers */
@@ -102,9 +132,43 @@ type UseAPICommonOptions<TRoute extends RouteKey> = {
 			});
 
 /**
- * Options with route property (e.g., { route: 'GET /users' })
+ * Options for the route form with strict params handling.
+ * When TRoute is a single route key (not a union), this correctly requires
+ * params only for routes that have path parameters.
  */
-type UseAPIOptionsWithRoute<TRoute extends RouteKey> = UseAPICommonOptions<TRoute> & {
+type UseAPIRouteFormOptions<TRoute extends RouteKey> = UseAPIBaseOptions<TRoute> &
+	(RoutePathParams<TRoute> extends never
+		? // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+			{} // No params property - omit entirely for routes without path parameters
+		: {
+				/** Path parameters for routes with dynamic segments (e.g., { id: '123' } for /users/:id) */
+				params: RoutePathParams<TRoute>;
+			});
+
+/**
+ * Options for the method/path form with optional params.
+ *
+ * When using {method, path}, TRoute is inferred as a union of all matching routes,
+ * which causes RoutePathParams<TRoute> to be a union of all params types.
+ * This makes params incorrectly required even for routes without path parameters.
+ *
+ * To fix this (GitHub Issue #417), we make params optional in the method/path form.
+ * Users who want strict params enforcement should use the route form instead.
+ */
+type UseAPIMethodPathFormOptions<TRoute extends RouteKey> = UseAPIBaseOptions<TRoute> & {
+	/**
+	 * Optional path parameters for dynamic segments when using method+path.
+	 * These are optional because TRoute may be inferred as a union of routes.
+	 * For strict params typing, use the route form: useAPI({ route: 'GET /users/:id', params: {...} })
+	 */
+	params?: RoutePathParams<TRoute> extends never ? never : RoutePathParams<TRoute>;
+};
+
+/**
+ * Options with route property (e.g., { route: 'GET /users' })
+ * Uses strict params handling - params required only for routes with path parameters.
+ */
+type UseAPIOptionsWithRoute<TRoute extends RouteKey> = UseAPIRouteFormOptions<TRoute> & {
 	/** Route key (e.g., 'GET /users', 'POST /users') */
 	route: TRoute;
 	/** Method cannot be specified when using route */
@@ -115,8 +179,12 @@ type UseAPIOptionsWithRoute<TRoute extends RouteKey> = UseAPICommonOptions<TRout
 
 /**
  * Options with method and path properties (e.g., { method: 'GET', path: '/users' })
+ * Uses optional params handling to avoid false positives when TRoute is a union.
+ *
+ * Note: For full type safety with params, prefer using the route form:
+ * useAPI({ route: 'GET /users/:id', params: { id: '123' } })
  */
-type UseAPIOptionsWithMethodPath<TRoute extends RouteKey> = UseAPICommonOptions<TRoute> & {
+type UseAPIOptionsWithMethodPath<TRoute extends RouteKey> = UseAPIMethodPathFormOptions<TRoute> & {
 	/** HTTP method (e.g., 'GET', 'POST') */
 	method: ExtractMethod<TRoute>;
 	/** Request path (e.g., '/users') */
@@ -219,6 +287,21 @@ function toSearchParams(
 	if (!query) return undefined;
 	if (query instanceof URLSearchParams) return query;
 	return new URLSearchParams(query);
+}
+
+/**
+ * Substitute path parameters in a URL path template.
+ * E.g., '/users/:id' with { id: '123' } becomes '/users/123'
+ */
+function substitutePathParams(pathTemplate: string, pathParams?: Record<string, string>): string {
+	if (!pathParams) return pathTemplate;
+
+	let result = pathTemplate;
+	for (const [key, value] of Object.entries(pathParams)) {
+		result = result.replace(new RegExp(`:${key}\\??`, 'g'), encodeURIComponent(value));
+		result = result.replace(new RegExp(`\\*${key}`, 'g'), encodeURIComponent(value));
+	}
+	return result;
 }
 
 /**
@@ -395,14 +478,29 @@ async function processStream<T>(
  * }
  * ```
  */
+// Overload 1: String route form - direct route key
+export function useAPI<TRoute extends RouteKey>(route: TRoute): UseAPIResult<TRoute>;
+
+// Overload 2: Object with route property - uses route key directly
 export function useAPI<TRoute extends RouteKey>(
-	routeOrOptions: TRoute | UseAPIOptions<TRoute>
-): UseAPIResult<TRoute> {
-	// Normalize to options object
-	const options: UseAPIOptions<TRoute> =
+	options: UseAPIOptionsWithRoute<TRoute>
+): UseAPIResult<TRoute>;
+
+// Overload 3: Object with method and path - reconstructs route key from method+path
+export function useAPI<M extends string, P extends string>(
+	options: { method: M; path: P } & Omit<
+		UseAPIMethodPathFormOptions<RouteFromMethodPath<M, P>>,
+		'method' | 'path'
+	>
+): UseAPIResult<RouteFromMethodPath<M, P>>;
+
+// Implementation signature
+export function useAPI(routeOrOptions: unknown): any {
+	// Normalize to options object - use plain object type since we're in the implementation
+	const options: Record<string, any> =
 		typeof routeOrOptions === 'string'
-			? ({ route: routeOrOptions } as UseAPIOptions<TRoute>)
-			: routeOrOptions;
+			? { route: routeOrOptions }
+			: (routeOrOptions as Record<string, any>);
 	const context = useContext(AgentuityContext);
 	const {
 		input,
@@ -415,6 +513,9 @@ export function useAPI<TRoute extends RouteKey>(
 		onError,
 	} = options;
 
+	// Extract params safely
+	const pathParams = 'params' in options ? options.params : undefined;
+
 	const delimiter = 'delimiter' in options ? (options.delimiter ?? '\n') : '\n';
 	const onChunk = 'onChunk' in options ? options.onChunk : undefined;
 
@@ -424,20 +525,23 @@ export function useAPI<TRoute extends RouteKey>(
 
 	// Extract method and path from either route OR {method, path}
 	let method: string;
-	let path: string;
+	let basePath: string;
 
 	if ('route' in options && options.route) {
 		const parsed = parseRouteKey(options.route as string);
 		method = parsed.method;
-		path = parsed.path;
+		basePath = parsed.path;
 	} else if ('method' in options && 'path' in options && options.method && options.path) {
 		method = options.method;
-		path = options.path;
+		basePath = options.path;
 	} else {
 		throw new Error('useAPI requires either route OR {method, path}');
 	}
 
-	const [data, setData] = useState<RouteOutput<TRoute> | undefined>(undefined);
+	// Substitute path parameters
+	const path = substitutePathParams(basePath, pathParams as Record<string, string> | undefined);
+
+	const [data, setData] = useState<any>(undefined);
 	const [error, setError] = useState<Error | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [isFetching, setIsFetching] = useState(false);
@@ -524,19 +628,19 @@ export function useAPI<TRoute extends RouteKey>(
 						throw new Error('Response body is null for streaming response');
 					}
 
-					setData([] as unknown as RouteOutput<TRoute>);
+					setData([] as any);
 
 					// Track accumulated chunks locally to avoid stale closure
-					const accumulatedChunks: RouteChunkType<TRoute>[] = [];
+					const accumulatedChunks: any[] = [];
 
-					const success = await processStream<RouteChunkType<TRoute>>(response.body, {
+					const success = await processStream<any>(response.body, {
 						delimiter: delimiterRef.current,
 						onChunk: onChunkRef.current as any,
 						onData: (chunk) => {
 							if (!mountedRef.current) return;
 
 							accumulatedChunks.push(chunk);
-							setData([...accumulatedChunks] as unknown as RouteOutput<TRoute>);
+							setData([...accumulatedChunks] as any);
 						},
 						onError: (err) => {
 							if (!mountedRef.current) return;
@@ -553,7 +657,7 @@ export function useAPI<TRoute extends RouteKey>(
 						setIsSuccess(true);
 						lastFetchTimeRef.current = Date.now();
 
-						const finalData = accumulatedChunks as unknown as RouteOutput<TRoute>;
+						const finalData = accumulatedChunks as any;
 						onSuccess?.(finalData);
 					}
 					return;
@@ -561,15 +665,15 @@ export function useAPI<TRoute extends RouteKey>(
 					responseData = await response.json();
 				} else {
 					const text = await response.text();
-					responseData = deserializeData<RouteOutput<TRoute>>(text);
+					responseData = deserializeData<any>(text);
 				}
 			}
 
 			if (!mountedRef.current) return;
 
 			// Use JSON memoization to prevent re-renders when data hasn't changed
-			setData((prev) => {
-				const newData = responseData as RouteOutput<TRoute>;
+			setData((prev: any) => {
+				const newData = responseData as any;
 				if (prev !== undefined && JSON.stringify(prev) === JSON.stringify(newData)) {
 					return prev;
 				}
@@ -578,7 +682,7 @@ export function useAPI<TRoute extends RouteKey>(
 			setIsSuccess(true);
 			lastFetchTimeRef.current = Date.now();
 
-			onSuccess?.(responseData as RouteOutput<TRoute>);
+			onSuccess?.(responseData as any);
 		} catch (err) {
 			if (!mountedRef.current) return;
 
@@ -649,12 +753,12 @@ export function useAPI<TRoute extends RouteKey>(
 			isFetching,
 			refetch,
 			reset,
-		} as unknown as UseAPIResult<TRoute>;
+		} as any;
 	}
 
 	// For POST/PUT/PATCH/DELETE: provide invoke method (manual invocation)
 	const invoke = useCallback(
-		async (invokeInput?: RouteInput<TRoute>) => {
+		async (invokeInput?: any) => {
 			// Use invokeInput parameter if provided
 			const effectiveInput = invokeInput !== undefined ? invokeInput : input;
 
@@ -699,20 +803,20 @@ export function useAPI<TRoute extends RouteKey>(
 							throw new Error('Response body is null for streaming response');
 						}
 
-						setData([] as unknown as RouteOutput<TRoute>);
+						setData([] as any);
 
 						// Track accumulated chunks locally to avoid stale closure
-						const accumulatedChunks: RouteChunkType<TRoute>[] = [];
+						const accumulatedChunks: any[] = [];
 						let streamError: any = undefined;
 
-						const success = await processStream<RouteChunkType<TRoute>>(response.body, {
+						const success = await processStream<any>(response.body, {
 							delimiter: delimiterRef.current,
 							onChunk: onChunkRef.current as any,
 							onData: (chunk) => {
 								if (!mountedRef.current) return;
 
 								accumulatedChunks.push(chunk);
-								setData([...accumulatedChunks] as unknown as RouteOutput<TRoute>);
+								setData([...accumulatedChunks] as any);
 							},
 							onError: (err) => {
 								if (!mountedRef.current) return;
@@ -724,8 +828,7 @@ export function useAPI<TRoute extends RouteKey>(
 							mountedRef,
 						});
 
-						if (!mountedRef.current)
-							return accumulatedChunks as unknown as RouteOutput<TRoute>;
+						if (!mountedRef.current) return accumulatedChunks as any;
 
 						if (!success && streamError) {
 							throw streamError;
@@ -735,29 +838,29 @@ export function useAPI<TRoute extends RouteKey>(
 							setIsSuccess(true);
 							lastFetchTimeRef.current = Date.now();
 
-							const finalData = accumulatedChunks as unknown as RouteOutput<TRoute>;
+							const finalData = accumulatedChunks as any;
 							onSuccess?.(finalData);
 							return finalData;
 						}
 
-						return accumulatedChunks as unknown as RouteOutput<TRoute>;
+						return accumulatedChunks as any;
 					} else if (contentType.includes('application/json')) {
 						responseData = await response.json();
 					} else {
 						const text = await response.text();
-						responseData = deserializeData<RouteOutput<TRoute>>(text);
+						responseData = deserializeData<any>(text);
 					}
 				}
 
 				if (!mountedRef.current) return responseData;
 
-				setData(responseData as RouteOutput<TRoute>);
+				setData(responseData as any);
 				setIsSuccess(true);
 				lastFetchTimeRef.current = Date.now();
 
-				onSuccess?.(responseData as RouteOutput<TRoute>);
+				onSuccess?.(responseData as any);
 
-				return responseData as RouteOutput<TRoute>;
+				return responseData as any;
 			} catch (err) {
 				if (!mountedRef.current) throw err;
 
@@ -785,5 +888,5 @@ export function useAPI<TRoute extends RouteKey>(
 		isFetching,
 		invoke,
 		reset,
-	} as unknown as UseAPIResult<TRoute>;
+	} as any;
 }

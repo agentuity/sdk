@@ -1,16 +1,21 @@
 import { createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
+import { politeness } from '@agentuity/evals';
+import { openai } from '@ai-sdk/openai';
+
+export const AgentInput = s.object({
+	value: s.number(),
+});
+export const AgentOutput = s.object({
+	result: s.number(),
+	doubled: s.boolean(),
+});
 
 const evalsBasicAgent = createAgent('evals-basic', {
 	description: 'Agent with evals for testing',
 	schema: {
-		input: s.object({
-			value: s.number(),
-		}),
-		output: s.object({
-			result: s.number(),
-			doubled: s.boolean(),
-		}),
+		input: AgentInput,
+		output: AgentOutput,
 	},
 	handler: async (ctx, input) => {
 		const result = input.value * 2;
@@ -22,53 +27,39 @@ const evalsBasicAgent = createAgent('evals-basic', {
 	},
 });
 
-// Create eval: Check if result is positive
-evalsBasicAgent.createEval('check-positive', {
-	description: 'Ensures result is greater than zero',
-	handler: async (ctx, input, output) => {
-		const passed = output.result > 0;
-		return {
-			success: true,
-			passed,
-			metadata: {
-				reason: passed ? 'Result is positive' : 'Result is not positive',
-			},
-		};
-	},
-});
+/**
+ * Example 1: Using preset eval with defaults
+ * The eval expects { request: string, context?: string } for input
+ * and { response: string } for output, so we need middleware to transform.
+ */
+export const politenessCheckCustom = evalsBasicAgent.createEval(
+	politeness<typeof AgentInput, typeof AgentOutput>({
+		name: 'politeness-custom',
+		model: openai('gpt-4o-mini'),
+		threshold: 0.7,
+		middleware: {
+			transformInput: (input) => ({ request: `Calculate double of ${input.value}` }),
+			transformOutput: (output) => ({
+				response: `Result: ${output.result}, Doubled: ${output.doubled}`,
+			}),
+		},
+	})
+);
 
-// Create eval: Check if doubled correctly
-evalsBasicAgent.createEval('check-doubled', {
-	description: 'Ensures value was doubled correctly',
-	handler: async (ctx, input, output) => {
-		const expected = input.value * 2;
-		const passed = output.result === expected;
+/**
+ * Example 2: Inline eval without using preset evals
+ * This is simpler when you don't need the preset eval's LLM logic.
+ */
+export const anotherPolitenessEval = evalsBasicAgent.createEval(politeness());
 
-		return {
-			success: true,
-			score: passed ? 1.0 : 0.0,
-			metadata: {
-				reason: passed
-					? `Correctly doubled ${input.value} to ${output.result}`
-					: `Expected ${expected}, got ${output.result}`,
-			},
-		};
-	},
-});
-
-// Create eval: Check if result is even
-evalsBasicAgent.createEval('check-even', {
-	description: 'Ensures result is an even number',
-	handler: async (ctx, input, output) => {
-		const passed = output.result % 2 === 0;
-
-		return {
-			success: true,
-			score: passed ? 1.0 : 0.0,
-			metadata: {
-				reason: passed ? 'Result is even' : 'Result is odd',
-			},
-		};
+/**
+ * Example 3: Eval that throws to test error handling
+ */
+export const throwingEval = evalsBasicAgent.createEval({
+	name: 'throwing-eval',
+	description: 'Eval that throws to test error handling',
+	handler: async (_ctx, _input, _output) => {
+		throw new Error('Intentional eval error for testing');
 	},
 });
 

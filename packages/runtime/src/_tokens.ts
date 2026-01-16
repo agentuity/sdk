@@ -3,12 +3,12 @@ import type { Span } from '@opentelemetry/sdk-trace-base';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { inAgentContext, inHTTPContext, getHTTPContext } from './_context';
 import { SpanAttributes } from '@traceloop/ai-semantic-conventions';
-import { addSpanProcessor } from './_server';
 
 export const TOKENS_HEADER = 'x-agentuity-tokens';
 export const DURATION_HEADER = 'x-agentuity-duration';
 
-const AI_SDK_SPAN_NAME = 'ai.generateText';
+// AI SDK span names: ai.generateText, ai.streamText, ai.generateObject, ai.streamObject, ai.embed, ai.embedMany
+const AI_SDK_SPAN_PREFIX = 'ai.';
 const AI_SDK_MODEL_NAME = 'ai.model.id';
 const AI_SDK_USAGE_PROMPT_TOKENS = 'ai.usage.promptTokens';
 const AI_SDK_USAGE_COMPLETION_TOKENS = 'ai.usage.completionTokens';
@@ -50,7 +50,7 @@ const getTokenValue = (val: AttributeValue | undefined): number => {
 	return 0;
 };
 
-class TokenSpanProcessor implements SpanProcessor {
+export class TokenSpanProcessor implements SpanProcessor {
 	onStart(_span: Span, _context: Context) {
 		return;
 	}
@@ -61,8 +61,8 @@ class TokenSpanProcessor implements SpanProcessor {
 			const tokenLine = ctx.res.headers.get(TOKENS_HEADER) ?? undefined;
 			const tokens = parseTokenHeader(tokenLine);
 			let mutated = false;
-			// this is AI SDK which doesn't seem to use the semantic attribute names
-			if (span.name === AI_SDK_SPAN_NAME && AI_SDK_MODEL_NAME in span.attributes) {
+			// AI SDK uses ai.* span names but doesn't use the semantic attribute names
+			if (span.name.startsWith(AI_SDK_SPAN_PREFIX) && AI_SDK_MODEL_NAME in span.attributes) {
 				const model = span.attributes[AI_SDK_MODEL_NAME]!.toString();
 				let totalTokens = tokens.get(model) ?? 0;
 				if (AI_SDK_USAGE_PROMPT_TOKENS in span.attributes) {
@@ -109,8 +109,4 @@ class TokenSpanProcessor implements SpanProcessor {
 	shutdown() {
 		return Promise.resolve();
 	}
-}
-
-export default function register() {
-	addSpanProcessor(new TokenSpanProcessor());
 }

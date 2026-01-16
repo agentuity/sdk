@@ -5,6 +5,11 @@
 
 // Detect unicode support
 const isUnicodeSupported = (): boolean => {
+	// FORCE_UNICODE overrides detection (used by fork wrapper)
+	if (process.env.FORCE_UNICODE === '1') {
+		return true;
+	}
+
 	if (process.platform !== 'win32') {
 		return process.env.TERM !== 'linux'; // Linux console (kernel) doesn't support Unicode
 	}

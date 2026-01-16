@@ -1,5 +1,5 @@
 import type { Schema } from '../base';
-import { success, createParseMethods } from '../base';
+import { success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -17,6 +17,7 @@ const parseMethods = createParseMethods<string>();
  * ```
  */
 export class CoerceStringSchema implements Schema<unknown, string> {
+	readonly [SCHEMA_KIND] = 'CoerceStringSchema';
 	description?: string;
 
 	readonly '~standard' = {

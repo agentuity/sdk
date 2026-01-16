@@ -328,8 +328,9 @@ export async function downloadTemplate(options: DownloadOptions): Promise<void> 
 	}
 }
 
-export async function setupProject(options: SetupOptions): Promise<void> {
+export async function setupProject(options: SetupOptions): Promise<{ success: boolean }> {
 	const { dest, projectName, dirName, noInstall, noBuild, logger } = options;
+	let hasError = false;
 
 	// Replace {{PROJECT_NAME}} in files
 	tui.info(`🔧 Setting up ${projectName}...`);
@@ -345,6 +346,7 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 		});
 		if (exitCode !== 0) {
 			logger.error('Failed to install dependencies');
+			hasError = true;
 		}
 	}
 
@@ -361,6 +363,7 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 			});
 			if (exitCode !== 0) {
 				logger.error('Template setup script failed');
+				hasError = true;
 			}
 		} finally {
 			// Always delete the setup script after running (or attempting to run)
@@ -375,16 +378,25 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 	// Build project
 	if (!noBuild) {
 		const exitCode = await tui.runCommand({
-			command: 'bun run build',
+			command: 'bun run build --dev',
 			cwd: dest,
-			cmd: ['bun', 'run', 'build'],
+			cmd: ['bun', 'run', 'build', '--dev'],
 			clearOnSuccess: true,
 		});
 		if (exitCode !== 0) {
 			logger.error('Failed to build project');
+			hasError = true;
 		}
 	}
 
+	// Generate and write AGENTS.md files for the CLI and source folders
+	// Always overwrite during project setup to ensure fresh content
+	await writeAgentsDocs(dest);
+
+	return { success: !hasError };
+}
+
+export async function initGitRepo(dest: string): Promise<void> {
 	// Initialize git repository if git is available
 	// Check for real git (not macOS stub that triggers Xcode CLT popup)
 	const { isGitAvailable, getDefaultBranch } = await import('../../git-helper');
@@ -435,10 +447,6 @@ export async function setupProject(options: SetupOptions): Promise<void> {
 			clearOnSuccess: true,
 		});
 	}
-
-	// Generate and write AGENTS.md files for the CLI and source folders
-	// Always overwrite during project setup to ensure fresh content
-	await writeAgentsDocs(dest);
 }
 
 async function replaceInFiles(dir: string, projectName: string, dirName: string): Promise<void> {

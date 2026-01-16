@@ -26,7 +26,7 @@ describe('AST Stream Flag Extraction - Edge Cases', () => {
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: true }), async (c) => {
@@ -50,7 +50,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: false }), async (c) => {
@@ -74,7 +74,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 const streamFlag = true;
 
 const router = createRouter();
@@ -100,7 +100,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: true }), async (c) => {
@@ -124,7 +124,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: !false }), async (c) => {
@@ -147,7 +147,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ output: OutputSchema, stream: !true }), async (c) => {
@@ -170,8 +170,8 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const InputSchema = s.object({ query: s.string() });
-const OutputSchema = s.object({ result: s.string() });
+export const InputSchema = s.object({ query: s.string() });
+export const OutputSchema = s.object({ result: s.string() });
 
 const router = createRouter();
 router.post('/search',
@@ -204,7 +204,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const InputSchema = s.object({ data: s.string() });
+export const InputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/process',
@@ -235,7 +235,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ events: s.array(s.string()) });
+export const OutputSchema = s.object({ events: s.array(s.string()) });
 
 const router = createRouter();
 router.get('/events',
@@ -266,7 +266,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const Schema = s.object({ value: s.string() });
+export const Schema = s.object({ value: s.string() });
 
 const router = createRouter();
 
@@ -294,7 +294,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const Schema = s.object({ value: s.string() });
+export const Schema = s.object({ value: s.string() });
 
 const router = createRouter();
 
@@ -368,7 +368,7 @@ export default router;
 import { createRouter, createAgent } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const CustomSchema = s.object({ custom: s.string() });
+export const CustomSchema = s.object({ custom: s.string() });
 
 const myAgent = createAgent({
 	schema: {
@@ -408,7 +408,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 router.post('/test', validator({ "output": OutputSchema, "stream": true }), async (c) => {
@@ -432,7 +432,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const Schema = s.object({ data: s.string() });
+export const Schema = s.object({ data: s.string() });
 
 const router = createRouter();
 
@@ -496,7 +496,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 const authMiddleware = async (c, next) => {
 	c.set('user', 'test');
 	await next();
@@ -529,7 +529,7 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 
@@ -558,8 +558,8 @@ export default router;
 import { createRouter, validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const BaseSchema = s.object({ id: s.string() });
-const ExtendedSchema = s.object({ id: s.string(), data: s.string() });
+export const BaseSchema = s.object({ id: s.string() });
+export const ExtendedSchema = s.object({ id: s.string(), data: s.string() });
 
 const router = createRouter();
 
@@ -585,5 +585,85 @@ export default router;
 		expect(routes[0].config?.inputSchemaVariable).toBe('BaseSchema');
 		expect(routes[0].config?.outputSchemaVariable).toBe('ExtendedSchema');
 		expect(routes[0].config?.stream).toBe(true);
+	});
+
+	test('validator with only stream flag (no schemas) - should still extract stream', async () => {
+		const code = `
+import { createRouter, validator } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.post('/stream-only',
+	validator({ stream: true }),
+	async (c) => {
+		return new ReadableStream();
+	}
+);
+
+export default router;
+`;
+		const filename = join(tempDir, 'route.ts');
+		writeFileSync(filename, code, 'utf-8');
+
+		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
+
+		expect(routes).toHaveLength(1);
+		expect(routes[0].config?.hasValidator).toBe(true);
+		expect(routes[0].config?.inputSchemaVariable).toBeUndefined();
+		expect(routes[0].config?.outputSchemaVariable).toBeUndefined();
+		expect(routes[0].config?.stream).toBe(true);
+	});
+
+	test('validator with only stream: false (no schemas) - should still extract stream', async () => {
+		const code = `
+import { createRouter, validator } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.post('/no-stream',
+	validator({ stream: false }),
+	async (c) => {
+		return c.json({ ok: true });
+	}
+);
+
+export default router;
+`;
+		const filename = join(tempDir, 'route.ts');
+		writeFileSync(filename, code, 'utf-8');
+
+		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
+
+		expect(routes).toHaveLength(1);
+		expect(routes[0].config?.hasValidator).toBe(true);
+		expect(routes[0].config?.stream).toBe(false);
+	});
+
+	test('empty validator options - should fall through to Hono pattern', async () => {
+		// When validator({}) is called with empty object, it should still work
+		// and fall through to Hono validator pattern
+		const code = `
+import { createRouter, validator } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.post('/empty-options',
+	validator({}),
+	async (c) => {
+		return c.json({ ok: true });
+	}
+);
+
+export default router;
+`;
+		const filename = join(tempDir, 'route.ts');
+		writeFileSync(filename, code, 'utf-8');
+
+		const routes = await parseRoute(tempDir, filename, 'test-project', 'test-deployment');
+
+		expect(routes).toHaveLength(1);
+		// Empty validator should still be detected as having a validator
+		expect(routes[0].config?.hasValidator).toBe(true);
+		expect(routes[0].config?.stream).toBeUndefined();
 	});
 });

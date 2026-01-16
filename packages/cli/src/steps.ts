@@ -8,6 +8,8 @@
 import type { ColorScheme } from './terminal';
 import type { LogLevel } from './types';
 import { ValidationInputError, ValidationOutputError, type IssuesType } from '@agentuity/server';
+import { clearLastLines, isTTYLike } from './tui';
+import { appendLog, isLogCollectionEnabled } from './log-collector';
 
 // Spinner frames
 const FRAMES = ['◐', '◓', '◑', '◒'];
@@ -129,6 +131,38 @@ function renderStepLine(step: StepState, spinner?: string): string {
 }
 
 /**
+ * Generate a clean log line for a completed step (no ANSI, no animation)
+ */
+function getCleanStepLog(step: StepState): string {
+	if (step.status === 'success') {
+		return `${ICONS.success} ${step.label}`;
+	} else if (step.status === 'skipped') {
+		const reason = step.skipReason ? ` (${step.skipReason})` : '';
+		return `${ICONS.skipped} ${step.label}${reason}`;
+	} else if (step.status === 'error') {
+		const error = step.errorMessage ? `: ${step.errorMessage}` : '';
+		return `${ICONS.error} ${step.label}${error}`;
+	}
+	return `${ICONS.pending} ${step.label}`;
+}
+
+/**
+ * Emit clean log for a completed step if log collection is enabled
+ */
+function emitCleanStepLog(step: StepState): void {
+	if (!isLogCollectionEnabled()) return;
+
+	appendLog(getCleanStepLog(step));
+
+	// Also emit any output lines
+	if (step.output && step.output.length > 0) {
+		for (const line of step.output) {
+			appendLog(`  ${line}`);
+		}
+	}
+}
+
+/**
  * Render all steps from state, including output boxes
  * Returns the rendered output and total line count
  */
@@ -210,8 +244,8 @@ function enablePauseResume(
  * Pause step rendering for interactive input
  * Returns resume function
  */
-export function pauseStepUI(): () => void {
-	if (!process.stdout.isTTY || !getTotalLinesFn) {
+export function pauseStepUI(clear = false): () => void {
+	if (!isTTYLike() || !getTotalLinesFn) {
 		return () => {}; // No-op if not TTY or not in step context
 	}
 
@@ -232,8 +266,16 @@ export function pauseStepUI(): () => void {
 	}) as typeof process.stderr.write;
 
 	// Show cursor and add newline for separation
-	process.stdout.write('\x1B[?25h');
-	process.stdout.write('\n');
+	if (clear) {
+		const lines = getTotalLinesFn();
+		if (lines) {
+			clearLastLines(lines + 1, originalStdoutWrite);
+		}
+	}
+	originalStdoutWrite('\x1B[?25h');
+	if (!clear) {
+		originalStdoutWrite('\n');
+	}
 
 	// Return resume function
 	return () => {
@@ -244,8 +286,10 @@ export function pauseStepUI(): () => void {
 		process.stderr.write = originalStderrWrite;
 
 		// Restore cursor to saved position (where steps began)
-		process.stdout.write('\x1B[u'); // Restore cursor position
-		process.stdout.write('\x1B[0J'); // Clear from saved position to end of screen
+		if (!clear) {
+			process.stdout.write('\x1B[u'); // Restore cursor position
+			process.stdout.write('\x1B[0J'); // Clear from saved position to end of screen
+		}
 		process.stdout.write('\x1B[?25l'); // Hide cursor
 
 		// Force immediate re-render (cursor already at step start)
@@ -455,6 +499,9 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 				activeInterval = null;
 			}
 
+			// Emit clean log for this step (for external log collection)
+			emitCleanStepLog(stepState);
+
 			// Final render with outcome
 			stepState.progress = undefined;
 			const finalRender = renderAllSteps(state, -1);
@@ -471,7 +518,8 @@ async function runStepsTUI(steps: Step[]): Promise<void> {
 			// Handle errors
 			if (stepState.status === 'error') {
 				const errorColor = getColor('red');
-				console.error(`\n${errorColor}Error: ${stepState.errorMessage}${COLORS.reset}`);
+				const errorMsg = stepState.errorMessage || 'An unknown error occurred';
+				console.error(`\n${errorColor}Error: ${errorMsg}${COLORS.reset}`);
 				if (
 					stepState.errorCause instanceof ValidationInputError ||
 					stepState.errorCause instanceof ValidationOutputError
@@ -518,6 +566,19 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
 			};
 		}
 
+		// Build step state for clean log emission
+		const stepState: StepState = {
+			label: step.label,
+			status: outcome.status,
+			output: outcome.output,
+			skipReason: outcome.status === 'skipped' ? outcome.reason : undefined,
+			errorMessage: outcome.status === 'error' ? outcome.message : undefined,
+			errorCause: outcome.status === 'error' ? outcome.cause : undefined,
+		};
+
+		// Emit clean log for this step
+		emitCleanStepLog(stepState);
+
 		// Print final state
 		if (outcome.status === 'success') {
 			console.log(`${greenColor}${ICONS.success}${COLORS.reset} ${step.label}`);
@@ -551,7 +612,8 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
 				console.log('');
 			}
 			const errorColor = getColor('red');
-			console.error(`\n${errorColor}Error: ${outcome.message}${COLORS.reset}`);
+			const errorMsg = outcome.message || 'An unknown error occurred';
+			console.error(`\n${errorColor}Error: ${errorMsg}${COLORS.reset}`);
 			if (
 				outcome.cause instanceof ValidationInputError ||
 				outcome.cause instanceof ValidationOutputError
@@ -568,8 +630,7 @@ async function runStepsPlain(steps: Step[]): Promise<void> {
  * Run a series of steps with animated progress
  */
 export async function runSteps(steps: Step[], logLevel?: LogLevel): Promise<void> {
-	const useTUI =
-		process.stdout.isTTY && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
+	const useTUI = isTTYLike() && (!logLevel || ['info', 'warn', 'error'].includes(logLevel));
 
 	if (useTUI) {
 		await runStepsTUI(steps);

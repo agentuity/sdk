@@ -13,7 +13,9 @@ export const toJSONSchema = (schema: any): JSONSchema => {
 		return agentuityToJSONSchema(schema);
 	}
 	// Check if it's a Zod schema
-	if (schema?._def?.typeName) {
+	// Zod 3 uses _def.typeName (e.g., "ZodObject")
+	// Zod 4 uses _def.type (e.g., "object")
+	if (schema?._def?.typeName || schema?._def?.type) {
 		try {
 			return z.toJSONSchema(schema) as JSONSchema;
 		} catch {

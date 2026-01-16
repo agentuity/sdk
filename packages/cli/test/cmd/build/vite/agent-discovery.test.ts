@@ -387,4 +387,499 @@ export default createAgent('nested-agent', {
 		expect(nestedAgent).toBeDefined();
 		expect(nestedAgent!.filename).toContain('feature/subfeature/helpers');
 	});
+
+	// Tests for schema variable reference resolution
+	describe('schema variable reference resolution', () => {
+		test('should resolve variable reference for input schema', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export const AgentInput = s.object({
+	text: s.string(),
+});
+
+export default createAgent('variable-input-agent', {
+	description: 'Agent with variable input schema',
+	schema: {
+		input: AgentInput,
+	},
+	handler: async (ctx, input) => {
+		return { result: input.text };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'variable-input.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			expect(agents[0].inputSchemaCode).toBeDefined();
+			// Should contain the resolved schema, not just the identifier name
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].inputSchemaCode).toContain('text');
+			expect(agents[0].inputSchemaCode).toContain('s.string');
+			// Should NOT be just the identifier
+			expect(agents[0].inputSchemaCode).not.toBe('AgentInput');
+		});
+
+		test('should resolve variable references for both input and output schemas', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export const AgentInput = s.object({
+	text: s.string(),
+});
+
+const AgentOutput = s.object({
+	translated: s.string(),
+	tokens: s.number(),
+});
+
+export default createAgent('variable-both-agent', {
+	description: 'Agent with variable input and output schemas',
+	schema: {
+		input: AgentInput,
+		output: AgentOutput,
+	},
+	handler: async (ctx, input) => {
+		return { translated: input.text, tokens: 10 };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'variable-both.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].inputSchemaCode).toContain('text');
+			expect(agents[0].outputSchemaCode).toContain('s.object');
+			expect(agents[0].outputSchemaCode).toContain('translated');
+			expect(agents[0].outputSchemaCode).toContain('tokens');
+		});
+
+		test('should resolve schema object variable reference', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const AgentInput = s.object({
+	text: s.string(),
+});
+
+const AgentOutput = s.object({
+	result: s.string(),
+});
+
+const schema = {
+	input: AgentInput,
+	output: AgentOutput,
+};
+
+export default createAgent('schema-object-agent', {
+	description: 'Agent with schema object variable',
+	schema,
+	handler: async (ctx, input) => {
+		return { result: input.text };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'schema-object.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].outputSchemaCode).toContain('s.object');
+		});
+
+		test('should resolve variable in non-default-export agent declaration', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+export const AgentInput = s.object({
+	text: s.string(),
+});
+
+const agent = createAgent('const-variable-agent', {
+	description: 'Agent with const declaration',
+	schema: {
+		input: AgentInput,
+	},
+	handler: async (ctx, input) => {
+		return input.text;
+	},
+});
+
+export default agent;
+`;
+			writeFileSync(join(agentDir, 'const-variable.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].inputSchemaCode).toContain('text');
+		});
+
+		test('should preserve nested schema references in resolved schema', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const Shared = s.object({
+	lang: s.string(),
+});
+
+const AgentInput = s.object({
+	text: s.string(),
+	meta: Shared,
+});
+
+export default createAgent('nested-ref-agent', {
+	description: 'Agent with nested schema reference',
+	schema: {
+		input: AgentInput,
+	},
+	handler: async (ctx, input) => {
+		return { result: input.text };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'nested-ref.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			// Should resolve AgentInput but preserve Shared as identifier
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].inputSchemaCode).toContain('text');
+			expect(agents[0].inputSchemaCode).toContain('meta');
+			expect(agents[0].inputSchemaCode).toContain('Shared');
+		});
+
+		test('should handle imported schema identifiers gracefully', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { AgentInput } from './schemas';
+
+export default createAgent('imported-schema-agent', {
+	description: 'Agent with imported schema',
+	schema: {
+		input: AgentInput,
+	},
+	handler: async (ctx, input) => {
+		return { result: 'ok' };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'imported-schema.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			// Cannot resolve imports, should fallback to identifier name
+			expect(agents[0].inputSchemaCode).toBeDefined();
+			expect(agents[0].inputSchemaCode).toBe('AgentInput');
+		});
+
+		test('should handle mixed inline and variable schemas', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const AgentInput = s.object({
+	text: s.string(),
+});
+
+export default createAgent('mixed-schema-agent', {
+	description: 'Agent with mixed inline and variable schemas',
+	schema: {
+		input: AgentInput,
+		output: s.object({
+			result: s.string(),
+		}),
+	},
+	handler: async (ctx, input) => {
+		return { result: input.text };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'mixed-schema.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].inputSchemaCode).toContain('text');
+			expect(agents[0].outputSchemaCode).toContain('s.object');
+			expect(agents[0].outputSchemaCode).toContain('result');
+		});
+
+		test('should handle literal string keys for schema properties', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const AgentInput = s.object({
+	text: s.string(),
+});
+
+export default createAgent('literal-keys-agent', {
+	description: 'Agent with literal string keys',
+	'schema': {
+		'input': AgentInput,
+		'output': s.object({
+			result: s.string(),
+		}),
+	},
+	handler: async (ctx, input) => {
+		return { result: input.text };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'literal-keys.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].outputSchemaCode).toContain('s.object');
+		});
+
+		test('should handle spread in schema object without crashing', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const baseSchema = {
+	input: s.object({ text: s.string() }),
+};
+
+export default createAgent('spread-schema-agent', {
+	description: 'Agent with spread in schema',
+	schema: {
+		...baseSchema,
+		output: s.object({ result: s.string() }),
+	},
+	handler: async (ctx, input) => {
+		return { result: 'ok' };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'spread-schema.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			// Should not crash; output should be extracted, input may not be
+			expect(agents).toHaveLength(1);
+			expect(agents[0].outputSchemaCode).toContain('s.object');
+			expect(agents[0].outputSchemaCode).toContain('result');
+		});
+
+		test('should handle long alias chains', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const Input1 = Input2;
+const Input2 = Input3;
+const Input3 = Input4;
+const Input4 = Input5;
+const Input5 = s.object({
+	text: s.string(),
+});
+
+export default createAgent('alias-chain-agent', {
+	description: 'Agent with long alias chain',
+	schema: {
+		input: Input1,
+	},
+	handler: async (ctx, input) => {
+		return { result: input.text };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'alias-chain.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			// With depth limit of 8, this 5-deep chain should be fully resolved
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].inputSchemaCode).toContain('text');
+		});
+
+		test('should not extract schema when config is a variable (unsupported pattern)', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const agentConfig = {
+	description: 'Agent with config variable',
+	schema: {
+		input: s.object({ text: s.string() }),
+		output: s.object({ result: s.string() }),
+	},
+	handler: async (ctx, input) => {
+		return { result: input.text };
+	},
+};
+
+export default createAgent('config-var-agent', agentConfig);
+`;
+			writeFileSync(join(agentDir, 'config-var.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			// Config as variable is not supported - agent is not discovered
+			// because the AST analysis expects the second argument to be an ObjectExpression
+			expect(agents).toHaveLength(0);
+		});
+
+		test('should resolve schema from member access (baseSchemas.shared)', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const baseSchemas = {
+	shared: s.object({
+		text: s.string(),
+		lang: s.string().optional(),
+	}),
+	output: s.object({
+		result: s.string(),
+	}),
+};
+
+export default createAgent('member-access-agent', {
+	description: 'Agent with member access schema',
+	schema: {
+		input: baseSchemas.shared,
+		output: baseSchemas.output,
+	},
+	handler: async (ctx, input) => {
+		return { result: input.text };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'member-access.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].inputSchemaCode).toContain('text');
+			expect(agents[0].inputSchemaCode).toContain('lang');
+			expect(agents[0].outputSchemaCode).toContain('s.object');
+			expect(agents[0].outputSchemaCode).toContain('result');
+		});
+
+		test('should resolve nested member access (configs.agent1.schema)', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const configs = {
+	agent1: {
+		inputSchema: s.object({
+			query: s.string(),
+		}),
+		outputSchema: s.object({
+			answer: s.string(),
+		}),
+	},
+};
+
+export default createAgent('nested-member-agent', {
+	description: 'Agent with nested member access',
+	schema: {
+		input: configs.agent1.inputSchema,
+		output: configs.agent1.outputSchema,
+	},
+	handler: async (ctx, input) => {
+		return { answer: input.query };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'nested-member.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].inputSchemaCode).toContain('query');
+			expect(agents[0].outputSchemaCode).toContain('s.object');
+			expect(agents[0].outputSchemaCode).toContain('answer');
+		});
+
+		test('should handle member access combined with variable reference', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const InputSchema = s.object({
+	text: s.string(),
+});
+
+const outputs = {
+	standard: s.object({
+		result: s.string(),
+	}),
+};
+
+export default createAgent('mixed-member-var-agent', {
+	description: 'Agent with mixed member access and variable',
+	schema: {
+		input: InputSchema,
+		output: outputs.standard,
+	},
+	handler: async (ctx, input) => {
+		return { result: input.text };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'mixed-member-var.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			expect(agents[0].inputSchemaCode).toContain('s.object');
+			expect(agents[0].inputSchemaCode).toContain('text');
+			expect(agents[0].outputSchemaCode).toContain('s.object');
+			expect(agents[0].outputSchemaCode).toContain('result');
+		});
+
+		test('should not resolve computed member access (dynamic property)', async () => {
+			const agentCode = `
+import { createAgent } from '@agentuity/runtime';
+import { s } from '@agentuity/schema';
+
+const schemaName = 'input';
+const schemas = {
+	input: s.object({ text: s.string() }),
+};
+
+export default createAgent('computed-member-agent', {
+	description: 'Agent with computed member access',
+	schema: {
+		input: schemas[schemaName],
+	},
+	handler: async (ctx, input) => {
+		return { result: 'ok' };
+	},
+});
+`;
+			writeFileSync(join(agentDir, 'computed-member.ts'), agentCode);
+
+			const agents = await discoverAgents(srcDir, 'test-project', 'test-deployment', logger);
+
+			expect(agents).toHaveLength(1);
+			// Computed access is not resolved - falls back to expression string
+			expect(agents[0].inputSchemaCode).toBe('schemas[schemaName]');
+		});
+	});
 });

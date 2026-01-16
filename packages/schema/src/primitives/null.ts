@@ -1,5 +1,5 @@
 import type { Schema } from '../base';
-import { createIssue, failure, success, createParseMethods } from '../base';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -9,6 +9,7 @@ const parseMethods = createParseMethods<null>();
  * Schema for validating null values.
  */
 export class NullSchema implements Schema<null, null> {
+	readonly [SCHEMA_KIND] = 'NullSchema';
 	description?: string;
 
 	readonly '~standard' = {

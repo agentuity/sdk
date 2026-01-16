@@ -9,27 +9,61 @@ export interface EnvVars {
 }
 
 /**
- * Find the appropriate .env file to use for user environment variables.
- * Always returns .env.production path (will be created if needed).
- * .env should only contain AGENTUITY_SDK_KEY.
+ * Prefixes for public/frontend-exposed environment variables
  */
-export async function findEnvFile(dir: string): Promise<string> {
-	return join(dir, '.env.production');
+export const PUBLIC_VAR_PREFIXES = ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'] as const;
+
+/**
+ * Specific AGENTUITY_ keys that are allowed to be set by users.
+ * Note: There is also a whitelist in the API that must be kept in sync.
+ */
+export const AGENTUITY_ALLOWED_KEYS = ['AGENTUITY_AUTH_SECRET'] as const;
+
+/**
+ * Check if a key is a public variable (exposed to frontend)
+ */
+export function isPublicVarKey(key: string): boolean {
+	const upperKey = key.toUpperCase();
+	return PUBLIC_VAR_PREFIXES.some((prefix) => upperKey.startsWith(prefix));
 }
 
 /**
- * Find an existing env file for reading.
- * Preference: .env.production > .env
+ * Check if a key is a reserved AGENTUITY key (except AGENTUITY_PUBLIC_ and allowed keys)
+ */
+export function isReservedAgentuityKey(key: string): boolean {
+	const upperKey = key.toUpperCase();
+	if (!upperKey.startsWith('AGENTUITY_')) {
+		return false;
+	}
+	if (upperKey.startsWith('AGENTUITY_PUBLIC_')) {
+		return false;
+	}
+	if (AGENTUITY_ALLOWED_KEYS.includes(key as (typeof AGENTUITY_ALLOWED_KEYS)[number])) {
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Get public variable keys from secrets that should not be secrets
+ */
+export function getPublicSecretKeys(secrets: EnvVars): string[] {
+	return Object.keys(secrets).filter(isPublicVarKey);
+}
+
+/**
+ * Validate that no public variables are being added as secrets
+ * Returns the list of invalid keys, or empty array if valid
+ */
+export function validateNoPublicSecrets(secrets: EnvVars): string[] {
+	return getPublicSecretKeys(secrets);
+}
+
+/**
+ * Find an existing .env file for reading.
  */
 export async function findExistingEnvFile(dir: string): Promise<string> {
-	const productionEnv = join(dir, '.env.production');
-	const defaultEnv = join(dir, '.env');
-
-	if (await Bun.file(productionEnv).exists()) {
-		return productionEnv;
-	}
-
-	return defaultEnv;
+	return join(dir, '.env');
 }
 
 /**
@@ -179,14 +213,16 @@ export function mergeEnvVars(
 }
 
 /**
- * Filter out AGENTUITY_ prefixed keys from env vars
+ * Filter out reserved AGENTUITY_ prefixed keys from env vars
  * This is used when pushing to the cloud to avoid sending SDK keys
+ * Note: AGENTUITY_PUBLIC_* keys are allowed (they are public env vars)
  */
-export function filterAgentuitySdkKeys(vars: EnvVars): EnvVars {
+export function filterAgentuitySdkKeys(vars?: EnvVars): EnvVars {
+	if (!vars) return {};
 	const filtered: EnvVars = {};
 
 	for (const [key, value] of Object.entries(vars)) {
-		if (!key.startsWith('AGENTUITY_')) {
+		if (!isReservedAgentuityKey(key)) {
 			filtered[key] = value;
 		}
 	}
@@ -195,8 +231,15 @@ export function filterAgentuitySdkKeys(vars: EnvVars): EnvVars {
 }
 
 /**
+ * Keys that should always be treated as secrets (exact match)
+ */
+const secretExactKeys = ['DATABASE_URL'];
+
+/**
  * Split env vars into env and secrets based on key names
  * Convention: Keys ending with _SECRET, _KEY, _TOKEN, _PASSWORD are secrets
+ * Also treats DATABASE_URL as a secret since it contains credentials
+ * Note: Public vars (VITE_, AGENTUITY_PUBLIC_, PUBLIC_) always go to env, never secrets
  */
 export function splitEnvAndSecrets(vars: EnvVars): {
 	env: EnvVars;
@@ -208,14 +251,21 @@ export function splitEnvAndSecrets(vars: EnvVars): {
 	const secretSuffixes = ['_SECRET', '_KEY', '_TOKEN', '_PASSWORD', '_PRIVATE'];
 
 	for (const [key, value] of Object.entries(vars)) {
-		// Skip AGENTUITY_ prefixed keys
-		if (key.startsWith('AGENTUITY_')) {
+		// Skip reserved AGENTUITY_ prefixed keys (except AGENTUITY_PUBLIC_)
+		if (isReservedAgentuityKey(key)) {
 			continue;
 		}
 
-		const isSecret = secretSuffixes.some((suffix) => key.endsWith(suffix));
+		// Public vars always go to env, never secrets
+		if (isPublicVarKey(key)) {
+			env[key] = value;
+			continue;
+		}
 
-		if (isSecret) {
+		const isSecretByExactMatch = secretExactKeys.includes(key);
+		const isSecretBySuffix = secretSuffixes.some((suffix) => key.endsWith(suffix));
+
+		if (isSecretByExactMatch || isSecretBySuffix) {
 			secrets[key] = value;
 		} else {
 			env[key] = value;
@@ -352,4 +402,45 @@ export function looksLikeSecret(key: string, value: string): boolean {
 	}
 
 	return false;
+}
+
+/**
+ * Add resource environment variables to the .env file.
+ * Merges with existing variables, overwriting any that already exist.
+ */
+export async function addResourceEnvVars(dir: string, envVars: EnvVars): Promise<void> {
+	const envPath = join(dir, '.env');
+	const existing = await readEnvFile(envPath);
+	const merged = { ...existing, ...envVars };
+	await writeEnvFile(envPath, merged);
+}
+
+/**
+ * Remove resource environment variables from the .env file.
+ * Only removes the specified keys if they exist.
+ */
+export async function removeResourceEnvVars(dir: string, keys: string[]): Promise<void> {
+	const envPath = join(dir, '.env');
+	const existing = await readEnvFile(envPath);
+
+	let changed = false;
+	for (const key of keys) {
+		if (key in existing) {
+			delete existing[key];
+			changed = true;
+		}
+	}
+
+	if (changed) {
+		await writeEnvFile(envPath, existing);
+	}
+}
+
+/**
+ * Get the value of a specific key from the .env file
+ */
+export async function getEnvVar(dir: string, key: string): Promise<string | undefined> {
+	const envPath = join(dir, '.env');
+	const existing = await readEnvFile(envPath);
+	return existing[key];
 }

@@ -13,10 +13,13 @@
 		"typecheck": "bunx tsc --noEmit"
 	},
 	"dependencies": {
+		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
 		"@agentuity/react": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/workbench": "workspace:*",
+		"hono": "^4.11.3",
 		"react": "^19.2.0",
 		"react-dom": "^19.2.0"
 	},

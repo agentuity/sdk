@@ -5,6 +5,7 @@
  * Uses Bun's built-in color support and ANSI escape codes.
  */
 import { stringWidth } from 'bun';
+import { resolve } from 'node:path';
 import { colorize } from 'json-colorizer';
 import enquirer from 'enquirer';
 import { type OrganizationList, projectList } from '@agentuity/server';
@@ -23,6 +24,10 @@ function ensureCursorRestoration(): void {
 	exitHandlerInstalled = true;
 
 	const restoreCursor = () => {
+		// Skip cursor restoration in CI - terminals don't support these sequences
+		if (process.env.CI) {
+			return;
+		}
 		// Restore cursor visibility
 		process.stderr.write('\x1B[?25h');
 	};
@@ -52,7 +57,7 @@ export type {
 } from './tui/prompt';
 
 // Icons
-const ICONS = {
+export const ICONS = {
 	success: '✓',
 	error: '✗',
 	warning: '⚠',
@@ -61,7 +66,40 @@ const ICONS = {
 	bullet: '•',
 } as const;
 
+/**
+ * Check if we should treat the terminal as TTY-like for interactive output
+ * (real TTY on stdout or stderr, or FORCE_COLOR set by fork wrapper).
+ * Returns false in CI environments since CI terminals often don't support
+ * cursor control sequences reliably.
+ */
+export function isTTYLike(): boolean {
+	if (process.env.CI) {
+		return false;
+	}
+	return !!process.stdout.isTTY || !!process.stderr.isTTY || process.env.FORCE_COLOR === '1';
+}
+
+/**
+ * Get terminal width, respecting COLUMNS env var for piped processes
+ */
+export function getTerminalWidth(defaultWidth = 80): number {
+	if (process.stdout.columns) {
+		return process.stdout.columns;
+	}
+	if (process.env.COLUMNS) {
+		const cols = parseInt(process.env.COLUMNS, 10);
+		if (!isNaN(cols) && cols > 0) {
+			return cols;
+		}
+	}
+	return defaultWidth;
+}
+
 export function shouldUseColors(): boolean {
+	// FORCE_COLOR overrides TTY detection (used by fork wrapper)
+	if (process.env.FORCE_COLOR === '1') {
+		return true;
+	}
 	return (
 		!process.env.NO_COLOR &&
 		!process.env.CI &&
@@ -70,7 +108,9 @@ export function shouldUseColors(): boolean {
 	);
 }
 
-// Color definitions (light/dark adaptive) using Bun.color
+// Color definitions (light/dark adaptive)
+// Note: We use direct ANSI codes instead of Bun.color() because Bun.color()
+// returns corrupted sequences when stdout is not a TTY (even with FORCE_COLOR=1)
 function getColors() {
 	const USE_COLORS = shouldUseColors();
 	if (!USE_COLORS) {
@@ -89,36 +129,36 @@ function getColors() {
 
 	return {
 		success: {
-			light: Bun.color('#008000', 'ansi') || '\x1b[32m', // green
-			dark: Bun.color('#00FF00', 'ansi') || '\x1b[92m', // bright green
+			light: '\x1b[32m', // green
+			dark: '\x1b[92m', // bright green
 		},
 		error: {
-			light: Bun.color('#CC0000', 'ansi') || '\x1b[31m', // red
-			dark: Bun.color('#FF5555', 'ansi') || '\x1b[91m', // bright red
+			light: '\x1b[31m', // red
+			dark: '\x1b[91m', // bright red
 		},
 		warning: {
-			light: Bun.color('#B58900', 'ansi') || '\x1b[33m', // yellow
-			dark: Bun.color('#FFFF55', 'ansi') || '\x1b[93m', // bright yellow
+			light: '\x1b[33m', // yellow
+			dark: '\x1b[93m', // bright yellow
 		},
 		info: {
-			light: Bun.color('#008B8B', 'ansi') || '\x1b[36m', // dark cyan
-			dark: Bun.color('#55FFFF', 'ansi') || '\x1b[96m', // bright cyan
+			light: '\x1b[36m', // dark cyan
+			dark: '\x1b[96m', // bright cyan
 		},
 		muted: {
-			light: Bun.color('#808080', 'ansi') || '\x1b[90m', // gray
-			dark: Bun.color('#888888', 'ansi') || '\x1b[90m', // darker gray
+			light: '\x1b[90m', // gray
+			dark: '\x1b[90m', // gray
 		},
 		bold: {
 			light: '\x1b[1m',
 			dark: '\x1b[1m',
 		},
 		link: {
-			light: '\x1b[34;4m', // blue underline (need ANSI for underline)
+			light: '\x1b[34;4m', // blue underline
 			dark: '\x1b[94;4m', // bright blue underline
 		},
 		primary: {
-			light: Bun.color('#000000', 'ansi') || '\x1b[30m', // black
-			dark: Bun.color('#FFFFFF', 'ansi') || '\x1b[97m', // white
+			light: '\x1b[30m', // black
+			dark: '\x1b[97m', // white
 		},
 		reset: '\x1b[0m',
 	} as const;
@@ -135,7 +175,7 @@ export function isDarkMode(): boolean {
 	return currentColorScheme === 'dark';
 }
 
-function getColor(colorKey: keyof ReturnType<typeof getColors>): string {
+export function getColor(colorKey: keyof ReturnType<typeof getColors>): string {
 	const COLORS = getColors();
 	const color = COLORS[colorKey];
 	if (typeof color === 'string') {
@@ -207,7 +247,8 @@ export function getSeverityColor(severity: string): (text: string) => string {
 export function success(message: string): void {
 	const color = getColor('success');
 	const reset = getColor('reset');
-	process.stderr.write(`${color}${ICONS.success} ${message}${reset}\n`);
+	// Clear line first to ensure no leftover content from previous output
+	process.stderr.write(`\r\x1b[2K${color}${ICONS.success} ${message}${reset}\n`);
 }
 
 /**
@@ -308,6 +349,11 @@ export function link(url: string, title?: string, color = getColor('link')): str
  * Check if terminal supports OSC 8 hyperlinks
  */
 export function supportsHyperlinks(): boolean {
+	// No hyperlink support without a TTY
+	if (!process.stdout.isTTY) {
+		return false;
+	}
+
 	const term = process.env.TERM || '';
 	const termProgram = process.env.TERM_PROGRAM || '';
 	const wtSession = process.env.WT_SESSION || '';
@@ -320,9 +366,45 @@ export function supportsHyperlinks(): boolean {
 		termProgram.includes('Apple_Terminal') ||
 		termProgram.includes('Hyper') ||
 		term.includes('xterm-kitty') ||
-		term.includes('xterm-256color') ||
 		wtSession !== '' // Windows Terminal
 	);
+}
+
+export function fileUrl(file: string, line?: number, col?: number): string {
+	const abs = resolve(file);
+
+	// VS Code understands both file:// and vscode://,
+	// but vscode:// allows line + column everywhere
+	let url = `vscode://file/${abs}`;
+
+	if (line != null) {
+		url += `:${line}`;
+		if (col != null) url += `:${col}`;
+	}
+
+	return url;
+}
+
+export function sourceLink(
+	file: string,
+	line: number,
+	col: number,
+	display?: string,
+	color?: string
+): string {
+	const label = `${file}:${line}:${col}`;
+	const url = fileUrl(file, line, col);
+
+	if (supportsHyperlinks()) {
+		return link(url, display ?? label, color);
+	}
+
+	// Cmd/Ctrl-click fallback
+	if (color) {
+		return color + label + getColor('reset');
+	}
+
+	return label;
 }
 
 /**
@@ -372,15 +454,19 @@ export function getDisplayWidth(str: string): number {
  * Strip all ANSI escape sequences from a string
  */
 export function stripAnsi(str: string): string {
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\u001b\[[0-9;]*m/g, '').replace(/\u001b\]8;;[^\u0007]*\u0007/g, '');
+	/* eslint-disable no-control-regex */
+	return str
+		.replace(/\u001b\[[0-9;]*m/g, '') // SGR sequences (colors, bold, etc.)
+		.replace(/\u001b\[\?[0-9;]*[a-zA-Z]/g, '') // DEC private mode (cursor show/hide, etc.)
+		.replace(/\u001b\]8;;[^\u0007]*\u0007/g, ''); // OSC 8 hyperlinks
+	/* eslint-enable no-control-regex */
 }
 
 /**
  * Truncate a string to a maximum display width, handling ANSI codes and Unicode correctly
  * Preserves ANSI escape sequences and doesn't break multi-byte characters or grapheme clusters
  */
-function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): string {
+export function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): string {
 	const totalWidth = getDisplayWidth(str);
 	if (totalWidth <= maxWidth) {
 		return str;
@@ -419,8 +505,8 @@ function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): strin
 	while (i < str.length && visibleIndex < cutIndex) {
 		// Check for ANSI escape sequence
 		if (str[i] === '\u001b') {
-			// Copy entire ANSI sequence
-			// eslint-disable-next-line no-control-regex
+			/* eslint-disable no-control-regex */
+			// Copy entire SGR sequence (colors, bold, etc.)
 			const match = str.slice(i).match(/^\u001b\[[0-9;]*m/);
 			if (match) {
 				result += match[0];
@@ -428,14 +514,22 @@ function truncateToWidth(str: string, maxWidth: number, ellipsis = '...'): strin
 				continue;
 			}
 
+			// Check for DEC private mode (cursor show/hide, etc.)
+			const decMatch = str.slice(i).match(/^\u001b\[\?[0-9;]*[a-zA-Z]/);
+			if (decMatch) {
+				result += decMatch[0];
+				i += decMatch[0].length;
+				continue;
+			}
+
 			// Check for OSC 8 hyperlink
-			// eslint-disable-next-line no-control-regex
 			const oscMatch = str.slice(i).match(/^\u001b\]8;;[^\u0007]*\u0007/);
 			if (oscMatch) {
 				result += oscMatch[0];
 				i += oscMatch[0].length;
 				continue;
 			}
+			/* eslint-enable no-control-regex */
 		}
 
 		// Copy visible character
@@ -487,7 +581,7 @@ interface BannerOptions {
  */
 export function banner(title: string, body: string, options?: BannerOptions): void {
 	// Get terminal width, default to 120 if not available
-	const termWidth = process.stdout.columns || 120;
+	const termWidth = getTerminalWidth(120);
 
 	const border = {
 		topLeft: '╭',
@@ -718,20 +812,29 @@ export function showSignupBenefits(): void {
 
 /**
  * Display a message when unauthenticated to let the user know certain capabilities are disabled
+ * @param hasProfile - If true, user has logged in before so only show "Login" instead of "Sign up / Login"
  */
-export function showLoggedOutMessage(): void {
+export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): void {
 	const YELLOW = Bun.color('yellow', 'ansi-16m');
 	const TEXT =
 		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
 	const RESET = '\x1b[0m';
 
-	const signupTitle = 'Sign up / Login';
+	const signupTitle = hasProfile ? 'Login' : 'Sign up / Login';
+	const signupURL = hasProfile ? `${appBaseUrl}/sign-in` : `${appBaseUrl}/sign-up`;
 	const showInline = supportsHyperlinks();
-	const signupURL = 'https://app-v1.agentuity.com/sign-up';
 	const signupLink = showInline
 		? link(signupURL, signupTitle)
 		: ' '.repeat(stringWidth(signupTitle));
-	const showNewLine = showInline ? '' : `║ ${RESET}${link(signupURL)}${YELLOW}            ║`;
+	// Box inner width is 46 chars, "unauthenticated. " = 17 chars
+	// Padding needed: 46 - 17 - signupTitle.length - 1 (space before link) = 28 - signupTitle.length
+	const paddingLength = 28 - signupTitle.length;
+	const padding = ' '.repeat(paddingLength);
+	// When not showing inline hyperlink, show URL on separate line with proper padding
+	// Box format: "║ " + content + "║" = 48 chars total
+	// Content area = 46 chars, with leading space = 45 chars for URL + padding
+	const urlPadding = Math.max(0, 45 - signupURL.length);
+	const showNewLine = showInline ? '' : `║ ${RESET}${link(signupURL)}${YELLOW}${' '.repeat(urlPadding)}║`;
 
 	const lines = [
 		'╔══════════════════════════════════════════════╗',
@@ -739,13 +842,45 @@ export function showLoggedOutMessage(): void {
 		'║                                              ║',
 		`║ ${TEXT}Certain capabilities such as the AI services${YELLOW} ║`,
 		`║ ${TEXT}and devmode remote are unavailable when${YELLOW}      ║`,
-		`║ ${TEXT}unauthenticated.${YELLOW} ${signupLink}${YELLOW}             ║`,
+		`║ ${TEXT}unauthenticated.${YELLOW} ${signupLink}${YELLOW}${padding}║`,
 		showNewLine,
 		'╚══════════════════════════════════════════════╝',
 	];
 
 	console.log('');
 	lines.filter(Boolean).map((line) => console.log(YELLOW + line + RESET));
+	console.log('');
+	console.log('');
+}
+
+/**
+ * Display a warning when running in local-only mode (no agentuity.json project config)
+ * This is shown during `agentuity dev` when the project hasn't been registered with Agentuity Cloud
+ */
+export function showLocalOnlyWarning(): void {
+	const YELLOW = Bun.color('yellow', 'ansi-16m');
+	const TEXT =
+		currentColorScheme === 'dark' ? Bun.color('white', 'ansi') : Bun.color('black', 'ansi');
+	const RESET = '\x1b[0m';
+
+	const lines = [
+		'╔═══════════════════════════════════════════════════════════════╗',
+		`║ ⨺ Local-only mode                                             ║`,
+		'║                                                               ║',
+		`║ ${TEXT}This project is not registered with Agentuity Cloud.${YELLOW}          ║`,
+		`║ ${TEXT}The following features are disabled:${YELLOW}                          ║`,
+		`║   ${TEXT}• AI Gateway (LLM calls require provider API keys)${YELLOW}          ║`,
+		`║   ${TEXT}• Public URL / Remote access${YELLOW}                                ║`,
+		`║   ${TEXT}• Dashboard / Tracing / Observability${YELLOW}                       ║`,
+		'║                                                               ║',
+		`║ ${TEXT}To enable cloud features, create a project and login.${YELLOW}         ║`,
+		`║ ${TEXT}Or set provider API keys (e.g. OPENAI_API_KEY) in .env${YELLOW}        ║`,
+		'╚═══════════════════════════════════════════════════════════════╝',
+	];
+
+	console.log('');
+	lines.map((line) => console.log(YELLOW + line + RESET));
+	console.log('');
 }
 
 /**
@@ -815,8 +950,11 @@ function extractLeadingAnsiCodes(str: string): string {
  */
 function stripAnsiCodes(str: string): string {
 	// Remove all ANSI escape sequences
-	// eslint-disable-next-line no-control-regex
-	return str.replace(/\x1b\[[0-9;]*m/g, '');
+	/* eslint-disable no-control-regex */
+	return str
+		.replace(/\x1b\[[0-9;]*m/g, '') // SGR sequences
+		.replace(/\x1b\[\?[0-9;]*[a-zA-Z]/g, ''); // DEC private mode
+	/* eslint-enable no-control-regex */
 }
 
 /**
@@ -831,7 +969,7 @@ function endsWithReset(str: string): boolean {
  * Handles explicit newlines and word wrapping
  * Preserves ANSI color codes across wrapped lines
  */
-function wrapText(text: string, maxWidth: number): string[] {
+export function wrapText(text: string, maxWidth: number): string[] {
 	const allLines: string[] = [];
 
 	// First split by explicit newlines
@@ -1030,8 +1168,9 @@ export async function spinner<T>(
 	const outputOptions = getOutputOptions();
 	const noProgress = outputOptions ? shouldDisableProgress(outputOptions) : false;
 
-	// If no TTY or progress disabled, just execute the callback without animation
-	if (!process.stderr.isTTY || noProgress) {
+	// If no interactive TTY-like environment or progress disabled, just execute
+	// the callback without animation
+	if (!isTTYLike() || noProgress) {
 		try {
 			const result =
 				options.type === 'progress'
@@ -1082,7 +1221,7 @@ export async function spinner<T>(
 	let linesRendered = 0;
 
 	// Get terminal width for truncation
-	const termWidth = process.stderr.columns || 80;
+	const termWidth = getTerminalWidth(80);
 	const maxLineWidth = Math.min(80, termWidth);
 
 	// Function to render spinner with optional log lines
@@ -1171,11 +1310,17 @@ export async function spinner<T>(
 		// Stop animation
 		clearInterval(interval);
 
-		// Move cursor to start of output, clear all lines
+		// Move cursor to start of output, clear only our lines (not to end of screen)
 		if (linesRendered > 0) {
 			process.stderr.write(`\x1b[${linesRendered}A`);
+			for (let i = 0; i < linesRendered; i++) {
+				process.stderr.write('\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stderr.write('\x1b[B'); // Move down one line
+				}
+			}
+			process.stderr.write(`\x1b[${linesRendered}A\r`); // Move back up
 		}
-		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		process.exit(130); // Standard exit code for SIGINT
@@ -1231,11 +1376,22 @@ export async function spinner<T>(
 		// Stop animation first
 		clearInterval(interval);
 
-		// Move cursor to start of output, clear all lines
+		// Move cursor to start of output, clear only our lines (not to end of screen)
 		if (linesRendered > 0) {
 			process.stderr.write(`\x1b[${linesRendered}A`);
+			for (let i = 0; i < linesRendered; i++) {
+				process.stderr.write('\r\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stderr.write('\x1b[B'); // Move down one line
+				}
+			}
+			// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+			// Move up (linesRendered - 1) to get back to start position
+			if (linesRendered > 1) {
+				process.stderr.write(`\x1b[${linesRendered - 1}A`);
+			}
+			process.stderr.write('\r');
 		}
-		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		// If clearOnSuccess is false, show success message
@@ -1252,11 +1408,22 @@ export async function spinner<T>(
 		// Stop animation first
 		clearInterval(interval);
 
-		// Move cursor to start of output, clear all lines
+		// Move cursor to start of output, clear only our lines (not to end of screen)
 		if (linesRendered > 0) {
 			process.stderr.write(`\x1b[${linesRendered}A`);
+			for (let i = 0; i < linesRendered; i++) {
+				process.stderr.write('\r\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stderr.write('\x1b[B'); // Move down one line
+				}
+			}
+			// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+			// Move up (linesRendered - 1) to get back to start position
+			if (linesRendered > 1) {
+				process.stderr.write(`\x1b[${linesRendered - 1}A`);
+			}
+			process.stderr.write('\r');
 		}
-		process.stderr.write('\x1b[J'); // Clear from cursor to end of screen
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
 		// Show error
@@ -1361,7 +1528,7 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 	const reset = getColor('reset');
 
 	// Get terminal width
-	const termWidth = process.stdout.columns || 80;
+	const termWidth = getTerminalWidth(80);
 	const maxCmdWidth = Math.min(40, termWidth);
 	const maxLineWidth = Math.min(80, termWidth);
 
@@ -1429,7 +1596,8 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 
 					for (const line of lines) {
 						if (line.trim()) {
-							allOutputLines.push(line);
+							// Strip ANSI codes from command output to prevent cursor/display issues
+							allOutputLines.push(stripAnsi(line));
 							renderOutput(maxLinesOutput); // Show last N lines while streaming
 						}
 					}
@@ -1450,25 +1618,44 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 			if (linesRendered > 0) {
 				// Move up to the command line
 				process.stdout.write(`\x1b[${linesRendered}A`);
-				// Clear each line (entire line) and move cursor back up
+				// Clear each line (entire line)
 				for (let i = 0; i < linesRendered; i++) {
-					process.stdout.write('\x1b[2K'); // Clear entire line
+					process.stdout.write('\r\x1b[2K'); // Clear entire line
 					if (i < linesRendered - 1) {
 						process.stdout.write('\x1b[B'); // Move down one line
 					}
 				}
-				// Move cursor back up to original position
-				process.stdout.write(`\x1b[${linesRendered}A\r`);
+				// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+				// Move up (linesRendered - 1) to get back to start position
+				if (linesRendered > 1) {
+					process.stdout.write(`\x1b[${linesRendered - 1}A`);
+				}
+				process.stdout.write('\r');
 			}
 			return exitCode;
 		}
 
-		// Clear all rendered lines completely
+		// Determine how many lines to show in final output
+		const finalLinesToShow = exitCode === 0 ? maxLinesOutput : maxLinesOnFailure;
+		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
+
+		// Clear all rendered lines completely (only our lines, not previous output)
 		if (linesRendered > 0) {
 			// Move up to the command line (first line of our output)
 			process.stdout.write(`\x1b[${linesRendered}A`);
-			// Move to beginning of line and clear from cursor to end of screen
-			process.stdout.write('\r\x1b[J');
+			// Clear the lines we rendered during streaming
+			for (let i = 0; i < linesRendered; i++) {
+				process.stdout.write('\r\x1b[2K'); // Clear entire line
+				if (i < linesRendered - 1) {
+					process.stdout.write('\x1b[B'); // Move down one line
+				}
+			}
+			// After loop, cursor is at last cleared line (linesRendered - 1 from start)
+			// Move up (linesRendered - 1) to get back to start position
+			if (linesRendered > 1) {
+				process.stdout.write(`\x1b[${linesRendered - 1}A`);
+			}
+			process.stdout.write('\r');
 		}
 
 		// Determine icon based on exit code
@@ -1480,18 +1667,17 @@ export async function runCommand(options: CommandRunnerOptions): Promise<number>
 			`\r\x1b[K${statusColor}${icon}${reset} ${cmdColor}${displayCmd}${reset}\n`
 		);
 
-		// Determine how many lines to show in final output
-		const finalLinesToShow = exitCode === 0 ? maxLinesOutput : maxLinesOnFailure;
-
-		// Show final output lines
-		const finalOutputLines = allOutputLines.slice(-finalLinesToShow);
+		// Show final output lines (clearing each line first in case we're using more lines than before)
 		for (const line of finalOutputLines) {
 			const displayLine =
 				truncate && getDisplayWidth(line) > maxLineWidth
 					? truncateToWidth(line, maxLineWidth)
 					: line;
-			process.stdout.write(`\r\x1b[K${mutedColor}${displayLine}${reset}\n`);
+			process.stdout.write(`\x1b[2K${mutedColor}${displayLine}${reset}\n`);
 		}
+
+		// If we're showing more lines than we had before, the extra lines may contain old content
+		// We've already written over them, so they're clean now
 
 		return exitCode;
 	} catch (err) {
@@ -1573,20 +1759,33 @@ export async function selectOrganization(
 		return orgs[0].id;
 	}
 
-	if (!process.stdin.isTTY) {
-		if (initial) {
-			return initial;
+	// Use saved preference if available (regardless of TTY mode)
+	// This allows consistent behavior without prompting on every command
+	if (initial) {
+		const initialOrg = orgs.find((o) => o.id === initial);
+		if (initialOrg) {
+			return initialOrg.id;
 		}
-		fatal(
-			'Organization selection required but cannot prompt in non-interactive environment. Set AGENTUITY_CLOUD_ORG_ID or provide a default organization using --org-id'
-		);
 	}
 
+	// Check for non-interactive environment (check both stdin and stdout)
+	const isNonInteractive = !process.stdin.isTTY || !process.stdout.isTTY;
+	if (isNonInteractive) {
+		// In non-interactive mode with multiple orgs, auto-select first org
+		// This allows scripts and CI/CD to work without explicit org selection
+		warning(
+			`Multiple organizations found. Auto-selecting first org: ${orgs[0].name}. ` +
+				`Set AGENTUITY_CLOUD_ORG_ID or use --org-id to specify a different org.`
+		);
+		return orgs[0].id;
+	}
+
+	// Interactive mode with no saved preference - prompt user
 	const response = await enquirer.prompt<{ action: string }>({
 		type: 'select',
 		name: 'action',
 		message: 'Select an organization',
-		initial: initial || (orgs.length === 1 ? orgs[0].id : undefined),
+		initial: 0,
 		choices: orgs.map((o) => ({ message: o.name, name: o.id })),
 	});
 
@@ -1723,11 +1922,102 @@ export interface TableColumn {
 }
 
 /**
+ * Table options
+ */
+export interface TableOptions {
+	/**
+	 * If true, returns the table as a string instead of printing to stdout
+	 */
+	render?: boolean;
+	/**
+	 * Force a specific layout mode
+	 * - 'horizontal': Traditional table with columns side by side
+	 * - 'vertical': Stacked format with "Column: value" on separate lines
+	 * - 'auto': Automatically choose based on terminal width (default)
+	 */
+	layout?: 'horizontal' | 'vertical' | 'auto';
+
+	/**
+	 * the padding before any label
+	 */
+	padStart?: string;
+}
+
+/**
+ * Calculate the minimum width needed to display a horizontal table
+ * Accounts for column padding, borders, and content width
+ */
+function calculateTableWidth<T extends Record<string, unknown>>(
+	data: T[],
+	columnNames: string[],
+	padStart = ''
+): number {
+	const columnWidths = columnNames.map((colName) => {
+		let maxWidth = getDisplayWidth(padStart + colName);
+		for (const row of data) {
+			const value = row[colName];
+			const valueStr = value !== undefined && value !== null ? String(value) : '';
+			const valueWidth = getDisplayWidth(valueStr);
+			if (valueWidth > maxWidth) {
+				maxWidth = valueWidth;
+			}
+		}
+		return maxWidth;
+	});
+
+	// Add padding (1 space each side) and border characters per column
+	// cli-table3 uses: │ col1 │ col2 │ = 3 chars per column + 1 for final border
+	const paddingPerColumn = 3;
+	const totalWidth = columnWidths.reduce((sum, w) => sum + w + paddingPerColumn, 0) + 1;
+
+	return totalWidth;
+}
+
+/**
+ * Render table in vertical (stacked) format for narrow terminals
+ */
+function renderVerticalTable<T extends Record<string, unknown>>(
+	data: T[],
+	columnNames: string[],
+	padStart = ''
+): string {
+	const lines: string[] = [];
+	const mutedColor = getColor('muted');
+	const reset = getColor('reset');
+
+	// Calculate max column name width for alignment
+	const maxLabelWidth = Math.max(
+		...columnNames.map((name) => 1 + getDisplayWidth(padStart + name))
+	);
+
+	for (let i = 0; i < data.length; i++) {
+		const row = data[i];
+
+		for (const colName of columnNames) {
+			const value = row[colName];
+			const valueStr = value !== undefined && value !== null ? String(value) : '';
+			const paddedLabel = `${padStart}${colName}:`.padEnd(maxLabelWidth);
+			lines.push(`${mutedColor}${paddedLabel}${reset}  ${valueStr}`);
+		}
+
+		// Add empty line between rows (but not after last row)
+		if (i < data.length - 1) {
+			lines.push('');
+		}
+	}
+
+	return lines.join('\n') + '\n';
+}
+
+/**
  * Display data in a formatted table using cli-table3
  *
  * Supports two modes:
  * 1. Simple mode: Pass data array and optional column names
  * 2. Advanced mode: Pass column configurations with custom names and alignment
+ *
+ * Automatically switches between horizontal (wide) and vertical (narrow) layouts
+ * based on terminal width. Use the `layout` option to force a specific mode.
  *
  * @param data - Array of data objects to display
  * @param columns - Column names or column configurations
@@ -1737,23 +2027,8 @@ export interface TableColumn {
 export function table<T extends Record<string, unknown>>(
 	data: T[],
 	columns?: (keyof T)[] | TableColumn[],
-	options?: { render?: boolean }
+	options?: TableOptions
 ): string | void {
-	// eslint-disable-next-line @typescript-eslint/no-require-imports
-	const Table = require('cli-table3') as new (options?: {
-		head?: string[];
-		colAligns?: Array<'left' | 'right' | 'center'>;
-		wordWrap?: boolean;
-		style?: {
-			head?: string[];
-			border?: string[];
-		};
-		colors?: boolean;
-	}) => {
-		push(row: unknown[]): void;
-		toString(): string;
-	};
-
 	if (!data || data.length === 0) {
 		return options?.render ? '' : undefined;
 	}
@@ -1764,14 +2039,11 @@ export function table<T extends Record<string, unknown>>(
 	let columnNames: string[];
 	let colAligns: Array<'left' | 'right' | 'center'>;
 
-	let headings: string[];
-
 	if (isAdvancedMode) {
 		// Advanced mode: use provided column configurations
 		const columnConfigs = columns as TableColumn[];
 		columnNames = columnConfigs.map((col) => col.name);
 		colAligns = columnConfigs.map((col) => col.alignment || 'left');
-		headings = columnNames.map((name) => heading(name));
 	} else {
 		// Simple mode: determine column names from data or columns parameter
 		columnNames = columns
@@ -1780,35 +2052,82 @@ export function table<T extends Record<string, unknown>>(
 				? Object.keys(data[0])
 				: [];
 		colAligns = columnNames.map(() => 'left' as const);
-		headings = columnNames.map((name) => heading(name));
 	}
 
-	const t = new Table({
-		head: headings,
-		colAligns,
-		wordWrap: true,
-		style: {
-			head: [], // Disable cli-table3's default red styling - we apply our own via heading()
-			border: [], // Disable default border styling too
-		},
-		colors: false, // Completely disable cli-table3's color system to preserve our ANSI codes
-	});
+	// Determine layout mode
+	const layout = options?.layout ?? 'auto';
+	const termWidth = getTerminalWidth(80);
+	const tableWidth = calculateTableWidth(data, columnNames, options?.padStart);
+	const useVertical = layout === 'vertical' || (layout === 'auto' && tableWidth > termWidth);
 
-	// Add rows to table
-	for (const row of data) {
-		const rowData: unknown[] = [];
-		for (const colName of columnNames) {
-			const value = row[colName];
-			rowData.push(value !== undefined && value !== null ? String(value) : '');
+	let output: string;
+
+	if (useVertical) {
+		output = renderVerticalTable(data, columnNames, options?.padStart);
+	} else {
+		// eslint-disable-next-line @typescript-eslint/no-require-imports
+		const Table = require('cli-table3') as new (options?: {
+			head?: string[];
+			colAligns?: Array<'left' | 'right' | 'center'>;
+			wordWrap?: boolean;
+			style?: {
+				head?: string[];
+				border?: string[];
+			};
+			colors?: boolean;
+		}) => {
+			push(row: unknown[]): void;
+			toString(): string;
+		};
+
+		const headings = columnNames.map((name) => heading(name));
+
+		const t = new Table({
+			head: headings,
+			colAligns,
+			wordWrap: true,
+			style: {
+				head: [], // Disable cli-table3's default red styling - we apply our own via heading()
+				border: [], // Disable default border styling too
+			},
+			colors: false, // Completely disable cli-table3's color system to preserve our ANSI codes
+		});
+
+		// Add rows to table
+		for (const row of data) {
+			const rowData: unknown[] = [];
+			for (const colName of columnNames) {
+				const value = row[colName];
+				rowData.push(value !== undefined && value !== null ? String(value) : '');
+			}
+			t.push(rowData);
 		}
-		t.push(rowData);
-	}
 
-	const output = t.toString();
+		output = t.toString();
+	}
 
 	if (options?.render) {
 		return output;
 	} else {
 		console.log(output);
+	}
+}
+
+export function formatBytes(bytes: number): string {
+	if (bytes === 0) return '0 B';
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
+	if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+	return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+export function clearLastLines(n: number, s?: (v: string) => void) {
+	const x = s ?? ((v: string) => process.stdout.write(v));
+	for (let i = 0; i < n; i++) {
+		x('\x1b[2K'); // clear line
+		x('\x1b[0G'); // cursor to col 0
+		if (i < n - 1) {
+			x('\x1b[1A'); // move up
+		}
 	}
 }

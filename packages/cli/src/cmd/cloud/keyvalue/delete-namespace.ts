@@ -8,9 +8,9 @@ export const deleteNamespaceSubcommand = createCommand({
 	name: 'delete-namespace',
 	aliases: ['rm-namespace'],
 	description: 'Delete a keyvalue namespace and all its keys',
-	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth', 'requires-project'],
+	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, project: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('kv delete-namespace staging'),
@@ -68,7 +68,9 @@ export const deleteNamespaceSubcommand = createCommand({
 		}
 
 		await kv.deleteNamespace(args.name);
-		tui.success(`Namespace ${tui.bold(args.name)} deleted`);
+		if (!ctx.options.json) {
+			tui.success(`Namespace ${tui.bold(args.name)} deleted`);
+		}
 
 		return {
 			success: true,

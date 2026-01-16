@@ -5,12 +5,15 @@ src/**
 
 # Config files
 tsconfig.json
+tsconfig.test.json
+tsconfig.tsbuildinfo
 .vscode/**
 .vscode-test/**
 
 # Build artifacts and dev files
 bun.lockb
 *.log
+*.vsix
 node_modules/.cache/**
 
 # Git
@@ -20,3 +23,4 @@ node_modules/.cache/**
 
 # Development documentation
 PLAN.md
+AGENTS.md

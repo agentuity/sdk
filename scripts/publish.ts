@@ -56,6 +56,7 @@ Description:
   GitHub Release:
     - Creates/updates GitHub release with generated release notes
     - Builds and uploads CLI executables for multiple platforms
+    - Builds and uploads VS Code extension (.vsix) for manual installation
     - Marks pre-releases appropriately on GitHub
 
 Required Environment Variables:
@@ -383,6 +384,17 @@ async function revertVersionChanges() {
 async function validateEnvironment(isDryRun: boolean) {
 	console.log('🔍 Validating environment...\n');
 
+	// Always check npm authentication (tokens expire frequently)
+	try {
+		const user = (await $`npm whoami`.text()).trim();
+		console.log(`✓ Logged into npm as: ${user}`);
+	} catch {
+		console.error('❌ Error: Not logged into npm registry.');
+		console.error('   Run: npm login');
+		rl.close();
+		process.exit(1);
+	}
+
 	if (!isDryRun) {
 		// Check for gh CLI
 		try {
@@ -523,10 +535,28 @@ async function buildExecutables(version: string, skipSign: boolean) {
 	}
 }
 
+async function buildVSCodeExtension(version: string): Promise<string> {
+	console.log('\n🧩 Building VS Code extension...\n');
+
+	const vscodeDir = join(rootDir, 'packages', 'vscode');
+	try {
+		await $`bun run build`.cwd(vscodeDir);
+		await $`bun run package`.cwd(vscodeDir);
+
+		const vsixPath = join(vscodeDir, `agentuity-vscode-${version}.vsix`);
+		console.log(`✓ Built VS Code extension: agentuity-vscode-${version}.vsix`);
+		return vsixPath;
+	} catch (err) {
+		console.error('✗ Failed to build VS Code extension:', err);
+		throw err;
+	}
+}
+
 async function createOrUpdateGitHubRelease(
 	version: string,
 	releaseNotes: string,
-	isPrerelease: boolean
+	isPrerelease: boolean,
+	vsixPath?: string
 ) {
 	const tag = `v${version}`;
 	console.log(`\n🏷️  Creating GitHub release ${tag}...\n`);
@@ -557,18 +587,39 @@ async function createOrUpdateGitHubRelease(
 	// Add executable assets (only .gz compressed files)
 	const binDir = join(rootDir, 'packages', 'cli', 'dist', 'bin');
 	const executables = await readdir(binDir);
+	const assetFiles: string[] = [];
 	for (const exe of executables) {
 		if (exe.endsWith('.gz')) {
-			args.push(join(binDir, exe));
+			assetFiles.push(join(binDir, exe));
 		}
 	}
 
+	// Add VS Code extension if provided
+	if (vsixPath) {
+		assetFiles.push(vsixPath);
+	}
+
+	// First create the release without assets
 	try {
+		console.log('   Creating release...');
 		await $`gh ${args}`.cwd(rootDir);
 		console.log(`✓ Created GitHub release ${tag}`);
 	} catch (err) {
 		console.error(`✗ Failed to create GitHub release:`, err);
 		throw err;
+	}
+
+	// Then upload assets one by one with progress
+	for (const assetPath of assetFiles) {
+		const assetName = assetPath.split('/').pop();
+		console.log(`   Uploading ${assetName}...`);
+		try {
+			await $`gh release upload ${tag} ${assetPath} --clobber`.cwd(rootDir);
+			console.log(`   ✓ Uploaded ${assetName}`);
+		} catch (err) {
+			console.error(`✗ Failed to upload ${assetName}:`, err);
+			throw err;
+		}
 	}
 }
 
@@ -579,9 +630,17 @@ async function main() {
 
 	const isDryRun = process.argv.includes('--dry-run');
 
-	// Parse --version flag
-	const versionArg = process.argv.find((arg) => arg.startsWith('--version='));
-	const forcedVersion = versionArg ? versionArg.split('=')[1] : null;
+	// Parse --version flag (supports both --version=X.Y.Z and --version X.Y.Z)
+	let forcedVersion: string | null = null;
+	const versionEqArg = process.argv.find((arg) => arg.startsWith('--version='));
+	if (versionEqArg) {
+		forcedVersion = versionEqArg.split('=')[1];
+	} else {
+		const versionIndex = process.argv.indexOf('--version');
+		if (versionIndex !== -1 && process.argv[versionIndex + 1]) {
+			forcedVersion = process.argv[versionIndex + 1];
+		}
+	}
 
 	console.log(`🚀 Publishing packages to npm${isDryRun ? ' (DRY RUN)' : ''}\n`);
 
@@ -661,9 +720,12 @@ async function main() {
 		// Build executables (skip signing in dry-run)
 		await buildExecutables(newVersion, isDryRun);
 
+		// Build VS Code extension
+		const vsixPath = await buildVSCodeExtension(newVersion);
+
 		// Create GitHub release before npm publish (skip in dry-run)
 		if (!isDryRun) {
-			await createOrUpdateGitHubRelease(newVersion, releaseNotes, isPreReleaseVersion);
+			await createOrUpdateGitHubRelease(newVersion, releaseNotes, isPreReleaseVersion, vsixPath);
 		}
 
 		const publishable = await getPublishablePackages();
@@ -674,14 +736,36 @@ async function main() {
 			const pkgJson = await readJSON(join(pkg.path, 'package.json'));
 			const pkgName = pkgJson.name;
 			console.log(`\n📦 Publishing ${pkgName}...`);
-			try {
-				const args = ['publish', '--access', 'public', '--tag', distTag];
-				if (isDryRun) args.push('--dry-run');
-				await $`bun ${args}`.cwd(pkg.path);
-				console.log(`✓ ${isDryRun ? 'Dry run completed for' : 'Published'} ${pkgName}`);
-			} catch (err) {
-				console.error(`✗ Failed to publish ${pkgName}:`, err);
-				throw err;
+
+			const maxRetries = 3;
+			let lastErr: unknown;
+			for (let attempt = 1; attempt <= maxRetries; attempt++) {
+				try {
+					const args = ['publish', '--access', 'public', '--tag', distTag];
+					if (isDryRun) args.push('--dry-run');
+					await $`bun ${args}`.cwd(pkg.path);
+					console.log(`✓ ${isDryRun ? 'Dry run completed for' : 'Published'} ${pkgName}`);
+					lastErr = undefined;
+					break;
+				} catch (err) {
+					lastErr = err;
+					const shellErr = err as { stderr?: string; stdout?: string };
+					const errStr = `${shellErr.stderr || ''} ${shellErr.stdout || ''} ${String(err)}`;
+					const isTransient = errStr.includes('404') || errStr.includes('Not Found');
+					if (isTransient && attempt < maxRetries) {
+						const delay = attempt * 5;
+						console.log(
+							`   ⚠ Transient error, retrying in ${delay}s (attempt ${attempt}/${maxRetries})...`
+						);
+						await new Promise((r) => setTimeout(r, delay * 1000));
+					} else {
+						break;
+					}
+				}
+			}
+			if (lastErr) {
+				console.error(`✗ Failed to publish ${pkgName}:`, lastErr);
+				throw lastErr;
 			}
 		}
 

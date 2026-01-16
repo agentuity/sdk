@@ -7,8 +7,9 @@ import { generatePatches } from '../../src/cmd/build/patch';
  * This test verifies that AI SDK packages are correctly patched during Bun.build
  * to inject Agentuity AI Gateway routing and API key handling.
  *
- * This prevents regression of issue #235 where patches were not applied
- * after switching from Vite to Bun for server bundling.
+ * This prevents regression of:
+ * - Issue #235: patches not applied after switching from Vite to Bun for server bundling
+ * - Issue #293: AI Gateway not enabled in dev mode when using createOpenAI({}) in agents
  */
 describe('LLM Provider Patching', () => {
 	test('should generate 13 patches for LLM providers', () => {
@@ -93,5 +94,46 @@ describe('LLM Provider Patching', () => {
 		expect(envGuard).toContain('if (!process.env.OPENAI_API_KEY)');
 		expect(envGuard).toContain('process.env.AGENTUITY_SDK_KEY');
 		expect(envGuard).toContain('process.env.OPENAI_BASE_URL');
+	});
+
+	test('should include gateway URL in createOpenAI patch (issue #293)', () => {
+		const patches = generatePatches();
+		const openaiProviderPatch = patches.get('@ai-sdk/openai');
+
+		expect(openaiProviderPatch).toBeDefined();
+		const createOpenAIPatch = openaiProviderPatch?.functions?.createOpenAI;
+		expect(createOpenAIPatch?.before).toBeDefined();
+
+		// The patch should set baseURL to the gateway endpoint
+		// This ensures that both:
+		// - const openai = createOpenAI({}) - explicit provider creation in agent
+		// - import { openai } from '@ai-sdk/openai' - convenience export
+		// are routed through the AI Gateway
+		const patchCode = createOpenAIPatch?.before || '';
+		expect(patchCode).toContain('/gateway/openai');
+		expect(patchCode).toContain('AGENTUITY_TRANSPORT_URL');
+		expect(patchCode).toContain('opts.baseURL');
+		expect(patchCode).toContain('opts.apiKey');
+	});
+
+	test('should wrap createOpenAI as a function (hoisting for convenience export)', () => {
+		const patches = generatePatches();
+		const openaiProviderPatch = patches.get('@ai-sdk/openai');
+
+		expect(openaiProviderPatch).toBeDefined();
+
+		// The patch uses 'functions' which means applyPatch will:
+		// 1. Rename original: function createOpenAI -> function __agentuity_createOpenAI
+		// 2. Add wrapper: function createOpenAI() { ... }
+		//
+		// Because function declarations are hoisted in JavaScript, the wrapper
+		// will be called even for: export const openai = createOpenAI()
+		// which runs at module initialization time.
+		expect(openaiProviderPatch?.functions?.createOpenAI).toBeDefined();
+		expect(openaiProviderPatch?.body).toBeUndefined(); // Not a body patch
+
+		// Verify it's patching the correct function name
+		const patchConfig = openaiProviderPatch?.functions?.createOpenAI;
+		expect(patchConfig?.before).toBeDefined();
 	});
 });

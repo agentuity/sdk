@@ -328,8 +328,17 @@ async function installDependencies(
 	for (const [pkgName, tarballPath] of packedPackages.entries()) {
 		if (packageJson.dependencies?.[pkgName]) {
 			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
-		} else if (pkgName === '@agentuity/frontend' || pkgName === '@agentuity/server') {
-			// Frontend is a transitive dep of react, server is a transitive dep of runtime
+		} else if (
+			pkgName === '@agentuity/frontend' ||
+			pkgName === '@agentuity/server' ||
+			pkgName === '@agentuity/auth' ||
+			pkgName === '@agentuity/core'
+		) {
+			// These are transitive deps of other packages:
+			// - frontend is a transitive dep of react
+			// - server is a transitive dep of runtime
+			// - auth is a transitive dep of runtime
+			// - core is a transitive dep of many packages
 			// Add them explicitly to prevent bun from pulling from npm
 			if (!packageJson.dependencies) packageJson.dependencies = {};
 			packageJson.dependencies[pkgName] = `file:${tarballPath}`;
@@ -337,6 +346,13 @@ async function installDependencies(
 		if (packageJson.devDependencies?.[pkgName]) {
 			packageJson.devDependencies[pkgName] = `file:${tarballPath}`;
 		}
+	}
+
+	// Add overrides to force all @agentuity packages to use local tarballs
+	// This prevents nested dependencies from pulling from npm
+	if (!packageJson.overrides) packageJson.overrides = {};
+	for (const [pkgName, tarballPath] of packedPackages.entries()) {
+		packageJson.overrides[pkgName] = `file:${tarballPath}`;
 	}
 
 	// Write updated package.json
@@ -671,6 +687,10 @@ async function testTemplate(
 		} else if (template.id === 'clerk') {
 			envVars.CLERK_SECRET_KEY = 'sk_test_dummy';
 			envVars.AGENTUITY_PUBLIC_CLERK_PUBLISHABLE_KEY = 'pk_test_dummy';
+		} else if (template.id === 'agentuity-auth') {
+			// Auth template requires DATABASE_URL to be set (throws at import time otherwise)
+			envVars.DATABASE_URL = 'postgres://user:pass@localhost:5432/testdb';
+			envVars.AGENTUITY_AUTH_SECRET = 'test-secret-for-auth-template';
 		}
 
 		// Step 4: Typecheck

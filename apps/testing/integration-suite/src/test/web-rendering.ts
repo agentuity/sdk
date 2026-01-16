@@ -193,3 +193,63 @@ test('web-rendering', 'api-404-not-caught', async () => {
 	// API 404s should not return HTML
 	assert(!(contentType?.includes('text/html') ?? false), 'API 404 should not return HTML');
 });
+
+// Test: Frontend script does NOT have async attribute (GitHub issue #327)
+// The async attribute causes a race condition where React components execute
+// before the Vite preamble sets window.__vite_plugin_react_preamble_installed__
+test('web-rendering', 'no-async-on-frontend-script', async () => {
+	if (!isDev) {
+		// Skip in production mode - uses bundled assets without this issue
+		return;
+	}
+
+	const res = await fetch('http://127.0.0.1:3500/');
+	if (res.status !== 200) {
+		// Dev mode but Vite not running - skip
+		return;
+	}
+
+	const html = await res.text();
+
+	// Check that frontend.tsx script does NOT have async attribute
+	// Pattern: src="...frontend.tsx" followed by optional attributes then >
+	// Should NOT match: src="/src/web/frontend.tsx" async>
+	const hasAsyncFrontend = /src="[^"]*frontend\.tsx"[^>]*\basync\b/i.test(html);
+	assert(
+		!hasAsyncFrontend,
+		'Frontend script should NOT have async attribute (causes preamble race condition)'
+	);
+});
+
+// Test: Vite preamble script comes before app script (GitHub issue #327)
+test('web-rendering', 'preamble-before-app-script', async () => {
+	if (!isDev) {
+		// Skip in production mode
+		return;
+	}
+
+	const res = await fetch('http://127.0.0.1:3500/');
+	if (res.status !== 200) {
+		return;
+	}
+
+	const html = await res.text();
+
+	// Find positions of key scripts
+	const viteClientPos = html.indexOf('/@vite/client');
+	const reactRefreshPos = html.indexOf('@react-refresh');
+	const frontendPos = html.indexOf('frontend.tsx');
+
+	// Vite client should exist and come before frontend
+	assert(viteClientPos !== -1, 'Vite client script should exist');
+	assert(frontendPos !== -1, 'Frontend script should exist');
+	assert(viteClientPos < frontendPos, 'Vite client should come before frontend script');
+
+	// React refresh (preamble) should exist and come before frontend
+	if (reactRefreshPos !== -1) {
+		assert(
+			reactRefreshPos < frontendPos,
+			'React refresh preamble should come before frontend script'
+		);
+	}
+});

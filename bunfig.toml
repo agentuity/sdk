@@ -6,4 +6,5 @@ production = false
 "@agentuity" = { token = "$NPM_TOKEN", url = "https://registry.npmjs.org/" }
 
 [test]
-preload = ["./packages/react/test/happydom.ts", "./packages/react/test/testing-library.ts"]
+# No preload at root level - each package has its own bunfig.toml with appropriate preloads
+# React needs happy-dom, but runtime needs native Request/Response for Hono

@@ -131,7 +131,7 @@ export default router;
 		cleanup();
 	});
 
-	test('should skip on, all, and route methods without error', async () => {
+	test('should handle on and all methods, and skip route/use methods', async () => {
 		setup();
 		const routeFile = join(TEST_DIR, 'route.ts');
 		const code = `
@@ -153,9 +153,80 @@ export default router;
 		writeFileSync(routeFile, code);
 
 		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		// on('GET', '/test') → 1 route
+		// all('/catch-all') → 5 routes (get, post, put, delete, patch)
+		// route('/api', subRouter) → 0 routes (skipped)
+		// use('*', authMiddleware()) → 0 routes (skipped)
+		// get('/users') → 1 route
+		// post('/users') → 1 route
+		expect(routes).toHaveLength(8);
+
+		// Group routes by path
+		const routesByPath = routes.reduce<Record<string, string[]>>((acc, r) => {
+			acc[r.path] ??= [];
+			acc[r.path].push(r.method);
+			return acc;
+		}, {});
+
+		expect(routesByPath['/api/test']).toEqual(['get']);
+		expect(routesByPath['/api/catch-all']?.sort()).toEqual([
+			'delete',
+			'get',
+			'patch',
+			'post',
+			'put',
+		]);
+		expect(routesByPath['/api/users']?.sort()).toEqual(['get', 'post']);
+
+		cleanup();
+	});
+
+	test('should support on() with array of methods and wildcard path', async () => {
+		setup();
+		const routeFile = join(TEST_DIR, 'route.ts');
+		const code = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.on(['GET', 'POST'], '/auth/*', (c) => c.text('auth'));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
 		expect(routes).toHaveLength(2);
+
+		const methods = routes.map((r) => r.method).sort();
+		const paths = routes.map((r) => r.path);
+
+		expect(methods).toEqual(['get', 'post']);
+		expect(new Set(paths)).toEqual(new Set(['/api/auth/*']));
+
+		cleanup();
+	});
+
+	test('should skip unsupported HTTP methods in on()', async () => {
+		setup();
+		const routeFile = join(TEST_DIR, 'route.ts');
+		const code = `
+import { createRouter } from '@agentuity/runtime';
+
+const router = createRouter();
+
+// HEAD and OPTIONS are not supported in BuildMetadata, should be skipped
+router.on(['GET', 'HEAD', 'OPTIONS'], '/health', (c) => c.text('ok'));
+
+export default router;
+		`;
+		writeFileSync(routeFile, code);
+
+		const routes = await parseRoute(TEST_DIR, routeFile, 'proj_1', 'dep_1');
+		// Only GET should be captured, HEAD and OPTIONS are skipped
+		expect(routes).toHaveLength(1);
 		expect(routes[0].method).toBe('get');
-		expect(routes[1].method).toBe('post');
+		expect(routes[0].path).toBe('/api/health');
 
 		cleanup();
 	});

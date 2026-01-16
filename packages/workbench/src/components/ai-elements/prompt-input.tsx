@@ -34,6 +34,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
+import { cn } from '../../lib/utils';
 import { Button } from '../ui/button';
 import {
 	Command,
@@ -58,7 +59,6 @@ import {
 	InputGroupTextarea,
 } from '../ui/input-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { cn } from '../../lib/utils';
 // ============================================================================
 // Provider Context & Types
 // ============================================================================

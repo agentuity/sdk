@@ -53,6 +53,15 @@ if [ ! -d "$APP_DIR/node_modules/@agentuity/core" ] || \
 fi
 echo -e "${GREEN}✓${NC} SDK packages installed"
 
+# Clean up .env file before build to remove any test-generated keys from previous runs
+# These keys can pollute the Vite build (Vite's define feature can't handle some key patterns)
+if [ -f "$APP_DIR/.env" ]; then
+	echo "Cleaning .env file (removing test-generated keys)..."
+	# Keep only essential keys, remove everything else
+	grep -E '^(AGENTUITY_SDK_KEY|AGENTUITY_REGION|OPENAI_API_KEY)=' "$APP_DIR/.env" > "$APP_DIR/.env.clean" 2>/dev/null || true
+	mv "$APP_DIR/.env.clean" "$APP_DIR/.env"
+fi
+
 # Build the app
 echo ""
 echo "Building integration suite..."
@@ -77,6 +86,14 @@ echo "AGENTUITY_REGION=$REGION" >> "$APP_DIR/.agentuity/.env"
 if [ -n "$OPENAI_API_KEY" ]; then
         echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.agentuity/.env"
         echo -e "${GREEN}✓${NC} OpenAI API key configured for vector operations"
+fi
+
+# Also create .env in project directory for CLI commands (they run from project dir, not .agentuity)
+# The CLI looks for SDK key in the project directory's .env file
+echo "AGENTUITY_SDK_KEY=$AGENTUITY_SDK_KEY" > "$APP_DIR/.env"
+echo "AGENTUITY_REGION=$REGION" >> "$APP_DIR/.env"
+if [ -n "$OPENAI_API_KEY" ]; then
+        echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> "$APP_DIR/.env"
 fi
 
 echo -e "${GREEN}✓${NC} Environment configured (region: $REGION)"
@@ -128,88 +145,144 @@ if [ $ATTEMPTS -eq $TIMEOUT ]; then
 	exit 1
 fi
 
-# Run tests via SSE endpoint
-echo ""
-echo "Running all tests (concurrency=10)..."
-echo ""
-
-# Parse SSE stream and track results
+# Track aggregate results
 TOTAL=0
 PASSED=0
 FAILED=0
 DURATION=0
 
-curl -s "http://127.0.0.1:$PORT/api/test/run?concurrency=10" | while IFS= read -r line; do
-	# Skip empty lines
-	[ -z "$line" ] && continue
+# Function to run tests and parse results
+# Usage: run_tests <url_params> <description>
+run_tests() {
+	local URL_PARAMS="$1"
+	local DESCRIPTION="$2"
+	local RESULT_FILE="/tmp/integration-suite-results.txt"
 	
-	# Parse event type
-	if [[ "$line" =~ ^event:\ (.*)$ ]]; then
-		EVENT="${BASH_REMATCH[1]}"
-		continue
-	fi
+	echo ""
+	echo "$DESCRIPTION"
+	echo ""
 	
-	# Parse data
-	if [[ "$line" =~ ^data:\ (.*)$ ]]; then
-		DATA="${BASH_REMATCH[1]}"
+	curl -s "http://127.0.0.1:$PORT/api/test/run?$URL_PARAMS" > "$RESULT_FILE"
+	
+	local RUN_TOTAL=0
+	local RUN_PASSED=0
+	local RUN_FAILED=0
+	local RUN_DURATION=0
+	
+	while IFS= read -r line; do
+		[ -z "$line" ] && continue
 		
-		# Extract test result
-		if echo "$DATA" | grep -q '"type":"progress"'; then
-			TEST_NAME=$(echo "$DATA" | grep -o '"test":"[^"]*"' | cut -d'"' -f4)
-			PASSED_FLAG=$(echo "$DATA" | grep -o '"passed":[^,}]*' | cut -d':' -f2)
+		if [[ "$line" =~ ^event:\ (.*)$ ]]; then
+			EVENT="${BASH_REMATCH[1]}"
+			continue
+		fi
+		
+		if [[ "$line" =~ ^data:\ (.*)$ ]]; then
+			DATA="${BASH_REMATCH[1]}"
 			
-			if [ "$PASSED_FLAG" = "true" ]; then
-				echo -e "${GREEN}✓${NC} $TEST_NAME"
-			else
-				echo -e "${RED}✗${NC} $TEST_NAME"
-				ERROR=$(echo "$DATA" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 | head -c 100)
-				if [ -n "$ERROR" ]; then
-					echo "  Error: $ERROR"
+			if echo "$DATA" | grep -q '"type":"progress"'; then
+				TEST_NAME=$(echo "$DATA" | grep -o '"test":"[^"]*"' | cut -d'"' -f4)
+				PASSED_FLAG=$(echo "$DATA" | grep -o '"passed":[^,}]*' | cut -d':' -f2)
+				
+				if [ "$PASSED_FLAG" = "true" ]; then
+					echo -e "${GREEN}✓${NC} $TEST_NAME"
+				else
+					echo -e "${RED}✗${NC} $TEST_NAME"
+					ERROR=$(echo "$DATA" | grep -o '"error":"[^"]*"' | cut -d'"' -f4 | head -c 200)
+					if [ -n "$ERROR" ]; then
+						echo "    Error: $ERROR"
+					fi
+					
+					if echo "$DATA" | grep -q '"diagnostics"'; then
+						SESSION_ID=$(echo "$DATA" | grep -o '"sessionId":"[^"]*"' | cut -d'"' -f4)
+						STATUS_CODE=$(echo "$DATA" | grep -o '"statusCode":[0-9]*' | cut -d':' -f2)
+						METHOD=$(echo "$DATA" | grep -o '"method":"[^"]*"' | cut -d'"' -f4)
+						URL=$(echo "$DATA" | grep -o '"url":"[^"]*"' | cut -d'"' -f4 | head -c 100)
+						ERROR_TYPE=$(echo "$DATA" | grep -o '"errorType":"[^"]*"' | cut -d'"' -f4)
+						
+						echo -e "    ${YELLOW}Diagnostics:${NC}"
+						if [ -n "$ERROR_TYPE" ]; then
+							echo "      Type: $ERROR_TYPE"
+						fi
+						if [ -n "$STATUS_CODE" ]; then
+							echo "      Status: $STATUS_CODE"
+						fi
+						if [ -n "$METHOD" ] && [ -n "$URL" ]; then
+							echo "      Request: $METHOD $URL"
+						fi
+						if [ -n "$SESSION_ID" ]; then
+							echo -e "      ${YELLOW}Session ID: $SESSION_ID${NC} (use this to find in backend logs)"
+						fi
+					fi
 				fi
 			fi
-		fi
-		
-		# Extract summary
-		if echo "$DATA" | grep -q '"type":"complete"'; then
-			TOTAL=$(echo "$DATA" | grep -o '"total":[0-9]*' | cut -d':' -f2)
-			PASSED=$(echo "$DATA" | grep -o '"passed":[0-9]*' | cut -d':' -f2)
-			FAILED=$(echo "$DATA" | grep -o '"failed":[0-9]*' | cut -d':' -f2)
-			DURATION=$(echo "$DATA" | grep -o '"duration":[0-9.]*' | cut -d':' -f2)
 			
-			# Calculate duration in seconds
-			DURATION_SEC=$(echo "scale=2; $DURATION / 1000" | bc)
-			
-			echo ""
-			echo "╔════════════════════════════════════════════════════════════════╗"
-			echo "║              INTEGRATION SUITE - TEST RESULTS                  ║"
-			echo "╠════════════════════════════════════════════════════════════════╣"
-			printf "║  %-30s %30s  ║\n" "Total Tests:" "$TOTAL"
-			printf "║  %-30s %30s  ║\n" "Passed:" "$(printf "${GREEN}%s${NC}" "$PASSED")"
-			printf "║  %-30s %30s  ║\n" "Failed:" "$(printf "${RED}%s${NC}" "$FAILED")"
-			printf "║  %-30s %30s  ║\n" "Duration:" "${DURATION_SEC}s (${DURATION}ms)"
-			echo "╠════════════════════════════════════════════════════════════════╣"
-			
-			if [ "$FAILED" -gt 0 ]; then
-				printf "║  %-60s  ║\n" "$(printf "${RED}✗ RESULT: FAILED - %s test(s) failed${NC}" "$FAILED")"
-			else
-				printf "║  %-60s  ║\n" "$(printf "${GREEN}✓ RESULT: SUCCESS - All tests passed${NC}")"
-			fi
-			
-			echo "╚════════════════════════════════════════════════════════════════╝"
-			echo ""
-			
-			# Kill server
-			kill $SERVER_PID 2>/dev/null || true
-			
-			# Exit with failure if any tests failed
-			if [ "$FAILED" -gt 0 ]; then
-				exit 1
-			else
-				exit 0
+			if echo "$DATA" | grep -q '"type":"complete"'; then
+				RUN_TOTAL=$(echo "$DATA" | grep -o '"total":[0-9]*' | cut -d':' -f2)
+				RUN_PASSED=$(echo "$DATA" | grep -o '"passed":[0-9]*' | cut -d':' -f2)
+				RUN_FAILED=$(echo "$DATA" | grep -o '"failed":[0-9]*' | cut -d':' -f2)
+				RUN_DURATION=$(echo "$DATA" | grep -o '"duration":[0-9.]*' | cut -d':' -f2)
 			fi
 		fi
-	fi
-done
+	done < "$RESULT_FILE"
+	
+	rm -f "$RESULT_FILE"
+	
+	# Accumulate into global totals
+	TOTAL=$((TOTAL + RUN_TOTAL))
+	PASSED=$((PASSED + RUN_PASSED))
+	FAILED=$((FAILED + RUN_FAILED))
+	DURATION=$(echo "$DURATION + $RUN_DURATION" | bc)
+}
 
-# Cleanup (in case curl fails)
+# Phase 1: Run all tests EXCEPT cli-env-secrets and cli-org-env-secrets at concurrency=10
+# The exclude parameter filters out suites by name (comma-separated)
+run_tests "concurrency=10&exclude=cli-env-secrets,cli-org-env-secrets" "Running tests (concurrency=10, excluding cli-env-secrets,cli-org-env-secrets)..."
+
+# Phase 2: Run cli-env-secrets tests at concurrency=1
+# These tests interact with cloud APIs that can't handle high concurrency
+run_tests "suite=cli-env-secrets&concurrency=1" "Running cli-env-secrets tests (concurrency=1)..."
+
+# Phase 3: Run cli-org-env-secrets tests at concurrency=1
+# These tests modify shared org-level state and need to run serially
+run_tests "suite=cli-org-env-secrets&concurrency=1" "Running cli-org-env-secrets tests (concurrency=1)..."
+
+# Kill server
 kill $SERVER_PID 2>/dev/null || true
+
+# Validate we got test results
+if [ "$TOTAL" -eq 0 ]; then
+	echo -e "${RED}✗ ERROR:${NC} No test results received!"
+	echo "This usually means the test suite failed to start or crashed."
+	exit 1
+fi
+
+# Calculate duration in seconds
+DURATION_SEC=$(echo "scale=2; $DURATION / 1000" | bc)
+
+# Print summary
+echo ""
+echo "╔════════════════════════════════════════════════════════════════╗"
+echo "║              INTEGRATION SUITE - TEST RESULTS                  ║"
+echo "╠════════════════════════════════════════════════════════════════╣"
+printf "║  %-30s %30s  ║\n" "Total Tests:" "$TOTAL"
+printf "║  %-30s %30s  ║\n" "Passed:" "$(printf "${GREEN}%s${NC}" "$PASSED")"
+printf "║  %-30s %30s  ║\n" "Failed:" "$(printf "${RED}%s${NC}" "$FAILED")"
+printf "║  %-30s %30s  ║\n" "Duration:" "${DURATION_SEC}s (${DURATION}ms)"
+echo "╠════════════════════════════════════════════════════════════════╣"
+
+if [ "$FAILED" -gt 0 ]; then
+	printf "║  %-60s  ║\n" "$(printf "${RED}✗ RESULT: FAILED - %s test(s) failed${NC}" "$FAILED")"
+	echo "╚════════════════════════════════════════════════════════════════╝"
+	echo ""
+	echo "Server logs (last 50 lines):"
+	echo "-----------------------------"
+	tail -50 "$LOG_FILE" 2>/dev/null || echo "(no logs available)"
+	echo ""
+	exit 1
+else
+	printf "║  %-60s  ║\n" "$(printf "${GREEN}✓ RESULT: SUCCESS - All tests passed${NC}")"
+	echo "╚════════════════════════════════════════════════════════════════╝"
+	echo ""
+	exit 0
+fi

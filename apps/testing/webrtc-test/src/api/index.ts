@@ -1,4 +1,4 @@
-import { createRouter } from '@agentuity/runtime';
+import { createRouter, webrtc } from '@agentuity/runtime';
 import hello from '@agent/hello';
 
 const api = createRouter();
@@ -10,7 +10,7 @@ api.post('/hello', hello.validator(), async (c) => {
 	return c.json(result);
 });
 
-// WebRTC signaling endpoint - creates /api/call/signal
-api.webrtc('/call');
+// WebRTC signaling endpoint at /api/call/signal
+api.get('/call/signal', webrtc());
 
 export default api;

@@ -1,5 +1,5 @@
 import type { Schema, Infer } from '../base';
-import { createIssue, failure, success, createParseMethods } from '../base';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -24,6 +24,7 @@ import { nullable } from '../utils/nullable';
 export class ArraySchema<T extends Schema<any, any>>
 	implements Schema<Array<Infer<T>>, Array<Infer<T>>>
 {
+	readonly [SCHEMA_KIND] = 'ArraySchema';
 	description?: string;
 	private parseMethods = createParseMethods<Array<Infer<T>>>();
 

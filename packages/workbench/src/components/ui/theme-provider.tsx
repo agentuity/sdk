@@ -23,7 +23,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 export function ThemeProvider({
 	children,
 	defaultTheme = 'system',
-	storageKey = 'workbench-ui-theme',
+	storageKey = 'agentuity-workbench-ui-theme',
 	...props
 }: ThemeProviderProps) {
 	const [theme, setTheme] = useState<Theme>(

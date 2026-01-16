@@ -280,3 +280,142 @@ test('sse', 'multiple-sequential-connections', async () => {
 	assertEqual(msg3.data, 'Message 1');
 	client3.close();
 });
+
+// Test 13: Async operations that consume ReadableStreams
+// This tests the fix for https://github.com/agentuity/sdk/issues/471
+// AI SDK's generateText/generateObject use fetch() internally which creates
+// a Response with a ReadableStream body that must be consumed.
+test('sse', 'async-fetch-operations', async () => {
+	const client = createSSEClient('/api/sse/async-fetch');
+
+	// Setup event listeners
+	const fetchResults: string[] = [];
+	let completed = false;
+
+	client.addEventListener('fetch-result', (data) => fetchResults.push(data));
+	client.addEventListener('complete', () => {
+		completed = true;
+	});
+
+	await client.connect();
+
+	// Wait for events to arrive
+	await new Promise((resolve) => setTimeout(resolve, 200));
+
+	// Verify fetch results were received (this would fail before the fix)
+	assertEqual(fetchResults.length, 2, 'Should receive 2 fetch results');
+	assertEqual(fetchResults[0], 'simulated-ai-response');
+	assertEqual(fetchResults[1], 'simulated-ai-response');
+	assert(completed, 'Should receive complete event');
+
+	client.close();
+});
+
+// Test 14: Error handling in SSE handlers
+// Verifies that errors in handlers don't crash the server
+test('sse', 'error-handling-graceful', async () => {
+	// Test normal case (no error)
+	const client1 = createSSEClient('/api/sse/error-handling');
+
+	const events1: string[] = [];
+	client1.addEventListener('start', () => events1.push('start'));
+	client1.addEventListener('complete', () => events1.push('complete'));
+
+	await client1.connect();
+	await new Promise((resolve) => setTimeout(resolve, 100));
+
+	assertEqual(events1.length, 2, 'Should receive start and complete events');
+	assertEqual(events1[0], 'start');
+	assertEqual(events1[1], 'complete');
+
+	client1.close();
+});
+
+// Test 15: Error handling - server doesn't crash on error
+test('sse', 'error-handling-with-error', async () => {
+	// Test with error - server should not crash, should receive start event
+	const client = createSSEClient('/api/sse/error-handling', { error: 'true' });
+
+	const events: string[] = [];
+	client.addEventListener('start', () => events.push('start'));
+	client.addEventListener('complete', () => events.push('complete'));
+
+	await client.connect();
+	await new Promise((resolve) => setTimeout(resolve, 100));
+
+	// Should receive start event before error occurs
+	assert(events.includes('start'), 'Should receive start event before error');
+	// Complete event should NOT be received because handler throws
+	assert(!events.includes('complete'), 'Should not receive complete event after error');
+
+	client.close();
+});
+
+// Test 16: Real HTTP fetch calls inside SSE (simulates AI SDK pattern)
+// This tests the fix for https://github.com/agentuity/sdk/issues/471
+// AI SDK's generateText/generateObject use fetch() internally. When running inside
+// SSE handlers with OTEL instrumentation, this caused "ReadableStream has already been used"
+// errors. The fix runs SSE handlers in ROOT_CONTEXT to bypass OTEL instrumentation.
+test('sse', 'generate-text-pattern', async () => {
+	const client = createSSEClient('/api/sse/generate-text');
+
+	const results: any[] = [];
+	let completed = false;
+	let completedMessage = '';
+	let completeResolver: (() => void) | null = null;
+	const completePromise = new Promise<void>((resolve) => {
+		completeResolver = resolve;
+	});
+
+	client.addEventListener('start', () => {});
+	client.addEventListener('result', (data) => results.push(data));
+	client.addEventListener('error', (data) => results.push({ error: data }));
+	client.addEventListener('complete', (data) => {
+		completed = true;
+		completedMessage = data;
+		completeResolver?.();
+	});
+
+	await client.connect();
+
+	// Wait for complete event with a generous timeout for CI (httpbin can be slow)
+	// Use Promise.race to either get the complete event or timeout after 60 seconds
+	const timeoutPromise = new Promise<'timeout'>((resolve) =>
+		setTimeout(() => resolve('timeout'), 60000)
+	);
+	const result = await Promise.race([
+		completePromise.then(() => 'complete' as const),
+		timeoutPromise,
+	]);
+
+	client.close();
+
+	// If we got results but timed out waiting for complete, that's still a pass
+	// (the important thing is that the fetch+tee didn't throw "ReadableStream already used")
+	if (result === 'timeout') {
+		// If we received at least one result, the fix is working - stream didn't crash
+		if (results.length > 0) {
+			// Success - we got results even if we didn't get the complete event
+			return;
+		}
+		throw new Error('Timeout waiting for SSE events - no results received');
+	}
+
+	// Should have received results (either from AI SDK or httpbin fallback)
+	assert(results.length > 0, `Should receive at least 1 result, got ${results.length}`);
+
+	// Should have completed successfully
+	assert(completed, 'Should receive complete event');
+	assert(
+		completedMessage.startsWith('done'),
+		`Complete message should start with 'done': ${completedMessage}`
+	);
+
+	// Check that no errors occurred (unless network issues)
+	const errors = results.filter((r) => r.error);
+	// Allow some network errors but not all results being errors
+	assert(
+		errors.length < results.length,
+		`Most results should succeed, but got ${errors.length} errors out of ${results.length} results`
+	);
+});

@@ -9,7 +9,7 @@ import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, readdirSy
 import type { BuildMetadata } from '@agentuity/server';
 import type { AgentMetadata } from './agent-discovery';
 import type { RouteMetadata } from './route-discovery';
-import type { Logger } from '../../../types';
+import type { Logger, DeployOptions } from '../../../types';
 import { getVersion } from '../../../version';
 
 interface ViteManifestEntry {
@@ -25,6 +25,7 @@ interface AssetInfo {
 	kind: string;
 	contentType: string;
 	size: number;
+	contentEncoding?: string;
 }
 
 function getContentType(filename: string): string {
@@ -63,6 +64,59 @@ function getContentType(filename: string): string {
 		default:
 			return 'application/octet-stream';
 	}
+}
+
+/**
+ * Determine if an asset should be compressed with gzip.
+ * The result is included in asset metadata so the API can generate
+ * presigned URLs with matching Content-Encoding.
+ */
+function shouldCompressAsset(asset: {
+	filename: string;
+	contentType: string;
+	kind: string;
+}): boolean {
+	const ct = asset.contentType.toLowerCase();
+	const filename = asset.filename.toLowerCase();
+
+	if (ct.startsWith('image/') && ct !== 'image/svg+xml') {
+		return false;
+	}
+	if (ct.startsWith('video/') || ct.startsWith('audio/')) {
+		return false;
+	}
+	if (ct === 'font/woff' || ct === 'font/woff2') {
+		return false;
+	}
+	if (/\.(zip|gz|tgz|tar|bz2|br)$/.test(filename)) {
+		return false;
+	}
+
+	if (
+		ct.startsWith('text/') ||
+		ct === 'application/javascript' ||
+		ct === 'application/json' ||
+		ct === 'application/xml' ||
+		ct === 'application/xhtml+xml' ||
+		ct === 'image/svg+xml'
+	) {
+		return true;
+	}
+
+	if (ct === 'font/ttf' || ct === 'application/vnd.ms-fontobject') {
+		return true;
+	}
+
+	if (
+		asset.kind === 'entry-point' ||
+		asset.kind === 'script' ||
+		asset.kind === 'stylesheet' ||
+		asset.kind === 'sourcemap'
+	) {
+		return true;
+	}
+
+	return false;
 }
 
 function getAssetKind(filename: string, isEntry: boolean = false): string {
@@ -108,6 +162,7 @@ export interface MetadataGeneratorOptions {
 	routes: RouteMetadata[];
 	dev?: boolean;
 	logger: Logger;
+	deploymentOptions?: DeployOptions;
 }
 
 /**
@@ -220,12 +275,18 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 			}
 
 			seenAssets.add(assetPath);
-			assets.push({
+			const kind = getAssetKind(relativePath, isEntry);
+			const contentType = getContentType(relativePath);
+			const assetInfo: AssetInfo = {
 				filename: assetPath,
-				kind: getAssetKind(relativePath, isEntry),
-				contentType: getContentType(relativePath),
+				kind,
+				contentType,
 				size: stats.size,
-			});
+			};
+			if (shouldCompressAsset(assetInfo)) {
+				assetInfo.contentEncoding = 'gzip';
+			}
+			assets.push(assetInfo);
 		}
 	};
 
@@ -328,12 +389,17 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 						const assetPath = `public/${relativePath}`;
 						if (!seenAssets.has(assetPath)) {
 							seenAssets.add(assetPath);
-							assets.push({
+							const contentType = getContentType(entry.name);
+							const assetInfo: AssetInfo = {
 								filename: assetPath,
 								kind: 'static',
-								contentType: getContentType(entry.name),
+								contentType,
 								size: stats.size,
-							});
+							};
+							if (shouldCompressAsset(assetInfo)) {
+								assetInfo.contentEncoding = 'gzip';
+							}
+							assets.push(assetInfo);
 						}
 					}
 				}
@@ -377,7 +443,7 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 			evals: agent.evals?.map((evalItem) => ({
 				filename: evalItem.filename,
 				id: evalItem.id,
-				evalId: evalItem.evalId,
+				identifier: evalItem.identifier,
 				name: evalItem.name,
 				version: evalItem.version,
 				description: evalItem.description,
@@ -406,6 +472,19 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 			git: await getGitInfo(rootDir, logger),
 		},
 	};
+
+	if (options.deploymentOptions) {
+		const git = { ...(metadata.deployment.git ?? {}), ...options.deploymentOptions };
+		if (options.deploymentOptions.pullRequestNumber) {
+			git.pull_request = {
+				number: options.deploymentOptions.pullRequestNumber,
+				url: options.deploymentOptions.pullRequestUrl,
+			};
+			delete git.pullRequestNumber;
+			delete git.pullRequestUrl;
+		}
+		metadata.deployment.git = git;
+	}
 
 	return metadata;
 }
@@ -625,10 +704,10 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 	lines.push('.agentuity/');
 	lines.push('├── app.js                     # Bundled server application');
 	lines.push('├── agentuity.metadata.json    # Build metadata and schemas');
-	if (metadata.assets?.some((a) => a.filename.startsWith('client/'))) {
+	if (metadata.assets?.some((a: { filename: string }) => a.filename.startsWith('client/'))) {
 		lines.push('├── client/                # Frontend assets (fallback, CDN by default)');
 	}
-	if (metadata.assets?.some((a) => a.filename.startsWith('public/'))) {
+	if (metadata.assets?.some((a: { filename: string }) => a.filename.startsWith('public/'))) {
 		lines.push('├── public/                # Static assets');
 	}
 	lines.push('└── AGENTS.md                  # This file');
@@ -666,8 +745,9 @@ function generateAgentsMd(metadata: BuildMetadata): string {
 	lines.push('**User & Permissions:**');
 	lines.push('- User: `agentuity` (UID: 1022, GID: 1777)');
 	lines.push('- Home directory: `/home/agentuity`');
-	lines.push('- Working directory: `/home/agentuity/app` (application code deployed here)');
+	lines.push('- Working directory: `/home/agentuity` (application code deployed here)');
 	lines.push('- Logs directory: `/home/agentuity/logs`');
+	lines.push('- Temp directory: `/home/agentuity/tmp`');
 	lines.push('');
 	lines.push('**Pre-installed Tools:**');
 	lines.push('- **Runtimes:** Node.js 24, Bun 1.x');

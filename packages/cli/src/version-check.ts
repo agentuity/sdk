@@ -139,10 +139,10 @@ async function updateCheckTimestamp(config: Config | null, logger: Logger): Prom
  */
 async function performUpgrade(logger: Logger): Promise<void> {
 	try {
-		// Run upgrade command (it will validate, download, install, etc.)
+		// Run upgrade command with --force since user already confirmed via prompt
 		// Use process.execPath to get the actual binary path (not Bun.main which is virtual)
 		logger.info('Starting upgrade...');
-		await $`${process.execPath} upgrade`.quiet();
+		await $`${process.execPath} upgrade --force`.quiet();
 
 		// If we got here, the upgrade succeeded
 		// Re-run the original command with the new binary
@@ -150,7 +150,7 @@ async function performUpgrade(logger: Logger): Promise<void> {
 		const newBinaryPath = process.execPath;
 
 		logger.info('Upgrade successful! Restarting with new version...');
-		tui.info('');
+		console.log('');
 
 		// Spawn new process with same arguments
 		const proc = Bun.spawn([newBinaryPath, ...args], {

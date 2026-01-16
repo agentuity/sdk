@@ -13,10 +13,14 @@
 	"dependencies": {
 		"@agentuity/cli": "workspace:*",
 		"@agentuity/core": "workspace:*",
+		"@agentuity/frontend": "workspace:*",
 		"@agentuity/runtime": "workspace:*",
 		"@agentuity/react": "workspace:*",
 		"@agentuity/schema": "workspace:*",
 		"@agentuity/workbench": "workspace:*",
+		"@agentuity/evals": "workspace:*",
+		"@ai-sdk/openai": "^3.0.0",
+		"ai": "^6.0.0",
 		"hono": "^4.7.13",
 		"react": "^19.2.1",
 		"react-dom": "^19.2.1"
@@ -24,6 +28,8 @@
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/react": "^19.2.7",
-		"@types/react-dom": "^19.2.3"
+		"@types/react-dom": "^19.2.3",
+		"@vitejs/plugin-react": "^4.5.2",
+		"vite": "^7.2.7"
 	}
 }

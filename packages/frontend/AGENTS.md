@@ -71,6 +71,7 @@ src/
 - Test with Bun test runner
 - Mock browser APIs where needed (fetch, WebSocket, EventSource)
 - Ensure all utilities work without framework dependencies
+- When running tests, prefer using a subagent (Task tool) to avoid context bloat from test output
 
 ## Publishing Checklist
 

@@ -1,5 +1,5 @@
 import type { Schema, Infer } from '../base';
-import { createIssue, failure, success, createParseMethods } from '../base';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -21,6 +21,7 @@ import { nullable } from '../utils/nullable';
 export class RecordSchema<K extends Schema<string, string>, V extends Schema<any, any>>
 	implements Schema<Record<Infer<K>, Infer<V>>, Record<Infer<K>, Infer<V>>>
 {
+	readonly [SCHEMA_KIND] = 'RecordSchema';
 	description?: string;
 	private recordParseMethods = createParseMethods<Record<Infer<K>, Infer<V>>>();
 

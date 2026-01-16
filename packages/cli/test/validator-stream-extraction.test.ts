@@ -21,8 +21,8 @@ import { createRouter } from '@agentuity/runtime';
 import { validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const InputSchema = s.object({ query: s.string() });
-const OutputSchema = s.object({ result: s.string() });
+export const InputSchema = s.object({ query: s.string() });
+export const OutputSchema = s.object({ result: s.string() });
 
 const router = createRouter();
 
@@ -60,7 +60,7 @@ import { createRouter } from '@agentuity/runtime';
 import { validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ id: s.string() });
+export const OutputSchema = s.object({ id: s.string() });
 
 const router = createRouter();
 
@@ -92,7 +92,7 @@ import { createRouter } from '@agentuity/runtime';
 import { validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const OutputSchema = s.object({ data: s.string() });
+export const OutputSchema = s.object({ data: s.string() });
 
 const router = createRouter();
 
@@ -121,7 +121,7 @@ import { createRouter } from '@agentuity/runtime';
 import { validator } from '@agentuity/runtime';
 import { s } from '@agentuity/schema';
 
-const Schema = s.object({ value: s.string() });
+export const Schema = s.object({ value: s.string() });
 
 const router = createRouter();
 

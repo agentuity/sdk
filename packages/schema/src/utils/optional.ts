@@ -1,5 +1,5 @@
 import type { Schema, Infer } from '../base';
-import { success, createParseMethods } from '../base';
+import { success, createParseMethods, SCHEMA_KIND } from '../base';
 
 /**
  * Schema for optional values (T | undefined).
@@ -19,6 +19,7 @@ import { success, createParseMethods } from '../base';
 export class OptionalSchema<T extends Schema<any, any>>
 	implements Schema<Infer<T> | undefined, Infer<T> | undefined>
 {
+	readonly [SCHEMA_KIND] = 'OptionalSchema';
 	readonly schema: T;
 	description?: string;
 

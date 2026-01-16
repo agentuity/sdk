@@ -5,8 +5,12 @@
 
 import { createMiddleware } from 'hono/factory';
 import { cors } from 'hono/cors';
-import type { Env } from './app';
+import { compress } from 'hono/compress';
+import { setSignedCookie } from 'hono/cookie';
+import type { Env, CompressionConfig, CorsConfig } from './app';
+import { createTrustedCorsOrigin } from './cors';
 import type { Logger } from './logger';
+import { getAppConfig } from './app';
 import { generateId } from './session';
 import { runInHTTPContext } from './_context';
 import { DURATION_HEADER, TOKENS_HEADER } from './_tokens';
@@ -24,10 +28,24 @@ import { TraceState } from '@opentelemetry/core';
 import * as runtimeConfig from './_config';
 import { getSessionEventProvider } from './_services';
 import { internal } from './logger/internal';
+import { STREAM_DONE_PROMISE_KEY, IS_STREAMING_RESPONSE_KEY } from './handlers/sse';
 
 const SESSION_HEADER = 'x-session-id';
 const THREAD_HEADER = 'x-thread-id';
 const DEPLOYMENT_HEADER = 'x-deployment';
+
+/**
+ * Paths that should skip OTEL session tracking.
+ * These routes are still accessible but won't create session events.
+ */
+const OTEL_SESSION_SKIP_PATHS = new Set([
+	'/_agentuity/workbench/ws',
+	'/_agentuity/workbench/sample',
+	'/_agentuity/workbench/state',
+	'/_agentuity/workbench/metadata.json',
+	'/_agentuity/webanalytics/analytics.js',
+	'/_agentuity/webanalytics/session.js',
+]);
 
 export const AGENT_CONTEXT_PROPERTIES = [
 	'logger',
@@ -36,6 +54,7 @@ export const AGENT_CONTEXT_PROPERTIES = [
 	'kv',
 	'stream',
 	'vector',
+	'sandbox',
 	'state',
 	'thread',
 	'session',
@@ -92,6 +111,7 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 		c.set('kv', services.kv);
 		c.set('stream', services.stream);
 		c.set('vector', services.vector);
+		c.set('sandbox', services.sandbox);
 
 		installContextPropertyHelpers(c);
 
@@ -109,6 +129,12 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 			const endTime = performance.now();
 			const duration = ((endTime - started) / 1000).toFixed(1);
 			c.header(DURATION_HEADER, `${duration}s`);
+
+			// Set deployment header for all routes
+			const deploymentId = runtimeConfig.getDeploymentId();
+			if (deploymentId) {
+				c.header(DEPLOYMENT_HEADER, deploymentId);
+			}
 		}
 
 		if (!skipLogging && !isWebSocket) {
@@ -124,31 +150,118 @@ export function createBaseMiddleware(config: MiddlewareConfig) {
 }
 
 /**
- * Create CORS middleware
+ * Create CORS middleware with lazy config resolution.
+ *
+ * Handles Cross-Origin Resource Sharing (CORS) headers for API routes.
+ * Config is resolved at request time, allowing it to be set via createApp().
+ * Static options passed here take precedence over app config.
+ *
+ * Default behavior:
+ * - Reflects the request origin (allows any origin)
+ * - Allows common headers: Content-Type, Authorization, Accept, Origin, X-Requested-With
+ * - Allows all standard HTTP methods
+ * - Enables credentials
+ * - Sets max-age to 600 seconds (10 minutes)
+ *
+ * @param staticOptions - Optional static CORS options that override app config
+ *
+ * @example
+ * ```typescript
+ * // Use with default settings
+ * app.use('/api/*', createCorsMiddleware());
+ *
+ * // Or configure via createApp
+ * const app = await createApp({
+ *   cors: {
+ *     origin: 'https://example.com',
+ *     allowHeaders: ['Content-Type', 'Authorization', 'X-Custom-Header'],
+ *     maxAge: 3600,
+ *   }
+ * });
+ *
+ * // Or pass static options directly (overrides app config)
+ * app.use('/api/*', createCorsMiddleware({
+ *   origin: ['https://app.example.com', 'https://admin.example.com'],
+ *   credentials: true,
+ * }));
+ * ```
  */
-export function createCorsMiddleware(corsOptions?: Parameters<typeof cors>[0]) {
-	return cors({
-		origin: corsOptions?.origin ?? ((origin) => origin),
-		allowHeaders: corsOptions?.allowHeaders ?? [
-			'Content-Type',
-			'Authorization',
-			'Accept',
-			'Origin',
-			'X-Requested-With',
-			THREAD_HEADER,
-		],
-		allowMethods: ['POST', 'GET', 'OPTIONS', 'HEAD', 'PUT', 'DELETE', 'PATCH'],
-		exposeHeaders: [
-			'Content-Length',
+export function createCorsMiddleware(staticOptions?: CorsConfig) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return createMiddleware<Env<any>>(async (c, next) => {
+		// Lazy resolve: merge app config with static options
+		const appConfig = getAppConfig();
+		const appCors = appConfig?.cors;
+		const corsOptions = {
+			...appCors,
+			...staticOptions,
+		};
+
+		// Extract Agentuity-specific options
+		const { sameOrigin, allowedOrigins, ...honoCorsOptions } = corsOptions;
+
+		// Determine origin handler based on sameOrigin setting
+		let originHandler: NonNullable<Parameters<typeof cors>[0]>['origin'];
+		if (sameOrigin) {
+			// Use trusted origins (env vars + allowedOrigins + same-origin)
+			originHandler = createTrustedCorsOrigin({ allowedOrigins });
+		} else if (honoCorsOptions.origin !== undefined) {
+			// Use explicitly provided origin
+			originHandler = honoCorsOptions.origin;
+		} else {
+			// Default: reflect any origin (backwards compatible)
+			originHandler = (origin: string) => origin;
+		}
+
+		// Required headers that must always be allowed/exposed for runtime functionality
+		const requiredAllowHeaders = [THREAD_HEADER];
+		const requiredExposeHeaders = [
 			TOKENS_HEADER,
 			DURATION_HEADER,
 			THREAD_HEADER,
 			SESSION_HEADER,
 			DEPLOYMENT_HEADER,
-		],
-		maxAge: 600,
-		credentials: true,
-		...(corsOptions ?? {}),
+		];
+
+		// Default headers to allow (used if none specified)
+		const defaultAllowHeaders = [
+			'Content-Type',
+			'Authorization',
+			'Accept',
+			'Origin',
+			'X-Requested-With',
+		];
+
+		// Default headers to expose (used if none specified)
+		const defaultExposeHeaders = ['Content-Length'];
+
+		const corsMiddleware = cors({
+			...honoCorsOptions,
+			origin: originHandler,
+			// Always include required headers, merge with user-provided or defaults
+			allowHeaders: [
+				...(honoCorsOptions.allowHeaders ?? defaultAllowHeaders),
+				...requiredAllowHeaders,
+			],
+			allowMethods: honoCorsOptions.allowMethods ?? [
+				'POST',
+				'GET',
+				'OPTIONS',
+				'HEAD',
+				'PUT',
+				'DELETE',
+				'PATCH',
+			],
+			// Always include required headers, merge with user-provided or defaults
+			exposeHeaders: [
+				...(honoCorsOptions.exposeHeaders ?? defaultExposeHeaders),
+				...requiredExposeHeaders,
+			],
+			maxAge: honoCorsOptions.maxAge ?? 600,
+			credentials: honoCorsOptions.credentials ?? true,
+		});
+
+		return corsMiddleware(c, next);
 	});
 }
 
@@ -159,6 +272,11 @@ export function createCorsMiddleware(corsOptions?: Parameters<typeof cors>[0]) {
 export function createOtelMiddleware() {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return createMiddleware<Env<any>>(async (c, next) => {
+		// Skip session tracking for paths in the skip list
+		if (OTEL_SESSION_SKIP_PATHS.has(c.req.path)) {
+			return next();
+		}
+
 		// Import providers dynamically to avoid circular deps
 		const { getThreadProvider, getSessionProvider } = await import('./_services');
 		const WaitUntilHandler = (await import('./_waituntil')).default;
@@ -230,17 +348,17 @@ export function createOtelMiddleware() {
 					(c as any).set('trigger', 'api');
 
 					// Send session start event (so evalruns can reference this session)
+					// The provider decides whether to send based on available data (orgId, projectId, etc.)
 					const sessionEventProvider = getSessionEventProvider();
-					const shouldSendSession = !!(orgId && projectId);
-					if (shouldSendSession && sessionEventProvider) {
+					if (sessionEventProvider) {
 						try {
 							// eslint-disable-next-line @typescript-eslint/no-explicit-any
 							const routeId = (c as any).var?.routeId || '';
 							await sessionEventProvider.start({
 								id: sessionId,
 								threadId: thread.id,
-								orgId,
-								projectId,
+								orgId: orgId || '',
+								projectId: projectId || '',
 								deploymentId: deploymentId || undefined,
 								devmode: isDevMode,
 								trigger: 'api',
@@ -254,32 +372,16 @@ export function createOtelMiddleware() {
 						}
 					}
 
-					try {
-						await next();
-						// Save session/thread and send events
+					// Factor out finalization logic so it can run synchronously or deferred
+					const finalizeSession = async (statusCode?: number) => {
 						internal.info('[session] saving session %s (thread: %s)', sessionId, thread.id);
 						await sessionProvider.save(session);
 						internal.info('[session] session saved, now saving thread');
 						await threadProvider.save(thread);
 						internal.info('[session] thread saved');
-						span.setStatus({ code: SpanStatusCode.OK });
-					} catch (ex) {
-						if (ex instanceof Error) {
-							span.recordException(ex);
-						}
-						span.setStatus({
-							code: SpanStatusCode.ERROR,
-							message: (ex as Error).message ?? String(ex),
-						});
-						throw ex;
-					} finally {
+
 						// Send session complete event
-						internal.info(
-							'[session] shouldSendSession: %s, hasSessionEventProvider: %s',
-							shouldSendSession,
-							!!sessionEventProvider
-						);
-						if (shouldSendSession && sessionEventProvider) {
+						if (sessionEventProvider) {
 							try {
 								const userData = session.serializeUserData();
 								internal.info(
@@ -290,10 +392,11 @@ export function createOtelMiddleware() {
 								const agentIdsSet = (c as any).get('agentIds') as Set<string> | undefined;
 								const agentIds = agentIdsSet ? [...agentIdsSet].filter(Boolean) : undefined;
 								internal.info('[session] agentIds: %o', agentIds);
+								const isEmpty = await thread.empty();
 								await sessionEventProvider.complete({
 									id: sessionId,
-									threadId: thread.empty() ? null : thread.id,
-									statusCode: c.res?.status ?? 200,
+									threadId: isEmpty ? null : thread.id,
+									statusCode: statusCode ?? c.res?.status ?? 200,
 									agentIds: agentIds?.length ? agentIds : undefined,
 									userData,
 								});
@@ -303,7 +406,60 @@ export function createOtelMiddleware() {
 								// Silently ignore session complete errors - don't block response
 							}
 						}
+					};
 
+					try {
+						await next();
+
+						// Check if this is a streaming response that needs deferred finalization
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const streamDone = (c as any).get(STREAM_DONE_PROMISE_KEY) as
+							| Promise<void>
+							| undefined;
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						const isStreaming = Boolean((c as any).get(IS_STREAMING_RESPONSE_KEY));
+
+						if (isStreaming && streamDone) {
+							// Defer session/thread saving until stream completes
+							// This ensures thread state changes made during streaming are persisted
+							internal.info(
+								'[session] deferring session/thread save until streaming completes (session %s)',
+								sessionId
+							);
+
+							handler.waitUntil(async () => {
+								try {
+									await streamDone;
+									internal.info(
+										'[session] stream completed, now saving session/thread (session %s)',
+										sessionId
+									);
+								} catch (ex) {
+									// Stream ended with an error/abort; still try to persist the latest state
+									internal.info(
+										'[session] stream ended with error, still saving state: %s',
+										ex
+									);
+								}
+								await finalizeSession();
+							});
+
+							span.setStatus({ code: SpanStatusCode.OK });
+						} else {
+							// Non-streaming: save session/thread synchronously (existing behavior)
+							await finalizeSession();
+							span.setStatus({ code: SpanStatusCode.OK });
+						}
+					} catch (ex) {
+						if (ex instanceof Error) {
+							span.recordException(ex);
+						}
+						span.setStatus({
+							code: SpanStatusCode.ERROR,
+							message: (ex as Error).message ?? String(ex),
+						});
+						throw ex;
+					} finally {
 						const headers: Record<string, string> = {};
 						propagation.inject(context.active(), headers);
 						for (const key of Object.keys(headers)) {
@@ -311,13 +467,143 @@ export function createOtelMiddleware() {
 						}
 						const traceId = sctx?.traceId || sessionId.replace(/^sess_/, '');
 						c.header(SESSION_HEADER, `sess_${traceId}`);
-						if (deploymentId) {
-							c.header(DEPLOYMENT_HEADER, deploymentId);
-						}
 						span.end();
 					}
 				}
 			);
 		});
 	});
+}
+
+/**
+ * Create compression middleware with lazy config resolution.
+ *
+ * Compresses response bodies using gzip or deflate based on the Accept-Encoding header.
+ * Config is resolved at request time, allowing it to be set via createApp().
+ *
+ * @param staticConfig - Optional static config that overrides app config
+ *
+ * @example
+ * ```typescript
+ * // Use with default settings
+ * app.use('*', createCompressionMiddleware());
+ *
+ * // Or configure via createApp
+ * const app = await createApp({
+ *   compression: {
+ *     threshold: 2048,
+ *   }
+ * });
+ * ```
+ */
+export function createCompressionMiddleware(
+	staticConfig?: CompressionConfig,
+	/**
+	 * Optional config resolver for testing. When provided, this is used instead of getAppConfig().
+	 * @internal
+	 */
+	configResolver?: () => { compression?: CompressionConfig | false } | undefined
+) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return createMiddleware<Env<any>>(async (c, next) => {
+		// Lazy resolve: merge app config with static config
+		const appConfig = configResolver ? configResolver() : getAppConfig();
+		const appCompressionConfig = appConfig?.compression;
+
+		// Check if compression is explicitly disabled
+		if (appCompressionConfig === false || staticConfig?.enabled === false) {
+			return next();
+		}
+
+		// Merge configs: static config takes precedence over app config
+		const config: CompressionConfig = {
+			...(typeof appCompressionConfig === 'object' ? appCompressionConfig : {}),
+			...staticConfig,
+		};
+
+		const { enabled = true, threshold = 1024, filter, honoOptions } = config;
+
+		// Skip if explicitly disabled
+		if (!enabled) {
+			return next();
+		}
+
+		// Skip WebSocket upgrade requests
+		const upgrade = c.req.header('upgrade');
+		if (upgrade && upgrade.toLowerCase() === 'websocket') {
+			return next();
+		}
+
+		// Skip if no Accept-Encoding header
+		const acceptEncoding = c.req.header('accept-encoding');
+		if (!acceptEncoding) {
+			return next();
+		}
+
+		// Check custom filter
+		if (filter && !filter(c)) {
+			return next();
+		}
+
+		// Create and run the Hono compress middleware
+		const compressMiddleware = compress({
+			threshold,
+			...honoOptions,
+		});
+
+		await compressMiddleware(c, next);
+	});
+}
+
+/**
+ * Create lightweight thread middleware for web routes (analytics).
+ *
+ * Sets thread cookie that persists across page views for client-side analytics.
+ * This middleware does NOT:
+ * - Create or track sessions (no session ID)
+ * - Set session/thread response headers
+ * - Send events to Catalyst sessions table
+ *
+ * This is intentionally separate from createOtelMiddleware to avoid
+ * polluting the sessions table with web browsing activity.
+ *
+ * - Thread cookie (atid_a): Analytics-readable copy, 1-week expiry
+ */
+export function createWebSessionMiddleware() {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	return createMiddleware<Env<any>>(async (c, next) => {
+		// Import providers dynamically to avoid circular deps
+		const { getThreadProvider } = await import('./_services');
+
+		const secret = getSessionSecret();
+
+		// Use ThreadProvider.restore() to get/create thread (handles header, cookie, generation)
+		const threadProvider = getThreadProvider();
+		const thread = await threadProvider.restore(c);
+
+		// Set thread cookie for analytics
+		// httpOnly: false so beacon script can read it
+		const isSecure = c.req.url.startsWith('https://');
+		await setSignedCookie(c, 'atid_a', thread.id, secret, {
+			httpOnly: false, // Readable by JavaScript for analytics
+			secure: isSecure,
+			sameSite: 'Lax',
+			path: '/',
+			maxAge: 604800, // 1 week
+		});
+
+		// Store in context for handler to access in same request
+		// (cookies aren't readable until the next request)
+		c.set('_webThreadId', thread.id);
+
+		await next();
+	});
+}
+
+/**
+ * Get the secret used for signing session/thread cookies.
+ * Uses AGENTUITY_SDK_KEY if available, falls back to 'agentuity'.
+ */
+export function getSessionSecret(): string {
+	return process.env.AGENTUITY_SDK_KEY || 'agentuity';
 }

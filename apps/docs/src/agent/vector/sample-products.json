@@ -1,0 +1,50 @@
+[
+	{
+		"sku": "CHAIR-ERG-001",
+		"name": "ErgoMax Pro Chair",
+		"price": 549,
+		"avg_rating": 4.8,
+		"description": "Premium ergonomic office chair with lumbar support, adjustable armrests, and breathable mesh back. Perfect for long work sessions.",
+		"customer_feedback": "Best chair I've ever owned. My back pain is gone after switching to this."
+	},
+	{
+		"sku": "CHAIR-BUD-002",
+		"name": "ComfortBasic Office Chair",
+		"price": 129,
+		"avg_rating": 4.2,
+		"description": "Affordable office chair with padded seat and basic lumbar support. Great value for home offices on a budget.",
+		"customer_feedback": "Solid chair for the price. Nothing fancy but gets the job done."
+	},
+	{
+		"sku": "CHAIR-EXE-003",
+		"name": "Executive Leather Throne",
+		"price": 899,
+		"avg_rating": 4.6,
+		"description": "Luxurious leather executive chair with high back, memory foam cushioning, and chrome base. Makes a statement in any office.",
+		"customer_feedback": "Feels like sitting on a cloud. Worth every penny for the comfort and style."
+	},
+	{
+		"sku": "CHAIR-GAM-004",
+		"name": "ProGamer X1 Chair",
+		"price": 349,
+		"avg_rating": 4.5,
+		"description": "Racing-style gaming chair with headrest pillow, lumbar cushion, and reclining backrest. Built for marathon gaming sessions.",
+		"customer_feedback": "Super comfortable for long gaming sessions. The lumbar pillow is a game changer."
+	},
+	{
+		"sku": "CHAIR-STD-005",
+		"name": "Standing Desk Stool",
+		"price": 199,
+		"avg_rating": 4.3,
+		"description": "Active sitting stool for standing desks. Promotes movement and core engagement while working. Height adjustable.",
+		"customer_feedback": "Great for alternating between sitting and standing. Helps me stay active during work."
+	},
+	{
+		"sku": "CHAIR-MSH-006",
+		"name": "AeroMesh Task Chair",
+		"price": 279,
+		"avg_rating": 4.4,
+		"description": "Full mesh office chair with excellent airflow. Lightweight yet sturdy with smooth-rolling casters.",
+		"customer_feedback": "Stays cool even in summer. The mesh is surprisingly supportive."
+	}
+]

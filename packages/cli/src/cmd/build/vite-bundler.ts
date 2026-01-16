@@ -7,11 +7,12 @@
 import { join } from 'node:path';
 import { stat } from 'node:fs/promises';
 import { StructuredError } from '@agentuity/core';
-import type { Logger } from '../../types';
+import type { Logger, DeployOptions } from '../../types';
 import { runAllBuilds } from './vite/vite-builder';
 import { checkAndUpgradeDependencies } from '../../utils/dependency-checker';
 import { checkBunVersion } from '../../utils/bun-version-checker';
 import * as tui from '../../tui';
+import type { BuildReportCollector } from '../../build-report';
 
 const AppFileNotFoundError = StructuredError('AppFileNotFoundError');
 const BuildFailedError = StructuredError('BuildFailedError');
@@ -25,6 +26,9 @@ export interface ViteBundleOptions {
 	deploymentId?: string;
 	port?: number;
 	logger: Logger;
+	deploymentOptions?: DeployOptions;
+	/** Optional collector for structured error reporting */
+	collector?: BuildReportCollector;
 }
 
 /**
@@ -39,6 +43,8 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		deploymentId = '',
 		port = 3500,
 		logger,
+		deploymentOptions,
+		collector,
 	} = options;
 
 	const output: string[] = [];
@@ -50,8 +56,10 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 	// Verify app.ts exists
 	const appFile = join(rootDir, 'app.ts');
 	if (!(await Bun.file(appFile).exists())) {
+		const errorMessage = `App file not found at expected location: ${appFile}`;
+		collector?.addGeneralError('build', errorMessage, 'BUILD001');
 		throw new AppFileNotFoundError({
-			message: `App file not found at expected location: ${appFile}`,
+			message: errorMessage,
 		});
 	}
 
@@ -61,16 +69,20 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 		.then((s) => s.isDirectory())
 		.catch(() => false);
 	if (!srcDirExists) {
+		const errorMessage = `Source directory not found: ${srcDir}`;
+		collector?.addGeneralError('build', errorMessage, 'BUILD002');
 		throw new BuildFailedError({
-			message: `Source directory not found: ${srcDir}`,
+			message: errorMessage,
 		});
 	}
 
 	// Check and upgrade @agentuity/* dependencies if needed
 	const upgradeResult = await checkAndUpgradeDependencies(rootDir, logger);
 	if (upgradeResult.failed.length > 0 && process.stdin.isTTY) {
+		const errorMessage = `Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`;
+		collector?.addGeneralError('build', errorMessage, 'BUILD003');
 		throw new BuildFailedError({
-			message: `Failed to upgrade dependencies: ${upgradeResult.failed.join(', ')}`,
+			message: errorMessage,
 		});
 	}
 
@@ -87,6 +99,8 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 			region,
 			deploymentId,
 			logger,
+			deploymentOptions,
+			collector,
 		});
 
 		if (result.client.included) {
@@ -103,8 +117,10 @@ export async function viteBundle(options: ViteBundleOptions): Promise<{ output: 
 
 		return { output };
 	} catch (error) {
+		const errorMessage = `Build failed: ${error instanceof Error ? error.message : String(error)}`;
+		collector?.addGeneralError('build', errorMessage, 'BUILD004');
 		throw new BuildFailedError({
-			message: `Build failed: ${error instanceof Error ? error.message : String(error)}`,
+			message: errorMessage,
 		});
 	}
 }

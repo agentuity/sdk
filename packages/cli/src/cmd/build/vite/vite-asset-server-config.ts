@@ -6,6 +6,7 @@
  */
 
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import type { InlineConfig } from 'vite';
 import type { Logger } from '../../../types';
 
@@ -69,6 +70,14 @@ export async function generateAssetServerConfig(
 			dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'react/jsx-dev-runtime'],
 		},
 
+		// Pre-bundle dependencies to avoid React preamble issues with pre-built JSX
+		// Only include @agentuity/workbench if workbench is enabled
+		optimizeDeps: {
+			include: workbenchPath
+				? ['@agentuity/workbench', '@agentuity/core', '@agentuity/react']
+				: ['@agentuity/core', '@agentuity/react'],
+		},
+
 		// Only allow frontend env vars (server uses process.env)
 		envPrefix: ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'],
 
@@ -85,11 +94,11 @@ export async function generateAssetServerConfig(
 			},
 
 			// HMR configuration - client must connect to Vite asset server directly
+			// Do NOT set port/clientPort - let Vite use the actual server port it binds to
+			// (important when strictPort: false and Vite falls back to an alternate port)
 			hmr: {
 				protocol: 'ws',
 				host: '127.0.0.1',
-				port, // HMR WebSocket on same port as HTTP
-				clientPort: port, // Tell client to connect to this port (not origin 3500)
 			},
 
 			// Don't open browser - Bun server will be the entry point
@@ -111,14 +120,26 @@ export async function generateAssetServerConfig(
 		},
 
 		// Plugins: User plugins first (e.g., Tailwind), then React and browser env
-		plugins: [
-			// User-defined plugins from agentuity.config.ts (e.g., Tailwind CSS)
-			...userPlugins,
-			// React plugin for JSX/TSX transformation and Fast Refresh
-			(await import('@vitejs/plugin-react')).default(),
-			// Browser env plugin to map process.env to import.meta.env
-			(await import('./browser-env-plugin')).browserEnvPlugin(),
-		],
+		// Try project's node_modules first, fall back to CLI's bundled version
+		plugins: await (async () => {
+			const projectRequire = createRequire(join(rootDir, 'package.json'));
+			let reactPluginPath = '@vitejs/plugin-react';
+			try {
+				reactPluginPath = projectRequire.resolve('@vitejs/plugin-react');
+			} catch {
+				// Project doesn't have @vitejs/plugin-react, use CLI's bundled version
+			}
+			const reactPlugin = (await import(reactPluginPath)).default();
+			const { browserEnvPlugin } = await import('./browser-env-plugin');
+			return [
+				// User-defined plugins from agentuity.config.ts (e.g., Tailwind CSS)
+				...userPlugins,
+				// React plugin for JSX/TSX transformation and Fast Refresh
+				reactPlugin,
+				// Browser env plugin to map process.env to import.meta.env
+				browserEnvPlugin(),
+			];
+		})(),
 
 		// Suppress build-related options (this is dev-only)
 		build: {
@@ -130,7 +151,11 @@ export async function generateAssetServerConfig(
 		// Custom logger to integrate with our logger
 		customLogger: {
 			info(msg: string) {
-				if (!msg.includes('[vite]')) {
+				// Show port-related messages at info level (important for debugging port conflicts)
+				// Keep other Vite info messages (like HMR updates) at debug to avoid noise
+				if (msg.includes('Port') || msg.includes('port')) {
+					logger.info(`[Vite Asset] ${msg}`);
+				} else {
 					logger.debug(`[Vite Asset] ${msg}`);
 				}
 			},

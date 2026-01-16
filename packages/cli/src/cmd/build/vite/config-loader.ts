@@ -40,7 +40,8 @@ export async function loadAgentuityConfig(
 
 /**
  * Get workbench configuration with defaults
- * NOTE: Workbench is only available in dev mode
+ * NOTE: Workbench is only enabled at runtime in dev mode, but we need to know
+ * if it's configured at build time so we can generate the correct code.
  *
  * Presence of workbench config implicitly enables it (no explicit 'enabled' flag needed)
  * Missing workbench config implicitly disables it
@@ -49,20 +50,22 @@ export function getWorkbenchConfig(
 	config: AgentuityConfig | null,
 	dev: boolean
 ): {
+	configured: boolean;
 	enabled: boolean;
 	route: string;
 	headers: Record<string, string>;
 } {
-	const hasWorkbenchConfig = config?.workbench !== undefined;
+	const configured = config?.workbench !== undefined;
 
 	// Workbench is enabled if:
 	// 1. In dev mode (never in production)
 	// 2. Config has a workbench object (presence implies enablement)
-	const enabled = dev && hasWorkbenchConfig;
+	const enabled = dev && configured;
 
 	const workbench = config?.workbench || {};
 
 	return {
+		configured,
 		enabled,
 		route: workbench.route ?? '/workbench',
 		headers: workbench.headers ?? {},

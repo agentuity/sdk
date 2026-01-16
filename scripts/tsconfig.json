@@ -2,9 +2,19 @@
 	"compilerOptions": {
 		"target": "ESNext",
 		"module": "ESNext",
+		"lib": ["ESNext"],
 		"moduleResolution": "bundler",
 		"strict": true,
 		"skipLibCheck": true,
-		"types": ["bun"]
-	}
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true,
+		"types": ["bun-types"],
+		"noEmit": true,
+		"paths": {
+			"@agentuity/server": ["../packages/server/src"],
+			"@agentuity/runtime": ["../packages/runtime/src"],
+			"@agentuity/core": ["../packages/core/src"]
+		}
+	},
+	"include": ["*.ts"]
 }

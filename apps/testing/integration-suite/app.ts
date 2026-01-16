@@ -1,5 +1,6 @@
 import { createApp } from '@agentuity/runtime';
 import { InMemoryThreadProvider } from './src/test/helpers/thread-provider';
+import { testSessionEventProvider } from './src/test/helpers/session-event-provider';
 import {
 	mockDatabaseMiddleware,
 	mockAuthMiddleware,
@@ -18,7 +19,6 @@ import './src/test/session-basic';
 import './src/test/lifecycle-waituntil';
 import './src/test/errors';
 import './src/test/schema-validation';
-import './src/test/evals';
 import './src/test/events';
 import './src/test/resilience';
 import './src/test/storage-binary';
@@ -26,11 +26,16 @@ import './src/test/http-state-persistence';
 import './src/test/cli-deployment';
 import './src/test/cli-apikey';
 import './src/test/cli-vector';
+import './src/test/cli-env-secrets';
+import './src/test/cli-org-env-secrets';
 import './src/test/websocket';
 import './src/test/sse';
 import './src/test/web-rendering';
 import './src/test/env-loading';
 import './src/test/middleware-patterns';
+import './src/test/evals';
+import './src/test/ai-sdk-gateway';
+import './src/test/session-agent-ids';
 
 const threadProvider = new InMemoryThreadProvider();
 
@@ -40,6 +45,7 @@ const app = await createApp({
 	},
 	services: {
 		thread: threadProvider,
+		sessionEvent: testSessionEventProvider,
 	},
 });
 

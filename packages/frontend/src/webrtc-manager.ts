@@ -391,10 +391,11 @@ export class WebRTCManager {
 				await this.handleRemoteICE(msg.candidate);
 				break;
 
-			case 'error':
+			case 'error': {
 				const error = new Error(msg.message);
 				this.callbacks.onError?.(error, this._state);
 				break;
+			}
 		}
 	}
 

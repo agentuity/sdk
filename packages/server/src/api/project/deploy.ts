@@ -6,8 +6,6 @@ export const Resources = z.object({
 	memory: z.string().default('500Mi').describe('The memory requirements'),
 	cpu: z.string().default('500m').describe('The CPU requirements'),
 	disk: z.string().default('500Mi').describe('The disk requirements'),
-	db: z.string().optional().describe('the name of the database to use'),
-	storage: z.string().optional().describe('the name of the storage bucket to use'),
 });
 
 export const Mode = z.object({
@@ -18,7 +16,7 @@ export const Mode = z.object({
 	idle: z.string().optional().describe('duration in seconds if on-demand'),
 });
 
-export const Deployment = z.object({
+export const DeploymentConfig = z.object({
 	resources: Resources.optional().describe('the resource requirements for your deployed project'),
 	mode: Mode.optional().describe('the provisioning mode for the project'),
 	dependencies: z
@@ -35,7 +33,7 @@ const BaseFileFields = {
 const EvalSchema = z.object({
 	...BaseFileFields,
 	id: z.string().describe('the unique calculated id for the eval'),
-	evalId: z.string().describe('the unique id for eval for the project across deployments'),
+	identifier: z.string().describe('the unique id for eval for the project across deployments'),
 	name: z.string().describe('the name of the eval'),
 	description: z.string().optional().describe('the eval description'),
 	agentIdentifier: z.string().describe('the identifier of the agent'),
@@ -95,6 +93,7 @@ export const BuildMetadataSchema = z.object({
 			filename: z.string().describe('the relative path for the file'),
 			kind: z.string().describe('the type of asset'),
 			contentType: z.string().describe('the content-type for the file'),
+			contentEncoding: z.string().optional().describe('the content-encoding for the file'),
 			size: z.number().describe('the size in bytes for the file'),
 		})
 	),
@@ -110,7 +109,7 @@ export const BuildMetadataSchema = z.object({
 		orgId: z.string().describe('the organization id for the project'),
 	}),
 	deployment: z.intersection(
-		Deployment,
+		DeploymentConfig,
 		z.object({
 			id: z.string().describe('the deployment id'),
 			date: z.string().describe('the date the deployment was created in UTC format'),
@@ -128,8 +127,16 @@ export const BuildMetadataSchema = z.object({
 						.default('cli')
 						.optional()
 						.describe('the trigger that caused the build'),
-					url: z.url().optional().describe('the url to the commit for the CI provider'),
-					buildUrl: z.url().optional().describe('the url to the build for the CI provider'),
+					url: z
+						.string()
+						.url()
+						.optional()
+						.describe('the url to the commit for the CI provider'),
+					buildUrl: z
+						.string()
+						.url()
+						.optional()
+						.describe('the url to the build for the CI provider'),
 					event: z
 						.enum(['pull_request', 'push', 'manual', 'workflow'])
 						.default('manual')
@@ -141,7 +148,6 @@ export const BuildMetadataSchema = z.object({
 						.object({
 							number: z.number(),
 							url: z.string().optional(),
-							commentId: z.string().optional(),
 						})
 						.optional()
 						.describe(
@@ -166,6 +172,10 @@ const CreateProjectDeployment = z.object({
 	id: z.string().describe('the unique id for the deployment'),
 	orgId: z.string().describe('the organization id'),
 	publicKey: z.string().describe('the public key to use for encrypting the deployment'),
+	buildLogsStreamURL: z
+		.string()
+		.optional()
+		.describe('the URL for streaming build logs (PUT to write, GET to read)'),
 });
 
 const CreateProjectDeploymentSchema = APIResponseSchema(CreateProjectDeployment);
@@ -184,7 +194,7 @@ export type Deployment = z.infer<typeof CreateProjectDeployment>;
 export async function projectDeploymentCreate(
 	client: APIClient,
 	projectId: string,
-	deploymentConfig?: z.infer<typeof Deployment>
+	deploymentConfig?: z.infer<typeof DeploymentConfig>
 ): Promise<Deployment> {
 	const resp = await client.request<CreateProjectDeploymentPayload>(
 		'POST',
@@ -242,8 +252,8 @@ const DeploymentCompleteObject = z.object({
 	streamId: z.string().optional().describe('the stream id for warmup logs'),
 	publicUrls: z
 		.object({
-			latest: z.url().describe('the public url for the latest deployment'),
-			deployment: z.url().describe('the public url for this deployment'),
+			latest: z.string().url().describe('the public url for the latest deployment'),
+			deployment: z.string().url().describe('the public url for this deployment'),
 			custom: z.array(z.string().describe('the custom domain')),
 		})
 		.describe('the map of public urls'),
@@ -266,7 +276,6 @@ export type DeploymentState = z.infer<typeof DeploymentStateValue>;
 
 const DeploymentStatusObject = z.object({
 	state: DeploymentStateValue.describe('the current deployment state'),
-	active: z.boolean().describe('whether this deployment is the active one for the project'),
 });
 
 const DeploymentStatusObjectSchema = APIResponseSchema(DeploymentStatusObject);
@@ -293,7 +302,9 @@ export async function projectDeploymentComplete(
 	if (resp.success) {
 		return resp.data;
 	}
-	throw new ProjectResponseError({ message: resp.message });
+	throw new ProjectResponseError({
+		message: resp.message || 'Deployment completion failed with unknown error',
+	});
 }
 
 /**
@@ -316,4 +327,96 @@ export async function projectDeploymentStatus(
 		return resp.data;
 	}
 	throw new ProjectResponseError({ message: resp.message });
+}
+
+export interface ClientDiagnosticsError {
+	type: 'file' | 'general';
+	scope: 'typescript' | 'ast' | 'build' | 'bundler' | 'validation' | 'deploy';
+	path?: string;
+	line?: number;
+	column?: number;
+	message: string;
+	code?: string;
+}
+
+export interface ClientDiagnosticsTiming {
+	name: string;
+	startedAt: string;
+	completedAt: string;
+	durationMs: number;
+}
+
+export interface ClientDiagnostics {
+	success: boolean;
+	errors: ClientDiagnosticsError[];
+	warnings: ClientDiagnosticsError[];
+	diagnostics: ClientDiagnosticsTiming[];
+	error?: string;
+}
+
+export interface DeploymentFailPayload {
+	error?: string;
+	diagnostics?: ClientDiagnostics;
+}
+
+const ClientDiagnosticsErrorSchema = z.object({
+	type: z.enum(['file', 'general']),
+	scope: z.enum(['typescript', 'ast', 'build', 'bundler', 'validation', 'deploy']),
+	path: z.string().optional(),
+	line: z.number().optional(),
+	column: z.number().optional(),
+	message: z.string(),
+	code: z.string().optional(),
+});
+
+const ClientDiagnosticsTimingSchema = z.object({
+	name: z.string(),
+	startedAt: z.string(),
+	completedAt: z.string(),
+	durationMs: z.number(),
+});
+
+const ClientDiagnosticsSchema = z.object({
+	success: z.boolean(),
+	errors: z.array(ClientDiagnosticsErrorSchema),
+	warnings: z.array(ClientDiagnosticsErrorSchema),
+	diagnostics: z.array(ClientDiagnosticsTimingSchema),
+	error: z.string().optional(),
+});
+
+const DeploymentFailPayloadSchema = z.object({
+	error: z.string().optional(),
+	diagnostics: ClientDiagnosticsSchema.optional(),
+});
+
+const DeploymentFailResponseObject = z.object({
+	state: z.literal('failed'),
+});
+
+const DeploymentFailResponseSchema = APIResponseSchema(DeploymentFailResponseObject);
+type DeploymentFailResponse = z.infer<typeof DeploymentFailResponseSchema>;
+
+/**
+ * Report a deployment failure from the client
+ *
+ * @param client
+ * @param deploymentId
+ * @param payload - Error message and/or structured diagnostics
+ * @returns
+ */
+export async function projectDeploymentFail(
+	client: APIClient,
+	deploymentId: string,
+	payload: DeploymentFailPayload
+): Promise<void> {
+	const resp = await client.request<DeploymentFailResponse, DeploymentFailPayload>(
+		'POST',
+		`/cli/deploy/1/fail/${deploymentId}`,
+		DeploymentFailResponseSchema,
+		payload,
+		DeploymentFailPayloadSchema
+	);
+	if (!resp.success) {
+		throw new ProjectResponseError({ message: resp.message });
+	}
 }

@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { createResources, APIError } from '@agentuity/server';
+import { createResources, APIError, validateDatabaseName } from '@agentuity/server';
 import { createSubcommand as defineSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCatalystAPIClient } from '../../../config';
 import { getCommand } from '../../../command-prefix';
 import { isDryRunMode, outputDryRun } from '../../../explain';
 import { ErrorCode } from '../../../errors';
+import { addResourceEnvVars } from '../../../env-util';
 
 export const createSubcommand = defineSubcommand({
 	name: 'create',
@@ -23,6 +24,7 @@ export const createSubcommand = defineSubcommand({
 	schema: {
 		options: z.object({
 			name: z.string().optional().describe('Custom database name'),
+			description: z.string().optional().describe('Optional database description'),
 		}),
 		response: z.object({
 			success: z.boolean().describe('Whether creation succeeded'),
@@ -33,11 +35,22 @@ export const createSubcommand = defineSubcommand({
 	async handler(ctx) {
 		const { logger, opts, orgId, region, auth, options } = ctx;
 
+		// Validate database name if provided
+		if (opts.name) {
+			const validation = validateDatabaseName(opts.name);
+			if (!validation.valid) {
+				tui.fatal(validation.error!, ErrorCode.INVALID_ARGUMENT);
+			}
+		}
+
 		// Handle dry-run mode
 		if (isDryRunMode(options)) {
-			const message = opts.name
+			let message = opts.name
 				? `Would create database with name: ${opts.name} in region: ${region}`
 				: `Would create database in region: ${region}`;
+			if (opts.description) {
+				message += ` with description: "${opts.description}"`;
+			}
 			outputDryRun(message, options);
 			if (!options.json) {
 				tui.newline();
@@ -57,17 +70,27 @@ export const createSubcommand = defineSubcommand({
 				clearOnSuccess: true,
 				callback: async () => {
 					return await createResources(catalystClient, orgId, region!, [
-						{ type: 'db', name: opts.name },
+						{ type: 'db', name: opts.name, description: opts.description },
 					]);
 				},
 			});
 			if (created.length > 0) {
+				const resource = created[0];
+
+				// Write environment variables to .env if running inside a project
+				if (ctx.projectDir && resource.env && Object.keys(resource.env).length > 0) {
+					await addResourceEnvVars(ctx.projectDir, resource.env);
+					if (!options.json) {
+						tui.info('Environment variables written to .env');
+					}
+				}
+
 				if (!options.json) {
-					tui.success(`Created database: ${tui.bold(created[0].name)}`);
+					tui.success(`Created database: ${tui.bold(resource.name)}`);
 				}
 				return {
 					success: true,
-					name: created[0].name,
+					name: resource.name,
 				};
 			} else {
 				tui.fatal('Failed to create database');

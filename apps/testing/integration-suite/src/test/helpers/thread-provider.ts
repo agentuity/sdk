@@ -5,77 +5,122 @@
  * Stores thread state in memory across requests.
  */
 
-import type { Thread, ThreadProvider } from '@agentuity/runtime';
+import type { Thread, ThreadProvider, ThreadState, MergeOperation } from '@agentuity/runtime';
 import type { Context } from 'hono';
 import { getCookie, setCookie } from 'hono/cookie';
 
 const THREAD_COOKIE_NAME = 'atid';
 const THREAD_EXPIRY = 3600; // 1 hour
 
+class TestThreadState implements ThreadState {
+	#state: Map<string, unknown>;
+	#dirty = false;
+	#loaded = true; // For testing, we're always "loaded"
+
+	constructor(initialState?: Record<string, unknown>) {
+		this.#state = new Map(Object.entries(initialState || {}));
+	}
+
+	get loaded(): boolean {
+		return this.#loaded;
+	}
+
+	get dirty(): boolean {
+		return this.#dirty;
+	}
+
+	async get<T = unknown>(key: string): Promise<T | undefined> {
+		return this.#state.get(key) as T | undefined;
+	}
+
+	async set<T = unknown>(key: string, value: T): Promise<void> {
+		this.#state.set(key, value);
+		this.#dirty = true;
+	}
+
+	async has(key: string): Promise<boolean> {
+		return this.#state.has(key);
+	}
+
+	async delete(key: string): Promise<void> {
+		this.#state.delete(key);
+		this.#dirty = true;
+	}
+
+	async clear(): Promise<void> {
+		this.#state.clear();
+		this.#dirty = true;
+	}
+
+	async entries<T = unknown>(): Promise<[string, T][]> {
+		return Array.from(this.#state.entries()) as [string, T][];
+	}
+
+	async keys(): Promise<string[]> {
+		return Array.from(this.#state.keys());
+	}
+
+	async values<T = unknown>(): Promise<T[]> {
+		return Array.from(this.#state.values()) as T[];
+	}
+
+	async size(): Promise<number> {
+		return this.#state.size;
+	}
+
+	async push<T = unknown>(key: string, value: T, maxRecords?: number): Promise<void> {
+		const existing = this.#state.get(key);
+		let arr: unknown[];
+		if (Array.isArray(existing)) {
+			existing.push(value);
+			arr = existing;
+		} else if (existing === undefined) {
+			arr = [value];
+			this.#state.set(key, arr);
+		} else {
+			throw new Error(`Cannot push to non-array value at key "${key}"`);
+		}
+		// Apply maxRecords limit
+		if (maxRecords !== undefined && arr.length > maxRecords) {
+			this.#state.set(key, arr.slice(arr.length - maxRecords));
+		}
+		this.#dirty = true;
+	}
+
+	// Test helpers
+	isDirty(): boolean {
+		return this.#dirty;
+	}
+
+	getSerializedState(): string {
+		const obj: Record<string, unknown> = {};
+		for (const [key, value] of this.#state.entries()) {
+			obj[key] = value;
+		}
+		return JSON.stringify(obj);
+	}
+}
+
 class TestThread implements Thread {
 	id: string;
+	state: TestThreadState;
 	private _metadata: Record<string, unknown>;
-	private _state: Map<string, unknown>;
-	private dirty = false;
+	private _metadataDirty = false;
 	private listeners = new Map<'destroyed', Set<Function>>();
 
 	constructor(id: string, initialState?: Record<string, unknown>) {
 		this.id = id;
 		this._metadata = {};
-		this._state = new Map(Object.entries(initialState || {}));
+		this.state = new TestThreadState(initialState);
 	}
 
-	// Proxy the metadata object to automatically mark dirty on modifications
-	get metadata(): Record<string, unknown> {
-		const self = this;
-		return new Proxy(this._metadata, {
-			set(target, prop, value) {
-				target[prop as string] = value;
-				self.dirty = true;
-				return true;
-			},
-			deleteProperty(target, prop) {
-				delete target[prop as string];
-				self.dirty = true;
-				return true;
-			},
-		});
+	async getMetadata(): Promise<Record<string, unknown>> {
+		return { ...this._metadata };
 	}
 
-	// Proxy the state Map to automatically mark dirty on modifications
-	get state(): Map<string, unknown> {
-		const self = this;
-		return new Proxy(this._state, {
-			get(target, prop) {
-				const value = target[prop as keyof Map<string, unknown>];
-				if (typeof value === 'function') {
-					return function (...args: any[]) {
-						// Mark dirty on write operations
-						if (prop === 'set' || prop === 'delete' || prop === 'clear') {
-							self.dirty = true;
-						}
-						return (value as Function).apply(target, args);
-					};
-				}
-				return value;
-			},
-		}) as Map<string, unknown>;
-	}
-
-	markDirty() {
-		this.dirty = true;
-	}
-
-	isDirty(): boolean {
-		return this.dirty;
-	}
-
-	getSerializedState(): string {
-		const obj: Record<string, unknown> = {};
-		for (const [key, value] of this.state.entries()) {
-			obj[key] = value;
-		}
-		return JSON.stringify(obj);
+	async setMetadata(metadata: Record<string, unknown>): Promise<void> {
+		this._metadata = metadata;
+		this._metadataDirty = true;
 	}
 
 	addEventListener(eventName: 'destroyed', callback: Function): void {
@@ -98,13 +143,23 @@ class TestThread implements Thread {
 		}
 	}
 
-	empty(): boolean {
-		return this.state.size === 0;
+	async empty(): Promise<boolean> {
+		const stateSize = await this.state.size();
+		return stateSize === 0;
 	}
 
 	async destroy(): Promise<void> {
-		this.state.clear();
+		await this.state.clear();
 		await this.fireEvent('destroyed');
+	}
+
+	// Test helpers
+	isDirty(): boolean {
+		return this.state.isDirty() || this._metadataDirty;
+	}
+
+	getSerializedState(): string {
+		return this.state.getSerializedState();
 	}
 }
 

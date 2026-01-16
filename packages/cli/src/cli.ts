@@ -15,7 +15,8 @@ import type {
 } from './types';
 import { showBanner, generateBanner } from './banner';
 import { requireAuth, optionalAuth, requireOrg, optionalOrg as selectOptionalOrg } from './auth';
-import { listRegions, type RegionList } from '@agentuity/server';
+import { type RegionList, ValidationOutputError } from '@agentuity/server';
+import { fetchRegionsWithCache } from './regions';
 import enquirer from 'enquirer';
 import * as tui from './tui';
 import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
@@ -25,6 +26,23 @@ import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
 import { getCommand } from './command-prefix';
 import { isValidateMode, outputValidation, type ValidationResult } from './output';
 import { StructuredError } from '@agentuity/core';
+import { setProgram } from './program-ref';
+
+/**
+ * Check if an error is a CLI input validation error (Zod error from schema parsing),
+ * and not an API response validation error (ValidationOutputError).
+ */
+function isCLIValidationError(error: unknown): boolean {
+	if (!error || typeof error !== 'object' || !('issues' in error)) {
+		return false;
+	}
+	// ValidationOutputError from API responses should NOT be treated as CLI validation errors
+	if (error instanceof ValidationOutputError) {
+		return false;
+	}
+	// Check for Zod error structure (has name 'ZodError' or is from SchemaValidationError)
+	return true;
+}
 
 const APIClientConfigError = StructuredError('APIClientConfigError');
 
@@ -138,38 +156,127 @@ async function executeOrValidate(
 /**
  * Handle validation error - output structured result in validate mode, otherwise log and exit
  */
+/**
+ * Format a user-friendly message for a validation issue
+ */
+function formatValidationIssueMessage(
+	field: string,
+	message: string,
+	isArg: boolean = false
+): string {
+	// Detect "expected X, received undefined" pattern (missing required value)
+	if (message.includes('received undefined')) {
+		if (field && field !== 'unknown') {
+			if (isArg) {
+				return `Missing required argument: <${field}>`;
+			}
+			return `Missing required option: --${field}`;
+		}
+		return 'Missing required value';
+	}
+
+	// Detect "expected X, received Y" pattern (wrong type)
+	const typeMatch = message.match(/expected (\w+), received (\w+)/i);
+	if (typeMatch) {
+		const [, expected, received] = typeMatch;
+		if (field && field !== 'unknown') {
+			if (isArg) {
+				return `Invalid value for <${field}>: expected ${expected}, got ${received}`;
+			}
+			return `Invalid value for --${field}: expected ${expected}, got ${received}`;
+		}
+		return `Invalid value: expected ${expected}, got ${received}`;
+	}
+
+	// Default: include the field name if we have it
+	if (field && field !== 'unknown') {
+		if (isArg) {
+			return `<${field}>: ${message}`;
+		}
+		return `--${field}: ${message}`;
+	}
+	return message;
+}
+
+/**
+ * Custom error class to wrap ZodErrors with context about whether they are for args or options
+ */
+class SchemaValidationError extends Error {
+	constructor(
+		public readonly originalError: unknown,
+		public readonly isArg: boolean
+	) {
+		super('Schema validation error');
+	}
+}
+
+/**
+ * Parse args schema and wrap any ZodError with context
+ */
+function parseArgs<T>(schema: { parse: (input: unknown) => T }, input: unknown): T {
+	try {
+		return schema.parse(input);
+	} catch (error) {
+		if (error && typeof error === 'object' && 'issues' in error) {
+			throw new SchemaValidationError(error, true);
+		}
+		throw error;
+	}
+}
+
+/**
+ * Parse options schema (no wrapping needed, isArg defaults to false)
+ */
+function parseOptions<T>(schema: { parse: (input: unknown) => T }, input: unknown): T {
+	return schema.parse(input);
+}
+
 function handleValidationError(
 	error: unknown,
 	commandName: string,
 	baseCtx: { options: GlobalOptions; logger: Logger }
 ): never {
-	if (error && typeof error === 'object' && 'issues' in error) {
-		const issues = (error as { issues: Array<{ path: string[]; message: string }> }).issues;
+	// Unwrap SchemaValidationError to get context about whether it's an arg or option
+	let actualError = error;
+	let isArg = false;
+	if (error instanceof SchemaValidationError) {
+		actualError = error.originalError;
+		isArg = error.isArg;
+	}
+
+	if (actualError && typeof actualError === 'object' && 'issues' in actualError) {
+		const issues = (actualError as { issues: Array<{ path: string[]; message: string }> }).issues;
+
+		const formattedIssues = issues.map((issue) => {
+			const field = issue.path?.length ? issue.path.join('.') : 'unknown';
+			return {
+				field,
+				message: issue.message,
+				formatted: formatValidationIssueMessage(field, issue.message, isArg),
+			};
+		});
 
 		if (isValidateMode(baseCtx.options)) {
 			// In validate mode, output structured validation result
 			const result: ValidationResult = {
 				valid: false,
 				command: commandName,
-				errors: issues.map((issue) => ({
-					field: issue.path?.length ? issue.path.join('.') : 'unknown',
-					message: issue.message,
-				})),
+				errors: formattedIssues.map(({ field, message }) => ({ field, message })),
 			};
 			outputValidation(result, baseCtx.options);
 			process.exit(ExitCode.VALIDATION_ERROR);
 		} else {
-			// Use centralized error handling
+			// Build a clear, actionable error message
+			const errorMessages = formattedIssues.map((i) => i.formatted);
+			const primaryMessage =
+				errorMessages.length === 1 ? errorMessages[0] : 'Invalid options or arguments';
+
 			exitWithError(
 				{
 					code: ErrorCode.VALIDATION_FAILED,
-					message: 'Validation error',
-					details: {
-						issues: issues.map((issue) => ({
-							field: issue.path?.length ? issue.path.join('.') : 'unknown',
-							message: issue.message,
-						})),
-					},
+					message: primaryMessage,
+					details: errorMessages.length > 1 ? { errors: errorMessages } : undefined,
+					suggestions: [`Run 'agentuity ${commandName} --help' for usage information`],
 				},
 				baseCtx.logger,
 				baseCtx.options.errorFormat ?? 'text'
@@ -191,6 +298,22 @@ type Normalized = {
 	requiresRegion: boolean;
 	optionalRegion: boolean;
 };
+
+/**
+ * Get the full command path for a command (e.g., "cloud sandbox snapshot delete")
+ * Uses Commander's _getCommandAndAncestors to traverse the command hierarchy.
+ */
+function getFullCommandPath(cmd: Command): string {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const ancestors = (cmd as any)._getCommandAndAncestors() as Command[];
+	// ancestors is [current, parent, grandparent, ...root] - reverse and skip root program name
+	const names = ancestors.map((c) => c.name()).reverse();
+	// Skip the first entry if it's the root program (usually empty or 'agentuity')
+	if (names.length > 1 && (names[0] === '' || names[0] === 'agentuity')) {
+		return names.slice(1).join(' ');
+	}
+	return names.join(' ');
+}
 
 function normalizeReqs(def: CommandDefinition | SubcommandDefinition): Normalized {
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -246,7 +369,7 @@ function handleProjectConfigError(
 		error &&
 		typeof error === 'object' &&
 		'name' in error &&
-		error.name === 'ProjectConfigNotFoundExpection'
+		error.name === 'ProjectConfigNotFoundException'
 	) {
 		exitWithError(
 			createError(ErrorCode.PROJECT_NOT_FOUND, 'Invalid project folder', undefined, [
@@ -339,6 +462,7 @@ async function promptProjectSelection(baseCtx: CommandContext): Promise<ProjectC
 
 export async function createCLI(version: string): Promise<Command> {
 	const program = new Command();
+	setProgram(program);
 
 	program
 		.name('agentuity')
@@ -561,17 +685,14 @@ async function getRegion(regions: RegionList): Promise<string> {
 
 interface ResolveRegionOptions {
 	options: Record<string, unknown>;
-	apiClient: APIClientType;
+	regions: RegionList;
 	logger: Logger;
 	required: boolean;
 	region?: string;
 }
 
 async function resolveRegion(opts: ResolveRegionOptions): Promise<string | undefined> {
-	const { options, apiClient, logger, required } = opts;
-
-	// Fetch regions
-	const regions = await listRegions(apiClient);
+	const { options, regions, logger, required } = opts;
 
 	// No regions available
 	if (regions.length === 0) {
@@ -675,7 +796,16 @@ async function registerSubcommand(
 ): Promise<void> {
 	const cmd = parent.command(subcommand.name, { hidden }).description(subcommand.description);
 
-	cmd.helpOption('-h, --help [json]', 'Display help (with optional JSON output)');
+	// Allow pass-through args for commands that need to forward unknown options
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	if ((subcommand as any).passThroughArgs) {
+		cmd.allowUnknownOption();
+		cmd.allowExcessArguments();
+		// Disable help option so --help passes through to the target command
+		cmd.helpOption(false);
+	} else {
+		cmd.helpOption('-h, --help [json]', 'Display help (with optional JSON output)');
+	}
 
 	if (subcommand.aliases) {
 		cmd.aliases(subcommand.aliases);
@@ -767,6 +897,7 @@ async function registerSubcommand(
 
 	if (subcommand.schema?.options) {
 		const parsed = parseOptionsSchema(subcommand.schema.options);
+		const aliases = subcommand.schema.aliases ?? {};
 		for (const opt of parsed) {
 			const flag = opt.name
 				.replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -779,14 +910,40 @@ async function registerSubcommand(
 			}
 
 			const desc = opt.description || '';
-			// Add short flag alias for verbose
-			const flagSpec = flag === 'verbose' ? `-v, --${flag}` : `--${flag}`;
+			// Build flag spec with aliases (check both camelCase and kebab-case names)
+			const optAliases = aliases[opt.name] ?? aliases[flag] ?? [];
+			let flagSpec = `--${flag}`;
+			if (flag === 'verbose') {
+				flagSpec = `-v, --${flag}`;
+			} else if (optAliases.length > 0) {
+				const shortFlags = optAliases.map((a) => `-${a}`).join(', ');
+				flagSpec = `${shortFlags}, --${flag}`;
+			}
 			if (opt.type === 'boolean') {
 				if (opt.hasDefault) {
 					const defaultValue =
 						typeof opt.defaultValue === 'function' ? opt.defaultValue() : opt.defaultValue;
-					cmd.option(`--no-${flag}`, desc);
-					cmd.option(flagSpec, desc, defaultValue);
+					// Register both positive and negative forms so both work,
+					// but only show one in help based on the default value
+					const baseDesc = desc.replace(/\s*\(use\s+--no-\S+\s+to\s+skip\)/i, '').trim();
+					const negatedDesc = baseDesc.toLowerCase().startsWith('run ')
+						? `Skip ${baseDesc.slice(4)}`
+						: `Do not ${baseDesc.charAt(0).toLowerCase()}${baseDesc.slice(1)}`;
+
+					if (defaultValue === true) {
+						// Show --no-* in help, hide positive flag
+						cmd.option(`--no-${flag}`, negatedDesc);
+						const positiveOption = cmd.createOption(flagSpec, baseDesc);
+						positiveOption.default(defaultValue);
+						positiveOption.hideHelp();
+						cmd.addOption(positiveOption);
+					} else {
+						// Show positive flag in help, but also register --no-* hidden
+						cmd.option(flagSpec, desc);
+						const negativeOption = cmd.createOption(`--no-${flag}`, negatedDesc);
+						negativeOption.hideHelp();
+						cmd.addOption(negativeOption);
+					}
 				} else {
 					cmd.option(flagSpec, desc);
 				}
@@ -816,6 +973,10 @@ async function registerSubcommand(
 					arrayDesc,
 					(value: string, previous: string[]) => (previous ?? []).concat([value])
 				);
+			} else if (opt.type === 'optionalString') {
+				// Optional string: --flag uses true, --flag=value uses the string value
+				// In Commander.js, [value] means optional argument
+				cmd.option(`${flagSpec} [${opt.name}]`, desc);
 			} else {
 				const strDefault = opt.hasDefault
 					? typeof opt.defaultValue === 'function'
@@ -862,7 +1023,16 @@ async function registerSubcommand(
 				try {
 					const auth = await requireAuth(baseCtx);
 					if (auth) {
-						const apiClient = createAPIClient(baseCtx, baseCtx.config);
+						// Create config with auth credentials for API client
+						const configWithAuth = {
+							...baseCtx.config,
+							auth: {
+								api_key: auth.apiKey,
+								user_id: auth.userId,
+								expires: auth.expires.getTime(),
+							},
+						};
+						const apiClient = createAPIClient(baseCtx, configWithAuth as Config);
 						const { projectGet } = await import('@agentuity/server');
 						const projectDetails = await projectGet(apiClient, { id: projectId, mask: true });
 						project = {
@@ -904,7 +1074,7 @@ async function registerSubcommand(
 							error &&
 							typeof error === 'object' &&
 							'name' in error &&
-							error.name === 'ProjectConfigNotFoundExpection'
+							error.name === 'ProjectConfigNotFoundException'
 						) {
 							// If TTY is available, prompt user to select a project
 							const hasTTY = process.stdin.isTTY && process.stdout.isTTY;
@@ -984,10 +1154,10 @@ async function registerSubcommand(
 						ctx.projectDir = projectDir;
 					}
 					if (subcommand.schema.args) {
-						ctx.args = subcommand.schema.args.parse(input.args);
+						ctx.args = parseArgs(subcommand.schema.args, input.args);
 					}
 					if (subcommand.schema.options) {
-						ctx.opts = subcommand.schema.options.parse(input.options);
+						ctx.opts = parseOptions(subcommand.schema.options, input.options);
 					}
 					if (normalized.requiresAPIClient) {
 						// Recreate apiClient with auth credentials
@@ -998,40 +1168,71 @@ async function registerSubcommand(
 							ctx as CommandContext & { apiClient: APIClientType }
 						);
 					}
-					if (normalized.optionalOrg && ctx.auth) {
+					// Skip org handling if --no-register is set (org only needed for registration)
+					const skipOrg =
+						normalized.optionalOrg &&
+						!normalized.requiresOrg &&
+						ctx.opts &&
+						(ctx.opts as Record<string, unknown>).register === false;
+
+					if (normalized.optionalOrg && ctx.auth && !skipOrg) {
 						ctx.orgId = await selectOptionalOrg(
 							ctx as CommandContext & { apiClient: APIClientType }
 						);
 					}
-					if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+					// Skip region handling if --no-register is set (region only needed for registration)
+					const skipRegion =
+						normalized.optionalRegion &&
+						!normalized.requiresRegion &&
+						!normalized.requiresRegions &&
+						ctx.opts &&
+						(ctx.opts as Record<string, unknown>).register === false;
+
+					if (
+						(normalized.requiresRegion ||
+							normalized.optionalRegion ||
+							normalized.requiresRegions) &&
+						ctx.apiClient &&
+						!skipRegion
+					) {
 						const apiClient: APIClientType = ctx.apiClient as APIClientType;
-						const region = await tui.spinner({
+						const regions = await tui.spinner({
 							message: 'Fetching cloud regions',
 							clearOnSuccess: true,
 							callback: async () => {
-								return resolveRegion({
-									options: options as Record<string, unknown>,
+								return fetchRegionsWithCache(
+									baseCtx.config?.name ?? defaultProfileName,
 									apiClient,
-									logger: baseCtx.logger,
-									required: !!normalized.requiresRegion,
-									region: project?.region,
-								});
+									baseCtx.logger
+								);
 							},
 						});
-						if (region) {
-							ctx.region = region;
+						if (normalized.requiresRegions) {
+							ctx.regions = regions;
+						}
+						if (normalized.requiresRegion || normalized.optionalRegion) {
+							const region = await resolveRegion({
+								options: options as Record<string, unknown>,
+								regions,
+								logger: baseCtx.logger,
+								required: !!normalized.requiresRegion,
+								region: project?.region,
+							});
+							if (region) {
+								ctx.region = region;
+							}
 						}
 					}
 					await executeOrValidate(
 						ctx as CommandContext,
-						`${parent.name()} ${subcommand.name}`,
+						getFullCommandPath(cmd),
 						subcommand.handler,
 						!!subcommand.schema?.response,
 						subcommand.webUrl
 					);
 				} catch (error) {
-					if (error && typeof error === 'object' && 'issues' in error) {
-						handleValidationError(error, `${parent.name()} ${subcommand.name}`, baseCtx);
+					if (isCLIValidationError(error)) {
+						handleValidationError(error, getFullCommandPath(cmd), baseCtx);
 					}
 					handleProjectConfigError(
 						error,
@@ -1069,24 +1270,59 @@ async function registerSubcommand(
 				if (normalized.requiresOrg) {
 					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
 				}
-				if (normalized.optionalOrg && ctx.auth) {
+				// Skip org handling if --no-register is set (org only needed for registration)
+				const skipOrg =
+					normalized.optionalOrg &&
+					!normalized.requiresOrg &&
+					ctx.opts &&
+					(ctx.opts as Record<string, unknown>).register === false;
+
+				if (normalized.optionalOrg && ctx.auth && !skipOrg) {
 					ctx.orgId = await selectOptionalOrg(
 						ctx as CommandContext & { apiClient: APIClientType }
 					);
 				}
-				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+				// Skip region handling if --no-register is set (region only needed for registration)
+				const skipRegion =
+					normalized.optionalRegion &&
+					!normalized.requiresRegion &&
+					!normalized.requiresRegions &&
+					ctx.opts &&
+					(ctx.opts as Record<string, unknown>).register === false;
+
+				if (
+					(normalized.requiresRegion ||
+						normalized.optionalRegion ||
+						normalized.requiresRegions) &&
+					ctx.apiClient &&
+					!skipRegion
+				) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
-					const region = await tui.spinner('Fetching cloud regions', async () => {
-						return resolveRegion({
+					const regions = await tui.spinner({
+						message: 'Fetching cloud regions',
+						clearOnSuccess: true,
+						callback: async () => {
+							return fetchRegionsWithCache(
+								baseCtx.config?.name ?? defaultProfileName,
+								apiClient,
+								baseCtx.logger
+							);
+						},
+					});
+					if (normalized.requiresRegions) {
+						ctx.regions = regions;
+					}
+					if (normalized.requiresRegion || normalized.optionalRegion) {
+						const region = await resolveRegion({
 							options: options as Record<string, unknown>,
-							apiClient,
+							regions,
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
 							region: project?.region,
 						});
-					});
-					if (region) {
-						ctx.region = region;
+						if (region) {
+							ctx.region = region;
+						}
 					}
 				}
 				if (subcommand.handler) {
@@ -1104,7 +1340,7 @@ async function registerSubcommand(
 							exitWithError(
 								createError(
 									ErrorCode.INTERNAL_ERROR,
-									`Command '${parent.name()} ${subcommand.name}' declares a response schema but returned no data. This is a bug in the command implementation.`
+									`Command '${getFullCommandPath(cmd)}' declares a response schema but returned no data. This is a bug in the command implementation.`
 								),
 								baseCtx.logger,
 								baseCtx.options.errorFormat
@@ -1131,7 +1367,13 @@ async function registerSubcommand(
 				);
 			}
 
-			const auth = await optionalAuth(baseCtx as CommandContext<undefined>, continueText);
+			// Check if --confirm flag or --no-register flag is set to skip interactive prompts
+			const skipPrompts = options.confirm === true || options.register === false;
+			const auth = await optionalAuth(
+				baseCtx as CommandContext<undefined>,
+				continueText,
+				skipPrompts
+			);
 
 			if (subcommand.schema) {
 				try {
@@ -1157,10 +1399,10 @@ async function registerSubcommand(
 						ctx.projectDir = projectDir;
 					}
 					if (subcommand.schema.args) {
-						ctx.args = subcommand.schema.args.parse(input.args);
+						ctx.args = parseArgs(subcommand.schema.args, input.args);
 					}
 					if (subcommand.schema.options) {
-						ctx.opts = subcommand.schema.options.parse(input.options);
+						ctx.opts = parseOptions(subcommand.schema.options, input.options);
 					}
 					if (normalized.requiresAPIClient) {
 						// Recreate apiClient with auth credentials
@@ -1178,21 +1420,47 @@ async function registerSubcommand(
 							ctx as CommandContext & { apiClient: APIClientType }
 						);
 					}
-					if (normalized.optionalOrg && ctx.apiClient && auth) {
+					// Skip org handling if --no-register is set (org only needed for registration)
+					const skipOrg =
+						normalized.optionalOrg &&
+						!normalized.requiresOrg &&
+						ctx.opts &&
+						(ctx.opts as Record<string, unknown>).register === false;
+
+					if (normalized.optionalOrg && ctx.apiClient && auth && !skipOrg) {
 						ctx.orgId = await selectOptionalOrg(
 							ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
 						);
 						baseCtx.logger.trace('selected orgId: %s', ctx.orgId);
 					}
+					// Skip region handling if --no-register is set (region only needed for registration)
+					const skipRegion =
+						normalized.optionalRegion &&
+						!normalized.requiresRegion &&
+						ctx.opts &&
+						(ctx.opts as Record<string, unknown>).register === false;
+
 					if (
 						(normalized.requiresRegion || normalized.optionalRegion) &&
 						ctx.apiClient &&
-						auth
+						auth &&
+						!skipRegion
 					) {
 						const apiClient: APIClientType = ctx.apiClient as APIClientType;
+						const regions = await tui.spinner({
+							message: 'Fetching cloud regions',
+							clearOnSuccess: true,
+							callback: async () => {
+								return fetchRegionsWithCache(
+									baseCtx.config?.name ?? defaultProfileName,
+									apiClient,
+									baseCtx.logger
+								);
+							},
+						});
 						const region = await resolveRegion({
 							options: options as Record<string, unknown>,
-							apiClient,
+							regions,
 							logger: baseCtx.logger,
 							required: !!normalized.requiresRegion,
 							region: project?.region,
@@ -1203,14 +1471,14 @@ async function registerSubcommand(
 					}
 					await executeOrValidate(
 						ctx as CommandContext,
-						`${parent.name()} ${subcommand.name}`,
+						getFullCommandPath(cmd),
 						subcommand.handler,
 						!!subcommand.schema?.response,
 						subcommand.webUrl
 					);
 				} catch (error) {
-					if (error && typeof error === 'object' && 'issues' in error) {
-						handleValidationError(error, `${parent.name()} ${subcommand.name}`, baseCtx);
+					if (isCLIValidationError(error)) {
+						handleValidationError(error, getFullCommandPath(cmd), baseCtx);
 					}
 					handleProjectConfigError(
 						error,
@@ -1247,18 +1515,43 @@ async function registerSubcommand(
 				if (normalized.requiresOrg && ctx.apiClient) {
 					ctx.orgId = await requireOrg(ctx as CommandContext & { apiClient: APIClientType });
 				}
-				if (normalized.optionalOrg && ctx.apiClient) {
+				// Skip org handling if --no-register is set (org only needed for registration)
+				// For non-schema commands, check options directly (Commander passes all options)
+				const skipOrg =
+					normalized.optionalOrg &&
+					!normalized.requiresOrg &&
+					(options as Record<string, unknown>).register === false;
+
+				if (normalized.optionalOrg && ctx.apiClient && !skipOrg) {
 					ctx.orgId = await selectOptionalOrg(
 						ctx as CommandContext & { apiClient?: APIClientType; auth?: AuthData }
 					);
 				}
-				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
+				// Skip region handling if --no-register is set (region only needed for registration)
+				const skipRegion =
+					normalized.optionalRegion &&
+					!normalized.requiresRegion &&
+					(options as Record<string, unknown>).register === false;
+
+				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient && !skipRegion) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
+					const regions = await tui.spinner({
+						message: 'Fetching cloud regions',
+						clearOnSuccess: true,
+						callback: async () => {
+							return fetchRegionsWithCache(
+								baseCtx.config?.name ?? defaultProfileName,
+								apiClient,
+								baseCtx.logger
+							);
+						},
+					});
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
-						apiClient,
+						regions,
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
+						region: project?.region,
 					});
 					if (region) {
 						ctx.region = region;
@@ -1279,7 +1572,7 @@ async function registerSubcommand(
 							exitWithError(
 								createError(
 									ErrorCode.INTERNAL_ERROR,
-									`Command '${parent.name()} ${subcommand.name}' declares a response schema but returned no data. This is a bug in the command implementation.`
+									`Command '${getFullCommandPath(cmd)}' declares a response schema but returned no data. This is a bug in the command implementation.`
 								),
 								baseCtx.logger,
 								baseCtx.options.errorFormat
@@ -1308,10 +1601,10 @@ async function registerSubcommand(
 						ctx.projectDir = projectDir;
 					}
 					if (subcommand.schema.args) {
-						ctx.args = subcommand.schema.args.parse(input.args);
+						ctx.args = parseArgs(subcommand.schema.args, input.args);
 					}
 					if (subcommand.schema.options) {
-						ctx.opts = subcommand.schema.options.parse(input.options);
+						ctx.opts = parseOptions(subcommand.schema.options, input.options);
 					}
 					if (normalized.requiresAPIClient && !ctx.apiClient) {
 						ctx.apiClient = createAPIClient(baseCtx, ctx.config as Config | null);
@@ -1328,14 +1621,14 @@ async function registerSubcommand(
 					}
 					await executeOrValidate(
 						ctx as CommandContext,
-						`${parent.name()} ${subcommand.name}`,
+						getFullCommandPath(cmd),
 						subcommand.handler,
 						!!subcommand.schema?.response,
 						subcommand.webUrl
 					);
 				} catch (error) {
-					if (error && typeof error === 'object' && 'issues' in error) {
-						handleValidationError(error, `${parent.name()} ${subcommand.name}`, baseCtx);
+					if (isCLIValidationError(error)) {
+						handleValidationError(error, getFullCommandPath(cmd), baseCtx);
 					}
 					handleProjectConfigError(
 						error,
@@ -1365,9 +1658,20 @@ async function registerSubcommand(
 				}
 				if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 					const apiClient: APIClientType = ctx.apiClient as APIClientType;
+					const regions = await tui.spinner({
+						message: 'Fetching cloud regions',
+						clearOnSuccess: true,
+						callback: async () => {
+							return fetchRegionsWithCache(
+								baseCtx.config?.name ?? defaultProfileName,
+								apiClient,
+								baseCtx.logger
+							);
+						},
+					});
 					const region = await resolveRegion({
 						options: options as Record<string, unknown>,
-						apiClient,
+						regions,
 						logger: baseCtx.logger,
 						required: !!normalized.requiresRegion,
 						region: project?.region,
@@ -1391,7 +1695,7 @@ async function registerSubcommand(
 							exitWithError(
 								createError(
 									ErrorCode.INTERNAL_ERROR,
-									`Command '${parent.name()} ${subcommand.name}' declares a response schema but returned no data. This is a bug in the command implementation.`
+									`Command '${getFullCommandPath(cmd)}' declares a response schema but returned no data. This is a bug in the command implementation.`
 								),
 								baseCtx.logger,
 								baseCtx.options.errorFormat
@@ -1493,9 +1797,20 @@ export async function registerCommands(
 						}
 						if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 							const apiClient: APIClientType = ctx.apiClient as APIClientType;
+							const regions = await tui.spinner({
+								message: 'Fetching cloud regions',
+								clearOnSuccess: true,
+								callback: async () => {
+									return fetchRegionsWithCache(
+										baseCtx.config?.name ?? defaultProfileName,
+										apiClient,
+										baseCtx.logger
+									);
+								},
+							});
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
-								apiClient,
+								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});
@@ -1550,9 +1865,20 @@ export async function registerCommands(
 						}
 						if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 							const apiClient: APIClientType = ctx.apiClient as APIClientType;
+							const regions = await tui.spinner({
+								message: 'Fetching cloud regions',
+								clearOnSuccess: true,
+								callback: async () => {
+									return fetchRegionsWithCache(
+										baseCtx.config?.name ?? defaultProfileName,
+										apiClient,
+										baseCtx.logger
+									);
+								},
+							});
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
-								apiClient,
+								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});
@@ -1570,9 +1896,20 @@ export async function registerCommands(
 						}
 						if ((normalized.requiresRegion || normalized.optionalRegion) && ctx.apiClient) {
 							const apiClient = ctx.apiClient as APIClientType;
+							const regions = await tui.spinner({
+								message: 'Fetching cloud regions',
+								clearOnSuccess: true,
+								callback: async () => {
+									return fetchRegionsWithCache(
+										baseCtx.config?.name ?? defaultProfileName,
+										apiClient,
+										baseCtx.logger
+									);
+								},
+							});
 							const region = await resolveRegion({
 								options: baseCtx.options as unknown as Record<string, unknown>,
-								apiClient,
+								regions,
 								logger: baseCtx.logger,
 								required: !!normalized.requiresRegion,
 							});

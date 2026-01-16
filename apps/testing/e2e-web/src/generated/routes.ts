@@ -30,44 +30,44 @@ export type POSTApiHelloInputSchema = typeof hello extends { inputSchema?: infer
 export type POSTApiHelloOutputSchema = typeof hello extends { outputSchema?: infer O } ? O : never;
 
 /**
- * Input type for route: POST /api/echo
+ * Input type for route: GET /api/echo
  */
-export type POSTApiEchoInput = InferInput<typeof inputSchema_0>;
+export type GETApiEchoInput = InferInput<typeof inputSchema_0>;
 
 /**
- * Output type for route: POST /api/echo
+ * Output type for route: GET /api/echo
  */
-export type POSTApiEchoOutput = InferOutput<typeof outputSchema_1>;
+export type GETApiEchoOutput = InferOutput<typeof outputSchema_1>;
 
 /**
- * Input schema type for route: POST /api/echo
+ * Input schema type for route: GET /api/echo
  */
-export type POSTApiEchoInputSchema = typeof inputSchema_0;
+export type GETApiEchoInputSchema = typeof inputSchema_0;
 
 /**
- * Output schema type for route: POST /api/echo
+ * Output schema type for route: GET /api/echo
  */
-export type POSTApiEchoOutputSchema = typeof outputSchema_1;
+export type GETApiEchoOutputSchema = typeof outputSchema_1;
 
 /**
- * Input type for route: POST /api/events
+ * Input type for route: GET /api/events
  */
-export type POSTApiEventsInput = never;
+export type GETApiEventsInput = never;
 
 /**
- * Output type for route: POST /api/events
+ * Output type for route: GET /api/events
  */
-export type POSTApiEventsOutput = InferOutput<typeof outputSchema_2>;
+export type GETApiEventsOutput = InferOutput<typeof outputSchema_2>;
 
 /**
- * Input schema type for route: POST /api/events
+ * Input schema type for route: GET /api/events
  */
-export type POSTApiEventsInputSchema = never;
+export type GETApiEventsInputSchema = never;
 
 /**
- * Output schema type for route: POST /api/events
+ * Output schema type for route: GET /api/events
  */
-export type POSTApiEventsOutputSchema = typeof outputSchema_2;
+export type GETApiEventsOutputSchema = typeof outputSchema_2;
 
 // ============================================================================
 // Route Definitions
@@ -77,14 +77,18 @@ export type POSTApiEventsOutputSchema = typeof outputSchema_2;
  * Route Definitions
  * 
  * Type-safe route registry for all API routes, WebSocket connections, and SSE endpoints.
- * Used by @agentuity/react for client-side type-safe routing.
+ * Used by @agentuity/react and @agentuity/frontend for client-side type-safe routing.
  * 
  * @remarks
  * This module augmentation is auto-generated from your route files during build.
  * Individual route Input/Output types are exported above for direct usage.
+ * 
+ * The augmentation targets @agentuity/frontend (the canonical source of registry types).
+ * Since @agentuity/react re-exports these types, the augmentation is visible when
+ * importing from either package.
  */
 
-declare module '@agentuity/react' {
+declare module '@agentuity/frontend' {
 	/**
 	 * API Route Registry
 	 * 
@@ -92,10 +96,29 @@ declare module '@agentuity/react' {
 	 */
 	export interface RouteRegistry {
 	'POST /api/hello': {
-		inputSchema: POSTApiHelloInputSchema;
-		outputSchema: POSTApiHelloOutputSchema;
-		stream: typeof hello extends { stream?: infer S } ? S : false;
-	};
+				inputSchema: POSTApiHelloInputSchema;
+				outputSchema: POSTApiHelloOutputSchema;
+				stream: typeof hello extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'GET /api/organizations/:orgId/members/:memberId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { orgId: string; memberId: string };
+			};
+	'GET /api/search': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/users/:userId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { userId: string };
+			};
 	}
 	
 	/**
@@ -105,10 +128,11 @@ declare module '@agentuity/react' {
 	 */
 	export interface WebSocketRouteRegistry {
 	'/api/echo': {
-		inputSchema: POSTApiEchoInputSchema;
-		outputSchema: POSTApiEchoOutputSchema;
-		stream: false;
-	};
+				inputSchema: GETApiEchoInputSchema;
+				outputSchema: GETApiEchoOutputSchema;
+				stream: false;
+				params: never;
+			};
 	}
 	
 	/**
@@ -118,36 +142,156 @@ declare module '@agentuity/react' {
 	 */
 	export interface SSERouteRegistry {
 	'/api/events': {
-		inputSchema: POSTApiEventsInputSchema;
-		outputSchema: POSTApiEventsOutputSchema;
-		stream: false;
-	};
+				inputSchema: GETApiEventsInputSchema;
+				outputSchema: GETApiEventsOutputSchema;
+				stream: false;
+				params: never;
+			};
 	}
 
 	/**
 	 * RPC Route Registry
 	 * 
 	 * Nested structure for RPC-style client access (e.g., client.hello.post())
-	 * Used by createClient() from @agentuity/core for type-safe RPC calls.
+	 * Used by createClient() from @agentuity/frontend for type-safe RPC calls.
 	 */
 	export interface RPCRouteRegistry {
+		echo: {
+			/**
+			 * Route: GET /api/echo
+			 */
+			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket'; params: never; paramsTuple: [] };
+		};
+		events: {
+			/**
+			 * Route: GET /api/events
+			 */
+			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse'; params: never; paramsTuple: [] };
+		};
 		hello: {
 			/**
 			 * Route: POST /api/hello
 			 */
-			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api' };
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; params: never; paramsTuple: [] };
 		};
+		organizations: {
+			orgId: {
+				members: {
+					memberId: {
+						/**
+						 * Route: GET /api/organizations/:orgId/members/:memberId
+						 */
+						get: { input: never; output: never; type: 'api'; params: { orgId: string; memberId: string }; paramsTuple: [string, string] };
+					};
+				};
+			};
+		};
+		search: {
+			/**
+			 * Route: GET /api/search
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
+		users: {
+			userId: {
+				/**
+				 * Route: GET /api/users/:userId
+				 */
+				get: { input: never; output: never; type: 'api'; params: { userId: string }; paramsTuple: [string] };
+			};
+		};
+	}
+}
+
+// Backward compatibility: also augment @agentuity/react for older versions
+// that define RouteRegistry locally instead of re-exporting from @agentuity/frontend
+declare module '@agentuity/react' {
+	export interface RouteRegistry {
+	'POST /api/hello': {
+				inputSchema: POSTApiHelloInputSchema;
+				outputSchema: POSTApiHelloOutputSchema;
+				stream: typeof hello extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'GET /api/organizations/:orgId/members/:memberId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { orgId: string; memberId: string };
+			};
+	'GET /api/search': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/users/:userId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { userId: string };
+			};
+	}
+	export interface WebSocketRouteRegistry {
+	'/api/echo': {
+				inputSchema: GETApiEchoInputSchema;
+				outputSchema: GETApiEchoOutputSchema;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface SSERouteRegistry {
+	'/api/events': {
+				inputSchema: GETApiEventsInputSchema;
+				outputSchema: GETApiEventsOutputSchema;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface RPCRouteRegistry {
 		echo: {
 			/**
-			 * Route: POST /api/echo
+			 * Route: GET /api/echo
 			 */
-			websocket: { input: POSTApiEchoInput; output: POSTApiEchoOutput; type: 'websocket' };
+			websocket: { input: GETApiEchoInput; output: GETApiEchoOutput; type: 'websocket'; params: never; paramsTuple: [] };
 		};
 		events: {
 			/**
-			 * Route: POST /api/events
+			 * Route: GET /api/events
 			 */
-			eventstream: { input: POSTApiEventsInput; output: POSTApiEventsOutput; type: 'sse' };
+			eventstream: { input: GETApiEventsInput; output: GETApiEventsOutput; type: 'sse'; params: never; paramsTuple: [] };
+		};
+		hello: {
+			/**
+			 * Route: POST /api/hello
+			 */
+			post: { input: POSTApiHelloInput; output: POSTApiHelloOutput; type: 'api'; params: never; paramsTuple: [] };
+		};
+		organizations: {
+			orgId: {
+				members: {
+					memberId: {
+						/**
+						 * Route: GET /api/organizations/:orgId/members/:memberId
+						 */
+						get: { input: never; output: never; type: 'api'; params: { orgId: string; memberId: string }; paramsTuple: [string, string] };
+					};
+				};
+			};
+		};
+		search: {
+			/**
+			 * Route: GET /api/search
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
+		users: {
+			userId: {
+				/**
+				 * Route: GET /api/users/:userId
+				 */
+				get: { input: never; output: never; type: 'api'; params: { userId: string }; paramsTuple: [string] };
+			};
 		};
 	}
 }
@@ -158,19 +302,55 @@ declare module '@agentuity/react' {
  * @internal
  */
 const _rpcRouteMetadata = {
-		"hello": {
-				"post": {
-						"type": "api"
-				}
-		},
 		"echo": {
 				"websocket": {
-						"type": "websocket"
+						"type": "websocket",
+						"path": "/api/echo"
 				}
 		},
 		"events": {
 				"eventstream": {
-						"type": "sse"
+						"type": "sse",
+						"path": "/api/events"
+				}
+		},
+		"hello": {
+				"post": {
+						"type": "api",
+						"path": "/api/hello"
+				}
+		},
+		"organizations": {
+				"orgId": {
+						"members": {
+								"memberId": {
+										"get": {
+												"type": "api",
+												"path": "/api/organizations/:orgId/members/:memberId",
+												"pathParams": [
+														"orgId",
+														"memberId"
+												]
+										}
+								}
+						}
+				}
+		},
+		"search": {
+				"get": {
+						"type": "api",
+						"path": "/api/search"
+				}
+		},
+		"users": {
+				"userId": {
+						"get": {
+								"type": "api",
+								"path": "/api/users/:userId",
+								"pathParams": [
+										"userId"
+								]
+						}
 				}
 		}
 } as const;

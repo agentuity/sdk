@@ -1,5 +1,6 @@
+import { z } from 'zod';
 import { createSubcommand } from '../../types';
-import { getAppBaseURL } from '../../api';
+import { getAPIBaseURL, getAppBaseURL } from '../../api';
 import { saveAuth } from '../../config';
 import { generateLoginCode, pollForLoginCompletion } from './api';
 import * as tui from '../../tui';
@@ -17,8 +18,53 @@ export const loginCommand = createSubcommand({
 		{ command: getCommand('auth login'), description: 'Login to account' },
 		{ command: getCommand('login'), description: 'Login to account' },
 	],
+	schema: {
+		options: z.object({
+			setupToken: z.string().optional().describe('Use a one-time use setup token'),
+		}),
+		response: z.object({ success: z.boolean() }),
+	},
 	async handler(ctx) {
-		const { logger, config, apiClient } = ctx;
+		const { logger, config, apiClient, opts, options } = ctx;
+
+		if (opts.setupToken) {
+			const url = getAPIBaseURL(config);
+			try {
+				const res = await fetch(
+					`${url}/cli/auth/setup-token/${encodeURIComponent(opts.setupToken)}`,
+					{
+						signal: AbortSignal.timeout(5000),
+					}
+				);
+				if (res.ok) {
+					const result = (await res.json()) as {
+						success: boolean;
+						message: string;
+						data?: { apiKey: string; expiresAt: number; userId: string };
+					};
+					if (result.success && result.data) {
+						await saveAuth({
+							apiKey: result.data.apiKey,
+							userId: result.data.userId,
+							expires: new Date(result.data.expiresAt),
+						});
+						if (!options.json) {
+							tui.success('Welcome to Agentuity! You are now logged in');
+						}
+						return { success: true };
+					}
+				} else {
+					throw new Error(await res.text());
+				}
+			} catch (ex) {
+				if (options.json) {
+					return {
+						success: false,
+					};
+				}
+				tui.error(`error validating the setup token: ${ex}`);
+			}
+		}
 
 		const appUrl = getAppBaseURL(config);
 
@@ -32,7 +78,7 @@ export const loginCommand = createSubcommand({
 			});
 
 			if (!code) {
-				return;
+				return { success: false };
 			}
 
 			const authURL = `${appUrl}/auth/cli?code=${code}`;
@@ -84,11 +130,17 @@ export const loginCommand = createSubcommand({
 				expires: result.expires,
 			});
 
-			tui.newline();
-			tui.success('Welcome to Agentuity! You are now logged in');
+			if (!options.json) {
+				tui.newline();
+				tui.success('Welcome to Agentuity! You are now logged in');
+			}
+
+			return { success: true };
 		} catch (error) {
 			logger.trace(error);
 			logger.fatal('Login failed: %s', error, ErrorCode.AUTH_FAILED);
 		}
+
+		return { success: false };
 	},
 });

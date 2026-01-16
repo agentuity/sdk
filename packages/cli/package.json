@@ -1,6 +1,6 @@
 {
 	"name": "@agentuity/cli",
-	"version": "0.0.100",
+	"version": "0.1.16",
 	"license": "Apache-2.0",
 	"author": "Agentuity employees and contributors",
 	"type": "module",
@@ -27,7 +27,7 @@
 		"bin"
 	],
 	"scripts": {
-		"clean": "rm -rf dist",
+		"clean": "rm -rf dist tsconfig.tsbuildinfo",
 		"build": "bunx tsc --build --force",
 		"typecheck": "bunx tsc --noEmit",
 		"test": "bun scripts/test-create-flow.ts && bun scripts/test-exit-codes.ts && bun scripts/test-response-schema.ts && bun scripts/test-batch-reporting.ts && bun scripts/test-response-envelope.ts",
@@ -40,6 +40,7 @@
 		"prepublishOnly": "bun run clean && bun run build"
 	},
 	"dependencies": {
+		"@agentuity/auth": "workspace:*",
 		"@agentuity/core": "workspace:*",
 		"@agentuity/server": "workspace:*",
 		"@datasert/cronjs-parser": "^1.4.0",
@@ -58,7 +59,8 @@
 		"tar-fs": "^3.1.1",
 		"typescript": "^5.9.0",
 		"vite": "^7.2.7",
-		"zod": "^4.1.12"
+		"zod": "^4.3.5",
+		"@agentuity/frontend": "workspace:*"
 	},
 	"devDependencies": {
 		"@agentuity/test-utils": "workspace:*",

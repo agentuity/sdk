@@ -1,5 +1,6 @@
 // agent.ts exports
 export {
+	type AgentContext,
 	type AgentEventName,
 	type AgentEventCallback,
 	type AgentRuntimeState,
@@ -28,6 +29,8 @@ export {
 // app.ts exports (all app-related functionality)
 export {
 	type AppConfig,
+	type CompressionConfig,
+	type CorsConfig,
 	type Variables,
 	type TriggerType,
 	type PrivateVariables,
@@ -40,15 +43,28 @@ export {
 	runShutdown,
 	fireEvent,
 } from './app';
+
+// cors.ts exports (trusted origin helpers)
+export { createTrustedCorsOrigin, type TrustedCorsOriginOptions } from './cors';
 export { addEventListener, removeEventListener } from './_events';
 
 // middleware.ts exports (Vite-native)
-export { createBaseMiddleware, createCorsMiddleware, createOtelMiddleware } from './middleware';
+export {
+	createBaseMiddleware,
+	createCorsMiddleware,
+	createOtelMiddleware,
+	createCompressionMiddleware,
+	createWebSessionMiddleware,
+	getSessionSecret,
+} from './middleware';
 
 // Internal exports needed by generated entry files
 export { register } from './otel/config';
 export { createServices } from './_services';
 export { enableProcessExitProtection } from './_process-protection';
+
+// Re-export beacon script for generated webanalytics.ts
+export { BEACON_SCRIPT, validateBeaconScript } from '@agentuity/frontend';
 
 // Internal exports (not in main index, imported by CLI only)
 export { internalExit } from './_process-protection';
@@ -58,6 +74,23 @@ export { registerDevModeRoutes } from './devmode';
 
 // router.ts exports
 export { type HonoEnv, type WebSocketConnection, createRouter } from './router';
+
+// protocol handler exports (websocket, sse, stream, cron, webrtc)
+export {
+	websocket,
+	type WebSocketHandler,
+	sse,
+	type SSEMessage,
+	type SSEStream,
+	type SSEHandler,
+	stream,
+	type StreamHandler,
+	cron,
+	type CronHandler,
+	type CronMetadata,
+	webrtc,
+	type WebRTCHandler,
+} from './handlers';
 
 // webrtc-signaling.ts exports
 export {
@@ -72,10 +105,11 @@ export {
 
 // eval.ts exports
 export {
+	EvalHandlerResultSchema,
 	type EvalContext,
 	type EvalRunResultMetadata,
-	type EvalRunResultBinary,
-	type EvalRunResultScore,
+	type EvalHandlerResult,
+	type EvalRunResultSuccess,
 	type EvalRunResultError,
 	type EvalRunResult,
 	type CreateEvalRunRequest,
@@ -89,6 +123,8 @@ export {
 export {
 	type ThreadEventName,
 	type SessionEventName,
+	type ThreadState,
+	type MergeOperation,
 	type Thread,
 	type Session,
 	type ThreadIDProvider,
@@ -97,6 +133,7 @@ export {
 	generateId,
 	DefaultThreadIDProvider,
 	DefaultThread,
+	LazyThreadState,
 } from './session';
 
 // services/thread/local exports
@@ -139,6 +176,9 @@ export {
 // _waituntil.ts exports
 export { hasWaitUntilPending } from './_waituntil';
 
+// _context.ts exports (for auth integration)
+export { inAgentContext, inHTTPContext, getAgentContext, getHTTPContext } from './_context';
+
 // _standalone.ts exports
 export {
 	createAgentContext,
@@ -147,9 +187,6 @@ export {
 	type InvokeOptions,
 } from './_standalone';
 
-// io/email exports
-export { Email, parseEmail } from './io/email';
-
 // services/evalrun exports
 export {
 	HTTPEvalRunEventProvider,
@@ -157,6 +194,19 @@ export {
 	JSONEvalRunEventProvider,
 	CompositeEvalRunEventProvider,
 } from './services/evalrun';
+
+// for loading metadata
+export { loadBuildMetadata } from './_metadata';
+
+// config exports (for analytics and other runtime config access)
+export {
+	getOrganizationId,
+	getProjectId,
+	getDeploymentId,
+	isDevMode,
+	isProduction,
+	isInsideAgentRuntime,
+} from './_config';
 
 // _services.ts exports
 export { getEvalRunEventProvider, getThreadProvider, getSessionProvider } from './_services';
@@ -208,3 +258,6 @@ export interface AppState {}
 // This allows generated code to import from @agentuity/runtime instead of having
 // a direct dependency on @agentuity/server
 export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions } from '@agentuity/server';
+
+// bun-s3-patch.ts exports
+export { patchBunS3ForStorageDev, isAgentuityStorageEndpoint } from './bun-s3-patch';

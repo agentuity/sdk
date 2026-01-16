@@ -3,9 +3,13 @@ import { join } from 'node:path';
 
 let appName: string | undefined;
 let appVersion: string | undefined;
+let inited = false;
 
 export function init() {
-	const f = join(import.meta.dir, '/../package.json');
+	if (inited) {
+		return;
+	}
+	const f = join(import.meta.dir, isProduction() ? 'package.json' : '/../package.json');
 	if (existsSync(f)) {
 		try {
 			const pkg = JSON.parse(readFileSync(f, 'utf-8'));
@@ -15,6 +19,7 @@ export function init() {
 			// Fallback to defaults if parsing fails
 		}
 	}
+	inited = true;
 }
 
 /**
@@ -32,6 +37,7 @@ export function getSDKVersion(): string {
  * @returns string
  */
 export function getAppName(): string {
+	init();
 	return appName ?? 'unknown';
 }
 
@@ -41,6 +47,7 @@ export function getAppName(): string {
  * @returns string
  */
 export function getAppVersion(): string {
+	init();
 	return appVersion ?? 'unknown';
 }
 
@@ -86,7 +93,7 @@ export function isDevMode(): boolean {
  * @returns boolean
  */
 export function isProduction(): boolean {
-	return process.env.NODE_ENV === 'production' && !isDevMode();
+	return getEnvironment() === 'production' && !isDevMode();
 }
 
 /**
@@ -141,3 +148,16 @@ export const CURRENT_AGENT = Symbol('CURRENT_AGENT');
  * @internal
  */
 export const AGENT_IDS = Symbol('AGENT_IDS');
+
+/**
+ * Returns true if running inside the Agentuity agent runtime (dev server or cloud).
+ *
+ * This is used to determine whether global state (logger, tracer, services) should
+ * already be initialized. When running standalone (scripts, Discord bots, cron jobs),
+ * this returns false and the runtime will auto-initialize minimal defaults.
+ *
+ * @returns boolean - true if AGENTUITY_SDK_DEV_MODE=true or AGENTUITY_RUNTIME=yes
+ */
+export function isInsideAgentRuntime(): boolean {
+	return process.env.AGENTUITY_SDK_DEV_MODE === 'true' || process.env.AGENTUITY_RUNTIME === 'yes';
+}

@@ -19,7 +19,7 @@ export const setSubcommand = createCommand({
 	description: 'Set a key and value in the keyvalue storage',
 	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, project: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand(
@@ -47,7 +47,7 @@ export const setSubcommand = createCommand({
 	},
 
 	async handler(ctx) {
-		const { args } = ctx;
+		const { args, options } = ctx;
 		const started = Date.now();
 		const storage = await createStorageAdapter(ctx);
 		const contentType = isPossiblyJSON(args.value) ? 'application/json' : 'text/plain';
@@ -57,7 +57,9 @@ export const setSubcommand = createCommand({
 			ttl,
 		});
 		const durationMs = Date.now() - started;
-		tui.success(`saved in ${durationMs.toFixed(1)}ms (${contentType})`);
+		if (!options.json) {
+			tui.success(`saved in ${durationMs.toFixed(1)}ms (${contentType})`);
+		}
 
 		return {
 			success: true,

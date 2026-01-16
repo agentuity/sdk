@@ -1,5 +1,5 @@
 import type { Schema } from '../base';
-import { createIssue, failure, success, createParseMethods } from '../base';
+import { createIssue, failure, success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -18,6 +18,7 @@ const parseMethods = createParseMethods<number>();
  * ```
  */
 export class NumberSchema implements Schema<number, number> {
+	readonly [SCHEMA_KIND] = 'NumberSchema';
 	description?: string;
 	private _finite = false;
 	private _min?: number;

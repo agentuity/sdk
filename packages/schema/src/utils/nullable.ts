@@ -1,5 +1,5 @@
 import type { Schema, Infer } from '../base';
-import { success, createParseMethods } from '../base';
+import { success, createParseMethods, SCHEMA_KIND } from '../base';
 
 /**
  * Schema for nullable values (T | null).
@@ -19,6 +19,7 @@ import { success, createParseMethods } from '../base';
 export class NullableSchema<T extends Schema<any, any>>
 	implements Schema<Infer<T> | null, Infer<T> | null>
 {
+	readonly [SCHEMA_KIND] = 'NullableSchema';
 	readonly schema: T;
 	description?: string;
 

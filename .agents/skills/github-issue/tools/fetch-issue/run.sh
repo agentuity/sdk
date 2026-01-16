@@ -1,0 +1,200 @@
+#!/bin/bash
+# GitHub Issue Skill - Fetch issue details and generate a resolution plan prompt
+#
+# Usage:
+#   github-issue <issue-number-or-url>
+#
+# Examples:
+#   github-issue 123
+#   github-issue https://github.com/agentuity/sdk/issues/123
+
+set -e
+
+# Check if issue argument is provided
+if [ $# -eq 0 ]; then
+    echo "Usage: github-issue <issue-number-or-url>"
+    echo "Examples:"
+    echo "  github-issue 123"
+    echo "  github-issue https://github.com/agentuity/sdk/issues/123"
+    exit 2
+fi
+
+ISSUE_ARG="$1"
+REPO="agentuity/sdk"
+
+# Extract issue number if URL is provided
+if [[ "$ISSUE_ARG" == *"github.com"* ]]; then
+    # Extract repo and issue number from URL
+    # Handles: https://github.com/owner/repo/issues/123
+    if [[ "$ISSUE_ARG" =~ github\.com/([^/]+/[^/]+)/issues/([0-9]+) ]]; then
+        REPO="${BASH_REMATCH[1]}"
+        ISSUE_NUMBER="${BASH_REMATCH[2]}"
+    else
+        echo "Error: Could not parse GitHub issue URL"
+        exit 1
+    fi
+else
+    ISSUE_NUMBER="$ISSUE_ARG"
+fi
+
+# Validate issue number format
+if [[ ! "$ISSUE_NUMBER" =~ ^[0-9]+$ ]]; then
+    echo "Error: Invalid issue number format. Expected a number."
+    exit 1
+fi
+
+# Check if gh CLI is available
+if ! command -v gh &> /dev/null; then
+    echo "Error: GitHub CLI (gh) is not installed."
+    echo "Install it from: https://cli.github.com/"
+    exit 1
+fi
+
+# Check if authenticated
+if ! gh auth status &> /dev/null; then
+    echo "Error: Not authenticated with GitHub CLI."
+    echo "Run: gh auth login"
+    exit 1
+fi
+
+# Fetch issue details using gh CLI
+if ! ISSUE_JSON=$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json number,title,body,state,author,assignees,labels,milestone,createdAt,updatedAt,comments,url 2>&1); then
+    echo "Error: Could not fetch issue #$ISSUE_NUMBER from $REPO"
+    echo "$ISSUE_JSON"
+    exit 1
+fi
+
+# Extract fields using jq
+TITLE=$(echo "$ISSUE_JSON" | jq -r '.title')
+BODY=$(echo "$ISSUE_JSON" | jq -r '.body // ""')
+STATE=$(echo "$ISSUE_JSON" | jq -r '.state')
+AUTHOR=$(echo "$ISSUE_JSON" | jq -r '.author.login')
+URL=$(echo "$ISSUE_JSON" | jq -r '.url')
+CREATED_AT=$(echo "$ISSUE_JSON" | jq -r '.createdAt')
+UPDATED_AT=$(echo "$ISSUE_JSON" | jq -r '.updatedAt')
+
+# Extract labels as comma-separated list
+LABELS=$(echo "$ISSUE_JSON" | jq -r '[.labels[].name] | join(", ") // "None"')
+if [ -z "$LABELS" ]; then
+    LABELS="None"
+fi
+
+# Extract assignees as comma-separated list
+ASSIGNEES=$(echo "$ISSUE_JSON" | jq -r '[.assignees[].login] | join(", ") // "Unassigned"')
+if [ -z "$ASSIGNEES" ]; then
+    ASSIGNEES="Unassigned"
+fi
+
+# Extract milestone
+MILESTONE=$(echo "$ISSUE_JSON" | jq -r '.milestone.title // "None"')
+
+# Extract comments
+COMMENTS_COUNT=$(echo "$ISSUE_JSON" | jq -r '.comments | length')
+COMMENTS=""
+if [ "$COMMENTS_COUNT" -gt 0 ]; then
+    COMMENTS=$(echo "$ISSUE_JSON" | jq -r '.comments[] | "### Comment by @\(.author.login) (\(.createdAt))\n\(.body)\n"')
+fi
+
+# Output formatted content for the agent
+cat <<EOF
+# GitHub Issue: $TITLE
+
+## Issue Details
+- **Issue:** #$ISSUE_NUMBER
+- **Repository:** $REPO
+- **URL:** $URL
+- **State:** $STATE
+- **Author:** @$AUTHOR
+- **Assignees:** $ASSIGNEES
+- **Labels:** $LABELS
+- **Milestone:** $MILESTONE
+- **Created:** $CREATED_AT
+- **Updated:** $UPDATED_AT
+
+## Description
+
+$BODY
+
+EOF
+
+if [ "$COMMENTS_COUNT" -gt 0 ]; then
+    cat <<EOF
+## Comments ($COMMENTS_COUNT)
+
+$COMMENTS
+EOF
+fi
+
+cat <<EOF
+---
+
+# Task
+
+You are an experienced software developer tasked with addressing GitHub issue #$ISSUE_NUMBER in the $REPO repository.
+
+**Source Issue:** $URL
+
+## Phase 1: Onboarding & Deep Analysis
+
+Onboard yourself to this task thoroughly. **Over-preparation is better than under-preparation.**
+
+1. **Understand the Issue**
+   - Carefully read the issue description and all comments above
+   - Use the oracle tool to perform a root cause analysis
+   - Ask clarifying questions if anything is unclear
+
+2. **Explore the Codebase**
+   - Use finder and Grep to locate relevant code, existing patterns, and related functionality
+   - Analyze the code thoroughly until you have a solid understanding of the context
+   - Look for code smells and potential issues that may arise during implementation
+   - Identify if refactoring is needed before implementing the fix/feature
+
+3. **Analyze Impacts**
+   - Consider potential impacts on other parts of the system
+   - Check for backwards compatibility concerns
+   - Evaluate security implications
+   - Consider performance implications
+
+## Phase 2: Create a Comprehensive Plan
+
+Create a detailed implementation plan and TODO list that includes:
+
+- **Required code changes**: Which files need to be modified or created, and what changes in each
+- **Refactoring needs**: Any code that should be cleaned up first to make implementation easier
+- **Testing strategy**: Tests to be written or updated. Make sure we can reproduce the issue before starting the fix and we look for edge cases.
+- **Documentation updates**: README, API docs, inline comments if needed
+- **Edge cases**: Potential challenges and how to handle them
+- **Verification steps**: How to validate the implementation works correctly
+
+Use the oracle tool to review your plan and adjust based on its feedback.
+
+## Phase 3: Get Approval
+
+**⚠️ IMPORTANT: ASK FOR EXPLICIT APPROVAL before starting implementation.**
+
+Present your plan to the user and wait for their approval before writing any code.
+
+## Phase 4: Implementation (After Approval)
+
+Once approved, implement the changes following the plan:
+
+1. Follow the project's code style and conventions defined in AGENTS.md
+2. Write tests alongside the implementation
+3. Run verification commands:
+   - \`bun run build\` - Ensure the project builds
+   - \`bun run typecheck\` - Verify type safety
+   - \`bun run lint\` - Check code style
+   - \`bun run test\` - Run the test suite
+
+## Phase 5: Summary
+
+After completing the implementation, provide a summary of:
+- What changes were made (with file links)
+- How to test the changes
+- Any follow-up items or considerations
+- Reference back to the source issue: $URL
+
+---
+
+**Begin by thoroughly analyzing the issue and codebase. Take as long as you need to prepare.**
+EOF

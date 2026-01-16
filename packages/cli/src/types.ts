@@ -1,10 +1,13 @@
 import type { Logger } from '@agentuity/core';
-import { Deployment, BuildMetadataSchema as ServerBuildMetadataSchema } from '@agentuity/server';
+import {
+	DeploymentConfig,
+	BuildMetadataSchema as ServerBuildMetadataSchema,
+} from '@agentuity/server';
 import type * as z from 'zod';
 import { z as zod } from 'zod';
 import type { APIClient } from './api';
 
-export { Deployment };
+export { DeploymentConfig };
 
 export type { Logger };
 
@@ -31,6 +34,7 @@ export const ConfigSchema = zod.object({
 			transport_url: zod.url().optional().describe('Override transport URL'),
 			stream_url: zod.url().optional().describe('Override stream URL'),
 			kv_url: zod.url().optional().describe('Override keyvalue URL'),
+			sandbox_url: zod.url().optional().describe('Override sandbox URL'),
 			vector_url: zod.url().optional().describe('Override vector store URL'),
 			catalyst_url: zod.url().optional().describe('Override catalyst URL'),
 			ion_url: zod.url().optional().describe('Override ion URL'),
@@ -46,6 +50,7 @@ export const ConfigSchema = zod.object({
 			last_legacy_warning: zod.number().optional().describe('Last legacy CLI warning timestamp'),
 			signup_banner_shown: zod.boolean().optional().describe('If the signup banner was shown'),
 			orgId: zod.string().optional().describe('Default organization ID'),
+			region: zod.string().optional().describe('Default cloud region'),
 			project_dir: zod.string().optional().describe('Last used project directory'),
 		})
 		.optional()
@@ -57,6 +62,7 @@ export const ConfigSchema = zod.object({
 		})
 		.optional()
 		.describe('the gravity client information'),
+
 });
 
 export type Config = zod.infer<typeof ConfigSchema>;
@@ -125,6 +131,83 @@ export interface WorkbenchConfig {
 }
 
 /**
+ * Web analytics configuration for SDK-created applications
+ */
+export interface AnalyticsConfig {
+	/**
+	 * Enable/disable analytics
+	 * @default true
+	 */
+	enabled?: boolean;
+
+	/**
+	 * Require explicit user consent before tracking
+	 * When true, analytics is no-op until optIn() is called
+	 * @default false
+	 */
+	requireConsent?: boolean;
+
+	/**
+	 * Track click events on elements with data-analytics attribute
+	 * @default true
+	 */
+	trackClicks?: boolean;
+
+	/**
+	 * Track scroll depth (25%, 50%, 75%, 100%)
+	 * @default true
+	 */
+	trackScroll?: boolean;
+
+	/**
+	 * Track outbound link clicks
+	 * @default true
+	 */
+	trackOutboundLinks?: boolean;
+
+	/**
+	 * Track form submissions
+	 * @default false
+	 */
+	trackForms?: boolean;
+
+	/**
+	 * Track Core Web Vitals
+	 * @default true
+	 */
+	trackWebVitals?: boolean;
+
+	/**
+	 * Track JavaScript errors
+	 * @default true
+	 */
+	trackErrors?: boolean;
+
+	/**
+	 * Track SPA navigation (popstate, pushState)
+	 * Automatically tracks virtual pageviews on client-side route changes
+	 * @default true
+	 */
+	trackSPANavigation?: boolean;
+
+	/**
+	 * Sample rate (0-1). 1 = 100% of events
+	 * @default 1
+	 */
+	sampleRate?: number;
+
+	/**
+	 * URL patterns to exclude from tracking (regex strings)
+	 */
+	excludePatterns?: string[];
+
+	/**
+	 * Custom data to include with every event
+	 */
+	globalProperties?: Record<string, unknown>;
+}
+
+/**
  * Agentuity project configuration (declarative)
  */
 export interface AgentuityConfig {
@@ -132,6 +215,14 @@ export interface AgentuityConfig {
 	 * Workbench configuration
 	 */
 	workbench?: WorkbenchConfig;
+
+	/**
+	 * Web analytics configuration
+	 * Set to false to disable, or provide options object
+	 * @default true (enabled with defaults)
+	 */
+	analytics?: boolean | AnalyticsConfig;
+
 	/**
 	 * Vite plugins to add to the client build
 	 * These are added AFTER Agentuity's built-in plugins
@@ -225,6 +316,7 @@ export interface CommandSchemas {
 	args?: z.ZodType;
 	options?: z.ZodType;
 	response?: z.ZodType;
+	aliases?: Record<string, string[]>;
 }
 
 export type ProjectConfig = zod.infer<typeof ProjectSchema>;
@@ -369,22 +461,23 @@ export function createSubcommand<
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
 	tags?: string[];
+	skipSkill?: boolean;
 	webUrl?: WebUrl<R, O, A, Op>;
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
-				? { args: A; options: Op; response: Res }
-				: { args: A; options: Op; response?: z.ZodType }
+				? { args: A; options: Op; response: Res; aliases?: Record<string, string[]> }
+				: { args: A; options: Op; response?: z.ZodType; aliases?: Record<string, string[]> }
 			: Res extends z.ZodType
-				? { args: A; response: Res }
-				: { args: A; response?: z.ZodType }
+				? { args: A; response: Res; aliases?: Record<string, string[]> }
+				: { args: A; response?: z.ZodType; aliases?: Record<string, string[]> }
 		: Op extends z.ZodType
 			? Res extends z.ZodType
-				? { options: Op; response: Res }
-				: { options: Op; response?: z.ZodType }
+				? { options: Op; response: Res; aliases?: Record<string, string[]> }
+				: { options: Op; response?: z.ZodType; aliases?: Record<string, string[]> }
 			: Res extends z.ZodType
-				? { response: Res }
-				: { response?: z.ZodType };
+				? { response: Res; aliases?: Record<string, string[]> }
+				: { response?: z.ZodType; aliases?: Record<string, string[]> };
 	handler(
 		ctx: CommandContext<R, O, A, Op>
 	): Res extends z.ZodType ? z.infer<Res> | Promise<z.infer<Res>> : unknown | Promise<unknown>;
@@ -406,6 +499,7 @@ export function createCommand<
 	hidden?: boolean;
 	executable?: boolean;
 	skipUpgradeCheck?: boolean;
+	passThroughArgs?: boolean;
 	requires?: R;
 	optional?: O;
 	examples?: CommandExample[];
@@ -413,22 +507,23 @@ export function createCommand<
 	prerequisites?: string[];
 	pagination?: PaginationInfo;
 	tags?: string[];
+	skipSkill?: boolean;
 	webUrl?: WebUrl<R, O, A, Op>;
 	schema?: A extends z.ZodType
 		? Op extends z.ZodType
 			? Res extends z.ZodType
-				? { args: A; options: Op; response: Res }
-				: { args: A; options: Op; response?: z.ZodType }
+				? { args: A; options: Op; response: Res; aliases?: Record<string, string[]> }
+				: { args: A; options: Op; response?: z.ZodType; aliases?: Record<string, string[]> }
 			: Res extends z.ZodType
-				? { args: A; response: Res }
-				: { args: A; response?: z.ZodType }
+				? { args: A; response: Res; aliases?: Record<string, string[]> }
+				: { args: A; response?: z.ZodType; aliases?: Record<string, string[]> }
 		: Op extends z.ZodType
 			? Res extends z.ZodType
-				? { options: Op; response: Res }
-				: { options: Op; response?: z.ZodType }
+				? { options: Op; response: Res; aliases?: Record<string, string[]> }
+				: { options: Op; response?: z.ZodType; aliases?: Record<string, string[]> }
 			: Res extends z.ZodType
-				? { response: Res }
-				: { response?: z.ZodType };
+				? { response: Res; aliases?: Record<string, string[]> }
+				: { response?: z.ZodType; aliases?: Record<string, string[]> };
 	handler?(
 		ctx: CommandContext<R, O, A, Op>
 	): Res extends z.ZodType ? z.infer<Res> | Promise<z.infer<Res>> : unknown | Promise<unknown>;
@@ -445,6 +540,8 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			passThroughArgs?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -462,6 +559,8 @@ type CommandDefBase =
 			banner?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
+			passThroughArgs?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -480,6 +579,7 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -496,6 +596,7 @@ type SubcommandDefBase =
 			aliases?: string[];
 			toplevel?: boolean;
 			banner?: boolean;
+			skipSkill?: boolean;
 			examples?: CommandExample[];
 			idempotent?: boolean;
 			prerequisites?: string[];
@@ -542,9 +643,37 @@ export const ProjectSchema = zod.object({
 	projectId: zod.string().describe('the project id'),
 	orgId: zod.string().describe('the organization id'),
 	region: zod.string().describe('the region identifier that the project is deployed into'),
-	deployment: Deployment.optional().describe('the deployment configuration'),
+	deployment: DeploymentConfig.optional().describe('the deployment configuration'),
+	skipGitSetup: zod
+		.boolean()
+		.optional()
+		.describe('whether to skip the git integration setup prompt during deploy'),
 });
 
 export const BuildMetadataSchema = ServerBuildMetadataSchema;
 export type BuildMetadata = zod.infer<typeof BuildMetadataSchema>;
 export type Project = zod.infer<typeof ProjectSchema>;
+
+export const DeployOptionsSchema = zod.object({
+	logsUrl: zod.url().optional().describe('The url to the CI build logs'),
+	trigger: zod
+		.enum(['cli', 'workflow', 'webhook'])
+		.default('cli')
+		.optional()
+		.describe('The trigger that caused the build'),
+	commitUrl: zod.url().optional().describe('The url to the CI commit'),
+	message: zod.string().optional().describe('The message to associate with this deployment'),
+	commit: zod.string().optional().describe('The commit SHA for this deployment'),
+	branch: zod.string().optional().describe('The git branch for this deployment'),
+	provider: zod.string().optional().describe('The CI provider name (attempts to autodetect)'),
+	repo: zod.string().optional().describe('The repo url'),
+	event: zod
+		.enum(['pull_request', 'push', 'manual', 'workflow'])
+		.default('manual')
+		.optional()
+		.describe('The event that triggered the deployment'),
+	pullRequestNumber: zod.number().optional().describe('the pull request number'),
+	pullRequestUrl: zod.url().optional().describe('the pull request url'),
+});
+
+export type DeployOptions = z.infer<typeof DeployOptionsSchema>;

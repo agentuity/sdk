@@ -58,6 +58,9 @@ export {
 	type VectorResultFound,
 	type VectorResultNotFound,
 	type VectorResult,
+	type VectorNamespaceStats,
+	type VectorItemStats,
+	type VectorNamespaceStatsWithSamples,
 	type VectorStorage,
 	VectorStorageService,
 } from './services/vector';
@@ -70,6 +73,36 @@ export {
 	type EvalRunStartEvent,
 	type EvalRunCompleteEvent,
 } from './services/evalrun';
+export {
+	type SandboxResources,
+	type SandboxStatus,
+	type SandboxRuntimeRequirements,
+	type SandboxRuntime,
+	type ExecutionStatus,
+	type StreamReader,
+	type SandboxStreamConfig,
+	type SandboxCommand,
+	type SandboxNetworkConfig,
+	type SandboxTimeoutConfig,
+	type SandboxCreateOptions,
+	type Sandbox,
+	type SandboxInfo,
+	type SandboxUserInfo,
+	type SandboxAgentInfo,
+	type SandboxProjectInfo,
+	type SandboxOrgInfo,
+	type ListSandboxesParams,
+	type ListSandboxesResponse,
+	type ListRuntimesParams,
+	type ListRuntimesResponse,
+	type ExecuteOptions,
+	type Execution,
+	type SandboxRunOptions,
+	type SandboxRunResult,
+	type SandboxService,
+	type FileToWrite,
+	SandboxError,
+} from './services/sandbox';
 export { buildUrl, toServiceException, toPayload, fromResponse } from './services/_util';
 
 // standard_schema.ts exports

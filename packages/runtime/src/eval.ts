@@ -1,34 +1,45 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { StandardSchemaV1, InferInput, InferOutput } from '@agentuity/core';
 import type { AgentContext } from './agent';
+import { z } from 'zod';
 
 // Eval SDK types
 export type EvalContext = AgentContext<any, any, any>;
 
 export type EvalRunResultMetadata = {
-	reason: string;
 	// biome-ignore lint/suspicious/noExplicitAny: metadata can contain any type of data
 	[key: string]: any;
 };
 
-export type EvalRunResultBinary = {
-	success: true;
-	passed: boolean;
-	metadata: EvalRunResultMetadata;
-};
+export const EvalHandlerResultSchema = z.object({
+	passed: z.boolean(),
+	score: z.number().min(0).max(1).optional(),
+	reason: z.string().optional(),
+	metadata: z.record(z.string(), z.any()).optional(),
+});
 
-export type EvalRunResultScore = {
-	success: true;
-	score: number; // 0-1 range
-	metadata: EvalRunResultMetadata;
-};
+export type EvalHandlerResult = z.infer<typeof EvalHandlerResultSchema>;
+
+// Internal types for catalyst (include success field)
+export const EvalRunResultSuccessSchema = z.object({
+	success: z.literal(true),
+	passed: z.boolean(),
+	score: z.number().min(0).max(1).optional(),
+	reason: z.string().optional(),
+	metadata: z.record(z.string(), z.any()).optional(),
+});
+
+export type EvalRunResultSuccess = z.infer<typeof EvalRunResultSuccessSchema>;
 
 export type EvalRunResultError = {
 	success: false;
+	passed: false;
 	error: string;
+	reason?: string;
+	metadata?: EvalRunResultMetadata;
 };
 
-export type EvalRunResult = EvalRunResultBinary | EvalRunResultScore | EvalRunResultError;
+export type EvalRunResult = EvalRunResultSuccess | EvalRunResultError;
 
 export type CreateEvalRunRequest = {
 	projectId: string;
@@ -41,17 +52,17 @@ export type CreateEvalRunRequest = {
 
 type InternalEvalMetadata = {
 	/**
-	 * the unique identifier for this eval and project
+	 * the unique deployment-specific id for this eval (evalid_...)
 	 */
 	id: string;
 	/**
-	 * the unique identifier for this project and eval across multiple deployments.
-	 */
-	evalId: string;
-	/**
-	 * the folder name for the eval
+	 * the stable identifier for this project and eval across multiple deployments (eval_...)
 	 */
 	identifier: string;
+	/**
+	 * the human readable name for the eval
+	 */
+	name: string;
 	/**
 	 * the relative path to the eval from the root project directory
 	 */
@@ -80,11 +91,11 @@ type InferSchemaOutput<T> = T extends StandardSchemaV1 ? InferOutput<T> : any;
 
 export type EvalFunction<TInput = any, TOutput = any> = [TInput] extends [undefined]
 	? [TOutput] extends [undefined]
-		? (ctx: EvalContext) => Promise<EvalRunResult>
-		: (ctx: EvalContext, output: TOutput) => Promise<EvalRunResult>
+		? (ctx: EvalContext) => Promise<EvalHandlerResult>
+		: (ctx: EvalContext, output: TOutput) => Promise<EvalHandlerResult>
 	: [TOutput] extends [undefined]
-		? (ctx: EvalContext, input: TInput) => Promise<EvalRunResult>
-		: (ctx: EvalContext, input: TInput, output: TOutput) => Promise<EvalRunResult>;
+		? (ctx: EvalContext, input: TInput) => Promise<EvalHandlerResult>
+		: (ctx: EvalContext, input: TInput, output: TOutput) => Promise<EvalHandlerResult>;
 
 /**
  * The Eval handler interface.

@@ -15,25 +15,35 @@ import { setOutputOptions } from '../src/output';
 import type { GlobalOptions } from '../src/types';
 import { ensureBunOnPath } from '../src/bun-path';
 import { checkForUpdates } from '../src/version-check';
+import { closeDatabase } from '../src/cache';
 
 // Cleanup TTY state before exit
-function cleanupAndExit() {
+function cleanupTTY() {
+	// Skip in CI - terminals don't support cursor control sequences
+	if (process.env.CI) {
+		return;
+	}
 	if (process.stdin.isTTY) {
-		process.stdin.setRawMode(false);
+		try {
+			process.stdin.setRawMode(false);
+		} catch {
+			// Ignore errors if stdin is already closed
+		}
 		process.stdout.write('\x1B[?25h'); // Restore cursor
 	}
-	process.exitCode = 0;
-	process.exit(0);
 }
 
-// Handle Ctrl+C gracefully
-process.once('SIGINT', () => {
+// Handle Ctrl+C gracefully - only cleanup TTY, let command handlers run
+// Commands like 'dev' register their own SIGINT handlers for cleanup
+process.on('SIGINT', () => {
 	process.stdout.write('\b \b'); // erase the ctrl+c display
-	cleanupAndExit();
+	cleanupTTY();
+	closeDatabase();
 });
 
-process.once('SIGTERM', () => {
-	cleanupAndExit();
+process.on('SIGTERM', () => {
+	cleanupTTY();
+	closeDatabase();
 });
 
 validateRuntime();
@@ -66,17 +76,22 @@ if (
 	const commands = await discoverCommands();
 	const cliSchema = generateCLISchema(program, commands, version);
 	console.log(JSON.stringify(cliSchema, null, 2));
-	process.exit(0);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
+	closeDatabase();
+	exit(0);
 }
 
-// Check for legacy CLI and warn user (skip if --skip-legacy-check flag is present)
-const skipLegacyCheck = process.argv.includes('--skip-legacy-check');
+// Check for legacy CLI and warn user (skip via flag or env var)
+// Env var is preferred for programmatic use (e.g., test runners) since Commander.js
+// would fail on unknown CLI flags
+const skipLegacyCheck =
+	process.argv.includes('--skip-legacy-check') || process.env.AGENTUITY_SKIP_LEGACY_CHECK === '1';
 if (!skipLegacyCheck) {
 	await checkLegacyCLI();
 }
 
 const version = getVersion();
-
 const program = await createCLI(version);
 
 // Parse options early to check for color scheme override
@@ -134,6 +149,7 @@ const commands = await discoverCommands();
 // Find the command being run to check if it opts out of upgrade check
 const commandName = preprocessedArgs.find((arg) => !arg.startsWith('-'));
 const commandDef = commands.find((cmd) => cmd.name === commandName);
+
 await checkForUpdates(config, logger, earlyOpts, commandDef, preprocessedArgs);
 
 // Generate and store CLI schema globally for the schema command
@@ -146,6 +162,8 @@ await registerCommands(program, commands, ctx as unknown as CommandContext);
 try {
 	await program.parseAsync(process.argv);
 } catch (error) {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const exit = (globalThis as any).AGENTUITY_PROCESS_EXIT || process.exit;
 	// Don't log error if it's from Ctrl+C, user cancellation, or signal termination
 	if (error instanceof Error) {
 		const msg = error.message.toLowerCase();
@@ -157,15 +175,18 @@ try {
 			msg.includes('canceled') || // US
 			msg === ''
 		) {
-			process.exit(0);
+			closeDatabase();
+			exit(0);
 		}
 		if ('name' in error && error.name === 'AbortError') {
-			process.exit(0);
+			closeDatabase();
+			exit(0);
 		}
 	}
 	// Also exit cleanly if error is empty/undefined (user cancellation)
 	if (!error) {
-		process.exit(0);
+		closeDatabase();
+		exit(0);
 	}
 	const errorWithMessage = error as { message?: string };
 	if (isStructuredError(error)) {
@@ -177,5 +198,6 @@ try {
 			error
 		);
 	}
-	process.exit(1);
+	closeDatabase();
+	exit(1);
 }

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { isRunningFromExecutable, getPlatformInfo } from '../src/cmd/upgrade';
+import { isRunningFromExecutable, getPlatformInfo, PermissionError } from '../src/cmd/upgrade';
 
 describe('upgrade command', () => {
 	test('isRunningFromExecutable returns false when running from bun script', () => {
@@ -97,5 +97,26 @@ describe('upgrade command', () => {
 		const url = `https://agentuity.sh/release/sdk/${version}/${os}/${arch}`;
 
 		expect(url).toBe('https://agentuity.sh/release/sdk/v1.2.3/darwin/arm64');
+	});
+
+	test('PermissionError has correct properties', () => {
+		const error = new PermissionError({
+			binaryPath: '/usr/local/bin/agentuity',
+			reason: 'Cannot write to file',
+			message: 'Permission denied: Cannot write to file',
+		});
+		expect(error.name).toBe('PermissionError');
+		expect(error.binaryPath).toBe('/usr/local/bin/agentuity');
+		expect(error.reason).toBe('Cannot write to file');
+		expect(error.message).toBe('Permission denied: Cannot write to file');
+	});
+
+	test('PermissionError is an instance of Error', () => {
+		const error = new PermissionError({
+			binaryPath: '/usr/local/bin/agentuity',
+			reason: 'test',
+		});
+		expect(error instanceof Error).toBe(true);
+		expect(error instanceof PermissionError).toBe(true);
 	});
 });

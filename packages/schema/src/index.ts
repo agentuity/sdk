@@ -9,7 +9,7 @@ export type {
 	SafeParseSuccess,
 	SafeParseError,
 } from './base';
-export { createIssue, success, failure, ValidationError } from './base';
+export { createIssue, success, failure, ValidationError, SCHEMA_KIND } from './base';
 
 export { StringSchema, string } from './primitives/string';
 export { NumberSchema, number } from './primitives/number';
@@ -56,6 +56,8 @@ import { coerceBoolean } from './coerce/boolean';
 import { coerceDate } from './coerce/date';
 
 import type { Infer as InferType, Schema } from './base';
+import { LiteralSchema } from './utils/literal';
+import { UnionSchema } from './utils/union';
 
 /**
  * Create an enum schema (union of literal values).
@@ -73,10 +75,9 @@ import type { Infer as InferType, Schema } from './base';
  * ```
  */
 function enumSchema<
-	T extends readonly [string | number | boolean, ...(string | number | boolean)[]],
->(values: T) {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	return union(...values.map((v) => literal(v as any)));
+	const T extends readonly [string | number | boolean, ...(string | number | boolean)[]],
+>(values: T): UnionSchema<LiteralSchema<T[number]>[]> {
+	return union(...values.map((v) => literal(v))) as UnionSchema<LiteralSchema<T[number]>[]>;
 }
 
 /**

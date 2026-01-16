@@ -941,6 +941,102 @@ const InvalidRouterConfigError = StructuredError('InvalidRouterConfigError')<{
 	line?: number;
 }>();
 
+const SchemaNotExportedError = StructuredError('SchemaNotExportedError')<{
+	filename: string;
+	schemaName: string;
+	kind: 'input' | 'output';
+	method?: string;
+	path?: string;
+}>();
+
+/**
+ * Build a set of exported identifiers from the top-level program.
+ * Handles both `export const X = ...` and `export { X }` patterns.
+ */
+function buildExportedIdentifierSet(program: ASTProgram): Set<string> {
+	const exported = new Set<string>();
+
+	for (const node of program.body) {
+		if (node.type === 'ExportNamedDeclaration') {
+			const exp = node as unknown as {
+				declaration?: ASTNode;
+				specifiers?: Array<{ local?: ASTNodeIdentifier; exported?: ASTNodeIdentifier }>;
+			};
+
+			// Handle `export const X = ...` or `export function X() { ... }` or `export class X { ... }`
+			if (exp.declaration) {
+				if (exp.declaration.type === 'VariableDeclaration') {
+					const decl = exp.declaration as unknown as { declarations: ASTVariableDeclarator[] };
+					for (const d of decl.declarations) {
+						if (d.id.type === 'Identifier') {
+							const id = d.id as ASTNodeIdentifier;
+							exported.add(id.name);
+						}
+					}
+				} else if (exp.declaration.type === 'FunctionDeclaration') {
+					const funcDecl = exp.declaration as unknown as { id?: ASTNodeIdentifier };
+					if (funcDecl.id?.name) {
+						exported.add(funcDecl.id.name);
+					}
+				} else if (exp.declaration.type === 'ClassDeclaration') {
+					const classDecl = exp.declaration as unknown as { id?: ASTNodeIdentifier };
+					if (classDecl.id?.name) {
+						exported.add(classDecl.id.name);
+					}
+				}
+			}
+
+			// Handle `export { X }` or `export { X as Y }`
+			if (exp.specifiers && Array.isArray(exp.specifiers)) {
+				for (const spec of exp.specifiers) {
+					// For `export { X }`, local.name is the variable name in this file
+					if (spec.local?.name) {
+						exported.add(spec.local.name);
+					}
+				}
+			}
+		}
+	}
+
+	return exported;
+}
+
+/**
+ * Validate that schema variables used in validators are either imported or exported.
+ * Throws SchemaNotExportedError if a locally-defined schema is not exported.
+ */
+function validateSchemaExports(
+	schemaVariable: string | undefined,
+	kind: 'input' | 'output',
+	importedNames: Set<string>,
+	exportedNames: Set<string>,
+	filename: string,
+	method?: string,
+	path?: string
+): void {
+	if (!schemaVariable) return;
+
+	// If the schema is imported from another file, it's already exported from its source
+	if (importedNames.has(schemaVariable)) return;
+
+	// If the schema is defined locally, it must be exported
+	if (!exportedNames.has(schemaVariable)) {
+		const routeDesc = method && path ? ` for route "${method.toUpperCase()} ${path}"` : '';
+		throw new SchemaNotExportedError({
+			filename,
+			schemaName: schemaVariable,
+			kind,
+			method,
+			path,
+			message:
+				`Schema "${schemaVariable}" used as the ${kind} validator${routeDesc} in ${filename} is not exported.\n\n` +
+				`Agentuity generates a route registry that imports schema types by name, so the schema must be exported.\n\n` +
+				`To fix this, add "export" to the schema declaration:\n\n` +
+				`  export const ${schemaVariable} = s.object({ ... });\n`,
+		});
+	}
+}
+
 /**
  * Check if an AST node contains a validator() call
  */
@@ -967,9 +1063,19 @@ function hasValidatorCall(args: unknown[]): ValidatorInfo {
 			if (callExpr.callee.type === 'Identifier') {
 				const identifier = callExpr.callee as ASTNodeIdentifier;
 				if (identifier.name === 'validator') {
-					// Try to extract schema variables from validator({ input, output })
+					// Try to extract schema variables from validator({ input, output, stream })
 					const schemas = extractValidatorSchemas(callExpr);
-					return { hasValidator: true, ...schemas };
+					// Return if we found any schema variables OR a stream flag
+					if (
+						schemas.inputSchemaVariable ||
+						schemas.outputSchemaVariable ||
+						schemas.stream !== undefined
+					) {
+						return { hasValidator: true, ...schemas };
+					}
+					// Try Hono validator('json', callback) pattern
+					const honoSchemas = extractHonoValidatorSchema(callExpr);
+					return { hasValidator: true, ...honoSchemas };
 				}
 				// Check for zValidator('json', schema)
 				if (identifier.name === 'zValidator') {
@@ -1129,6 +1235,114 @@ function extractZValidatorSchema(callExpr: ASTCallExpression): {
 	return result;
 }
 
+/**
+ * Extract schema from Hono validator('json', callback) pattern
+ * Example: validator('json', (value, c) => { const result = mySchema['~standard'].validate(value); ... })
+ * Searches the callback function body for schema.validate() or schema['~standard'].validate() calls
+ */
+function extractHonoValidatorSchema(callExpr: ASTCallExpression): {
+	inputSchemaVariable?: string;
+} {
+	const result: { inputSchemaVariable?: string } = {};
+
+	// Hono validator requires at least 2 arguments: validator(target, callback)
+	if (!callExpr.arguments || callExpr.arguments.length < 2) {
+		return result;
+	}
+
+	// First argument should be 'json' literal (only extract for JSON validation)
+	const targetArg = callExpr.arguments[0] as ASTNode;
+	if (targetArg.type === 'Literal') {
+		const targetValue = (targetArg as ASTLiteral).value;
+		if (typeof targetValue === 'string' && targetValue !== 'json') {
+			return result;
+		}
+	} else {
+		return result;
+	}
+
+	// Second argument should be a function (arrow or regular)
+	const callbackArg = callExpr.arguments[1] as ASTNode;
+	if (
+		callbackArg.type !== 'ArrowFunctionExpression' &&
+		callbackArg.type !== 'FunctionExpression'
+	) {
+		return result;
+	}
+
+	// Get the function body
+	const funcExpr = callbackArg as {
+		body?: ASTNode;
+	};
+
+	if (!funcExpr.body) {
+		return result;
+	}
+
+	// Search the function body for schema.validate() or schema['~standard'].validate() calls
+	const schemaVar = findSchemaValidateCall(funcExpr.body);
+	if (schemaVar) {
+		result.inputSchemaVariable = schemaVar;
+	}
+
+	return result;
+}
+
+/**
+ * Recursively search AST for schema.validate() or schema['~standard'].validate() calls
+ * Returns the schema variable name if found
+ */
+function findSchemaValidateCall(node: ASTNode): string | undefined {
+	if (!node || typeof node !== 'object') return undefined;
+
+	// Check if this is a CallExpression with .validate()
+	if (node.type === 'CallExpression') {
+		const callExpr = node as ASTCallExpression;
+
+		// Check for schema['~standard'].validate(value) pattern
+		// AST: CallExpression -> MemberExpression(validate) -> MemberExpression(['~standard']) -> Identifier(schema)
+		if (callExpr.callee.type === 'MemberExpression') {
+			const member = callExpr.callee as ASTMemberExpression;
+			const propName =
+				member.property.type === 'Identifier'
+					? (member.property as ASTNodeIdentifier).name
+					: undefined;
+
+			if (propName === 'validate') {
+				// Check if the object is schema['~standard'] or just schema
+				if (member.object.type === 'MemberExpression') {
+					// schema['~standard'].validate() pattern
+					const innerMember = member.object as ASTMemberExpression;
+					if (innerMember.object.type === 'Identifier') {
+						return (innerMember.object as ASTNodeIdentifier).name;
+					}
+				} else if (member.object.type === 'Identifier') {
+					// schema.validate() pattern
+					return (member.object as ASTNodeIdentifier).name;
+				}
+			}
+		}
+	}
+
+	// Recursively search child nodes
+	for (const key of Object.keys(node)) {
+		const value = (node as unknown as Record<string, unknown>)[key];
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				if (item && typeof item === 'object') {
+					const found = findSchemaValidateCall(item as ASTNode);
+					if (found) return found;
+				}
+			}
+		} else if (value && typeof value === 'object') {
+			const found = findSchemaValidateCall(value as ASTNode);
+			if (found) return found;
+		}
+	}
+
+	return undefined;
+}
+
 export async function parseRoute(
 	rootDir: string,
 	filename: string,
@@ -1173,6 +1387,12 @@ export async function parseRoute(
 			}
 		}
 	}
+
+	// Build set of imported names for schema export validation
+	const importedNames = new Set(importMap.keys());
+
+	// Build set of exported identifiers for schema export validation
+	const exportedNames = buildExportedIdentifierSet(ast as ASTProgram);
 
 	// Scan for exported schemas (for WebSocket/SSE routes)
 	let exportedInputSchemaName: string | undefined;
@@ -1300,12 +1520,206 @@ export async function parseRoute(
 						const action = statement.expression.arguments[0];
 						let suffix = '';
 						let config: Record<string, unknown> | undefined;
+						// Supported HTTP methods that can be represented in BuildMetadata
+						const SUPPORTED_HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch'] as const;
+						type SupportedHttpMethod = (typeof SUPPORTED_HTTP_METHODS)[number];
+
+						const isSupportedHttpMethod = (m: string): m is SupportedHttpMethod =>
+							SUPPORTED_HTTP_METHODS.includes(m.toLowerCase() as SupportedHttpMethod);
+
 						switch (method) {
 							case 'use':
-							case 'on':
-							case 'all':
 							case 'route': {
-								// Skip Hono middleware/routing methods - they don't represent API routes
+								// Skip Hono middleware and sub-router mounting - they don't represent API routes
+								continue;
+							}
+							case 'on': {
+								// router.on(method | method[], path, handler)
+								// First arg is method(s), second arg is path
+								const methodArg = statement.expression.arguments[0];
+								const pathArg = statement.expression.arguments[1];
+
+								// Extract methods from first argument
+								const methods: SupportedHttpMethod[] = [];
+
+								if (methodArg && (methodArg as ASTLiteral).type === 'Literal') {
+									// Single method: router.on('GET', '/path', handler)
+									const raw = String((methodArg as ASTLiteral).value || '').toLowerCase();
+									if (isSupportedHttpMethod(raw)) {
+										methods.push(raw as SupportedHttpMethod);
+									}
+								} else if (methodArg && (methodArg as ASTNode).type === 'ArrayExpression') {
+									// Array of methods: router.on(['GET', 'POST'], '/path', handler)
+									const arr = methodArg as { elements: ASTNode[] };
+									for (const el of arr.elements) {
+										if (!el || (el as ASTLiteral).type !== 'Literal') continue;
+										const raw = String((el as ASTLiteral).value || '').toLowerCase();
+										if (isSupportedHttpMethod(raw)) {
+											methods.push(raw as SupportedHttpMethod);
+										}
+									}
+								}
+
+								// Skip if no supported methods or path is not a literal
+								if (
+									methods.length === 0 ||
+									!pathArg ||
+									(pathArg as ASTLiteral).type !== 'Literal'
+								) {
+									continue;
+								}
+
+								const pathSuffix = String((pathArg as ASTLiteral).value);
+
+								// Create a route entry for each method
+								for (const httpMethod of methods) {
+									const thepath = `${routePrefix}/${routeName}/${pathSuffix}`
+										.replaceAll(/\/{2,}/g, '/')
+										.replaceAll(/\/$/g, '');
+									const id = generateRouteId(
+										projectId,
+										deploymentId,
+										'api',
+										httpMethod,
+										rel,
+										thepath,
+										version
+									);
+
+									// Check if this route uses validator middleware
+									const validatorInfo = hasValidatorCall(statement.expression.arguments);
+									const routeConfig: Record<string, unknown> = {};
+									if (validatorInfo.hasValidator) {
+										routeConfig.hasValidator = true;
+										if (validatorInfo.agentVariable) {
+											routeConfig.agentVariable = validatorInfo.agentVariable;
+											const agentImportPath = importMap.get(validatorInfo.agentVariable);
+											if (agentImportPath) {
+												routeConfig.agentImportPath = agentImportPath;
+											}
+										}
+										// Validate that schema variables are exported (if defined locally)
+										validateSchemaExports(
+											validatorInfo.inputSchemaVariable,
+											'input',
+											importedNames,
+											exportedNames,
+											rel,
+											httpMethod,
+											thepath
+										);
+										validateSchemaExports(
+											validatorInfo.outputSchemaVariable,
+											'output',
+											importedNames,
+											exportedNames,
+											rel,
+											httpMethod,
+											thepath
+										);
+										if (validatorInfo.inputSchemaVariable) {
+											routeConfig.inputSchemaVariable =
+												validatorInfo.inputSchemaVariable;
+										}
+										if (validatorInfo.outputSchemaVariable) {
+											routeConfig.outputSchemaVariable =
+												validatorInfo.outputSchemaVariable;
+										}
+										if (validatorInfo.stream !== undefined) {
+											routeConfig.stream = validatorInfo.stream;
+										}
+									}
+
+									routes.push({
+										id,
+										method: httpMethod,
+										type: 'api',
+										filename: rel,
+										path: thepath,
+										version,
+										config: Object.keys(routeConfig).length > 0 ? routeConfig : undefined,
+									});
+								}
+								continue;
+							}
+							case 'all': {
+								// router.all(path, handler) - matches all HTTP methods
+								// First arg is path (same as get/post/etc.)
+								if (!action || (action as ASTLiteral).type !== 'Literal') {
+									continue;
+								}
+
+								const pathSuffix = String((action as ASTLiteral).value);
+
+								// Create a route entry for each supported method
+								for (const httpMethod of SUPPORTED_HTTP_METHODS) {
+									const thepath = `${routePrefix}/${routeName}/${pathSuffix}`
+										.replaceAll(/\/{2,}/g, '/')
+										.replaceAll(/\/$/g, '');
+									const id = generateRouteId(
+										projectId,
+										deploymentId,
+										'api',
+										httpMethod,
+										rel,
+										thepath,
+										version
+									);
+
+									// Check if this route uses validator middleware
+									const validatorInfo = hasValidatorCall(statement.expression.arguments);
+									const routeConfig: Record<string, unknown> = {};
+									if (validatorInfo.hasValidator) {
+										routeConfig.hasValidator = true;
+										if (validatorInfo.agentVariable) {
+											routeConfig.agentVariable = validatorInfo.agentVariable;
+											const agentImportPath = importMap.get(validatorInfo.agentVariable);
+											if (agentImportPath) {
+												routeConfig.agentImportPath = agentImportPath;
+											}
+										}
+										// Validate that schema variables are exported (if defined locally)
+										validateSchemaExports(
+											validatorInfo.inputSchemaVariable,
+											'input',
+											importedNames,
+											exportedNames,
+											rel,
+											httpMethod,
+											thepath
+										);
+										validateSchemaExports(
+											validatorInfo.outputSchemaVariable,
+											'output',
+											importedNames,
+											exportedNames,
+											rel,
+											httpMethod,
+											thepath
+										);
+										if (validatorInfo.inputSchemaVariable) {
+											routeConfig.inputSchemaVariable =
+												validatorInfo.inputSchemaVariable;
+										}
+										if (validatorInfo.outputSchemaVariable) {
+											routeConfig.outputSchemaVariable =
+												validatorInfo.outputSchemaVariable;
+										}
+										if (validatorInfo.stream !== undefined) {
+											routeConfig.stream = validatorInfo.stream;
+										}
+									}
+
+									routes.push({
+										id,
+										method: httpMethod,
+										type: 'api',
+										filename: rel,
+										path: thepath,
+										version,
+										config: Object.keys(routeConfig).length > 0 ? routeConfig : undefined,
+									});
+								}
 								continue;
 							}
 							case 'get':
@@ -1315,6 +1729,52 @@ export async function parseRoute(
 							case 'delete': {
 								if (action && (action as ASTLiteral).type === 'Literal') {
 									suffix = String((action as ASTLiteral).value);
+
+									// Check if any argument is a middleware function call (websocket, sse, stream, cron)
+									// New pattern: router.get('/ws', websocket((c, ws) => { ... }))
+									for (const arg of statement.expression.arguments) {
+										if ((arg as ASTCallExpression).type === 'CallExpression') {
+											const callExpr = arg as ASTCallExpression;
+											// Only handle simple Identifier callees (e.g., websocket(), sse())
+											// Skip MemberExpression callees (e.g., obj.method())
+											if (callExpr.callee.type !== 'Identifier') {
+												continue;
+											}
+											const calleeName = (callExpr.callee as ASTNodeIdentifier).name;
+											if (
+												calleeName === 'websocket' ||
+												calleeName === 'sse' ||
+												calleeName === 'stream'
+											) {
+												type = calleeName;
+												break;
+											}
+											if (calleeName === 'cron') {
+												type = 'cron';
+												// First argument to cron() is the schedule expression
+												if (callExpr.arguments && callExpr.arguments.length > 0) {
+													const cronArg = callExpr.arguments[0] as ASTLiteral;
+													if (cronArg.type === 'Literal') {
+														const expression = String(cronArg.value);
+														try {
+															parseCronExpression(expression, {
+																hasSeconds: false,
+															});
+														} catch (ex) {
+															throw new InvalidRouterConfigError({
+																filename,
+																cause: ex,
+																line: body.loc?.start?.line,
+																message: `invalid cron expression "${expression}" in ${filename} at line ${body.loc?.start?.line}`,
+															});
+														}
+														config = { expression };
+													}
+												}
+												break;
+											}
+										}
+									}
 								} else {
 									throw new InvalidRouterConfigError({
 										filename,
@@ -1327,6 +1787,8 @@ export async function parseRoute(
 							case 'stream':
 							case 'sse':
 							case 'websocket': {
+								// DEPRECATED: router.stream(), router.sse(), router.websocket()
+								// These methods now throw errors at runtime
 								type = method;
 								method = 'post';
 								const theaction = action as ASTLiteral;
@@ -1336,50 +1798,9 @@ export async function parseRoute(
 								}
 								break;
 							}
-							case 'webrtc': {
-								// webrtc() registers a signaling endpoint at ${path}/signal
-								type = 'websocket';
-								method = 'get';
-								const theaction = action as ASTLiteral;
-								if (theaction.type === 'Literal') {
-									suffix = `${String(theaction.value)}/signal`;
-									break;
-								}
-								break;
-							}
-							case 'sms': {
-								type = method;
-								method = 'post';
-								const theaction = action as ASTObjectExpression;
-								if (theaction.type === 'ObjectExpression') {
-									config = {};
-									theaction.properties.forEach((p) => {
-										if (p.value.type === 'Literal') {
-											const literal = p.value as ASTLiteral;
-											config![p.key.name] = literal.value;
-										}
-									});
-									const number = theaction.properties.find((p) => p.key.name === 'number');
-									if (number && number.value.type === 'Literal') {
-										const phoneNumber = number.value as ASTLiteral;
-										suffix = hash(String(phoneNumber.value));
-										break;
-									}
-								}
-								break;
-							}
-							case 'email': {
-								type = method;
-								method = 'post';
-								const theaction = action as ASTLiteral;
-								if (theaction.type === 'Literal') {
-									const email = String(theaction.value);
-									suffix = hash(email);
-									break;
-								}
-								break;
-							}
 							case 'cron': {
+								// DEPRECATED: router.cron()
+								// This method now throws errors at runtime
 								type = method;
 								method = 'post';
 								const theaction = action as ASTLiteral;
@@ -1437,6 +1858,25 @@ export async function parseRoute(
 									routeConfig.agentImportPath = agentImportPath;
 								}
 							}
+							// Validate that schema variables are exported (if defined locally)
+							validateSchemaExports(
+								validatorInfo.inputSchemaVariable,
+								'input',
+								importedNames,
+								exportedNames,
+								rel,
+								method,
+								thepath
+							);
+							validateSchemaExports(
+								validatorInfo.outputSchemaVariable,
+								'output',
+								importedNames,
+								exportedNames,
+								rel,
+								method,
+								thepath
+							);
 							if (validatorInfo.inputSchemaVariable) {
 								routeConfig.inputSchemaVariable = validatorInfo.inputSchemaVariable;
 							}
@@ -1448,14 +1888,15 @@ export async function parseRoute(
 							}
 						}
 
-						// For WebSocket/SSE routes that don't use validator(), fall back to exported schemas
-						if (!routeConfig.hasValidator && (type === 'websocket' || type === 'sse')) {
-							if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
-								routeConfig.inputSchemaVariable = exportedInputSchemaName;
-							}
-							if (!routeConfig.outputSchemaVariable && exportedOutputSchemaName) {
-								routeConfig.outputSchemaVariable = exportedOutputSchemaName;
-							}
+						// Fall back to exported schemas when validator doesn't provide them
+						// This works for all route types (API, WebSocket, SSE, stream)
+						// For API routes, this enables `export const outputSchema` pattern
+						// which is useful when using zValidator (input-only) but needing typed outputs
+						if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
+							routeConfig.inputSchemaVariable = exportedInputSchemaName;
+						}
+						if (!routeConfig.outputSchemaVariable && exportedOutputSchemaName) {
+							routeConfig.outputSchemaVariable = exportedOutputSchemaName;
 						}
 
 						routes.push({
@@ -1472,7 +1913,7 @@ export async function parseRoute(
 			}
 		}
 	} catch (error) {
-		if (error instanceof InvalidRouterConfigError) {
+		if (error instanceof InvalidRouterConfigError || error instanceof SchemaNotExportedError) {
 			throw error;
 		}
 		throw new InvalidRouterConfigError({

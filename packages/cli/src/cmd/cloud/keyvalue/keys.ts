@@ -13,7 +13,7 @@ export const keysSubcommand = createCommand({
 	aliases: ['ls', 'list'],
 	description: 'List all keys in a keyvalue namespace',
 	tags: ['read-only', 'slow', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true },
 	idempotent: true,
 	examples: [
 		{ command: getCommand('kv keys production'), description: 'List all keys in production' },

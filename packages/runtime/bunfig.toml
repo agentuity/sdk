@@ -1,0 +1,2 @@
+[test]
+# Runtime tests use native Request/Response, not happy-dom

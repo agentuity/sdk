@@ -1,4 +1,4 @@
-import type { WebSocketConnection } from './router';
+import type { WebSocketConnection } from './handlers/websocket';
 import type {
 	SDPDescription,
 	ICECandidate,
@@ -34,11 +34,15 @@ interface PeerConnection {
  *
  * @example
  * ```ts
+ * import { createRouter, webrtc } from '@agentuity/runtime';
+ *
+ * const router = createRouter();
+ *
  * // Basic usage
- * router.webrtc('/call');
+ * router.get('/call/signal', webrtc());
  *
  * // With callbacks for monitoring
- * router.webrtc('/call', {
+ * router.get('/call/signal', webrtc({
  *   maxPeers: 2,
  *   callbacks: {
  *     onRoomCreated: (roomId) => console.log(`Room ${roomId} created`),
@@ -50,7 +54,7 @@ interface PeerConnection {
  *       metrics.increment(`webrtc.${type}`);
  *     },
  *   },
- * });
+ * }));
  * ```
  */
 export class WebRTCRoomManager {

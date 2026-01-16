@@ -5,8 +5,8 @@
  * Handles both backend (API, agents, lib) and generates restart signals.
  */
 
-import { watch, type FSWatcher, statSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { watch, type FSWatcher, statSync, readdirSync, lstatSync } from 'node:fs';
+import { resolve, relative } from 'node:path';
 import type { Logger } from '../../types';
 import { createAgentTemplates, createAPITemplates } from './templates';
 
@@ -34,20 +34,54 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	let paused = false;
 	let buildCooldownTimer: NodeJS.Timeout | null = null;
 
-	// Watch the entire root directory recursively
-	// This is simpler and more reliable than watching individual paths
-	const watchDirs = [rootDir];
-
-	// Directories to ignore
-	const ignorePaths = [
+	// Directories to ignore - these are NEVER traversed into
+	// This prevents EMFILE errors from symlink cycles in node_modules
+	const ignoreDirs = new Set([
 		'.agentuity',
+		'.agents',
+		'.claude',
+		'.code',
+		'.opencode',
 		'node_modules',
 		'.git',
+		'.github',
 		'dist',
 		'build',
 		'.next',
 		'.turbo',
+		'.npm',
+		'.dist',
+		'.vscode',
+		'.idea',
+		'.DS_Store',
+		'.playwright',
+		'.bun',
+		'src/generated',
+	]);
+
+	// Paths to ignore for file change events (but may still be traversed)
+	const ignorePaths = [
+		'.agentuity',
+		'.agents',
+		'.claude',
+		'.code',
+		'.opencode',
+		'node_modules',
+		'.git',
+		'.github',
+		'dist',
+		'build',
+		'.next',
+		'.turbo',
+		'.npm',
+		'.dist',
+		'.vscode',
+		'.idea',
+		'.bun',
+		'.DS_Store',
+		'.playwright',
 		'src/web', // Vite handles frontend with HMR - no backend restart needed
+		'src/generated', // Generated files shouldn't trigger rebuilds
 	];
 
 	/**
@@ -128,43 +162,117 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 			return;
 		}
 
+		// Get absolute path for checking
+		const absPath = changedFile ? resolve(watchDir, changedFile) : watchDir;
+
+		// Check if this is a directory
+		let isDirectory = false;
+		try {
+			const stats = statSync(absPath);
+			isDirectory = stats.isDirectory();
+		} catch {
+			// File doesn't exist (was deleted) - not a directory
+			isDirectory = false;
+		}
+
 		// Check if an empty directory was created in src/agent/ or src/api/
 		// This helps with developer experience by auto-scaffolding template files
-		if (changedFile && eventType === 'rename') {
+		if (changedFile && eventType === 'rename' && isDirectory) {
 			try {
-				const absPath = resolve(watchDir, changedFile);
 				// Normalize the path for comparison (use forward slashes)
 				const normalizedPath = changedFile.replace(/\\/g, '/');
 
-				// Check if it's a directory and empty
-				const stats = statSync(absPath);
-				if (stats.isDirectory()) {
-					const contents = readdirSync(absPath);
-					if (contents.length === 0) {
-						// Check if this is an agent or API directory
-						if (
-							normalizedPath.startsWith('src/agent/') ||
-							normalizedPath.includes('/src/agent/')
-						) {
-							logger.debug('Agent directory created: %s', changedFile);
-							createAgentTemplates(absPath);
-						} else if (
-							normalizedPath.startsWith('src/api/') ||
-							normalizedPath.includes('/src/api/')
-						) {
-							logger.debug('API directory created: %s', changedFile);
-							createAPITemplates(absPath);
-						}
+				// Check if it's empty
+				const contents = readdirSync(absPath);
+				if (contents.length === 0) {
+					// Check if this is an agent or API directory
+					if (
+						normalizedPath.startsWith('src/agent/') ||
+						normalizedPath.includes('/src/agent/')
+					) {
+						logger.debug('Agent directory created: %s', changedFile);
+						createAgentTemplates(absPath);
+					} else if (
+						normalizedPath.startsWith('src/api/') ||
+						normalizedPath.includes('/src/api/')
+					) {
+						logger.debug('API directory created: %s', changedFile);
+						createAPITemplates(absPath);
 					}
 				}
 			} catch (error) {
 				// File might have been deleted or doesn't exist yet - this is normal
-				logger.trace('Unable to check directory for template creation: %s', error);
+				logger.trace(
+					'Unable to check directory for template creation (%s): %s',
+					changedFile,
+					error
+				);
 			}
+		}
+
+		// Ignore directory-only change events (mtime updates when files inside change)
+		// We only care about actual file changes - the watcher will report those directly
+		if (isDirectory && eventType === 'change') {
+			logger.trace('File change ignored (directory mtime update): %s', changedFile);
+			return;
 		}
 
 		logger.debug('File changed (%s): %s', eventType, changedFile || watchDir);
 		onRestart();
+	}
+
+	/**
+	 * Recursively collect all directories to watch, skipping ignored directories.
+	 * This prevents EMFILE errors from symlink cycles in node_modules.
+	 */
+	function collectWatchDirs(dir: string, visited: Set<string> = new Set()): string[] {
+		const dirs: string[] = [dir];
+
+		try {
+			// Use lstat to check for symlinks - get the real path to detect cycles
+			const stat = lstatSync(dir);
+
+			// Skip symlinks to prevent following circular symlinks
+			if (stat.isSymbolicLink()) {
+				logger.trace('Skipping symlink: %s', dir);
+				return [];
+			}
+
+			// Track visited inodes to detect cycles
+			const key = `${stat.dev}:${stat.ino}`;
+			if (visited.has(key)) {
+				logger.trace('Skipping already visited directory (cycle detected): %s', dir);
+				return [];
+			}
+			visited.add(key);
+
+			const entries = readdirSync(dir, { withFileTypes: true });
+
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+
+				const name = entry.name;
+
+				// Skip ignored directories entirely - this is the key fix
+				if (ignoreDirs.has(name)) {
+					logger.trace('Skipping ignored directory: %s', resolve(dir, name));
+					continue;
+				}
+
+				// Skip hidden directories (except specific ones like .env folders)
+				if (name.startsWith('.')) {
+					logger.trace('Skipping hidden directory: %s', resolve(dir, name));
+					continue;
+				}
+
+				const fullPath = resolve(dir, name);
+				dirs.push(...collectWatchDirs(fullPath, visited));
+			}
+		} catch (error) {
+			logger.trace('Error reading directory %s: %s', dir, error);
+		}
+
+		return dirs;
 	}
 
 	/**
@@ -173,42 +281,41 @@ export function createFileWatcher(options: FileWatcherOptions): FileWatcherManag
 	function start() {
 		logger.debug('Starting file watchers for hot reload...');
 
-		// Watch root directory (already absolute path)
-		for (const watchPath of watchDirs) {
-			try {
-				logger.trace('Setting up watcher for: %s', watchPath);
+		// Collect all directories to watch, excluding node_modules and other ignored dirs
+		const allDirs = collectWatchDirs(rootDir);
 
-				const watcher = watch(watchPath, { recursive: true }, (eventType, changedFile) => {
-					handleFileChange(eventType, changedFile, watchPath);
-				});
-
-				watchers.push(watcher);
-				logger.trace('Watcher started for: %s', watchPath);
-			} catch (error) {
-				logger.warn('Failed to start watcher for %s: %s', watchPath, error);
-			}
-		}
-
-		// Watch additional paths if provided
+		// Add additional paths
 		if (additionalPaths && additionalPaths.length > 0) {
 			for (const additionalPath of additionalPaths) {
 				const fullPath = resolve(rootDir, additionalPath);
-				try {
-					logger.trace('Setting up watcher for additional path: %s', fullPath);
-
-					const watcher = watch(fullPath, { recursive: true }, (eventType, changedFile) => {
-						handleFileChange(eventType, changedFile, fullPath);
-					});
-
-					watchers.push(watcher);
-					logger.trace('Watcher started for additional path: %s', fullPath);
-				} catch (error) {
-					logger.warn('Failed to start watcher for %s: %s', fullPath, error);
-				}
+				allDirs.push(...collectWatchDirs(fullPath));
 			}
 		}
 
-		logger.debug('File watchers started (%d paths)', watchers.length);
+		// De-duplicate directories
+		const uniqueDirs = [...new Set(allDirs)];
+
+		logger.debug('Collected %d directories to watch', uniqueDirs.length);
+
+		// Watch each directory non-recursively
+		for (const watchPath of uniqueDirs) {
+			try {
+				// Use non-recursive watch to avoid traversing into node_modules
+				const watcher = watch(watchPath, { recursive: false }, (eventType, changedFile) => {
+					// Construct relative path from rootDir for consistent handling
+					const relPath = changedFile
+						? relative(rootDir, resolve(watchPath, changedFile))
+						: relative(rootDir, watchPath);
+					handleFileChange(eventType, relPath || changedFile, rootDir);
+				});
+
+				watchers.push(watcher);
+			} catch (error) {
+				logger.trace('Failed to start watcher for %s: %s', watchPath, error);
+			}
+		}
+
+		logger.debug('File watchers started (%d directories)', watchers.length);
 	}
 
 	/**

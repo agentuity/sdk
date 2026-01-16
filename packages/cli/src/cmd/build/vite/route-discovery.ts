@@ -40,6 +40,24 @@ export interface RouteInfo {
 	inputSchemaCode?: string;
 	outputSchemaCode?: string;
 	stream?: boolean;
+	pathParams?: string[];
+}
+
+/**
+ * Extract path parameters from a route path.
+ * Matches patterns like :id, :userId, :id?, *path, etc.
+ */
+export function extractPathParams(path: string): string[] {
+	const params: string[] = [];
+	const parts = path.split('/');
+	for (const part of parts) {
+		if (part.startsWith(':')) {
+			params.push(part.replace(/^:|[?+*]$/g, ''));
+		} else if (part.startsWith('*') && part.length > 1) {
+			params.push(part.substring(1).replace(/[?+*]$/g, ''));
+		}
+	}
+	return params;
 }
 
 /**
@@ -90,6 +108,7 @@ export async function discoverRoutes(
 
 					// Convert to RouteInfo for registry
 					for (const route of parsedRoutes) {
+						const pathParams = extractPathParams(route.path);
 						routeInfoList.push({
 							method: route.method.toUpperCase(),
 							path: route.path,
@@ -106,6 +125,7 @@ export async function discoverRoutes(
 									: route.type === 'stream'
 										? true
 										: undefined,
+							pathParams: pathParams.length > 0 ? pathParams : undefined,
 						});
 					}
 				}

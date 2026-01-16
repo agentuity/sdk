@@ -9,7 +9,7 @@ export const createNamespaceSubcommand = createCommand({
 	description: 'Create a new keyvalue namespace',
 	tags: ['mutating', 'creates-resource', 'slow', 'requires-auth'],
 	idempotent: false,
-	requires: { auth: true, project: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('kv create-namespace production'),
@@ -37,7 +37,9 @@ export const createNamespaceSubcommand = createCommand({
 		const kv = await createStorageAdapter(ctx);
 
 		await kv.createNamespace(args.name);
-		tui.success(`Namespace ${tui.bold(args.name)} created`);
+		if (!ctx.options.json) {
+			tui.success(`Namespace ${tui.bold(args.name)} created`);
+		}
 
 		return {
 			success: true,

@@ -1,4 +1,8 @@
+.agents
 .agentuity/
 node_modules/
 .env
 .env.local
+src/web/AGENTS.md
+src/api/AGENTS.md
+src/agent/AGENTS.md

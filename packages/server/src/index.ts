@@ -2,7 +2,7 @@
 export * from './api';
 
 // config.ts exports
-export { type ServiceUrls, getServiceUrls } from './config';
+export { type ServiceUrls, getServiceUrls, resolveRegion } from './config';
 
 // logger.ts exports
 export { type ColorScheme, ConsoleLogger, createLogger } from './logger';
@@ -12,6 +12,16 @@ export { createServerFetchAdapter } from './server';
 
 // schema.ts exports
 export { toJSONSchema } from './schema';
+
+// util/resources.ts exports
+export {
+	validateCPUSpec,
+	validateMemorySpec,
+	validateResources,
+	type ResourceValidationResult,
+	type ResourcesConfig,
+	type ValidatedResources,
+} from './util/resources';
 
 // runtime-bootstrap.ts exports
 export { bootstrapRuntimeEnv, type RuntimeBootstrapOptions } from './runtime-bootstrap';

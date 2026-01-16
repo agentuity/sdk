@@ -11,10 +11,11 @@ import { deploymentCommand } from './deployment';
 import keyvalueCommand from './keyvalue';
 import { agentCommand } from './agent';
 import envCommand from './env';
-import secretCommand from './secret';
 import apikeyCommand from './apikey';
 import streamCommand from './stream';
 import vectorCommand from './vector';
+import sandboxCommand from './sandbox';
+import { regionSubcommand } from './region';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -24,6 +25,7 @@ export const command = createCommand({
 	examples: [
 		{ command: getCommand('cloud deploy'), description: 'Deploy your agent to the cloud' },
 		{ command: getCommand('cloud deployment list'), description: 'List all deployments' },
+		{ command: getCommand('cloud region select'), description: 'Set default region' },
 	],
 	subcommands: [
 		apikeyCommand,
@@ -31,8 +33,8 @@ export const command = createCommand({
 		agentCommand,
 		streamCommand,
 		vectorCommand,
+		sandboxCommand,
 		envCommand,
-		secretCommand,
 		deploySubcommand,
 		dbCommand,
 		redisCommand,
@@ -42,5 +44,6 @@ export const command = createCommand({
 		sshSubcommand,
 		scpSubcommand,
 		deploymentCommand,
+		regionSubcommand,
 	],
 });

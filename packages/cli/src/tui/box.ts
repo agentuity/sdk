@@ -3,13 +3,7 @@
  */
 import { symbols } from './symbols';
 import { colors } from './colors';
-
-/**
- * Get terminal width
- */
-function getTerminalWidth(): number {
-	return process.stdout.columns || 80;
-}
+import { getTerminalWidth } from '../tui';
 
 /**
  * Get string width (accounting for ANSI codes and OSC 8 hyperlinks)

@@ -5,9 +5,20 @@ import type { Logger } from '../logger';
 import ConsoleLogger from '../logger/console';
 
 /**
- * Reference to the original console object before patching
+ * Reference to the original console object before patching.
+ * We use a global symbol to ensure we only capture the original console once,
+ * preventing double-patching on hot reload.
  */
-export const __originalConsole = Object.create(console); // save the original console before we patch it
+const ORIGINAL_CONSOLE_KEY = Symbol.for('agentuity.originalConsole');
+
+// Check if we've already saved the original console (prevents double-patching on reload)
+const existingOriginal = (globalThis as Record<symbol, Console>)[ORIGINAL_CONSOLE_KEY];
+export const __originalConsole: Console = existingOriginal ?? Object.create(console);
+
+// Save to global if not already saved
+if (!existingOriginal) {
+	(globalThis as Record<symbol, Console>)[ORIGINAL_CONSOLE_KEY] = __originalConsole;
+}
 
 export class OtelLogger implements Logger {
 	private readonly delegate: LogsAPI.Logger;

@@ -57,17 +57,15 @@ export async function checkAndUpgradeDependencies(
 		failed: [],
 	};
 
-	// Skip in CI/non-interactive environments
-	if (!process.stdin.isTTY) {
-		logger.debug('Skipping dependency check in non-interactive environment');
+	const cliVersion = getVersion();
+	logger.debug('CLI version: %s', cliVersion);
+
+	// check if this is a canary and if so, skip this check
+	if (cliVersion.includes('-')) {
 		return result;
 	}
 
 	const packageJsonPath = join(projectDir, 'package.json');
-	const cliVersion = getVersion();
-
-	logger.debug('CLI version: %s', cliVersion);
-
 	// Read package.json
 	let packageJson: PackageJson;
 	try {

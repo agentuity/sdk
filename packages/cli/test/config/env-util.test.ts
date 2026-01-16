@@ -1,5 +1,23 @@
 import { describe, test, expect } from 'bun:test';
-import { looksLikeSecret } from '../../src/env-util';
+import {
+	looksLikeSecret,
+	isPublicVarKey,
+	isReservedAgentuityKey,
+	validateNoPublicSecrets,
+	filterAgentuitySdkKeys,
+	splitEnvAndSecrets,
+	AGENTUITY_ALLOWED_KEYS,
+} from '../../src/env-util';
+
+describe('AGENTUITY_ALLOWED_KEYS', () => {
+	test('contains AGENTUITY_AUTH_SECRET', () => {
+		expect(AGENTUITY_ALLOWED_KEYS).toContain('AGENTUITY_AUTH_SECRET');
+	});
+
+	test('is a readonly array', () => {
+		expect(Array.isArray(AGENTUITY_ALLOWED_KEYS)).toBe(true);
+	});
+});
 
 describe('looksLikeSecret', () => {
 	describe('key name patterns', () => {
@@ -189,6 +207,189 @@ describe('looksLikeSecret', () => {
 			// But with context that clearly indicates it's not a secret, the key name won't trigger
 			// So short hex strings without secret-like key names won't be flagged
 			expect(looksLikeSecret('COMMIT', 'abc123def')).toBe(false);
+		});
+	});
+});
+
+describe('isPublicVarKey', () => {
+	test('detects VITE_ prefix', () => {
+		expect(isPublicVarKey('VITE_API_URL')).toBe(true);
+		expect(isPublicVarKey('VITE_PUBLIC_KEY')).toBe(true);
+	});
+
+	test('detects AGENTUITY_PUBLIC_ prefix', () => {
+		expect(isPublicVarKey('AGENTUITY_PUBLIC_URL')).toBe(true);
+		expect(isPublicVarKey('AGENTUITY_PUBLIC_API_KEY')).toBe(true);
+	});
+
+	test('detects PUBLIC_ prefix', () => {
+		expect(isPublicVarKey('PUBLIC_URL')).toBe(true);
+		expect(isPublicVarKey('PUBLIC_API_ENDPOINT')).toBe(true);
+	});
+
+	test('is case insensitive', () => {
+		expect(isPublicVarKey('vite_api_url')).toBe(true);
+		expect(isPublicVarKey('Vite_Api_Url')).toBe(true);
+		expect(isPublicVarKey('agentuity_public_url')).toBe(true);
+	});
+
+	test('does not match non-public keys', () => {
+		expect(isPublicVarKey('API_KEY')).toBe(false);
+		expect(isPublicVarKey('DATABASE_URL')).toBe(false);
+		expect(isPublicVarKey('AGENTUITY_SDK_KEY')).toBe(false);
+	});
+});
+
+describe('isReservedAgentuityKey', () => {
+	test('detects reserved AGENTUITY_ keys', () => {
+		expect(isReservedAgentuityKey('AGENTUITY_SDK_KEY')).toBe(true);
+		expect(isReservedAgentuityKey('AGENTUITY_API_KEY')).toBe(true);
+		expect(isReservedAgentuityKey('AGENTUITY_SECRET')).toBe(true);
+	});
+
+	test('allows AGENTUITY_PUBLIC_ keys', () => {
+		expect(isReservedAgentuityKey('AGENTUITY_PUBLIC_URL')).toBe(false);
+		expect(isReservedAgentuityKey('AGENTUITY_PUBLIC_API_KEY')).toBe(false);
+	});
+
+	test('allows whitelisted AGENTUITY_ keys', () => {
+		expect(isReservedAgentuityKey('AGENTUITY_AUTH_SECRET')).toBe(false);
+		// Verify all keys in the whitelist are allowed
+		for (const key of AGENTUITY_ALLOWED_KEYS) {
+			expect(isReservedAgentuityKey(key)).toBe(false);
+		}
+	});
+
+	test('is case insensitive for prefix detection', () => {
+		expect(isReservedAgentuityKey('agentuity_sdk_key')).toBe(true);
+		expect(isReservedAgentuityKey('agentuity_public_url')).toBe(false);
+	});
+
+	test('whitelisted keys are case sensitive (must match exactly)', () => {
+		// The whitelist check uses exact match, not case-insensitive
+		expect(isReservedAgentuityKey('AGENTUITY_AUTH_SECRET')).toBe(false);
+		expect(isReservedAgentuityKey('agentuity_auth_secret')).toBe(true); // lowercase not in whitelist
+	});
+
+	test('does not match non-AGENTUITY keys', () => {
+		expect(isReservedAgentuityKey('API_KEY')).toBe(false);
+		expect(isReservedAgentuityKey('DATABASE_URL')).toBe(false);
+	});
+});
+
+describe('validateNoPublicSecrets', () => {
+	test('returns empty array for valid secrets', () => {
+		expect(validateNoPublicSecrets({ API_KEY: 'secret', DATABASE_URL: 'url' })).toEqual([]);
+	});
+
+	test('returns public keys when secrets contain public vars', () => {
+		const result = validateNoPublicSecrets({
+			VITE_API_KEY: 'value',
+			API_SECRET: 'secret',
+			PUBLIC_URL: 'url',
+		});
+		expect(result).toContain('VITE_API_KEY');
+		expect(result).toContain('PUBLIC_URL');
+		expect(result).not.toContain('API_SECRET');
+	});
+
+	test('returns empty array for empty object', () => {
+		expect(validateNoPublicSecrets({})).toEqual([]);
+	});
+});
+
+describe('filterAgentuitySdkKeys', () => {
+	test('filters out reserved AGENTUITY_ keys', () => {
+		const result = filterAgentuitySdkKeys({
+			AGENTUITY_SDK_KEY: 'sdk',
+			AGENTUITY_API_KEY: 'api',
+			MY_VAR: 'value',
+		});
+		expect(result).toEqual({ MY_VAR: 'value' });
+	});
+
+	test('allows AGENTUITY_PUBLIC_ keys', () => {
+		const result = filterAgentuitySdkKeys({
+			AGENTUITY_SDK_KEY: 'sdk',
+			AGENTUITY_PUBLIC_URL: 'url',
+			MY_VAR: 'value',
+		});
+		expect(result).toEqual({
+			AGENTUITY_PUBLIC_URL: 'url',
+			MY_VAR: 'value',
+		});
+	});
+
+	test('allows whitelisted AGENTUITY_ keys', () => {
+		const result = filterAgentuitySdkKeys({
+			AGENTUITY_SDK_KEY: 'sdk',
+			AGENTUITY_AUTH_SECRET: 'auth-secret',
+			MY_VAR: 'value',
+		});
+		expect(result).toEqual({
+			AGENTUITY_AUTH_SECRET: 'auth-secret',
+			MY_VAR: 'value',
+		});
+	});
+
+	test('returns empty object for undefined', () => {
+		expect(filterAgentuitySdkKeys(undefined)).toEqual({});
+	});
+});
+
+describe('splitEnvAndSecrets', () => {
+	test('puts public vars in env, not secrets', () => {
+		const result = splitEnvAndSecrets({
+			VITE_API_URL: 'url',
+			AGENTUITY_PUBLIC_KEY: 'key',
+			PUBLIC_ENDPOINT: 'endpoint',
+			API_SECRET: 'secret',
+		});
+		expect(result.env).toEqual({
+			VITE_API_URL: 'url',
+			AGENTUITY_PUBLIC_KEY: 'key',
+			PUBLIC_ENDPOINT: 'endpoint',
+		});
+		expect(result.secrets).toEqual({
+			API_SECRET: 'secret',
+		});
+	});
+
+	test('skips reserved AGENTUITY_ keys', () => {
+		const result = splitEnvAndSecrets({
+			AGENTUITY_SDK_KEY: 'sdk',
+			MY_VAR: 'value',
+		});
+		expect(result.env).toEqual({ MY_VAR: 'value' });
+		expect(result.secrets).toEqual({});
+		expect(result.env.AGENTUITY_SDK_KEY).toBeUndefined();
+	});
+
+	test('allows whitelisted AGENTUITY_ keys and puts them in secrets (due to _SECRET suffix)', () => {
+		const result = splitEnvAndSecrets({
+			AGENTUITY_SDK_KEY: 'sdk',
+			AGENTUITY_AUTH_SECRET: 'auth-secret',
+			MY_VAR: 'value',
+		});
+		expect(result.env).toEqual({ MY_VAR: 'value' });
+		expect(result.secrets).toEqual({ AGENTUITY_AUTH_SECRET: 'auth-secret' });
+		expect(result.env.AGENTUITY_SDK_KEY).toBeUndefined();
+	});
+
+	test('splits based on key naming conventions', () => {
+		const result = splitEnvAndSecrets({
+			NODE_ENV: 'production',
+			API_KEY: 'key',
+			DATABASE_URL: 'url',
+			LOG_LEVEL: 'debug',
+		});
+		expect(result.env).toEqual({
+			NODE_ENV: 'production',
+			LOG_LEVEL: 'debug',
+		});
+		expect(result.secrets).toEqual({
+			API_KEY: 'key',
+			DATABASE_URL: 'url',
 		});
 	});
 });

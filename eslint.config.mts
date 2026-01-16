@@ -1,8 +1,8 @@
 import js from '@eslint/js';
+import json from '@eslint/json';
+import pluginReact from 'eslint-plugin-react';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
-import pluginReact from 'eslint-plugin-react';
-import json from '@eslint/json';
 
 export default [
 	{
@@ -17,6 +17,7 @@ export default [
 			'!**/package.json',
 			'**/ai-elements/**',
 			'**/ui/**',
+			'**/tsc-output-parser.ts', // Generated PEG parser
 		],
 	},
 	{
@@ -54,6 +55,7 @@ export default [
 		},
 		rules: {
 			...pluginReact.configs.flat.recommended.rules,
+			'react/react-in-jsx-scope': 'off',
 		},
 	},
 	{

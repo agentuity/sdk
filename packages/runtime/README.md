@@ -74,48 +74,68 @@ export default router;
 ### Streaming Responses
 
 ```typescript
-router.stream('/events', async (c) => {
-	return new ReadableStream({
-		start(controller) {
-			controller.enqueue('Event 1\n');
-			controller.enqueue('Event 2\n');
-			controller.close();
-		},
-	});
-});
+import { createRouter, stream } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.post(
+	'/events',
+	stream((c) => {
+		return new ReadableStream({
+			start(controller) {
+				controller.enqueue('Event 1\n');
+				controller.enqueue('Event 2\n');
+				controller.close();
+			},
+		});
+	})
+);
 ```
 
 ### WebSocket Support
 
 ```typescript
-router.websocket('/chat', (c) => (ws) => {
-	ws.onOpen(() => {
-		console.log('Client connected');
-	});
+import { createRouter, websocket } from '@agentuity/runtime';
 
-	ws.onMessage((event) => {
-		const data = JSON.parse(event.data);
-		ws.send(JSON.stringify({ echo: data }));
-	});
+const router = createRouter();
 
-	ws.onClose(() => {
-		console.log('Client disconnected');
-	});
-});
+router.get(
+	'/chat',
+	websocket((c, ws) => {
+		ws.onOpen(() => {
+			console.log('Client connected');
+		});
+
+		ws.onMessage((event) => {
+			const data = JSON.parse(event.data);
+			ws.send(JSON.stringify({ echo: data }));
+		});
+
+		ws.onClose(() => {
+			console.log('Client disconnected');
+		});
+	})
+);
 ```
 
 ### Server-Sent Events (SSE)
 
 ```typescript
-router.sse('/updates', (c) => async (stream) => {
-	for (let i = 0; i < 10; i++) {
-		await stream.writeSSE({
-			data: JSON.stringify({ count: i }),
-			event: 'update',
-		});
-		await stream.sleep(1000);
-	}
-});
+import { createRouter, sse } from '@agentuity/runtime';
+
+const router = createRouter();
+
+router.get(
+	'/updates',
+	sse((c, stream) => {
+		for (let i = 0; i < 10; i++) {
+			stream.writeSSE({
+				data: JSON.stringify({ count: i }),
+				event: 'update',
+			});
+		}
+	})
+);
 ```
 
 ## API Reference
@@ -147,9 +167,15 @@ Creates a new router for defining custom API routes.
 **Methods:**
 
 - `get/post/put/delete/patch` - HTTP method handlers
-- `stream(path, handler)` - Streaming response handler
-- `websocket(path, handler)` - WebSocket handler
-- `sse(path, handler)` - Server-Sent Events handler
+
+**Middleware Functions:**
+
+Use these middleware functions with standard HTTP methods:
+
+- `websocket((c, ws) => { ... })` - WebSocket connections (use with `router.get()`)
+- `sse((c, stream) => { ... })` - Server-Sent Events (use with `router.get()`)
+- `stream((c) => ReadableStream)` - Streaming responses (use with `router.post()`)
+- `cron(schedule, (c) => { ... })` - Scheduled tasks (use with `router.post()`)
 
 ### AgentContext
 

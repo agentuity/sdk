@@ -14,7 +14,9 @@
 		"source.fixAll.eslint": "explicit"
 	},
 	"eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
-	"prettier.useEditorConfig": false,
+	"prettier.useEditorConfig": true,
+	"prettier.requireConfig": true,
+	"prettier.prettierPath": "./node_modules/prettier",
 	"prettier.configPath": ".prettierrc",
 	"typescript.tsdk": "node_modules/typescript/lib",
 	"typescript.enablePromptUseWorkspaceTsdk": true

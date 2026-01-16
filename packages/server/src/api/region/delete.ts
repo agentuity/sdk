@@ -11,14 +11,21 @@ const DeleteResourcesRequest = z.object({
 	resources: z.array(DeleteResourceSpec).describe('list of resources to delete'),
 });
 
+const DeletedResource = z.object({
+	type: z.string().describe('the resource type'),
+	name: z.string().describe('the resource name'),
+	env_keys: z.array(z.string()).describe('environment variable keys to remove'),
+});
+
 const DeleteResourcesResponse = z.object({
-	deleted: z.array(z.string()).describe('list of deleted resource names'),
+	deleted: z.array(DeletedResource).describe('list of deleted resources'),
 });
 
 const DeleteResourcesResponseSchema = APIResponseSchema(DeleteResourcesResponse);
 
 export type DeleteResourcesRequest = z.infer<typeof DeleteResourcesRequest>;
 export type DeleteResourcesResponse = z.infer<typeof DeleteResourcesResponseSchema>;
+export type DeletedResource = z.infer<typeof DeletedResource>;
 
 /**
  * Delete one or more resources (DB or S3) for an organization in a specific region
@@ -35,7 +42,7 @@ export async function deleteResources(
 	orgId: string,
 	region: string,
 	resources: Array<{ type: 'db' | 's3'; name: string }>
-): Promise<string[]> {
+): Promise<DeletedResource[]> {
 	const resp = await client.request<DeleteResourcesResponse, DeleteResourcesRequest>(
 		'DELETE',
 		`/resource/2025-11-16/${orgId}/${region}`,

@@ -5,12 +5,14 @@ import {
 	type StandardSchemaV1,
 	type StreamStorage,
 	type VectorStorage,
+	type SandboxService,
 	type InferInput,
 	type InferOutput,
 	toCamelCase,
 	type EvalRunStartEvent,
 } from '@agentuity/core';
 import { context, SpanStatusCode, type Tracer, trace } from '@opentelemetry/api';
+import { TraceState } from '@opentelemetry/core';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Handler } from 'hono/types';
 import { validator } from 'hono/validator';
@@ -24,7 +26,7 @@ import {
 	type RequestAgentContextArgs,
 } from './_context';
 import type { Logger } from './logger';
-import type { Eval, EvalContext, EvalRunResult, EvalFunction } from './eval';
+import type { Eval, EvalContext, EvalHandlerResult, EvalRunResult, EvalFunction } from './eval';
 import { internal } from './logger/internal';
 import { fireEvent } from './_events';
 import type { Thread, Session } from './session';
@@ -205,6 +207,31 @@ export interface AgentContext<
 	vector: VectorStorage;
 
 	/**
+	 * Sandbox service for creating and running isolated code execution environments.
+	 *
+	 * @example
+	 * ```typescript
+	 * // One-shot execution
+	 * const result = await ctx.sandbox.run({
+	 *   command: {
+	 *     exec: ['bun', 'run', 'index.ts'],
+	 *     files: [{ path: 'index.ts', content: Buffer.from('console.log("hello")') }]
+	 *   }
+	 * });
+	 * console.log('Exit:', result.exitCode);
+	 *
+	 * // Interactive sandbox
+	 * const sandbox = await ctx.sandbox.create({
+	 *   resources: { memory: '1Gi', cpu: '1000m' }
+	 * });
+	 * await sandbox.execute({ command: ['bun', 'init'] });
+	 * await sandbox.execute({ command: ['bun', 'add', 'zod'] });
+	 * await sandbox.destroy();
+	 * ```
+	 */
+	sandbox: SandboxService;
+
+	/**
 	 * In-memory state storage scoped to the current request.
 	 * Use for passing data between middleware and handlers.
 	 *
@@ -261,6 +288,55 @@ export interface AgentContext<
 	 * ```
 	 */
 	app: TAppState;
+
+	/**
+	 * Metadata about the currently executing agent.
+	 * Provides access to the agent's id, name, and other properties.
+	 *
+	 * @example
+	 * ```typescript
+	 * handler: async (ctx, input) => {
+	 *   // Use agent ID for namespaced state keys
+	 *   const stateKey = `${ctx.current.id}_counter`;
+	 *   await ctx.thread.state.set(stateKey, value);
+	 *
+	 *   // Log agent info
+	 *   ctx.logger.info('Running agent', { name: ctx.current.name });
+	 * }
+	 * ```
+	 */
+	current: AgentMetadata;
+
+	/**
+	 * Authentication context when request is authenticated.
+	 * Available when auth middleware is configured on the Hono app.
+	 *
+	 * Will be `null` for:
+	 * - Unauthenticated requests
+	 * - Cron jobs
+	 * - Agent-to-agent calls without auth propagation
+	 *
+	 * @example
+	 * ```typescript
+	 * handler: async (ctx, input) => {
+	 *   if (!ctx.auth) {
+	 *     return { error: 'Please sign in' };
+	 *   }
+	 *
+	 *   // Access user info
+	 *   const user = await ctx.auth.getUser();
+	 *   ctx.logger.info(`Request from ${user.email}`);
+	 *
+	 *   // Check organization role
+	 *   if (await ctx.auth.hasOrgRole('admin')) {
+	 *     // Admin-only logic
+	 *   }
+	 *
+	 *   return { userId: user.id };
+	 * }
+	 * ```
+	 */
+	auth: import('@agentuity/auth').AuthInterface | null;
 }
 
 type InternalAgentMetadata = {
@@ -303,7 +379,7 @@ type ExternalAgentMetadata = {
 	description?: string;
 };
 
-type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
+export type AgentMetadata = InternalAgentMetadata & ExternalAgentMetadata;
 
 /**
  * Configuration object for creating an agent evaluation function.
@@ -363,11 +439,18 @@ export interface CreateEvalConfig<
 	>;
 }
 
-// Type for createEval method
+export type PresetEvalConfig<
+	TInput extends StandardSchemaV1 | undefined = any,
+	TOutput extends StandardSchemaV1 | undefined = any,
+> = CreateEvalConfig<TInput, TOutput> & { name: string };
+
 type CreateEvalMethod<
 	TInput extends StandardSchemaV1 | undefined = any,
 	TOutput extends StandardSchemaV1 | undefined = any,
-> = (name: string, config: CreateEvalConfig<TInput, TOutput>) => Eval<TInput, TOutput>;
+> = {
+	(config: PresetEvalConfig<TInput, TOutput>): Eval<TInput, TOutput>;
+	(name: string, config: CreateEvalConfig<TInput, TOutput>): Eval<TInput, TOutput>;
+};
 
 /**
  * Validator function type with method overloads for different validation scenarios.
@@ -585,7 +668,7 @@ export type Agent<
 	 * **Method overloads:**
 	 * - `agent.validator()` - Validates using agent's input/output schemas
 	 * - `agent.validator({ output: schema })` - Output-only validation (no input validation)
-	 * - `agent.validator({ input: schema })` - Custom input schema override
+	 * - `agent.validator({ input: schema })` - Custom input schema override (skips agent's output validation)
 	 * - `agent.validator({ input: schema, output: schema })` - Both input and output validated
 	 *
 	 * @returns Hono middleware handler with proper type inference
@@ -1281,7 +1364,7 @@ export interface CreateAgentConfigExplicit<
 	 * schema: {
 	 *   input: z.object({ name: z.string() }),
 	 *   output: z.string(),
-	 *   stream: false
+	 *   stream: false,
 	 * }
 	 * ```
 	 */
@@ -1523,6 +1606,9 @@ export function createAgent<
 		// Store current agent for telemetry (using Symbol to keep it internal)
 		(agentCtx as any)[CURRENT_AGENT] = agent;
 
+		// Expose current agent metadata on the context
+		(agentCtx as any).current = agent.metadata;
+
 		const attrs = {
 			'@agentuity/agentId': agent.metadata.id,
 			'@agentuity/agentInstanceId': agent.metadata.agentId,
@@ -1574,10 +1660,18 @@ export function createAgent<
 								? await (config.handler as any)(agentCtx, validatedInput)
 								: await (config.handler as any)(agentCtx)
 					);
+				} else if (agent.metadata.id) {
+					// For standalone contexts, wrap with agent context to set aid in trace state
+					return runWithAgentContext(agent.metadata.id, () =>
+						inputSchema
+							? (config.handler as any)(agentCtx, validatedInput)
+							: (config.handler as any)(agentCtx)
+					);
 				} else {
+					// No agent ID, invoke handler directly
 					return inputSchema
-						? await (config.handler as any)(agentCtx, validatedInput)
-						: await (config.handler as any)(agentCtx);
+						? (config.handler as any)(agentCtx, validatedInput)
+						: (config.handler as any)(agentCtx);
 				}
 			})();
 
@@ -1614,19 +1708,62 @@ export function createAgent<
 	type AgentOutput = TOutput extends StandardSchemaV1 ? InferOutput<TOutput> : undefined;
 
 	// Create createEval method that infers types from agent and automatically adds to agent
-	const createEval = (
-		evalName: string,
-		evalConfig: {
+	const createEval: CreateEvalMethod<TInput, TOutput> = ((
+		evalNameOrConfig: string | PresetEvalConfig<TInput, TOutput>,
+		evalConfig?: {
 			description?: string;
 			handler: EvalFunction<AgentInput, AgentOutput>;
 			metadata?: {
 				id?: string;
-				evalId?: string;
+				identifier?: string;
 				version?: string;
 				filename?: string;
 			};
 		}
 	): Eval<TInput, TOutput> => {
+		// Handle preset eval config (single argument with name property)
+		if (typeof evalNameOrConfig !== 'string' && 'name' in evalNameOrConfig) {
+			const presetConfig = evalNameOrConfig as PresetEvalConfig<TInput, TOutput>;
+			const evalName = presetConfig.name;
+
+			internal.debug(
+				`createEval called for agent "${name || 'unknown'}": registering preset eval "${evalName}"`
+			);
+
+			const evalType: any = {
+				metadata: {
+					identifier: evalName,
+					name: evalName,
+					description: presetConfig.description || '',
+				},
+				handler: presetConfig.handler,
+			};
+
+			if (inputSchema) {
+				evalType.inputSchema = inputSchema;
+			}
+
+			if (outputSchema) {
+				evalType.outputSchema = outputSchema;
+			}
+
+			evalsArray.push(evalType);
+			internal.debug(
+				`Added preset eval "${evalName}" to agent "${name || 'unknown'}". Total evals: ${evalsArray.length}`
+			);
+
+			return evalType as Eval<TInput, TOutput>;
+		}
+
+		// Handle custom eval config (name + config)
+		if (typeof evalNameOrConfig !== 'string' || !evalConfig) {
+			throw new Error(
+				'Invalid arguments: expected (name: string, config) or (config: PresetEvalConfig)'
+			);
+		}
+
+		const evalName = evalNameOrConfig;
+
 		// Trace log to verify evals file is imported
 		internal.debug(
 			`createEval called for agent "${name || 'unknown'}": registering eval "${evalName}"`
@@ -1640,10 +1777,9 @@ export function createAgent<
 			metadata: {
 				// Use build-time injected metadata if available, otherwise fallback to empty/undefined
 				id: evalMetadata.id || undefined,
-				evalId: evalMetadata.evalId || undefined,
+				identifier: evalMetadata.identifier || undefined,
 				version: evalMetadata.version || undefined,
 				filename: evalMetadata.filename || '',
-				identifier: evalName,
 				name: evalName,
 				description: evalConfig.description || '',
 			},
@@ -1665,7 +1801,7 @@ export function createAgent<
 		);
 
 		return evalType as Eval<TInput, TOutput>;
-	};
+	}) as CreateEvalMethod<TInput, TOutput>;
 
 	// Build metadata - merge user-provided metadata with defaults
 	// The build plugin injects metadata via config.metadata during AST transformation
@@ -1701,6 +1837,19 @@ export function createAgent<
 				version: fileMetadata.version || metadata.version,
 			};
 		}
+	}
+
+	// Error if agent has no metadata IDs in production - this causes agent_ids to be empty in sessions
+	// which affects analytics, billing attribution, and session filtering
+	// Only enforce in production (when AGENTUITY_CLOUD_PROJECT_ID is set) to allow dev/test without metadata
+	if (!metadata.id && !metadata.agentId && runtimeConfig.getProjectId()) {
+		throw new Error(
+			`Agent "${name}" has no metadata IDs (id and agentId are empty). ` +
+				`This will result in empty agent_ids in session events. ` +
+				`Ensure agentuity.metadata.json exists in the runtime directory ` +
+				`(checked: ${process.cwd()}/agentuity.metadata.json and ${process.cwd()}/.agentuity/agentuity.metadata.json). ` +
+				`Run 'agentuity build' to generate the metadata file.`
+		);
 	}
 
 	const agent: any = {
@@ -1773,14 +1922,14 @@ export function createAgent<
 						const evalMeta = getEvalMetadata(agentName, evalName);
 						internal.info(`[EVALRUN] Eval metadata lookup result:`, {
 							found: !!evalMeta,
-							evalId: evalMeta?.evalId,
+							identifier: evalMeta?.identifier,
 							id: evalMeta?.id,
 							filename: evalMeta?.filename,
 						});
 
 						// evalId = deployment-specific ID (evalid_...), evalIdentifier = stable (eval_...)
 						const evalId = evalMeta?.id || '';
-						const evalIdentifier = evalMeta?.evalId || '';
+						const evalIdentifier = evalMeta?.identifier || '';
 						internal.info(
 							`[EVALRUN] Resolved evalId='${evalId}', evalIdentifier='${evalIdentifier}'`
 						);
@@ -1925,40 +2074,45 @@ export function createAgent<
 							const evalContext: EvalContext = ctx;
 
 							// Execute the eval handler conditionally based on agent schema
-							let result: EvalRunResult;
+							let handlerResult: EvalHandlerResult;
 							if (inputSchema && outputSchema) {
 								// Both input and output defined
-								result = await (evalItem.handler as any)(
+								handlerResult = await (evalItem.handler as any)(
 									evalContext,
 									evalValidatedInput,
 									evalValidatedOutput
 								);
 							} else if (inputSchema) {
 								// Only input defined
-								result = await (evalItem.handler as any)(evalContext, evalValidatedInput);
+								handlerResult = await (evalItem.handler as any)(
+									evalContext,
+									evalValidatedInput
+								);
 							} else if (outputSchema) {
 								// Only output defined
-								result = await (evalItem.handler as any)(evalContext, evalValidatedOutput);
+								handlerResult = await (evalItem.handler as any)(
+									evalContext,
+									evalValidatedOutput
+								);
 							} else {
 								// Neither defined
-								result = await (evalItem.handler as any)(evalContext);
+								handlerResult = await (evalItem.handler as any)(evalContext);
 							}
 
-							// Process the returned result
-							if (result.success) {
-								if ('passed' in result) {
-									internal.info(
-										`Eval '${evalName}' pass: ${result.passed}`,
-										result.metadata
-									);
-								} else if ('score' in result) {
-									internal.info(
-										`Eval '${evalName}' score: ${result.score}`,
-										result.metadata
-									);
-								}
+							// Wrap handler result with success for catalyst
+							const result: EvalRunResult = {
+								success: true,
+								...handlerResult,
+							};
+
+							// Log the result
+							if (result.score !== undefined) {
+								internal.info(
+									`Eval '${evalName}' pass: ${result.passed}, score: ${result.score}`,
+									result.metadata
+								);
 							} else {
-								internal.error(`Eval '${evalName}' failed: ${result.error}`);
+								internal.info(`Eval '${evalName}' pass: ${result.passed}`, result.metadata);
 							}
 
 							// Send eval run complete event
@@ -1969,8 +2123,7 @@ export function createAgent<
 								try {
 									await evalRunEventProvider.complete({
 										id: evalRunId,
-										result: result.success ? result : undefined,
-										error: result.success ? undefined : result.error,
+										result,
 									});
 									internal.info(
 										`[EVALRUN] Complete event sent successfully for eval '${evalName}' (id: ${evalRunId})`
@@ -1999,6 +2152,12 @@ export function createAgent<
 									await evalRunEventProvider.complete({
 										id: evalRunId,
 										error: errorMessage,
+										result: {
+											success: false,
+											passed: false,
+											error: errorMessage,
+											metadata: {},
+										},
 									});
 									internal.info(
 										`[EVALRUN] Complete event (error) sent successfully for eval '${evalName}' (id: ${evalRunId})`
@@ -2042,7 +2201,10 @@ export function createAgent<
 	// Add validator method with overloads
 	agent.validator = ((override?: any) => {
 		const effectiveInputSchema = override?.input ?? inputSchema;
-		const effectiveOutputSchema = override?.output ?? outputSchema;
+		// Only use agent's output schema if no override was provided at all.
+		// If override is provided (even with just input), don't auto-apply agent's output schema
+		// unless the override explicitly includes output.
+		const effectiveOutputSchema = override ? override.output : outputSchema;
 
 		// Helper to build the standard Hono input validator so types flow
 		const buildInputValidator = (schema?: StandardSchemaV1) =>
@@ -2168,6 +2330,32 @@ export function createAgent<
 	return runner as AgentRunner<TInput, TOutput, TStream>;
 }
 
+/**
+ * Run a handler with the agent identifier set in trace state.
+ * Used for non-HTTP contexts (standalone) where we still want to propagate
+ * the agent ID to downstream API calls.
+ */
+const runWithAgentContext = async <T>(agentId: string, handler: () => Promise<T>): Promise<T> => {
+	const currentContext = context.active();
+	const activeSpan = trace.getSpan(currentContext);
+
+	if (!activeSpan) {
+		// No active span, just run the handler
+		return handler();
+	}
+
+	const currentSpanContext = activeSpan.spanContext();
+	const existingTraceState = currentSpanContext.traceState ?? new TraceState();
+	const updatedTraceState = existingTraceState.set('aid', agentId);
+
+	const contextWithAgentId = trace.setSpanContext(currentContext, {
+		...currentSpanContext,
+		traceState: updatedTraceState,
+	});
+
+	return context.with(contextWithAgentId, handler);
+};
+
 const runWithSpan = async <
 	T,
 	TInput extends StandardSchemaV1 | undefined = any,
@@ -2198,8 +2386,23 @@ const runWithSpan = async <
 	_ctx.set('agentRunSpanId', spanId);
 
 	try {
+		// Create a new context with the span and updated trace state including agent id
 		const spanContext = trace.setSpan(currentContext, span);
-		return await context.with(spanContext, handler);
+
+		// Update trace state with agent identifier (aid) so downstream API calls (e.g., sandbox)
+		// can associate operations with this agent. The trace state is scoped to this execution,
+		// so when the agent finishes, the parent context's trace state is automatically restored.
+		const currentSpanContext = span.spanContext();
+		const existingTraceState = currentSpanContext.traceState ?? new TraceState();
+		const updatedTraceState = existingTraceState.set('aid', agent.metadata.id);
+
+		// Create context with both the span and the updated trace state
+		const contextWithAgentId = trace.setSpanContext(spanContext, {
+			...currentSpanContext,
+			traceState: updatedTraceState,
+		});
+
+		return await context.with(contextWithAgentId, handler);
 	} catch (error) {
 		span.recordException(error as Error);
 		span.setStatus({ code: SpanStatusCode.ERROR });
@@ -2319,6 +2522,7 @@ export const createAgentMiddleware = (agentName: AgentName | ''): MiddlewareHand
 			config: config || {},
 			app: app || {},
 			runtime: getGlobalRuntimeState(),
+			auth: ctx.var.auth ?? null,
 		};
 
 		return setupRequestAgentContext(ctx as unknown as Record<string, unknown>, args, next);

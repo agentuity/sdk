@@ -11,6 +11,7 @@ const ResourceListResponse = z.object({
 			region: z.string().nullable().optional().describe('the S3 region'),
 			endpoint: z.string().nullable().optional().describe('the S3 endpoint'),
 			cname: z.string().nullable().optional().describe('the S3 CNAME'),
+			env: z.record(z.string(), z.string()).describe('environment variables for the resource'),
 		})
 	),
 	db: z.array(
@@ -19,6 +20,7 @@ const ResourceListResponse = z.object({
 			username: z.string().nullable().optional().describe('the database username'),
 			password: z.string().nullable().optional().describe('the database password'),
 			url: z.string().nullable().optional().describe('the full database connection URL'),
+			env: z.record(z.string(), z.string()).describe('environment variables for the resource'),
 		})
 	),
 	redis: z

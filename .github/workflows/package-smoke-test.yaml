@@ -30,6 +30,25 @@ jobs:
          - name: Run package smoke test
            run: bash scripts/test-package-install.sh
 
+   standalone-agent-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 5
+      name: Standalone Agent Test
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Run standalone agent test
+           run: bun run test:standalone
+
    integration-test:
       runs-on: blacksmith-2vcpu-ubuntu-2404
       timeout-minutes: 10
@@ -37,6 +56,7 @@ jobs:
       env:
          AGENTUITY_API_URL: https://api-v1.agentuity.com
          AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
          AGENTUITY_REGION: usc
       steps:
          - uses: actions/checkout@v4
@@ -80,6 +100,7 @@ jobs:
          AGENTUITY_CATALYST_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_STREAM_URL: https://streams-usc.agentuity.cloud
          AGENTUITY_KEYVALUE_URL: https://catalyst-usc.agentuity.cloud
+         AGENTUITY_SANDBOX_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_OBJECTSTORE_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_VECTOR_URL: https://catalyst-usc.agentuity.cloud
          AGENTUITY_LOG_LEVEL: error
@@ -125,6 +146,7 @@ jobs:
               AGENTUITY_CATALYST_URL=$AGENTUITY_CATALYST_URL
               AGENTUITY_STREAM_URL=$AGENTUITY_STREAM_URL
               AGENTUITY_KEYVALUE_URL=$AGENTUITY_KEYVALUE_URL
+              AGENTUITY_SANDBOX_URL=$AGENTUITY_SANDBOX_URL
               AGENTUITY_OBJECTSTORE_URL=$AGENTUITY_OBJECTSTORE_URL
               AGENTUITY_VECTOR_URL=$AGENTUITY_VECTOR_URL
               AGENTUITY_LOG_LEVEL=$AGENTUITY_LOG_LEVEL
@@ -133,6 +155,14 @@ jobs:
 
          - name: Run cloud deployment tests
            run: bash scripts/test-cloud-deployment.sh
+
+         - name: Upload deployment logs
+           if: failure()
+           uses: actions/upload-artifact@v4
+           with:
+              name: deployment-logs
+              path: ~/.config/agentuity/logs/
+              if-no-files-found: ignore
 
          - name: Cleanup
            if: always()
@@ -156,6 +186,68 @@ jobs:
 
          - name: Run template integration tests
            run: bun scripts/test-templates.ts --skip-outdated
+
+   sandbox-cli-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 10
+      name: Sandbox CLI Tests
+      env:
+         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
+         AGENTUITY_REGION: usc
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Setup test credentials
+           run: |
+              # Generate CLI API key for authentication
+              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "::add-mask::${APIKEY}"
+              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+
+         - name: Run sandbox CLI tests
+           run: bash scripts/test-sandbox.sh
+
+   storage-cli-test:
+      runs-on: blacksmith-2vcpu-ubuntu-2404
+      timeout-minutes: 10
+      name: Storage CLI Tests
+      env:
+         AGENTUITY_API_URL: https://api-v1.agentuity.com
+         AGENTUITY_USER_ID: ${{ vars.AGENTUITY_USER_ID }}
+         AGENTUITY_CLOUD_ORG_ID: ${{ vars.AGENTUITY_CLOUD_ORG_ID }}
+         AGENTUITY_REGION: usc
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Build packages
+           run: bun run build
+
+         - name: Setup test credentials
+           run: |
+              # Generate CLI API key for authentication
+              APIKEY=$(curl $AGENTUITY_API_URL/cli/auth/short-token -H 'Content-Type: application/json' --data "{\"secret\":\"${{ secrets.AGENTUITY_APITOKEN_SHARED_SECRET }}\",\"userId\":\"${{ env.AGENTUITY_USER_ID }}\"}" | jq -r '.data.apiKey')
+              echo "::add-mask::${APIKEY}"
+              echo "AGENTUITY_CLI_API_KEY=${APIKEY}" >> $GITHUB_ENV
+
+         - name: Run storage CLI tests
+           run: bun scripts/test-storage.ts
 
    playwright-e2e-test:
       runs-on: blacksmith-4vcpu-ubuntu-2204
@@ -187,5 +279,45 @@ jobs:
            if: always()
            with:
               name: playwright-report
+              path: playwright-report/
+              retention-days: 7
+
+   framework-demo-test:
+      runs-on: blacksmith-4vcpu-ubuntu-2204
+      timeout-minutes: 15
+      name: Framework Integration Tests (TanStack & Next.js)
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Setup Bun
+           uses: oven-sh/setup-bun@v2
+
+         - name: Install dependencies
+           run: bun install
+
+         - name: Install Playwright browsers
+           run: bunx playwright install --with-deps chromium
+
+         - name: Prepare SDK for testing
+           run: bash scripts/prepare-sdk-for-testing.sh
+
+         - name: Install SDK in framework demo apps
+           run: |
+              # Install in main app (frontend packages)
+              bash scripts/install-sdk-tarballs.sh apps/testing/tanstack-start
+              bash scripts/install-sdk-tarballs.sh apps/testing/nextjs-app
+              # Install in agentuity subfolders (runtime packages)
+              bash scripts/install-sdk-tarballs.sh apps/testing/tanstack-start/agentuity
+              bash scripts/install-sdk-tarballs.sh apps/testing/nextjs-app/agentuity
+
+         - name: Run Framework Demo tests
+           timeout-minutes: 8
+           run: bash scripts/test-framework-demos.sh --skip-build
+
+         - name: Upload Playwright report
+           uses: actions/upload-artifact@v4
+           if: always()
+           with:
+              name: framework-demo-playwright-report
               path: playwright-report/
               retention-days: 7

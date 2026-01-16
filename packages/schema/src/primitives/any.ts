@@ -1,5 +1,5 @@
 import type { Schema } from '../base';
-import { success, createParseMethods } from '../base';
+import { success, createParseMethods, SCHEMA_KIND } from '../base';
 import { optional } from '../utils/optional';
 import { nullable } from '../utils/nullable';
 
@@ -23,6 +23,7 @@ const parseMethods = createParseMethods<any>();
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class AnySchema implements Schema<any, any> {
+	readonly [SCHEMA_KIND] = 'AnySchema';
 	description?: string;
 
 	readonly '~standard' = {

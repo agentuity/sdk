@@ -1,7 +1,7 @@
 import type { Plugin } from 'vite';
 import { join } from 'node:path';
 import { createLogger } from '@agentuity/server';
-import type { LogLevel } from '../../../types';
+import type { LogLevel, DeployOptions } from '../../../types';
 import { discoverAgents, type AgentMetadata } from './agent-discovery';
 import { discoverRoutes, type RouteMetadata, type RouteInfo } from './route-discovery';
 import { generateAgentRegistry, generateRouteRegistry } from './registry-generator';
@@ -20,6 +20,7 @@ export interface AgentuityPluginOptions {
 	orgId?: string;
 	deploymentId?: string;
 	logLevel?: LogLevel;
+	deploymentOptions?: DeployOptions;
 }
 
 /**
@@ -42,6 +43,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 		orgId = '',
 		deploymentId = '',
 		logLevel = 'info',
+		deploymentOptions,
 	} = options;
 	const logger = createLogger(logLevel);
 	const srcDir = join(rootDir, 'src');
@@ -85,7 +87,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			}
 
 			if (routeInfoList.length > 0) {
-				generateRouteRegistry(srcDir, routeInfoList, agents);
+				await generateRouteRegistry(srcDir, routeInfoList, agents);
 				logger.trace('Generated route registry with %d route(s)', routeInfoList.length);
 			}
 
@@ -94,14 +96,15 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 			const lifecycleResult = await generateLifecycleTypes(rootDir, srcDir, logger);
 			logger.debug(`[vite-plugin] generateLifecycleTypes returned: ${lifecycleResult}`);
 
-			// Generate entry file (pass workbench config for route mounting)
+			// Generate entry file (pass workbench and analytics config)
 			await generateEntryFile({
 				rootDir,
 				projectId,
 				deploymentId,
 				logger,
 				mode: dev ? 'dev' : 'prod',
-				workbench: workbenchConfig.enabled ? workbenchConfig : undefined,
+				workbench: workbenchConfig.configured ? workbenchConfig : undefined,
+				analytics: config?.analytics,
 			});
 
 			logger.trace('buildStart: Discovery complete');
@@ -153,6 +156,7 @@ export function agentuityPlugin(options: AgentuityPluginOptions): Plugin {
 				routes,
 				dev,
 				logger,
+				deploymentOptions,
 			});
 
 			// Write metadata file

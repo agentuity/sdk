@@ -77,125 +77,180 @@ export type POSTApiAgentStateWriterOutputSchema = typeof stateWriterAgent extend
  * Route Definitions
  * 
  * Type-safe route registry for all API routes, WebSocket connections, and SSE endpoints.
- * Used by @agentuity/react for client-side type-safe routing.
+ * Used by @agentuity/react and @agentuity/frontend for client-side type-safe routing.
  * 
  * @remarks
  * This module augmentation is auto-generated from your route files during build.
  * Individual route Input/Output types are exported above for direct usage.
+ * 
+ * The augmentation targets @agentuity/frontend (the canonical source of registry types).
+ * Since @agentuity/react re-exports these types, the augmentation is visible when
+ * importing from either package.
  */
 
-declare module '@agentuity/react' {
+declare module '@agentuity/frontend' {
 	/**
 	 * API Route Registry
 	 * 
 	 * Maps route keys (METHOD /path) to their input/output schemas
 	 */
 	export interface RouteRegistry {
-	'GET /api/test/run': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/test/suites': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/test/list': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/health': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+	'GET /api/agent-ids/all': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'DELETE /api/agent-ids/clear': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/agent-ids/last': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/agent-ids/run': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/agent-ids/verify/:sessionId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { sessionId: string };
+			};
 	'POST /api/agent/state': {
-		inputSchema: POSTApiAgentStateInputSchema;
-		outputSchema: POSTApiAgentStateOutputSchema;
-		stream: typeof statePersistenceAgent extends { stream?: infer S } ? S : false;
-	};
+				inputSchema: POSTApiAgentStateInputSchema;
+				outputSchema: POSTApiAgentStateOutputSchema;
+				stream: typeof statePersistenceAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
 	'POST /api/agent/state-reader': {
-		inputSchema: POSTApiAgentStateReaderInputSchema;
-		outputSchema: POSTApiAgentStateReaderOutputSchema;
-		stream: typeof stateReaderAgent extends { stream?: infer S } ? S : false;
-	};
+				inputSchema: POSTApiAgentStateReaderInputSchema;
+				outputSchema: POSTApiAgentStateReaderOutputSchema;
+				stream: typeof stateReaderAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
 	'POST /api/agent/state-writer': {
-		inputSchema: POSTApiAgentStateWriterInputSchema;
-		outputSchema: POSTApiAgentStateWriterOutputSchema;
-		stream: typeof stateWriterAgent extends { stream?: infer S } ? S : false;
-	};
-	'GET /api/custom-name/custom': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'POST /api/custom-name/test': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/users/profile': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'PATCH /api/users/profile': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'DELETE /api/users/profile': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/my-service/status': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/my-service/info': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: POSTApiAgentStateWriterInputSchema;
+				outputSchema: POSTApiAgentStateWriterOutputSchema;
+				stream: typeof stateWriterAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
 	'POST /api/auth/login': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'POST /api/auth/logout': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'GET /api/auth/verify': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/middleware-test/check-all': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/middleware-test/query-database': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'GET /api/middleware-test/check-auth': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/custom-name/custom': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/custom-name/test': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/health': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'GET /api/middleware-test/analytics-info': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/middleware-test/check-all': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/middleware-test/check-auth': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/middleware-test/query-database': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/my-service/info': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/my-service/status': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/test/list': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/test/run': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/test/suites': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/users/profile': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'PATCH /api/users/profile': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'DELETE /api/users/profile': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	}
 	
 	/**
@@ -204,21 +259,24 @@ declare module '@agentuity/react' {
 	 * Maps WebSocket route paths to their schemas
 	 */
 	export interface WebSocketRouteRegistry {
-	'/api/ws/echo': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
 	'/api/ws/broadcast': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	'/api/ws/counter': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/ws/echo': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	}
 	
 	/**
@@ -227,128 +285,115 @@ declare module '@agentuity/react' {
 	 * Maps SSE route paths to their schemas
 	 */
 	export interface SSERouteRegistry {
-	'/api/sse/simple': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'/api/sse/events': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'/api/sse/counter': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
-	'/api/sse/long-lived': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
 	'/api/sse/abort-test': {
-		inputSchema: never;
-		outputSchema: never;
-		stream: false;
-	};
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/async-fetch': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/counter': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/error-handling': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/events': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/generate-text': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/long-lived': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/simple': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
 	}
 
 	/**
 	 * RPC Route Registry
 	 * 
 	 * Nested structure for RPC-style client access (e.g., client.hello.post())
-	 * Used by createClient() from @agentuity/core for type-safe RPC calls.
+	 * Used by createClient() from @agentuity/frontend for type-safe RPC calls.
 	 */
 	export interface RPCRouteRegistry {
-		test: {
-			run: {
-				/**
-				 * Route: GET /api/test/run
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-			suites: {
-				/**
-				 * Route: GET /api/test/suites
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-			list: {
-				/**
-				 * Route: GET /api/test/list
-				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-		};
-		health: {
-			/**
-			 * Route: GET /api/health
-			 */
-			get: { input: never; output: never; type: 'api' };
-		};
 		agent: {
 			state: {
 				/**
 				 * Route: POST /api/agent/state
 				 */
-				post: { input: POSTApiAgentStateInput; output: POSTApiAgentStateOutput; type: 'api' };
+				post: { input: POSTApiAgentStateInput; output: POSTApiAgentStateOutput; type: 'api'; params: never; paramsTuple: [] };
 			};
 			stateReader: {
 				/**
 				 * Route: POST /api/agent/state-reader
 				 */
-				post: { input: POSTApiAgentStateReaderInput; output: POSTApiAgentStateReaderOutput; type: 'api' };
+				post: { input: POSTApiAgentStateReaderInput; output: POSTApiAgentStateReaderOutput; type: 'api'; params: never; paramsTuple: [] };
 			};
 			stateWriter: {
 				/**
 				 * Route: POST /api/agent/state-writer
 				 */
-				post: { input: POSTApiAgentStateWriterInput; output: POSTApiAgentStateWriterOutput; type: 'api' };
+				post: { input: POSTApiAgentStateWriterInput; output: POSTApiAgentStateWriterOutput; type: 'api'; params: never; paramsTuple: [] };
 			};
 		};
-		customName: {
-			custom: {
+		agentIds: {
+			all: {
 				/**
-				 * Route: GET /api/custom-name/custom
+				 * Route: GET /api/agent-ids/all
 				 */
-				get: { input: never; output: never; type: 'api' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
-			test: {
+			clear: {
 				/**
-				 * Route: POST /api/custom-name/test
+				 * Route: DELETE /api/agent-ids/clear
 				 */
-				post: { input: never; output: never; type: 'api' };
+				delete: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
-		};
-		users: {
-			profile: {
+			last: {
 				/**
-				 * Route: GET /api/users/profile
+				 * Route: GET /api/agent-ids/last
 				 */
-				get: { input: never; output: never; type: 'api' };
-				/**
-				 * Route: PATCH /api/users/profile
-				 */
-				patch: { input: never; output: never; type: 'api' };
-				/**
-				 * Route: DELETE /api/users/profile
-				 */
-				delete: { input: never; output: never; type: 'api' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
-		};
-		myService: {
-			status: {
+			run: {
 				/**
-				 * Route: GET /api/my-service/status
+				 * Route: POST /api/agent-ids/run
 				 */
-				get: { input: never; output: never; type: 'api' };
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
-			info: {
-				/**
-				 * Route: GET /api/my-service/info
-				 */
-				get: { input: never; output: never; type: 'api' };
+			verify: {
+				sessionId: {
+					/**
+					 * Route: GET /api/agent-ids/verify/:sessionId
+					 */
+					get: { input: never; output: never; type: 'api'; params: { sessionId: string }; paramsTuple: [string] };
+				};
 			};
 		};
 		auth: {
@@ -356,97 +401,660 @@ declare module '@agentuity/react' {
 				/**
 				 * Route: POST /api/auth/login
 				 */
-				post: { input: never; output: never; type: 'api' };
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
 			logout: {
 				/**
 				 * Route: POST /api/auth/logout
 				 */
-				post: { input: never; output: never; type: 'api' };
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
 			verify: {
 				/**
 				 * Route: GET /api/auth/verify
 				 */
-				get: { input: never; output: never; type: 'api' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
 		};
+		customName: {
+			custom: {
+				/**
+				 * Route: GET /api/custom-name/custom
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			test: {
+				/**
+				 * Route: POST /api/custom-name/test
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		health: {
+			/**
+			 * Route: GET /api/health
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
 		middlewareTest: {
+			analyticsInfo: {
+				/**
+				 * Route: GET /api/middleware-test/analytics-info
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
 			checkAll: {
 				/**
 				 * Route: GET /api/middleware-test/check-all
 				 */
-				get: { input: never; output: never; type: 'api' };
-			};
-			queryDatabase: {
-				/**
-				 * Route: GET /api/middleware-test/query-database
-				 */
-				get: { input: never; output: never; type: 'api' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
 			checkAuth: {
 				/**
 				 * Route: GET /api/middleware-test/check-auth
 				 */
-				get: { input: never; output: never; type: 'api' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
+			queryDatabase: {
+				/**
+				 * Route: GET /api/middleware-test/query-database
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		myService: {
+			info: {
+				/**
+				 * Route: GET /api/my-service/info
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			status: {
+				/**
+				 * Route: GET /api/my-service/status
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		sse: {
+			abortTest: {
+				/**
+				 * Route: GET /api/sse/abort-test
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			asyncFetch: {
+				/**
+				 * Route: GET /api/sse/async-fetch
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			counter: {
+				/**
+				 * Route: GET /api/sse/counter
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			errorHandling: {
+				/**
+				 * Route: GET /api/sse/error-handling
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			events: {
+				/**
+				 * Route: GET /api/sse/events
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			generateText: {
+				/**
+				 * Route: GET /api/sse/generate-text
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			longLived: {
+				/**
+				 * Route: GET /api/sse/long-lived
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			simple: {
+				/**
+				 * Route: GET /api/sse/simple
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+		};
+		test: {
+			list: {
+				/**
+				 * Route: GET /api/test/list
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			run: {
+				/**
+				 * Route: GET /api/test/run
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			suites: {
+				/**
+				 * Route: GET /api/test/suites
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		users: {
+			profile: {
+				/**
+				 * Route: DELETE /api/users/profile
+				 */
+				delete: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+				/**
+				 * Route: GET /api/users/profile
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+				/**
+				 * Route: PATCH /api/users/profile
+				 */
+				patch: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		ws: {
+			broadcast: {
+				/**
+				 * Route: GET /api/ws/broadcast
+				 */
+				websocket: { input: never; output: never; type: 'websocket'; params: never; paramsTuple: [] };
+			};
+			counter: {
+				/**
+				 * Route: GET /api/ws/counter
+				 */
+				websocket: { input: never; output: never; type: 'websocket'; params: never; paramsTuple: [] };
+			};
+			echo: {
+				/**
+				 * Route: GET /api/ws/echo
+				 */
+				websocket: { input: never; output: never; type: 'websocket'; params: never; paramsTuple: [] };
+			};
+		};
+	}
+}
+
+// Backward compatibility: also augment @agentuity/react for older versions
+// that define RouteRegistry locally instead of re-exporting from @agentuity/frontend
+declare module '@agentuity/react' {
+	export interface RouteRegistry {
+	'GET /api/agent-ids/all': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'DELETE /api/agent-ids/clear': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/agent-ids/last': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/agent-ids/run': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/agent-ids/verify/:sessionId': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: { sessionId: string };
+			};
+	'POST /api/agent/state': {
+				inputSchema: POSTApiAgentStateInputSchema;
+				outputSchema: POSTApiAgentStateOutputSchema;
+				stream: typeof statePersistenceAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'POST /api/agent/state-reader': {
+				inputSchema: POSTApiAgentStateReaderInputSchema;
+				outputSchema: POSTApiAgentStateReaderOutputSchema;
+				stream: typeof stateReaderAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'POST /api/agent/state-writer': {
+				inputSchema: POSTApiAgentStateWriterInputSchema;
+				outputSchema: POSTApiAgentStateWriterOutputSchema;
+				stream: typeof stateWriterAgent extends { stream?: infer S } ? S : false;
+				params: never;
+			};
+	'POST /api/auth/login': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/auth/logout': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/auth/verify': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/custom-name/custom': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'POST /api/custom-name/test': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/health': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/middleware-test/analytics-info': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/middleware-test/check-all': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/middleware-test/check-auth': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/middleware-test/query-database': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/my-service/info': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/my-service/status': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/test/list': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/test/run': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/test/suites': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'GET /api/users/profile': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'PATCH /api/users/profile': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'DELETE /api/users/profile': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface WebSocketRouteRegistry {
+	'/api/ws/broadcast': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/ws/counter': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/ws/echo': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface SSERouteRegistry {
+	'/api/sse/abort-test': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/async-fetch': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/counter': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/error-handling': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/events': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/generate-text': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/long-lived': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	'/api/sse/simple': {
+				inputSchema: never;
+				outputSchema: never;
+				stream: false;
+				params: never;
+			};
+	}
+	export interface RPCRouteRegistry {
+		agent: {
+			state: {
+				/**
+				 * Route: POST /api/agent/state
+				 */
+				post: { input: POSTApiAgentStateInput; output: POSTApiAgentStateOutput; type: 'api'; params: never; paramsTuple: [] };
+			};
+			stateReader: {
+				/**
+				 * Route: POST /api/agent/state-reader
+				 */
+				post: { input: POSTApiAgentStateReaderInput; output: POSTApiAgentStateReaderOutput; type: 'api'; params: never; paramsTuple: [] };
+			};
+			stateWriter: {
+				/**
+				 * Route: POST /api/agent/state-writer
+				 */
+				post: { input: POSTApiAgentStateWriterInput; output: POSTApiAgentStateWriterOutput; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		agentIds: {
+			all: {
+				/**
+				 * Route: GET /api/agent-ids/all
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			clear: {
+				/**
+				 * Route: DELETE /api/agent-ids/clear
+				 */
+				delete: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			last: {
+				/**
+				 * Route: GET /api/agent-ids/last
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			run: {
+				/**
+				 * Route: POST /api/agent-ids/run
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			verify: {
+				sessionId: {
+					/**
+					 * Route: GET /api/agent-ids/verify/:sessionId
+					 */
+					get: { input: never; output: never; type: 'api'; params: { sessionId: string }; paramsTuple: [string] };
+				};
+			};
+		};
+		auth: {
+			login: {
+				/**
+				 * Route: POST /api/auth/login
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			logout: {
+				/**
+				 * Route: POST /api/auth/logout
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			verify: {
+				/**
+				 * Route: GET /api/auth/verify
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		customName: {
+			custom: {
+				/**
+				 * Route: GET /api/custom-name/custom
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			test: {
+				/**
+				 * Route: POST /api/custom-name/test
+				 */
+				post: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		health: {
+			/**
+			 * Route: GET /api/health
+			 */
+			get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+		};
+		middlewareTest: {
 			analyticsInfo: {
 				/**
 				 * Route: GET /api/middleware-test/analytics-info
 				 */
-				get: { input: never; output: never; type: 'api' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			checkAll: {
+				/**
+				 * Route: GET /api/middleware-test/check-all
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			checkAuth: {
+				/**
+				 * Route: GET /api/middleware-test/check-auth
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			queryDatabase: {
+				/**
+				 * Route: GET /api/middleware-test/query-database
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
 		};
-		ws: {
-			echo: {
+		myService: {
+			info: {
 				/**
-				 * Route: POST /api/ws/echo
+				 * Route: GET /api/my-service/info
 				 */
-				websocket: { input: never; output: never; type: 'websocket' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
-			broadcast: {
+			status: {
 				/**
-				 * Route: POST /api/ws/broadcast
+				 * Route: GET /api/my-service/status
 				 */
-				websocket: { input: never; output: never; type: 'websocket' };
-			};
-			counter: {
-				/**
-				 * Route: POST /api/ws/counter
-				 */
-				websocket: { input: never; output: never; type: 'websocket' };
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
 			};
 		};
 		sse: {
-			simple: {
+			abortTest: {
 				/**
-				 * Route: POST /api/sse/simple
+				 * Route: GET /api/sse/abort-test
 				 */
-				eventstream: { input: never; output: never; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
 			};
-			events: {
+			asyncFetch: {
 				/**
-				 * Route: POST /api/sse/events
+				 * Route: GET /api/sse/async-fetch
 				 */
-				eventstream: { input: never; output: never; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
 			};
 			counter: {
 				/**
-				 * Route: POST /api/sse/counter
+				 * Route: GET /api/sse/counter
 				 */
-				eventstream: { input: never; output: never; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			errorHandling: {
+				/**
+				 * Route: GET /api/sse/error-handling
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			events: {
+				/**
+				 * Route: GET /api/sse/events
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+			generateText: {
+				/**
+				 * Route: GET /api/sse/generate-text
+				 */
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
 			};
 			longLived: {
 				/**
-				 * Route: POST /api/sse/long-lived
+				 * Route: GET /api/sse/long-lived
 				 */
-				eventstream: { input: never; output: never; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
 			};
-			abortTest: {
+			simple: {
 				/**
-				 * Route: POST /api/sse/abort-test
+				 * Route: GET /api/sse/simple
 				 */
-				eventstream: { input: never; output: never; type: 'sse' };
+				eventstream: { input: never; output: never; type: 'sse'; params: never; paramsTuple: [] };
+			};
+		};
+		test: {
+			list: {
+				/**
+				 * Route: GET /api/test/list
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			run: {
+				/**
+				 * Route: GET /api/test/run
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+			suites: {
+				/**
+				 * Route: GET /api/test/suites
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		users: {
+			profile: {
+				/**
+				 * Route: DELETE /api/users/profile
+				 */
+				delete: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+				/**
+				 * Route: GET /api/users/profile
+				 */
+				get: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+				/**
+				 * Route: PATCH /api/users/profile
+				 */
+				patch: { input: never; output: never; type: 'api'; params: never; paramsTuple: [] };
+			};
+		};
+		ws: {
+			broadcast: {
+				/**
+				 * Route: GET /api/ws/broadcast
+				 */
+				websocket: { input: never; output: never; type: 'websocket'; params: never; paramsTuple: [] };
+			};
+			counter: {
+				/**
+				 * Route: GET /api/ws/counter
+				 */
+				websocket: { input: never; output: never; type: 'websocket'; params: never; paramsTuple: [] };
+			};
+			echo: {
+				/**
+				 * Route: GET /api/ws/echo
+				 */
+				websocket: { input: never; output: never; type: 'websocket'; params: never; paramsTuple: [] };
 			};
 		};
 	}
@@ -458,162 +1066,246 @@ declare module '@agentuity/react' {
  * @internal
  */
 const _rpcRouteMetadata = {
-		"test": {
-				"run": {
-						"get": {
-								"type": "api"
-						}
-				},
-				"suites": {
-						"get": {
-								"type": "api"
-						}
-				},
-				"list": {
-						"get": {
-								"type": "api"
-						}
-				}
-		},
-		"health": {
-				"get": {
-						"type": "api"
-				}
-		},
 		"agent": {
 				"state": {
 						"post": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/agent/state"
 						}
 				},
 				"stateReader": {
 						"post": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/agent/state-reader"
 						}
 				},
 				"stateWriter": {
 						"post": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/agent/state-writer"
 						}
 				}
 		},
-		"customName": {
-				"custom": {
+		"agentIds": {
+				"all": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/agent-ids/all"
 						}
 				},
-				"test": {
-						"post": {
-								"type": "api"
-						}
-				}
-		},
-		"users": {
-				"profile": {
-						"get": {
-								"type": "api"
-						},
-						"patch": {
-								"type": "api"
-						},
+				"clear": {
 						"delete": {
-								"type": "api"
-						}
-				}
-		},
-		"myService": {
-				"status": {
-						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/agent-ids/clear"
 						}
 				},
-				"info": {
+				"last": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/agent-ids/last"
+						}
+				},
+				"run": {
+						"post": {
+								"type": "api",
+								"path": "/api/agent-ids/run"
+						}
+				},
+				"verify": {
+						"sessionId": {
+								"get": {
+										"type": "api",
+										"path": "/api/agent-ids/verify/:sessionId",
+										"pathParams": [
+												"sessionId"
+										]
+								}
 						}
 				}
 		},
 		"auth": {
 				"login": {
 						"post": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/auth/login"
 						}
 				},
 				"logout": {
 						"post": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/auth/logout"
 						}
 				},
 				"verify": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/auth/verify"
 						}
 				}
 		},
-		"middlewareTest": {
-				"checkAll": {
+		"customName": {
+				"custom": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/custom-name/custom"
 						}
 				},
-				"queryDatabase": {
+				"test": {
+						"post": {
+								"type": "api",
+								"path": "/api/custom-name/test"
+						}
+				}
+		},
+		"health": {
+				"get": {
+						"type": "api",
+						"path": "/api/health"
+				}
+		},
+		"middlewareTest": {
+				"analyticsInfo": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/middleware-test/analytics-info"
+						}
+				},
+				"checkAll": {
+						"get": {
+								"type": "api",
+								"path": "/api/middleware-test/check-all"
 						}
 				},
 				"checkAuth": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/middleware-test/check-auth"
 						}
 				},
-				"analyticsInfo": {
+				"queryDatabase": {
 						"get": {
-								"type": "api"
+								"type": "api",
+								"path": "/api/middleware-test/query-database"
 						}
 				}
 		},
-		"ws": {
-				"echo": {
-						"websocket": {
-								"type": "websocket"
+		"myService": {
+				"info": {
+						"get": {
+								"type": "api",
+								"path": "/api/my-service/info"
 						}
 				},
-				"broadcast": {
-						"websocket": {
-								"type": "websocket"
-						}
-				},
-				"counter": {
-						"websocket": {
-								"type": "websocket"
+				"status": {
+						"get": {
+								"type": "api",
+								"path": "/api/my-service/status"
 						}
 				}
 		},
 		"sse": {
-				"simple": {
+				"abortTest": {
 						"eventstream": {
-								"type": "sse"
+								"type": "sse",
+								"path": "/api/sse/abort-test"
 						}
 				},
-				"events": {
+				"asyncFetch": {
 						"eventstream": {
-								"type": "sse"
+								"type": "sse",
+								"path": "/api/sse/async-fetch"
 						}
 				},
 				"counter": {
 						"eventstream": {
-								"type": "sse"
+								"type": "sse",
+								"path": "/api/sse/counter"
+						}
+				},
+				"errorHandling": {
+						"eventstream": {
+								"type": "sse",
+								"path": "/api/sse/error-handling"
+						}
+				},
+				"events": {
+						"eventstream": {
+								"type": "sse",
+								"path": "/api/sse/events"
+						}
+				},
+				"generateText": {
+						"eventstream": {
+								"type": "sse",
+								"path": "/api/sse/generate-text"
 						}
 				},
 				"longLived": {
 						"eventstream": {
-								"type": "sse"
+								"type": "sse",
+								"path": "/api/sse/long-lived"
 						}
 				},
-				"abortTest": {
+				"simple": {
 						"eventstream": {
-								"type": "sse"
+								"type": "sse",
+								"path": "/api/sse/simple"
+						}
+				}
+		},
+		"test": {
+				"list": {
+						"get": {
+								"type": "api",
+								"path": "/api/test/list"
+						}
+				},
+				"run": {
+						"get": {
+								"type": "api",
+								"path": "/api/test/run"
+						}
+				},
+				"suites": {
+						"get": {
+								"type": "api",
+								"path": "/api/test/suites"
+						}
+				}
+		},
+		"users": {
+				"profile": {
+						"delete": {
+								"type": "api",
+								"path": "/api/users/profile"
+						},
+						"get": {
+								"type": "api",
+								"path": "/api/users/profile"
+						},
+						"patch": {
+								"type": "api",
+								"path": "/api/users/profile"
+						}
+				}
+		},
+		"ws": {
+				"broadcast": {
+						"websocket": {
+								"type": "websocket",
+								"path": "/api/ws/broadcast"
+						}
+				},
+				"counter": {
+						"websocket": {
+								"type": "websocket",
+								"path": "/api/ws/counter"
+						}
+				},
+				"echo": {
+						"websocket": {
+								"type": "websocket",
+								"path": "/api/ws/echo"
 						}
 				}
 		}

@@ -5,7 +5,10 @@
 		"lib": ["ESNext", "DOM", "DOM.Iterable"],
 		"types": ["bun-types"],
 		"outDir": "./.agentuity",
-		"rootDir": "."
+		"rootDir": ".",
+		"paths": {
+			"@agentuity/frontend": ["./node_modules/@agentuity/frontend"]
+		}
 	},
 	"include": ["src/**/*", "app.ts"],
 	"exclude": ["node_modules", ".agentuity"]
