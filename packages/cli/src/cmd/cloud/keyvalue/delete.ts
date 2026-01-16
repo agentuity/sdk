@@ -16,7 +16,7 @@ export const deleteSubcommand = createCommand({
 	description: 'Delete a key from the keyvalue storage',
 	tags: ['destructive', 'deletes-resource', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, project: true },
+	requires: { auth: true },
 	examples: [
 		{ command: getCommand('kv delete production user:123'), description: 'Delete user data' },
 		{ command: getCommand('kv delete cache session:abc'), description: 'Delete cached session' },

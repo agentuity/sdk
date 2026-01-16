@@ -9,7 +9,7 @@ export const createNamespaceSubcommand = createCommand({
 	description: 'Create a new keyvalue namespace',
 	tags: ['mutating', 'creates-resource', 'slow', 'requires-auth'],
 	idempotent: false,
-	requires: { auth: true, project: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('kv create-namespace production'),
