@@ -55,6 +55,9 @@ interface CreateFlowOptions {
 	orgId?: string;
 	region?: string;
 	apiClient?: APIClient;
+	database?: string;
+	storage?: string;
+	enableAuth?: boolean;
 }
 
 export interface CreateFlowResult {
@@ -85,7 +88,13 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		region,
 		apiClient,
 		domains,
+		database: databaseOption,
+		storage: storageOption,
+		enableAuth: enableAuthOption,
 	} = options;
+
+	const isHeadless = !process.stdin.isTTY || !process.stdout.isTTY;
+	const isInteractive = !skipPrompts && !isHeadless;
 
 	// Fetch available templates
 	if (templateDir) {
@@ -120,11 +129,11 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	// Create prompt flow
 	const prompt = createPrompt();
 
-	if (!skipPrompts) {
+	if (isInteractive) {
 		prompt.intro('Create Agentuity Project');
 	}
 
-	if (!projectName && !skipPrompts) {
+	if (!projectName && isInteractive) {
 		projectName = await prompt.text({
 			message: 'What is the name of your project?',
 			hint: 'The name must be unique for your organization',
@@ -164,8 +173,8 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	const destEmpty = destIsDir ? readdirSync(dest).length === 0 : !destExists;
 
 	if (destExists && !destEmpty && dirName !== '.') {
-		// In TTY mode, ask if they want to overwrite
-		if (process.stdin.isTTY && !skipPrompts) {
+		// In interactive mode, ask if they want to overwrite
+		if (isInteractive) {
 			tui.warning(`Directory ${dest} already exists and is not empty.`, true);
 			console.log(tui.tuiColors.secondary('│'));
 			const overwrite = await prompt.confirm({
@@ -210,7 +219,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			return undefined as never;
 		}
 		selectedTemplate = found;
-	} else if (skipPrompts || templates.length === 1) {
+	} else if (!isInteractive || templates.length === 1) {
 		selectedTemplate = templates[0];
 	} else {
 		let maxLength = 15;
@@ -275,7 +284,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	}
 
 	// Add separator bar if we're going to show resource prompts
-	if (!skipPrompts && auth && apiClient && catalystClient && orgId && region) {
+	const canProvision = auth && apiClient && catalystClient && orgId && region;
+	const hasResourceFlags = databaseOption !== undefined || storageOption !== undefined;
+
+	if (isInteractive && canProvision) {
 		const { symbols, tuiColors } = tui;
 		console.log(tuiColors.secondary(symbols.bar));
 	}
@@ -283,43 +295,109 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	let _domains = domains;
 	const resourceEnvVars: EnvVars = {};
 
-	if (auth && apiClient && catalystClient && orgId && region && !skipPrompts) {
-		// Fetch resources for selected org and region using Catalyst API
-		const resources = await tui.spinner({
-			message: 'Fetching resources',
-			clearOnSuccess: true,
-			callback: async () => {
-				return listResources(catalystClient, orgId, region);
-			},
-		});
+	// Validate that resource flags require authentication and registration
+	if (hasResourceFlags && !canProvision) {
+		logger.fatal(
+			'Cannot provision database/storage without being authenticated and registering the project.\n' +
+				'Remove --no-register or omit --database/--storage flags.',
+			ErrorCode.VALIDATION_FAILED
+		);
+	}
 
-		logger.debug(`Resources for org ${orgId} in region ${region}:`, resources);
+	if (canProvision) {
+		// Fetch resources for selected org and region using Catalyst API (needed for both interactive and CLI flags)
+		let resources: Awaited<ReturnType<typeof listResources>> | undefined;
 
-		const db_action = await prompt.select({
-			message: 'Create SQL Database?',
-			options: [
-				{ value: 'Skip', label: 'Skip or Setup later' },
-				{ value: 'Create New', label: 'Create a new database' },
-				...resources.db.map((db) => ({
-					value: db.name,
-					label: `Use database: ${tui.tuiColors.primary(db.name)}`,
-				})),
-			],
-		});
+		const needResources =
+			isInteractive ||
+			(databaseOption && databaseOption !== 'skip' && databaseOption !== 'new') ||
+			(storageOption && storageOption !== 'skip' && storageOption !== 'new');
 
-		const s3_action = await prompt.select({
-			message: 'Create Storage Bucket?',
-			options: [
-				{ value: 'Skip', label: 'Skip or Setup later' },
-				{ value: 'Create New', label: 'Create a new bucket' },
-				...resources.s3.map((bucket) => ({
-					value: bucket.bucket_name,
-					label: `Use bucket: ${tui.tuiColors.primary(bucket.bucket_name)}`,
-				})),
-			],
-		});
+		if (needResources) {
+			resources = await tui.spinner({
+				message: 'Fetching resources',
+				clearOnSuccess: true,
+				callback: async () => {
+					return listResources(catalystClient!, orgId!, region!);
+				},
+			});
+			logger.debug(`Resources for org ${orgId} in region ${region}:`, resources);
+		}
 
-		if (!domains?.length) {
+		// Determine database action: CLI flag > interactive prompt > skip (headless)
+		let db_action: string;
+		if (databaseOption !== undefined) {
+			// CLI flag provided - normalize to expected values
+			if (databaseOption.toLowerCase() === 'new') {
+				db_action = 'Create New';
+			} else if (databaseOption.toLowerCase() === 'skip') {
+				db_action = 'Skip';
+			} else {
+				// Existing database name - validate it exists
+				const existingDb = resources?.db.find((d) => d.name === databaseOption);
+				if (!existingDb) {
+					logger.fatal(
+						`Database '${databaseOption}' not found. Use 'new' to create a new database or 'skip' to skip.`,
+						ErrorCode.RESOURCE_NOT_FOUND
+					);
+				}
+				db_action = databaseOption;
+			}
+		} else if (isInteractive) {
+			db_action = await prompt.select({
+				message: 'Create SQL Database?',
+				options: [
+					{ value: 'Skip', label: 'Skip or Setup later' },
+					{ value: 'Create New', label: 'Create a new database' },
+					...resources!.db.map((db) => ({
+						value: db.name,
+						label: `Use database: ${tui.tuiColors.primary(db.name)}`,
+					})),
+				],
+			});
+		} else {
+			// Headless without flag - skip
+			db_action = 'Skip';
+		}
+
+		// Determine storage action: CLI flag > interactive prompt > skip (headless)
+		let s3_action: string;
+		if (storageOption !== undefined) {
+			// CLI flag provided - normalize to expected values
+			if (storageOption.toLowerCase() === 'new') {
+				s3_action = 'Create New';
+			} else if (storageOption.toLowerCase() === 'skip') {
+				s3_action = 'Skip';
+			} else {
+				// Existing bucket name - validate it exists
+				const existingBucket = resources?.s3.find((b) => b.bucket_name === storageOption);
+				if (!existingBucket) {
+					logger.fatal(
+						`Storage bucket '${storageOption}' not found. Use 'new' to create a new bucket or 'skip' to skip.`,
+						ErrorCode.RESOURCE_NOT_FOUND
+					);
+				}
+				s3_action = storageOption;
+			}
+		} else if (isInteractive) {
+			s3_action = await prompt.select({
+				message: 'Create Storage Bucket?',
+				options: [
+					{ value: 'Skip', label: 'Skip or Setup later' },
+					{ value: 'Create New', label: 'Create a new bucket' },
+					...resources!.s3.map((bucket) => ({
+						value: bucket.bucket_name,
+						label: `Use bucket: ${tui.tuiColors.primary(bucket.bucket_name)}`,
+					})),
+				],
+			});
+		} else {
+			// Headless without flag - skip
+			s3_action = 'Skip';
+		}
+
+		// Custom DNS: only prompt in interactive mode if not already provided
+		if (!domains?.length && isInteractive) {
 			const customDns = await prompt.text({
 				message: 'Setup custom DNS?',
 				hint: 'Enter a domain name or press Enter to skip',
@@ -335,14 +413,14 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			}
 		}
 
-		const choices = { db_action, s3_action };
-		switch (choices.s3_action) {
+		// Process storage action
+		switch (s3_action) {
 			case 'Create New': {
 				const created = await tui.spinner({
 					message: 'Provisioning New Bucket',
 					clearOnSuccess: true,
 					callback: async () => {
-						return createResources(catalystClient, orgId, region!, [{ type: 's3' }]);
+						return createResources(catalystClient!, orgId!, region!, [{ type: 's3' }]);
 					},
 				});
 				// Collect env vars from newly created resource
@@ -356,39 +434,49 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			}
 			default: {
 				// User selected an existing bucket - get env vars from the resources list
-				const selectedBucket = resources.s3.find((b) => b.bucket_name === choices.s3_action);
+				const selectedBucket = resources?.s3.find((b) => b.bucket_name === s3_action);
 				if (selectedBucket?.env) {
 					Object.assign(resourceEnvVars, selectedBucket.env);
 				}
 				break;
 			}
 		}
-		switch (choices.db_action) {
+
+		// Process database action
+		switch (db_action) {
 			case 'Create New': {
-				const dbNameInput = await prompt.text({
-					message: 'Database name',
-					hint: 'Optional - lowercase letters, digits, underscores only',
-					validate: (value: string) => {
-						const trimmed = value.trim();
-						if (trimmed === '') return true;
-						const result = validateDatabaseName(trimmed);
-						return result.valid ? true : result.error!;
-					},
-				});
-				const dbName = dbNameInput.trim() || undefined;
-				const dbDescription = await prompt.text({
-					message: 'Database description',
-					hint: 'Optional - press Enter to skip',
-				});
+				let dbName: string | undefined;
+				let dbDescription: string | undefined;
+
+				// Only prompt for name/description in interactive mode
+				if (isInteractive) {
+					const dbNameInput = await prompt.text({
+						message: 'Database name',
+						hint: 'Optional - lowercase letters, digits, underscores only',
+						validate: (value: string) => {
+							const trimmed = value.trim();
+							if (trimmed === '') return true;
+							const result = validateDatabaseName(trimmed);
+							return result.valid ? true : result.error!;
+						},
+					});
+					dbName = dbNameInput.trim() || undefined;
+					dbDescription =
+						(await prompt.text({
+							message: 'Database description',
+							hint: 'Optional - press Enter to skip',
+						})) || undefined;
+				}
+
 				const created = await tui.spinner({
 					message: 'Provisioning New SQL Database',
 					clearOnSuccess: true,
 					callback: async () => {
-						return createResources(catalystClient, orgId, region!, [
+						return createResources(catalystClient!, orgId!, region!, [
 							{
 								type: 'db',
 								name: dbName,
-								description: dbDescription || undefined,
+								description: dbDescription,
 							},
 						]);
 					},
@@ -404,7 +492,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			}
 			default: {
 				// User selected an existing database - get env vars from the resources list
-				const selectedDb = resources.db.find((d) => d.name === choices.db_action);
+				const selectedDb = resources?.db.find((d) => d.name === db_action);
 				if (selectedDb?.env) {
 					Object.assign(resourceEnvVars, selectedDb.env);
 				}
@@ -413,15 +501,19 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 		}
 	}
 
-	// Auth setup - either from template or user choice
+	// Auth setup - either from template, CLI flag, or user choice
 	const templateHasAuth = selectedTemplate.id === 'agentuity-auth';
 
 	let authEnabled = templateHasAuth; // Auth templates have auth enabled by default
 	let authDatabaseName: string | undefined;
 	let authDatabaseUrl: string | undefined;
 
-	// For non-auth templates, ask if they want to enable auth
-	if (auth && catalystClient && orgId && region && !skipPrompts && !templateHasAuth) {
+	// Handle auth enablement: CLI flag > interactive prompt > disabled (headless)
+	if (enableAuthOption !== undefined) {
+		// CLI flag provided
+		authEnabled = enableAuthOption;
+	} else if (canProvision && isInteractive && !templateHasAuth) {
+		// For non-auth templates in interactive mode, ask if they want to enable auth
 		const enableAuth = await prompt.select({
 			message: 'Enable Agentuity Authentication?',
 			options: [
@@ -434,9 +526,10 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 			authEnabled = true;
 		}
 	}
+	// In headless mode without --enable-auth flag, authEnabled stays false (unless template has auth)
 
 	// Set up database and secret for any auth-enabled project
-	if (authEnabled && auth && catalystClient && orgId && region && !skipPrompts) {
+	if (authEnabled && canProvision) {
 		// If a database was already selected/created above, use it for auth
 		if (resourceEnvVars.DATABASE_URL) {
 			authDatabaseUrl = resourceEnvVars.DATABASE_URL;
@@ -457,7 +550,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 				message: 'Provisioning database for auth',
 				clearOnSuccess: true,
 				callback: async () => {
-					return createResources(catalystClient, orgId, region!, [{ type: 'db' }]);
+					return createResources(catalystClient!, orgId!, region!, [{ type: 'db' }]);
 				},
 			});
 			authDatabaseName = created[0].name;
@@ -607,7 +700,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 	await initGitRepo(dest);
 
 	// Show completion message
-	if (!skipPrompts) {
+	if (isInteractive) {
 		if (setupResult.success) {
 			tui.success('✨ Project created successfully!\n');
 		} else {
@@ -641,7 +734,7 @@ export async function runCreateFlow(options: CreateFlowOptions): Promise<CreateF
 
 	playSound();
 
-	if (process.stdin.isTTY && !skipPrompts && _domains?.length && projectId) {
+	if (isInteractive && _domains?.length && projectId) {
 		tui.newline();
 		const ok = await tui.confirm('Would you like to configure DNS now?', true);
 		if (ok) {
