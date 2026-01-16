@@ -145,19 +145,20 @@ export function validateQueueType(type: string): void {
 /**
  * Validates a message payload.
  *
- * Payloads must be non-empty and not exceed 1MB in size.
+ * Payloads must be non-empty JSON and not exceed 1MB when serialized.
  *
- * @param payload - The payload string to validate
+ * @param payload - The payload to validate (must be JSON-serializable)
  * @throws {QueueValidationError} If the payload is empty or too large
  */
-export function validatePayload(payload: string): void {
-	if (!payload || payload.length === 0) {
+export function validatePayload(payload: unknown): void {
+	if (payload === undefined || payload === null) {
 		throw new QueueValidationError({
 			message: 'Payload cannot be empty',
 			field: 'payload',
 		});
 	}
-	const payloadBytes = new TextEncoder().encode(payload).length;
+	const serialized = JSON.stringify(payload);
+	const payloadBytes = new TextEncoder().encode(serialized).length;
 	if (payloadBytes > MAX_PAYLOAD_SIZE) {
 		throw new QueueValidationError({
 			message: `Payload size exceeds ${MAX_PAYLOAD_SIZE} byte limit (${payloadBytes} bytes)`,

@@ -70,7 +70,7 @@ const ReceiveResponseSchema = APIResponseSchema(
  * @example
  * ```typescript
  * const message = await publishMessage(client, 'order-queue', {
- *   payload: JSON.stringify({ orderId: 123, action: 'process' }),
+ *   payload: { orderId: 123, action: 'process' },
  *   metadata: { priority: 'high' },
  *   idempotency_key: 'order-123-process',
  * });
@@ -140,9 +140,9 @@ export async function publishMessage(
  * @example
  * ```typescript
  * const result = await batchPublishMessages(client, 'order-queue', [
- *   { payload: JSON.stringify({ orderId: 1 }) },
- *   { payload: JSON.stringify({ orderId: 2 }) },
- *   { payload: JSON.stringify({ orderId: 3 }) },
+ *   { payload: { orderId: 1 } },
+ *   { payload: { orderId: 2 } },
+ *   { payload: { orderId: 3 } },
  * ]);
  * console.log(`Published ${result.messages.length} messages`);
  * ```

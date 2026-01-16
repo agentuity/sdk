@@ -23,7 +23,7 @@ export const listSubcommand = createCommand({
 	aliases: ['ls'],
 	description: 'List all queues',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{ command: getCommand('cloud queue list'), description: 'List all queues' },
 		{ command: getCommand('cloud queue ls'), description: 'List all queues (alias)' },

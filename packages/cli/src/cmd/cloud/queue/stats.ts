@@ -182,7 +182,7 @@ export const statsSubcommand = createCommand({
 	name: 'stats',
 	description: 'View queue analytics and statistics',
 	tags: ['read-only', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue stats'),
@@ -247,7 +247,7 @@ export const statsSubcommand = createCommand({
 				if (args.name) {
 					const stream = streamQueueAnalytics(client, args.name, {
 						interval: opts.interval,
-						orgId: apiOptions.orgId,
+						orgId: apiOptions?.orgId,
 					});
 					for await (const event of stream) {
 						events.push(event);
@@ -258,7 +258,7 @@ export const statsSubcommand = createCommand({
 				} else {
 					const stream = streamOrgAnalytics(client, {
 						interval: opts.interval,
-						orgId: apiOptions.orgId,
+						orgId: apiOptions?.orgId,
 					});
 					for await (const event of stream) {
 						events.push(event);

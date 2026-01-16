@@ -58,7 +58,7 @@ export const command = createCommand({
 		resumeSubcommand,
 		statsSubcommand,
 	],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 });
 
 export default command;

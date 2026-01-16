@@ -14,7 +14,7 @@ export const receiveSubcommand = createCommand({
 	aliases: ['recv', 'claim'],
 	description: 'Receive (claim) a message from a worker queue',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue receive my-queue'),
@@ -60,12 +60,7 @@ export const receiveSubcommand = createCommand({
 				tui.info(`  Delivery Attempts: ${message.delivery_attempts}`);
 				tui.info('');
 				tui.info('Payload:');
-				try {
-					const parsed = JSON.parse(message.payload);
-					tui.json(parsed);
-				} catch {
-					console.log(message.payload);
-				}
+				tui.json(message.payload);
 				if (message.metadata) {
 					tui.info('');
 					tui.info('Metadata:');

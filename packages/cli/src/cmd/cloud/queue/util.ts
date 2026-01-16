@@ -1,7 +1,7 @@
 import type { Logger } from '@agentuity/core';
 import { APIClient, type QueueApiOptions } from '@agentuity/server';
 import { getGlobalCatalystAPIClient } from '../../../config';
-import type { AuthData, Config } from '../../../types';
+import type { AuthData, Config, GlobalOptions } from '../../../types';
 
 /**
  * Context required for queue API operations.
@@ -10,7 +10,8 @@ export interface QueueContext {
 	logger: Logger;
 	auth: AuthData;
 	config: Config | null;
-	orgId: string;
+	options: GlobalOptions;
+	orgId?: string;
 }
 
 /**
@@ -25,7 +26,9 @@ export async function createQueueAPIClient(ctx: QueueContext): Promise<APIClient
 
 /**
  * Creates QueueApiOptions from the CLI context.
+ * Prioritizes explicit orgId on context, then falls back to global --org-id option.
  */
-export function getQueueApiOptions(ctx: QueueContext): QueueApiOptions {
-	return { orgId: ctx.orgId };
+export function getQueueApiOptions(ctx: QueueContext): QueueApiOptions | undefined {
+	const orgId = ctx.orgId ?? ctx.options.orgId;
+	return orgId ? { orgId } : undefined;
 }

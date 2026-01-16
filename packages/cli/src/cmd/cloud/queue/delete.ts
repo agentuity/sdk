@@ -16,7 +16,7 @@ export const deleteSubcommand = createCommand({
 	aliases: ['rm'],
 	description: 'Delete a queue by name',
 	tags: ['mutating', 'deletes-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue delete my-queue --confirm'),

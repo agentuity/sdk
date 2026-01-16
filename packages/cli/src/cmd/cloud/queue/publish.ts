@@ -11,7 +11,7 @@ export const publishSubcommand = createCommand({
 	aliases: ['pub', 'send'],
 	description: 'Publish a message to a queue',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue publish my-queue \'{"task":"process"}\''),
@@ -31,7 +31,7 @@ export const publishSubcommand = createCommand({
 	schema: {
 		args: z.object({
 			queue_name: z.string().min(1).describe('Queue name'),
-			payload: z.string().min(1).describe('Message payload (string or JSON)'),
+			payload: z.string().min(1).describe('Message payload (JSON)'),
 		}),
 		options: z.object({
 			metadata: z.string().optional().describe('Message metadata as JSON'),
@@ -46,6 +46,13 @@ export const publishSubcommand = createCommand({
 		const { args, opts, options } = ctx;
 		const client = await createQueueAPIClient(ctx);
 
+		let payload: unknown;
+		try {
+			payload = JSON.parse(args.payload);
+		} catch {
+			tui.fatal('Invalid payload JSON', ErrorCode.INVALID_ARGUMENT);
+		}
+
 		let metadata: Record<string, unknown> | undefined;
 		if (opts.metadata) {
 			try {
@@ -59,7 +66,7 @@ export const publishSubcommand = createCommand({
 			client,
 			args.queue_name,
 			{
-				payload: args.payload,
+				payload,
 				metadata,
 				partition_key: opts.partitionKey,
 				idempotency_key: opts.idempotencyKey,

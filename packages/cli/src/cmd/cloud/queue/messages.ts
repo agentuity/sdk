@@ -11,7 +11,7 @@ const MessagesListResponseSchema = z.object({
 			id: z.string(),
 			offset: z.number(),
 			state: z.string().optional(),
-			size: z.number(),
+			size: z.number().optional(),
 			created_at: z.string().optional(),
 		})
 	),
@@ -56,12 +56,7 @@ function displayMessage(message: Message): void {
 
 	tui.newline();
 	tui.info('Payload');
-	try {
-		const parsed = JSON.parse(message.payload);
-		tui.json(parsed);
-	} catch {
-		console.log(message.payload);
-	}
+	tui.json(message.payload);
 
 	if (message.metadata && Object.keys(message.metadata).length > 0) {
 		tui.newline();
@@ -75,7 +70,7 @@ export const messagesSubcommand = createCommand({
 	aliases: ['msgs'],
 	description: 'List messages in a queue or get a specific message',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue messages my-queue'),
@@ -139,7 +134,7 @@ export const messagesSubcommand = createCommand({
 					ID: m.id,
 					Offset: m.offset,
 					State: m.state,
-					Size: m.payload.length,
+					Size: m.size,
 					Created: m.created_at ? new Date(m.created_at).toLocaleString() : 'N/A',
 				}));
 				tui.table(tableData, ['ID', 'Offset', 'State', 'Size', 'Created']);
@@ -153,7 +148,7 @@ export const messagesSubcommand = createCommand({
 					id: m.id,
 					offset: m.offset,
 					state: m.state,
-					size: m.payload.length,
+					size: m.size,
 					created_at: m.created_at,
 				})),
 				total: result.total,

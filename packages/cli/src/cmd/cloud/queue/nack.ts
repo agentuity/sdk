@@ -15,7 +15,7 @@ export const nackSubcommand = createCommand({
 	name: 'nack',
 	description: 'Negative acknowledge a message (return to queue for retry)',
 	tags: ['mutating', 'updates-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue nack my-queue msg-123'),

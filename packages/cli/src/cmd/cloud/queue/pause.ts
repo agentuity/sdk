@@ -9,7 +9,7 @@ export const pauseSubcommand = createCommand({
 	name: 'pause',
 	description: 'Pause message delivery for a queue',
 	tags: ['mutating', 'updates-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue pause my-queue'),

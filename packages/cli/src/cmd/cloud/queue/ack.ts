@@ -15,7 +15,7 @@ export const ackSubcommand = createCommand({
 	name: 'ack',
 	description: 'Acknowledge a message (mark as processed)',
 	tags: ['mutating', 'updates-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue ack my-queue msg-123'),

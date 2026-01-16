@@ -73,6 +73,25 @@ export const DestinationNotFoundError = StructuredError('DestinationNotFoundErro
 }>();
 
 /**
+ * Error thrown when a destination with the same type and URL already exists.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await createDestination(client, 'my-queue', { url: 'https://example.com' });
+ * } catch (error) {
+ *   if (error instanceof DestinationAlreadyExistsError) {
+ *     console.error(`Destination already exists: ${error.url}`);
+ *   }
+ * }
+ * ```
+ */
+export const DestinationAlreadyExistsError = StructuredError('DestinationAlreadyExistsError')<{
+	queueName: string;
+	url?: string;
+}>();
+
+/**
  * Error thrown when an invalid argument is provided to a queue operation.
  *
  * @example

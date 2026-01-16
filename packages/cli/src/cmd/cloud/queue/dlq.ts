@@ -30,7 +30,7 @@ const listDlqSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List messages in the dead letter queue',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue dlq list my-queue'),
@@ -96,7 +96,7 @@ const replayDlqSubcommand = createSubcommand({
 	name: 'replay',
 	description: 'Replay a message from the dead letter queue',
 	tags: ['mutating', 'updates-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue dlq replay my-queue msg-123'),
@@ -142,7 +142,7 @@ const purgeDlqSubcommand = createSubcommand({
 	name: 'purge',
 	description: 'Purge all messages from the dead letter queue',
 	tags: ['mutating', 'deletes-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue dlq purge my-queue --yes'),
@@ -184,7 +184,7 @@ export const dlqSubcommand = createCommand({
 	name: 'dlq',
 	description: 'Dead letter queue operations',
 	tags: ['requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue dlq list my-queue'),

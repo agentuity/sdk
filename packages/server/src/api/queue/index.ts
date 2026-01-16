@@ -21,7 +21,7 @@
  *
  * // Publish a message
  * await publishMessage(client, 'order-processing', {
- *   payload: JSON.stringify({ orderId: 123 }),
+ *   payload: { orderId: 123 },
  * });
  *
  * // Receive and acknowledge a message
@@ -132,6 +132,7 @@ export {
 	QueueNotFoundError,
 	MessageNotFoundError,
 	DestinationNotFoundError,
+	DestinationAlreadyExistsError,
 	QueueInvalidArgumentError,
 } from './util';
 

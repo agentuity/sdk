@@ -43,12 +43,7 @@ function displayMessage(message: Message): void {
 
 	tui.newline();
 	tui.info('Payload');
-	try {
-		const parsed = JSON.parse(message.payload);
-		tui.json(parsed);
-	} catch {
-		console.log(message.payload);
-	}
+	tui.json(message.payload);
 
 	if (message.metadata && Object.keys(message.metadata).length > 0) {
 		tui.newline();
@@ -61,37 +56,30 @@ export const getSubcommand = createCommand({
 	name: 'get',
 	description: 'Get queue or message details',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{ command: getCommand('cloud queue get my-queue'), description: 'Get queue details' },
 		{
-			command: getCommand('cloud queue get msg_abc123 --queue my-queue'),
+			command: getCommand('cloud queue get my-queue msg_abc123'),
 			description: 'Get message details',
 		},
 	],
 	schema: {
 		args: z.object({
-			identifier: z.string().min(1).describe('Queue name or message ID (msg_...)'),
-		}),
-		options: z.object({
-			queue: z.string().optional().describe('Queue name (required when getting a message)'),
+			queue_name: z.string().min(1).describe('Queue name'),
+			message_id: z.string().optional().describe('Message ID (msg_...) to get message details'),
 		}),
 		response: GetResponseSchema,
 	},
 	idempotent: true,
 
 	async handler(ctx) {
-		const { args, opts, options } = ctx;
+		const { args, options } = ctx;
 		const client = await createQueueAPIClient(ctx);
 		const apiOptions = getQueueApiOptions(ctx);
 
-		if (args.identifier.startsWith('msg_')) {
-			if (!opts.queue) {
-				tui.error('--queue is required when getting a message by ID');
-				process.exit(1);
-			}
-
-			const message = await getMessage(client, opts.queue, args.identifier, apiOptions);
+		if (args.message_id) {
+			const message = await getMessage(client, args.queue_name, args.message_id, apiOptions);
 
 			if (!options.json) {
 				displayMessage(message);
@@ -100,7 +88,7 @@ export const getSubcommand = createCommand({
 			return { type: 'message' as const, message };
 		}
 
-		const queue = await getQueue(client, args.identifier, apiOptions);
+		const queue = await getQueue(client, args.queue_name, apiOptions);
 
 		if (!options.json) {
 			const details: Record<string, unknown> = {

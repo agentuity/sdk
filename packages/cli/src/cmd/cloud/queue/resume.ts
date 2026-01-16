@@ -9,7 +9,7 @@ export const resumeSubcommand = createCommand({
 	name: 'resume',
 	description: 'Resume message delivery for a paused queue',
 	tags: ['mutating', 'updates-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue resume my-queue'),

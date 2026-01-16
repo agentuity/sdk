@@ -8,6 +8,7 @@ import {
 	listDestinations,
 	deleteDestination,
 	DestinationSchema,
+	DestinationAlreadyExistsError,
 	type Destination,
 } from '@agentuity/server';
 
@@ -28,7 +29,7 @@ const listDestinationsSubcommand = createSubcommand({
 	aliases: ['ls'],
 	description: 'List destinations for a queue',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue destinations list my-queue'),
@@ -79,7 +80,7 @@ const createDestinationSubcommand = createSubcommand({
 	name: 'create',
 	description: 'Create a webhook destination for a queue',
 	tags: ['mutating', 'creates-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand(
@@ -104,28 +105,39 @@ const createDestinationSubcommand = createSubcommand({
 		const { args, opts, options } = ctx;
 		const client = await createQueueAPIClient(ctx);
 
-		const destination = await createDestination(
-			client,
-			args.queue_name,
-			{
-				destination_type: 'http',
-				config: {
-					url: opts.url,
-					method: opts.method || 'POST',
-					timeout_ms: opts.timeout ?? 30000,
+		try {
+			const destination = await createDestination(
+				client,
+				args.queue_name,
+				{
+					destination_type: 'http',
+					config: {
+						url: opts.url,
+						method: opts.method || 'POST',
+						timeout_ms: opts.timeout ?? 30000,
+					},
+					enabled: true,
 				},
-				enabled: true,
-			},
-			getQueueApiOptions(ctx)
-		);
+				getQueueApiOptions(ctx)
+			);
 
-		if (!options.json) {
-			tui.success(`Created destination: ${destination.id}`);
-			console.log(`  URL:    ${destination.config.url}`);
-			console.log(`  Method: ${destination.config.method}`);
+			if (!options.json) {
+				tui.success(`Created destination: ${destination.id}`);
+				console.log(`  URL:    ${destination.config.url}`);
+				console.log(`  Method: ${destination.config.method}`);
+			}
+
+			return destination;
+		} catch (error) {
+			if (error instanceof DestinationAlreadyExistsError) {
+				tui.error(
+					`A destination with URL "${opts.url}" already exists for queue "${args.queue_name}"`
+				);
+				tui.info('Hint: Use a different URL or delete the existing destination first');
+				process.exit(1);
+			}
+			throw error;
 		}
-
-		return destination;
 	},
 });
 
@@ -140,7 +152,7 @@ const deleteDestinationSubcommand = createSubcommand({
 	aliases: ['rm'],
 	description: 'Delete a destination from a queue',
 	tags: ['mutating', 'deletes-resource', 'requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue destinations delete my-queue dest-123'),
@@ -182,7 +194,7 @@ export const destinationsSubcommand = createCommand({
 	aliases: ['dest'],
 	description: 'Manage queue destinations (webhooks)',
 	tags: ['requires-auth'],
-	requires: { auth: true, org: true },
+	requires: { auth: true },
 	examples: [
 		{
 			command: getCommand('cloud queue destinations list my-queue'),

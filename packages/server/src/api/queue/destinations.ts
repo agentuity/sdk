@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
+import { APIClient, APIResponseSchema, APIResponseSchemaNoData, APIError } from '../api';
 import {
 	DestinationSchema,
 	type Destination,
@@ -13,6 +13,7 @@ import {
 	QueueError,
 	QueueNotFoundError,
 	DestinationNotFoundError,
+	DestinationAlreadyExistsError,
 	queueApiPath,
 	buildQueueHeaders,
 } from './util';
@@ -65,30 +66,63 @@ export async function createDestination(
 	}
 
 	const url = queueApiPath('destinations/create', queueName);
-	const resp = await client.post(
-		url,
-		params,
-		DestinationResponseSchema,
-		CreateDestinationRequestSchema,
-		undefined,
-		buildQueueHeaders(options?.orgId)
-	);
 
-	if (resp.success) {
-		return resp.data.destination;
-	}
+	try {
+		const resp = await client.post(
+			url,
+			params,
+			DestinationResponseSchema,
+			CreateDestinationRequestSchema,
+			undefined,
+			buildQueueHeaders(options?.orgId)
+		);
 
-	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
-		throw new QueueNotFoundError({
+		if (resp.success) {
+			return resp.data.destination;
+		}
+
+		if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
+			throw new QueueNotFoundError({
+				queueName,
+				message: resp.message,
+			});
+		}
+
+		if (resp.message?.includes('already exists')) {
+			throw new DestinationAlreadyExistsError({
+				queueName,
+				url: params.config?.url,
+				message: `A destination with URL "${params.config?.url}" already exists for queue "${queueName}"`,
+			});
+		}
+
+		throw new QueueError({
 			queueName,
-			message: resp.message,
+			message: resp.message || 'Failed to create destination',
 		});
+	} catch (error) {
+		if (error instanceof APIError) {
+			const message = error.message || '';
+			if (message.includes('already exists')) {
+				throw new DestinationAlreadyExistsError({
+					queueName,
+					url: params.config?.url,
+					message: `A destination with URL "${params.config?.url}" already exists for queue "${queueName}"`,
+				});
+			}
+			if (message.includes('queue') && message.includes('not found')) {
+				throw new QueueNotFoundError({
+					queueName,
+					message,
+				});
+			}
+			throw new QueueError({
+				queueName,
+				message: message || 'Failed to create destination',
+			});
+		}
+		throw error;
 	}
-
-	throw new QueueError({
-		queueName,
-		message: resp.message || 'Failed to create destination',
-	});
 }
 
 /**

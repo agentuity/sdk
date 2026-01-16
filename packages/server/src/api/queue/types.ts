@@ -192,8 +192,10 @@ export const MessageSchema = z.object({
 	queue_id: z.string(),
 	/** Sequential offset within the queue. */
 	offset: z.number(),
-	/** The message payload (typically JSON string). */
-	payload: z.string(),
+	/** The message payload (JSON object). */
+	payload: z.unknown(),
+	/** Size of the message payload in bytes. */
+	size: z.number().optional(),
 	/** Optional metadata attached to the message. */
 	metadata: z.record(z.string(), z.unknown()).nullable().optional(),
 	/** Current state of the message. */
@@ -374,8 +376,8 @@ export const DeadLetterMessageSchema = z.object({
 	original_message_id: z.string(),
 	/** Offset of the original message in the queue. */
 	offset: z.number(),
-	/** The message payload. */
-	payload: z.string(),
+	/** The message payload (JSON object). */
+	payload: z.unknown(),
 	/** Optional metadata from the original message. */
 	metadata: z.record(z.string(), z.unknown()).nullable().optional(),
 	/** Reason why the message was moved to DLQ. */
@@ -476,7 +478,7 @@ export type ListQueuesRequest = z.infer<typeof ListQueuesRequestSchema>;
  * @example
  * ```typescript
  * const request: PublishMessageRequest = {
- *   payload: JSON.stringify({ task: 'process-order', orderId: 123 }),
+ *   payload: { task: 'process-order', orderId: 123 },
  *   metadata: { priority: 'high' },
  *   idempotency_key: 'order-123-v1',
  *   ttl_seconds: 3600,
@@ -484,8 +486,8 @@ export type ListQueuesRequest = z.infer<typeof ListQueuesRequestSchema>;
  * ```
  */
 export const PublishMessageRequestSchema = z.object({
-	/** The message payload (typically a JSON string). */
-	payload: z.string(),
+	/** The message payload (JSON object). */
+	payload: z.unknown(),
 	/** Optional metadata to attach to the message. */
 	metadata: z.record(z.string(), z.unknown()).optional(),
 	/** Optional key for deduplication (prevents duplicate messages). */
@@ -506,8 +508,8 @@ export type PublishMessageRequest = z.infer<typeof PublishMessageRequestSchema>;
  * ```typescript
  * const request: BatchPublishMessagesRequest = {
  *   messages: [
- *     { payload: '{"task": "a"}' },
- *     { payload: '{"task": "b"}' },
+ *     { payload: { task: 'a' } },
+ *     { payload: { task: 'b' } },
  *   ],
  * };
  * ```
