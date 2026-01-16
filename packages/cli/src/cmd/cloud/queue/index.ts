@@ -10,6 +10,7 @@ import { ackSubcommand } from './ack';
 import { nackSubcommand } from './nack';
 import { dlqSubcommand } from './dlq';
 import { destinationsSubcommand } from './destinations';
+import { sinksSubcommand } from './sinks';
 import { pauseSubcommand } from './pause';
 import { resumeSubcommand } from './resume';
 import { statsSubcommand } from './stats';
@@ -54,6 +55,7 @@ export const command = createCommand({
 		nackSubcommand,
 		dlqSubcommand,
 		destinationsSubcommand,
+		sinksSubcommand,
 		pauseSubcommand,
 		resumeSubcommand,
 		statsSubcommand,

@@ -110,6 +110,44 @@ export const QueueInvalidArgumentError = StructuredError('QueueInvalidArgumentEr
 	param?: string;
 }>();
 
+/**
+ * Error thrown when a sink is not found.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await getSink(client, 'my-queue', 'qsnk_abc123');
+ * } catch (error) {
+ *   if (error instanceof SinkNotFoundError) {
+ *     console.error(`Sink ${error.sinkId} not found in ${error.queueName}`);
+ *   }
+ * }
+ * ```
+ */
+export const SinkNotFoundError = StructuredError('SinkNotFoundError')<{
+	queueName: string;
+	sinkId: string;
+}>();
+
+/**
+ * Error thrown when a sink with the same name already exists.
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await createSink(client, 'my-queue', { name: 'existing-sink' });
+ * } catch (error) {
+ *   if (error instanceof SinkAlreadyExistsError) {
+ *     console.error(`Sink "${error.name}" already exists in ${error.queueName}`);
+ *   }
+ * }
+ * ```
+ */
+export const SinkAlreadyExistsError = StructuredError('SinkAlreadyExistsError')<{
+	queueName: string;
+	name: string;
+}>();
+
 /** Current Queue API version. */
 const QUEUE_API_VERSION = '2026-01-15';
 

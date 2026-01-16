@@ -48,11 +48,17 @@ export const MAX_IN_FLIGHT = 1000;
 /** Queue name pattern: starts with letter/underscore, contains lowercase alphanumerics, underscores, hyphens. */
 const VALID_QUEUE_NAME_REGEX = /^[a-z_][a-z0-9_-]*$/;
 
-/** Message ID pattern: must start with msg_ prefix. */
-const VALID_MESSAGE_ID_REGEX = /^msg_[a-zA-Z0-9]+$/;
+/** Message ID pattern: must start with qmsg_ prefix. */
+const VALID_MESSAGE_ID_REGEX = /^qmsg_[a-zA-Z0-9]+$/;
 
-/** Destination ID pattern: must start with dest_ prefix. */
-const VALID_DESTINATION_ID_REGEX = /^dest_[a-zA-Z0-9]+$/;
+/** Destination ID pattern: must start with qdest_ prefix. */
+const VALID_DESTINATION_ID_REGEX = /^qdest_[a-zA-Z0-9]+$/;
+
+/** Sink ID pattern: must start with qsnk_ prefix. */
+const VALID_SINK_ID_REGEX = /^qsnk_[a-zA-Z0-9]+$/;
+
+/** Maximum sink name length. */
+export const MAX_SINK_NAME_LENGTH = 256;
 
 // ============================================================================
 // Validation Error
@@ -171,7 +177,7 @@ export function validatePayload(payload: unknown): void {
 /**
  * Validates a message ID format.
  *
- * Message IDs must start with the `msg_` prefix.
+ * Message IDs must start with the `qmsg_` prefix.
  *
  * @param id - The message ID to validate
  * @throws {QueueValidationError} If the ID format is invalid
@@ -179,7 +185,7 @@ export function validatePayload(payload: unknown): void {
 export function validateMessageId(id: string): void {
 	if (!id || !VALID_MESSAGE_ID_REGEX.test(id)) {
 		throw new QueueValidationError({
-			message: 'Invalid message ID format (must start with msg_ prefix)',
+			message: 'Invalid message ID format (must start with qmsg_ prefix)',
 			field: 'message_id',
 			value: id,
 		});
@@ -189,7 +195,7 @@ export function validateMessageId(id: string): void {
 /**
  * Validates a destination ID format.
  *
- * Destination IDs must start with the `dest_` prefix.
+ * Destination IDs must start with the `qdest_` prefix.
  *
  * @param id - The destination ID to validate
  * @throws {QueueValidationError} If the ID format is invalid
@@ -197,7 +203,7 @@ export function validateMessageId(id: string): void {
 export function validateDestinationId(id: string): void {
 	if (!id || !VALID_DESTINATION_ID_REGEX.test(id)) {
 		throw new QueueValidationError({
-			message: 'Invalid destination ID format (must start with dest_ prefix)',
+			message: 'Invalid destination ID format (must start with qdest_ prefix)',
 			field: 'destination_id',
 			value: id,
 		});
@@ -487,5 +493,67 @@ export function validateDestinationConfig(config: Record<string, unknown>): void
 				value: timeoutMs,
 			});
 		}
+	}
+}
+
+/**
+ * Validates a sink ID format.
+ *
+ * Sink IDs must start with the `qsnk_` prefix.
+ *
+ * @param id - The sink ID to validate
+ * @throws {QueueValidationError} If the ID format is invalid
+ *
+ * @example
+ * ```typescript
+ * validateSinkId('qsnk_abc123'); // OK
+ * validateSinkId('invalid');     // Throws
+ * ```
+ */
+export function validateSinkId(id: string): void {
+	if (!id || typeof id !== 'string') {
+		throw new QueueValidationError({
+			field: 'sink_id',
+			value: id,
+			message: 'Sink ID is required',
+		});
+	}
+	if (!VALID_SINK_ID_REGEX.test(id)) {
+		throw new QueueValidationError({
+			field: 'sink_id',
+			value: id,
+			message: 'Sink ID must start with "qsnk_" prefix and contain only alphanumeric characters',
+		});
+	}
+}
+
+/**
+ * Validates a sink name.
+ *
+ * Sink names must be non-empty and not exceed the maximum length.
+ *
+ * @param name - The sink name to validate
+ * @throws {QueueValidationError} If the name is invalid
+ *
+ * @example
+ * ```typescript
+ * validateSinkName('my-sink');   // OK
+ * validateSinkName('');          // Throws
+ * ```
+ */
+export function validateSinkName(name: string): void {
+	if (!name || typeof name !== 'string') {
+		throw new QueueValidationError({
+			field: 'sink_name',
+			value: name,
+			message: 'Sink name is required',
+		});
+	}
+	if (name.length > MAX_SINK_NAME_LENGTH) {
+		throw new QueueValidationError({
+			field: 'sink_name',
+			value: name,
+			message: `Sink name must be at most ${MAX_SINK_NAME_LENGTH} characters`,
+		});
 	}
 }

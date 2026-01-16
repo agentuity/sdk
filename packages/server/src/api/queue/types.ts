@@ -1120,3 +1120,134 @@ export const SSEStatsEventSchema = z.object({
  * SSE stats event type for real-time streaming.
  */
 export type SSEStatsEvent = z.infer<typeof SSEStatsEventSchema>;
+
+// ============================================================================
+// Sink Types
+// ============================================================================
+
+/**
+ * Sink authentication type schema.
+ */
+export const SinkAuthTypeSchema = z.enum(['none', 'basic', 'digest', 'header']);
+
+/**
+ * Sink authentication type.
+ */
+export type SinkAuthType = z.infer<typeof SinkAuthTypeSchema>;
+
+/**
+ * Queue sink schema representing an HTTP ingestion endpoint.
+ *
+ * Sinks provide public URLs for ingesting data into queues from external sources.
+ * They support various authentication methods to secure access.
+ *
+ * @example
+ * ```typescript
+ * const sink = await getSink(client, 'my-queue', 'qsnk_abc123');
+ * console.log(`Sink URL: ${sink.url}`);
+ * console.log(`Success rate: ${sink.success_count}/${sink.request_count}`);
+ * ```
+ */
+export const SinkSchema = z.object({
+	/** Unique identifier for the sink (prefixed with qsnk_). */
+	id: z.string(),
+	/** ID of the queue this sink publishes to. */
+	queue_id: z.string(),
+	/** Human-readable sink name. */
+	name: z.string(),
+	/** Optional description of the sink's purpose. */
+	description: z.string().nullable().optional(),
+	/** Authentication type for the public endpoint. */
+	auth_type: SinkAuthTypeSchema,
+	/** Whether the sink is enabled. */
+	enabled: z.boolean(),
+	/** Public URL to send data to this sink. */
+	url: z.string(),
+	/** Total number of requests received. */
+	request_count: z.number(),
+	/** Number of successful ingestions. */
+	success_count: z.number(),
+	/** Number of failed ingestions. */
+	failure_count: z.number(),
+	/** ISO 8601 timestamp of last request. */
+	last_request_at: z.string().nullable().optional(),
+	/** ISO 8601 timestamp of last success. */
+	last_success_at: z.string().nullable().optional(),
+	/** ISO 8601 timestamp of last failure. */
+	last_failure_at: z.string().nullable().optional(),
+	/** Error message from last failure. */
+	last_failure_error: z.string().nullable().optional(),
+	/** ISO 8601 timestamp when the sink was created. */
+	created_at: z.string(),
+	/** ISO 8601 timestamp when the sink was last updated. */
+	updated_at: z.string(),
+});
+
+/**
+ * Queue sink type.
+ */
+export type Sink = z.infer<typeof SinkSchema>;
+
+/**
+ * Create sink request schema.
+ *
+ * @example
+ * ```typescript
+ * const request: CreateSinkRequest = {
+ *   name: 'webhook-ingestion',
+ *   description: 'Receives webhooks from external service',
+ *   auth_type: 'header',
+ *   auth_value: 'Bearer my-secret-token',
+ * };
+ * ```
+ */
+export const CreateSinkRequestSchema = z.object({
+	/** Human-readable name for the sink. */
+	name: z.string().min(1).max(256),
+	/** Optional description. */
+	description: z.string().max(1024).optional(),
+	/** Authentication type (default: none). */
+	auth_type: SinkAuthTypeSchema.optional().default('none'),
+	/** Authentication value (format depends on auth_type). */
+	auth_value: z.string().optional(),
+});
+
+/**
+ * Create sink request type.
+ */
+export type CreateSinkRequest = z.infer<typeof CreateSinkRequestSchema>;
+
+/**
+ * Update sink request schema.
+ *
+ * All fields are optional - only provided fields will be updated.
+ *
+ * @example
+ * ```typescript
+ * // Disable a sink
+ * const request: UpdateSinkRequest = { enabled: false };
+ *
+ * // Update authentication
+ * const request: UpdateSinkRequest = {
+ *   auth_type: 'basic',
+ *   auth_value: 'user:password',
+ * };
+ * ```
+ */
+export const UpdateSinkRequestSchema = z.object({
+	/** New name for the sink. */
+	name: z.string().min(1).max(256).optional(),
+	/** New description. */
+	description: z.string().max(1024).nullable().optional(),
+	/** New authentication type. */
+	auth_type: SinkAuthTypeSchema.optional(),
+	/** New authentication value. */
+	auth_value: z.string().optional(),
+	/** Whether the sink is enabled. */
+	enabled: z.boolean().optional(),
+});
+
+/**
+ * Update sink request type.
+ */
+export type UpdateSinkRequest = z.infer<typeof UpdateSinkRequestSchema>;

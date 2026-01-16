@@ -1220,6 +1220,8 @@ export interface SandboxInfo {
 	description?: string;
 	runtimeId?: string;
 	runtimeName?: string;
+	runtimeIconUrl?: string;
+	runtimeBrandColor?: string;
 	// Network/URL fields
 	identifier?: string;
 	networkPort?: number;

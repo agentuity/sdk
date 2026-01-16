@@ -121,6 +121,15 @@ export {
 	type TimeSeriesPoint,
 	type TimeSeriesData,
 	type SSEStatsEvent,
+	// Sink types
+	SinkAuthTypeSchema,
+	SinkSchema,
+	CreateSinkRequestSchema,
+	UpdateSinkRequestSchema,
+	type SinkAuthType,
+	type Sink,
+	type CreateSinkRequest,
+	type UpdateSinkRequest,
 } from './types';
 
 // ============================================================================
@@ -134,6 +143,8 @@ export {
 	DestinationNotFoundError,
 	DestinationAlreadyExistsError,
 	QueueInvalidArgumentError,
+	SinkNotFoundError,
+	SinkAlreadyExistsError,
 } from './util';
 
 // ============================================================================
@@ -193,6 +204,12 @@ export {
 } from './destinations';
 
 // ============================================================================
+// Sink Operations
+// ============================================================================
+
+export { createSink, listSinks, getSink, updateSink, deleteSink } from './sinks';
+
+// ============================================================================
 // Analytics Operations
 // ============================================================================
 
@@ -227,6 +244,8 @@ export {
 	validateBatchSize,
 	validateWebhookUrl,
 	validateDestinationConfig,
+	validateSinkId,
+	validateSinkName,
 	MAX_QUEUE_NAME_LENGTH,
 	MIN_QUEUE_NAME_LENGTH,
 	MAX_PAYLOAD_SIZE,
@@ -238,4 +257,5 @@ export {
 	MAX_VISIBILITY_TIMEOUT,
 	MAX_RETRIES,
 	MAX_IN_FLIGHT,
+	MAX_SINK_NAME_LENGTH,
 } from './validation';
