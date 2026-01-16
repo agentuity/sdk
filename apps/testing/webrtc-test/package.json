@@ -28,6 +28,8 @@
 		"@types/bun": "latest",
 		"@types/react": "^19.2.0",
 		"@types/react-dom": "^19.2.0",
-		"typescript": "^5"
+		"@vitejs/plugin-react": "^4.6.0",
+		"typescript": "^5",
+		"vite": "^7.2.7"
 	}
 }
