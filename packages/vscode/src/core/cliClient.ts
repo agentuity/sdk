@@ -1303,13 +1303,23 @@ export interface SandboxEnvResult {
 }
 
 // Sandbox runtime types
+export interface SandboxRuntimeRequirements {
+	memory?: string;
+	cpu?: string;
+	disk?: string;
+	networkEnabled: boolean;
+}
+
 export interface SandboxRuntime {
 	id: string;
 	name: string;
 	description?: string;
 	iconUrl?: string;
+	brandColor?: string;
 	url?: string;
 	tags?: string[];
+	requirements?: SandboxRuntimeRequirements;
+	readme?: string;
 }
 
 export interface SandboxRuntimeListParams {
