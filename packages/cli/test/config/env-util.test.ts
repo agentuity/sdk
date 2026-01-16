@@ -6,7 +6,18 @@ import {
 	validateNoPublicSecrets,
 	filterAgentuitySdkKeys,
 	splitEnvAndSecrets,
+	AGENTUITY_ALLOWED_KEYS,
 } from '../../src/env-util';
+
+describe('AGENTUITY_ALLOWED_KEYS', () => {
+	test('contains AGENTUITY_AUTH_SECRET', () => {
+		expect(AGENTUITY_ALLOWED_KEYS).toContain('AGENTUITY_AUTH_SECRET');
+	});
+
+	test('is a readonly array', () => {
+		expect(Array.isArray(AGENTUITY_ALLOWED_KEYS)).toBe(true);
+	});
+});
 
 describe('looksLikeSecret', () => {
 	describe('key name patterns', () => {
@@ -241,9 +252,23 @@ describe('isReservedAgentuityKey', () => {
 		expect(isReservedAgentuityKey('AGENTUITY_PUBLIC_API_KEY')).toBe(false);
 	});
 
-	test('is case insensitive', () => {
+	test('allows whitelisted AGENTUITY_ keys', () => {
+		expect(isReservedAgentuityKey('AGENTUITY_AUTH_SECRET')).toBe(false);
+		// Verify all keys in the whitelist are allowed
+		for (const key of AGENTUITY_ALLOWED_KEYS) {
+			expect(isReservedAgentuityKey(key)).toBe(false);
+		}
+	});
+
+	test('is case insensitive for prefix detection', () => {
 		expect(isReservedAgentuityKey('agentuity_sdk_key')).toBe(true);
 		expect(isReservedAgentuityKey('agentuity_public_url')).toBe(false);
+	});
+
+	test('whitelisted keys are case sensitive (must match exactly)', () => {
+		// The whitelist check uses exact match, not case-insensitive
+		expect(isReservedAgentuityKey('AGENTUITY_AUTH_SECRET')).toBe(false);
+		expect(isReservedAgentuityKey('agentuity_auth_secret')).toBe(true); // lowercase not in whitelist
 	});
 
 	test('does not match non-AGENTUITY keys', () => {
@@ -295,6 +320,18 @@ describe('filterAgentuitySdkKeys', () => {
 		});
 	});
 
+	test('allows whitelisted AGENTUITY_ keys', () => {
+		const result = filterAgentuitySdkKeys({
+			AGENTUITY_SDK_KEY: 'sdk',
+			AGENTUITY_AUTH_SECRET: 'auth-secret',
+			MY_VAR: 'value',
+		});
+		expect(result).toEqual({
+			AGENTUITY_AUTH_SECRET: 'auth-secret',
+			MY_VAR: 'value',
+		});
+	});
+
 	test('returns empty object for undefined', () => {
 		expect(filterAgentuitySdkKeys(undefined)).toEqual({});
 	});
@@ -325,6 +362,17 @@ describe('splitEnvAndSecrets', () => {
 		});
 		expect(result.env).toEqual({ MY_VAR: 'value' });
 		expect(result.secrets).toEqual({});
+		expect(result.env.AGENTUITY_SDK_KEY).toBeUndefined();
+	});
+
+	test('allows whitelisted AGENTUITY_ keys and puts them in secrets (due to _SECRET suffix)', () => {
+		const result = splitEnvAndSecrets({
+			AGENTUITY_SDK_KEY: 'sdk',
+			AGENTUITY_AUTH_SECRET: 'auth-secret',
+			MY_VAR: 'value',
+		});
+		expect(result.env).toEqual({ MY_VAR: 'value' });
+		expect(result.secrets).toEqual({ AGENTUITY_AUTH_SECRET: 'auth-secret' });
 		expect(result.env.AGENTUITY_SDK_KEY).toBeUndefined();
 	});
 
