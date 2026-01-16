@@ -4,3 +4,4 @@ export { createLocalStorageRouter } from './_router';
 export { LocalKeyValueStorage } from './keyvalue';
 export { LocalStreamStorage } from './stream';
 export { LocalVectorStorage } from './vector';
+export { LocalQueueStorage } from './queue';

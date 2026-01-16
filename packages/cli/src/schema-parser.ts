@@ -85,12 +85,15 @@ function isBooleanStringUnion(schema: unknown): boolean {
 		// Zod 3: type is _def.typeName
 		const optUnknown = opt as unknown as Record<string, unknown>;
 		const optDef = optUnknown?._def as Record<string, unknown> | undefined;
-		const optType = (optUnknown?.type as string) || (optDef?.typeName as string) || (optDef?.type as string);
+		const optType =
+			(optUnknown?.type as string) || (optDef?.typeName as string) || (optDef?.type as string);
 		types.add(optType);
 	}
 
-	return (types.has('boolean') || types.has('ZodBoolean')) && 
-	       (types.has('string') || types.has('ZodString'));
+	return (
+		(types.has('boolean') || types.has('ZodBoolean')) &&
+		(types.has('string') || types.has('ZodString'))
+	);
 }
 
 function getShape(schema: ZodType): Record<string, unknown> {

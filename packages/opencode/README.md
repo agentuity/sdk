@@ -91,10 +91,8 @@ Edit `~/.config/opencode/opencode.json` to point to your local package:
 
 ```jsonc
 {
-   "$schema": "https://opencode.ai/config.json",
-   "plugin": [
-      "/path/to/agentuity/sdk/packages/opencode"
-   ]
+	"$schema": "https://opencode.ai/config.json",
+	"plugin": ["/path/to/agentuity/sdk/packages/opencode"],
 }
 ```
 

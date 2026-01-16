@@ -18,7 +18,10 @@ import { resolveOrgId, isOrgScope } from './org-util';
 const EnvSetResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	key: z.string().describe('Environment variable key'),
-	path: z.string().optional().describe('Local file path where env var was saved (project scope only)'),
+	path: z
+		.string()
+		.optional()
+		.describe('Local file path where env var was saved (project scope only)'),
 	secret: z.boolean().describe('Whether the value was stored as a secret'),
 	scope: z.enum(['project', 'org']).describe('The scope where the variable was set'),
 });
@@ -58,7 +61,9 @@ export const setSubcommand = createSubcommand({
 			org: z
 				.union([z.boolean(), z.string()])
 				.optional()
-				.describe('set at organization level (use --org for default org, or --org <orgId> for specific org)'),
+				.describe(
+					'set at organization level (use --org for default org, or --org <orgId> for specific org)'
+				),
 		}),
 		response: EnvSetResponseSchema,
 	},
@@ -69,7 +74,9 @@ export const setSubcommand = createSubcommand({
 
 		// Require project context if not using org scope
 		if (!useOrgScope && !project) {
-			tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
+			tui.fatal(
+				'Project context required. Run from a project directory or use --org for organization scope.'
+			);
 		}
 
 		let isSecret = opts?.secret ?? false;

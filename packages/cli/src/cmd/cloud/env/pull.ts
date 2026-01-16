@@ -61,16 +61,21 @@ export const pullSubcommand = createSubcommand({
 			// Organization scope
 			const orgId = await resolveOrgId(apiClient, config, opts!.org!);
 
-			const orgData = await tui.spinner('Pulling environment variables from organization', () => {
-				return orgEnvGet(apiClient, { id: orgId, mask: false });
-			});
+			const orgData = await tui.spinner(
+				'Pulling environment variables from organization',
+				() => {
+					return orgEnvGet(apiClient, { id: orgId, mask: false });
+				}
+			);
 
 			cloudEnv = { ...orgData.env, ...orgData.secrets };
 			scope = 'org';
 		} else {
 			// Project scope
 			if (!project) {
-				tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
+				tui.fatal(
+					'Project context required. Run from a project directory or use --org for organization scope.'
+				);
 			}
 
 			const projectData = await tui.spinner('Pulling environment variables from cloud', () => {

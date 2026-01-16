@@ -62,7 +62,6 @@ export const ConfigSchema = zod.object({
 		})
 		.optional()
 		.describe('the gravity client information'),
-
 });
 
 export type Config = zod.infer<typeof ConfigSchema>;

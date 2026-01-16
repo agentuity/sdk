@@ -9,6 +9,7 @@ import { sshSubcommand } from './ssh';
 import { scpSubcommand } from './scp';
 import { deploymentCommand } from './deployment';
 import keyvalueCommand from './keyvalue';
+import queueCommand from './queue';
 import { agentCommand } from './agent';
 import envCommand from './env';
 import apikeyCommand from './apikey';
@@ -30,6 +31,7 @@ export const command = createCommand({
 	subcommands: [
 		apikeyCommand,
 		keyvalueCommand,
+		queueCommand,
 		agentCommand,
 		streamCommand,
 		vectorCommand,

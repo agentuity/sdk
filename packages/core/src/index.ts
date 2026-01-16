@@ -65,6 +65,15 @@ export {
 	VectorStorageService,
 } from './services/vector';
 export {
+	type QueueService,
+	type QueuePublishParams,
+	type QueuePublishResult,
+	QueueStorageService,
+	QueuePublishError,
+	QueueNotFoundError,
+	QueueValidationError,
+} from './services/queue';
+export {
 	type EvalRunEventProvider,
 	EvalRunStartEventSchema,
 	EvalRunCompleteEventSchema,

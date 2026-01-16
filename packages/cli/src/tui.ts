@@ -834,7 +834,9 @@ export function showLoggedOutMessage(appBaseUrl: string, hasProfile = false): vo
 	// Box format: "║ " + content + "║" = 48 chars total
 	// Content area = 46 chars, with leading space = 45 chars for URL + padding
 	const urlPadding = Math.max(0, 45 - signupURL.length);
-	const showNewLine = showInline ? '' : `║ ${RESET}${link(signupURL)}${YELLOW}${' '.repeat(urlPadding)}║`;
+	const showNewLine = showInline
+		? ''
+		: `║ ${RESET}${link(signupURL)}${YELLOW}${' '.repeat(urlPadding)}║`;
 
 	const lines = [
 		'╔══════════════════════════════════════════════╗',

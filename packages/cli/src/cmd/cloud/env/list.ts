@@ -23,7 +23,10 @@ export const listSubcommand = createSubcommand({
 		{ command: getCommand('env list --no-mask'), description: 'Show unmasked values' },
 		{ command: getCommand('env list --secrets'), description: 'List only secrets' },
 		{ command: getCommand('env list --env-only'), description: 'List only env vars' },
-		{ command: getCommand('env list --org'), description: 'List only organization-level variables' },
+		{
+			command: getCommand('env list --org'),
+			description: 'List only organization-level variables',
+		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
@@ -48,7 +51,9 @@ export const listSubcommand = createSubcommand({
 		if (ctx.opts?.org) {
 			return `/settings/organization/env`;
 		}
-		return ctx.project ? `/projects/${encodeURIComponent(ctx.project.projectId)}/settings` : undefined;
+		return ctx.project
+			? `/projects/${encodeURIComponent(ctx.project.projectId)}/settings`
+			: undefined;
 	},
 
 	async handler(ctx) {
@@ -56,7 +61,8 @@ export const listSubcommand = createSubcommand({
 		const useOrgScope = isOrgScope(opts?.org);
 
 		// Build combined result with type info and scope
-		const result: Record<string, { value: string; secret: boolean; scope: 'project' | 'org' }> = {};
+		const result: Record<string, { value: string; secret: boolean; scope: 'project' | 'org' }> =
+			{};
 
 		// Filter based on options
 		const showEnv = !opts?.secrets;
@@ -132,7 +138,9 @@ export const listSubcommand = createSubcommand({
 				}
 			}
 		} else {
-			tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
+			tui.fatal(
+				'Project context required. Run from a project directory or use --org for organization scope.'
+			);
 		}
 
 		// Skip TUI output in JSON mode
@@ -142,10 +150,10 @@ export const listSubcommand = createSubcommand({
 			} else {
 				tui.newline();
 
-				const projectCount = Object.values(result).filter(v => v.scope === 'project').length;
-				const orgCount = Object.values(result).filter(v => v.scope === 'org').length;
-				const secretCount = Object.values(result).filter(v => v.secret).length;
-				const envCount = Object.values(result).filter(v => !v.secret).length;
+				const projectCount = Object.values(result).filter((v) => v.scope === 'project').length;
+				const orgCount = Object.values(result).filter((v) => v.scope === 'org').length;
+				const secretCount = Object.values(result).filter((v) => v.secret).length;
+				const envCount = Object.values(result).filter((v) => !v.secret).length;
 
 				const parts: string[] = [];
 				if (envCount > 0) parts.push(`${envCount} env`);
@@ -165,7 +173,9 @@ export const listSubcommand = createSubcommand({
 					const displayValue = shouldMask && secret ? tui.maskSecret(value) : value;
 					const typeIndicator = secret ? ' [secret]' : '';
 					const scopeIndicator = !useOrgScope ? ` [${scope}]` : '';
-					console.log(`${tui.bold(key)}=${displayValue}${tui.muted(typeIndicator + scopeIndicator)}`);
+					console.log(
+						`${tui.bold(key)}=${displayValue}${tui.muted(typeIndicator + scopeIndicator)}`
+					);
 				}
 			}
 		}
