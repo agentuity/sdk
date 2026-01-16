@@ -75,8 +75,19 @@ async function getPackages(): Promise<PackageInfo[]> {
 	return packages;
 }
 
+function getTarballUrl(version: string, packageDir: string): string {
+	const npmBaseUrl = `https://agentuity-sdk-objects.t3.storage.dev/npm/${version}`;
+	return `${npmBaseUrl}/agentuity-${packageDir}-${version}.tgz`;
+}
+
 async function updatePackageVersions(version: string, packages: PackageInfo[]) {
 	console.log(`\n📦 Updating package versions to ${version}...\n`);
+
+	// Build a map of package name to tarball URL for workspace dependency resolution
+	const packageUrlMap = new Map<string, string>();
+	for (const pkg of packages) {
+		packageUrlMap.set(pkg.name, getTarballUrl(version, pkg.dir));
+	}
 
 	const rootPkgPath = join(rootDir, 'package.json');
 	const rootPkg = await readJSON(rootPkgPath);
@@ -94,7 +105,9 @@ async function updatePackageVersions(version: string, packages: PackageInfo[]) {
 			if (pkgJson[depType]) {
 				for (const [dep, depVersion] of Object.entries(pkgJson[depType])) {
 					if (depVersion === 'workspace:*') {
-						pkgJson[depType][dep] = version;
+						// Use tarball URL if this is an internal package, otherwise use version
+						const tarballUrl = packageUrlMap.get(dep);
+						pkgJson[depType][dep] = tarballUrl ?? version;
 					}
 				}
 			}
