@@ -49,14 +49,14 @@ const listDlqSubcommand = createSubcommand({
 	},
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, opts, options } = ctx;
 		const client = await createQueueAPIClient(ctx);
 		const result = await listDeadLetterMessages(
 			client,
 			args.queue_name,
 			{
-				limit: options.limit,
-				offset: options.offset,
+				limit: opts.limit,
+				offset: opts.offset,
 			},
 			getQueueApiOptions(ctx)
 		);
