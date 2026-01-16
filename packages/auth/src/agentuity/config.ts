@@ -162,14 +162,25 @@ function parseOriginLike(value: string): string | undefined {
  * 2. `AGENTUITY_CLOUD_BASE_URL` env var (Agentuity platform-injected for cloud deployments)
  * 3. `AGENTUITY_BASE_URL` env var (Agentuity platform-injected, legacy fallback)
  * 4. `BETTER_AUTH_URL` env var (BetterAuth standard, for 3rd party SDK compatibility)
+ *
+ * Empty or whitespace-only values are treated as missing and skipped.
  */
 function resolveBaseURL(explicitBaseURL?: string): string | undefined {
-	return (
-		explicitBaseURL ??
-		process.env.AGENTUITY_CLOUD_BASE_URL ??
-		process.env.AGENTUITY_BASE_URL ??
-		process.env.BETTER_AUTH_URL
-	);
+	const candidates = [
+		explicitBaseURL,
+		process.env.AGENTUITY_CLOUD_BASE_URL,
+		process.env.AGENTUITY_BASE_URL,
+		process.env.BETTER_AUTH_URL,
+	];
+
+	for (const candidate of candidates) {
+		const trimmed = candidate?.trim();
+		if (trimmed) {
+			return trimmed;
+		}
+	}
+
+	return undefined;
 }
 
 /**
