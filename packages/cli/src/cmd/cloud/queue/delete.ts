@@ -19,7 +19,7 @@ export const deleteSubcommand = createCommand({
 	requires: { auth: true, org: true },
 	examples: [
 		{
-			command: getCommand('cloud queue delete my-queue --yes'),
+			command: getCommand('cloud queue delete my-queue --confirm'),
 			description: 'Delete a queue (requires confirmation)',
 		},
 	],

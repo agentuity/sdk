@@ -93,7 +93,10 @@ export const messagesSubcommand = createCommand({
 	schema: {
 		args: z.object({
 			queue_name: z.string().min(1).describe('Queue name'),
-			message_id: z.string().optional().describe('Message ID (optional, to get a specific message)'),
+			message_id: z
+				.string()
+				.optional()
+				.describe('Message ID (optional, to get a specific message)'),
 		}),
 		options: z.object({
 			limit: z.number().optional().describe('Maximum number of messages to return'),

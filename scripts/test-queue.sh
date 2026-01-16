@@ -142,7 +142,6 @@ info "Test: queue publish simple message"
 PUBLISH_OUTPUT=$($CLI cloud queue publish "$QUEUE_NAME" '{"task":"test1"}' --json 2>&1) || true
 if echo "$PUBLISH_OUTPUT" | grep -q '"id".*"msg_'; then
 	pass "queue publish returns message ID"
-	MESSAGE_ID=$(echo "$PUBLISH_OUTPUT" | grep -o '"id":"msg_[^"]*"' | sed 's/"id":"//;s/"$//')
 else
 	fail "queue publish did not return message ID" "$PUBLISH_OUTPUT"
 fi

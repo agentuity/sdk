@@ -157,11 +157,12 @@ export function validatePayload(payload: string): void {
 			field: 'payload',
 		});
 	}
-	if (payload.length > MAX_PAYLOAD_SIZE) {
+	const payloadBytes = new TextEncoder().encode(payload).length;
+	if (payloadBytes > MAX_PAYLOAD_SIZE) {
 		throw new QueueValidationError({
-			message: `Payload size exceeds ${MAX_PAYLOAD_SIZE} byte limit (${payload.length} bytes)`,
+			message: `Payload size exceeds ${MAX_PAYLOAD_SIZE} byte limit (${payloadBytes} bytes)`,
 			field: 'payload',
-			value: payload.length,
+			value: payloadBytes,
 		});
 	}
 }

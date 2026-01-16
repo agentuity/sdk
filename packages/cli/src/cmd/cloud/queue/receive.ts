@@ -28,6 +28,8 @@ export const receiveSubcommand = createCommand({
 	schema: {
 		args: z.object({
 			queue_name: z.string().min(1).describe('Queue name'),
+		}),
+		options: z.object({
 			timeout: z.coerce
 				.number()
 				.default(30)
@@ -39,12 +41,12 @@ export const receiveSubcommand = createCommand({
 	idempotent: true,
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { args, options, opts } = ctx;
 		const client = await createQueueAPIClient(ctx);
 		const message = await receiveMessage(
 			client,
 			args.queue_name,
-			args.timeout,
+			opts.timeout,
 			getQueueApiOptions(ctx)
 		);
 

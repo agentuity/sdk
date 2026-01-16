@@ -29,7 +29,8 @@ export const listSubcommand = createCommand({
 		{ command: getCommand('cloud queue ls'), description: 'List all queues (alias)' },
 	],
 	schema: {
-		args: z.object({
+		args: z.object({}),
+		options: z.object({
 			limit: z.coerce.number().optional().describe('Maximum number of queues to return'),
 			offset: z.coerce.number().optional().describe('Offset for pagination'),
 		}),
@@ -38,13 +39,13 @@ export const listSubcommand = createCommand({
 	idempotent: true,
 
 	async handler(ctx) {
-		const { args, options } = ctx;
+		const { options, opts } = ctx;
 		const client = await createQueueAPIClient(ctx);
 		const result = await listQueues(
 			client,
 			{
-				limit: args.limit,
-				offset: args.offset,
+				limit: opts.limit,
+				offset: opts.offset,
 			},
 			getQueueApiOptions(ctx)
 		);

@@ -16,7 +16,9 @@ import { QueueError, QueueNotFoundError, queueApiPathWithQuery, buildQueueHeader
 import { validateQueueName } from './validation';
 
 const OrgAnalyticsResponseSchema = APIResponseSchema(z.object({ analytics: OrgAnalyticsSchema }));
-const QueueAnalyticsResponseSchema = APIResponseSchema(z.object({ analytics: QueueAnalyticsSchema }));
+const QueueAnalyticsResponseSchema = APIResponseSchema(
+	z.object({ analytics: QueueAnalyticsSchema })
+);
 const TimeSeriesResponseSchema = APIResponseSchema(z.object({ timeseries: TimeSeriesDataSchema }));
 
 /**
@@ -24,14 +26,14 @@ const TimeSeriesResponseSchema = APIResponseSchema(z.object({ timeseries: TimeSe
  */
 function buildAnalyticsQuery(options?: AnalyticsOptions): string | undefined {
 	if (!options) return undefined;
-	
+
 	const params = new URLSearchParams();
 	if (options.start) params.set('start', options.start);
 	if (options.end) params.set('end', options.end);
 	if (options.granularity) params.set('granularity', options.granularity);
 	if (options.projectId) params.set('project_id', options.projectId);
 	if (options.agentId) params.set('agent_id', options.agentId);
-	
+
 	const query = params.toString();
 	return query || undefined;
 }
@@ -211,9 +213,9 @@ export async function* streamOrgAnalytics(
 	const params = new URLSearchParams();
 	if (options?.interval) params.set('interval', String(options.interval));
 	const queryString = params.toString() || undefined;
-	
+
 	const url = queueApiPathWithQuery('analytics/stream', queryString);
-	
+
 	yield* streamSSE(client, url, options?.orgId);
 }
 
@@ -241,13 +243,13 @@ export async function* streamQueueAnalytics(
 	options?: StreamAnalyticsOptions
 ): AsyncGenerator<SSEStatsEvent, void, unknown> {
 	validateQueueName(name);
-	
+
 	const params = new URLSearchParams();
 	if (options?.interval) params.set('interval', String(options.interval));
 	const queryString = params.toString() || undefined;
-	
+
 	const url = queueApiPathWithQuery('analytics/stream', queryString, name);
-	
+
 	yield* streamSSE(client, url, options?.orgId);
 }
 

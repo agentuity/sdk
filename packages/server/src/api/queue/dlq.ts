@@ -261,6 +261,13 @@ export async function deleteDeadLetterMessage(
 		return;
 	}
 
+	if (resp.message?.includes('queue') && resp.message?.includes('not found')) {
+		throw new QueueNotFoundError({
+			queueName,
+			message: resp.message,
+		});
+	}
+
 	if (resp.message?.includes('message') && resp.message?.includes('not found')) {
 		throw new MessageNotFoundError({
 			queueName,
