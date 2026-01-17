@@ -16,7 +16,10 @@ import { resolveOrgId, isOrgScope } from './org-util';
 const EnvDeleteResponseSchema = z.object({
 	success: z.boolean().describe('Whether the operation succeeded'),
 	key: z.string().describe('Variable key that was deleted'),
-	path: z.string().optional().describe('Local file path where variable was removed (project scope only)'),
+	path: z
+		.string()
+		.optional()
+		.describe('Local file path where variable was removed (project scope only)'),
 	secret: z.boolean().describe('Whether a secret was deleted'),
 	scope: z.enum(['project', 'org']).describe('The scope from which the variable was deleted'),
 });
@@ -30,7 +33,10 @@ export const deleteSubcommand = createSubcommand({
 	examples: [
 		{ command: getCommand('env delete OLD_FEATURE_FLAG'), description: 'Delete variable' },
 		{ command: getCommand('env rm API_KEY'), description: 'Delete a secret' },
-		{ command: getCommand('env rm OPENAI_API_KEY --org'), description: 'Delete org-level secret' },
+		{
+			command: getCommand('env rm OPENAI_API_KEY --org'),
+			description: 'Delete org-level secret',
+		},
 	],
 	requires: { auth: true, apiClient: true },
 	optional: { project: true },
@@ -42,7 +48,9 @@ export const deleteSubcommand = createSubcommand({
 			org: z
 				.union([z.boolean(), z.string()])
 				.optional()
-				.describe('delete from organization level (use --org for default org, or --org <orgId> for specific org)'),
+				.describe(
+					'delete from organization level (use --org for default org, or --org <orgId> for specific org)'
+				),
 		}),
 		response: EnvDeleteResponseSchema,
 	},
@@ -53,7 +61,9 @@ export const deleteSubcommand = createSubcommand({
 
 		// Require project context if not using org scope
 		if (!useOrgScope && !project) {
-			tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
+			tui.fatal(
+				'Project context required. Run from a project directory or use --org for organization scope.'
+			);
 		}
 
 		// Validate key doesn't start with reserved AGENTUITY_ prefix (except AGENTUITY_PUBLIC_)
@@ -76,7 +86,10 @@ export const deleteSubcommand = createSubcommand({
 			const isEnv = orgData.env?.[args.key] !== undefined;
 
 			if (!isSecret && !isEnv) {
-				tui.fatal(`Variable '${args.key}' not found in organization`, ErrorCode.RESOURCE_NOT_FOUND);
+				tui.fatal(
+					`Variable '${args.key}' not found in organization`,
+					ErrorCode.RESOURCE_NOT_FOUND
+				);
 			}
 
 			// Delete from cloud

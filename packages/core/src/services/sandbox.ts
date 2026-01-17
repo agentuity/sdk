@@ -508,6 +508,11 @@ export interface SandboxInfo {
 	runtimeIconUrl?: string;
 
 	/**
+	 * Runtime brand color (hex color code)
+	 */
+	runtimeBrandColor?: string;
+
+	/**
 	 * Snapshot ID this sandbox was created from
 	 */
 	snapshotId?: string;

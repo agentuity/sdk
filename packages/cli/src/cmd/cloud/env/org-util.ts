@@ -5,7 +5,7 @@ import { listOrganizations } from '@agentuity/server';
 
 /**
  * Resolves the organization ID for org-scoped env operations.
- * 
+ *
  * @param apiClient - The API client
  * @param config - The CLI config (may be null)
  * @param orgOption - The --org option value (true for default/prompt, or explicit org ID)

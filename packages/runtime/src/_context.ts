@@ -7,6 +7,7 @@ import {
 	type StreamStorage,
 	type VectorStorage,
 	type SandboxService,
+	type QueueService,
 } from '@agentuity/core';
 import type { AuthInterface } from '@agentuity/auth';
 import type {
@@ -54,6 +55,7 @@ export class RequestAgentContext<
 	stream!: StreamStorage;
 	vector!: VectorStorage;
 	sandbox!: SandboxService;
+	queue!: QueueService;
 	state: Map<string, unknown>;
 	session: Session;
 	thread: Thread;

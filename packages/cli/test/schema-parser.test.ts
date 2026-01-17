@@ -6,10 +6,7 @@ describe('parseOptionsSchema', () => {
 	describe('optionalString type detection', () => {
 		test('detects z.union([z.boolean(), z.string()]) as optionalString', () => {
 			const schema = z.object({
-				org: z
-					.union([z.boolean(), z.string()])
-					.optional()
-					.describe('organization flag'),
+				org: z.union([z.boolean(), z.string()]).optional().describe('organization flag'),
 			});
 
 			const parsed = parseOptionsSchema(schema);

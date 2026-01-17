@@ -5,6 +5,7 @@ import type {
 	StreamStorage,
 	VectorStorage,
 	SandboxService,
+	QueueService,
 	Logger,
 } from '@agentuity/core';
 import type {
@@ -189,6 +190,7 @@ export class StandaloneAgentContext<
 	stream!: StreamStorage;
 	vector!: VectorStorage;
 	sandbox!: SandboxService;
+	queue!: QueueService;
 	config: TConfig;
 	app: TAppState;
 	current!: AgentMetadata;
