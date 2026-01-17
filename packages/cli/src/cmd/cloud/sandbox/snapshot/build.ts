@@ -684,7 +684,8 @@ export const buildSubcommand = createCommand({
 				mergedGitInfo.branch ||
 				mergedGitInfo.commit ||
 				mergedGitInfo.repo ||
-				mergedGitInfo.provider;
+				mergedGitInfo.provider ||
+				mergedGitInfo.commitUrl;
 			const gitInfo: SnapshotBuildGitInfo | undefined = hasGitInfo
 				? {
 						branch: mergedGitInfo.branch,
