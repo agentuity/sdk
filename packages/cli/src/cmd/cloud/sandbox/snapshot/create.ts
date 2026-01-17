@@ -96,16 +96,24 @@ export const createSubcommand = createCommand({
 		});
 
 		if (!options.json) {
-			tui.success(`created snapshot ${tui.bold(snapshot.snapshotId)}`);
-			tui.info(`Name: ${snapshot.name}`);
-			if (snapshot.description) {
-				tui.info(`Description: ${snapshot.description}`);
-			}
-			tui.info(`Size: ${tui.formatBytes(snapshot.sizeBytes)}, Files: ${snapshot.fileCount}`);
-			tui.info(`Tag: ${snapshot.tag ?? 'latest'}`);
-			if (snapshot.public) {
-				tui.info(`Visibility: ${tui.bold('public')}`);
-			}
+			tui.success(`Created snapshot ${tui.bold(snapshot.snapshotId)}`);
+			console.log('');
+
+			tui.table(
+				[
+					{
+						Name: snapshot.name,
+						Description: snapshot.description ?? '-',
+						Tag: snapshot.tag ?? 'latest',
+						Size: tui.formatBytes(snapshot.sizeBytes),
+						Files: snapshot.fileCount.toFixed(),
+						Visibility: snapshot.public ? 'public' : 'private',
+						Created: snapshot.createdAt,
+					},
+				],
+				['Name', 'Description', 'Tag', 'Size', 'Files', 'Visibility', 'Created'],
+				{ layout: 'vertical', padStart: '  ' }
+			);
 		}
 
 		return {
