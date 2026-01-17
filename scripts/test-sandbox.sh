@@ -1248,7 +1248,7 @@ pass "Malware test files created (EICAR test file)"
 # Test: Public snapshot with malware is rejected (TUI output)
 info "Test: snapshot build --public rejects malware"
 set +e
-MALWARE_BUILD=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force 2>&1)
+MALWARE_BUILD=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --confirm 2>&1)
 MALWARE_EXIT=$?
 set -e
 if echo "$MALWARE_BUILD" | grep -qi "malware detected"; then
@@ -1274,7 +1274,7 @@ fi
 # Test: Public snapshot with malware is rejected (JSON output)
 info "Test: snapshot build --public --json malware detection"
 set +e
-MALWARE_JSON=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --json 2>&1)
+MALWARE_JSON=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --confirm --json 2>&1)
 MALWARE_JSON_EXIT=$?
 set -e
 
