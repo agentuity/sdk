@@ -45,7 +45,7 @@ export { maskSecret };
 // Export new TUI components
 export { createPrompt, PromptFlow } from './tui/prompt';
 export { group } from './tui/group';
-export { note, drawBox } from './tui/box';
+export { note, drawBox, errorBox } from './tui/box';
 export { symbols } from './tui/symbols';
 export { colors as tuiColors } from './tui/colors';
 export type {
@@ -1059,6 +1059,11 @@ export interface SimpleSpinnerOptions<T> {
 	 * Defaults to false
 	 */
 	clearOnSuccess?: boolean;
+	/**
+	 * If true, suppress the error message display on failure (for custom error handling)
+	 * Defaults to false
+	 */
+	clearOnError?: boolean;
 }
 
 /**
@@ -1073,6 +1078,11 @@ export interface ProgressSpinnerOptions<T> {
 	 * Defaults to false
 	 */
 	clearOnSuccess?: boolean;
+	/**
+	 * If true, suppress the error message display on failure (for custom error handling)
+	 * Defaults to false
+	 */
+	clearOnError?: boolean;
 }
 
 /**
@@ -1198,8 +1208,12 @@ export async function spinner<T>(
 
 			return result;
 		} catch (err) {
-			const errorColor = getColor('error');
-			console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
+			const clearOnError =
+				(options.type === 'progress' || options.type === 'simple') && options.clearOnError;
+			if (!clearOnError) {
+				const errorColor = getColor('error');
+				console.error(`${errorColor}${ICONS.error} ${message}${reset}`);
+			}
 			throw err;
 		}
 	}
@@ -1428,10 +1442,14 @@ export async function spinner<T>(
 		}
 		process.stderr.write('\x1B[?25h'); // Show cursor
 
-		// Show error
-		const errorColor = getColor('error');
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		console.error(`${errorColor}${ICONS.error} ${message}: ${errorMessage}${reset}`);
+		// Show error (unless clearOnError is set for custom error handling)
+		const clearOnError =
+			(options.type === 'progress' || options.type === 'simple') && options.clearOnError;
+		if (!clearOnError) {
+			const errorColor = getColor('error');
+			const errorMessage = err instanceof Error ? err.message : String(err);
+			console.error(`${errorColor}${ICONS.error} ${message}: ${errorMessage}${reset}`);
+		}
 
 		throw err;
 	}

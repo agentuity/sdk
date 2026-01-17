@@ -1271,11 +1271,14 @@ export interface SandboxFileInfo {
 
 export interface SnapshotInfo {
 	snapshotId: string;
+	name?: string;
 	tag?: string | null;
 	sizeBytes: number;
 	fileCount: number;
 	createdAt: string;
 	parentSnapshotId?: string | null;
+	public?: boolean;
+	orgName?: string;
 	downloadUrl?: string;
 	sandboxId?: string; // Present in list context
 	files?: Array<{ path: string; size: number }>; // Present in get response

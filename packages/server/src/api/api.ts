@@ -233,6 +233,20 @@ export class APIClient {
 	}
 
 	/**
+	 * Raw PUT request that returns the Response object directly.
+	 * Useful for binary uploads where you need to pass raw body data.
+	 */
+	async rawPut(
+		endpoint: string,
+		body: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array> | string | Blob,
+		contentType: string,
+		signal?: AbortSignal,
+		extraHeaders?: Record<string, string>
+	): Promise<Response> {
+		return this.#makeRequest('PUT', endpoint, body, signal, contentType, extraHeaders);
+	}
+
+	/**
 	 * Generic request method (prefer HTTP verb methods: get, post, put, delete, patch)
 	 */
 	async request<TResponse = void, TBody = unknown>(
@@ -353,6 +367,7 @@ export class APIClient {
 						| ArrayBuffer
 						| ReadableStream<Uint8Array>
 						| string
+						| Blob
 						| undefined;
 					if (body !== undefined) {
 						if (contentType && contentType !== 'application/json') {
@@ -360,7 +375,8 @@ export class APIClient {
 								| Uint8Array
 								| ArrayBuffer
 								| ReadableStream<Uint8Array>
-								| string;
+								| string
+								| Blob;
 						} else {
 							requestBody = JSON.stringify(body);
 						}

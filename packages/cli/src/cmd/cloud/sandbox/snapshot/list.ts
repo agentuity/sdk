@@ -13,6 +13,8 @@ const SnapshotInfoSchema = z.object({
 	sizeBytes: z.number(),
 	fileCount: z.number(),
 	parentSnapshotId: z.string().nullable().optional(),
+	public: z.boolean().optional(),
+	orgName: z.string().optional(),
 	createdAt: z.string(),
 });
 

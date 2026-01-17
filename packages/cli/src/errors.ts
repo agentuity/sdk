@@ -14,6 +14,7 @@ export enum ExitCode {
 	FILE_ERROR = 7,
 	USER_CANCELLED = 8,
 	BUILD_FAILED = 9,
+	SECURITY_ERROR = 10,
 }
 
 /**
@@ -75,6 +76,9 @@ export enum ErrorCode {
 
 	// Integration errors
 	INTEGRATION_FAILED = 'INTEGRATION_FAILED',
+
+	// Security errors
+	MALWARE_DETECTED = 'MALWARE_DETECTED',
 }
 
 /**
@@ -135,6 +139,10 @@ export function getExitCode(errorCode: ErrorCode): ExitCode {
 		// Integration errors
 		case ErrorCode.INTEGRATION_FAILED:
 			return ExitCode.NETWORK_ERROR;
+
+		// Security errors
+		case ErrorCode.MALWARE_DETECTED:
+			return ExitCode.SECURITY_ERROR;
 
 		// Resource conflicts and other errors
 		case ErrorCode.RESOURCE_ALREADY_EXISTS:

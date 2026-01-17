@@ -21,7 +21,12 @@ export type {
 } from './execution';
 export { SandboxResponseError, writeAndDrain } from './util';
 export { SandboxClient } from './client';
-export type { SandboxClientOptions, SandboxClientRunIO, SandboxInstance, ExecuteOptions } from './client';
+export type {
+	SandboxClientOptions,
+	SandboxClientRunIO,
+	SandboxInstance,
+	ExecuteOptions,
+} from './client';
 export {
 	sandboxWriteFiles,
 	sandboxReadFile,
@@ -57,6 +62,7 @@ export {
 	snapshotTag,
 	snapshotBuildInit,
 	snapshotBuildFinalize,
+	snapshotUpload,
 } from './snapshot';
 export type {
 	SnapshotInfo,
@@ -70,6 +76,8 @@ export type {
 	SnapshotBuildInitParams,
 	SnapshotBuildInitResponse,
 	SnapshotBuildFinalizeParams,
+	SnapshotUploadParams,
+	SnapshotUploadResponse,
 } from './snapshot';
 export { SnapshotBuildFileSchema } from './snapshot-build';
 export type { SnapshotBuildFile } from './snapshot-build';

@@ -5,10 +5,12 @@ import { YAML } from 'bun';
 import * as tar from 'tar';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
+import { ErrorCode } from '../../../../errors';
 import { getCommand } from '../../../../command-prefix';
 import {
 	snapshotBuildInit,
 	snapshotBuildFinalize,
+	snapshotUpload,
 	SnapshotBuildFileSchema,
 } from '@agentuity/server';
 import type { SnapshotFileInfo } from '@agentuity/server';
@@ -35,7 +37,12 @@ const SnapshotBuildResponseSchema = z.object({
 		.record(z.string(), z.string())
 		.optional()
 		.describe('User-defined metadata key-value pairs'),
+	error: z.string().optional().describe('Error message if build failed'),
+	malwareDetected: z.boolean().optional().describe('True if malware was detected'),
+	virusName: z.string().optional().describe('Name of detected virus'),
 });
+
+const MALWARE_REGEX = /malware detected \(([^)]+)\)/i;
 
 interface FileEntry {
 	path: string;
@@ -229,6 +236,33 @@ async function createTarGzArchive(
 	);
 }
 
+function createProgressStream(
+	file: ReturnType<typeof Bun.file>,
+	totalSize: number,
+	onProgress: (percent: number) => void
+): ReadableStream<Uint8Array> {
+	let bytesRead = 0;
+	const reader = file.stream().getReader();
+
+	return new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			const { done, value } = await reader.read();
+			if (done) {
+				controller.close();
+				onProgress(100);
+				return;
+			}
+			bytesRead += value.byteLength;
+			const percent = Math.min(99, Math.floor((bytesRead / totalSize) * 100));
+			onProgress(percent);
+			controller.enqueue(value);
+		},
+		cancel() {
+			reader.cancel();
+		},
+	});
+}
+
 async function generateContentHash(params: {
 	runtime: string;
 	description?: string;
@@ -315,7 +349,10 @@ export const buildSubcommand = createCommand({
 			description: z.string().optional().describe('Snapshot description (overrides build file)'),
 			metadata: z.array(z.string()).optional().describe('Metadata key-value pairs (KEY=VALUE)'),
 			force: z.boolean().optional().describe('Force rebuild even if content is unchanged'),
-			public: z.boolean().optional().describe('Make the snapshot publicly accessible'),
+			public: z
+				.boolean()
+				.optional()
+				.describe('Make snapshot public (enables virus scanning, no encryption)'),
 		}),
 		response: SnapshotBuildResponseSchema,
 	},
@@ -566,6 +603,8 @@ export const buildSubcommand = createCommand({
 
 			const client = getCatalystAPIClient(logger, auth, region);
 
+			const isPublic = opts.public === true;
+
 			const initResult = await tui.spinner({
 				message: 'Initializing snapshot build...',
 				clearOnSuccess: true,
@@ -577,8 +616,8 @@ export const buildSubcommand = createCommand({
 						description: finalDescription,
 						contentHash,
 						force: opts.force,
-						encrypt: true,
-						public: opts.public ?? buildConfig.public ?? false,
+						encrypt: !isPublic,
+						public: isPublic,
 						orgId,
 					});
 				},
@@ -613,7 +652,7 @@ export const buildSubcommand = createCommand({
 				};
 			}
 
-			// Encrypt the archive if public key is provided
+			// Encrypt the archive if public key is provided (private snapshots only)
 			let uploadPath = archivePath;
 			let uploadSize = archiveSize;
 
@@ -648,28 +687,93 @@ export const buildSubcommand = createCommand({
 				uploadSize = Bun.file(encryptedPath).size;
 			}
 
-			await tui.spinner({
-				message: 'Uploading snapshot...',
-				type: 'progress',
-				clearOnSuccess: true,
-				callback: async (updateProgress) => {
-					const uploadFile = Bun.file(uploadPath);
-					const response = await fetch(initResult.uploadUrl!, {
-						method: 'PUT',
-						headers: {
-							'Content-Type': 'application/gzip',
-							'Content-Length': String(uploadSize),
-						},
-						body: uploadFile,
-					});
+			if (initResult.uploadUrl) {
+				// Private snapshot: upload directly to S3
+				// Use Bun.file() directly as body - Bun sets Content-Length automatically from file size
+				await tui.spinner({
+					message: 'Uploading snapshot...',
+					clearOnSuccess: true,
+					callback: async () => {
+						const uploadFile = Bun.file(uploadPath);
+						const response = await fetch(initResult.uploadUrl!, {
+							method: 'PUT',
+							headers: {
+								'Content-Type': 'application/gzip',
+							},
+							body: uploadFile,
+						});
 
-					if (!response.ok) {
-						throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+						if (!response.ok) {
+							throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+						}
+					},
+				});
+			} else {
+				// Public snapshot: upload via Catalyst (with virus scanning)
+				try {
+					await tui.spinner({
+						message: 'Uploading and scanning snapshot...',
+						type: 'progress',
+						clearOnSuccess: true,
+						clearOnError: true,
+						callback: async (updateProgress) => {
+							const uploadFile = Bun.file(uploadPath);
+							const progressStream = createProgressStream(
+								uploadFile,
+								uploadSize,
+								updateProgress
+							);
+							await snapshotUpload(client, {
+								snapshotId: initResult.snapshotId!,
+								body: progressStream,
+								contentLength: uploadSize,
+								orgId,
+							});
+						},
+					});
+				} catch (err) {
+					const errorMessage = err instanceof Error ? err.message : String(err);
+					const malwareMatch = MALWARE_REGEX.exec(errorMessage);
+
+					if (malwareMatch) {
+						const virusName = malwareMatch[1];
+
+						if (options.json) {
+							console.log(
+								JSON.stringify(
+									{
+										snapshotId: '',
+										name: finalName ?? '',
+										tag: opts.tag,
+										runtime: buildConfig.runtime,
+										sizeBytes: totalSize,
+										fileCount: fileList.length,
+										createdAt: new Date().toISOString(),
+										error: errorMessage,
+										malwareDetected: true,
+										virusName,
+									},
+									null,
+									2
+								)
+							);
+							process.exit(1);
+						}
+
+						console.log('');
+						tui.errorBox(
+							'Malware Detected',
+							`Your snapshot was rejected because it contains malware.\n\nVirus: ${virusName}\n\nPlease remove the infected files and try again.`
+						);
+						tui.fatal(
+							'Snapshot build failed due to malware detection',
+							ErrorCode.MALWARE_DETECTED
+						);
 					}
 
-					updateProgress(100);
-				},
-			});
+					throw err;
+				}
+			}
 
 			const snapshot = await tui.spinner({
 				message: 'Finalizing snapshot...',
