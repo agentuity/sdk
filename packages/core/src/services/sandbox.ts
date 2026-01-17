@@ -528,6 +528,11 @@ export interface SandboxInfo {
 	executions: number;
 
 	/**
+	 * Exit code from the last execution (only available for terminated/failed sandboxes)
+	 */
+	exitCode?: number;
+
+	/**
 	 * URL to the stdout output stream
 	 */
 	stdoutStreamUrl?: string;

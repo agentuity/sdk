@@ -58,6 +58,10 @@ const SandboxInfoDataSchema = z
 		snapshotId: z.string().optional().describe('Snapshot ID this sandbox was created from'),
 		snapshotTag: z.string().optional().describe('Snapshot tag this sandbox was created from'),
 		executions: z.number().describe('Total number of executions in this sandbox'),
+		exitCode: z
+			.number()
+			.optional()
+			.describe('Exit code from the last execution (only for terminated/failed sandboxes)'),
 		stdoutStreamUrl: z.string().optional().describe('URL for streaming stdout output'),
 		stderrStreamUrl: z.string().optional().describe('URL for streaming stderr output'),
 		dependencies: z
@@ -137,6 +141,7 @@ export async function sandboxGet(
 			snapshotId: resp.data.snapshotId,
 			snapshotTag: resp.data.snapshotTag,
 			executions: resp.data.executions,
+			exitCode: resp.data.exitCode,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,
 			stderrStreamUrl: resp.data.stderrStreamUrl,
 			dependencies: resp.data.dependencies,
