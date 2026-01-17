@@ -40,6 +40,10 @@ export const SnapshotBuildFileBaseSchema = z
 			.describe(
 				'User-defined metadata key-value pairs. Use ${VAR} syntax for build-time substitution via --metadata flag'
 			),
+		public: z
+			.boolean()
+			.optional()
+			.describe('Whether to make the snapshot publicly accessible (default: false)'),
 	})
 	.describe('Agentuity Snapshot Build File - defines a reproducible sandbox environment');
 

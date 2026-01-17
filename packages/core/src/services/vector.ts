@@ -261,6 +261,46 @@ export interface VectorNamespaceStatsWithSamples extends VectorNamespaceStats {
 }
 
 /**
+ * Parameters for getting all namespace statistics with optional pagination
+ */
+export interface VectorGetAllStatsParams {
+	/**
+	 * Maximum number of namespaces to return (default: 100, max: 1000)
+	 */
+	limit?: number;
+	/**
+	 * Number of namespaces to skip for pagination (default: 0)
+	 */
+	offset?: number;
+}
+
+/**
+ * Paginated response for vector namespace statistics
+ */
+export interface VectorStatsPaginated {
+	/**
+	 * Map of namespace names to their statistics
+	 */
+	namespaces: Record<string, VectorNamespaceStats>;
+	/**
+	 * Total number of namespaces across all pages
+	 */
+	total: number;
+	/**
+	 * Number of namespaces requested per page
+	 */
+	limit: number;
+	/**
+	 * Number of namespaces skipped
+	 */
+	offset: number;
+	/**
+	 * Whether there are more namespaces available
+	 */
+	hasMore: boolean;
+}
+
+/**
  * Vector storage service for managing vector embeddings and semantic search
  */
 export interface VectorStorage {
@@ -427,24 +467,27 @@ export interface VectorStorage {
 	getStats(name: string): Promise<VectorNamespaceStatsWithSamples>;
 
 	/**
-	 * Get statistics for all namespaces in the organization
+	 * get statistics for all namespaces with optional pagination
 	 *
-	 * @returns map of namespace names to their statistics
+	 * @param params - optional pagination parameters (limit, offset)
+	 * @returns map of namespace names to statistics, or paginated response if params provided
 	 *
-	 * @example
-	 * ```typescript
-	 * const allStats = await vectorStore.getAllStats();
-	 * for (const [name, stats] of Object.entries(allStats)) {
-	 *   console.log(`${name}: ${stats.count} vectors, ${stats.sum} bytes`);
-	 * }
-	 * ```
+	 * @remarks
+	 * - Without params: returns flat map of all namespaces (backward compatible)
+	 * - With params: returns paginated response with total count and hasMore flag
+	 * - Default limit is 100, maximum is 1000
 	 */
-	getAllStats(): Promise<Record<string, VectorNamespaceStats>>;
+	getAllStats(params?: VectorGetAllStatsParams): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated>;
 
 	/**
 	 * Get all namespace names
 	 *
-	 * @returns array of namespace names
+	 * @returns array of namespace names (up to 1000)
+	 *
+	 * @remarks
+	 * This method returns a maximum of 1000 namespace names.
+	 * If you have more than 1000 namespaces, only the first 1000
+	 * (ordered by creation date, most recent first) will be returned.
 	 *
 	 * @example
 	 * ```typescript
@@ -517,8 +560,6 @@ interface VectorDeleteErrorResponse {
 type VectorDeleteResponse = VectorDeleteSuccessResponse | VectorDeleteErrorResponse;
 
 type VectorStatsResponse = VectorNamespaceStatsWithSamples;
-
-type VectorAllStatsResponse = Record<string, VectorNamespaceStats>;
 
 interface VectorDeleteNamespaceSuccessResponse {
 	success: true;
@@ -926,11 +967,19 @@ export class VectorStorageService implements VectorStorage {
 		throw await toServiceException('GET', url, res.response);
 	}
 
-	async getAllStats(): Promise<Record<string, VectorNamespaceStats>> {
-		const url = buildUrl(this.#baseUrl, '/vector/2025-03-17/stats');
+	async getAllStats(params?: VectorGetAllStatsParams): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated> {
+		const queryParams = new URLSearchParams();
+		if (params?.limit !== undefined) {
+			queryParams.set('limit', String(params.limit));
+		}
+		if (params?.offset !== undefined) {
+			queryParams.set('offset', String(params.offset));
+		}
+		const queryString = queryParams.toString();
+		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/stats${queryString ? `?${queryString}` : ''}`);
 		const signal = AbortSignal.timeout(10_000);
 
-		const res = await this.#adapter.invoke<VectorAllStatsResponse>(url, {
+		const res = await this.#adapter.invoke<Record<string, VectorNamespaceStats> | VectorStatsPaginated>(url, {
 			method: 'GET',
 			signal,
 			telemetry: {
@@ -947,8 +996,20 @@ export class VectorStorageService implements VectorStorage {
 	}
 
 	async getNamespaces(): Promise<string[]> {
-		const stats = await this.getAllStats();
-		return Object.keys(stats);
+		const url = buildUrl(this.#baseUrl, '/vector/2025-03-17/namespaces');
+		const signal = AbortSignal.timeout(10_000);
+		const res = await this.#adapter.invoke<string[]>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.vector.getNamespaces',
+				attributes: {},
+			},
+		});
+		if (res.ok) {
+			return res.data;
+		}
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async deleteNamespace(name: string): Promise<void> {

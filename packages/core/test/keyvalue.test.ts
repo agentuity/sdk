@@ -399,4 +399,127 @@ describe('KeyValueStorageService', () => {
 			expect(capturedTelemetry?.attributes?.key).toBe('mykey');
 		});
 	});
+
+	describe('getNamespaces', () => {
+		test('should return array of namespace names', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{ ok: true, data: ['products', 'users', 'sessions'] },
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const namespaces = await service.getNamespaces();
+
+			expect(namespaces).toHaveLength(3);
+			expect(namespaces).toContain('products');
+			expect(namespaces).toContain('users');
+			expect(namespaces).toContain('sessions');
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/namespaces`);
+			expect(calls[0].options.method).toBe('GET');
+		});
+
+		test('should return empty array when no namespaces exist', async () => {
+			const { adapter } = createMockAdapter([{ ok: true, data: [] }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const namespaces = await service.getNamespaces();
+
+			expect(namespaces).toHaveLength(0);
+		});
+
+		test('should throw ServiceException on error', async () => {
+			const { adapter } = createMockAdapter([
+				{ ok: false, status: 500, body: { error: 'Internal Server Error' } },
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			await expect(service.getNamespaces()).rejects.toThrow(ServiceException);
+		});
+	});
+
+	describe('getAllStats with pagination', () => {
+		test('should return flat map without pagination params', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						products: { sum: 1024, count: 10 },
+						users: { sum: 2048, count: 20 },
+					},
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const result = await service.getAllStats();
+
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/stats`);
+			expect(calls[0].url).not.toContain('limit=');
+			expect('namespaces' in result).toBe(false);
+			expect(Object.keys(result)).toContain('products');
+		});
+
+		test('should return paginated response with pagination params', async () => {
+			const { adapter, calls } = createMockAdapter([
+				{
+					ok: true,
+					data: {
+						namespaces: {
+							products: { sum: 1024, count: 10 },
+							users: { sum: 2048, count: 20 },
+						},
+						total: 100,
+						limit: 10,
+						offset: 0,
+						hasMore: true,
+					},
+				},
+			]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			const result = await service.getAllStats({ limit: 10, offset: 0 });
+
+			expect(calls[0].url).toContain('limit=10');
+			expect(calls[0].url).toContain('offset=0');
+			expect('namespaces' in result).toBe(true);
+			if ('namespaces' in result) {
+				expect(result.total).toBe(100);
+				expect(result.hasMore).toBe(true);
+				expect(result.limit).toBe(10);
+				expect(result.offset).toBe(0);
+			}
+		});
+	});
+
+	describe('createNamespace with TTL', () => {
+		test('should create namespace without TTL params', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			await service.createNamespace('mystore');
+
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore`);
+			expect(calls[0].options.method).toBe('POST');
+			expect(calls[0].options.body).toBeUndefined();
+		});
+
+		test('should create namespace with default TTL', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			await service.createNamespace('mystore', { defaultTTLSeconds: 3600 });
+
+			expect(calls[0].url).toBe(`${baseUrl}/kv/2025-03-17/mystore`);
+			expect(calls[0].options.method).toBe('POST');
+			expect(calls[0].options.body).toBe(JSON.stringify({ default_ttl_seconds: 3600 }));
+			expect(calls[0].options.contentType).toBe('application/json');
+		});
+
+		test('should create namespace with no expiration (TTL = 0)', async () => {
+			const { adapter, calls } = createMockAdapter([{ ok: true }]);
+
+			const service = new KeyValueStorageService(baseUrl, adapter);
+			await service.createNamespace('mystore', { defaultTTLSeconds: 0 });
+
+			expect(calls[0].options.body).toBe(JSON.stringify({ default_ttl_seconds: 0 }));
+		});
+	});
 });
