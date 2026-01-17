@@ -556,8 +556,6 @@ type VectorDeleteResponse = VectorDeleteSuccessResponse | VectorDeleteErrorRespo
 
 type VectorStatsResponse = VectorNamespaceStatsWithSamples;
 
-type VectorAllStatsResponse = Record<string, VectorNamespaceStats> | VectorStatsPaginated;
-
 interface VectorDeleteNamespaceSuccessResponse {
 	success: true;
 	data: number;
