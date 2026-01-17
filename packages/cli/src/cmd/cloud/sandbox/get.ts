@@ -113,7 +113,13 @@ export const getSubcommand = createCommand({
 			tableData['Created'] = result.createdAt;
 			if (result.runtime?.name) tableData['Runtime'] = result.runtime.name;
 			if (result.region) tableData['Region'] = result.region;
-			if (result.snapshot?.id) tableData['Snapshot'] = result.snapshot.tag || result.snapshot.id;
+			if (result.snapshot?.id) {
+				const snapshotDisplay =
+					result.snapshot.public && result.snapshot.fullName
+						? result.snapshot.fullName
+						: result.snapshot.tag || result.snapshot.id;
+				tableData['Snapshot'] = snapshotDisplay;
+			}
 			tableData['Executions'] = result.executions;
 			if (streamDisplay) {
 				tableData['Stream'] = streamDisplay;
