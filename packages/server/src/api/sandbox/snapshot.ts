@@ -12,6 +12,22 @@ const SnapshotFileInfoSchema = z
 	})
 	.describe('Information about a file in a snapshot');
 
+const SnapshotOrgInfoSchema = z
+	.object({
+		id: z.string().describe('Organization ID'),
+		name: z.string().describe('Organization name'),
+		slug: z.string().nullable().optional().describe('Organization slug for building full name'),
+	})
+	.describe('Organization information for public snapshots');
+
+const SnapshotUserInfoSchema = z
+	.object({
+		id: z.string().describe('User ID'),
+		firstName: z.string().nullable().optional().describe('User first name'),
+		lastName: z.string().nullable().optional().describe('User last name'),
+	})
+	.describe('User information for private snapshots');
+
 const SnapshotInfoSchema = z
 	.object({
 		snapshotId: z.string().describe('Unique identifier for the snapshot'),
@@ -30,6 +46,7 @@ const SnapshotInfoSchema = z
 			.optional()
 			.describe('Full name with org slug for public snapshots (@slug/name:tag)'),
 		description: z.string().nullable().optional().describe('Description of the snapshot'),
+		message: z.string().nullable().optional().describe('Build message for the snapshot'),
 		tag: z.string().nullable().optional().describe('Tag for the snapshot (defaults to "latest")'),
 		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
 		fileCount: z.number().describe('Number of files in the snapshot'),
@@ -41,6 +58,12 @@ const SnapshotInfoSchema = z
 		public: z.boolean().optional().describe('Whether the snapshot is publicly accessible'),
 		orgName: z.string().optional().describe('Organization name (for public snapshots)'),
 		orgSlug: z.string().optional().describe('Organization slug (for public snapshots)'),
+		org: SnapshotOrgInfoSchema.nullable()
+			.optional()
+			.describe('Organization details (for public snapshots)'),
+		user: SnapshotUserInfoSchema.nullable()
+			.optional()
+			.describe('User who pushed the snapshot (for private snapshots)'),
 		createdAt: z.string().describe('ISO timestamp when the snapshot was created'),
 		downloadUrl: z.string().optional().describe('URL to download the snapshot archive'),
 		files: z
@@ -67,9 +90,50 @@ const SnapshotListDataSchema = z
 const SnapshotListResponseSchema = APIResponseSchema(SnapshotListDataSchema);
 const SnapshotDeleteResponseSchema = APIResponseSchemaNoData();
 
+const SnapshotLineageEntrySchema = z
+	.object({
+		snapshotId: z.string().describe('Unique identifier for the snapshot'),
+		name: z
+			.string()
+			.describe(
+				'Display name for the snapshot (URL-safe: letters, numbers, underscores, dashes)'
+			),
+		fullName: z
+			.string()
+			.optional()
+			.describe('Full name with org slug for public snapshots (@slug/name:tag)'),
+		message: z.string().nullable().optional().describe('Build message for the snapshot'),
+		tag: z.string().nullable().optional().describe('Tag for the snapshot'),
+		parentSnapshotId: z
+			.string()
+			.nullable()
+			.optional()
+			.describe('ID of the parent snapshot in the lineage'),
+		public: z.boolean().describe('Whether the snapshot is publicly accessible'),
+		org: SnapshotOrgInfoSchema.nullable()
+			.optional()
+			.describe('Organization details (for public snapshots)'),
+		user: SnapshotUserInfoSchema.nullable()
+			.optional()
+			.describe('User who pushed the snapshot (for private snapshots)'),
+		createdAt: z.string().describe('ISO timestamp when the snapshot was created'),
+	})
+	.describe('A single entry in the snapshot lineage chain');
+
+const SnapshotLineageDataSchema = z
+	.object({
+		lineage: z.array(SnapshotLineageEntrySchema).describe('Ordered list of snapshots in lineage'),
+		total: z.number().describe('Total number of snapshots in the lineage'),
+	})
+	.describe('Snapshot lineage response');
+
+const SnapshotLineageResponseSchema = APIResponseSchema(SnapshotLineageDataSchema);
+
 export type SnapshotFileInfo = z.infer<typeof SnapshotFileInfoSchema>;
 export type SnapshotInfo = z.infer<typeof SnapshotInfoSchema>;
 export type SnapshotListResponse = z.infer<typeof SnapshotListDataSchema>;
+export type SnapshotLineageEntry = z.infer<typeof SnapshotLineageEntrySchema>;
+export type SnapshotLineageResponse = z.infer<typeof SnapshotLineageDataSchema>;
 
 const _SnapshotCreateParamsSchema = z
 	.object({
@@ -116,11 +180,31 @@ const _SnapshotTagParamsSchema = z
 	})
 	.describe('Parameters for tagging a snapshot');
 
+const _SnapshotLineageParamsSchema = z
+	.object({
+		snapshot: z
+			.string()
+			.optional()
+			.describe('Snapshot ID or name:tag to start lineage from (e.g., "sss_xxx" or "myimage:v1")'),
+		name: z
+			.string()
+			.optional()
+			.describe('Snapshot name to start lineage from (uses latest if tag not specified)'),
+		tag: z.string().optional().describe('Tag to use with name parameter'),
+		limit: z
+			.number()
+			.optional()
+			.describe('Maximum number of snapshots to return in lineage (default: 100, max: 1000)'),
+		orgId: z.string().optional().describe('Organization ID'),
+	})
+	.describe('Parameters for getting snapshot lineage');
+
 export type SnapshotCreateParams = z.infer<typeof _SnapshotCreateParamsSchema>;
 export type SnapshotGetParams = z.infer<typeof _SnapshotGetParamsSchema>;
 export type SnapshotListParams = z.infer<typeof _SnapshotListParamsSchema>;
 export type SnapshotDeleteParams = z.infer<typeof _SnapshotDeleteParamsSchema>;
 export type SnapshotTagParams = z.infer<typeof _SnapshotTagParamsSchema>;
+export type SnapshotLineageParams = z.infer<typeof _SnapshotLineageParamsSchema>;
 
 function buildQueryString(params: Record<string, string | number | undefined>): string {
 	const query = new URLSearchParams();
@@ -277,6 +361,49 @@ export async function snapshotTag(
 		url,
 		{ tag },
 		SnapshotGetResponseSchema
+	);
+
+	if (resp.success) {
+		return resp.data;
+	}
+
+	throw new SandboxResponseError({ message: resp.message });
+}
+
+/**
+ * Gets the lineage (ancestry chain) of a snapshot.
+ *
+ * Returns an ordered list of snapshots from the specified snapshot (or latest by name)
+ * walking back through parentSnapshotId references to the root.
+ *
+ * @param client - The API client to use for the request
+ * @param params - Parameters specifying which snapshot to get lineage for
+ * @returns Ordered list of snapshots in the lineage (newest to oldest)
+ * @throws {SandboxResponseError} If the snapshot is not found or request fails
+ *
+ * @example
+ * // Get lineage starting from a specific snapshot ID
+ * const lineage = await snapshotLineage(client, { snapshot: 'snp_abc123' });
+ *
+ * @example
+ * // Get lineage starting from the latest snapshot with a given name
+ * const lineage = await snapshotLineage(client, { name: 'myapp' });
+ *
+ * @example
+ * // Get lineage starting from a specific name:tag
+ * const lineage = await snapshotLineage(client, { name: 'myapp', tag: 'v1.0.0' });
+ */
+export async function snapshotLineage(
+	client: APIClient,
+	params: SnapshotLineageParams
+): Promise<SnapshotLineageResponse> {
+	const { snapshot, name, tag, limit, orgId } = params;
+	const queryString = buildQueryString({ snapshot, name, tag, limit, orgId });
+	const url = `/sandbox/${API_VERSION}/snapshots/lineage${queryString}`;
+
+	const resp = await client.get<z.infer<typeof SnapshotLineageResponseSchema>>(
+		url,
+		SnapshotLineageResponseSchema
 	);
 
 	if (resp.success) {
