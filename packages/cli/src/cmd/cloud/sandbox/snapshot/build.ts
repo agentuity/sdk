@@ -288,7 +288,8 @@ async function generateContentHash(params: {
 		const sortedFiles = [...params.files].sort((a, b) => a.path.localeCompare(b.path));
 		for (const file of sortedFiles) {
 			const contentHash = params.fileHashes.get(file.path) ?? '';
-			hash.update(`file:${file.path}:${file.size}:${contentHash}\n`);
+			const mode = file.mode.toString(8).padStart(4, '0');
+			hash.update(`file:${file.path}:${file.size}:${contentHash}:${mode}:${file.contentType}\n`);
 		}
 	}
 
