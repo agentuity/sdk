@@ -236,33 +236,6 @@ async function createTarGzArchive(
 	);
 }
 
-function createProgressStream(
-	file: ReturnType<typeof Bun.file>,
-	totalSize: number,
-	onProgress: (percent: number) => void
-): ReadableStream<Uint8Array> {
-	let bytesRead = 0;
-	const reader = file.stream().getReader();
-
-	return new ReadableStream<Uint8Array>({
-		async pull(controller) {
-			const { done, value } = await reader.read();
-			if (done) {
-				controller.close();
-				onProgress(100);
-				return;
-			}
-			bytesRead += value.byteLength;
-			const percent = Math.min(99, Math.floor((bytesRead / totalSize) * 100));
-			onProgress(percent);
-			controller.enqueue(value);
-		},
-		cancel() {
-			reader.cancel();
-		},
-	});
-}
-
 async function generateContentHash(params: {
 	runtime: string;
 	description?: string;
