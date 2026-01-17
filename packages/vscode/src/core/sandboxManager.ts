@@ -466,7 +466,9 @@ export class SandboxManager {
 				// Update linked sandbox with new fields from API
 				const runtimeChanged =
 					info.runtime?.id !== link.runtime?.id ||
-					info.runtime?.name !== link.runtime?.name;
+					info.runtime?.name !== link.runtime?.name ||
+					info.runtime?.iconUrl !== link.runtime?.iconUrl ||
+					info.runtime?.brandColor !== link.runtime?.brandColor;
 				if (
 					info.name !== link.name ||
 					info.description !== link.description ||

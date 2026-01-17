@@ -14,13 +14,36 @@ const SandboxRuntimeInfoSchema = z.object({
 	tags: z.array(z.string()).optional().describe('Runtime tags'),
 });
 
-const SandboxSnapshotInfoSchema = z.object({
-	id: z.string().describe('Snapshot ID'),
-	name: z.string().optional().describe('Snapshot name'),
-	tag: z.string().optional().describe('Snapshot tag'),
-	fullName: z.string().optional().describe('Full name with org slug'),
-	public: z.boolean().describe('Whether snapshot is public'),
+const SandboxSnapshotUserInfoSchema = z.object({
+	id: z.string().describe('User ID'),
+	firstName: z.string().optional().describe("User's first name"),
+	lastName: z.string().optional().describe("User's last name"),
 });
+
+const SandboxSnapshotOrgInfoSchema = z.object({
+	id: z.string().describe('Organization ID'),
+	name: z.string().describe('Organization name'),
+	slug: z.string().optional().describe('Organization slug'),
+});
+
+const SandboxSnapshotInfoSchema = z.discriminatedUnion('public', [
+	z.object({
+		id: z.string().describe('Snapshot ID'),
+		name: z.string().optional().describe('Snapshot name'),
+		tag: z.string().nullable().optional().describe('Snapshot tag'),
+		fullName: z.string().optional().describe('Full name with org slug'),
+		public: z.literal(true).describe('Public snapshot'),
+		org: SandboxSnapshotOrgInfoSchema.describe('Organization that owns the public snapshot'),
+	}),
+	z.object({
+		id: z.string().describe('Snapshot ID'),
+		name: z.string().optional().describe('Snapshot name'),
+		tag: z.string().nullable().optional().describe('Snapshot tag'),
+		fullName: z.string().optional().describe('Full name with org slug'),
+		public: z.literal(false).describe('Private snapshot'),
+		user: SandboxSnapshotUserInfoSchema.describe('User who created the private snapshot'),
+	}),
+]);
 
 const SandboxInfoSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),

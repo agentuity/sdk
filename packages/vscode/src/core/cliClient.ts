@@ -1229,7 +1229,7 @@ export interface SandboxSnapshotOrgInfo {
 export interface SandboxSnapshotInfoPublic {
 	id: string;
 	name?: string;
-	tag?: string;
+	tag?: string | null;
 	fullName?: string;
 	public: true;
 	org: SandboxSnapshotOrgInfo;
@@ -1238,7 +1238,7 @@ export interface SandboxSnapshotInfoPublic {
 export interface SandboxSnapshotInfoPrivate {
 	id: string;
 	name?: string;
-	tag?: string;
+	tag?: string | null;
 	fullName?: string;
 	public: false;
 	user: SandboxSnapshotUserInfo;
