@@ -11,16 +11,21 @@ export const DEFAULT_SANDBOX_PATH = CliClient.SANDBOX_HOME;
 /**
  * Represents a sandbox linked to the current workspace.
  */
+export interface LinkedSandboxRuntime {
+	id: string;
+	name: string;
+	iconUrl?: string;
+	brandColor?: string;
+}
+
 export interface LinkedSandbox {
 	sandboxId: string;
 	name?: string;
 	linkedAt: string;
 	lastSyncedAt?: string;
 	remotePath: string;
-	// New fields from sandbox improvements
 	description?: string;
-	runtimeId?: string;
-	runtimeName?: string;
+	runtime?: LinkedSandboxRuntime;
 	region?: string;
 }
 
@@ -459,16 +464,24 @@ export class SandboxManager {
 				results.set(link.sandboxId, info);
 
 				// Update linked sandbox with new fields from API
+				const runtimeChanged =
+					info.runtime?.id !== link.runtime?.id ||
+					info.runtime?.name !== link.runtime?.name;
 				if (
 					info.name !== link.name ||
 					info.description !== link.description ||
-					info.runtimeId !== link.runtimeId ||
-					info.runtimeName !== link.runtimeName
+					runtimeChanged
 				) {
 					link.name = info.name ?? link.name;
 					link.description = info.description;
-					link.runtimeId = info.runtimeId;
-					link.runtimeName = info.runtimeName;
+					link.runtime = info.runtime
+						? {
+								id: info.runtime.id,
+								name: info.runtime.name,
+								iconUrl: info.runtime.iconUrl,
+								brandColor: info.runtime.brandColor,
+							}
+						: undefined;
 					needsUpdate = true;
 				}
 			} else {

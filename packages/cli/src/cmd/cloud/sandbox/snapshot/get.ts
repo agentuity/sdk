@@ -15,11 +15,29 @@ const SnapshotFileSchema = z.object({
 	mode: z.number(),
 });
 
+const SandboxRuntimeInfoSchema = z.object({
+	id: z.string().describe('Runtime ID'),
+	name: z.string().describe('Runtime name'),
+	iconUrl: z.string().optional().describe('URL for runtime icon'),
+	brandColor: z.string().optional().describe('Brand color for the runtime'),
+	tags: z.array(z.string()).optional().describe('Runtime tags'),
+});
+
+const SandboxSnapshotInfoSchema = z.object({
+	id: z.string().describe('Snapshot ID'),
+	name: z.string().optional().describe('Snapshot name'),
+	tag: z.string().optional().describe('Snapshot tag'),
+	fullName: z.string().optional().describe('Full name with org slug'),
+	public: z.boolean().describe('Whether snapshot is public'),
+});
+
 const SandboxInfoSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
 	status: z.string().describe('Current status'),
 	createdAt: z.string().describe('Creation timestamp'),
 	executions: z.number().describe('Number of executions'),
+	runtime: SandboxRuntimeInfoSchema.optional().describe('Runtime information'),
+	snapshot: SandboxSnapshotInfoSchema.optional().describe('Snapshot information'),
 });
 
 const SnapshotGetResponseSchema = z.object({

@@ -1,7 +1,12 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { SandboxResponseError, API_VERSION } from './util';
-import type { SandboxInfo, SandboxStatus } from '@agentuity/core';
+import type {
+	SandboxInfo,
+	SandboxStatus,
+	SandboxRuntimeInfo,
+	SandboxSnapshotInfo,
+} from '@agentuity/core';
 
 const SandboxResourcesSchema = z
 	.object({
@@ -40,6 +45,57 @@ const SandboxOrgInfoSchema = z
 	})
 	.describe('Organization associated with the sandbox');
 
+const SandboxRuntimeInfoSchema = z
+	.object({
+		id: z.string().describe('Runtime ID'),
+		name: z.string().describe('Runtime name (e.g., "bun:1")'),
+		iconUrl: z.string().optional().describe('URL for runtime icon'),
+		brandColor: z.string().optional().describe('Brand color for the runtime (hex color code)'),
+		tags: z.array(z.string()).optional().describe('Optional tags for categorization'),
+	})
+	.describe('Runtime information');
+
+const SandboxSnapshotUserInfoSchema = z
+	.object({
+		id: z.string().describe('User ID'),
+		firstName: z.string().optional().describe("User's first name"),
+		lastName: z.string().optional().describe("User's last name"),
+	})
+	.describe('Snapshot user information');
+
+const SandboxSnapshotOrgInfoSchema = z
+	.object({
+		id: z.string().describe('Organization ID'),
+		name: z.string().describe('Organization name'),
+		slug: z.string().optional().describe('Organization slug'),
+	})
+	.describe('Snapshot organization information');
+
+const SandboxSnapshotInfoSchema = z
+	.union([
+		z
+			.object({
+				id: z.string().describe('Snapshot ID'),
+				name: z.string().optional().describe('Snapshot name'),
+				tag: z.string().optional().describe('Snapshot tag'),
+				fullName: z.string().optional().describe('Full name with org slug (@slug/name:tag)'),
+				public: z.literal(true).describe('Public snapshot'),
+				org: SandboxSnapshotOrgInfoSchema.describe('Organization that owns the public snapshot'),
+			})
+			.describe('Public snapshot'),
+		z
+			.object({
+				id: z.string().describe('Snapshot ID'),
+				name: z.string().optional().describe('Snapshot name'),
+				tag: z.string().optional().describe('Snapshot tag'),
+				fullName: z.string().optional().describe('Full name with org slug (@slug/name:tag)'),
+				public: z.literal(false).describe('Private snapshot'),
+				user: SandboxSnapshotUserInfoSchema.describe('User who created the private snapshot'),
+			})
+			.describe('Private snapshot'),
+	])
+	.describe('Snapshot information (discriminated union)');
+
 const SandboxInfoDataSchema = z
 	.object({
 		sandboxId: z.string().describe('Unique identifier for the sandbox'),
@@ -52,11 +108,8 @@ const SandboxInfoDataSchema = z
 		mode: z.string().optional().describe('Sandbox mode (interactive or oneshot)'),
 		createdAt: z.string().describe('ISO timestamp when the sandbox was created'),
 		region: z.string().optional().describe('Region where the sandbox is running'),
-		runtimeId: z.string().optional().describe('Runtime ID'),
-		runtimeName: z.string().optional().describe('Runtime name (e.g., "bun:1")'),
-		runtimeIconUrl: z.string().optional().describe('URL for runtime icon'),
-		snapshotId: z.string().optional().describe('Snapshot ID this sandbox was created from'),
-		snapshotTag: z.string().optional().describe('Snapshot tag this sandbox was created from'),
+		runtime: SandboxRuntimeInfoSchema.optional().describe('Runtime information'),
+		snapshot: SandboxSnapshotInfoSchema.optional().describe('Snapshot information'),
 		executions: z.number().describe('Total number of executions in this sandbox'),
 		exitCode: z
 			.number()
@@ -135,11 +188,8 @@ export async function sandboxGet(
 			mode: resp.data.mode,
 			createdAt: resp.data.createdAt,
 			region: resp.data.region,
-			runtimeId: resp.data.runtimeId,
-			runtimeName: resp.data.runtimeName,
-			runtimeIconUrl: resp.data.runtimeIconUrl,
-			snapshotId: resp.data.snapshotId,
-			snapshotTag: resp.data.snapshotTag,
+			runtime: resp.data.runtime as SandboxRuntimeInfo | undefined,
+			snapshot: resp.data.snapshot as SandboxSnapshotInfo | undefined,
 			executions: resp.data.executions,
 			exitCode: resp.data.exitCode,
 			stdoutStreamUrl: resp.data.stdoutStreamUrl,

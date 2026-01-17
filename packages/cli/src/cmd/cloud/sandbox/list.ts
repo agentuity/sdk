@@ -6,6 +6,22 @@ import { sandboxList } from '@agentuity/server';
 import { getGlobalCatalystAPIClient } from '../../../config';
 import type { SandboxStatus } from '@agentuity/core';
 
+const SandboxRuntimeInfoSchema = z.object({
+	id: z.string().describe('Runtime ID'),
+	name: z.string().describe('Runtime name'),
+	iconUrl: z.string().optional().describe('URL for runtime icon'),
+	brandColor: z.string().optional().describe('Brand color for the runtime'),
+	tags: z.array(z.string()).optional().describe('Runtime tags'),
+});
+
+const SandboxSnapshotInfoSchema = z.object({
+	id: z.string().describe('Snapshot ID'),
+	name: z.string().optional().describe('Snapshot name'),
+	tag: z.string().optional().describe('Snapshot tag'),
+	fullName: z.string().optional().describe('Full name with org slug'),
+	public: z.boolean().describe('Whether snapshot is public'),
+});
+
 const SandboxInfoSchema = z.object({
 	sandboxId: z.string().describe('Sandbox ID'),
 	name: z.string().optional().describe('Sandbox name'),
@@ -13,10 +29,8 @@ const SandboxInfoSchema = z.object({
 	status: z.string().describe('Current status'),
 	createdAt: z.string().describe('Creation timestamp'),
 	region: z.string().optional().describe('Region where sandbox is running'),
-	runtimeId: z.string().optional().describe('Runtime ID'),
-	runtimeName: z.string().optional().describe('Runtime name'),
-	snapshotId: z.string().optional().describe('Snapshot ID sandbox was created from'),
-	snapshotTag: z.string().optional().describe('Snapshot tag sandbox was created from'),
+	runtime: SandboxRuntimeInfoSchema.optional().describe('Runtime information'),
+	snapshot: SandboxSnapshotInfoSchema.optional().describe('Snapshot information'),
 	executions: z.number().describe('Number of executions'),
 });
 
@@ -100,7 +114,7 @@ export const listSubcommand = createCommand({
 					return {
 						ID: sandbox.sandboxId,
 						Name: sandbox.name || '-',
-						Runtime: sandbox.runtimeName || '-',
+						Runtime: sandbox.runtime?.name || '-',
 						Status: sandbox.status,
 						'Created At': sandbox.createdAt,
 						Executions: sandbox.executions,
@@ -127,10 +141,8 @@ export const listSubcommand = createCommand({
 				status: s.status,
 				createdAt: s.createdAt,
 				region: s.region,
-				runtimeId: s.runtimeId,
-				runtimeName: s.runtimeName,
-				snapshotId: s.snapshotId,
-				snapshotTag: s.snapshotTag,
+				runtime: s.runtime,
+				snapshot: s.snapshot,
 				executions: s.executions,
 			})),
 			total: result.total,
