@@ -1226,6 +1226,102 @@ else
 	fi
 fi
 
+# ============================================
+section "MALWARE DETECTION Tests (Public Snapshots)"
+# ============================================
+
+# Setup malware test directory with EICAR test file
+MALWARE_DIR="$TEST_DIR/malware-test"
+mkdir -p "$MALWARE_DIR"
+echo "clean file content" > "$MALWARE_DIR/clean.txt"
+# EICAR test file - standard antivirus test string
+echo 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' > "$MALWARE_DIR/malware.txt"
+cat > "$MALWARE_DIR/agentuity-snapshot.yaml" << EOF
+version: 1
+runtime: bun:1
+description: Malware detection test
+files:
+  - "*.txt"
+EOF
+pass "Malware test files created (EICAR test file)"
+
+# Test: Public snapshot with malware is rejected (TUI output)
+info "Test: snapshot build --public rejects malware"
+set +e
+MALWARE_BUILD=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force 2>&1)
+MALWARE_EXIT=$?
+set -e
+if echo "$MALWARE_BUILD" | grep -qi "malware detected"; then
+	pass "snapshot build --public detects and reports malware"
+else
+	fail "snapshot build --public did not detect malware" "$MALWARE_BUILD"
+fi
+
+# Verify exit code is 10 (SECURITY_ERROR)
+if [ "$MALWARE_EXIT" -eq 10 ]; then
+	pass "snapshot build --public with malware exits with code 10 (SECURITY_ERROR)"
+else
+	fail "snapshot build --public with malware should exit with code 10, got $MALWARE_EXIT" ""
+fi
+
+# Verify error box mentions virus name
+if echo "$MALWARE_BUILD" | grep -qi "Eicar-Signature\|Eicar"; then
+	pass "malware detection shows virus name (Eicar-Signature)"
+else
+	fail "malware detection did not show virus name" "$MALWARE_BUILD"
+fi
+
+# Test: Public snapshot with malware is rejected (JSON output)
+info "Test: snapshot build --public --json malware detection"
+set +e
+MALWARE_JSON=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --json 2>&1)
+MALWARE_JSON_EXIT=$?
+set -e
+
+# Verify JSON contains malwareDetected field
+if echo "$MALWARE_JSON" | grep -q '"malwareDetected"[[:space:]]*:[[:space:]]*true'; then
+	pass "snapshot build --public --json returns malwareDetected: true"
+else
+	fail "snapshot build --public --json missing malwareDetected field" "$MALWARE_JSON"
+fi
+
+# Verify JSON contains virusName field
+if echo "$MALWARE_JSON" | grep -q '"virusName"'; then
+	pass "snapshot build --public --json returns virusName field"
+else
+	fail "snapshot build --public --json missing virusName field" "$MALWARE_JSON"
+fi
+
+# Verify JSON contains error field
+if echo "$MALWARE_JSON" | grep -q '"error"'; then
+	pass "snapshot build --public --json returns error field"
+else
+	fail "snapshot build --public --json missing error field" "$MALWARE_JSON"
+fi
+
+# Verify JSON exit code is 1 (JSON mode uses exit 1)
+if [ "$MALWARE_JSON_EXIT" -eq 1 ]; then
+	pass "snapshot build --public --json with malware exits with code 1"
+else
+	fail "snapshot build --public --json with malware should exit with code 1, got $MALWARE_JSON_EXIT" ""
+fi
+
+# Test: Clean public snapshot succeeds
+info "Test: snapshot build --public with clean files succeeds"
+rm "$MALWARE_DIR/malware.txt"  # Remove the malware file
+CLEAN_PUBLIC_BUILD=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --json 2>&1) || true
+CLEAN_SNAP_ID=$(echo "$CLEAN_PUBLIC_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
+if [ -n "$CLEAN_SNAP_ID" ] && [[ "$CLEAN_SNAP_ID" == snp_* ]]; then
+	pass "snapshot build --public with clean files succeeds: $CLEAN_SNAP_ID"
+	# Clean up
+	$CLI cloud sandbox snapshot delete "$CLEAN_SNAP_ID" --confirm 2>/dev/null || true
+else
+	fail "snapshot build --public with clean files failed" "$CLEAN_PUBLIC_BUILD"
+fi
+
+# Clean up malware test directory
+rm -rf "$MALWARE_DIR"
+
 # Test: Build with no build file present (auto-detect should fail)
 info "Test: snapshot build with missing build file"
 EMPTY_BUILD_DIR="$TEST_DIR/empty-build"

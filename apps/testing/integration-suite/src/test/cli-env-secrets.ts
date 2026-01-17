@@ -134,9 +134,7 @@ test('cli-env-secrets', 'env-set-allows-whitelisted-agentuity-auth-secret', asyn
 	// Should succeed or at least get past validation
 	// Note: Due to _SECRET suffix, auto-detection may prompt and store as secret (default Y in non-TTY)
 	assert(
-		output.includes('set successfully') ||
-			output.includes('Setting') ||
-			result.success === true,
+		output.includes('set successfully') || output.includes('Setting') || result.success === true,
 		`Should allow AGENTUITY_AUTH_SECRET: ${output}`
 	);
 

@@ -6,6 +6,9 @@ const SnapshotFileInfoSchema = z
 	.object({
 		path: z.string().describe('File path within the snapshot'),
 		size: z.number().describe('File size in bytes'),
+		sha256: z.string().describe('SHA256 hash of the file contents'),
+		contentType: z.string().describe('MIME type of the file'),
+		mode: z.number().describe('Unix file mode/permissions (e.g., 0o644)'),
 	})
 	.describe('Information about a file in a snapshot');
 
@@ -22,6 +25,10 @@ const SnapshotInfoSchema = z
 			.describe(
 				'Display name for the snapshot (URL-safe: letters, numbers, underscores, dashes)'
 			),
+		fullName: z
+			.string()
+			.optional()
+			.describe('Full name with org slug for public snapshots (@slug/name:tag)'),
 		description: z.string().nullable().optional().describe('Description of the snapshot'),
 		tag: z.string().nullable().optional().describe('Tag for the snapshot (defaults to "latest")'),
 		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
@@ -32,6 +39,8 @@ const SnapshotInfoSchema = z
 			.optional()
 			.describe('ID of the parent snapshot (for incremental snapshots)'),
 		public: z.boolean().optional().describe('Whether the snapshot is publicly accessible'),
+		orgName: z.string().optional().describe('Organization name (for public snapshots)'),
+		orgSlug: z.string().optional().describe('Organization slug (for public snapshots)'),
 		createdAt: z.string().describe('ISO timestamp when the snapshot was created'),
 		downloadUrl: z.string().optional().describe('URL to download the snapshot archive'),
 		files: z
@@ -294,7 +303,7 @@ const _SnapshotBuildInitParamsSchema = z
 		public: z
 			.boolean()
 			.optional()
-			.describe('Whether to make the snapshot publicly accessible (default: false)'),
+			.describe('Make snapshot public (enables virus scanning, disables encryption)'),
 		orgId: z.string().optional().describe('Organization ID'),
 	})
 	.describe('Parameters for initializing a snapshot build');
@@ -305,8 +314,7 @@ const SnapshotBuildInitResponseSchema = z
 		uploadUrl: z
 			.string()
 			.optional()
-			.describe('Pre-signed URL for uploading the snapshot archive'),
-		s3Key: z.string().optional().describe('S3 key where the snapshot will be stored'),
+			.describe('Pre-signed URL for uploading the snapshot archive (private snapshots only)'),
 		publicKey: z
 			.string()
 			.optional()
@@ -415,4 +423,73 @@ export async function snapshotBuildFinalize(
 	}
 
 	throw new SandboxResponseError({ message: resp.message });
+}
+
+// ===== Snapshot Upload API (for public snapshots) =====
+
+const SnapshotUploadResponseSchema = z
+	.object({
+		success: z.boolean().describe('Whether the upload was successful'),
+		scanned: z.boolean().describe('Whether the upload was virus scanned'),
+		message: z.string().optional().describe('Optional message'),
+	})
+	.describe('Response from snapshot upload API');
+
+const _SnapshotUploadAPIResponseSchema = APIResponseSchema(SnapshotUploadResponseSchema);
+
+export type SnapshotUploadResponse = z.infer<typeof SnapshotUploadResponseSchema>;
+
+export interface SnapshotUploadParams {
+	snapshotId: string;
+	body: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array> | string | Blob;
+	contentLength: number;
+	orgId?: string;
+}
+
+/**
+ * Upload a public snapshot archive via Catalyst (with virus scanning).
+ * This should only be used when snapshotBuildInit returns no uploadUrl.
+ *
+ * @param client - The API client to use for the request
+ * @param params - Parameters including snapshotId and the archive body
+ * @returns Upload result with scan status
+ * @throws {SandboxResponseError} If the upload fails or malware is detected
+ */
+export async function snapshotUpload(
+	client: APIClient,
+	params: SnapshotUploadParams
+): Promise<SnapshotUploadResponse> {
+	const { snapshotId, body, contentLength, orgId } = params;
+	const queryString = buildQueryString({ orgId });
+	const url = `/sandbox/${API_VERSION}/snapshots/${snapshotId}/upload${queryString}`;
+
+	const response = await client.rawPut(url, body, 'application/gzip', undefined, {
+		'Content-Length': String(contentLength),
+		Accept: 'application/json',
+	});
+
+	if (!response.ok) {
+		const text = await response.text();
+		let message = `Upload failed: ${response.status} ${response.statusText}`;
+		try {
+			const json = JSON.parse(text);
+			if (json.message) {
+				message = json.message;
+			} else if (json.error) {
+				message = typeof json.error === 'string' ? json.error : JSON.stringify(json.error);
+			}
+		} catch {
+			if (text) {
+				message = text;
+			}
+		}
+		throw new SandboxResponseError({ message });
+	}
+
+	const data = (await response.json()) as z.infer<typeof _SnapshotUploadAPIResponseSchema>;
+	if (data.success) {
+		return data.data;
+	}
+
+	throw new SandboxResponseError({ message: data.message });
 }

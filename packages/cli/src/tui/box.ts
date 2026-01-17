@@ -198,3 +198,55 @@ export function note(message: string, title = ''): void {
 	});
 	console.log(output);
 }
+
+/**
+ * Draw an error box with red border
+ */
+export function errorBox(title: string, message: string): void {
+	const termWidth = getTerminalWidth();
+	const maxWidth = termWidth - 3;
+	const boxWidth = Math.min(60, maxWidth);
+	const innerWidth = Math.max(boxWidth - 2, 1);
+	const contentWidth = Math.max(innerWidth - 1, 0);
+	const padding = 2;
+
+	const lines: string[] = [];
+
+	// Title line with error symbol
+	const errorSymbol = colors.error('✗');
+	const titleText = colors.error(title);
+	const titleTextWidth = 1 + stringWidth(title); // symbol + title
+	const barsNeeded = Math.max(innerWidth - titleTextWidth - 3, 1);
+	const titleLine = `${errorSymbol}  ${titleText} ${colors.error(symbols.barH.repeat(barsNeeded) + symbols.cornerTR)}`;
+
+	lines.push(colors.error(symbols.bar));
+	lines.push(titleLine);
+
+	// Empty line
+	const emptyLine = `${colors.error(symbols.bar)}${' '.repeat(contentWidth)}${colors.error(symbols.bar)}`;
+	lines.push(emptyLine);
+
+	// Wrap and render content lines
+	const wrapWidth = Math.max(contentWidth - padding * 2, 0);
+	const contentLines = message.split('\n');
+	for (const line of contentLines) {
+		const wrapped = stringWidth(line) > wrapWidth ? wrapText(line, wrapWidth) : [line];
+		for (const wl of wrapped) {
+			const lineLen = stringWidth(wl);
+			const leftPad = padding;
+			const rightPad = Math.max(contentWidth - lineLen - leftPad, 0);
+			lines.push(
+				`${colors.error(symbols.bar)}${' '.repeat(leftPad)}${wl}${' '.repeat(rightPad)}${colors.error(symbols.bar)}`
+			);
+		}
+	}
+
+	lines.push(emptyLine);
+
+	// Bottom border
+	lines.push(
+		colors.error(symbols.connect + symbols.barH.repeat(innerWidth - 1) + symbols.cornerBR)
+	);
+
+	console.log(lines.join('\n'));
+}

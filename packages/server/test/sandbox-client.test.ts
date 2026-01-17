@@ -310,9 +310,9 @@ describe('SandboxClient', () => {
 			const { Readable } = await import('node:stream');
 			const stdin = new Readable({ read() {} });
 
-			await expect(
-				client.run({ command: { exec: ['cat'] } }, { stdin })
-			).rejects.toThrow('SandboxClient.run(): stdin streaming requires an API key');
+			await expect(client.run({ command: { exec: ['cat'] } }, { stdin })).rejects.toThrow(
+				'SandboxClient.run(): stdin streaming requires an API key'
+			);
 		});
 
 		test('should call sandbox create API with oneshot mode', async () => {
