@@ -39,6 +39,10 @@ export const createSubcommand = createCommand({
 			),
 			description: 'Create a named snapshot with description',
 		},
+		{
+			command: getCommand('cloud sandbox snapshot create sbx_abc123 --public'),
+			description: 'Create a public snapshot',
+		},
 	],
 	schema: {
 		args: z.object({
@@ -51,6 +55,7 @@ export const createSubcommand = createCommand({
 				.describe('Display name for the snapshot (letters, numbers, underscores, dashes only)'),
 			description: z.string().optional().describe('Description of the snapshot'),
 			tag: z.string().optional().describe('Tag for the snapshot (defaults to "latest")'),
+			public: z.boolean().optional().default(false).describe('Make the snapshot publicly accessible'),
 		}),
 		response: SnapshotCreateResponseSchema,
 	},
@@ -86,6 +91,7 @@ export const createSubcommand = createCommand({
 			name: opts.name,
 			description: opts.description,
 			tag: opts.tag,
+			public: opts.public,
 			orgId,
 		});
 
@@ -97,6 +103,9 @@ export const createSubcommand = createCommand({
 			}
 			tui.info(`Size: ${tui.formatBytes(snapshot.sizeBytes)}, Files: ${snapshot.fileCount}`);
 			tui.info(`Tag: ${snapshot.tag ?? 'latest'}`);
+			if (snapshot.public) {
+				tui.info(`Visibility: ${tui.bold('public')}`);
+			}
 		}
 
 		return {

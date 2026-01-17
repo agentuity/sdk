@@ -31,6 +31,7 @@ const SnapshotInfoSchema = z
 			.nullable()
 			.optional()
 			.describe('ID of the parent snapshot (for incremental snapshots)'),
+		public: z.boolean().optional().describe('Whether the snapshot is publicly accessible'),
 		createdAt: z.string().describe('ISO timestamp when the snapshot was created'),
 		downloadUrl: z.string().optional().describe('URL to download the snapshot archive'),
 		files: z
@@ -67,6 +68,10 @@ const _SnapshotCreateParamsSchema = z
 		name: z.string().optional().describe('Display name for the snapshot'),
 		description: z.string().optional().describe('Description of the snapshot'),
 		tag: z.string().optional().describe('Tag for the snapshot'),
+		public: z
+			.boolean()
+			.optional()
+			.describe('Whether to make the snapshot publicly accessible (default: false)'),
 		orgId: z.string().optional().describe('Organization ID'),
 	})
 	.describe('Parameters for creating a snapshot');
@@ -131,11 +136,11 @@ export async function snapshotCreate(
 	client: APIClient,
 	params: SnapshotCreateParams
 ): Promise<SnapshotInfo> {
-	const { sandboxId, name, description, tag, orgId } = params;
+	const { sandboxId, name, description, tag, public: isPublic, orgId } = params;
 	const queryString = buildQueryString({ orgId });
 	const url = `/sandbox/${API_VERSION}/${sandboxId}/snapshot${queryString}`;
 
-	const body: Record<string, string> = {};
+	const body: Record<string, string | boolean> = {};
 	if (name) {
 		body.name = name;
 	}
@@ -144,6 +149,9 @@ export async function snapshotCreate(
 	}
 	if (tag) {
 		body.tag = tag;
+	}
+	if (isPublic !== undefined) {
+		body.public = isPublic;
 	}
 
 	const resp = await client.post<z.infer<typeof SnapshotCreateResponseSchema>>(
@@ -283,6 +291,10 @@ const _SnapshotBuildInitParamsSchema = z
 			.describe('SHA-256 hash of snapshot content for change detection'),
 		force: z.boolean().optional().describe('Force rebuild even if content is unchanged'),
 		encrypt: z.boolean().optional().describe('Request encryption for the snapshot archive'),
+		public: z
+			.boolean()
+			.optional()
+			.describe('Whether to make the snapshot publicly accessible (default: false)'),
 		orgId: z.string().optional().describe('Organization ID'),
 	})
 	.describe('Parameters for initializing a snapshot build');
@@ -340,7 +352,8 @@ export async function snapshotBuildInit(
 	client: APIClient,
 	params: SnapshotBuildInitParams
 ): Promise<SnapshotBuildInitResponse> {
-	const { runtime, name, description, tag, contentHash, force, encrypt, orgId } = params;
+	const { runtime, name, description, tag, contentHash, force, encrypt, public: isPublic, orgId } =
+		params;
 	const queryString = buildQueryString({ orgId });
 	const url = `/sandbox/${API_VERSION}/snapshots/build${queryString}`;
 
@@ -351,6 +364,7 @@ export async function snapshotBuildInit(
 	if (contentHash) body.contentHash = contentHash;
 	if (force) body.force = force;
 	if (encrypt) body.encrypt = encrypt;
+	if (isPublic !== undefined) body.public = isPublic;
 
 	const resp = await client.post<z.infer<typeof SnapshotBuildInitAPIResponseSchema>>(
 		url,

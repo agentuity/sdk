@@ -10,6 +10,8 @@ import type {
 	VectorSearchResult,
 	VectorNamespaceStats,
 	VectorNamespaceStatsWithSamples,
+	VectorGetAllStatsParams,
+	VectorStatsPaginated,
 } from '@agentuity/core';
 import { randomUUID } from 'node:crypto';
 import { simpleEmbedding, cosineSimilarity, now } from './_util';
@@ -345,7 +347,7 @@ export class LocalVectorStorage implements VectorStorage {
 		};
 	}
 
-	async getAllStats(): Promise<Record<string, VectorNamespaceStats>> {
+	async getAllStats(_params?: VectorGetAllStatsParams): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated> {
 		const query = this.#db.query(`
 			SELECT name, embedding, document
 			FROM vector_storage 
