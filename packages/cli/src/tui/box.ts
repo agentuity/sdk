@@ -230,7 +230,7 @@ export function errorBox(title: string, message: string): void {
 	const wrapWidth = Math.max(contentWidth - padding * 2, 0);
 	const contentLines = message.split('\n');
 	for (const line of contentLines) {
-		const wrapped = line.length > wrapWidth ? wrapText(line, wrapWidth) : [line];
+		const wrapped = stringWidth(line) > wrapWidth ? wrapText(line, wrapWidth) : [line];
 		for (const wl of wrapped) {
 			const lineLen = stringWidth(wl);
 			const leftPad = padding;
