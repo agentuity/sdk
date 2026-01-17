@@ -194,7 +194,12 @@ export interface KeyValueStorage {
 	/**
 	 * get all namespace names
 	 *
-	 * @returns array of namespace names
+	 * @returns array of namespace names (up to 1000)
+	 *
+	 * @remarks
+	 * This method returns a maximum of 1000 namespace names.
+	 * If you have more than 1000 namespaces, only the first 1000
+	 * (ordered by creation date, most recent first) will be returned.
 	 */
 	getNamespaces(): Promise<string[]>;
 
@@ -397,8 +402,20 @@ export class KeyValueStorageService implements KeyValueStorage {
 	}
 
 	async getNamespaces(): Promise<string[]> {
-		const stats = await this.getAllStats() as Record<string, KeyValueStats>;
-		return Object.keys(stats);
+		const url = buildUrl(this.#baseUrl, '/kv/2025-03-17/namespaces');
+		const signal = AbortSignal.timeout(10_000);
+		const res = await this.#adapter.invoke<string[]>(url, {
+			method: 'GET',
+			signal,
+			telemetry: {
+				name: 'agentuity.keyvalue.getNamespaces',
+				attributes: {},
+			},
+		});
+		if (res.ok) {
+			return res.data;
+		}
+		throw await toServiceException('GET', url, res.response);
 	}
 
 	async search<T = unknown>(
