@@ -413,6 +413,64 @@ export async function snapshotLineage(
 	throw new SandboxResponseError({ message: resp.message });
 }
 
+// ===== Public Snapshot API =====
+
+const _SnapshotPublicGetParamsSchema = z
+	.object({
+		snapshotRef: z
+			.string()
+			.describe(
+				'Snapshot reference: ID (snp_xxx), full name (@slug/name:tag), or name:tag'
+			),
+	})
+	.describe('Parameters for getting a public snapshot');
+
+export type SnapshotPublicGetParams = z.infer<typeof _SnapshotPublicGetParamsSchema>;
+
+/**
+ * Gets a public snapshot without requiring authentication.
+ *
+ * Supports multiple reference formats:
+ * - Snapshot ID: `snp_abc123`
+ * - Full name with org slug: `@myorg/myimage:latest`
+ * - Simple name:tag: `myimage:v1.0`
+ *
+ * @param client - The API client to use for the request
+ * @param params - Parameters including the snapshot reference
+ * @returns Snapshot information including files and download URL
+ * @throws {SandboxResponseError} If the snapshot is not found or is not public
+ *
+ * @example
+ * // Get by snapshot ID
+ * const snapshot = await snapshotPublicGet(client, { snapshotRef: 'snp_abc123' });
+ *
+ * @example
+ * // Get by full name with org slug
+ * const snapshot = await snapshotPublicGet(client, { snapshotRef: '@agentuity/bun:latest' });
+ *
+ * @example
+ * // Get by name:tag
+ * const snapshot = await snapshotPublicGet(client, { snapshotRef: 'bun:1.2' });
+ */
+export async function snapshotPublicGet(
+	client: APIClient,
+	params: SnapshotPublicGetParams
+): Promise<SnapshotInfo> {
+	const { snapshotRef } = params;
+	const url = `/sandbox/${API_VERSION}/snapshots/public/${encodeURIComponent(snapshotRef)}`;
+
+	const resp = await client.get<z.infer<typeof SnapshotGetResponseSchema>>(
+		url,
+		SnapshotGetResponseSchema
+	);
+
+	if (resp.success) {
+		return resp.data;
+	}
+
+	throw new SandboxResponseError({ message: resp.message });
+}
+
 // ===== Snapshot Build API =====
 
 /**
