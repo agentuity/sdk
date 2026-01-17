@@ -4,7 +4,7 @@
  * Generates agentuity.metadata.json and .routemapping.json from discovered agents and routes
  */
 
-import { join, dirname } from 'node:path';
+import { join } from 'node:path';
 import { writeFileSync, mkdirSync, existsSync, readFileSync, statSync, readdirSync } from 'node:fs';
 import type { BuildMetadata } from '@agentuity/server';
 import type { AgentMetadata } from './agent-discovery';
