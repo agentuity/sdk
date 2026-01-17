@@ -1309,7 +1309,7 @@ fi
 # Test: Clean public snapshot succeeds
 info "Test: snapshot build --public with clean files succeeds"
 rm "$MALWARE_DIR/malware.txt"  # Remove the malware file
-CLEAN_PUBLIC_BUILD=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --json 2>&1) || true
+CLEAN_PUBLIC_BUILD=$($CLI cloud sandbox snapshot build "$MALWARE_DIR" --public --force --confirm --json 2>&1) || true
 CLEAN_SNAP_ID=$(echo "$CLEAN_PUBLIC_BUILD" | grep -o '"snapshotId"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/')
 if [ -n "$CLEAN_SNAP_ID" ] && [[ "$CLEAN_SNAP_ID" == snp_* ]]; then
 	pass "snapshot build --public with clean files succeeds: $CLEAN_SNAP_ID"
