@@ -13,9 +13,10 @@ import {
 	snapshotUpload,
 	SnapshotBuildFileSchema,
 } from '@agentuity/server';
-import type { SnapshotFileInfo } from '@agentuity/server';
+import type { SnapshotFileInfo, SnapshotBuildGitInfo } from '@agentuity/server';
 import { getCatalystAPIClient } from '../../../../config';
 import { validateAptDependencies } from '../../../../utils/apt-validator';
+import { getGitInfo, mergeGitInfo } from '../../../../utils/git';
 import { encryptFIPSKEMDEMStream } from '../../../../crypto/box';
 import { tmpdir } from 'node:os';
 import { randomUUID, createHash, createPublicKey } from 'node:crypto';
@@ -351,6 +352,15 @@ export const buildSubcommand = createCommand({
 			name: z.string().optional().describe('Snapshot name (overrides build file)'),
 			tag: z.string().optional().describe('Snapshot tag (defaults to "latest")'),
 			description: z.string().optional().describe('Snapshot description (overrides build file)'),
+			message: z.string().optional().describe('Build message for this snapshot'),
+			commit: z.string().optional().describe('Git commit SHA (auto-detected if not provided)'),
+			branch: z.string().optional().describe('Git branch (auto-detected if not provided)'),
+			repo: z.string().optional().describe('Git repo URL (auto-detected if not provided)'),
+			provider: z
+				.string()
+				.optional()
+				.describe('Git provider (github, gitlab, bitbucket - auto-detected)'),
+			commitUrl: z.string().optional().describe('URL to the commit'),
 			metadata: z.array(z.string()).optional().describe('Metadata key-value pairs (KEY=VALUE)'),
 			force: z.boolean().optional().describe('Force rebuild even if content is unchanged'),
 			public: z
@@ -658,6 +668,33 @@ export const buildSubcommand = createCommand({
 
 			const client = getCatalystAPIClient(logger, auth, region);
 
+			// Auto-detect git info and merge with CLI overrides
+			const autoDetectedGit = await getGitInfo(directory, logger);
+			const mergedGitInfo = mergeGitInfo(autoDetectedGit, {
+				message: opts.message,
+				commit: opts.commit,
+				branch: opts.branch,
+				repo: opts.repo,
+				provider: opts.provider,
+				commitUrl: opts.commitUrl,
+			});
+
+			// Build git info for API (only include if we have any git data)
+			const hasGitInfo =
+				mergedGitInfo.branch ||
+				mergedGitInfo.commit ||
+				mergedGitInfo.repo ||
+				mergedGitInfo.provider;
+			const gitInfo: SnapshotBuildGitInfo | undefined = hasGitInfo
+				? {
+						branch: mergedGitInfo.branch,
+						commit: mergedGitInfo.commit,
+						repo: mergedGitInfo.repo,
+						provider: mergedGitInfo.provider,
+						commitUrl: mergedGitInfo.commitUrl,
+					}
+				: undefined;
+
 			const initResult = await tui.spinner({
 				message: 'Initializing snapshot build...',
 				clearOnSuccess: true,
@@ -667,6 +704,8 @@ export const buildSubcommand = createCommand({
 						name: finalName,
 						tag: opts.tag ?? 'latest',
 						description: finalDescription,
+						message: mergedGitInfo.message,
+						git: gitInfo,
 						contentHash,
 						force: opts.force,
 						encrypt: !isPublic,

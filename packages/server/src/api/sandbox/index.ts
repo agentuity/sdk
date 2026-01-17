@@ -77,6 +77,7 @@ export type {
 	SnapshotLineageParams,
 	SnapshotLineageEntry,
 	SnapshotLineageResponse,
+	SnapshotBuildGitInfo,
 	SnapshotBuildInitParams,
 	SnapshotBuildInitResponse,
 	SnapshotBuildFinalizeParams,

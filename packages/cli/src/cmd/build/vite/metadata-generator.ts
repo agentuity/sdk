@@ -11,6 +11,7 @@ import type { AgentMetadata } from './agent-discovery';
 import type { RouteMetadata } from './route-discovery';
 import type { Logger, DeployOptions } from '../../../types';
 import { getVersion } from '../../../version';
+import { getGitInfo, buildGitTags } from '../../../utils/git';
 
 interface ViteManifestEntry {
 	file: string;
@@ -473,6 +474,12 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 		},
 	};
 
+	// Build tags from git info (includes 'latest', branch, and short commit)
+	const gitInfo = metadata.deployment.git;
+	if (gitInfo) {
+		gitInfo.tags = buildGitTags(gitInfo);
+	}
+
 	if (options.deploymentOptions) {
 		const git = { ...(metadata.deployment.git ?? {}), ...options.deploymentOptions };
 		if (options.deploymentOptions.pullRequestNumber) {
@@ -487,144 +494,6 @@ export async function generateMetadata(options: MetadataGeneratorOptions): Promi
 	}
 
 	return metadata;
-}
-
-/**
- * Get git information (branch, repo, provider, tags)
- */
-async function getGitInfo(
-	rootDir: string,
-	logger: Logger
-): Promise<
-	| {
-			branch?: string;
-			repo?: string;
-			provider?: string;
-			tags?: string[];
-			commit?: string;
-			message?: string;
-	  }
-	| undefined
-> {
-	if (!Bun.which('git')) {
-		logger.trace('git not found in PATH');
-		return undefined;
-	}
-
-	try {
-		// Find .git directory (may be in parent directories for monorepos)
-		let gitDir = join(rootDir, '.git');
-		let parentDir = dirname(dirname(gitDir));
-		while (!existsSync(gitDir) && parentDir !== dirname(parentDir) && gitDir !== '/') {
-			gitDir = join(parentDir, '.git');
-			parentDir = dirname(parentDir);
-		}
-
-		if (!existsSync(gitDir)) {
-			logger.trace('No .git directory found');
-			return undefined;
-		}
-
-		const $ = Bun.$;
-		const gitInfo: {
-			branch?: string;
-			repo?: string;
-			provider?: string;
-			tags?: string[];
-			commit?: string;
-			message?: string;
-		} = {
-			provider: 'git',
-		};
-
-		// Get git tags pointing to HEAD
-		const tagResult = $`git tag -l --points-at HEAD`.nothrow().quiet();
-		if (tagResult) {
-			const tagText = await tagResult.text();
-			if (tagText) {
-				gitInfo.tags = tagText
-					.trim()
-					.split(/\n/)
-					.map((s) => s.trim())
-					.filter(Boolean);
-			}
-		}
-
-		// Get current branch
-		const branchResult = $`git branch --show-current`.nothrow().quiet();
-		if (branchResult) {
-			const branchText = await branchResult.text();
-			if (branchText) {
-				gitInfo.branch = branchText.trim();
-			}
-		}
-
-		// Get commit SHA
-		const commitResult = $`git rev-parse HEAD`.nothrow().quiet();
-		if (commitResult) {
-			const commitText = await commitResult.text();
-			if (commitText) {
-				gitInfo.commit = commitText.trim();
-
-				// Get commit message
-				const msgResult = $`git log --pretty=format:%s -n1 ${gitInfo.commit}`.nothrow().quiet();
-				if (msgResult) {
-					const msgText = await msgResult.text();
-					if (msgText) {
-						gitInfo.message = msgText.trim();
-					}
-				}
-			}
-		}
-
-		// Get remote origin URL and parse
-		const originResult = $`git config --get remote.origin.url`.nothrow().quiet();
-		if (originResult) {
-			const originText = await originResult.text();
-			if (originText) {
-				const remoteUrl = originText.trim();
-
-				// Parse provider and repo from URL
-				if (remoteUrl.includes('github.com')) {
-					gitInfo.provider = 'github';
-					const match = remoteUrl.match(/github\.com[:/](.+?)(?:\.git)?$/);
-					if (match) {
-						gitInfo.repo = `https://github.com/${match[1]}`;
-					}
-				} else if (remoteUrl.includes('gitlab.com')) {
-					gitInfo.provider = 'gitlab';
-					const match = remoteUrl.match(/gitlab\.com[:/](.+?)(?:\.git)?$/);
-					if (match) {
-						gitInfo.repo = `https://gitlab.com/${match[1]}`;
-					}
-				} else if (remoteUrl.includes('bitbucket.org')) {
-					gitInfo.provider = 'bitbucket';
-					const match = remoteUrl.match(/bitbucket\.org[:/](.+?)(?:\.git)?$/);
-					if (match) {
-						gitInfo.repo = `https://bitbucket.org/${match[1]}`;
-					}
-				} else {
-					gitInfo.repo = remoteUrl;
-				}
-			}
-		}
-
-		// Build tags array with defaults
-		const tags = new Set(gitInfo.tags ?? []);
-		tags.add('latest');
-		if (gitInfo.branch) {
-			tags.add(gitInfo.branch);
-		}
-		if (gitInfo.commit) {
-			tags.add(gitInfo.commit.substring(0, 7));
-		}
-		gitInfo.tags = Array.from(tags);
-
-		return gitInfo;
-	} catch (error) {
-		logger.trace(`Failed to get git info: ${error}`);
-		return undefined;
-	}
 }
 
 /**

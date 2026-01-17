@@ -415,12 +415,27 @@ export async function snapshotLineage(
 
 // ===== Snapshot Build API =====
 
+/**
+ * Git information for snapshot builds
+ */
+const SnapshotBuildGitInfoSchema = z
+	.object({
+		branch: z.string().optional().describe('Git branch name'),
+		commit: z.string().optional().describe('Git commit SHA'),
+		repo: z.string().optional().describe('Git repository URL'),
+		provider: z.string().optional().describe('Git provider (github, gitlab, bitbucket)'),
+		commitUrl: z.string().optional().describe('URL to the commit'),
+	})
+	.describe('Git information for the snapshot build');
+
 const _SnapshotBuildInitParamsSchema = z
 	.object({
 		runtime: z.string().describe('Runtime identifier (name:tag or runtime ID)'),
 		name: z.string().optional().describe('Display name for the snapshot'),
 		tag: z.string().optional().describe('Tag for the snapshot'),
 		description: z.string().optional().describe('Description of the snapshot'),
+		message: z.string().optional().describe('Build message for the snapshot'),
+		git: SnapshotBuildGitInfoSchema.optional().describe('Git information for the build'),
 		contentHash: z
 			.string()
 			.optional()
@@ -434,6 +449,8 @@ const _SnapshotBuildInitParamsSchema = z
 		orgId: z.string().optional().describe('Organization ID'),
 	})
 	.describe('Parameters for initializing a snapshot build');
+
+export type SnapshotBuildGitInfo = z.infer<typeof SnapshotBuildGitInfoSchema>;
 
 const SnapshotBuildInitResponseSchema = z
 	.object({
@@ -487,14 +504,27 @@ export async function snapshotBuildInit(
 	client: APIClient,
 	params: SnapshotBuildInitParams
 ): Promise<SnapshotBuildInitResponse> {
-	const { runtime, name, description, tag, contentHash, force, encrypt, public: isPublic, orgId } =
-		params;
+	const {
+		runtime,
+		name,
+		description,
+		message,
+		git,
+		tag,
+		contentHash,
+		force,
+		encrypt,
+		public: isPublic,
+		orgId,
+	} = params;
 	const queryString = buildQueryString({ orgId });
 	const url = `/sandbox/${API_VERSION}/snapshots/build${queryString}`;
 
-	const body: Record<string, string | boolean> = { runtime };
+	const body: Record<string, string | boolean | SnapshotBuildGitInfo> = { runtime };
 	if (name) body.name = name;
 	if (description) body.description = description;
+	if (message) body.message = message;
+	if (git) body.git = git;
 	if (tag) body.tag = tag;
 	if (contentHash) body.contentHash = contentHash;
 	if (force) body.force = force;
