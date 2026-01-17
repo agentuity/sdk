@@ -495,14 +495,16 @@ export const buildSubcommand = createCommand({
 			files = await resolveFileGlobs(directory, buildConfig.files);
 		}
 
-		const fileMetadata = new Map<string, { sha256: string; contentType: string }>();
+		const fileMetadata = new Map<string, { sha256: string; contentType: string; mode: number }>();
 		for (const file of files.values()) {
 			const fullPath = join(directory, file.path);
 			const bunFile = Bun.file(fullPath);
 			const content = await bunFile.arrayBuffer();
 			const hash = createHash('sha256').update(Buffer.from(content)).digest('hex');
 			const contentType = bunFile.type || 'application/octet-stream';
-			fileMetadata.set(file.path, { sha256: hash, contentType });
+			const stat = statSync(fullPath);
+			const mode = stat.mode & 0o7777; // Extract permission bits only
+			fileMetadata.set(file.path, { sha256: hash, contentType, mode });
 		}
 
 		const fileHashes = new Map<string, string>();
@@ -517,6 +519,7 @@ export const buildSubcommand = createCommand({
 				size: f.size,
 				sha256: meta?.sha256 ?? '',
 				contentType: meta?.contentType ?? 'application/octet-stream',
+				mode: meta?.mode ?? 0o644,
 			};
 		});
 		const totalSize = fileList.reduce((sum, f) => sum + f.size, 0);

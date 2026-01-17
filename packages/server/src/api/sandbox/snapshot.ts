@@ -8,6 +8,7 @@ const SnapshotFileInfoSchema = z
 		size: z.number().describe('File size in bytes'),
 		sha256: z.string().describe('SHA256 hash of the file contents'),
 		contentType: z.string().describe('MIME type of the file'),
+		mode: z.number().describe('Unix file mode/permissions (e.g., 0o644)'),
 	})
 	.describe('Information about a file in a snapshot');
 

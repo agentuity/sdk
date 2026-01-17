@@ -12,6 +12,7 @@ const SnapshotFileSchema = z.object({
 	size: z.number(),
 	sha256: z.string(),
 	contentType: z.string(),
+	mode: z.number(),
 });
 
 const SandboxInfoSchema = z.object({
