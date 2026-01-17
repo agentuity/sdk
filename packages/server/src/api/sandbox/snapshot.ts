@@ -414,7 +414,78 @@ export async function snapshotLineage(
 	throw new SandboxResponseError({ message: resp.message });
 }
 
+// ===== Public Snapshot API =====
+
+const _SnapshotPublicGetParamsSchema = z
+	.object({
+		snapshotRef: z
+			.string()
+			.describe(
+				'Snapshot reference: ID (snp_xxx), full name (@slug/name:tag), or name:tag'
+			),
+	})
+	.describe('Parameters for getting a public snapshot');
+
+export type SnapshotPublicGetParams = z.infer<typeof _SnapshotPublicGetParamsSchema>;
+
+/**
+ * Gets a public snapshot without requiring authentication.
+ *
+ * Supports multiple reference formats:
+ * - Snapshot ID: `snp_abc123`
+ * - Full name with org slug: `@myorg/myimage:latest`
+ * - Simple name:tag: `myimage:v1.0`
+ *
+ * @param client - The API client to use for the request
+ * @param params - Parameters including the snapshot reference
+ * @returns Snapshot information including files and download URL
+ * @throws {SandboxResponseError} If the snapshot is not found or is not public
+ *
+ * @example
+ * // Get by snapshot ID
+ * const snapshot = await snapshotPublicGet(client, { snapshotRef: 'snp_abc123' });
+ *
+ * @example
+ * // Get by full name with org slug
+ * const snapshot = await snapshotPublicGet(client, { snapshotRef: '@agentuity/bun:latest' });
+ *
+ * @example
+ * // Get by name:tag
+ * const snapshot = await snapshotPublicGet(client, { snapshotRef: 'bun:1.2' });
+ */
+export async function snapshotPublicGet(
+	client: APIClient,
+	params: SnapshotPublicGetParams
+): Promise<SnapshotInfo> {
+	const { snapshotRef } = params;
+	const url = `/sandbox/${API_VERSION}/snapshots/public/${encodeURIComponent(snapshotRef)}`;
+
+	const resp = await client.get<z.infer<typeof SnapshotGetResponseSchema>>(
+		url,
+		SnapshotGetResponseSchema
+	);
+
+	if (resp.success) {
+		return resp.data;
+	}
+
+	throw new SandboxResponseError({ message: resp.message });
+}
+
 // ===== Snapshot Build API =====
+
+/**
+ * Git information for snapshot builds
+ */
+const SnapshotBuildGitInfoSchema = z
+	.object({
+		branch: z.string().optional().describe('Git branch name'),
+		commit: z.string().optional().describe('Git commit SHA'),
+		repo: z.string().optional().describe('Git repository URL'),
+		provider: z.string().optional().describe('Git provider (github, gitlab, bitbucket)'),
+		commitUrl: z.string().optional().describe('URL to the commit'),
+	})
+	.describe('Git information for the snapshot build');
 
 const _SnapshotBuildInitParamsSchema = z
 	.object({
@@ -422,6 +493,8 @@ const _SnapshotBuildInitParamsSchema = z
 		name: z.string().optional().describe('Display name for the snapshot'),
 		tag: z.string().optional().describe('Tag for the snapshot'),
 		description: z.string().optional().describe('Description of the snapshot'),
+		message: z.string().optional().describe('Build message for the snapshot'),
+		git: SnapshotBuildGitInfoSchema.optional().describe('Git information for the build'),
 		contentHash: z
 			.string()
 			.optional()
@@ -435,6 +508,8 @@ const _SnapshotBuildInitParamsSchema = z
 		orgId: z.string().optional().describe('Organization ID'),
 	})
 	.describe('Parameters for initializing a snapshot build');
+
+export type SnapshotBuildGitInfo = z.infer<typeof SnapshotBuildGitInfoSchema>;
 
 const SnapshotBuildInitResponseSchema = z
 	.object({
@@ -488,14 +563,27 @@ export async function snapshotBuildInit(
 	client: APIClient,
 	params: SnapshotBuildInitParams
 ): Promise<SnapshotBuildInitResponse> {
-	const { runtime, name, description, tag, contentHash, force, encrypt, public: isPublic, orgId } =
-		params;
+	const {
+		runtime,
+		name,
+		description,
+		message,
+		git,
+		tag,
+		contentHash,
+		force,
+		encrypt,
+		public: isPublic,
+		orgId,
+	} = params;
 	const queryString = buildQueryString({ orgId });
 	const url = `/sandbox/${API_VERSION}/snapshots/build${queryString}`;
 
-	const body: Record<string, string | boolean> = { runtime };
+	const body: Record<string, string | boolean | SnapshotBuildGitInfo> = { runtime };
 	if (name) body.name = name;
 	if (description) body.description = description;
+	if (message) body.message = message;
+	if (git) body.git = git;
 	if (tag) body.tag = tag;
 	if (contentHash) body.contentHash = contentHash;
 	if (force) body.force = force;
