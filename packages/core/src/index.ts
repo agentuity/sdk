@@ -85,6 +85,7 @@ export {
 export {
 	type SandboxResources,
 	type SandboxStatus,
+	type SandboxRuntimeRequirements,
 	type SandboxRuntime,
 	type ExecutionStatus,
 	type StreamReader,

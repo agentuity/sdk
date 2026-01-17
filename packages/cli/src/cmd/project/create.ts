@@ -69,6 +69,15 @@ export const createProjectSubcommand = createSubcommand({
 				.default(true)
 				.optional()
 				.describe('Register the project, if authenticated (use --no-register to skip)'),
+			database: z
+				.string()
+				.optional()
+				.describe('Database action: "skip", "new", or existing database name'),
+			storage: z
+				.string()
+				.optional()
+				.describe('Storage action: "skip", "new", or existing bucket name'),
+			enableAuth: z.boolean().optional().describe('Enable Agentuity Auth'),
 		}),
 		response: ProjectCreateResponseSchema,
 	},
@@ -101,6 +110,9 @@ export const createProjectSubcommand = createSubcommand({
 			apiClient,
 			orgId: opts.register === true ? orgId : undefined,
 			region,
+			database: opts.database,
+			storage: opts.storage,
+			enableAuth: opts.enableAuth,
 		});
 
 		// Exit with error code if setup failed and not in JSON mode

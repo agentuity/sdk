@@ -296,6 +296,81 @@ describe('SandboxClient', () => {
 		});
 	});
 
+	describe('run', () => {
+		test('should have run method available', () => {
+			const client = new SandboxClient({ logger: createMockLogger() });
+			expect(typeof client.run).toBe('function');
+		});
+
+		test('should throw error when stdin provided without API key', async () => {
+			delete process.env.AGENTUITY_SDK_KEY;
+			delete process.env.AGENTUITY_CLI_KEY;
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const { Readable } = await import('node:stream');
+			const stdin = new Readable({ read() {} });
+
+			await expect(
+				client.run({ command: { exec: ['cat'] } }, { stdin })
+			).rejects.toThrow('SandboxClient.run(): stdin streaming requires an API key');
+		});
+
+		test('should call sandbox create API with oneshot mode', async () => {
+			let createCalled = false;
+			let createBody: Record<string, unknown> | null = null;
+
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					createCalled = true;
+					createBody = JSON.parse(opts.body as string);
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-run-123',
+								status: 'running',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-run-123')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-run-123',
+								status: 'terminated',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+
+			const abortController = new AbortController();
+			setTimeout(() => abortController.abort(), 100);
+
+			try {
+				await client.run(
+					{ command: { exec: ['echo', 'hello'] } },
+					{ signal: abortController.signal }
+				);
+			} catch {
+				// Expected to be aborted
+			}
+
+			expect(createCalled).toBe(true);
+			expect((createBody?.command as Record<string, unknown>)?.mode).toBe('oneshot');
+			expect((createBody?.command as Record<string, unknown>)?.exec).toEqual(['echo', 'hello']);
+		});
+	});
+
 	describe('client direct methods', () => {
 		test('get should fetch sandbox by ID', async () => {
 			mockFetch(async (url, opts) => {
