@@ -138,6 +138,7 @@ export async function sandboxRun(
 		// Poll for sandbox completion in parallel with streaming
 		let attempts = 0;
 		let finalStatus: 'terminated' | 'failed' | null = null;
+		let finalExitCode: number | undefined;
 
 		while (attempts < MAX_POLL_ATTEMPTS) {
 			if (signal?.aborted) {
@@ -156,11 +157,13 @@ export async function sandboxRun(
 
 				if (sandboxInfo.status === 'terminated') {
 					finalStatus = 'terminated';
+					finalExitCode = sandboxInfo.exitCode;
 					break;
 				}
 
 				if (sandboxInfo.status === 'failed') {
 					finalStatus = 'failed';
+					finalExitCode = sandboxInfo.exitCode;
 					break;
 				}
 			} catch {
@@ -179,7 +182,7 @@ export async function sandboxRun(
 		if (finalStatus === 'terminated') {
 			return {
 				sandboxId,
-				exitCode: 0,
+				exitCode: finalExitCode ?? 0,
 				durationMs: Date.now() - started,
 			};
 		}
@@ -187,7 +190,7 @@ export async function sandboxRun(
 		if (finalStatus === 'failed') {
 			return {
 				sandboxId,
-				exitCode: 1,
+				exitCode: finalExitCode ?? 1,
 				durationMs: Date.now() - started,
 			};
 		}
