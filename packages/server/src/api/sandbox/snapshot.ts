@@ -110,6 +110,7 @@ const SnapshotLineageEntrySchema = z
 			.optional()
 			.describe('ID of the parent snapshot in the lineage'),
 		public: z.boolean().describe('Whether the snapshot is publicly accessible'),
+		deleted: z.boolean().optional().describe('Whether the snapshot has been deleted'),
 		org: SnapshotOrgInfoSchema.nullable()
 			.optional()
 			.describe('Organization details (for public snapshots)'),
