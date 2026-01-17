@@ -757,7 +757,7 @@ export const buildSubcommand = createCommand({
 									2
 								)
 							);
-							process.exit(1);
+							process.exit(ErrorCode.MALWARE_DETECTED);
 						}
 
 						console.log('');
