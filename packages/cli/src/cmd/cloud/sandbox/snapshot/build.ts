@@ -725,22 +725,18 @@ export const buildSubcommand = createCommand({
 				});
 			} else {
 				// Public snapshot: upload via Catalyst (with virus scanning)
+				// Note: We use Bun.file() directly instead of a ReadableStream because
+				// fetch() may strip Content-Length header when using streams
 				try {
 					await tui.spinner({
 						message: 'Uploading and scanning snapshot...',
-						type: 'progress',
 						clearOnSuccess: true,
 						clearOnError: true,
-						callback: async (updateProgress) => {
+						callback: async () => {
 							const uploadFile = Bun.file(uploadPath);
-							const progressStream = createProgressStream(
-								uploadFile,
-								uploadSize,
-								updateProgress
-							);
 							await snapshotUpload(client, {
 								snapshotId: initResult.snapshotId!,
-								body: progressStream,
+								body: uploadFile,
 								contentLength: uploadSize,
 								orgId,
 							});
