@@ -22,6 +22,10 @@ const SnapshotInfoSchema = z
 			.describe(
 				'Display name for the snapshot (URL-safe: letters, numbers, underscores, dashes)'
 			),
+		fullName: z
+			.string()
+			.optional()
+			.describe('Full name with org slug for public snapshots (@slug/name:tag)'),
 		description: z.string().nullable().optional().describe('Description of the snapshot'),
 		tag: z.string().nullable().optional().describe('Tag for the snapshot (defaults to "latest")'),
 		sizeBytes: z.number().describe('Total size of the snapshot in bytes'),
@@ -33,6 +37,7 @@ const SnapshotInfoSchema = z
 			.describe('ID of the parent snapshot (for incremental snapshots)'),
 		public: z.boolean().optional().describe('Whether the snapshot is publicly accessible'),
 		orgName: z.string().optional().describe('Organization name (for public snapshots)'),
+		orgSlug: z.string().optional().describe('Organization slug (for public snapshots)'),
 		createdAt: z.string().describe('ISO timestamp when the snapshot was created'),
 		downloadUrl: z.string().optional().describe('URL to download the snapshot archive'),
 		files: z

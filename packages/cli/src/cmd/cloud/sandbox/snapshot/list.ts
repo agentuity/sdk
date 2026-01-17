@@ -8,6 +8,7 @@ import { getGlobalCatalystAPIClient } from '../../../../config';
 const SnapshotInfoSchema = z.object({
 	snapshotId: z.string(),
 	name: z.string().nullable().optional(),
+	fullName: z.string().nullable().optional(),
 	description: z.string().nullable().optional(),
 	tag: z.string().nullable().optional(),
 	sizeBytes: z.number(),
@@ -15,6 +16,7 @@ const SnapshotInfoSchema = z.object({
 	parentSnapshotId: z.string().nullable().optional(),
 	public: z.boolean().optional(),
 	orgName: z.string().optional(),
+	orgSlug: z.string().optional(),
 	createdAt: z.string(),
 });
 

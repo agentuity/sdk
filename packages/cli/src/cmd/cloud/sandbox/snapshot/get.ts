@@ -22,12 +22,14 @@ const SandboxInfoSchema = z.object({
 const SnapshotGetResponseSchema = z.object({
 	snapshotId: z.string().describe('Snapshot ID'),
 	name: z.string().describe('Snapshot name'),
+	fullName: z.string().optional().describe('Full name with org slug (@slug/name:tag)'),
 	tag: z.string().nullable().optional().describe('Snapshot tag'),
 	sizeBytes: z.number().describe('Snapshot size in bytes'),
 	fileCount: z.number().describe('Number of files'),
 	parentSnapshotId: z.string().nullable().optional().describe('Parent snapshot ID'),
 	public: z.boolean().optional().describe('Whether snapshot is publicly accessible'),
 	orgName: z.string().optional().describe('Organization name (for public snapshots)'),
+	orgSlug: z.string().optional().describe('Organization slug (for public snapshots)'),
 	createdAt: z.string().describe('Creation timestamp'),
 	downloadUrl: z.string().optional().describe('Presigned download URL'),
 	files: z.array(SnapshotFileSchema).nullable().optional().describe('Files in snapshot'),
@@ -91,6 +93,9 @@ export const getSubcommand = createCommand({
 			tableData['Files'] = snapshot.fileCount;
 			if (snapshot.public) {
 				tableData['Public'] = 'Yes';
+				if (snapshot.fullName) {
+					tableData['Full Name'] = snapshot.fullName;
+				}
 				if (snapshot.orgName) {
 					tableData['Publisher'] = snapshot.orgName;
 				}

@@ -1272,6 +1272,7 @@ export interface SandboxFileInfo {
 export interface SnapshotInfo {
 	snapshotId: string;
 	name?: string;
+	fullName?: string; // Full name with org slug (@slug/name:tag) for public snapshots
 	tag?: string | null;
 	sizeBytes: number;
 	fileCount: number;
@@ -1279,6 +1280,7 @@ export interface SnapshotInfo {
 	parentSnapshotId?: string | null;
 	public?: boolean;
 	orgName?: string;
+	orgSlug?: string; // Organization slug for public snapshots
 	downloadUrl?: string;
 	sandboxId?: string; // Present in list context
 	files?: Array<{ path: string; size: number }>; // Present in get response
