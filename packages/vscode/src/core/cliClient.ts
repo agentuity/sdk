@@ -1206,6 +1206,46 @@ export interface SandboxResources {
 	disk?: string;
 }
 
+export interface SandboxRuntimeInfo {
+	id: string;
+	name: string;
+	iconUrl?: string;
+	brandColor?: string;
+	tags?: string[];
+}
+
+export interface SandboxSnapshotUserInfo {
+	id: string;
+	firstName?: string;
+	lastName?: string;
+}
+
+export interface SandboxSnapshotOrgInfo {
+	id: string;
+	name: string;
+	slug?: string;
+}
+
+export interface SandboxSnapshotInfoPublic {
+	id: string;
+	name?: string;
+	tag?: string | null;
+	fullName?: string;
+	public: true;
+	org: SandboxSnapshotOrgInfo;
+}
+
+export interface SandboxSnapshotInfoPrivate {
+	id: string;
+	name?: string;
+	tag?: string | null;
+	fullName?: string;
+	public: false;
+	user: SandboxSnapshotUserInfo;
+}
+
+export type SandboxSnapshotInfo = SandboxSnapshotInfoPublic | SandboxSnapshotInfoPrivate;
+
 export interface SandboxInfo {
 	sandboxId: string;
 	status: SandboxStatus;
@@ -1215,13 +1255,10 @@ export interface SandboxInfo {
 	resources?: SandboxResources;
 	stdoutStreamUrl?: string;
 	stderrStreamUrl?: string;
-	// New fields from sandbox improvements
 	name?: string;
 	description?: string;
-	runtimeId?: string;
-	runtimeName?: string;
-	runtimeIconUrl?: string;
-	runtimeBrandColor?: string;
+	runtime?: SandboxRuntimeInfo;
+	snapshot?: SandboxSnapshotInfo;
 	// Network/URL fields
 	identifier?: string;
 	networkPort?: number;
