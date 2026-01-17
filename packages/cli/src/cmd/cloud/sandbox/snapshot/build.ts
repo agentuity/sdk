@@ -236,6 +236,33 @@ async function createTarGzArchive(
 	);
 }
 
+function createProgressStream(
+	file: ReturnType<typeof Bun.file>,
+	totalSize: number,
+	onProgress: (percent: number) => void
+): ReadableStream<Uint8Array> {
+	let bytesRead = 0;
+	const reader = file.stream().getReader();
+
+	return new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			const { done, value } = await reader.read();
+			if (done) {
+				controller.close();
+				onProgress(100);
+				return;
+			}
+			bytesRead += value.byteLength;
+			const percent = Math.min(99, Math.floor((bytesRead / totalSize) * 100));
+			onProgress(percent);
+			controller.enqueue(value);
+		},
+		cancel() {
+			reader.cancel();
+		},
+	});
+}
+
 async function generateContentHash(params: {
 	runtime: string;
 	description?: string;
@@ -698,18 +725,18 @@ export const buildSubcommand = createCommand({
 				});
 			} else {
 				// Public snapshot: upload via Catalyst (with virus scanning)
-				// Note: We read file as ArrayBuffer to ensure Content-Length header is preserved.
-				// ReadableStream causes fetch() to use chunked encoding which strips Content-Length.
 				try {
 					await tui.spinner({
 						message: 'Uploading and scanning snapshot...',
+						type: 'progress',
 						clearOnSuccess: true,
 						clearOnError: true,
-						callback: async () => {
-							const uploadBuffer = await Bun.file(uploadPath).arrayBuffer();
+						callback: async (updateProgress) => {
+							const uploadFile = Bun.file(uploadPath);
+							const progressStream = createProgressStream(uploadFile, uploadSize, updateProgress);
 							await snapshotUpload(client, {
 								snapshotId: initResult.snapshotId!,
-								body: uploadBuffer,
+								body: progressStream,
 								contentLength: uploadSize,
 								orgId,
 							});
