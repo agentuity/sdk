@@ -61,18 +61,16 @@ router.post('/background', async (c) => {
 	c.var.logger?.info('Background agent call starting', { taskId, operation });
 
 	// waitUntil() allows response to return immediately while agent runs in background
-	c.executionCtx?.waitUntil(
-		(async () => {
-			const result = await textProcessorAgent.run({
-				text: AGENT_CALLS_SAMPLE_TEXT,
-				operation,
-			});
-			c.var.logger?.info('Background task completed', {
-				taskId,
-				result: result.result,
-			});
-		})()
-	);
+	c.waitUntil(async () => {
+		const result = await textProcessorAgent.run({
+			text: AGENT_CALLS_SAMPLE_TEXT,
+			operation,
+		});
+		c.var.logger?.info('Background task completed', {
+			taskId,
+			result: result.result,
+		});
+	});
 
 	return c.json({
 		pattern: 'background',

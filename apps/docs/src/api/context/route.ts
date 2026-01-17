@@ -72,12 +72,10 @@ router.get('/logger', async (c) => {
 
 // waitUntil() allows response to return immediately while task runs in background
 router.get('/background', async (c) => {
-	c.executionCtx?.waitUntil(
-		(async () => {
-			await new Promise((resolve) => setTimeout(resolve, 5000));
-			c.var.logger?.info('Background task completed after 5 seconds!');
-		})()
-	);
+	c.waitUntil(async () => {
+		await new Promise((resolve) => setTimeout(resolve, 5000));
+		c.var.logger?.info('Background task completed after 5 seconds!');
+	});
 
 	return c.json({
 		message: 'Background task started',
