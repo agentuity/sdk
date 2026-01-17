@@ -16,6 +16,7 @@ const SnapshotOrgInfoSchema = z
 	.object({
 		id: z.string().describe('Organization ID'),
 		name: z.string().describe('Organization name'),
+		slug: z.string().nullable().optional().describe('Organization slug for building full name'),
 	})
 	.describe('Organization information for public snapshots');
 
@@ -97,6 +98,10 @@ const SnapshotLineageEntrySchema = z
 			.describe(
 				'Display name for the snapshot (URL-safe: letters, numbers, underscores, dashes)'
 			),
+		fullName: z
+			.string()
+			.optional()
+			.describe('Full name with org slug for public snapshots (@slug/name:tag)'),
 		message: z.string().nullable().optional().describe('Build message for the snapshot'),
 		tag: z.string().nullable().optional().describe('Tag for the snapshot'),
 		parentSnapshotId: z
