@@ -315,7 +315,7 @@ export const buildSubcommand = createCommand({
 			description: z.string().optional().describe('Snapshot description (overrides build file)'),
 			metadata: z.array(z.string()).optional().describe('Metadata key-value pairs (KEY=VALUE)'),
 			force: z.boolean().optional().describe('Force rebuild even if content is unchanged'),
-			public: z.boolean().optional().default(false).describe('Make the snapshot publicly accessible'),
+			public: z.boolean().optional().describe('Make the snapshot publicly accessible'),
 		}),
 		response: SnapshotBuildResponseSchema,
 	},
@@ -578,7 +578,7 @@ export const buildSubcommand = createCommand({
 						contentHash,
 						force: opts.force,
 						encrypt: true,
-						public: opts.public || buildConfig.public,
+						public: opts.public ?? buildConfig.public ?? false,
 						orgId,
 					});
 				},
