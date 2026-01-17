@@ -6,6 +6,8 @@ const SnapshotFileInfoSchema = z
 	.object({
 		path: z.string().describe('File path within the snapshot'),
 		size: z.number().describe('File size in bytes'),
+		sha256: z.string().describe('SHA256 hash of the file contents'),
+		contentType: z.string().describe('MIME type of the file'),
 	})
 	.describe('Information about a file in a snapshot');
 

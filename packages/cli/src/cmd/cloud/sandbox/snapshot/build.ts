@@ -495,20 +495,31 @@ export const buildSubcommand = createCommand({
 			files = await resolveFileGlobs(directory, buildConfig.files);
 		}
 
-		const fileList: SnapshotFileInfo[] = Array.from(files.values()).map((f) => ({
-			path: f.path,
-			size: f.size,
-		}));
-		const totalSize = fileList.reduce((sum, f) => sum + f.size, 0);
-
-		const fileHashes = new Map<string, string>();
+		const fileMetadata = new Map<string, { sha256: string; contentType: string }>();
 		for (const file of files.values()) {
 			const fullPath = join(directory, file.path);
 			const bunFile = Bun.file(fullPath);
 			const content = await bunFile.arrayBuffer();
 			const hash = createHash('sha256').update(Buffer.from(content)).digest('hex');
-			fileHashes.set(file.path, hash);
+			const contentType = bunFile.type || 'application/octet-stream';
+			fileMetadata.set(file.path, { sha256: hash, contentType });
 		}
+
+		const fileHashes = new Map<string, string>();
+		for (const [path, meta] of fileMetadata) {
+			fileHashes.set(path, meta.sha256);
+		}
+
+		const fileList: SnapshotFileInfo[] = Array.from(files.values()).map((f) => {
+			const meta = fileMetadata.get(f.path);
+			return {
+				path: f.path,
+				size: f.size,
+				sha256: meta?.sha256 ?? '',
+				contentType: meta?.contentType ?? 'application/octet-stream',
+			};
+		});
+		const totalSize = fileList.reduce((sum, f) => sum + f.size, 0);
 
 		const contentHash = await generateContentHash({
 			runtime: buildConfig.runtime,

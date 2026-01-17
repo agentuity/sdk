@@ -1283,7 +1283,7 @@ export interface SnapshotInfo {
 	orgSlug?: string; // Organization slug for public snapshots
 	downloadUrl?: string;
 	sandboxId?: string; // Present in list context
-	files?: Array<{ path: string; size: number }>; // Present in get response
+	files?: Array<{ path: string; size: number; sha256: string; contentType: string }>; // Present in get response
 }
 
 export interface ExecutionInfo {

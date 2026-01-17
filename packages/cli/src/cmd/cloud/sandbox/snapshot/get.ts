@@ -10,6 +10,8 @@ import { getGlobalCatalystAPIClient } from '../../../../config';
 const SnapshotFileSchema = z.object({
 	path: z.string(),
 	size: z.number(),
+	sha256: z.string(),
+	contentType: z.string(),
 });
 
 const SandboxInfoSchema = z.object({
