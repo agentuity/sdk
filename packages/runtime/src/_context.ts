@@ -196,6 +196,16 @@ export const setupRequestAgentContext = <
 	// RequestAgentContext is only used within agents via AsyncLocalStorage.
 	// No properties need to be copied between them.
 
+	// Provide c.waitUntil() directly on route context for consistency with AgentContext
+	if (!('waitUntil' in ctxObject)) {
+		Object.defineProperty(ctxObject, 'waitUntil', {
+			value: (callback: Promise<void> | (() => void | Promise<void>)) => {
+				args.handler.waitUntil(callback);
+			},
+			configurable: true,
+		});
+	}
+
 	// Provide executionCtx.waitUntil for compatibility with Cloudflare Workers API
 	Object.defineProperty(ctxObject, 'executionCtx', {
 		get() {
