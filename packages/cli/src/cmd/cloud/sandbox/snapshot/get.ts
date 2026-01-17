@@ -27,6 +27,7 @@ const SnapshotGetResponseSchema = z.object({
 	name: z.string().describe('Snapshot name'),
 	fullName: z.string().optional().describe('Full name with org slug (@slug/name:tag)'),
 	tag: z.string().nullable().optional().describe('Snapshot tag'),
+	message: z.string().nullable().optional().describe('Build message'),
 	sizeBytes: z.number().describe('Snapshot size in bytes'),
 	fileCount: z.number().describe('Number of files'),
 	parentSnapshotId: z.string().nullable().optional().describe('Parent snapshot ID'),
@@ -91,6 +92,9 @@ export const getSubcommand = createCommand({
 			};
 			if (snapshot.tag) {
 				tableData['Tag'] = snapshot.tag;
+			}
+			if (snapshot.message) {
+				tableData['Message'] = snapshot.message;
 			}
 			tableData['Size'] = tui.formatBytes(snapshot.sizeBytes);
 			tableData['Files'] = snapshot.fileCount;

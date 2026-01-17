@@ -270,6 +270,7 @@ async function generateContentHash(params: {
 	files: SnapshotFileInfo[];
 	fileHashes: Map<string, string>;
 	env?: Record<string, string>;
+	isPublic?: boolean;
 }): Promise<string> {
 	const hash = createHash('sha256');
 
@@ -299,6 +300,8 @@ async function generateContentHash(params: {
 			hash.update(`env:${key}=${params.env[key]}\n`);
 		}
 	}
+
+	hash.update(`access:${params.isPublic ? 'public' : 'private'}\n`);
 
 	return hash.digest('hex');
 }
@@ -354,6 +357,10 @@ export const buildSubcommand = createCommand({
 				.boolean()
 				.optional()
 				.describe('Make snapshot public (enables virus scanning, no encryption)'),
+			confirm: z
+				.boolean()
+				.optional()
+				.describe('Confirm public snapshot publishing (required for --public)'),
 		}),
 		response: SnapshotBuildResponseSchema,
 	},
@@ -362,6 +369,37 @@ export const buildSubcommand = createCommand({
 		const { args, opts, options, auth, region, config, logger, orgId } = ctx;
 
 		const dryRun = options.dryRun === true;
+		const isPublic = opts.public === true;
+
+		if (isPublic && !dryRun) {
+			if (!opts.confirm) {
+				if (!tui.isTTYLike()) {
+					logger.fatal(
+						`Publishing a public snapshot requires confirmation.\n\n` +
+							`Public snapshots make all environment variables and files publicly accessible.\n\n` +
+							`To proceed, add the --confirm flag:\n` +
+							`  ${getCommand('cloud sandbox snapshot build . --public --confirm')}\n\n` +
+							`To preview what will be published, use --dry-run first:\n` +
+							`  ${getCommand('cloud sandbox snapshot build . --public --dry-run')}`
+					);
+				}
+
+				tui.warningBox(
+					'Public Snapshot',
+					`You are publishing a public snapshot.\n\n` +
+						`This will make all environment variables and\n` +
+						`files in the snapshot publicly accessible.\n\n` +
+						`Run with --dry-run to preview the contents.`
+				);
+				console.log('');
+
+				const confirmed = await tui.confirm('Proceed with public snapshot?', false);
+
+				if (!confirmed) {
+					logger.fatal('Aborted');
+				}
+			}
+		}
 
 		const directory = resolve(args.directory);
 		if (!existsSync(directory)) {
@@ -532,6 +570,7 @@ export const buildSubcommand = createCommand({
 			files: fileList,
 			fileHashes,
 			env: finalEnv,
+			isPublic,
 		});
 
 		if (dryRun) {
@@ -545,11 +584,12 @@ export const buildSubcommand = createCommand({
 							Description: finalDescription ?? '-',
 							Runtime: buildConfig.runtime,
 							Tag: opts.tag ?? 'latest',
+							Access: isPublic ? 'public' : 'private',
 							Size: tui.formatBytes(totalSize),
 							Files: fileList.length.toFixed(),
 						},
 					],
-					['Name', 'Description', 'Runtime', 'Tag', 'Size', 'Files'],
+					['Name', 'Description', 'Runtime', 'Tag', 'Access', 'Size', 'Files'],
 					{ layout: 'vertical', padStart: '  ' }
 				);
 
@@ -618,8 +658,6 @@ export const buildSubcommand = createCommand({
 
 			const client = getCatalystAPIClient(logger, auth, region);
 
-			const isPublic = opts.public === true;
-
 			const initResult = await tui.spinner({
 				message: 'Initializing snapshot build...',
 				clearOnSuccess: true,
@@ -627,7 +665,7 @@ export const buildSubcommand = createCommand({
 					return await snapshotBuildInit(client, {
 						runtime: buildConfig.runtime,
 						name: finalName,
-						tag: opts.tag,
+						tag: opts.tag ?? 'latest',
 						description: finalDescription,
 						contentHash,
 						force: opts.force,
@@ -755,7 +793,7 @@ export const buildSubcommand = createCommand({
 									{
 										snapshotId: '',
 										name: finalName ?? '',
-										tag: opts.tag,
+										tag: opts.tag ?? 'latest',
 										runtime: buildConfig.runtime,
 										sizeBytes: totalSize,
 										fileCount: fileList.length,

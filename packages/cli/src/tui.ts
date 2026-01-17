@@ -45,7 +45,7 @@ export { maskSecret };
 // Export new TUI components
 export { createPrompt, PromptFlow } from './tui/prompt';
 export { group } from './tui/group';
-export { note, drawBox, errorBox } from './tui/box';
+export { note, drawBox, errorBox, warningBox } from './tui/box';
 export { symbols } from './tui/symbols';
 export { colors as tuiColors } from './tui/colors';
 export type {
