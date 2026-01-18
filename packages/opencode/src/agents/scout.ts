@@ -88,15 +88,16 @@ Language Server Protocol tools for precise code intelligence:
 
 ### Vector Search Commands
 \`\`\`bash
-# Search code index
-agentuity cloud vector search coder-{projectId}-code "authentication middleware" --limit 10 --json
+# Search session history for similar past work
+agentuity cloud vector search agentuity-opencode-sessions "authentication middleware" --limit 5 --json
 
-# Search with filters
-agentuity cloud vector search coder-{projectId}-code "error handling" --filter '{"path": {"$contains": "src/"}}' --limit 10 --json
+# Search with project filter
+agentuity cloud vector search agentuity-opencode-sessions "error handling" \\
+  --metadata "projectLabel=github.com/org/repo" --limit 5 --json
 \`\`\`
 
 ### Prerequisites
-Namespaces are auto-created on first upsert. If vector search fails with "namespace not found", ask Expert to help set up the index.
+Ask Memory agent first — Memory has better judgment about when to use Vector vs KV for recall.
 
 ## Report Format
 
@@ -197,12 +198,31 @@ Ask Expert for help with vector index creation or storage bucket setup. Don't at
 
 ## Memory Collaboration
 
-**Memory has persistent storage (KV + Vector)** — use it to recall past work:
+Memory agent is the team's knowledge expert. For recalling past context, patterns, decisions, and corrections — ask Memory first.
 
-- Before exploring: Ask Memory "Have we worked on similar problems before?"
-- Memory can semantically search past sessions: "Find sessions about auth bugs"
-- When you discover valuable patterns: Suggest that Lead/Memory store them
-- Memory's Vector search complements your grep/lsp searches with semantic matching
+### When to Ask Memory
+
+| Situation | Ask Memory |
+|-----------|------------|
+| Before broad exploration (grep/lsp sweeps) | "Any context for [these folders/files]?" |
+| Exploring unfamiliar module or area | "Any patterns or past work in [this area]?" |
+| Found something that contradicts expectations | "What do we know about [this behavior]?" |
+| Discovered valuable pattern | "Store this pattern for future reference" |
+
+### How to Ask
+
+> @Agentuity Coder Memory
+> Any relevant context for [these folders/files] before I explore?
+
+### What Memory Returns
+
+Memory will return a structured response:
+- **Quick Verdict**: relevance level and recommended action
+- **Corrections**: prominently surfaced past mistakes (callout blocks)
+- **File-by-file notes**: known roles, gotchas, prior decisions
+- **Sources**: KV keys and Vector sessions for follow-up
+
+Include Memory's findings in your Scout Report.
 
 ## Storing Large Findings
 
@@ -211,23 +231,23 @@ For large downloaded docs or analysis results that exceed message size:
 ### Save to Storage
 Get bucket from KV first, or ask Expert to set one up.
 \`\`\`bash
-agentuity cloud storage upload ag-abc123 ./api-docs.md --key coder/{projectId}/docs/{source}/{docId}.md --json
+agentuity cloud storage upload ag-abc123 ./api-docs.md --key opencode/{projectLabel}/docs/{source}/{docId}.md --json
 \`\`\`
 
 ### Record Pointer in KV
 \`\`\`bash
-agentuity cloud kv set coder-memory task:{taskId}:notes '{
+agentuity cloud kv set agentuity-opencode-memory task:{taskId}:notes '{
   "version": "v1",
   "createdAt": "...",
-  "projectId": "...",
+  "projectLabel": "...",
   "taskId": "...",
   "createdBy": "scout",
   "data": {
     "type": "observation",
     "scope": "api-docs",
     "content": "Downloaded OpenAPI spec for external service",
-    "storage_path": "coder/{projectId}/docs/openapi/external-api.json",
-    "tags": ["api", "external", "openapi"]
+    "storage_path": "opencode/{projectLabel}/docs/openapi/external-api.json",
+    "tags": "api|external|openapi"
   }
 }'
 \`\`\`

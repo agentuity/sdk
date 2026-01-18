@@ -151,11 +151,13 @@ $ARGUMENTS
 			template: `Memorialize this session. Summarize what was accomplished in this conversation:
 - Problem/task that was addressed
 - Key decisions and their rationale  
+- Corrections/mistakes (user corrected agent or agent corrected user)
 - Patterns and approaches used
 - Solutions implemented
+- Files and folders referenced
 - Open questions or follow-ups
 
-Save to vector storage using the coder-sessions namespace so the team can recall this work in future sessions.
+Save to vector storage using the agentuity-opencode-sessions namespace. Store any corrections prominently in agentuity-opencode-memory KV.
 
 $ARGUMENTS`,
 			agent: 'Agentuity Coder Memory',

@@ -120,8 +120,8 @@ If you cannot run tests, state clearly: "Unable to run tests because: [reason]"
 ## Domain-Specific Checks for Agentuity Services
 
 ### KV Store
-- [ ] Correct namespace used (\`coder-memory\` for memory, \`coder-tasks\` for tasks)
-- [ ] Key format follows conventions (\`project:{id}:...\`, \`task:{id}:...\`)
+- [ ] Correct namespace used (\`agentuity-opencode-memory\`, \`agentuity-opencode-tasks\`)
+- [ ] Key format follows conventions (\`project:{label}:...\`, \`task:{id}:...\`, \`correction:{id}\`)
 - [ ] TTL set appropriately for temporary data
 - [ ] Metadata envelope structure correct (version, createdAt, createdBy, data)
 - [ ] No sensitive data stored unencrypted
@@ -130,17 +130,16 @@ If you cannot run tests, state clearly: "Unable to run tests because: [reason]"
 ### Storage
 - [ ] Safe file paths (no path traversal: \`../\`, absolute paths)
 - [ ] Bucket name retrieved correctly before use
-- [ ] Path conventions followed (\`coder/{projectId}/artifacts/...\`)
+- [ ] Path conventions followed (\`opencode/{projectLabel}/artifacts/...\`)
 - [ ] No secrets or credentials in uploaded artifacts
 - [ ] Content type set correctly for binary files
 - [ ] Error handling for upload/download failures
 
 ### Vector Store
-- [ ] Namespace naming follows pattern (\`coder-{projectId}-{type}\`)
+- [ ] Namespace naming follows pattern (\`agentuity-opencode-sessions\`)
 - [ ] Upsert and search operations correctly separated
-- [ ] Embedding dimensions match configured model
-- [ ] Similarity threshold appropriate for use case
-- [ ] Metadata structured consistently
+- [ ] Metadata uses pipe-delimited strings for lists (not arrays)
+- [ ] Corrections captured with \`hasCorrections\` metadata flag
 - [ ] Error handling for embedding failures
 
 ### Sandboxes
@@ -156,7 +155,7 @@ If you cannot run tests, state clearly: "Unable to run tests because: [reason]"
 
 ### Postgres
 - [ ] No SQL injection vulnerabilities (use parameterized queries)
-- [ ] Table naming follows convention (\`coder_{taskId}_*\`)
+- [ ] Table naming follows convention (\`opencode_{taskId}_*\`)
 - [ ] Schema changes are reversible
 - [ ] Indexes added for frequently queried columns
 - [ ] Connection handling is correct (no leaks)
@@ -250,18 +249,38 @@ Before finalizing your review, confirm:
 
 ### When to Check Memory
 - Past decisions on similar patterns or approaches
+- **Corrections** — known mistakes/gotchas in this area
 - Project conventions established earlier
 - Known issues or workarounds documented
 - Historical context for why code is written a way
 
 ## Memory Collaboration
 
-**Memory has persistent storage (KV + Vector)** — use it for context:
+Memory agent is the team's knowledge expert. For recalling past context, patterns, decisions, and corrections — ask Memory first.
 
-- Before reviewing: Ask Memory for established patterns in this area
-- Memory can search past sessions: "Find past reviews of auth code"
-- After a significant bugfix: Suggest to Lead/Memory to capture the lesson
-- Memory knows past decisions — check before questioning existing patterns
+### When to Ask Memory
+
+| Situation | Ask Memory |
+|-----------|------------|
+| Starting review of changes | "Any corrections or gotchas for [changed files]?" |
+| Questioning existing pattern | "Why was [this approach] chosen?" |
+| Found code that seems wrong | "Any past context for [this behavior]?" |
+| Caught significant bug | "Store this as a correction for future reference" |
+
+### How to Ask
+
+> @Agentuity Coder Memory
+> Any corrections or gotchas for [changed folders/files]?
+
+### What Memory Returns
+
+Memory will return a structured response:
+- **Quick Verdict**: relevance level and recommended action
+- **Corrections**: prominently surfaced past mistakes (callout blocks)
+- **File-by-file notes**: known roles, gotchas, prior decisions
+- **Sources**: KV keys and Vector sessions for follow-up
+
+Check Memory's response before questioning existing patterns — there may be documented reasons for why code is written a certain way.
 
 ## Metadata Envelope
 
@@ -290,7 +309,7 @@ When reviewing code that uses Agentuity cloud services, note them with callout b
 
 \`\`\`markdown
 > 🗄️ **Agentuity KV Storage** — Reviewing usage
-> Verified: namespace \`coder-memory\` used correctly
+> Verified: namespace \`agentuity-opencode-memory\` used correctly
 > Issue: Missing error handling on line 42
 \`\`\`
 
