@@ -610,7 +610,7 @@ async function createSandbox(provider: SandboxTreeDataProvider): Promise<void> {
 			if (result.success && result.data) {
 				const info = result.data;
 				const displayName = info.name || info.sandboxId.slice(0, 12);
-				const runtimeDisplay = info.runtimeName ?? info.runtimeId ?? 'bun:1';
+				const runtimeDisplay = info.runtime?.name ?? info.runtime?.id ?? 'bun:1';
 				vscode.window.showInformationMessage(
 					`Sandbox "${displayName}" created with runtime ${runtimeDisplay}`
 				);
@@ -662,7 +662,7 @@ async function createSandboxFromSnapshot(
 			if (result.success && result.data) {
 				const info = result.data;
 				const displayName = info.name || info.sandboxId.slice(0, 12);
-				const runtimeDisplay = info.runtimeName ?? info.runtimeId ?? 'bun:1';
+				const runtimeDisplay = info.runtime?.name ?? info.runtime?.id ?? 'bun:1';
 				vscode.window.showInformationMessage(
 					`Sandbox "${displayName}" created from snapshot with runtime ${runtimeDisplay}`
 				);
@@ -1459,7 +1459,7 @@ async function uploadToSandbox(uri: vscode.Uri): Promise<void> {
 	const picked = await vscode.window.showQuickPick(
 		sandboxes.map((s) => ({
 			label: s.name || s.sandboxId.slice(0, 12),
-			description: `${s.status} · ${s.runtimeName ?? s.runtimeId ?? 'base'}`,
+			description: `${s.status} · ${s.runtime?.name ?? s.runtime?.id ?? 'base'}`,
 			detail: s.sandboxId,
 			sandbox: s,
 		})),

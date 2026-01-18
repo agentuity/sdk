@@ -98,6 +98,136 @@ export interface SandboxRuntime {
 }
 
 /**
+ * Runtime information included in sandbox responses
+ */
+export interface SandboxRuntimeInfo {
+	/**
+	 * Unique runtime identifier
+	 */
+	id: string;
+
+	/**
+	 * Runtime name (e.g., "bun:1", "python:3.14")
+	 */
+	name: string;
+
+	/**
+	 * URL for runtime icon
+	 */
+	iconUrl?: string;
+
+	/**
+	 * Brand color for the runtime (hex color code)
+	 */
+	brandColor?: string;
+
+	/**
+	 * Optional tags for categorization
+	 */
+	tags?: string[];
+}
+
+/**
+ * Snapshot user information (for private snapshots)
+ */
+export interface SandboxSnapshotUserInfo {
+	/**
+	 * User ID
+	 */
+	id: string;
+
+	/**
+	 * User's first name
+	 */
+	firstName?: string;
+
+	/**
+	 * User's last name
+	 */
+	lastName?: string;
+}
+
+/**
+ * Snapshot org information (for public snapshots)
+ */
+export interface SandboxSnapshotOrgInfo {
+	/**
+	 * Organization ID
+	 */
+	id: string;
+
+	/**
+	 * Organization name
+	 */
+	name: string;
+
+	/**
+	 * Organization slug
+	 */
+	slug?: string;
+}
+
+/**
+ * Base snapshot information
+ */
+interface SandboxSnapshotInfoBase {
+	/**
+	 * Unique snapshot identifier
+	 */
+	id: string;
+
+	/**
+	 * Snapshot name
+	 */
+	name?: string;
+
+	/**
+	 * Snapshot tag
+	 */
+	tag?: string;
+
+	/**
+	 * Full name with org slug (@slug/name:tag)
+	 */
+	fullName?: string;
+}
+
+/**
+ * Public snapshot information - includes org info
+ */
+export interface SandboxSnapshotInfoPublic extends SandboxSnapshotInfoBase {
+	/**
+	 * Public snapshot
+	 */
+	public: true;
+
+	/**
+	 * Organization that owns the public snapshot
+	 */
+	org: SandboxSnapshotOrgInfo;
+}
+
+/**
+ * Private snapshot information - includes user info
+ */
+export interface SandboxSnapshotInfoPrivate extends SandboxSnapshotInfoBase {
+	/**
+	 * Private snapshot
+	 */
+	public: false;
+
+	/**
+	 * User who created the private snapshot
+	 */
+	user: SandboxSnapshotUserInfo;
+}
+
+/**
+ * Snapshot information included in sandbox responses (discriminated union)
+ */
+export type SandboxSnapshotInfo = SandboxSnapshotInfoPublic | SandboxSnapshotInfoPrivate;
+
+/**
  * Execution status
  */
 export type ExecutionStatus =
@@ -493,34 +623,14 @@ export interface SandboxInfo {
 	region?: string;
 
 	/**
-	 * Runtime ID
+	 * Runtime information
 	 */
-	runtimeId?: string;
+	runtime?: SandboxRuntimeInfo;
 
 	/**
-	 * Runtime name (e.g., "bun:1")
+	 * Snapshot information
 	 */
-	runtimeName?: string;
-
-	/**
-	 * Runtime icon URL
-	 */
-	runtimeIconUrl?: string;
-
-	/**
-	 * Runtime brand color (hex color code)
-	 */
-	runtimeBrandColor?: string;
-
-	/**
-	 * Snapshot ID this sandbox was created from
-	 */
-	snapshotId?: string;
-
-	/**
-	 * Snapshot tag this sandbox was created from (if the snapshot had a tag)
-	 */
-	snapshotTag?: string;
+	snapshot?: SandboxSnapshotInfo;
 
 	/**
 	 * Number of executions run in this sandbox

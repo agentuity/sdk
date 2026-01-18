@@ -10,6 +10,25 @@ import { getGlobalCatalystAPIClient } from '../../../../config';
 const SnapshotFileSchema = z.object({
 	path: z.string(),
 	size: z.number(),
+	sha256: z.string(),
+	contentType: z.string(),
+	mode: z.number(),
+});
+
+const SandboxRuntimeInfoSchema = z.object({
+	id: z.string().describe('Runtime ID'),
+	name: z.string().describe('Runtime name'),
+	iconUrl: z.string().optional().describe('URL for runtime icon'),
+	brandColor: z.string().optional().describe('Brand color for the runtime'),
+	tags: z.array(z.string()).optional().describe('Runtime tags'),
+});
+
+const SandboxSnapshotInfoSchema = z.object({
+	id: z.string().describe('Snapshot ID'),
+	name: z.string().optional().describe('Snapshot name'),
+	tag: z.string().optional().describe('Snapshot tag'),
+	fullName: z.string().optional().describe('Full name with org slug'),
+	public: z.boolean().describe('Whether snapshot is public'),
 });
 
 const SandboxInfoSchema = z.object({
@@ -17,15 +36,22 @@ const SandboxInfoSchema = z.object({
 	status: z.string().describe('Current status'),
 	createdAt: z.string().describe('Creation timestamp'),
 	executions: z.number().describe('Number of executions'),
+	runtime: SandboxRuntimeInfoSchema.optional().describe('Runtime information'),
+	snapshot: SandboxSnapshotInfoSchema.optional().describe('Snapshot information'),
 });
 
 const SnapshotGetResponseSchema = z.object({
 	snapshotId: z.string().describe('Snapshot ID'),
 	name: z.string().describe('Snapshot name'),
+	fullName: z.string().optional().describe('Full name with org slug (@slug/name:tag)'),
 	tag: z.string().nullable().optional().describe('Snapshot tag'),
+	message: z.string().nullable().optional().describe('Build message'),
 	sizeBytes: z.number().describe('Snapshot size in bytes'),
 	fileCount: z.number().describe('Number of files'),
 	parentSnapshotId: z.string().nullable().optional().describe('Parent snapshot ID'),
+	public: z.boolean().optional().describe('Whether snapshot is publicly accessible'),
+	orgName: z.string().optional().describe('Organization name (for public snapshots)'),
+	orgSlug: z.string().optional().describe('Organization slug (for public snapshots)'),
 	createdAt: z.string().describe('Creation timestamp'),
 	downloadUrl: z.string().optional().describe('Presigned download URL'),
 	files: z.array(SnapshotFileSchema).nullable().optional().describe('Files in snapshot'),
@@ -85,8 +111,20 @@ export const getSubcommand = createCommand({
 			if (snapshot.tag) {
 				tableData['Tag'] = snapshot.tag;
 			}
+			if (snapshot.message) {
+				tableData['Message'] = snapshot.message;
+			}
 			tableData['Size'] = tui.formatBytes(snapshot.sizeBytes);
 			tableData['Files'] = snapshot.fileCount;
+			if (snapshot.public) {
+				tableData['Public'] = 'Yes';
+				if (snapshot.fullName) {
+					tableData['Full Name'] = snapshot.fullName;
+				}
+				if (snapshot.orgName) {
+					tableData['Publisher'] = snapshot.orgName;
+				}
+			}
 			tableData['Created'] = snapshot.createdAt;
 			if (snapshot.parentSnapshotId) {
 				tableData['Parent'] = snapshot.parentSnapshotId;
