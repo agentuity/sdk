@@ -118,6 +118,8 @@ function stateToStatus(state: WebRTCConnectionState): WebRTCStatus {
  * }
  * ```
  */
+
+// maybe use video/audio one then also a Raw one.
 export function useWebRTCCall(options: UseWebRTCCallOptions): UseWebRTCCallResult {
 	const context = useContext(AgentuityContext);
 

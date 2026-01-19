@@ -60,6 +60,7 @@ export function webrtc<E extends Env = Env>(options?: WebRTCOptions): Middleware
 
 	const wsHandler = upgradeWebSocket((_c: Context<E>) => {
 		let currentWs: WebSocketConnection | undefined;
+		// we need a Privder interface here with AsyncLocalStorage and KV
 		const asyncLocalStorage = getAgentAsyncLocalStorage();
 		const capturedContext = asyncLocalStorage.getStore();
 
