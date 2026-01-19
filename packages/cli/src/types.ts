@@ -62,7 +62,6 @@ export const ConfigSchema = zod.object({
 		})
 		.optional()
 		.describe('the gravity client information'),
-
 });
 
 export type Config = zod.infer<typeof ConfigSchema>;
@@ -654,26 +653,37 @@ export const BuildMetadataSchema = ServerBuildMetadataSchema;
 export type BuildMetadata = zod.infer<typeof BuildMetadataSchema>;
 export type Project = zod.infer<typeof ProjectSchema>;
 
-export const DeployOptionsSchema = zod.object({
-	logsUrl: zod.url().optional().describe('The url to the CI build logs'),
-	trigger: zod
-		.enum(['cli', 'workflow', 'webhook'])
-		.default('cli')
-		.optional()
-		.describe('The trigger that caused the build'),
-	commitUrl: zod.url().optional().describe('The url to the CI commit'),
-	message: zod.string().optional().describe('The message to associate with this deployment'),
-	commit: zod.string().optional().describe('The commit SHA for this deployment'),
-	branch: zod.string().optional().describe('The git branch for this deployment'),
-	provider: zod.string().optional().describe('The CI provider name (attempts to autodetect)'),
-	repo: zod.string().optional().describe('The repo url'),
-	event: zod
-		.enum(['pull_request', 'push', 'manual', 'workflow'])
-		.default('manual')
-		.optional()
-		.describe('The event that triggered the deployment'),
-	pullRequestNumber: zod.number().optional().describe('the pull request number'),
-	pullRequestUrl: zod.url().optional().describe('the pull request url'),
+/**
+ * Common git options schema for build commands (deploy, snapshot build, etc.)
+ * These can be provided via CLI flags to override auto-detected git values.
+ */
+export const GitOptionsSchema = zod.object({
+	message: zod.string().optional().describe('The message to associate with this build'),
+	commit: zod.string().optional().describe('The git commit SHA'),
+	branch: zod.string().optional().describe('The git branch'),
+	repo: zod.string().optional().describe('The git repo URL'),
+	provider: zod.string().optional().describe('The git provider (github, gitlab, bitbucket)'),
+	commitUrl: zod.url().optional().describe('The URL to the commit'),
 });
+
+export type GitOptions = z.infer<typeof GitOptionsSchema>;
+
+export const DeployOptionsSchema = zod
+	.object({
+		logsUrl: zod.url().optional().describe('The url to the CI build logs'),
+		trigger: zod
+			.enum(['cli', 'workflow', 'webhook'])
+			.default('cli')
+			.optional()
+			.describe('The trigger that caused the build'),
+		event: zod
+			.enum(['pull_request', 'push', 'manual', 'workflow'])
+			.default('manual')
+			.optional()
+			.describe('The event that triggered the deployment'),
+		pullRequestNumber: zod.number().optional().describe('the pull request number'),
+		pullRequestUrl: zod.url().optional().describe('the pull request url'),
+	})
+	.merge(GitOptionsSchema);
 
 export type DeployOptions = z.infer<typeof DeployOptionsSchema>;

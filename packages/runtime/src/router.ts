@@ -10,9 +10,29 @@ export type { HonoEnv };
 // Re-export WebSocketConnection from handlers
 export type { WebSocketConnection } from './handlers/websocket';
 
-// Module augmentation to add deprecated methods to Hono
-// These stubs throw errors with migration instructions
+// Module augmentation to extend Hono types for Agentuity runtime
 declare module 'hono' {
+	// Extend Context with waitUntil for route handlers
+	// Note: executionCtx is already provided by Hono's Context class
+	interface Context {
+		/**
+		 * Schedule a background task that runs after the response is sent.
+		 * Works the same as `ctx.waitUntil()` in agent handlers.
+		 *
+		 * @example
+		 * ```typescript
+		 * router.post('/data', async (c) => {
+		 *   c.waitUntil(async () => {
+		 *     await sendAnalytics(c.req.url);
+		 *   });
+		 *   return c.json({ success: true });
+		 * });
+		 * ```
+		 */
+		waitUntil(callback: Promise<void> | (() => void | Promise<void>)): void;
+	}
+
+	// Deprecated router methods (stubs that throw errors with migration instructions)
 	interface Hono {
 		/**
 		 * @deprecated Use the `websocket` middleware instead:

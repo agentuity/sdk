@@ -5,15 +5,18 @@ import { YAML } from 'bun';
 import * as tar from 'tar';
 import { createCommand } from '../../../../types';
 import * as tui from '../../../../tui';
+import { ErrorCode } from '../../../../errors';
 import { getCommand } from '../../../../command-prefix';
 import {
 	snapshotBuildInit,
 	snapshotBuildFinalize,
+	snapshotUpload,
 	SnapshotBuildFileSchema,
 } from '@agentuity/server';
-import type { SnapshotFileInfo } from '@agentuity/server';
+import type { SnapshotFileInfo, SnapshotBuildGitInfo } from '@agentuity/server';
 import { getCatalystAPIClient } from '../../../../config';
 import { validateAptDependencies } from '../../../../utils/apt-validator';
+import { getGitInfo, mergeGitInfo } from '../../../../utils/git';
 import { encryptFIPSKEMDEMStream } from '../../../../crypto/box';
 import { tmpdir } from 'node:os';
 import { randomUUID, createHash, createPublicKey } from 'node:crypto';
@@ -35,7 +38,12 @@ const SnapshotBuildResponseSchema = z.object({
 		.record(z.string(), z.string())
 		.optional()
 		.describe('User-defined metadata key-value pairs'),
+	error: z.string().optional().describe('Error message if build failed'),
+	malwareDetected: z.boolean().optional().describe('True if malware was detected'),
+	virusName: z.string().optional().describe('Name of detected virus'),
 });
+
+const MALWARE_REGEX = /malware detected \(([^)]+)\)/i;
 
 interface FileEntry {
 	path: string;
@@ -229,6 +237,33 @@ async function createTarGzArchive(
 	);
 }
 
+function createProgressStream(
+	file: ReturnType<typeof Bun.file>,
+	totalSize: number,
+	onProgress: (percent: number) => void
+): ReadableStream<Uint8Array> {
+	let bytesRead = 0;
+	const reader = file.stream().getReader();
+
+	return new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			const { done, value } = await reader.read();
+			if (done) {
+				controller.close();
+				onProgress(100);
+				return;
+			}
+			bytesRead += value.byteLength;
+			const percent = Math.min(99, Math.floor((bytesRead / totalSize) * 100));
+			onProgress(percent);
+			controller.enqueue(value);
+		},
+		cancel() {
+			reader.cancel();
+		},
+	});
+}
+
 async function generateContentHash(params: {
 	runtime: string;
 	description?: string;
@@ -236,6 +271,7 @@ async function generateContentHash(params: {
 	files: SnapshotFileInfo[];
 	fileHashes: Map<string, string>;
 	env?: Record<string, string>;
+	isPublic?: boolean;
 }): Promise<string> {
 	const hash = createHash('sha256');
 
@@ -254,7 +290,8 @@ async function generateContentHash(params: {
 		const sortedFiles = [...params.files].sort((a, b) => a.path.localeCompare(b.path));
 		for (const file of sortedFiles) {
 			const contentHash = params.fileHashes.get(file.path) ?? '';
-			hash.update(`file:${file.path}:${file.size}:${contentHash}\n`);
+			const mode = file.mode.toString(8).padStart(4, '0');
+			hash.update(`file:${file.path}:${file.size}:${contentHash}:${mode}:${file.contentType}\n`);
 		}
 	}
 
@@ -264,6 +301,8 @@ async function generateContentHash(params: {
 			hash.update(`env:${key}=${params.env[key]}\n`);
 		}
 	}
+
+	hash.update(`access:${params.isPublic ? 'public' : 'private'}\n`);
 
 	return hash.digest('hex');
 }
@@ -313,8 +352,25 @@ export const buildSubcommand = createCommand({
 			name: z.string().optional().describe('Snapshot name (overrides build file)'),
 			tag: z.string().optional().describe('Snapshot tag (defaults to "latest")'),
 			description: z.string().optional().describe('Snapshot description (overrides build file)'),
+			message: z.string().optional().describe('Build message for this snapshot'),
+			commit: z.string().optional().describe('Git commit SHA (auto-detected if not provided)'),
+			branch: z.string().optional().describe('Git branch (auto-detected if not provided)'),
+			repo: z.string().optional().describe('Git repo URL (auto-detected if not provided)'),
+			provider: z
+				.string()
+				.optional()
+				.describe('Git provider (github, gitlab, bitbucket - auto-detected)'),
+			commitUrl: z.string().optional().describe('URL to the commit'),
 			metadata: z.array(z.string()).optional().describe('Metadata key-value pairs (KEY=VALUE)'),
 			force: z.boolean().optional().describe('Force rebuild even if content is unchanged'),
+			public: z
+				.boolean()
+				.optional()
+				.describe('Make snapshot public (enables virus scanning, no encryption)'),
+			confirm: z
+				.boolean()
+				.optional()
+				.describe('Confirm public snapshot publishing (required for --public)'),
 		}),
 		response: SnapshotBuildResponseSchema,
 	},
@@ -323,6 +379,37 @@ export const buildSubcommand = createCommand({
 		const { args, opts, options, auth, region, config, logger, orgId } = ctx;
 
 		const dryRun = options.dryRun === true;
+		const isPublic = opts.public === true;
+
+		if (isPublic && !dryRun) {
+			if (!opts.confirm) {
+				if (!tui.isTTYLike()) {
+					logger.fatal(
+						`Publishing a public snapshot requires confirmation.\n\n` +
+							`Public snapshots make all environment variables and files publicly accessible.\n\n` +
+							`To proceed, add the --confirm flag:\n` +
+							`  ${getCommand('cloud sandbox snapshot build . --public --confirm')}\n\n` +
+							`To preview what will be published, use --dry-run first:\n` +
+							`  ${getCommand('cloud sandbox snapshot build . --public --dry-run')}`
+					);
+				}
+
+				tui.warningBox(
+					'Public Snapshot',
+					`You are publishing a public snapshot.\n\n` +
+						`This will make all environment variables and\n` +
+						`files in the snapshot publicly accessible.\n\n` +
+						`Run with --dry-run to preview the contents.`
+				);
+				console.log('');
+
+				const confirmed = await tui.confirm('Proceed with public snapshot?', false);
+
+				if (!confirmed) {
+					logger.fatal('Aborted');
+				}
+			}
+		}
 
 		const directory = resolve(args.directory);
 		if (!existsSync(directory)) {
@@ -457,20 +544,34 @@ export const buildSubcommand = createCommand({
 			files = await resolveFileGlobs(directory, buildConfig.files);
 		}
 
-		const fileList: SnapshotFileInfo[] = Array.from(files.values()).map((f) => ({
-			path: f.path,
-			size: f.size,
-		}));
-		const totalSize = fileList.reduce((sum, f) => sum + f.size, 0);
-
-		const fileHashes = new Map<string, string>();
+		const fileMetadata = new Map<string, { sha256: string; contentType: string; mode: number }>();
 		for (const file of files.values()) {
 			const fullPath = join(directory, file.path);
 			const bunFile = Bun.file(fullPath);
 			const content = await bunFile.arrayBuffer();
 			const hash = createHash('sha256').update(Buffer.from(content)).digest('hex');
-			fileHashes.set(file.path, hash);
+			const contentType = bunFile.type || 'application/octet-stream';
+			const stat = statSync(fullPath);
+			const mode = stat.mode & 0o7777; // Extract permission bits only
+			fileMetadata.set(file.path, { sha256: hash, contentType, mode });
 		}
+
+		const fileHashes = new Map<string, string>();
+		for (const [path, meta] of fileMetadata) {
+			fileHashes.set(path, meta.sha256);
+		}
+
+		const fileList: SnapshotFileInfo[] = Array.from(files.values()).map((f) => {
+			const meta = fileMetadata.get(f.path);
+			return {
+				path: f.path,
+				size: f.size,
+				sha256: meta?.sha256 ?? '',
+				contentType: meta?.contentType ?? 'application/octet-stream',
+				mode: meta?.mode ?? 0o644,
+			};
+		});
+		const totalSize = fileList.reduce((sum, f) => sum + f.size, 0);
 
 		const contentHash = await generateContentHash({
 			runtime: buildConfig.runtime,
@@ -479,6 +580,7 @@ export const buildSubcommand = createCommand({
 			files: fileList,
 			fileHashes,
 			env: finalEnv,
+			isPublic,
 		});
 
 		if (dryRun) {
@@ -492,11 +594,12 @@ export const buildSubcommand = createCommand({
 							Description: finalDescription ?? '-',
 							Runtime: buildConfig.runtime,
 							Tag: opts.tag ?? 'latest',
+							Access: isPublic ? 'public' : 'private',
 							Size: tui.formatBytes(totalSize),
 							Files: fileList.length.toFixed(),
 						},
 					],
-					['Name', 'Description', 'Runtime', 'Tag', 'Size', 'Files'],
+					['Name', 'Description', 'Runtime', 'Tag', 'Access', 'Size', 'Files'],
 					{ layout: 'vertical', padStart: '  ' }
 				);
 
@@ -565,6 +668,34 @@ export const buildSubcommand = createCommand({
 
 			const client = getCatalystAPIClient(logger, auth, region);
 
+			// Auto-detect git info and merge with CLI overrides
+			const autoDetectedGit = await getGitInfo(directory, logger);
+			const mergedGitInfo = mergeGitInfo(autoDetectedGit, {
+				message: opts.message,
+				commit: opts.commit,
+				branch: opts.branch,
+				repo: opts.repo,
+				provider: opts.provider,
+				commitUrl: opts.commitUrl,
+			});
+
+			// Build git info for API (only include if we have any git data)
+			const hasGitInfo =
+				mergedGitInfo.branch ||
+				mergedGitInfo.commit ||
+				mergedGitInfo.repo ||
+				mergedGitInfo.provider ||
+				mergedGitInfo.commitUrl;
+			const gitInfo: SnapshotBuildGitInfo | undefined = hasGitInfo
+				? {
+						branch: mergedGitInfo.branch,
+						commit: mergedGitInfo.commit,
+						repo: mergedGitInfo.repo,
+						provider: mergedGitInfo.provider,
+						commitUrl: mergedGitInfo.commitUrl,
+					}
+				: undefined;
+
 			const initResult = await tui.spinner({
 				message: 'Initializing snapshot build...',
 				clearOnSuccess: true,
@@ -572,11 +703,14 @@ export const buildSubcommand = createCommand({
 					return await snapshotBuildInit(client, {
 						runtime: buildConfig.runtime,
 						name: finalName,
-						tag: opts.tag,
+						tag: opts.tag ?? 'latest',
 						description: finalDescription,
+						message: mergedGitInfo.message,
+						git: gitInfo,
 						contentHash,
 						force: opts.force,
-						encrypt: true,
+						encrypt: !isPublic,
+						public: isPublic,
 						orgId,
 					});
 				},
@@ -611,7 +745,7 @@ export const buildSubcommand = createCommand({
 				};
 			}
 
-			// Encrypt the archive if public key is provided
+			// Encrypt the archive if public key is provided (private snapshots only)
 			let uploadPath = archivePath;
 			let uploadSize = archiveSize;
 
@@ -646,28 +780,89 @@ export const buildSubcommand = createCommand({
 				uploadSize = Bun.file(encryptedPath).size;
 			}
 
-			await tui.spinner({
-				message: 'Uploading snapshot...',
-				type: 'progress',
-				clearOnSuccess: true,
-				callback: async (updateProgress) => {
-					const uploadFile = Bun.file(uploadPath);
-					const response = await fetch(initResult.uploadUrl!, {
-						method: 'PUT',
-						headers: {
-							'Content-Type': 'application/gzip',
-							'Content-Length': String(uploadSize),
-						},
-						body: uploadFile,
-					});
+			if (initResult.uploadUrl) {
+				// Private snapshot: upload directly to S3
+				// Use Bun.file() directly as body - Bun sets Content-Length automatically from file size
+				await tui.spinner({
+					message: 'Uploading snapshot...',
+					clearOnSuccess: true,
+					callback: async () => {
+						const uploadFile = Bun.file(uploadPath);
+						const response = await fetch(initResult.uploadUrl!, {
+							method: 'PUT',
+							headers: {
+								'Content-Type': 'application/gzip',
+							},
+							body: uploadFile,
+						});
 
-					if (!response.ok) {
-						throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+						if (!response.ok) {
+							throw new Error(`Upload failed: ${response.status} ${response.statusText}`);
+						}
+					},
+				});
+			} else {
+				// Public snapshot: upload via Catalyst (with virus scanning)
+				try {
+					await tui.spinner({
+						message: 'Uploading and scanning snapshot...',
+						type: 'progress',
+						clearOnSuccess: true,
+						clearOnError: true,
+						callback: async (updateProgress) => {
+							const uploadFile = Bun.file(uploadPath);
+							const progressStream = createProgressStream(uploadFile, uploadSize, updateProgress);
+							await snapshotUpload(client, {
+								snapshotId: initResult.snapshotId!,
+								body: progressStream,
+								contentLength: uploadSize,
+								orgId,
+							});
+						},
+					});
+				} catch (err) {
+					const errorMessage = err instanceof Error ? err.message : String(err);
+					const malwareMatch = MALWARE_REGEX.exec(errorMessage);
+
+					if (malwareMatch) {
+						const virusName = malwareMatch[1];
+
+						if (options.json) {
+							console.log(
+								JSON.stringify(
+									{
+										snapshotId: '',
+										name: finalName ?? '',
+										tag: opts.tag ?? 'latest',
+										runtime: buildConfig.runtime,
+										sizeBytes: totalSize,
+										fileCount: fileList.length,
+										createdAt: new Date().toISOString(),
+										error: errorMessage,
+										malwareDetected: true,
+										virusName,
+									},
+									null,
+									2
+								)
+							);
+							process.exit(ErrorCode.MALWARE_DETECTED);
+						}
+
+						console.log('');
+						tui.errorBox(
+							'Malware Detected',
+							`Your snapshot was rejected because it contains malware.\n\nVirus: ${virusName}\n\nPlease remove the infected files and try again.`
+						);
+						tui.fatal(
+							'Snapshot build failed due to malware detection',
+							ErrorCode.MALWARE_DETECTED
+						);
 					}
 
-					updateProgress(100);
-				},
-			});
+					throw err;
+				}
+			}
 
 			const snapshot = await tui.spinner({
 				message: 'Finalizing snapshot...',

@@ -3,6 +3,7 @@ export * from './apikey';
 export * from './db';
 export * from './org';
 export * from './project';
+export * from './queue';
 export * from './region';
 export * from './sandbox';
 export * from './session';

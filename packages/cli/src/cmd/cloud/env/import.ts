@@ -21,7 +21,10 @@ const EnvImportResponseSchema = z.object({
 	envCount: z.number().describe('Number of env vars imported'),
 	secretCount: z.number().describe('Number of secrets imported'),
 	skipped: z.number().describe('Number of items skipped'),
-	path: z.string().optional().describe('Local file path where variables were saved (project scope only)'),
+	path: z
+		.string()
+		.optional()
+		.describe('Local file path where variables were saved (project scope only)'),
 	file: z.string().describe('Source file path'),
 	scope: z.enum(['project', 'org']).describe('The scope where variables were imported'),
 });
@@ -29,13 +32,7 @@ const EnvImportResponseSchema = z.object({
 export const importSubcommand = createSubcommand({
 	name: 'import',
 	description: 'Import environment variables and secrets from a file to cloud and local .env',
-	tags: [
-		'mutating',
-		'creates-resource',
-		'slow',
-		'api-intensive',
-		'requires-auth',
-	],
+	tags: ['mutating', 'creates-resource', 'slow', 'api-intensive', 'requires-auth'],
 	examples: [
 		{
 			command: getCommand('cloud env import .env.backup'),
@@ -72,7 +69,9 @@ export const importSubcommand = createSubcommand({
 
 		// Require project context if not using org scope
 		if (!useOrgScope && !project) {
-			tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
+			tui.fatal(
+				'Project context required. Run from a project directory or use --org for organization scope.'
+			);
 		}
 
 		// Read the import file
@@ -87,7 +86,7 @@ export const importSubcommand = createSubcommand({
 				secretCount: 0,
 				skipped: 0,
 				file: args.file,
-				scope: useOrgScope ? 'org' as const : 'project' as const,
+				scope: useOrgScope ? ('org' as const) : ('project' as const),
 			};
 		}
 
@@ -103,7 +102,7 @@ export const importSubcommand = createSubcommand({
 				secretCount: 0,
 				skipped: Object.keys(importedVars).length,
 				file: args.file,
-				scope: useOrgScope ? 'org' as const : 'project' as const,
+				scope: useOrgScope ? ('org' as const) : ('project' as const),
 			};
 		}
 

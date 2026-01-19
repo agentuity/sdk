@@ -310,9 +310,9 @@ describe('SandboxClient', () => {
 			const { Readable } = await import('node:stream');
 			const stdin = new Readable({ read() {} });
 
-			await expect(
-				client.run({ command: { exec: ['cat'] } }, { stdin })
-			).rejects.toThrow('SandboxClient.run(): stdin streaming requires an API key');
+			await expect(client.run({ command: { exec: ['cat'] } }, { stdin })).rejects.toThrow(
+				'SandboxClient.run(): stdin streaming requires an API key'
+			);
 		});
 
 		test('should call sandbox create API with oneshot mode', async () => {
@@ -368,6 +368,89 @@ describe('SandboxClient', () => {
 			expect(createCalled).toBe(true);
 			expect((createBody?.command as Record<string, unknown>)?.mode).toBe('oneshot');
 			expect((createBody?.command as Record<string, unknown>)?.exec).toEqual(['echo', 'hello']);
+		});
+
+		test('should return actual exit code from sandbox info', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-exit-test',
+								status: 'running',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-exit-test')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-exit-test',
+								status: 'terminated',
+								exitCode: 42,
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run({ command: { exec: ['exit', '42'] } });
+
+			expect(result.sandboxId).toBe('sandbox-exit-test');
+			expect(result.exitCode).toBe(42);
+		});
+
+		test('should return exit code 1 for failed sandbox without explicit exit code', async () => {
+			mockFetch(async (url, opts) => {
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-fail-test',
+								status: 'running',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				if (opts?.method === 'GET' && url.includes('sandbox-fail-test')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-fail-test',
+								status: 'failed',
+								executions: 1,
+								createdAt: '2025-01-01T00:00:00Z',
+								org: { id: 'org-123', name: 'Test Org' },
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const result = await client.run({ command: { exec: ['false'] } });
+
+			expect(result.sandboxId).toBe('sandbox-fail-test');
+			expect(result.exitCode).toBe(1);
 		});
 	});
 

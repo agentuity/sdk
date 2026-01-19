@@ -1,6 +1,6 @@
 {
 	"name": "sdk-mono",
-	"version": "0.1.16",
+	"version": "0.1.20",
 	"license": "Apache-2.0",
 	"private": true,
 	"workspaces": [
@@ -28,6 +28,7 @@
 		"test:create": "bun ./packages/cli/scripts/test-create-flow.ts",
 		"test:pkginstall": "./scripts/test-package-install.sh",
 		"test:standalone": "cd apps/testing/standalone-agent && bun run test",
+		"test:queues": "bash scripts/test-queues.sh",
 		"typecheck:apps": "bun run --filter='./apps/testing/integration-suite' typecheck",
 		"typecheck:packages": "bun run --filter='./packages/*' typecheck",
 		"typecheck": "bun run typecheck:apps && bun run typecheck:packages",

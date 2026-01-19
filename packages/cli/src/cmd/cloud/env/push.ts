@@ -24,13 +24,7 @@ const EnvPushResponseSchema = z.object({
 export const pushSubcommand = createSubcommand({
 	name: 'push',
 	description: 'Push environment variables and secrets from local .env file to cloud',
-	tags: [
-		'mutating',
-		'updates-resource',
-		'slow',
-		'api-intensive',
-		'requires-auth',
-	],
+	tags: ['mutating', 'updates-resource', 'slow', 'api-intensive', 'requires-auth'],
 	idempotent: true,
 	examples: [
 		{ command: getCommand('env push'), description: 'Push all variables to cloud (project)' },
@@ -73,7 +67,7 @@ export const pushSubcommand = createSubcommand({
 				envCount: 0,
 				secretCount: 0,
 				source: envFilePath,
-				scope: useOrgScope ? 'org' as const : 'project' as const,
+				scope: useOrgScope ? ('org' as const) : ('project' as const),
 			};
 		}
 
@@ -123,7 +117,9 @@ export const pushSubcommand = createSubcommand({
 		} else {
 			// Project scope (existing behavior)
 			if (!project) {
-				tui.fatal('Project context required. Run from a project directory or use --org for organization scope.');
+				tui.fatal(
+					'Project context required. Run from a project directory or use --org for organization scope.'
+				);
 			}
 
 			await tui.spinner('Pushing variables to cloud', () => {

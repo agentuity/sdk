@@ -1362,8 +1362,16 @@ export async function parseRoute(
 	let exportName: string | undefined;
 	let variableName: string | undefined;
 
+	// Import info structure for tracking where identifiers come from
+	interface ImportInfo {
+		modulePath: string;
+		importedName: string; // The exported name from the source module
+		importKind: 'named' | 'default';
+	}
+
 	// Extract import statements to map variable names to their import sources
-	const importMap = new Map<string, string>(); // Maps variable name to import path
+	const importMap = new Map<string, string>(); // Maps variable name to import path (for backwards compat)
+	const importInfoMap = new Map<string, ImportInfo>(); // Maps variable name to full import info
 	for (const body of ast.body) {
 		if (body.type === 'ImportDeclaration') {
 			const importDecl = body as {
@@ -1371,6 +1379,7 @@ export async function parseRoute(
 				specifiers?: Array<{
 					type: string;
 					local?: { name?: string };
+					imported?: { name?: string }; // For named imports: the exported name
 				}>;
 			};
 			const importPath = importDecl.source?.value;
@@ -1379,9 +1388,20 @@ export async function parseRoute(
 					if (spec.type === 'ImportDefaultSpecifier' && spec.local?.name) {
 						// import hello from '@agent/hello'
 						importMap.set(spec.local.name, importPath);
+						importInfoMap.set(spec.local.name, {
+							modulePath: importPath,
+							importedName: 'default',
+							importKind: 'default',
+						});
 					} else if (spec.type === 'ImportSpecifier' && spec.local?.name) {
-						// import { hello } from './shared'
+						// import { hello } from './shared' or import { hello as h } from './shared'
+						const importedName = spec.imported?.name ?? spec.local.name;
 						importMap.set(spec.local.name, importPath);
+						importInfoMap.set(spec.local.name, {
+							modulePath: importPath,
+							importedName,
+							importKind: 'named',
+						});
 					}
 				}
 			}
@@ -1620,10 +1640,29 @@ export async function parseRoute(
 										if (validatorInfo.inputSchemaVariable) {
 											routeConfig.inputSchemaVariable =
 												validatorInfo.inputSchemaVariable;
+											// Track where the schema is imported from (if imported)
+											const inputImportInfo = importInfoMap.get(
+												validatorInfo.inputSchemaVariable
+											);
+											if (inputImportInfo) {
+												routeConfig.inputSchemaImportPath = inputImportInfo.modulePath;
+												routeConfig.inputSchemaImportedName =
+													inputImportInfo.importedName;
+											}
 										}
 										if (validatorInfo.outputSchemaVariable) {
 											routeConfig.outputSchemaVariable =
 												validatorInfo.outputSchemaVariable;
+											// Track where the schema is imported from (if imported)
+											const outputImportInfo = importInfoMap.get(
+												validatorInfo.outputSchemaVariable
+											);
+											if (outputImportInfo) {
+												routeConfig.outputSchemaImportPath =
+													outputImportInfo.modulePath;
+												routeConfig.outputSchemaImportedName =
+													outputImportInfo.importedName;
+											}
 										}
 										if (validatorInfo.stream !== undefined) {
 											routeConfig.stream = validatorInfo.stream;
@@ -1700,10 +1739,29 @@ export async function parseRoute(
 										if (validatorInfo.inputSchemaVariable) {
 											routeConfig.inputSchemaVariable =
 												validatorInfo.inputSchemaVariable;
+											// Track where the schema is imported from (if imported)
+											const inputImportInfo = importInfoMap.get(
+												validatorInfo.inputSchemaVariable
+											);
+											if (inputImportInfo) {
+												routeConfig.inputSchemaImportPath = inputImportInfo.modulePath;
+												routeConfig.inputSchemaImportedName =
+													inputImportInfo.importedName;
+											}
 										}
 										if (validatorInfo.outputSchemaVariable) {
 											routeConfig.outputSchemaVariable =
 												validatorInfo.outputSchemaVariable;
+											// Track where the schema is imported from (if imported)
+											const outputImportInfo = importInfoMap.get(
+												validatorInfo.outputSchemaVariable
+											);
+											if (outputImportInfo) {
+												routeConfig.outputSchemaImportPath =
+													outputImportInfo.modulePath;
+												routeConfig.outputSchemaImportedName =
+													outputImportInfo.importedName;
+											}
 										}
 										if (validatorInfo.stream !== undefined) {
 											routeConfig.stream = validatorInfo.stream;
@@ -1879,9 +1937,25 @@ export async function parseRoute(
 							);
 							if (validatorInfo.inputSchemaVariable) {
 								routeConfig.inputSchemaVariable = validatorInfo.inputSchemaVariable;
+								// Track where the schema is imported from (if imported)
+								const inputImportInfo = importInfoMap.get(
+									validatorInfo.inputSchemaVariable
+								);
+								if (inputImportInfo) {
+									routeConfig.inputSchemaImportPath = inputImportInfo.modulePath;
+									routeConfig.inputSchemaImportedName = inputImportInfo.importedName;
+								}
 							}
 							if (validatorInfo.outputSchemaVariable) {
 								routeConfig.outputSchemaVariable = validatorInfo.outputSchemaVariable;
+								// Track where the schema is imported from (if imported)
+								const outputImportInfo = importInfoMap.get(
+									validatorInfo.outputSchemaVariable
+								);
+								if (outputImportInfo) {
+									routeConfig.outputSchemaImportPath = outputImportInfo.modulePath;
+									routeConfig.outputSchemaImportedName = outputImportInfo.importedName;
+								}
 							}
 							if (validatorInfo.stream !== undefined) {
 								routeConfig.stream = validatorInfo.stream;
@@ -1894,9 +1968,21 @@ export async function parseRoute(
 						// which is useful when using zValidator (input-only) but needing typed outputs
 						if (!routeConfig.inputSchemaVariable && exportedInputSchemaName) {
 							routeConfig.inputSchemaVariable = exportedInputSchemaName;
+							// Check if exported schema name is also imported
+							const inputImportInfo = importInfoMap.get(exportedInputSchemaName);
+							if (inputImportInfo) {
+								routeConfig.inputSchemaImportPath = inputImportInfo.modulePath;
+								routeConfig.inputSchemaImportedName = inputImportInfo.importedName;
+							}
 						}
 						if (!routeConfig.outputSchemaVariable && exportedOutputSchemaName) {
 							routeConfig.outputSchemaVariable = exportedOutputSchemaName;
+							// Check if exported schema name is also imported
+							const outputImportInfo = importInfoMap.get(exportedOutputSchemaName);
+							if (outputImportInfo) {
+								routeConfig.outputSchemaImportPath = outputImportInfo.modulePath;
+								routeConfig.outputSchemaImportedName = outputImportInfo.importedName;
+							}
 						}
 
 						routes.push({

@@ -6,6 +6,7 @@ import {
 	type StreamStorage,
 	type VectorStorage,
 	type SandboxService,
+	type QueueService,
 	type InferInput,
 	type InferOutput,
 	toCamelCase,
@@ -230,6 +231,17 @@ export interface AgentContext<
 	 * ```
 	 */
 	sandbox: SandboxService;
+
+	/**
+	 * Queue service for publishing messages to queues.
+	 *
+	 * @example
+	 * ```typescript
+	 * const result = await ctx.queue.publish('my-queue', { event: 'user.created', userId: '123' });
+	 * console.log('Message ID:', result.id);
+	 * ```
+	 */
+	queue: QueueService;
 
 	/**
 	 * In-memory state storage scoped to the current request.

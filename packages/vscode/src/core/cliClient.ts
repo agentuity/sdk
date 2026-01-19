@@ -1206,6 +1206,46 @@ export interface SandboxResources {
 	disk?: string;
 }
 
+export interface SandboxRuntimeInfo {
+	id: string;
+	name: string;
+	iconUrl?: string;
+	brandColor?: string;
+	tags?: string[];
+}
+
+export interface SandboxSnapshotUserInfo {
+	id: string;
+	firstName?: string;
+	lastName?: string;
+}
+
+export interface SandboxSnapshotOrgInfo {
+	id: string;
+	name: string;
+	slug?: string;
+}
+
+export interface SandboxSnapshotInfoPublic {
+	id: string;
+	name?: string;
+	tag?: string | null;
+	fullName?: string;
+	public: true;
+	org: SandboxSnapshotOrgInfo;
+}
+
+export interface SandboxSnapshotInfoPrivate {
+	id: string;
+	name?: string;
+	tag?: string | null;
+	fullName?: string;
+	public: false;
+	user: SandboxSnapshotUserInfo;
+}
+
+export type SandboxSnapshotInfo = SandboxSnapshotInfoPublic | SandboxSnapshotInfoPrivate;
+
 export interface SandboxInfo {
 	sandboxId: string;
 	status: SandboxStatus;
@@ -1215,11 +1255,10 @@ export interface SandboxInfo {
 	resources?: SandboxResources;
 	stdoutStreamUrl?: string;
 	stderrStreamUrl?: string;
-	// New fields from sandbox improvements
 	name?: string;
 	description?: string;
-	runtimeId?: string;
-	runtimeName?: string;
+	runtime?: SandboxRuntimeInfo;
+	snapshot?: SandboxSnapshotInfo;
 	// Network/URL fields
 	identifier?: string;
 	networkPort?: number;
@@ -1269,14 +1308,19 @@ export interface SandboxFileInfo {
 
 export interface SnapshotInfo {
 	snapshotId: string;
+	name?: string;
+	fullName?: string; // Full name with org slug (@slug/name:tag) for public snapshots
 	tag?: string | null;
 	sizeBytes: number;
 	fileCount: number;
 	createdAt: string;
 	parentSnapshotId?: string | null;
+	public?: boolean;
+	orgName?: string;
+	orgSlug?: string; // Organization slug for public snapshots
 	downloadUrl?: string;
 	sandboxId?: string; // Present in list context
-	files?: Array<{ path: string; size: number }>; // Present in get response
+	files?: Array<{ path: string; size: number; sha256: string; contentType: string; mode: number }>; // Present in get response
 }
 
 export interface ExecutionInfo {

@@ -23,10 +23,7 @@ export type OrgEnv = z.infer<typeof OrgEnvDataSchema>;
  * Secrets are masked by default unless mask=false is specified.
  * Note: Unmasked values require admin/owner role.
  */
-export async function orgEnvGet(
-	client: APIClient,
-	request: OrgEnvGetRequest
-): Promise<OrgEnv> {
+export async function orgEnvGet(client: APIClient, request: OrgEnvGetRequest): Promise<OrgEnv> {
 	const { id, mask = true } = request;
 
 	const resp = await client.get<OrgEnvGetResponse>(
