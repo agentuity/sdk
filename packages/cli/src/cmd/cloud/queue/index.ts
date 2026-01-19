@@ -19,7 +19,7 @@ import { getCommand } from '../../../command-prefix';
 export const command = createCommand({
 	name: 'queue',
 	aliases: ['queues'],
-	description: 'Manage message queues',
+	description: 'Manage managed message queues',
 	tags: ['requires-auth'],
 	examples: [
 		{
