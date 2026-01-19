@@ -186,7 +186,9 @@ const _SnapshotLineageParamsSchema = z
 		snapshot: z
 			.string()
 			.optional()
-			.describe('Snapshot ID or name:tag to start lineage from (e.g., "sss_xxx" or "myimage:v1")'),
+			.describe(
+				'Snapshot ID or name:tag to start lineage from (e.g., "sss_xxx" or "myimage:v1")'
+			),
 		name: z
 			.string()
 			.optional()
@@ -420,9 +422,7 @@ const _SnapshotPublicGetParamsSchema = z
 	.object({
 		snapshotRef: z
 			.string()
-			.describe(
-				'Snapshot reference: ID (snp_xxx), full name (@slug/name:tag), or name:tag'
-			),
+			.describe('Snapshot reference: ID (snp_xxx), full name (@slug/name:tag), or name:tag'),
 	})
 	.describe('Parameters for getting a public snapshot');
 

@@ -95,7 +95,8 @@ export class SandboxTreeItem extends vscode.TreeItem {
 
 		// Set description with status and runtime
 		const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-		const runtimeLabel = this.sandboxData.runtime?.name ?? this.sandboxData.runtime?.id ?? 'bun:1';
+		const runtimeLabel =
+			this.sandboxData.runtime?.name ?? this.sandboxData.runtime?.id ?? 'bun:1';
 		let desc = `${statusLabel} · ${runtimeLabel}`;
 		if (this.sandboxData.url) {
 			desc += ' 🌐';
@@ -158,7 +159,8 @@ export class SandboxTreeItem extends vscode.TreeItem {
 		lines.push(`Status: ${this.sandboxData.status}`);
 
 		// Runtime info
-		const runtimeDisplay = this.sandboxData.runtime?.name ?? this.sandboxData.runtime?.id ?? 'bun:1';
+		const runtimeDisplay =
+			this.sandboxData.runtime?.name ?? this.sandboxData.runtime?.id ?? 'bun:1';
 		lines.push(`Runtime: ${runtimeDisplay}`);
 
 		if (this.sandboxData.region) {

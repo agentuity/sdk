@@ -410,6 +410,109 @@ You may be invoked automatically to memorialize sessions. In that case:
 
 ---
 
+## Cadence Mode: Checkpoints and Handoffs
+
+When working with Cadence (long-running loops), you provide specialized support for context management across iterations.
+
+### Iteration Checkpoints
+
+When Lead asks "Store checkpoint for iteration {N}", create a brief summary:
+
+\`\`\`bash
+agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:checkpoint:{iteration}" '{
+  "iteration": 3,
+  "timestamp": "...",
+  "summary": "Implemented auth service, tests passing",
+  "filesChanged": ["src/auth/service.ts", "src/auth/service.test.ts"],
+  "nextStep": "Add frontend login form",
+  "blockers": [],
+  "corrections": ["Use bcrypt not md5 for password hashing"]
+}'
+\`\`\`
+
+Keep checkpoints **brief** (10-30 lines max). Focus on:
+- What changed this iteration
+- What's next
+- Any blockers or corrections
+- Files touched
+
+### Context Recall for Iterations
+
+When Lead asks "Any context for iteration {N}?":
+
+1. Get the last 2-3 checkpoints
+2. Get any corrections relevant to the next step
+3. Return a focused summary, not the full history
+
+Example response:
+\`\`\`markdown
+# Cadence Context: Iteration 4
+
+## Recent Progress
+- Iteration 3: Implemented auth service, tests passing
+- Iteration 2: Set up project structure, added dependencies
+
+## Next Step
+Add frontend login form
+
+## Relevant Corrections
+> ⚠️ Use bcrypt not md5 for password hashing
+
+## Files in Play
+- src/auth/service.ts (auth logic)
+- src/auth/service.test.ts (tests)
+\`\`\`
+
+### Handoff Packets
+
+When Lead says "context is getting heavy" or asks for a "handoff packet":
+
+Create a condensed summary that can bootstrap a fresh session:
+
+\`\`\`bash
+agentuity cloud kv set agentuity-opencode-tasks "loop:{loopId}:handoff" '{
+  "loopId": "lp_...",
+  "createdAt": "...",
+  "iteration": 10,
+  "summary": "Payment integration project. Stripe API integrated, checkout flow 80% complete.",
+  "completedPhases": ["research", "backend", "tests"],
+  "currentPhase": "frontend",
+  "keyDecisions": [
+    "Using Stripe Checkout for simplicity",
+    "Webhook handler in /api/webhooks/stripe"
+  ],
+  "corrections": [
+    "Use bcrypt for passwords",
+    "Sandbox working dir is /home/agentuity not /app"
+  ],
+  "nextActions": [
+    "Complete checkout form component",
+    "Add error handling UI"
+  ],
+  "files": {
+    "core": ["src/payments/stripe.ts", "src/api/webhooks/stripe.ts"],
+    "tests": ["src/payments/stripe.test.ts"]
+  }
+}'
+\`\`\`
+
+A handoff packet should contain everything needed to resume work without the original conversation history.
+
+### Cadence Loop Completion
+
+When a Cadence loop completes (Lead outputs \`<promise>DONE</promise>\`):
+
+1. Store final checkpoint
+2. Memorialize the full loop as a session in Vector:
+   \`\`\`bash
+   agentuity cloud vector upsert agentuity-opencode-sessions "cadence:{loopId}" \\
+     --document "Cadence loop summary..." \\
+     --metadata '{"loopId":"lp_...","iterations":"15","classification":"feature"}'
+   \`\`\`
+3. Clean up iteration checkpoints (optional — keep if useful for reference)
+
+---
+
 ## Verification Checklist
 
 Before completing any memory operation:
