@@ -51,7 +51,9 @@ const SandboxSnapshotInfoSchema = z
 				tag: z.string().optional().describe('Snapshot tag'),
 				fullName: z.string().optional().describe('Full name with org slug (@slug/name:tag)'),
 				public: z.literal(true).describe('Public snapshot'),
-				org: SandboxSnapshotOrgInfoSchema.describe('Organization that owns the public snapshot'),
+				org: SandboxSnapshotOrgInfoSchema.describe(
+					'Organization that owns the public snapshot'
+				),
 			})
 			.describe('Public snapshot'),
 		z
