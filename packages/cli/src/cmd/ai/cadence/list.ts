@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createCommand } from '../../types';
-import * as tui from '../../tui';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
 import {
 	createCadenceKVAdapter,
 	CADENCE_NAMESPACE,
@@ -8,7 +8,7 @@ import {
 	parseLoopState,
 	type CadenceLoop,
 } from './util';
-import { getCommand } from '../../command-prefix';
+import { getCommand } from '../../../command-prefix';
 
 const CadenceListResponseSchema = z.object({
 	loops: z.array(

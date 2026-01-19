@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { createCommand } from '../../types';
-import * as tui from '../../tui';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
 import {
 	createCadenceKVAdapter,
 	CADENCE_NAMESPACE,
@@ -8,9 +8,9 @@ import {
 	parseLoopState,
 	type CadenceLoop,
 } from './util';
-import { getCommand } from '../../command-prefix';
+import { getCommand } from '../../../command-prefix';
 
-const CadenceStopResponseSchema = z.object({
+const CadenceResumeResponseSchema = z.object({
 	success: z.boolean(),
 	loopId: z.string(),
 	previousStatus: z.string().optional(),
@@ -18,20 +18,19 @@ const CadenceStopResponseSchema = z.object({
 	message: z.string(),
 });
 
-export const stopSubcommand = createCommand({
-	name: 'stop',
-	aliases: ['cancel'],
-	description: 'Stop and cancel a Cadence loop',
+export const resumeSubcommand = createCommand({
+	name: 'resume',
+	description: 'Resume a paused Cadence loop',
 	tags: ['mutating', 'updates-resource', 'fast', 'requires-auth'],
 	requires: { auth: true },
 	examples: [
-		{ command: getCommand('cadence stop lp_auth_impl'), description: 'Stop and cancel a loop' },
+		{ command: getCommand('cadence resume lp_auth_impl'), description: 'Resume a paused loop' },
 	],
 	schema: {
 		args: z.object({
-			loopId: z.string().min(1).describe('The loop ID to stop'),
+			loopId: z.string().min(1).describe('The loop ID to resume'),
 		}),
-		response: CadenceStopResponseSchema,
+		response: CadenceResumeResponseSchema,
 	},
 
 	async handler(ctx) {
@@ -82,24 +81,22 @@ export const stopSubcommand = createCommand({
 			};
 		}
 
-		const previousStatus = loop.status;
-
-		if (loop.status === 'completed' || loop.status === 'cancelled') {
+		if (loop.status !== 'paused') {
 			if (!options.json) {
-				tui.warning(`Loop ${args.loopId} is already ${loop.status}`);
+				tui.warning(`Loop ${args.loopId} is not paused (status: ${loop.status})`);
 			}
 			return {
 				success: false,
 				loopId: args.loopId,
-				previousStatus,
-				message: `Loop is already ${loop.status}`,
+				previousStatus: loop.status,
+				message: `Cannot resume loop with status: ${loop.status}`,
 			};
 		}
 
-		// Update status to cancelled
+		// Update status to running
 		const updatedLoop: CadenceLoop = {
 			...loop,
-			status: 'cancelled',
+			status: 'running',
 			updatedAt: new Date().toISOString(),
 		};
 
@@ -108,17 +105,20 @@ export const stopSubcommand = createCommand({
 		});
 
 		if (!options.json) {
-			tui.success(`Stopped loop ${args.loopId}`);
+			tui.success(`Resumed loop ${args.loopId}`);
+			tui.info(
+				'Note: The loop will continue when the Open Code session checks for status updates.'
+			);
 		}
 
 		return {
 			success: true,
 			loopId: args.loopId,
-			previousStatus,
-			newStatus: 'cancelled',
-			message: 'Loop cancelled successfully',
+			previousStatus: 'paused',
+			newStatus: 'running',
+			message: 'Loop resumed successfully',
 		};
 	},
 });
 
-export default stopSubcommand;
+export default resumeSubcommand;

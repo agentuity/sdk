@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { createCommand } from '../../types';
-import * as tui from '../../tui';
+import { createCommand } from '../../../types';
+import * as tui from '../../../tui';
 import { createCadenceKVAdapter, CADENCE_NAMESPACE, getLoopStateKey, parseLoopState } from './util';
-import { getCommand } from '../../command-prefix';
+import { getCommand } from '../../../command-prefix';
 
 const CadenceStatusResponseSchema = z.object({
 	found: z.boolean(),

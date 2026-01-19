@@ -93,11 +93,11 @@ All commands are freeform — Lead interprets intent:
 For controlling headless/sandboxed runs:
 
 ```bash
-agentuity cadence list [--project <label>]     # Active loops
-agentuity cadence status <loopId>              # Loop details
-agentuity cadence pause <loopId>               # Pause loop
-agentuity cadence resume <loopId>              # Resume loop
-agentuity cadence stop <loopId>                # Cancel loop
+agentuity ai cadence list [--project <label>]     # Active loops
+agentuity ai cadence status <loopId>              # Loop details
+agentuity ai cadence pause <loopId>               # Pause loop
+agentuity ai cadence resume <loopId>              # Resume loop
+agentuity ai cadence stop <loopId>                # Cancel loop
 ```
 
 These update KV state. Lead checks state at each iteration boundary and respects pause/stop.
@@ -223,9 +223,9 @@ This is **agent-driven** — Lead's prompt tells it how to orchestrate, not besp
 agentuity ai opencode run "/agentuity-cadence start build the feature"
 
 # Check on it
-agentuity cadence list
-agentuity cadence status lp_abc123
+agentuity ai cadence list
+agentuity ai cadence status lp_abc123
 
 # Stop if needed
-agentuity cadence stop lp_abc123
+agentuity ai cadence stop lp_abc123
 ```

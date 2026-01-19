@@ -1,7 +1,7 @@
 import { KeyValueStorageService, type Logger } from '@agentuity/core';
 import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
-import { getDefaultRegion } from '../../config';
-import type { AuthData, Config } from '../../types';
+import { getDefaultRegion } from '../../../config';
+import type { AuthData, Config } from '../../../types';
 
 /** KV namespace for Cadence loop state */
 export const CADENCE_NAMESPACE = 'agentuity-opencode-tasks';

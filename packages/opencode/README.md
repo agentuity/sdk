@@ -119,13 +119,13 @@ For running Cadence in sandboxes or background:
 agentuity ai opencode run "/agentuity-cadence build the auth feature"
 
 # Monitor
-agentuity cadence list
-agentuity cadence status lp_auth_01
+agentuity ai cadence list
+agentuity ai cadence status lp_auth_01
 
 # Control
-agentuity cadence pause lp_auth_01
-agentuity cadence resume lp_auth_01
-agentuity cadence stop lp_auth_01
+agentuity ai cadence pause lp_auth_01
+agentuity ai cadence resume lp_auth_01
+agentuity ai cadence stop lp_auth_01
 ```
 
 ### How It Works
