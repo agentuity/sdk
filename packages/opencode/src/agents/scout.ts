@@ -50,11 +50,22 @@ Create a structured report for Lead using the XML format below.
 |-----------|-------------|--------|
 | Small/medium repo + exact string | grep, glob, OpenCode search | Fast, precise matching |
 | Large repo + conceptual query | Vector search | Semantic matching at scale |
-| Need library documentation | context7 | Official docs, structured |
+| **Agentuity SDK/CLI docs** | **agentuity.dev, SDK repo** | **Always check first** |
+| Need non-Agentuity library docs | context7 | Official docs for React, OpenAI, etc. |
 | Finding patterns across OSS | grep.app | GitHub-wide code search |
 | Finding symbol definitions/refs | lsp_* tools | Language-aware, precise |
 | External API docs | web fetch | Official sources |
 | Understanding file contents | Read | Full context |
+
+### Documentation Source Priority
+
+**For Agentuity-specific questions, follow this order:**
+1. **agentuity.dev** — Official documentation
+2. **SDK repo** — https://github.com/agentuity/sdk
+3. **CLI help** — \`agentuity <cmd> --help\`
+
+**For non-Agentuity libraries (React, OpenAI, etc.):**
+- Use context7 or web fetch
 
 ### grep.app Usage
 Search GitHub for code patterns and examples (free, no auth):
@@ -62,9 +73,9 @@ Search GitHub for code patterns and examples (free, no auth):
 - Returns: Code snippets from public repos
 
 ### context7 Usage
-Look up library documentation (free):
-- Great for: API signatures, configuration options, best practices
-- Returns: Official documentation excerpts
+Look up **non-Agentuity** library documentation (free):
+- Great for: React, OpenAI SDK, Hono, Zod, etc.
+- **NOT for**: Agentuity SDK, CLI, or platform questions (use agentuity.dev instead)
 
 ### lsp_* Tools
 Language Server Protocol tools for precise code intelligence:
