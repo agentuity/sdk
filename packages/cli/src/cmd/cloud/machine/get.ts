@@ -4,6 +4,7 @@ import * as tui from '../../../tui';
 import { machineGet } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
+import { getGlobalCatalystAPIClient } from '../../../config';
 
 const MachineGetResponseSchema = z.object({
 	id: z.string().describe('Machine ID'),
@@ -11,6 +12,9 @@ const MachineGetResponseSchema = z.object({
 	provider: z.string().describe('Cloud provider'),
 	region: z.string().describe('Region'),
 	instanceId: z.string().nullable().optional().describe('Cloud instance ID'),
+	privateIPv4: z.string().nullable().optional().describe('Private IPv4 of the machine'),
+	availabilityZone: z.string().nullable().optional().describe('Availability zone of the machine'),
+	deploymentCount: z.number().describe('The number of deployments'),
 	orgId: z.string().nullable().optional().describe('Organization ID'),
 	orgName: z.string().nullable().optional().describe('Organization name'),
 	createdAt: z.string().describe('Creation timestamp'),
@@ -31,7 +35,7 @@ export const getSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['show'],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true, org: true },
 	idempotent: true,
 	schema: {
 		args: z.object({
@@ -40,10 +44,12 @@ export const getSubcommand = createSubcommand({
 		response: MachineGetResponseSchema,
 	},
 	async handler(ctx) {
-		const { apiClient, args, options } = ctx;
+		const { args, options, logger, auth, config, orgId } = ctx;
+
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name, orgId);
 
 		try {
-			const machine = await machineGet(apiClient, args.machine_id);
+			const machine = await machineGet(catalystClient, args.machine_id);
 
 			if (!options.json) {
 				const tableData: Record<string, string> = {
@@ -56,12 +62,13 @@ export const getSubcommand = createSubcommand({
 				if (machine.instanceId) {
 					tableData['Instance ID'] = machine.instanceId;
 				}
-				if (machine.orgId) {
-					tableData['Org ID'] = machine.orgId;
+				if (machine.privateIPv4) {
+					tableData['Private IP'] = machine.privateIPv4;
 				}
-				if (machine.orgName) {
-					tableData['Organization'] = machine.orgName;
+				if (machine.availabilityZone) {
+					tableData['Availability Zone'] = machine.availabilityZone;
 				}
+				tableData['Deployments'] = (machine.deploymentCount ?? 0).toString();
 				tableData['Created'] = new Date(machine.createdAt).toLocaleString();
 				if (machine.updatedAt) {
 					tableData['Updated'] = new Date(machine.updatedAt).toLocaleString();
@@ -92,6 +99,9 @@ export const getSubcommand = createSubcommand({
 				startedAt: machine.startedAt ?? undefined,
 				stoppedAt: machine.stoppedAt ?? undefined,
 				error: machine.error ?? undefined,
+				deploymentCount: machine.deploymentCount ?? 0,
+				privateIPv4: machine.privateIPv4,
+				availabilityZone: machine.availabilityZone,
 			};
 		} catch (ex) {
 			tui.fatal(`Failed to get machine: ${ex}`, ErrorCode.API_ERROR);

@@ -12,9 +12,10 @@ const MachineDeploymentResponseSchema = z.array(
 		identifier: z.string().optional().describe('Deployment identifier'),
 		state: z.string().optional().describe('Deployment state'),
 		projectName: z.string().optional().describe('Project name'),
-		projectIdentifier: z.string().optional().describe('Project identifier'),
+		projectId: z.string().optional().describe('Project ID'),
 		paused: z.boolean().describe('Whether the deployment is paused'),
 		domainSuffix: z.string().describe('Domain suffix'),
+		url: z.string().describe('URL to the deployment'),
 	})
 );
 
@@ -28,7 +29,7 @@ export const deploymentsSubcommand = createSubcommand({
 			description: 'List deployments on a machine',
 		},
 	],
-	aliases: ['deps'],
+	aliases: ['deps', 'deployment'],
 	requires: { auth: true, org: true },
 	idempotent: true,
 	schema: {
@@ -40,12 +41,7 @@ export const deploymentsSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, options, logger, auth, config, orgId } = ctx;
 
-		const catalystClient = await getGlobalCatalystAPIClient(
-			logger,
-			auth,
-			config?.name,
-			orgId
-		);
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name, orgId);
 
 		try {
 			const deployments = await machineDeployments(catalystClient, args.machine_id);
@@ -55,33 +51,37 @@ export const deploymentsSubcommand = createSubcommand({
 				identifier: d.identifier,
 				state: d.state,
 				projectName: d.project?.name,
-				projectIdentifier: d.project?.identifier,
+				projectId: d.project?.id,
 				paused: d.paused,
 				domainSuffix: d.domainSuffix,
+				url:
+					d.customDomains?.length > 0
+						? d.customDomains.map((domain) => `https://${domain}`).join(',')
+						: d.identifier
+							? `https://d${d.identifier}.${d.domainSuffix}`
+							: d.project?.identifier
+								? `https://p${d.project?.identifier}.${d.domainSuffix}`
+								: '',
 			}));
 
 			if (!options.json) {
 				if (deployments.length === 0) {
 					tui.info('No deployments found on this machine.');
 				} else {
-					const tableData = deployments.map((d) => ({
+					const tableData = result.map((d) => ({
 						ID: d.id,
-						Identifier: d.identifier || '-',
 						State: d.state || 'unknown',
-						Project: d.project?.name || '-',
+						Project: d.projectName ? `${d.projectName} (${d.projectId})` : '-',
 						Paused: d.paused ? 'Yes' : 'No',
-						Domain: d.project?.identifier
-							? `${d.project.identifier}.${d.domainSuffix}`
-							: d.domainSuffix,
+						URL: d.url,
 					}));
 
 					tui.table(tableData, [
 						{ name: 'ID', alignment: 'left' },
-						{ name: 'Identifier', alignment: 'left' },
 						{ name: 'State', alignment: 'left' },
 						{ name: 'Project', alignment: 'left' },
 						{ name: 'Paused', alignment: 'center' },
-						{ name: 'Domain', alignment: 'left' },
+						{ name: 'URL', alignment: 'left' },
 					]);
 				}
 			}

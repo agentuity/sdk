@@ -4,6 +4,7 @@ import * as tui from '../../../tui';
 import { machineDelete, machineGet } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
+import { getGlobalCatalystAPIClient } from '../../../config';
 import enquirer from 'enquirer';
 
 const MachineDeleteResponseSchema = z.object({
@@ -26,7 +27,7 @@ export const deleteSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['rm', 'remove'],
-	requires: { auth: true, apiClient: true },
+	requires: { auth: true, org: true },
 	idempotent: false,
 	schema: {
 		args: z.object({
@@ -38,10 +39,12 @@ export const deleteSubcommand = createSubcommand({
 		response: MachineDeleteResponseSchema,
 	},
 	async handler(ctx) {
-		const { apiClient, args, opts, options } = ctx;
+		const { args, opts, options, logger, auth, config, orgId } = ctx;
+
+		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name, orgId);
 
 		try {
-			const machine = await machineGet(apiClient, args.machine_id);
+			const machine = await machineGet(catalystClient, args.machine_id);
 
 			if (!opts.confirm) {
 				if (process.stdin.isTTY) {
@@ -72,7 +75,7 @@ export const deleteSubcommand = createSubcommand({
 			await tui.spinner({
 				type: 'simple',
 				message: 'Deleting machine...',
-				callback: () => machineDelete(apiClient, args.machine_id),
+				callback: () => machineDelete(catalystClient, args.machine_id),
 				clearOnSuccess: true,
 			});
 

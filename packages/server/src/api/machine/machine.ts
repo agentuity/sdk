@@ -5,6 +5,9 @@ import { MachineResponseError } from './util';
 const MachineSchema = z.object({
 	id: z.string(),
 	instanceId: z.string().nullable().optional(),
+	privateIPv4: z.string().nullable().optional(),
+	availabilityZone: z.string().nullable().optional(),
+	deploymentCount: z.number().optional(),
 	status: z.string(),
 	provider: z.string(),
 	region: z.string(),
@@ -27,7 +30,7 @@ const MachineDeleteResponseSchema = APIResponseSchema(z.boolean());
 export type Machine = z.infer<typeof MachineSchema>;
 
 export async function machineList(client: APIClient): Promise<Machine[]> {
-	const resp = await client.get('/cli/machine', MachineListResponseSchema);
+	const resp = await client.get('/machine', MachineListResponseSchema);
 	if (resp.success) {
 		return resp.data;
 	}
@@ -35,7 +38,7 @@ export async function machineList(client: APIClient): Promise<Machine[]> {
 }
 
 export async function machineGet(client: APIClient, machineId: string): Promise<Machine> {
-	const resp = await client.get(`/cli/machine/${machineId}`, MachineGetResponseSchema);
+	const resp = await client.get(`/machine/${machineId}`, MachineGetResponseSchema);
 	if (resp.success) {
 		return resp.data;
 	}
@@ -43,7 +46,7 @@ export async function machineGet(client: APIClient, machineId: string): Promise<
 }
 
 export async function machineDelete(client: APIClient, machineId: string): Promise<boolean> {
-	const resp = await client.delete(`/cli/machine/${machineId}`, MachineDeleteResponseSchema);
+	const resp = await client.delete(`/machine/${machineId}`, MachineDeleteResponseSchema);
 	if (resp.success) {
 		return resp.data;
 	}
@@ -84,7 +87,7 @@ export async function machineDeployments(
 	machineId: string
 ): Promise<MachineDeployment[]> {
 	const resp = await client.get(
-		`/machine/${machineId}/deployments`,
+		`/machine/deployments/${machineId}`,
 		MachineDeploymentsResponseSchema
 	);
 	if (resp.success) {
