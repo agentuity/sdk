@@ -10,7 +10,7 @@ import { getCommand } from '../../../command-prefix';
 export const storageCommand = createCommand({
 	name: 'storage',
 	aliases: ['s3'],
-	description: 'Manage storage resources',
+	description: 'Manage S3 compatible managed storage resources',
 	tags: ['slow', 'requires-auth', 'requires-deployment'],
 	examples: [
 		{ command: getCommand('cloud storage list'), description: 'List all storage resources' },

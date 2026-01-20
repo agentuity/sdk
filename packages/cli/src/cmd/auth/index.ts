@@ -6,6 +6,7 @@ import { signupCommand } from './signup';
 import { whoamiCommand } from './whoami';
 import { sshSubcommand } from './ssh';
 import { orgSubcommand } from './org';
+import { machineSubcommand } from './machine';
 import { getCommand } from '../../command-prefix';
 
 export const command = createCommand({
@@ -25,5 +26,6 @@ export const command = createCommand({
 		whoamiCommand,
 		sshSubcommand,
 		orgSubcommand,
+		machineSubcommand,
 	],
 });

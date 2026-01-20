@@ -1,6 +1,7 @@
 export * from './api';
 export * from './apikey';
 export * from './db';
+export * from './machine';
 export * from './org';
 export * from './project';
 export * from './queue';
