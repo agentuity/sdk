@@ -1,25 +1,33 @@
 import { KeyValueStorageService, type Logger } from '@agentuity/core';
 import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
-import { getDefaultRegion } from '../../../config';
-import type { AuthData, Config } from '../../../types';
+import type { AuthData, GlobalOptions, ProjectConfig } from '../../../types';
+import * as tui from '../../../tui';
 
-export async function createStorageAdapter(ctx: {
+export function createStorageAdapter(ctx: {
 	logger: Logger;
-	config: Config | null;
 	auth: AuthData;
-	project?: { region: string };
+	region: string;
+	project?: ProjectConfig;
+	options: GlobalOptions;
 }) {
+	const orgId = ctx.project?.orgId ?? ctx.options.orgId;
+	if (!orgId) {
+		tui.fatal(
+			'Organization ID is required. Either run from a project directory or use --org-id flag.'
+		);
+	}
+
 	const adapter = createServerFetchAdapter(
 		{
 			headers: {
 				Authorization: `Bearer ${ctx.auth.apiKey}`,
+				'x-agentuity-orgid': orgId,
 			},
 		},
 		ctx.logger
 	);
 
-	const region = ctx.project?.region || (await getDefaultRegion(ctx.config?.name, ctx.config));
-	const urls = getServiceUrls(region);
+	const urls = getServiceUrls(ctx.region);
 	const baseUrl = urls.catalyst;
 	return new KeyValueStorageService(baseUrl, adapter);
 }
