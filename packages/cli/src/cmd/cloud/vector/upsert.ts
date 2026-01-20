@@ -26,7 +26,8 @@ export const upsertSubcommand = createCommand({
 	description: 'Add or update vectors in the vector storage',
 	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth'],
 	idempotent: true,
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	examples: [
 		{
 			command: getCommand('vector upsert products doc1 --document "Comfortable office chair"'),

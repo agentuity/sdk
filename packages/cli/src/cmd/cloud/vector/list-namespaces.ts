@@ -11,7 +11,8 @@ export const listNamespacesSubcommand = createCommand({
 	aliases: ['namespaces', 'ns'],
 	description: 'List all vector namespaces',
 	tags: ['read-only', 'fast', 'requires-auth'],
-	requires: { auth: true, project: true },
+	requires: { auth: true, region: true },
+	optional: { project: true },
 	examples: [
 		{ command: getCommand('vector list-namespaces'), description: 'List all namespaces' },
 		{ command: getCommand('vector namespaces'), description: 'List namespaces (using alias)' },
