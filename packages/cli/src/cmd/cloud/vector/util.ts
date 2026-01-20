@@ -1,6 +1,6 @@
 import { type Logger, VectorStorageService } from '@agentuity/core';
 import { createServerFetchAdapter, getServiceUrls } from '@agentuity/server';
-import type { AuthData, GlobalOptions, ProjectConfig } from '../../../types';
+import type { AuthData, Config, GlobalOptions, ProjectConfig } from '../../../types';
 import * as tui from '../../../tui';
 
 export function createStorageAdapter(ctx: {
@@ -8,9 +8,13 @@ export function createStorageAdapter(ctx: {
 	auth: AuthData;
 	region: string;
 	project?: ProjectConfig;
+	config: Config | null;
 	options: GlobalOptions;
 }) {
-	const orgId = ctx.project?.orgId ?? ctx.options.orgId;
+	const orgId =
+		ctx.project?.orgId ??
+		ctx.options.orgId ??
+		(process.env.AGENTUITY_CLOUD_ORG_ID || ctx.config?.preferences?.orgId);
 	if (!orgId) {
 		tui.fatal(
 			'Organization ID is required. Either run from a project directory or use --org-id flag.'
