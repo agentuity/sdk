@@ -789,7 +789,7 @@ if [ "${AGENTUITY_HIDE_BANNER:-}" != "true" ]; then
   printf "${RED}│${NC}  ${RED}⚠  v1 BETA BUILD - READY FOR PRODUCTION TESTING${NC}                    ${RED}│${NC}\n"
   printf "${RED}├─────────────────────────────────────────────────────────────────────┤${NC}\n"
   printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
-  printf "${RED}│${NC}  This is an Beta build of the upcoming v1 production release.       ${RED}│${NC}\n"
+  printf "${RED}│${NC}  This is a Beta build of the upcoming v1 production release.       ${RED}│${NC}\n"
   printf "${RED}│${NC}  This build is ${RED}ready for production testing${NC}.                        ${RED}│${NC}\n"
   printf "${RED}│${NC}                                                                     ${RED}│${NC}\n"
   printf "${RED}│${NC}  Please report any issues:                                          ${RED}│${NC}\n"
