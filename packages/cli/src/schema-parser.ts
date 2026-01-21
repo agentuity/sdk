@@ -297,18 +297,24 @@ async function checkStdinConfirmation(): Promise<boolean> {
 			cleanup();
 		};
 
+		let onEndWrapper: (() => void) | null = null;
+
 		const cleanup = () => {
 			reader.removeListener('data', onData);
 			reader.removeListener('end', onEnd);
+			if (onEndWrapper) {
+				reader.removeListener('end', onEndWrapper);
+			}
 			reader.pause();
 		};
 
 		const readPromise = new Promise<string>((resolve) => {
-			reader.on('data', onData);
-			reader.on('end', () => {
+			onEndWrapper = () => {
 				onEnd();
 				resolve(data.trim().toLowerCase());
-			});
+			};
+			reader.on('data', onData);
+			reader.on('end', onEndWrapper);
 		});
 
 		// Use a short timeout to avoid blocking
