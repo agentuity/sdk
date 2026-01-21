@@ -202,6 +202,16 @@ export interface SandboxInstance {
 	execute(options: ExecuteOptions): Promise<Execution>;
 
 	/**
+	 * Write files to the sandbox workspace
+	 */
+	writeFiles(files: FileToWrite[]): Promise<number>;
+
+	/**
+	 * Read a file from the sandbox workspace
+	 */
+	readFile(path: string): Promise<ReadableStream<Uint8Array>>;
+
+	/**
 	 * Get current sandbox information
 	 */
 	get(): Promise<SandboxInfo>;
@@ -376,6 +386,15 @@ export class SandboxClient {
 					stdoutStreamUrl: initialResult.stdoutStreamUrl,
 					stderrStreamUrl: initialResult.stderrStreamUrl,
 				};
+			},
+
+			async writeFiles(files: FileToWrite[]): Promise<number> {
+				const result = await sandboxWriteFiles(client, { sandboxId, files, orgId });
+				return result.filesWritten;
+			},
+
+			async readFile(path: string): Promise<ReadableStream<Uint8Array>> {
+				return sandboxReadFile(client, { sandboxId, path, orgId });
 			},
 
 			async get(): Promise<SandboxInfo> {

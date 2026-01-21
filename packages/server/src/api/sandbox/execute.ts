@@ -1,13 +1,15 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
 import { SandboxResponseError, API_VERSION } from './util';
-import { FileToWriteSchema } from './files';
 import type { ExecuteOptions, Execution, ExecutionStatus } from '@agentuity/core';
 
 const ExecuteRequestSchema = z
 	.object({
 		command: z.array(z.string()).describe('Command and arguments to execute'),
-		files: z.array(FileToWriteSchema).optional().describe('Files to write before execution'),
+		files: z
+			.record(z.string(), z.string())
+			.optional()
+			.describe('Files to write before execution (path -> base64 content)'),
 		timeout: z.string().optional().describe('Execution timeout (e.g., "30s", "5m")'),
 		stream: z
 			.object({
@@ -59,11 +61,10 @@ export async function sandboxExecute(
 		command: options.command,
 	};
 
-	if (options.files) {
-		body.files = options.files.map((f) => ({
-			path: f.path,
-			content: f.content.toString('base64'),
-		}));
+	if (options.files && options.files.length > 0) {
+		body.files = Object.fromEntries(
+			options.files.map((f) => [f.path, f.content.toString('base64')])
+		);
 	}
 	if (options.timeout) {
 		body.timeout = options.timeout;

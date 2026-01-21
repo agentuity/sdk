@@ -1674,6 +1674,7 @@ export interface SandboxCreateOptions {
 	dependencies?: string[];
 	metadata?: Record<string, string>;
 	snapshot?: string;
+	files?: Array<{ path: string; content: string }>; // Files to write on creation (content is base64-encoded)
 }
 
 export interface SandboxListFilter {
