@@ -357,3 +357,35 @@ describe('createAgentContext', () => {
 		});
 	});
 });
+
+describe('standalone logger formatting', () => {
+	test('formatMessage produces consistent single-line output for objects', async () => {
+		const { formatMessage } = await import('../src/logger/util');
+
+		const result = formatMessage(false, undefined, 'Prompt', [{ prompt: 'Hello world' }]);
+
+		expect(result).not.toContain('\n');
+		expect(result).toContain('Prompt');
+		expect(result).toContain('prompt');
+		expect(result).toContain('Hello world');
+	});
+
+	test('formatMessage handles string interpolation', async () => {
+		const { formatMessage } = await import('../src/logger/util');
+
+		const result = formatMessage(false, undefined, 'Processing: %s', ['test-value']);
+
+		expect(result).toBe('Processing: test-value');
+		expect(result).not.toContain('\n');
+	});
+
+	test('formatMessage handles multiple object arguments', async () => {
+		const { formatMessage } = await import('../src/logger/util');
+
+		const result = formatMessage(false, undefined, 'Data:', [{ a: 1 }, { b: 2 }]);
+
+		expect(result).not.toContain('\n');
+		expect(result).toContain('a');
+		expect(result).toContain('b');
+	});
+});
