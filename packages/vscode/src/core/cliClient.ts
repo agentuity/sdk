@@ -825,6 +825,11 @@ export class CliClient {
 				args.push('--metadata', `${key}=${value}`);
 			}
 		}
+		if (options.files && options.files.length > 0) {
+			for (const file of options.files) {
+				args.push('--file', `${file.path}:${file.content}`);
+			}
+		}
 
 		return this.exec<SandboxInfo>(args, { format: 'json', timeout: 120000 });
 	}
