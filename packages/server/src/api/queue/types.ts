@@ -372,8 +372,8 @@ export const DeadLetterMessageSchema = z.object({
 	id: z.string(),
 	/** ID of the queue this message belongs to. */
 	queue_id: z.string(),
-	/** ID of the original message that failed. */
-	original_message_id: z.string(),
+	/** ID of the original message that failed (optional until backend includes it). */
+	original_message_id: z.string().optional(),
 	/** Offset of the original message in the queue. */
 	offset: z.number(),
 	/** The message payload (JSON object). */
@@ -384,10 +384,12 @@ export const DeadLetterMessageSchema = z.object({
 	failure_reason: z.string().nullable().optional(),
 	/** Number of delivery attempts before failure. */
 	delivery_attempts: z.number(),
-	/** ISO 8601 timestamp when the message was moved to DLQ. */
-	moved_at: z.string(),
-	/** ISO 8601 timestamp when the original message was published. */
-	original_published_at: z.string(),
+	/** ISO 8601 timestamp when the message was moved to DLQ (optional until backend includes it). */
+	moved_at: z.string().optional(),
+	/** ISO 8601 timestamp when the original message was published (optional, falls back to published_at). */
+	original_published_at: z.string().optional(),
+	/** ISO 8601 timestamp when the message was published (from base message). */
+	published_at: z.string().optional(),
 	/** ISO 8601 timestamp when the DLQ entry was created. */
 	created_at: z.string(),
 });
