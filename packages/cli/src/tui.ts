@@ -1172,6 +1172,11 @@ export async function spinner<T>(
 		options = messageOrOptions;
 	}
 
+	// assume true by default
+	if (options.clearOnSuccess === undefined) {
+		options.clearOnSuccess = true;
+	}
+
 	const message = options.message;
 	const reset = getColor('reset');
 

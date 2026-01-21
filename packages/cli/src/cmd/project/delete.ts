@@ -1,9 +1,18 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
-import { projectDelete, projectList } from '@agentuity/server';
+import { projectDelete, projectList, projectGet } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { getCommand } from '../../command-prefix';
+
+interface ProjectDisplayInfo {
+	id: string;
+	name: string;
+}
+
+function formatProjectDisplay(project: ProjectDisplayInfo): string {
+	return `${project.name} (${project.id})`;
+}
 
 export const deleteSubcommand = createSubcommand({
 	name: 'delete',
@@ -46,11 +55,37 @@ export const deleteSubcommand = createSubcommand({
 	async handler(ctx) {
 		const { args, opts, apiClient } = ctx;
 
-		let projectIds: string[] = [];
+		let projectsToDelete: ProjectDisplayInfo[] = [];
 
 		if (args.id) {
-			// Command line argument provided
-			projectIds = [args.id];
+			// Command line argument provided - validate and fetch project details
+			const projectInfo = await tui.spinner({
+				message: 'Fetching project details',
+				clearOnSuccess: true,
+				callback: async () => {
+					try {
+						const project = await projectGet(apiClient, {
+							id: args.id!,
+							mask: true,
+							keys: false,
+						});
+
+						return {
+							id: project.id,
+							name: project.name,
+						};
+					} catch {
+						return null;
+					}
+				},
+			});
+
+			if (!projectInfo) {
+				tui.error(`Project not found: ${args.id}`);
+				return { success: false, projectIds: [], count: 0 };
+			}
+
+			projectsToDelete = [projectInfo];
 		} else {
 			// Check TTY before attempting to prompt
 			if (!process.stdin.isTTY) {
@@ -87,10 +122,16 @@ export const deleteSubcommand = createSubcommand({
 				choices,
 			});
 
-			projectIds = response.projects;
+			// Map selected IDs to full project info
+			projectsToDelete = response.projects
+				.map((id) => {
+					const project = projects.find((p) => p.id === id);
+					return project ? { id: project.id, name: project.name } : null;
+				})
+				.filter((p): p is ProjectDisplayInfo => p !== null);
 		}
 
-		if (projectIds.length === 0) {
+		if (projectsToDelete.length === 0) {
 			tui.info('No projects selected for deletion');
 			return { success: false, projectIds: [], count: 0 };
 		}
@@ -103,13 +144,16 @@ export const deleteSubcommand = createSubcommand({
 
 		// Confirm deletion
 		if (!skipConfirm) {
-			const projectNames = projectIds.join(', ');
-			tui.warning(`You are about to delete: ${tui.bold(projectNames)}`);
+			const projectDisplay =
+				projectsToDelete.length === 1
+					? formatProjectDisplay(projectsToDelete[0])
+					: projectsToDelete.map((p) => `\n  • ${formatProjectDisplay(p)}`).join('');
+			tui.warning(`You are about to delete: ${tui.bold(projectDisplay)}`);
 
 			const confirm = await enquirer.prompt<{ confirm: boolean }>({
 				type: 'confirm',
 				name: 'confirm',
-				message: `Are you sure you want to delete ${projectIds.length > 1 ? 'these projects' : 'this project'}?`,
+				message: `Are you sure you want to delete ${projectsToDelete.length > 1 ? 'these projects' : 'this project'}?`,
 				initial: false,
 			});
 
@@ -119,8 +163,9 @@ export const deleteSubcommand = createSubcommand({
 			}
 		}
 
+		const projectIds = projectsToDelete.map((p) => p.id);
 		const deleted = await tui.spinner({
-			message: `Deleting ${projectIds.length} project(s)`,
+			message: `Deleting ${projectsToDelete.length} project(s)`,
 			clearOnSuccess: true,
 			callback: async () => {
 				return projectDelete(apiClient, ...projectIds);
