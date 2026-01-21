@@ -9,6 +9,36 @@ export type TaskStatus = z.infer<typeof TaskStatusSchema>;
 export const OrchestrationPatternSchema = z.enum(['single', 'fanout', 'pipeline']);
 export type OrchestrationPattern = z.infer<typeof OrchestrationPatternSchema>;
 
+export const CadenceStatusSchema = z.enum([
+	'running',
+	'paused',
+	'completed',
+	'failed',
+	'cancelled',
+]);
+export type CadenceStatus = z.infer<typeof CadenceStatusSchema>;
+
+export const CadenceSandboxModeSchema = z.enum(['off', 'per_iteration', 'persistent']);
+export type CadenceSandboxMode = z.infer<typeof CadenceSandboxModeSchema>;
+
+export interface CadenceLoop {
+	loopId: string;
+	parentId?: string;
+	projectLabel?: string;
+	sessionId?: string;
+	status: CadenceStatus;
+	iteration: number;
+	maxIterations: number;
+	prompt: string;
+	createdAt: string;
+	updatedAt: string;
+	lastError?: string;
+	sandbox?: {
+		mode: CadenceSandboxMode;
+		sandboxId?: string;
+	};
+}
+
 export interface AgentConfig {
 	/** Agent description - explains what it does and when to use it */
 	description: string;

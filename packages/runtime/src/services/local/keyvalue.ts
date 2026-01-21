@@ -137,7 +137,9 @@ export class LocalKeyValueStorage implements KeyValueStorage {
 		throw new Error('getStats not implemented for local storage');
 	}
 
-	async getAllStats(_params?: GetAllStatsParams): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated> {
+	async getAllStats(
+		_params?: GetAllStatsParams
+	): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated> {
 		throw new Error('getAllStats not implemented for local storage');
 	}
 

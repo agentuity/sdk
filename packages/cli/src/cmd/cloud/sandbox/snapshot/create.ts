@@ -55,7 +55,11 @@ export const createSubcommand = createCommand({
 				.describe('Display name for the snapshot (letters, numbers, underscores, dashes only)'),
 			description: z.string().optional().describe('Description of the snapshot'),
 			tag: z.string().optional().describe('Tag for the snapshot (defaults to "latest")'),
-			public: z.boolean().optional().default(false).describe('Make the snapshot publicly accessible'),
+			public: z
+				.boolean()
+				.optional()
+				.default(false)
+				.describe('Make the snapshot publicly accessible'),
 		}),
 		response: SnapshotCreateResponseSchema,
 	},

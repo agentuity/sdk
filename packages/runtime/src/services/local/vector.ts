@@ -347,7 +347,9 @@ export class LocalVectorStorage implements VectorStorage {
 		};
 	}
 
-	async getAllStats(_params?: VectorGetAllStatsParams): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated> {
+	async getAllStats(
+		_params?: VectorGetAllStatsParams
+	): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated> {
 		const query = this.#db.query(`
 			SELECT name, embedding, document
 			FROM vector_storage 

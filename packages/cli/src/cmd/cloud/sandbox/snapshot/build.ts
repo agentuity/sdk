@@ -811,7 +811,11 @@ export const buildSubcommand = createCommand({
 						clearOnError: true,
 						callback: async (updateProgress) => {
 							const uploadFile = Bun.file(uploadPath);
-							const progressStream = createProgressStream(uploadFile, uploadSize, updateProgress);
+							const progressStream = createProgressStream(
+								uploadFile,
+								uploadSize,
+								updateProgress
+							);
 							await snapshotUpload(client, {
 								snapshotId: initResult.snapshotId!,
 								body: progressStream,
