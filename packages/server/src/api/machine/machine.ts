@@ -7,6 +7,8 @@ const MachineSchema = z.object({
 	instanceId: z.string().nullable().optional(),
 	privateIPv4: z.string().nullable().optional(),
 	availabilityZone: z.string().nullable().optional(),
+	instanceType: z.string().nullable().optional(),
+	instanceTags: z.array(z.string()).nullable().optional(),
 	deploymentCount: z.number().optional(),
 	status: z.string(),
 	provider: z.string(),
