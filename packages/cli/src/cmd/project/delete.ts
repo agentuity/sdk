@@ -1,18 +1,17 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../types';
 import * as tui from '../../tui';
-import { projectDelete, projectList, projectGet, listOrganizations } from '@agentuity/server';
+import { projectDelete, projectList, projectGet } from '@agentuity/server';
 import enquirer from 'enquirer';
 import { getCommand } from '../../command-prefix';
 
 interface ProjectDisplayInfo {
 	id: string;
 	name: string;
-	orgName: string;
 }
 
 function formatProjectDisplay(project: ProjectDisplayInfo): string {
-	return `${project.orgName}/${project.name} (${project.id})`;
+	return `${project.name} (${project.id})`;
 }
 
 export const deleteSubcommand = createSubcommand({
@@ -65,24 +64,15 @@ export const deleteSubcommand = createSubcommand({
 				clearOnSuccess: true,
 				callback: async () => {
 					try {
-						const project = await projectGet(apiClient, { id: args.id!, mask: true, keys: false });
-
-						// Fetch org name
-						let orgName = project.orgId;
-						try {
-							const orgs = await listOrganizations(apiClient);
-							const org = orgs.find((o) => o.id === project.orgId);
-							if (org) {
-								orgName = org.name;
-							}
-						} catch {
-							// Fall back to orgId if org lookup fails
-						}
+						const project = await projectGet(apiClient, {
+							id: args.id!,
+							mask: true,
+							keys: false,
+						});
 
 						return {
 							id: project.id,
 							name: project.name,
-							orgName,
 						};
 					} catch {
 						return null;
@@ -136,7 +126,7 @@ export const deleteSubcommand = createSubcommand({
 			projectsToDelete = response.projects
 				.map((id) => {
 					const project = projects.find((p) => p.id === id);
-					return project ? { id: project.id, name: project.name, orgName: project.orgName } : null;
+					return project ? { id: project.id, name: project.name } : null;
 				})
 				.filter((p): p is ProjectDisplayInfo => p !== null);
 		}
