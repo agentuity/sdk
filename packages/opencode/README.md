@@ -23,6 +23,7 @@ In Open Code, use slash commands or `@mention` agents directly:
 | Command                  | Description                                            |
 | ------------------------ | ------------------------------------------------------ |
 | `/agentuity-coder`       | Run tasks with the full agent team (Lead orchestrates) |
+| `/agentuity-cadence`     | 🔄 Start a long-running autonomous loop                |
 | `/agentuity-cloud`       | ☁️ Interact with any Agentuity cloud service           |
 | `/agentuity-sandbox`     | 🏖️ Run code in isolated sandbox environments           |
 | `/agentuity-memory-save` | Save session context to memory                         |
@@ -82,6 +83,60 @@ Add to your `opencode.json` for enhanced Scout/Expert capabilities:
 | ------------ | ------------------- | ------------- |
 | **context7** | Library docs lookup | 500 req/month |
 | **grep_app** | GitHub code search  | Unlimited     |
+
+## Cadence: Long-Running Autonomous Sessions
+
+Cadence enables the agent team to work autonomously on complex tasks across multiple iterations until completion.
+
+### Starting a Cadence Loop
+
+```
+/agentuity-cadence implement the new payment integration with Stripe, including tests and docs
+```
+
+Lead will:
+1. Create loop state in KV storage (`agentuity-opencode-tasks`)
+2. Work iteratively — delegating to Scout, Builder, Reviewer
+3. Store checkpoints with Memory after each iteration
+4. Output `<promise>DONE</promise>` when complete
+
+### Cadence Commands
+
+| Command                    | Description                |
+| -------------------------- | -------------------------- |
+| `/agentuity-cadence`       | Start a new Cadence loop   |
+| `/agentuity-cadence-status`| Check active loop status   |
+| `/agentuity-cadence-pause` | Pause the active loop      |
+| `/agentuity-cadence-resume`| Resume a paused loop       |
+| `/agentuity-cadence-stop`  | Cancel and stop the loop   |
+
+### CLI Control (Headless)
+
+For running Cadence in sandboxes or background:
+
+```bash
+# Start headless
+agentuity ai opencode run "/agentuity-cadence build the auth feature"
+
+# Monitor
+agentuity ai cadence list
+agentuity ai cadence status lp_auth_01
+
+# Control
+agentuity ai cadence pause lp_auth_01
+agentuity ai cadence resume lp_auth_01
+agentuity ai cadence stop lp_auth_01
+```
+
+### How It Works
+
+Cadence is **agentic-first** — Lead's prompt drives the loop, not deterministic code. Lead:
+- Manages its own state in KV
+- Decides when to delegate and to whom
+- Stores checkpoints via Memory for context management
+- Continues until the task is truly complete
+
+See [docs/cadence.md](docs/cadence.md) for architecture details.
 
 ## Local Development
 

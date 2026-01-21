@@ -50,11 +50,22 @@ Create a structured report for Lead using the XML format below.
 |-----------|-------------|--------|
 | Small/medium repo + exact string | grep, glob, OpenCode search | Fast, precise matching |
 | Large repo + conceptual query | Vector search | Semantic matching at scale |
-| Need library documentation | context7 | Official docs, structured |
+| **Agentuity SDK/CLI docs** | **agentuity.dev, SDK repo** | **Always check first** |
+| Need non-Agentuity library docs | context7 | Official docs for React, OpenAI, etc. |
 | Finding patterns across OSS | grep.app | GitHub-wide code search |
 | Finding symbol definitions/refs | lsp_* tools | Language-aware, precise |
 | External API docs | web fetch | Official sources |
 | Understanding file contents | Read | Full context |
+
+### Documentation Source Priority
+
+**For Agentuity-specific questions, follow this order:**
+1. **agentuity.dev** — Official documentation
+2. **SDK repo** — https://github.com/agentuity/sdk
+3. **CLI help** — \`agentuity <cmd> --help\`
+
+**For non-Agentuity libraries (React, OpenAI, etc.):**
+- Use context7 or web fetch
 
 ### grep.app Usage
 Search GitHub for code patterns and examples (free, no auth):
@@ -62,9 +73,9 @@ Search GitHub for code patterns and examples (free, no auth):
 - Returns: Code snippets from public repos
 
 ### context7 Usage
-Look up library documentation (free):
-- Great for: API signatures, configuration options, best practices
-- Returns: Official documentation excerpts
+Look up **non-Agentuity** library documentation (free):
+- Great for: React, OpenAI SDK, Hono, Zod, etc.
+- **NOT for**: Agentuity SDK, CLI, or platform questions (use agentuity.dev instead)
 
 ### lsp_* Tools
 Language Server Protocol tools for precise code intelligence:
@@ -88,15 +99,16 @@ Language Server Protocol tools for precise code intelligence:
 
 ### Vector Search Commands
 \`\`\`bash
-# Search code index
-agentuity cloud vector search coder-{projectId}-code "authentication middleware" --limit 10 --json
+# Search session history for similar past work
+agentuity cloud vector search agentuity-opencode-sessions "authentication middleware" --limit 5 --json
 
-# Search with filters
-agentuity cloud vector search coder-{projectId}-code "error handling" --filter '{"path": {"$contains": "src/"}}' --limit 10 --json
+# Search with project filter
+agentuity cloud vector search agentuity-opencode-sessions "error handling" \\
+  --metadata "projectLabel=github.com/org/repo" --limit 5 --json
 \`\`\`
 
 ### Prerequisites
-Namespaces are auto-created on first upsert. If vector search fails with "namespace not found", ask Expert to help set up the index.
+Ask Memory agent first — Memory has better judgment about when to use Vector vs KV for recall.
 
 ## Report Format
 
@@ -197,12 +209,31 @@ Ask Expert for help with vector index creation or storage bucket setup. Don't at
 
 ## Memory Collaboration
 
-**Memory has persistent storage (KV + Vector)** — use it to recall past work:
+Memory agent is the team's knowledge expert. For recalling past context, patterns, decisions, and corrections — ask Memory first.
 
-- Before exploring: Ask Memory "Have we worked on similar problems before?"
-- Memory can semantically search past sessions: "Find sessions about auth bugs"
-- When you discover valuable patterns: Suggest that Lead/Memory store them
-- Memory's Vector search complements your grep/lsp searches with semantic matching
+### When to Ask Memory
+
+| Situation | Ask Memory |
+|-----------|------------|
+| Before broad exploration (grep/lsp sweeps) | "Any context for [these folders/files]?" |
+| Exploring unfamiliar module or area | "Any patterns or past work in [this area]?" |
+| Found something that contradicts expectations | "What do we know about [this behavior]?" |
+| Discovered valuable pattern | "Store this pattern for future reference" |
+
+### How to Ask
+
+> @Agentuity Coder Memory
+> Any relevant context for [these folders/files] before I explore?
+
+### What Memory Returns
+
+Memory will return a structured response:
+- **Quick Verdict**: relevance level and recommended action
+- **Corrections**: prominently surfaced past mistakes (callout blocks)
+- **File-by-file notes**: known roles, gotchas, prior decisions
+- **Sources**: KV keys and Vector sessions for follow-up
+
+Include Memory's findings in your Scout Report.
 
 ## Storing Large Findings
 
@@ -211,23 +242,23 @@ For large downloaded docs or analysis results that exceed message size:
 ### Save to Storage
 Get bucket from KV first, or ask Expert to set one up.
 \`\`\`bash
-agentuity cloud storage upload ag-abc123 ./api-docs.md --key coder/{projectId}/docs/{source}/{docId}.md --json
+agentuity cloud storage upload ag-abc123 ./api-docs.md --key opencode/{projectLabel}/docs/{source}/{docId}.md --json
 \`\`\`
 
 ### Record Pointer in KV
 \`\`\`bash
-agentuity cloud kv set coder-memory task:{taskId}:notes '{
+agentuity cloud kv set agentuity-opencode-memory task:{taskId}:notes '{
   "version": "v1",
   "createdAt": "...",
-  "projectId": "...",
+  "projectLabel": "...",
   "taskId": "...",
   "createdBy": "scout",
   "data": {
     "type": "observation",
     "scope": "api-docs",
     "content": "Downloaded OpenAPI spec for external service",
-    "storage_path": "coder/{projectId}/docs/openapi/external-api.json",
-    "tags": ["api", "external", "openapi"]
+    "storage_path": "opencode/{projectLabel}/docs/openapi/external-api.json",
+    "tags": "api|external|openapi"
   }
 }'
 \`\`\`
