@@ -277,26 +277,50 @@ async function checkStdinConfirmation(): Promise<boolean> {
 
 	try {
 		// Read stdin with a short timeout to avoid blocking
-		const chunks: Buffer[] = [];
 		const reader = process.stdin;
+		let timeoutId: ReturnType<typeof setTimeout> | null = null;
+		let resolved = false;
+
+		// Define handlers outside so we can remove them in all paths
+		let data = '';
+		const onData = (chunk: Buffer) => {
+			data += chunk.toString();
+		};
+		const onEnd = () => {
+			if (resolved) return;
+			resolved = true;
+			// Clear the timeout since we got data
+			if (timeoutId !== null) {
+				clearTimeout(timeoutId);
+				timeoutId = null;
+			}
+			cleanup();
+		};
+
+		const cleanup = () => {
+			reader.removeListener('data', onData);
+			reader.removeListener('end', onEnd);
+			reader.pause();
+		};
 
 		const readPromise = new Promise<string>((resolve) => {
-			let data = '';
-			const onData = (chunk: Buffer) => {
-				chunks.push(chunk);
-				data += chunk.toString();
-			};
-			const onEnd = () => {
-				reader.removeListener('data', onData);
-				reader.removeListener('end', onEnd);
-				resolve(data.trim().toLowerCase());
-			};
 			reader.on('data', onData);
-			reader.on('end', onEnd);
+			reader.on('end', () => {
+				onEnd();
+				resolve(data.trim().toLowerCase());
+			});
 		});
 
 		// Use a short timeout to avoid blocking
-		const timeoutPromise = new Promise<string>((resolve) => setTimeout(() => resolve(''), 100));
+		const timeoutPromise = new Promise<string>((resolve) => {
+			timeoutId = setTimeout(() => {
+				if (resolved) return;
+				resolved = true;
+				// Clean up listeners and pause stdin when timeout wins
+				cleanup();
+				resolve('');
+			}, 100);
+		});
 
 		const input = await Promise.race([readPromise, timeoutPromise]);
 		stdinConfirmation = input === 'yes' || input === 'y';
