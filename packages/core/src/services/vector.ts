@@ -477,7 +477,9 @@ export interface VectorStorage {
 	 * - With params: returns paginated response with total count and hasMore flag
 	 * - Default limit is 100, maximum is 1000
 	 */
-	getAllStats(params?: VectorGetAllStatsParams): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated>;
+	getAllStats(
+		params?: VectorGetAllStatsParams
+	): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated>;
 
 	/**
 	 * Get all namespace names
@@ -967,7 +969,9 @@ export class VectorStorageService implements VectorStorage {
 		throw await toServiceException('GET', url, res.response);
 	}
 
-	async getAllStats(params?: VectorGetAllStatsParams): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated> {
+	async getAllStats(
+		params?: VectorGetAllStatsParams
+	): Promise<Record<string, VectorNamespaceStats> | VectorStatsPaginated> {
 		const queryParams = new URLSearchParams();
 		if (params?.limit !== undefined) {
 			queryParams.set('limit', String(params.limit));
@@ -976,10 +980,15 @@ export class VectorStorageService implements VectorStorage {
 			queryParams.set('offset', String(params.offset));
 		}
 		const queryString = queryParams.toString();
-		const url = buildUrl(this.#baseUrl, `/vector/2025-03-17/stats${queryString ? `?${queryString}` : ''}`);
+		const url = buildUrl(
+			this.#baseUrl,
+			`/vector/2025-03-17/stats${queryString ? `?${queryString}` : ''}`
+		);
 		const signal = AbortSignal.timeout(10_000);
 
-		const res = await this.#adapter.invoke<Record<string, VectorNamespaceStats> | VectorStatsPaginated>(url, {
+		const res = await this.#adapter.invoke<
+			Record<string, VectorNamespaceStats> | VectorStatsPaginated
+		>(url, {
 			method: 'GET',
 			signal,
 			telemetry: {

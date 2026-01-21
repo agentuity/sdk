@@ -22,7 +22,9 @@ const VectorNamespaceStatsSchema = z.object({
 });
 
 const VectorStatsPaginatedSchema = z.object({
-	namespaces: z.record(z.string(), VectorNamespaceStatsSchema).describe('Map of namespace names to their statistics'),
+	namespaces: z
+		.record(z.string(), VectorNamespaceStatsSchema)
+		.describe('Map of namespace names to their statistics'),
 	total: z.number().describe('Total number of namespaces across all pages'),
 	limit: z.number().describe('Number of namespaces requested per page'),
 	offset: z.number().describe('Number of namespaces skipped'),

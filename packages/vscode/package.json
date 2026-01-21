@@ -49,6 +49,18 @@
 				"category": "Agentuity"
 			},
 			{
+				"command": "agentuity.org.select",
+				"title": "Switch Default Organization",
+				"category": "Agentuity",
+				"icon": "$(organization)"
+			},
+			{
+				"command": "agentuity.region.select",
+				"title": "Switch Default Region",
+				"category": "Agentuity",
+				"icon": "$(globe)"
+			},
+			{
 				"command": "agentuity.refresh",
 				"title": "Refresh All",
 				"category": "Agentuity",
@@ -347,6 +359,108 @@
 				"title": "View Snapshot File",
 				"category": "Agentuity",
 				"icon": "$(go-to-file)"
+			},
+			{
+				"command": "agentuity.queue.create",
+				"title": "Create Queue",
+				"category": "Agentuity",
+				"icon": "$(add)"
+			},
+			{
+				"command": "agentuity.queue.delete",
+				"title": "Delete Queue",
+				"category": "Agentuity",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "agentuity.queue.pause",
+				"title": "Pause Queue",
+				"category": "Agentuity",
+				"icon": "$(debug-pause)"
+			},
+			{
+				"command": "agentuity.queue.resume",
+				"title": "Resume Queue",
+				"category": "Agentuity",
+				"icon": "$(debug-start)"
+			},
+			{
+				"command": "agentuity.queue.publish",
+				"title": "Publish Message",
+				"category": "Agentuity",
+				"icon": "$(mail)"
+			},
+			{
+				"command": "agentuity.queue.viewMessage",
+				"title": "View Message",
+				"category": "Agentuity",
+				"icon": "$(eye)"
+			},
+			{
+				"command": "agentuity.queue.copyMessageId",
+				"title": "Copy Message ID",
+				"category": "Agentuity",
+				"icon": "$(copy)"
+			},
+			{
+				"command": "agentuity.queue.receive",
+				"title": "Receive Message",
+				"category": "Agentuity",
+				"icon": "$(inbox)"
+			},
+			{
+				"command": "agentuity.queue.ack",
+				"title": "Acknowledge Message",
+				"category": "Agentuity",
+				"icon": "$(check)"
+			},
+			{
+				"command": "agentuity.queue.nack",
+				"title": "Return to Queue",
+				"category": "Agentuity",
+				"icon": "$(close)"
+			},
+			{
+				"command": "agentuity.queue.refreshMessages",
+				"title": "Refresh Messages",
+				"category": "Agentuity",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "agentuity.queue.dlq.replay",
+				"title": "Replay DLQ Message",
+				"category": "Agentuity",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "agentuity.queue.dlq.purge",
+				"title": "Purge Dead Letter Queue",
+				"category": "Agentuity",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "agentuity.queue.destination.create",
+				"title": "Create Destination",
+				"category": "Agentuity",
+				"icon": "$(add)"
+			},
+			{
+				"command": "agentuity.queue.destination.delete",
+				"title": "Delete Destination",
+				"category": "Agentuity",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "agentuity.queue.destination.toggle",
+				"title": "Toggle Destination",
+				"category": "Agentuity",
+				"icon": "$(toggle-off)"
+			},
+			{
+				"command": "agentuity.queue.destination.copyUrl",
+				"title": "Copy URL",
+				"category": "Agentuity",
+				"icon": "$(copy)"
 			}
 		],
 		"viewsContainers": {
@@ -427,6 +541,11 @@
 				{
 					"command": "agentuity.sandbox.create",
 					"when": "view == agentuity.sandboxes",
+					"group": "navigation"
+				},
+				{
+					"command": "agentuity.queue.create",
+					"when": "view == agentuity.data",
 					"group": "navigation"
 				}
 			],
@@ -600,12 +719,257 @@
 					"command": "agentuity.sandbox.viewExecution",
 					"when": "view == agentuity.sandboxes && viewItem =~ /^execution/",
 					"group": "1_view@1"
+				},
+				{
+					"command": "agentuity.queue.publish",
+					"when": "view == agentuity.data && viewItem == queueItem",
+					"group": "queue@1"
+				},
+				{
+					"command": "agentuity.queue.receive",
+					"when": "view == agentuity.data && viewItem == queueItem",
+					"group": "queue@2"
+				},
+				{
+					"command": "agentuity.queue.pause",
+					"when": "view == agentuity.data && viewItem == queueItem",
+					"group": "queue@3"
+				},
+				{
+					"command": "agentuity.queue.resume",
+					"when": "view == agentuity.data && viewItem == queueItem",
+					"group": "queue@4"
+				},
+				{
+					"command": "agentuity.queue.dlq.purge",
+					"when": "view == agentuity.data && viewItem == queueItem",
+					"group": "queue@5"
+				},
+				{
+					"command": "agentuity.queue.delete",
+					"when": "view == agentuity.data && viewItem == queueItem",
+					"group": "queue@6"
+				},
+				{
+					"command": "agentuity.queue.refreshMessages",
+					"when": "view == agentuity.data && viewItem == queueItem",
+					"group": "navigation"
+				},
+				{
+					"command": "agentuity.queue.viewMessage",
+					"when": "view == agentuity.data && viewItem =~ /^queueMessage/",
+					"group": "message@1"
+				},
+				{
+					"command": "agentuity.queue.copyMessageId",
+					"when": "view == agentuity.data && viewItem =~ /^queueMessage/",
+					"group": "message@2"
+				},
+				{
+					"command": "agentuity.queue.ack",
+					"when": "view == agentuity.data && viewItem == queueMessage-leased",
+					"group": "message@3"
+				},
+				{
+					"command": "agentuity.queue.nack",
+					"when": "view == agentuity.data && viewItem == queueMessage-leased",
+					"group": "message@4"
+				},
+				{
+					"command": "agentuity.queue.dlq.replay",
+					"when": "view == agentuity.data && viewItem == dlqMessage",
+					"group": "dlq@1"
+				},
+				{
+					"command": "agentuity.queue.copyMessageId",
+					"when": "view == agentuity.data && viewItem == dlqMessage",
+					"group": "dlq@2"
+				},
+				{
+					"command": "agentuity.queue.destination.create",
+					"when": "view == agentuity.data && viewItem == queueSection-destinations",
+					"group": "destination@1"
+				},
+				{
+					"command": "agentuity.queue.dlq.purge",
+					"when": "view == agentuity.data && viewItem == queueSection-dlq",
+					"group": "dlq@1"
+				},
+				{
+					"command": "agentuity.queue.destination.toggle",
+					"when": "view == agentuity.data && viewItem == queueDestination",
+					"group": "destination@1"
+				},
+				{
+					"command": "agentuity.queue.destination.copyUrl",
+					"when": "view == agentuity.data && viewItem == queueDestination",
+					"group": "destination@2"
+				},
+				{
+					"command": "agentuity.queue.destination.delete",
+					"when": "view == agentuity.data && viewItem == queueDestination",
+					"group": "destination@3"
+				},
+				{
+					"command": "agentuity.queue.refreshMessages",
+					"when": "view == agentuity.data && viewItem == queueSection-messages",
+					"group": "navigation"
 				}
 			],
 			"explorer/context": [
 				{
 					"command": "agentuity.sandbox.upload",
 					"group": "agentuity@1"
+				}
+			],
+			"commandPalette": [
+				{
+					"command": "agentuity.sandbox.link",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.unlink",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.sync",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.exec",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.viewFile",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.download",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.upload",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.deleteFile",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.createFile",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.createFolder",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.copyPath",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.viewExecution",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.snapshot.delete",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.snapshot.tag",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.snapshot.viewDetails",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.sandbox.snapshot.viewFile",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.viewMessage",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.copyMessageId",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.ack",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.nack",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.dlq.replay",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.dlq.purge",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.destination.create",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.destination.delete",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.destination.toggle",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.destination.copyUrl",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.delete",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.pause",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.queue.resume",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.db.copyConnectionString",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.db.openConnectionUri",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.db.viewLogs",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.deployment.viewLogs",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.deployment.showDetails",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.agent.goToFile",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.agent.viewSessions",
+					"when": "false"
+				},
+				{
+					"command": "agentuity.agent.viewSessionLogs",
+					"when": "false"
 				}
 			]
 		},
@@ -1046,6 +1410,28 @@
 						"tag": {
 							"type": "string",
 							"description": "Optional tag for the snapshot"
+						}
+					},
+					"required": [
+						"sandboxId"
+					]
+				}
+			},
+			{
+				"name": "agentuity_delete_sandbox",
+				"displayName": "Delete Sandbox",
+				"toolReferenceName": "agentuity-delete-sandbox",
+				"icon": "$(trash)",
+				"userDescription": "Delete a sandbox",
+				"modelDescription": "Delete a sandbox environment. This action cannot be undone. The sandbox and all its files will be permanently removed. Use this to clean up sandboxes that are no longer needed.",
+				"canBeReferencedInPrompt": true,
+				"when": "agentuity.authenticated",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"sandboxId": {
+							"type": "string",
+							"description": "The sandbox ID to delete"
 						}
 					},
 					"required": [

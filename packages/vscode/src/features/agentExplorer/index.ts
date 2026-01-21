@@ -3,8 +3,7 @@ import * as path from 'path';
 import { AgentTreeDataProvider, AgentTreeItem } from './agentTreeData';
 import { onAuthStatusChanged } from '../../core/auth';
 import { onProjectChanged, getCurrentProject } from '../../core/project';
-
-const SESSIONS_BASE_URL = 'https://app-v1.agentuity.com';
+import { getSessionsUrl } from '../../core/urls';
 
 let agentProvider: AgentTreeDataProvider | undefined;
 
@@ -70,7 +69,7 @@ export function registerAgentExplorer(context: vscode.ExtensionContext): AgentTr
 					return;
 				}
 
-				const url = `${SESSIONS_BASE_URL}/projects/${project.projectId}/sessions?agent=${agent.id}`;
+				const url = getSessionsUrl(project.projectId, agent.id);
 				await vscode.env.openExternal(vscode.Uri.parse(url));
 			}
 		)
@@ -92,7 +91,7 @@ export function registerAgentExplorer(context: vscode.ExtensionContext): AgentTr
 					return;
 				}
 
-				const url = `${SESSIONS_BASE_URL}/projects/${project.projectId}/sessions?agent=${agent.id}`;
+				const url = getSessionsUrl(project.projectId, agent.id);
 				await vscode.env.openExternal(vscode.Uri.parse(url));
 			}
 		)

@@ -282,6 +282,60 @@ export class CliClient {
 		return this.exec<WhoamiResponse>(['auth', 'whoami'], { format: 'json' });
 	}
 
+	// ==================== Org/Region Methods ====================
+
+	async orgList(): Promise<CliResult<OrgInfo[]>> {
+		const result = await this.exec<{ organizations: OrgInfo[] }>(['auth', 'whoami'], {
+			format: 'json',
+		});
+		if (result.success && result.data) {
+			// whoami includes organizations
+			const whoamiData = result.data as unknown as WhoamiResponse;
+			return {
+				success: true,
+				data: whoamiData.organizations || [],
+				exitCode: result.exitCode,
+			};
+		}
+		return { success: result.success, error: result.error, data: [], exitCode: result.exitCode };
+	}
+
+	async orgCurrent(): Promise<CliResult<string | null>> {
+		return this.exec<string | null>(['auth', 'org', 'current'], { format: 'json' });
+	}
+
+	async orgSelect(orgId: string): Promise<CliResult<OrgSelectResponse>> {
+		return this.exec<OrgSelectResponse>(['auth', 'org', 'select', orgId], { format: 'json' });
+	}
+
+	async orgUnselect(): Promise<CliResult<{ cleared: boolean }>> {
+		return this.exec<{ cleared: boolean }>(['auth', 'org', 'unselect'], { format: 'json' });
+	}
+
+	async regionList(): Promise<CliResult<RegionInfo[]>> {
+		// Regions are relatively static, return known regions
+		// The CLI will validate during selection
+		const regions: RegionInfo[] = [
+			{ region: 'usc', description: 'US Central' },
+			{ region: 'use', description: 'US East' },
+		];
+		return { success: true, data: regions, exitCode: 0 };
+	}
+
+	async regionCurrent(): Promise<CliResult<string | null>> {
+		return this.exec<string | null>(['cloud', 'region', 'current'], { format: 'json' });
+	}
+
+	async regionSelect(region: string): Promise<CliResult<RegionSelectResponse>> {
+		return this.exec<RegionSelectResponse>(['cloud', 'region', 'select', region], {
+			format: 'json',
+		});
+	}
+
+	async regionUnselect(): Promise<CliResult<{ cleared: boolean }>> {
+		return this.exec<{ cleared: boolean }>(['cloud', 'region', 'unselect'], { format: 'json' });
+	}
+
 	async listAgents(): Promise<CliResult<AgentListResponse>> {
 		return this.exec<AgentListResponse>(['cloud', 'agent', 'list'], { format: 'json' });
 	}
@@ -403,12 +457,246 @@ export class CliClient {
 		return this.exec<void>(['cloud', 'stream', 'delete', id], { format: 'json' });
 	}
 
+	// Queue methods
+	async listQueues(opts?: {
+		limit?: number;
+		offset?: number;
+	}): Promise<CliResult<QueueListResponse>> {
+		const args = ['cloud', 'queue', 'list'];
+		if (opts?.limit) {
+			args.push('--limit', String(opts.limit));
+		}
+		if (opts?.offset) {
+			args.push('--offset', String(opts.offset));
+		}
+		return this.exec<QueueListResponse>(args, { format: 'json' });
+	}
+
+	async getQueue(name: string): Promise<CliResult<QueueGetResponse>> {
+		return this.exec<QueueGetResponse>(['cloud', 'queue', 'get', name], { format: 'json' });
+	}
+
+	async getQueueStats(): Promise<CliResult<QueueStatsResponse>> {
+		return this.exec<QueueStatsResponse>(['cloud', 'queue', 'stats'], { format: 'json' });
+	}
+
+	async listQueueMessages(
+		queueName: string,
+		opts?: { limit?: number; offset?: number }
+	): Promise<CliResult<QueueMessagesResponse>> {
+		const args = ['cloud', 'queue', 'messages', queueName];
+		if (opts?.limit) {
+			args.push('--limit', String(opts.limit));
+		}
+		if (opts?.offset) {
+			args.push('--offset', String(opts.offset));
+		}
+		return this.exec<QueueMessagesResponse>(args, { format: 'json' });
+	}
+
+	async getQueueMessage(
+		queueName: string,
+		messageId: string
+	): Promise<CliResult<QueueMessageResponse>> {
+		return this.exec<QueueMessageResponse>(['cloud', 'queue', 'messages', queueName, messageId], {
+			format: 'json',
+		});
+	}
+
+	async publishQueueMessage(
+		queueName: string,
+		payload: string,
+		opts?: {
+			metadata?: string;
+			ttl?: number;
+			partitionKey?: string;
+			idempotencyKey?: string;
+		}
+	): Promise<CliResult<QueueMessage>> {
+		// Quote the payload to protect special characters from shell interpretation
+		const quotedPayload = `'${payload.replace(/'/g, "'\\''")}'`;
+		const args = ['cloud', 'queue', 'publish', queueName, quotedPayload];
+		if (opts?.metadata) {
+			const quotedMetadata = `'${opts.metadata.replace(/'/g, "'\\''")}'`;
+			args.push('--metadata', quotedMetadata);
+		}
+		if (opts?.ttl) {
+			args.push('--ttl', String(opts.ttl));
+		}
+		if (opts?.partitionKey) {
+			args.push('--partitionKey', opts.partitionKey);
+		}
+		if (opts?.idempotencyKey) {
+			args.push('--idempotencyKey', opts.idempotencyKey);
+		}
+		return this.exec<QueueMessage>(args, { format: 'json' });
+	}
+
+	async pauseQueue(name: string): Promise<CliResult<QueueDetails>> {
+		return this.exec<QueueDetails>(['cloud', 'queue', 'pause', name], { format: 'json' });
+	}
+
+	async resumeQueue(name: string): Promise<CliResult<QueueDetails>> {
+		return this.exec<QueueDetails>(['cloud', 'queue', 'resume', name], { format: 'json' });
+	}
+
+	async deleteQueue(name: string): Promise<CliResult<{ success: boolean }>> {
+		return this.exec<{ success: boolean }>(['cloud', 'queue', 'delete', name, '--confirm'], {
+			format: 'json',
+		});
+	}
+
+	async createQueue(
+		queueType: 'worker' | 'pubsub',
+		name: string,
+		opts?: { ttl?: number; description?: string }
+	): Promise<CliResult<QueueDetails>> {
+		const args = ['cloud', 'queue', 'create', queueType, '--name', name];
+		if (opts?.ttl) {
+			args.push('--ttl', String(opts.ttl));
+		}
+		if (opts?.description) {
+			args.push('--description', opts.description);
+		}
+		return this.exec<QueueDetails>(args, { format: 'json' });
+	}
+
+	async receiveQueueMessage(
+		queueName: string,
+		opts?: { timeout?: number }
+	): Promise<CliResult<QueueMessage | null>> {
+		const args = ['cloud', 'queue', 'receive', queueName];
+		if (opts?.timeout) {
+			args.push('--timeout', String(opts.timeout));
+		}
+		return this.exec<QueueMessage | null>(args, { format: 'json' });
+	}
+
+	async ackQueueMessage(
+		queueName: string,
+		messageId: string
+	): Promise<CliResult<{ success: boolean; queue_name: string; message_id: string }>> {
+		return this.exec<{ success: boolean; queue_name: string; message_id: string }>(
+			['cloud', 'queue', 'ack', queueName, messageId],
+			{ format: 'json' }
+		);
+	}
+
+	async nackQueueMessage(
+		queueName: string,
+		messageId: string
+	): Promise<CliResult<{ success: boolean; queue_name: string; message_id: string }>> {
+		return this.exec<{ success: boolean; queue_name: string; message_id: string }>(
+			['cloud', 'queue', 'nack', queueName, messageId],
+			{ format: 'json' }
+		);
+	}
+
+	async listDlqMessages(
+		queueName: string,
+		opts?: { limit?: number; offset?: number }
+	): Promise<CliResult<DlqMessagesResponse>> {
+		const args = ['cloud', 'queue', 'dlq', 'list', queueName];
+		if (opts?.limit) {
+			args.push('--limit', String(opts.limit));
+		}
+		if (opts?.offset) {
+			args.push('--offset', String(opts.offset));
+		}
+		return this.exec<DlqMessagesResponse>(args, { format: 'json' });
+	}
+
+	async replayDlqMessage(
+		queueName: string,
+		messageId: string
+	): Promise<CliResult<{ success: boolean; message: QueueMessage }>> {
+		return this.exec<{ success: boolean; message: QueueMessage }>(
+			['cloud', 'queue', 'dlq', 'replay', queueName, messageId],
+			{ format: 'json' }
+		);
+	}
+
+	async purgeDlq(queueName: string): Promise<CliResult<{ success: boolean; queue_name: string }>> {
+		return this.exec<{ success: boolean; queue_name: string }>(
+			['cloud', 'queue', 'dlq', 'purge', queueName, '--confirm'],
+			{ format: 'json' }
+		);
+	}
+
+	async listQueueDestinations(queueName: string): Promise<CliResult<QueueDestinationsResponse>> {
+		return this.exec<QueueDestinationsResponse>(
+			['cloud', 'queue', 'destinations', 'list', queueName],
+			{ format: 'json' }
+		);
+	}
+
+	async createQueueDestination(
+		queueName: string,
+		url: string,
+		opts?: { method?: string; timeout?: number }
+	): Promise<CliResult<QueueDestination>> {
+		const args = ['cloud', 'queue', 'destinations', 'create', queueName, '--url', url];
+		if (opts?.method) {
+			args.push('--method', opts.method);
+		}
+		if (opts?.timeout) {
+			args.push('--timeout', String(opts.timeout));
+		}
+		return this.exec<QueueDestination>(args, { format: 'json' });
+	}
+
+	async updateQueueDestination(
+		queueName: string,
+		destinationId: string,
+		opts: {
+			url?: string;
+			method?: string;
+			timeout?: number;
+			enabled?: boolean;
+			disabled?: boolean;
+		}
+	): Promise<CliResult<QueueDestination>> {
+		const args = ['cloud', 'queue', 'destinations', 'update', queueName, destinationId];
+		if (opts.url) {
+			args.push('--url', opts.url);
+		}
+		if (opts.method) {
+			args.push('--method', opts.method);
+		}
+		if (opts.timeout) {
+			args.push('--timeout', String(opts.timeout));
+		}
+		if (opts.enabled) {
+			args.push('--enabled');
+		}
+		if (opts.disabled) {
+			args.push('--disabled');
+		}
+		return this.exec<QueueDestination>(args, { format: 'json' });
+	}
+
+	async deleteQueueDestination(
+		queueName: string,
+		destinationId: string
+	): Promise<CliResult<{ success: boolean; queue_name: string; destination_id: string }>> {
+		return this.exec<{ success: boolean; queue_name: string; destination_id: string }>(
+			['cloud', 'queue', 'destinations', 'delete', queueName, destinationId],
+			{ format: 'json' }
+		);
+	}
+
 	// Profile methods
 	async getCurrentProfile(): Promise<CliResult<string>> {
 		return this.exec<string>(['profile', 'current'], { format: 'json' });
 	}
 
 	// Vector methods
+	async listVectorNamespaces(): Promise<CliResult<VectorNamespaceListResponse>> {
+		return this.exec<VectorNamespaceListResponse>(['cloud', 'vector', 'list-namespaces'], {
+			format: 'json',
+		});
+	}
+
 	async vectorSearch(
 		namespace: string,
 		query: string,
@@ -524,6 +812,9 @@ export class CliClient {
 		}
 		if (options.description) {
 			args.push('--description', options.description);
+		}
+		if (options.projectId) {
+			args.push('--project-id', options.projectId);
 		}
 		// Existing options
 		if (options.memory) {
@@ -910,14 +1201,33 @@ export class CliClient {
 }
 
 // Auth types
+export interface OrgInfo {
+	id: string;
+	name: string;
+	slug?: string;
+}
+
 export interface WhoamiResponse {
 	userId: string;
 	firstName: string;
 	lastName: string;
-	organizations: Array<{
-		id: string;
-		name: string;
-	}>;
+	organizations: OrgInfo[];
+}
+
+export interface OrgSelectResponse {
+	orgId: string;
+	name: string;
+}
+
+// Region types
+export interface RegionInfo {
+	region: string;
+	description: string;
+}
+
+export interface RegionSelectResponse {
+	region: string;
+	description: string;
 }
 
 // Agent types
@@ -1030,7 +1340,118 @@ export interface StreamListResponse {
 	total: number;
 }
 
+// Queue types
+export interface QueueInfo {
+	name: string;
+	queue_type: 'worker' | 'pubsub';
+	message_count: number;
+	dlq_count: number;
+	created_at: string;
+}
+
+export interface QueueListResponse {
+	queues: QueueInfo[];
+	total?: number;
+}
+
+export interface QueueDetails {
+	id: string;
+	name: string;
+	queue_type: 'worker' | 'pubsub';
+	description?: string;
+	message_count?: number;
+	dlq_count?: number;
+	next_offset?: number;
+	paused_at?: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface QueueGetResponse {
+	type: 'queue';
+	queue: QueueDetails;
+}
+
+export interface QueueStatsResponse {
+	stats: unknown;
+}
+
+export interface QueueMessage {
+	id: string;
+	queue_id: string;
+	offset: number;
+	state: string;
+	payload: unknown;
+	metadata?: Record<string, unknown>;
+	partition_key?: string;
+	idempotency_key?: string;
+	delivery_attempts: number;
+	published_at?: string;
+	created_at?: string;
+	expires_at?: string;
+	delivered_at?: string;
+	acknowledged_at?: string;
+	size?: number;
+}
+
+export interface QueueMessagesResponse {
+	type: 'list';
+	data: {
+		messages: Array<{
+			id: string;
+			offset: number;
+			state?: string;
+			size?: number;
+			created_at?: string;
+		}>;
+		total?: number;
+	};
+}
+
+export interface QueueMessageResponse {
+	type: 'message';
+	message: QueueMessage;
+}
+
+export interface DlqMessage {
+	id: string;
+	offset: number;
+	failure_reason: string | null;
+	delivery_attempts: number;
+	moved_at: string;
+}
+
+export interface DlqMessagesResponse {
+	messages: DlqMessage[];
+	total?: number;
+}
+
+export interface QueueDestination {
+	id: string;
+	destination_type: string;
+	config: {
+		url: string;
+		method?: string;
+		timeout_ms?: number;
+	};
+	enabled: boolean;
+	created_at: string;
+	updated_at?: string;
+}
+
+export interface QueueDestinationsResponse {
+	destinations: Array<{
+		id: string;
+		destination_type: string;
+		url: string;
+		enabled: boolean;
+		created_at: string;
+	}>;
+}
+
 // Vector types
+export type VectorNamespaceListResponse = string[];
+
 export interface VectorSearchResult {
 	id: string;
 	key: string;
@@ -1271,6 +1692,7 @@ export interface SandboxCreateOptions {
 	runtimeId?: string;
 	name?: string;
 	description?: string;
+	projectId?: string; // Associate sandbox with a project
 	// Existing fields
 	memory?: string;
 	cpu?: string;

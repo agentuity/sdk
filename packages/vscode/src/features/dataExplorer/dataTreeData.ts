@@ -1,5 +1,10 @@
 import * as vscode from 'vscode';
-import { getCliClient, type VectorSearchResult, type StreamInfo } from '../../core/cliClient';
+import {
+	getCliClient,
+	type VectorSearchResult,
+	type StreamInfo,
+	type QueueInfo,
+} from '../../core/cliClient';
 import { getAuthStatus } from '../../core/auth';
 import { hasProject } from '../../core/project';
 
@@ -13,9 +18,14 @@ export type DataItemType =
 	| 'vectorResult'
 	| 'storageBucket'
 	| 'storageFile'
-	| 'streamItem';
+	| 'streamItem'
+	| 'queueItem'
+	| 'queueSection'
+	| 'queueMessage'
+	| 'dlqMessage'
+	| 'queueDestination';
 
-export type DataCategory = 'kv' | 'db' | 'vector' | 'storage' | 'stream';
+export type DataCategory = 'kv' | 'db' | 'vector' | 'storage' | 'stream' | 'queue';
 
 export interface VectorSearchGroup {
 	id: string;
@@ -26,6 +36,9 @@ export interface VectorSearchGroup {
 }
 
 export class DataTreeItem extends vscode.TreeItem {
+	public messageId?: string;
+	public destinationId?: string;
+
 	constructor(
 		public readonly label: string,
 		public readonly collapsibleState: vscode.TreeItemCollapsibleState,
@@ -33,7 +46,8 @@ export class DataTreeItem extends vscode.TreeItem {
 		public readonly category?: DataCategory,
 		public readonly parentName?: string,
 		public readonly vectorResult?: VectorSearchResult,
-		public readonly streamInfo?: StreamInfo
+		public readonly streamInfo?: StreamInfo,
+		public readonly queueInfo?: QueueInfo
 	) {
 		super(label, collapsibleState);
 		this.setIcon();
@@ -58,6 +72,8 @@ export class DataTreeItem extends vscode.TreeItem {
 					this.iconPath = new vscode.ThemeIcon('cloud');
 				} else if (this.label === 'Streams') {
 					this.iconPath = new vscode.ThemeIcon('pulse');
+				} else if (this.label === 'Queues') {
+					this.iconPath = new vscode.ThemeIcon('mail');
 				}
 				break;
 			case 'namespace':
@@ -84,6 +100,27 @@ export class DataTreeItem extends vscode.TreeItem {
 			case 'streamItem':
 				this.iconPath = new vscode.ThemeIcon('broadcast');
 				break;
+			case 'queueItem':
+				this.iconPath = new vscode.ThemeIcon('mail');
+				break;
+			case 'queueSection':
+				if (this.label === 'Messages') {
+					this.iconPath = new vscode.ThemeIcon('inbox');
+				} else if (this.label === 'Dead Letter Queue') {
+					this.iconPath = new vscode.ThemeIcon('warning');
+				} else if (this.label === 'Destinations') {
+					this.iconPath = new vscode.ThemeIcon('link-external');
+				}
+				break;
+			case 'queueMessage':
+				this.iconPath = new vscode.ThemeIcon('mail');
+				break;
+			case 'dlqMessage':
+				this.iconPath = new vscode.ThemeIcon('warning');
+				break;
+			case 'queueDestination':
+				this.iconPath = new vscode.ThemeIcon('link-external');
+				break;
 			case 'message':
 				this.iconPath = new vscode.ThemeIcon('info');
 				break;
@@ -96,8 +133,29 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 	readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
 	private vectorSearchGroups: VectorSearchGroup[] = [];
+	private messageLimits: Map<string, number> = new Map();
+	private dlqLimits: Map<string, number> = new Map();
+	private readonly MESSAGE_PAGE_SIZE = 25;
 
 	refresh(): void {
+		this._onDidChangeTreeData.fire();
+	}
+
+	refreshQueueMessages(queueName: string): void {
+		this.messageLimits.delete(queueName);
+		this.dlqLimits.delete(queueName);
+		this._onDidChangeTreeData.fire();
+	}
+
+	loadMoreMessages(queueName: string): void {
+		const currentLimit = this.messageLimits.get(queueName) || this.MESSAGE_PAGE_SIZE;
+		this.messageLimits.set(queueName, currentLimit + this.MESSAGE_PAGE_SIZE);
+		this._onDidChangeTreeData.fire();
+	}
+
+	loadMoreDlqMessages(queueName: string): void {
+		const currentLimit = this.dlqLimits.get(queueName) || this.MESSAGE_PAGE_SIZE;
+		this.dlqLimits.set(queueName, currentLimit + this.MESSAGE_PAGE_SIZE);
 		this._onDidChangeTreeData.fire();
 	}
 
@@ -177,6 +235,12 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 					'category',
 					'stream'
 				),
+				new DataTreeItem(
+					'Queues',
+					vscode.TreeItemCollapsibleState.Collapsed,
+					'category',
+					'queue'
+				),
 			];
 		}
 
@@ -194,6 +258,21 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 
 		if (element.itemType === 'storageBucket' && element.category === 'storage') {
 			return this.loadStorageFiles(element.label);
+		}
+
+		if (element.itemType === 'queueItem' && element.queueInfo) {
+			return this.loadQueueSections(element.queueInfo.name);
+		}
+
+		if (element.itemType === 'queueSection' && element.parentName) {
+			const sectionLabel = element.label as string;
+			if (sectionLabel === 'Messages') {
+				return this.loadQueueMessages(element.parentName);
+			} else if (sectionLabel === 'Dead Letter Queue') {
+				return this.loadDlqMessages(element.parentName);
+			} else if (sectionLabel === 'Destinations') {
+				return this.loadQueueDestinations(element.parentName);
+			}
 		}
 
 		return [];
@@ -276,26 +355,59 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 					),
 				];
 			} else if (element.category === 'vector') {
-				if (this.vectorSearchGroups.length === 0) {
+				const items: DataTreeItem[] = [];
+
+				// Add search results first if any
+				if (this.vectorSearchGroups.length > 0) {
+					for (const group of this.vectorSearchGroups) {
+						const item = new DataTreeItem(
+							group.label,
+							vscode.TreeItemCollapsibleState.Collapsed,
+							'vectorSearchGroup',
+							'vector',
+							group.id
+						);
+						item.description = `${group.results.length} results`;
+						items.push(item);
+					}
+				}
+
+				// Load and show namespaces
+				const result = await cli.listVectorNamespaces();
+				if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+					// Add a separator if we have search results
+					if (items.length > 0) {
+						const separator = new DataTreeItem(
+							'─── Namespaces ───',
+							vscode.TreeItemCollapsibleState.None,
+							'message'
+						);
+						items.push(separator);
+					}
+
+					for (const ns of result.data) {
+						const item = new DataTreeItem(
+							ns,
+							vscode.TreeItemCollapsibleState.None,
+							'namespace',
+							'vector'
+						);
+						item.tooltip = `Vector namespace: ${ns}\nRight-click to search`;
+						items.push(item);
+					}
+				}
+
+				if (items.length === 0) {
 					const item = new DataTreeItem(
-						'Use "Search Vectors..." to search',
+						'No namespaces found',
 						vscode.TreeItemCollapsibleState.None,
 						'message'
 					);
-					item.tooltip = 'Right-click on Vectors or use the command palette';
+					item.tooltip = 'Deploy your project to create vector namespaces';
 					return [item];
 				}
-				return this.vectorSearchGroups.map((group) => {
-					const item = new DataTreeItem(
-						group.label,
-						vscode.TreeItemCollapsibleState.Collapsed,
-						'vectorSearchGroup',
-						'vector',
-						group.id
-					);
-					item.description = `${group.results.length} results`;
-					return item;
-				});
+
+				return items;
 			} else if (element.category === 'storage') {
 				const result = await cli.listStorageBuckets();
 				if (result.success && result.data?.buckets) {
@@ -358,6 +470,43 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 				return [
 					new DataTreeItem(
 						this.getErrorMessage(result.error, 'streams'),
+						vscode.TreeItemCollapsibleState.None,
+						'message'
+					),
+				];
+			} else if (element.category === 'queue') {
+				const result = await cli.listQueues();
+				if (result.success && result.data?.queues) {
+					if (result.data.queues.length === 0) {
+						return [
+							new DataTreeItem('No queues', vscode.TreeItemCollapsibleState.None, 'message'),
+						];
+					}
+					return result.data.queues.map((queue) => {
+						const item = new DataTreeItem(
+							queue.name,
+							vscode.TreeItemCollapsibleState.Collapsed,
+							'queueItem',
+							'queue',
+							undefined,
+							undefined,
+							undefined,
+							queue
+						);
+						item.description = `${queue.queue_type} • ${queue.message_count} msgs`;
+						item.tooltip = [
+							`Name: ${queue.name}`,
+							`Type: ${queue.queue_type}`,
+							`Messages: ${queue.message_count}`,
+							`DLQ: ${queue.dlq_count}`,
+							`Created: ${new Date(queue.created_at).toLocaleString()}`,
+						].join('\n');
+						return item;
+					});
+				}
+				return [
+					new DataTreeItem(
+						this.getErrorMessage(result.error, 'queues'),
 						vscode.TreeItemCollapsibleState.None,
 						'message'
 					),
@@ -466,6 +615,226 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 		if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
 		if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 		return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+	}
+
+	private loadQueueSections(queueName: string): DataTreeItem[] {
+		const messagesItem = new DataTreeItem(
+			'Messages',
+			vscode.TreeItemCollapsibleState.Collapsed,
+			'queueSection',
+			'queue',
+			queueName
+		);
+		messagesItem.contextValue = 'queueSection-messages';
+		messagesItem.description = `${this.MESSAGE_PAGE_SIZE} latest`;
+
+		const dlqItem = new DataTreeItem(
+			'Dead Letter Queue',
+			vscode.TreeItemCollapsibleState.Collapsed,
+			'queueSection',
+			'queue',
+			queueName
+		);
+		dlqItem.contextValue = 'queueSection-dlq';
+		dlqItem.description = `${this.MESSAGE_PAGE_SIZE} latest`;
+
+		const destItem = new DataTreeItem(
+			'Destinations',
+			vscode.TreeItemCollapsibleState.Collapsed,
+			'queueSection',
+			'queue',
+			queueName
+		);
+		destItem.contextValue = 'queueSection-destinations';
+
+		return [messagesItem, dlqItem, destItem];
+	}
+
+	private async loadQueueMessages(queueName: string): Promise<DataTreeItem[]> {
+		const cli = getCliClient();
+		const currentLimit = this.messageLimits.get(queueName) || this.MESSAGE_PAGE_SIZE;
+
+		try {
+			const result = await cli.listQueueMessages(queueName, { limit: currentLimit });
+
+			if (result.success && result.data?.data?.messages) {
+				const messages = result.data.data.messages;
+				const total = result.data.data.total || messages.length;
+
+				if (messages.length === 0) {
+					return [
+						new DataTreeItem('No messages', vscode.TreeItemCollapsibleState.None, 'message'),
+					];
+				}
+
+				const items = messages.map((msg) => {
+					const item = new DataTreeItem(
+						msg.id.substring(0, 16) + '...',
+						vscode.TreeItemCollapsibleState.None,
+						'queueMessage',
+						'queue',
+						queueName
+					);
+					// Set contextValue based on state - ack/nack only available for leased messages
+					item.contextValue = msg.state === 'leased' ? 'queueMessage-leased' : 'queueMessage';
+					item.description = msg.state || '';
+					item.tooltip = [
+						`ID: ${msg.id}`,
+						`Offset: ${msg.offset}`,
+						`State: ${msg.state || 'unknown'}`,
+						msg.created_at ? `Created: ${new Date(msg.created_at).toLocaleString()}` : '',
+					]
+						.filter(Boolean)
+						.join('\n');
+					item.messageId = msg.id;
+					return item;
+				});
+
+				if (messages.length < total) {
+					const remaining = total - messages.length;
+					const loadMoreItem = new DataTreeItem(
+						`Load ${Math.min(remaining, this.MESSAGE_PAGE_SIZE)} More... (${remaining} remaining)`,
+						vscode.TreeItemCollapsibleState.None,
+						'message',
+						'queue',
+						queueName
+					);
+					loadMoreItem.contextValue = 'loadMoreMessages';
+					items.push(loadMoreItem);
+				}
+
+				return items;
+			}
+			return [
+				new DataTreeItem(
+					this.getErrorMessage(result.error, 'messages'),
+					vscode.TreeItemCollapsibleState.None,
+					'message'
+				),
+			];
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to load messages';
+			return [new DataTreeItem(message, vscode.TreeItemCollapsibleState.None, 'message')];
+		}
+	}
+
+	private async loadDlqMessages(queueName: string): Promise<DataTreeItem[]> {
+		const cli = getCliClient();
+		const currentLimit = this.dlqLimits.get(queueName) || this.MESSAGE_PAGE_SIZE;
+
+		try {
+			const result = await cli.listDlqMessages(queueName, { limit: currentLimit });
+
+			if (result.success && result.data?.messages) {
+				const messages = result.data.messages;
+				const total = result.data.total || messages.length;
+
+				if (messages.length === 0) {
+					return [
+						new DataTreeItem(
+							'No DLQ messages',
+							vscode.TreeItemCollapsibleState.None,
+							'message'
+						),
+					];
+				}
+
+				const items = messages.map((msg) => {
+					const item = new DataTreeItem(
+						msg.id.substring(0, 16) + '...',
+						vscode.TreeItemCollapsibleState.None,
+						'dlqMessage',
+						'queue',
+						queueName
+					);
+					item.contextValue = 'dlqMessage';
+					item.description = `${msg.delivery_attempts} attempts`;
+					item.tooltip = [
+						`ID: ${msg.id}`,
+						`Offset: ${msg.offset}`,
+						`Attempts: ${msg.delivery_attempts}`,
+						`Reason: ${msg.failure_reason || 'Unknown'}`,
+						`Moved: ${new Date(msg.moved_at).toLocaleString()}`,
+					].join('\n');
+					item.messageId = msg.id;
+					return item;
+				});
+
+				if (messages.length < total) {
+					const remaining = total - messages.length;
+					const loadMoreItem = new DataTreeItem(
+						`Load ${Math.min(remaining, this.MESSAGE_PAGE_SIZE)} More... (${remaining} remaining)`,
+						vscode.TreeItemCollapsibleState.None,
+						'message',
+						'queue',
+						queueName
+					);
+					loadMoreItem.contextValue = 'loadMoreDlqMessages';
+					items.push(loadMoreItem);
+				}
+
+				return items;
+			}
+			return [
+				new DataTreeItem(
+					this.getErrorMessage(result.error, 'DLQ'),
+					vscode.TreeItemCollapsibleState.None,
+					'message'
+				),
+			];
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to load DLQ';
+			return [new DataTreeItem(message, vscode.TreeItemCollapsibleState.None, 'message')];
+		}
+	}
+
+	private async loadQueueDestinations(queueName: string): Promise<DataTreeItem[]> {
+		const cli = getCliClient();
+
+		try {
+			const result = await cli.listQueueDestinations(queueName);
+			if (result.success && result.data?.destinations) {
+				if (result.data.destinations.length === 0) {
+					return [
+						new DataTreeItem(
+							'No destinations',
+							vscode.TreeItemCollapsibleState.None,
+							'message'
+						),
+					];
+				}
+				return result.data.destinations.map((dest) => {
+					const item = new DataTreeItem(
+						dest.url,
+						vscode.TreeItemCollapsibleState.None,
+						'queueDestination',
+						'queue',
+						queueName
+					);
+					item.contextValue = 'queueDestination';
+					item.description = dest.enabled ? 'enabled' : 'disabled';
+					item.tooltip = [
+						`ID: ${dest.id}`,
+						`Type: ${dest.destination_type}`,
+						`URL: ${dest.url}`,
+						`Enabled: ${dest.enabled ? 'Yes' : 'No'}`,
+						`Created: ${new Date(dest.created_at).toLocaleString()}`,
+					].join('\n');
+					item.destinationId = dest.id;
+					return item;
+				});
+			}
+			return [
+				new DataTreeItem(
+					this.getErrorMessage(result.error, 'destinations'),
+					vscode.TreeItemCollapsibleState.None,
+					'message'
+				),
+			];
+		} catch (err) {
+			const message = err instanceof Error ? err.message : 'Failed to load destinations';
+			return [new DataTreeItem(message, vscode.TreeItemCollapsibleState.None, 'message')];
+		}
 	}
 
 	dispose(): void {

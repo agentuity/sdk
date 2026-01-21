@@ -27,6 +27,14 @@ export function registerDataExplorer(context: vscode.ExtensionContext): DataTree
 			await openStorageFile(item);
 		} else if (item.itemType === 'streamItem' && item.streamInfo) {
 			await openStreamDetails(item);
+		} else if (item.itemType === 'queueMessage' && item.parentName) {
+			await vscode.commands.executeCommand('agentuity.queue.viewMessage', item);
+		} else if (item.itemType === 'queueItem' && item.queueInfo) {
+			await openQueueDetails(item);
+		} else if (item.itemType === 'message' && item.contextValue === 'loadMoreMessages' && item.parentName) {
+			provider.loadMoreMessages(item.parentName);
+		} else if (item.itemType === 'message' && item.contextValue === 'loadMoreDlqMessages' && item.parentName) {
+			provider.loadMoreDlqMessages(item.parentName);
 		}
 	});
 
@@ -168,6 +176,564 @@ export function registerDataExplorer(context: vscode.ExtensionContext): DataTree
 		})
 	);
 
+	// Queue commands
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.create', async () => {
+			const cli = getCliClient();
+
+			const queueType = await vscode.window.showQuickPick(
+				[
+					{
+						label: 'Worker',
+						description: 'Point-to-point queue with acknowledgment',
+						value: 'worker',
+					},
+					{
+						label: 'Pub/Sub',
+						description: 'Publish-subscribe with multiple consumers',
+						value: 'pubsub',
+					},
+				],
+				{ placeHolder: 'Select queue type' }
+			);
+			if (!queueType) return;
+
+			const name = await vscode.window.showInputBox({
+				prompt: 'Queue name',
+				placeHolder: 'my-queue',
+				validateInput: (value) => {
+					if (!value || value.trim() === '') return 'Queue name is required';
+					if (!/^[a-zA-Z0-9_-]+$/.test(value))
+						return 'Only letters, numbers, dashes, and underscores allowed';
+					return null;
+				},
+			});
+			if (!name) return;
+
+			const ttlStr = await vscode.window.showInputBox({
+				prompt: 'Message TTL in seconds (optional)',
+				placeHolder: '86400 (24 hours)',
+			});
+			const ttl = ttlStr ? parseInt(ttlStr, 10) : undefined;
+
+			const result = await cli.createQueue(queueType.value as 'worker' | 'pubsub', name, {
+				ttl,
+			});
+			if (result.success) {
+				vscode.window.showInformationMessage(`Created ${queueType.value} queue: ${name}`);
+				provider.refresh();
+			} else {
+				vscode.window.showErrorMessage(`Failed to create queue: ${result.error}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.delete', async (item: DataTreeItem) => {
+			if (item?.itemType !== 'queueItem' || !item.queueInfo) return;
+
+			const queueName = item.queueInfo.name;
+			const confirm = await vscode.window.showInputBox({
+				prompt: `Type "${queueName}" to confirm deletion`,
+				placeHolder: queueName,
+			});
+
+			if (confirm !== queueName) {
+				vscode.window.showWarningMessage('Queue deletion cancelled');
+				return;
+			}
+
+			const cli = getCliClient();
+			const result = await cli.deleteQueue(queueName);
+			if (result.success) {
+				vscode.window.showInformationMessage(`Deleted queue: ${queueName}`);
+				provider.refresh();
+			} else {
+				vscode.window.showErrorMessage(`Failed to delete queue: ${result.error}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.pause', async (item: DataTreeItem) => {
+			if (item?.itemType !== 'queueItem' || !item.queueInfo) return;
+
+			const cli = getCliClient();
+			const result = await cli.pauseQueue(item.queueInfo.name);
+			if (result.success) {
+				vscode.window.showInformationMessage(`Paused queue: ${item.queueInfo.name}`);
+				provider.refresh();
+			} else {
+				vscode.window.showErrorMessage(`Failed to pause queue: ${result.error}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.resume', async (item: DataTreeItem) => {
+			if (item?.itemType !== 'queueItem' || !item.queueInfo) return;
+
+			const cli = getCliClient();
+			const result = await cli.resumeQueue(item.queueInfo.name);
+			if (result.success) {
+				vscode.window.showInformationMessage(`Resumed queue: ${item.queueInfo.name}`);
+				provider.refresh();
+			} else {
+				vscode.window.showErrorMessage(`Failed to resume queue: ${result.error}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.publish', async (item: DataTreeItem) => {
+			let queueName: string;
+
+			if (item?.itemType === 'queueItem' && item.queueInfo) {
+				queueName = item.queueInfo.name;
+			} else {
+				// If not called from context menu, show queue picker
+				const cli = getCliClient();
+				const queuesResult = await cli.listQueues();
+				if (!queuesResult.success || !queuesResult.data?.queues?.length) {
+					vscode.window.showErrorMessage('No queues available');
+					return;
+				}
+				const queuePick = await vscode.window.showQuickPick(
+					queuesResult.data.queues.map((q) => ({ label: q.name, description: q.queue_type })),
+					{ placeHolder: 'Select queue' }
+				);
+				if (!queuePick) return;
+				queueName = queuePick.label;
+			}
+
+			const payloadStr = await vscode.window.showInputBox({
+				prompt: 'Message payload (JSON)',
+				placeHolder: '{"key": "value"}',
+				validateInput: (value) => {
+					if (!value) return 'Payload is required';
+					try {
+						JSON.parse(value);
+						return null;
+					} catch {
+						return 'Invalid JSON';
+					}
+				},
+			});
+			if (!payloadStr) return;
+
+			const metadataStr = await vscode.window.showInputBox({
+				prompt: 'Message metadata (JSON, optional)',
+				placeHolder: '{"priority": "high"}',
+				validateInput: (value) => {
+					if (!value) return null;
+					try {
+						JSON.parse(value);
+						return null;
+					} catch {
+						return 'Invalid JSON';
+					}
+				},
+			});
+
+			const cli = getCliClient();
+			const result = await cli.publishQueueMessage(queueName, payloadStr, {
+				metadata: metadataStr || undefined,
+			});
+
+			if (result.success && result.data) {
+				vscode.window.showInformationMessage(`Published message: ${result.data.id}`);
+				provider.refresh();
+			} else {
+				vscode.window.showErrorMessage(`Failed to publish message: ${result.error}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.viewMessage', async (item: DataTreeItem) => {
+			if (item?.itemType !== 'queueMessage' || !item.parentName) return;
+
+			const messageId = item.messageId;
+			if (!messageId) return;
+
+			const cli = getCliClient();
+			const result = await cli.getQueueMessage(item.parentName, messageId);
+
+			if (result.success && result.data?.message) {
+				const msg = result.data.message;
+				const content = JSON.stringify(
+					{
+						id: msg.id,
+						queue_id: msg.queue_id,
+						offset: msg.offset,
+						state: msg.state,
+						delivery_attempts: msg.delivery_attempts,
+						partition_key: msg.partition_key,
+						idempotency_key: msg.idempotency_key,
+						published_at: msg.published_at,
+						created_at: msg.created_at,
+						delivered_at: msg.delivered_at,
+						acknowledged_at: msg.acknowledged_at,
+						expires_at: msg.expires_at,
+						payload: msg.payload,
+						metadata: msg.metadata,
+					},
+					null,
+					2
+				);
+
+				await openReadonlyDocument(
+					content,
+					'json',
+					`queue-message-${messageId.substring(0, 8)}`
+				);
+			} else {
+				vscode.window.showErrorMessage(`Failed to get message: ${result.error}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'agentuity.queue.copyMessageId',
+			async (item: DataTreeItem) => {
+				if (item?.itemType !== 'queueMessage' && item?.itemType !== 'dlqMessage') return;
+				const messageId = item.messageId;
+				if (!messageId) return;
+
+				await vscode.env.clipboard.writeText(messageId);
+				vscode.window.showInformationMessage('Message ID copied to clipboard');
+			}
+		)
+	);
+
+	// Worker queue lifecycle commands
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.receive', async (item: DataTreeItem) => {
+			let queueName: string;
+
+			if (item?.itemType === 'queueItem' && item.queueInfo) {
+				if (item.queueInfo.queue_type !== 'worker') {
+					vscode.window.showWarningMessage('Receive is only available for worker queues');
+					return;
+				}
+				queueName = item.queueInfo.name;
+			} else {
+				const cli = getCliClient();
+				const queuesResult = await cli.listQueues();
+				if (!queuesResult.success || !queuesResult.data?.queues?.length) {
+					vscode.window.showErrorMessage('No queues available');
+					return;
+				}
+				const workerQueues = queuesResult.data.queues.filter((q) => q.queue_type === 'worker');
+				if (workerQueues.length === 0) {
+					vscode.window.showErrorMessage('No worker queues available');
+					return;
+				}
+				const queuePick = await vscode.window.showQuickPick(
+					workerQueues.map((q) => ({
+						label: q.name,
+						description: `${q.message_count} messages`,
+					})),
+					{ placeHolder: 'Select worker queue' }
+				);
+				if (!queuePick) return;
+				queueName = queuePick.label;
+			}
+
+			const cli = getCliClient();
+			const result = await cli.receiveQueueMessage(queueName);
+
+			// CLI returns { message: {...} } wrapper
+			const msgData = result.data as { message?: typeof result.data } | null;
+			const msg = msgData?.message ?? result.data;
+
+			if (result.success && msg) {
+				const content = JSON.stringify(
+					{
+						id: msg.id,
+						queue_id: msg.queue_id,
+						offset: msg.offset,
+						state: msg.state,
+						delivery_attempts: msg.delivery_attempts,
+						payload: msg.payload,
+						metadata: msg.metadata,
+					},
+					null,
+					2
+				);
+
+				await openReadonlyDocument(
+					content,
+					'json',
+					`received-message-${msg.id?.substring(0, 8) ?? 'unknown'}`
+				);
+
+				const action = await vscode.window.showInformationMessage(
+					`Received message: ${msg.id}`,
+					'Acknowledge',
+					'Return to Queue'
+				);
+
+				if (action === 'Acknowledge') {
+					const ackResult = await cli.ackQueueMessage(queueName, msg.id);
+					if (ackResult.success) {
+						vscode.window.showInformationMessage('Message acknowledged');
+						provider.refreshQueueMessages(queueName);
+					} else {
+						vscode.window.showErrorMessage(`Failed to acknowledge: ${ackResult.error}`);
+					}
+				} else if (action === 'Return to Queue') {
+					const nackResult = await cli.nackQueueMessage(queueName, msg.id);
+					if (nackResult.success) {
+						vscode.window.showInformationMessage('Message returned to queue');
+						provider.refreshQueueMessages(queueName);
+					} else {
+						vscode.window.showErrorMessage(`Failed to return message: ${nackResult.error}`);
+					}
+				}
+			} else if (result.success && !result.data) {
+				vscode.window.showInformationMessage('No messages available in queue');
+			} else {
+				vscode.window.showErrorMessage(`Failed to receive message: ${result.error}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'agentuity.queue.refreshMessages',
+			async (item: DataTreeItem) => {
+				let queueName: string | undefined;
+
+				if (item?.itemType === 'queueItem' && item.queueInfo) {
+					queueName = item.queueInfo.name;
+				} else if (item?.itemType === 'queueSection' && item.parentName) {
+					queueName = item.parentName;
+				}
+
+				if (queueName) {
+					provider.refreshQueueMessages(queueName);
+					vscode.window.showInformationMessage(`Refreshed messages for queue: ${queueName}`);
+				}
+			}
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.ack', async (item: DataTreeItem) => {
+			if (item?.itemType !== 'queueMessage' || !item.parentName) return;
+			const messageId = item.messageId;
+			if (!messageId) return;
+
+			const cli = getCliClient();
+			const result = await cli.ackQueueMessage(item.parentName, messageId);
+			if (result.success) {
+				vscode.window.showInformationMessage('Message acknowledged');
+				provider.refreshQueueMessages(item.parentName);
+			} else {
+				const errorMsg = result.error?.includes('no rows')
+					? 'Message is no longer leased (lease may have expired)'
+					: result.error;
+				vscode.window.showErrorMessage(`Failed to acknowledge: ${errorMsg}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.nack', async (item: DataTreeItem) => {
+			if (item?.itemType !== 'queueMessage' || !item.parentName) return;
+			const messageId = item.messageId;
+			if (!messageId) return;
+
+			const cli = getCliClient();
+			const result = await cli.nackQueueMessage(item.parentName, messageId);
+			if (result.success) {
+				vscode.window.showInformationMessage('Message returned to queue');
+				provider.refreshQueueMessages(item.parentName);
+			} else {
+				const errorMsg = result.error?.includes('no rows')
+					? 'Message is no longer leased (lease may have expired)'
+					: result.error;
+				vscode.window.showErrorMessage(`Failed to return message: ${errorMsg}`);
+			}
+		})
+	);
+
+	// DLQ commands
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.dlq.replay', async (item: DataTreeItem) => {
+			if (item?.itemType !== 'dlqMessage' || !item.parentName) return;
+			const messageId = item.messageId;
+			if (!messageId) return;
+
+			const cli = getCliClient();
+			const result = await cli.replayDlqMessage(item.parentName, messageId);
+			if (result.success) {
+				vscode.window.showInformationMessage(`Replayed message: ${messageId}`);
+				provider.refreshQueueMessages(item.parentName);
+			} else {
+				vscode.window.showErrorMessage(`Failed to replay message: ${result.error}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('agentuity.queue.dlq.purge', async (item: DataTreeItem) => {
+			let queueName: string;
+
+			if (
+				item?.itemType === 'queueSection' &&
+				item.parentName &&
+				item.label === 'Dead Letter Queue'
+			) {
+				queueName = item.parentName;
+			} else if (item?.itemType === 'queueItem' && item.queueInfo) {
+				queueName = item.queueInfo.name;
+			} else {
+				return;
+			}
+
+			const confirm = await vscode.window.showInputBox({
+				prompt: `Type "purge ${queueName}" to confirm DLQ purge`,
+				placeHolder: `purge ${queueName}`,
+			});
+
+			if (confirm !== `purge ${queueName}`) {
+				vscode.window.showWarningMessage('DLQ purge cancelled');
+				return;
+			}
+
+			const cli = getCliClient();
+			const result = await cli.purgeDlq(queueName);
+			if (result.success) {
+				vscode.window.showInformationMessage(`Purged DLQ for: ${queueName}`);
+				provider.refreshQueueMessages(queueName);
+			} else {
+				vscode.window.showErrorMessage(`Failed to purge DLQ: ${result.error}`);
+			}
+		})
+	);
+
+	// Destination commands
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'agentuity.queue.destination.create',
+			async (item: DataTreeItem) => {
+				let queueName: string;
+
+				if (
+					item?.itemType === 'queueSection' &&
+					item.parentName &&
+					item.label === 'Destinations'
+				) {
+					queueName = item.parentName;
+				} else if (item?.itemType === 'queueItem' && item.queueInfo) {
+					queueName = item.queueInfo.name;
+				} else {
+					return;
+				}
+
+				const url = await vscode.window.showInputBox({
+					prompt: 'Webhook URL',
+					placeHolder: 'https://example.com/webhook',
+					validateInput: (value) => {
+						if (!value) return 'URL is required';
+						try {
+							new URL(value);
+							return null;
+						} catch {
+							return 'Invalid URL';
+						}
+					},
+				});
+				if (!url) return;
+
+				const method = await vscode.window.showQuickPick(['POST', 'PUT', 'PATCH'], {
+					placeHolder: 'HTTP method (default: POST)',
+				});
+
+				const cli = getCliClient();
+				const result = await cli.createQueueDestination(queueName, url, {
+					method: method || 'POST',
+				});
+
+				if (result.success) {
+					vscode.window.showInformationMessage(
+						`Created destination: ${url} - refresh to see updated state`
+					);
+				} else {
+					vscode.window.showErrorMessage(`Failed to create destination: ${result.error}`);
+				}
+			}
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'agentuity.queue.destination.delete',
+			async (item: DataTreeItem) => {
+				if (item?.itemType !== 'queueDestination' || !item.parentName) return;
+				const destinationId = item.destinationId;
+				if (!destinationId) return;
+
+				const confirm = await vscode.window.showWarningMessage(
+					`Delete destination: ${item.label}?`,
+					{ modal: true },
+					'Delete'
+				);
+				if (confirm !== 'Delete') return;
+
+				const cli = getCliClient();
+				const result = await cli.deleteQueueDestination(item.parentName, destinationId);
+				if (result.success) {
+					vscode.window.showInformationMessage(
+						'Destination deleted - refresh to see updated state'
+					);
+				} else {
+					vscode.window.showErrorMessage(`Failed to delete destination: ${result.error}`);
+				}
+			}
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'agentuity.queue.destination.toggle',
+			async (item: DataTreeItem) => {
+				if (item?.itemType !== 'queueDestination' || !item.parentName) return;
+				const destinationId = item.destinationId;
+				if (!destinationId) return;
+
+				const isEnabled = item.description === 'enabled';
+				const cli = getCliClient();
+				const result = await cli.updateQueueDestination(item.parentName, destinationId, {
+					enabled: !isEnabled,
+					disabled: isEnabled,
+				});
+
+				if (result.success) {
+					vscode.window.showInformationMessage(
+						`Destination ${isEnabled ? 'disabled' : 'enabled'} - refresh to see updated state`
+					);
+				} else {
+					vscode.window.showErrorMessage(`Failed to update destination: ${result.error}`);
+				}
+			}
+		)
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand(
+			'agentuity.queue.destination.copyUrl',
+			async (item: DataTreeItem) => {
+				if (item?.itemType !== 'queueDestination') return;
+				await vscode.env.clipboard.writeText(item.label as string);
+				vscode.window.showInformationMessage('URL copied to clipboard');
+			}
+		)
+	);
+
 	context.subscriptions.push(treeView, authSub, projectSub, { dispose: () => provider.dispose() });
 
 	return provider;
@@ -285,6 +851,36 @@ async function openStreamDetails(item: DataTreeItem): Promise<void> {
 	);
 
 	await openReadonlyDocument(content, 'json', `stream-${stream.name}`);
+}
+
+async function openQueueDetails(item: DataTreeItem): Promise<void> {
+	const cli = getCliClient();
+	const queueName = item.queueInfo!.name;
+	const result = await cli.getQueue(queueName);
+
+	if (result.success && result.data?.queue) {
+		const queue = result.data.queue;
+		const content = JSON.stringify(
+			{
+				name: queue.name,
+				id: queue.id,
+				queue_type: queue.queue_type,
+				description: queue.description,
+				message_count: queue.message_count,
+				dlq_count: queue.dlq_count,
+				next_offset: queue.next_offset,
+				paused_at: queue.paused_at,
+				created_at: queue.created_at,
+				updated_at: queue.updated_at,
+			},
+			null,
+			2
+		);
+
+		await openReadonlyDocument(content, 'json', `queue-${queueName}`);
+	} else {
+		vscode.window.showErrorMessage(`Failed to get queue details: ${result.error}`);
+	}
 }
 
 function formatFileSize(bytes: number): string {
