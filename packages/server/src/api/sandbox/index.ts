@@ -19,7 +19,18 @@ export type {
 	ExecutionListParams,
 	ExecutionListResponse,
 } from './execution';
-export { SandboxResponseError, writeAndDrain } from './util';
+export {
+	SandboxResponseError,
+	SandboxNotFoundError,
+	SandboxTerminatedError,
+	ExecutionNotFoundError,
+	ExecutionTimeoutError,
+	ExecutionCancelledError,
+	SnapshotNotFoundError,
+	throwSandboxError,
+	writeAndDrain,
+} from './util';
+export type { SandboxErrorCode, SandboxErrorContext } from './util';
 export { SandboxClient } from './client';
 export type {
 	SandboxClientOptions,

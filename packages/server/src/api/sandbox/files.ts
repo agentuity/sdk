@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIClient } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { SandboxResponseError, throwSandboxError, API_VERSION } from './util';
 import type { FileToWrite } from '@agentuity/core';
 
 export const FileToWriteSchema = z.object({
@@ -85,7 +85,7 @@ export async function sandboxWriteFiles(
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message, sandboxId });
+	throwSandboxError(resp, { sandboxId });
 }
 
 export interface ReadFileParams {
@@ -196,7 +196,7 @@ export async function sandboxMkDir(client: APIClient, params: MkDirParams): Prom
 	);
 
 	if (!resp.success) {
-		throw new SandboxResponseError({ message: resp.message, sandboxId });
+		throwSandboxError(resp, { sandboxId });
 	}
 }
 
@@ -256,7 +256,7 @@ export async function sandboxRmDir(client: APIClient, params: RmDirParams): Prom
 	);
 
 	if (!resp.success) {
-		throw new SandboxResponseError({ message: resp.message, sandboxId });
+		throwSandboxError(resp, { sandboxId });
 	}
 }
 
@@ -313,7 +313,7 @@ export async function sandboxRmFile(client: APIClient, params: RmFileParams): Pr
 	);
 
 	if (!resp.success) {
-		throw new SandboxResponseError({ message: resp.message, sandboxId });
+		throwSandboxError(resp, { sandboxId });
 	}
 }
 
@@ -395,7 +395,7 @@ export async function sandboxListFiles(
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message, sandboxId });
+	throwSandboxError(resp, { sandboxId });
 }
 
 export type ArchiveFormat = 'zip' | 'tar.gz';
@@ -519,7 +519,7 @@ export async function sandboxUploadArchive(
 	const result = UploadArchiveResponseSchema.parse(body);
 
 	if (!result.success) {
-		throw new SandboxResponseError({ message: result.message, sandboxId, sessionId });
+		throwSandboxError(result, { sandboxId, sessionId });
 	}
 }
 
@@ -592,5 +592,5 @@ export async function sandboxSetEnv(
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message, sandboxId });
+	throwSandboxError(resp, { sandboxId });
 }
