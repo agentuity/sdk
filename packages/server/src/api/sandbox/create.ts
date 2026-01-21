@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { throwSandboxError, API_VERSION } from './util';
 import type { SandboxCreateOptions, SandboxStatus } from '@agentuity/core';
 
 const SandboxCreateRequestSchema = z
@@ -196,5 +196,5 @@ export async function sandboxCreate(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }

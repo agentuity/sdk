@@ -714,6 +714,7 @@ export const APIResponseSchema = <T extends z.ZodType>(dataSchema: T) =>
 		z.object({
 			success: z.literal<false>(false),
 			message: z.string().describe('the error message'),
+			code: z.string().optional().describe('machine-readable error code'),
 		}),
 		z.object({
 			success: z.literal<true>(true),
@@ -726,6 +727,7 @@ export const APIResponseSchemaOptionalData = <T extends z.ZodType>(dataSchema: T
 		z.object({
 			success: z.literal<false>(false),
 			message: z.string().describe('the error message'),
+			code: z.string().optional().describe('machine-readable error code'),
 		}),
 		z.object({
 			success: z.literal<true>(true),
@@ -738,6 +740,7 @@ export const APIResponseSchemaNoData = () =>
 		z.object({
 			success: z.literal<false>(false),
 			message: z.string().describe('the error message'),
+			code: z.string().optional().describe('machine-readable error code'),
 		}),
 		z.object({
 			success: z.literal<true>(true),
