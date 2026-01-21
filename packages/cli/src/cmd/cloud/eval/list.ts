@@ -34,8 +34,8 @@ export const listSubcommand = createSubcommand({
 			description: 'Filter by project',
 		},
 		{
-			command: getCommand('cloud eval list --enabled=true'),
-			description: 'Only enabled evals',
+			command: getCommand('cloud eval list --agent-id=agent_*'),
+			description: 'Filter by agent',
 		},
 		{
 			command: getCommand('cloud eval list --all'),
