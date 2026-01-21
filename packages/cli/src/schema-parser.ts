@@ -403,7 +403,7 @@ export async function buildValidationInputAsync(
 		const hasConfirmOption = parsed.some((opt) => opt.name === 'confirm');
 		const confirmValue = result.options.confirm;
 
-		if (hasConfirmOption && (confirmValue === undefined || confirmValue === false)) {
+		if (hasConfirmOption && confirmValue === undefined) {
 			const stdinConfirmed = await checkStdinConfirmation();
 			if (stdinConfirmed) {
 				result.options.confirm = true;
