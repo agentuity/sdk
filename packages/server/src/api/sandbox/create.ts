@@ -64,7 +64,7 @@ const SandboxCreateRequestSchema = z
 						})
 					)
 					.optional()
-					.describe('Files to write before execution'),
+					.describe('Files to write before execution (deprecated: use top-level files)'),
 				mode: z
 					.enum(['oneshot', 'interactive'])
 					.optional()
@@ -72,6 +72,10 @@ const SandboxCreateRequestSchema = z
 			})
 			.optional()
 			.describe('Initial command to run in the sandbox'),
+		files: z
+			.record(z.string(), z.string())
+			.optional()
+			.describe('Files to write to sandbox on creation (path -> base64 content)'),
 		snapshot: z.string().optional().describe('Snapshot ID to restore the sandbox from'),
 		dependencies: z
 			.array(z.string())
@@ -167,6 +171,11 @@ export async function sandboxCreate(
 				content: f.content.toString('base64'),
 			})),
 		};
+	}
+	if (options.files && options.files.length > 0) {
+		body.files = Object.fromEntries(
+			options.files.map((f) => [f.path, f.content.toString('base64')])
+		);
 	}
 	if (options.snapshot) {
 		body.snapshot = options.snapshot;

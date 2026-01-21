@@ -301,6 +301,7 @@ export interface SandboxCommand {
 
 	/**
 	 * Files to create before execution
+	 * @deprecated Use top-level `files` option on `SandboxCreateOptions` instead
 	 */
 	files?: FileToWrite[];
 
@@ -402,6 +403,12 @@ export interface SandboxCreateOptions {
 	 * Command to execute (if provided, creates a sandbox with initial execution)
 	 */
 	command?: SandboxCommand;
+
+	/**
+	 * Files to write to the sandbox workspace on creation.
+	 * These files are written before any command is executed.
+	 */
+	files?: FileToWrite[];
 
 	/**
 	 * Snapshot ID or tag to restore from when creating the sandbox.
@@ -810,7 +817,8 @@ export interface ExecuteOptions {
 	command: string[];
 
 	/**
-	 * Files to create/update before execution
+	 * Files to create/update before execution.
+	 * @deprecated Use `sandbox.writeFiles()` before execute, or top-level `files` on `SandboxCreateOptions`
 	 */
 	files?: FileToWrite[];
 
