@@ -675,8 +675,7 @@ export class DataTreeDataProvider implements vscode.TreeDataProvider<DataTreeIte
 						'queue',
 						queueName
 					);
-					// Set contextValue based on state - ack/nack only available for leased messages
-					item.contextValue = msg.state === 'leased' ? 'queueMessage-leased' : 'queueMessage';
+					item.contextValue = 'queueMessage';
 					item.description = msg.state || '';
 					item.tooltip = [
 						`ID: ${msg.id}`,

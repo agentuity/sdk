@@ -561,37 +561,6 @@ export class CliClient {
 		return this.exec<QueueDetails>(args, { format: 'json' });
 	}
 
-	async receiveQueueMessage(
-		queueName: string,
-		opts?: { timeout?: number }
-	): Promise<CliResult<QueueMessage | null>> {
-		const args = ['cloud', 'queue', 'receive', queueName];
-		if (opts?.timeout) {
-			args.push('--timeout', String(opts.timeout));
-		}
-		return this.exec<QueueMessage | null>(args, { format: 'json' });
-	}
-
-	async ackQueueMessage(
-		queueName: string,
-		messageId: string
-	): Promise<CliResult<{ success: boolean; queue_name: string; message_id: string }>> {
-		return this.exec<{ success: boolean; queue_name: string; message_id: string }>(
-			['cloud', 'queue', 'ack', queueName, messageId],
-			{ format: 'json' }
-		);
-	}
-
-	async nackQueueMessage(
-		queueName: string,
-		messageId: string
-	): Promise<CliResult<{ success: boolean; queue_name: string; message_id: string }>> {
-		return this.exec<{ success: boolean; queue_name: string; message_id: string }>(
-			['cloud', 'queue', 'nack', queueName, messageId],
-			{ format: 'json' }
-		);
-	}
-
 	async listDlqMessages(
 		queueName: string,
 		opts?: { limit?: number; offset?: number }

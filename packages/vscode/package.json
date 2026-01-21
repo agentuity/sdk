@@ -403,24 +403,6 @@
 				"icon": "$(copy)"
 			},
 			{
-				"command": "agentuity.queue.receive",
-				"title": "Receive Message",
-				"category": "Agentuity",
-				"icon": "$(inbox)"
-			},
-			{
-				"command": "agentuity.queue.ack",
-				"title": "Acknowledge Message",
-				"category": "Agentuity",
-				"icon": "$(check)"
-			},
-			{
-				"command": "agentuity.queue.nack",
-				"title": "Return to Queue",
-				"category": "Agentuity",
-				"icon": "$(close)"
-			},
-			{
 				"command": "agentuity.queue.refreshMessages",
 				"title": "Refresh Messages",
 				"category": "Agentuity",
@@ -726,29 +708,24 @@
 					"group": "queue@1"
 				},
 				{
-					"command": "agentuity.queue.receive",
+					"command": "agentuity.queue.pause",
 					"when": "view == agentuity.data && viewItem == queueItem",
 					"group": "queue@2"
 				},
 				{
-					"command": "agentuity.queue.pause",
+					"command": "agentuity.queue.resume",
 					"when": "view == agentuity.data && viewItem == queueItem",
 					"group": "queue@3"
 				},
 				{
-					"command": "agentuity.queue.resume",
+					"command": "agentuity.queue.dlq.purge",
 					"when": "view == agentuity.data && viewItem == queueItem",
 					"group": "queue@4"
 				},
 				{
-					"command": "agentuity.queue.dlq.purge",
-					"when": "view == agentuity.data && viewItem == queueItem",
-					"group": "queue@5"
-				},
-				{
 					"command": "agentuity.queue.delete",
 					"when": "view == agentuity.data && viewItem == queueItem",
-					"group": "queue@6"
+					"group": "queue@5"
 				},
 				{
 					"command": "agentuity.queue.refreshMessages",
@@ -764,16 +741,6 @@
 					"command": "agentuity.queue.copyMessageId",
 					"when": "view == agentuity.data && viewItem =~ /^queueMessage/",
 					"group": "message@2"
-				},
-				{
-					"command": "agentuity.queue.ack",
-					"when": "view == agentuity.data && viewItem == queueMessage-leased",
-					"group": "message@3"
-				},
-				{
-					"command": "agentuity.queue.nack",
-					"when": "view == agentuity.data && viewItem == queueMessage-leased",
-					"group": "message@4"
 				},
 				{
 					"command": "agentuity.queue.dlq.replay",
@@ -893,14 +860,6 @@
 				},
 				{
 					"command": "agentuity.queue.copyMessageId",
-					"when": "false"
-				},
-				{
-					"command": "agentuity.queue.ack",
-					"when": "false"
-				},
-				{
-					"command": "agentuity.queue.nack",
 					"when": "false"
 				},
 				{
