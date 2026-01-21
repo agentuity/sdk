@@ -43,12 +43,8 @@ export const listSubcommand = createSubcommand({
 			description: 'Filter by project',
 		},
 		{
-			command: getCommand('cloud eval-run list --success=true'),
-			description: 'Only successful eval runs',
-		},
-		{
-			command: getCommand('cloud eval-run list --pending=false'),
-			description: 'Only completed eval runs',
+			command: getCommand('cloud eval-run list --agent-id=agent_*'),
+			description: 'Filter by agent',
 		},
 		{
 			command: getCommand('cloud eval-run list --all'),
@@ -81,10 +77,6 @@ export const listSubcommand = createSubcommand({
 			evalId: z.string().optional().describe('Filter by eval ID'),
 			agentId: z.string().optional().describe('Filter by agent ID'),
 			sessionId: z.string().optional().describe('Filter by session ID'),
-			success: z.coerce.boolean().optional().describe('Filter by success status (true/false)'),
-			pending: z.coerce.boolean().optional().describe('Filter by pending status (true/false)'),
-			startAfter: z.string().optional().describe('Filter by start time after (ISO 8601)'),
-			startBefore: z.string().optional().describe('Filter by start time before (ISO 8601)'),
 		}),
 		response: EvalRunListResponseSchema,
 	},
