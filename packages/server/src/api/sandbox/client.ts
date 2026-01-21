@@ -19,6 +19,7 @@ import { sandboxRun } from './run';
 import { executionGet, type ExecutionInfo } from './execution';
 import { ConsoleLogger } from '../../logger';
 import { getServiceUrls } from '../../config';
+import { writeAndDrain } from './util';
 
 const POLL_INTERVAL_MS = 100;
 const MAX_POLL_TIME_MS = 300000; // 5 minutes
@@ -67,10 +68,14 @@ async function waitForExecution(
 }
 
 /**
- * Pipes a remote stream URL to a local writable stream
+ * Pipes a remote stream URL to a local writable stream with proper backpressure handling
  */
-async function pipeStreamToWritable(streamUrl: string, writable: Writable): Promise<void> {
-	const response = await fetch(streamUrl);
+async function pipeStreamToWritable(
+	streamUrl: string,
+	writable: Writable,
+	signal?: AbortSignal
+): Promise<void> {
+	const response = await fetch(streamUrl, { signal });
 	if (!response.ok) {
 		throw new Error(`Failed to fetch stream: ${response.status} ${response.statusText}`);
 	}
@@ -84,10 +89,15 @@ async function pipeStreamToWritable(streamUrl: string, writable: Writable): Prom
 			const { done, value } = await reader.read();
 			if (done) break;
 			if (value) {
-				writable.write(value);
+				await writeAndDrain(writable, value);
 			}
 		}
 	} finally {
+		try {
+			await reader.cancel();
+		} catch {
+			// Ignore cancel errors - stream may already be closed
+		}
 		reader.releaseLock();
 	}
 }
@@ -327,12 +337,20 @@ export class SandboxClient {
 
 					if (pipe.stdout && initialResult.stdoutStreamUrl) {
 						streamPromises.push(
-							pipeStreamToWritable(initialResult.stdoutStreamUrl, pipe.stdout)
+							pipeStreamToWritable(
+								initialResult.stdoutStreamUrl,
+								pipe.stdout,
+								coreOptions.signal
+							)
 						);
 					}
 					if (pipe.stderr && initialResult.stderrStreamUrl) {
 						streamPromises.push(
-							pipeStreamToWritable(initialResult.stderrStreamUrl, pipe.stderr)
+							pipeStreamToWritable(
+								initialResult.stderrStreamUrl,
+								pipe.stderr,
+								coreOptions.signal
+							)
 						);
 					}
 
