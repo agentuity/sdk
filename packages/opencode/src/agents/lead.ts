@@ -593,8 +593,8 @@ agentuity cloud queue publish agentuity-cadence-work '{
 
 Check on child teams:
 \`\`\`bash
-agentuity cadence list
-agentuity cadence status lp_child
+agentuity ai cadence list
+agentuity ai cadence status lp_child
 \`\`\`
 
 ### Context Management
