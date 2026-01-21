@@ -500,7 +500,12 @@ export class StandaloneAgentContext<
 														: undefined,
 											})
 											.then(() => {})
-											.catch((ex) => this.logger.error(ex));
+											.catch((ex) =>
+												this.logger.error(
+													'session complete failed: %s',
+													ex instanceof Error ? ex.message : ex
+												)
+											);
 									}
 								})
 								.catch(async (ex) => {
@@ -536,7 +541,12 @@ export class StandaloneAgentContext<
 														: undefined,
 											})
 											.then(() => {})
-											.catch((ex) => this.logger.error(ex));
+											.catch((ex) =>
+												this.logger.error(
+													'session complete failed: %s',
+													ex instanceof Error ? ex.message : ex
+												)
+											);
 									}
 								})
 								.finally(() => {
@@ -561,7 +571,12 @@ export class StandaloneAgentContext<
 												: undefined,
 									})
 									.then(() => {})
-									.catch((ex) => this.logger.error(ex));
+									.catch((ex) =>
+										this.logger.error(
+											'session complete failed: %s',
+											ex instanceof Error ? ex.message : ex
+										)
+									);
 							}
 						}
 
@@ -592,7 +607,12 @@ export class StandaloneAgentContext<
 											: undefined,
 								})
 								.then(() => {})
-								.catch((ex) => this.logger.error(ex));
+								.catch((ex) =>
+									this.logger.error(
+										'session complete failed: %s',
+										ex instanceof Error ? ex.message : ex
+									)
+								);
 						}
 						throw ex;
 					} finally {

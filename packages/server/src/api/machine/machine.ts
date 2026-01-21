@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { APIResponseSchema, APIClient } from '../api';
+import { APIResponseSchema, APIResponseSchemaNoData, APIClient } from '../api';
 import { MachineResponseError } from './util';
 
 const MachineSchema = z.object({
@@ -7,6 +7,8 @@ const MachineSchema = z.object({
 	instanceId: z.string().nullable().optional(),
 	privateIPv4: z.string().nullable().optional(),
 	availabilityZone: z.string().nullable().optional(),
+	instanceType: z.string().nullable().optional(),
+	instanceTags: z.array(z.string()).nullable().optional(),
 	deploymentCount: z.number().optional(),
 	status: z.string(),
 	provider: z.string(),
@@ -25,7 +27,7 @@ const MachineSchema = z.object({
 
 const MachineListResponseSchema = APIResponseSchema(z.array(MachineSchema));
 const MachineGetResponseSchema = APIResponseSchema(MachineSchema);
-const MachineDeleteResponseSchema = APIResponseSchema(z.boolean());
+const MachineDeleteResponseSchema = APIResponseSchemaNoData();
 
 export type Machine = z.infer<typeof MachineSchema>;
 
@@ -45,12 +47,11 @@ export async function machineGet(client: APIClient, machineId: string): Promise<
 	throw new MachineResponseError({ message: resp.message });
 }
 
-export async function machineDelete(client: APIClient, machineId: string): Promise<boolean> {
+export async function machineDelete(client: APIClient, machineId: string): Promise<void> {
 	const resp = await client.delete(`/machine/${machineId}`, MachineDeleteResponseSchema);
-	if (resp.success) {
-		return resp.data;
+	if (!resp.success) {
+		throw new MachineResponseError({ message: resp.message });
 	}
-	throw new MachineResponseError({ message: resp.message });
 }
 
 const MachineDeploymentProjectSchema = z.object({

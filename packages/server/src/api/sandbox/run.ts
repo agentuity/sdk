@@ -4,7 +4,7 @@ import { APIClient } from '../api';
 import { sandboxCreate } from './create';
 import { sandboxDestroy } from './destroy';
 import { sandboxGet } from './get';
-import { SandboxResponseError, writeAndDrain } from './util';
+import { ExecutionCancelledError, ExecutionTimeoutError, writeAndDrain } from './util';
 import type { SandboxRunOptions, SandboxRunResult } from '@agentuity/core';
 import { getServiceUrls } from '../../config';
 
@@ -143,7 +143,7 @@ export async function sandboxRun(
 		while (attempts < MAX_POLL_ATTEMPTS) {
 			if (signal?.aborted) {
 				abortController.abort();
-				throw new SandboxResponseError({
+				throw new ExecutionCancelledError({
 					message: 'Sandbox execution cancelled',
 					sandboxId,
 				});
@@ -195,7 +195,7 @@ export async function sandboxRun(
 			};
 		}
 
-		throw new SandboxResponseError({
+		throw new ExecutionTimeoutError({
 			message: 'Sandbox execution polling timed out',
 			sandboxId,
 		});
