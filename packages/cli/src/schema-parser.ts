@@ -280,41 +280,56 @@ async function checkStdinConfirmation(): Promise<boolean> {
 		const reader = process.stdin;
 		let timeoutId: ReturnType<typeof setTimeout> | null = null;
 		let resolved = false;
+		const MAX_BYTES = 4096;
 
 		// Define handlers outside so we can remove them in all paths
 		let data = '';
 		const onData = (chunk: Buffer) => {
 			data += chunk.toString();
-		};
-		const onEnd = () => {
-			if (resolved) return;
-			resolved = true;
-			// Clear the timeout since we got data
-			if (timeoutId !== null) {
-				clearTimeout(timeoutId);
-				timeoutId = null;
+			if (data.length >= MAX_BYTES) {
+				data = data.slice(0, MAX_BYTES);
 			}
-			cleanup();
 		};
 
-		let onEndWrapper: (() => void) | null = null;
+		let onEnd: (() => void) | null = null;
+		let onError: ((err: Error) => void) | null = null;
 
 		const cleanup = () => {
 			reader.removeListener('data', onData);
-			reader.removeListener('end', onEnd);
-			if (onEndWrapper) {
-				reader.removeListener('end', onEndWrapper);
+			if (onEnd) {
+				reader.removeListener('end', onEnd);
+			}
+			if (onError) {
+				reader.removeListener('error', onError);
 			}
 			reader.pause();
 		};
 
 		const readPromise = new Promise<string>((resolve) => {
-			onEndWrapper = () => {
-				onEnd();
+			onEnd = () => {
+				if (resolved) return;
+				resolved = true;
+				if (timeoutId !== null) {
+					clearTimeout(timeoutId);
+					timeoutId = null;
+				}
+				cleanup();
 				resolve(data.trim().toLowerCase());
 			};
+			onError = (_err: Error) => {
+				if (resolved) return;
+				resolved = true;
+				stdinConfirmation = null;
+				if (timeoutId !== null) {
+					clearTimeout(timeoutId);
+					timeoutId = null;
+				}
+				cleanup();
+				resolve('');
+			};
 			reader.on('data', onData);
-			reader.on('end', onEndWrapper);
+			reader.on('end', onEnd);
+			reader.on('error', onError);
 		});
 
 		// Use a short timeout to avoid blocking
@@ -329,7 +344,9 @@ async function checkStdinConfirmation(): Promise<boolean> {
 		});
 
 		const input = await Promise.race([readPromise, timeoutPromise]);
-		stdinConfirmation = input === 'yes' || input === 'y';
+		// Take first token/line to handle inputs like "yes\nanything"
+		const firstToken = input.split(/\s+/)[0] ?? '';
+		stdinConfirmation = firstToken === 'yes' || firstToken === 'y';
 		return stdinConfirmation;
 	} catch {
 		stdinConfirmation = null;
@@ -399,8 +416,9 @@ export async function buildValidationInputAsync(
 	// 2. Command doesn't use stdin for other purposes
 	// 3. confirm is not already set via flags
 	if (schemas.options && !options?.usesStdin) {
-		const parsed = parseOptionsSchema(schemas.options);
-		const hasConfirmOption = parsed.some((opt) => opt.name === 'confirm');
+		// Use getShape() instead of parseOptionsSchema() to avoid re-evaluating function defaults
+		const shape = getShape(schemas.options);
+		const hasConfirmOption = Object.prototype.hasOwnProperty.call(shape, 'confirm');
 		const confirmValue = result.options.confirm;
 
 		if (hasConfirmOption && confirmValue === undefined) {
