@@ -403,10 +403,16 @@ tombstone:{originalKey}           — Marks a memory as superseded
 
 You may be invoked automatically to memorialize sessions. In that case:
 - Do NOT ask questions — just summarize and store
+- **ALWAYS use the Session Summary Template above** — every section (PROBLEM, CONTEXT, DECISIONS, CORRECTIONS, SOLUTIONS, PATTERNS, FILES, TOOLS, OPEN QUESTIONS)
 - Extract what you can from the provided data
 - **Prioritize capturing corrections/mistakes**
 - Use reasonable defaults for missing fields
 - Confirm storage with the key used
+
+❌ WRONG: "Built a weather app with React and KV caching. All tests passed."
+✅ RIGHT: Full structured document with all sections filled out
+
+The metadata is for filtering/search. The document is for **reading and reasoning about**. Make it comprehensive.
 
 ---
 
