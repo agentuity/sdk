@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema, APIResponseSchemaNoData } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { SandboxResponseError, throwSandboxError, API_VERSION } from './util';
 
 const SnapshotFileInfoSchema = z
 	.object({
@@ -260,7 +260,7 @@ export async function snapshotCreate(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }
 
 /**
@@ -288,7 +288,7 @@ export async function snapshotGet(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }
 
 /**
@@ -316,7 +316,7 @@ export async function snapshotList(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }
 
 /**
@@ -340,7 +340,7 @@ export async function snapshotDelete(
 	);
 
 	if (!resp.success) {
-		throw new SandboxResponseError({ message: resp.message });
+		throwSandboxError(resp, {});
 	}
 }
 
@@ -370,7 +370,7 @@ export async function snapshotTag(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }
 
 /**
@@ -413,7 +413,7 @@ export async function snapshotLineage(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }
 
 // ===== Public Snapshot API =====
@@ -469,7 +469,7 @@ export async function snapshotPublicGet(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }
 
 // ===== Snapshot Build API =====
@@ -600,7 +600,7 @@ export async function snapshotBuildInit(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }
 
 /**
@@ -638,7 +638,7 @@ export async function snapshotBuildFinalize(
 		return resp.data;
 	}
 
-	throw new SandboxResponseError({ message: resp.message });
+	throwSandboxError(resp, {});
 }
 
 // ===== Snapshot Upload API (for public snapshots) =====
@@ -707,5 +707,5 @@ export async function snapshotUpload(
 		return data.data;
 	}
 
-	throw new SandboxResponseError({ message: data.message });
+	throwSandboxError(data, {});
 }

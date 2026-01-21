@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { APIClient, APIResponseSchema } from '../api';
-import { SandboxResponseError, API_VERSION } from './util';
+import { throwSandboxError, API_VERSION } from './util';
 import type { ExecuteOptions, Execution, ExecutionStatus } from '@agentuity/core';
 
 const ExecuteRequestSchema = z
@@ -99,5 +99,5 @@ export async function sandboxExecute(
 		};
 	}
 
-	throw new SandboxResponseError({ message: resp.message, sandboxId });
+	throwSandboxError(resp, { sandboxId });
 }
