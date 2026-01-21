@@ -189,7 +189,9 @@ export interface KeyValueStorage {
 	 * @param params - optional pagination parameters
 	 * @returns map of namespace names to statistics, or paginated response if params provided
 	 */
-	getAllStats(params?: GetAllStatsParams): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated>;
+	getAllStats(
+		params?: GetAllStatsParams
+	): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated>;
 
 	/**
 	 * get all namespace names
@@ -376,7 +378,9 @@ export class KeyValueStorageService implements KeyValueStorage {
 		throw await toServiceException('GET', url, res.response);
 	}
 
-	async getAllStats(params?: GetAllStatsParams): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated> {
+	async getAllStats(
+		params?: GetAllStatsParams
+	): Promise<Record<string, KeyValueStats> | KeyValueStatsPaginated> {
 		const queryParams = new URLSearchParams();
 		if (params?.limit !== undefined) {
 			queryParams.set('limit', String(params.limit));
@@ -385,9 +389,14 @@ export class KeyValueStorageService implements KeyValueStorage {
 			queryParams.set('offset', String(params.offset));
 		}
 		const queryString = queryParams.toString();
-		const url = buildUrl(this.#baseUrl, `/kv/2025-03-17/stats${queryString ? `?${queryString}` : ''}`);
+		const url = buildUrl(
+			this.#baseUrl,
+			`/kv/2025-03-17/stats${queryString ? `?${queryString}` : ''}`
+		);
 		const signal = AbortSignal.timeout(10_000);
-		const res = await this.#adapter.invoke<Record<string, KeyValueStats> | KeyValueStatsPaginated>(url, {
+		const res = await this.#adapter.invoke<
+			Record<string, KeyValueStats> | KeyValueStatsPaginated
+		>(url, {
 			method: 'GET',
 			signal,
 			telemetry: {
@@ -479,9 +488,10 @@ export class KeyValueStorageService implements KeyValueStorage {
 		const url = buildUrl(this.#baseUrl, `/kv/2025-03-17/${encodeURIComponent(name)}`);
 		const signal = AbortSignal.timeout(10_000);
 
-		const body = params?.defaultTTLSeconds !== undefined
-			? JSON.stringify({ default_ttl_seconds: params.defaultTTLSeconds })
-			: undefined;
+		const body =
+			params?.defaultTTLSeconds !== undefined
+				? JSON.stringify({ default_ttl_seconds: params.defaultTTLSeconds })
+				: undefined;
 
 		const res = await this.#adapter.invoke(url, {
 			method: 'POST',
