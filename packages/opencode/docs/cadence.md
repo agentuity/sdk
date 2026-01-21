@@ -155,41 +155,6 @@ This is **agent-driven** — Lead's prompt tells it how to orchestrate, not besp
 - **Completion tag**: `<promise>DONE</promise>`
 - **Recovery attempts**: 1 recovery prompt before surfacing to user
 
-## Implementation Phases
-
-### Phase 1: Core (MVP) ✅
-
-- [x] Add Cadence mode to Lead's system prompt
-- [x] Add TUI commands (`/agentuity-cadence start|status|pause|resume|stop`)
-- [x] Add session.idle hook for continuation (cadence.ts)
-- [x] Add CadenceLoop type for KV state
-
-### Phase 2: CLI Control ✅
-
-- [x] Add `agentuity cadence` CLI commands (list, status, pause, resume, stop)
-- [x] Wire CLI to update KV state
-
-### Phase 3: Memory Handoff ✅
-
-- [x] Update Memory prompt for checkpoint storage
-- [x] Add handoff packet pattern for context pressure
-
-### Phase 4: Multi-Team ✅ (Prompt-based)
-
-- [x] Add orchestrator instructions to Lead prompt (via `agentuity ai opencode run`)
-- [x] Document queue usage pattern for team coordination
-
-## Files Changed
-
-| File                            | Purpose                         |
-| ------------------------------- | ------------------------------- |
-| `src/agents/lead.ts`            | Add Cadence mode instructions   |
-| `src/agents/memory.ts`          | Add checkpoint/handoff patterns |
-| `src/plugin/plugin.ts`          | Add Cadence TUI commands        |
-| `src/plugin/hooks/cadence.ts`   | Session.idle hook, KV helpers   |
-| `src/types.ts`                  | CadenceLoop type                |
-| `packages/cli/src/cmd/cadence/` | CLI commands (Phase 2)          |
-
 ## Usage Examples
 
 ### Start a long-running task
