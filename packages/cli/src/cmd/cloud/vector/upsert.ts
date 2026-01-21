@@ -24,7 +24,7 @@ export const upsertSubcommand = createCommand({
 	name: 'upsert',
 	aliases: ['put', 'add'],
 	description: 'Add or update vectors in the vector storage',
-	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth'],
+	tags: ['mutating', 'updates-resource', 'slow', 'requires-auth', 'uses-stdin'],
 	idempotent: true,
 	requires: { auth: true, region: true },
 	optional: { project: true },

@@ -19,7 +19,11 @@ import { type RegionList, ValidationOutputError } from '@agentuity/server';
 import { fetchRegionsWithCache } from './regions';
 import enquirer from 'enquirer';
 import * as tui from './tui';
-import { parseArgsSchema, parseOptionsSchema, buildValidationInput } from './schema-parser';
+import {
+	parseArgsSchema,
+	parseOptionsSchema,
+	buildValidationInputAsync,
+} from './schema-parser';
 import { defaultProfileName, loadProjectConfig } from './config';
 import { APIClient, getAPIBaseURL, getAppBaseURL, type APIClient as APIClientType } from './api';
 import { ErrorCode, ExitCode, createError, exitWithError } from './errors';
@@ -911,10 +915,17 @@ async function registerSubcommand(
 
 			const desc = opt.description || '';
 			// Build flag spec with aliases (check both camelCase and kebab-case names)
-			const optAliases = aliases[opt.name] ?? aliases[flag] ?? [];
+			// Auto-add -y alias for confirm flag
+			let optAliases = aliases[opt.name] ?? aliases[flag] ?? [];
+			if (flag === 'confirm' && !optAliases.includes('y')) {
+				optAliases = ['y', ...optAliases];
+			}
 			let flagSpec = `--${flag}`;
 			if (flag === 'verbose') {
 				flagSpec = `-v, --${flag}`;
+			} else if (flag === 'confirm') {
+				// Add -y short alias for --confirm
+				flagSpec = `-y, --${flag}`;
 			} else if (optAliases.length > 0) {
 				const shortFlags = optAliases.map((a) => `-${a}`).join(', ');
 				flagSpec = `${shortFlags}, --${flag}`;
@@ -992,6 +1003,18 @@ async function registerSubcommand(
 				}
 				cmd.option(`${flagSpec} <${opt.name}>`, strDesc);
 			}
+		}
+	}
+
+	// Add hidden --yes alias for --confirm if command has a confirm option
+	if (subcommand.schema?.options) {
+		const parsed = parseOptionsSchema(subcommand.schema.options);
+		const hasConfirmOption = parsed.some((opt) => opt.name === 'confirm');
+		if (hasConfirmOption) {
+			// Add hidden --yes option that sets confirm to true
+			const yesOption = cmd.createOption('--yes', 'Alias for --confirm');
+			yesOption.hideHelp();
+			cmd.addOption(yesOption);
 		}
 	}
 
@@ -1134,7 +1157,11 @@ async function registerSubcommand(
 
 			if (subcommand.schema) {
 				try {
-					const input = buildValidationInput(subcommand.schema, args, options);
+					// Check if command uses stdin (don't auto-confirm if it does)
+					const usesStdin = subcommand.tags?.includes('uses-stdin') ?? false;
+					const input = await buildValidationInputAsync(subcommand.schema, args, options, {
+						usesStdin,
+					});
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 						config: {
@@ -1377,7 +1404,11 @@ async function registerSubcommand(
 
 			if (subcommand.schema) {
 				try {
-					const input = buildValidationInput(subcommand.schema, args, options);
+					// Check if command uses stdin (don't auto-confirm if it does)
+					const usesStdin = subcommand.tags?.includes('uses-stdin') ?? false;
+					const input = await buildValidationInputAsync(subcommand.schema, args, options, {
+						usesStdin,
+					});
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 						config: auth
@@ -1594,7 +1625,11 @@ async function registerSubcommand(
 		} else {
 			if (subcommand.schema) {
 				try {
-					const input = buildValidationInput(subcommand.schema, args, options);
+					// Check if command uses stdin (don't auto-confirm if it does)
+					const usesStdin = subcommand.tags?.includes('uses-stdin') ?? false;
+					const input = await buildValidationInputAsync(subcommand.schema, args, options, {
+						usesStdin,
+					});
 					const ctx: Record<string, unknown> = {
 						...baseCtx,
 					};
