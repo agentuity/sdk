@@ -41,7 +41,10 @@ export const command = createCommand({
 							// Use process.execPath which has the actual binary path
 							const isCompiledBinary = process.argv[1]?.startsWith('/$bunfs/');
 							const cmd = isCompiledBinary
-								? [process.execPath, ...process.argv.slice(2).map((x) => (x === 'setup' ? 'login' : x))]
+								? [
+										process.execPath,
+										...process.argv.slice(2).map((x) => (x === 'setup' ? 'login' : x)),
+									]
 								: process.argv.map((x) => (x === 'setup' ? 'login' : x));
 							const r = Bun.spawn({
 								cmd: cmd.concat('--json'),

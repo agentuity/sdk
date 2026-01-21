@@ -17,7 +17,10 @@ export const PUBLIC_VAR_PREFIXES = ['VITE_', 'AGENTUITY_PUBLIC_', 'PUBLIC_'] as 
  * Specific AGENTUITY_ keys that are allowed to be set by users.
  * Note: There is also a whitelist in the API that must be kept in sync.
  */
-export const AGENTUITY_ALLOWED_KEYS = ['AGENTUITY_AUTH_SECRET', 'AGENTUITY_CLOUD_BASE_URL'] as const;
+export const AGENTUITY_ALLOWED_KEYS = [
+	'AGENTUITY_AUTH_SECRET',
+	'AGENTUITY_CLOUD_BASE_URL',
+] as const;
 
 /**
  * Check if a key is a public variable (exposed to frontend)
