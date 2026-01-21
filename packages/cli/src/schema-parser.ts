@@ -254,10 +254,72 @@ export function parseOptionsSchema(schema: ZodType): ParsedOption[] {
 	return options;
 }
 
+// Cache for stdin confirmation detection
+let stdinConfirmationChecked = false;
+let stdinConfirmation: boolean | null = null;
+
+/**
+ * Check if stdin contains a piped "yes" confirmation.
+ * This allows commands to be run with `echo "yes" | agentuity <command>` pattern.
+ * Only works when stdin is not a TTY (piped input) and command doesn't use stdin.
+ */
+async function checkStdinConfirmation(): Promise<boolean> {
+	if (stdinConfirmationChecked) {
+		return stdinConfirmation === true;
+	}
+	stdinConfirmationChecked = true;
+
+	// Only check if stdin is not a TTY (meaning input is piped)
+	if (process.stdin.isTTY) {
+		stdinConfirmation = null;
+		return false;
+	}
+
+	try {
+		// Read stdin with a short timeout to avoid blocking
+		const chunks: Buffer[] = [];
+		const reader = process.stdin;
+
+		const readPromise = new Promise<string>((resolve) => {
+			let data = '';
+			const onData = (chunk: Buffer) => {
+				chunks.push(chunk);
+				data += chunk.toString();
+			};
+			const onEnd = () => {
+				reader.removeListener('data', onData);
+				reader.removeListener('end', onEnd);
+				resolve(data.trim().toLowerCase());
+			};
+			reader.on('data', onData);
+			reader.on('end', onEnd);
+		});
+
+		// Use a short timeout to avoid blocking
+		const timeoutPromise = new Promise<string>((resolve) => setTimeout(() => resolve(''), 100));
+
+		const input = await Promise.race([readPromise, timeoutPromise]);
+		stdinConfirmation = input === 'yes' || input === 'y';
+		return stdinConfirmation;
+	} catch {
+		stdinConfirmation = null;
+		return false;
+	}
+}
+
+/**
+ * Reset stdin confirmation cache (for testing)
+ */
+export function resetStdinConfirmationCache(): void {
+	stdinConfirmationChecked = false;
+	stdinConfirmation = null;
+}
+
 export function buildValidationInput(
 	schemas: CommandSchemas,
 	rawArgs: unknown[],
-	rawOptions: Record<string, unknown>
+	rawOptions: Record<string, unknown>,
+	_options?: { usesStdin?: boolean }
 ): { args: Record<string, unknown>; options: Record<string, unknown> } {
 	const result = { args: {} as Record<string, unknown>, options: {} as Record<string, unknown> };
 
@@ -274,9 +336,47 @@ export function buildValidationInput(
 			// Only include the option if it has a value - omitting undefined allows Zod to apply defaults
 			// Commander.js converts kebab-case to camelCase, so we need to check both
 			const camelCaseName = opt.name.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-			const value = rawOptions[opt.name] ?? rawOptions[camelCaseName];
+			let value = rawOptions[opt.name] ?? rawOptions[camelCaseName];
+
+			// Handle --yes alias for --confirm: if confirm is not set but yes is, use yes value
+			if (opt.name === 'confirm' && value === undefined && rawOptions.yes === true) {
+				value = true;
+			}
+
 			if (value !== undefined) {
 				result.options[opt.name] = value;
+			}
+		}
+	}
+
+	return result;
+}
+
+/**
+ * Async version of buildValidationInput that also checks stdin for "yes" confirmation.
+ * Use this when the command has a confirm option and doesn't use stdin for other purposes.
+ */
+export async function buildValidationInputAsync(
+	schemas: CommandSchemas,
+	rawArgs: unknown[],
+	rawOptions: Record<string, unknown>,
+	options?: { usesStdin?: boolean }
+): Promise<{ args: Record<string, unknown>; options: Record<string, unknown> }> {
+	const result = buildValidationInput(schemas, rawArgs, rawOptions, options);
+
+	// Check for stdin confirmation if:
+	// 1. Command has a confirm option in schema
+	// 2. Command doesn't use stdin for other purposes
+	// 3. confirm is not already set via flags
+	if (schemas.options && !options?.usesStdin) {
+		const parsed = parseOptionsSchema(schemas.options);
+		const hasConfirmOption = parsed.some((opt) => opt.name === 'confirm');
+		const confirmValue = result.options.confirm;
+
+		if (hasConfirmOption && (confirmValue === undefined || confirmValue === false)) {
+			const stdinConfirmed = await checkStdinConfirmation();
+			if (stdinConfirmed) {
+				result.options.confirm = true;
 			}
 		}
 	}

@@ -15,7 +15,7 @@ export const setupSubcommand = createSubcommand({
 	name: 'setup',
 	description:
 		'Set up machine authentication by uploading a public key for self-hosted infrastructure',
-	tags: ['mutating', 'slow', 'requires-auth'],
+	tags: ['mutating', 'slow', 'requires-auth', 'uses-stdin'],
 	examples: [
 		{
 			command: `${getCommand('auth machine setup')} --file ./public-key.pem`,
