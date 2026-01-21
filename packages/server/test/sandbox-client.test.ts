@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { Writable } from 'node:stream';
 import { SandboxClient } from '../src/api/sandbox/client';
 import { createMockLogger, mockFetch } from '@agentuity/test-utils';
 
@@ -213,6 +214,104 @@ describe('SandboxClient', () => {
 			expect(result.executionId).toBe('exec-789');
 			expect(result.status).toBe('completed');
 			expect(result.exitCode).toBe(0);
+		});
+
+		test('execute with pipe should handle backpressure and receive all chunks', async () => {
+			const chunks = [
+				new Uint8Array([72, 101, 108, 108, 111]), // "Hello"
+				new Uint8Array([32, 87, 111, 114, 108, 100]), // " World"
+				new Uint8Array([33, 10]), // "!\n"
+			];
+			const receivedChunks: Buffer[] = [];
+
+			const slowWritable = new Writable({
+				highWaterMark: 1,
+				write(chunk, _encoding, callback) {
+					receivedChunks.push(Buffer.from(chunk));
+					setTimeout(callback, 5);
+				},
+			});
+
+			mockFetch(async (url, opts) => {
+				// Execute endpoint - must check before /sandbox/ since it also contains /sandbox/
+				if (opts?.method === 'POST' && url.includes('/execute')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-pipe-test',
+								status: 'queued',
+								stdoutStreamUrl: 'https://stream.example.com/stdout/exec-pipe-test',
+								stderrStreamUrl: 'https://stream.example.com/stderr/exec-pipe-test',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				// Sandbox create endpoint
+				if (opts?.method === 'POST' && url.includes('/sandbox/')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								sandboxId: 'sandbox-pipe-test',
+								status: 'idle',
+								stdoutStreamUrl: 'https://stream.example.com/stdout',
+								stderrStreamUrl: 'https://stream.example.com/stderr',
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				// Stream endpoint
+				if (url.includes('stream.example.com/stdout')) {
+					let chunkIndex = 0;
+					const stream = new ReadableStream({
+						pull(controller) {
+							if (chunkIndex < chunks.length) {
+								controller.enqueue(chunks[chunkIndex++]);
+							} else {
+								controller.close();
+							}
+						},
+					});
+					return new Response(stream, { status: 200 });
+				}
+
+				// Execution status endpoint
+				if (opts?.method === 'GET' && url.includes('/execution/exec-pipe-test')) {
+					return new Response(
+						JSON.stringify({
+							success: true,
+							data: {
+								executionId: 'exec-pipe-test',
+								sandboxId: 'sandbox-pipe-test',
+								status: 'completed',
+								exitCode: 0,
+								durationMs: 100,
+							},
+						}),
+						{ status: 200, headers: { 'content-type': 'application/json' } }
+					);
+				}
+
+				return new Response(null, { status: 404 });
+			});
+
+			const client = new SandboxClient({ logger: createMockLogger() });
+			const sandbox = await client.create();
+			const result = await sandbox.execute({
+				command: ['echo', 'Hello World!'],
+				pipe: { stdout: slowWritable },
+			});
+
+			expect(result.status).toBe('completed');
+			expect(result.exitCode).toBe(0);
+			expect(receivedChunks.length).toBe(3);
+			const fullOutput = Buffer.concat(receivedChunks).toString();
+			expect(fullOutput).toBe('Hello World!\n');
 		});
 
 		test('get should call sandbox get API', async () => {
