@@ -9,11 +9,14 @@ const EvalRunListResponseSchema = z.array(
 	z.object({
 		id: z.string().describe('Eval run ID'),
 		eval_id: z.string().describe('Eval ID'),
+		eval_name: z.string().nullable().describe('Eval name'),
+		agent_identifier: z.string().nullable().describe('Agent identifier'),
 		session_id: z.string().describe('Session ID'),
 		created_at: z.string().describe('Creation timestamp'),
 		pending: z.boolean().describe('Whether the eval run is pending'),
 		success: z.boolean().describe('Whether the eval run succeeded'),
 		error: z.string().nullable().describe('Error message if failed'),
+		reason: z.string().nullable().describe('Reason for the result'),
 	})
 );
 
@@ -112,10 +115,10 @@ export const listSubcommand = createSubcommand({
 				pending: r.pending,
 				success: r.success,
 				error: r.error,
+				reason: r.result?.reason ?? null,
 			}));
 
 			if (options.json) {
-				console.log(JSON.stringify(result, null, 2));
 				return result;
 			}
 
@@ -124,15 +127,18 @@ export const listSubcommand = createSubcommand({
 				return [];
 			}
 
-			const tableData = evalRuns.map((r) => ({
-				ID: r.id,
-				'Eval Name': r.evalName || '-',
-				Agent: r.agentIdentifier || '-',
-				Success: r.success ? '✓' : '✗',
-				Pending: r.pending ? '⏳' : '✓',
-				Error: r.error ? (r.error.length > 30 ? r.error.substring(0, 27) + '...' : r.error) : '-',
-				Created: new Date(r.createdAt).toLocaleString(),
-			}));
+			const tableData = evalRuns.map((r) => {
+				const reason = r.result?.reason;
+				return {
+					ID: r.id,
+					'Eval Name': r.evalName || '-',
+					Agent: r.agentIdentifier || '-',
+					Success: r.success ? '✓' : '✗',
+					Pending: r.pending ? '⏳' : '✓',
+					Reason: reason ? (reason.length > 30 ? reason.substring(0, 27) + '...' : reason) : '-',
+					Created: new Date(r.createdAt).toLocaleString(),
+				};
+			});
 
 			tui.table(tableData, [
 				{ name: 'ID', alignment: 'left' },
@@ -140,7 +146,7 @@ export const listSubcommand = createSubcommand({
 				{ name: 'Agent', alignment: 'left' },
 				{ name: 'Success', alignment: 'center' },
 				{ name: 'Pending', alignment: 'center' },
-				{ name: 'Error', alignment: 'left' },
+				{ name: 'Reason', alignment: 'left' },
 				{ name: 'Created', alignment: 'left' },
 			]);
 

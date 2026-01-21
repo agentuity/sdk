@@ -3,17 +3,19 @@ import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
-import { getGlobalCatalystAPIClient } from '../../../config';
+import { evalList } from '@agentuity/server';
 
 const EvalListResponseSchema = z.array(
 	z.object({
 		id: z.string().describe('Eval ID'),
 		name: z.string().describe('Eval name'),
+		identifier: z.string().nullable().describe('Stable eval identifier'),
+		agent_identifier: z.string().describe('Agent identifier'),
 		created_at: z.string().describe('Creation timestamp'),
 		updated_at: z.string().describe('Last updated timestamp'),
 		project_id: z.string().describe('Project ID'),
 		description: z.string().nullable().describe('Eval description'),
-		enabled: z.boolean().describe('Whether the eval is enabled'),
+		devmode: z.boolean().describe('Whether this is a devmode eval'),
 	})
 );
 
@@ -41,7 +43,7 @@ export const listSubcommand = createSubcommand({
 		},
 	],
 	aliases: ['ls'],
-	requires: { auth: true },
+	requires: { auth: true, apiClient: true },
 	optional: { project: true },
 	idempotent: true,
 	pagination: {
@@ -62,8 +64,8 @@ export const listSubcommand = createSubcommand({
 				.default(10)
 				.describe('Number of evals to list (1–100)'),
 			projectId: z.string().optional().describe('Filter by project ID'),
+			agentId: z.string().optional().describe('Filter by agent ID'),
 			all: z.boolean().optional().describe('List all evals regardless of project context'),
-			enabled: z.coerce.boolean().optional().describe('Filter by enabled status (true/false)'),
 		}),
 		response: EvalListResponseSchema,
 	},
@@ -72,40 +74,29 @@ export const listSubcommand = createSubcommand({
 		return projectId ? `/projects/${encodeURIComponent(projectId)}/evals` : undefined;
 	},
 	async handler(ctx) {
-		const { logger, auth, project, opts, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { apiClient, project, opts, options } = ctx;
 
 		const projectId = opts.all ? undefined : opts.projectId || project?.projectId;
 
 		try {
-			// TODO: Replace with actual API call once endpoint is provided
-			// const evals = await evalList(catalystClient, {
-			// 	count: opts.count,
-			// 	projectId,
-			// 	enabled: opts.enabled,
-			// });
-			const evals: Array<{
-				id: string;
-				name: string;
-				created_at: string;
-				updated_at: string;
-				project_id: string;
-				description: string | null;
-				enabled: boolean;
-			}> = [];
+			const evals = await evalList(apiClient, {
+				projectId,
+				agentId: opts.agentId,
+			});
 
 			const result = evals.map((e) => ({
 				id: e.id,
 				name: e.name,
-				created_at: e.created_at,
-				updated_at: e.updated_at,
-				project_id: e.project_id,
+				identifier: e.identifier,
+				agent_identifier: e.agentIdentifier,
+				created_at: e.createdAt,
+				updated_at: e.updatedAt,
+				project_id: e.projectId,
 				description: e.description,
-				enabled: e.enabled,
+				devmode: e.devmode,
 			}));
 
 			if (options.json) {
-				console.log(JSON.stringify(result, null, 2));
 				return result;
 			}
 
@@ -117,20 +108,16 @@ export const listSubcommand = createSubcommand({
 			const tableData = evals.map((e) => ({
 				ID: e.id,
 				Name: e.name.length > 30 ? e.name.substring(0, 27) + '...' : e.name,
-				Description: e.description
-					? e.description.length > 40
-						? e.description.substring(0, 37) + '...'
-						: e.description
-					: '-',
-				Enabled: e.enabled ? '✓' : '✗',
-				Created: new Date(e.created_at).toLocaleString(),
+				Agent: e.agentIdentifier || '-',
+				Devmode: e.devmode ? '✓' : '✗',
+				Created: new Date(e.createdAt).toLocaleString(),
 			}));
 
 			tui.table(tableData, [
 				{ name: 'ID', alignment: 'left' },
 				{ name: 'Name', alignment: 'left' },
-				{ name: 'Description', alignment: 'left' },
-				{ name: 'Enabled', alignment: 'center' },
+				{ name: 'Agent', alignment: 'left' },
+				{ name: 'Devmode', alignment: 'center' },
 				{ name: 'Created', alignment: 'left' },
 			]);
 

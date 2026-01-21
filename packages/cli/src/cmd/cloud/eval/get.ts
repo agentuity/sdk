@@ -1,34 +1,22 @@
 import { z } from 'zod';
 import { createSubcommand } from '../../../types';
 import * as tui from '../../../tui';
-import { APIError } from '@agentuity/server';
+import { APIError, evalGet } from '@agentuity/server';
 import { getCommand } from '../../../command-prefix';
 import { ErrorCode } from '../../../errors';
-import { getGlobalCatalystAPIClient } from '../../../config';
 
 const EvalGetResponseSchema = z.object({
 	id: z.string().describe('Eval ID'),
 	name: z.string().describe('Eval name'),
+	identifier: z.string().nullable().describe('Stable eval identifier'),
+	agent_identifier: z.string().describe('Agent identifier'),
 	created_at: z.string().describe('Creation timestamp'),
 	updated_at: z.string().describe('Last updated timestamp'),
 	project_id: z.string().describe('Project ID'),
 	org_id: z.string().describe('Organization ID'),
 	description: z.string().nullable().describe('Eval description'),
-	enabled: z.boolean().describe('Whether the eval is enabled'),
-	config: z.record(z.string(), z.unknown()).nullable().describe('Eval configuration'),
+	devmode: z.boolean().describe('Whether this is a devmode eval'),
 });
-
-type EvalData = {
-	id: string;
-	name: string;
-	created_at: string;
-	updated_at: string;
-	project_id: string;
-	org_id: string;
-	description: string | null;
-	enabled: boolean;
-	config: Record<string, unknown> | null;
-};
 
 export const getSubcommand = createSubcommand({
 	name: 'get',
@@ -40,58 +28,51 @@ export const getSubcommand = createSubcommand({
 			description: 'Get an eval by ID',
 		},
 	],
-	requires: { auth: true },
+	requires: { auth: true, apiClient: true },
 	idempotent: true,
 	schema: {
 		args: z.object({
-			eval_id: z.string().optional().describe('Eval ID'),
+			eval_id: z.string().describe('Eval ID'),
 		}),
 		response: EvalGetResponseSchema,
 	},
 	async handler(ctx) {
-		const { logger, auth, args, options, config } = ctx;
-		const catalystClient = await getGlobalCatalystAPIClient(logger, auth, config?.name);
+		const { apiClient, args, options } = ctx;
 
 		try {
-			// TODO: Replace with actual API call once endpoint is provided
-			// const evalData = await evalGet(catalystClient, { id: args.eval_id });
-			const evalData: EvalData = null as unknown as EvalData;
+			const evalData = await evalGet(apiClient, args.eval_id);
 
 			const result = {
 				id: evalData.id,
 				name: evalData.name,
-				created_at: evalData.created_at,
-				updated_at: evalData.updated_at,
-				project_id: evalData.project_id,
-				org_id: evalData.org_id,
+				identifier: evalData.identifier,
+				agent_identifier: evalData.agentIdentifier,
+				created_at: evalData.createdAt,
+				updated_at: evalData.updatedAt,
+				project_id: evalData.projectId,
+				org_id: evalData.orgId,
 				description: evalData.description,
-				enabled: evalData.enabled,
-				config: evalData.config,
+				devmode: evalData.devmode,
 			};
 
 			if (options.json) {
-				console.log(JSON.stringify(result, null, 2));
 				return result;
 			}
 
 			const tableData: Record<string, string> = {
 				ID: evalData.id,
 				Name: evalData.name,
-				Project: evalData.project_id,
-				Organization: evalData.org_id,
+				Identifier: evalData.identifier || '-',
+				Agent: evalData.agentIdentifier,
+				Project: evalData.projectId,
+				Organization: evalData.orgId,
 				Description: evalData.description || '-',
-				Enabled: evalData.enabled ? tui.colorSuccess('✓') : tui.colorError('✗'),
-				Created: new Date(evalData.created_at).toLocaleString(),
-				Updated: new Date(evalData.updated_at).toLocaleString(),
+				Devmode: evalData.devmode ? tui.colorSuccess('✓') : tui.colorError('✗'),
+				Created: new Date(evalData.createdAt).toLocaleString(),
+				Updated: new Date(evalData.updatedAt).toLocaleString(),
 			};
 
 			tui.table([tableData], Object.keys(tableData), { layout: 'vertical', padStart: '  ' });
-
-			if (evalData.config && Object.keys(evalData.config).length > 0) {
-				console.log('');
-				console.log(tui.bold('Configuration:'));
-				console.log(JSON.stringify(evalData.config, null, 2));
-			}
 
 			return result;
 		} catch (ex) {
