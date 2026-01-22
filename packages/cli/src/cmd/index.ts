@@ -47,6 +47,8 @@ export async function discoverCommands(): Promise<CommandDefinition[]> {
 						schema: subcommand.schema,
 						handler: subcommand.handler,
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						subcommands: (subcommand as any).subcommands,
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						idempotent: (subcommand as any).idempotent,
 						// eslint-disable-next-line @typescript-eslint/no-explicit-any
 						prerequisites: (subcommand as any).prerequisites,

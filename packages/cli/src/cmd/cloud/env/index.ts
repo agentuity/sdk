@@ -11,6 +11,7 @@ import { getCommand } from '../../../command-prefix';
 export const command = createCommand({
 	name: 'env',
 	description: 'Manage environment variables and secrets for your project or organization',
+	toplevel: true,
 	tags: ['fast', 'requires-auth'],
 	examples: [
 		{ command: getCommand('cloud env list'), description: 'List all variables and secrets' },

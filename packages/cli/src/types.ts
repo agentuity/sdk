@@ -496,6 +496,7 @@ export function createCommand<
 	banner?: true;
 	aliases?: string[];
 	hidden?: boolean;
+	toplevel?: boolean;
 	executable?: boolean;
 	skipUpgradeCheck?: boolean;
 	passThroughArgs?: boolean;
@@ -537,6 +538,7 @@ type CommandDefBase =
 			description: string;
 			aliases?: string[];
 			banner?: boolean;
+			toplevel?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
 			passThroughArgs?: boolean;
@@ -556,6 +558,7 @@ type CommandDefBase =
 			description: string;
 			aliases?: string[];
 			banner?: boolean;
+			toplevel?: boolean;
 			executable?: boolean;
 			skipUpgradeCheck?: boolean;
 			passThroughArgs?: boolean;
