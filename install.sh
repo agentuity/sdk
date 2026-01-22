@@ -11,6 +11,7 @@ NC='\033[0m' # No Color
 
 MIN_BUN_VERSION="1.3.3"
 SETUP_TOKEN="-"
+BUN_BIN_DIR="${BUN_INSTALL:-$HOME/.bun}/bin"
 
 requested_version=${VERSION:-}
 force_install=false
@@ -105,8 +106,8 @@ ensure_bun_on_path() {
     return 0
   fi
 
-  if [ -f "$HOME/.bun/bin/bun" ]; then
-    export PATH="$HOME/.bun/bin:$PATH"
+  if [ -f "$BUN_BIN_DIR/bun" ]; then
+    export PATH="$BUN_BIN_DIR:$PATH"
     return 0
   fi
 
@@ -151,7 +152,7 @@ install_bun() {
   fi
   
   # Add Bun to PATH for current session
-  export PATH="$HOME/.bun/bin:$PATH"
+  export PATH="$BUN_BIN_DIR:$PATH"
   
   print_message success "Bun installed successfully"
 }
@@ -355,9 +356,9 @@ create_legacy_shim() {
     mkdir -p "$legacy_dir"
 
     # Create a shim script that forwards to the bun-installed version
-    cat > "$legacy_bin" << 'EOF'
+    cat > "$legacy_bin" << EOF
 #!/bin/sh
-exec "$HOME/.bun/bin/agentuity" "$@"
+exec "$BUN_BIN_DIR/agentuity" "\$@"
 EOF
     chmod 755 "$legacy_bin"
     print_message debug "Created compatibility shim at $legacy_bin"
@@ -385,7 +386,7 @@ add_to_path() {
 }
 
 configure_path() {
-  bun_bin_dir="$HOME/.bun/bin"
+  bun_bin_dir="$BUN_BIN_DIR"
 
   # Check if bun bin is already on PATH
   case ":$PATH:" in
@@ -458,8 +459,8 @@ configure_path() {
 # GitHub Actions PATH setup
 setup_github_actions() {
   if [ -n "${GITHUB_ACTIONS-}" ] && [ "${GITHUB_ACTIONS}" = "true" ]; then
-    printf "%s\n" "$HOME/.bun/bin" >>"$GITHUB_PATH"
-    print_message info "Added $HOME/.bun/bin to \$GITHUB_PATH"
+    printf "%s\n" "$BUN_BIN_DIR" >>"$GITHUB_PATH"
+    print_message info "Added $BUN_BIN_DIR to \$GITHUB_PATH"
   fi
 }
 
@@ -479,7 +480,7 @@ show_path_reminder() {
 }
 
 run_setup() {
-  agentuity_bin="$HOME/.bun/bin/agentuity"
+  agentuity_bin="$BUN_BIN_DIR/agentuity"
 
   if [ -x "$agentuity_bin" ]; then
     if [ "$non_interactive" = true ]; then
