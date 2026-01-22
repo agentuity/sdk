@@ -27,11 +27,14 @@ export const createProjectSubcommand = createSubcommand({
 	idempotent: false,
 	optional: { auth: true, region: true, apiClient: true },
 	examples: [
-		{ command: getCommand('project create'), description: 'Create new item' },
-		{ command: getCommand('project create --name my-ai-agent'), description: 'Create new item' },
+		{ command: getCommand('project create'), description: 'Create new project' },
+		{
+			command: getCommand('project create --name my-ai-agent'),
+			description: 'Create new project',
+		},
 		{
 			command: getCommand('project create --name customer-service-bot --dir ~/projects/agent'),
-			description: 'Create new item',
+			description: 'Create new project',
 		},
 		{
 			command: getCommand('project create --template basic --no-install'),
