@@ -286,4 +286,23 @@ describe('OTel LLM Instrumentation Patches', () => {
 		expect(code).toContain('recordException');
 		expect(code).toContain('span.setStatus');
 	});
+
+	test('OTel patches should guard synchronous failures with try/catch', () => {
+		const patches = generatePatches();
+		const patch = patches.get('openai:otel');
+
+		const code = patch?.body?.after || '';
+
+		// Verify _original_create is wrapped in try/catch
+		expect(code).toContain('try {');
+		expect(code).toContain('result = _original_create.call(this, body, options);');
+		expect(code).toContain('} catch (error) {');
+
+		// Count try/catch blocks - should have multiple for:
+		// 1. _original_create call
+		// 2. _wrapStream in promise.then
+		// 3. Direct _wrapStream call
+		const tryCount = (code.match(/try\s*\{/g) || []).length;
+		expect(tryCount).toBeGreaterThanOrEqual(3);
+	});
 });

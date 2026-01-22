@@ -263,14 +263,29 @@ function _agentuity_otel_create(body, options) {
 	const spanName = body.model ? \`chat \${body.model}\` : 'chat';
 
 	return _otel_tracer.startActiveSpan(spanName, { attributes, kind: _otel_api.SpanKind.CLIENT }, (span) => {
-		const result = _original_create.call(this, body, options);
+		let result;
+		try {
+			result = _original_create.call(this, body, options);
+		} catch (error) {
+			span.setStatus({ code: _otel_api.SpanStatusCode.ERROR, message: error?.message });
+			span.recordException(error);
+			span.end();
+			throw error;
+		}
 
 		// Handle streaming responses
 		if (body.stream) {
 			// Result is a Promise that resolves to a Stream
 			if (result && typeof result.then === 'function') {
 				return result.then((stream) => {
-					return _wrapStream(stream, span, '${inputTokensField}', '${outputTokensField}');
+					try {
+						return _wrapStream(stream, span, '${inputTokensField}', '${outputTokensField}');
+					} catch (error) {
+						span.setStatus({ code: _otel_api.SpanStatusCode.ERROR, message: error?.message });
+						span.recordException(error);
+						span.end();
+						throw error;
+					}
 				}).catch((error) => {
 					span.setStatus({ code: _otel_api.SpanStatusCode.ERROR, message: error?.message });
 					span.recordException(error);
@@ -278,8 +293,15 @@ function _agentuity_otel_create(body, options) {
 					throw error;
 				});
 			}
-			// Result is already a Stream
-			return _wrapStream(result, span, '${inputTokensField}', '${outputTokensField}');
+			// Result is already a Stream - wrap in try/catch for synchronous failures
+			try {
+				return _wrapStream(result, span, '${inputTokensField}', '${outputTokensField}');
+			} catch (error) {
+				span.setStatus({ code: _otel_api.SpanStatusCode.ERROR, message: error?.message });
+				span.recordException(error);
+				span.end();
+				throw error;
+			}
 		}
 
 		// Handle non-streaming responses
