@@ -1076,25 +1076,32 @@ export const command = createCommand({
 							rootDir,
 							devmode.id
 						);
-						gravityProcess = Bun.spawn(
-							[
-								gravityBin,
-								'--endpoint-id',
-								devmode.id,
-								'--port',
-								opts.port.toString(),
-								'--url',
-								gravityURL,
-								'--log-level',
-								process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
-								'--org-id',
-								project.orgId,
-								'--project-id',
-								project.projectId,
+						const privateKeyPEM = devmode.privateKey ?? savedPrivateKey;
+						const gravityArgs = [
+							gravityBin,
+							'--endpoint-id',
+							devmode.id,
+							'--port',
+							opts.port.toString(),
+							'--url',
+							gravityURL,
+							'--log-level',
+							process.env.AGENTUITY_GRAVITY_LOG_LEVEL ?? 'error',
+							'--org-id',
+							project.orgId,
+							'--project-id',
+							project.projectId,
+							'--health-check',
+						];
+						if (privateKeyPEM) {
+							gravityArgs.splice(
+								-1,
+								0,
 								'--private-key',
-								Buffer.from(devmode.privateKey ?? savedPrivateKey ?? '').toString('base64'),
-								'--health-check',
-							],
+								Buffer.from(privateKeyPEM).toString('base64')
+							);
+						}
+						gravityProcess = Bun.spawn(gravityArgs,
 							{
 								cwd: rootDir,
 								stdout: 'pipe',
