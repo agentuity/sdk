@@ -252,12 +252,17 @@ jobs:
                       # Install CLI
                       ./install.sh -y > /dev/null 2>&1
                       
-                      # Check upgrade command exists
-                      if ! $HOME/.bun/bin/agentuity upgrade --help > /tmp/upgrade-help.log 2>&1; then
+                      # Check upgrade command exists by looking for it in --help output
+                      $HOME/.bun/bin/agentuity --help > /tmp/help.log 2>&1 || true
+                      
+                      if ! grep -q "upgrade" /tmp/help.log; then
                         echo "⚠  Upgrade command not found (expected until new version is published)"
                         echo "✅ Test passed (pre-release state)"
                         exit 0
                       fi
+                      
+                      # Verify upgrade --help works
+                      $HOME/.bun/bin/agentuity upgrade --help > /tmp/upgrade-help.log 2>&1 || true
                       
                       if ! grep -q "Upgrade the CLI to the latest version" /tmp/upgrade-help.log; then
                         echo "❌ Upgrade help missing expected text"

@@ -130,30 +130,121 @@ version_gte() {
   return 1
 }
 
+# Install Bun
+install_bun() {
+  print_message info "${MUTED}Installing Bun...${NC}"
+  
+  # Temporarily disable set -e for bun install
+  set +e
+  install_output=$(curl -fsSL https://bun.sh/install | bash 2>&1)
+  install_result=$?
+  set -e
+  
+  if [ $install_result -ne 0 ]; then
+    print_message error "Failed to install Bun"
+    printf "%s\n" "$install_output"
+    exit 1
+  fi
+  
+  if [ "$verbose" = "true" ]; then
+    printf "%s\n" "$install_output"
+  fi
+  
+  # Add Bun to PATH for current session
+  export PATH="$HOME/.bun/bin:$PATH"
+  
+  print_message success "Bun installed successfully"
+}
+
+# Upgrade Bun
+upgrade_bun() {
+  print_message info "${MUTED}Upgrading Bun...${NC}"
+  
+  # Temporarily disable set -e for bun upgrade
+  set +e
+  upgrade_output=$(bun upgrade 2>&1)
+  upgrade_result=$?
+  set -e
+  
+  if [ $upgrade_result -ne 0 ]; then
+    print_message error "Failed to upgrade Bun"
+    printf "%s\n" "$upgrade_output"
+    exit 1
+  fi
+  
+  if [ "$verbose" = "true" ]; then
+    printf "%s\n" "$upgrade_output"
+  fi
+  
+  print_message success "Bun upgraded successfully"
+}
+
 # Check if Bun is installed and meets minimum version
 check_bun() {
   ensure_bun_on_path
 
   if ! command -v bun >/dev/null 2>&1; then
-    print_message error "Bun is required but not installed."
-    printf "\n"
-    print_message info "Install Bun first by running:"
-    printf "\n"
-    print_message info "  ${CYAN}curl -fsSL https://bun.sh/install | bash${NC}"
-    printf "\n"
-    print_message info "Then run this installer again."
+    print_message warning "Bun is required but not installed."
+    
+    if [ "$non_interactive" = true ]; then
+      # In CI/non-interactive mode, auto-install Bun
+      install_bun
+    else
+      # Prompt user to install Bun
+      printf "Do you want to install Bun? (y/N): "
+      read -r response </dev/tty 2>/dev/null || read -r response
+      case "$response" in
+      [yY][eE][sS] | [yY])
+        install_bun
+        ;;
+      *)
+        print_message error "Bun is required. Please install it manually:"
+        print_message info "  ${CYAN}curl -fsSL https://bun.sh/install | bash${NC}"
+        exit 1
+        ;;
+      esac
+    fi
+  fi
+  
+  # Re-check that bun is available after potential install
+  ensure_bun_on_path
+  
+  if ! command -v bun >/dev/null 2>&1; then
+    print_message error "Bun installation failed or not found on PATH"
     exit 1
   fi
 
   bun_version=$(bun --version 2>/dev/null || echo "0.0.0")
 
   if ! version_gte "$bun_version" "$MIN_BUN_VERSION"; then
-    print_message error "Bun version $bun_version is too old. Minimum required: $MIN_BUN_VERSION"
-    printf "\n"
-    print_message info "Update Bun by running:"
-    printf "\n"
-    print_message info "  ${CYAN}bun upgrade${NC}"
-    exit 1
+    print_message warning "Bun version $bun_version is too old. Minimum required: $MIN_BUN_VERSION"
+    
+    if [ "$non_interactive" = true ]; then
+      # In CI/non-interactive mode, auto-upgrade Bun
+      upgrade_bun
+      bun_version=$(bun --version 2>/dev/null || echo "0.0.0")
+    else
+      # Prompt user to upgrade Bun
+      printf "Do you want to upgrade Bun? (y/N): "
+      read -r response </dev/tty 2>/dev/null || read -r response
+      case "$response" in
+      [yY][eE][sS] | [yY])
+        upgrade_bun
+        bun_version=$(bun --version 2>/dev/null || echo "0.0.0")
+        ;;
+      *)
+        print_message error "Bun $MIN_BUN_VERSION or higher is required. Please upgrade manually:"
+        print_message info "  ${CYAN}bun upgrade${NC}"
+        exit 1
+        ;;
+      esac
+    fi
+    
+    # Verify upgrade was successful
+    if ! version_gte "$bun_version" "$MIN_BUN_VERSION"; then
+      print_message error "Bun upgrade failed. Current version: $bun_version, required: $MIN_BUN_VERSION"
+      exit 1
+    fi
   fi
 
   print_message debug "Using Bun version $bun_version"
