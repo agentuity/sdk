@@ -181,7 +181,8 @@ upgrade_bun() {
 
 # Check if Bun is installed and meets minimum version
 check_bun() {
-  ensure_bun_on_path
+  # Try to add bun to PATH if it exists (ignore return value)
+  ensure_bun_on_path || true
 
   if ! command -v bun >/dev/null 2>&1; then
     print_message warning "Bun is required but not installed."
@@ -207,7 +208,7 @@ check_bun() {
   fi
   
   # Re-check that bun is available after potential install
-  ensure_bun_on_path
+  ensure_bun_on_path || true
   
   if ! command -v bun >/dev/null 2>&1; then
     print_message error "Bun installation failed or not found on PATH"
