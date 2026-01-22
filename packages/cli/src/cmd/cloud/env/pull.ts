@@ -51,6 +51,9 @@ export const pullSubcommand = createSubcommand({
 		const targetEnvPath = await findExistingEnvFile(projectDir);
 		const localEnv = await readEnvFile(targetEnvPath);
 
+		// Preserve local AGENTUITY_SDK_KEY before writing (since it will be skipped in the first write)
+		const localSdkKey = localEnv.AGENTUITY_SDK_KEY;
+
 		// Merge: cloud values override local if force=true, otherwise keep local
 		let mergedEnv: Record<string, string>;
 		if (opts?.force) {
@@ -66,21 +69,24 @@ export const pullSubcommand = createSubcommand({
 			skipKeys: Object.keys(mergedEnv).filter(isReservedAgentuityKey),
 		});
 
-		// Write AGENTUITY_SDK_KEY to .env if present and missing locally
-		if (projectData.api_key) {
-			const dotEnvPath = join(projectDir, '.env');
-			const dotEnv = await readEnvFile(dotEnvPath);
+		// Restore AGENTUITY_SDK_KEY to .env (preserve local if exists, otherwise use cloud)
+		// The key was removed by the write above since it's in skipKeys, so we need to restore it
+		const dotEnvPath = join(projectDir, '.env');
+		const dotEnv = await readEnvFile(dotEnvPath);
 
-			if (!dotEnv.AGENTUITY_SDK_KEY) {
-				dotEnv.AGENTUITY_SDK_KEY = projectData.api_key;
-				await writeEnvFile(dotEnvPath, dotEnv, {
-					addComment: (key) => {
-						if (key === 'AGENTUITY_SDK_KEY') {
-							return 'AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
-						}
-						return null;
-					},
-				});
+		// Use local SDK key if it exists, otherwise use cloud value
+		const sdkKeyToWrite = localSdkKey || projectData.api_key;
+		if (sdkKeyToWrite) {
+			dotEnv.AGENTUITY_SDK_KEY = sdkKeyToWrite;
+			await writeEnvFile(dotEnvPath, dotEnv, {
+				addComment: (key) => {
+					if (key === 'AGENTUITY_SDK_KEY') {
+						return 'AGENTUITY_SDK_KEY is a sensitive value and should not be committed to version control.';
+					}
+					return null;
+				},
+			});
+			if (!localSdkKey && projectData.api_key) {
 				tui.info(`Wrote AGENTUITY_SDK_KEY to ${dotEnvPath}`);
 			}
 		}
