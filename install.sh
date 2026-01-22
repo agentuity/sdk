@@ -487,7 +487,7 @@ show_path_reminder() {
     printf "${RED}│${NC}                                                    ${RED}│${NC}\n"
     printf "${RED}│ Please restart your terminal or run:               │${NC}\n"
     printf "${RED}│${NC}                                                    ${RED}│${NC}\n"
-    printf "${RED}│${NC} ${CYAN}%s${NC}\n" "$_source_cmd"
+    printf "${RED}│${NC} ${CYAN}%-50s${NC} ${RED}│${NC}\n" "$_source_cmd"
     printf "${RED}╰────────────────────────────────────────────────────╯${NC}\n"
   fi
 }
