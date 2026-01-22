@@ -84,7 +84,7 @@ export class TokenSpanProcessor implements SpanProcessor {
 				ATTR_GEN_AI_SYSTEM in span.attributes &&
 				ATTR_GEN_AI_RESPONSE_MODEL in span.attributes
 			) {
-				// OpenTelemetry GenAI semantic conventions (used by traceloop instrumentation)
+				// OpenTelemetry GenAI semantic conventions (used by build-time LLM instrumentation)
 				const model = span.attributes[ATTR_GEN_AI_RESPONSE_MODEL]!.toString();
 				let totalTokens = tokens.get(model) ?? 0;
 				if (ATTR_GEN_AI_USAGE_INPUT_TOKENS in span.attributes) {

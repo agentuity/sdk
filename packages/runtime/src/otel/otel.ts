@@ -31,7 +31,6 @@ import { createLogger, patchConsole } from './logger';
 import { getSDKVersion, isAuthenticated } from '../_config';
 import type { LogLevel } from '@agentuity/core';
 import { JSONLLogExporter, JSONLTraceExporter, JSONLMetricExporter } from './exporters';
-import { createLLMInstrumentations } from './llm-instrumentations';
 
 /**
  * Configuration for OpenTelemetry initialization
@@ -297,13 +296,10 @@ export function registerOtel(config: OtelConfig): OtelResponse {
 		// Combine custom span processors with our span processors
 		const allSpanProcessors = [...spanProcessors, ...(config.spanProcessors || [])];
 
-		// Create LLM instrumentations (OpenAI, Anthropic, etc.) from traceloop
-		const llmInstrumentations = createLLMInstrumentations();
-
 		instrumentationSDK = new NodeSDK({
 			logRecordProcessor: loggerProvider.processor,
 			metricReader: sdkMetricReader,
-			instrumentations: [getNodeAutoInstrumentations(), ...llmInstrumentations],
+			instrumentations: [getNodeAutoInstrumentations()],
 			resource,
 			textMapPropagator: propagator,
 			spanProcessors: allSpanProcessors,
