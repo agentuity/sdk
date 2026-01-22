@@ -2,7 +2,12 @@ import type { Context, AttributeValue } from '@opentelemetry/api';
 import type { Span } from '@opentelemetry/sdk-trace-base';
 import type { SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { inAgentContext, inHTTPContext, getHTTPContext } from './_context';
-import { SpanAttributes } from '@traceloop/ai-semantic-conventions';
+import {
+	ATTR_GEN_AI_SYSTEM,
+	ATTR_GEN_AI_RESPONSE_MODEL,
+	ATTR_GEN_AI_USAGE_INPUT_TOKENS,
+	ATTR_GEN_AI_USAGE_OUTPUT_TOKENS,
+} from '@opentelemetry/semantic-conventions/incubating';
 
 export const TOKENS_HEADER = 'x-agentuity-tokens';
 export const DURATION_HEADER = 'x-agentuity-duration';
@@ -76,20 +81,17 @@ export class TokenSpanProcessor implements SpanProcessor {
 					mutated = true;
 				}
 			} else if (
-				SpanAttributes.LLM_SYSTEM in span.attributes &&
-				SpanAttributes.LLM_RESPONSE_MODEL in span.attributes
+				ATTR_GEN_AI_SYSTEM in span.attributes &&
+				ATTR_GEN_AI_RESPONSE_MODEL in span.attributes
 			) {
-				const model = span.attributes[SpanAttributes.LLM_RESPONSE_MODEL]!.toString();
+				// OpenTelemetry GenAI semantic conventions (used by traceloop instrumentation)
+				const model = span.attributes[ATTR_GEN_AI_RESPONSE_MODEL]!.toString();
 				let totalTokens = tokens.get(model) ?? 0;
-				if (SpanAttributes.LLM_USAGE_PROMPT_TOKENS in span.attributes) {
-					totalTokens += getTokenValue(
-						span.attributes[SpanAttributes.LLM_USAGE_PROMPT_TOKENS]
-					);
+				if (ATTR_GEN_AI_USAGE_INPUT_TOKENS in span.attributes) {
+					totalTokens += getTokenValue(span.attributes[ATTR_GEN_AI_USAGE_INPUT_TOKENS]);
 				}
-				if (SpanAttributes.LLM_USAGE_COMPLETION_TOKENS in span.attributes) {
-					totalTokens += getTokenValue(
-						span.attributes[SpanAttributes.LLM_USAGE_COMPLETION_TOKENS]
-					);
+				if (ATTR_GEN_AI_USAGE_OUTPUT_TOKENS in span.attributes) {
+					totalTokens += getTokenValue(span.attributes[ATTR_GEN_AI_USAGE_OUTPUT_TOKENS]);
 				}
 				if (totalTokens > 0) {
 					tokens.set(model, totalTokens);
