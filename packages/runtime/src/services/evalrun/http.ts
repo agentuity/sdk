@@ -13,6 +13,7 @@ import {
 	type Logger,
 	StructuredError,
 } from '@agentuity/core';
+import { context, trace, SpanStatusCode } from '@opentelemetry/api';
 import { internal } from '../../logger/internal';
 
 const EvalRunResponseError = StructuredError('EvalRunResponseError');
@@ -37,6 +38,10 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 	 * @param event EvalRunStartEvent
 	 */
 	async start(event: EvalRunStartEvent): Promise<void> {
+		const tracer = trace.getTracer('evalrun');
+		const currentContext = context.active();
+		const span = tracer.startSpan('Eval Start', {}, currentContext);
+
 		const endpoint = '/evalrun/2025-03-17';
 		const fullUrl = `${this.baseUrl}${endpoint}`;
 
@@ -57,18 +62,24 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 		internal.info('[EVALRUN HTTP] ============================================');
 
 		try {
-			const resp = await this.apiClient.post(
-				endpoint,
-				payload,
-				APIResponseSchemaNoData(),
-				EvalRunStartEventDelayedSchema
+			const spanContext = trace.setSpan(currentContext, span);
+			const resp = await context.with(spanContext, () =>
+				this.apiClient.post(
+					endpoint,
+					payload,
+					APIResponseSchemaNoData(),
+					EvalRunStartEventDelayedSchema
+				)
 			);
+
 			if (resp.success) {
 				this.logger.debug('[EVALRUN HTTP] Start event sent successfully: %s', event.id);
+				span.setStatus({ code: SpanStatusCode.OK });
 				return;
 			}
 			const errorMsg = resp.message || 'Unknown error';
 			this.logger.error('[EVALRUN HTTP] Start event failed: %s, error: %s', event.id, errorMsg);
+			span.setStatus({ code: SpanStatusCode.ERROR, message: errorMsg });
 			throw new EvalRunResponseError({ message: errorMsg });
 		} catch (error) {
 			this.logger.error(
@@ -86,7 +97,14 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 					JSON.stringify(error.issues, null, 2)
 				);
 			}
+			span.recordException(error as Error);
+			span.setStatus({
+				code: SpanStatusCode.ERROR,
+				message: error instanceof Error ? error.message : String(error),
+			});
 			throw error;
+		} finally {
+			span.end();
 		}
 	}
 
@@ -96,6 +114,10 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 	 * @param event EvalRunCompleteEvent
 	 */
 	async complete(event: EvalRunCompleteEvent): Promise<void> {
+		const tracer = trace.getTracer('evalrun');
+		const currentContext = context.active();
+		const span = tracer.startSpan('Eval End', {}, currentContext);
+
 		const endpoint = '/evalrun/2025-03-17';
 		const fullUrl = `${this.baseUrl}${endpoint}`;
 		this.logger.debug('[EVALRUN HTTP] Sending eval run complete event: %s', event.id);
@@ -103,14 +125,19 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 		this.logger.debug('[EVALRUN HTTP] Base URL: %s', this.baseUrl);
 
 		try {
-			const resp = await this.apiClient.put(
-				endpoint,
-				{ ...event, timestamp: Date.now() },
-				APIResponseSchemaNoData(),
-				EvalRunCompleteEventDelayedSchema
+			const spanContext = trace.setSpan(currentContext, span);
+			const resp = await context.with(spanContext, () =>
+				this.apiClient.put(
+					endpoint,
+					{ ...event, timestamp: Date.now() },
+					APIResponseSchemaNoData(),
+					EvalRunCompleteEventDelayedSchema
+				)
 			);
+
 			if (resp.success) {
 				this.logger.debug('[EVALRUN HTTP] Complete event sent successfully: %s', event.id);
+				span.setStatus({ code: SpanStatusCode.OK });
 				return;
 			}
 			const errorMsg = resp.message || 'Unknown error';
@@ -119,6 +146,7 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 				event.id,
 				errorMsg
 			);
+			span.setStatus({ code: SpanStatusCode.ERROR, message: errorMsg });
 			throw new EvalRunResponseError({ message: errorMsg });
 		} catch (error) {
 			this.logger.error(
@@ -126,7 +154,14 @@ export class HTTPEvalRunEventProvider implements EvalRunEventProvider {
 				event.id,
 				error instanceof Error ? error.message : String(error)
 			);
+			span.recordException(error as Error);
+			span.setStatus({
+				code: SpanStatusCode.ERROR,
+				message: error instanceof Error ? error.message : String(error),
+			});
 			throw error;
+		} finally {
+			span.end();
 		}
 	}
 }

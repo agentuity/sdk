@@ -290,7 +290,7 @@ export function createOtelMiddleware() {
 		await context.with(extractedContext, async (): Promise<void> => {
 			const tracer = trace.getTracer('http-server');
 			await tracer.startActiveSpan(
-				`HTTP ${method}`,
+				`${method} ${url.pathname}`,
 				{
 					kind: SpanKind.SERVER,
 					attributes: {

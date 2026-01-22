@@ -1,5 +1,6 @@
 import { generatePatches as aisdkGeneratePatches } from './aisdk';
 import { generatePatches as llmGeneratePatches } from './llm';
+import { generatePatches as otelLlmGeneratePatches } from './otel-llm';
 import { type PatchModule, searchBackwards } from './_util';
 
 export function generatePatches(): Map<string, PatchModule> {
@@ -8,6 +9,9 @@ export function generatePatches(): Map<string, PatchModule> {
 		patches.set(name, patch);
 	}
 	for (const [name, patch] of llmGeneratePatches()) {
+		patches.set(name, patch);
+	}
+	for (const [name, patch] of otelLlmGeneratePatches()) {
 		patches.set(name, patch);
 	}
 	return patches;
