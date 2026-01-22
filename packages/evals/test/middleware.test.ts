@@ -59,19 +59,17 @@ describe('EvalMiddleware optional transforms', () => {
 		expect(evalConfig.name).toBe('adversarial');
 	});
 
-	test('accepts empty middleware object', () => {
-		const evalConfig = adversarial<AgentInput, AgentOutput>({
-			middleware: {},
-		});
-
-		expect(evalConfig).toBeDefined();
-		expect(evalConfig.name).toBe('adversarial');
-	});
-
 	test('accepts no middleware at all', () => {
 		const evalConfig = adversarial({});
 
 		expect(evalConfig).toBeDefined();
 		expect(evalConfig.name).toBe('adversarial');
+	});
+
+	test('rejects empty middleware object at compile time', () => {
+		// @ts-expect-error - empty middleware should be a type error
+		adversarial<AgentInput, AgentOutput>({
+			middleware: {},
+		});
 	});
 });
