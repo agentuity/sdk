@@ -2064,8 +2064,12 @@ export function createAgent<
 													metadata: {},
 												},
 											});
-										} catch {
-											// Ignore errors sending eval run events
+										} catch (e) {
+											internal.debug('Failed to send eval run complete event', {
+												evalRunId,
+												errorMessage,
+												error: e instanceof Error ? e.message : String(e),
+											});
 										}
 									}
 								} finally {
@@ -2097,8 +2101,14 @@ export function createAgent<
 											deploymentId: runtimeConfig.getDeploymentId() || undefined,
 											spanId: agentRunSpanId,
 										});
-									} catch {
-										// Ignore errors sending eval run events
+									} catch (e) {
+										internal.debug('Failed to send eval run start event', {
+											evalRunId,
+											evalId,
+											evalIdentifier,
+											sessionId: ctx.sessionId,
+											error: e instanceof Error ? e.message : String(e),
+										});
 									}
 								}
 
@@ -2137,8 +2147,11 @@ export function createAgent<
 											id: evalRunId,
 											result: { success: true, ...handlerResult },
 										});
-									} catch {
-										// Ignore errors sending eval run events
+									} catch (e) {
+										internal.debug('Failed to send eval run complete event', {
+											evalRunId,
+											error: e instanceof Error ? e.message : String(e),
+										});
 									}
 								}
 							} catch (error) {
