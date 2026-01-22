@@ -53,7 +53,7 @@ import { zipDir } from '../../utils/zip';
 import { encryptFIPSKEMDEMStream } from '../../crypto/box';
 import { getCommand } from '../../command-prefix';
 import * as domain from '../../domain';
-import { ErrorCode } from '../../errors';
+import { ErrorCode, getExitCode } from '../../errors';
 import { typecheck } from '../build/typecheck';
 import { BuildReportCollector, setGlobalCollector, clearGlobalCollector } from '../../build-report';
 import { runForkedDeploy } from './deploy-fork';
@@ -574,19 +574,6 @@ export const deploySubcommand = createSubcommand({
 							}
 
 							if (result.action === 'block' && result.findings.length > 0) {
-								const messages: string[] = [
-									'',
-									'Malicious packages detected in your dependencies:',
-									'',
-								];
-								for (const finding of result.findings) {
-									messages.push(
-										`  ${tui.bold(`${finding.name}@${finding.version}`)} - ${finding.reason}`
-									);
-								}
-								messages.push('');
-								messages.push('Remove these packages from your project and try again.');
-
 								if (opts.reportFile) {
 									for (const finding of result.findings) {
 										collector.addGeneralError(
@@ -597,7 +584,21 @@ export const deploySubcommand = createSubcommand({
 									await collector.forceWrite();
 								}
 
-								return stepError(messages.join('\n'));
+								const packageList = result.findings
+									.map((f) => `• ${f.name}@${f.version} (${f.reason})`)
+									.join('\n');
+
+								// Pause step UI to cleanly render error box
+								pauseStepUI(true);
+
+								tui.newline();
+								tui.errorBox(
+									'Malicious Packages Detected',
+									`Your deployment was blocked because it contains known malicious packages:\n\n${packageList}\n\nRemove these packages from your project and try again.`
+								);
+								tui.newline();
+
+								process.exit(getExitCode(ErrorCode.MALWARE_DETECTED));
 							}
 
 							return stepSuccess([`Scanned ${result.summary.scanned} packages`]);
