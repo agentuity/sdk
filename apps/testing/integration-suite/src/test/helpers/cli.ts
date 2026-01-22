@@ -90,7 +90,7 @@ const CLI_PATH = resolveCliPath();
 
 // Find the project directory containing agentuity.json
 // This is needed because the test server runs from .agentuity/ but CLI needs the parent
-const PROJECT_DIR =
+export const PROJECT_DIR =
 	findProjectDir(process.cwd()) || findProjectDir(import.meta.dir) || process.cwd();
 
 // Log CLI path once at startup (only in CI)
