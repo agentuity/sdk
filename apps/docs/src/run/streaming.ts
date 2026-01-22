@@ -18,13 +18,12 @@ interface Input {
 	prompt?: string;
 }
 
-const input: Input = JSON.parse(process.argv[2] ?? '{}');
-const prompt = input.prompt ?? 'Write a short poem about AI.';
-
 const ctx = createAgentContext();
-ctx.logger.info('Streaming started', { prompt });
 
 try {
+	const input: Input = JSON.parse(process.argv[2] ?? '{}');
+	const prompt = input.prompt ?? 'Write a short poem about AI.';
+	ctx.logger.info('Streaming started', { prompt });
 	const { textStream } = streamText({
 		model: openai('gpt-5-nano'),
 		prompt,

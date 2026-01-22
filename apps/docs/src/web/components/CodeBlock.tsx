@@ -69,7 +69,7 @@ export function CodeBlock({
 					{showRunButton && (
 						<button
 							type="button"
-							onClick={onRun}
+							onClick={() => onRun?.()}
 							disabled={isRunning}
 							className={`flex items-center gap-1.5 px-3 py-1 text-xs rounded transition-colors ${
 								isRunning

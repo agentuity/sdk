@@ -298,6 +298,7 @@ router.post("/hourly-task", cron("0 * * * *", async (c) => {
 	'durable-stream': `// Create durable content with shareable URLs.
 // Unlike ephemeral streams, content persists forever.
 import { createRouter } from "@agentuity/runtime";
+import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
 const router = createRouter();
@@ -452,6 +453,7 @@ ctx.logger.info("Claude response", { text: claudeResult.text });
 	evals: `// Evals run automatically after your agent responds.
 // Define evaluations in a separate file alongside your agent.
 import { answerCompleteness } from "@agentuity/evals";
+import { openai } from "@ai-sdk/openai";
 import { generateObject } from "ai";
 import { z } from "zod";
 import agent, { PROMPT } from "./agent";

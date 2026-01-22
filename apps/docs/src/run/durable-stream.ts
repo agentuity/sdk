@@ -15,13 +15,12 @@ interface Input {
 	content?: string;
 }
 
-const input: Input = JSON.parse(process.argv[2] ?? '{}');
-const content =
-	input.content ?? 'This is a durable stream demo.\nContent persists with a shareable URL.';
-
 const ctx = createAgentContext();
 
 try {
+	const input: Input = JSON.parse(process.argv[2] ?? '{}');
+	const content =
+		input.content ?? 'This is a durable stream demo.\nContent persists with a shareable URL.';
 	ctx.logger.info('Creating durable stream');
 
 	// Create a durable stream
@@ -54,3 +53,8 @@ try {
 	console.log('---OUTPUT---');
 	console.log(`Error: ${error instanceof Error ? error.message : String(error)}`);
 }
+
+// Ensure stdout is flushed before exit
+await new Promise<void>((resolve) => {
+	process.stdout.write('', () => resolve());
+});

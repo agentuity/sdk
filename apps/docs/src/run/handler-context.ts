@@ -53,6 +53,8 @@ await standaloneCtx.invoke(async () => {
 		const stored = await ctx.thread.state.get('demo-key');
 		console.log(`  set("demo-key", {value: "test"})`);
 		console.log(`  get("demo-key") -> ${JSON.stringify(stored)}`);
+		await ctx.thread.state.delete('demo-key');
+		console.log('  delete("demo-key") - cleaned up');
 		console.log('');
 
 		// Session state demonstration

@@ -16,8 +16,11 @@ const SNAPSHOT_ID = process.env.SANDBOX_SNAPSHOT_ID;
 const SANDBOX_EXEC_TIMEOUT = '2m';
 const AI_GATEWAY_URL = 'https://catalyst.agentuity.cloud/gateway';
 
+// ANSI escape sequence regex for stripping terminal colors
+const ANSI_ESCAPE_REGEX = new RegExp('\\x1b\\[[0-9;]*m', 'g');
+
 function cleanOutput(content: string): string {
-	let cleaned = content.replace(/\x1b\[[0-9;]*m/g, '');
+	let cleaned = content.replace(ANSI_ESCAPE_REGEX, '');
 	cleaned = cleaned.replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z[ \t]*/gm, '');
 	cleaned = cleaned.replace(/\\"/g, '"');
 	cleaned = cleaned.replace(/\\n/g, '\n');
@@ -45,7 +48,7 @@ router.get(
 		let input: unknown;
 		if (inputBase64) {
 			try {
-				input = JSON.parse(atob(inputBase64));
+				input = JSON.parse(Buffer.from(inputBase64, 'base64').toString('utf-8'));
 			} catch {
 				await stream.writeSSE({ event: 'error', data: 'Invalid input parameter' });
 				return;
@@ -107,6 +110,8 @@ router.get(
 			ANTHROPIC_BASE_URL: `${AI_GATEWAY_URL}/anthropic`,
 			GOOGLE_API_KEY: apiKey,
 			GOOGLE_GENERATIVE_AI_BASE_URL: `${AI_GATEWAY_URL}/google`,
+			GROQ_API_KEY: apiKey,
+			GROQ_BASE_URL: `${AI_GATEWAY_URL}/groq`,
 		};
 
 		if (process.env.S3_BUCKET) envVars.S3_BUCKET = process.env.S3_BUCKET;

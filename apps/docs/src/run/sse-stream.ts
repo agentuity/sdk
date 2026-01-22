@@ -18,13 +18,12 @@ interface Input {
 	prompt?: string;
 }
 
-const input: Input = JSON.parse(process.argv[2] ?? '{}');
-const prompt = input.prompt ?? 'Explain what Server-Sent Events are in 2-3 sentences.';
-
 const ctx = createAgentContext();
-ctx.logger.info('SSE stream started', { prompt });
 
 try {
+	const input: Input = JSON.parse(process.argv[2] ?? '{}');
+	const prompt = input.prompt ?? 'Explain what Server-Sent Events are in 2-3 sentences.';
+	ctx.logger.info('SSE stream started', { prompt });
 	const { textStream } = streamText({
 		model: openai('gpt-5-nano'),
 		prompt,

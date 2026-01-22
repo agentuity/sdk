@@ -173,13 +173,12 @@ import { createAgentContext } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const input = JSON.parse(process.argv[2] ?? '{}');
-const prompt = input.prompt ?? "Write a short poem about AI.";
-
 const ctx = createAgentContext();
-ctx.logger.info("Streaming started", { prompt });
 
 try {
+	const input = JSON.parse(process.argv[2] ?? '{}');
+	const prompt = input.prompt ?? "Write a short poem about AI.";
+	ctx.logger.info("Streaming started", { prompt });
 	const { textStream } = streamText({ model: openai("gpt-5-nano"), prompt });
 
 	let fullText = "";
@@ -213,13 +212,12 @@ import { createAgentContext } from "@agentuity/runtime";
 import { openai } from "@ai-sdk/openai";
 import { streamText } from "ai";
 
-const input = JSON.parse(process.argv[2] ?? '{}');
-const prompt = input.prompt ?? "Explain what Server-Sent Events are in 2-3 sentences.";
-
 const ctx = createAgentContext();
-ctx.logger.info("SSE stream started", { prompt });
 
 try {
+	const input = JSON.parse(process.argv[2] ?? '{}');
+	const prompt = input.prompt ?? "Explain what Server-Sent Events are in 2-3 sentences.";
+	ctx.logger.info("SSE stream started", { prompt });
 	const { textStream } = streamText({ model: openai("gpt-5-nano"), prompt });
 
 	let fullText = "";
@@ -327,6 +325,8 @@ await standaloneCtx.invoke(async () => {
 		const stored = await ctx.thread.state.get("demo-key");
 		console.log(\`  set("demo-key", {value: "test"})\`);
 		console.log(\`  get("demo-key") -> \${JSON.stringify(stored)}\`);
+		await ctx.thread.state.delete("demo-key");
+		console.log('  delete("demo-key") - cleaned up');
 		console.log("");
 		console.log("Session State (per-request only):");
 		const timestamp = new Date().toISOString();
@@ -388,12 +388,11 @@ try {
  */
 import { createAgentContext } from "@agentuity/runtime";
 
-const input = JSON.parse(process.argv[2] ?? '{}');
-const content = input.content ?? "This is a durable stream demo.\\nContent persists with a shareable URL.";
-
 const ctx = createAgentContext();
 
 try {
+	const input = JSON.parse(process.argv[2] ?? '{}');
+	const content = input.content ?? "This is a durable stream demo.\\nContent persists with a shareable URL.";
 	ctx.logger.info("Creating durable stream");
 
 	const streamName = \`demo-\${Date.now()}\`;
@@ -422,6 +421,8 @@ try {
 	console.log("---OUTPUT---");
 	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
 }
+
+await new Promise<void>((resolve) => { process.stdout.write("", () => resolve()); });
 `,
 
 	cron: `\
@@ -529,57 +530,61 @@ await standaloneCtx.invoke(async () => {
 import { createAgentContext } from "@agentuity/runtime";
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
-import { generateText, generateObject } from "ai";
-import { z } from "zod";
+import { generateText } from "ai";
+
+function parseJSON(text, fallback) {
+	try {
+		const jsonMatch = text.match(/\\\`\\\`\\\`(?:json)?\\s*([\\s\\S]*?)\\\`\\\`\\\`/);
+		const jsonStr = jsonMatch && jsonMatch[1] ? jsonMatch[1].trim() : text.trim();
+		return JSON.parse(jsonStr);
+	} catch {
+		return fallback;
+	}
+}
 
 const input = JSON.parse(process.argv[2] ?? '{}');
 const userPrompt = input.prompt ?? "Write a creative one-liner about programming.";
 
 const ctx = createAgentContext();
 
-const JudgmentSchema = z.object({
-	winner: z.enum(["model-a", "model-b"]),
-	reasoning: z.string(),
-	scores: z.object({
-		creativity: z.number().min(0).max(1),
-		clarity: z.number().min(0).max(1),
-	}),
-});
+// Collect all output, print at the very end
+const output = [];
 
 try {
-	ctx.logger.info("Generating responses in parallel");
-
+	// Generate competing responses in parallel (no logging during execution)
 	const [responseA, responseB] = await Promise.all([
 		generateText({ model: openai("gpt-5-nano"), prompt: userPrompt }),
 		generateText({ model: anthropic("claude-haiku-4-5"), prompt: userPrompt }),
 	]);
 
-	ctx.logger.info("Judging responses");
+	// Use OpenAI for judging with manual JSON parsing
+	const judgeResult = await generateText({
+		model: openai("gpt-5-nano"),
+		prompt: \`Compare these responses and pick a winner. Return ONLY JSON:
+{"winner": "model-a" or "model-b", "reasoning": "brief reason", "scores": {"creativity": 0.0-1.0, "clarity": 0.0-1.0}}
 
-	const { object: judgment } = await generateObject({
-		model: openai("gpt-5-mini"),
-		schema: JudgmentSchema,
-		prompt: \`Compare these responses and pick a winner:\\n\\nModel A: \${responseA.text}\\nModel B: \${responseB.text}\\n\\nScore each on creativity and clarity (0-1).\`,
+Model A: \${responseA.text.slice(0, 200)}
+Model B: \${responseB.text.slice(0, 200)}\`,
 	});
 
-	console.log("---OUTPUT---");
-	console.log("=== Model Arena Demo ===");
-	console.log(\`Prompt: "\${userPrompt}"\`);
-	console.log("");
-	console.log("Model A (gpt-5-nano):");
-	console.log(\`  "\${responseA.text}"\`);
-	console.log("");
-	console.log("Model B (claude-haiku-4-5):");
-	console.log(\`  "\${responseB.text}"\`);
-	console.log("");
-	console.log("Judge Decision:");
-	console.log(\`  Winner: \${judgment.winner === "model-a" ? "Model A (gpt-5-nano)" : "Model B (claude-haiku-4-5)"}\`);
-	console.log(\`  Reasoning: \${judgment.reasoning}\`);
-	console.log(\`  Scores: Creativity=\${(judgment.scores.creativity * 100).toFixed(0)}%, Clarity=\${(judgment.scores.clarity * 100).toFixed(0)}%\`);
+	const judgment = parseJSON(judgeResult.text, {
+		winner: "model-a",
+		reasoning: "Could not parse judge response",
+		scores: { creativity: 0.5, clarity: 0.5 },
+	});
+
+	// Buffer all output (matches reference code style)
+	output.push(\`[INFO] Model A (OpenAI gpt-5-nano): "\${responseA.text}"\`);
+	output.push(\`[INFO] Model B (Anthropic claude-haiku-4-5): "\${responseB.text}"\`);
+	output.push(\`[INFO] Judge result {"winner":"\${judgment.winner}"}\`);
+	output.push(\`[INFO] Scores {"creativity":\${judgment.scores.creativity},"clarity":\${judgment.scores.clarity}}\`);
+	output.push(\`[INFO] Reasoning: \${judgment.reasoning}\`);
 } catch (error) {
-	console.log("---OUTPUT---");
-	console.log(\`Error: \${error instanceof Error ? error.message : String(error)}\`);
+	output.push(\`[ERROR] \${error instanceof Error ? error.message : String(error)}\`);
 }
+
+// Print everything at once at the very end
+console.log(output.join("\\n"));
 
 await new Promise<void>((resolve) => { process.stdout.write("", () => resolve()); });
 `,
